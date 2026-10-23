@@ -256,7 +256,7 @@ const pressUndo = async (page, button = platformUndo(page), { touch = false } = 
     const newest = Math.max(0, ...cards.map((card) => Number(card.dataset.lmrUndone)));
     return [...new Set(cards.filter((card) => Number(card.dataset.lmrUndone) === newest).map((card) => card.dataset.lmrCard))];
   });
-  const focusOnUndo = await page.evaluate(() => Boolean(document.activeElement?.closest?.('button')?.matches('.mathmaster-universal-undo, [aria-label^="Undo on"]')));
+  const focusOnUndo = await page.evaluate(() => Boolean(document.activeElement?.closest?.('button')?.matches('.mathmaster-universal-undo')));
   return { marked, announced: await takeAnnouncements(page), focusOnUndo };
 };
 // The element an Undo of `field` must bring into view: inside the enlarged
@@ -1171,38 +1171,35 @@ journeys.undo = async (browser) => {
   check(await hasCorrectBadge(page, 'slope'), 'the same slope typed again shows the verdict it was checked with');
   check(!(await takeAnnouncements(page)).some((entry) => /correct/i.test(entry.text)), 'no Check was replayed or announced');
 
-  // EACH GRAPH'S OWN UNDO is the same history, filtered to that graph.
+  // ONE UNDO (owner decision 2026-10-23): a graph has only Start over, and the
+  // platform Undo takes back the newest change first, wherever it was.
   await plot(page, page, 'graph3', [4, 10]);
   await plot(page, page, 'graph3', [5, 8]);
   await typeMath(page, mathField(page, 'xIntercept'), '(9,0)');
-  const xIntercept = (await work(page, id)).featureXIntercept;
-  const graph3Undo = card(page, 'graphPointSlope').getByRole('button', { name: /^Undo on Graph 3/ });
-  const g3 = await pressUndo(page, graph3Undo);
-  let saved = await work(page, id);
-  check(samePoints(saved.graph3Points, [[4, 10]]) && saved.featureXIntercept === xIntercept, `Graph 3's Undo takes back its last point and keeps the x-intercept typed after it (${JSON.stringify([saved.graph3Points, saved.featureXIntercept])})`);
-  check(samePoints(g3.marked, ['graphPointSlope']) && g3.announced.map((entry) => entry.text).join() === 'Undid your last change to Graph 3 (point-slope).', `Graph 3's Undo is shown and announced (${JSON.stringify(g3)})`);
+  check(await card(page, 'graphPointSlope').getByRole('button', { name: /Undo/ }).count() === 0, 'Graph 3 has no Undo of its own');
+  check(await card(page, 'graphPointSlope').getByRole('button', { name: /^Start Graph 3/ }).count() === 1, 'Graph 3 keeps its Start over');
   const xUndo = await pressUndo(page);
-  saved = await work(page, id);
-  check(saved.featureXIntercept === '' && samePoints(saved.graph3Points, [[4, 10]]), `the platform Undo then takes the x-intercept and never replays the point (${JSON.stringify([saved.graph3Points, saved.featureXIntercept])})`);
+  let saved = await work(page, id);
+  check(saved.featureXIntercept === '' && samePoints(saved.graph3Points, [[4, 10], [5, 8]]), `the platform Undo takes the x-intercept typed last and leaves the points (${JSON.stringify([saved.graph3Points, saved.featureXIntercept])})`);
   check(samePoints(xUndo.marked, ['xIntercept']), 'and shows the x-intercept card');
-  const g3Last = await pressUndo(page, graph3Undo);
-  check(samePoints((await work(page, id)).graph3Points, []) && await graph3Undo.isDisabled(), 'Graph 3\'s Undo walks back to an empty graph, then has nothing left');
-  check(!g3Last.focusOnUndo && await page.evaluate(() => Boolean(document.activeElement?.closest?.('.mm-lmr-board [data-lmr-plane="graph3"]'))), 'its last Undo hands focus to the Graph 3 plane, not the page');
+  const g3 = await pressUndo(page);
+  saved = await work(page, id);
+  check(samePoints(saved.graph3Points, [[4, 10]]), `the next Undo takes Graph 3's last point (${JSON.stringify(saved.graph3Points)})`);
+  check(samePoints(g3.marked, ['graphPointSlope']) && g3.announced.map((entry) => entry.text).join() === 'Undid your last change to Graph 3 (point-slope).', `and shows and announces it (${JSON.stringify(g3)})`);
 
-  // IN THE ENLARGED GRAPH the graph's Undo shows its change there, in the dialog.
+  // IN THE ENLARGED GRAPH, a dialog over the work bar, the same Undo is there.
   await card(page, 'graphIntercepts').getByRole('button', { name: /^Enlarge/ }).click();
   const dialog = page.locator('[role="dialog"][data-lmr-dialog="graph1"]');
   await dialog.waitFor();
   await settle(page, 300);
   await plot(page, dialog, 'graph1', [9, 0]);
-  const inDialog = await pressUndo(page, dialog.getByRole('button', { name: /^Undo on Graph 1/ }));
-  check(samePoints((await work(page, id)).graph1Points, []), 'the enlarged graph\'s own Undo takes back its point');
+  const dialogUndo = dialog.locator('.mathmaster-universal-undo');
+  check(await dialogUndo.count() === 1 && await dialog.getByRole('button', { name: /Undo on/ }).count() === 0, 'the dialog shows the one platform Undo, not a graph Undo');
+  const inDialog = await pressUndo(page, dialogUndo);
+  check(samePoints((await work(page, id)).graph1Points, []), 'the enlarged graph\'s Undo takes back its point');
   check(samePoints(inDialog.marked, ['graphIntercepts']) && await uncovered(dialog.locator('[data-lmr-field="graph1Points"]')), `the change is shown in the dialog (${JSON.stringify(inDialog.marked)})`);
   check(inDialog.announced.map((entry) => entry.text).join() === 'Undid your last change to Graph 1 (intercepts).', `and announced once (${JSON.stringify(inDialog)})`);
-  // That was Graph 1's last step, so its Undo is now off; focus must not fall
-  // out of the dialog — it goes to the plane, where the next point goes.
-  check(await dialog.getByRole('button', { name: /^Undo on Graph 1/ }).isDisabled(), 'with nothing left on Graph 1, its Undo is off');
-  check(await page.evaluate(() => Boolean(document.activeElement?.closest?.('[data-lmr-dialog="graph1"] [data-lmr-plane="graph1"]'))), 'focus stays in the dialog, on the plane');
+  check(await page.evaluate(() => Boolean(document.activeElement?.closest?.('[data-lmr-dialog="graph1"]'))), 'focus stays in the dialog');
   await page.keyboard.press('Escape');
   await settle(page, 300);
 

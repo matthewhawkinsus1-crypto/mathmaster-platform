@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { controlStep, Panel, ResultPill, TaskCard } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
@@ -26,7 +26,6 @@ import {
   resolveRequiredStages,
 } from './representationBridgeMath.js';
 import { FRACTION_ENTRY_PROPS } from '../../platform/interaction/numberEntry.js';
-import FocusSafeButton from '../../components/common/FocusSafeButton.jsx';
 import { bridgeFeedbackLines } from './bridgeFeedback.js';
 
 const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
@@ -109,8 +108,6 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
   const shownHighlight = methodWithheld ? null : activeHighlight;
   const [activeMeaningRow, setActiveMeaningRow] = useState(MEANING_ROWS[0]);
   const [notice, setNotice] = useState('');
-  const [redoDepth, setRedoDepth] = useState(0);
-  const redoStackRef = useRef([]);
 
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
 
@@ -176,8 +173,6 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
     tableEvidence, studentSlope, rateConclusion, generalM, generalB, generalEquation,
     factoredA, factoredC, factoredEquation, graphPoints, meaningAssignments, stageChecks,
   }), [tableEvidence, studentSlope, rateConclusion, generalM, generalB, generalEquation, factoredA, factoredC, factoredEquation, graphPoints, meaningAssignments, stageChecks]);
-  const mathematicalStateRef = useRef(mathematicalState);
-  mathematicalStateRef.current = mathematicalState;
 
   const applyState = (next) => {
     const value = next || emptyState;
@@ -195,36 +190,20 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
     setStageChecks(value.stageChecks || {});
   };
 
-  const undoHistory = useMathUndoHistory({
+  // ONE UNDO: the work bar's Undo walks this history; the tool keeps only its
+  // Start over (owner decision 2026-10-23, R-14 in student-ux-platform-pass).
+  useMathUndoHistory({
     label: 'Undo the last Representation Bridge change',
     state: mathematicalState,
     resetKey: questionUndoResetKey(questionData),
     onRestore: (restored) => {
-      redoStackRef.current = [...redoStackRef.current, mathematicalStateRef.current].slice(-60);
-      setRedoDepth(redoStackRef.current.length);
       applyState(restored);
       setNotice('');
       clearFeedback();
     },
   });
 
-  const clearRedo = () => {
-    if (!redoStackRef.current.length) return;
-    redoStackRef.current = [];
-    setRedoDepth(0);
-  };
-  const undo = () => { if (undoHistory.undo()) setNotice(''); };
-  const redo = () => {
-    const restored = redoStackRef.current.at(-1);
-    if (!restored) return;
-    redoStackRef.current = redoStackRef.current.slice(0, -1);
-    setRedoDepth(redoStackRef.current.length);
-    applyState(restored);
-    setNotice('');
-    clearFeedback();
-  };
   const startOver = () => {
-    clearRedo();
     applyState(emptyState);
     setSelectedRows([]);
     setStagingDx('');
@@ -250,14 +229,12 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
 
   const recordInterval = () => {
     if (!truth || alreadyRecorded) return;
-    clearRedo();
     setTableEvidence((current) => [...current, { i: rowI, j: rowJ, dx: stagingDx, dy: stagingDy, rate: stagingRate }]);
     setStagingDx(''); setStagingDy(''); setStagingRate('');
     setSelectedRows([]);
     clearFeedback();
   };
   const removeEvidence = (index) => {
-    clearRedo();
     setTableEvidence((current) => current.filter((_, entryIndex) => entryIndex !== index));
     clearFeedback();
   };
@@ -655,8 +632,6 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
       </div>
 
       <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <FocusSafeButton onClick={undo} enabled={undoHistory.canUndo} style={{ ...button }} aria-label="Undo">↶ Undo</FocusSafeButton>
-        <FocusSafeButton onClick={redo} enabled={Boolean(redoDepth)} style={{ ...button }} aria-label="Redo">↷ Redo</FocusSafeButton>
         <button type="button" onClick={startOver} style={{ ...button }}>Start over</button>
         <button
           className="representation-bridge-submit"

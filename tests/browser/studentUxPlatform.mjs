@@ -364,7 +364,8 @@ const JOURNEYS = {
     await settle(page, 300);
     const work = await page.evaluate(() => window.__ux.work('lmr-cw-2') || {});
     check((work.graph2Points || []).length === 0 && (work.graph1Points || []).length === 1, `platform Undo undid the wrong graph: ${JSON.stringify({ g1: work.graph1Points, g2: work.graph2Points })}`);
-    // Drag the Graph 1 point, then undo the drag with the graph's own Undo.
+    // Drag the Graph 1 point, then undo the drag with the one platform Undo
+    // (a graph has no Undo of its own, owner decision 2026-10-23).
     const g1 = page.locator('[data-lmr-plane="graph1"] svg[role="application"]');
     const g1box = await g1.boundingBox();
     await page.mouse.move(g1box.x + g1box.width * 0.5, g1box.y + g1box.height * 0.35);
@@ -373,10 +374,10 @@ const JOURNEYS = {
     await page.mouse.up();
     await settle(page, 300);
     const dragged = (await page.evaluate(() => window.__ux.work('lmr-cw-2')?.graph1Points))?.[0];
-    await page.getByRole('button', { name: 'Undo on Graph 1 · Intercept method' }).click().catch(() => page.locator('[aria-label^="Undo on Graph 1"]').click());
+    await page.locator('.mathmaster-work-bar-tool.mathmaster-universal-undo:visible').first().click();
     await settle(page, 300);
     const undone = (await page.evaluate(() => window.__ux.work('lmr-cw-2')?.graph1Points))?.[0];
-    check(JSON.stringify(dragged) !== JSON.stringify(undone), `the graph's own Undo did not take back the drag (${JSON.stringify(dragged)} → ${JSON.stringify(undone)})`);
+    check(JSON.stringify(dragged) !== JSON.stringify(undone), `the platform Undo did not take back the drag (${JSON.stringify(dragged)} → ${JSON.stringify(undone)})`);
     // Enlarged, the plane is still clipped and still plots.
     await page.locator('[aria-label^="Enlarge Graph 1"], button:has-text("Enlarge"), button:has-text("Open Work View")').first().click();
     await settle(page, 500);

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ResultPill, TaskCard, controlStep } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
@@ -17,7 +17,6 @@ import linearTableWorkbenchGrader, {
 import { resolveLinearTableWorkbenchMode } from '../../../functions/shared/serverGrading/declarations/linearTableWorkbench.mjs';
 import { FRACTION_ENTRY_PROPS } from '../../platform/interaction/numberEntry.js';
 import { SubmitText } from '../shared/ToolRuntimeContext';
-import FocusSafeButton from '../../components/common/FocusSafeButton.jsx';
 import { questionAxisLabels } from '../shared/planeAxisTitles.js';
 import { intervalMissMessage } from './intervalFeedback.js';
 
@@ -56,16 +55,12 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
   // navigation/Undo can never destroy the last recorded version by accident.
   const [editingEvidenceIndex, setEditingEvidenceIndex] = useState(null);
   const [notice, setNotice] = useState('');
-  const [redoDepth, setRedoDepth] = useState(0);
-  const redoStackRef = useRef([]);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
 
   const mathematicalState = useMemo(
     () => ({ evidence, classification, repairRowIndex, repairedValue, m, b, equation }),
     [evidence, classification, repairRowIndex, repairedValue, m, b, equation],
   );
-  const mathematicalStateRef = useRef(mathematicalState);
-  mathematicalStateRef.current = mathematicalState;
   // The student's work: exactly what Check submits and what a deadline
   // checkpoints (the recorded intervals travel as `intervals`). Staging boxes
   // and row selection are not work until the student records the interval.
@@ -91,8 +86,6 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
     state: mathematicalState,
     resetKey: questionUndoResetKey(questionData),
     onRestore: (restored) => {
-      redoStackRef.current = [...redoStackRef.current, mathematicalStateRef.current].slice(-60);
-      setRedoDepth(redoStackRef.current.length);
       applyState(restored);
       setEditingEvidenceIndex(null);
       setSelectedRows([]);
@@ -104,27 +97,16 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
     },
   });
 
-  const clearRedo = () => {
-    if (!redoStackRef.current.length) return;
-    redoStackRef.current = [];
-    setRedoDepth(0);
-  };
-
-  const undo = () => { if (undoHistory.undo()) setNotice(''); };
-  const redo = () => {
-    const restored = redoStackRef.current.at(-1);
-    if (!restored) return;
-    redoStackRef.current = redoStackRef.current.slice(0, -1);
-    setRedoDepth(redoStackRef.current.length);
-    applyState(restored);
-    setNotice('');
-    clearFeedback();
-  };
+  // ONE UNDO: the work bar's (platform) Undo walks this history; the tool keeps
+  // only its own Start over. Its Undo/Redo duplicated the work bar's beside
+  // "Reset Question" (walkthrough 2026-10-22, DOL #3 PR 3; owner decision
+  // 2026-10-23: one universal Undo, tools keep their own Clear). The notice's
+  // Restore walks the same history.
+  const restoreFromNotice = () => { if (undoHistory.undo()) setNotice(''); };
 
   const startOver = () => {
     const hasWork = evidence.length || classification || repairRowIndex != null || repairedValue || m || b || equation;
     if (!hasWork) return;
-    clearRedo();
     applyState(emptyState);
     setSelectedRows([]);
     setEditingEvidenceIndex(null);
@@ -163,7 +145,6 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
 
   const recordInterval = () => {
     if (!truth || alreadyRecorded) return;
-    clearRedo();
     const nextEntry = { i, j, dx: stagingDx, dy: stagingDy, rate: stagingRate };
     if (editingEvidenceIndex != null) {
       setEvidence((current) => current.map((entry, index) => (index === editingEvidenceIndex ? nextEntry : entry)));
@@ -202,7 +183,6 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
   };
 
   const removeEvidence = (index) => {
-    clearRedo();
     setEvidence((current) => current.filter((_, entryIndex) => entryIndex !== index));
     if (editingEvidenceIndex === index) cancelEvidenceEdit();
     else if (editingEvidenceIndex != null && index < editingEvidenceIndex) setEditingEvidenceIndex(editingEvidenceIndex - 1);
@@ -456,8 +436,6 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
       ) : null}
 
       <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <FocusSafeButton onClick={undo} enabled={undoHistory.canUndo} style={{ ...button }} aria-label="Undo">↶ Undo</FocusSafeButton>
-        <FocusSafeButton onClick={redo} enabled={Boolean(redoDepth)} style={{ ...button }} aria-label="Redo">↷ Redo</FocusSafeButton>
         <button type="button" onClick={startOver} style={{ ...button }}>Start over</button>
         <button
           className="linear-table-workbench-submit"
@@ -471,7 +449,7 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
         </button>
         {feedback ? <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Needs another look'}</ResultPill> : null}
       </div>
-      {notice ? <p role="status" style={{ color: 'var(--mm-text-muted)' }}>{notice} <button type="button" onClick={undo}>Restore</button></p> : null}
+      {notice ? <p role="status" style={{ color: 'var(--mm-text-muted)' }}>{notice} <button type="button" onClick={restoreFromNotice}>Restore</button></p> : null}
       {feedback && !feedback.isCorrect && feedbackGuidance ? (
         <p role="status" style={{ color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>
           <strong>Where to check:</strong> {feedbackGuidance} MathMaster points you to the location of the issue without giving away the correct value.

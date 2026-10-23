@@ -19,7 +19,6 @@ import {
 } from './regressionAddMenu.js';
 import './RegressionCalculator.css';
 import { useSubmitLabel } from '../shared/ToolRuntimeContext';
-import FocusSafeButton from '../../components/common/FocusSafeButton.jsx';
 import { regressionFeedbackText } from './regressionFeedback.js';
 
 const EMPTY_EXPRESSION = () => ({ id: crypto.randomUUID(), type: 'expression', value: '' });
@@ -60,8 +59,6 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
   const [strength, setStrength] = usePersistentToolState('strength', '');
   const [notice, setNotice] = useState('');
   const [processEvidence, setProcessEvidence] = usePersistentToolState('processEvidence', []);
-  const [redoDepth, setRedoDepth] = useState(0);
-  const redoStackRef = useRef([]);
   const inputRefs = useRef([]);
   const addTriggerRef = useRef(null);
   const addMenuId = useId();
@@ -90,8 +87,6 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
     () => ({ rows, run, direction, strength }),
     [rows, run, direction, strength],
   );
-  const mathematicalStateRef = useRef(mathematicalState);
-  mathematicalStateRef.current = mathematicalState;
 
   // The student's work, exactly as Submit sends it and as a deadline reads it.
   const work = useMemo(
@@ -100,48 +95,27 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
   );
   useReportToolWork(work);
 
-  const clearRedo = () => {
-    if (!redoStackRef.current.length) return;
-    redoStackRef.current = [];
-    setRedoDepth(0);
-  };
-
+  // ONE UNDO: the work bar's Undo walks this history (and is recorded as
+  // process evidence here); the toolbar keeps only ↺ Start over, whose notice
+  // offers Restore. Its own ↶/↷ duplicated the work bar's (owner decision
+  // 2026-10-23, R-14 in student-ux-platform-pass).
   const undoHistory = useMathUndoHistory({
     label: 'Undo the last Regression Calculator change',
     state: mathematicalState,
     resetKey: questionUndoResetKey(questionData),
     onRestore: (restored) => {
       if (!restored) return;
-      redoStackRef.current = [...redoStackRef.current, mathematicalStateRef.current].slice(-60);
-      setRedoDepth(redoStackRef.current.length);
       setRows(restored.rows || [EMPTY_EXPRESSION()]);
       setRun(restored.run || null);
       setDirection(restored.direction || '');
       setStrength(restored.strength || '');
       setNotice('');
       clearFeedback();
+      record('undoUsed');
     },
   });
 
-  const undo = () => {
-    if (!undoHistory.undo()) return;
-    setNotice('');
-    record('undoUsed');
-  };
-
-  const redo = () => {
-    const restored = redoStackRef.current.at(-1);
-    if (!restored) return;
-    redoStackRef.current = redoStackRef.current.slice(0, -1);
-    setRedoDepth(redoStackRef.current.length);
-    setRows(restored.rows || [EMPTY_EXPRESSION()]);
-    setRun(restored.run || null);
-    setDirection(restored.direction || '');
-    setStrength(restored.strength || '');
-    setNotice('');
-    clearFeedback();
-    record('redoUsed');
-  };
+  const restoreCleared = () => { undoHistory.undo(); };
 
   const startOver = () => {
     const hasWork = rows.some((row) => (
@@ -150,7 +124,6 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
         : Boolean(String(row.value || '').trim())
     )) || Boolean(run || direction || strength);
     if (!hasWork) return;
-    clearRedo();
     setRows([EMPTY_EXPRESSION()]);
     setSelectedId(null);
     setEditOpen(false);
@@ -164,7 +137,6 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
   };
 
   const updateExpression = (id, value) => {
-    clearRedo();
     const before = rows.find((row) => row.id === id)?.value;
     const editedIndex = rows.findIndex((row) => row.id === id);
     const shouldEmerge = editedIndex === rows.length - 1
@@ -189,7 +161,6 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
   // Enter in the last expression box — goes through one resolver, so every
   // route records the same state (regressionAddMenu.js).
   const chooseAddItem = (choice) => {
-    clearRedo();
     setAddMenuOpen(false);
     const outcome = resolveAddMenuChoice(choice, {
       rows,
@@ -269,7 +240,6 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
   };
 
   const convertToTable = () => {
-    clearRedo();
     const pair = orderedPair(selected?.value);
     if (!pair) return;
     const table = {
@@ -285,7 +255,6 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
   };
 
   const updateTable = (rowIndex, column, value) => {
-    clearRedo();
     setRows((current) => current.map((row) => {
       if (row.type !== 'table') return row;
       const nextRows = row.rows.map((pair, index) => index === rowIndex
@@ -303,7 +272,6 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
   };
 
   const removeRow = (id) => {
-    clearRedo();
     const next = rows.filter((row) => row.id !== id);
     commitRows(next.length ? next : [EMPTY_EXPRESSION()]);
     if (selectedId === id) setSelectedId(null);
@@ -314,7 +282,6 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
   const deleteAll = startOver;
 
   const execute = (row) => {
-    clearRedo();
     if (!tableRow || tablePoints.length < 2 || !isRegressionExpression(row.value)) return;
     const stats = regressionCalculatorStats(tablePoints);
     if (!stats) return;
@@ -331,7 +298,6 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
   };
 
   const addRegressionFromTable = () => {
-    clearRedo();
     if (!tableRow || tablePoints.length < 2) return;
     const existing = rows.find((row) => row.type === 'expression' && isRegressionExpression(row.value));
     if (existing) {
@@ -447,9 +413,6 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
                 Delete All
               </button>
               <span className="regression-toolbar-spacer" />
-              <FocusSafeButton onClick={undo} enabled={undoHistory.canUndo} aria-label="Undo">↶</FocusSafeButton>
-              <FocusSafeButton onClick={redo} enabled={Boolean(redoDepth)} aria-label="Redo">↷</FocusSafeButton>
-              <span className="regression-toolbar-spacer" />
               <button className="regression-done" type="button" onClick={openEdit} aria-label="Done editing">Done</button>
             </>
           ) : (
@@ -489,9 +452,6 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
                 ) : null}
               </div>
               <span className="regression-toolbar-spacer" />
-              <FocusSafeButton className="regression-tool-icon" onClick={undo} enabled={undoHistory.canUndo} aria-label="Undo" title="Undo">↶</FocusSafeButton>
-              <FocusSafeButton className="regression-tool-icon" onClick={redo} enabled={Boolean(redoDepth)} aria-label="Redo" title="Redo">↷</FocusSafeButton>
-              <span className="regression-toolbar-spacer" />
               <button className="regression-tool-icon regression-reset" type="button" onClick={startOver} aria-label="Start over" title="Clear this calculator and start over">↺</button>
               <button className="regression-tool-icon regression-settings" type="button" onClick={openEdit} aria-label="Settings and edit" title="Edit">⚙</button>
               <button
@@ -526,7 +486,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
           {notice ? (
             <div className="regression-notice" role="status">
               <span>{notice}</span>
-              <button type="button" onClick={undo}>{notice === 'Workspace cleared.' ? 'Restore' : 'Undo'}</button>
+              {notice === 'Workspace cleared.' ? <button type="button" onClick={restoreCleared}>Restore</button> : null}
             </div>
           ) : null}
 
@@ -695,8 +655,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
                 <select
                   value={direction}
                   onChange={(event) => {
-                    clearRedo();
-                    setDirection(event.target.value);
+                                    setDirection(event.target.value);
                     record('interpretationSelected', { kind: 'direction' });
                   }}
                 >
@@ -711,8 +670,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
                 <select
                   value={strength}
                   onChange={(event) => {
-                    clearRedo();
-                    setStrength(event.target.value);
+                                    setStrength(event.target.value);
                     record('interpretationSelected', { kind: 'strength' });
                   }}
                 >

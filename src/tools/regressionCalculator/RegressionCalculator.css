@@ -766,23 +766,3 @@
     overflow:hidden;
   }
 }
-
-
-/* Regression Calculator owns the calculator-style Undo button, but that
-   button is registered through WorkViewUndoProvider and therefore uses the
-   SAME mathematical history as the platform Universal Undo. Hide duplicate
-   platform chrome anywhere this tool is already presenting its routed Undo. */
-.mathmaster-work-view-host:has(.regression-calculator)
-.mathmaster-work-view-actions
-.mathmaster-universal-undo,
-.mathmaster-desktop-question-content:has(.regression-calculator)
-.mathmaster-desktop-action-bar
-.mathmaster-universal-undo,
-.mathmaster-question-container:has(.regression-calculator)
-.portrait-action-bar
-.mathmaster-universal-undo,
-.mathmaster-question-container:has(.regression-calculator)
-.landscape-action-bar
-.mathmaster-universal-undo {
-  display:none;
-}
