@@ -13,14 +13,15 @@ import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 const NO_EQUATIONS = Object.freeze([]);
 
 export default function SystemGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
-  const { prompt, solution, showEquations = true, showGraph = true, graph } = question;
+  const { prompt, showEquations = true, showGraph = true, graph } = question;
   // Same null-vs-undefined trap as TableGrader: `= []` does not catch an
   // explicit null, and this value is used via `.length` further down.
   const equationsLatex = Array.isArray(question.equationsLatex) ? question.equationsLatex : NO_EQUATIONS;
   const [answer, setAnswer] = useLocalDraftState(draftKey ? `${draftKey}:system` : null, '');
   // Correctness comes from the shared grading contract so every caller of it —
   // this screen, the deadline finalizer, the tests — marks alike.
-  const graded = gradeSystemResponse({ solution }, answer);
+  // The whole question: its key may be `solution` or `answer` (GR31).
+  const graded = gradeSystemResponse(question, answer);
   const { isComplete, isCorrect } = graded;
 
   useEffect(() => {

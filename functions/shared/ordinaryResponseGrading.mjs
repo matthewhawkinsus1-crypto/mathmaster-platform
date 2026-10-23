@@ -82,7 +82,7 @@ const hasAnswerKey = (question = {}) => {
       return Array.isArray(pair) || Boolean(orderedPairKey(pair));
     }
     case 'system':
-      return Array.isArray(question.solution);
+      return Boolean(systemSolutionKey(question));
     case 'table':
       return Object.keys(question?.table?.answers || {}).length > 0;
     default:
@@ -213,8 +213,26 @@ export const gradeOrderedPairResponse = (question = {}, rawAnswer) => {
   };
 };
 
+/*
+ * A system's key as [x, y]. The type catalog's own example keys it as
+ * `answer: { x: 2, y: 5 }` and the V5 compiler writes `answer`, but only an
+ * array in `solution` was read, so a system keyed { x, y } was wrong for
+ * every answer and the server never marked it (GR31). Either field, as an
+ * array, an { x, y } record or pair text.
+ */
+export const systemSolutionKey = (question = {}) => {
+  for (const key of [question.solution, question.answer]) {
+    const pairOf = key && typeof key === 'object' && !Array.isArray(key) && key.x !== undefined && key.y !== undefined
+      ? [key.x, key.y]
+      : key;
+    const pair = orderedPairKey(pairOf);
+    if (pair) return pair;
+  }
+  return null;
+};
+
 export const gradeSystemResponse = (question = {}, rawAnswer) => {
-  const solution = question.solution;
+  const solution = systemSolutionKey(question);
   const parsed = parseOrderedPair(rawAnswer);
   const isComplete = Boolean(parsed);
   const xCorrect = Boolean(parsed) && Math.abs(parsed[0] - Number(solution?.[0])) <= 1e-9;
