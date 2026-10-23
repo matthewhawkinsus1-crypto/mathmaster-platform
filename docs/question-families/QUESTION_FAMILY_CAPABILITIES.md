@@ -21,8 +21,13 @@ first seat, seats 1–3, 4–6, … each get one of each case); its capacity is 
 | Family | Version | Solution cases | Coefficient forms | Target tool | Server grading | Recovery ready | Class of 30 (default setting) | Reduced complexity |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `absoluteValue.solveEquation` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 8,588 — every student unique | — |
+| `equations.verifySolution` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 474,764 — every student unique | — |
 | `functions.identifyIntercepts` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 324 — every student unique | — |
 | `functions.identifyZeros` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 162 — every student unique | — |
+| `inequalities.contextModel` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 290 — every student unique | — |
+| `inequalities.solveLinear` | v1 · what an unpinned reference means | — | — | `stepAlgebra` (relation) | yes — shared server grader | yes | about 66,120 — every student unique | — |
+| `inequalities.translatePhrase` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 2,160 — every student unique | — |
+| `linear.contextFunction` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 132 — every student unique | — |
 | `linear.graphFromSlopeIntercept` | v1 · what an unpinned reference means | — | — | `graphing2` (slopeIntercept) | yes — shared server grader | yes | 150 — every student unique | reduce-complexity: slopeRange [1, 3]; keeps slope |
 | `linear.keyCharacteristics` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 180 — every student unique | reduce-complexity: slopeRange [1, 3]; keeps slope, xIntercept |
 | `linear.multipleRepresentations` | v1 · what an unpinned reference means | — | — | `representationBridge` (linearMultipleRepresentations) | yes — shared server grader | yes | 62 — every student unique | reduce-complexity: slope "integer", standardScale 1 |
@@ -46,8 +51,13 @@ first seat, seats 1–3, 4–6, … each get one of each case); its capacity is 
 | `numbers.reciprocals` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 2,257,376 — every student unique | — |
 | `quadratics.identifyVertex` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 884 — every student unique | — |
 | `systems.algebraic2x2` | v1 · what an unpinned reference means | one, none, infinite, mixed | integer | `systemsWorkspace` (algebraic) | yes — shared server grader | yes | about 2,355,530 — every student unique | reduce-complexity: coefficientRange [-4, 4], solutionRange [-6, 6]; keeps solutionCase, solutionForm |
+| `systems.classifyByStructure` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 1,680 — every student unique | — |
+| `systems.contextModel` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 1,794 — every student unique | — |
 | `systems.elimination` | v1 · what an unpinned reference means | — | — | `system` default, `multiAnswer` | yes — shared server grader | yes | about 2,174,110 — every student unique | — |
+| `systems.graphical2x2` | v1 · what an unpinned reference means | one, none, infinite, mixed | — | `systemsWorkspace` (linear) | yes — shared server grader | yes | about 1,224 — every student unique | — |
+| `systems.knownValue` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 210 — every student unique | — |
 | `systems.substitution` | v1 · what an unpinned reference means | — | — | `system` default, `multiAnswer` | yes — shared server grader | yes | about 212,550 — every student unique | — |
+| `systems.substitution` | v2 · only when pinned (`"version": 2`) | one, none, infinite, mixed | integer | `systemsWorkspace` (algebraic) | yes — shared server grader | yes | about 193,855 — every student unique | reduce-complexity: solutionRange [-6, 6], slopeRange [-3, 3], coefficientRange [-4, 4]; keeps solutionCase, form |
 | `transformations.linearCompareEffects` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 1,152 — every student unique | — |
 | `transformations.linearHorizontalShiftAlgebra` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 576 — every student unique | reduce-complexity: slopeRange [2, 3], shiftRange [1, 3] |
 | `transformations.linearPlotImages` | v1 · what an unpinned reference means | — | — | `transformationsLab` (plotTransform) | yes — shared server grader | yes | 49 — every student unique | reduce-complexity: shiftRange [1, 5]; keeps transformation |
@@ -75,6 +85,25 @@ Absolute value equation.
 | Setting | Distinct questions | Per case / shape |
 | --- | --- | --- |
 | default | about 8,588 | — |
+
+### `equations.verifySolution` v1
+
+Check a solution by substitution.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A.5A, 8.8C
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `variable` | choice | `"x"` | `"x"`, `"n"`, `"a"`, `"m"`, `"t"` | — |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 474,764 | solution: about 237,382; notSolution: about 1,170,028 |
 
 ### `functions.identifyIntercepts` v1
 
@@ -114,6 +143,95 @@ Zeros of a quadratic function.
 | Setting | Distinct questions | Per case / shape |
 | --- | --- | --- |
 | default | 162 | — |
+
+### `inequalities.contextModel` v1
+
+Model a situation with an inequality and interpret the solution.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A.5B, A.1A
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `direction` | choice | `"mixed"` | `"increasing"`, `"decreasing"`, `"mixed"` | — |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | 290 | no: 191; yes: 145 |
+
+### `inequalities.solveLinear` v1
+
+Solve a linear inequality and graph its solution.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** strict — an unknown constraint, a value it does not list, or a tool it cannot fill stops generation with a message naming what is allowed. Nothing falls back to a default.
+- **Alignments:** A.5B, 7.10A
+- **Answered in:** `stepAlgebra` (relation) — Step Algebra relation workspace
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+- **Independent verification:** solveDisplayedInequality on the displayed term trees (questionFamilyExact.expandLinearSide)
+- **Arithmetic:** exact rationals throughout; a fraction is never shown or keyed as a decimal.
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `reversal` | choice | `"mixed"` | `"required"`, `"none"`, `"mixed"` | yes |
+| `distribute` | choice | `"mixed"` | `false`, `true`, `"mixed"` | yes |
+| `bothSides` | choice | `"mixed"` | `false`, `true`, `"mixed"` | yes |
+| `boundaryRange` | range | `[-9, 9]` | whole-number range inside [-20, 20] | — |
+| `coefficientRange` | range | `[-6, 6]` | whole-number range inside [-12, 12] | — |
+| `constantRange` | range | `[-12, 12]` | whole-number range inside [-30, 30] | — |
+| `variable` | choice | `"x"` | `"x"`, `"n"`, `"a"`, `"b"`, `"k"`, `"m"`, `"p"`, `"t"`, `"w"` | — |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 66,120 | required · twoStep: about 9,008; required · bothSides: about 114,655; required · distribute: about 8,265; required · distributeBothSides: about 89,454; none · twoStep: about 8,968; none · bothSides: about 116,451; none · distribute: about 8,336; none · distributeBothSides: about 91,057 |
+| reversal: "required" | about 33,060 | required · twoStep: about 9,008; required · bothSides: about 114,655; required · distribute: about 8,265; required · distributeBothSides: about 89,454 |
+| reversal: "none" | about 33,344 | none · twoStep: about 8,968; none · bothSides: about 116,451; none · distribute: about 8,336; none · distributeBothSides: about 91,057 |
+| distribute: false | about 35,872 | required · twoStep: about 9,008; required · bothSides: about 114,655; none · twoStep: about 8,968; none · bothSides: about 116,451 |
+| distribute: true | about 33,060 | required · distribute: about 8,265; required · distributeBothSides: about 89,454; none · distribute: about 8,336; none · distributeBothSides: about 91,057 |
+| bothSides: false | about 33,060 | required · twoStep: about 9,008; required · distribute: about 8,265; none · twoStep: about 8,968; none · distribute: about 8,336 |
+| bothSides: true | about 357,816 | required · bothSides: about 114,655; required · distributeBothSides: about 89,454; none · bothSides: about 116,451; none · distributeBothSides: about 91,057 |
+
+### `inequalities.translatePhrase` v1
+
+Write an inequality from words.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A.5B, 7.10A
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 2,160 | — |
+
+### `linear.contextFunction` v1
+
+Write and interpret a linear function from a situation.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A.3B, A.2C
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `direction` | choice | `"any"` | `"increasing"`, `"decreasing"`, `"any"` | — |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | 132 | — |
 
 ### `linear.graphFromSlopeIntercept` v1
 
@@ -639,6 +757,46 @@ System of two linear equations (algebraic: one, none or infinitely many).
 
 - **reduce-complexity:** `coefficientRange` [-4, 4], `solutionRange` [-6, 6] — about 315,016 distinct questions; never changes `solutionCase`, `solutionForm`.
 
+### `systems.classifyByStructure` v1
+
+Classify a system from its slopes and y-intercepts.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A.3F, A.5C
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 1,680 | one: about 52,001; none: about 7,227; infinite: 560 |
+
+### `systems.contextModel` v1
+
+Write and solve a system that models a situation.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A.2I, A.5C
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `shape` | choice | `"mixed"` | `"sumAndTotal"`, `"oneDefined"`, `"equalCost"`, `"mixed"` | yes |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 1,794 | sumAndTotal · tickets: about 341,544; sumAndTotal · snack: 1,680; oneDefined · seats: about 3,480; oneDefined · ages: 299; equalCost · rental: 779; equalCost · gym: 594 |
+| shape: "sumAndTotal" | about 3,360 | sumAndTotal · tickets: about 341,544; sumAndTotal · snack: 1,680 |
+| shape: "oneDefined" | about 598 | oneDefined · seats: about 3,480; oneDefined · ages: 299 |
+| shape: "equalCost" | 1,188 | equalCost · rental: 779; equalCost · gym: 594 |
+
 ### `systems.elimination` v1
 
 System of linear equations (elimination).
@@ -660,6 +818,50 @@ System of linear equations (elimination).
 | --- | --- | --- |
 | default | about 2,174,110 | — |
 
+### `systems.graphical2x2` v1
+
+Solve a system by graphing both lines.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** strict — an unknown constraint, a value it does not list, or a tool it cannot fill stops generation with a message naming what is allowed. Nothing falls back to a default.
+- **Alignments:** A.3F, A.5C
+- **Answered in:** `systemsWorkspace` (linear)
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+- **Independent verification:** the case recomputed from the slopes and intercepts; Pre-Flight re-reads every displayed equation as its graded line
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `solutionCase` | choice | `"mixed"` | `"one"`, `"none"`, `"infinite"`, `"mixed"` | yes |
+| `secondForm` | choice | `"mixed"` | `"slopeIntercept"`, `"standard"`, `"mixed"` | yes |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 1,224 | one · slopeIntercept: about 1,729; one · standard: about 3,552; none · slopeIntercept: 1,440; none · standard: about 2,885; infinite · slopeIntercept: 204; infinite · standard: 204 |
+| solutionCase: "one" | about 3,458 | one · slopeIntercept: about 1,729; one · standard: about 3,552 |
+| solutionCase: "none" | about 2,880 | none · slopeIntercept: 1,440; none · standard: about 2,885 |
+| solutionCase: "infinite" | 408 | infinite · slopeIntercept: 204; infinite · standard: 204 |
+| secondForm: "slopeIntercept" | about 612 | one · slopeIntercept: about 1,729; none · slopeIntercept: 1,440; infinite · slopeIntercept: 204 |
+| secondForm: "standard" | about 612 | one · standard: about 3,552; none · standard: about 2,885; infinite · standard: 204 |
+
+### `systems.knownValue` v1
+
+Substitute a known value or expression into a system.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A.5C
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 210 | given: about 2,843; equal: 70; offset: 782 |
+
 ### `systems.substitution` v1
 
 System of linear equations (substitution).
@@ -680,6 +882,39 @@ System of linear equations (substitution).
 | Setting | Distinct questions | Per case / shape |
 | --- | --- | --- |
 | default | about 212,550 | — |
+
+### `systems.substitution` v2
+
+System of linear equations by substitution (Systems Workspace: one, none or infinitely many).
+
+- **Pinning:** used only by a slot that says `"version": 2`; an unpinned reference still means v1, so no existing question changes.
+- **Constraint policy:** strict — an unknown constraint, a value it does not list, or a tool it cannot fill stops generation with a message naming what is allowed. Nothing falls back to a default.
+- **Alignments:** A.5C
+- **Answered in:** `systemsWorkspace` (algebraic) — methods substitution, elimination, studentChoice (default substitution)
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+- **Independent verification:** determinant and augmented minors of the displayed rows (classifySubstitutionRows)
+- **Arithmetic:** exact rationals throughout; a fraction is never shown or keyed as a decimal.
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `solutionCase` | choice | `"one"` | `"one"`, `"none"`, `"infinite"`, `"mixed"` | yes |
+| `form` | choice | `"solvedForY"` | `"solvedForY"`, `"solvedForX"`, `"unitCoefficient"`, `"mixed"` | yes |
+| `solutionRange` | range | `[-8, 8]` | whole-number range inside [-15, 15] | — |
+| `slopeRange` | range | `[-5, 5]` | whole-number range inside [-9, 9] | — |
+| `coefficientRange` | range | `[-6, 6]` | whole-number range inside [-12, 12] | — |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 193,855 | one · solvedForY: about 193,855 |
+| solutionCase: "none" | about 27,755 | none · solvedForY: about 27,755 |
+| solutionCase: "infinite" | 600 | infinite · solvedForY: 600 |
+| solutionCase: "mixed" | about 1,800 | one · solvedForY: about 193,855; none · solvedForY: about 27,755; infinite · solvedForY: 600 |
+| form: "solvedForX" | about 191,214 | one · solvedForX: about 191,214 |
+| form: "unitCoefficient" | about 391,369 | one · unitCoefficient: about 391,369 |
+| form: "mixed" | about 573,642 | one · solvedForY: about 193,855; one · solvedForX: about 191,214; one · unitCoefficient: about 391,369 |
+
+- **reduce-complexity:** `solutionRange` [-6, 6], `slopeRange` [-3, 3], `coefficientRange` [-4, 4] — about 41,859 distinct questions; never changes `solutionCase`, `form`.
 
 ### `transformations.linearCompareEffects` v1
 

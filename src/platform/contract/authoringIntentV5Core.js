@@ -1122,7 +1122,11 @@ const resolveIntentType = (q, actions) => {
   // linear or absolute-value inequality goes to the Step Algebra relation
   // workspace, which also enforces the sign reversal.
   if (q.signChart || (actions.includes('solveInequality') && hasSignChartData(q))) return 'signSolutionAnalyzer';
-  if (actions.includes('solveInequality') && readableInequalityIntent(q)) return 'stepAlgebra';
+  // A Question Family slot has no inequality yet: its family writes one per
+  // student. The inequality families build Step Algebra's relation workspace
+  // (the sign chart, which needs authored factors, has none), so the slot is
+  // that solve too — not the analyzer's sample problem.
+  if (actions.includes('solveInequality') && (readableInequalityIntent(q) || isObject(q.questionFamily))) return 'stepAlgebra';
   if (actions.includes('solveInequality')) return 'signSolutionAnalyzer';
   if (q.complex || q.z || actions.some((a) => ['complexOperations','analyzeComplex'].includes(a))) return 'complexPlaneLab';
   if (q.logarithm || q.exponentialLog || actions.some((a) => ['exponentialLogBridge','solveExponential','solveLogarithmic'].includes(a))) return 'exponentialLogBridge';
@@ -1981,6 +1985,11 @@ const compileOne = (q, index, repairs) => {
         'sourceConstraints', 'expectedConstraints', 'studentBuild', 'reasoning',
         'testPoint', 'allowStudentTestPoint', 'askClassification', 'askVertices',
         'modeling', 'graph', 'spatialModel',
+        // Graph mode's opt-in construct form: the student graphs each line
+        // from two points before reading the system (`interaction`), each
+        // equation shown as the question writes it (`equationLabels`), on the
+        // plane's plotting grid (`snapStep`).
+        'interaction', 'equationLabels', 'snapStep',
       ].forEach((key) => {
         if (q[key] != null) out[key] = q[key];
       });

@@ -180,7 +180,11 @@ test('on a real exit ticket, Read aloud says the graph without a position while 
     }
     return (workflow?.length ? selectPersistentWorkflowGraph({ content, workflow, checkedGraph: null }) : null) || question.graph;
   };
-  const assessed = realQuestions().filter(({ role, question }) => ['dol', 'quiz', 'test'].includes(role) && question.graph);
+  // A graph the student constructs (Systems Workspace graph mode, `interaction:
+  // "construct"`) carries only the window of the plane they draw on: nothing
+  // is drawn for them, and it is the workspace's plane, never this figure.
+  const constructed = (question) => question.type === 'systemsWorkspace' && question.interaction === 'construct';
+  const assessed = realQuestions().filter(({ role, question }) => ['dol', 'quiz', 'test'].includes(role) && question.graph && !constructed(question));
   assert.ok(assessed.length >= 6, `${assessed.length} real assessment items with a graph`);
   assessed.forEach(({ stored, question }) => {
     const graph = drawnGraph(question);

@@ -1170,6 +1170,58 @@ const platformFamilySentences = [
   ['Subtract {1} on both sides: {2}.', 'Resta {1} en los dos lados: {2}.'],
   ['Dividing by a negative number flips the symbol, so {1} becomes {2}: {3}.', 'Dividir entre un número negativo invierte el símbolo, así que {1} se convierte en {2}: {3}.'],
   ['Check with {1}, on the solution side: {2} is true.', 'Comprueba con {1}, del lado de la solución: {2} es verdadero.'],
+  // A system solved by graphing (systems.graphical2x2, and graph mode when
+  // the student draws both lines): hints,
+  ['Graph {1}: plot its y-intercept, {2}, on the y-axis, then use the slope {3} to find another point.', 'Grafica {1}: ubica su intersección con el eje y, {2}, en el eje y, y luego usa la pendiente {3} para hallar otro punto.'],
+  ['Graph {1}: plot its y-intercept on the y-axis, then use its slope to find another point.', 'Grafica {1}: ubica su intersección con el eje y en el eje y, y luego usa su pendiente para hallar otro punto.'],
+  ['Graph the first line: plot its y-intercept on the y-axis, then use its slope to find another point.', 'Grafica la primera recta: ubica su intersección con el eje y en el eje y, y luego usa su pendiente para hallar otro punto.'],
+  ['Graph {1} the same way: start at its y-intercept, {2}, and use the slope {3}.', 'Grafica {1} de la misma manera: empieza en su intersección con el eje y, {2}, y usa la pendiente {3}.'],
+  ['Graph {1} the same way, from its y-intercept with its slope.', 'Grafica {1} de la misma manera, a partir de su intersección con el eje y y de su pendiente.'],
+  ['Graph the second line the same way, from its y-intercept with its slope.', 'Grafica la segunda recta de la misma manera, a partir de su intersección con el eje y y de su pendiente.'],
+  ['Compare the slopes, {1} and {2}, and the y-intercepts: decide whether the lines cross at a single point, never meet, or lie on top of each other.', 'Compara las pendientes, {1} y {2}, y las intersecciones con el eje y: decide si las rectas se cruzan en un solo punto, nunca se encuentran o quedan una encima de la otra.'],
+  ['Compare the two slopes and the two y-intercepts: decide whether the lines cross at a single point, never meet, or lie on top of each other.', 'Compara las dos pendientes y las dos intersecciones con el eje y: decide si las rectas se cruzan en un solo punto, nunca se encuentran o quedan una encima de la otra.'],
+  ['A solution has to make both {1} and {2} true: check any point you read from the graph in both equations.', 'Una solución tiene que hacer verdaderas tanto {1} como {2}: comprueba en las dos ecuaciones cualquier punto que leas en la gráfica.'],
+  ['A solution has to make both equations true: check any point you read from the graph in both of them.', 'Una solución tiene que hacer verdaderas las dos ecuaciones: comprueba en ambas cualquier punto que leas en la gráfica.'],
+  // its back-up steps,
+  ['Does the solution of a system have to make both equations true?', '¿La solución de un sistema tiene que hacer verdaderas las dos ecuaciones?'],
+  ['Where does the graph of {1} cross the y-axis?', '¿Dónde cruza el eje y la gráfica de {1}?'],
+  ['Where does a line in the form {1} cross the y-axis?', '¿Dónde cruza el eje y una recta de la forma {1}?'],
+  // and its worked examples.
+  ['Graph {1} and {2}, and find where the lines intersect.', 'Grafica {1} y {2}, y halla dónde se cortan las rectas.'],
+  ['Graph {1}: start at its y-intercept, {2}, and use the slope {3}.', 'Grafica {1}: empieza en su intersección con el eje y, {2}, y usa la pendiente {3}.'],
+  ['The slopes are different, so the lines cross at a single point.', 'Las pendientes son distintas, así que las rectas se cruzan en un solo punto.'],
+  ['To find it exactly, set the right sides equal: {1}.', 'Para hallarlo con exactitud, iguala los lados derechos: {1}.'],
+  ['Check in the other equation: {1}, the same value.', 'Comprueba en la otra ecuación: {1}, el mismo valor.'],
+  // A line in standard form, graphed from its intercepts: hints and worked steps.
+  ['Start from {1}: an equation in standard form is quickest to graph from its intercepts.', 'Empieza con {1}: una ecuación en forma estándar se grafica más rápido a partir de sus intersecciones con los ejes.'],
+  ['For the point on the y-axis, replace {1} with {2} in {3} and solve for {4}.', 'Para el punto en el eje y, reemplaza {1} con {2} en {3} y despeja {4}.'],
+  ['For the point on the x-axis, replace {1} with {2} in {3} and solve for {4}.', 'Para el punto en el eje x, reemplaza {1} con {2} en {3} y despeja {4}.'],
+  ['Check: a third point that makes {1} true should lie on your line.', 'Comprueba: un tercer punto que haga verdadera {1} debe estar sobre tu recta.'],
+  ['Replace {1} with {2}: {3}.', 'Reemplaza {1} con {2}: {3}.'],
+  ['Replace {1} with {2}: {3}, so {4}.', 'Reemplaza {1} con {2}: {3}, así que {4}.'],
+  ['Plot the x-intercept {1}.', 'Ubica la intersección con el eje x, {1}.'],
+  // An inequality's solutions on a number line, and its negative coefficient.
+  ['Find the boundary number or numbers first, then decide which side of each boundary holds the solutions.', 'Primero halla el número o los números frontera; luego decide de qué lado de cada frontera están las soluciones.'],
+  ['Shade every number that makes the condition true, and put an arrow on any side that goes on forever.', 'Sombrea todos los números que hacen verdadera la condición, y pon una flecha en cualquier lado que continúe sin fin.'],
+  ['{1} and {2} include the boundary number (closed dot), while {3} and {4} leave it out (open dot).', '{1} y {2} incluyen el número frontera (punto cerrado), mientras que {3} y {4} lo dejan fuera (punto abierto).'],
+  ['First gather the x-terms on one side, doing the same thing to both sides.', 'Primero reúne los términos en x en un lado, haciendo lo mismo en los dos lados.'],
+  // Solving a system by substitution (supports/families/systems.js): hints,
+  ['A solution of a system has to make both equations true at the same time.', 'Una solución de un sistema tiene que hacer verdaderas las dos ecuaciones al mismo tiempo.'],
+  ['Pick a method: substitute when one variable is already by itself, or add or subtract the equations so one variable cancels.', 'Elige un método: sustituye cuando una variable ya está sola, o suma o resta las ecuaciones para que una variable se cancele.'],
+  ['Check your pair in both equations before you submit it.', 'Comprueba tu par en las dos ecuaciones antes de entregarlo.'],
+  ['In {1} the {2}-term has no coefficient to divide by, so solve that equation for {3} first.', 'En {1}, el término en {2} no tiene un coeficiente entre el cual dividir, así que primero despeja {3} en esa ecuación.'],
+  ['One equation has a {1}-term with no coefficient to divide by: solve that equation for {2} first.', 'Una ecuación tiene un término en {1} sin coeficiente entre el cual dividir: primero despeja {2} en esa ecuación.'],
+  ['One equation has an {1}-term with no coefficient to divide by: solve that equation for {2} first.', 'Una ecuación tiene un término en {1} sin coeficiente entre el cual dividir: primero despeja {2} en esa ecuación.'],
+  ['Then replace {1} in {2} with that expression, in parentheses, so only {3} is left.', 'Luego reemplaza {1} en {2} con esa expresión, entre paréntesis, para que solo quede {3}.'],
+  ['Then replace {1} in the other equation with that expression, in parentheses, so only {2} is left.', 'Luego reemplaza {1} en la otra ecuación con esa expresión, entre paréntesis, para que solo quede {2}.'],
+  ['Solve for {1}, then put that value into your expression for {2}.', 'Despeja {1} y luego pon ese valor en tu expresión para {2}.'],
+  ['Solve for the remaining variable, then put that value into your expression for the first one.', 'Despeja la variable que queda y luego pon ese valor en tu expresión para la primera.'],
+  // and worked examples.
+  ['Solve the system by substitution: {1} and {2}.', 'Resuelve el sistema por sustitución: {1} y {2}.'],
+  ['Solve the system by elimination: {1} and {2}.', 'Resuelve el sistema por eliminación: {1} y {2}.'],
+  ['Solve the first equation for {1}: {2}.', 'Despeja {1} en la primera ecuación: {2}.'],
+  ['Solve the second equation for {1}: {2}.', 'Despeja {1} en la segunda ecuación: {2}.'],
+  ['Both equations give {1}, so set the right sides equal: {2}.', 'Las dos ecuaciones dan {1}, así que iguala los lados derechos: {2}.'],
 ];
 
 // Their back-up choices.
@@ -1198,6 +1250,8 @@ const platformFamilyChoices = [
   ['Replace {1} in the other equation with what it equals', 'Reemplazar {1} en la otra ecuación con aquello a lo que es igual'],
   ['It flips', 'Se invierte'],
   ['It stays the same', 'Se queda igual'],
+  ['Yes, both equations', 'Sí, las dos ecuaciones'],
+  ['Only one of them', 'Solo una de ellas'],
 ];
 
 // --- Matrix Lab: one list of what to fix ----------------------------------

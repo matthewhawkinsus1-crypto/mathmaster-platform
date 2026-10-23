@@ -136,6 +136,9 @@ test('the committed report is generated from the live registry and audit, never 
   // can target matrices.singularSystem3x3; no recipe yet). The six
   // perpendicular-line Recovery families are Algebra I content, asking exactly
   // their originals' skills: BLOCKED in Algebra I, NOT APPROPRIATE in Algebra II.
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 29 \| 4 \| 5 \| 13 \| 7 \|/);
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 29 \| 0 \| 1 \| 11 \| 17 \|/);
+  // The nine Module 3 families are Algebra I content (NOT APPROPRIATE in
+  // Algebra II); in Algebra I three are CAPABLE (inequalities.solveLinear,
+  // inequalities.contextModel, systems.contextModel) and six BLOCKED.
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 38 \| 4 \| 8 \| 19 \| 7 \|/);
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 38 \| 0 \| 1 \| 11 \| 26 \|/);
 });

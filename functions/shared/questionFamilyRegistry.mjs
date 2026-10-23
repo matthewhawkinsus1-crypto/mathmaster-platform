@@ -28,6 +28,7 @@ import { INEQUALITY_FAMILIES } from './questionFamiliesInequalities.mjs';
 import { INEQUALITY_SOLVING_FAMILIES } from './questionFamiliesInequalitySolving.mjs';
 import { SYSTEMS_GRAPHING_FAMILIES } from './questionFamiliesSystemsGraphing.mjs';
 import { SUBSTITUTION_FAMILIES } from './questionFamiliesSubstitution.mjs';
+import { SYSTEMS_CONTEXT_FAMILIES } from './questionFamiliesSystemsContext.mjs';
 
 // Order matters only for listing. A family's later versions follow its first
 // (linear.multiStepEquation v2, linear.twoStepEquation v2 — special cases,
@@ -53,6 +54,7 @@ const REGISTERED = Object.freeze([
   ...INEQUALITY_SOLVING_FAMILIES,
   ...SYSTEMS_GRAPHING_FAMILIES,
   ...SUBSTITUTION_FAMILIES,
+  ...SYSTEMS_CONTEXT_FAMILIES,
 ]);
 
 const byKey = new Map();

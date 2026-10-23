@@ -5,6 +5,7 @@ import { auditStaticGraphViewport } from '../../graphSpecUtils.js';
 import { validateQuestionInteractionContracts } from '../interaction/interactionContract.js';
 import { validateQuestionGradingContracts } from '../grading/gradingContract.js';
 import { instructionalIntegrityProblems } from './instructionalIntegrity.js';
+import { labelHasDelimitedMath } from '../../labelFormat.js';
 import {
   familyResolutionMessage,
   isFamilyBackedQuestion,
@@ -412,7 +413,17 @@ const checkPlainTextMath = (question, label, errors, warnings) => {
   // should not silently receive renderer markup.
   const prompt = String(question?.prompt ?? '');
   const promptRemainder = prompt.replace(SUPPORTED_PROMPT_MATH, '');
-  const stringsToCheck = strings.map((text) => (text === prompt ? promptRemainder : text));
+  // A multiAnswer field label is drawn by MultiAnswerGrader, which sets the
+  // $...$ mathematics in "$x$-intercept" or "Slope $m$ =" exactly as
+  // QuestionPrompt sets a prompt's (labelHasDelimitedMath). Question Families
+  // write their labels that way, so the warning was one no teacher could act on.
+  const mathLabels = new Set(String(question?.type) === 'multiAnswer' && Array.isArray(question.answerFields)
+    ? question.answerFields.map((field) => field?.label).filter((text) => typeof text === 'string' && labelHasDelimitedMath(text))
+    : []);
+  const stringsToCheck = strings.map((text) => {
+    if (text === prompt) return promptRemainder;
+    return mathLabels.has(text) ? text.replace(SUPPORTED_PROMPT_MATH, '') : text;
+  });
   const latex = stringsToCheck.find((text) => LATEX_COMMAND.test(text) || LATEX_DELIMITER.test(text));
   if (latex) {
     const sample = (latex.match(LATEX_COMMAND) || latex.match(LATEX_DELIMITER) || [''])[0];

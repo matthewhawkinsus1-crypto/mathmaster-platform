@@ -27,6 +27,16 @@
  *     and wrote the inequality a student was asked to write.
  *   - A generated version's exact answer key (solutionKey.latex) was read as
  *     student-facing text and warned about as raw LaTeX.
+ *   - A figure card's `math` holding a sentence ("y = 2x + 3 and y = −x + 3")
+ *     reached the typesetter, which runs the word into the equations.
+ *   - The hints of a graph the student constructs named its lines as
+ *     y = mx + b rewrites, not as the equations on the student's screen.
+ *   - "Write an equation for the number of tickets" took only the keyed
+ *     arrangement: y = 449 − x was wrong for x + y = 449. A field can now ask
+ *     for the relation in any form (`equivalence: "polynomialRelation"`, the
+ *     Path field's contract).
+ *   - "Try one like this" never checked a sibling inequality (b ≥ 3 read as
+ *     words), and the substitution hint said "a $x$-term".
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -53,6 +63,10 @@ import { describeNumberLinePiece } from '../../src/platform/language/numberLineD
 import { gradeServerResponse } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
 import { buildToolResponse } from '../../functions/shared/serverGrading/toolResponseContract.mjs';
 import { gradeBothWays } from './helpers/questionFamilyCases.mjs';
+import { figureMatchProblems } from '../../functions/shared/toolMath/workflow/figureMatch.mjs';
+import { buildQuestionHints } from '../../src/platform/supports/hints/questionHints.js';
+import { gradeMultiAnswerResponse } from '../../functions/shared/ordinaryResponseGrading.mjs';
+import { PRACTICE_VERDICT, checkPracticePart, readPracticeAnswer } from '../../src/platform/supports/workedExample/practiceLikeThis.js';
 
 const importQuestions = (questions) => parseAssignmentBlueprintText(JSON.stringify({
   schemaVersion: 5,
@@ -281,4 +295,101 @@ test('a number line written in b is graded in b, and can keep its authored windo
   const { errors } = validateQuestionsSemantics(questions);
   assert.equal(errors.length, 1, errors.join('\n'));
   assert.match(errors[0], /^Question 2 \(intervalNumberLine\) says "b ≤ 420"/, 'the key that disagrees with its inequality is caught in b too');
+});
+
+/* ------------------------------------------- inequality family slot routing */
+
+test('a family slot that asks to solve an inequality is the Step Algebra solve its family builds', () => {
+  const { questions } = importQuestions([
+    question('slot', {
+      standard: 'A.5B', studentActions: ['solveInequality'], prompt: 'Solve {{inequality}}. Then graph its solution.',
+      questionFamily: { id: 'inequalities.solveLinear', constraints: { reversal: 'required' } },
+    }),
+    question('chart', { standard: 'A.5B', studentActions: ['solveInequality'], prompt: 'Use a sign chart.', factors: ['x - 2', 'x + 3'], inequality: '(x - 2)(x + 3) > 0' }),
+  ]);
+  const [slot, chart] = questions;
+  assert.equal(slot.type, 'stepAlgebra', 'not the sign chart and its sample problem');
+  const built = resolveFamilyPreviewInstance(slot).question;
+  assert.equal(built.type, 'stepAlgebra');
+  assert.equal(resolveStepAlgebraMode(built), 'relation');
+  assert.match(built.prompt, /^Solve \$.*(<|>|\\le|\\ge).*\$\. Then graph its solution\.$/);
+  assert.equal(chart.type, 'signSolutionAnalyzer', 'authored factors still open the sign chart');
+  assert.deepEqual(validateQuestionsSemantics([slot]).errors, []);
+});
+
+/* ---------------------------------------- a figure's math is mathematics */
+
+test("a figure card's `math` with a word in it is refused; the sentence belongs in `text`", () => {
+  const stage = (math) => ({
+    id: 'sort', kind: 'figureMatch',
+    items: [{ id: 'a', math }, { id: 'b', math: 'y = 4x - 1' }],
+    categories: [{ id: 'one', label: 'One solution' }, { id: 'none', label: 'No solution' }],
+  });
+  assert.match(figureMatchProblems(stage('y = 2x + 3 and y = -x + 3')).join(' '), /Figure 1's `math` with a word in it \("and"\)/);
+  ['AC < BC', 'x + 3(x + 1) = 8x - 3(2x - 1)', '\\frac{1}{2}x + \\sqrt{4}', 'sin(x) + log(x)', '\\text{and } y = 2']
+    .forEach((math) => assert.deepEqual(figureMatchProblems(stage(math)), [], math));
+
+  const sort = (key) => importQuestions([{
+    questionId: 'sort', standard: 'A.3F', studentActions: ['matchFigures'], dok: 2, difficultyBand: 2, prompt: 'Sort each system by its number of solutions.',
+    figures: [{ id: 'a', [key]: 'y = 2x + 3 and y = −x + 3', category: 'one' }, { id: 'b', [key]: 'y = 4x − 1 and y = 4x + 5', category: 'none' }],
+    categories: [{ id: 'one', label: 'Exactly one solution' }, { id: 'none', label: 'No solution' }],
+  }]).questions;
+  assert.match(validateQuestionsSemantics(sort('math')).errors.join(' '), /word in it \("and"\)/, 'Pre-Flight refuses it');
+  assert.deepEqual(validateQuestionsSemantics(sort('text')).errors, [], 'written as text, the same sort passes');
+});
+
+/* -------------------------- a constructed graph's hints name its equations */
+
+test("a constructed graph's hints name its equations as the student reads them", () => {
+  const tickets = {
+    type: 'systemsWorkspace', toolId: 'systemsWorkspace', mode: 'linear', interaction: 'construct', prompt: 'Graph both equations of the system.',
+    system: { m1: -0.5, b1: 300, m2: -1, b2: 450 }, equationLabels: ['5s + 10a = 3000', 's + a = 450'], variables: ['s', 'a'],
+    graph: { xMin: 0, xMax: 700, yMin: 0, yMax: 500 },
+  };
+  const hints = buildQuestionHints(tickets).map((hint) => hint.text);
+  assert.ok(hints.some((hint) => hint.startsWith('Graph $5s + 10a = 3000$')), hints.join('\n'));
+  assert.ok(hints.some((hint) => hint.startsWith('Graph $s + a = 450$ the same way')), hints.join('\n'));
+  assert.ok(!hints.some((hint) => /\$y = /.test(hint)), `no y = mx + b the student never saw: ${hints.join(' | ')}`);
+  // The analyze form draws its lines from `system` and names them that way.
+  const drawn = buildQuestionHints({ ...tickets, interaction: undefined, equationLabels: undefined }).map((hint) => hint.text);
+  assert.ok(drawn.some((hint) => hint.startsWith('Graph $y = ')), drawn.join('\n'));
+});
+
+/* ------------------------------ an equation a student writes, in any form */
+
+test('a field that asks for a relation takes it in any form, on the browser and the server; without the opt-in the form is kept', () => {
+  const field = { id: 'people', label: 'An equation for the number of people', answer: 'x + y = 449', inputProfile: 'equation' };
+  const question = (entry) => ({ type: 'multiAnswer', prompt: 'Write a system.', answerFields: [entry] });
+  const graded = (entry, typed) => {
+    const browser = gradeMultiAnswerResponse(question(entry), { people: typed }).isCorrect;
+    const server = gradeServerResponse({ question: question(entry), response: { kind: 'fields', fields: [{ id: 'people', value: typed }] } }).isCorrect;
+    assert.equal(server, browser, `browser and server agree on ${typed}`);
+    return browser;
+  };
+  const relation = { ...field, equivalence: 'polynomialRelation' };
+  ['x + y = 449', 'y = 449 − x', '2x + 2y = 898', 'x = 449 - y'].forEach((typed) => assert.equal(graded(relation, typed), true, typed));
+  ['x + y = 450', 'x - y = 449', 'a + c = 449'].forEach((typed) => assert.equal(graded(relation, typed), false, typed));
+  // The keypad's LaTeX is the same relation.
+  assert.equal(graded({ ...relation, answer: 'y = (1/2)x + 5' }, 'y=\\frac{1}{2}x+5'), true);
+  assert.equal(graded(field, 'y = 449 − x'), false, 'a form-preserving field is unchanged');
+});
+
+/* ------------------------------------- a sibling inequality, checked */
+
+test('"Try one like this" checks a sibling inequality by its solution set', () => {
+  const { parts, checkable } = readPracticeAnswer('b ≥ 3');
+  assert.equal(checkable, true);
+  assert.equal(checkPracticePart(parts[0], '3 ≤ b'), PRACTICE_VERDICT.CORRECT);
+  assert.equal(checkPracticePart(parts[0], 'b >= 3'), PRACTICE_VERDICT.CORRECT);
+  assert.equal(checkPracticePart(parts[0], 'b > 3'), PRACTICE_VERDICT.INCORRECT, 'the boundary is in the set');
+  assert.equal(checkPracticePart(parts[0], 'b ≥ 4'), PRACTICE_VERDICT.INCORRECT);
+  // Words stay words.
+  assert.equal(readPracticeAnswer('b ≥ 3 boxes').checkable, false);
+});
+
+test('the substitution hint says "an x-term" and "a y-term"', () => {
+  const system = (equations) => buildQuestionHints({ type: 'systemsWorkspace', toolId: 'systemsWorkspace', mode: 'algebraic', prompt: 'Solve the system by substitution.', equations, variables: ['x', 'y'], method: 'substitution' }).map((hint) => hint.text);
+  const isolateX = system(['x + 2y = 7', '3x - y = 7']);
+  assert.ok(isolateX.includes('One equation has an $x$-term with no coefficient to divide by: solve that equation for $x$ first.'), isolateX.join('\n'));
+  assert.ok(!isolateX.some((hint) => /\ba \$x\$-term/.test(hint)));
 });

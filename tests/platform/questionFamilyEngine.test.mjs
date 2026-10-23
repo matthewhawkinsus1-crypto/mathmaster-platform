@@ -86,10 +86,21 @@ const REGISTRY_TOOL_WORK = {
   }),
   // The Systems Workspace's algebraic screen: the solved values and both
   // verifications, or the no-variable statement and the three readings of it.
-  systemsWorkspace: (question) => ({
-    right: correctAlgebraicSystemWork(question),
-    wrong: wrongAlgebraicSystemWork(question),
-  }),
+  // Its graph mode (systems.graphical2x2): two points on each line, the
+  // reading of the system, and the crossing point; and the wrong reading.
+  systemsWorkspace: (question, instance) => {
+    if (question.mode !== 'linear') return { right: correctAlgebraicSystemWork(question), wrong: wrongAlgebraicSystemWork(question) };
+    const { m1, b1, m2, b2 } = question.system;
+    const onLine = (m, b) => [0, 1].map((x) => ({ x, y: m * x + b }));
+    const { outcome, x, y } = instance.answer.value;
+    const right = {
+      construction: [{ points: onLine(m1, b1) }, { points: onLine(m2, b2) }],
+      classification: outcome,
+      x: outcome === 'one' ? String(x) : '',
+      y: outcome === 'one' ? String(y) : '',
+    };
+    return { right, wrong: { ...right, classification: outcome === 'one' ? 'none' : 'one', x: '0', y: '0' } };
+  },
   // The graphing board: the y-intercept and one slope step whose rise is whole,
   // and the same line one unit up.
   graphing2: (question) => {

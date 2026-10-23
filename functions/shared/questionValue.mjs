@@ -422,8 +422,13 @@ const systemsWorkspaceWork = (question, mode) => {
       // the intersection when there is one — so its value is the same
       // whatever the answer. Counting the intersection only for a
       // one-solution system made its "Grade weight ×1.25" banner tell the
-      // student the answer before they looked at the graph.
-      return [...select('Classification'), ...respond('Solution')];
+      // student the answer before they looked at the graph. The construct
+      // form also has the student graph both lines.
+      return [
+        ...(question?.interaction === 'construct' ? construct('Graph each equation', 2) : []),
+        ...select('Classification'),
+        ...respond('Solution'),
+      ];
   }
 };
 

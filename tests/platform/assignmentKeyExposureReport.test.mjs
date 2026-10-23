@@ -95,7 +95,9 @@ const lessonFiles = () => {
 };
 
 test('on the 16 lesson files it reproduces the design\'s count (§1.2): questions, stored keys, server-gradable, family slots', () => {
-  const files = lessonFiles();
+  // The design counted the lessons that existed when it was written; Module 3
+  // (teacher-import-jsons/algebra1-module3) came after it and is outside that count.
+  const files = lessonFiles().filter((file) => !file.includes(`${path.sep}algebra1-module3${path.sep}`));
   assert.equal(files.length, 16, 'the design counted these 16 files; a new file changes the expected table');
   const byRole = {};
   files.forEach((file) => {

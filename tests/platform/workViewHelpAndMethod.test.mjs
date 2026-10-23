@@ -137,8 +137,9 @@ test('R-10: the gate is the activity\'s own hint and verdict signals', () => {
   ]) assert.match(code(file), /<TaskCard\s(?:(?!\/>)[\s\S])*?\bstepsAreControls\b/, file);
   assert.doesNotMatch(code('src/tools/matrixLab/MatrixLab.jsx'), /stepsAreControls/);
   // Lists written to say what to do, not how (review S2): the inequality
-  // build's process steps, Data Modeling's secure lists.
-  assert.match(code('src/tools/systemsWorkspace/SystemsWorkspace.jsx'), /<TaskCard [^>]*stepsAreControls=\{taskKey === 'inequalitiesConstruct'\}/);
+  // build's process steps and graph mode's construct steps (find points,
+  // decide, enter), Data Modeling's secure lists.
+  assert.match(code('src/tools/systemsWorkspace/SystemsWorkspace.jsx'), /<TaskCard [^>]*stepsAreControls=\{taskKey === 'inequalitiesConstruct' \|\| taskKey === 'linearConstruct'\}/);
   // Data Modeling's secure lists are marked step by step since W6-4
   // (controlStep, so the directions sentence stays withheld): pinned and
   // rendered per mode in toolDirectionsSplit.test.mjs.

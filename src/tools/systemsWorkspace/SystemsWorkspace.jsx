@@ -456,6 +456,186 @@ function ClassicInequalityMode({ questionData, onAction }) {
   </EnlargeableFigure>;
 }
 
+/*
+ * GRAPH BOTH LINES FIRST (`interaction: "construct"`).
+ *
+ * The analyze form above draws the two lines, so a student only reads where
+ * they cross. Here nothing is drawn for them: they plot two points on each
+ * equation's line — typed, or tapped on the plane — and read the system from
+ * the lines THEY drew. The shared grader checks every point against its
+ * equation (graphical.mjs `linear`), then the classification and the
+ * intersection exactly as it does for the analyze form. Opt-in: a question
+ * without `interaction` keeps LinearMode, unchanged.
+ */
+const LINE_COLORS = ['#1a73e8', '#d93025'];
+const emptyLinePoints = () => [0, 1].map(() => ({ x1:'', y1:'', x2:'', y2:'' }));
+
+function LinearConstructMode({ questionData, onAction }) {
+  const checkSystemLabel = useSubmitLabel('Check system');
+  const system = questionData.system || DEFAULT_SYSTEM;
+  const solution = useMemo(() => solveTwoLines(system), [system]);
+  // Each equation as the question writes it (standard form stays standard
+  // form); the slope-intercept form only when none is authored.
+  const equationText = [0, 1].map((index) => (
+    (Array.isArray(questionData.equationLabels) && String(questionData.equationLabels[index] || '').trim())
+    || formatLine(index === 0 ? { m:system.m1, b:system.b1 } : { m:system.m2, b:system.b2 })
+  ));
+  const [x, setX] = usePersistentToolState('x', '');
+  const [y, setY] = usePersistentToolState('y', '');
+  const [classification, setClassification] = usePersistentToolState('classification', UNANSWERED);
+  const [linePoints, setLinePoints] = usePersistentToolState('linePoints', emptyLinePoints);
+  // Why a tap on the plane placed nothing.
+  const [plotNotice, setPlotNotice] = useState(null);
+  const { feedback, submit } = useToolSubmission(onAction);
+  const mathState = useMemo(() => ({ x, y, classification, linePoints }), [x, y, classification, linePoints]);
+  const restore = useCallback((value) => {
+    setX(value?.x || ''); setY(value?.y || ''); setClassification(value?.classification || UNANSWERED);
+    setLinePoints(value?.linePoints || emptyLinePoints());
+  }, []);
+  const undoHistory = useMathUndoHistory({ label: 'Undo the last graph or answer edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
+  const classified = isAnswered(classification);
+
+  const setPoint = (index, which, px, py) => {
+    setLinePoints((current) => current.map((entry, entryIndex) => (
+      entryIndex === index ? { ...entry, [`x${which}`]: px, [`y${which}`]: py } : entry
+    )));
+    setPlotNotice(null);
+  };
+  const updateCoordinate = (index, key, value) => {
+    setLinePoints((current) => current.map((entry, entryIndex) => (entryIndex === index ? { ...entry, [key]:value } : entry)));
+    setPlotNotice(null);
+  };
+  const nextPoint = nextEmptyConstructionPoint(linePoints);
+  const handlePlot = ([px, py]) => {
+    const target = nextEmptyConstructionPoint(linePoints);
+    if (!target) {
+      setPlotNotice('Both lines have two points. Clear one with × to plot it again, or edit its numbers.');
+      return;
+    }
+    setPoint(target.index, target.which, String(px), String(py));
+  };
+
+  const parsed = linePoints.map((entry) => [1, 2].map((which) => ({
+    x:parseNumericAnswer(entry[`x${which}`]),
+    y:parseNumericAnswer(entry[`y${which}`]),
+  })));
+  // The lines the student's own points determine — the only lines drawn.
+  const drawnLines = parsed.map(([first, second], index) => {
+    if ([first.x, first.y, second.x, second.y].some((value) => value == null) || Math.abs(second.x - first.x) <= 1e-9) return null;
+    const m = (second.y - first.y) / (second.x - first.x);
+    return { m, b:first.y - m * first.x, stroke:LINE_COLORS[index] };
+  }).filter(Boolean);
+  const plotted = parsed.flatMap((ends, index) => ends
+    .filter((point) => point.x != null && point.y != null)
+    .map((point) => ({ x:point.x, y:point.y, fill:LINE_COLORS[index] })));
+  const pointsTyped = parsed.every((ends) => ends.every((point) => point.x != null && point.y != null));
+  const ready = classified && pointsTyped;
+
+  // The student's work — what Check grades and what a deadline would submit:
+  // the analyze form's answers plus each line's two points, already parsed.
+  const work = { construction:parsed.map((ends) => ({ points:ends })), classification, x, y };
+  useReportToolWork(work);
+
+  const check = () => {
+    // Not an answer until both lines are drawn and the system is classified.
+    if (!ready) return;
+    const result = gradeToolCheck(systemsWorkspaceGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode:'linear', parts: result.parts });
+  };
+
+  const message = () => {
+    if (feedback.isCorrect) return solution.type === 'one'
+      ? `Correct — your lines meet at exactly one point, (${round(solution.x, 2)}, ${round(solution.y, 2)}).`
+      : 'Correct — you graphed both lines and classified the system from them.';
+    if (!partCorrect(feedback, 'line-1') || !partCorrect(feedback, 'line-2')) return 'At least one line is not graphed right yet. Every point you plot must make its equation true: substitute its x-value into the equation and compare the y-value.';
+    if (!partCorrect(feedback, 'classification')) return 'Your lines are right, but the classification is not. Do your two lines cross once, never, or lie on top of each other?';
+    return 'Your lines and classification are right, but the coordinates are not. Read where your lines cross, then substitute that point into both equations to confirm.';
+  };
+
+  return <EnlargeableFigure label="Linear system graphing workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{
+    undo: undoHistory.capability,
+    equationInput: { label: 'Both equations', studentState: true },
+    numericControls: { label: 'Line points, solution and classification', studentState: true },
+    pointEditing: { label: 'Points on each line', studentState: true },
+    instruction: { text: 'Graph both equations, then decide how many solutions the system has.' },
+    primaryActions: [{ id: 'check-system', label: checkSystemLabel, onAction: check, disabled: !ready }],
+  }}>
+    <InequalityLayout
+      stageLabel="Your graph of the system"
+      stage={(
+        <>
+          <CoordinatePlane
+            xMin={questionData.graph?.xMin ?? -6} xMax={questionData.graph?.xMax ?? 8}
+            yMin={questionData.graph?.yMin ?? -6} yMax={questionData.graph?.yMax ?? 12}
+            xTickStep={questionData.graph?.xStep ?? null} yTickStep={questionData.graph?.yStep ?? null}
+            snapStep={Number(questionData.snapStep) > 0 ? Number(questionData.snapStep) : 1}
+            lines={drawnLines}
+            points={plotted}
+            onPlot={handlePlot}
+            showPlotHelp="keyboard"
+            cursorLabel={nextPoint ? `Equation ${nextPoint.index + 1}, point ${nextPoint.which}` : 'Point'}
+            // Where the lines cross is part of the answer: the plane does not
+            // read coordinates out while the student aims.
+            revealCoordinates={false}
+            ariaLabel="Your graph of both equations in the system"
+            viewResetKey={questionData?.questionId ?? null}
+            enlargeable={false}
+          />
+          <Legend items={equationText.map((text, index) => ({ label:`Equation ${index + 1}`, color:LINE_COLORS[index], note:text }))} />
+        </>
+      )}
+    >
+      <p className="mm-ineq-instruction">Type two points on each line — or tap the graph to plot them. Use each equation to find its points.</p>
+      {linePoints.map((entry, index) => (
+        <section key={index} className="mm-ineq-card" data-constraint-index={index}>
+          <div className="mm-ineq-card-row">
+            <span className="mm-ineq-swatch" style={{ background:LINE_COLORS[index] }} aria-hidden="true" />
+            <span className="mm-ineq-card-title">
+              <span className="mm-ineq-card-name">Equation {index + 1}</span>
+              <span className="mm-ineq-math">{equationText[index]}</span>
+            </span>
+          </div>
+          <div style={{ display:'grid', gap:10, padding:'0 12px 12px' }}>
+            {[1, 2].map((which) => {
+              const waiting = nextPoint?.index === index && nextPoint?.which === which;
+              const entered = String(entry[`x${which}`] ?? '') !== '' || String(entry[`y${which}`] ?? '') !== '';
+              return (
+                <div key={which} className="mm-ineq-point-row" role="group" aria-label={`Equation ${index + 1}, point ${which}`} data-next={waiting ? 'true' : undefined}>
+                  <span className="mm-ineq-point-name" aria-hidden="true">Point {which}</span>
+                  <label className="mm-ineq-inline-field">x<input className="mm-ineq-input" data-size="narrow" type="number" inputMode="decimal" aria-label={`Equation ${index + 1}, point ${which}: x`} value={entry[`x${which}`]} onChange={(e)=>updateCoordinate(index,`x${which}`,e.target.value)} /></label>
+                  <label className="mm-ineq-inline-field">y<input className="mm-ineq-input" data-size="narrow" type="number" inputMode="decimal" aria-label={`Equation ${index + 1}, point ${which}: y`} value={entry[`y${which}`]} onChange={(e)=>updateCoordinate(index,`y${which}`,e.target.value)} /></label>
+                  {entered ? (
+                    <button type="button" className="mm-ineq-chip-remove" aria-label={`Clear point ${which} of equation ${index + 1}`} onClick={() => setPoint(index, which, '', '')}>×</button>
+                  ) : waiting ? <span className="mm-ineq-note">or tap the graph</span> : null}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ))}
+      {plotNotice ? <p className="mm-ineq-note" role="status">{plotNotice}</p> : null}
+      <Field label="How many solutions does this system have?"><select value={classification} onChange={(e)=>setClassification(e.target.value)} style={inputStyle}><option value={UNANSWERED}>Choose…</option><option value="one">Exactly one solution</option><option value="none">No solution</option><option value="infinite">Infinitely many solutions</option></select></Field>
+      {classification === 'one' ? <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}><Field label="x"><input type="number" inputMode="decimal" value={x} onChange={(e)=>setX(e.target.value)} style={inputStyle}/></Field><Field label="y"><input type="number" inputMode="decimal" value={y} onChange={(e)=>setY(e.target.value)} style={inputStyle}/></Field></div> : null}
+      <div className="mm-ineq-actions">
+        <button type="button" className="mm-ineq-action" onClick={check} disabled={!ready}>{checkSystemLabel}</button>
+      </div>
+      {!ready ? <p className="mm-ineq-note">{[
+        pointsTyped ? null : 'Plot two points on each line.',
+        classified ? null : 'Choose how many solutions the system has.',
+      ].filter(Boolean).join(' ')}</p> : null}
+      {feedback ? <div><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><StepFeedback>{message()}</StepFeedback></div> : null}
+      <HintPanel
+        hints={[
+          'To find a point on a line, choose an x-value, substitute it into the equation, and solve for y. The y-intercept is often the easiest first point.',
+          'For an equation in standard form, the intercepts are easy points: set x = 0 to find one, then y = 0 to find the other.',
+          'The solution of the system is where your two lines cross. Lines that never cross, or that lie on top of each other, need a different classification.',
+        ]}
+        onHintUsed={() => onAction?.('HINT_USED')}
+      />
+    </InequalityLayout>
+  </EnlargeableFigure>;
+}
+
 function LinearQuadraticMode({ questionData, onAction }) {
   const checkIntersectionsLabel = useSubmitLabel('Check intersections');
   const config = questionData.linearQuadratic || DEFAULT_LINEAR_QUADRATIC;
@@ -679,6 +859,7 @@ function MatrixMode({ questionData, onAction }) {
 
 const MODE_TASKS = {
   linear: 'Decide how many solutions this system of two lines has, and give the solution if there is exactly one.',
+  linearConstruct: 'Graph both equations from points you find yourself, then decide how many solutions the system has and give the solution if there is exactly one.',
   inequalities: 'Decide whether the marked point is in the feasible region, then find a point of your own that satisfies every inequality.',
   // My Math Path's construct form had the analyze steps above ("Substitute
   // the purple point…", "…the green overlap") on a question with no purple
@@ -699,6 +880,9 @@ const MODE_TASKS = {
 
 const MODE_STEPS = {
   linear: ['Compare the two slopes to decide how many solutions there can be.', 'If the lines cross, read the crossing point off the graph.', 'Check your point by substituting it into both equations.'],
+  // The process only: which points lie on each line, and what the two lines
+  // show, are the decisions being assessed.
+  linearConstruct: ['Use each equation to find two points on its line, and type them or tap them on the graph.', 'Look at your two lines: decide how many solutions the system has.', 'If they cross, read the crossing point and enter it, then check your graph.'],
   inequalities: ['Substitute the purple point into every inequality.', 'Pick your own point from well inside the green overlap.', 'Enter both answers, then check.'],
   // The process only. Which style a symbol needs and which side to shade are
   // the decisions being assessed; they stay in the recorded hints.
@@ -729,7 +913,10 @@ export default function SystemsWorkspace({ questionData = {}, onAction, draftKey
   // step says what to do where it is done, so a folded "How to do this" above
   // it would only repeat it (and it used to repeat the ANALYZE steps).
   const inequalityBuild = mode === 'inequalities' && studentBuildInequalityEnabled(questionData);
-  const taskKey = algebraic3
+  // Graph mode (the linear fallback) with the student constructing both lines.
+  const linearConstruct = questionData.interaction === 'construct'
+    && !['inequalities', 'linearQuadratic', 'matrix', 'matrix3', 'spatial', 'algebraic'].includes(mode);
+  const taskKey = linearConstruct ? 'linearConstruct' : algebraic3
     ? (assignedMethod3 === 'elimination' ? 'algebraic3Elimination' : assignedMethod3 === 'substitution' ? 'algebraic3Substitution' : 'algebraic3')
     : mode === 'inequalities' && classicInequalityAsk(questionData).includes('construction') ? 'inequalitiesConstruct'
       : mode;
@@ -747,7 +934,7 @@ export default function SystemsWorkspace({ questionData = {}, onAction, draftKey
     badge={modeLabel}
     workspaceWidth={(mode === 'algebraic' || mode === 'spatial') ? 'min(100%, 1360px)' : 'min(100%, 1180px)'}
   >
-    {inequalityBuild ? null : <TaskCard question={questionData} task={MODE_TASKS[taskKey] || MODE_TASKS.linear} stepsAreControls={taskKey === 'inequalitiesConstruct'} steps={hostSubmitLabel ? withoutCheckInvitation(MODE_STEPS[taskKey] || MODE_STEPS.linear) : (MODE_STEPS[taskKey] || MODE_STEPS.linear)} />}
+    {inequalityBuild ? null : <TaskCard question={questionData} task={MODE_TASKS[taskKey] || MODE_TASKS.linear} stepsAreControls={taskKey === 'inequalitiesConstruct' || taskKey === 'linearConstruct'} steps={hostSubmitLabel ? withoutCheckInvitation(MODE_STEPS[taskKey] || MODE_STEPS.linear) : (MODE_STEPS[taskKey] || MODE_STEPS.linear)} />}
     {mode === 'inequalities' ? <InequalityMode questionData={questionData} onAction={onAction} draftKey={draftKey}/>
       : mode === 'linearQuadratic' ? <LinearQuadraticMode questionData={questionData} onAction={onAction}/>
         : (mode === 'matrix' || mode === 'matrix3') ? <MatrixMode questionData={questionData} onAction={onAction}/>
@@ -755,6 +942,7 @@ export default function SystemsWorkspace({ questionData = {}, onAction, draftKey
           : mode === 'algebraic' ? (algebraic3
             ? <Algebraic3SystemMode questionData={questionData} onAction={onAction} draftKey={draftKey}/>
             : <AlgebraicSystemMode questionData={questionData} onAction={onAction} draftKey={draftKey}/>)
+            : linearConstruct ? <LinearConstructMode questionData={questionData} onAction={onAction}/>
             : <LinearMode questionData={questionData} onAction={onAction}/>
     }
   </ToolShell>;
