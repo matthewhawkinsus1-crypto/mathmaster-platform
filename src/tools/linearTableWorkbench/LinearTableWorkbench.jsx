@@ -19,6 +19,7 @@ import { FRACTION_ENTRY_PROPS } from '../../platform/interaction/numberEntry.js'
 import { SubmitText } from '../shared/ToolRuntimeContext';
 import FocusSafeButton from '../../components/common/FocusSafeButton.jsx';
 import { questionAxisLabels } from '../shared/planeAxisTitles.js';
+import { intervalMissMessage } from './intervalFeedback.js';
 
 const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
 const input = { width: '100%', boxSizing: 'border-box', minHeight: 42, padding: 9, border: '1px solid var(--mm-tint-border)', borderRadius: 8, fontSize: 'calc(15 * var(--mm-px))' };
@@ -232,11 +233,6 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
   const intervalIssueIndex = evidenceChecks.findIndex((entry) => entry && entry.complete !== true);
   const intervalIssue = intervalIssueIndex >= 0 ? evidenceChecks[intervalIssueIndex] : null;
   const intervalIssueEvidence = intervalIssueIndex >= 0 ? evidence[intervalIssueIndex] : null;
-  const intervalIssueFields = intervalIssue ? [
-    intervalIssue.dxCorrect === false ? 'Δx' : null,
-    intervalIssue.dyCorrect === false ? 'Δy' : null,
-    intervalIssue.rateCorrect === false ? 'rate of change' : null,
-  ].filter(Boolean) : [];
 
   const feedbackGuidance = (() => {
     if (!feedback || feedback.isCorrect) return '';
@@ -244,8 +240,8 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
       if (intervalIssue.duplicate) {
         return `Check recorded interval ${intervalIssueIndex + 1}: Row ${Number(intervalIssueEvidence.i) + 1} → Row ${Number(intervalIssueEvidence.j) + 1} repeats a pair you already used. Edit it or choose a different pair.`;
       }
-      const fields = intervalIssueFields.length ? intervalIssueFields.join(', ') : 'the interval entries';
-      return `Check Row ${Number(intervalIssueEvidence.i) + 1} → Row ${Number(intervalIssueEvidence.j) + 1}: ${fields}. Recheck subtraction order and signs before changing anything else.`;
+      // Which field, and for a rate with the right Δx and Δy, which slip.
+      return intervalMissMessage({ entry: intervalIssueEvidence, check: intervalIssue });
     }
     switch (firstWrong?.id) {
       case 'evidenceCount':
