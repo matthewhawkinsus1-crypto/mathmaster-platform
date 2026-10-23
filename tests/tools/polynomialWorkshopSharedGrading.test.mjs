@@ -130,7 +130,9 @@ const VIEWS = {
   division: 'DivisionMode',
   graphConnection: 'GraphConnection',
   rationalFeatures: 'RationalFeatures',
-  synthetic: 'SyntheticDivision',
+  // x − r for the Remainder and Factor Theorems; Dividing Polynomials' ax + b
+  // view is SyntheticDivision (tests/tools/polynomialWorkshopDivision.test.mjs).
+  synthetic: 'SyntheticRemainderFactor',
 };
 
 test('every view grades its Check through the shared grader and reports the same work it submits', () => {
@@ -158,7 +160,7 @@ test('the views draw their unauthored problem from the same defaults table the g
     DivisionMode: ['dividend', 'divisor'],
     GraphConnection: ['roots', 'leadingCoefficient'],
     RationalFeatures: ['numeratorRoots', 'denominatorRoots'],
-    SyntheticDivision: ['dividend'],
+    SyntheticRemainderFactor: ['dividend'],
   })) {
     const body = region(code, `function ${name}(`, '\n}', name);
     const mode = Object.entries(VIEWS).find(([, view]) => view === name)[0];
@@ -170,9 +172,9 @@ test('the views draw their unauthored problem from the same defaults table the g
   assert.match(region(code, 'function RationalFeatures(', '\n}', 'RationalFeatures'), /rationalFeatureTargetValue\(features, questionData\.targetValue\)/);
   // The synthetic view's r is the grader's: syntheticDivisionRoot, and the
   // shared default only for an unauthored problem.
-  assert.match(region(code, 'function SyntheticDivision(', '\n}', 'SyntheticDivision'),
+  assert.match(region(code, 'function SyntheticRemainderFactor(', '\n}', 'SyntheticRemainderFactor'),
     /const root = questionData\.dividend \? authoredRoot : \(authoredRoot \?\? DEFAULTS\.synthetic\.candidateRoot\);/);
-  assert.match(region(code, 'function SyntheticDivision(', '\n}', 'SyntheticDivision'), /const authoredRoot = syntheticDivisionRoot\(questionData\);/);
+  assert.match(region(code, 'function SyntheticRemainderFactor(', '\n}', 'SyntheticRemainderFactor'), /const authoredRoot = syntheticDivisionRoot\(questionData\);/);
 });
 
 test('the inline verdict code is gone from the component', () => {
@@ -650,7 +652,7 @@ test('synthetic: answers typed without the table, and an unanswered factor, are 
   assert.equal(blank.isComplete, false);
   assert.deepEqual(failedIds(blank), ['factor']);
   // The view starts that select on "Choose…", as every workshop select does.
-  const body = region(code, 'function SyntheticDivision(', '\n}', 'SyntheticDivision');
+  const body = region(code, 'function SyntheticRemainderFactor(', '\n}', 'SyntheticRemainderFactor');
   assert.match(body, /usePersistentToolState\('factorChoice', UNANSWERED\)/);
   const start = body.indexOf('value={factorChoice}');
   assert.match(body.slice(body.indexOf('<option', start), body.indexOf('</select>', start)), /^<option value=\{UNANSWERED\}>Choose…<\/option>/);

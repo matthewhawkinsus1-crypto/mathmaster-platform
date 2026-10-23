@@ -323,7 +323,13 @@ test('what is not a point, a number line or a one-variable inequality is not cla
   // (linearInequality): the Module 3 inequality lesson has real ones, and each
   // is claimed. So is the radical candidate check (kind 'radical'): the
   // corpus's radicalCheck items are claimed. Everything else in the corpus is not.
-  const oneVariableInequality = (question) => question.type === 'stepAlgebra' && /[<>≤≥]/.test(String(question.equation || ''));
+  // One relation, no absolute value, no power: the DOL #2 review's
+  // −2|x − 4| + 7 > −3 is an absolute-value inequality, not this family's
+  // (|2x − 3| < 7 below is not claimed either).
+  const oneVariableInequality = (question) => {
+    const equation = String(question.equation || '');
+    return question.type === 'stepAlgebra' && (equation.match(/<=|>=|[<>≤≥]/g) || []).length === 1 && !/[|^]/.test(equation);
+  };
   const inequalities = corpus.filter(oneVariableInequality);
   assert.ok(inequalities.length >= 5, `${inequalities.length} corpus inequalities`);
   inequalities.forEach((question) => assert.equal(pointsAndIntervals.matches(question), true, `corpus inequality: ${String(question.prompt).slice(0, 70)}`));

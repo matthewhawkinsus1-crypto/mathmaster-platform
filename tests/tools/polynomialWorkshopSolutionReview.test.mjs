@@ -77,7 +77,7 @@ const SCREEN_OPTIONS = {
   factorZero: optionsIn('FactorZero'),
   graphConnection: optionsIn('GraphConnection'),
   rationalFeatures: optionsIn('RationalFeatures'),
-  synthetic: optionsIn('SyntheticDivision'),
+  synthetic: optionsIn('SyntheticRemainderFactor'),
 };
 test('the screen options this test reads are the workshop\'s own', () => {
   assert.deepEqual([...SCREEN_OPTIONS.factorZero.entries()], [['Yes', 'yes'], ['No', 'no']]);
