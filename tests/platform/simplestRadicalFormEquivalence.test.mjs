@@ -111,6 +111,13 @@ test('rational exponents: positive, reduced, each base once, none in a denominat
   assert.equal(same('\\frac{1}{x^{\\frac{2}{3}}}', '\\frac{x^{1/3}}{x}'), false);
   assert.equal(same('y^{\\frac{10}{14}}', 'y^{5/7}'), false);
   assert.equal(same('y^{\\frac{1}{7}}y^{\\frac{4}{7}}', 'y^{5/7}'), false);
+  // A whole and a fractional power of one letter are one power (Codex on #520).
+  assert.equal(same('x\\cdot x^{\\frac{1}{12}}', 'x^{13/12}'), false);
+  assert.equal(same('x^{1/12}x', 'x^{13/12}'), false, 'in either order');
+  assert.equal(same('x^2x^{1/3}', 'x^{7/3}'), false);
+  assert.equal(same('x^{\\frac{13}{12}}', 'x^{13/12}'), true);
+  assert.equal(same('y\\cdot x^{1/3}', 'x^{1/3}y'), true, 'other letters are not the same base');
+  assert.equal(same('6x\\sqrt{x}', '6x\\sqrt{x}'), true, 'a letter outside and under a root is simplest');
   assert.equal(same('n^{-8}', '\\frac{1}{n^{8}}'), false);
   assert.equal(same('9a^6b^{-8}', '\\frac{9a^{6}}{b^{8}}'), false);
 });

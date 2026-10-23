@@ -425,6 +425,10 @@ const keyOf = (node) => JSON.stringify(node);
  */
 const readTerm = (node) => {
   const info = { coefficient: 1, numbers: 0, denominator: 1, powers: new Map(), fractional: new Map(), roots: [], bars: [] };
+  // Each letter once, whole and fractional powers together: x·x^(1/12) is
+  // x^(13/12) not yet combined (Codex on #520). A letter both outside and
+  // under a root (6x√x) is a different thing, and simplest.
+  const written = (name) => info.powers.has(name) || info.fractional.has(name);
   const factor = (child, inDenominator) => {
     if (child.t === 'group') return factor(child.arg, inDenominator);
     if (child.t === 'neg') {
@@ -445,7 +449,7 @@ const readTerm = (node) => {
     }
     if (inDenominator) return false;
     if (child.t === 'var') {
-      if (info.powers.has(child.n)) return false;
+      if (written(child.n)) return false;
       info.powers.set(child.n, 1);
       return true;
     }
@@ -465,12 +469,12 @@ const readTerm = (node) => {
       const base = child.base.t === 'group' ? child.base.arg : child.base;
       if (base.t === 'abs' && fraction.q === 1) return factor(base, false);
       if (fraction.q === 1) {
-        if (base.t !== 'var' || info.powers.has(base.n)) return false;
+        if (base.t !== 'var' || written(base.n)) return false;
         info.powers.set(base.n, fraction.p);
         return true;
       }
       if (base.t === 'var') {
-        if (info.fractional.has(base.n)) return false;
+        if (written(base.n)) return false;
         info.fractional.set(base.n, `${fraction.p}/${fraction.q}`);
         return true;
       }
