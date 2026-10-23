@@ -571,7 +571,7 @@ test('16. a generation failure — the template generator throws, or preparing t
 });
 
 test('the server classification agrees with PR #430\'s client classifier for every pin failure it can see', async () => {
-  const { classifyRecoveryReproductionFailure } = await evidenceModule();
+  const { classifyRecoveryReproductionFailure } = await import('../../functions/shared/sectionRecoveryReproduction.mjs');
   assert.equal(typeof classifyRecoveryReproductionFailure, 'function');
   const assignment = buildAssignment(Q3_SHARES_Q1_SKILL());
   const started = startRecovery({ assignment });

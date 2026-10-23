@@ -41,6 +41,7 @@
 import { CONSTRAINT_POLICY, describeConstraintIssue, resolveFamilyConstraints } from './questionFamilyContract.mjs';
 import { buildFamilyQuestion, cachedFamilyInstanceSequence } from './questionFamilyEngine.mjs';
 import { getPlatformQuestionFamily, hasPlatformQuestionFamily } from './questionFamilyRegistry.mjs';
+import { familySlotKey, isFamilyBackedQuestion } from './questionFamilySlot.mjs';
 import { buildTemplateFamily, hasLocalFamilyTemplate } from './questionFamilyTemplate.mjs';
 import {
   ALLOCATION_BASIS,
@@ -68,8 +69,9 @@ export const FAMILY_RESOLUTION_ERROR = Object.freeze({
   CONSTRAINT_INVALID: 'constraint_invalid',
 });
 
-/** Is this slot opted into the question family engine at all? */
-export const isFamilyBackedQuestion = (question) => isObject(question?.questionFamily);
+// Is this slot family-backed, and its slot key: kept where App can read them
+// without the registry this module imports.
+export { isFamilyBackedQuestion, familySlotKey };
 
 /**
  * The reference as authored, normalized. Returns null for a slot that is not
@@ -94,10 +96,6 @@ export const normalizeQuestionFamilyReference = (question) => {
   };
 };
 
-export const familySlotKey = ({ assignmentId = '', question = null, storageIndex = 0 } = {}) => {
-  const slot = clean(question?.questionId) || clean(question?.id) || `index-${Math.max(0, Number(storageIndex) || 0)}`;
-  return `${clean(assignmentId) || 'assignment'}|${slot}`;
-};
 
 /**
  * The family, constraints and tool for one slot — or a reason it has none.

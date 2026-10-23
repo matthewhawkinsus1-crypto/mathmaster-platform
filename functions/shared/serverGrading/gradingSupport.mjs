@@ -12,7 +12,7 @@
  * Pure.
  */
 import { serverGradingSupport as ordinaryServerGradingSupport } from '../ordinaryResponseGrading.mjs';
-import { isFamilyBackedQuestion } from '../questionFamilyInstance.mjs';
+import { isFamilyBackedQuestion } from '../questionFamilySlot.mjs';
 import { GRADING_AUTHORITY } from './gradingAuthority.mjs';
 import { GRADING_MANIFEST, resolveGradingSurfaceId } from './gradingManifest.mjs';
 import { toolModeSupport } from './toolGraderDefinition.mjs';

@@ -9,7 +9,7 @@ import {
   MAX_QUESTION_VALUE,
   MIN_QUESTION_VALUE,
   explicitQuestionValue,
-} from '../../../functions/shared/questionValue.mjs';
+} from '../../../functions/shared/questionValueLimits.mjs';
 
 export const ASSIGNMENT_SCHEMA_VERSION = 5;
 export const ASSIGNMENT_SCHEMA_NAME = 'MathMaster Assignment V5';

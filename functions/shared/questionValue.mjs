@@ -68,6 +68,7 @@ import {
 } from './toolMath/representationBridge/linearMultipleRepresentationsCards.mjs';
 import { isProcessModeQuestion, lmrFactWorkKind } from './toolMath/representationBridge/lmrProcessModel.mjs';
 import { isFamilyBackedQuestion, resolveFamilyPreviewInstance } from './questionFamilyInstance.mjs';
+import { MIN_QUESTION_VALUE, MAX_QUESTION_VALUE, explicitQuestionValue } from './questionValueLimits.mjs';
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const list = (value) => (Array.isArray(value) ? value : []);
@@ -78,8 +79,10 @@ const clean = (value) => String(value ?? '').trim();
  * ------------------------------------------------------------------------- */
 
 export const QUESTION_VALUE_RULE = 'workload-v1';
-export const MIN_QUESTION_VALUE = 0.25;
-export const MAX_QUESTION_VALUE = 20;
+// The bounds, and reading an authored value against them, live in
+// questionValueLimits.mjs: the stored-assignment schema needs only those, and
+// this module's work reading brings the whole family registry.
+export { MIN_QUESTION_VALUE, MAX_QUESTION_VALUE, explicitQuestionValue } from './questionValueLimits.mjs';
 export const STANDARD_QUESTION_VALUE = 1;
 // The automatic value's range: at least one standard question, and never more
 // than the most an approved AI weight review may assign.
@@ -830,33 +833,6 @@ export const estimateQuestionValue = (question) => {
 /* ---------------------------------------------------------------------------
  * Explicit values, and what is stored.
  * ------------------------------------------------------------------------- */
-
-const TEMPLATE_TOKEN = /\{\{[^}]*\}\}/;
-
-/**
- * What the question's own `questionWeight` says.
- *
- *   { present: false }                                 none written
- *   { present: true, valid: true, value }              a usable value
- *   { present: true, valid: false, raw, problem }      written, but unusable:
- *     'not-a-number' | 'not-positive' | 'below-minimum' | 'above-maximum'
- *     | 'templated' (a Question Family placeholder: a value per student)
- *
- * A present-but-invalid value is never replaced: it is a teacher's or an
- * author's decision gone wrong, and Pre-Flight reports it instead.
- */
-export const explicitQuestionValue = (question) => {
-  const raw = question?.questionWeight;
-  if (raw === undefined || raw === null || raw === '') return { present: false };
-  if (typeof raw === 'string' && TEMPLATE_TOKEN.test(raw)) return { present: true, valid: false, raw, problem: 'templated' };
-  if (typeof raw !== 'number' && typeof raw !== 'string') return { present: true, valid: false, raw, problem: 'not-a-number' };
-  const value = Number(raw);
-  if (!Number.isFinite(value) || (typeof raw === 'string' && !raw.trim())) return { present: true, valid: false, raw, problem: 'not-a-number' };
-  if (value <= 0) return { present: true, valid: false, raw, problem: 'not-positive' };
-  if (value < MIN_QUESTION_VALUE) return { present: true, valid: false, raw, problem: 'below-minimum' };
-  if (value > MAX_QUESTION_VALUE) return { present: true, valid: false, raw, problem: 'above-maximum' };
-  return { present: true, valid: true, value };
-};
 
 /** Who set the stored value, read the same way everywhere. */
 export const questionValueBasis = (question) => {

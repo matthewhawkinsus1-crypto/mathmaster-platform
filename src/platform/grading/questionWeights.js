@@ -1,4 +1,3 @@
-import { estimateQuestionValue } from '../../../functions/shared/questionValue.mjs';
 
 const finitePositive = (value) => {
   const parsed = Number(value);
@@ -90,12 +89,7 @@ export const questionWeightShares = (questions = []) => {
   });
 };
 
-/*
- * The value MathMaster gives a question when it is created — the SAME rule
- * the authoring compiler stamps, the editor's "Suggest" offers and the AI
- * weight review is shown (functions/shared/questionValue.mjs). It counts the
- * work the question's own grader assesses (cards, fields, stages, modes), so a
- * rich tool's board is no longer measured as one answer because it has no
- * `answerFields`.
- */
-export const suggestedQuestionWeight = (question = {}) => estimateQuestionValue(question).value;
+// suggestedQuestionWeight, the value MathMaster gives a new question, is in
+// questionWeightSuggestion.js: it measures the question's work, which brings
+// the whole Question Family registry, and these totals are in the student's
+// first load (scripts/check-first-load-budget.mjs).

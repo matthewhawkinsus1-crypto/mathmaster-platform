@@ -4,9 +4,9 @@ import { createRequire } from 'node:module';
 
 import {
   normalizeQuestionWeight,
-  suggestedQuestionWeight,
   weightedQuestionTotals,
 } from '../../src/platform/grading/questionWeights.js';
+import { suggestedQuestionWeight } from '../../src/platform/grading/questionWeightSuggestion.js';
 
 const require = createRequire(import.meta.url);
 const serverWeights = require('../../functions/lib/questionWeights.js');

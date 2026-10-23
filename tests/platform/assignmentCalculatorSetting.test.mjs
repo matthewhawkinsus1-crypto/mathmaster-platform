@@ -205,7 +205,9 @@ test('zeros, minimum and maximum are listed only where they cannot state an unre
 
 test('the student assignment screen forwards the assignment\'s calculator setting, and QuestionEngine resolves with it', () => {
   const app = source('src/App.jsx');
-  const engineElement = region(app, '<QuestionEngine\n              key={`${activeAssignmentId}-', '/>\n            {/* SAVE HEALTH', 'App student QuestionEngine element');
+  // The element is the branch App renders once the family engine is loaded
+  // (familyEngineLoading), hence the `}` after it.
+  const engineElement = region(app, '<QuestionEngine\n              key={`${activeAssignmentId}-', '/>}\n            {/* SAVE HEALTH', 'App student QuestionEngine element');
   assert.match(engineElement, /assignmentCalculatorMode=\{assignment\?\.toolPolicy\?\.calculator \|\| null\}/);
 
   const engine = source('src/QuestionEngine.jsx');

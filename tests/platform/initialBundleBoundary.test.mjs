@@ -15,7 +15,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { region } from './helpers/sourceContract.mjs';
@@ -125,9 +125,31 @@ test('mathjs is not in the first load', () => {
 // question is resolved, with a failed load reported like a failed render.
 test('App loads the question generator where a student prints, not with Home', () => {
   const app = readFileSync(path.join(repo, 'src/App.jsx'), 'utf8');
-  assert.match(app, /^import \{ canGenerateDistinctVariants as isPersonalizedBlueprint \} from '\.\.\/functions\/shared\/questionVariability\.mjs';$/m);
+  // Whether a question can vary comes with the family engine (familyDelivery.js),
+  // not from a static import: its rules resolve a family's definition.
+  assert.doesNotMatch(app, /^import [^\n]*questionVariability\.mjs';$/m);
+  assert.match(app, /const isPersonalizedBlueprint = \(question\) => Boolean\(familyDelivery\?\.canGenerateDistinctVariants\(question\)\);/);
   const exportPdf = region(app, 'const exportAssignmentWorksheetPdf = async', 'const resolvedQuestion = normalizeContextualQuestion(generateQuestion(', 'the student worksheet export');
-  assert.match(exportPdf, /let generateQuestion;\s*try \{[^}]*\(\{ generateQuestion \} = await import\('\.\/problemGenerator'\)\);\s*\} catch \(error\) \{[^}]*toastError\('Could not export PDF'[^}]*return;/);
+  assert.match(exportPdf, /let generateQuestion;\s*let buildStudentFamilyContext;\s*try \{[^}]*\(\{ generateQuestion \} = await import\('\.\/problemGenerator'\)\);\s*\(\{ buildStudentFamilyContext \} = await loadFamilyDelivery\(\)\);\s*\} catch \(error\) \{[^}]*toastError\('Could not export PDF'[^}]*return;/);
+});
+
+// Every family's generator (the registry and its family modules) loads with
+// the question runtime. App reads a slot's key and whether it is family-backed
+// from questionFamilySlot.mjs, device pins from familyDeliveryPins.js, and the
+// context builder lazily (loadFamilyDelivery); before, the registry was 64 KB
+// gzip of every student's Home.
+test('the Question Family registry and its families are not in the first load', () => {
+  const families = readdirSync(path.join(repo, 'functions/shared')).filter((name) => /^questionFamilies[A-Z]\w*\.mjs$/.test(name));
+  assert.ok(families.length >= 10, `${families.length} family modules`);
+  for (const file of ['functions/shared/questionFamilyRegistry.mjs', 'functions/shared/questionFamilyInstance.mjs', 'functions/shared/questionFamilyGrading.mjs', 'src/platform/generation/familyDelivery.js', ...families.map((name) => `functions/shared/${name}`)]) {
+    const key = path.join(repo, file);
+    assert.ok(!graph.has(key), `${file} is in the first load: ${graph.has(key) ? chainTo(graph, key) : ''}`);
+  }
+  const app = readFileSync(path.join(repo, 'src/App.jsx'), 'utf8');
+  assert.match(app, /import\('\.\/platform\/generation\/familyDelivery\.js'\)/, 'the context builder is loaded, not imported');
+  // A question waits for it rather than render with its pin unchecked.
+  assert.match(app, /const familyEngineLoading = !familyDelivery;/);
+  assert.match(app, /\{familyEngineLoading \? <p role="status"[^>]*>Loading this question…<\/p> : <QuestionEngine/);
 });
 
 // The worksheet and answer-key builders run when someone asks for a PDF, so

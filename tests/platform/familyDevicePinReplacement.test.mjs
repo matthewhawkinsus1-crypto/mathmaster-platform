@@ -131,7 +131,8 @@ test('the student\'s work is keyed by question and variant, never by the instanc
 
 test('App.jsx pins what was shown and says when the question dropped the device pin', () => {
   const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
-  assert.match(app, /import \{[^}]*\bwriteLocalDeliveryPin\b[^}]*\} from '\.\/platform\/generation\/familyDelivery\.js'/);
+  // From the pin module, which carries no family engine (first load).
+  assert.match(app, /import \{[^}]*\bwriteLocalDeliveryPin\b[^}]*\} from '\.\/platform\/generation\/familyDeliveryPins\.js'/);
   const handler = region(app, 'const handleFamilyDelivery = useCallback(', '}, [');
   assert.match(handler, /\(delivery, renderedQuestion\) =>/);
   assert.match(handler, /writeLocalDeliveryPin\(\{ studentId: user\.id, delivery, devicePinDropped: Boolean\(renderedQuestion\?\.familyPinNotice\) \}\)/);

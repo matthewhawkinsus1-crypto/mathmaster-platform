@@ -1,4 +1,5 @@
-import { normalizeQuestionWeight, suggestedQuestionWeight } from './questionWeights.js';
+import { normalizeQuestionWeight } from './questionWeights.js';
+import { suggestedQuestionWeight } from './questionWeightSuggestion.js';
 import { estimateQuestionValue, explicitQuestionValue, teacherQuestionValue } from '../../../functions/shared/questionValue.mjs';
 
 const clean = (value) => String(value ?? '').trim();
