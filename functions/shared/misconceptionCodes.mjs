@@ -325,6 +325,43 @@ export const MISCONCEPTION_REGISTRY = Object.freeze([
     evidenceRequired: 'multiAnswer field that asks for simplest form (answerForm "simplifiedPolynomial"): the field was graded wrong; the submitted polynomial has the same value as the field\'s key; and its only departure from simplest form is a written coefficient of 1.',
     teks: ['A2.7B'],
   }),
+  // --- Radicals and factoring: the key's value, refused for its form ---------------
+  code({
+    id: 'radical-not-simplest-form',
+    concept: 'radical-simplest-form',
+    domain: 'nonlinear',
+    label: 'Right value, radical not simplified',
+    teacherMeaning: 'The answer has the key\'s value in the key\'s notation, but it is not in simplest form: a perfect power left under a root, like terms not combined, or a root in a denominator.',
+    evidenceRequired: 'multiAnswer field graded with gradingMode "simplestRadicalForm": the field was graded wrong, and the submitted expression has the key\'s value in the key\'s notation (simplestRadicalFormEquivalence.mjs radicalFormMiss).',
+    teks: ['A2.7G'],
+  }),
+  code({
+    id: 'radical-decimal-not-exact',
+    concept: 'radical-exact-value',
+    domain: 'nonlinear',
+    label: 'Decimal approximation for an exact radical answer',
+    teacherMeaning: 'A calculator\'s decimal was given where the question asks for the exact value in radical or exponent form.',
+    evidenceRequired: 'multiAnswer field graded with gradingMode "simplestRadicalForm": the field was graded wrong, the key has no decimal and no letters, and the submitted decimal is within 0.5% of its value.',
+    teks: ['A2.7G'],
+  }),
+  code({
+    id: 'radical-other-notation',
+    concept: 'radical-notation',
+    domain: 'nonlinear',
+    label: 'Right value, the other notation',
+    teacherMeaning: 'The answer has the key\'s value but in the other notation: radicals where the key uses rational exponents, or the other way round.',
+    evidenceRequired: 'multiAnswer field graded with gradingMode "simplestRadicalForm": the field was graded wrong, and the submitted expression has the key\'s value in the other notation.',
+    teks: ['A2.7G'],
+  }),
+  code({
+    id: 'polynomial-not-fully-factored',
+    concept: 'polynomial-factoring',
+    domain: 'nonlinear',
+    label: 'Right polynomial, not fully factored',
+    teacherMeaning: 'The answer is the key\'s polynomial, but written expanded or only partly factored (a factor that still factors, or a common factor left in).',
+    evidenceRequired: 'multiAnswer field graded with gradingMode "factoredForm": the field was graded wrong, and the submitted polynomial equals the key\'s (factoredPolynomialExpressionEquivalence.mjs factoredFormMiss).',
+    teks: ['A2.7D'],
+  }),
   code({
     id: 'zeros-sign-reversed',
     concept: 'quadratic-zeros',
@@ -379,7 +416,7 @@ export const MISCONCEPTION_CLASSIFIERS = Object.freeze([
   classifier('tool:dataModelingLab/correlation', 1, ['correlation-direction-reversed']),
   // --- Student pass 3 (additive under registry v1) ---
   // An ordinary multiAnswer field: the right line in the wrong form.
-  classifier('ordinary:multiAnswer', 1, ['line-wrong-form-slope-intercept', 'line-wrong-form-point-slope', 'line-wrong-form-standard', 'polynomial-not-simplified', 'polynomial-unit-coefficient']),
+  classifier('ordinary:multiAnswer', 1, ['line-wrong-form-slope-intercept', 'line-wrong-form-point-slope', 'line-wrong-form-standard', 'polynomial-not-simplified', 'polynomial-unit-coefficient', 'radical-not-simplest-form', 'radical-decimal-not-exact', 'radical-other-notation', 'polynomial-not-fully-factored']),
   // --- Student pass 3, wave 7 (additive under registry v1) ---
   // A Path item (a secure Test, Retest or Corrections item), read from its
   // Path definition with each mistake's classifier rule

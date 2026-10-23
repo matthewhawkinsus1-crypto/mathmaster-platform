@@ -44,6 +44,8 @@
  */
 import { answerCandidatesForField, parseNumericAnswer, parseOrderedPair } from './answerUtils.mjs';
 import { sameValue } from './answerEquivalence.mjs';
+import { radicalFormMiss } from './simplestRadicalFormEquivalence.mjs';
+import { factoredFormMiss } from './factoredPolynomialExpressionEquivalence.mjs';
 import { SIMPLIFIED_POLYNOMIAL_PROBLEMS, fieldRequiresSimplifiedPolynomial, isSimplifiedPolynomial, simplifiedPolynomialProblem } from './simplifiedPolynomialForm.mjs';
 import { LINE_FORMS, isVerticalLine, requestedLineForm, sameLine, writtenLineForm } from './linearEquationForm.mjs';
 import { buildMisconceptionEvidence, getMisconceptionCode, MISCONCEPTION_EXCLUSIVITY } from './misconceptionCodes.mjs';
@@ -892,8 +894,38 @@ const multiAnswerNotSimplifiedFindings = ({ question, grading }) => {
   return [...byCode].map(([code, ids]) => finding(code, ids));
 };
 
+/*
+ * multiAnswer: the key's VALUE, refused for its FORM, on a field graded by
+ * form (gradingMode 'simplestRadicalForm' or 'factoredForm'). The comparators
+ * say why (radicalFormMiss, factoredFormMiss), so the message names the form,
+ * not a bare "Not quite" (walkthrough 2026-10-23, Polynomials and Radicals).
+ */
+const FORM_MISS_CODES = Object.freeze({
+  decimal: 'radical-decimal-not-exact',
+  notation: 'radical-other-notation',
+  notSimplest: 'radical-not-simplest-form',
+  notFullyFactored: 'polynomial-not-fully-factored',
+});
+const multiAnswerFormFindings = ({ question, grading }) => {
+  const parts = partsById(grading);
+  const byCode = new Map();
+  list(question?.answerFields).forEach((field) => {
+    const mode = text(field?.gradingMode).toLowerCase();
+    if (mode !== 'simplestradicalform' && mode !== 'factoredform') return;
+    const part = wrongPart(parts, text(field?.id));
+    if (!part || typeof part.response !== 'string') return;
+    const diagnose = mode === 'factoredform' ? factoredFormMiss : radicalFormMiss;
+    const miss = answerCandidatesForField(field).filter((key) => typeof key === 'string')
+      .map((key) => { try { return diagnose(part.response, key); } catch { return null; } })
+      .find(Boolean);
+    const code = miss ? FORM_MISS_CODES[miss] : null;
+    if (code) byCode.set(code, [...(byCode.get(code) || []), text(field.id)]);
+  });
+  return [...byCode].map(([code, ids]) => finding(code, ids));
+};
+
 const ORDINARY_CLASSIFIERS = {
-  multiAnswer: (input) => [...multiAnswerLineFormFindings(input), ...multiAnswerNotSimplifiedFindings(input)],
+  multiAnswer: (input) => [...multiAnswerLineFormFindings(input), ...multiAnswerNotSimplifiedFindings(input), ...multiAnswerFormFindings(input)],
 };
 
 const sameEndpoint = (a, b) => a === b || near(a, b);

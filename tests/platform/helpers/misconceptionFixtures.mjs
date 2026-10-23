@@ -82,6 +82,20 @@ const simplestFormCase = (name, answer, typed, expected, { answerForm = 'simplif
   expected,
 });
 
+// A field graded by its form (gradingMode), as the Polynomials and Radicals
+// lessons author it.
+const formModeCase = (name, gradingMode, answer, typed, expected) => ({
+  name,
+  question: {
+    type: 'multiAnswer',
+    prompt: gradingMode === 'factoredForm' ? 'Factor completely.' : 'Simplify. Assume every variable is positive.',
+    answerFields: [{ id: 'form', label: gradingMode === 'factoredForm' ? 'Factored form' : 'Simplest form', answer, gradingMode }],
+  },
+  response: fieldsResponse({ form: typed }),
+  familyValues: null,
+  expected,
+});
+
 /** The server's grading of a fixture — what ingestion would hand the classifier. */
 export const gradeFixture = (fixture) => gradeServerResponse({ question: fixture.question, response: fixture.response });
 
@@ -244,6 +258,17 @@ export const MISCONCEPTION_FIXTURES = Object.freeze([
   // Walkthrough 2026-10-22 (Operations CW 5): only the written 1 is left.
   simplestFormCase('simplest form: a coefficient of one written out', '-x^2+x+2', '-1x^2+x+2', ['polynomial-unit-coefficient']),
   simplestFormCase('simplest form: a written one AND like terms left is about the like terms', '3x', '1x+2x', ['polynomial-not-simplified']),
+  // --- ordinary / multiAnswer: the key's value, refused for its form (walkthrough 2026-10-23) ----
+  formModeCase('radical form: a perfect square left under the root', 'simplestRadicalForm', '2\\sqrt{3}', '\\sqrt{12}', ['radical-not-simplest-form']),
+  formModeCase('radical form: with letters', 'simplestRadicalForm', '5x\\sqrt{2x}', '\\sqrt{50x^3}', ['radical-not-simplest-form']),
+  formModeCase('radical form: a calculator decimal', 'simplestRadicalForm', '2\\sqrt{3}', '3.46', ['radical-decimal-not-exact']),
+  formModeCase('radical form: the other notation', 'simplestRadicalForm', '\\sqrt{x}', 'x^{1/2}', ['radical-other-notation']),
+  formModeCase('radical form: correct', 'simplestRadicalForm', '2\\sqrt{3}', '2\\sqrt{3}', []),
+  formModeCase('radical form: a different value is not named', 'simplestRadicalForm', '2\\sqrt{3}', '3\\sqrt{2}', []),
+  formModeCase('factored form: left expanded', 'factoredForm', '(x+2)(x+3)', 'x^2+5x+6', ['polynomial-not-fully-factored']),
+  formModeCase('factored form: only partly factored', 'factoredForm', '2(x-2)(x+2)', '2(x^2-4)', ['polynomial-not-fully-factored']),
+  formModeCase('factored form: correct, in another order', 'factoredForm', '(x+2)(x+3)', '(x+3)(x+2)', []),
+  formModeCase('factored form: a different polynomial is not named', 'factoredForm', '(x+2)(x+3)', '(x+1)(x+6)', []),
   simplestFormCase('simplest form: a wrong value is not named', 'a^3+8a-9', 'a^3+2a-5', []),
   simplestFormCase('simplest form: a field that does not ask for it is not named', 'a^3+8a-9', '2a^3+5a-7-a^3+3a-2', [], { answerForm: null }),
   // Review S5a: a CORRECT field written in another accepted form is never classified.

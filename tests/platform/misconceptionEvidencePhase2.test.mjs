@@ -116,8 +116,12 @@ test('Phase 2 is additive under registry v1: new ids only, every existing code a
   // The walkthrough of 2026-10-22 split off the one case whose message was
   // wrong for it: simplified except for a written coefficient of one.
   const polynomials = ['polynomial-not-simplified', 'polynomial-unit-coefficient'];
+  // …and the Polynomials and Radicals lessons' form-graded fields: the key's
+  // value, refused for its form.
+  const formGraded = ['radical-not-simplest-form', 'radical-decimal-not-exact', 'radical-other-notation', 'polynomial-not-fully-factored'];
+  formGraded.forEach((id) => assert.equal(getMisconceptionCode(id)?.version, 1, id));
   polynomials.forEach((id) => assert.equal(getMisconceptionCode(id)?.version, 1, id));
-  assert.equal(MISCONCEPTION_REGISTRY.length, 18 + added.length + passThree.length + polynomials.length);
+  assert.equal(MISCONCEPTION_REGISTRY.length, 18 + added.length + passThree.length + polynomials.length + formGraded.length);
   // No synonym of an existing code was created: every new code names a different concept.
   const concepts = MISCONCEPTION_REGISTRY.map((entry) => entry.concept);
   added.forEach((id) => assert.equal(concepts.filter((concept) => concept === getMisconceptionCode(id).concept).length, 1, `${id} has its own concept`));

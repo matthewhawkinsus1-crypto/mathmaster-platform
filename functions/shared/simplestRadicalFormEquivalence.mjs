@@ -575,4 +575,32 @@ export const sameSimplestRadicalForm = (student, key) => {
   return isSimplestRadicalForm(studentTree) && sameValue(studentTree, keyTree);
 };
 
+/**
+ * WHY AN ANSWER WITH THE KEY'S VALUE WAS REFUSED, so the student is told the
+ * real reason instead of a bare "Not quite" (walkthrough 2026-10-23,
+ * Polynomials and Radicals). Null when it is right, or when it is not the
+ * key's value at all (an ordinary wrong answer).
+ *   'decimal'      a calculator's decimal for an exact key (within 0.5%);
+ *   'notation'     the key's value in the other notation (radicals for an
+ *                  exponent key, or the other way round);
+ *   'notSimplest'  the key's value and notation, not yet simplified.
+ */
+export const radicalFormMiss = (student, key) => {
+  if (sameSimplestRadicalForm(student, key)) return null;
+  const studentTree = parseRadicalExpression(student);
+  const keyTree = parseRadicalExpression(key);
+  if (!studentTree || !keyTree) return null;
+  if (hasDecimal(student) && !hasDecimal(key)) {
+    if (lettersOf(keyTree).length || lettersOf(studentTree).length) return null;
+    const typed = evaluate(studentTree, {});
+    const exact = evaluate(keyTree, {});
+    return Number.isFinite(typed) && Number.isFinite(exact) && Math.abs(typed - exact) <= 0.005 * Math.max(1, Math.abs(exact)) ? 'decimal' : null;
+  }
+  if (!sameValue(studentTree, keyTree)) return null;
+  const studentNotation = notationOf(studentTree);
+  const keyNotation = notationOf(keyTree);
+  if (studentNotation.radical !== keyNotation.radical || studentNotation.exponent !== keyNotation.exponent) return 'notation';
+  return 'notSimplest';
+};
+
 export default sameSimplestRadicalForm;
