@@ -577,7 +577,7 @@ const intercepts = async () => {
 
 /* --------------------------------------------------------------- relation */
 
-const NUMBER_LINE_VERDICT = /Not yet|\bCorrect\b|The graph is not right yet|Stuck\? Show a hint/;
+const NUMBER_LINE_VERDICT = /Not yet|\bCorrect\b|The graph is not right yet|Your endpoints? (are|is) in the right place|shading runs the wrong way|Stuck\? Show a hint/;
 const graphRay = async (page, endpoint) => {
   // Not "⤢ Open Work View", which also has "Open" in it.
   await page.locator('button:visible', { hasText: endpoint === 'open' ? 'Open' : 'Closed' }).filter({ hasNotText: 'Work View' }).first().click();

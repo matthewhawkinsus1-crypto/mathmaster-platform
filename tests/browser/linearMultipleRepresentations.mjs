@@ -393,7 +393,9 @@ journeys['cw1-free-order'] = async (browser) => {
   await settle(page);
   const g2Wrong = await cardText(page, 'graphSlopeIntercept');
   check(/starts at the y-intercept/.test(g2Wrong), `Graph 2 names the missing method step: "${g2Wrong}"`);
-  await card(page, 'graphSlopeIntercept').getByRole('button', { name: /^Undo/ }).click();
+  // The one Undo, the work bar's: a Check is not a step, so it takes back the
+  // last Graph 2 point (a graph has no Undo of its own since 2026-10-23).
+  await platformUndo(page).click();
   await settle(page);
   check(samePoints((await work(page, id)).graph2Points, [[2, -2]]), 'Undo removes the last Graph 2 point');
   await plot(page, page, 'graph2', [0, -3]);
@@ -402,7 +404,7 @@ journeys['cw1-free-order'] = async (browser) => {
   await card(page, 'graphSlopeIntercept').getByRole('button', { name: /Start .* over/ }).click();
   await settle(page);
   check(samePoints((await work(page, id)).graph2Points, []), 'Start over clears Graph 2');
-  await card(page, 'graphSlopeIntercept').getByRole('button', { name: /^Undo/ }).click();
+  await platformUndo(page).click();
   await settle(page);
   check(samePoints((await work(page, id)).graph2Points, [[4, -1], [0, -3]]), 'Undo brings back what Start over cleared');
   await checkButton(page, 'graphSlopeIntercept').click();

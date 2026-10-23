@@ -16,8 +16,8 @@ test('an authored step that misses the nice ticks becomes the ticks', () => {
   assert.deepEqual(intervalTickSteps(240, 12), { major: 24, minor: 12 });
 });
 
-test('integers on −10..10: a tick at every integer, labelled every 2 (the nice minor tick, 2.5, was not clickable)', () => {
-  assert.deepEqual(intervalTickSteps(20, 1), { major: 2, minor: 1 });
+test('integers on −10..10: still labelled at 5s, with a tick at every integer instead of at 2.5, which no click reaches', () => {
+  assert.deepEqual(intervalTickSteps(20, 1), { major: 5, minor: 1 });
 });
 
 test('a step that already falls on the ticks, no step, or a very fine step keeps the nice ticks', () => {

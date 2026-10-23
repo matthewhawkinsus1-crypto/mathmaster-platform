@@ -7,7 +7,9 @@
  * every 50 and labels at every 100, so a click landed on 60, 120, … 420 with
  * no tick under any of them (walkthrough 2026-10-23, Modeling and Solving
  * Linear Inequalities CW 5) — the ticks follow the step instead: one at every
- * step, labelled at a multiple of it that fits.
+ * step, labelled at a multiple of it that fits. When the nice labels already
+ * fall on the step (−10 to 10 by 1, labelled at 5s), they stay, and the minor
+ * ticks move to every step instead of halfway between labels.
  */
 const tidy = (value) => Number(Number(value).toFixed(10));
 
@@ -30,6 +32,7 @@ export const intervalTickSteps = (span, snapStep = null) => {
   const count = span / snapStep;
   // Too fine to tick every step (more than 40 on the line): keep the nice ticks.
   if (count > 40) return nice;
+  if (isMultiple(major, snapStep)) return { major, minor: tidy(snapStep) };
   const factor = [1, 2, 5, 10].find((candidate) => count / candidate <= 12) ?? 10;
   const labelled = tidy(snapStep * factor);
   return { major: labelled, minor: factor > 1 ? tidy(snapStep) : labelled };
