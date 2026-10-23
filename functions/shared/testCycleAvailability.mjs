@@ -320,7 +320,12 @@ export const resolveClassWindows = ({
     const day = resolveClassPeriodDay({ schedule, classPeriod, dateKey: window.dateKey, timeZone });
     if (!day.resolved && window.held) {
       // The class sat it and the teacher said so: the day ran at the times
-      // its sitting recorded, so it opened and closed like any other day.
+      // its sitting recorded, so it opened and closed like any other day. The
+      // sitting keeps the bell's close and an extension stays on the window,
+      // so a sitting counted while the extension still runs closes with it,
+      // not at the bell: nobody still inside it has missed the Test (Codex P1
+      // on #508).
+      const extended = Number(window.closesAtOverride) > window.held.closesAt;
       return {
         id: window.id,
         source: 'bellSchedule',
@@ -329,9 +334,9 @@ export const resolveClassWindows = ({
         pending: false,
         heldFromSitting: true,
         opensAt: window.held.opensAt,
-        closesAt: window.held.closesAt,
+        closesAt: extended ? window.closesAtOverride : window.held.closesAt,
         scheduledClosesAt: window.held.closesAt,
-        extended: false,
+        extended,
       };
     }
     if (!day.resolved) {

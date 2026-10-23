@@ -383,6 +383,37 @@ test('the teacher counts the sitting: the day ran at its times, the Test closed,
   assert.deepEqual([live.resolved, live.heldFromSitting, live.period], [true, undefined, 'Period 3']);
 });
 
+test('a sitting counted while the teacher\'s extension runs closes with the extension, not at the bell', () => {
+  const sat = assignment(withClassTestDay(null, { classId: 'c3', dateKey: MON, at: at(2026, 10, 9, 9) }));
+  const extended = withClassWindowExtended(sat.testAvailability, { classId: 'c3', windowId: `day-${MON}`, closesAt: at(2026, 10, 12, 15), at: at(2026, 10, 12, 10) });
+  const recorded = classSittingToRecord({ assignmentId: 'a1', classId: 'c3', classWindows: scheduleFor(assignment(extended), at(2026, 10, 12, 10, 30)).test.windows, now: at(2026, 10, 12, 10, 30) });
+  assert.equal(recorded.data.closesAt, at(2026, 10, 12, 11, 5), 'the sitting keeps the bell\'s close');
+  // The day stops resolving (periods renamed) and the teacher counts the
+  // sitting at 1 pm, inside the extension.
+  const renamed = { ...bell, daySchedules: { ...bell.daySchedules, A: { periods: { '3rd Period': { enabled: true, start: '10:15', end: '11:05' } } } } };
+  const counted = assignment(withClassSittingHeld(extended, {
+    classId: 'c3', windowId: `day-${MON}`, opensAt: recorded.data.opensAt, closesAt: recorded.data.closesAt, by: 'teacher@school.org', at: at(2026, 10, 12, 13),
+  }));
+  const [window] = resolveClassWindows({ availability: counted.testAvailability, classId: 'c3', classPeriod: 'Period 3', schedule: renamed, timeZone: TZ });
+  assert.deepEqual(
+    [window.heldFromSitting, window.closesAt, window.scheduledClosesAt, window.extended],
+    [true, at(2026, 10, 12, 15), at(2026, 10, 12, 11, 5), true],
+  );
+  const waiting = { assignmentId: 'a1', studentId: 's-late', test: { state: 'assigned' } };
+  const during = resolveStudentTestCycleSchedule({ assignment: counted, classId: 'c3', classPeriod: 'Period 3', schedule: renamed, now: at(2026, 10, 12, 13), timeZone: TZ });
+  assert.equal(during.test.state, WINDOW_STATE.OPEN, 'still open inside the extension');
+  assert.equal(studentMissedOriginalTest({ record: waiting, schedule: during }), false, 'a student who has not started yet is not missed');
+  const after = resolveStudentTestCycleSchedule({ assignment: counted, classId: 'c3', classPeriod: 'Period 3', schedule: renamed, now: at(2026, 10, 12, 15, 1), timeZone: TZ });
+  assert.equal(after.test.state, WINDOW_STATE.CLOSED);
+  assert.equal(studentMissedOriginalTest({ record: waiting, schedule: after }), true, 'after the extension, they have');
+  // An extension that ended before the bell's close changes nothing.
+  const short = assignment(withClassSittingHeld(withClassWindowExtended(sat.testAvailability, { classId: 'c3', windowId: `day-${MON}`, closesAt: at(2026, 10, 12, 11), at: at(2026, 10, 12, 10) }), {
+    classId: 'c3', windowId: `day-${MON}`, opensAt: recorded.data.opensAt, closesAt: recorded.data.closesAt, at: at(2026, 10, 14, 9),
+  }));
+  const [plain] = resolveClassWindows({ availability: short.testAvailability, classId: 'c3', classPeriod: 'Period 3', schedule: renamed, timeZone: TZ });
+  assert.deepEqual([plain.closesAt, plain.extended], [at(2026, 10, 12, 11, 5), false]);
+});
+
 test('only a class-period day takes a counted sitting, with real times; a new Test day replaces it', () => {
   const sat = withClassTestDay(null, { classId: 'c3', dateKey: MON, at: at(2026, 10, 9, 9) });
   const sitting = { opensAt: at(2026, 10, 12, 10, 15), closesAt: at(2026, 10, 12, 11, 5) };
