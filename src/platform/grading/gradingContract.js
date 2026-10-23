@@ -207,7 +207,7 @@ const validateField = (field, {
     const unsimplified = [primary, ...accepted].filter(isPresent).filter((value) => !isSimplestRadicalForm(String(value)));
     if (unsimplified.length) {
       errors.push(
-        `${display} uses gradingMode "simplestRadicalForm" but its key "${clean(unsimplified[0])}" is not in simplest form (a perfect-power factor under a root, a root in a denominator, a negative exponent, like terms not combined, or an expression MathMaster cannot read). Simplify the key, or remove the grading mode.`,
+        `${display} uses gradingMode "simplestRadicalForm" but its key "${clean(unsimplified[0])}" is not in simplest form (a perfect-power factor under a root, two roots in one term, a root in a denominator, a negative exponent, like terms not combined, or an expression MathMaster cannot read). Simplify the key, or remove the grading mode.`,
       );
     }
   }

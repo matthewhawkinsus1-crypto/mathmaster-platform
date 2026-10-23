@@ -1,0 +1,2560 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Remainder & Factor Theorems — Honors",
+    "courseId": "algebra2",
+    "folder": "Algebra II Honors/Polynomials",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork",
+    "essentialQuestion": "What relationships exist between the factors of polynomial expressions and the zeros of their associated polynomial functions?",
+    "teacherNotes": "Honors version of Bluebonnet Algebra II — Polynomials, Lesson 2 (Factoring Using the Remainder, Factor, and Rational Zero Theorems), TEKS A2.7D (A2.7C, A2.7E). Beyond the regular lesson: why the Remainder Theorem works, zeros and remainders read from tables, leading coefficients other than 1, long division by 2x − 1 and by quadratics, parameters fixed by remainders (one and two unknowns), irrational zeros, building a polynomial from its zeros, a volume model, and factor questions answered without dividing. Synthetic and long division happen in the Polynomial Workshop; rational-zero lists are sets and may use ±. Practice includes two audited SAT items (MathMaster CCMR bank). Warm-Up and DOL are generated per student and back Recovery."
+  },
+  "variantPolicy": {
+    "mode": "personalized",
+    "sectionModes": {
+      "warmup": "shared",
+      "classwork": "shared",
+      "practice": "personalized",
+      "dol": "personalized"
+    },
+    "avoidRecentTemplates": true,
+    "avoidDuplicateParameters": true
+  },
+  "sections": [
+    {
+      "id": "warmup",
+      "role": "warmup",
+      "title": "Warm-Up — Evaluate, Factor, Solve",
+      "recommendedMinutes": 8,
+      "questions": [
+        {
+          "questionId": "rfh-wu-1",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Evaluate by direct substitution: if $f(x) = 2x^3 {{b|signed}}x^2 {{c|xterm}} {{d|signed}}$, find $f({{r}})$.",
+          "responses": [
+            {
+              "id": "value",
+              "label": "f({{r}}) =",
+              "answer": "{{v}}",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "Replace every x with ({{r}}) and work out the powers first.",
+            "Keep the signs: a negative number squared is positive, cubed is negative."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. (−2)³ equals…",
+            "options": [
+              "8",
+              "−8"
+            ],
+            "correct": "−8"
+          },
+          "solutionReview": {
+            "headline": "Substitute, powers first, then multiply and add.",
+            "reasoning": [
+              "f({{r}}) = 2({{r}})³ {{b|signed}}({{r}})² {{c|signed}}({{r}}) {{d|signed}}.",
+              "Powers first: ({{r}})³ = {{r3}} and ({{r}})² = {{r2}}.",
+              "f({{r}}) = {{t1}} {{t2|signed}} {{t3|signed}} {{d|signed}} = {{v}}."
+            ],
+            "answerSummary": "f({{r}}) = {{v}}",
+            "commonError": "Dropping the parentheses around a negative input changes the sign of its even powers."
+          },
+          "generator": {
+            "parameters": {
+              "r": {
+                "type": "int",
+                "min": -3,
+                "max": 3,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "d": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "r2": "r * r",
+              "r3": "r * r * r",
+              "t1": "2 * r * r * r",
+              "t2": "b * r * r",
+              "t3": "c * r",
+              "v": "2 * r^3 + b * r^2 + c * r + d"
+            },
+            "constraints": []
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "rfh-wu-2",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Factor ${{a}}x^2 {{b|xterm}} {{c|signed}}$ with the $ac$ method. (Today the quotients you factor will often have a leading coefficient other than 1.)",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "Factored form",
+              "answer": "({{p}}x{{r|signed}})({{q|coef}}x{{t|signed}})",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Find two numbers whose product is a · c and whose sum is the x-coefficient.",
+            "Split the middle term with those two numbers and factor by grouping."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. For {{a}}x² {{b|xterm}} {{c|signed}}, the product a · c is…",
+            "options": [
+              "{{ac}}",
+              "{{c}}"
+            ],
+            "correct": "{{ac}}"
+          },
+          "solutionReview": {
+            "headline": "Product ac, sum b, split, group.",
+            "reasoning": [
+              "a · c = {{ac}}; {{m1}} and {{m2}} have product {{ac}} and sum {{b}}.",
+              "{{a}}x² {{m1|xterm}} {{m2|xterm}} {{c|signed}} = {{p}}x({{q|coef}}x {{t|signed}}) {{r|signed}}({{q|coef}}x {{t|signed}}).",
+              "So the trinomial is ({{p}}x {{r|signed}})({{q|coef}}x {{t|signed}})."
+            ],
+            "answerSummary": "({{p}}x {{r|signed}})({{q|coef}}x {{t|signed}})",
+            "commonError": "Looking for two numbers whose product is c: in the ac method their product is a · c."
+          },
+          "generator": {
+            "parameters": {
+              "p": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "q": {
+                "type": "int",
+                "min": 1,
+                "max": 5
+              },
+              "r": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  0
+                ]
+              },
+              "t": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "a": "p * q",
+              "b": "p * t + q * r",
+              "c": "r * t",
+              "ac": "p * q * r * t",
+              "m1": "p * t",
+              "m2": "q * r"
+            },
+            "constraints": [
+              "gcd(p, r) == 1",
+              "gcd(q, t) == 1",
+              "p * t + q * r != 0",
+              "p * t != q * r",
+              "q < p",
+              "p * q * r * t != r * t"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "rfh-wu-3",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "If $f(x) = x^2 + kx {{c|signed}}$ and $f({{r}}) = {{v}}$, find $k$.",
+          "responses": [
+            {
+              "id": "k",
+              "label": "k =",
+              "answer": "{{k}}",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "Substitute {{r}} for x and set the result equal to {{v}}.",
+            "What is left is a linear equation in k."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Substituting x = {{r}} into x² + kx gives…",
+            "options": [
+              "{{r2}} {{r|signed}}k",
+              "{{r2}} + k"
+            ],
+            "correct": "{{r2}} {{r|signed}}k"
+          },
+          "solutionReview": {
+            "headline": "Substitute, then solve the linear equation for k.",
+            "reasoning": [
+              "f({{r}}) = ({{r}})² + k({{r}}) {{c|signed}} = {{r2}} {{r|signed}}k {{c|signed}}.",
+              "Set it equal to {{v}}: ({{r}})k = {{v}} − {{r2}} {{nc|signed}} = {{rk}}.",
+              "k = {{rk}} ÷ ({{r}}) = {{k}}."
+            ],
+            "answerSummary": "k = {{k}}",
+            "commonError": "Dropping the constant term when you substitute: f(r) uses every term of f(x)."
+          },
+          "generator": {
+            "parameters": {
+              "r": {
+                "type": "int",
+                "min": -4,
+                "max": 4,
+                "exclude": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "k": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "r2": "r * r",
+              "v": "r * r + k * r + c",
+              "nc": "-c",
+              "rk": "r * k"
+            },
+            "constraints": []
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        }
+      ]
+    },
+    {
+      "id": "classwork",
+      "role": "classwork",
+      "title": "Classwork — Remainders, Factors, and Zeros",
+      "recommendedMinutes": 50,
+      "questions": [
+        {
+          "questionId": "rfh-cw-1",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "syntheticDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Divide $P(x) = 2x^4 - 7x^3 + 5x - 10$ by $x - 3$ with synthetic division — a missing power needs a 0. Then read the bottom row: what is the quotient, and what is $P(3)$?",
+          "polynomial": {
+            "dividend": [
+              2,
+              -7,
+              0,
+              5,
+              -10
+            ],
+            "candidateRoot": 3,
+            "ask": [
+              "quotient",
+              "value"
+            ]
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Remainder Theorem",
+                "instruction": "When P(x) is divided by x − r, the remainder is P(r): P(x) = (x − r)·Q(x) + P(r)."
+              },
+              {
+                "title": "Synthetic division",
+                "instruction": "Box r; write every coefficient from the highest power down, with a 0 for each missing power; bring down, multiply by r, add, repeat."
+              },
+              {
+                "title": "Reading the bottom row",
+                "instruction": "The last entry is the remainder P(r); the others are the quotient’s coefficients, one degree lower."
+              }
+            ]
+          },
+          "hints": [
+            "Five coefficients for a fourth-degree polynomial: one of them is 0.",
+            "The last number in the bottom row is the remainder, which equals P(3)."
+          ],
+          "solutionReview": {
+            "commonError": "Leaving out the 0 for the missing x² term: every coefficient after it shifts, and the remainder comes out wrong."
+          }
+        },
+        {
+          "questionId": "rfh-cw-2",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Why the Remainder Theorem works. Dividing $P(x)$ by $x - r$ gives $P(x) = (x - r)Q(x) + R$, where the remainder $R$ is a number. Use that equation to reason.",
+          "responses": [
+            {
+              "id": "why",
+              "label": "Substitute x = r. Why does P(r) = R?",
+              "type": "choice",
+              "options": [
+                "(r − r)Q(r) = 0 · Q(r) = 0, so only R is left",
+                "Q(r) is always 0",
+                "R is always 0",
+                "r is always a factor of R"
+              ],
+              "answer": "(r − r)Q(r) = 0 · Q(r) = 0, so only R is left"
+            },
+            {
+              "id": "factor",
+              "label": "If P(5) = 0, which must be true?",
+              "type": "choice",
+              "options": [
+                "x − 5 is a factor of P(x)",
+                "x + 5 is a factor of P(x)",
+                "5 is the constant term of P(x)",
+                "P(x) has no other real zeros"
+              ],
+              "answer": "x − 5 is a factor of P(x)"
+            },
+            {
+              "id": "rem",
+              "label": "Without dividing: the remainder when x³ − 4x² + 6 is divided by x − 3 is",
+              "answer": "-3",
+              "inputProfile": "number"
+            },
+            {
+              "id": "error",
+              "label": "Ana says x + 2 is a factor of P(x) because P(2) = 0. What is her error?",
+              "type": "choice",
+              "options": [
+                "P(2) = 0 makes x − 2 a factor; x + 2 is a factor when P(−2) = 0",
+                "There is no error: P(2) = 0 means x + 2 is a factor",
+                "P(2) = 0 means the remainder is 2",
+                "A factor needs P(0) = 0"
+              ],
+              "answer": "P(2) = 0 makes x − 2 a factor; x + 2 is a factor when P(−2) = 0"
+            }
+          ],
+          "hints": [
+            "Replace every x in P(x) = (x − r)Q(x) + R with r.",
+            "x − r is a factor exactly when the remainder is 0."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. What is (r − r) · Q(r)?",
+            "options": [
+              "Q(r)",
+              "0"
+            ],
+            "correct": "0"
+          },
+          "solutionReview": {
+            "headline": "Substitute r into the division equation.",
+            "reasoning": [
+              "P(r) = (r − r)Q(r) + R = 0 + R = R.",
+              "P(5) = 0 means the remainder of P(x) ÷ (x − 5) is 0, so x − 5 is a factor.",
+              "The remainder is P(3) = 27 − 36 + 6 = −3.",
+              "x + 2 = x − (−2) is a factor exactly when P(−2) = 0; P(2) = 0 makes x − 2 a factor."
+            ],
+            "answerSummary": "P(r) = R; x − 5 is a factor; remainder −3; Ana confused x − 2 with x + 2",
+            "commonError": "Mixing up the sign: P(2) = 0 makes x − 2 a factor, not x + 2."
+          },
+          "questionWeight": 1.5
+        },
+        {
+          "questionId": "rfh-cw-3",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Read a table with the Factor and Remainder Theorems. The table shows values of a cubic $P(x)$ with leading coefficient 1.",
+          "table": {
+            "columns": [
+              {
+                "key": "x",
+                "label": "x"
+              },
+              {
+                "key": "px",
+                "label": "P(x)"
+              }
+            ],
+            "rows": [
+              {
+                "x": -3,
+                "px": -24
+              },
+              {
+                "x": -2,
+                "px": 0
+              },
+              {
+                "x": -1,
+                "px": 8
+              },
+              {
+                "x": 0,
+                "px": 6
+              },
+              {
+                "x": 1,
+                "px": 0
+              },
+              {
+                "x": 2,
+                "px": -4
+              },
+              {
+                "x": 3,
+                "px": 0
+              },
+              {
+                "x": 4,
+                "px": 18
+              }
+            ]
+          },
+          "responses": [
+            {
+              "id": "zeros",
+              "label": "Zeros of P, as a set",
+              "answer": "{-2, 1, 3}",
+              "inputProfile": "set"
+            },
+            {
+              "id": "factored",
+              "label": "P(x) in factored form",
+              "answer": "(x+2)(x-1)(x-3)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "rem",
+              "label": "The remainder when P(x) is divided by x − 4",
+              "answer": "18",
+              "inputProfile": "number"
+            },
+            {
+              "id": "factor",
+              "label": "Is x + 1 a factor of P(x)?",
+              "type": "choice",
+              "options": [
+                "No — P(−1) = 8, not 0",
+                "Yes — P(1) = 0",
+                "Yes — −1 is in the table",
+                "It cannot be decided from the table"
+              ],
+              "answer": "No — P(−1) = 8, not 0"
+            }
+          ],
+          "hints": [
+            "A zero is an input where P(x) = 0.",
+            "By the Remainder Theorem, the remainder of P(x) ÷ (x − r) is P(r)."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. If P(1) = 0, which binomial is a factor of P(x)?",
+            "options": [
+              "x − 1",
+              "x + 1"
+            ],
+            "correct": "x − 1"
+          },
+          "solutionReview": {
+            "headline": "Zeros in the table give the factors; table values give remainders.",
+            "reasoning": [
+              "P(x) = 0 at x = −2, 1 and 3, so the zeros are −2, 1 and 3.",
+              "Each zero c gives a factor x − c, and the leading coefficient is 1: P(x) = (x + 2)(x − 1)(x − 3). Check: P(0) = (2)(−1)(−3) = 6, as in the table.",
+              "The remainder of P(x) ÷ (x − 4) is P(4) = 18.",
+              "P(−1) = 8 ≠ 0, so x + 1 is not a factor."
+            ],
+            "answerSummary": "{−2, 1, 3}; (x + 2)(x − 1)(x − 3); 18; not a factor",
+            "commonError": "Writing x + c for a zero c: a zero at x = c gives the factor x − c."
+          },
+          "questionWeight": 1.5
+        },
+        {
+          "questionId": "rfh-cw-4",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "The Rational Zero Theorem with a leading coefficient other than 1. Factor $P(x) = 2x^3 - 3x^2 - 11x + 6$ completely and find its zeros.",
+          "responses": [
+            {
+              "id": "candidates",
+              "label": "Possible rational zeros p/q, as a set",
+              "answer": "{±1, ±2, ±3, ±6, ±1/2, ±3/2}",
+              "inputProfile": "set"
+            },
+            {
+              "id": "test",
+              "label": "P(3) =",
+              "answer": "0",
+              "inputProfile": "number"
+            },
+            {
+              "id": "quotient",
+              "label": "(2x³ − 3x² − 11x + 6) ÷ (x − 3) =",
+              "answer": "2x^2+3x-2",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "(x-3)(2x-1)(x+2)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "zeros",
+              "label": "Zeros, as a set",
+              "answer": "{3, 1/2, -2}",
+              "inputProfile": "set"
+            }
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Rational Zero Theorem",
+                "instruction": "If P(x) has integer coefficients, every rational zero is p/q, where p divides the constant term and q divides the leading coefficient."
+              },
+              {
+                "title": "Factoring a cubic",
+                "instruction": "List the candidates, test them until P(r) = 0, divide by x − r, then factor the quadratic quotient (the ac method when its leading coefficient is not 1)."
+              }
+            ]
+          },
+          "hints": [
+            "p divides 6 and q divides 2.",
+            "Test the integer candidates first; the bottom row of the synthetic division gives the quotient.",
+            "Factor the quadratic quotient with the ac method."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In the Rational Zero Theorem, q is a factor of…",
+            "options": [
+              "the constant term",
+              "the leading coefficient"
+            ],
+            "correct": "the leading coefficient"
+          },
+          "solutionReview": {
+            "headline": "Candidates, a zero, the quotient, then the ac method.",
+            "reasoning": [
+              "p is ±1, ±2, ±3 or ±6 and q is ±1 or ±2, so the candidates are ±1, ±2, ±3, ±6, ±1/2 and ±3/2.",
+              "P(3) = 54 − 27 − 33 + 6 = 0, so x − 3 is a factor; synthetic division by 3 leaves 2x² + 3x − 2.",
+              "2x² + 3x − 2 = (2x − 1)(x + 2).",
+              "The zeros are 3, 1/2 and −2 — one is a fraction, which is why the candidate list includes p/q."
+            ],
+            "answerSummary": "(x − 3)(2x − 1)(x + 2); zeros {3, 1/2, −2}",
+            "commonError": "Leaving out the fractions ±1/2 and ±3/2: the leading coefficient 2 makes them candidates."
+          },
+          "questionWeight": 1.75
+        },
+        {
+          "questionId": "rfh-cw-5",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "dividePolynomial"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Synthetic division needs a divisor of the form $x - r$. For $2x - 1$, use long division: divide $6x^3 + 7x^2 - x - 2$ by $2x - 1$.",
+          "polynomial": {
+            "dividend": [
+              6,
+              7,
+              -1,
+              -2
+            ],
+            "divisor": [
+              2,
+              -1
+            ]
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Long division",
+                "instruction": "Divide the leading terms, multiply the whole divisor by that quotient term, subtract, and bring down the next term. Stop when the remainder has a lower degree than the divisor."
+              }
+            ]
+          },
+          "hints": [
+            "Divide the leading terms first: 6x³ ÷ 2x.",
+            "Multiply that quotient term by 2x − 1, subtract, bring down the next term, and repeat."
+          ],
+          "solutionReview": {
+            "commonError": "Subtracting only the first term at each step: subtract the whole product of the new quotient term and 2x − 1."
+          }
+        },
+        {
+          "questionId": "rfh-cw-6",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Long division gave $6x^3 + 7x^2 - x - 2 = (2x - 1)(3x^2 + 5x + 2)$. Synthetic division by $x - \\tfrac{1}{2}$ gives the bottom row $6,\\ 10,\\ 4 \\mid 0$ instead. Connect the two results, then factor completely.",
+          "responses": [
+            {
+              "id": "why",
+              "label": "Why is the synthetic-division quotient 6x² + 10x + 4 twice the long-division quotient?",
+              "type": "choice",
+              "options": [
+                "2x − 1 = 2(x − 1/2), so dividing by x − 1/2 leaves the factor 2 inside the quotient",
+                "Synthetic division always doubles the quotient",
+                "One of the two divisions is wrong",
+                "Because the remainder is 0"
+              ],
+              "answer": "2x − 1 = 2(x − 1/2), so dividing by x − 1/2 leaves the factor 2 inside the quotient"
+            },
+            {
+              "id": "factored",
+              "label": "6x³ + 7x² − x − 2 completely factored",
+              "answer": "(2x-1)(3x+2)(x+1)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "zeros",
+              "label": "Zeros, as a set",
+              "answer": "{1/2, -2/3, -1}",
+              "inputProfile": "set"
+            }
+          ],
+          "hints": [
+            "Multiply out 2(x − 1/2).",
+            "Factor 3x² + 5x + 2 with the ac method: a · c = 6."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. 2(x − 1/2) equals…",
+            "options": [
+              "2x − 1",
+              "2x − 1/2"
+            ],
+            "correct": "2x − 1"
+          },
+          "solutionReview": {
+            "headline": "The two divisions differ by the factor 2 in the divisor.",
+            "reasoning": [
+              "6x³ + 7x² − x − 2 = (x − 1/2)(6x² + 10x + 4) = (x − 1/2) · 2(3x² + 5x + 2) = (2x − 1)(3x² + 5x + 2).",
+              "3x² + 5x + 2 = (3x + 2)(x + 1).",
+              "The zeros are 1/2, −2/3 and −1."
+            ],
+            "answerSummary": "(2x − 1)(3x + 2)(x + 1); zeros {1/2, −2/3, −1}",
+            "commonError": "Taking 6x² + 10x + 4 as the quotient for 2x − 1: dividing by x − 1/2 leaves an extra factor of 2 in it."
+          },
+          "questionWeight": 1.5
+        },
+        {
+          "questionId": "rfh-cw-7",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "dividePolynomial"
+          ],
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "Divide $x^4 + 2x^3 - 3x^2 + 5x - 1$ by $x^2 + x - 1$. With a quadratic divisor the remainder can be linear: stop when its degree is less than 2.",
+          "polynomial": {
+            "dividend": [
+              1,
+              2,
+              -3,
+              5,
+              -1
+            ],
+            "divisor": [
+              1,
+              1,
+              -1
+            ]
+          },
+          "hints": [
+            "The first quotient term is x⁴ ÷ x².",
+            "The remainder has degree less than 2, so it can have an x-term."
+          ],
+          "solutionReview": {
+            "commonError": "Stopping too early or too late: keep dividing until the remainder’s degree is less than 2, the degree of the divisor."
+          }
+        },
+        {
+          "questionId": "rfh-cw-8",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "A remainder fixes a parameter. When $P(x) = x^3 + kx^2 - 4x + 3$ is divided by $x - 2$, the remainder is $15$. Find $k$, then test another factor.",
+          "responses": [
+            {
+              "id": "k",
+              "label": "k =",
+              "answer": "3",
+              "inputProfile": "number"
+            },
+            {
+              "id": "pm1",
+              "label": "With that k, P(−1) =",
+              "answer": "9",
+              "inputProfile": "number"
+            },
+            {
+              "id": "factor",
+              "label": "So is x + 1 a factor of P(x)?",
+              "type": "choice",
+              "options": [
+                "No — P(−1) is not 0",
+                "Yes — P(−1) is positive",
+                "Yes — −1 is a possible rational zero",
+                "It cannot be decided without dividing"
+              ],
+              "answer": "No — P(−1) is not 0"
+            }
+          ],
+          "hints": [
+            "The remainder of P(x) ÷ (x − 2) is P(2).",
+            "Set P(2) = 15 and solve the linear equation for k."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The remainder when P(x) is divided by x − 2 equals…",
+            "options": [
+              "P(−2)",
+              "P(2)"
+            ],
+            "correct": "P(2)"
+          },
+          "solutionReview": {
+            "headline": "The Remainder Theorem turns the remainder into an equation.",
+            "reasoning": [
+              "P(2) = 8 + 4k − 8 + 3 = 4k + 3.",
+              "4k + 3 = 15, so k = 3.",
+              "P(x) = x³ + 3x² − 4x + 3 and P(−1) = −1 + 3 + 4 + 3 = 9 ≠ 0, so x + 1 is not a factor."
+            ],
+            "answerSummary": "k = 3; P(−1) = 9; not a factor",
+            "commonError": "Setting P(2) = 0: the remainder is 15, so P(2) = 15."
+          },
+          "questionWeight": 1.25
+        },
+        {
+          "questionId": "rfh-cw-9",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Two conditions, two unknowns. $P(x) = x^3 + ax^2 + bx - 6$ has a factor $x - 1$, and leaves remainder $-12$ when divided by $x + 2$. Find $a$ and $b$, then factor $P(x)$.",
+          "responses": [
+            {
+              "id": "eq1",
+              "label": "From P(1) = 0: a + b =",
+              "answer": "5",
+              "inputProfile": "number"
+            },
+            {
+              "id": "eq2",
+              "label": "From P(−2) = −12: 2a − b =",
+              "answer": "1",
+              "inputProfile": "number"
+            },
+            {
+              "id": "a",
+              "label": "a =",
+              "answer": "2",
+              "inputProfile": "number"
+            },
+            {
+              "id": "b",
+              "label": "b =",
+              "answer": "3",
+              "inputProfile": "number"
+            },
+            {
+              "id": "factored",
+              "label": "P(x) completely factored over the integers",
+              "answer": "(x-1)(x^2+3x+6)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "real",
+              "label": "Number of real zeros of P",
+              "answer": "1",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "Write one equation from the factor x − 1 and one from the remainder −12.",
+            "Add the two equations to eliminate b.",
+            "Is the discriminant of the quadratic factor positive, zero, or negative?"
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. If P(x) leaves remainder −12 when divided by x + 2, then…",
+            "options": [
+              "P(−2) = −12",
+              "P(2) = −12"
+            ],
+            "correct": "P(−2) = −12"
+          },
+          "solutionReview": {
+            "headline": "Each condition is one equation.",
+            "reasoning": [
+              "P(1) = 1 + a + b − 6 = 0, so a + b = 5.",
+              "P(−2) = −8 + 4a − 2b − 6 = −12, so 4a − 2b = 2, that is, 2a − b = 1.",
+              "Adding: 3a = 6, so a = 2 and b = 3.",
+              "P(x) = x³ + 2x² + 3x − 6 = (x − 1)(x² + 3x + 6). The quadratic has discriminant 9 − 24 < 0, so P has exactly one real zero, x = 1."
+            ],
+            "answerSummary": "a = 2, b = 3; (x − 1)(x² + 3x + 6); one real zero",
+            "commonError": "Setting P(−2) = 0 for the second condition: a remainder of −12 means P(−2) = −12."
+          },
+          "questionWeight": 1.75
+        },
+        {
+          "questionId": "rfh-cw-10",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Irrational zeros. Find every zero of $P(x) = x^4 - x^3 - 6x^2 + 2x + 4$: two are rational and two are not.",
+          "responses": [
+            {
+              "id": "candidates",
+              "label": "Possible rational zeros, as a set",
+              "answer": "{±1, ±2, ±4}",
+              "inputProfile": "set"
+            },
+            {
+              "id": "cubic",
+              "label": "After dividing by x − 1, the depressed cubic is",
+              "answer": "x^3-6x-4",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "quadratic",
+              "label": "After dividing that cubic by x + 2, the quadratic factor is",
+              "answer": "x^2-2x-2",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "big",
+              "label": "Larger irrational zero",
+              "answer": "1+√3",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "small",
+              "label": "Smaller irrational zero",
+              "answer": "1-√3",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Test the candidates with synthetic division; x = 1 works first.",
+            "Keep a 0 for any missing power when you divide again.",
+            "The quadratic factor does not factor over the integers: use the quadratic formula."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The quadratic formula gives the zeros of ax² + bx + c as…",
+            "options": [
+              "x = (−b ± √(b² − 4ac)) / (2a)",
+              "x = (b ± √(b² − 4ac)) / (2a)"
+            ],
+            "correct": "x = (−b ± √(b² − 4ac)) / (2a)"
+          },
+          "solutionReview": {
+            "headline": "Divide out the rational zeros, then use the quadratic formula.",
+            "reasoning": [
+              "The candidates are ±1, ±2 and ±4. P(1) = 1 − 1 − 6 + 2 + 4 = 0, and dividing by x − 1 leaves x³ − 6x − 4.",
+              "For the cubic, x = −2 works: dividing by x + 2 leaves x² − 2x − 2.",
+              "x² − 2x − 2 = 0 gives x = (2 ± √12)/2 = 1 ± √3.",
+              "So the zeros are 1, −2, 1 + √3 and 1 − √3."
+            ],
+            "answerSummary": "zeros 1, −2, 1 + √3, 1 − √3",
+            "commonError": "Writing √12/2 as √6: √12 = 2√3, so (2 ± 2√3)/2 = 1 ± √3."
+          },
+          "questionWeight": 1.75
+        },
+        {
+          "questionId": "rfh-cw-11",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Build the polynomial. Write the cubic function with zeros $-2$, $1$ and $4$ whose graph passes through $(0, 16)$.",
+          "responses": [
+            {
+              "id": "a",
+              "label": "Leading coefficient a =",
+              "answer": "2",
+              "inputProfile": "number"
+            },
+            {
+              "id": "factored",
+              "label": "f(x) =",
+              "answer": "2(x+2)(x-1)(x-4)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "f2",
+              "label": "f(2) =",
+              "answer": "-16",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "Each zero c gives a factor x − c, and a leading coefficient a multiplies the product.",
+            "Substitute the point (0, 16) to find a."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Every cubic with zeros −2, 1 and 4 has the form…",
+            "options": [
+              "a(x − 2)(x + 1)(x + 4)",
+              "a(x + 2)(x − 1)(x − 4)"
+            ],
+            "correct": "a(x + 2)(x − 1)(x − 4)"
+          },
+          "solutionReview": {
+            "headline": "Zeros give the factors; one point gives the leading coefficient.",
+            "reasoning": [
+              "f(x) = a(x + 2)(x − 1)(x − 4).",
+              "f(0) = a(2)(−1)(−4) = 8a = 16, so a = 2.",
+              "f(2) = 2(4)(1)(−2) = −16."
+            ],
+            "answerSummary": "f(x) = 2(x + 2)(x − 1)(x − 4); f(2) = −16",
+            "commonError": "Using x − 2 for the zero −2: a zero c gives the factor x − c, so −2 gives x + 2."
+          },
+          "questionWeight": 1.25
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "role": "practice",
+      "title": "Practice — Divide, Test, Factor, Reason",
+      "recommendedMinutes": 45,
+      "questions": [
+        {
+          "questionId": "rfh-p-1",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "syntheticDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Use synthetic division to divide $P(x) = {{a|coef}}x^4 {{b|signed}}x^3 {{c|xterm}} {{d|signed}}$ by $x {{nr|signed}}$. Give the quotient and $P({{r}})$.",
+          "polynomial": {
+            "dividend": [
+              "{{a}}",
+              "{{b}}",
+              0,
+              "{{c}}",
+              "{{d}}"
+            ],
+            "candidateRoot": "{{r}}",
+            "ask": [
+              "quotient",
+              "value"
+            ]
+          },
+          "hints": [
+            "A 0 holds the place of the missing x² term."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "b": {
+                "type": "int",
+                "min": -5,
+                "max": 5,
+                "exclude": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "d": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "r": {
+                "type": "int",
+                "min": -3,
+                "max": 3,
+                "exclude": [
+                  -1,
+                  0,
+                  1
+                ]
+              }
+            },
+            "derived": {
+              "nr": "-r"
+            },
+            "constraints": []
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "solutionReview": {
+            "commonError": "Boxing the wrong sign: dividing by x − r uses r, so x + 2 uses −2 and x − 3 uses 3."
+          }
+        },
+        {
+          "questionId": "rfh-p-2",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Find $k$ so that $x {{nr|signed}}$ is a factor of $P(x) = x^3 {{b|signed}}x^2 + kx {{d|signed}}$.",
+          "responses": [
+            {
+              "id": "k",
+              "label": "k =",
+              "answer": "{{k}}",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "A factor x − r means P(r) = 0.",
+            "Substitute x = {{r}}, set the result equal to 0, and solve for k."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. x {{nr|signed}} is a factor of P(x) exactly when…",
+            "options": [
+              "P({{r}}) = 0",
+              "P({{nr}}) = 0"
+            ],
+            "correct": "P({{r}}) = 0"
+          },
+          "solutionReview": {
+            "headline": "The Factor Theorem gives one equation in k.",
+            "reasoning": [
+              "x {{nr|signed}} is a factor exactly when P({{r}}) = 0.",
+              "P({{r}}) = ({{r}})³ {{b|signed}}({{r}})² + k({{r}}) {{d|signed}} = {{s0}} {{r|signed}}k.",
+              "{{s0}} {{r|signed}}k = 0, so k = {{k}}."
+            ],
+            "answerSummary": "k = {{k}}",
+            "commonError": "Substituting x = {{nr}}: the factor x {{nr|signed}} is 0 at x = {{r}}."
+          },
+          "generator": {
+            "parameters": {
+              "r": {
+                "type": "int",
+                "min": -3,
+                "max": 3,
+                "exclude": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "k": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "nr": "-r",
+              "d": "-(r^3 + b * r * r + k * r)",
+              "s0": "r^3 + b * r * r - (r^3 + b * r * r + k * r)"
+            },
+            "constraints": [
+              "r^3 + b * r * r + k * r != 0",
+              "abs(r^3 + b * r * r + k * r) <= 99"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "rfh-p-3",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "$x {{nr|signed}}$ is a factor of $P(x) = {{A}}x^3 {{B|signed}}x^2 {{C|xterm}} {{D|signed}}$. Factor $P(x)$ completely.",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "(x{{nr|signed}})({{a}}x{{b|signed}})(x{{ns|signed}})",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Divide by x {{nr|signed}} with synthetic division.",
+            "The quotient is a quadratic with leading coefficient {{a}}: factor it with the ac method."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Dividing by x {{nr|signed}} with synthetic division, the number in the box is…",
+            "options": [
+              "{{nr}}",
+              "{{r}}"
+            ],
+            "correct": "{{r}}"
+          },
+          "solutionReview": {
+            "headline": "Divide by the factor you know, then use the ac method.",
+            "reasoning": [
+              "Synthetic division by {{r}} leaves the quotient {{a}}x² {{qb|xterm}} {{qc|signed}}, with remainder 0.",
+              "Factor the quotient: {{a}}x² {{qb|xterm}} {{qc|signed}} = ({{a}}x {{b|signed}})(x {{ns|signed}}).",
+              "So P(x) = (x {{nr|signed}})({{a}}x {{b|signed}})(x {{ns|signed}})."
+            ],
+            "answerSummary": "(x {{nr|signed}})({{a}}x {{b|signed}})(x {{ns|signed}})",
+            "commonError": "Stopping after the division: the quadratic quotient factors again with the ac method."
+          },
+          "questionWeight": 1.25,
+          "generator": {
+            "parameters": {
+              "r": {
+                "type": "int",
+                "min": -4,
+                "max": 4,
+                "exclude": [
+                  0
+                ]
+              },
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              },
+              "b": {
+                "type": "int",
+                "min": -5,
+                "max": 5,
+                "exclude": [
+                  0
+                ]
+              },
+              "s": {
+                "type": "int",
+                "min": -5,
+                "max": 5,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "nr": "-r",
+              "ns": "-s",
+              "A": "a",
+              "B": "b - a * (r + s)",
+              "C": "a * r * s - b * (r + s)",
+              "D": "b * r * s",
+              "qb": "b - a * s",
+              "qc": "-b * s"
+            },
+            "constraints": [
+              "gcd(a, abs(b)) == 1",
+              "r != s",
+              "abs(b - a * (r + s)) >= 2"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "rfh-p-4",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "dividePolynomial"
+          ],
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "Divide $2x^4 - x^3 - 2x - 2$ by $x^2 - x + 2$. There is no $x^2$ term in the dividend.",
+          "polynomial": {
+            "dividend": [
+              2,
+              -1,
+              0,
+              -2,
+              -2
+            ],
+            "divisor": [
+              1,
+              -1,
+              2
+            ]
+          },
+          "hints": [
+            "Write the dividend with a 0 for the missing x² term.",
+            "Stop when the remainder has a lower degree than the divisor."
+          ],
+          "solutionReview": {
+            "commonError": "Leaving out the 0x² placeholder in the dividend: the subtraction then lines up the wrong powers."
+          }
+        },
+        {
+          "questionId": "rfh-p-5",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Factor $P(x) = 2x^4 + x^3 - 8x^2 - x + 6$ completely and list its zeros.",
+          "responses": [
+            {
+              "id": "candidates",
+              "label": "Possible rational zeros, as a set",
+              "answer": "{±1, ±2, ±3, ±6, ±1/2, ±3/2}",
+              "inputProfile": "set"
+            },
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "(x-1)(x+1)(2x-3)(x+2)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "zeros",
+              "label": "Zeros, as a set",
+              "answer": "{1, -1, 3/2, -2}",
+              "inputProfile": "set"
+            }
+          ],
+          "hints": [
+            "p divides 6 and q divides 2.",
+            "Find one zero, divide, and repeat on the cubic that is left."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. After you find two zeros of a quartic and divide twice, what is left?",
+            "options": [
+              "A cubic",
+              "A quadratic"
+            ],
+            "correct": "A quadratic"
+          },
+          "solutionReview": {
+            "headline": "Find a zero, divide, repeat, then factor the quadratic.",
+            "reasoning": [
+              "P(1) = 2 + 1 − 8 − 1 + 6 = 0: dividing by x − 1 leaves 2x³ + 3x² − 5x − 6.",
+              "For the cubic, x = −1 works: dividing by x + 1 leaves 2x² + x − 6 = (2x − 3)(x + 2).",
+              "P(x) = (x − 1)(x + 1)(2x − 3)(x + 2), with zeros 1, −1, 3/2 and −2."
+            ],
+            "answerSummary": "(x − 1)(x + 1)(2x − 3)(x + 2); zeros {1, −1, 3/2, −2}",
+            "commonError": "Testing only integer candidates: with leading coefficient 2, ±1/2 and ±3/2 are candidates too."
+          },
+          "questionWeight": 1.5
+        },
+        {
+          "questionId": "rfh-p-6",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "$P(x) = 2x^3 + ax^2 + bx + 6$ has $P(1) = 0$ and $P(-1) = 10$. Find $a$ and $b$, then factor $P(x)$ completely.",
+          "responses": [
+            {
+              "id": "a",
+              "label": "a =",
+              "answer": "-1",
+              "inputProfile": "number"
+            },
+            {
+              "id": "b",
+              "label": "b =",
+              "answer": "-7",
+              "inputProfile": "number"
+            },
+            {
+              "id": "factored",
+              "label": "P(x) completely factored",
+              "answer": "(x-1)(2x-3)(x+2)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Write one equation from P(1) = 0 and one from P(−1) = 10.",
+            "Add the two equations to find a."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. P(1) = 0 tells you that…",
+            "options": [
+              "x − 1 is a factor of P(x)",
+              "x + 1 is a factor of P(x)"
+            ],
+            "correct": "x − 1 is a factor of P(x)"
+          },
+          "solutionReview": {
+            "headline": "Two conditions, two equations; then factor.",
+            "reasoning": [
+              "P(1) = 2 + a + b + 6 = 0, so a + b = −8.",
+              "P(−1) = −2 + a − b + 6 = 10, so a − b = 6.",
+              "Adding: 2a = −2, so a = −1 and b = −7.",
+              "P(x) = 2x³ − x² − 7x + 6 = (x − 1)(2x² + x − 6) = (x − 1)(2x − 3)(x + 2)."
+            ],
+            "answerSummary": "a = −1, b = −7; (x − 1)(2x − 3)(x + 2)",
+            "commonError": "Mixing up signs in P(−1): (−1)³ = −1 and (−1)² = 1, so P(−1) = −2 + a − b + 6."
+          },
+          "questionWeight": 1.5
+        },
+        {
+          "questionId": "rfh-p-7",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "The table shows values of a quartic $P(x)$ with leading coefficient 1. Three of its zeros appear in the table; the fourth does not. Use $P(0)$ to find it.",
+          "table": {
+            "columns": [
+              {
+                "key": "x",
+                "label": "x"
+              },
+              {
+                "key": "px",
+                "label": "P(x)"
+              }
+            ],
+            "rows": [
+              {
+                "x": -3,
+                "px": 64
+              },
+              {
+                "x": -2,
+                "px": 0
+              },
+              {
+                "x": -1,
+                "px": 0
+              },
+              {
+                "x": 0,
+                "px": 10
+              },
+              {
+                "x": 1,
+                "px": 0
+              },
+              {
+                "x": 2,
+                "px": -36
+              },
+              {
+                "x": 3,
+                "px": -80
+              }
+            ]
+          },
+          "responses": [
+            {
+              "id": "three",
+              "label": "The three zeros in the table, as a set",
+              "answer": "{-2, -1, 1}",
+              "inputProfile": "set"
+            },
+            {
+              "id": "fourth",
+              "label": "The fourth zero",
+              "answer": "5",
+              "inputProfile": "number"
+            },
+            {
+              "id": "factored",
+              "label": "P(x) in factored form",
+              "answer": "(x+2)(x+1)(x-1)(x-5)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Write P(x) = (x + 2)(x + 1)(x − 1)(x − c) and substitute x = 0.",
+            "Set your expression for P(0) equal to the table value at x = 0."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. At x = 0, the factor x − c equals…",
+            "options": [
+              "c",
+              "−c"
+            ],
+            "correct": "−c"
+          },
+          "solutionReview": {
+            "headline": "Three zeros from the table, the fourth from P(0).",
+            "reasoning": [
+              "P(x) = 0 at x = −2, −1 and 1, so with leading coefficient 1, P(x) = (x + 2)(x + 1)(x − 1)(x − c).",
+              "P(0) = (2)(1)(−1)(−c) = 2c, and the table gives P(0) = 10, so c = 5.",
+              "P(x) = (x + 2)(x + 1)(x − 1)(x − 5). Check: P(2) = (4)(3)(1)(−3) = −36, as in the table."
+            ],
+            "answerSummary": "{−2, −1, 1}; 5; (x + 2)(x + 1)(x − 1)(x − 5)",
+            "commonError": "Treating P(0) = 10 as a zero: P(0) is the product (2)(1)(−1)(−c), and that fixes c."
+          },
+          "questionWeight": 1.5
+        },
+        {
+          "questionId": "rfh-p-8",
+          "familyId": "mathmaster:sat:A2.7D:parameter-factor-theorem",
+          "familyVersion": 2,
+          "standard": "A2.7D",
+          "prompt": "The polynomial $P(x)=x^3-{{r}}x^2+kx-{{c}}$ has factor $x-{{a}}$. What is the value of $k$?",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "activityRole": "practice",
+          "dok": 2,
+          "difficultyBand": 3,
+          "calculatorPolicy": "graphing",
+          "assessedConstruct": "A2.7D",
+          "taskType": "parameterReasoning",
+          "representation": "symbolic",
+          "generator": {
+            "parameters": {
+              "r": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "k0": {
+                "type": "int",
+                "min": 3,
+                "max": 12
+              }
+            },
+            "derived": {
+              "c": "a*a*a-r*a*a+k0*a",
+              "a3": "a*a*a",
+              "ra2": "r*a*a",
+              "ka": "k0*a"
+            },
+            "constraints": [
+              "a*a*a-r*a*a+k0*a>0"
+            ]
+          },
+          "answerFields": [
+            {
+              "id": "answer",
+              "label": "Answer",
+              "inputProfile": "number",
+              "answer": "{{k0}}",
+              "numberRules": "digitalSAT"
+            }
+          ],
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary",
+              "evidenceLevel": "assessed"
+            },
+            {
+              "framework": "digitalSAT",
+              "domainId": "advancedMath",
+              "role": "primary",
+              "evidenceMode": "direct"
+            }
+          ],
+          "assessmentContext": {
+            "framework": "digitalSAT",
+            "examStyle": true,
+            "domainId": "advancedMath"
+          },
+          "assessmentItemFormat": "studentProducedResponse",
+          "ccmrChallengeTier": 1,
+          "ccmrFamilyRole": "direct",
+          "ccmrAuthenticLanguage": {
+            "version": "2.1",
+            "authored": true,
+            "officialSkillFamily": "equivalent expressions",
+            "stemProfile": "parameter-factor-theorem"
+          },
+          "solutionReview": {
+            "headline": "The Factor Theorem gives one equation in k.",
+            "reasoning": [
+              "x − {{a}} is a factor, so P({{a}}) = 0: {{a}}³ − {{r}} · {{a}}² + k · {{a}} − {{c}} = 0.",
+              "That is {{a3}} − {{ra2}} + {{a}}k − {{c}} = 0, so {{a}}k = {{c}} − {{a3}} + {{ra2}} = {{ka}}.",
+              "k = {{ka}} ÷ {{a}} = {{k0}}."
+            ],
+            "answerSummary": "k = {{k0}}",
+            "commonError": "Substituting x = −{{a}}: the factor x − {{a}} is 0 at x = {{a}}."
+          },
+          "attemptFeedback": [
+            "Use the algebraic structure of the expression and preserve equivalence."
+          ],
+          "supportHints": [
+            "Use polynomial operations, factor structure, or polynomial division as appropriate."
+          ],
+          "ccmrSource": {
+            "source": "auditedBank",
+            "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+            "framework": "digitalSAT",
+            "domainId": "advancedMath",
+            "documentId": "mm_sat_A2_7D_parameter_factor_theorem_v21",
+            "familyId": "mathmaster:sat:A2.7D:parameter-factor-theorem",
+            "familyVersion": 2
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. If x − a is a factor of P(x), then P(a) equals…",
+            "options": [
+              "0",
+              "a"
+            ],
+            "correct": "0"
+          }
+        },
+        {
+          "questionId": "rfh-p-9",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Find every zero of $P(x) = x^4 - 5x^3 + 3x^2 + 7x - 2$. Two are rational and two are irrational.",
+          "responses": [
+            {
+              "id": "rational",
+              "label": "The rational zeros, as a set",
+              "answer": "{2, -1}",
+              "inputProfile": "set"
+            },
+            {
+              "id": "quadratic",
+              "label": "The quadratic factor left after dividing out both",
+              "answer": "x^2-4x+1",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "big",
+              "label": "Larger irrational zero",
+              "answer": "2+√3",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "small",
+              "label": "Smaller irrational zero",
+              "answer": "2-√3",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "The candidates are ±1 and ±2. Test them with synthetic division.",
+            "Use the quadratic formula on the quadratic factor."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Irrational zeros of a polynomial with integer coefficients come in pairs of the form…",
+            "options": [
+              "a + √b and a − √b",
+              "a + √b and −a + √b"
+            ],
+            "correct": "a + √b and a − √b"
+          },
+          "solutionReview": {
+            "headline": "Divide out the rational zeros, then use the quadratic formula.",
+            "reasoning": [
+              "P(2) = 16 − 40 + 12 + 14 − 2 = 0, and dividing by x − 2 leaves x³ − 3x² − 3x + 1, which has the zero −1.",
+              "Dividing by x + 1 leaves x² − 4x + 1.",
+              "x² − 4x + 1 = 0 gives x = (4 ± √12)/2 = 2 ± √3."
+            ],
+            "answerSummary": "zeros 2, −1, 2 + √3, 2 − √3",
+            "commonError": "Stopping at the rational zeros: the quadratic left after dividing still has two irrational zeros."
+          },
+          "questionWeight": 1.5
+        },
+        {
+          "questionId": "rfh-p-10",
+          "standard": "A2.7C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "dividePolynomial"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Divide $P(x) = {{A}}x^3 {{B|signed}}x^2 {{C|xterm}} {{D|signed}}$ by $2x - 1$ with long division.",
+          "polynomial": {
+            "dividend": [
+              "{{A}}",
+              "{{B}}",
+              "{{C}}",
+              "{{D}}"
+            ],
+            "divisor": [
+              2,
+              -1
+            ]
+          },
+          "hints": [
+            "Divide the leading terms, multiply the divisor by that term, subtract, and bring down the next term."
+          ],
+          "generator": {
+            "parameters": {
+              "p": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "q": {
+                "type": "int",
+                "min": -5,
+                "max": 5,
+                "exclude": [
+                  0
+                ]
+              },
+              "s": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "R": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              }
+            },
+            "derived": {
+              "A": "2 * p",
+              "B": "2 * q - p",
+              "C": "2 * s - q",
+              "D": "R - s"
+            },
+            "constraints": [
+              "abs(2 * q - p) >= 2",
+              "R - s != 0"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "solutionReview": {
+            "commonError": "Forgetting to change both signs when you subtract the product of the new quotient term and 2x − 1."
+          }
+        },
+        {
+          "questionId": "rfh-p-11",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Modeling. A box has volume $V(x) = x^3 + 4x^2 + x - 6$ cubic inches, and each dimension is a linear expression in $x$. (a) Factor $V(x)$ to find the dimensions. (b) For which $x$ is the volume 60 cubic inches? Solve $x^3 + 4x^2 + x - 66 = 0$ with the Rational Zero Theorem.",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "(a) V(x) =",
+              "answer": "(x-1)(x+2)(x+3)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "x",
+              "label": "(b) x =",
+              "answer": "3",
+              "inputProfile": "number"
+            },
+            {
+              "id": "shortest",
+              "label": "The shortest dimension at that x (inches)",
+              "answer": "2",
+              "inputProfile": "number"
+            },
+            {
+              "id": "only",
+              "label": "Why is that the only x that works?",
+              "type": "choice",
+              "options": [
+                "Dividing x³ + 4x² + x − 66 by x − 3 leaves x² + 7x + 22, which has no real zeros",
+                "A cubic always has exactly one real zero",
+                "The other candidates are all negative",
+                "Volume formulas have one solution by definition"
+              ],
+              "answer": "Dividing x³ + 4x² + x − 66 by x − 3 leaves x² + 7x + 22, which has no real zeros"
+            }
+          ],
+          "hints": [
+            "For (a), the candidates are the factors of the constant term, with both signs.",
+            "For (b), the candidates are the factors of 66; check that every dimension is positive."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To solve V(x) = 60, you first rewrite it as…",
+            "options": [
+              "V(x) − 60 = 0",
+              "V(x) = 0"
+            ],
+            "correct": "V(x) − 60 = 0"
+          },
+          "solutionReview": {
+            "headline": "Factor the model, then solve with the same tools.",
+            "reasoning": [
+              "V(1) = 1 + 4 + 1 − 6 = 0, so x − 1 is a factor; dividing leaves x² + 5x + 6 = (x + 2)(x + 3). V(x) = (x − 1)(x + 2)(x + 3).",
+              "x³ + 4x² + x − 66 = 0: x = 3 gives 27 + 36 + 3 − 66 = 0.",
+              "At x = 3 the dimensions are 2, 5 and 6 inches (volume 60).",
+              "Dividing by x − 3 leaves x² + 7x + 22, whose discriminant 49 − 88 is negative, so x = 3 is the only real solution."
+            ],
+            "answerSummary": "(x − 1)(x + 2)(x + 3); x = 3; 2 in",
+            "commonError": "Answering x = 1 from the factor x − 1: that makes the volume 0; a volume of 60 needs x³ + 4x² + x − 66 = 0."
+          },
+          "questionWeight": 1.75
+        },
+        {
+          "questionId": "rfh-p-12",
+          "familyId": "mathmaster:sat:A2.7C:dividend-constant-parameter",
+          "familyVersion": 2,
+          "standard": "A2.7C",
+          "prompt": "For $x\\ne-{{p}}$, $\\dfrac{x^3+{{A}}x^2+{{B}}x+k}{x+{{p}}}=x^2+{{q}}x+{{r}}$. What is the value of $k$?",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "activityRole": "practice",
+          "dok": 2,
+          "difficultyBand": 3,
+          "calculatorPolicy": "graphing",
+          "assessedConstruct": "A2.7C",
+          "taskType": "parameterReasoning",
+          "representation": "symbolic",
+          "generator": {
+            "parameters": {
+              "p": {
+                "type": "int",
+                "min": 2,
+                "max": 8
+              },
+              "q": {
+                "type": "int",
+                "min": 2,
+                "max": 8
+              },
+              "r": {
+                "type": "int",
+                "min": 1,
+                "max": 8
+              }
+            },
+            "derived": {
+              "A": "p+q",
+              "B": "r+p*q",
+              "k": "p*r"
+            },
+            "constraints": [
+              "A!=0",
+              "A!=1",
+              "A!=-1",
+              "B!=0",
+              "B!=1",
+              "B!=-1"
+            ]
+          },
+          "answerFields": [
+            {
+              "id": "answer",
+              "label": "Answer",
+              "inputProfile": "number",
+              "answer": "{{k}}",
+              "numberRules": "digitalSAT"
+            }
+          ],
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7C",
+              "role": "primary",
+              "evidenceLevel": "assessed"
+            },
+            {
+              "framework": "digitalSAT",
+              "domainId": "advancedMath",
+              "role": "primary",
+              "evidenceMode": "direct"
+            }
+          ],
+          "assessmentContext": {
+            "framework": "digitalSAT",
+            "examStyle": true,
+            "domainId": "advancedMath"
+          },
+          "assessmentItemFormat": "studentProducedResponse",
+          "ccmrChallengeTier": 1,
+          "ccmrFamilyRole": "direct",
+          "ccmrAuthenticLanguage": {
+            "version": "2.1",
+            "authored": true,
+            "officialSkillFamily": "equivalent expressions",
+            "stemProfile": "dividend-constant-parameter"
+          },
+          "solutionReview": {
+            "headline": "Division undone is multiplication.",
+            "reasoning": [
+              "Multiply back: (x + {{p}})(x² + {{q}}x + {{r}}) = x³ + {{A}}x² + {{B}}x + {{k}}.",
+              "The constant term of the product is {{p}} · {{r}} = {{k}}, so k = {{k}}."
+            ],
+            "answerSummary": "k = {{k}}",
+            "commonError": "Adding {{p}} and {{r}}: the constant term of a product is the product of the constant terms."
+          },
+          "attemptFeedback": [
+            "Use the algebraic structure of the expression and preserve equivalence."
+          ],
+          "supportHints": [
+            "Use polynomial operations, factor structure, or polynomial division as appropriate."
+          ],
+          "ccmrSource": {
+            "source": "auditedBank",
+            "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+            "framework": "digitalSAT",
+            "domainId": "advancedMath",
+            "documentId": "mm_sat_A2_7C_dividend_constant_parameter_v21",
+            "familyId": "mathmaster:sat:A2.7C:dividend-constant-parameter",
+            "familyVersion": 2
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. If dividing P(x) by x + p gives x² + qx + r with no remainder, then P(x) equals…",
+            "options": [
+              "(x + p)(x² + qx + r)",
+              "(x² + qx + r) ÷ (x + p)"
+            ],
+            "correct": "(x + p)(x² + qx + r)"
+          }
+        },
+        {
+          "questionId": "rfh-p-13",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "No dividing allowed. Use the Factor and Remainder Theorems to decide each.",
+          "responses": [
+            {
+              "id": "a",
+              "label": "Is x − 1 a factor of x⁹⁹ − 1?",
+              "type": "choice",
+              "options": [
+                "Yes — 1⁹⁹ − 1 = 0",
+                "No — 1⁹⁹ − 1 = 1",
+                "Only if 99 is even",
+                "It cannot be decided without dividing"
+              ],
+              "answer": "Yes — 1⁹⁹ − 1 = 0"
+            },
+            {
+              "id": "b",
+              "label": "Is x + 1 a factor of x⁹⁹ + 1?",
+              "type": "choice",
+              "options": [
+                "Yes — (−1)⁹⁹ + 1 = 0",
+                "No — (−1)⁹⁹ + 1 = 2",
+                "No — a sum of two terms never has a factor",
+                "It cannot be decided without dividing"
+              ],
+              "answer": "Yes — (−1)⁹⁹ + 1 = 0"
+            },
+            {
+              "id": "rem",
+              "label": "The remainder when x¹⁰⁰ + 1 is divided by x + 1",
+              "answer": "2",
+              "inputProfile": "number"
+            },
+            {
+              "id": "c",
+              "label": "So is x + 1 a factor of x¹⁰⁰ + 1?",
+              "type": "choice",
+              "options": [
+                "No — the remainder is 2, not 0",
+                "Yes — 100 is even",
+                "Yes — every binomial is a factor of x¹⁰⁰ + 1",
+                "It cannot be decided without dividing"
+              ],
+              "answer": "No — the remainder is 2, not 0"
+            }
+          ],
+          "hints": [
+            "x − r is a factor exactly when P(r) = 0, and the remainder of P(x) ÷ (x − r) is P(r).",
+            "An odd power of −1 is −1; an even power of −1 is 1."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. (−1)⁹⁹ equals…",
+            "options": [
+              "1",
+              "−1"
+            ],
+            "correct": "−1"
+          },
+          "solutionReview": {
+            "headline": "Evaluate instead of dividing.",
+            "reasoning": [
+              "P(1) = 1⁹⁹ − 1 = 0, so x − 1 is a factor of x⁹⁹ − 1.",
+              "(−1)⁹⁹ + 1 = −1 + 1 = 0, so x + 1 is a factor of x⁹⁹ + 1.",
+              "(−1)¹⁰⁰ + 1 = 1 + 1 = 2, so the remainder is 2 and x + 1 is not a factor of x¹⁰⁰ + 1."
+            ],
+            "answerSummary": "yes; yes; remainder 2; no",
+            "commonError": "Treating an even power like an odd one: (−1)¹⁰⁰ = 1, so x¹⁰⁰ + 1 leaves the remainder 2."
+          },
+          "questionWeight": 1.5
+        },
+        {
+          "questionId": "rfh-p-14",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "When $P(x) = x^3 + kx^2 {{c|xterm}} {{d|signed}}$ is divided by $x {{nr|signed}}$, the remainder is ${{R}}$. Find $k$.",
+          "responses": [
+            {
+              "id": "k",
+              "label": "k =",
+              "answer": "{{k}}",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "The remainder of P(x) ÷ (x − r) is P(r).",
+            "Substitute x = {{r}}, set the result equal to {{R}}, and solve for k."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The remainder when P(x) is divided by x {{nr|signed}} equals…",
+            "options": [
+              "P({{r}})",
+              "P({{nr}})"
+            ],
+            "correct": "P({{r}})"
+          },
+          "solutionReview": {
+            "headline": "The Remainder Theorem gives one equation in k.",
+            "reasoning": [
+              "The remainder is P({{r}}): ({{r}})³ + k({{r}})² {{c|signed}}({{r}}) {{d|signed}} = {{R}}.",
+              "{{r3}} + {{r2}}k {{cr|signed}} {{d|signed}} = {{R}}, so {{r2}}k = {{r2k}}.",
+              "k = {{r2k}} ÷ {{r2}} = {{k}}."
+            ],
+            "answerSummary": "k = {{k}}",
+            "commonError": "Substituting the wrong sign: the remainder of P(x) ÷ (x − r) is P(r), so for x + 3 it is P(−3)."
+          },
+          "generator": {
+            "parameters": {
+              "r": {
+                "type": "int",
+                "min": -3,
+                "max": 3,
+                "exclude": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "k": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "d": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "nr": "-r",
+              "r2": "r * r",
+              "r3": "r^3",
+              "cr": "c * r",
+              "r2k": "r * r * k",
+              "R": "r^3 + k * r * r + c * r + d"
+            },
+            "constraints": []
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        }
+      ]
+    },
+    {
+      "id": "dol",
+      "role": "dol",
+      "title": "DOL — Remainder & Factor Theorems (Honors)",
+      "recommendedMinutes": 9,
+      "questions": [
+        {
+          "questionId": "rfh-dol-1",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "syntheticDivision"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Use synthetic division to find $P({{r}})$ for $P(x) = x^4 {{b|signed}}x^3 {{c|xterm}} {{d|signed}}$, and decide whether $x {{nr|signed}}$ is a factor.",
+          "polynomial": {
+            "dividend": [
+              1,
+              "{{b}}",
+              0,
+              "{{c}}",
+              "{{d}}"
+            ],
+            "candidateRoot": "{{r}}",
+            "ask": [
+              "value",
+              "factor"
+            ]
+          },
+          "generator": {
+            "parameters": {
+              "r": {
+                "type": "int",
+                "min": -3,
+                "max": 3,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "d": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "nr": "-r"
+            },
+            "constraints": []
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "solutionReview": {
+            "commonError": "Leaving out the 0 for the missing x² term, or boxing the wrong sign: dividing by x − r uses r."
+          }
+        },
+        {
+          "questionId": "rfh-dol-2",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "$x {{nr|signed}}$ is a factor of $P(x) = {{A}}x^3 {{B|signed}}x^2 {{C|xterm}} {{D|signed}}$. Factor $P(x)$ completely.",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "(x{{nr|signed}})({{a}}x{{b|signed}})(x{{ns|signed}})",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Divide by the factor you know, then use the ac method.",
+            "reasoning": [
+              "Synthetic division by {{r}} leaves the quotient {{a}}x² {{qb|xterm}} {{qc|signed}}, with remainder 0.",
+              "Factor the quotient: {{a}}x² {{qb|xterm}} {{qc|signed}} = ({{a}}x {{b|signed}})(x {{ns|signed}}).",
+              "So P(x) = (x {{nr|signed}})({{a}}x {{b|signed}})(x {{ns|signed}})."
+            ],
+            "answerSummary": "(x {{nr|signed}})({{a}}x {{b|signed}})(x {{ns|signed}})",
+            "commonError": "Stopping after the division: the quadratic quotient factors again."
+          },
+          "generator": {
+            "parameters": {
+              "r": {
+                "type": "int",
+                "min": -3,
+                "max": 3,
+                "exclude": [
+                  0
+                ]
+              },
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 3
+              },
+              "b": {
+                "type": "int",
+                "min": -5,
+                "max": 5,
+                "exclude": [
+                  0
+                ]
+              },
+              "s": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "nr": "-r",
+              "ns": "-s",
+              "A": "a",
+              "B": "b - a * (r + s)",
+              "C": "a * r * s - b * (r + s)",
+              "D": "b * r * s",
+              "qb": "b - a * s",
+              "qc": "-b * s"
+            },
+            "constraints": [
+              "gcd(a, abs(b)) == 1",
+              "r != s",
+              "abs(b - a * (r + s)) >= 2"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "rfh-dol-3",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Find $k$ so that $x {{nr|signed}}$ is a factor of $P(x) = x^3 {{b|signed}}x^2 + kx {{d|signed}}$.",
+          "responses": [
+            {
+              "id": "k",
+              "label": "k =",
+              "answer": "{{k}}",
+              "inputProfile": "number"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The Factor Theorem gives one equation in k.",
+            "reasoning": [
+              "x {{nr|signed}} is a factor exactly when P({{r}}) = 0.",
+              "P({{r}}) = ({{r}})³ {{b|signed}}({{r}})² + k({{r}}) {{d|signed}} = {{s0}} {{r|signed}}k.",
+              "{{s0}} {{r|signed}}k = 0, so k = {{k}}."
+            ],
+            "answerSummary": "k = {{k}}",
+            "commonError": "Substituting the wrong sign: x − r is a factor exactly when P(r) = 0, so x + 2 needs P(−2) = 0."
+          },
+          "generator": {
+            "parameters": {
+              "r": {
+                "type": "int",
+                "min": -4,
+                "max": 4,
+                "exclude": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "k": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "nr": "-r",
+              "d": "-(r^3 + b * r * r + k * r)",
+              "s0": "r^3 + b * r * r - (r^3 + b * r * r + k * r)"
+            },
+            "constraints": [
+              "r^3 + b * r * r + k * r != 0",
+              "abs(r^3 + b * r * r + k * r) <= 99"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        }
+      ]
+    }
+  ]
+}

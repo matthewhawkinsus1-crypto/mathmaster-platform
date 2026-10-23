@@ -160,6 +160,9 @@ const backUpSteps = [
   // The radical candidate check (Sign & Solution Analyzer radicalCheck), both spellings.
   ['Where must each candidate for {1} be checked?', '¿Dónde hay que comprobar cada candidato de {1}?'],
   ['Where must each candidate be checked?', '¿Dónde hay que comprobar cada candidato?'],
+  // Polynomial long division (Polynomial Workshop division mode), both spellings.
+  ['What is the first move in dividing {1} by {2}?', '¿Cuál es el primer paso para dividir {1} entre {2}?'],
+  ['What is the first move in polynomial long division?', '¿Cuál es el primer paso de la división larga de polinomios?'],
   ['Which axis do you read the domain along?', '¿A lo largo de qué eje lees el dominio?'],
   ['Where does the input quantity go on a graph?', '¿Dónde va la cantidad de entrada en una gráfica?'],
   ['An x-intercept is where the graph meets which axis?', 'Una intersección con el eje x es donde la gráfica toca, ¿qué eje?'],
@@ -265,6 +268,8 @@ const backUpChoices = [
   ['The x-axis', 'El eje x'],
   ['In the original equation', 'En la ecuación original'],
   ['Only in the squared equation', 'Solo en la ecuación elevada al cuadrado'],
+  ['Divide the leading terms', 'Dividir los términos principales'],
+  ['Divide the constant terms', 'Dividir los términos constantes'],
   ['The y-intercept, on the y-axis', 'La intersección con el eje y, en el eje y'],
   ['A point on the x-axis', 'Un punto en el eje x'],
   ['Add it to the output above', 'Sumarlo a la salida de arriba'],
@@ -559,6 +564,16 @@ const familyHints = [
   ['If the constant term is negative, {1} and {2} have opposite signs; if it is positive, they have the same sign as the x-coefficient.', 'Si el término constante es negativo, {1} y {2} tienen signos opuestos; si es positivo, tienen el mismo signo que el coeficiente de primer grado.'],
   ['Check by multiplying {1} back out: it must give {2} exactly.', 'Comprueba multiplicando {1} de nuevo: debe dar exactamente {2}.'],
   ['Check by multiplying {1} back out: it must give the original quadratic exactly.', 'Comprueba multiplicando {1} de nuevo: debe dar exactamente la cuadrática original.'],
+  // Polynomial long division (Polynomial Workshop division mode), both spellings.
+  ['Divide the leading term of {1} by the leading term of {2}: that gives the first term of the quotient.', 'Divide el término principal de {1} entre el término principal de {2}: eso da el primer término del cociente.'],
+  ['Divide the leading term of the dividend by the leading term of the divisor: that gives the first term of the quotient.', 'Divide el término principal del dividendo entre el término principal del divisor: eso da el primer término del cociente.'],
+  ['Multiply that term by the whole divisor {1}, subtract the result from the dividend, and bring down the next term.', 'Multiplica ese término por todo el divisor {1}, resta el resultado del dividendo y baja el término siguiente.'],
+  ['Multiply that term by the whole divisor, subtract the result, and bring down the next term.', 'Multiplica ese término por todo el divisor, resta el resultado y baja el término siguiente.'],
+  ['Keep a place for every power of {1}: a missing power gets a coefficient of zero, so the columns line up.', 'Deja un lugar para cada potencia de {1}: una potencia que falta lleva coeficiente cero, y así las columnas quedan alineadas.'],
+  ['Stop when what is left has a lower degree than {1}: that is the remainder.', 'Detente cuando lo que queda tenga un grado menor que {1}: ese es el residuo.'],
+  ['Stop when what is left has a lower degree than the divisor: that is the remainder.', 'Detente cuando lo que queda tenga un grado menor que el divisor: ese es el residuo.'],
+  ['Check: divisor {1} quotient {2} remainder must give back {3}.', 'Comprueba: divisor {1} cociente {2} residuo debe dar de nuevo {3}.'],
+  ['Check: divisor {1} quotient {2} remainder must give back the dividend.', 'Comprueba: divisor {1} cociente {2} residuo debe dar de nuevo el dividendo.'],
   // The radical candidate check (Sign & Solution Analyzer radicalCheck), both spellings.
   ['Squaring both sides of {1} can create candidates that do not solve the original equation, so every candidate has to be checked.', 'Elevar al cuadrado los dos lados de {1} puede crear candidatos que no resuelven la ecuación original, así que hay que comprobar cada candidato.'],
   ['Squaring both sides of a radical equation can create candidates that do not solve the original equation, so every candidate has to be checked.', 'Elevar al cuadrado los dos lados de una ecuación radical puede crear candidatos que no resuelven la ecuación original, así que hay que comprobar cada candidato.'],

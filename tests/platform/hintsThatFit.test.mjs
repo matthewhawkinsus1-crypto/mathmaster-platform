@@ -204,9 +204,10 @@ test('over every real lesson, exactly three hints change to shown, and none of t
         .forEach((value) => assert.ok(!hintRevealsAnswer(hint, [value]), `${question.questionId} shows "${hint}", which contains the answer ${value}`));
     });
   });
-  // 200 in the lessons the pass-3 probe read, and 229 in the five Algebra II
-  // Polynomials and Radicals lessons since, none of which is dropped.
-  assert.equal(total, 429);
+  // 200 in the lessons the pass-3 probe read, then 229 in the five Algebra II
+  // Polynomials and Radicals lessons and 272 in their Honors versions, none of
+  // which is dropped.
+  assert.equal(total, 200 + 229 + 272);
   assert.equal(BASE_DROPPED.length, 32);
   assert.deepEqual(nowShown.sort(), [
     'l2-wu-2: The x-intercept is where the output is 0: solve 0 = 3x − 8.',

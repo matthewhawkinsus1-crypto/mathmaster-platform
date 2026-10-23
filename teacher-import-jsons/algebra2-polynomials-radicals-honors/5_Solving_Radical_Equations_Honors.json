@@ -1,0 +1,2313 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Solving Radical Equations — Honors",
+    "courseId": "algebra2",
+    "folder": "Algebra II Honors/Radicals & Rational Exponents",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork",
+    "essentialQuestion": "How does the structure of the equation influence the selection of an efficient method for solving equations involving rational exponents?",
+    "teacherNotes": "Honors version of Bluebonnet Algebra II — Radicals, Lesson 4 (Solving Radical Equations), TEKS A2.7H (with A2.4F/A2.4G and A2.6B). Beyond the regular lesson: equations whose squared form has a fraction candidate, a graph that shows where extraneous candidates come from, rational exponents with even numerators (±) and even denominators (domain), two radicals that need two squarings, cube-root equations and why cubing is safe, parameters and no-solution cases decided by structure, and the horizon-distance model. Most single-radical equations are solved in the Sign & Solution Analyzer’s staged solver (isolate, raise, candidates, both sides of the ORIGINAL equation at every candidate, final answer), each stage graded on its own. Practice includes two audited SAT items (MathMaster CCMR bank). Warm-Up and DOL are generated per student and back Recovery."
+  },
+  "variantPolicy": {
+    "mode": "personalized",
+    "sectionModes": {
+      "warmup": "shared",
+      "classwork": "shared",
+      "practice": "personalized",
+      "dol": "personalized"
+    },
+    "avoidRecentTemplates": true,
+    "avoidDuplicateParameters": true
+  },
+  "sections": [
+    {
+      "id": "warmup",
+      "role": "warmup",
+      "title": "Warm-Up — Factor, Square, Evaluate",
+      "recommendedMinutes": 8,
+      "questions": [
+        {
+          "questionId": "srh-wu-1",
+          "standard": "A2.4F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.4F",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Solve by factoring: $x^2 {{b|xterm}} {{c|signed}} = 0$.",
+          "responses": [
+            {
+              "id": "small",
+              "label": "Smaller solution",
+              "answer": "{{m}}",
+              "inputProfile": "number"
+            },
+            {
+              "id": "large",
+              "label": "Larger solution",
+              "answer": "{{n}}",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "Find two numbers whose product is the constant term and whose sum is the x-coefficient.",
+            "Set each factor equal to 0."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. If (x − p)(x − q) = 0, then…",
+            "options": [
+              "x = −p or x = −q",
+              "x = p or x = q"
+            ],
+            "correct": "x = p or x = q"
+          },
+          "solutionReview": {
+            "headline": "Factor, then use the Zero Product Property.",
+            "reasoning": [
+              "x² {{b|xterm}} {{c|signed}} = (x {{nm|signed}})(x {{nn|signed}}).",
+              "Each factor can be 0: x = {{m}} or x = {{n}}."
+            ],
+            "answerSummary": "x = {{m}} or x = {{n}}",
+            "commonError": "Keeping the sign from the factor: a factor x + m = 0 gives x = −m."
+          },
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "n": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "b": "-(m + n)",
+              "c": "m * n",
+              "nm": "-m",
+              "nn": "-n"
+            },
+            "constraints": [
+              "m < n"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "srh-wu-2",
+          "standard": "A2.4F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.4F",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Expand: $({{a|coef}}x {{c|signed}})^2$. (Squaring a binomial side is a step in solving radical equations.)",
+          "responses": [
+            {
+              "id": "expanded",
+              "label": "Expanded form",
+              "answer": "{{a2|coef}}x^2{{tac|signed}}x+{{c2}}",
+              "inputProfile": "expression"
+            }
+          ],
+          "hints": [
+            "(u + v)² = u² + 2uv + v².",
+            "Do not forget the middle term 2uv."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. (u + v)² equals…",
+            "options": [
+              "u² + 2uv + v²",
+              "u² + v²"
+            ],
+            "correct": "u² + 2uv + v²"
+          },
+          "solutionReview": {
+            "headline": "Square the binomial; the middle term is twice the product.",
+            "reasoning": [
+              "({{a|coef}}x {{c|signed}})² = ({{a|coef}}x)² + 2({{a|coef}}x)({{c}}) + ({{c}})².",
+              "= {{a2|coef}}x² {{tac|signed}}x + {{c2}}."
+            ],
+            "answerSummary": "{{a2|coef}}x² {{tac|signed}}x + {{c2}}",
+            "commonError": "Writing {{a2|coef}}x² + {{c2}}: the middle term 2uv is part of the square."
+          },
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "c": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "a2": "a * a",
+              "tac": "2 * a * c",
+              "c2": "c * c"
+            },
+            "constraints": []
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "srh-wu-3",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Evaluate exactly: ${{b}}^{\\frac{ {{m}} }{ {{n}} }}$",
+          "responses": [
+            {
+              "id": "value",
+              "label": "Value",
+              "answer": "{{v}}",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "Take the root named by the denominator first, then raise it to the power named by the numerator."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In b^(m/n), the root you take is the…",
+            "options": [
+              "nth root",
+              "mth root"
+            ],
+            "correct": "nth root"
+          },
+          "solutionReview": {
+            "headline": "Root first, then power.",
+            "reasoning": [
+              "{{b}}^(1/{{n}}) = {{c}}, since {{c}}^{{n}} = {{b}}.",
+              "Raise {{c}} to the power {{m}}: {{v}}."
+            ],
+            "answerSummary": "{{v}}",
+            "commonError": "Multiplying the base by the exponent: b^(m/n) means the nth root of b, raised to the power m."
+          },
+          "generator": {
+            "parameters": {
+              "n": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              },
+              "c": {
+                "type": "int",
+                "min": 2,
+                "max": 9
+              },
+              "m": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              }
+            },
+            "derived": {
+              "b": "c^n",
+              "v": "c^m"
+            },
+            "constraints": [
+              "c^n <= 1000",
+              "c^m <= 1000",
+              "gcd(m, n) == 1"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        }
+      ]
+    },
+    {
+      "id": "classwork",
+      "role": "classwork",
+      "title": "Classwork — Isolate, Raise, Solve, Check",
+      "recommendedMinutes": 45,
+      "questions": [
+        {
+          "questionId": "srh-cw-1",
+          "standard": "A2.4G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.4G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.4F",
+              "role": "secondary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.7H",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveRadicalEquation"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Solve $\\sqrt{x + 4} + 2 = x$. Isolate the radical, square, solve the quadratic, and check both candidates in the original equation.",
+          "radicalEquation": {
+            "radicand": {
+              "m": 1,
+              "b": 4
+            },
+            "outside": 2,
+            "rhs": {
+              "m": 1,
+              "b": 0
+            }
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Radical and rational-exponent equations",
+                "instruction": "1. Isolate the radical (or the power). 2. Raise both sides to the index (for x^(m/n), use the power n/m, with ± when m is even). 3. Solve. 4. CHECK every candidate in the ORIGINAL equation."
+              },
+              {
+                "title": "Extraneous candidates",
+                "instruction": "Raising both sides to an even power can add candidates that do not satisfy the original equation: a² = b² also holds when a = −b. An odd power never adds one."
+              },
+              {
+                "title": "Decide by structure",
+                "instruction": "An isolated even root equal to a negative number has no real solution — no algebra needed."
+              }
+            ]
+          },
+          "hints": [
+            "Subtract 2 from both sides before squaring.",
+            "Square the whole side x − 2, not each term separately."
+          ],
+          "solutionReview": {
+            "commonError": "Squaring before isolating the radical: move the + 2 first, or the squared left side gets a middle term."
+          }
+        },
+        {
+          "questionId": "srh-cw-2",
+          "standard": "A2.4G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.4G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.4F",
+              "role": "secondary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.7H",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveRadicalEquation"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Solve $\\sqrt{5x - 1} = 2x - 1$. The quadratic you get has a fraction as one candidate — check both.",
+          "radicalEquation": {
+            "radicand": {
+              "m": 5,
+              "b": -1
+            },
+            "rhs": {
+              "m": 2,
+              "b": -1
+            }
+          },
+          "hints": [
+            "The radical is already isolated: square both sides.",
+            "The quadratic factors; substitute each candidate into the original equation."
+          ],
+          "solutionReview": {
+            "commonError": "Squaring 2x − 1 as 4x² + 1: (2x − 1)² = 4x² − 4x + 1."
+          }
+        },
+        {
+          "questionId": "srh-cw-3",
+          "standard": "A2.4G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.4G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.7H",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Why extraneous candidates appear: a graph. Squaring $\\sqrt{x + 6} = x$ gives $x + 6 = x^2$, with candidates $3$ and $-2$. The graph shows $y = \\sqrt{x + 6}$, $y = -\\sqrt{x + 6}$ and $y = x$.",
+          "graph": {
+            "xMin": -7,
+            "xMax": 5,
+            "yMin": -5,
+            "yMax": 5,
+            "functions": [
+              {
+                "type": "squareRoot",
+                "a": 1,
+                "h": -6,
+                "k": 0
+              },
+              {
+                "type": "squareRoot",
+                "a": -1,
+                "h": -6,
+                "k": 0
+              },
+              {
+                "type": "line",
+                "m": 1,
+                "b": 0
+              }
+            ]
+          },
+          "responses": [
+            {
+              "id": "solution",
+              "label": "Where do y = √(x + 6) and y = x intersect?",
+              "type": "choice",
+              "options": [
+                "At (3, 3)",
+                "At (−2, −2)",
+                "At both (3, 3) and (−2, −2)",
+                "They do not intersect"
+              ],
+              "answer": "At (3, 3)"
+            },
+            {
+              "id": "extra",
+              "label": "The point (−2, −2) is where y = x meets…",
+              "type": "choice",
+              "options": [
+                "y = −√(x + 6)",
+                "y = √(x + 6)",
+                "the x-axis",
+                "nothing: −2 is not on the graph"
+              ],
+              "answer": "y = −√(x + 6)"
+            },
+            {
+              "id": "why",
+              "label": "Why does squaring produce the candidate −2?",
+              "type": "choice",
+              "options": [
+                "Squaring √(x + 6) = x and −√(x + 6) = x both give x + 6 = x², so the squared equation solves both",
+                "Because −2 is negative",
+                "Because of a rounding error",
+                "Squaring never adds solutions, so −2 is a real solution"
+              ],
+              "answer": "Squaring √(x + 6) = x and −√(x + 6) = x both give x + 6 = x², so the squared equation solves both"
+            },
+            {
+              "id": "check",
+              "label": "Check: at x = −2, √(x + 6) =",
+              "answer": "2",
+              "inputProfile": "number"
+            },
+            {
+              "id": "quad",
+              "label": "The squared equation is x² − x − 6 = 0. Factor: x² − x − 6 =",
+              "answer": "(x-3)(x+2)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Read where the line crosses each curve.",
+            "(−√(x + 6))² is also x + 6."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Can √(x + 6) ever be negative?",
+            "options": [
+              "No",
+              "Yes, when x is negative"
+            ],
+            "correct": "No"
+          },
+          "solutionReview": {
+            "headline": "The squared equation describes both branches.",
+            "reasoning": [
+              "y = √(x + 6) meets y = x only at (3, 3): √9 = 3.",
+              "At x = −2: √4 = 2 ≠ −2, but −√4 = −2, so (−2, −2) is on y = −√(x + 6).",
+              "Squaring cannot tell √(x + 6) = x from −√(x + 6) = x: both become x + 6 = x². That is where the extraneous candidate comes from.",
+              "x² − x − 6 = (x − 3)(x + 2): its zeros 3 and −2 are the x-coordinates of the two intersections of y = x with the two branches."
+            ],
+            "answerSummary": "(3, 3); y = −√(x + 6); squaring merges both branches; 2; (x − 3)(x + 2)",
+            "commonError": "Accepting −2 because it solves x + 6 = x²: that squared equation also describes y = −√(x + 6)."
+          },
+          "questionWeight": 1.5
+        },
+        {
+          "questionId": "srh-cw-4",
+          "standard": "A2.7H",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7H",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Rational exponents with an even numerator. Solve $x^{\\frac{2}{3}} = 9$.",
+          "responses": [
+            {
+              "id": "roots",
+              "label": "(∛x)² = 9, so ∛x is each value in the set",
+              "answer": "{-3, 3}",
+              "inputProfile": "set"
+            },
+            {
+              "id": "solutions",
+              "label": "Solutions, as a set",
+              "answer": "{-27, 27}",
+              "inputProfile": "set"
+            },
+            {
+              "id": "why",
+              "label": "Why are there two solutions?",
+              "type": "choice",
+              "options": [
+                "(∛x)² = 9 gives ∛x = 3 or ∛x = −3, and a cube root can be negative",
+                "Every equation with an exponent has two solutions",
+                "9 has two square roots, but only 27 checks",
+                "There is only one solution, 27"
+              ],
+              "answer": "(∛x)² = 9 gives ∛x = 3 or ∛x = −3, and a cube root can be negative"
+            }
+          ],
+          "hints": [
+            "x^(2/3) = (∛x)².",
+            "If u² = 9, then u = 3 or u = −3."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. x^(2/3) can be written as…",
+            "options": [
+              "(√x)³",
+              "(∛x)²"
+            ],
+            "correct": "(∛x)²"
+          },
+          "solutionReview": {
+            "headline": "Undo the square with ±, then cube.",
+            "reasoning": [
+              "x^(2/3) = (∛x)² = 9, so ∛x = 3 or ∛x = −3.",
+              "Cubing: x = 27 or x = −27.",
+              "Check: 27^(2/3) = 3² = 9 and (−27)^(2/3) = (−3)² = 9. Both are solutions."
+            ],
+            "answerSummary": "{−27, 27}",
+            "commonError": "Raising both sides to the power 3/2 and getting only 27: the even numerator needs ±."
+          },
+          "questionWeight": 1.25
+        },
+        {
+          "questionId": "srh-cw-5",
+          "standard": "A2.7H",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7H",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Rational exponents with an even denominator. Solve $(x - 1)^{\\frac{3}{2}} = 8$.",
+          "responses": [
+            {
+              "id": "power",
+              "label": "Raise both sides to the power",
+              "answer": "2/3",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "inner",
+              "label": "x − 1 =",
+              "answer": "4",
+              "inputProfile": "number"
+            },
+            {
+              "id": "x",
+              "label": "x =",
+              "answer": "5",
+              "inputProfile": "number"
+            },
+            {
+              "id": "second",
+              "label": "A classmate also lists x = −3, from x − 1 = −4. Is it a solution?",
+              "type": "choice",
+              "options": [
+                "No: (x − 1)^(3/2) needs x − 1 ≥ 0, and (−4)^(3/2) is not real",
+                "Yes: (−4)^(3/2) = 8",
+                "Yes: every even root gives ±",
+                "No: negative numbers are never solutions"
+              ],
+              "answer": "No: (x − 1)^(3/2) needs x − 1 ≥ 0, and (−4)^(3/2) is not real"
+            }
+          ],
+          "hints": [
+            "(x − 1)^(3/2) = (√(x − 1))³.",
+            "Undo the power 3/2 with its reciprocal power."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Raising a power to a power…",
+            "options": [
+              "multiplies the exponents",
+              "adds the exponents"
+            ],
+            "correct": "multiplies the exponents"
+          },
+          "solutionReview": {
+            "headline": "Use the reciprocal power; the even root restricts the domain.",
+            "reasoning": [
+              "Raise both sides to the power 2/3: x − 1 = 8^(2/3) = (∛8)² = 4.",
+              "x = 5. Check: 4^(3/2) = (√4)³ = 8.",
+              "x = −3 would need (−4)^(3/2) = (√(−4))³, which is not real."
+            ],
+            "answerSummary": "x = 5",
+            "commonError": "Taking ± after raising to the 2/3 power: (x − 1)^(3/2) needs x − 1 ≥ 0, so only x − 1 = 4 works."
+          },
+          "questionWeight": 1.25
+        },
+        {
+          "questionId": "srh-cw-6",
+          "standard": "A2.4G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.4G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.7H",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 4,
+          "difficultyBand": 5,
+          "prompt": "Two radicals. Solve $\\sqrt{2x + 3} - \\sqrt{x + 1} = 1$: isolate one radical, square, isolate the radical that is left, square again, and check.",
+          "responses": [
+            {
+              "id": "sq1",
+              "label": "Isolate √(2x + 3) and square: 2x + 3 = (1 + √(x + 1))² =",
+              "answer": "x+2+2√(x+1)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "iso",
+              "label": "Isolate the radical that is left: 2√(x + 1) =",
+              "answer": "x+1",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "cands",
+              "label": "Square again and solve: candidates, as a set",
+              "answer": "{-1, 3}",
+              "inputProfile": "set"
+            },
+            {
+              "id": "checkm1",
+              "label": "Check x = −1: √(2x + 3) − √(x + 1) =",
+              "answer": "1",
+              "inputProfile": "number"
+            },
+            {
+              "id": "sols",
+              "label": "Solutions, as a set",
+              "answer": "{-1, 3}",
+              "inputProfile": "set"
+            }
+          ],
+          "hints": [
+            "Move the second radical to the other side first.",
+            "Square the right side as a binomial with (a + b)² = a² + 2ab + b², then combine like terms.",
+            "After squaring twice, check both candidates in the ORIGINAL equation."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Before you square, a radical equation should have…",
+            "options": [
+              "one radical isolated on one side",
+              "both radicals on the same side"
+            ],
+            "correct": "one radical isolated on one side"
+          },
+          "solutionReview": {
+            "headline": "Isolate, square, isolate, square — then check.",
+            "reasoning": [
+              "√(2x + 3) = 1 + √(x + 1); squaring: 2x + 3 = 1 + 2√(x + 1) + x + 1 = x + 2 + 2√(x + 1).",
+              "Isolate: x + 1 = 2√(x + 1). Square: x² + 2x + 1 = 4(x + 1), so x² − 2x − 3 = 0 and x = 3 or x = −1.",
+              "Check: x = −1 gives √1 − √0 = 1, and x = 3 gives √9 − √4 = 1. Both are solutions."
+            ],
+            "answerSummary": "{−1, 3}",
+            "commonError": "Squaring each term separately: (1 + √(x + 1))² is not 1 + (x + 1)."
+          },
+          "questionWeight": 1.75
+        },
+        {
+          "questionId": "srh-cw-7",
+          "standard": "A2.6B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.6B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.7H",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Odd index. Solve $\\sqrt[3]{2x - 1} = \\sqrt[3]{x + 4}$ and $\\sqrt[3]{x^2 + 7} = 2$, then explain why cubing is safer than squaring.",
+          "responses": [
+            {
+              "id": "x",
+              "label": "∛(2x − 1) = ∛(x + 4): x =",
+              "answer": "5",
+              "inputProfile": "number"
+            },
+            {
+              "id": "sols",
+              "label": "∛(x² + 7) = 2: solutions, as a set",
+              "answer": "{-1, 1}",
+              "inputProfile": "set"
+            },
+            {
+              "id": "why",
+              "label": "Why can cubing both sides never create an extraneous solution?",
+              "type": "choice",
+              "options": [
+                "Cubing can be undone exactly: a³ = b³ only when a = b, unlike squaring",
+                "Cube roots are always positive",
+                "Cubing always removes the variable",
+                "It can: cubing creates extraneous solutions as often as squaring"
+              ],
+              "answer": "Cubing can be undone exactly: a³ = b³ only when a = b, unlike squaring"
+            }
+          ],
+          "hints": [
+            "Cube both sides of each equation.",
+            "For squaring, (−3)² = 3², so a² = b² does not force a = b."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. If a³ = 8, then a equals…",
+            "options": [
+              "2 only",
+              "2 or −2"
+            ],
+            "correct": "2 only"
+          },
+          "solutionReview": {
+            "headline": "Cubing is reversible.",
+            "reasoning": [
+              "Cube both sides: 2x − 1 = x + 4, so x = 5.",
+              "x² + 7 = 8, so x² = 1 and x = 1 or x = −1; both check, since ∛8 = 2.",
+              "a³ = b³ forces a = b, so cubing never adds a solution; a² = b² allows a = −b, which is why squaring can."
+            ],
+            "answerSummary": "x = 5; {−1, 1}; cubing is reversible",
+            "commonError": "Forgetting the negative solution: x² = 1 gives x = 1 or x = −1, and both check because cubing can be undone."
+          },
+          "questionWeight": 1.25
+        },
+        {
+          "questionId": "srh-cw-8",
+          "standard": "A2.4G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.4G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.4F",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Structure and parameters. Consider $\\sqrt{x - 3} = k$.",
+          "responses": [
+            {
+              "id": "k",
+              "label": "For which values of k does √(x − 3) = k have a real solution?",
+              "type": "choice",
+              "options": [
+                "k ≥ 0",
+                "every real k",
+                "k > 3",
+                "k ≤ 0"
+              ],
+              "answer": "k ≥ 0"
+            },
+            {
+              "id": "sq",
+              "label": "For k = −2, squaring anyway gives x − 3 = 4, so x =",
+              "answer": "7",
+              "inputProfile": "number"
+            },
+            {
+              "id": "check",
+              "label": "Is that x a solution of √(x − 3) = −2?",
+              "type": "choice",
+              "options": [
+                "No: √4 = 2, not −2, so 7 is extraneous",
+                "Yes: 7 − 3 = 4 = (−2)²",
+                "Yes: squaring never adds solutions",
+                "It depends on rounding"
+              ],
+              "answer": "No: √4 = 2, not −2, so 7 is extraneous"
+            },
+            {
+              "id": "inspect",
+              "label": "Without solving: does √(x − 3) + 5 = 2 have a solution?",
+              "type": "choice",
+              "options": [
+                "No: it says √(x − 3) = −3, and a square root is never negative",
+                "Yes: x = 12",
+                "Yes: x = 6",
+                "It has two solutions"
+              ],
+              "answer": "No: it says √(x − 3) = −3, and a square root is never negative"
+            }
+          ],
+          "hints": [
+            "A principal square root is never negative.",
+            "Substitute the candidate into the ORIGINAL equation."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. √4 equals…",
+            "options": [
+              "−2",
+              "2"
+            ],
+            "correct": "2"
+          },
+          "solutionReview": {
+            "headline": "Structure decides before algebra does.",
+            "reasoning": [
+              "√(x − 3) is never negative, so √(x − 3) = k has a solution exactly when k ≥ 0 (then x = k² + 3).",
+              "With k = −2, squaring gives x − 3 = 4 and x = 7, but √4 = 2 ≠ −2: 7 is extraneous.",
+              "√(x − 3) + 5 = 2 means √(x − 3) = −3: no real solution, by inspection."
+            ],
+            "answerSummary": "k ≥ 0; 7, extraneous; no solution",
+            "commonError": "Trusting the squared answer: squaring √(x − 3) = −2 gives x = 7, but a square root is never −2."
+          },
+          "questionWeight": 1.5
+        },
+        {
+          "questionId": "srh-cw-9",
+          "standard": "A2.7H",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7H",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.4F",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveRadicalEquation"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Modeling: the distance to the horizon. From a height of $h$ feet, you can see about $d = \\sqrt{1.5h}$ miles to the horizon. How high must a lookout be to see 6 miles? Solve $\\sqrt{1.5h} = 6$.",
+          "radicalEquation": {
+            "variable": "h",
+            "radicand": {
+              "m": 1.5,
+              "b": 0
+            },
+            "rhs": {
+              "m": 0,
+              "b": 6
+            }
+          },
+          "hints": [
+            "Square both sides.",
+            "Divide by 1.5 at the end."
+          ],
+          "solutionReview": {
+            "commonError": "Squaring only the 6: square both sides, so 1.5h = 36 and h = 24."
+          }
+        },
+        {
+          "questionId": "srh-cw-10",
+          "standard": "A2.4G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.4G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.6B",
+              "role": "secondary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.7H",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "sortIntoCategories"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Decide by structure, before any algebra. Sort each equation.",
+          "categories": [
+            {
+              "id": "none",
+              "label": "No real solution: an even root equals a negative number"
+            },
+            {
+              "id": "check",
+              "label": "Check needed: an even power can create extraneous candidates"
+            },
+            {
+              "id": "odd",
+              "label": "Odd index: no extraneous candidates"
+            }
+          ],
+          "items": [
+            {
+              "id": "a",
+              "label": "√(x + 2) = −5"
+            },
+            {
+              "id": "b",
+              "label": "(x + 1)^(1/4) + 3 = 1"
+            },
+            {
+              "id": "c",
+              "label": "√(3x) + 4 = 0"
+            },
+            {
+              "id": "d",
+              "label": "√(x + 5) = x − 1"
+            },
+            {
+              "id": "e",
+              "label": "√(2x + 1) = x − 7"
+            },
+            {
+              "id": "f",
+              "label": "∜(x + 12) = x"
+            },
+            {
+              "id": "g",
+              "label": "∛(x − 1) = −2"
+            },
+            {
+              "id": "h",
+              "label": "∛(x + 6) = x"
+            },
+            {
+              "id": "i",
+              "label": "(x − 3)^(1/5) = −1"
+            }
+          ],
+          "validSchemes": [
+            {
+              "id": "structure",
+              "groups": [
+                {
+                  "id": "none",
+                  "itemIds": [
+                    "a",
+                    "b",
+                    "c"
+                  ]
+                },
+                {
+                  "id": "check",
+                  "itemIds": [
+                    "d",
+                    "e",
+                    "f"
+                  ]
+                },
+                {
+                  "id": "odd",
+                  "itemIds": [
+                    "g",
+                    "h",
+                    "i"
+                  ]
+                }
+              ]
+            }
+          ],
+          "hints": [
+            "Isolate the root in your head: is an even root being set equal to a negative number?",
+            "Raising both sides to an even power can add candidates; an odd power cannot."
+          ],
+          "solutionReview": {
+            "headline": "Isolate the root, then read its index and the sign of the other side.",
+            "reasoning": [
+              "No real solution: √(x + 2) = −5, (x + 1)^(1/4) = −2 and √(3x) = −4 each set an even root equal to a negative number, and an even root is never negative.",
+              "Check needed: √(x + 5) = x − 1, √(2x + 1) = x − 7 and ∜(x + 12) = x are raised to an even power, which can add a candidate where the right side is negative (x = −1 in the first, x = 4 in the second).",
+              "Odd index: ∛(x − 1) = −2, ∛(x + 6) = x and (x − 3)^(1/5) = −1. Cubing, or raising to the fifth power, can be undone, so no candidate is extraneous."
+            ],
+            "answerSummary": "No real solution: √(x + 2) = −5, (x + 1)^(1/4) + 3 = 1, √(3x) + 4 = 0. Check needed: √(x + 5) = x − 1, √(2x + 1) = x − 7, ∜(x + 12) = x. Odd index: the other three.",
+            "commonError": "∛(x − 1) = −2 has a solution: an odd root can be negative, so only an even root set equal to a negative number has none."
+          }
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "role": "practice",
+      "title": "Practice — Solve, Check, and Explain",
+      "recommendedMinutes": 45,
+      "questions": [
+        {
+          "questionId": "srh-p-1",
+          "standard": "A2.4G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.4G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.4F",
+              "role": "secondary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.7H",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveRadicalEquation"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Solve $\\sqrt{ {{m|coef}}x {{b|term}} } {{k|signed}} = x {{ck|term}}$. Check every candidate.",
+          "radicalEquation": {
+            "radicand": {
+              "m": "{{m}}",
+              "b": "{{b}}"
+            },
+            "outside": "{{k}}",
+            "rhs": {
+              "m": 1,
+              "b": "{{ck}}"
+            }
+          },
+          "hints": [
+            "Isolate the radical before squaring.",
+            "Square, solve the quadratic, and check BOTH candidates in the original equation."
+          ],
+          "generator": {
+            "parameters": {
+              "c": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "p": {
+                "type": "int",
+                "min": -4,
+                "max": 8
+              },
+              "q": {
+                "type": "int",
+                "min": -9,
+                "max": 2
+              },
+              "k": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "m": "2 * c + p + q",
+              "b": "c * c - p * q",
+              "ck": "c + k"
+            },
+            "constraints": [
+              "p + c >= 1",
+              "q + c <= -1",
+              "2 * c + p + q != 0",
+              "p != q"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "solutionReview": {
+            "commonError": "Checking the candidates in the squared equation instead of the original: both always pass there."
+          }
+        },
+        {
+          "questionId": "srh-p-2",
+          "standard": "A2.7H",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7H",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveRadicalEquation"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve ${{a|coef}}\\sqrt[{{n}}]{ {{m|coef}}x {{b|signed}} } {{c|signed}} = {{d}}$ and check.",
+          "radicalEquation": {
+            "index": "{{n}}",
+            "coefficient": "{{a}}",
+            "radicand": {
+              "m": "{{m}}",
+              "b": "{{b}}"
+            },
+            "outside": "{{c}}",
+            "rhs": {
+              "m": 0,
+              "b": "{{d}}"
+            }
+          },
+          "hints": [
+            "Undo the operations outside the radical first, in reverse order.",
+            "Raise both sides to the index of the root."
+          ],
+          "generator": {
+            "parameters": {
+              "n": {
+                "type": "choice",
+                "values": [
+                  4,
+                  5
+                ]
+              },
+              "a": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "m": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "b": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "s": {
+                "type": "int",
+                "min": -3,
+                "max": 3,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "d": "a * s + c"
+            },
+            "constraints": [
+              "10 * (n - 4) + s > 0",
+              "(s^n - b) % m == 0"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "solutionReview": {
+            "commonError": "Raising both sides to the wrong power: isolate the root, then undo an nth root with the nth power."
+          }
+        },
+        {
+          "questionId": "srh-p-3",
+          "standard": "A2.4G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.4G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.4F",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveRadicalEquation"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Solve $\\sqrt{3x + 1} + 1 = x$. Check both candidates.",
+          "radicalEquation": {
+            "radicand": {
+              "m": 3,
+              "b": 1
+            },
+            "outside": 1,
+            "rhs": {
+              "m": 1,
+              "b": 0
+            }
+          },
+          "hints": [
+            "Isolate the radical first.",
+            "After squaring, move every term to one side and factor."
+          ],
+          "solutionReview": {
+            "commonError": "Squaring before isolating: subtract 1 from both sides first, so √(3x + 1) = x − 1."
+          }
+        },
+        {
+          "questionId": "srh-p-4",
+          "standard": "A2.4G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.4G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.4F",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveRadicalEquation"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Solve $\\sqrt{2x + 2} = 3x - 1$. One candidate is a fraction — check both.",
+          "radicalEquation": {
+            "radicand": {
+              "m": 2,
+              "b": 2
+            },
+            "rhs": {
+              "m": 3,
+              "b": -1
+            }
+          },
+          "hints": [
+            "Square both sides: (3x − 1)² is a trinomial.",
+            "The quadratic factors; substitute each candidate into the original equation."
+          ],
+          "solutionReview": {
+            "commonError": "Keeping −1/9 because it solves the quadratic: in the original equation, 3x − 1 is negative there."
+          }
+        },
+        {
+          "questionId": "srh-p-5",
+          "standard": "A2.7H",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7H",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Solve $2(x + 3)^{\\frac{4}{3}} = 162$.",
+          "responses": [
+            {
+              "id": "iso",
+              "label": "Isolate the power: (x + 3)^(4/3) =",
+              "answer": "81",
+              "inputProfile": "number"
+            },
+            {
+              "id": "cube",
+              "label": "(∛(x + 3))⁴ = 81, so ∛(x + 3) is each value in the set",
+              "answer": "{-3, 3}",
+              "inputProfile": "set"
+            },
+            {
+              "id": "sols",
+              "label": "Solutions, as a set",
+              "answer": "{-30, 24}",
+              "inputProfile": "set"
+            }
+          ],
+          "hints": [
+            "Divide both sides by 2 first.",
+            "An even power equal to a positive number has a positive and a negative root."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. (x + 3)^(4/3) can be written as…",
+            "options": [
+              "(∜(x + 3))³",
+              "(∛(x + 3))⁴"
+            ],
+            "correct": "(∛(x + 3))⁴"
+          },
+          "solutionReview": {
+            "headline": "Isolate, undo the even power with ±, then cube.",
+            "reasoning": [
+              "(x + 3)^(4/3) = 81, so (∛(x + 3))⁴ = 81 and ∛(x + 3) = 3 or −3.",
+              "Cubing: x + 3 = 27 or x + 3 = −27, so x = 24 or x = −30.",
+              "Check: 2 · 27^(4/3) = 2 · 81 = 162 and 2 · (−27)^(4/3) = 2 · (−3)⁴ = 162. Both are solutions."
+            ],
+            "answerSummary": "{−30, 24}",
+            "commonError": "Missing the negative root: (∛(x + 3))⁴ = 81 gives ∛(x + 3) = 3 or −3."
+          },
+          "questionWeight": 1.5
+        },
+        {
+          "questionId": "srh-p-6",
+          "standard": "A2.4G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.4G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.7H",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Two radicals. Solve $\\sqrt{x + 7} - \\sqrt{x} = 1$.",
+          "responses": [
+            {
+              "id": "rootx",
+              "label": "After isolating and squaring, √x =",
+              "answer": "3",
+              "inputProfile": "number"
+            },
+            {
+              "id": "x",
+              "label": "x =",
+              "answer": "9",
+              "inputProfile": "number"
+            },
+            {
+              "id": "check",
+              "label": "Check: √(9 + 7) − √9 =",
+              "answer": "1",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "Add √x to both sides, then square.",
+            "After squaring, the x-terms cancel and one radical is left."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. (1 + √x)² equals…",
+            "options": [
+              "1 + 2√x + x",
+              "1 + x"
+            ],
+            "correct": "1 + 2√x + x"
+          },
+          "solutionReview": {
+            "headline": "Isolate, square, isolate, solve, check.",
+            "reasoning": [
+              "√(x + 7) = 1 + √x; squaring: x + 7 = 1 + 2√x + x.",
+              "6 = 2√x, so √x = 3 and x = 9.",
+              "Check: √16 − √9 = 4 − 3 = 1."
+            ],
+            "answerSummary": "x = 9",
+            "commonError": "Squaring term by term: isolate one radical first, because (√(x + 7) − √x)² is not (x + 7) − x."
+          },
+          "questionWeight": 1.25
+        },
+        {
+          "questionId": "srh-p-7",
+          "standard": "A2.4G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.4G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveInequality"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Squaring $\\sqrt{6 - x} = x$ gives $x^2 + x - 6 = 0$, with candidates $2$ and $-3$. Select every candidate that is a genuine solution of the original equation.",
+          "signChart": {
+            "mode": "radicalCheck",
+            "radicalEquation": {
+              "radicand": {
+                "m": -1,
+                "b": 6
+              },
+              "rhs": {
+                "m": 1,
+                "b": 0
+              }
+            },
+            "candidates": [
+              2,
+              -3
+            ]
+          },
+          "hints": [
+            "Substitute each candidate into √(6 − x) = x."
+          ],
+          "solutionReview": {
+            "commonError": "Keeping −3 because it solves x² + x − 6 = 0: √(6 − (−3)) = 3, not −3."
+          }
+        },
+        {
+          "questionId": "srh-p-8",
+          "familyId": "mathmaster:sat:A2.4G:ccmr-challenge-parameter-from-valid-root",
+          "familyVersion": 1,
+          "standard": "A2.4G",
+          "prompt": "The equation $\\sqrt{x+k}=x-{{b}}$ has $x={{p}}$ as a solution. What is the value of $k$?",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "activityRole": "practice",
+          "dok": 2,
+          "difficultyBand": 4,
+          "calculatorPolicy": "graphing",
+          "assessedConstruct": "A2.4G",
+          "taskType": "parameterVerification",
+          "representation": "symbolic",
+          "generator": {
+            "parameters": {
+              "b": {
+                "type": "int",
+                "min": 4,
+                "max": 12
+              },
+              "r": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              }
+            },
+            "derived": {
+              "p": "b+r",
+              "k": "r*r-b-r",
+              "dSignError": "r*r+b+r",
+              "dNoSquare": "2*r-b-r",
+              "dRightConstant": "b"
+            },
+            "constraints": [
+              "dRightConstant!=k",
+              "dRightConstant!=dSignError",
+              "dRightConstant!=dNoSquare",
+              "dNoSquare!=k"
+            ]
+          },
+          "answerFields": [
+            {
+              "id": "answer",
+              "label": "Choose the correct answer",
+              "type": "choice",
+              "inputProfile": "choice",
+              "options": [
+                "{{k}}",
+                "{{dSignError}}",
+                "{{dNoSquare}}",
+                "{{dRightConstant}}"
+              ],
+              "answer": "{{k}}"
+            }
+          ],
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.4G",
+              "role": "primary",
+              "evidenceLevel": "assessed"
+            },
+            {
+              "framework": "digitalSAT",
+              "domainId": "advancedMath",
+              "role": "primary",
+              "evidenceMode": "direct"
+            }
+          ],
+          "assessmentContext": {
+            "framework": "digitalSAT",
+            "examStyle": true,
+            "domainId": "advancedMath"
+          },
+          "assessmentItemFormat": "multipleChoice",
+          "ccmrChallengeTier": 2,
+          "ccmrFamilyRole": "challenge",
+          "ccmrAuthenticLanguage": {
+            "version": "2.1",
+            "authored": true,
+            "authoredChallenge": true,
+            "officialSkillFamily": "nonlinear equations in one variable and systems of equations in two variables",
+            "stemProfile": "parameter-from-valid-root",
+            "responseEcologyRevision": "v2.1-75pct-mcq"
+          },
+          "solutionReview": {
+            "headline": "Substitute the solution, then solve for the parameter.",
+            "reasoning": [
+              "x = {{p}} is a solution, so √({{p}} + k) = {{p}} − {{b}} = {{r}}.",
+              "Square both sides: {{p}} + k = {{r}}², so k = {{r}}² − {{p}} = {{k}}.",
+              "The right side {{p}} − {{b}} = {{r}} is positive, so it can equal a square root: the solution checks."
+            ],
+            "answerSummary": "k = {{k}}",
+            "commonError": "Forgetting to square: √({{p}} + k) = {{r}} means {{p}} + k = {{r}}², not {{r}}."
+          },
+          "attemptFeedback": [
+            "Squaring can introduce a candidate that does not satisfy the original radical equation. Check every candidate in the unsquared equation."
+          ],
+          "supportHints": [
+            "After squaring, substitute each candidate into the original equation and check that the nonradical side is nonnegative where required."
+          ],
+          "ccmrSource": {
+            "source": "auditedBank",
+            "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+            "framework": "digitalSAT",
+            "domainId": "advancedMath",
+            "documentId": "mm_sat_A2_4G_challenge_parameter-from-valid-root_v21",
+            "familyId": "mathmaster:sat:A2.4G:ccmr-challenge-parameter-from-valid-root",
+            "familyVersion": 1
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. A value is a solution of an equation when substituting it makes…",
+            "options": [
+              "the left side zero",
+              "both sides equal"
+            ],
+            "correct": "both sides equal"
+          }
+        },
+        {
+          "questionId": "srh-p-9",
+          "standard": "A2.7H",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7H",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.4F",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Modeling: the horizon again, $d = \\sqrt{1.5h}$ ($d$ in miles, $h$ in feet).",
+          "responses": [
+            {
+              "id": "h9",
+              "label": "A sailor can see 9 miles. Height h = (feet)",
+              "answer": "54",
+              "inputProfile": "number"
+            },
+            {
+              "id": "x9",
+              "label": "If the height is multiplied by 9, the distance is multiplied by",
+              "answer": "3",
+              "inputProfile": "number"
+            },
+            {
+              "id": "d2",
+              "label": "To double the distance, multiply the height by",
+              "answer": "4",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "Square both sides of 9 = √(1.5h).",
+            "Compare √(1.5 · kh) with √(1.5h): the factor k comes out of the root as √k."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. √(ku) can be written as…",
+            "options": [
+              "k · √u",
+              "√k · √u"
+            ],
+            "correct": "√k · √u"
+          },
+          "solutionReview": {
+            "headline": "Solve the model, then reason about scale.",
+            "reasoning": [
+              "81 = 1.5h, so h = 54 feet.",
+              "√(1.5 · 9h) = √9 · √(1.5h) = 3√(1.5h): the distance triples.",
+              "Doubling d means 2√(1.5h) = √(4 · 1.5h): the height is multiplied by 4."
+            ],
+            "answerSummary": "54 ft; × 3; × 4",
+            "commonError": "Doubling the height to double the distance: d grows like √h, so the height must be multiplied by 4."
+          },
+          "questionWeight": 1.25
+        },
+        {
+          "questionId": "srh-p-10",
+          "standard": "A2.6B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.6B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.4F",
+              "role": "secondary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.7H",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Solve $\\sqrt[3]{x^2 - 1} = 2$ and $\\sqrt{x^2 + 4} = x + 2$.",
+          "responses": [
+            {
+              "id": "sols1",
+              "label": "∛(x² − 1) = 2: solutions, as a set",
+              "answer": "{-3, 3}",
+              "inputProfile": "set"
+            },
+            {
+              "id": "x2",
+              "label": "√(x² + 4) = x + 2: x =",
+              "answer": "0",
+              "inputProfile": "number"
+            },
+            {
+              "id": "chk",
+              "label": "Does x = 0 check in √(x² + 4) = x + 2?",
+              "type": "choice",
+              "options": [
+                "Yes: √4 = 2 = 0 + 2",
+                "No: 0 is never a solution",
+                "No: √4 = −2",
+                "It cannot be checked"
+              ],
+              "answer": "Yes: √4 = 2 = 0 + 2"
+            }
+          ],
+          "hints": [
+            "Cube both sides of the first equation.",
+            "In the second, the x² terms cancel after squaring."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Cubing ∛(x² − 1) gives…",
+            "options": [
+              "x² − 1",
+              "(x² − 1)³"
+            ],
+            "correct": "x² − 1"
+          },
+          "solutionReview": {
+            "headline": "Raise to the index; check what squaring could have added.",
+            "reasoning": [
+              "x² − 1 = 8, so x² = 9 and x = 3 or x = −3; both check, since ∛8 = 2.",
+              "x² + 4 = x² + 4x + 4 gives 4x = 0, so x = 0.",
+              "Check: √(0 + 4) = 2 and 0 + 2 = 2."
+            ],
+            "answerSummary": "{−3, 3}; x = 0",
+            "commonError": "Missing x = −3: x² = 9 has two solutions, and both check because cubing can be undone."
+          },
+          "questionWeight": 1.25
+        },
+        {
+          "questionId": "srh-p-11",
+          "standard": "A2.7H",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7H",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Solve $x^{\\frac{3}{4}} = 8$ and $x^{\\frac{4}{3}} = 16$, then compare how many solutions each has.",
+          "responses": [
+            {
+              "id": "a",
+              "label": "x^(3/4) = 8: x =",
+              "answer": "16",
+              "inputProfile": "number"
+            },
+            {
+              "id": "b",
+              "label": "x^(4/3) = 16: solutions, as a set",
+              "answer": "{-8, 8}",
+              "inputProfile": "set"
+            },
+            {
+              "id": "why",
+              "label": "Why does x^(3/4) = 8 have one solution while x^(4/3) = 16 has two?",
+              "type": "choice",
+              "options": [
+                "x^(3/4) = (∜x)³ needs x ≥ 0; x^(4/3) = (∛x)⁴ allows ∛x = 2 or −2",
+                "Because 3/4 is less than 1",
+                "Because 8 is a perfect cube",
+                "They both have two solutions"
+              ],
+              "answer": "x^(3/4) = (∜x)³ needs x ≥ 0; x^(4/3) = (∛x)⁴ allows ∛x = 2 or −2"
+            }
+          ],
+          "hints": [
+            "Raise both sides of x^(3/4) = 8 to the reciprocal power.",
+            "x^(4/3) = (∛x)⁴, and an even power has a positive and a negative root."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Can x be negative in x^(3/4) = (∜x)³?",
+            "options": [
+              "No: an even root needs x ≥ 0",
+              "Yes"
+            ],
+            "correct": "No: an even root needs x ≥ 0"
+          },
+          "solutionReview": {
+            "headline": "The denominator decides the domain; the numerator decides ±.",
+            "reasoning": [
+              "x = 8^(4/3) = (∛8)⁴ = 16. Check: 16^(3/4) = (∜16)³ = 8.",
+              "(∛x)⁴ = 16 gives ∛x = 2 or −2, so x = 8 or −8. Check: (±8)^(4/3) = (±2)⁴ = 16.",
+              "An even index (the denominator 4) needs x ≥ 0; an even numerator brings ±."
+            ],
+            "answerSummary": "16; {−8, 8}",
+            "commonError": "Taking ± for x^(3/4) = 8: the fourth root needs x ≥ 0; the ± belongs to the even numerator in x^(4/3)."
+          },
+          "questionWeight": 1.5
+        },
+        {
+          "questionId": "srh-p-12",
+          "familyId": "mathmaster:sat:A2.6B:ccmr-challenge-nested-linear-cuberoot",
+          "familyVersion": 1,
+          "standard": "A2.6B",
+          "prompt": "What is the solution to $\\sqrt[3]{ {{m}}x {{a|signed}} }+{{c}}={{n}}$?",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "activityRole": "practice",
+          "dok": 3,
+          "difficultyBand": 5,
+          "calculatorPolicy": "graphing",
+          "assessedConstruct": "A2.6B",
+          "taskType": "multiStepRadical",
+          "representation": "symbolic",
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "xsol": {
+                "type": "int",
+                "min": 2,
+                "max": 12
+              },
+              "r": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "c": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              }
+            },
+            "derived": {
+              "a": "r*r*r-m*xsol",
+              "n": "r+c",
+              "r3": "r*r*r",
+              "mx": "r*r*r-a"
+            },
+            "constraints": [
+              "a!=0"
+            ]
+          },
+          "answerFields": [
+            {
+              "id": "answer",
+              "label": "Answer",
+              "inputProfile": "number",
+              "answer": "{{xsol}}",
+              "numberRules": "digitalSAT"
+            }
+          ],
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.6B",
+              "role": "primary",
+              "evidenceLevel": "assessed"
+            },
+            {
+              "framework": "digitalSAT",
+              "domainId": "advancedMath",
+              "role": "primary",
+              "evidenceMode": "direct"
+            }
+          ],
+          "assessmentContext": {
+            "framework": "digitalSAT",
+            "examStyle": true,
+            "domainId": "advancedMath"
+          },
+          "assessmentItemFormat": "studentProducedResponse",
+          "ccmrChallengeTier": 2,
+          "ccmrFamilyRole": "challenge",
+          "ccmrAuthenticLanguage": {
+            "version": "2.1",
+            "authored": true,
+            "authoredChallenge": true,
+            "officialSkillFamily": "nonlinear equations in one variable and systems of equations in two variables",
+            "stemProfile": "ccmr-challenge-nested-linear-cuberoot"
+          },
+          "solutionReview": {
+            "headline": "Isolate the cube root, then cube.",
+            "reasoning": [
+              "Isolate the root: ∛({{m}}x {{a|signed}}) = {{n}} − {{c}} = {{r}}.",
+              "Cube: {{m}}x {{a|signed}} = {{r3}}, so {{m}}x = {{mx}} and x = {{mx}} ÷ {{m}} = {{xsol}}.",
+              "Cubing cannot create an extraneous solution, but a check still catches arithmetic slips."
+            ],
+            "answerSummary": "x = {{xsol}}",
+            "commonError": "Cubing before isolating: (∛({{m}}x {{a|signed}}) + {{c}})³ is not {{m}}x {{a|signed}} + {{c}}³."
+          },
+          "attemptFeedback": [
+            "Use the inverse relationship between cubing and taking a cube root, then verify the result in the original equation."
+          ],
+          "supportHints": [
+            "Isolate the cube-root expression before cubing both sides. Odd roots allow real positive and negative values."
+          ],
+          "ccmrSource": {
+            "source": "auditedBank",
+            "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+            "framework": "digitalSAT",
+            "domainId": "advancedMath",
+            "documentId": "mm_sat_A2_6B_challenge_3_nested-linear-cuberoot_v21",
+            "familyId": "mathmaster:sat:A2.6B:ccmr-challenge-nested-linear-cuberoot",
+            "familyVersion": 1
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. In ∛(mx + a) + c = n, what do you do first?",
+            "options": [
+              "Cube both sides",
+              "Subtract c from both sides"
+            ],
+            "correct": "Subtract c from both sides"
+          }
+        },
+        {
+          "questionId": "srh-p-13",
+          "standard": "A2.4G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.4G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.7H",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 4,
+          "difficultyBand": 5,
+          "prompt": "Two radicals, two solutions. Solve $\\sqrt{3x + 1} - \\sqrt{x - 1} = 2$.",
+          "responses": [
+            {
+              "id": "iso",
+              "label": "After squaring once and simplifying: x − 1 = 2√(…), with … =",
+              "answer": "x-1",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "sols",
+              "label": "Solutions, as a set",
+              "answer": "{1, 5}",
+              "inputProfile": "set"
+            }
+          ],
+          "hints": [
+            "Isolate √(3x + 1), square, and collect like terms.",
+            "After the first squaring, isolate the radical that is left, square again, and factor rather than divide."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. If u² = 4u, then…",
+            "options": [
+              "u = 0 or u = 4",
+              "u = 4 only"
+            ],
+            "correct": "u = 0 or u = 4"
+          },
+          "solutionReview": {
+            "headline": "Square twice, factor instead of dividing, check both.",
+            "reasoning": [
+              "√(3x + 1) = 2 + √(x − 1); squaring: 3x + 1 = 4 + 4√(x − 1) + x − 1, so 2x − 2 = 4√(x − 1), that is, x − 1 = 2√(x − 1).",
+              "Squaring: (x − 1)² = 4(x − 1), so (x − 1)(x − 5) = 0 and x = 1 or x = 5.",
+              "Check: x = 1 gives √4 − √0 = 2, and x = 5 gives √16 − √4 = 2. Both are solutions."
+            ],
+            "answerSummary": "{1, 5}",
+            "commonError": "Dividing both sides by x − 1 loses the solution x = 1."
+          },
+          "questionWeight": 1.5
+        },
+        {
+          "questionId": "srh-p-14",
+          "standard": "A2.7H",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7H",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Solve $(x {{h|signed}})^{\\frac{2}{3}} = {{c2}}$.",
+          "responses": [
+            {
+              "id": "large",
+              "label": "Larger solution",
+              "answer": "{{x1}}",
+              "inputProfile": "number"
+            },
+            {
+              "id": "small",
+              "label": "Smaller solution",
+              "answer": "{{x2}}",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "(x + a)^(2/3) = (∛(x + a))².",
+            "Undo the square with ±, then cube."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. If (∛u)² = 9, then ∛u equals…",
+            "options": [
+              "3 only",
+              "3 or −3"
+            ],
+            "correct": "3 or −3"
+          },
+          "solutionReview": {
+            "headline": "Undo the even numerator with ±, then cube.",
+            "reasoning": [
+              "(∛(x {{h|signed}}))² = {{c2}}, so ∛(x {{h|signed}}) = {{c}} or −{{c}}.",
+              "Cubing: x {{h|signed}} = {{c3}} or x {{h|signed}} = −{{c3}}.",
+              "x = {{x1}} or x = {{x2}}; both check, because a cube root may be negative."
+            ],
+            "answerSummary": "x = {{x2}} or x = {{x1}}",
+            "commonError": "Missing the negative solution: when a cube root is squared, it can be the negative square root too."
+          },
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              }
+            },
+            "derived": {
+              "c2": "c * c",
+              "c3": "c^3",
+              "x1": "-h + c^3",
+              "x2": "-h - c^3"
+            },
+            "constraints": []
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        }
+      ]
+    },
+    {
+      "id": "dol",
+      "role": "dol",
+      "title": "DOL — Solving Radical Equations (Honors)",
+      "recommendedMinutes": 10,
+      "questions": [
+        {
+          "questionId": "srh-dol-1",
+          "standard": "A2.4G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.4G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.4F",
+              "role": "secondary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.7H",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveRadicalEquation"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Solve $\\sqrt{ {{m|coef}}x {{b|term}} } {{k|signed}} = x {{ck|term}}$. Check every candidate.",
+          "radicalEquation": {
+            "radicand": {
+              "m": "{{m}}",
+              "b": "{{b}}"
+            },
+            "outside": "{{k}}",
+            "rhs": {
+              "m": 1,
+              "b": "{{ck}}"
+            }
+          },
+          "generator": {
+            "parameters": {
+              "c": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "p": {
+                "type": "int",
+                "min": -4,
+                "max": 8
+              },
+              "q": {
+                "type": "int",
+                "min": -9,
+                "max": 2
+              },
+              "k": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "m": "2 * c + p + q",
+              "b": "c * c - p * q",
+              "ck": "c + k"
+            },
+            "constraints": [
+              "p + c >= 1",
+              "q + c <= -1",
+              "2 * c + p + q != 0",
+              "p != q"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "solutionReview": {
+            "commonError": "Keeping a candidate that solves only the squared equation: check both in the original."
+          }
+        },
+        {
+          "questionId": "srh-dol-2",
+          "standard": "A2.7H",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7H",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Solve $(x {{h|signed}})^{\\frac{2}{3}} = {{c2}}$.",
+          "responses": [
+            {
+              "id": "large",
+              "label": "Larger solution",
+              "answer": "{{x1}}",
+              "inputProfile": "number"
+            },
+            {
+              "id": "small",
+              "label": "Smaller solution",
+              "answer": "{{x2}}",
+              "inputProfile": "number"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Undo the even numerator with ±, then cube.",
+            "reasoning": [
+              "(∛(x {{h|signed}}))² = {{c2}}, so ∛(x {{h|signed}}) = {{c}} or −{{c}}.",
+              "Cubing: x {{h|signed}} = {{c3}} or x {{h|signed}} = −{{c3}}.",
+              "x = {{x1}} or x = {{x2}}; both check, because a cube root may be negative."
+            ],
+            "answerSummary": "x = {{x2}} or x = {{x1}}",
+            "commonError": "Taking only the positive root: a squared cube root equal to c² gives a cube root of c or −c."
+          },
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              }
+            },
+            "derived": {
+              "c2": "c * c",
+              "c3": "c^3",
+              "x1": "-h + c^3",
+              "x2": "-h - c^3"
+            },
+            "constraints": []
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "srh-dol-3",
+          "standard": "A2.7H",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7H",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveRadicalEquation"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve ${{a|coef}}\\sqrt[{{n}}]{ {{m|coef}}x {{b|signed}} } {{c|signed}} = {{d}}$ and check.",
+          "radicalEquation": {
+            "index": "{{n}}",
+            "coefficient": "{{a}}",
+            "radicand": {
+              "m": "{{m}}",
+              "b": "{{b}}"
+            },
+            "outside": "{{c}}",
+            "rhs": {
+              "m": 0,
+              "b": "{{d}}"
+            }
+          },
+          "generator": {
+            "parameters": {
+              "n": {
+                "type": "choice",
+                "values": [
+                  3,
+                  4,
+                  5
+                ]
+              },
+              "a": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "m": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "b": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "s": {
+                "type": "int",
+                "min": -3,
+                "max": 3,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "d": "a * s + c"
+            },
+            "constraints": [
+              "10 * (n - 4) * (n - 4) + s > 0",
+              "(s^n - b) % m == 0"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "solutionReview": {
+            "commonError": "Raising to the index before isolating the root: subtract and divide first, then raise both sides to the index."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -53,6 +53,21 @@ test('the question retyped, or anything still needing simplification, is not the
   assert.equal(same('\\frac{\\frac{1}{2}}{3}', '\\frac{1}{6}'), false, 'a complex fraction');
 });
 
+test('two roots in one term are one root: √2·∛2 retyped is not ⁶√32', () => {
+  // Roots of different indices combine over a common index (the Rational
+  // Exponents lesson), so a term with two roots still needs simplifying.
+  assert.equal(same('\\sqrt{2}\\cdot\\sqrt[3]{2}', '\\sqrt[6]{32}'), false, 'the question retyped');
+  assert.equal(same('\\sqrt[3]{2}\\sqrt{2}', '\\sqrt[6]{32}'), false);
+  assert.equal(same('\\sqrt[4]{x^3}\\cdot\\sqrt[3]{x}', 'x\\sqrt[12]{x}'), false);
+  assert.equal(same('\\sqrt{3}\\sqrt[3]{5}', '\\sqrt[6]{675}'), false);
+  assert.equal(same('2^{\\frac{1}{2}}\\cdot2^{\\frac{1}{3}}', '2^{\\frac{5}{6}}'), false, 'in exponent form too');
+  assert.equal(isSimplestRadicalForm('\\sqrt{2}\\sqrt[3]{2}'), false);
+  assert.equal(same('\\sqrt[6]{32}', 'root(6)(32)'), true);
+  assert.equal(same('x\\sqrt[12]{x}', 'x root(12)(x)'), true);
+  assert.equal(same('2^{\\frac{5}{6}}', '2^{5/6}'), true);
+  assert.equal(same('3\\sqrt{2}+\\sqrt[3]{2}', '\\sqrt[3]{2}+3\\sqrt{2}'), true, 'roots in different terms stay apart');
+});
+
 test('a decimal from a calculator is not the exact answer', () => {
   assert.equal(same('-6.7082', '-3\\sqrt{5}'), false);
   assert.equal(same('4.24', '3\\sqrt{2}'), false);

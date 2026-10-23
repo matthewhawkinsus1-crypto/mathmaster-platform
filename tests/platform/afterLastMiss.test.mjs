@@ -302,11 +302,12 @@ test('HELP-11: Pre-Flight warns — never blocks — on answer-only worked solut
   assert.equal(workedSolutionDepth(sumTemplate), 'answerOnly');
   assert.equal(workedSolutionDepth({ ...sumTemplate, solutionReview: { reasoning: ['{{a}} + 1 = {{v}}.'] } }), 'steps');
   // The real lessons: 204 of 265 practice-like items walk through steps (199
-  // before family slots were judged by a version), and all 132 in the five
-  // Algebra II Polynomials and Radicals lessons.
+  // before family slots were judged by a version), all 132 in the five
+  // Algebra II Polynomials and Radicals lessons, and all 137 in their Honors
+  // versions.
   const practiceLike = itemsByRole().filter((item) => ['warmup', 'classwork', 'practice'].includes(item.role));
-  assert.equal(practiceLike.length, 265 + 132);
-  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 204 + 132);
+  assert.equal(practiceLike.length, 265 + 132 + 137);
+  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 204 + 132 + 137);
   // Wired into Pre-Flight as advice the teacher sees in the Check step, and
   // never as a diagnostic: any warning diagnostic makes an assignment "Needs
   // Review", which students never see (isUnpublishedDraft) — and no real

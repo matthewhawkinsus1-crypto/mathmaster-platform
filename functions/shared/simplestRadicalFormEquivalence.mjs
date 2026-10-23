@@ -32,8 +32,9 @@
 //   - no fraction under a root and no root (or fractional power) in a
 //     denominator;
 //   - no negative exponents;
-//   - in each term, one number, each letter once, one root of each index
-//     (√3·√5 is √15);
+//   - in each term, one number, each letter once and one root (√3·√5 is
+//     √15, and √2·∛2 is ⁶√32: roots of different indices combine over a
+//     common index);
 //   - like terms combined (3√5 − 6√5), and a fraction in lowest terms
 //     (4√2/6).
 // A form this reader does not understand is never accepted here; the ordinary
@@ -449,7 +450,7 @@ const readTerm = (node) => {
       return true;
     }
     if (child.t === 'root') {
-      if (info.roots.some((root) => root.index === child.index) || !simplestRoot(child.index, child.arg)) return false;
+      if (info.roots.length || !simplestRoot(child.index, child.arg)) return false;
       info.roots.push({ index: child.index, radicand: keyOf(child.arg) });
       return true;
     }
@@ -475,7 +476,7 @@ const readTerm = (node) => {
       }
       // A number to a fractional power is a root of it: 2^(1/3) is ∛2.
       if (base.t === 'num' && Number.isInteger(base.v) && base.v >= 2) {
-        if (info.roots.some((root) => root.index === fraction.q)) return false;
+        if (info.roots.length) return false;
         if (!simplestRoot(fraction.q, { t: 'num', v: base.v ** fraction.p })) return false;
         info.roots.push({ index: fraction.q, radicand: keyOf({ t: 'num', v: base.v ** fraction.p }) });
         return true;

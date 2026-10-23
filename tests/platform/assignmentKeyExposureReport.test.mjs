@@ -99,8 +99,9 @@ const lessonFiles = () => {
   return files;
 };
 
-// Lessons added after the design's count have their own table below.
+// Lessons added after the design's count have their own tables below.
 const LATER_LESSONS = path.join(repo, 'teacher-import-jsons', 'algebra2-polynomials-radicals') + path.sep;
+const LATER_HONORS = path.join(repo, 'teacher-import-jsons', 'algebra2-polynomials-radicals-honors') + path.sep;
 const exposureByRole = (files) => {
   const byRole = {};
   files.forEach((file) => {
@@ -114,7 +115,7 @@ const exposureByRole = (files) => {
 };
 
 test('on the 16 lesson files it reproduces the design\'s count (§1.2): questions, stored keys, server-gradable, family slots', () => {
-  const files = lessonFiles().filter((file) => !file.startsWith(LATER_LESSONS));
+  const files = lessonFiles().filter((file) => !file.startsWith(LATER_LESSONS) && !file.startsWith(LATER_HONORS));
   assert.equal(files.length, 16, 'the design counted these 16 files; a new file changes the expected table');
   const byRole = exposureByRole(files);
   // Design §1.2: Q / stored key / has hints / server can grade as stored.
@@ -141,6 +142,20 @@ test('the five Algebra II Polynomials and Radicals lessons: every template is a 
     classwork: { questions: 50, withStoredKey: 37, serverGradable: 50, familySlots: 0, deviceOnly: 0, withHints: 50 },
     practice: { questions: 67, withStoredKey: 54, serverGradable: 50, familySlots: 17, deviceOnly: 0, withHints: 67 },
     dol: { questions: 10, withStoredKey: 10, serverGradable: 0, familySlots: 10, deviceOnly: 0, withHints: 0 },
+  });
+});
+
+test('their five Honors versions: the audited SAT items are family slots too, and nothing is device-only', () => {
+  const files = lessonFiles().filter((file) => file.startsWith(LATER_HONORS));
+  assert.equal(files.length, 5);
+  // Warm-Up and DOL are the assignment's own templates, as in the regular
+  // lessons. In Practice, 20 more templates and the 10 audited SAT items (two
+  // per lesson) are family slots, which ingestion rebuilds from the delivery pin.
+  assert.deepEqual(exposureByRole(files), {
+    warmup: { questions: 15, withStoredKey: 15, serverGradable: 0, familySlots: 15, deviceOnly: 0, withHints: 15 },
+    classwork: { questions: 53, withStoredKey: 43, serverGradable: 53, familySlots: 0, deviceOnly: 0, withHints: 53 },
+    practice: { questions: 69, withStoredKey: 65, serverGradable: 39, familySlots: 30, deviceOnly: 0, withHints: 69 },
+    dol: { questions: 15, withStoredKey: 15, serverGradable: 0, familySlots: 15, deviceOnly: 0, withHints: 0 },
   });
 });
 
