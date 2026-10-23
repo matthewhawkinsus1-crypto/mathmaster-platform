@@ -241,6 +241,21 @@ test('the Live Challenge student screens show no raw error text, and log it for 
   }
 });
 
+test('My Math Path and the modeling lab show no raw error text, and log it for support (MP09)', () => {
+  const screens = {
+    'src/components/student/MyMathPathProductionContainer.jsx': 3,
+    'src/components/labs/InteractiveModelingLabPlayer.jsx': 1,
+  };
+  for (const [path, uses] of Object.entries(screens)) {
+    const source = read(path);
+    assert.match(source, /^import \{ studentErrorSentence \} from '\.\.\/\.\.\/platform\/student\/studentErrorWords\.js';$/m, `${path}: imported next to its use`);
+    assert.doesNotMatch(source, /set(?:Error|SubmissionError)\([^;]*caught\.message\b/, `${path}: an error's own message is never the student's text`);
+    const calls = [...source.matchAll(/set(?:Error|SubmissionError)\(`?\$?\{?studentErrorSentence\((\w+), '[^']+'\)/g)];
+    assert.equal(calls.length, uses, `${path}: every error the screen shows goes through the translator`);
+    for (const [, name] of calls) assert.match(source, new RegExp(`console\\.(?:error|warn)\\('[^']+', ${name}\\)`), `${path}: ${name} is kept in the console`);
+  }
+});
+
 test('the account-load screen never prints the error as it is', () => {
   const gate = read('src/app/shell/SessionGate.jsx');
   assert.match(gate, /^import \{ studentErrorSentence \} from '\.\.\/\.\.\/platform\/student\/studentErrorWords\.js';$/m);

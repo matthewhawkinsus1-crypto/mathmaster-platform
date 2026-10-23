@@ -16,6 +16,7 @@ import {
   SKILLS_UPDATE_PATIENCE_MS, describeSessionSkillsMoved, snapshotMasteryAtSessionStart,
 } from '../../platform/mastery/sessionSkillMovement.js';
 import { weeklyStartLabel } from './WeeklyPathGoalPanel.jsx';
+import { studentErrorSentence } from '../../platform/student/studentErrorWords.js';
 import MyMathPathSessionRecap from './MyMathPathSessionRecap.jsx';
 import MyMathPathSkillsMoved from './MyMathPathSkillsMoved.jsx';
 
@@ -215,7 +216,12 @@ export const MyMathPathProductionContainer = ({
       setRetryCount((current) => current + 1);
       setErrorReason(caught?.reason || null);
       if (caught?.isConfigurationError) setConfigurationError(caught.message);
-      else setError(caught.message || 'Unable to load this My Math Path session.');
+      else {
+        // The words a student sees are written for them (MP09); the raw
+        // error stays in the console for support.
+        console.error('My Math Path session failed to load', caught);
+        setError(studentErrorSentence(caught, 'Could not load this My Math Path session.'));
+      }
     } finally {
       setLoading(false);
     }
@@ -285,7 +291,8 @@ export const MyMathPathProductionContainer = ({
       // Leave awaitingContinue true. The same button becomes an explicit retry
       // rather than disappearing after a Wi-Fi/callable failure.
       setAwaitingContinue(true);
-      setSubmissionError(caught.message || 'The next question could not be loaded. Try again.');
+      console.error('My Math Path next question failed to load', caught);
+      setSubmissionError(studentErrorSentence(caught, 'The next question could not be loaded. Try again.'));
     } finally {
       setAdvancing(false);
     }
@@ -376,7 +383,8 @@ export const MyMathPathProductionContainer = ({
         setConfigurationError(caught.message);
         return null;
       }
-      setSubmissionError(`Submission was not confirmed. Check your connection and try again — MathMaster reuses the same submission ID, so retrying cannot count your answer twice. ${caught.message || ''}`.trim());
+      console.error('My Math Path submission was not confirmed', caught);
+      setSubmissionError(`${studentErrorSentence(caught, 'Your answer was not confirmed. Check your connection and try again.')} Trying again cannot count your answer twice.`);
       return null;
     } finally {
       setSubmitting(false);

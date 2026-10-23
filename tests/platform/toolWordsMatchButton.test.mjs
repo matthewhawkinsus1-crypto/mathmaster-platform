@@ -47,6 +47,11 @@ test('My Math Path\'s unconfirmed-submission line names no button: it serves two
   assert.doesNotMatch(region(player, '<QuestionEngine', '/>', 'the Path question'), /submitLabel=/, 'which names its button Submit');
   assert.match(player, /\{isSubmitting \? 'Checking…' : 'Check my answer'\}/, 'the player\'s own button');
   const container = read('src/components/student/MyMathPathProductionContainer.jsx');
-  assert.match(container, /Submission was not confirmed\. Check your connection and try again — MathMaster reuses the same submission ID/);
+  // The line goes through the student translator now (MP09); its own words
+  // still say "try again" and name no button.
+  const unconfirmed = container.match(/setSubmissionError\(`\$\{studentErrorSentence\(caught, '([^']+)'\)\}([^`]*)`\)/);
+  assert.ok(unconfirmed, 'the unconfirmed-submission line');
+  assert.match(`${unconfirmed[1]}${unconfirmed[2]}`, /try again/i);
+  assert.doesNotMatch(`${unconfirmed[1]}${unconfirmed[2]}`, /press (Check|Submit)\b/);
   assert.doesNotMatch(container, /press (Check|Submit)\b/);
 });
