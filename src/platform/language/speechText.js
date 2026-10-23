@@ -300,8 +300,10 @@ const plainMathToSpeech = (raw, w, functionNames = '') => {
       return ` ${coefficient ? `${w.times} ` : ''}${w.abs} ${body} ${ends ? `${w.endAbs} ` : ''}`;
     })
     // (f + g)(x), (m − n)(2), (f ∘ g)(x): an operation on two functions,
-    // applied — "f plus g of x", never "the quantity f plus g times x".
-    .replace(new RegExp(`\\(\\s*([${letters}])\\s*([-+−*·×/∘])\\s*([${letters}])\\s*\\)\\s*\\(([^()]+)\\)`, 'g'), (match, left, operator, right, argument) => {
+    // applied — "f plus g of x", never "the quantity f plus g times x". Two
+    // function names side by side, (fg)(x), are their product (AX20): "f
+    // times g of x", never "the quantity fg times the quantity x".
+    .replace(new RegExp(`\\(\\s*([${letters}])\\s*([-+−*·×/∘]?)\\s*([${letters}])\\s*\\)\\s*\\(([^()]+)\\)`, 'g'), (match, left, operator, right, argument) => {
       const word = { '+': w.plus, '-': w.minus, '−': w.minus, '/': w.over, '∘': w.composed }[operator] || w.times;
       return functionApplicationSpeech(w)(match, ` ${left} ${word}`, right, argument);
     })
