@@ -132,18 +132,42 @@ test('HELP-1: a practice answer is checked the way a field is graded, whatever w
   assert.deepEqual(verdicts('slope 4', ''), ['blank']);
 });
 
-test('HELP-1: words, rosters with an ellipsis, mappings and a line named by two of its points are never marked right or wrong', () => {
+test('HELP-1: words, rosters with an ellipsis and mappings are never marked right or wrong', () => {
   const { parts } = readPracticeAnswer('arrows -7 → 5, -3 → 8; domain {0, 1, 2, ..., 40}; falls, then rises; Horizontal: 6 units to the left');
   assert.equal(parts.length, 4);
   parts.forEach((part) => {
     assert.equal(part.checkable, false, `${part.expected}: compared, not judged`);
     assert.equal(checkPracticePart(part, 'anything'), PRACTICE_VERDICT.COMPARE);
   });
-  const line = readPracticeAnswer('The line through (0, -1) and (1, -7)');
-  assert.equal(line.checkable, false, 'any two points of the line would do');
   const checked = checkPracticeAnswers(readPracticeAnswer('domain [0, 2]; rises everywhere'), { 'part-1': '[0,2]' });
   assert.equal(checked.allCorrect, true);
   assert.match(practiceCheckMessage(checked), /Compare the rest with the worked solution/);
+});
+
+test('HELP-1: a line named by two of its points is checked as the line — any two of its points, or its equation', () => {
+  // Any two points of the line answer it, so the two the family happened to
+  // name are not the answer: the line is. Module 3 (systems by graphing) and
+  // Module 2 L3 ask for one on every intercept item.
+  const [line] = readPracticeAnswer('The line through (0, 2) and (-4, 0)').parts;
+  assert.equal(line.kind, 'line');
+  assert.equal(line.checkable, true);
+  const verdict = (typed) => checkPracticePart(line, typed);
+  assert.equal(verdict('(0, 2), (-4, 0)'), PRACTICE_VERDICT.CORRECT, 'the two points named');
+  assert.equal(verdict('(-4,0),(4,4)'), PRACTICE_VERDICT.CORRECT, 'two other points of it, in any order');
+  assert.equal(verdict('y=\\frac{1}{2}x+2'), PRACTICE_VERDICT.CORRECT, 'slope-intercept form, as MathLive sends it');
+  assert.equal(verdict('x-2y=-4'), PRACTICE_VERDICT.CORRECT, 'standard form');
+  assert.equal(verdict('y=2x+2'), PRACTICE_VERDICT.INCORRECT, 'a different line through one of the points');
+  assert.equal(verdict('(0, 2), (0, 2)'), PRACTICE_VERDICT.INCORRECT, 'one point twice is not a line');
+  assert.equal(verdict('(0, 2), (1, 1)'), PRACTICE_VERDICT.INCORRECT, 'a point off the line');
+  assert.equal(verdict('y=\\frac{1}{8}x^{2}+\\frac{1}{2}x+2'), PRACTICE_VERDICT.INCORRECT, 'a curve through both points is not the line');
+  assert.equal(verdict(''), PRACTICE_VERDICT.BLANK);
+  // Vertical and horizontal lines (Module 2 L3).
+  const [vertical] = readPracticeAnswer('The vertical line through (2, -2) and (2, 3)').parts;
+  assert.equal(checkPracticePart(vertical, 'x=2'), PRACTICE_VERDICT.CORRECT);
+  assert.equal(checkPracticePart(vertical, 'y=2'), PRACTICE_VERDICT.INCORRECT);
+  const [horizontal] = readPracticeAnswer('The horizontal line through (-2, -1) and (3, -1)').parts;
+  assert.equal(checkPracticePart(horizontal, 'y=-1'), PRACTICE_VERDICT.CORRECT);
+  assert.equal(checkPracticePart(horizontal, '(10, -1), (-7, -1)'), PRACTICE_VERDICT.CORRECT);
 });
 
 test('HELP-1 / D3: offered only on a closed Classwork or Practice item the host vouched for — never a Warm-Up, DOL, quiz, test or server-graded host', () => {

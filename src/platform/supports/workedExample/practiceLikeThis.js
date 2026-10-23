@@ -206,8 +206,15 @@ const readPart = (chunk, position, { ordered = false } = {}) => {
   // A label, then a value: "domain [-1, 4]", "Horizontal: 6 units left".
   const labelled = /^([A-Za-z][A-Za-z-]*(?:\s+[A-Za-z][A-Za-z-]*)*)\s*:?\s+(.+)$/.exec(raw);
   // "The line through (0, -1) and (1, -7)": any two points of the line would
-  // do, so two particular ones are not the answer.
-  if (labelled && /\bthrough\b/i.test(labelled[1])) return prose;
+  // do, so two particular ones are not the answer — the line is. It is checked
+  // as a line: an equation of it, or any two different points on it.
+  if (labelled && /\bthrough\b/i.test(labelled[1])) {
+    const through = /\bline\b/i.test(labelled[1]) ? pointList(text(labelled[2]).replace(/\s+and\s+(?=[[({\-−\d])/g, ', ')) : null;
+    const distinct = through?.length === 2 && through[0].map(numberOf).join() !== through[1].map(numberOf).join();
+    return distinct
+      ? { id, label: 'The line: two of its points, or its equation', expected: through.map((point) => `(${point.join(', ')})`).join(', '), kind: 'line', through, checkable: true }
+      : prose;
+  }
   if (labelled && VALUE_START.test(labelled[2])) {
     const value = text(labelled[2]).replace(/\s+and\s+(?=[[({\-−\d])/g, ', ');
     const kind = pointList(value) ? 'points' : 'value';
@@ -226,6 +233,13 @@ function expressionKind(value) {
 }
 
 const NUMBER = /^[-−]?(?:\d+(?:\.\d+)?|\.\d+)(?:\/\d+)?$/;
+
+/** "−3", "1/2", "-0.5" → a number (pointList only lets these through). */
+function numberOf(value) {
+  const raw = text(value).replace(/[−]/g, '-');
+  const fraction = /^(-?(?:\d+(?:\.\d+)?|\.\d+))\/(\d+)$/.exec(raw);
+  return fraction ? Number(fraction[1]) / Number(fraction[2]) : Number(raw);
+}
 
 /** "(1, 2), (3, 4)" (or a single pair) → [["1","2"], ["3","4"]], else null. */
 function pointList(value) {
@@ -382,6 +396,45 @@ const safely = (check) => {
   }
 };
 
+/*
+ * A line, given by two of its points. Right: two different points on it, or an
+ * equation of it in x and y (y = 1/2x + 2, x − 2y = −4, x = 2) — checked at five
+ * points of the line and one point off it, so a curve through the two given
+ * points is not mistaken for the line.
+ */
+const checkLine = (through, typed) => {
+  const [[x1, y1], [x2, y2]] = through.map((point) => point.map(numberOf));
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const scale = Math.max(1, Math.abs(dx) + Math.abs(dy));
+  const onLine = (x, y) => Math.abs(dx * (y - y1) - dy * (x - x1)) <= 1e-6 * scale * scale;
+  const points = pointList(typed.replace(/\\left|\\right/g, '').replace(/\\?\s*,\s*/g, ', '));
+  if (points) {
+    if (points.length !== 2) return PRACTICE_VERDICT.INCORRECT;
+    const [[a, b], [c, d]] = points.map((point) => point.map(numberOf));
+    if (a === c && b === d) return PRACTICE_VERDICT.INCORRECT;
+    return onLine(a, b) && onLine(c, d) ? PRACTICE_VERDICT.CORRECT : PRACTICE_VERDICT.INCORRECT;
+  }
+  const typedSides = sides(typed);
+  if (!typedSides) return PRACTICE_VERDICT.INCORRECT;
+  const relation = compileExpression(`(${toExpression(typedSides[0])})-(${toExpression(typedSides[1])})`);
+  if (!relation || relation.names.some((name) => !['x', 'y'].includes(name))) return PRACTICE_VERDICT.COMPARE;
+  const at = (x, y) => {
+    try {
+      return relation.evaluate({ x, y });
+    } catch {
+      return Number.NaN;
+    }
+  };
+  const off = Math.abs(at(x1 - dy, y1 + dx));
+  if (!Number.isFinite(off) || off < 1e-9) return PRACTICE_VERDICT.INCORRECT;
+  const onAll = [0, 1, 2, -1, 0.5].every((step) => {
+    const value = at(x1 + step * dx, y1 + step * dy);
+    return Number.isFinite(value) && Math.abs(value) <= 1e-6 * Math.max(1, off);
+  });
+  return onAll ? PRACTICE_VERDICT.CORRECT : PRACTICE_VERDICT.INCORRECT;
+};
+
 /** One part: CORRECT / INCORRECT / BLANK / COMPARE. */
 export const checkPracticePart = (part, response) => {
   const typed = text(response);
@@ -393,6 +446,8 @@ export const checkPracticePart = (part, response) => {
     const answer = typed.replace(/\\emptyset|\\varnothing/g, '∅').replace(/\\\{\s*\\\}/g, '{}');
     return NONE_WORDS.test(answer) ? PRACTICE_VERDICT.CORRECT : PRACTICE_VERDICT.INCORRECT;
   }
+
+  if (part.kind === 'line') return checkLine(part.through, typed);
 
   if (part.kind === 'points') {
     const want = pointList(expected);
