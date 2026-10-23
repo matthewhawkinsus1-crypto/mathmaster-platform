@@ -11,7 +11,9 @@
  *                   no reasoning steps: no authored solutionReview.reasoning,
  *                   no tool review with steps, no question-family worked
  *                   solution, and no composed workflow (whose review walks the
- *                   steps). An item with no review at all is named too.
+ *                   steps). An item with no review at all is named too. A
+ *                   Question Family slot is judged by a version a student is
+ *                   shown: the stored slot is only its template.
  *   no common error no authored solutionReview.commonError — the one line a
  *                   student who missed it reads as "Watch out:".
  *   choice reasons  answerFields[].optionRationales that can never be shown
@@ -22,6 +24,7 @@
  * of Pre-Flight.
  */
 import { buildPrivateSupport } from '../../../functions/shared/pathSolutionSupport.mjs';
+import { isFamilyBackedQuestion, resolveFamilyQuestionInstance } from '../../../functions/shared/questionFamilyInstance.mjs';
 import { buildToolSolutionReviewModel } from '../../tools/shared/toolSolutionReview.js';
 import { buildClosedQuestionReview } from '../supports/review/closedQuestionReview.js';
 import { optionRationaleProblems } from '../supports/feedback/oneTryChoice.js';
@@ -43,9 +46,21 @@ const numbersText = (numbers) => {
   return numbers.length > 12 ? `${shown} and ${numbers.length - 12} more` : shown;
 };
 
+// The first version a student could be shown (a preview allocation), or the
+// question itself when it is not a family slot or no version can be built.
+const deliveredVersion = (question) => {
+  if (!isFamilyBackedQuestion(question)) return question;
+  const built = safely(() => resolveFamilyQuestionInstance({
+    question,
+    allocation: { seat: 0, variant: 0, stride: 1, index: 0, basis: 'preview' },
+  }), null);
+  return built?.question || question;
+};
+
 /** 'steps' | 'answerOnly' | 'none' — what the worked solution of a closed `question` shows. */
-export const workedSolutionDepth = (question) => {
-  if (!question || typeof question !== 'object') return 'none';
+export const workedSolutionDepth = (stored) => {
+  if (!stored || typeof stored !== 'object') return 'none';
+  const question = deliveredVersion(stored);
   const composed = safely(() => readComposedQuestion(question), null);
   if (composed?.composed && asArray(composed.workflow).length) return 'steps';
   const isToolQuestion = Boolean(safely(() => buildToolSolutionReviewModel(question), null));

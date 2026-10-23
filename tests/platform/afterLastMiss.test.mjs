@@ -286,10 +286,27 @@ test('HELP-11: Pre-Flight warns — never blocks — on answer-only worked solut
   assert.deepEqual(audit.noCommonError, [1]);
   assert.match(audit.warnings[0], /^Question 1 shows only the answer after the last try/);
   assert.match(audit.warnings[1], /solutionReview\.commonError/);
-  // The real lessons: 199 of 265 practice-like items walk through steps.
+  // A Question Family slot is judged by a version a student is shown: a tool
+  // template gets the tool's worked steps; a multi-answer template gets only
+  // what it authors.
+  const template = (fields) => ({ ...fields, questionFamily: { scope: 'assignment' } });
+  const factorTemplate = template({
+    type: 'polynomialWorkshop', mode: 'factorQuadratic', prompt: 'Factor $x^2 + {{s}}x + {{p}}$.', coefficients: [1, '{{s}}', '{{p}}'],
+    generator: { parameters: { m: { type: 'int', min: 1, max: 5 }, n: { type: 'int', min: 6, max: 9 } }, derived: { s: 'm + n', p: 'm * n' } },
+  });
+  const sumTemplate = template({
+    type: 'multiAnswer', prompt: 'Add {{a}} and 1.', answerFields: [{ id: 'v', label: 'Sum', answer: '{{v}}' }],
+    generator: { parameters: { a: { type: 'int', min: 1, max: 9 } }, derived: { v: 'a + 1' } },
+  });
+  assert.equal(workedSolutionDepth(factorTemplate), 'steps');
+  assert.equal(workedSolutionDepth(sumTemplate), 'answerOnly');
+  assert.equal(workedSolutionDepth({ ...sumTemplate, solutionReview: { reasoning: ['{{a}} + 1 = {{v}}.'] } }), 'steps');
+  // The real lessons: 204 of 265 practice-like items walk through steps (199
+  // before family slots were judged by a version), and all 132 in the five
+  // Algebra II Polynomials and Radicals lessons.
   const practiceLike = itemsByRole().filter((item) => ['warmup', 'classwork', 'practice'].includes(item.role));
-  assert.equal(practiceLike.length, 265);
-  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 199);
+  assert.equal(practiceLike.length, 265 + 132);
+  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 204 + 132);
   // Wired into Pre-Flight as advice the teacher sees in the Check step, and
   // never as a diagnostic: any warning diagnostic makes an assignment "Needs
   // Review", which students never see (isUnpublishedDraft) — and no real

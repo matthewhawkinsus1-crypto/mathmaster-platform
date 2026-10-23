@@ -69,6 +69,11 @@ test('grading outcome: what ingestion can grade as stored, Question Family slots
   assert.equal(gradingOutcomeFor({ type: 'numberLine', target: 3 }).outcome, GRADING_OUTCOME.DEVICE_ONLY);
   assert.match(gradingOutcomeFor({ type: 'numberLine', target: 3 }).reason, /numberLine/);
   assert.deepEqual(gradingOutcomeFor({ type: 'literal', generator: { kind: 'x' } }), { outcome: GRADING_OUTCOME.DEVICE_ONLY, reason: 'generated-question' });
+  // An assignment's own template carries a generator too, but it is a family
+  // slot: ingestion rebuilds the instance from the delivery pin.
+  const template = { type: 'multiAnswer', prompt: '{{a}} + 1 = ?', answerFields: [{ id: 'v', answer: '{{v}}' }], generator: { parameters: { a: { type: 'int', min: 1, max: 9 } }, derived: { v: 'a + 1' } }, questionFamily: { scope: 'assignment' } };
+  assert.deepEqual(gradingOutcomeFor(template), { outcome: GRADING_OUTCOME.FAMILY_SLOT, reason: 'family-template' });
+  assert.deepEqual(gradingOutcomeFor({ ...template, teacherExcluded: true }), { outcome: GRADING_OUTCOME.EXCLUDED, reason: 'teacher-excluded' });
   assert.deepEqual(gradingOutcomeFor({ type: 'literal', variants: [{}] }), { outcome: GRADING_OUTCOME.DEVICE_ONLY, reason: 'variant-selection' });
   assert.deepEqual(gradingOutcomeFor({ type: 'literal', teacherExcluded: true }), { outcome: GRADING_OUTCOME.EXCLUDED, reason: 'teacher-excluded' });
 });
@@ -94,9 +99,9 @@ const lessonFiles = () => {
   return files;
 };
 
-test('on the 16 lesson files it reproduces the design\'s count (§1.2): questions, stored keys, server-gradable, family slots', () => {
-  const files = lessonFiles();
-  assert.equal(files.length, 16, 'the design counted these 16 files; a new file changes the expected table');
+// Lessons added after the design's count have their own table below.
+const LATER_LESSONS = path.join(repo, 'teacher-import-jsons', 'algebra2-polynomials-radicals') + path.sep;
+const exposureByRole = (files) => {
   const byRole = {};
   files.forEach((file) => {
     const { assignmentV5 } = parseAssignmentBlueprintText(readFileSync(file, 'utf8'));
@@ -105,14 +110,37 @@ test('on the 16 lesson files it reproduces the design\'s count (§1.2): question
       Object.keys(row).forEach((key) => { row[key] += section[key]; });
     });
   });
+  return byRole;
+};
+
+test('on the 16 lesson files it reproduces the design\'s count (§1.2): questions, stored keys, server-gradable, family slots', () => {
+  const files = lessonFiles().filter((file) => !file.startsWith(LATER_LESSONS));
+  assert.equal(files.length, 16, 'the design counted these 16 files; a new file changes the expected table');
+  const byRole = exposureByRole(files);
   // Design §1.2: Q / stored key / has hints / server can grade as stored.
   // Hints are one higher in Practice: the report also counts `supportHints`
   // (design §1.1 lists both), and one Absolute Value item has only those.
+  // The design's one `generated-question` (footnote ¹) is the Absolute Value
+  // bridge's own template, q_practice-absolute-value-focus_3_8: ingestion
+  // grades it from its delivery pin, so the report counts a family slot.
   assert.deepEqual(byRole, {
     warmup: { questions: 44, withStoredKey: 27, serverGradable: 42, familySlots: 2, deviceOnly: 0, withHints: 8 },
     classwork: { questions: 108, withStoredKey: 51, serverGradable: 105, familySlots: 3, deviceOnly: 0, withHints: 27 },
-    practice: { questions: 110, withStoredKey: 55, serverGradable: 107, familySlots: 2, deviceOnly: 1, withHints: 37 },
+    practice: { questions: 110, withStoredKey: 55, serverGradable: 107, familySlots: 3, deviceOnly: 0, withHints: 37 },
     dol: { questions: 45, withStoredKey: 30, serverGradable: 44, familySlots: 1, deviceOnly: 0, withHints: 0 },
+  });
+});
+
+test('the five Algebra II Polynomials and Radicals lessons: every template is a family slot, and nothing is device-only', () => {
+  const files = lessonFiles().filter((file) => file.startsWith(LATER_LESSONS));
+  assert.equal(files.length, 5);
+  // Warm-Up and DOL are the assignment's own templates throughout, and so are
+  // 17 Practice items; every other question is graded by the server as stored.
+  assert.deepEqual(exposureByRole(files), {
+    warmup: { questions: 15, withStoredKey: 14, serverGradable: 0, familySlots: 15, deviceOnly: 0, withHints: 15 },
+    classwork: { questions: 50, withStoredKey: 37, serverGradable: 50, familySlots: 0, deviceOnly: 0, withHints: 50 },
+    practice: { questions: 67, withStoredKey: 54, serverGradable: 50, familySlots: 17, deviceOnly: 0, withHints: 67 },
+    dol: { questions: 10, withStoredKey: 10, serverGradable: 0, familySlots: 10, deviceOnly: 0, withHints: 0 },
   });
 });
 

@@ -1,0 +1,1847 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Rational Exponents",
+    "courseId": "algebra2",
+    "folder": "Algebra II/Radicals & Rational Exponents",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork",
+    "essentialQuestion": "Why can it be useful to simplify expressions?",
+    "teacherNotes": "Bluebonnet Algebra II — Radicals, Lesson 3 (Rational Exponents), TEKS A2.7G. Answers are graded in the notation the key uses: a “radical form” key needs a radical and an “exponential form” key a rational exponent; simplified means positive exponents, no fractional exponent in a denominator, reduced exponents and the smallest index. Exact values are required where asked — a calculator decimal for 1/7 is marked not yet. Warm-Up and DOL are generated per student and back Recovery."
+  },
+  "variantPolicy": {
+    "mode": "personalized",
+    "sectionModes": {
+      "warmup": "shared",
+      "classwork": "shared",
+      "practice": "personalized",
+      "dol": "personalized"
+    },
+    "avoidRecentTemplates": true,
+    "avoidDuplicateParameters": true
+  },
+  "sections": [
+    {
+      "id": "warmup",
+      "role": "warmup",
+      "title": "Warm-Up — Radical Review",
+      "recommendedMinutes": 8,
+      "questions": [
+        {
+          "questionId": "re-wu-1",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Simplify $\\sqrt{ {{R}} a^3 }$.",
+          "responses": [
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "{{s}}a√({{k}}a)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Find the largest perfect square that divides {{R}}, and split a³ into a² · a."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. √(a³) simplifies to…",
+            "options": [
+              "a√a",
+              "a³"
+            ],
+            "correct": "a√a"
+          },
+          "generator": {
+            "parameters": {
+              "s": {
+                "type": "int",
+                "min": 2,
+                "max": 9
+              },
+              "k": {
+                "type": "choice",
+                "values": [
+                  2,
+                  3,
+                  5,
+                  6,
+                  7,
+                  10,
+                  11,
+                  13
+                ]
+              }
+            },
+            "derived": {
+              "R": "s * s * k"
+            },
+            "constraints": []
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "solutionReview": {
+            "headline": "Take out the largest perfect square.",
+            "reasoning": [
+              "{{R}} = {{s}}² · {{k}} and a³ = a² · a.",
+              "So √({{R}}a³) = √({{s}}²a² · {{k}}a) = {{s}}a√({{k}}a)."
+            ],
+            "answerSummary": "{{s}}a√({{k}}a)",
+            "commonError": "Leaving a² under the radical: a² is a perfect square and comes out as a."
+          }
+        },
+        {
+          "questionId": "re-wu-2",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Rationalize the denominator: $\\dfrac{ {{c}} }{ \\sqrt{ {{k}} } }$.",
+          "responses": [
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "{{c}}√{{k}}/{{k}}",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Multiply the numerator and the denominator by √{{k}}."
+          ],
+          "generator": {
+            "parameters": {
+              "c": {
+                "type": "int",
+                "min": 2,
+                "max": 9
+              },
+              "k": {
+                "type": "choice",
+                "values": [
+                  2,
+                  3,
+                  5,
+                  6,
+                  7,
+                  10,
+                  11,
+                  13
+                ]
+              }
+            },
+            "derived": {},
+            "constraints": [
+              "gcd(c, k) == 1"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. For a positive number k, what is √k · √k?",
+            "options": [
+              "k",
+              "2√k"
+            ],
+            "correct": "k"
+          },
+          "solutionReview": {
+            "headline": "Multiply the top and the bottom by √{{k}}.",
+            "reasoning": [
+              "{{c}}/√{{k}} · √{{k}}/√{{k}} = {{c}}√{{k}}/{{k}}.",
+              "The denominator √{{k}} · √{{k}} = {{k}} has no radical left."
+            ],
+            "answerSummary": "{{c}}√{{k}}/{{k}}",
+            "commonError": "Multiplying only the denominator by √{{k}} changes the value of the fraction."
+          }
+        },
+        {
+          "questionId": "re-wu-3",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Multiply: $({{a}} + \\sqrt{ {{b}} })({{a}} - \\sqrt{ {{b}} })$.",
+          "responses": [
+            {
+              "id": "product",
+              "label": "Product",
+              "answer": "{{v}}",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "(u + v)(u − v) = u² − v², and (√{{b}})² = {{b}}."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 12
+              },
+              "b": {
+                "type": "choice",
+                "values": [
+                  2,
+                  3,
+                  5,
+                  6,
+                  7,
+                  10,
+                  11,
+                  13,
+                  15
+                ]
+              }
+            },
+            "derived": {
+              "v": "a * a - b",
+              "a2": "a * a"
+            },
+            "constraints": []
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. (u + v)(u − v) equals…",
+            "options": [
+              "u² + v²",
+              "u² − v²"
+            ],
+            "correct": "u² − v²"
+          },
+          "solutionReview": {
+            "headline": "A sum times a difference is a difference of squares.",
+            "reasoning": [
+              "({{a}} + √{{b}})({{a}} − √{{b}}) = {{a}}² − (√{{b}})².",
+              "= {{a2}} − {{b}} = {{v}}. The radical terms cancel."
+            ],
+            "answerSummary": "{{v}}",
+            "commonError": "(√{{b}})² is {{b}}, not 2√{{b}}."
+          }
+        }
+      ]
+    },
+    {
+      "id": "classwork",
+      "role": "classwork",
+      "title": "Classwork — Rational Exponents",
+      "recommendedMinutes": 45,
+      "questions": [
+        {
+          "questionId": "re-cw-1",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Properties of exponents. Simplify each expression; write answers with positive exponents only. Assume no variable equals 0. $\\;(a^{-3})(a^2b^4)(c^{-1})$, $\\;\\dfrac{n^2}{n^{10}}$, $\\;\\left(\\dfrac{3a^3}{b^4}\\right)^2$",
+          "responses": [
+            {
+              "id": "e1",
+              "label": "(a⁻³)(a²b⁴)(c⁻¹) =",
+              "answer": "b^4/(ac)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "e2",
+              "label": "n²/n¹⁰ =",
+              "answer": "1/n^8",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "e3",
+              "label": "(3a³/b⁴)² =",
+              "answer": "9a^6/b^8",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Product and quotient of powers",
+                "instruction": "aᵐ · aⁿ = aᵐ⁺ⁿ and aᵐ/aⁿ = aᵐ⁻ⁿ (a ≠ 0)."
+              },
+              {
+                "title": "Powers of powers, products, quotients",
+                "instruction": "(aᵐ)ⁿ = aᵐⁿ, (ab)ᵐ = aᵐbᵐ, (a/b)ᵐ = aᵐ/bᵐ."
+              },
+              {
+                "title": "Zero and negative exponents",
+                "instruction": "a⁰ = 1 and a⁻ⁿ = 1/aⁿ (a ≠ 0)."
+              },
+              {
+                "title": "Simplified monomial",
+                "instruction": "No powers of powers, each base appears once, all fractions in lowest terms, no negative exponents."
+              }
+            ]
+          },
+          "hints": [
+            "Add the exponents of the same base; a negative exponent moves its factor to the denominator.",
+            "Subtract exponents when dividing powers of the same base, then rewrite a negative exponent.",
+            "Square the 3, the a³ and the b⁴."
+          ],
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. What does a⁻¹ mean?",
+            "options": [
+              "1/a",
+              "−a"
+            ],
+            "correct": "1/a"
+          },
+          "solutionReview": {
+            "headline": "Use the properties of exponents, then clear negative exponents.",
+            "reasoning": [
+              "(a⁻³)(a²b⁴)(c⁻¹) = a⁻¹b⁴c⁻¹ = b⁴/(ac).",
+              "n²/n¹⁰ = n²⁻¹⁰ = n⁻⁸ = 1/n⁸.",
+              "(3a³/b⁴)² = 3²(a³)²/(b⁴)² = 9a⁶/b⁸."
+            ],
+            "answerSummary": "b⁴/(ac); 1/n⁸; 9a⁶/b⁸",
+            "commonError": "A negative exponent makes a reciprocal, not a negative number: a⁻¹ is 1/a."
+          }
+        },
+        {
+          "questionId": "re-cw-2",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "The definition $b^{\\frac{1}{n}} = \\sqrt[n]{b}$. Rewrite and evaluate each.",
+          "responses": [
+            {
+              "id": "radical",
+              "label": "a^(1/7) in radical form",
+              "answer": "root(7)(a)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "exponent",
+              "label": "√w in exponential form",
+              "answer": "w^(1/2)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "cube",
+              "label": "27^(1/3) =",
+              "answer": "3",
+              "inputProfile": "number"
+            },
+            {
+              "id": "negative",
+              "label": "(−16)^(1/2) is…",
+              "type": "choice",
+              "options": [
+                "not a real number (it is 4i)",
+                "−4",
+                "4",
+                "−8"
+              ],
+              "answer": "not a real number (it is 4i)"
+            }
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Rational exponent 1/n",
+                "instruction": "For a real number b and an integer n > 1, b^(1/n) = ⁿ√b, when ⁿ√b is real."
+              },
+              {
+                "title": "Even roots of negatives",
+                "instruction": "An even root of a negative number is not real: (−16)^(1/2) = √(−16) = 4i."
+              }
+            ]
+          },
+          "hints": [
+            "The denominator of the exponent is the index of the root.",
+            "A square root has index 2."
+          ],
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. In b^(1/n), what does n tell you?",
+            "options": [
+              "The power",
+              "The index of the root"
+            ],
+            "correct": "The index of the root"
+          },
+          "solutionReview": {
+            "headline": "b^(1/n) is the nth root of b.",
+            "reasoning": [
+              "a^(1/7) = ⁷√a, and √w = w^(1/2).",
+              "27^(1/3) = ∛27 = 3.",
+              "(−16)^(1/2) = √(−16), an even root of a negative number: it is not a real number (it is 4i)."
+            ],
+            "answerSummary": "⁷√a; w^(1/2); 3; not a real number",
+            "commonError": "(−16)^(1/2) is not −4: (−4)² = 16, not −16."
+          }
+        },
+        {
+          "questionId": "re-cw-3",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Evaluate $49^{-\\frac{1}{2}}$ and $32^{\\frac{2}{5}}$. Show the root first.",
+          "responses": [
+            {
+              "id": "root49",
+              "label": "49^(1/2) =",
+              "answer": "7",
+              "inputProfile": "number"
+            },
+            {
+              "id": "value49",
+              "label": "49^(−1/2) =",
+              "answer": "1/7",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "root32",
+              "label": "32^(1/5) =",
+              "answer": "2",
+              "inputProfile": "number"
+            },
+            {
+              "id": "value32",
+              "label": "32^(2/5) =",
+              "answer": "4",
+              "inputProfile": "number"
+            }
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Rational exponent m/n",
+                "instruction": "b^(m/n) = (ⁿ√b)ᵐ = ⁿ√(bᵐ). Taking the root first keeps the numbers small: 32^(2/5) = (⁵√32)² = 2² = 4."
+              },
+              {
+                "title": "Negative rational exponent",
+                "instruction": "b^(−m/n) = 1/b^(m/n)."
+              }
+            ]
+          },
+          "hints": [
+            "49^(−1/2) = 1/49^(1/2).",
+            "⁵√32 asks: which number to the fifth power is 32?"
+          ],
+          "misconceptions": [
+            {
+              "match": [
+                "-7"
+              ],
+              "message": "A negative exponent makes a reciprocal, not a negative number: 49^(−1/2) = 1/49^(1/2)."
+            }
+          ],
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. What does a negative exponent do?",
+            "options": [
+              "It makes a reciprocal",
+              "It makes the number negative"
+            ],
+            "correct": "It makes a reciprocal"
+          },
+          "solutionReview": {
+            "headline": "Take the root first.",
+            "reasoning": [
+              "49^(1/2) = √49 = 7, so 49^(−1/2) = 1/7.",
+              "32^(1/5) = ⁵√32 = 2, so 32^(2/5) = 2² = 4."
+            ],
+            "answerSummary": "7; 1/7; 2; 4",
+            "commonError": "49^(−1/2) is 1/7, not −7: the negative exponent makes a reciprocal."
+          }
+        },
+        {
+          "questionId": "re-cw-4",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Evaluate exactly (no decimals): $25^{-\\frac{1}{2}}$, $16^{\\frac{3}{4}}$ and $27^{\\frac{2}{3}}$.",
+          "responses": [
+            {
+              "id": "a",
+              "label": "25^(−1/2) =",
+              "answer": "1/5",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "b",
+              "label": "16^(3/4) =",
+              "answer": "8",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "c",
+              "label": "27^(2/3) =",
+              "answer": "9",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Take the root first: the denominator of the exponent is the index.",
+            "Then raise the root to the power in the numerator; a negative exponent makes a reciprocal."
+          ],
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. In 16^(3/4), what do you do first to keep the numbers small?",
+            "options": [
+              "Cube 16",
+              "Take the fourth root"
+            ],
+            "correct": "Take the fourth root"
+          },
+          "solutionReview": {
+            "headline": "Root first, then the power.",
+            "reasoning": [
+              "25^(−1/2) = 1/√25 = 1/5.",
+              "16^(3/4) = (⁴√16)³ = 2³ = 8.",
+              "27^(2/3) = (∛27)² = 3² = 9."
+            ],
+            "answerSummary": "1/5; 8; 9",
+            "commonError": "16^(3/4) is not 16 · 3/4 = 12: a rational exponent is a root and a power."
+          }
+        },
+        {
+          "questionId": "re-cw-5",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Weightlifting. The formula $M = 512 - 146{,}230B^{-\\frac{8}{5}}$ estimates the maximum total mass $M$ (kg) that a weightlifter of mass $B$ kilograms can lift in the snatch and the clean and jerk combined. What does it predict for a lifter of mass 168 kg, to the nearest kilogram?",
+          "responses": [
+            {
+              "id": "M",
+              "label": "M ≈ (kg)",
+              "answer": "472",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "Evaluate 168^(−8/5) first: it is 1/168^(8/5).",
+            "Multiply that by 146,230, subtract the product from 512, and round to the nearest kilogram."
+          ],
+          "solutionReview": {
+            "headline": "Substitute and evaluate the rational power.",
+            "reasoning": [
+              "168^(8/5) ≈ 3637.6",
+              "146,230 / 3637.6 ≈ 40.2",
+              "512 − 40.2 ≈ 471.8"
+            ],
+            "answerSummary": "about 472 kg"
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. B^(−8/5) is the same as…",
+            "options": [
+              "1/B^(8/5)",
+              "−B^(8/5)"
+            ],
+            "correct": "1/B^(8/5)"
+          }
+        },
+        {
+          "questionId": "re-cw-6",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Simplify each expression; leave no negative exponents and no fractional exponent in a denominator. $\\;y^{\\frac{1}{7}} \\cdot y^{\\frac{4}{7}}$ and $\\;x^{-\\frac{2}{3}}$",
+          "responses": [
+            {
+              "id": "product",
+              "label": "y^(1/7) · y^(4/7) =",
+              "answer": "y^(5/7)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "negative",
+              "label": "x^(−2/3) =",
+              "answer": "x^(1/3)/x",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Simplified form with rational exponents",
+                "instruction": "No negative exponents; no fractional exponents in the denominator; not a complex fraction; the index of any remaining radical is as small as possible."
+              },
+              {
+                "title": "Clearing a fractional exponent from a denominator",
+                "instruction": "x^(−2/3) = 1/x^(2/3). Multiply by x^(1/3)/x^(1/3): x^(1/3)/x^(2/3 + 1/3) = x^(1/3)/x."
+              }
+            ]
+          },
+          "hints": [
+            "Add exponents when multiplying powers with the same base.",
+            "For x^(−2/3) = 1/x^(2/3), multiply the top and the bottom by the power of x that brings x^(2/3) up to x¹."
+          ],
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. When you multiply powers with the same base, what do you do with the exponents?",
+            "options": [
+              "Multiply them",
+              "Add them"
+            ],
+            "correct": "Add them"
+          },
+          "solutionReview": {
+            "headline": "Add exponents; then clear the denominator.",
+            "reasoning": [
+              "y^(1/7) · y^(4/7) = y^(5/7).",
+              "x^(−2/3) = 1/x^(2/3). Multiplying by x^(1/3)/x^(1/3) gives x^(1/3)/x."
+            ],
+            "answerSummary": "y^(5/7); x^(1/3)/x",
+            "commonError": "1/x^(2/3) still has a fractional exponent in the denominator, so it is not simplified."
+          }
+        },
+        {
+          "questionId": "re-cw-7",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Use rational exponents to simplify $\\dfrac{\\sqrt[6]{16}}{\\sqrt[3]{2}}$ and $\\sqrt[6]{4x^4}$.",
+          "responses": [
+            {
+              "id": "power",
+              "label": "⁶√16 as a power of 2: 2^(…)",
+              "answer": "2^(2/3)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "quotient",
+              "label": "⁶√16 / ∛2 =",
+              "answer": "cbrt(2)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "index",
+              "label": "⁶√(4x⁴) =",
+              "answer": "cbrt(2x^2)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Write 16 as a power of 2, write the sixth root as the exponent 1/6, and reduce.",
+            "Write the cube root as a power of 2 too; dividing powers of the same base subtracts the exponents.",
+            "Write 4x⁴ as 2²x⁴, raise it to the power 1/6, and reduce each exponent."
+          ],
+          "solutionReview": {
+            "headline": "Rewrite with rational exponents, simplify, return to radicals.",
+            "reasoning": [
+              "⁶√16 = 2^(4/6) = 2^(2/3); ∛2 = 2^(1/3); 2^(2/3 − 1/3) = 2^(1/3) = ∛2",
+              "⁶√(4x⁴) = (2²x⁴)^(1/6) = 2^(1/3)x^(2/3) = ∛(2x²)"
+            ],
+            "answerSummary": "∛2; ∛(2x²)",
+            "commonError": "Leaving ⁶√(4x⁴): the index 6 is not the smallest possible."
+          },
+          "questionWeight": 1.5,
+          "scaffold": {
+            "prompt": "Let’s back up. How is ⁶√16 written with a rational exponent?",
+            "options": [
+              "16^(1/6)",
+              "16^6"
+            ],
+            "correct": "16^(1/6)"
+          }
+        },
+        {
+          "questionId": "re-cw-8",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Simplify $\\dfrac{y^{\\frac{1}{2}} + 1}{y^{\\frac{1}{2}} - 1}$ so that no fractional exponent is left in the denominator.",
+          "responses": [
+            {
+              "id": "conjugate",
+              "label": "Multiply the numerator and the denominator by",
+              "answer": "y^(1/2)+1",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "(y+2y^(1/2)+1)/(y-1)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Multiply the top and the bottom by the conjugate of the denominator.",
+            "The product of conjugates (a − b)(a + b) is a² − b², and (y^(1/2))² = y."
+          ],
+          "questionWeight": 1.5,
+          "scaffold": {
+            "prompt": "Let’s back up. What is the conjugate of a − b?",
+            "options": [
+              "b − a",
+              "a + b"
+            ],
+            "correct": "a + b"
+          },
+          "solutionReview": {
+            "headline": "Multiply by the conjugate of the denominator.",
+            "reasoning": [
+              "Multiply the top and the bottom by y^(1/2) + 1.",
+              "Denominator: (y^(1/2) − 1)(y^(1/2) + 1) = y − 1. Numerator: (y^(1/2) + 1)² = y + 2y^(1/2) + 1."
+            ],
+            "answerSummary": "(y + 2y^(1/2) + 1)/(y − 1)",
+            "commonError": "(y^(1/2) + 1)² is not y + 1: the middle term 2y^(1/2) is easy to drop."
+          }
+        },
+        {
+          "questionId": "re-cw-9",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "sortIntoCategories"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Sort each expression: simplified, or not yet simplified? Use the rules for rational exponents and radicals.",
+          "categories": [
+            {
+              "id": "simplified",
+              "label": "Simplified"
+            },
+            {
+              "id": "not",
+              "label": "Not yet simplified"
+            }
+          ],
+          "items": [
+            {
+              "id": "a",
+              "label": "x^(3/5)"
+            },
+            {
+              "id": "b",
+              "label": "x^(−2/3)"
+            },
+            {
+              "id": "c",
+              "label": "1/x^(1/2)"
+            },
+            {
+              "id": "d",
+              "label": "x^(1/3)/x"
+            },
+            {
+              "id": "e",
+              "label": "y^(10/14)"
+            },
+            {
+              "id": "f",
+              "label": "∛(2x²)"
+            },
+            {
+              "id": "g",
+              "label": "⁶√(4x⁴)"
+            },
+            {
+              "id": "h",
+              "label": "2^(1/3)"
+            },
+            {
+              "id": "i",
+              "label": "y^(1/7) · y^(4/7)"
+            }
+          ],
+          "validSchemes": [
+            {
+              "id": "simplified",
+              "groups": [
+                {
+                  "id": "simplified",
+                  "itemIds": [
+                    "a",
+                    "d",
+                    "f",
+                    "h"
+                  ]
+                },
+                {
+                  "id": "not",
+                  "itemIds": [
+                    "b",
+                    "c",
+                    "e",
+                    "g",
+                    "i"
+                  ]
+                }
+              ]
+            }
+          ],
+          "hints": [
+            "A negative exponent, a fractional exponent in a denominator, an unreduced exponent, a larger-than-needed index, or a base written twice means not yet."
+          ],
+          "solutionReview": {
+            "headline": "Check every rule for simplified form.",
+            "reasoning": [
+              "Simplified: x^(3/5), x^(1/3)/x, ∛(2x²) and 2^(1/3).",
+              "Not yet: x^(−2/3) has a negative exponent (it is x^(1/3)/x); 1/x^(1/2) has a fractional exponent in the denominator (x^(1/2)/x); y^(10/14) reduces to y^(5/7); ⁶√(4x⁴) has a larger index than needed (∛(2x²)); y^(1/7) · y^(4/7) writes the base twice (y^(5/7))."
+            ],
+            "answerSummary": "Simplified: x^(3/5), x^(1/3)/x, ∛(2x²), 2^(1/3). Not yet: x^(−2/3), 1/x^(1/2), y^(10/14), ⁶√(4x⁴), y^(1/7) · y^(4/7).",
+            "commonError": "x^(1/3)/x is simplified: the denominator x has a whole-number exponent."
+          }
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "role": "practice",
+      "title": "Practice — Evaluate, Rewrite, Simplify",
+      "recommendedMinutes": 40,
+      "questions": [
+        {
+          "questionId": "re-p-1",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Simplify; positive exponents only. Assume no variable equals 0. $\\;(x^{-2}y^{-3})(x^{-3}y^5)(z^2)$, $\\;\\dfrac{h^6}{h^{-2}}$, $\\;\\left(\\dfrac{6r^2}{3s^3}\\right)^2$",
+          "responses": [
+            {
+              "id": "e1",
+              "label": "(x⁻²y⁻³)(x⁻³y⁵)(z²) =",
+              "answer": "y^2z^2/x^5",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "e2",
+              "label": "h⁶/h⁻² =",
+              "answer": "h^8",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "e3",
+              "label": "(6r²/(3s³))² =",
+              "answer": "4r^4/s^6",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Collect each base and add its exponents; then move negative exponents to the denominator.",
+            "Dividing by h⁻² is multiplying by h².",
+            "Simplify 6/3 first."
+          ],
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. h⁶/h⁻² means you…",
+            "options": [
+              "subtract the exponents: 6 − (−2)",
+              "divide the exponents: 6 ÷ (−2)"
+            ],
+            "correct": "subtract the exponents: 6 − (−2)"
+          },
+          "solutionReview": {
+            "headline": "Collect each base, then clear negative exponents.",
+            "reasoning": [
+              "x⁻²x⁻³ = x⁻⁵ and y⁻³y⁵ = y², so (x⁻²y⁻³)(x⁻³y⁵)(z²) = y²z²/x⁵.",
+              "h⁶/h⁻² = h⁶⁻⁽⁻²⁾ = h⁸.",
+              "6r²/(3s³) = 2r²/s³, and (2r²/s³)² = 4r⁴/s⁶."
+            ],
+            "answerSummary": "y²z²/x⁵; h⁸; 4r⁴/s⁶",
+            "commonError": "h⁶/h⁻² is not h⁴: subtracting a negative exponent adds."
+          }
+        },
+        {
+          "questionId": "re-p-2",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Simplify: $x^{\\frac{ {{a}} }{ {{n}} }} \\cdot x^{\\frac{ {{b}} }{ {{n}} }}$",
+          "responses": [
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "x^({{s}}/{{n}})",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Add the exponents."
+          ],
+          "generator": {
+            "parameters": {
+              "n": {
+                "type": "choice",
+                "values": [
+                  5,
+                  7,
+                  11
+                ]
+              },
+              "a": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              },
+              "b": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              }
+            },
+            "derived": {
+              "s": "a + b"
+            },
+            "constraints": [
+              "a + b < n",
+              "a != b"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. Multiplying powers with the same base, you…",
+            "options": [
+              "multiply the exponents",
+              "add the exponents"
+            ],
+            "correct": "add the exponents"
+          },
+          "solutionReview": {
+            "headline": "Add the exponents.",
+            "reasoning": [
+              "x^({{a}}/{{n}}) · x^({{b}}/{{n}}) = x^(({{a}} + {{b}})/{{n}}) = x^({{s}}/{{n}}).",
+              "{{n}} is prime and {{s}} < {{n}}, so the exponent is already in lowest terms."
+            ],
+            "answerSummary": "x^({{s}}/{{n}})",
+            "commonError": "Multiplying the exponents gives a power of x that is much too small."
+          }
+        },
+        {
+          "questionId": "re-p-3",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Rewrite each expression in the other form.",
+          "responses": [
+            {
+              "id": "r1",
+              "label": "a^(1/3) in radical form",
+              "answer": "cbrt(a)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "e1",
+              "label": "⁵√x in exponential form",
+              "answer": "x^(1/5)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "e2",
+              "label": "∛(x²) in exponential form",
+              "answer": "x^(2/3)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "r2",
+              "label": "y^(3/4) in radical form",
+              "answer": "∜(y^3)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "b^(m/n) = ⁿ√(bᵐ): the denominator is the index."
+          ],
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. In b^(m/n) = ⁿ√(bᵐ), which number is the index?",
+            "options": [
+              "The denominator n",
+              "The numerator m"
+            ],
+            "correct": "The denominator n"
+          },
+          "solutionReview": {
+            "headline": "The denominator of the exponent is the index; the numerator is the power.",
+            "reasoning": [
+              "a^(1/3) = ∛a and ⁵√x = x^(1/5).",
+              "∛(x²) = x^(2/3) and y^(3/4) = ⁴√(y³)."
+            ],
+            "answerSummary": "∛a; x^(1/5); x^(2/3); ⁴√(y³)",
+            "commonError": "∛(x²) is x^(2/3), not x^(3/2): the index goes in the denominator."
+          }
+        },
+        {
+          "questionId": "re-p-4",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Evaluate exactly: ${{b}}^{\\frac{ {{m}} }{ {{n}} }}$. Show the root first.",
+          "responses": [
+            {
+              "id": "root",
+              "label": "{{b}}^(1/{{n}}) =",
+              "answer": "{{c}}",
+              "inputProfile": "number"
+            },
+            {
+              "id": "value",
+              "label": "{{b}}^({{m}}/{{n}}) =",
+              "answer": "{{v}}",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "In b^(m/n), the denominator n names the root and the numerator m the power: b^(m/n) = (ⁿ√b)^m."
+          ],
+          "generator": {
+            "parameters": {
+              "n": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "c": {
+                "type": "int",
+                "min": 2,
+                "max": 9
+              },
+              "m": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              }
+            },
+            "derived": {
+              "b": "c^n",
+              "v": "c^m"
+            },
+            "constraints": [
+              "c^n <= 1024",
+              "c^m <= 1000",
+              "gcd(m, n) == 1",
+              "m != n"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. In b^(m/n), which part names the root?",
+            "options": [
+              "The numerator m",
+              "The denominator n"
+            ],
+            "correct": "The denominator n"
+          },
+          "solutionReview": {
+            "headline": "Root first, then the power.",
+            "reasoning": [
+              "{{b}}^(1/{{n}}) = {{c}}, because {{c}}^{{n}} = {{b}}.",
+              "Raise that root to the power {{m}}: {{b}}^({{m}}/{{n}}) = {{v}}."
+            ],
+            "answerSummary": "{{c}}; {{v}}",
+            "commonError": "Multiplying {{b}} by {{m}}/{{n}} is not a rational exponent: it means a root and a power."
+          }
+        },
+        {
+          "questionId": "re-p-5",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Evaluate exactly: ${{b}}^{-\\frac{ {{m}} }{ {{n}} }}$",
+          "responses": [
+            {
+              "id": "value",
+              "label": "Value",
+              "answer": "1/{{v}}",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "A negative exponent means the reciprocal: 1/{{b}}^({{m}}/{{n}})."
+          ],
+          "generator": {
+            "parameters": {
+              "n": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              },
+              "c": {
+                "type": "int",
+                "min": 2,
+                "max": 9
+              },
+              "m": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              }
+            },
+            "derived": {
+              "b": "c^n",
+              "v": "c^m"
+            },
+            "constraints": [
+              "c^n <= 1000",
+              "c^m <= 999",
+              "gcd(m, n) == 1"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. A negative exponent tells you to…",
+            "options": [
+              "take the reciprocal",
+              "make the answer negative"
+            ],
+            "correct": "take the reciprocal"
+          },
+          "solutionReview": {
+            "headline": "A negative exponent makes a reciprocal.",
+            "reasoning": [
+              "{{b}}^(−{{m}}/{{n}}) = 1/{{b}}^({{m}}/{{n}}).",
+              "{{b}}^(1/{{n}}) = {{c}}, so {{b}}^({{m}}/{{n}}) = {{v}} and the value is 1/{{v}}."
+            ],
+            "answerSummary": "1/{{v}}",
+            "commonError": "−{{v}} is not the value: the negative exponent makes a reciprocal, not a negative number."
+          }
+        },
+        {
+          "questionId": "re-p-6",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Simplify: $x^{\\frac{1}{5}} \\cdot x^{\\frac{2}{5}}$ and $y^{-\\frac{3}{4}}$.",
+          "responses": [
+            {
+              "id": "product",
+              "label": "x^(1/5) · x^(2/5) =",
+              "answer": "x^(3/5)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "negative",
+              "label": "y^(−3/4) =",
+              "answer": "y^(1/4)/y",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "A negative exponent means a reciprocal: y^(−3/4) = 1/y^(3/4). Then clear the fractional exponent from the denominator."
+          ],
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. What is y^(3/4) · y^(1/4)?",
+            "options": [
+              "y^(3/16)",
+              "y"
+            ],
+            "correct": "y"
+          },
+          "solutionReview": {
+            "headline": "Add exponents; then clear the denominator.",
+            "reasoning": [
+              "x^(1/5) · x^(2/5) = x^(3/5).",
+              "y^(−3/4) = 1/y^(3/4). Multiplying by y^(1/4)/y^(1/4) gives y^(1/4)/y."
+            ],
+            "answerSummary": "x^(3/5); y^(1/4)/y",
+            "commonError": "1/y^(3/4) still has a fractional exponent in the denominator."
+          }
+        },
+        {
+          "questionId": "re-p-7",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Simplify: $\\dfrac{\\sqrt[4]{4}}{\\sqrt{2}}$ and $\\sqrt[6]{16x^2}$. Assume $x > 0$.",
+          "responses": [
+            {
+              "id": "a",
+              "label": "⁴√4 / √2 =",
+              "answer": "1",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "b",
+              "label": "⁶√(16x²) =",
+              "answer": "cbrt(4x)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Write 4 as a power of 2 and the fourth root as the exponent 1/4.",
+            "Write 16x² as 2⁴x², raise it to the power 1/6, and reduce each exponent."
+          ],
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. What is 4 as a power of 2?",
+            "options": [
+              "2²",
+              "2⁴"
+            ],
+            "correct": "2²"
+          },
+          "solutionReview": {
+            "headline": "Write each radical with a rational exponent and reduce.",
+            "reasoning": [
+              "⁴√4 = 4^(1/4) = 2^(2/4) = 2^(1/2) = √2, so ⁴√4/√2 = 1.",
+              "⁶√(16x²) = (2⁴x²)^(1/6) = 2^(2/3)x^(1/3) = ∛(2²x) = ∛(4x)."
+            ],
+            "answerSummary": "1; ∛(4x)",
+            "commonError": "Reducing ⁶√(16x²) to ∛(16x) divides only the exponent of x: 16 = 2⁴ must be reduced too."
+          }
+        },
+        {
+          "questionId": "re-p-8",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Simplify $\\dfrac{x^{\\frac{1}{2}} - 1}{x^{\\frac{1}{2}} + 1}$ so that no fractional exponent is left in the denominator.",
+          "responses": [
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "(x-2x^(1/2)+1)/(x-1)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Multiply the numerator and the denominator by x^(1/2) − 1."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. (x^(1/2) + 1)(x^(1/2) − 1) equals…",
+            "options": [
+              "x + 1",
+              "x − 1"
+            ],
+            "correct": "x − 1"
+          },
+          "solutionReview": {
+            "headline": "Multiply by the conjugate of the denominator.",
+            "reasoning": [
+              "Multiply the top and the bottom by x^(1/2) − 1.",
+              "Numerator: (x^(1/2) − 1)² = x − 2x^(1/2) + 1. Denominator: (x^(1/2) + 1)(x^(1/2) − 1) = x − 1."
+            ],
+            "answerSummary": "(x − 2x^(1/2) + 1)/(x − 1)",
+            "commonError": "(x^(1/2) − 1)² is not x − 1: it has the middle term −2x^(1/2)."
+          }
+        },
+        {
+          "questionId": "re-p-9",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Use $M = 512 - 146{,}230B^{-\\frac{8}{5}}$, where $M$ is the maximum total mass (kg) a weightlifter of mass $B$ kilograms can lift. What does the formula predict for a lifter of mass 80 kg, to the nearest kilogram?",
+          "responses": [
+            {
+              "id": "M",
+              "label": "M ≈ (kg)",
+              "answer": "380",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "80^(8/5) ≈ 1109.6."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Which number do you substitute for B?",
+            "options": [
+              "80",
+              "512"
+            ],
+            "correct": "80"
+          },
+          "solutionReview": {
+            "headline": "Substitute B = 80 and evaluate in order.",
+            "reasoning": [
+              "M = 512 − 146,230 · 80^(−8/5) = 512 − 146,230/80^(8/5).",
+              "80^(8/5) ≈ 1109.6, so 146,230/1109.6 ≈ 131.8.",
+              "M ≈ 512 − 131.8 = 380.2, about 380 kg."
+            ],
+            "answerSummary": "M ≈ 380 kg",
+            "commonError": "80^(−8/5) is a reciprocal: it is 1/80^(8/5), not −80^(8/5)."
+          }
+        },
+        {
+          "questionId": "re-p-10",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "The equation $y = 10m^{\\frac{3}{4}}$ estimates the energy output $y$ (kcal/day) of a reptile with body mass $m$ kilograms. An average alligator has a mass of 360 kilograms. Estimate its energy output to the nearest tenth.",
+          "responses": [
+            {
+              "id": "y",
+              "label": "y ≈ (kcal/day)",
+              "answer": "826.5",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "Find 360^(3/4) as (⁴√360)³, then multiply by 10."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. What value of m do you substitute?",
+            "options": [
+              "10",
+              "360"
+            ],
+            "correct": "360"
+          },
+          "solutionReview": {
+            "headline": "Substitute m = 360, then root, power and multiply.",
+            "reasoning": [
+              "y = 10 · 360^(3/4).",
+              "⁴√360 ≈ 4.3559, and 4.3559³ ≈ 82.65.",
+              "y ≈ 10 × 82.65 = 826.5 kcal/day."
+            ],
+            "answerSummary": "y ≈ 826.5 kcal/day",
+            "commonError": "360^(3/4) is not 360 × 3/4 = 270: the exponent means a fourth root and a cube."
+          }
+        },
+        {
+          "questionId": "re-p-11",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Simplify: $(8x^6)^{-\\frac{2}{3}}$ and $\\sqrt[4]{36}$.",
+          "responses": [
+            {
+              "id": "a",
+              "label": "(8x⁶)^(−2/3) =",
+              "answer": "1/(4x^4)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "b",
+              "label": "⁴√36 =",
+              "answer": "√6",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Apply the power to each factor, (ab)ⁿ = aⁿbⁿ, then rewrite the negative exponent.",
+            "Write 36 as a power of 6 and reduce the exponent."
+          ],
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. In (8x⁶)^(−2/3), which factors are raised to the power −2/3?",
+            "options": [
+              "Both 8 and x⁶",
+              "Only x⁶"
+            ],
+            "correct": "Both 8 and x⁶"
+          },
+          "solutionReview": {
+            "headline": "Apply the exponent to each factor; reduce.",
+            "reasoning": [
+              "(8x⁶)^(−2/3) = 8^(−2/3) · (x⁶)^(−2/3) = (1/4) · x⁻⁴ = 1/(4x⁴).",
+              "⁴√36 = 36^(1/4) = 6^(2/4) = 6^(1/2) = √6."
+            ],
+            "answerSummary": "1/(4x⁴); √6",
+            "commonError": "Applying −2/3 only to x⁶ leaves 8 unchanged, but the exponent applies to both factors."
+          }
+        },
+        {
+          "questionId": "re-p-12",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "sortIntoCategories"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Sort each expression: simplified, or not yet simplified?",
+          "categories": [
+            {
+              "id": "simplified",
+              "label": "Simplified"
+            },
+            {
+              "id": "not",
+              "label": "Not yet simplified"
+            }
+          ],
+          "items": [
+            {
+              "id": "a",
+              "label": "a^(2/5)"
+            },
+            {
+              "id": "b",
+              "label": "a^(4/10)"
+            },
+            {
+              "id": "c",
+              "label": "b^(−1/2)"
+            },
+            {
+              "id": "d",
+              "label": "b^(1/2)/b"
+            },
+            {
+              "id": "e",
+              "label": "1/c^(3/4)"
+            },
+            {
+              "id": "f",
+              "label": "√5"
+            },
+            {
+              "id": "g",
+              "label": "⁴√25"
+            },
+            {
+              "id": "h",
+              "label": "c^(1/4)/c"
+            }
+          ],
+          "validSchemes": [
+            {
+              "id": "simplified",
+              "groups": [
+                {
+                  "id": "simplified",
+                  "itemIds": [
+                    "a",
+                    "d",
+                    "f",
+                    "h"
+                  ]
+                },
+                {
+                  "id": "not",
+                  "itemIds": [
+                    "b",
+                    "c",
+                    "e",
+                    "g"
+                  ]
+                }
+              ]
+            }
+          ],
+          "hints": [
+            "Check each rule: no negative exponents, no fractional exponent in a denominator, reduced exponents, the smallest index."
+          ],
+          "solutionReview": {
+            "headline": "Check every rule for simplified form.",
+            "reasoning": [
+              "Simplified: a^(2/5), b^(1/2)/b, √5 and c^(1/4)/c.",
+              "Not yet: a^(4/10) reduces to a^(2/5); b^(−1/2) has a negative exponent (b^(1/2)/b); 1/c^(3/4) has a fractional exponent in the denominator (c^(1/4)/c); ⁴√25 = √5 has a smaller index."
+            ],
+            "answerSummary": "Simplified: a^(2/5), b^(1/2)/b, √5, c^(1/4)/c. Not yet: a^(4/10), b^(−1/2), 1/c^(3/4), ⁴√25.",
+            "commonError": "b^(1/2)/b is simplified: the fractional exponent is in the numerator."
+          }
+        }
+      ]
+    },
+    {
+      "id": "dol",
+      "role": "dol",
+      "title": "DOL — Rational Exponents",
+      "recommendedMinutes": 7,
+      "questions": [
+        {
+          "questionId": "re-dol-1",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Evaluate exactly: ${{b}}^{\\frac{ {{m}} }{ {{n}} }}$. Show the root first.",
+          "responses": [
+            {
+              "id": "root",
+              "label": "{{b}}^(1/{{n}}) =",
+              "answer": "{{c}}",
+              "inputProfile": "number"
+            },
+            {
+              "id": "value",
+              "label": "{{b}}^({{m}}/{{n}}) =",
+              "answer": "{{v}}",
+              "inputProfile": "number"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "n": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "c": {
+                "type": "int",
+                "min": 2,
+                "max": 9
+              },
+              "m": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              }
+            },
+            "derived": {
+              "b": "c^n",
+              "v": "c^m"
+            },
+            "constraints": [
+              "c^n <= 1024",
+              "c^m <= 1000",
+              "gcd(m, n) == 1"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "solutionReview": {
+            "headline": "Root first, then the power.",
+            "reasoning": [
+              "{{b}}^(1/{{n}}) = {{c}}, because {{c}}^{{n}} = {{b}}.",
+              "Raise that root to the power {{m}}: {{b}}^({{m}}/{{n}}) = {{v}}."
+            ],
+            "answerSummary": "{{c}}; {{v}}",
+            "commonError": "Multiplying {{b}} by {{m}}/{{n}} is not a rational exponent: it means a root and a power."
+          }
+        },
+        {
+          "questionId": "re-dol-2",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Simplify; leave no negative exponent and no fractional exponent in a denominator: ${{k|coef}}x^{-\\frac{ {{a}} }{ {{n}} }}$",
+          "responses": [
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "{{k|coef}}x^({{b}}/{{n}})/x",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "n": {
+                "type": "choice",
+                "values": [
+                  3,
+                  4,
+                  5,
+                  7,
+                  8,
+                  9
+                ]
+              },
+              "a": {
+                "type": "int",
+                "min": 1,
+                "max": 8
+              },
+              "k": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              }
+            },
+            "derived": {
+              "b": "n - a"
+            },
+            "constraints": [
+              "a < n",
+              "gcd(a, n) == 1"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "solutionReview": {
+            "headline": "Rewrite the negative exponent, then clear the denominator.",
+            "reasoning": [
+              "{{k|coef}}x^(−{{a}}/{{n}}) = {{k}}/x^({{a}}/{{n}}).",
+              "Multiply the top and the bottom by x^({{b}}/{{n}}): x^({{a}}/{{n}}) · x^({{b}}/{{n}}) = x.",
+              "So the simplified form is {{k|coef}}x^({{b}}/{{n}})/x."
+            ],
+            "answerSummary": "{{k|coef}}x^({{b}}/{{n}})/x",
+            "commonError": "{{k}}/x^({{a}}/{{n}}) still has a fractional exponent in the denominator."
+          }
+        }
+      ]
+    }
+  ]
+}

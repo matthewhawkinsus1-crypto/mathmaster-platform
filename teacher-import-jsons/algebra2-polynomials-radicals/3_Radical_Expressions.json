@@ -1,0 +1,1906 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Radical Expressions",
+    "courseId": "algebra2",
+    "folder": "Algebra II/Radicals & Rational Exponents",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork",
+    "essentialQuestion": "Why can it be useful to simplify expressions?",
+    "teacherNotes": "Bluebonnet Algebra II — Radicals, Lesson 2 (Operations with Radical Expressions), TEKS A2.7G. “Simplify” answers are graded by value AND form: any arrangement of the simplified expression is accepted, but the expression retyped, a perfect power left under a radical, a radical left in a denominator, unlike-radical mistakes, or a calculator decimal are marked not yet. Multi-step items ask for the intermediate step (the perfect-power factor, the multiplier, each FOIL product). Warm-Up and DOL are generated per student and back Recovery."
+  },
+  "variantPolicy": {
+    "mode": "personalized",
+    "sectionModes": {
+      "warmup": "shared",
+      "classwork": "shared",
+      "practice": "personalized",
+      "dol": "personalized"
+    },
+    "avoidRecentTemplates": true,
+    "avoidDuplicateParameters": true
+  },
+  "sections": [
+    {
+      "id": "warmup",
+      "role": "warmup",
+      "title": "Warm-Up — Roots of Monomials",
+      "recommendedMinutes": 8,
+      "questions": [
+        {
+          "questionId": "rx-wu-1",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Simplify $\\sqrt{ {{k2}} h^{ {{e}} } }$.",
+          "responses": [
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "{{k}}h^{{f}}",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Write {{k2}} and h^{{e}} as squares."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. √(h⁴) is…",
+            "options": [
+              "h²",
+              "h⁴"
+            ],
+            "correct": "h²"
+          },
+          "generator": {
+            "parameters": {
+              "k": {
+                "type": "int",
+                "min": 2,
+                "max": 15
+              },
+              "f": {
+                "type": "choice",
+                "values": [
+                  2,
+                  4,
+                  6
+                ]
+              }
+            },
+            "derived": {
+              "k2": "k * k",
+              "e": "2 * f"
+            },
+            "constraints": []
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "solutionReview": {
+            "headline": "Take the square root of each factor.",
+            "reasoning": [
+              "{{k2}} = {{k}}² and h^{{e}} = (h^{{f}})².",
+              "So √({{k2}}h^{{e}}) = {{k}}h^{{f}}. No absolute value is needed: an even power is never negative."
+            ],
+            "answerSummary": "{{k}}h^{{f}}",
+            "commonError": "Halving {{k2}} instead of taking its square root: √{{k2}} = {{k}}."
+          }
+        },
+        {
+          "questionId": "rx-wu-2",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Simplify $\\sqrt[3]{ -{{k3}} a^3 y^{ {{e}} } }$.",
+          "responses": [
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "-{{k}}ay^{{n}}",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "A cube root of a negative number is negative: ∛(−8) = −2.",
+            "Write {{k3}}, a³ and y^{{e}} as cubes."
+          ],
+          "generator": {
+            "parameters": {
+              "k": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "n": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              }
+            },
+            "derived": {
+              "k3": "k * k * k",
+              "e": "3 * n"
+            },
+            "constraints": []
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. What is the sign of the cube root of a negative number?",
+            "options": [
+              "Negative",
+              "Positive"
+            ],
+            "correct": "Negative"
+          },
+          "solutionReview": {
+            "headline": "Take the cube root of each factor.",
+            "reasoning": [
+              "−{{k3}} = (−{{k}})³, a³ = (a)³ and y^{{e}} = (y^{{n}})³.",
+              "So ∛(−{{k3}}a³y^{{e}}) = −{{k}}ay^{{n}}: a cube root keeps the sign."
+            ],
+            "answerSummary": "−{{k}}ay^{{n}}",
+            "commonError": "Only an even root of a negative number is not real; a cube root of a negative number is negative."
+          }
+        },
+        {
+          "questionId": "rx-wu-3",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Simplify $\\sqrt{(m {{c|signed}})^2}$. The variable $m$ can be any real number.",
+          "responses": [
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "|m{{c|sign}}{{c|abs}}|",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Try a value of m that makes m {{c|signed}} negative. Is the square root negative?",
+            "For any real number u, √(u²) = |u|."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. √((−3)²) equals…",
+            "options": [
+              "3",
+              "−3"
+            ],
+            "correct": "3"
+          },
+          "generator": {
+            "parameters": {
+              "c": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {},
+            "constraints": []
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "solutionReview": {
+            "headline": "√(u²) = |u| for every real number u.",
+            "reasoning": [
+              "Here u = m {{c|signed}}, which is negative for some values of m.",
+              "A square root is never negative, so √((m {{c|signed}})²) = |m {{c|signed}}|."
+            ],
+            "answerSummary": "|m {{c|signed}}|",
+            "commonError": "Without the bars, m {{c|signed}} is negative whenever m {{c|signed}} < 0, but a square root never is."
+          }
+        }
+      ]
+    },
+    {
+      "id": "classwork",
+      "role": "classwork",
+      "title": "Classwork — Simplify, Combine, Multiply, Rationalize",
+      "recommendedMinutes": 50,
+      "questions": [
+        {
+          "questionId": "rx-cw-1",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Simplify $\\sqrt{25a^4b^9}$ with the Product Property. First write the radicand as (largest perfect-square factor) × (what is left).",
+          "responses": [
+            {
+              "id": "square",
+              "label": "Largest perfect-square factor of 25a⁴b⁹",
+              "answer": "25a^4b^8",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "5a^2b^4√b",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Product Property of Radicals",
+                "instruction": "ⁿ√(ab) = ⁿ√a · ⁿ√b when the roots are real. Split the radicand into an nth-power factor and what is left."
+              },
+              {
+                "title": "Quotient Property of Radicals",
+                "instruction": "ⁿ√(a/b) = ⁿ√a / ⁿ√b, b ≠ 0."
+              },
+              {
+                "title": "Simplest radical form",
+                "instruction": "The index is as small as possible; the radicand has no factor (other than 1) that is an nth power; the radicand has no fractions; no radical is left in a denominator."
+              },
+              {
+                "title": "Even roots and absolute value",
+                "instruction": "An even root is never negative. When an even root leaves a variable with an odd exponent outside, write it with absolute value bars: √(x²) = |x|."
+              }
+            ]
+          },
+          "hints": [
+            "Find the largest perfect square in each factor: the number, each even power, and the even part of b⁹.",
+            "Use √(xy) = √x · √y: the perfect-square part comes out of the radical, and the rest stays under it."
+          ],
+          "solutionReview": {
+            "headline": "Take the square root of the perfect-square factor.",
+            "reasoning": [
+              "25a⁴b⁹ = 25a⁴b⁸ · b",
+              "√(25a⁴b⁸) = 5a²b⁴",
+              "b is left under the radical."
+            ],
+            "answerSummary": "5a²b⁴√b",
+            "commonError": "Leaving b⁹ = b⁸ · b partly under the radical, as in 5a²b³√(b³): b² is still a perfect square."
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. The square root of b⁸ is…",
+            "options": [
+              "b⁴",
+              "b²"
+            ],
+            "correct": "b⁴"
+          },
+          "questionWeight": 1.25
+        },
+        {
+          "questionId": "rx-cw-2",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Simplify $\\sqrt[3]{125m^{30}p^{20}}$. Write the radicand as (largest perfect-cube factor) × (what is left).",
+          "responses": [
+            {
+              "id": "cube",
+              "label": "Largest perfect-cube factor of 125m³⁰p²⁰",
+              "answer": "125m^30p^18",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "5m^10p^6cbrt(p^2)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "For a cube root, look for exponents that are multiples of 3.",
+            "Split p²⁰ into the largest multiple-of-3 power times what is left."
+          ],
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. Under a cube root, which exponents come out evenly?",
+            "options": [
+              "Even numbers",
+              "Multiples of 3"
+            ],
+            "correct": "Multiples of 3"
+          },
+          "solutionReview": {
+            "headline": "Take out the largest perfect cube.",
+            "reasoning": [
+              "125 = 5³, m³⁰ = (m¹⁰)³, and p²⁰ = p¹⁸ · p² with p¹⁸ = (p⁶)³.",
+              "So the largest perfect-cube factor is 125m³⁰p¹⁸, and ∛(125m³⁰p¹⁸ · p²) = 5m¹⁰p⁶∛(p²)."
+            ],
+            "answerSummary": "5m¹⁰p⁶∛(p²)",
+            "commonError": "Halving the exponents: a cube root takes a third of each exponent."
+          }
+        },
+        {
+          "questionId": "rx-cw-3",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Simplify $\\sqrt[4]{625b^{28}k^{23}}$. Use absolute value where it is needed.",
+          "responses": [
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "5|b^7|k^5∜(k^3)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "why",
+              "label": "Why is b⁷ written as |b⁷|?",
+              "type": "choice",
+              "options": [
+                "b may be negative, so b⁷ may be negative, but a fourth root is never negative",
+                "b⁷ is always negative",
+                "k⁵ might be negative",
+                "Every variable outside a radical needs absolute value bars"
+              ],
+              "answer": "b may be negative, so b⁷ may be negative, but a fourth root is never negative"
+            }
+          ],
+          "hints": [
+            "Write the number and each variable power as a fourth power times what is left.",
+            "k³ under a fourth root forces k ≥ 0, so k⁵ needs no bars."
+          ],
+          "solutionReview": {
+            "headline": "Pull out fourth powers; mind the sign.",
+            "reasoning": [
+              "⁴√625 = 5, ⁴√(b²⁸) = |b⁷|, ⁴√(k²⁰) = k⁵",
+              "k³ stays under the radical."
+            ],
+            "answerSummary": "5|b⁷|k⁵∜(k³)"
+          },
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. Can the fourth root of a real number be negative?",
+            "options": [
+              "No",
+              "Yes"
+            ],
+            "correct": "No"
+          }
+        },
+        {
+          "questionId": "rx-cw-4",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Simplify $\\sqrt{\\dfrac{y^8}{x^7}}$. The Quotient Property gives $\\dfrac{\\sqrt{y^8}}{\\sqrt{x^7}} = \\dfrac{y^4}{x^3\\sqrt{x}}$ — then rationalize the denominator.",
+          "responses": [
+            {
+              "id": "multiplier",
+              "label": "Multiply the numerator and the denominator by",
+              "answer": "√x",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "y^4√x/x^4",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "A radical left in a denominator is not simplest form.",
+            "Multiply the top and the bottom by the radical left in the denominator: a square root times itself is its radicand."
+          ],
+          "solutionReview": {
+            "headline": "Rationalize the denominator.",
+            "reasoning": [
+              "√(y⁸/x⁷) = y⁴/(x³√x)",
+              "Multiply by √x/√x: y⁴√x/(x³ · x)"
+            ],
+            "answerSummary": "y⁴√x/x⁴"
+          },
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. Is an expression with a radical in its denominator in simplest form?",
+            "options": [
+              "Yes",
+              "No"
+            ],
+            "correct": "No"
+          }
+        },
+        {
+          "questionId": "rx-cw-5",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Simplify $\\sqrt[3]{\\dfrac{2}{9x}}$. Multiply inside the radical so the denominator becomes a perfect cube.",
+          "responses": [
+            {
+              "id": "multiplier",
+              "label": "Multiply the numerator and denominator of 2/(9x) by",
+              "answer": "3x^2",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "cbrt(6x^2)/(3x)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "9x = 3²x. A perfect cube needs 3³x³.",
+            "Multiply the top and the bottom by what completes 3³x³, then take the cube root of the denominator."
+          ],
+          "solutionReview": {
+            "headline": "Make the denominator a perfect cube.",
+            "reasoning": [
+              "9x · 3x² = 27x³ = (3x)³",
+              "∛(2/(9x)) = ∛(6x²/(27x³)) = ∛(6x²)/(3x)"
+            ],
+            "answerSummary": "∛(6x²)/(3x)",
+            "commonError": "Multiplying by 9x/9x makes 81x², which is not a perfect cube."
+          },
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. Under a cube root, what must the denominator become?",
+            "options": [
+              "A perfect cube",
+              "A perfect square"
+            ],
+            "correct": "A perfect cube"
+          }
+        },
+        {
+          "questionId": "rx-cw-6",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Multiply and simplify: $5\\sqrt[3]{100a^2} \\cdot \\sqrt[3]{10a}$.",
+          "responses": [
+            {
+              "id": "product",
+              "label": "Under one cube root: 5∛(…), with … =",
+              "answer": "1000a^3",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "50a",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "∛u · ∛v = ∛(uv) when the index is the same.",
+            "Multiply the radicands, then look for a perfect cube."
+          ],
+          "misconceptions": [
+            {
+              "match": [
+                "10a"
+              ],
+              "message": "That is ∛(1000a³) — keep the coefficient 5 in front."
+            }
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. When can ∛u · ∛v be written as ∛(uv)?",
+            "options": [
+              "Only when u = v",
+              "When the two indices are the same"
+            ],
+            "correct": "When the two indices are the same"
+          },
+          "solutionReview": {
+            "headline": "Multiply under one cube root.",
+            "reasoning": [
+              "5∛(100a²) · ∛(10a) = 5∛(1000a³).",
+              "1000a³ = (10a)³, so 5∛(1000a³) = 5 · 10a = 50a."
+            ],
+            "answerSummary": "50a",
+            "commonError": "Stopping at 5∛(1000a³): 1000a³ is a perfect cube."
+          }
+        },
+        {
+          "questionId": "rx-cw-7",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Simplify $3\\sqrt{45} - 5\\sqrt{80} + 4\\sqrt{20}$. Simplify each term first; only like radicals can be combined.",
+          "responses": [
+            {
+              "id": "t1",
+              "label": "3√45 =",
+              "answer": "9√5",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "t2",
+              "label": "−5√80 =",
+              "answer": "-20√5",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "t3",
+              "label": "4√20 =",
+              "answer": "8√5",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "sum",
+              "label": "Combined",
+              "answer": "-3√5",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Like radicals",
+                "instruction": "Like radical expressions have the same index and the same radicand: 3√5 and −7√5 are like; 3√5 and 3√2 are not."
+              },
+              {
+                "title": "Add and subtract",
+                "instruction": "Simplify every radical first, then combine like radicals by adding their coefficients: 9√5 − 20√5 + 8√5 = (9 − 20 + 8)√5."
+              }
+            ]
+          },
+          "hints": [
+            "45 = 9 · 5, 80 = 16 · 5, 20 = 4 · 5.",
+            "Simplify each radical, then multiply it by its coefficient."
+          ],
+          "solutionReview": {
+            "headline": "Simplify, then combine like radicals.",
+            "reasoning": [
+              "3√45 = 9√5, −5√80 = −20√5, 4√20 = 8√5",
+              "9 − 20 + 8 = −3"
+            ],
+            "answerSummary": "−3√5",
+            "commonError": "Adding radicands (√45 + √80 + √20 is not √145): only coefficients of like radicals add."
+          },
+          "questionWeight": 1.5,
+          "scaffold": {
+            "prompt": "Let’s back up. Which radicals can be combined by adding their coefficients?",
+            "options": [
+              "Like radicals, with the same index and radicand",
+              "Any two square roots"
+            ],
+            "correct": "Like radicals, with the same index and radicand"
+          }
+        },
+        {
+          "questionId": "rx-cw-8",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Multiply $(2\\sqrt{3} + 3\\sqrt{5})(3 - \\sqrt{3})$ with FOIL, then simplify.",
+          "responses": [
+            {
+              "id": "first",
+              "label": "First: (2√3)(3) =",
+              "answer": "6√3",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "outer",
+              "label": "Outer: (2√3)(−√3) =",
+              "answer": "-6",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "inner",
+              "label": "Inner: (3√5)(3) =",
+              "answer": "9√5",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "last",
+              "label": "Last: (3√5)(−√3) =",
+              "answer": "-3√15",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "sum",
+              "label": "Simplified product",
+              "answer": "6√3-6+9√5-3√15",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "A square root times itself is its radicand: √3 · √3 = 3.",
+            "Multiply different radicals with the Product Property: √a · √b = √(ab).",
+            "No two of the four terms are like radicals."
+          ],
+          "questionWeight": 1.5,
+          "scaffold": {
+            "prompt": "Let’s back up. What is √3 · √3?",
+            "options": [
+              "9",
+              "3"
+            ],
+            "correct": "3"
+          },
+          "solutionReview": {
+            "headline": "FOIL, then combine only like terms.",
+            "reasoning": [
+              "First (2√3)(3) = 6√3; Outer (2√3)(−√3) = −2 · 3 = −6; Inner (3√5)(3) = 9√5; Last (3√5)(−√3) = −3√15.",
+              "No two terms are like radicals, so the product is 6√3 − 6 + 9√5 − 3√15."
+            ],
+            "answerSummary": "6√3 − 6 + 9√5 − 3√15",
+            "commonError": "Adding 6√3 and 9√5: only like radicals combine."
+          }
+        },
+        {
+          "questionId": "rx-cw-9",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "In a square with side $a$, the ratio of a side to the difference between the diagonal and a side is $\\dfrac{a}{a\\sqrt{2} - a}$. Use a conjugate to rationalize the denominator and simplify.",
+          "responses": [
+            {
+              "id": "factor",
+              "label": "Factor the denominator: a√2 − a = a(…), with … =",
+              "answer": "√2-1",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "conjugate",
+              "label": "The conjugate of √2 − 1 is",
+              "answer": "√2+1",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "simplified",
+              "label": "Simplified ratio",
+              "answer": "√2+1",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Conjugates",
+                "instruction": "a√b + c√d and a√b − c√d are conjugates. Their product has no radicals: (√2 − 1)(√2 + 1) = 2 − 1 = 1."
+              },
+              {
+                "title": "Rationalize a binomial denominator",
+                "instruction": "Multiply the numerator and the denominator by the conjugate of the denominator."
+              }
+            ]
+          },
+          "hints": [
+            "Factor a out of the denominator, then cancel it with the numerator.",
+            "Multiply the top and the bottom by the conjugate of the denominator."
+          ],
+          "solutionReview": {
+            "headline": "Divide out a, then multiply by the conjugate.",
+            "reasoning": [
+              "a/(a√2 − a) = 1/(√2 − 1)",
+              "1/(√2 − 1) · (√2 + 1)/(√2 + 1) = (√2 + 1)/(2 − 1)"
+            ],
+            "answerSummary": "√2 + 1"
+          },
+          "questionWeight": 1.5,
+          "scaffold": {
+            "prompt": "Let’s back up. Multiplying a binomial by its conjugate removes the radicals because…",
+            "options": [
+              "the middle terms cancel",
+              "the square roots add to zero"
+            ],
+            "correct": "the middle terms cancel"
+          }
+        },
+        {
+          "questionId": "rx-cw-10",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "sortIntoCategories"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Why simplify? Sort each expression: is it already in simplest radical form, or does it still need simplifying?",
+          "categories": [
+            {
+              "id": "simplest",
+              "label": "Simplest radical form"
+            },
+            {
+              "id": "not",
+              "label": "Not yet simplified"
+            }
+          ],
+          "items": [
+            {
+              "id": "a",
+              "label": "3√2"
+            },
+            {
+              "id": "b",
+              "label": "√12"
+            },
+            {
+              "id": "c",
+              "label": "1/√3"
+            },
+            {
+              "id": "d",
+              "label": "√(5/4)"
+            },
+            {
+              "id": "e",
+              "label": "⁶√(x²)"
+            },
+            {
+              "id": "f",
+              "label": "2∛(3x)"
+            },
+            {
+              "id": "g",
+              "label": "√3/3"
+            },
+            {
+              "id": "h",
+              "label": "5√2 + 2√2"
+            },
+            {
+              "id": "i",
+              "label": "x√(xy)/y⁴"
+            },
+            {
+              "id": "j",
+              "label": "∛16"
+            }
+          ],
+          "validSchemes": [
+            {
+              "id": "simplest",
+              "groups": [
+                {
+                  "id": "simplest",
+                  "itemIds": [
+                    "a",
+                    "f",
+                    "g",
+                    "i"
+                  ]
+                },
+                {
+                  "id": "not",
+                  "itemIds": [
+                    "b",
+                    "c",
+                    "d",
+                    "e",
+                    "h",
+                    "j"
+                  ]
+                }
+              ]
+            }
+          ],
+          "hints": [
+            "Check each rule: smallest index, no nth-power factor, no fraction under the radical, no radical in a denominator, like radicals combined.",
+            "Could the index be smaller? Does any radicand have a perfect-power factor?"
+          ],
+          "solutionReview": {
+            "headline": "Check every simplest-form rule.",
+            "reasoning": [
+              "Simplest: 3√2, 2∛(3x), √3/3 and x√(xy)/y⁴. None has a perfect-power factor, a fraction under a radical, a radical in a denominator or an index that could be smaller.",
+              "Not yet: √12 = 2√3, 1/√3 = √3/3, √(5/4) = √5/2, ⁶√(x²) = ∛x, 5√2 + 2√2 = 7√2 and ∛16 = 2∛2."
+            ],
+            "answerSummary": "Simplest: 3√2, 2∛(3x), √3/3, x√(xy)/y⁴. Not yet: √12, 1/√3, √(5/4), ⁶√(x²), 5√2 + 2√2, ∛16.",
+            "commonError": "√3/3 is simplified: its radical is in the numerator."
+          }
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "role": "practice",
+      "title": "Practice — Simplest Radical Form",
+      "recommendedMinutes": 40,
+      "questions": [
+        {
+          "questionId": "rx-p-1",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Simplify $\\sqrt{ {{R}} a^{ {{e}} } }$.",
+          "responses": [
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "{{s}}a^{{m}}√({{k}}a)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Find the largest perfect square that divides {{R}}, and split a^{{e}} into an even power times a."
+          ],
+          "generator": {
+            "parameters": {
+              "s": {
+                "type": "int",
+                "min": 2,
+                "max": 9
+              },
+              "k": {
+                "type": "choice",
+                "values": [
+                  2,
+                  3,
+                  5,
+                  6,
+                  7,
+                  10,
+                  11
+                ]
+              },
+              "m": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              }
+            },
+            "derived": {
+              "R": "s * s * k",
+              "e": "2 * m + 1"
+            },
+            "constraints": []
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. To simplify a square root, which factor of the radicand do you take out?",
+            "options": [
+              "The smallest prime",
+              "The largest perfect square"
+            ],
+            "correct": "The largest perfect square"
+          },
+          "solutionReview": {
+            "headline": "Take out the largest perfect square.",
+            "reasoning": [
+              "{{R}} = {{s}}² · {{k}}, and a^{{e}} = (a^{{m}})² · a.",
+              "So √({{R}}a^{{e}}) = {{s}}a^{{m}}√({{k}}a)."
+            ],
+            "answerSummary": "{{s}}a^{{m}}√({{k}}a)",
+            "commonError": "Taking out a smaller square leaves a perfect-square factor under the radical."
+          }
+        },
+        {
+          "questionId": "rx-p-2",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Simplify: $\\sqrt{16x^4y^{11}}$ and $\\sqrt{240a^3b^4}$.",
+          "responses": [
+            {
+              "id": "first",
+              "label": "√(16x⁴y¹¹) =",
+              "answer": "4x^2y^5√y",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "second",
+              "label": "√(240a³b⁴) =",
+              "answer": "4ab^2√(15a)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "y¹¹ = y¹⁰ · y.",
+            "Find the largest perfect square that divides 240."
+          ],
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. Under a square root, how do you split an odd power such as y¹¹?",
+            "options": [
+              "An even power times one more y",
+              "Two equal halves"
+            ],
+            "correct": "An even power times one more y"
+          },
+          "solutionReview": {
+            "headline": "Take out the largest perfect square from each.",
+            "reasoning": [
+              "√(16x⁴y¹¹) = √(16x⁴y¹⁰ · y) = 4x²y⁵√y.",
+              "√(240a³b⁴) = √(16a²b⁴ · 15a) = 4ab²√(15a)."
+            ],
+            "answerSummary": "4x²y⁵√y; 4ab²√(15a)",
+            "commonError": "240 = 4 · 60 leaves 60 = 4 · 15 still under the radical: take out 16 at once."
+          }
+        },
+        {
+          "questionId": "rx-p-3",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Simplify $2\\sqrt{75x^2y^3}$. The variable $x$ can be any real number.",
+          "responses": [
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "10|x|y√(3y)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Find the largest perfect square that divides 75, and split y³ into y² · y.",
+            "√(x²) = |x|. Why does y need no bars?"
+          ],
+          "solutionReview": {
+            "headline": "Pull out the squares.",
+            "reasoning": [
+              "2√(25 · x² · y² · 3y) = 2 · 5|x|y√(3y)",
+              "y³ under a square root forces y ≥ 0."
+            ],
+            "answerSummary": "10|x|y√(3y)",
+            "commonError": "Writing 10xy√(3y): x may be negative, and a square root never is."
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. For every real number x, √(x²) equals…",
+            "options": [
+              "x",
+              "|x|"
+            ],
+            "correct": "|x|"
+          }
+        },
+        {
+          "questionId": "rx-p-4",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Simplify: $\\sqrt{\\dfrac{x^3}{y^7}}$ and $\\sqrt[3]{\\dfrac{8}{3y^2}}$.",
+          "responses": [
+            {
+              "id": "first",
+              "label": "√(x³/y⁷) =",
+              "answer": "x√(xy)/y^4",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "second",
+              "label": "∛(8/(3y²)) =",
+              "answer": "2cbrt(9y)/(3y)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Rationalize: multiply the first by √y/√y.",
+            "For the second, multiply the top and the bottom so the denominator becomes a perfect cube."
+          ],
+          "questionWeight": 1.5,
+          "scaffold": {
+            "prompt": "Let’s back up. √(x³/y⁷) has a fraction under the radical. Is it in simplest form?",
+            "options": [
+              "No",
+              "Yes"
+            ],
+            "correct": "No"
+          },
+          "solutionReview": {
+            "headline": "Simplify, then rationalize each denominator.",
+            "reasoning": [
+              "√(x³/y⁷) = x√x/(y³√y). Multiplying by √y/√y gives x√(xy)/y⁴.",
+              "∛(8/(3y²)) = 2/∛(3y²). Multiplying by ∛(9y)/∛(9y) makes the denominator ∛(27y³) = 3y, so the result is 2∛(9y)/(3y)."
+            ],
+            "answerSummary": "x√(xy)/y⁴; 2∛(9y)/(3y)",
+            "commonError": "A cube-root denominator needs a perfect cube under it, not a perfect square."
+          }
+        },
+        {
+          "questionId": "rx-p-5",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Multiply and simplify: $3\\sqrt[3]{16a^2} \\cdot 2\\sqrt[3]{4a}$.",
+          "responses": [
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "24a",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Multiply the coefficients, multiply the radicands, then simplify the cube root."
+          ],
+          "misconceptions": [
+            {
+              "match": [
+                "4a"
+              ],
+              "message": "∛(64a³) = 4a — now multiply by the coefficients 3 · 2."
+            }
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In 3∛(16a²) · 2∛(4a), what do you do with the 3 and the 2?",
+            "options": [
+              "Add them",
+              "Multiply them"
+            ],
+            "correct": "Multiply them"
+          },
+          "solutionReview": {
+            "headline": "Multiply the coefficients, then the radicands.",
+            "reasoning": [
+              "3 · 2 = 6, and ∛(16a²) · ∛(4a) = ∛(64a³).",
+              "64a³ = (4a)³, so the product is 6 · 4a = 24a."
+            ],
+            "answerSummary": "24a",
+            "commonError": "Adding the coefficients 3 and 2 instead of multiplying them."
+          }
+        },
+        {
+          "questionId": "rx-p-6",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Simplify $3\\sqrt{75} - 2\\sqrt{48} + \\sqrt{3}$.",
+          "responses": [
+            {
+              "id": "t1",
+              "label": "3√75 =",
+              "answer": "15√3",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "t2",
+              "label": "−2√48 =",
+              "answer": "-8√3",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "sum",
+              "label": "Combined",
+              "answer": "8√3",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Find the largest perfect square that divides each radicand."
+          ],
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. Can 15√3 and −8√3 be combined?",
+            "options": [
+              "Yes, they are like radicals",
+              "No, their coefficients differ"
+            ],
+            "correct": "Yes, they are like radicals"
+          },
+          "solutionReview": {
+            "headline": "Simplify each radical, then combine like radicals.",
+            "reasoning": [
+              "3√75 = 3 · 5√3 = 15√3 and −2√48 = −2 · 4√3 = −8√3.",
+              "15√3 − 8√3 + √3 = 8√3."
+            ],
+            "answerSummary": "8√3",
+            "commonError": "Forgetting the last term: √3 is 1√3 and counts in the sum."
+          }
+        },
+        {
+          "questionId": "rx-p-7",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Simplify ${{a}}\\sqrt{ {{P}} } {{c|signed}}\\sqrt{ {{k}} }$.",
+          "responses": [
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "{{t}}√{{k}}",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Find the largest perfect square that divides {{P}}."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "p": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "c": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "k": {
+                "type": "choice",
+                "values": [
+                  2,
+                  3,
+                  5,
+                  6,
+                  7
+                ]
+              }
+            },
+            "derived": {
+              "P": "p * p * k",
+              "p2": "p * p",
+              "t": "a * p + c"
+            },
+            "constraints": [
+              "a * p + c != 0",
+              "a * p + c != 1",
+              "a * p + c != -1"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. Before two radicals can be combined, what must they have in common?",
+            "options": [
+              "The same coefficient",
+              "The same index and radicand"
+            ],
+            "correct": "The same index and radicand"
+          },
+          "solutionReview": {
+            "headline": "Simplify the first radical, then combine.",
+            "reasoning": [
+              "{{P}} = {{p2}} · {{k}}, so {{a}}√{{P}} = {{a}} · {{p}}√{{k}}.",
+              "{{a}} · {{p}}√{{k}} {{c|signed}}√{{k}} = {{t}}√{{k}}."
+            ],
+            "answerSummary": "{{t}}√{{k}}",
+            "commonError": "√{{P}} and √{{k}} become like radicals only after √{{P}} is simplified."
+          }
+        },
+        {
+          "questionId": "rx-p-8",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Multiply and simplify: $(2\\sqrt{5} + 4\\sqrt{6})(5 - \\sqrt{7})$ and $(6 + \\sqrt{2})(4 - \\sqrt{3})$.",
+          "responses": [
+            {
+              "id": "first",
+              "label": "(2√5 + 4√6)(5 − √7) =",
+              "answer": "10√5-2√35+20√6-4√42",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "second",
+              "label": "(6 + √2)(4 − √3) =",
+              "answer": "24-6√3+4√2-√6",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "FOIL gives four products; then combine only like radicals."
+          ],
+          "questionWeight": 1.5,
+          "scaffold": {
+            "prompt": "Let’s back up. How many products does FOIL give for two binomials?",
+            "options": [
+              "Four",
+              "Two"
+            ],
+            "correct": "Four"
+          },
+          "solutionReview": {
+            "headline": "FOIL each product; combine only like radicals.",
+            "reasoning": [
+              "(2√5 + 4√6)(5 − √7) = 10√5 − 2√35 + 20√6 − 4√42.",
+              "(6 + √2)(4 − √3) = 24 − 6√3 + 4√2 − √6."
+            ],
+            "answerSummary": "10√5 − 2√35 + 20√6 − 4√42; 24 − 6√3 + 4√2 − √6",
+            "commonError": "√5 · √7 is √35, not √12: radicands multiply."
+          }
+        },
+        {
+          "questionId": "rx-p-9",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Multiply and simplify: $(3 + 2\\sqrt{5})(2 + 4\\sqrt{5})$.",
+          "responses": [
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "46+16√5",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "√5 · √5 = 5.",
+            "Combine the whole numbers and the like radicals."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. What is (2√5)(4√5)?",
+            "options": [
+              "8√5",
+              "40"
+            ],
+            "correct": "40"
+          },
+          "solutionReview": {
+            "headline": "FOIL, then combine.",
+            "reasoning": [
+              "3 · 2 = 6, 3 · 4√5 = 12√5, 2√5 · 2 = 4√5, and 2√5 · 4√5 = 8 · 5 = 40.",
+              "6 + 40 = 46 and 12√5 + 4√5 = 16√5."
+            ],
+            "answerSummary": "46 + 16√5",
+            "commonError": "(2√5)(4√5) is 40, not 8√5, because √5 · √5 = 5."
+          }
+        },
+        {
+          "questionId": "rx-p-10",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Rationalize each denominator and simplify: $\\dfrac{x}{x\\sqrt{3} + x}$ and $\\dfrac{5}{5\\sqrt{3} + 6}$.",
+          "responses": [
+            {
+              "id": "first",
+              "label": "x/(x√3 + x) =",
+              "answer": "(√3-1)/2",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "second",
+              "label": "5/(5√3 + 6) =",
+              "answer": "(25√3-30)/39",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Divide out x first, then multiply by the conjugate of the denominator.",
+            "The product of conjugates (a + b)(a − b) is a² − b²."
+          ],
+          "questionWeight": 1.5,
+          "scaffold": {
+            "prompt": "Let’s back up. To rationalize a denominator such as 5√3 + 6, multiply the top and bottom by…",
+            "options": [
+              "its conjugate, 5√3 − 6",
+              "the same binomial, 5√3 + 6"
+            ],
+            "correct": "its conjugate, 5√3 − 6"
+          },
+          "solutionReview": {
+            "headline": "Simplify, then multiply by the conjugate.",
+            "reasoning": [
+              "x/(x√3 + x) = 1/(√3 + 1). Multiply by (√3 − 1)/(√3 − 1): (√3 − 1)/(3 − 1) = (√3 − 1)/2.",
+              "5/(5√3 + 6) · (5√3 − 6)/(5√3 − 6) = (25√3 − 30)/(75 − 36) = (25√3 − 30)/39."
+            ],
+            "answerSummary": "(√3 − 1)/2; (25√3 − 30)/39",
+            "commonError": "Multiplying only the denominator by the conjugate changes the value: multiply the numerator too."
+          }
+        },
+        {
+          "questionId": "rx-p-11",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Simplify $\\dfrac{\\sqrt{44}}{\\sqrt{33}}$.",
+          "responses": [
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "2√3/3",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Write it as one square root and reduce the fraction inside.",
+            "A radical left in the denominator is not simplest form: rationalize it."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. √44/√33 can be written as one square root of…",
+            "options": [
+              "the difference 44 − 33",
+              "the fraction 44/33"
+            ],
+            "correct": "the fraction 44/33"
+          },
+          "solutionReview": {
+            "headline": "Write one radical, reduce, then rationalize.",
+            "reasoning": [
+              "√44/√33 = √(44/33) = √(4/3) = 2/√3.",
+              "Multiply by √3/√3: 2√3/3."
+            ],
+            "answerSummary": "2√3/3",
+            "commonError": "2/√3 is not simplest form: a radical is left in the denominator."
+          }
+        },
+        {
+          "questionId": "rx-p-12",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "sortIntoCategories"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Sort each expression: simplest radical form, or not yet simplified?",
+          "categories": [
+            {
+              "id": "simplest",
+              "label": "Simplest radical form"
+            },
+            {
+              "id": "not",
+              "label": "Not yet simplified"
+            }
+          ],
+          "items": [
+            {
+              "id": "a",
+              "label": "2√7"
+            },
+            {
+              "id": "b",
+              "label": "√50"
+            },
+            {
+              "id": "c",
+              "label": "4/√2"
+            },
+            {
+              "id": "d",
+              "label": "∜(9a²)"
+            },
+            {
+              "id": "e",
+              "label": "(√6 + 1)/5"
+            },
+            {
+              "id": "f",
+              "label": "√(2/3)"
+            },
+            {
+              "id": "g",
+              "label": "3∛2 − ∛2"
+            },
+            {
+              "id": "h",
+              "label": "x²√(3x)"
+            }
+          ],
+          "validSchemes": [
+            {
+              "id": "simplest",
+              "groups": [
+                {
+                  "id": "simplest",
+                  "itemIds": [
+                    "a",
+                    "e",
+                    "h"
+                  ]
+                },
+                {
+                  "id": "not",
+                  "itemIds": [
+                    "b",
+                    "c",
+                    "d",
+                    "f",
+                    "g"
+                  ]
+                }
+              ]
+            }
+          ],
+          "hints": [
+            "Check each rule in turn: smallest index, no perfect-power factor, no fraction or radical in a denominator, like radicals combined."
+          ],
+          "solutionReview": {
+            "headline": "Check every simplest-form rule.",
+            "reasoning": [
+              "Simplest: 2√7, (√6 + 1)/5 and x²√(3x).",
+              "Not yet: √50 = 5√2, 4/√2 = 2√2, ∜(9a²) = √(3|a|) (the index can be smaller), √(2/3) = √6/3 and 3∛2 − ∛2 = 2∛2."
+            ],
+            "answerSummary": "Simplest: 2√7, (√6 + 1)/5, x²√(3x). Not yet: √50, 4/√2, ∜(9a²), √(2/3), 3∛2 − ∛2.",
+            "commonError": "(√6 + 1)/5 is simplified: the radical is in the numerator and 6 has no square factor."
+          }
+        },
+        {
+          "questionId": "rx-p-13",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "The length $L$, in meters, of a fish of mass $M$ kilograms is modeled by $L = 0.46\\sqrt[3]{M}$. Find the length of a fish with mass 30 kilograms, to the nearest hundredth of a meter.",
+          "responses": [
+            {
+              "id": "length",
+              "label": "L ≈ (meters)",
+              "answer": "1.43",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "∛30 ≈ 3.107. Multiply by 0.46 and round to hundredths."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In L = 0.46∛M with M = 30, what do you do first?",
+            "options": [
+              "Take the cube root of 30",
+              "Multiply 0.46 by 30"
+            ],
+            "correct": "Take the cube root of 30"
+          },
+          "solutionReview": {
+            "headline": "Substitute, take the cube root, then multiply.",
+            "reasoning": [
+              "L = 0.46∛30.",
+              "∛30 ≈ 3.1072, so L ≈ 0.46 × 3.1072 ≈ 1.429, which rounds to 1.43 meters."
+            ],
+            "answerSummary": "L ≈ 1.43 m",
+            "commonError": "Multiplying 0.46 by 30 before taking the cube root gives about 2.40, which is not the model."
+          }
+        }
+      ]
+    },
+    {
+      "id": "dol",
+      "role": "dol",
+      "title": "DOL — Radical Expressions",
+      "recommendedMinutes": 7,
+      "questions": [
+        {
+          "questionId": "rx-dol-1",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Simplify $\\sqrt{ {{R}} a^{ {{ea}} } b^{ {{eb}} } }$.",
+          "responses": [
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "{{s}}a^{{fa}}b^{{n}}√({{k}}b)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "s": {
+                "type": "int",
+                "min": 2,
+                "max": 9
+              },
+              "k": {
+                "type": "choice",
+                "values": [
+                  2,
+                  3,
+                  5,
+                  6,
+                  7,
+                  10
+                ]
+              },
+              "j": {
+                "type": "int",
+                "min": 1,
+                "max": 2
+              },
+              "n": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              }
+            },
+            "derived": {
+              "R": "s * s * k",
+              "ea": "4 * j",
+              "fa": "2 * j",
+              "eb": "2 * n + 1"
+            },
+            "constraints": []
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "solutionReview": {
+            "headline": "Take out the largest perfect square.",
+            "reasoning": [
+              "{{R}} = {{s}}² · {{k}}, a^{{ea}} = (a^{{fa}})², and b^{{eb}} = (b^{{n}})² · b.",
+              "So √({{R}}a^{{ea}}b^{{eb}}) = {{s}}a^{{fa}}b^{{n}}√({{k}}b)."
+            ],
+            "answerSummary": "{{s}}a^{{fa}}b^{{n}}√({{k}}b)",
+            "commonError": "An odd power such as b^{{eb}} leaves one factor of b under the radical."
+          }
+        },
+        {
+          "questionId": "rx-dol-2",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Simplify ${{a}}\\sqrt{ {{P}} } - {{c}}\\sqrt{ {{Q}} }$.",
+          "responses": [
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "{{t}}√{{k}}",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "p": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "c": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "q": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "k": {
+                "type": "choice",
+                "values": [
+                  2,
+                  3,
+                  5,
+                  6,
+                  7
+                ]
+              }
+            },
+            "derived": {
+              "P": "p * p * k",
+              "Q": "q * q * k",
+              "t": "a * p - c * q",
+              "ap": "a * p",
+              "cq": "c * q"
+            },
+            "constraints": [
+              "p != q",
+              "a * p - c * q != 0",
+              "a * p - c * q != 1",
+              "a * p - c * q != -1"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "solutionReview": {
+            "headline": "Simplify each radical, then combine like radicals.",
+            "reasoning": [
+              "{{a}}√{{P}} = {{a}} · {{p}}√{{k}} = {{ap}}√{{k}}, and {{c}}√{{Q}} = {{c}} · {{q}}√{{k}} = {{cq}}√{{k}}.",
+              "{{ap}}√{{k}} − {{cq}}√{{k}} = {{t}}√{{k}}."
+            ],
+            "answerSummary": "{{t}}√{{k}}",
+            "commonError": "√{{P}} and √{{Q}} are like radicals only after both are simplified."
+          }
+        }
+      ]
+    }
+  ]
+}

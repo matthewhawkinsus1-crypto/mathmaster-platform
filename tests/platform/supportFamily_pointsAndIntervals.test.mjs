@@ -319,7 +319,12 @@ test('what is not a point, a number line or a one-variable inequality is not cla
   const corpus = fs.readdirSync(path.join(root, 'teacher-import-jsons'), { recursive: true })
     .filter((file) => file.endsWith('.json'))
     .flatMap((file) => compileAuthoringIntentV5(readJson(path.join('teacher-import-jsons', file))).package.sections.flatMap((section) => section.questions));
-  const notOurs = corpus.filter((question) => question.type !== 'intervalNumberLine');
+  // The radical candidate check IS this family's (kind 'radical'): the corpus's
+  // radicalCheck items are claimed. Nothing else in the corpus is.
+  const radicalChecks = corpus.filter((question) => question.type === 'signSolutionAnalyzer' && question.mode === 'radicalCheck');
+  assert.ok(radicalChecks.length >= 1);
+  radicalChecks.forEach((question) => assert.equal(pointsAndIntervals.matches(question), true, `corpus radical check: ${String(question.prompt).slice(0, 70)}`));
+  const notOurs = corpus.filter((question) => question.type !== 'intervalNumberLine' && !radicalChecks.includes(question));
   assert.ok(notOurs.length > 150);
   notOurs.forEach((question) => assert.equal(pointsAndIntervals.matches(question), false, `corpus ${question.type}: ${String(question.prompt).slice(0, 70)}`));
   readJson('drafts/district-dol2/assignment.json').sections.flatMap((section) => section.questions)

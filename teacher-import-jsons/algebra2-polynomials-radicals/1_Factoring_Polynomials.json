@@ -1,0 +1,2407 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Factoring Polynomials",
+    "courseId": "algebra2",
+    "folder": "Algebra II/Polynomials",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork",
+    "essentialQuestion": "How does the structure of the expression influence the selection of an efficient method for factoring polynomial expressions?",
+    "teacherNotes": "Bluebonnet Algebra II — Polynomials, Lesson 1 (Factoring Polynomials), TEKS A2.7D/A2.7E. One assignment for the whole lesson. Factoring answers are graded by their factors (any order; a minus sign may move between factors) and must be completely factored: an expanded answer or a factor left with a common factor is marked not yet. Warm-Up and DOL questions are generated per student and back Recovery."
+  },
+  "variantPolicy": {
+    "mode": "personalized",
+    "sectionModes": {
+      "warmup": "shared",
+      "classwork": "shared",
+      "practice": "personalized",
+      "dol": "personalized"
+    },
+    "avoidRecentTemplates": true,
+    "avoidDuplicateParameters": true
+  },
+  "sections": [
+    {
+      "id": "warmup",
+      "role": "warmup",
+      "title": "Warm-Up — Undo Multiplication",
+      "recommendedMinutes": 8,
+      "questions": [
+        {
+          "questionId": "fp-wu-1",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Getting started — find the greatest common factor (GCF) of $ {{A}}x^3 + {{B}}x^2 $, then factor it out.",
+          "responses": [
+            {
+              "id": "gcf",
+              "label": "GCF of the two terms",
+              "answer": "{{g}}x^2",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "factored",
+              "label": "Factored form",
+              "answer": "{{g}}x^2({{p|coef}}x+{{q}})",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "The GCF uses the largest number that divides both {{A}} and {{B}}, and the lowest power of x that appears in both terms.",
+            "Divide each term by the GCF. What is left goes inside the parentheses."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The greatest power of x that divides both x³ and x² is…",
+            "options": [
+              "x²",
+              "x³"
+            ],
+            "correct": "x²"
+          },
+          "generator": {
+            "parameters": {
+              "g": {
+                "type": "int",
+                "min": 2,
+                "max": 9
+              },
+              "p": {
+                "type": "int",
+                "min": 1,
+                "max": 9
+              },
+              "q": {
+                "type": "int",
+                "min": 1,
+                "max": 9
+              }
+            },
+            "derived": {
+              "A": "g * p",
+              "B": "g * q"
+            },
+            "constraints": [
+              "gcd(p, q) == 1",
+              "p != q"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "solutionReview": {
+            "headline": "The GCF is {{g}}x².",
+            "reasoning": [
+              "The largest number that divides both {{A}} and {{B}} is {{g}}.",
+              "The lowest power of x in the two terms is x².",
+              "{{A}}x³ ÷ {{g}}x² = {{p|coef}}x and {{B}}x² ÷ {{g}}x² = {{q}}."
+            ],
+            "answerSummary": "{{g}}x²({{p|coef}}x + {{q}})",
+            "commonError": "Taking out a smaller factor, such as {{g}}x, leaves a common factor inside the parentheses."
+          }
+        },
+        {
+          "questionId": "fp-wu-2",
+          "standard": "A2.7B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multiplyPolynomials"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Use the area model to multiply $(x {{m|signed}})(x {{n|signed}})$. Factoring a trinomial runs this multiplication backwards.",
+          "polynomial": {
+            "leftBinomial": [
+              1,
+              "{{m}}"
+            ],
+            "rightBinomial": [
+              1,
+              "{{n}}"
+            ]
+          },
+          "hints": [
+            "Each cell of the area model is one product: (first term)(first term), (first)(second), (second)(first), (second)(second).",
+            "The two middle cells are like terms. Add them to get the x-coefficient."
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "n": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {},
+            "constraints": [
+              "m < n",
+              "m + n != 0"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "fp-wu-3",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "factorPolynomial"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Factor $x^2 {{s|xterm}} {{p|signed}}$. Find the two numbers whose product is ${{p}}$ and whose sum is ${{s}}$.",
+          "polynomial": {
+            "coefficients": [
+              1,
+              "{{s}}",
+              "{{p}}"
+            ]
+          },
+          "hints": [
+            "List the factor pairs of {{p}}. Keep the pair whose sum is {{s}}.",
+            "If the constant term is negative, the two numbers have opposite signs."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In x² + bx + c = (x + m)(x + p), the numbers m and p multiply to…",
+            "options": [
+              "c",
+              "b"
+            ],
+            "correct": "c"
+          },
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "n": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "s": "m + n",
+              "p": "m * n"
+            },
+            "constraints": [
+              "m < n",
+              "m + n != 0"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        }
+      ]
+    },
+    {
+      "id": "classwork",
+      "role": "classwork",
+      "title": "Classwork — Choose the Factoring Method",
+      "recommendedMinutes": 50,
+      "questions": [
+        {
+          "questionId": "fp-cw-1",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Factor $12xy + 24xy^2 - 30x^2y^4$ with the Distributive Property. First find the GCF of all three terms, then factor it out.",
+          "responses": [
+            {
+              "id": "gcf",
+              "label": "GCF of the three terms",
+              "answer": "6xy",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "factored",
+              "label": "Factored form",
+              "answer": "6xy(2+4y-5xy^3)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Factoring",
+                "instruction": "Factoring writes a polynomial as a product. Always look for a greatest common factor (GCF) first."
+              },
+              {
+                "title": "Find the GCF",
+                "instruction": "Write each term as primes and variables: 12xy = 2·2·3·x·y, 24xy² = 2·2·2·3·x·y·y, −30x²y⁴ = −1·2·3·5·x·x·y·y·y·y. The factors every term shares are 2·3·x·y = 6xy."
+              },
+              {
+                "title": "Factor it out",
+                "instruction": "Write each term as GCF × what is left: 6xy(2) + 6xy(4y) + 6xy(−5xy³). The Distributive Property gives 6xy(2 + 4y − 5xy³)."
+              },
+              {
+                "title": "Check",
+                "instruction": "Multiply back out. You must get the original polynomial, and nothing inside the parentheses may still share a factor."
+              }
+            ]
+          },
+          "hints": [
+            "The number in the GCF is the largest number that divides 12, 24 and 30.",
+            "Use the LOWEST power of each variable that appears in every term.",
+            "Divide each term by the GCF; the three quotients go inside the parentheses."
+          ],
+          "solutionReview": {
+            "headline": "The GCF is 6xy.",
+            "reasoning": [
+              "6 is the largest number dividing 12, 24 and 30.",
+              "Every term has at least one x and one y, so the GCF is 6xy.",
+              "Dividing each term by 6xy leaves 2, 4y and −5xy³."
+            ],
+            "answerSummary": "6xy(2 + 4y − 5xy³)",
+            "commonError": "Factoring out 2xy or 3xy leaves a common factor inside the parentheses — the polynomial is not factored completely."
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. What is the largest number that divides 12, 24 and 30?",
+            "options": [
+              "6",
+              "2"
+            ],
+            "correct": "6"
+          },
+          "questionWeight": 1.25
+        },
+        {
+          "questionId": "fp-cw-2",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Factor $15a - 3ab + 4b - 20$ by grouping. Factor the first two terms and the last two terms separately, make the binomials match, then factor out the common binomial.",
+          "responses": [
+            {
+              "id": "g1",
+              "label": "First group: 15a − 3ab =",
+              "answer": "3a(5-b)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "g2",
+              "label": "Second group: 4b − 20 =",
+              "answer": "4(b-5)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "inverse",
+              "label": "The binomials 5 − b and b − 5 are additive inverses. Rewrite 5 − b as…",
+              "type": "choice",
+              "options": [
+                "−1(b − 5)",
+                "(b − 5)",
+                "−(b + 5)",
+                "(5 + b)"
+              ],
+              "answer": "−1(b − 5)"
+            },
+            {
+              "id": "factored",
+              "label": "Factored form of 15a − 3ab + 4b − 20",
+              "answer": "(-3a+4)(b-5)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Factoring by grouping",
+                "instruction": "A polynomial with four terms can often be factored by grouping: ax + bx + ay + by = x(a + b) + y(a + b) = (x + y)(a + b)."
+              },
+              {
+                "title": "Group and factor",
+                "instruction": "Group terms that share a factor: (15a − 3ab) + (4b − 20) = 3a(5 − b) + 4(b − 5)."
+              },
+              {
+                "title": "Additive inverses",
+                "instruction": "5 − b and b − 5 are opposites: 5 − b = −1(b − 5). So 3a(5 − b) = −3a(b − 5)."
+              },
+              {
+                "title": "Finish",
+                "instruction": "−3a(b − 5) + 4(b − 5) = (−3a + 4)(b − 5). Moving the −1 to the other factor gives the same answer: (3a − 4)(5 − b)."
+              }
+            ]
+          },
+          "hints": [
+            "Group the first two terms and the last two, and factor the GCF out of each group.",
+            "If the two binomials are opposites, such as (5 − b) and (b − 5), factor −1 out of one of them.",
+            "Once both groups share the same binomial, factor that binomial out."
+          ],
+          "solutionReview": {
+            "headline": "Group, factor each group, and use −1 to match the binomials.",
+            "reasoning": [
+              "15a − 3ab = 3a(5 − b) and 4b − 20 = 4(b − 5).",
+              "5 − b = −1(b − 5), so 3a(5 − b) = −3a(b − 5).",
+              "−3a(b − 5) + 4(b − 5) = (−3a + 4)(b − 5)."
+            ],
+            "answerSummary": "(−3a + 4)(b − 5), which is the same as (3a − 4)(5 − b)",
+            "commonError": "Writing (3a + 4)(b − 5): the −1 that made the binomials match must be kept with 3a."
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. Which factor do 15a and −3ab share?",
+            "options": [
+              "3a",
+              "5b"
+            ],
+            "correct": "3a"
+          },
+          "questionWeight": 1.5
+        },
+        {
+          "questionId": "fp-cw-3",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Factor $x^3 + 5x^2 - 2x - 10$ by grouping. If it cannot be factored, it is prime.",
+          "responses": [
+            {
+              "id": "g1",
+              "label": "First group: x³ + 5x² =",
+              "answer": "x^2(x+5)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "g2",
+              "label": "Second group: −2x − 10 =",
+              "answer": "-2(x+5)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "factored",
+              "label": "Factored form",
+              "answer": "(x+5)(x^2-2)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Factor x² out of the first two terms and −2 out of the last two.",
+            "Both groups now contain (x + 5)."
+          ],
+          "solutionReview": {
+            "headline": "The common binomial is (x + 5).",
+            "reasoning": [
+              "x³ + 5x² = x²(x + 5)",
+              "−2x − 10 = −2(x + 5)",
+              "x²(x + 5) − 2(x + 5) = (x + 5)(x² − 2)"
+            ],
+            "answerSummary": "(x + 5)(x² − 2)",
+            "commonError": "Factoring 2 (instead of −2) out of −2x − 10 gives 2(−x − 5), which does not match (x + 5)."
+          },
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. After grouping, x²(x + 5) − 2(x + 5). What do you factor out next?",
+            "options": [
+              "The common binomial (x + 5)",
+              "The x² from the first group"
+            ],
+            "correct": "The common binomial (x + 5)"
+          }
+        },
+        {
+          "questionId": "fp-cw-4",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "factorPolynomial"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Factor $x^2 - x - 20$. Since $c = -20$ is negative, the two numbers have opposite signs. Make an organized list of factor pairs of $-20$ and find the pair whose sum is $-1$.",
+          "polynomial": {
+            "coefficients": [
+              1,
+              -1,
+              -20
+            ]
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "The pattern",
+                "instruction": "x² + bx + c = (x + m)(x + p), where m·p = c and m + p = b."
+              },
+              {
+                "title": "Signs",
+                "instruction": "c > 0: m and p have the same sign as b. c < 0: m and p have opposite signs."
+              },
+              {
+                "title": "Organized list",
+                "instruction": "Factor pairs of −20 and their sums: 1 and −20 (−19), −1 and 20 (19), 2 and −10 (−8), −2 and 10 (8), 4 and −5 (−1), −4 and 5 (1)."
+              },
+              {
+                "title": "Check",
+                "instruction": "Multiply the factors back together (FOIL) to get the original trinomial."
+              }
+            ]
+          },
+          "hints": [
+            "You need m·p = −20 and m + p = −1.",
+            "The larger number (in size) is negative because the sum is negative."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Two numbers multiply to −20. Their signs are…",
+            "options": [
+              "opposite",
+              "the same"
+            ],
+            "correct": "opposite"
+          }
+        },
+        {
+          "questionId": "fp-cw-5",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Factor $24x^2 - 22x + 3$ with the $ac$ method: find two numbers with product $ac$ and sum $b$, split the middle term, and factor by grouping.",
+          "responses": [
+            {
+              "id": "ac",
+              "label": "a · c =",
+              "answer": "72",
+              "inputProfile": "number"
+            },
+            {
+              "id": "pair",
+              "label": "The two numbers (product a·c, sum b), as a set",
+              "answer": "{-4, -18}",
+              "inputProfile": "set"
+            },
+            {
+              "id": "split",
+              "label": "Split the middle term",
+              "type": "choice",
+              "options": [
+                "24x² − 4x − 18x + 3",
+                "24x² + 4x − 26x + 3",
+                "24x² − 2x − 20x + 3",
+                "24x² − 11x − 11x + 3"
+              ],
+              "answer": "24x² − 4x − 18x + 3"
+            },
+            {
+              "id": "factored",
+              "label": "Factored form",
+              "answer": "(4x-3)(6x-1)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "ax² + bx + c with a ≠ 1",
+                "instruction": "Find m and p with m·p = a·c and m + p = b. Then write bx as mx + px and factor by grouping."
+              },
+              {
+                "title": "This trinomial",
+                "instruction": "a·c = 24·3 = 72 and b = −22. Both numbers are negative (positive product, negative sum): −4 and −18."
+              },
+              {
+                "title": "Group",
+                "instruction": "24x² − 4x − 18x + 3 = 4x(6x − 1) − 3(6x − 1) = (4x − 3)(6x − 1)."
+              }
+            ]
+          },
+          "hints": [
+            "Multiply the leading coefficient by the constant term to get a·c.",
+            "a·c is positive and b is negative, so both numbers are negative. List the negative factor pairs of a·c and find the pair whose sum is b.",
+            "Split the middle term into those two numbers, then group the first two terms and the last two."
+          ],
+          "solutionReview": {
+            "headline": "Split −22x into −4x − 18x and group.",
+            "reasoning": [
+              "a·c = 72; −4 · −18 = 72 and −4 + (−18) = −22.",
+              "24x² − 4x − 18x + 3 = 4x(6x − 1) − 3(6x − 1).",
+              "Factor out (6x − 1)."
+            ],
+            "answerSummary": "(4x − 3)(6x − 1)"
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. In the ac method for ax² + bx + c, the two numbers multiply to a·c and add to…",
+            "options": [
+              "b",
+              "c"
+            ],
+            "correct": "b"
+          },
+          "questionWeight": 1.5
+        },
+        {
+          "questionId": "fp-cw-6",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "sortIntoCategories"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Read the structure before you factor. Sort each polynomial by the factoring pattern it fits. A polynomial that cannot be factored over the integers is prime.",
+          "categories": [
+            {
+              "id": "dots",
+              "label": "Difference of two squares"
+            },
+            {
+              "id": "pst",
+              "label": "Perfect square trinomial"
+            },
+            {
+              "id": "cubes",
+              "label": "Sum or difference of two cubes"
+            },
+            {
+              "id": "grouping",
+              "label": "Four terms: factor by grouping"
+            },
+            {
+              "id": "prime",
+              "label": "Prime"
+            }
+          ],
+          "items": [
+            {
+              "id": "a",
+              "label": "m² − 64"
+            },
+            {
+              "id": "b",
+              "label": "25x² − 30x + 9"
+            },
+            {
+              "id": "c",
+              "label": "8c³ − g³"
+            },
+            {
+              "id": "d",
+              "label": "2xy + 7x − 2y − 7"
+            },
+            {
+              "id": "e",
+              "label": "x³ − 400"
+            },
+            {
+              "id": "f",
+              "label": "49y² + 42y + 36"
+            },
+            {
+              "id": "g",
+              "label": "16y² − 81z²"
+            },
+            {
+              "id": "h",
+              "label": "49x² + 28x + 4"
+            },
+            {
+              "id": "i",
+              "label": "x³ + 27"
+            },
+            {
+              "id": "j",
+              "label": "x³ + 5x² − 2x − 10"
+            }
+          ],
+          "validSchemes": [
+            {
+              "id": "structure",
+              "groups": [
+                {
+                  "id": "dots",
+                  "itemIds": [
+                    "a",
+                    "g"
+                  ]
+                },
+                {
+                  "id": "pst",
+                  "itemIds": [
+                    "b",
+                    "h"
+                  ]
+                },
+                {
+                  "id": "cubes",
+                  "itemIds": [
+                    "c",
+                    "i"
+                  ]
+                },
+                {
+                  "id": "grouping",
+                  "itemIds": [
+                    "d",
+                    "j"
+                  ]
+                },
+                {
+                  "id": "prime",
+                  "itemIds": [
+                    "e",
+                    "f"
+                  ]
+                }
+              ]
+            }
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Two terms",
+                "instruction": "Difference of squares: a² − b² = (a + b)(a − b). Sum or difference of cubes: a³ ± b³. A sum of two squares is prime."
+              },
+              {
+                "title": "Three terms",
+                "instruction": "Perfect square trinomial: a² ± 2ab + b² = (a ± b)². Check all three: first term a square, last term a square, middle term 2ab."
+              },
+              {
+                "title": "Four or more terms",
+                "instruction": "Factor by grouping."
+              },
+              {
+                "title": "Prime",
+                "instruction": "A polynomial that cannot be written as a product of polynomials with integer coefficients is prime."
+              }
+            ]
+          },
+          "hints": [
+            "Count the terms first: two terms, three terms, or four terms.",
+            "49y² + 42y + 36: is 42y equal to 2(7y)(6)?",
+            "400 is not a perfect cube, so x³ − 400 fits no pattern."
+          ],
+          "solutionReview": {
+            "headline": "Count the terms, then test each pattern.",
+            "reasoning": [
+              "Two terms: m² − 64 and 16y² − 81z² are differences of squares; 8c³ − g³ and x³ + 27 are a difference and a sum of cubes. x³ − 400 fits neither, because 400 is not a perfect cube: it is prime.",
+              "Three terms: 25x² − 30x + 9 = (5x − 3)² and 49x² + 28x + 4 = (7x + 2)². In 49y² + 42y + 36 the middle term would have to be 2(7y)(6) = 84y, and it does not factor at all: it is prime.",
+              "Four terms: 2xy + 7x − 2y − 7 = (2y + 7)(x − 1) and x³ + 5x² − 2x − 10 = (x + 5)(x² − 2) factor by grouping."
+            ],
+            "answerSummary": "Squares: m² − 64, 16y² − 81z². Perfect square trinomials: 25x² − 30x + 9, 49x² + 28x + 4. Cubes: 8c³ − g³, x³ + 27. Grouping: 2xy + 7x − 2y − 7, x³ + 5x² − 2x − 10. Prime: x³ − 400, 49y² + 42y + 36.",
+            "commonError": "A sum of two squares, or a cube with a number that is not a perfect cube, fits no pattern: it is prime."
+          }
+        },
+        {
+          "questionId": "fp-cw-7",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Perfect squares. Decide whether $9x^2 - 12x + 16$ is a perfect square trinomial. Then factor $49x^2 + 28x + 4$ and $25a^2 - 36b^2$.",
+          "responses": [
+            {
+              "id": "test",
+              "label": "Is 9x² − 12x + 16 a perfect square trinomial?",
+              "type": "choice",
+              "options": [
+                "No — the middle term would have to be 2(3x)(4) = 24x",
+                "Yes — it is (3x − 4)²",
+                "Yes — it is (3x + 4)(3x − 4)",
+                "No — 16 is not a perfect square"
+              ],
+              "answer": "No — the middle term would have to be 2(3x)(4) = 24x"
+            },
+            {
+              "id": "pst",
+              "label": "49x² + 28x + 4 =",
+              "answer": "(7x+2)^2",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "dots",
+              "label": "25a² − 36b² =",
+              "answer": "(5a+6b)(5a-6b)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Perfect square trinomial",
+                "instruction": "a² + 2ab + b² = (a + b)² and a² − 2ab + b² = (a − b)²."
+              },
+              {
+                "title": "Three checks",
+                "instruction": "1. Is the first term a perfect square? 2. Is the last term a perfect square? 3. Is the middle term 2·(first root)·(last root)?"
+              },
+              {
+                "title": "Difference of squares",
+                "instruction": "a² − b² = (a + b)(a − b). Write each term as a square first: 25a² = (5a)², 36b² = (6b)²."
+              }
+            ]
+          },
+          "hints": [
+            "9x² = (3x)² and 16 = 4², so the middle term would have to be ±2(3x)(4).",
+            "49x² = (7x)² and 4 = 2². Is 28x = 2(7x)(2)?",
+            "25a² − 36b² = (5a)² − (6b)²."
+          ],
+          "solutionReview": {
+            "headline": "Check the middle term; write each square as (something)².",
+            "reasoning": [
+              "2(3x)(4) = 24x ≠ 12x, so 9x² − 12x + 16 is not a perfect square trinomial.",
+              "28x = 2(7x)(2), so 49x² + 28x + 4 = (7x + 2)².",
+              "25a² − 36b² = (5a)² − (6b)² = (5a + 6b)(5a − 6b)."
+            ],
+            "answerSummary": "not a perfect square trinomial; (7x + 2)²; (5a + 6b)(5a − 6b)"
+          },
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. In a perfect square trinomial, what must the middle term equal?",
+            "options": [
+              "The sum of the square roots of the first and last terms",
+              "Twice the product of the square roots of the first and last terms"
+            ],
+            "correct": "Twice the product of the square roots of the first and last terms"
+          }
+        },
+        {
+          "questionId": "fp-cw-8",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Factor $24x^5 + 3x^2y^3$ completely: take out the GCF, then factor the sum of two cubes.",
+          "responses": [
+            {
+              "id": "gcf",
+              "label": "GCF",
+              "answer": "3x^2",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "a",
+              "label": "After the GCF, 8x³ + y³ = a³ + b³ with b = y and a =",
+              "answer": "2x",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "trinomial",
+              "label": "The trinomial factor a² − ab + b² =",
+              "answer": "4x^2-2xy+y^2",
+              "inputProfile": "expression",
+              "gradingMode": "equivalentExpression"
+            },
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "3x^2(2x+y)(4x^2-2xy+y^2)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Sum and difference of cubes",
+                "instruction": "a³ + b³ = (a + b)(a² − ab + b²) and a³ − b³ = (a − b)(a² + ab + b²)."
+              },
+              {
+                "title": "SOAP",
+                "instruction": "The signs follow SOAP: the binomial has the Same sign, the middle term of the trinomial the Opposite sign, and the last term is Always Positive."
+              },
+              {
+                "title": "This polynomial",
+                "instruction": "24x⁵ + 3x²y³ = 3x²(8x³ + y³), and 8x³ + y³ = (2x)³ + y³ = (2x + y)(4x² − 2xy + y²)."
+              }
+            ]
+          },
+          "hints": [
+            "Find the GCF first: the largest number dividing 24 and 3, and the lowest power of x in both terms.",
+            "After the GCF, write each term as a cube: what expression cubed gives 8x³?",
+            "The trinomial factor of a sum of cubes is a² − ab + b², built from the same a and b as the binomial a + b."
+          ],
+          "solutionReview": {
+            "headline": "GCF first, then the sum of cubes.",
+            "reasoning": [
+              "24x⁵ + 3x²y³ = 3x²(8x³ + y³)",
+              "8x³ + y³ = (2x)³ + y³",
+              "(2x)³ + y³ = (2x + y)(4x² − 2xy + y²)"
+            ],
+            "answerSummary": "3x²(2x + y)(4x² − 2xy + y²)",
+            "commonError": "Writing the trinomial as 4x² + 2xy + y²: for a SUM of cubes the middle sign is negative (SOAP)."
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. Which expression cubed gives 27x³?",
+            "options": [
+              "9x",
+              "3x"
+            ],
+            "correct": "3x"
+          },
+          "questionWeight": 1.5
+        },
+        {
+          "questionId": "fp-cw-9",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Factor $64x^6 - y^6$ completely. It is both a difference of squares and a difference of cubes — factor it as a difference of squares first, then factor each cube.",
+          "responses": [
+            {
+              "id": "squares",
+              "label": "As a difference of squares: 64x⁶ − y⁶ =",
+              "answer": "(8x^3+y^3)(8x^3-y^3)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "(2x+y)(4x^2-2xy+y^2)(2x-y)(4x^2+2xy+y^2)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "64x⁶ = (8x³)² and y⁶ = (y³)².",
+            "8x³ + y³ is a sum of cubes and 8x³ − y³ is a difference of cubes.",
+            "Doing squares first is easier: cubes first would leave a fourth-degree factor that is harder to break up."
+          ],
+          "solutionReview": {
+            "headline": "Difference of squares first, then two cube patterns.",
+            "reasoning": [
+              "64x⁶ − y⁶ = (8x³)² − (y³)² = (8x³ + y³)(8x³ − y³)",
+              "8x³ + y³ = (2x + y)(4x² − 2xy + y²)",
+              "8x³ − y³ = (2x − y)(4x² + 2xy + y²)"
+            ],
+            "answerSummary": "(2x + y)(4x² − 2xy + y²)(2x − y)(4x² + 2xy + y²)"
+          },
+          "questionWeight": 1.5,
+          "scaffold": {
+            "prompt": "Let’s back up. 64x⁶ − y⁶ is (8x³)² − (y³)². Which pattern do you use first?",
+            "options": [
+              "Difference of two squares",
+              "Sum of two cubes"
+            ],
+            "correct": "Difference of two squares"
+          }
+        },
+        {
+          "questionId": "fp-cw-10",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Quadratic form. A polynomial is in quadratic form when it can be written $a[f(x)]^2 + b[f(x)] + c$. Write each polynomial in quadratic form, if possible.",
+          "responses": [
+            {
+              "id": "u1",
+              "label": "6x¹⁰ − 2x⁵ − 3 = 6u² − 2u − 3, where u =",
+              "answer": "x^5",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "q2",
+              "label": "x⁸ − 3x³ − 11",
+              "type": "choice",
+              "options": [
+                "It cannot be written in quadratic form.",
+                "(x⁴)² − 3(x³) − 11",
+                "(x⁴)² − 3(x²) − 11",
+                "(x⁸)² − 3(x³) − 11"
+              ],
+              "answer": "It cannot be written in quadratic form."
+            },
+            {
+              "id": "u3",
+              "label": "2x⁶ − x³ + 9 = 2u² − u + 9, where u =",
+              "answer": "x^3",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "q4",
+              "label": "Which is NOT a quadratic form of 6x¹⁰ − 2x⁵ − 3?",
+              "type": "choice",
+              "options": [
+                "3(2x⁵)² − (2x⁵) − 3",
+                "6(x⁵)² − 2(x⁵) − 3",
+                "6(x⁵)² − 2x⁵ − 3",
+                "They are all quadratic forms of it."
+              ],
+              "answer": "3(2x⁵)² − (2x⁵) − 3"
+            }
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Quadratic form",
+                "instruction": "au² + bu + c, where u is an expression in x. The exponent of the first variable term must be twice the exponent of the middle term."
+              },
+              {
+                "title": "Example",
+                "instruction": "2x⁶ − x³ + 9: x⁶ = (x³)², so u = x³ and the polynomial is 2(x³)² − (x³) + 9."
+              }
+            ]
+          },
+          "hints": [
+            "Compare the exponents of the first two terms: is one exactly twice the other?",
+            "x⁸ = (x⁴)², but the middle term has x³, not x⁴."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. For a polynomial to be in quadratic form, how must the exponents of the first two terms compare?",
+            "options": [
+              "The first is two more than the second",
+              "The first is twice the second"
+            ],
+            "correct": "The first is twice the second"
+          },
+          "solutionReview": {
+            "headline": "Quadratic form needs the first exponent to be twice the middle one.",
+            "reasoning": [
+              "6x¹⁰ − 2x⁵ − 3: 10 = 2 · 5, so u = x⁵ and it is 6u² − 2u − 3.",
+              "x⁸ − 3x³ − 11: 8 is not 2 · 3, so it cannot be written in quadratic form.",
+              "2x⁶ − x³ + 9: 6 = 2 · 3, so u = x³.",
+              "3(2x⁵)² − (2x⁵) − 3 = 12x¹⁰ − 2x⁵ − 3, which is not 6x¹⁰ − 2x⁵ − 3: that one is NOT a quadratic form of it."
+            ],
+            "answerSummary": "u = x⁵; not possible; u = x³; 3(2x⁵)² − (2x⁵) − 3",
+            "commonError": "(x⁴)² − 3(x³) − 11 uses two different inner expressions, x⁴ and x³: quadratic form needs one u."
+          }
+        },
+        {
+          "questionId": "fp-cw-11",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Factor $6x^3 + 30x^2 - 24x - 120$ completely. Use more than one technique: GCF, grouping, then a difference of squares.",
+          "responses": [
+            {
+              "id": "gcf",
+              "label": "GCF of all four terms",
+              "answer": "6",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "grouped",
+              "label": "After the GCF and grouping: 6x³ + 30x² − 24x − 120 =",
+              "answer": "6(x^2-4)(x+5)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "6(x+2)(x-2)(x+5)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Factoring completely",
+                "instruction": "1. Factor out the GCF. 2. Count the terms and use the matching pattern. 3. Check every factor again — keep going until none can be factored."
+              },
+              {
+                "title": "This polynomial",
+                "instruction": "6x³ + 30x² − 24x − 120 = 6(x³ + 5x² − 4x − 20) = 6[x²(x + 5) − 4(x + 5)] = 6(x² − 4)(x + 5)."
+              },
+              {
+                "title": "Not finished yet",
+                "instruction": "x² − 4 is a difference of squares: x² − 4 = (x + 2)(x − 2)."
+              }
+            ]
+          },
+          "hints": [
+            "Find the greatest common factor of all four coefficients first.",
+            "Group x³ + 5x² and −4x − 20.",
+            "x² − 4 can still be factored."
+          ],
+          "solutionReview": {
+            "headline": "GCF, grouping, then difference of squares.",
+            "reasoning": [
+              "6x³ + 30x² − 24x − 120 = 6(x³ + 5x² − 4x − 20)",
+              "= 6[x²(x + 5) − 4(x + 5)] = 6(x² − 4)(x + 5)",
+              "= 6(x + 2)(x − 2)(x + 5)"
+            ],
+            "answerSummary": "6(x + 2)(x − 2)(x + 5)",
+            "commonError": "Stopping at 6(x² − 4)(x + 5): x² − 4 is still a difference of squares."
+          },
+          "questionWeight": 1.5,
+          "scaffold": {
+            "prompt": "Let’s back up. What is always the first step in factoring completely?",
+            "options": [
+              "Look for a difference of squares",
+              "Factor out the greatest common factor"
+            ],
+            "correct": "Factor out the greatest common factor"
+          }
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "role": "practice",
+      "title": "Practice — Factor Completely",
+      "recommendedMinutes": 45,
+      "questions": [
+        {
+          "questionId": "fp-p-1",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Factor completely: ${{A}}a^2b + {{B}}ab^2$",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "Factored form",
+              "answer": "{{g}}ab({{p|coef}}a+{{q|coef}}b)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Find the GCF of the numbers and the lowest power of each variable."
+          ],
+          "generator": {
+            "parameters": {
+              "g": {
+                "type": "int",
+                "min": 2,
+                "max": 9
+              },
+              "p": {
+                "type": "int",
+                "min": 1,
+                "max": 9
+              },
+              "q": {
+                "type": "int",
+                "min": 1,
+                "max": 9
+              }
+            },
+            "derived": {
+              "A": "g * p",
+              "B": "g * q"
+            },
+            "constraints": [
+              "gcd(p, q) == 1",
+              "p != q"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. Which power of each variable goes into the GCF?",
+            "options": [
+              "The lowest power that appears in every term",
+              "The highest power that appears in any term"
+            ],
+            "correct": "The lowest power that appears in every term"
+          },
+          "solutionReview": {
+            "headline": "Take out the GCF {{g}}ab.",
+            "reasoning": [
+              "{{g}} is the largest number that divides {{A}} and {{B}}.",
+              "a and b each appear at least to the first power in both terms, so the GCF contains ab.",
+              "{{A}}a²b ÷ {{g}}ab = {{p|coef}}a and {{B}}ab² ÷ {{g}}ab = {{q|coef}}b."
+            ],
+            "answerSummary": "{{g}}ab({{p|coef}}a + {{q|coef}}b)",
+            "commonError": "Leaving a or b out of the GCF leaves a common variable in both terms inside the parentheses."
+          }
+        },
+        {
+          "questionId": "fp-p-2",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Factor completely: $3ab^2 + 15a^2b^2 + 27ab^3$",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "Factored form",
+              "answer": "3ab^2(1+5a+9b)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Every term contains 3, a, and b². Take out all of them."
+          ],
+          "solutionReview": {
+            "headline": "The GCF is 3ab².",
+            "reasoning": [
+              "3ab² ÷ 3ab² = 1",
+              "15a²b² ÷ 3ab² = 5a",
+              "27ab³ ÷ 3ab² = 9b"
+            ],
+            "answerSummary": "3ab²(1 + 5a + 9b)",
+            "commonError": "3ab(b + 5ab + 9b²) leaves a b in every term inside the parentheses."
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. When dividing a term by the GCF leaves nothing but 1, what do you write for that term?",
+            "options": [
+              "Nothing — the term disappears",
+              "A 1 holds its place"
+            ],
+            "correct": "A 1 holds its place"
+          }
+        },
+        {
+          "questionId": "fp-p-3",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Factor each polynomial by grouping: $4xy + 3y - 20x - 15$ and $-2xy - 10x + 3y + 15$.",
+          "responses": [
+            {
+              "id": "first",
+              "label": "4xy + 3y − 20x − 15 =",
+              "answer": "(4x+3)(y-5)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "second",
+              "label": "−2xy − 10x + 3y + 15 =",
+              "answer": "(-2x+3)(y+5)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Group the terms that share a factor: y(4x + 3) − 5(4x + 3).",
+            "In the second, factor −2x out of the first two terms."
+          ],
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. What do you take out of −20x − 15 so that the binomial matches 4x + 3?",
+            "options": [
+              "Negative five",
+              "Positive five"
+            ],
+            "correct": "Negative five"
+          },
+          "solutionReview": {
+            "headline": "Group in pairs, then factor out the common binomial.",
+            "reasoning": [
+              "4xy + 3y − 20x − 15 = y(4x + 3) − 5(4x + 3) = (4x + 3)(y − 5).",
+              "−2xy − 10x + 3y + 15 = −2x(y + 5) + 3(y + 5) = (−2x + 3)(y + 5)."
+            ],
+            "answerSummary": "(4x + 3)(y − 5); (−2x + 3)(y + 5)",
+            "commonError": "Taking 5 out of −20x − 15 leaves −4x − 3, which does not match 4x + 3: take out −5 instead."
+          }
+        },
+        {
+          "questionId": "fp-p-4",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Factor each polynomial by grouping: $d^3 + 2d^2 + 4d + 8$ and $r^2 + 4rs^2 + 2sr + 8s^3$.",
+          "responses": [
+            {
+              "id": "first",
+              "label": "d³ + 2d² + 4d + 8 =",
+              "answer": "(d+2)(d^2+4)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "second",
+              "label": "r² + 4rs² + 2sr + 8s³ =",
+              "answer": "(r+2s)(r+4s^2)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "d²(d + 2) + 4(d + 2)",
+            "Regroup the second: (r² + 2sr) + (4rs² + 8s³)."
+          ],
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. When the two groups share no binomial, what can you try?",
+            "options": [
+              "Call the polynomial prime",
+              "Reorder the terms and group again"
+            ],
+            "correct": "Reorder the terms and group again"
+          },
+          "solutionReview": {
+            "headline": "Group in pairs; reorder when the first grouping does not match.",
+            "reasoning": [
+              "d³ + 2d² + 4d + 8 = d²(d + 2) + 4(d + 2) = (d + 2)(d² + 4). d² + 4 is a sum of squares, which is prime.",
+              "r² + 4rs² + 2sr + 8s³: reorder as (r² + 2sr) + (4rs² + 8s³) = r(r + 2s) + 4s²(r + 2s) = (r + 2s)(r + 4s²)."
+            ],
+            "answerSummary": "(d + 2)(d² + 4); (r + 2s)(r + 4s²)",
+            "commonError": "d² + 4 is not (d + 2)(d − 2): that product is d² − 4."
+          }
+        },
+        {
+          "questionId": "fp-p-5",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "factorPolynomial"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Factor $x^2 {{s|xterm}} {{p|signed}}$.",
+          "polynomial": {
+            "coefficients": [
+              1,
+              "{{s}}",
+              "{{p}}"
+            ]
+          },
+          "hints": [
+            "Two numbers multiply to {{p}} and add to {{s}}."
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -12,
+                "max": 12,
+                "exclude": [
+                  0
+                ]
+              },
+              "n": {
+                "type": "int",
+                "min": -12,
+                "max": 12,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "s": "m + n",
+              "p": "m * n"
+            },
+            "constraints": [
+              "m < n",
+              "m + n != 0"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "fp-p-6",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Factor each trinomial: $x^2 - 10x + 16$, $x^2 + 4x - 5$, and $x^2 - 5x - 24$.",
+          "responses": [
+            {
+              "id": "t1",
+              "label": "x² − 10x + 16 =",
+              "answer": "(x-2)(x-8)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "t2",
+              "label": "x² + 4x − 5 =",
+              "answer": "(x+5)(x-1)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "t3",
+              "label": "x² − 5x − 24 =",
+              "answer": "(x-8)(x+3)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Product c, sum b. When c > 0 and b < 0, both numbers are negative."
+          ],
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. To factor x² + bx + c, the two numbers you need have…",
+            "options": [
+              "product c and sum b",
+              "product b and sum c"
+            ],
+            "correct": "product c and sum b"
+          },
+          "solutionReview": {
+            "headline": "Find two numbers with product c and sum b.",
+            "reasoning": [
+              "x² − 10x + 16: −2 · (−8) = 16 and −2 + (−8) = −10, so (x − 2)(x − 8).",
+              "x² + 4x − 5: 5 · (−1) = −5 and 5 + (−1) = 4, so (x + 5)(x − 1).",
+              "x² − 5x − 24: −8 · 3 = −24 and −8 + 3 = −5, so (x − 8)(x + 3)."
+            ],
+            "answerSummary": "(x − 2)(x − 8); (x + 5)(x − 1); (x − 8)(x + 3)",
+            "commonError": "Using 8 and −3 for x² − 5x − 24 gives a sum of 5, not −5: the signs are swapped."
+          }
+        },
+        {
+          "questionId": "fp-p-7",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Factor $ {{a}}x^2 {{b|xterm}} {{c|signed}} $ with the $ac$ method.",
+          "responses": [
+            {
+              "id": "ac",
+              "label": "a · c =",
+              "answer": "{{ac}}",
+              "inputProfile": "number"
+            },
+            {
+              "id": "factored",
+              "label": "Factored form",
+              "answer": "({{p}}x+{{r}})({{q|coef}}x+{{t}})",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Multiply a by c first. Then find two numbers with that product and with sum {{b}}.",
+            "Split the middle term with those two numbers and factor by grouping."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In ax² + bx + c, the ac method looks for two numbers that multiply to…",
+            "options": [
+              "a·c",
+              "b"
+            ],
+            "correct": "a·c"
+          },
+          "generator": {
+            "parameters": {
+              "p": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "q": {
+                "type": "int",
+                "min": 1,
+                "max": 5
+              },
+              "r": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  0
+                ]
+              },
+              "t": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "a": "p * q",
+              "b": "p * t + q * r",
+              "c": "r * t",
+              "ac": "p * q * r * t",
+              "m1": "p * t",
+              "m2": "q * r"
+            },
+            "constraints": [
+              "gcd(p, r) == 1",
+              "gcd(q, t) == 1",
+              "p * t + q * r != 0",
+              "p * t != q * r",
+              "q < p"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "solutionReview": {
+            "headline": "a·c = {{ac}}; split the middle term and group.",
+            "reasoning": [
+              "a·c = {{a}} · {{c|paren}} = {{ac}}.",
+              "The two numbers are {{m1}} and {{m2}}: their product is {{ac}} and their sum is {{b}}.",
+              "Split the middle term: {{a}}x² {{m1|xterm}} {{m2|xterm}} {{c|signed}}. Group the terms in pairs and factor out the common binomial."
+            ],
+            "answerSummary": "({{p}}x {{r|signed}})({{q|coef}}x {{t|signed}})",
+            "commonError": "Two numbers with product {{c}} and sum {{b}} are the method for a leading coefficient of 1; here the product must be a·c."
+          }
+        },
+        {
+          "questionId": "fp-p-8",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Factor completely: $4x^2 + 10x + 6$ and $3x^2 + 26x + 35$.",
+          "responses": [
+            {
+              "id": "first",
+              "label": "4x² + 10x + 6 =",
+              "answer": "2(x+1)(2x+3)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "second",
+              "label": "3x² + 26x + 35 =",
+              "answer": "(3x+5)(x+7)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "4x² + 10x + 6 has a GCF of 2. Take it out first.",
+            "For 3x² + 26x + 35: a·c = 105. Which factor pair of 105 adds to 26?"
+          ],
+          "solutionReview": {
+            "headline": "GCF first, then the ac method.",
+            "reasoning": [
+              "4x² + 10x + 6 = 2(2x² + 5x + 3) = 2(2x + 3)(x + 1)",
+              "3x² + 26x + 35: 5 · 21 = 105 and 5 + 21 = 26, so 3x² + 5x + 21x + 35 = x(3x + 5) + 7(3x + 5)"
+            ],
+            "answerSummary": "2(x + 1)(2x + 3); (3x + 5)(x + 7)",
+            "commonError": "(2x + 2)(2x + 3) still has a common factor of 2 in its first factor."
+          },
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. 4x² + 10x + 6 has a factor common to all three terms. When do you take it out?",
+            "options": [
+              "Last, after factoring the trinomial",
+              "First, before anything else"
+            ],
+            "correct": "First, before anything else"
+          }
+        },
+        {
+          "questionId": "fp-p-9",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Factor: $x^2 + 12x + 36$, $9x^2 - 12x + 4$, and $9b^4 - 25$.",
+          "responses": [
+            {
+              "id": "a",
+              "label": "x² + 12x + 36 =",
+              "answer": "(x+6)^2",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "b",
+              "label": "9x² − 12x + 4 =",
+              "answer": "(3x-2)^2",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "c",
+              "label": "9b⁴ − 25 =",
+              "answer": "(3b^2+5)(3b^2-5)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Check: first and last terms perfect squares, middle term 2ab.",
+            "9b⁴ = (3b²)²."
+          ],
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. Is 9b⁴ a perfect square?",
+            "options": [
+              "Yes, it is (3b²)²",
+              "No, only a b² term can be a perfect square"
+            ],
+            "correct": "Yes, it is (3b²)²"
+          },
+          "solutionReview": {
+            "headline": "Test each pattern before factoring.",
+            "reasoning": [
+              "x² + 12x + 36: 36 = 6² and 12x = 2(x)(6), so it is (x + 6)².",
+              "9x² − 12x + 4: 9x² = (3x)², 4 = 2² and 12x = 2(3x)(2); the middle term is negative, so it is (3x − 2)².",
+              "9b⁴ − 25 = (3b²)² − 5², a difference of squares: (3b² + 5)(3b² − 5)."
+            ],
+            "answerSummary": "(x + 6)²; (3x − 2)²; (3b² + 5)(3b² − 5)",
+            "commonError": "(3x + 2)² has a middle term of +12x; 9x² − 12x + 4 has −12x, so the binomial is 3x − 2."
+          }
+        },
+        {
+          "questionId": "fp-p-10",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Factor completely: $54x^5 + 128x^2y^3$ and $8c^3 - g^3$.",
+          "responses": [
+            {
+              "id": "first",
+              "label": "54x⁵ + 128x²y³ =",
+              "answer": "2x^2(3x+4y)(9x^2-12xy+16y^2)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "second",
+              "label": "8c³ − g³ =",
+              "answer": "(2c-g)(4c^2+2cg+g^2)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "The GCF of 54x⁵ and 128x²y³ is 2x². Then 27x³ + 64y³ = (3x)³ + (4y)³.",
+            "a³ − b³ = (a − b)(a² + ab + b²) with a = 2c, b = g."
+          ],
+          "solutionReview": {
+            "headline": "GCF, then the cube patterns.",
+            "reasoning": [
+              "54x⁵ + 128x²y³ = 2x²(27x³ + 64y³)",
+              "(3x)³ + (4y)³ = (3x + 4y)(9x² − 12xy + 16y²)",
+              "(2c)³ − g³ = (2c − g)(4c² + 2cg + g²)"
+            ],
+            "answerSummary": "2x²(3x + 4y)(9x² − 12xy + 16y²); (2c − g)(4c² + 2cg + g²)"
+          },
+          "questionWeight": 1.5,
+          "scaffold": {
+            "prompt": "Let’s back up. In a³ − b³ = (a − b)(a² + ab + b²), what is the sign of ab in the trinomial?",
+            "options": [
+              "Minus",
+              "Plus"
+            ],
+            "correct": "Plus"
+          }
+        },
+        {
+          "questionId": "fp-p-11",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "sortIntoCategories"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Sort each polynomial by the pattern it fits. A polynomial that cannot be factored over the integers is prime.",
+          "categories": [
+            {
+              "id": "dots",
+              "label": "Difference of two squares"
+            },
+            {
+              "id": "pst",
+              "label": "Perfect square trinomial"
+            },
+            {
+              "id": "cubes",
+              "label": "Sum or difference of two cubes"
+            },
+            {
+              "id": "grouping",
+              "label": "Four terms: factor by grouping"
+            },
+            {
+              "id": "prime",
+              "label": "Prime"
+            }
+          ],
+          "items": [
+            {
+              "id": "a",
+              "label": "y² − 9"
+            },
+            {
+              "id": "b",
+              "label": "16a² + 40a + 25"
+            },
+            {
+              "id": "c",
+              "label": "27a³ + 1"
+            },
+            {
+              "id": "d",
+              "label": "x³ − 2x² + 3x − 6"
+            },
+            {
+              "id": "e",
+              "label": "9x² + 12x + 16"
+            },
+            {
+              "id": "f",
+              "label": "4x² − 81y²"
+            },
+            {
+              "id": "g",
+              "label": "x³ − 125"
+            },
+            {
+              "id": "h",
+              "label": "64x⁹ + 27y⁵"
+            },
+            {
+              "id": "i",
+              "label": "ab + 3a + 2b + 6"
+            },
+            {
+              "id": "j",
+              "label": "x² + 10x + 25"
+            }
+          ],
+          "validSchemes": [
+            {
+              "id": "structure",
+              "groups": [
+                {
+                  "id": "dots",
+                  "itemIds": [
+                    "a",
+                    "f"
+                  ]
+                },
+                {
+                  "id": "pst",
+                  "itemIds": [
+                    "b",
+                    "j"
+                  ]
+                },
+                {
+                  "id": "cubes",
+                  "itemIds": [
+                    "c",
+                    "g"
+                  ]
+                },
+                {
+                  "id": "grouping",
+                  "itemIds": [
+                    "d",
+                    "i"
+                  ]
+                },
+                {
+                  "id": "prime",
+                  "itemIds": [
+                    "e",
+                    "h"
+                  ]
+                }
+              ]
+            }
+          ],
+          "hints": [
+            "9x² + 12x + 16: is 12x equal to 2(3x)(4)?",
+            "y⁵ is not a perfect cube."
+          ],
+          "solutionReview": {
+            "headline": "Count the terms, then test each pattern.",
+            "reasoning": [
+              "Two terms: y² − 9 and 4x² − 81y² are differences of squares; 27a³ + 1 and x³ − 125 are a sum and a difference of cubes. 64x⁹ + 27y⁵ is not a sum of cubes, because y⁵ is not a perfect cube: it is prime.",
+              "Three terms: 16a² + 40a + 25 = (4a + 5)² and x² + 10x + 25 = (x + 5)². In 9x² + 12x + 16 the middle term would have to be 2(3x)(4) = 24x, and it does not factor at all: it is prime.",
+              "Four terms: x³ − 2x² + 3x − 6 = (x − 2)(x² + 3) and ab + 3a + 2b + 6 = (b + 3)(a + 2) factor by grouping."
+            ],
+            "answerSummary": "Squares: y² − 9, 4x² − 81y². Perfect square trinomials: 16a² + 40a + 25, x² + 10x + 25. Cubes: 27a³ + 1, x³ − 125. Grouping: x³ − 2x² + 3x − 6, ab + 3a + 2b + 6. Prime: 9x² + 12x + 16, 64x⁹ + 27y⁵.",
+            "commonError": "9x² + 12x + 16 starts and ends with perfect squares, but its middle term is not 2(3x)(4): it is not a perfect square trinomial."
+          }
+        },
+        {
+          "questionId": "fp-p-12",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Apply a technique more than once. Factor completely: $y^4 - 625$ and $256 - n^4$.",
+          "responses": [
+            {
+              "id": "first",
+              "label": "y⁴ − 625 =",
+              "answer": "(y^2+25)(y+5)(y-5)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "second",
+              "label": "256 − n⁴ =",
+              "answer": "(16+n^2)(4-n)(4+n)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "y⁴ − 625 = (y²)² − 25². One of the two factors is again a difference of squares.",
+            "y² + 25 is a sum of squares, which is prime."
+          ],
+          "questionWeight": 1.25,
+          "scaffold": {
+            "prompt": "Let’s back up. After y⁴ − 625 = (y² + 25)(y² − 25), which factor can still be factored over the integers?",
+            "options": [
+              "y² − 25",
+              "y² + 25"
+            ],
+            "correct": "y² − 25"
+          },
+          "solutionReview": {
+            "headline": "A difference of squares can hide inside another one.",
+            "reasoning": [
+              "y⁴ − 625 = (y²)² − 25² = (y² + 25)(y² − 25), and y² − 25 = (y + 5)(y − 5). y² + 25 is a sum of squares, which is prime.",
+              "256 − n⁴ = 16² − (n²)² = (16 + n²)(16 − n²), and 16 − n² = (4 − n)(4 + n)."
+            ],
+            "answerSummary": "(y² + 25)(y + 5)(y − 5); (16 + n²)(4 − n)(4 + n)",
+            "commonError": "Stopping at (y² + 25)(y² − 25) leaves y² − 25 unfactored, so the polynomial is not factored completely."
+          }
+        },
+        {
+          "questionId": "fp-p-13",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Apply different techniques. Factor completely: $9x^5 - 36x$ and $5x^3 + 25x^2 - 45x - 225$.",
+          "responses": [
+            {
+              "id": "first",
+              "label": "9x⁵ − 36x =",
+              "answer": "9x(x^2+2)(x^2-2)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "second",
+              "label": "5x³ + 25x² − 45x − 225 =",
+              "answer": "5(x+3)(x-3)(x+5)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "9x⁵ − 36x = 9x(x⁴ − 4), and x⁴ − 4 = (x²)² − 2².",
+            "x² − 2 cannot be factored over the integers.",
+            "After the GCF 5, group x³ + 5x² and −9x − 45."
+          ],
+          "questionWeight": 1.5,
+          "scaffold": {
+            "prompt": "Let’s back up. Can x² − 2 be factored over the integers?",
+            "options": [
+              "Yes, as (x + 1)(x − 2)",
+              "No, because 2 is not a perfect square"
+            ],
+            "correct": "No, because 2 is not a perfect square"
+          },
+          "solutionReview": {
+            "headline": "The GCF first, then the pattern.",
+            "reasoning": [
+              "9x⁵ − 36x = 9x(x⁴ − 4) = 9x(x² + 2)(x² − 2). Neither x² + 2 nor x² − 2 factors over the integers.",
+              "5x³ + 25x² − 45x − 225 = 5(x³ + 5x² − 9x − 45) = 5[x²(x + 5) − 9(x + 5)] = 5(x + 5)(x² − 9) = 5(x + 3)(x − 3)(x + 5)."
+            ],
+            "answerSummary": "9x(x² + 2)(x² − 2); 5(x + 3)(x − 3)(x + 5)",
+            "commonError": "x² − 2 is not (x + 1)(x − 2): that product is x² − x − 2."
+          }
+        },
+        {
+          "questionId": "fp-p-14",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Factor completely: ${{g}}x^2 - {{c}}$",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "Factored form",
+              "answer": "{{g}}(x+{{k}})(x-{{k}})",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Take out the GCF {{g}} first. What is left is a difference of squares."
+          ],
+          "generator": {
+            "parameters": {
+              "g": {
+                "type": "int",
+                "min": 2,
+                "max": 7
+              },
+              "k": {
+                "type": "int",
+                "min": 2,
+                "max": 12
+              }
+            },
+            "derived": {
+              "c": "g * k * k",
+              "k2": "k * k"
+            },
+            "constraints": []
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. After you take out the GCF, what kind of binomial is left?",
+            "options": [
+              "A difference of two squares",
+              "A sum of two squares"
+            ],
+            "correct": "A difference of two squares"
+          },
+          "solutionReview": {
+            "headline": "Take out {{g}}, then factor the difference of squares.",
+            "reasoning": [
+              "{{g}}x² − {{c}} = {{g}}(x² − {{k2}}).",
+              "x² − {{k2}} = x² − {{k}}², a difference of squares: (x + {{k}})(x − {{k}})."
+            ],
+            "answerSummary": "{{g}}(x + {{k}})(x − {{k}})",
+            "commonError": "Stopping at {{g}}(x² − {{k2}}) leaves a difference of squares unfactored."
+          }
+        },
+        {
+          "questionId": "fp-p-15",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 5,
+          "prompt": "Combine grouping with cubes. Factor completely: $x^2y^3 - 3xy^3 + 2y^3 + x^2z^3 - 3xz^3 + 2z^3$.",
+          "responses": [
+            {
+              "id": "grouped",
+              "label": "After grouping: (x² − 3x + 2)(…) =",
+              "answer": "(x^2-3x+2)(y^3+z^3)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "(x-2)(x-1)(y+z)(y^2-yz+z^2)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Group the three terms with y³ and the three terms with z³.",
+            "y³(x² − 3x + 2) + z³(x² − 3x + 2)",
+            "Both factors can still be factored."
+          ],
+          "questionWeight": 1.5,
+          "scaffold": {
+            "prompt": "Let’s back up. Which pattern factors y³ + z³?",
+            "options": [
+              "Difference of two squares",
+              "Sum of two cubes"
+            ],
+            "correct": "Sum of two cubes"
+          },
+          "solutionReview": {
+            "headline": "Group by the cubes, then factor both factors.",
+            "reasoning": [
+              "x²y³ − 3xy³ + 2y³ + x²z³ − 3xz³ + 2z³ = y³(x² − 3x + 2) + z³(x² − 3x + 2) = (x² − 3x + 2)(y³ + z³).",
+              "x² − 3x + 2 = (x − 2)(x − 1), and y³ + z³ = (y + z)(y² − yz + z²)."
+            ],
+            "answerSummary": "(x − 2)(x − 1)(y + z)(y² − yz + z²)",
+            "commonError": "y³ + z³ is not (y + z)³: a sum of cubes factors as (y + z)(y² − yz + z²)."
+          }
+        },
+        {
+          "questionId": "fp-p-16",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Write each polynomial in quadratic form, if possible.",
+          "responses": [
+            {
+              "id": "u1",
+              "label": "12x⁶ − 5x³ − 2 = 12u² − 5u − 2, where u =",
+              "answer": "x^3",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "u2",
+              "label": "7x⁸ + x⁴ − 4 = 7u² + u − 4, where u =",
+              "answer": "x^4",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "q3",
+              "label": "x⁴ − 2x³ − 1",
+              "type": "choice",
+              "options": [
+                "It cannot be written in quadratic form.",
+                "(x²)² − 2(x³) − 1",
+                "(x²)² − 2(x²) − 1",
+                "(x⁴)² − 2(x³) − 1"
+              ],
+              "answer": "It cannot be written in quadratic form."
+            }
+          ],
+          "hints": [
+            "The first exponent must be twice the middle exponent."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In 12x⁶ − 5x³ − 2, how does the exponent 6 compare with the exponent 3?",
+            "options": [
+              "It is twice it",
+              "It is three more"
+            ],
+            "correct": "It is twice it"
+          },
+          "solutionReview": {
+            "headline": "Quadratic form needs the first exponent to be twice the middle one.",
+            "reasoning": [
+              "12x⁶ − 5x³ − 2: 6 = 2 · 3, so u = x³.",
+              "7x⁸ + x⁴ − 4: 8 = 2 · 4, so u = x⁴.",
+              "x⁴ − 2x³ − 1: 4 is not 2 · 3, so it cannot be written in quadratic form."
+            ],
+            "answerSummary": "u = x³; u = x⁴; not possible",
+            "commonError": "u = x² does not work for x⁴ − 2x³ − 1: the middle term would have to contain x², not x³."
+          }
+        }
+      ]
+    },
+    {
+      "id": "dol",
+      "role": "dol",
+      "title": "DOL — Factoring Polynomials",
+      "recommendedMinutes": 7,
+      "questions": [
+        {
+          "questionId": "fp-dol-1",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Factor completely: ${{a}}x^2 {{b|signed}}x {{c|signed}}$",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "{{g}}(x+{{m}})(x+{{n}})",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "g": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "m": {
+                "type": "int",
+                "min": -8,
+                "max": 8,
+                "exclude": [
+                  0
+                ]
+              },
+              "n": {
+                "type": "int",
+                "min": -8,
+                "max": 8,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "a": "g",
+              "b": "g * (m + n)",
+              "c": "g * m * n",
+              "mn": "m + n",
+              "p": "m * n"
+            },
+            "constraints": [
+              "m < n",
+              "m + n != 0"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "solutionReview": {
+            "headline": "Take out the GCF {{g}}, then factor the trinomial.",
+            "reasoning": [
+              "{{a}}x² {{b|signed}}x {{c|signed}} = {{g}}(x² {{mn|xterm}} {{p|signed}}).",
+              "Two numbers with product {{p}} and sum {{mn}} are {{m}} and {{n}}.",
+              "So the polynomial is {{g}}(x {{m|signed}})(x {{n|signed}})."
+            ],
+            "answerSummary": "{{g}}(x {{m|signed}})(x {{n|signed}})",
+            "commonError": "Leaving the GCF {{g}} inside the parentheses: the polynomial is then not factored completely."
+          }
+        },
+        {
+          "questionId": "fp-dol-2",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Factor completely: ${{g|coef}}x^3 {{k|signed}}$",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "{{g|coef}}(x+{{sc}})(x^2-{{sc}}x+{{c2}})",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "g": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "c": {
+                "type": "int",
+                "min": 2,
+                "max": 8
+              },
+              "sigma": {
+                "type": "choice",
+                "values": [
+                  -1,
+                  1
+                ]
+              }
+            },
+            "derived": {
+              "sc": "sigma * c",
+              "c2": "c * c",
+              "k": "g * sigma * c * c * c",
+              "sc3": "sigma * c * c * c",
+              "nsc": "-sigma * c"
+            },
+            "constraints": []
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "solutionReview": {
+            "headline": "Take out the GCF, then use the cube pattern.",
+            "reasoning": [
+              "Take out the GCF: {{g|coef}}x³ {{k|signed}} = {{g|coef}}(x³ {{sc3|signed}}).",
+              "x³ {{sc3|signed}} = x³ {{sigma|sign}} {{c}}³. Use a³ ± b³ = (a ± b)(a² ∓ ab + b²) with a = x and b = {{c}}.",
+              "So x³ {{sc3|signed}} = (x {{sc|signed}})(x² {{nsc|xterm}} + {{c2}})."
+            ],
+            "answerSummary": "{{g|coef}}(x {{sc|signed}})(x² {{nsc|xterm}} + {{c2}})",
+            "commonError": "The middle sign of the trinomial is the opposite of the binomial’s sign, and the trinomial does not factor any further."
+          }
+        }
+      ]
+    }
+  ]
+}

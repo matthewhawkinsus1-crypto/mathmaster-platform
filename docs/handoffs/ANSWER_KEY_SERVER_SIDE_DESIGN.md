@@ -56,7 +56,7 @@ I ran all 16 lesson files in `teacher-import-jsons/` (11) and `docs/assignments/
 | **DOL** | **45** | **30** | 15 | 0 | **44** |
 | **Total** | **307** | **163 (53%)** | 144 | 71 | 298 |
 
-¹ `serverResponseGradingSupport(deliveredQuestionForGrading(q))`. The 9 that are not supported "as stored" are 8 `family-template` slots (representationBridge / representationMatch) and 1 `generated-question`. Ingestion grades family slots from the delivery pin (§5 of `SERVER_GRADING_COVERAGE.md`), so in practice they are server-graded too.
+¹ `serverResponseGradingSupport(deliveredQuestionForGrading(q))`. The 9 that are not supported "as stored" are 8 `family-template` slots (representationBridge / representationMatch) and 1 `generated-question`. Ingestion grades family slots from the delivery pin (§5 of `SERVER_GRADING_COVERAGE.md`), so in practice they are server-graded too. The `generated-question` is itself the assignment's own template (`q_practice-absolute-value-focus_3_8`, `questionFamily.scope: "assignment"`), graded from its pin in the same way; the exposure report counts it as a family slot.
 
 More detail on the stored keys:
 - **117 questions** carry **338** `answerFields[].answer` values.
