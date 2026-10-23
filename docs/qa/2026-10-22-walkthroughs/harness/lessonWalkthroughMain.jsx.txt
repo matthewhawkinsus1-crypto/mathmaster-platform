@@ -1,0 +1,157 @@
+// ANY teacher-import lesson, as a student receives it (walkthrough harness).
+//
+//   ?lesson=<path under teacher-import-jsons>   e.g. algebra1-dol3/Algebra1_DOL3_Review.json
+//   ?q=<id>      open on one question
+//   ?run=<name>  a separate student, so drafts from one walkthrough never leak
+//
+// Same chain as a teacher import + publish (parse -> preflight review ->
+// preflight model -> validateAssignmentQuestions -> rebuildV5SectionsFromQuestions),
+// and QuestionEngine gets what App.jsx gives it: the question record kept by
+// recordQuestionAttempt, the section's effective activity policy and attempts,
+// Guided Notes (Classwork automatic), the assignment's calculator setting,
+// "Practise one like this" on Classwork/Practice, dolMode on the DOL, and
+// next-question navigation. Drafts live in localStorage; verdicts come from the
+// shared graders in the browser. window.__walk is a READ-ONLY bridge.
+import React, { useEffect, useMemo, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import QuestionEngine from '../../src/QuestionEngine.jsx';
+import { buildQuestionDraftKey } from '../../src/questionDraftStorage.js';
+import { recordQuestionAttempt, resolveQuestionMaximumAttempts } from '../../src/attemptPolicy.js';
+import { parseAssignmentBlueprintText, validateAssignmentQuestions } from '../../src/assignmentBlueprint.js';
+import { buildPreflightReviewedAssignmentV5 } from '../../src/components/teacher/preflightV5Review.js';
+import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/assignmentV5PreflightModel.js';
+import { flattenV5Sections, rebuildV5SectionsFromQuestions } from '../../src/platform/contract/assignmentSchemaV5.js';
+import { getEffectiveActivityPolicy } from '../../src/platform/policies/activityPolicies';
+import { MathfieldElement } from 'mathlive';
+import '../../src/index.css';
+import '../../src/App.css';
+
+MathfieldElement.fontsDirectory = '/node_modules/mathlive/fonts';
+
+const LESSONS = import.meta.glob('../../teacher-import-jsons/**/*.json', { query: '?raw', import: 'default' });
+const params = new URLSearchParams(window.location.search);
+const lessonPath = params.get('lesson') || '';
+const loader = LESSONS[`../../teacher-import-jsons/${lessonPath}`];
+const STUDENT = `walk-student-${params.get('run') || 'a'}`;
+const ASSIGNMENT = `walk-${lessonPath.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`;
+const tag = (role) => ({ warmup: 'WU', classwork: 'CW', practice: 'PR', dol: 'DOL' }[role] || 'Q');
+
+const compile = (text) => {
+  const parsed = parseAssignmentBlueprintText(text);
+  const model = buildAssignmentV5PreflightModel(buildPreflightReviewedAssignmentV5(parsed.assignmentV5, {}));
+  if (!model.isValid) throw new Error(`Preflight rejected the assignment:\n${model.errors.join('\n')}`);
+  const questions = validateAssignmentQuestions(flattenV5Sections(model.assignmentV5), {});
+  return {
+    title: model.assignmentV5?.assignment?.title || '',
+    calculator: model.assignmentV5?.toolPolicy?.calculator || model.assignmentV5?.assignment?.toolPolicy?.calculator || null,
+    sections: rebuildV5SectionsFromQuestions(model.assignmentV5, questions),
+    preflight: model,
+  };
+};
+
+async function start() {
+  if (!loader) {
+    document.getElementById('root').textContent = `No lesson ${lessonPath}. Known: ${Object.keys(LESSONS).join(', ')}`;
+    return;
+  }
+  const compiled = compile(await loader());
+  const allQuestions = compiled.sections.flatMap((section, sectionIndex) => section.questions.map((question, index) => ({ section, sectionIndex, question, index })));
+  const startId = params.get('q');
+  let current = Math.max(0, allQuestions.findIndex((entry) => entry.question.questionId === startId));
+  const listeners = new Set();
+  const notify = () => listeners.forEach((listen) => listen(current));
+  const draftKeyFor = (flatIndex) => buildQuestionDraftKey({ studentId: STUDENT, assignmentId: ASSIGNMENT, questionIndex: flatIndex, variantIndex: 0, sessionMode: 'graded' });
+  const grades = [];
+  const RECORDS_KEY = `walk-harness-records:${ASSIGNMENT}:${STUDENT}`;
+  const records = (() => { try { return JSON.parse(window.localStorage.getItem(RECORDS_KEY)) || {}; } catch { return {}; } })();
+  const errors = [];
+  window.addEventListener('error', (event) => errors.push(String(event.message)));
+  window.addEventListener('unhandledrejection', (event) => errors.push(String(event.reason?.message || event.reason)));
+
+  function Harness() {
+    const [position, setPosition] = useState(current);
+    useEffect(() => { listeners.add(setPosition); return () => listeners.delete(setPosition); }, []);
+    const { section, question, index } = allQuestions[position];
+    const draftKey = useMemo(() => draftKeyFor(position), [position]);
+    const [, setRecordVersion] = useState(0);
+    const record = records[question.questionId] || null;
+    const dol = section.role === 'dol';
+    const policy = getEffectiveActivityPolicy(section.role);
+    const guidedNotesMode = { classwork: 'automatic', practice: 'off' }[section.role] || 'off';
+    const maximumAttempts = resolveQuestionMaximumAttempts({ question, maximumAttempts: policy.attempts, activityPolicy: policy });
+    const next = allQuestions[position + 1];
+    const sectionCount = section.questions.length;
+    return (
+      <div style={{ maxWidth: 1180, margin: '0 auto', padding: '12px 16px' }} data-section={section.id} data-role={section.role} data-question-id={question.questionId}>
+        <h1 style={{ fontSize: 16, margin: '0 0 8px' }}>{compiled.title}</h1>
+        <nav aria-label="Assignment questions" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginBottom: 10 }}>
+          {allQuestions.map((entry, flat) => (
+            <button key={entry.question.questionId} type="button" data-nav={entry.question.questionId}
+              onClick={() => { current = flat; notify(); }} aria-current={flat === position ? 'step' : undefined}
+              style={{ padding: '6px 10px', borderRadius: 999, border: '1px solid #b8cdf0', background: flat === position ? '#174ea6' : '#fff', color: flat === position ? '#fff' : '#174ea6', fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>
+              {`${tag(entry.section.role)} ${entry.index + 1}`}
+            </button>
+          ))}
+        </nav>
+        <div style={{ fontSize: 11, fontWeight: 900, color: '#174ea6', letterSpacing: '.06em', margin: '0 0 8px' }}>{String(section.title || section.role).toUpperCase()}</div>
+        <QuestionEngine
+          key={`${ASSIGNMENT}-${question.questionId}-draft0`}
+          question={question}
+          questionRecord={record}
+          generationKey={`${ASSIGNMENT}|${STUDENT}|${question.questionId}|variant:0`}
+          onGrade={(isCorrect, details, parts, supportUsage, responseKey, meta) => {
+            grades.push({ questionId: question.questionId, isCorrect, details, parts, partialCreditPercent: meta?.partialCreditPercent ?? null, at: Date.now() });
+            const outcome = recordQuestionAttempt({
+              record: records[question.questionId], isCorrect, questionDetails: details, parts, supportUsage, responseKey,
+              partialCreditPercent: meta?.partialCreditPercent, maximumAttempts,
+            });
+            records[question.questionId] = outcome.record;
+            try { window.localStorage.setItem(RECORDS_KEY, JSON.stringify(records)); } catch { /* page only */ }
+            setRecordVersion((version) => version + 1);
+            return outcome.result;
+          }}
+          onStepGrade={() => {}}
+          studentProfile={{}}
+          guidedMode={['classwork', 'practice'].includes(section.role) && guidedNotesMode !== 'off'}
+          guidedNotesMode={guidedNotesMode}
+          dolMode={dol}
+          maximumAttempts={maximumAttempts}
+          activityRole={section.role}
+          practiceLikeThisAllowed={['classwork', 'practice'].includes(section.role)}
+          activityPolicy={policy}
+          assignmentCalculatorMode={compiled.calculator}
+          draftKey={draftKey}
+          assignmentId={ASSIGNMENT}
+          executionScope="student"
+          onNextQuestion={next ? () => { current = position + 1; notify(); } : null}
+          nextQuestionLabel={next ? `${tag(next.section.role)} ${next.index + 1}` : ''}
+          sectionLabel={section.title || section.role}
+          sectionQuestionCount={sectionCount}
+        />
+      </div>
+    );
+  }
+
+  const readDrafts = (prefix) => {
+    const drafts = {};
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const key = window.localStorage.key(i);
+      if (key && key.includes(prefix)) { try { drafts[key] = JSON.parse(window.localStorage.getItem(key)); } catch { drafts[key] = window.localStorage.getItem(key); } }
+    }
+    return drafts;
+  };
+  window.__walk = {
+    ids: () => allQuestions.map((entry) => entry.question.questionId),
+    sections: () => compiled.sections.map((s) => ({ id: s.id, role: s.role, title: s.title, count: s.questions.length })),
+    go: (questionId) => { const flat = allQuestions.findIndex((entry) => entry.question.questionId === questionId); if (flat === -1) return false; current = flat; notify(); return true; },
+    drafts: () => readDrafts(`${STUDENT}:${ASSIGNMENT}`),
+    grades: () => JSON.parse(JSON.stringify(grades)),
+    records: () => JSON.parse(JSON.stringify(records)),
+    question: (questionId) => allQuestions.find((entry) => entry.question.questionId === questionId)?.question || null,
+    preflight: () => ({ isValid: compiled.preflight.isValid, errors: compiled.preflight.errors, warnings: compiled.preflight.warnings }),
+    errors: () => [...errors],
+  };
+  createRoot(document.getElementById('root')).render(<Harness />);
+}
+
+start().catch((error) => { document.getElementById('root').textContent = `Harness failed: ${error.message}`; window.__walkError = String(error.stack || error); });
