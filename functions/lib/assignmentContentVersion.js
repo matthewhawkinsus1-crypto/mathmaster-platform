@@ -85,6 +85,14 @@ async function upgradePolicy() {
   return upgradePolicyModule;
 }
 
+let recoveryContentModule = null;
+async function recoveryContent() {
+  if (!recoveryContentModule) {
+    recoveryContentModule = await import("../shared/recoveryContent.mjs");
+  }
+  return recoveryContentModule;
+}
+
 function questionRows(assignment = {}) {
   const rows = [];
   (Array.isArray(assignment.sections) ? assignment.sections : []).forEach((section, sectionIndex) => {
@@ -199,9 +207,10 @@ async function buildContentUpgradePlan({ liveAssignment, targetAssignment } = {}
   changes.forEach((change) => { counts[change.classification] += 1; });
 
   // The Recovery bindings this upgrade proposes, certified at commit against
-  // the live questions (recoveryContentPlan.mjs): each recovery-capability
-  // change's family, and the target release's own recoveryContent for a
-  // question it leaves as it is.
+  // the questions as the upgrade leaves them (recoveryContentPlan.mjs): each
+  // recovery-capability change's family, the target release's own
+  // recoveryContent for a question it leaves as it is, and a fresh
+  // certification of every live binding whose question the upgrade edits.
   const KEEPS_LIVE_RECOVERY = new Set(["unchanged", "clarificationOnly", "graphViewportRepair", "recoveryCapability"]);
   const targetBindings = targetAssignment?.recoveryContent?.bindings && typeof targetAssignment.recoveryContent.bindings === "object"
     ? targetAssignment.recoveryContent.bindings
@@ -209,12 +218,30 @@ async function buildContentUpgradePlan({ liveAssignment, targetAssignment } = {}
   const liveBindings = liveAssignment?.recoveryContent?.bindings && typeof liveAssignment.recoveryContent.bindings === "object"
     ? liveAssignment.recoveryContent.bindings
     : {};
+  const { recoverySourceSignature } = await recoveryContent();
   const recoveryProposals = {};
   changes.forEach((change) => {
+    const live = liveBindings[change.questionId];
+    const targetFamily = targetBindings[change.questionId]?.questionFamily;
     if (change.classification === "recoveryCapability" && change.recoveryFamily) {
       recoveryProposals[change.questionId] = { questionFamily: change.recoveryFamily };
-    } else if (KEEPS_LIVE_RECOVERY.has(change.classification) && targetBindings[change.questionId]?.questionFamily && !liveBindings[change.questionId]) {
-      recoveryProposals[change.questionId] = { questionFamily: targetBindings[change.questionId].questionFamily };
+    } else if (!live) {
+      if (KEEPS_LIVE_RECOVERY.has(change.classification) && targetFamily) {
+        recoveryProposals[change.questionId] = { questionFamily: targetFamily };
+      }
+    } else if (change.classification !== "fundamental" && live.questionFamily) {
+      // A binding is for one version of its question (recoveryContent.mjs,
+      // sourceSignature). An upgrade that edits a bound question in place
+      // would leave it stale, and students without its Recovery with no
+      // warning (Codex P1 on #510): certify it again against the question as
+      // the upgrade leaves it (buildUpgradedAssignment), in the target
+      // release's family when it names one. A retired question needs none.
+      const leaves = ["unchanged", "recoveryCapability"].includes(change.classification)
+        ? change.beforeQuestion
+        : change.afterQuestion || change.beforeQuestion;
+      if (recoverySourceSignature(leaves) !== live.sourceSignature) {
+        recoveryProposals[change.questionId] = { questionFamily: targetFamily || live.questionFamily };
+      }
     }
   });
 
