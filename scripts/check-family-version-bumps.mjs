@@ -12,9 +12,12 @@
  * WHAT. For every bank item in both the base commit and the working tree with
  * the same id and the same version (`familyVersion`, else `version`), each
  * response field present in both must ask for the same kind of answer: the
- * same `inputProfile`, `answerFormat` and `equivalence`, read from the stored
- * (compiled) document. A key's text may change at the same version (the sweep
- * checks the old spelling is still accepted); its kind may not.
+ * same `inputProfile`, `answerFormat`, `equivalence`, `notation` and
+ * `toolProfile`, read from the stored (compiled) document. A variant with its
+ * own responseFields asks its own questions, so each of its fields is
+ * compared too (CI04, Codex on #507: 1,024 such variants were never read). A
+ * key's text may change at the same version (the sweep checks the old
+ * spelling is still accepted); its kind may not.
  *
  *   node scripts/check-family-version-bumps.mjs --base <commit>
  *
@@ -38,11 +41,30 @@ export const BANK_DIRS = Object.freeze([
 
 export const documentsIn = (parsed) => (Array.isArray(parsed) ? parsed : (parsed?.documents || parsed?.items || parsed?.questions || []));
 export const versionOf = (item) => item?.familyVersion ?? item?.version ?? null;
+// Keys sorted, so a toolProfile written in another order is the same value.
+const canonical = (value) => {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));
+};
 /** What kind of answer a field asks for. */
-export const fieldKind = (field) => JSON.stringify([field?.inputProfile || null, field?.answerFormat || null, field?.equivalence || null]);
-const fieldsOf = (document) => new Map((Array.isArray(document?.responseFields) ? document.responseFields : [])
-  .filter((field) => field && field.id !== undefined)
-  .map((field) => [String(field.id), field]));
+export const fieldKind = (field) => JSON.stringify(canonical([
+  field?.inputProfile || null, field?.answerFormat || null, field?.equivalence || null,
+  field?.notation ?? null, field?.toolProfile ?? null,
+]));
+// The document's own fields by id, and each variant's own fields as
+// `variants[<coverageKey or position>].<id>`.
+const fieldsOf = (document) => {
+  const fields = new Map();
+  const add = (prefix, list) => (Array.isArray(list) ? list : [])
+    .filter((field) => field && field.id !== undefined)
+    .forEach((field) => fields.set(`${prefix}${field.id}`, field));
+  add('', document?.responseFields);
+  (Array.isArray(document?.variants) ? document.variants : []).forEach((variant, index) => {
+    if (Array.isArray(variant?.responseFields)) add(`variants[${variant.coverageKey ?? index}].`, variant.responseFields);
+  });
+  return fields;
+};
 
 /**
  * Every field of `file` re-asked as another kind of answer at the same

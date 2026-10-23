@@ -57,6 +57,18 @@ test('the kind is read from the stored document the compiler makes', () => {
   assert.equal(violations.length, 1);
 });
 
+test('a variant\'s own fields, notation and toolProfile are checked too (CI04, Codex on #507)', () => {
+  const item = (variantField, extra = {}) => ({ id: 'v', familyVersion: 2, responseFields: [field()], variants: [{ coverageKey: 'core', responseFields: [variantField] }], ...extra });
+  const reasked = familyVersionViolations({ file: 'bank.json', baseDocuments: [item(field())], headDocuments: [item(field({ inputProfile: 'inequality' }))] });
+  assert.deepEqual(reasked.map((violation) => violation.field), ['variants[core].answer'], 'a variant re-asked as another kind');
+  assert.equal(familyVersionViolations({ file: 'bank.json', baseDocuments: [item(field())], headDocuments: [item(field({ inputProfile: 'inequality' }), { familyVersion: 3 })] }).length, 0, 'unless the version moved');
+  const notation = familyVersionViolations({ file: 'bank.json', baseDocuments: [{ id: 'n', familyVersion: 1, responseFields: [field()] }], headDocuments: [{ id: 'n', familyVersion: 1, responseFields: [field({ notation: 'interval' })] }] });
+  assert.equal(notation.length, 1, 'a notation change grades differently');
+  const profile = (toolProfile) => ({ id: 't', familyVersion: 1, responseFields: [field({ toolProfile })] });
+  assert.equal(familyVersionViolations({ file: 'bank.json', baseDocuments: [profile({ keypad: 'algebra', calculator: 'none' })], headDocuments: [profile({ calculator: 'none', keypad: 'algebra' })] }).length, 0, 'the same toolProfile in another key order is the same kind');
+  assert.equal(familyVersionViolations({ file: 'bank.json', baseDocuments: [profile({ keypad: 'algebra' })], headDocuments: [profile({ keypad: 'number' })] }).length, 1);
+});
+
 test('CI runs the check against the pull request\'s base on every change to a bank', () => {
   const workflow = readFileSync(new URL('../../.github/workflows/answer-acceptance-audit.yml', import.meta.url), 'utf8');
   for (const changed of ['functions/seeds/pathQuestionBank/algebra1_pathQuestionBank_seed.json', 'functions/seeds/secureAssessments/unit3.json', 'scripts/check-family-version-bumps.mjs']) {
