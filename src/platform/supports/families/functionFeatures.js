@@ -1492,6 +1492,13 @@ const tableHints = (model, guard) => {
   return out;
 };
 
+/**
+ * A build-the-model item (fullBridge) that asks for the terms and no rule:
+ * the student is given the rule, usually recursively, and builds the table.
+ */
+const buildsTermsOnly = (model) => model?.mode === 'fullBridge'
+  && !list(model.actions).some((action) => ['writeExplicit', 'writeRecursive'].includes(action));
+
 const shownTerms = (spec, count = 3) => {
   try { return Array.from({ length: count }, (_, index) => sequenceTerm(spec, index + 1)); } catch { return []; }
 };
@@ -1521,6 +1528,16 @@ const sequenceHints = (model, guard) => {
       : firstSafe(guard,
         `Find the step from two neighbouring terms you can see, then step forward or back to fill position ${model.missingIndex}.`,
         'Find the step from two neighbouring terms you can see, then step forward or back to fill the gap.'));
+    return out;
+  }
+  // BUILDING THE TERMS FROM A RECURSIVE RULE (A.12C). A build-the-model item
+  // that asks for no rule hands the student the rule and asks for the terms:
+  // its hints are about applying the rule one term at a time, not writing one.
+  if (buildsTermsOnly(model)) {
+    out.push('A recursive rule builds each term from the term just before it: start at the first term, apply the rule once to get the second term, then apply it again for the third.');
+    out.push('Fill the table in order, one term at a time: each output comes from the output just before it.');
+    if (model.actions.includes('analyzeSequence')) out.push(stepHint);
+    if (model.actions.includes('plotSequence')) out.push('Plot each term as the point (n, aₙ): its position n across and its value up. Leave the points unconnected, because n takes only whole-number positions.');
     return out;
   }
   if (model.mode === 'partialSum') {
@@ -2295,7 +2312,15 @@ const sequenceSibling = (question, model, guard, seed) => {
     ? (Math.abs(Math.trunc(Number(seed) || 0)) % 2 ? 'geometric' : 'arithmetic')
     : sameKind;
   const candidates = [];
-  if (kind === 'arithmetic') {
+  if (buildsTermsOnly(model)) {
+    // Its five terms are written out in full, so the pool is wide enough that
+    // some rule always misses the question's own terms, and seeds differ.
+    if (kind === 'arithmetic') {
+      for (const first of [2, 3, 6, 8, 10, 12, -4, -2]) for (const difference of [3, 5, 6, 7, 8, -3, -6]) candidates.push({ kind, first, difference, n: 5 });
+    } else {
+      for (const first of [2, 3, 5, 6]) for (const ratio of [2, 3, -2]) candidates.push({ kind, first, ratio, n: 5 });
+    }
+  } else if (kind === 'arithmetic') {
     for (const first of [5, 6, 9, 11, -7]) for (const difference of [4, 6, 7, -5]) for (const n of [9, 10, 12]) candidates.push({ kind, first, difference, n });
   } else {
     for (const first of [5, 6, 7]) for (const ratio of [3, -2, 4]) for (const n of [5, 6]) candidates.push({ kind, first, ratio, n });
@@ -2346,6 +2371,20 @@ const sequenceSibling = (question, model, guard, seed) => {
       steps.push(`Adding them: ${all.map((value, index) => (index ? signed(value) : dec(value))).join(' + ')} = ${dec(sum)}.`);
       prompt = `For the sequence ${terms.map(dec).join(', ')}, …, find the ${ordinal(count)} term and the sum of the first ${count} terms.`;
       answer = `${ordinal(count)} term ${dec(all[count - 1])}; sum ${dec(sum)}`;
+    } else if (buildsTermsOnly(model)) {
+      // The terms are built from the rule, so the sibling hands over a rule
+      // and builds five terms with it. Positions are subscripts (a₂, not
+      // f(2)): the guard reads a digit in "f(2)" as the number 2.
+      const count = 5;
+      const all = listTerms(spec, count);
+      const recursive = arithmetic ? `aₙ = aₙ₋₁ ${change < 0 ? '-' : '+'} ${dec(Math.abs(change))}` : `aₙ = ${signed(change)} · aₙ₋₁`;
+      const apply = (value) => (arithmetic ? `${dec(value)} ${change < 0 ? '-' : '+'} ${dec(Math.abs(change))}` : `${dec(value)} · ${signed(change)}`);
+      steps.length = 0;
+      steps.push(`Start with the first term: ${dec(all[0])}.`);
+      steps.push(`Apply the rule to each term to get the next one: ${all.slice(0, -1).map((value, index) => `${apply(value)} = ${dec(all[index + 1])}`).join(', ')}.`);
+      if (model.actions.includes('analyzeSequence')) steps.push(`Each term comes from the one before it the same way, so the terms have ${stepWord}.`);
+      prompt = `A sequence has a₁ = ${dec(spec.first)} and ${recursive} for n ≥ 2. Use the recursive rule to find the first five terms.`;
+      answer = all.map(dec).join(', ');
     } else {
       const explicit = arithmetic ? `aₙ = ${dec(spec.first)} + (n - 1)·${signed(change)}` : `aₙ = ${dec(spec.first)} · ${signed(change)}^(n - 1)`;
       const recursive = arithmetic ? `aₙ = aₙ₋₁ ${change < 0 ? '-' : '+'} ${dec(Math.abs(change))}` : `aₙ = ${signed(change)} · aₙ₋₁`;

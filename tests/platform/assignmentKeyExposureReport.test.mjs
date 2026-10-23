@@ -15,8 +15,9 @@ import { executableSource } from './helpers/sourceContract.mjs';
  * (scripts/report-assignment-key-exposure.mjs). Proven here:
  *   - each column means what it says, on hand-made questions, variants and
  *     nested stages included;
- *   - on the repository's own 16 lesson files it reproduces the design's
- *     independent count (ANSWER_KEY_SERVER_SIDE_DESIGN.md §1.2) exactly;
+ *   - on the 16 lesson files the design counted (read from its own per-file
+ *     table) it reproduces the design's independent count
+ *     (ANSWER_KEY_SERVER_SIDE_DESIGN.md §1.2) exactly;
  *   - run against a database that throws on any write, it writes nothing and
  *     returns the documented shape, per assignment and section role;
  *   - the script has no write mode and its output goes to release-reports/,
@@ -94,9 +95,49 @@ const lessonFiles = () => {
   return files;
 };
 
-test('on the 16 lesson files it reproduces the design\'s count (§1.2): questions, stored keys, server-gradable, family slots', () => {
-  const files = lessonFiles();
-  assert.equal(files.length, 16, 'the design counted these 16 files; a new file changes the expected table');
+// The files the design counted, as its own per-file table (§1.2) lists them.
+// A lesson added since is not part of a count taken before it existed; every
+// file the design counted must still be one of the repository's lessons.
+const designCountedFiles = () => {
+  const design = readFileSync(path.join(repo, 'docs/handoffs/ANSWER_KEY_SERVER_SIDE_DESIGN.md'), 'utf8');
+  const start = design.indexOf('### 1.2');
+  assert.notEqual(start, -1, 'the design still has its §1.2 count');
+  const section = design.slice(start, design.indexOf('\n### ', start + 1));
+  return [...section.matchAll(/^\| `([^`]+\.json)` \|/gm)]
+    .map(([, name]) => path.join(repo, name.startsWith('docs/') ? name : path.join('teacher-import-jsons', name)));
+};
+
+// Lessons added after the design counted its 16 files, each with its own rows.
+const AFTER_THE_DESIGN = Object.freeze({
+  'L1_Operations_on_Polynomials.json': {
+    warmup: { questions: 3, withStoredKey: 3, serverGradable: 3, familySlots: 0, deviceOnly: 0, withHints: 3 },
+    classwork: { questions: 11, withStoredKey: 7, serverGradable: 11, familySlots: 0, deviceOnly: 0, withHints: 11 },
+    practice: { questions: 15, withStoredKey: 12, serverGradable: 15, familySlots: 0, deviceOnly: 0, withHints: 15 },
+    dol: { questions: 3, withStoredKey: 1, serverGradable: 3, familySlots: 0, deviceOnly: 0, withHints: 0 },
+  },
+  // The Workshop's long and synthetic division items keep their key in the
+  // tool's own fields (dividend, divisor), not a stored answer.
+  'L2_Dividing_Polynomials.json': {
+    warmup: { questions: 3, withStoredKey: 3, serverGradable: 3, familySlots: 0, deviceOnly: 0, withHints: 3 },
+    classwork: { questions: 11, withStoredKey: 4, serverGradable: 11, familySlots: 0, deviceOnly: 0, withHints: 11 },
+    practice: { questions: 16, withStoredKey: 10, serverGradable: 16, familySlots: 0, deviceOnly: 0, withHints: 16 },
+    dol: { questions: 3, withStoredKey: 1, serverGradable: 3, familySlots: 0, deviceOnly: 0, withHints: 0 },
+  },
+  // The Algebra II Honors DOL #2 review's Warm-Up, Practice and DOL items are
+  // assignment-local Question Families. The stored template carries its
+  // `generator`, which this report counts as device-only (generated-question);
+  // ingestion marks each student's instance, rebuilt from its delivery pin
+  // (questionFamilyGrading.mjs). Its two family slots are the platform-family
+  // Matrix Lab systems items.
+  'District_DOL2_Absolute_Value_and_3x3_Systems_Review.json': {
+    warmup: { questions: 4, withStoredKey: 4, serverGradable: 0, familySlots: 0, deviceOnly: 4, withHints: 4 },
+    classwork: { questions: 11, withStoredKey: 8, serverGradable: 11, familySlots: 0, deviceOnly: 0, withHints: 11 },
+    practice: { questions: 18, withStoredKey: 17, serverGradable: 0, familySlots: 1, deviceOnly: 17, withHints: 18 },
+    dol: { questions: 7, withStoredKey: 6, serverGradable: 0, familySlots: 1, deviceOnly: 6, withHints: 0 },
+  },
+});
+
+const exposureByRole = (files) => {
   const byRole = {};
   files.forEach((file) => {
     const { assignmentV5 } = parseAssignmentBlueprintText(readFileSync(file, 'utf8'));
@@ -105,6 +146,28 @@ test('on the 16 lesson files it reproduces the design\'s count (§1.2): question
       Object.keys(row).forEach((key) => { row[key] += section[key]; });
     });
   });
+  return byRole;
+};
+
+test('lessons added after the design: each has its own expected rows, and every Warm-Up and DOL item is server-gradable', () => {
+  const files = lessonFiles().filter((file) => path.basename(file) in AFTER_THE_DESIGN);
+  assert.deepEqual(files.map((file) => path.basename(file)).sort(), Object.keys(AFTER_THE_DESIGN).sort());
+  files.forEach((file) => {
+    const byRole = exposureByRole([file]);
+    assert.deepEqual(byRole, AFTER_THE_DESIGN[path.basename(file)], path.basename(file));
+    // A generated Question Family is graded per student from its delivery pin
+    // at ingestion, not as stored, so the report counts it device-only.
+    ['warmup', 'dol'].filter((role) => byRole[role].deviceOnly === 0)
+      .forEach((role) => assert.equal(byRole[role].serverGradable, byRole[role].questions, `${path.basename(file)} ${role}`));
+  });
+});
+
+test('on the 16 lesson files it reproduces the design\'s count (§1.2): questions, stored keys, server-gradable, family slots', () => {
+  const files = designCountedFiles();
+  assert.equal(files.length, 16, 'the design counted 16 files');
+  const lessons = new Set(lessonFiles());
+  files.forEach((file) => assert.ok(lessons.has(file), `${path.relative(repo, file)} is still a lesson file`));
+  const byRole = exposureByRole(files);
   // Design §1.2: Q / stored key / has hints / server can grade as stored.
   // Hints are one higher in Practice: the report also counts `supportHints`
   // (design §1.1 lists both), and one Absolute Value item has only those.

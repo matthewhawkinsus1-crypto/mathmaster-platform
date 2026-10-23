@@ -41,7 +41,9 @@ import StudentSupportTools from './components/student/StudentSupportTools.jsx';
 import { CLOSED_WORK, EXIT_TICKET, EXIT_TICKET_SPELLED_OUT, exitTicketInSentence } from './platform/student/studentWords.js';
 import { recordStudentSupportEvidence as saveStudentSupportEvidence } from './platform/supportEvidence/supportEvidenceStore.js';
 import { launchSupportRecords, studentMayRecordSupport, usedRecordKey } from './platform/supportEvidence/studentSupportTelemetry.js';
-import { buildDolAttemptGrant, buildDolClose, buildDolDateMove, buildDolExtension, buildDolScheduleRestore, buildDolWindowOpening, scheduledDolDateFor, summarizeStudentRecovery } from './platform/assessment/assessmentRecovery.js';
+// The DOL recovery builders are teacher actions: they load with the teacher
+// kit (app/teacher/teacherKit.js). A student's screen reads only the summary.
+import { summarizeStudentRecovery } from './platform/assessment/studentRecoverySummary.js';
 import { practiceSkillLaunch } from './platform/assessment/practiceSkillLaunch.js';
 import { describeDolClose } from './platform/assessment/dolCloseCopy.js';
 import { extraTimeFrom } from './platform/assessment/extraTimeWords.js';
@@ -307,8 +309,6 @@ import { resetAddressToHome, studentUrlFor, teacherUrlFor } from './app/routes/b
 import { parseAppPath } from './app/routes/appUrl.js';
 import { ARRIVAL_MESSAGES, readUrlArrival } from './app/routes/urlArrival.js';
 import { useUrlArrival } from './app/routes/useUrlArrival.js';
-import { describeFeedbackRelease, releaseHoldReport } from './app/teacher/feedbackReleaseHold.js';
-import { readReleaseControls } from './app/teacher/feedbackReleaseControls.js';
 import { questionAddressFor, studentQuestionEntries } from './app/routes/questionAddress.js';
 import {
   DISPLAYED_CHECKPOINT_OUTCOMES,
@@ -448,20 +448,11 @@ import { defaultAssignmentDateInputs } from './platform/assignments/assignmentDa
 // Assignment Review's publishing intent, worksheets, Classroom publishing)
 // loads for a teacher, never with a student's Home (app/teacher/teacherKit.js).
 import { loadTeacherKit, loadedTeacherKit, prefetchTeacherWorkspace } from './app/teacher/teacherKitLoader.js';
-import { automaticClassroomTopicName } from './platform/classroom/classroomTopicNaming.js';
 import { classIdsForTeacher, resolveStudentCourseContext, studentsInClass, unplaceableStudents } from '../functions/shared/classModel.mjs';
-import {
-  SUPPORT_EVENT_KIND,
-  SUPPORT_EVENT_STAGE,
-  summarizeRapidCorrectness,
-} from './platform/teacher/studentSupportSignals.js';
-import {
-  fetchStudentSupportHistory,
-  fetchAttendanceForClassDateRange,
-  recordStudentSupportEvent,
-  subscribeStudentSessionSummaries,
-  subscribeStudentSupportEvents,
-} from './platform/teacher/studentSupportStore.js';
+// Only the event kinds and the live rapid-correct summary: the rest of
+// teacher/studentSupportSignals.js is the teacher's (first-load budget).
+import { SUPPORT_EVENT_KIND, SUPPORT_EVENT_STAGE } from './platform/teacher/supportEventKinds.js';
+import { summarizeRapidCorrectness } from './platform/teacher/rapidCorrectness.js';
 import { localDateKeyOf } from './platform/attendance/classMeetings.js';
 import { buildNonInstructionalSet } from './platform/path/curriculumCalendar.js';
 import { schoolYearNonInstructionalRanges } from './curriculum/calendars/schoolYear2026-2027.js';
@@ -472,10 +463,10 @@ import { schoolYearNonInstructionalRanges } from './curriculum/calendars/schoolY
 // teacher-only, so they come from the teacher kit (app/teacher/teacherKit.js):
 // every call below is requireTeacherKit().name( or teacherKit.name(.
 import { loadTeacherGradeTransferState } from './platform/gradeTransfer/gradeTransferStore.js';
-import { listTeacherTestCycleRecords } from './services/testCycleService.js';
-import { projectTestCycleTeacherActions } from './platform/teacher/testCycleActionProjection.js';
-import { LIVE_ATTENDANCE_EVENT_KIND } from './platform/teacher/liveAttendance.js';
-import { ATTENDANCE_HISTORY_EVENT_KIND } from './platform/attendance/attendanceHistory.js';
+import { LIVE_ATTENDANCE_EVENT_KIND } from './platform/teacher/liveAttendanceEventKind.js';
+// From the shared day rules, not ./platform/attendance/attendanceHistory.js:
+// App reads only this name, and that module is a teacher's history screen.
+import { ATTENDANCE_HISTORY_EVENT_KIND } from '../functions/shared/attendanceDay.mjs';
 import { applyStudentAttendanceExtension } from './platform/attendance/extensionClient.js';
 import {
   defaultCourseProfiles,
@@ -2566,7 +2557,7 @@ function App() {
       // purpose. The student sees only "teacher recommended this skill"; the
       // private teacher history preserves when/where the action happened.
       if (user?.email) {
-        recordStudentSupportEvent({
+        requireTeacherKit().recordStudentSupportEvent({
           db,
           teacherEmail: user.email,
           event: {
@@ -2637,7 +2628,7 @@ function App() {
    * publication target, so a Classroom failure never rolls back the assignment.
    */
   const autoPublishAssignmentPackageToClassroom = async (assignment) => {
-    const { classroomPostingMode, mappedCourseIdsForAssignment, shouldAutoPublishClassroomPackage } = requireTeacherKit();
+    const { automaticClassroomTopicName, classroomPostingMode, mappedCourseIdsForAssignment, shouldAutoPublishClassroomPackage } = requireTeacherKit();
     if (!shouldAutoPublishClassroomPackage(assignment)) {
       return { status: 'skipped', reason: 'not-auto-publishable', published: 0, failed: 0 };
     }
@@ -4683,14 +4674,15 @@ function App() {
       setStudentSupportEvents([]);
       return undefined;
     }
-    if (teacherPreviewRuntimeActive) return undefined;
-    return subscribeStudentSupportEvents({
+    // The support store loads with the teacher kit; this runs again once it has.
+    if (teacherPreviewRuntimeActive || !teacherKit) return undefined;
+    return teacherKit.subscribeStudentSupportEvents({
       db,
       teacherEmail: user.email,
       onChange: setStudentSupportEvents,
       onError: (error) => console.error('Student support history failed:', error),
     });
-  }, [user?.role, user?.email, teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab]);
+  }, [user?.role, user?.email, teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab, teacherKit]);
 
   // One teacher-scoped stream spans the whole roster. Firestore rules verify
   // teacher-of-record again for every appended contact; students have no access.
@@ -4778,15 +4770,17 @@ function App() {
       setRetestRecoveryActions([]);
       return undefined;
     }
-    if (teacherPreviewRuntimeActive) return undefined;
+    // The Test Cycle records come through the teacher kit; this runs again
+    // once it has loaded.
+    if (teacherPreviewRuntimeActive || !teacherKit) return undefined;
     let cancelled = false;
     Promise.all(assignments.filter(isTestCycleAssignment).map(async (assignment) => {
-      const response = await listTeacherTestCycleRecords({ assignmentId: assignment.id });
-      return projectTestCycleTeacherActions({ records: response.rows || [], assignment });
+      const response = await teacherKit.listTeacherTestCycleRecords({ assignmentId: assignment.id });
+      return teacherKit.projectTestCycleTeacherActions({ records: response.rows || [], assignment });
     })).then((groups) => { if (!cancelled) setRetestRecoveryActions(groups.flat()); })
       .catch((error) => console.error('Action Center Test Cycle projection failed:', error));
     return () => { cancelled = true; };
-  }, [user?.role, assignments, teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab]);
+  }, [user?.role, assignments, teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab, teacherKit]);
 
   useEffect(() => {
     if (user?.role !== 'teacher' || !user.email) {
@@ -4797,8 +4791,8 @@ function App() {
       setStudentSessionSummaries([]);
       return undefined;
     }
-    if (teacherPreviewRuntimeActive) return undefined;
-    return subscribeStudentSessionSummaries({
+    if (teacherPreviewRuntimeActive || !teacherKit) return undefined;
+    return teacherKit.subscribeStudentSessionSummaries({
       db,
       teacherEmail: user.email,
       classIds: classes
@@ -4807,7 +4801,7 @@ function App() {
       onChange: setStudentSessionSummaries,
       onError: (error) => console.error('Student session summaries failed:', error),
     });
-  }, [user?.role, user?.email, classes, teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab]);
+  }, [user?.role, user?.email, classes, teacherWorkspaceMode, teacherPreviewRuntimeActive, teacherTab, teacherKit]);
 
   /*
    * A per-student extension is never written as a client-side whole-map
@@ -4847,6 +4841,7 @@ function App() {
    * has not yet been reflected in the student's deadline.
    */
   const reconcileAttendanceExtensions = async (event, record) => {
+    const { fetchAttendanceForClassDateRange } = requireTeacherKit();
     const classPeriod = classes.find((entry) => entry.classId === event.classId)?.period || null;
     const affectedAssignments = assignments
       .filter((assignment) => assignmentIsForStudent(assignment, { classId: event.classId }))
@@ -4907,7 +4902,7 @@ function App() {
     if (user?.role !== 'teacher' || !user.email) return;
     setAttendanceReviewBusyKey(reviewKey);
     try {
-      await recordStudentSupportEvent({
+      await requireTeacherKit().recordStudentSupportEvent({
         db, teacherEmail: user.email,
         event: requireTeacherKit().buildAttendanceCorrectionReviewEvent({
           studentId: student.id || student.studentId,
@@ -4941,7 +4936,7 @@ function App() {
     const studentId = student.id || student.studentId;
     setAttendanceReviewBusyKey(reviewKey);
     try {
-      await recordStudentSupportEvent({
+      await requireTeacherKit().recordStudentSupportEvent({
         db, teacherEmail: user.email,
         event: requireTeacherKit().buildAttendanceCorrectionReviewEvent({
           studentId,
@@ -4985,7 +4980,7 @@ function App() {
     if (user?.role !== 'teacher' || !user.email) return null;
     const isAttendanceEvent = ATTENDANCE_EVENT_KINDS.includes(event?.kind);
     try {
-      const record = await recordStudentSupportEvent({
+      const record = await requireTeacherKit().recordStudentSupportEvent({
         db,
         teacherEmail: user.email,
         event,
@@ -5001,7 +4996,7 @@ function App() {
           // second append-only audit/retry record containing everything a
           // worker or teacher retry needs; never delete the attendance fact.
           try {
-            await recordStudentSupportEvent({
+            await requireTeacherKit().recordStudentSupportEvent({
               db,
               teacherEmail: user.email,
               event: {
@@ -7890,9 +7885,10 @@ function App() {
       return undefined;
     }
 
+    if (!teacherKit) return undefined;
     let active = true;
     setProfileSupportHistory({ studentId: profileDrawerStudentId, events: [], summaries: [] });
-    fetchStudentSupportHistory({
+    teacherKit.fetchStudentSupportHistory({
       db,
       teacherEmail: user.email,
       studentId: profileDrawerStudentId,
@@ -7912,7 +7908,7 @@ function App() {
     });
 
     return () => { active = false; };
-  }, [user?.role, user?.email, profileDrawerStudentId]);
+  }, [user?.role, user?.email, profileDrawerStudentId, teacherKit]);
 
   const profileDrawerSupportEvents = useMemo(() => {
     if (!profileDrawerStudentId) return [];
@@ -8041,7 +8037,9 @@ function App() {
     if (!assignment?.id || !assignmentUsesTeacherReleasePolicy(assignment) || assignmentFeedbackWasReleased(assignment)) return;
     // One release opens worked solutions in EVERY class this is assigned to:
     // name everyone who has not finished, by class, before it goes
-    // (app/teacher/feedbackReleaseHold.js; coordinator QA M3).
+    // (app/teacher/feedbackReleaseHold.js; coordinator QA M3). Only a teacher
+    // releases feedback, so all three come from the teacher kit.
+    const { describeFeedbackRelease, readReleaseControls, releaseHoldReport } = requireTeacherKit();
     // Every assigned class's extensions, not only the classes on screen.
     const privateRecords = await readReleaseControls({
       db, assignment, email: user?.email || '', isRootAdmin: user?.isRootAdmin === true,
@@ -8164,7 +8162,7 @@ function App() {
       // The builder makes today this class's DOL date (instructionDatesByClassId,
       // this class only) and first keeps the date it replaces
       // (scheduledInstructionDatesByClassId), so the teacher can return to it.
-      const opening = buildDolWindowOpening({
+      const opening = requireTeacherKit().buildDolWindowOpening({
         assignment,
         classId,
         classPeriod,
@@ -8212,7 +8210,7 @@ function App() {
     try {
       const nowMs = Date.now();
       const changedAt = new Date(nowMs).toISOString();
-      const { dol } = buildDolAttemptGrant({
+      const { dol } = requireTeacherKit().buildDolAttemptGrant({
         assignment,
         scope: { type: 'class', classId },
         teacherId: user?.id || null,
@@ -8334,7 +8332,7 @@ function App() {
         message: `Students in ${classLabel} stop working on the DOL now, exactly as if its timer had run out: answers so far are kept and graded. Other classes are unaffected, and you can reopen it afterwards.`,
         confirmLabel: 'Close DOL',
       };
-      build = () => buildDolClose({ assignment, classId, dateKey: todayKey, teacherId, now: Date.now() });
+      build = () => requireTeacherKit().buildDolClose({ assignment, classId, dateKey: todayKey, teacherId, now: Date.now() });
       success = ['DOL closed', `${assignment.title} · ${classLabel}`];
     } else if (action === 'extend') {
       if (state.status !== 'active') {
@@ -8349,7 +8347,7 @@ function App() {
         message: `The DOL stays open for ${classLabel} until ${clockOf(proposedMs)}${classEndMs !== null && proposedMs >= classEndMs ? ' — the end of the period' : ''}. Work in the extra time counts. Other classes are unaffected.`,
         confirmLabel: `Extend to ${clockOf(proposedMs)}`,
       };
-      build = () => buildDolExtension({ assignment, classId, dateKey: todayKey, currentEndsAtMs: state.endsAt.getTime(), minutes, capAtMs: classEndMs, teacherId, now: Date.now() });
+      build = () => requireTeacherKit().buildDolExtension({ assignment, classId, dateKey: todayKey, currentEndsAtMs: state.endsAt.getTime(), minutes, capAtMs: classEndMs, teacherId, now: Date.now() });
       success = ['DOL extended', `${assignment.title} · ${classLabel} · open until ${clockOf(proposedMs)}`];
     } else if (action === 'move') {
       const toDateKey = String(control?.toDateKey || '');
@@ -8366,10 +8364,10 @@ function App() {
         message: `The DOL will not open for ${classLabel} ${state.instructionDateKey === todayKey ? 'today' : `on ${dayOf(state.instructionDateKey)}`}; it runs at the end of class on ${dayOf(toDateKey)} instead. Nothing is closed or graded, other classes keep their day, and the original day is kept so you can move it back.`,
         confirmLabel: 'Move DOL',
       };
-      build = () => buildDolDateMove({ assignment, classId, classPeriod, toDateKey, todayKey, teacherId, now: Date.now() });
+      build = () => requireTeacherKit().buildDolDateMove({ assignment, classId, classPeriod, toDateKey, todayKey, teacherId, now: Date.now() });
       success = ['DOL moved', `${assignment.title} · ${classLabel} · ${dayOf(toDateKey)}`];
     } else if (action === 'restore') {
-      const saved = scheduledDolDateFor(assignment, classId);
+      const saved = requireTeacherKit().scheduledDolDateFor(assignment, classId);
       if (!saved) {
         toastInfo('Already on schedule', `${assignment.title} is on its scheduled day for ${classLabel}.`);
         return;
@@ -8385,7 +8383,7 @@ function App() {
           : `The DOL returns to having no scheduled day for ${classLabel}. Other classes are unaffected.`,
         confirmLabel: 'Back to schedule',
       };
-      build = () => buildDolScheduleRestore({ assignment, classId, todayKey, teacherId, now: Date.now() });
+      build = () => requireTeacherKit().buildDolScheduleRestore({ assignment, classId, todayKey, teacherId, now: Date.now() });
       success = ['DOL back on schedule', `${assignment.title} · ${classLabel}`];
     } else {
       return;

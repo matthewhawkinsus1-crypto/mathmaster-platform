@@ -21,6 +21,8 @@ import {
   transformedSourcePoints,
 } from '../../functions/shared/toolMath/transformations/transformationsMath.mjs';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
+import { isFamilyBackedQuestion, resolveQuestionFamilyDefinition } from '../../functions/shared/questionFamilyInstance.mjs';
+import { buildFamilyQuestion, cachedFamilyInstanceSequence } from '../../functions/shared/questionFamilyEngine.mjs';
 
 /*
  * THE TRANSFORMATIONS LAB REVIEW STATES WHAT THE SHARED GRADER ACCEPTS.
@@ -464,21 +466,37 @@ const teacherQuestions = () => {
   });
 };
 
+// A Question Family slot is reviewed on versions a student is dealt: its
+// template's {{placeholders}} draw no graph.
+const dealtVersions = (question) => {
+  if (!isFamilyBackedQuestion(question)) return [question];
+  const definition = resolveQuestionFamilyDefinition(question, { slotKey: `review|${question.questionId}` });
+  const sequence = cachedFamilyInstanceSequence(definition.family, definition.constraintValues, `review|${question.questionId}`);
+  return [0, 1, 2].map((index) => buildFamilyQuestion({
+    family: definition.family, instance: sequence.instanceAt(index), constraintValues: definition.constraintValues, authored: question, tool: definition.tool,
+  }));
+};
+
 test('every compiled teacher question gets a review the grader accepts, or none for a documented reason', () => {
   const questions = teacherQuestions();
   assert.ok(questions.length >= 15, 'the teacher imports author Transformations Lab questions');
   const reviewedModes = new Set();
   const unreviewed = [];
-  for (const { file, question } of questions) {
-    const label = `${file}: ${question.prompt}`;
-    const model = build(question);
-    if (model) {
-      assertReviewGradesCorrect(question, label);
-      reviewedModes.add(modeOf(question));
-    } else {
-      unreviewed.push(`${modeOf(question)}:${resolveTransformationsQuestion(question).investigationSpec.type}`);
+  for (const { file, question: authored } of questions) {
+    for (const question of dealtVersions(authored)) {
+      const label = `${file}: ${question.prompt}`;
+      const model = build(question);
+      if (model) {
+        assertReviewGradesCorrect(question, label);
+        reviewedModes.add(modeOf(question));
+      } else {
+        unreviewed.push(`${modeOf(question)}:${resolveTransformationsQuestion(question).investigationSpec.type}`);
+      }
     }
   }
   assert.deepEqual([...reviewedModes].sort(), ['describe', 'identify', 'match', 'plotTransform', 'pointMap'].sort(), 'every authored mode except anchor (none authored) is reviewed');
-  assert.deepEqual(unreviewed, ['describe:exponential'], 'only the exponential description, whose graph does not fix the graded answer, has no review');
+  // The exponential description (its a and h trade off) and the DOL #2
+  // review's g(x) = |½(x − 4)| − 1 (an inside multiplier: a and b trade off)
+  // are the descriptions whose graph does not fix the graded answer.
+  assert.deepEqual(unreviewed.sort(), ['describe:absolute', 'describe:exponential'], 'only descriptions whose graph does not fix the graded answer have no review');
 });

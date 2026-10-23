@@ -45,6 +45,8 @@ export const MISCONCEPTION_STUDENT_MESSAGES = Object.freeze({
   'line-wrong-form-slope-intercept': 'Right line, wrong form: write it as y = mx + b.',
   'line-wrong-form-point-slope': 'Right line, wrong form: write it as y − y₁ = m(x − x₁).',
   'line-wrong-form-standard': 'Right line, wrong form: write it as Ax + By = C.',
+  // The value is right; the form is not (simplifiedPolynomialForm.mjs).
+  'polynomial-not-simplified': 'Equal, but not simplified: multiply out every product and combine like terms.',
   'zeros-sign-reversed': 'Check the signs of your zeros. A zero is the x-value that makes a factor equal 0, so set each factor equal to 0 and solve.',
 });
 

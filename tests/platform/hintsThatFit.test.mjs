@@ -204,7 +204,11 @@ test('over every real lesson, exactly three hints change to shown, and none of t
         .forEach((value) => assert.ok(!hintRevealsAnswer(hint, [value]), `${question.questionId} shows "${hint}", which contains the answer ${value}`));
     });
   });
-  assert.equal(total, 200);
+  // 200 on the base; Operations on Polynomials (Algebra II Honors, module 2)
+  // added 87, Dividing Polynomials 90, the Algebra I DOL #3 Review 39 (three
+  // on each of its 13 questions) and the Algebra II Honors DOL #2 review 66,
+  // every one shown (none is in BASE_DROPPED, and nowDropped is unchanged).
+  assert.equal(total, 482);
   assert.equal(BASE_DROPPED.length, 32);
   assert.deepEqual(nowShown.sort(), [
     'l2-wu-2: The x-intercept is where the output is 0: solve 0 = 3x − 8.',

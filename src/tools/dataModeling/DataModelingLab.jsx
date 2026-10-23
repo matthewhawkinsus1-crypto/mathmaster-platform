@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ResultPill, ToolGrid, TaskCard, HintPanel, controlStep } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
+import { questionAxisLabels } from '../shared/planeAxisTitles.js';
 import { correlation, linearRegression, parseNumericAnswer, round } from '../shared/toolMath';
 import {
   buildCandidateModels,
@@ -107,17 +108,23 @@ const SECURE_MODE_STEPS = {
 const withoutCheckInvitation = (steps) => steps.map((step) => step.replace(/ and check\.$/, '.'));
 const HINTS = {'full': ['Work through the panels in order — each one builds on the last.', 'A good fit has residuals scattered above and below zero with no curve or pattern in them.', 'Correlation describes how tightly the points follow a line. It never proves that one variable causes the other.'], 'lineFit': ['Get the slope roughly right first, then slide the intercept to centre the line.', 'Slope is rise over run: pick two points far apart on the trend and compare how much y changes to how much x changes.', 'If the residual plot curves, a straight line is the wrong shape for this data — that is information, not failure.'], 'linearFit': ['Use the linear-regression command on the full data list.', 'Record both m and b from technology.', 'Do not replace regression with a line through two hand-picked points.'], 'quadraticFit': ['Use the quadratic-regression command on the full data list.', 'Record all three coefficients a, b, and c from technology.', 'Do not replace regression with a hand-fit through only three selected points.'], 'exponentialFit': ['Use exponential regression on the full data list.', 'Record both a and the multiplicative base b.', 'For decay the base should be between 0 and 1; for growth it should exceed 1.'], 'linearFitPrediction': ['Use the linear-regression feature of your approved technology; the model coefficients should come from the full data set, not two hand-picked points.', 'Write the complete function before predicting.', 'Use the x-value named in the task; changing the prediction target changes the question.'], 'quadraticFitPrediction': ['Use quadratic regression and record all three coefficients a, b and c.', 'A quadratic model needs the x² term, x term and constant even when a coefficient is near zero.', 'Substitute the requested x into the fitted quadratic, then decide whether that x lies inside or outside the observed range.'], 'exponentialFitPrediction': ['Use exponential regression and record both the initial factor a and multiplicative base b.', 'For decay, the fitted base should be between 0 and 1; for growth it should be greater than 1.', 'Use the requested x-value rather than choosing one of the observed data points.'], 'squareRootFitPrediction': ['Use the square-root regression feature on the complete table rather than selecting two convenient points.', 'Record all three fitted parameters a, h, and k in y = a√(x-h)+k.', 'The endpoint-anchored fit uses the smallest x-value as h and the endpoint output as k, then fits a from all remaining observations.'], 'association': ['Direction is about which way the cloud of points tilts.', 'Strength is about how close the points sit to a single line, not how steep that line is.', 'Observational data can only establish an association. Only a controlled experiment can establish cause and effect.'], 'correlation': ['Use the statistical correlation or linear-regression feature of your approved technology; do not estimate r from the picture.', 'The sign of r gives direction. The size of |r| describes how tightly the points follow a line.', 'Correlation can support an association claim, but correlation alone cannot establish cause and effect.'], 'prediction': ['Substitute your x into the model and compute the y it gives.', 'Interpolation means predicting inside the range of x-values you actually observed.', 'Extrapolation goes beyond the data, where the pattern may not hold — treat those predictions cautiously.'], 'modelCompare': ['Smaller residual error means the model is closer to the points on average.', 'RMSE punishes large misses more than MAE does, so a model with one big error will look worse under RMSE.', 'Also ask whether the shape makes sense: a model that fits well but predicts a negative quantity is still wrong.']};
 
-function ResidualPlot({ rows, xMin, xMax }) {
+function ResidualPlot({ rows, xMin, xMax, xAxisTitle = '' }) {
   const scale = residualScale(rows.map((row) => row.residual));
   return (
     <CoordinatePlane xMin={xMin} xMax={xMax} yMin={scale.min} yMax={scale.max} height={250}
       points={rows.map((row) => ({ x:row.x, y:row.residual, label:'' }))}
+      // The residual plot shares the scatter plot's x-axis quantity; its y-axis
+      // is the residual, which the panel already names.
+      xAxisTitle={xAxisTitle}
       horizontalLines={[0]} enlargeable={false} ariaLabel="Residual plot" />
   );
 }
 
 export default function DataModelingLab({ questionData = {}, onAction }) {
   const points = dataModelingPoints(questionData);
+  // What the axes measure in a real-world data set ("Hours studied"), when the
+  // question names them (planeAxisTitles.js).
+  const axisLabels = questionAxisLabels(questionData);
   const mode = questionData.mode || 'full';
   // A hand fit that names a prediction target also asks for the prediction.
   const lineFitPrediction = lineFitNamesPrediction(mode, questionData);
@@ -393,6 +400,8 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
             // Named for what it is (student pass 3, Q-8): it read "Coordinate plane".
             ariaLabel="Scatter plot of the data and your model"
             xMin={xMin} xMax={xMax} yMin={yMin} yMax={yMax}
+            xAxisTitle={axisLabels?.x}
+            yAxisTitle={axisLabels?.y}
             points={points.map(([x,y]) => ({ x, y }))}
             lines={showModelEntry && !['quadraticFit', 'quadraticFitPrediction', 'exponentialFit', 'exponentialFitPrediction', 'squareRootFitPrediction'].includes(mode) && linearModelReady ? [{ m:Number(m), b:Number(b) }] : []}
             functions={['quadraticFit', 'quadraticFitPrediction', 'exponentialFit', 'exponentialFitPrediction', 'squareRootFitPrediction'].includes(mode) && nonlinearModelReady ? [studentPredict] : []}
@@ -550,7 +559,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
         {showResidualPanel ? <Panel title={`${panelNumbers.residual} · Residual evidence`}>
           {studentModelReady ? (
             <div>
-              <ResidualPlot rows={studentResiduals} xMin={xMin} xMax={xMax} />
+              <ResidualPlot rows={studentResiduals} xMin={xMin} xMax={xMax} xAxisTitle={axisLabels?.x} />
               {/* A scrolling box is a tab stop in Chrome whether or not it says
                   so; this one is named, so a keyboard or screen-reader student
                   lands on "Residual table" and scrolls it with the arrow keys

@@ -43,6 +43,8 @@
  * only the helpers each grader itself uses to read the same work.
  */
 import { answerCandidatesForField, parseNumericAnswer, parseOrderedPair } from './answerUtils.mjs';
+import { sameValue } from './answerEquivalence.mjs';
+import { fieldRequiresSimplifiedPolynomial, isSimplifiedPolynomial } from './simplifiedPolynomialForm.mjs';
 import { LINE_FORMS, isVerticalLine, requestedLineForm, sameLine, writtenLineForm } from './linearEquationForm.mjs';
 import { buildMisconceptionEvidence, getMisconceptionCode, MISCONCEPTION_EXCLUSIVITY } from './misconceptionCodes.mjs';
 import { isToolResponse, readToolWork } from './serverGrading/toolResponseContract.mjs';
@@ -867,8 +869,25 @@ const multiAnswerLineFormFindings = ({ question, grading }) => {
   return [...byCode].map(([code, ids]) => finding(code, ids));
 };
 
+/*
+ * multiAnswer: a polynomial with the RIGHT VALUE that is NOT SIMPLIFIED, on a
+ * field that asks for simplest form (answerForm 'simplifiedPolynomial',
+ * simplifiedPolynomialForm.mjs). The field was graded wrong, the typed
+ * polynomial has the key's value, and the form check is what refused it.
+ */
+const multiAnswerNotSimplifiedFindings = ({ question, grading }) => {
+  const parts = partsById(grading);
+  const ids = list(question?.answerFields).filter((field) => {
+    const part = wrongPart(parts, text(field?.id));
+    if (!part || typeof part.response !== 'string' || !fieldRequiresSimplifiedPolynomial(field)) return false;
+    if (isSimplifiedPolynomial(part.response)) return false;
+    return answerCandidatesForField(field).some((key) => typeof key === 'string' && sameValue(part.response, key));
+  }).map((field) => text(field.id));
+  return ids.length ? [finding('polynomial-not-simplified', ids)] : [];
+};
+
 const ORDINARY_CLASSIFIERS = {
-  multiAnswer: multiAnswerLineFormFindings,
+  multiAnswer: (input) => [...multiAnswerLineFormFindings(input), ...multiAnswerNotSimplifiedFindings(input)],
 };
 
 const sameEndpoint = (a, b) => a === b || near(a, b);

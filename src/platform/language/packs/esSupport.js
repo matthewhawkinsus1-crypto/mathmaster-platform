@@ -73,6 +73,8 @@ const missMessages = [
   ['Right line, wrong form: write it as {1} mx {2}.', 'La recta es correcta, pero la forma no: escríbela como {1} mx {2}.'],
   ['Right line, wrong form: write it as {1}₁ {2}({3}₁).', 'La recta es correcta, pero la forma no: escríbela como {1}₁ {2}({3}₁).'],
   ['Right line, wrong form: write it as Ax {1} By {2}.', 'La recta es correcta, pero la forma no: escríbela como Ax {1} By {2}.'],
+  // Right value, not simplified (operations on polynomials).
+  ['Equal, but not simplified: multiply out every product and combine like terms.', 'Es igual, pero no está simplificado: haz cada multiplicación y combina los términos semejantes.'],
 
   // src/platform/supports/feedback/genericMissChecks.js
   ['Check the order of your coordinates.', 'Revisa el orden de tus coordenadas.'],
@@ -246,6 +248,8 @@ const backUpSteps = [
   ['To solve for {1}, {2} and {3} by substitution, what do you write first?', 'Para resolver {1}, {2} y {3} por sustitución, ¿qué escribes primero?'],
   ['One equation solved for one variable.', 'Una ecuación despejada para una variable.'],
   ['The sum of two equations.', 'La suma de dos ecuaciones.'],
+  ['In aₙ, what does {1} stand for?', 'En aₙ, ¿qué representa {1}?'],
+  ['Let’s back up. In aₙ, what does {1} stand for?', 'Retrocedamos un paso. En aₙ, ¿qué representa {1}?'],
 ];
 
 // Choices of the back-up step (matched as answer choices).
@@ -305,6 +309,8 @@ const backUpChoices = [
   ['{1} goes inside {2}', '{1} va dentro de {2}'],
   ['The whole rule of {1}', 'La regla completa de {1}'],
   ['Only the number in the rule of {1}', 'Solo el número de la regla de {1}'],
+  ['The position of the term', 'La posición del término'],
+  ['The value of the term', 'El valor del término'],
 ];
 
 
@@ -566,6 +572,44 @@ const familyHints = [
   ['For ({1} ∘ {2}){3}, find {4} with {5} first, then use that output as the input of {6}.', 'Para ({1} ∘ {2}){3}, halla primero {4} con {5} y luego usa esa salida como entrada de {6}.'],
   ['For ({1} ∘ {2}){3}, start with {4} using {5}, then put that output into {6}.', 'Para ({1} ∘ {2}){3}, empieza con {4} usando {5} y luego pon esa salida en {6}.'],
   ['For {1}, the excluded x-values are the inputs that make the denominator {2} zero.', 'Para {1}, los valores de x excluidos son las entradas que hacen cero el denominador {2}.'],
+  // The tools the DOL #3 review uses (Linear Table Workbench, the Multiple
+  // Representations board, the Data Modeling Lab's line fit, intercepts read
+  // off a graph, a quantity model) and recursive sequences built term by term.
+  ['The output (dependent) quantity is the result: it depends on the input (independent) quantity, which you choose or which changes on its own.', 'La cantidad de salida (dependiente) es el resultado: depende de la cantidad de entrada (independiente), que tú eliges o que cambia por sí sola.'],
+  ['Find the rate between two rows, such as {1} and {2}: (change in {3}) {4} (change in {5}).', 'Halla la razón de cambio entre dos filas, como {1} y {2}: (cambio en {3}) {4} (cambio en {5}).'],
+  ['Find the rate between two rows: (change in {1}) {2} (change in {3}).', 'Halla la razón de cambio entre dos filas: (cambio en {1}) {2} (cambio en {3}).'],
+  ['That rate is the slope {1}.', 'Esa razón de cambio es la pendiente {1}.'],
+  ['Check that a different pair of rows gives the same rate.', 'Comprueba que otro par de filas da la misma razón de cambio.'],
+  ['{1} is the value of {2} when {3} is zero.', '{1} es el valor de {2} cuando {3} vale cero.'],
+  ['Start from the row {1}, {2} and undo the slope: {3}.', 'Empieza con la fila {1}, {2} y deshaz la pendiente: {3}.'],
+  ['Start from any row and undo the slope: {1}.', 'Empieza con cualquier fila y deshaz la pendiente: {1}.'],
+  ['Pick two rows, such as {1} and {2}.', 'Elige dos filas, como {1} y {2}.'],
+  ['Pick two rows.', 'Elige dos filas.'],
+  ['How much does {1} change between them, and how much does {2} change?', '¿Cuánto cambia {1} entre ellas, y cuánto cambia {2}?'],
+  ['The rate between two rows is (change in {1}) {2} (change in {3}).', 'La razón de cambio entre dos filas es (cambio en {1}) {2} (cambio en {3}).'],
+  ['Subtract in the same order on the top and the bottom.', 'Resta en el mismo orden arriba y abajo.'],
+  ['Do the same for another pair, such as {1} and {2}, and compare the two rates.', 'Haz lo mismo con otro par, como {1} y {2}, y compara las dos razones de cambio.'],
+  ['Do the same for another pair of rows and compare the two rates.', 'Haz lo mismo con otro par de filas y compara las dos razones de cambio.'],
+  ['If every rate you find is the same, the rate of change is constant; if any two differ, it is not.', 'Si todas las razones de cambio que encuentras son iguales, la razón de cambio es constante; si dos son diferentes, no lo es.'],
+  ['Check at least {1} different pairs before you decide.', 'Revisa al menos {1} pares diferentes antes de decidir.'],
+  ['Check several different pairs before you decide.', 'Revisa varios pares diferentes antes de decidir.'],
+  ['Start from the situation: what amount do you begin with, and how much does it change each step?', 'Empieza con la situación: ¿con qué cantidad comienzas y cuánto cambia en cada paso?'],
+  ['On the graph those are the y-intercept and the slope.', 'En la gráfica, esos son la intersección con el eje y y la pendiente.'],
+  ['Start from the two given points: the slope is (change in {1}) {2} (change in {3}) between them.', 'Empieza con los dos puntos dados: la pendiente es (cambio en {1}) {2} (cambio en {3}) entre ellos.'],
+  ['Start from {1} and {2}: the slope is (change in {3}) {4} (change in {5}) between them.', 'Empieza con {1} y {2}: la pendiente es (cambio en {3}) {4} (cambio en {5}) entre ellos.'],
+  ['Start from the given standard form: replace {1} with zero to find where the line meets the y-axis, and {2} with zero to find where it meets the x-axis.', 'Empieza con la forma estándar dada: reemplaza {1} por cero para hallar dónde la recta toca el eje y; luego reemplaza {2} por cero para hallar dónde toca el eje x.'],
+  ['Start from the given {1}: replace {2} with {3} to find where the line meets the y-axis, and {4} with {5} to find where it meets the x-axis.', 'Empieza con la ecuación dada {1}: reemplaza {2} por {3} para hallar dónde la recta toca el eje y; luego reemplaza {4} por {5} para hallar dónde toca el eje x.'],
+  ['This question asks about the x-intercepts and the y-intercept.', 'Esta pregunta trata de las intersecciones con el eje x y de la intersección con el eje y.'],
+  ['Look at every point before you move the line.', 'Observa todos los puntos antes de mover la recta.'],
+  ['Look at all {1} points, from {2} to {3}, before you move the line.', 'Observa los {1} puntos, de {2} a {3}, antes de mover la recta.'],
+  ['Move the slope and intercept steppers until the points are spread evenly above and below the line.', 'Mueve los controles de la pendiente y de la intersección hasta que los puntos queden repartidos por igual arriba y abajo de la recta.'],
+  ['Use the residual plot: the residuals should scatter around zero with no curve or trend.', 'Usa la gráfica de residuos: los residuos deben dispersarse alrededor de cero, sin curva ni tendencia.'],
+  ['A recursive rule builds each term from the term just before it: start at the first term, apply the rule once to get the second term, then apply it again for the third.', 'Una regla recursiva construye cada término a partir del término anterior: empieza en el primer término, aplica la regla una vez para obtener el segundo término y luego aplícala otra vez para obtener el tercero.'],
+  ['Fill the table in order, one term at a time: each output comes from the output just before it.', 'Completa la tabla en orden, un término a la vez: cada salida viene de la salida anterior.'],
+  ['Look at how each term is made from the one before it: subtract each term from the next, and also divide each term by the one before.', 'Observa cómo se forma cada término a partir del anterior: resta cada término del siguiente, y también divide cada término entre el anterior.'],
+  ['Which of the two stays the same every time?', '¿Cuál de los dos se mantiene igual cada vez?'],
+  ['Plot each term as the point ({1}, aₙ): its position {2} across and its value up.', 'Marca cada término como el punto ({1}, aₙ): su posición {2} en horizontal y su valor en vertical.'],
+  ['Leave the points unconnected, because {1} takes only whole-number positions.', 'No unas los puntos, porque {1} solo toma posiciones que son números enteros.'],
 ];
 
 // --- The worked example ("Try a similar one", Practise one like this) -------
@@ -647,6 +691,18 @@ const workedExamplePrompts = [
   ['For {1} and {2}, find ({3} ∘ {4}){5} and ({6} ∘ {7}){8}.', 'Para {1} y {2}, halla ({3} ∘ {4}){5} y ({6} ∘ {7}){8}.'],
   ['Find {1} and {2}.', 'Halla {1} y {2}.'],
   ['Determine whether {1} and {2} are inverses.', 'Determina si {1} y {2} son inversas.'],
+  ['Write the equation {1} mx {2} for the table {3}, {4}, {5}, {6}.', 'Escribe la ecuación {1} mx {2} para la tabla {3}, {4}, {5}, {6}.'],
+  ['Decide whether {1} changes at a constant rate in this table, and find the rate: {2}, {3}, {4}, {5}.', 'Decide si {1} cambia a una razón constante en esta tabla, y halla la razón de cambio: {2}, {3}, {4}, {5}.'],
+  ['You are given the situation: a pool holds {1} liters of water and drains at a steady rate of {2} liters every minute until it is empty.', 'Se te da la situación: una piscina tiene {1} litros de agua y se vacía a una razón constante de {2} litros por minuto hasta quedar vacía.'],
+  ['You are given two points on the line, {1} and {2}.', 'Se te dan dos puntos de la recta, {1} y {2}.'],
+  ['You are given the standard form equation {1}.', 'Se te da la ecuación en forma estándar {1}.'],
+  ['You are given the slope-intercept equation {1}.', 'Se te da la ecuación en forma pendiente-intersección {1}.'],
+  ['You are given the point-slope equation {1}.', 'Se te da la ecuación en forma punto-pendiente {1}.'],
+  ['Describe the x-intercepts and the y-intercept.', 'Describe las intersecciones con el eje x y la intersección con el eje y.'],
+  ['Fit a line by hand to the data {1}, {2}, {3}, {4} and predict {5} at {6}.', 'Ajusta a mano una recta a los datos {1}, {2}, {3}, {4} y predice {5} en {6}.'],
+  ['A sequence has a₁ {1} and aₙ {2} aₙ₋₁ {3} for {4}.', 'Una sucesión tiene a₁ {1} y aₙ {2} aₙ₋₁ {3} para {4}.'],
+  ['A sequence has a₁ {1} and aₙ {2} aₙ₋₁ for {3}.', 'Una sucesión tiene a₁ {1} y aₙ {2} aₙ₋₁ para {3}.'],
+  ['Use the recursive rule to find the first five terms.', 'Usa la regla recursiva para hallar los primeros cinco términos.'],
 ];
 
 const workedExampleAnswers = [
@@ -713,6 +769,11 @@ const workedExampleAnswers = [
   ['Answer: ({1} ∘ {2}){3}; ({4} ∘ {5}){6}', 'Respuesta: ({1} ∘ {2}){3}; ({4} ∘ {5}){6}'],
   ['Answer: {1}; {2}; {3} and {4} are not inverses', 'Respuesta: {1}; {2}; {3} y {4} no son inversas'],
   ['Answer: {1}; {2}; {3} and {4} are inverses', 'Respuesta: {1}; {2}; {3} y {4} son inversas'],
+  ['Answer: Constant rate of change: {1}', 'Respuesta: Razón de cambio constante: {1}'],
+  ['Answer: x-intercepts {1}, zeros {{2}}; y-intercept {3}', 'Respuesta: intersecciones con el eje x {1}, ceros {{2}}; intersección con el eje y {3}'],
+  ['Answer: input tickets sold, output money collected in dollars; {1}; table {2}, {3}, {4}, {5}, {6}; separate points; domain {{7}, {8}, {9}, ..., {10}}; range {{11}, {12}, {13}, ..., {14}}', 'Respuesta: entrada boletos vendidos, salida dinero recaudado en dólares; {1}; tabla {2}, {3}, {4}, {5}, {6}; puntos separados; dominio {{7}, {8}, {9}, ..., {10}}; rango {{11}, {12}, {13}, ..., {14}}'],
+  ['Answer: {1} ({2} ≈ {3}, {4} ≈ {5}); {6} ≈ {7} at {8}', 'Respuesta: {1} ({2} ≈ {3}, {4} ≈ {5}); {6} ≈ {7} en {8}'],
+  ['Answer: {1}, {2}, {3}, {4}, {5}', 'Respuesta: {1}, {2}, {3}, {4}, {5}'],
 ];
 
 const workedExampleSteps = [
@@ -923,6 +984,26 @@ const workedExampleSteps = [
   ['Both compositions simplify to {1}, so {2} and {3} are inverses.', 'Las dos composiciones se simplifican a {1}, así que {2} y {3} son inversas.'],
   ['Check at {1}: {2} and {3}, so {4}; the result {5} also gives {6} at {7}.', 'Comprueba en {1}: {2} y {3}, así que {4}; el resultado {5} también da {6} en {7}.'],
   ['For {1}, the denominator {2} is zero when {3}, so that input is excluded.', 'Para {1}, el denominador {2} vale cero cuando {3}, así que esa entrada se excluye.'],
+  ['From {1} to {2}: {3}.', 'De {1} a {2}: {3}.'],
+  ['The rate is the same, so {1}.', 'La razón de cambio es la misma, así que {1}.'],
+  ['Undo the slope from {1}: {2}.', 'Deshaz la pendiente desde {1}: {2}.'],
+  ['So the equation is {1}.', 'Entonces la ecuación es {1}.'],
+  ['Check with {1}: {2}.', 'Comprueba con {1}: {2}.'],
+  ['Every pair of neighbouring rows gives the same rate, {1}, so {2} changes at a constant rate of {3} per unit of {4}.', 'Cada par de filas vecinas da la misma razón de cambio, {1}, así que {2} cambia a una razón constante de {3} por unidad de {4}.'],
+  ['The amount starts at {1} liters, so {2}; it drops by {3} liters each minute, so {4}.', 'La cantidad empieza en {1} litros, así que {2}; baja {3} litros cada minuto, así que {4}.'],
+  ['Solve {1} for {2}: {3}, so {4}: {5} and {6}.', 'Despeja {2} en {1}: {3}, así que {4}: {5} y {6}.'],
+  ['Table: {1}; {2}; {3}; {4}; {5}.', 'Tabla: {1}; {2}; {3}; {4}; {5}.'],
+  ['Use all {1} points: {2}, {3}, {4}, {5}.', 'Usa los {1} puntos: {2}, {3}, {4}, {5}.'],
+  ['Means: {1}̄ {2}, ȳ {3}.', 'Medias: {1}̄ {2}, ȳ {3}.'],
+  ['Sxx {1} Σ({2}̄){3}, Sxy {4} Σ({5}̄)({6} ȳ) {7}.', 'Sxx {1} Σ({2}̄){3}, Sxy {4} Σ({5}̄)({6} ȳ) {7}.'],
+  ['{1} Sxy {2} Sxx {3}, and {4} ȳ {5}̄ {6}.', '{1} Sxy {2} Sxx {3}, y {4} ȳ {5}̄ {6}.'],
+  ['The regression line is {1}.', 'La recta de regresión es {1}.'],
+  ['Set the slope stepper as close to {1} and the intercept stepper as close to {2} as the steps allow; the residuals then scatter around zero.', 'Pon el control de la pendiente lo más cerca de {1} y el de la intersección lo más cerca de {2} que permitan los pasos; así los residuos se dispersan alrededor de cero.'],
+  ['At {1}: {2}.', 'En {1}: {2}.'],
+  ['Start with the first term: {1}.', 'Empieza con el primer término: {1}.'],
+  ['Apply the rule to each term to get the next one: {1}, {2}, {3}, {4}.', 'Aplica la regla a cada término para obtener el siguiente: {1}, {2}, {3}, {4}.'],
+  ['Each term comes from the one before it the same way, so the terms have a common difference of {1}.', 'Cada término viene del anterior de la misma manera, así que los términos tienen una diferencia común de {1}.'],
+  ['Each term comes from the one before it the same way, so the terms have a common ratio of {1}.', 'Cada término viene del anterior de la misma manera, así que los términos tienen una razón común de {1}.'],
 ];
 
 // --- The platform's question families (functions/shared/questionFamily*):

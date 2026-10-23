@@ -433,6 +433,8 @@ export function GraphMethod({ option, target, description, bounds, snapStep, ev,
           enlargeable={false}
           panZoom={false}
           showPlotHelp={false}
+          xAxisTitle={description?.axisLabels?.x}
+          yAxisTitle={description?.axisLabels?.y}
           ariaLabel={`Graph of the GIVEN line. ${GRAPH_TASKS[option.strategy]?.(target) || ''}`}
         >
           {({ sx, sy }) => legLabels.map((label) => (

@@ -1,6 +1,7 @@
 import { readDisplayMatrices } from '../math/displayMatrices.js';
 import { PRINT_OUTPUT_MODES } from './printOutputModes.js';
 import { matrixLabAnswerLines } from '../../../functions/shared/toolMath/matrixLab/matrixLabModel.mjs';
+import { polynomialWorkshopAnswerLines } from '../../../functions/shared/toolMath/polynomialWorkshop/polynomialMath.mjs';
 
 const clean = (value) => String(value ?? '').trim();
 const asArray = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
@@ -151,6 +152,7 @@ export const answerLinesFromResolvedQuestion = (question = {}) => {
     Object.entries(question.correctMatches).forEach(([key, value]) => add(`Match ${key}: ${formatAnswerValue(value)}`));
   }
   if (clean(question.type || question.toolId) === 'matrixLab') matrixLabAnswerLines(question).forEach(add);
+  if (clean(question.type || question.toolId) === 'polynomialWorkshop') polynomialWorkshopAnswerLines(question).forEach(add);
   if (question.correctIndependentId) add(`Independent quantity: ${question.correctIndependentId}`);
   if (question.correctDependentId) add(`Dependent quantity: ${question.correctDependentId}`);
 

@@ -2,6 +2,7 @@ import { sameValue } from '../../../functions/shared/answerEquivalence.mjs';
 import { sameEquivalentExpression } from '../../equivalentExpression.js';
 import { matchesFieldAnswer } from '../../answerUtils.js';
 import { gradeResponseField } from '../../grading/fieldGrader.js';
+import { SIMPLIFIED_POLYNOMIAL_FORM, simplifiedPolynomialProblem } from '../../../functions/shared/simplifiedPolynomialForm.mjs';
 
 const clean = (value) => String(value ?? '').trim();
 const isObject = (value) => Boolean(value && typeof value === 'object' && !Array.isArray(value));
@@ -174,6 +175,25 @@ const validateField = (field, {
     errors.push(
       `${display} uses unsupported gradingMode "${mode}". Generic answer fields support the default mathematical grader or "equivalentExpression" for expression fields. Teacher-reviewed writing must use a teacher-review/composed interaction instead of an auto-graded field.`,
     );
+  }
+
+  // `answerForm` names a form the answer must be written in, on top of its
+  // value. The one form the grader knows is a simplified polynomial
+  // (functions/shared/simplifiedPolynomialForm.mjs); its keys must be written
+  // that way themselves, or no student could match them.
+  if (isPresent(field.answerForm)) {
+    if (field.answerForm !== SIMPLIFIED_POLYNOMIAL_FORM) {
+      errors.push(
+        `${display} uses unsupported answerForm "${clean(field.answerForm)}". The only supported answerForm is "${SIMPLIFIED_POLYNOMIAL_FORM}".`,
+      );
+    } else {
+      const unsimplified = [primary, ...accepted].filter(isPresent).filter((value) => simplifiedPolynomialProblem(value) !== null);
+      if (unsimplified.length) {
+        errors.push(
+          `${display} asks for a simplified polynomial (answerForm "${SIMPLIFIED_POLYNOMIAL_FORM}"), but its key ${unsimplified.map((value) => `"${clean(value)}"`).join(', ')} is not one: combine like terms, multiply out each product and remove brackets.`,
+        );
+      }
+    }
   }
 
   if (autoGraded && !runtimeHasGradingKey({ collection, field, primary, accepted })) {

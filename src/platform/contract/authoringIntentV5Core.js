@@ -47,6 +47,23 @@ const numberOrTemplateToken = (value) => (
 );
 
 /*
+ * A FAMILY KEY'S {{name}} PLACEHOLDERS ARE TEMPLATE SYNTAX, NOT SET BRACES.
+ *
+ * '{{a}}' or '{{union}}/{{total}}' is the number the generator substitutes,
+ * and '{{pa}}a+{{ps}}s={{R}}' an equation. Read as set notation they made
+ * number and equation boxes set boxes, with the set keypad. The key is tested
+ * with each placeholder standing in as a plain literal, so only braces the
+ * author wrote around it ('{ {{a}}, {{b}} }', '{-4, -3}') make a set.
+ *
+ * Shared with the teacher import (assignmentBlueprint.js), which makes the
+ * same decision before the compiler sees the field: a second copy of this
+ * rule there was missing the placeholder case.
+ */
+export const keyLooksLikeFiniteSet = (value) => looksLikeFiniteSetNotation(
+  typeof value === 'string' ? value.replace(TEMPLATE_TOKEN, '0') : value,
+);
+
+/*
  * A FAMILY TEMPLATE IS COMPILED, NEVER HALF-COMPILED.
  *
  * Compiling an assignment-local family template must carry every templated
@@ -114,6 +131,9 @@ const ACTION_ALIASES = Object.freeze({
   inverse: 'findInverse', findinverse: 'findInverse', composition: 'composeFunctions', composefunctions: 'composeFunctions',
   parabolageometry: 'analyzeParabolaGeometry', focusdirectrix: 'analyzeParabolaGeometry',
   factorpolynomial: 'factorPolynomial', dividepolynomial: 'dividePolynomial', multiplypolynomials: 'multiplyPolynomials',
+  addsubtractpolynomials: 'addSubtractPolynomials', addpolynomials: 'addSubtractPolynomials', subtractpolynomials: 'addSubtractPolynomials',
+  longdivision: 'longDivision', polynomiallongdivision: 'longDivision', longdividepolynomial: 'longDivision',
+  syntheticdivision: 'syntheticDivision', syntheticdividepolynomial: 'syntheticDivision',
   solveinequality: 'solveInequality', signchart: 'solveInequality',
   complexoperations: 'complexOperations', complexplane: 'analyzeComplex',
   exponentiallog: 'exponentialLogBridge', solveexponential: 'solveExponential', solvelogarithmic: 'solveLogarithmic',
@@ -213,6 +233,19 @@ const copyCommon = (source, target = {}) => {
   if (source.prerequisiteStandards) target.prerequisiteStandards = source.prerequisiteStandards;
   if (source.alignments) target.alignments = source.alignments;
   return target;
+};
+
+/*
+ * WHAT A REAL-WORLD TOOL'S AXES MEASURE ("Hours studied", "Total cost
+ * (dollars)"): the data and table tools draw them as axis captions and column
+ * headings (src/tools/shared/planeAxisTitles.js). Copied only when authored,
+ * so a question that names none compiles exactly as before.
+ */
+const copyAxisLabels = (q, out) => {
+  ['xAxisLabel', 'yAxisLabel'].forEach((key) => {
+    if (q[key] != null && q[key] !== '') out[key] = q[key];
+  });
+  return out;
 };
 
 const answerOf = (q) => q.answer ?? q.expectedAnswer ?? q.response?.answer ?? q.answerModel?.answer;
@@ -446,13 +479,9 @@ const fieldFromIntent = (field, index) => {
         ? [out.answer]
         : [];
     // A family key's {{name}} placeholders are template syntax, not set
-    // braces: '{{a}}' or '{{union}}/{{total}}' is the number the generator
-    // substitutes. Reading them as set notation compiled such boxes (Digital
-    // SAT student-produced responses) as set fields. Test the key with each
-    // placeholder standing in as a plain literal, so only braces the author
-    // wrote around it ('{ {{a}}, {{b}} }', '{-4, -3}') make a set.
-    const withoutPlaceholders = (value) => (typeof value === 'string' ? value.replace(TEMPLATE_TOKEN, '0') : value);
-    if (accepted.some((value) => looksLikeFiniteSetNotation(withoutPlaceholders(value)))) {
+    // braces (keyLooksLikeFiniteSet): reading them as set notation compiled
+    // Digital SAT student-produced responses as set fields.
+    if (accepted.some(keyLooksLikeFiniteSet)) {
       out.type = 'set';
       out.toolProfile = out.toolProfile || 'set';
     }
@@ -1116,7 +1145,7 @@ const resolveIntentType = (q, actions) => {
   if (q.data || q.points && actions.some((a) => ['analyzeData','fitDataModel','predictFromModel'].includes(a))) return 'dataModelingLab';
   if (q.inverse || q.composition || actions.some((a) => ['findInverse','composeFunctions'].includes(a))) return 'inverseCompositionLab';
   if (q.parabola || actions.includes('analyzeParabolaGeometry')) return 'parabolaGeometryLab';
-  if (q.polynomial || actions.some((a) => ['factorPolynomial','dividePolynomial','multiplyPolynomials'].includes(a))) return 'polynomialWorkshop';
+  if (q.polynomial || actions.some((a) => ['factorPolynomial','dividePolynomial','longDivision','syntheticDivision','multiplyPolynomials','addSubtractPolynomials'].includes(a))) return 'polynomialWorkshop';
   // A sign chart needs its factors. Without them the analyzer draws its demo
   // factors (x + 2)(x − 3) — a different problem from the prompt — so a
   // linear or absolute-value inequality goes to the Step Algebra relation
@@ -1888,6 +1917,7 @@ const compileOne = (q, index, repairs) => {
     case 'dataModelingLab': {
       const data = q.data || {};
       out = copyCommon(q, { type, mode: q.mode || (actions.includes('fitDataModel') ? 'lineFit' : actions.includes('predictFromModel') ? 'prediction' : 'full'), points: q.points || data.points, predictionX: q.predictionX ?? data.predictionX, predictionTolerance: q.predictionTolerance ?? data.predictionTolerance });
+      copyAxisLabels(q, out);
       break;
     }
     case 'regressionCalculator': {
@@ -1979,7 +2009,7 @@ const compileOne = (q, index, repairs) => {
     }
     case 'polynomialWorkshop': {
       const p = q.polynomial || {};
-      const mode = q.mode || (actions.includes('dividePolynomial') ? 'division' : actions.includes('multiplyPolynomials') ? 'multiplyArea' : 'factorQuadratic');
+      const mode = q.mode || (actions.includes('longDivision') ? 'longDivision' : actions.includes('syntheticDivision') ? 'syntheticDivision' : actions.includes('dividePolynomial') ? 'division' : actions.includes('multiplyPolynomials') ? 'multiplyArea' : actions.includes('addSubtractPolynomials') ? 'addSubtract' : 'factorQuadratic');
       out = copyCommon(q, { type, mode, coefficients: q.coefficients || p.coefficients, leftBinomial: q.leftBinomial || p.leftBinomial, rightBinomial: q.rightBinomial || p.rightBinomial, dividend: q.dividend || p.dividend, divisor: q.divisor || p.divisor, roots: q.roots || p.roots, denominatorRoots: q.denominatorRoots || p.denominatorRoots });
       // The factorZero, graphConnection and rationalFeatures views also read
       // these. Dropping them graded the question with the workshop's defaults
@@ -1988,6 +2018,14 @@ const compileOne = (q, index, repairs) => {
         const numeratorRoots = q.numeratorRoots || p.numeratorRoots;
         if (numeratorRoots) out.numeratorRoots = numeratorRoots;
         ['candidateRoot', 'targetValue', 'leadingCoefficient', 'targetRoot'].forEach((key) => {
+          const value = q[key] ?? p[key];
+          if (value != null) out[key] = value;
+        });
+        // The area model of any size and add & subtract read polynomials
+        // written as text (polynomialMath.mjs areaModelKey / addSubtractKey);
+        // long and synthetic division read `dividend` and `divisor` as text,
+        // copied above with the coefficient lists the division view reads.
+        ['leftFactor', 'rightFactor', 'operation', 'firstPolynomial', 'secondPolynomial'].forEach((key) => {
           const value = q[key] ?? p[key];
           if (value != null) out[key] = value;
         });
@@ -2104,6 +2142,7 @@ const compileOne = (q, index, repairs) => {
         requiredComparisons: q.requiredComparisons,
         ...(isObject(q.repair) ? { repair: q.repair } : {}),
       });
+      copyAxisLabels(q, out);
       break;
     }
     case 'matrixLab': {
@@ -2165,6 +2204,7 @@ const compileOne = (q, index, repairs) => {
         ...(snapStep != null ? { snapStep } : {}),
         ...(q.tolerance != null ? { tolerance: q.tolerance } : {}),
       });
+      copyAxisLabels(q, out);
       break;
     }
     case 'constraintFunctionBuilder': {
@@ -2295,7 +2335,7 @@ export const AUTHORING_INTENT_V5_ACTIONS = Object.freeze([
   'completeTable','stateOrderedPair','multipleResponses','identifyQuantities','configureAxes','writeEquation','classifyContinuity','matchGraphsToStories','compareGraphs',
   'writeGraphStory','interpretPointInContext','buildMapping','plotRelation','classifyFunction','analyzeSequence','findSequenceTerm','findMissingTerm',
   'writeRecursive','writeExplicit','compareSequences','partialSum','buildSequenceTable','plotSequence','connectRepresentations','findRepresentationMismatch','sortIntoOwnGroups','sortIntoCategories','buildFunctionFromConstraints','analyzeData','fitDataModel','predictFromModel','calculateCorrelation',
-  'findInverse','composeFunctions','analyzeParabolaGeometry','factorPolynomial','dividePolynomial','multiplyPolynomials','solveInequality','complexOperations','analyzeComplex',
+  'findInverse','composeFunctions','analyzeParabolaGeometry','factorPolynomial','dividePolynomial','longDivision','syntheticDivision','multiplyPolynomials','addSubtractPolynomials','solveInequality','complexOperations','analyzeComplex',
   'exponentialLogBridge','solveExponential','solveLogarithmic','analyzeTransformations','constructLine','modelingLab',
   'proveConstantRate','interpretExpressionMeaning','connectLinearRepresentations',
   'locateMatrixElements','operateOnMatrices','writeMatrixEquation','solveMatrixEquation','completeSingularSystem',

@@ -18,6 +18,7 @@ import { resolveLinearTableWorkbenchMode } from '../../../functions/shared/serve
 import { FRACTION_ENTRY_PROPS } from '../../platform/interaction/numberEntry.js';
 import { SubmitText } from '../shared/ToolRuntimeContext';
 import FocusSafeButton from '../../components/common/FocusSafeButton.jsx';
+import { questionAxisLabels } from '../shared/planeAxisTitles.js';
 
 const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
 const input = { width: '100%', boxSizing: 'border-box', minHeight: 42, padding: 9, border: '1px solid var(--mm-tint-border)', borderRadius: 8, fontSize: 'calc(15 * var(--mm-px))' };
@@ -27,6 +28,9 @@ const emptyState = { evidence: [], classification: '', repairRowIndex: null, rep
 
 export default function LinearTableWorkbench({ questionData = {}, onAction }) {
   const rows = useMemo(() => normalizeRows(questionData.rows), [questionData.rows]);
+  // What x and y measure in a real-world table ("Rental time (hours)"), when
+  // the question names them (planeAxisTitles.js).
+  const columnLabels = questionAxisLabels(questionData);
   // The view, resolved by the same function the grading declaration uses, so
   // the shared grader always marks the screen the student is looking at.
   const mode = resolveLinearTableWorkbenchMode(questionData);
@@ -300,6 +304,13 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
       />
 
       <Panel title={`Table (${rows.length} rows)`}>
+        {columnLabels ? (
+          <p data-table-quantities="true" style={{ margin: '0 0 10px', color: 'var(--mm-text)', lineHeight: 1.5 }}>
+            Each row is (x, y).
+            {columnLabels.x ? <span style={{ display: 'block' }}><strong>x</strong>: {columnLabels.x}</span> : null}
+            {columnLabels.y ? <span style={{ display: 'block' }}><strong>y</strong>: {columnLabels.y}</span> : null}
+          </p>
+        ) : null}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8 }}>
           {rows.map((row, index) => {
             const selected = selectedRows.includes(index);
@@ -310,7 +321,7 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
                 type="button"
                 onClick={() => toggleRow(index)}
                 aria-pressed={selected}
-                aria-label={`Row ${index + 1}: x equals ${formatCoord(row.x)}, y equals ${formatCoord(row.y)}`}
+                aria-label={`Row ${index + 1}: x equals ${formatCoord(row.x)}${columnLabels?.x ? ` (${columnLabels.x})` : ''}, y equals ${formatCoord(row.y)}${columnLabels?.y ? ` (${columnLabels.y})` : ''}`}
                 style={{
                   ...button,
                   minHeight: 56,

@@ -636,6 +636,15 @@ const endLabel = (degree, lead) => END_LABELS[`${degree % 2 === 0 ? 'even' : 'od
 
 const polynomialModel = (question) => {
   if (typeOf(question) !== 'polynomialWorkshop') return null;
+  // Polynomials written as text — add & subtract, and the area model of any
+  // size — are not this family's: it reads coefficient lists in x, and would
+  // otherwise model them as the FactorZero or (2x + 3)(x − 4) default. Their
+  // supports are the question's own.
+  if (question?.mode === 'addSubtract') return null;
+  // Long and synthetic division too: the dividend and divisor are text, and
+  // the steps are the question's own.
+  if (question?.mode === 'longDivision' || question?.mode === 'syntheticDivision') return null;
+  if (question?.mode === 'multiplyArea' && (typeof question.leftFactor === 'string' || typeof question.rightFactor === 'string')) return null;
   const mode = polynomialMode(question);
   const D = POLYNOMIAL_WORKSHOP_DEFAULTS[mode];
   if (mode === 'factorZero') {

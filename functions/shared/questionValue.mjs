@@ -126,6 +126,19 @@ const work = (kind, label, count = 1) => {
   const times = Math.max(0, Math.floor(Number(count) || 0));
   return Array.from({ length: times }, () => Object.freeze({ kind, label }));
 };
+// The terms in a polynomial written as text ("a^2+3a-4" has 3): a sign that
+// opens a term, not one in an exponent or after a bracket. A count for the
+// workload, never a reading of the mathematics.
+const writtenTermCount = (value) => String(value ?? '').trim().replace(/^[+-]/, '').split(/(?<=[^^(*/])[+-]/).length;
+// The degree of a one-letter polynomial written as text ("x^3-4x+2" is 3): its
+// largest exponent, 1 for a bare letter, 0 for a number. A count for the
+// workload, never a reading of the mathematics.
+const writtenDegree = (value) => {
+  const text = String(value ?? '');
+  const exponents = [...text.matchAll(/[a-z]\^\{?(\d+)/gi)].map((match) => Number(match[1]));
+  return Math.max(/[a-z]/i.test(text) ? 1 : 0, ...exponents);
+};
+
 const select = (label, count = 1) => work(WORK_KIND.SELECT, label, count);
 const respond = (label, count = 1) => work(WORK_KIND.RESPOND, label, count);
 const construct = (label, count = 1) => work(WORK_KIND.CONSTRUCT, label, count);
@@ -567,9 +580,25 @@ const SURFACE_WORK = Object.freeze({
   },
   polynomialWorkshop: (question, mode) => {
     if (mode === 'factorZero') return [...respond('Value'), ...select('Is it a factor?')];
+    // Written as factor text, every cell is a typed term (polynomialMath.mjs
+    // areaModelKey): one unit of construction per four cells, as the binomial
+    // model's 2 × 2 is one.
+    if (mode === 'multiplyArea' && typeof question?.leftFactor === 'string' && typeof question?.rightFactor === 'string') {
+      const cells = writtenTermCount(question.leftFactor) * writtenTermCount(question.rightFactor);
+      return [...construct('Area model', Math.max(1, Math.ceil(cells / 4))), ...respond('Product')];
+    }
     if (mode === 'multiplyArea') return [...construct('Area model'), ...respond('Expanded form')];
+    if (mode === 'addSubtract') return [...respond(question?.operation === 'subtract' ? 'Opposite and combined terms' : 'Combined terms', 2), ...respond('Result')];
     if (mode === 'factorQuadratic') return respond('Factor', 2);
     if (mode === 'division') return respond('Quotient and remainder', 2);
+    // Long division: three typed steps a round, a round per degree the
+    // quotient can have; synthetic division: the table, about four columns a
+    // unit of construction. Then the answer.
+    if (mode === 'longDivision') {
+      const rounds = Math.max(1, writtenDegree(question?.dividend) - writtenDegree(question?.divisor) + 1);
+      return [...construct('Long division rounds', Math.ceil(rounds / 2)), ...respond('Quotient and remainder', 2)];
+    }
+    if (mode === 'syntheticDivision') return [...construct('Synthetic division table', Math.max(1, Math.ceil((writtenDegree(question?.dividend) + 1) / 4))), ...respond('Quotient')];
     if (mode === 'graphConnection') return select('Graph feature', 2);
     return select('Feature');
   },

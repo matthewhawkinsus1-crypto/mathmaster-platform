@@ -1,9 +1,8 @@
 import { normalizeQuestionStandards } from './questionMetadata.js';
 import { getTexasStandard } from './texasStandards.js';
 import { MISSING_TOOL_IDS, validateToolQuestion } from './tools/toolSchemas.js';
-import { compileAuthoringIntentV5 } from './platform/contract/authoringIntentV5.js';
+import { compileAuthoringIntentV5, keyLooksLikeFiniteSet } from './platform/contract/authoringIntentV5.js';
 import { flattenV5Sections, normalizeAssignmentV5, rebuildV5SectionsFromQuestions } from './platform/contract/assignmentSchemaV5.js';
-import { looksLikeFiniteSetNotation } from '../functions/shared/answerEquivalence.mjs';
 import { orderedPairKey } from '../functions/shared/answerUtils.mjs';
 import { parseWrittenNumber } from '../functions/shared/fractionAnswer.mjs';
 import {
@@ -587,7 +586,8 @@ const normalizeQuestionStorageShapes = (questions, repairs = []) => (Array.isArr
           : normalizedField.answer !== undefined
             ? [normalizedField.answer]
             : [];
-        if (accepted.some((value) => looksLikeFiniteSetNotation(value))) {
+        // A Question Family key such as '{{k}}' is a number, not a roster set.
+        if (accepted.some(keyLooksLikeFiniteSet)) {
           setFields += 1;
           normalizedField = { ...normalizedField, type: 'set', toolProfile: normalizedField.toolProfile || 'set' };
         }
