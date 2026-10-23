@@ -11,7 +11,8 @@
 // SAME VALUE. Both expressions are evaluated at sample points. Letters are
 // taken to be positive (the lessons' "assume every variable is positive"),
 // except that a key with absolute value bars is also sampled with the barred
-// letters negative, so 10xy√(3y) is not 10|x|y√(3y).
+// letters negative (near 0 and far out), so 10xy√(3y) is not 10|x|y√(3y) and
+// m + 3 is not |m + 3|.
 //
 // SAME NOTATION. A key written with radicals asks for radicals; a key written
 // with rational exponents asks for exponents. A student may use a notation
@@ -288,8 +289,10 @@ const sameValue = (student, key) => {
   for (let sample = 0; sample < 6; sample += 1) {
     points.push(Object.fromEntries(letters.map((name, index) => [name, SAMPLE_VALUES[(sample + 3 * index) % SAMPLE_VALUES.length]])));
   }
+  // A barred letter is also sampled negative, near 0 and far out: |m + 3| is
+  // m + 3 at every m above −3, so only a value past −3 tells the two apart.
   barredLettersOf(key).forEach((name) => {
-    points.slice(0, 3).forEach((point) => points.push({ ...point, [name]: -point[name] }));
+    points.slice(0, 3).forEach((point) => points.push({ ...point, [name]: -point[name] }, { ...point, [name]: -10 * point[name] }));
   });
   let compared = 0;
   for (const point of points) {

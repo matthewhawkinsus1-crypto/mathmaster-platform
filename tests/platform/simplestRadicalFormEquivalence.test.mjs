@@ -106,6 +106,20 @@ test('absolute value is checked: the key\'s barred letters are also sampled nega
   assert.equal(same('5b^7k^5\\sqrt[4]{k^3}', '5|b^7|k^5\\sqrt[4]{k^3}'), false);
 });
 
+test('the bars of |m + c| are required too, however large c is (√((m + 3)²) is not m + 3)', () => {
+  // m + c is positive at every small negative m, so a student who dropped
+  // the bars agreed with the key wherever it was sampled.
+  [1, 3, 5, 9].forEach((c) => {
+    assert.equal(same(`m+${c}`, `|m+${c}|`), false, `m + ${c}`);
+    assert.equal(same(`${c}+m`, `|m+${c}|`), false, `${c} + m`);
+    assert.equal(same(`\\left|${c}+m\\right|`, `|m+${c}|`), true, `|${c} + m|`);
+  });
+  assert.equal(same('m-4', '|m-4|'), false);
+  assert.equal(same('x+y', '|x+y|'), false);
+  assert.equal(same('|x|^{3}', '|x^3|'), true);
+  assert.equal(same('x^{2}\\left|x\\right|', '|x^3|'), true);
+});
+
 test('ASCII spellings of a key: √, sqrt( ), cbrt( ), ∛, ∜ and root(n)( )', () => {
   assert.equal(same('5a^{2}b^{4}\\sqrt{b}', '5a^2b^4√b'), true);
   assert.equal(same('4ab^2\\sqrt{15a}', '4ab^2√(15a)'), true);
