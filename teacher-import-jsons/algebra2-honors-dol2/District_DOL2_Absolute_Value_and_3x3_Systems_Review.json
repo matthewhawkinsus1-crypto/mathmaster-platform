@@ -1430,8 +1430,8 @@
               },
               "h": {
                 "type": "int",
-                "min": -4,
-                "max": 4,
+                "min": -5,
+                "max": 5,
                 "exclude": [
                   0
                 ]
@@ -1439,7 +1439,7 @@
               "d": {
                 "type": "int",
                 "min": 1,
-                "max": 3
+                "max": 4
               }
             },
             "derived": {
@@ -2823,14 +2823,16 @@
             "parameters": {
               "x": {
                 "type": "int",
-                "min": 15,
-                "max": 34
+                "min": 10,
+                "max": 40
               },
               "m": {
                 "type": "choice",
                 "values": [
                   2,
-                  3
+                  3,
+                  4,
+                  5
                 ]
               }
             },
@@ -2842,7 +2844,8 @@
               "rest": "2*x + m*x"
             },
             "constraints": [
-              "180 - 2*x - m*x >= 5"
+              "180 - 2*x - m*x >= 5",
+              "180 - 2*x - m*x <= 120"
             ]
           }
         },
@@ -3040,33 +3043,30 @@
               "good": {
                 "type": "int",
                 "min": 2,
-                "max": 9
+                "max": 10
               },
               "p": {
                 "type": "int",
-                "min": -6,
-                "max": 6,
+                "min": -8,
+                "max": 8,
                 "exclude": [
                   0
                 ]
-              },
-              "bad": {
-                "type": "int",
-                "min": -6,
-                "max": 6
               }
             },
             "derived": {
               "q": "good + p - m*good",
+              "bad": "-(p + q)/(m + 1)",
               "gv": "good + p",
-              "bv": "m*bad + good + p - m*good"
+              "bv": "m*bad + q"
             },
             "constraints": [
               "good + p > 0",
+              "q != 0",
+              "(p + q) % (m + 1) == 0",
               "bad != good",
-              "-(p + good + p - m*good) == (m + 1)*bad",
-              "m*bad + good + p - m*good < 0",
-              "good + p - m*good != 0"
+              "bv < 0",
+              "abs(bad) <= 10"
             ]
           }
         }
@@ -3298,12 +3298,18 @@
               "V": {
                 "type": "choice",
                 "values": [
+                  250,
+                  300,
                   350,
                   400,
                   450,
                   500,
+                  550,
                   600,
+                  650,
+                  700,
                   750,
+                  800,
                   1000
                 ]
               },
