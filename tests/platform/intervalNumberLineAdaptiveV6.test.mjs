@@ -11,7 +11,8 @@ const src = fs.readFileSync(
 );
 
 test('number line separates readable major ticks from fine snapping', () => {
-  assert.match(src, /const majorStep = useMemo\(\(\) => niceTickStep\(span\)/);
+  // Readable labelled ticks, finer minor ticks where a click lands (intervalTicks.js).
+  assert.match(src, /const \{ major: majorStep, minor: minorStep \} = useMemo\(\s*\(\) => intervalTickSteps\(span,/);
   assert.match(src, /const minorTicks = useMemo/);
   assert.match(src, /snapStep/);
   assert.doesNotMatch(src, /ticks\.map\(\(value\)/);

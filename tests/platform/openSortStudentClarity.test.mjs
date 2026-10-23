@@ -43,3 +43,13 @@ test('a circle and a sideways parabola are each one curve in one style', () => {
   assert.match(sideways, /polylines: \[\{ points, \.\.\.SAME_CURVE \}\]/);
   assert.match(board, /polylines=\{layers\.polylines \|\| \[\]\}/);
 });
+
+// DOL #3 Review Q12, Card E (walkthrough 2026-10-23): the circle on a −6..6
+// window was drawn in a 300 × 220 plane, so it showed as an ellipse.
+test('a circle card is drawn with equal units, so it looks like a circle', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { equalUnitPlaneHeight } = await import('../../src/tools/shared/planeEqualUnits.js');
+  const board = readFileSync(new URL('../../src/tools/openSortBoard/OpenSortBoard.jsx', import.meta.url), 'utf8');
+  assert.match(board, /equalUnits=\{item\.graphSpec\?\.type === 'circle'\}/);
+  assert.equal(equalUnitPlaneHeight({ width: 300, pad: 42, xMin: -6, xMax: 6, yMin: -6, yMax: 6, fallback: 220 }), 300, 'a square window gets a square plane');
+});

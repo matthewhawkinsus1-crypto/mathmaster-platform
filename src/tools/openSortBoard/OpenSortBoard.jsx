@@ -106,6 +106,9 @@ const SortItemPreview = ({ item }) => {
           enlargeable={false}
           width={300}
           height={220}
+          // A circle drawn with unequal units is an ellipse (walkthrough
+          // 2026-10-23, DOL #3 Review Q12, Card E): one unit is one unit both ways.
+          equalUnits={item.graphSpec?.type === 'circle'}
           xMin={Number(bounds.xMin ?? -6)} xMax={Number(bounds.xMax ?? 6)}
           yMin={Number(bounds.yMin ?? -6)} yMax={Number(bounds.yMax ?? 6)}
           functions={layers.functions}
