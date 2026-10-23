@@ -28,7 +28,7 @@ import {
   numberVisiblePanels,
 } from './dataModelingPlan.js';
 import { fitAdjustmentPlan, fitDataBounds, interactionIncrements, residualScale, stepFitControl } from '../../platform/graph/graphScaleService.js';
-import { useHostSubmitLabel, useMethodWithheld, useSubmitLabel } from '../shared/ToolRuntimeContext';
+import { useHostSubmitLabel, useMethodWithheld, useRevealAnswers, useSubmitLabel, useToolRuntimeContext } from '../shared/ToolRuntimeContext';
 
 const Field = ({ label, children }) => (
   <label style={{ display:'block', fontSize:'calc(13 * var(--mm-px))', color:'var(--mm-text-muted)', fontWeight:700 }}>
@@ -300,6 +300,15 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const showAssociationPanel = mode === 'full' || mode === 'association' || mode === 'correlation';
   const showResidualPanel = mode === 'full' || mode === 'lineFit' || Boolean(FORCED_FIT_MODELS[mode]);
   const showModelComparePanel = mode === 'full' || mode === 'modelCompare';
+  // THE REFERENCE MODEL IS THE ANSWER. The regression line is what a line-fit
+  // item asks the student to produce, and "best candidate" is what a compare
+  // item asks them to choose: shown after the first wrong try, it gave both
+  // away with two tries left (walkthrough 2026-10-22, DOL #3 PR 11). It now
+  // waits until the question is over — right, or out of tries — or a surface
+  // that reveals answers. "Best candidate" is named only where the item asks
+  // for a model family: on a linear line-fit item it said "Quadratic".
+  const { questionTerminal } = useToolRuntimeContext();
+  const answersRevealed = useRevealAnswers();
   const showPredictionPanel = mode === 'full' || mode === 'prediction' || Boolean(FIT_PREDICTION_MODELS[mode]) || lineFitPrediction;
   const panelNumbers = numberVisiblePanels([
     ['model', true],
@@ -427,7 +436,10 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                   <Field label="k (endpoint y)"><input type="number" step="0.01" value={squareRootK} onChange={(e)=>{setSquareRootK(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
                 </div>
               ) : exploratoryLineFit ? (
-                <div className="mathmaster-line-fit-steppers" style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0, 1fr))', gap:10, marginTop:12 }}>
+                <div className="mathmaster-line-fit-steppers" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(100%, 230px), 1fr))', gap:10, marginTop:12 }}>
+                  {/* A stepper needs ~230px (−, value, +). Two to a row in a narrow
+                      panel pushed the slope's + under the intercept card at 1366
+                      (walkthrough 2026-10-22, DOL #3 PR 11): they wrap instead. */}
                   <FitStepper label="Slope m" value={m} control={fitControls.slope} onChange={(value)=>{setM(value);clearFeedback();}} />
                   <FitStepper label="Intercept b" value={b} control={fitControls.intercept} onChange={(value)=>{setB(value);clearFeedback();}} />
                   {lineFitRegressionTechnology ? (
@@ -469,7 +481,8 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                           </output>
                           {regressionEstimate ? (
                             <span style={{ color:'var(--mm-text-muted)', fontSize:'calc(13 * var(--mm-px))' }}>
-                              Your estimate was y = {regressionEstimate.m}x {Number(regressionEstimate.b) >= 0 ? '+' : '−'} {Math.abs(Number(regressionEstimate.b))}
+                              {/* Rounded as the steppers showed it: the raw value read "5.33333333333x". */}
+                              Your estimate was y = {round(Number(regressionEstimate.m), 2)}x {Number(regressionEstimate.b) >= 0 ? '+' : '−'} {Math.abs(round(Number(regressionEstimate.b), 2))}
                             </span>
                           ) : null}
                           {Number(m) !== round(regression.m, 3) || Number(b) !== round(regression.b, 3) ? (
@@ -502,7 +515,11 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                       : mode === 'squareRootFitPrediction'
                         ? <>y = {squareRootA}√(x − {squareRootH}) {Number(squareRootK) >= 0 ? '+' : '−'} {Math.abs(Number(squareRootK))}</>
                         : <>y = {shownSlope}x {Number(b) >= 0 ? '+' : '−'} {shownInterceptMagnitude}</>}
-                  {errorReadouts ? <><br/><span data-model-error-readout="" style={{ fontSize:'calc(13 * var(--mm-px))' }}>Current MAE: {Number.isFinite(studentMetrics.mae) ? round(studentMetrics.mae, 2) : '—'} · RMSE: {Number.isFinite(studentMetrics.rmse) ? round(studentMetrics.rmse, 2) : '—'}</span></> : null}
+                  {/* The Algebra I hand fit (lineFit) says what the number means: "MAE ·
+                      RMSE" was jargon there (walkthrough 2026-10-22, DOL #3 PR 11). */}
+                  {errorReadouts ? <><br/><span data-model-error-readout="" style={{ fontSize:'calc(13 * var(--mm-px))' }}>{mode === 'lineFit'
+                    ? <>Average distance from your line to the points: {Number.isFinite(studentMetrics.mae) ? round(studentMetrics.mae, 2) : '—'}</>
+                    : <>Current MAE: {Number.isFinite(studentMetrics.mae) ? round(studentMetrics.mae, 2) : '—'} · RMSE: {Number.isFinite(studentMetrics.rmse) ? round(studentMetrics.rmse, 2) : '—'}</>}</span></> : null}
                 </div>
               ) : (
                 <p style={{margin:'10px 0 0',fontSize:'calc(13 * var(--mm-px))',color:'var(--mm-text-muted)'}}>Enter every coefficient from your regression result to draw and evaluate your model.</p>
@@ -617,9 +634,11 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                   : `Still to fix: ${missed.map((part) => reasons[part] || label[part] || part).join('; ')}. Everything else is right.`;
                 return <ResultPill ok={feedback.isCorrect} message={text}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>;
               })()}
-              <div style={{ marginTop:12, padding:12, borderRadius:10, background:'var(--mm-surface-sunken)', fontSize:'calc(13 * var(--mm-px))', color:'var(--mm-text-muted)' }}>
-                <strong>Reference after submit:</strong> linear regression y ≈ {round(regression.m,2)}x {regression.b>=0?'+':'−'} {Math.abs(round(regression.b,2))}; best candidate by {questionData.modelMetric || 'RMSE'}: {bestModel?.label || '—'}.
-              </div>
+              {feedback.isCorrect || questionTerminal || answersRevealed ? (
+                <div data-dml-reference="" style={{ marginTop:12, padding:12, borderRadius:10, background:'var(--mm-surface-sunken)', fontSize:'calc(13 * var(--mm-px))', color:'var(--mm-text-muted)' }}>
+                  <strong>Reference:</strong> linear regression y ≈ {round(regression.m,2)}x {regression.b>=0?'+':'−'} {Math.abs(round(regression.b,2))}{showModelComparePanel ? <>; best candidate by {questionData.modelMetric || 'RMSE'}: {bestModel?.label || '—'}</> : null}.
+                </div>
+              ) : null}
             </div>
           ) : null}
         </Panel>

@@ -273,7 +273,7 @@ const enterTest = async (page) => {
 
 const FORBIDDEN = [
   /\bCorrect\b/, /\bNot yet\b/, /Stuck\?/, /Show (me )?(a|the) hint/i, /strategic hint/i, /Cancellation hints/,
-  /Your line:/, /Reference after submit/, /Something to think about/, /Check your graph/,
+  /Your line:/, /Reference after submit|Reference:\s*linear regression/, /Something to think about/, /Check your graph/,
   /by itself, prove causation/, /Interpret r by its sign/, /residual plot should look/, /Interpolation predicts inside/,
   /check your construction/i, /Press Check construction/, /then check your graph/, /Balanced and correct/, /Look for a pair/,
   /equation is solved/,
