@@ -319,7 +319,14 @@ test('what is not a point, a number line or a one-variable inequality is not cla
   const corpus = fs.readdirSync(path.join(root, 'teacher-import-jsons'), { recursive: true })
     .filter((file) => file.endsWith('.json'))
     .flatMap((file) => compileAuthoringIntentV5(readJson(path.join('teacher-import-jsons', file))).package.sections.flatMap((section) => section.questions));
-  const notOurs = corpus.filter((question) => question.type !== 'intervalNumberLine');
+  // A one-variable inequality solved in Step Algebra is this family's
+  // (linearInequality): the Module 3 inequality lesson has real ones, and each
+  // is claimed. Everything else in the corpus is not.
+  const oneVariableInequality = (question) => question.type === 'stepAlgebra' && /[<>≤≥]/.test(String(question.equation || ''));
+  const inequalities = corpus.filter(oneVariableInequality);
+  assert.ok(inequalities.length >= 5, `${inequalities.length} corpus inequalities`);
+  inequalities.forEach((question) => assert.equal(pointsAndIntervals.matches(question), true, `corpus inequality: ${String(question.prompt).slice(0, 70)}`));
+  const notOurs = corpus.filter((question) => question.type !== 'intervalNumberLine' && !oneVariableInequality(question));
   assert.ok(notOurs.length > 150);
   notOurs.forEach((question) => assert.equal(pointsAndIntervals.matches(question), false, `corpus ${question.type}: ${String(question.prompt).slice(0, 70)}`));
   readJson('drafts/district-dol2/assignment.json').sections.flatMap((section) => section.questions)

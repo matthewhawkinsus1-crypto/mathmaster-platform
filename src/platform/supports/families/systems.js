@@ -263,6 +263,11 @@ const workspaceMode = (question) => {
 
 const lineEquation = (m, k, f) => `y = ${f.linear([[m, 'x'], [k, null]])}`;
 
+// "an x-term", "a y-term": the article a letter takes is the one its NAME
+// takes — ex, aitch, em — not the one its shape suggests.
+const VOWEL_SOUND_LETTERS = new Set(['a', 'e', 'f', 'h', 'i', 'l', 'm', 'n', 'o', 'r', 's', 'x']);
+const termArticle = (letter) => (VOWEL_SOUND_LETTERS.has(text(letter).toLowerCase()) ? 'an' : 'a');
+
 const lineAsEquation = (m, k) => {
   const f = formatter();
   return {
@@ -290,7 +295,13 @@ const readSystem = (question) => {
       const source = question.system || SYSTEMS_WORKSPACE_DEFAULTS.system;
       const values = ['m1', 'b1', 'm2', 'b2'].map((key) => Number(source?.[key]));
       if (!values.every(Number.isFinite)) return null;
-      return { kind: 'graph', variables: ['x', 'y'], equations: [lineAsEquation(values[0], values[1]), lineAsEquation(values[2], values[3])] };
+      const equations = [lineAsEquation(values[0], values[1]), lineAsEquation(values[2], values[3])];
+      // A constructed graph names its two equations as the student reads
+      // them ("5s + 10a = 3000"), and Pre-Flight has proved each label is its
+      // line, so the hints name those equations, not a y = mx + b rewrite.
+      const labels = question.interaction === 'construct' && Array.isArray(question.equationLabels) ? question.equationLabels.map(text) : [];
+      if (labels.length === 2 && labels.every(Boolean)) labels.forEach((label, index) => { equations[index].display = label; });
+      return { kind: 'graph', variables: ['x', 'y'], equations };
     }
     if (mode === 'matrix') {
       const source = question.matrix || SYSTEMS_WORKSPACE_DEFAULTS.matrix;
@@ -673,7 +684,7 @@ const ladderFor = (question, system, plan) => {
     return [
       [
         `In ${math(equation.display)} the ${math(v)}-term has no coefficient to divide by, so solve that equation for ${math(v)} first.`,
-        `One equation has a ${math(v)}-term with no coefficient to divide by: solve that equation for ${math(v)} first.`,
+        `One equation has ${termArticle(v)} ${math(v)}-term with no coefficient to divide by: solve that equation for ${math(v)} first.`,
       ],
       [
         `Then replace ${math(v)} in ${math(other.display)} with that expression, in parentheses, so only ${math(w)} is left.`,
@@ -1088,7 +1099,7 @@ export const backUpQuestion = (question) => {
       const wrong = 'Add the two equations as they are';
       steps.push(
         { prompt: `Let’s back up. In ${plainOf(plan.equation)}, the ${plan.v}-term has no coefficient. What is a good first move?`, ...order(`Solve ${plainOf(plan.equation)} for ${plan.v}`, wrong) },
-        { prompt: `Let’s back up. One equation has a ${plan.v}-term with no coefficient. What is a good first move?`, ...order(`Solve that equation for ${plan.v}`, wrong) },
+        { prompt: `Let’s back up. One equation has ${termArticle(plan.v)} ${plan.v}-term with no coefficient. What is a good first move?`, ...order(`Solve that equation for ${plan.v}`, wrong) },
       );
     } else if (plan.method === 'setEqual') {
       const [e1, e2] = system.equations;

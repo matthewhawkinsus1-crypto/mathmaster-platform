@@ -11,6 +11,7 @@ import {
   sameNumberWithThousandsSeparators,
   normalizeStructuralMathLive,
   sameNumericPair,
+  samePolynomialEquationRelation,
   sameValue,
   splitTopLevelCommaList,
 } from './answerEquivalence.mjs';
@@ -229,6 +230,15 @@ export const matchesFieldAnswer = (studentAnswer, field = {}) => {
   const options = fieldValueOptions(field);
   if (options.thousandsSeparators && matchesAnyNumberWithThousandsSeparators(studentAnswer, acceptedAnswers)) {
     return true;
+  }
+
+  // An equation the question asks a student to WRITE, in whatever form they
+  // write it: "y = 449 − x" or "2x + 2y = 898" for "x + y = 449" (a nonzero
+  // multiple of the same relation). Opt-in, with the Path field's name for it
+  // (teacherPathRuntime): by default an equation keeps the form it is keyed
+  // in, because "write it in slope-intercept form" is often the question.
+  if (field?.equivalence === 'polynomialRelation') {
+    return acceptedAnswers.some((acceptedAnswer) => samePolynomialEquationRelation(studentAnswer, acceptedAnswer));
   }
 
   if (field?.gradingMode === 'equivalentExpression') {

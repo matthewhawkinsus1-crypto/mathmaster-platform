@@ -158,8 +158,9 @@ test('an assigned 3×3 method gets directions for that method; only a real choic
   // "then check" invitations dropped (the final action records the answer),
   // never another task's.
   // (`stepsAreControls` sits between task and steps: the inequality build's
-  // steps are process only and stay on an assessment, R-10.)
-  const card = workspace.match(/<TaskCard question=\{questionData\} task=\{MODE_TASKS\[taskKey\] \|\| MODE_TASKS\.linear\}(?: stepsAreControls=\{taskKey === 'inequalitiesConstruct'\})? steps=\{([^}]*)\}/);
+  // and the graph construct's steps are process only and stay on an
+  // assessment, R-10.)
+  const card = workspace.match(/<TaskCard question=\{questionData\} task=\{MODE_TASKS\[taskKey\] \|\| MODE_TASKS\.linear\}(?: stepsAreControls=\{taskKey === 'inequalitiesConstruct' \|\| taskKey === 'linearConstruct'\})? steps=\{([^}]*)\}/);
   assert.ok(card, 'the task card names its steps');
   const named = card[1].match(/MODE_STEPS[\[.][^)\s]*(?: \|\| MODE_STEPS\.linear)?/g) || [];
   assert.ok(named.length >= 1);

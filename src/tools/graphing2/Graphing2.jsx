@@ -12,7 +12,7 @@ import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import graphing2Grader, { readConstructionFeedback } from '../../../functions/shared/serverGrading/tools/graphing2.mjs';
 import { lineFromPoints, targetLineFromQuestion, withDefaultTargetLine } from './graphingMath';
-import { lineReadoutLatex, lineReadoutText } from './lineReadout.js';
+import { lineReadoutLatex, lineReadoutText, standardFormReadoutText } from './lineReadout.js';
 import { placePoint } from './placePoint.js';
 import MathDisplay from '../../MathDisplay';
 import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
@@ -91,7 +91,7 @@ const targetPrompt = (questionData, target) => {
   if (mode === 'throughPoints') return `Graph the line that passes through ${(questionData.givenPoints || []).map(formatPoint).join(' and ')}.`;
   if (mode === 'pointSlope') return `Graph the line through ${formatPoint(questionData.point || [0, 0])} with slope ${questionData.slope}.`;
   if (mode === 'factoredLinear') return `Graph y = ${questionData.factored?.a}(x − ${questionData.factored?.c}).`;
-  if (mode === 'standardForm') return `Graph ${questionData.standard?.A}x + ${questionData.standard?.B}y = ${questionData.standard?.C}.`;
+  if (mode === 'standardForm') return `Graph ${standardFormReadoutText(questionData.standard)}.`;
   if (mode === 'verticalHorizontal') return `Graph ${questionData.orientation === 'vertical' ? 'x = ' : 'y = '}${questionData.value}.`;
   return `Graph ${lineReadoutText(target) || 'the line'}.`;
 };

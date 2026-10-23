@@ -1151,7 +1151,11 @@ const resolveIntentType = (q, actions) => {
   // linear or absolute-value inequality goes to the Step Algebra relation
   // workspace, which also enforces the sign reversal.
   if (q.signChart || (actions.includes('solveInequality') && hasSignChartData(q))) return 'signSolutionAnalyzer';
-  if (actions.includes('solveInequality') && readableInequalityIntent(q)) return 'stepAlgebra';
+  // A Question Family slot has no inequality yet: its family writes one per
+  // student. The inequality families build Step Algebra's relation workspace
+  // (the sign chart, which needs authored factors, has none), so the slot is
+  // that solve too — not the analyzer's sample problem.
+  if (actions.includes('solveInequality') && (readableInequalityIntent(q) || isObject(q.questionFamily))) return 'stepAlgebra';
   if (actions.includes('solveInequality')) return 'signSolutionAnalyzer';
   if (q.complex || q.z || actions.some((a) => ['complexOperations','analyzeComplex'].includes(a))) return 'complexPlaneLab';
   if (q.logarithm || q.exponentialLog || actions.some((a) => ['exponentialLogBridge','solveExponential','solveLogarithmic'].includes(a))) return 'exponentialLogBridge';
@@ -1488,7 +1492,24 @@ const compileOne = (q, index, repairs) => {
       const ask = [];
       if (actions.includes('constructInterval')) ask.push('graph');
       if (actions.includes('writeInterval')) ask.push('interval');
-      out = copyCommon(q, { type, inequalityText: q.inequalityText || q.inequality, intervals: q.intervals, ask: q.ask || (ask.length ? ask : ['graph','interval']), min: q.min, max: q.max, step: q.step });
+      // The letter the inequality is written in (b ≤ 420). The tool, its
+      // grader and Pre-Flight's interval check all read `variable`; dropping
+      // it made each of them expect x, so "b ≤ 420" was marked wrong.
+      const letter = /^[A-Za-z]$/.test(clean(q.variable)) ? clean(q.variable) : inferSingleEquationVariable(q.inequalityText || q.inequality);
+      out = copyCommon(q, {
+        type,
+        inequalityText: q.inequalityText || q.inequality,
+        intervals: q.intervals,
+        ask: q.ask || (ask.length ? ask : ['graph','interval']),
+        min: q.min,
+        max: q.max,
+        step: q.step,
+        variable: letter && letter !== 'x' ? letter : undefined,
+        // `"autoViewport": false` keeps the authored window (0 to 600,
+        // counting by 60) on screen, as the printed copy already does,
+        // instead of a window fitted around the answer.
+        autoViewport: q.autoViewport === false ? false : undefined,
+      });
       break;
     }
     case 'graphing':
@@ -1649,6 +1670,11 @@ const compileOne = (q, index, repairs) => {
       : undefined,
     generator: q.generator,
     workspaceDifficulty: q.workspaceDifficulty,
+    // The relation workspace is the one with "No solution" and "All real
+    // numbers" conclusions. An author opens an equation there on purpose —
+    // for a one-solution equation too, so the workspace never tells a student
+    // which equations are the special cases. Copied only when it is asked for.
+    relationWorkspace: q.relationWorkspace === true ? true : undefined,
     solveFor: q.solveFor || inferSingleEquationVariable(equation),
     targetForm: isRewriteToSlopeIntercept ? 'slopeIntercept' : q.targetForm,
     requireSimplifiedFinalForm: isRewriteToSlopeIntercept ? true : q.requireSimplifiedFinalForm,
@@ -1669,6 +1695,15 @@ const compileOne = (q, index, repairs) => {
       break;
     case 'system':
       out = copyCommon(q, { type, equations: q.equations, answer: answerOf(q), graph: normalizeStaticGraphPoints(q.graph), showGraph: q.showGraph });
+      // A Question Family slot writes its own equations, and a systems
+      // family builds its Systems Workspace version from this slot. The
+      // slot's instructional choices travel with it — dropping them let
+      // every student choose a method the author had set.
+      if (isObject(q.questionFamily)) {
+        ['method', 'requireVerification', 'askEfficiency'].forEach((key) => {
+          if (q[key] != null) out[key] = q[key];
+        });
+      }
       break;
     case 'table': {
       const functionIntent = authoredFunctionIntent(q);
@@ -1980,6 +2015,11 @@ const compileOne = (q, index, repairs) => {
         'sourceConstraints', 'expectedConstraints', 'studentBuild', 'reasoning',
         'testPoint', 'allowStudentTestPoint', 'askClassification', 'askVertices',
         'modeling', 'graph', 'spatialModel',
+        // Graph mode's opt-in construct form: the student graphs each line
+        // from two points before reading the system (`interaction`), each
+        // equation shown as the question writes it (`equationLabels`), on the
+        // plane's plotting grid (`snapStep`).
+        'interaction', 'equationLabels', 'snapStep',
       ].forEach((key) => {
         if (q[key] != null) out[key] = q[key];
       });

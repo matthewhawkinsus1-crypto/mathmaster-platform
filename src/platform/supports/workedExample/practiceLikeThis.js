@@ -119,6 +119,8 @@ const words = (value) => (text(value).match(/[A-Za-z]{2,}/g) || [])
 
 // A value starts with one of these; a label never does.
 const VALUE_START = /^[[({\-−\d∅∞.]/;
+// One variable against one number: "b ≥ 3", "x < −1/2".
+const SOLVED_INEQUALITY = /^[A-Za-z]\s*(?:<=|>=|[<>≤≥])\s*[-−]?(?:\d+(?:\.\d+)?|\.\d+)(?:\/\d+)?$/;
 // Words that mean "there is none" — any of them answers any other.
 const NONE_WORDS = /^(?:never|none|no interval|does not exist|dne|∅|\{\s*\})$/i;
 
@@ -194,6 +196,12 @@ const readPart = (chunk, position, { ordered = false } = {}) => {
     const kind = pointList(raw) ? 'points' : 'value';
     return { id, label, expected: raw, kind, ordered, checkable: kind === 'points' || valueCheckable(raw) || expressionKind(raw) };
   }
+
+  // A solved inequality, "b ≥ 3": a value the matcher compares by its
+  // solution set ("3 ≤ b" is the same answer). Read as a label ("b") and a
+  // value ("≥ 3") below, it was words, and a sibling inequality was never
+  // checked.
+  if (SOLVED_INEQUALITY.test(raw)) return { id, label: null, expected: raw, kind: 'value', checkable: valueCheckable(raw) };
 
   // A label, then a value: "domain [-1, 4]", "Horizontal: 6 units left".
   const labelled = /^([A-Za-z][A-Za-z-]*(?:\s+[A-Za-z][A-Za-z-]*)*)\s*:?\s+(.+)$/.exec(raw);

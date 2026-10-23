@@ -73,3 +73,18 @@ export const lineReadoutText = (line) => write(line, { coefficient: coefficientT
 
 /** The same line as LaTeX for MathDisplay: "y = \frac{2}{3}x + 2". */
 export const lineReadoutLatex = (line) => write(line, { coefficient: coefficientLatex, number: numberLatex, minus: '-' });
+
+/** "x + y = 450", "2x − 3y = −6": a standard-form line as its task names it. */
+export const standardFormReadoutText = ({ A, B, C } = {}) => {
+  const term = (value, variable, first) => {
+    const n = Number(value);
+    if (!Number.isFinite(n) || Math.abs(n) <= EPSILON) return '';
+    const body = `${coefficientText(n)}${variable}`;
+    if (first) return `${n < 0 ? MINUS : ''}${body}`;
+    return ` ${n < 0 ? MINUS : '+'} ${body}`;
+  };
+  const xTerm = term(A, 'x', true);
+  const left = `${xTerm}${term(B, 'y', !xTerm)}` || '0';
+  const c = Number(C);
+  return `${left} = ${c < -EPSILON ? MINUS : ''}${numberText(c)}`;
+};

@@ -786,13 +786,19 @@ export const relationExpressionToLatex = (expression) => {
       const numerator = unwrapParenthesisNode(node.args[0]);
       const denominator = unwrapParenthesisNode(node.args[1]);
 
+      // lowerExp/upperExp: the number itself, never 2.36(10)^{+5}
+      // (algebraAstEngine.mjs TEX_OPTIONS).
       const numeratorLatex = numerator.toTex({
         parenthesis: 'keep',
         implicit: 'show',
+        lowerExp: -9,
+        upperExp: 15,
       });
       const denominatorLatex = denominator.toTex({
         parenthesis: 'keep',
         implicit: 'show',
+        lowerExp: -9,
+        upperExp: 15,
       });
 
       return `${sign}\\frac{${numeratorLatex}}{${denominatorLatex}}`;

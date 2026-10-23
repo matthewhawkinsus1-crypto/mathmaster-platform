@@ -267,7 +267,12 @@ export const structuredGivenLinesFromResolvedQuestion = (question = {}) => {
     const text = clean(line);
     if (text && !lines.includes(text)) lines.push(text);
   };
-  if (question.equation) add(mathLine('Equation', question.equation));
+  // Intake stores a Step Algebra equation as `equationLatex`
+  // (assignmentBlueprint.js), so reading `equation` alone printed the card
+  // with no equation to solve. A generated equation is engine text with
+  // explicit products, `(5/4) * x`; paper shows `(5/4)x`.
+  const equation = clean(question.equation || question.equationLatex).replace(/\s*\*\s*(?=[A-Za-z(])/g, '');
+  if (equation) add(mathLine('Equation', equation));
   if (question.expression && question.expression !== question.equation) add(mathLine('Expression', question.expression));
   // A Matrix Lab modeling question hides its system (showEquations: false):
   // writing it from the words is the task, so the paper never prints it.

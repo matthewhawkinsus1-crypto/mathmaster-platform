@@ -1,0 +1,2643 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Solving Systems by Substitution Honors (M3 T2 L2)",
+    "courseId": "algebra1",
+    "folder": "Algebra I/Module 3/Topic 2/Lesson 2",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork"
+  },
+  "variantPolicy": {
+    "mode": "personalized",
+    "sectionModes": {
+      "warmup": "shared",
+      "classwork": "shared",
+      "practice": "personalized",
+      "dol": "personalized"
+    }
+  },
+  "sections": [
+    {
+      "id": "warmup",
+      "role": "warmup",
+      "title": "Warm-Up — Ready for Substitution",
+      "recommendedMinutes": 10,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "m3t2l2h-wu-1",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Analyze the system {{system}}. Substitute to find the value of y, then write the solution of the system.",
+          "questionFamily": {
+            "id": "systems.knownValue"
+          },
+          "hints": [
+            "One equation tells you what x equals. Replace x in the other equation with that number or expression.",
+            "After you substitute, the equation has only y in it: solve it.",
+            "Use the equation that gives x to find x, then write the ordered pair with x first."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. If a system says x equals an expression, you can…",
+            "options": [
+              "replace x with that expression in the other equation",
+              "add the two equations"
+            ],
+            "correct": "replace x with that expression in the other equation"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Replace x in the second equation with what the first equation says x equals.",
+              "Solve the new equation for y.",
+              "Find x from the first equation, and write the solution as (x, y)."
+            ],
+            "commonError": "Writing the solution as (y, x) — the x-coordinate comes first."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-wu-2",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve {{equation}}. Clear the fractions first if you like.",
+          "questionFamily": {
+            "id": "linear.multiStepEquation",
+            "version": 2,
+            "constraints": {
+              "solutionCase": "one",
+              "distribute": true,
+              "coefficientForm": "fraction"
+            }
+          },
+          "hints": [
+            "Multiply every term on both sides by a common denominator to clear the fractions.",
+            "Distribute, combine like terms, and collect the variable terms on one side.",
+            "Divide by the coefficient of the variable, then check your solution in the original equation."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To clear the fractions in an equation, you multiply…",
+            "options": [
+              "every term on both sides by a common denominator",
+              "only the fraction terms"
+            ],
+            "correct": "every term on both sides by a common denominator"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Multiply every term by a common denominator (or distribute the fractions).",
+              "Combine like terms, then collect the variable terms on one side and the constants on the other.",
+              "Divide by the coefficient of the variable, and check in the original equation."
+            ],
+            "commonError": "Multiplying only the fraction terms by the common denominator."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-wu-3",
+          "standard": "A.3F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Review: classify the system {{system}} without graphing.",
+          "questionFamily": {
+            "id": "systems.classifyByStructure"
+          },
+          "hints": [
+            "Rewrite the standard-form equation as y = mx + b.",
+            "Compare the slopes first.",
+            "If the slopes match, compare the y-intercepts."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Lines with the same slope and different y-intercepts…",
+            "options": [
+              "cross once",
+              "never meet"
+            ],
+            "correct": "never meet"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Rewrite the second equation in slope-intercept form.",
+              "Different slopes: one solution. Same slope, different y-intercepts: no solution. Same slope and y-intercept: infinitely many."
+            ],
+            "commonError": "Reading the coefficient of x in standard form as the slope."
+          }
+        }
+      ]
+    },
+    {
+      "id": "classwork",
+      "role": "classwork",
+      "title": "Classwork — Substitution, Special Systems and Parameters",
+      "recommendedMinutes": 75,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "m3t2l2h-cw-1",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Getting Started — Goats, Chickens, and Pigs. At the county fair, a master of trade makes sure every trade is fair. All chickens have equal value, all goats have equal value, and all pigs have equal value. In the first trade, 4 goats were traded for 5 chickens. In the second trade, 1 pig was traded for 2 chickens and 1 goat. In the third trade, Farmer Lyndi offers 3 chickens and 1 pig for Farmer Simpson’s 4 goats. Let c, g and p be the values of one chicken, one goat and one pig.",
+          "responses": [
+            {
+              "id": "first",
+              "label": "An equation for the first trade",
+              "answer": "4g = 5c",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "second",
+              "label": "An equation for the second trade",
+              "answer": "p = 2c + g",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "goat",
+              "label": "One goat is worth how many chickens?",
+              "answer": "1.25"
+            },
+            {
+              "id": "pig",
+              "label": "One pig is worth how many chickens? (Substitute for g in the second equation.)",
+              "answer": "3.25"
+            },
+            {
+              "id": "fair",
+              "label": "Is the third trade fair?",
+              "type": "choice",
+              "options": [
+                "No — Lyndi’s 3 chickens and 1 pig are worth 6.25 chickens, but Simpson’s 4 goats are worth only 5 chickens.",
+                "Yes — each farmer offers 4 animals.",
+                "No — Simpson’s 4 goats are worth more than Lyndi’s animals.",
+                "Yes — both offers are worth 5 chickens."
+              ],
+              "answer": "No — Lyndi’s 3 chickens and 1 pig are worth 6.25 chickens, but Simpson’s 4 goats are worth only 5 chickens."
+            },
+            {
+              "id": "fix",
+              "label": "Which change makes the third trade fair?",
+              "type": "choice",
+              "options": [
+                "Farmer Simpson adds 1 goat.",
+                "Farmer Lyndi adds 1 chicken.",
+                "Farmer Simpson removes 1 goat.",
+                "Farmer Lyndi adds 1 goat."
+              ],
+              "answer": "Farmer Simpson adds 1 goat."
+            }
+          ],
+          "hints": [
+            "In a fair trade, the two sides have equal value: write each trade as an equation.",
+            "Solve the first equation for g, then substitute that expression for g in the second equation.",
+            "Write both farmers’ offers in chickens, then compare them."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In a fair trade, the two sides…",
+            "options": [
+              "have the same number of animals",
+              "have equal value"
+            ],
+            "correct": "have equal value"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Substitution",
+                "instruction": "When one equation tells you what a variable equals, you can replace that variable in another equation with the equal expression. Reasoning this way is called substitution."
+              }
+            ]
+          },
+          "solutionReview": {
+            "reasoning": [
+              "4g = 5c, so one goat is worth 5/4 = 1.25 chickens.",
+              "p = 2c + g = 2c + 1.25c, so one pig is worth 3.25 chickens.",
+              "Lyndi: 3 + 3.25 = 6.25 chickens. Simpson: 4 × 1.25 = 5 chickens. Lyndi’s side is worth 1.25 chickens — one goat — more.",
+              "Adding a goat to Simpson’s side makes both sides worth 6.25 chickens."
+            ],
+            "commonError": "Comparing the number of animals instead of their value."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-cw-2",
+          "standard": "A.2I",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Activity 2.1 — Introduction to Substitution. Sofia is buying sweet onions and potatoes for potato salad. Onions cost $1.25 per pound and potatoes cost $1.05 per pound, and she has exactly $30 to spend. Her mother says the pounds of potatoes should be 8 times the pounds of onions. Let x be the pounds of onions and y the pounds of potatoes.",
+          "responses": [
+            {
+              "id": "cost",
+              "label": "An equation for spending exactly $30",
+              "answer": "1.25x + 1.05y = 30",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "standard",
+              "label": "The cost equation in standard form Ax + By = C, with the smallest whole-number coefficients",
+              "answer": "25x + 21y = 600",
+              "inputProfile": "equation"
+            },
+            {
+              "id": "ratio",
+              "label": "An equation for “the pounds of potatoes are 8 times the pounds of onions”",
+              "answer": "y = 8x",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "check",
+              "label": "Do 1 pound of onions and 8 pounds of potatoes satisfy both equations?",
+              "type": "choice",
+              "options": [
+                "No — they make y = 8x true, but 1.25(1) + 1.05(8) = 9.65, not 30.",
+                "Yes — they make both equations true.",
+                "No — they do not make y = 8x true.",
+                "Yes — every point on y = 8x is a solution of the system."
+              ],
+              "answer": "No — they make y = 8x true, but 1.25(1) + 1.05(8) = 9.65, not 30."
+            }
+          ],
+          "hints": [
+            "For each item, cost = price per pound × pounds. Add the two costs.",
+            "Multiply every term by the same number to clear the decimals, then divide out any common factor.",
+            "Translate the sentence word by word: the pounds of potatoes equal eight times the pounds of onions."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. If the pounds of potatoes are 8 times the pounds of onions, which amount is larger?",
+            "options": [
+              "y, the pounds of potatoes",
+              "x, the pounds of onions"
+            ],
+            "correct": "y, the pounds of potatoes"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Standard form",
+                "instruction": "The standard form of a linear equation is Ax + By = C, where A, B and C are integers and A and B are not both zero."
+              }
+            ]
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Onion cost plus potato cost is $30: 1.25x + 1.05y = 30.",
+              "Times 20: 25x + 21y = 600.",
+              "Potatoes are 8 times onions: y = 8x.",
+              "(1, 8) makes y = 8x true but costs only $9.65, so it does not solve the system."
+            ],
+            "commonError": "Writing x = 8y — the pounds of POTATOES are the larger amount."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-cw-3",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1D",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Worked example. Solve Sofia’s system by substitution: 1.25x + 1.05y = 30 and y = 8x. Step 1: y = 8x is already solved for y. Step 2: substitute 8x for y in the other equation. Step 3: solve the new equation. Step 4: find y, and check.",
+          "responses": [
+            {
+              "id": "substituted",
+              "label": "The new equation after you substitute 8x for y",
+              "answer": "1.25x + 1.05(8x) = 30",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "x",
+              "label": "Solve for x. Round to the nearest hundredth.",
+              "answer": "3.11"
+            },
+            {
+              "id": "y",
+              "label": "Use your rounded x to find y, to the nearest hundredth.",
+              "answer": "24.88",
+              "acceptedAnswers": [
+                "24.88",
+                "24.87"
+              ]
+            },
+            {
+              "id": "meaning",
+              "label": "What does the solution mean in Sofia’s situation?",
+              "type": "choice",
+              "options": [
+                "Sofia can buy about 3.11 pounds of onions and 24.88 pounds of potatoes for $30.",
+                "Sofia can buy about 24.88 pounds of onions and 3.11 pounds of potatoes for $30.",
+                "Sofia spends $3.11 on onions and $24.88 on potatoes.",
+                "Onions cost 8 times as much as potatoes."
+              ],
+              "answer": "Sofia can buy about 3.11 pounds of onions and 24.88 pounds of potatoes for $30."
+            }
+          ],
+          "hints": [
+            "Replace y with the expression it equals — in parentheses — so the new equation has only x in it.",
+            "Multiply, combine the x-terms, then divide both sides by the coefficient of x.",
+            "Substitute your x-value into the equation that is solved for y."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. After you substitute for y, the new equation has…",
+            "options": [
+              "two variables",
+              "one variable"
+            ],
+            "correct": "one variable"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Substitution method",
+                "instruction": "Substitution solves a system by replacing a variable in one equation with an equivalent expression from the other equation."
+              },
+              {
+                "title": "The four steps",
+                "instruction": "Isolate a variable. Substitute its expression into the other equation. Solve that equation. Substitute back to find the other variable, then check in both equations."
+              }
+            ]
+          },
+          "solutionReview": {
+            "reasoning": [
+              "1.25x + 1.05(8x) = 30, so 1.25x + 8.4x = 30 and 9.65x = 30.",
+              "x = 30 ÷ 9.65 ≈ 3.11.",
+              "y = 8(3.11) ≈ 24.88.",
+              "Check: 1.25(3.11) + 1.05(24.88) ≈ 30. About 3.11 pounds of onions and 24.88 pounds of potatoes."
+            ],
+            "commonError": "Writing 1.05 · 8x as 1.05 + 8x: the substituted expression is multiplied, so it goes in parentheses."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-cw-4",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Now use the Systems Workspace. Solve the system y = 3x − 4 and 2x + 5y = 31 by substitution, then check your solution in both equations.",
+          "equations": [
+            "y = 3x - 4",
+            "2x + 5y = 31"
+          ],
+          "variables": [
+            "x",
+            "y"
+          ],
+          "method": "substitution",
+          "requireVerification": true,
+          "hints": [
+            "The first equation is already solved for y: substitute its right side, in parentheses, for y in the second equation.",
+            "Distribute, combine like terms, and solve the one-variable equation.",
+            "Substitute your x-value back into the first equation, then check the pair in both equations."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Which equation is already solved for a variable?",
+            "options": [
+              "y = 3x − 4",
+              "2x + 5y = 31"
+            ],
+            "correct": "y = 3x − 4"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "2x + 5(3x − 4) = 31 → 2x + 15x − 20 = 31 → 17x = 51 → x = 3.",
+              "y = 3(3) − 4 = 5.",
+              "Check: 5 = 3(3) − 4 and 2(3) + 5(5) = 31. The solution is (3, 5)."
+            ],
+            "commonError": "Writing 5(3x − 4) as 15x − 4."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-cw-5",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "This time neither equation is solved for a variable. Solve the system x + 2y = 7 and 3x − y = 7 by substitution: isolate a variable first.",
+          "equations": [
+            "x + 2y = 7",
+            "3x - y = 7"
+          ],
+          "variables": [
+            "x",
+            "y"
+          ],
+          "method": "substitution",
+          "requireVerification": true,
+          "hints": [
+            "Choose a variable whose coefficient is 1 or −1 and isolate it.",
+            "Substitute that expression, in parentheses, into the OTHER equation.",
+            "Solve, substitute back, and check the pair in both equations."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Which variable is quickest to isolate in x + 2y = 7?",
+            "options": [
+              "y",
+              "x"
+            ],
+            "correct": "x"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Isolate x: x = 7 − 2y.",
+              "3(7 − 2y) − y = 7 → 21 − 7y = 7 → y = 2.",
+              "x = 7 − 2(2) = 3. Check: 3 + 2(2) = 7 and 3(3) − 2 = 7. The solution is (3, 2)."
+            ],
+            "commonError": "Substituting the expression back into the same equation it came from, which only gives 7 = 7."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-cw-6",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Honors — No coefficient of 1. Solve the system 2x + 3y = 7 and 4x − 5y = −8 by substitution. Isolate the variable that is easiest to isolate — a fraction is fine — then check your solution in both equations.",
+          "equations": [
+            "2x + 3y = 7",
+            "4x - 5y = -8"
+          ],
+          "variables": [
+            "x",
+            "y"
+          ],
+          "method": "substitution",
+          "requireVerification": true,
+          "hints": [
+            "No variable has a coefficient of 1 or −1, so isolating any of them creates a fraction. The x in the first equation is a good choice.",
+            "After substituting, multiply to clear the fraction before you collect like terms.",
+            "Substitute your y-value back to find x exactly, then check both equations."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Solving 2x + 3y = 7 for x gives…",
+            "options": [
+              "x = (7 − 3y)/2",
+              "x = 7 − 3y"
+            ],
+            "correct": "x = (7 − 3y)/2"
+          },
+          "attemptFeedback": [
+            "When you isolated x, did you divide EVERY term by 2?",
+            "Keep the answer exact; check it in both equations."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Solve 2x + 3y = 7 for x: x = (7 − 3y)/2.",
+              "Substitute: 4 · (7 − 3y)/2 − 5y = −8 → 2(7 − 3y) − 5y = −8 → 14 − 11y = −8 → y = 2.",
+              "Back-substitute: x = (7 − 6)/2 = 1/2. The solution is (1/2, 2).",
+              "Check: 2(1/2) + 3(2) = 7 and 4(1/2) − 5(2) = −8."
+            ],
+            "commonError": "Writing x = 7 − 3y/2, dividing only part of the side by 2."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-cw-7",
+          "standard": "A.2I",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Activity 2.2 — Substitution with Special Systems. Daniel and Chloe help set up booths at the fair, and each is paid $7 per hour. Daniel starts at 7:00 a.m. Chloe arrives 90 minutes later and starts working then. Let x be the number of hours since Daniel started and y the money earned, in dollars.",
+          "responses": [
+            {
+              "id": "daniel",
+              "label": "An equation for Daniel’s earnings",
+              "answer": "y = 7x",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "ninety",
+              "label": "How much has Daniel earned after 90 minutes, in dollars?",
+              "answer": "10.5"
+            },
+            {
+              "id": "chloe",
+              "label": "An equation for Chloe’s earnings, in terms of x",
+              "answer": "y = 7(x - 1.5)",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "danielNoon",
+              "label": "Daniel’s earnings by noon, in dollars",
+              "answer": "35"
+            },
+            {
+              "id": "chloeNoon",
+              "label": "Chloe’s earnings by noon, in dollars",
+              "answer": "24.5"
+            },
+            {
+              "id": "ever",
+              "label": "Will Chloe ever earn as much as Daniel?",
+              "type": "choice",
+              "options": [
+                "No — both earn $7 per hour, so Chloe stays $10.50 behind.",
+                "Yes — at noon.",
+                "Yes — after 10.5 hours.",
+                "No — Chloe earns less per hour than Daniel."
+              ],
+              "answer": "No — both earn $7 per hour, so Chloe stays $10.50 behind."
+            }
+          ],
+          "hints": [
+            "Earnings = hourly pay × hours worked.",
+            "At every moment, Chloe has worked an hour and a half less than Daniel.",
+            "Noon is five hours after Daniel starts. Compare the two hourly rates."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. When Daniel has worked x hours, Chloe has worked…",
+            "options": [
+              "x − 1.5 hours",
+              "x + 1.5 hours"
+            ],
+            "correct": "x − 1.5 hours"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Daniel: y = 7x. After 1.5 hours he has $10.50.",
+              "Chloe has worked x − 1.5 hours: y = 7(x − 1.5) = 7x − 10.5.",
+              "By noon (x = 5): Daniel $35, Chloe $24.50.",
+              "Both earn $7 per hour, so Chloe is always $10.50 behind."
+            ],
+            "commonError": "Writing Chloe’s equation as y = 7(x + 1.5): Chloe has worked LESS time."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-cw-8",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Let’s see what happens when you solve Daniel and Chloe’s system algebraically. Solve y = 7x and y = 7x − 10.5 by substitution.",
+          "equations": [
+            "y = 7x",
+            "y = 7x - 10.5"
+          ],
+          "variables": [
+            "x",
+            "y"
+          ],
+          "method": "substitution",
+          "requireVerification": true,
+          "hints": [
+            "Both equations are solved for y: substitute the first expression for y in the second equation.",
+            "Collect the x-terms on one side. What happens to x?",
+            "A statement with no variable left is either always true or never true. Decide which."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. If substituting leaves a false statement such as 0 = 5, the system has…",
+            "options": [
+              "no solution",
+              "one solution"
+            ],
+            "correct": "no solution"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Special systems",
+                "instruction": "When substitution eliminates every variable, read the statement that is left. A false statement (0 = −10.5) means the lines are parallel: no solution. A true statement (5 = 5) means the equations describe the same line: infinitely many solutions."
+              }
+            ]
+          },
+          "solutionReview": {
+            "reasoning": [
+              "7x = 7x − 10.5.",
+              "Subtract 7x from both sides: 0 = −10.5, which is false.",
+              "No pair makes both equations true: the system has no solution. The lines are parallel, like Chloe’s earnings always $10.50 behind Daniel’s."
+            ],
+            "commonError": "Treating 0 = −10.5 as the solution x = 0."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-cw-9",
+          "standard": "A.2I",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "On Monday, the fair runs a special for local schools: student tickets and adult tickets both cost $4. You buy 5 tickets and spend $20. Let x be the number of student tickets and y the number of adult tickets.",
+          "responses": [
+            {
+              "id": "money",
+              "label": "An equation for the money spent",
+              "answer": "4x + 4y = 20",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "tickets",
+              "label": "An equation for the number of tickets",
+              "answer": "x + y = 5",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "slope",
+              "label": "The money equation in slope-intercept form",
+              "answer": "y = -x + 5",
+              "inputProfile": "equation"
+            },
+            {
+              "id": "analyze",
+              "label": "What do you know about the solutions, just by looking at the two equations?",
+              "type": "choice",
+              "options": [
+                "They describe the same line, so there are infinitely many solutions.",
+                "The lines are parallel, so there is no solution.",
+                "The lines cross once, so there is exactly one solution.",
+                "You cannot tell anything without graphing."
+              ],
+              "answer": "They describe the same line, so there are infinitely many solutions."
+            }
+          ],
+          "hints": [
+            "The money spent is the ticket price times the number of each kind of ticket, added together.",
+            "To write slope-intercept form, solve the equation for y.",
+            "Write both equations in slope-intercept form and compare their slopes and y-intercepts."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In y = mx + b, the coefficient of x is…",
+            "options": [
+              "the y-intercept",
+              "the slope"
+            ],
+            "correct": "the slope"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Money: 4x + 4y = 20. Tickets: x + y = 5.",
+              "Both become y = −x + 5 in slope-intercept form.",
+              "The same slope and the same y-intercept: one line, so infinitely many solutions."
+            ],
+            "commonError": "Writing 4x + 4y = 5 — the 5 counts tickets, not dollars."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-cw-10",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve the Monday-special system 4x + 4y = 20 and x + y = 5 by substitution. Isolate a variable in x + y = 5 first.",
+          "equations": [
+            "4x + 4y = 20",
+            "x + y = 5"
+          ],
+          "variables": [
+            "x",
+            "y"
+          ],
+          "method": "substitution",
+          "requireVerification": true,
+          "hints": [
+            "Solve x + y = 5 for y.",
+            "Substitute that expression, in parentheses, for y in the money equation.",
+            "Every variable cancels. Is the statement that is left true or false?"
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. If substituting leaves a true statement such as 6 = 6, the system has…",
+            "options": [
+              "infinitely many solutions",
+              "no solution"
+            ],
+            "correct": "infinitely many solutions"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "y = 5 − x.",
+              "4x + 4(5 − x) = 20 → 4x + 20 − 4x = 20 → 20 = 20, which is always true.",
+              "Every pair on the line x + y = 5 works: infinitely many solutions."
+            ],
+            "commonError": "Deciding the answer is 20 because the statement says 20 = 20."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-cw-11",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Honors — Parameters decide the case. Use substitution with a letter in place of a number, and justify each answer with the statement the substitution leaves.\nSystem A:  y = 3x − 2  and  6x − 2y = a\nSystem B:  kx + 2y = 7  and  y = −2x + 1",
+          "responses": [
+            {
+              "id": "a",
+              "label": "System A has infinitely many solutions when a =",
+              "answer": "4"
+            },
+            {
+              "id": "a10",
+              "label": "With a = 10, System A has…",
+              "type": "choice",
+              "options": [
+                "no solution",
+                "exactly one solution",
+                "infinitely many solutions"
+              ],
+              "answer": "no solution"
+            },
+            {
+              "id": "k",
+              "label": "System B has no solution when k =",
+              "answer": "4"
+            },
+            {
+              "id": "sol",
+              "label": "The solution of System B when k = 3",
+              "answer": "(-5,11)",
+              "answerFormat": "orderedPair"
+            }
+          ],
+          "hints": [
+            "System A: substitute the expression for y into the other equation and simplify. Every x-term cancels — what is left?",
+            "System B: substitute for y, collect the x-terms, and look at the coefficient of x that is left.",
+            "For the last part, put the number for k into System B and solve as usual."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Reading the statement that is left",
+                "instruction": "When substitution removes every variable, the statement left decides the case: true (such as 4 = 4) means infinitely many solutions; false (such as 4 = 10) means no solution."
+              }
+            ]
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. Substituting y = 3x − 2 into 6x − 2y gives…",
+            "options": [
+              "6x − 2(3x − 2)",
+              "6x − 2 · 3x − 2"
+            ],
+            "correct": "6x − 2(3x − 2)"
+          },
+          "attemptFeedback": [
+            "Distribute the −2 over both terms of the expression you substituted.",
+            "In System B the x-terms combine to (k − 4)x: decide when that coefficient is zero."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "System A: 6x − 2(3x − 2) = a → 4 = a. So a = 4 gives a true statement (infinitely many solutions); any other a, such as 10, gives a false one (no solution).",
+              "System B: kx + 2(−2x + 1) = 7 → (k − 4)x = 5. When k = 4 this reads 0 = 5 — no solution.",
+              "k = 3: −x = 5, so x = −5 and y = −2(−5) + 1 = 11."
+            ],
+            "commonError": "Distributing −2(3x − 2) as −6x − 4, which leaves −4 = a."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-cw-12",
+          "standard": "A.2I",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Activity 2.3 — Writing and Solving Systems. The admission fee for a fair is $7 for an adult and $5 for a child under the age of 5. There are 449 people at the fair, and they pay $2,768 in admission fees. Let x be the number of adults and y the number of children.",
+          "responses": [
+            {
+              "id": "people",
+              "label": "An equation for the number of people",
+              "answer": "x + y = 449",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "fees",
+              "label": "An equation for the admission fees, in dollars",
+              "answer": "7x + 5y = 2768",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "start",
+              "label": "Which equation is easiest to solve for a variable to start substitution?",
+              "type": "choice",
+              "options": [
+                "x + y = 449, because x and y each have a coefficient of 1",
+                "7x + 5y = 2768, because it has the larger numbers",
+                "Neither — substitution needs an equation already solved for y",
+                "Both are equally easy"
+              ],
+              "answer": "x + y = 449, because x and y each have a coefficient of 1"
+            }
+          ],
+          "hints": [
+            "One fact counts people; the other adds up money.",
+            "Each adult pays the adult fee and each child pays the child fee.",
+            "A variable with a coefficient of 1 can be isolated in one step."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The total number of people is…",
+            "options": [
+              "x + y",
+              "7x + 5y"
+            ],
+            "correct": "x + y"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Writing a system",
+                "instruction": "Define a variable for each unknown quantity. Then write one equation for each fact the situation gives — a count, a total, or a comparison."
+              }
+            ]
+          },
+          "solutionReview": {
+            "reasoning": [
+              "People: x + y = 449.",
+              "Fees: 7x + 5y = 2768.",
+              "x + y = 449 is easiest to solve for a variable: y = 449 − x."
+            ],
+            "commonError": "Writing 5x + 7y = 2768 — adults pay $7."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-cw-13",
+          "standard": "A.2I",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Write a system of equations from the graph. Then solve it by substitution to find the exact solution, which the graph cannot show.",
+          "graph": {
+            "xMin": -8,
+            "xMax": 4,
+            "yMin": -6,
+            "yMax": 8,
+            "xStep": 1,
+            "yStep": 1,
+            "functions": [
+              {
+                "type": "line",
+                "m": 0.5,
+                "b": 5
+              },
+              {
+                "type": "line",
+                "m": -1,
+                "b": -3
+              }
+            ],
+            "points": [
+              {
+                "x": 0,
+                "y": 5,
+                "label": "(0, 5)"
+              },
+              {
+                "x": 2,
+                "y": 6,
+                "label": "(2, 6)"
+              },
+              {
+                "x": -3,
+                "y": 0,
+                "label": "(−3, 0)"
+              },
+              {
+                "x": 0,
+                "y": -3,
+                "label": "(0, −3)"
+              }
+            ]
+          },
+          "responses": [
+            {
+              "id": "rising",
+              "label": "An equation of the line through (0, 5) and (2, 6)",
+              "answer": "y = (1/2)x + 5",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "falling",
+              "label": "An equation of the line through (−3, 0) and (0, −3)",
+              "answer": "y = -x - 3",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "solution",
+              "label": "The exact solution of the system",
+              "answer": "(-16/3, 7/3)",
+              "answerFormat": "orderedPair"
+            }
+          ],
+          "hints": [
+            "For each line, find the slope from the two labeled points, then use its y-intercept.",
+            "Both equations are solved for y: set the right sides equal to each other.",
+            "Solve for x, then substitute into either equation to find y. Fractions are fine."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The slope of a line through two points is…",
+            "options": [
+              "change in x over change in y",
+              "change in y over change in x"
+            ],
+            "correct": "change in y over change in x"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Rising line: slope (6 − 5)/(2 − 0) = 1/2, so y = (1/2)x + 5. Falling line: slope −1, so y = −x − 3.",
+              "(1/2)x + 5 = −x − 3 → (3/2)x = −8 → x = −16/3.",
+              "y = 16/3 − 3 = 7/3. The solution is (−16/3, 7/3), about (−5.3, 2.3)."
+            ],
+            "commonError": "Reading the slope as run over rise and writing y = 2x + 5."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-cw-14",
+          "standard": "A.2I",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Write a system of linear equations from the tables.",
+          "table": {
+            "columns": [
+              {
+                "key": "ax",
+                "label": "Line A: x"
+              },
+              {
+                "key": "ay",
+                "label": "Line A: y"
+              },
+              {
+                "key": "bx",
+                "label": "Line B: x"
+              },
+              {
+                "key": "by",
+                "label": "Line B: y"
+              }
+            ],
+            "rows": [
+              {
+                "ax": "−2",
+                "ay": "−20",
+                "bx": "−4",
+                "by": "16"
+              },
+              {
+                "ax": "0",
+                "ay": "−15",
+                "bx": "−1",
+                "by": "10"
+              },
+              {
+                "ax": "2",
+                "ay": "−10",
+                "bx": "2",
+                "by": "4"
+              },
+              {
+                "ax": "4",
+                "ay": "−5",
+                "bx": "5",
+                "by": "−2"
+              }
+            ]
+          },
+          "responses": [
+            {
+              "id": "lineA",
+              "label": "An equation for Line A",
+              "answer": "y = (5/2)x - 15",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "lineB",
+              "label": "An equation for Line B",
+              "answer": "y = -2x + 8",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "method",
+              "label": "How would you start solving this system by substitution?",
+              "type": "choice",
+              "options": [
+                "Both equations are solved for y, so set the right sides equal to each other.",
+                "Solve Line A’s equation for x first.",
+                "Add the two equations.",
+                "Graph the tables and read the crossing point."
+              ],
+              "answer": "Both equations are solved for y, so set the right sides equal to each other."
+            }
+          ],
+          "hints": [
+            "In each table, find how much y changes each time x changes: that rate is the slope.",
+            "The y-value where x is zero is the y-intercept. For a table without x = 0, work backward along the rate.",
+            "Write each line as y = mx + b."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In a table, the y-intercept is the y-value where…",
+            "options": [
+              "y = 0",
+              "x = 0"
+            ],
+            "correct": "x = 0"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Line A: y rises 5 for every 2 in x, so the slope is 5/2; at x = 0, y = −15. y = (5/2)x − 15.",
+              "Line B: y falls 6 for every 3 in x, so the slope is −2; working back from (2, 4), the y-intercept is 8. y = −2x + 8.",
+              "Both are solved for y, so substitution sets (5/2)x − 15 = −2x + 8."
+            ],
+            "commonError": "Using the change in y alone as the slope, without dividing by the change in x."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-cw-15",
+          "standard": "A.2I",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "A band’s business manager must make $236,000 from ticket sales. The auditorium has 2,800 main-level seats and 1,200 upper-level seats, and main-level seats cost $20 more than upper-level seats. Let x be the price of a main-level seat and y the price of an upper-level seat, in dollars. Assume every seat is sold.",
+          "responses": [
+            {
+              "id": "compare",
+              "label": "An equation comparing the two prices",
+              "answer": "x = y + 20",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "sales",
+              "label": "An equation for the ticket sales, in dollars",
+              "answer": "2800x + 1200y = 236000",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "meaning",
+              "label": "Without solving, what will the solution (x, y) tell the manager?",
+              "type": "choice",
+              "options": [
+                "The price of each kind of seat that brings in exactly $236,000 when every seat is sold",
+                "How many seats of each kind are sold",
+                "How much money each level brings in",
+                "How many more main-level seats than upper-level seats there are"
+              ],
+              "answer": "The price of each kind of seat that brings in exactly $236,000 when every seat is sold"
+            }
+          ],
+          "hints": [
+            "“Costs more than” compares the two prices: write one price in terms of the other.",
+            "Sales from each level are the number of seats times the price of a seat.",
+            "The variables are prices, so the solution is a pair of prices."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. A main-level seat costs more, so x is…",
+            "options": [
+              "y + 20",
+              "y − 20"
+            ],
+            "correct": "y + 20"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Main-level price is $20 more: x = y + 20.",
+              "Sales: 2800x + 1200y = 236000.",
+              "The solution gives the two seat prices that make exactly $236,000."
+            ],
+            "commonError": "Writing y = x + 20 — the main-level seats cost more."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-cw-16",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve the band’s system x = y + 20 and 2800x + 1200y = 236000 by substitution, and check your prices in both equations.",
+          "equations": [
+            "x = y + 20",
+            "2800x + 1200y = 236000"
+          ],
+          "variables": [
+            "x",
+            "y"
+          ],
+          "method": "substitution",
+          "requireVerification": true,
+          "hints": [
+            "The first equation is solved for x: substitute its right side, in parentheses, for x in the second equation.",
+            "Distribute, combine the y-terms, and solve for y.",
+            "Find x from the first equation, then check both prices in both equations."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Which variable is already isolated?",
+            "options": [
+              "x",
+              "y"
+            ],
+            "correct": "x"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "2800(y + 20) + 1200y = 236000 → 4000y + 56000 = 236000 → y = 45.",
+              "x = 45 + 20 = 65.",
+              "Main-level seats cost $65 and upper-level seats cost $45; 2800(65) + 1200(45) = 236000."
+            ],
+            "commonError": "Distributing 2800(y + 20) as 2800y + 20."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-cw-17",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Mia sells tickets at the sports arena. Two student tickets and two adult tickets cost $48. Three student tickets and one adult ticket cost $40. Let s be the price of a student ticket and a the price of an adult ticket. Solve the system 2s + 2a = 48 and 3s + a = 40 by substitution.",
+          "equations": [
+            "2s + 2a = 48",
+            "3s + a = 40"
+          ],
+          "variables": [
+            "s",
+            "a"
+          ],
+          "method": "substitution",
+          "requireVerification": true,
+          "hints": [
+            "In 3s + a = 40, the coefficient of a is 1: isolate a.",
+            "Substitute that expression, in parentheses, for a in the first equation.",
+            "Solve for s, substitute back to find a, and check both prices in both equations."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Which variable has a coefficient of 1 in 3s + a = 40?",
+            "options": [
+              "a",
+              "s"
+            ],
+            "correct": "a"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "a = 40 − 3s.",
+              "2s + 2(40 − 3s) = 48 → 2s + 80 − 6s = 48 → −4s = −32 → s = 8.",
+              "a = 40 − 3(8) = 16. Check: 2(8) + 2(16) = 48 and 3(8) + 16 = 40."
+            ],
+            "commonError": "Distributing 2(40 − 3s) as 80 − 3s."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-cw-18",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1D",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Talk the Talk — The Substitution Train. Answer each question about the substitution method.",
+          "responses": [
+            {
+              "id": "setEqual",
+              "label": "For y = 2x + 1 and y = −x + 7, substitute the first expression for y in the second equation. Write the equation in x you get.",
+              "answer": "2x + 1 = -x + 7",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "trainSolution",
+              "label": "Solve it, and write the solution of the system",
+              "answer": "(2, 5)",
+              "answerFormat": "orderedPair"
+            },
+            {
+              "id": "which",
+              "label": "How do you choose which equation to solve for a variable?",
+              "type": "choice",
+              "options": [
+                "Choose an equation already solved for a variable, or a variable with a coefficient of 1 or −1.",
+                "Always use the first equation.",
+                "Choose the equation with the largest numbers.",
+                "Choose the variable with the largest coefficient."
+              ],
+              "answer": "Choose an equation already solved for a variable, or a variable with a coefficient of 1 or −1."
+            },
+            {
+              "id": "second",
+              "label": "After you find x, how do you find y?",
+              "type": "choice",
+              "options": [
+                "Substitute the x-value into one of the original equations — the one solved for y is easiest.",
+                "y always equals x.",
+                "Solve the one-variable equation again.",
+                "Subtract x from the constant term."
+              ],
+              "answer": "Substitute the x-value into one of the original equations — the one solved for y is easiest."
+            },
+            {
+              "id": "check",
+              "label": "How do you check a solution?",
+              "type": "choice",
+              "options": [
+                "Substitute both values into BOTH original equations; each one must be true.",
+                "Substitute the values into one equation.",
+                "Check that x and y are whole numbers.",
+                "Graph one of the equations."
+              ],
+              "answer": "Substitute both values into BOTH original equations; each one must be true."
+            }
+          ],
+          "hints": [
+            "Substitution replaces a variable with an expression that is equal to it.",
+            "A coefficient of 1 or −1 means isolating takes one step.",
+            "A solution of a system makes every equation true."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. A solution of a system makes…",
+            "options": [
+              "every equation true",
+              "one equation true"
+            ],
+            "correct": "every equation true"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Replacing y with 2x + 1 in y = −x + 7 gives 2x + 1 = −x + 7, the same as setting the right sides equal. Then 3x = 6, x = 2 and y = 5.",
+              "Isolate a variable that is already alone or has a coefficient of 1 or −1.",
+              "Substitute back into an original equation for the second value, and check the pair in both equations."
+            ],
+            "commonError": "Checking the pair in only one equation."
+          }
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "role": "practice",
+      "title": "Practice — Solving and Modeling Systems by Substitution",
+      "recommendedMinutes": 45,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "m3t2l2h-pr-1",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve the system {{system}} by substitution, and check your solution in both equations.",
+          "questionFamily": {
+            "id": "systems.substitution",
+            "version": 2,
+            "constraints": {
+              "solutionCase": "one",
+              "form": "mixed"
+            }
+          },
+          "method": "substitution",
+          "requireVerification": true,
+          "hints": [
+            "Look for an equation that is already solved for a variable, or a variable with a coefficient of 1 or −1, and isolate it.",
+            "Substitute that expression, in parentheses, for the variable in the OTHER equation. Then solve the one-variable equation.",
+            "Substitute back to find the other variable, then check the pair in BOTH original equations."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Before you can substitute, a variable has to be…",
+            "options": [
+              "isolated",
+              "squared"
+            ],
+            "correct": "isolated"
+          },
+          "attemptFeedback": [
+            "Check your substitution: the expression you substituted must replace the whole variable, inside parentheses.",
+            "If your check fails in one equation, look for a sign error when you distributed or combined like terms."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Isolate a variable: use an equation already solved for one, or a variable with a coefficient of 1 or −1.",
+              "Substitute that expression, in parentheses, into the other equation, and solve the equation in one variable.",
+              "Substitute the value back into the solved equation to find the other variable.",
+              "Check the ordered pair in both original equations.",
+              "If every variable disappears, a false statement (like 0 = 8) means no solution, and a true one (like 6 = 6) means infinitely many."
+            ],
+            "commonError": "Substituting without parentheses, so only the first term of the expression gets multiplied."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-pr-2",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "Solve the system {{system}} by substitution. Keep the solution exact, and check it in both equations.",
+          "questionFamily": {
+            "id": "systems.algebraic2x2",
+            "constraints": {
+              "solutionCase": "one",
+              "solutionForm": "fraction"
+            }
+          },
+          "method": "substitution",
+          "requireVerification": true,
+          "hints": [
+            "Choose the variable whose coefficient makes isolating it easiest — a fraction may appear, and that is fine.",
+            "Substitute the expression, in parentheses, into the other equation. Multiply every term by a common denominator if fractions get in the way.",
+            "Keep the solution exact (fractions, not rounded decimals), substitute back for the other variable, and check both equations."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Solving 2x + 3y = 7 for x gives…",
+            "options": [
+              "x = (7 − 3y)/2",
+              "x = 7 − 3y"
+            ],
+            "correct": "x = (7 − 3y)/2"
+          },
+          "attemptFeedback": [
+            "When you isolated a variable, did you divide EVERY term by its coefficient?",
+            "Check your exact values in both original equations; a rounded decimal will not make them true."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Isolate a variable — dividing every term by its coefficient, even when fractions appear.",
+              "Substitute, in parentheses, into the other equation; clear fractions by multiplying every term by the denominator.",
+              "Solve, substitute back, and keep the values exact.",
+              "Check the ordered pair in both original equations. If the variables cancel, read the statement left: false means no solution, true means infinitely many."
+            ],
+            "commonError": "Dividing only one term by the coefficient when isolating the variable."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-pr-3",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve the system {{system}} by substitution. Decide whether it has one solution, no solution, or infinitely many solutions.",
+          "questionFamily": {
+            "id": "systems.substitution",
+            "version": 2,
+            "constraints": {
+              "solutionCase": "mixed",
+              "form": "mixed"
+            }
+          },
+          "method": "substitution",
+          "requireVerification": true,
+          "hints": [
+            "Look for an equation that is already solved for a variable, or a variable with a coefficient of 1 or −1, and isolate it.",
+            "Substitute that expression, in parentheses, for the variable in the OTHER equation. Then solve the one-variable equation.",
+            "Substitute back to find the other variable, then check the pair in BOTH original equations."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. If every variable disappears and the statement left is false, the system has…",
+            "options": [
+              "infinitely many solutions",
+              "no solution"
+            ],
+            "correct": "no solution"
+          },
+          "attemptFeedback": [
+            "Check your substitution: the expression you substituted must replace the whole variable, inside parentheses.",
+            "If your check fails in one equation, look for a sign error when you distributed or combined like terms."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Isolate a variable: use an equation already solved for one, or a variable with a coefficient of 1 or −1.",
+              "Substitute that expression, in parentheses, into the other equation, and solve the equation in one variable.",
+              "Substitute the value back into the solved equation to find the other variable.",
+              "Check the ordered pair in both original equations.",
+              "If every variable disappears, a false statement (like 0 = 8) means no solution, and a true one (like 6 = 6) means infinitely many."
+            ],
+            "commonError": "Substituting without parentheses, so only the first term of the expression gets multiplied."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-pr-4",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "Solve the system {{system}} by substitution. Decide whether it has one solution, no solution, or infinitely many solutions, and keep any solution exact.",
+          "questionFamily": {
+            "id": "systems.algebraic2x2",
+            "constraints": {
+              "solutionCase": "mixed",
+              "solutionForm": "fraction"
+            }
+          },
+          "method": "substitution",
+          "requireVerification": true,
+          "hints": [
+            "Choose the variable whose coefficient makes isolating it easiest — a fraction may appear, and that is fine.",
+            "Substitute the expression, in parentheses, into the other equation. Multiply every term by a common denominator if fractions get in the way.",
+            "Keep the solution exact (fractions, not rounded decimals), substitute back for the other variable, and check both equations."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Solving 2x + 3y = 7 for x gives…",
+            "options": [
+              "x = (7 − 3y)/2",
+              "x = 7 − 3y"
+            ],
+            "correct": "x = (7 − 3y)/2"
+          },
+          "attemptFeedback": [
+            "When you isolated a variable, did you divide EVERY term by its coefficient?",
+            "Check your exact values in both original equations; a rounded decimal will not make them true."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Isolate a variable — dividing every term by its coefficient, even when fractions appear.",
+              "Substitute, in parentheses, into the other equation; clear fractions by multiplying every term by the denominator.",
+              "Solve, substitute back, and keep the values exact.",
+              "Check the ordered pair in both original equations. If the variables cancel, read the statement left: false means no solution, true means infinitely many."
+            ],
+            "commonError": "Dividing only one term by the coefficient when isolating the variable."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-pr-5",
+          "standard": "A.2I",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "{{situation}} Write a system of equations for the situation, solve it by substitution, and answer the last question.",
+          "questionFamily": {
+            "id": "systems.contextModel",
+            "constraints": {
+              "shape": "equalCost"
+            }
+          },
+          "hints": [
+            "Name what each variable stands for, then turn each sentence with a number fact into one equation.",
+            "A total of items is a sum of the two counts; a total cost is each price times its count, added together.",
+            "Solve the system by substitution, then reread the last question before you answer it."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. A total cost with a fee plus a rate per hour is…",
+            "options": [
+              "rate × hours + fee",
+              "fee × hours + rate"
+            ],
+            "correct": "rate × hours + fee"
+          },
+          "attemptFeedback": [
+            "Check each equation against the situation: does it say the same thing as the sentence it came from?",
+            "Substitute your two values into both of your equations. Both must be true."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Define the variables, then write one equation for each fact: a count, a total, a comparison, or a cost.",
+              "Isolate a variable in the simpler equation and substitute it into the other one.",
+              "Solve, substitute back, and check the pair in both equations.",
+              "Use the values to answer the question the situation asks, with units."
+            ],
+            "commonError": "Mixing up the two variables — reread what each letter stands for before you write each equation."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-pr-6",
+          "standard": "A.2I",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "{{situation}} Write a system of equations for the situation, solve it by substitution, and answer the last question.",
+          "questionFamily": {
+            "id": "systems.contextModel",
+            "constraints": {
+              "shape": "mixed"
+            }
+          },
+          "hints": [
+            "Name what each variable stands for, then turn each sentence with a number fact into one equation.",
+            "A total of items is a sum of the two counts; a total cost is each price times its count, added together.",
+            "Solve the system by substitution, then reread the last question before you answer it."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Each equation of a system comes from…",
+            "options": [
+              "one fact in the situation",
+              "the question at the end"
+            ],
+            "correct": "one fact in the situation"
+          },
+          "attemptFeedback": [
+            "Check each equation against the situation: does it say the same thing as the sentence it came from?",
+            "Substitute your two values into both of your equations. Both must be true."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Define the variables, then write one equation for each fact: a count, a total, a comparison, or a cost.",
+              "Isolate a variable in the simpler equation and substitute it into the other one.",
+              "Solve, substitute back, and check the pair in both equations.",
+              "Use the values to answer the question the situation asks, with units."
+            ],
+            "commonError": "Mixing up the two variables — reread what each letter stands for before you write each equation."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-pr-7",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "Solve the system (1/2)x + (1/3)y = 4 and x − y = 3 by substitution, and check your solution in both equations.",
+          "equations": [
+            "(1/2)x + (1/3)y = 4",
+            "x - y = 3"
+          ],
+          "variables": [
+            "x",
+            "y"
+          ],
+          "method": "substitution",
+          "requireVerification": true,
+          "hints": [
+            "The second equation has coefficients of 1 and −1: isolate a variable there.",
+            "After substituting, clear the fractions by multiplying every term by a common denominator.",
+            "Substitute back for the other variable and check both equations."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Solving x − y = 3 for x gives…",
+            "options": [
+              "x = y + 3",
+              "x = 3 − y"
+            ],
+            "correct": "x = y + 3"
+          },
+          "attemptFeedback": [
+            "Multiply EVERY term by the common denominator, including the constant.",
+            "Check the pair in both equations."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Solve x − y = 3 for x: x = y + 3.",
+              "Substitute: (1/2)(y + 3) + (1/3)y = 4. Multiply every term by 6: 3(y + 3) + 2y = 24, so 5y + 9 = 24 and y = 3.",
+              "Back-substitute: x = 3 + 3 = 6. The solution is (6, 3).",
+              "Check: (1/2)(6) + (1/3)(3) = 4 and 6 − 3 = 3."
+            ],
+            "commonError": "Multiplying only the fraction terms by 6 and leaving the 4 unchanged."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-pr-8",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve the system 0.5x + 0.25y = 6 and y = 2x − 4 by substitution, and check your solution in both equations.",
+          "equations": [
+            "0.5x + 0.25y = 6",
+            "y = 2x - 4"
+          ],
+          "variables": [
+            "x",
+            "y"
+          ],
+          "method": "substitution",
+          "requireVerification": true,
+          "hints": [
+            "The second equation is already solved for y.",
+            "Substitute in parentheses and distribute the decimal over both terms.",
+            "Find the other variable, then check both equations."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. 0.25(2x − 4) is equal to…",
+            "options": [
+              "0.5x − 1",
+              "0.5x − 4"
+            ],
+            "correct": "0.5x − 1"
+          },
+          "attemptFeedback": [
+            "Check your substitution: the expression you substituted must replace the whole variable, inside parentheses.",
+            "If your check fails in one equation, look for a sign error when you distributed or combined like terms."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Substitute 2x − 4 for y: 0.5x + 0.25(2x − 4) = 6.",
+              "Distribute and combine: 0.5x + 0.5x − 1 = 6, so x = 7.",
+              "Back-substitute: y = 2(7) − 4 = 10. The solution is (7, 10).",
+              "Check: 0.5(7) + 0.25(10) = 6 and 2(7) − 4 = 10."
+            ],
+            "commonError": "Distributing 0.25 to 2x only and leaving −4 unchanged."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-pr-9",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Parameters. Use substitution with the letter left in, and decide each value from the statement that is left.\nSystem C:  y = 4x + 1  and  8x − 2y = b\nSystem D:  3x + my = 5  and  y = x − 1",
+          "responses": [
+            {
+              "id": "b",
+              "label": "System C has infinitely many solutions when b =",
+              "answer": "-2"
+            },
+            {
+              "id": "m",
+              "label": "System D has no solution when m =",
+              "answer": "-3"
+            },
+            {
+              "id": "sol",
+              "label": "The solution of System D when m = 2, as exact fractions",
+              "answer": "(7/5,2/5)",
+              "answerFormat": "orderedPair"
+            }
+          ],
+          "hints": [
+            "System C: substitute for y and simplify — every x-term cancels.",
+            "System D: substitute for y, collect the x-terms, and find when their coefficient is zero.",
+            "With the given value of m, solve System D as usual and keep the values exact."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Substituting y = 4x + 1 into 8x − 2y gives…",
+            "options": [
+              "8x − 2(4x + 1)",
+              "8x − 2 · 4x + 1"
+            ],
+            "correct": "8x − 2(4x + 1)"
+          },
+          "attemptFeedback": [
+            "Distribute over both terms of the expression you substituted.",
+            "In System D the x-terms combine to (3 + m)x."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "System C: 8x − 2(4x + 1) = b → −2 = b. So b = −2 gives infinitely many solutions.",
+              "System D: 3x + m(x − 1) = 5 → (3 + m)x = 5 + m. When m = −3: 0 = 2, which is false — no solution.",
+              "m = 2: 5x = 7, so x = 7/5 and y = 7/5 − 1 = 2/5."
+            ],
+            "commonError": "Forgetting to multiply the −1 by m when substituting into my."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-pr-10",
+          "standard": "A.2I",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Mixture model. A coffee shop blends beans worth $8 per pound with beans worth $12 per pound to make 20 pounds of a blend worth $9.50 per pound. Let x be the pounds of $8 beans and y the pounds of $12 beans. Model the situation with a system, solve it by substitution, and explain the result.",
+          "responses": [
+            {
+              "id": "pounds",
+              "label": "An equation for the total weight",
+              "answer": "x + y = 20",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "value",
+              "label": "An equation for the total value of the blend",
+              "answer": "8x + 12y = 190",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "x",
+              "label": "Pounds of $8 beans",
+              "answer": "12.5"
+            },
+            {
+              "id": "y",
+              "label": "Pounds of $12 beans",
+              "answer": "7.5"
+            },
+            {
+              "id": "why",
+              "label": "Why does the blend use more of the $8 beans?",
+              "type": "choice",
+              "options": [
+                "$9.50 is closer to $8 than to $12, so more of the cheaper beans are needed",
+                "Cheaper beans always weigh more",
+                "The shop wants to save money",
+                "Because 8 is less than 12, the blend must be half and half"
+              ],
+              "answer": "$9.50 is closer to $8 than to $12, so more of the cheaper beans are needed"
+            }
+          ],
+          "hints": [
+            "One equation adds the weights; the other adds the values (price per pound times pounds).",
+            "The blend’s total value is its weight times its price per pound.",
+            "Isolate a variable in the weight equation and substitute it into the value equation."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The value of x pounds of $8 beans is…",
+            "options": [
+              "8x dollars",
+              "x + 8 dollars"
+            ],
+            "correct": "8x dollars"
+          },
+          "attemptFeedback": [
+            "Check that your value equation uses the blend’s TOTAL value, not its price per pound.",
+            "Substitute your two weights into both equations."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Weight: x + y = 20. Value: 8x + 12y = 20 × 9.50 = 190.",
+              "Substitute x = 20 − y: 8(20 − y) + 12y = 190 → 160 + 4y = 190 → y = 7.5, so x = 12.5.",
+              "Check: 12.5 + 7.5 = 20 and 8(12.5) + 12(7.5) = 100 + 90 = 190.",
+              "The blend price, $9.50, is closer to $8, so the cheaper beans make up most of it."
+            ],
+            "commonError": "Writing 8x + 12y = 9.50 — the price per pound of the blend is not its total value."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-pr-11",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1F",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Error analysis. Ana solved 3x + 2y = 4 and 5x − 4y = 14 by substitution:\nStep 1:  y = (4 − 3x)/2\nStep 2:  5x − 4 · (4 − 3x)/2 = 14, so 5x − 2(4 − 3x) = 14\nStep 3:  5x − 8 − 6x = 14\nStep 4:  −x = 22, so x = −22\nFind her first error, explain it, and correct the solution.",
+          "responses": [
+            {
+              "id": "step",
+              "label": "Which step has the first error?",
+              "type": "choice",
+              "options": [
+                "Step 1",
+                "Step 2",
+                "Step 3",
+                "Step 4"
+              ],
+              "answer": "Step 3"
+            },
+            {
+              "id": "why",
+              "label": "What went wrong?",
+              "type": "choice",
+              "options": [
+                "−2 times −3x is +6x, not −6x",
+                "She should have isolated x",
+                "She divided only one term by 2",
+                "She substituted into the same equation"
+              ],
+              "answer": "−2 times −3x is +6x, not −6x"
+            },
+            {
+              "id": "sol",
+              "label": "The correct solution",
+              "answer": "(2,-1)",
+              "answerFormat": "orderedPair"
+            }
+          ],
+          "hints": [
+            "Check each step against the one before it, one operation at a time.",
+            "Distribute −2 over both terms in the parentheses, one at a time, and watch the signs.",
+            "Finish correctly, then check the pair in both original equations."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. −2 times −3x is…",
+            "options": [
+              "+6x",
+              "−6x"
+            ],
+            "correct": "+6x"
+          },
+          "attemptFeedback": [
+            "Steps 1 and 2 are correct. Recheck the signs when −2 is distributed.",
+            "Substitute your pair into both original equations."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Steps 1 and 2 are correct. Step 3 should be 5x − 8 + 6x = 14.",
+              "Then 11x = 22, so x = 2, and y = (4 − 6)/2 = −1.",
+              "Check: 3(2) + 2(−1) = 4 and 5(2) − 4(−1) = 14."
+            ],
+            "commonError": "A sign error when distributing a negative number."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-pr-12",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Strategy. For each system, choose the most efficient first move for substitution, and justify it. Then solve System E.\nSystem E:  3x − y = 7  and  2x + 5y = 16\nSystem F:  4x + 6y = 2  and  x − 3y = 5\nSystem G:  2x + 3y = 12  and  5x − 2y = 11",
+          "responses": [
+            {
+              "id": "e",
+              "label": "System E: first move",
+              "type": "choice",
+              "options": [
+                "Solve 3x − y = 7 for y, because y has a coefficient of −1",
+                "Solve 2x + 5y = 16 for x",
+                "Solve 2x + 5y = 16 for y",
+                "Add the two equations"
+              ],
+              "answer": "Solve 3x − y = 7 for y, because y has a coefficient of −1"
+            },
+            {
+              "id": "f",
+              "label": "System F: first move",
+              "type": "choice",
+              "options": [
+                "Solve x − 3y = 5 for x, because x has a coefficient of 1",
+                "Solve 4x + 6y = 2 for x",
+                "Solve 4x + 6y = 2 for y",
+                "Solve x − 3y = 5 for y"
+              ],
+              "answer": "Solve x − 3y = 5 for x, because x has a coefficient of 1"
+            },
+            {
+              "id": "g",
+              "label": "System G: what is true?",
+              "type": "choice",
+              "options": [
+                "No variable has a coefficient of 1 or −1, so any choice creates fractions",
+                "Solve 2x + 3y = 12 for x without fractions",
+                "It has no solution",
+                "Substitution cannot be used"
+              ],
+              "answer": "No variable has a coefficient of 1 or −1, so any choice creates fractions"
+            },
+            {
+              "id": "sol",
+              "label": "The solution of System E",
+              "answer": "(3,2)",
+              "answerFormat": "orderedPair"
+            }
+          ],
+          "hints": [
+            "Look for a variable with a coefficient of 1 or −1: isolating it needs no division.",
+            "Dividing by any other coefficient creates fractions — still correct, just more work.",
+            "For System E, isolate the variable you chose, substitute, and check both equations."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The easiest variable to isolate has a coefficient of…",
+            "options": [
+              "1 or −1",
+              "the largest number"
+            ],
+            "correct": "1 or −1"
+          },
+          "attemptFeedback": [
+            "Compare the coefficients of every variable in both equations before choosing.",
+            "Check your System E pair in both equations."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "System E: y = 3x − 7, so 2x + 5(3x − 7) = 16 → 17x = 51 → x = 3, y = 2.",
+              "System F: x = 3y + 5 needs no division.",
+              "System G: every coefficient is 2, 3, 5 or −2, so isolating any variable creates fractions (elimination, next lesson, avoids them)."
+            ],
+            "commonError": "Isolating the first variable you see instead of the one with a coefficient of 1 or −1."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-pr-13",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Concert tickets. A school sold 320 tickets: adult tickets cost $8 and student tickets cost $5, and the school collected $2,110. Let a be the adult tickets and s the student tickets, so a + s = 320 and 8a + 5s = 2110. Solve the system by substitution and check it.",
+          "equations": [
+            "a + s = 320",
+            "8a + 5s = 2110"
+          ],
+          "variables": [
+            "a",
+            "s"
+          ],
+          "method": "substitution",
+          "requireVerification": true,
+          "hints": [
+            "Isolate a variable in the equation with coefficients of 1.",
+            "Substitute in parentheses and distribute the 8 over both terms.",
+            "Back-substitute, then check both equations."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Solving a + s = 320 for a gives…",
+            "options": [
+              "a = 320 − s",
+              "a = s − 320"
+            ],
+            "correct": "a = 320 − s"
+          },
+          "attemptFeedback": [
+            "Check your substitution: the expression you substituted must replace the whole variable, inside parentheses.",
+            "If your check fails in one equation, look for a sign error when you distributed or combined like terms."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Solve a + s = 320 for a: a = 320 − s.",
+              "Substitute: 8(320 − s) + 5s = 2110 → 2560 − 3s = 2110 → s = 150.",
+              "Back-substitute: a = 170. The solution is (170, 150).",
+              "Check: 170 + 150 = 320 and 8(170) + 5(150) = 2110."
+            ],
+            "commonError": "Writing 8(320 − s) as 2560 − s."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-pr-14",
+          "standard": "A.3G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "interpretPointInContext"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "The concert system a + s = 320 and 8a + 5s = 2110 has the solution (170, 150). Build a statement that explains what each coordinate means.",
+          "scenario": "A school sold 320 concert tickets. Adult tickets cost $8 and student tickets cost $5, and the school collected $2,110. a is the number of adult tickets and s is the number of student tickets.",
+          "point": [
+            170,
+            150
+          ],
+          "responseMode": "builder",
+          "quantityChoices": [
+            {
+              "id": "adult",
+              "label": "Adult tickets sold"
+            },
+            {
+              "id": "student",
+              "label": "Student tickets sold"
+            },
+            {
+              "id": "money",
+              "label": "Money collected"
+            },
+            {
+              "id": "total",
+              "label": "Total tickets sold"
+            }
+          ],
+          "quantities": {
+            "x": {
+              "id": "adult",
+              "name": "Adult tickets sold",
+              "unit": "tickets",
+              "acceptedUnits": [
+                "tickets",
+                "ticket",
+                "adult tickets",
+                "adult ticket"
+              ]
+            },
+            "y": {
+              "id": "student",
+              "name": "Student tickets sold",
+              "unit": "tickets",
+              "acceptedUnits": [
+                "tickets",
+                "ticket",
+                "student tickets",
+                "student ticket"
+              ]
+            }
+          },
+          "graph": {
+            "xMin": 0,
+            "xMax": 400,
+            "yMin": 0,
+            "yMax": 450,
+            "xStep": 50,
+            "yStep": 50,
+            "xAxisLabel": "Adult tickets, a",
+            "yAxisLabel": "Student tickets, s",
+            "functions": [
+              {
+                "type": "line",
+                "m": -1,
+                "b": 320
+              },
+              {
+                "type": "line",
+                "m": -1.6,
+                "b": 422
+              }
+            ],
+            "points": [
+              {
+                "x": 170,
+                "y": 150,
+                "label": "(170, 150)"
+              }
+            ]
+          },
+          "hints": [
+            "The ordered pair is (a, s): the first coordinate is a.",
+            "Both equations count tickets, so both coordinates are numbers of tickets."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In the ordered pair (a, s), the first number counts…",
+            "options": [
+              "student tickets",
+              "adult tickets"
+            ],
+            "correct": "adult tickets"
+          },
+          "attemptFeedback": [
+            "Match each coordinate with its variable: a first, then s.",
+            "Both quantities are counted in tickets."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "The pair is (a, s), so 170 is a and 150 is s.",
+              "170 adult tickets and 150 student tickets make 320 tickets and $2,110 together."
+            ],
+            "commonError": "Reading 150 as the adult tickets: the first coordinate is a."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-pr-15",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Exam-style. If y = 2x + 1 and 3x + 2y = 23, what is the value of x + y?",
+          "responses": [
+            {
+              "id": "sum",
+              "label": "The value of x + y",
+              "answer": "10"
+            }
+          ],
+          "hints": [
+            "Substitute the expression for y into the second equation.",
+            "Solve for x, then find y.",
+            "The question asks for the sum of x and y."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Substituting y = 2x + 1 into 3x + 2y = 23 gives…",
+            "options": [
+              "3x + 2(2x + 1) = 23",
+              "3x + 2 · 2x + 1 = 23"
+            ],
+            "correct": "3x + 2(2x + 1) = 23"
+          },
+          "attemptFeedback": [
+            "Use parentheses when you substitute, and distribute the 2 over both terms.",
+            "Check your x and y in both equations before adding them."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "3x + 2(2x + 1) = 23 → 7x + 2 = 23 → x = 3.",
+              "y = 2(3) + 1 = 7, so x + y = 10."
+            ],
+            "commonError": "Answering with x or y alone."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-pr-16",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Exam-style. The system x = 4y − 3 and 2x − 5y = 6 has one solution (x, y). What is the value of x?",
+          "responses": [
+            {
+              "id": "x",
+              "label": "The value of x",
+              "answer": "13"
+            }
+          ],
+          "hints": [
+            "Substitute the expression for x into the second equation.",
+            "Solve for y first.",
+            "Then substitute back to find x — the question asks for x."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Substituting x = 4y − 3 into 2x − 5y = 6 gives…",
+            "options": [
+              "2(4y − 3) − 5y = 6",
+              "2 · 4y − 3 − 5y = 6"
+            ],
+            "correct": "2(4y − 3) − 5y = 6"
+          },
+          "attemptFeedback": [
+            "Distribute the 2 over both terms of 4y − 3.",
+            "After finding y, substitute back into x = 4y − 3."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "2(4y − 3) − 5y = 6 → 3y − 6 = 6 → y = 4.",
+              "x = 4(4) − 3 = 13."
+            ],
+            "commonError": "Stopping at y = 4 — the question asks for x."
+          }
+        }
+      ]
+    },
+    {
+      "id": "dol",
+      "role": "dol",
+      "title": "DOL — Solving Systems by Substitution",
+      "recommendedMinutes": 8,
+      "feedbackMode": "afterAssignmentSubmit",
+      "hintsAllowed": false,
+      "attemptsAllowed": 1,
+      "questions": [
+        {
+          "questionId": "m3t2l2h-dol-1",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "Solve the system {{system}} by substitution. Keep the solution exact, and check it in both equations.",
+          "questionFamily": {
+            "id": "systems.algebraic2x2",
+            "constraints": {
+              "solutionCase": "one",
+              "solutionForm": "fraction"
+            }
+          },
+          "method": "substitution",
+          "requireVerification": true,
+          "solutionReview": {
+            "reasoning": [
+              "Isolate a variable, dividing every term by its coefficient.",
+              "Substitute into the other equation, clear fractions, and solve.",
+              "Substitute back, keep the values exact, and check both equations."
+            ],
+            "commonError": "Rounding a fractional solution — only the exact values make both equations true."
+          }
+        },
+        {
+          "questionId": "m3t2l2h-dol-2",
+          "standard": "A.2I",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "{{situation}} Write a system of equations for the situation, solve it, and answer the last question.",
+          "questionFamily": {
+            "id": "systems.contextModel"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Define the variables, then write one equation for each fact: a count, a total, a comparison, or a cost.",
+              "Isolate a variable in the simpler equation and substitute it into the other one.",
+              "Solve, substitute back, and check the pair in both equations.",
+              "Use the values to answer the question the situation asks, with units."
+            ],
+            "commonError": "Mixing up the two variables — reread what each letter stands for before you write each equation."
+          }
+        }
+      ]
+    }
+  ]
+}
