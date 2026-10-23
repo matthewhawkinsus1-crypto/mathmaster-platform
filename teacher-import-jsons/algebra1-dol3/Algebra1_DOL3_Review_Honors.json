@@ -6,7 +6,7 @@
     "folder": "Algebra I/DOL Reviews",
     "instructionalPurpose": "review",
     "gradingPurpose": "practice",
-    "instructions": "Review for District DOL #3, which you will take in Eduphoria. Questions 1–13 follow the DOL #3 blueprint, one for each question on the test, and every one uses an interactive tool, so show your work inside the tool. Question 14 is an Honors extension that brings the linear standards together in one situation, and questions 15 and 16 are college-readiness (TSIA2) questions about association, causation and what data can show. You have 3 tries on each question, and hints are there when you need them."
+    "instructions": "Review for District DOL #3, which you will take in Eduphoria. Questions 1–13 follow the DOL #3 blueprint, one for each question on the test, and every one uses an interactive tool, so show your work inside the tool. Question 14 is an Honors extension that brings the linear standards together in one situation, and questions 15 and 16 are college-readiness (TSIA and SAT) questions on association and causation and on functions. You have 3 tries on each question, and hints are there when you need them."
   },
   "variantPolicy": {
     "mode": "personalized",
@@ -1154,7 +1154,7 @@
           }
         },
         {
-          "questionId": "mm_tsia2_psr_analysis_8_v21",
+          "questionId": "dol3-honors-q15",
           "familyId": "mathmaster:tsia2:native:dataAnalysisConclusions:association-not-causation",
           "familyVersion": 1,
           "standard": "6.12A",
@@ -1386,7 +1386,8 @@
             "reasoning": [
               "The observed pattern involves {{sampleSize}} observations, but no controlled experiment is described."
             ],
-            "answerSummary": "The data support association, not a causal conclusion."
+            "answerSummary": "The data support association, not a causal conclusion.",
+            "commonError": "Reading a strong pattern as proof of cause; without random assignment, a third variable could be making both X and Y rise."
           },
           "supportHints": [
             "An observational relationship between two variables does not by itself prove a cause-and-effect relationship."
@@ -1400,265 +1401,134 @@
             "familyId": "mathmaster:tsia2:native:dataAnalysisConclusions:association-not-causation",
             "familyVersion": 1
           },
+          "scaffold": {
+            "prompt": "Let’s back up. Which kind of study can show that one variable causes a change in another?",
+            "options": [
+              "A study with a strong pattern in the data it observed",
+              "An experiment in which the values of one variable are assigned at random"
+            ],
+            "correct": "An experiment in which the values of one variable are assigned at random"
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
           "questionWeight": 1
         },
         {
-          "questionId": "mm_tsia2_psr_analysis_6_v21",
-          "familyId": "mathmaster:tsia2:native:dataAnalysisConclusions:overgeneralized-claim",
+          "questionId": "dol3-honors-q16",
+          "familyId": "mathmaster:sat:A.12A:ccmr-challenge-parameter-repeated-input",
           "familyVersion": 1,
-          "standard": "6.12A",
-          "prompt": "In a sample of {{sampleSize}} people, {{supportCount}} preferred option A. A report concludes that every person in the larger population prefers option A. Which statement best evaluates the report's conclusion?",
+          "standard": "A.12A",
+          "prompt": "The relation contains $({{x}},{{y}})$, $({{u}},{{v}})$, and $({{x}},k)$. What value of $k$ makes the relation a function?",
           "studentActions": [
             "multipleResponses"
           ],
-          "dok": 3,
-          "difficultyBand": 2,
-          "examCalculatorMode": "none",
-          "assessedConstruct": "TSIA2-native:dataAnalysisConclusions",
-          "taskType": "evaluateOvergeneralizedClaim",
-          "representation": "sample-and-population-claim",
+          "dok": 2,
+          "difficultyBand": 4,
+          "calculatorPolicy": "graphing",
+          "assessedConstruct": "A.12A",
+          "taskType": "parameterReasoning",
+          "representation": "orderedPairs",
           "generator": {
             "parameters": {
-              "sampleSize": {
+              "x": {
                 "type": "int",
-                "min": 30,
-                "max": 100
+                "min": -5,
+                "max": 5
               },
-              "notSupport": {
+              "u": {
                 "type": "int",
-                "min": 2,
-                "max": 12
+                "min": -5,
+                "max": 5
+              },
+              "y": {
+                "type": "int",
+                "min": -9,
+                "max": 9
+              },
+              "v": {
+                "type": "int",
+                "min": -9,
+                "max": 9
               }
             },
-            "derived": {
-              "supportCount": "sampleSize-notSupport"
-            },
             "constraints": [
-              "supportCount>notSupport"
+              "x!=u"
             ]
           },
           "answerFields": [
             {
               "id": "answer",
-              "label": "Choose the correct answer",
-              "type": "choice",
-              "inputProfile": "choice",
-              "options": [
-                "The sample result alone does not justify a claim about every person in the population",
-                "The conclusion is justified because option A was more common in the sample",
-                "The conclusion is justified whenever the sample contains at least 30 people",
-                "The data prove that option A will be preferred by every future sample"
-              ],
-              "answer": "The sample result alone does not justify a claim about every person in the population"
+              "label": "Answer",
+              "inputProfile": "number",
+              "answer": "{{y}}",
+              "numberRules": "digitalSAT"
             }
           ],
           "alignments": [
             {
-              "framework": "tsia2",
-              "domainId": "probabilisticStatistical",
+              "framework": "teks",
+              "code": "A.12A",
+              "role": "primary",
+              "evidenceLevel": "assessed"
+            },
+            {
+              "framework": "digitalSAT",
+              "domainId": "algebra",
               "role": "primary",
               "evidenceMode": "direct"
-            },
-            {
-              "framework": "teks",
-              "code": "6.12A",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "6.12B",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "6.12C",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "6.12D",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "6.13A",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "6.13B",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "7.6C",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "7.6F",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "7.6G",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "7.6H",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "7.6I",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "7.12A",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "7.12B",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "7.12C",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "8.5C",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "8.5D",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "8.11A",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "8.11B",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "A.4A",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "A.4B",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "A.4C",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "A.8B",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "A.9E",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "A2.4E",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "A2.8A",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "A2.8B",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
-            },
-            {
-              "framework": "teks",
-              "code": "A2.8C",
-              "role": "primary",
-              "evidenceMode": "crosswalk"
             }
           ],
           "assessmentContext": {
-            "framework": "tsia2",
+            "framework": "digitalSAT",
             "examStyle": true,
-            "domainId": "probabilisticStatistical",
-            "nativeSkillId": "dataAnalysisConclusions",
-            "tsia2TestScope": "crcAndDiagnostic"
+            "domainId": "algebra"
           },
-          "assessmentItemFormat": "multipleChoice",
+          "assessmentItemFormat": "studentProducedResponse",
           "ccmrChallengeTier": 2,
           "ccmrFamilyRole": "challenge",
           "ccmrAuthenticLanguage": {
             "version": "2.1",
             "authored": true,
             "authoredChallenge": true,
-            "nativeSkillId": "dataAnalysisConclusions",
-            "officialSkillFamily": "data-analysis-and-conclusions",
-            "stemProfile": "evaluate-sample-to-population-claim",
-            "answerChoiceCount": 4
+            "officialSkillFamily": "linear functions",
+            "stemProfile": "parameter-repeated-input"
           },
           "solutionReview": {
-            "headline": "Separate the sample from the full population.",
+            "headline": "The input {{x}} already has the output {{y}}, so k={{y}}.",
             "reasoning": [
-              "The data describe the {{sampleSize}} sampled people, not every person in the population."
+              "The pairs ({{x}},{{y}}) and ({{x}},k) share the input {{x}}.",
+              "The pair ({{u}},{{v}}) has a different input, so it puts no condition on k.",
+              "A function allows only one output for each input, so the second output must equal the first: k={{y}}."
             ],
-            "answerSummary": "The universal claim is not justified by the sample alone."
+            "commonError": "Thinking k must be a new output, different from {{y}}. Repeating an output is allowed; repeating an input with a new output is not.",
+            "answerSummary": "k={{y}}"
           },
+          "attemptFeedback": [
+            "Use the defining relationship in the prompt and verify the result in the original representation."
+          ],
           "supportHints": [
-            "A result from one sample does not automatically describe every member of a larger population."
+            "Translate the notation or condition into an equation or input-output statement before answering."
           ],
           "ccmrSource": {
             "source": "auditedBank",
             "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
-            "framework": "tsia2",
-            "domainId": "probabilisticStatistical",
-            "documentId": "mm_tsia2_psr_analysis_6_v21",
-            "familyId": "mathmaster:tsia2:native:dataAnalysisConclusions:overgeneralized-claim",
+            "framework": "digitalSAT",
+            "domainId": "algebra",
+            "documentId": "mm_sat_A_12A_challenge_1_parameter-repeated-input_v21",
+            "familyId": "mathmaster:sat:A.12A:ccmr-challenge-parameter-repeated-input",
             "familyVersion": 1
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. Which two pairs in this relation share an input?",
+            "options": [
+              "The first pair and the third pair",
+              "The first pair and the second pair"
+            ],
+            "correct": "The first pair and the third pair"
+          },
+          "questionFamily": {
+            "scope": "assignment"
           },
           "questionWeight": 1
         }

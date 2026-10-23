@@ -13,9 +13,11 @@
  *       story): one Multiple Representations board, a different version for
  *       each student, at DOK 3, that brings A.2A, A.2B, A.2C, A.3B and A.3C
  *       together. Worth two questions: it is a whole board.
- *   15  Two audited CCMR (TSIA2) items from MathMaster's bank, on the review's
- *   16  own A.4B and A.4C: association against causation in observational
- *       data, and what a sample can and cannot show.
+ *   15  Two audited CCMR items from MathMaster's bank, on two of the review's
+ *   16  supporting standards: a TSIA2 item on association against causation
+ *       in observational data (A.4B), and a Digital SAT challenge item on the
+ *       one value that keeps a relation a function (A.12A, a TEKS the
+ *       blueprint spirals because of earlier DOL results).
  *
  * Why the CCMR items are written into the file rather than left to Pre-Flight:
  * for an Honors class Pre-Flight replaces about 15% of Practice with audited
@@ -23,9 +25,15 @@
  * swaps out question 12 (the function sort) and question 13 (the recursive
  * sequence, for an ACT polynomial-evaluation item that does not practise
  * sequences at all). With the two audited items already in Practice the
- * target is met, and every blueprint question stays as it is. These two are
- * the audited items on the review's TEKS that import with no Pre-Flight
- * warning. Each is the bank's own item, exactly as the bank converts it.
+ * target is met, and every blueprint question stays as it is.
+ *
+ * Each audited item is the bank's own, as the bank converts it: its prompt,
+ * answer, generator and provenance are not touched. As in the Algebra II
+ * Honors DOL #2 review, what is added is support, the way every question in
+ * this review has it: a "Let's back up" step, a "Watch out" line, its worked
+ * solution in plain text (the bank writes it in $…$ LaTeX, which outside a
+ * prompt reaches the student as markup), and an assignment-local Question
+ * Family so each student gets their own numbers.
  *
  * The regular file is the source of truth: change it, then run this again.
  * tests/platform/algebra1Dol3HonorsReview.test.mjs fails if the committed
@@ -53,8 +61,29 @@ export const HONORS_EXTENSION_RECIPE = 'honors.linear.multipleRepresentations.ra
 export const HONORS_EXTENSION_STORY = 'candle';
 export const HONORS_EXTENSION_ID = 'dol3-honors-q14';
 export const HONORS_CCMR_DOCUMENTS = Object.freeze([
-  { framework: 'tsia2', documentId: 'mm_tsia2_psr_analysis_8_v21' },
-  { framework: 'tsia2', documentId: 'mm_tsia2_psr_analysis_6_v21' },
+  {
+    framework: 'tsia2',
+    documentId: 'mm_tsia2_psr_analysis_8_v21',
+    questionId: 'dol3-honors-q15',
+    teks: 'A.4B',
+    scaffold: {
+      prompt: 'Let’s back up. Which kind of study can show that one variable causes a change in another?',
+      options: ['A study with a strong pattern in the data it observed', 'An experiment in which the values of one variable are assigned at random'],
+      correct: 'An experiment in which the values of one variable are assigned at random',
+    },
+    commonError: 'Reading a strong pattern as proof of cause; without random assignment, a third variable could be making both X and Y rise.',
+  },
+  {
+    framework: 'digitalSAT',
+    documentId: 'mm_sat_A_12A_challenge_1_parameter-repeated-input_v21',
+    questionId: 'dol3-honors-q16',
+    teks: 'A.12A',
+    scaffold: {
+      prompt: 'Let’s back up. Which two pairs in this relation share an input?',
+      options: ['The first pair and the third pair', 'The first pair and the second pair'],
+      correct: 'The first pair and the third pair',
+    },
+  },
 ]);
 
 // The extension's supports. The board's numbers differ for every student, so
@@ -85,6 +114,21 @@ const EXTENSION_SUPPORTS = Object.freeze({
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const without = (object, keys) => Object.fromEntries(Object.entries(object).filter(([key]) => !keys.includes(key)));
 
+/**
+ * A bank solution line in plain text. Every $ in a bank solution opens or
+ * closes a math span (none is money), so spans are unwrapped in pairs, and
+ * the few commands the bank uses become Unicode. Anything else is refused,
+ * never guessed at.
+ */
+export const plainSolutionText = (text) => {
+  let plain = String(text);
+  if ((plain.match(/\$/g) || []).length % 2) throw new Error(`An unpaired $ in a bank solution: ${plain}`);
+  [['\\le', '≤'], ['\\ge', '≥'], ['\\cdot', '·'], ['\\pm', '±']].forEach(([latex, unicode]) => { plain = plain.split(latex).join(unicode); });
+  plain = plain.replace(/\$([^$]*)\$/g, '$1');
+  if (/[$\\]/.test(plain)) throw new Error(`A bank solution keeps markup MathMaster will not rewrite: ${plain}`);
+  return plain.replace(/\s*(≤|≥)\s*/g, ' $1 ');
+};
+
 const loadBankDocument = ({ framework, documentId }) => {
   const payload = JSON.parse(readFileSync(path.join(ROOT, 'functions/seeds/pathQuestionBank', bank.FRAMEWORK_FILES[framework]), 'utf8'));
   const documents = Array.isArray(payload?.items) ? payload.items : payload?.documents || [];
@@ -93,11 +137,25 @@ const loadBankDocument = ({ framework, documentId }) => {
   return document;
 };
 
-/** The audited item as the bank itself converts it for a Practice place. */
+/** The audited item as the bank converts it for a Practice place, with this review's supports. */
 export const honorsCcmrQuestion = (reference) => {
-  // The section gives it its role.
-  const intent = without(bank.bankDocumentToV5Intent(loadBankDocument(reference), { activityRole: 'practice' }), ['activityRole']);
-  return { ...clone(intent), questionWeight: 1 };
+  // The section gives it its role, and the review its id.
+  const intent = without(bank.bankDocumentToV5Intent(loadBankDocument(reference), { activityRole: 'practice' }), ['activityRole', 'questionId']);
+  const solutionReview = Object.fromEntries(Object.entries(intent.solutionReview || {}).map(([key, value]) => (
+    [key, Array.isArray(value) ? value.map(plainSolutionText) : plainSolutionText(value)]
+  )));
+  if (!solutionReview.commonError) {
+    if (!reference.commonError) throw new Error(`${reference.documentId} names no usual mistake; write one.`);
+    solutionReview.commonError = reference.commonError;
+  }
+  return {
+    questionId: reference.questionId,
+    ...clone(intent),
+    solutionReview,
+    scaffold: clone(reference.scaffold),
+    questionFamily: { scope: 'assignment' },
+    questionWeight: 1,
+  };
 };
 
 /** The vetted extension, as the recipe builds it for this review, in Practice. */
@@ -122,7 +180,7 @@ export const buildAlgebra1Dol3Honors = (regular = JSON.parse(readFileSync(REGULA
     assignment: {
       ...clone(regular.assignment),
       title: 'Algebra I Honors — DOL #3 Review',
-      instructions: 'Review for District DOL #3, which you will take in Eduphoria. Questions 1–13 follow the DOL #3 blueprint, one for each question on the test, and every one uses an interactive tool, so show your work inside the tool. Question 14 is an Honors extension that brings the linear standards together in one situation, and questions 15 and 16 are college-readiness (TSIA2) questions about association, causation and what data can show. You have 3 tries on each question, and hints are there when you need them.',
+      instructions: 'Review for District DOL #3, which you will take in Eduphoria. Questions 1–13 follow the DOL #3 blueprint, one for each question on the test, and every one uses an interactive tool, so show your work inside the tool. Question 14 is an Honors extension that brings the linear standards together in one situation, and questions 15 and 16 are college-readiness (TSIA and SAT) questions on association and causation and on functions. You have 3 tries on each question, and hints are there when you need them.',
     },
     // The regular review's questions are the same for everyone. The extension
     // and the TSIA2 items generate their numbers, so each student gets their

@@ -29,7 +29,7 @@ Or plan the release with `node scripts/release-firebase.mjs`. Never use a raw `f
 ## Teacher setup
 
 1. Import `Algebra1_DOL3_Review.json` for Algebra I classes and `Algebra1_DOL3_Review_Honors.json` for Algebra I Honors classes. Pre-Flight shows each one ready, with no errors or warnings.
-2. For an Honors class, Pre-Flight builds the Honors version. Questions 15 and 16 are audited TSIA2 items from MathMaster's CCMR bank, so the Honors file already meets the 15% CCMR share, and Pre-Flight keeps every question.
+2. For an Honors class, Pre-Flight builds the Honors version. Questions 15 and 16 are audited items from MathMaster's CCMR bank, so the Honors file already meets the 15% CCMR share, and Pre-Flight keeps every question.
    - Do not assign the regular file to an Honors class. Pre-Flight would replace question 12 (the function sort) and question 13 (the recursive sequence) with exam items. The item it chooses for question 13 does not practise sequences.
 3. Students get 3 tries on each question, with hints and immediate feedback. In the Honors file, questions 14–16 give each student their own numbers.
 
@@ -58,10 +58,12 @@ The Honors file adds three questions:
 | # | Source | What the student does |
 |---|---|---|
 | 14 | MathMaster's vetted no-AI Honors extension (`honors.linear.multipleRepresentations.rateFromReading`, the candle story) | On one Multiple Representations board (DOK 3), recovers the candle's starting height from a fractional rate and a later reading, then builds every representation, interprets the slope and both intercepts, and chooses the domain. It covers A.2C, A.3B, A.3C, A.2A and A.2B, and counts as two questions. |
-| 15 | TSIA2, `mm_tsia2_psr_analysis_8_v21` | Decides what observational data can show: association, not causation (A.4B, A.4C) |
-| 16 | TSIA2, `mm_tsia2_psr_analysis_6_v21` | Judges a claim about a whole population made from one sample (A.4B, A.4C) |
+| 15 | TSIA2, `mm_tsia2_psr_analysis_8_v21` | Decides what observational data can show: association, not causation (A.4B) |
+| 16 | Digital SAT challenge, `mm_sat_A_12A_challenge_1_parameter-repeated-input_v21` | Finds the one value of k that keeps a relation with a repeated input a function (A.12A, a TEKS the blueprint spirals because of earlier DOL results) |
 
-The candle story is the one the regular review does not already tell: question 1 is about a phone battery and question 8 about a tank. Items 15 and 16 are the bank's own items, used exactly as the bank converts them. They are the audited items on this review's TEKS that import without a Pre-Flight warning.
+The candle story is the one the regular review does not already tell: question 1 is about a phone battery and question 8 about a tank.
+
+Items 15 and 16 keep the bank's prompt, answer, generator and provenance. As in the Algebra II Honors DOL #2 review, the builder adds the supports every question here has: a "Let's back up" step, a "Watch out" line, and the worked solution in plain text. The bank writes solutions in `$…$` LaTeX, which outside a prompt reaches the student as markup. Each item is also an assignment-local Question Family, so every student gets their own numbers.
 
 ## Verification
 
@@ -71,7 +73,8 @@ The candle story is the one the regular review does not already tell: question 1
 - **Honors review**
   - Pre-Flight is valid with 0 errors and 0 warnings.
   - The Honors candidate is READY: all four depth checks pass, 2 of 2 CCMR items are in place, and nothing is replaced.
-  - `tests/platform/algebra1Dol3HonorsReview.test.mjs` gives a class of 30 thirty different versions of the extension. It works out each version's line from the numbers in its story, and has the server mark a complete board right and a board with one wrong card wrong. It also checks that questions 1–13 are the regular file's, unchanged.
+  - `tests/platform/algebra1Dol3HonorsReview.test.mjs` gives a class of 30 thirty different versions of the extension. It works out each version's line from the numbers in its story, and has the server mark a complete board right and a board with one wrong card wrong.
+  - The same test checks that questions 1–13 are the regular file's, unchanged, and that items 15 and 16 are the bank's mathematics. For every version of item 16, it works out the key from the pairs the student reads.
 
 ## Regenerating the Honors file
 
@@ -81,10 +84,9 @@ The regular file is the source. Edit it, or the builder, then run:
 node scripts/content/build-algebra1-dol3-honors.mjs
 ```
 
-The builder copies questions 1–13 and builds question 14 with the recipe. It converts items 15 and 16 with the platform's own `functions/lib/ccmrAssignmentBank.js`. The Honors test fails if the committed file is not exactly what the builder makes.
+The builder copies questions 1–13 and builds question 14 with the recipe. It converts items 15 and 16 with the platform's own `functions/lib/ccmrAssignmentBank.js` and adds their supports. The Honors test fails if the committed file is not exactly what the builder makes.
 
 ## Known follow-ups (not changed here)
 
 - The Sequence Explorer writes terms as aₙ, while the DOL uses f(n). Question 13's prompt explains the mapping.
-- Items 15 and 16 have no "Watch out" line (`solutionReview.commonError`), and Pre-Flight lists that as advice. They are the bank's items and are not edited here.
 - On the regular review, the CCMR swap for an Honors class matches question 13 (A.12C, a recursive sequence) to an ACT function-evaluation item tagged A.12C. The bank's semantic-fit check does not yet tell sequences apart from function evaluation. The Honors file avoids this, but any other A.12C lesson assigned to an Honors class would not.

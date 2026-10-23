@@ -9,8 +9,9 @@
  *   14     MathMaster's vetted no-AI Honors extension, in the candle story: a
  *          Multiple Representations board at DOK 3, a different version for
  *          each student, on A.2C with A.3B, A.3C, A.2A and A.2B.
- *   15–16  Two audited TSIA2 items from MathMaster's CCMR bank, on the
- *          review's own A.4B and A.4C.
+ *   15–16  Two audited CCMR items from MathMaster's bank on the review's
+ *          supporting standards: TSIA2 on association against causation
+ *          (A.4B), and a Digital SAT challenge item on functions (A.12A).
  *
  * What this holds:
  *   - the committed file is exactly what the builder makes from the regular
@@ -19,6 +20,9 @@
  *   - for an Honors class, Pre-Flight changes nothing. The audited Practice is
  *     already in place, so no blueprint question is swapped for an exam item;
  *     the version is READY and Create accepts it;
+ *   - the audited items are the bank's mathematics, untouched, with this
+ *     review's supports added (a back-up step, a "Watch out" line, a worked
+ *     solution in plain text) and their own numbers for each student;
  *   - the extension deals a class of 30 thirty versions of the candle story.
  *     Each line is worked out here from the numbers the student reads, and
  *     the server marks every version;
@@ -58,6 +62,7 @@ import { resolveFamilyQuestionInstance } from '../../functions/shared/questionFa
 import { resolveServerGradingQuestion } from '../../functions/shared/questionFamilyGrading.mjs';
 import { planSeatAdditions, resolveGenerationAllocation, resolveLearnerSeat } from '../../functions/shared/questionGenerationIdentity.mjs';
 import { gradeServerResponse, gradeToolWork } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
+import { matchesFieldAnswer } from '../../functions/shared/answerUtils.mjs';
 import { deriveLinearMultipleRepresentations } from '../../functions/shared/toolMath/representationBridge/linearMultipleRepresentationsMath.mjs';
 import { correctLinearBoardResponse, oneWrongLinearBoardResponse } from './helpers/linearMultipleRepresentationsResponses.mjs';
 
@@ -84,6 +89,34 @@ const bankDocument = ({ framework, documentId }) => {
   const payload = JSON.parse(readFileSync(new URL(`../../functions/seeds/pathQuestionBank/${bank.FRAMEWORK_FILES[framework]}`, import.meta.url), 'utf8'));
   return (payload.items || payload.documents).find((document) => document.id === documentId);
 };
+
+/**
+ * A class of 30 seated the way the teacher app seats one, on the reviewed
+ * Honors file. `deal(questionId, studentId)` is the version that student is
+ * given, under the section's own variant policy.
+ */
+const seatClass = (id) => {
+  const assignment = { ...clone(reviewed().assignmentV5), id, assignedClassIds: ['p4'] };
+  const students = Array.from({ length: CLASS_SIZE }, (_, index) => `student-${String(index + 1).padStart(2, '0')}`);
+  assignment.generationSeats = { byClassId: { p4: planSeatAdditions({ assignment, classId: 'p4', studentIds: students }) } };
+  const sectionMode = getStoredSectionVariantMode(assignment, 'practice');
+  const deal = (questionId, studentId) => {
+    const questionIndex = assignment.sections[0].questions.findIndex((question) => question.questionId === questionId);
+    const slot = assignment.sections[0].questions[questionIndex];
+    const seatInfo = resolveLearnerSeat({ assignment, studentId, classId: 'p4' });
+    const delivered = resolveFamilyQuestionInstance({
+      question: slot,
+      assignmentId: assignment.id,
+      storageIndex: questionIndex,
+      allocation: resolveGenerationAllocation({ sectionMode, seatInfo, variant: 0 }),
+    });
+    assert.equal(delivered.error, null, `${questionId} · ${studentId}`);
+    assert.equal(JSON.stringify(delivered.question).includes('{{'), false, `${questionId} · ${studentId}: no unfilled token reaches the student`);
+    return { slot, questionIndex, delivered, version: delivered.question };
+  };
+  return { assignment, students, sectionMode, deal };
+};
+const stringsOf = (value) => (typeof value === 'string' ? [value] : Array.isArray(value) ? value.flatMap(stringsOf) : value && typeof value === 'object' ? Object.values(value).flatMap(stringsOf) : []);
 
 /* ------------------------------------------------------------ the file -- */
 
@@ -123,7 +156,7 @@ test('questions 1–13 are the regular review\'s, unchanged, so the blueprint is
   ));
 });
 
-test('question 14 is MathMaster\'s vetted DOK 3 extension in a story the review has not told; 15 and 16 are the bank\'s own audited TSIA2 items on the review\'s A.4B and A.4C', () => {
+test('question 14 is MathMaster\'s vetted DOK 3 extension in a story the review has not told; 15 and 16 are the bank\'s audited items on the review\'s A.4B and A.12A, with this review\'s supports', () => {
   const [extension, ...audited] = HONORS.questions.slice(13);
   const recipe = HONORS_RECIPE_REGISTRY.find((entry) => entry.id === HONORS_EXTENSION_RECIPE);
   assert.ok(recipe, 'the recipe is still registered');
@@ -148,20 +181,38 @@ test('question 14 is MathMaster\'s vetted DOK 3 extension in a story the review 
   assert.equal(audited.length, HONORS_CCMR_DOCUMENTS.length);
   audited.forEach((question, index) => {
     const reference = HONORS_CCMR_DOCUMENTS[index];
+    const label = reference.documentId;
+    assert.equal(question.questionId, reference.questionId);
     assert.equal(question.ccmrSource.source, 'auditedBank');
     assert.equal(question.ccmrSource.releaseTarget, CCMR_RELEASE_TARGET);
     assert.equal(question.ccmrSource.documentId, reference.documentId);
-    assert.equal(question.assessmentContext.framework, 'tsia2');
-    assert.equal(question.dok, 3);
+    assert.equal(question.assessmentContext.framework, reference.framework);
     const teks = bank.questionTeksCodes(question);
-    assert.ok(teks.includes('A.4B') && teks.includes('A.4C'), `${reference.documentId} is on A.4B and A.4C`);
-    assert.ok(teks.some((code) => blueprintTeks.has(code)), 'it practises a TEKS the review teaches');
-    // Exactly the bank's item, as the bank itself converts it for Practice.
-    const converted = bank.bankDocumentToV5Intent(bankDocument(reference), { activityRole: 'practice' });
-    delete converted.activityRole; // the section gives it its role
-    const { questionWeight, ...written } = RAW.sections[0].questions[14 + index];
-    assert.deepEqual(written, JSON.parse(JSON.stringify(converted)), `${reference.documentId} is the bank's item, unedited`);
-    assert.equal(questionWeight, 1);
+    assert.ok(teks.includes(reference.teks), `${label} is on ${reference.teks}`);
+    assert.ok(blueprintTeks.has(reference.teks), 'a TEKS the review teaches');
+
+    // The bank's mathematics, untouched: prompt, answer, generator, alignments, provenance.
+    const converted = JSON.parse(JSON.stringify(bank.bankDocumentToV5Intent(bankDocument(reference), { activityRole: 'practice' })));
+    const written = RAW.sections[0].questions[14 + index];
+    Object.keys(converted).filter((key) => !['activityRole', 'questionId', 'solutionReview'].includes(key)).forEach((key) => (
+      assert.deepEqual(written[key], converted[key], `${label}: ${key} is the bank's`)
+    ));
+    // Its worked solution is the bank's, with the $…$ markup unwrapped, and the
+    // usual mistake named whether or not the bank names one.
+    Object.entries(converted.solutionReview || {}).forEach(([key, value]) => {
+      const plain = (text) => text.replace(/\$/g, '');
+      assert.deepEqual(written.solutionReview[key], Array.isArray(value) ? value.map(plain) : plain(value), `${label}: solution ${key}`);
+    });
+    assert.ok(hasAuthoredCommonError(question), `${label} names the usual mistake`);
+    stringsOf(written.solutionReview).forEach((text) => assert.doesNotMatch(text, /[$\\]/, `${label}: plain text`));
+    assert.equal(workedSolutionDepth(question), 'steps');
+    // Added for this review, as for every question in it.
+    const step = backUpStepFor(question);
+    assert.ok(backUpStepWritten(step) && step.source === 'authored', `${label}: a back-up step written for it`);
+    assert.equal(step.options.length, 2);
+    assert.ok(step.options.includes(step.correct));
+    assert.deepEqual(written.questionFamily, { scope: 'assignment' }, `${label}: its own numbers for each student`);
+    assert.equal(written.questionWeight, 1);
   });
 });
 
@@ -200,33 +251,51 @@ test('Pre-Flight says the Honors version can be created, and Create accepts exac
   assert.deepEqual(created.assignmentV5, candidate.assignmentV5);
 });
 
+/* ------------------------------------------------------ the audited items -- */
+
+// The A.12A item as the student reads it: three pairs, the first and third
+// sharing an input.
+const RELATION = /^The relation contains \$\((-?\d+),(-?\d+)\)\$, \$\((-?\d+),(-?\d+)\)\$, and \$\((-?\d+),k\)\$\. What value of \$k\$ makes the relation a function\?$/;
+
+test('the audited items give each student their own numbers, and every A.12A version\'s key is the output its repeated input already has', () => {
+  const { students, sectionMode, deal } = seatClass('asg-dol3-honors-ccmr');
+  assert.equal(sectionMode, 'personalized');
+  const relations = new Set();
+  const samples = new Set();
+  for (const studentId of students) {
+    const { version: relation } = deal('dol3-honors-q16', studentId);
+    const match = RELATION.exec(relation.prompt);
+    assert.ok(match, `${studentId}: ${relation.prompt}`);
+    const [x, y, u, , repeated] = match.slice(1).map(Number);
+    assert.equal(repeated, x, `${studentId}: the third pair repeats the first pair's input`);
+    assert.notEqual(u, x, `${studentId}: the second pair has its own input`);
+    const [field] = relation.answerFields;
+    assert.equal(field.inputProfile, 'number', `${studentId}: a number box, never a set box`);
+    assert.ok(matchesFieldAnswer(String(y), field), `${studentId}: k = ${y}, the output ${x} already has`);
+    assert.ok(!matchesFieldAnswer(String(y + 1), field), `${studentId}: any other k gives ${x} two outputs`);
+    relations.add(relation.prompt);
+
+    const { version: claim } = deal('dol3-honors-q15', studentId);
+    const [choice] = claim.answerFields;
+    assert.ok(matchesFieldAnswer(choice.options.find((option) => /association, but they do not establish/.test(option)), choice), studentId);
+    assert.ok(!matchesFieldAnswer(choice.options.find((option) => /prove that higher X causes/.test(option)), choice), studentId);
+    samples.add(claim.prompt);
+  }
+  assert.ok(relations.size >= CLASS_SIZE / 2, `the relations vary across the class (${relations.size})`);
+  assert.ok(samples.size > 1, `the observational studies vary across the class (${samples.size})`);
+});
+
 /* ---------------------------------------------------------- the extension -- */
 
 // The candle story, as the student reads it.
 const CANDLE = /^A candle burns down at a constant rate of (\d+) centimeters every (\d+) hours\. (\d+) hours after it is lit, the candle is (\d+) centimeters tall\./;
 
 test('the extension deals a class of 30 thirty versions of the candle story; each line is worked out from the numbers the student reads, and the server marks it', () => {
-  const base = reviewed().assignmentV5;
-  const assignment = { ...clone(base), id: 'asg-dol3-honors', assignedClassIds: ['p4'] };
-  const students = Array.from({ length: CLASS_SIZE }, (_, index) => `student-${String(index + 1).padStart(2, '0')}`);
-  assignment.generationSeats = { byClassId: { p4: planSeatAdditions({ assignment, classId: 'p4', studentIds: students }) } };
-  const questionIndex = assignment.sections[0].questions.findIndex((question) => question.questionId === 'dol3-honors-q14');
-  const slot = assignment.sections[0].questions[questionIndex];
-  const sectionMode = getStoredSectionVariantMode(assignment, 'practice');
+  const { assignment, students, sectionMode, deal } = seatClass('asg-dol3-honors');
   assert.equal(sectionMode, 'personalized', 'each student gets their own numbers');
-
   const fingerprints = new Set();
   for (const studentId of students) {
-    const seatInfo = resolveLearnerSeat({ assignment, studentId, classId: 'p4' });
-    const delivered = resolveFamilyQuestionInstance({
-      question: slot,
-      assignmentId: assignment.id,
-      storageIndex: questionIndex,
-      allocation: resolveGenerationAllocation({ sectionMode, seatInfo, variant: 0 }),
-    });
-    assert.equal(delivered.error, null, studentId);
-    const version = delivered.question;
-    assert.equal(JSON.stringify(version).includes('{{'), false, `${studentId}: no unfilled token reaches the student`);
+    const { slot, questionIndex, delivered, version } = deal('dol3-honors-q14', studentId);
     fingerprints.add(delivered.instance.fingerprint);
 
     // The line, from the story's own numbers: the candle loses rate/per
@@ -265,18 +334,9 @@ test('the extension\'s three hints, back-up step and worked solution never state
   assert.equal(workedSolutionDepth(extension), 'steps');
   assert.ok(hasAuthoredCommonError(extension));
 
-  const base = reviewed().assignmentV5;
-  const assignment = { ...clone(base), id: 'asg-dol3-honors-supports', assignedClassIds: ['p4'] };
-  const students = Array.from({ length: CLASS_SIZE }, (_, index) => `s-${index}`);
-  assignment.generationSeats = { byClassId: { p4: planSeatAdditions({ assignment, classId: 'p4', studentIds: students }) } };
-  const questionIndex = assignment.sections[0].questions.findIndex((question) => question.questionId === 'dol3-honors-q14');
-  const slot = assignment.sections[0].questions[questionIndex];
+  const { students, deal } = seatClass('asg-dol3-honors-supports');
   for (const studentId of students) {
-    const seatInfo = resolveLearnerSeat({ assignment, studentId, classId: 'p4' });
-    const { question: version } = resolveFamilyQuestionInstance({
-      question: slot, assignmentId: assignment.id, storageIndex: questionIndex,
-      allocation: resolveGenerationAllocation({ sectionMode: 'personalized', seatInfo, variant: 0 }),
-    });
+    const { version } = deal('dol3-honors-q14', studentId);
     // The three written for the candle come first; the board's own family
     // hints follow them.
     const shown = buildQuestionHints(version).map((hint) => hint.text);
