@@ -38,3 +38,27 @@ test('subscript letters and signs are said, not passed to the engine raw', () =>
   assert.equal(speechTextFor('Find a₍₁₂₎ and aₙ₋₁.'), 'Find a sub 12 and a sub n minus 1.');
   assert.equal(speechTextFor('y − y₁ = m(x − x₁)'), 'y minus y sub 1 equals m times the quantity x minus x sub 1');
 });
+
+// Walkthrough 2026-10-23, Algebra II Polynomials and Radicals: powers above 3
+// and every root written as a character were passed raw, an index root was
+// "⁶ the square root of 16", and x^{2/3} was read "x squared over 3".
+test('powers and roots written as characters are read in words', () => {
+  assert.equal(speechTextFor('As a difference of squares: 64x⁶ − y⁶ ='), 'As a difference of squares: 64x to the power 6 minus y to the power 6 equals');
+  assert.equal(speechTextFor('√(16x⁴y¹¹) ='), 'the square root of the quantity 16x to the power 4 y to the power 11 equals');
+  assert.equal(speechTextFor('∛(8/(3y²)) ='), 'the cube root of the quantity 8 over the quantity 3y squared equals');
+  assert.match(speechTextFor('⁶√16 / ∛2 ='), /^the 6th root of 16 .* the cube root of 2 equals$/);
+  assert.equal(speechTextFor('5∛2 + ∛16'), '5 times the cube root of 2 plus the cube root of 16');
+  assert.match(speechTextFor('√(∛x) ='), /^the square root of \(?\s*the cube root of x \)? equals$/);
+  assert.equal(speechTextFor('as a power of 2: 2^(…)'), 'as a power of 2: 2 to the power …');
+  assert.equal(speechTextFor('√(16x⁴y¹¹) =', { language: 'es' }), 'la raíz cuadrada de la cantidad 16x a la potencia 4 y a la potencia 11 es igual a');
+});
+
+test('a fractional or negative exponent is never "squared", "cubed" or "inverse"', () => {
+  assert.equal(mathToSpeech('x^{2/3}'), 'x to the power 2 over 3');
+  assert.equal(mathToSpeech('x^{-1/2}'), 'x to the power negative 1 over 2');
+  assert.equal(mathToSpeech('x^{3/4}'), 'x to the power 3 over 4');
+  assert.equal(mathToSpeech('(27x^6)^{1/3}'), 'the quantity 27x to the power 6, to the power 1 over 3');
+  // Whole exponents keep their words.
+  assert.equal(mathToSpeech('x^2 + x^3'), 'x squared plus x cubed');
+  assert.equal(speechTextFor('A⁻¹ is the inverse.'), 'A inverse is the inverse.');
+});

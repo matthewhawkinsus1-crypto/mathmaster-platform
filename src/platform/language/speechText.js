@@ -316,9 +316,15 @@ const plainMathToSpeech = (raw, w, functionNames = '') => {
   text = text
     .replace(/(?:√|\bsqrt)\s*\(([^()]+)\)/g, ` ${w.squareRoot} $1 `)
     .replace(/√\s*([A-Za-z0-9.]+)/g, ` ${w.squareRoot} $1 `)
-    .replace(/\^\(?-1\)?|⁻¹/g, ` ${w.inverse} `)
-    .replace(/\^\(?2\)?(?![0-9])|²/g, ` ${w.squared} `)
-    .replace(/\^\(?3\)?(?![0-9])|³/g, ` ${w.cubed} `)
+    // A power after a bracket ends the bracket first: (27x⁶)^(1/3) is "the
+    // quantity 27x to the power 6, to the power 1 over 3".
+    .replace(/\)\s*(?=\^)/g, `)${PAUSE}`)
+    // Exact exponents only: "^(2" of ^(2/3) is not "squared", nor "^(-1" of
+    // ^(-1/2) "inverse" — x^{2/3} was read "x squared over 3" (walkthrough
+    // 2026-10-23, Rational Exponents).
+    .replace(/\^\(\s*-1\s*\)|\^-1(?![0-9./])|⁻¹/g, ` ${w.inverse} `)
+    .replace(/\^\(\s*2\s*\)|\^2(?![0-9./])|²/g, ` ${w.squared} `)
+    .replace(/\^\(\s*3\s*\)|\^3(?![0-9./])|³/g, ` ${w.cubed} `)
     .replace(/\^\(([^()]+)\)/g, ` ${w.power} $1 `)
     .replace(/\^(-?[A-Za-z0-9.]+)/g, ` ${w.power} $1 `)
     .replace(/<=|≤/g, ` ${w.le} `)
@@ -366,6 +372,62 @@ const plainMathToSpeech = (raw, w, functionNames = '') => {
   return text.replace(/[()[\]]/g, ' ').replace(/\s*\uE003/g, ',');
 };
 
+/*
+ * UNICODE POWERS AND ROOTS, IN THE FORMS THE READER ALREADY READS.
+ *
+ * Labels and prompts write powers and roots as characters: x⁶, √(16x⁴y¹¹),
+ * ∛2, ⁶√16. Only ² and ³ were read; ⁴…⁹ stayed raw, and the segmenter split
+ * ∛, ∜ and an index root off as prose, so "⁶√16" was read "⁶ the square root
+ * of 16" (walkthrough 2026-10-23, Polynomials and Radicals). A power becomes
+ * ^(n); a root becomes its words in the reader's language, then its argument
+ * (bracketed when it is more than one term, so where the root ends is said).
+ */
+const SUPERSCRIPT_MAP = { '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9', '⁻': '-', '⁺': '+' };
+const fromSuperscript = (run) => [...run].map((char) => SUPERSCRIPT_MAP[char] ?? '').join('');
+const rootArgument = (text, from) => {
+  let index = from;
+  while (text[index] === ' ') index += 1;
+  if (text[index] === '(') {
+    let depth = 0;
+    for (let end = index; end < text.length; end += 1) {
+      if (text[end] === '(') depth += 1;
+      else if (text[end] === ')') { depth -= 1; if (depth === 0) return [text.slice(index + 1, end), end + 1]; }
+    }
+    return null;
+  }
+  const run = /^[A-Za-z0-9.…]+(?:[⁰¹²³⁴⁵⁶⁷⁸⁹]+)?/.exec(text.slice(index));
+  return run ? [run[0], index + run[0].length] : null;
+};
+const unicodeMathToSpokenForm = (raw, w) => {
+  // A blank power, 2^(…), is "2 to the power …".
+  const text = String(raw ?? '').replace(/\^\s*\(\s*(…|\.\.\.)\s*\)/g, ` ${w.power} $1`);
+  if (!/[√∛∜⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺]/.test(text)) return text;
+  let out = '';
+  for (let index = 0; index < text.length;) {
+    const indexRun = /^([⁰¹²³⁴⁵⁶⁷⁸⁹]+)√/.exec(text.slice(index));
+    const symbol = indexRun ? null : { '√': '2', '∛': '3', '∜': '4' }[text[index]];
+    if (indexRun || symbol) {
+      const order = indexRun ? fromSuperscript(indexRun[1]) : symbol;
+      const argument = rootArgument(text, index + (indexRun ? indexRun[0].length : 1));
+      if (argument) {
+        const words = order === '2' ? w.squareRoot : order === '3' ? w.cubeRoot : w.root(order);
+        // A root inside a root (√(∛x)) is read the same way.
+        const simple = /^[A-Za-z0-9.…]+(?:[⁰¹²³⁴⁵⁶⁷⁸⁹]+)?$/.test(argument[0].trim());
+        const body = unicodeMathToSpokenForm(argument[0].trim(), w).trim();
+        // 5∛2 is "5 times the cube root of 2".
+        const coefficient = /[A-Za-z0-9)]$/.test(out);
+        out += ` ${coefficient ? `${w.times} ` : ''}${words} ${simple ? body : `(${body})`} `;
+        index = argument[1];
+        continue;
+      }
+    }
+    out += text[index];
+    index += 1;
+  }
+  // x⁶ is x^(6); ⁻¹ stays, for the inverse rules below.
+  return out.replace(/([A-Za-z0-9)\]])([⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺]+)/g, (match, base, run) => (run === '⁻¹' ? match : `${base}^(${fromSuperscript(run)})`));
+};
+
 /** Speech for one math segment. */
 export const mathToSpeech = (raw, { language = 'en', functionNames = '' } = {}) => {
   const w = wordsFor(language);
@@ -373,7 +435,7 @@ export const mathToSpeech = (raw, { language = 'en', functionNames = '' } = {}) 
   const price = String(raw).trim().match(/^\$(\d[\d,]*(?:\.\d+)?)$/);
   if (price) return priceSpeech(price[1], w);
   const names = `${functionNames || ''}${definedFunctionNames(raw)}`;
-  return plainMathToSpeech(latexToSpeech(raw, w), w, names).replace(/\s+/g, ' ').trim();
+  return plainMathToSpeech(latexToSpeech(unicodeMathToSpokenForm(raw, w), w), w, names).replace(/\s+/g, ' ').trim();
 };
 
 /**
@@ -409,7 +471,7 @@ const spokenLineForms = (text, w) => text
 
 export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {}) => {
   const w = wordsFor(language);
-  const text = spokenLineForms(String(raw ?? ''), w);
+  const text = spokenLineForms(unicodeMathToSpokenForm(raw, w), w);
   if (!text.trim()) return '';
   // A name the text defines anywhere ("Let c(x) = …") is a function in every
   // later sentence too ("Find c(4).").
