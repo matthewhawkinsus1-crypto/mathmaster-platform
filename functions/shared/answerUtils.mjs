@@ -233,8 +233,49 @@ const sameWrittenForm = (studentAnswer, acceptedAnswer) => (
   || (normalizeMathAnswer(studentAnswer) !== '' && normalizeMathAnswer(studentAnswer) === normalizeMathAnswer(acceptedAnswer))
 );
 
+/*
+ * A CHOICE IS THE OPTION PICKED, NOT ITS VALUE (GR06). Read as a value, an
+ * option that equals the key — the unsimplified (2a²b)(4a³b) for 8a⁵b², or
+ * "f(3x) − 2", which the value reader takes for "3f(x) − 2" — was marked
+ * right. A choice answer names an option: it is right only when that option
+ * is the key's. A key names its option by its text, or, spelled another way
+ * (1/2 for \frac{1}{2}), by being the value of exactly one option. When the
+ * answer or the key cannot be placed among the options, the value reading
+ * stands, as before.
+ */
+const CHOICE_PROFILES = Object.freeze(['choice', 'multiplechoice', 'multiple-choice', 'select']);
+export const isChoiceAnswerField = (field = {}) => CHOICE_PROFILES.includes(
+  String(field?.inputProfile ?? field?.inputMode ?? field?.type ?? '').trim().toLowerCase(),
+);
+/** A choice field's options as the values an answer names: an id, a value or the option's own text. */
+export const choiceFieldOptions = (field = {}) => [
+  ...(Array.isArray(field?.options) && field.options.length ? field.options : Array.isArray(field?.choices) ? field.choices : []),
+].map((option) => (option && typeof option === 'object' ? (option.id ?? option.value ?? option.label ?? option.text) : option))
+  .filter((value) => value !== undefined && value !== null)
+  .map(String);
+const spelledOption = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
+const pickedChoiceVerdict = (studentAnswer, field, acceptedAnswers, options) => {
+  if (!isChoiceAnswerField(field)) return null;
+  const values = choiceFieldOptions(field);
+  if (values.length < 2) return null;
+  const picked = values.findIndex((value) => spelledOption(value) === spelledOption(studentAnswer));
+  if (picked < 0 || spelledOption(studentAnswer) === '') return null;
+  const keyed = new Set();
+  acceptedAnswers.forEach((accepted) => {
+    if (typeof accepted !== 'string' && typeof accepted !== 'number') return;
+    const exact = values.findIndex((value) => spelledOption(value) === spelledOption(accepted));
+    if (exact >= 0) { keyed.add(exact); return; }
+    const byValue = values.flatMap((value, index) => (matchesAnyAnswer(value, [accepted], options) ? [index] : []));
+    if (byValue.length === 1) keyed.add(byValue[0]);
+  });
+  return keyed.size ? keyed.has(picked) : null;
+};
+
 export const matchesFieldAnswer = (studentAnswer, field = {}) => {
   const acceptedAnswers = answerCandidatesForField(field);
+
+  const choice = pickedChoiceVerdict(studentAnswer, field, acceptedAnswers, fieldValueOptions(field));
+  if (choice !== null) return choice;
 
   // A field that asks for a polynomial in simplest form (answerForm:
   // 'simplifiedPolynomial') takes only an answer with nothing left to do:

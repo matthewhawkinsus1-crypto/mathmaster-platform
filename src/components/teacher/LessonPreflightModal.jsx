@@ -2032,6 +2032,24 @@ export const LessonPreflightModal = ({
         </div>
       )}
 
+      {/* Advice, not a readiness finding (choiceOptionPreflight.js, GR06): a
+          choice option worth the same as the key is marked wrong, which suits
+          a question about form and not one about equivalence. */}
+      {preflightModel.choiceOptions?.warnings?.length > 0 && (
+        <div data-choice-option-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-info-border)', borderRadius: 10, background: 'var(--mm-info-bg)', color: 'var(--mm-text)' }}>
+          <strong style={{ color: 'var(--mm-info-text)' }}>Choices worth the same as the key</strong>
+          <p style={{ margin: '5px 0 9px', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
+            These options have the key's value. A student who picks one is marked wrong: check each question asks for a form, not just an equal value. This does not stop you publishing.
+          </p>
+          <details>
+            <summary style={{ cursor: 'pointer', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.choiceOptions.warnings.length === 1 ? '1 question' : `${preflightModel.choiceOptions.warnings.length} questions`}</summary>
+            <ul data-choice-option-warnings="true" style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
+              {preflightModel.choiceOptions.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+            </ul>
+          </details>
+        </div>
+      )}
+
       {/* Advice, not a readiness finding (hintAnswerPreflight.js, HELP-16):
           teacher-written hints the leak guard drops, so a student never
           sees them, and why. */}

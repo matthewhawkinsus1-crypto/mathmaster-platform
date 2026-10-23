@@ -15,6 +15,7 @@ import { auditAssignmentGraphAccessibility } from './graphAccessibilityPreflight
 import { auditAssignmentSolutionReviews } from './solutionReviewPreflight.js';
 import { auditAssignmentAttemptFeedback } from './attemptFeedbackPreflight.js';
 import { auditAssignmentHiddenHints, auditAssignmentHintAnswers } from './hintAnswerPreflight.js';
+import { auditAssignmentChoiceOptions } from './choiceOptionPreflight.js';
 import { buildPreflightDiagnostics } from './preflightDiagnostics.js';
 import { deriveAssignmentAuthoringState } from './assignmentAuthoringState.js';
 import { analyzeClassworkPlannedTime } from '../teacher/classworkPacing.js';
@@ -172,6 +173,8 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   // Teacher-written hints the runtime guard drops, with the reason (HELP-16):
   // advisory, like hintAnswers.
   const hiddenHints = auditAssignmentHiddenHints(questions, deliveredOnly);
+  // Choice options worth the same as the key (GR06): advisory, like hintAnswers.
+  const choiceOptions = auditAssignmentChoiceOptions(questions, deliveredOnly);
   // Question ↔ tool contract: judged on the LITERAL record, because it also
   // reports records that only work because a runtime repair rescues them and
   // offers the safe repair that makes the saved assignment match.
@@ -269,6 +272,7 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     attemptFeedback,
     hintAnswers,
     hiddenHints,
+    choiceOptions,
     // Excluded questions Pre-Flight kept but did not judge for delivery.
     retiredQuestions,
     errors: uniqueErrors,
