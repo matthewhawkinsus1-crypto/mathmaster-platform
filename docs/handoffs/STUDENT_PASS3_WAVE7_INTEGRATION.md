@@ -287,6 +287,8 @@ Each handoff lists its own, in full. Grouped here:
 5. Ten Algebra I fields re-asked without a version move at `dc2ae1ad` (W7-1 5).
    **Decided 2026-10-20: a field that asks for another kind of answer must move `familyVersion`.**
    `scripts/check-family-version-bumps.mjs`, run on every pull request that touches a bank (answer-acceptance audit).
+   The ten fields' seven families moved to `familyVersion` 4 on 2026-10-23 (GR21); the check against `dc2ae1ad^`
+   passes.
 6. Run the two read-only counts; re-grade up only (W7-1 6, D8).
 7. Point-slope through another point of the same line is graded wrong (found in W7-6's review; older than pass 3).
    **Decided 2026-10-20: accept any point on the line.** `samePointSlopeLine` in `answerEquivalence.mjs` (branch

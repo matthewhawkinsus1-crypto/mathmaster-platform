@@ -7,7 +7,9 @@
  * `dc2ae1ad` ten Algebra I fields were re-asked as inequalities (they had been
  * interval notation) without a version move, so answers recorded under the old
  * question read as answers to the new one. The equivalence sweep only lists
- * such fields (`oldKeysReasked`); this check refuses them.
+ * such fields (`oldKeysReasked`); this check refuses them. Those ten fields'
+ * seven families moved to familyVersion 4 on 2026-10-23 (GR21), so the check
+ * run against `dc2ae1ad^` now passes.
  *
  * WHAT. For every bank item in both the base commit and the working tree with
  * the same id and the same version (`familyVersion`, else `version`), each

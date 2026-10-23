@@ -257,7 +257,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.9A:v2-context-restricted-domain",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "inherit",
