@@ -95,6 +95,11 @@ const indexQuestions = (existing = {}, questions = []) => {
   return next;
 };
 
+// The server's record of the cursor item's last miss (lineRoundState).
+const lastMissKeyOf = (serverState = {}) => (
+  typeof serverState?.cursorLastMissKey === 'string' && serverState.cursorLastMissKey ? serverState.cursorLastMissKey : null
+);
+
 /**
  * A session for a round, starting where the server says the student is.
  * `poolSize` is where the round's items end. `queue` is any attempt the
@@ -110,8 +115,10 @@ export const createLineSession = ({ roundIndex = 0, serverState = {}, questions 
   missesOnItem: Math.max(0, integerOr(serverState.cursorMisses, 0)),
   missesInARow: 0,
   // The answer of the last recorded miss on this item: the same answer again
-  // is `repeated`, not a second miss.
-  lastMissKey: null,
+  // is `repeated`, not a second miss. Restored from the server after a
+  // refresh (LC10): without it the same wrong line again counted as the
+  // final miss here and showed the answer.
+  lastMissKey: lastMissKeyOf(serverState),
   lockedUntil: 0,
   transition: null,
   counts: countsFromServer(serverState),
@@ -387,7 +394,7 @@ export const acknowledge = (session, { sent = [], reply = {} } = {}) => {
     cursor: Math.max(0, integerOr(serverState.cursor, 0)),
     missesOnItem: Math.max(0, integerOr(serverState.cursorMisses, 0)),
     missesInARow: 0,
-    lastMissKey: null,
+    lastMissKey: lastMissKeyOf(serverState),
     lockedUntil: 0,
     transition: null,
   });

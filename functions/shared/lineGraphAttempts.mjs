@@ -96,7 +96,10 @@ const itemProgress = (receipts, roundIndex, questionIndex) => questionProgress({
 /**
  * Where a student stands in a round. `cursor` is the item they are on: the
  * first neither completed nor ended. `cursorMisses` is how many of its tries
- * are used — what a device restores after a refresh.
+ * are used, and `cursorLastMissKey` the answer of the last of them — what a
+ * device restores after a refresh, so the same wrong answer again is
+ * `repeated` there as it is here, not a final miss that shows the answer
+ * (LC10, Codex on #500). It is the student's own answer, never the key.
  */
 export const lineRoundState = ({ receipts = {}, roundIndex, poolSize } = {}) => {
   const round = integerOr(roundIndex, -1);
@@ -122,6 +125,7 @@ export const lineRoundState = ({ receipts = {}, roundIndex, poolSize } = {}) => 
     finished: cursor >= pool,
     cursorAttempts: open ? current.attempts : 0,
     cursorMisses: open ? current.incorrectAttempts : 0,
+    cursorLastMissKey: open && current.incorrectAttempts > 0 ? lastAnswerKey(receipts, round, cursor) : null,
     questionsCorrect: summary.questionsCorrect,
     ended: summary.questions.filter((question) => question.completed && !question.completedCorrectly).length,
     attempts: summary.attempts,

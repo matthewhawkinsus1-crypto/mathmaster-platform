@@ -675,3 +675,22 @@ test('nothing on the line grid or in the round imports the generator', async () 
   // The device reads a line's points the way the grader does.
   assert.ok(containsPoint({ a: 2, b: -1, c: 3 }, { x: 0, y: -3 }));
 });
+
+test('after a refresh, the same wrong line again is "repeated", never the final miss that shows the answer (LC10)', () => {
+  const round = roundFor({ itemTypes: ['graph'], triesPerItem: 3 });
+  const question = currentQuestion(sessionFor(round));
+  // The answer key the device gives this wrong line (the server keeps the same one).
+  const missKey = recordLine(sessionFor(round), { points: wrongPoints(question), nowMs: 1_000, elapsedMs: 1, attemptId: nextId() }).session.lastMissKey;
+  assert.ok(missKey);
+  // Two tries used, the last with that line; the device reloads.
+  const resumed = sessionFor(round, { serverState: { cursor: 0, cursorMisses: 2, cursorLastMissKey: missKey } });
+  assert.equal(triesLeft(resumed), 1);
+  const again = recordLine(resumed, { points: wrongPoints(question), nowMs: 5_000, elapsedMs: 1, attemptId: nextId() });
+  assert.equal(again.verdict, LINE_VERDICT.REPEATED, 'the server calls it repeated, and so does the device');
+  assert.equal(again.attempt, null);
+  assert.notEqual(again.session.feedback.kind, LINE_FEEDBACK.REVEALED, 'the answer is not shown');
+  assert.equal(triesLeft(again.session), 1);
+  // A resync from the server restores it the same way.
+  const elsewhere = acknowledge(sessionFor(round), { sent: [], reply: { state: { cursor: 0, cursorMisses: 2, cursorLastMissKey: missKey, questionsCorrect: 0, ended: 0, attempts: 2, hits: 0 } } });
+  assert.equal(elsewhere.session.lastMissKey, missKey);
+});
