@@ -104,7 +104,7 @@ test('the workspace sends the work the grader reads, draws only the student\'s l
   assert.match(mode, /const work = \{ construction:parsed\.map\(\(ends\) => \(\{ points:ends \}\)\), classification, x, y \};/);
   assert.match(mode, /useReportToolWork\(work\);/);
   assert.match(mode, /if \(!ready\) return;\s*const result = gradeToolCheck\(systemsWorkspaceGrader, questionData, work\);\s*submit\(\{ isCorrect: result\.isCorrect, score: result\.score \}, work, \{ mode:'linear', parts: result\.parts \}\);/);
-  assert.match(mode, /const ready = classified && pointsTyped;/, 'nothing is sent before both lines are drawn and the system classified');
+  assert.match(mode, /const ready = classified && pointsTyped && crossingTyped;/, 'nothing is sent before both lines are drawn, the system classified and, for one solution, the crossing typed');
   assert.match(mode, /lines=\{drawnLines\}/, 'only the lines the student\'s points determine are drawn');
   assert.match(mode, /const drawnLines = parsed\.map\(\(\[first, second\], index\) => \{/, 'drawn from the student\'s parsed points, never from the system');
   assert.match(mode, /revealCoordinates=\{false\}/, 'the plane does not read out the crossing point');

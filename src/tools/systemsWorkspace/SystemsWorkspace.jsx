@@ -29,6 +29,7 @@ import { POINT_COLORS, constraintColor } from './constraintPalette.js';
 import { formatInequality, formatLine, formatPoint, formatQuadratic } from './inequalityFormat.js';
 import { resolveSystemsWorkspaceMode } from './systemsWorkspaceMode.js';
 import { systemAxisNames } from './systemAxisNames.js';
+import { solutionTyped } from './systemsSolutionTyped.js';
 import { algebraicSystemDimension } from './algebraicSystemsEngine.js';
 
 // The defaults the shared grader also reads, so an unauthored field shows and
@@ -80,6 +81,7 @@ function LinearMode({ questionData, onAction }) {
   const restore = useCallback((value) => { setX(value?.x || ''); setY(value?.y || ''); setClassification(value?.classification || UNANSWERED); }, []);
   const undoHistory = useMathUndoHistory({ label: 'Undo the last system answer edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
   const classified = isAnswered(classification);
+  const ready = classified && solutionTyped(classification, x, y);
 
   // The student's work — what Check grades and what a deadline would submit.
   const work = { x, y, classification };
@@ -87,10 +89,10 @@ function LinearMode({ questionData, onAction }) {
 
   const check = () => {
     // Not an answer yet: the classification decides what else is asked (x and
-    // y only for exactly one solution). The shared grader marks a response
-    // without one unanswered and My Math Path's contract refuses it, so
-    // nothing is sent until it is chosen.
-    if (!classified) return;
+    // y only for exactly one solution, and then both typed). The shared grader
+    // marks a response without them unanswered and My Math Path's contract
+    // refuses it, so nothing is sent until they are there.
+    if (!ready) return;
     const result = gradeToolCheck(systemsWorkspaceGrader, questionData, work);
     submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode:'linear', parts: result.parts });
   };
@@ -108,7 +110,7 @@ function LinearMode({ questionData, onAction }) {
     equationInput: { label: 'Both equations', studentState: true },
     numericControls: { label: 'Solution and classification', studentState: true },
     instruction: { text: 'Classify the system, then solve where the equations meet.' },
-    primaryActions: [{ id: 'check-system', label: checkSystemLabel, onAction: check, disabled: !classified }],
+    primaryActions: [{ id: 'check-system', label: checkSystemLabel, onAction: check, disabled: !ready }],
   }}><ToolSplit>
     <Panel title="Both equations on one grid">
       <CoordinatePlane xMin={questionData.graph?.xMin ?? -6} xMax={questionData.graph?.xMax ?? 8} yMin={questionData.graph?.yMin ?? -6} yMax={questionData.graph?.yMax ?? 12}
@@ -125,8 +127,8 @@ function LinearMode({ questionData, onAction }) {
     <Panel title="Classify and solve">
       <Field label="How many solutions does this system have?"><select value={classification} onChange={(e)=>setClassification(e.target.value)} style={inputStyle}><option value={UNANSWERED}>Choose…</option><option value="one">Exactly one solution</option><option value="none">No solution</option><option value="infinite">Infinitely many solutions</option></select></Field>
       {classification === 'one' ? <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:12}}><Field label="x"><input type="number" inputMode="decimal" value={x} onChange={(e)=>setX(e.target.value)} style={inputStyle}/></Field><Field label="y"><input type="number" inputMode="decimal" value={y} onChange={(e)=>setY(e.target.value)} style={inputStyle}/></Field></div> : null}
-      <button data-mm-enter-action="submit" type="button" onClick={check} disabled={!classified} style={{...actionStyle,opacity:classified?1:0.5}}>{checkSystemLabel}</button>
-      {!classified ? <p style={{margin:'8px 0 0',color:'var(--mm-text-muted)',fontSize:'calc(13 * var(--mm-px))'}}>Choose how many solutions the system has first.</p> : null}
+      <button data-mm-enter-action="submit" type="button" onClick={check} disabled={!ready} style={{...actionStyle,opacity:ready?1:0.5}}>{checkSystemLabel}</button>
+      {!ready ? <p style={{margin:'8px 0 0',color:'var(--mm-text-muted)',fontSize:'calc(13 * var(--mm-px))'}}>{classified ? 'Type x and y for the point where the lines cross.' : 'Choose how many solutions the system has first.'}</p> : null}
       {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect} message={message()}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill></div> : null}
       <HintPanel
         hints={[
@@ -532,7 +534,8 @@ function LinearConstructMode({ questionData, onAction }) {
     .filter((point) => point.x != null && point.y != null)
     .map((point) => ({ x:point.x, y:point.y, fill:LINE_COLORS[index] })));
   const pointsTyped = parsed.every((ends) => ends.every((point) => point.x != null && point.y != null));
-  const ready = classified && pointsTyped;
+  const crossingTyped = solutionTyped(classification, x, y);
+  const ready = classified && pointsTyped && crossingTyped;
 
   // The student's work — what Check grades and what a deadline would submit:
   // the analyze form's answers plus each line's two points, already parsed.
@@ -629,6 +632,7 @@ function LinearConstructMode({ questionData, onAction }) {
       {!ready ? <p className="mm-ineq-note">{[
         pointsTyped ? null : 'Plot two points on each line.',
         classified ? null : 'Choose how many solutions the system has.',
+        !classified || crossingTyped ? null : `Type ${names.x} and ${names.y} for the point where your lines cross.`,
       ].filter(Boolean).join(' ')}</p> : null}
       {feedback ? <div><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><StepFeedback>{message()}</StepFeedback></div> : null}
       <HintPanel
@@ -725,6 +729,8 @@ function MatrixMode({ questionData, onAction }) {
   const mathState = useMemo(() => ({ classification, x, y, z, technologyUsed }), [classification, x, y, z, technologyUsed]);
   const restore = useCallback((value) => { setClassification(value?.classification || UNANSWERED); setX(value?.x || ''); setY(value?.y || ''); setZ(value?.z || ''); setTechnologyUsed(Boolean(value?.technologyUsed)); }, []);
   const classified = isAnswered(classification);
+  const needsTechnology = isMatrix3 && !technologyUsed;
+  const ready = classified && !needsTechnology && solutionTyped(classification, x, y, ...(isMatrix3 ? [z] : []));
   const undoHistory = useMathUndoHistory({ label: 'Undo the last matrix-system edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
 
   const matrixRows = isMatrix3 ? (matrix3x4Rows(matrix) || []) : [
@@ -737,10 +743,11 @@ function MatrixMode({ questionData, onAction }) {
   useReportToolWork(work);
 
   const check = () => {
-    // A matrix response with no classification, or (3×3) without the RREF
-    // technology, is not an answer: the shared grader marks it unfinished and
-    // My Math Path's contract refuses it, so neither is sent.
-    if (!classified || (isMatrix3 && !technologyUsed)) return;
+    // A matrix response with no classification, with "exactly one" but a
+    // coordinate left blank, or (3×3) without the RREF technology, is not an
+    // answer: the shared grader marks it unfinished and My Math Path's
+    // contract refuses it, so none is sent.
+    if (!ready) return;
     const result = gradeToolCheck(systemsWorkspaceGrader, questionData, work);
     submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode:isMatrix3?'matrix3':'matrix', parts: result.parts });
   };
@@ -764,7 +771,7 @@ function MatrixMode({ questionData, onAction }) {
 
   const showRref = isMatrix3 && (technologyUsed || revealAnswers);
 
-  return <EnlargeableFigure label="Matrix system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, equationInput: { label: isMatrix3 ? 'Three equations and RREF' : 'Both equations and augmented matrix' }, numericControls: { label: 'Row reduction and solution controls', studentState: true }, instruction: { text: isMatrix3 ? 'Compute and interpret the RREF.' : 'Classify and solve the augmented system.' }, primaryActions: [{ id: 'check-matrix', label: checkMatrixLabel, onAction: check, disabled: !classified || (isMatrix3 && !technologyUsed) }] }}><ToolSplit>
+  return <EnlargeableFigure label="Matrix system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, equationInput: { label: isMatrix3 ? 'Three equations and RREF' : 'Both equations and augmented matrix' }, numericControls: { label: 'Row reduction and solution controls', studentState: true }, instruction: { text: isMatrix3 ? 'Compute and interpret the RREF.' : 'Classify and solve the augmented system.' }, primaryActions: [{ id: 'check-matrix', label: checkMatrixLabel, onAction: check, disabled: !ready }] }}><ToolSplit>
     <Panel title={isMatrix3 ? "3×3 augmented matrix" : "Augmented matrix"}>
       <div style={{
         display:'grid',
@@ -841,12 +848,12 @@ function MatrixMode({ questionData, onAction }) {
       <button
         type="button"
         onClick={check}
-        disabled={!classified || (isMatrix3 && !technologyUsed)}
-        style={{...actionStyle,opacity:!classified || (isMatrix3&&!technologyUsed)?0.5:1}}
+        disabled={!ready}
+        style={{...actionStyle,opacity:ready?1:0.5}}
       >
-        {isMatrix3 && !technologyUsed ? 'Use RREF technology first' : checkMatrixLabel}
+        {needsTechnology ? 'Use RREF technology first' : checkMatrixLabel}
       </button>
-      {!classified && !(isMatrix3 && !technologyUsed) ? <p style={{margin:'8px 0 0',color:'var(--mm-text-muted)',fontSize:'calc(13 * var(--mm-px))'}}>Choose how many solutions the system has first.</p> : null}
+      {!ready && !needsTechnology ? <p style={{margin:'8px 0 0',color:'var(--mm-text-muted)',fontSize:'calc(13 * var(--mm-px))'}}>{classified ? `Type ${isMatrix3 ? 'x, y and z' : 'x and y'} for the solution.` : 'Choose how many solutions the system has first.'}</p> : null}
       {feedback?<div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect} message={message()}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill></div>:null}
       <HintPanel
         hints={isMatrix3 ? [
