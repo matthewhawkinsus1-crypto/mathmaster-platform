@@ -241,6 +241,9 @@ export const MISCONCEPTION_FIXTURES = Object.freeze([
   simplestFormCase('simplest form: correct', 'a^3+8a-9', 'a^3+8a-9', []),
   simplestFormCase('simplest form: distributed, like terms not combined', 'a^3+8a-9', '2a^3+5a-7-a^3+3a-2', ['polynomial-not-simplified']),
   simplestFormCase('simplest form: a retyped product', '8a^5b^2', '(2a^2b)(4a^3b)', ['polynomial-not-simplified']),
+  // Walkthrough 2026-10-22 (Operations CW 5): only the written 1 is left.
+  simplestFormCase('simplest form: a coefficient of one written out', '-x^2+x+2', '-1x^2+x+2', ['polynomial-unit-coefficient']),
+  simplestFormCase('simplest form: a written one AND like terms left is about the like terms', '3x', '1x+2x', ['polynomial-not-simplified']),
   simplestFormCase('simplest form: a wrong value is not named', 'a^3+8a-9', 'a^3+2a-5', []),
   simplestFormCase('simplest form: a field that does not ask for it is not named', 'a^3+8a-9', '2a^3+5a-7-a^3+3a-2', [], { answerForm: null }),
   // Review S5a: a CORRECT field written in another accepted form is never classified.

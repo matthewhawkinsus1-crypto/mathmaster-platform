@@ -113,7 +113,9 @@ test('Phase 2 is additive under registry v1: new ids only, every existing code a
   // Operations on polynomials added one more, additively: a polynomial with
   // the key's value that is not simplified, on a field that asks for simplest
   // form. Version 1, emitted by the same ordinary:multiAnswer classifier.
-  const polynomials = ['polynomial-not-simplified'];
+  // The walkthrough of 2026-10-22 split off the one case whose message was
+  // wrong for it: simplified except for a written coefficient of one.
+  const polynomials = ['polynomial-not-simplified', 'polynomial-unit-coefficient'];
   polynomials.forEach((id) => assert.equal(getMisconceptionCode(id)?.version, 1, id));
   assert.equal(MISCONCEPTION_REGISTRY.length, 18 + added.length + passThree.length + polynomials.length);
   // No synonym of an existing code was created: every new code names a different concept.

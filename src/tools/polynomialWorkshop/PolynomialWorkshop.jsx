@@ -38,7 +38,8 @@ import MathDisplay from '../../MathDisplay.jsx';
 import { requiredAnswerToolForSymbol } from '../../platform/interaction/answerEntryTools.js';
 import './PolynomialWorkshop.css';
 import { polynomialReadoutText } from './polynomialReadout.js';
-import { SubmitText } from '../shared/ToolRuntimeContext';
+import { SubmitText, useMethodWithheld } from '../shared/ToolRuntimeContext';
+import { syntheticMissMessage } from './syntheticFeedback.js';
 
 const inputStyle = { width:'100%', padding:9, border:'1px solid var(--mm-tint-border)', borderRadius:8, boxSizing:'border-box' };
 const actionStyle = { marginTop:14, padding:'10px 16px', border:0, borderRadius:8, background:'#1a73e8', color:'#fff', fontWeight:800, cursor:'pointer' };
@@ -54,9 +55,9 @@ export default function PolynomialWorkshop({ questionData = {}, onAction }) {
   const mode = questionData.mode || 'factorZero';
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
 
-  if (mode === 'multiplyArea' && writesFactors(questionData)) return <MultiplyFactors questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
+  if (mode === 'multiplyArea' && writesFactors(questionData)) return <MultiplyFactors questionData={questionData} feedback={feedback} submit={submit} clearFeedback={clearFeedback} onAction={onAction} />;
   if (mode === 'multiplyArea') return <MultiplyArea questionData={questionData} feedback={feedback} submit={submit} clearFeedback={clearFeedback} onAction={onAction} />;
-  if (mode === 'addSubtract') return <AddSubtract questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
+  if (mode === 'addSubtract') return <AddSubtract questionData={questionData} feedback={feedback} submit={submit} clearFeedback={clearFeedback} onAction={onAction} />;
   if (mode === 'factorQuadratic') return <FactorQuadratic questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
   if (mode === 'division') return <DivisionMode questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
   if (mode === 'longDivision') return <LongDivision questionData={questionData} feedback={feedback} submit={submit} clearFeedback={clearFeedback} onAction={onAction} />;
@@ -152,13 +153,15 @@ function MissingProblem({ title }) {
   return <ToolShell title="Polynomial Workshop" subtitle={title} badge="Algebra II · Polynomials"><p>This question is missing its polynomials, so there is nothing to work on yet. Tell your teacher.</p></ToolShell>;
 }
 
-function MultiplyFactors({ questionData, feedback, submit, onAction }) {
+function MultiplyFactors({ questionData, feedback, submit, clearFeedback = () => {}, onAction }) {
   const model = useMemo(() => areaModelKey(questionData), [questionData]);
   const width = model ? model.columns.length : 0;
   const size = model ? model.rows.length * width : 0;
   const [terms, setTerms] = usePersistentToolState('terms', []);
   const [product, setProduct] = usePersistentToolState('product', '');
-  const setTerm = (index, value) => setTerms((old) => listWith(size, old, index, value));
+  // An edit clears the verdict and its red cells.
+  const setTerm = (index, value) => { clearFeedback(); setTerms((old) => listWith(size, old, index, value)); };
+  const setProductText = (value) => { clearFeedback(); setProduct(value); };
   const keys = useMemo(() => (model ? keypadKeys([...model.rows, ...model.columns]) : []), [model]);
   useFieldUndoHistory({questionData,fields:{terms:[terms,setTerms],product:[product,setProduct]}});
   const work={terms,product};
@@ -167,6 +170,8 @@ function MultiplyFactors({ questionData, feedback, submit, onAction }) {
     const result=gradeToolCheck(polynomialWorkshopGrader,questionData,work);
     submit({ isCorrect: result.isCorrect, score: result.score },work,{mode:'multiplyArea',parts:result.parts});
   };
+  // The wrong cells are marked on the grid (walkthrough 2026-10-22, Operations CW 7).
+  const wrong = wrongPartIds(feedback);
   if (!model) return <MissingProblem title="Multiply polynomials with an area model." />;
   const factors = `\\left(${polynomialTermsLatex(model.rows)}\\right)\\left(${polynomialTermsLatex(model.columns)}\\right)`;
   return <ToolShell title="Polynomial Workshop" subtitle="Multiply every term by every term with an area model." badge="Algebra II · Area Model">
@@ -181,31 +186,33 @@ function MultiplyFactors({ questionData, feedback, submit, onAction }) {
           {model.columns.map((column, c) => <div key={`column-${c}`} className="mm-area-head" style={headerStyle}><MathDisplay value={termLatex(column)} /></div>)}
           {model.rows.map((row, r) => <React.Fragment key={`row-${r}`}>
             <div className="mm-area-head" style={headerStyle}><MathDisplay value={termLatex(row)} /></div>
-            {model.columns.map((column, c) => <div key={`cell-${r}-${c}`} className="mm-area-cell"><span className="mm-area-cell-label" aria-hidden="true"><MathDisplay value={`${factorLatex(row)}\\cdot ${factorLatex(column)}`} inline /></span><MathInput value={entryAt(terms, r * width + c)} onChange={(value) => setTerm(r * width + c, value)} toolProfile="expression" extraKeys={keys} hideToolsToggle compact maxWidth={220} placeholder="term" ariaLabel={`Row ${r + 1}, column ${c + 1}: ${termPlainText(row)} times ${termPlainText(column)}`} /></div>)}
+            {model.columns.map((column, c) => <div key={`cell-${r}-${c}`} className="mm-area-cell"><span className="mm-area-cell-label" aria-hidden="true"><MathDisplay value={`${factorLatex(row)}\\cdot ${factorLatex(column)}`} inline /></span><MathInput value={entryAt(terms, r * width + c)} onChange={(value) => setTerm(r * width + c, value)} inputStatus={statusOf(wrong, `term-${r + 1}-${c + 1}`)} toolProfile="expression" extraKeys={keys} hideToolsToggle compact maxWidth={220} placeholder="term" ariaLabel={`Row ${r + 1}, column ${c + 1}: ${termPlainText(row)} times ${termPlainText(column)}`} /></div>)}
           </React.Fragment>)}
         </div>
         </div>
       </Panel>
       <Panel title="Product in simplest form">
         <p style={{color:'var(--mm-text-muted)',marginTop:0}}>Add up the cells. Combine like terms so each kind of term appears once.</p>
-        <MathInput value={product} onChange={setProduct} toolProfile="expression" extraKeys={keys} maxWidth={540} placeholder="product" ariaLabel="Product in simplest form" />
+        <MathInput value={product} onChange={setProductText} inputStatus={statusOf(wrong, 'product')} toolProfile="expression" extraKeys={keys} maxWidth={540} placeholder="product" ariaLabel="Product in simplest form" />
         <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check area model</SubmitText></button>
-        <Feedback feedback={feedback} success="Every cell and the product are correct." retry="Check each cell: multiply the numbers, add the exponents of the same letter. Then combine like terms."/>
+        <Feedback feedback={feedback} success="Every cell and the product are correct." retry="Check each red cell: multiply the signs and the numbers, and add the exponents of the same letter. Then combine like terms."/>
         <HintPanel hints={['Every term of the first factor multiplies every term of the second — that is what the area model shows: one cell for each pair.', 'Multiply the numbers and keep the letters: a² · 3a = 3a³, because a² · a = a³ (add the exponents).', 'Cells with the same letters and exponents are like terms. Add them to finish, and leave unlike terms separate.']} onHintUsed={() => onAction?.("HINT_USED")} />
       </Panel>
     </ToolGrid>
   </ToolShell>;
 }
 
-function AddSubtract({ questionData, feedback, submit, onAction }) {
+function AddSubtract({ questionData, feedback, submit, clearFeedback = () => {}, onAction }) {
   const model = useMemo(() => addSubtractKey(questionData), [questionData]);
   const count = model ? model.columns.length : 0;
   const subtracting = model?.operation === 'subtract';
   const [opposites, setOpposites] = usePersistentToolState('opposites', []);
   const [sums, setSums] = usePersistentToolState('sums', []);
   const [answer, setAnswer] = usePersistentToolState('result', '');
-  const setOpposite = (index, value) => setOpposites((old) => listWith(count, old, index, value));
-  const setSum = (index, value) => setSums((old) => listWith(count, old, index, value));
+  // An edit clears the verdict, and with it the red cells (as the division views do).
+  const setOpposite = (index, value) => { clearFeedback(); setOpposites((old) => listWith(count, old, index, value)); };
+  const setSum = (index, value) => { clearFeedback(); setSums((old) => listWith(count, old, index, value)); };
+  const setResult = (value) => { clearFeedback(); setAnswer(value); };
   const keys = useMemo(() => (model ? keypadKeys([...model.first, ...model.second]) : []), [model]);
   useFieldUndoHistory({questionData,fields:{opposites:[opposites,setOpposites],sums:[sums,setSums],result:[answer,setAnswer]}});
   const work={opposites,sums,result:answer};
@@ -214,6 +221,10 @@ function AddSubtract({ questionData, feedback, submit, onAction }) {
     const result=gradeToolCheck(polynomialWorkshopGrader,questionData,work);
     submit({ isCorrect: result.isCorrect, score: result.score },work,{mode:'addSubtract',parts:result.parts});
   };
+  // The cells the check marked wrong are marked on the board: every cell kept
+  // its blue border, and the student mapped names from "Focus on" text
+  // (walkthrough 2026-10-22, Operations on Polynomials CW 4, CW 5).
+  const wrong = wrongPartIds(feedback);
   if (!model) return <MissingProblem title="Add and subtract polynomials." />;
   const problem = `\\left(${polynomialTermsLatex(model.first)}\\right)${subtracting ? '-' : '+'}\\left(${polynomialTermsLatex(model.second)}\\right)`;
   const steps = subtracting
@@ -222,24 +233,29 @@ function AddSubtract({ questionData, feedback, submit, onAction }) {
   return <ToolShell title="Polynomial Workshop" subtitle={subtracting ? 'Subtract by adding the opposite of every term, then combine like terms.' : 'Line up like terms, then combine them.'} badge={subtracting ? 'Algebra II · Subtract Polynomials' : 'Algebra II · Add Polynomials'}>
     <TaskCard question={questionData} task={subtracting ? 'Write the opposite of each term you subtract, combine each column, then write the result.' : 'Combine each column of like terms, then write the result.'} steps={steps} />
     <Panel title="Line up like terms">
-      <div style={{fontSize:'calc(20 * var(--mm-px))',fontWeight:800,marginBottom:10}}><MathDisplay value={problem} /></div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))',gap:10}}>
+      {/* The problem is one line of math that cannot wrap: on a 390px phone it
+          was 436–480px and widened the whole page, which clips, cutting off
+          the task, the subtracted polynomial and the second column
+          (walkthrough 2026-10-22, Operations PR 6 and DOL 1). It scrolls in
+          its own box instead, and the columns may shrink to fit. */}
+      <div data-addsubtract-problem="" style={{fontSize:'calc(20 * var(--mm-px))',fontWeight:800,marginBottom:10,maxWidth:'100%',overflowX:'auto',overflowY:'hidden'}}><MathDisplay value={problem} /></div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',gap:10,minWidth:0}}>
         {model.columns.map((column, index) => {
           const name = columnPlainText(column);
           const firstTerm = model.firstByColumn[index];
           const secondTerm = model.secondByColumn[index];
-          return <div key={`column-${index}`} role="group" aria-label={`${name} column`} style={{border:'1px solid var(--mm-tint-border)',borderRadius:10,padding:10,display:'grid',gap:6,alignContent:'start'}}>
+          return <div key={`column-${index}`} role="group" aria-label={`${name} column`} style={{border:'1px solid var(--mm-tint-border)',borderRadius:10,padding:10,display:'grid',gap:6,alignContent:'start',minWidth:0}}>
             <strong style={{textAlign:'center'}}>{name === 'constant' ? 'Constants' : <>{name} terms</>}</strong>
             <div style={cardRowStyle}><span>First</span>{firstTerm ? <MathDisplay value={termLatex(firstTerm)} inline /> : <span>none</span>}</div>
             <div style={cardRowStyle}><span>Second</span>{secondTerm ? <MathDisplay value={termLatex(secondTerm)} inline /> : <span>none</span>}</div>
-            {subtracting && secondTerm ? <label style={{display:'grid',gap:4,fontWeight:700}}>Its opposite<MathInput value={entryAt(opposites, index)} onChange={(value) => setOpposite(index, value)} toolProfile="expression" extraKeys={keys} hideToolsToggle compact maxWidth={220} placeholder="opposite" ariaLabel={`Opposite of ${termPlainText(secondTerm)}`} /></label> : null}
-            <label style={{display:'grid',gap:4,fontWeight:700}}>Combined<MathInput value={entryAt(sums, index)} onChange={(value) => setSum(index, value)} toolProfile="expression" extraKeys={keys} hideToolsToggle compact maxWidth={220} placeholder="term or 0" ariaLabel={`Combined ${name} column`} /></label>
+            {subtracting && secondTerm ? <label style={{display:'grid',gap:4,fontWeight:700}}>Its opposite<MathInput value={entryAt(opposites, index)} onChange={(value) => setOpposite(index, value)} inputStatus={statusOf(wrong, `opposite-${index + 1}`)} toolProfile="expression" extraKeys={keys} hideToolsToggle compact maxWidth={220} placeholder="opposite" ariaLabel={`Opposite of ${termPlainText(secondTerm)}`} /></label> : null}
+            <label style={{display:'grid',gap:4,fontWeight:700}}>Combined<MathInput value={entryAt(sums, index)} onChange={(value) => setSum(index, value)} inputStatus={statusOf(wrong, `sum-${index + 1}`)} toolProfile="expression" extraKeys={keys} hideToolsToggle compact maxWidth={220} placeholder="term or 0" ariaLabel={`Combined ${name} column`} /></label>
           </div>;
         })}
       </div>
     </Panel>
     <Panel title="Result in simplest form">
-      <MathInput value={answer} onChange={setAnswer} toolProfile="expression" extraKeys={keys} maxWidth={540} placeholder="result" ariaLabel="Result in simplest form" />
+      <MathInput value={answer} onChange={setResult} inputStatus={statusOf(wrong, 'result')} toolProfile="expression" extraKeys={keys} maxWidth={540} placeholder="result" ariaLabel="Result in simplest form" />
       <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check my work</SubmitText></button>
       <Feedback feedback={feedback} success="Every step and the result are correct." retry={subtracting ? 'Check the sign of EVERY opposite, then combine each column.' : 'Combine only like terms: same letters, same exponents.'}/>
       <HintPanel hints={subtracting
@@ -334,7 +350,7 @@ const answerLatex = (quotient, remainder, divisorLatex) => {
  * every missing power, and each round's product (to subtract) and line, every
  * term in its power's column. It shows the work; it grades nothing.
  */
-function LongDivisionLayout({ divisionKey, terms, products, differences }) {
+function LongDivisionLayout({ divisionKey, terms, products, differences, showPlaceholders = true }) {
   const { letter, dividend, divisor } = divisionKey;
   const n = dividend.degree;
   const columnOf = (power) => n - power + 2;
@@ -357,7 +373,11 @@ function LongDivisionLayout({ divisionKey, terms, products, differences }) {
     if (left) rows.push({ kind: 'left', cells: cellsOf(left), key: `l${index}` });
   });
   const lettersOf = (power) => (power === 0 ? '' : power === 1 ? letter : `${letter}^{${power}}`);
-  const dividendCells = entriesOf(dividend.coefficients).map((entry, index) => {
+  // A missing power's column stays, empty, where the method is withheld: the
+  // bracket wrote "+0x" for the student on the exit ticket (walkthrough
+  // 2026-10-22, Dividing Polynomials CW 5 and DOL 2), so it could not show
+  // whether they know to hold the place.
+  const dividendCells = entriesOf(dividend.coefficients).filter((entry) => showPlaceholders || entry.coefficient.n !== 0).map((entry, index) => {
     const magnitude = { n: Math.abs(entry.coefficient.n), d: entry.coefficient.d };
     const body = entry.coefficient.n === 0 ? `0${lettersOf(entry.power)}` : exactTermLatex({ coefficient: magnitude, power: entry.power }, letter);
     const sign = entry.coefficient.n < 0 ? '-' : index === 0 ? '' : '+';
@@ -402,6 +422,8 @@ function LongDivision({ questionData, feedback, submit, clearFeedback, onAction 
   useFieldUndoHistory({questionData,fields:{terms:[terms,setTerms],products:[products,setProducts],differences:[differences,setDifferences],quotient:[quotient,setQuotient],remainder:[remainder,setRemainder]}});
   const work={terms,products,differences,quotient,remainder};
   useReportToolWork(work);
+  // On an exit ticket, quiz or test the 0 placeholder is the student's to write.
+  const methodWithheld = useMethodWithheld();
   const check=()=>{
     const result=gradeToolCheck(polynomialWorkshopGrader,questionData,work);
     submit({ isCorrect: result.isCorrect, score: result.score },work,{mode:'longDivision',parts:result.parts});
@@ -423,8 +445,8 @@ function LongDivision({ questionData, feedback, submit, clearFeedback, onAction 
     ]} />
     <Panel title="Long division">
       <div className="mm-division-problem"><MathDisplay value={`\\left(${dividendLatex}\\right)\\div\\left(${divisorLatex}\\right)`} /></div>
-      {hasGap ? <p style={{margin:'0 0 8px',color:'var(--mm-text-muted)'}}>A 0 holds the place of each missing power, as on paper.</p> : null}
-      <LongDivisionLayout divisionKey={key} terms={terms} products={products} differences={differences} />
+      {hasGap && !methodWithheld ? <p style={{margin:'0 0 8px',color:'var(--mm-text-muted)'}}>A 0 holds the place of each missing power, as on paper.</p> : null}
+      <LongDivisionLayout divisionKey={key} terms={terms} products={products} differences={differences} showPlaceholders={!methodWithheld} />
     </Panel>
     <div className="mm-division-rounds">
       {key.rounds.map((round, index) => {
@@ -432,7 +454,7 @@ function LongDivision({ questionData, feedback, submit, clearFeedback, onAction 
         return <div key={name} role="group" aria-label={name} className="mm-division-round">
           <strong>{name}</strong>
           <label className="mm-division-step"><span>Divide: the leading term of {index === 0 ? 'the dividend' : 'the last line'} ÷ <MathDisplay value={leadLatex} inline /></span>
-            <MathInput value={entryAt(terms, index)} onChange={(value) => setTerm(index, value)} toolProfile="expression" extraKeys={keys} hideToolsToggle compact maxWidth={220} placeholder="next quotient term" ariaLabel={`${name}: divide the leading terms`} inputStatus={statusOf(wrong, `round-${index + 1}-term`)} /></label>
+            <MathInput value={entryAt(terms, index)} onChange={(value) => setTerm(index, value)} toolProfile="expression" extraKeys={keys} hideToolsToggle compact maxWidth={220} placeholder="next term" ariaLabel={`${name}: divide the leading terms`} inputStatus={statusOf(wrong, `round-${index + 1}-term`)} /></label>
           <label className="mm-division-step"><span>Multiply back: that term times <MathDisplay value={`\\left(${divisorLatex}\\right)`} inline /></span>
             <MathInput value={entryAt(products, index)} onChange={(value) => setProduct(index, value)} toolProfile="expression" extraKeys={keys} hideToolsToggle compact maxWidth={320} placeholder="product" ariaLabel={`${name}: multiply back`} inputStatus={statusOf(wrong, `round-${index + 1}-product`)} /></label>
           <label className="mm-division-step"><span>{index === count - 1 ? 'Subtract (bring down anything still left)' : 'Subtract, then bring down the next term'}</span>
@@ -528,7 +550,7 @@ function SyntheticDivision({ questionData, feedback, submit, clearFeedback, onAc
         {preview ? <div className="mm-division-answer"><span>Your answer:</span> <MathDisplay value={preview} inline /></div> : null}
       </div>
       <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check my division</SubmitText></button>
-      <Feedback feedback={feedback} success="r, every number in the table and the quotient are right." retry="The boxes marked in red are not right yet. Start with the first one: every later column depends on it."/>
+      <Feedback feedback={feedback} success="r, every number in the table and the quotient are right." retry={syntheticMissMessage({ key, work, wrong })}/>
       <HintPanel hints={[
         'Synthetic division needs the divisor in the form x − r: the number in the corner is the value that makes the divisor 0.',
         'Every power of the dividend gets a column, from the highest down to the constant. A missing power still gets its column, with a 0 in it.',

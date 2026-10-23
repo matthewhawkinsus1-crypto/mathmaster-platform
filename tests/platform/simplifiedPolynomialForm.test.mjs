@@ -41,7 +41,7 @@ test('what counts as simplest form', () => {
     ['(2a^3+5a-7)-(a^3-3a+2)', P.GROUPING], ['-y(4y^2+2y-3)', P.GROUPING], ['(a^2+3a-4)(a+2)', P.GROUPING],
     ['(2a^2b)(4a^3b)', P.PRODUCT], ['2a^2b\\cdot4a^3b', P.PRODUCT], ['x\\cdot x^2', P.PRODUCT], ['2^3x', P.PRODUCT],
     ['(2+3)x', P.PRODUCT], ['2*-3x', P.PRODUCT], ['\\left(x\\right)^{2}', P.PRODUCT],
-    ['1x^2+3', P.LOWEST_TERMS], ['\\frac{6}{4}x', P.LOWEST_TERMS],
+    ['1x^2+3', P.UNIT_COEFFICIENT], ['-1x^2+x+2', P.UNIT_COEFFICIENT], ['\\frac{6}{4}x', P.LOWEST_TERMS],
     ['x^1+2', P.POWER], ['x^0', P.POWER], ['0x+3', P.ZERO_TERM],
     ['x^{-2}', P.NOT_POLYNOMIAL], ['y^4/(81x^4)', P.NOT_POLYNOMIAL],
     ['x=2', P.UNREADABLE], ['', P.UNREADABLE], ['(x+1', P.UNREADABLE],

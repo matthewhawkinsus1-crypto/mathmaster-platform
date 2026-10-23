@@ -47,6 +47,7 @@ export const MISCONCEPTION_STUDENT_MESSAGES = Object.freeze({
   'line-wrong-form-standard': 'Right line, wrong form: write it as Ax + By = C.',
   // The value is right; the form is not (simplifiedPolynomialForm.mjs).
   'polynomial-not-simplified': 'Equal, but not simplified: multiply out every product and combine like terms.',
+  'polynomial-unit-coefficient': 'Equal, but a coefficient of one is never written: leave it out in front of a variable, and keep only the sign.',
   'zeros-sign-reversed': 'Check the signs of your zeros. A zero is the x-value that makes a factor equal 0, so set each factor equal to 0 and solve.',
 });
 

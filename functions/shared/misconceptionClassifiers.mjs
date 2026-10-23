@@ -44,7 +44,7 @@
  */
 import { answerCandidatesForField, parseNumericAnswer, parseOrderedPair } from './answerUtils.mjs';
 import { sameValue } from './answerEquivalence.mjs';
-import { fieldRequiresSimplifiedPolynomial, isSimplifiedPolynomial } from './simplifiedPolynomialForm.mjs';
+import { SIMPLIFIED_POLYNOMIAL_PROBLEMS, fieldRequiresSimplifiedPolynomial, isSimplifiedPolynomial, simplifiedPolynomialProblem } from './simplifiedPolynomialForm.mjs';
 import { LINE_FORMS, isVerticalLine, requestedLineForm, sameLine, writtenLineForm } from './linearEquationForm.mjs';
 import { buildMisconceptionEvidence, getMisconceptionCode, MISCONCEPTION_EXCLUSIVITY } from './misconceptionCodes.mjs';
 import { isToolResponse, readToolWork } from './serverGrading/toolResponseContract.mjs';
@@ -877,13 +877,19 @@ const multiAnswerLineFormFindings = ({ question, grading }) => {
  */
 const multiAnswerNotSimplifiedFindings = ({ question, grading }) => {
   const parts = partsById(grading);
-  const ids = list(question?.answerFields).filter((field) => {
+  const byCode = new Map();
+  list(question?.answerFields).forEach((field) => {
     const part = wrongPart(parts, text(field?.id));
-    if (!part || typeof part.response !== 'string' || !fieldRequiresSimplifiedPolynomial(field)) return false;
-    if (isSimplifiedPolynomial(part.response)) return false;
-    return answerCandidatesForField(field).some((key) => typeof key === 'string' && sameValue(part.response, key));
-  }).map((field) => text(field.id));
-  return ids.length ? [finding('polynomial-not-simplified', ids)] : [];
+    if (!part || typeof part.response !== 'string' || !fieldRequiresSimplifiedPolynomial(field)) return;
+    if (isSimplifiedPolynomial(part.response)) return;
+    if (!answerCandidatesForField(field).some((key) => typeof key === 'string' && sameValue(part.response, key))) return;
+    // Only a written 1 left (−1x²): say so, not "multiply out and combine".
+    const code = simplifiedPolynomialProblem(part.response) === SIMPLIFIED_POLYNOMIAL_PROBLEMS.UNIT_COEFFICIENT
+      ? 'polynomial-unit-coefficient'
+      : 'polynomial-not-simplified';
+    byCode.set(code, [...(byCode.get(code) || []), text(field.id)]);
+  });
+  return [...byCode].map(([code, ids]) => finding(code, ids));
 };
 
 const ORDINARY_CLASSIFIERS = {

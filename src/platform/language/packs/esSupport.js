@@ -75,6 +75,7 @@ const missMessages = [
   ['Right line, wrong form: write it as Ax {1} By {2}.', 'La recta es correcta, pero la forma no: escríbela como Ax {1} By {2}.'],
   // Right value, not simplified (operations on polynomials).
   ['Equal, but not simplified: multiply out every product and combine like terms.', 'Es igual, pero no está simplificado: haz cada multiplicación y combina los términos semejantes.'],
+  ['Equal, but a coefficient of one is never written: leave it out in front of a variable, and keep only the sign.', 'Es igual, pero un coeficiente uno nunca se escribe: quítalo delante de la variable y deja solo el signo.'],
 
   // src/platform/supports/feedback/genericMissChecks.js
   ['Check the order of your coordinates.', 'Revisa el orden de tus coordenadas.'],

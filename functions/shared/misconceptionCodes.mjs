@@ -317,6 +317,15 @@ export const MISCONCEPTION_REGISTRY = Object.freeze([
     teks: ['A2.7B'],
   }),
   code({
+    id: 'polynomial-unit-coefficient',
+    concept: 'polynomial-simplest-form',
+    domain: 'nonlinear',
+    label: 'Right value, a coefficient of 1 written',
+    teacherMeaning: 'The polynomial is simplified except that a coefficient of 1 is written out (1x², −1x²).',
+    evidenceRequired: 'multiAnswer field that asks for simplest form (answerForm "simplifiedPolynomial"): the field was graded wrong; the submitted polynomial has the same value as the field\'s key; and its only departure from simplest form is a written coefficient of 1.',
+    teks: ['A2.7B'],
+  }),
+  code({
     id: 'zeros-sign-reversed',
     concept: 'quadratic-zeros',
     domain: 'nonlinear',
@@ -370,7 +379,7 @@ export const MISCONCEPTION_CLASSIFIERS = Object.freeze([
   classifier('tool:dataModelingLab/correlation', 1, ['correlation-direction-reversed']),
   // --- Student pass 3 (additive under registry v1) ---
   // An ordinary multiAnswer field: the right line in the wrong form.
-  classifier('ordinary:multiAnswer', 1, ['line-wrong-form-slope-intercept', 'line-wrong-form-point-slope', 'line-wrong-form-standard', 'polynomial-not-simplified']),
+  classifier('ordinary:multiAnswer', 1, ['line-wrong-form-slope-intercept', 'line-wrong-form-point-slope', 'line-wrong-form-standard', 'polynomial-not-simplified', 'polynomial-unit-coefficient']),
   // --- Student pass 3, wave 7 (additive under registry v1) ---
   // A Path item (a secure Test, Retest or Corrections item), read from its
   // Path definition with each mistake's classifier rule
