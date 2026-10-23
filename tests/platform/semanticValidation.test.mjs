@@ -496,10 +496,10 @@ console.log('semanticValidation.test.mjs: all assertions passed');
     answerFields: answers.map((answer, index) => ({ id: `f${index}`, label: `Simplify part ${index + 1}`, answer })),
   }, { label: 'simplify question' }).warnings.filter((message) => /looks categorical/.test(message));
 
-  for (const expression of ['2x-5', 'x-3', '-x', '4x', '3x − 5', '−x', '2(x-1)']) {
+  for (const expression of ['2x-5', 'x-3', '-x', '4x', '3x − 5', '−x', '2(x-1)', '6xy', '3ab', '−4ay']) {
     assert.deepEqual(categoricalWarnings([expression]), [], `"${expression}" is an expression, not a category`);
   }
-  for (const word of ['time', 'x-intercept', 'e-mail', 'Translation right']) {
+  for (const word of ['time', 'x-intercept', 'e-mail', 'Translation right', '3rd', '2nd']) {
     assert.equal(categoricalWarnings([word]).length, 1, `"${word}" is still a word category`);
   }
 }

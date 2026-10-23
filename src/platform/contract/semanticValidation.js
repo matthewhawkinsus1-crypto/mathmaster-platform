@@ -30,6 +30,9 @@ const has = (value) => value !== undefined && value !== null && value !== '';
 // between a number, a lone variable or a bracket, or a number written against
 // a lone variable, is mathematics.
 const ALGEBRAIC_TERM = /(?:^|[\d)]|(?<![A-Za-z])[A-Za-z])\s*[-−]\s*(?:[\d(]|[A-Za-z](?![A-Za-z]))|\d\s*[A-Za-z](?![A-Za-z])/;
+// A coefficient written against several variables — a monomial such as the
+// GCF 6xy or 3ab — is mathematics too, not a word; an ordinal ("3rd") is not.
+const MONOMIAL = /^[-−]?\d+(?!(?:st|nd|rd|th)$)[A-Za-z]{2,4}$/;
 
 const looksLikeFiniteCategoryField = (field) => {
   if (!isObject(field) || field.type === 'choice' || field.type === 'text' || field.inputMode === 'text') return false;
@@ -41,7 +44,7 @@ const looksLikeFiniteCategoryField = (field) => {
   if (!accepted.length || accepted.length > 6) return false;
   return accepted.every((value) => {
     const text = String(value ?? '').trim();
-    if (!text || /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩]/.test(text) || ALGEBRAIC_TERM.test(text)) return false;
+    if (!text || /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩]/.test(text) || ALGEBRAIC_TERM.test(text) || MONOMIAL.test(text)) return false;
     const words = text.match(/[A-Za-z]+/g) || [];
     return words.length >= 1 && words.length <= 3;
   });
