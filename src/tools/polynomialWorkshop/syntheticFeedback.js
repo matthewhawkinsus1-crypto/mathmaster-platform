@@ -38,3 +38,36 @@ export const syntheticMissMessage = ({ key = null, work = {}, wrong = new Set() 
   }
   return SYNTHETIC_RETRY;
 };
+
+/*
+ * THE REMAINDER / FACTOR THEOREM TABLE (x − r) SAYS WHICH STEP IS OFF
+ * (walkthrough 2026-10-23, Remainder and Factor Theorems CW 1).
+ *
+ * Every miss got "Check the coefficient row first (a 0 for each missing
+ * power), then each multiply-and-add", including −4 for x − 4, where the
+ * coefficient row was right. A wrong box makes every later row wrong too, so
+ * the first wrong part in the order the table is filled is the one to name.
+ * Read from the grader's parts; no message states a value. Where the method is
+ * withheld (a DOL, quiz or test, useMethodWithheld) it says only that order.
+ */
+export const SYNTHETIC_TABLE_RETRY = 'Check the coefficient row first (a 0 for each missing power), then each multiply-and-add.';
+export const SYNTHETIC_TABLE_WITHHELD = 'Not yet. Each row depends on the box and the row before it, so check them in order.';
+
+export const syntheticTableMissMessage = ({ parts = [], root = null, typedRoot = '', methodWithheld = false } = {}) => {
+  if (methodWithheld) return SYNTHETIC_TABLE_WITHHELD;
+  const wrong = new Set(parts.filter((part) => part && part.isCorrect === false).map((part) => part.id));
+  if (!wrong.size) return SYNTHETIC_TABLE_RETRY;
+  if (wrong.has('divisor-root')) {
+    const typed = parseNumericAnswer(typedRoot);
+    return Number.isFinite(root) && root !== 0 && typed !== null && Math.abs(typed + root) <= 1e-9 * Math.max(1, Math.abs(root))
+      ? 'Check the sign of the number in the box: it is the value of x that makes the divisor 0, so x − c puts c in the box and x + c puts −c.'
+      : 'The number in the box is the value of x that makes the divisor 0. Every later row depends on it.';
+  }
+  if (wrong.has('coefficients')) return 'Check the coefficient row: every power of x from the highest down, with a 0 for any missing power.';
+  if (wrong.has('products')) return 'Check the middle row: each product is the box number times the bottom-row number in the column before it.';
+  if (wrong.has('sums')) return 'Check the bottom row: bring down the first coefficient, then add each column.';
+  if (wrong.has('value')) return 'Your table is right. P(r) is the remainder: the last number in the bottom row.';
+  if (wrong.has('quotient')) return 'Your table is right. The quotient\'s coefficients are the bottom row without the remainder, one degree lower than P(x).';
+  if (wrong.has('factor')) return 'Your table is right. x − r is a factor exactly when the remainder is 0.';
+  return SYNTHETIC_TABLE_RETRY;
+};

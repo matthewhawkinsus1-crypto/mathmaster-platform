@@ -92,7 +92,9 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
     viewAnnouncement: 'The polite live-region text after a keyboard rotation of the three-plane model ("view turned …"). A viewing angle spoken aloud, not an answer (job H, T2).',
   }),
   parabolaGeometryLab: entry(['parabolaGeometry/ParabolaGeometryLab.jsx']),
-  polynomialWorkshop: entry(['polynomialWorkshop/PolynomialWorkshop.jsx']),
+  polynomialWorkshop: entry(['polynomialWorkshop/PolynomialWorkshop.jsx'], {
+    missMessage: 'Which step the last wrong synthetic-division check names, worked out from the grader\'s parts. Feedback text, not an answer.',
+  }),
   signSolutionAnalyzer: entry(['signSolutionAnalyzer/SignSolutionAnalyzer.jsx']),
   sequenceExplorer: entry(['sequenceExplorer/SequenceExplorer.jsx'], {
     plotMessage: 'Why a click was not a valid term position. Error text.',

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
@@ -39,7 +39,7 @@ import { requiredAnswerToolForSymbol } from '../../platform/interaction/answerEn
 import './PolynomialWorkshop.css';
 import { polynomialReadoutText } from './polynomialReadout.js';
 import { SubmitText, useMethodWithheld } from '../shared/ToolRuntimeContext';
-import { syntheticMissMessage } from './syntheticFeedback.js';
+import { SYNTHETIC_TABLE_RETRY, SYNTHETIC_TABLE_WITHHELD, syntheticMissMessage, syntheticTableMissMessage } from './syntheticFeedback.js';
 
 const inputStyle = { width:'100%', padding:9, border:'1px solid var(--mm-tint-border)', borderRadius:8, boxSizing:'border-box' };
 const actionStyle = { marginTop:14, padding:'10px 16px', border:0, borderRadius:8, background:'#1a73e8', color:'#fff', fontWeight:800, cursor:'pointer' };
@@ -640,6 +640,9 @@ function SyntheticRemainderFactor({ questionData, feedback, submit, onAction }) 
   } });
   const work={root:rootBox,top,middle,bottom,value,quotient,factorChoice};
   useReportToolWork(work);
+  // Which step the last wrong check names (syntheticFeedback.js).
+  const [missMessage, setMissMessage] = useState('');
+  const methodWithheld = useMethodWithheld();
   const setCell = (setter, index) => (event) => setter((old) => {
     const next = Array.isArray(old) ? [...old] : [];
     next[index] = event.target.value;
@@ -647,6 +650,7 @@ function SyntheticRemainderFactor({ questionData, feedback, submit, onAction }) 
   });
   const check=()=>{
     const result=gradeToolCheck(polynomialWorkshopGrader,questionData,work);
+    setMissMessage(result.isCorrect ? '' : syntheticTableMissMessage({ parts: result.parts, root, typedRoot: rootBox, methodWithheld }));
     submit({ isCorrect: result.isCorrect, score: result.score },work,{mode:'synthetic',parts:result.parts});
   };
   const divisorText = polynomialReadoutText([1, -(root ?? 0)]);
@@ -678,7 +682,7 @@ function SyntheticRemainderFactor({ questionData, feedback, submit, onAction }) 
         {asks.includes('quotient') && <label style={{ display: 'block', marginBottom: 10 }}>Quotient (a polynomial in x)<input value={quotient} onChange={(event) => setQuotient(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="for example x^2 + 7x + 6" /></label>}
         {asks.includes('factor') && <label style={{ display: 'block', marginBottom: 10 }}>Is ({divisorText}) a factor of P(x)?<select value={factorChoice} onChange={(event) => setFactorChoice(event.target.value)} style={{ ...inputStyle, marginTop: 6 }}><option value={UNANSWERED}>Choose…</option><option value="yes">Yes</option><option value="no">No</option></select></label>}
         <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check synthetic division</SubmitText></button>
-        <Feedback feedback={feedback} success="Every row is right, and so is what it tells you." retry="Check the coefficient row first (a 0 for each missing power), then each multiply-and-add." />
+        <Feedback feedback={feedback} success="Every row is right, and so is what it tells you." retry={missMessage || (methodWithheld ? SYNTHETIC_TABLE_WITHHELD : SYNTHETIC_TABLE_RETRY)} />
         <HintPanel hints={['Synthetic division only needs the coefficients — but every power from the highest down needs a place, so a missing power gets a 0.', 'The box holds the number that makes the divisor zero: for x − r it is r, and for x + a it is the opposite of a.', 'Multiply the number you just wrote in the bottom row by the box number, put the product in the next column, and add down. The last sum is P(r).']} onHintUsed={() => onAction?.('HINT_USED')} />
       </Panel>
     </ToolGrid>
