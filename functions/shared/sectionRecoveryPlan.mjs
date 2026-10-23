@@ -31,7 +31,8 @@
 import { resolveFamilyQuestionInstance } from './questionFamilyInstance.mjs';
 import { familyInstanceServerGradable } from './questionFamilyGrading.mjs';
 import { resolveGenerationAllocation } from './questionGenerationIdentity.mjs';
-import { RECOVERY_GRADING_FAILURE, classifyFamilyGenerationError } from './sectionRecoveryEvidence.mjs';
+import { RECOVERY_GRADING_FAILURE } from './sectionRecoveryEvidence.mjs';
+import { classifyFamilyGenerationError } from './sectionRecoveryReproduction.mjs';
 import {
   TARGETED_PRACTICE_CANDIDATES,
   familyTargetsCodes,

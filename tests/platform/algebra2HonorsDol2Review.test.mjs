@@ -24,6 +24,9 @@
  *   - Import: no answer box becomes a set box (teacherImportTemplateKeyFields).
  *   - Honors: the candidate is READY and keeps every authored item, because
  *     the three audited Digital SAT items in Practice meet the 15% CCMR share.
+ *     Both versions pass with no warning for a class of up to 70: every
+ *     Practice and DOL item has at least 70 versions. The real Review and
+ *     Create: tests/browser/teacherWorkflow/dol2ReviewHonorsJourneys.mjs.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -38,7 +41,9 @@ import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/as
 import {
   HONORS_CCMR_STATUS,
   buildHonorsCcmrCandidate,
+  composeHonorsCcmrCandidate,
   confirmHonorsCandidateForCreate,
+  selectHonorsCcmrItems,
 } from '../../src/platform/assignments/canonicalCcmrHydration.js';
 import { creationRecoveryContent } from '../../src/platform/recovery/recoveryContentAuthoring.js';
 import { assignmentRecoveryContent } from '../../functions/shared/recoveryContent.mjs';
@@ -80,7 +85,7 @@ const honorsCandidate = () => {
   if (!honorsCache) {
     const base = reviewed().assignmentV5;
     const hydration = clone(bank.replaceDirectCcmrQuestionsWithAuditedBank(clone(base), { ensurePracticeTarget: true, includeCandidates: true }));
-    honorsCache = { base, candidate: buildHonorsCcmrCandidate({ baseAssignmentV5: base, hydration, honorsEnrichmentQuestion: null }) };
+    honorsCache = { base, hydration, candidate: buildHonorsCcmrCandidate({ baseAssignmentV5: base, hydration, honorsEnrichmentQuestion: null }) };
   }
   return honorsCache;
 };
@@ -620,6 +625,22 @@ test('Honors: the candidate is READY, meets every depth check, and keeps every a
   ['warmup', 'classwork', 'practice', 'dol'].forEach((role) => {
     assert.deepEqual(sectionQuestions(candidate.assignmentV5.sections, role).map(keyOf), sectionQuestions(base.sections, role).map(keyOf), `${role} is the Regular version's`);
   });
+});
+
+test('Standard and Honors: a class of up to 70 gets its own version of every Practice and DOL item, in both versions', () => {
+  // Uniqueness is judged per class, against the largest roster Review is given
+  // (LessonPreflightModal.jsx); any warning would hold the assignment at Needs Review.
+  const classSize = 70;
+  const parsed = parseAssignmentBlueprintText(readFileSync(new URL(`../../${REVIEW}`, import.meta.url), 'utf8'));
+  const standard = buildAssignmentV5PreflightModel(buildPreflightReviewedAssignmentV5(parsed.assignmentV5, {}), { classSize });
+  assert.deepEqual(standard.warnings || [], [], 'the Standard version');
+  // The Honors version as Review builds it for an Honors class of that size:
+  // the bank's answer does not depend on the class, the two stages do.
+  const { base, hydration } = honorsCandidate();
+  const selection = selectHonorsCcmrItems({ baseAssignmentV5: base, hydration, honorsEnrichmentQuestion: null, excludedDocumentIds: [], classSize });
+  const candidate = composeHonorsCcmrCandidate({ baseAssignmentV5: base, selection, honorsEnrichmentQuestion: null, keepAuthored: false, classSize });
+  assert.equal(candidate.status, HONORS_CCMR_STATUS.READY, candidate.errors.join('\n'));
+  assert.deepEqual(buildAssignmentV5PreflightModel(candidate.assignmentV5, { classSize }).warnings || [], [], 'the Honors version');
 });
 
 test('Honors: Pre-Flight says the Honors version can be created, and Create accepts exactly the object it previewed', () => {

@@ -132,18 +132,42 @@ test('HELP-1: a practice answer is checked the way a field is graded, whatever w
   assert.deepEqual(verdicts('slope 4', ''), ['blank']);
 });
 
-test('HELP-1: words, rosters with an ellipsis, mappings and a line named by two of its points are never marked right or wrong', () => {
+test('HELP-1: words, rosters with an ellipsis and mappings are never marked right or wrong', () => {
   const { parts } = readPracticeAnswer('arrows -7 → 5, -3 → 8; domain {0, 1, 2, ..., 40}; falls, then rises; Horizontal: 6 units to the left');
   assert.equal(parts.length, 4);
   parts.forEach((part) => {
     assert.equal(part.checkable, false, `${part.expected}: compared, not judged`);
     assert.equal(checkPracticePart(part, 'anything'), PRACTICE_VERDICT.COMPARE);
   });
-  const line = readPracticeAnswer('The line through (0, -1) and (1, -7)');
-  assert.equal(line.checkable, false, 'any two points of the line would do');
   const checked = checkPracticeAnswers(readPracticeAnswer('domain [0, 2]; rises everywhere'), { 'part-1': '[0,2]' });
   assert.equal(checked.allCorrect, true);
   assert.match(practiceCheckMessage(checked), /Compare the rest with the worked solution/);
+});
+
+test('HELP-1: a line named by two of its points is checked as the line — any two of its points, or its equation', () => {
+  // Any two points of the line answer it, so the two the family happened to
+  // name are not the answer: the line is. Module 3 (systems by graphing) and
+  // Module 2 L3 ask for one on every intercept item.
+  const [line] = readPracticeAnswer('The line through (0, 2) and (-4, 0)').parts;
+  assert.equal(line.kind, 'line');
+  assert.equal(line.checkable, true);
+  const verdict = (typed) => checkPracticePart(line, typed);
+  assert.equal(verdict('(0, 2), (-4, 0)'), PRACTICE_VERDICT.CORRECT, 'the two points named');
+  assert.equal(verdict('(-4,0),(4,4)'), PRACTICE_VERDICT.CORRECT, 'two other points of it, in any order');
+  assert.equal(verdict('y=\\frac{1}{2}x+2'), PRACTICE_VERDICT.CORRECT, 'slope-intercept form, as MathLive sends it');
+  assert.equal(verdict('x-2y=-4'), PRACTICE_VERDICT.CORRECT, 'standard form');
+  assert.equal(verdict('y=2x+2'), PRACTICE_VERDICT.INCORRECT, 'a different line through one of the points');
+  assert.equal(verdict('(0, 2), (0, 2)'), PRACTICE_VERDICT.INCORRECT, 'one point twice is not a line');
+  assert.equal(verdict('(0, 2), (1, 1)'), PRACTICE_VERDICT.INCORRECT, 'a point off the line');
+  assert.equal(verdict('y=\\frac{1}{8}x^{2}+\\frac{1}{2}x+2'), PRACTICE_VERDICT.INCORRECT, 'a curve through both points is not the line');
+  assert.equal(verdict(''), PRACTICE_VERDICT.BLANK);
+  // Vertical and horizontal lines (Module 2 L3).
+  const [vertical] = readPracticeAnswer('The vertical line through (2, -2) and (2, 3)').parts;
+  assert.equal(checkPracticePart(vertical, 'x=2'), PRACTICE_VERDICT.CORRECT);
+  assert.equal(checkPracticePart(vertical, 'y=2'), PRACTICE_VERDICT.INCORRECT);
+  const [horizontal] = readPracticeAnswer('The horizontal line through (-2, -1) and (3, -1)').parts;
+  assert.equal(checkPracticePart(horizontal, 'y=-1'), PRACTICE_VERDICT.CORRECT);
+  assert.equal(checkPracticePart(horizontal, '(10, -1), (-7, -1)'), PRACTICE_VERDICT.CORRECT);
 });
 
 test('HELP-1 / D3: offered only on a closed Classwork or Practice item the host vouched for — never a Warm-Up, DOL, quiz, test or server-graded host', () => {
@@ -286,13 +310,31 @@ test('HELP-11: Pre-Flight warns — never blocks — on answer-only worked solut
   assert.deepEqual(audit.noCommonError, [1]);
   assert.match(audit.warnings[0], /^Question 1 shows only the answer after the last try/);
   assert.match(audit.warnings[1], /solutionReview\.commonError/);
-  // The real lessons: 304 of 370 practice-like items walk through steps —
-  // 199 of 265 before Operations on Polynomials added 29, Dividing
-  // Polynomials 30, the Algebra I DOL #3 Review 13 and the Algebra II Honors
-  // DOL #2 review 33, all with steps.
+  // A Question Family slot is judged by a version a student is shown: a tool
+  // template gets the tool's worked steps; a multi-answer template gets only
+  // what it authors.
+  const template = (fields) => ({ ...fields, questionFamily: { scope: 'assignment' } });
+  const factorTemplate = template({
+    type: 'polynomialWorkshop', mode: 'factorQuadratic', prompt: 'Factor $x^2 + {{s}}x + {{p}}$.', coefficients: [1, '{{s}}', '{{p}}'],
+    generator: { parameters: { m: { type: 'int', min: 1, max: 5 }, n: { type: 'int', min: 6, max: 9 } }, derived: { s: 'm + n', p: 'm * n' } },
+  });
+  const sumTemplate = template({
+    type: 'multiAnswer', prompt: 'Add {{a}} and 1.', answerFields: [{ id: 'v', label: 'Sum', answer: '{{v}}' }],
+    generator: { parameters: { a: { type: 'int', min: 1, max: 9 } }, derived: { v: 'a + 1' } },
+  });
+  assert.equal(workedSolutionDepth(factorTemplate), 'steps');
+  assert.equal(workedSolutionDepth(sumTemplate), 'answerOnly');
+  assert.equal(workedSolutionDepth({ ...sumTemplate, solutionReview: { reasoning: ['{{a}} + 1 = {{v}}.'] } }), 'steps');
+  // The real lessons: 884 of 945 practice-like items walk through steps —
+  // 204 of 265 in the lessons before October 22 (199 before family slots
+  // were judged by a version), then every one in Operations on Polynomials
+  // and Dividing Polynomials (59), the Algebra I DOL #3 Review (13) and its
+  // Honors version (16), the Algebra II Honors DOL #2 review (33), Module 3
+  // (144) and its Honors files (146), and the Algebra II Polynomials and
+  // Radicals lessons (132) and their Honors versions (137).
   const practiceLike = itemsByRole().filter((item) => ['warmup', 'classwork', 'practice'].includes(item.role));
-  assert.equal(practiceLike.length, 370);
-  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 304);
+  assert.equal(practiceLike.length, 265 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137);
+  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 204 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137);
   // Wired into Pre-Flight as advice the teacher sees in the Check step, and
   // never as a diagnostic: any warning diagnostic makes an assignment "Needs
   // Review", which students never see (isUnpublishedDraft) — and most real

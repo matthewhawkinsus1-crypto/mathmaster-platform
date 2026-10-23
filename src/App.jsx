@@ -77,9 +77,12 @@ import {
 // of the generator App needs while it renders. The generator itself, with the
 // math engine (mathjs) under it, loads when a student prints a worksheet: a
 // static import put mathjs in every student's first load before Home.
-import { canGenerateDistinctVariants as isPersonalizedBlueprint } from '../functions/shared/questionVariability.mjs';
-import { buildStudentFamilyContext, readLocalDeliveryPin, writeLocalDeliveryPin } from './platform/generation/familyDelivery.js';
-import { familySlotKey, isFamilyBackedQuestion } from '../functions/shared/questionFamilyInstance.mjs';
+// Device pins and the two slot questions, without the family engine: the
+// context builder (familyDelivery.js) walks a family to check a pin, so it
+// brings every family's generator and loads with the question runtime below
+// (loadFamilyDelivery), never in the first load.
+import { readLocalDeliveryPin, writeLocalDeliveryPin } from './platform/generation/familyDeliveryPins.js';
+import { familySlotKey, isFamilyBackedQuestion } from '../functions/shared/questionFamilySlot.mjs';
 import { normalizeDeliveryPin } from '../functions/shared/questionGenerationIdentity.mjs';
 import {
   fetchAssignmentsById,
@@ -5515,12 +5518,37 @@ function App() {
   // its own chunk (app/lazyScreens.js). Fetch it once the browser is idle on
   // Home, so the first assignment does not wait on it. Nothing here joins the
   // first paint (scripts/check-first-load-budget.mjs measures that).
+  /*
+   * THE FAMILY ENGINE ARRIVES WITH THE QUESTION RUNTIME.
+   *
+   * buildStudentFamilyContext checks a delivery pin by walking its family, so
+   * its module (familyDelivery.js) carries every family's generator — about
+   * 64 KB of the student's first load while it was imported here. It loads
+   * with QuestionEngine instead: prefetched from Home, and on opening an
+   * assignment. Until it is here, a family-backed question shows "Loading this
+   * question…" rather than render with its pin unchecked.
+   */
+  const [familyDelivery, setFamilyDelivery] = useState(null);
+  const loadFamilyDelivery = useCallback(() => import('./platform/generation/familyDelivery.js').then((module) => {
+    setFamilyDelivery((current) => current || module);
+    return module;
+  }), []);
+  // Can this question come back as a different one (a replacement)? The rules
+  // (questionVariability.mjs) resolve a family's definition, so they arrive
+  // with the engine; the question view waits for it (familyEngineLoading).
+  const isPersonalizedBlueprint = (question) => Boolean(familyDelivery?.canGenerateDistinctVariants(question));
+  useEffect(() => {
+    if (!activeAssignmentId || familyDelivery) return;
+    loadFamilyDelivery().catch((error) => console.error('Could not load the question family engine', error));
+  }, [activeAssignmentId, familyDelivery, loadFamilyDelivery]);
+
   const questionEnginePrefetchedRef = useRef(false);
   useEffect(() => {
     if (user?.role !== 'student' || activeView !== 'dashboard' || questionEnginePrefetchedRef.current) return undefined;
     const prefetch = () => {
       questionEnginePrefetchedRef.current = true;
       import('./QuestionEngine.jsx').catch(() => { /* the real open retries */ });
+      loadFamilyDelivery().catch(() => { /* the question open retries */ });
     };
     if (typeof window.requestIdleCallback === 'function') {
       const id = window.requestIdleCallback(prefetch, { timeout: 5000 });
@@ -5764,9 +5792,12 @@ function App() {
     }
 
     let generateQuestion;
+    let buildStudentFamilyContext;
     try {
-      // The generator loads with the worksheet (see the import note at the top).
+      // The generator loads with the worksheet (see the import note at the top),
+      // and the family engine with it (loadFamilyDelivery).
       ({ generateQuestion } = await import('./problemGenerator'));
+      ({ buildStudentFamilyContext } = await loadFamilyDelivery());
     } catch (error) {
       console.error(error);
       toastError('Could not export PDF', error?.message || 'MathMaster could not build the printable assignment.');
@@ -9969,8 +10000,13 @@ function App() {
       : preview ? 'teacher-preview' : user?.id || 'anonymous';
     // QUESTION FAMILY SLOTS: this student's seat, the variant, and any pin that
     // already says which question they were shown. Null for every other slot,
-    // which therefore generates exactly as it always has.
-    const currentFamilyContext = buildStudentFamilyContext({
+    // which therefore generates exactly as it always has. The question waits
+    // for the family engine (loadFamilyDelivery): a family-backed slot rendered
+    // with a null context would be dealt a fresh instance past its pin, and
+    // whether a replacement is offered is decided with it. It shares
+    // QuestionEngine's own lazy chunk, so in practice it is already here.
+    const familyEngineLoading = !familyDelivery;
+    const currentFamilyContext = !familyDelivery ? null : familyDelivery.buildStudentFamilyContext({
       assignment,
       question: questions[currentQuestionIndex],
       storageIndex: currentQuestionIndex,
@@ -10953,7 +10989,7 @@ function App() {
             {/* "Ask my teacher" answers, on any question of this assignment —
                 one closed since it was asked keeps its answer here. */}
             {!preview && <TeacherAnswersList questions={askMyTeacher.questions} compact />}
-            <QuestionEngine
+            {familyEngineLoading ? <p role="status" style={{ padding: 24, margin: 0 }}>Loading this question…</p> : <QuestionEngine
               key={`${activeAssignmentId}-${currentQuestionIndex}-${currentRecord.variantIndex}-${preview ? `preview-${previewSessionId}` : lifecycle.status}-draft${workspaceDraftGeneration}`}
               draftRestore={draftRestoreFocus?.questionIndex === currentQuestionIndex ? draftRestoreFocus : null}
               question={questions[currentQuestionIndex]}
@@ -11044,7 +11080,7 @@ function App() {
                   })
                   : null,
               }}
-            />
+            />}
             {/* SAVE HEALTH, IN THE STUDENT'S WORDS.
                 A STUDENT IS NEVER TOLD "SUBMITTED" BEFORE THE SERVER HAS IT.
                 That sentence is the whole point of this line: during the

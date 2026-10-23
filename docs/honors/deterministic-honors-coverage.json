@@ -6,7 +6,7 @@
     "honors.functions.identifyIntercepts.interceptsInContext@1",
     "honors.linear.representationSort.buildFromReading@1"
   ],
-  "familyCount": 41,
+  "familyCount": 50,
   "courses": {
     "algebra1": {
       "courseId": "algebra1",
@@ -25,6 +25,20 @@
           "reason": "Absolute value equations are Algebra II (A2.6E); Texas Algebra I does not teach them. An Algebra I-labelled lesson aligned to A2.6E is the course/TEKS conflict selection already refuses.",
           "missingCapability": null,
           "teacherReason": "Absolute value equations are Algebra II content, so MathMaster does not build an Algebra I Honors extension on them."
+        },
+        {
+          "familyId": "equations.verifySolution",
+          "familyTitle": "Check a solution by substitution",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "It substitutes one given value into each side of a linear equation with the variable on both sides and asks whether the two values agree; the value and the equation are the whole task, so no deeper reasoning can be generated.",
+          "missingCapability": "A `solutionCase: \"none\" | \"infinite\"` knob (an equation that no value, or every value, satisfies) with a server-marked part asking what the check shows about every other value.",
+          "teacherReason": "MathMaster's solution-check generator only asks whether one given value works, so it cannot yet build a built-in Honors extension."
         },
         {
           "familyId": "functions.identifyIntercepts",
@@ -85,6 +99,62 @@
           "reason": "Zeros are always two distinct integers of a quadratic with leading coefficient ±1 or ±2, entered as two numbers; \"small\" leading coefficients only add a common factor of 2.",
           "missingCapability": "`zeroForm: \"rational\"` (zeros p/q from a non-unit leading coefficient, factored as (ax + p)(x + q)) and `zeroForm: \"irrational\"` (quadratic formula) with fraction and radical answer fields; or a Question Family for polynomialWorkshop mode \"factorQuadratic\" (the workshop and its server grader exist).",
           "teacherReason": "MathMaster's zeros generator only makes whole-number zeros, so it cannot yet ask the rational or irrational zeros an Honors extension needs."
+        },
+        {
+          "familyId": "inequalities.contextModel",
+          "familyTitle": "Model a situation with an inequality and interpret the solution",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra1",
+          "status": "CAPABLE",
+          "recipes": [],
+          "reason": "It models growing and shrinking situations (`direction`; the shrinking ones reverse the symbol when solved), solves exactly to hundredths, and asks for the whole number the situation needs — rounding up or down from the boundary, which the situation decides. No vetted recipe has been written yet.",
+          "missingCapability": null,
+          "teacherReason": "MathMaster can generate the inequality situations an Honors extension on this skill needs, but no vetted built-in Honors recipe has been written for it yet, so none is added."
+        },
+        {
+          "familyId": "inequalities.solveLinear",
+          "familyTitle": "Solve a linear inequality and graph its solution",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra1",
+          "status": "CAPABLE",
+          "recipes": [],
+          "reason": "It generates linear inequalities with variables on both sides and the distributive property (`bothSides`, `distribute`), with the sign reversal required, absent or mixed (`reversal`), solved in Step Algebra's relation workspace with its number-line stage, checked from the displayed inequality, and marked by the shared grader in the browser and on the server. No vetted recipe has been written yet.",
+          "missingCapability": null,
+          "teacherReason": "MathMaster can generate the multi-step inequalities an Honors extension on this skill needs, but no vetted built-in Honors recipe has been written for it yet, so none is added."
+        },
+        {
+          "familyId": "inequalities.translatePhrase",
+          "familyTitle": "Write an inequality from words",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Each version asks for four single phrases (exceeds, under, at least, cannot be more than) as choices among the four symbols, so the reasoning is fixed recognition.",
+          "missingCapability": "Compound statements (between, at least … and less than …) answered as a typed compound inequality, graded by its solution set.",
+          "teacherReason": "MathMaster's phrase-to-inequality generator only asks single phrases as choices, so it cannot yet build a built-in Honors extension."
+        },
+        {
+          "familyId": "linear.contextFunction",
+          "familyTitle": "Write and interpret a linear function from a situation",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "It writes f(x) = mx + b for a starting amount and a constant rate, names the independent and dependent quantities, and interprets the slope and the intercept by choice; every situation is unrestricted, so its reasonable domain and range are never asked.",
+          "missingCapability": "A reasonable-domain-and-range part (the situation's limits, answered as inequalities) or a second situation to compare with the first (which one is greater, and from when).",
+          "teacherReason": "MathMaster's situation-to-function generator only writes and interprets one unrestricted function, so it cannot yet build a built-in Honors extension."
         },
         {
           "familyId": "linear.graphFromSlopeIntercept",
@@ -649,6 +719,34 @@
           "teacherReason": "MathMaster can generate the no-solution and infinitely-many-solutions systems an Honors extension on this skill needs, but no vetted built-in Honors recipe has been written for it yet, so none is added."
         },
         {
+          "familyId": "systems.classifyByStructure",
+          "familyTitle": "Classify a system from its slopes and y-intercepts",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "It shows a system with whole-number slopes and intercepts, the second equation in standard form, and asks for the four values, the number of solutions and the classification; once the second equation is rewritten the answer is read off, and the remaining levers are wider ranges, which are not rigor.",
+          "missingCapability": "A parameter mode: a system with one unknown coefficient or constant (k), answered with the value of k that makes it have no solution or infinitely many solutions, marked as a number field.",
+          "teacherReason": "MathMaster's system-classification generator only classifies systems whose numbers are all given, so it cannot yet ask the find-the-parameter reasoning a built-in Honors extension needs."
+        },
+        {
+          "familyId": "systems.contextModel",
+          "familyTitle": "Write and solve a system that models a situation",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra1",
+          "status": "CAPABLE",
+          "recipes": [],
+          "reason": "It writes a system for a count-and-total, a one-quantity-defined or an equal-cost situation (`shape`), with each equation answered in any equivalent form (`equivalence: \"polynomialRelation\"`, graded the same in the browser and on the server), the solution, and one more number the solution answers. Every version is built from a whole-number solution and checked from the displayed equations. No vetted recipe has been written yet.",
+          "missingCapability": null,
+          "teacherReason": "MathMaster can generate the write-and-solve situations an Honors extension on modeling with systems needs, but no vetted built-in Honors recipe has been written for it yet, so none is added."
+        },
+        {
           "familyId": "systems.elimination",
           "familyTitle": "System of linear equations (elimination)",
           "familyDifficulty": {
@@ -663,8 +761,36 @@
           "teacherReason": "MathMaster can now generate the no-solution and infinitely-many-solutions systems an Honors extension on this skill needs, but no vetted built-in Honors recipe has been written for it yet, so none is added."
         },
         {
+          "familyId": "systems.graphical2x2",
+          "familyTitle": "Solve a system by graphing both lines",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "The student graphs both lines in the Systems Workspace's construct form and reads the system (`solutionCase` one | none | infinite | mixed, the second equation in slope-intercept or standard form), but every intersection is a whole-number point inside the −10..10 grid, so the graph alone gives the exact answer.",
+          "missingCapability": "A `solutionForm: \"fraction\"` knob (an intersection between grid lines) with the graph read as an estimate and the exact solution confirmed algebraically in a second, server-marked part.",
+          "teacherReason": "MathMaster's graphing-systems generator only makes systems whose solution lands on the grid, so it cannot yet ask the estimate-then-confirm work a built-in Honors extension needs."
+        },
+        {
+          "familyId": "systems.knownValue",
+          "familyTitle": "Substitute a known value or expression into a system",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "One equation already gives x as a number or as y plus a constant, so the substitution is a single step: it is the readiness check before the method, not a task an extension can deepen.",
+          "missingCapability": "None on this family: an Honors task on substitution anchors on systems.substitution version 2 or systems.algebraic2x2, which generate the full method and the special cases.",
+          "teacherReason": "This generator is a one-step substitution warm-up, so MathMaster does not build a built-in Honors extension on it."
+        },
+        {
           "familyId": "systems.substitution",
-          "familyTitle": "System of linear equations (substitution)",
+          "familyTitle": "System of linear equations by substitution (Systems Workspace: one, none or infinitely many)",
           "familyDifficulty": {
             "dok": 2,
             "difficultyBand": 3
@@ -672,7 +798,7 @@
           "courseId": "algebra1",
           "status": "CAPABLE",
           "recipes": [],
-          "reason": "This family still makes one-solution systems answered as one ordered pair, but systems.algebraic2x2 v1 (pinnable to `method: \"substitution\"`) now generates 2×2 systems with `solutionCase` one | none | infinite | mixed in the Systems Workspace's algebraic mode, where substitution — isolating, substituting, solving and reading 0 = c — is marked by the shared server grader. A recipe anchored on this family can target it; none has been written yet.",
+          "reason": "Version 1 makes one-solution systems answered as one ordered pair. Version 2 (pinned with \"version\": 2) opens the Systems Workspace's algebraic mode on systems built for substitution — one equation solved for a variable, or with a coefficient of 1 or −1 (`form`) — with `solutionCase` one | none | infinite | mixed, each classified exactly from the displayed rows; isolating, substituting, solving, back-substituting, checking both equations and reading 0 = c are marked by the shared server grader. systems.algebraic2x2 v1 (pinnable to `method: \"substitution\"`) adds exact fractional intersections. No vetted recipe has been written yet.",
           "missingCapability": null,
           "teacherReason": "MathMaster can now generate the no-solution and infinitely-many-solutions systems an Honors extension on this skill needs, but no vetted built-in Honors recipe has been written for it yet, so none is added."
         },
@@ -824,8 +950,8 @@
       ],
       "familySummary": {
         "READY": 4,
-        "CAPABLE": 5,
-        "BLOCKED": 22,
+        "CAPABLE": 8,
+        "BLOCKED": 28,
         "NOT APPROPRIATE": 10
       }
     },
@@ -846,6 +972,20 @@
           "reason": "Every instance has exactly two integer solutions h ± d, entered as two numbers. The depth Honors needs — an equation with no solution or one solution, an extraneous root, or the inequality |x − h| ≤ c (A2.6F) — cannot be generated.",
           "missingCapability": "A `solutionCase` knob (two | one | none | mixed) with a \"No solution\" answer the multiAnswer key can state, and an `inequality` knob (<, ≤, >, ≥) answered on intervalNumberLine (the number-line tool and its server grader exist).",
           "teacherReason": "MathMaster's absolute value generator only makes equations with two whole-number solutions, so it cannot yet ask the no-solution, one-solution or inequality cases an Honors extension needs."
+        },
+        {
+          "familyId": "equations.verifySolution",
+          "familyTitle": "Check a solution by substitution",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Checking a solution of a linear equation is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "Checking a solution of a linear equation is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
         },
         {
           "familyId": "functions.identifyIntercepts",
@@ -874,6 +1014,62 @@
           "reason": "Algebra II solves quadratics with irrational and complex solutions (A2.4F, A2.7A); this family only produces two integer zeros.",
           "missingCapability": "`zeroForm: \"irrational\" | \"complex\"` with radical and complex answer fields, or a Question Family for complexPlaneLab mode \"quadraticRoots\" (the lab and its server grader exist).",
           "teacherReason": "MathMaster's zeros generator only makes whole-number zeros, so it cannot yet ask the irrational or complex solutions an Algebra II Honors extension needs."
+        },
+        {
+          "familyId": "inequalities.contextModel",
+          "familyTitle": "Model a situation with an inequality and interpret the solution",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Modeling a situation with a linear inequality is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "Modeling a situation with a linear inequality is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
+        },
+        {
+          "familyId": "inequalities.solveLinear",
+          "familyTitle": "Solve a linear inequality and graph its solution",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Solving a linear inequality in one variable is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "Solving a linear inequality in one variable is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
+        },
+        {
+          "familyId": "inequalities.translatePhrase",
+          "familyTitle": "Write an inequality from words",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Writing an inequality from words is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "Writing an inequality from words is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
+        },
+        {
+          "familyId": "linear.contextFunction",
+          "familyTitle": "Write and interpret a linear function from a situation",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Writing and interpreting a linear function for a situation is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "Writing and interpreting a linear function for a situation is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
         },
         {
           "familyId": "linear.graphFromSlopeIntercept",
@@ -1338,6 +1534,34 @@
           "teacherReason": "MathMaster has no generator for three-variable systems in the Systems Workspace yet, so it cannot build a no-AI Algebra II Honors extension for systems."
         },
         {
+          "familyId": "systems.classifyByStructure",
+          "familyTitle": "Classify a system from its slopes and y-intercepts",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Classifying a system of two linear equations is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "Classifying a system of two linear equations is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
+        },
+        {
+          "familyId": "systems.contextModel",
+          "familyTitle": "Write and solve a system that models a situation",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Writing and solving a system of two linear equations for a situation is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "Writing and solving a system of two linear equations for a situation is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
+        },
+        {
           "familyId": "systems.elimination",
           "familyTitle": "System of linear equations (elimination)",
           "familyDifficulty": {
@@ -1352,8 +1576,36 @@
           "teacherReason": "MathMaster has no generator for three-variable systems in the Systems Workspace yet, so it cannot build a no-AI Algebra II Honors extension for systems."
         },
         {
+          "familyId": "systems.graphical2x2",
+          "familyTitle": "Solve a system by graphing both lines",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Solving a system of two linear equations by graphing is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "Solving a system of two linear equations by graphing is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
+        },
+        {
+          "familyId": "systems.knownValue",
+          "familyTitle": "Substitute a known value or expression into a system",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Substituting a known value into a system is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "Substituting a known value into a system is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
+        },
+        {
           "familyId": "systems.substitution",
-          "familyTitle": "System of linear equations (substitution)",
+          "familyTitle": "System of linear equations by substitution (Systems Workspace: one, none or infinitely many)",
           "familyDifficulty": {
             "dok": 2,
             "difficultyBand": 3
@@ -1610,7 +1862,7 @@
         "READY": 0,
         "CAPABLE": 1,
         "BLOCKED": 23,
-        "NOT APPROPRIATE": 17
+        "NOT APPROPRIATE": 26
       }
     }
   }

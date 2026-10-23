@@ -30,7 +30,8 @@ import {
 import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
 import { analyzeResponseEntryRepair } from './platform/assignment/liveQuestionCorrection.js';
 import { parseSafeLiveRepairPack, prepareSafeLiveRepairPack } from './platform/assignment/liveRepairPack.js';
-import { normalizeQuestionWeight, questionWeightShares, suggestedQuestionWeight } from './platform/grading/questionWeights.js';
+import { normalizeQuestionWeight, questionWeightShares } from './platform/grading/questionWeights.js';
+import { suggestedQuestionWeight } from './platform/grading/questionWeightSuggestion.js';
 import { V5_SECTION_TITLES } from './platform/contract/assignmentSchemaV5.js';
 import {
   carryQuestionValue,

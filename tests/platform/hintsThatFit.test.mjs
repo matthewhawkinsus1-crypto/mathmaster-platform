@@ -206,9 +206,13 @@ test('over every real lesson, exactly three hints change to shown, and none of t
   });
   // 200 on the base; Operations on Polynomials (Algebra II Honors, module 2)
   // added 87, Dividing Polynomials 90, the Algebra I DOL #3 Review 39 (three
-  // on each of its 13 questions) and the Algebra II Honors DOL #2 review 66,
-  // every one shown (none is in BASE_DROPPED, and nowDropped is unchanged).
-  assert.equal(total, 482);
+  // on each of its 13 questions), the Algebra II Honors DOL #2 review 66, the
+  // Algebra I Honors DOL #3 Review 44 (the same 39, three on its Honors
+  // extension and one on each audited TSIA2 item), the Module 3 lessons 417
+  // (their Honors files 430), and the Algebra II Polynomials and Radicals
+  // lessons 229 (their Honors versions 272), every one shown (none is in
+  // BASE_DROPPED, and nowDropped is unchanged).
+  assert.equal(total, 200 + 87 + 90 + 39 + 66 + 44 + 417 + 430 + 229 + 272);
   assert.equal(BASE_DROPPED.length, 32);
   assert.deepEqual(nowShown.sort(), [
     'l2-wu-2: The x-intercept is where the output is 0: solve 0 = 3x − 8.',

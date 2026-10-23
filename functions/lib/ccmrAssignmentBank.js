@@ -35,7 +35,10 @@ function questionTeksCodes(question = {}) {
   const fromAlignments = (Array.isArray(question.alignments) ? question.alignments : [])
     .filter((entry) => clean(entry?.framework || "teks") === "teks" && entry?.code)
     .map((entry) => normalizeTeks(entry.code));
+  // A graphing2 standard-form question's `standard` is its {A, B, C} line,
+  // not a code (courseRigor's questionTeks reads it the same way).
   const fromStandard = [question.standard, question.primaryStandard]
+    .filter((value) => typeof value === "string")
     .map(normalizeTeks)
     .filter(Boolean);
   const rawPrimary = question?.standards?.primary;

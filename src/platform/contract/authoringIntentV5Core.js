@@ -133,8 +133,9 @@ const ACTION_ALIASES = Object.freeze({
   factorpolynomial: 'factorPolynomial', dividepolynomial: 'dividePolynomial', multiplypolynomials: 'multiplyPolynomials',
   addsubtractpolynomials: 'addSubtractPolynomials', addpolynomials: 'addSubtractPolynomials', subtractpolynomials: 'addSubtractPolynomials',
   longdivision: 'longDivision', polynomiallongdivision: 'longDivision', longdividepolynomial: 'longDivision',
-  syntheticdivision: 'syntheticDivision', syntheticdividepolynomial: 'syntheticDivision',
+  syntheticdivision: 'syntheticDivision', syntheticdividepolynomial: 'syntheticDivision', syntheticsubstitution: 'syntheticDivision', remaindertheorem: 'syntheticDivision',
   solveinequality: 'solveInequality', signchart: 'solveInequality',
+  solveradicalequation: 'solveRadicalEquation', radicalequation: 'solveRadicalEquation', solveradical: 'solveRadicalEquation',
   complexoperations: 'complexOperations', complexplane: 'analyzeComplex',
   exponentiallog: 'exponentialLogBridge', solveexponential: 'solveExponential', solvelogarithmic: 'solveLogarithmic',
   transformfunction: 'analyzeTransformations', analyzetransformations: 'analyzeTransformations',
@@ -1150,8 +1151,14 @@ const resolveIntentType = (q, actions) => {
   // factors (x + 2)(x − 3) — a different problem from the prompt — so a
   // linear or absolute-value inequality goes to the Step Algebra relation
   // workspace, which also enforces the sign reversal.
+  // A radical equation solved stage by stage: the analyzer's radicalSolve view.
+  if (actions.includes('solveRadicalEquation')) return 'signSolutionAnalyzer';
   if (q.signChart || (actions.includes('solveInequality') && hasSignChartData(q))) return 'signSolutionAnalyzer';
-  if (actions.includes('solveInequality') && readableInequalityIntent(q)) return 'stepAlgebra';
+  // A Question Family slot has no inequality yet: its family writes one per
+  // student. The inequality families build Step Algebra's relation workspace
+  // (the sign chart, which needs authored factors, has none), so the slot is
+  // that solve too — not the analyzer's sample problem.
+  if (actions.includes('solveInequality') && (readableInequalityIntent(q) || isObject(q.questionFamily))) return 'stepAlgebra';
   if (actions.includes('solveInequality')) return 'signSolutionAnalyzer';
   if (q.complex || q.z || actions.some((a) => ['complexOperations','analyzeComplex'].includes(a))) return 'complexPlaneLab';
   if (q.logarithm || q.exponentialLog || actions.some((a) => ['exponentialLogBridge','solveExponential','solveLogarithmic'].includes(a))) return 'exponentialLogBridge';
@@ -1488,7 +1495,24 @@ const compileOne = (q, index, repairs) => {
       const ask = [];
       if (actions.includes('constructInterval')) ask.push('graph');
       if (actions.includes('writeInterval')) ask.push('interval');
-      out = copyCommon(q, { type, inequalityText: q.inequalityText || q.inequality, intervals: q.intervals, ask: q.ask || (ask.length ? ask : ['graph','interval']), min: q.min, max: q.max, step: q.step });
+      // The letter the inequality is written in (b ≤ 420). The tool, its
+      // grader and Pre-Flight's interval check all read `variable`; dropping
+      // it made each of them expect x, so "b ≤ 420" was marked wrong.
+      const letter = /^[A-Za-z]$/.test(clean(q.variable)) ? clean(q.variable) : inferSingleEquationVariable(q.inequalityText || q.inequality);
+      out = copyCommon(q, {
+        type,
+        inequalityText: q.inequalityText || q.inequality,
+        intervals: q.intervals,
+        ask: q.ask || (ask.length ? ask : ['graph','interval']),
+        min: q.min,
+        max: q.max,
+        step: q.step,
+        variable: letter && letter !== 'x' ? letter : undefined,
+        // `"autoViewport": false` keeps the authored window (0 to 600,
+        // counting by 60) on screen, as the printed copy already does,
+        // instead of a window fitted around the answer.
+        autoViewport: q.autoViewport === false ? false : undefined,
+      });
       break;
     }
     case 'graphing':
@@ -1649,6 +1673,11 @@ const compileOne = (q, index, repairs) => {
       : undefined,
     generator: q.generator,
     workspaceDifficulty: q.workspaceDifficulty,
+    // The relation workspace is the one with "No solution" and "All real
+    // numbers" conclusions. An author opens an equation there on purpose —
+    // for a one-solution equation too, so the workspace never tells a student
+    // which equations are the special cases. Copied only when it is asked for.
+    relationWorkspace: q.relationWorkspace === true ? true : undefined,
     solveFor: q.solveFor || inferSingleEquationVariable(equation),
     targetForm: isRewriteToSlopeIntercept ? 'slopeIntercept' : q.targetForm,
     requireSimplifiedFinalForm: isRewriteToSlopeIntercept ? true : q.requireSimplifiedFinalForm,
@@ -1669,6 +1698,15 @@ const compileOne = (q, index, repairs) => {
       break;
     case 'system':
       out = copyCommon(q, { type, equations: q.equations, answer: answerOf(q), graph: normalizeStaticGraphPoints(q.graph), showGraph: q.showGraph });
+      // A Question Family slot writes its own equations, and a systems
+      // family builds its Systems Workspace version from this slot. The
+      // slot's instructional choices travel with it — dropping them let
+      // every student choose a method the author had set.
+      if (isObject(q.questionFamily)) {
+        ['method', 'requireVerification', 'askEfficiency'].forEach((key) => {
+          if (q[key] != null) out[key] = q[key];
+        });
+      }
       break;
     case 'table': {
       const functionIntent = authoredFunctionIntent(q);
@@ -1980,6 +2018,11 @@ const compileOne = (q, index, repairs) => {
         'sourceConstraints', 'expectedConstraints', 'studentBuild', 'reasoning',
         'testPoint', 'allowStudentTestPoint', 'askClassification', 'askVertices',
         'modeling', 'graph', 'spatialModel',
+        // Graph mode's opt-in construct form: the student graphs each line
+        // from two points before reading the system (`interaction`), each
+        // equation shown as the question writes it (`equationLabels`), on the
+        // plane's plotting grid (`snapStep`).
+        'interaction', 'equationLabels', 'snapStep',
       ].forEach((key) => {
         if (q[key] != null) out[key] = q[key];
       });
@@ -2009,7 +2052,14 @@ const compileOne = (q, index, repairs) => {
     }
     case 'polynomialWorkshop': {
       const p = q.polynomial || {};
-      const mode = q.mode || (actions.includes('longDivision') ? 'longDivision' : actions.includes('syntheticDivision') ? 'syntheticDivision' : actions.includes('dividePolynomial') ? 'division' : actions.includes('multiplyPolynomials') ? 'multiplyArea' : actions.includes('addSubtractPolynomials') ? 'addSubtract' : 'factorQuadratic');
+      // Two synthetic-division views share the action. Dividing Polynomials'
+      // (ax + b) writes its dividend and divisor as text; the Remainder and
+      // Factor Theorems' (x − r, with `ask` follow-ups: P(r), the quotient, is
+      // it a factor) writes coefficient arrays, or a candidate root.
+      const authoredPolynomial = q.polynomial || {};
+      const writtenAsText = (value) => typeof value === 'string' && value.trim() !== '';
+      const syntheticView = writtenAsText(q.dividend ?? authoredPolynomial.dividend) || writtenAsText(q.divisor ?? authoredPolynomial.divisor) ? 'syntheticDivision' : 'synthetic';
+      const mode = q.mode || (actions.includes('longDivision') ? 'longDivision' : actions.includes('syntheticDivision') ? syntheticView : actions.includes('dividePolynomial') ? 'division' : actions.includes('multiplyPolynomials') ? 'multiplyArea' : actions.includes('addSubtractPolynomials') ? 'addSubtract' : 'factorQuadratic');
       out = copyCommon(q, { type, mode, coefficients: q.coefficients || p.coefficients, leftBinomial: q.leftBinomial || p.leftBinomial, rightBinomial: q.rightBinomial || p.rightBinomial, dividend: q.dividend || p.dividend, divisor: q.divisor || p.divisor, roots: q.roots || p.roots, denominatorRoots: q.denominatorRoots || p.denominatorRoots });
       // The factorZero, graphConnection and rationalFeatures views also read
       // these. Dropping them graded the question with the workshop's defaults
@@ -2017,7 +2067,7 @@ const compileOne = (q, index, repairs) => {
       {
         const numeratorRoots = q.numeratorRoots || p.numeratorRoots;
         if (numeratorRoots) out.numeratorRoots = numeratorRoots;
-        ['candidateRoot', 'targetValue', 'leadingCoefficient', 'targetRoot'].forEach((key) => {
+        ['candidateRoot', 'targetValue', 'leadingCoefficient', 'targetRoot', 'ask'].forEach((key) => {
           const value = q[key] ?? p[key];
           if (value != null) out[key] = value;
         });
@@ -2039,7 +2089,7 @@ const compileOne = (q, index, repairs) => {
       // the analyzer's own resolution (declarations/signSolutionAnalyzer.mjs).
       // A 'polynomial' default here made the tool and grader ignore the
       // denominator: (x − 2)/(x + 3) ≥ 0 was graded as x − 2 ≥ 0.
-      out = copyCommon(q, { type, mode: q.mode || s.mode || (denominatorFactors?.length ? 'rational' : 'polynomial'), factors: q.factors || s.factors, denominatorFactors, relation: q.relation || s.relation, candidates: q.candidates || s.candidates, radicalEquation: q.radicalEquation || s.radicalEquation });
+      out = copyCommon(q, { type, mode: q.mode || s.mode || (actions.includes('solveRadicalEquation') ? 'radicalSolve' : denominatorFactors?.length ? 'rational' : 'polynomial'), factors: q.factors || s.factors, denominatorFactors, relation: q.relation || s.relation, candidates: q.candidates || s.candidates, radicalEquation: q.radicalEquation || s.radicalEquation });
       // The analyzer reads `numeratorFactors` ahead of `factors`, and the
       // router above sends a question to it on numeratorFactors alone;
       // dropping them graded the default numerator (x + 2)(x − 3) instead.
@@ -2335,7 +2385,7 @@ export const AUTHORING_INTENT_V5_ACTIONS = Object.freeze([
   'completeTable','stateOrderedPair','multipleResponses','identifyQuantities','configureAxes','writeEquation','classifyContinuity','matchGraphsToStories','compareGraphs',
   'writeGraphStory','interpretPointInContext','buildMapping','plotRelation','classifyFunction','analyzeSequence','findSequenceTerm','findMissingTerm',
   'writeRecursive','writeExplicit','compareSequences','partialSum','buildSequenceTable','plotSequence','connectRepresentations','findRepresentationMismatch','sortIntoOwnGroups','sortIntoCategories','buildFunctionFromConstraints','analyzeData','fitDataModel','predictFromModel','calculateCorrelation',
-  'findInverse','composeFunctions','analyzeParabolaGeometry','factorPolynomial','dividePolynomial','longDivision','syntheticDivision','multiplyPolynomials','addSubtractPolynomials','solveInequality','complexOperations','analyzeComplex',
+  'findInverse','composeFunctions','analyzeParabolaGeometry','factorPolynomial','dividePolynomial','longDivision','syntheticDivision','multiplyPolynomials','addSubtractPolynomials','solveInequality','solveRadicalEquation','complexOperations','analyzeComplex',
   'exponentialLogBridge','solveExponential','solveLogarithmic','analyzeTransformations','constructLine','modelingLab',
   'proveConstantRate','interpretExpressionMeaning','connectLinearRepresentations',
   'locateMatrixElements','operateOnMatrices','writeMatrixEquation','solveMatrixEquation','completeSingularSystem',

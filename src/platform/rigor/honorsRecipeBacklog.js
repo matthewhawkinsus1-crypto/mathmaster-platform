@@ -156,7 +156,7 @@ export const HONORS_FAMILY_AUDIT = Object.freeze({
   'systems.substitution': Object.freeze({
     algebra1: Object.freeze({
       status: CAPABLE,
-      reason: 'This family still makes one-solution systems answered as one ordered pair, but systems.algebraic2x2 v1 (pinnable to `method: "substitution"`) now generates 2×2 systems with `solutionCase` one | none | infinite | mixed in the Systems Workspace\'s algebraic mode, where substitution — isolating, substituting, solving and reading 0 = c — is marked by the shared server grader. A recipe anchored on this family can target it; none has been written yet.',
+      reason: 'Version 1 makes one-solution systems answered as one ordered pair. Version 2 (pinned with "version": 2) opens the Systems Workspace\'s algebraic mode on systems built for substitution — one equation solved for a variable, or with a coefficient of 1 or −1 (`form`) — with `solutionCase` one | none | infinite | mixed, each classified exactly from the displayed rows; isolating, substituting, solving, back-substituting, checking both equations and reading 0 = c are marked by the shared server grader. systems.algebraic2x2 v1 (pinnable to `method: "substitution"`) adds exact fractional intersections. No vetted recipe has been written yet.',
       teacherReason: 'MathMaster can now generate the no-solution and infinitely-many-solutions systems an Honors extension on this skill needs, but no vetted built-in Honors recipe has been written for it yet, so none is added.',
     }),
     algebra2: Object.freeze({
@@ -178,6 +178,84 @@ export const HONORS_FAMILY_AUDIT = Object.freeze({
       missingCapability: 'A Question Family that generates 3×3 systems for systemsWorkspace (mode "algebraic" 3×3, "matrix3" or "spatial"). Those modes and their server graders exist, and MathMaster\'s Algebra II Honors 3×3 lessons already use them as hand-authored questions. (matrices.solveSystem3x3 generates 3×3 systems only for the Matrix Lab, solved with technology.)',
       teacherReason: 'MathMaster has no generator for three-variable systems in the Systems Workspace yet, so it cannot build a no-AI Algebra II Honors extension for systems.',
     }),
+  }),
+  'systems.classifyByStructure': Object.freeze({
+    algebra1: Object.freeze({
+      status: BLOCKED,
+      reason: 'It shows a system with whole-number slopes and intercepts, the second equation in standard form, and asks for the four values, the number of solutions and the classification; once the second equation is rewritten the answer is read off, and the remaining levers are wider ranges, which are not rigor.',
+      missingCapability: 'A parameter mode: a system with one unknown coefficient or constant (k), answered with the value of k that makes it have no solution or infinitely many solutions, marked as a number field.',
+      teacherReason: 'MathMaster\'s system-classification generator only classifies systems whose numbers are all given, so it cannot yet ask the find-the-parameter reasoning a built-in Honors extension needs.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('Classifying a system of two linear equations')),
+  }),
+  'systems.graphical2x2': Object.freeze({
+    algebra1: Object.freeze({
+      status: BLOCKED,
+      reason: 'The student graphs both lines in the Systems Workspace\'s construct form and reads the system (`solutionCase` one | none | infinite | mixed, the second equation in slope-intercept or standard form), but every intersection is a whole-number point inside the −10..10 grid, so the graph alone gives the exact answer.',
+      missingCapability: 'A `solutionForm: "fraction"` knob (an intersection between grid lines) with the graph read as an estimate and the exact solution confirmed algebraically in a second, server-marked part.',
+      teacherReason: 'MathMaster\'s graphing-systems generator only makes systems whose solution lands on the grid, so it cannot yet ask the estimate-then-confirm work a built-in Honors extension needs.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('Solving a system of two linear equations by graphing')),
+  }),
+  'systems.knownValue': Object.freeze({
+    algebra1: Object.freeze({
+      status: BLOCKED,
+      reason: 'One equation already gives x as a number or as y plus a constant, so the substitution is a single step: it is the readiness check before the method, not a task an extension can deepen.',
+      missingCapability: 'None on this family: an Honors task on substitution anchors on systems.substitution version 2 or systems.algebraic2x2, which generate the full method and the special cases.',
+      teacherReason: 'This generator is a one-step substitution warm-up, so MathMaster does not build a built-in Honors extension on it.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('Substituting a known value into a system')),
+  }),
+  'systems.contextModel': Object.freeze({
+    algebra1: Object.freeze({
+      status: CAPABLE,
+      reason: 'It writes a system for a count-and-total, a one-quantity-defined or an equal-cost situation (`shape`), with each equation answered in any equivalent form (`equivalence: "polynomialRelation"`, graded the same in the browser and on the server), the solution, and one more number the solution answers. Every version is built from a whole-number solution and checked from the displayed equations. No vetted recipe has been written yet.',
+      teacherReason: 'MathMaster can generate the write-and-solve situations an Honors extension on modeling with systems needs, but no vetted built-in Honors recipe has been written for it yet, so none is added.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('Writing and solving a system of two linear equations for a situation')),
+  }),
+  'equations.verifySolution': Object.freeze({
+    algebra1: Object.freeze({
+      status: BLOCKED,
+      reason: 'It substitutes one given value into each side of a linear equation with the variable on both sides and asks whether the two values agree; the value and the equation are the whole task, so no deeper reasoning can be generated.',
+      missingCapability: 'A `solutionCase: "none" | "infinite"` knob (an equation that no value, or every value, satisfies) with a server-marked part asking what the check shows about every other value.',
+      teacherReason: 'MathMaster\'s solution-check generator only asks whether one given value works, so it cannot yet build a built-in Honors extension.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('Checking a solution of a linear equation')),
+  }),
+  'inequalities.solveLinear': Object.freeze({
+    algebra1: Object.freeze({
+      status: CAPABLE,
+      reason: 'It generates linear inequalities with variables on both sides and the distributive property (`bothSides`, `distribute`), with the sign reversal required, absent or mixed (`reversal`), solved in Step Algebra\'s relation workspace with its number-line stage, checked from the displayed inequality, and marked by the shared grader in the browser and on the server. No vetted recipe has been written yet.',
+      teacherReason: 'MathMaster can generate the multi-step inequalities an Honors extension on this skill needs, but no vetted built-in Honors recipe has been written for it yet, so none is added.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('Solving a linear inequality in one variable')),
+  }),
+  'inequalities.translatePhrase': Object.freeze({
+    algebra1: Object.freeze({
+      status: BLOCKED,
+      reason: 'Each version asks for four single phrases (exceeds, under, at least, cannot be more than) as choices among the four symbols, so the reasoning is fixed recognition.',
+      missingCapability: 'Compound statements (between, at least … and less than …) answered as a typed compound inequality, graded by its solution set.',
+      teacherReason: 'MathMaster\'s phrase-to-inequality generator only asks single phrases as choices, so it cannot yet build a built-in Honors extension.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('Writing an inequality from words')),
+  }),
+  'inequalities.contextModel': Object.freeze({
+    algebra1: Object.freeze({
+      status: CAPABLE,
+      reason: 'It models growing and shrinking situations (`direction`; the shrinking ones reverse the symbol when solved), solves exactly to hundredths, and asks for the whole number the situation needs — rounding up or down from the boundary, which the situation decides. No vetted recipe has been written yet.',
+      teacherReason: 'MathMaster can generate the inequality situations an Honors extension on this skill needs, but no vetted built-in Honors recipe has been written for it yet, so none is added.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('Modeling a situation with a linear inequality')),
+  }),
+  'linear.contextFunction': Object.freeze({
+    algebra1: Object.freeze({
+      status: BLOCKED,
+      reason: 'It writes f(x) = mx + b for a starting amount and a constant rate, names the independent and dependent quantities, and interprets the slope and the intercept by choice; every situation is unrestricted, so its reasonable domain and range are never asked.',
+      missingCapability: 'A reasonable-domain-and-range part (the situation\'s limits, answered as inequalities) or a second situation to compare with the first (which one is greater, and from when).',
+      teacherReason: 'MathMaster\'s situation-to-function generator only writes and interprets one unrestricted function, so it cannot yet build a built-in Honors extension.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('Writing and interpreting a linear function for a situation')),
   }),
   'quadratics.identifyVertex': Object.freeze({
     algebra1: Object.freeze({

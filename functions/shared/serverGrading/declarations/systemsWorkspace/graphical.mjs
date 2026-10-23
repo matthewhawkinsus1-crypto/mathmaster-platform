@@ -9,6 +9,10 @@
  *
  * Work shape (contractVersion 1 of the tool), per mode:
  *   linear           { classification, x, y }                      (x, y as typed)
+ *                    construct (interaction "construct") also sends
+ *                    { construction: [{ points: [{ x, y }, { x, y }] }] }, one
+ *                    entry per equation (parsed numbers) — additive: an
+ *                    analyze question's work is unchanged
  *   matrix           { classification, x, y }                      2×2
  *   matrix3          { classification, x, y, z, technologyUsed }   3×3 / 3×4 rows
  *   linearQuadratic  { count, points: [{ x, y }] }                 (parsed numbers)

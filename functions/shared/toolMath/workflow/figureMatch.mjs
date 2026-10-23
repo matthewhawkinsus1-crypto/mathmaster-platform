@@ -64,6 +64,16 @@ export const buildFigureMatchResponse = (stage, assignments) => ({
   isComplete: isFigureMatchComplete(stage, { assignments }),
 });
 
+// Words of three or more letters in a figure's `math`, other than the names
+// mathematics spells out. Three, not two: "AC < BC" and "lw" are products.
+// A LaTeX command and a \text{…} group are mathematics, not prose.
+const MATH_NAMES = new Set(['sin', 'cos', 'tan', 'sec', 'csc', 'cot', 'log', 'exp', 'sqrt', 'abs', 'max', 'min', 'lim', 'inf', 'infinity']);
+const mathProseWords = (math) => (text(math)
+  .replace(/\\text\s*\{[^{}]*\}/g, ' ')
+  .replace(/\\[A-Za-z]+/g, ' ')
+  .match(/[A-Za-z]{3,}/g) || [])
+  .filter((word) => !MATH_NAMES.has(word.toLowerCase()));
+
 /**
  * Everything about a matching stage that would reach a student broken.
  *
@@ -109,6 +119,14 @@ export const figureMatchProblems = (stage) => {
     const drawn = [isObject(item.graph), Boolean(text(item.math)), Boolean(text(item.text))].filter(Boolean).length;
     if (drawn === 0) problems.push(`has nothing to show for ${figureLabel(index)}: give it a \`graph\`, \`math\`, or \`text\`.`);
     if (drawn > 1) problems.push(`shows more than one thing for ${figureLabel(index)}; a figure is one representation.`);
+    const words = mathProseWords(item.math);
+    if (words.length) {
+      problems.push(
+        `sets ${figureLabel(index)}'s \`math\` with a word in it ("${words[0]}"). The typesetter reads a word as `
+        + 'variables multiplied together and runs it into the mathematics around it; write a sentence such as '
+        + '"y = 2x + 3 and y = −x + 3" as `text`, and keep `math` for mathematics alone.',
+      );
+    }
   });
 
   return problems;

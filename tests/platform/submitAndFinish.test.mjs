@@ -147,11 +147,12 @@ test('every tool button that spends a try goes through the Submit label (D9)', (
     'openSortBoard/OpenSortBoard.jsx': 1, 'constraintFunctionBuilder/ConstraintFunctionBuilder.jsx': 1, 'sequenceExplorer/SequenceExplorer.jsx': 6,
     'transformations/TransformationsLab.jsx': 6, 'functionOperations/FunctionOperationsLab.jsx': 1, 'exponentialLog/ExponentialLogBridge.jsx': 5,
     'linearTableWorkbench/LinearTableWorkbench.jsx': 1, 'functionInvestigation2/FunctionInvestigation2.jsx': 5, 'representationMatch/RepresentationMatch.jsx': 6,
-    'representationBridge/RepresentationBridge.jsx': 1, 'representationBridge/LinearMultipleRepresentationsBoard.jsx': 1, 'signSolutionAnalyzer/SignSolutionAnalyzer.jsx': 2,
+    'representationBridge/RepresentationBridge.jsx': 1, 'representationBridge/LinearMultipleRepresentationsBoard.jsx': 1, 'signSolutionAnalyzer/SignSolutionAnalyzer.jsx': 3,
     'expressionMeaning/ExpressionMeaning.jsx': 1, 'parabolaGeometry/ParabolaGeometryLab.jsx': 4, 'complexPlane/ComplexPlaneLab.jsx': 6,
     // Polynomial Workshop: 6 views + the any-size area model, add & subtract,
-    // long division and synthetic division.
-    'inverseComposition/InverseDerivationLab.jsx': 1, 'inverseComposition/InverseCompositionLab.jsx': 2, 'polynomialWorkshop/PolynomialWorkshop.jsx': 10,
+    // long division, synthetic division (ax + b) and the Remainder and Factor
+    // Theorems' synthetic view (x − r).
+    'inverseComposition/InverseDerivationLab.jsx': 1, 'inverseComposition/InverseCompositionLab.jsx': 2, 'polynomialWorkshop/PolynomialWorkshop.jsx': 11,
     'systemsWorkspace/SubstitutionReductionMode.jsx': 1, 'systemsWorkspace/AlgebraicSystemMode.jsx': 1, 'systemsWorkspace/EliminationReductionMode.jsx': 1,
     'systemsWorkspace/ThreePlaneWorkspace.jsx': 1, 'stepAlgebra2/RewriteLinearForm.jsx': 1, 'stepAlgebra2/StepAlgebra2.jsx': 1, 'matrixLab/matrixLabUi.jsx': 1,
   };

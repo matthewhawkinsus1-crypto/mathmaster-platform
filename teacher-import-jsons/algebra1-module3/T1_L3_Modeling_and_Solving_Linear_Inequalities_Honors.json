@@ -1,0 +1,2744 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Modeling and Solving Linear Inequalities Honors (M3 T1 L3)",
+    "courseId": "algebra1",
+    "folder": "Algebra I/Module 3/Topic 1/Lesson 3",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork"
+  },
+  "variantPolicy": {
+    "mode": "personalized",
+    "sectionModes": {
+      "warmup": "shared",
+      "classwork": "shared",
+      "practice": "personalized",
+      "dol": "personalized"
+    }
+  },
+  "sections": [
+    {
+      "id": "warmup",
+      "role": "warmup",
+      "title": "Warm-Up — Functions and Inequalities",
+      "recommendedMinutes": 10,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "m3l3h-wu-1",
+          "standard": "A.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Getting started. {{situation}} Write a function, {{function}}, for this situation. Then name its quantities and explain what its slope and y-intercept mean.",
+          "questionFamily": {
+            "id": "linear.contextFunction"
+          },
+          "hints": [
+            "The independent quantity is the one you choose; the dependent quantity depends on it.",
+            "The amount that changes with each unit of the input is the rate: it multiplies the variable.",
+            "The amount you start with is added once: it is the value of the function when the input is zero."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In a linear function rule, the amount added once, at the start, is the…",
+            "options": [
+              "slope",
+              "y-intercept"
+            ],
+            "correct": "y-intercept"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "The input (independent quantity) is the one that changes freely; the output (dependent quantity) depends on it.",
+              "The rate of change multiplies the variable: it is the slope.",
+              "The starting amount is the value when the input is 0: it is the y-intercept."
+            ],
+            "commonError": "Switching the rate and the starting amount — the starting amount is added once, not once for each unit."
+          }
+        },
+        {
+          "questionId": "m3l3h-wu-2",
+          "standard": "7.10A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "7.10A",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Words to symbols. Write each statement as an inequality, using the variable it names.",
+          "questionFamily": {
+            "id": "inequalities.translatePhrase"
+          },
+          "hints": [
+            "“At least” and “no less than” include the number itself, so they use ≥.",
+            "“At most” and “no more than” also include the number, so they use ≤.",
+            "“More than” and “exceeds” leave the number out (>); “fewer than” and “less than” leave it out too (<)."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. “At least 18” includes 18 itself. Which symbol includes the number?",
+            "options": [
+              ">",
+              "≥"
+            ],
+            "correct": "≥"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Decide whether the boundary number itself is allowed: “at least” and “at most” include it; “more than” and “fewer than” do not.",
+              "Decide the direction: “at least” and “more than” point to greater values; “at most” and “fewer than” to smaller values."
+            ],
+            "commonError": "Writing > for “at least”: “at least 18” includes 18, so it is ≥."
+          }
+        },
+        {
+          "questionId": "m3l3h-wu-3",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "7.11A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveInequality"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Hey, I remember this! Solve {{inequality}}. Then graph its solution.",
+          "questionFamily": {
+            "id": "inequalities.solveLinear",
+            "constraints": {
+              "reversal": "required",
+              "distribute": false,
+              "bothSides": false
+            }
+          },
+          "hints": [
+            "Undo the addition or subtraction first, on both sides.",
+            "Then divide both sides by the coefficient of the variable — it is negative, so think about the symbol.",
+            "Graph: a closed dot for ≤ or ≥, an open dot for < or >. Test a value from your shaded side in the original inequality."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Dividing both sides of an inequality by a negative number…",
+            "options": [
+              "keeps the symbol",
+              "reverses the symbol"
+            ],
+            "correct": "reverses the symbol"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Undo the constant term: add or subtract it on both sides.",
+              "Divide both sides by the negative coefficient and reverse the symbol.",
+              "Graph the boundary with an open or closed dot and shade toward the solutions; check a test value."
+            ],
+            "commonError": "Keeping the symbol after dividing by a negative number."
+          }
+        }
+      ]
+    },
+    {
+      "id": "classwork",
+      "role": "classwork",
+      "title": "Classwork — Modeling, Comparing and Solving Inequalities",
+      "recommendedMinutes": 80,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "m3l3h-cw-1",
+          "standard": "A.2C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.12B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "identifyQuantities",
+            "writeEquation",
+            "completeTable"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Getting Started — Fundraising Function. Elijah’s troop sells popcorn. Identify the quantities, then write the function f(b) for Elijah’s total sales after he sells b boxes, and use it to complete the table.",
+          "scenario": "Each camper starts with a credit of $25 toward sales, and each box of popcorn sells for $3.75.",
+          "quantities": [
+            {
+              "id": "boxes",
+              "label": "Number of boxes sold",
+              "unit": "boxes"
+            },
+            {
+              "id": "sales",
+              "label": "Total sales",
+              "unit": "dollars"
+            },
+            {
+              "id": "price",
+              "label": "Price of one box",
+              "unit": "dollars per box"
+            }
+          ],
+          "correctIndependentId": "boxes",
+          "correctDependentId": "sales",
+          "equationPrompt": "Write the function f(b) for Elijah’s total sales after selling b boxes.",
+          "answerModel": {
+            "equation": "f(b)=3.75b+25",
+            "tableXValues": [
+              0,
+              4,
+              10,
+              20
+            ]
+          },
+          "hints": [
+            "The total depends on how many boxes are sold, so boxes sold is the input.",
+            "Every box adds the same amount to the total, and the starting credit is there before any box is sold."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Which amount is added once for EACH box sold?",
+            "options": [
+              "$25",
+              "$3.75"
+            ],
+            "correct": "$3.75"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Rate and starting amount",
+                "instruction": "A linear model has the form f(x) = (rate) · x + (starting amount). The rate multiplies the variable; the starting amount is added once."
+              }
+            ]
+          },
+          "solutionReview": {
+            "reasoning": [
+              "The total depends on the number of boxes, so boxes sold is the independent quantity and total sales is the dependent quantity.",
+              "Each box adds $3.75 and the credit adds $25 once: f(b) = 3.75b + 25.",
+              "Table: f(0) = 25, f(4) = 40, f(10) = 62.5, f(20) = 100."
+            ],
+            "commonError": "Writing f(b) = 25b + 3.75 — the credit is added once, not once per box."
+          }
+        },
+        {
+          "questionId": "m3l3h-cw-2",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Activity 3.1 — Elijah has a sales goal of $1,600. The graph shows f(b) = 3.75b + 25 and the horizontal line y = 1600. Use the graph to answer.",
+          "graph": {
+            "xMin": 0,
+            "xMax": 600,
+            "yMin": 0,
+            "yMax": 2400,
+            "xStep": 60,
+            "yStep": 200,
+            "xAxisLabel": "Boxes of popcorn sold, b",
+            "yAxisLabel": "Total sales, f(b) (dollars)",
+            "functions": [
+              {
+                "type": "line",
+                "m": 3.75,
+                "b": 25,
+                "domain": {
+                  "min": 0,
+                  "max": 600
+                }
+              },
+              {
+                "type": "line",
+                "m": 0,
+                "b": 1600
+              }
+            ]
+          },
+          "responses": [
+            {
+              "id": "point",
+              "label": "The point where the horizontal line meets the graph of f(b)",
+              "answer": "(420,1600)",
+              "answerFormat": "orderedPair"
+            },
+            {
+              "id": "boxes",
+              "label": "The number of boxes Elijah must sell to make exactly $1,600",
+              "answer": "420"
+            },
+            {
+              "id": "eq",
+              "label": "Which equation does that point solve?",
+              "type": "choice",
+              "options": [
+                "3.75b + 25 = 1600",
+                "3.75b = 1600",
+                "25b + 3.75 = 1600",
+                "3.75(b + 25) = 1600"
+              ],
+              "answer": "3.75b + 25 = 1600"
+            },
+            {
+              "id": "dot",
+              "label": "On a number line, the number of boxes that makes exactly $1,600 is shown with…",
+              "type": "choice",
+              "options": [
+                "one closed dot",
+                "one open dot",
+                "a shaded ray",
+                "no dot"
+              ],
+              "answer": "one closed dot"
+            }
+          ],
+          "hints": [
+            "Follow the horizontal line from the goal on the vertical axis until it meets the graph of f(b).",
+            "Read the input (boxes) of that point from the horizontal axis.",
+            "Check your number of boxes by substituting it into f(b)."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The horizontal line marks every point where total sales are…",
+            "options": [
+              "more than the goal",
+              "equal to the goal"
+            ],
+            "correct": "equal to the goal"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Linear inequality",
+                "instruction": "A linear inequality is a non-equal comparison of two linear expressions, using <, >, ≤ or ≥. Its solution set is every value that makes it true."
+              }
+            ]
+          },
+          "solutionReview": {
+            "reasoning": [
+              "The line y = 1600 meets the graph at (420, 1600).",
+              "Check: f(420) = 3.75(420) + 25 = 1575 + 25 = 1600.",
+              "One exact number of boxes is one closed dot on a number line."
+            ],
+            "commonError": "Reading the coordinates in the wrong order — the input (boxes) comes first."
+          }
+        },
+        {
+          "questionId": "m3l3h-cw-3",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "constructInterval"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Graph the numbers of boxes Elijah could sell and still have total sales of $1,600 or less. He cannot sell a negative number of boxes.",
+          "inequality": "0 ≤ b ≤ 420",
+          "variable": "b",
+          "intervals": [
+            {
+              "min": 0,
+              "max": 420,
+              "minClosed": true,
+              "maxClosed": true
+            }
+          ],
+          "min": 0,
+          "max": 600,
+          "step": 60,
+          "autoViewport": false,
+          "hints": [
+            "Both ends are included: zero boxes, and the number of boxes that makes exactly $1,600.",
+            "Use closed dots at both ends, and shade between them."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "The smallest possible number of boxes is 0, and 420 boxes makes exactly $1,600.",
+              "Both ends are included, so both dots are closed, with shading between them: 0 ≤ b ≤ 420."
+            ],
+            "commonError": "Shading left from 420 with an arrow — that includes negative numbers of boxes."
+          }
+        },
+        {
+          "questionId": "m3l3h-cw-4",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "constructInterval"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Graph the numbers of boxes that give Elijah total sales of more than $1,600.",
+          "inequality": "b > 420",
+          "variable": "b",
+          "intervals": [
+            {
+              "min": 420,
+              "max": null,
+              "minClosed": false,
+              "maxClosed": false
+            }
+          ],
+          "min": 0,
+          "max": 600,
+          "step": 60,
+          "autoViewport": false,
+          "hints": [
+            "The boundary is where total sales are exactly the goal, but that value is not included.",
+            "Use an open dot and shade toward the larger numbers of boxes."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "The boundary is 420 boxes, which gives exactly $1,600 — not more — so the dot is open.",
+              "More boxes give more sales, so shade to the right: b > 420."
+            ],
+            "commonError": "Using a closed dot at 420: “more than $1,600” leaves out exactly $1,600."
+          }
+        },
+        {
+          "questionId": "m3l3h-cw-5",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Use the graph of f(b) = 3.75b + 25 to answer each question. Write an equation or an inequality for each answer.",
+          "graph": {
+            "xMin": 0,
+            "xMax": 600,
+            "yMin": 0,
+            "yMax": 2400,
+            "xStep": 60,
+            "yStep": 200,
+            "xAxisLabel": "Boxes of popcorn sold, b",
+            "yAxisLabel": "Total sales, f(b) (dollars)",
+            "functions": [
+              {
+                "type": "line",
+                "m": 3.75,
+                "b": 25,
+                "domain": {
+                  "min": 0,
+                  "max": 600
+                }
+              }
+            ]
+          },
+          "responses": [
+            {
+              "id": "a",
+              "label": "How many boxes would Elijah have to sell to earn at least $925?",
+              "answer": "b>=240",
+              "inputProfile": "inequality"
+            },
+            {
+              "id": "b",
+              "label": "How many boxes would Elijah have to sell to earn less than $2,050?",
+              "answer": "b<540",
+              "inputProfile": "inequality"
+            },
+            {
+              "id": "c",
+              "label": "How many boxes would Elijah have to sell to earn exactly $700?",
+              "answer": "180"
+            },
+            {
+              "id": "dots",
+              "label": "Which of your three answers is graphed on a number line with an OPEN dot?",
+              "type": "choice",
+              "options": [
+                "less than $2,050",
+                "at least $925",
+                "exactly $700"
+              ],
+              "answer": "less than $2,050"
+            }
+          ],
+          "hints": [
+            "For each amount, find the point on the graph where f(b) equals it, and read its b-value.",
+            "“At least” includes the boundary; “less than” does not.",
+            "An open dot means the boundary is not a solution."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. “At least $925” means total sales of…",
+            "options": [
+              "$925 or more",
+              "less than $925"
+            ],
+            "correct": "$925 or more"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Open or closed",
+                "instruction": "A closed dot means the boundary value is a solution (≤ or ≥). An open dot means it is not (< or >)."
+              }
+            ]
+          },
+          "solutionReview": {
+            "reasoning": [
+              "At least $925: 3.75b + 25 ≥ 925, so b ≥ 240.",
+              "Less than $2,050: 3.75b + 25 < 2050, so b < 540.",
+              "Exactly $700: 3.75b + 25 = 700, so b = 180.",
+              "Only the strict inequality, b < 540, uses an open dot."
+            ],
+            "commonError": "Reversing the symbol when nothing negative was multiplied or divided — 3.75 is positive."
+          }
+        },
+        {
+          "questionId": "m3l3h-cw-6",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Honors — Two fundraisers. The troop could sell scented candles instead: each candle earns $5, with no starting credit, so candle sales are c(b) = 5b. The graph shows c(b) and Elijah’s popcorn sales f(b) = 3.75b + 25 for b items sold. Use the graph and the equations.",
+          "graph": {
+            "xMin": 0,
+            "xMax": 40,
+            "yMin": 0,
+            "yMax": 200,
+            "xStep": 4,
+            "yStep": 20,
+            "xAxisLabel": "Items sold, b",
+            "yAxisLabel": "Total sales (dollars)",
+            "functions": [
+              {
+                "type": "line",
+                "m": 3.75,
+                "b": 25,
+                "domain": {
+                  "min": 0,
+                  "max": 40
+                }
+              },
+              {
+                "type": "line",
+                "m": 5,
+                "b": 0,
+                "domain": {
+                  "min": 0,
+                  "max": 40
+                }
+              }
+            ],
+            "points": [
+              {
+                "x": 36,
+                "y": 160,
+                "label": "popcorn"
+              },
+              {
+                "x": 24,
+                "y": 120,
+                "label": "candles"
+              }
+            ],
+            "caption": "Popcorn: f(b) = 3.75b + 25. Candles: c(b) = 5b."
+          },
+          "responses": [
+            {
+              "id": "meet",
+              "label": "The point where the two graphs meet",
+              "answer": "(20,100)",
+              "answerFormat": "orderedPair"
+            },
+            {
+              "id": "more",
+              "label": "An inequality for the numbers of items b for which candles earn MORE than popcorn",
+              "answer": "b > 20",
+              "inputProfile": "inequality"
+            },
+            {
+              "id": "least",
+              "label": "The least whole number of items for which candles earn more",
+              "answer": "21"
+            },
+            {
+              "id": "why",
+              "label": "Explain the graph: for those numbers of items…",
+              "type": "choice",
+              "options": [
+                "the candle graph is above the popcorn graph, because candles earn more for each item sold",
+                "the popcorn graph is above the candle graph",
+                "the two graphs are parallel",
+                "the popcorn credit makes popcorn earn more forever"
+              ],
+              "answer": "the candle graph is above the popcorn graph, because candles earn more for each item sold"
+            }
+          ],
+          "hints": [
+            "Find where the two graphs cross, then read both coordinates.",
+            "“Candles earn more” means 5b is greater than 3.75b + 25. Solve that inequality.",
+            "Only whole numbers of items can be sold: test the boundary and the next whole number."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Comparing two functions",
+                "instruction": "f(x) > g(x) is true exactly for the inputs where the graph of f is ABOVE the graph of g. The graphs meet where f(x) = g(x); solving the inequality algebraically finds the same inputs exactly."
+              }
+            ]
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. On a graph, “candles earn more than popcorn” means the candle graph is…",
+            "options": [
+              "above the popcorn graph",
+              "below the popcorn graph"
+            ],
+            "correct": "above the popcorn graph"
+          },
+          "attemptFeedback": [
+            "Set up 5b > 3.75b + 25 and collect the b-terms on one side.",
+            "At the crossing point the two sales are equal — that number of items is NOT a solution of “more than”."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "The graphs meet where 5b = 3.75b + 25: 1.25b = 25, so b = 20 and both sales are $100 — the point (20, 100).",
+              "Candles earn more when 5b > 3.75b + 25, so 1.25b > 25 and b > 20.",
+              "The least whole number of items is 21: candles $105, popcorn $103.75.",
+              "To the right of the crossing the candle graph is above, because its rate ($5 per item) is greater than popcorn’s ($3.75)."
+            ],
+            "commonError": "Answering 20 — at 20 items the sales are equal, not more."
+          }
+        },
+        {
+          "questionId": "m3l3h-cw-7",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveInequality"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Activity 3.2 — To make the first deposit on the trip, Elijah’s total sales, f(b), need to be at least $1,100. Solve 3.75b + 25 ≥ 1100 for b. Keep the boundary exact (a fraction is fine).",
+          "inequality": "3.75b + 25 >= 1100",
+          "representSolution": false,
+          "hints": [
+            "Undo the starting credit first, on both sides.",
+            "Then divide both sides by the price per box. Is it positive or negative?",
+            "Keep the result exact: write it as a fraction if it does not divide evenly."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The first step to isolate b in 3.75b + 25 ≥ 1100 is to…",
+            "options": [
+              "divide both sides by 3.75",
+              "subtract 25 from both sides"
+            ],
+            "correct": "subtract 25 from both sides"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Solving an inequality",
+                "instruction": "To solve an inequality means to determine the values of the variable that make it true. Isolate the variable on one side of the inequality symbol, just as you would for an equation."
+              }
+            ]
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Subtract 25 from both sides: 3.75b ≥ 1075.",
+              "Divide both sides by 3.75 (positive, so the symbol stays): b ≥ 860/3, about 286.67."
+            ],
+            "commonError": "Rounding the boundary in the middle of solving — keep it exact until you interpret it."
+          }
+        },
+        {
+          "questionId": "m3l3h-cw-8",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Your solution is b ≥ 860/3, about 286.67. How many boxes does Elijah need to sell to make the first deposit?",
+          "responses": [
+            {
+              "id": "boxes",
+              "label": "The least number of boxes Elijah can sell to make the deposit",
+              "answer": "287"
+            },
+            {
+              "id": "check",
+              "label": "Total sales, in dollars, for that many boxes",
+              "answer": "1101.25"
+            },
+            {
+              "id": "short",
+              "label": "Total sales, in dollars, for one box fewer",
+              "answer": "1097.5"
+            },
+            {
+              "id": "why",
+              "label": "Why is the answer not 286?",
+              "type": "choice",
+              "options": [
+                "286 boxes give less than $1,100.",
+                "You always round down.",
+                "286 is not a solution because it is even.",
+                "The inequality uses ≥, so you subtract 1."
+              ],
+              "answer": "286 boxes give less than $1,100."
+            }
+          ],
+          "hints": [
+            "Elijah can only sell whole boxes. Which whole numbers are in the solution set?",
+            "Substitute your number of boxes into f(b) = 3.75b + 25 and compare with the goal.",
+            "Then try one box fewer."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The solution set is every number of boxes from a little above 286 up. Is 286 boxes in it?",
+            "options": [
+              "Yes",
+              "No"
+            ],
+            "correct": "No"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "b ≥ 286.67 and b is a whole number, so the least number of boxes is 287.",
+              "f(287) = 3.75(287) + 25 = 1101.25, at least $1,100.",
+              "f(286) = 3.75(286) + 25 = 1097.50, short of $1,100."
+            ],
+            "commonError": "Rounding 286.67 to the nearest whole number gives 287 here by luck; the rule is to choose the least whole number that makes the inequality true."
+          }
+        },
+        {
+          "questionId": "m3l3h-cw-9",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Write and solve an inequality for each question. Then answer with a whole number of boxes.\na. What is the greatest number of boxes Elijah could sell and still NOT have made $600 in sales?\nb. At least how many boxes would Elijah have to sell to make $1,500 in sales?",
+          "responses": [
+            {
+              "id": "modelA",
+              "label": "a. Which inequality models “not yet $600”?",
+              "type": "choice",
+              "options": [
+                "3.75b + 25 < 600",
+                "3.75b + 25 ≤ 600",
+                "3.75b + 25 > 600",
+                "25b + 3.75 < 600"
+              ],
+              "answer": "3.75b + 25 < 600"
+            },
+            {
+              "id": "mostA",
+              "label": "a. The greatest whole number of boxes",
+              "answer": "153"
+            },
+            {
+              "id": "checkA",
+              "label": "a. Total sales, in dollars, for that many boxes",
+              "answer": "598.75"
+            },
+            {
+              "id": "modelB",
+              "label": "b. Which inequality models “at least $1,500”?",
+              "type": "choice",
+              "options": [
+                "3.75b + 25 ≥ 1500",
+                "3.75b + 25 > 1500",
+                "3.75b + 25 ≤ 1500",
+                "3.75b ≥ 1500 + 25"
+              ],
+              "answer": "3.75b + 25 ≥ 1500"
+            },
+            {
+              "id": "leastB",
+              "label": "b. The least whole number of boxes",
+              "answer": "394"
+            },
+            {
+              "id": "checkB",
+              "label": "b. Total sales, in dollars, for that many boxes",
+              "answer": "1502.5"
+            }
+          ],
+          "hints": [
+            "Solve each inequality the way you would solve an equation; keep the boundary exact.",
+            "“Not yet $600” is a strict inequality. Its largest whole-number solution is just below the boundary.",
+            "“At least $1,500” includes $1,500. Its least whole-number solution is just above the boundary."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. “Still not $600 in sales” means total sales that are…",
+            "options": [
+              "less than $600",
+              "$600 or more"
+            ],
+            "correct": "less than $600"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "a. 3.75b + 25 < 600 → 3.75b < 575 → b < 153.33…, so the greatest whole number is 153 (f(153) = 598.75).",
+              "b. 3.75b + 25 ≥ 1500 → 3.75b ≥ 1475 → b ≥ 393.33…, so the least whole number is 394 (f(394) = 1502.50)."
+            ],
+            "commonError": "Rounding 393.33 down to 393 — 393 boxes give only $1,498.75, which is not at least $1,500."
+          }
+        },
+        {
+          "questionId": "m3l3h-cw-10",
+          "standard": "A.2C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "identifyQuantities",
+            "writeEquation",
+            "completeTable",
+            "constructGraph",
+            "stateDomain",
+            "stateRange"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Activity 3.3 — Elijah’s troop hikes down from their campsite to the base of the mountain. Model the troop’s elevation h(m) after m minutes, complete the table, graph the model, and state the reasonable domain and range.",
+          "scenario": "The campsite is at an elevation of 4,800 feet and the base of the mountain is at sea level, 0 feet. The troop hikes down at a rate of 20 feet per minute.",
+          "quantities": [
+            {
+              "id": "time",
+              "label": "Time hiking",
+              "unit": "minutes"
+            },
+            {
+              "id": "elevation",
+              "label": "Troop’s elevation",
+              "unit": "feet"
+            }
+          ],
+          "correctIndependentId": "time",
+          "correctDependentId": "elevation",
+          "equationPrompt": "Write the function h(m) for the troop’s elevation after m minutes.",
+          "domainPrompt": "Write the reasonable domain as an inequality in m.",
+          "rangePrompt": "Write the reasonable range as an inequality in h.",
+          "answerModel": {
+            "equation": "h(m)=4800-20m",
+            "tableXValues": [
+              0,
+              60,
+              120,
+              180,
+              240
+            ],
+            "domain": "0<=m<=240",
+            "range": "0<=h<=4800",
+            "continuity": "continuous",
+            "graphMode": "continuous"
+          },
+          "graph": {
+            "xMin": 0,
+            "xMax": 260,
+            "yMin": 0,
+            "yMax": 5200,
+            "xStep": 20,
+            "yStep": 400
+          },
+          "hints": [
+            "The elevation goes DOWN as time goes up, so the rate of change is negative.",
+            "The hike ends when the troop reaches sea level."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. As the minutes go by, the troop’s elevation…",
+            "options": [
+              "goes up",
+              "goes down"
+            ],
+            "correct": "goes down"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "The elevation starts at 4,800 feet and drops 20 feet each minute: h(m) = 4800 − 20m.",
+              "Solve 4800 − 20m = 0: the hike ends after 240 minutes.",
+              "Domain 0 ≤ m ≤ 240 and range 0 ≤ h ≤ 4800."
+            ],
+            "commonError": "Writing +20m — losing elevation makes the rate of change negative."
+          }
+        },
+        {
+          "questionId": "m3l3h-cw-11",
+          "standard": "A.3B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "The troop’s elevation after m minutes is h(m) = 4800 − 20m feet. Find the slope, the y-intercept and the x-intercept, and choose what each one means in this situation.",
+          "responses": [
+            {
+              "id": "slope",
+              "label": "Slope",
+              "answer": "-20"
+            },
+            {
+              "id": "slopeMeaning",
+              "label": "What the slope means",
+              "type": "choice",
+              "options": [
+                "The troop descends 20 feet each minute.",
+                "The troop climbs 20 feet each minute.",
+                "The hike lasts 20 minutes.",
+                "The troop starts 20 feet above sea level."
+              ],
+              "answer": "The troop descends 20 feet each minute."
+            },
+            {
+              "id": "yIntercept",
+              "label": "y-intercept (the value of h when m = 0)",
+              "answer": "4800"
+            },
+            {
+              "id": "yMeaning",
+              "label": "What the y-intercept means",
+              "type": "choice",
+              "options": [
+                "The campsite is at an elevation of 4,800 feet.",
+                "The troop hikes for 4,800 minutes.",
+                "The troop descends 4,800 feet each minute.",
+                "The troop finishes at 4,800 feet."
+              ],
+              "answer": "The campsite is at an elevation of 4,800 feet."
+            },
+            {
+              "id": "xIntercept",
+              "label": "x-intercept (the value of m when h = 0)",
+              "answer": "240"
+            },
+            {
+              "id": "xMeaning",
+              "label": "What the x-intercept means",
+              "type": "choice",
+              "options": [
+                "The troop reaches sea level after 240 minutes.",
+                "The troop starts 240 feet above sea level.",
+                "The troop descends 240 feet each minute.",
+                "The troop has hiked 240 feet when it starts."
+              ],
+              "answer": "The troop reaches sea level after 240 minutes."
+            }
+          ],
+          "hints": [
+            "In h(m) = (start) + (rate)·m, the coefficient of m is the slope.",
+            "To find the x-intercept, set h(m) equal to zero and solve for m."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The y-intercept of h(m) is the elevation when…",
+            "options": [
+              "the troop reaches sea level",
+              "no time has passed"
+            ],
+            "correct": "no time has passed"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "The coefficient of m, −20, is the rate: the troop descends 20 feet per minute.",
+              "h(0) = 4800: the campsite is at 4,800 feet.",
+              "4800 − 20m = 0 gives m = 240: the troop reaches sea level after 240 minutes."
+            ],
+            "commonError": "Giving the slope as 20 — the elevation decreases, so the slope is negative."
+          }
+        },
+        {
+          "questionId": "m3l3h-cw-12",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveInequality"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "When is the troop below 3,200 feet? Solve 4800 − 20m < 3200 for m. Then graph its solution.",
+          "inequality": "4800 - 20m < 3200",
+          "hints": [
+            "Undo the starting elevation first, on both sides.",
+            "You will divide both sides by a negative number. What must happen to the symbol?",
+            "Check with a time from your solution: is the troop below 3,200 feet then?"
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. After subtracting 4800 from both sides, you divide both sides by −20. The symbol…",
+            "options": [
+              "stays the same",
+              "reverses"
+            ],
+            "correct": "reverses"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Subtract 4800 from both sides: −20m < −1600.",
+              "Divide both sides by −20 and reverse the symbol: m > 80.",
+              "In context the hike lasts 240 minutes, so the troop is below 3,200 feet for 80 < m ≤ 240."
+            ],
+            "commonError": "Writing m < 80: dividing by −20 reverses the symbol."
+          }
+        },
+        {
+          "questionId": "m3l3h-cw-13",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Each statement about the troop’s elevation h(m) = 4800 − 20m matches an inequality about the minutes m. Solve each one for m (ignore the end of the hike), then compare the symbols.",
+          "table": {
+            "columns": [
+              {
+                "key": "h",
+                "label": "Elevation statement"
+              },
+              {
+                "key": "m",
+                "label": "Minutes statement"
+              }
+            ],
+            "rows": [
+              {
+                "h": "h(m) > 3200",
+                "m": "?"
+              },
+              {
+                "h": "h(m) ≥ 1600",
+                "m": "?"
+              },
+              {
+                "h": "h(m) < 800",
+                "m": "?"
+              },
+              {
+                "h": "h(m) ≤ 4000",
+                "m": "?"
+              }
+            ]
+          },
+          "responses": [
+            {
+              "id": "r1",
+              "label": "h(m) > 3200 means…",
+              "answer": "m<80",
+              "inputProfile": "inequality"
+            },
+            {
+              "id": "r2",
+              "label": "h(m) ≥ 1600 means…",
+              "answer": "m<=160",
+              "inputProfile": "inequality"
+            },
+            {
+              "id": "r3",
+              "label": "h(m) < 800 means…",
+              "answer": "m>200",
+              "inputProfile": "inequality"
+            },
+            {
+              "id": "r4",
+              "label": "h(m) ≤ 4000 means…",
+              "answer": "m>=40",
+              "inputProfile": "inequality"
+            },
+            {
+              "id": "notice",
+              "label": "What do you notice about the symbols in each row?",
+              "type": "choice",
+              "options": [
+                "The symbol reverses direction.",
+                "The symbol stays the same.",
+                "Only strict symbols reverse.",
+                "The symbols become equal signs."
+              ],
+              "answer": "The symbol reverses direction."
+            },
+            {
+              "id": "why",
+              "label": "Why does that happen?",
+              "type": "choice",
+              "options": [
+                "Solving for m divides both sides by −20, a negative number.",
+                "The elevation starts at 4,800 feet.",
+                "Time can never be negative.",
+                "Subtracting 4800 reverses the symbol."
+              ],
+              "answer": "Solving for m divides both sides by −20, a negative number."
+            }
+          ],
+          "hints": [
+            "Replace h(m) with 4800 − 20m and solve, as you did for 3,200 feet.",
+            "Every row divides by the same negative number.",
+            "Higher elevations happen EARLIER in the hike."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The troop is higher up the mountain…",
+            "options": [
+              "later in the hike",
+              "earlier in the hike"
+            ],
+            "correct": "earlier in the hike"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "4800 − 20m > 3200 → −20m > −1600 → m < 80. Likewise m ≤ 160, m > 200 and m ≥ 40.",
+              "Every row reverses the symbol, because solving divides both sides by −20.",
+              "In context: a higher elevation (h greater) means fewer minutes (m less)."
+            ],
+            "commonError": "Keeping the symbol pointing the same way after dividing by −20."
+          }
+        },
+        {
+          "questionId": "m3l3h-cw-14",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "constructInterval"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Honors — Between two elevations. The troop’s elevation is h(m) = 4800 − 20m feet after m minutes. Their radios work only while they are BELOW 3,200 feet and ABOVE 2,000 feet. Solve both inequalities on paper, then graph every time m when the radios work and write it as one compound inequality, with the smaller number first.",
+          "inequality": "80 < m < 140",
+          "variable": "m",
+          "intervals": [
+            {
+              "min": 80,
+              "max": 140,
+              "minClosed": false,
+              "maxClosed": false
+            }
+          ],
+          "ask": [
+            "graph",
+            "inequality"
+          ],
+          "min": 0,
+          "max": 240,
+          "step": 20,
+          "autoViewport": false,
+          "hints": [
+            "Write one inequality for each condition: 4800 − 20m < 3200 and 4800 − 20m > 2000.",
+            "Each solve divides both sides by −20, so each symbol reverses.",
+            "The times that satisfy BOTH conditions lie between the two boundaries — and the boundaries themselves are not included."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Compound inequality",
+                "instruction": "When a quantity must satisfy two conditions at once, its solution set is where both solution sets overlap. Write it as one statement, such as a < m < b, with the smaller number on the left."
+              }
+            ]
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. “Below 3,200 feet” for the elevation 4800 − 20m is the inequality…",
+            "options": [
+              "4800 − 20m < 3200",
+              "4800 − 20m > 3200"
+            ],
+            "correct": "4800 − 20m < 3200"
+          },
+          "attemptFeedback": [
+            "Solve each inequality separately first; each one reverses when you divide by −20.",
+            "Keep only the times that satisfy both inequalities, with open dots at both boundaries."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Below 3,200 feet: 4800 − 20m < 3200 → −20m < −1600 → m > 80.",
+              "Above 2,000 feet: 4800 − 20m > 2000 → −20m < −2800 → m < 140.",
+              "Both: 80 < m < 140 — open dots at 80 and 140, shaded between."
+            ],
+            "commonError": "Keeping both symbols after dividing by −20, which gives the impossible “m < 80 and m > 140”."
+          }
+        },
+        {
+          "questionId": "m3l3h-cw-15",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Activity 3.4 — Victoria and Kai each solved 5x + 2 ≥ 3x − 10.\nVictoria:  2x + 2 ≥ −10  →  2x ≥ −12  →  x ≥ −6\nKai:  2 ≥ −2x − 10  →  12 ≥ −2x  →  −6 ≤ x",
+          "responses": [
+            {
+              "id": "v1",
+              "label": "Victoria’s first step…",
+              "type": "choice",
+              "options": [
+                "subtracts 3x from both sides",
+                "subtracts 5x from both sides",
+                "adds 10 to both sides",
+                "divides both sides by 2"
+              ],
+              "answer": "subtracts 3x from both sides"
+            },
+            {
+              "id": "k1",
+              "label": "Kai’s first step…",
+              "type": "choice",
+              "options": [
+                "subtracts 5x from both sides",
+                "subtracts 3x from both sides",
+                "subtracts 2 from both sides",
+                "divides both sides by 5"
+              ],
+              "answer": "subtracts 5x from both sides"
+            },
+            {
+              "id": "kdiv",
+              "label": "Kai’s last step divides both sides by…",
+              "answer": "-2"
+            },
+            {
+              "id": "same",
+              "label": "Victoria wrote x ≥ −6 and Kai wrote −6 ≤ x. These…",
+              "type": "choice",
+              "options": [
+                "describe the same solution set",
+                "are different because the symbols point different ways",
+                "are different because Kai divided by a negative",
+                "cannot be compared"
+              ],
+              "answer": "describe the same solution set"
+            },
+            {
+              "id": "left",
+              "label": "Check x = 0: the value of 5x + 2",
+              "answer": "2"
+            },
+            {
+              "id": "right",
+              "label": "Check x = 0: the value of 3x − 10",
+              "answer": "-10"
+            }
+          ],
+          "hints": [
+            "Compare each student’s first line with the original inequality: which x-term disappeared?",
+            "Kai’s last line came from dividing by the coefficient of x in 12 ≥ −2x.",
+            "Read −6 ≤ x from the variable’s point of view: x is greater than or equal to −6."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. −6 ≤ x says the same thing as…",
+            "options": [
+              "x ≤ −6",
+              "x ≥ −6"
+            ],
+            "correct": "x ≥ −6"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Variables on both sides",
+                "instruction": "Solve an inequality with variables on both sides the way you solve an equation: collect the variable terms on one side. Reverse the symbol only if you multiply or divide by a negative number."
+              }
+            ]
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Victoria subtracted 3x from both sides, so her x-coefficient stayed positive and she never reversed the symbol.",
+              "Kai subtracted 5x, leaving −2x; dividing by −2 reversed ≥ into ≤: −6 ≤ x.",
+              "x ≥ −6 and −6 ≤ x are the same solution set. At x = 0: 2 ≥ −10 is true."
+            ],
+            "commonError": "Thinking Kai is wrong because his symbol points the other way — read it from the variable’s side."
+          }
+        },
+        {
+          "questionId": "m3l3h-cw-16",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Aaliyah and Ava each solved −4(x − 6) < 22.\nAaliyah:  −4x + 24 < 22  →  −4x < −2  →  x > 1/2\nAva:  x − 6 > −5.5  →  x > 0.5",
+          "responses": [
+            {
+              "id": "aRev",
+              "label": "Which step of Aaliyah’s reverses the symbol?",
+              "type": "choice",
+              "options": [
+                "Dividing both sides by −4",
+                "Distributing −4",
+                "Subtracting 24 from both sides",
+                "None of her steps"
+              ],
+              "answer": "Dividing both sides by −4"
+            },
+            {
+              "id": "avaStep",
+              "label": "Ava’s first step…",
+              "type": "choice",
+              "options": [
+                "divides both sides by −4 and reverses the symbol",
+                "distributes −4",
+                "adds 6 to both sides",
+                "divides both sides by 4"
+              ],
+              "answer": "divides both sides by −4 and reverses the symbol"
+            },
+            {
+              "id": "boundary",
+              "label": "The boundary value of the solution, as a decimal",
+              "answer": "0.5"
+            },
+            {
+              "id": "compare",
+              "label": "Solving an inequality with the distributive property compares to solving an equation like this:",
+              "type": "choice",
+              "options": [
+                "The steps are the same, but the symbol reverses whenever you multiply or divide by a negative.",
+                "You may never distribute in an inequality.",
+                "You must always divide before you distribute.",
+                "The symbol reverses whenever you distribute."
+              ],
+              "answer": "The steps are the same, but the symbol reverses whenever you multiply or divide by a negative."
+            }
+          ],
+          "hints": [
+            "Look for the step in each solution where a negative number divides both sides.",
+            "Ava divided −4(x − 6) by −4 first. What happened to the symbol?",
+            "To write the boundary as a decimal, divide its numerator by its denominator."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Distributing −4 to (x − 6) changes the inequality symbol?",
+            "options": [
+              "Yes",
+              "No"
+            ],
+            "correct": "No"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Aaliyah: distributing does not change the symbol; dividing by −4 does: −4x < −2 → x > 1/2.",
+              "Ava: dividing both sides by −4 first reverses < into >: x − 6 > −5.5, so x > 0.5.",
+              "Both reach the same solution: x > 1/2."
+            ],
+            "commonError": "Reversing the symbol while distributing — only multiplying or dividing BOTH sides by a negative reverses it."
+          }
+        },
+        {
+          "questionId": "m3l3h-cw-17",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "matchFigures"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Talk the Talk — It’s About Solutions, More or Less. Suppose A < B. Sort each statement: is it always true, sometimes true, or never true?",
+          "figures": [
+            {
+              "id": "s1",
+              "math": "A + C < B + C",
+              "category": "always"
+            },
+            {
+              "id": "s2",
+              "math": "A − C < B − C",
+              "category": "always"
+            },
+            {
+              "id": "s3",
+              "math": "AC < BC",
+              "category": "sometimes"
+            },
+            {
+              "id": "s4",
+              "math": "AC > BC",
+              "category": "sometimes"
+            },
+            {
+              "id": "s5",
+              "math": "−A > −B",
+              "category": "always"
+            },
+            {
+              "id": "s6",
+              "math": "−A < −B",
+              "category": "never"
+            },
+            {
+              "id": "s7",
+              "math": "A − B > 0",
+              "category": "never"
+            }
+          ],
+          "categories": [
+            {
+              "id": "always",
+              "label": "Always true"
+            },
+            {
+              "id": "sometimes",
+              "label": "Sometimes true"
+            },
+            {
+              "id": "never",
+              "label": "Never true"
+            }
+          ],
+          "hints": [
+            "Test with numbers: take A = 2 and B = 5, then try a positive C and a negative C.",
+            "Adding or subtracting the same number keeps the order.",
+            "Multiplying by a negative number reverses the order; multiplying by a positive keeps it."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. If 2 < 5, which statement is true?",
+            "options": [
+              "−2 < −5",
+              "−2 > −5"
+            ],
+            "correct": "−2 > −5"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Adding or subtracting C on both sides never changes the order: always true.",
+              "Multiplying by C keeps the order when C is positive and reverses it when C is negative: AC < BC and AC > BC are each sometimes true.",
+              "Multiplying both sides by −1 reverses the order: −A > −B is always true, so −A < −B is never true.",
+              "A < B means A − B is negative, so A − B > 0 is never true."
+            ],
+            "commonError": "Deciding AC < BC is always true without testing a negative C."
+          }
+        },
+        {
+          "questionId": "m3l3h-cw-18",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Talk the Talk — Honors. In kx + 3 > 7, the letter k stands for a number that is not known yet. Reason about how k decides the solution set, and justify each answer with what you know about inequalities.",
+          "responses": [
+            {
+              "id": "pos",
+              "label": "If k is positive, the solution set of kx + 3 > 7 is…",
+              "type": "choice",
+              "options": [
+                "x > 4/k",
+                "x < 4/k",
+                "x = 4/k",
+                "every real number"
+              ],
+              "answer": "x > 4/k"
+            },
+            {
+              "id": "neg",
+              "label": "If k is negative, the solution set is…",
+              "type": "choice",
+              "options": [
+                "x > 4/k",
+                "x < 4/k",
+                "x = 4/k",
+                "no solution"
+              ],
+              "answer": "x < 4/k"
+            },
+            {
+              "id": "k",
+              "label": "The value of k for which the solution set is x < −2",
+              "answer": "-2"
+            },
+            {
+              "id": "zero",
+              "label": "If k = 0, the inequality becomes 3 > 7, so its solution set is…",
+              "type": "choice",
+              "options": [
+                "no solution",
+                "every real number",
+                "x > 4",
+                "x > 0"
+              ],
+              "answer": "no solution"
+            }
+          ],
+          "hints": [
+            "Subtract 3 from both sides first: kx > 4.",
+            "Dividing by a positive k keeps the symbol; dividing by a negative k reverses it.",
+            "For the third part: that solution set has a reversed symbol, so k is negative — then set the boundary 4/k equal to the number in that solution set."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Subtracting 3 from both sides of kx + 3 > 7 gives…",
+            "options": [
+              "kx > 4",
+              "kx > 10"
+            ],
+            "correct": "kx > 4"
+          },
+          "attemptFeedback": [
+            "After kx > 4, decide the symbol by the SIGN of k before you divide.",
+            "For x < −2 the boundary is 4/k, and the symbol reversed."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "kx + 3 > 7 → kx > 4.",
+              "k > 0: divide and keep the symbol: x > 4/k. k < 0: divide and reverse it: x < 4/k.",
+              "x < −2 needs k < 0 and 4/k = −2, so k = −2.",
+              "k = 0: 0 + 3 > 7 is false for every x — no solution."
+            ],
+            "commonError": "Dividing by k without asking whether k is negative — the sign of k decides the direction of the symbol."
+          }
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "role": "practice",
+      "title": "Practice — Linear Inequalities and Their Models",
+      "recommendedMinutes": 45,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "m3l3h-pr-1",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveInequality"
+          ],
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "Solve {{inequality}}. Then graph its solution.",
+          "questionFamily": {
+            "id": "inequalities.solveLinear",
+            "constraints": {
+              "reversal": "required",
+              "distribute": true,
+              "bothSides": true
+            }
+          },
+          "hints": [
+            "Solve it the way you would solve an equation: simplify each side, then collect the variable terms on one side.",
+            "If you multiply or divide both sides by a negative number, reverse the inequality symbol.",
+            "Graph: a closed dot for ≤ or ≥, an open dot for < or >. Test a number on your shaded side in the original inequality."
+          ],
+          "attemptFeedback": [
+            "Check every multiplication or division: if the number was negative, the inequality symbol must reverse.",
+            "Test a value from your solution in the ORIGINAL inequality. If it makes the inequality false, look for a step where the symbol should have reversed."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Simplify each side: distribute and combine like terms.",
+              "Collect the variable terms on one side and the constants on the other, doing the same thing to both sides.",
+              "Divide both sides by the coefficient of the variable. If it is negative, reverse the inequality symbol.",
+              "Graph the solution: an open dot for < or >, a closed dot for ≤ or ≥, shaded toward the solutions.",
+              "Check: a test value from the shaded side makes the original inequality true."
+            ],
+            "commonError": "Forgetting to reverse the symbol after dividing both sides by a negative number."
+          }
+        },
+        {
+          "questionId": "m3l3h-pr-2",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveInequality"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve {{inequality}}. Then graph its solution.",
+          "questionFamily": {
+            "id": "inequalities.solveLinear",
+            "constraints": {
+              "reversal": "mixed",
+              "distribute": "mixed",
+              "bothSides": true
+            }
+          },
+          "hints": [
+            "Solve it the way you would solve an equation: simplify each side, then collect the variable terms on one side.",
+            "If you multiply or divide both sides by a negative number, reverse the inequality symbol.",
+            "Graph: a closed dot for ≤ or ≥, an open dot for < or >. Test a number on your shaded side in the original inequality."
+          ],
+          "attemptFeedback": [
+            "Check every multiplication or division: if the number was negative, the inequality symbol must reverse.",
+            "Test a value from your solution in the ORIGINAL inequality. If it makes the inequality false, look for a step where the symbol should have reversed."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Simplify each side: distribute and combine like terms.",
+              "Collect the variable terms on one side and the constants on the other, doing the same thing to both sides.",
+              "Divide both sides by the coefficient of the variable. If it is negative, reverse the inequality symbol.",
+              "Graph the solution: an open dot for < or >, a closed dot for ≤ or ≥, shaded toward the solutions.",
+              "Check: a test value from the shaded side makes the original inequality true."
+            ],
+            "commonError": "Forgetting to reverse the symbol after dividing both sides by a negative number."
+          }
+        },
+        {
+          "questionId": "m3l3h-pr-3",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveInequality"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve {{inequality}}. Then graph its solution.",
+          "questionFamily": {
+            "id": "inequalities.solveLinear",
+            "constraints": {
+              "reversal": "required",
+              "distribute": true,
+              "bothSides": false
+            }
+          },
+          "hints": [
+            "Solve it the way you would solve an equation: simplify each side, then collect the variable terms on one side.",
+            "If you multiply or divide both sides by a negative number, reverse the inequality symbol.",
+            "Graph: a closed dot for ≤ or ≥, an open dot for < or >. Test a number on your shaded side in the original inequality."
+          ],
+          "attemptFeedback": [
+            "Check every multiplication or division: if the number was negative, the inequality symbol must reverse.",
+            "Test a value from your solution in the ORIGINAL inequality. If it makes the inequality false, look for a step where the symbol should have reversed."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Simplify each side: distribute and combine like terms.",
+              "Collect the variable terms on one side and the constants on the other, doing the same thing to both sides.",
+              "Divide both sides by the coefficient of the variable. If it is negative, reverse the inequality symbol.",
+              "Graph the solution: an open dot for < or >, a closed dot for ≤ or ≥, shaded toward the solutions.",
+              "Check: a test value from the shaded side makes the original inequality true."
+            ],
+            "commonError": "Forgetting to reverse the symbol after dividing both sides by a negative number."
+          }
+        },
+        {
+          "questionId": "m3l3h-pr-4",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Model, solve, interpret. {{situation}}",
+          "questionFamily": {
+            "id": "inequalities.contextModel",
+            "constraints": {
+              "direction": "decreasing"
+            }
+          },
+          "hints": [
+            "A decreasing amount is (starting amount) − (rate) · (variable).",
+            "Solving will divide both sides by a negative number. What happens to the symbol?",
+            "Check your whole-number answer in the original inequality."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Dividing both sides of an inequality by a negative number…",
+            "options": [
+              "keeps the symbol",
+              "reverses the symbol"
+            ],
+            "correct": "reverses the symbol"
+          },
+          "attemptFeedback": [
+            "The rate is negative: when you divide by it, reverse the inequality symbol.",
+            "Substitute your whole-number answer into the situation to check that it meets the condition."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Write the amount: starting amount − rate × time, and compare it with the condition.",
+              "Solve: dividing both sides by the negative rate reverses the symbol.",
+              "Choose the whole number that makes sense in the situation, and check it."
+            ],
+            "commonError": "Keeping the symbol after dividing by a negative rate."
+          }
+        },
+        {
+          "questionId": "m3l3h-pr-5",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Model, solve, interpret. {{situation}}",
+          "questionFamily": {
+            "id": "inequalities.contextModel",
+            "constraints": {
+              "direction": "increasing"
+            }
+          },
+          "hints": [
+            "Write the total as (starting amount) + (rate) · (variable), then compare it with the goal using the right symbol.",
+            "Solve it the way you would solve an equation.",
+            "Only whole numbers make sense in the situation: check the whole number you choose in the original inequality."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. A goal of “at least” an amount uses which symbol?",
+            "options": [
+              "≤",
+              "≥"
+            ],
+            "correct": "≥"
+          },
+          "attemptFeedback": [
+            "Check the direction of your symbol against the words of the situation (at least, at most, more than, less than).",
+            "Your whole-number answer must make the original inequality true — substitute it to check."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Write the total: starting amount + rate × number of units, and compare it with the goal.",
+              "Solve the inequality for the variable.",
+              "Choose the whole number that makes sense: the least one for “at least”, the greatest one for “at most” or “less than”."
+            ],
+            "commonError": "Rounding the boundary to the nearest whole number instead of checking which whole numbers satisfy the inequality."
+          }
+        },
+        {
+          "questionId": "m3l3h-pr-6",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveInequality"
+          ],
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "Solve (2/3)x − 4 ≥ (1/6)x + 5. Then graph its solution.",
+          "inequality": "(2/3)x - 4 >= (1/6)x + 5",
+          "hints": [
+            "Clear the fractions: multiply every term on both sides by 6. A positive number keeps the symbol.",
+            "Collect the x-terms on one side and the constants on the other.",
+            "Divide by the coefficient of x; then graph with a closed dot for ≥."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Multiplying both sides of an inequality by 6…",
+            "options": [
+              "keeps the symbol",
+              "reverses the symbol"
+            ],
+            "correct": "keeps the symbol"
+          },
+          "attemptFeedback": [
+            "If you cleared the fractions, check that every term on both sides was multiplied by 6.",
+            "Test a value from your shaded side in the original inequality."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Multiply every term by 6: 4x − 24 ≥ x + 30.",
+              "Subtract x and add 24: 3x ≥ 54, so x ≥ 18.",
+              "Graph: closed dot at 18, shaded to the right. Check x = 24: 12 ≥ 9 is true."
+            ],
+            "commonError": "Multiplying only the fraction terms by 6."
+          }
+        },
+        {
+          "questionId": "m3l3h-pr-7",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveInequality"
+          ],
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "Solve 0.5(6 − 4x) > 1.2x − 3.4. Then graph its solution.",
+          "inequality": "0.5(6 - 4x) > 1.2x - 3.4",
+          "hints": [
+            "Distribute 0.5 to both terms in the parentheses.",
+            "Collect the x-terms on one side. If you divide by a negative coefficient, reverse the symbol.",
+            "Graph with an open dot for > or <, and test a value."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. 0.5(6 − 4x) is equal to…",
+            "options": [
+              "3 − 2x",
+              "3 − 4x"
+            ],
+            "correct": "3 − 2x"
+          },
+          "attemptFeedback": [
+            "Check every multiplication or division: if the number was negative, the inequality symbol must reverse.",
+            "Test a value from your solution in the ORIGINAL inequality. If it makes the inequality false, look for a step where the symbol should have reversed."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Distribute: 3 − 2x > 1.2x − 3.4.",
+              "Subtract 1.2x and 3: −3.2x > −6.4.",
+              "Divide by −3.2 and reverse: x < 2. Graph: open dot at 2, shaded to the left."
+            ],
+            "commonError": "Dividing by −3.2 without reversing the symbol."
+          }
+        },
+        {
+          "questionId": "m3l3h-pr-8",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveInequality"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve −2(3x − 4) ≥ 5x − 14. Then graph its solution.",
+          "inequality": "-2(3x - 4) >= 5x - 14",
+          "hints": [
+            "Solve it the way you would solve an equation: simplify each side, then collect the variable terms on one side.",
+            "If you multiply or divide both sides by a negative number, reverse the inequality symbol.",
+            "Graph: a closed dot for ≤ or ≥, an open dot for < or >. Test a number on your shaded side in the original inequality."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. −2(3x − 4) is equal to…",
+            "options": [
+              "−6x + 8",
+              "−6x − 8"
+            ],
+            "correct": "−6x + 8"
+          },
+          "attemptFeedback": [
+            "Check every multiplication or division: if the number was negative, the inequality symbol must reverse.",
+            "Test a value from your solution in the ORIGINAL inequality. If it makes the inequality false, look for a step where the symbol should have reversed."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Distribute: −6x + 8 ≥ 5x − 14.",
+              "Subtract 5x and 8: −11x ≥ −22.",
+              "Divide by −11 and reverse: x ≤ 2. Graph: closed dot at 2, shaded to the left."
+            ],
+            "commonError": "Writing −2(−4) as −8."
+          }
+        },
+        {
+          "questionId": "m3l3h-pr-9",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "matchFigures"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Every number, no number, or only some numbers? Simplify each inequality, then sort it by its solution set.",
+          "figures": [
+            {
+              "id": "i1",
+              "math": "3(x + 2) > 3x + 1",
+              "category": "all"
+            },
+            {
+              "id": "i2",
+              "math": "4(x − 1) ≤ 4x − 4",
+              "category": "all"
+            },
+            {
+              "id": "i3",
+              "math": "7x − 2 > 7x − 3",
+              "category": "all"
+            },
+            {
+              "id": "i4",
+              "math": "5x − 4 ≥ 5(x + 1)",
+              "category": "none"
+            },
+            {
+              "id": "i5",
+              "math": "−2(x − 3) < 6 − 2x",
+              "category": "none"
+            },
+            {
+              "id": "i6",
+              "math": "−(x + 4) ≤ −x − 5",
+              "category": "none"
+            },
+            {
+              "id": "i7",
+              "math": "2x + 7 < 3x + 7",
+              "category": "part"
+            },
+            {
+              "id": "i8",
+              "math": "6 − x ≥ 2(3 − x)",
+              "category": "part"
+            }
+          ],
+          "categories": [
+            {
+              "id": "all",
+              "label": "Every real number"
+            },
+            {
+              "id": "none",
+              "label": "No solution"
+            },
+            {
+              "id": "part",
+              "label": "Some numbers, but not all"
+            }
+          ],
+          "hints": [
+            "Simplify each side to the form ax + b first.",
+            "If the x-terms are the same on both sides, subtracting them leaves a statement with no variable: decide whether it is true or false.",
+            "A true statement means every number works; a false one means none does. Different x-terms leave a boundary."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. After the x-terms cancel, 3(x + 2) > 3x + 1 leaves 6 > 1. That statement is…",
+            "options": [
+              "true",
+              "false"
+            ],
+            "correct": "true"
+          },
+          "attemptFeedback": [
+            "Simplify both sides completely before you sort: distribute, then combine like terms.",
+            "When the x-terms cancel, test the statement that is left — true for every x, or false for every x."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Same x-terms, true statement left: 6 > 1, −4 ≤ −4 and −2 > −3 — every real number.",
+              "Same x-terms, false statement left: −4 ≥ 5, 6 < 6 and −4 ≤ −5 — no solution.",
+              "2x + 7 < 3x + 7 gives x > 0, and 6 − x ≥ 6 − 2x gives x ≥ 0: each is only part of the number line."
+            ],
+            "commonError": "Calling −4 ≤ −4 false: ≤ includes equal, so it is true for every x."
+          }
+        },
+        {
+          "questionId": "m3l3h-pr-10",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "A parameter. In a(x − 2) ≥ 6, the letter a stands for a nonzero number. Use the structure of the inequality, and explain each answer to yourself before you enter it.",
+          "responses": [
+            {
+              "id": "three",
+              "label": "If a = 3, the solution set",
+              "answer": "x >= 4",
+              "inputProfile": "inequality"
+            },
+            {
+              "id": "a",
+              "label": "The value of a for which the solution set is x ≤ −1",
+              "answer": "-2"
+            },
+            {
+              "id": "sign",
+              "label": "For which values of a does the symbol reverse when you solve?",
+              "type": "choice",
+              "options": [
+                "negative values of a",
+                "positive values of a",
+                "every value of a",
+                "no value of a"
+              ],
+              "answer": "negative values of a"
+            }
+          ],
+          "hints": [
+            "Divide both sides by a first. Its sign decides the direction of the symbol.",
+            "Then add 2 to both sides.",
+            "For the second part, the boundary 2 + 6/a must equal −1, with a reversed symbol."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Dividing both sides of a(x − 2) ≥ 6 by a positive a gives…",
+            "options": [
+              "x − 2 ≥ 6/a",
+              "x − 2 ≤ 6/a"
+            ],
+            "correct": "x − 2 ≥ 6/a"
+          },
+          "attemptFeedback": [
+            "Decide the sign of a before you divide by it.",
+            "For x ≤ −1: 2 + 6/a = −1, so 6/a = −3."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "a = 3: x − 2 ≥ 2, so x ≥ 4.",
+              "A reversed symbol (x ≤ …) needs a < 0. Then x ≤ 2 + 6/a, and 2 + 6/a = −1 gives 6/a = −3, so a = −2.",
+              "Dividing by a negative a reverses the symbol; dividing by a positive a keeps it."
+            ],
+            "commonError": "Setting 6/a = −1 and forgetting the + 2 from undoing the subtraction."
+          }
+        },
+        {
+          "questionId": "m3l3h-pr-11",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "Model and compare. Gym A charges a $30 joining fee plus $25 per month. Gym B charges $40 per month with no fee. Model each total cost for m months, then find when Gym A costs LESS.",
+          "responses": [
+            {
+              "id": "a",
+              "label": "Gym A’s total cost for m months, as an expression",
+              "answer": "30 + 25m",
+              "inputProfile": "expression",
+              "gradingMode": "equivalentExpression"
+            },
+            {
+              "id": "b",
+              "label": "Gym B’s total cost for m months, as an expression",
+              "answer": "40m",
+              "inputProfile": "expression",
+              "gradingMode": "equivalentExpression"
+            },
+            {
+              "id": "when",
+              "label": "The solution set of the inequality for “Gym A costs less”",
+              "answer": "m > 2",
+              "inputProfile": "inequality"
+            },
+            {
+              "id": "least",
+              "label": "The least whole number of months for which Gym A costs less",
+              "answer": "3"
+            },
+            {
+              "id": "save",
+              "label": "How much less Gym A costs over 12 months (dollars)",
+              "answer": "150"
+            }
+          ],
+          "hints": [
+            "Each total is the fee plus the monthly rate times the number of months.",
+            "Gym A costs less means its expression is LESS than Gym B’s. Solve that inequality.",
+            "Use whole months: test the boundary and the next whole number; for the savings, evaluate both models at 12 months."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. “Gym A costs less than Gym B” is written…",
+            "options": [
+              "30 + 25m < 40m",
+              "30 + 25m > 40m"
+            ],
+            "correct": "30 + 25m < 40m"
+          },
+          "attemptFeedback": [
+            "Write each model as fee + rate · m before you compare them.",
+            "At the boundary the costs are equal; “less” needs one more month."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "A = 30 + 25m and B = 40m.",
+              "30 + 25m < 40m → 30 < 15m → m > 2.",
+              "At 2 months both cost $80, so Gym A is cheaper from 3 months on ($105 vs $120).",
+              "12 months: A = 30 + 300 = $330 and B = $480, so Gym A costs $150 less."
+            ],
+            "commonError": "Answering 2 months — at 2 months the costs are equal, not less."
+          }
+        },
+        {
+          "questionId": "m3l3h-pr-12",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Geometry model. A rectangle has a length of (2x + 3) cm and a width of x cm. Its perimeter can be at most 54 cm. Model the perimeter, solve, and decide which widths make sense.",
+          "responses": [
+            {
+              "id": "p",
+              "label": "The perimeter, as an expression in x",
+              "answer": "2(2x + 3) + 2x",
+              "inputProfile": "expression",
+              "gradingMode": "equivalentExpression"
+            },
+            {
+              "id": "sol",
+              "label": "The solution set of the perimeter inequality",
+              "answer": "x <= 8",
+              "inputProfile": "inequality"
+            },
+            {
+              "id": "most",
+              "label": "The greatest whole-number width (cm)",
+              "answer": "8"
+            },
+            {
+              "id": "least",
+              "label": "Which widths x make sense for the rectangle?",
+              "type": "choice",
+              "options": [
+                "0 < x ≤ 8, because a width must be positive",
+                "x ≤ 8, including negative widths",
+                "only x = 8",
+                "0 ≤ x ≤ 54"
+              ],
+              "answer": "0 < x ≤ 8, because a width must be positive"
+            }
+          ],
+          "hints": [
+            "A perimeter is twice the length plus twice the width.",
+            "“At most 54” uses ≤. Simplify, then solve.",
+            "A side length must also be greater than 0 — combine that with your solution."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. “At most 54” is written…",
+            "options": [
+              "≤ 54",
+              "≥ 54"
+            ],
+            "correct": "≤ 54"
+          },
+          "attemptFeedback": [
+            "Simplify 2(2x + 3) + 2x before solving: combine the x-terms.",
+            "Your solution set from the algebra includes negative numbers — which of them can be a width?"
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "P = 2(2x + 3) + 2x = 6x + 6.",
+              "6x + 6 ≤ 54 → 6x ≤ 48 → x ≤ 8.",
+              "A width is positive, so 0 < x ≤ 8; the greatest whole-number width is 8 cm (length 19 cm, perimeter 54 cm)."
+            ],
+            "commonError": "Stopping at x ≤ 8 — the situation also needs x > 0."
+          }
+        },
+        {
+          "questionId": "m3l3h-pr-13",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Error analysis. Jordan solved −(1/2)(4x − 6) < 2x + 9:\nStep 1:  −2x + 3 < 2x + 9\nStep 2:  −4x < 6\nStep 3:  x < −3/2\nFind the error, explain it, and correct it.",
+          "responses": [
+            {
+              "id": "step",
+              "label": "Which step has the first error?",
+              "type": "choice",
+              "options": [
+                "Step 1",
+                "Step 2",
+                "Step 3",
+                "There is no error"
+              ],
+              "answer": "Step 3"
+            },
+            {
+              "id": "why",
+              "label": "What went wrong?",
+              "type": "choice",
+              "options": [
+                "Jordan divided by −4 without reversing the symbol.",
+                "Jordan distributed −1/2 to only one term.",
+                "Jordan subtracted 2x from only one side.",
+                "Jordan should have added 4x."
+              ],
+              "answer": "Jordan divided by −4 without reversing the symbol."
+            },
+            {
+              "id": "fix",
+              "label": "The correct solution set",
+              "answer": "x > -3/2",
+              "inputProfile": "inequality"
+            },
+            {
+              "id": "test",
+              "label": "Test x = 0: the value of −(1/2)(4x − 6)",
+              "answer": "3"
+            }
+          ],
+          "hints": [
+            "Check each line against the line before it — was the same thing done to both sides, and did the symbol need to change?",
+            "Look at the last division: what was the sign of the number Jordan divided by?",
+            "Test x = 0 in the original inequality: it should be in the solution set if it makes the inequality true."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Dividing both sides of −4x < 6 by −4 gives…",
+            "options": [
+              "x > −3/2",
+              "x < −3/2"
+            ],
+            "correct": "x > −3/2"
+          },
+          "attemptFeedback": [
+            "Steps 1 and 2 are equivalent rewrites; look at the step that divides.",
+            "Substitute 0: −(1/2)(−6) = 3 and 2(0) + 9 = 9, so 0 is a solution — Jordan’s answer leaves it out."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Step 1 distributes correctly (−(1/2)(4x) = −2x and −(1/2)(−6) = 3). Step 2 subtracts 2x and 3 on both sides.",
+              "Step 3 divides by −4 but keeps the symbol: it should be x > −3/2.",
+              "Check x = 0: 3 < 9 is true, and 0 > −3/2."
+            ],
+            "commonError": "Keeping the symbol when dividing by a negative number."
+          }
+        },
+        {
+          "questionId": "m3l3h-pr-14",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Two batteries. A tablet starts at 100% charge and loses 6% per hour. A phone starts at 80% and loses 4% per hour. Model each charge after h hours, then find when the tablet has LESS charge than the phone.",
+          "responses": [
+            {
+              "id": "tablet",
+              "label": "The tablet’s charge after h hours, as an expression",
+              "answer": "100 - 6h",
+              "inputProfile": "expression",
+              "gradingMode": "equivalentExpression"
+            },
+            {
+              "id": "phone",
+              "label": "The phone’s charge after h hours, as an expression",
+              "answer": "80 - 4h",
+              "inputProfile": "expression",
+              "gradingMode": "equivalentExpression"
+            },
+            {
+              "id": "less",
+              "label": "The solution set of “the tablet has less charge than the phone”",
+              "answer": "h > 10",
+              "inputProfile": "inequality"
+            },
+            {
+              "id": "empty",
+              "label": "The number of hours until the phone reaches 0%",
+              "answer": "20"
+            }
+          ],
+          "hints": [
+            "Each charge is the starting charge minus the hourly loss times the number of hours.",
+            "Write tablet < phone and collect the h-terms on one side. Watch for division by a negative number.",
+            "For the phone, solve when its charge equals 0."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. A charge that starts at 80% and loses 4% each hour is…",
+            "options": [
+              "80 − 4h",
+              "80h − 4"
+            ],
+            "correct": "80 − 4h"
+          },
+          "attemptFeedback": [
+            "Set 100 − 6h < 80 − 4h. If you divide by a negative coefficient, reverse the symbol.",
+            "Check a time after your boundary in both models: the tablet’s charge should be lower."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Tablet: 100 − 6h. Phone: 80 − 4h.",
+              "100 − 6h < 80 − 4h → −2h < −20 → h > 10 (the symbol reverses).",
+              "At 10 hours both are at 40%; after that the tablet is lower. The phone reaches 0% at h = 20."
+            ],
+            "commonError": "Keeping the symbol when dividing by −2, which gives h < 10."
+          }
+        },
+        {
+          "questionId": "m3l3h-pr-15",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Exam-style. Which value of x is in the solution set of 3(x − 2) > 5x + 4? Solve the inequality to decide.",
+          "responses": [
+            {
+              "id": "sol",
+              "label": "The solution set",
+              "answer": "x < -5",
+              "inputProfile": "inequality"
+            },
+            {
+              "id": "val",
+              "label": "The value in the solution set",
+              "type": "choice",
+              "options": [
+                "−6",
+                "−5",
+                "0",
+                "5"
+              ],
+              "answer": "−6"
+            }
+          ],
+          "hints": [
+            "Distribute, then collect the x-terms on one side.",
+            "If you divide by a negative number, reverse the symbol.",
+            "A value is in the solution set only if it makes the inequality true — test the boundary carefully."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. 3(x − 2) is equal to…",
+            "options": [
+              "3x − 6",
+              "3x − 2"
+            ],
+            "correct": "3x − 6"
+          },
+          "attemptFeedback": [
+            "Solve completely before you test the choices; the boundary itself is not included in < or >.",
+            "Substitute your choice into both sides of the original inequality."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "3x − 6 > 5x + 4 → −2x > 10 → x < −5.",
+              "Only −6 is less than −5. (At −5 both sides equal −21, which is not greater.)"
+            ],
+            "commonError": "Choosing −5: the boundary of a strict inequality is not a solution."
+          }
+        },
+        {
+          "questionId": "m3l3h-pr-16",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Exam-style. A delivery driver earns $15 per shift plus $0.20 for each mile driven, t. The inequality 0.2t + 15 ≤ 30 describes the shifts that pay at most $30. What is the greatest number of miles the driver could drive in such a shift?",
+          "responses": [
+            {
+              "id": "t",
+              "label": "The greatest number of miles",
+              "answer": "75"
+            }
+          ],
+          "hints": [
+            "Undo the 15 first, on both sides.",
+            "Then divide both sides by the rate per mile.",
+            "The greatest value is the boundary, because ≤ includes it."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Subtracting 15 from both sides of 0.2t + 15 ≤ 30 gives…",
+            "options": [
+              "0.2t ≤ 15",
+              "0.2t ≤ 45"
+            ],
+            "correct": "0.2t ≤ 15"
+          },
+          "attemptFeedback": [
+            "Dividing by 0.2 is the same as multiplying by 5.",
+            "Check: the pay at your number of miles should be exactly $30."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "0.2t + 15 ≤ 30 → 0.2t ≤ 15 → t ≤ 75.",
+              "The greatest number of miles is 75 (pay: 0.2(75) + 15 = $30)."
+            ],
+            "commonError": "Dividing 15 by 0.2 and getting 3."
+          }
+        }
+      ]
+    },
+    {
+      "id": "dol",
+      "role": "dol",
+      "title": "DOL — Linear Inequalities",
+      "recommendedMinutes": 8,
+      "feedbackMode": "afterAssignmentSubmit",
+      "hintsAllowed": false,
+      "attemptsAllowed": 1,
+      "questions": [
+        {
+          "questionId": "m3l3h-dol-1",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveInequality"
+          ],
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "Solve {{inequality}}. Then graph its solution.",
+          "questionFamily": {
+            "id": "inequalities.solveLinear",
+            "constraints": {
+              "reversal": "mixed",
+              "distribute": true,
+              "bothSides": true
+            }
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Simplify each side: distribute and combine like terms.",
+              "Collect the variable terms on one side and the constants on the other, doing the same thing to both sides.",
+              "Divide both sides by the coefficient of the variable. If it is negative, reverse the inequality symbol.",
+              "Graph the solution: an open dot for < or >, a closed dot for ≤ or ≥, shaded toward the solutions.",
+              "Check: a test value from the shaded side makes the original inequality true."
+            ],
+            "commonError": "Forgetting to reverse the symbol after dividing both sides by a negative number."
+          }
+        },
+        {
+          "questionId": "m3l3h-dol-2",
+          "standard": "A.5B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Model, solve, interpret. {{situation}}",
+          "questionFamily": {
+            "id": "inequalities.contextModel",
+            "constraints": {
+              "direction": "mixed"
+            }
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Write the amount as starting amount ± rate × variable, compared with the condition.",
+              "Solve the inequality; dividing by a negative rate reverses the symbol.",
+              "Answer with the whole number the situation needs, and check it."
+            ],
+            "commonError": "Keeping the symbol after dividing by a negative rate."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -34,12 +34,12 @@ import {
   PIN_REPLAY_FAILURE,
   RECOVERY_GRADING_FAILURE,
   RECOVERY_ITEM_STATUS,
-  classifyRecoveryReproductionFailure,
   isGradedItemStatus,
   isUnansweredGradingReason,
   recoveryHintForClassification,
   sanitizeReportedClassification,
 } from './sectionRecoveryEvidence.mjs';
+import { classifyRecoveryReproductionFailure } from './sectionRecoveryReproduction.mjs';
 import { reproduceFamilyQuestionFromPin } from './questionFamilyInstance.mjs';
 import { getPlatformQuestionFamily } from './questionFamilyRegistry.mjs';
 import { gradedResponseMisconceptionEvidence, MISCONCEPTION_EVIDENCE_KINDS } from './misconceptionEvidenceSites.mjs';

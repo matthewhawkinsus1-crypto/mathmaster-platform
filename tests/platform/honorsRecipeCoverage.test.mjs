@@ -144,6 +144,9 @@ test('the committed report is generated from the live registry and audit, never 
   // Algebra I the cubic long division and the quartic synthetic division are
   // NOT APPROPRIATE and the four Warm-Up and divide-by-a-monomial skills
   // Algebra I also teaches are BLOCKED (A2.7C).
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 41 \| 4 \| 5 \| 22 \| 10 \|/);
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 41 \| 0 \| 1 \| 23 \| 17 \|/);
+  // The nine Module 3 families are Algebra I content (NOT APPROPRIATE in
+  // Algebra II); in Algebra I three are CAPABLE (inequalities.solveLinear,
+  // inequalities.contextModel, systems.contextModel) and six BLOCKED.
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 50 \| 4 \| 8 \| 28 \| 10 \|/);
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 50 \| 0 \| 1 \| 23 \| 26 \|/);
 });

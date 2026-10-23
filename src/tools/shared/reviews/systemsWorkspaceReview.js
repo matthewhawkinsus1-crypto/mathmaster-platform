@@ -491,6 +491,10 @@ const linearReview = (question) => {
   const first = lineText(m1, b1);
   const second = lineText(m2, b2);
   const intro = `Equation 1 is ${first} (slope ${exact(m1)}, y-intercept ${exact(b1)}) and Equation 2 is ${second} (slope ${exact(m2)}, y-intercept ${exact(b2)}).`;
+  // The construct form has the student graph both lines first.
+  const graphSteps = question.interaction === 'construct'
+    ? ['Graph each line from two of its own points: substitute two x-values into its equation (the y-intercept is one easy point) and draw the line through them.']
+    : [];
   if (solution.type === 'none' || solution.type === 'infinite') {
     const none = solution.type === 'none';
     // The sentences below name equal slopes (and, for one line, equal intercepts) exactly.
@@ -500,6 +504,7 @@ const linearReview = (question) => {
       items: [{ label: 'Number of solutions', value: none ? 'No solution' : 'Infinitely many solutions' }],
       steps: [
         intro,
+        ...graphSteps,
         none
           ? `The slopes are equal (${exact(m1)}) but the y-intercepts are different (${exact(b1)} and ${exact(b2)}), so the lines are parallel and never meet.`
           : `The slopes are equal (${exact(m1)}) and so are the y-intercepts (${exact(b1)}), so both equations describe the same line.`,
@@ -527,6 +532,7 @@ const linearReview = (question) => {
     ],
     steps: [
       intro,
+      ...graphSteps,
       `The slopes are different, so the lines cross exactly once: the system has exactly one solution.`,
       `At the crossing point both right sides are equal: ${expressionText([[m1, 'x']], b1)} = ${expressionText([[m2, 'x']], b2)}.`,
       `Collect the x-terms on one side: ${solvedFor(slopeDifference, 'x', constantDifference).text}.`,

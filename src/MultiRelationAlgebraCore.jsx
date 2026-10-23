@@ -2839,6 +2839,10 @@ export default function MultiRelationAlgebra({
               intervals: summary.intervals,
               ask: solutionRepresentationAsk,
               variable: relationState.variable,
+              // The course the solved inequality belongs to decides how
+              // the number line reads the student's graph back to them.
+              alignments: question.alignments,
+              standard: question.standard,
               min: numberLineConfig.min,
               max: numberLineConfig.max,
               step: numberLineConfig.step,

@@ -86,10 +86,21 @@ const REGISTRY_TOOL_WORK = {
   }),
   // The Systems Workspace's algebraic screen: the solved values and both
   // verifications, or the no-variable statement and the three readings of it.
-  systemsWorkspace: (question) => ({
-    right: correctAlgebraicSystemWork(question),
-    wrong: wrongAlgebraicSystemWork(question),
-  }),
+  // Its graph mode (systems.graphical2x2): two points on each line, the
+  // reading of the system, and the crossing point; and the wrong reading.
+  systemsWorkspace: (question, instance) => {
+    if (question.mode !== 'linear') return { right: correctAlgebraicSystemWork(question), wrong: wrongAlgebraicSystemWork(question) };
+    const { m1, b1, m2, b2 } = question.system;
+    const onLine = (m, b) => [0, 1].map((x) => ({ x, y: m * x + b }));
+    const { outcome, x, y } = instance.answer.value;
+    const right = {
+      construction: [{ points: onLine(m1, b1) }, { points: onLine(m2, b2) }],
+      classification: outcome,
+      x: outcome === 'one' ? String(x) : '',
+      y: outcome === 'one' ? String(y) : '',
+    };
+    return { right, wrong: { ...right, classification: outcome === 'one' ? 'none' : 'one', x: '0', y: '0' } };
+  },
   // The graphing board: the y-intercept and one slope step whose rise is whole,
   // and the same line one unit up.
   graphing2: (question) => {
@@ -200,6 +211,23 @@ test('every family: the answer key is correct for its own question, on the serve
         const question = buildFamilyQuestion({ family, instance, constraintValues: values, authored: { questionId: 'q' }, tool: toolType });
         assert.equal(question.generator, undefined, 'a built instance never carries its template generator');
         assert.equal(question.questionFamily, undefined);
+        if (question.type === 'stepAlgebra' && instance.answer.kind === 'inequality') {
+          // An inequality's key is its solved form, x R k. The DISPLAYED
+          // inequality must hold exactly where that says: just below, at and
+          // just above the boundary.
+          const { relation, boundary } = instance.answer;
+          const [, left, shown, right] = /^(.*?)\s*(<=|>=|<|>)\s*(.*)$/.exec(question.equation);
+          const compare = (a, symbol, b) => ({ '<': a < b, '<=': a <= b, '>': a > b, '>=': a >= b }[symbol]);
+          [boundary - 1, boundary, boundary + 1].forEach((value) => {
+            const scope = { [question.variable]: value };
+            assert.equal(
+              compare(evaluateExpression(left, scope), shown, evaluateExpression(right, scope)),
+              compare(value, relation, boundary),
+              `${family.id}: ${question.equation} at ${question.variable} = ${value} agrees with ${instance.answer.display}`,
+            );
+          });
+          return;
+        }
         if (question.type === 'stepAlgebra') {
           const x = instance.answer.value;
           const scope = { [question.variable]: x };

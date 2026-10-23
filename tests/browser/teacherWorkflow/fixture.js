@@ -270,6 +270,9 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
   // `?honors=1`: Period 5 is an Honors class, so a review for Periods 1 and 5
   // has a Standard and an Honors destination (honorsCcmrJourneys.mjs).
   if (params?.get?.('honors') === '1') classes.find((entry) => entry.classId === 'c-alg1-p5').courseLevel = 'honors';
+  // `?honors=alg2`: Algebra II Period 3 is Honors and the Algebra II Lab stays
+  // Standard, for an Algebra II review given to both (dol2ReviewHonorsJourneys.mjs).
+  if (params?.get?.('honors') === 'alg2') classes.find((entry) => entry.classId === 'c-alg2-p3').courseLevel = 'honors';
   classes.forEach(({ classId, ...data }) => { fixture[`classes/${classId}`] = data; });
 
   // ---------------------------------------------------------------- assignments

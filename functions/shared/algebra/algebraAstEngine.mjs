@@ -377,7 +377,13 @@ const presentationNode = (expression) => {
   }
 };
 
-export const expressionToLatex = (expression) => cleanImplicitMultiplicationLatex(presentationNode(expression).toTex({ parenthesis: 'keep', implicit: 'hide' }));
+// mathjs writes 236000 as 2.36e+5 and 0.0004 as 4e-4, which TeX draws as
+// 2.36(10)^{+5}. Classroom notation writes the number itself; an exponent
+// appears only for magnitudes no lesson uses. Presentation only: the engine's
+// own expression text, which it re-reads, is unchanged.
+const TEX_OPTIONS = Object.freeze({ parenthesis: 'keep', implicit: 'hide', lowerExp: -9, upperExp: 15 });
+
+export const expressionToLatex = (expression) => cleanImplicitMultiplicationLatex(presentationNode(expression).toTex(TEX_OPTIONS));
 export const equationToLatex = ({ left, right }) => `${expressionToLatex(left)} = ${expressionToLatex(right)}`;
 
 // --- Presentation-only term splitting ---------------------------------------
@@ -456,7 +462,7 @@ const additiveTermDescriptor = ({ node, sign }, index) => {
   // Drawn without the engine's bookkeeping wrappers — a fraction term reads
   // (8 - 2x)/(-4) as a stacked fraction, not with brackets inside the bar.
   let magnitudeLatex = cleanImplicitMultiplicationLatex(
-    withoutRedundantGrouping(node).toTex({ parenthesis: 'keep', implicit: 'hide' }),
+    withoutRedundantGrouping(node).toTex(TEX_OPTIONS),
   ).trim();
   const originalLatex = magnitudeLatex;
 
@@ -480,7 +486,7 @@ const additiveTermDescriptor = ({ node, sign }, index) => {
     // so the sign exists in exactly one place: the additive operator.
     try {
       magnitudeLatex = cleanImplicitMultiplicationLatex(
-        unitGroupPresentation(parse(magnitudeText)).toTex({ parenthesis: 'keep', implicit: 'hide' }),
+        unitGroupPresentation(parse(magnitudeText)).toTex(TEX_OPTIONS),
       ).trim();
     } catch {
       magnitudeLatex = magnitudeLatex
@@ -546,7 +552,7 @@ const flattenMultiplicativeChain = (node, inDenominator, factors) => {
 
 const multiplicativeFactorDescriptor = ({ node }) => {
   const text = node.toString({ parenthesis: 'auto', implicit: 'hide' });
-  let latex = cleanImplicitMultiplicationLatex(node.toTex({ parenthesis: 'keep', implicit: 'hide' }));
+  let latex = cleanImplicitMultiplicationLatex(node.toTex(TEX_OPTIONS));
   if (node?.type === 'OperatorNode' && ['add', 'subtract'].includes(node.fn)) {
     latex = `\\left(${latex}\\right)`;
   }

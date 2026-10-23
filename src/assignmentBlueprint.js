@@ -11,6 +11,8 @@ import {
   resolveFamilyPreviewInstance,
 } from '../functions/shared/questionFamilyInstance.mjs';
 import { allocateAssignmentQuestionValues } from '../functions/shared/questionValue.mjs';
+import { getEquationAnalysis, parseEquationInput } from '../functions/shared/algebra/algebraAstEngine.mjs';
+import { usesRelationWorkspace } from '../functions/shared/serverGrading/stepAlgebraRouting.mjs';
 
 export const DEFAULT_ASSIGNMENT_BLUEPRINT = `{
   "schemaVersion": 5,
@@ -436,6 +438,33 @@ const inferBinaryChoiceOptions = (field = {}) => {
   return patterns.find((entry) => entry.pattern.test(label) && entry.options.includes(answer))?.options || null;
 };
 
+/*
+ * A linear equation with no solution, or with every number as a solution,
+ * cannot be finished on the balance workspace: the student reaches a
+ * statement such as 6 = 5 and has no way to say so. The relation workspace
+ * can — it accepts "No solution" or "All real numbers" only once the
+ * student's own balanced steps reach a statement with no variable left, and
+ * grades that claim against the equation itself — so such an equation opens
+ * there, as every special-case Question Family version does
+ * (questionFamiliesLinearCases.mjs). Returns the equation's outcome
+ * ('noSolution' | 'allReals') when it would otherwise open on the balance,
+ * else null. A family slot or template has no equation yet; a rewrite or
+ * intercept objective is not solving.
+ */
+const specialCaseOnBalanceWorkspace = (question) => {
+  if (question.relationWorkspace !== undefined || usesRelationWorkspace(question)) return null;
+  if (question.questionFamily || question.generator || question.mode === 'linearIntercepts' || question.targetForm) return null;
+  if ((question.objective?.kind || 'isolate') !== 'isolate') return null;
+  if (/\{\{/.test(String(question.equation ?? question.equationLatex ?? ''))) return null;
+  try {
+    const analysis = getEquationAnalysis(parseEquationInput(question));
+    if (!analysis.numericLinear || analysis.hasUniqueSolution) return null;
+    return Math.abs(analysis.constantDifference) < 1e-9 ? 'allReals' : 'noSolution';
+  } catch {
+    return null;
+  }
+};
+
 // Firestore does not allow an array to contain another array directly. The
 // authoring compiler accepts the natural [[x,y], ...] notation and stores the
 // Firestore-safe {x,y} shape. The same pass also absorbs common AI aliases so
@@ -523,6 +552,11 @@ const normalizeQuestionStorageShapes = (questions, repairs = []) => (Array.isArr
     next.equationLatex = next.equation;
     delete next.equation;
     repairs.push(`mapped ${label}.equation to the internal equation field`);
+  }
+  const specialCase = type === 'stepAlgebra' ? specialCaseOnBalanceWorkspace(next) : null;
+  if (specialCase) {
+    next.relationWorkspace = true;
+    repairs.push(`opened ${label} in the relation workspace, where a student can conclude "${specialCase === 'noSolution' ? 'No solution' : 'All real numbers'}"; on the balance workspace its equation could never be finished. Give the one-solution equations beside it "relationWorkspace": true as well, so the workspace does not tell students which equations are the special cases`);
   }
   if (!next.equationsLatex && Array.isArray(next.equations) && type === 'system') {
     next.equationsLatex = next.equations;

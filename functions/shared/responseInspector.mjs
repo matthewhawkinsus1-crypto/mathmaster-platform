@@ -7,6 +7,7 @@ import { deliveredQuestionForGrading } from './serverGrading/deliveredQuestion.m
 import { resolveServerGradingQuestion } from './questionFamilyGrading.mjs';
 import { isFamilyBackedQuestion } from './questionFamilyInstance.mjs';
 import { answerCandidatesForField, matchesFieldAnswer, normalizeMathAnswer, parseNumericAnswer } from './answerUtils.mjs';
+import './formSpecificFieldGrading.mjs';
 import { getQuestionCredit, normalizeQuestionRecord } from './attemptPolicy.mjs';
 import { dolSectionProjection } from './assignmentProjections.mjs';
 import { readWorkspaceDraftEntries } from './workspaceDraftSchema.mjs';
@@ -66,7 +67,15 @@ const traceField = (field, rawValue, result) => {
   const numericStudent = parseNumericAnswer(raw);
   const numericAccepted = accepted.map(parseNumericAnswer);
   const numericComparison = numericStudent !== null && numericAccepted.some((value) => value !== null);
-  const normalized = field?.gradingMode === 'equivalentExpression'
+  // A form-specific mode compares mathematics, not a normalized string, so a
+  // normalized text would mislead the reviewer.
+  const comparatorByMode = {
+    equivalentExpression: 'equivalent-expression',
+    factoredForm: 'factored-form',
+    simplestRadicalForm: 'simplest-radical-form',
+  };
+  const modeComparator = comparatorByMode[field?.gradingMode] || null;
+  const normalized = modeComparator
     ? null
     : numericComparison
       ? { kind: 'number', student: numericStudent, accepted: numericAccepted.filter((value) => value !== null) }
@@ -78,8 +87,8 @@ const traceField = (field, rawValue, result) => {
     normalizedAvailable: normalized !== null,
     normalizedUnavailableReason: normalized === null ? NORMALIZED_UNAVAILABLE : null,
     expected: accepted,
-    comparator: field?.gradingMode === 'equivalentExpression'
-      ? 'equivalent-expression'
+    comparator: modeComparator
+      ? modeComparator
       : numericComparison
         ? 'numeric-or-math-equivalence'
         : 'canonical-math-or-text-equivalence',

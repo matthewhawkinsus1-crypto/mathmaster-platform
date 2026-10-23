@@ -606,6 +606,10 @@ const coefficientList = (value) => {
 };
 const polynomialMode = (question) => {
   const mode = question?.mode || 'factorZero';
+  // The synthetic-division view is routed by the workshop but not modelled
+  // here yet: its own authored hints and back-up step serve it, and this
+  // family claims nothing it would have to read as another view.
+  if (mode === 'synthetic') return 'synthetic';
   return POLYNOMIAL_VIEWS.includes(mode) ? mode : 'factorZero';
 };
 
@@ -646,6 +650,7 @@ const polynomialModel = (question) => {
   if (question?.mode === 'longDivision' || question?.mode === 'syntheticDivision') return null;
   if (question?.mode === 'multiplyArea' && (typeof question.leftFactor === 'string' || typeof question.rightFactor === 'string')) return null;
   const mode = polynomialMode(question);
+  if (mode === 'synthetic') return null;
   const D = POLYNOMIAL_WORKSHOP_DEFAULTS[mode];
   if (mode === 'factorZero') {
     const coefficients = coefficientList(question.coefficients || D.coefficients);

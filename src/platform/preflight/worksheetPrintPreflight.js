@@ -76,7 +76,7 @@ const mappingSize = (question = {}) => {
 const graphChoiceCount = (question = {}) => asArray(question.graphs).filter((entry) => isObject(entry?.graph)).length;
 
 const hasStructuredProblemData = (question = {}) => Boolean(
-  clean(question.equation)
+  clean(question.equation || question.equationLatex)
   || asArray(question.equations).length
   || clean(question.inequalityText || question.inequality)
   || isObject(question.functionSpec)

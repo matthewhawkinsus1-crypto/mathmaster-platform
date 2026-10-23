@@ -76,11 +76,29 @@ const SOLUTION_TYPES = { one: 'Exactly one solution', none: 'No solution', infin
 // ---------------------------------------------------------------------------
 // linear — two lines y = m1x + b1, y = m2x + b2
 //   work { classification: 'one'|'none'|'infinite', x, y }  (x/y as typed)
+//   construct (`interaction: "construct"`) adds the student's own graph:
+//   { construction: [{ points: [{x,y},{x,y}] }, { points: [...] }] }
+//   (parsed numbers, as the inequality construct sends them). Each equation is
+//   drawn from two distinct points ON its line, within the same 0.08 as a
+//   constructed inequality boundary, before the system is read.
 // ---------------------------------------------------------------------------
+const constructedLineParts = (system, work) => list([[system.m1, system.b1], [system.m2, system.b2]]).map(([m, b], index) => {
+  const built = isRecord(list(work.construction)[index]) ? list(work.construction)[index] : {};
+  const points = list(built.points);
+  const ends = [0, 1].map((at) => ({ x: parsedNumber(points[at]?.x), y: parsedNumber(points[at]?.y) }));
+  const typedBoth = ends.every((point) => point.x != null && point.y != null);
+  const onLine = typedBoth
+    && ends.every((point) => Math.abs(point.y - (Number(m) * point.x + Number(b))) <= 0.08)
+    && Math.hypot(ends[0].x - ends[1].x, ends[0].y - ends[1].y) > 0.08;
+  return part(`line-${index + 1}`, `Equation ${index + 1}: two points on its line`, onLine, typedBoth, ends.map((point) => pairText(point.x, point.y)).join(' '));
+});
+
 const linear = (question, work) => {
-  const solution = solveTwoLines(question.system || SYSTEMS_WORKSPACE_DEFAULTS.system);
+  const system = question.system || SYSTEMS_WORKSPACE_DEFAULTS.system;
+  const solution = solveTwoLines(system);
   const classification = entry(work.classification);
-  const parts = [part('classification', 'Number of solutions', classification === solution.type, classification !== '', SOLUTION_TYPES[classification] || classification)];
+  const lineParts = question.interaction === 'construct' ? constructedLineParts(system, work) : [];
+  const parts = [...lineParts, part('classification', 'Number of solutions', classification === solution.type, classification !== '', SOLUTION_TYPES[classification] || classification)];
   // Coordinates are graded only when the system really has one solution.
   if (solution.type === 'one') {
     parts.push(part(
@@ -93,8 +111,10 @@ const linear = (question, work) => {
   }
   return gradedResult({
     parts,
-    // Finished = a classification, plus the point it calls for.
-    isComplete: classification !== '' && (classification !== 'one' || (typed(work.x) && typed(work.y))),
+    // Finished = both lines drawn when they are asked for, a classification,
+    // plus the point it calls for.
+    isComplete: lineParts.every((item) => item.isComplete)
+      && classification !== '' && (classification !== 'one' || (typed(work.x) && typed(work.y))),
     isCorrect: allOf(parts),
   });
 };

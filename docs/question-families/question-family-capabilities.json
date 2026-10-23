@@ -99,6 +99,79 @@
       "declared": {}
     },
     {
+      "id": "equations.verifySolution",
+      "version": 1,
+      "title": "Check a solution by substitution",
+      "alignments": [
+        "A.5A",
+        "8.8C"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [
+        {
+          "name": "variable",
+          "label": "Variable letter",
+          "kind": "choice",
+          "default": "x",
+          "concept": false,
+          "values": [
+            "x",
+            "n",
+            "a",
+            "m",
+            "t"
+          ]
+        }
+      ],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 474764,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "verdict": "solution"
+              },
+              "capacity": 237382,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "verdict": "notSolution"
+              },
+              "capacity": 1170028,
+              "exact": false
+            }
+          ]
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
       "id": "functions.identifyIntercepts",
       "version": 1,
       "title": "Intercepts of a line in standard form",
@@ -215,6 +288,665 @@
           "label": "default",
           "constraints": {},
           "capacity": 162,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "inequalities.contextModel",
+      "version": 1,
+      "title": "Model a situation with an inequality and interpret the solution",
+      "alignments": [
+        "A.5B",
+        "A.1A"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [
+        {
+          "name": "direction",
+          "label": "Rate of change (decreasing situations reverse the symbol)",
+          "kind": "choice",
+          "default": "mixed",
+          "concept": false,
+          "values": [
+            "increasing",
+            "decreasing",
+            "mixed"
+          ]
+        }
+      ],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 290,
+          "exact": true,
+          "strata": [
+            {
+              "stratum": {
+                "reversal": "no"
+              },
+              "capacity": 191,
+              "exact": true
+            },
+            {
+              "stratum": {
+                "reversal": "yes"
+              },
+              "capacity": 145,
+              "exact": true
+            }
+          ]
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "inequalities.solveLinear",
+      "version": 1,
+      "title": "Solve a linear inequality and graph its solution",
+      "alignments": [
+        "A.5B",
+        "7.10A"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "strict",
+      "constraints": [
+        {
+          "name": "reversal",
+          "label": "Reverse the symbol (dividing by a negative)",
+          "kind": "choice",
+          "default": "mixed",
+          "concept": true,
+          "values": [
+            "required",
+            "none",
+            "mixed"
+          ]
+        },
+        {
+          "name": "distribute",
+          "label": "Distributive property",
+          "kind": "choice",
+          "default": "mixed",
+          "concept": true,
+          "values": [
+            false,
+            true,
+            "mixed"
+          ]
+        },
+        {
+          "name": "bothSides",
+          "label": "Variable on both sides",
+          "kind": "choice",
+          "default": "mixed",
+          "concept": true,
+          "values": [
+            false,
+            true,
+            "mixed"
+          ]
+        },
+        {
+          "name": "boundaryRange",
+          "label": "Boundary range",
+          "kind": "range",
+          "default": [
+            -9,
+            9
+          ],
+          "concept": false,
+          "limits": [
+            -20,
+            20
+          ]
+        },
+        {
+          "name": "coefficientRange",
+          "label": "Coefficient range",
+          "kind": "range",
+          "default": [
+            -6,
+            6
+          ],
+          "concept": false,
+          "limits": [
+            -12,
+            12
+          ]
+        },
+        {
+          "name": "constantRange",
+          "label": "Constant range",
+          "kind": "range",
+          "default": [
+            -12,
+            12
+          ],
+          "concept": false,
+          "limits": [
+            -30,
+            30
+          ]
+        },
+        {
+          "name": "variable",
+          "label": "Variable",
+          "kind": "choice",
+          "default": "x",
+          "concept": false,
+          "values": [
+            "x",
+            "n",
+            "a",
+            "b",
+            "k",
+            "m",
+            "p",
+            "t",
+            "w"
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "reversal",
+        "distribute",
+        "bothSides"
+      ],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "stepAlgebra",
+          "default": true,
+          "mode": "relation",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 66120,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "reversal": "required",
+                "shape": "twoStep"
+              },
+              "capacity": 9008,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "reversal": "required",
+                "shape": "bothSides"
+              },
+              "capacity": 114655,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "reversal": "required",
+                "shape": "distribute"
+              },
+              "capacity": 8265,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "reversal": "required",
+                "shape": "distributeBothSides"
+              },
+              "capacity": 89454,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "reversal": "none",
+                "shape": "twoStep"
+              },
+              "capacity": 8968,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "reversal": "none",
+                "shape": "bothSides"
+              },
+              "capacity": 116451,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "reversal": "none",
+                "shape": "distribute"
+              },
+              "capacity": 8336,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "reversal": "none",
+                "shape": "distributeBothSides"
+              },
+              "capacity": 91057,
+              "exact": false
+            }
+          ]
+        },
+        {
+          "label": "reversal: \"required\"",
+          "constraints": {
+            "reversal": "required"
+          },
+          "capacity": 33060,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "reversal": "required",
+                "shape": "twoStep"
+              },
+              "capacity": 9008,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "reversal": "required",
+                "shape": "bothSides"
+              },
+              "capacity": 114655,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "reversal": "required",
+                "shape": "distribute"
+              },
+              "capacity": 8265,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "reversal": "required",
+                "shape": "distributeBothSides"
+              },
+              "capacity": 89454,
+              "exact": false
+            }
+          ]
+        },
+        {
+          "label": "reversal: \"none\"",
+          "constraints": {
+            "reversal": "none"
+          },
+          "capacity": 33344,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "reversal": "none",
+                "shape": "twoStep"
+              },
+              "capacity": 8968,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "reversal": "none",
+                "shape": "bothSides"
+              },
+              "capacity": 116451,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "reversal": "none",
+                "shape": "distribute"
+              },
+              "capacity": 8336,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "reversal": "none",
+                "shape": "distributeBothSides"
+              },
+              "capacity": 91057,
+              "exact": false
+            }
+          ]
+        },
+        {
+          "label": "distribute: false",
+          "constraints": {
+            "distribute": false
+          },
+          "capacity": 35872,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "reversal": "required",
+                "shape": "twoStep"
+              },
+              "capacity": 9008,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "reversal": "required",
+                "shape": "bothSides"
+              },
+              "capacity": 114655,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "reversal": "none",
+                "shape": "twoStep"
+              },
+              "capacity": 8968,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "reversal": "none",
+                "shape": "bothSides"
+              },
+              "capacity": 116451,
+              "exact": false
+            }
+          ]
+        },
+        {
+          "label": "distribute: true",
+          "constraints": {
+            "distribute": true
+          },
+          "capacity": 33060,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "reversal": "required",
+                "shape": "distribute"
+              },
+              "capacity": 8265,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "reversal": "required",
+                "shape": "distributeBothSides"
+              },
+              "capacity": 89454,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "reversal": "none",
+                "shape": "distribute"
+              },
+              "capacity": 8336,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "reversal": "none",
+                "shape": "distributeBothSides"
+              },
+              "capacity": 91057,
+              "exact": false
+            }
+          ]
+        },
+        {
+          "label": "bothSides: false",
+          "constraints": {
+            "bothSides": false
+          },
+          "capacity": 33060,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "reversal": "required",
+                "shape": "twoStep"
+              },
+              "capacity": 9008,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "reversal": "required",
+                "shape": "distribute"
+              },
+              "capacity": 8265,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "reversal": "none",
+                "shape": "twoStep"
+              },
+              "capacity": 8968,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "reversal": "none",
+                "shape": "distribute"
+              },
+              "capacity": 8336,
+              "exact": false
+            }
+          ]
+        },
+        {
+          "label": "bothSides: true",
+          "constraints": {
+            "bothSides": true
+          },
+          "capacity": 357816,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "reversal": "required",
+                "shape": "bothSides"
+              },
+              "capacity": 114655,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "reversal": "required",
+                "shape": "distributeBothSides"
+              },
+              "capacity": 89454,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "reversal": "none",
+                "shape": "bothSides"
+              },
+              "capacity": 116451,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "reversal": "none",
+                "shape": "distributeBothSides"
+              },
+              "capacity": 91057,
+              "exact": false
+            }
+          ]
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {
+        "targetTool": {
+          "tool": "stepAlgebra",
+          "workspaces": [
+            "relation"
+          ],
+          "representation": "number line (Algebra I)"
+        },
+        "reversal": [
+          "required",
+          "none",
+          "mixed"
+        ],
+        "shapes": [
+          "twoStep",
+          "bothSides",
+          "distribute",
+          "distributeBothSides"
+        ],
+        "solvedRelations": [
+          "<",
+          "<=",
+          ">",
+          ">="
+        ],
+        "boundaryForms": [
+          "integer"
+        ],
+        "exactArithmetic": true,
+        "independentVerification": "solveDisplayedInequality on the displayed term trees (questionFamilyExact.expandLinearSide)"
+      }
+    },
+    {
+      "id": "inequalities.translatePhrase",
+      "version": 1,
+      "title": "Write an inequality from words",
+      "alignments": [
+        "A.5B",
+        "7.10A"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 2160,
+          "exact": false
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "linear.contextFunction",
+      "version": 1,
+      "title": "Write and interpret a linear function from a situation",
+      "alignments": [
+        "A.3B",
+        "A.2C"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [
+        {
+          "name": "direction",
+          "label": "Increasing or decreasing situations",
+          "kind": "choice",
+          "default": "any",
+          "concept": false,
+          "values": [
+            "increasing",
+            "decreasing",
+            "any"
+          ]
+        }
+      ],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 132,
           "exact": true
         }
       ],
@@ -3352,6 +4084,257 @@
       }
     },
     {
+      "id": "systems.classifyByStructure",
+      "version": 1,
+      "title": "Classify a system from its slopes and y-intercepts",
+      "alignments": [
+        "A.3F",
+        "A.5C"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 1680,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "case": "one"
+              },
+              "capacity": 52001,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "none"
+              },
+              "capacity": 7227,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "infinite"
+              },
+              "capacity": 560,
+              "exact": true
+            }
+          ]
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "systems.contextModel",
+      "version": 1,
+      "title": "Write and solve a system that models a situation",
+      "alignments": [
+        "A.2I",
+        "A.5C"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [
+        {
+          "name": "shape",
+          "label": "Kind of situation",
+          "kind": "choice",
+          "default": "mixed",
+          "concept": true,
+          "values": [
+            "sumAndTotal",
+            "oneDefined",
+            "equalCost",
+            "mixed"
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "shape"
+      ],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 1794,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "shape": "sumAndTotal",
+                "situation": "tickets"
+              },
+              "capacity": 341544,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "shape": "sumAndTotal",
+                "situation": "snack"
+              },
+              "capacity": 1680,
+              "exact": true
+            },
+            {
+              "stratum": {
+                "shape": "oneDefined",
+                "situation": "seats"
+              },
+              "capacity": 3480,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "shape": "oneDefined",
+                "situation": "ages"
+              },
+              "capacity": 299,
+              "exact": true
+            },
+            {
+              "stratum": {
+                "shape": "equalCost",
+                "situation": "rental"
+              },
+              "capacity": 779,
+              "exact": true
+            },
+            {
+              "stratum": {
+                "shape": "equalCost",
+                "situation": "gym"
+              },
+              "capacity": 594,
+              "exact": true
+            }
+          ]
+        },
+        {
+          "label": "shape: \"sumAndTotal\"",
+          "constraints": {
+            "shape": "sumAndTotal"
+          },
+          "capacity": 3360,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "shape": "sumAndTotal",
+                "situation": "tickets"
+              },
+              "capacity": 341544,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "shape": "sumAndTotal",
+                "situation": "snack"
+              },
+              "capacity": 1680,
+              "exact": true
+            }
+          ]
+        },
+        {
+          "label": "shape: \"oneDefined\"",
+          "constraints": {
+            "shape": "oneDefined"
+          },
+          "capacity": 598,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "shape": "oneDefined",
+                "situation": "seats"
+              },
+              "capacity": 3480,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "shape": "oneDefined",
+                "situation": "ages"
+              },
+              "capacity": 299,
+              "exact": true
+            }
+          ]
+        },
+        {
+          "label": "shape: \"equalCost\"",
+          "constraints": {
+            "shape": "equalCost"
+          },
+          "capacity": 1188,
+          "exact": true,
+          "strata": [
+            {
+              "stratum": {
+                "shape": "equalCost",
+                "situation": "rental"
+              },
+              "capacity": 779,
+              "exact": true
+            },
+            {
+              "stratum": {
+                "shape": "equalCost",
+                "situation": "gym"
+              },
+              "capacity": 594,
+              "exact": true
+            }
+          ]
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
       "id": "systems.elimination",
       "version": 1,
       "title": "System of linear equations (elimination)",
@@ -3434,6 +4417,361 @@
           "constraints": {},
           "capacity": 2174110,
           "exact": false
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "systems.graphical2x2",
+      "version": 1,
+      "title": "Solve a system by graphing both lines",
+      "alignments": [
+        "A.3F",
+        "A.5C"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "strict",
+      "constraints": [
+        {
+          "name": "solutionCase",
+          "label": "Solution case",
+          "kind": "choice",
+          "default": "mixed",
+          "concept": true,
+          "values": [
+            "one",
+            "none",
+            "infinite",
+            "mixed"
+          ]
+        },
+        {
+          "name": "secondForm",
+          "label": "How the second equation is written",
+          "kind": "choice",
+          "default": "mixed",
+          "concept": true,
+          "values": [
+            "slopeIntercept",
+            "standard",
+            "mixed"
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "solutionCase",
+        "secondForm"
+      ],
+      "solutionCases": [
+        "one",
+        "none",
+        "infinite",
+        "mixed"
+      ],
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "systemsWorkspace",
+          "default": true,
+          "mode": "linear",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 1224,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "case": "one",
+                "form": "slopeIntercept"
+              },
+              "capacity": 1729,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "one",
+                "form": "standard"
+              },
+              "capacity": 3552,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "none",
+                "form": "slopeIntercept"
+              },
+              "capacity": 1440,
+              "exact": true
+            },
+            {
+              "stratum": {
+                "case": "none",
+                "form": "standard"
+              },
+              "capacity": 2885,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "infinite",
+                "form": "slopeIntercept"
+              },
+              "capacity": 204,
+              "exact": true
+            },
+            {
+              "stratum": {
+                "case": "infinite",
+                "form": "standard"
+              },
+              "capacity": 204,
+              "exact": true
+            }
+          ]
+        },
+        {
+          "label": "solutionCase: \"one\"",
+          "constraints": {
+            "solutionCase": "one"
+          },
+          "capacity": 3458,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "case": "one",
+                "form": "slopeIntercept"
+              },
+              "capacity": 1729,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "one",
+                "form": "standard"
+              },
+              "capacity": 3552,
+              "exact": false
+            }
+          ]
+        },
+        {
+          "label": "solutionCase: \"none\"",
+          "constraints": {
+            "solutionCase": "none"
+          },
+          "capacity": 2880,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "case": "none",
+                "form": "slopeIntercept"
+              },
+              "capacity": 1440,
+              "exact": true
+            },
+            {
+              "stratum": {
+                "case": "none",
+                "form": "standard"
+              },
+              "capacity": 2885,
+              "exact": false
+            }
+          ]
+        },
+        {
+          "label": "solutionCase: \"infinite\"",
+          "constraints": {
+            "solutionCase": "infinite"
+          },
+          "capacity": 408,
+          "exact": true,
+          "strata": [
+            {
+              "stratum": {
+                "case": "infinite",
+                "form": "slopeIntercept"
+              },
+              "capacity": 204,
+              "exact": true
+            },
+            {
+              "stratum": {
+                "case": "infinite",
+                "form": "standard"
+              },
+              "capacity": 204,
+              "exact": true
+            }
+          ]
+        },
+        {
+          "label": "secondForm: \"slopeIntercept\"",
+          "constraints": {
+            "secondForm": "slopeIntercept"
+          },
+          "capacity": 612,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "case": "one",
+                "form": "slopeIntercept"
+              },
+              "capacity": 1729,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "none",
+                "form": "slopeIntercept"
+              },
+              "capacity": 1440,
+              "exact": true
+            },
+            {
+              "stratum": {
+                "case": "infinite",
+                "form": "slopeIntercept"
+              },
+              "capacity": 204,
+              "exact": true
+            }
+          ]
+        },
+        {
+          "label": "secondForm: \"standard\"",
+          "constraints": {
+            "secondForm": "standard"
+          },
+          "capacity": 612,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "case": "one",
+                "form": "standard"
+              },
+              "capacity": 3552,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "none",
+                "form": "standard"
+              },
+              "capacity": 2885,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "infinite",
+                "form": "standard"
+              },
+              "capacity": 204,
+              "exact": true
+            }
+          ]
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {
+        "targetTool": {
+          "tool": "systemsWorkspace",
+          "mode": "linear",
+          "interaction": "construct"
+        },
+        "solutionCases": [
+          "one",
+          "none",
+          "infinite",
+          "mixed"
+        ],
+        "secondForms": [
+          "slopeIntercept",
+          "standard",
+          "mixed"
+        ],
+        "window": "−10..10 by −10..10, whole-number slopes and y-intercepts",
+        "independentVerification": "the case recomputed from the slopes and intercepts; Pre-Flight re-reads every displayed equation as its graded line"
+      }
+    },
+    {
+      "id": "systems.knownValue",
+      "version": 1,
+      "title": "Substitute a known value or expression into a system",
+      "alignments": [
+        "A.5C"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 210,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "shape": "given"
+              },
+              "capacity": 2843,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "shape": "equal"
+              },
+              "capacity": 70,
+              "exact": true
+            },
+            {
+              "stratum": {
+                "shape": "offset"
+              },
+              "capacity": 782,
+              "exact": true
+            }
+          ]
         }
       ],
       "classOf30": "every student unique",
@@ -3531,6 +4869,326 @@
       "classOf30": "every student unique",
       "reducedComplexity": [],
       "declared": {}
+    },
+    {
+      "id": "systems.substitution",
+      "version": 2,
+      "title": "System of linear equations by substitution (Systems Workspace: one, none or infinitely many)",
+      "alignments": [
+        "A.5C"
+      ],
+      "unpinnedReferenceMeansThisVersion": false,
+      "constraintPolicy": "strict",
+      "constraints": [
+        {
+          "name": "solutionCase",
+          "label": "Solution case",
+          "kind": "choice",
+          "default": "one",
+          "concept": true,
+          "values": [
+            "one",
+            "none",
+            "infinite",
+            "mixed"
+          ]
+        },
+        {
+          "name": "form",
+          "label": "How the first equation is written",
+          "kind": "choice",
+          "default": "solvedForY",
+          "concept": true,
+          "values": [
+            "solvedForY",
+            "solvedForX",
+            "unitCoefficient",
+            "mixed"
+          ]
+        },
+        {
+          "name": "solutionRange",
+          "label": "Solution range",
+          "kind": "range",
+          "default": [
+            -8,
+            8
+          ],
+          "concept": false,
+          "limits": [
+            -15,
+            15
+          ]
+        },
+        {
+          "name": "slopeRange",
+          "label": "Coefficient of the solved equation",
+          "kind": "range",
+          "default": [
+            -5,
+            5
+          ],
+          "concept": false,
+          "limits": [
+            -9,
+            9
+          ]
+        },
+        {
+          "name": "coefficientRange",
+          "label": "Coefficient range of the other equation",
+          "kind": "range",
+          "default": [
+            -6,
+            6
+          ],
+          "concept": false,
+          "limits": [
+            -12,
+            12
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "solutionCase",
+        "form"
+      ],
+      "solutionCases": [
+        "one",
+        "none",
+        "infinite",
+        "mixed"
+      ],
+      "solutionForms": [
+        "integer"
+      ],
+      "coefficientForms": [
+        "integer"
+      ],
+      "tools": [
+        {
+          "tool": "systemsWorkspace",
+          "default": true,
+          "mode": "algebraic",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 193855,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "case": "one",
+                "form": "solvedForY"
+              },
+              "capacity": 193855,
+              "exact": false
+            }
+          ]
+        },
+        {
+          "label": "solutionCase: \"none\"",
+          "constraints": {
+            "solutionCase": "none"
+          },
+          "capacity": 27755,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "case": "none",
+                "form": "solvedForY"
+              },
+              "capacity": 27755,
+              "exact": false
+            }
+          ]
+        },
+        {
+          "label": "solutionCase: \"infinite\"",
+          "constraints": {
+            "solutionCase": "infinite"
+          },
+          "capacity": 600,
+          "exact": true,
+          "strata": [
+            {
+              "stratum": {
+                "case": "infinite",
+                "form": "solvedForY"
+              },
+              "capacity": 600,
+              "exact": true
+            }
+          ]
+        },
+        {
+          "label": "solutionCase: \"mixed\"",
+          "constraints": {
+            "solutionCase": "mixed"
+          },
+          "capacity": 1800,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "case": "one",
+                "form": "solvedForY"
+              },
+              "capacity": 193855,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "none",
+                "form": "solvedForY"
+              },
+              "capacity": 27755,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "infinite",
+                "form": "solvedForY"
+              },
+              "capacity": 600,
+              "exact": true
+            }
+          ]
+        },
+        {
+          "label": "form: \"solvedForX\"",
+          "constraints": {
+            "form": "solvedForX"
+          },
+          "capacity": 191214,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "case": "one",
+                "form": "solvedForX"
+              },
+              "capacity": 191214,
+              "exact": false
+            }
+          ]
+        },
+        {
+          "label": "form: \"unitCoefficient\"",
+          "constraints": {
+            "form": "unitCoefficient"
+          },
+          "capacity": 391369,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "case": "one",
+                "form": "unitCoefficient"
+              },
+              "capacity": 391369,
+              "exact": false
+            }
+          ]
+        },
+        {
+          "label": "form: \"mixed\"",
+          "constraints": {
+            "form": "mixed"
+          },
+          "capacity": 573642,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "case": "one",
+                "form": "solvedForY"
+              },
+              "capacity": 193855,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "one",
+                "form": "solvedForX"
+              },
+              "capacity": 191214,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "one",
+                "form": "unitCoefficient"
+              },
+              "capacity": 391369,
+              "exact": false
+            }
+          ]
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [
+        {
+          "support": "reduce-complexity",
+          "narrows": {
+            "solutionRange": [
+              -6,
+              6
+            ],
+            "slopeRange": [
+              -3,
+              3
+            ],
+            "coefficientRange": [
+              -4,
+              4
+            ]
+          },
+          "keeps": [
+            "solutionCase",
+            "form"
+          ],
+          "capacity": 41859
+        }
+      ],
+      "declared": {
+        "targetTool": {
+          "tool": "systemsWorkspace",
+          "mode": "algebraic",
+          "methods": [
+            "substitution",
+            "elimination",
+            "studentChoice"
+          ],
+          "defaultMethod": "substitution"
+        },
+        "solutionCases": [
+          "one",
+          "none",
+          "infinite",
+          "mixed"
+        ],
+        "solutionForms": [
+          "integer"
+        ],
+        "coefficientForms": [
+          "integer"
+        ],
+        "exactArithmetic": true,
+        "independentVerification": "determinant and augmented minors of the displayed rows (classifySubstitutionRows)"
+      }
     },
     {
       "id": "transformations.linearCompareEffects",

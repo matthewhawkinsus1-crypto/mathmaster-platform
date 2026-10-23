@@ -8,12 +8,16 @@ import useFieldUndoHistory from '../shared/useFieldUndoHistory.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import signSolutionGrader from '../../../functions/shared/serverGrading/tools/signSolutionAnalyzer.mjs';
 import {
+  RADICAL_SOLVE_DEFAULT,
   buildSignIntervals,
   evaluateRadicalEquationCandidate,
   formatSolutionPiece,
+  parseRadicalValueList,
+  radicalSolveEquation,
   solutionPiecesForRelation,
   validRadicalCandidates,
 } from './signSolutionMath';
+import { linearReadout, radicalEquationReadout, radicalReadout, raiseBothSidesText } from './radicalSolveReadout.js';
 
 const RELATION_SYMBOLS = { '>': '>', '<': '<', '>=': '≥', '<=': '≤' };
 const relationSymbol = (relation) => RELATION_SYMBOLS[relation] || relation;
@@ -24,6 +28,7 @@ export default function SignSolutionAnalyzer({ questionData = {}, onAction }) {
   const mode = questionData.mode || (questionData.denominatorFactors?.length ? 'rational' : 'polynomial');
   const { feedback, submit } = useToolSubmission(onAction);
   if (mode === 'radicalCheck') return <RadicalCheck questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
+  if (mode === 'radicalSolve') return <RadicalSolve questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
   return <SignChart questionData={questionData} feedback={feedback} submit={submit} mode={mode} onAction={onAction} />;
 }
 
@@ -204,6 +209,164 @@ function RadicalCheck({ questionData, feedback, submit, onAction }) {
             'Squaring both sides of an equation can create solutions the original never had. That is why every candidate must be checked.',
             'Start with the domain: if a candidate makes the expression under the radical negative, it is out immediately.',
             'A square root always returns a value that is zero or positive. If the right-hand side comes out negative for a candidate, that candidate cannot work.',
+          ]}
+          onHintUsed={() => onAction?.('HINT_USED')}
+        />
+      </Panel>
+    </ToolGrid>
+  </ToolShell>;
+}
+
+const stageInputStyle = { width:'100%', padding:9, border:'1px solid var(--mm-tint-border)', borderRadius:8, boxSizing:'border-box', minHeight:44, fontSize:'calc(16 * var(--mm-px))' };
+const stageLabelStyle = { display:'block', fontWeight:800, margin:'14px 0 6px' };
+const stageMathStyle = { fontWeight:800, whiteSpace:'nowrap' };
+
+/*
+ * SOLVE A RADICAL EQUATION, ONE STAGE AT A TIME: isolate the radical, raise
+ * both sides to the index, solve for the candidates, check each candidate in
+ * the ORIGINAL equation, then state the solutions. Every stage is typed by
+ * the student and marked on its own by the shared grader (radicalSolve in
+ * functions/shared/serverGrading/tools/signSolutionAnalyzer.mjs), so a final
+ * answer typed from a calculator earns only its own part.
+ */
+function RadicalSolve({ questionData, feedback, submit, onAction }) {
+  const spec = questionData.radicalEquation || RADICAL_SOLVE_DEFAULT;
+  const notation = spec.notation === 'exponent' ? 'exponent' : 'radical';
+  // The equation on screen. A spec this view cannot solve by hand shows a
+  // notice instead (the grader reports such a question as invalid).
+  const equation = useMemo(() => {
+    try {
+      return radicalSolveEquation(spec);
+    } catch {
+      return null;
+    }
+  }, [spec]);
+  const variable = equation?.variable || 'x';
+  const [isolated, setIsolated] = usePersistentToolState('isolated', '');
+  const [raised, setRaised] = usePersistentToolState('raised', '');
+  const [candidates, setCandidates] = usePersistentToolState('candidates', '');
+  const [rows, setRows] = usePersistentToolState('rows', []);
+  const [finalAnswer, setFinalAnswer] = usePersistentToolState('finalAnswer', '');
+  const [noRealSolution, setNoRealSolution] = usePersistentToolState('noRealSolution', false);
+  useFieldUndoHistory({ questionData, fields: {
+    isolated: [isolated, setIsolated], raised: [raised, setRaised], candidates: [candidates, setCandidates],
+    rows: [rows, setRows], finalAnswer: [finalAnswer, setFinalAnswer], noRealSolution: [noRealSolution, setNoRealSolution],
+  } });
+  // The verdict comes from the shared grader the server runs; this view only
+  // shows it. Row i checks the i-th value typed as a candidate.
+  const work = { isolated, raised, candidates, rows, finalAnswer, noRealSolution };
+  useReportToolWork(work);
+  const check = () => {
+    const result = gradeToolCheck(signSolutionGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'radicalSolve', parts: result.parts });
+  };
+
+  // The check rows follow the candidates as typed; a list that cannot be read
+  // has none until it can.
+  const typed = parseRadicalValueList(candidates, variable);
+  const checkValues = typed.kind === 'values' ? typed.values : [];
+  const rowAt = (index) => (Array.isArray(rows) && rows[index] && typeof rows[index] === 'object' ? rows[index] : {});
+  const setRowField = (index, field) => (event) => {
+    const value = event.target.value;
+    setRows((old) => {
+      const next = Array.isArray(old) ? [...old] : [];
+      next[index] = { ...(next[index] && typeof next[index] === 'object' ? next[index] : {}), [field]: value };
+      return next;
+    });
+  };
+  const toggleNoRealSolution = (event) => {
+    setNoRealSolution(event.target.checked);
+    if (event.target.checked) setFinalAnswer('');
+  };
+
+  if (!equation) {
+    return <ToolShell title="Sign & Solution Analyzer" subtitle="Solve a radical equation step by step." badge="Radical equations">
+      <p role="alert">This radical equation cannot be shown. Ask your teacher to check the question.</p>
+    </ToolShell>;
+  }
+
+  const radical = radicalReadout(equation, notation);
+  const radicand = linearReadout(equation.radicand.m, equation.radicand.b, variable);
+  const stageParts = Array.isArray(feedback?.metadata?.parts) ? feedback.metadata.parts : [];
+
+  return <ToolShell
+    title="Sign & Solution Analyzer"
+    subtitle="Solve a radical equation step by step, then check every candidate in the original equation."
+    badge="Radical equations"
+  >
+    <TaskCard
+      question={questionData}
+      task={`Solve ${radicalEquationReadout(equation, notation)}, showing each step, and check every candidate.`}
+      steps={[
+        'Isolate the radical: undo what is done outside it, in reverse order.',
+        `${raiseBothSidesText(equation.index)} to undo the ${notation === 'exponent' ? `exponent 1/${equation.index}` : 'radical'}.`,
+        `Solve the new equation for ${variable}. Its solutions are only candidates.`,
+        'Substitute each candidate into the ORIGINAL equation. Keep it only if both sides match.',
+      ]}
+      note={equation.index % 2 === 0 ? 'An even root is never negative. Raising both sides to an even power can create values that do not solve the original equation — extraneous solutions.' : null}
+    />
+    <ToolGrid min={330}>
+      <Panel title="Solve">
+        <p style={{ fontSize:'calc(20 * var(--mm-px))', fontWeight:900, margin:'0 0 4px' }}>{radicalEquationReadout(equation, notation)}</p>
+        <label style={stageLabelStyle} htmlFor="radical-solve-isolate">1. Isolate the radical</label>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <span style={stageMathStyle}>{radical} =</span>
+          <input id="radical-solve-isolate" value={isolated} onChange={(event) => setIsolated(event.target.value)} style={stageInputStyle} aria-label={`${radical} equals`} autoComplete="off" />
+        </div>
+        <label style={stageLabelStyle} htmlFor="radical-solve-raise">2. {raiseBothSidesText(equation.index)}</label>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <span style={stageMathStyle}>{radicand} =</span>
+          <input id="radical-solve-raise" value={raised} onChange={(event) => setRaised(event.target.value)} style={stageInputStyle} aria-label={`${radicand} equals`} autoComplete="off" placeholder={`a number or an expression in ${variable}`} />
+        </div>
+        <label style={stageLabelStyle} htmlFor="radical-solve-candidates">3. Solve for {variable}: the candidates</label>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <span style={stageMathStyle}>{variable} =</span>
+          <input id="radical-solve-candidates" value={candidates} onChange={(event) => setCandidates(event.target.value)} style={stageInputStyle} autoComplete="off" placeholder="separate two values with a comma, or type none" />
+        </div>
+        {typed.kind === 'unreadable' ? <p style={{ color:'var(--mm-text-muted)', margin:'6px 0 0' }}>Type each value as a number or a fraction such as 7/2, separated by commas.</p> : null}
+      </Panel>
+      <Panel title="Check in the original equation">
+        {checkValues.length ? checkValues.map((value, index) => {
+          const row = rowAt(index);
+          const shown = `${variable} = ${value < 0 ? `−${Math.abs(value)}` : value}`;
+          return <fieldset key={`${index}-${value}`} style={{ border:'1px solid var(--mm-tint-border)', borderRadius:10, padding:'10px 12px', margin:'0 0 10px' }}>
+            <legend style={{ fontWeight:900, padding:'0 6px' }}>4. Check {shown}</legend>
+            <label style={{ display:'block', marginBottom:8 }}>Left side at {shown}
+              <input value={row.left ?? ''} onChange={setRowField(index, 'left')} style={{ ...stageInputStyle, marginTop:4 }} autoComplete="off" placeholder="a number, or not real" />
+            </label>
+            <label style={{ display:'block', marginBottom:8 }}>Right side at {shown}
+              <input value={row.right ?? ''} onChange={setRowField(index, 'right')} style={{ ...stageInputStyle, marginTop:4 }} autoComplete="off" />
+            </label>
+            <label style={{ display:'block' }}>So {shown}
+              <select value={row.decision ?? ''} onChange={setRowField(index, 'decision')} style={{ ...stageInputStyle, marginTop:4 }}>
+                <option value="">Choose…</option>
+                <option value="solution">solves the original equation</option>
+                <option value="extraneous">is extraneous</option>
+              </select>
+            </label>
+          </fieldset>;
+        }) : <p style={{ color:'var(--mm-text-muted)', marginTop:0 }}>{typed.kind === 'none' ? 'No candidates to check.' : 'Your candidates from step 3 appear here to check.'}</p>}
+        <label style={stageLabelStyle} htmlFor="radical-solve-final">5. Solution of the original equation</label>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <span style={stageMathStyle}>{variable} =</span>
+          <input id="radical-solve-final" value={finalAnswer} onChange={(event) => setFinalAnswer(event.target.value)} style={stageInputStyle} autoComplete="off" disabled={noRealSolution === true} />
+        </div>
+        <label style={{ display:'flex', alignItems:'center', gap:8, marginTop:8, minHeight:44 }}>
+          <input type="checkbox" checked={noRealSolution === true} onChange={toggleNoRealSolution} style={{ width:20, height:20 }} />
+          No real solution
+        </label>
+        <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check my solution</SubmitText></button>
+        {feedback ? <div style={{ marginTop:14 }}>
+          <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct — every step, and every candidate checked.' : 'Not yet — fix the steps marked below.'}</ResultPill>
+          {!feedback.isCorrect && stageParts.length ? <ul style={{ margin:'10px 0 0', paddingLeft:20, lineHeight:1.7 }}>
+            {stageParts.map((part) => <li key={part.id}>{part.isCorrect ? '✓' : '✗'} {part.label}</li>)}
+          </ul> : null}
+        </div> : null}
+        <HintPanel
+          hints={[
+            'Undo the outside operations in reverse order: first add or subtract the number outside the radical, then divide by its coefficient.',
+            `${raiseBothSidesText(equation.index)}: (${radical})${equation.index === 2 ? '²' : equation.index === 3 ? '³' : `^${equation.index}`} is just ${radicand}. Raise the other side to the same power.`,
+            'Substitute each candidate into the original equation, not the raised one. If the two sides do not match, the candidate is extraneous.',
           ]}
           onHintUsed={() => onAction?.('HINT_USED')}
         />

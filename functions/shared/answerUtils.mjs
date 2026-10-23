@@ -10,7 +10,9 @@ import {
   sameMixedNumber,
   sameNumberWithThousandsSeparators,
   normalizeStructuralMathLive,
+  sameFormPreservingExpression,
   sameNumericPair,
+  samePolynomialEquationRelation,
   sameValue,
   splitTopLevelCommaList,
 } from './answerEquivalence.mjs';
@@ -27,6 +29,7 @@ const ELLIPSIS_PATTERN = /(?:\.\.\.|…|\\ldots|\\cdots)/g;
 
 const normalizeSequenceToken = (value) => String(value ?? '')
   .replace(ELLIPSIS_PATTERN, ELLIPSIS_TOKEN);
+const PLUS_MINUS = /^(?:\\pm(?![A-Za-z])|±)\s*/;
 
 const parseNumericRoster = (value, { allowUnenclosed = false } = {}) => {
   const prepared = normalizeSequenceToken(value);
@@ -65,7 +68,14 @@ const parseNumericRoster = (value, { allowUnenclosed = false } = {}) => {
     .filter((index) => index >= 0);
 
   if (!ellipsisIndexes.length) {
-    const numbers = normalizedParts.map((part) => asNumber(part));
+    // "±a" is the two numbers a and −a: the Rational Zero Theorem lists its
+    // candidates that way ({±1, ±2, ±1/3}), and a key written so was never
+    // matched — not even by itself.
+    const numbers = normalizedParts.flatMap((part) => {
+      if (!PLUS_MINUS.test(part)) return [asNumber(part)];
+      const magnitude = asNumber(part.replace(PLUS_MINUS, ''));
+      return magnitude === null ? [null] : [magnitude, -magnitude];
+    });
     return numbers.every((number) => number !== null) ? numbers : null;
   }
 
@@ -194,6 +204,35 @@ const isOrderedPairField = (field) => (
 export const matchesAnyNumberWithThousandsSeparators = (studentAnswer, acceptedAnswers = []) =>
   acceptedAnswers.some((acceptedAnswer) => sameNumberWithThousandsSeparators(studentAnswer, acceptedAnswer));
 
+/*
+ * FORM-SPECIFIC FIELD GRADING, LOADED WITH THE SURFACES THAT GRADE.
+ *
+ * `gradingMode: 'factoredForm'` and `'simplestRadicalForm'` compare
+ * mathematics in a required form (factoredPolynomialExpressionEquivalence.mjs,
+ * simplestRadicalFormEquivalence.mjs). This module rides in every student's
+ * first load (scripts/check-first-load-budget.mjs) and their readers do not
+ * need to, so they register themselves here from formSpecificFieldGrading.mjs,
+ * which the multi-answer screen, the server's grading dispatch and Pre-Flight
+ * import (tests/platform/formSpecificFieldGrading.test.mjs pins each import).
+ */
+export const FORM_SPECIFIC_GRADING_MODES = Object.freeze(['factoredForm', 'simplestRadicalForm']);
+const FORM_SPECIFIC_COMPARATORS = new Map();
+export const registerFormSpecificComparator = (mode, comparator) => {
+  if (!FORM_SPECIFIC_GRADING_MODES.includes(mode) || typeof comparator !== 'function') {
+    throw new Error(`Unknown form-specific grading mode "${mode}".`);
+  }
+  FORM_SPECIFIC_COMPARATORS.set(mode, comparator);
+};
+export const formSpecificComparatorLoaded = (mode) => FORM_SPECIFIC_COMPARATORS.has(mode);
+
+// The key exactly as written, up to spelling (MathLive braces, `\\cdot`):
+// what a form-specific mode falls back to, never a looser reading — the
+// ordinary grader would accept 5·10a for 50a, which no "simplify" key means.
+const sameWrittenForm = (studentAnswer, acceptedAnswer) => (
+  sameFormPreservingExpression(studentAnswer, acceptedAnswer)
+  || (normalizeMathAnswer(studentAnswer) !== '' && normalizeMathAnswer(studentAnswer) === normalizeMathAnswer(acceptedAnswer))
+);
+
 export const matchesFieldAnswer = (studentAnswer, field = {}) => {
   const acceptedAnswers = answerCandidatesForField(field);
 
@@ -231,11 +270,34 @@ export const matchesFieldAnswer = (studentAnswer, field = {}) => {
     return true;
   }
 
+  // An equation the question asks a student to WRITE, in whatever form they
+  // write it: "y = 449 − x" or "2x + 2y = 898" for "x + y = 449" (a nonzero
+  // multiple of the same relation). Opt-in, with the Path field's name for it
+  // (teacherPathRuntime): by default an equation keeps the form it is keyed
+  // in, because "write it in slope-intercept form" is often the question.
+  if (field?.equivalence === 'polynomialRelation') {
+    return acceptedAnswers.some((acceptedAnswer) => samePolynomialEquationRelation(studentAnswer, acceptedAnswer));
+  }
+
   if (field?.gradingMode === 'equivalentExpression') {
     // A mixed number against a number key is read as one here too, never as
     // a product (answerEquivalence.sameMixedNumber).
     return acceptedAnswers.some((acceptedAnswer) => (
       sameMixedNumber(studentAnswer, acceptedAnswer) ?? sameEquivalentExpression(studentAnswer, acceptedAnswer)));
+  }
+
+  // factoredForm: a factoring answer in any factor order, with a sign moved
+  // between factors, is the same factorization; an expanded or less complete
+  // one is not. simplestRadicalForm: any arrangement of the key's value that
+  // is fully simplified, in the key's notation — never the question retyped
+  // or a decimal. The key exactly as written is always right, so a surface
+  // that has not loaded the comparator (below) only ever errs toward "not
+  // yet", never toward credit.
+  if (FORM_SPECIFIC_GRADING_MODES.includes(field?.gradingMode)) {
+    const comparator = FORM_SPECIFIC_COMPARATORS.get(field.gradingMode);
+    return acceptedAnswers.some((acceptedAnswer) => (
+      (typeof comparator === 'function' && comparator(studentAnswer, acceptedAnswer) === true)
+      || sameWrittenForm(studentAnswer, acceptedAnswer)));
   }
 
   return matchesAnyAnswer(studentAnswer, acceptedAnswers, options);

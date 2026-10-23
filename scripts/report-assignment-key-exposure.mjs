@@ -46,6 +46,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { deliveredQuestionForGrading } from '../functions/shared/serverGrading/deliveredQuestion.mjs';
 import { serverResponseGradingSupport } from '../functions/shared/serverGrading/gradingSupport.mjs';
+import { isFamilyBackedQuestion } from '../functions/shared/questionFamilyInstance.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // firebase-admin lives in functions/ (CommonJS).
@@ -196,7 +197,12 @@ export const gradingOutcomeFor = (question) => {
   }
   if (support?.supported) return { outcome: GRADING_OUTCOME.SERVER, reason: null };
   const reason = String(support?.reason || 'unknown');
-  if (reason === 'family-template') return { outcome: GRADING_OUTCOME.FAMILY_SLOT, reason };
+  // An assignment's own template carries its `generator` and is family-backed:
+  // ingestion rebuilds the instance from the delivery pin before it grades
+  // (questionFamilyGrading.mjs resolveServerGradingQuestion), as for any family.
+  if (reason === 'family-template' || (reason === 'generated-question' && isFamilyBackedQuestion(question))) {
+    return { outcome: GRADING_OUTCOME.FAMILY_SLOT, reason: 'family-template' };
+  }
   if (reason === 'teacher-excluded') return { outcome: GRADING_OUTCOME.EXCLUDED, reason };
   if (reason.startsWith('non-graded')) return { outcome: GRADING_OUTCOME.NON_GRADED, reason };
   return { outcome: GRADING_OUTCOME.DEVICE_ONLY, reason };

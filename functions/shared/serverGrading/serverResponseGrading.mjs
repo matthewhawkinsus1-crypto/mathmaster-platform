@@ -34,6 +34,8 @@ import { QUESTION_GRADERS, gradeQuestionResponse, questionGraderAccepts } from '
 import { TOOL_GRADERS } from './toolGraders.mjs';
 import { isToolResponse, readToolWork } from './toolResponseContract.mjs';
 import { gradeWorkWithGrader } from './toolWorkGrading.mjs';
+// The factoredForm / simplestRadicalForm field comparators (answerUtils.mjs).
+import '../formSpecificFieldGrading.mjs';
 
 export { gradeWorkWithGrader };
 

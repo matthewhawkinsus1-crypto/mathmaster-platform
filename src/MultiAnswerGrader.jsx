@@ -9,14 +9,18 @@ import PathQuestionStimulus from './components/student/PathQuestionStimulus.jsx'
 import LinearRegressionPanel from './components/assessment/LinearRegressionPanel.jsx';
 import { answerCandidatesForField, looksLikeFiniteSetNotation } from './answerUtils';
 import { gradeMultiAnswerResponse } from '../functions/shared/ordinaryResponseGrading.mjs';
-import { resolveLabelFormat } from './labelFormat';
+// Registers the factoredForm / simplestRadicalForm comparators the shared
+// field grader reads (kept out of the first load: answerUtils.mjs).
+import '../functions/shared/formSpecificFieldGrading.mjs';
+import { labelHasDelimitedMath, resolveLabelFormat } from './labelFormat';
 import { inferRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
 import { describeAnswerFormat } from './platform/interaction/answerFormatHints.js';
 import { keypadProfileForResponseField } from './platform/interaction/interactionContract.js';
 import { formatProblemForResponse } from './platform/interaction/answerShapeGuard.js';
 import useUndoHistory from './useUndoHistory';
 import { choiceAccessibleLabel, choiceOptionsForField, choiceSeed, stableShuffleChoices } from './platform/interaction/choiceOptions.js';
-import { normalizePlainMathTypography } from './components/common/mathSegments.js';
+import { normalizePlainMathTypography, toPlainMath } from './components/common/mathSegments.js';
+import { MathText } from './components/common/MathText.jsx';
 import { ChoiceMark, useChoiceGroup } from './platform/interaction/choiceGroup.js';
 
 const TEXTUAL_MATH_SIGNAL = /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩]/;
@@ -25,6 +29,13 @@ const normalizeMathDisplayValue = (value) => normalizePlainMathTypography(value)
   .replace(/⁻¹/g, '^(-1)')
   .replace(/²/g, '^2')
   .replace(/³/g, '^3');
+
+// A field's name for a screen reader: the label's mathematics as characters,
+// never its dollar signs.
+const accessibleFieldLabel = (field) => {
+  const text = field.label || field.id;
+  return labelHasDelimitedMath(text) ? toPlainMath(text) : text;
+};
 
 const renderChoiceText = (value) => {
   const text = String(value ?? '');
@@ -221,6 +232,9 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
               <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: 'var(--mm-text)' }}>
                 {(() => {
                   const text = field.label || field.id;
+                  // "$x$-intercept", "Slope $m$ =": words and mathematics,
+                  // set the way MathText sets every other field label.
+                  if (!field.labelLatex && !field.labelFormat && labelHasDelimitedMath(text)) return <MathText>{text}</MathText>;
                   const format = resolveLabelFormat(text, { latexFlag: field.labelLatex, explicitFormat: field.labelFormat });
                   // An English label goes through the math typesetter as
                   // juxtaposed variables — "Discrete or continuous?" comes out
@@ -240,7 +254,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
               ) : null}
               {choiceOptions ? (
                 <ChoiceFieldOptions
-                  label={field.label || field.id}
+                  label={accessibleFieldLabel(field)}
                   options={choiceOptions}
                   value={String(answers[field.id] || '')}
                   grade={grade}
@@ -252,7 +266,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                   value={answers[field.id] || ''}
                   onChange={(event) => history.setValue((current) => ({ ...current, [field.id]: event.target.value }))}
                   placeholder={answerShape.placeholder}
-                  aria-label={field.label || field.id}
+                  aria-label={accessibleFieldLabel(field)}
                   autoComplete="off"
                   spellCheck={false}
                   style={{
@@ -279,7 +293,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                       : shouldUseInequalityInput(field)
                         ? 'for example 0 ≤ x ≤ 4'
                         : 'Type your answer'}
-                  ariaLabel={field.label || field.id}
+                  ariaLabel={accessibleFieldLabel(field)}
                   toolProfile={field.toolProfile || (shouldUseSetInput(field) ? 'set' : shouldUseInequalityInput(field) ? 'inequality' : keypadProfileForResponseField(field) || 'basic')}
                   answerFormat={field.answerFormat || field.inputContract?.format || field.notation || field.inputMode || (shouldUseInequalityInput(field) ? 'inequality' : '')}
                   requiredSymbols={requiredSymbols}

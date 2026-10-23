@@ -1,0 +1,2441 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Factoring Polynomials — Honors",
+    "courseId": "algebra2",
+    "folder": "Algebra II Honors/Polynomials",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork",
+    "essentialQuestion": "How does the structure of the expression influence the selection of an efficient method for factoring polynomial expressions?",
+    "teacherNotes": "Honors version of Bluebonnet Algebra II — Polynomials, Lesson 1 (Factoring Polynomials), TEKS A2.7E (A2.7D). One assignment for the whole lesson. Beyond the regular lesson: quadratic form and substitution (x⁴, x⁶, and (x + 1)³ − 8), grouping that needs rearranging or six terms, a⁶ − 64 two ways and reconciled, sums that still factor (x⁴ + 64), error analysis with a numeric check, parameter questions, a box model, and a divisibility proof. Factoring answers are graded by their factors (any order; a minus sign may move between factors) and must be completely factored; intermediate boxes ask for the exact intermediate step. Practice includes two audited SAT items (MathMaster CCMR bank). Warm-Up and DOL are generated per student and back Recovery."
+  },
+  "variantPolicy": {
+    "mode": "personalized",
+    "sectionModes": {
+      "warmup": "shared",
+      "classwork": "shared",
+      "practice": "personalized",
+      "dol": "personalized"
+    },
+    "avoidRecentTemplates": true,
+    "avoidDuplicateParameters": true
+  },
+  "sections": [
+    {
+      "id": "warmup",
+      "role": "warmup",
+      "title": "Warm-Up — Factoring Review",
+      "recommendedMinutes": 8,
+      "questions": [
+        {
+          "questionId": "fph-wu-1",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Getting started — factor ${{a}}x^2 {{b|xterm}} {{c|signed}}$ with the $ac$ method.",
+          "responses": [
+            {
+              "id": "ac",
+              "label": "a · c =",
+              "answer": "{{ac}}",
+              "inputProfile": "number"
+            },
+            {
+              "id": "factored",
+              "label": "Factored form",
+              "answer": "({{p}}x{{r|signed}})({{q|coef}}x{{t|signed}})",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Multiply a and c. Then look for two numbers with that product whose sum is the x-coefficient.",
+            "Split the middle term with those two numbers and factor by grouping."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In the ac method for ax² + bx + c, the two numbers you look for add to…",
+            "options": [
+              "a·c",
+              "b"
+            ],
+            "correct": "b"
+          },
+          "solutionReview": {
+            "headline": "Find two numbers with product ac and sum b, split the middle term, and group.",
+            "reasoning": [
+              "a · c = {{a}} · ({{c}}) = {{ac}}.",
+              "{{m1}} and {{m2}} have product {{ac}} and sum {{b}}, so {{a}}x² {{b|xterm}} {{c|signed}} = {{a}}x² {{m1|xterm}} {{m2|xterm}} {{c|signed}}.",
+              "Group: {{p}}x({{q|coef}}x {{t|signed}}) {{r|signed}}({{q|coef}}x {{t|signed}}) = ({{p}}x {{r|signed}})({{q|coef}}x {{t|signed}})."
+            ],
+            "answerSummary": "({{p}}x {{r|signed}})({{q|coef}}x {{t|signed}})",
+            "commonError": "Two numbers with product c (not ac) only work when a = 1."
+          },
+          "generator": {
+            "parameters": {
+              "p": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "q": {
+                "type": "int",
+                "min": 1,
+                "max": 5
+              },
+              "r": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  0
+                ]
+              },
+              "t": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "a": "p * q",
+              "b": "p * t + q * r",
+              "c": "r * t",
+              "ac": "p * q * r * t",
+              "m1": "p * t",
+              "m2": "q * r"
+            },
+            "constraints": [
+              "gcd(p, r) == 1",
+              "gcd(q, t) == 1",
+              "p * t + q * r != 0",
+              "p * t != q * r",
+              "q < p"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "fph-wu-2",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Factor completely: ${{g}}x^4 - {{gk4}}$",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "{{g}}(x^2+{{k2}})(x+{{k}})(x-{{k}})",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Take out the GCF first.",
+            "x⁴ is the square of x², so the next step is a difference of squares — and one of the factors it leaves is again a difference of squares."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. For any number k, x⁴ − k⁴ first factors as…",
+            "options": [
+              "(x² + k²)(x² − k²)",
+              "(x − k)⁴"
+            ],
+            "correct": "(x² + k²)(x² − k²)"
+          },
+          "solutionReview": {
+            "headline": "GCF, then the difference of squares twice.",
+            "reasoning": [
+              "Take out the GCF {{g}}: {{g}}(x⁴ − {{k4}}).",
+              "x⁴ − {{k4}} = (x²)² − ({{k2}})² = (x² + {{k2}})(x² − {{k2}}).",
+              "x² − {{k2}} = (x + {{k}})(x − {{k}}), and x² + {{k2}} is a sum of squares, which is prime."
+            ],
+            "answerSummary": "{{g}}(x² + {{k2}})(x + {{k}})(x − {{k}})",
+            "commonError": "Stopping at {{g}}(x² + {{k2}})(x² − {{k2}}): x² − {{k2}} is still a difference of squares."
+          },
+          "generator": {
+            "parameters": {
+              "g": {
+                "type": "int",
+                "min": 2,
+                "max": 7
+              },
+              "k": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              }
+            },
+            "derived": {
+              "k2": "k * k",
+              "k4": "k^4",
+              "gk4": "g * k^4"
+            },
+            "constraints": []
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "fph-wu-3",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Find the positive value of $b$ that makes $x^2 + bx + {{c2}}$ a perfect square trinomial, then factor the trinomial.",
+          "responses": [
+            {
+              "id": "b",
+              "label": "b =",
+              "answer": "{{b}}",
+              "inputProfile": "number"
+            },
+            {
+              "id": "factored",
+              "label": "x² + bx + {{c2}} =",
+              "answer": "(x+{{c}})^2",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "In (x + c)², the middle term is 2 · x · c.",
+            "The constant term {{c2}} is the square of which positive number?"
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. (x + c)² expands to…",
+            "options": [
+              "x² + 2cx + c²",
+              "x² + c²"
+            ],
+            "correct": "x² + 2cx + c²"
+          },
+          "solutionReview": {
+            "headline": "A perfect square trinomial is (x + c)² = x² + 2cx + c².",
+            "reasoning": [
+              "{{c2}} = {{c}}², so the trinomial must be (x + {{c}})².",
+              "(x + {{c}})² = x² + {{b}}x + {{c2}}, so b = 2 · {{c}} = {{b}}."
+            ],
+            "answerSummary": "b = {{b}}; (x + {{c}})²",
+            "commonError": "Taking b = {{c}}: the middle term of (x + c)² is 2cx, not cx."
+          },
+          "generator": {
+            "parameters": {
+              "c": {
+                "type": "int",
+                "min": 2,
+                "max": 15
+              }
+            },
+            "derived": {
+              "c2": "c * c",
+              "b": "2 * c"
+            },
+            "constraints": []
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        }
+      ]
+    },
+    {
+      "id": "classwork",
+      "role": "classwork",
+      "title": "Classwork — Structure Chooses the Method",
+      "recommendedMinutes": 50,
+      "questions": [
+        {
+          "questionId": "fph-cw-1",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Factor $2xy + 3z + 6y + xz$ by grouping. The first two terms share no factor, so rearrange the terms before you group.",
+          "responses": [
+            {
+              "id": "g1",
+              "label": "2xy + 6y =",
+              "answer": "2y(x+3)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "g2",
+              "label": "xz + 3z =",
+              "answer": "z(x+3)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "factored",
+              "label": "2xy + 3z + 6y + xz =",
+              "answer": "(x+3)(2y+z)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "other",
+              "label": "A different grouping also works. Which one?",
+              "type": "choice",
+              "options": [
+                "(2xy + xz) + (6y + 3z)",
+                "(2xy + 3z) + (6y + xz)",
+                "(2xy + 6y + xz) + 3z",
+                "No other grouping works"
+              ],
+              "answer": "(2xy + xz) + (6y + 3z)"
+            }
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Grouping needs the right pairs",
+                "instruction": "Factoring by grouping works only when each pair shares a factor AND the binomials left inside match. If the written order fails, rearrange."
+              },
+              {
+                "title": "Example",
+                "instruction": "ab + 6 + 2a + 3b: (ab + 6) shares nothing. Rearrange: (ab + 2a) + (3b + 6) = a(b + 2) + 3(b + 2) = (a + 3)(b + 2)."
+              }
+            ]
+          },
+          "hints": [
+            "Look for two terms that share a variable: 2xy and 6y both contain y.",
+            "After grouping, factor the GCF out of each pair; the binomials left inside must match."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. What factor do 2xy and 6y share?",
+            "options": [
+              "2y",
+              "x"
+            ],
+            "correct": "2y"
+          },
+          "solutionReview": {
+            "headline": "Rearrange so each pair shares a factor.",
+            "reasoning": [
+              "2xy + 6y = 2y(x + 3) and xz + 3z = z(x + 3).",
+              "Both groups contain (x + 3), so 2y(x + 3) + z(x + 3) = (x + 3)(2y + z).",
+              "Grouping 2xy with xz works too: x(2y + z) + 3(2y + z) = (x + 3)(2y + z)."
+            ],
+            "answerSummary": "(x + 3)(2y + z)",
+            "commonError": "Grouping 2xy with 3z: they share no factor, so the method seems to fail — it is the grouping that failed, not the polynomial."
+          },
+          "questionWeight": 1.5
+        },
+        {
+          "questionId": "fph-cw-2",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Factor $ax^2 + bx^2 - 5ax - 5bx + 6a + 6b$ completely. Group the six terms in three pairs, factor each pair, factor out the common binomial — and keep going.",
+          "responses": [
+            {
+              "id": "grouped",
+              "label": "After grouping: (a + b)(…) =",
+              "answer": "(a+b)(x^2-5x+6)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "(a+b)(x-2)(x-3)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "More than four terms",
+                "instruction": "Look for groups that all leave the same binomial. Example: px² + qx² + 2px + 2qx + p + q = x²(p + q) + 2x(p + q) + 1(p + q) = (p + q)(x² + 2x + 1) = (p + q)(x + 1)²."
+              },
+              {
+                "title": "Factor completely",
+                "instruction": "After the common binomial comes out, check every factor again."
+              }
+            ]
+          },
+          "hints": [
+            "Pair the two terms with x², the two terms with x, and the two constants.",
+            "Each pair contains the same binomial.",
+            "Is the trinomial that is left factorable?"
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. ax² + bx² factors as…",
+            "options": [
+              "x(a + b)²",
+              "x²(a + b)"
+            ],
+            "correct": "x²(a + b)"
+          },
+          "solutionReview": {
+            "headline": "Three pairs, one common binomial, then the trinomial.",
+            "reasoning": [
+              "ax² + bx² = x²(a + b), −5ax − 5bx = −5x(a + b), 6a + 6b = 6(a + b).",
+              "x²(a + b) − 5x(a + b) + 6(a + b) = (a + b)(x² − 5x + 6).",
+              "x² − 5x + 6 = (x − 2)(x − 3)."
+            ],
+            "answerSummary": "(a + b)(x − 2)(x − 3)",
+            "commonError": "Stopping at (a + b)(x² − 5x + 6): the trinomial still factors."
+          },
+          "questionWeight": 1.25
+        },
+        {
+          "questionId": "fph-cw-3",
+          "standard": "A2.7D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Quadratic form. Find the linear factors of $f(x) = x^4 - 13x^2 + 36$: substitute $u = x^2$, factor the quadratic in $u$, substitute back, and check every factor again. Then list the zeros of $f$ and check them against the table of values.",
+          "table": {
+            "columns": [
+              {
+                "key": "x",
+                "label": "x"
+              },
+              {
+                "key": "fx",
+                "label": "f(x)"
+              }
+            ],
+            "rows": [
+              {
+                "x": -3,
+                "fx": 0
+              },
+              {
+                "x": -2,
+                "fx": 0
+              },
+              {
+                "x": -1,
+                "fx": 24
+              },
+              {
+                "x": 0,
+                "fx": 36
+              },
+              {
+                "x": 1,
+                "fx": 24
+              },
+              {
+                "x": 2,
+                "fx": 0
+              },
+              {
+                "x": 3,
+                "fx": 0
+              }
+            ]
+          },
+          "responses": [
+            {
+              "id": "inu",
+              "label": "With u = x²: u² − 13u + 36 =",
+              "answer": "(u-4)(u-9)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "back",
+              "label": "Substitute back: x⁴ − 13x² + 36 =",
+              "answer": "(x^2-4)(x^2-9)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "(x-2)(x+2)(x-3)(x+3)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "zeros",
+              "label": "Zeros of f, as a set",
+              "answer": "{-3, -2, 2, 3}",
+              "inputProfile": "set"
+            }
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Quadratic form",
+                "instruction": "A polynomial is in quadratic form when it can be written au² + bu + c, where u is an expression in x. In x⁴ − 13x² + 36, x⁴ = (x²)², so u = x²."
+              },
+              {
+                "title": "Substitute, factor, substitute back",
+                "instruction": "Example: x⁴ − 5x² + 4 → u² − 5u + 4 = (u − 1)(u − 4) → (x² − 1)(x² − 4) → (x − 1)(x + 1)(x − 2)(x + 2)."
+              },
+              {
+                "title": "Keep going",
+                "instruction": "After substituting back, a factor may still be a difference of squares or cubes."
+              },
+              {
+                "title": "Zeros from factors",
+                "instruction": "If x − r is a factor of P(x), then P(r) = 0: at x = r that factor is 0, so the whole product is 0. Each linear factor gives a zero, and each real zero c is an x-intercept (c, 0) of the graph."
+              }
+            ]
+          },
+          "hints": [
+            "Two numbers with product 36 and sum −13.",
+            "Replace u with x² in each factor.",
+            "After substituting back, check each factor: is it a difference of squares?"
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Why is u = x² the right substitution for x⁴ − 13x² + 36?",
+            "options": [
+              "Because x⁴ = (x²)²",
+              "Because 36 = 6²"
+            ],
+            "correct": "Because x⁴ = (x²)²"
+          },
+          "solutionReview": {
+            "headline": "Substitute, factor, substitute back, factor again.",
+            "reasoning": [
+              "u² − 13u + 36 = (u − 4)(u − 9), since (−4)(−9) = 36 and −4 + (−9) = −13.",
+              "Substituting back: (x² − 4)(x² − 9).",
+              "Each factor is a difference of squares: (x − 2)(x + 2)(x − 3)(x + 3).",
+              "Each linear factor is 0 at one value, so the zeros are −3, −2, 2 and 3."
+            ],
+            "answerSummary": "(x − 2)(x + 2)(x − 3)(x + 3); zeros {−3, −2, 2, 3}",
+            "commonError": "Stopping at (x² − 4)(x² − 9): both factors are still differences of squares.",
+            "connection": "The zeros ±2 and ±3 are where y = x⁴ − 13x² + 36 crosses the x-axis."
+          },
+          "questionWeight": 1.5
+        },
+        {
+          "questionId": "fph-cw-4",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Factor $2x^4 - 7x^2 - 4$ completely. With $u = x^2$ the leading coefficient is 2, so factor $2u^2 - 7u - 4$ with the $ac$ method.",
+          "responses": [
+            {
+              "id": "ac",
+              "label": "a · c for 2u² − 7u − 4",
+              "answer": "-8",
+              "inputProfile": "number"
+            },
+            {
+              "id": "inu",
+              "label": "2u² − 7u − 4 =",
+              "answer": "(2u+1)(u-4)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "factored",
+              "label": "Completely factored form of 2x⁴ − 7x² − 4",
+              "answer": "(2x^2+1)(x+2)(x-2)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Find two numbers whose product is a · c and whose sum is −7.",
+            "Substitute back u = x². Which factor is a difference of squares?",
+            "A positive multiple of x² plus a positive number has no real zeros, so it is prime."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. After substituting back, the factor 2u + 1 becomes…",
+            "options": [
+              "2x + 1",
+              "2x² + 1"
+            ],
+            "correct": "2x² + 1"
+          },
+          "solutionReview": {
+            "headline": "Substitute, use the ac method, substitute back.",
+            "reasoning": [
+              "a · c = 2 · (−4) = −8; the numbers 1 and −8 have product −8 and sum −7.",
+              "2u² + u − 8u − 4 = u(2u + 1) − 4(2u + 1) = (2u + 1)(u − 4).",
+              "Substitute back: (2x² + 1)(x² − 4) = (2x² + 1)(x + 2)(x − 2). 2x² + 1 is prime."
+            ],
+            "answerSummary": "(2x² + 1)(x + 2)(x − 2)",
+            "commonError": "Writing (2x + 1)(x − 4): u stands for x², so every u becomes x²."
+          },
+          "questionWeight": 1.25
+        },
+        {
+          "questionId": "fph-cw-5",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Factor $x^6 - 7x^3 - 8$ completely. Use $u = x^3$; after you substitute back, each factor is a sum or difference of cubes.",
+          "responses": [
+            {
+              "id": "inu",
+              "label": "With u = x³: u² − 7u − 8 =",
+              "answer": "(u-8)(u+1)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "back",
+              "label": "Substitute back: x⁶ − 7x³ − 8 =",
+              "answer": "(x^3-8)(x^3+1)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "(x-2)(x^2+2x+4)(x+1)(x^2-x+1)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Two numbers with product −8 and sum −7.",
+            "After substituting back, write each constant as a cube.",
+            "a³ − b³ = (a − b)(a² + ab + b²) and a³ + b³ = (a + b)(a² − ab + b²)."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Which number cubed is 8?",
+            "options": [
+              "4",
+              "2"
+            ],
+            "correct": "2"
+          },
+          "solutionReview": {
+            "headline": "Quadratic form first, then the two cube patterns.",
+            "reasoning": [
+              "(−8)(1) = −8 and −8 + 1 = −7, so u² − 7u − 8 = (u − 8)(u + 1).",
+              "Substituting back gives (x³ − 8)(x³ + 1).",
+              "x³ − 8 = (x − 2)(x² + 2x + 4) and x³ + 1 = (x + 1)(x² − x + 1); both trinomials are prime."
+            ],
+            "answerSummary": "(x − 2)(x² + 2x + 4)(x + 1)(x² − x + 1)",
+            "commonError": "Writing x³ + 1 = (x + 1)(x² + x + 1): for a SUM of cubes the middle sign is negative."
+          },
+          "questionWeight": 1.5
+        },
+        {
+          "questionId": "fph-cw-6",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Substitution works for any repeated expression. Factor $(x + 1)^3 - 8$ completely: let $u = x + 1$, factor $u^3 - 8$, substitute back, and simplify each factor.",
+          "responses": [
+            {
+              "id": "inu",
+              "label": "u³ − 8 =",
+              "answer": "(u-2)(u^2+2u+4)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "factored",
+              "label": "In x, simplified: (x + 1)³ − 8 =",
+              "answer": "(x-1)(x^2+4x+7)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "u³ − 8 is a difference of cubes: 8 = 2³.",
+            "Replace u with (x + 1), expand (x + 1)², and combine like terms."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. If u = x + 1, then u − 2 equals…",
+            "options": [
+              "x − 1",
+              "x − 2"
+            ],
+            "correct": "x − 1"
+          },
+          "solutionReview": {
+            "headline": "Substitute, factor the difference of cubes, substitute back, simplify.",
+            "reasoning": [
+              "u³ − 8 = (u − 2)(u² + 2u + 4).",
+              "u − 2 = (x + 1) − 2 = x − 1, and u² + 2u + 4 = (x + 1)² + 2(x + 1) + 4 = x² + 4x + 7.",
+              "Check: (x − 1)(x² + 4x + 7) = x³ + 3x² + 3x − 7 = (x + 1)³ − 8."
+            ],
+            "answerSummary": "(x − 1)(x² + 4x + 7)",
+            "commonError": "Leaving the factor as (x + 1)² + 2(x + 1) + 4: it is right but not simplified."
+          },
+          "questionWeight": 1.25
+        },
+        {
+          "questionId": "fph-cw-7",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 4,
+          "difficultyBand": 5,
+          "prompt": "One polynomial, two first steps. $a^6 - 64$ is a difference of squares, $(a^3)^2 - 8^2$, and a difference of cubes, $(a^2)^3 - 4^3$. Factor it completely starting with squares. Then explain why starting with cubes seems to give a different answer.",
+          "responses": [
+            {
+              "id": "squares",
+              "label": "Squares first, completely factored:",
+              "answer": "(a-2)(a^2+2a+4)(a+2)(a^2-2a+4)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "cubes",
+              "label": "Cubes first gives (a² − 4)(a⁴ + 4a² + 16) = (a − 2)(a + 2)(a⁴ + 4a² + 16). Which statement is true?",
+              "type": "choice",
+              "options": [
+                "a⁴ + 4a² + 16 is not prime: it is the product of the two quadratic factors from the squares-first method, so both methods agree",
+                "a⁴ + 4a² + 16 is prime, so the two methods give different complete factorizations",
+                "Cubes first is not allowed because 64 is not a perfect cube",
+                "A polynomial can have two different complete factorizations, so both are right"
+              ],
+              "answer": "a⁴ + 4a² + 16 is not prime: it is the product of the two quadratic factors from the squares-first method, so both methods agree"
+            },
+            {
+              "id": "square",
+              "label": "Show it: a⁴ + 4a² + 16 = (a⁴ + 8a² + 16) − 4a² = (a² + 4)² − (…)², with … =",
+              "answer": "2a",
+              "inputProfile": "expression"
+            }
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Which pattern first?",
+                "instruction": "When a polynomial is both a difference of squares and a difference of cubes, factor the squares first; the cube patterns then finish the job. Cubes first leaves a fourth-degree factor that is harder to break apart."
+              },
+              {
+                "title": "Adding zero",
+                "instruction": "A trinomial can sometimes be turned into a difference of squares by adding and subtracting the same term. Example: x⁴ + x² + 1 = (x⁴ + 2x² + 1) − x² = (x² + 1)² − x² = (x² + x + 1)(x² − x + 1)."
+              }
+            ]
+          },
+          "hints": [
+            "a⁶ − 64 = (a³)² − 8², so the first step is (a³ − 8)(a³ + 8).",
+            "a⁴ + 8a² + 16 is a perfect square trinomial.",
+            "4a² is the square of which monomial?"
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. a⁶ is the square of…",
+            "options": [
+              "a³",
+              "a²"
+            ],
+            "correct": "a³"
+          },
+          "solutionReview": {
+            "headline": "Squares first; then show the cubes-first quartic splits into the same quadratics.",
+            "reasoning": [
+              "Squares first: a⁶ − 64 = (a³ − 8)(a³ + 8) = (a − 2)(a² + 2a + 4)(a + 2)(a² − 2a + 4).",
+              "Cubes first: a⁶ − 64 = (a² − 4)(a⁴ + 4a² + 16) = (a − 2)(a + 2)(a⁴ + 4a² + 16).",
+              "a⁴ + 4a² + 16 = (a² + 4)² − (2a)² = (a² + 2a + 4)(a² − 2a + 4), so the two methods give the same factors."
+            ],
+            "answerSummary": "(a − 2)(a² + 2a + 4)(a + 2)(a² − 2a + 4); 4a² = (2a)²",
+            "connection": "A complete factorization is unique apart from the order of the factors and their signs, so two correct methods can never truly disagree.",
+            "commonError": "Stopping at a⁴ + 4a² + 16 as if it were prime: adding and subtracting 4a² makes it a difference of squares."
+          },
+          "questionWeight": 1.75
+        },
+        {
+          "questionId": "fph-cw-8",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Error analysis. Jordan factored $8x^3 + 27$ as $(2x + 3)(4x^2 + 12x + 9)$. Test Jordan’s answer with a number, find the error, and fix it.",
+          "responses": [
+            {
+              "id": "orig",
+              "label": "At x = 1, the original 8x³ + 27 =",
+              "answer": "35",
+              "inputProfile": "number"
+            },
+            {
+              "id": "jordan",
+              "label": "At x = 1, Jordan’s (2x + 3)(4x² + 12x + 9) =",
+              "answer": "125",
+              "inputProfile": "number"
+            },
+            {
+              "id": "error",
+              "label": "What went wrong?",
+              "type": "choice",
+              "options": [
+                "Jordan’s trinomial is (2x + 3)², but a sum of cubes needs a² − ab + b²",
+                "The binomial should be 2x − 3",
+                "27 is not a perfect cube, so 8x³ + 27 is prime",
+                "Nothing: different values at x = 1 are allowed"
+              ],
+              "answer": "Jordan’s trinomial is (2x + 3)², but a sum of cubes needs a² − ab + b²"
+            },
+            {
+              "id": "fixed",
+              "label": "Correct factorization of 8x³ + 27",
+              "answer": "(2x+3)(4x^2-6x+9)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Substitute x = 1 into both expressions and compare.",
+            "Write 8x³ + 27 = (2x)³ + 3³, so a = 2x and b = 3."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. If two expressions are equivalent, then at x = 1 they…",
+            "options": [
+              "can give different values",
+              "give the same value"
+            ],
+            "correct": "give the same value"
+          },
+          "solutionReview": {
+            "headline": "One number can prove a factorization wrong; the pattern fixes it.",
+            "reasoning": [
+              "At x = 1: 8 + 27 = 35, but (5)(25) = 125, so Jordan’s factorization is wrong.",
+              "a³ + b³ = (a + b)(a² − ab + b²) with a = 2x and b = 3.",
+              "a² − ab + b² = 4x² − 6x + 9, so 8x³ + 27 = (2x + 3)(4x² − 6x + 9)."
+            ],
+            "answerSummary": "(2x + 3)(4x² − 6x + 9)",
+            "commonError": "Using (a + b)² = a² + 2ab + b² for the trinomial: the sum-of-cubes factor is a² − ab + b².",
+            "connection": "A substitution test can prove a factorization wrong, never right: only multiplying back can prove it right."
+          },
+          "questionWeight": 1.5
+        },
+        {
+          "questionId": "fph-cw-9",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Structure and parameters. (a) Find every integer $k$ for which $x^2 + kx - 12$ factors over the integers. (b) Find every value of $b$ for which $4x^2 + bx + 9$ is a perfect square trinomial.",
+          "responses": [
+            {
+              "id": "k",
+              "label": "(a) Every possible k, as a set",
+              "answer": "{-11, -4, -1, 1, 4, 11}",
+              "inputProfile": "set"
+            },
+            {
+              "id": "b",
+              "label": "(b) Every possible b, as a set",
+              "answer": "{-12, 12}",
+              "inputProfile": "set"
+            }
+          ],
+          "hints": [
+            "List the factor pairs of −12; k is the sum of each pair.",
+            "For 4x² + bx + 9 to be a perfect square, 4x² and 9 must be the squares of the two terms of a binomial."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. If x² + kx − 12 = (x + m)(x + p), then k equals…",
+            "options": [
+              "m + p",
+              "m · p"
+            ],
+            "correct": "m + p"
+          },
+          "solutionReview": {
+            "headline": "Factor pairs give the sums; squares give the middle term.",
+            "reasoning": [
+              "(a) The pairs with product −12 are 1 and −12, −1 and 12, 2 and −6, −2 and 6, 3 and −4, −3 and 4. Their sums are −11, 11, −4, 4, −1 and 1.",
+              "(b) 4x² = (2x)² and 9 = 3², so the trinomial is (2x + 3)² = 4x² + 12x + 9 or (2x − 3)² = 4x² − 12x + 9."
+            ],
+            "answerSummary": "k ∈ {±1, ±4, ±11}; b = ±12",
+            "commonError": "Listing only positive sums: a pair like 3 and −4 gives k = −1."
+          },
+          "questionWeight": 1.25
+        },
+        {
+          "questionId": "fph-cw-10",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "sortIntoCategories"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Plan before you factor. Sort each polynomial by the FIRST step of factoring it completely.",
+          "categories": [
+            {
+              "id": "gcf",
+              "label": "Take out a GCF first"
+            },
+            {
+              "id": "quadform",
+              "label": "Quadratic form (substitute u)"
+            },
+            {
+              "id": "special",
+              "label": "Difference of squares, or sum or difference of cubes"
+            },
+            {
+              "id": "grouping",
+              "label": "Four terms: factor by grouping"
+            },
+            {
+              "id": "prime",
+              "label": "Prime"
+            }
+          ],
+          "items": [
+            {
+              "id": "a",
+              "label": "3x³ − 12x"
+            },
+            {
+              "id": "b",
+              "label": "4x² + 16"
+            },
+            {
+              "id": "c",
+              "label": "x⁴ − 10x² + 9"
+            },
+            {
+              "id": "d",
+              "label": "x⁶ − 9x³ + 8"
+            },
+            {
+              "id": "e",
+              "label": "49m² − 81n²"
+            },
+            {
+              "id": "f",
+              "label": "125 − 8y³"
+            },
+            {
+              "id": "g",
+              "label": "x³ − 3x² + 4x − 12"
+            },
+            {
+              "id": "h",
+              "label": "2ab − 6a + b − 3"
+            },
+            {
+              "id": "i",
+              "label": "x² + 9"
+            },
+            {
+              "id": "j",
+              "label": "2x² + 3x + 5"
+            }
+          ],
+          "validSchemes": [
+            {
+              "id": "firstStep",
+              "groups": [
+                {
+                  "id": "gcf",
+                  "itemIds": [
+                    "a",
+                    "b"
+                  ]
+                },
+                {
+                  "id": "quadform",
+                  "itemIds": [
+                    "c",
+                    "d"
+                  ]
+                },
+                {
+                  "id": "special",
+                  "itemIds": [
+                    "e",
+                    "f"
+                  ]
+                },
+                {
+                  "id": "grouping",
+                  "itemIds": [
+                    "g",
+                    "h"
+                  ]
+                },
+                {
+                  "id": "prime",
+                  "itemIds": [
+                    "i",
+                    "j"
+                  ]
+                }
+              ]
+            }
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "A factoring plan",
+                "instruction": "1. Take out a GCF. 2. Count the terms: two terms — squares or cubes; three terms — a trinomial method or quadratic form; four terms — grouping. 3. Check every factor again."
+              }
+            ]
+          },
+          "hints": [
+            "Always check for a GCF before anything else.",
+            "Compare exponents: is one exponent twice another, such as x⁴ and x², or x⁶ and x³?",
+            "A sum of two squares, such as x² + 9, is prime."
+          ],
+          "solutionReview": {
+            "headline": "GCF first; then count the terms and compare the exponents.",
+            "reasoning": [
+              "GCF first: 3x³ − 12x = 3x(x² − 4) = 3x(x − 2)(x + 2), and 4x² + 16 = 4(x² + 4), where x² + 4 is prime.",
+              "Quadratic form: x⁴ − 10x² + 9 = (x² − 1)(x² − 9) and x⁶ − 9x³ + 8 = (x³ − 1)(x³ − 8), because one exponent is twice the other.",
+              "Squares or cubes: 49m² − 81n² = (7m − 9n)(7m + 9n), and 125 − 8y³ = (5 − 2y)(25 + 10y + 4y²).",
+              "Grouping: x³ − 3x² + 4x − 12 = (x − 3)(x² + 4), and 2ab − 6a + b − 3 = (b − 3)(2a + 1).",
+              "Prime: x² + 9 is a sum of squares, and 2x² + 3x + 5 has no integer pair with product 10 and sum 3."
+            ],
+            "answerSummary": "GCF: 3x³ − 12x, 4x² + 16. Quadratic form: x⁴ − 10x² + 9, x⁶ − 9x³ + 8. Squares or cubes: 49m² − 81n², 125 − 8y³. Grouping: the two four-term polynomials. Prime: x² + 9, 2x² + 3x + 5.",
+            "commonError": "4x² + 16 is not prime: its GCF, 4, comes out first, even though the x² + 4 that is left is prime."
+          }
+        },
+        {
+          "questionId": "fph-cw-11",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Modeling. An open box is made from a 12-inch by 8-inch sheet of cardboard by cutting a square with side $x$ inches from each corner and folding up the sides. Its volume is $V(x) = 4x^3 - 40x^2 + 96x$. Factor $V(x)$ completely, then connect the factors to the box.",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "V(x) completely factored",
+              "answer": "4x(x-4)(x-6)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "base",
+              "label": "The base measures (12 − 2x) by (8 − 2x) and the height is x. How does that match your factorization?",
+              "type": "choice",
+              "options": [
+                "x(12 − 2x)(8 − 2x) = x · 2(6 − x) · 2(4 − x) = 4x(x − 6)(x − 4)",
+                "It does not match, so the factorization is wrong",
+                "The base is x by x, and 4 is the height",
+                "(12 − 2x)(8 − 2x) = 96 − 4x², so the factors do not match"
+              ],
+              "answer": "x(12 − 2x)(8 − 2x) = x · 2(6 − x) · 2(4 − x) = 4x(x − 6)(x − 4)"
+            },
+            {
+              "id": "domain",
+              "label": "Which values of x describe a real box?",
+              "type": "choice",
+              "options": [
+                "0 < x < 4",
+                "0 < x < 6",
+                "x > 6",
+                "Every real number"
+              ],
+              "answer": "0 < x < 4"
+            },
+            {
+              "id": "vol",
+              "label": "V(2) = (cubic inches)",
+              "answer": "64",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "Every term contains 4x.",
+            "After the GCF, find two numbers with product 24 and sum −10.",
+            "Each side of the base must be positive: 8 − 2x > 0."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Cutting x inches from both ends of the 8-inch side leaves…",
+            "options": [
+              "8 − x inches",
+              "8 − 2x inches"
+            ],
+            "correct": "8 − 2x inches"
+          },
+          "solutionReview": {
+            "headline": "Factor, then read the factors as the box.",
+            "reasoning": [
+              "V(x) = 4x(x² − 10x + 24) = 4x(x − 4)(x − 6).",
+              "The box is x high with base (12 − 2x)(8 − 2x) = 2(6 − x) · 2(4 − x): the same factors, with two signs moved.",
+              "Every dimension must be positive: x > 0 and 8 − 2x > 0, so 0 < x < 4.",
+              "V(2) = 2 · 8 · 4 = 64 cubic inches."
+            ],
+            "answerSummary": "4x(x − 4)(x − 6); 0 < x < 4; V(2) = 64",
+            "commonError": "Answering x(12 − 2x)(8 − 2x): each binomial still has a common factor of 2."
+          },
+          "questionWeight": 1.5
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "role": "practice",
+      "title": "Practice — Factor Completely and Explain",
+      "recommendedMinutes": 45,
+      "questions": [
+        {
+          "questionId": "fph-p-1",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Factor completely: ${{k}}x^3 {{B|signed}}x^2 - {{Cabs}}x {{D|signed}}$",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "{{k}}(x{{p|signed}})(x-{{m}})(x+{{m}})",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Take out the GCF first.",
+            "Group the first two terms and the last two terms; the binomial left in each group should match.",
+            "Check the factors you have left: one is a difference of squares."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. What is the GCF of all four terms?",
+            "options": [
+              "{{k}}",
+              "{{k}}x"
+            ],
+            "correct": "{{k}}"
+          },
+          "solutionReview": {
+            "headline": "GCF, grouping, then the difference of squares.",
+            "reasoning": [
+              "Take out {{k}}: {{k}}(x³ {{p|signed}}x² − {{m2}}x {{npm2|signed}}).",
+              "Group: x²(x {{p|signed}}) − {{m2}}(x {{p|signed}}) = (x² − {{m2}})(x {{p|signed}}).",
+              "x² − {{m2}} = (x − {{m}})(x + {{m}})."
+            ],
+            "answerSummary": "{{k}}(x {{p|signed}})(x − {{m}})(x + {{m}})",
+            "commonError": "Stopping at {{k}}(x² − {{m2}})(x {{p|signed}}): x² − {{m2}} is still a difference of squares."
+          },
+          "questionWeight": 1.25,
+          "generator": {
+            "parameters": {
+              "k": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "p": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "m": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              }
+            },
+            "derived": {
+              "B": "k * p",
+              "Cabs": "k * m * m",
+              "D": "-k * p * m * m",
+              "m2": "m * m",
+              "npm2": "-p * m * m"
+            },
+            "constraints": [
+              "abs(p) != m"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "fph-p-2",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Factor completely: $x^4 {{s|signed}}x^2 - {{P}}$",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "(x-{{m}})(x+{{m}})(x^2+{{n}})",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Substitute u = x²: you need two numbers with product −{{P}} and sum {{s}}.",
+            "After substituting back, one factor is a difference of squares and the other is a sum, which is prime."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Which substitution turns this polynomial into a quadratic?",
+            "options": [
+              "u = x²",
+              "u = x⁴"
+            ],
+            "correct": "u = x²"
+          },
+          "solutionReview": {
+            "headline": "Quadratic form, then the difference of squares.",
+            "reasoning": [
+              "With u = x²: u² {{s|signed}}u − {{P}} = (u − {{m2}})(u + {{n}}).",
+              "Substitute back: (x² − {{m2}})(x² + {{n}}).",
+              "x² − {{m2}} = (x − {{m}})(x + {{m}}), and x² + {{n}} is a sum of squares, which is prime."
+            ],
+            "answerSummary": "(x − {{m}})(x + {{m}})(x² + {{n}})",
+            "commonError": "Factoring x² + {{n}}: a sum of squares does not factor over the real numbers."
+          },
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              },
+              "n": {
+                "type": "int",
+                "min": 1,
+                "max": 9
+              }
+            },
+            "derived": {
+              "s": "n - m * m",
+              "P": "m * m * n",
+              "m2": "m * m"
+            },
+            "constraints": [
+              "abs(n - m * m) >= 2"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "fph-p-3",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "Factor completely over the integers: $3x^4 + 5x^2 - 2$ and $x^8 - 1$.",
+          "responses": [
+            {
+              "id": "first",
+              "label": "3x⁴ + 5x² − 2 =",
+              "answer": "(3x^2-1)(x^2+2)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "second",
+              "label": "x⁸ − 1 =",
+              "answer": "(x^4+1)(x^2+1)(x+1)(x-1)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "For the first, use u = x² and the ac method.",
+            "x⁸ = (x⁴)²: use the difference of squares more than once."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. x⁸ is the square of…",
+            "options": [
+              "x²",
+              "x⁴"
+            ],
+            "correct": "x⁴"
+          },
+          "solutionReview": {
+            "headline": "Quadratic form; then repeated differences of squares.",
+            "reasoning": [
+              "3u² + 5u − 2: a · c = −6, and 6 and −1 work: 3u² + 6u − u − 2 = 3u(u + 2) − (u + 2) = (3u − 1)(u + 2). Substituting back: (3x² − 1)(x² + 2), and neither factor factors over the integers.",
+              "x⁸ − 1 = (x⁴ + 1)(x⁴ − 1) = (x⁴ + 1)(x² + 1)(x² − 1) = (x⁴ + 1)(x² + 1)(x + 1)(x − 1)."
+            ],
+            "answerSummary": "(3x² − 1)(x² + 2); (x⁴ + 1)(x² + 1)(x + 1)(x − 1)",
+            "commonError": "Stopping at (x⁴ + 1)(x⁴ − 1): x⁴ − 1 is still a difference of squares, twice over."
+          },
+          "questionWeight": 1.25
+        },
+        {
+          "questionId": "fph-p-4",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Factor completely: $(2x - 1)^2 - 5(2x - 1) + 6$. Substitute $u = 2x - 1$ first.",
+          "responses": [
+            {
+              "id": "inu",
+              "label": "With u = 2x − 1: u² − 5u + 6 =",
+              "answer": "(u-2)(u-3)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "factored",
+              "label": "In x, completely factored:",
+              "answer": "2(2x-3)(x-2)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Factor the trinomial in u.",
+            "Substitute back and simplify each factor. Does any factor still have a common factor?"
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. If u = 2x − 1, then u − 3 equals…",
+            "options": [
+              "2x − 2",
+              "2x − 4"
+            ],
+            "correct": "2x − 4"
+          },
+          "solutionReview": {
+            "headline": "Substitute, factor, substitute back — and look for a GCF.",
+            "reasoning": [
+              "u² − 5u + 6 = (u − 2)(u − 3).",
+              "u − 2 = 2x − 3 and u − 3 = 2x − 4 = 2(x − 2).",
+              "So the polynomial is 2(2x − 3)(x − 2)."
+            ],
+            "answerSummary": "2(2x − 3)(x − 2)",
+            "commonError": "(2x − 3)(2x − 4) is not completely factored: 2x − 4 has a common factor of 2."
+          },
+          "questionWeight": 1.25
+        },
+        {
+          "questionId": "fph-p-5",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 4,
+          "difficultyBand": 5,
+          "prompt": "Challenge: a sum that factors. $x^4 + 64$ has no GCF and is a sum of squares, yet it factors over the integers. Add and subtract the right term to make a difference of squares, then factor completely.",
+          "responses": [
+            {
+              "id": "subtract",
+              "label": "x⁴ + 64 = (x² + 8)² − …, with … =",
+              "answer": "16x^2",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "(x^2-4x+8)(x^2+4x+8)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Expand (x² + 8)². What must be subtracted to get back to x⁴ + 64?",
+            "The term you subtract is a perfect square: write it as (something)²."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. (a + b)² expands to…",
+            "options": [
+              "a² + 2ab + b²",
+              "a² + b²"
+            ],
+            "correct": "a² + 2ab + b²"
+          },
+          "solutionReview": {
+            "headline": "Complete the square, then use the difference of squares.",
+            "reasoning": [
+              "(x² + 8)² = x⁴ + 16x² + 64, so x⁴ + 64 = (x² + 8)² − 16x².",
+              "16x² = (4x)², so this is a difference of squares: (x² + 8 − 4x)(x² + 8 + 4x).",
+              "Neither quadratic has real zeros (each discriminant is 16 − 32 < 0), so the factorization is complete."
+            ],
+            "answerSummary": "(x² − 4x + 8)(x² + 4x + 8)",
+            "commonError": "Calling x⁴ + 64 prime because it is a sum of squares: a sum of FOURTH powers like this one can still factor into quadratics."
+          },
+          "questionWeight": 1.5
+        },
+        {
+          "questionId": "fph-p-6",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Factor completely: ${{k}}x^4 {{sk3|signed}}x$",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "{{k}}x(x{{sc|signed}})(x^2 {{nsc|xterm}} + {{c2}})",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Take out the GCF, including the x.",
+            "What is left is a sum or difference of two cubes: write the constant as a cube."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In a³ + b³ = (a + b)(a² − ab + b²), the middle sign of the trinomial is…",
+            "options": [
+              "the same as the binomial’s sign",
+              "the opposite of the binomial’s sign"
+            ],
+            "correct": "the opposite of the binomial’s sign"
+          },
+          "solutionReview": {
+            "headline": "GCF, then the cube pattern.",
+            "reasoning": [
+              "Take out {{k}}x: {{k}}x(x³ {{sc3|signed}}).",
+              "{{c3}} = {{c}}³, so x³ {{sc3|signed}} = (x {{sc|signed}})(x² {{nsc|xterm}} + {{c2}})."
+            ],
+            "answerSummary": "{{k}}x(x {{sc|signed}})(x² {{nsc|xterm}} + {{c2}})",
+            "commonError": "Taking out only {{k}}: every term also contains x."
+          },
+          "generator": {
+            "parameters": {
+              "k": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "c": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              },
+              "sigma": {
+                "type": "choice",
+                "values": [
+                  -1,
+                  1
+                ]
+              }
+            },
+            "derived": {
+              "sk3": "sigma * k * c^3",
+              "sc": "sigma * c",
+              "nsc": "-sigma * c",
+              "c2": "c * c",
+              "c3": "c^3",
+              "sc3": "sigma * c^3"
+            },
+            "constraints": []
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "fph-p-7",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Use three techniques. Factor completely: $2x^5 - 2x^3 - 54x^2 + 54$.",
+          "responses": [
+            {
+              "id": "grouped",
+              "label": "After the GCF and grouping:",
+              "answer": "2(x^2-1)(x^3-27)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "2(x-1)(x+1)(x-3)(x^2+3x+9)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "Take out the GCF, then group the first two terms and the last two terms.",
+            "Both binomial factors still factor: one by squares, one by cubes."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. x⁵ − x³ factors as…",
+            "options": [
+              "x³(x² − 1)",
+              "x²(x³ − 1)"
+            ],
+            "correct": "x³(x² − 1)"
+          },
+          "solutionReview": {
+            "headline": "GCF, grouping, then squares and cubes.",
+            "reasoning": [
+              "2x⁵ − 2x³ − 54x² + 54 = 2(x⁵ − x³ − 27x² + 27).",
+              "Group: x³(x² − 1) − 27(x² − 1) = (x² − 1)(x³ − 27).",
+              "x² − 1 = (x − 1)(x + 1) and x³ − 27 = (x − 3)(x² + 3x + 9)."
+            ],
+            "answerSummary": "2(x − 1)(x + 1)(x − 3)(x² + 3x + 9)",
+            "commonError": "Stopping after grouping: x² − 1 and x³ − 27 both factor again."
+          },
+          "questionWeight": 1.5
+        },
+        {
+          "questionId": "fph-p-8",
+          "familyId": "mathmaster:sat:A2.7E:ccmr-challenge-grouping-parameter",
+          "familyVersion": 1,
+          "standard": "A2.7E",
+          "prompt": "For all values of $x$, $x^3+{{p}}x^2+{{k}}x+t=(x+{{p}})(x^2+{{k}})$. What is the value of $t$?",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "activityRole": "practice",
+          "dok": 2,
+          "difficultyBand": 4,
+          "calculatorPolicy": "graphing",
+          "assessedConstruct": "A2.7E",
+          "taskType": "parameterReasoning",
+          "representation": "symbolic",
+          "generator": {
+            "parameters": {
+              "p": {
+                "type": "int",
+                "min": 2,
+                "max": 9
+              },
+              "k": {
+                "type": "int",
+                "min": 2,
+                "max": 9
+              }
+            },
+            "derived": {
+              "t": "p*k",
+              "dSum": "p+k",
+              "dSquaredFirst": "p*p",
+              "dCollectedAll": "p*k+p+k"
+            },
+            "constraints": [
+              "p!=k",
+              "dSum!=t",
+              "dSquaredFirst!=t",
+              "dCollectedAll!=t",
+              "dSum!=dSquaredFirst",
+              "dSum!=dCollectedAll",
+              "dSquaredFirst!=dCollectedAll"
+            ]
+          },
+          "answerFields": [
+            {
+              "id": "answer",
+              "label": "Choose the correct answer",
+              "type": "choice",
+              "inputProfile": "choice",
+              "options": [
+                "{{t}}",
+                "{{dSum}}",
+                "{{dSquaredFirst}}",
+                "{{dCollectedAll}}"
+              ],
+              "answer": "{{t}}"
+            }
+          ],
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary",
+              "evidenceLevel": "assessed"
+            },
+            {
+              "framework": "digitalSAT",
+              "domainId": "advancedMath",
+              "role": "primary",
+              "evidenceMode": "direct"
+            }
+          ],
+          "assessmentContext": {
+            "framework": "digitalSAT",
+            "examStyle": true,
+            "domainId": "advancedMath"
+          },
+          "assessmentItemFormat": "multipleChoice",
+          "ccmrChallengeTier": 2,
+          "ccmrFamilyRole": "challenge",
+          "ccmrAuthenticLanguage": {
+            "version": "2.1",
+            "authored": true,
+            "authoredChallenge": true,
+            "officialSkillFamily": "equivalent expressions",
+            "stemProfile": "grouping-parameter",
+            "responseEcologyRevision": "v2.1-75pct-mcq"
+          },
+          "solutionReview": {
+            "headline": "Multiply out and compare constant terms.",
+            "reasoning": [
+              "(x + {{p}})(x² + {{k}}) = x³ + {{p}}x² + {{k}}x + {{p}} · {{k}}.",
+              "The constant terms must match, so t = {{p}} · {{k}} = {{t}}."
+            ],
+            "answerSummary": "t = {{t}}",
+            "commonError": "Adding {{p}} and {{k}}: the constant term of a product is the product of the constant terms."
+          },
+          "attemptFeedback": [
+            "Use the algebraic structure of the expression and preserve equivalence."
+          ],
+          "supportHints": [
+            "Use polynomial operations, factor structure, or polynomial division as appropriate."
+          ],
+          "ccmrSource": {
+            "source": "auditedBank",
+            "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+            "framework": "digitalSAT",
+            "domainId": "advancedMath",
+            "documentId": "mm_sat_A2_7E_challenge_grouping_parameter_v21",
+            "familyId": "mathmaster:sat:A2.7E:ccmr-challenge-grouping-parameter",
+            "familyVersion": 1
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. The constant term of a product of two polynomials is…",
+            "options": [
+              "the product of their constant terms",
+              "the sum of their constant terms"
+            ],
+            "correct": "the product of their constant terms"
+          }
+        },
+        {
+          "questionId": "fph-p-9",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Group three and one. Factor $x^2 - 6x + 9 - 4y^2$ completely: the first three terms form a perfect square trinomial, which turns the whole expression into a difference of squares.",
+          "responses": [
+            {
+              "id": "group",
+              "label": "x² − 6x + 9 =",
+              "answer": "(x-3)^2",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "(x-3-2y)(x-3+2y)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "x² − 6x + 9 is a perfect square trinomial.",
+            "4y² = (2y)². Use A² − B² = (A − B)(A + B)."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. A² − B² factors as…",
+            "options": [
+              "(A − B)²",
+              "(A − B)(A + B)"
+            ],
+            "correct": "(A − B)(A + B)"
+          },
+          "solutionReview": {
+            "headline": "A perfect square minus a perfect square.",
+            "reasoning": [
+              "x² − 6x + 9 = (x − 3)².",
+              "(x − 3)² − 4y² = (x − 3)² − (2y)² = (x − 3 − 2y)(x − 3 + 2y)."
+            ],
+            "answerSummary": "(x − 3 − 2y)(x − 3 + 2y)",
+            "commonError": "Grouping the last two terms: 9 − 4y² = (3 − 2y)(3 + 2y), which does not combine with x² − 6x."
+          },
+          "questionWeight": 1.25
+        },
+        {
+          "questionId": "fph-p-10",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Parameters. (a) Find every positive integer $c$ for which $x^2 + 7x + c$ factors over the integers. (b) $x^3 + kx^2 + 4x + 12$ factors by grouping as $(x^2 + 4)(x + k)$. Find $k$.",
+          "responses": [
+            {
+              "id": "c",
+              "label": "(a) Every positive c, as a set",
+              "answer": "{6, 10, 12}",
+              "inputProfile": "set"
+            },
+            {
+              "id": "k",
+              "label": "(b) k =",
+              "answer": "3",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "For (a), c is the product of two numbers whose sum is 7.",
+            "For (b), expand (x² + 4)(x + k) and compare constant terms."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. If x² + 7x + c = (x + m)(x + n), then m + n equals…",
+            "options": [
+              "c",
+              "7"
+            ],
+            "correct": "7"
+          },
+          "solutionReview": {
+            "headline": "Sums and products of factor pairs; matching coefficients.",
+            "reasoning": [
+              "(a) Positive pairs with sum 7: 1 and 6, 2 and 5, 3 and 4, so c = 6, 10 or 12. Two negative numbers cannot add to 7.",
+              "(b) (x² + 4)(x + k) = x³ + kx² + 4x + 4k, so 4k = 12 and k = 3."
+            ],
+            "answerSummary": "c ∈ {6, 10, 12}; k = 3",
+            "commonError": "In (b), k is not 12: expanding (x² + 4)(x + k) gives the constant 4k, so 4k = 12."
+          },
+          "questionWeight": 1.25
+        },
+        {
+          "questionId": "fph-p-11",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Modeling. A box has volume $V(x) = x^3 + 3x^2 - 4x - 12$ cubic feet, and each of its dimensions is a linear expression in $x$ with integer coefficients. Find the dimensions, then use them when $x = 5$.",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "V(x) =",
+              "answer": "(x+3)(x-2)(x+2)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "height",
+              "label": "The height is the shortest dimension. Height when x = 5 (feet)",
+              "answer": "3",
+              "inputProfile": "number"
+            },
+            {
+              "id": "volume",
+              "label": "Volume when x = 5 (cubic feet)",
+              "answer": "168",
+              "inputProfile": "number"
+            },
+            {
+              "id": "domain",
+              "label": "Which values of x describe a real box?",
+              "type": "choice",
+              "options": [
+                "x > 2",
+                "x > −3",
+                "x > 0",
+                "−2 < x < 2"
+              ],
+              "answer": "x > 2"
+            }
+          ],
+          "hints": [
+            "Group the first two terms and the last two terms.",
+            "Every dimension must be positive; the shortest one decides."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. For a box, every dimension must be…",
+            "options": [
+              "positive",
+              "a whole number"
+            ],
+            "correct": "positive"
+          },
+          "solutionReview": {
+            "headline": "Factor by grouping, then read the dimensions.",
+            "reasoning": [
+              "x³ + 3x² − 4x − 12 = x²(x + 3) − 4(x + 3) = (x + 3)(x − 2)(x + 2).",
+              "At x = 5 the dimensions are 8, 3 and 7 feet, so the height is 3 ft.",
+              "V(5) = 8 · 3 · 7 = 168 cubic feet, the same as substituting 5 into V(x).",
+              "x − 2 > 0 makes all three dimensions positive, so x > 2."
+            ],
+            "answerSummary": "(x + 3)(x − 2)(x + 2); 3 ft; 168 ft³; x > 2",
+            "commonError": "Choosing x > −3: every dimension, x − 2 included, must be positive."
+          },
+          "questionWeight": 1.5
+        },
+        {
+          "questionId": "fph-p-12",
+          "familyId": "mathmaster:sat:A2.7D:ccmr-challenge-factor-parameter-cubic",
+          "familyVersion": 1,
+          "standard": "A2.7D",
+          "prompt": "The polynomial $P(x)=x^3+{{b}}x^2+{{c}}x+k$ has factor $x+{{p}}$. If $k$ is positive, what is the value of $k$?",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "activityRole": "practice",
+          "dok": 2,
+          "difficultyBand": 4,
+          "calculatorPolicy": "graphing",
+          "assessedConstruct": "A2.7D",
+          "taskType": "parameterReasoning",
+          "representation": "symbolic",
+          "generator": {
+            "parameters": {
+              "p": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "b": {
+                "type": "int",
+                "min": 7,
+                "max": 12
+              },
+              "c": {
+                "type": "int",
+                "min": 15,
+                "max": 25
+              }
+            },
+            "derived": {
+              "k": "p*p*p-b*p*p+c*p",
+              "p3": "p*p*p",
+              "bp2": "b*p*p",
+              "cp": "c*p"
+            },
+            "constraints": [
+              "p*p*p-b*p*p+c*p>0"
+            ]
+          },
+          "answerFields": [
+            {
+              "id": "answer",
+              "label": "Answer",
+              "inputProfile": "number",
+              "answer": "{{k}}",
+              "numberRules": "digitalSAT"
+            }
+          ],
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7D",
+              "role": "primary",
+              "evidenceLevel": "assessed"
+            },
+            {
+              "framework": "digitalSAT",
+              "domainId": "advancedMath",
+              "role": "primary",
+              "evidenceMode": "direct"
+            }
+          ],
+          "assessmentContext": {
+            "framework": "digitalSAT",
+            "examStyle": true,
+            "domainId": "advancedMath"
+          },
+          "assessmentItemFormat": "studentProducedResponse",
+          "ccmrChallengeTier": 2,
+          "ccmrFamilyRole": "challenge",
+          "ccmrAuthenticLanguage": {
+            "version": "2.1",
+            "authored": true,
+            "authoredChallenge": true,
+            "officialSkillFamily": "equivalent expressions",
+            "stemProfile": "factor-parameter-cubic"
+          },
+          "solutionReview": {
+            "headline": "A factor x + p means P(−p) = 0.",
+            "reasoning": [
+              "If x + {{p}} is a factor, then P(x) = (x + {{p}}) · Q(x), so P(−{{p}}) = 0 · Q(−{{p}}) = 0.",
+              "P(−{{p}}) = −{{p3}} + {{bp2}} − {{cp}} + k = 0.",
+              "So k = {{p3}} − {{bp2}} + {{cp}} = {{k}}."
+            ],
+            "answerSummary": "k = {{k}}",
+            "commonError": "Substituting x = {{p}}: the factor x + {{p}} is 0 at x = −{{p}}, not at x = {{p}}."
+          },
+          "attemptFeedback": [
+            "Use the algebraic structure of the expression and preserve equivalence."
+          ],
+          "supportHints": [
+            "Use polynomial operations, factor structure, or polynomial division as appropriate."
+          ],
+          "ccmrSource": {
+            "source": "auditedBank",
+            "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+            "framework": "digitalSAT",
+            "domainId": "advancedMath",
+            "documentId": "mm_sat_A2_7D_challenge_factor_parameter_cubic_v21",
+            "familyId": "mathmaster:sat:A2.7D:ccmr-challenge-factor-parameter-cubic",
+            "familyVersion": 1
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. If x + p is a factor of P(x), which input makes P(x) equal 0?",
+            "options": [
+              "x = p",
+              "x = −p"
+            ],
+            "correct": "x = −p"
+          }
+        },
+        {
+          "questionId": "fph-p-13",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Factoring proves things. Factor $n^3 - n$ completely, then use the factors to explain why $n^3 - n$ is divisible by 6 for every integer $n$.",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "n³ − n =",
+              "answer": "n(n-1)(n+1)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            },
+            {
+              "id": "why",
+              "label": "Why is n³ − n divisible by 6 for every integer n?",
+              "type": "choice",
+              "options": [
+                "n − 1, n and n + 1 are three consecutive integers: one is a multiple of 3 and at least one is even",
+                "n³ − n is always even, and every even number is divisible by 6",
+                "6 divides n³ for every integer n",
+                "n − 1 and n + 1 are always both even"
+              ],
+              "answer": "n − 1, n and n + 1 are three consecutive integers: one is a multiple of 3 and at least one is even"
+            },
+            {
+              "id": "check",
+              "label": "Check with n = 5: 5³ − 5 =",
+              "answer": "120",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "Take out the GCF n, then factor the difference of squares.",
+            "Write the three factors in order from least to greatest."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Among any three consecutive integers, how many are multiples of 3?",
+            "options": [
+              "Sometimes none",
+              "Exactly one"
+            ],
+            "correct": "Exactly one"
+          },
+          "solutionReview": {
+            "headline": "Factor, then read the factors.",
+            "reasoning": [
+              "n³ − n = n(n² − 1) = n(n − 1)(n + 1) = (n − 1)n(n + 1).",
+              "These are three consecutive integers: one of them is a multiple of 3 and at least one is even, so the product is a multiple of 2 · 3 = 6.",
+              "Check: 5³ − 5 = 120 = 4 · 5 · 6, and 120 ÷ 6 = 20."
+            ],
+            "answerSummary": "n(n − 1)(n + 1), a product of three consecutive integers; 120",
+            "commonError": "Showing only that n³ − n is even: divisibility by 6 needs a factor of 2 and a factor of 3."
+          },
+          "questionWeight": 1.25
+        },
+        {
+          "questionId": "fph-p-14",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Factor completely: $(x {{a|signed}})^2 - {{b2}}$",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "(x{{d|signed}})(x{{e|signed}})",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "hints": [
+            "{{b2}} = {{b}}², so this is a difference of squares A² − B² where A is the whole binomial.",
+            "Simplify each factor by combining the constants."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. A² − B² factors as…",
+            "options": [
+              "(A + B)(A − B)",
+              "(A − B)²"
+            ],
+            "correct": "(A + B)(A − B)"
+          },
+          "solutionReview": {
+            "headline": "Treat the binomial as one quantity.",
+            "reasoning": [
+              "(x {{a|signed}})² − {{b}}² = [(x {{a|signed}}) − {{b}}][(x {{a|signed}}) + {{b}}].",
+              "Combine the constants: (x {{d|signed}})(x {{e|signed}})."
+            ],
+            "answerSummary": "(x {{d|signed}})(x {{e|signed}})",
+            "commonError": "Expanding first works but takes longer: x² {{ta|xterm}} {{cc|signed}} must then be factored back."
+          },
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": 2,
+                "max": 9
+              }
+            },
+            "derived": {
+              "b2": "b * b",
+              "d": "a - b",
+              "e": "a + b",
+              "ta": "2 * a",
+              "cc": "a * a - b * b"
+            },
+            "constraints": [
+              "abs(a) != b"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        }
+      ]
+    },
+    {
+      "id": "dol",
+      "role": "dol",
+      "title": "DOL — Factoring Polynomials (Honors)",
+      "recommendedMinutes": 9,
+      "questions": [
+        {
+          "questionId": "fph-dol-1",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Factor completely: $x^4 - {{s}}x^2 + {{P}}$",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "(x-{{a}})(x+{{a}})(x-{{b}})(x+{{b}})",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Quadratic form, then two differences of squares.",
+            "reasoning": [
+              "With u = x²: u² − {{s}}u + {{P}} = (u − {{a2}})(u − {{b2}}).",
+              "Substitute back: (x² − {{a2}})(x² − {{b2}}).",
+              "Each factor is a difference of squares: (x − {{a}})(x + {{a}})(x − {{b}})(x + {{b}})."
+            ],
+            "answerSummary": "(x − {{a}})(x + {{a}})(x − {{b}})(x + {{b}})",
+            "commonError": "Stopping at two quadratic factors: each is a difference of squares and factors again."
+          },
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 1,
+                "max": 8
+              },
+              "b": {
+                "type": "int",
+                "min": 2,
+                "max": 9
+              }
+            },
+            "derived": {
+              "a2": "a * a",
+              "b2": "b * b",
+              "s": "a * a + b * b",
+              "P": "a * a * b * b"
+            },
+            "constraints": [
+              "a < b"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "fph-dol-2",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Factor completely: ${{k}}x^4 {{skc3|signed}}xy^3$",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "{{k}}x(x{{sc|signed}}y)(x^2{{nsc|signed}}xy+{{c2}}y^2)",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "solutionReview": {
+            "headline": "GCF, then the cube pattern in two variables.",
+            "reasoning": [
+              "Take out {{k}}x: {{k}}x(x³ {{sc3|signed}}y³).",
+              "x³ {{sc3|signed}}y³ = x³ {{sigma|sign}} ({{c}}y)³ = (x {{sc|signed}}y)(x² {{nsc|signed}}xy + {{c2}}y²)."
+            ],
+            "answerSummary": "{{k}}x(x {{sc|signed}}y)(x² {{nsc|signed}}xy + {{c2}}y²)",
+            "commonError": "Using + in the middle of the trinomial: a³ + b³ = (a + b)(a² − ab + b²), and the GCF comes out first."
+          },
+          "generator": {
+            "parameters": {
+              "k": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "c": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "sigma": {
+                "type": "choice",
+                "values": [
+                  -1,
+                  1
+                ]
+              }
+            },
+            "derived": {
+              "skc3": "sigma * k * c^3",
+              "sc": "sigma * c",
+              "nsc": "-sigma * c",
+              "c2": "c * c",
+              "sc3": "sigma * c^3"
+            },
+            "constraints": []
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "fph-dol-3",
+          "standard": "A2.7E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Factor completely: $x^3 {{p|signed}}x^2 - {{m2}}x {{npm2|signed}}$",
+          "responses": [
+            {
+              "id": "factored",
+              "label": "Completely factored form",
+              "answer": "(x{{p|signed}})(x-{{m}})(x+{{m}})",
+              "inputProfile": "expression",
+              "gradingMode": "factoredForm"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Grouping, then the difference of squares.",
+            "reasoning": [
+              "Group: x²(x {{p|signed}}) − {{m2}}(x {{p|signed}}) = (x² − {{m2}})(x {{p|signed}}).",
+              "x² − {{m2}} = (x − {{m}})(x + {{m}})."
+            ],
+            "answerSummary": "(x {{p|signed}})(x − {{m}})(x + {{m}})",
+            "commonError": "Stopping after grouping: the difference of squares that is left factors again."
+          },
+          "generator": {
+            "parameters": {
+              "p": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "m": {
+                "type": "int",
+                "min": 2,
+                "max": 7
+              }
+            },
+            "derived": {
+              "m2": "m * m",
+              "npm2": "-p * m * m"
+            },
+            "constraints": [
+              "abs(p) != m"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        }
+      ]
+    }
+  ]
+}

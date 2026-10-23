@@ -9,9 +9,12 @@ import { validateRepresentationBridgeQuestion } from './representationBridge/rep
 import { validateMatrixLabQuestion } from './matrixLab/matrixLabMath.js';
 import { DIVISION_LIMITS, POLYNOMIAL_TEXT_LIMITS, addSubtractKey, areaModelKey, longDivisionKey, syntheticDivisionKey } from './polynomialWorkshop/polynomialMath.js';
 import { normalizeLinearInequality } from './systemsWorkspace/linearInequalityEngine.js';
-import { validateAlgebraicSystemAuthoring } from './systemsWorkspace/algebraicSystemsEngine.js';
+import { linearEquationCoefficients, validateAlgebraicSystemAuthoring } from './systemsWorkspace/algebraicSystemsEngine.js';
 import { resolveSystemsWorkspaceMode } from './systemsWorkspace/systemsWorkspaceMode.js';
 import { axisLabelProblems } from './shared/planeAxisTitles.js';
+import { GRAPHING2_DEFAULT_BOUNDS, targetLineFromQuestion } from './graphing2/graphingMath.js';
+import { formAwareAnchorsForMode, resolveConstructionPolicy } from './graphing2/constructionPolicy.js';
+import { radicalSolveKey } from './signSolutionAnalyzer/signSolutionMath.js';
 const TOOL_IDS = new Set([
   'dataModelingLab','regressionCalculator','inverseCompositionLab','functionOperationsLab','systemsWorkspace','parabolaGeometryLab','polynomialWorkshop',
   'signSolutionAnalyzer','sequenceExplorer','complexPlaneLab','exponentialLogBridge','transformationsLab',
@@ -26,6 +29,70 @@ const isFiniteComplex = (value) => value && Number.isFinite(Number(value.re)) &&
 const FUNCTION_FAMILIES = ['linear','quadratic','absolute','cubic','cubeRoot','squareRoot','exponential','logarithmic','rational'];
 const FUNCTION_OPERATION_FAMILIES = ['linear','line','quadratic','cubic','polynomial'];
 const FUNCTION_OPERATION_NAMES = ['sum','difference','product','quotient','composition'];
+/*
+ * A student can place points only inside the window Graphing2 draws (its
+ * graphBounds, else ±7). A line that never crosses that window — 5x + 10y =
+ * 3000 on the default grid — or an intercept a formAware policy requires
+ * outside it leaves the question with no answer that can be marked right.
+ */
+const graphing2WindowErrors = (question, mode) => {
+  const target = targetLineFromQuestion(question);
+  const bounds = question.graphBounds || GRAPHING2_DEFAULT_BOUNDS;
+  const { xMin, xMax, yMin, yMax } = Object.fromEntries(['xMin', 'xMax', 'yMin', 'yMax'].map((key) => [key, Number(bounds?.[key])]));
+  if (!target || ![xMin, xMax, yMin, yMax].every(Number.isFinite)) return [];
+  const window = `x from ${xMin} to ${xMax}, y from ${yMin} to ${yMax}`;
+  const ends = target.kind === 'vertical' ? null : [xMin, xMax].map((x) => target.m * x + target.b);
+  const crosses = target.kind === 'vertical'
+    ? target.x >= xMin && target.x <= xMax
+    : Math.max(...ends) >= yMin && Math.min(...ends) <= yMax;
+  if (!crosses) return [`graphing2 line never crosses the drawn window (${window}); add graphBounds that contain it.`];
+  if (resolveConstructionPolicy(question).strategy !== 'formAware') return [];
+  const tolerance = 1e-9;
+  const outside = formAwareAnchorsForMode(mode, question, target).anchors.filter(({ point: [x, y] }) => (
+    x < xMin - tolerance || x > xMax + tolerance || y < yMin - tolerance || y > yMax + tolerance
+  ));
+  return outside.map(({ id, point: [x, y] }) => `graphing2 requires the student to plot the ${id === 'givenPoint' ? 'given point' : id === 'xIntercept' ? 'x-intercept' : 'y-intercept'} (${x}, ${y}), which is outside the drawn window (${window}); add graphBounds that contain it.`);
+};
+
+/*
+ * Graph mode's construct form (`interaction: "construct"`): the student plots
+ * two points on each line, so each line must cross the window the plane draws
+ * (the graph's bounds, else the workspace's −6..8 by −6..12). Equations shown
+ * as the question writes them (`equationLabels`) must be the very lines that
+ * are graded, or a student would graph one line and be marked on another.
+ */
+const linearConstructErrors = (question) => {
+  const errors = [];
+  const { m1, b1, m2, b2 } = question.system;
+  const lines = [[Number(m1), Number(b1)], [Number(m2), Number(b2)]];
+  if (question.equationLabels != null) {
+    const labels = Array.isArray(question.equationLabels) ? question.equationLabels : [];
+    if (labels.length !== 2 || labels.some((label) => typeof label !== 'string' || !label.trim())) {
+      errors.push('systemsWorkspace equationLabels must be two equations, one for each line.');
+    } else {
+      const variables = Array.isArray(question.variables) && question.variables.length === 2 ? question.variables : ['x', 'y'];
+      labels.forEach((label, index) => {
+        const row = linearEquationCoefficients(label.replace(/[−–]/g, '-'), variables);
+        const [m, b] = lines[index];
+        const same = row && Math.abs(row.b) > 1e-9 && Math.abs(-row.a / row.b - m) <= 1e-9 && Math.abs(row.c / row.b - b) <= 1e-9;
+        if (!same) errors.push(`systemsWorkspace equationLabels[${index}] ("${label}") is not the line ${variables[1]} = ${m}${variables[0]} + ${b} that the question grades as equation ${index + 1}.`);
+      });
+    }
+  }
+  if (question.interaction !== 'construct') return errors;
+  const xMin = Number(question.graph?.xMin ?? -6);
+  const xMax = Number(question.graph?.xMax ?? 8);
+  const yMin = Number(question.graph?.yMin ?? -6);
+  const yMax = Number(question.graph?.yMax ?? 12);
+  lines.forEach(([m, b], index) => {
+    const ends = [xMin, xMax].map((x) => m * x + b);
+    if (Math.max(...ends) < yMin || Math.min(...ends) > yMax) {
+      errors.push(`systemsWorkspace construct: equation ${index + 1} never crosses the drawn graph (x from ${xMin} to ${xMax}, y from ${yMin} to ${yMax}), so the student cannot plot it; widen \`graph\`.`);
+    }
+  });
+  return errors;
+};
+
 const isFinitePoint = (value) => {
   if (Array.isArray(value)) return value.length === 2 && value.every((entry) => Number.isFinite(Number(entry)));
   return Boolean(value && typeof value === 'object'
@@ -131,7 +198,20 @@ export const validateToolQuestion = (question = {}) => {
     // to the algebraic workspace is checked as an algebraic system (#341).
     const mode = resolveSystemsWorkspaceMode(question);
     if (!modes.includes(mode)) errors.push(`Unsupported systemsWorkspace mode: ${mode}.`);
-    if (mode === 'linear' && question.system?.m1 === question.system?.m2 && question.system?.b1 == null) warnings.push('Parallel/coincident system should explicitly provide both intercepts.');
+    // Graph mode draws and grades `system`: the lines y = m1·x + b1 and
+    // y = m2·x + b2. Without all four numbers it draws its own demo system
+    // (y = 2x + 1, y = −x + 7) and grades the student against that instead.
+    if (mode === 'linear' && !['m1', 'b1', 'm2', 'b2'].every((key) => question.system?.[key] != null && question.system[key] !== '' && Number.isFinite(Number(question.system[key])))) {
+      errors.push('systemsWorkspace graph mode needs `system` with finite m1, b1, m2 and b2 (the lines y = m1x + b1 and y = m2x + b2); without them it shows and grades a demo system instead.');
+    } else if (mode === 'linear') {
+      errors.push(...linearConstructErrors(question));
+    }
+    // `interaction` picks the analyze form (the lines or boundaries are drawn)
+    // or the construct form (the student graphs them). Any other spelling
+    // would quietly be the analyze form.
+    if (question.interaction != null && !['analyze', 'construct'].includes(question.interaction)) {
+      errors.push(`systemsWorkspace interaction must be "analyze" or "construct", not "${question.interaction}".`);
+    }
     if (mode === 'inequalities' && (question.inequalities || question.expectedConstraints)) {
       const gradingConstraints = question.expectedConstraints || question.inequalities;
       const minimumInequalities = question.studentBuild || question.reasoning || question.modeling ? 1 : 2;
@@ -291,7 +371,7 @@ export const validateToolQuestion = (question = {}) => {
     }
   }
   if (toolId === 'polynomialWorkshop') {
-    const modes = ['factorZero','multiplyArea','addSubtract','factorQuadratic','division','longDivision','syntheticDivision','graphConnection','rationalFeatures'];
+    const modes = ['factorZero','multiplyArea','addSubtract','factorQuadratic','division','longDivision','syntheticDivision','graphConnection','rationalFeatures','synthetic'];
     if (question.mode && !modes.includes(question.mode)) errors.push(`Unsupported polynomialWorkshop mode: ${question.mode}.`);
     if (question.coefficients && (!Array.isArray(question.coefficients) || question.coefficients.length < 2)) errors.push('Polynomial must have degree at least 1.');
     // The area model takes two binomial coefficient lists (x only, 2 × 2), or
@@ -309,16 +389,54 @@ export const validateToolQuestion = (question = {}) => {
     if (question.mode === 'longDivision' && !longDivisionKey(question)) errors.push(`longDivision mode requires dividend and divisor written as polynomials in one letter, in simplest form with whole-number coefficients: a divisor of degree 1 to ${DIVISION_LIMITS.divisorDegree} and a dividend of at least its degree and at most degree ${DIVISION_LIMITS.degree} (for example dividend "x^3-4x+2", divisor "x+3").`);
     if (question.mode === 'syntheticDivision' && !syntheticDivisionKey(question)) errors.push(`syntheticDivision mode requires a linear divisor (ax + b) and a dividend of degree 1 to ${DIVISION_LIMITS.degree}, written as polynomials in one letter in simplest form with whole-number coefficients (for example dividend "x^3-4x^2+6x-4", divisor "x-2").`);
     if (question.mode === 'graphConnection' && (!Array.isArray(question.roots) || question.roots.length < 1)) errors.push('graphConnection mode requires at least one root/multiplicity entry.');
+    if (question.mode === 'synthetic') {
+      // Synthetic division divides by x − r: the dividend's full coefficient
+      // list (a 0 for each missing power) and r, as candidateRoot or a monic
+      // linear divisor [1, −r].
+      const dividend = Array.isArray(question.dividend) ? question.dividend.map(Number) : null;
+      if (!dividend || dividend.length < 2 || !dividend.every(Number.isFinite) || dividend[0] === 0) errors.push('synthetic mode requires a dividend coefficient array of degree at least 1 with a nonzero leading coefficient.');
+      const rootGiven = question.candidateRoot !== undefined && question.candidateRoot !== null && question.candidateRoot !== '';
+      const divisor = Array.isArray(question.divisor) ? question.divisor.map(Number) : null;
+      if (rootGiven && !Number.isFinite(Number(question.candidateRoot))) errors.push('synthetic mode candidateRoot must be a number.');
+      if (!rootGiven && !(divisor && divisor.length === 2 && divisor[0] === 1 && Number.isFinite(divisor[1]))) errors.push('synthetic mode divides by x − r: give candidateRoot r or a divisor [1, -r].');
+      if (question.ask !== undefined && (!Array.isArray(question.ask) || !question.ask.length || question.ask.some((entry) => !['value', 'quotient', 'factor'].includes(entry)))) errors.push('synthetic mode ask must list one or more of "value", "quotient", "factor".');
+    }
     if (question.mode === 'rationalFeatures' && (!Array.isArray(question.denominatorRoots) || question.denominatorRoots.length < 1)) errors.push('rationalFeatures mode requires denominatorRoots.');
   }
   if (toolId === 'signSolutionAnalyzer') {
-    const modes = ['polynomial','rational','radicalCheck'];
+    const modes = ['polynomial','rational','radicalCheck','radicalSolve'];
     if (question.mode && !modes.includes(question.mode)) errors.push(`Unsupported signSolutionAnalyzer mode: ${question.mode}.`);
     if (question.relation && !['>','>=','<','<='].includes(question.relation)) errors.push('Sign analyzer relation must be >, >=, <, or <=.');
     if (question.mode === 'rational' && (!Array.isArray(question.denominatorFactors) || question.denominatorFactors.length < 1)) errors.push('rational mode requires denominatorFactors.');
     if (question.mode === 'radicalCheck') {
       if (!Array.isArray(question.candidates) || question.candidates.length < 1) errors.push('radicalCheck mode requires candidate values.');
       if (!question.radicalEquation?.radicand || !question.radicalEquation?.rhs) errors.push('radicalCheck mode requires radicand and rhs linear specs.');
+    }
+    if (question.mode === 'radicalSolve') {
+      // a·ⁿ√(mx + b) + c = px + q, solved stage by stage (signSolutionMath.js
+      // radicalSolveKey): its own equation, never the demonstration one.
+      const spec = question.radicalEquation;
+      if (!spec || typeof spec !== 'object' || !spec.radicand || !spec.rhs) {
+        errors.push('radicalSolve mode requires radicalEquation with radicand { m, b } and rhs { m, b } (and optional index, coefficient, outside, variable, notation).');
+      } else {
+        // The numbers are shown to the student, so they are exact: a template
+        // that draws √5 into the equation would print 2.2360679….
+        const shown = [spec.index, spec.coefficient, spec.radicand?.m, spec.radicand?.b, spec.outside, spec.rhs?.m, spec.rhs?.b]
+          .filter((value) => value !== undefined && value !== null && value !== '').map(Number);
+        if (shown.some((value) => Number.isFinite(value) && Math.abs(value * 10000 - Math.round(value * 10000)) > 1e-6)) {
+          errors.push('radicalSolve numbers must be exact: whole numbers, or decimals with at most 4 places.');
+        }
+        try {
+          const key = radicalSolveKey(spec);
+          // Every stage is typed, so its numbers should be ones a student writes exactly.
+          const awkward = [...key.candidates, key.isolated.m, key.isolated.b].filter((value) => Math.abs(value * 12 - Math.round(value * 12)) > 1e-9);
+          if (awkward.length) warnings.push(`radicalSolve: ${awkward.join(', ')} is not a whole number or a simple fraction; students type every stage exactly.`);
+        } catch (error) {
+          errors.push(`radicalSolve mode: ${error.message}`);
+        }
+        if (spec.notation !== undefined && !['radical', 'exponent'].includes(spec.notation)) errors.push('radicalSolve notation must be "radical" or "exponent".');
+        if (spec.variable !== undefined && !/^[a-z]$/.test(String(spec.variable))) errors.push('radicalSolve variable must be one lowercase letter.');
+      }
     }
   }
   if (toolId === 'sequenceExplorer') {
@@ -563,6 +681,7 @@ export const validateToolQuestion = (question = {}) => {
       if (policy.strategy === 'formAware' && mode === 'standardForm' && policy.requiredAnchor === 'xIntercept' && Math.abs(Number(question.standard?.A)) <= 1e-9) errors.push('graphing2 horizontal standardForm has no unique x-intercept anchor.');
       if (policy.strategy === 'formAware' && mode === 'standardForm' && policy.requiredAnchor === 'yIntercept' && Math.abs(Number(question.standard?.B)) <= 1e-9) errors.push('graphing2 vertical standardForm has no y-intercept anchor.');
     }
+    errors.push(...graphing2WindowErrors(question, mode));
   }
   // The quantity each axis or column measures in a real-world question.
   if (['dataModelingLab', 'linearTableWorkbench', 'representationBridge'].includes(toolId)) errors.push(...axisLabelProblems(question, toolId));

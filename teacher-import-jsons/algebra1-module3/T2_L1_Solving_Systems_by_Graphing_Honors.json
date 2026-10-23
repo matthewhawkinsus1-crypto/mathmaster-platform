@@ -1,0 +1,2847 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Solving Systems by Graphing Honors (M3 T2 L1)",
+    "courseId": "algebra1",
+    "folder": "Algebra I/Module 3/Topic 2/Lesson 1",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork"
+  },
+  "variantPolicy": {
+    "mode": "personalized",
+    "sectionModes": {
+      "warmup": "shared",
+      "classwork": "shared",
+      "practice": "personalized",
+      "dol": "personalized"
+    }
+  },
+  "sections": [
+    {
+      "id": "warmup",
+      "role": "warmup",
+      "title": "Warm-Up — Lines in Every Form",
+      "recommendedMinutes": 12,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "m3t2l1h-wu-1",
+          "standard": "A.3C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "connectLinearRepresentations"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Standard form, every way. You are given the standard form equation {{given}}. Rewrite it in slope-intercept form, find its slope and both intercepts, and graph it from the intercepts.",
+          "type": "representationBridge",
+          "mode": "linearMultipleRepresentations",
+          "interactionMode": "process",
+          "requiredCards": [
+            "slopeIntercept",
+            "slope",
+            "xIntercept",
+            "yIntercept",
+            "graphIntercepts"
+          ],
+          "questionFamily": {
+            "id": "linear.multipleRepresentations",
+            "version": 1,
+            "constraints": {
+              "given": "standardForm"
+            }
+          },
+          "hints": [
+            "To rewrite in slope-intercept form, subtract the x-term from both sides, then divide every term by the coefficient of y.",
+            "At the x-intercept the y-value is zero; at the y-intercept the x-value is zero.",
+            "Plot both intercepts and draw the line through them; it must match your slope."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To solve Ax + By = C for y, the first step is to…",
+            "options": [
+              "subtract Ax from both sides",
+              "divide only the C by B"
+            ],
+            "correct": "subtract Ax from both sides"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Solve for y: subtract the x-term from both sides, then divide every term by the coefficient of y.",
+              "The slope is the coefficient of x; the y-intercept is the constant term.",
+              "The x-intercept comes from setting y = 0, the y-intercept from setting x = 0. The graph passes through both."
+            ],
+            "commonError": "Dividing only one term by the coefficient of y when solving for y."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-wu-2",
+          "standard": "A.3C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "constructLine"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Graph {{equation}}. Plot its y-intercept, then use the slope to plot a second point.",
+          "questionFamily": {
+            "id": "linear.graphFromSlopeIntercept",
+            "constraints": {
+              "slope": "fraction"
+            }
+          },
+          "hints": [
+            "The constant term is the y-intercept: plot that point on the y-axis first.",
+            "A fraction slope is rise over run: move up or down by the numerator and right by the denominator.",
+            "Check your second point by substituting it into the equation."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. A slope of 2/3 means…",
+            "options": [
+              "up 2, right 3",
+              "up 3, right 2"
+            ],
+            "correct": "up 2, right 3"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Plot the y-intercept, (0, b).",
+              "Use the slope as rise over run: the numerator is the rise and the denominator is the run.",
+              "Draw the line through both points."
+            ],
+            "commonError": "Using the run as the rise — for 2/3, the rise is 2 and the run is 3."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-wu-3",
+          "standard": "A.3C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Key characteristics. Use the equation to describe {{equation}}. Keep fraction answers exact.",
+          "questionFamily": {
+            "id": "linear.keyCharacteristics",
+            "constraints": {
+              "slope": "fraction",
+              "xIntercept": "fraction"
+            }
+          },
+          "hints": [
+            "The coefficient of x is the slope; the constant term is the y-intercept.",
+            "Set the function equal to zero and solve to find the x-intercept; keep it as a fraction.",
+            "A positive slope means the line rises from left to right."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In y = mx + b, the slope is…",
+            "options": [
+              "b, the number added on its own",
+              "m, the number multiplied by x"
+            ],
+            "correct": "m, the number multiplied by x"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Read the slope and the y-intercept from the equation.",
+              "Set the function equal to zero and solve for the x-intercept, as an exact fraction.",
+              "A positive slope increases and a negative slope decreases; the domain and range of a non-horizontal line are all real numbers."
+            ],
+            "commonError": "Rounding the x-intercept instead of keeping it exact."
+          }
+        }
+      ]
+    },
+    {
+      "id": "classwork",
+      "role": "classwork",
+      "title": "Classwork — Systems, Graphs and Parameters",
+      "recommendedMinutes": 70,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "m3t2l1h-cw-1",
+          "standard": "A.2C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Getting Started — Ticket Tabulation. A high school sells tickets for its basketball games. Students pay $5 and adults pay $10. The school needs to raise $3,000 to send the team to a tournament. Let s be the number of student tickets and a the number of adult tickets.",
+          "responses": [
+            {
+              "id": "model",
+              "label": "Which equation represents the situation?",
+              "type": "choice",
+              "options": [
+                "5s + 10a = 3000",
+                "10s + 5a = 3000",
+                "s + a = 3000",
+                "5s + 10a = 15"
+              ],
+              "answer": "5s + 10a = 3000"
+            },
+            {
+              "id": "adults",
+              "label": "If 400 student tickets are sold, how many adult tickets must be sold?",
+              "answer": "100"
+            },
+            {
+              "id": "students",
+              "label": "If 200 adult tickets are sold, how many student tickets must be sold?",
+              "answer": "200"
+            },
+            {
+              "id": "many",
+              "label": "Did every student in your class find the same combination of tickets?",
+              "type": "choice",
+              "options": [
+                "No — many different combinations raise exactly $3,000.",
+                "Yes — only one combination raises $3,000.",
+                "No — but only one combination is correct.",
+                "Yes — because there are two variables."
+              ],
+              "answer": "No — many different combinations raise exactly $3,000."
+            }
+          ],
+          "hints": [
+            "The money from student tickets is $5 times the number of student tickets; do the same for adult tickets.",
+            "Substitute the number of tickets you know, then solve for the other one.",
+            "Can you find another pair of numbers that also makes the equation true?"
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The money from s student tickets at $5 each is…",
+            "options": [
+              "s + 5",
+              "5s"
+            ],
+            "correct": "5s"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Standard form",
+                "instruction": "A linear equation in standard form is written Ax + By = C. It is a natural way to write a situation where two quantities add up to a total, like ticket money."
+              }
+            ]
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Student money plus adult money is the total: 5s + 10a = 3000.",
+              "5(400) + 10a = 3000 gives 10a = 1000, so a = 100.",
+              "5s + 10(200) = 3000 gives 5s = 1000, so s = 200.",
+              "Many pairs (s, a) make the equation true, so classmates can find different combinations."
+            ],
+            "commonError": "Switching the prices — students pay $5, so the student term is 5s."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-cw-2",
+          "standard": "A.3C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Activity 1.1 — The ticket goal is 5s + 10a = 3000. Find each intercept by substituting 0 for the other variable, and explain what it means.",
+          "responses": [
+            {
+              "id": "sInt",
+              "label": "The s-intercept (where a = 0), as an ordered pair (s, a)",
+              "answer": "(600,0)",
+              "answerFormat": "orderedPair"
+            },
+            {
+              "id": "aInt",
+              "label": "The a-intercept (where s = 0), as an ordered pair (s, a)",
+              "answer": "(0,300)",
+              "answerFormat": "orderedPair"
+            },
+            {
+              "id": "sMeaning",
+              "label": "The s-intercept means…",
+              "type": "choice",
+              "options": [
+                "600 student tickets and no adult tickets raise $3,000.",
+                "600 adult tickets and no student tickets raise $3,000.",
+                "600 tickets are sold in all.",
+                "Each student ticket costs $600."
+              ],
+              "answer": "600 student tickets and no adult tickets raise $3,000."
+            },
+            {
+              "id": "aMeaning",
+              "label": "The a-intercept means…",
+              "type": "choice",
+              "options": [
+                "300 adult tickets and no student tickets raise $3,000.",
+                "300 student tickets and no adult tickets raise $3,000.",
+                "300 tickets are sold in all.",
+                "Adult tickets cost $300."
+              ],
+              "answer": "300 adult tickets and no student tickets raise $3,000."
+            }
+          ],
+          "hints": [
+            "For the s-intercept, substitute a = 0 and solve 5s = 3000.",
+            "For the a-intercept, substitute s = 0 and solve 10a = 3000.",
+            "An intercept is a point: write the value of s first, then a."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. At the s-intercept, the number of adult tickets is…",
+            "options": [
+              "the same as s",
+              "0"
+            ],
+            "correct": "0"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Intercepts from standard form",
+                "instruction": "To find the x-intercept, substitute y = 0 and solve for x. To find the y-intercept, substitute x = 0 and solve for y. Two intercepts are two points: enough to graph the line."
+              }
+            ]
+          },
+          "solutionReview": {
+            "reasoning": [
+              "a = 0: 5s = 3000, so s = 600 → (600, 0).",
+              "s = 0: 10a = 3000, so a = 300 → (0, 300).",
+              "Each intercept is a way to reach $3,000 selling only one kind of ticket."
+            ],
+            "commonError": "Dividing 3000 by 10 for the s-intercept — student tickets cost $5, so divide by 5."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-cw-3",
+          "standard": "A.3C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "constructLine"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Use the intercepts to graph 5s + 10a = 3000. The horizontal axis shows student tickets, s (as x), and the vertical axis shows adult tickets, a (as y).",
+          "standardForm": {
+            "A": 5,
+            "B": 10,
+            "C": 3000
+          },
+          "graphBounds": {
+            "xMin": 0,
+            "xMax": 700,
+            "yMin": 0,
+            "yMax": 400
+          },
+          "snapStep": 50,
+          "constructionPolicy": {
+            "strategy": "formAware",
+            "requiredAnchor": "intercepts"
+          },
+          "hints": [
+            "Plot the two intercepts you found: one on each axis.",
+            "Each grid step is 50 tickets.",
+            "Draw the line through both intercepts."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Which two points make graphing a standard-form equation quick?",
+            "options": [
+              "Two points with the same x-value",
+              "The x-intercept and the y-intercept"
+            ],
+            "correct": "The x-intercept and the y-intercept"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Plot (600, 0) and (0, 300), the two intercepts.",
+              "Draw the line through them: every point on it is a combination of tickets that raises $3,000."
+            ],
+            "commonError": "Plotting (300, 0) and (0, 600) — the s-intercept goes on the horizontal axis."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-cw-4",
+          "standard": "A.2A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2A",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Analyze the graph of 5s + 10a = 3000: its domain and range, and its slope.",
+          "graph": {
+            "xMin": 0,
+            "xMax": 700,
+            "yMin": 0,
+            "yMax": 400,
+            "xStep": 100,
+            "yStep": 50,
+            "xAxisLabel": "Student tickets, s",
+            "yAxisLabel": "Adult tickets, a",
+            "functions": [
+              {
+                "type": "line",
+                "m": -0.5,
+                "b": 300
+              }
+            ]
+          },
+          "responses": [
+            {
+              "id": "mathDomain",
+              "label": "Domain of the mathematical function",
+              "type": "choice",
+              "options": [
+                "All real numbers",
+                "Whole numbers from 0 to 600",
+                "0 ≤ s ≤ 300",
+                "Only positive numbers"
+              ],
+              "answer": "All real numbers"
+            },
+            {
+              "id": "realDomain",
+              "label": "Reasonable domain in the situation",
+              "type": "choice",
+              "options": [
+                "Whole numbers of student tickets from 0 to 600",
+                "All real numbers",
+                "Every number from 0 to 300",
+                "Any number of tickets greater than 600"
+              ],
+              "answer": "Whole numbers of student tickets from 0 to 600"
+            },
+            {
+              "id": "realRange",
+              "label": "Reasonable range in the situation",
+              "type": "choice",
+              "options": [
+                "Whole numbers of adult tickets from 0 to 300",
+                "All real numbers",
+                "Every number from 0 to 600",
+                "Only 300"
+              ],
+              "answer": "Whole numbers of adult tickets from 0 to 300"
+            },
+            {
+              "id": "slope",
+              "label": "Slope of the line (change in a for each change in s)",
+              "answer": "-0.5"
+            },
+            {
+              "id": "slopeMeaning",
+              "label": "What the slope means",
+              "type": "choice",
+              "options": [
+                "Every 2 more student tickets sold means 1 fewer adult ticket is needed.",
+                "Every 2 more adult tickets means 1 fewer student ticket.",
+                "Student tickets cost half as much as the goal.",
+                "Each ticket adds $0.50."
+              ],
+              "answer": "Every 2 more student tickets sold means 1 fewer adult ticket is needed."
+            }
+          ],
+          "hints": [
+            "The slope is rise over run: use the two intercepts.",
+            "In the situation, you cannot sell a negative number of tickets or part of a ticket.",
+            "The intercepts mark the ends of the reasonable domain and range."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. From (0, 300) to (600, 0), the line…",
+            "options": [
+              "rises",
+              "falls"
+            ],
+            "correct": "falls"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "The mathematical line continues forever: domain all real numbers.",
+              "In context, s and a are whole numbers of tickets from 0 to the intercepts: 0 ≤ s ≤ 600 and 0 ≤ a ≤ 300.",
+              "Slope = (0 − 300) / (600 − 0) = −1/2: two more student tickets replace one adult ticket."
+            ],
+            "commonError": "Giving the slope as −2 by dividing run by rise."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-cw-5",
+          "standard": "A.2I",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Activity 1.2 — The athletic director says that 450 total tickets were sold to the home game. Write an equation for this, then find its intercepts.",
+          "responses": [
+            {
+              "id": "model",
+              "label": "Which equation shows 450 tickets in all?",
+              "type": "choice",
+              "options": [
+                "s + a = 450",
+                "5s + 10a = 450",
+                "s − a = 450",
+                "10s + 5a = 450"
+              ],
+              "answer": "s + a = 450"
+            },
+            {
+              "id": "sInt",
+              "label": "Its s-intercept, as an ordered pair (s, a)",
+              "answer": "(450,0)",
+              "answerFormat": "orderedPair"
+            },
+            {
+              "id": "aInt",
+              "label": "Its a-intercept, as an ordered pair (s, a)",
+              "answer": "(0,450)",
+              "answerFormat": "orderedPair"
+            },
+            {
+              "id": "system",
+              "label": "Together with 5s + 10a = 3000, the two equations form…",
+              "type": "choice",
+              "options": [
+                "a system of linear equations",
+                "one equation with one variable",
+                "an inequality",
+                "a function table"
+              ],
+              "answer": "a system of linear equations"
+            }
+          ],
+          "hints": [
+            "Count tickets, not money: each ticket counts as one.",
+            "Substitute 0 for one variable at a time.",
+            "Two equations that describe the same quantities form a system."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The total number of tickets is…",
+            "options": [
+              "5s + 10a",
+              "s + a"
+            ],
+            "correct": "s + a"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "System of linear equations",
+                "instruction": "When two or more linear equations define a relationship between the same quantities, they form a system of linear equations. A solution of the system makes every equation true."
+              }
+            ]
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Each ticket counts once: s + a = 450.",
+              "Intercepts: (450, 0) and (0, 450).",
+              "With 5s + 10a = 3000, the two equations form a system."
+            ],
+            "commonError": "Using the prices in the ticket count: 5s + 10a measures money, not tickets."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-cw-6",
+          "standard": "A.3G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "graphSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Graph both equations of the system 5s + 10a = 3000 and s + a = 450 — the horizontal axis is s and the vertical axis is a. Then decide how many solutions the system has and give the solution.",
+          "system": {
+            "m1": -0.5,
+            "b1": 300,
+            "m2": -1,
+            "b2": 450
+          },
+          "graph": {
+            "xMin": 0,
+            "xMax": 700,
+            "yMin": 0,
+            "yMax": 500,
+            "xStep": 50,
+            "yStep": 50
+          },
+          "interaction": "construct",
+          "equationLabels": [
+            "5s + 10a = 3000",
+            "s + a = 450"
+          ],
+          "variables": [
+            "s",
+            "a"
+          ],
+          "snapStep": 50,
+          "hints": [
+            "Find two points on each line: substitute two x-values into its equation. The y-intercept is often the easiest first point.",
+            "The solution of a system is the point that makes BOTH equations true — on the graph, where the two lines cross.",
+            "Lines with the same slope never cross unless they are the same line. Compare the y-intercepts to decide which."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The solution of a system is where the graphs…",
+            "options": [
+              "cross",
+              "begin"
+            ],
+            "correct": "cross"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Graph 5s + 10a = 3000 through (600, 0) and (0, 300), and s + a = 450 through (450, 0) and (0, 450).",
+              "The lines cross at (300, 150): 300 student tickets and 150 adult tickets.",
+              "Check: 300 + 150 = 450 and 5(300) + 10(150) = 3000."
+            ],
+            "commonError": "Giving (150, 300) — the first coordinate is student tickets."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-cw-7",
+          "standard": "A.3G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "interpretPointInContext"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "The point (300, 150) is the solution of the system s + a = 450 and 5s + 10a = 3000. Build a statement that explains what each coordinate means.",
+          "scenario": "The school sold 450 tickets to the home game. Student tickets cost $5, adult tickets cost $10, and the school collected $3,000. Let s be the number of student tickets and a be the number of adult tickets.",
+          "point": [
+            300,
+            150
+          ],
+          "responseMode": "builder",
+          "quantityChoices": [
+            {
+              "id": "student",
+              "label": "Student tickets sold"
+            },
+            {
+              "id": "adult",
+              "label": "Adult tickets sold"
+            },
+            {
+              "id": "money",
+              "label": "Money collected"
+            },
+            {
+              "id": "total",
+              "label": "Total tickets sold"
+            }
+          ],
+          "quantities": {
+            "x": {
+              "id": "student",
+              "name": "Student tickets sold",
+              "unit": "tickets",
+              "acceptedUnits": [
+                "tickets",
+                "ticket",
+                "student tickets",
+                "student ticket"
+              ]
+            },
+            "y": {
+              "id": "adult",
+              "name": "Adult tickets sold",
+              "unit": "tickets",
+              "acceptedUnits": [
+                "tickets",
+                "ticket",
+                "adult tickets",
+                "adult ticket"
+              ]
+            }
+          },
+          "graph": {
+            "xMin": 0,
+            "xMax": 700,
+            "yMin": 0,
+            "yMax": 500,
+            "xStep": 100,
+            "yStep": 50,
+            "xAxisLabel": "Student tickets, s",
+            "yAxisLabel": "Adult tickets, a",
+            "functions": [
+              {
+                "type": "line",
+                "m": -1,
+                "b": 450
+              },
+              {
+                "type": "line",
+                "m": -0.5,
+                "b": 300
+              }
+            ],
+            "points": [
+              {
+                "x": 300,
+                "y": 150,
+                "label": "(300, 150)"
+              }
+            ]
+          },
+          "hints": [
+            "The first coordinate always belongs to the quantity on the horizontal axis.",
+            "Both equations count tickets, so both coordinates are numbers of tickets."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Which variable is written first in each ordered pair (s, a)?",
+            "options": [
+              "a, the adult tickets",
+              "s, the student tickets"
+            ],
+            "correct": "s, the student tickets"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "The ordered pair is (s, a), so 300 is s and 150 is a.",
+              "300 student tickets and 150 adult tickets make 450 tickets and $3,000 together."
+            ],
+            "commonError": "Reading 150 as the student tickets: the first coordinate is s."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-cw-8",
+          "standard": "A.3G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Honors — When is the solution realistic? Keep 450 tickets, s + a = 450, but let the money collected be C dollars: 5s + 10a = C. The solution depends on C. Model it, then reason about which totals make sense.",
+          "responses": [
+            {
+              "id": "sol",
+              "label": "The solution (s, a) when C = 3300",
+              "answer": "(240,210)",
+              "answerFormat": "orderedPair"
+            },
+            {
+              "id": "low",
+              "label": "The least total C that gives a realistic solution (no negative ticket counts)",
+              "answer": "2250"
+            },
+            {
+              "id": "high",
+              "label": "The greatest total C that gives a realistic solution",
+              "answer": "4500"
+            },
+            {
+              "id": "why",
+              "label": "Explain the least total.",
+              "type": "choice",
+              "options": [
+                "Every ticket sold is a student ticket: 450 × $5",
+                "Half the tickets are adult tickets",
+                "It is the $3,000 goal",
+                "Every ticket sold is an adult ticket: 450 × $10"
+              ],
+              "answer": "Every ticket sold is a student ticket: 450 × $5"
+            }
+          ],
+          "hints": [
+            "Solve s + a = 450 for s, then substitute into 5s + 10a = C.",
+            "Simplify: the adult tickets a depend on C. Neither s nor a can be negative.",
+            "The least total happens when no adult tickets are sold; the greatest when every ticket is an adult ticket."
+          ],
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Reasonable solutions",
+                "instruction": "A system can have a solution that the situation cannot use: a negative number of tickets, or a fraction of a person. Check every solution against the situation."
+              }
+            ]
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. Solving s + a = 450 for s gives…",
+            "options": [
+              "s = 450 − a",
+              "s = 450 + a"
+            ],
+            "correct": "s = 450 − a"
+          },
+          "attemptFeedback": [
+            "Substitute s = 450 − a into 5s + 10a = C and simplify before you choose a value of C.",
+            "Test your least and greatest totals: each should give a ticket count of exactly 0."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Substitute s = 450 − a: 5(450 − a) + 10a = C → 2250 + 5a = C → a = (C − 2250)/5.",
+              "C = 3300: a = 210 and s = 240, so (240, 210).",
+              "a ≥ 0 needs C ≥ 2250 (all student tickets); s ≥ 0 needs a ≤ 450, so C ≤ 4500 (all adult tickets)."
+            ],
+            "commonError": "Accepting any solution of the system — a negative ticket count solves the equations but not the situation."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-cw-9",
+          "standard": "A.2I",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Activity 1.3 — Samuel opened a savings account with $25 and deposits $10 each week. Diego opened his with $40 and also deposits $10 each week. Let x be the number of weeks and y the total saved.",
+          "responses": [
+            {
+              "id": "samuel",
+              "label": "Samuel’s equation",
+              "type": "choice",
+              "options": [
+                "y = 10x + 25",
+                "y = 25x + 10",
+                "y = 10x + 40",
+                "y = 35x"
+              ],
+              "answer": "y = 10x + 25"
+            },
+            {
+              "id": "diego",
+              "label": "Diego’s equation",
+              "type": "choice",
+              "options": [
+                "y = 10x + 40",
+                "y = 40x + 10",
+                "y = 10x + 25",
+                "y = 50x"
+              ],
+              "answer": "y = 10x + 40"
+            },
+            {
+              "id": "predict",
+              "label": "Predict: what will the graph of this system look like?",
+              "type": "choice",
+              "options": [
+                "Two parallel lines",
+                "Two lines that cross once",
+                "One line",
+                "Two perpendicular lines"
+              ],
+              "answer": "Two parallel lines"
+            },
+            {
+              "id": "gap",
+              "label": "How much more has Diego saved than Samuel after 5 weeks, in dollars?",
+              "answer": "15"
+            }
+          ],
+          "hints": [
+            "Each equation is (deposit per week)·x + (starting amount).",
+            "Compare the slopes and the y-intercepts of the two equations.",
+            "Substitute x = 5 into each equation and subtract."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Two lines with the same slope and different y-intercepts are…",
+            "options": [
+              "crossing",
+              "parallel"
+            ],
+            "correct": "parallel"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Samuel: y = 10x + 25. Diego: y = 10x + 40.",
+              "Same slope (10), different y-intercepts: parallel lines.",
+              "After 5 weeks: 90 − 75 = 15. Diego is always $15 ahead."
+            ],
+            "commonError": "Swapping the starting amount and the weekly deposit in an equation."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-cw-10",
+          "standard": "A.3F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3G",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "graphSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Graph Samuel’s and Diego’s savings: y = 10x + 25 and y = 10x + 40, with weeks on the horizontal axis and dollars on the vertical axis. Then decide whether the system has a solution.",
+          "system": {
+            "m1": 10,
+            "b1": 25,
+            "m2": 10,
+            "b2": 40
+          },
+          "graph": {
+            "xMin": 0,
+            "xMax": 10,
+            "yMin": 0,
+            "yMax": 160,
+            "xStep": 1,
+            "yStep": 10
+          },
+          "interaction": "construct",
+          "equationLabels": [
+            "y = 10x + 25",
+            "y = 10x + 40"
+          ],
+          "snapStep": 5,
+          "hints": [
+            "Find two points on each line: substitute two x-values into its equation. The y-intercept is often the easiest first point.",
+            "The solution of a system is the point that makes BOTH equations true — on the graph, where the two lines cross.",
+            "Lines with the same slope never cross unless they are the same line. Compare the y-intercepts to decide which."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. If two lines never meet, the system has…",
+            "options": [
+              "one solution",
+              "no solution"
+            ],
+            "correct": "no solution"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Graph y = 10x + 25 through (0, 25) and (5, 75); graph y = 10x + 40 through (0, 40) and (5, 90).",
+              "The lines are parallel — the same slope, different y-intercepts — so they never meet: no solution.",
+              "In context, Samuel and Diego never have the same amount saved."
+            ],
+            "commonError": "Calling parallel lines “infinitely many solutions” because they go on forever."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-cw-11",
+          "standard": "A.3G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "secondary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "graphSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Isabella opens an account with $40 and deposits $4 each week: y = 4x + 40. Diego’s savings are y = 10x + 40. Graph both, then use your graph to find when Isabella and Diego have saved the same amount.",
+          "system": {
+            "m1": 4,
+            "b1": 40,
+            "m2": 10,
+            "b2": 40
+          },
+          "graph": {
+            "xMin": 0,
+            "xMax": 10,
+            "yMin": 0,
+            "yMax": 160,
+            "xStep": 1,
+            "yStep": 10
+          },
+          "interaction": "construct",
+          "equationLabels": [
+            "y = 4x + 40",
+            "y = 10x + 40"
+          ],
+          "snapStep": 5,
+          "hints": [
+            "Find two points on each line: substitute two x-values into its equation. The y-intercept is often the easiest first point.",
+            "The solution of a system is the point that makes BOTH equations true — on the graph, where the two lines cross.",
+            "Lines with the same slope never cross unless they are the same line. Compare the y-intercepts to decide which."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Lines with different slopes cross…",
+            "options": [
+              "exactly once",
+              "never"
+            ],
+            "correct": "exactly once"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Graph y = 4x + 40 through (0, 40) and (5, 60), and y = 10x + 40 through (0, 40) and (5, 90).",
+              "Different slopes, so they cross exactly once — at (0, 40).",
+              "They have the same amount, $40, only at the start; after that Diego has more."
+            ],
+            "commonError": "Thinking lines with the same y-intercept are the same line — the slopes are different."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-cw-12",
+          "standard": "A.3G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "graphSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "After a shopping spree, Diego and Isabella each have $40 left. Diego still saves $10 a week: y = 10x + 40. Isabella deposits $4 on Tuesdays and $6 on Saturdays: y = 4x + 6x + 40. Graph both, then decide how many solutions the system has.",
+          "system": {
+            "m1": 10,
+            "b1": 40,
+            "m2": 10,
+            "b2": 40
+          },
+          "graph": {
+            "xMin": 0,
+            "xMax": 10,
+            "yMin": 0,
+            "yMax": 160,
+            "xStep": 1,
+            "yStep": 10
+          },
+          "interaction": "construct",
+          "equationLabels": [
+            "y = 10x + 40",
+            "y = 4x + 6x + 40"
+          ],
+          "snapStep": 5,
+          "hints": [
+            "Find two points on each line: substitute two x-values into its equation. The y-intercept is often the easiest first point.",
+            "The solution of a system is the point that makes BOTH equations true — on the graph, where the two lines cross.",
+            "Lines with the same slope never cross unless they are the same line. Compare the y-intercepts to decide which."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. 4x + 6x is equal to…",
+            "options": [
+              "10x",
+              "24x"
+            ],
+            "correct": "10x"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Isabella’s equation simplifies: 4x + 6x + 40 = 10x + 40.",
+              "Both equations graph the same line, so every point on it is a solution: infinitely many solutions.",
+              "In context, Diego and Isabella always have the same amount saved."
+            ],
+            "commonError": "Seeing two different-looking equations and expecting two different lines without simplifying."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-cw-13",
+          "standard": "A.3F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1D",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Diego claims that after the shopping spree he is still saving more each week than Isabella. Use your graph and the two equations to respond.",
+          "responses": [
+            {
+              "id": "claim",
+              "label": "Is Diego’s claim true?",
+              "type": "choice",
+              "options": [
+                "No — both save $10 a week, so their totals are always equal.",
+                "Yes — he saves $10 and Isabella saves only $4.",
+                "Yes — his line is above hers.",
+                "No — Isabella saves more each week."
+              ],
+              "answer": "No — both save $10 a week, so their totals are always equal."
+            },
+            {
+              "id": "week6",
+              "label": "How much will each of them have after 6 weeks, in dollars?",
+              "answer": "100"
+            },
+            {
+              "id": "kind",
+              "label": "A system whose two equations describe the same line is…",
+              "type": "choice",
+              "options": [
+                "consistent, with infinitely many solutions",
+                "inconsistent, with no solution",
+                "consistent, with exactly one solution",
+                "inconsistent, with infinitely many solutions"
+              ],
+              "answer": "consistent, with infinitely many solutions"
+            }
+          ],
+          "hints": [
+            "Add Isabella’s two weekly deposits.",
+            "Substitute x = 6 into either equation.",
+            "A system with at least one solution is called consistent."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Isabella’s weekly deposits total…",
+            "options": [
+              "$4",
+              "$10"
+            ],
+            "correct": "$10"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Consistent systems",
+                "instruction": "Systems that have one solution or infinitely many solutions are consistent."
+              },
+              {
+                "title": "Inconsistent systems",
+                "instruction": "Systems with no solution are inconsistent."
+              }
+            ]
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Isabella deposits $4 + $6 = $10 a week, the same as Diego.",
+              "After 6 weeks each has 10(6) + 40 = $100.",
+              "The equations describe the same line, so the system is consistent with infinitely many solutions."
+            ],
+            "commonError": "Comparing only the Tuesday deposit, $4, with Diego’s $10."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-cw-14",
+          "standard": "A.3F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "matchFigures"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Talk the Talk — Beating the System. Sort each system by its number of solutions. Compare the slopes and the y-intercepts first.",
+          "figures": [
+            {
+              "id": "s1",
+              "text": "y = 2x + 3 and y = −x + 3",
+              "category": "one"
+            },
+            {
+              "id": "s2",
+              "text": "y = 4x − 1 and y = 4x + 5",
+              "category": "none"
+            },
+            {
+              "id": "s3",
+              "text": "y = −3x + 2 and 6x + 2y = 4",
+              "category": "all"
+            },
+            {
+              "id": "s4",
+              "text": "y = x − 7 and y = −2x + 5",
+              "category": "one"
+            },
+            {
+              "id": "s5",
+              "text": "y = −x + 6 and x + y = 2",
+              "category": "none"
+            },
+            {
+              "id": "s6",
+              "text": "y = ½x + 4 and x − 2y = −8",
+              "category": "all"
+            }
+          ],
+          "categories": [
+            {
+              "id": "one",
+              "label": "Consistent — exactly one solution"
+            },
+            {
+              "id": "none",
+              "label": "Inconsistent — no solution"
+            },
+            {
+              "id": "all",
+              "label": "Consistent — infinitely many solutions"
+            }
+          ],
+          "hints": [
+            "Rewrite each standard-form equation in slope-intercept form first.",
+            "Different slopes: the lines cross once.",
+            "Same slopes: compare the y-intercepts to decide between parallel lines and one line."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Two equations with the same slope and the same y-intercept graph…",
+            "options": [
+              "parallel lines",
+              "the same line"
+            ],
+            "correct": "the same line"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Different slopes (2 and −1; 1 and −2): exactly one solution — consistent.",
+              "Same slope, different y-intercepts (4 and 4; −1 and −1): parallel, no solution — inconsistent.",
+              "6x + 2y = 4 is y = −3x + 2, and x − 2y = −8 is y = ½x + 4: the same lines, infinitely many solutions — consistent."
+            ],
+            "commonError": "Deciding from how the equations LOOK — rewrite standard form before comparing."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-cw-15",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1F",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "The graphs of y = 3x + 1 and y = x + 5 cross at the point (2, 7). Explain why the coordinates of that point are the solution of the system.",
+          "responses": [
+            {
+              "id": "first",
+              "label": "Substitute (2, 7) into y = 3x + 1: the value of 3x + 1",
+              "answer": "7"
+            },
+            {
+              "id": "second",
+              "label": "Substitute (2, 7) into y = x + 5: the value of x + 5",
+              "answer": "7"
+            },
+            {
+              "id": "why",
+              "label": "Why is (2, 7) the solution of the system?",
+              "type": "choice",
+              "options": [
+                "It lies on both lines, so it makes both equations true.",
+                "It lies on the first line only.",
+                "Its coordinates add to 9.",
+                "It is the y-intercept of both lines."
+              ],
+              "answer": "It lies on both lines, so it makes both equations true."
+            }
+          ],
+          "hints": [
+            "Replace x with the point’s x-coordinate in each equation, then compare the result with its y-coordinate.",
+            "A point on a line makes that line’s equation true.",
+            "The solution of a system must make every equation true."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. A point that lies on a line…",
+            "options": [
+              "makes its equation false",
+              "makes its equation true"
+            ],
+            "correct": "makes its equation true"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "3(2) + 1 = 7 and 2 + 5 = 7: (2, 7) makes both equations true.",
+              "Every point on a line makes its equation true, so the crossing point is the one point that makes BOTH true."
+            ],
+            "commonError": "Checking the point in only one of the equations."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-cw-16",
+          "standard": "A.3F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3G",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Honors — Looks parallel? The graph shows y = 0.5x + 2 and y = 0.6x − 1 from −10 to 10 on each axis. They seem never to meet. Decide, and justify your answer with the equations.",
+          "graph": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10,
+            "xStep": 1,
+            "yStep": 1,
+            "functions": [
+              {
+                "type": "line",
+                "m": 0.5,
+                "b": 2
+              },
+              {
+                "type": "line",
+                "m": 0.6,
+                "b": -1
+              }
+            ]
+          },
+          "responses": [
+            {
+              "id": "count",
+              "label": "How many solutions does the system have?",
+              "type": "choice",
+              "options": [
+                "Exactly one — the slopes are different, so the lines must cross",
+                "None — the lines look parallel",
+                "Infinitely many — the lines are almost the same",
+                "None — the y-intercepts are different"
+              ],
+              "answer": "Exactly one — the slopes are different, so the lines must cross"
+            },
+            {
+              "id": "sol",
+              "label": "The solution of the system, found algebraically",
+              "answer": "(30,17)",
+              "answerFormat": "orderedPair"
+            },
+            {
+              "id": "see",
+              "label": "Why does the graph not show the solution?",
+              "type": "choice",
+              "options": [
+                "The lines cross at an x-value outside the window shown",
+                "The lines never cross",
+                "The graph is drawn wrong",
+                "Graphs cannot show solutions of systems"
+              ],
+              "answer": "The lines cross at an x-value outside the window shown"
+            }
+          ],
+          "hints": [
+            "Compare the slopes first. Different slopes always mean the lines cross somewhere.",
+            "Set the two expressions for y equal and solve for x; then find y from either equation.",
+            "Compare your x-value with the window of the graph."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Two lines with DIFFERENT slopes…",
+            "options": [
+              "always cross exactly once",
+              "never cross"
+            ],
+            "correct": "always cross exactly once"
+          },
+          "attemptFeedback": [
+            "Different slopes mean exactly one crossing, even when it is off the screen.",
+            "Solve 0.5x + 2 = 0.6x − 1, then substitute your x into either equation."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "The slopes, 0.5 and 0.6, are different, so the lines cross exactly once.",
+              "0.5x + 2 = 0.6x − 1 → 3 = 0.1x → x = 30. Then y = 0.5(30) + 2 = 17: the solution is (30, 17).",
+              "x = 30 is far outside a −10 to 10 window, so the graph cannot show the crossing."
+            ],
+            "commonError": "Deciding from a picture: close slopes look parallel, but only equal slopes are parallel."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-cw-17",
+          "standard": "A.3F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Talk the Talk — Honors. Systems with a parameter. In y = 2x + 3 and y = kx − 1, the letter k stands for a number. Use slopes and y-intercepts to reason, and explain each answer to yourself before entering it.",
+          "responses": [
+            {
+              "id": "k",
+              "label": "The value of k for which the system has no solution",
+              "answer": "2"
+            },
+            {
+              "id": "inf",
+              "label": "Is there a value of k that gives infinitely many solutions?",
+              "type": "choice",
+              "options": [
+                "No — the y-intercepts 3 and −1 are different, so the lines can never be the same line",
+                "Yes — k = 2",
+                "Yes — k = −1",
+                "Yes — every k"
+              ],
+              "answer": "No — the y-intercepts 3 and −1 are different, so the lines can never be the same line"
+            },
+            {
+              "id": "sol",
+              "label": "The solution of the system when k = −2",
+              "answer": "(-1,1)",
+              "answerFormat": "orderedPair"
+            },
+            {
+              "id": "b",
+              "label": "For y = 2x + b and 4x − 2y = −6 to have infinitely many solutions, b =",
+              "answer": "3"
+            }
+          ],
+          "hints": [
+            "No solution means parallel: the same slope with different y-intercepts.",
+            "Infinitely many solutions needs the same slope AND the same y-intercept.",
+            "Rewrite the standard-form equation in slope-intercept form, then compare it with the other equation."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Parallel lines have…",
+            "options": [
+              "the same slope",
+              "the same y-intercept"
+            ],
+            "correct": "the same slope"
+          },
+          "attemptFeedback": [
+            "Compare slopes and y-intercepts, not the whole equations.",
+            "For k = −2, set 2x + 3 equal to −2x − 1 and solve."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "k = 2 gives the same slope with y-intercepts 3 and −1: parallel lines, no solution.",
+              "The y-intercepts are always 3 and −1, so the lines are never the same line: no k gives infinitely many solutions.",
+              "k = −2: 2x + 3 = −2x − 1 → 4x = −4 → x = −1, y = 1.",
+              "4x − 2y = −6 → y = 2x + 3, so b = 3."
+            ],
+            "commonError": "Thinking a matching slope alone means infinitely many solutions — the y-intercepts must match too."
+          }
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "role": "practice",
+      "title": "Practice — Solving and Reasoning about Systems by Graphing",
+      "recommendedMinutes": 45,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "m3t2l1h-pr-1",
+          "standard": "A.3F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "graphSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Graph both equations of the system {{system}}. Then decide how many solutions it has, and give the solution if there is exactly one.",
+          "questionFamily": {
+            "id": "systems.graphical2x2",
+            "constraints": {
+              "solutionCase": "one",
+              "secondForm": "standard"
+            }
+          },
+          "hints": [
+            "Find two points on each line: substitute two x-values into its equation. The y-intercept is often the easiest first point.",
+            "The solution of a system is the point that makes BOTH equations true — on the graph, where the two lines cross.",
+            "Lines with the same slope never cross unless they are the same line. Compare the y-intercepts to decide which."
+          ],
+          "attemptFeedback": [
+            "Check each point you plotted: substitute its x-value into the line’s equation and compare the y-value.",
+            "Read the system from YOUR two lines: do they cross once, never, or lie on top of each other?"
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Graph each equation from two of its points (the y-intercept and one more point found by substituting).",
+              "Different slopes: the lines cross once, and the crossing point is the one solution.",
+              "Same slope, different y-intercepts: parallel lines, no solution. Same slope and same y-intercept: one line, infinitely many solutions.",
+              "Check a crossing point by substituting it into BOTH equations."
+            ],
+            "commonError": "Reading the crossing point with its coordinates in the wrong order — the x-coordinate comes first."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-pr-2",
+          "standard": "A.3F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "graphSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Graph both equations of the system {{system}}. Then decide how many solutions it has, and give the solution if there is exactly one.",
+          "questionFamily": {
+            "id": "systems.graphical2x2",
+            "constraints": {
+              "solutionCase": "mixed",
+              "secondForm": "standard"
+            }
+          },
+          "hints": [
+            "Find two points on each line: substitute two x-values into its equation. The y-intercept is often the easiest first point.",
+            "The solution of a system is the point that makes BOTH equations true — on the graph, where the two lines cross.",
+            "Lines with the same slope never cross unless they are the same line. Compare the y-intercepts to decide which."
+          ],
+          "attemptFeedback": [
+            "Check each point you plotted: substitute its x-value into the line’s equation and compare the y-value.",
+            "Read the system from YOUR two lines: do they cross once, never, or lie on top of each other?"
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Graph each equation from two of its points (the y-intercept and one more point found by substituting).",
+              "Different slopes: the lines cross once, and the crossing point is the one solution.",
+              "Same slope, different y-intercepts: parallel lines, no solution. Same slope and same y-intercept: one line, infinitely many solutions.",
+              "Check a crossing point by substituting it into BOTH equations."
+            ],
+            "commonError": "Reading the crossing point with its coordinates in the wrong order — the x-coordinate comes first."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-pr-3",
+          "standard": "A.3F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "graphSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Graph both equations of the system {{system}}. Then decide how many solutions it has, and give the solution if there is exactly one.",
+          "questionFamily": {
+            "id": "systems.graphical2x2",
+            "constraints": {
+              "solutionCase": "mixed",
+              "secondForm": "mixed"
+            }
+          },
+          "hints": [
+            "Find two points on each line: substitute two x-values into its equation. The y-intercept is often the easiest first point.",
+            "The solution of a system is the point that makes BOTH equations true — on the graph, where the two lines cross.",
+            "Lines with the same slope never cross unless they are the same line. Compare the y-intercepts to decide which."
+          ],
+          "attemptFeedback": [
+            "Check each point you plotted: substitute its x-value into the line’s equation and compare the y-value.",
+            "Read the system from YOUR two lines: do they cross once, never, or lie on top of each other?"
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Graph each equation from two of its points (the y-intercept and one more point found by substituting).",
+              "Different slopes: the lines cross once, and the crossing point is the one solution.",
+              "Same slope, different y-intercepts: parallel lines, no solution. Same slope and same y-intercept: one line, infinitely many solutions.",
+              "Check a crossing point by substituting it into BOTH equations."
+            ],
+            "commonError": "Reading the crossing point with its coordinates in the wrong order — the x-coordinate comes first."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-pr-4",
+          "standard": "A.3F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Classify the system {{system}} without graphing.",
+          "questionFamily": {
+            "id": "systems.classifyByStructure"
+          },
+          "hints": [
+            "Rewrite the standard-form equation as y = mx + b.",
+            "Compare the two slopes first.",
+            "If the slopes match, compare the y-intercepts."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Lines with different slopes…",
+            "options": [
+              "cross exactly once",
+              "never cross"
+            ],
+            "correct": "cross exactly once"
+          },
+          "attemptFeedback": [
+            "Rewrite the standard-form equation in slope-intercept form before reading its slope and y-intercept.",
+            "Remember: consistent systems have at least one solution; inconsistent systems have none."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Rewrite the second equation as y = mx + b by solving for y.",
+              "Different slopes: one solution. Same slope with different y-intercepts: no solution. Same slope and same y-intercept: infinitely many.",
+              "One or infinitely many solutions: consistent. No solution: inconsistent."
+            ],
+            "commonError": "Reading the coefficient of x in standard form as the slope — solve for y first."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-pr-5",
+          "standard": "A.3C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "connectLinearRepresentations"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "You are given the standard form equation {{given}}. Build its slope-intercept form, slope, intercepts and a graph — every representation must describe the same line.",
+          "type": "representationBridge",
+          "mode": "linearMultipleRepresentations",
+          "interactionMode": "process",
+          "requiredCards": [
+            "slopeIntercept",
+            "slope",
+            "xIntercept",
+            "yIntercept",
+            "graphIntercepts",
+            "graphSlopeIntercept"
+          ],
+          "questionFamily": {
+            "id": "linear.multipleRepresentations",
+            "version": 1,
+            "constraints": {
+              "given": "standardForm",
+              "slope": "fraction"
+            }
+          },
+          "hints": [
+            "Solve for y: subtract the x-term, then divide every term by the coefficient of y. The slope may be a fraction.",
+            "The intercepts come from setting x = 0 and y = 0 in the standard form.",
+            "Graph the line two ways — through its intercepts, and from its y-intercept with the slope — and check that both graphs are the same line."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Dividing −2y = −3x + 6 by −2 gives…",
+            "options": [
+              "y = (3/2)x − 3",
+              "y = −(3/2)x + 6"
+            ],
+            "correct": "y = (3/2)x − 3"
+          },
+          "attemptFeedback": [
+            "Check the slope-intercept form by substituting one intercept into it.",
+            "Every card must describe the same line: compare your slope with the rise over run between your intercepts."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Solve the standard form for y to get the slope and the y-intercept.",
+              "Set y = 0 for the x-intercept and x = 0 for the y-intercept.",
+              "Both graphs pass through the intercepts and rise by the slope."
+            ],
+            "commonError": "Dividing only part of the equation by the coefficient of y."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-pr-6",
+          "standard": "A.3F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "graphSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "Graph both equations of the system 2x + 3y = 12 and x − y = 1. Then decide how many solutions it has and give the solution.",
+          "system": {
+            "m1": -0.6666666666666666,
+            "b1": 4,
+            "m2": 1,
+            "b2": -1
+          },
+          "equationLabels": [
+            "2x + 3y = 12",
+            "x − y = 1"
+          ],
+          "interaction": "construct",
+          "graph": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10,
+            "xStep": 1,
+            "yStep": 1
+          },
+          "hints": [
+            "Find two points on each line: the intercepts work well for standard form.",
+            "For each standard-form equation, substitute zero for one variable at a time to find its intercepts.",
+            "Read the crossing point, then check it in BOTH equations."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The y-intercept of 2x + 3y = 12 is…",
+            "options": [
+              "(0, 4)",
+              "(0, 6)"
+            ],
+            "correct": "(0, 4)"
+          },
+          "attemptFeedback": [
+            "Check each point you plotted: substitute its x-value into the line’s equation and compare the y-value.",
+            "Read the system from YOUR two lines: do they cross once, never, or lie on top of each other?"
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "2x + 3y = 12 passes through (0, 4) and (6, 0); x − y = 1 passes through (0, −1) and (1, 0).",
+              "The lines cross at (3, 2).",
+              "Check: 2(3) + 3(2) = 12 and 3 − 2 = 1."
+            ],
+            "commonError": "Plotting (0, 6) for 2x + 3y = 12 — the y-intercept is 12 ÷ 3."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-pr-7",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "secondary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3G",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Between grid lines. The graph shows y = 2x − 1 and y = −x + 3. Their crossing point is not on a grid point. Estimate from the graph, then find the solution exactly with algebra.",
+          "graph": {
+            "xMin": -2,
+            "xMax": 4,
+            "yMin": -2,
+            "yMax": 4,
+            "xStep": 1,
+            "yStep": 1,
+            "functions": [
+              {
+                "type": "line",
+                "m": 2,
+                "b": -1
+              },
+              {
+                "type": "line",
+                "m": -1,
+                "b": 3
+              }
+            ]
+          },
+          "responses": [
+            {
+              "id": "est",
+              "label": "From the graph, the x-coordinate of the crossing point is…",
+              "type": "choice",
+              "options": [
+                "between 1 and 2",
+                "between 0 and 1",
+                "between 2 and 3",
+                "exactly 1"
+              ],
+              "answer": "between 1 and 2"
+            },
+            {
+              "id": "exact",
+              "label": "The exact solution, as an ordered pair of fractions",
+              "answer": "(4/3,5/3)",
+              "answerFormat": "orderedPair"
+            },
+            {
+              "id": "why",
+              "label": "Why is algebra needed here?",
+              "type": "choice",
+              "options": [
+                "The lines cross between grid lines, so the graph gives only an estimate",
+                "The graph is wrong",
+                "The lines are parallel",
+                "Graphs never give solutions"
+              ],
+              "answer": "The lines cross between grid lines, so the graph gives only an estimate"
+            }
+          ],
+          "hints": [
+            "Look at the grid lines on each side of the crossing point.",
+            "At the crossing point both y-values are equal: set 2x − 1 equal to −x + 3 and solve.",
+            "Substitute your exact x into either equation to find the exact y."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. At the crossing point of two lines, their y-values are…",
+            "options": [
+              "equal",
+              "opposite"
+            ],
+            "correct": "equal"
+          },
+          "attemptFeedback": [
+            "Solve 2x − 1 = −x + 3 exactly; keep fractions, do not round.",
+            "Check your pair in both equations."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "The crossing is a little to the right of x = 1, below y = 2.",
+              "2x − 1 = −x + 3 → 3x = 4 → x = 4/3. Then y = 2(4/3) − 1 = 5/3.",
+              "The exact solution is (4/3, 5/3); the graph alone could only estimate it."
+            ],
+            "commonError": "Rounding to a grid point such as (1, 2), which makes neither equation true."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-pr-8",
+          "standard": "A.3F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3G",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "graphSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "Car rentals. Company A charges $40 plus $0.25 per mile: y = 0.25x + 40. Company B charges $25 plus $0.40 per mile: y = 0.4x + 25. Graph both models, with miles on the horizontal axis and total cost in dollars on the vertical axis, and find where they meet.",
+          "system": {
+            "m1": 0.25,
+            "b1": 40,
+            "m2": 0.4,
+            "b2": 25
+          },
+          "equationLabels": [
+            "y = 0.25x + 40",
+            "y = 0.4x + 25"
+          ],
+          "interaction": "construct",
+          "snapStep": 5,
+          "graph": {
+            "xMin": 0,
+            "xMax": 200,
+            "yMin": 0,
+            "yMax": 120,
+            "xStep": 20,
+            "yStep": 10
+          },
+          "hints": [
+            "Start each line at its y-intercept: the fixed charge.",
+            "Find a second point on each line by substituting a number of miles, such as 20 or 50.",
+            "Read the crossing point and check it in both models."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Company A’s total cost for 0 miles is…",
+            "options": [
+              "$40",
+              "$0.25"
+            ],
+            "correct": "$40"
+          },
+          "attemptFeedback": [
+            "Check each point you plotted: substitute its x-value into the line’s equation and compare the y-value.",
+            "Read the system from YOUR two lines: do they cross once, never, or lie on top of each other?"
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "A passes through (0, 40) and (20, 45); B through (0, 25) and (50, 45).",
+              "The lines cross at (100, 65).",
+              "Check: 0.25(100) + 40 = 65 and 0.4(100) + 25 = 65."
+            ],
+            "commonError": "Swapping the rates and the fixed charges when plotting."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-pr-9",
+          "standard": "A.3G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "interpretPointInContext"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "The car-rental models y = 0.25x + 40 and y = 0.4x + 25 cross at (100, 65). Build a statement that explains what each coordinate means.",
+          "scenario": "Company A charges $40 plus $0.25 per mile. Company B charges $25 plus $0.40 per mile. x is the number of miles driven and y is the total cost in dollars.",
+          "point": [
+            100,
+            65
+          ],
+          "responseMode": "builder",
+          "quantityChoices": [
+            {
+              "id": "miles",
+              "label": "Miles driven"
+            },
+            {
+              "id": "cost",
+              "label": "Total cost"
+            },
+            {
+              "id": "fee",
+              "label": "Fixed charge"
+            },
+            {
+              "id": "rate",
+              "label": "Cost per mile"
+            }
+          ],
+          "quantities": {
+            "x": {
+              "id": "miles",
+              "name": "Miles driven",
+              "unit": "miles",
+              "acceptedUnits": [
+                "miles",
+                "mile",
+                "mi"
+              ]
+            },
+            "y": {
+              "id": "cost",
+              "name": "Total cost",
+              "unit": "dollars",
+              "acceptedUnits": [
+                "dollars",
+                "dollar",
+                "$",
+                "usd"
+              ]
+            }
+          },
+          "graph": {
+            "xMin": 0,
+            "xMax": 200,
+            "yMin": 0,
+            "yMax": 120,
+            "xStep": 20,
+            "yStep": 10,
+            "xAxisLabel": "Miles driven, x",
+            "yAxisLabel": "Total cost, y (dollars)",
+            "functions": [
+              {
+                "type": "line",
+                "m": 0.25,
+                "b": 40
+              },
+              {
+                "type": "line",
+                "m": 0.4,
+                "b": 25
+              }
+            ],
+            "points": [
+              {
+                "x": 100,
+                "y": 65,
+                "label": "(100, 65)"
+              }
+            ]
+          },
+          "hints": [
+            "The first coordinate belongs to the quantity on the horizontal axis.",
+            "The second coordinate is the total cost."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In (100, 65), the 100 is a number of…",
+            "options": [
+              "dollars",
+              "miles"
+            ],
+            "correct": "miles"
+          },
+          "attemptFeedback": [
+            "Match each coordinate with its axis: horizontal first, vertical second.",
+            "Use the units of each quantity: miles and dollars."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "x is miles and y is total cost, so (100, 65) means 100 miles and $65.",
+              "At 100 miles, both companies charge a total of $65."
+            ],
+            "commonError": "Reading 65 as a number of miles."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-pr-10",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5B",
+              "role": "secondary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3G",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Use the car-rental models y = 0.25x + 40 (Company A) and y = 0.4x + 25 (Company B) to make a decision, and justify it with an inequality.",
+          "responses": [
+            {
+              "id": "cheaper",
+              "label": "The miles x for which Company A costs less than Company B",
+              "answer": "x > 100",
+              "inputProfile": "inequality"
+            },
+            {
+              "id": "a150",
+              "label": "Company A’s total for a 150-mile trip (dollars)",
+              "answer": "77.5"
+            },
+            {
+              "id": "b150",
+              "label": "Company B’s total for a 150-mile trip (dollars)",
+              "answer": "85"
+            },
+            {
+              "id": "advice",
+              "label": "For a 150-mile trip, which company should you choose?",
+              "type": "choice",
+              "options": [
+                "Company A",
+                "Company B",
+                "Either — they cost the same"
+              ],
+              "answer": "Company A"
+            }
+          ],
+          "hints": [
+            "The first company costs less when its expression is less than the second company’s. Solve that inequality.",
+            "To the right of the crossing point, the line with the smaller rate is lower.",
+            "Substitute 150 into each model to compare."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. “Company A costs less” means…",
+            "options": [
+              "0.25x + 40 < 0.4x + 25",
+              "0.25x + 40 > 0.4x + 25"
+            ],
+            "correct": "0.25x + 40 < 0.4x + 25"
+          },
+          "attemptFeedback": [
+            "Solve 0.25x + 40 < 0.4x + 25; if you divide by a negative number, reverse the symbol.",
+            "Check a mileage greater than your boundary in both models."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "0.25x + 40 < 0.4x + 25 → 15 < 0.15x → x > 100.",
+              "At 150 miles: A = 0.25(150) + 40 = $77.50 and B = 0.4(150) + 25 = $85.",
+              "Choose Company A: for trips longer than 100 miles, its lower rate per mile wins."
+            ],
+            "commonError": "Choosing B because its fixed charge is lower — after 100 miles the rate matters more."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-pr-11",
+          "standard": "A.2I",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "secondary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Write a system from a graph. The graph shows two lines: one through (0, 5) and (5, 0), and one through (0, −1) and (2, 3). Write an equation for each line, then solve the system.",
+          "graph": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10,
+            "xStep": 1,
+            "yStep": 1,
+            "functions": [
+              {
+                "type": "line",
+                "m": -1,
+                "b": 5
+              },
+              {
+                "type": "line",
+                "m": 2,
+                "b": -1
+              }
+            ]
+          },
+          "responses": [
+            {
+              "id": "first",
+              "label": "An equation for the line through (0, 5) and (5, 0)",
+              "answer": "y = -x + 5",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "second",
+              "label": "An equation for the line through (0, −1) and (2, 3)",
+              "answer": "y = 2x - 1",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "sol",
+              "label": "The solution of the system",
+              "answer": "(2,3)",
+              "answerFormat": "orderedPair"
+            }
+          ],
+          "hints": [
+            "Find each slope as rise over run between the two points.",
+            "Each line’s y-intercept is the point where it crosses the y-axis.",
+            "Read the crossing point and check it in both of your equations."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The slope of the line through (0, 5) and (5, 0) is…",
+            "options": [
+              "1",
+              "−1"
+            ],
+            "correct": "−1"
+          },
+          "attemptFeedback": [
+            "Check each equation by substituting both of its given points.",
+            "Your solution must make BOTH of your equations true."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "First line: slope (0 − 5)/(5 − 0) = −1, y-intercept 5: y = −x + 5.",
+              "Second line: slope (3 − (−1))/(2 − 0) = 2, y-intercept −1: y = 2x − 1.",
+              "They cross at (2, 3): −2 + 5 = 3 and 2(2) − 1 = 3."
+            ],
+            "commonError": "Computing slope as run over rise."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-pr-12",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "A parameter in standard form. Consider the system 3x + ky = 12 and 6x + 4y = 24. Reason about k, and explain each answer to yourself.",
+          "responses": [
+            {
+              "id": "k",
+              "label": "The value of k for which the two equations describe the same line",
+              "answer": "2"
+            },
+            {
+              "id": "change",
+              "label": "With that k, if the 24 is changed to 20, the system has…",
+              "type": "choice",
+              "options": [
+                "no solution",
+                "exactly one solution",
+                "infinitely many solutions"
+              ],
+              "answer": "no solution"
+            },
+            {
+              "id": "sol",
+              "label": "The solution when k = −1",
+              "answer": "(4,0)",
+              "answerFormat": "orderedPair"
+            }
+          ],
+          "hints": [
+            "The second equation’s coefficients are exactly twice 3 and 12. What must k be for the whole equation to be doubled?",
+            "Same left sides with different right sides describe parallel lines.",
+            "For k = −1, solve 3x − y = 12 for y and substitute into the other equation."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Multiplying 3x + ky = 12 by 2 gives…",
+            "options": [
+              "6x + 2ky = 24",
+              "6x + ky = 24"
+            ],
+            "correct": "6x + 2ky = 24"
+          },
+          "attemptFeedback": [
+            "Compare the second equation with twice the first, term by term.",
+            "For k = −1, check your pair in both equations."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Twice the first equation is 6x + 2ky = 24; it matches 6x + 4y = 24 when 2k = 4, so k = 2.",
+              "3x + 2y = 12 and 6x + 4y = 20 are parallel lines (the second is 3x + 2y = 10): no solution.",
+              "k = −1: y = 3x − 12, so 6x + 4(3x − 12) = 24 → 18x = 72 → x = 4, y = 0."
+            ],
+            "commonError": "Matching only the x-terms — the y-terms and constants must also match for the same line."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-pr-13",
+          "standard": "A.3F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Three lines. Do y = x + 1, y = −x + 5 and y = 3x − 3 all pass through one point? Solve the first two as a system, then test the third, and justify your conclusion.",
+          "responses": [
+            {
+              "id": "two",
+              "label": "The solution of y = x + 1 and y = −x + 5",
+              "answer": "(2,3)",
+              "answerFormat": "orderedPair"
+            },
+            {
+              "id": "third",
+              "label": "The value of 3x − 3 at that x-value",
+              "answer": "3"
+            },
+            {
+              "id": "all",
+              "label": "Do all three lines pass through one point?",
+              "type": "choice",
+              "options": [
+                "Yes — that point makes all three equations true",
+                "No — three lines can never meet at one point",
+                "No — the third line has a different slope",
+                "Yes — because all three slopes are different"
+              ],
+              "answer": "Yes — that point makes all three equations true"
+            }
+          ],
+          "hints": [
+            "Set x + 1 equal to −x + 5 and solve.",
+            "Substitute your solution’s x into the third equation and compare with its y.",
+            "A point is on a line only when it makes the line’s equation true."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. A point lies on a line when…",
+            "options": [
+              "it makes the line’s equation true",
+              "its x-value is positive"
+            ],
+            "correct": "it makes the line’s equation true"
+          },
+          "attemptFeedback": [
+            "Solve the first two equations together before testing the third.",
+            "Compare the third equation’s y-value with the y-coordinate of your solution."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "x + 1 = −x + 5 → 2x = 4 → x = 2, y = 3.",
+              "3(2) − 3 = 3, so (2, 3) is on the third line too.",
+              "All three lines pass through (2, 3)."
+            ],
+            "commonError": "Deciding from different slopes alone — different slopes mean each PAIR crosses, not that all three share a point."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-pr-14",
+          "standard": "A.3F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Error analysis. Leo graphed the system 2x + y = 4 and y = x + 1. For 2x + y = 4 he plotted the intercepts (0, 4) and (4, 0), then read his crossing point. Find his error and correct it.",
+          "responses": [
+            {
+              "id": "wrong",
+              "label": "Which point did Leo plot incorrectly?",
+              "type": "choice",
+              "options": [
+                "(4, 0)",
+                "(0, 4)",
+                "Both points",
+                "Neither point"
+              ],
+              "answer": "(4, 0)"
+            },
+            {
+              "id": "xint",
+              "label": "The correct x-intercept of 2x + y = 4",
+              "answer": "(2,0)",
+              "answerFormat": "orderedPair"
+            },
+            {
+              "id": "sol",
+              "label": "The correct solution of the system",
+              "answer": "(1,2)",
+              "answerFormat": "orderedPair"
+            }
+          ],
+          "hints": [
+            "Check each of Leo’s points in 2x + y = 4.",
+            "At the x-intercept the y-value is zero: solve 2x = 4.",
+            "Then solve the system: substitute x + 1 for y in the first equation."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. At the x-intercept of a line, the y-value is…",
+            "options": [
+              "zero",
+              "equal to the x-value"
+            ],
+            "correct": "zero"
+          },
+          "attemptFeedback": [
+            "Substitute (4, 0) into 2x + y = 4: is it true?",
+            "Check your solution in both equations."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "(4, 0) gives 2(4) + 0 = 8, not 4, so it is not on the line. The x-intercept is (2, 0).",
+              "Solve: 2x + (x + 1) = 4 → 3x = 3 → x = 1, y = 2.",
+              "Check: 2(1) + 2 = 4 and 1 + 1 = 2."
+            ],
+            "commonError": "Using C as the x-intercept without dividing by the coefficient of x."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-pr-15",
+          "standard": "A.3F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Exam-style. How many solutions does the system 4x − 6y = 10 and y = (2/3)x − 5/3 have? Rewrite the first equation to decide.",
+          "responses": [
+            {
+              "id": "slope",
+              "label": "The slope of 4x − 6y = 10",
+              "answer": "2/3"
+            },
+            {
+              "id": "yint",
+              "label": "The y-intercept of 4x − 6y = 10 (the value of y when x = 0)",
+              "answer": "-5/3"
+            },
+            {
+              "id": "count",
+              "label": "The number of solutions",
+              "type": "choice",
+              "options": [
+                "Infinitely many",
+                "Exactly one",
+                "None",
+                "Exactly two"
+              ],
+              "answer": "Infinitely many"
+            }
+          ],
+          "hints": [
+            "Solve 4x − 6y = 10 for y: subtract 4x, then divide every term by the coefficient of y.",
+            "Compare the slope and the y-intercept with the second equation.",
+            "Same slope and same y-intercept means the same line."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Solving 4x − 6y = 10 for y, you divide every term by…",
+            "options": [
+              "−6",
+              "4"
+            ],
+            "correct": "−6"
+          },
+          "attemptFeedback": [
+            "Divide EVERY term by −6 when you solve for y.",
+            "Compare both the slope and the y-intercept."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "4x − 6y = 10 → −6y = −4x + 10 → y = (2/3)x − 5/3.",
+              "It is the same equation as the second one: the same line, so infinitely many solutions."
+            ],
+            "commonError": "Dividing only −4x by −6 and leaving 10 unchanged."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-pr-16",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Exam-style. The graphs of y = 3x − 7 and y = −2x + 8 intersect at the point (a, b). What is the value of a + b?",
+          "responses": [
+            {
+              "id": "sum",
+              "label": "The value of a + b",
+              "answer": "5"
+            }
+          ],
+          "hints": [
+            "At the intersection both equations give the same y-value: set the right sides equal.",
+            "Solve for x, then substitute to find y.",
+            "The question asks for the sum of the two coordinates."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. At the intersection point, 3x − 7 and −2x + 8 are…",
+            "options": [
+              "equal",
+              "opposites"
+            ],
+            "correct": "equal"
+          },
+          "attemptFeedback": [
+            "Solve 3x − 7 = −2x + 8 first, then find y.",
+            "Check your point in both equations before adding the coordinates."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "3x − 7 = −2x + 8 → 5x = 15 → x = 3, so a = 3.",
+              "b = 3(3) − 7 = 2.",
+              "a + b = 5."
+            ],
+            "commonError": "Answering with only one coordinate."
+          }
+        }
+      ]
+    },
+    {
+      "id": "dol",
+      "role": "dol",
+      "title": "DOL — Solving Systems by Graphing",
+      "recommendedMinutes": 8,
+      "feedbackMode": "afterAssignmentSubmit",
+      "hintsAllowed": false,
+      "attemptsAllowed": 1,
+      "questions": [
+        {
+          "questionId": "m3t2l1h-dol-1",
+          "standard": "A.3F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "graphSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Graph both equations of the system {{system}}. Then decide how many solutions it has, and give the solution if there is exactly one.",
+          "questionFamily": {
+            "id": "systems.graphical2x2",
+            "constraints": {
+              "solutionCase": "mixed",
+              "secondForm": "standard"
+            }
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Graph each equation from two of its points (the y-intercept and one more point found by substituting).",
+              "Different slopes: the lines cross once, and the crossing point is the one solution.",
+              "Same slope, different y-intercepts: parallel lines, no solution. Same slope and same y-intercept: one line, infinitely many solutions.",
+              "Check a crossing point by substituting it into BOTH equations."
+            ],
+            "commonError": "Reading the crossing point with its coordinates in the wrong order — the x-coordinate comes first."
+          }
+        },
+        {
+          "questionId": "m3t2l1h-dol-2",
+          "standard": "A.3F",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Classify the system {{system}} without graphing.",
+          "questionFamily": {
+            "id": "systems.classifyByStructure"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Rewrite the second equation as y = mx + b.",
+              "Compare slopes, then y-intercepts, to decide one, none, or infinitely many solutions.",
+              "Consistent: at least one solution. Inconsistent: no solution."
+            ],
+            "commonError": "Reading the coefficient of x in standard form as the slope."
+          }
+        }
+      ]
+    }
+  ]
+}

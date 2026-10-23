@@ -16,7 +16,7 @@
 
 import { getSectionVariantMode } from '../../assignmentLifecycle.js';
 import { getStoredAssignmentQuestions } from '../contract/storedAssignmentV5.js';
-import { isFamilyBackedQuestion } from '../../../functions/shared/questionFamilyInstance.mjs';
+import { isFamilyBackedQuestion } from '../../../functions/shared/questionFamilySlot.mjs';
 import {
   GENERATION_SEATS_VERSION,
   planSeatAdditions,

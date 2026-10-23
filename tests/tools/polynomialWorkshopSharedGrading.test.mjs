@@ -24,6 +24,7 @@ import {
   sameNumberMultiset,
 } from '../../functions/shared/toolMath/polynomialWorkshop/polynomialMath.mjs';
 import { gradeToolCheck } from '../../src/tools/shared/sharedToolGrading.js';
+import { validateToolQuestion } from '../../src/tools/toolSchemas.js';
 import { UNANSWERED } from '../../functions/shared/toolMath/shared/judgmentChoices.mjs';
 import { executableSource, region } from '../platform/helpers/sourceContract.mjs';
 
@@ -74,11 +75,12 @@ const componentRouting = (() => {
   const fallback = body.match(/const mode\s*=\s*questionData\.mode \|\| '(\w+)';/)?.[1];
   const routed = [...body.matchAll(/if\s*\(mode\s*===\s*'(\w+)'\)\s*return </g)].map((match) => match[1]);
   assert.ok(fallback, 'router reads questionData.mode with a default');
-  // Eight: add & subtract joined the five, then long division and synthetic
-  // division. (The any-size area model is the multiplyArea view for a
-  // question written with factor text — routed on `mode === 'multiplyArea' &&
+  // Nine: add & subtract joined the five, then long division and synthetic
+  // division (ax + b), then the Remainder and Factor Theorems' synthetic view
+  // (x − r). (The any-size area model is the multiplyArea view for a question
+  // written with factor text — routed on `mode === 'multiplyArea' &&
   // writesFactors(...)` ahead of the binomial one — so it is not a mode.)
-  assert.equal(routed.length, 8, 'router has its eight explicit views');
+  assert.equal(routed.length, 9, 'router has its nine explicit views');
   return { fallback, routed };
 })();
 const componentMode = (question) => {
@@ -102,8 +104,8 @@ test('every view the workshop routes to is declared shared-server, contract v1, 
 test('declared mode resolution reproduces the screen routing, including padded, mis-cased and non-string modes', () => {
   const samples = [
     {}, { mode: '' }, { mode: null }, { mode: 'factorZero' }, { mode: 'multiplyArea' }, { mode: 'factorQuadratic' },
-    { mode: 'division' }, { mode: 'graphConnection' }, { mode: 'rationalFeatures' }, { mode: 'unknownView' },
-    { mode: ' division ' }, { mode: 'Division' }, { mode: 'graphconnection' }, { mode: 3 }, { mode: ['division'] },
+    { mode: 'division' }, { mode: 'graphConnection' }, { mode: 'rationalFeatures' }, { mode: 'synthetic' }, { mode: 'unknownView' },
+    { mode: ' division ' }, { mode: 'Division' }, { mode: 'graphconnection' }, { mode: 'Synthetic' }, { mode: ' synthetic' }, { mode: 3 }, { mode: ['division'] },
     { mode: { toString: () => 'division' } }, { mode: 'constructor' }, { mode: 'toString' },
   ];
   for (const question of samples) {
@@ -128,6 +130,9 @@ const VIEWS = {
   division: 'DivisionMode',
   graphConnection: 'GraphConnection',
   rationalFeatures: 'RationalFeatures',
+  // x − r for the Remainder and Factor Theorems; Dividing Polynomials' ax + b
+  // view is SyntheticDivision (tests/tools/polynomialWorkshopDivision.test.mjs).
+  synthetic: 'SyntheticRemainderFactor',
 };
 
 test('every view grades its Check through the shared grader and reports the same work it submits', () => {
@@ -155,6 +160,7 @@ test('the views draw their unauthored problem from the same defaults table the g
     DivisionMode: ['dividend', 'divisor'],
     GraphConnection: ['roots', 'leadingCoefficient'],
     RationalFeatures: ['numeratorRoots', 'denominatorRoots'],
+    SyntheticRemainderFactor: ['dividend'],
   })) {
     const body = region(code, `function ${name}(`, '\n}', name);
     const mode = Object.entries(VIEWS).find(([, view]) => view === name)[0];
@@ -164,10 +170,15 @@ test('the views draw their unauthored problem from the same defaults table the g
   }
   assert.match(region(code, 'function GraphConnection(', '\nfunction ', 'GraphConnection'), /graphConnectionTargetEntry\(roots, questionData\.targetRoot\)/);
   assert.match(region(code, 'function RationalFeatures(', '\n}', 'RationalFeatures'), /rationalFeatureTargetValue\(features, questionData\.targetValue\)/);
+  // The synthetic view's r is the grader's: syntheticDivisionRoot, and the
+  // shared default only for an unauthored problem.
+  assert.match(region(code, 'function SyntheticRemainderFactor(', '\n}', 'SyntheticRemainderFactor'),
+    /const root = questionData\.dividend \? authoredRoot : \(authoredRoot \?\? DEFAULTS\.synthetic\.candidateRoot\);/);
+  assert.match(region(code, 'function SyntheticRemainderFactor(', '\n}', 'SyntheticRemainderFactor'), /const authoredRoot = syntheticDivisionRoot\(questionData\);/);
 });
 
 test('the inline verdict code is gone from the component', () => {
-  assert.doesNotMatch(code, /matchesNumericAnswer|parseNumericAnswer|sameNumberMultiset|parseNumbers|polynomialLongDivide|integerFactorPairForMonicQuadratic|factorBehaviorAtRoot|endBehavior\(|expectedCells|isFactor/);
+  assert.doesNotMatch(code, /matchesNumericAnswer|parseNumericAnswer|sameNumberMultiset|parseNumbers|polynomialLongDivide|integerFactorPairForMonicQuadratic|factorBehaviorAtRoot|endBehavior\(|expectedCells|isFactor|syntheticDivision\(|samePolynomial/);
 });
 
 /* ------------------------------------------------------------------ */
@@ -244,6 +255,7 @@ test('the shared defaults table holds exactly the problems the old views drew', 
     division: { dividend: [1, -4, -7, 10], divisor: [1, -2] },
     graphConnection: { roots: [{ root: -2, multiplicity: 2 }, { root: 3, multiplicity: 1 }], leadingCoefficient: 1 },
     rationalFeatures: { numeratorRoots: [2, -1], denominatorRoots: [2, 4] },
+    synthetic: { dividend: [1, 4, -15, -18], candidateRoot: 3 },
   });
   assert.ok(Object.isFrozen(POLYNOMIAL_WORKSHOP_DEFAULTS.graphConnection.roots[0]), 'a view cannot mutate the shared default');
 });
@@ -564,6 +576,115 @@ test('BEHAVIOUR CHANGE: at a value that is no listed root, "None of these" is th
 });
 
 /* ------------------------------------------------------------------ */
+/* synthetic                                                           */
+/* ------------------------------------------------------------------ */
+
+// Unauthored (x³ + 4x² − 15x − 18) ÷ (x − 3): 1 7 6 | 0, quotient x² + 7x + 6.
+const SYNTHETIC_KEY = {
+  root: '3', top: ['1', '4', '-15', '-18'], middle: ['3', '21', '18'], bottom: ['1', '7', '6', '0'],
+  value: '0', quotient: 'x^2 + 7x + 6', factorChoice: 'yes',
+};
+
+test('synthetic: the box, the three rows, then P(r), the quotient and the factor decision', () => {
+  const synthetic = q({ mode: 'synthetic' });
+  const correct = grade(synthetic, SYNTHETIC_KEY);
+  assert.equal(correct.mode, 'synthetic');
+  assert.equal(correct.isCorrect, true);
+  assert.equal(correct.isComplete, true);
+  assert.deepEqual(partIds(correct), ['divisor-root', 'coefficients', 'products', 'sums', 'value', 'quotient', 'factor']);
+  // The quotient is a polynomial, read as one: any order, any spelling.
+  for (const quotient of ['6 + 7x + x^2', 'x^{2}+7x+6', '7x+x^2+6']) {
+    assert.equal(grade(synthetic, { ...SYNTHETIC_KEY, quotient }).isCorrect, true, quotient);
+  }
+  // Coefficients copied out of the bottom row are not the quotient.
+  assert.deepEqual(failedIds(grade(synthetic, { ...SYNTHETIC_KEY, quotient: '1, 7, 6' })), ['quotient']);
+  // The degree drops by one: x³ + 7x² + 6x is not it.
+  assert.deepEqual(failedIds(grade(synthetic, { ...SYNTHETIC_KEY, quotient: 'x^3 + 7x^2 + 6x' })), ['quotient']);
+});
+
+test('synthetic: the box holds r for x − r — the opposite of the number in x + a', () => {
+  // (x³ − 7x + 6) ÷ (x + 3), authored as a divisor: r = −3; the missing x² is a 0.
+  const plusThree = q({ mode: 'synthetic', dividend: [1, 0, -7, 6], divisor: [1, 3] });
+  const key = { root: '-3', top: ['1', '0', '-7', '6'], middle: ['-3', '9', '-6'], bottom: ['1', '-3', '2', '0'], value: '0', quotient: 'x^2 - 3x + 2', factorChoice: 'yes' };
+  assert.equal(grade(plusThree, key).isCorrect, true);
+  assert.equal(grade(plusThree, { ...key, root: '−3' }).isCorrect, true, 'U+2212');
+  // Dividing by +3 instead: every row after the box follows the wrong number.
+  const signSlip = grade(plusThree, { ...key, root: '3', middle: ['3', '9', '6'], bottom: ['1', '3', '2', '12'], value: '12', factorChoice: 'no' });
+  assert.deepEqual(failedIds(signSlip), ['divisor-root', 'products', 'sums', 'value', 'factor']);
+  // Leaving out the 0 for the missing x² shifts every column.
+  const noPlaceholder = grade(plusThree, { ...key, top: ['1', '-7', '6', ''] });
+  assert.deepEqual(failedIds(noPlaceholder), ['coefficients']);
+  assert.equal(noPlaceholder.isComplete, false);
+});
+
+test('synthetic: a remainder that is not 0 is P(r), and then x − r is not a factor', () => {
+  // 2x³ − 3x² + 4 at r = 2: 2 1 2 | 8.
+  const question = q({ mode: 'synthetic', dividend: [2, -3, 0, 4], candidateRoot: 2 });
+  const key = { root: '2', top: ['2', '-3', '0', '4'], middle: ['4', '2', '4'], bottom: ['2', '1', '2', '8'], value: '8', quotient: '2x^2 + x + 2', factorChoice: 'no' };
+  assert.equal(grade(question, key).isCorrect, true);
+  assert.deepEqual(failedIds(grade(question, { ...key, factorChoice: 'yes' })), ['factor']);
+  assert.deepEqual(failedIds(grade(question, { ...key, value: '0' })), ['value']);
+  // A decimal the 0.01 tolerance reads as the cell; a fraction too.
+  assert.equal(grade(question, { ...key, middle: ['8/2', '2.004', '4'] }).isCorrect, true);
+});
+
+test('synthetic: an authored ask chooses the follow-up parts; the table is always graded', () => {
+  const valueOnly = grade(q({ mode: 'synthetic', ask: ['value'] }), { ...SYNTHETIC_KEY, quotient: '', factorChoice: UNANSWERED });
+  assert.deepEqual(partIds(valueOnly), ['divisor-root', 'coefficients', 'products', 'sums', 'value']);
+  assert.equal(valueOnly.isCorrect, true);
+  assert.equal(valueOnly.isComplete, true);
+  const factorOnly = grade(q({ mode: 'synthetic', ask: ['factor', 'bogus'] }), SYNTHETIC_KEY);
+  assert.deepEqual(partIds(factorOnly), ['divisor-root', 'coefficients', 'products', 'sums', 'factor']);
+  // An ask naming nothing the view knows asks everything.
+  assert.equal(grade(q({ mode: 'synthetic', ask: ['bogus'] }), SYNTHETIC_KEY).parts.length, 7);
+});
+
+test('synthetic: answers typed without the table, and an unanswered factor, are not finished work', () => {
+  const synthetic = q({ mode: 'synthetic' });
+  // The calculator answer alone: P(3) = 0, the quotient and "yes" — no table.
+  const answersOnly = grade(synthetic, { value: '0', quotient: 'x^2 + 7x + 6', factorChoice: 'yes' });
+  assert.equal(answersOnly.isCorrect, false);
+  assert.equal(answersOnly.isComplete, false);
+  assert.deepEqual(failedIds(answersOnly), ['divisor-root', 'coefficients', 'products', 'sums']);
+  assert.equal(answersOnly.score, 3 / 7);
+  // A blank factor select is no answer — not "no", not "yes".
+  const blank = grade(synthetic, { ...SYNTHETIC_KEY, factorChoice: UNANSWERED });
+  assert.equal(blank.isComplete, false);
+  assert.deepEqual(failedIds(blank), ['factor']);
+  // The view starts that select on "Choose…", as every workshop select does.
+  const body = region(code, 'function SyntheticRemainderFactor(', '\n}', 'SyntheticRemainderFactor');
+  assert.match(body, /usePersistentToolState\('factorChoice', UNANSWERED\)/);
+  const start = body.indexOf('value={factorChoice}');
+  assert.match(body.slice(body.indexOf('<option', start), body.indexOf('</select>', start)), /^<option value=\{UNANSWERED\}>Choose…<\/option>/);
+});
+
+test('synthetic: rows of the wrong type or length read as blanks and never crash the grader', () => {
+  const synthetic = q({ mode: 'synthetic' });
+  for (const top of [null, '1, 4, -15, -18', { 0: '1' }, [['1'], { v: '4' }, '-15', '-18']]) {
+    const result = grade(synthetic, { ...SYNTHETIC_KEY, top });
+    assert.equal(result.graded, true, JSON.stringify(top));
+    assert.deepEqual(failedIds(result), ['coefficients'], JSON.stringify(top));
+    assert.equal(result.isComplete, false);
+  }
+  // A cell past the table's width is ignored; a short row is incomplete.
+  assert.equal(grade(synthetic, { ...SYNTHETIC_KEY, bottom: [...SYNTHETIC_KEY.bottom, '99'] }).isCorrect, true);
+  assert.equal(grade(synthetic, { ...SYNTHETIC_KEY, middle: ['3', '21'] }).isComplete, false);
+});
+
+test('Pre-Flight: a synthetic question names its whole dividend and r, and asks only what the view shows', () => {
+  const errors = (fields) => validateToolQuestion({ toolId: TYPE, mode: 'synthetic', masteryEvidenceKeys: ['texas:2A.7D'], ...fields }).errors;
+  assert.deepEqual(errors({ dividend: [1, 0, -7, 6], divisor: [1, 3] }), []);
+  assert.deepEqual(errors({ dividend: [2, -3, 0, 4], candidateRoot: 2, ask: ['value', 'factor'] }), []);
+  assert.match(errors({ candidateRoot: 3 }).join(' '), /requires a dividend/, 'no demonstration problem for an authored question');
+  assert.match(errors({ dividend: [0, 1, 2], candidateRoot: 3 }).join(' '), /nonzero leading coefficient/);
+  assert.match(errors({ dividend: [1, 4, -15, -18] }).join(' '), /give candidateRoot r or a divisor \[1, -r\]/);
+  assert.match(errors({ dividend: [1, 4, -15, -18], divisor: [2, -3] }).join(' '), /divides by x − r/, 'a divisor that is not x − r');
+  assert.match(errors({ dividend: [1, 4, -15, -18], candidateRoot: 'three' }).join(' '), /candidateRoot must be a number/);
+  assert.match(errors({ dividend: [1, 4, -15, -18], candidateRoot: 3, ask: ['remainder'] }).join(' '), /ask must list/);
+  assert.match(errors({ dividend: [1, 4, -15, -18], candidateRoot: 3, ask: [] }).join(' '), /ask must list/);
+});
+
+/* ------------------------------------------------------------------ */
 /* tampering, malformed work, bounds                                   */
 /* ------------------------------------------------------------------ */
 
@@ -624,6 +745,11 @@ test('non-object, oversize and unrenderable questions are not graded, on either 
     q({ mode: 'division', divisor: [0, 0] }),
     q({ mode: 'graphConnection', roots: [] }),
     q({ mode: 'rationalFeatures', numeratorRoots: 5 }),
+    q({ mode: 'synthetic', dividend: '1,4,-15,-18', candidateRoot: 3 }),
+    q({ mode: 'synthetic', dividend: [1, 4, -15, -18] }),
+    q({ mode: 'synthetic', dividend: [1, 4, -15, -18], divisor: [2, -3] }),
+    q({ mode: 'synthetic', dividend: [5], candidateRoot: 1 }),
+    q({ mode: 'synthetic', dividend: [1, 'a', 2], candidateRoot: 1 }),
   ]) {
     const result = grade(question, { value: '0', factorChoice: 'yes' });
     assert.equal(result.graded, false, JSON.stringify(question));
@@ -641,6 +767,10 @@ test('realistic maximal work stays inside the response bounds with nothing dropp
     { quotient: list, remainder: list },
     { behavior: 'touches', end: 'left rises, right falls' },
     { choice: 'verticalAsymptote' },
+    {
+      root: long, top: Array.from({ length: 7 }, () => long), middle: Array.from({ length: 6 }, () => long),
+      bottom: Array.from({ length: 7 }, () => long), value: long, quotient: '-12x^5 - 12x^4 - 12x^3 - 12x^2 - 12x - 12', factorChoice: 'no',
+    },
   ];
   for (const work of works) {
     const bounded = boundToolWork(work);
@@ -665,6 +795,8 @@ test('correct work fails against a question whose key was altered', () => {
     [q({ mode: 'graphConnection' }), q({ mode: 'graphConnection', leadingCoefficient: -1 }), { behavior: 'touches', end: 'left falls, right rises' }],
     [q({ mode: 'graphConnection' }), q({ mode: 'graphConnection', targetRoot: 3 }), { behavior: 'touches', end: 'left falls, right rises' }],
     [q({ mode: 'rationalFeatures' }), q({ mode: 'rationalFeatures', numeratorRoots: [2, -1], denominatorRoots: [2, -1] }), { choice: 'zero' }],
+    [q({ mode: 'synthetic' }), q({ mode: 'synthetic', candidateRoot: -3 }), SYNTHETIC_KEY],
+    [q({ mode: 'synthetic' }), q({ mode: 'synthetic', dividend: [1, 4, -15, 18], candidateRoot: 3 }), SYNTHETIC_KEY],
   ];
   for (const [question, altered, work] of cases) {
     assert.equal(grade(question, work).isCorrect, true, `${question.mode || 'factorZero'} control`);

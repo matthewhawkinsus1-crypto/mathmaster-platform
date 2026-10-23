@@ -886,6 +886,9 @@ const radicalModel = (question) => {
 const signChartModel = (question) => {
   const mode = question.mode || (list(question.denominatorFactors).length ? 'rational' : 'polynomial');
   if (mode === 'radicalCheck') return radicalModel(question);
+  // The staged radical solver carries its own steps on screen; it has no
+  // sign-chart model.
+  if (mode === 'radicalSolve') return null;
   const rational = mode === 'rational';
   const numeratorSource = question.numeratorFactors || question.factors;
   const denominatorSource = rational ? question.denominatorFactors : [];

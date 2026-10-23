@@ -994,6 +994,12 @@ test('backUpQuestion(): two choices about the first move, the right one among th
     const answers = [...new Set([...functionFeatures.expectedValues(item.question), ...keys, ...vocabulary])];
     [step.prompt, ...step.options].forEach((value) => assert.equal(hintRevealsAnswer(value, answers), false, `${label(item)}: "${value}"`));
     const platform = backUpStepFor(item.question);
+    // A step the author wrote for the problem is the one the student gets
+    // (Module 3's modeling items have one); otherwise it is this family's.
+    if (item.question.scaffold) {
+      assert.equal(platform.source, 'authored', label(item));
+      return;
+    }
     assert.equal(platform.source, 'family', label(item));
     assert.equal(platform.correct, step.correct);
   });

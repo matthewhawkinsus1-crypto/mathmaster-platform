@@ -68,6 +68,7 @@ import {
 } from './toolMath/representationBridge/linearMultipleRepresentationsCards.mjs';
 import { isProcessModeQuestion, lmrFactWorkKind } from './toolMath/representationBridge/lmrProcessModel.mjs';
 import { isFamilyBackedQuestion, resolveFamilyPreviewInstance } from './questionFamilyInstance.mjs';
+import { MIN_QUESTION_VALUE, MAX_QUESTION_VALUE, explicitQuestionValue } from './questionValueLimits.mjs';
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const list = (value) => (Array.isArray(value) ? value : []);
@@ -78,8 +79,10 @@ const clean = (value) => String(value ?? '').trim();
  * ------------------------------------------------------------------------- */
 
 export const QUESTION_VALUE_RULE = 'workload-v1';
-export const MIN_QUESTION_VALUE = 0.25;
-export const MAX_QUESTION_VALUE = 20;
+// The bounds, and reading an authored value against them, live in
+// questionValueLimits.mjs: the stored-assignment schema needs only those, and
+// this module's work reading brings the whole family registry.
+export { MIN_QUESTION_VALUE, MAX_QUESTION_VALUE, explicitQuestionValue } from './questionValueLimits.mjs';
 export const STANDARD_QUESTION_VALUE = 1;
 // The automatic value's range: at least one standard question, and never more
 // than the most an approved AI weight review may assign.
@@ -430,11 +433,18 @@ const systemsWorkspaceWork = (question, mode) => {
         ...construct('Solve the system', Math.max(1, equations - 1)),
         ...(question?.requireVerification === false ? [] : respond('Verify each equation', equations)),
       ];
-    default: {
-      const system = question?.system || {};
-      const unique = system.m1 == null || system.m2 == null || Number(system.m1) !== Number(system.m2);
-      return [...select('Classification'), ...(unique ? respond('Solution') : [])];
-    }
+    default:
+      // Every graphed system asks the same thing — how many solutions, and
+      // the intersection when there is one — so its value is the same
+      // whatever the answer. Counting the intersection only for a
+      // one-solution system made its "Grade weight ×1.25" banner tell the
+      // student the answer before they looked at the graph. The construct
+      // form also has the student graph both lines.
+      return [
+        ...(question?.interaction === 'construct' ? construct('Graph each equation', 2) : []),
+        ...select('Classification'),
+        ...respond('Solution'),
+      ];
   }
 };
 
@@ -600,10 +610,26 @@ const SURFACE_WORK = Object.freeze({
     }
     if (mode === 'syntheticDivision') return [...construct('Synthetic division table', Math.max(1, Math.ceil((writtenDegree(question?.dividend) + 1) / 4))), ...respond('Quotient')];
     if (mode === 'graphConnection') return select('Graph feature', 2);
+    if (mode === 'synthetic') {
+      const asks = Array.isArray(question?.ask) && question.ask.length ? question.ask : ['value', 'quotient', 'factor'];
+      return [
+        ...construct('Synthetic division table'),
+        ...(asks.includes('value') ? respond('Remainder as P(r)') : []),
+        ...(asks.includes('quotient') ? respond('Quotient') : []),
+        ...(asks.includes('factor') ? select('Is it a factor?') : []),
+      ];
+    }
     return select('Feature');
   },
   signSolutionAnalyzer: (question, mode) => {
     if (mode === 'radicalCheck') return select('Candidate valid?', Math.max(1, list(question?.candidates).length || 2));
+    // Isolate, raise, solve, check each candidate (both sides and a verdict), state the solutions.
+    if (mode === 'radicalSolve') {
+      return [
+        ...respond('Isolated radical'), ...respond('Raised equation'), ...respond('Candidates'),
+        ...respond('Original equation at a candidate', 2), ...select('Solution or extraneous?'), ...respond('Solution'),
+      ];
+    }
     const critical = list(question?.factors).length + list(question?.denominatorFactors).length;
     return select('Sign of each interval', Math.max(2, critical + 1));
   },
@@ -807,33 +833,6 @@ export const estimateQuestionValue = (question) => {
 /* ---------------------------------------------------------------------------
  * Explicit values, and what is stored.
  * ------------------------------------------------------------------------- */
-
-const TEMPLATE_TOKEN = /\{\{[^}]*\}\}/;
-
-/**
- * What the question's own `questionWeight` says.
- *
- *   { present: false }                                 none written
- *   { present: true, valid: true, value }              a usable value
- *   { present: true, valid: false, raw, problem }      written, but unusable:
- *     'not-a-number' | 'not-positive' | 'below-minimum' | 'above-maximum'
- *     | 'templated' (a Question Family placeholder: a value per student)
- *
- * A present-but-invalid value is never replaced: it is a teacher's or an
- * author's decision gone wrong, and Pre-Flight reports it instead.
- */
-export const explicitQuestionValue = (question) => {
-  const raw = question?.questionWeight;
-  if (raw === undefined || raw === null || raw === '') return { present: false };
-  if (typeof raw === 'string' && TEMPLATE_TOKEN.test(raw)) return { present: true, valid: false, raw, problem: 'templated' };
-  if (typeof raw !== 'number' && typeof raw !== 'string') return { present: true, valid: false, raw, problem: 'not-a-number' };
-  const value = Number(raw);
-  if (!Number.isFinite(value) || (typeof raw === 'string' && !raw.trim())) return { present: true, valid: false, raw, problem: 'not-a-number' };
-  if (value <= 0) return { present: true, valid: false, raw, problem: 'not-positive' };
-  if (value < MIN_QUESTION_VALUE) return { present: true, valid: false, raw, problem: 'below-minimum' };
-  if (value > MAX_QUESTION_VALUE) return { present: true, valid: false, raw, problem: 'above-maximum' };
-  return { present: true, valid: true, value };
-};
 
 /** Who set the stored value, read the same way everywhere. */
 export const questionValueBasis = (question) => {
