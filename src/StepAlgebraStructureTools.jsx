@@ -52,6 +52,7 @@ import {
   tapArrangeTerm,
 } from './algebraArrangeTermsModel';
 import { factoringOptionsFor } from './algebraStructureTools';
+import FocusSafeButton from './components/common/FocusSafeButton.jsx';
 import { spokenMathValue } from './tools/shared/spokenMathValue.js';
 
 const COMMON_FACTOR_DRAG = 'mathmaster-common-factor';
@@ -491,16 +492,18 @@ function ReductionTokenRow({ tokens, row, tool, onTap, disabled }) {
           <span key={key} className="algebra-structure-token-slot">
             {index > 0 ? <Times /> : null}
             {token.selectable ? (
-              <button
-                type="button"
+              // A factor is used up on the press that pairs it: focus-safe, so
+              // keyboard focus stays on it rather than dropping to the top of
+              // the page (AX47, VH-22).
+              <FocusSafeButton
                 className={`algebra-structure-token${held ? ' is-chosen' : ''}${paired ? ' is-paired' : ''}`}
                 onClick={() => onTap(row, index)}
-                disabled={disabled || paired}
+                enabled={!(disabled || paired)}
                 aria-pressed={held || paired}
                 aria-label={`${row === 'numerator' ? 'Numerator' : 'Denominator'} factor ${spokenMathValue(token.latex)}${paired ? ', cancelled' : held ? ', held' : ''}`}
               >
                 <MathDisplay value={token.latex} format="latex" inline style={{ fontSize: 'inherit' }} />
-              </button>
+              </FocusSafeButton>
             ) : (
               <span className="algebra-structure-token is-static" aria-label={`Factor ${spokenMathValue(token.latex)}`}>
                 <MathDisplay value={token.latex} format="latex" inline style={{ fontSize: 'inherit' }} />
