@@ -76,7 +76,9 @@ const missMessages = [
   // Right value, not simplified (operations on polynomials).
   ['Equal, but not simplified: multiply out every product and combine like terms.', 'Es igual, pero no está simplificado: haz cada multiplicación y combina los términos semejantes.'],
   ['Equal, but not in simplest form: take every perfect power out of the root, combine like terms, and leave no root in a denominator.', 'Es igual, pero no está en su forma más simple: saca de la raíz cada potencia perfecta, combina los términos semejantes y no dejes raíces en el denominador.'],
-  ['That is a decimal approximation. Give the exact value instead, written the way the question uses: with a radical or with an exponent.', 'Eso es una aproximación decimal. Da el valor exacto, escrito como lo usa la pregunta: con un radical o con un exponente.'],
+  // Two sentences: the pack is read one sentence at a time.
+  ['That is a decimal approximation.', 'Eso es una aproximación decimal.'],
+  ['Give the exact value instead, written the way the question uses: with a radical or with an exponent.', 'Da el valor exacto, escrito como lo usa la pregunta: con un radical o con un exponente.'],
   ['Equal, but in the other notation: write it with radicals or with rational exponents, the way the question asks.', 'Es igual, pero en la otra notación: escríbelo con radicales o con exponentes racionales, como lo pide la pregunta.'],
   ['Equal, but not fully factored: take out any common factor first, then check whether each factor can be factored again.', 'Es igual, pero no está factorizado por completo: saca primero cualquier factor común y luego revisa si cada factor se puede factorizar otra vez.'],
   ['Equal, but a coefficient of one is never written: leave it out in front of a variable, and keep only the sign.', 'Es igual, pero un coeficiente uno nunca se escribe: quítalo delante de la variable y deja solo el signo.'],
