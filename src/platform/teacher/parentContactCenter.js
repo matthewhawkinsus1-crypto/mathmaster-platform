@@ -16,6 +16,10 @@ const clean = (value) => String(value ?? '').trim();
 const list = (value) => (Array.isArray(value) ? value : []);
 const csv = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`;
 const time = (value) => Date.parse(value || '') || 0;
+// A Practice Pass the student redeemed excuses Practice in the gradebook, so a
+// brief sent home shows the same grade (TT20). Keys are
+// `${studentId}__${classId}__${assignmentId}` (rewardsClient.practicePassKey).
+const practicePassSet = (keys) => (keys instanceof Set ? keys : new Set(list(keys)));
 
 /**
  * Build the same override-aware assignment rows the production Grade Center
@@ -23,13 +27,15 @@ const time = (value) => Date.parse(value || '') || 0;
  * items (`student.profile`): an item their reduced-item-count accommodation
  * omits is never "missing" or "incomplete" work in a brief sent home.
  */
-export const projectProgressBriefGrades = ({ student = {}, assignments = [] } = {}) => {
+export const projectProgressBriefGrades = ({ student = {}, assignments = [], practicePassKeys = null } = {}) => {
   const supportProfile = student?.profile || null;
+  const passes = practicePassSet(practicePassKeys);
   return list(assignments).map((assignment) => {
+    const practicePassRedeemed = passes.has(`${student?.id}__${student?.classId}__${assignment?.id}`);
     const tracker = projectedAssignmentTrackerFor({ student, assignment });
-    const grade = canonicalPresentedAssignmentGrade({ student, assignment });
+    const grade = canonicalPresentedAssignmentGrade({ student, assignment, practicePassRedeemed });
     if (!tracker && grade == null) return null;
-    const split = tracker ? splitGrade({ tracker, assignment, supportProfile }) : null;
+    const split = tracker ? splitGrade({ tracker, assignment, practicePassRedeemed, supportProfile }) : null;
     const records = tracker ? Object.values(tracker).filter((entry) => entry && typeof entry === 'object') : [];
     const attempts = records.reduce((sum, entry) => sum + (Number(entry.totalAttempts ?? entry.attemptCount) || 0), 0);
     const updated = records.map((entry) => entry.completedAt || entry.lastAttemptAt || entry.academicOccurredAt).filter(Boolean).sort().at(-1) || null;
@@ -38,7 +44,7 @@ export const projectProgressBriefGrades = ({ student = {}, assignments = [] } = 
       status: grade != null && (split?.shape === 'complete' || !tracker) ? 'complete' : (split?.shape || 'incomplete'),
       attempts, completedAt: updated, updatedAt: updated,
       late: records.some((entry) => entry.late === true),
-      sectionGrades: tracker ? splitGradesBySection({ tracker, assignment, supportProfile }) : null,
+      sectionGrades: tracker ? splitGradesBySection({ tracker, assignment, practicePassRedeemed, supportProfile }) : null,
     };
   }).filter(Boolean);
 };

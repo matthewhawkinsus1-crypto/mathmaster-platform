@@ -189,7 +189,8 @@ export const exportStatusFor = ({ classId, assignmentId, sectionKey = '', studen
   };
 };
 
-const gradeImpactFor = ({ row, assignment, student, classId, snapshots }) => {
+const gradeImpactFor = ({ row, assignment, student, classId, snapshots, practicePassRedeemed = false }) => {
+  const wholeGrade = canonicalPresentedAssignmentGrade({ student, assignment, practicePassRedeemed });
   const items = row.sections.length
     ? row.sections.map((section) => ({
       key: section.key,
@@ -201,9 +202,9 @@ const gradeImpactFor = ({ row, assignment, student, classId, snapshots }) => {
     : [{
       key: 'assignment',
       label: 'Whole assignment',
-      grade: exportGrade(canonicalPresentedAssignmentGrade({ student, assignment })),
+      grade: exportGrade(wholeGrade),
       excused: false,
-      exportStatus: exportStatusFor({ classId, assignmentId: row.assignmentId, sectionKey: '', studentId: student.id, currentGrade: canonicalPresentedAssignmentGrade({ student, assignment }), snapshots }),
+      exportStatus: exportStatusFor({ classId, assignmentId: row.assignmentId, sectionKey: '', studentId: student.id, currentGrade: wholeGrade, snapshots }),
     }];
   return {
     items,
@@ -390,21 +391,26 @@ export const buildSupportEvidenceReport = ({
   engagement = [],
   supportSignals = [],
   exportSnapshots = null,
+  // The class's redeemed Practice Passes (`${studentId}__${classId}__${assignmentId}`),
+  // which excuse Practice exactly as the gradebook does (TT20).
+  practicePassKeys = null,
   nowValue = Date.now(),
   generatedByEmail = '',
 } = {}) => {
   const now = Number(nowValue);
+  const passes = practicePassKeys instanceof Set ? practicePassKeys : new Set(Array.isArray(practicePassKeys) ? practicePassKeys : []);
+  const redeemed = (assignmentId) => passes.has(`${student?.id}__${clean(student?.classId)}__${assignmentId}`);
   const { included, libraryCopiesExcluded } = selectReportAssignments({ assignments, student, gradingPeriodSettings, selection });
   const recordingStartMs = evidenceRecordingStartMs({ revisions, evidence, engagement });
   const rows = included.map(({ assignment, assignedToClass }) => ({
-    ...buildAssignmentEvidenceRow({ assignment, student, revisions, evidence, engagement, recordingStartMs, nowValue: now }),
+    ...buildAssignmentEvidenceRow({ assignment, student, revisions, evidence, engagement, recordingStartMs, nowValue: now, practicePassRedeemed: redeemed(assignment.id) }),
     assignedToClass,
     assignmentType: clean(assignment.assignmentType) || null,
     gradingPeriod: resolveAssignmentGradingPeriod(assignment, gradingPeriodSettings || {}),
   }));
   rows.forEach((row) => {
     const assignment = included.find((entry) => entry.assignment.id === row.assignmentId)?.assignment;
-    row.gradeImpact = gradeImpactFor({ row, assignment, student, classId: clean(student?.classId), snapshots: exportSnapshots });
+    row.gradeImpact = gradeImpactFor({ row, assignment, student, classId: clean(student?.classId), snapshots: exportSnapshots, practicePassRedeemed: redeemed(row.assignmentId) });
   });
 
   // The period: what the teacher chose, else the span of the assignments. A

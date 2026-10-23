@@ -204,3 +204,25 @@ test('export status reads the same history Grade Export does', () => {
     snapshots: [{ ...snapshots[0], rows: [], withheld: [{ studentId: 'S2' }] }],
   }).state, 'held-back');
 });
+
+test('a redeemed Practice Pass excuses Practice in the report exactly as in the gradebook (TT20)', async () => {
+  const { studentAssignmentProgress } = await import('../../src/platform/teacher/assignmentProgress.js');
+  const withPractice = lesson('p1', {
+    sections: [
+      { id: 'cw', role: 'classwork', questions: [{ questionId: 'p1-1', activityRole: 'classwork' }] },
+      { id: 'practice', role: 'practice', questions: [{ questionId: 'p1-2', activityRole: 'practice' }, { questionId: 'p1-3', activityRole: 'practice' }] },
+    ],
+  });
+  const learner = { ...student, gradesByAssignment: { p1: { 0: { status: 'correct', totalAttempts: 1, lastAttemptAt: '2026-10-02T15:00:00Z' } } } };
+  const build = (practicePassKeys) => buildSupportEvidenceReport({
+    student: learner, studentName: 'Avery Sample', assignments: [withPractice], gradingPeriodSettings: settings,
+    selection: { gradingPeriodId: 'mp2' }, practicePassKeys, nowValue: Date.parse('2026-10-05T12:00:00Z'),
+  }).assignments.find((row) => row.assignmentId === 'p1');
+  const plain = build(null);
+  const waived = build(new Set(['S910001__class-a__p1']));
+  assert.equal(waived.score, studentAssignmentProgress({ student: learner, assignment: withPractice, practicePassRedeemed: true }).score, 'the gradebook\'s score');
+  assert.notEqual(waived.score, plain.score);
+  assert.equal(waived.sections.find((section) => section.key === 'practice').excused, true);
+  assert.equal(waived.gradeImpact.items.find((item) => item.key === 'practice').excused, true);
+  assert.equal(build(['S910001__class-b__p1']).score, plain.score, 'a pass in another class does not apply');
+});

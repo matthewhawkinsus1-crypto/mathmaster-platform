@@ -196,7 +196,7 @@ export const buildStudentCaseReview = ({
   const now = Number(nowValue);
   const classId = clean(student?.classId) || null;
   const support = buildSupportEvidenceReport({
-    student, studentName, classRecord, assignments, gradingPeriodSettings, selection, revisions, evidence, serviceLog, engagement, supportSignals, exportSnapshots, nowValue: now, generatedByEmail,
+    student, studentName, classRecord, assignments, gradingPeriodSettings, selection, revisions, evidence, serviceLog, engagement, supportSignals, exportSnapshots, practicePassKeys, nowValue: now, generatedByEmail,
   });
   const assignmentById = new Map(list(assignments).map((assignment) => [assignment.id, assignment]));
   const passes = practicePassKeySet(practicePassKeys);

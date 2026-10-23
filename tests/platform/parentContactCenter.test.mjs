@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { buildStudentProgressBrief, contactsCsv, groupContactsByStudent, progressBriefText, projectProgressBriefGrades, validateContactDraft } from '../../src/platform/teacher/parentContactCenter.js';
 import { resolveContactEvents } from '../../src/platform/teacher/parentContactStore.js';
@@ -58,6 +59,31 @@ test('progress brief projects question trackers through canonical Grade Center o
   assert.equal(entry.status, 'complete');
   assert.equal(entry.attempts, 3);
   assert.equal(entry.sectionGrades.practice.total, 2);
+});
+
+test('a redeemed Practice Pass excuses Practice in the brief exactly as in the gradebook (TT20)', async () => {
+  const { studentAssignmentProgress } = await import('../../src/platform/teacher/assignmentProgress.js');
+  const assignment = {
+    id: 'a1', title: 'Lesson', schemaVersion: 5, assignment: { title: 'Lesson' },
+    sections: [
+      { id: 'cw', role: 'classwork', questions: [{ id: 'c1', type: 'algebra' }] },
+      { id: 'practice', role: 'practice', questions: [{ id: 'p1', type: 'algebra' }, { id: 'p2', type: 'algebra' }] },
+    ],
+    variantPolicy: { mode: 'shared', sectionModes: { classwork: 'shared', practice: 'shared' } },
+  };
+  const student = { id: 'S1', classId: 'C1', gradesByAssignment: { a1: { 0: { status: 'correct', attemptCount: 1 } } } };
+  const [without] = projectProgressBriefGrades({ student, assignments: [assignment] });
+  const [waived] = projectProgressBriefGrades({ student, assignments: [assignment], practicePassKeys: new Set(['S1__C1__a1']) });
+  assert.equal(waived.grade, studentAssignmentProgress({ student, assignment, practicePassRedeemed: true }).score, 'the gradebook\'s grade');
+  assert.notEqual(waived.grade, without.grade, 'and not the grade without the waiver');
+  assert.equal(waived.sectionGrades.practice.excused, true);
+  const [otherClass] = projectProgressBriefGrades({ student, assignments: [assignment], practicePassKeys: ['S1__C2__a1'] });
+  assert.equal(otherClass.grade, without.grade, 'a pass in another class does not apply');
+
+  // Wired: the brief loads the class's waivers before it is made.
+  const screen = readFileSync(new URL('../../src/components/teacher/ParentContactCenter.jsx', import.meta.url), 'utf8');
+  assert.match(screen, /practicePassKeys = student\.classId \? await loadClassPracticePassKeys\(student\.classId\) : null;/);
+  assert.match(screen, /projectProgressBriefGrades\(\{ student, assignments, practicePassKeys \}\)/);
 });
 
 test('append-only resolution events clear linked outstanding follow-ups without rewriting contacts', () => {
