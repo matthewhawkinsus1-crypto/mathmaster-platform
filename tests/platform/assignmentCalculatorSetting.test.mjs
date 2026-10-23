@@ -12,7 +12,9 @@
  * question's own setting, then the assignment's, then the platform default
  * (the owner, 2026-10-20: the question wins, as #239 had it). A no-calculator
  * skill stays without one, and on an exit ticket, quiz or test the stricter of
- * the assignment's and the question's own authored mode wins.
+ * the assignment's and the question's own authored mode wins. There an item
+ * with no setting of its own keeps the platform's basic calculator: the
+ * assignment may narrow it, never widen it (the owner, 2026-10-23, B-96).
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -135,9 +137,6 @@ test('exit tickets, quizzes and tests keep the stricter of the assignment\'s and
     const authoredBasic = resolve({ activityPolicy, questionSpec: { rawSpec: { calculatorMode: BASIC } }, assignmentCalculatorMode: GRAPHING });
     assert.deepEqual([authoredBasic.mode, authoredBasic.source], [BASIC, 'questionDesign'], `${role}: the assignment never widens an authored calculator`);
 
-    const notAuthored = resolve({ activityPolicy, assignmentCalculatorMode: GRAPHING });
-    assert.deepEqual([notAuthored.mode, notAuthored.source], [GRAPHING, 'assignmentToolPolicy'], `${role}: an item with no authored mode takes the assignment's`);
-
     const narrowed = resolve({ activityPolicy, questionSpec: { rawSpec: { calculatorMode: GRAPHING } }, assignmentCalculatorMode: BASIC });
     assert.deepEqual([narrowed.mode, narrowed.source], [BASIC, 'assignmentToolPolicy'], `${role}: the assignment may narrow`);
 
@@ -158,21 +157,56 @@ test('exit tickets, quizzes and tests keep the stricter of the assignment\'s and
   assert.equal(resolve({ questionSpec: { rawSpec: { calculatorMode: GRAPHING } }, assignmentCalculatorMode: BASIC }).mode, GRAPHING);
 });
 
+test('on exit tickets, quizzes and tests an item with no calculator of its own keeps basic: the assignment may narrow it, never widen it (B-96)', () => {
+  for (const role of ['dol', 'quiz', 'test']) {
+    const activityPolicy = getEffectiveActivityPolicy(role);
+    // The graph, trace and table can show the integer zeros or the symmetry
+    // an unauthored item asks for, so neither wider setting reaches it.
+    for (const wider of [GRAPHING, SCIENTIFIC]) {
+      const kept = resolve({ activityPolicy, assignmentCalculatorMode: wider });
+      assert.deepEqual([kept.available, kept.mode, kept.source], [true, BASIC, 'platformDefault'], `${role}: "${wider}" does not widen it`);
+    }
+    const chosen = resolve({ activityPolicy, assignmentCalculatorMode: CALCULATOR_MODES.TEACHER_CHOICE, teacherCalculatorChoice: GRAPHING });
+    assert.equal(chosen.mode, BASIC, `${role}: nor does a teacher's choice set on the assignment`);
+    // Equally strong but different: basic is kept, as for an item authored basic.
+    assert.equal(resolve({ activityPolicy, assignmentCalculatorMode: SQUARE_ROOT }).mode, BASIC, `${role}: square root does not replace basic`);
+    // Narrowing still applies.
+    const off = resolve({ activityPolicy, assignmentCalculatorMode: NONE });
+    assert.deepEqual([off.available, off.source], [false, 'assignmentToolPolicy'], `${role}: the assignment may turn it off`);
+    assert.match(off.reason, /turned the calculator off for this assignment/);
+    // A documented calculator accommodation still applies after all of this.
+    const plan = resolve({ activityPolicy, assignmentCalculatorMode: NONE, studentSupportProfile: { accommodations: ['calculator-graphing'] } });
+    assert.deepEqual([plan.available, plan.mode, plan.source], [true, GRAPHING, 'accommodation'], `${role}: the support plan's calculator`);
+  }
+  // A role-less policy whose outcome feedback waits is treated the same way.
+  assert.equal(resolve({ activityPolicy: { feedback: 'teacherRelease' }, assignmentCalculatorMode: GRAPHING }).mode, BASIC, 'waiting feedback');
+  // Ordinary work is unchanged: such an item takes the assignment's setting.
+  for (const role of ['warmup', 'classwork', 'practice', 'review', 'corrections']) {
+    const policy = resolve({ activityPolicy: getEffectiveActivityPolicy(role), assignmentCalculatorMode: GRAPHING });
+    assert.deepEqual([policy.mode, policy.source], [GRAPHING, 'assignmentToolPolicy'], role);
+  }
+  // An item set to "teacher choice" with no choice made does have a setting of
+  // its own, and the assignment's is that choice (the "teacher choice" test above).
+});
+
 test('zeros, minimum and maximum are listed only where they cannot state an unreleased answer (keyPointsAllowed)', () => {
   // Ordinary work: yes, whatever set the calculator.
   assert.equal(resolve({ assignmentCalculatorMode: GRAPHING }).keyPointsAllowed, true);
   assert.equal(resolve({ activityPolicy: getEffectiveActivityPolicy('practice'), assignmentCalculatorMode: GRAPHING }).keyPointsAllowed, true);
+  // On an assessment the assignment's "graphing" reaches an item only as the
+  // teacher's choice for an item set to "teacher choice" (B-96).
+  const teacherChoiceItem = { calculatorPolicy: CALCULATOR_MODES.TEACHER_CHOICE };
   for (const role of ['dol', 'quiz', 'test']) {
     const activityPolicy = getEffectiveActivityPolicy(role);
     // Graphing from the assignment alone: graph, trace and table, but no listed vertex.
-    const fromAssignment = resolve({ activityPolicy, assignmentCalculatorMode: GRAPHING });
-    assert.deepEqual([fromAssignment.mode, fromAssignment.keyPointsAllowed], [GRAPHING, false], role);
+    const fromAssignment = resolve({ activityPolicy, questionSpec: teacherChoiceItem, assignmentCalculatorMode: GRAPHING });
+    assert.deepEqual([fromAssignment.mode, fromAssignment.source, fromAssignment.keyPointsAllowed], [GRAPHING, 'assignmentToolPolicy', false], role);
     // The item itself authored a graphing calculator: its author chose to allow them.
     assert.equal(resolve({ activityPolicy, questionSpec: { rawSpec: { calculatorMode: GRAPHING } } }).keyPointsAllowed, true, `${role}: embedded`);
     assert.equal(resolve({ activityPolicy, questionSpec: { calculatorPolicy: GRAPHING } }).keyPointsAllowed, true, `${role}: calculatorPolicy`);
     assert.equal(resolve({ activityPolicy, questionSpec: { rawSpec: { calculatorMode: SCIENTIFIC } }, assignmentCalculatorMode: GRAPHING }).keyPointsAllowed, false, `${role}: authored other than graphing`);
   }
-  assert.equal(resolve({ activityPolicy: { feedback: 'afterAssignmentSubmit' }, assignmentCalculatorMode: GRAPHING }).keyPointsAllowed, false, 'any waiting feedback mode');
+  assert.equal(resolve({ activityPolicy: { feedback: 'afterAssignmentSubmit' }, questionSpec: teacherChoiceItem, assignmentCalculatorMode: GRAPHING }).keyPointsAllowed, false, 'any waiting feedback mode');
   // Present on every result, early returns included.
   for (const policy of [
     resolve({ assessmentContext: 'sat' }),
@@ -184,7 +218,8 @@ test('zeros, minimum and maximum are listed only where they cannot state an unre
 
   // Shown: where the policy allows them, or once the whole assessment is released —
   // never because one question closed and showed its own feedback (B1').
-  const dol = resolve({ activityPolicy: getEffectiveActivityPolicy('dol'), assignmentCalculatorMode: GRAPHING });
+  const dol = resolve({ activityPolicy: getEffectiveActivityPolicy('dol'), questionSpec: teacherChoiceItem, assignmentCalculatorMode: GRAPHING });
+  assert.equal(dol.mode, GRAPHING);
   assert.equal(calculatorKeyPointsShown({ policy: dol }), false, 'open exit ticket');
   assert.equal(calculatorKeyPointsShown({ policy: dol, feedbackReleased: true, showOutcomeFeedback: true }), false, 'a closed question of an open exit ticket');
   assert.equal(calculatorKeyPointsShown({ policy: dol, assessmentReviewReleased: true }), true, 'the exit ticket released');

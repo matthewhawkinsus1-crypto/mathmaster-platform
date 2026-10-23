@@ -331,6 +331,11 @@ EOF
    which would keep the platform's basic calculator there; DOL #2 would then need `calculatorMode: "graphing"`
    authored on its items. It is one condition in `resolveCalculatorPolicy` (`questionAuthoredMode` null on an
    assessment role ⇒ keep the question's) and two tests.
+   **Decided 2026-10-23: the alternative (B-96 / C1-44).** On an exit ticket, quiz or test an item with no calculator
+   of its own counts as having the platform's basic one, and the stricter-of-the-two rule applies to it: "graphing" or
+   "scientific" leaves it basic, "none" turns it off. An item set to "teacher choice" with no choice made still takes
+   the assignment's as that choice. Ordinary work is unchanged. Items that should graph on an assessment (DOL #2's)
+   need `calculatorMode: "graphing"` authored.
 4. **No teacher UI sets `toolPolicy.calculator`.** It comes only from imported V5 JSON (`authoringContract.js` shows
    `"inherit"`). A Pre-Flight control would make PR-25 reachable without JSON.
 

@@ -151,8 +151,8 @@ const isAssessmentActivity = (activityPolicy = {}) => (
  *      has no setting of its own here.
  *   3. The assignment's setting — `toolPolicy.calculator` on the assignment
  *      ("graphing" for a whole lesson), for every item with no setting of its
- *      own. `inherit` (the schema default) and `questionSpecific` mean "no
- *      setting here".
+ *      own on ordinary work. `inherit` (the schema default) and
+ *      `questionSpecific` mean "no setting here".
  *   4. The platform default (basic).
  *
  * Two stricter rules hold whatever the assignment says:
@@ -161,7 +161,10 @@ const isAssessmentActivity = (activityPolicy = {}) => (
  *     computation gives one back;
  *   - on an exit ticket, quiz or test the assignment setting may still narrow
  *     the question's own calculator but never widen it: the stricter of the
- *     two is used. On other work the question's own is used as it is.
+ *     two is used. There an item with no setting of its own counts as having
+ *     the platform default, so "graphing" leaves it basic and "none" turns it
+ *     off (owner, 2026-10-23). On other work the question's own is used as it
+ *     is.
  *
  * A student's documented calculator accommodation applies after all of this,
  * exactly as before. Any assessment context skips level 2 entirely: what the
@@ -240,15 +243,24 @@ export const resolveCalculatorPolicy = ({
     ? normalizeMode(teacherCalculatorChoice)
     : assignmentSetting;
   if (!assessment && CONCRETE_MODES.has(assignmentMode)) {
+    const assessmentActivity = isAssessmentActivity(activityPolicy);
     // A "teacher choice" question with no choice set has no mode of its own:
     // the assignment's setting is the teacher's choice.
     const questionAuthoredMode = baseSource === 'platformDefault' || teacherChoiceMissing ? null : basePolicy;
+    // On an exit ticket, quiz or test an item with no setting of its own keeps
+    // the platform default as its own, so the assignment may narrow it but
+    // never widen it. A "graphing" assignment gave such an item the graph,
+    // trace and table, which can show the integer zeros or the symmetry the
+    // item asks for (owner, 2026-10-23: B-96 / C1-44). On other work it takes
+    // the assignment's setting, as before.
+    const questionOwnMode = questionAuthoredMode
+      ?? (assessmentActivity && baseSource === 'platformDefault' ? basePolicy : null);
     if (skillDeclaresNoCalculator) {
       basePolicy = CALCULATOR_MODES.NONE;
       baseSource = 'questionDesign';
     } else if (
-      CONCRETE_MODES.has(questionAuthoredMode)
-      && (!isAssessmentActivity(activityPolicy) || MODE_STRENGTH[questionAuthoredMode] <= MODE_STRENGTH[assignmentMode])
+      CONCRETE_MODES.has(questionOwnMode)
+      && (!assessmentActivity || MODE_STRENGTH[questionOwnMode] <= MODE_STRENGTH[assignmentMode])
     ) {
       // 2. The question's own: as it is on other work, and the stricter of
       // the two on an exit ticket, quiz or test.

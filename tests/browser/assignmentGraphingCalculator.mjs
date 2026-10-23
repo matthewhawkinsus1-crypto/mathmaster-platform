@@ -15,8 +15,9 @@
  * closes only it. Without the setting the keypad drawer opens as before, and
  * the graphing code is never downloaded. Inside an assessment context (a
  * secure SAT item) the engine offers no graphing calculator of its own. On an
- * exit ticket the item with no authored calculator takes the assignment's,
- * shows no verdict, and an item authored "basic" keeps basic.
+ * exit ticket the item with no calculator of its own keeps basic (B-96), an
+ * item set to "teacher choice" takes the assignment's with no key points and
+ * no verdict, and an item authored "basic" keeps basic.
  */
 import assert from 'node:assert/strict';
 
@@ -309,12 +310,22 @@ for (const query of ['calc=off', 'calc=inherit', 'calc=scientific']) {
   console.log('assessment context: unchanged, ok');
 }
 
-// Exit ticket: an item with no authored calculator takes the assignment's
-// graph, trace and table, but lists no zeros, minimum or maximum (the vertex an
-// item asks for); nothing about the answer is shown before Submit; an item
+// Exit ticket: an item with no calculator of its own keeps the basic keypad —
+// the assignment's "graphing" may narrow it, never widen it (B-96). An item set
+// to "teacher choice" with no choice made takes the assignment's as that
+// choice: graph, trace and table, but no zeros, minimum or maximum (the vertex
+// an item asks for); nothing about the answer is shown before Submit; an item
 // that authored graphing itself keeps the key points; one authored basic keeps basic.
 {
-  const { page, errors } = await open({ width: 1366, height: 768 }, 'calc=graphing&role=dol');
+  const unauthored = await open({ width: 1366, height: 768 }, 'calc=graphing&role=dol');
+  assert.equal(await unauthored.page.locator(`${BAR}[aria-label="Graphing calculator"]`).count(), 0, 'DOL item with no calculator of its own: the assignment does not widen it');
+  await unauthored.page.locator(`${BAR}[aria-label="Calculator"]`).click();
+  assert.match(await unauthored.page.locator(KEYPAD).textContent(), /BASIC CALCULATOR/, 'DOL item with no calculator of its own keeps basic');
+  assert.equal(graphingCodeRequested(unauthored.requested), false, 'and the graphing code is never downloaded');
+  assert.deepEqual(unauthored.errors, []);
+  await unauthored.page.close();
+
+  const { page, errors } = await open({ width: 1366, height: 768 }, 'calc=graphing&role=dol&mode=teacherChoice');
   await page.locator(`${BAR}[aria-label="Graphing calculator"]`).click();
   await page.locator(PANEL).waitFor();
   await page.keyboard.type('f(x) = x^2 - 4');
@@ -334,7 +345,7 @@ for (const query of ['calc=off', 'calc=inherit', 'calc=scientific']) {
   // A closed question of an exit ticket that is still open: App releases that
   // one question's feedback (its record is correct or out of tries). Its
   // calculator still lists nothing — a vertex here would answer the next one.
-  for (const [query, listed] of [['calc=graphing&role=dol&released=1', false], ['calc=graphing&role=dol&review=1', true]]) {
+  for (const [query, listed] of [['calc=graphing&role=dol&mode=teacherChoice&released=1', false], ['calc=graphing&role=dol&mode=teacherChoice&review=1', true]]) {
     const run = await open({ width: 1366, height: 768 }, query);
     await run.page.locator(`${BAR}[aria-label="Graphing calculator"]`).click();
     await run.page.locator(PANEL).waitFor();
