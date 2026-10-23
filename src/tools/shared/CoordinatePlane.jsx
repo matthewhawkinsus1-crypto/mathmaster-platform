@@ -253,6 +253,9 @@ export default function CoordinatePlane({
   // nothing and leaves the description as it was.
   xAxisTitle = '',
   yAxisTitle = '',
+  // The letters at the ends of the axes, when the item's variables are not x
+  // and y (systemAxisNames.js: s and a for student and adult tickets).
+  axisNames = null,
   children,
 }) {
   const insideParentWorkView = useHasParentWorkView();
@@ -778,8 +781,8 @@ export default function CoordinatePlane({
         {xMin <= 0 && xMax >= 0 ? <line x1={sx(0)} x2={sx(0)} y1={pad} y2={height - pad} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="2" /> : null}
         {yMin <= 0 && yMax >= 0 ? <line x1={pad} x2={width - pad} y1={sy(0)} y2={sy(0)} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="2" /> : null}
 
-        <text x={width - pad + 6} y={axisY + 4} fontSize={svgFont(13)} fontWeight="700" style={{ fill: 'var(--mm-graph-label)' }}>x</text>
-        <text x={axisX - 4} y={pad - 10} fontSize={svgFont(13)} fontWeight="700" style={{ fill: 'var(--mm-graph-label)' }} textAnchor="middle">y</text>
+        <text x={width - pad + 6} y={axisY + 4} fontSize={svgFont(13)} fontWeight="700" style={{ fill: 'var(--mm-graph-label)' }}>{axisNames?.x || 'x'}</text>
+        <text x={axisX - 4} y={pad - 10} fontSize={svgFont(13)} fontWeight="700" style={{ fill: 'var(--mm-graph-label)' }} textAnchor="middle">{axisNames?.y || 'y'}</text>
         {/* Ends left of the y axis and sits below the x axis at any text size (TOOL-11). */}
         {originVisible ? <text x={sx(0) - 6} y={sy(0) + baselineBelowAxis(svgFont(10), 15, 5)} textAnchor="end" fontSize={svgFont(10)} style={{ fill: 'var(--mm-graph-axis)' }}>0</text> : null}
 
