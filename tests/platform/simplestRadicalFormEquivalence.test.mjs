@@ -59,6 +59,28 @@ test('a decimal from a calculator is not the exact answer', () => {
   assert.equal(same('0.142857', '\\frac{1}{7}'), false);
 });
 
+test('…however many digits it carries: the calculator\'s whole display is still not the answer', () => {
+  // Each display agrees with its key to the last digit a computer keeps, so a
+  // tolerance cannot refuse it; the notation and exact arithmetic do.
+  assert.equal(same(String(-3 * Math.sqrt(5)), '-3\\sqrt{5}'), false);
+  assert.equal(same(String(2 * Math.sqrt(3)), '2√3'), false);
+  assert.equal(same(String(Math.sqrt(2) + 1), '\\sqrt{2}+1'), false);
+  assert.equal(same(String(2 ** (2 / 3)), '2^{2/3}'), false, 'an exponent-form key');
+  assert.equal(same(String(1 / 7), '\\frac{1}{7}'), false);
+  assert.equal(same('0.142857142857142857142857', '1/7'), false);
+  assert.equal(same(String(81 ** -0.25), '1/3'), false);
+  assert.equal(same('0.9999999999999999', '1'), false);
+  assert.equal(same('0.5\\sqrt{2}', '\\frac{\\sqrt{2}}{2}'), false, 'a decimal coefficient in a radical answer');
+});
+
+test('a decimal that is exactly the key\'s value is the exact answer', () => {
+  assert.equal(same('0.25', '\\frac{1}{4}'), true);
+  assert.equal(same('-0.2', '-\\frac{1}{5}'), true);
+  assert.equal(same('0.015625', '1/64'), true);
+  assert.equal(same('1.0', '1'), true);
+  assert.equal(same('0.0156', '1/64'), false);
+});
+
 test('the key\'s notation decides radicals or rational exponents', () => {
   assert.equal(same('y^{\\frac{5}{7}}', 'y^{5/7}'), true);
   assert.equal(same('\\sqrt[7]{y^5}', 'y^{5/7}'), false, 'radical form for an exponent-form key');

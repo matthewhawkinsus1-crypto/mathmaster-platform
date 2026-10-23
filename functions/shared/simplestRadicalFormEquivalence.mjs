@@ -17,6 +17,13 @@
 // with rational exponents asks for exponents. A student may use a notation
 // only when the key does.
 //
+// EXACT, NOT A CALCULATOR'S DECIMAL. A decimal is written in neither notation,
+// so it never answers a radical or exponent key, however many digits it
+// carries (3.4641016151377544 for 2√3 agrees with the key to the last digit a
+// computer keeps, which is why a tolerance alone cannot refuse it). Against a
+// key with neither, a decimal is right only as a lone number that IS the key's
+// value: 0.25 for 1/4, never 0.142857142857 for 1/7.
+//
 // SIMPLEST FORM, as the lessons define it:
 //   - no radicand has a factor that is a perfect power of the index (√48),
 //     and no letter under a root has an exponent of the index or more (√x³);
@@ -310,6 +317,41 @@ const notationOf = (node) => {
   return { radical, exponent };
 };
 
+// --- decimals ----------------------------------------------------------------
+
+const hasDecimal = (value) => /\d*\.\d/.test(prepare(value));
+
+// The value as p/q with q ≤ 10⁶ (a continued fraction), or null when no such
+// fraction is the value: a key with no letter, root or rational exponent is
+// rational, and the lessons' denominators are small.
+const asFraction = (value) => {
+  const sign = value < 0 ? -1 : 1;
+  let rest = Math.abs(value);
+  let [p0, q0, p1, q1] = [0, 1, 1, 0];
+  for (let step = 0; step < 40; step += 1) {
+    const whole = Math.floor(rest);
+    [p0, q0, p1, q1] = [p1, q1, whole * p1 + p0, whole * q1 + q0];
+    if (q1 > 1e6) return null;
+    if (Math.abs((sign * p1) / q1 - value) <= 1e-12 * Math.max(1, Math.abs(value))) return { p: sign * p1, q: q1 };
+    rest = 1 / (rest - whole);
+    if (!Number.isFinite(rest)) return null;
+  }
+  return null;
+};
+
+// A lone decimal N/10ᵏ that is exactly the key's value, compared in integers:
+// 0.14285714285714285 and 1/7 are the same double, but not the same number.
+const isExactDecimal = (student, keyTree) => {
+  const match = /^([+-]?)(\d*)\.(\d+)$/.exec(prepare(student));
+  if (!match || lettersOf(keyTree).size) return false;
+  const value = evaluate(keyTree, {});
+  const fraction = Number.isFinite(value) ? asFraction(value) : null;
+  if (!fraction) return false;
+  const [, sign, whole, digits] = match;
+  const numerator = BigInt(`${whole || '0'}${digits}`) * (sign === '-' ? -1n : 1n);
+  return numerator * BigInt(fraction.q) === BigInt(fraction.p) * 10n ** BigInt(digits.length);
+};
+
 // --- simplest form ---------------------------------------------------------
 
 const isNumber = (node) => node.t === 'num' || (node.t === 'group' && isNumber(node.arg));
@@ -524,7 +566,8 @@ export const sameSimplestRadicalForm = (student, key) => {
   if (!studentTree || !keyTree) return false;
   const studentNotation = notationOf(studentTree);
   const keyNotation = notationOf(keyTree);
-  if ((studentNotation.radical && !keyNotation.radical) || (studentNotation.exponent && !keyNotation.exponent)) return false;
+  if (studentNotation.radical !== keyNotation.radical || studentNotation.exponent !== keyNotation.exponent) return false;
+  if (hasDecimal(student) && !hasDecimal(key)) return isExactDecimal(student, keyTree);
   return isSimplestRadicalForm(studentTree) && sameValue(studentTree, keyTree);
 };
 
