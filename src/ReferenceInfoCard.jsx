@@ -1,19 +1,21 @@
 import MathDisplay from './MathDisplay';
-import { splitProseFractionRuns } from './components/common/mathSegments.js';
+import { isMathSegment, splitMathSegments, splitProseFractionRuns } from './components/common/mathSegments.js';
 
-const INLINE_MATH_PATTERN = /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|\$[^$\n]+?\$)/g;
+// The SAME splitter as the prompt (mathSegments.js), which knows a price from
+// a formula. This card had its own `$…$` pattern, so "a credit of $25 toward
+// sales, and each box sells for $3.75" rendered everything between the two
+// prices as one italic formula, "25towardsales,∧eachbox…" (walkthrough
+// 2026-10-23, Module 3 T1 L3 and T2 L1).
 
 const renderStatement = (statement, index) => {
   const text = String(statement?.text ?? '');
-  const segments = text.split(INLINE_MATH_PATTERN).filter(Boolean);
+  const segments = splitMathSegments(text);
   return (
     <div key={`${index}-${text}`} className={`mathmaster-reference-statement ${statement?.emphasis ? 'is-emphasis' : ''}`}>
       {statement?.label && <span className="mathmaster-reference-statement-label">{statement.label}</span>}
       <span>
         {segments.map((segment, segmentIndex) => {
-          const isMath = INLINE_MATH_PATTERN.test(segment);
-          INLINE_MATH_PATTERN.lastIndex = 0;
-          if (!isMath) {
+          if (!isMathSegment(segment)) {
             // A raw mathematical fraction can appear in non-delimited prose
             // here too ("The formula uses 1/2 base times height."). Stack it
             // instead of leaving a slash on the screen.

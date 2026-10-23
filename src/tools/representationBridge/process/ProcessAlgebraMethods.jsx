@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import StepByStepAlgebraCore from '../../../StepByStepAlgebraCore.jsx';
 import { useActiveUndoOwner } from '../../../platform/workView/useMathUndoHistory.js';
 import { describeRewriteGap } from '../../stepAlgebra2/rewriteLinearFormMath.js';
-import { ChoiceChips, Latex, ProcessField, ProcessMessage, muted, touchButton } from './processUi.jsx';
+import { ChoiceChips, Latex, ProcessField, ProcessMessage, muted } from './processUi.jsx';
 import {
   factDisplay,
   lmrRewriteQuestion,
@@ -97,17 +97,6 @@ function EmbeddedSolver({ question, title, solverKey, draftKey, onLive, disabled
         showPrompt={false}
         disabled={disabled}
       />
-      <div>
-        <button
-          type="button"
-          onClick={() => coreUndo?.onUndo?.()}
-          disabled={disabled || !coreUndo?.canUndo}
-          style={touchButton}
-          title={coreUndo?.label || 'Undo the last algebra step'}
-        >
-          ↶ Undo step
-        </button>
-      </div>
     </div>
   );
 }

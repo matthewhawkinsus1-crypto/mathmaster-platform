@@ -6,14 +6,14 @@
  * platform Undo learned to pop the graphs' histories, but typed answers, table
  * cells and meanings had no Undo at all. Now the board feeds its whole
  * mathematical record to the platform's `useMathUndoHistory`: the platform
- * Undo takes back the last edit anywhere on the board, and each graph's own
- * Undo is the SAME history filtered to that graph (`undoChangeTo`), so the two
- * can never disagree or replay each other.
+ * Undo takes back the last edit anywhere on the board. A graph has no Undo of
+ * its own (owner decision 2026-10-23: one universal Undo, tools keep their own
+ * Start over); the enlarged graph, a dialog over the work bar, shows that same
+ * Undo.
  *
  * Node cannot render the board, so the wiring is read from source, each
  * assertion bound to the region that does the work. The behaviour itself is
- * proven twice over: the history and its filter in
- * tests/platform/mathUndoFilteredChange.test.mjs and
+ * proven twice over: the history in
  * tests/tools/linearMultipleRepresentationsUndo.test.mjs, and the rendered
  * board in tests/browser/linearMultipleRepresentations.mjs (journeys `undo`,
  * `undo-phone`): edits across four cards, Undo walks them back one at a time,
@@ -41,13 +41,15 @@ test('the board registers ONE history with the platform Undo: its whole mathemat
   assert.doesNotMatch(board, /useActiveUndoOwner|historyRef|editOrderRef/);
 });
 
-test('a graph\'s own Undo is the same history, filtered to that graph', () => {
-  const graphUndo = region(board, 'const undoGraph = (key) =>', '\n  };', 'the graph Undo');
-  assert.match(graphUndo, /return undoHistory\.undoChangeTo\(\[graphUndoField\(key\)\]\);/);
-  const graphCanUndo = region(board, 'const canUndo = (key) =>', ';\n', 'the graph Undo state');
-  assert.match(graphCanUndo, /undoHistory\.canUndoChangeTo\(\[graphUndoField\(key\)\]\)/);
+test('a graph has no Undo of its own; the enlarged graph shows the one platform Undo', () => {
   const controls = region(board, 'const graphControls = (graph) => (', '\n  );', 'the graph controls');
-  assert.match(controls, /onClick=\{\(\) => undoGraph\(graph\.key\)\} disabled=\{!canUndo\(graph\.key\)\}/);
+  assert.doesNotMatch(controls, /Undo/, 'a graph keeps only Start over');
+  assert.match(controls, /onClick=\{\(\) => clearGraph\(graph\.key\)\}/);
+  const dialogUndo = region(board, 'const dialogUndo = (key) => ({', '\n  });', 'the enlarged graph\'s Undo');
+  assert.match(dialogUndo, /canUndo: undoHistory\.canUndo,/);
+  assert.match(dialogUndo, /undoHistory\.undo\(\);/);
+  assert.doesNotMatch(dialogUndo, /ChangeTo/, 'the same history, not a graph-filtered one');
+  assert.match(board, /<UniversalUndoButton controller=\{dialogUndo\(graph\.key\)\}/);
   // Start over is an ordinary change, so it is undoable like a point.
   assert.match(board, /const clearGraph = \(key\) => changeGraph\(key, \[\]\);/);
 });

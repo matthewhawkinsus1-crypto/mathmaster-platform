@@ -5,7 +5,6 @@ import {
   initDistributionState,
   isDistributionComplete,
   placeOnTerm,
-  undoLastPlacement,
 } from './algebraDistributionModel.js';
 import {
   commitRelationDistribution,
@@ -108,13 +107,16 @@ export function RelationDistributionPanel({ state, branchIndex = 0, onCommit, on
         })}
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, alignItems: 'center' }}>
+        {/* One Undo, the work bar's; a tool keeps its own Clear (owner decision
+            2026-10-23). The placements are not committed work, so Clear
+            starts this Distribute over. */}
         <button
           type="button"
           disabled={!distribution.placedIndices.length}
-          onClick={() => setDistribution((current) => undoLastPlacement(current))}
+          onClick={() => setDistribution(initDistributionState(candidate?.detected))}
           style={chip(false)}
         >
-          Undo placement
+          Clear placements
         </button>
         <button
           type="button"

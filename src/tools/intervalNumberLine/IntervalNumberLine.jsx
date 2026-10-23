@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { useHostSubmitLabel, useSubmitLabel } from '../shared/ToolRuntimeContext';
+import { useHostSubmitLabel, useMethodWithheld, useSubmitLabel } from '../shared/ToolRuntimeContext';
 import usePersistentToolState, { TOOL_DRAFT_COALESCE_MS, flushToolDrafts } from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { figureDismissalKey, shouldOpenFigureEnlarged } from '../../platform/student/figurePresentation.js';
@@ -15,6 +15,8 @@ import { clientPointToViewBox } from '../../utils/responsiveCoordinates.js';
 import { describeNumberLine, describeNumberLinePiece } from '../../platform/language/numberLineDescription.js';
 import { isAlgebraOneQuestion } from '../../platform/curriculum/inequalityRepresentationPolicy.js';
 import { PublishFigureReading } from '../../platform/language/figureReadings.js';
+import { intervalTickSteps, niceTickStep } from './intervalTicks.js';
+import { intervalGraphMissMessage } from './intervalFeedback.js';
 import {
   intervalsToNotation,
   normalizeIntervals,
@@ -100,25 +102,6 @@ const rationalLabel = (value, maxDenominator = 16) => {
   return String(Number(rounded.toFixed(4))).replace('-', '−');
 };
 
-const niceTickStep = (span, targetIntervals = 6) => {
-  const safeSpan = Math.max(Math.abs(span), 1e-9);
-  const rough = safeSpan / Math.max(1, targetIntervals);
-  const power = 10 ** Math.floor(Math.log10(rough));
-  const normalized = rough / power;
-
-  const factor = normalized <= 1
-    ? 1
-    : normalized <= 2
-      ? 2
-      : normalized <= 2.5
-        ? 2.5
-        : normalized <= 5
-          ? 5
-          : 10;
-
-  return tidyNumber(factor * power);
-};
-
 const ticksFor = (min, max, step, limit = 30) => {
   if (!(step > 0) || !(max > min)) return [];
   const start = Math.ceil((min - 1e-10) / step) * step;
@@ -183,6 +166,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
     () => normalizeIntervals(questionData.intervals),
     [questionData.intervals],
   );
+  const methodWithheld = useMethodWithheld();
 
   const authoredStep = Number(questionData.snapStep ?? questionData.step);
   const snapStep = Number.isFinite(authoredStep) && authoredStep > 0 ? authoredStep : 1;
@@ -287,9 +271,12 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
 
   const sx = (value) => PAD + ((Math.max(min, Math.min(max, value)) - min) / span) * (WIDTH - PAD * 2);
 
-  const majorStep = useMemo(() => niceTickStep(span), [span]);
+  // Ticks fall where a click or drag lands (intervalTicks.js).
+  const { major: majorStep, minor: minorStep } = useMemo(
+    () => intervalTickSteps(span, Number.isFinite(authoredStep) && authoredStep > 0 ? authoredStep : null),
+    [span, authoredStep],
+  );
   const majorTicks = useMemo(() => ticksFor(min, max, majorStep, 18), [min, max, majorStep]);
-  const minorStep = majorStep / 2;
   const minorTicks = useMemo(
     () => ticksFor(min, max, minorStep, 40).filter(
       (value) => !majorTicks.some((major) => Math.abs(major - value) < 1e-9),
@@ -556,7 +543,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
       return 'Nothing is graphed yet. Click the line or type an exact endpoint, then place the other endpoint or choose a ray.';
     }
     if (stageMissed('graph')) {
-      return 'The graph is not right yet. Check each endpoint, whether it is open or closed, and which region is shaded.';
+      return intervalGraphMissMessage({ built: feedback.response?.intervals ?? built, expected, methodWithheld });
     }
     if (stageMissed('interval')) {
       return 'The graph is right but the interval notation is not. Fractions are allowed; square brackets include endpoints and round brackets exclude them.';
@@ -698,7 +685,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
             </div>
 
             <div id={endpointHelpId} data-endpoint-help={endpointError ? 'error' : 'hint'} style={{ color: endpointError ? 'var(--mm-error-text)' : 'var(--mm-text-muted)', fontSize: 'calc(11.5 * var(--mm-px))' }}>
-              {endpointError || `Click/drag snap: ${snapLabel}. Exact entry is not limited to visible tick marks.`}
+              {endpointError || `A click or drag moves in steps of ${snapLabel}. Type an exact value for anything in between.`}
             </div>
             {/* Said when it appears: the typed value could not be placed. */}
             <span role="alert" data-endpoint-error-announcement="" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>{endpointError}</span>

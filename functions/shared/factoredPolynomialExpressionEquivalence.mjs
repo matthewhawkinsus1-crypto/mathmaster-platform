@@ -177,4 +177,18 @@ export const sameFactoredPolynomialExpression = (left, right, tolerance = 1e-6) 
   return unmatched.length === 0;
 };
 
+/**
+ * WHY AN ANSWER WITH THE KEY'S VALUE WAS REFUSED (walkthrough 2026-10-23,
+ * Factoring Polynomials): 'notFullyFactored' when it is the key's polynomial
+ * written expanded or only partly factored — 2(x² − 4) for 2(x − 2)(x + 2) —
+ * so the student hears that instead of a bare "Not quite". Null when it is
+ * right, or not the key's polynomial at all.
+ */
+export const factoredFormMiss = (student, key) => {
+  if (sameFactoredPolynomialExpression(student, key)) return null;
+  const typed = parsePolynomial(student);
+  const expected = parsePolynomial(key);
+  return typed && expected && samePolynomial(typed, expected) ? 'notFullyFactored' : null;
+};
+
 export default sameFactoredPolynomialExpression;

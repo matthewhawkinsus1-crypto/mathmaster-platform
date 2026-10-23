@@ -28,6 +28,7 @@ import { ChoiceGroup, InequalityLayout, LineStyleIcon, StepFeedback, YesNoQuesti
 import { POINT_COLORS, constraintColor } from './constraintPalette.js';
 import { formatInequality, formatLine, formatPoint, formatQuadratic } from './inequalityFormat.js';
 import { resolveSystemsWorkspaceMode } from './systemsWorkspaceMode.js';
+import { systemAxisNames } from './systemAxisNames.js';
 import { algebraicSystemDimension } from './algebraicSystemsEngine.js';
 
 // The defaults the shared grader also reads, so an unauthored field shows and
@@ -473,6 +474,8 @@ const emptyLinePoints = () => [0, 1].map(() => ({ x1:'', y1:'', x2:'', y2:'' }))
 function LinearConstructMode({ questionData, onAction }) {
   const checkSystemLabel = useSubmitLabel('Check system');
   const system = questionData.system || DEFAULT_SYSTEM;
+  // The item's own letters on the axes and in every box (systemAxisNames.js).
+  const names = systemAxisNames(questionData);
   const solution = useMemo(() => solveTwoLines(system), [system]);
   // Each equation as the question writes it (standard form stays standard
   // form); the slope-intercept form only when none is authored.
@@ -547,7 +550,10 @@ function LinearConstructMode({ questionData, onAction }) {
     if (feedback.isCorrect) return solution.type === 'one'
       ? `Correct — your lines meet at exactly one point, (${round(solution.x, 2)}, ${round(solution.y, 2)}).`
       : 'Correct — you graphed both lines and classified the system from them.';
-    if (!partCorrect(feedback, 'line-1') || !partCorrect(feedback, 'line-2')) return 'At least one line is not graphed right yet. Every point you plot must make its equation true: substitute its x-value into the equation and compare the y-value.';
+    // Which line, from the grader's parts: "at least one" left the student
+    // re-deriving both (walkthrough 2026-10-23).
+    const wrongLines = [1, 2].filter((line) => !partCorrect(feedback, `line-${line}`));
+    if (wrongLines.length) return `${wrongLines.length === 2 ? 'Neither line is' : `The line for Equation ${wrongLines[0]} is not`} graphed right yet. Every point you plot must make its equation true: substitute its ${names.x}-value into the equation and compare the ${names.y}-value.`;
     if (!partCorrect(feedback, 'classification')) return 'Your lines are right, but the classification is not. Do your two lines cross once, never, or lie on top of each other?';
     return 'Your lines and classification are right, but the coordinates are not. Read where your lines cross, then substitute that point into both equations to confirm.';
   };
@@ -578,6 +584,7 @@ function LinearConstructMode({ questionData, onAction }) {
             // read coordinates out while the student aims.
             revealCoordinates={false}
             ariaLabel="Your graph of both equations in the system"
+            axisNames={names}
             viewResetKey={questionData?.questionId ?? null}
             enlargeable={false}
           />
@@ -602,8 +609,8 @@ function LinearConstructMode({ questionData, onAction }) {
               return (
                 <div key={which} className="mm-ineq-point-row" role="group" aria-label={`Equation ${index + 1}, point ${which}`} data-next={waiting ? 'true' : undefined}>
                   <span className="mm-ineq-point-name" aria-hidden="true">Point {which}</span>
-                  <label className="mm-ineq-inline-field">x<input className="mm-ineq-input" data-size="narrow" type="number" inputMode="decimal" aria-label={`Equation ${index + 1}, point ${which}: x`} value={entry[`x${which}`]} onChange={(e)=>updateCoordinate(index,`x${which}`,e.target.value)} /></label>
-                  <label className="mm-ineq-inline-field">y<input className="mm-ineq-input" data-size="narrow" type="number" inputMode="decimal" aria-label={`Equation ${index + 1}, point ${which}: y`} value={entry[`y${which}`]} onChange={(e)=>updateCoordinate(index,`y${which}`,e.target.value)} /></label>
+                  <label className="mm-ineq-inline-field">{names.x}<input className="mm-ineq-input" data-size="narrow" type="number" inputMode="decimal" aria-label={`Equation ${index + 1}, point ${which}: ${names.x}`} value={entry[`x${which}`]} onChange={(e)=>updateCoordinate(index,`x${which}`,e.target.value)} /></label>
+                  <label className="mm-ineq-inline-field">{names.y}<input className="mm-ineq-input" data-size="narrow" type="number" inputMode="decimal" aria-label={`Equation ${index + 1}, point ${which}: ${names.y}`} value={entry[`y${which}`]} onChange={(e)=>updateCoordinate(index,`y${which}`,e.target.value)} /></label>
                   {entered ? (
                     <button type="button" className="mm-ineq-chip-remove" aria-label={`Clear point ${which} of equation ${index + 1}`} onClick={() => setPoint(index, which, '', '')}>×</button>
                   ) : waiting ? <span className="mm-ineq-note">or tap the graph</span> : null}
@@ -615,7 +622,7 @@ function LinearConstructMode({ questionData, onAction }) {
       ))}
       {plotNotice ? <p className="mm-ineq-note" role="status">{plotNotice}</p> : null}
       <Field label="How many solutions does this system have?"><select value={classification} onChange={(e)=>setClassification(e.target.value)} style={inputStyle}><option value={UNANSWERED}>Choose…</option><option value="one">Exactly one solution</option><option value="none">No solution</option><option value="infinite">Infinitely many solutions</option></select></Field>
-      {classification === 'one' ? <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}><Field label="x"><input type="number" inputMode="decimal" value={x} onChange={(e)=>setX(e.target.value)} style={inputStyle}/></Field><Field label="y"><input type="number" inputMode="decimal" value={y} onChange={(e)=>setY(e.target.value)} style={inputStyle}/></Field></div> : null}
+      {classification === 'one' ? <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}><Field label={names.x}><input type="number" inputMode="decimal" value={x} onChange={(e)=>setX(e.target.value)} style={inputStyle}/></Field><Field label={names.y}><input type="number" inputMode="decimal" value={y} onChange={(e)=>setY(e.target.value)} style={inputStyle}/></Field></div> : null}
       <div className="mm-ineq-actions">
         <button type="button" className="mm-ineq-action" onClick={check} disabled={!ready}>{checkSystemLabel}</button>
       </div>
@@ -626,8 +633,8 @@ function LinearConstructMode({ questionData, onAction }) {
       {feedback ? <div><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><StepFeedback>{message()}</StepFeedback></div> : null}
       <HintPanel
         hints={[
-          'To find a point on a line, choose an x-value, substitute it into the equation, and solve for y. The y-intercept is often the easiest first point.',
-          'For an equation in standard form, the intercepts are easy points: set x = 0 to find one, then y = 0 to find the other.',
+          `To find a point on a line, choose a value for ${names.x}, substitute it into the equation, and solve for ${names.y}. The intercept on the vertical axis is often the easiest first point.`,
+          `For an equation in standard form, the intercepts are easy points: set ${names.x} = 0 to find one, then ${names.y} = 0 to find the other.`,
           'The solution of the system is where your two lines cross. Lines that never cross, or that lie on top of each other, need a different classification.',
         ]}
         onHintUsed={() => onAction?.('HINT_USED')}

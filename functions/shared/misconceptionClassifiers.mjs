@@ -44,7 +44,9 @@
  */
 import { answerCandidatesForField, parseNumericAnswer, parseOrderedPair } from './answerUtils.mjs';
 import { sameValue } from './answerEquivalence.mjs';
-import { fieldRequiresSimplifiedPolynomial, isSimplifiedPolynomial } from './simplifiedPolynomialForm.mjs';
+import { radicalFormMiss } from './simplestRadicalFormEquivalence.mjs';
+import { factoredFormMiss } from './factoredPolynomialExpressionEquivalence.mjs';
+import { SIMPLIFIED_POLYNOMIAL_PROBLEMS, fieldRequiresSimplifiedPolynomial, isSimplifiedPolynomial, simplifiedPolynomialProblem } from './simplifiedPolynomialForm.mjs';
 import { LINE_FORMS, isVerticalLine, requestedLineForm, sameLine, writtenLineForm } from './linearEquationForm.mjs';
 import { buildMisconceptionEvidence, getMisconceptionCode, MISCONCEPTION_EXCLUSIVITY } from './misconceptionCodes.mjs';
 import { isToolResponse, readToolWork } from './serverGrading/toolResponseContract.mjs';
@@ -877,17 +879,53 @@ const multiAnswerLineFormFindings = ({ question, grading }) => {
  */
 const multiAnswerNotSimplifiedFindings = ({ question, grading }) => {
   const parts = partsById(grading);
-  const ids = list(question?.answerFields).filter((field) => {
+  const byCode = new Map();
+  list(question?.answerFields).forEach((field) => {
     const part = wrongPart(parts, text(field?.id));
-    if (!part || typeof part.response !== 'string' || !fieldRequiresSimplifiedPolynomial(field)) return false;
-    if (isSimplifiedPolynomial(part.response)) return false;
-    return answerCandidatesForField(field).some((key) => typeof key === 'string' && sameValue(part.response, key));
-  }).map((field) => text(field.id));
-  return ids.length ? [finding('polynomial-not-simplified', ids)] : [];
+    if (!part || typeof part.response !== 'string' || !fieldRequiresSimplifiedPolynomial(field)) return;
+    if (isSimplifiedPolynomial(part.response)) return;
+    if (!answerCandidatesForField(field).some((key) => typeof key === 'string' && sameValue(part.response, key))) return;
+    // Only a written 1 left (−1x²): say so, not "multiply out and combine".
+    const code = simplifiedPolynomialProblem(part.response) === SIMPLIFIED_POLYNOMIAL_PROBLEMS.UNIT_COEFFICIENT
+      ? 'polynomial-unit-coefficient'
+      : 'polynomial-not-simplified';
+    byCode.set(code, [...(byCode.get(code) || []), text(field.id)]);
+  });
+  return [...byCode].map(([code, ids]) => finding(code, ids));
+};
+
+/*
+ * multiAnswer: the key's VALUE, refused for its FORM, on a field graded by
+ * form (gradingMode 'simplestRadicalForm' or 'factoredForm'). The comparators
+ * say why (radicalFormMiss, factoredFormMiss), so the message names the form,
+ * not a bare "Not quite" (walkthrough 2026-10-23, Polynomials and Radicals).
+ */
+const FORM_MISS_CODES = Object.freeze({
+  decimal: 'radical-decimal-not-exact',
+  notation: 'radical-other-notation',
+  notSimplest: 'radical-not-simplest-form',
+  notFullyFactored: 'polynomial-not-fully-factored',
+});
+const multiAnswerFormFindings = ({ question, grading }) => {
+  const parts = partsById(grading);
+  const byCode = new Map();
+  list(question?.answerFields).forEach((field) => {
+    const mode = text(field?.gradingMode).toLowerCase();
+    if (mode !== 'simplestradicalform' && mode !== 'factoredform') return;
+    const part = wrongPart(parts, text(field?.id));
+    if (!part || typeof part.response !== 'string') return;
+    const diagnose = mode === 'factoredform' ? factoredFormMiss : radicalFormMiss;
+    const miss = answerCandidatesForField(field).filter((key) => typeof key === 'string')
+      .map((key) => { try { return diagnose(part.response, key); } catch { return null; } })
+      .find(Boolean);
+    const code = miss ? FORM_MISS_CODES[miss] : null;
+    if (code) byCode.set(code, [...(byCode.get(code) || []), text(field.id)]);
+  });
+  return [...byCode].map(([code, ids]) => finding(code, ids));
 };
 
 const ORDINARY_CLASSIFIERS = {
-  multiAnswer: (input) => [...multiAnswerLineFormFindings(input), ...multiAnswerNotSimplifiedFindings(input)],
+  multiAnswer: (input) => [...multiAnswerLineFormFindings(input), ...multiAnswerNotSimplifiedFindings(input), ...multiAnswerFormFindings(input)],
 };
 
 const sameEndpoint = (a, b) => a === b || near(a, b);

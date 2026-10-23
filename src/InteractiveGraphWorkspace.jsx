@@ -1130,7 +1130,10 @@ export default function InteractiveGraphWorkspace({
       ? tasks.filter((task) => Array.isArray(construction.placements[task.id])).map((task) => ({ label: toPlainMath(task.label), point: construction.placements[task.id] }))
       : [],
     strokeCount: (!construction.snapped || curveAcceptedOwnPoints) ? construction.strokes.length : 0,
-    curveDrawn: Boolean(construction.snapped),
+    // A point-only graph (the student chose "discrete" after drawing a curve)
+    // shows no curve, so it says none: it read "Your curve is drawn through
+    // your points" over separate points (walkthrough 2026-10-22, DOL #3 PR 2).
+    curveDrawn: Boolean(construction.snapped) && !pointOnly,
     markers: construction.snapped
       ? endpointRequirements.map((requirement) => {
         const placement = construction.markerPlacements[requirement.id];

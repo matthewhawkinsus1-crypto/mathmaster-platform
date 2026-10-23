@@ -379,6 +379,8 @@ test('W6-4: Data Modeling shows no error readout where the activity withholds ve
     fit: { type: 'dataModelingLab', mode: 'linearFitPrediction', points, predictionX: 9, prompt: 'Model the data.' },
     compare: { type: 'dataModelingLab', mode: 'modelCompare', points, prompt: 'Choose the best model.' },
     full: { type: 'dataModelingLab', mode: 'full', points, predictionX: 8, prompt: 'Model the data.' },
+    // The Algebra I hand fit says it in words (walkthrough 2026-10-22).
+    lineFit: { type: 'dataModelingLab', mode: 'lineFit', points, predictionX: 8, prompt: 'Fit a line.' },
   };
   await withVite(async (load) => {
     // Inputs a student has typed, so the live readout has numbers to show.
@@ -386,11 +388,12 @@ test('W6-4: Data Modeling shows no error readout where the activity withholds ve
       for (const role of ['practice', 'classwork']) {
         const html = await renderTool(load, '/src/tools/dataModeling/DataModelingLab.jsx', question, runtimeFor(role));
         assert.match(html, /data-model-error-readout/, `${name} ${role}: the readouts stay`);
-        assert.match(words(html), name === 'compare' ? /RMSE [\d.]+ · MAE [\d.]+/ : /Current MAE: /, `${name} ${role}`);
+        assert.match(words(html), { compare: /RMSE [\d.]+ · MAE [\d.]+/, lineFit: /Average distance from your line to the points: [\d.]+/ }[name] || /Current MAE: /, `${name} ${role}`);
+        if (name === 'lineFit') assert.doesNotMatch(words(html), /\bMAE\b|\bRMSE\b/, 'lineFit: no jargon');
       }
       for (const role of ['dol', 'quiz', 'test']) {
         const html = words(await renderTool(load, '/src/tools/dataModeling/DataModelingLab.jsx', question, runtimeFor(role)));
-        assert.doesNotMatch(html, /\bMAE\b|\bRMSE\b/, `${name} ${role}: no error readout`);
+        assert.doesNotMatch(html, /\bMAE\b|\bRMSE\b|Average distance from your line/, `${name} ${role}: no error readout`);
       }
     }
     // Released (feedback shown again, hints still off) is also method-withheld.

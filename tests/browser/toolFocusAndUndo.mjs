@@ -13,9 +13,8 @@
 //           the draft is back and Undo still takes back the last edit; a Check
 //           followed by Undo makes no new attempt.
 //   A11Y-2  Buttons that disable or unmount themselves (Open Sort's placements,
-//           Transformations' Clear, the derivation lab's Apply, the tools' own
-//           Undo/Redo, the work-bar Undo after its last step): after the press
-//           focus is never on <body>.
+//           Transformations' Clear, the derivation lab's Apply, the work-bar
+//           Undo after its last step): after the press focus is never on <body>.
 //   TOOL-1  Function-graph questions by keyboard: see graphKeyboardRoute.mjs.
 //
 // Run one at a time with no edits in flight; exits non-zero on any failure.
@@ -314,42 +313,8 @@ const FOCUS_SCENES = [
       await page.waitForTimeout(300);
     },
   },
-  ...['linearTableWorkbench', 'representationBridge'].map((tool) => ({
-    key: `${tool} Undo/Redo`,
-    tool,
-    run: async (page) => {
-      await editControl(page, 0, '3');
-      const undo = page.locator('.mathmaster-tool-shell button[aria-label="Undo"]').first();
-      await undo.focus();
-      await page.keyboard.press('Enter');
-      await page.waitForTimeout(300);
-      check(!(await focusOnBody(page)), `${tool}: its Undo after the last step keeps focus`);
-      const redo = page.locator('.mathmaster-tool-shell button[aria-label="Redo"]').first();
-      await redo.focus();
-      await page.keyboard.press('Enter');
-      await page.waitForTimeout(300);
-    },
-  })),
-  {
-    key: 'regressionCalculator Undo/Redo',
-    tool: 'regressionCalculator',
-    run: async (page) => {
-      const cell = page.locator('.mathmaster-tool-shell input:visible').first();
-      await cell.click();
-      await page.keyboard.type('4');
-      await cell.blur();
-      await page.waitForTimeout(1200);
-      const undo = page.locator('.regression-toolbar button[aria-label="Undo"]').first();
-      await undo.focus();
-      await page.keyboard.press('Enter');
-      await page.waitForTimeout(300);
-      check(!(await focusOnBody(page)), 'regressionCalculator: its Undo after the last step keeps focus');
-      const redo = page.locator('.regression-toolbar button[aria-label="Redo"]').first();
-      await redo.focus();
-      await page.keyboard.press('Enter');
-      await page.waitForTimeout(300);
-    },
-  },
+  // The tools' own Undo/Redo are gone (owner decision 2026-10-23: one Undo,
+  // the work bar's); its focus after the last step is checked above.
 ];
 for (const scene of FOCUS_SCENES) {
   if (ONLY && ONLY !== scene.tool) continue;
@@ -386,10 +351,9 @@ for (const device of ['desktop', 'phone']) {
     await reset.click();
     await page.waitForTimeout(300);
     check((await ticks()) === before, `${key}: Reset view puts the axes back`);
-    // This tool shows its Undo in its own toolbar (the work bar's is hidden
-    // beside it, RegressionCalculator.css); the same platform history.
-    const toolUndo = page.locator('.regression-toolbar button[aria-label="Undo"]').first();
-    const afterZoom = (await toolUndo.isEnabled()) && (await toolUndo.getAttribute('aria-disabled')) !== 'true' ? 'enabled' : 'disabled';
+    // One Undo, the work bar's (the toolbar has none of its own).
+    check(await page.locator('.regression-toolbar button[aria-label="Undo"]').count() === 0, `${key}: the toolbar has no second Undo`);
+    const afterZoom = await undoState(page);
     check(afterZoom === 'disabled', `${key}: zooming is not an edit: there is nothing to Undo`, afterZoom);
   } catch (error) {
     check(false, `${key}: scene ran`, String(error?.message || error).split('\n')[0]);

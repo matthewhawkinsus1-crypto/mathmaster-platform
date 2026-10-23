@@ -47,6 +47,12 @@ export const MISCONCEPTION_STUDENT_MESSAGES = Object.freeze({
   'line-wrong-form-standard': 'Right line, wrong form: write it as Ax + By = C.',
   // The value is right; the form is not (simplifiedPolynomialForm.mjs).
   'polynomial-not-simplified': 'Equal, but not simplified: multiply out every product and combine like terms.',
+  // The key's value, refused for its form (walkthrough 2026-10-23).
+  'radical-not-simplest-form': 'Equal, but not in simplest form: take every perfect power out of the root, combine like terms, and leave no root in a denominator.',
+  'radical-decimal-not-exact': 'That is a decimal approximation. Give the exact value instead, written the way the question uses: with a radical or with an exponent.',
+  'radical-other-notation': 'Equal, but in the other notation: write it with radicals or with rational exponents, the way the question asks.',
+  'polynomial-not-fully-factored': 'Equal, but not fully factored: take out any common factor first, then check whether each factor can be factored again.',
+  'polynomial-unit-coefficient': 'Equal, but a coefficient of one is never written: leave it out in front of a variable, and keep only the sign.',
   'zeros-sign-reversed': 'Check the signs of your zeros. A zero is the x-value that makes a factor equal 0, so set each factor equal to 0 and solve.',
 });
 

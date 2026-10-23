@@ -58,7 +58,7 @@ credentials were used and nothing was written to production.
 | R-11 | Repeated "Show math tools" | Yes (7 rows; phone keypads left open) | A | Fixed |
 | R-12 | Enter guessing a "primary" button | Yes (8 tools submitted on the first box, **P0**) | A + B | Fixed |
 | R-13 | Reduced-zoom / wide screens | Yes (`#root` is a 1126px column) | A (opt-in) + B | Fixed for multi-column tools |
-| R-14 | Two Undos | Yes (platform Undo always disabled on the board) | B, with a C follow-up | Fixed for graphs; follow-up below |
+| R-14 | Two Undos | Yes (platform Undo always disabled on the board) | B, with a C follow-up | Fixed: one Undo, the work bar's (2026-10-23) |
 
 Found during the pass and fixed:
 
@@ -598,6 +598,28 @@ empties Graph 2 first; the graph's own Undo takes back a drag.
   that graph's key.
 - **Migration:** replace `historyRef` / `editOrderRef` with the hook; keep the
   per-graph buttons as views of the shared stack.
+
+**Resolved (2026-10-23): one Undo, the work bar's.** The owner's rule: one
+universal Undo; a tool keeps its own Clear or Start over. The walkthrough of
+2026-10-22 still found two Undos side by side ("↶ Undo ↷ Redo Start over" in
+the tool, "↶ Undo" in the work bar under it).
+
+- Removed the tools' own Undo/Redo:
+  - Linear Table Workbench;
+  - Representation Bridge;
+  - Regression Calculator (toolbar ↶ ↷; its CSS no longer hides the work
+    bar's Undo);
+  - Expression Meaning;
+  - the process workspace's "Undo step";
+  - each graph's Undo on the representations board;
+  - "Undo placement" in Distribute, now "Clear placements".
+- **Redo is gone.** The work bar never had it.
+- **Restore stays.** The notice after Start over still offers Restore, which
+  walks the same history.
+- **Enlarged graph.** It is a dialog over the work bar, so it shows the same
+  `UniversalUndoButton`: one history, newest change first. The graph-filtered
+  undo (`undoChangeTo`, `undoMathUndoChange`) is removed.
+- **Guard:** `tests/platform/oneUniversalUndo.test.mjs`.
 - **Testing:** the `graphs` and `persistence` journeys, plus a node test that
   a restored entry never contains verdict fields.
 - This touches every card of a board that just shipped, which is why it

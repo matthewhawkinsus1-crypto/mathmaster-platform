@@ -45,6 +45,10 @@ export const SIMPLIFIED_POLYNOMIAL_PROBLEMS = Object.freeze({
   LOWEST_TERMS: 'lowestTerms',
   ZERO_TERM: 'zeroTerm',
   LIKE_TERMS: 'likeTerms',
+  // A coefficient of 1 written out (1x², −1x²): simplified in every other way,
+  // so it is named, not reported as "multiply out and combine like terms"
+  // (walkthrough 2026-10-22, Operations on Polynomials CW 5).
+  UNIT_COEFFICIENT: 'unitCoefficient',
 });
 const P = SIMPLIFIED_POLYNOMIAL_PROBLEMS;
 
@@ -331,7 +335,9 @@ const readTerm = (tokens, leadingSigns = 0) => {
         const sorted = (list) => [...list].sort((a, b) => a - b).join(',');
         const written = sorted(literals);
         const accepted = written === sorted(canonical) || (d !== 1 && n === 1 && written === sorted([...canonical, 1]));
-        if (!accepted) flag(numerator.length > 1 || denominator.length > 1 ? P.PRODUCT : P.LOWEST_TERMS);
+        const unitWritten = unitBeforeLetters && !denominator.length && literals.length === 1 && literals[0] === 1;
+        if (unitWritten) flag(P.UNIT_COEFFICIENT);
+        else if (!accepted) flag(numerator.length > 1 || denominator.length > 1 ? P.PRODUCT : P.LOWEST_TERMS);
       }
     }
   }
@@ -415,6 +421,9 @@ export const readTypedPolynomial = (value, { allowZeroTerms = false } = {}) => {
   const seen = new Set();
   const terms = [];
   let firstProblem = null;
+  // A written 1 is reported only when nothing else is left to do: "1x + 2x"
+  // still has like terms to combine.
+  let unitWritten = false;
   for (const term of split) {
     // A term's own sign: any run of leading signs (a double sign is work left).
     let start = 0;
@@ -431,12 +440,13 @@ export const readTypedPolynomial = (value, { allowZeroTerms = false } = {}) => {
     terms.push({ coefficient: sign * read.coefficient, powers: read.powers, signature: read.signature });
     // A lone 0 is the simplified zero polynomial.
     if (read.problem === P.ZERO_TERM && split.length === 1 && read.signature === '') return { problem: null, terms };
-    if (read.problem && !(allowZeroTerms && read.problem === P.ZERO_TERM)) firstProblem = firstProblem || read.problem;
+    if (read.problem === P.UNIT_COEFFICIENT) unitWritten = true;
+    else if (read.problem && !(allowZeroTerms && read.problem === P.ZERO_TERM)) firstProblem = firstProblem || read.problem;
     if (seen.has(read.signature)) firstProblem = firstProblem || P.LIKE_TERMS;
     seen.add(read.signature);
   }
   if (!firstProblem && typedBracketAroundLetter(raw)) firstProblem = P.GROUPING;
-  return { problem: firstProblem, terms };
+  return { problem: firstProblem || (unitWritten ? P.UNIT_COEFFICIENT : null), terms };
 };
 
 /**

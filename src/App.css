@@ -620,6 +620,14 @@
   border-radius: 6px;
 }
 
+/* A list with numbers or bullets reads from the left. The question area is
+   centred, and a centred item left its marker stranded at the panel's edge
+   (walkthrough 2026-10-23: Solving Radical Equations PR 7, "How to verify").
+   A list that draws no marker, or is styled by its own class, keeps its own. */
+.mathmaster-tool-shell :is(ol, ul):not([class]):not([style*="list-style: none"]) {
+  text-align: start;
+}
+
 /* --- Cancellation sequence (F8) -------------------------------------------
    Four steps, in this order, each saying something different:
      highlight   these are the two terms your line went through

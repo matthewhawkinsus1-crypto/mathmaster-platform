@@ -11,6 +11,7 @@ import { questionAxisLabels } from '../shared/planeAxisTitles.js';
 import MathInput from '../../MathInput.jsx';
 import MathDisplay from '../../MathDisplay.jsx';
 import MathText from '../../components/common/MathText.jsx';
+import UniversalUndoButton from '../../components/common/UniversalUndoButton.jsx';
 import Dialog from '../../ui/Dialog.jsx';
 import { isSingleLineAnswerTarget } from '../../platform/interaction/answerEntryUx.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
@@ -978,16 +979,23 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     ownerId: 'lmr-board',
     persist: true,
   });
-  // A graph's own Undo: the latest change on THAT graph, from the same history.
-  const undoGraph = (key) => {
-    graphUndoSourceRef.current = key;
-    try {
-      return undoHistory.undoChangeTo([graphUndoField(key)]);
-    } finally {
-      graphUndoSourceRef.current = null;
-    }
-  };
-  const canUndo = (key) => undoHistory.canUndoChangeTo([graphUndoField(key)]);
+  // ONE UNDO (owner decision 2026-10-23, R-14 in student-ux-platform-pass): a
+  // graph has no Undo of its own, only Start over. The enlarged graph is a
+  // dialog that covers the work bar, so it shows that same Undo: one history,
+  // the newest change first, wherever it was on the board.
+  const dialogUndo = (key) => ({
+    canUndo: undoHistory.canUndo,
+    label: undoHistory.capability.title,
+    ownerId: 'lmr-board',
+    onUndo: () => {
+      graphUndoSourceRef.current = key;
+      try {
+        undoHistory.undo();
+      } finally {
+        graphUndoSourceRef.current = null;
+      }
+    },
+  });
 
   // Bring what the Undo changed into view — the field, the table or the plane,
   // not the whole card, which can be taller than a laptop screen — in the
@@ -1003,10 +1011,9 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     if (!card) return;
     const target = card.querySelector(`[data-lmr-field="${undoReveal.field}"]`) || card;
     if (!uncoveredOnScreen(target)) target.scrollIntoView?.({ block: 'center', inline: 'nearest' });
-    // A graph's Undo that took back that graph's last step disables itself, and
-    // a disabled button drops keyboard focus to the page — out of the enlarged
-    // graph's dialog altogether. Focus goes to the graph's plane instead, where
-    // the next point is placed.
+    // If focus fell to the page when the enlarged graph's Undo took back the
+    // last step — out of the dialog altogether — it goes to the graph's plane,
+    // where the next point is placed.
     const active = document.activeElement;
     if (undoReveal.fromGraph && (!active || active === document.body || active.matches?.(':disabled'))) {
       target.querySelector?.('svg[role="application"]')?.focus?.({ preventScroll: true });
@@ -1087,9 +1094,6 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
 
   const graphControls = (graph) => (
     <>
-      <button type="button" onClick={() => undoGraph(graph.key)} disabled={!canUndo(graph.key)} style={touchButton} aria-label={`Undo on ${graph.title}`}>
-        ↶ Undo
-      </button>
       <button type="button" onClick={() => clearGraph(graph.key)} disabled={!(graphPointsByKey[graph.key] || []).length} style={touchButton} aria-label={`Start ${graph.title} over`}>
         Start over
       </button>
@@ -1947,6 +1951,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                 <p style={muted}>{graphStatus(graph)}</p>
                 {graphReuse(graph)}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <UniversalUndoButton controller={dialogUndo(graph.key)} style={touchButton} />
                   {graphControls(graph)}
                   {canCheck ? (
                     <button type="button" data-card-check="true" onClick={() => runCheck(graph.cardId)} style={primaryButton} aria-label={`Check ${graph.title}`}>

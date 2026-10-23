@@ -6,6 +6,7 @@ import { evaluateModelAt } from './modelExpression';
 import { workflowEndpointMarkers } from './workflowGraphVisuals.js';
 import {
   buildFigureMatchResponse,
+  figureEquationLines,
   figureLabel,
   matchCategories,
   matchItems,
@@ -191,8 +192,8 @@ export default function FigureMatchStage({ stage, value, onChange, disabled = fa
               <p style={heading}>{label}{wrong.has(index) ? <span style={{ marginLeft: 8, color: 'var(--mm-danger)', textTransform: 'none', letterSpacing: 0 }}>· not in the right category yet</span> : null}</p>
               {item.graph ? <FigureGraph graph={item.graph} label={label} /> : null}
               {item.math ? (
-                <div style={{ fontSize: 'calc(18 * var(--mm-px))', padding: '10px 0' }}>
-                  <MathDisplay value={String(item.math)} />
+                <div style={{ fontSize: 'calc(18 * var(--mm-px))', padding: '10px 0', display: 'grid', gap: 4 }}>
+                  {figureEquationLines(item.math).map((line, lineIndex) => <MathDisplay key={lineIndex} value={line} />)}
                 </div>
               ) : null}
               {item.text ? <p style={{ margin: 0, fontSize: 'calc(15 * var(--mm-px))' }}>{String(item.text)}</p> : null}

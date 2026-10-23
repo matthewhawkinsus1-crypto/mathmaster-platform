@@ -1477,7 +1477,7 @@ export default function WorkflowRunner({
         <span className="workflow-focus__family">{stageFamilyLabel(activeStage?.kind)}</span>
         {activeReviewStatus === 'correct' ? <span className="workflow-focus__review-status workflow-focus__review-status--correct">✓ Checked correct</span> : null}
         {activeReviewStatus === 'incorrect' ? <span className="workflow-focus__review-status workflow-focus__review-status--incorrect">! Needs revision</span> : null}
-        {activeReviewStatus === 'changed' ? <span className="workflow-focus__review-status workflow-focus__review-status--changed">↻ Edited — check again</span> : null}
+        {activeReviewStatus === 'changed' ? <span className="workflow-focus__review-status workflow-focus__review-status--changed">{reviewByStageId.get(activeStage?.id)?.upstreamChanged ? '↻ An earlier step changed — check again' : '↻ Edited — check again'}</span> : null}
       </div>
       <span className="workflow-focus__counter">{safeActiveIndex + 1} of {stepsToShow}</span>
     </div>
@@ -1510,7 +1510,7 @@ export default function WorkflowRunner({
             : reviewStatus === 'incorrect'
               ? ', needs revision'
               : reviewStatus === 'changed'
-                ? ', edited since last check'
+                ? (reviewByStageId.get(stage.id)?.upstreamChanged ? ', an earlier step changed since the last check' : ', edited since last check')
                 : answered
                   ? ', answered, not checked'
                   : '';

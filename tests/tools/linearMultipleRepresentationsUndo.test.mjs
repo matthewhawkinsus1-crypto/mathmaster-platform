@@ -31,7 +31,6 @@ import {
   EMPTY_MATH_UNDO_STACK,
   mathematicalSnapshot,
   recordMathUndoEntry,
-  undoMathUndoChange,
   undoMathUndoEntry,
 } from '../../src/platform/workView/mathUndoStack.js';
 import { boundUndoEntries } from '../../src/platform/workView/persistedMathUndo.js';
@@ -192,7 +191,7 @@ test('the history a refresh keeps for a full board stays local-sized and would p
   assert.ok(sanitized.bytes < MAX_WORKSPACE_DRAFT_VALUE_BYTES, `${sanitized.bytes} bytes`);
 });
 
-test('the graph\'s Undo on a real board session keeps the later typing and the other graphs', () => {
+test('the one Undo on a real board session walks back the newest change first, wherever it was', () => {
   const states = [emptyBoard()];
   const step = (patch) => states.push({ ...states.at(-1), ...patch });
   step({ graph1Points: [[6, 0]] });
@@ -204,9 +203,14 @@ test('the graph\'s Undo on a real board session keeps the later typing and the o
   states.forEach((state, index) => {
     if (index) stack = recordMathUndoEntry(stack, boardUndoState(states[index - 1]), boardUndoState(state), { now: 10_000 * index });
   });
-  const result = undoMathUndoChange(stack, boardUndoState(states.at(-1)), [graphUndoField('graph2')]);
-  assert.deepEqual(changedBoardFields(boardUndoState(states.at(-1)), result.restored), ['graph2Points']);
-  assert.deepEqual(result.restored.graph2Points, [[0, -3]]);
-  assert.equal(result.restored.featureXIntercept, '(6,0)', 'the x-intercept typed after it stays');
-  assert.deepEqual(result.restored.graph1Points, [[6, 0]], 'the other graph is untouched');
+  // A graph has no Undo of its own (owner decision 2026-10-23): the work bar's
+  // Undo, also shown in the enlarged graph, takes back the x-intercept typed
+  // last, then Graph 2's second point.
+  const first = undoMathUndoEntry(stack);
+  assert.deepEqual(changedBoardFields(boardUndoState(states.at(-1)), first.restored), ['featureXIntercept']);
+  const second = undoMathUndoEntry(first.stack);
+  assert.deepEqual(changedBoardFields(first.restored, second.restored), [graphUndoField('graph2')]);
+  assert.deepEqual(second.restored.graph2Points, [[0, -3]]);
+  assert.equal(second.restored.featureSlope, '1/2', 'the slope typed before it stays');
+  assert.deepEqual(second.restored.graph1Points, [[6, 0]], 'the other graph is untouched');
 });

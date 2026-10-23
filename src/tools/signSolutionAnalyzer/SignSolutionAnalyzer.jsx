@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
-import { useRevealAnswers, SubmitText } from '../shared/ToolRuntimeContext';
+import { useMethodWithheld, useRevealAnswers, SubmitText } from '../shared/ToolRuntimeContext';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import useFieldUndoHistory from '../shared/useFieldUndoHistory.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
@@ -18,6 +18,7 @@ import {
   validRadicalCandidates,
 } from './signSolutionMath';
 import { linearReadout, radicalEquationReadout, radicalReadout, raiseBothSidesText } from './radicalSolveReadout.js';
+import { radicalSolveMissMessage } from './radicalSolveFeedback.js';
 
 const RELATION_SYMBOLS = { '>': '>', '<': '<', '>=': '≥', '<=': '≤' };
 const relationSymbol = (relation) => RELATION_SYMBOLS[relation] || relation;
@@ -155,7 +156,9 @@ function RadicalCheck({ questionData, feedback, submit, onAction }) {
     submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'radicalCheck', parts: result.parts });
   };
 
-  const equationText = `√(${spec.radicand?.m ?? 1}x ${Number(spec.radicand?.b ?? 0) >= 0 ? '+' : '−'} ${Math.abs(Number(spec.radicand?.b ?? 0))}) = ${spec.rhs?.m ?? 0}x ${Number(spec.rhs?.b ?? 0) >= 0 ? '+' : '−'} ${Math.abs(Number(spec.rhs?.b ?? 0))}`;
+  // As on paper: "√(3x + 4) = x", never "= 1x + 0" (walkthrough 2026-10-23,
+  // Solving Radical Equations PR 7).
+  const equationText = `√(${linearReadout(spec.radicand?.m ?? 1, spec.radicand?.b ?? 0)}) = ${linearReadout(spec.rhs?.m ?? 0, spec.rhs?.b ?? 0)}`;
 
   const message = () => {
     if (feedback.isCorrect) return expected.length ? 'Correct — only the values that survive substitution are real solutions.' : 'Correct — every candidate is extraneous, so this equation has no solution.';
@@ -230,6 +233,7 @@ const stageMathStyle = { fontWeight:800, whiteSpace:'nowrap' };
  * answer typed from a calculator earns only its own part.
  */
 function RadicalSolve({ questionData, feedback, submit, onAction }) {
+  const methodWithheld = useMethodWithheld();
   const spec = questionData.radicalEquation || RADICAL_SOLVE_DEFAULT;
   const notation = spec.notation === 'exponent' ? 'exponent' : 'radical';
   // The equation on screen. A spec this view cannot solve by hand shows a
@@ -357,9 +361,11 @@ function RadicalSolve({ questionData, feedback, submit, onAction }) {
         </label>
         <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check my solution</SubmitText></button>
         {feedback ? <div style={{ marginTop:14 }}>
-          <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct — every step, and every candidate checked.' : 'Not yet — fix the steps marked below.'}</ResultPill>
-          {!feedback.isCorrect && stageParts.length ? <ul style={{ margin:'10px 0 0', paddingLeft:20, lineHeight:1.7 }}>
-            {stageParts.map((part) => <li key={part.id}>{part.isCorrect ? '✓' : '✗'} {part.label}</li>)}
+          <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct — every step, and every candidate checked.' : radicalSolveMissMessage({ parts: stageParts, variable, methodWithheld })}</ResultPill>
+          {/* ✓ and ✗ are the markers: no bullets, and read left to right
+              like the steps (the panel centres its text). */}
+          {!feedback.isCorrect && stageParts.length ? <ul style={{ margin:'10px 0 0', padding:0, listStyle:'none', textAlign:'left', lineHeight:1.7 }}>
+            {stageParts.map((part) => <li key={part.id}><span aria-hidden="true">{part.isCorrect ? '✓' : '✗'}</span> {part.label}<span className="mm-sr-only">{part.isCorrect ? ': right' : ': not yet'}</span></li>)}
           </ul> : null}
         </div> : null}
         <HintPanel

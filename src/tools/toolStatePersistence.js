@@ -42,7 +42,6 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
     addMenuOpen: 'Add menu open/closed.',
     collapsed: 'Whether the list is collapsed.',
     notice: 'Transient status line, regenerated from the action that raised it.',
-    redoDepth: 'Mirror of the redo stack depth, for enabling a button.',
   }),
   inverseCompositionLab: entry([
     'inverseComposition/InverseCompositionLabRouter.jsx',
@@ -93,7 +92,9 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
     viewAnnouncement: 'The polite live-region text after a keyboard rotation of the three-plane model ("view turned …"). A viewing angle spoken aloud, not an answer (job H, T2).',
   }),
   parabolaGeometryLab: entry(['parabolaGeometry/ParabolaGeometryLab.jsx']),
-  polynomialWorkshop: entry(['polynomialWorkshop/PolynomialWorkshop.jsx']),
+  polynomialWorkshop: entry(['polynomialWorkshop/PolynomialWorkshop.jsx'], {
+    missMessage: 'Which step the last wrong synthetic-division check names, worked out from the grader\'s parts. Feedback text, not an answer.',
+  }),
   signSolutionAnalyzer: entry(['signSolutionAnalyzer/SignSolutionAnalyzer.jsx']),
   sequenceExplorer: entry(['sequenceExplorer/SequenceExplorer.jsx'], {
     plotMessage: 'Why a click was not a valid term position. Error text.',
@@ -144,7 +145,6 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
     selectedRows: 'Which rows are currently picked up before a comparison is recorded. Selection, not committed evidence.',
     editingEvidenceIndex: 'Which already-recorded interval is open in the edit controls. Editor selection only; the committed evidence stays draft-backed until Save changes.',
     notice: 'Transient status line, regenerated from the action that raised it.',
-    redoDepth: 'Mirror of the redo stack depth, for enabling a button.',
   }),
   expressionMeaning: entry(['expressionMeaning/ExpressionMeaning.jsx'], {
     activeId: "Which expression's meaning row is open for editing. Selection, not an answer.",
@@ -167,7 +167,6 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
     activeHighlight: 'Which concept (rate/start/zero) is emphasized across every panel. UI emphasis, not an answer, and does not need to persist.',
     activeMeaningRow: 'Which meaning row (m/b/c) is open for editing. Selection, not an answer.',
     notice: 'Transient status line, regenerated from the action that raised it.',
-    redoDepth: 'Mirror of the redo stack depth, for enabling a button.',
     enlargedGraph: 'Which graph is currently open in modal enlarged view.',
     confirmSubmit: 'Whether the "some parts are still empty" confirmation is showing. A prompt, not work.',
     undoReveal: 'Which card the last Undo changed, so the board can bring it into view and outline it. Presentation of a change the shared Undo history already made; the history itself is useMathUndoHistory\'s.',

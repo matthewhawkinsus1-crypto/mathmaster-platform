@@ -33,28 +33,36 @@ const input = { width: '100%', boxSizing: 'border-box', minHeight: 42, padding: 
 const functionFor = (spec) => (x) => evaluateFunctionSpec(spec || {}, x);
 const pointPair = (point) => readGraphPointCoordinates(point) || [Number.NaN, Number.NaN];
 
-const previewLayers = (spec = {}) => {
+// A circle or a sideways parabola is ONE relation, drawn as one curve in one
+// style. Passed as two functions, the plane drew the upper branch solid blue and
+// the lower dashed red — two relations, or a part left out — and gave away the
+// "two outputs" idea the card is sorted on (walkthrough 2026-10-22, DOL #3 PR 12).
+const SAME_CURVE = { stroke: '#1a73e8', strokeWidth: 3 };
+const previewLayers = (spec = {}, bounds = {}) => {
   const type = spec.type || 'linear';
   if (type === 'verticalLine') return { functions: [], verticalLines: [Number(spec.x ?? spec.verticalX ?? 0)] };
   if (type === 'circle') {
     const h = Number(spec.h ?? 0);
     const k = Number(spec.k ?? 0);
     const radius = Math.max(0.1, Number(spec.radius ?? spec.r ?? 3));
-    const branch = (sign) => (x) => {
-      const inside = radius ** 2 - (Number(x) - h) ** 2;
-      return inside < 0 ? Number.NaN : k + sign * Math.sqrt(inside);
-    };
-    return { functions: [branch(1), branch(-1)], verticalLines: [] };
+    const points = Array.from({ length: 121 }, (_, index) => {
+      const angle = (index / 120) * 2 * Math.PI;
+      return [h + radius * Math.cos(angle), k + radius * Math.sin(angle)];
+    });
+    return { functions: [], verticalLines: [], polylines: [{ points, ...SAME_CURVE }] };
   }
   if (type === 'sidewaysParabola') {
     const a = Number(spec.a ?? 1);
     const h = Number(spec.h ?? 0);
     const k = Number(spec.k ?? 0);
-    const branch = (sign) => (x) => {
-      const inside = (Number(x) - h) / a;
-      return inside < 0 ? Number.NaN : k + sign * Math.sqrt(inside);
-    };
-    return { functions: [branch(1), branch(-1)], verticalLines: [] };
+    // x = a(y − k)² + h, traced along y across the visible window.
+    const yMin = Number(bounds.yMin ?? -6);
+    const yMax = Number(bounds.yMax ?? 6);
+    const points = Array.from({ length: 121 }, (_, index) => {
+      const y = yMin + ((yMax - yMin) * index) / 120;
+      return [a * (y - k) ** 2 + h, y];
+    });
+    return { functions: [], verticalLines: [], polylines: [{ points, ...SAME_CURVE }] };
   }
   return { functions: [functionFor(spec)], verticalLines: [] };
 };
@@ -89,7 +97,7 @@ const SortItemPreview = ({ item }) => {
   }
   if (item?.graphSpec) {
     const bounds = item.graph || item.graphBounds || { xMin: -6, xMax: 6, yMin: -6, yMax: 6 };
-    const layers = previewLayers(item.graphSpec);
+    const layers = previewLayers(item.graphSpec, bounds);
     return (
       <div style={{ maxWidth: 220, margin: '4px auto 0' }}>
         <CoordinatePlane
@@ -98,9 +106,13 @@ const SortItemPreview = ({ item }) => {
           enlargeable={false}
           width={300}
           height={220}
+          // A circle drawn with unequal units is an ellipse (walkthrough
+          // 2026-10-23, DOL #3 Review Q12, Card E): one unit is one unit both ways.
+          equalUnits={item.graphSpec?.type === 'circle'}
           xMin={Number(bounds.xMin ?? -6)} xMax={Number(bounds.xMax ?? 6)}
           yMin={Number(bounds.yMin ?? -6)} yMax={Number(bounds.yMax ?? 6)}
           functions={layers.functions}
+          polylines={layers.polylines || []}
           verticalLines={layers.verticalLines}
           ariaLabel={item.ariaLabel || `Graph ${item.label || item.id}`}
         />
@@ -127,6 +139,10 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
   // What the board asks for — shared with the grader, so the Check gate below
   // and the completeness the server records are one definition.
   const settings = openSortSettings(questionData);
+  // How many sorts the item accepts, where the delivered question still says
+  // (a server-graded copy may not). "Multiple valid sorts" stood on items with
+  // exactly one (walkthrough 2026-10-22, DOL #3 PR 10).
+  const authoredSortCount = Array.isArray(questionData.validSchemes) ? questionData.validSchemes.length : 0;
   const { controlled, categories, minGroups, maxGroups, rationaleMinLength, requireRationale } = settings;
   const [groups, setGroups] = usePersistentToolState('groups', () => (
     controlled
@@ -274,13 +290,31 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
     );
   };
 
+  // A PLACED CARD STILL SHOWS WHAT IT SAYS. It collapsed to "Card C ↩", so a
+  // student checking their groups could not see the table, graph or sentence
+  // being judged without taking the card out (walkthrough 2026-10-22, DOL #3
+  // PR 10 and PR 12). It keeps its preview; Move puts it back.
+  const placedCard = ({ id, group, groupIndex, controlled: inFixedCategory }) => {
+    const item = itemById(id);
+    const card = cardName(item, id);
+    return (
+      <div key={id} data-placed-card={id} style={{ flex: '1 1 170px', minWidth: 0, border: '1px solid var(--mm-primary-border)', borderRadius: 10, padding: 8, background: 'var(--mm-primary-subtle)' }}>
+        <strong style={{ display: 'block', marginBottom: 4, color: 'var(--mm-primary-text)' }}>{card}</strong>
+        {item ? <SortItemPreview item={item} /> : null}
+        <button type="button" onClick={() => returnItem(id)} aria-label={placedCardName({ card, group, index: groupIndex, controlled: inFixedCategory })} title="Select to move this card again" style={{ ...button, minHeight: 44, marginTop: 6, padding: '6px 10px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)' }}>
+          Move <span aria-hidden="true">↩</span>
+        </button>
+      </div>
+    );
+  };
+
   return (
     <ToolShell
       title={controlled ? 'Controlled Sort' : 'Open Sort Board'}
       subtitle={controlled
         ? 'Every card belongs in one teacher-defined category. Place each card, then check the complete sort.'
         : 'There can be more than one mathematically valid way to organize the same graphs. Build a defensible partition, then explain your thinking.'}
-      badge={controlled ? 'Fixed categories' : 'Multiple valid sorts'}
+      badge={controlled ? 'Fixed categories' : authoredSortCount > 1 ? 'Multiple valid sorts' : 'Make your own groups'}
     >
       <TaskCard
         question={questionData}
@@ -297,7 +331,9 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
           'Select a card, then select a group to place it there.',
           'Create another group if your sorting idea needs one.',
           'Name each group and explain the mathematical characteristic you used.',
-          'Submit your sort when it is finished. MathMaster accepts any partition that matches one of the mathematically valid sorting schemes authored for this task.',
+          authoredSortCount > 1
+            ? 'Submit your sort when it is finished. More than one way of grouping can be right, as long as every card in a group shares the feature you named.'
+            : 'Submit your sort when it is finished: every card in a group should share the feature you named.',
         ]}
         note={controlled ? 'The categories are fixed, so the automatic grade checks the exact mathematical classification.' : 'Your explanations are saved for your teacher. The automatic grade checks the mathematics of the grouping; it does not pretend to judge the quality of your prose.'}
       />
@@ -342,21 +378,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
               <div key={group.id} data-sort-group={group.id}>
                 <Panel title={group.name}>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', minHeight: 52 }}>
-                    {group.itemIds.map((id) => {
-                      const card = cardName(itemById(id), id);
-                      return (
-                        <button
-                          type="button"
-                          key={id}
-                          onClick={() => returnItem(id)}
-                          aria-label={placedCardName({ card, group, index: groupIndex, controlled: true })}
-                          title="Select to move this card again"
-                          style={{ ...button, minHeight: 40, background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' }}
-                        >
-                          {card} <span aria-hidden="true">↩</span>
-                        </button>
-                      );
-                    })}
+                    {group.itemIds.map((id) => placedCard({ id, group, groupIndex, controlled: true }))}
                     {!group.itemIds.length && <span style={{ color: 'var(--mm-text-subtle)', alignSelf: 'center' }}>No cards here yet.</span>}
                   </div>
                 </Panel>
@@ -393,16 +415,13 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
                     {groups.length > minGroups && <button type="button" onClick={() => removeGroup(group.id)} aria-label={removeGroupName(group, groupIndex)} style={{ ...button, color: 'var(--mm-error-text)' }}>Remove group</button>}
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', minHeight: 52, padding: 9, borderRadius: 9, border: '1px dashed var(--mm-primary-border)', background: 'var(--mm-surface)' }}>
-                    {group.itemIds.map((id) => {
-                      const card = cardName(itemById(id), id);
-                      return <button type="button" key={id} onClick={() => returnItem(id)} aria-label={placedCardName({ card, group, index: groupIndex })} title="Select to move this card again" style={{ ...button, minHeight: 44, padding: '6px 9px', background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' }}>{card} <span aria-hidden="true">↩</span></button>;
-                    })}
+                    {group.itemIds.map((id) => placedCard({ id, group, groupIndex, controlled: false }))}
                     {!group.itemIds.length && <span style={{ color: 'var(--mm-text-subtle)', alignSelf: 'center' }}>No cards in this group yet.</span>}
                   </div>
                   {requireRationale && (
                     <label style={{ display: 'block', marginTop: 10, fontWeight: 800, color: 'var(--mm-text)' }}>
                       Why do these belong together?
-                      <textarea value={group.rationale} onChange={(event) => updateGroup(group.id, { rationale: event.target.value })} aria-label={rationaleInputLabel(group, groupIndex)} placeholder="Describe the graph characteristic you used." rows={2} style={{ ...input, minHeight: 72, resize: 'vertical' }} />
+                      <textarea value={group.rationale} onChange={(event) => updateGroup(group.id, { rationale: event.target.value })} aria-label={rationaleInputLabel(group, groupIndex)} placeholder="Describe the feature every card in this group shares." rows={2} style={{ ...input, fontFamily: 'inherit', minHeight: 72, resize: 'vertical' }} />
                       <span style={{ display: 'block', marginTop: 4, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{Math.min(group.rationale.trim().length, rationaleMinLength)}/{rationaleMinLength} characters needed before checking</span>
                     </label>
                   )}
@@ -418,7 +437,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
       <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <button type="button" data-work-view-check="true" onClick={check} disabled={!ready} style={{ ...button, background: ready ? '#1a73e8' : '#dadce0', color: ready ? '#fff' : 'var(--mm-text-muted)', border: 0, minHeight: 46 }}><SubmitText>Check my sort</SubmitText></button>
         {!ready && <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{unassigned.length ? `Place ${unassigned.length} remaining card${unassigned.length === 1 ? '' : 's'}.` : usedGroups.length < minGroups ? `Use at least ${minGroups} groups.` : !namesComplete ? 'Give each used group a short mathematical name.' : !rationaleComplete ? 'Finish the explanation for each used group.' : 'Finish the sort.'}</span>}
-        {feedback && <ResultPill ok={feedback.isCorrect} message={feedback.isCorrect ? null : (controlled ? 'At least one card is in the wrong category. Recheck the defining feature of each fixed category, move any card you want to change, and try again.' : 'Your cards do not yet form one of the valid mathematical partitions for this set. Look for a characteristic that is true for every card inside a group and meaningfully separates it from the other groups.')}>{feedback.isCorrect ? (controlled ? 'Correct classification' : 'Valid mathematical sort') : (controlled ? 'Some cards need to move' : 'Revise the grouping')}</ResultPill>}
+        {feedback && <ResultPill ok={feedback.isCorrect} message={feedback.isCorrect ? null : (controlled ? 'At least one card is in the wrong category. Recheck the defining feature of each fixed category, move any card you want to change, and try again.' : 'Not every group holds together yet. A group needs one feature that every card in it has and the cards in your other groups do not. Check each card against its group\'s name.')}>{feedback.isCorrect ? (controlled ? 'Correct classification' : 'Valid mathematical sort') : (controlled ? 'Some cards need to move' : 'Revise the grouping')}</ResultPill>}
       </div>
       <HintPanel hints={questionData.hints || (controlled ? [
         'Use the category definitions as tests. A card should satisfy exactly one of them.',

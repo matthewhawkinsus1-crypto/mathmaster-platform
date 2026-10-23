@@ -464,7 +464,9 @@ const bridgeWork = async (page, studentId) => page.evaluate(([student, assignmen
   const raw = window.localStorage.getItem(`mathmaster:draft:v2::${student}:${assignment}:2:0:student:work:tool`);
   return raw ? JSON.parse(raw).value : null;
 }, [studentId, ASSIGNMENT]);
-const processOpen = (page) => page.evaluate(() => /Undo step/.test(document.querySelector('.mathmaster-question-stage')?.innerText || ''));
+// The process workspace's own way out (its "Undo step" button is gone: the
+// work bar owns Undo, owner decision 2026-10-23).
+const processOpen = (page) => page.evaluate(() => /Back to board/.test(document.querySelector('.mathmaster-question-stage')?.innerText || ''));
 
 const journeyBridge = async () => {
   console.log('\n== bridge: the Linear Multiple Representations board (Process Mode) through the same close/reopen');
