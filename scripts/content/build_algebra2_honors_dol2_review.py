@@ -726,7 +726,7 @@ practice = [
         ),
         'questionFamily': fam(),
         'generator': gen(
-            {'a': choice(1, 2, 3), 'h': ints(-4, 4, [0]), 'd': ints(1, 3)},
+            {'a': choice(1, 2, 3), 'h': ints(-5, 5, [0]), 'd': ints(1, 4)},
             {'k': '-a*d', 'x1': 'h - d', 'x2': 'h + d', 'yint': 'a*abs(h) - a*d',
              'xmin': 'min(h - 6, -2)', 'xmax': 'max(h + 6, 2)', 'ymin': '-a*d - 2', 'ymax': 'max(a*abs(h) - a*d, 4) + 2'},
             ['abs(h) != d', 'h != -a*d'],
@@ -1100,9 +1100,9 @@ practice = [
         ),
         'questionFamily': fam(),
         'generator': gen(
-            {'x': ints(15, 34), 'm': choice(2, 3)},
+            {'x': ints(10, 40), 'm': choice(2, 3, 4, 5)},
             {'y': 'm*x', 'z': '180 - x - m*x', 'c': '180 - 2*x - m*x', 'm2': 'm + 2', 'rest': '2*x + m*x'},
-            ['180 - 2*x - m*x >= 5'],
+            ['180 - 2*x - m*x >= 5', '180 - 2*x - m*x <= 120'],
         ),
     },
     {
@@ -1189,13 +1189,14 @@ practice = [
         ),
         'questionFamily': fam(),
         'generator': gen(
-            {'m': choice(2, 3), 'good': ints(2, 9), 'p': ints(-6, 6, [0]), 'bad': ints(-6, 6)},
-            {'q': 'good + p - m*good', 'gv': 'good + p', 'bv': 'm*bad + good + p - m*good'},
+            {'m': choice(2, 3), 'good': ints(2, 10), 'p': ints(-8, 8, [0])},
+            {'q': 'good + p - m*good', 'bad': '-(p + q)/(m + 1)', 'gv': 'good + p', 'bv': 'm*bad + q'},
             # Case 1 is x + p = m x + q, so x = (p - q)/(m - 1) = good when q = good + p - m good.
-            # Case 2 is x + p = -(m x + q), so x = -(p + q)/(m + 1); the template pins it to `bad`
-            # and requires it to be extraneous (right side negative) and distinct from `good`.
-            ['good + p > 0', 'bad != good', '-(p + good + p - m*good) == (m + 1)*bad',
-             'm*bad + good + p - m*good < 0', 'good + p - m*good != 0'],
+            # Case 2 is x + p = -(m x + q), so x = -(p + q)/(m + 1) = bad, kept only when it is
+            # a whole number, extraneous (right side negative there) and distinct from `good`.
+            # Deriving `bad` keeps every drawn (m, good, p) in play: Pre-Flight counts the
+            # versions exactly instead of estimating them from a sparse space.
+            ['good + p > 0', 'q != 0', '(p + q) % (m + 1) == 0', 'bad != good', 'bv < 0', 'abs(bad) <= 10'],
         ),
     },
 ]
@@ -1298,7 +1299,7 @@ dol = [
         ),
         'questionFamily': fam(),
         'generator': gen(
-            {'V': choice(350, 400, 450, 500, 600, 750, 1000), 't': choice(2, 3, 4, 5, 6, 8, 10)},
+            {'V': choice(250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800, 1000), 't': choice(2, 3, 4, 5, 6, 8, 10)},
             {'lo': 'V - t', 'hi': 'V + t'},
         ),
     },

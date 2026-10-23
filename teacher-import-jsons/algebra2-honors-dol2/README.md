@@ -4,7 +4,7 @@
 
 ## Before importing: deploy Hosting
 
-This branch changes how the teacher import reads a Question Family key such as `{{k}}` (`src/assignmentBlueprint.js`, `src/platform/contract/authoringIntentV5Core.js`). On the build that is live now, 17 of this review's answer boxes, three of them in the DOL readiness check, import as set boxes, and students get the set keypad for a single number. Deploy Hosting with this change before importing. It is a frontend change only, with no Functions or rules:
+The teacher import reads a Question Family key such as `{{k}}` as a number, not a set (`src/assignmentBlueprint.js`, `src/platform/contract/authoringIntentV5Core.js`, on main since commit f0b49bcb). On a build without that change, 17 of this review's answer boxes, three of them in the DOL readiness check, import as set boxes, and students get the set keypad for a single number. Deploy Hosting from a clean checkout of current main after its CI has passed (AGENTS.md, Deploy). It is a frontend change only, with no Functions or rules:
 
 ```bash
 npm run build
@@ -14,15 +14,25 @@ FIREBASE_HOSTING_UPLOAD_CONCURRENCY=4 npm run deploy:hosting
 
 Or plan it with `node scripts/release-firebase.mjs`. Never use a raw `firebase deploy --only hosting`.
 
+## Standard and Honors versions
+
+One import serves both. Honors comes from the class, not the file: a class whose course level is Honors in MathMaster gets the Honors version.
+
+- **Give it to Honors classes.** In Review, the Classes step lists the Standard and Honors destinations. For the Honors version it says **"✓ Honors version checked. It already contains audited CCMR Practice that passes MathMaster's checks."** All six Honors checks pass: core TEKS, higher-order reasoning, multiple representations, explanation and justification (the Matrix Lab error analysis), modeling and application, and authentic CCMR Practice. Review is ready to create.
+- **Give it to Standard and Honors classes together.** Create writes one Standard and one Honors assignment in one variant group, each with all 40 questions. The Honors copy records that its CCMR is ready. The preview's **Standard version / Honors version** switch shows each one.
+- **The versions match on purpose.** The platform's usual Honors version replaces about 15% of Practice with audited exam-style items picked from the bank. For this review, Practice 11–13 are three audited Digital SAT items on the blueprint's own standards (A2.2A, A2.6E, A2.6F). That is 3 of 18 Practice items, so nothing has to be swapped. Without them, the bank fills the slots with items such as an ACT linear equation, a(x − b) = c, which is not on DOL #2.
+- **Any class size up to 70.** Every Practice and DOL item has at least 70 versions, so Review reports no shared questions for a roster of up to 70 in either version.
+
+No built-in "Add built-in Honors extension (no AI)" recipe exists yet for these Algebra II concepts (`docs/honors/DETERMINISTIC_HONORS_COVERAGE.md`), so Review explains that it adds none. The Honors version does not need one.
+
 ## Teacher setup
 
-1. **Import JSON** and choose the class. Pre-Flight shows the assignment ready, with no errors or warnings.
-2. For an Honors class, Pre-Flight builds the Honors version. Practice 11–13 are audited Digital SAT items on the blueprint's standards, so they already meet the 15% CCMR share and every authored item is kept.
-3. Suggested flow:
+1. **Import JSON** and choose the classes. Pre-Flight shows the assignment ready, with no errors or warnings.
+2. Suggested flow:
    - Warm-Up and Classwork together in class (everyone gets the same version, for discussion).
    - Practice independently. Each student gets their own numbers, and **Request New Question** deals a fresh version.
    - The DOL readiness check last. It allows one attempt with no hints, and feedback comes after submitting.
-4. Warm-Up and DOL Recovery are ready. Each of their questions generates fresh, server-graded versions from its own Question Family. Pre-Flight states the current rules: DOL Recovery opens after 7 of the last 8 Practice questions are correct and counts up to 90%, and Warm-Up Recovery counts up to 85%.
+3. Warm-Up and DOL Recovery are ready in both versions. Each of their questions generates fresh, server-graded versions from its own Question Family. Pre-Flight states the current rules: DOL Recovery opens after 7 of the last 8 Practice questions are correct and counts up to 90%, and Warm-Up Recovery counts up to 85%.
 
 ## What is in it
 
@@ -47,9 +57,10 @@ Warm-Up 1–4 cover A2.2A, A2.6C, A2.6E and A2.3A. The blueprint strikes √x, 1
 
 ## Verification
 
-- Pre-Flight: valid, with 0 errors and 0 warnings. Warm-Up and DOL Recovery are ready. The Honors candidate is READY: all four depth checks pass, 3 of 3 CCMR items are in place, and nothing is replaced.
-- Before release, every generated version (over 443,000 across 29 families) was checked against mathematics computed independently of its template.
-- `tests/platform/algebra2HonorsDol2Review.test.mjs` re-checks sampled versions of every family on each run. It also checks blueprint coverage, struck content, tools per standard, the Matrix Lab error-analysis item, and Honors and Recovery readiness.
+- Pre-Flight: valid, with 0 errors and 0 warnings. Warm-Up and DOL Recovery are ready. The Honors version is READY: all depth checks pass, 3 of 3 CCMR items are in place, and nothing is replaced.
+- Before release, every generated version (443,378 across 29 families) was checked against mathematics computed independently of its template.
+- `tests/platform/algebra2HonorsDol2Review.test.mjs` re-checks sampled versions of every family on each run. It also checks blueprint coverage, struck content, tools per standard, the Matrix Lab error-analysis item, both versions with no warnings for a class of 70, and Honors and Recovery readiness.
+- `tests/browser/teacherWorkflow/dol2ReviewHonorsJourneys.mjs` runs Review and Create in the real app for a Standard and an Honors Algebra II class, on desktop, Chromebook and phone, with the bank answered by the server's own code.
 - The import fix is covered by `tests/platform/teacherImportTemplateKeyFields.test.mjs`.
 
 ## Regenerating
