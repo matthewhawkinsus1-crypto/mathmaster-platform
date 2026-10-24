@@ -79,7 +79,6 @@ export const StudentSecureExamDashboard = ({ studentProfile, onOpenCourseTest = 
         const own = (testCycles || []).find((entry) => entry.assignment?.id === assignment.id) || {};
         return assignedTestCycleRow({
           card: looks[index].value, assignment, dueAt: own.dueAt || null, lateDueAt: own.lateDueAt || null,
-          classLateDueAt: assignment.lateDueAt || assignment.lateDueDate || null,
         });
       }).filter(Boolean));
     } catch (loadError) { if (current()) setError(loadError.message || 'Could not load your tests.'); }

@@ -101,7 +101,7 @@ test('the card describes the sitting that is actually ahead, and the dates that 
   assert.match(facts, /\{sitting\.questionCount \? ` \$\{sitting\.questionCount\} questions\. You can change your answers until you submit\.` : ' You can change your answers until you submit\.'\}/);
   assert.doesNotMatch(executableSource(facts), /card\.delivery\.questionCount/);
   // The dates for the stage the student is at (testCycleCardDueFacts, tested below).
-  assert.match(card, /const due = testCycleCardDueFacts\(\{ card, dueAt, lateDueAt, classLateDueAt \}\);/);
+  assert.match(card, /const due = testCycleCardDueFacts\(\{ card, dueAt, lateDueAt \}\);/);
   assert.match(facts, /Due \{formatDateTime\(due\.dueAt\)\}\.\{due\.finalLateDueAt \? ` Late work is accepted until \$\{formatDateTime\(due\.finalLateDueAt\)\}\.` : ''\}/);
 });
 
@@ -114,13 +114,13 @@ test('the app hands the card THIS student\'s due and final late dates, from the 
   // class-level fields of the shared document.
   assert.match(screen, /const activeTestCycleDates = activeTestCycleAssignment\s*\?\s*getAssignmentLifecycle\(activeTestCycleAssignment, Date\.now\(\), \{ studentId: user\.id \}\)\s*:\s*null;/);
   assert.match(screen, /<TestCycleCard[\s\S]*?dueAt=\{activeTestCycleDates\?\.dueAt \|\| null\}[\s\S]*?lateDueAt=\{activeTestCycleDates\?\.lateDueAt \|\| null\}/);
-  // The class's date goes only to `classLateDueAt` (Corrections and the Retest
-  // close at it unless the server's home window says otherwise), never to `lateDueAt`.
-  assert.doesNotMatch(executableSource(screen), /lateDueAt=\{activeTestCycleAssignment/);
-  assert.match(screen, /classLateDueAt=\{activeTestCycleAssignment\?\.lateDueAt \|\| activeTestCycleAssignment\?\.lateDueDate \|\| null\}/);
+  // The class's date is not handed to the card at all: Corrections and the
+  // Retest close at the student's own final date too (TC07), unless the
+  // server's home window says otherwise.
+  assert.doesNotMatch(executableSource(screen), /lateDueAt=\{activeTestCycleAssignment|classLateDueAt/);
   // ...and it is imported, so the call is not a ReferenceError in the browser.
   assert.match(app, /import \{[^}]*\bgetAssignmentLifecycle,[^}]*\} from '\.\/assignmentLifecycle';/);
-  assert.match(card, /export const TestCycleCard = \(\{[^)]*\bdueAt = null, lateDueAt = null, classLateDueAt = null,/);
+  assert.match(card, /export const TestCycleCard = \(\{[^)]*\bdueAt = null, lateDueAt = null,/);
 });
 
 test('an extended student\'s card says late work is still open, until THEIR date, after the class\'s has passed', () => {
@@ -140,20 +140,22 @@ test('an extended student\'s card says late work is still open, until THEIR date
   // What the card was given before: the class's date, which had passed — no
   // "late work is still open" at all for a student who may still work.
   assert.equal(testCycleDueFacts({ dueAt: assignment.dueAt, lateDueAt: assignment.lateDueAt, now: afterClassLate }).finalLateDueAt, null);
-  // In Corrections and the Retest the card says the close the server enforces
-  // (its home window, or the class's date when none is enforced), never the
-  // student's later date, which the server would refuse.
+  // In Corrections and the Retest the server closes the home window at their
+  // own final date too (TC07). While it enforces one, the card says that
+  // window's close — the server's word, which a teacher may have moved — and
+  // never a date the server would refuse; with none enforced, their own date.
   const facts = (stage, schedule) => testCycleCardDueFacts({
-    card: { stage, dueAt: assignment.dueAt, schedule }, dueAt: own.dueAt, lateDueAt: own.lateDueAt, classLateDueAt: assignment.lateDueAt, now: afterClassLate,
+    card: { stage, dueAt: assignment.dueAt, schedule }, dueAt: own.dueAt, lateDueAt: own.lateDueAt, now: afterClassLate,
   }).finalLateDueAt;
   assert.equal(facts('test', null), new Date(theirLate).toISOString(), 'ahead of the Test: their own date');
-  const homeClose = Date.parse('2026-10-11T04:59:59.999Z');
-  assert.equal(facts('corrections', { followUp: { enforced: true, closesAt: homeClose } }), new Date(homeClose).toISOString());
-  assert.equal(facts('retest', { followUp: { enforced: false } }), null, 'no home window: the class date, which has passed');
-  assert.equal(facts('review', { missedTest: true, followUp: { enforced: true, closesAt: homeClose } }), new Date(homeClose).toISOString(), 'missed the Test');
+  assert.equal(facts('corrections', { followUp: { enforced: true, closesAt: theirLate } }), new Date(theirLate).toISOString(), 'the home window at their own close');
+  const teacherClose = Date.parse('2026-10-11T04:59:59.999Z');
+  assert.equal(facts('corrections', { followUp: { enforced: true, closesAt: teacherClose } }), new Date(teacherClose).toISOString(), 'a close the server enforces wins');
+  assert.equal(facts('retest', { followUp: { enforced: false } }), new Date(theirLate).toISOString(), 'no home window: their own date, not the class\'s');
+  assert.equal(facts('review', { missedTest: true, followUp: { enforced: true, closesAt: theirLate } }), new Date(theirLate).toISOString(), 'missed the Test');
   // Finished: no late work is left open, whatever the dates say.
   for (const stage of ['passed', 'complete', 'retestClosed', 'retestSubmitted']) {
-    assert.equal(facts(stage, { missedTest: true, followUp: { enforced: true, closesAt: homeClose } }), null, stage);
+    assert.equal(facts(stage, { missedTest: true, followUp: { enforced: true, closesAt: theirLate } }), null, stage);
   }
   // A classmate without the extension keeps the class's date.
   assert.equal(getAssignmentLifecycle(assignment, afterClassLate, { studentId: 'S2' }).lateDueAt.getTime(), classLate);

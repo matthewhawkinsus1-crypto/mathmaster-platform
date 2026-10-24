@@ -18968,9 +18968,13 @@ async function readBellSchedule(db) {
  * Returns null for an external-original cycle, whose one secure session keeps
  * the rules it always had. Reads nothing when nothing has been set: a cycle
  * with no windows costs no bell-schedule read on any student's entry.
+ *
+ * Their home window closes no earlier than their own final close (TC07,
+ * testCycleStudentFinalCloseAt); `privateOverride` is their private record
+ * when the caller already read it.
  */
 async function studentTestCycleSchedule(db, shared, {
-  assignment, policy, gradeData = null, record = null, bell = undefined, periodCache = new Map(), now = Date.now(),
+  assignment, policy, gradeData = null, record = null, bell = undefined, periodCache = new Map(), now = Date.now(), privateOverride = undefined,
 }) {
   if (policy?.externalAssessment) return null;
   const availability = shared.schedule.normalizeTestAvailability(assignment?.testAvailability);
@@ -18988,13 +18992,64 @@ async function studentTestCycleSchedule(db, shared, {
   const classPeriod = followsBell
     ? await resolveCheckpointClassPeriod(db, classId, classId === ownClassId ? gradeData : {}, periodCache)
     : null;
+  const studentFinalCloseAt = await testCycleStudentFinalCloseAt(db, { assignment, record, gradeData, privateOverride, timeZone });
   return {
     ...shared.schedule.resolveStudentTestCycleSchedule({
-      assignment, classId, classPeriod, schedule, studentAvailability, now, timeZone,
+      assignment, classId, classPeriod, schedule, studentAvailability, studentFinalCloseAt, now, timeZone,
     }),
     // The class whose windows this student follows: a Test start records its sitting.
     classId: classId || null,
   };
+}
+
+/*
+ * ONE STUDENT'S OWN FINAL CLOSE, FOR THEIR HOME WINDOW (the owner, 2026-10-23,
+ * TC07). Corrections and the Retest close at the latest of the class's close, a
+ * teacher's close for this student, and this: the assignment's final cutoff
+ * for them, moved later by their attendance extension or extra-time date —
+ * read exactly as ingestion reads it (assignmentFinalCloseAt with their private
+ * record and their pinned `profile`), in the school's zone like the class's
+ * own close (resolveFollowUpWindow).
+ *
+ * `privateOverride`: their studentAssignmentOverrides record when the caller
+ * already read it (null = read, none); undefined, it is read here. A caller
+ * without their grade document (the Corrections gate) reads only its profile.
+ */
+async function testCycleStudentFinalCloseAt(db, { assignment, record, gradeData = null, privateOverride = undefined, timeZone = null }) {
+  const studentId = String(record?.studentId || "").trim();
+  const assignmentId = String(record?.assignmentId || "").trim();
+  if (!assignment || !studentId || !assignmentId) return null;
+  const readOverride = async () => {
+    const ref = await studentOverrideRef(db, studentId, assignmentId);
+    return privateOverrideFrom(ref ? await ref.get() : null);
+  };
+  const readProfile = async () => {
+    const [snapshot] = await db.getAll(db.collection("grades").doc(studentId), { fieldMask: ["profile"] });
+    return snapshot?.exists ? snapshot.data()?.profile || null : null;
+  };
+  const [own, profile, { assignmentFinalCloseAt }] = await Promise.all([
+    privateOverride !== undefined ? privateOverride : readOverride(),
+    gradeData ? gradeData.profile || null : readProfile(),
+    import("./shared/sectionDeadline.mjs"),
+  ]);
+  return assignmentFinalCloseAt(assignment, timeZone, studentId, profile, { privateOverride: own });
+}
+
+/** Each student's private override record on one assignment (null: none), read in batches. */
+async function privateOverridesFor(db, assignmentId, studentIds) {
+  const overrides = await studentOverrides();
+  const byStudent = new Map(studentIds.map((studentId) => [studentId, null]));
+  const refs = studentIds
+    .map((studentId) => [studentId, overrides.studentAssignmentOverrideId(studentId, assignmentId)])
+    .filter(([, id]) => Boolean(id))
+    .map(([studentId, id]) => [studentId, db.collection(overrides.STUDENT_ASSIGNMENT_OVERRIDES_COLLECTION).doc(id)]);
+  for (let index = 0; index < refs.length; index += 100) {
+    const slice = refs.slice(index, index + 100);
+    // eslint-disable-next-line no-await-in-loop
+    const snapshots = await db.getAll(...slice.map(([, ref]) => ref));
+    snapshots.forEach((snapshot, position) => byStudent.set(slice[position][0], privateOverrideFrom(snapshot)));
+  }
+  return byStudent;
 }
 
 /*
@@ -20270,8 +20325,9 @@ function assertCorrectionsOpenFor(shared, record) {
 /**
  * Is the home window (Corrections and the Retest) open for this student?
  *
- * Read from their record's class, so it needs no second read of their grade
- * document. Nothing is enforced until a teacher has set a Test day or a close.
+ * Read from their record's class, so it needs no full read of their grade
+ * document: only its `profile`, for their own final close (TC07). Nothing is
+ * enforced until a teacher has set a Test day or a close.
  */
 async function assertFollowUpWindowOpen(db, shared, { assignment, policy, record, what, plural = false }) {
   const schedule = await studentTestCycleSchedule(db, shared, { assignment, policy, record });
@@ -21108,6 +21164,12 @@ exports.listTeacherTestCycleRecords = onCall(TEST_CYCLE_PANEL_OPTIONS, async (re
   const hasWindows = !policy.externalAssessment;
   const bell = hasWindows ? await readBellSchedule(db) : null;
   const periodCache = new Map();
+  // Each student's own final close (TC07) reads their private record: one
+  // batched read for the table, not one per row. Nothing is needed while no
+  // window or close is set (a student's own window reads theirs on its own).
+  const privateOverrides = hasWindows && shared.schedule.normalizeTestAvailability(assignment?.testAvailability).configured
+    ? await privateOverridesFor(db, assignmentId, [...gradeDataByStudent.keys()])
+    : new Map();
 
   // Only the sessions of students mid-Test can be locked; read exactly those.
   const liveSessionIds = [];
@@ -21144,7 +21206,9 @@ exports.listTeacherTestCycleRecords = onCall(TEST_CYCLE_PANEL_OPTIONS, async (re
     // reopened for them), so the stage here is the stage their card shows.
     // eslint-disable-next-line no-await-in-loop
     const schedule = hasWindows
-      ? await studentTestCycleSchedule(db, shared, { assignment, policy, gradeData, record, bell, periodCache, now })
+      ? await studentTestCycleSchedule(db, shared, {
+        assignment, policy, gradeData, record, bell, periodCache, now, privateOverride: privateOverrides.get(studentId),
+      })
       : null;
     const state = shared.stages.resolveTestCycleStage({ policy, record, reviewProgress, schedule });
     const attention = testCycleRowAttention(record, lockedSessions);

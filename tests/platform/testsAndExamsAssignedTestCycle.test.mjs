@@ -101,10 +101,15 @@ test('the row uses THIS student\'s dates: an extended student is told late work 
 });
 
 test('a missed student\'s row says the close the server enforces, not a later date of their own', () => {
+  // The server's home window already follows the student's own final close
+  // (TC07); it ends sooner only when a teacher chose an earlier close.
   const now = Date.parse('2026-10-10T17:00:00Z');
   const missed = { ...previewCard, stage: 'retestReady', dueAt: '2026-10-06T04:59:59.999Z', schedule: { ...previewCard.schedule, missedTest: true, followUp: { ...previewCard.schedule.followUp, state: 'open', enforced: true, closesAt: Date.parse('2026-10-11T04:59:59.999Z') } } };
-  const row = assignedTestCycleRow({ card: missed, lateDueAt: new Date('2026-10-14T04:59:59.999Z'), classLateDueAt: '2026-10-09T04:59:59.999Z', now });
+  const row = assignedTestCycleRow({ card: missed, lateDueAt: new Date('2026-10-14T04:59:59.999Z'), now });
   assert.equal(row.finalLateDueAt, '2026-10-11T04:59:59.999Z');
+  // With no home window enforced, the row says their own final date.
+  const unenforced = { ...missed, schedule: { ...missed.schedule, followUp: { state: 'unset', enforced: false, closesAt: null } } };
+  assert.equal(assignedTestCycleRow({ card: unenforced, lateDueAt: new Date('2026-10-14T04:59:59.999Z'), now }).finalLateDueAt, '2026-10-14T04:59:59.999Z');
 });
 
 test('the length is the card\'s: timed with extended time, and a Retest is not given the Test\'s count', () => {

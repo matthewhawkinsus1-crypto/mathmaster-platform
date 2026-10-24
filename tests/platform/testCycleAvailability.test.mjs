@@ -44,6 +44,8 @@ import {
 } from '../../functions/shared/testCycleAvailability.mjs';
 import { zonedInstant } from '../../functions/shared/instructionalCalendar.mjs';
 import { studentMissedOriginalTest } from '../../functions/shared/testCycleStages.mjs';
+import { assignmentFinalCloseAt } from '../../functions/shared/sectionDeadline.mjs';
+import { buildSupportProjection } from '../../functions/shared/supportProfileModel.mjs';
 
 const TZ = 'America/Chicago';
 const at = (year, month, day, hour = 0, minute = 0) => zonedInstant({ year, month, day, hour, minute }, TZ);
@@ -544,6 +546,89 @@ test('a teacher can extend, reopen or remove the home window\'s close, for the c
   // With no Test window at all, a close set by hand is still honoured.
   const handSet = scheduleFor(assignment(withFollowUpClose(null, { mode: FOLLOW_UP_CLOSE.CUSTOM, closesAt: later })), later + 1).followUp;
   assert.deepEqual([handSet.enforced, handSet.state], [true, WINDOW_STATE.CLOSED]);
+});
+
+/*
+ * THE STUDENT'S OWN FINAL CLOSE (the owner, 2026-10-23, TC07). Corrections and
+ * the Retest close at the latest of the class's close, the student's own final
+ * close (their attendance extension or extra-time date — the cutoff
+ * assignmentFinalCloseAt already holds them to) and a teacher's close for them.
+ */
+test('Corrections and the Retest close at the latest of the class\'s close, the student\'s own final close and a teacher\'s close for them', () => {
+  const base = withClassTestDay(null, { classId: 'c3', dateKey: WED });
+  const config = assignment(base);
+  const lateDue = defaultFollowUpClose(config, TZ);
+  // What the server passes: assignmentFinalCloseAt for the student, with their
+  // private record (an attendance extension to Friday, Oct 23).
+  const ownClose = at(2026, 10, 23, 23, 59) + 59999;
+  const finalCloseOf = (assignmentValue, privateOverride = null, profile = null) => assignmentFinalCloseAt(assignmentValue, TZ, 'S1', profile, { privateOverride });
+  const extended = finalCloseOf(config, { lateDueAt: '2026-10-23' });
+  assert.equal(extended, ownClose);
+  const homeFor = (assignmentValue, now, { studentFinalCloseAt = null, studentAvailability = null } = {}) => resolveStudentTestCycleSchedule({
+    assignment: assignmentValue, classId: 'c3', classPeriod: 'Period 3', schedule: bell, studentAvailability, studentFinalCloseAt, now, timeZone: TZ,
+  }).followUp;
+
+  // After the class's late due date: their window is still open, to their own close.
+  const after = homeFor(config, lateDue + 1000, { studentFinalCloseAt: extended });
+  assert.deepEqual([after.state, after.closesAt, after.closeSource], [WINDOW_STATE.OPEN, ownClose, 'studentFinal']);
+  assert.equal(followUpRefusal(after, { timeZone: TZ, what: 'The Retest' }), null);
+  // Exactly at their close it is over; a moment before, it is open.
+  assert.equal(homeFor(config, ownClose - 1, { studentFinalCloseAt: extended }).state, WINDOW_STATE.OPEN);
+  const atClose = homeFor(config, ownClose, { studentFinalCloseAt: extended });
+  assert.equal(atClose.state, WINDOW_STATE.CLOSED);
+  assert.equal(followUpRefusal(atClose, { timeZone: TZ, what: 'Corrections', plural: true }), 'Corrections closed Fri, Oct 23, 11:59 PM CDT. Ask your teacher if you need them reopened.');
+  // Both screens name it as theirs.
+  assert.equal(describeFollowUpWindow(after, { timeZone: TZ }).detail, 'Closes Fri, Oct 23, 11:59 PM CDT (your final due date). A Retest started before then can be finished.');
+  assert.match(describeFollowUpWindow(after, { timeZone: TZ, audience: 'teacher' }).detail, /\(this student's own final due date\)/);
+
+  // No extension, or one shorter than the class's close: the class's close, as before.
+  for (const [label, studentFinalCloseAt] of [['no extension', finalCloseOf(config)], ['nothing passed', null], ['an extension shorter than the class\'s close', finalCloseOf(config, { lateDueAt: '2026-10-18' })]]) {
+    const home = homeFor(config, at(2026, 10, 19, 9), { studentFinalCloseAt });
+    assert.deepEqual([home.closesAt, home.closeSource], [lateDue, FOLLOW_UP_CLOSE.LATE_DUE], label);
+    assert.equal(homeFor(config, lateDue, { studentFinalCloseAt }).state, WINDOW_STATE.CLOSED, label);
+  }
+
+  // An extra-time date counts the same way: their pinned profile's 72 hours
+  // run past a class whose late window is one day.
+  const extraTime = buildSupportProjection({
+    revisions: [{ id: 'r1', revisionId: 'r1', revision: 1, status: 'active', effectiveStart: '2026-08-17', effectiveEnd: null, inclusionStatus: false, accommodations: [{ id: 'extra-time', params: { dueDateExtension: { mode: 'hours', value: 72 } }, appliesTo: [] }], modifications: [] }],
+    todayKey: '2026-10-01',
+  });
+  const shortLate = assignment(base, { lateDueAt: '2026-10-17' });
+  const supported = finalCloseOf(shortLate, null, extraTime);
+  assert.equal(supported, at(2026, 10, 19, 23, 59), 'the class due plus 72 hours');
+  const supportedHome = homeFor(shortLate, defaultFollowUpClose(shortLate, TZ) + 1000, { studentFinalCloseAt: supported });
+  assert.deepEqual([supportedHome.state, supportedHome.closesAt, supportedHome.closeSource], [WINDOW_STATE.OPEN, supported, 'studentFinal']);
+
+  // A teacher's close for the student wins when it is later still, and never shortens theirs.
+  const later = at(2026, 10, 27, 17);
+  const teacherLater = homeFor(config, lateDue + 1000, { studentFinalCloseAt: extended, studentAvailability: withStudentFollowUpClose(null, { closesAt: later }) });
+  assert.deepEqual([teacherLater.closesAt, teacherLater.closeSource], [later, 'studentOverride']);
+  const teacherEarlier = homeFor(config, lateDue + 1000, { studentFinalCloseAt: extended, studentAvailability: withStudentFollowUpClose(null, { closesAt: at(2026, 10, 21, 17) }) });
+  assert.deepEqual([teacherEarlier.closesAt, teacherEarlier.closeSource], [ownClose, 'studentFinal']);
+
+  // The class's close set by hand: their own close only ever gives more time.
+  const classLater = assignment(withFollowUpClose(base, { mode: FOLLOW_UP_CLOSE.CUSTOM, closesAt: later }));
+  assert.deepEqual((({ closesAt, closeSource }) => [closesAt, closeSource])(homeFor(classLater, lateDue + 1000, { studentFinalCloseAt: finalCloseOf(classLater, { lateDueAt: '2026-10-23' }) })), [later, FOLLOW_UP_CLOSE.CUSTOM]);
+  // A teacher who closed the class early keeps that close for everyone
+  // without an extension — the class's own final date is not theirs to extend...
+  const early = at(2026, 10, 19, 17);
+  const classEarly = assignment(withFollowUpClose(base, { mode: FOLLOW_UP_CLOSE.CUSTOM, closesAt: early }));
+  const classmate = homeFor(classEarly, early, { studentFinalCloseAt: finalCloseOf(classEarly) });
+  assert.deepEqual([classmate.state, classmate.closesAt, classmate.closeSource], [WINDOW_STATE.CLOSED, early, FOLLOW_UP_CLOSE.CUSTOM]);
+  // ...while a student's own extension still carries them past it.
+  const extendedPastEarly = homeFor(classEarly, early, { studentFinalCloseAt: finalCloseOf(classEarly, { lateDueAt: '2026-10-23' }) });
+  assert.deepEqual([extendedPastEarly.state, extendedPastEarly.closesAt], [WINDOW_STATE.OPEN, ownClose]);
+
+  // No closing time at all stays no closing time.
+  const never = homeFor(assignment(withFollowUpClose(base, { mode: FOLLOW_UP_CLOSE.NONE })), at(2027, 6, 1), { studentFinalCloseAt: extended });
+  assert.deepEqual([never.state, never.closesAt, never.closeSource], [WINDOW_STATE.OPEN, null, FOLLOW_UP_CLOSE.NONE]);
+  // Nothing set by the teacher: still nothing enforced.
+  const unset = resolveStudentTestCycleSchedule({ assignment: assignment(), classId: 'c3', classPeriod: 'Period 3', schedule: bell, studentFinalCloseAt: extended, now: at(2026, 10, 30), timeZone: TZ }).followUp;
+  assert.deepEqual([unset.state, unset.enforced], [WINDOW_STATE.UNSET, false]);
+  // While the Test is still ahead, the home window waits for it as before, then runs to their close.
+  const waiting = homeFor(config, at(2026, 10, 14, 10, 30), { studentFinalCloseAt: extended });
+  assert.deepEqual([waiting.state, waiting.closesAt], [WINDOW_STATE.UPCOMING, ownClose]);
 });
 
 test('both screens are told the exact times, in the school\'s zone, and whether work may be done from home', () => {

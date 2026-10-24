@@ -59,18 +59,18 @@ export const testCycleDeliveryText = (card = {}) => {
 /**
  * One row, from the read-only card and the student's own dates.
  *
- * `dueAt` / `lateDueAt` are THIS student's (getAssignmentLifecycle) and
- * `classLateDueAt` the class's: the dates are chosen for the stage exactly as
- * the card chooses them (testCycleCardDueFacts).
+ * `dueAt` / `lateDueAt` are THIS student's (getAssignmentLifecycle): the
+ * dates are chosen for the stage exactly as the card chooses them
+ * (testCycleCardDueFacts).
  */
-export const assignedTestCycleRow = ({ card = null, assignment = null, dueAt = null, lateDueAt = null, classLateDueAt = null, now = Date.now() } = {}) => {
+export const assignedTestCycleRow = ({ card = null, assignment = null, dueAt = null, lateDueAt = null, now = Date.now() } = {}) => {
   const assignmentId = clean(card?.assignmentId || assignment?.id);
   if (!assignmentId) return null;
   // The record has a session (beyond what the list showed): the list, not a
   // row, is where it belongs. Only an explicit "none" gets a row.
   if (card?.hasSecureSession !== false) return null;
   const when = studentScheduleBlocks(card).find((block) => block.id === 'test') || null;
-  const due = testCycleCardDueFacts({ card, dueAt, lateDueAt, classLateDueAt, now });
+  const due = testCycleCardDueFacts({ card, dueAt, lateDueAt, now });
   return {
     assignmentId,
     title: clean(card?.title) || clean(assignment?.title) || clean(assignment?.assignment?.title) || 'Test',

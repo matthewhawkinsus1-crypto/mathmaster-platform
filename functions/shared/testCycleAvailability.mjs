@@ -10,7 +10,9 @@
  *                        already stores (`settings/classSchedule`). Nobody
  *                        re-enters a class time.
  *   Corrections, Retest  from home, from the moment that Test window closes
- *                        until the assignment's final (late) due date.
+ *                        until the assignment's final (late) due date — the
+ *                        student's own, when their attendance extension or
+ *                        extra time moves it later (TC07).
  *
  * THIS IS AVAILABILITY, NOT A TIMER. A window says when an attempt may START.
  * It never puts a clock on the attempt: a Test is untimed unless its blueprint
@@ -46,6 +48,7 @@
 
 import { resolvePeriodWindow, resolveScheduleDayType } from './classSchedule.mjs';
 import { parseInstant, zonedDateKey, zonedInstant } from './instructionalCalendar.mjs';
+import { resolveStudentDeadlines } from './studentAssignmentOverrides.mjs';
 
 export const TEST_AVAILABILITY_VERSION = 1;
 
@@ -559,11 +562,21 @@ export const defaultFollowUpClose = (assignment = null, timeZone = null) => {
  * student on their record) or removed the expiry. While the Test itself has no
  * window (`unset`, or the teacher chose `alwaysOpen`), nothing is enforced
  * here either — unless a teacher has set a close by hand, which is honoured.
+ *
+ * THE STUDENT'S OWN FINAL CLOSE COUNTS TOO (the owner, 2026-10-23, TC07).
+ * `studentFinalCloseAt` is sectionDeadline.mjs `assignmentFinalCloseAt` for
+ * this student: the class's final date, moved later by their attendance
+ * extension or extra-time date — the cutoff the rest of MathMaster already
+ * holds them to. Where it is later than the class's own final date it is
+ * theirs, and like a teacher's close for one student it only ever gives more
+ * time than the class has: the home window closes at the latest of the class's
+ * close, their own final close and a teacher's close for them.
  */
 export const resolveFollowUpWindow = ({
   assignment = null,
   availability = null,
   studentAvailability = null,
+  studentFinalCloseAt = null,
   testStatus = null,
   now = Date.now(),
   timeZone = null,
@@ -587,8 +600,19 @@ export const resolveFollowUpWindow = ({
     closesAt = defaultFollowUpClose(assignment, timeZone);
     closeSource = closesAt === null ? FOLLOW_UP_CLOSE.NONE : FOLLOW_UP_CLOSE.LATE_DUE;
   }
-  // One student's extension only ever gives more time than the class has.
-  if (own.followUpClosesAt !== null && (closesAt === null ? closeSource !== FOLLOW_UP_CLOSE.NONE : own.followUpClosesAt > closesAt)) {
+  // One student's extension only ever gives more time than the class has: their
+  // own final close where it is later than the class's final date (TC07), then
+  // a close a teacher set for them. No close at all (expiry removed, no due
+  // date) is already the most time there is.
+  const extendsClose = (candidate) => candidate !== null
+    && (closesAt === null ? closeSource !== FOLLOW_UP_CLOSE.NONE : candidate > closesAt);
+  const classFinal = resolveStudentDeadlines({ assignment: isObject(assignment) ? assignment : null, timeZone }).classFinalAtMs;
+  const ownFinal = instant(studentFinalCloseAt);
+  if (ownFinal !== null && (classFinal === null || ownFinal > classFinal) && extendsClose(ownFinal)) {
+    closesAt = ownFinal;
+    closeSource = 'studentFinal';
+  }
+  if (extendsClose(own.followUpClosesAt)) {
     closesAt = own.followUpClosesAt;
     closeSource = 'studentOverride';
   }
@@ -617,6 +641,7 @@ export const resolveFollowUpWindow = ({
 
 /**
  * Everything one student's card and the server's gate need, in one call.
+ * `studentFinalCloseAt` is this student's own final close (resolveFollowUpWindow).
  */
 export const resolveStudentTestCycleSchedule = ({
   assignment = null,
@@ -624,13 +649,14 @@ export const resolveStudentTestCycleSchedule = ({
   classPeriod = null,
   schedule = null,
   studentAvailability = null,
+  studentFinalCloseAt = null,
   now = Date.now(),
   timeZone = null,
 } = {}) => {
   const availability = isObject(assignment) ? assignment.testAvailability : null;
   const classWindows = resolveClassWindows({ availability, classId, classPeriod, schedule, timeZone });
   const test = resolveTestWindowStatus({ availability, classWindows, studentAvailability, now });
-  const followUp = resolveFollowUpWindow({ assignment, availability, studentAvailability, testStatus: test, now, timeZone });
+  const followUp = resolveFollowUpWindow({ assignment, availability, studentAvailability, studentFinalCloseAt, testStatus: test, now, timeZone });
   return { test, followUp, timeZone: timeZone || null };
 };
 
@@ -809,9 +835,12 @@ export const describeFollowUpWindow = (followUp, { timeZone = null, audience = '
   const state = followUp?.state || WINDOW_STATE.UNSET;
   const whose = audience === 'teacher' ? 'Students' : 'You';
   const closes = followUp?.closesAt ? formatSchoolDateTime(followUp.closesAt, timeZone) : null;
-  const closeWhy = followUp?.closeSource === FOLLOW_UP_CLOSE.LATE_DUE
-    ? ' (the assignment\'s final due date)'
-    : followUp?.closeSource === 'studentOverride' ? ' (extended for this student)' : '';
+  const closeWhy = ({
+    [FOLLOW_UP_CLOSE.LATE_DUE]: ' (the assignment\'s final due date)',
+    studentOverride: ' (extended for this student)',
+    // Their own final due date: an attendance extension or extra time (TC07).
+    studentFinal: audience === 'teacher' ? ' (this student\'s own final due date)' : ' (your final due date)',
+  })[followUp?.closeSource] || '';
   const home = retestOnly
     ? `${whose} may take the Retest from home.`
     : `${whose} may do Corrections and the Retest from home.`;

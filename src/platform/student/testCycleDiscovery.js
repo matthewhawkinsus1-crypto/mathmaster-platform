@@ -556,16 +556,15 @@ export const testCycleDueFacts = ({ dueAt = null, lateDueAt = null, now = Date.n
 /**
  * The card's dates, for the stage the student is at.
  *
- * Ahead of the Test, THIS student's own dates (an attendance extension or
- * extra time, from getAssignmentLifecycle). In Corrections and the Retest —
- * and for a student who missed the Test — the server closes them at the
- * home-window close it enforces (resolveFollowUpWindow), which does not follow
- * an individual extension; so the card says that close, or the class's final
- * date when no home window is enforced, and never a later date the server
- * would refuse. (Whether the home window should follow the student's own date
- * is an open policy question: docs/handoffs/STUDENT_PASS3_TEST_CYCLE_DATES.md.)
+ * THIS student's own dates (an attendance extension or extra time, from
+ * getAssignmentLifecycle): the server closes Corrections and the Retest at
+ * their own final close too (resolveFollowUpWindow; the owner, 2026-10-23,
+ * TC07). In Corrections and the Retest — and for a student who missed the
+ * Test — while the server enforces a home window, the card says that window's
+ * close instead: a teacher may have moved it for the class or for them, or
+ * removed it, and the card never names a date the server would refuse.
  */
-export const testCycleCardDueFacts = ({ card = {}, dueAt = null, lateDueAt = null, classLateDueAt = null, now = Date.now() } = {}) => {
+export const testCycleCardDueFacts = ({ card = {}, dueAt = null, lateDueAt = null, now = Date.now() } = {}) => {
   const stage = clean(card?.stage);
   // Finished: there is no late work left to be open.
   if ([S.PASSED, S.COMPLETE, S.RETEST_CLOSED, S.RETEST_SUBMITTED].includes(stage)) {
@@ -573,8 +572,6 @@ export const testCycleCardDueFacts = ({ card = {}, dueAt = null, lateDueAt = nul
   }
   const followUp = card?.schedule?.missedTest === true || [S.CORRECTIONS, S.RETEST_READY, S.RETEST].includes(stage);
   const enforced = card?.schedule?.followUp?.enforced === true;
-  const late = !followUp
-    ? lateDueAt
-    : enforced ? (card.schedule.followUp.closesAt ?? null) : classLateDueAt;
+  const late = followUp && enforced ? (card.schedule.followUp.closesAt ?? null) : lateDueAt;
   return testCycleDueFacts({ dueAt: dueAt || card?.dueAt || null, lateDueAt: late, now });
 };

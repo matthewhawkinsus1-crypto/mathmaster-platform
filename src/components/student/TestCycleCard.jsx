@@ -141,7 +141,7 @@ const TEST_REVIEW_RECHECK_MS = 30000;
 
 // `exitLabel`: the Back control's words, naming where it goes ("← Home");
 // App derives it from where the card was opened (NAV-9).
-export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile = null, dueAt = null, lateDueAt = null, classLateDueAt = null, onOpenReview = null, onExit = null, exitLabel = '← Assignments', refreshKey = null, previewCard = null, onPreviewEnter = null, onPracticeSkill = null }) => {
+export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile = null, dueAt = null, lateDueAt = null, onOpenReview = null, onExit = null, exitLabel = '← Assignments', refreshKey = null, previewCard = null, onPreviewEnter = null, onPracticeSkill = null }) => {
   /*
    * PREVIEW MODE. A teacher previewing a stage hands the card a locally built
    * payload in exactly the shape the server returns. The card then makes NO
@@ -393,9 +393,9 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
   // open says until when (each from a tested helper in testCycleDiscovery.js).
   const reviewWaived = reviewWasWaived(card);
   const sitting = sittingFactsFor(card);
-  // The student's own dates ahead of the Test; the close the server enforces
-  // in Corrections and the Retest (testCycleCardDueFacts).
-  const due = testCycleCardDueFacts({ card, dueAt, lateDueAt, classLateDueAt });
+  // The student's own dates; in Corrections and the Retest, the home-window
+  // close the server enforces (testCycleCardDueFacts).
+  const due = testCycleCardDueFacts({ card, dueAt, lateDueAt });
   const scheduleBlocks = studentScheduleBlocks(card);
   const testSkills = testSkillsSection(card);
 
