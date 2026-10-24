@@ -641,7 +641,7 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
           disabled={!readyToSubmit}
           style={{ ...button, background: readyToSubmit ? '#1a73e8' : '#dadce0', color: readyToSubmit ? '#fff' : 'var(--mm-text-muted)', border: 0 }}
         >
-          <SubmitText>Submit the bridge</SubmitText>
+          <SubmitText>Check the bridge</SubmitText>
         </button>
         {feedback ? <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Every representation agrees' : 'Some representations need another look'}</ResultPill> : null}
       </div>

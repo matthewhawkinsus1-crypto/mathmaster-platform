@@ -279,7 +279,7 @@ const FORBIDDEN = [
   /check your construction/i, /Press Check construction/, /then check your graph/, /Balanced and correct/, /Look for a pair/,
   /equation is solved/,
 ];
-const CHECK_LABEL = /^(Check( construction| my work| system| data model| feasible region| inequality graph| matrix solution| intersections)?|Submit my regression)$/;
+const CHECK_LABEL = /^Check( construction| my work| my regression| system| data model| feasible region| inequality graph| matrix solution| intersections)?$/;
 
 const audit = async (page, { label, prompt, phoneClaimed, device }) => {
   const result = await page.evaluate(() => {

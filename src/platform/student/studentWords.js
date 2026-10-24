@@ -124,6 +124,31 @@ export const triesCount = (count) => {
   return `${n} ${n === 1 ? 'try' : 'tries'}`;
 };
 
+// --- Starting again ----------------------------------------------------------
+
+/*
+ * ONE WORD FOR BEGINNING AGAIN (student pass 3, TOOL-4 / TOOL-6, A3-105).
+ *
+ * A control that throws a tool's work away so the student can begin again was
+ * "Start over" in ten tools, and "Reset Question", "Reset work", "Reset Graph",
+ * "Reset Inverse", "Delete All", "Clear" and "Clear all" in the rest. It is
+ * "Start over" wherever it is: a tool's own toolbar, Work View's rail, the
+ * work bar. A control that takes away one kind of mark and leaves the rest
+ * ("Clear plot", "Clear arrows", "Clear Sketch") keeps its own name: it does
+ * not begin again, and "Start over" would say more than it does. "Reset view"
+ * moves the camera and never touches the work, so it keeps its word.
+ *
+ * The work bar's button restarts the whole question while a tool's restarts
+ * only itself (one step, inside a composed question), and both can be on the
+ * screen at once, so the work bar's says what it restarts: "Start question
+ * over". A phone's one-row bar shows its short form, "Start over".
+ */
+export const START_OVER = 'Start over';
+/** The work bar's, where it must be told from a tool's own. */
+export const START_QUESTION_OVER = 'Start question over';
+/** While a start over is under way. */
+export const STARTING_OVER = 'Starting over…';
+
 // --- Two sets of tools -------------------------------------------------------
 
 /*

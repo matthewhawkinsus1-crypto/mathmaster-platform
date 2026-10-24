@@ -908,8 +908,9 @@ journeys.complete = async (browser) => {
     // disabled, or inside an inert lock. Still looked up without waiting, and
     // if it is truly gone, say what the page shows instead.
     // The board's own button: once the question is closed its label drops the
-    // try cost ("Submit board"), since a closed question spends none.
-    const submitBoard = page.locator('[data-lmr-submit] button', { hasText: /^Submit\b/ }).first();
+    // try cost for the tool's own word ("Check board"), since a closed
+    // question spends none. Found by its marker, not by the word.
+    const submitBoard = page.locator('[data-lmr-submit] button[data-work-view-check]').first();
     const submitShown = await submitBoard.count();
     const submitState = submitShown
       ? await submitBoard.evaluate((element) => ({ disabled: element.matches(':disabled'), inert: Boolean(element.closest('[inert]')) }))

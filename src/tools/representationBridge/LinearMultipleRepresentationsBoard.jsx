@@ -1876,7 +1876,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
               disabled={questionTerminal}
               style={{ ...primaryButton, minHeight: 48, padding: '10px 22px', fontSize: 'calc(16 * var(--mm-px))', opacity: questionTerminal ? 0.6 : 1 }}
             >
-              <SubmitText>Submit board</SubmitText>
+              <SubmitText>Check board</SubmitText>
             </button>
           </div>
 

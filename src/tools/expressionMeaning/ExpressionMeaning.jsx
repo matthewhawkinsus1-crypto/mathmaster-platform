@@ -185,7 +185,7 @@ export default function ExpressionMeaning({ questionData = {}, onAction }) {
           disabled={!allComplete}
           style={{ ...button, background: allComplete ? '#1a73e8' : '#dadce0', color: allComplete ? '#fff' : 'var(--mm-text-muted)', border: 0 }}
         >
-          <SubmitText>Submit meaning map</SubmitText>
+          <SubmitText>Check meaning map</SubmitText>
         </button>
         {feedback ? <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Every connection is correct' : 'Some connections need another look'}</ResultPill> : null}
       </div>

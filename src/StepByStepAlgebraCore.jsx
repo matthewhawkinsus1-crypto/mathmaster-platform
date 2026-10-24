@@ -91,6 +91,7 @@ import { useContentStableValue } from './platform/react/useContentStableValue.js
 import { useHintsAllowed, useHintUseReporter, useTeacherView, useToolHintPublisher, useToolRuntimeContext } from './tools/shared/ToolRuntimeContext';
 import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
 import { isStepNotQueued } from './platform/student/submissionNotQueued.js';
+import { START_OVER } from './platform/student/studentWords.js';
 
 const OPERATIONS = [
   { id: 'add', symbol: '+', label: 'Add' },
@@ -1394,7 +1395,7 @@ export default function StepByStepAlgebra({
     setPlacedOperationSides([]);
     setPlacedOperationPositions({});
     setHeldToken(null);
-    setMessage({ tone: 'growth', text: 'Workspace reset to the original equation. Your tries did not change.' });
+    setMessage({ tone: 'growth', text: 'You started over from the original equation. Your tries did not change.' });
   };
 
   const attemptMove = async (operation, _originSide = 'left', placementBySideOverride = null) => {
@@ -2522,7 +2523,7 @@ export default function StepByStepAlgebra({
               Cancellation hints
             </label>
           ) : null}
-          <button type="button" className="algebra-reset-work" onClick={resetQuestionWork} disabled={disabled || savingStep}>Reset work</button>
+          <button type="button" className="algebra-reset-work" onClick={resetQuestionWork} disabled={disabled || savingStep}>{START_OVER}</button>
         </div>
       </div>
 

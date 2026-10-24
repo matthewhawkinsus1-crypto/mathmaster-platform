@@ -212,7 +212,7 @@ export async function dependentDirect(page, run = `dependent-${Date.now()}`) {
   check(await page.getByRole('button', { name: 'Check the plane relationships', exact: true }).count() === 1, 'Undo did not reopen the plane relationships');
   await page.getByRole('button', { name: 'Check the plane relationships', exact: true }).click(); await settle(page, 400);
 
-  // Change route without Reset Question — before submitting, because a correct
+  // Change route without Start question over — before submitting, because a correct
   // submission completes (locks) the question: Undo back into round 2, pick another pair.
   for (let i = 0; i < 12 && await page.getByRole('button', { name: 'Choose a different pair', exact: true }).count() === 0; i += 1) await undo(page);
   await locked(page, 'undone into round 2');

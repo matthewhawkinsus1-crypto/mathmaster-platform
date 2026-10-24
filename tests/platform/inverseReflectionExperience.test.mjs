@@ -9,6 +9,7 @@ import {
   gradePathResponse,
 } from '../../functions/shared/pathToolContracts.mjs';
 import { normalizeAnalysisRequests } from '../../functions/shared/toolMath/graphWorkspace/graphWorkspaceModel.mjs';
+import { region } from './helpers/sourceContract.mjs';
 
 const legacyLiveQuestion = {
   id: 'mm_A2_2B_gen2_inverse-point-graph',
@@ -162,7 +163,14 @@ test('workspace contains the full reflection interaction', () => {
   assert.match(source, /inverseIdealPaths/);
   assert.match(source, /inverseSnapped/);
   assert.match(source, /Clear Inverse Sketch/);
-  assert.match(source, /Reset Inverse/);
+  // The stage's own way to begin again takes back the inverse points, the
+  // inverse sketch and the answers, and it is the platform's one word for that
+  // (studentWords.js START_OVER), not a word of its own.
+  // The button is the last place the analysis stage is reset before its label.
+  const beforeLabel = region(source, 'Clear Inverse Sketch', '{START_OVER}', 'the buttons up to the stage start over');
+  const startOver = beforeLabel.slice(beforeLabel.lastIndexOf('analysisHistory.reset({'));
+  assert.match(startOver, /^analysisHistory\.reset\(\{[\s\S]*?answers: \{\},[\s\S]*?inversePointsValidated: false,\s*inverseStrokes: \[\],\s*inverseSketchView: null,\s*inverseSnapped: false,\s*\}\);/);
+  assert.match(source, /import \{ START_OVER \} from '\.\/platform\/student\/studentWords\.js';/);
 });
 
 test('canonical Algebra II seed declares inverseReflection across the promoted A2.2B families in both mirrors', () => {

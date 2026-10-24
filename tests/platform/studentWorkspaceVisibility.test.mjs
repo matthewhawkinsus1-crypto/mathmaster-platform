@@ -296,15 +296,15 @@ test('the tool header leaves room for the floating Work View opener', () => {
 
 // Live QA round 2, 390×844: the four work-bar pills (446px) wrapped into a
 // 105px two-row bar.
-test('the phone work bar is one flexible row with a short Reset label', () => {
+test('the phone work bar is one flexible row with a short Start over caption', () => {
   const css = read('src/components/student/MathToolMobileLayout.css');
   assert.match(css, /\.mathmaster-question-container\.mode-portrait \.portrait-action-bar \{\s*display: flex;\s*flex-wrap: wrap;\s*gap: 6px;/);
   assert.match(css, /\.mathmaster-question-container\.mode-portrait \.mathmaster-action-label-long \{\s*display: none;/);
   const engine = read('src/QuestionEngine.jsx');
-  assert.match(engine, /aria-label=\{resettingQuestion \? 'Resetting…' : 'Reset Question'\}/);
+  assert.match(engine, /aria-label=\{resettingQuestion \? STARTING_OVER : START_QUESTION_OVER\}/);
   // The word sits in a label span (a phone hides it, or since A11Y-10 keeps it
   // as a caption under the icon: `mathmaster-action-label--kept`).
-  assert.match(engine, /<span aria-hidden="true">↺<\/span><span className="mathmaster-action-label(?: [\w-]+)*"> Reset<span className="mathmaster-action-label-long"> Question<\/span><\/span>/);
+  assert.match(engine, /<span aria-hidden="true">↺<\/span><span className="mathmaster-action-label(?: [\w-]+)*"> Start<span className="mathmaster-action-label-long"> question<\/span> over<\/span>/);
 });
 
 // Student UX pass (R-1), 390×844: with "Submit Answer" in the bar the four
@@ -358,7 +358,7 @@ test('Work View phone controls use short labels and share one row', () => {
   const css = read('src/components/common/WorkViewShell.css');
   assert.match(css, /\[data-open="true"\]\[data-layout="mobile"\] \.mathmaster-work-view-action-full \{ display: none; \}/);
   assert.match(css, /\[data-open="true"\]\[data-layout="mobile"\]\[data-controls="bottom"\] \.mathmaster-work-view-actions button \{\s*flex: 1 1 auto;/);
-  assert.match(read('src/QuestionEngine.jsx'), /shortLabel: resettingQuestion \? 'Resetting…' : '↺ Reset',/);
+  assert.match(read('src/QuestionEngine.jsx'), /shortLabel: resettingQuestion \? STARTING_OVER : `↺ \$\{START_OVER\}`,/);
 });
 
 // iPhone landscape, 844×390: seven full-size actions need the side rail's

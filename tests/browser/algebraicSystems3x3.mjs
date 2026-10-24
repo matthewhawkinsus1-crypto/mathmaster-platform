@@ -153,7 +153,7 @@ const step = async (page, journey, name, action) => {
 
 const dragTokenOnto = async (page, token, target, journey = 'drag') => {
   // A drop target near the bottom edge can sit under the floating work bar
-  // (Undo, Reset Question, Scratchpad, Calculator). In CI the reduced 2×2's
+  // (Undo, Start question over, Scratchpad, Calculator). In CI the reduced 2×2's
   // R₁/R₂ targets did: the drop landed on the bar and the journey timed out
   // waiting for a solver that never opened. When something covers the target,
   // scroll the page just enough to lift it clear, as a student would.
@@ -560,7 +560,7 @@ const runFull3x3 = async (context, scope) => {
   await page.close();
 };
 
-/** Reset Question clears the whole 3×3 workflow, nested drafts included. */
+/** Start question over clears the whole 3×3 workflow, nested drafts included. */
 const runReset = async (context) => {
   const journey = 'student-reset';
   const page = await context.newPage();
@@ -576,13 +576,13 @@ const runReset = async (context) => {
     // The harness mounts no ToastProvider, so the platform confirm falls back
     // to the native dialog; accept it the way a student confirms the reset.
     page.once('dialog', (dialog) => dialog.accept());
-    await page.locator('button:visible', { hasText: 'Reset Question' }).first().click();
+    await page.locator('button:visible', { hasText: 'Start question over' }).first().click();
     await settle(page, 900);
     observed.after = await reduction(page);
-    expect(journey, !observed.after?.source, `Reset Question left 3×3 work behind: ${JSON.stringify(observed.after)}`);
-    expect(journey, await page.locator('button[aria-label="Isolate x in Equation 1"]').count() === 1, 'Reset Question did not return to the first decision');
+    expect(journey, !observed.after?.source, `Start question over left 3×3 work behind: ${JSON.stringify(observed.after)}`);
+    expect(journey, await page.locator('button[aria-label="Isolate x in Equation 1"]').count() === 1, 'Start question over did not return to the first decision');
     const nested = Object.entries(await page.evaluate(() => window.__mm341.drafts())).filter(([key, value]) => /reduction:isolate/.test(key) && value);
-    expect(journey, nested.length === 0, `nested Step Algebra drafts survived Reset Question: ${JSON.stringify(nested.map(([key]) => key))}`);
+    expect(journey, nested.length === 0, `nested Step Algebra drafts survived Start question over: ${JSON.stringify(nested.map(([key]) => key))}`);
     await shoot(page, 'student-reset');
   });
   report.push(observed);

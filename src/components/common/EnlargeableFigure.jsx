@@ -107,8 +107,8 @@ function WorkViewActionButton({ action, primary, onInvoke }) {
       {...availability}
       onClick={() => { if (!action.disabled) onInvoke(action); }}
       title={action.title}
-      // A phone row fits four controls only with short labels ("Reset"
-      // for "Reset Question"); the full label stays the accessible name.
+      // A phone row fits four controls only with short labels ("Start over"
+      // for "Start question over"); the full label stays the accessible name.
       aria-label={action.shortLabel && typeof action.label === 'string' ? action.label : undefined}
       >
       {action.icon ? <>{action.icon}{' '}</> : null}

@@ -63,7 +63,7 @@ const combo = (page, name, index = 0) => page.getByRole('combobox', { name, exac
 // and its cost ("Submit — uses 1 of 3 tries", student pass 3, D9). These were
 // its own words; the journeys below still name it by them.
 const FINAL_ACTIONS = new Set(['Check data model', 'Check system', 'Check matrix solution', 'Check feasible region', 'Check inequality graph',
-  'Check function reasoning', 'Check equidistance', 'Check equation', 'Check connection', 'Check graph connections', 'Check feature', 'Submit this model']);
+  'Check function reasoning', 'Check equidistance', 'Check equation', 'Check connection', 'Check graph connections', 'Check feature', 'Check this model']);
 const button = (page, name) => (FINAL_ACTIONS.has(name)
   ? page.getByRole('button', { name: /^Submit — / }).first()
   : page.getByRole('button', { name, exact: true }));
@@ -391,7 +391,7 @@ const FIXTURES = {
     const continuity = page.locator('[data-constraint-satisfied]').filter({ hasText: 'Continuous graph' });
     check(await continuity.getAttribute('data-constraint-satisfied') === 'false', `${fixture}: "Continuous graph" is not met before the student chooses`);
     await blankThenRight(page, {
-      checkLabel: 'Submit this model',
+      checkLabel: 'Check this model',
       answer: async () => {
         await choose(page, name, 'Continuous');
         check(await continuity.getAttribute('data-constraint-satisfied') === 'true', `${fixture}: met once "Continuous" is chosen`);

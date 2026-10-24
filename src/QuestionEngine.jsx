@@ -30,7 +30,7 @@ import { buildSimilarWorkedExample } from './platform/supports/workedExample/sim
 import PracticeLikeThis from './platform/supports/workedExample/PracticeLikeThis.jsx';
 import { chosenOptionReasons, oneTryNotice } from './platform/supports/feedback/oneTryChoice.js';
 import { SAME_ANSWER_AGAIN, missOutcomeText, submitActionLabel, submitTryCost, triesLeftText } from './platform/student/submitCost.js';
-import { LANGUAGE_TOOLS } from './platform/student/studentWords.js';
+import { LANGUAGE_TOOLS, START_OVER, START_QUESTION_OVER, STARTING_OVER } from './platform/student/studentWords.js';
 import './components/student/SubmitCost.css';
 import { closedQuestionEnterAction } from './platform/interaction/closedQuestionEnter.js';
 import { READ_ONLY_WORK_AREA_LABEL, READ_ONLY_WORK_AREA_SELECTOR, bindReadOnlyWorkArea } from './platform/interaction/readOnlyWorkArea.js';
@@ -1721,9 +1721,9 @@ function QuestionEngineBody({
     if (locked || resettingQuestion || submitting || requesting) return;
 
     const proceed = await confirmAction({
-      title: 'Reset this question?',
+      title: 'Start this question over?',
       message: 'This clears all work on this question and returns every tool to its starting state. Your tries and your grade stay as they are.',
-      confirmLabel: 'Reset question',
+      confirmLabel: START_OVER,
     });
     if (!proceed) return;
 
@@ -2468,9 +2468,12 @@ function QuestionEngineBody({
       disabled: !undoController?.canUndo || undoUnavailable,
       title: undoController?.label || 'Undo the most recent response change',
     },
+    // ONE WORD FOR BEGINNING AGAIN (studentWords.js): the tools' own button
+    // says "Start over" too. This one restarts the whole question, so on a
+    // wide screen it says so; a phone's rail shows the short form.
     reset: {
-      label: resettingQuestion ? 'Resetting…' : '↺ Reset Question',
-      shortLabel: resettingQuestion ? 'Resetting…' : '↺ Reset',
+      label: resettingQuestion ? STARTING_OVER : `↺ ${START_QUESTION_OVER}`,
+      shortLabel: resettingQuestion ? STARTING_OVER : `↺ ${START_OVER}`,
       onClick: handleResetQuestion,
       disabled: locked || resettingQuestion || submitting || requesting,
       title: 'Clear this question\'s work and return every tool to its starting state',
@@ -2548,12 +2551,12 @@ function QuestionEngineBody({
           onClick={handleResetQuestion}
           disabled={workspaceActions.reset.disabled}
           title={workspaceActions.reset.title}
-          aria-label={resettingQuestion ? 'Resetting…' : 'Reset Question'}
+          aria-label={resettingQuestion ? STARTING_OVER : START_QUESTION_OVER}
           style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: workspaceActions.reset.disabled ? 'not-allowed' : 'pointer', opacity: workspaceActions.reset.disabled ? 0.45 : 1 }}
         >
-          {/* "Question" drops on a phone so the work bar fits one row; "Reset"
-              stays as a caption under ↺ there, beside Undo's ↶ (A11Y-10). */}
-          {resettingQuestion ? 'Resetting…' : <><span aria-hidden="true">↺</span><span className="mathmaster-action-label mathmaster-action-label--kept"> Reset<span className="mathmaster-action-label-long"> Question</span></span></>}
+          {/* "question" drops on a phone so the work bar fits one row; "Start
+              over" stays as a caption under ↺ there, beside Undo's ↶ (A11Y-10). */}
+          {resettingQuestion ? STARTING_OVER : <><span aria-hidden="true">↺</span><span className="mathmaster-action-label mathmaster-action-label--kept"> Start<span className="mathmaster-action-label-long"> question</span> over</span></>}
         </button>
       ) : null}
       <button className="mm-button-neutral mathmaster-work-bar-tool" type="button" onClick={openScratchpad} disabled={scratchpadLoading} aria-label={scratchpadLoading ? 'Opening scratchpad…' : 'Scratchpad'} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: 'pointer' }}>

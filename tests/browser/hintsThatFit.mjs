@@ -38,7 +38,7 @@ const open = async (context, lesson, q, role = '') => {
   page.on('pageerror', (error) => failures.push(`${lesson}/${q}/${role}: page error ${error.message}`));
   await page.goto(`${ORIGIN}/tests/browser/hintsThatFit.html?lesson=${lesson}&q=${q}${role ? `&role=${role}` : ''}&run=${run}`, { waitUntil: 'networkidle' });
   // Something the question renders in the same pass as the help controls.
-  await page.locator('button', { hasText: '↺ Reset Question' }).first().waitFor({ state: 'attached', timeout: 20000 });
+  await page.locator('button', { hasText: '↺ Start question over' }).first().waitFor({ state: 'attached', timeout: 20000 });
   return page;
 };
 const openHints = async (page) => {

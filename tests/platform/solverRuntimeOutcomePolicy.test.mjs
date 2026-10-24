@@ -172,7 +172,7 @@ test('the builder renders the checklist from the view, fed by the runtime policy
   const builder = executableSource(componentSource('src/tools/constraintFunctionBuilder/ConstraintFunctionBuilder.jsx'));
   assert.match(builder, /\n\s*const \{ showImmediateFeedback \} = useToolRuntimeContext\(\);/);
   assert.match(builder, /\n\s*const checklist = constraintChecklistView\(\{ parts: liveScore\.parts, showImmediateFeedback \}\);/);
-  const list = region(builder, 'Constraint checklist</strong>', 'Submit this model', 'checklist');
+  const list = region(builder, 'Constraint checklist</strong>', 'Check this model', 'checklist');
   assert.match(list, /\{checklist\.map\(\(item\) => <div key=\{item\.id\}/);
   // Satisfied reads as the success container (a themed token since Dark Mode 2.0).
   assert.match(list, /background: item\.satisfied \? 'var\(--mm-success-bg\)'/);

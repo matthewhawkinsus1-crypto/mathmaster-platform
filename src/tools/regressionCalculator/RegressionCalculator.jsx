@@ -20,6 +20,7 @@ import {
 import './RegressionCalculator.css';
 import { useSubmitLabel } from '../shared/ToolRuntimeContext';
 import { regressionFeedbackText } from './regressionFeedback.js';
+import { START_OVER } from '../../platform/student/studentWords.js';
 
 const EMPTY_EXPRESSION = () => ({ id: crypto.randomUUID(), type: 'expression', value: '' });
 const orderedPair = (value) => {
@@ -66,7 +67,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
   const addMenuRef = useRef(null);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
   // A secure host names the final action ("Record answer"); see ToolRuntimeContext.
-  const submitActionLabel = useSubmitLabel('Submit my regression');
+  const submitActionLabel = useSubmitLabel('Check my regression');
 
   const record = (type, detail = {}) => setProcessEvidence((events) => [...events, { type, ...detail }]);
   const commitRows = (next) => setRows(next);
@@ -279,8 +280,6 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
     setNotice('');
   };
 
-  const deleteAll = startOver;
-
   const execute = (row) => {
     if (!tableRow || tablePoints.length < 2 || !isRegressionExpression(row.value)) return;
     const stats = regressionCalculatorStats(tablePoints);
@@ -409,8 +408,8 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
         <nav className={`regression-toolbar ${editOpen ? 'is-editing' : ''}`} aria-label="Calculator toolbar">
           {editOpen ? (
             <>
-              <button className="regression-delete-all" type="button" onClick={deleteAll} aria-label="Delete all expressions">
-                Delete All
+              <button className="regression-delete-all" type="button" onClick={startOver}>
+                {START_OVER}
               </button>
               <span className="regression-toolbar-spacer" />
               <button className="regression-done" type="button" onClick={openEdit} aria-label="Done editing">Done</button>
@@ -452,7 +451,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
                 ) : null}
               </div>
               <span className="regression-toolbar-spacer" />
-              <button className="regression-tool-icon regression-reset" type="button" onClick={startOver} aria-label="Start over" title="Clear this calculator and start over">↺</button>
+              <button className="regression-tool-icon regression-reset" type="button" onClick={startOver} aria-label={START_OVER} title="Clear this calculator and start over">↺</button>
               <button className="regression-tool-icon regression-settings" type="button" onClick={openEdit} aria-label="Settings and edit" title="Edit">⚙</button>
               <button
                 className="regression-tool-icon regression-collapse"

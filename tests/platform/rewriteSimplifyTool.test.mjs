@@ -14,7 +14,7 @@ import { commitSimplifyPart, detectSimplifyParts } from '../../src/platform/alge
 
 const src = stepAlgebraSource();
 const panel = executableSource(fs.readFileSync('src/platform/algebra/simplify/SimplifyPanel.jsx', 'utf8'));
-const toolbar = region(src, "className=\"algebra-simplify-toggle\"", 'Reset work', 'the solver toolbar');
+const toolbar = region(src, "className=\"algebra-simplify-toggle\"", 'className="algebra-reset-work"', 'the solver toolbar');
 
 test('Simplify remains a permanent student-authored toolbar control', () => {
   // Rendered unconditionally (not behind a "has parts" test), with its state.
@@ -22,7 +22,9 @@ test('Simplify remains a permanent student-authored toolbar control', () => {
   assert.match(toolbar, /aria-expanded=\{Boolean\(simplifyTool\)\}/);
   assert.match(toolbar, />\s*Simplify\s*</);
   assert.match(src, /Cancellation hints/);
-  assert.match(src, /Reset work/);
+  // The toolbar's way to begin again, under the platform's one word for it
+  // (studentWords.js START_OVER; it said "Reset work").
+  assert.match(src, /className="algebra-reset-work" onClick=\{resetQuestionWork\}[^>]*>\{START_OVER\}<\/button>/);
   // The three old buttons are gone from the solver.
   assert.doesNotMatch(src, />\s*Rewrite \/ Simplify\s*</);
   assert.doesNotMatch(src, />\s*Combine like terms\s*</);

@@ -46,18 +46,20 @@ test('no registry tool or composed-question stage shows a student the word "work
   const offenders = files.flatMap((file) => renderedStrings(read(file))
     .filter((text) => !TOLERATED.has(`${file}|${text}`))
     .map((text) => `${file}: "${text}"`));
-  assert.deepEqual(offenders, [], 'student-facing text should name what the student does ("Submit my regression"), not the platform\'s "workflow"');
+  assert.deepEqual(offenders, [], 'student-facing text should name what the student does ("Check my regression"), not the platform\'s "workflow"');
 });
 
-test('Regression Calculator submits "my regression" and says so when it is complete', () => {
+test('Regression Calculator names "my regression" in its final action and says so when it is complete', () => {
   const source = executableSource(read('src/tools/regressionCalculator/RegressionCalculator.jsx'));
   // The button that calls check() is the one with the student's wording.
   const button = region(source, 'className="regression-submit"', '</button>', 'the regression submit button');
   assert.match(button, /onClick=\{check\}/);
   // The label is the student's wording unless a secure host renames the final
-  // action ("Record answer", ToolRuntimeContext useSubmitLabel).
+  // action ("Record answer") or the press spends a try ("Submit — uses 1 of 3
+  // tries"): ToolRuntimeContext useSubmitLabel. Its own words are "Check …",
+  // like every other tool's: where nothing is spent, "Check" is the true word.
   assert.match(button, />\s*\{submitActionLabel\}\s*$/);
-  assert.match(source, /const submitActionLabel = useSubmitLabel\('Submit my regression'\);/);
+  assert.match(source, /const submitActionLabel = useSubmitLabel\('Check my regression'\);/);
   // The verdict sentence is chosen from the grader's parts in
   // regressionFeedback.js (wave 7, TOOL-5); complete work says so.
   assert.match(source, /const feedbackText = feedback && regressionFeedbackText\(feedbackParts\);/);

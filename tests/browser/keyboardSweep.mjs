@@ -642,7 +642,7 @@ const reverseWalk = async (page) => {
   return { ids, reachedStart, trap };
 };
 
-const POPUP_NAME = /work view|enlarge|expand|full ?screen|scratchpad|calculator|hint|help|menu|more|options|about this tool|how to do this|show|open|reset question/i;
+const POPUP_NAME = /work view|enlarge|expand|full ?screen|scratchpad|calculator|hint|help|menu|more|options|about this tool|how to do this|show|open|start question over/i;
 
 const popupProbe = async (page, stops) => {
   const results = [];

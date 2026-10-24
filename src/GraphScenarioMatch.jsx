@@ -10,6 +10,7 @@ import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerSta
 import './GraphScenarioMatch.css';
 import useMobileInteractionMode from './platform/mobile/useMobileInteractionMode.js';
 import { scrollMotion } from './motionPreference.js';
+import { START_OVER } from './platform/student/studentWords.js';
 
 const getPartGrade = (feedback, id) => feedback?.partGrades?.find((part) => part.id === id);
 
@@ -263,7 +264,7 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
                 setSelectedGraphId('');
               }}
             >
-              Clear all
+              {START_OVER}
             </button>
           )}
         </div>

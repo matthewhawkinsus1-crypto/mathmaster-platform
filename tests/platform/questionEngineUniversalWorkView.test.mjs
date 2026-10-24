@@ -21,7 +21,11 @@ test('QuestionEngine exposes a universal reset that remounts the current tool wi
   assert.match(source, /forgetToolDrafts\(draftKey\)/);
   assert.match(source, /setQuestionResetVersion\(\(current\) => current \+ 1\)/);
   assert.match(source, /Your tries and your grade stay as they are/);
-  assert.match(source, /↺ Reset Question/);
+  // Offered in the work bar and Work View's rail under the platform's one
+  // word for beginning again (studentWords.js): the long form says it
+  // restarts the question, so it is not taken for a tool's own "Start over".
+  assert.match(source, /label: resettingQuestion \? STARTING_OVER : `↺ \$\{START_QUESTION_OVER\}`,/);
+  assert.match(source, /confirmLabel: START_OVER,/);
   assert.match(source, /QuestionModuleBoundary[\s\S]*reset-\$\{questionResetVersion\}/);
 });
 

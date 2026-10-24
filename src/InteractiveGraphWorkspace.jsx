@@ -55,6 +55,7 @@ import { typedCoordinate, typedEntryEnterAction } from './graphTypedCoordinate.j
 import { connectPointsStrokes, constructionBranchSplitX, constructionPointsToConnect, inversePointsToConnect } from './graphConnectPoints.js';
 import { KEYBOARD_ACCESS_SUPPORT_ID, connectPointsOffered, connectPointsProvidedByPlan } from './platform/graph/connectPointsPolicy.js';
 import FocusSafeButton from './components/common/FocusSafeButton.jsx';
+import { START_OVER } from './platform/student/studentWords.js';
 
 // Matched to CoordinatePlane's zoom buttons so the two planes a student meets
 // in one assignment do not have different-looking controls for the same act.
@@ -1718,7 +1719,9 @@ export default function InteractiveGraphWorkspace({
             }}
             style={{ padding: '9px 14px', border: '1px solid var(--mm-error-border-soft)', borderRadius: '8px', background: 'var(--mm-surface)', color: 'var(--mm-error-text)', fontWeight: 'bold' }}
           >
-            {stage === 'analysis' && inverseReflectionEnabled ? 'Reset Inverse' : 'Reset Graph'}
+            {/* Begins this stage again: the inverse sketch's analysis, or the
+                construction. One word for it everywhere (studentWords.js). */}
+            {START_OVER}
           </button>
 
           {/* Zoom, as buttons. A student who cannot pinch — one hand, a

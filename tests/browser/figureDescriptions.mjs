@@ -32,8 +32,8 @@
  *               Screenshots: tests/browser/artifacts/figureDescriptions/
  *               (FIGURE_SHOTS to put them elsewhere).
  *
- * At 390x844 it also checks A11Y-10: beside Submit, Undo and Reset keep a
- * word under their icons.
+ * At 390x844 it also checks A11Y-10: beside Submit, Undo and Start over keep
+ * a word under their icons.
  */
 import assert from 'node:assert/strict';
 import { mkdirSync } from 'node:fs';
@@ -163,17 +163,19 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   });
 
   // A11Y-10: on a phone the work bar drops its words beside Submit, and Undo
-  // (↶) and Reset (↺) were two near-identical arrows. Each keeps its word as a
-  // caption under the icon; the other tools stay icon-only.
-  if (phone) await step(at, 'work bar: Undo and Reset keep a caption beside Submit', async () => {
+  // (↶) and Start over (↺) were two near-identical arrows. Each keeps its word
+  // as a caption under the icon; the other tools stay icon-only.
+  if (phone) await step(at, 'work bar: Undo and Start over keep a caption beside Submit', async () => {
     await open(page, 'numberLine');
     const captions = await page.evaluate(() => [...document.querySelectorAll('.portrait-action-bar[data-has-primary="true"] .mathmaster-action-label')].map((label) => {
       const box = label.getBoundingClientRect();
       return { text: label.textContent.trim(), shown: box.width > 8 && box.height > 6 };
     }));
-    const shown = captions.filter((caption) => caption.shown).map((caption) => caption.text.replace(/ Question$/, ''));
-    assert.deepEqual(shown, ['Undo', 'Reset'], `only Undo and Reset show their word: ${JSON.stringify(captions)}`);
-    for (const name of ['Undo', 'Reset Question']) {
+    // textContent still holds the " question" a phone hides: the visible
+    // caption is "Start over", the accessible name "Start question over".
+    const shown = captions.filter((caption) => caption.shown).map((caption) => caption.text.replace(/ question /, ' '));
+    assert.deepEqual(shown, ['Undo', 'Start over'], `only Undo and Start over show their word: ${JSON.stringify(captions)}`);
+    for (const name of ['Undo', 'Start question over']) {
       assert.equal(await page.locator('.portrait-action-bar').getByRole('button', { name, exact: true }).count(), 1, `"${name}" keeps its accessible name`);
     }
   });

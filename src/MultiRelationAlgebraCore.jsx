@@ -60,6 +60,7 @@ import { useContentStableValue } from './platform/react/useContentStableValue.js
 import { persistablePendingFlip, restoredPendingFlip } from './relationPendingFlipDraft.js';
 import { isStepNotQueued } from './platform/student/submissionNotQueued.js';
 import { SR_ONLY_STYLE } from './ui/srOnly.js';
+import { START_OVER } from './platform/student/studentWords.js';
 
 const BASIC_OPERATIONS = [
   { id: 'add', symbol: '+', label: 'Add' },
@@ -1999,7 +2000,7 @@ export default function MultiRelationAlgebra({
             </span>
           )}
           <button type="button" onClick={reset} disabled={disabled} style={buttonStyle(false)}>
-            Reset work
+            {START_OVER}
           </button>
         </div>
       </div>

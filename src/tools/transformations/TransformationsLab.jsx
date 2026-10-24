@@ -23,6 +23,7 @@ import {
 import { SubmitText, useSubmitActionName } from '../shared/ToolRuntimeContext';
 import FocusSafeButton from '../../components/common/FocusSafeButton.jsx';
 import { labGuidanceFor } from './transformationsGuidance.js';
+import { START_OVER } from '../../platform/student/studentWords.js';
 
 const inputStyle = { width: '100%', padding: 9, marginTop: 5, border: '1px solid var(--mm-tint-border)', borderRadius: 8 };
 const buttonStyle = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
@@ -296,7 +297,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
     },
     primaryActions: [primaryAction],
     secondaryActions: mode === 'plotTransform'
-      ? [{ id: 'clear-points', label: 'Clear', onAction: clearPlottedPoints, disabled: !plottedPoints.length }]
+      ? [{ id: 'clear-points', label: START_OVER, onAction: clearPlottedPoints, disabled: !plottedPoints.length }]
       : [],
   };
 
@@ -377,10 +378,10 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
               now covers this lab: the platform control beside Submit takes back
               a placed point, and in every other mode of this tool it takes back
               the parameter or description edit that the local button never
-              reached. Clear is not undo — it discards the whole construction in
-              one press — so it stays. */}
+              reached. Start over is not undo — it discards the whole construction
+              in one press — so it stays. */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
-            <FocusSafeButton onClick={clearPlottedPoints} enabled={plottedPoints.length > 0} style={{ ...buttonStyle, background: 'var(--mm-surface)', color: 'var(--mm-text-muted)', border: '1px solid var(--mm-border)' }}>Clear</FocusSafeButton>
+            <FocusSafeButton onClick={clearPlottedPoints} enabled={plottedPoints.length > 0} style={{ ...buttonStyle, background: 'var(--mm-surface)', color: 'var(--mm-text-muted)', border: '1px solid var(--mm-border)' }}>{START_OVER}</FocusSafeButton>
             <button data-mm-enter-action="submit" type="button" onClick={check} disabled={plotTransformIncomplete} style={{ ...buttonStyle, opacity: plotTransformIncomplete ? 0.55 : 1 }}><SubmitText>Check graph</SubmitText></button>
           </div>
           <p style={{ marginBottom: 0, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{plottedPoints.length} of {expectedTransformedPoints.length} defining points plotted.</p>
