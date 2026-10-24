@@ -213,6 +213,11 @@ test('a callable refusal with our sentence keeps it, whatever its code; the SDK\
   ]) {
     assert.equal(studentErrorSentence(sdkError(code, message), 'Your answer could not be submitted.'), 'Your answer could not be submitted.', message);
   }
+  // The SDK serializer's own plain Errors (no code at all; OT05).
+  for (const message of ['Data cannot be decoded from JSON: [object Object]', 'Data cannot be encoded in JSON: function () {}']) {
+    assert.equal(studentErrorSentence(new Error(message), 'Your answer could not be submitted.'), 'Your answer could not be submitted.', message);
+    assert.equal(studentErrorSentence(message, 'Your answer could not be submitted.'), 'Your answer could not be submitted.', `${message} (as text)`);
+  }
   // A dropped connection still reads as one, whatever the error says.
   assert.equal(studentErrorSentence(new TypeError('Failed to fetch'), 'Could not submit.'), STUDENT_ERROR_TEXT.offline);
 });

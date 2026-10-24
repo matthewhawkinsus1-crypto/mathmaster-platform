@@ -48,6 +48,13 @@ const fromCallable = (error) => String(error?.code || '').startsWith('functions/
  */
 const CALLABLE_SDK_SENTENCE = /^(?:Response is not valid JSON object|Response is missing data field|Request was cancelled|Firebase Functions instance was deleted)\.?$/i;
 const sdkSentence = (error, message) => fromCallable(error) && CALLABLE_SDK_SENTENCE.test(String(message || '').trim());
+/*
+ * Its serializer throws plain Errors with no code at all (OT05): "Data cannot
+ * be decoded from JSON: …" when an answer holds a value it cannot read, and
+ * "Data cannot be encoded in JSON: …" for a request. They read like sentences
+ * and would pass the word filter.
+ */
+const SDK_SERIALIZER_SENTENCE = /^Data cannot be (?:decoded from|encoded in) JSON\b/i;
 const machineWords = (error) => {
   if (!error || typeof error !== 'object') return false;
   if (PROGRAM_ERRORS.has(error.name)) return true;
@@ -61,7 +68,7 @@ export const studentSafeSentence = (message) => {
   if (!text || text.length > 300) return '';
   // A bare code ("internal", "failed-precondition") is not a sentence.
   if (!/\s/.test(text)) return '';
-  if (DEVELOPER_WORDS.test(text)) return '';
+  if (DEVELOPER_WORDS.test(text) || SDK_SERIALIZER_SENTENCE.test(text)) return '';
   return text;
 };
 
