@@ -283,11 +283,14 @@ test('time up finishes the test, and the messages say what actually went wrong',
   assert.match(container, /const OPEN_FAILED = '(?:[^'\\]|\\.)*Your answers are saved(?:[^'\\]|\\.)*';/);
 });
 
-test('the event before an integrity pause warns, naming everything that counts, with a way back to full screen', () => {
+test('every counted event says so and the event before an integrity pause warns, with a way back to full screen', () => {
   const logger = region(container, 'onEvent: async (event) => {', 'logger.startListening();', 'integrity logger');
-  assert.match(logger, /if \(integrityWarningDue\(\{ status: EXAM_RUNTIME_STATES\.IN_PROGRESS, violationCount: result\.violationCount, lockThreshold: result\.lockThreshold, warning: result\.warning \}\)\) \{\s*setIntegrityNotice\(true\);/);
+  // TS06: the notice comes from the first counted event, not only the one before the pause.
+  assert.match(logger, /const noticeText = integrityNoticeText\(\{ status: EXAM_RUNTIME_STATES\.IN_PROGRESS, violationCount: result\.violationCount, lockThreshold: result\.lockThreshold, warning: result\.warning \}\);\s*if \(noticeText\) setIntegrityNotice\(noticeText\);/);
   const warning = region(container, '{integrityNotice && session.status === EXAM_RUNTIME_STATES.IN_PROGRESS && (', '    )}', 'warning');
-  assert.match(warning, /<span><strong>Stay in the test window\.<\/strong> \{INTEGRITY_WARNING_TEXT\}<\/span>/);
+  assert.match(warning, /<span><strong>Stay in the test window\.<\/strong> \{integrityNotice\}<\/span>/);
+  // Opening or resuming a test one event short of the pause still warns.
+  assert.equal((container.match(/if \(integrityWarningDue\((?:started|active)\)\) setIntegrityNotice\(INTEGRITY_WARNING_TEXT\);/g) || []).length, 2);
   assert.match(warning, /<button type="button" onClick=\{returnToFullscreen\}[^>]*>Return to full screen<\/button>/);
   assert.match(region(container, 'const returnToFullscreen = () => {', '};', 'full screen'), /document\.documentElement\?\.requestFullscreen\?\.\(\)/);
 });

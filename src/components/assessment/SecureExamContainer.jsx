@@ -20,6 +20,7 @@ import {
   INTEGRITY_WARNING_TEXT,
   classifySecureExamError,
   finishedSummary,
+  integrityNoticeText,
   integrityPauseText,
   integrityWarningDue,
   nextActionLabel,
@@ -285,7 +286,7 @@ export const SecureExamContainer = ({
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [saveState, setSaveState] = useState('idle');
-  const [integrityNotice, setIntegrityNotice] = useState(false);
+  const [integrityNotice, setIntegrityNotice] = useState('');
   const [fullscreen, setFullscreen] = useState(() => typeof document !== 'undefined' && Boolean(document.fullscreenElement));
   // The session as the student's list knows it, read for the start screen when
   // the screen was opened without one (a course Test, from its card).
@@ -617,7 +618,7 @@ export const SecureExamContainer = ({
       if (started?.status === EXAM_RUNTIME_STATES.IN_PROGRESS) {
         // Where the student left off; a new test opens its first question.
         await openPosition(started.examSessionId, readNavigation(started).cursor);
-        if (integrityWarningDue(started)) setIntegrityNotice(true);
+        if (integrityWarningDue(started)) setIntegrityNotice(INTEGRITY_WARNING_TEXT);
       }
     } catch (startError) {
       // Before a session exists the start screen shows the reason; after, a
@@ -642,11 +643,11 @@ export const SecureExamContainer = ({
           violationCount: Number.isInteger(result.violationCount) ? result.violationCount : current.violationCount,
           ...(result.lockThreshold ? { integrityLockThreshold: result.lockThreshold } : {}),
         } : current));
-        // The event before the one that pauses the test: say so now, while
-        // the student can still act on it.
-        if (integrityWarningDue({ status: EXAM_RUNTIME_STATES.IN_PROGRESS, violationCount: result.violationCount, lockThreshold: result.lockThreshold, warning: result.warning })) {
-          setIntegrityNotice(true);
-        }
+        // Every event that counted says so, with the count (TS06); the event
+        // before the one that pauses the test warns, while the student can
+        // still act on it.
+        const noticeText = integrityNoticeText({ status: EXAM_RUNTIME_STATES.IN_PROGRESS, violationCount: result.violationCount, lockThreshold: result.lockThreshold, warning: result.warning });
+        if (noticeText) setIntegrityNotice(noticeText);
       },
     });
     logger.startListening();
@@ -717,7 +718,7 @@ export const SecureExamContainer = ({
       if (!saved.ok && handleProblem(saved.problem)) return;
       const target = Number.isInteger(positionRef.current) ? positionRef.current : readNavigation(active).cursor;
       await openPosition(active.examSessionId, target);
-      if (integrityWarningDue(active)) setIntegrityNotice(true);
+      if (integrityWarningDue(active)) setIntegrityNotice(INTEGRITY_WARNING_TEXT);
     } catch (resumeError) {
       const problem = classifySecureExamError(resumeError, { expiresAt: active.expiresAt });
       if (!handleProblem(problem)) setError(problem.message || 'Your question did not reopen. Try again.');
@@ -1029,10 +1030,10 @@ export const SecureExamContainer = ({
     <span tabIndex={0} data-secure-focus-guard="start" onFocus={() => focusEdge('last')} style={focusGuardStyle} />
     {integrityNotice && session.status === EXAM_RUNTIME_STATES.IN_PROGRESS && (
       <div role="alert" data-secure-integrity-warning="" style={{ ...bannerStyle('warning'), position: 'fixed', top: 12, left: 0, right: 0, margin: '0 auto', zIndex: WARNING_LAYER, background: 'var(--mm-warning-bg)', boxShadow: 'var(--mm-shadow-lg)', display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-        <span><strong>Stay in the test window.</strong> {INTEGRITY_WARNING_TEXT}</span>
+        <span><strong>Stay in the test window.</strong> {integrityNotice}</span>
         <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {fullscreenAvailable && !fullscreen && <button type="button" onClick={returnToFullscreen} style={primaryButton(true)}>Return to full screen</button>}
-          <button type="button" onClick={() => setIntegrityNotice(false)} style={secondaryButton(true)}>OK</button>
+          <button type="button" onClick={() => setIntegrityNotice('')} style={secondaryButton(true)}>OK</button>
         </span>
       </div>
     )}

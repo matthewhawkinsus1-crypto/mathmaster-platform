@@ -305,6 +305,25 @@ export function integrityWarningDue({ status, violationCount, lockThreshold, war
   return count > 0 && count >= threshold - 1;
 }
 
+/**
+ * WHAT THE STUDENT IS TOLD AFTER AN EVENT THAT COUNTED (TS06).
+ *
+ * The start screen states the rule, but the first notice used to come only
+ * one event before the pause: a student who left full screen once heard
+ * nothing, and learned the rule from the "one more time" warning. Now every
+ * counted event says so, with the count, and the event before the pause
+ * keeps the warning. Null when nothing has counted or the test is not under
+ * way.
+ */
+export function integrityNoticeText({ status, violationCount, lockThreshold, warning } = {}) {
+  if (status !== SESSION_STATUS.IN_PROGRESS) return null;
+  if (integrityWarningDue({ status, violationCount, lockThreshold, warning })) return INTEGRITY_WARNING_TEXT;
+  const threshold = wholeNumber(lockThreshold) || DEFAULT_INTEGRITY_LOCK_THRESHOLD;
+  const count = wholeNumber(violationCount) ?? 0;
+  if (count < 1) return null;
+  return `That counted: leaving the test window, or trying to copy, paste or right-click (${count} of ${threshold}). Your teacher sees each time, and at ${threshold} the test pauses until your teacher lets you continue.`;
+}
+
 /** Which kind of pause a session is in: the teacher's, or the integrity limit's. */
 export function pauseKind(status, clockPaused = false) {
   if (status === SESSION_STATUS.LOCKED_PROCTOR) return 'teacher';

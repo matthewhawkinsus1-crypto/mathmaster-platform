@@ -42,6 +42,7 @@ import {
   classifySecureExamError,
   finishedSummary,
   integrityPauseText,
+  integrityNoticeText,
   integrityWarningDue,
   navigatorCells,
   nextActionLabel,
@@ -339,6 +340,21 @@ test('the start screen states the student\'s own time before Start, and the time
   assert.match(startScreenRules({ courseTest: true, allowance: untimed }).join('\n'), /This test is not timed\./);
 });
 
+test('every event that counted says so, with the count; the one before the pause warns (TS06)', () => {
+  // The first exit used to say nothing: the rule was heard from the second.
+  assert.equal(
+    integrityNoticeText({ status: 'in_progress', violationCount: 1, lockThreshold: 3 }),
+    'That counted: leaving the test window, or trying to copy, paste or right-click (1 of 3). Your teacher sees each time, and at 3 the test pauses until your teacher lets you continue.',
+  );
+  assert.match(integrityNoticeText({ status: 'in_progress', violationCount: 2, lockThreshold: 5 }), /\(2 of 5\)/);
+  assert.equal(integrityNoticeText({ status: 'in_progress', violationCount: 2, lockThreshold: 3 }), INTEGRITY_WARNING_TEXT, 'one short of the limit: the warning');
+  assert.equal(integrityNoticeText({ status: 'in_progress', violationCount: 1, lockThreshold: 3, warning: true }), INTEGRITY_WARNING_TEXT, 'the server says so');
+  assert.equal(integrityNoticeText({ status: 'in_progress', violationCount: 3, lockThreshold: 3 }), INTEGRITY_WARNING_TEXT, 'a resumed pause: the next event pauses again');
+  assert.equal(integrityNoticeText({ status: 'in_progress', violationCount: 0, lockThreshold: 3 }), null, 'nothing has counted');
+  assert.equal(integrityNoticeText({ status: 'locked_integrity', violationCount: 3, lockThreshold: 3 }), null, 'a paused test shows the pause');
+  assert.match(integrityNoticeText({ status: 'in_progress', violationCount: 1 }), /\(1 of 3\)/, 'the default limit is 3');
+});
+
 test('integrity messages name everything that counts toward the pause', () => {
   // Every event the logger records, and the words a student would recognise it by.
   const words = {
@@ -352,7 +368,8 @@ test('integrity messages name everything that counts toward the pause', () => {
   const rules = startScreenRules({ allowance: null, lockThreshold: 3 }).join('\n');
   for (const type of Object.values(INTEGRITY_EVENT_TYPES)) {
     assert.ok(words[type], `a new integrity event (${type}) needs words in the warning, the pause and the start rules`);
-    for (const [name, text] of [['warning', INTEGRITY_WARNING_TEXT], ['pause', integrityPauseText(3)], ['start rules', rules]]) {
+    const counted = integrityNoticeText({ status: 'in_progress', violationCount: 1, lockThreshold: 3 });
+    for (const [name, text] of [['warning', INTEGRITY_WARNING_TEXT], ['counted', counted], ['pause', integrityPauseText(3)], ['start rules', rules]]) {
       assert.match(text, words[type], `${name} names ${type}`);
     }
   }

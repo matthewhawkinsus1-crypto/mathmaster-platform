@@ -596,14 +596,18 @@ const courseJourney = async (context, device) => {
   check(await headerPosition(page) === 'Question 2 of 5', label('resume reopens the same question'), await headerPosition(page));
   check(await toolValue() === '[-3,5)', label('the saved work is still there after the pause'), await toolValue());
 
-  // Leaving the window: warned on the second time, paused on the third. The
-  // first is leaving full screen (Start entered it), the second a lost focus.
+  // Leaving the window: told it counted on the first time (TS06), warned on
+  // the second, paused on the third. The first is leaving full screen (Start
+  // entered it), the second a lost focus.
   const startedFullscreen = await page.evaluate(() => Boolean(document.fullscreenElement));
   if (startedFullscreen) await page.evaluate(() => document.exitFullscreen());
   else await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  await page.waitForSelector('[data-secure-integrity-warning]', { timeout: 8000 });
+  text = await page.locator('[data-secure-integrity-warning]').innerText();
+  check(/That counted: leaving the test window, or trying to copy, paste or right-click \(1 of 3\)/.test(text), label('the first leave says it counted, with the count'), text);
   await wait(900);
   await page.evaluate(() => window.dispatchEvent(new Event('blur')));
-  await page.waitForSelector('[data-secure-integrity-warning]', { timeout: 8000 });
+  await page.waitForFunction(() => /One more time/.test(document.querySelector('[data-secure-integrity-warning]')?.innerText || ''), null, { timeout: 8000 }).catch(() => {});
   text = await page.locator('[data-secure-integrity-warning]').innerText();
   check(/One more time leaving the test window, or trying to copy, paste or right-click, will pause the test for your teacher\./.test(text), label('second leave warns before the pause, naming everything that counts'));
   check(/Return to full screen/.test(text), label('the warning offers a way back to full screen'), `started in full screen: ${startedFullscreen}`);
