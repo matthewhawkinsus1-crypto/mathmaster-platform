@@ -221,13 +221,17 @@ export const DISTRICT_ID_CORRECTION = Object.freeze({
   courseId: 'course-alg1-p1',
 });
 
-export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, params = null } = {}) => {
+// `compiledSections`: the lesson compiled by lessonFixtures.js, which the page
+// loads (fakeFirestore.js) only for `?questions=matrices`; a Vite `?raw` import
+// cannot be reached from node.
+export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, params = null, compiledSections = null } = {}) => {
   const questionSet = params?.get?.('questions');
   const sectionsFor = questionSet === 'real' ? realLessonSections
     : questionSet === 'family' ? familyLessonSections
     : questionSet === 'lmr' ? lmrLessonSections
       : questionSet === 'systems' ? systemsLessonSections
-        : lessonSections;
+        : questionSet === 'matrices' && compiledSections ? compiledSections
+          : lessonSections;
   // `?p3StartMin=<n>`: Period 3 began n minutes ago (default 0: it begins
   // now). Under 10, the Warm-Up is still inside its default ten-minute window,
   // so with no parameter it is open; every journey that passes none relies on

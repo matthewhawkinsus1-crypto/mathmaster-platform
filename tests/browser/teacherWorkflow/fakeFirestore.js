@@ -151,6 +151,15 @@ export const recordHarnessCallable = (name, responseBytes = null) => {
 const persist = () => {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...store.entries()].map(([path, data]) => [path, serialize(data)]))); } catch { /* quota: harness only */ }
 };
+// `?questions=matrices` (PH10): a real Algebra II lesson, compiled by the real
+// import chain. Loaded only when asked for: it pulls in the lesson files and the
+// compile modules every other page does not need.
+const requestedLesson = new URLSearchParams(window.location.search).get('questions');
+const lessonFixtures = requestedLesson === 'matrices'
+  ? await import('./lessonFixtures.js')
+  : null;
+const compiledSections = lessonFixtures ? () => lessonFixtures.lessonSectionsFor(requestedLesson) : null;
+
 const loadOrSeed = () => {
   const params = new URLSearchParams(window.location.search);
   const saved = params.get('reset') ? null : localStorage.getItem(STORAGE_KEY);
@@ -161,7 +170,7 @@ const loadOrSeed = () => {
     JSON.parse(saved).forEach(([path, data]) => put(path, revive(data)));
     return;
   }
-  const fixture = buildTeacherWorkflowFixture({ now: Date.now(), Timestamp, params });
+  const fixture = buildTeacherWorkflowFixture({ now: Date.now(), Timestamp, params, compiledSections });
   Object.entries(fixture).forEach(([path, data]) => put(path, clone(data)));
   persist();
 };
