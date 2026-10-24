@@ -72,6 +72,20 @@ test('a lower recorded grade is refused outright, whatever produced it', () => {
   assert.equal(decision.grade, 68);
 });
 
+test('a lower grade the teacher set by hand is posted: it is a decision, not a regression (TT33)', async () => {
+  const { GRADE_SOURCE } = await import('../../functions/shared/testCycleGrade.mjs');
+  const adjusted = testCycleClassroomPassback({ recordedGrade: 40, previouslyPostedGrade: 68, teacherAdjusted: true });
+  assert.deepEqual([adjusted.shouldPost, adjusted.grade, adjusted.refusedLowering], [true, 40, undefined]);
+  assert.equal(testCycleClassroomPassback({ recordedGrade: 40, previouslyPostedGrade: 68, teacherAdjusted: 'yes' }).refusedLowering, true, 'only a real adjustment');
+  // The sync reads the adjustment from the projection's own source name.
+  assert.equal(GRADE_SOURCE.TEACHER_ADJUSTMENT, 'teacherAdjustment');
+  const index = executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));
+  assert.match(index, /testCycleClassroomPassback\(\{\s*recordedGrade: grade,\s*previouslyPostedGrade: priorAudit\.grade,\s*teacherAdjusted: testCycleProjection\?\.recordedGradeSource === "teacherAdjustment",\s*\}\)/);
+  // And a cycle holding one is not deleted as if nobody had worked on it.
+  const evidence = region(index, 'async function assignmentEvidenceSummary(', 'exports.getAssignmentEvidenceSummary', 'evidence');
+  assert.match(evidence, /\|\| \(record\.gradeAdjustment && typeof record\.gradeAdjustment === "object"\)\) \{\s*studentsWithWork\.add/);
+});
+
 test('a Test Cycle grade is student-visible the moment it exists', () => {
   // It only exists after a teacher released a secure result, so the release
   // decision this policy waits for has already been made.

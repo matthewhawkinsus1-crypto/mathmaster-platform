@@ -10321,6 +10321,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
           const passback = (await testCycleLib.shared()).grade.testCycleClassroomPassback({
             recordedGrade: grade,
             previouslyPostedGrade: priorAudit.grade,
+            teacherAdjusted: testCycleProjection?.recordedGradeSource === "teacherAdjustment",
           });
           if (passback.refusedLowering) {
             // eslint-disable-next-line no-await-in-loop
@@ -25906,7 +25907,10 @@ async function assignmentEvidenceSummary(db, assignmentId, assignment) {
   startedSessions.forEach((doc) => studentsWithWork.add(String(doc.data()?.studentId || "")));
   records.docs.forEach((doc) => {
     const record = doc.data() || {};
-    if (record.review?.complete === true || record.test?.state && !["none", "assigned"].includes(record.test.state)) {
+    // A grade a teacher set by hand is recorded work too: deleting the cycle
+    // would erase it and its audit (TT33, A2-133).
+    if (record.review?.complete === true || record.test?.state && !["none", "assigned"].includes(record.test.state)
+      || (record.gradeAdjustment && typeof record.gradeAdjustment === "object")) {
       studentsWithWork.add(String(record.studentId || ""));
     }
   });

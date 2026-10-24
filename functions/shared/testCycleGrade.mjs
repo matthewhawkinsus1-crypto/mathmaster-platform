@@ -318,10 +318,17 @@ export const appendTestCycleGradeHistory = (history, entry) => {
  * should never fire — which is exactly why it is here. If it ever does fire,
  * something upstream regressed and a student's posted grade is the thing that
  * would have paid for it.
+ *
+ * A TEACHER'S ADJUSTMENT IS NOT A REGRESSION. A grade the teacher set by hand
+ * (recordedGradeSource `teacherAdjustment`, audited on the record) is a
+ * decision, like an assignment grade override, so it is posted even when it
+ * is lower; without this MathMaster and Classroom showed different grades
+ * (TT33, A2-134).
  */
 export const testCycleClassroomPassback = ({
   recordedGrade = null,
   previouslyPostedGrade = null,
+  teacherAdjusted = false,
 } = {}) => {
   const next = optionalPercent(recordedGrade);
   const posted = optionalPercent(previouslyPostedGrade);
@@ -334,6 +341,9 @@ export const testCycleClassroomPassback = ({
   }
   if (next > posted) {
     return { shouldPost: true, grade: next, reason: `Updating the same Classroom grade item from ${posted}% to ${next}%.` };
+  }
+  if (next < posted && teacherAdjusted === true) {
+    return { shouldPost: true, grade: next, reason: `Posting the teacher's adjusted grade: ${posted}% to ${next}%.` };
   }
   if (next < posted) {
     return {
