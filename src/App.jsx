@@ -47,6 +47,7 @@ import { launchSupportRecords, studentMayRecordSupport, usedRecordKey } from './
 import { summarizeStudentRecovery } from './platform/assessment/studentRecoverySummary.js';
 import { practiceSkillLaunch } from './platform/assessment/practiceSkillLaunch.js';
 import { describeDolClose, DOL_OPEN_NOTICE } from './platform/assessment/dolCloseCopy.js';
+import { receiptRereadsAfter } from './platform/assessment/dolReceiptRefresh.js';
 import { extraTimeFrom } from './platform/assessment/extraTimeWords.js';
 // The DOL grant helpers (platform/assessment/dolAttemptGrantClient.js) are
 // teacher-only: they come from the teacher kit (app/teacher/teacherKit.js).
@@ -3983,6 +3984,25 @@ function App() {
     }).catch((error) => console.error('Could not synchronize Walkthrough:', error));
   }, [user?.role, liveTeachingSession]);
 
+  // The receipts are read again after the open exit ticket closes (RT08,
+  // dolReceiptRefresh.js): a few reads, not a listener.
+  const activeDolOpen = useMemo(() => {
+    if (user?.role !== 'student' || !activeAssignmentId) return null;
+    const assignment = assignments.find((item) => item.id === activeAssignmentId);
+    if (!assignment) return null;
+    const state = getDOLState({ assignment, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: now });
+    return state.enabled ? state.status === 'active' : null;
+  }, [user, activeAssignmentId, assignments, classSchedule, now]);
+  const [checkpointReadRound, setCheckpointReadRound] = useState(0);
+  const dolReceiptWindowRef = useRef(null);
+  useEffect(() => {
+    const previous = dolReceiptWindowRef.current;
+    const next = activeAssignmentId && activeDolOpen !== null ? { assignmentId: activeAssignmentId, open: activeDolOpen } : null;
+    dolReceiptWindowRef.current = next;
+    const timers = receiptRereadsAfter(previous, next).map((delay) => window.setTimeout(() => setCheckpointReadRound((round) => round + 1), delay));
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [activeAssignmentId, activeDolOpen]);
+
   useEffect(() => {
     if (user?.role !== 'student' || !user.id || !activeAssignmentId) {
       setCheckpointOutcomes({});
@@ -4004,7 +4024,7 @@ function App() {
       console.warn('Could not read response checkpoint receipts:', error);
     });
     return () => { cancelled = true; };
-  }, [user?.role, user?.id, activeAssignmentId]);
+  }, [user?.role, user?.id, activeAssignmentId, checkpointReadRound]);
 
   /*
    * SERVER-BACKED WORKING DRAFTS.
