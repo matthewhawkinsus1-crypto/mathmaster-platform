@@ -41,7 +41,7 @@ export default function FractionGrader({ question, onStateChange, onUndoStateCha
 
   return (
     <div>
-      <h2 style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>Fractions</h2>
+      <h2 className="mathmaster-grader-heading" style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>Fractions</h2>
       {display.prompt && <QuestionPrompt>{display.prompt}</QuestionPrompt>}
       {display.expressionLatex && (
         <div style={{ margin: '34px auto', fontSize: 'calc(30 * var(--mm-px))', fontWeight: 'bold', color: 'var(--mm-primary)', width: 'fit-content', maxWidth: '100%' }}>

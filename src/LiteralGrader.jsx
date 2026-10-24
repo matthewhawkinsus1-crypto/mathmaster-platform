@@ -33,7 +33,7 @@ export default function LiteralGrader({ question, onStateChange, onUndoStateChan
 
   return (
     <div>
-      <h2 style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>Literal Equations</h2>
+      <h2 className="mathmaster-grader-heading" style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>Literal Equations</h2>
       <QuestionPrompt>{prompt || `Given the formula below, solve for $${displayedSolveFor}$.`}</QuestionPrompt>
       <div style={{ fontSize: 'calc(28 * var(--mm-px))', fontWeight: 'bold', margin: '28px auto', color: 'var(--mm-primary)', background: 'var(--mm-surface-sunken)', padding: '18px 24px', borderRadius: '10px', width: 'fit-content', maxWidth: '100%', boxSizing: 'border-box' }}>
         <MathDisplay value={displayedFormula} format={formulaLatex ? 'latex' : 'ascii-math'} ariaLabel={`Formula ${formula || formulaLatex || ''}`} />

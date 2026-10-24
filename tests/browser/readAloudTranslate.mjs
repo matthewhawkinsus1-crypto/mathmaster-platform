@@ -18,7 +18,9 @@
 //                no position while it can be answered; a real fillable table
 //                is read by rows with its headers, each cell to fill "blank".
 //   HELP-19      an inclusion student meets "Let's back up" only where a step
-//                is written for the problem, and hears those words once.
+//                is written for the problem, and hears those words once; the
+//                card starts inside the work area, below the Work View button
+//                (PH01).
 //   translate    a platform hint is shown in Spanish (lang="es") and Read
 //                then speaks the Spanish; a teacher-written hint says plainly
 //                that it has no Spanish translation — no dead button.
@@ -27,6 +29,7 @@
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readOpenerCover } from './support/openerCover.mjs';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
 const ARTIFACTS = path.join(path.dirname(fileURLToPath(import.meta.url)), 'artifacts/readAloudTranslate');
@@ -232,6 +235,28 @@ for (const device of DEVICES) {
     await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
     const said = (await lastSpoken(page))?.text || '';
     check((said.match(/Let’s back up/g) || []).length === 1 && said.startsWith('Let’s back up.'), `${device.name}: Read aloud says "Let's back up" once, first`, said.slice(0, 160));
+    // PH01: the floating "Open Work View" button sat on the end of the question
+    // ("which move comes first|?"), and on a phone the card (taller than the one
+    // box it covers) rose out of the work area, its label and first line under
+    // the task card where nothing could scroll to them. Read from the top.
+    await page.evaluate(() => {
+      window.scrollTo(0, 0);
+      document.querySelectorAll('.math-tool-workspace').forEach((element) => { element.scrollTop = 0; });
+    });
+    await page.waitForTimeout(250);
+    const cover = await readOpenerCover(page);
+    check(cover.opener !== null && cover.covered.length === 0, `${device.name}: the Work View button covers nothing of "Let's back up"`, cover.covered.join(', '));
+    if (device.isMobile) {
+      const reach = await page.evaluate(() => {
+        const card = document.querySelector('[data-scaffold]')?.firstElementChild;
+        const scroller = card?.closest('.math-tool-workspace');
+        if (!card || !scroller) return null;
+        return { card: Math.round(card.getBoundingClientRect().top), scroller: Math.round(scroller.getBoundingClientRect().top) };
+      });
+      check(reach && reach.card >= reach.scroller, `${device.name}: "Let's back up" starts inside the work area, not above it`, JSON.stringify(reach));
+      // Below the button, so its first line is never on it at any text size.
+      check(reach && cover.opener && reach.card >= Math.floor(cover.opener.bottom), `${device.name}: "Let's back up" starts below the Work View button`, JSON.stringify({ card: reach?.card, button: cover.opener && Math.round(cover.opener.bottom) }));
+    }
     await page.screenshot({ path: path.join(ARTIFACTS, `${device.name}-back-up.png`) });
     await context.close();
   }

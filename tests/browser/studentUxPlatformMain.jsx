@@ -36,6 +36,13 @@
 //                 compiled through the same import chain. The `staged` journey
 //                 types into the table in phone Work View with the number
 //                 keypad up (PQ-037), then turns the phone on its side (PQ-020).
+//   ?legacy=1     appends a "Legacy" section: one question per legacy question
+//                 type (the graders and graph modules in src/*.jsx that
+//                 QuestionEngine's type switch mounts), each the authoring
+//                 catalog's own example, plus a type this build does not know
+//                 (the card that says a question "could not be displayed").
+//                 The `opener` journey reads what the "⤢ Open Work View" button
+//                 covers in each (PH01).
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MathfieldElement } from 'mathlive';
@@ -49,6 +56,7 @@ import { listDraftSyncRejections } from '../../src/platform/persistence/draftSyn
 import { ASSIGNMENT_NAV_HEIGHT_VAR, stickyHeightRef } from '../../src/platform/layout/stickyHeightRef.js';
 import StudentIdentityBar from '../../src/components/student/StudentIdentityBar.jsx';
 import { SAMPLE_SPECS } from '../../src/dev/MathToolsLab.jsx';
+import { QUESTION_TYPE_CATALOG } from '../../src/platform/contract/questionTypeCatalog.js';
 import { TOOL_CATALOG_IDS } from '../../src/tools/toolCatalog.js';
 import FINAL_TEXT from '../../docs/assignments/algebra1-linear-multiple-representations-final-v5.json?raw';
 import '../../src/index.css';
@@ -226,6 +234,24 @@ const toolSection = params.get('tools') === '1' ? [{
   })),
 }] : [];
 
+const legacySection = params.get('legacy') === '1' ? [{
+  id: 'ux-legacy',
+  role: 'classwork',
+  title: 'Legacy',
+  feedbackMode: 'immediate',
+  attemptsAllowed: 3,
+  questions: [
+    ...Object.keys(QUESTION_TYPE_CATALOG).map((type) => ({
+      questionId: `legacy-${type}`,
+      id: `legacy-${type}`,
+      type,
+      prompt: `Complete the ${type} activity.`,
+      ...QUESTION_TYPE_CATALOG[type].example,
+    })),
+    { questionId: 'legacy-unsupported', id: 'legacy-unsupported', type: 'notAQuestionType', prompt: 'Complete this activity.' },
+  ],
+}] : [];
+
 const sections = [
   ...pick(finalCompiled.sections, 'warmup', ['lmr-wu-1', 'lmr-wu-2']),
   ...pick(finalCompiled.sections, 'classwork', ['lmr-cw-2']),
@@ -235,6 +261,7 @@ const sections = [
   ...passCompiled.sections.filter((section) => section.role === 'dol'),
   ...toolSection,
   ...stagedSection,
+  ...legacySection,
 ];
 const allQuestions = sections.flatMap((section) => section.questions.map((question, index) => ({ section, question, index })));
 
@@ -283,7 +310,7 @@ function Harness() {
             // button (its first question) for each other section.
             // A real section rarely has more than a dozen questions, so the
             // current section shows its first twelve (and the current one).
-            !toolSection.length
+            !(toolSection.length || legacySection.length)
             || (entry.section.id === section.id && (entry.index < 12 || flat === position))
             || allQuestions.findIndex((other) => other.section.id === entry.section.id) === flat
           )).map(({ entry, flat }) => (

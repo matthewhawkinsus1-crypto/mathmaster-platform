@@ -2200,7 +2200,10 @@ function QuestionEngineBody({
             {/* A restore mount puts the cursor back itself (above), or nowhere:
                 a tool must not focus its one box instead. */}
             <AnswerFocusPolicyProvider allowed={answerAutoFocusAllowed && !draftRestore}>
-              <Suspense fallback={<p role="status">Opening Work View…</p>}>
+              {/* Named, so the phone's room under the Work View button does not
+                  open for this line and close again when the tool loads
+                  (WorkViewShell.css). */}
+              <Suspense fallback={<p role="status" className="mathmaster-work-view-loading">Opening Work View…</p>}>
                 <WorkViewReadySignal span={workViewSpan} />
                 <Tool questionData={presentationQuestion} onAction={handleMissingToolAction} draftKey={draftKey} />
               </Suspense>
@@ -3345,7 +3348,10 @@ function QuestionEngineBody({
           // on. Focus moves to its first choice when it appears; it closes
           // only by choosing the right step (no attempt spent).
           <section ref={scaffoldRef} role="region" aria-label="Let's back up" data-scaffold="" style={{ position: 'absolute', inset: 0, zIndex: 35, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', background: 'rgba(232,240,254,0.78)' }}>
-            <div style={{ width: 'min(560px, 94%)', padding: '24px', borderRadius: '16px', background: 'var(--mm-surface)', border: '3px solid #1a73e8', boxShadow: '0 20px 55px rgba(26,115,232,0.25)', textAlign: 'left' }}>
+            {/* The auto margin centres the card only while it fits the work area;
+                a taller card starts at the top instead of rising out of it
+                (WorkViewShell.css, "Let's back up" on a phone). */}
+            <div style={{ width: 'min(560px, 94%)', margin: 'auto', padding: '24px', borderRadius: '16px', background: 'var(--mm-surface)', border: '3px solid #1a73e8', boxShadow: '0 20px 55px rgba(26,115,232,0.25)', textAlign: 'left' }}>
               <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-primary-text)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Let&apos;s back up</div>
               {/* A family's step writes its mathematics as $…$ (linearEquations):
                   drawn as mathematics, never as "$x$". */}

@@ -11,7 +11,7 @@ import { verticalLineDrawings } from '../../platform/graph/verticalLineStyle.js'
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 import { describePlot } from './plotAnnouncement.js';
-import { baselineBelowAxis, planeFontSize } from './planeTextScale.js';
+import { baselineBelowAxis, originLabelPlacement, planeFontSize } from './planeTextScale.js';
 import { equalUnitPlaneHeight } from './planeEqualUnits.js';
 import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
 import { PublishFigureReading } from '../../platform/language/figureReadings.js';
@@ -649,6 +649,21 @@ export default function CoordinatePlane({
     return () => observer.disconnect();
   }, []);
   const svgFont = (size) => planeFontSize(size, width, renderedWidth);
+  // The first labelled number under the x axis on the y axis, and the first
+  // along the x axis to the right of the y axis: what the origin's "0" must
+  // not touch.
+  const firstYBelow = yTicks.filter((y) => y < 0).reduce((nearest, y) => (nearest === null || y > nearest ? y : nearest), null);
+  const firstXRight = xTicks.filter((x) => x > 0).reduce((nearest, x) => (nearest === null || x < nearest ? x : nearest), null);
+  const originSpot = originVisible
+    ? originLabelPlacement({
+      axisX,
+      axisY,
+      originFont: svgFont(10),
+      tickFont: svgFont(11),
+      firstBelow: firstYBelow === null ? null : { y: sy(firstYBelow), text: tidy(firstYBelow) },
+      firstRight: firstXRight === null ? null : { x: sx(firstXRight), text: tidy(firstXRight) },
+    })
+    : null;
   const showDataTable = !interactive && dataTable !== false && insideControl === false
     && descriptionDetail === 'features' && !readOut && revealCoordinates !== false && pointHoverEnabled !== false
     && generatedDescription.tables.length > 0;
@@ -794,7 +809,9 @@ export default function CoordinatePlane({
         <text x={width - pad + 6} y={axisY + 4} fontSize={svgFont(13)} fontWeight="700" style={{ fill: 'var(--mm-graph-label)' }}>{axisNames?.x || 'x'}</text>
         <text x={axisX - 4} y={pad - 10} fontSize={svgFont(13)} fontWeight="700" style={{ fill: 'var(--mm-graph-label)' }} textAnchor="middle">{axisNames?.y || 'y'}</text>
         {/* Ends left of the y axis and sits below the x axis at any text size (TOOL-11). */}
-        {originVisible ? <text x={sx(0) - 6} y={sy(0) + baselineBelowAxis(svgFont(10), 15, 5)} textAnchor="end" fontSize={svgFont(10)} style={{ fill: 'var(--mm-graph-axis)' }}>0</text> : null}
+        {/* Where it goes depends on the numbers beside it: on a phone the "-1"
+            under the axis was drawn through it (PH02, planeTextScale.js). */}
+        {originVisible && originSpot ? <text x={originSpot.x} y={originSpot.y} textAnchor={originSpot.anchor} fontSize={svgFont(10)} style={{ fill: 'var(--mm-graph-axis)' }}>0</text> : null}
 
         {xTicks.filter((x) => x !== 0).map((x) => (
           <g key={`tx${x}`}>

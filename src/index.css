@@ -206,6 +206,17 @@ math-field::part(placeholder) {
   color: var(--mm-input-placeholder);
 }
 
+/* ON A PHONE THE EXAMPLE FITS THE BOX (PH02). A 262px answer box has 222px for
+   text; "for example 0 ≤ x ≤ 4" is 243px at the box's own 24px, so the last
+   character was cut ("for example 0 ≤ x ≤"). The hint is a little smaller than
+   what is typed over it (170px, which fits a 216px box on a 344px phone too),
+   and never under 16px. Nothing typed changes size. */
+@media (max-width: 600px) {
+  math-field::part(placeholder) {
+    font-size: max(0.7em, 16px);
+  }
+}
+
 /* MathMaster uses its own focused math toolbar. Hide MathLive's broad menu and keyboard controls. */
 math-field::part(virtual-keyboard-toggle),
 math-field::part(menu-toggle) {

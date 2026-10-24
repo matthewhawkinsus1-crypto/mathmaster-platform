@@ -72,7 +72,7 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
 
   return (
     <div>
-      {!compact && <h2 style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>Function Table</h2>}
+      {!compact && <h2 className="mathmaster-grader-heading" style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>Function Table</h2>}
       {(prompt || !compact) && (
         <QuestionPrompt>{prompt || 'Complete all missing values in the table.'}</QuestionPrompt>
       )}

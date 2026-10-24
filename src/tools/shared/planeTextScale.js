@@ -33,3 +33,58 @@ export const renderedFontPx = (fontSize, viewBoxWidth, renderedWidth) => Number(
  * own size, so the digits never reach up over the axis line.
  */
 export const baselineBelowAxis = (fontSize, authoredOffset, gap) => Math.max(Number(authoredOffset), Number(fontSize) + Number(gap));
+
+/*
+ * WHERE THE ORIGIN'S "0" GOES (PH02).
+ *
+ * It sits below the x axis, left of the y axis, in small text. Phone text grows
+ * (above), so on a 390px phone the "0" is 21 units tall and the first number
+ * under the axis on the y axis ("-1", 23 units, one tick down, 30 units away)
+ * starts before the "0" ends: the two were drawn through each other.
+ *
+ * The "0" keeps its place while nothing is there. When the first number under
+ * the axis would touch it, it moves to the right of the y axis, in the row of
+ * the numbers along the x axis; when the first of those would touch it there
+ * too, it is left out: the axes and the numbers beside them still say where
+ * zero is, and a "0" drawn over a number is worse than none.
+ *
+ * `firstBelow` is the first labelled y tick under the axis ({ y, text }, y in
+ * viewBox units), `firstRight` the first labelled x tick right of it
+ * ({ x, text }, x in viewBox units).
+ */
+const DIGIT_HEIGHT = 0.72;
+// A digit's advance. A "-" is narrower; counting it as a digit errs toward moving.
+const DIGIT_WIDTH = 0.56;
+const GAP = 2;
+
+const textBox = ({ left, right, baseline, fontSize, characters }) => {
+  const width = characters * DIGIT_WIDTH * fontSize;
+  return {
+    left: left != null ? left : right - width,
+    right: right != null ? right : left + width,
+    top: baseline - DIGIT_HEIGHT * fontSize,
+    bottom: baseline,
+  };
+};
+
+const touches = (a, b) => a.left < b.right + GAP && a.right > b.left - GAP && a.top < b.bottom + GAP && a.bottom > b.top - GAP;
+
+export const originLabelPlacement = ({ axisX, axisY, originFont, tickFont, firstBelow = null, firstRight = null }) => {
+  const baseline = axisY + baselineBelowAxis(originFont, 15, 5);
+  const onLeft = textBox({ right: axisX - 6, baseline, fontSize: originFont, characters: 1 });
+  const below = firstBelow
+    ? textBox({ right: axisX - 9, baseline: firstBelow.y + 4, fontSize: tickFont, characters: String(firstBelow.text).length })
+    : null;
+  if (!below || !touches(onLeft, below)) return { x: axisX - 6, y: baseline, anchor: 'end' };
+  const onRight = textBox({ left: axisX + 6, baseline, fontSize: originFont, characters: 1 });
+  const along = firstRight
+    ? textBox({
+      left: firstRight.x - (String(firstRight.text).length * DIGIT_WIDTH * tickFont) / 2,
+      baseline: axisY + baselineBelowAxis(tickFont, 17, 6),
+      fontSize: tickFont,
+      characters: String(firstRight.text).length,
+    })
+    : null;
+  if (!along || !touches(onRight, along)) return { x: axisX + 6, y: baseline, anchor: 'start' };
+  return null;
+};

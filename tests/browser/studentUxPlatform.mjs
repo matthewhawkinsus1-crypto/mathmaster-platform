@@ -38,7 +38,9 @@
 //                 its star drawn, not typed (PQ-021, PQ-030).
 //   opener        "⤢ Open Work View" covers no text or control of a
 //                 multi-part answer or Step Algebra, phone to Chromebook
-//                 (PQ-025).
+//                 (PQ-025); and on a 344 and a 390px phone none of any legacy
+//                 question type (?legacy=1), nor of the card that says a
+//                 question "could not be displayed" (PH01).
 //   staged        a composed question in phone Work View: the header is the
 //                 task (PQ-026), all seven table rows typed on the number
 //                 keypad stay on screen above the keys (PQ-037); then the
@@ -56,6 +58,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { readOpenerCover } from './support/openerCover.mjs';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -527,25 +530,31 @@ const JOURNEYS = {
     // The opener floats over the top-right corner of the question. Nothing the
     // student reads or presses may be under it: "Complete Each Pa|rt" at 390,
     // Step Algebra's "Reset work" at 1366×768 (PQ-025).
-    const covered = (page) => page.evaluate(() => {
-      const opener = [...document.querySelectorAll('.mathmaster-work-view-host[data-open="false"] > .mathmaster-work-view-body > .mathmaster-work-view-surface > button')]
-        .find((button) => /enlarge|work view/i.test(button.textContent || ''));
-      if (!opener) return ['(no opener)'];
-      const o = opener.getBoundingClientRect();
-      const over = (r) => r.width > 0 && r.height > 0 && r.left < o.right - 1 && r.right > o.left + 1 && r.top < o.bottom - 1 && r.bottom > o.top + 1;
-      const hits = [];
-      const walker = document.createTreeWalker(opener.parentElement, NodeFilter.SHOW_TEXT);
-      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-        if (opener.contains(node) || !node.textContent.trim()) continue;
-        const range = document.createRange();
-        range.selectNodeContents(node);
-        if ([...range.getClientRects()].some(over)) hits.push(`"${node.textContent.trim().slice(0, 24)}"`);
+    //
+    // PH01: and on a phone, every legacy question type the engine mounts: the
+    // "Fractions" heading and the top of its box, a grader's own heading, a
+    // graph's first line, the card that says a question "could not be displayed"
+    // were all under it (15 of the 22 types at 390×844). Read by
+    // support/openerCover.mjs, which counts only what is drawn under the button.
+    const covered = async (page) => {
+      const { opener, covered: hits } = await readOpenerCover(page);
+      return opener ? hits : ['(no opener)'];
+    };
+    for (const [width, height] of [[344, 882], [390, 844]]) {
+      const context = await browser.newContext({ viewport: { width, height }, hasTouch: true, isMobile: true });
+      const page = await context.newPage();
+      await page.goto(`${ORIGIN}/tests/browser/studentUxPlatform.html?q=legacy-fraction&legacy=1&run=opener-legacy-${Date.now()}`, { timeout: 120000 });
+      await page.waitForFunction(() => window.__ux && document.querySelector('[data-question-id="legacy-fraction"]'), null, { timeout: 120000 });
+      await settle(page, 2500);
+      const ids = (await page.evaluate(() => window.__ux.ids())).filter((id) => id.startsWith('legacy-'));
+      check(ids.length >= 20 && ids.includes('legacy-unsupported'), `${width}×${height}: the legacy section has every question type (${ids.length} found)`);
+      for (const id of ids) {
+        await go(page, id);
+        const hits = await covered(page);
+        check(hits.length === 0, `${width}×${height} ${id}: the Open Work View button covers ${hits.join(', ')}`);
       }
-      opener.parentElement.querySelectorAll('button, input, math-field, [role="radio"]').forEach((element) => {
-        if (element !== opener && over(element.getBoundingClientRect())) hits.push(`<${element.tagName.toLowerCase()}> "${(element.textContent || '').trim().slice(0, 24)}"`);
-      });
-      return [...new Set(hits)];
-    });
+      await context.close();
+    }
     for (const [width, height, phone] of [[344, 882, true], [390, 844, true], [820, 1180, true], [1366, 768, false]]) {
       const context = await browser.newContext(phone ? { viewport: { width, height }, hasTouch: true, isMobile: true } : { viewport: { width, height } });
       const page = await context.newPage();

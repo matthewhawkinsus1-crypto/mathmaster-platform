@@ -33,12 +33,15 @@
  *               (FIGURE_SHOTS to put them elsewhere).
  *
  * At 390x844 it also checks A11Y-10: beside Submit, Undo and Start over keep
- * a word under their icons.
+ * a word under their icons, and (PH02) that the Path stimulus scene has nothing
+ * under the "Open Work View" button, its example whole in the answer box and
+ * no two numbers on its plane drawn through each other.
  */
 import assert from 'node:assert/strict';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readOpenerCover } from './support/openerCover.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 const origin = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
@@ -142,6 +145,54 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
     await page.locator(PLANE).scrollIntoViewIfNeeded();
     await page.screenshot({ path: path.join(SHOTS, `path-vertical-boundary-${at}.png`) });
   });
+
+  // PH02: the three faults seen in the phone screenshot of this scene. The
+  // "Open Work View" button covered the stimulus title ("Graph of the
+  // boundaries"), the example in the answer box was cut off ("for example 0 ≤
+  // x ≤ 4" ended at the second ≤), and the "0" at the origin was drawn through
+  // the "-1" under it.
+  if (phone) {
+    await step(at, 'Path stimulus on a phone: the title is clear of the button, the example fits, no two numbers touch', async () => {
+      await open(page, 'pathBoundary');
+      const PLANE = 'svg[role="img"][aria-label="Question graph"]';
+      await page.locator(PLANE).waitFor();
+      await page.locator('math-field').first().waitFor();
+      await page.waitForTimeout(400);
+      const cover = await readOpenerCover(page);
+      assert.ok(cover.opener, 'the Work View button is on the page');
+      assert.deepEqual(cover.covered, [], `the button covers ${cover.covered.join(', ')}`);
+      // The title is drawn, and below the button: the row under the heading
+      // starts where the button ends.
+      const title = await page.evaluate(() => {
+        const span = [...document.querySelectorAll('span, div, h3, p')].find((element) => /^graph of the boundaries$/i.test((element.textContent || '').trim()) && element.children.length === 0);
+        const box = span?.getBoundingClientRect();
+        return box ? { top: box.top, bottom: box.bottom } : null;
+      });
+      assert.ok(title, 'the stimulus title is on the page');
+      assert.ok(title.top >= cover.opener.bottom - 1, `the title starts at ${Math.round(title.top)}, under the button that ends at ${Math.round(cover.opener.bottom)}`);
+      // The example, whole: MathLive draws it in a part of the box that clips.
+      const example = await page.locator('math-field').first().evaluate((field) => {
+        const content = field.shadowRoot.querySelector('.ML__content');
+        const placeholder = field.shadowRoot.querySelector('.ML__content-placeholder');
+        return { text: placeholder.textContent.trim(), needs: placeholder.getBoundingClientRect().width, has: content.getBoundingClientRect().width };
+      });
+      assert.ok(example.needs <= example.has + 0.5, `"${example.text}" needs ${Math.round(example.needs)}px and the box has ${Math.round(example.has)}px`);
+      // Every number on the plane is whole: no two labels' boxes cross.
+      const crossing = await page.evaluate((selector) => {
+        const boxes = [...document.querySelector(selector).querySelectorAll('text')].map((text) => ({ text: text.textContent, box: text.getBoundingClientRect() }));
+        const crossed = [];
+        for (let i = 0; i < boxes.length; i += 1) {
+          for (let j = i + 1; j < boxes.length; j += 1) {
+            const a = boxes[i].box;
+            const b = boxes[j].box;
+            if (Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1) crossed.push(`${boxes[i].text} / ${boxes[j].text}`);
+          }
+        }
+        return crossed;
+      }, PLANE);
+      assert.deepEqual(crossing, [], `numbers drawn through each other: ${crossing.join(', ')}`);
+    });
+  }
 
   await step(at, 'legacy number line: the marks and the student\'s choice', async () => {
     await open(page, 'numberLine');
