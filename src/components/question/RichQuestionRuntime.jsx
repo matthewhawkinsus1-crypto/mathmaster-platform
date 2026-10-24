@@ -22,6 +22,7 @@ import { readQuestionDraftFamily, restoreQuestionDrafts, subscribeToQuestionDraf
 import { withoutPersistedUndo } from '../../platform/workView/persistedMathUndo.js';
 import { createToolWorkGate } from './toolWorkGate.js';
 import { assessmentSupportProfile } from '../../studentSupport.js';
+import { SUBMIT_VERB, submitActionLabel, submitTryCost } from '../../platform/student/submitCost.js';
 
 /*
  * THE SHARED RICH QUESTION RUNTIME.
@@ -143,7 +144,7 @@ const InstructionalSupport = ({ policy, feedback, isToolItem, supportProfile = n
  * given the raw profile, because the flattened assessment profile loses the
  * plan's per-activity limits). Nothing here reads or computes correctness.
  */
-const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, rawStudentSupportProfile = null, graphReadOut = false, initialResponsePayload, busy, closed, feedback, navigationMode = false, calculatorInToolbar = false, onSubmit, onDraftChange }) => {
+const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, rawStudentSupportProfile = null, graphReadOut = false, initialResponsePayload, busy, closed, feedback, attempt = null, navigationMode = false, calculatorInToolbar = false, onSubmit, onDraftChange }) => {
   const [responses, setResponses] = useState(() => initialResponsePayload?.responses || {});
   const [calculatorUsed, setCalculatorUsed] = useState(false);
   const [regressionState, setRegressionState] = useState(() => {
@@ -175,9 +176,14 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
     });
   };
 
+  // Outside a secure test this is Corrections, where every press spends a try,
+  // so it is Submit with what it costs, as everywhere else (D9; TC06). It said
+  // "Check my answer", the word that never costs a try.
   const actionLabel = policy.secure
     ? (busy ? 'Recording securely…' : complete ? 'Record answer & continue' : 'Answer to continue')
-    : (busy ? 'Checking…' : feedback && !feedback.isCorrect && !closed ? 'Check my answer again' : 'Check my answer');
+    : (attempt
+      ? submitActionLabel({ submitting: busy, cost: submitTryCost({ maximumAttempts: attempt.allowed, attemptCount: attempt.used }) })
+      : (busy ? 'Submitting…' : SUBMIT_VERB));
   const enabled = complete && !locked;
 
   return (
@@ -536,6 +542,7 @@ export default function RichQuestionRuntime({
       busy={busy}
       closed={closed}
       feedback={feedback}
+      attempt={attempt}
       navigationMode={navigationMode}
       calculatorInToolbar={calculatorInToolbar}
       onSubmit={onSubmit}

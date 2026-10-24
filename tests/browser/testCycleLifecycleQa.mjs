@@ -462,7 +462,7 @@ try {
   // a Help me say it frame for the fix. The question waits behind it.
   const reflection = student.locator('[data-corrections-reflection]');
   await reflection.waitFor({ timeout: 30_000 });
-  check((await student.getByRole('button', { name: 'Check my answer' }).count()) === 0, 'corrections: the reflection comes before the first question');
+  check((await student.getByRole('button', { name: /^Submit/ }).count()) === 0, 'corrections: the reflection comes before the first question');
   const options = reflection.getByRole('radio');
   const optionCount = await options.count();
   check(optionCount >= 2 && optionCount <= 3, 'corrections: the reflection offers 2–3 choices', String(optionCount));
@@ -472,10 +472,10 @@ try {
   check(/_____/.test(framed) && !/\d/.test(framed), 'corrections: Help me say it gives a frame with a blank and no number', framed);
   await reflection.getByRole('textbox').fill(framed.replace('_____', 'checking my work'));
   await reflection.getByRole('button', { name: 'Start practising' }).click();
-  await student.getByRole('button', { name: 'Check my answer' }).waitFor({ timeout: 30_000 });
+  await student.getByRole('button', { name: /^Submit/ }).waitFor({ timeout: 30_000 });
   check(/Your plan:/.test(await student.locator('[data-corrections-plan]').innerText()), 'corrections: the student\'s plan stays on screen');
   await fillAnswer(student, fixture.CERT_WRONG_ANSWER);
-  await student.getByRole('button', { name: 'Check my answer' }).click();
+  await student.getByRole('button', { name: /^Submit/ }).click();
   await student.getByText(/tries left on this question/).waitFor();
   check(true, 'corrections: a wrong answer keeps the question, with tries left');
   const correctionHeader = await student.locator('section').first().innerText();
@@ -496,7 +496,7 @@ try {
     // eslint-disable-next-line no-await-in-loop
     await fillAnswer(student, answer);
     // eslint-disable-next-line no-await-in-loop
-    await student.getByRole('button', { name: /Check my answer/ }).click();
+    await student.getByRole('button', { name: /^Submit/ }).click();
     // eslint-disable-next-line no-await-in-loop
     await wait(600);
     // eslint-disable-next-line no-await-in-loop
