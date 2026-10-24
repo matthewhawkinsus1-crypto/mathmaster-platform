@@ -20750,6 +20750,9 @@ exports.submitTestCycleCorrectionResponse = onCall(async (request) => {
     throw new HttpsError("invalid-argument", grading.detail || "Finish your work in the tool, then check it.");
   }
   const now = Date.now();
+  // The student's reflection on this skill rides along (TC11), loaded here and
+  // never inside the transaction. It is kept only if it passes the normalizer.
+  const { withCorrectionReflection } = await import("./shared/testCycleReflection.mjs");
 
   const applied = await db.runTransaction(async (transaction) => {
     const [planSnapshot, recordSnapshot] = await Promise.all([transaction.get(planRef), transaction.get(recordRef)]);
@@ -20769,7 +20772,13 @@ exports.submitTestCycleCorrectionResponse = onCall(async (request) => {
     const activeQuestions = { ...(stored.activeQuestions || {}) };
     if (questionClosed) delete activeQuestions[correctionId];
     else activeQuestions[correctionId] = { ...open, attemptsUsed };
-    transaction.set(planRef, { ...stored, plan: nextPlan, activeQuestions, updatedAt: now });
+    // TC11: what the student said went wrong and how they will fix it, kept
+    // beside the plan, server-only, for the teacher's view. Not part of the plan
+    // the algorithm builds, and it moves no grade.
+    const reflections = withCorrectionReflection(stored.reflections, correctionId, request.data?.reflection, now);
+    transaction.set(planRef, {
+      ...stored, plan: nextPlan, activeQuestions, ...(Object.keys(reflections).length ? { reflections } : {}), updatedAt: now,
+    });
     return {
       nextPlan,
       questionClosed,
@@ -21754,9 +21763,17 @@ exports.getTeacherTestCyclePlans = onCall(TEST_CYCLE_ACTION_OPTIONS, async (requ
     studentId,
     record,
     // The correction plan keeps its evidence mapping: a teacher opening this
-    // sees exactly which failed Test items sent the student where.
+    // sees exactly which failed Test items sent the student where. Each skill
+    // also carries what the student said went wrong and how they will fix it
+    // (TC11), null when they have not said.
     corrections: correctionPlan
-      ? { ...correctionPlan, targets: (correctionPlan.targets || []).map(({ practiceFamilyIds: _practiceFamilyIds, ...target }) => target) }
+      ? {
+        ...correctionPlan,
+        targets: (correctionPlan.targets || []).map(({ practiceFamilyIds: _practiceFamilyIds, ...target }) => ({
+          ...target,
+          reflection: correctionSnapshot.data()?.reflections?.[target.correctionId] || null,
+        })),
+      }
       : null,
     retest: retestPlan
       ? { audit: retestPlan.audit, blueprint: retestPlan.blueprint, plan: testCycleLib.teacherVisiblePlan(retestPlan.plan) }

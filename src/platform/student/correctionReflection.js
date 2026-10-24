@@ -14,15 +14,18 @@
  * like every Help me say it frame (src/platform/language/sentenceFrames.js):
  * English with Spanish beneath, no answer, no value, no method.
  *
- * KEPT ON THIS DEVICE. The corrections records (testCycleCorrectionPlans,
- * testCycleRecords) are server-only — `allow read, write: if false` — so a
- * student writes none of them, and storing this would need a new write path.
- * Until that is decided, the reflection stays in the browser: which option
- * was picked (and that the step is done) in localStorage, so it is not asked
- * again; the sentence the student wrote only in sessionStorage, which ends
- * with the tab, so a shared Chromebook does not keep it. The key carries the
- * plan id, which names the student. Storage that throws (private mode,
- * blocked site data) just means the reflection is asked again.
+ * KEPT ON THIS DEVICE, AND SENT TO THE TEACHER (TC11). The corrections
+ * records (testCycleCorrectionPlans, testCycleRecords) are server-only —
+ * `allow read, write: if false` — so a student writes none of them. The
+ * reflection rides along on the correction response the student already sends
+ * (correctionReflectionForServer), and the server keeps it beside the plan for
+ * the teacher's per-student view; the step tells the student their teacher can
+ * read it. On the device it stays as it always was: which option was picked
+ * (and that the step is done) in localStorage, so it is not asked again; the
+ * sentence the student wrote only in sessionStorage, which ends with the tab,
+ * so a shared Chromebook does not keep it. The key carries the plan id, which
+ * names the student. Storage that throws (private mode, blocked site data) just
+ * means the reflection is asked again.
  */
 import { correctionTargetMistakePattern } from './testCycleDiscovery.js';
 
@@ -93,6 +96,19 @@ export const readCorrectionReflection = (ids, { local = storageOf('localStorage'
   } catch {
     return null;
   }
+};
+
+/**
+ * What goes to the server with a correction response (TC11): the pick and the
+ * sentence, or that the step was skipped. Null when the device remembers no
+ * finished reflection for this skill. The server keeps only a known pick and a
+ * bounded sentence (functions/shared/testCycleReflection.mjs).
+ */
+export const correctionReflectionForServer = (reflection) => {
+  if (!reflection || reflection.done !== true) return null;
+  if (reflection.skipped === true) return { skipped: true };
+  if (!reflection.choice) return null;
+  return { choice: reflection.choice, sentence: String(reflection.sentence || '').slice(0, CORRECTION_REFLECTION_SENTENCE_MAX) };
 };
 
 /** Remember that the reflection is done (or skipped). Never throws. */

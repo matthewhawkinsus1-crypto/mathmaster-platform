@@ -27,8 +27,8 @@ const quietButton = {
  *
  * One pick from 2–3 options and an optional sentence, with a Help me say it
  * frame (correctionReflection.js). Nothing is graded and either step can be
- * skipped; the question is already being prepared behind it. It is kept on
- * this device only (correctionReflection.js says why).
+ * skipped; the question is already being prepared behind it. Their teacher can
+ * read it (TC11), so the step says so before anything is written.
  */
 export const CorrectionReflectionStep = ({ target, onDone }) => {
   const choices = correctionReflectionChoices(target);
@@ -43,6 +43,7 @@ export const CorrectionReflectionStep = ({ target, onDone }) => {
   return (
     <section data-corrections-reflection="" aria-labelledby="corrections-reflection-heading" style={{ ...card, display: 'grid', gap: 12 }}>
       <h2 id="corrections-reflection-heading" style={{ margin: 0, fontSize: 'calc(18 * var(--mm-px))' }}>Before you start: what went wrong?</h2>
+      <p data-corrections-reflection-note="" style={{ margin: 0, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Your teacher can read what you pick and write here. It does not change your grade.</p>
       <fieldset style={{ border: 0, margin: 0, padding: 0, display: 'grid', gap: 8 }}>
         <legend style={{ marginBottom: 6, color: 'var(--mm-text)' }}>Pick the one closest to what happened on the Test. There is no wrong choice.</legend>
         {choices.map((option) => (

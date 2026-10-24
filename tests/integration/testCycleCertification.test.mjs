@@ -482,6 +482,8 @@ test('D19+D20+D21: corrections are instructional, and only correct evidence comp
     assignmentId: CERT_ASSIGNMENT_ID, correctionId: first.correctionId,
     questionInstanceId: issued.questionInstance.questionInstanceId,
     responsePayload: { responses: { answer: CERT_WRONG_ANSWER } },
+    // TC11: what the student said went wrong rides on the response they already make.
+    reflection: { choice: 'misread', sentence: 'Next time, I will reread the question and find the slope before I start.' },
   }));
   assert.equal(wrong.isCorrect, false);
   assert.equal(wrong.correctionsComplete, false);
@@ -500,12 +502,41 @@ test('D19+D20+D21: corrections are instructional, and only correct evidence comp
     assignmentId: CERT_ASSIGNMENT_ID, correctionId: first.correctionId,
     questionInstanceId: reissued.questionInstance.questionInstanceId,
     responsePayload: { responses: { answer: certAnswerFromPrompt(reissued.questionInstance.prompt) } },
+    // TC11: a pick the step never offers is not kept, and never stops the answer being graded.
+    reflection: { choice: 'invented', sentence: 'x'.repeat(5000) },
   }));
   assert.equal(right.isCorrect, true);
   const afterRight = await readCorrectionPlan(CERT_ASSIGNMENT_ID, STUDENT_A);
   const rightTarget = afterRight.plan.targets.find((target) => target.correctionId === first.correctionId);
   assert.equal(rightTarget.correctResponses, 1);
   assert.equal((await readRecord(CERT_ASSIGNMENT_ID, STUDENT_A)).recordedGrade, recordedBefore);
+});
+
+test('TC11: the reflection is kept beside the plan, shown to the teacher of record per skill, and to no student', async () => {
+  const first = state.correctionTargets[0];
+  const stored = (await readCorrectionPlan(CERT_ASSIGNMENT_ID, STUDENT_A)).reflections;
+  assert.deepEqual(
+    { ...stored[first.correctionId], at: undefined },
+    { skipped: false, choice: 'misread', sentence: 'Next time, I will reread the question and find the slope before I start.', at: undefined },
+    'kept from the first response, in the server-only plan document',
+  );
+  assert.ok(Number(stored[first.correctionId].at) > 0);
+  // The correct answer after it carried a pick the step never offers: graded, and not kept over it.
+  assert.deepEqual(Object.keys(stored), [first.correctionId], 'one skill reflected on, no other');
+
+  // The teacher of record reads it on that skill, and only on that skill.
+  const plans = await fns.getTeacherTestCyclePlans.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, studentId: STUDENT_A }));
+  const [reflected, ...others] = [first.correctionId, ...state.correctionTargets.slice(1).map((target) => target.correctionId)]
+    .map((id) => plans.corrections.targets.find((target) => target.correctionId === id));
+  assert.deepEqual([reflected.reflection.choice, reflected.reflection.sentence], ['misread', 'Next time, I will reread the question and find the slope before I start.']);
+  others.forEach((target) => assert.equal(target.reflection, null, 'a skill the student has not reflected on'));
+  assert.ok(await refusal(fns.getTeacherTestCyclePlans.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, studentId: STUDENT_A }, OTHER_TEACHER_EMAIL))), 'not another teacher');
+
+  // No student card carries it, the student's own included.
+  for (const student of [STUDENT_A, STUDENT_B]) {
+    const card = await cardFor(student);
+    assert.equal(/reflection/i.test(JSON.stringify(card)), false, `${student}'s card`);
+  }
 });
 
 /* ======================================================================== */

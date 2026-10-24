@@ -6,7 +6,7 @@ import {
   submitTestCycleCorrectionResponse,
 } from '../../services/testCycleService.js';
 import { correctionTargetMistakePattern, correctionTargetTitle, describeCorrectionTargetForStudent } from '../../platform/student/testCycleDiscovery.js';
-import { readCorrectionReflection, saveCorrectionReflection } from '../../platform/student/correctionReflection.js';
+import { correctionReflectionForServer, readCorrectionReflection, saveCorrectionReflection } from '../../platform/student/correctionReflection.js';
 import CorrectionReflectionStep from './CorrectionReflectionStep.jsx';
 
 /*
@@ -157,6 +157,8 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
         correctionId: activeTarget.correctionId,
         questionInstanceId: question.questionInstanceId,
         responsePayload,
+        // What the student said went wrong on this skill, for their teacher (TC11).
+        reflection: correctionReflectionForServer(reflection),
       });
       setFeedback({
         ...result,

@@ -123,7 +123,7 @@ test('the screen asks first, then shows the question; a reflected skill goes str
   }
 });
 
-test('the reflection step offers Help me say it with the frame, and nothing about it leaves the device', () => {
+test('the reflection step offers Help me say it with the frame; only the pick and the sentence leave the device, on the correction response (TC11)', () => {
   const screen = componentSource('src/components/student/TestCycleCorrections.jsx');
   assert.match(screen, /^import CorrectionReflectionStep from '\.\/CorrectionReflectionStep\.jsx';$/m);
   const step = region(componentSource('src/components/student/CorrectionReflectionStep.jsx'), 'export const CorrectionReflectionStep = (', '\n};\n', 'reflection step');
@@ -133,12 +133,17 @@ test('the reflection step offers Help me say it with the frame, and nothing abou
   assert.match(step, /lang="es"[^>]*>\{chosenFrame\.es\}/);
   assert.match(step, /if \(!sentence\.trim\(\) && chosenFrame\) setSentence\(chosenFrame\.en\);/);
   assert.match(step, /disabled=\{!choice\} onClick=\{\(\) => onDone\(\{ choice, sentence \}\)\}/);
-  // Saved through the device store only; the callables never carry it.
+  // Saved on the device as always: the pick in localStorage, the words in sessionStorage.
   const finish = region(screen, 'const finishReflection = (answer) => {', '};', 'finish reflection');
   assert.match(finish, /saveCorrectionReflection\(\{ planId, correctionId: activeTarget\.correctionId \}, answer\)/);
   assert.match(finish, /document\.querySelector\('\[data-test-cycle-corrections="working"\] \[data-corrections-heading\]'\)\?\.focus\(\)/, 'focus is not dropped when the step closes');
+  // And, since TC11, sent with the correction response the student already makes
+  // (testCycleReflectionServer.test.mjs holds what the server keeps).
   const submit = region(screen, 'await submitTestCycleCorrectionResponse({', '});', 'corrections submit payload');
-  assert.doesNotMatch(submit, /reflection|sentence|choice/);
+  assert.match(submit, /reflection: correctionReflectionForServer\(reflection\),/);
+  // The model itself still has no server path: it only says what may leave.
   const model = executableSource(readFileSync(new URL('../../src/platform/student/correctionReflection.js', import.meta.url), 'utf8'));
   assert.doesNotMatch(model, /firebase|firestore|httpsCallable|services\//, 'the reflection model has no server path');
+  // A student is told their teacher can read it before they write anything.
+  assert.match(step, /Your teacher can read what you pick and write here\./);
 });

@@ -20,6 +20,7 @@ import { GRADE_REPLACEMENT } from '../../platform/assessment/testCycle.js';
 import { TEACHER_BUCKET_LABEL, TEACHER_BUCKET_ORDER, describeTeacherRow, teacherActionsForRow } from '../../platform/teacher/testCycleTeacherRows.js';
 import { describeTestCycleCallError } from '../../platform/teacher/testCycleCallErrors.js';
 import { describeRetestMistakes } from '../../platform/teacher/retestMistakesView.js';
+import { describeCorrectionReflection } from '../../platform/teacher/correctionReflectionView.js';
 import {
   BULK_ACTION,
   describeBulkPlan,
@@ -1071,14 +1072,23 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
               {!external && (plans.corrections ? (
                 <>
                   <h4 style={{ marginBottom: 4, fontSize: 'calc(13 * var(--mm-px))' }}>Corrections, mapped to the failed Test evidence</h4>
-                  {plans.corrections.targets.map((target) => (
-                    <div key={target.correctionId} style={{ fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.55, marginBottom: 7 }}>
-                      <strong>{target.label}</strong> · {target.diagnosisDetail}
-                      <div style={{ color: 'var(--mm-text-muted)' }}>
-                        Missed {target.missed} of {target.attempted} · {target.correctResponses || 0}/{target.requiredCorrectResponses} corrected
+                  {plans.corrections.targets.map((target) => {
+                    // What the student said went wrong and how they will fix it (TC11).
+                    const reflection = describeCorrectionReflection(target.reflection);
+                    return (
+                      <div key={target.correctionId} style={{ fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.55, marginBottom: 7 }}>
+                        <strong>{target.label}</strong> · {target.diagnosisDetail}
+                        <div style={{ color: 'var(--mm-text-muted)' }}>
+                          Missed {target.missed} of {target.attempted} · {target.correctResponses || 0}/{target.requiredCorrectResponses} corrected
+                        </div>
+                        {reflection && (
+                          <div data-correction-reflection="" style={{ color: 'var(--mm-text-muted)' }}>
+                            {reflection.said}{reflection.plan ? ` ${reflection.plan}` : ''}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </>
               ) : <p style={{ fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>No correction plan — this student did not fail the Test.</p>)}
               {!external && (plans.retest ? (

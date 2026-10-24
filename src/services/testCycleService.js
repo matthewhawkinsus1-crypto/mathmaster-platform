@@ -95,10 +95,13 @@ export const issueTestCycleCorrectionQuestion = async ({ assignmentId, correctio
 };
 
 export const submitTestCycleCorrectionResponse = async ({
-  assignmentId, correctionId, questionInstanceId, responsePayload,
+  assignmentId, correctionId, questionInstanceId, responsePayload, reflection = null,
 }) => {
   if (isSandbox()) throw new Error('Corrections are graded on the server and are not available in sandbox mode.');
-  return call('submitTestCycleCorrectionResponse', { assignmentId, correctionId, questionInstanceId, responsePayload });
+  // `reflection`: what the student said went wrong and how they will fix it (TC11), kept with the plan for their teacher.
+  return call('submitTestCycleCorrectionResponse', {
+    assignmentId, correctionId, questionInstanceId, responsePayload, ...(reflection ? { reflection } : {}),
+  });
 };
 
 /** Teacher: open secure Test sessions for a class in one action. */
