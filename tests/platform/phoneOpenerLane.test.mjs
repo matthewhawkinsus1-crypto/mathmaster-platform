@@ -21,7 +21,9 @@
  *   - every grader's heading is one of those rows, so the row after it starts
  *     below the button;
  *   - the "Let's back up" card starts below the button;
- *   - the example in a phone's answer box fits.
+ *   - the example in a phone's answer box fits;
+ *   - where text is large and the button leaves no room beside it, it takes a
+ *     row of its own instead (200% text: 9 of the 22 types had a heading under it).
  *
  * Each assertion was broken once to see it go red (see the PR).
  */
@@ -29,6 +31,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { parseCss, declared } from './helpers/cssRules.mjs';
+import { OPENER_GAP, openerSharesRow } from '../../src/platform/workView/openerPlacement.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const shellCss = executableSource(read('src/components/common/WorkViewShell.css'));
@@ -51,7 +55,8 @@ test('a phone\'s work area gets the room under the button, the height the button
   assert.doesNotMatch(body, /margin/, 'never a margin');
   // The height is the one EnlargeableFigure measures and publishes.
   const figure = executableSource(read('src/components/common/EnlargeableFigure.jsx'));
-  assert.match(figure, /surface\.style\.setProperty\('--mm-work-view-opener-bottom', `\$\{Math\.ceil\(opener\.offsetTop \+ opener\.offsetHeight\)\}px`\);/);
+  // (0px instead, below, when the button has a row of its own and the work starts under it anyway.)
+  assert.match(figure, /surface\.style\.setProperty\('--mm-work-view-opener-bottom', stacked \? '0px' : `\$\{Math\.ceil\(opener\.offsetTop \+ opener\.offsetHeight\)\}px`\);/);
 });
 
 test('every row that already makes room for the button is exempt from the default room', () => {
@@ -143,4 +148,52 @@ test('on a phone the example in an answer box fits it, even on the narrowest sup
   assert.ok(Number(size[2]) >= 16, 'never under 16px');
   // The typed answer is untouched: only the placeholder part is scaled.
   assert.doesNotMatch(phone, /math-field\s*\{/);
+});
+
+test('a button with no room beside it takes a row of its own: large text, or a 320px phone', () => {
+  // Measured in the real engine at the button: 160px wide in 13px text (100%) and 257px in 26px text
+  // (200%). The work area is the screen less 68px of chrome (390 -> 322, 360 -> 292, 344 -> 276, 320 -> 252).
+  const shares = (screen, opener, fontSize) => openerSharesRow({ surfaceWidth: screen - 68, openerWidth: opener, fontSize });
+  for (const screen of [344, 360, 375, 390, 412, 700, 1366]) {
+    assert.equal(shares(screen, 160, 13), true, `${screen}px at 100%: a short heading fits in the row beside it`);
+  }
+  assert.equal(shares(320, 160, 13), false, '320px at 100%: 76px is left of the row and a short heading needs 91');
+  for (const screen of [344, 360, 390, 412]) {
+    assert.equal(shares(screen, 257, 26), false, `${screen}px at 200% text: the button is most of the row`);
+  }
+  // A tablet's row has the room at 200%, so nothing moves there.
+  assert.equal(shares(768, 257, 26), true);
+  // The room it needs grows with the text: 122px beside the button is enough for 13px text and not for 26px.
+  assert.equal(openerSharesRow({ surfaceWidth: 322, openerWidth: 184, fontSize: 13 }), true);
+  assert.equal(openerSharesRow({ surfaceWidth: 322, openerWidth: 184, fontSize: 26 }), false);
+  // Not laid out yet: no reason to move the button.
+  assert.equal(openerSharesRow({ surfaceWidth: 0, openerWidth: 160, fontSize: 13 }), true);
+  // The gap the rows keep beside the button is part of the room it needs, and of the space it publishes.
+  assert.equal(OPENER_GAP, 16);
+});
+
+test('the button that has no row to share is in the flow, at the right, above the work', () => {
+  const css = parseCss(read('src/components/common/WorkViewShell.css'));
+  const STACKED = '.mathmaster-work-view-surface[data-enlarged="false"][data-opener-stacked="true"] > .mathmaster-work-view-opener';
+  // Out of the corner: its position is inline style, so only !important moves it.
+  assert.deepEqual(declared(css, STACKED, 'position'), { value: 'static', important: true });
+  assert.equal(declared(css, STACKED, 'display')?.value, 'block');
+  assert.equal(declared(css, STACKED, 'margin')?.value, '8px 8px 0 auto', 'at the right, where it was');
+  // The tool's header keeps clear of the button's measured width, not a width that held at 100% text.
+  const header = declared(css, '.mathmaster-question-container .mathmaster-work-view-surface[data-enlarged="false"] .mathmaster-tool-shell-header', 'padding-right');
+  assert.deepEqual(header, { value: 'var(--mm-work-view-opener-space, 176px)', important: true });
+});
+
+test('the figure moves the button and publishes no reserved space or height when it is stacked', () => {
+  const figure = executableSource(read('src/components/common/EnlargeableFigure.jsx'));
+  const publish = region(figure, 'const publishSpace = () => {', 'return () => {', 'the opener measurement');
+  assert.match(publish, /openerSharesRow\(\{\s*surfaceWidth: surface\.clientWidth,\s*openerWidth: width,\s*fontSize: Number\.parseFloat\(window\.getComputedStyle\(opener\)\.fontSize\),?\s*\}\)/, 'asked of the measured button, surface and text size');
+  assert.match(publish, /if \(stacked\) surface\.setAttribute\('data-opener-stacked', 'true'\);\s*else surface\.removeAttribute\('data-opener-stacked'\);/);
+  assert.match(publish, /'--mm-work-view-opener-space', stacked \? '0px' : `\$\{width \+ OPENER_GAP\}px`/, 'nothing to keep clear of when it has a row of its own');
+  assert.match(publish, /'--mm-work-view-opener-bottom', stacked \? '0px' :/);
+  // It looks again when the screen changes, not only when the button does, and leaves nothing behind.
+  assert.match(publish, /observer\?\.observe\(opener\);\s*observer\?\.observe\(surface\);/);
+  const cleanup = region(figure, 'return () => {\n      observer?.disconnect();\n      surface.removeAttribute', '}, [enlarged]', 'the cleanup');
+  assert.match(cleanup, /surface\.removeAttribute\('data-opener-stacked'\)/);
+  assert.match(figure, /className="mm-button-neutral mathmaster-work-view-opener"/, 'the class the stylesheet names');
 });

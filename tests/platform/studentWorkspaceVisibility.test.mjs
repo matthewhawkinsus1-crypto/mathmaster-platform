@@ -296,7 +296,10 @@ test('only a pointer that actually moved counts as activity', () => {
 // desktop and the tool's title on a phone.
 test('the tool header leaves room for the floating Work View opener', () => {
   const css = read('src/components/common/WorkViewShell.css');
-  assert.match(css, /\.mathmaster-question-container \.mathmaster-work-view-surface\[data-enlarged="false"\] \.mathmaster-tool-shell-header \{\s*padding-right: 176px !important;/);
+  // The room is the button's measured width (EnlargeableFigure publishes it; 176px is what a phone at
+  // 100% text measures and the fallback before it does). It was the fixed 176px, which held until the
+  // text grew: at 200% the title ended under the 257px button (PH01).
+  assert.match(css, /\.mathmaster-question-container \.mathmaster-work-view-surface\[data-enlarged="false"\] \.mathmaster-tool-shell-header \{[^}]*padding-right: var\(--mm-work-view-opener-space, 176px\) !important;/);
   const opener = read('src/components/common/EnlargeableFigure.jsx');
   assert.match(opener, /const CONTROL = \{\s*position: 'absolute',\s*top: 8,\s*right: 8,/, 'the opener still floats at the top-right corner');
 });

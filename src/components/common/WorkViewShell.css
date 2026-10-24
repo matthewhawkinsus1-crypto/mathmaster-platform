@@ -665,7 +665,28 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
  */
 .mathmaster-work-view-surface[data-enlarged="false"] .mathmaster-tool-shell-header,
 .mathmaster-question-container .mathmaster-work-view-surface[data-enlarged="false"] .mathmaster-tool-shell-header {
-  padding-right: 176px !important;
+  /* The button's measured width (176px at 100% text on a phone), not a number
+     that held only until the text grew: at 200% the title ended under it. */
+  padding-right: var(--mm-work-view-opener-space, 176px) !important;
+}
+
+/*
+ * A BUTTON THAT CANNOT SHARE A ROW HAS ONE OF ITS OWN (PH01).
+ *
+ * EnlargeableFigure sets data-opener-stacked when fewer than 7em of the row are
+ * left beside the button (200% text on a phone; a 320px phone at 100%), and
+ * publishes 0 for the space and height the first rows keep clear of it. The
+ * button leaves the corner and takes a row at the top of the work, at the right
+ * where it was, so nothing starts under it and nothing has to know how wide it
+ * is. !important because its position is inline style.
+ */
+.mathmaster-work-view-surface[data-enlarged="false"][data-opener-stacked="true"] > .mathmaster-work-view-opener {
+  position: static !important;
+  display: block;
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: calc(100% - 16px);
+  margin: 8px 8px 0 auto;
 }
 
 /*

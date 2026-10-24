@@ -147,9 +147,9 @@ test('what the view carries is a caption, not a column of disabled-looking butto
 /* ----------------------------------------------------------------- PQ-025 */
 
 test('the Enlarge button says how big it is, and the rows it floats over leave it room', () => {
-  const effect = region(figure, "surface.style.setProperty('--mm-work-view-opener-space'", '}, [enlarged]);', 'the opener measurement');
+  const effect = region(figure, 'const publishSpace = () => {', '}, [enlarged]);', 'the opener measurement');
   assert.match(effect, /opener\.offsetWidth/);
-  assert.match(effect, /'--mm-work-view-opener-bottom', `\$\{Math\.ceil\(opener\.offsetTop \+ opener\.offsetHeight\)\}px`/);
+  assert.match(effect, /'--mm-work-view-opener-bottom', stacked \? '0px' : `\$\{Math\.ceil\(opener\.offsetTop \+ opener\.offsetHeight\)\}px`/);
   assert.match(effect, /new ResizeObserver\(publishSpace\)/);
   assert.match(effect, /removeProperty\('--mm-work-view-opener-space'\)/);
   assert.match(figure, /const surface = opener\?\.parentElement;\n\s*if \(enlarged \|\| !opener \|\| !surface\) return undefined;/, 'measured only while the button is shown');

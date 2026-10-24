@@ -38,9 +38,11 @@
 //                 its star drawn, not typed (PQ-021, PQ-030).
 //   opener        "⤢ Open Work View" covers no text or control of a
 //                 multi-part answer or Step Algebra, phone to Chromebook
-//                 (PQ-025); and on a 344 and a 390px phone none of any legacy
-//                 question type (?legacy=1), nor of the card that says a
-//                 question "could not be displayed" (PH01).
+//                 (PQ-025); and on a 344, a 390 and a 320px phone, and a 390px
+//                 phone at 200% text (where the button is most of the row and
+//                 takes one of its own), none of any legacy question type
+//                 (?legacy=1), nor of the card that says a question "could not
+//                 be displayed" (PH01).
 //   staged        a composed question in phone Work View: the header is the
 //                 task (PQ-026), all seven table rows typed on the number
 //                 keypad stay on screen above the keys (PQ-037); then the
@@ -540,18 +542,29 @@ const JOURNEYS = {
       const { opener, covered: hits } = await readOpenerCover(page);
       return opener ? hits : ['(no opener)'];
     };
-    for (const [width, height] of [[344, 882], [390, 844]]) {
+    for (const [width, height, textScale] of [[344, 882, 1], [390, 844, 1], [320, 640, 1], [390, 844, 2]]) {
       const context = await browser.newContext({ viewport: { width, height }, hasTouch: true, isMobile: true });
       const page = await context.newPage();
+      if (textScale !== 1) {
+        // The browser's text-size setting, before the page loads (it does not survive a second navigation).
+        const cdp = await context.newCDPSession(page);
+        await cdp.send('Page.enable');
+        await cdp.send('Page.setFontSizes', { fontSizes: { standard: 16 * textScale, fixed: 13 * textScale } });
+      }
       await page.goto(`${ORIGIN}/tests/browser/studentUxPlatform.html?q=legacy-fraction&legacy=1&run=opener-legacy-${Date.now()}`, { timeout: 120000 });
       await page.waitForFunction(() => window.__ux && document.querySelector('[data-question-id="legacy-fraction"]'), null, { timeout: 120000 });
       await settle(page, 2500);
+      const where = `${width}×${height}${textScale !== 1 ? ` at ${textScale * 100}% text` : ''}`;
+      if (textScale !== 1) {
+        const root = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+        check(root >= 16 * textScale * 0.95, `${where}: the text-size setting applied (root font ${root}px); the measurement is void without it`);
+      }
       const ids = (await page.evaluate(() => window.__ux.ids())).filter((id) => id.startsWith('legacy-'));
-      check(ids.length >= 20 && ids.includes('legacy-unsupported'), `${width}×${height}: the legacy section has every question type (${ids.length} found)`);
+      check(ids.length >= 20 && ids.includes('legacy-unsupported'), `${where}: the legacy section has every question type (${ids.length} found)`);
       for (const id of ids) {
         await go(page, id);
         const hits = await covered(page);
-        check(hits.length === 0, `${width}×${height} ${id}: the Open Work View button covers ${hits.join(', ')}`);
+        check(hits.length === 0, `${where} ${id}: the Open Work View button covers ${hits.join(', ')}`);
       }
       await context.close();
     }

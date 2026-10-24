@@ -63,6 +63,8 @@ test('the verdict chip is the first row of the question workspace, above the wor
   assert.ok(workspace.includes(CHIP_LABEL), 'the chip opens the workspace, before the coach, hints and the tool');
   // The space it reserves is the space EnlargeableFigure measures and publishes.
   const figure = executableSource(read('src/components/common/EnlargeableFigure.jsx'));
-  assert.match(figure, /surface\.style\.setProperty\('--mm-work-view-opener-space', `\$\{Math\.ceil\(opener\.offsetWidth\) \+ 16\}px`\);/);
-  assert.match(figure, /surface\.style\.setProperty\('--mm-work-view-opener-bottom', `\$\{Math\.ceil\(opener\.offsetTop \+ opener\.offsetHeight\)\}px`\);/);
+  // (0px for both when the button has a row of its own at large text, and the chip starts below it anyway.)
+  assert.match(figure, /const width = Math\.ceil\(opener\.offsetWidth\);/);
+  assert.match(figure, /surface\.style\.setProperty\('--mm-work-view-opener-space', stacked \? '0px' : `\$\{width \+ OPENER_GAP\}px`\);/);
+  assert.match(figure, /surface\.style\.setProperty\('--mm-work-view-opener-bottom', stacked \? '0px' : `\$\{Math\.ceil\(opener\.offsetTop \+ opener\.offsetHeight\)\}px`\);/);
 });

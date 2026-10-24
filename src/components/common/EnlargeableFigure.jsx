@@ -12,6 +12,7 @@ import {
   workViewCapabilitySummary,
 } from '../../platform/workView/workViewCapabilities.js';
 import { readWorkViewViewport } from '../../platform/workView/workViewViewport.js';
+import { OPENER_GAP, openerSharesRow } from '../../platform/workView/openerPlacement.js';
 import { WorkViewPresentationContext } from '../../platform/workView/workViewPresentation.js';
 import { captureWorkViewScrollHold, restoreWorkViewScrollHold } from '../../platform/workView/workViewScrollHold.js';
 import { revealWorkViewTarget } from '../../platform/workView/workViewReveal.js';
@@ -470,20 +471,41 @@ export default function EnlargeableFigure({
    * Measured, because the label, the font and the zoom all change its size;
    * WorkViewShell.css reserves its width at the end of those first rows, or on
    * a phone starts a wrapping row below its bottom edge.
+   *
+   * WHERE THERE IS NO ROOM BESIDE IT, IT GETS A ROW OF ITS OWN (PH01). At 200%
+   * text on a 390px phone the button is 257px wide and no heading, tool title or
+   * chip row can share its row: nine of the 22 question types still had their
+   * heading under it, and a tool's title ("Syst|ems Workspace") ended at its
+   * fourth letter. When the row has too little room beside the button
+   * (openerPlacement.js), the surface says `data-opener-stacked`, the button
+   * drops into the flow above the work (WorkViewShell.css), and the reserved
+   * space and height are 0: the rows that keep clear of it have nothing to keep
+   * clear of.
    */
   useLayoutEffect(() => {
     const opener = openerRef.current;
     const surface = opener?.parentElement;
     if (enlarged || !opener || !surface) return undefined;
     const publishSpace = () => {
-      surface.style.setProperty('--mm-work-view-opener-space', `${Math.ceil(opener.offsetWidth) + 16}px`);
-      surface.style.setProperty('--mm-work-view-opener-bottom', `${Math.ceil(opener.offsetTop + opener.offsetHeight)}px`);
+      const width = Math.ceil(opener.offsetWidth);
+      const stacked = !openerSharesRow({
+        surfaceWidth: surface.clientWidth,
+        openerWidth: width,
+        fontSize: Number.parseFloat(window.getComputedStyle(opener).fontSize),
+      });
+      if (stacked) surface.setAttribute('data-opener-stacked', 'true');
+      else surface.removeAttribute('data-opener-stacked');
+      surface.style.setProperty('--mm-work-view-opener-space', stacked ? '0px' : `${width + OPENER_GAP}px`);
+      surface.style.setProperty('--mm-work-view-opener-bottom', stacked ? '0px' : `${Math.ceil(opener.offsetTop + opener.offsetHeight)}px`);
     };
     publishSpace();
     const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(publishSpace) : null;
     observer?.observe(opener);
+    // The room beside the button changes with the screen as well as with the button.
+    observer?.observe(surface);
     return () => {
       observer?.disconnect();
+      surface.removeAttribute('data-opener-stacked');
       surface.style.removeProperty('--mm-work-view-opener-space');
       surface.style.removeProperty('--mm-work-view-opener-bottom');
     };
@@ -614,7 +636,7 @@ export default function EnlargeableFigure({
     >
       {shortHeight ? null : instructionNode}
       {!enlarged ? (
-        <button ref={openerRef} className="mm-button-neutral" type="button" onClick={openWorkView} disabled={openerBlocked} data-work-view-review={reviewingClosed ? 'true' : undefined} style={CONTROL}>
+        <button ref={openerRef} className="mm-button-neutral mathmaster-work-view-opener" type="button" onClick={openWorkView} disabled={openerBlocked} data-work-view-review={reviewingClosed ? 'true' : undefined} style={CONTROL}>
           ⤢ {enlargeLabel}
         </button>
       ) : null}
