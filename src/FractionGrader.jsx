@@ -20,8 +20,9 @@ export default function FractionGrader({ question, onStateChange, onUndoStateCha
   // whole question: an authored answer is graded against the author's key,
   // a sum against the sum.
   const graded = gradeFractionResponse(question, answer);
-  // A mixed number where one fraction is asked for is not ready to submit:
-  // the student is told why instead of losing a try to it (answerShapeGuard).
+  // A mixed number not in lowest terms where lowest terms are asked for is
+  // not ready to submit: the student is told why instead of losing a try to
+  // it (answerShapeGuard).
   const formProblem = fractionFormProblemForResponse(question, answer);
   const isComplete = graded.isComplete && !formProblem;
   const { isCorrect } = graded;

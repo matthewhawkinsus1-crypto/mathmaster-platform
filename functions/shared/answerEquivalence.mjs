@@ -1234,7 +1234,13 @@ const mixedSidesAsFractions = (value) => {
 /** Is this written as a whole number followed by a number fraction (`3\frac{1}{2}`, `3 1/2`)? */
 export const looksLikeMixedNumber = (value) => mixedNumberShape(value) !== null;
 
-/** true or false when a mixed number meets a number; null when the rule does not apply. */
+/**
+ * true or false when a mixed number meets a number; null when the rule does
+ * not apply. A KEY WRITTEN AS A MIXED NUMBER ASKS FOR ONE (the owner,
+ * 2026-10-23; GR13): on "Write 17/5 as a mixed number" 17/5 or 3.4 copies the
+ * prompt, so against a mixed-number key only a mixed number is right (an
+ * author who also takes 17/5 lists it). A number key still takes 3½ for 7/2.
+ */
 export const sameMixedNumber = (student, key, tolerance = 1e-6) => {
   const studentMixed = mixedNumberShape(student);
   const keyMixed = mixedNumberShape(key);
@@ -1243,6 +1249,7 @@ export const sameMixedNumber = (student, key, tolerance = 1e-6) => {
   const b = keyMixed ? keyMixed.value : asNumber(key);
   // The other side is not a number (an expression, a pair, text): not ours.
   if ((studentMixed && !keyMixed && b === null) || (keyMixed && !studentMixed && a === null)) return null;
+  if (keyMixed && !studentMixed) return false;
   if (a === null || b === null) return false;
   return Math.abs(a - b) <= Math.max(tolerance, 1e-12 * Math.max(1, Math.abs(b)));
 };

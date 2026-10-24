@@ -77,8 +77,12 @@ test('the sign of a mixed number covers both parts: −3½ is −7/2, never −2
 });
 
 test('a key written as a mixed number is the mixed number; a whole number with an improper fraction is neither reading', async () => {
-  assert.equal(sameValue('3.5', '3 1/2'), true);
-  assert.equal(sameValue('\\frac{7}{2}', '3\\frac{1}{2}'), true);
+  // A key written as a mixed number asks for a mixed number (the owner,
+  // 2026-10-23, GR13: mixedNumberDecisions.test.mjs): 3.5 and 7/2 copy the
+  // other form, and 3½ is the key's own.
+  assert.equal(sameValue('3.5', '3 1/2'), false);
+  assert.equal(sameValue('\\frac{7}{2}', '3\\frac{1}{2}'), false);
+  assert.equal(sameValue('3\\frac{1}{2}', '3 1/2'), true);
   assert.equal(sameValue('1.5', '3\\frac{1}{2}'), false);
   // 3 5/2 is not a mixed number a student writes for 5.5, nor 3·5/2 = 7.5.
   assert.equal(sameValue('3\\frac{5}{2}', '7.5'), false);
@@ -96,15 +100,19 @@ test('an expression key keeps today\'s reading: 3\\frac{x}{2} is (3x)/2, and a m
   assert.equal(matchesFieldAnswer('(1\\frac{1}{2},4)', { answer: '(\\frac{3}{2},4)', answerFormat: 'orderedPair' }), false);
 });
 
-test('a lowest-terms fraction question keeps its rule for a mixed number, and says why before a try is spent', () => {
+test('a lowest-terms fraction question takes a mixed number in lowest terms, and says why before a try is spent when it is not', () => {
   const question = { type: 'fraction', prompt: 'Simplify 14/4.', answer: '7/2' };
-  // Graded: still one fraction in lowest terms.
-  assert.equal(gradeFractionResponse(question, '3\\frac{1}{2}').isCorrect, false);
+  // Graded: a mixed number with a reduced fraction part is in lowest terms
+  // (the owner, 2026-10-23, GR13); one whose fraction part is not, is not.
+  assert.equal(gradeFractionResponse(question, '3\\frac{1}{2}').isCorrect, true);
   assert.equal(gradeFractionResponse(question, '\\frac{7}{2}').isCorrect, true);
-  // Shown: a fixed sentence, for any mixed number (right or wrong), with no number in it.
-  const reason = fractionFormProblemForResponse(question, '3\\frac{1}{2}');
-  assert.match(reason, /one fraction in lowest terms, not as a whole number and a fraction/);
-  assert.equal(fractionFormProblemForResponse(question, '4\\frac{1}{3}'), reason);
+  assert.equal(gradeFractionResponse(question, '3\\frac{2}{4}').isCorrect, false);
+  // Shown: a fixed sentence, for any mixed number not in lowest terms (right
+  // or wrong), with no number in it; nothing for one that is.
+  assert.equal(fractionFormProblemForResponse(question, '3\\frac{1}{2}'), '');
+  const reason = fractionFormProblemForResponse(question, '3\\frac{2}{4}');
+  assert.match(reason, /fraction part must be in lowest terms/);
+  assert.equal(fractionFormProblemForResponse(question, '4\\frac{2}{6}'), reason);
   assert.doesNotMatch(reason, /\d/);
   assert.equal(fractionFormProblemForResponse(question, '\\frac{7}{2}'), '');
   // A drill (any answer worth the sum) and an author who listed the mixed

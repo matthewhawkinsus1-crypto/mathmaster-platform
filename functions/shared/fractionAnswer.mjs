@@ -234,6 +234,50 @@ export const parseWrittenNumber = (raw) => {
   };
 };
 
+/*
+ * A MIXED NUMBER AS WRITTEN: `3\frac{1}{2}`, the editor's compact `3\frac12`,
+ * or a typed `3 1/2` — a whole number, then one fraction of whole numbers, a
+ * sign only in front of the whole. { negative, whole, numerator, denominator },
+ * or null for anything else (a decimal whole part, a sign inside, a letter).
+ */
+const readWrittenMixedNumber = (raw) => {
+  if (typeof raw !== 'string') return null;
+  const tokens = tokenize(prepare(raw));
+  if (!tokens?.length) return null;
+  let index = 0;
+  const accept = (kind) => (tokens[index]?.kind === kind ? tokens[index++] : null);
+  const digits = () => {
+    const token = accept('number');
+    return token && DIGITS.test(token.text) ? Number(token.text) : null;
+  };
+  // One \frac argument: braced, or one digit (`\frac12` is 1 over 2).
+  const fracArgument = () => {
+    if (accept('{')) {
+      const value = digits();
+      return value !== null && accept('}') ? value : null;
+    }
+    const token = tokens[index];
+    if (token?.kind !== 'number' || !DIGITS.test(token.text)) return null;
+    if (token.text.length === 1) index += 1;
+    else tokens[index] = { kind: 'number', text: token.text.slice(1) };
+    return Number(token.text[0]);
+  };
+  const negative = Boolean(accept('-'));
+  const whole = digits();
+  if (whole === null) return null;
+  let numerator = null;
+  let denominator = null;
+  if (accept('frac')) {
+    numerator = fracArgument();
+    denominator = numerator === null ? null : fracArgument();
+  } else {
+    numerator = digits();
+    denominator = numerator !== null && accept('/') ? digits() : null;
+  }
+  if (numerator === null || denominator === null || index !== tokens.length) return null;
+  return { negative, whole, numerator, denominator };
+};
+
 /**
  * Is this written the way "a fraction in lowest terms" asks?
  *
@@ -242,10 +286,18 @@ export const parseWrittenNumber = (raw) => {
  * carries no sign — the sign belongs in front or on the numerator. So 6/8
  * (reducible), 4/1 (a whole number over one), 3/-4 (a signed denominator)
  * and every decimal are not.
+ *
+ * A mixed number is too when its fraction part is less than one and shares
+ * no factor (the owner, 2026-10-23; GR13): 3½ is the lowest-terms form of
+ * 7/2, as many middle-school teachers teach it; 3 2/4 and 3 5/2 are not.
  */
 export const isWrittenInLowestTerms = (raw) => {
   const written = parseWrittenNumber(raw);
-  if (!written) return false;
+  if (!written) {
+    const mixed = readWrittenMixedNumber(raw);
+    return Boolean(mixed) && mixed.whole > 0 && mixed.numerator > 0 && mixed.numerator < mixed.denominator
+      && gcd(mixed.numerator, mixed.denominator) === 1;
+  }
   if (written.form === 'integer') return true;
   return written.form === 'fraction'
     && written.denominator > 1
