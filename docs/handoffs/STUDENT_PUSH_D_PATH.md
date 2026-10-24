@@ -300,6 +300,12 @@ and `skillMastered` events with idempotency keys. Documented in
 
 - **Historical multiple-choice grades** (before #456 deploys) are still wrong
   in evidence and mastery — owner's decision.
+  **Decided 2026-10-23 (MP19): remove them from mastery as not attempted**,
+  after the read-only report. `scripts/remove-path-choice-misses-from-mastery.mjs`
+  takes the report's window, reads only by default, and with `--execute`
+  (project id typed back) rewrites only `studentMasteryProfiles` and records
+  each removal there (`voidedEvidence`). Evidence events and weekly accuracy
+  are not changed.
 - **Server mastery scoring is wave 2** (coordinator). Until the server scores
   each question's final attempt, the wheel, its card and the planner (server
   rule) can disagree with the map (more favourable of the two records); see
