@@ -899,13 +899,13 @@ journeys.complete = async (browser) => {
     const recorded = (await grades(page)).filter((grade) => grade.questionId === id);
     check(recorded.length === 1 && recorded[0].isCorrect === true, `${id}: submitted correct (${JSON.stringify(recorded.map((g) => [g.isCorrect, g.partialCreditPercent]))})`);
     // A finished question is final: the Undo that walks the board back cannot reopen it.
-    // QuestionEngine locks a correct question by making the whole tool `inert`,
-    // which takes the board out of the accessibility tree. A role lookup then
-    // finds no Submit button at all in some Playwright versions (1.55, as CI
-    // pins) and the disabled one in others, so look the button up by its text,
-    // which sees inert content, and check that it cannot be used: disabled, or
-    // inside the inert lock. Still looked up without waiting, and if it is
-    // truly gone, say what the page shows instead.
+    // QuestionEngine locks a correct question: since AX01 its work is
+    // read-only (a disabled fieldset, still in the accessibility tree), and
+    // while a submit is in flight it is `inert`, which a role lookup cannot
+    // see in some Playwright versions (1.55, as CI pins). So look the button
+    // up by its text, which sees either, and check that it cannot be used:
+    // disabled, or inside an inert lock. Still looked up without waiting, and
+    // if it is truly gone, say what the page shows instead.
     // The board's own button: once the question is closed its label drops the
     // try cost ("Submit board"), since a closed question spends none.
     const submitBoard = page.locator('[data-lmr-submit] button', { hasText: /^Submit\b/ }).first();

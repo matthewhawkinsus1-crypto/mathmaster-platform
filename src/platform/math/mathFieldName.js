@@ -20,6 +20,23 @@
  */
 import { useEffect } from 'react';
 import { mathFieldKeyboardSink } from './mathLiveCompat.js';
+import { mathSpeechLabel } from '../language/mathSpeechLabel.js';
+
+/*
+ * A CLOSED QUESTION'S ANSWER IS SAID WITH ITS BOX (AX01).
+ *
+ * MathLive hides its typeset math from assistive technology, so a box is heard
+ * by its name alone. Finished work is read-only now rather than inert, and a
+ * screen-reader student reviewing it heard "Slope" and never what they had
+ * answered. Once the question is closed the name carries the answer, in the
+ * words MathDisplay uses for the same math (mathSpeechLabel.js). While it can
+ * still be answered the name is the label alone: MathLive speaks what is typed.
+ */
+export const mathFieldAccessibleName = ({ name = '', value = '', closed = false } = {}) => {
+  const label = String(name ?? '').trim() || 'Math answer';
+  if (!closed) return label;
+  return `${label}: ${mathSpeechLabel({ value }) || 'nothing entered'}`;
+};
 
 /** Give the field's keyboard sink its name. Returns the sink, or null. */
 export const nameMathFieldSink = (mathField, name) => {

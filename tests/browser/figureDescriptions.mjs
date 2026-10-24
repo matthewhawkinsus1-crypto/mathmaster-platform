@@ -185,14 +185,10 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
     assert.equal(live.role, 'image');
     assert.match(live.description, /^x from −5 to 5, y from .+\. 1 line\. 1 point labelled A.*Positions are not read out while this question can be answered\.$/, live.description);
     assert.doesNotMatch(live.description, /\(2, 3\)|crosses|passes through/, 'no position while it can be answered');
-    // A closed question's work area is `inert` (Q-97), which takes it out of
-    // the accessibility tree altogether, so the closed reading is checked on
-    // the element the graph's aria-describedby points to.
+    // A closed question's work is read-only, no longer `inert` (AX01, Q-97):
+    // the graph stays in the accessibility tree, with its closed reading.
     await open(page, 'numberLine', { closed: true });
-    const review = await page.evaluate((selector) => {
-      const svg = document.querySelector(selector);
-      return document.getElementById(svg.getAttribute('aria-describedby'))?.textContent || '';
-    }, GRAPH);
+    const review = (await axNode(page, GRAPH)).description;
     assert.match(review, /A at \(2, 3\)/, `the closed question reads the point at the drawn grid: ${review}`);
     assert.doesNotMatch(review, /Positions are not read out/);
     // An ended DOL is locked but shows no solution, and a teacher can reopen
@@ -218,6 +214,34 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
     await open(page, 'numberLine', { role: 'dol', closed: true, released: true });
     const releasedText = await readGraph();
     assert.match(releasedText, /A at \(2, 3\)/, `after release the positions are read: ${releasedText}`);
+  });
+
+  // AX01 (Q-97): a closed question's work is read-only, not inert. It stays in
+  // the accessibility tree, named as work that can be read and not changed, and
+  // nothing in it changes: not a key, not a screen reader's click.
+  await step(at, 'closed work: a screen reader reads it, nothing changes it', async () => {
+    await open(page, 'construct', { closed: true });
+    const AREA = '[data-work-view-area="true"]';
+    const group = await axNode(page, AREA);
+    assert.equal(group.role, 'group');
+    assert.equal(group.name, 'Your work. You can read it but not change it.');
+    const PLANE = `${AREA} svg[role="application"]`;
+    const before = await axNode(page, PLANE);
+    assert.match(before.description, /^x from /, `the plane is read: ${before.description}`);
+    await page.locator(PLANE).focus();
+    for (const key of ['ArrowRight', 'ArrowUp', 'Enter', ' ']) await page.keyboard.press(key);
+    await page.locator(PLANE).dispatchEvent('click');
+    await page.waitForTimeout(250);
+    assert.equal((await axNode(page, PLANE)).description, before.description, 'keys and a click place nothing');
+    // A closed math box says its answer, and Tab leaves it: MathLive's own Tab
+    // cannot see the disabled fieldset, and trapped focus in the box.
+    await open(page, 'interval', { closed: true });
+    const box = page.locator(`${AREA} math-field`).first();
+    assert.match(await box.getAttribute('aria-label'), /^Interval notation: /, 'a closed box says its answer');
+    await box.focus();
+    await page.keyboard.press('Tab');
+    await page.waitForTimeout(150);
+    assert.ok(await page.evaluate(() => !document.activeElement?.closest?.('math-field')), 'Tab moves on from a closed math box');
   });
 
   for (const role of ['practice', 'dol']) {

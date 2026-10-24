@@ -32,6 +32,7 @@ import { chosenOptionReasons, oneTryNotice } from './platform/supports/feedback/
 import { SAME_ANSWER_AGAIN, missOutcomeText, submitActionLabel, submitTryCost, triesLeftText } from './platform/student/submitCost.js';
 import './components/student/SubmitCost.css';
 import { closedQuestionEnterAction } from './platform/interaction/closedQuestionEnter.js';
+import { READ_ONLY_WORK_AREA_LABEL, READ_ONLY_WORK_AREA_SELECTOR, bindReadOnlyWorkArea } from './platform/interaction/readOnlyWorkArea.js';
 import { questionModuleFailureKey } from './platform/runtime/questionModuleFailureKey.js';
 import { practiceLikeThisOffered } from './platform/supports/workedExample/practiceLikeThis.js';
 import { buildPartReviewRows, closedQuestionHasReview } from './platform/supports/review/closedQuestionReview.js';
@@ -975,9 +976,19 @@ function QuestionEngineBody({
   // cleared in the new-question effect: a module that throws as it first mounts
   // reports during the commit, before that effect, and would lose its panel.)
   const moduleFailed = failedModule !== null && failedModule.key === moduleFailureKey && failedModule.question === processedQuestion;
-  // The work area is read-only while the question is closed or waiting —
+  // The work area cannot be changed while the question is closed or waiting —
   // except when its module failed: then it holds only the failure panel.
   const workAreaClosed = !moduleFailed && Boolean(locked || scaffoldRequired || contextScaffoldRequired || submitting || pausedByAnotherTab);
+  // WAITING work is `inert`: a submit in flight, the "Let's back up" step over
+  // it, the question open in another tab. The student is meant to be
+  // elsewhere for a moment.
+  const workAreaInert = !moduleFailed && Boolean(scaffoldRequired || contextScaffoldRequired || submitting || pausedByAnotherTab);
+  // FINISHED work is read-only, not inert (AX01, Q-97): it stays in the
+  // accessibility tree, so a screen-reader student can review the graph and
+  // their own answers, and it stays locked — the disabled fieldset, and a
+  // guard that stops every key, press, paste and drop that could change it
+  // (readOnlyWorkArea.js).
+  const workAreaReadOnly = workAreaClosed && !workAreaInert;
   // The attempt strip at the top of the question states the lock reason where
   // the student lands. When it does, the notice below the tool would repeat the
   // same sentence (two copies of "This assignment is closed.").
@@ -1071,6 +1082,9 @@ function QuestionEngineBody({
   // verdict, then the worked solution, are next in reading order); otherwise
   // on the bar's Next / Continue. Only on the change: opening a question that
   // was already closed moves nothing, and a press or key in between wins.
+  // Focus a close left on the finished work (read-only now, not inert, so it
+  // is not dropped to <body>) is stranded there too: Enter there would belong
+  // to a box that can no longer be changed, not to the way on.
   useEffect(() => {
     const was = wasLockedRef.current;
     wasLockedRef.current = locked;
@@ -1085,7 +1099,8 @@ function QuestionEngineBody({
         frame = null;
         if (focusAuthority.generation !== ticket.generation || focusAuthority.interactions !== ticket.interactions) return;
         const active = document.activeElement;
-        const ours = !active || active === document.body || active === continueButtonRef.current || active === submitButtonRef.current;
+        const stranded = Boolean(active?.closest?.(READ_ONLY_WORK_AREA_SELECTOR) && questionEngineRef.current?.contains?.(active));
+        const ours = !active || active === document.body || active === continueButtonRef.current || active === submitButtonRef.current || stranded;
         if (!ours) return;
         const target = isExpired && showOutcomeFeedback && closedCardRef.current
           ? closedCardRef.current
@@ -3250,12 +3265,16 @@ function QuestionEngineBody({
         // the case it was built for (RUN-13): the area is not disabled then.
         // data-work-view-area: what Work View opens on when the tool marks
         // nothing more precise (TOOL-13, workViewReveal.js).
-        <fieldset disabled={workAreaClosed} data-work-view-area="true" style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
-          {/* `inert` must be a boolean: React 19 reads inert="" as false, which
-              left a completed answer's math field focused and editable (and
-              swallowing the Enter that should continue). pointer-events alone
-              only stops the mouse. */}
-          <div aria-disabled={workAreaClosed ? 'true' : undefined} inert={workAreaClosed ? true : undefined} style={{ pointerEvents: workAreaClosed ? 'none' : 'auto', opacity: moduleFailed ? 1 : locked ? 0.72 : scaffoldRequired || contextScaffoldRequired || pausedByAnotherTab ? 0.5 : 1 }}>
+        // A finished question's work is named as read-only for a screen
+        // reader, which does not see the dimming (AX01).
+        <fieldset disabled={workAreaClosed} data-work-view-area="true" aria-label={workAreaReadOnly ? READ_ONLY_WORK_AREA_LABEL : undefined} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+          {/* Waiting work is `inert`, and it must be a boolean: React 19 reads
+              inert="" as false, which left a completed answer's math field
+              focused and editable (and swallowing the Enter that should
+              continue). Finished work is read-only instead (AX01): the guard
+              bound here stops the keys, a screen reader's click and the
+              pastes that pointer-events, which only stops the mouse, cannot. */}
+          <div aria-disabled={workAreaClosed ? 'true' : undefined} inert={workAreaInert ? true : undefined} data-work-read-only={workAreaReadOnly ? 'true' : undefined} ref={bindReadOnlyWorkArea} style={{ pointerEvents: workAreaClosed ? 'none' : 'auto', opacity: moduleFailed ? 1 : locked ? 0.72 : scaffoldRequired || contextScaffoldRequired || pausedByAnotherTab ? 0.5 : 1 }}>
             <QuestionModuleBoundary
               key={moduleBoundaryKey}
               questionType={processedQuestion?.type}

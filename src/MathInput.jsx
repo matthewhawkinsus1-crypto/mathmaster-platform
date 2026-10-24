@@ -9,7 +9,7 @@ import { useDeferredFocusHost } from './platform/interaction/answerFocusPolicy.j
 import { revealMathFieldHost, revealUnlessVisibleWhileZoomed } from './platform/layout/pinchZoomReveal.js';
 import { useQuestionLifecycle } from './platform/question/QuestionLifecycleContext.jsx';
 import { useRovingToolbar } from './platform/interaction/rovingToolbar.js';
-import { useMathFieldName } from './platform/math/mathFieldName.js';
+import { mathFieldAccessibleName, useMathFieldName } from './platform/math/mathFieldName.js';
 import {
   TYPED_FRACTION_OPENING,
   mixedNumberKeyStep,
@@ -361,7 +361,8 @@ export default function MathInput({
 
   // A screen reader lands in MathLive's keyboard sink, which MathLive leaves
   // unnamed: the sink gets the host's name too (mathFieldName.js, A11Y-3).
-  const fieldName = ariaLabel || placeholder || 'Math answer';
+  // On a closed question the name says the answer as well (AX01).
+  const fieldName = mathFieldAccessibleName({ name: ariaLabel || placeholder, value, closed: questionTerminal });
   useMathFieldName(mfRef, fieldName);
 
   useEffect(() => {

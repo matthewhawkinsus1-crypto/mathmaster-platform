@@ -27,8 +27,9 @@ const onScreen = (button) => {
 };
 
 // Disabled for real: its own `disabled`, a `<fieldset disabled>` around it, or
-// an `inert` ancestor (a closed question's work area is both). `button.disabled`
-// alone reads the first only, so a closed question's Check looked live.
+// an `inert` ancestor (a closed question's work area has the fieldset; one
+// that is waiting is inert as well). `button.disabled` alone reads the first
+// only, so a closed question's Check looked live.
 export const toolCheckButtonDisabled = (button) => {
   if (!button) return true;
   if (button.disabled) return true;

@@ -90,7 +90,8 @@ test('an intercept question is never labelled as a solved equation', () => {
   assert.doesNotMatch(label, /Solved Equation|Intercepts|LINEAR_INTERCEPTS|stepAlgebra/, 'the label names no route');
 });
 
-// ─── Locked work is inert to the keyboard, not only to the mouse ───────────
+// ─── Waiting work is inert to the keyboard, not only to the mouse ──────────
+// (Finished work is read-only instead, AX01: tests/platform/readOnlyWorkArea.test.mjs.)
 
 test('the locked tool region passes a boolean inert (React 19 reads "" as false)', () => {
   const engine = source('src/QuestionEngine.jsx');

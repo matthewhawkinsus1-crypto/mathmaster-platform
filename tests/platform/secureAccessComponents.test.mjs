@@ -138,7 +138,9 @@ test('the math field\'s accessible name carries the typing hint, which an id ref
   const math = region(FIELD, 'function MathEditor(', '\n}\n', 'the math editor');
   assert.match(region(math, '<MathInput', '/>', 'the editor\'s MathInput'), /\n\s*ariaLabel=\{label\}/, 'the editor\'s name is the math box\'s name');
   const MATH_INPUT = executableSource(componentSource('src/MathInput.jsx'));
-  assert.match(region(MATH_INPUT, 'export default function MathInput(', '\n  return (', 'MathInput hooks'), /const fieldName = ariaLabel \|\| placeholder \|\| 'Math answer';\s*useMathFieldName\(mfRef, fieldName\);/, 'MathInput names its sink with that name');
+  // (A closed question's box adds its answer after that name, AX01:
+  // mathFieldAccessibleName in tests/platform/mathFieldName.test.mjs.)
+  assert.match(region(MATH_INPUT, 'export default function MathInput(', '\n  return (', 'MathInput hooks'), /const fieldName = mathFieldAccessibleName\(\{ name: ariaLabel \|\| placeholder, [^}]*\}\);\s*useMathFieldName\(mfRef, fieldName\);/, 'MathInput names its sink with that name');
   const named = region(FIELD, 'const nameWithHint = (label, hint, fromServer) => {', '\n};', 'nameWithHint');
   assert.match(named, /const spoken = fromServer \? speechTextFor\(hint\) : hint;/, 'a server hint\'s $…$ mathematics is said in words');
   assert.match(component, /<TextEditor[\s\S]*?hintId=\{entry\.hint \? hintId : ''\}/, 'a text box keeps its description');

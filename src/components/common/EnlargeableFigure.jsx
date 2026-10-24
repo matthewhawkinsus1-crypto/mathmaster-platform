@@ -150,7 +150,7 @@ export default function EnlargeableFigure({
   // A CLOSED QUESTION CAN STILL BE ENLARGED TO LOOK AT (TOOL-13). Closing still
   // closes an open Work View (the grading transition below), but the opener
   // stays: a student can enlarge their own graded graph to review it. The work
-  // area inside stays exactly as closed as it is inline (inert, no Submit,
+  // area inside stays exactly as closed as it is inline (read-only, no Submit,
   // Reset or Undo), so Work View shows nothing the page does not.
   reviewWhenClosed = false,
   // THE ENLARGED PANEL COVERS THE QUESTION THAT SENT THE STUDENT TO IT.

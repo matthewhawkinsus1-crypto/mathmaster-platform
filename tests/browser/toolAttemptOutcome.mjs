@@ -16,7 +16,7 @@
 //             board: the outcome is inside the
 //             tool, on screen, close below Check, in exactly one live region,
 //             and the count goes down attempt by attempt; the final attempt
-//             still gets QuestionEngine's closing box (the tool is inert then).
+//             still gets QuestionEngine's closing box (the tool is read-only then).
 //   revisited a question with an earlier attempt on its record keeps the
 //             outcome on screen (it used to be cleared the instant it arrived).
 //   server    a server-graded tool shows no verdict of its own, so the engine's
@@ -252,7 +252,7 @@ for (const device of ['chromebook', 'phone']) {
 // ------------------------------------------------------------ a right answer
 {
   // The sample is f(x) = (x − 2)² − 1 restricted to its right branch, at x = 5:
-  // f⁻¹(8) = 5. A correct attempt locks the tool (inert), so the engine's
+  // f⁻¹(8) = 5. A correct attempt locks the tool (read-only), so the engine's
   // "Correct!" box announces it, exactly as before.
   const { context, page } = await open('chromebook', 'practice', 'inverse');
   await page.evaluate(() => {

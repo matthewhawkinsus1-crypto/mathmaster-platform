@@ -36,6 +36,20 @@ const isRendered = (element) => {
   return element === element.ownerDocument?.activeElement;
 };
 
+// Disabled for real: its own `disabled`, or a <fieldset disabled> around it,
+// which `element.disabled` does not read. A finished question's work is
+// read-only rather than inert (AX01), so in Work View its buttons are in the
+// dialog, disabled by that fieldset, and cannot take focus: counted as stops,
+// Tab wrapped onto one and went nowhere.
+const actuallyDisabled = (element) => {
+  if (element.disabled === true) return true;
+  try {
+    return element.matches(':disabled');
+  } catch {
+    return false;
+  }
+};
+
 const tabbableWithin = (root) => {
   if (!root) return [];
   const hiddenInside = (element) => {
@@ -44,7 +58,7 @@ const tabbableWithin = (root) => {
   };
   return [...root.querySelectorAll(TABBABLE_SELECTOR)].filter((element) => isTabbableFacts({
     tabIndex: element.hasAttribute('tabindex') ? Number(element.getAttribute('tabindex')) : 0,
-    disabled: element.disabled === true,
+    disabled: actuallyDisabled(element),
     hidden: hiddenInside(element),
     inert: element.closest('[inert]') !== null,
     rendered: isRendered(element),

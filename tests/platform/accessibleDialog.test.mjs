@@ -208,10 +208,13 @@ test('QuestionEngine: the unchanged-values confirm is a Dialog; the scaffold a f
   // ("Let's back up"), not the program's "Productive struggle scaffold".
   assert.match(code, /<section ref=\{scaffoldRef\} role="region" aria-label="Let's back up" data-scaffold=""/);
   assert.match(code, /if \(!scaffoldRequired\) return undefined;\s*const frame = window\.requestAnimationFrame\(\(\) => scaffoldRef\.current\?\.querySelector\('button'\)\?\.focus\(/, 'focus moves to its first choice');
-  // The work area's inert gate is one value since student pass 3 (RUN-13):
-  // it includes the scaffold, and lifts only for a module that failed.
-  assert.match(code, /inert=\{workAreaClosed \? true : undefined\}/, 'the work beneath it is inert while it shows');
-  assert.match(code, /const workAreaClosed = !moduleFailed && Boolean\([^)]*\bscaffoldRequired\b[^)]*\);/, 'the scaffold is part of that gate');
+  // The work area's gates lift only for a module that failed (RUN-13). Since
+  // AX01 a FINISHED question's work is read-only rather than inert, and the
+  // inert gate is the waiting one: it includes the scaffold, so the work
+  // beneath it stays disabled and inert.
+  assert.match(code, /inert=\{workAreaInert \? true : undefined\}/, 'the work beneath it is inert while it shows');
+  assert.match(code, /const workAreaInert = !moduleFailed && Boolean\([^)]*\bscaffoldRequired\b[^)]*\);/, 'the scaffold is part of that gate');
+  assert.match(code, /const workAreaClosed = !moduleFailed && Boolean\([^)]*\bscaffoldRequired\b[^)]*\);/, 'and of the disabled one');
   // Review of #463: it opens from Work View's own Submit too, so it is drawn
   // above Work View (2147483000) and its calculator (2147483400).
   const z = Number(code.match(/const UNCHANGED_CONFIRM_Z_INDEX = (\d+);/)?.[1]);
