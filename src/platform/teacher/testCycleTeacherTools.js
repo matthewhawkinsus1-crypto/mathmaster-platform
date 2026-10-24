@@ -16,6 +16,7 @@ import { zonedInstant, zonedParts } from '../../../functions/shared/instructiona
 import { BULK_ACTION, BULK_ACTION_LABEL } from '../../../functions/shared/testCycleBulk.mjs';
 import { isRootAdminEmail } from '../../../functions/shared/rolePolicy.mjs';
 import { SCHOOL_TIME_ZONE } from '../../../functions/shared/sectionDeadline.mjs';
+import { validateExcusedQuestions } from '../../../functions/shared/testCycleReducedItems.mjs';
 
 export { BULK_ACTION, BULK_ACTION_LABEL };
 
@@ -280,6 +281,42 @@ export const gradeAdjustmentChoices = (row = {}) => {
     current: row.gradeAdjustment
       ? `Set by ${row.gradeAdjustment.by || 'a teacher'} to ${trim(row.gradeAdjustment.grade)}%. The grade rule alone would record ${row.ruleRecordedGrade === null || row.ruleRecordedGrade === undefined ? 'no grade' : `${trim(row.ruleRecordedGrade)}%`}.`
       : null,
+  };
+};
+
+/*
+ * FEWER QUESTIONS FOR ONE STUDENT (TC15), AS THE TEACHER'S FORM SHOWS IT.
+ *
+ * The Test's questions grouped by skill, in Test order, with the teacher's
+ * ticks checked by the very rule the server applies
+ * (functions/shared/testCycleReducedItems.mjs validateExcusedQuestions): every
+ * skill keeps a question, at most half the Test. `savedSlotIds` is what is on
+ * record now, so Save is offered only for a change.
+ */
+export const fewerItemsFormModel = ({ questions = [], excusedSlotIds = [], savedSlotIds = [] } = {}) => {
+  const choice = validateExcusedQuestions({ questions, excusedSlotIds });
+  const excused = new Set(choice.excusedSlotIds);
+  const skills = [];
+  list(questions).forEach((question) => {
+    let skill = skills.find((entry) => entry.targetId === question.targetId);
+    if (!skill) {
+      const label = clean(question.label) || clean(question.alignmentKey) || clean(question.targetId);
+      const code = clean(question.alignmentKey);
+      skill = { targetId: question.targetId, label, code: code && code !== label ? code : null, questions: [], skipped: 0 };
+      skills.push(skill);
+    }
+    const skipped = excused.has(clean(question.slotId));
+    skill.questions.push({ ...question, skipped });
+    if (skipped) skill.skipped += 1;
+  });
+  const saved = new Set(list(savedSlotIds).map(clean).filter(Boolean));
+  return {
+    ...choice,
+    skills,
+    changed: saved.size !== choice.excusedSlotIds.length || choice.excusedSlotIds.some((slotId) => !saved.has(slotId)),
+    summary: choice.excusedSlotIds.length
+      ? `They answer ${choice.questions} of ${choice.testQuestions} questions.`
+      : `They answer all ${choice.testQuestions} questions.`,
   };
 };
 

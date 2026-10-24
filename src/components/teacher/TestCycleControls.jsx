@@ -8,6 +8,7 @@ import {
   releaseTestCycleAnswers,
   releaseTestCycleResults,
   runTestCycleBulkAction,
+  setTestCycleReducedItems,
   teacherTestCycleAction,
   updateTestCycleAudience,
   updateTestCycleAvailability,
@@ -29,6 +30,7 @@ import {
 } from '../../platform/teacher/testCycleTeacherTools.js';
 import {
   TestCycleAudiencePanel,
+  TestCycleFewerItemsForm,
   TestCycleGradeForm,
   TestCycleLifecyclePanel,
   TestCycleOperationStatus,
@@ -93,6 +95,10 @@ const button = (tone, enabled = true) => ({
   color: !enabled ? 'var(--mm-disabled-text)' : tone === 'primary' ? 'var(--mm-on-primary)' : 'var(--mm-text)',
 });
 const percent = (value) => (value === null || value === undefined ? '—' : `${Number(Number(value).toFixed(2))}%`);
+// "Fewer questions: 20 of 25" under a student's secure session (TC15).
+const fewerItemsLine = (described) => (described.fewerItemsText
+  ? <div data-fewer-items="" style={{ fontSize: 'calc(11.5 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text-muted)' }}>{described.fewerItemsText}</div>
+  : null);
 
 const AVAILABILITY_PILL = {
   open: { label: 'Open to students', bg: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' },
@@ -313,6 +319,8 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
   const pill = AVAILABILITY_PILL[availability?.reason] || null;
   const readyToRelease = listing?.readyToRelease || { test: 0, retest: 0 };
   const sessionsOpened = rows.some((row) => row.test?.examSessionId);
+  // Students answering fewer questions, as their teacher chose (TC15).
+  const fewerItemsCount = rows.filter((row) => row.reducedItems?.excusedSlotIds?.length > 0).length;
   const visibleRows = bucketFilter === 'all' ? rows : rows.filter((row) => row.bucket === bucketFilter);
   const sortedRows = [...visibleRows].sort((left, right) => (
     TEACHER_BUCKET_ORDER.indexOf(left.bucket) - TEACHER_BUCKET_ORDER.indexOf(right.bucket)
@@ -322,9 +330,10 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
   const applyRowAction = (row, item) => {
     const name = rosterStudentLabel(row.studentId, students, row.studentName);
     const context = (callable) => ({ action: item.label, callable, studentId: row.studentId });
-    // A grade or a window needs something typed first: the form opens in the
-    // student's own panel, and nothing is sent until it is submitted.
-    if (['adjustGrade', 'reopenTest', 'extendHome'].includes(item.kind)) {
+    // A grade, a window or fewer questions needs something chosen first: the
+    // form opens in the student's own panel, and nothing is sent until it is
+    // submitted.
+    if (['adjustGrade', 'reopenTest', 'extendHome', 'fewerItems'].includes(item.kind)) {
       setRowForm({ studentId: row.studentId, kind: item.kind });
       return;
     }
@@ -482,7 +491,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
               {delivery && (
                 <span style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
                   {delivery.timed ? `Timed: ${delivery.timeLimitMinutes} minutes, enforced by the server.` : `Not timed. No clock runs during the ${noun}.`}
-                  {delivery.questionCount ? ` ${delivery.questionCount} secure questions per student, randomized from approved families.` : ''}
+                  {delivery.questionCount ? ` ${delivery.questionCount} secure questions per student, randomized from approved families${fewerItemsCount ? ` (fewer for the ${fewerItemsCount === 1 ? 'student' : `${fewerItemsCount} students`} you chose fewer questions for)` : ''}.` : ''}
                   {` Review ${policy.reviewRequired ? `must be finished before the ${noun}` : 'is optional'}${policy.reviewMinimumMastery !== null && policy.reviewMinimumMastery !== undefined ? `, with at least ${policy.reviewMinimumMastery}% mastery` : ''}.`}
                 </span>
               )}
@@ -898,9 +907,18 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
                             </div>
                           )}
                         </td>
-                        <td style={cell}>{described.testText}</td>
+                        {/* TC15: this student answers fewer questions, as you chose,
+                            said under their secure session (an external-original
+                            cycle's is the Retest). */}
+                        <td style={cell}>
+                          {described.testText}
+                          {!external && fewerItemsLine(described)}
+                        </td>
                         <td style={cell}>{described.correctionsText}</td>
-                        <td style={cell}>{described.retestText}</td>
+                        <td style={cell}>
+                          {described.retestText}
+                          {external && fewerItemsLine(described)}
+                        </td>
                         <td style={cell}>{row.retestWithoutOriginal && row.originalTestGrade === null ? 'Not taken' : percent(row.originalTestGrade)}</td>
                         <td style={cell}>{percent(row.rawRetestGrade)}</td>
                         <td style={cell}>{percent(row.retestCappedContribution)}</td>
@@ -924,6 +942,16 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
                               {row.gradeReason && (row.gradeAdjustment || row.retestWithoutOriginal) && (
                                 <p style={{ margin: 0, fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text)' }}>{row.gradeReason}</p>
                               )}
+                              {/* Fewer questions (TC15) that can no longer change, said
+                                  rather than offered as a button the server would refuse. */}
+                              {row.reducedItems?.locked && (
+                                <p data-fewer-items-locked="" style={{ margin: 0, fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text)' }}>
+                                  {row.reducedItems.excusedSlotIds?.length > 0
+                                    ? `${described.fewerItemsText} questions.`
+                                    : `Their support plan lists fewer items; they are answering the whole ${noun}.`}
+                                  {' '}{row.reducedItems.lockReason}
+                                </p>
+                              )}
                               {formOpen?.kind === 'adjustGrade' ? (
                                 <TestCycleGradeForm
                                   row={row}
@@ -944,6 +972,23 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
                                       () => adjustTestCycleGrade({ assignmentId, studentId: row.studentId, clear: true }),
                                       (result) => `Your adjustment for ${name} was removed. ${result?.reason || ''}`,
                                       { action: 'Removing the grade you set', callable: 'adjustTestCycleGrade', studentId: row.studentId },
+                                    );
+                                  }}
+                                />
+                              ) : formOpen?.kind === 'fewerItems' ? (
+                                <TestCycleFewerItemsForm
+                                  row={row}
+                                  name={name}
+                                  questions={listing?.testQuestions || []}
+                                  noun={noun}
+                                  busy={busy}
+                                  onCancel={() => setRowForm(null)}
+                                  onSave={({ excusedSlotIds }) => {
+                                    setRowForm(null);
+                                    run(
+                                      () => setTestCycleReducedItems({ assignmentId, studentId: row.studentId, excusedSlotIds }),
+                                      (result) => `${name}: ${result?.label || 'Saved.'}`,
+                                      { action: 'Choosing fewer questions', callable: 'setTestCycleReducedItems', studentId: row.studentId },
                                     );
                                   }}
                                 />

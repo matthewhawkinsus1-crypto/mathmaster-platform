@@ -151,5 +151,7 @@ test('the card holds "Review my Test" back exactly when the review itself is ref
 test('the card\'s skill list is the tested one', () => {
   const helper = region(functionsIndex, 'function testCycleSkillList(blueprint) {', '\n}\n', 'testCycleSkillList');
   assert.match(helper, /return testCycleLib\.testSkillList\(blueprint\);/);
-  assert.match(region(functionsIndex, 'exports.getStudentTestCycle = onCall(', 'function testCycleSkillList(', 'getStudentTestCycle'), /testSkills: await testCycleSkillList\(blueprint\),/);
+  // The Test's blueprint as this student sits it (the blueprint itself unless
+  // their teacher excused questions for a fewer-items plan, TC15).
+  assert.match(region(functionsIndex, 'exports.getStudentTestCycle = onCall(', 'function testCycleSkillList(', 'getStudentTestCycle'), /testSkills: await testCycleSkillList\(ownBlueprint\),/);
 });

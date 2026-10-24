@@ -25,8 +25,9 @@ async function shared() {
   if (!sharedModules) {
     // `availability` is the assignment-level gate (archived, paused, not yet
     // released); `schedule` is when each secure part is open (the class-time
-    // Test window and the home window); `bulk` is the class-wide operation.
-    const [policy, grade, record, stages, blueprint, issuance, corrections, retest, preflight, availability, external, schedule, bulk, deadline] = await Promise.all([
+    // Test window and the home window); `bulk` is the class-wide operation;
+    // `reducedItems` is a teacher's choice of fewer Test questions (TC15).
+    const [policy, grade, record, stages, blueprint, issuance, corrections, retest, preflight, availability, external, schedule, bulk, deadline, reducedItems] = await Promise.all([
       import("../shared/testCyclePolicy.mjs"),
       import("../shared/testCycleGrade.mjs"),
       import("../shared/testCycleRecord.mjs"),
@@ -41,9 +42,10 @@ async function shared() {
       import("../shared/testCycleAvailability.mjs"),
       import("../shared/testCycleBulk.mjs"),
       import("../shared/sectionDeadline.mjs"),
+      import("../shared/testCycleReducedItems.mjs"),
     ]);
     sharedModules = {
-      policy, grade, record, stages, blueprint, issuance, corrections, retest, preflight, availability, external, schedule, bulk,
+      policy, grade, record, stages, blueprint, issuance, corrections, retest, preflight, availability, external, schedule, bulk, reducedItems,
       // The school's wall clock: every window is read and shown in it.
       timeZone: deadline.SCHOOL_TIME_ZONE,
     };

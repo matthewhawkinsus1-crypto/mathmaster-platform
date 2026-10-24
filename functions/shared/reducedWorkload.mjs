@@ -97,7 +97,9 @@ export const WORKLOAD_VARIANCE_LABEL = Object.freeze({
   'answered-before-reduction': 'Work the student had already answered is always kept.',
   'practice-pass': 'A Practice Pass waived Practice, where part of the reduction was planned.',
   'limited-to-activities': 'The support applies only to some activities in this assignment.',
-  'secure-assessment': 'Secure Test Cycle assessments are delivered as published; MathMaster does not reduce them.',
+  // TC15: a secure Test is never reduced by this plan. Its teacher chooses the
+  // questions a student skips (functions/shared/testCycleReducedItems.mjs).
+  'secure-assessment': 'MathMaster does not reduce a secure Test Cycle by itself. The teacher chooses which Test questions this student skips, from the Test Cycle results.',
 });
 
 /** What happened when the platform tried to apply the support to one assignment. */
@@ -785,7 +787,8 @@ export const resolveStudentWorkload = ({
   if (policy.status === 'manual') return unchanged(WORKLOAD_STATUS.MANUAL);
   // A secure Test Cycle has its own server-authoritative delivery and grade
   // (testCycleGrades); it is never reshaped per student here. Said plainly,
-  // not silently skipped.
+  // not silently skipped. Fewer items on its secure Test are a teacher's
+  // choice, applied by the Test Cycle itself (testCycleReducedItems.mjs, TC15).
   if (assignment?.secure === true || isTestCycleAssignment(assignment)) {
     const result = unchanged(WORKLOAD_STATUS.NOT_APPLICABLE);
     result.summary.variance = [WORKLOAD_VARIANCE.SECURE_ASSESSMENT];

@@ -19805,13 +19805,20 @@ async function openTestSessionForStudent(db, {
       ].includes(record.retest.state)) {
         return { value: { reused: false, notEligible: true, examSessionId: null } };
       }
+      // TC15: the questions this student's teacher excused for a fewer-items
+      // plan are left out of THEIR plan, read from their record in this same
+      // transaction. Everyone else's plan is the full one, as before.
+      const studentPlan = shared.reducedItems.applyExcusedQuestionsToPlan(plan, shared.reducedItems.applicableExcusedSlotIds(record, blueprint));
+      if (shared.issuance.planRequiresLiveGeneration(studentPlan)) {
+        throw new HttpsError("failed-precondition", `The secure Test plan for ${studentId} could not be completed from approved families.`);
+      }
       const { ref, session } = buildCourseTestSession(db, {
         assignmentId,
         assignment,
         studentId,
         studentData,
         blueprint,
-        plan,
+        plan: studentPlan,
         cycleStage: shared.issuance.CYCLE_STAGE.TEST,
         teacherUid,
         title: assignment?.title,
@@ -19833,12 +19840,12 @@ async function openTestSessionForStudent(db, {
           review: { ...record.review, required: policy.review.required },
           test: {
             examSessionId: session.examSessionId,
-            planId: plan.planId,
-            blueprintId: plan.blueprintId,
-            blueprintVersion: plan.blueprintVersion,
-            attempt: plan.attempt,
+            planId: studentPlan.planId,
+            blueprintId: studentPlan.blueprintId,
+            blueprintVersion: studentPlan.blueprintVersion,
+            attempt: studentPlan.attempt,
             state: shared.record.SESSION_STATE.ASSIGNED,
-            totalQuestions: plan.totalQuestions,
+            totalQuestions: studentPlan.totalQuestions,
           },
         },
       };
@@ -19887,14 +19894,16 @@ async function ensureMissedTestRetestSession(db, {
         || !shared.stages.studentMissedOriginalTest({ record: current, schedule })) {
         return { value: null };
       }
-      const plan = shared.issuance.buildSecureIssuancePlan({
+      // The whole Test at the retest stage — less any questions this student's
+      // teacher excused for a fewer-items plan (TC15): the same subset rule.
+      const plan = shared.reducedItems.applyExcusedQuestionsToPlan(shared.issuance.buildSecureIssuancePlan({
         blueprint,
         families,
         studentId,
         assignmentId,
         stage: shared.issuance.CYCLE_STAGE.RETEST,
         attempt: Number(current.retest.attempt || 1),
-      });
+      }), shared.reducedItems.applicableExcusedSlotIds(current, blueprint));
       if (shared.issuance.planRequiresLiveGeneration(plan)) return { value: null };
       const { ref, session } = buildCourseTestSession(db, {
         assignmentId,
@@ -20258,6 +20267,11 @@ exports.getStudentTestCycle = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) 
       testAnswersHeld = true;
     }
   }
+  // The Test as this student sits it. A student whose teacher excused
+  // questions for a fewer-items plan (TC15) is told how many questions THEIR
+  // Test has, skill by skill — and nothing else: no note, no name for it.
+  const excusedSlotIds = shared.reducedItems.applicableExcusedSlotIds(record, blueprint);
+  const ownBlueprint = excusedSlotIds.length ? shared.reducedItems.studentTestBlueprint(blueprint, excusedSlotIds) : blueprint;
 
   return {
     success: true,
@@ -20321,14 +20335,14 @@ exports.getStudentTestCycle = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) 
       summary: state.policySummary,
       external: Boolean(policy.externalAssessment),
     },
-    delivery: testCycleDeliveryFacts(blueprint, {
+    delivery: testCycleDeliveryFacts(ownBlueprint, {
       timeMultiplier: await secureExamTimeMultiplierFromProfile(gradeSnapshot.data()?.profile || null, studentId),
     }),
     // "What's on this test": the skills the blueprint covers and how many
     // questions each gets — what a real test's study guide says. Never which
     // question is which (not even by the list's order), and nothing about
     // families, seeds or answers.
-    testSkills: await testCycleSkillList(blueprint),
+    testSkills: await testCycleSkillList(ownBlueprint),
     // The Review, skill by skill: answered and correct so far, from the same
     // tracker the gate reads. Instruction only — nothing from the secure Test,
     // and it does not change what unlocks it (reviewProgress does that).
@@ -20742,11 +20756,27 @@ async function ensureRetestSession(db, { assignmentId, assignment, policy, bluep
   if (!testSessionSnapshot?.exists) return null;
   const testSession = testSessionSnapshot.data() || {};
 
+  /*
+   * TC15: A STUDENT WHOSE TEACHER EXCUSED QUESTIONS (a fewer-items plan) has
+   * a Retest built from the Test they actually sat — its skills, read from
+   * their answers — and shorter by the same share. The choice is locked once
+   * the Test started, so the record read above is the one that applied.
+   * Anyone else: exactly the call it always was.
+   */
+  const excused = shared.reducedItems.applicableExcusedSlotIds(record, blueprint);
+  const ownBlueprint = excused.length ? shared.reducedItems.studentTestBlueprint(blueprint, excused) : blueprint;
   const profile = shared.corrections.buildPerformanceProfile({
-    blueprint,
+    blueprint: ownBlueprint,
     responses: testCycleLib.responsesForProfile(testSession),
   });
-  const generated = shared.retest.buildRetestBlueprint({ blueprint, profile, policy });
+  const generated = excused.length
+    ? shared.retest.buildRetestBlueprint({
+      blueprint: ownBlueprint,
+      profile,
+      policy,
+      questionCount: shared.reducedItems.studentRetestQuestionCount({ blueprint, excusedSlotIds: excused, policy }),
+    })
+    : shared.retest.buildRetestBlueprint({ blueprint, profile, policy });
   if (!generated) return null;
 
   const families = await resolveBlueprintFamilies(db, blueprintFamilyIds(generated.blueprint));
@@ -20888,9 +20918,11 @@ exports.teacherTestCycleAction = onCall(TEST_CYCLE_ACTION_OPTIONS, async (reques
         }
         const attempt = Number(current.attempt || 1) + 1;
         if (stage === "test") {
-          const plan = shared.issuance.buildSecureIssuancePlan({
+          // A new attempt keeps the questions this student's teacher excused
+          // for a fewer-items plan (TC15); it draws new items for the rest.
+          const plan = shared.reducedItems.applyExcusedQuestionsToPlan(shared.issuance.buildSecureIssuancePlan({
             blueprint, families, studentId, assignmentId, stage: shared.issuance.CYCLE_STAGE.TEST, attempt,
-          });
+          }), shared.reducedItems.applicableExcusedSlotIds(record, blueprint));
           const { ref, session } = buildCourseTestSession(db, {
             assignmentId, assignment, studentId, studentData: gradeData,
             blueprint, plan, cycleStage: shared.issuance.CYCLE_STAGE.TEST, teacherUid, title: assignment?.title,
@@ -21295,6 +21327,7 @@ exports.listTeacherTestCycleRecords = onCall(TEST_CYCLE_PANEL_OPTIONS, async (re
   }
 
   const stages = shared.stages.TEST_CYCLE_STAGE;
+  const testQuestionCount = shared.blueprint.normalizeTestBlueprint(blueprint).totalQuestions;
   const rows = [];
   for (const [studentId, gradeData] of gradeDataByStudent.entries()) {
     const record = shared.record.normalizeTestCycleRecord(recordsByStudent.get(studentId) || { assignmentId, studentId });
@@ -21380,6 +21413,9 @@ exports.listTeacherTestCycleRecords = onCall(TEST_CYCLE_PANEL_OPTIONS, async (re
       retestWithoutOriginal: grade.retestWithoutOriginal === true || record.retest.withoutOriginal === true,
       gradeAdjustment: grade.gradeAdjustment || null,
       ruleRecordedGrade: grade.gradeAdjustment ? grade.ruleRecordedGrade : grade.recordedGrade,
+      // TC15: fewer Test questions, for a student whose plan lists them (null
+      // for everyone else): what their teacher chose and whether it can change.
+      reducedItems: teacherReducedItemsRow(shared, { record, gradeData, assignment, policy, blueprint, testQuestionCount, now }),
       corrections: record.corrections,
       teacherControls: record.teacherControls,
       history: record.history,
@@ -21412,6 +21448,9 @@ exports.listTeacherTestCycleRecords = onCall(TEST_CYCLE_PANEL_OPTIONS, async (re
       locks: testCyclePolicyLocks(shared, [...recordsByStudent.values()], { external: Boolean(policy.externalAssessment) }),
     },
     delivery: testCycleDeliveryFacts(blueprint),
+    // The Test's questions by number and skill, for choosing fewer for one
+    // student (TC15). Sent only when a row can use it; no families, no seeds.
+    testQuestions: rows.some((row) => row.reducedItems) ? shared.reducedItems.testCycleQuestionList(blueprint) : [],
     availability: shared.availability.resolveAssessmentAvailability({ assignment, now: Date.now() }),
     // When the Test and the home window are open for each class, in exact
     // school-zone times. Null for an external-original cycle.
@@ -21452,6 +21491,40 @@ exports.listTeacherTestCycleRecords = onCall(TEST_CYCLE_PANEL_OPTIONS, async (re
     }))),
   };
 });
+
+/*
+ * ONE ROW'S FEWER-QUESTIONS FACTS (TC15), for the teacher of record only.
+ *
+ * Null for a student whose plan does not list fewer items and who has no
+ * choice on record — every other row is exactly what it was. Otherwise:
+ * whether the plan lists it (and its percentage, as a guide), the questions
+ * the teacher excused, how many the student answers, who chose and when, and
+ * whether it is locked because the student has started. The lock here is read
+ * from the record; the callable re-reads the sessions themselves.
+ */
+function teacherReducedItemsRow(shared, { record, gradeData, assignment, policy, blueprint, testQuestionCount, now = Date.now() }) {
+  const rules = shared.reducedItems;
+  const chosen = record.reducedItems || null;
+  const plan = rules.planFewerItems({ profile: gradeData?.profile || null, assignment, nowValue: now });
+  if (!chosen && !plan.listed) return null;
+  const lock = rules.reducedItemsLock({ record, noun: policy?.externalAssessment ? "Retest" : "Test" });
+  // A choice made for a Test since replaced does not apply (the whole Test
+  // does) and says so, so the teacher can choose again.
+  const state = rules.reducedItemsState(record, blueprint);
+  const applies = Boolean(chosen) && !state.stale;
+  return {
+    planListsFewerItems: plan.listed,
+    planPercent: plan.percent,
+    excusedSlotIds: state.excusedSlotIds,
+    stale: state.stale,
+    questions: applies ? chosen.questions : testQuestionCount,
+    testQuestions: testQuestionCount,
+    setBy: chosen?.setBy || null,
+    setAt: chosen?.setAt ?? null,
+    locked: lock.locked,
+    lockReason: lock.reason,
+  };
+}
 
 /*
  * WHICH POLICY FIELDS CAN STILL CHANGE.
@@ -21593,13 +21666,17 @@ async function applyTestCycleFeedbackRelease(db, session) {
   }
 
   // A failed Test builds this student's corrections automatically, from their
-  // own evidence, at the moment the score becomes real to them.
+  // own evidence, at the moment the score becomes real to them — read against
+  // the Test they sat: a question their teacher excused (TC15) was never
+  // asked, so it is never "missed" and never corrected.
+  const excused = shared.reducedItems.applicableExcusedSlotIds(released.record, blueprint);
+  const ownBlueprint = excused.length ? shared.reducedItems.studentTestBlueprint(blueprint, excused) : blueprint;
   const profile = shared.corrections.buildPerformanceProfile({
-    blueprint,
+    blueprint: ownBlueprint,
     responses: testCycleLib.responsesForProfile(session),
   });
   const plan = shared.corrections.buildCorrectionPlan({
-    blueprint,
+    blueprint: ownBlueprint,
     profile,
     policy,
     releasedTestGrade: rawScore,
@@ -26952,6 +27029,156 @@ exports.adjustTestCycleGrade = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request)
     ruleRecordedGrade: state.ruleRecordedGrade ?? null,
     source,
     reason: state.reason,
+  };
+});
+
+/*
+ * FEWER TEST QUESTIONS FOR ONE STUDENT — THE TEACHER CHOOSES (TC15).
+ *
+ * For a student whose support plan lists "Reduced number of items — same TEKS
+ * and rigor", the teacher of record chooses which of the secure Test's
+ * questions that student does not answer. MathMaster never picks them, and a
+ * student whose plan does not list it cannot be given a shorter Test. The
+ * rules are in functions/shared/testCycleReducedItems.mjs: every skill keeps a
+ * question, at most half the Test, the grade is over the questions asked.
+ *
+ * Kept on the student's own server-only record, with who chose and when, plus
+ * an audit row; never on the shared assignment. Only before the student
+ * starts: the lock is read from the record AND from the sessions themselves
+ * inside this transaction, so a start racing this call either lands first
+ * (and this is refused) or starts the re-planned Test. A session that exists
+ * and has not been started is re-planned here, in the same transaction: the
+ * plan it would have had, minus the excused questions — every other question
+ * exactly as it was.
+ */
+exports.setTestCycleReducedItems = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) => {
+  const db = getFirestore();
+  const assignmentSnapshot = await assignmentForTeacherCall(request, db);
+  const { teacherUid, teacherEmail } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
+  const { assignmentId, assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, assignmentSnapshot.id);
+  const { studentId, gradeData } = await assertStudentInTestCycleAudience(db, {
+    assignment, assignmentId, studentId: request.data?.studentId,
+  });
+  const rules = shared.reducedItems;
+  if (!Array.isArray(request.data?.excusedSlotIds)) {
+    throw new HttpsError("invalid-argument", "Choose the questions this student does not answer, or none to give back the whole Test.");
+  }
+  const choice = rules.validateExcusedQuestions({
+    questions: rules.testCycleQuestionList(blueprint),
+    excusedSlotIds: request.data.excusedSlotIds,
+  });
+  if (!choice.ok) throw new HttpsError("invalid-argument", choice.errors.join(" "));
+  const now = Date.now();
+  // Giving back the whole Test is always allowed, whatever the plan says now.
+  if (choice.excusedSlotIds.length && !rules.planFewerItems({ profile: gradeData?.profile || null, assignment, nowValue: now }).listed) {
+    throw new HttpsError("failed-precondition", "This student's support plan does not list fewer items, so their Test stays whole.");
+  }
+  const actor = teacherEmail || teacherUid;
+  const families = await resolveBlueprintFamilies(db, blueprintFamilyIds(blueprint));
+
+  const written = await mutateTestCycleRecord(db, {
+    assignmentId,
+    studentId,
+    shared,
+    policy,
+    mutate: async (record, { transaction }) => {
+      const sessionRef = (id) => (id ? db.collection("examSessions").doc(String(id)) : null);
+      const testRef = sessionRef(record.test.examSessionId);
+      const retestRef = sessionRef(record.retest.examSessionId);
+      // A Retest opened in place of a missed Test IS the Test's whole form, so
+      // the same questions are left out of it. A targeted Retest only exists
+      // after a released Test, which the lock below has already refused.
+      const standIn = record.retest.withoutOriginal === true && Boolean(retestRef);
+      const retestPlanRef = standIn ? db.collection(TEST_CYCLE_RETEST_PLANS).doc(record.recordId) : null;
+      const [testSnapshot, retestSnapshot, retestPlanSnapshot] = await Promise.all([
+        testRef ? transaction.get(testRef) : null,
+        retestRef ? transaction.get(retestRef) : null,
+        retestPlanRef ? transaction.get(retestPlanRef) : null,
+      ]);
+      const testSession = testSnapshot?.exists ? testSnapshot.data() || {} : null;
+      const retestSession = retestSnapshot?.exists ? retestSnapshot.data() || {} : null;
+      const lock = rules.reducedItemsLock({
+        record,
+        testSessionStatus: testSession?.status ?? null,
+        retestSessionStatus: retestSession?.status ?? null,
+        noun: policy.externalAssessment ? "Retest" : "Test",
+      });
+      if (lock.locked) throw new HttpsError("failed-precondition", lock.reason, { reason: "started" });
+      // Unchanged only when the choice on record applies to this Test: one made
+      // for a Test since replaced is saved again, for this one.
+      const current = rules.reducedItemsState(record, blueprint);
+      const before = new Set(current.excusedSlotIds);
+      if (!current.stale && before.size === choice.excusedSlotIds.length && choice.excusedSlotIds.every((slotId) => before.has(slotId))) {
+        return { value: { changed: false } };
+      }
+
+      // The plan the session would have had (same stage, same attempt, so the
+      // same seeds), minus the excused questions.
+      const replan = (session, stage) => {
+        const plan = rules.applyExcusedQuestionsToPlan(shared.issuance.buildSecureIssuancePlan({
+          blueprint,
+          families,
+          studentId,
+          assignmentId,
+          stage,
+          attempt: Number(session?.issuancePlan?.attempt || session?.courseTest?.attempt || 1),
+        }), choice.excusedSlotIds);
+        if (shared.issuance.planRequiresLiveGeneration(plan)) {
+          throw new HttpsError("failed-precondition", "This student's Test could not be planned from the approved question families. Check the secure preflight, then try again.");
+        }
+        return plan;
+      };
+      let next = record;
+      if (testSession?.status === "not_started") {
+        const plan = replan(testSession, shared.issuance.CYCLE_STAGE.TEST);
+        // update(), not a merge: the whole stored plan is replaced, so nothing
+        // of an earlier choice survives inside it.
+        transaction.update(testRef, { issuancePlan: plan, requiredQuestions: plan.totalQuestions, updatedAt: now });
+        next = { ...next, test: { ...next.test, totalQuestions: plan.totalQuestions } };
+      }
+      if (standIn && retestSession?.status === "not_started") {
+        const plan = replan(retestSession, shared.issuance.CYCLE_STAGE.RETEST);
+        transaction.update(retestRef, { issuancePlan: plan, requiredQuestions: plan.totalQuestions, updatedAt: now });
+        if (retestPlanSnapshot?.exists) {
+          transaction.update(retestPlanRef, {
+            plan,
+            "audit.questionCount": plan.totalQuestions,
+            "audit.anchorQuestionCount": plan.totalQuestions,
+            "audit.originalQuestionCount": plan.totalQuestions,
+          });
+        }
+        next = { ...next, retest: { ...next.retest, totalQuestions: plan.totalQuestions } };
+      }
+      const grade = shared.record.recordGradeState(next, policy);
+      return {
+        value: { changed: true },
+        record: {
+          ...next,
+          // Null removes it: the whole Test again.
+          reducedItems: rules.reducedItemsForRecord({ choice, blueprint, by: actor, at: now }),
+          history: shared.grade.appendTestCycleGradeHistory(next.history, {
+            at: now,
+            reason: shared.grade.GRADE_HISTORY_REASON.REDUCED_ITEMS,
+            recordedGrade: grade.recordedGrade,
+            originalTestGrade: grade.originalTestGrade,
+            rawRetestGrade: grade.rawRetestGrade,
+            retestCappedContribution: grade.retestCappedContribution,
+            detail: rules.describeReducedItemsChoice(choice),
+            by: actor,
+          }),
+        },
+      };
+    },
+  });
+  return {
+    success: true,
+    assignmentId,
+    studentId,
+    changed: written.value?.changed === true,
+    reducedItems: written.record.reducedItems || null,
+    questions: choice.questions,
+    testQuestions: choice.testQuestions,
+    label: rules.describeReducedItemsChoice(choice),
   };
 });
 

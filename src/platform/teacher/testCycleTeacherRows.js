@@ -118,6 +118,7 @@ export const describeTeacherRow = (row = {}, { external = false } = {}) => {
         ? 'Closed'
         : sessionText(test, { opened: 'Ready' }, 'test'),
       needsRelease: test.state === 'submitted',
+      fewerItemsText: fewerItemsTextFor(row),
     };
   }
   return {
@@ -127,8 +128,47 @@ export const describeTeacherRow = (row = {}, { external = false } = {}) => {
     correctionsText,
     retestText,
     needsRelease: test.state === 'submitted' || retest.state === 'submitted',
+    fewerItemsText: fewerItemsTextFor(row),
   };
 };
+
+/*
+ * FEWER QUESTIONS (TC15), said on the row: a student whose teacher excused
+ * Test questions for a fewer-items plan answers N of the Test's M. Null for
+ * everyone else. Only the teacher's table says it; the student is told only
+ * how many questions their Test has.
+ */
+function fewerItemsTextFor(row = {}) {
+  const reduced = row.reducedItems;
+  // A choice made for a Test since replaced: the whole Test applies.
+  if (reduced?.stale) return 'Fewer questions: choose again (the Test was replaced)';
+  if (!reduced || !Array.isArray(reduced.excusedSlotIds) || !reduced.excusedSlotIds.length) return null;
+  return `Fewer questions: ${reduced.questions} of ${reduced.testQuestions}`;
+}
+
+/*
+ * The fewer-questions action (TC15): offered while the student has not started
+ * the Test, to choose for a student whose plan lists fewer items, or to change
+ * or remove a choice already made. A locked choice is said in the panel, not
+ * offered as a button that would only be refused.
+ */
+function fewerItemsAction(row = {}, { external = false } = {}) {
+  const reduced = row.reducedItems;
+  if (!reduced || reduced.locked) return null;
+  const chosen = Array.isArray(reduced.excusedSlotIds) && reduced.excusedSlotIds.length > 0;
+  if (!chosen && !reduced.stale && !reduced.planListsFewerItems) return null;
+  const noun = external ? 'Retest' : 'Test';
+  return {
+    key: 'fewerItems',
+    kind: 'fewerItems',
+    label: chosen || reduced.stale ? 'Change fewer questions' : 'Choose fewer questions',
+    detail: reduced.stale
+      ? `The ${noun} was replaced after you chose, so they have the whole ${noun} for now. Choose again, or leave it whole.`
+      : chosen
+        ? `Answers ${reduced.questions} of ${reduced.testQuestions} questions. Change which ${noun} questions they skip, or give back the whole ${noun}. It locks once they start.`
+        : `Their support plan lists fewer items. Choose the ${noun} questions they skip; their score counts only the questions they answer. Set it before they start: it locks once they do.`,
+  };
+}
 
 /* The external-original actions: Review, then the one secure retest session. */
 const externalActionsForRow = (row, actions) => {
@@ -163,6 +203,8 @@ const externalActionsForRow = (row, actions) => {
   if (controls.retestDisabled && test.state !== 'released') {
     actions.push({ key: 'unlockRetest', action: 'unlockRetest', label: 'Reopen retest', detail: 'This student can take the retest again.' });
   }
+  const fewerItems = fewerItemsAction(row, { external: true });
+  if (fewerItems) actions.push(fewerItems);
   if (test.examSessionId) {
     actions.push({
       key: 'resetTest',
@@ -288,6 +330,8 @@ export const teacherActionsForRow = (row = {}, { external = false } = {}) => {
   if (controls.reviewWaived && !['inProgress', 'submitted', 'released'].includes(test.state)) {
     actions.push({ key: 'requireReview', action: 'requireReview', label: 'Require Review', detail: 'Review must be finished again before the Test.' });
   }
+  const fewerItems = fewerItemsAction(row);
+  if (fewerItems) actions.push(fewerItems);
   if (stage === 'corrections') {
     actions.push({ key: 'waiveCorrections', action: 'waiveCorrections', label: 'Waive corrections', detail: 'Opens the retest now without corrections.' });
   }

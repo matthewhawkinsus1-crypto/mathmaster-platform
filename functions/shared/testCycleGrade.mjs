@@ -262,6 +262,9 @@ export const GRADE_HISTORY_REASON = Object.freeze({
   // A teacher set, changed or removed the recorded grade by hand.
   TEACHER_ADJUSTMENT: 'teacherAdjustment',
   TEACHER_ADJUSTMENT_CLEARED: 'teacherAdjustmentCleared',
+  // A teacher chose, changed or removed the Test questions a student with a
+  // fewer-items plan does not answer (TC15, testCycleReducedItems.mjs).
+  REDUCED_ITEMS: 'reducedItems',
 });
 
 /**
@@ -295,9 +298,10 @@ export const appendTestCycleGradeHistory = (history, entry) => {
     && previous.rawRetestGrade === next.rawRetestGrade
     && previous.originalTestGrade === next.originalTestGrade
     // Two adjustments to the same number are still two decisions if the
-    // source or the note changed. (Release and reset rows keep the rule they
-    // always had.)
-    && (next.reason !== GRADE_HISTORY_REASON.TEACHER_ADJUSTMENT
+    // source or the note changed, and so are two different choices of fewer
+    // questions, which never move a grade at all. (Release and reset rows keep
+    // the rule they always had.)
+    && ((next.reason !== GRADE_HISTORY_REASON.TEACHER_ADJUSTMENT && next.reason !== GRADE_HISTORY_REASON.REDUCED_ITEMS)
       || ((previous.source || null) === (next.source || null) && (previous.detail || null) === (next.detail || null)))
   ) {
     return rows;

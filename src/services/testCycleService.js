@@ -41,6 +41,7 @@ const CALL_TIMEOUT_MS = Object.freeze({
   updateTestCycleAudience: TEACHER_CALL_TIMEOUT_MS,
   updateTestCycleAvailability: TEACHER_CALL_TIMEOUT_MS,
   adjustTestCycleGrade: TEACHER_CALL_TIMEOUT_MS,
+  setTestCycleReducedItems: TEACHER_CALL_TIMEOUT_MS,
   runTestCycleBulkAction: TEACHER_CALL_TIMEOUT_MS,
   getTestCycleOperation: TEACHER_CALL_TIMEOUT_MS,
   getStudentTestCycle: TEACHER_CALL_TIMEOUT_MS,
@@ -210,6 +211,14 @@ export const updateTestCycleAvailability = async ({ assignmentId, ...change }) =
 export const adjustTestCycleGrade = async ({ assignmentId, studentId, source = null, grade = null, note = '', clear = false }) => {
   if (isSandbox()) return sandboxRefusal('Setting a grade')();
   return call('adjustTestCycleGrade', { assignmentId, studentId, ...(clear ? { clear: true } : { source, grade, note }) });
+};
+
+// TC15: the Test questions one student with a fewer-items plan does not
+// answer, chosen by their teacher. An empty list gives back the whole Test.
+// The server checks the plan, the limits and that they have not started.
+export const setTestCycleReducedItems = async ({ assignmentId, studentId, excusedSlotIds = [] }) => {
+  if (isSandbox()) return sandboxRefusal('Choosing fewer questions')();
+  return call('setTestCycleReducedItems', { assignmentId, studentId, excusedSlotIds });
 };
 
 // One step of a class-wide operation. Sending the same `operationId` again

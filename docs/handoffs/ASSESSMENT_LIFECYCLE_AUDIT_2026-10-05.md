@@ -215,7 +215,11 @@ policy locks were made external- and mastery-aware (tests in
   still written by any teacher client, as before.
 - **Accommodations.** Reduced-item and extended-time accommodations are not
   applied to secure course tests (the blueprint's equivalence policy forbids a
-  different test). Documented calculator accommodations are.
+  different test). Documented calculator accommodations are. *Extended time
+  applies since #461. Resolved 2026-10-24 (TC15) for fewer items: MathMaster
+  still never reshapes a Test by itself, but for a student whose plan lists
+  fewer items the teacher chooses which Test questions they skip — see
+  `TEST_CYCLE_ARCHITECTURE.md`, "Fewer questions for one student".*
 - **Secure player.** Text and choice responses only; rich math tools are not
   available inside a secure item. *Resolved 2026-10-06: secure items render
   through the shared Rich Question Runtime — see

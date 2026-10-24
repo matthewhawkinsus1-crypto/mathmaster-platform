@@ -142,6 +142,7 @@ export const attachTestCycleContract = async () => ({ success: true });
 // card never calls them, but a missing export is a SyntaxError for the whole
 // harness page.
 export const adjustTestCycleGrade = async () => ({ success: true });
+export const setTestCycleReducedItems = async () => ({ success: true, changed: false, reducedItems: null });
 export const runTestCycleBulkAction = async () => ({ success: true, operationId: null });
 export const getTestCycleOperation = async () => ({ success: true, operation: null });
 export const updateTestCycleAudience = async () => ({ success: true });
