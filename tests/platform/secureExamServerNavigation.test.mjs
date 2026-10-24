@@ -294,22 +294,24 @@ test('a course review can hold back the correct answers and worked solutions, an
   assert.deepEqual(held.items[0].responsePayload, { responses: { answer: '5' } }, "and the student's own answer");
   // The callable holds them for a course session until the class is done or the teacher releases them.
   const review = region(functionsIndex, 'exports.getStudentSecureExamReview = onCall(', '\n});', 'review');
-  assert.match(review, /withSolutions = \(await courseAnswersRelease\(getFirestore\(\), shared, session\.courseTest\.assignmentId, stage, \{ cacheRoster: true \}\)\)\.released;/);
+  assert.match(review, /withSolutions = !\(await courseAnswersHeld\(getFirestore\(\), shared, session\.courseTest\.assignmentId, stage\)\);/);
   // Fail closed: an error holds the answers rather than failing or opening the review.
   assert.match(review, /\} catch \(error\) \{[\s\S]*?withSolutions = false;\s*\}/);
   assert.match(review, /const review = secureExam\.publicReview\(session, \{ withSolutions \}\);/);
+  // Asked through the cheap re-check (PF03), whose full check is the one below
+  // with the cached roster (tests/platform/testCycleAnswersHold.test.mjs).
+  const heldCheck = region(functionsIndex, 'async function courseAnswersHeld(', '\n}', 'answers held');
+  assert.match(heldCheck, /fullCheck: \(\) => courseAnswersRelease\(db, shared, id, stage, \{ assignment, cacheRoster: true \}\),/);
   // Everyone who can still sit the stage: the whole roster and every record holder
   // (tests/integration/secureExamNavigation.test.mjs drives the cases).
   const release = region(functionsIndex, 'async function courseAnswersRelease(', '\n}', 'answers release');
   assert.match(release, /if \(!rosterIds && known\.cacheRoster\) \{/);
   assert.match(release, /if \(!rosterIds\) rosterIds = await testCycleRosterIds\(db, assignment\);/);
   // A cached roster only holds: released is recomputed from a fresh roster.
-  assert.match(release, /if \(rosterFromCache && heldFor\.length === 0\) \{\s*\/\/[^\n]*\n\s*const fresh = await cachedTestCycleRosterIds\(db, assignment, id, \{ fresh: true \}\);/);
-  assert.match(release, /const everyone = \[\.\.\.new Set\(\[\.\.\.rosterIds, \.\.\.records\.keys\(\)\]\)\]\.filter\(Boolean\);/);
-  // An explicit release covers only the students, at the attempts, it named.
-  assert.match(release, /const heldFor = stillTestingRecords\.filter\(\(record\) => !covered\.has\(answerCoverageKey\(record\)\)\)\.map\(\(record\) => record\.studentId\);/);
-  assert.match(functionsIndex, /return `\$\{record\.studentId\}#\$\{record\.test\.attempt\}\.\$\{record\.retest\.attempt\}`;/);
-  assert.match(release, /return \{ released: heldFor\.length === 0,/);
+  assert.match(release, /if \(rosterFromCache && verdict\.released\) \{\s*\/\/[^\n]*\n\s*const fresh = await cachedTestCycleRosterIds\(db, assignment, id, \{ fresh: true \}\);/);
+  // The rule itself (answersReleaseVerdict) over every record and the whole roster.
+  assert.match(release, /const verdict = testCycleAnswersHold\.answersReleaseVerdict\(\{ shared, policy, stage, assignmentId: id, release, records, rosterIds \}\);/);
+  assert.match(release, /\n {2}return verdict;$/);
   const action = region(functionsIndex, 'exports.releaseTestCycleAnswers = onCall(', '\n});', 'release answers');
   assert.match(action, /await assertTeacherMayManageAssignment\(request, assignmentSnapshot\);/);
   assert.match(action, /\[stage\]: \{ releasedAt: Date\.now\(\), releasedBy: teacherUid, coveredKeys: stillTestingKeys \},/);

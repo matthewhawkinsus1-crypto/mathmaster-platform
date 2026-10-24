@@ -17890,7 +17890,7 @@ exports.getStudentSecureExamReview = onCall(async (request) => {
     if (blocked) throw new HttpsError("failed-precondition", blocked.message, { reason: blocked.reason });
     const stage = String(session.courseTest.cycleStage || "") === "retest" ? "retest" : "test";
     try {
-      withSolutions = (await courseAnswersRelease(getFirestore(), shared, session.courseTest.assignmentId, stage, { cacheRoster: true })).released;
+      withSolutions = !(await courseAnswersHeld(getFirestore(), shared, session.courseTest.assignmentId, stage));
     } catch (error) {
       // Fail closed: the review shows, and the answers wait.
       console.error("course_answers_release_failed", { examSessionId, message: error?.message || String(error) });
@@ -17961,38 +17961,11 @@ const TEST_CYCLE_SWEEP_OPTIONS = Object.freeze({ memory: "512MiB", timeoutSecond
 
 const TEST_CYCLE_ANSWER_RELEASES = "testCycleAnswerReleases";
 
-/*
- * A student at their current attempts: the unit an explicit release covers.
- * A reset gives the stage a new attempt, so the key changes and no release
- * that did not confirm the new attempt can cover it — however the release
- * and the reset interleave. A Test reset changes the key for both stages.
- */
-function answerCoverageKey(record) {
-  return `${record.studentId}#${record.test.attempt}.${record.retest.attempt}`;
-}
-
-/*
- * Who can still sit a stage. The Test: anyone whose Test is not submitted,
- * except where the stage machine says they never will (an external original
- * that passed, a retest a teacher closed). The Retest: anyone who has not
- * submitted one and is not done without one (passed, retest closed or
- * released): before or in the Test, awaiting its release, in Corrections,
- * waiting for or sitting the Retest.
- */
-function stillToSitStage(shared, policy, stage, raw) {
-  const record = shared.record.normalizeTestCycleRecord(raw);
-  const finished = [shared.record.SESSION_STATE.SUBMITTED, shared.record.SESSION_STATE.RELEASED];
-  const STAGE = shared.stages.TEST_CYCLE_STAGE;
-  const state = shared.stages.resolveTestCycleStage({ policy, record });
-  if (stage === "test") {
-    if (finished.includes(record.test.state)) return false;
-    return !(state?.stage === STAGE.RETEST_CLOSED && (state.grade.originalTestGrade !== null || state.teacherControls.retestDisabled));
-  }
-  // An external original's one secure session lives in the Test slot.
-  if (policy?.externalAssessment) return false;
-  if (finished.includes(record.retest.state)) return false;
-  return ![STAGE.PASSED, STAGE.COMPLETE, STAGE.RETEST_CLOSED, STAGE.RETEST_SUBMITTED].includes(state?.stage);
-}
+// Who can still sit a stage, what an explicit release covers (a student at
+// their current attempts), and the rule over both: lib/testCycleAnswersHold.js,
+// where the 30-second re-check (courseAnswersHeld, below) asks it about one
+// student at a time.
+const testCycleAnswersHold = require("./lib/testCycleAnswersHold");
 
 /** Every active student in the assignment's classes, by id. */
 async function testCycleRosterIds(db, assignment) {
@@ -18049,22 +18022,56 @@ async function courseAnswersRelease(db, shared, assignmentId, stage, known = {})
     rosterFromCache = roster.cached;
   }
   if (!rosterIds) rosterIds = await testCycleRosterIds(db, assignment);
-  const everyone = [...new Set([...rosterIds, ...records.keys()])].filter(Boolean);
-  const stillTestingRecords = everyone
-    .map((studentId) => shared.record.normalizeTestCycleRecord(records.get(studentId) || { assignmentId: id, studentId }))
-    .filter((record) => stillToSitStage(shared, policy, stage, record));
-  const stillTesting = stillTestingRecords.map((record) => record.studentId);
-  const stillTestingKeys = stillTestingRecords.map(answerCoverageKey);
-  const explicit = Boolean(release?.releasedAt);
-  // An earlier release's student-only list covers nobody: it named no attempts.
-  const covered = new Set(explicit && Array.isArray(release.coveredKeys) ? release.coveredKeys.map(String) : []);
-  const heldFor = stillTestingRecords.filter((record) => !covered.has(answerCoverageKey(record))).map((record) => record.studentId);
-  if (rosterFromCache && heldFor.length === 0) {
+  // Everyone on the roster and every record holder (answersReleaseVerdict).
+  const verdict = testCycleAnswersHold.answersReleaseVerdict({ shared, policy, stage, assignmentId: id, release, records, rosterIds });
+  if (rosterFromCache && verdict.released) {
     // A cached roster only holds: a released verdict is checked against a fresh one.
     const fresh = await cachedTestCycleRosterIds(db, assignment, id, { fresh: true });
     return courseAnswersRelease(db, shared, assignmentId, stage, { assignment, records, rosterIds: fresh.ids });
   }
-  return { released: heldFor.length === 0, explicit, releasedAt: release?.releasedAt || null, stillTesting, stillTestingKeys, heldFor };
+  return verdict;
+}
+
+/*
+ * ARE THE ANSWERS STILL HELD? — the question a review and Corrections ask
+ * (PF03).
+ *
+ * The full check above reads every record of the cycle. A student in
+ * Corrections with "Review my Test" open asks every 30 seconds, so the student
+ * the last full check found holding the answers is asked about first: their
+ * record, the release, and their grades document when they have no record —
+ * the same rule, about one student (testCycleAnswersHold.holderStillHolds).
+ * While they hold them, the full check could only say "held" too. When they do
+ * not, the full check runs exactly as before. Released is never remembered.
+ */
+const courseAnswersHold = testCycleAnswersHold.createCourseAnswersHold();
+async function courseAnswersHeld(db, shared, assignmentId, stage, known = {}) {
+  const id = String(assignmentId);
+  const assignment = known.assignment || (await db.collection("assignments").doc(id).get()).data() || {};
+  const policy = shared.policy.normalizeTestCyclePolicy(assignment.assessmentPolicy) || shared.policy.defaultTestCyclePolicy();
+  return courseAnswersHold.held({
+    assignmentId: id,
+    stage,
+    shared,
+    policy,
+    readHolder: async (studentId) => {
+      const [releaseSnapshot, recordSnapshot] = await Promise.all([
+        db.collection(TEST_CYCLE_ANSWER_RELEASES).doc(id).get(),
+        db.collection(TEST_CYCLE_RECORDS).doc(testCycleRecordKey(id, studentId)).get(),
+      ]);
+      const recordData = recordSnapshot.exists ? recordSnapshot.data() : null;
+      return {
+        release: releaseSnapshot.data()?.[stage] || null,
+        recordData,
+        // A record holder counts whether or not they are on the roster.
+        onRoster: recordData ? false : testCycleAnswersHold.onTestCycleRoster(
+          await db.collection("grades").doc(studentId).get(),
+          assignmentAudience(assignment).classIds,
+        ),
+      };
+    },
+    fullCheck: () => courseAnswersRelease(db, shared, id, stage, { assignment, cacheRoster: true }),
+  });
 }
 
 /*
@@ -20237,14 +20244,16 @@ exports.getStudentTestCycle = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) 
     corrections = plan ? studentVisibleCorrectionPlan(plan) : null;
   }
   // Whether the Test review offered beside Corrections would hold its answers
-  // and worked solutions (courseAnswersRelease), so Corrections says what it
-  // opens. Asked only there, where it is shown: it reads the cycle's records.
+  // and worked solutions (courseAnswersHeld), so Corrections says what it
+  // opens. Asked only there, where it is shown: a full check reads the
+  // cycle's records; the open review's 30-second re-check reads only the
+  // student the last one found holding them, while they still do (PF03).
   const testReviewOffered = record.test.state === shared.record.SESSION_STATE.RELEASED
     && !secureExam.courseReviewBlockedBy(record, { examSessionId: record.test.examSessionId, cycleStage: "test" });
   let testAnswersHeld = null;
   if (testReviewOffered && inCorrections) {
     try {
-      testAnswersHeld = !(await courseAnswersRelease(db, shared, assignmentId, "test", { assignment, cacheRoster: true })).released;
+      testAnswersHeld = await courseAnswersHeld(db, shared, assignmentId, "test", { assignment });
     } catch {
       testAnswersHeld = true;
     }

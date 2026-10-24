@@ -139,8 +139,10 @@ test('the card holds "Review my Test" back exactly when the review itself is ref
   const field = region(card, 'testReviewExamSessionId:', 'grade:', 'testReviewExamSessionId');
   assert.match(field, /testReviewOffered \? record\.test\.examSessionId : null,/);
   // And the card is told whether that review would hold its answers (QA m1),
-  // in Corrections only, where the note shows: it costs a read of the records.
-  assert.match(card, /testAnswersHeld = !\(await courseAnswersRelease\(db, shared, assignmentId, "test", \{ assignment, cacheRoster: true \}\)\)\.released;/);
+  // in Corrections only, where the note shows: a full check costs a read of
+  // the records, so its 30-second re-check asks the cheap way (PF03,
+  // tests/platform/testCycleAnswersHold.test.mjs).
+  assert.match(card, /testAnswersHeld = await courseAnswersHeld\(db, shared, assignmentId, "test", \{ assignment \}\);/);
   // (A read-only `preview` look — Tests & Exams, PR-20 — is never "in Corrections".)
   assert.match(card, /const inCorrections = (?:!preview && )?state\.stage === shared\.stages\.TEST_CYCLE_STAGE\.CORRECTIONS && availability\.open;/);
   assert.match(card, /if \(testReviewOffered && inCorrections\) \{/);
