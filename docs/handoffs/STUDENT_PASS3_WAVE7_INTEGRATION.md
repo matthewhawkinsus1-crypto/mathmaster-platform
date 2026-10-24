@@ -290,6 +290,9 @@ Each handoff lists its own, in full. Grouped here:
    The ten fields' seven families moved to `familyVersion` 4 on 2026-10-23 (GR21); the check against `dc2ae1ad^`
    passes.
 6. Run the two read-only counts; re-grade up only (W7-1 6, D8).
+   The apply step is built (GR22, not run against any project): `scripts/apply-upward-regrade.mjs --from <count.json>`
+   raises only classroom answers a count listed that were marked wrong and the platform's replay now marks right, with
+   no teacher decision on them. It is a dry run unless `--apply` (typed project id; `--yes` only on the emulator).
 7. Point-slope through another point of the same line is graded wrong (found in W7-6's review; older than pass 3).
    **Decided 2026-10-20: accept any point on the line.** `samePointSlopeLine` in `answerEquivalence.mjs` (branch
    `claude/point-slope-any-point-20261020`).

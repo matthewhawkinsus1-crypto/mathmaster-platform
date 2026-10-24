@@ -35,6 +35,26 @@ export const FAKE_FIELD_VALUE = Object.freeze({
   arrayRemove: arrayOp('arrayRemove'),
 });
 
+/**
+ * firebase-admin's FieldPath: a path by segments, each of which may hold any
+ * character (a map key such as an assignment id). update(ref, path, value, ...)
+ * sets exactly that nested value and leaves its siblings alone.
+ */
+export class FakeFieldPath {
+  constructor(...segments) {
+    this.segments = segments.map(String);
+  }
+}
+const updatePairs = (args) => {
+  assert.equal(args.length % 2, 0, 'update(ref, path, value, ...) takes path/value pairs');
+  const pairs = [];
+  for (let index = 0; index < args.length; index += 2) {
+    const path = args[index];
+    pairs.push({ segments: path instanceof FakeFieldPath ? path.segments : String(path).split('.'), value: args[index + 1] });
+  }
+  return pairs;
+};
+
 export const clone = (value) => (value === undefined ? undefined : JSON.parse(JSON.stringify(value)));
 export const project = (data, fields) => (fields
   ? Object.fromEntries(fields.filter((field) => Object.hasOwn(data, field)).map((field) => [field, clone(data[field])]))
@@ -231,9 +251,9 @@ export class FakeFirestore {
         assert.ok(!wrote, 'a Firestore transaction must finish its reads before it writes');
         return db.maskedReads(args, 'transaction.getAll');
       },
-      update(ref, payload) {
+      update(ref, payload, ...more) {
         wrote = true;
-        pending.push({ op: 'update', ref, payload });
+        pending.push(more.length ? { op: 'updatePaths', ref, payload: updatePairs([payload, ...more]) } : { op: 'update', ref, payload });
         return transaction;
       },
       set(ref, payload, options = {}) {
@@ -255,6 +275,22 @@ export class FakeFirestore {
 
   commit({ op, ref, payload, group = null }) {
     const docs = this.docsOf(ref.collectionPath);
+    if (op === 'updatePaths') {
+      this.writes.push({ op, collection: ref.collectionPath, id: ref.id, keys: [...new Set(payload.map(({ segments }) => segments[0]))], paths: payload.map(({ segments }) => segments), group });
+      assert.ok(docs.has(ref.id), `update() of missing ${ref.collectionPath}/${ref.id} would fail in Firestore`);
+      const next = clone(docs.get(ref.id));
+      payload.forEach(({ segments, value }) => {
+        let target = next;
+        segments.slice(0, -1).forEach((segment) => {
+          if (!target[segment] || typeof target[segment] !== 'object' || Array.isArray(target[segment])) target[segment] = {};
+          target = target[segment];
+        });
+        if (value === DELETE) delete target[segments.at(-1)];
+        else target[segments.at(-1)] = clone(value);
+      });
+      docs.set(ref.id, next);
+      return;
+    }
     this.writes.push({ op, collection: ref.collectionPath, id: ref.id, keys: Object.keys(payload), group });
     if (op === 'delete') {
       docs.delete(ref.id);
