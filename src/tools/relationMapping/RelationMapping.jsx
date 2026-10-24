@@ -142,7 +142,9 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
           try { keyboard = event.currentTarget.matches(':focus-visible'); } catch { keyboard = false; }
           if (keyboard) setKeyboardHelpVisible(true);
         }}
-        onBlur={() => { setKeyboardHelpVisible(false); setKeyboardCursor(null); }}
+        // The keyboard sentence STAYS once shown, as on the shared plane:
+        // hiding it on blur moved the page under the pointer (AX34).
+        onBlur={() => { setKeyboardCursor(null); }}
         tabIndex={0}
         role="application"
         aria-label="Coordinate plane for plotting the relation"

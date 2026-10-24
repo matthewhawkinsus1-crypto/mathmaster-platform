@@ -182,6 +182,15 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
     await page.keyboard.press('ArrowDown');
     assert.equal(await status(page), 'Crosshair at (-2, 3), on a plotted point.', `${at}: a plotted point under the crosshair is announced, without a verdict`);
     assert.deepEqual(await plottedList(page), CORRECT, `${at}: moving the crosshair changes nothing`);
+    // AX34: the keyboard sentence stays once shown, as on the shared plane;
+    // hiding it on blur moved the page under the pointer.
+    const helpWidth = () => page.locator('[data-relation-plot-help]').evaluate((el) => el.getBoundingClientRect().width);
+    assert.ok(await helpWidth() > 1, `${at}: the keyboard sentence shows while the plot has keyboard focus`);
+    await page.keyboard.press('Tab');
+    assert.ok(!(await activeIs(page, PLOT)), `${at}: Tab leaves the plot`);
+    assert.ok(await helpWidth() > 1, `${at}: the keyboard sentence stays after the plot loses focus`);
+    await page.keyboard.press('Shift+Tab');
+    assert.ok(await activeIs(page, PLOT), `${at}: Shift+Tab comes back to the plot`);
 
     const recorded = await typeAnswersAndCheck(page, at);
     assert.equal(recorded.length, 1, `${at}: one grade recorded`);
