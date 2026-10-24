@@ -404,3 +404,15 @@ test('an interactive plane does not contradict itself: the student\'s points are
   assert.match(said, /You plotted 1 point: \(2, 2\)\. Positions of the given marks are not read out while this question can be answered\./, said);
   assert.match(describeCoordinatePlane({ xMin: -5, xMax: 5, yMin: -5, yMax: 5, lines: [{ m: 1, b: 0 }] }).description, /Positions are not read out while this question can be answered\./);
 });
+
+// AX13: a composed step's figure was named by the step's prompt, so Read
+// aloud said "State the domain. x from …" and then the step's own heading,
+// "Step 1 of 2: State the domain.". The figure takes its graph's own label,
+// else "Graph".
+test('a composed step\'s figure is not named by the step\'s prompt', () => {
+  const runner = code('src/platform/workflow/WorkflowRunner.jsx');
+  assert.equal((runner.match(/<StageFigure graph=\{stage\?\.graph\} \/>/g) || []).length, 3, 'every step figure');
+  assert.doesNotMatch(runner, /<StageFigure[^>]*label=\{stage\?\.prompt\}/);
+  const figure = region(runner, 'function StageFigure(', '\n}\n', 'StageFigure');
+  assert.match(figure, /ariaLabel: label \|\| spec\.ariaLabel \|\| 'Graph',/);
+});

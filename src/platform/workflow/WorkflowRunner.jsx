@@ -237,7 +237,10 @@ function ChoicePreviewGraph({ stage, value }) {
  * Read-only and coordinate-suppressed for the same reason every feature stage
  * is: a later step asks the student to write the intercept down.
  */
-function StageFigure({ graph, label }) {
+// A step's figure is named by its graph's own label, else "Graph" — never by
+// the step's prompt, which the step's heading already says: Read aloud read
+// "State the domain. x from …" before "Step 1 of 2: State the domain." (AX13).
+function StageFigure({ graph, label = '' }) {
   const spec = isObject(graph) ? graph : {};
   const structuredFunction = staticGraphSpec(spec.functionSpec);
 
@@ -329,7 +332,7 @@ function ChoiceStage({ stage, value, onChange, disabled, controlsBranch = false,
     <>
     {stage?.previewOnGraph
       ? <ChoicePreviewGraph stage={stage} value={value} />
-      : showFigure ? <StageFigure graph={stage?.graph} label={stage?.prompt} /> : null}
+      : showFigure ? <StageFigure graph={stage?.graph} /> : null}
     <div style={chipRow}>
       {choices.map((choice) => {
         const id = typeof choice === 'string' ? choice : choice?.id ?? String(choice);
@@ -685,7 +688,7 @@ function StageBody({ stage, input, content, value, onReport, disabled, draftKey,
       }
       return (
         <>
-          {showFigure ? <StageFigure graph={stage?.graph} label={stage?.prompt} /> : null}
+          {showFigure ? <StageFigure graph={stage?.graph} /> : null}
           <MathInput
             value={value || ''}
             onChange={onChange}
@@ -728,7 +731,7 @@ function StageBody({ stage, input, content, value, onReport, disabled, draftKey,
     case 'pointInput':
       return (
         <>
-          {showFigure ? <StageFigure graph={stage?.graph} label={stage?.prompt} /> : null}
+          {showFigure ? <StageFigure graph={stage?.graph} /> : null}
           <PointInputStage stage={stage} value={value} onChange={onChange} disabled={disabled} />
         </>
       );
