@@ -22,6 +22,13 @@
  *   3. KEYS, WRONG. A keyboard-plotted wrong point grades wrong: the grade
  *      follows the keyboard's state, not a constant.
  *
+ * AX37: "Is this relation a function?" and an analysis question with choices
+ * are each ONE radio group on the shared choice group
+ * (src/platform/interaction/choiceGroup.js): named by their question, one Tab
+ * stop, arrows / Home / End move and choose, a ✓ on the chosen option as well as
+ * its colour, and choosing grades nothing; what the keys chose is what Check
+ * grades.
+ *
  * Exits non-zero on the first failed assertion.
  */
 import assert from 'node:assert/strict';
@@ -34,7 +41,7 @@ else if (!process.env.PLAYWRIGHT_MODULE) launchOptions.executablePath = '/opt/pw
 
 // The sweep's relationMapping:plot scene (tests/browser/keyboardSweep.mjs).
 const SPEC = { pairs: [{ x: -2, y: 3 }, { x: 1, y: 2 }, { x: 3, y: -1 }], ask: ['plot', 'domain', 'range'] };
-const URL_FOR = ({ bare = false } = {}) => `${origin}/tests/browser/keyboardSweep.html?tool=relationMapping&spec=${encodeURIComponent(JSON.stringify(SPEC))}${bare ? '&host=bare' : ''}&run=${Date.now()}`;
+const URL_FOR = ({ bare = false, spec = SPEC } = {}) => `${origin}/tests/browser/keyboardSweep.html?tool=relationMapping&spec=${encodeURIComponent(JSON.stringify(spec))}${bare ? '&host=bare' : ''}&run=${Date.now()}`;
 const PLOT = 'svg[aria-label="Coordinate plane for plotting the relation"]';
 const STATUS = '[data-relation-plot-status]';
 const VERDICT = /\b(correct|incorrect|right|wrong|not quite|match|matches)\b/i;
@@ -47,7 +54,7 @@ const open = async (viewport, options = {}) => {
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto(URL_FOR(options), { waitUntil: 'networkidle', timeout: 90000 });
-  await page.waitForSelector(PLOT);
+  await page.waitForSelector(options.ready || PLOT);
   return { page, errors };
 };
 
@@ -289,6 +296,116 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
   assert.deepEqual(errors, [], `${at}: no page errors (arrows)`);
   await page.close();
   console.log(`ok ${at}: mapping arrows named, listed, removable one by one, said; focus kept`);
+}
+
+// AX37: the two choice questions are radio groups. A function (every input one
+// output) whose analysis question has choices.
+const CHOICES_SPEC = {
+  pairs: [{ x: 1, y: 2 }, { x: 2, y: 3 }, { x: 3, y: 4 }],
+  ask: ['isFunction'],
+  answerFields: [{ id: 'kind', label: 'Discrete or continuous?', type: 'choice', options: ['discrete', 'continuous'], answer: 'discrete' }],
+};
+const FUNCTION_Q = 'Is this relation a function?';
+const FIELD_Q = 'Discrete or continuous?';
+const RIGHT_REASON = 'Yes — every input has exactly one output.';
+const WRONG_REASON = 'No — at least one output value repeats.';
+
+/** One group as the screen and the accessibility tree give it. */
+const readGroup = (group) => group.evaluate((element) => {
+  const radios = [...element.querySelectorAll('[role="radio"]')];
+  const checked = radios.map((radio, index) => (radio.getAttribute('aria-checked') === 'true' ? index : -1)).filter((index) => index >= 0);
+  const mark = checked.length === 1 ? radios[checked[0]].querySelector('[data-choice-mark]') : null;
+  return {
+    names: radios.map((radio) => radio.textContent.replace('✓', '').trim()),
+    focused: radios.indexOf(document.activeElement),
+    checked,
+    tabStops: radios.map((radio, index) => (radio.tabIndex === 0 ? index : -1)).filter((index) => index >= 0),
+    marks: element.querySelectorAll('[data-choice-mark]').length,
+    markShown: Boolean(mark && mark.textContent.trim() === '✓' && mark.getBoundingClientRect().width > 0),
+  };
+});
+
+for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 }]) {
+  const at = `${viewport.width}x${viewport.height}`;
+  const { page, errors } = await open(viewport, { spec: CHOICES_SPEC, ready: 'fieldset > legend' });
+  const fn = page.getByRole('radiogroup', { name: FUNCTION_Q, exact: true });
+  const kind = page.getByRole('radiogroup', { name: FIELD_Q, exact: true });
+  await page.waitForTimeout(500);
+  assert.equal(await fn.count(), 1, `${at}: "${FUNCTION_Q}" is a radio group named by its question`);
+  assert.equal(await kind.count(), 1, `${at}: the analysis question is a radio group named by its question`);
+  assert.equal(await page.locator('fieldset[role="radiogroup"] > legend').count(), 2, `${at}: each group is a fieldset named by its legend, so the question is heard once`);
+
+  // One Tab stop per group, nothing chosen, no ✓ yet.
+  let state = await readGroup(fn);
+  assert.equal(state.names.length, 4, `${at}: four reasons to choose from`);
+  assert.deepEqual(state.tabStops, [0], `${at}: one Tab stop in the function group, the first option (${JSON.stringify(state.tabStops)})`);
+  assert.deepEqual([state.checked.length, state.marks], [0, 0], `${at}: nothing is chosen, so no ✓ is drawn`);
+  assert.equal((await readGroup(kind)).tabStops.length, 1, `${at}: one Tab stop in the analysis group`);
+
+  // Tab walks the groups, not every option: group one's stop, then group two's.
+  await page.locator('[data-kb-sentinel="start"]').focus();
+  await tabUntil(page, async () => (await readGroup(fn)).focused >= 0, `${at}: the function group`);
+  await page.keyboard.press('Tab');
+  assert.equal((await readGroup(fn)).focused, -1, `${at}: Tab leaves the function group (it does not visit each option)`);
+  assert.ok((await readGroup(kind)).focused >= 0, `${at}: and lands on the analysis group's Tab stop`);
+  await page.keyboard.press('Shift+Tab');
+  assert.ok((await readGroup(fn)).focused >= 0, `${at}: Shift+Tab comes back to the function group`);
+
+  // Arrows move AND choose, wrapping; Home / End go to the ends; one ✓, on the chosen option.
+  const gradesBefore = (await grades(page)).length;
+  const expectAt = async (key, index, why) => {
+    await page.keyboard.press(key === 'Space' ? ' ' : key);
+    state = await readGroup(fn);
+    assert.deepEqual([state.focused, state.checked], [index, [index]], `${at}: ${key} ${why} (focus ${state.focused + 1}, chosen ${JSON.stringify(state.checked.map((n) => n + 1))})`);
+    assert.ok(state.markShown && state.marks === 1, `${at}: after ${key} the chosen option shows its ✓, and only it (${state.marks} drawn)`);
+    assert.deepEqual(state.tabStops, [index], `${at}: after ${key} the one Tab stop follows the chosen option`);
+  };
+  const last = state.names.length - 1;
+  await expectAt('ArrowDown', 1, 'moves to the next option and chooses it');
+  await expectAt('ArrowDown', 2, 'goes on');
+  await expectAt('ArrowUp', 1, 'moves back');
+  await expectAt('End', last, 'goes to the last option');
+  await expectAt('ArrowRight', 0, 'wraps to the first');
+  await expectAt('ArrowLeft', last, 'wraps to the last');
+  await expectAt('Home', 0, 'goes to the first option');
+  await expectAt('Space', 0, 'keeps the focused option chosen');
+  assert.equal((await grades(page)).length, gradesBefore, `${at}: moving through the choices graded nothing`);
+  const tree = await fn.ariaSnapshot();
+  assert.match(tree, new RegExp(`radio "${state.names[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}" \\[checked\\]`), `${at}: the accessibility tree says which is checked`);
+
+  // What the keys chose is what Check grades: the right reason and the right
+  // kind, by arrows alone, grade correct; a wrong reason grades wrong.
+  const choose = async (group, name) => {
+    const names = (await readGroup(group)).names;
+    const target = names.indexOf(name);
+    assert.ok(target >= 0, `${at}: "${name}" is one of the choices (${names.join(' | ')})`);
+    await group.getByRole('radio').first().focus();
+    for (let press = 0; press <= names.length; press += 1) {
+      if ((await readGroup(group)).checked[0] === target) return;
+      await page.keyboard.press('ArrowDown');
+    }
+    throw new assert.AssertionError({ message: `${at}: arrows never reached "${name}"` });
+  };
+  const check = async () => {
+    await tabUntil(page, async () => /^(Check$|Submit — )/.test(await activeName(page)), `${at}: the Check button`);
+    // The count is read BEFORE Enter: the grade is recorded as the key lands.
+    const before = (await grades(page)).length;
+    await page.keyboard.press('Enter');
+    await page.waitForFunction((count) => window.__KB_GRADES__.filter((entry) => entry.kind === 'grade').length > count, before, { timeout: 15000 });
+    return (await grades(page)).at(-1);
+  };
+  await choose(fn, WRONG_REASON);
+  await choose(kind, 'discrete');
+  assert.equal((await check()).isCorrect, false, `${at}: a wrong reason chosen by arrows grades wrong`);
+  await choose(fn, RIGHT_REASON);
+  assert.equal((await check()).isCorrect, true, `${at}: the right reason and kind chosen by arrows grade correct`);
+  assert.deepEqual((await readGroup(fn)).checked.length, 1, `${at}: one reason stays chosen after Check`);
+
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  assert.ok(overflow <= 1, `${at}: no horizontal page scroll (${overflow}px)`);
+  assert.deepEqual(errors, [], `${at}: no page errors (choices)`);
+  await page.close();
+  console.log(`ok ${at}: both choice questions are radio groups — named, one Tab stop, arrows and Home/End choose, ✓ on the choice, graded as chosen`);
 }
 
 await browser.close();

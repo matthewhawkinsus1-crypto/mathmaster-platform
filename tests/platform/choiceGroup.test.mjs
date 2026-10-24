@@ -117,6 +117,8 @@ const GROUPS = [
   ['src/tools/representationMatch/RepresentationMatch.jsx', 'function GraphChoices(', 'the graph choices'],
   ['src/tools/representationMatch/RepresentationMatch.jsx', 'function SortSlotChoices(', 'the groups a card sorts into'],
   ['src/tools/stepAlgebra2/linearInterceptsConceptualUi.jsx', 'export function ZeroVariableChoice(', 'which variable equals 0'],
+  // AX37: "Is this relation a function?" and every analysis question with choices.
+  ['src/tools/relationMapping/RelationMapping.jsx', 'function RelationChoiceGroup(', 'Relation Mapping\'s function and analysis choices'],
 ];
 
 for (const [file, start, what] of GROUPS) {
@@ -147,4 +149,9 @@ test('the old per-site groups are gone: each place uses its shared group', () =>
   for (const file of ['src/MultiAnswerGrader.jsx', 'src/platform/workflow/FigureMatchStage.jsx']) {
     assert.doesNotMatch(executableSource(componentSource(file)), /role="radio"/, `${file} draws no radio of its own`);
   }
+  // Relation Mapping (AX37): both of its choice questions are the one group.
+  const relation = executableSource(componentSource('src/tools/relationMapping/RelationMapping.jsx'));
+  assert.doesNotMatch(relation, /role="radio"/, 'Relation Mapping draws no radio of its own');
+  assert.equal((relation.match(/<RelationChoiceGroup\b/g) || []).length, 2, 'the function question and the analysis choices');
+  assert.match(relation, /<RelationChoiceGroup\s[^>]*legend="Is this relation a function\?"/, 'the function question is a group');
 });

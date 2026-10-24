@@ -4,6 +4,7 @@ import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '..
 import useToolSubmission from '../shared/useToolSubmission';
 import MathDisplay from '../../MathDisplay';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../../platform/interaction/choiceOptions.js';
+import { ChoiceMark, useChoiceGroup } from '../../platform/interaction/choiceGroup.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import { clientPointToViewBox } from '../../utils/responsiveCoordinates.js';
@@ -187,6 +188,51 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
         {relationPlotKeyboardHelp(step)}
       </p>
     </div>
+  );
+}
+
+/*
+ * A "choose one" question about the relation — "Is this relation a function?"
+ * and each analysis question that has choices — as one radio group
+ * (choiceGroup.js): one Tab stop, the arrow keys move and select, and the
+ * chosen option carries a ✓ as well as its colour. They were plain role="radio"
+ * buttons: every option a Tab stop, no arrow keys, no radiogroup around them, and
+ * the choice shown by a border and a fill alone (AX37). The fieldset is the
+ * group, named by its legend, so the question is heard once. Choosing is not
+ * checking: nothing here grades.
+ */
+function RelationChoiceGroup({ legend, options, value, onSelect }) {
+  const optionProps = useChoiceGroup({ ids: options.map((option) => option.value), value, onSelect });
+  return (
+    <fieldset role="radiogroup" style={{ border: 0, padding: 0, margin: '0 0 14px' }}>
+      <legend style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)', marginBottom: 8 }}>
+        {legend}
+      </legend>
+      <div style={{ display: 'grid', gap: 8 }}>
+        {options.map((option, index) => {
+          const selected = value === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              {...optionProps(index)}
+              onClick={() => onSelect(option.value)}
+              style={{
+                ...secondaryButton,
+                width: '100%',
+                textAlign: 'left',
+                border: `2px solid ${selected ? '#1a73e8' : 'var(--mm-tint-border)'}`,
+                background: selected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+                color: 'var(--mm-text-strong)',
+              }}
+            >
+              <ChoiceMark selected={selected} />
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
   );
 }
 
@@ -529,78 +575,38 @@ export default function RelationMapping({ questionData = {}, onAction }) {
             </label>
           )}
           {ask.includes('isFunction') && (
-            <fieldset style={{ border: 0, padding: 0, margin: '0 0 14px' }}>
-              <legend style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)', marginBottom: 8 }}>
-                Is this relation a function?
-              </legend>
-              <div style={{ display: 'grid', gap: 8 }}>
-                {functionChoiceOptions.map((choice) => {
-                  const selected = functionAnswer === choice.value;
-                  return (
-                    <button
-                      key={choice.value}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      onClick={() => { setFunctionAnswer(choice.value); clearFeedback(); }}
-                      style={{
-                        ...secondaryButton,
-                        width: '100%',
-                        textAlign: 'left',
-                        border: `2px solid ${selected ? '#1a73e8' : 'var(--mm-tint-border)'}`,
-                        background: selected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
-                        color: 'var(--mm-text-strong)',
-                      }}
-                    >
-                      {choice.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </fieldset>
+            <RelationChoiceGroup
+              legend="Is this relation a function?"
+              options={functionChoiceOptions}
+              value={functionAnswer}
+              onSelect={(value) => { setFunctionAnswer(value); clearFeedback(); }}
+            />
           )}
 
           {analysisFields.map((field) => {
             const options = optionsForField(field);
             const current = String(fieldAnswers[field.id] ?? '');
+            if (options.length) {
+              return (
+                <RelationChoiceGroup
+                  key={field.id}
+                  legend={field.label || field.id}
+                  options={options.map((option) => ({ value: String(option), label: String(option) }))}
+                  value={current}
+                  onSelect={(value) => { setFieldAnswers((answers) => ({ ...answers, [field.id]: value })); clearFeedback(); }}
+                />
+              );
+            }
             return (
               <fieldset key={field.id} style={{ border: 0, padding: 0, margin: '0 0 14px' }}>
                 <legend style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)', marginBottom: 8 }}>
                   {field.label || field.id}
                 </legend>
-                {options.length ? (
-                  <div style={{ display: 'grid', gap: 8 }}>
-                    {options.map((option) => {
-                      const raw = String(option);
-                      const selected = current === raw;
-                      return (
-                        <button
-                          key={raw}
-                          type="button"
-                          role="radio"
-                          aria-checked={selected}
-                          onClick={() => { setFieldAnswers((answers) => ({ ...answers, [field.id]: raw })); clearFeedback(); }}
-                          style={{
-                            ...secondaryButton,
-                            width: '100%',
-                            textAlign: 'left',
-                            border: `2px solid ${selected ? '#1a73e8' : 'var(--mm-tint-border)'}`,
-                            background: selected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
-                            color: 'var(--mm-text-strong)',
-                          }}
-                        >
-                          {raw}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <input
-                    value={current}
-                    onChange={(event) => { setFieldAnswers((answers) => ({ ...answers, [field.id]: event.target.value })); clearFeedback(); }}
-                    style={inputStyle}
-                  />
-                )}
+                <input
+                  value={current}
+                  onChange={(event) => { setFieldAnswers((answers) => ({ ...answers, [field.id]: event.target.value })); clearFeedback(); }}
+                  style={inputStyle}
+                />
               </fieldset>
             );
           })}

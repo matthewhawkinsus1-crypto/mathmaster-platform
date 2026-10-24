@@ -10,7 +10,8 @@
  *   PLAYWRIGHT_MODULE / CHROMIUM_PATH as in keyboardSweep.mjs.
  *
  * For every choice group on Representation Match (equation choices, graph
- * choices, the groups a card sorts into) and Matrix Lab (how many solutions):
+ * choices, the groups a card sorts into), Matrix Lab (how many solutions) and
+ * Relation Mapping (is it a function; an analysis question's choices, AX37):
  *
  *   - ONE tab stop: exactly one radio has tabindex 0;
  *   - ArrowRight / ArrowDown move focus to the next option AND check it,
@@ -34,6 +35,14 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const artifacts = path.join(here, 'artifacts/tool-choice-groups');
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
 
+// A function whose analysis question has choices, so both of Relation Mapping's
+// choice groups are on the board (toolKeyboardRelationMapping.mjs drives the rest).
+const RELATION_CHOICES = {
+  pairs: [{ x: 1, y: 2 }, { x: 2, y: 3 }, { x: 3, y: 4 }],
+  ask: ['isFunction'],
+  answerFields: [{ id: 'kind', label: 'Discrete or continuous?', type: 'choice', options: ['discrete', 'continuous'], answer: 'discrete' }],
+};
+
 const SCENES = [
   { tool: 'representationMatch', spec: null, group: 'Equation choices' },
   { tool: 'representationMatch', spec: { mode: 'graphMatch' }, group: 'Graph choices' },
@@ -46,6 +55,8 @@ const SCENES = [
     ],
   }, group: /to sort cards into$/ },
   { tool: 'matrixLab', spec: null, group: 'How many solutions does the system have?' },
+  { name: 'relationMapping function question', tool: 'relationMapping', spec: RELATION_CHOICES, group: 'Is this relation a function?' },
+  { name: 'relationMapping analysis choices', tool: 'relationMapping', spec: RELATION_CHOICES, group: 'Discrete or continuous?' },
 ];
 
 const failures = [];
@@ -70,8 +81,8 @@ const readGroup = (group) => group.evaluate((element) => {
   };
 });
 
-const runScene = async (page, { tool, spec, group: groupName }) => {
-  const label = `${tool}${spec ? ` ${spec.mode}${spec.task ? `/${spec.task}` : ''}` : ''}`;
+const runScene = async (page, { name, tool, spec, group: groupName }) => {
+  const label = name || `${tool}${spec ? ` ${spec.mode}${spec.task ? `/${spec.task}` : ''}` : ''}`;
   console.log(`\n${label}`);
   const query = spec ? `&spec=${encodeURIComponent(JSON.stringify(spec))}` : '';
   await page.goto(`${ORIGIN}/tests/browser/keyboardSweep.html?tool=${tool}${query}`, { timeout: 180_000 });
@@ -108,7 +119,8 @@ const runScene = async (page, { tool, spec, group: groupName }) => {
   await expectAt('Space', 0, 'keeps the focused option checked');
   const gradesAfter = await page.evaluate(() => window.__KB_GRADES__.length);
   check(gradesAfter === gradesBefore, `${label}: moving through the choices graded nothing (${gradesAfter - gradesBefore} grade event(s))`);
-  await page.screenshot({ path: path.join(artifacts, `${tool}-${spec ? [spec.mode, spec.task].filter(Boolean).join('-') : 'default'}.png`) }).catch(() => {});
+  const shot = name ? name.replaceAll(' ', '-') : `${tool}-${spec ? [spec.mode, spec.task].filter(Boolean).join('-') : 'default'}`;
+  await page.screenshot({ path: path.join(artifacts, `${shot}.png`) }).catch(() => {});
 };
 
 // Figure Match, the real FigureMatchStage (toolChoiceGroups.html). Its select
