@@ -48,6 +48,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const require = createRequire(import.meta.url);
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -248,7 +249,7 @@ const open = async ({ studentId, assignmentId, device, theme }) => {
 let shotIndex = 0;
 const shot = async (page, name) => {
   shotIndex += 1;
-  await page.screenshot({ path: path.join(SHOTS, `${String(shotIndex).padStart(3, '0')}-${name}.png`), fullPage: true });
+  await screenshotKeepingTouch(page, { path: path.join(SHOTS, `${String(shotIndex).padStart(3, '0')}-${name}.png`), fullPage: true });
 };
 
 const waitForStage = (page, stage, timeout = 60_000) => page.waitForFunction(

@@ -63,6 +63,7 @@ import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
@@ -137,7 +138,7 @@ const layout = async (page, label) => {
 };
 
 const shot = async (page, device, name) => {
-  await page.screenshot({ path: path.join(SHOTS, `${device.id}-${name}.png`), fullPage: true });
+  await screenshotKeepingTouch(page, { path: path.join(SHOTS, `${device.id}-${name}.png`), fullPage: true });
 };
 const bodyText = (page) => page.evaluate(() => document.body.innerText || '');
 const headerPosition = async (page) => (await page.locator('[data-secure-navigator-toggle]').textContent()).replace('▾', '').trim();

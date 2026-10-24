@@ -31,6 +31,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { readdirSync, readFileSync } from 'node:fs';
 import { SCREENS, sceneLabel } from './accessibilityCertification.mjs';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const artifacts = path.join(here, 'artifacts/large-text');
@@ -422,7 +423,7 @@ if (CHECKS.has('default')) {
       await page.addStyleTag({ content: '*, *::before, *::after { caret-color: transparent !important; animation: none !important; transition: none !important; }' });
       await page.evaluate(() => document.activeElement?.blur?.());
       await page.waitForTimeout(300);
-      await page.screenshot({ path: path.join(SHOTS, `${label.replace(/\//g, '--')}-${setting.id}.png`), fullPage: true, animations: 'disabled' });
+      await screenshotKeepingTouch(page, { path: path.join(SHOTS, `${label.replace(/\//g, '--')}-${setting.id}.png`), fullPage: true, animations: 'disabled' });
       console.log(`shot ${label} ${setting.id}`);
     });
   }
@@ -487,7 +488,7 @@ if (CHECKS.has('text')) {
       if (result.clippedCount) failures.push(`${label} ${setting.id}: ${result.clippedCount} clipped text box(es): ${result.clipped.join('; ')}`);
       if (result.offscreenCount) failures.push(`${label} ${setting.id}: ${result.offscreenCount} text box(es) past the viewport edge: ${result.offscreen.join('; ')}`);
       if (grow.list.length) failures.push(`${label} ${setting.id}: ${grow.list.length} text box(es) did not grow at 200%: ${[...new Set(grow.list)].slice(0, 10).join('; ')}`);
-      await page.screenshot({ path: path.join(artifacts, `${label.replace(/\//g, '--')}-${setting.id}.png`), fullPage: true }).catch(() => {});
+      await screenshotKeepingTouch(page, { path: path.join(artifacts, `${label.replace(/\//g, '--')}-${setting.id}.png`), fullPage: true }).catch(() => {});
     });
   }
   writeFileSync(path.join(artifacts, 'report.json'), JSON.stringify(report, null, 2));

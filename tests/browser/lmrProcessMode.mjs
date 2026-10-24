@@ -47,6 +47,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { balancedMove, cancelFactor, cancelTerm, closeInlineModes, combineLikeTerms, mathState, rewriteTerm, setMathField, simplifySide, removeParentheses } from './stepAlgebraDriver.mjs';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -91,7 +92,7 @@ const open = async (viewport, questionId, { touch = false, family = false, run =
   return { context, page };
 };
 const shot = async (target, name) => {
-  await target.screenshot({ path: path.join(ARTIFACTS, `${journeyName}-${name}.png`) });
+  await screenshotKeepingTouch(target, { path: path.join(ARTIFACTS, `${journeyName}-${name}.png`) });
 };
 const workspace = (page) => page.locator('[data-lmr-card="process"]');
 const strip = (page) => page.locator('[data-process-facts]');

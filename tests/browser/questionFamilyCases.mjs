@@ -46,6 +46,7 @@ import {
   substitute,
   verifyOriginalEquations,
 } from './systemsWorkspaceDriver.mjs';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
@@ -200,11 +201,11 @@ const relationJourney = (slot, student, device = 'chromebook') => async (name) =
     const after = await captured(page);
     const verdict = serverVerdict({ slot, studentId: after.studentId, delivery: after.delivery, toolResponse: after.grades.at(-1)?.toolResponse });
     const parity = compare(name, true, after, verdict);
-    await page.screenshot({ path: path.join(ARTIFACTS, `${name}.png`), fullPage: true });
+    await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `${name}.png`), fullPage: true });
     if (pageErrors.length) note(name, `page errors: ${pageErrors.join(' | ')}`);
     report.push({ journey: name, slot, student, device, equation: state.question.equation, key: key.display, steps, parity });
   } catch (error) {
-    await page.screenshot({ path: path.join(ARTIFACTS, `FAILED-${name}.png`), fullPage: true }).catch(() => {});
+    await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `FAILED-${name}.png`), fullPage: true }).catch(() => {});
     note(name, `${error.message.split("\n").slice(0, 12).join(" // ")} — after: ${steps.at(-1) || "nothing"}`);
     report.push({ journey: name, slot, student, device, steps, error: error.message.split('\n')[0] });
   } finally {
@@ -249,11 +250,11 @@ const equationJourney = (slot, student, device = 'chromebook') => async (name) =
     const after = await captured(page);
     const verdict = serverVerdict({ slot, studentId: after.studentId, delivery: after.delivery, toolResponse: after.grades.at(-1)?.toolResponse });
     const parity = compare(name, true, after, verdict);
-    await page.screenshot({ path: path.join(ARTIFACTS, `${name}.png`), fullPage: true });
+    await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `${name}.png`), fullPage: true });
     if (pageErrors.length) note(name, `page errors: ${pageErrors.join(' | ')}`);
     report.push({ journey: name, slot, student, device, equation: state.question.equation, key: key.display, final: result.latex, steps, parity });
   } catch (error) {
-    await page.screenshot({ path: path.join(ARTIFACTS, `FAILED-${name}.png`), fullPage: true }).catch(() => {});
+    await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `FAILED-${name}.png`), fullPage: true }).catch(() => {});
     note(name, `${error.message.split("\n").slice(0, 12).join(" // ")} — after: ${steps.at(-1) || "nothing"}`);
     report.push({ journey: name, slot, student, device, steps, error: error.message.split('\n')[0] });
   } finally {
@@ -320,11 +321,11 @@ const systemsJourney = (slot, student, { method = 'elimination', device = 'chrom
     const after = await captured(page);
     const verdict = serverVerdict({ slot, studentId: after.studentId, delivery: after.delivery, toolResponse: after.grades.at(-1)?.toolResponse });
     const parity = compare(name, expected, after, verdict);
-    await page.screenshot({ path: path.join(ARTIFACTS, `${name}.png`), fullPage: true });
+    await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `${name}.png`), fullPage: true });
     if (pageErrors.length) note(name, `page errors: ${pageErrors.join(' | ')}`);
     report.push({ journey: name, slot, student, device, method: chosen, equations: question.equations, key: key.display, steps, parity });
   } catch (error) {
-    await page.screenshot({ path: path.join(ARTIFACTS, `FAILED-${name}.png`), fullPage: true }).catch(() => {});
+    await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `FAILED-${name}.png`), fullPage: true }).catch(() => {});
     note(name, `${error.message.split('\n').slice(0, 12).join(' // ')} — after: ${steps.at(-1) || 'nothing'}`);
     report.push({ journey: name, slot, student, device, steps, error: error.message.split('\n')[0] });
   } finally {

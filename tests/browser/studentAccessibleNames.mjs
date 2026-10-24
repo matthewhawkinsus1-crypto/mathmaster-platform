@@ -36,6 +36,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openCompletedSection, SCREENS, VIEWPORTS } from './accessibilityCertification.mjs';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const artifacts = path.join(here, 'artifacts/accessible-names');
@@ -250,7 +251,7 @@ const main = async () => {
         await runMathBoxes(page, viewport.id);
       } catch (error) {
         check(false, `${viewport.id}: could not finish — ${error.message.split('\n')[0]}`);
-        await page.screenshot({ path: path.join(artifacts, `FAIL-${viewport.id}.png`), fullPage: true }).catch(() => {});
+        await screenshotKeepingTouch(page, { path: path.join(artifacts, `FAIL-${viewport.id}.png`), fullPage: true }).catch(() => {});
       }
       await context.close();
     }

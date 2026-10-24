@@ -20,6 +20,7 @@
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
 const ARTIFACTS = path.join(path.dirname(fileURLToPath(import.meta.url)), 'artifacts/feedbackTeaches');
@@ -139,7 +140,7 @@ for (const device of DEVICES) {
     check((await review.textContent()).includes('Change in y: 5 − 2 = 3.'), `${device.name}: from the authored solutionReview`);
     check(await reachable(page, review), `${device.name}: the worked solution can be reached`);
     check(!(await page.locator('[data-hint-control]').isVisible().catch(() => false)), `${device.name}: no Hint control on a closed question`);
-    await page.screenshot({ path: path.join(ARTIFACTS, `${device.name}-closed.png`), fullPage: true });
+    await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `${device.name}-closed.png`), fullPage: true });
     await context.close();
   }
 
@@ -230,7 +231,7 @@ for (const device of DEVICES) {
     check(hintText.length > 10 && answers.every((value) => !hintText.includes(value)), `${device.name} ${which}: the hint names no answer`, hintText.slice(0, 160));
     check(await reachable(page, family), `${device.name} ${which}: the hint is on screen`);
     await noSidewaysScroll(page, `${device.name} ${which}`);
-    await page.screenshot({ path: path.join(ARTIFACTS, `family-${which}-${device.name}.png`), fullPage: true });
+    await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `family-${which}-${device.name}.png`), fullPage: true });
     await context.close();
     const dol = await open(device, `q=${which}&role=dol`);
     const dolHint = dol.page.locator('[data-hint-control]');

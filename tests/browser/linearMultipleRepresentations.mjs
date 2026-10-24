@@ -56,6 +56,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { establishProcessFacts } from './lmrProcessDriver.mjs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5197';
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -107,8 +108,8 @@ const renderAllMath = async (page) => {
 const shot = async (page, name, locator = null) => {
   mkdirSync(ARTIFACTS, { recursive: true });
   const file = path.join(ARTIFACTS, `${name}.png`);
-  if (locator) await locator.screenshot({ path: file });
-  else await page.screenshot({ path: file, fullPage: true });
+  if (locator) await screenshotKeepingTouch(locator, { path: file });
+  else await screenshotKeepingTouch(page, { path: file, fullPage: true });
   return file;
 };
 

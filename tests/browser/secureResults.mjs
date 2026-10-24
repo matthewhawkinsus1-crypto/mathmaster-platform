@@ -50,6 +50,7 @@ import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
@@ -147,7 +148,7 @@ const renderAllMath = async (page) => {
 };
 const shot = async (page, device, name) => {
   await renderAllMath(page);
-  await page.screenshot({ path: path.join(SHOTS, `${device.id}-${name}.png`), fullPage: true });
+  await screenshotKeepingTouch(page, { path: path.join(SHOTS, `${device.id}-${name}.png`), fullPage: true });
 };
 const text = (locator) => locator.evaluate((element) => element.innerText.replace(/\s+/g, ' ').trim());
 const bodyText = (page) => page.evaluate(() => document.body.innerText.replace(/\s+/g, ' '));
@@ -209,7 +210,7 @@ for (const device of DEVICES) {
     check(await table.count() === 1 && await articles.nth(2).locator('[data-result-figure="stimulus"] h4').count() === 1, at('a table question shows its table, its title an h4'));
     const graph = articles.nth(5).locator('[data-result-figure="stimulus"] svg');
     check(await graph.count() >= 1 && (await graph.first().boundingBox())?.width > 150, at('a graph question shows its graph'), `${await graph.count()} svg`);
-    await articles.nth(5).screenshot({ path: path.join(SHOTS, `${device.id}-review-graph-figure.png`) });
+    await screenshotKeepingTouch(articles.nth(5), { path: path.join(SHOTS, `${device.id}-review-graph-figure.png`) });
     const q3 = await text(articles.nth(2).locator('[data-result-block="yours"]'));
     check(/Left blank/.test(q3), at('a blank question says "Left blank"'), q3);
     const q4 = await text(articles.nth(3));
@@ -222,7 +223,7 @@ for (const device of DEVICES) {
     const editorText = await text(editorAnswer);
     const editorMath = await editorAnswer.locator('math-span').count();
     check(editorMath === 1 && !/\\frac|\\left|\\right/.test(editorText), at('a math-editor answer is drawn as math, not LaTeX'), `${editorMath} math-span; "${editorText}"`);
-    await articles.nth(6).screenshot({ path: path.join(SHOTS, `${device.id}-review-editor-answer.png`) });
+    await screenshotKeepingTouch(articles.nth(6), { path: path.join(SHOTS, `${device.id}-review-editor-answer.png`) });
     const skills = await page.locator('[data-skill-result]').evaluateAll((nodes) => nodes.map((node) => node.dataset.skillResult));
     check(skills.join(',') === 'skill:texas:A.3B,skill:texas:A.5A,skill:texas:A.2A', at('skills weakest first'), skills.join(','));
     const skillText = await text(page.locator('section[aria-labelledby="results-by-skill"]'));
@@ -258,7 +259,7 @@ for (const device of DEVICES) {
     // plainly where it does not (SupportedText.jsx) — never a dead button.
     const solutionText = await q2.locator('[data-worked-solution]').count() ? await text(q2.locator('[data-worked-solution]')) : '';
     check(/Translate|No Spanish translation for this text yet/.test(solutionText), at('supports: Translate is offered or says why not'), solutionText.slice(-160));
-    await q2.screenshot({ path: path.join(SHOTS, `${device.id}-review-solution-supports.png`) });
+    await screenshotKeepingTouch(q2, { path: path.join(SHOTS, `${device.id}-review-solution-supports.png`) });
     // The actions beside the solution are a student's controls too.
     await layout(page, at('supports: results'), ['[data-worked-solution] button']);
     noErrors(errors, at('supports: results'));

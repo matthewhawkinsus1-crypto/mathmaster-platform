@@ -100,6 +100,13 @@ name: Student Runtime Browser Gates
 #                       Math Path's mount, items with no id), closes again
 #   closedQuestionEnter on a closed question Enter goes on only from the page:
 #                       a summary, a button or an ARIA widget keeps its Enter
+#   touchAfterScreenshot  an emulated phone, iPad and touch Chromebook still
+#                       answer (pointer: coarse), (hover: none) and touch points
+#                       after a screenshot that looks beyond the viewport. The
+#                       browser takes touch away there; every phone driver takes
+#                       such screenshots through tests/browser/support/
+#                       touchEmulation.mjs, which puts it back (CI12, E1-18).
+#                       It needs no server
 #
 # The gates above run in three jobs of about ten minutes each
 # (student-runtime, -2, -3): one runner took 30 minutes for them all (PR #513).
@@ -221,6 +228,11 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/relationPlotGrading.mjs
+      - name: A phone stays a phone after a full-page screenshot
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/touchAfterScreenshot.mjs
 
   # The student-runtime gates, continued (see the header).
   student-runtime-2:

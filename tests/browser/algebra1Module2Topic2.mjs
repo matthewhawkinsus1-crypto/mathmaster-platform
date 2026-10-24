@@ -21,6 +21,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5197';
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -79,7 +80,7 @@ const visit = async (page, lesson, viewportName) => {
     check(!state.crashed, `${id}: the question rendered without an error card`);
     check(state.overflow <= 1, `${id} @${viewportName}: no sideways scroll (${state.overflow}px)`);
     const file = path.join(ARTIFACTS, `${lesson}-${viewportName}-${id}.png`);
-    await page.screenshot({ path: file, fullPage: true });
+    await screenshotKeepingTouch(page, { path: file, fullPage: true });
     report.push({ lesson, viewport: viewportName, id, ...state, screenshot: path.relative(ROOT, file) });
   }
 };

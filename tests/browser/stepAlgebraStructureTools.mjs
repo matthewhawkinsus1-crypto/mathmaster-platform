@@ -46,6 +46,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { balancedMove, cancelFactor, chooseOperation, openRewriteTool, openSimplify, simplifySide, typeOperand } from './stepAlgebraDriver.mjs';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
@@ -186,7 +187,7 @@ async function factored15x45(context) {
   expect(journey, history === 1, `expected one history entry, found ${history}`);
   const historyLatex = await page.locator('.algebra-work-steps math-span').evaluateAll((elements) => elements.map((element) => element.textContent));
   expect(journey, historyLatex.every((latex) => !/\\cdot|\*|\[object/.test(latex)), `history shows machine syntax: ${historyLatex.join(' | ')}`);
-  await page.screenshot({ path: path.join(ARTIFACTS, `${journey}.png`), fullPage: true });
+  await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `${journey}.png`), fullPage: true });
   await undoButton(page).click();
   await settle(page, 400);
   expect(journey, compact(await state(page)) === 'y=15x-45', 'committed Undo did not restore the equation');
@@ -228,7 +229,7 @@ async function factoredPartial(context) {
   const final = compact(await state(page));
   expect(journey, final === 'y=15\\left(x-3\\right)', `after 3 × 5: ${final}`);
   expect(journey, (await page.locator('text=✓ Written as y = a(x − c)').count()) === 1, 'factored goal chip not complete');
-  await page.screenshot({ path: path.join(ARTIFACTS, `${journey}.png`), fullPage: true });
+  await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `${journey}.png`), fullPage: true });
   report.push({ journey, final });
   await page.close();
 }
@@ -325,7 +326,7 @@ async function slopeFiveTwoSix(context) {
   expect(journey, final === 'y=-\\frac{5x}{2}+3', `arranged: ${final}`);
   const steps = (await page.evaluate(() => Object.values(window.__mmStructure.drafts()).find((draft) => draft?.workSteps)?.workSteps || [])).map((step) => step.description);
   expect(journey, steps.join('|') === 'Subtracted 5x from both sides|Divided both sides by 2|Split the numerator across the denominator|Reduced a fraction on the right side|Rearranged the terms on the right side', `steps: ${steps.join('|')}`);
-  await page.screenshot({ path: path.join(ARTIFACTS, `${journey}.png`), fullPage: true });
+  await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `${journey}.png`), fullPage: true });
   report.push({ journey, unsplit, split, reduced, final, steps });
   await page.close();
 }
@@ -481,7 +482,7 @@ async function phone(browserInstance) {
   expect(journey, outside === 0, `${outside} factor tokens outside the viewport`);
   const small = await page.locator('button.algebra-structure-token').evaluateAll((elements) => elements.filter((element) => element.getBoundingClientRect().height < 40).length);
   expect(journey, small === 0, `${small} factor tokens below the 40px touch height`);
-  await page.locator('.algebra-equation-stage').screenshot({ path: path.join(ARTIFACTS, `${journey}.png`) });
+  await screenshotKeepingTouch(page.locator('.algebra-equation-stage'), { path: path.join(ARTIFACTS, `${journey}.png`) });
   report.push({ journey, scrollWidth, innerWidth });
   await context.close();
 }
@@ -546,7 +547,7 @@ async function ownerCase(browserInstance, viewport, { keyboardOnly }) {
   const buttons = await page.locator('button:visible').allInnerTexts();
   expect(journey, !buttons.some((text) => OLD_CONTROLS.test(text.trim())), `an old control is still shown: ${buttons.filter((text) => OLD_CONTROLS.test(text.trim()))}`);
   expect(journey, (await page.locator('button.algebra-distribute-toggle').count()) === 0, 'Distribute was offered for a factor of 1');
-  await page.screenshot({ path: path.join(ARTIFACTS, `${journey}-0-board.png`), fullPage: true });
+  await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `${journey}-0-board.png`), fullPage: true });
 
   if (keyboardOnly) {
     await page.locator('button.algebra-simplify-toggle').focus();
@@ -572,7 +573,7 @@ async function ownerCase(browserInstance, viewport, { keyboardOnly }) {
     await page.locator('button.algebra-simplify-toggle').click();
     await settle(page, 400);
     expect(journey, (await page.locator('.algebra-term-candidate').count()) === 1, 'the group was not highlighted on the board');
-    await page.screenshot({ path: path.join(ARTIFACTS, `${journey}-1-simplify.png`), fullPage: true });
+    await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `${journey}-1-simplify.png`), fullPage: true });
     await page.locator('[aria-label$="choose this part to simplify"]').first().click();
     await settle(page, 300);
     expect(journey, (await page.locator('.mm-simplify-box[data-simplify-box="parentheses"] math-field').count()) === 0, 'removing parentheses after a plus asked for typing');
@@ -618,7 +619,7 @@ async function ownerCase(browserInstance, viewport, { keyboardOnly }) {
   expect(journey, scrollWidth <= innerWidth, `horizontal page scroll (${scrollWidth} > ${innerWidth})`);
   const steps = (await page.evaluate(() => Object.values(window.__mmStructure.drafts()).find((draft) => draft?.workSteps)?.workSteps || [])).map((step) => step.kind);
   expect(journey, steps.join('|') === 'inline-term-rewrite|combine-like-terms', `step kinds: ${steps.join('|')}`);
-  await page.screenshot({ path: path.join(ARTIFACTS, `${journey}-2-after.png`), fullPage: true });
+  await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `${journey}-2-after.png`), fullPage: true });
   report.push({ journey, start, removed, combined, steps });
   await context.close();
 }

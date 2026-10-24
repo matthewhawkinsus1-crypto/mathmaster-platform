@@ -44,6 +44,7 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const require = createRequire(import.meta.url);
 // PLAYWRIGHT_MODULE, else the project's playwright (CI installs it), else
@@ -297,7 +298,7 @@ const waitForStage = async (handle, stage, timeout = 20_000) => {
   } catch { return false; }
 };
 const shot = async (handle, name, { fullPage = false } = {}) => {
-  await handle.page.screenshot({ path: path.join(SHOTS, `${name}.png`), fullPage, animations: 'disabled' }).catch(() => {});
+  await screenshotKeepingTouch(handle.page, { path: path.join(SHOTS, `${name}.png`), fullPage, animations: 'disabled' }).catch(() => {});
   log(`  · shot ${name}.png`);
 };
 const overflowX = (handle) => handle.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

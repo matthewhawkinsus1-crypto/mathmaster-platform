@@ -19,6 +19,8 @@
 // NO PRODUCTION CONTACT: every non-localhost request is aborted at the browser
 // level, so this harness cannot reach Firestore or a real student's data.
 
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
+
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5214';
@@ -155,7 +157,7 @@ for (const device of VIEWPORTS) {
 
     if (SHOTS) {
       // eslint-disable-next-line no-await-in-loop
-      await page.screenshot({ path: `${SHOTS}/${label.replace(':', '-')}.png`, fullPage: true });
+      await screenshotKeepingTouch(page, { path: `${SHOTS}/${label.replace(':', '-')}.png`, fullPage: true });
     }
 
     const problems = [];

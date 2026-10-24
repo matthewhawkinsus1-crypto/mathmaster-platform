@@ -64,6 +64,7 @@ import { auditAccessibility, AXE_VERSION, settleForAudit } from './accessibility
 import {
   buildBaseline, compare, describeFailures, mergeNormalized, ratchetFailed, readBaselineCounts, WCAG_TAGS,
 } from '../../scripts/lib/accessibilityRatchet.mjs';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../..');
@@ -345,7 +346,7 @@ const main = async () => {
         if (screen.open) await screen.open(page, origins);
       } catch (error) {
         unreachable.push(`${screen.id}|${viewport.id}: could not open — ${error.message.split('\n')[0]}`);
-        await page.screenshot({ path: path.join(artifacts, `FAIL-${screen.id}-${viewport.id}-open.png`), fullPage: true }).catch(() => {});
+        await screenshotKeepingTouch(page, { path: path.join(artifacts, `FAIL-${screen.id}-${viewport.id}-open.png`), fullPage: true }).catch(() => {});
         await context.close();
         continue;
       }
@@ -358,12 +359,12 @@ const main = async () => {
           await settleForAudit(page);
         } catch (error) {
           unreachable.push(`${label}|${viewport.id}: could not reach the screen — ${error.message.split('\n')[0]}`);
-          await page.screenshot({ path: shot, fullPage: true }).catch(() => {});
+          await screenshotKeepingTouch(page, { path: shot, fullPage: true }).catch(() => {});
           break;
         }
         const audit = await auditAccessibility(page, { name: label, viewport: viewport.id, include: screen.include, exclude: screen.exclude });
         const verdict = compare(baselineCounts, audit.counts, { scope: (key) => key.screen === label && key.viewport === viewport.id });
-        if (!WRITE && ratchetFailed(verdict)) await page.screenshot({ path: shot, fullPage: true }).catch(() => {});
+        if (!WRITE && ratchetFailed(verdict)) await screenshotKeepingTouch(page, { path: shot, fullPage: true }).catch(() => {});
         else await page.screenshot({ path: path.join(artifacts, `${label.replace(/\//g, '--')}-${viewport.id}.png`) }).catch(() => {});
         results.push({ screen: screen.id, scene: scene.id, label, viewport: viewport.id, counts: audit.counts, details: audit.details, needsReview: audit.needsReview });
         // WCAG 2.4.2 beyond axe's "a <title> exists": every app screen used to

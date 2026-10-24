@@ -43,6 +43,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { watchUnimplementedCallables } from './journeyChecks.mjs';
+import { screenshotKeepingTouch } from '../support/touchEmulation.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
@@ -531,7 +532,7 @@ const adminJourney = async (viewport) => {
   expect(label, /record the release as live again/i.test(await text(card)) || await stage() !== 'readyToRetire', 'retiring again starts over');
   expect(label, errors.length === 0, `no page errors (${errors.slice(0, 2).join(' | ')})`);
   expect(label, unimplemented().length === 0, `no unimplemented callable (${unimplemented().join(', ')})`);
-  await page.screenshot({ path: path.join(ARTIFACTS, `p5-${viewport.width}.png`), fullPage: true });
+  await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `p5-${viewport.width}.png`), fullPage: true });
   await context.close();
 };
 

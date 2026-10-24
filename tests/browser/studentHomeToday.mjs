@@ -25,6 +25,7 @@
 
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
@@ -194,7 +195,7 @@ for (const viewport of VIEWPORTS) {
   check(JSON.stringify(pressed) === JSON.stringify(want), tag(`today: callbacks ${JSON.stringify(pressed)} != ${JSON.stringify(want)}`));
   check(expectIndex('pastdue-started') === 1, tag(`today: the started late lesson should resume at question 1 (model said ${expectIndex('pastdue-started')})`));
   await layout('today');
-  if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `home-today-${viewport.name}.png`), fullPage: true });
+  if (SHOTS) await screenshotKeepingTouch(page, { path: path.join(SHOTS, `home-today-${viewport.name}.png`), fullPage: true });
 
   // --- Scene: the DOL is open ----------------------------------------------
   const dol = await scene('dol');
@@ -209,7 +210,7 @@ for (const viewport of VIEWPORTS) {
   check(JSON.stringify(dolPress) === JSON.stringify([{ fn: 'start', args: ['dollive', dol.nextAction.questionIndex] }]), tag(`dol: primary press ${JSON.stringify(dolPress)}`));
   check(dol.nextAction.questionIndex === 1, tag(`dol: should open the first DOL question (1), model said ${dol.nextAction.questionIndex}`));
   await layout('dol');
-  if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `home-dol-${viewport.name}.png`), fullPage: true });
+  if (SHOTS) await screenshotKeepingTouch(page, { path: path.join(SHOTS, `home-dol-${viewport.name}.png`), fullPage: true });
 
   await scene('dolHidden');
   check(await page.locator('[data-next-action-countdown]').count() === 0, tag('dolHidden: countdown shown although hideCountdowns'));
@@ -238,7 +239,7 @@ for (const viewport of VIEWPORTS) {
     const yRewards = await y('[aria-labelledby="rewards-summary-heading"]');
     if (yRewards > -1) check(yPrimary > 0 && yRewards > yPrimary, tag(`${name}: rewards (${yRewards}) above the primary action (${yPrimary})`));
     await layout(name);
-    if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `home-${name}-${viewport.name}.png`), fullPage: true });
+    if (SHOTS) await screenshotKeepingTouch(page, { path: path.join(SHOTS, `home-${name}-${viewport.name}.png`), fullPage: true });
     return { words, model };
   };
 

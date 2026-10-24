@@ -17,6 +17,8 @@
 //
 // NO PRODUCTION CONTACT: every non-localhost request is aborted.
 
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
+
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5215';
@@ -86,7 +88,7 @@ for (const viewport of VIEWPORTS) {
   // One Log Out.
   const logOut = page.getByRole('button', { name: 'Log Out', exact: true });
   check(await logOut.count() === 1, `${where}: ${await logOut.count()} Log Out buttons`);
-  if (SHOTS) await page.screenshot({ path: `${SHOTS}/whatChanged-${viewport.name}.png`, fullPage: true });
+  if (SHOTS) await screenshotKeepingTouch(page, { path: `${SHOTS}/whatChanged-${viewport.name}.png`, fullPage: true });
 
   // With unsent work, Log Out asks.
   await logOut.click();

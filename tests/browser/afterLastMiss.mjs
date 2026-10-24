@@ -20,6 +20,7 @@
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
 const ARTIFACTS = path.join(path.dirname(fileURLToPath(import.meta.url)), 'artifacts/afterLastMiss');
@@ -134,7 +135,7 @@ for (const device of DEVICES) {
 
     await section.getByRole('button', { name: 'Show the worked solution' }).click();
     check(await section.locator('[data-practice-solution] li').count() >= 1, `${device.name}: the practice's worked solution`);
-    await page.screenshot({ path: path.join(ARTIFACTS, `${device.name}-practice.png`), fullPage: true });
+    await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `${device.name}-practice.png`), fullPage: true });
     await noSidewaysScroll(page, `${device.name} practice`);
     await section.getByRole('button', { name: 'Another one like this' }).click();
     await page.waitForTimeout(300);
@@ -174,7 +175,7 @@ for (const device of DEVICES) {
     const reasonText = await reasons.textContent();
     check(reasonText.includes(`Not ${wrongOption}: read the rule inside the bracket the other way round.`), `${device.name}: the author's reason for the option chosen`, reasonText);
     check(await reachable(page, reasons), `${device.name}: the reason can be reached`);
-    await page.screenshot({ path: path.join(ARTIFACTS, `${device.name}-choice.png`), fullPage: true });
+    await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `${device.name}-choice.png`), fullPage: true });
     await noSidewaysScroll(page, `${device.name} choice`);
     await context.close();
   }
