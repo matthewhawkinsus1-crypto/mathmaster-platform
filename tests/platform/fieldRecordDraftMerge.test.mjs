@@ -20,8 +20,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import {
+  adoptedFieldEditedAt,
   buildWorkspaceDraftPatch,
   fieldRecordDraftKind,
+  fieldRecordGroupsFor,
   mergeFieldRecordCopies,
   mergeWorkspaceDraftDocument,
   readWorkspaceDraftEntries,
@@ -180,6 +182,119 @@ test('Step Algebra: arming a tile or typing an operand does not date the work', 
   assert.deepEqual(merged.value.equation, SOLVED);
 });
 
+test('Step Algebra: prompt answers typed on two devices are kept one by one (RT22)', () => {
+  // Device A answers the first prompt.
+  const first = stampFieldRecordEdits({
+    kind: 'step-algebra',
+    previous: algebra({ equation: SOLVED, promptAnswers: { first: 'x = 3' } }),
+    previousEditedAt: { work: at(5), 'promptAnswers/first': at(8), promptAnswers: at(8) },
+    next: algebra({ equation: SOLVED, promptAnswers: { first: 'x = 4' } }),
+    edit: true,
+    now: at(10),
+  });
+  assert.deepEqual(first, { work: at(5), 'promptAnswers/first': at(10), promptAnswers: at(10) },
+    'each answer is dated on its own; the whole set keeps its latest time for older builds');
+  const server = serverDoc([{ key: ALGEBRA, value: algebra({ equation: SOLVED, promptAnswers: { first: 'x = 4' } }), savedAt: at(10), savedAtIsEdit: true, fieldEditedAt: first }]);
+  // Device B had not received it: it still holds the first answer from before,
+  // and answers the second prompt later.
+  const second = {
+    key: ALGEBRA,
+    value: algebra({ equation: SOLVED, promptAnswers: { first: 'x = 3', second: 'It checks.' } }),
+    savedAt: at(20),
+    savedAtIsEdit: true,
+    fieldEditedAt: { work: at(5), 'promptAnswers/first': at(8), 'promptAnswers/second': at(20), promptAnswers: at(20) },
+  };
+  const merged = valueOf(save(server, [second]), ALGEBRA);
+  assert.deepEqual(merged.value.promptAnswers, { first: 'x = 4', second: 'It checks.' }, 'the later second answer does not take the first back to its older text');
+  assert.equal(merged.fieldEditedAt.promptAnswers, at(20));
+});
+
+test('Step Algebra: a copy an older build dated as one set is merged with it whole, as that build merges it', () => {
+  const older = { value: algebra({ equation: SOLVED, promptAnswers: { first: 'x = 4', second: 'It checks.' } }), savedAt: at(30), savedAtIsEdit: true, fieldEditedAt: { work: at(5), promptAnswers: at(30) } };
+  const newer = { value: algebra({ equation: SOLVED, promptAnswers: { first: 'x = 5' } }), savedAt: at(20), savedAtIsEdit: true, fieldEditedAt: { work: at(5), 'promptAnswers/first': at(20), promptAnswers: at(20) } };
+  const merged = mergeFieldRecordCopies({ kind: 'step-algebra', a: older, b: newer });
+  assert.deepEqual(merged.value.promptAnswers, { first: 'x = 4', second: 'It checks.' }, 'its set is the later one');
+  assert.equal(merged.fieldEditedAt.promptAnswers, at(30));
+  const laterHere = { ...newer, savedAt: at(40), fieldEditedAt: { work: at(5), 'promptAnswers/first': at(40), promptAnswers: at(40) } };
+  assert.deepEqual(mergeFieldRecordCopies({ kind: 'step-algebra', a: older, b: laterHere }).value.promptAnswers, { first: 'x = 5' }, 'this build\'s later set, whole');
+  // The draft keeps the old rule: merged, it carries no per-answer times, and
+  // this build's next edit to it dates the set as that build would.
+  assert.deepEqual(Object.keys(merged.fieldEditedAt).filter((group) => group.startsWith('promptAnswers/')), []);
+  const stepped = { ...older.value, workSteps: [{ n: 1 }] };
+  const dated = stampFieldRecordEdits({ kind: 'step-algebra', previous: older.value, previousEditedAt: older.fieldEditedAt, next: stepped, edit: true, now: at(50) });
+  assert.deepEqual(dated, { work: at(50), promptAnswers: at(30) });
+  const answered = stampFieldRecordEdits({ kind: 'step-algebra', previous: older.value, previousEditedAt: older.fieldEditedAt, next: { ...older.value, promptAnswers: { first: 'x = 4', second: 'Yes.' } }, edit: true, now: at(50) });
+  assert.deepEqual(answered, { work: at(5), promptAnswers: at(50) });
+  assert.deepEqual(mergeFieldRecordCopies({ kind: 'step-algebra', a: { value: stepped, savedAt: at(50), savedAtIsEdit: true, fieldEditedAt: dated }, b: laterHere }).value.promptAnswers, { first: 'x = 5' });
+});
+test('Step Algebra: an older build\'s later edit is not judged by the answer times it carried unchanged (RT22 review)', () => {
+  // The server (this build) dated p1 at t20. Chromebook 1, still on an older
+  // build, kept that time as it was and dated only the set when it typed again at t40.
+  const older = { value: algebra({ equation: SOLVED, promptAnswers: { p1: 'D (latest)' } }), savedAt: at(40), savedAtIsEdit: true, fieldEditedAt: { work: at(5), 'promptAnswers/p1': at(20), promptAnswers: at(40) } };
+  const server = { value: algebra({ equation: SOLVED, promptAnswers: { p1: 'C' } }), savedAt: at(30), savedAtIsEdit: true, fieldEditedAt: { work: at(5), 'promptAnswers/p1': at(30), promptAnswers: at(30) } };
+  const merge = (a, b) => mergeFieldRecordCopies({ kind: 'step-algebra', a, b }).value.promptAnswers;
+  assert.deepEqual(merge(server, older), { p1: 'D (latest)' });
+  // Merged whole, as that build merges it: an earlier set loses to its set...
+  const typedElsewhere = { ...server, value: algebra({ equation: SOLVED, promptAnswers: { p1: 'C', p2: 'B2' } }), fieldEditedAt: { work: at(5), 'promptAnswers/p1': at(30), 'promptAnswers/p2': at(25), promptAnswers: at(30) } };
+  assert.deepEqual(merge(typedElsewhere, older), { p1: 'D (latest)' });
+  // ...and a later one wins whole.
+  const typedAfter = { ...typedElsewhere, savedAt: at(50), fieldEditedAt: { ...typedElsewhere.fieldEditedAt, 'promptAnswers/p2': at(50), promptAnswers: at(50) } };
+  assert.deepEqual(merge(typedAfter, older), { p1: 'C', p2: 'B2' });
+});
+test('Step Algebra: an answer an older build never had comes back with a later set, as it always did (RT22 re-review)', () => {
+  // This build's server copy: p1 at t5, p4 at t10.
+  const server = serverDoc([{ key: ALGEBRA, value: algebra({ equation: SOLVED, promptAnswers: { p1: 'D0', p4: 'D4' } }), savedAt: at(10), savedAtIsEdit: true, fieldEditedAt: { work: at(5), 'promptAnswers/p1': at(5), 'promptAnswers/p4': at(10), promptAnswers: at(10) } }]);
+  // An older build opened it at t5 (p1 only) and changed p1 at t20: it dates
+  // only the set, so the sets are merged whole and its later one wins.
+  const older = { key: ALGEBRA, value: algebra({ equation: SOLVED, promptAnswers: { p1: 'O1' } }), savedAt: at(20), savedAtIsEdit: true, fieldEditedAt: { work: at(5), 'promptAnswers/p1': at(5), promptAnswers: at(20) } };
+  const afterOlder = save(server, [older]);
+  assert.deepEqual(valueOf(afterOlder, ALGEBRA).value.promptAnswers, { p1: 'O1' });
+  // The first device, still showing p4, changes p1 at t25: p4 comes back with its set.
+  const later = { key: ALGEBRA, value: algebra({ equation: SOLVED, promptAnswers: { p1: 'D1', p4: 'D4' } }), savedAt: at(25), savedAtIsEdit: true, fieldEditedAt: { work: at(5), 'promptAnswers/p1': at(25), 'promptAnswers/p4': at(10), promptAnswers: at(25) } };
+  assert.deepEqual(valueOf(save(afterOlder, [later]), ALGEBRA).value.promptAnswers, { p1: 'D1', p4: 'D4' });
+});
+test('Step Algebra: a copy with upper-bound times keeps the old rule, and the later answer still wins (RT22 re-review)', () => {
+  const write = (held, next, now) => ({
+    key: ALGEBRA, value: next, savedAt: now, savedAtIsEdit: true,
+    fieldEditedAt: stampFieldRecordEdits({ kind: 'step-algebra', previous: held.value, previousEditedAt: adoptedFieldEditedAt('step-algebra', held), next, edit: true, now }),
+  });
+  const empty = { value: algebra({ equation: SOLVED }), savedAt: 0, fieldEditedAt: {} };
+  // D holds a copy saved with no answer times at t50 (p1 "at or before t50") and commits a step at t55.
+  const legacy = { key: ALGEBRA, value: algebra({ equation: SOLVED, promptAnswers: { p1: 'L1' } }), savedAt: at(50), savedAtIsEdit: true };
+  const d = write({ ...legacy, fieldEditedAt: adoptedFieldEditedAt('step-algebra', legacy) }, algebra({ equation: SOLVED, workSteps: [{ n: 1 }], promptAnswers: { p1: 'L1' } }), at(55));
+  let server = serverDoc([d]);
+  // B typed p1 at t40 and saved a step at t60: its p1 wins over the bound (B saved after it).
+  const b = write(write(empty, algebra({ equation: SOLVED, promptAnswers: { p1: 'B1' } }), at(40)), algebra({ equation: SOLVED, workSteps: [{ n: 2 }], promptAnswers: { p1: 'B1' } }), at(60));
+  server = save(server, [b]);
+  const mid = valueOf(server, ALGEBRA);
+  assert.equal(mid.value.promptAnswers.p1, 'B1');
+  assert.equal(mid.fieldEditedAt['promptAnswers/p1'], undefined, 'a draft a copy saved with no times reached keeps the old rule');
+  // C typed p1 at t45 (saved t47) and syncs late: its later answer wins.
+  const c = { ...write(empty, algebra({ equation: SOLVED, promptAnswers: { p1: 'C1' } }), at(45)), savedAt: at(47) };
+  assert.equal(valueOf(save(server, [c]), ALGEBRA).value.promptAnswers.p1, 'C1');
+});
+
+test('Step Algebra: an answer held with no time of its own marks an older build\'s copy, merged whole', () => {
+  // An older build restored this copy and never dated its set: p2 has no time.
+  const older = { value: algebra({ equation: SOLVED, promptAnswers: { p1: 'O1', p2: 'O2' } }), savedAt: at(30), savedAtIsEdit: true, fieldEditedAt: { work: at(5), 'promptAnswers/p1': at(5) } };
+  const here = { value: algebra({ equation: SOLVED, promptAnswers: { p1: 'N1' } }), savedAt: at(20), savedAtIsEdit: true, fieldEditedAt: { work: at(5), 'promptAnswers/p1': at(10), promptAnswers: at(10) } };
+  // As that build merges them: the dated set wins whole.
+  assert.deepEqual(mergeFieldRecordCopies({ kind: 'step-algebra', a: older, b: here }).value.promptAnswers, { p1: 'N1' });
+});
+
+test('Step Algebra: the page groups a draft an older build touched as one set too', () => {
+  const value = algebra({ equation: SOLVED, promptAnswers: { p1: 'O1', p2: 'O2' } });
+  assert.deepEqual([...fieldRecordGroupsFor('step-algebra', value, { work: at(5), promptAnswers: at(30) }).keys()].sort(), ['promptAnswers', 'work']);
+  assert.deepEqual([...fieldRecordGroupsFor('step-algebra', value, { work: at(5), 'promptAnswers/p1': at(30), 'promptAnswers/p2': at(20), promptAnswers: at(30) }).keys()].sort(), ['promptAnswers/p1', 'promptAnswers/p2', 'work']);
+  const storage = executableSource(readFileSync(new URL('../../src/questionDraftStorage.js', import.meta.url), 'utf8'));
+  assert.match(storage, /const incoming = fieldRecordGroupsFor\(fieldKind, value, stored\?\.fieldEditedAt\);/);
+  assert.match(storage, /fieldRecordGroupsFor\(fieldKind, storedValue, stored\?\.fieldEditedAt\)\.forEach/);
+});
+
+test('Step Algebra: a copy saved with no answer times is dated as one set, as the build that saved it dated it', () => {
+  const times = adoptedFieldEditedAt('step-algebra', { value: algebra({ equation: SOLVED, promptAnswers: { p1: '', p2: 'x = 4' } }), savedAt: at(30), savedAtIsEdit: true });
+  assert.deepEqual(times, { work: -at(30), promptAnswers: -at(30) });
+});
 test('edit times: only an edit dates an answer, and an empty new box is not an edit', () => {
   assert.deepEqual(stampFieldRecordEdits({ kind: 'multi-answer', previous: { a: '1' }, previousEditedAt: { a: at(1) }, next: { a: '2' }, edit: false, now: at(9) }), { a: at(1) });
   assert.deepEqual(stampFieldRecordEdits({ kind: 'multi-answer', previous: {}, previousEditedAt: null, next: { a: '', b: '' }, edit: true, now: at(9) }), {});
@@ -289,6 +404,70 @@ test('device: an edit landing after a settle but before the remount keeps the an
   p.input();
   p.writeQuestionDraft(MULTI, { b: '10', c: 'x+1' });
   assert.deepEqual(p.envelope(MULTI).value, { b: '10', c: 'x+1' });
+});
+
+test('device: a Step Algebra prompt answer merged in behind the page is kept by its next write (RT22)', async () => {
+  const p = await page();
+  p.readQuestionDraft(ALGEBRA, {});
+  p.input();
+  p.writeQuestionDraft(ALGEBRA, algebra({ equation: STEP_ONE, promptAnswers: { first: 'x = 4' } }));
+  const entries = readWorkspaceDraftEntries(serverDoc([{ key: ALGEBRA, value: algebra({ equation: STEP_ONE, promptAnswers: { second: 'It checks.' } }), savedAt: at(10), savedAtIsEdit: true, fieldEditedAt: { work: at(10), 'promptAnswers/second': at(10), promptAnswers: at(10) } }]));
+  p.reconcileFieldRecordDrafts(entries, OWNER);
+  // The question still shows only the first answer, and the student edits it.
+  const shown = algebra({ equation: STEP_ONE, promptAnswers: { first: 'x = 5' } });
+  p.input();
+  p.writeQuestionDraft(ALGEBRA, shown);
+  assert.deepEqual(p.envelope(ALGEBRA).value.promptAnswers, { first: 'x = 5', second: 'It checks.' });
+  assert.deepEqual(shown.promptAnswers, { first: 'x = 5' }, 'the page\'s own answers are not changed under it');
+});
+
+test('device: Step Algebra\'s own Start over drops prompt answers it never showed, here and on the server (RT22 review)', async () => {
+  const p = await page();
+  p.readQuestionDraft(ALGEBRA, {});
+  p.input();
+  p.writeQuestionDraft(ALGEBRA, algebra({ equation: STEP_ONE, promptAnswers: { p1: 'x = 4' } }));
+  // Another device's answer to p2 is merged in behind the page.
+  const elsewhere = { key: ALGEBRA, value: algebra({ equation: STEP_ONE, promptAnswers: { p2: 'B2' } }), savedAt: at(20), savedAtIsEdit: true, fieldEditedAt: { work: at(10), 'promptAnswers/p2': at(20), promptAnswers: at(20) } };
+  p.reconcileFieldRecordDrafts(readWorkspaceDraftEntries(serverDoc([elsewhere])), OWNER);
+  assert.deepEqual(p.envelope(ALGEBRA).value.promptAnswers, { p1: 'x = 4', p2: 'B2' });
+  // Start over in the tool (StepByStepAlgebraCore resetQuestionWork): the
+  // reset first, then the cleared workspace.
+  p.input();
+  p.writeQuestionDraft(ALGEBRA, null, { edit: true });
+  p.writeQuestionDraft(ALGEBRA, algebra({ equation: STEP_ONE }));
+  const mine = p.envelope(ALGEBRA);
+  assert.deepEqual(mine.value.promptAnswers, {}, 'the answer the page never showed is not put back');
+  assert.ok(mine.resetAt > 0);
+  // The server, which still holds p2, takes the reset too.
+  const server = save(serverDoc([elsewhere]), [{ key: ALGEBRA, value: mine.value, savedAt: mine.savedAt, savedAtIsEdit: true, fieldEditedAt: mine.fieldEditedAt, resetAt: mine.resetAt }]);
+  assert.deepEqual(valueOf(server, ALGEBRA).value.promptAnswers ?? {}, {});
+});
+
+test('Step Algebra\'s Start over writes the reset before the cleared workspace (RT22 review)', () => {
+  const core = executableSource(readFileSync(new URL('../../src/StepByStepAlgebraCore.jsx', import.meta.url), 'utf8'));
+  const reset = region(core, 'const resetQuestionWork = () => {', 'setMessage(', 'the in-tool Start over');
+  assert.match(reset, /if \(!confirmed\) return;\s*writeQuestionDraft\(localDraftKey, null, \{ edit: true \}\);\s*setEquation\(pristineEquation\);/);
+});
+
+test('device: a write the device could not store leaves the page\'s view of the draft as it was (RT22 re-review)', async () => {
+  let refuse = false;
+  const storage = new MemoryStorage();
+  const setItem = storage.setItem.bind(storage);
+  storage.setItem = (key, value) => { if (refuse && key === MULTI) throw new Error('QuotaExceededError'); setItem(key, value); };
+  const p = await page(storage);
+  p.readQuestionDraft(MULTI, {});
+  p.input();
+  p.writeQuestionDraft(MULTI, { a: '1', b: '2' });
+  // The page removes b, but the device is full: the stored copy still has it.
+  refuse = true;
+  p.input();
+  p.writeQuestionDraft(MULTI, { a: '1' });
+  assert.deepEqual(p.envelope(MULTI).value, { a: '1', b: '2' });
+  // Space again: the next write is not taken to hold b for a page that never saw it.
+  refuse = false;
+  p.input();
+  p.writeQuestionDraft(MULTI, { a: '1' });
+  assert.deepEqual(p.envelope(MULTI).value, { a: '1' });
 });
 
 test('device: two devices\' steps both survive the restore, not only the server\'s merge', async () => {

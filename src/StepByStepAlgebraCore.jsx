@@ -1372,6 +1372,10 @@ export default function StepByStepAlgebra({
     const confirmed = typeof window === 'undefined' || window.confirm('Start this problem over? Your current workspace work will be cleared, but your tries will not change.');
     if (!confirmed) return;
 
+    // A reset first (a tombstone, as the question's own Start over writes):
+    // every answer dated before it is gone on every device, including a
+    // prompt answer typed elsewhere that this page never showed (RT22).
+    writeQuestionDraft(localDraftKey, null, { edit: true });
     setEquation(pristineEquation);
     setCommittedHistory([]);
     setWorkSteps([]);
