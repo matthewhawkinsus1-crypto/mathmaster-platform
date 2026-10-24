@@ -294,7 +294,9 @@ const tapGraph = async (student, view, point) => {
 const cornerOf = (view) => ({ x: view.xMin + 0.02 * (view.xMax - view.xMin), y: view.yMax - 0.02 * (view.yMax - view.yMin) });
 
 const foundCount = (student) => student.page.locator('.mm-rush-found').count();
-const doneCount = async (student) => Number((await student.page.locator('.mm-rush-done').innerText()).replace(/\D+/g, '')) || 0;
+// The count on screen: `.mm-rush-done` also holds a screen-reader sentence
+// with the same number ("2 graphs completed"), which read whole gave "22".
+const doneCount = async (student) => Number((await student.page.locator('.mm-rush-done [aria-hidden="true"]').innerText()).replace(/\D+/g, '')) || 0;
 
 const waitForQuestionChange = async (student, from, timeout = 4_000) => {
   try {
@@ -722,6 +724,12 @@ await run('correct-count-devices', async () => {
   // Students are in, so cancelling asks first.
   await teacher.page.getByRole('button', { name: 'Cancel Session' }).first().click();
   await teacher.page.getByRole('alertdialog').getByRole('button', { name: 'Cancel Session' }).click();
+  // The cancel has to reach the server before the pages close: a lobby left
+  // open stays the teacher's active room, and the next scenario's teacher
+  // page opened it instead of "Create a challenge".
+  const cancelledBy = Date.now() + 15_000;
+  while (Date.now() < cancelledBy && (await roomOf(nextRoom)).status === 'lobby') await wait(300);
+  check(S, (await roomOf(nextRoom)).status !== 'lobby', 'the cancelled game stayed in its lobby');
   for (const handle of [teacher, ...students]) check(S, handle.errors.length === 0, `console errors on ${handle.device}: ${handle.errors.slice(0, 3).join(' | ')}`);
   await Promise.all([teacher, ...students].map((handle) => handle.context.close()));
 });
