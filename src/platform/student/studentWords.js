@@ -99,7 +99,8 @@ export const CLOSED_WORK = Object.freeze({
   tabLabel: 'Closed — try again',
   // The workspace banner's heading (the work in front of the student now) and sentence.
   bannerTitle: 'Closed — practice here earns no credit',
-  bannerText: 'Your grade stays as it is. You can keep practicing with feedback; nothing here changes your grade. Your practice is saved, and your teacher can see it.',
+  // The copy opens empty, so it says the graded answers are kept (NV13).
+  bannerText: 'Your grade stays as it is, and your graded answers are kept: this is a fresh copy to practice on. Nothing here changes your grade. Your practice is saved, and your teacher can see it.',
   // The button that opens it again.
   tryAgain: 'Try it again — no credit',
   // Beside the grade it keeps.

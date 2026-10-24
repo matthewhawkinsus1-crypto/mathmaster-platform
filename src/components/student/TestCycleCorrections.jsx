@@ -240,21 +240,23 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
       {/* The runtime draws its own card (a field item) or the tool's own
           workspace (a Rich Tool item); a second card around it would nest.
           It waits behind the reflection, already loading. */}
-      {!askReflection && <section aria-label="Practice question" style={{ minWidth: 0 }}>
-        {!question ? <p style={{ ...card, color: 'var(--mm-text-muted)' }}>Preparing a practice question…</p> : (
+      {/* "Practice" is the lesson's Practice section only (D9, NV13): these are
+          the questions Corrections asks. */}
+      {!askReflection && <section aria-label="Corrections question" style={{ minWidth: 0 }}>
+        {!question ? <p style={{ ...card, color: 'var(--mm-text-muted)' }}>Preparing your next question…</p> : (
           <>
             <RichQuestionRuntime
               key={question.questionInstanceId}
               question={question}
               mode="corrections"
               // The student's own plan, for the corrections activity: their
-              // supports reach these practice questions and Read aloud and
+              // supports reach these questions and Read aloud and
               // Translate reach the worked solution (student pass 3, H-6).
               studentSupportProfile={studentSupportProfile}
               draftKey={secureItemDraftKey({ surface: 'corrections', sessionId: assignmentId, questionInstanceId: question.questionInstanceId })}
               busy={busy}
               closed={questionClosed}
-              closedMessage="This practice question is closed. Try a fresh one below."
+              closedMessage="This question is closed. Try a fresh one below."
               feedback={feedback}
               attempt={{ used: attemptsUsed, allowed: Number(question.attemptsAllowed) || 3 }}
               onSubmit={submit}
@@ -269,7 +271,7 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
                 {questionClosed && (
                   <div style={{ marginTop: 10 }}>
                     <button type="button" autoFocus onClick={() => loadQuestion(activeTarget.correctionId)} style={{ minHeight: 44, padding: '9px 15px', border: 0, borderRadius: 8, background: 'var(--mm-primary)', color: 'var(--mm-on-primary)', fontWeight: 900, cursor: 'pointer' }}>
-                      Next practice question
+                      Try a fresh question
                     </button>
                   </div>
                 )}

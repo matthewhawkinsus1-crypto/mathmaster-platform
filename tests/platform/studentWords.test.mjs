@@ -98,6 +98,9 @@ test('NAV-17: Home, Grades, Assignments and the workspace take the closed-work a
   const banner = region(app, '{lifecycle.isPracticeOnly && !preview && (', '</section>', 'closed-work banner');
   assert.match(banner, /\{CLOSED_WORK\.bannerTitle\}/);
   assert.match(banner, /\{CLOSED_WORK\.bannerText\}/);
+  // The closed copy opens empty: the banner says the graded answers are kept,
+  // so a blank page does not read as lost work (NV13).
+  assert.match(CLOSED_WORK.bannerText, /your graded answers are kept: this is a fresh copy to practice on/);
 });
 
 /* ---- old words are gone from student screens ------------------------------ */

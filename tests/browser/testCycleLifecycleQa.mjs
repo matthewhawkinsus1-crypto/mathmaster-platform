@@ -501,7 +501,7 @@ try {
     // eslint-disable-next-line no-await-in-loop
     await wait(600);
     // eslint-disable-next-line no-await-in-loop
-    const next = student.getByRole('button', { name: 'Next practice question' });
+    const next = student.getByRole('button', { name: 'Try a fresh question' });
     // eslint-disable-next-line no-await-in-loop
     if (await next.isVisible().catch(() => false)) await next.click();
     // eslint-disable-next-line no-await-in-loop

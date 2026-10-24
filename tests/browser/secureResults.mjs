@@ -422,7 +422,7 @@ for (const device of DEVICES) {
     const skipReflection = page.getByRole('button', { name: 'Skip for now' });
     if (await skipReflection.first().waitFor({ timeout: 5000 }).then(() => true).catch(() => false)) await skipReflection.first().click();
     // The shared runtime's answer field: the math editor for a number, or a text box.
-    const answerField = page.locator('section[aria-label="Practice question"] [data-secure-answer-editor]').first();
+    const answerField = page.locator('section[aria-label="Corrections question"] [data-secure-answer-editor]').first();
     await answerField.waitFor({ state: 'visible', timeout: 15000 });
     const editorKind = await answerField.getAttribute('data-secure-answer-editor');
     const readAnswer = () => (editorKind === 'math'
@@ -431,7 +431,7 @@ for (const device of DEVICES) {
     const heading = await text(page.locator('[data-corrections-heading]'));
     check(heading === 'Solving linear equations', at('corrections: headed by the skill, not its code'), heading);
     // Corrections' own controls; the answer editor's keypad is certified with the editor.
-    await layout(page, at('corrections'), ['[data-test-cycle-corrections] > section:first-child button', '[data-test-cycle-corrections] > div:last-child button', 'section[aria-label="Practice question"] form button[type="submit"]']);
+    await layout(page, at('corrections'), ['[data-test-cycle-corrections] > section:first-child button', '[data-test-cycle-corrections] > div:last-child button', 'section[aria-label="Corrections question"] form button[type="submit"]']);
     // An answer typed and not yet checked, then the Test review from the bottom of the page.
     if (editorKind === 'math') {
       await answerField.locator('math-field').click();

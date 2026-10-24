@@ -99,7 +99,7 @@ test('the screen asks first, then shows the question; a reflected skill goes str
     assert.match(first, /The mistake named above/);
     assert.match(first, /type="radio"/);
     assert.match(first, /Skip for now/);
-    assert.doesNotMatch(first, /aria-label="Practice question"/, 'the question waits behind the reflection');
+    assert.doesNotMatch(first, /aria-label="Corrections question"/, 'the question waits behind the reflection');
     assert.match(first, /data-corrections-pattern=""/, 'the named pattern is on the same screen');
 
     // A skill already under way is not asked again (another device, say).
@@ -107,7 +107,7 @@ test('the screen asks first, then shows the question; a reflected skill goes str
       assignmentId: 'A1', corrections: { ...corrections, targets: [{ ...corrections.targets[0], requiredCorrectResponses: 2, correctResponses: 1 }] },
     }));
     assert.doesNotMatch(underWay, /data-corrections-reflection=""/);
-    assert.match(underWay, /aria-label="Practice question"/);
+    assert.match(underWay, /aria-label="Corrections question"/);
 
     const local = memoryStorage();
     const session = memoryStorage();
@@ -115,7 +115,7 @@ test('the screen asks first, then shows the question; a reflected skill goes str
     globalThis.window = { localStorage: local, sessionStorage: session };
     const after = render();
     assert.doesNotMatch(after, /data-corrections-reflection=""/);
-    assert.match(after, /aria-label="Practice question"/);
+    assert.match(after, /aria-label="Corrections question"/);
     assert.match(after, /<strong>Your plan:<\/strong> Next time, I will check for that mistake by testing a point\./);
   } finally {
     globalThis.window = previous;

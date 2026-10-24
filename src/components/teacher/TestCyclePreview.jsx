@@ -219,7 +219,7 @@ const SecureItemsPreview = ({ assignment, candidate = null, stage, accommodation
               draftKey={secureItemDraftKey({ surface: 'preview', sessionId: previewDraftSession(previewKey), questionInstanceId: `${draw}-${item.ordinal}-corrections` })}
               busy={checking}
               closed={Boolean(itemCorrection && (itemCorrection.isCorrect || itemCorrection.attemptsUsed >= 3))}
-              closedMessage="This practice question is closed. A student would get a fresh parallel question."
+              closedMessage="This question is closed. A student would get a fresh parallel question."
               feedback={itemCorrection}
               attempt={{ used: itemCorrection?.attemptsUsed || 0, allowed: 3 }}
               executionScope="teacherPreview"
