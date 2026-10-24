@@ -16,12 +16,16 @@ stands, so a later audit does not raise it again.
 | AX14 | Graph Story sketch is pointer-only. | Build a keyboard route (points joined in order). | `b303105b` |
 | CI03 | Main CI takes about 45 minutes. | Split the release-tier certification job first; consider GitHub Pro only if queues stay long. | `e274e7ff` |
 | CT23 | A TSIA2 item shared an ACT prompt, so the TSIA2 release check was red. | Reword the TSIA2 item. | `c8eeb34d` |
+| FB01 | 23 tool items had no "Let's back up" step. | Do it: all 28 such items (the 23 plus 5 added since) get one, built from the item at render time. | `d1d66cc1` |
+| FB05 | One-try choice items: say "one try" and author a reason for each option. | Do it: all 60 one-try choice items in the lessons have a reason per option, and the AI contract asks for them. | `1c25eb95` |
 | FB11 | Hint rules (W6 decision 9) and 28 hidden teacher hints. | Accept the rules as built; reword the hidden hints. All 31 the guard hid are reworded. | `c74cd4a6` |
 | FB20 | Recovery practice try count; Guided Notes default for Practice. | The real try count was already built. Guided Notes stays off by default in Practice. | `872d92c6` |
 | FB23 | Say "not in lowest terms" while a fraction item is open? | Yes: it names the form, not a move. | `3de6afa2` |
 | GR01 | Number boxes accepted arithmetic ("64 − 6" for 58). | Refuse arithmetic unless the item opts in. | `61d29a2e`, `4aa10f68` |
 | GR13 | Mixed numbers like 3½. | Keep accepting them; a mixed number with a reduced fraction is in lowest terms; a mixed-number key asks for one. | `93890e34` |
 | GR18 | Vertex and center keyed for every function type. | Key "vertex" only for quadratics and absolute value, "center" only for rational, cubic and cube-root graphs. | `98918b7f` |
+| GR21 | Ten Algebra I fields re-asked at `dc2ae1ad` never moved `familyVersion`. | Do it: their seven families move to version 4. | `633496d4` |
+| GR22 | Re-grade answers marked wrong under the old graders. | Run the read-only count, then re-grade upward only. An operator script does the upward step; it has not been run. | `fa4208ea` |
 | GR29 | Standard-form multiples of the key were graded wrong. | Accept the multiple, and tell the student to divide out the common factor. | `82080274`, `2febe06b` |
 | LC05 | Should the server end abandoned Live Challenge games? | Yes, for games that write no grade, after 30 minutes with no host heard. | `b7015ddb` |
 | MP19 | Path choice answers marked wrong before hotfix #456. | Remove them from mastery as not attempted, after the read-only report. An operator script does this; it has not been run. | `97716273` |
@@ -70,11 +74,7 @@ confirms each as it stands. Any of them can still be changed later.
 
 | Id | Question | Decision |
 | --- | --- | --- |
-| FB01 | 23 tool items have no "Let's back up" step. | Do it. |
-| FB05 | One-try choice items: say "one try" and author a reason for each option. | Do it. |
 | GR03 | Accept any equation of the line when the field names no form. | Yes for any field that names no form; change older lessons only after an equivalence report. |
-| GR21 | Ten Algebra I fields re-asked at `dc2ae1ad` never moved `familyVersion`. | Do it. |
-| GR22 | Re-grade answers marked wrong under the old graders. | Run the read-only count, then re-grade upward only. |
 | TC15 | The "fewer items" accommodation is not applied on secure Test Cycles. | A teacher-chosen subset is the simplest version. |
 
 ## Needs the owner
