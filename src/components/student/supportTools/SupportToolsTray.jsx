@@ -7,7 +7,7 @@ import { LANGUAGE_NAMES, resolveTranslation } from '../../../platform/language/t
 import { loadMathGlossary } from '../../../platform/language/mathVocabulary.js';
 import { speakAloud, speechAvailable, stopSpeaking } from '../../../platform/language/speechText.js';
 import { questionReadingText } from '../../../platform/language/questionReading.js';
-import { secureVocabularyEntries } from '../../../platform/assessment/secureSupportPanels.js';
+import { secureVocabularyEntries, secureVocabularyLabels } from '../../../platform/assessment/secureSupportPanels.js';
 
 /*
  * THE SUPPORT TOOLS TRAY — loaded only for a student entitled to a language
@@ -85,7 +85,9 @@ export function TranslatePanel({ tool }) {
  * glossary's worked example. On a secure test item it is false (RichQuestion-
  * Runtime's tray entitlement): an example applies the word, and can apply it
  * to exactly what the item asks, so the terms come through the same
- * example-free helper the secure field item's tray uses.
+ * example-free helper the secure field item's tray uses. There the tool's own
+ * words (`labelTermIds`) follow as labels: each word, and its Spanish word,
+ * with no definition, which would walk through the tool's method (TS07).
  */
 function VocabularyPanel({ tool, language, onFailed, showExamples = true }) {
   const [glossary, setGlossary] = useState(null);
@@ -102,21 +104,41 @@ function VocabularyPanel({ tool, language, onFailed, showExamples = true }) {
   if (failed) return <div role="status" data-support-panel="vocabulary">Vocabulary could not load. Your teacher can see this.</div>;
   if (!glossary) return <div role="status" data-support-panel="vocabulary">Loading vocabulary…</div>;
   if (!showExamples) {
+    const entries = secureVocabularyEntries(glossary, tool.termIds, { language });
+    // A secure tool item's own words, as labels with no definition (TS07).
+    const labels = secureVocabularyLabels(glossary, tool.labelTermIds, { language });
     return (
-      <dl data-support-panel="vocabulary" data-vocabulary-examples="none" style={{ margin: 0, display: 'grid', gap: 8 }}>
-        {secureVocabularyEntries(glossary, tool.termIds, { language }).map((entry) => (
-          <div key={entry.id} data-vocabulary-term={entry.id}>
-            <dt style={{ fontWeight: 900 }}>
-              {entry.term}
-              {entry.translation && <span lang={entry.translation.language} style={{ fontWeight: 700, color: 'var(--mm-text-muted)' }}> · {entry.translation.term}</span>}
-            </dt>
-            <dd style={{ margin: '2px 0 0' }}>
-              <div>{entry.definition}</div>
-              {entry.translation && <div lang={entry.translation.language} style={{ color: 'var(--mm-text)' }}>{entry.translation.definition}</div>}
-            </dd>
+      <div data-support-panel="vocabulary" data-vocabulary-examples="none" style={{ display: 'grid', gap: 10 }}>
+        {entries.length ? (
+          <dl style={{ margin: 0, display: 'grid', gap: 8 }}>
+            {entries.map((entry) => (
+              <div key={entry.id} data-vocabulary-term={entry.id}>
+                <dt style={{ fontWeight: 900 }}>
+                  {entry.term}
+                  {entry.translation && <span lang={entry.translation.language} style={{ fontWeight: 700, color: 'var(--mm-text-muted)' }}> · {entry.translation.term}</span>}
+                </dt>
+                <dd style={{ margin: '2px 0 0' }}>
+                  <div>{entry.definition}</div>
+                  {entry.translation && <div lang={entry.translation.language} style={{ color: 'var(--mm-text)' }}>{entry.translation.definition}</div>}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+        {labels.length ? (
+          <div data-vocabulary-labels="">
+            <p style={{ margin: 0, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)' }}>Words this tool uses</p>
+            <ul style={{ margin: '4px 0 0', paddingLeft: 18, display: 'grid', gap: 2 }}>
+              {labels.map((entry) => (
+                <li key={entry.id} data-vocabulary-label={entry.id} style={{ fontWeight: 700 }}>
+                  {entry.term}
+                  {entry.translation && <span lang={entry.translation.language} style={{ color: 'var(--mm-text-muted)' }}> · {entry.translation.term}</span>}
+                </li>
+              ))}
+            </ul>
           </div>
-        ))}
-      </dl>
+        ) : null}
+      </div>
     );
   }
   const spanish = isSpanish(language);

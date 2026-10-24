@@ -265,9 +265,10 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
  * On a secure Rich Tool item the engine's own support tray offers what a
  * secure item allows — Read aloud, Translate and Vocabulary, from the
  * student's own plan for a test — and nothing else: no Break it down and no
- * Help me say it. Vocabulary lists the PROMPT's words only
+ * Help me say it. Vocabulary defines the PROMPT's words only
  * (`promptTermsOnly`: a tool's own word list — distribute, elimination,
- * shade — defines its method), each with its definition and WITHOUT the
+ * shade — defines its method, so those words show as labels with no
+ * definition, TS07), each with its definition and WITHOUT the
  * glossary's worked example (`showExamples: false`): an example applies the
  * word, and can apply it to exactly what the item asks. Both match the secure
  * field item's tray. A student with a glossary accommodation kept the terms

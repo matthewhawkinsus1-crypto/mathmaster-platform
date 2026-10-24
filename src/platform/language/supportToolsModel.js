@@ -51,11 +51,25 @@ export const supportToolsForItem = ({ entitlement, prompt = '', question = null,
     const base = { tool, supportId, label: studentFacingLabel(supportId) || supportId, ...(universal ? { universal: true } : {}) };
     if (tool === SUPPORT_TOOL.TRANSLATE) return { ...base, state: TOOL_STATE.PENDING, language: entitlement.language };
     if (tool === SUPPORT_TOOL.VOCABULARY) {
-      // A secure test item lists the PROMPT's words only (`promptTermsOnly`):
+      // A secure test item DEFINES the PROMPT's words only (`promptTermsOnly`):
       // a tool's own list — distribute, elimination, shade — defines its
       // method, which a test must not hand over (student pass 3, H-16 review).
-      const termIds = vocabularyForContext({ text, toolType: entitlement.promptTermsOnly ? '' : toolType });
-      return { ...base, state: termIds.length ? TOOL_STATE.AVAILABLE : TOOL_STATE.NOT_APPLICABLE, termIds, reason: termIds.length ? null : 'no-vocabulary' };
+      // The tool's words still show there, as labels with no definition
+      // (`labelTermIds`, TS07): the words practice lists, so a student can
+      // read the controls. A label says what a word is called, never how to
+      // use it.
+      const listed = vocabularyForContext({ text, toolType });
+      const promptWords = entitlement.promptTermsOnly ? vocabularyForContext({ text }) : listed;
+      const termIds = listed.filter((id) => promptWords.includes(id));
+      const labelTermIds = listed.filter((id) => !promptWords.includes(id));
+      const any = termIds.length + labelTermIds.length > 0;
+      return {
+        ...base,
+        state: any ? TOOL_STATE.AVAILABLE : TOOL_STATE.NOT_APPLICABLE,
+        termIds,
+        ...(labelTermIds.length ? { labelTermIds } : {}),
+        reason: any ? null : 'no-vocabulary',
+      };
     }
     if (tool === SUPPORT_TOOL.READ_ALOUD) {
       if (!text.trim()) return { ...base, state: TOOL_STATE.NOT_APPLICABLE, reason: 'nothing-to-read' };
@@ -110,7 +124,8 @@ export const toolEvidence = (tool, { surface = 'assignment', toolType = null } =
   if (tool.state === TOOL_STATE.AVAILABLE) {
     const details = { ...common, ...language, deliveryMode: 'on-demand' };
     if (tool.tool === SUPPORT_TOOL.TRANSLATE) Object.assign(details, { provider: tool.provider || null, coverage: tool.coverage || null });
-    if (tool.tool === SUPPORT_TOOL.VOCABULARY) details.itemCount = (tool.termIds || []).length;
+    // Every word the panel lists, a label without a definition included (TS07).
+    if (tool.tool === SUPPORT_TOOL.VOCABULARY) details.itemCount = (tool.termIds || []).length + (tool.labelTermIds || []).length;
     if (tool.tool === SUPPORT_TOOL.SAY_IT) details.itemCount = (tool.frames || []).length;
     // Full and partial translation are different facts about an assignment.
     return { supportId: tool.supportId, eventType: 'available', details, variant: tool.tool === SUPPORT_TOOL.TRANSLATE ? tool.coverage || null : null };

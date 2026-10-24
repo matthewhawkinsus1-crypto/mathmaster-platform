@@ -288,6 +288,10 @@ const supportsJourney = async (context, device) => {
     // define its method (H-16 review B2).
     const termIds = await page.locator('[data-support-panel="vocabulary"] [data-vocabulary-term]').evaluateAll((nodes) => nodes.map((node) => node.dataset.vocabularyTerm));
     check(!termIds.includes('boundary'), label('only the prompt\'s words, not the tool\'s'), termIds.join(', '));
+    // The tool's own words are there as labels, with no definition (TS07).
+    const labelIds = await page.locator('[data-support-panel="vocabulary"] [data-vocabulary-label]').evaluateAll((nodes) => nodes.map((node) => node.dataset.vocabularyLabel));
+    check(labelIds.includes('boundary'), label('the tool\'s words are listed as labels'), labelIds.join(', '));
+    check(!/separates the solutions/i.test(panel) && /boundary line/i.test(panel), label('a label has no definition'), panel.slice(0, 200));
     check(!/Example/i.test(panel), label('no worked example on a test'), panel.slice(0, 200));
     check(/·/.test(panel), label('the Spanish term is beside the English one'), panel.slice(0, 120));
     // A definition may use the word "solution"; what matters is that none

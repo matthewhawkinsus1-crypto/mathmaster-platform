@@ -90,13 +90,50 @@ test('a secure tool item\'s Vocabulary lists the prompt\'s words, never the tool
   assert.ok(supportToolsForItem({ entitlement: secure, prompt: 'Graph $y<2x-3$.', toolType: 'graphing2' }).tools[0].termIds.includes('graph'));
 });
 
+test('a secure tool item lists the tool\'s own words as labels, without their definitions (TS07)', async () => {
+  const { TOOL_STATE, supportToolsForItem, toolEvidence } = await import('../../src/platform/language/supportToolsModel.js');
+  const secure = { tools: ['vocabulary'], language: null, showExamples: false, promptTermsOnly: true };
+  const practice = { tools: ['vocabulary'], language: null };
+  for (const [prompt, toolType, method] of [
+    ['Solve $3(x+2)=18$.', 'stepAlgebra', 'distribute'],
+    ['Solve the system $x+y=5$ and $x-y=1$.', 'systemsWorkspace', 'elimination'],
+    ['Graph $y<2x-3$.', 'graphing2', 'shade'],
+  ]) {
+    const onTest = supportToolsForItem({ entitlement: secure, prompt, toolType }).tools[0];
+    const onPractice = supportToolsForItem({ entitlement: practice, prompt, toolType }).tools[0];
+    // The words practice lists: the prompt's defined, the tool's as labels.
+    assert.deepEqual([...onTest.termIds, ...onTest.labelTermIds], onPractice.termIds, toolType);
+    assert.ok(onTest.labelTermIds.includes(method) && !onTest.termIds.includes(method), `${toolType}: ${method} is a label, not defined`);
+    assert.equal(onPractice.labelTermIds, undefined, `${toolType}: practice defines every word`);
+    assert.equal(toolEvidence(onTest).details.itemCount, onPractice.termIds.length, `${toolType}: the evidence counts every word listed`);
+  }
+  // A tool item whose prompt names no glossary word still offers the tool's words.
+  const bare = supportToolsForItem({ entitlement: secure, prompt: 'Find $x$.', toolType: 'stepAlgebra' }).tools[0];
+  assert.equal(bare.state, TOOL_STATE.AVAILABLE);
+  assert.deepEqual(bare.termIds, []);
+  assert.ok(bare.labelTermIds.includes('distribute'));
+  // A field item names no tool: only the prompt's words.
+  assert.equal(supportToolsForItem({ entitlement: secure, prompt: 'Graph $y<2x-3$.', toolType: '' }).tools[0].labelTermIds, undefined);
+  // The panel draws a label as the word, never its definition.
+  const tray = componentSource('src/components/student/supportTools/SupportToolsTray.jsx');
+  assert.match(tray, /^import \{ secureVocabularyEntries, secureVocabularyLabels \} from '\.\.\/\.\.\/\.\.\/platform\/assessment\/secureSupportPanels\.js';$/m);
+  const panel = region(tray, 'function VocabularyPanel(', '\n}\n', 'VocabularyPanel');
+  const secureBranch = region(panel, 'if (!showExamples) {', '\n  }\n', 'the example-free branch');
+  assert.match(secureBranch, /const labels = secureVocabularyLabels\(glossary, tool\.labelTermIds, \{ language \}\);/);
+  const labelList = region(secureBranch, '{labels.length ? (', ') : null}', 'the labels');
+  assert.match(labelList, /\{labels\.map\(\(entry\) => \(\s*<li key=\{entry\.id\} data-vocabulary-label=\{entry\.id\}/);
+  assert.doesNotMatch(executableSource(labelList), /definition|example/i);
+});
+
 test('the engine tray\'s Vocabulary panel leaves the examples out when the entitlement says so (H-16)', () => {
   const tray = componentSource('src/components/student/supportTools/SupportToolsTray.jsx');
   assert.match(tray, /<VocabularyPanel tool=\{open\} language=\{entitlement\.language\} showExamples=\{entitlement\.showExamples !== false\}/);
   const panel = region(tray, 'function VocabularyPanel(', '\n}\n', 'VocabularyPanel');
   const secure = region(panel, 'if (!showExamples) {', '\n  }\n', 'the example-free branch');
-  // The same pure helper the secure field tray uses, which returns no example.
-  assert.match(secure, /secureVocabularyEntries\(glossary, tool\.termIds, \{ language \}\)\.map/);
+  // The same pure helper the secure field tray uses, which returns no example,
+  // is the list the branch draws its defined terms from.
+  assert.match(secure, /const entries = secureVocabularyEntries\(glossary, tool\.termIds, \{ language \}\);/);
+  assert.match(secure, /\{entries\.map\(\(entry\) => \(\s*<div key=\{entry\.id\} data-vocabulary-term=\{entry\.id\}>/);
   assert.doesNotMatch(executableSource(secure), /\.example\b|Example:/);
   assert.ok(panel.indexOf('if (!showExamples) {') < panel.indexOf('entry.example'), 'the example-free branch returns before any example is drawn');
 });
