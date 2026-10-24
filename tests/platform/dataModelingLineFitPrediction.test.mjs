@@ -79,3 +79,19 @@ test('line-fit regression result is student-triggered and can populate the activ
   assert.match(source, /setM\(round\(regression\.m, 3\)\)/);
   assert.match(source, /setB\(round\(regression\.b, 3\)\)/);
 });
+
+test('the lab\'s final action waits for every part the question asks for (TL08)', async () => {
+  const { gradeToolCheck } = await import('../../src/tools/shared/sharedToolGrading.js');
+  const question = { type: 'dataModeling', toolId: 'dataModeling', mode: 'lineFit', predictionX: 7, points: [[1, 0], [2, 5], [3, 11], [4, 17], [5, 23]] };
+  const half = gradeToolCheck(dataModelingGrader, question, { m: 6, b: -7, predictionY: '' });
+  assert.equal(half.isComplete, false, 'a fit without its prediction is not finished');
+  assert.deepEqual(half.parts.filter((part) => !part.isComplete).map((part) => part.id), ['prediction']);
+  assert.equal(gradeToolCheck(dataModelingGrader, question, { m: 6, b: -7, predictionY: '35' }).isComplete, true);
+
+  const source = executableSource(componentSource('src/tools/dataModeling/DataModelingLab.jsx'));
+  const gate = region(source, 'const completeness = useMemo(() => {', '}, [questionData, workKey]);', 'the completeness gate');
+  assert.match(gate, /const result = gradeToolCheck\(dataModelingGrader, questionData, work\);\s*return \{\s*ready: result\.graded && result\.isComplete,/);
+  assert.match(region(source, 'const check = () => {', '\n  };', 'Check handler'), /^const check = \(\) => \{\s*if \(!completeness\.ready\) return;/);
+  assert.match(source, /onClick=\{check\} disabled=\{!completeness\.ready\}/, 'the button is off until then');
+  assert.match(source, /Still to do: \$\{completeness\.pending\.join\(', '\)\}\./, 'and says what is left');
+});

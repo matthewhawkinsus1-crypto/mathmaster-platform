@@ -311,9 +311,9 @@ const gradeMode = (mode) => (question, work, options = {}) => {
     // Complete: every graded input present, and not the untouched lab.
     isComplete: parts.every((part) => part.isComplete) && !untouched,
     // The lab's verdict: correct when every part is, scored as the share of
-    // correct parts. Completeness is reported, not required — an explicit
-    // Check on a half-finished (or untouched) lab is still marked, while a
-    // deadline submits only complete work.
+    // correct parts. Completeness is reported, not required here: the lab's
+    // final action waits for it (TL08), a deadline submits only complete
+    // work, and work that arrives half finished is still marked.
     isCorrect: correctCount === parts.length,
     score: correctCount / parts.length,
   });
