@@ -156,7 +156,9 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
   const [testReviewReturn, setTestReviewReturn] = useState('card');
   const [loading, setLoading] = useState(true);
   // What the last failed load said, in a student's words (NAV-11), and how
-  // many loads have failed in a row (Try again stops being offered after two).
+  // many loads have failed in a row (Try again stops being offered after two,
+  // unless the request got no answer at all: a dropped connection is retried
+  // for as long as the student wants, TC17).
   const [error, setError] = useState(null);
   const failedLoadsRef = useRef(0);
   const modeRef = useRef(mode);

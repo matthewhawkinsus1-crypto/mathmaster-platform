@@ -40,10 +40,48 @@ test('NAV-11: a refusal keeps the server\'s student sentence and offers no retry
   assert.equal(studentSafeSentence('That code has expired. Ask your teacher for the current code.'), 'That code has expired. Ask your teacher for the current code.');
 });
 
-test('NAV-11: after two failed tries, Try again stops and the student is told it is not theirs to fix', () => {
-  const third = describeStudentError({ code: 'functions/internal', message: 'internal' }, { level: LEVEL.TEST_CYCLE, retryCount: 2 });
-  assert.equal(third.retry, false);
-  assert.match(third.exhaustedMessage, /not something you did/);
+test('NAV-11: after two failed tries, an error that keeps coming back stops offering Try again and the student is told it is not theirs to fix', () => {
+  // The server answered something we cannot use, or the program failed: the
+  // same button gives the same error, so it is not offered a third time.
+  for (const error of [
+    new TypeError('e.map is not a function'),
+    { code: 'functions/data-loss', message: 'data-loss' },
+    // A retryable refusal and an answer with a sentence are answers, not a dropped connection.
+    { code: 'functions/failed-precondition', message: 'Your class check did not finish. Try again in a moment.', details: { retry: true } },
+    { code: 'functions/deadline-exceeded', message: 'Time was up before your answer arrived, so it was not counted.', details: { retry: true } },
+    // The Functions SDK's own sentence for a response it could not read.
+    { code: 'functions/internal', message: 'Response is not valid JSON object.' },
+  ]) {
+    const first = describeStudentError(error, { level: LEVEL.TEST_CYCLE, retryCount: 0 });
+    const second = describeStudentError(error, { level: LEVEL.TEST_CYCLE, retryCount: 1 });
+    const third = describeStudentError(error, { level: LEVEL.TEST_CYCLE, retryCount: 2 });
+    assert.equal(first.retry, true, `${JSON.stringify(error)}: the first failure offers Try again`);
+    assert.equal(second.retry, true, `${JSON.stringify(error)}: so does the second`);
+    assert.equal(third.retry, false, `${JSON.stringify(error)}: the third does not`);
+    assert.match(third.exhaustedMessage, /not something you did/);
+  }
+});
+
+test('TC17: a request that got no answer keeps Try again however often it fails, and still tells the student it is not theirs to fix', () => {
+  // Flaky Wi-Fi: the Functions SDK turns a failed fetch into a bare "internal"
+  // (it cannot tell a dropped connection from a backend that never answered),
+  // and the browser's own words for a fetch that did not happen.
+  for (const error of [
+    { code: 'functions/internal', message: 'internal' },
+    { code: 'functions/unavailable', message: 'unavailable' },
+    { code: 'functions/deadline-exceeded', message: 'deadline-exceeded' },
+    new TypeError('Failed to fetch'),
+  ]) {
+    for (const retryCount of [0, 1, 2, 3, 8]) {
+      const described = describeStudentError(error, { level: LEVEL.TEST_CYCLE, retryCount });
+      assert.equal(described.text, STUDENT_ERROR_TEXT.offline, JSON.stringify(error));
+      assert.equal(described.retry, true, `${JSON.stringify(error)} after ${retryCount} failed tries still offers Try again`);
+      assert.equal(described.exit.label, 'Back to My assignments', 'and the way out is still there');
+      // The line that tells a student it is not on them still arrives with the limit.
+      if (retryCount >= 2) assert.match(described.exhaustedMessage, /not something you did/);
+      else assert.equal(described.exhaustedMessage, null);
+    }
+  }
 });
 
 test('NAV-11: sign-in never shows a bare code or "check the Firebase Functions log"', () => {

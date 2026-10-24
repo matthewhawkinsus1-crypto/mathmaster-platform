@@ -230,7 +230,11 @@ export const describeTestCycleForStudent = ({
     tone: review.attempted > 0 ? 'inProgress' : 'notStarted',
     started: review.attempted > 0,
     actionRequired: true,
-    actionLabel: review.attempted > 0 ? 'Continue Review' : 'Start Review',
+    // This press opens the Test Cycle card (App.startAssignment: a cycle is
+    // never entered directly), and the card's own button says "Start Review" or
+    // "Continue Review". The same words here made a student press the same label
+    // twice (A3-30), so this one says what it does.
+    actionLabel: 'Open Review',
   });
 };
 
