@@ -376,7 +376,9 @@ test('the teacher answers a raised hand on the live monitor — never on the pro
 test('the teacher reads and answers questions on Teacher Home, folded until opened', () => {
   const home = code('src/TeacherHome.jsx');
   assert.match(home, /^import StudentQuestionsPanel from '\.\/components\/teacher\/StudentQuestionsPanel\.jsx';$/m);
-  assert.match(home, /<StudentQuestionsPanel\s+teacherEmail=\{teacherEmail\}\s+students=\{allStudents\}\s+assignments=\{assignments\}\s+onOpenStudent=\{onOpenStudent\}\s+\/>/);
+  // `withheld` keeps it to a count while a class is in session or projected
+  // (TT26, tests/platform/askTeacherLifecycle.test.mjs).
+  assert.match(home, /<StudentQuestionsPanel\s+(?:withheld=\{[^}]+\}\s+)?teacherEmail=\{teacherEmail\}\s+students=\{allStudents\}\s+assignments=\{assignments\}\s+onOpenStudent=\{onOpenStudent\}\s+\/>/);
   const panel = code('src/components/teacher/StudentQuestionsPanel.jsx');
   assert.match(panel, /watchQuestions\(openTeacherQuestionsQuery\(db, \{ teacherEmail \}\), setQuestions, \(\) => setUnavailable\(true\)\)/);
   assert.match(panel, /await answerTeacherQuestion\(db, \{ questionId: question\.id, answer: words, teacherEmail \}\);/);

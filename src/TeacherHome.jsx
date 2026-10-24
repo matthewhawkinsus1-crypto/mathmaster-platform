@@ -31,6 +31,8 @@ const greetingFor = (date) => {
 export default function TeacherHome({ allStudents = [], studentIdentityIndex = null, assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent, onUnlockDOL = null, dolUnlockBusyKey = null, onGrantDOLAttempt = null, dolAttemptGrantBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, needsAttention = [], needsAttentionCompletionCoverage = true, needsAttentionAcademicCoverage = true, onOpenWeeklyPath = null, onOpenAdministration = null, learningProfilesByStudentId = {}, activeClassId = null, classes = [], teacherUid = '', teacherEmail = '', teacherLabel = 'Your teacher', isRootAdmin = false, studentSupportEvents = [], studentSessionSummaries = [], onRecordStudentSupportEvent = null, onRecommendPersonalPath = null, pathInterventionBusyStudentId = null, liveTeachingSession = null, onTeachAssignment = null, onResumeTeaching = null, onEndLiveTeaching = null, onDolControl = null, dolControlBusyKey = null, onOpenAssignment = null, onSelectClass = null, liveFocus = null, gradingPeriodSettings = null, onLiveClassChange = null }) {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
   const [recoveryClassId, setRecoveryClassId] = useState('');
+  // The live tiles are on the projector (LiveClassMonitor's Large room tiles).
+  const [roomProjected, setRoomProjected] = useState(false);
   const [recoveryAssignmentId, setRecoveryAssignmentId] = useState('');
 
   const classOptions = classes.length
@@ -222,8 +224,11 @@ export default function TeacherHome({ allStudents = [], studentIdentityIndex = n
       {!teachingNow && attentionQueue}
 
       {/* Questions students left outside class time ("Ask my teacher", D6):
-          folded, and answered here. */}
+          folded, and answered here. While a class is in session or the room
+          tiles are projected, only how many are waiting shows (TT26): one
+          click would otherwise put a student's name and words on the board. */}
       <StudentQuestionsPanel
+        withheld={teachingNow || roomProjected}
         teacherEmail={teacherEmail}
         students={allStudents}
         assignments={assignments}
@@ -310,6 +315,7 @@ export default function TeacherHome({ allStudents = [], studentIdentityIndex = n
           activeClassId={classIdInSession}
           classes={classes}
           classSchedule={classSchedule}
+          onProjectingChange={setRoomProjected}
           supportEvents={studentSupportEvents}
           onRecordSupportEvent={onRecordStudentSupportEvent}
           onRecommendPersonalPath={onRecommendPersonalPath}

@@ -3625,6 +3625,15 @@ async function loadStudentClass(db, studentData) {
  * of shared/authorizationContext.mjs: the access list moves, the origin fields
  * never do.
  */
+async function handOverOpenTeacherQuestions(db, studentId, classRecord, apply) {
+  const lifecycle = await import("./shared/askTeacherLifecycle.mjs");
+  const waiting = await db.collection(lifecycle.ASK_TEACHER_COLLECTION)
+    .where("studentId", "==", studentId)
+    .where("status", "==", "open")
+    .get();
+  return apply(waiting.docs, (entry) => lifecycle.openQuestionHandover(entry.data() || {}, classRecord));
+}
+
 async function reauthorizeStudentRecords(db, studentId, classRecord) {
   const auth = await authorizationContext();
   const points = await classPoints();
@@ -3685,6 +3694,10 @@ async function reauthorizeStudentRecords(db, studentId, classRecord) {
       } : null;
     });
   }
+
+  // "Ask my teacher": a question still waiting goes to the new teacher of
+  // record, so it reaches a list someone reads (TT26).
+  counts.askTeacherQuestions = await handOverOpenTeacherQuestions(db, studentId, classRecord, apply);
 
   // Class Points accounts and transactions are scoped to studentId + classId
   // and must never migrate between classes -- a wallet the student earned in
@@ -4616,6 +4629,22 @@ exports.assignStudentToTeacher = onCall(async (request) => {
   }
   const classPeriod = String(request.data?.classPeriod || studentSnapshot.data()?.classPeriod || "Unassigned").trim().slice(0, 80) || "Unassigned";
   await studentRef.set({ assignedTeacherEmail, classPeriod, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  // A question still waiting follows the student to this teacher (TT26).
+  if (assignedTeacherEmail) {
+    await handOverOpenTeacherQuestions(db, studentId, {
+      teacherOfRecord: assignedTeacherEmail,
+      classId: studentSnapshot.data()?.classId ?? null,
+    }, async (docs, change) => {
+      const batch = db.batch();
+      let queued = 0;
+      docs.forEach((entry) => {
+        const patch = change(entry);
+        if (patch) { batch.set(entry.ref, patch, { merge: true }); queued += 1; }
+      });
+      if (queued) await batch.commit();
+      return queued;
+    });
+  }
   await writeAdminAudit(db, actor, "student_teacher_assignment_changed", studentId, { assignedTeacherEmail, classPeriod });
   if (assignedTeacherEmail) await inviteStudentToClassLiveChallengeSafely(db, studentId);
   return { studentId, assignedTeacherEmail, classPeriod };
@@ -16051,6 +16080,37 @@ exports.runWeeklyPathClassroomSyncNow = onCall({
     weekKey,
     dryRun: request.data?.dryRun === true,
   });
+});
+
+/**
+ * Students' questions to their teachers, and the answers, are kept one school
+ * year after their last change, then removed (TT26; the period lives in
+ * functions/shared/askTeacherLifecycle.mjs). Nightly, bounded per run; a
+ * backlog finishes over the following nights.
+ */
+exports.expireAskTeacherQuestions = onSchedule({
+  schedule: "17 3 * * *",
+  timeZone: "America/Chicago",
+  timeoutSeconds: 300,
+  memory: "512MiB",
+  invoker: "private",
+}, async () => {
+  const db = getFirestore();
+  const lifecycle = await import("./shared/askTeacherLifecycle.mjs");
+  const cutoff = new Date(Date.now() - lifecycle.ASK_TEACHER_RETENTION_MS);
+  let removed = 0;
+  for (let round = 0; round < 10; round += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    const expired = await db.collection(lifecycle.ASK_TEACHER_COLLECTION).where("updatedAt", "<", cutoff).limit(400).get();
+    if (expired.empty) break;
+    const batch = db.batch();
+    expired.docs.forEach((entry) => batch.delete(entry.ref));
+    // eslint-disable-next-line no-await-in-loop
+    await batch.commit();
+    removed += expired.size;
+    if (expired.size < 400) break;
+  }
+  logger.info("Ask my teacher questions past their retention removed", { removed });
 });
 
 /**

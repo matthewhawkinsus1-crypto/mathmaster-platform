@@ -91,7 +91,7 @@ function QuestionRow({ question, place, studentName, studentIdText, prompt, teac
   );
 }
 
-export default function StudentQuestionsPanel({ teacherEmail = '', students = [], assignments = [], onOpenStudent = null }) {
+export default function StudentQuestionsPanel({ teacherEmail = '', students = [], assignments = [], onOpenStudent = null, withheld = false }) {
   const [questions, setQuestions] = useState([]);
   const [unavailable, setUnavailable] = useState(false);
   const [sentNotice, setSentNotice] = useState('');
@@ -109,6 +109,17 @@ export default function StudentQuestionsPanel({ teacherEmail = '', students = []
   // The list loads at most TEACHER_QUESTIONS_SHOWN; answering lets more in.
   const more = questions.length >= TEACHER_QUESTIONS_SHOWN;
 
+  // While a class is in session or the room tiles are projected: how many,
+  // and nothing a click could open (TT26).
+  if (withheld) {
+    return waiting.length ? (
+      <p data-student-questions="" data-withheld="" style={{ margin: '0 0 16px' }}>
+        Questions from students{' '}
+        <span className="tw-pill" data-tone="warning">{more ? `${TEACHER_QUESTIONS_SHOWN}+` : waiting.length}</span>{' '}
+        <span className="tw-small tw-muted" style={{ fontWeight: 600 }}>shown here when no class is in session and the room tiles are off</span>
+      </p>
+    ) : null;
+  }
   if (!waiting.length && !unavailable && !sentNotice) return null;
   return (
     <details className="tw-disclosure" data-student-questions="" style={{ marginBottom: 16 }}>

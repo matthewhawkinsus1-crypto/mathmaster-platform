@@ -575,6 +575,9 @@ export default function LiveClassMonitor({
   // (assignmentAvailability.js). Missing settings resolve to the single
   // default "current" bucket, exactly as the Grade Center reads them.
   gradingPeriodSettings = null,
+  // Told whether the Large room tiles are on (the view a teacher projects),
+  // so Teacher Home can keep students' private questions off it (TT26).
+  onProjectingChange = null,
 }) {
   const [classPeriod, setClassPeriod] = useState(initialClassPeriod || 'all');
   const [assignmentId, setAssignmentId] = useState(() => focusAssignmentId || 'all');
@@ -584,6 +587,10 @@ export default function LiveClassMonitor({
   // is shown there. The ordinary Room view is the teacher's own screen, so a
   // nameless student keeps the labelled 'ID x' line that tells them apart.
   const projecting = mode === 'room' && roomMode;
+  useEffect(() => {
+    onProjectingChange?.(projecting);
+  }, [projecting, onProjectingChange]);
+  useEffect(() => () => onProjectingChange?.(false), [onProjectingChange]);
   const [teacherQuestionIndex, setTeacherQuestionIndex] = useState(0);
   const [walkthroughFilter, setWalkthroughFilter] = useState('needsCheck');
   const [checkedStudentIds, setCheckedStudentIds] = useState([]);
