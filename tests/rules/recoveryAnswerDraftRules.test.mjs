@@ -50,6 +50,13 @@ before(async () => {
     firestore: { rules: await readFile(new URL('../../firestore.rules', import.meta.url), 'utf8'), host: '127.0.0.1', port: 8181 },
   });
   await env.clearFirestore();
+  // Both students are on the roster, as every signed-in student is: a
+  // student's own writes need their roster row (SI06), so S_B's forged write
+  // below is refused for naming another student, not for a missing row.
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'grades/S_A'), { classId: 'class-a', status: 'active' });
+    await setDoc(doc(context.firestore(), 'grades/S_B'), { classId: 'class-a', status: 'active' });
+  });
 });
 
 after(async () => {

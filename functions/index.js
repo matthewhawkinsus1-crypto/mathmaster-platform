@@ -22392,7 +22392,13 @@ async function archiveStudentPresenceSnapshot({
 
   const db = getFirestore();
   const grade = await db.collection("grades").doc(studentId).get();
-  const gradeData = grade.exists ? (grade.data() || {}) : {};
+  // No roster row, no summary (SI06). A student permanently deleted while
+  // their tab was open leaves a presence document behind (and an ID token
+  // that worked for up to an hour); when it is swept or deleted, archiving it
+  // would write a durable record of a student the deletion just erased. A
+  // student with no row cannot sign in, so nothing real is lost.
+  if (!grade.exists) return false;
+  const gradeData = grade.data() || {};
   const ref = db.collection(STUDENT_SESSION_SUMMARY_COLLECTION).doc(summaryId);
   const endedAt = Number(observedAt) || Number(live.updatedAt) || Date.now();
   // The shared name resolver: the summary keeps a real name or null, never the id.

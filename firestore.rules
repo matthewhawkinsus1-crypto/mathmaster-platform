@@ -26,6 +26,20 @@ service cloud.firestore {
         && request.auth.token.get('studentId', '') == studentId;
     }
 
+    // SI06: a student's own writes need their roster row. Permanent deletion
+    // (permanentlyDeleteStudent) revokes the student's refresh tokens and then
+    // deletes the row, but an ID token already issued stays valid for up to an
+    // hour and rules cannot see a revocation. Without this, a deleted
+    // student's open tab could re-create what the deletion just erased: a
+    // presence heartbeat, engagement minutes, a scratchpad, a draft, a
+    // checkpoint. Writes whose rule already reads the row (support evidence,
+    // Ask my teacher, Spotlight frames) were closed already. No legitimate
+    // student is without a row: the app does not sign one in ("Your student
+    // record is not available").
+    function studentRowExists(studentId) {
+      return exists(/databases/$(database)/documents/grades/$(studentId));
+    }
+
     // A teacher's roster is the students in the classes they are teacher of
     // record for. `assignedTeacherEmail` is written onto the student by the
     // admin callables whenever their class or its teacher changes, and is read
@@ -785,8 +799,8 @@ service cloud.firestore {
       // UTC day. Written only by the student's own client, only ever growing.
       match /engagementMinutes/{ledgerId} {
         allow read: if rootAdmin() || teachesPresenceStudent(studentId);
-        allow create: if ownsStudent(studentId) && engagementCreateValid(studentId, ledgerId);
-        allow update: if ownsStudent(studentId) && engagementUpdateValid();
+        allow create: if ownsStudent(studentId) && studentRowExists(studentId) && engagementCreateValid(studentId, ledgerId);
+        allow update: if ownsStudent(studentId) && studentRowExists(studentId) && engagementUpdateValid();
         allow delete: if false;
       }
 
@@ -808,7 +822,7 @@ service cloud.firestore {
 
       match /scratchpads/{scratchpadId} {
         allow read: if rootAdmin() || ownsStudent(studentId) || authorizedTeacher();
-        allow create, update: if rootAdmin() || ownsStudent(studentId) || authorizedTeacher();
+        allow create, update: if rootAdmin() || (ownsStudent(studentId) && studentRowExists(studentId)) || authorizedTeacher();
         allow delete: if rootAdmin() || authorizedTeacher();
       }
 
@@ -1061,6 +1075,7 @@ service cloud.firestore {
       // prevents one teacher client from fabricating or clearing another
       // student's live telemetry.
       allow create, update: if ownsStudent(studentId)
+        && studentRowExists(studentId)
         && presenceCarriesNoResponse(request.resource.data)
         && presenceKeysKnown(request.resource.data)
         && presenceHelpRequestValid(request.resource.data);
@@ -1506,7 +1521,7 @@ service cloud.firestore {
     // could forge routing history could talk themselves out of remediation.
     match /pathHistory/{studentId} {
       allow read: if teacher() || ownsStudent(studentId);
-      allow create, update: if teacher() || ownsStudent(studentId);
+      allow create, update: if teacher() || (ownsStudent(studentId) && studentRowExists(studentId));
       allow delete: if teacher();
     }
 
@@ -1784,6 +1799,7 @@ service cloud.firestore {
     match /studentResponseCheckpoints/{checkpointId} {
       allow read: if rootAdmin() || ownsStudent(resource.data.studentId);
       allow create: if ownsStudent(request.resource.data.studentId)
+        && studentRowExists(request.resource.data.studentId)
         && request.resource.data.documentId == checkpointId
         && request.resource.data.secure == false
         && request.resource.data.schemaVersion == 2
@@ -1801,6 +1817,7 @@ service cloud.firestore {
       // also retire their own checkpoint when they submit explicitly, which
       // takes it out of the scheduler's active query.
       allow update: if ownsStudent(resource.data.studentId)
+        && studentRowExists(resource.data.studentId)
         && checkpointIdentityUnchanged(request.resource.data, resource.data, checkpointId)
         && request.resource.data.secure == false
         && request.resource.data.revision >= resource.data.revision
@@ -1857,6 +1874,7 @@ service cloud.firestore {
           ? ownsStudent(draftId.split('__')[0])
           : ownsStudent(resource.data.studentId));
       allow create: if ownsStudent(request.resource.data.studentId)
+        && studentRowExists(request.resource.data.studentId)
         && request.resource.data.documentId == draftId
         // The id names its owner (see read): nobody creates a draft under
         // another student's id, which would lock that student out of it.
@@ -1866,6 +1884,7 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time
         && workspaceDraftCarriesNoGrade(request.resource.data);
       allow update: if ownsStudent(resource.data.studentId)
+        && studentRowExists(resource.data.studentId)
         && request.resource.data.studentId == resource.data.studentId
         && request.resource.data.assignmentId == resource.data.assignmentId
         && request.resource.data.documentId == draftId

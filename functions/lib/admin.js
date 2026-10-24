@@ -27,6 +27,15 @@ const STUDENT_QUERY_COLLECTIONS = Object.freeze([
   // "Ask my teacher": the questions a student left for their teacher and the
   // answers (src/platform/supports/askTeacher.js). The student's own words.
   "askTeacherQuestions",
+  // The student's unfinished work and its delivery trail (SI06): server-held
+  // response checkpoints and workspace drafts (their answers), submission
+  // receipts, their devices' queue reports, and a teacher's acknowledgement of
+  // a persistence incident. Each carries `studentId`; none was erased before.
+  "studentResponseCheckpoints",
+  "studentWorkspaceDrafts",
+  "studentSubmissionReceipts",
+  "studentDevicePersistenceReports",
+  "studentPersistenceResolutions",
 ]);
 
 const STUDENT_DIRECT_COLLECTIONS = Object.freeze([
@@ -43,6 +52,13 @@ const STUDENT_DIRECT_COLLECTIONS = Object.freeze([
   // helpAcknowledgements/{studentId}: the teacher's latest "Seen" / "On my
   // way" for the student's raised hand (src/platform/supports/askTeacher.js).
   "helpAcknowledgements",
+  // presence/{studentId}: the live heartbeat of a student deleted while their
+  // tab was open (SI06). Its deletion trigger archives nothing for a student
+  // whose roster row is gone (archiveStudentPresenceSnapshot), and the roster
+  // row is deleted before this list.
+  "presence",
+  // pathHistory/{studentId}: the student's own My Math Path history (SI06).
+  "pathHistory",
 ]);
 
 const PREPRODUCTION_RESET_CONFIRMATION = "RESET TEST DATA";
