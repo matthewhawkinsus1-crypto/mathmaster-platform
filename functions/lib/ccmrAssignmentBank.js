@@ -706,6 +706,22 @@ function bankDocumentToV5Intent(document = {}, { activityRole = "practice", matc
   };
 }
 
+/*
+ * AN ITEM THIS MODULE ADDS IS GRADED ON THE SERVER (SI05).
+ *
+ * An audited item is a template: its generator gives each student their own
+ * numbers. Added as it comes, it was a legacy template that the student's
+ * browser filled and marked, so its key reached the device and the grade was
+ * never checked. Every item this module places in an assignment (a Practice
+ * place, a direct exam-style claim, an alternative in the plan) is therefore an
+ * assignment-local Question Family, as the Algebra II Honors files mark theirs
+ * by hand (a65ada99): the server builds each student's version from its
+ * delivery pin and grades it there (functions/shared/questionFamilyGrading.mjs).
+ */
+function placedBankIntent(document, options) {
+  return { ...bankDocumentToV5Intent(document, options), questionFamily: { scope: "assignment" } };
+}
+
 function directCcmrClaim(question = {}) {
   const context = question?.assessmentContext;
   const framework = clean(context?.framework);
@@ -784,7 +800,7 @@ function planCandidates(plan, rankOptions, intentOptions) {
   fresh.forEach((document) => plan.offered.add(clean(document.id)));
   const documents = [...fresh, ...repeats];
   plan.budget -= documents.length;
-  return documents.map((document) => bankDocumentToV5Intent(document, intentOptions));
+  return documents.map((document) => placedBankIntent(document, intentOptions));
 }
 
 const cleanIdList = (values) => [...new Set((Array.isArray(values) ? values : []).map(clean).filter(Boolean))];
@@ -964,7 +980,7 @@ function ensureAuditedCcmrPractice(assignment = {}, audit = null, options = {}) 
     if (!teksCodes.some((code) => replacementCodes.has(code))) continue;
 
     const matchProvenance = explainAuditedBankMatch(sourceQuestion, { ...rankOptions, excludeDocumentIds: [...usedDocumentIds] });
-    mutableSections[position.sectionIndex].questions[position.questionIndex] = bankDocumentToV5Intent(bankDocument, {
+    mutableSections[position.sectionIndex].questions[position.questionIndex] = placedBankIntent(bankDocument, {
       activityRole,
       matchProvenance,
     });
@@ -1066,7 +1082,7 @@ function replaceDirectCcmrQuestionsWithAuditedBank(assignment = {}, options = {}
         return question;
       }
       audit.replaced += 1;
-      return bankDocumentToV5Intent(bankDocument, {
+      return placedBankIntent(bankDocument, {
         activityRole,
         matchProvenance,
       });
