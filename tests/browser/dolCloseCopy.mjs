@@ -48,7 +48,8 @@ const check = (ok, label, detail = '') => {
   if (!ok) failures.push(label);
 };
 
-const PROMISE = /will be submitted automatically when time ends/i;
+// The open-only promise, in today's words (RT10) or the legacy copy's.
+const PROMISE = /will be submitted automatically when time ends|^When time ends, your latest completed answers are turned in/im;
 const CLOSED = /no new submission is allowed|closed this exit ticket|time is up|timer has ended|time ended/i;
 const LEAKS = /DOLCOPY-LEAK|slope is 3\/4/;
 

@@ -9,7 +9,7 @@
  *
  * The rules this function owns:
  *   - an OPEN, timed DOL is the only state that says the latest completed
- *     response "will be submitted automatically when time ends";
+ *     answers are turned in "when time ends";
  *   - a DOL the teacher closed says the teacher closed it, never "timer";
  *   - a DOL whose time ran out says time is up;
  *   - once closed, the student still learns whether their latest completed
@@ -40,7 +40,11 @@
 
 import { EXTRA_TIME_WORDS } from './extraTimeWords.js';
 
-export const DOL_OPEN_NOTICE = 'Your latest completed response will be submitted automatically when time ends.';
+// The promise an open, timed section makes (App.jsx says it for an open
+// Warm-Up too), in the timer's own words (timeLeftAlerts.js
+// UNFINISHED_WORK_LINE), so the line under the question and the timer never
+// state the rule two ways (RT10).
+export const DOL_OPEN_NOTICE = 'When time ends, your latest completed answers are turned in. An answer you have not finished is not.';
 
 // "extra time", shared with the timer pill and Home (extraTimeWords.js).
 export { EXTRA_TIME_WORDS };

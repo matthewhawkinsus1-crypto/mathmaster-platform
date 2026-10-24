@@ -396,7 +396,7 @@ test('the assignment screen hands the student\'s own window to the DOL copy', ()
   assert.match(call, /describeDolClose\(\{[^}]*extendedTime: dolState\.extendedTime[^}]*endsAt: dolState\.endsAt[^}]*\}\)/);
   // …and dolState there is the student's: getDOLState on the projected assignment.
   assert.match(app, /const dolState = getDOLState\(\{ assignment, schedule: classSchedule, classId: user\?\.classId \|\| null, classPeriod: user\?\.classPeriod, nowValue: now \}\);\s*\n[^\n]*\n?[\s\S]{0,4000}const currentDolCopy/);
-  assert.match(app, /import \{ describeDolClose \} from '\.\/platform\/assessment\/dolCloseCopy\.js';/);
+  assert.match(app, /import \{ describeDolClose, DOL_OPEN_NOTICE \} from '\.\/platform\/assessment\/dolCloseCopy\.js';/);
 });
 
 test('the teacher\'s live view knows who still has extra time, and never says so on the projector', () => {

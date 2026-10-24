@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { describeDolClose, DOL_OPEN_NOTICE } from '../../src/platform/assessment/dolCloseCopy.js';
 
 const lines = (copy) => [copy.lockMessage, copy.openNotice, copy.closeReceipt].filter(Boolean);
-const PROMISE = /will be submitted automatically when time ends/i;
+const PROMISE = /^When time ends, your latest completed answers are turned in\./;
 
 test('an open, timed DOL promises the automatic submission and locks nothing', () => {
   const copy = describeDolClose({ status: 'active', teacherClosed: false, outcome: null });
@@ -88,4 +88,12 @@ test('a DOL that is not open yet shows no DOL lines at all', () => {
     const copy = describeDolClose({ status, teacherClosed: false, outcome: null });
     assert.deepEqual(lines(copy), [], String(status));
   }
+});
+
+// RT10: the line under the question and the timer state one rule, in the same words.
+test('the open notice says what the timer says about unfinished answers', async () => {
+  const { UNFINISHED_WORK_LINE } = await import('../../src/platform/student/timeLeftAlerts.js');
+  assert.match(UNFINISHED_WORK_LINE.section, /^When time ends, only completed answers are turned in\. An answer you have not finished is not\.$/);
+  assert.ok(DOL_OPEN_NOTICE.endsWith(' An answer you have not finished is not.'));
+  assert.ok(DOL_OPEN_NOTICE.startsWith('When time ends, '));
 });

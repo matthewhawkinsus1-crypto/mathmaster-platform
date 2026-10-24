@@ -46,7 +46,7 @@ import { launchSupportRecords, studentMayRecordSupport, usedRecordKey } from './
 // kit (app/teacher/teacherKit.js). A student's screen reads only the summary.
 import { summarizeStudentRecovery } from './platform/assessment/studentRecoverySummary.js';
 import { practiceSkillLaunch } from './platform/assessment/practiceSkillLaunch.js';
-import { describeDolClose } from './platform/assessment/dolCloseCopy.js';
+import { describeDolClose, DOL_OPEN_NOTICE } from './platform/assessment/dolCloseCopy.js';
 import { extraTimeFrom } from './platform/assessment/extraTimeWords.js';
 // The DOL grant helpers (platform/assessment/dolAttemptGrantClient.js) are
 // teacher-only: they come from the teacher kit (app/teacher/teacherKit.js).
@@ -11240,7 +11240,7 @@ function App() {
                 <p style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{currentDolCopy.openNotice}</p>
               )}
               {!preview && runtimeActivityRole === 'warmup' && warmupState.status === 'active' && (
-                <p style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>Your latest completed response will be submitted automatically when time ends.</p>
+                <p style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{DOL_OPEN_NOTICE}</p>
               )}
               {/* AFTER THE CLOSE, SAY WHAT ACTUALLY HAPPENED.
                   Never "submitted" for a response that was not complete — the

@@ -34,7 +34,7 @@ test('m13: the DOL reminder is not shown while the student is on that DOL', () =
 });
 
 test('R2-m4: a closed DOL says who closed it, and only an open one promises "when time ends"', () => {
-  assert.match(imports, /import \{ describeDolClose \} from '\.\/platform\/assessment\/dolCloseCopy\.js';/);
+  assert.match(imports, /import \{ describeDolClose, DOL_OPEN_NOTICE \} from '\.\/platform\/assessment\/dolCloseCopy\.js';/);
   const workspace = region(app, 'const renderAssignmentWorkspace = (preview = false) => {', '// The read-only "What changed" list', 'the assignment workspace');
   // The copy is the DOL state's: who closed it and the server's receipt. (D7
   // added the student's own extra-time close to the same call; any further
@@ -45,10 +45,9 @@ test('R2-m4: a closed DOL says who closed it, and only an open one promises "whe
   assert.match(workspace, /assignmentLockedMessage=\{!preview && currentIsDOL && dolState\.status === 'ended'\s*\? currentDolCopy\.lockMessage/);
   assert.doesNotMatch(code, /The DOL timer has ended/);
   // "When time ends": a DOL only from the copy (open only); a Warm-Up only while active.
-  const promises = workspace.match(/will be submitted automatically when time ends/g) || [];
-  assert.equal(promises.length, 1, 'one literal promise left, the Warm-Up one');
+  assert.doesNotMatch(workspace, /completed answers are turned in|will be submitted automatically/, 'no literal promise: both come from the copy module (RT10)');
   assert.match(workspace, /\{!preview && runtimeActivityRole === 'dol' && currentDolCopy\?\.openNotice && \(/);
-  assert.match(workspace, /\{!preview && runtimeActivityRole === 'warmup' && warmupState\.status === 'active' && \(\s*<p[^>]*>Your latest completed response will be submitted automatically when time ends\.<\/p>/);
+  assert.match(workspace, /\{!preview && runtimeActivityRole === 'warmup' && warmupState\.status === 'active' && \(\s*<p[^>]*>\{DOL_OPEN_NOTICE\}<\/p>/);
   // The receipt: only once the server wrote one (receipts are read when the
   // assignment opens, and an untouched question never gets one, so a
   // "checking" line could stand forever); the copy's words when it has them,
@@ -59,7 +58,7 @@ test('R2-m4: a closed DOL says who closed it, and only an open one promises "whe
 
 test('R2-m4: the copy the workspace now shows for each DOL state', () => {
   const open = describeDolClose({ status: 'active' });
-  assert.match(open.openNotice, /when time ends/);
+  assert.match(open.openNotice, /^When time ends/);
   assert.equal(open.closeReceipt, '');
   const closedByTeacher = describeDolClose({ status: 'ended', teacherClosed: true, outcome: 'auto-submitted' });
   assert.match(closedByTeacher.lockMessage, /Your teacher closed this exit ticket/);

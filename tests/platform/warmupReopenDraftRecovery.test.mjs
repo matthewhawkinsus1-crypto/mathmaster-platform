@@ -543,7 +543,7 @@ test('the time-ended receipt belongs to a closed window, not a reopened one', ()
   // submitted when time ends, never that time already ended.
   const reopened = describeDolClose({ status: 'active', outcome: 'auto-submitted' });
   assert.equal(reopened.closeReceipt, '');
-  assert.match(reopened.openNotice, /will be submitted automatically when time ends/);
+  assert.match(reopened.openNotice, /^When time ends, your latest completed answers are turned in\./);
 });
 
 test('the teacher handler writes the Warm-Up controls through the shared, tested function', () => {
