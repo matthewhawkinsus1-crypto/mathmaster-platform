@@ -29,11 +29,11 @@ import {
   normalizeCheckpointResponse,
   responseFingerprint,
 } from './platform/performance/responseCheckpoint.js';
-import { WORKSPACE_DRAFT_REREAD_AFTER_HIDDEN_MS, createWorkspaceDraftSync } from './platform/persistence/workspaceDraftSync.js';
+import { FAMILY_PIN_SERVER_WAIT_MS, WORKSPACE_DRAFT_REREAD_AFTER_HIDDEN_MS, createWorkspaceDraftSync } from './platform/persistence/workspaceDraftSync.js';
 import { accountChangeClearsDraftProblems, clearDraftSaveProblems, describeDraftSaveProblems, draftSaveProblemsFor, draftSaveProblemsForStudent, subscribeDraftSaveHealth } from './platform/persistence/draftSaveHealth.js';
 import { REPLACEMENT_NOT_QUEUED, STEP_NOT_QUEUED, SUBMISSION_NOT_QUEUED } from './platform/student/submissionNotQueued.js';
 import { readLatestWorkspaceResume, readWorkspaceDraft, writeWorkspaceDraft } from './platform/persistence/workspaceDraftStore.js';
-import { readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
+import { readWorkspaceDeliveryPins, readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
 import { canonicalResponseSavedAt } from './platform/persistence/canonicalResponseTime.js';
 import { adoptCanonicalAdvances } from './platform/persistence/canonicalTrackerReconciliation.js';
 import { applyWarmupTeacherControl, resolveAuthoritativeClose, resolveWarmupInstructionDateKey } from '../functions/shared/sectionDeadline.mjs';
@@ -896,6 +896,11 @@ function App() {
   const [draftRestoreFocus, setDraftRestoreFocus] = useState(null);
   const currentQuestionIndexRef = useRef(0);
   const workspaceDraftSyncRef = useRef(null);
+  // The open assignment's server copy of its delivery pins (RT15): which
+  // version of each personalized question another of this student's devices
+  // showed before the first Submit. `known` once that copy has been read, or
+  // could not be (FAMILY_PIN_SERVER_WAIT_MS).
+  const [serverDeliveryPins, setServerDeliveryPins] = useState({ assignmentId: null, known: false, pins: null });
   const trackerRef = useRef({});
   const [practiceTracker, setPracticeTracker] = useState({});
   // Practice Mode and "View as Student" scratchpads never reach Firestore, so
@@ -4027,6 +4032,14 @@ function App() {
     if (!activeAssignmentUsesWorkspaceDrafts) return undefined;
 
     let cancelled = false;
+    // A personalized question this device has no pin for waits for the
+    // server's pins (RT15, the question view below) — never for long: past
+    // FAMILY_PIN_SERVER_WAIT_MS, or a failed read, it is dealt as before.
+    setServerDeliveryPins({ assignmentId: activeAssignmentId, known: false, pins: null });
+    const stopWaitingForPins = () => setServerDeliveryPins((current) => (
+      current.assignmentId === activeAssignmentId && !current.known ? { ...current, known: true } : current
+    ));
+    const pinWait = window.setTimeout(() => { if (!cancelled) stopWaitingForPins(); }, FAMILY_PIN_SERVER_WAIT_MS);
     const sync = createWorkspaceDraftSync({
       studentId: user.id,
       assignmentId: activeAssignmentId,
@@ -4058,6 +4071,11 @@ function App() {
           if (cancelled) return;
           serverCopyRead = true;
           const entries = readWorkspaceDraftEntries(stored);
+          // Which version of each personalized question another Chromebook
+          // showed before its first Submit (RT15): a question this device has
+          // no pin for shows the same numbers (buildStudentFamilyContext).
+          const deliveryPins = readWorkspaceDeliveryPins(stored);
+          setServerDeliveryPins({ assignmentId: activeAssignmentId, known: true, pins: deliveryPins });
           const assignmentGrades = trackerRef.current?.[activeAssignmentId] || {};
           // A deadline auto-submit is dated by when its work was captured,
           // so the backup of that very work is not refused as older than
@@ -4089,8 +4107,8 @@ function App() {
             setWorkspaceDraftGeneration((value) => value + 1);
           }
           // Only now is it known what the server holds — and so whether this
-          // device has an edit it never received (see workspaceDraftSync).
-          sync.noteServerCopy(entries);
+          // device has an edit (or a pin) it never received (see workspaceDraftSync).
+          sync.noteServerCopy(entries, { deliveryPins });
           if (stored?.practice && typeof stored.practice === 'object') {
             // Per question, the record with more practice progress wins. The
             // session's tracker is usually a fresh seed with a row for every
@@ -4106,6 +4124,7 @@ function App() {
           // The device's own drafts are still there. Recovery is best-effort,
           // and is tried again when the device is back (below).
           console.warn('Could not restore saved workspace drafts:', error);
+          if (!cancelled) stopWaitingForPins();
         })
         .finally(() => { reading = false; });
     };
@@ -4131,6 +4150,7 @@ function App() {
     document.addEventListener('visibilitychange', flushWhenHidden);
     return () => {
       cancelled = true;
+      window.clearTimeout(pinWait);
       unsubscribe();
       window.removeEventListener('pagehide', flush);
       window.removeEventListener('online', readServerCopy);
@@ -5857,7 +5877,8 @@ function App() {
         adaptiveStudentProfile || user?.profile,
         adaptation,
         // The printed copy of a family-backed question is the student's own
-        // pinned instance — the same numbers as on screen.
+        // pinned instance — the same numbers as on screen (with another
+        // Chromebook's pin, where the assignment's server copy has been read).
         buildStudentFamilyContext({
           assignment: assignmentData,
           question,
@@ -5866,6 +5887,7 @@ function App() {
           classId: user.classId || null,
           sectionMode: sectionVariantMode,
           record: tracker?.[assignmentData.id]?.[index],
+          serverPins: serverDeliveryPins.assignmentId === assignmentData.id && serverDeliveryPins.known ? serverDeliveryPins.pins : null,
         }),
       ));
       printableEntries.push({
@@ -7056,6 +7078,10 @@ function App() {
     // A device pin the question dropped (`familyPinNotice`) is replaced by
     // what was shown instead, so the next render cannot swap it again.
     writeLocalDeliveryPin({ studentId: user.id, delivery, devicePinDropped: Boolean(renderedQuestion?.familyPinNotice) });
+    // And it rides the workspace draft, so another Chromebook shows the same
+    // numbers before the first Submit (RT15). The server keeps the first pin
+    // saved; one this device was offered and had to drop gives way.
+    workspaceDraftSyncRef.current?.recordDeliveryPin(delivery, { replace: Boolean(renderedQuestion?.familyPinNotice) });
     familyDeliveriesRef.current.set(`${delivery.slot}|v${delivery.variant}`, { delivery, question: renderedQuestion || null });
   }, [user?.role, user?.id, isTeacherPreview]);
 
@@ -10028,6 +10054,8 @@ function App() {
     // whether a replacement is offered is decided with it. It shares
     // QuestionEngine's own lazy chunk, so in practice it is already here.
     const familyEngineLoading = !familyDelivery;
+    // The server's pins, once read, for this assignment only (RT15).
+    const serverPinsRead = serverDeliveryPins.assignmentId === assignment.id && serverDeliveryPins.known;
     const currentFamilyContext = !familyDelivery ? null : familyDelivery.buildStudentFamilyContext({
       assignment,
       question: questions[currentQuestionIndex],
@@ -10037,7 +10065,23 @@ function App() {
       sectionMode: currentSectionVariantMode,
       record: workingTracker?.[currentQuestionIndex],
       preview,
+      serverPins: serverPinsRead ? serverDeliveryPins.pins : null,
     });
+    // A FRESH ALLOCATION WAITS FOR THE SERVER'S PINS (RT15). A personalized
+    // question with no pin on this device — none from its record, none of its
+    // own — would be dealt numbers here that another Chromebook may already
+    // have shown the student. Its server copy is read as the assignment opens;
+    // the question waits for it (FAMILY_PIN_SERVER_WAIT_MS at most) instead of
+    // swapping numbers under the student a moment later. Only where that read
+    // happens: a student's own assignment, never a preview or a Test Cycle.
+    const familyPinPending = Boolean(currentFamilyContext)
+      && !preview
+      && user?.role === 'student'
+      && !isTeacherPreview
+      && activeAssignmentUsesWorkspaceDrafts
+      && !serverPinsRead
+      && !currentFamilyContext.pin
+      && !currentFamilyContext.pinUnreadable;
 
     // ADAPTATION, RESOLVED ONCE.
     //
@@ -11015,7 +11059,7 @@ function App() {
             {/* "Ask my teacher" answers, on any question of this assignment —
                 one closed since it was asked keeps its answer here. */}
             {!preview && <TeacherAnswersList questions={askMyTeacher.questions} compact />}
-            {familyEngineLoading ? <p role="status" style={{ padding: 24, margin: 0 }}>Loading this question…</p> : <QuestionEngine
+            {familyEngineLoading || familyPinPending ? <p role="status" style={{ padding: 24, margin: 0 }}>Loading this question…</p> : <QuestionEngine
               key={`${activeAssignmentId}-${currentQuestionIndex}-${currentRecord.variantIndex}-${preview ? `preview-${previewSessionId}` : lifecycle.status}-draft${workspaceDraftGeneration}`}
               draftRestore={draftRestoreFocus?.questionIndex === currentQuestionIndex ? draftRestoreFocus : null}
               question={questions[currentQuestionIndex]}

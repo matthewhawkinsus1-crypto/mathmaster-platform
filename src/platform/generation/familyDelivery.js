@@ -9,11 +9,14 @@
  *   canonical record's pin   (server-written at the first submission; every
  *                             device sees it)
  *   > this device's pin      (written the first time the question rendered)
+ *   > the workspace draft's  (another of this student's devices showed it
+ *     pin                     before the first submission, and saved its pin
+ *                             with the draft — RT15)
  *   > a fresh allocation     (seat + variant, from the assignment's seat map)
  *
  * so a reload, a remount, the teacher's app seating the class a minute later,
- * or a Chromebook restart can never swap the numbers under a student who has
- * started working.
+ * a Chromebook restart, or picking up a different Chromebook can never swap the
+ * numbers under a student who has started working.
  *
  * The device pin is keyed by student, so a shared Chromebook never shows one
  * student another student's pin, and it holds no answer: only which entry of
@@ -22,6 +25,7 @@
 
 import { normalizeQuestionRecord } from '../../attemptPolicy.js';
 import { familySlotKey, isFamilyBackedQuestion } from '../../../functions/shared/questionFamilySlot.mjs';
+import { deliveryPinKey } from '../../../functions/shared/workspaceDraftSchema.mjs';
 import { deliveryPinStore, readLocalDeliveryPin } from './familyDeliveryPins.js';
 import { deliveryPinAllocationProblem } from '../../../functions/shared/questionFamilyGrading.mjs';
 import {
@@ -100,7 +104,16 @@ const pinRefusalFor = ({ assignment, question, storageIndex, pin, studentId, kee
  * Nothing here writes: the record and the device pin are read, never changed.
  * The dropped device pin is replaced when the question that WAS shown is
  * reported (writeLocalDeliveryPin, `devicePinDropped`).
+ *
+ * `serverPins` is the workspace draft's pins (readWorkspaceDeliveryPins): what
+ * another of this student's devices showed before the first Submit (RT15).
+ * Its pin is a device pin in every way — never authoritative, checked exactly
+ * as this device's own, dropped (and named in `devicePinRefused`) when the
+ * server would refuse it — and is read only where this device has no pin it
+ * can use. This device's own pin wins: it is what this screen showed.
  */
+const NO_VERDICT = Object.freeze({ refusal: null, walkRefused: false });
+
 export const buildStudentFamilyContext = ({
   assignment = null,
   question = null,
@@ -111,6 +124,7 @@ export const buildStudentFamilyContext = ({
   record = null,
   preview = false,
   store = deliveryPinStore(),
+  serverPins = null,
 } = {}) => {
   if (!assignment?.id || !isFamilyBackedQuestion(question)) return null;
   const variant = normalizeQuestionRecord(record).variantIndex;
@@ -121,17 +135,43 @@ export const buildStudentFamilyContext = ({
   // is a stored pin this build cannot read.
   const pinUnreadable = !preview && rawCanonical !== null && rawCanonical !== undefined && !canonicalPin;
   const localPin = preview || !studentId ? null : readLocalDeliveryPin({ studentId, slotKey, variant, store });
+  const serverPin = preview || !studentId || typeof serverPins?.get !== 'function'
+    ? null
+    : normalizeDeliveryPin(serverPins.get(deliveryPinKey({ slot: slotKey, variant })) || null);
   const canonicalApplies = canonicalPin?.variant === variant;
-  const verify = (pin, keepPinnedVersion) => pinRefusalFor({ assignment, question, storageIndex, pin, studentId, keepPinnedVersion });
-  const deviceCandidate = !canonicalApplies && !pinUnreadable && localPin?.variant === variant ? localPin : null;
   // The canonical pin keeps its family version after a content upgrade, as
-  // the server grades it (RT03); a device pin is checked against the slot now.
-  const verdict = canonicalApplies ? verify(canonicalPin, true) : deviceCandidate ? verify(deviceCandidate, false) : { refusal: null, walkRefused: false };
+  // the server grades it (RT03); a device's or the server copy's pin is
+  // checked against the slot now.
+  const verify = (pin, keepPinnedVersion = false) => pinRefusalFor({ assignment, question, storageIndex, pin, studentId, keepPinnedVersion });
+  const usable = (verdict) => !verdict.refusal && !verdict.walkRefused;
+  const deviceCandidate = !canonicalApplies && !pinUnreadable && localPin?.variant === variant ? localPin : null;
+  const serverCandidate = !canonicalApplies && !pinUnreadable && serverPin?.variant === variant ? serverPin : null;
+  const deviceVerdict = deviceCandidate ? verify(deviceCandidate) : NO_VERDICT;
+  // Checked only where this device's own pin cannot be used.
+  const serverVerdict = serverCandidate && !(deviceCandidate && usable(deviceVerdict)) ? verify(serverCandidate) : NO_VERDICT;
+  let devicePin = null;
+  let deviceSideVerdict = NO_VERDICT;
+  let devicePinRefused = null;
+  if (deviceCandidate && usable(deviceVerdict)) {
+    devicePin = deviceCandidate;
+    deviceSideVerdict = deviceVerdict;
+  } else if (serverCandidate && usable(serverVerdict)) {
+    // The other device's pin is shown; this device's own (if any) gives way
+    // and is replaced by it when the delivery is reported.
+    devicePin = serverCandidate;
+    deviceSideVerdict = serverVerdict;
+    devicePinRefused = deviceCandidate ? deviceVerdict.refusal || 'pin-index-not-allocated' : null;
+  } else if (deviceCandidate || serverCandidate) {
+    // As before for the pin on hand: a refused one is dropped and named; one
+    // whose only problem is its walk is the generator's call.
+    const [candidate, verdict] = deviceCandidate ? [deviceCandidate, deviceVerdict] : [serverCandidate, serverVerdict];
+    devicePin = verdict.refusal ? null : candidate;
+    deviceSideVerdict = verdict;
+    devicePinRefused = verdict.refusal;
+  }
+  const verdict = canonicalApplies ? verify(canonicalPin, true) : deviceSideVerdict;
   const pinRefusal = canonicalApplies ? verdict.refusal : null;
-  const devicePinRefused = deviceCandidate ? verdict.refusal : null;
-  const pin = canonicalApplies
-    ? canonicalPin
-    : deviceCandidate && !devicePinRefused ? deviceCandidate : null;
+  const pin = canonicalApplies ? canonicalPin : devicePin;
   const seatInfo = preview || !studentId ? null : resolveLearnerSeat({ assignment, studentId, classId });
   return {
     assignmentId: assignment.id,

@@ -32,6 +32,11 @@ name: Student and Teacher Journeys
 #   cross-device drafts    tests/browser/teacherWorkflow/draftCrossDeviceJourneys.mjs
 #                          (a fresh, slow or offline Chromebook gets the work
 #                          and never overwrites it; the newest edit wins)
+#   personalized numbers   tests/browser/teacherWorkflow/familyPinCrossDeviceJourneys.mjs
+#   across Chromebooks     (RT15: a Question Family question opened before
+#                          the class was seated shows the same numbers on the
+#                          next Chromebook, before any Submit; a slow read
+#                          waits, a stalled one does not hold the question)
 #   restored-draft focus   tests/browser/teacherWorkflow/restoredDraftFocusRaceJourneys.mjs
 #                          (its own job: once the student clicks, taps or keys
 #                          after a cross-device restore, no late focus — the
@@ -221,6 +226,11 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/draftCrossDeviceJourneys.mjs
+      - name: Personalized numbers across Chromebooks
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/familyPinCrossDeviceJourneys.mjs
       - name: Warm-Up close and reopen under unfinished work
         if: ${{ !cancelled() }}
         env:

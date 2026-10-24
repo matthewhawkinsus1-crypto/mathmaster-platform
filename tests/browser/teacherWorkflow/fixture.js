@@ -74,6 +74,18 @@ const realLessonSections = (id) => ([
   { id: `${id}-dol`, role: 'dol', title: 'DOL', questions: [{ questionId: `${id}-d1`, activityRole: 'dol', type: 'literal', prompt: 'Solve 5x − 5 = 20 for x.', solveFor: 'x', acceptedAnswers: ['5'] }] },
 ]);
 
+// `?questions=family`: the `real` lesson with its first Classwork question a
+// Question Family slot (linear.slopeFromPoints), whose numbers follow the
+// student's seat — for the journeys that move a student between Chromebooks
+// before the first Submit (familyPinCrossDeviceJourneys.mjs, RT15).
+const familyLessonSections = (id) => realLessonSections(id).map((section) => (section.role !== 'classwork' ? section : {
+  ...section,
+  questions: [
+    { questionId: `${id}-c1`, activityRole: 'classwork', type: 'multiAnswer', prompt: 'Find the slope.', standards: { primary: ['A.3A'] }, questionFamily: { id: 'linear.slopeFromPoints' } },
+    ...section.questions.slice(1),
+  ],
+}));
+
 // `?questions=lmr`: today's Warm-Up is the production lmr-wu-1 / lmr-wu-2 card
 // sorts (family-backed), then a Linear Multiple Representations board, so the
 // Warm-Up close / reopen journeys run on the questions of the incident.
@@ -212,6 +224,7 @@ export const DISTRICT_ID_CORRECTION = Object.freeze({
 export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, params = null } = {}) => {
   const questionSet = params?.get?.('questions');
   const sectionsFor = questionSet === 'real' ? realLessonSections
+    : questionSet === 'family' ? familyLessonSections
     : questionSet === 'lmr' ? lmrLessonSections
       : questionSet === 'systems' ? systemsLessonSections
         : lessonSections;

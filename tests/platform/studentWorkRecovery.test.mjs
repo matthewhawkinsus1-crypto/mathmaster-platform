@@ -458,7 +458,9 @@ test('secure Test Cycle and private Path state never reach ordinary draft persis
   // The exclusion is a yes/no derived from the open assignment, so the sync
   // does not depend on the whole (live) assignment list; the effect bails on it.
   assert.match(block, /const activeAssignmentUsesWorkspaceDrafts = useMemo\(\(\) => \{[\s\S]*?return Boolean\(assignment\) && !isTestCycleAssignment\(assignment\);/);
-  assert.match(block, /if \(!activeAssignmentUsesWorkspaceDrafts\) return undefined;\s*\n\s*let cancelled = false;\s*\n\s*const sync = createWorkspaceDraftSync/);
+  // (Before the sync only the wait for the server's delivery pins starts, RT15:
+  // nothing between the bail-out and the sync reads or writes a draft.)
+  assert.match(block, /if \(!activeAssignmentUsesWorkspaceDrafts\) return undefined;\s*\n\s*let cancelled = false;\n(?:(?!createWorkspaceDraftSync|WorkspaceDraft\(|QuestionDraft|subscribeToQuestionDrafts)[\s\S])*?const sync = createWorkspaceDraftSync/);
 });
 
 test('an answer key can never be stored in a workspace draft', () => {

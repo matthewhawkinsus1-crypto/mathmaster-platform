@@ -147,9 +147,10 @@ test('the Question Family registry and its families are not in the first load', 
   }
   const app = readFileSync(path.join(repo, 'src/App.jsx'), 'utf8');
   assert.match(app, /import\('\.\/platform\/generation\/familyDelivery\.js'\)/, 'the context builder is loaded, not imported');
-  // A question waits for it rather than render with its pin unchecked.
+  // A question waits for it rather than render with its pin unchecked (and,
+  // with no pin, for the server's pins: RT15, familyServerDeliveryPin.test.mjs).
   assert.match(app, /const familyEngineLoading = !familyDelivery;/);
-  assert.match(app, /\{familyEngineLoading \? <p role="status"[^>]*>Loading this question…<\/p> : <QuestionEngine/);
+  assert.match(app, /\{familyEngineLoading(?: \|\| familyPinPending)? \? <p role="status"[^>]*>Loading this question…<\/p> : <QuestionEngine/);
 });
 
 // The worksheet and answer-key builders run when someone asks for a PDF, so

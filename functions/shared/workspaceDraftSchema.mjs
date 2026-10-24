@@ -15,6 +15,7 @@
  */
 
 import { mergePracticeTrackers, samePracticeProgress } from './practiceTrackerMerge.mjs';
+import { normalizeDeliveryPin } from './questionGenerationIdentity.mjs';
 
 export const WORKSPACE_DRAFT_SCHEMA_VERSION = 1;
 
@@ -763,6 +764,67 @@ const fieldRecordMarkers = (key, entry) => {
   return markers;
 };
 
+/*
+ * WHICH VERSION OF A PERSONALIZED QUESTION THE STUDENT WAS SHOWN (RT15).
+ *
+ * A Question Family slot is pinned on the device the moment it renders
+ * (familyDeliveryPins.js) and on the question record at the first Submit. In
+ * between, another Chromebook had only a fresh allocation to go on, and that
+ * differs whenever the seats moved — a provisional seat, then the teacher's
+ * app seating the class — so the student could open their work and find
+ * different numbers. The pin now rides this document too: one per slot and
+ * variant, the FIRST a device saved (it is what was shown, and the first
+ * showing is the one the student may be working on). It is replaced only when
+ * this build cannot read it, or by a device that was offered it and had to
+ * drop it (`replace`: refused, or no longer replays).
+ *
+ * It holds no answer — it is the same pin the device keeps and the record
+ * will carry — and it is never trusted: a device checks it exactly as it
+ * checks its own (familyDelivery.js buildStudentFamilyContext), so a pin the
+ * server would refuse is dropped there. A document with no pins carries no
+ * `deliveryPins` field, so it is stored exactly as before.
+ */
+export const MAX_WORKSPACE_DELIVERY_PINS = 120;
+
+/** One pin per slot and variant. */
+export const deliveryPinKey = (pin) => `${pin?.slot || ''}|v${Number(pin?.variant) || 0}`;
+
+const storableDeliveryPin = (raw) => {
+  const pin = normalizeDeliveryPin(raw);
+  return pin?.slot ? pin : null;
+};
+
+/** The pins a stored document holds, by deliveryPinKey (malformed ones dropped). */
+export const readWorkspaceDeliveryPins = (document) => {
+  const pins = new Map();
+  (Array.isArray(document?.deliveryPins) ? document.deliveryPins : []).forEach((raw) => {
+    const pin = storableDeliveryPin(raw);
+    if (pin && !pins.has(deliveryPinKey(pin))) pins.set(deliveryPinKey(pin), pin);
+  });
+  return pins;
+};
+
+const patchDeliveryPins = (deliveryPins) => (Array.isArray(deliveryPins) ? deliveryPins : [])
+  .map((entry) => {
+    const pin = storableDeliveryPin(entry?.pin);
+    return pin ? { pin, ...(entry?.replace === true ? { replace: true } : {}) } : null;
+  })
+  .filter(Boolean);
+
+// First saved wins; an unreadable stored pin, or one a device had to drop
+// (`replace`), gives way. Bounded like the entries; a pin past the cap stays
+// on the device that showed it.
+const mergeDeliveryPins = (existing, incoming) => {
+  const pins = readWorkspaceDeliveryPins(existing);
+  incoming.forEach(({ pin, replace }) => {
+    const key = deliveryPinKey(pin);
+    if (pins.has(key) && replace !== true) return;
+    if (!pins.has(key) && pins.size >= MAX_WORKSPACE_DELIVERY_PINS) return;
+    pins.set(key, pin);
+  });
+  return [...pins.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([, pin]) => pin);
+};
+
 const normalizeResume = (resume) => (resume
   ? {
     questionIndex: Number(resume.questionIndex) || 0,
@@ -793,19 +855,25 @@ export const buildWorkspaceDraftPatch = ({
   practice = null,
   hasPractice = false,
   practiceUpdatedAt = 0,
-} = {}) => ({
-  schemaVersion: WORKSPACE_DRAFT_SCHEMA_VERSION,
-  documentId: workspaceDraftDocumentId({ studentId, assignmentId }),
-  studentId: String(studentId ?? ''),
-  assignmentId: String(assignmentId ?? ''),
-  classId: classId ? String(classId) : null,
-  entries: (Array.isArray(entries) ? entries : []).map(storableEntry).filter(Boolean),
-  resume: normalizeResume(resume),
-  hasResume: Boolean(hasResume),
-  practice: practice && typeof practice === 'object' ? practice : null,
-  hasPractice: Boolean(hasPractice),
-  practiceUpdatedAt: Math.max(0, Number(practiceUpdatedAt) || 0),
-});
+  // [{ pin, replace? }]: the delivery pins this device has to add (RT15).
+  deliveryPins = [],
+} = {}) => {
+  const pins = patchDeliveryPins(deliveryPins);
+  return {
+    schemaVersion: WORKSPACE_DRAFT_SCHEMA_VERSION,
+    documentId: workspaceDraftDocumentId({ studentId, assignmentId }),
+    studentId: String(studentId ?? ''),
+    assignmentId: String(assignmentId ?? ''),
+    classId: classId ? String(classId) : null,
+    entries: (Array.isArray(entries) ? entries : []).map(storableEntry).filter(Boolean),
+    resume: normalizeResume(resume),
+    hasResume: Boolean(hasResume),
+    practice: practice && typeof practice === 'object' ? practice : null,
+    hasPractice: Boolean(hasPractice),
+    practiceUpdatedAt: Math.max(0, Number(practiceUpdatedAt) || 0),
+    ...(pins.length ? { deliveryPins: pins } : {}),
+  };
+};
 
 /**
  * MERGE, NEVER REPLACE.
@@ -901,6 +969,8 @@ export const mergeWorkspaceDraftDocumentReport = ({ existing = null, patch } = {
   const incomingPractice = patch.hasPractice && patch.practice && typeof patch.practice === 'object' ? patch.practice : null;
   const practice = incomingPractice ? mergePracticeTrackers(existingPractice || {}, incomingPractice) : existingPractice;
   const practiceChanged = incomingPractice !== null && !samePracticeProgress(existingPractice || {}, practice);
+  // Every pin already stored is kept (a patch that adds none keeps them all).
+  const deliveryPins = mergeDeliveryPins(existing, patchDeliveryPins(patch.deliveryPins));
 
   return { droppedKeys, document: {
     schemaVersion: WORKSPACE_DRAFT_SCHEMA_VERSION,
@@ -919,6 +989,8 @@ export const mergeWorkspaceDraftDocumentReport = ({ existing = null, patch } = {
     practiceUpdatedAt: practiceChanged
       ? Math.max(existingPracticeUpdatedAt, Math.max(0, Number(patch.practiceUpdatedAt) || 0))
       : existingPracticeUpdatedAt,
+    // Which version of each personalized question was shown (RT15, above).
+    ...(deliveryPins.length ? { deliveryPins } : {}),
   } };
 };
 
