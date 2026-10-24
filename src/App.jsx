@@ -7670,6 +7670,7 @@ function App() {
         releaseAt: '',
         sectionVariantModes: getStoredSectionVariantModes(assignmentV5),
         sectionAccessDefaults: { classwork: 'open', practice: 'open' },
+        // Practice keeps Guided Notes off by default: the owner's decision (FB20, 2026-10-23).
         guidedNotesBySection: { classwork: 'automatic', practice: 'off' },
         assignedClassPeriods: [],
         assignedClassIds: [],
@@ -10116,6 +10117,7 @@ function App() {
       label: String(activeQuestionRole || 'Activity').replace(/(^|\s)\S/g, (letter) => letter.toUpperCase()),
       background: 'var(--mm-surface-control)', color: 'var(--mm-text)', border: 'var(--mm-border-strong)',
     };
+    // Practice keeps Guided Notes off by default: the owner's decision (FB20, 2026-10-23).
     const currentGuidedNotesMode = assignment?.guidedNotesBySection?.[activeQuestionRole]
       || (activeQuestionRole === 'classwork' ? 'automatic' : 'off');
 

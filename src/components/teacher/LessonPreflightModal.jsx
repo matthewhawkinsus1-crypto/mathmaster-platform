@@ -152,6 +152,7 @@ const initialReviewDraft = (draft = {}) => {
     releaseAt: '',
     sectionVariantModes: {},
     sectionAccessDefaults: { classwork: 'open', practice: 'open' },
+    // Practice keeps Guided Notes off by default: the owner's decision (FB20, 2026-10-23).
     guidedNotesBySection: { classwork: 'automatic', practice: 'off' },
     warmupEnabled: true,
     warmupMinutesBeforeStart: 7,
