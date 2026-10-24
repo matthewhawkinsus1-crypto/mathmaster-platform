@@ -7847,11 +7847,14 @@ function App() {
       weeklyProgressTruncated: weeklyPathTruncated,
       classCount: classes.filter((entry) => entry?.status !== 'archived').length,
       weekFraction,
+      supportEvents: studentSupportEvents,
+      now: queueDayStart,
     });
   }, [
     activeClass.classId, studentsInActiveClass, allStudents, classes,
     teacherLearningProfiles, teacherWeeklyRoster, teacherWeeklyGoalsByStudent,
-    weeklyPathCompletionsByStudent, weeklyPathTruncated, weeklyPathProgressLoadedFor, queueDayStart, teacherTab, teacherKit,
+    weeklyPathCompletionsByStudent, weeklyPathTruncated, weeklyPathProgressLoadedFor, queueDayStart, studentSupportEvents,
+    teacherTab, teacherKit,
   ]);
 
   const profileDrawerRosterStudent = useMemo(

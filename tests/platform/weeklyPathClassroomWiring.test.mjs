@@ -51,6 +51,16 @@ test('the completion query reaches past the UTC week boundary to catch Sunday ni
   assert.equal(window.end - window.start, 8 * 24 * 60 * 60 * 1000);
 });
 
+test('the publisher reads the week\'s attendance and hands it to the decision (TT03)', () => {
+  const loader = blockAfter(functionsIndex, 'async function loadWeeklyPathClassWeek', 4600);
+  assert.match(loader, /const weekDays = weeklyCompletion\.weekDateKeys\(weekKey\)/);
+  assert.match(loader, /collection\("studentSupportEvents"\)\s*\.where\("classId", "==", classId\)\s*\.where\("dateKey", "==", dateKey\)/);
+  assert.match(loader, /studentsMarkedAbsent\(\{[\s\S]*?classId,\s*dateKeys: weekDays,/);
+  const run = blockAfter(functionsIndex, 'async function runWeeklyPathClassroomSync', 3200);
+  assert.match(run, /absentStudentIds: data\.absentStudentIds,/);
+  assert.match(control, /student_was_marked_absent_this_week: '/);
+});
+
 test('the job grades the week that ended, using the same weekKeyFor students got', () => {
   // A second definition of the week boundary here would let the job grade a week
   // nobody was ever assigned.

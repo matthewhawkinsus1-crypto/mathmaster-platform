@@ -15868,7 +15868,7 @@ async function loadWeeklyPathClassWeek(db, { classId, weekKey }) {
   const students = roster.docs
     .filter((doc) => doc.data()?.status !== "disabled")
     .map((doc) => ({ studentId: doc.id, googleUserId: String(doc.data()?.googleUserId || "").trim() || null }));
-  if (!students.length) return { students: [], goalsByStudentId: {}, completionsByStudentId: {}, truncated: false };
+  if (!students.length) return { students: [], goalsByStudentId: {}, completionsByStudentId: {}, absentStudentIds: [], truncated: false };
 
   const goalsByStudentId = {};
   const goalDocs = await Promise.all(students.map(async ({ studentId }) => {
@@ -15905,7 +15905,22 @@ async function loadWeeklyPathClassWeek(db, { classId, weekKey }) {
     if (page === MAX_PAGES - 1) truncated = true;
   }
 
-  return { students, goalsByStudentId, completionsByStudentId, truncated };
+  // Who the teacher marked absent this week (TT03): one read per day, by class
+  // and date (the shape Recovery reads attendance in), resolved by the one rule
+  // the attendance screens use.
+  const { studentsMarkedAbsent } = await import("./shared/attendanceDay.mjs");
+  const weekDays = weeklyCompletion.weekDateKeys(weekKey);
+  const attendanceDays = await Promise.all(weekDays.map((dateKey) => db.collection("studentSupportEvents")
+    .where("classId", "==", classId)
+    .where("dateKey", "==", dateKey)
+    .get()));
+  const absentStudentIds = [...studentsMarkedAbsent({
+    supportEvents: attendanceDays.flatMap((snapshot) => snapshot.docs.map((doc) => doc.data() || {})),
+    classId,
+    dateKeys: weekDays,
+  })];
+
+  return { students, goalsByStudentId, completionsByStudentId, absentStudentIds, truncated };
 }
 
 /**
@@ -15949,6 +15964,7 @@ async function runWeeklyPathClassroomSync({ classId, weekKey, dryRun = false, no
     goalsByStudentId: data.goalsByStudentId,
     completionsByStudentId: data.completionsByStudentId,
     publishedByStudentId,
+    absentStudentIds: data.absentStudentIds,
     truncated: data.truncated,
     now,
     dryRun,

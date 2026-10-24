@@ -125,6 +125,54 @@ test('nothing publishes until the class is switched on', async () => {
   assert.equal(report.results[0].reason, 'automatic_publishing_not_enabled_for_this_class');
 });
 
+test('a below-full week for a student marked absent is left for the teacher (TT03)', async () => {
+  // Monday's run must not send the family of a student who was out sick a low
+  // weekly grade before their teacher has looked at it.
+  const goal = goalFor();
+  const students = [{ studentId: 'S1', googleUserId: 'g1' }, { studentId: 'S2', googleUserId: 'g2' }];
+  const halfDone = { goalsByStudentId: { S1: goal, S2: goal }, completionsByStudentId: { S1: [completion(goal, 0)], S2: [completion(goal, 0)] } };
+
+  const { calls, deps } = harness();
+  const report = await syncWeeklyPathClassWeek({ ...baseArgs({ students, ...halfDone, absentStudentIds: ['S1'] }), ...deps });
+  const byStudent = Object.fromEntries(report.results.map((entry) => [entry.studentId, entry]));
+  assert.equal(byStudent.S1.published, false);
+  assert.equal(byStudent.S1.reason, 'student_was_marked_absent_this_week');
+  assert.equal(byStudent.S2.published, true, 'a student who was there is graded as before');
+  assert.deepEqual(calls.patched.map((patch) => patch.submissionId), ['sub-g2']);
+
+  // A full week cannot mislead anyone, so it still posts.
+  const full = harness();
+  const fullReport = await syncWeeklyPathClassWeek({ ...baseArgs({ absentStudentIds: ['S1'] }), ...full.deps });
+  assert.equal(fullReport.results[0].published, true);
+  assert.equal(full.calls.patched[0].grade, 100);
+});
+
+test('who was marked absent: the newest mark for a day governs, and any absence counts (TT03)', async () => {
+  const { studentsMarkedAbsent } = await import('../../functions/shared/attendanceDay.mjs');
+  const { weekDateKeys } = await import('../../functions/shared/weeklyPathCompletion.mjs');
+  const dateKeys = weekDateKeys(WEEK);
+  assert.deepEqual([dateKeys[0], dateKeys[6]], ['2026-08-31', '2026-09-06']);
+  const live = (studentId, dateKey, attendanceMark, at) => ({
+    kind: 'liveAttendance', studentId, classId: 'c1', dateKey, evidence: { dateKey, attendanceMark, markedAt: at },
+  });
+  const history = (studentId, dateKey, mark, at) => ({
+    kind: 'attendanceHistory', studentId, classId: 'c1', dateKey, evidence: { dateKey, mark, correctedAt: at },
+  });
+  const supportEvents = [
+    history('excused', '2026-09-01', 'excused', 1),
+    history('unexcused', '2026-09-02', 'unexcused', 1),
+    live('quick', '2026-09-03', 'absent', 1),
+    live('late', '2026-09-03', 'late', 1),
+    live('corrected', '2026-09-01', 'absent', 1),
+    history('corrected', '2026-09-01', 'present', 2),
+    live('lastWeek', '2026-08-28', 'absent', 1),
+    { kind: 'incident', studentId: 'note', classId: 'c1', dateKey: '2026-09-01', evidence: { dateKey: '2026-09-01' } },
+  ];
+  const absent = studentsMarkedAbsent({ supportEvents, classId: 'c1', dateKeys });
+  assert.deepEqual([...absent].sort(), ['excused', 'quick', 'unexcused']);
+  assert.equal(studentsMarkedAbsent({ supportEvents, classId: 'c2', dateKeys }).size, 0);
+});
+
 test('a week still in progress publishes nothing', async () => {
   // Publishing mid-week would tell a parent a student is failing a week they
   // still have days left to finish.

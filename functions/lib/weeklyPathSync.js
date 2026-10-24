@@ -55,6 +55,8 @@ async function syncWeeklyPathClassWeek({
   goalsByStudentId = {},
   completionsByStudentId = {},
   publishedByStudentId = {},
+  // The students their teacher marked absent on a day of this week.
+  absentStudentIds = [],
   truncated = false,
   now = Date.now(),
   dryRun = false,
@@ -108,6 +110,7 @@ async function syncWeeklyPathClassWeek({
     return { ok: false, reason: "classroom_did_not_return_a_coursework_id", results: [] };
   }
 
+  const absent = new Set((Array.isArray(absentStudentIds) ? absentStudentIds : []).map(clean));
   const results = [];
   for (const student of students) {
     const studentId = clean(student?.studentId || student?.id);
@@ -150,6 +153,7 @@ async function syncWeeklyPathClassWeek({
       score,
       alreadyPublishedScore: lastPublishedPoints,
       teacherEdited,
+      absentThisWeek: absent.has(studentId),
     });
 
     if (!decision.publish) {

@@ -37,6 +37,7 @@ const REASON_TEXT = Object.freeze({
   no_weekly_score_was_computed: 'no weekly score yet',
   a_teacher_already_changed_this_grade_in_classroom: 'you changed this grade in Classroom, so it was left alone',
   this_score_is_already_published: 'already published',
+  student_was_marked_absent_this_week: 'marked absent this week, so this grade is yours to enter in Classroom',
   no_weekly_goal_for_this_student: 'no weekly Path was assigned',
   no_classroom_submission_for_this_student: 'no Classroom submission to grade',
   classroom_rejected_the_grade_write: 'Google Classroom rejected the write',
