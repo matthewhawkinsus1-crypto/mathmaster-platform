@@ -86,6 +86,15 @@ async function answerEquivalence() {
   return answerEquivalenceModule;
 }
 
+// GR03: whether a line field takes any equation of its line is read from the
+// question's words at issue and stored in the private grading, which keeps no
+// prompt or label (lineFormPolicy.mjs).
+let lineFormPolicyModule = null;
+async function lineFormPolicy() {
+  if (!lineFormPolicyModule) lineFormPolicyModule = await import('../shared/lineFormPolicy.mjs');
+  return lineFormPolicyModule;
+}
+
 // Feedback, hints and the solution review. Loaded the same lazy way, and shared
 // with the Teacher Path Simulator so a teacher previewing a question sees the
 // student's actual sequence rather than a teacher-only summary.
@@ -664,7 +673,10 @@ async function buildIssuePlan(question) {
   if (!legacy.hasFieldGradableDefinition(question)) {
     return { issuable: false, reason: 'no_gradable_definition', toolPayload: null, privateGrading: null };
   }
-  return { issuable: true, reason: null, toolPayload: null, privateGrading: privateGradingDefinition(question) };
+  // A line field that asks for no form is stored as taking any equation of
+  // its line (GR03); an item issued before this keeps what it was issued with.
+  const policy = await lineFormPolicy();
+  return { issuable: true, reason: null, toolPayload: null, privateGrading: policy.withLineFormGrading(question, privateGradingDefinition(question)) };
 }
 
 async function valuesEquivalent(actual, field) {

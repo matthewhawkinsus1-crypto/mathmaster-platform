@@ -29,6 +29,7 @@ import {
   buildPrivateToolGrading, buildPublicToolPayload, gradePathResponse,
 } from '../../../functions/shared/pathToolContracts.mjs';
 import { buildFieldGradingDefinition, hasFieldGradableDefinition } from '../../../functions/shared/legacyFieldGrading.mjs';
+import { withLineFormGrading } from '../../../functions/shared/lineFormPolicy.mjs';
 import { buildAttemptSupportPayload, buildPrivateSupport } from '../../../functions/shared/pathSolutionSupport.mjs';
 import { buildPathRecapEntry, buildPathSessionRecap } from '../../../functions/shared/pathSessionRecap.mjs';
 import * as answerEquivalence from '../../../functions/shared/answerEquivalence.mjs';
@@ -430,9 +431,11 @@ export const createTeacherPathRuntime = ({
     // The grading definition stays here, alongside the session, exactly as the
     // server keeps it in `session.currentQuestion`. It is never part of the
     // instance handed to the renderer.
+    // As production's buildIssuePlan: a line field that asks for no form is
+    // stored as taking any equation of its line (GR03, lineFormPolicy.mjs).
     session.privateGrading = toolPayload
       ? buildPrivateToolGrading(issuedQuestion)
-      : (fieldGraded ? buildFieldGradingDefinition(issuedQuestion) : null);
+      : (fieldGraded ? withLineFormGrading(issuedQuestion, buildFieldGradingDefinition(issuedQuestion)) : null);
     session.privateGradingMode = toolPayload ? 'tool' : (fieldGraded ? 'fields' : 'canonical');
     // Same rule as production: feedback, hints and the review are held beside
     // the grading definition and released by attempt, never issued with the

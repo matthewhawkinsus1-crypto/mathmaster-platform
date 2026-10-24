@@ -39,6 +39,7 @@ import {
   sameWrittenNumber,
 } from './fractionAnswer.mjs';
 import { numericSetCredit } from './numericSetCredit.mjs';
+import { withLineFormPolicy } from './lineFormPolicy.mjs';
 
 const text = (value) => String(value ?? '');
 const filled = (value) => text(value).trim() !== '';
@@ -267,7 +268,10 @@ export const gradeMultiAnswerResponse = (question = {}, responsesById = {}) => {
   const fields = multiAnswerFields(question);
   const parts = fields.map((field) => {
     const response = text(responsesById?.[field.id]);
-    const isCorrect = response.trim() !== '' && matchesFieldAnswer(response, field);
+    // GR03: a line field whose question asks for no form takes any equation
+    // of its line, read from the question's own words (lineFormPolicy.mjs).
+    // The screen hands this the whole question too, so both agree.
+    const isCorrect = response.trim() !== '' && matchesFieldAnswer(response, withLineFormPolicy(question, field));
     return {
       id: field.id,
       label: field.label || field.id,

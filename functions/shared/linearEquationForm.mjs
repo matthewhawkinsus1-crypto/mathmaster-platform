@@ -20,9 +20,11 @@
 // `ordinary:multiAnswer`) uses it to name the reason for a miss the grader
 // already made. Two grading rules read it too: a point-slope answer through
 // another point of the key's line is right (answerEquivalence.mjs,
-// samePointSlopeLine; the owner, 2026-10-20), and so is a whole-number
-// multiple of a standard-form key (sameStandardFormMultiple, wholeMultipleOfLine;
-// the owner, 2026-10-23). Nothing else here grades.
+// samePointSlopeLine; the owner, 2026-10-20), so is a whole-number multiple
+// of a standard-form key (sameStandardFormMultiple, wholeMultipleOfLine; the
+// owner, 2026-10-23), and a field that asks for no form takes any equation of
+// its line (GR03, below: asksForAForm, equationsInText, isObliqueLine;
+// lineFormPolicy.mjs decides the field). Nothing else here grades.
 
 import { parsePolynomial, splitEquationSides, polynomialDegree } from './algebraicForm.mjs';
 
@@ -105,6 +107,21 @@ export const isVerticalLine = (value) => {
   return Boolean(coefficients) && Math.abs(coefficients[1]) < EPSILON;
 };
 
+/** Linear in x and y with at least one of them: what sameLine can compare. */
+export const isLine = (value) => lineCoefficients(value) !== null;
+
+/*
+ * A line in BOTH x and y: neither horizontal nor vertical. GR03 reads only
+ * these. An equation in one letter (`x = 4`, `y = 3`, `2x + 9 = 25`) is a
+ * line to sameLine, but it is also every step of solving an equation ("the
+ * equation after squaring", "the condition after adding 21"), where the
+ * question's own equation is that same "line" and must not be an answer.
+ */
+export const isObliqueLine = (value) => {
+  const coefficients = lineCoefficients(value);
+  return Boolean(coefficients) && Math.abs(coefficients[0]) > EPSILON && Math.abs(coefficients[1]) > EPSILON;
+};
+
 const bareY = (side) => /^\s*y\s*$/i.test(text(side).replace(/\\left|\\right|[{}]/g, ''));
 const has = (poly, key) => Math.abs(coefficient(poly, key)) > EPSILON;
 const onlyConstant = (poly) => !has(poly, 'x') && !has(poly, 'y');
@@ -153,3 +170,118 @@ export const requestedLineForm = (texts = []) => {
   }
   return null;
 };
+
+/*
+ * GR03 (the owner, 2026-10-24): "Yes for any question that names no form."
+ * A field whose key is a line takes any equation of that line unless the
+ * question asks for a form. These read the question's words for that; the
+ * field-level decision is lineFormPolicy.mjs, and the comparison is
+ * answerEquivalence.mjs (sameValue's `anyLineForm`).
+ */
+
+/** A field's `lineForm` when it takes any equation of its line. */
+export const LINE_FORM_ANY = 'any';
+
+/*
+ * Words that ask for a written form, or for rewriting a given equation into
+ * one. Deliberately wide: a wrongly read request only keeps today's
+ * form-for-form grading, while a missed one would accept a form the question
+ * asked the student to change. Any "form" ("slope-intercept form", "in the
+ * form y = kx", "simplest form"), a form's name or template, a direct
+ * variation (y = kx), and solving, isolating, rewriting or converting.
+ */
+const FORM_REQUESTS = [
+  /\bforms?\b/i,
+  /\bslope[-\s]?intercept\b/i,
+  /\bpoint[-\s]?slope\b/i,
+  /\bstandard\b/i,
+  /\bdirect[-\s]?variation\b/i,
+  /\by\s*=\s*m\s*x\s*\+\s*b\b/i,
+  /\by\s*=\s*k\s*x\b/i,
+  /\ba\s*x\s*\+\s*b\s*y\s*(?:\+\s*c\s*)?=\s*(?:c|0)\b/i,
+  /\by\s*[-−]\s*y\s*(?:_\s*\{?\s*1\s*\}?|₁)/i,
+  /\bsolved?\b[^.;:?!]*\bfor\b/i,
+  /\bin\s+terms\s+of\b/i,
+  /\bisolat/i,
+  /\brewrit/i,
+  /\bconvert/i,
+  /\btransform/i,
+  /\bsimplif/i,
+  /\bexpand/i,
+  /\bfactor/i,
+  /\bas\s+a\s+function\b/i,
+  /\bfunction\s+notation\b/i,
+  // "Write a system with equations y= for Plan A": a blank y = to fill in.
+  /(?:^|[^A-Za-z\\])y\s*=\s*(?=$|\$|[,.;:)?!]|\s+[A-Za-z]{2,})/i,
+];
+
+/** The words in these texts that ask for a form (or a rewrite), or null. */
+export const formRequestIn = (texts = []) => {
+  for (const value of (Array.isArray(texts) ? texts : [texts])) {
+    for (const pattern of FORM_REQUESTS) {
+      const match = pattern.exec(text(value));
+      if (match) return match[0].trim() || 'y =';
+    }
+  }
+  return null;
+};
+
+/** Does any of these texts ask for a form (or a rewrite) of an equation? */
+export const asksForAForm = (texts = []) => formRequestIn(texts) !== null;
+
+// The characters a written equation is made of. A word (two letters or more,
+// not a LaTeX command) ends it, and so do sentence punctuation and another
+// relation sign: "Line B is y = (1/3)x + 5." is `y=(1/3)x+5`.
+const EQUATION_CHARACTER = /[0-9A-Za-z+\-*/^(){}\\\s_·⋅×²³⁰¹⁴⁵⁶⁷⁸⁹⁻√]/;
+const isLetter = (character) => /[A-Za-z]/.test(character || '');
+
+const equationSide = (source, start, step) => {
+  let index = start;
+  let side = '';
+  while (index >= 0 && index < source.length) {
+    const character = source[index];
+    if (character === '.') {
+      // A decimal point, never a full stop: a digit follows it.
+      if (!/\d/.test(source[index + 1] || '')) break;
+      side = step < 0 ? character + side : side + character;
+      index += step;
+      continue;
+    }
+    if (!EQUATION_CHARACTER.test(character)) break;
+    if (isLetter(character)) {
+      let first = index;
+      let last = index;
+      while (isLetter(source[first - 1])) first -= 1;
+      while (isLetter(source[last + 1])) last += 1;
+      const word = source.slice(first, last + 1);
+      if (word.length > 1 && source[first - 1] !== '\\') break;
+      side = step < 0 ? word + side : side + word;
+      index = step < 0 ? first - 1 : last + 1;
+      continue;
+    }
+    side = step < 0 ? character + side : side + character;
+    index += step;
+  }
+  return side.trim();
+};
+
+/** The equations written in a sentence, each as `left=right`. */
+export const equationsInText = (value) => {
+  const source = text(value).replace(/\$+/g, ' ').replace(/[−–—]/g, '-');
+  const found = [];
+  for (let index = source.indexOf('='); index >= 0; index = source.indexOf('=', index + 1)) {
+    if (/[<>!≤≥≠=]/.test(source[index - 1] || '') || source[index + 1] === '=') continue;
+    const left = equationSide(source, index - 1, -1);
+    const right = equationSide(source, index + 1, 1);
+    if (left && right) found.push(`${left}=${right}`);
+  }
+  return found;
+};
+
+/*
+ * Does a text show one of these keys' lines? Then a student could copy the
+ * question's own equation ("For 3x + y = 7 …, write that equation solved for
+ * it", key y = 7 − 3x): that field keeps form-for-form grading.
+ */
+export const showsLine = (texts = [], keys = []) => (Array.isArray(texts) ? texts : [texts])
+  .some((value) => equationsInText(value).some((equation) => keys.some((key) => sameLine(equation, key))));

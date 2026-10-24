@@ -138,8 +138,10 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
   const history = useUndoHistory({}, 60, draftKey ? `${draftKey}:multi-answer` : null);
   const answers = history.value;
   // Correctness comes from the shared grading contract so every caller of it —
-  // this screen, the deadline finalizer, the tests — marks alike.
-  const graded = gradeMultiAnswerResponse({ answerFields: safeFields }, answers);
+  // this screen, the deadline finalizer, the tests — marks alike. It gets the
+  // whole question, as the server does: whether a line field takes any form
+  // of its line is read from the question's words (GR03, lineFormPolicy.mjs).
+  const graded = gradeMultiAnswerResponse({ ...question, answerFields: safeFields }, answers);
   const { parts, isCorrect } = graded;
   // A response that breaks its field's stated shape is not ready to submit:
   // the student is told why beside the field instead of losing a try to it.

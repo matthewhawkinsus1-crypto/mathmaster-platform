@@ -8,6 +8,7 @@ import { resolveServerGradingQuestion } from './questionFamilyGrading.mjs';
 import { isFamilyBackedQuestion } from './questionFamilyInstance.mjs';
 import { answerCandidatesForField, matchesFieldAnswer, normalizeMathAnswer, parseNumericAnswer } from './answerUtils.mjs';
 import './formSpecificFieldGrading.mjs';
+import { withLineFormPolicy } from './lineFormPolicy.mjs';
 import { getQuestionCredit, normalizeQuestionRecord } from './attemptPolicy.mjs';
 import { dolSectionProjection } from './assignmentProjections.mjs';
 import { readWorkspaceDraftEntries } from './workspaceDraftSchema.mjs';
@@ -106,9 +107,11 @@ export const buildGradingTrace = ({ question, response, grading } = {}) => {
   return {
     available: true,
     reason: null,
+    // Read as the grader reads it (gradeMultiAnswerResponse): a line field
+    // that asks for no form takes any equation of its line (GR03).
     fields: list(question.answerFields)
       .filter((field) => field?.id)
-      .map((field) => traceField(field, values[String(field.id)], resultById.get(String(field.id)))),
+      .map((field) => traceField(withLineFormPolicy(question, field), values[String(field.id)], resultById.get(String(field.id)))),
   };
 };
 

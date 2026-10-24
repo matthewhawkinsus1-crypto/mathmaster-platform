@@ -18,7 +18,7 @@ import { stackDivisions } from './stackDivisions.mjs';
 import { exactConstantValue } from './exactConstantValue.mjs';
 import { sameExpandedPolynomialExpression } from './expandedPolynomialExpressionEquivalence.mjs';
 import { sameLinearInequality } from './linearInequalityEquivalence.mjs';
-import { LINE_FORMS, sameLine, wholeMultipleOfLine, writtenLineForm } from './linearEquationForm.mjs';
+import { LINE_FORMS, LINE_FORM_ANY, sameLine, wholeMultipleOfLine, writtenLineForm } from './linearEquationForm.mjs';
 export { sameNonnegativeRadicalExpression } from './nonnegativeRadicalExpressionEquivalence.mjs';
 export { sameRationalExpression } from './rationalExpressionEquivalence.mjs';
 
@@ -1378,6 +1378,10 @@ export const fieldValueOptions = (field = {}) => ({
   thousandsSeparators: fieldAcceptsThousandsSeparators(field),
   exactNumber: fieldIsNumberBox(field),
   arithmetic: fieldAllowsArithmetic(field),
+  // GR03: a line field that asks for no form takes any equation of its line.
+  // lineFormPolicy.mjs sets `lineForm` from the question's words (on Path, in
+  // the private grading at issue), so the decision travels with the field.
+  ...(field?.lineForm === LINE_FORM_ANY ? { anyLineForm: true } : {}),
 });
 
 const hasInequalitySymbol = (value) => /[<>≤≥≠]|\\(?:le|ge|ne|lt|gt)/.test(String(value ?? ''));
@@ -1530,7 +1534,7 @@ const sameEquationSideBySide = (left, right, tolerance) => (
   || sameLinearEquation(left, right, tolerance)
 );
 
-export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators = true, exactNumber = false, arithmetic = true } = {}) => {
+export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators = true, exactNumber = false, arithmetic = true, anyLineForm = false } = {}) => {
   // A number box that takes no calculation refuses one before any comparison
   // below can work it out (GR01; fieldValueOptions `arithmetic`).
   if (!arithmetic && looksLikeArithmetic(left)) return false;
@@ -1549,7 +1553,7 @@ export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators =
   const leftSides = mixedSidesAsFractions(left);
   const rightSides = mixedSidesAsFractions(right);
   if (leftSides !== String(left ?? '') || rightSides !== String(right ?? '')) {
-    return sameValue(leftSides, rightSides, tolerance, { thousandsSeparators, exactNumber, arithmetic });
+    return sameValue(leftSides, rightSides, tolerance, { thousandsSeparators, exactNumber, arithmetic, anyLineForm });
   }
   if (exactNumber && sameExactNumber(left, right, tolerance)) return true;
   if (thousandsSeparators && sameThousandsGroupedNumber(left, right, tolerance)) return true;
@@ -1581,7 +1585,12 @@ export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators =
   // `2x + 1 = y` for `y = 2x + 1` (Job P). Each side is still compared with
   // the comparisons above, so the form a question asks for is kept.
   const swapped = !hasInequalitySymbol(left) && !hasInequalitySymbol(right) && splitEquationSides(left);
-  return Boolean(swapped) && sameEquationSideBySide(`${swapped.right}=${swapped.left}`, right, tolerance);
+  if (swapped && sameEquationSideBySide(`${swapped.right}=${swapped.left}`, right, tolerance)) return true;
+  // GR03: a field that asks for no form (fieldValueOptions' `anyLineForm`)
+  // also takes any equation of the key's line: `y - 5 = -3(x - 0)` or
+  // `3x + y = 5` for `y = -3x + 5`. Never without the option: by default a
+  // line keeps the form it is keyed in.
+  return anyLineForm && sameLine(left, right);
 };
 
 /**
