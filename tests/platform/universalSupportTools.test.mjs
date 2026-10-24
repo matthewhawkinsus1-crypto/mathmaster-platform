@@ -84,8 +84,11 @@ test('a universal-only tray follows the work on a laptop and never moves it', ()
   assert.match(engine, /supportTrayAfterWork=\{languageTools\.tools\.length > 0 && \(languageTools\.universal\?\.length \|\| 0\) === languageTools\.tools\.length\}/);
   const container = executableSource(read('src/components/student/MobileViewportContainer.jsx'));
   assert.match(container, /\{!workspaceActive && supportTray && !supportTrayAfterWork && <div className="mathmaster-question-support-tray">/, 'not above the work on a laptop');
-  assert.match(region(container, '<main className="math-tool-workspace">', '</main>\n', 'the workspace') + container.slice(container.indexOf('</main>\n'), container.indexOf('</main>\n') + 200),
-    /<\/main>\s*\{supportTray && supportTrayAfterWork && !isMobile && <div className="mathmaster-question-support-tray mathmaster-question-support-tray--after">/, 'after it instead');
+  // The work area (a main landmark only where no host gave one, AX45).
+  const workArea = container.indexOf('className="math-tool-workspace"');
+  assert.ok(workArea > 0, 'the work area');
+  assert.match(container.slice(workArea, workArea + 600),
+    /<\/React\.Fragment>\s*<\/div>\s*\{supportTray && supportTrayAfterWork && !isMobile && <div className="mathmaster-question-support-tray mathmaster-question-support-tray--after">/, 'after it instead');
 });
 
 // Wave 2 (job H, F's conservative call 3): My Math Path offers the universal

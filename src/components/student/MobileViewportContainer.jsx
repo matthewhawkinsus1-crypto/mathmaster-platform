@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import QuestionPrompt from '../../QuestionPrompt';
 import './MathToolMobileLayout.css';
 import '../../platform/mobile/MobileInteractionFoundation.css';
@@ -73,6 +73,16 @@ export const MobileViewportContainer = ({
   const rootRef = useRef(null);
   const keypadRef = useRef(null);
   const focusedScrollerLockRef = useRef({ element: null, left: 0 });
+  // ONE MAIN LANDMARK (AX45). The work area was a <main> inside the
+  // assignment screen's own <main>, and the same inside a secure test or Live
+  // Challenge: two main landmarks, one nested. It is the page's main only
+  // where no host gave one (a harness, a host without a landmark); read
+  // before paint, so nothing announces two.
+  const workspaceRef = useRef(null);
+  const [hostHasMain, setHostHasMain] = useState(false);
+  useLayoutEffect(() => {
+    setHostHasMain(Boolean(workspaceRef.current?.parentElement?.closest('main, [role="main"]')));
+  }, []);
   // What the last pointer press landed on; cleared by the next key press.
   const pointerPressRef = useRef(null);
   const [isPromptCollapsed, setIsPromptCollapsed] = useState(false);
@@ -508,11 +518,11 @@ export const MobileViewportContainer = ({
       {/* A focused solver workspace hides the task panel; the Support tools
           stay reachable above the work. */}
       {workspaceActive && supportTray && !(supportTrayAfterWork && !isMobile) && <div className="mathmaster-question-support-tray">{supportTray}</div>}
-      <main className="math-tool-workspace">
+      <div ref={workspaceRef} className="math-tool-workspace" role={hostHasMain ? undefined : 'main'}>
         <React.Fragment key="math-tool-workspace">
           {toolWorkspace}
         </React.Fragment>
-      </main>
+      </div>
       {supportTray && supportTrayAfterWork && !isMobile && <div className="mathmaster-question-support-tray mathmaster-question-support-tray--after">{supportTray}</div>}
 
       {/* THE BAR PUBLISHES ITS HEIGHT. It is sticky over the bottom of the

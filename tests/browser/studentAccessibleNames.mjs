@@ -255,6 +255,13 @@ const runCompleteBadge = async (page, viewport) => {
     text: element.textContent.trim(), size: parseFloat(getComputedStyle(element).fontSize),
   }));
   check(badge.size >= 12, `${viewport} section tabs: the "${badge.text}" badge is at least 12px (${badge.size}px)`);
+  // AX45: one main landmark on the assignment screen; its work area is not a
+  // second one nested inside it.
+  const landmarks = await page.evaluate(() => ({
+    mains: document.querySelectorAll('main, [role="main"]').length,
+    workArea: Boolean(document.querySelector('.math-tool-workspace')),
+  }));
+  check(landmarks.workArea && landmarks.mains === 1, `${viewport} assignment: exactly one main landmark with the work area open (${landmarks.mains}, work area ${landmarks.workArea})`);
   await page.screenshot({ path: path.join(artifacts, `complete-badge-${viewport}.png`) }).catch(() => {});
 };
 
