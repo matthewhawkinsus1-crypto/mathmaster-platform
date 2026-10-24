@@ -288,6 +288,10 @@ test('a fitted window that ends between ticks is read at tick precision', async 
     assert.doesNotMatch(text, /6\.374/);
     // A window end already at the step's precision is said exactly, even off a labelled tick.
     assert.match(describe({ xMin: -5, xMax: 5, yMin: -5, yMax: 7, xStep: 2, yStep: 2, points: [] }), /^x from −5 to 5, y from −5 to 7\./);
+    // So is an authored end one decimal finer than the step (AX36): 7.5 on a
+    // step-1 axis was read "about 7.5".
+    const authored = describe({ xMin: -2.5, xMax: 7.5, yMin: -5, yMax: 5, xStep: 1, yStep: 1, points: [] });
+    assert.match(authored, /^x from −2\.5 to 7\.5, y from −5 to 5\./, authored);
   });
 });
 

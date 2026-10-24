@@ -256,3 +256,14 @@ test('read-only planes offer a real disclosure button over a captioned, scoped t
   assert.match(disclosure, /scope="row"/);
   assert.doesNotMatch(disclosure, /#[0-9a-f]{3,6}\b/i, 'tokens only — no hard-coded colours');
 });
+
+// AX36: a point labelled with its own coordinates was read twice, "(1, 3) at
+// (1, 3)". It is read once; a named point keeps its name.
+test('a point labelled with its own coordinates is read once', () => {
+  const { description } = describeCoordinatePlane({
+    points: [{ x: 1, y: 3, label: '(1, 3)' }, { x: -2, y: 4, label: '(−2,4)' }, { x: 0, y: 5, label: 'A' }],
+    detail: 'features', xTickStep: 1, yTickStep: 1,
+  });
+  assert.match(description, /3 points: \(1, 3\); \(−2, 4\); A at \(0, 5\)\./, description);
+  assert.doesNotMatch(description, /\(1, 3\) at \(1, 3\)/);
+});

@@ -113,8 +113,10 @@ const stepDecimals = (step) => {
 const windowEndText = (value, step) => {
   if (!(Number(step) > 0)) return formatNumber(value);
   const places = stepDecimals(step);
-  // Already at the step's precision (−5 on a step-2 axis): said exactly.
-  if (Math.abs(Number(Number(value).toFixed(places)) - value) < 1e-9) return formatNumber(value);
+  // Already at the step's precision (−5 on a step-2 axis), or an authored end
+  // one decimal finer (7.5 on a step-1 axis): said exactly. Only an end
+  // computed to fit the screen (−6.374…) is "about" (AX36).
+  if (Math.abs(Number(Number(value).toFixed(places + 1)) - value) < 1e-9) return formatNumber(value);
   return `about ${formatNumber(Number(Number(value).toFixed(places + 1)))}`;
 };
 
@@ -147,6 +149,9 @@ const arrowDirection = (vector) => {
 
 /* ---------------------------------------------------------------- points */
 
+const coordinateText = (text) => String(text).replace(/[\s\u00a0]/g, '').replace(/[−‒–]/g, '-');
+const sameCoordinates = (label, at) => coordinateText(label) === coordinateText(at);
+
 const describePoints = (points, res, w) => {
   const entries = [];
   points.forEach((point) => {
@@ -168,7 +173,9 @@ const describePoints = (points, res, w) => {
     } else if (marker === 'open' || marker === 'closed') {
       text = `${at}, ${marker} dot`;
     } else {
-      text = label ? `${label} at ${at}` : at;
+      // A label that is the point's own coordinates ("(1, 3)") is not read
+      // twice: "(1, 3) at (1, 3)" (AX36).
+      text = label && !sameCoordinates(label, at) ? `${label} at ${at}` : at;
     }
     entries.push({ kind, label, x, y, marker, text: `${text}${offscreen}` });
   });
