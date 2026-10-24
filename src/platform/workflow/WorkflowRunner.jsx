@@ -43,6 +43,7 @@ import { graphArtifactAwaitsVerdict, stagesAwaitingVerdict } from './workflowDra
 import useMathUndoHistory, { questionUndoResetKey } from '../workView/useMathUndoHistory.js';
 import { useWorkViewPresentation } from '../workView/workViewPresentation.js';
 import { ToolDraftScopeProvider } from '../../tools/shared/usePersistentToolState.js';
+import { scrollMotion } from '../../motionPreference.js';
 import './WorkflowFocusMode.css';
 
 // Renders a question composed from interaction primitives.
@@ -1277,7 +1278,8 @@ export default function WorkflowRunner({
     if (tabBox.left >= stripBox.left && tabBox.right <= stripBox.right) return;
     const left = tabBox.left - stripBox.left + strip.scrollLeft;
     const target = Math.max(0, left - (strip.clientWidth - tabBox.width) / 2);
-    if (typeof strip.scrollTo === 'function') strip.scrollTo({ left: target, behavior: 'smooth' });
+    // A glide only for a student who has not asked for reduced motion (AX39).
+    if (typeof strip.scrollTo === 'function') strip.scrollTo({ left: target, behavior: scrollMotion() });
     else strip.scrollLeft = target;
   }, [activeStageIndex, workflow.length]);
 

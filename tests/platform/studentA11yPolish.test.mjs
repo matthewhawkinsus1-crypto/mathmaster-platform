@@ -50,7 +50,8 @@ test('A11Y-11: platform scrolls and the Scratchpad slide follow "reduce motion"'
   } finally {
     globalThis.window = original;
   }
-  for (const [file, count] of [['src/QuestionEngine.jsx', 1], ['src/tools/systemsWorkspace/AlgebraicSystemMode.jsx', 2], ['src/tools/systemsWorkspace/EliminationReductionMode.jsx', 1]]) {
+  // AX39: the composed question's step strip (#517) glided whatever the setting.
+  for (const [file, count] of [['src/QuestionEngine.jsx', 1], ['src/tools/systemsWorkspace/AlgebraicSystemMode.jsx', 2], ['src/tools/systemsWorkspace/EliminationReductionMode.jsx', 1], ['src/platform/workflow/WorkflowRunner.jsx', 1]]) {
     const source = executableSource(read(file));
     assert.equal((source.match(/behavior: scrollMotion\(\)/g) || []).length, count, `${file}: every platform-started scroll`);
     assert.doesNotMatch(source, /behavior: 'smooth'/, `${file}: no unconditional smooth scroll`);
