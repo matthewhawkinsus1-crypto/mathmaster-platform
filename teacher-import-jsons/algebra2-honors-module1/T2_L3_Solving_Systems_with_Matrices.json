@@ -277,7 +277,7 @@
           "hints": [
             "Flip the number: the inverse of a/b is b/a, with the same sign.",
             "A number times its multiplicative inverse is always the multiplicative identity.",
-            "Which number times anything is never 1?"
+            "Which real number, times anything, can never give the multiplicative identity?"
           ],
           "scaffold": {
             "prompt": "Let’s back up. The multiplicative inverse of a/b is…",
