@@ -15,6 +15,7 @@ import {
   samePolynomialEquationRelation,
   sameValue,
   splitTopLevelCommaList,
+  withoutStaleSetStamp,
 } from './answerEquivalence.mjs';
 import { sameEquivalentExpression } from './equivalentExpression.mjs';
 import { exactConstantValue } from './exactConstantValue.mjs';
@@ -22,7 +23,7 @@ import { fieldRequiresSimplifiedPolynomial, isSimplifiedPolynomial } from './sim
 
 export const normalizeMathAnswer = normalizeAnswer;
 export const parseNumericAnswer = asNumber;
-export { fieldAcceptsThousandsSeparators, looksLikeFiniteSetNotation, parseFiniteSetNotation, sameFiniteSetNotation };
+export { fieldAcceptsThousandsSeparators, looksLikeFiniteSetNotation, parseFiniteSetNotation, sameFiniteSetNotation, withoutStaleSetStamp };
 
 const ELLIPSIS_TOKEN = '__mathmaster_ellipsis__';
 const ELLIPSIS_PATTERN = /(?:\.\.\.|…|\\ldots|\\cdots)/g;

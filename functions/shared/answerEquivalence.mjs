@@ -304,6 +304,39 @@ export const sameNumberWithThousandsSeparators = (left, right, tolerance = 1e-6)
   return sameNumber(a ?? left, b ?? right, tolerance);
 };
 
+/*
+ * A NUMBER BOX AN OLDER TEACHER IMPORT STAMPED AS A SET BOX (RT02).
+ *
+ * Before the teacher import learned that a Question Family key such as {{k}}
+ * is a value (f0b49bcb), its own copy of the set rule read the placeholder's
+ * braces as roster notation and stamped the field `type: 'set'` (and
+ * `toolProfile: 'set'` when none was authored). Assignments imported then
+ * still gave students the set keypad for one number, and the grader read the
+ * box as a list, so 1,280 was refused. A key with no brace, comma, semicolon
+ * or empty-set sign once its {{name}} placeholders are read as values (the
+ * import's own token, authoringIntentV5Core.js) is one value, never a set.
+ *
+ * So the field is READ without the stamp, by the keypad and by every grader;
+ * the stored question is never rewritten (a Question Family pin fingerprints
+ * its template, and a rewrite would strand every pin already delivered). The
+ * only verdict this changes is a grouped number's, which it makes right.
+ */
+const FAMILY_TOKEN = /\{\{\s*[A-Za-z_][A-Za-z0-9_]*\s*(?:\|\s*[A-Za-z]+\s*)?\}\}/g;
+const SET_SIGNS = /[{},;∅]|\\(?:emptyset|varnothing)/;
+const isOneValueKey = (value) => {
+  const text = String(value ?? '').trim().replace(FAMILY_TOKEN, '0');
+  return Boolean(text) && !SET_SIGNS.test(text);
+};
+export const withoutStaleSetStamp = (field) => {
+  if (!field || typeof field !== 'object' || String(field.type ?? '').trim().toLowerCase() !== 'set') return field;
+  const keys = [field.answer, ...(Array.isArray(field.acceptedAnswers) ? field.acceptedAnswers : [])]
+    .filter((value) => String(value ?? '').trim() !== '');
+  if (!keys.length || !keys.every(isOneValueKey)) return field;
+  const { type: _stamp, ...unstamped } = field;
+  if (String(unstamped.toolProfile ?? '').trim().toLowerCase() === 'set') delete unstamped.toolProfile;
+  return unstamped;
+};
+
 // Field declarations whose answer is several values separated by commas. In
 // these, `1,234` is two entries, never one thousand two hundred thirty-four.
 const COMMA_SEPARATED_FORMATS = new Set([
@@ -325,7 +358,8 @@ const COMMA_SEPARATED_FORMATS = new Set([
  * and the teacher's Path simulation all ask it, and pass its answer to
  * sameValue.
  */
-export const fieldAcceptsThousandsSeparators = (field = {}) => {
+export const fieldAcceptsThousandsSeparators = (stored = {}) => {
+  const field = withoutStaleSetStamp(stored);
   if (field?.partialCredit === 'matchedElements') return false;
   return ![
     field?.equivalence,

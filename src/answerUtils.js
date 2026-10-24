@@ -15,4 +15,5 @@ export {
   parseNumericAnswer,
   parseOrderedPair,
   sameFiniteSetNotation,
+  withoutStaleSetStamp,
 } from '../functions/shared/answerUtils.mjs';

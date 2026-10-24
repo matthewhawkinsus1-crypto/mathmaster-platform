@@ -7,7 +7,7 @@ import './MultiAnswerGrader.css';
 import GraphDisplay from './GraphDisplay';
 import PathQuestionStimulus from './components/student/PathQuestionStimulus.jsx';
 import LinearRegressionPanel from './components/assessment/LinearRegressionPanel.jsx';
-import { answerCandidatesForField, looksLikeFiniteSetNotation } from './answerUtils';
+import { answerCandidatesForField, looksLikeFiniteSetNotation, withoutStaleSetStamp } from './answerUtils';
 import { gradeMultiAnswerResponse } from '../functions/shared/ordinaryResponseGrading.mjs';
 // Registers the factoredForm / simplestRadicalForm comparators the shared
 // field grader reads (kept out of the first load: answerUtils.mjs).
@@ -123,7 +123,11 @@ const NO_FIELDS = Object.freeze([]);
 
 export default function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
   const { prompt, answerFields = NO_FIELDS } = question;
-  const safeFields = useMemo(() => (Array.isArray(answerFields) ? answerFields.filter((field) => field?.id) : []), [answerFields]);
+  // Read as the box its key says it is: an older import stamped some number
+  // boxes as set boxes (RT02), and the grader reads them the same way.
+  const safeFields = useMemo(() => (
+    Array.isArray(answerFields) ? answerFields.filter((field) => field?.id).map(withoutStaleSetStamp) : []
+  ), [answerFields]);
   const candidateGraphs = useMemo(
     () => stableShuffleChoices(
       Array.isArray(question.candidateGraphs) ? question.candidateGraphs : [],
