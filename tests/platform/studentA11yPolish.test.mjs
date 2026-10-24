@@ -26,7 +26,10 @@ test('A11Y-10: Undo and Reset keep their word under the icon where the bar drops
   const engine = executableSource(read('src/QuestionEngine.jsx'));
   assert.match(engine, /<span aria-hidden="true">↺<\/span><span className="mathmaster-action-label mathmaster-action-label--kept"> Reset<span className="mathmaster-action-label-long"> Question<\/span><\/span>/);
   // No other bar tool keeps its word: ✎, the calculator and 💡 are distinct.
-  assert.equal((engine.match(/mathmaster-action-label--kept/g) || []).length, 1, 'Reset only, in the engine');
+  // The one other kept caption is a state, not a tool's name: "Hand up" on
+  // the Hint/Ask button while the student's hand is raised (FB18).
+  assert.equal((engine.match(/mathmaster-action-label--kept/g) || []).length, 2, 'Reset, and the raised hand, in the engine');
+  assert.match(engine, /\{handRaised\s*\? <span className="mathmaster-action-label mathmaster-action-label--kept"> Hand up<\/span>/);
   const css = executableSource(read('src/components/student/MathToolMobileLayout.css'));
   const phone = region(css, '@media (max-width: 768px) and (orientation: portrait) {', '\n}\n', 'the phone portrait rules');
   // Beside Submit, and below 385px: the two places the words are hidden.
