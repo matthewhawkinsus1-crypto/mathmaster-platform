@@ -33,6 +33,7 @@ import { SAME_ANSWER_AGAIN, missOutcomeText, submitActionLabel, submitTryCost, t
 import './components/student/SubmitCost.css';
 import { closedQuestionEnterAction } from './platform/interaction/closedQuestionEnter.js';
 import { READ_ONLY_WORK_AREA_LABEL, READ_ONLY_WORK_AREA_SELECTOR, bindReadOnlyWorkArea } from './platform/interaction/readOnlyWorkArea.js';
+import { GRAPH_READ_OUT_SUPPORT_ID, GraphReadOutProvider, graphReadOutEntitled } from './platform/supports/graphReadOut.js';
 import { questionModuleFailureKey } from './platform/runtime/questionModuleFailureKey.js';
 import { practiceLikeThisOffered } from './platform/supports/workedExample/practiceLikeThis.js';
 import { buildPartReviewRows, closedQuestionHasReview } from './platform/supports/review/closedQuestionReview.js';
@@ -325,6 +326,10 @@ function QuestionEngineBody({
   // Which language Support tools to offer, when the caller already knows
   // (supportToolsEntitlement.js toolsEntitlementFromPath on My Math Path).
   supportEntitlement = null,
+  // The graph read-out (AX03), when the caller already knows (a secure item
+  // decides it from the student's own plan for a test). Null: from
+  // `studentProfile` for this activity.
+  graphReadOut: graphReadOutChoice = null,
   // Supplied by the QuestionEngine wrapper: prepare this question again from
   // scratch (a remount). Offered only for a failure a retry can clear.
   onResolutionRetry = null,
@@ -682,6 +687,21 @@ function QuestionEngineBody({
   );
   const supportItemKey = `${processedQuestion?.questionId ?? processedQuestion?.id ?? ''}|${record.variantIndex ?? 0}`;
   const reportToolEvidence = useCallback((evidence) => onSupportEvidenceRef.current?.(evidence), []);
+  // GRAPH READ-OUT (AX03): the full graph description while the question is
+  // open, from the student's own plan for this activity (graphReadOut.js). My
+  // Math Path decides supports on its server, whose list does not carry it:
+  // not there, rather than given without a record.
+  const graphReadOut = useMemo(
+    () => graphReadOutChoice ?? (supportEntitlement ? false : graphReadOutEntitled(stableStudentProfile, { activityRole })),
+    [graphReadOutChoice, supportEntitlement, stableStudentProfile, activityRole],
+  );
+  // Provided once per item, when a graph on it was read out in full.
+  const graphReadOutReportedRef = useRef('');
+  const reportGraphReadOut = useCallback(() => {
+    if (graphReadOutReportedRef.current === supportItemKey) return;
+    graphReadOutReportedRef.current = supportItemKey;
+    onSupportEvidenceRef.current?.({ supportId: GRAPH_READ_OUT_SUPPORT_ID, eventType: 'provided' });
+  }, [supportItemKey]);
   const supportTrayFor = (surface) => (languageTools.tools.length ? (
     <StudentSupportTray
       entitlement={languageTools}
@@ -3058,6 +3078,7 @@ function QuestionEngineBody({
   return (
     <DeferredFocusProvider authority={focusAuthority}>
     <QuestionLifecycleProvider terminal={locked} positionsReadable={positionsReadable}>
+    <GraphReadOutProvider enabled={graphReadOut} onReadOut={reportGraphReadOut}>
     <WorkViewUndoProvider register={setUndoController} baseController={baseUndoController} resetKey={`${processedQuestion?.questionId ?? processedQuestion?.id ?? processedQuestion?.prompt ?? 'question'}|${questionResetVersion}`}>
     <div
       ref={questionEngineRef}
@@ -3454,6 +3475,7 @@ function QuestionEngineBody({
       <ScratchpadOverlay open={scratchpadOpen} questionKey={processedQuestion?.questionId ?? processedQuestion?.id ?? null} questionDetails={scratchpadQuestionDetails} initialDataUrl={scratchpadDataUrl} initialPages={scratchpadPages} onSave={saveScratchpad} onClose={() => setScratchpadOpen(false)} readOnly={locked} gridBackground={supportPresentation.graphPaper === true} />
     </div>
     </WorkViewUndoProvider>
+    </GraphReadOutProvider>
     </QuestionLifecycleProvider>
     </DeferredFocusProvider>
   );

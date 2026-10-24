@@ -10,12 +10,17 @@
 //   ?q=story        Graph Story's sketch plane
 //   ?q=pathBoundary a Path stimulus graph with authored vertical boundaries:
 //                   x = 5, solid (of x ≤ 5), and x = 1, dashed (of x > 1)
+//   ?q=pathTable    a Path stimulus line that is not a reading item: a finished
+//                   question offers its data table (AX03: the read-out never does)
 //   ?role=practice|dol   the activity policy (default practice)
 //   ?closed=1       the question is already answered (a closed question)
 //   ?locked=1       the assignment is locked (an ended DOL): terminal, nothing shown
 //   ?released=1     with ?closed=1 on a DOL: the assignment's review is released
 //                   (without it the item is closed and its outcome counted, as App
 //                   sets feedbackReleased, but no worked solution is shown)
+//   ?readOut=1      the student's plan gives them the Graph read-out (AX03); the
+//                   support evidence the engine reports is kept in
+//                   window.__mmSupportEvidence
 //
 // All data is synthetic.
 import React from 'react';
@@ -34,6 +39,8 @@ const which = params.get('q') || 'interval';
 const closed = params.get('closed') === '1';
 const locked = params.get('locked') === '1';
 const released = params.get('released') === '1';
+const readOut = params.get('readOut') === '1';
+window.__mmSupportEvidence = [];
 
 const GRAPH = { xMin: -5, xMax: 5, yMin: -5, yMax: 5, line: { m: 1, b: 1 }, points: [{ x: 2, y: 3, label: 'A' }] };
 const FIXTURES = {
@@ -90,6 +97,12 @@ const FIXTURES = {
     },
     answerFields: [{ id: 'left', label: 'The inequality for x = 1', answer: 'x > 1' }, { id: 'right', label: 'The inequality for x = 5', answer: 'x ≤ 5' }],
   },
+  pathTable: {
+    type: 'multiAnswer',
+    prompt: 'What is the slope of the line?',
+    stimulus: { title: 'Graph of the line', graph: { xMin: -4, xMax: 4, yMin: -4, yMax: 4, lines: [{ label: 'Line', points: [[0, -1], [1, 1]] }] } },
+    answerFields: [{ id: 'slope', label: 'Slope', answer: '2' }],
+  },
 };
 
 const question = FIXTURES[which] ? { questionId: `figure-description-${which}`, ...FIXTURES[which] } : null;
@@ -99,7 +112,9 @@ function Harness() {
   return (
     <main style={{ maxWidth: 1360, margin: '0 auto', padding: 12, fontFamily: 'system-ui' }} data-figure-fixture={which}>
       <QuestionEngine
-        key={`${which}-${role}-${closed}-${locked}-${released}`}
+        key={`${which}-${role}-${closed}-${locked}-${released}-${readOut}`}
+        studentProfile={readOut ? { accommodations: ['graph-read-out'] } : null}
+        onSupportEvidence={(evidence) => { window.__mmSupportEvidence.push(evidence); }}
         assignmentLocked={locked}
         feedbackReleased={closed && role !== 'practice'}
         assessmentReviewReleased={released}

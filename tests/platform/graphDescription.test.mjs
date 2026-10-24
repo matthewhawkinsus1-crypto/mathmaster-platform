@@ -229,7 +229,11 @@ test('the plane states feature values only once the question is closed, or when 
   // explicit true is 'kinds' while answerable.
   // Positions only once the outcome is shown and the question finished (W5-2 review S1).
   assert.match(planeCode, /const \{ positionsReadable: questionClosed \} = useQuestionLifecycle\(\);/);
-  assert.match(planeCode, /const descriptionDetail = \(describeFeatures == null \? questionClosed : describeFeatures === true\) \? 'features' : 'kinds';/);
+  // …or the graph read-out (AX03), which only a host can switch on for a
+  // student whose plan gives it, and never over an explicit describeFeatures
+  // (graphReadOut.js graphReadOutApplies; tests/platform/graphReadOut.test.mjs).
+  assert.match(planeCode, /const readOut = graphReadOutApplies\(\{ enabled: graphReadOut\.enabled, closed: questionClosed, explicit: describeFeatures \}\);/);
+  assert.match(planeCode, /const descriptionDetail = \(describeFeatures == null \? questionClosed \|\| readOut : describeFeatures === true\) \? 'features' : 'kinds';/);
   const memo = region(planeCode, 'useMemo(() => describeCoordinatePlane(', '\n  const ', 'description memo');
   assert.match(memo, /detail: descriptionDetail,/);
   assert.match(memo, /minorGridDrawn: showMinorGrid,/, 'values at the grid actually drawn');

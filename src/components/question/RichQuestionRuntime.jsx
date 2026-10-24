@@ -8,7 +8,8 @@ import SolutionReviewPanel from '../../SolutionReviewPanel.jsx';
 import LinearRegressionPanel from '../assessment/LinearRegressionPanel.jsx';
 import SecureItemAccessSupports from '../assessment/SecureItemAccessSupports.jsx';
 import SecureMathAnswerField from '../assessment/SecureMathAnswerField.jsx';
-import { secureAccessEntitlement } from '../../platform/assessment/secureItemAccess.js';
+import { SECURE_ACTIVITY_ROLE, secureAccessEntitlement } from '../../platform/assessment/secureItemAccess.js';
+import { GraphReadOutProvider, graphReadOutEntitled } from '../../platform/supports/graphReadOut.js';
 import { toolsEntitlementFromProfile } from '../../platform/language/supportToolsEntitlement.js';
 import { workedSolutionSupports } from '../../platform/supports/workedSolutionSupports.js';
 import { speechAvailable } from '../../platform/language/speechText.js';
@@ -142,7 +143,7 @@ const InstructionalSupport = ({ policy, feedback, isToolItem, supportProfile = n
  * given the raw profile, because the flattened assessment profile loses the
  * plan's per-activity limits). Nothing here reads or computes correctness.
  */
-const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, rawStudentSupportProfile = null, initialResponsePayload, busy, closed, feedback, navigationMode = false, calculatorInToolbar = false, onSubmit, onDraftChange }) => {
+const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, rawStudentSupportProfile = null, graphReadOut = false, initialResponsePayload, busy, closed, feedback, navigationMode = false, calculatorInToolbar = false, onSubmit, onDraftChange }) => {
   const [responses, setResponses] = useState(() => initialResponsePayload?.responses || {});
   const [calculatorUsed, setCalculatorUsed] = useState(false);
   const [regressionState, setRegressionState] = useState(() => {
@@ -188,7 +189,12 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
         <MathText as="h1" style={{ color: 'var(--mm-text-strong)', fontSize: 'clamp(calc(20 * var(--mm-px)), calc(4vw * var(--mm-text-scale, 1)), calc(27 * var(--mm-px)))', lineHeight: 1.45, margin: '10px 0 24px', fontWeight: 760 }}>{question.prompt}</MathText>
         {policy.secure && <SecureItemAccessSupports question={question} studentSupportProfile={rawStudentSupportProfile} />}
         {question.formulaLatex && <div style={{ background: 'var(--mm-surface-sunken)', padding: 12, borderRadius: 8, marginBottom: 18, overflowX: 'auto' }}><MathDisplay value={question.formulaLatex} /></div>}
-        <PathQuestionStimulus stimulus={question.stimulus} />
+        {/* The graph read-out (AX03): the stimulus graph read in full for a
+            student whose plan gives it. Recorded with the item's
+            accommodations (supportUsage), as every secure accommodation is. */}
+        <GraphReadOutProvider enabled={graphReadOut}>
+          <PathQuestionStimulus stimulus={question.stimulus} />
+        </GraphReadOutProvider>
         {question.permittedTools?.includes('linearRegression') && <LinearRegressionPanel value={regressionState} onUsed={() => setCalculatorUsed(true)} onChange={(next) => {
           setRegressionState(next);
           if (locked) return; // the item is being recorded; see updateResponse
@@ -264,7 +270,7 @@ const secureToolTrayEntitlement = (rawStudentSupportProfile) => {
   return { tools: entitlement.tools, language: entitlement.language, showExamples: false, promptTermsOnly: true };
 };
 
-const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStudentSupportProfile = null, draftKey, initialResponsePayload, busy, closed, closedMessage, feedback, attempt, executionScope, navigationMode = false, calculatorInToolbar = false, onSubmit, onDraftChange }) => {
+const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStudentSupportProfile = null, graphReadOut = false, draftKey, initialResponsePayload, busy, closed, closedMessage, feedback, attempt, executionScope, navigationMode = false, calculatorInToolbar = false, onSubmit, onDraftChange }) => {
   const latestRawRef = useRef(initialResponsePayload?.raw || null);
   const onSubmitRef = useRef(onSubmit);
   onSubmitRef.current = onSubmit;
@@ -406,6 +412,7 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStude
           activityPolicy={activityPolicy}
           studentProfile={supportProfile}
           supportEntitlement={trayEntitlement}
+          graphReadOut={graphReadOut}
           showStandardBadge={false}
           draftKey={draftKey}
           assessmentContext={assessmentContext}
@@ -482,6 +489,14 @@ export default function RichQuestionRuntime({
       studentSupportProfile: supportProfile,
     });
   }, [question, examType, sessionCalculatorMode, supportProfile, accommodationConfirmed, policy.mode]);
+  // GRAPH READ-OUT (AX03), from the student's OWN plan — the flattened
+  // assessment profile has lost its per-activity limits — for a test on a
+  // secure item (as secureItemAccess.js decides the language tools), else for
+  // the mode's activity.
+  const graphReadOut = useMemo(
+    () => graphReadOutEntitled(studentSupportProfile, { activityRole: policy.secure ? SECURE_ACTIVITY_ROLE : policy.activityRole || null }),
+    [studentSupportProfile, policy.secure, policy.activityRole],
+  );
 
   if (!question) return <div style={{ padding: 36, textAlign: 'center', color: 'var(--mm-text-muted)' }}>Preparing the next secure item…</div>;
 
@@ -493,6 +508,7 @@ export default function RichQuestionRuntime({
         calculatorPolicy={calculatorPolicy}
         supportProfile={supportProfile}
         rawStudentSupportProfile={studentSupportProfile}
+        graphReadOut={graphReadOut}
         draftKey={draftKey}
         initialResponsePayload={initialResponsePayload}
         busy={busy}
@@ -515,6 +531,7 @@ export default function RichQuestionRuntime({
       calculatorPolicy={calculatorPolicy}
       studentSupportProfile={supportProfile}
       rawStudentSupportProfile={studentSupportProfile}
+      graphReadOut={graphReadOut}
       initialResponsePayload={initialResponsePayload}
       busy={busy}
       closed={closed}

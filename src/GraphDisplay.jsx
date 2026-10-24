@@ -10,6 +10,7 @@ import { quadrantLabelPositions } from './platform/graph/quadrantLabels.js';
 import { describeCoordinatePlane } from './platform/language/graphDescription.js';
 import { useQuestionLifecycle } from './platform/question/QuestionLifecycleContext.jsx';
 import { PublishFigureReading } from './platform/language/figureReadings.js';
+import { graphReadOutApplies, useGraphReadOut, useReportGraphReadOut } from './platform/supports/graphReadOut.js';
 
 const DEFAULT_WIDTH = 620;
 const DEFAULT_HEIGHT = 430;
@@ -256,6 +257,13 @@ const describeStaticGraph = ({ xMin, xMax, yMin, yMax, xStep, yStep, minorStep, 
 export default function GraphDisplay({ graph, title = 'Coordinate graph', enlargeable = true }) {
   const descriptionId = `mm-graph-desc-${useId()}`;
   const { positionsReadable: questionClosed, terminal: questionLocked } = useQuestionLifecycle();
+  // GRAPH READ-OUT (AX03): the full reading while the question is open, for a
+  // student whose plan gives it (graphReadOut.js). An axis whose numbers the
+  // graph hides is read by nobody, so the read-out adds nothing there.
+  const graphReadOut = useGraphReadOut();
+  const readOut = graphReadOutApplies({ enabled: graphReadOut.enabled, closed: questionClosed });
+  const axesShown = graph?.axisDisplay?.showXTickLabels !== false && graph?.axisDisplay?.showYTickLabels !== false;
+  useReportGraphReadOut(Boolean(graph) && readOut && axesShown);
   const plotClipId = `mm-graph-plot-${useId().replace(/[^A-Za-z0-9_-]/g, '')}`;
   if (!graph) return null;
 
@@ -328,15 +336,20 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
   const axisY = xMin <= 0 && xMax >= 0 ? toScreenX(0) : toScreenX(xMin);
 
   const authoredDescription = String(graph.accessibleDescription || displayGraph.accessibleDescription || '').trim();
-  const spokenDescription = authoredDescription || describeStaticGraph({
+  const reading = (detail) => describeStaticGraph({
     xMin, xMax, yMin, yMax, xStep, yStep, functions, points, segments, endpointRequirements,
     minorStep: xMinorTicks.length && yMinorTicks.length && xMinorStep === yMinorStep ? xMinorStep : null,
-    asymptotes: graphAsymptoteLines(graph), detail: questionClosed ? 'features' : 'kinds',
+    asymptotes: graphAsymptoteLines(graph), detail,
     axisNumbersHidden: { x: !showXTickLabels, y: !showYTickLabels },
     // Closed, but its review not shown (an ended DOL, a DOL item before
     // release): it can no longer be answered, so the sentence says so.
     positionsWithheldText: questionLocked ? 'Positions are not read out on this question.' : null,
   });
+  // With the read-out, an author's description (written not to give the
+  // answer away) is followed by the full reading.
+  const spokenDescription = authoredDescription
+    ? [authoredDescription, readOut ? reading('features') : ''].filter(Boolean).join(' ')
+    : reading(questionClosed || readOut ? 'features' : 'kinds');
 
   const FigureContainer = enlargeable ? EnlargeableFigure : 'div';
   return (

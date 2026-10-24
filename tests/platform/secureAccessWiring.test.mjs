@@ -41,7 +41,7 @@ test("a secure field item offers prompt-only supports from the student's own pla
 });
 
 test("a secure Rich Tool item's own tray offers the student's secure supports, Vocabulary without worked examples (H-16)", () => {
-  assert.match(runtime, /^import \{ secureAccessEntitlement \} from '\.\.\/\.\.\/platform\/assessment\/secureItemAccess\.js';$/m);
+  assert.match(runtime, /^import \{[^}]*\bsecureAccessEntitlement\b[^}]*\} from '\.\.\/\.\.\/platform\/assessment\/secureItemAccess\.js';$/m);
   const entitlement = region(runtime, 'const secureToolTrayEntitlement = (rawStudentSupportProfile) => {', '\n};\n', 'tray entitlement');
   assert.match(entitlement, /const entitlement = secureAccessEntitlement\(rawStudentSupportProfile\);/);
   // Every secure tool the plan grants on a test — Vocabulary included, so a

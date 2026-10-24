@@ -15,6 +15,7 @@ import { baselineBelowAxis, planeFontSize } from './planeTextScale.js';
 import { equalUnitPlaneHeight } from './planeEqualUnits.js';
 import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
 import { PublishFigureReading } from '../../platform/language/figureReadings.js';
+import { graphReadOutApplies, useGraphReadOut, useReportGraphReadOut } from '../../platform/supports/graphReadOut.js';
 import { axisTitleSentence, cleanAxisLabel } from './planeAxisTitles.js';
 
 const POINT_LABEL_STYLE = Object.freeze({
@@ -581,7 +582,12 @@ export default function CoordinatePlane({
   const describedVerticals = orNone(verticalLines);
   const describedHorizontals = orNone(horizontalLines);
   const { positionsReadable: questionClosed } = useQuestionLifecycle();
-  const descriptionDetail = (describeFeatures == null ? questionClosed : describeFeatures === true) ? 'features' : 'kinds';
+  // GRAPH READ-OUT (AX03): a student whose plan gives it hears the full
+  // reading while the question is open (graphReadOut.js). Only the words: the
+  // data table below stays the closed question's.
+  const graphReadOut = useGraphReadOut();
+  const readOut = graphReadOutApplies({ enabled: graphReadOut.enabled, closed: questionClosed, explicit: describeFeatures });
+  const descriptionDetail = (describeFeatures == null ? questionClosed || readOut : describeFeatures === true) ? 'features' : 'kinds';
   const generatedDescription = useMemo(() => describeCoordinatePlane({
     xMin, xMax, yMin, yMax, xTickStep, yTickStep, snapStep,
     detail: descriptionDetail,
@@ -606,9 +612,13 @@ export default function CoordinatePlane({
   const authoredDescription = typeof description === 'string' ? description.trim() : '';
   const axisTitles = { x: cleanAxisLabel(xAxisTitle), y: cleanAxisLabel(yAxisTitle) };
   // The captions are hidden from assistive technology, so the description is
-  // where a screen reader and Read Aloud hear what the axes measure.
-  const spokenDescription = [axisTitleSentence(axisTitles), authoredDescription || generatedDescription.description]
+  // where a screen reader and Read Aloud hear what the axes measure. With the
+  // read-out, an author's description (written not to give the answer away) is
+  // followed by the full reading.
+  const readOutReading = readOut && generatedDescription.detail === 'features' ? generatedDescription.description : '';
+  const spokenDescription = [axisTitleSentence(axisTitles), authoredDescription || generatedDescription.description, authoredDescription ? readOutReading : '']
     .filter(Boolean).join(' ');
+  useReportGraphReadOut(Boolean(readOutReading));
   // IDREFs, not url(#…), so useId's own characters are fine here.
   const descriptionUid = useId();
   const descriptionId = `mm-plane-desc-${descriptionUid}`;
@@ -640,7 +650,7 @@ export default function CoordinatePlane({
   }, []);
   const svgFont = (size) => planeFontSize(size, width, renderedWidth);
   const showDataTable = !interactive && dataTable !== false && insideControl === false
-    && descriptionDetail === 'features' && revealCoordinates !== false && pointHoverEnabled !== false
+    && descriptionDetail === 'features' && !readOut && revealCoordinates !== false && pointHoverEnabled !== false
     && generatedDescription.tables.length > 0;
 
   const preview = keyboardActive ? keyboardCursor : pointerPreview;

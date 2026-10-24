@@ -194,6 +194,16 @@ const entries = [
     label: 'Larger text', studentLabel: null, evidence: ['provided'], legacy: true,
   },
   {
+    // For a blind student on graph-READING items (AX03). While a question can
+    // be answered a graph's screen-reader description names only the kinds of
+    // marks it draws; with this support it is read in full — where lines
+    // cross, where points are — as a sighted student reads it off the grid or
+    // a human reader would (src/platform/supports/graphReadOut.js). Applied by
+    // itself where a graph is on screen, so it is `provided` there, per item.
+    id: 'graph-read-out', classification: A, category: C.PRESENTATION, automation: AUTO,
+    label: 'Graph read-out (a screen reader hears the full graph description)', studentLabel: null, evidence: ['provided'],
+  },
+  {
     id: 'word-processor-response', classification: A, category: C.RESPONSE, automation: AUTO,
     label: 'Chromebook / word-processor response', studentLabel: null, evidence: ['provided'],
   },
@@ -464,6 +474,7 @@ const SHORT_LABELS = Object.freeze({
   'declutter-ui': 'Decluttered screen',
   'no-countdown': 'Countdown hidden',
   'disable-idle-timer': 'No idle prompt',
+  'graph-read-out': 'Graph read-out',
   'word-processor-response': 'Word-processor response',
   'keyboard-access': 'Keyboard access',
   'algebra-auto-apply': 'Algebra Apply shortcut',

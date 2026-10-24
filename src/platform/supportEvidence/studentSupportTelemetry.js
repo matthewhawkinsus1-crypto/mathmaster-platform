@@ -43,10 +43,12 @@ const TIMED_ROLES = new Set(['warmup', 'dol', 'quiz', 'test']);
 // language on the profile is not translated content on the screen. Keyboard
 // access is "provided" when a graph shows "Connect my points" on an exit
 // ticket, quiz or test because of it (platform/graph/connectPointsPolicy.js).
+// The graph read-out is provided only where a graph was read out in full
+// (src/platform/supports/graphReadOut.js), never because an assignment opened.
 const RECORDED_IN_QUESTION = new Set([
   'text-to-speech', 'calculator', 'calculator-override-computation',
   'translation', 'glossary-lookup', 'chunked-directions', 'sentence-frames',
-  'keyboard-access',
+  'keyboard-access', 'graph-read-out',
 ]);
 // Not a platform fact in an assignment.
 const NOT_RECORDED_AT_LAUNCH = new Set(['extra-attempts']);

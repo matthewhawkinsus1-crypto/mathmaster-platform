@@ -128,13 +128,18 @@ test('the static question graph carries the shared plane\'s description, by the 
   const source = executableSource(read('src/GraphDisplay.jsx'));
   assert.match(source, /^import \{ describeCoordinatePlane \} from '\.\/platform\/language\/graphDescription\.js';$/m);
   assert.match(source, /^import \{ useQuestionLifecycle \} from '\.\/platform\/question\/QuestionLifecycleContext\.jsx';$/m);
-  assert.match(source, /const spokenDescription = authoredDescription \|\| describeStaticGraph\(\{[\s\S]*?detail: questionClosed \? 'features' : 'kinds',/, 'kinds while open, features once closed; authored text wins');
+  // Kinds while open, features once closed; authored text wins. For a student
+  // whose plan gives the graph read-out (AX03), features while open too, after
+  // any authored text (behaviour: tests/platform/graphReadOut.test.mjs).
+  assert.match(source, /const reading = \(detail\) => describeStaticGraph\(\{[\s\S]*?asymptotes: graphAsymptoteLines\(graph\), detail,/);
+  assert.match(source, /const spokenDescription = authoredDescription\s*\? \[authoredDescription, readOut \? reading\('features'\) : ''\]\.filter\(Boolean\)\.join\(' '\)\s*: reading\(questionClosed \|\| readOut \? 'features' : 'kinds'\);/, 'kinds while open, features once closed; authored text wins');
   const svg = region(source, '<svg\n        className="mathmaster-responsive-canvas"', '>', 'the graph svg');
   assert.match(svg, /aria-describedby=\{descriptionId\}/);
   assert.match(source, /<p id=\{descriptionId\}[^>]*>\{spokenDescription\}<\/p>/);
   // Hooks before the early return (rules of hooks).
   const head = region(source, 'export default function GraphDisplay(', 'if (!graph) return null;', 'the component head');
   assert.match(head, /useId\(\)[\s\S]*useQuestionLifecycle\(\)/);
+  assert.match(head, /useGraphReadOut\(\)[\s\S]*useReportGraphReadOut\(/);
 });
 
 test('the legacy graph workspace and the Graph Story sketch are described by the student\'s work', () => {

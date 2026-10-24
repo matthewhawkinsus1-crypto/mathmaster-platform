@@ -62,8 +62,8 @@ const axNode = async (page, selector) => {
   }
 };
 
-const open = async (page, q, { role = 'practice', closed = false, locked = false, released = false } = {}) => {
-  await page.goto(`${origin}/tests/browser/figureDescriptions.html?q=${q}&role=${role}${closed ? '&closed=1' : ''}${locked ? '&locked=1' : ''}${released ? '&released=1' : ''}`, { waitUntil: 'networkidle' });
+const open = async (page, q, { role = 'practice', closed = false, locked = false, released = false, readOut = false } = {}) => {
+  await page.goto(`${origin}/tests/browser/figureDescriptions.html?q=${q}&role=${role}${closed ? '&closed=1' : ''}${locked ? '&locked=1' : ''}${released ? '&released=1' : ''}${readOut ? '&readOut=1' : ''}`, { waitUntil: 'networkidle' });
   await page.locator(`[data-figure-fixture="${q}"]`).waitFor();
   await page.waitForTimeout(400);
 };
@@ -242,6 +242,35 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
     await page.keyboard.press('Tab');
     await page.waitForTimeout(150);
     assert.ok(await page.evaluate(() => !document.activeElement?.closest?.('math-field')), 'Tab moves on from a closed math box');
+  });
+
+  // AX03: the Graph read-out. A student whose plan gives it hears the full
+  // reading while the question is open — the static question graph and a Path
+  // stimulus graph alike — with no data table, and it is recorded as provided.
+  await step(at, 'graph read-out: the full reading while open, for a plan that gives it', async () => {
+    const GRAPH = 'svg[aria-label="Question graph"]';
+    await open(page, 'numberLine', { readOut: true });
+    const read = await axNode(page, GRAPH);
+    assert.match(read.description, /A at \(2, 3\)/, read.description);
+    assert.doesNotMatch(read.description, /Positions are not read out/);
+    const evidence = await page.evaluate(() => window.__mmSupportEvidence);
+    assert.ok(evidence.some((entry) => entry.supportId === 'graph-read-out' && entry.eventType === 'provided'), JSON.stringify(evidence));
+    await open(page, 'pathBoundary', { readOut: true });
+    const plane = await axNode(page, 'svg[role="img"][aria-label="Question graph"]');
+    // Read at the grid it draws (every 2 here): x = 5 is between 4 and 6.
+    assert.match(plane.description, /Solid vertical line between 4 and 6 on the x-axis\./, plane.description);
+    // Words, not a table: a graph with a table (a finished question shows it)
+    // gets none from the read-out while the question is open.
+    await open(page, 'pathTable', { closed: true });
+    assert.equal(await page.getByRole('button', { name: 'Show data table' }).count(), 1, 'a finished question offers its data table');
+    await open(page, 'pathTable', { readOut: true });
+    const line = await axNode(page, 'svg[role="img"][aria-label="Question graph"]');
+    assert.match(line.description, /crosses the y-axis at −1/, line.description);
+    assert.equal(await page.getByRole('button', { name: 'Show data table' }).count(), 0, 'the data table stays the closed question\'s');
+    // Without the support: kinds only, and nothing recorded.
+    await open(page, 'numberLine');
+    assert.match((await axNode(page, GRAPH)).description, /Positions are not read out while this question can be answered\./);
+    assert.deepEqual((await page.evaluate(() => window.__mmSupportEvidence)).filter((entry) => entry.supportId === 'graph-read-out'), []);
   });
 
   for (const role of ['practice', 'dol']) {

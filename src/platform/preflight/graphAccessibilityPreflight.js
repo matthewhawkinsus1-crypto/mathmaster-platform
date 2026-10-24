@@ -8,36 +8,18 @@
  * anyone who turns a screen reader on. So on an item whose task IS reading
  * the graph, a blind student gets nothing they can answer from — unless the
  * author wrote a description that conveys the graph without giving the answer
- * away, or the student has a human reader or a tactile graphic.
+ * away, the student's plan gives them the Graph read-out (AX03), or they have a
+ * human reader or a tactile graphic.
  *
- * This names those items so the teacher can decide. Graph-reading means:
- *   - a stimulus or question graph with readCoordinates: true, or
- *   - a workflow step that asks the student to mark a feature on the graph
- *     (graphFeatureSelect).
- * An authored `accessibleDescription` on the graph (or step) silences it.
+ * This names those items so the teacher can decide. What counts as
+ * graph-reading, and what silences it, is decided once for this lesson
+ * Pre-Flight and the Test Cycle one (functions/shared/graphReadingAccessibility.mjs).
  */
+import { GRAPH_READING_REMEDIES, graphReadingWithoutDescription } from '../../../functions/shared/graphReadingAccessibility.mjs';
 
-const clean = (value) => String(value ?? '').trim();
+export { graphReadingWithoutDescription };
+
 const asArray = (value) => (Array.isArray(value) ? value : []);
-
-const hasAuthoredDescription = (graph) => Boolean(clean(graph?.accessibleDescription));
-
-const stimulusGraphs = (stimulus) => {
-  if (!stimulus || typeof stimulus !== 'object') return [];
-  return [stimulus.graph, ...asArray(stimulus.panels).flatMap(stimulusGraphs)].filter((graph) => graph && typeof graph === 'object');
-};
-
-/** Why `question` needs an authored graph description, or null. */
-export const graphReadingWithoutDescription = (question) => {
-  if (!question || typeof question !== 'object') return null;
-  const readGraphs = [...stimulusGraphs(question.stimulus), question.graph]
-    .filter((graph) => graph?.readCoordinates === true && !hasAuthoredDescription(graph));
-  if (readGraphs.length) return 'asks students to read coordinates off a graph';
-  const featureSteps = asArray(question.workflow)
-    .filter((step) => step?.kind === 'graphFeatureSelect' && !hasAuthoredDescription(step.graph) && !clean(step.accessibleDescription));
-  if (featureSteps.length) return `asks students to mark ${featureSteps.length === 1 ? 'a feature' : 'features'} on a graph`;
-  return null;
-};
 
 export const auditAssignmentGraphAccessibility = (questions = [], { deliveredOnly = true } = {}) => {
   const warnings = [];
@@ -45,7 +27,7 @@ export const auditAssignmentGraphAccessibility = (questions = [], { deliveredOnl
     if (deliveredOnly && question?.teacherExcluded === true) return;
     const reason = graphReadingWithoutDescription(question);
     if (!reason) return;
-    warnings.push(`Question ${index + 1} ${reason} and has no screen-reader description (graph.accessibleDescription). While it can be answered, a screen reader hears only what is drawn, not where, so a blind student needs an authored description that does not give the answer away, a human reader or a tactile graphic.`);
+    warnings.push(`Question ${index + 1} ${reason} and has no screen-reader description (graph.accessibleDescription). ${GRAPH_READING_REMEDIES}`);
   });
   return { warnings };
 };
