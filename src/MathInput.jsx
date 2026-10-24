@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createFieldEchoGuard } from './platform/interaction/fieldEchoGuard.js';
 import './platform/math/mathliveRuntime.js';
 import { requiredAnswerToolForSymbol, resolveRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
@@ -10,6 +10,7 @@ import { revealMathFieldHost, revealUnlessVisibleWhileZoomed } from './platform/
 import { useQuestionLifecycle } from './platform/question/QuestionLifecycleContext.jsx';
 import { useRovingToolbar } from './platform/interaction/rovingToolbar.js';
 import { mathFieldAccessibleName, useMathFieldName } from './platform/math/mathFieldName.js';
+import { settleMathFieldBlur } from './platform/math/mathLiveCompat.js';
 import {
   TYPED_FRACTION_OPENING,
   mixedNumberKeyStep,
@@ -358,6 +359,19 @@ export default function MathInput({
   // See mathFieldFocusHandoff.js — clicking a field and typing at once used to
   // edit the field the student had just left.
   useEffect(() => bindMathFieldFocusHandoff(mfRef.current), []);
+
+  // A math field MathLive still counts as focused when it leaves the page
+  // stays MathLive's "focused" field after it is gone, and the next field a
+  // student taps tries to blur it: MathLive threw reading the removed field's
+  // model (atomToString -> options), e.g. after "Continue here" remounted a
+  // question focused while its tab was in the background, where no real blur
+  // ever reached it (RT06). A layout cleanup runs before React removes the
+  // element: tell its model there, while it is whole (settleMathFieldBlur:
+  // MathLive's own flag, not the page's focus).
+  useLayoutEffect(() => {
+    const mathField = mfRef.current;
+    return () => { settleMathFieldBlur(mathField); };
+  }, []);
 
   // A screen reader lands in MathLive's keyboard sink, which MathLive leaves
   // unnamed: the sink gets the host's name too (mathFieldName.js, A11Y-3).
