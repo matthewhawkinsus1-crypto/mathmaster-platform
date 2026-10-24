@@ -18,7 +18,7 @@ import { describeAnswerFormat } from './platform/interaction/answerFormatHints.j
 import { keypadProfileForResponseField } from './platform/interaction/interactionContract.js';
 import { formatProblemForResponse } from './platform/interaction/answerShapeGuard.js';
 import useUndoHistory from './useUndoHistory';
-import { choiceAccessibleLabel, choiceOptionsForField, choiceSeed, stableShuffleChoices } from './platform/interaction/choiceOptions.js';
+import { choiceAccessibleLabel, choiceFieldAsksDimensions, choiceOptionsForField, choiceSeed, stableShuffleChoices } from './platform/interaction/choiceOptions.js';
 import { normalizePlainMathTypography, toPlainMath } from './components/common/mathSegments.js';
 import { MathText } from './components/common/MathText.jsx';
 import { ChoiceMark, useChoiceGroup } from './platform/interaction/choiceGroup.js';
@@ -37,19 +37,19 @@ const accessibleFieldLabel = (field) => {
   return labelHasDelimitedMath(text) ? toPlainMath(text) : text;
 };
 
-const renderChoiceText = (value) => {
+const renderChoiceText = (value, { dimensions = false } = {}) => {
   const text = String(value ?? '');
   const format = resolveLabelFormat(text);
   return format
     // Named by its own text: every choice was announced "Mathematical
     // expression", so a screen reader could not tell 11 from 5.
-    ? <MathDisplay value={normalizeMathDisplayValue(text)} format={format} inline ariaLabel={choiceAccessibleLabel(text)} />
+    ? <MathDisplay value={normalizeMathDisplayValue(text)} format={format} inline ariaLabel={choiceAccessibleLabel(text, { dimensions })} />
     : normalizePlainMathTypography(text);
 };
 
 // A choice field: one radio group (choiceGroup.js) — one tab stop, arrows
 // move and select, and the chosen option carries a ✓ as well as its colour.
-function ChoiceFieldOptions({ label, options, value, grade, onSelect }) {
+function ChoiceFieldOptions({ label, options, value, grade, onSelect, dimensions = false }) {
   const raws = options.map((option) => String(option));
   const optionProps = useChoiceGroup({ ids: raws, value, onSelect });
   return (
@@ -61,7 +61,7 @@ function ChoiceFieldOptions({ label, options, value, grade, onSelect }) {
             type="button"
             key={raw}
             {...optionProps(index)}
-            aria-label={choiceAccessibleLabel(raw)}
+            aria-label={choiceAccessibleLabel(raw, { dimensions })}
             onClick={() => onSelect(raw)}
             style={{
               display: 'flex',
@@ -78,7 +78,7 @@ function ChoiceFieldOptions({ label, options, value, grade, onSelect }) {
             }}
           >
             <ChoiceMark selected={selected} />
-            {renderChoiceText(raw)}
+            {renderChoiceText(raw, { dimensions })}
           </button>
         );
       })}
@@ -262,6 +262,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
               {choiceOptions ? (
                 <ChoiceFieldOptions
                   label={accessibleFieldLabel(field)}
+                  dimensions={choiceFieldAsksDimensions(field.label, question.prompt)}
                   options={choiceOptions}
                   value={String(answers[field.id] || '')}
                   grade={grade}
