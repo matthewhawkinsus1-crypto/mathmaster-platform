@@ -97,10 +97,13 @@ const addField = (source, raw, questionChoices) => {
     numericTolerance: raw.numericTolerance ?? null,
     answerFormat: raw.answerFormat || raw.inputContract?.format || null,
     inputProfile: raw.inputProfile || null,
+    // A number box takes the value, not a calculation, unless it says so
+    // (GR01, answerEquivalence.mjs fieldAllowsArithmetic).
+    allowArithmetic: raw.allowArithmetic === true,
   };
   // The profile is part of a field's identity: a number box and an
   // expression field with one key are graded differently (wave 7).
-  const id = JSON.stringify([field.key, field.accepted, field.options, field.equivalence, field.numericTolerance, field.answerFormat, field.inputProfile]);
+  const id = JSON.stringify([field.key, field.accepted, field.options, field.equivalence, field.numericTolerance, field.answerFormat, field.inputProfile, field.allowArithmetic]);
   if (seenFields.has(id)) return;
   seenFields.add(id);
   fields.push(field);
@@ -368,6 +371,10 @@ for (const [key, right, wrong] of [
   ['10^{-3}/2', ['0.0005', '\\frac{1}{2000}'], ['0.005', '0.00005', '10^-\\frac{3}{2}']],
   ['(-(-4))/2', ['2'], ['\\sqrt{4}', '-2']],
 ]) wave7Keys.push([key, 'number', { right, wrong, graders: fieldOnly }]);
+// Two of those keys are calculations. Since GR01 a number box keyed that way
+// must say it takes a calculation (Pre-Flight explains it), or its own key's
+// spelling is refused: these say so, and still check the value.
+const ARITHMETIC_KEYS = new Set(['10^{-3}/2', '(-(-4))/2']);
 // A "simplify" item's expression field is never read by value.
 wave7Keys.push(['11sqrt(5)', 'expression', { right: [], wrong: ['\\sqrt{605}'], graders: fieldOnly }]);
 wave7Keys.push(['sqrt(20)/2', 'expression', { right: [], wrong: ['\\sqrt{5}'], graders: fieldOnly }]);
@@ -378,7 +385,11 @@ const gapChecks = new Map();
 // an expression field asks different things.
 const gapCheckId = (key, inputProfile) => `${inputProfile}|${key}`;
 wave7Keys.forEach(([key, inputProfile, checks]) => {
-  addField('synthetic: wave-7 grader gaps', { expected: key, inputProfile });
+  addField('synthetic: wave-7 grader gaps', {
+    expected: key,
+    inputProfile,
+    ...(inputProfile === 'number' && ARITHMETIC_KEYS.has(key) ? { allowArithmetic: true } : {}),
+  });
   const known = gapChecks.get(gapCheckId(key, inputProfile));
   gapChecks.set(gapCheckId(key, inputProfile), known ? { ...known, right: [...known.right, ...checks.right], wrong: [...known.wrong, ...checks.wrong] } : checks);
 });
@@ -684,7 +695,12 @@ const gradersFrom = async (root) => {
   // The sameValue options production passes for this field: a tree with
   // fieldValueOptions (student pass 3, wave 7) reads a number box's exact
   // constant key by value; an older tree passed only the thousands rule.
-  const fieldShape = (field) => ({ inputProfile: field.inputProfile || undefined, answerFormat: field.answerFormat || undefined, equivalence: field.equivalence || undefined });
+  const fieldShape = (field) => ({
+    inputProfile: field.inputProfile || undefined,
+    answerFormat: field.answerFormat || undefined,
+    equivalence: field.equivalence || undefined,
+    ...(field.allowArithmetic ? { allowArithmetic: true } : {}),
+  });
   const valueOptions = (field) => (equivalence.fieldValueOptions
     ? equivalence.fieldValueOptions(fieldShape(field))
     : { thousandsSeparators: equivalence.fieldAcceptsThousandsSeparators(fieldShape(field)) });
@@ -707,6 +723,7 @@ const gradersFrom = async (root) => {
     acceptedAnswers: field.accepted,
     answerFormat: field.answerFormat || undefined,
     inputProfile: field.inputProfile || undefined,
+    ...(field.allowArithmetic ? { allowArithmetic: true } : {}),
   });
   const safely = (grade) => (actual, field) => { try { return Boolean(grade(actual, field)); } catch { return 'throws'; } };
   return {
