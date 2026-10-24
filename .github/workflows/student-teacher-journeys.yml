@@ -43,8 +43,8 @@ name: Student and Teacher Journeys
 #                          resume, submit; malformed drafts; a second board;
 #                          and with the harness server — Checks ingested, the
 #                          deadline auto-submit closing Q1, the reopen, a
-#                          refresh, another Chromebook; throttled nightly) and,
-#                          on QuestionEngine alone,
+#                          refresh, another Chromebook; throttled nightly, in
+#                          four jobs of its own) and, on QuestionEngine alone,
 #                          tests/browser/warmupReopenDraft.mjs
 #   held Recovery         tests/browser/teacherWorkflow/recoveryHoldJourneys.mjs
 #                          (a Recovery question MathMaster could not grade:
@@ -231,10 +231,31 @@ jobs:
   # of its own. In the teacher job they ran past its 40-minute limit every
   # night from at least Oct 13 to Oct 22: the run was cancelled before
   # Endurance began, and a cancelled nightly was never reported.
+  #
+  # The throttled Warm-Up close and reopen is ten journeys, and alone on a
+  # runner it still ran past 45 minutes (issue #522: Oct 23 and Oct 24). On the
+  # Chromebook every reload costs about four minutes (the dev server's modules
+  # come over the slowed network) and the journeys reload fifteen times. Run
+  # 39954965481 (Oct 23), in minutes: inprogress 6, submitted 1, pristine 0.3,
+  # corrupt 21 (five reloads), cycles 0.6, bridge 6, and bridge-corrupt (five
+  # reloads, 4.4 each) was cancelled in its third. So they run as four jobs
+  # with 45 minutes each, about 14, 21, 22 and 22 of work (the last was timed
+  # on a development machine: no CI run has got as far as the server journeys).
+  # `only` is the driver's ONLY list, and tests/platform/nightlyWarmupShards.test.mjs
+  # keeps every journey in exactly one job.
   teacher-nightly-warmup:
+    name: teacher-nightly-warmup (${{ matrix.shard.name }})
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard:
+          - { name: reopen, only: "inprogress,submitted,pristine,cycles,bridge" }
+          - { name: bad-drafts, only: "corrupt" }
+          - { name: bad-board-drafts, only: "bridge-corrupt" }
+          - { name: server, only: "server-expired,server-attempted,server-correct" }
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
@@ -247,6 +268,7 @@ jobs:
       - name: Warm-Up close and reopen, throttled Chromebook (nightly and on demand)
         env:
           PLAYWRIGHT_MODULE: playwright
+          ONLY: ${{ matrix.shard.only }}
         run: node tests/browser/teacherWorkflow/warmupReopenJourneys.mjs --slow
 
   teacher-nightly-held-recovery:
