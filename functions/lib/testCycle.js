@@ -213,6 +213,16 @@ function reviewAttemptRule(assignment = {}) {
  * last remaining Review question. They may keep retrying Review questions
  * before starting the Test, but score and correctness never decide whether the
  * Test is unlocked.
+ *
+ * WITH A MASTERY BAR, BOTH ARE REQUIRED (TC18; kept as built). When a teacher
+ * sets `review.minimumMastery`, the Test unlocks only when every Review question
+ * has been attempted AND the bar is reached. The bar alone would let a student who
+ * answers well leave the rest of the Review unanswered; "attempted" alone is the
+ * no-bar rule above. Unlocking on the bar alone is a change to this function, the
+ * stage text in functions/shared/testCycleStages.mjs (Review) and its mirror in
+ * src/platform/student/testCycleDiscovery.js (reviewProgressFromTracker,
+ * reviewRequirementText), together, with the tests that pin both parts
+ * (districtDOL2Policy, assessmentLifecycleRules).
  */
 function reviewProgress(assignment = {}, tracker = {}) {
   const indices = roleQuestionIndices(assignment, "review");
