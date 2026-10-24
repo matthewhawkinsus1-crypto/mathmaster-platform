@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { WORK_VIEW_INVENTORY } from '../workViewInventory.js';
+import { getToolCatalogEntry } from '../toolCatalog.js';
 import useMobileInteractionMode from '../../platform/mobile/useMobileInteractionMode.js';
 import { useRenderPerformance } from '../../platform/performance/useRenderPerformance.js';
 import { useHintUseReporter, useOwnHintLadder } from './ToolRuntimeContext';
@@ -104,9 +105,13 @@ export default function RegisteredToolWorkView({ toolId, questionData = {}, chil
   const checkAction = questionClosed ? null : toolCheckRailAction(toolCheck, markerRef.current?.parentElement);
   if (checkAction) capabilities.primaryActions = [checkAction];
 
+  // The tool's own name, never its program id (TL42): the dialog is read as
+  // "Matrix Lab, Work View", and the name is its title when there is no task.
+  const toolName = getToolCatalogEntry(toolId)?.label || 'This tool';
+
   return (
     <EnlargeableFigure
-      label={`${toolId} workspace`}
+      label={toolName}
       enlargeLabel="Open Work View"
       taskText={taskText}
       capabilities={capabilities}
