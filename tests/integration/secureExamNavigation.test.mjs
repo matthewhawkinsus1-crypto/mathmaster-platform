@@ -811,15 +811,16 @@ test("a teacher's pause stops the clock: a pause spanning the original deadline 
     assert.ok(Math.abs(paused.pausedRemainingSeconds - 60) <= 5, `a minute left, stopped (${paused.pausedRemainingSeconds})`);
     assert.equal((await refusal(draft(CERT_WRONG_ANSWER)))?.code, 'failed-precondition', 'no edits while paused');
 
-    // Resumed: eleven minutes paused are banked, and the student has their minute.
+    // Resumed: eleven minutes paused are banked, with the paused screen's
+    // wait (TS09: RESUME_GRACE_SECONDS), and the student has their minute.
     await lifecycle('publish');
     const resumed = await readSession(examSessionId);
     assert.deepEqual(resumed.teacherPause.holds, []);
-    assert.ok(Math.abs(resumed.pausedSeconds - 11 * 60) <= 5, `eleven minutes banked (${resumed.pausedSeconds})`);
+    assert.ok(Math.abs(resumed.pausedSeconds - (11 * 60 + 5)) <= 5, `eleven minutes banked (${resumed.pausedSeconds})`);
     const running = await where();
     assert.equal(running.clockPaused, false);
     const left = running.expiresAt - Date.now();
-    assert.ok(left > 50 * 1000 && left <= 65 * 1000, `the deadline moved by the time paused (${left} ms left)`);
+    assert.ok(left > 50 * 1000 && left <= 70 * 1000, `the deadline moved by the time paused (${left} ms left)`);
     await draft(CERT_WRONG_ANSWER);
     assert.equal((await refusal(timeUp()))?.code, 'failed-precondition', 'and time is not up yet');
 
@@ -829,7 +830,7 @@ test("a teacher's pause stops the clock: a pause spanning the original deadline 
     await sessionRef.set({ teacherPause: { since: Date.now() - 5 * 60 * 1000, holds: ['proctor'] } }, { merge: true });
     await fns.proctorExamAction.run(teacherRequest({ examSessionId, action: 'unlock' }));
     const unlocked = await readSession(examSessionId);
-    assert.ok(Math.abs(unlocked.pausedSeconds - 16 * 60) <= 5, `five more minutes banked (${unlocked.pausedSeconds})`);
+    assert.ok(Math.abs(unlocked.pausedSeconds - (16 * 60 + 10)) <= 5, `five more minutes banked (${unlocked.pausedSeconds})`);
 
     // An integrity lock is not a teacher's pause: the clock keeps running through it.
     for (const eventId of ['clock-e1', 'clock-e2', 'clock-e3']) {

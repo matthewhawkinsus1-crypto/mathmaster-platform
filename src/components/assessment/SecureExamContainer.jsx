@@ -63,6 +63,10 @@ const WARNING_LAYER = 2147483550;
 // While a test is in progress, how often the screen asks whether a teacher
 // paused it, added time or turned it in (see the status check below).
 const STATUS_CHECK_MS = 30 * 1000;
+// While paused the screen asks every 5 seconds; the server banks that much on
+// resume (functions/lib/secureExam.js RESUME_GRACE_SECONDS, TS09), so it must
+// not ask less often than that.
+const PAUSED_POLL_MS = 5 * 1000;
 
 // How long a start screen waits for the student's list before the card's
 // facts stand in: a slow list never keeps a student from starting or resuming.
@@ -659,7 +663,7 @@ export const SecureExamContainer = ({
   // callable only while paused so a teacher's resume appears without reloading.
   useEffect(() => {
     if (!session?.examSessionId || !(locked.has(session.status) || session.clockPaused === true)) return undefined;
-    const id = window.setInterval(() => { refreshSession(); }, 5000);
+    const id = window.setInterval(() => { refreshSession(); }, PAUSED_POLL_MS);
     return () => window.clearInterval(id);
   }, [session?.examSessionId, session?.status, session?.clockPaused, refreshSession]);
 
