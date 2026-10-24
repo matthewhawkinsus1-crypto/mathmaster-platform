@@ -1825,6 +1825,7 @@ function QuestionEngineBody({
     ? { ...askTeacherContext, requested: Boolean(helpRequested), onToggle: () => onAskTeacher(!helpRequested) }
     : null;
   const helpControlAvailable = Boolean((hintState.allowed || askTeacher) && !locked);
+  const handRaised = Boolean(askTeacher?.requested);
   // A raised hand comes down when this question can no longer be worked on —
   // closed, or locked by the DOL timer, a section the teacher closed or the
   // Warm-Up window — because Ask and Cancel go with it (PR #462 review M4).
@@ -2582,16 +2583,24 @@ function QuestionEngineBody({
           : <><CalculatorIcon unavailable /><span className="mathmaster-action-label"> Calculator</span></>}
       </button>}
       {helpControlAvailable && (
+        // A raised hand shows here too, not only inside the closed panel
+        // (FB18): a ✋ and a "Hand up" caption that stays even where the work
+        // bar hides its words (MathToolMobileLayout.css, --kept), and the
+        // button's name says so.
         <button
           type="button"
           className="mathmaster-work-bar-tool"
           data-hint-control=""
+          data-hand-raised={handRaised ? '' : undefined}
           aria-expanded={hintPanelOpen}
-          aria-label={hintState.allowed ? 'Hint' : 'Ask my teacher'}
+          aria-label={`${hintState.allowed ? 'Hint' : 'Ask my teacher'}${handRaised ? ', your hand is raised' : ''}`}
           onClick={() => setHintPanelOpen((open) => !open)}
-          style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid var(--mm-tint-border)', background: hintPanelOpen ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: 'pointer' }}
+          style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: `1px solid ${handRaised ? 'var(--mm-warning-border, #f9ab00)' : 'var(--mm-tint-border)'}`, background: hintPanelOpen ? 'var(--mm-primary-subtle)' : handRaised ? 'var(--mm-warning-bg)' : 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: 'pointer' }}
         >
-          <span aria-hidden="true">{hintState.allowed ? '💡' : '✋'}</span><span className="mathmaster-action-label">{hintState.allowed ? ' Hint' : ' Ask'}</span>
+          <span aria-hidden="true">{hintState.allowed ? (handRaised ? '💡✋' : '💡') : '✋'}</span>
+          {handRaised
+            ? <span className="mathmaster-action-label mathmaster-action-label--kept"> Hand up</span>
+            : <span className="mathmaster-action-label">{hintState.allowed ? ' Hint' : ' Ask'}</span>}
         </button>
       )}
       {readAloudOffered && (

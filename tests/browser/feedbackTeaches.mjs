@@ -170,7 +170,15 @@ for (const device of DEVICES) {
     await page.locator('.mathmaster-hint-panel button', { hasText: 'Ask my teacher' }).click();
     check((await page.evaluate(() => window.__mmHelp)).at(-1) === true, `${device.name}: "Ask my teacher" reaches the host`);
     check(await page.locator('.mathmaster-hint-panel').getByText(/Your hand is raised on your teacher’s live class screen/).isVisible(), `${device.name}: and says so`);
+    // With the panel closed, the work bar still shows the raised hand (FB18).
+    await page.locator('[data-hint-control]').click();
+    await page.locator('.mathmaster-hint-panel').waitFor({ state: 'detached' }).catch(() => {});
+    check(await page.locator('[data-hint-control][data-hand-raised]').isVisible(), `${device.name}: the closed panel's button shows the raised hand`);
+    check(await page.locator('[data-hint-control]').getAttribute('aria-label') === 'Hint, your hand is raised', `${device.name}: and its name says so`, await page.locator('[data-hint-control]').getAttribute('aria-label'));
+    check(await page.locator('[data-hint-control]').getByText('Hand up').isVisible(), `${device.name}: in words, even on a phone`);
+    await page.locator('[data-hint-control]').click();
     await page.locator('.mathmaster-hint-panel button', { hasText: 'Cancel my help request' }).click();
+    check(await page.locator('[data-hint-control][data-hand-raised]').count() === 0, `${device.name}: and the mark goes when the hand comes down`);
     check((await page.evaluate(() => window.__mmHelp)).at(-1) === false, `${device.name}: and can be cancelled`);
     await answer(page, '\\frac{3}{4}');
     await submit(page);
