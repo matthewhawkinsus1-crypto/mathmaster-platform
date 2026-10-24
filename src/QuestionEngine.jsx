@@ -1887,6 +1887,11 @@ function QuestionEngineBody({
     // The point check may name wrong points only where outcomes are shown at
     // once; on a DOL, quiz or test the submission is the check.
     revealPointCorrectness: showOutcomeFeedback,
+    // ...and there "Connect my points" is offered only with the keyboard-access
+    // support, which the workspace reports as provided when it shows
+    // (platform/graph/connectPointsPolicy.js).
+    keyboardAccess: supportPresentation.keyboardAccess === true,
+    onSupportEvidence: reportToolEvidence,
   };
 
   const commonModuleProps = {
@@ -2097,6 +2102,8 @@ function QuestionEngineBody({
             showStagePrompt={false}
             submissionReview={showOutcomeFeedback ? workflowSubmissionReview : null}
             revealCorrectness={showOutcomeFeedback}
+            keyboardAccess={graphModuleProps.keyboardAccess}
+            onSupportEvidence={graphModuleProps.onSupportEvidence}
           />
         </ToolRuntimeProvider>
       );

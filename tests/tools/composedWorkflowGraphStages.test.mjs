@@ -84,6 +84,13 @@ import { zoomedWindow } from '../../src/graphWorkspaceViewport.js';
 import { executableSource, region } from '../platform/helpers/sourceContract.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
+// WorkflowRunner's two graph delegates (coordinatePlot, functionGraph), found
+// inside DELEGATES by name: readDelegateResponse has keys of the same names,
+// and the delegates' parameter list is not what these contracts are about.
+const graphDelegates = (runner) => region(
+  region(runner, 'const DELEGATES = {', '\n};\n', 'DELEGATES'),
+  '  coordinatePlot:', '  algebraWorkspace:', 'graph delegates',
+);
 const ARTIFACT = '__mathmasterWorkflowArtifact';
 const WORKFLOW_ARTIFACT = ARTIFACT;
 
@@ -862,7 +869,7 @@ test('each graph stage is a workspace in the view WorkflowRunner mounts: points-
   // WorkflowRunner mounts every graph stage with mode="construct" (never the
   // analysis view), and the workspace picks points-only from the sub-question.
   const runner = executableSource(read('src/platform/workflow/WorkflowRunner.jsx'));
-  const delegates = region(runner, '  coordinatePlot: ({ graphStage, onChange, draftKey, revealCorrectness = true }) => {', '  algebraWorkspace:', 'graph delegates');
+  const delegates = graphDelegates(runner);
   assert.equal((delegates.match(/<InteractiveGraphWorkspace\s+question=\{graphStage\.question\}\s+mode="construct"/g) || []).length, 2);
 
   const modeOf = (question, stageId, responses) => {
@@ -1465,7 +1472,7 @@ test('WorkflowRunner builds its graph stages from the work the server reads, wit
   assert.match(render, /const graphStage = graphStages\.get\(stage\.id\) \|\| null;/);
   assert.match(region(render, '<StageBody', '/>', 'StageBody props'), /graphStage=\{graphStage\}/);
   assert.match(region(runner, 'function StageBody(', 'switch (stage.kind)', 'StageBody'), /delegate\(\{[^}]*\bgraphStage\b[^}]*\}\)/);
-  const delegates = region(runner, '  coordinatePlot: ({ graphStage, onChange, draftKey, revealCorrectness = true }) => {', '  algebraWorkspace:', 'graph delegates');
+  const delegates = graphDelegates(runner);
   assert.doesNotMatch(delegates, /expandGraphWindowToPoints|buildExpressionFunctionSpec|pointTasks|functionSpec:/, 'no second sub-question builder');
   // The responses the delegates record are the workspace's work.
   const readers = region(runner, 'const readDelegateResponse = {', '};', 'readDelegateResponse');

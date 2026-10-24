@@ -287,6 +287,11 @@ FIREBASE_HOSTING_UPLOAD_CONCURRENCY=4 npm run deploy:hosting   # or the release 
    linear), and every one passes both the practice snap and the hidden DOL curve check. If the curve should stay a
    separate demonstration of skill on assessments, Connect could be limited to practice, or to students with a
    keyboard-access accommodation. That is a policy call, so I left it open.
+   **Decided 2026-10-23: keyboard-access only (C1-120).** Where outcomes wait (an exit ticket, quiz or test) "Connect
+   my points" and "Connect my reflected points" are offered only to a student whose support plan has the new
+   `keyboard-access` accommodation (`src/platform/graph/connectPointsPolicy.js`); everywhere else every student keeps
+   them. The accommodation is in the support catalog (teachers tick it in the profile editor), reaches the workspace as
+   `supportPresentation.keyboardAccess`, and is recorded as provided when the button shows because of it.
 
 ## Not done / for other sessions
 

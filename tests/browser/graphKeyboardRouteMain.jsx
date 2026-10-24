@@ -10,9 +10,13 @@
 //   ?q=inverse         y = 2x + 1 and its inverse: reflect two points across
 //                      y = x and connect them (TOOL-1, the inverse sketch)
 //   ?role=practice|dol the activity policy (default practice)
+//   ?plan=keyboard     the student's support plan has the keyboard-access
+//                      accommodation (on a DOL it is what offers "Connect my
+//                      points": src/platform/graph/connectPointsPolicy.js)
 //   ?run=<id>          the draft namespace (a new run starts blank)
 //
-// Every graded attempt lands in window.__mmGraded. All data is synthetic.
+// Every graded attempt lands in window.__mmGraded, and every support record the
+// question reports in window.__mmEvidence. All data is synthetic.
 import React from 'react';
 import { MathfieldElement } from 'mathlive';
 import { createRoot } from 'react-dom/client';
@@ -27,6 +31,7 @@ const params = new URLSearchParams(window.location.search);
 const role = params.get('role') || 'practice';
 const which = params.get('q') || 'investigation';
 const run = params.get('run') || 'manual';
+const studentProfile = params.get('plan') === 'keyboard' ? { accommodations: ['keyboard-access'] } : null;
 
 const FIXTURES = {
   investigation: {
@@ -84,6 +89,7 @@ const FIXTURES = {
 
 const question = FIXTURES[which] ? { questionId: `graph-keyboard-${which}`, ...FIXTURES[which] } : null;
 window.__mmGraded = [];
+window.__mmEvidence = [];
 
 function Harness() {
   if (!question) return <p role="alert">Unknown fixture {which}.</p>;
@@ -96,6 +102,8 @@ function Harness() {
         activityRole={role}
         maximumAttempts={3}
         draftKey={`graph-keyboard-${which}-${role}-${run}`}
+        studentProfile={studentProfile}
+        onSupportEvidence={(evidence) => window.__mmEvidence.push(evidence)}
         onGrade={async (isCorrect, details, parts) => {
           window.__mmGraded.push({ isCorrect, parts });
           return { isCorrect, status: isCorrect ? 'correct' : 'attempted', attemptCount: 1, remainingAttempts: 2 };

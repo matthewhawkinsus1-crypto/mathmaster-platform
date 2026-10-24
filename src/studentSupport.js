@@ -112,6 +112,9 @@ export const getStudentSupportPresentation = (profile) => {
     algebraAutoApply: normalized.accommodations.includes('algebra-auto-apply'),
     // Supplemental aid: the scratchpad opens on graph paper.
     graphPaper: normalized.accommodations.includes('graph-paper'),
+    // "Connect my points" on an exit ticket, quiz or test
+    // (platform/graph/connectPointsPolicy.js).
+    keyboardAccess: normalized.accommodations.includes('keyboard-access'),
     translationLanguage: normalized.translationLanguage,
   };
 };

@@ -198,6 +198,17 @@ const entries = [
     label: 'Chromebook / word-processor response', studentLabel: null, evidence: ['provided'],
   },
   {
+    // A student who cannot draw with a mouse or a finger. Every tool keeps its
+    // keyboard routes for everyone; this adds "Connect my points" on an exit
+    // ticket, quiz or test, where it is otherwise withheld because right points
+    // connected make a right curve (owner, 2026-10-23, C1-120;
+    // src/platform/graph/connectPointsPolicy.js). Provided = that button was on
+    // screen there because of this support.
+    id: 'keyboard-access', classification: A, category: C.RESPONSE, automation: AUTO,
+    label: 'Keyboard access — graphs can be finished without drawing by mouse or touch', studentLabel: null,
+    evidence: ['provided'],
+  },
+  {
     // Kept an ACCOMMODATION because that is how the teacher UI has always
     // classified it; reclassifying would retroactively turn students' past
     // work into Modified. It performs an algebra step the student chose but
@@ -454,6 +465,7 @@ const SHORT_LABELS = Object.freeze({
   'no-countdown': 'Countdown hidden',
   'disable-idle-timer': 'No idle prompt',
   'word-processor-response': 'Word-processor response',
+  'keyboard-access': 'Keyboard access',
   'algebra-auto-apply': 'Algebra Apply shortcut',
   'reduced-item-count-same-rigor': 'Fewer items, same rigor',
   'check-for-understanding': 'Check for understanding',

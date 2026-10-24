@@ -540,7 +540,7 @@ const DELEGATES = {
    * from. `graphStage` is that resolution for this stage, so the graph a
    * student builds is the graph the gradebook marks.
    */
-  coordinatePlot: ({ graphStage, onChange, draftKey, revealCorrectness = true }) => {
+  coordinatePlot: ({ graphStage, onChange, draftKey, revealCorrectness = true, keyboardAccess = false, onSupportEvidence = null }) => {
     if (graphStage?.status !== 'ready') return <GraphStageWaiting />;
     return (
       <InteractiveGraphWorkspace
@@ -549,10 +549,12 @@ const DELEGATES = {
         onStateChange={onChange}
         draftKey={draftKey}
         revealPointCorrectness={revealCorrectness}
+        keyboardAccess={keyboardAccess}
+        onSupportEvidence={onSupportEvidence}
       />
     );
   },
-  functionGraph: ({ graphStage, onChange, draftKey, revealCorrectness = true }) => {
+  functionGraph: ({ graphStage, onChange, draftKey, revealCorrectness = true, keyboardAccess = false, onSupportEvidence = null }) => {
     // The graph must represent the student's own prior work. For a table that
     // came from an equation, contradictory work has no single graph; make that
     // conflict visible and require the student to resolve it rather than
@@ -589,6 +591,8 @@ const DELEGATES = {
         onStateChange={onChange}
         draftKey={draftKey}
         revealPointCorrectness={revealCorrectness}
+        keyboardAccess={keyboardAccess}
+        onSupportEvidence={onSupportEvidence}
       />
     );
   },
@@ -611,7 +615,7 @@ const DELEGATES = {
 const NOTATION_PROFILE = { interval: 'interval', inequality: 'inequality', set: 'set' };
 export const ALL_REAL_NUMBERS_RESPONSE = '\\text{All Real Numbers}';
 
-function StageBody({ stage, input, content, value, onReport, disabled, draftKey, canonicalSavedAt = 0, controlsBranch = false, openKeypad = true, showFigure = true, revealCorrectness = true, graphStage = null, wrongItems = [] }) {
+function StageBody({ stage, input, content, value, onReport, disabled, draftKey, canonicalSavedAt = 0, controlsBranch = false, openKeypad = true, showFigure = true, revealCorrectness = true, keyboardAccess = false, onSupportEvidence = null, graphStage = null, wrongItems = [] }) {
   /*
    * WHAT A STEP REPORTS IS AN EDIT ONLY IF THE STUDENT HAS TOUCHED THE PAGE
    * SINCE THE STEP APPEARED (PQ-044).
@@ -645,7 +649,7 @@ function StageBody({ stage, input, content, value, onReport, disabled, draftKey,
         scope={`stage-${stage.id || stage.kind}`}
         canonicalSavedAt={canonicalSavedAt}
       >
-        {delegate({ stage, input, content, onChange, draftKey, disabled, revealCorrectness, graphStage })}
+        {delegate({ stage, input, content, onChange, draftKey, disabled, revealCorrectness, keyboardAccess, onSupportEvidence, graphStage })}
       </ToolDraftScopeProvider>
     );
   }
@@ -936,6 +940,11 @@ export default function WorkflowRunner({
   // submitted? QuestionEngine's showOutcomeFeedback: false on a DOL, quiz or
   // test until feedback is released. Defaults to the practice behaviour.
   revealCorrectness = true,
+  // The keyboard-access support, for the graph steps: where outcomes are
+  // withheld it offers "Connect my points" (platform/graph/connectPointsPolicy.js),
+  // reported through onSupportEvidence when it shows.
+  keyboardAccess = false,
+  onSupportEvidence = null,
 }) {
   const { content, workflow: authoredWorkflow, grading } = useMemo(() => readComposedQuestion(question), [question]);
   const [storedResponses, setResponses] = useLocalDraftState(
@@ -1431,6 +1440,8 @@ export default function WorkflowRunner({
               draftKey={draftKey ? `${draftKey}:${stage.id}${stage.sourceStageId && ['functionGraph', 'coordinatePlot'].includes(stage.kind) ? `:${dependencyFingerprint(input.value)}` : ''}` : null}
               canonicalSavedAt={canonicalSavedAt}
               revealCorrectness={revealCorrectness}
+              keyboardAccess={keyboardAccess}
+              onSupportEvidence={onSupportEvidence}
               graphStage={graphStage}
               wrongItems={wrongItems}
             />

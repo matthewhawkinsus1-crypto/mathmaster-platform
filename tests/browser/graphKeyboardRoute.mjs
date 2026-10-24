@@ -17,7 +17,9 @@
 // points typed, Check Point Placements, "Connect my points" (focus goes there
 // when the check passes), the end markers by arrow keys and Enter, Submit —
 // graded correct for the right points and wrong for wrong ones, under practice
-// and under a DOL.
+// and under a DOL. On a DOL "Connect my points" is offered only with the
+// keyboard-access support, and is then recorded as that support provided;
+// without it the DOL offers no Connect (the owner, 2026-10-23, C1-120).
 //
 // Driven only through rendered controls, in the real QuestionEngine
 // (graphKeyboardRouteMain.jsx), under practice and under a DOL (whose points
@@ -41,11 +43,11 @@ const check = (ok, label, detail = '') => {
 
 const stamp = Date.now();
 let pageCount = 0;
-const open = async (q, role = 'practice') => {
+const open = async (q, role = 'practice', extra = '') => {
   const page = await context.newPage();
   page.setDefaultTimeout(8000);
   page.on('pageerror', (error) => check(false, `${q} (${role}): page error`, error.message));
-  await page.goto(`${ORIGIN}/tests/browser/graphKeyboardRoute.html?q=${q}&role=${role}&run=${stamp}-${(pageCount += 1)}`, { waitUntil: 'networkidle' });
+  await page.goto(`${ORIGIN}/tests/browser/graphKeyboardRoute.html?q=${q}&role=${role}${extra}&run=${stamp}-${(pageCount += 1)}`, { waitUntil: 'networkidle' });
   await page.locator('[data-graph-keyboard-fixture]').waitFor();
   await page.waitForTimeout(700);
   return page;
@@ -226,10 +228,13 @@ for (const role of ['practice', 'dol']) {
   };
   const connect = (page) => page.locator('[data-graph-connect-points="construction"]');
   const curvePart = (page) => page.evaluate(() => (window.__mmGraded.at(-1)?.parts || []).find((part) => part.id === 'graph-curve') || null);
+  const keyboardAccessRecords = (page) => page.evaluate(() => window.__mmEvidence.filter((record) => record.supportId === 'keyboard-access').map((record) => record.eventType));
 
+  // On a DOL the keyboard-only route is the keyboard-access support's: the plan
+  // offers Connect there. Practice offers it to everyone.
   for (const [role, points, right] of [['practice', [1, 5], true], ['dol', [1, 5], true], ['dol', [2, 6], false]]) {
     const label = `keyboard only, ${role}, ${right ? 'right' : 'wrong'} points`;
-    const page = await open('construct', role);
+    const page = await open('construct', role, role === 'dol' ? '&plan=keyboard' : '');
     await typeByKeyboard(page, 'Plot the point where x = 0', 0, points[0]);
     check(/^Placed Plot the point where x = 0 at /.test(await announcement(page)), `${label}: Enter in the y box places the point`, `"${await announcement(page)}"`);
     await typeByKeyboard(page, 'Plot the point where x = 2', 2, points[1]);
@@ -237,7 +242,8 @@ for (const role of ['practice', 'dol']) {
       await enterOn(page, page.getByRole('button', { name: 'Check Point Placements' }));
       check(await focusName(page) === 'Connect my points', `${label}: a passed check sends focus to Connect my points, not the page`, await focusName(page));
     } else {
-      check(await connect(page).count() === 1, `${label}: Connect my points is offered once every point is down`);
+      check(await connect(page).count() === 1, `${label}: with the keyboard-access support, Connect my points is offered once every point is down`);
+      check((await keyboardAccessRecords(page)).includes('provided'), `${label}: and that is recorded as the support provided`, JSON.stringify(await keyboardAccessRecords(page)));
       await connect(page).focus();
     }
     await page.keyboard.press('Enter');
@@ -255,6 +261,29 @@ for (const role of ['practice', 'dol']) {
     check(curve?.isComplete === true && curve?.isCorrect === right && graded?.isCorrect === right,
       `${label}: graded ${right ? 'correct' : 'wrong'}, the curve with it`, JSON.stringify({ isCorrect: graded?.isCorrect, curve }));
     await page.close();
+  }
+
+  // A DOL without the keyboard-access support: no Connect, and nothing names
+  // it — the curve is the student's to draw. Practice offers it to everyone
+  // and records no support for it.
+  {
+    const page = await open('construct', 'dol');
+    await typeByKeyboard(page, 'Plot the point where x = 0', 0, 1);
+    await typeByKeyboard(page, 'Plot the point where x = 2', 2, 5);
+    await page.waitForTimeout(300);
+    check(await connect(page).count() === 0, 'DOL without the keyboard-access support: no Connect my points');
+    check(/Draw your curve through all of your points/.test(await page.locator('body').innerText()), 'DOL without the support: it still says to draw the curve');
+    check(!/Connect my points/.test(await page.locator('body').innerText()), 'DOL without the support: nothing names Connect my points');
+    check((await keyboardAccessRecords(page)).length === 0, 'DOL without the support: no support recorded');
+    await page.close();
+
+    const practice = await open('construct', 'practice', '&plan=keyboard');
+    await typeByKeyboard(practice, 'Plot the point where x = 0', 0, 1);
+    await typeByKeyboard(practice, 'Plot the point where x = 2', 2, 5);
+    await enterOn(practice, practice.getByRole('button', { name: 'Check Point Placements' }));
+    check(await connect(practice).count() === 1, 'practice: Connect my points is offered, plan or not');
+    check((await keyboardAccessRecords(practice)).length === 0, 'practice: everyone has it, so it is not the support provided');
+    await practice.close();
   }
 
   // Enter in the x box with y still empty moves on to y; it places nothing

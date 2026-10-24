@@ -53,6 +53,7 @@ import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
 import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
 import { typedCoordinate, typedEntryEnterAction } from './graphTypedCoordinate.js';
 import { connectPointsStrokes, constructionBranchSplitX, constructionPointsToConnect, inversePointsToConnect } from './graphConnectPoints.js';
+import { KEYBOARD_ACCESS_SUPPORT_ID, connectPointsOffered, connectPointsProvidedByPlan } from './platform/graph/connectPointsPolicy.js';
 import FocusSafeButton from './components/common/FocusSafeButton.jsx';
 
 // Matched to CoordinatePlane's zoom buttons so the two planes a student meets
@@ -236,6 +237,12 @@ export default function InteractiveGraphWorkspace({
   // once. Workflow stages leave it on — they check the plot against the
   // student's own table, not against an answer key.
   revealPointCorrectness = true,
+  // The student's support plan has the keyboard-access accommodation
+  // (supportPresentation.keyboardAccess). Where outcomes are withheld it is
+  // what offers "Connect my points" (connectPointsPolicy.js), and that is
+  // reported once through onSupportEvidence as the support provided.
+  keyboardAccess = false,
+  onSupportEvidence = null,
 }) {
   const mobileInteraction = useMobileInteractionMode();
   const svgRef = useRef(null);
@@ -475,6 +482,11 @@ export default function InteractiveGraphWorkspace({
    * Practice, Warm-Up and Classwork keep the checks exactly as before.
    */
   const outcomesWithheld = !revealPointCorrectness;
+  // "Connect my points" and "Connect my reflected points": for every student
+  // where outcomes are shown; on an exit ticket, quiz or test only with the
+  // keyboard-access support, because there right points connected make a right
+  // curve (owner, 2026-10-23, C1-120).
+  const connectOffered = connectPointsOffered({ outcomesWithheld, keyboardAccess });
   // Accepted through the student's own points rather than snapped to the
   // function: the student's strokes stay on screen and the exact curve is not
   // drawn. Read from the construction, not from the policy, so a teacher's
@@ -587,6 +599,16 @@ export default function InteractiveGraphWorkspace({
   const inversePointsCommitted = analysis.inversePointsValidated
     || ((outcomesWithheld || inverseOwnPointsSketch) && inversePointsComplete);
   const inversePointsLocked = analysis.inversePointsValidated || inverseOwnPointsSketch;
+
+  // Where the button is on screen only because of the support plan, that is
+  // the keyboard-access support provided: reported once it shows (the host
+  // records one per assignment), never merely because the plan lists it.
+  const connectShownByPlan = connectPointsProvidedByPlan({ outcomesWithheld, keyboardAccess })
+    && ((stage === 'construct' && !pointOnly && pointsCommitted)
+      || (stage === 'analysis' && inverseReflectionEnabled && inversePointsCommitted));
+  useEffect(() => {
+    if (connectShownByPlan) onSupportEvidence?.({ supportId: KEYBOARD_ACCESS_SUPPORT_ID, eventType: 'provided' });
+  }, [connectShownByPlan, onSupportEvidence]);
 
   const checkInversePoints = () => {
     if (!inversePointsComplete) {
@@ -1101,6 +1123,7 @@ export default function InteractiveGraphWorkspace({
    * markers are placed as before: choose one, arrow keys on the plane, Enter.
    */
   const connectMyPoints = () => {
+    if (!connectOffered) return;
     const sketchCamera = currentSketchCamera();
     let message;
     if (stage === 'analysis' && inverseReflectionEnabled) {
@@ -1576,7 +1599,7 @@ export default function InteractiveGraphWorkspace({
         {stage === 'construct' ? (
           <>
             {pointFeedback && <p style={{ margin: '8px 0', color: construction.pointsValidated ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', fontWeight: 'bold' }}>{pointFeedback}</p>}
-            {!pointOnly && pointsCommitted && !construction.snapped && <p style={{ margin: '8px 0', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>{construction.pointsValidated ? 'Draw through all validated points.' : 'Draw your curve through all of your points.'} {requiredStrokeCount === 2 ? 'Draw both rational branches as separate strokes.' : ''} Or press Connect my points.</p>}
+            {!pointOnly && pointsCommitted && !construction.snapped && <p style={{ margin: '8px 0', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>{construction.pointsValidated ? 'Draw through all validated points.' : 'Draw your curve through all of your points.'} {requiredStrokeCount === 2 ? 'Draw both rational branches as separate strokes.' : ''} {connectOffered ? 'Or press Connect my points.' : ''}</p>}
             {drawFeedback && <p style={{ margin: '8px 0', color: curveAcceptedOwnPoints ? 'var(--mm-primary-text)' : construction.snapped ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', fontWeight: 'bold' }}>{drawFeedback}</p>}
           </>
         ) : (
@@ -1639,11 +1662,12 @@ export default function InteractiveGraphWorkspace({
           {/* The curve by keyboard (TOOL-1): through the student's own points,
               checked like a drawn one. It stays, done, once the curve is in, so
               the press that completes it does not throw focus to the page; the
-              end markers come next. */}
-          {stage === 'construct' && !pointOnly && pointsCommitted && (
+              end markers come next. Offered by connectOffered: on an exit
+              ticket, quiz or test only with the keyboard-access support. */}
+          {connectOffered && stage === 'construct' && !pointOnly && pointsCommitted && (
             <FocusSafeButton ref={connectButtonRef} data-graph-connect-points="construction" enabled={!construction.snapped} onClick={connectMyPoints} style={{ padding: '9px 14px', border: '1px solid var(--mm-tint-border)', borderRadius: '8px', background: construction.snapped ? 'var(--mm-surface)' : 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>{construction.snapped ? '✓ Curve drawn' : 'Connect my points'}</FocusSafeButton>
           )}
-          {stage === 'analysis' && inverseReflectionEnabled && inversePointsCommitted && (
+          {connectOffered && stage === 'analysis' && inverseReflectionEnabled && inversePointsCommitted && (
             <FocusSafeButton ref={connectButtonRef} data-graph-connect-points="inverse" enabled={!analysis.inverseSnapped} onClick={connectMyPoints} style={{ padding: '9px 14px', border: '1px solid var(--mm-tint-border)', borderRadius: '8px', background: analysis.inverseSnapped ? 'var(--mm-surface)' : 'var(--mm-primary-subtle)', color: 'var(--mm-accent-text)', fontWeight: 'bold' }}>{analysis.inverseSnapped ? '✓ Inverse drawn' : 'Connect my reflected points'}</FocusSafeButton>
           )}
           {stage === 'construct' && !pointOnly && construction.pointsValidated && !construction.snapped && (
