@@ -42,6 +42,7 @@ import {
   resolveLearnerSeat,
 } from '../../functions/shared/questionGenerationIdentity.mjs';
 import {
+  questionAtPinnedFamilyVersion,
   reproduceFamilyQuestionFromPin,
   resolveFamilyQuestionInstance,
 } from '../../functions/shared/questionFamilyInstance.mjs';
@@ -437,17 +438,110 @@ test('16/17. the server never grades a pin it cannot reproduce: no attempt is sp
   // A truncated pin is no pin: the server will not invent one.
   const truncated = ingest({ familyId: 'linear.twoStepEquation' }, TWO_STEP, recordWith(null));
   assert.equal(truncated.record?.familyDelivery ?? null, null, 'no pin is minted from a truncated claim');
-  // The family can no longer satisfy its constraints, or the slot moved to a
-  // version this build lacks: the canonical pin cannot be reproduced.
+  // The family can no longer satisfy its constraints, or the slot moved to
+  // another family: the canonical pin cannot be reproduced. (A slot moved to
+  // another VERSION of the same family keeps a started student's pinned
+  // version: RT03, below.)
   for (const question of [
     { ...AREA, generator: { ...AREA.generator, constraints: ['w>100'] } },
-    { ...TWO_STEP, questionFamily: { id: 'linear.twoStepEquation', version: 7 } },
+    { ...TWO_STEP, questionFamily: { id: 'linear.multiStepEquation' } },
   ]) {
     const areaPin = question.questionId === AREA.questionId ? normalizeDeliveryPin(deliver({ assignment, question: AREA, studentId: 'stu-ben', storageIndex: 0 }).delivery) : pin;
     const held = ingest(areaPin, question, recordWith(areaPin));
     assert.equal(held.blocked, true, `${question.questionId}: held, not graded`);
   }
   assert.equal(JSON.stringify(canonical), before, 'the canonical record is never mutated');
+});
+
+/* ------------------------- RT03: after a content upgrade (owner, 2026-10-23) */
+
+// The same slot after a content upgrade moved it to the family's next version.
+const TWO_STEP_V2 = { ...TWO_STEP, questionFamily: { id: 'linear.twoStepEquation', version: 2 } };
+
+test('RT03: after an upgrade, a student who started keeps the version they started and the server grades it; one who had not gets the new version', () => {
+  const assignment = seatedAssignment();
+  // Ben answered the v1 question twice before the upgrade: his record holds its canonical pin.
+  const bens = deliver({ assignment, question: TWO_STEP, studentId: 'stu-ben' });
+  assert.equal(bens.delivery.familyVersion, 1);
+  const record = recordWith(normalizeDeliveryPin(bens.delivery));
+  const before = JSON.stringify(record);
+  const { context, rendered } = playerQuestion({ assignment, question: TWO_STEP_V2, studentId: 'stu-ben', record });
+  assert.equal(context.pinSource, FAMILY_PIN_KIND.CANONICAL);
+  assert.equal(context.pinRefusal, null, 'the pin is still his, at its own version');
+  assert.equal(rendered.type, 'stepAlgebra', 'the question itself, not "This question needs your teacher"');
+  assert.equal(rendered.familyDelivery.familyVersion, 1);
+  assert.equal(rendered.familyDelivery.fingerprint, bens.delivery.fingerprint);
+  assert.equal(rendered.equation, bens.question.equation, 'the very equation his two attempts were graded against');
+  assert.equal(JSON.stringify(record), before, 'nothing about his record changes');
+  // The server grades his next answer against that same instance, and keeps the pin.
+  const graded = resolveServerGradingQuestion({ assignment, question: TWO_STEP_V2, questionIndex: 0, variantIndex: 0, canonicalRecord: record, claimedDelivery: rendered.familyDelivery, studentId: 'stu-ben', classId: CLASS });
+  assert.equal(graded.reason, null);
+  assert.equal(graded.pin.familyVersion, 1);
+  assert.equal(graded.question.equation, bens.question.equation);
+  const ingested = buildIngestedAttempt({
+    envelope: envelope({ question: TWO_STEP_V2, familyDelivery: rendered.familyDelivery }),
+    assignment,
+    question: TWO_STEP_V2,
+    canonicalRecord: record,
+    ingestedAt: Date.parse('2026-10-02T15:00:01Z'),
+  });
+  assert.notEqual(ingested.blocked, true, 'his answer is taken, not held for a teacher');
+  assert.equal(normalizeDeliveryPin(ingested.record?.familyDelivery)?.fingerprint, bens.delivery.fingerprint, 'and his record still names his version');
+
+  // Ana had not started (no record): she is dealt the new version, at her own seat.
+  const anas = deliver({ assignment, question: TWO_STEP_V2, studentId: 'stu-ana' });
+  assert.equal(anas.delivery.familyVersion, 2);
+  const ana = playerQuestion({ assignment, question: TWO_STEP_V2, studentId: 'stu-ana' });
+  assert.equal(ana.rendered.familyDelivery.familyVersion, 2);
+  assert.equal(ana.rendered.familyDelivery.fingerprint, anas.delivery.fingerprint);
+
+  // Cy saw the v1 question on this device but never submitted: a device pin is
+  // not a start, so he gets the new version too, and support can see why.
+  const store = memoryStore();
+  writeLocalDeliveryPin({ studentId: 'stu-cy', delivery: deliver({ assignment, question: TWO_STEP, studentId: 'stu-cy' }).delivery, store });
+  const cy = playerQuestion({ assignment, question: TWO_STEP_V2, studentId: 'stu-cy', store });
+  assert.equal(cy.context.pinSource, FAMILY_PIN_KIND.DEVICE);
+  assert.equal(cy.rendered.familyDelivery.familyVersion, 2);
+  assert.equal(cy.rendered.familyDelivery.fingerprint, deliver({ assignment, question: TWO_STEP_V2, studentId: 'stu-cy' }).delivery.fingerprint);
+  assert.equal(cy.rendered.familyPinNotice?.classification, QUESTION_RESOLUTION_FAILURE.PIN_FAMILY_MISMATCH);
+});
+
+test('RT03: a student who had not started cannot keep the old version by sending its pin', () => {
+  const assignment = seatedAssignment();
+  // Ana's own v1 seat, claimed with an answer after the upgrade; her record has no canonical pin.
+  const oldPin = normalizeDeliveryPin(deliver({ assignment, question: TWO_STEP, studentId: 'stu-ana' }).delivery);
+  const claimed = resolveServerGradingQuestion({ assignment, question: TWO_STEP_V2, questionIndex: 0, variantIndex: 0, canonicalRecord: null, claimedDelivery: oldPin, studentId: 'stu-ana', classId: CLASS });
+  assert.equal(claimed.refused, true, 'held for a teacher, never graded against the old version');
+  assert.equal(claimed.question, null);
+});
+
+test('RT03: the pinned version is resolvable only when the same family moved to another version this build has; anything else still fails closed', () => {
+  const assignment = seatedAssignment();
+  const bens = deliver({ assignment, question: TWO_STEP, studentId: 'stu-ben' });
+  const pin = normalizeDeliveryPin(bens.delivery);
+  assert.equal(questionAtPinnedFamilyVersion(TWO_STEP, pin), null, 'nothing superseded: an unpinned reference means v1');
+  assert.equal(questionAtPinnedFamilyVersion({ ...TWO_STEP, questionFamily: { id: 'linear.twoStepEquation', version: 1 } }, pin), null);
+  assert.deepEqual(questionAtPinnedFamilyVersion(TWO_STEP_V2, pin).questionFamily, { id: 'linear.twoStepEquation', version: 1 });
+  assert.equal(questionAtPinnedFamilyVersion({ ...TWO_STEP, questionFamily: { id: 'linear.multiStepEquation' } }, pin), null, 'another family');
+  assert.equal(questionAtPinnedFamilyVersion(TWO_STEP_V2, { ...pin, familyVersion: 42 }), null, 'a version this build never had');
+  assert.equal(questionAtPinnedFamilyVersion(AREA, pin), null, 'an assignment-local template');
+
+  // The slot also asks for other constraints, and the pinned instance is not
+  // in v1 under them: the pin does not record what the slot asked for then,
+  // so nothing proves it is the same question. It still needs the teacher.
+  const narrowed = { ...TWO_STEP, questionFamily: { id: 'linear.twoStepEquation', version: 2, constraints: { solutionRange: [-6, 6] } } };
+  assert.notEqual(reproduceFamilyQuestionFromPin({ question: narrowed, assignmentId: assignment.id, storageIndex: 0, pin, keepPinnedVersion: true }).error, null, 'fixture: the pinned instance is really gone under these constraints');
+  const blocked = playerQuestion({ assignment, question: narrowed, studentId: 'stu-ben', record: recordWith(pin) });
+  assertFailedClosed(blocked.rendered, QUESTION_RESOLUTION_FAILURE.PIN_FAMILY_MISMATCH);
+
+  // A slot moved to a version this build does not have: the started student
+  // still finishes the version they started, on both sides.
+  const ahead = { ...TWO_STEP, questionFamily: { id: 'linear.twoStepEquation', version: 7 } };
+  const kept = playerQuestion({ assignment, question: ahead, studentId: 'stu-ben', record: recordWith(pin) });
+  assert.equal(kept.rendered.familyDelivery?.fingerprint, bens.delivery.fingerprint);
+  const graded = resolveServerGradingQuestion({ assignment, question: ahead, questionIndex: 0, variantIndex: 0, canonicalRecord: recordWith(pin), claimedDelivery: pin, studentId: 'stu-ben', classId: CLASS });
+  assert.equal(graded.reason, null);
+  assert.equal(graded.question.equation, bens.question.equation);
 });
 
 test('the server grades a runtime-repaired family slot against the instance QuestionEngine shows', () => {

@@ -95,7 +95,10 @@ export const displayFamilyValues = ({ template = null, delivered = null, assignm
   try {
     const pin = delivered?.familyDelivery;
     if (!template || !pin) return null;
-    const replay = reproduceFamilyQuestionFromPin({ question: template, assignmentId, storageIndex, pin });
+    // The pin of the question on screen: a canonical pin the student kept
+    // after a content upgrade replays at its own version (RT03), as the
+    // server's classifier reads it.
+    const replay = reproduceFamilyQuestionFromPin({ question: template, assignmentId, storageIndex, pin, keepPinnedVersion: true });
     if (replay?.error || !replay?.instance?.values) return null;
     if (getPlatformQuestionFamily(replay.family?.id, replay.family?.version) !== replay.family) return null;
     // The instance on screen, not another one the same pin could describe.

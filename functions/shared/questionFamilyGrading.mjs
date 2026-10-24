@@ -20,6 +20,7 @@
 import {
   familySlotKey,
   isFamilyBackedQuestion,
+  questionAtPinnedFamilyVersion,
   reproduceFamilyQuestionFromPin,
   resolveFamilyQuestionInstance,
 } from './questionFamilyInstance.mjs';
@@ -92,6 +93,10 @@ export const verifyDeliveryPinSeat = ({ assignment = null, studentId = null, cla
  * tell later which provisional seat it was. That residual is recorded in
  * docs/architecture/SERVER_GRADING_COVERAGE.md.
  *
+ * `keepPinnedVersion`: the pin is the record's canonical one, so a slot since
+ * upgraded to a newer version of its family is walked at the pin's version
+ * (RT03, questionFamilyInstance.mjs questionAtPinnedFamilyVersion).
+ *
  * Returns null, or the reason the pin is refused.
  */
 const sectionVariantMode = (assignment, role) => {
@@ -102,7 +107,7 @@ const sectionVariantMode = (assignment, role) => {
   return String(policy.sectionModes?.[roleKey] || policy.mode || 'personalized').trim().toLowerCase();
 };
 
-export const deliveryPinAllocationProblem = ({ assignment = null, question = null, questionIndex = 0, pin = null, studentId = null } = {}) => {
+export const deliveryPinAllocationProblem = ({ assignment = null, question = null, questionIndex = 0, pin = null, studentId = null, keepPinnedVersion = false } = {}) => {
   const normalized = normalizeDeliveryPin(pin);
   if (!normalized) return 'pin-invalid';
   const assignmentId = assignment?.id || '';
@@ -124,9 +129,10 @@ export const deliveryPinAllocationProblem = ({ assignment = null, question = nul
   if (normalized.index !== allocationIndexFor({ seat: normalized.seat, variant: normalized.variant, stride: normalized.stride })) {
     return 'pin-index-not-allocated';
   }
+  const walkedQuestion = (keepPinnedVersion && questionAtPinnedFamilyVersion(question, normalized)) || question;
   const walkLandsOnPin = (legacyWrapExclusion) => {
     const walked = resolveFamilyQuestionInstance({
-      question,
+      question: walkedQuestion,
       assignmentId,
       storageIndex: questionIndex,
       slotKey: slot,
@@ -148,6 +154,20 @@ export const deliveryPinAllocationProblem = ({ assignment = null, question = nul
   if (walkLandsOnPin(false) || walkLandsOnPin(true)) return null;
   return 'pin-index-not-allocated';
 };
+
+// The same delivery: everything that names the instance (its locator,
+// `resolvedIndex`, may have been corrected by a rebuild).
+const sameDelivery = (pin, other) => Boolean(pin && other)
+  && pin.familyId === other.familyId
+  && pin.familyVersion === other.familyVersion
+  && pin.slot === other.slot
+  && pin.variant === other.variant
+  && pin.seat === other.seat
+  && pin.stride === other.stride
+  && pin.index === other.index
+  && pin.basis === other.basis
+  && pin.fingerprint === other.fingerprint
+  && (pin.support || null) === (other.support || null);
 
 /**
  * The question to grade against.
@@ -179,17 +199,23 @@ export const resolveFamilyQuestionForGrading = ({
   if (!candidates.length) return { familyBacked: true, question: null, pin: null, reason: 'family-delivery-missing' };
   let refusal = null;
   for (const pin of candidates) {
+    // Only the delivery the record's canonical pin names — written by the
+    // server when it accepted this student's first answer — keeps its family
+    // version after a content upgrade (RT03). A pin a submission claims for
+    // anything else gets the slot as it is now.
+    const keepPinnedVersion = sameDelivery(pin, canonical);
     const reproduced = reproduceFamilyQuestionFromPin({
       question,
       assignmentId: assignment?.id || '',
       storageIndex: questionIndex,
       pin,
+      keepPinnedVersion,
     });
     if (reproduced.error) {
       refusal ||= { pin, reason: `family-${reproduced.error}` };
       continue;
     }
-    const problem = deliveryPinAllocationProblem({ assignment, question, questionIndex, pin, studentId });
+    const problem = deliveryPinAllocationProblem({ assignment, question, questionIndex, pin, studentId, keepPinnedVersion });
     if (problem) {
       refusal ||= { pin, reason: `family-${problem}` };
       continue;

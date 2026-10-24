@@ -60,11 +60,11 @@ export {
  * copy of the assignment does not list at all. That is a seat map not loaded
  * yet (or a snapshot older than the seat), not evidence of another student.
  */
-const pinRefusalFor = ({ assignment, question, storageIndex, pin, studentId }) => {
+const pinRefusalFor = ({ assignment, question, storageIndex, pin, studentId, keepPinnedVersion = false }) => {
   if (!pin || !studentId) return { refusal: null, walkRefused: false };
   let refusal = null;
   try {
-    refusal = deliveryPinAllocationProblem({ assignment, question, questionIndex: storageIndex, pin, studentId });
+    refusal = deliveryPinAllocationProblem({ assignment, question, questionIndex: storageIndex, pin, studentId, keepPinnedVersion });
   } catch {
     // App.jsx builds this context while rendering, outside any question
     // boundary. A check that cannot run passes no judgement; the generator
@@ -122,9 +122,11 @@ export const buildStudentFamilyContext = ({
   const pinUnreadable = !preview && rawCanonical !== null && rawCanonical !== undefined && !canonicalPin;
   const localPin = preview || !studentId ? null : readLocalDeliveryPin({ studentId, slotKey, variant, store });
   const canonicalApplies = canonicalPin?.variant === variant;
-  const verify = (pin) => pinRefusalFor({ assignment, question, storageIndex, pin, studentId });
+  const verify = (pin, keepPinnedVersion) => pinRefusalFor({ assignment, question, storageIndex, pin, studentId, keepPinnedVersion });
   const deviceCandidate = !canonicalApplies && !pinUnreadable && localPin?.variant === variant ? localPin : null;
-  const verdict = canonicalApplies ? verify(canonicalPin) : deviceCandidate ? verify(deviceCandidate) : { refusal: null, walkRefused: false };
+  // The canonical pin keeps its family version after a content upgrade, as
+  // the server grades it (RT03); a device pin is checked against the slot now.
+  const verdict = canonicalApplies ? verify(canonicalPin, true) : deviceCandidate ? verify(deviceCandidate, false) : { refusal: null, walkRefused: false };
   const pinRefusal = canonicalApplies ? verdict.refusal : null;
   const devicePinRefused = deviceCandidate ? verdict.refusal : null;
   const pin = canonicalApplies

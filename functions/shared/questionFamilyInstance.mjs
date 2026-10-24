@@ -378,6 +378,35 @@ export const familyResolutionMessage = (label, preview = {}) => (
   `${label} references a Question Family that cannot generate questions (${preview.error}${preview.issues?.length ? `: ${preview.issues.join('; ')}` : ''}). Students would see "This question could not be prepared" instead of a question.`
 );
 
+/*
+ * A CONTENT UPGRADE KEEPS A STUDENT WHO STARTED ON THE VERSION THEY STARTED
+ * (RT03, the owner's decision 2026-10-23).
+ *
+ * An upgrade may move a live slot to a newer version of its family
+ * (linear.twoStepEquation v1 -> v2). A student whose canonical pin names the
+ * older version had already answered or checkpointed that question; they keep
+ * it and finish it, while a student who had not started is dealt the new one.
+ * Every version that shipped still produces exactly what it did
+ * (tests/platform/questionFamilyHistoricalPins.test.mjs), so the pinned
+ * version is still in the registry: the slot is read at the pin's family
+ * version, with its own constraints, tool and wording, and the replay is
+ * still accepted only on equal family, version and fingerprint.
+ *
+ * Null when nothing was superseded (the slot already names the pin's
+ * version), when the slot moved to another family or is an assignment-local
+ * template (the old question cannot be rebuilt from what is stored), or when
+ * this build does not have the pinned version. Those still fail closed.
+ */
+export const questionAtPinnedFamilyVersion = (question, pin) => {
+  const normalized = normalizeDeliveryPin(pin);
+  const reference = normalizeQuestionFamilyReference(question);
+  if (!normalized || !reference || reference.error || reference.scope !== 'platform') return null;
+  if (reference.id !== normalized.familyId) return null;
+  if (getPlatformQuestionFamily(normalized.familyId, normalized.familyVersion)?.version !== normalized.familyVersion) return null;
+  if (getPlatformQuestionFamily(reference.id, reference.version)?.version === normalized.familyVersion) return null;
+  return { ...question, questionFamily: { ...question.questionFamily, version: normalized.familyVersion } };
+};
+
 /**
  * Re-create exactly the question a delivery pin describes.
  *
@@ -387,18 +416,26 @@ export const familyResolutionMessage = (label, preview = {}) => (
  * The fingerprint is checked, so a slot whose family or constraints were edited
  * since the pin was written is reported (`pin_mismatch`) instead of silently
  * swapped.
+ *
+ * `keepPinnedVersion` is for the question record's canonical pin only — the
+ * one the server wrote when it accepted the student's first answer: a slot
+ * since upgraded to a newer version of the same family replays at the pin's
+ * version (questionAtPinnedFamilyVersion). A device pin, or a pin a
+ * submission claims, never does: a student who had not started gets the
+ * new version.
  */
 export const reproduceFamilyQuestionFromPin = ({
   question = null,
   assignmentId = '',
   storageIndex = 0,
   pin = null,
+  keepPinnedVersion = false,
 } = {}) => {
   const normalized = normalizeDeliveryPin(pin);
   if (!normalized) return { error: FAMILY_RESOLUTION_ERROR.PIN_MISMATCH, issues: ['pin_invalid'] };
   const slotKey = normalized.slot || familySlotKey({ assignmentId, question, storageIndex });
   const result = resolveFamilyQuestionInstance({
-    question,
+    question: (keepPinnedVersion && questionAtPinnedFamilyVersion(question, normalized)) || question,
     assignmentId,
     storageIndex,
     slotKey,

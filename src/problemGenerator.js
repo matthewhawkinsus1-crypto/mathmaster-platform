@@ -25,6 +25,7 @@ import {
 } from '../functions/shared/questionGenerationIdentity.mjs';
 import { canGenerateDistinctVariants } from '../functions/shared/questionVariability.mjs';
 import {
+  FAMILY_PIN_KIND,
   QUESTION_RESOLUTION_FAILURE,
   classifyFamilyFailure,
   classifyPinRefusal,
@@ -705,6 +706,11 @@ const generateFamilyBackedQuestion = (question, generationKey, studentProfile, f
 
   const pinKind = familyPinKind(context);
   const authoritative = isAuthoritativePinKind(pinKind);
+  // A student who already started keeps the family version they started after
+  // a content upgrade (RT03): only the record's canonical pin replays at its
+  // own version. A device pin yields to the new version; a Recovery pin is
+  // unchanged.
+  const keepPinnedVersion = pinKind === FAMILY_PIN_KIND.CANONICAL;
   const diagnosticContext = { assignmentId, storageIndex, variant };
   const failClosed = (classification, detail, pin = context.pin) => {
     throw questionResolutionError({
@@ -734,7 +740,7 @@ const generateFamilyBackedQuestion = (question, generationKey, studentProfile, f
   // A pin is the authority for the variant it was written for: it reproduces
   // what the student actually saw even if seats or profiles moved since.
   if (pin && pin.variant === variant) {
-    const replay = reproduceFamilyQuestionFromPin({ question, assignmentId, storageIndex, pin });
+    const replay = reproduceFamilyQuestionFromPin({ question, assignmentId, storageIndex, pin, keepPinnedVersion });
     if (!replay.error && context.pinWalkRefused === true) {
       // It replays, but its `resolvedIndex` points somewhere this student's
       // allocation never walks to: an instance dealt to someone else.
@@ -743,7 +749,7 @@ const generateFamilyBackedQuestion = (question, generationKey, studentProfile, f
     } else if (!replay.error) {
       result = replay;
     } else if (authoritative) {
-      result = rebuildFamilyQuestionFromPin({ question, assignmentId, storageIndex, pin });
+      result = rebuildFamilyQuestionFromPin({ question, assignmentId, storageIndex, pin, keepPinnedVersion });
       if (!result) failClosed(classifyFamilyFailure({ question, pin, error: replay.error, issues: replay.issues }), replay.issues?.[0] || replay.error);
     } else {
       const classification = classifyFamilyFailure({ question, pin, error: replay.error, issues: replay.issues });
