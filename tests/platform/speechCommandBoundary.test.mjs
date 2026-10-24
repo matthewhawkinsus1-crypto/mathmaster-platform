@@ -23,8 +23,9 @@ test('the QA examples are read in full', () => {
 
 // Every operator-like command the reader names, with words it must produce.
 const COMMANDS = [
-  ['le', 'is less than or equal to'], ['leq', 'is less than or equal to'],
-  ['ge', 'is greater than or equal to'], ['geq', 'is greater than or equal to'],
+  ['le', 'is less than or equal to'], ['leq', 'is less than or equal to'], ['leqslant', 'is less than or equal to'],
+  ['ge', 'is greater than or equal to'], ['geq', 'is greater than or equal to'], ['geqslant', 'is greater than or equal to'],
+  ['neg', 'not'], ['lnot', 'not'],
   ['ne', 'is not equal to'], ['neq', 'is not equal to'],
   ['lt', 'is less than'], ['gt', 'is greater than'],
   ['approx', 'is approximately equal to'], ['cong', 'is congruent to'], ['sim', 'is similar to'],
@@ -57,10 +58,12 @@ test('a letter after a command name makes it a different command, never the shor
     // matters is that the short command's words are not read for them.
     assert.ok(!said(speech, words), `${latex} → "${speech}" does not say "${words}"`);
   }
-  assert.equal(mathToSpeech('\\lnot p'), 'p', '\\lnot is not \\ln');
+  // Since AX16 these longer names have readings of their own, which are
+  // still never the short command's.
+  assert.equal(mathToSpeech('\\lnot p'), 'not p', '\\lnot is not \\ln');
   assert.equal(mathToSpeech('\\pitchfork'), '', '\\pitchfork is not \\pi');
-  assert.equal(mathToSpeech('x\\neg y'), 'x y', '\\neg is not \\ne');
-  assert.equal(mathToSpeech('x\\leqslant 5'), 'x 5', '\\leqslant is not \\le or \\leq');
+  assert.equal(mathToSpeech('x\\neg y'), 'x not y', '\\neg is not \\ne');
+  assert.equal(mathToSpeech('x\\leqslant 5'), 'x is less than or equal to 5', '\\leqslant is its own name for ≤');
   // Longer names the reader does know keep their own reading.
   assert.equal(mathToSpeech('x\\leq5'), 'x is less than or equal to 5');
   assert.equal(mathToSpeech('x\\neq5'), 'x is not equal to 5');
@@ -75,4 +78,17 @@ test('commands that take an argument also end at a non-letter', () => {
   // `\textbf` is not `\text` with an argument of "b".
   assert.equal(mathToSpeech('\\textbf{Area} = 5'), 'Area equals 5');
   assert.equal(mathToSpeech('\\sin2x'), 'sin 2x');
+});
+
+// AX16: the slanted relations and "not" were silent ('x 3', 'Write and and p.').
+test('\\leqslant, \\geqslant and \\neg are spoken, in English and Spanish', () => {
+  assert.equal(mathToSpeech('x \\leqslant 3'), 'x is less than or equal to 3');
+  assert.equal(mathToSpeech('x \\geqslant 3'), 'x is greater than or equal to 3');
+  assert.equal(mathToSpeech('\\neg p'), 'not p');
+  assert.equal(mathToSpeech('¬p'), 'not p');
+  assert.equal(speechTextFor('Write $\\leqslant$ and $\\geqslant$ and $\\neg p$.'), 'Write is less than or equal to and is greater than or equal to and not p.');
+  assert.equal(mathToSpeech('x \\leqslant 3', { language: 'es' }), 'x es menor o igual que 3');
+  assert.equal(mathToSpeech('\\neg p', { language: 'es' }), 'no p');
+  // A longer name is not cut at a shorter one.
+  assert.equal(mathToSpeech('\\ne 4'), 'is not equal to 4');
 });

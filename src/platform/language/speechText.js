@@ -32,7 +32,7 @@ const WORDS = {
     degrees: 'degrees', repeating: 'repeating', segment: 'segment', ray: 'ray', sub: 'sub', endSub: '',
     approx: 'is approximately equal to', cong: 'is congruent to', sim: 'is similar to', parallel: 'is parallel to',
     perp: 'is perpendicular to', angle: 'angle', triangle: 'triangle', in: 'is in', theta: 'theta',
-    setOpen: 'the set', setClose: 'end set', squareRootFn: 'the square root of',
+    setOpen: 'the set', setClose: 'end set', squareRootFn: 'the square root of', not: 'not',
   },
   es: {
     over: 'sobre', cubeRoot: 'la raíz cúbica de', squareRoot: 'la raíz cuadrada de', logBase: 'logaritmo en base', of: 'de',
@@ -47,7 +47,7 @@ const WORDS = {
     degrees: 'grados', repeating: 'periódico', segment: 'segmento', ray: 'rayo', sub: 'sub', endSub: '',
     approx: 'es aproximadamente igual a', cong: 'es congruente con', sim: 'es semejante a', parallel: 'es paralela a',
     perp: 'es perpendicular a', angle: 'ángulo', triangle: 'triángulo', in: 'pertenece a', theta: 'theta',
-    setOpen: 'el conjunto', setClose: 'fin de conjunto', squareRootFn: 'la raíz cuadrada de',
+    setOpen: 'el conjunto', setClose: 'fin de conjunto', squareRootFn: 'la raíz cuadrada de', not: 'no',
   },
 };
 
@@ -233,8 +233,10 @@ const latexToSpeech = (raw, w) => {
     .replace(/\^\s*\{?\s*\\circ\s*\}?/g, ` ${w.degrees} `)
     .replace(/\\circ(?![A-Za-z])/g, ` ${w.degrees} `)
     .replace(/°/g, ` ${w.degrees} `)
-    .replace(/\\le(q)?(?![A-Za-z])/g, ' ≤ ')
-    .replace(/\\ge(q)?(?![A-Za-z])/g, ' ≥ ')
+    // The slanted forms are the same relations (AX16: they were silent).
+    .replace(/\\le(?:q|qslant)?(?![A-Za-z])/g, ' ≤ ')
+    .replace(/\\ge(?:q|qslant)?(?![A-Za-z])/g, ' ≥ ')
+    .replace(/\\(?:neg|lnot)(?![A-Za-z])|¬/g, ` ${w.not} `)
     .replace(/\\ne(q)?(?![A-Za-z])/g, ' ≠ ')
     .replace(/\\lt(?![A-Za-z])/g, ' < ')
     .replace(/\\gt(?![A-Za-z])/g, ' > ')
