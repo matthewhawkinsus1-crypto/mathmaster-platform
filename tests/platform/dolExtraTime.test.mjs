@@ -564,8 +564,10 @@ test('on-device Recovery, the finalize hint and the teacher roster take timing f
   const scope = region(app, 'recoveryDiscoveryScope', 'const studentRecoveryByAssignment = useMemo(', 'Recovery discovery scope');
   assert.match(scope, /studentProfile: user\.timingProfile \|\| null,\s*nowValue: now,/);
   assert.match(scope, /user\?\.timingProfile, assignments/);
-  // The checkpoint's finalize hint (resolveAuthoritativeClose before enqueueResponseCheckpoint).
-  assert.match(app, /studentId: user\.id,\s*studentProfile: user\.timingProfile \|\| null,\s*\}\);\s*try \{\s*setStudentPersistenceStatus\('capturing'\);/);
+  // The checkpoint's finalize hint (resolveAuthoritativeClose before the
+  // checkpoint enqueueResponseCheckpoint queues; RT18 builds it first).
+  assert.match(app, /studentId: user\.id,\s*studentProfile: user\.timingProfile \|\| null,\s*\}\);\s*const checkpoint = \{/);
+  assert.match(app, /finalizeAt: close\.closesAtMs \? new Date\(close\.closesAtMs\)\.toISOString\(\) : null,/);
   // No D7 timing reader is left on the normalized copy.
   assert.doesNotMatch(app, /studentProfile: user\.profile \|\| null/);
   // The teacher's rows carry the stored field.
