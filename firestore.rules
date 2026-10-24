@@ -35,7 +35,9 @@ service cloud.firestore {
     // checkpoint. Writes whose rule already reads the row (support evidence,
     // Ask my teacher, Spotlight frames) were closed already. No legitimate
     // student is without a row: the app does not sign one in ("Your student
-    // record is not available").
+    // record is not available"). Known limit: a hand-built client can first
+    // create its own bare row (the student's create on grades/{studentId});
+    // docs/handoffs/STUDENT_PASS3_D10_PHASE0.md §6.6.
     function studentRowExists(studentId) {
       return exists(/databases/$(database)/documents/grades/$(studentId));
     }
