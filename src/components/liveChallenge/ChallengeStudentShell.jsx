@@ -5,6 +5,7 @@ import { finalPlaceIsPrivate, gameGradeSentence, recapHasContent, RESULT_TONE } 
 import { publicStandingsRows } from '../../platform/liveChallenge/liveChallengeProjectorModel.js';
 import { RoundResultsTable, StandingsBoard } from './ChallengeShellParts.jsx';
 import { RoundSolutionCard } from './ChallengeSolutionParts.jsx';
+import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 
 /*
  * A STUDENT'S LIVE CHALLENGE, AROUND THE GAME ITSELF.
@@ -152,7 +153,12 @@ export function StudentRoundResultsCard({ view, presentation, guidance, rushRoun
         {standing && (
           <div style={{ marginTop: 12, fontWeight: 900, color: '#eef1f6' }}>
             Overall: {standing.place.spoken} · {amountText(standing.score, presentation.total)}
-            {standing.movement && standing.movement.direction !== 'same' && <span aria-label={standing.movement.spoken} style={{ marginLeft: 8, color: standing.movement.direction === 'up' ? '#81c995' : '#ffb4ab' }}>{standing.movement.text}</span>}
+            {standing.movement && standing.movement.direction !== 'same' && (
+              <span style={{ marginLeft: 8, color: standing.movement.direction === 'up' ? '#81c995' : '#ffb4ab' }}>
+                <span aria-hidden="true">{standing.movement.text}</span>
+                <span style={SR_ONLY_STYLE}>{standing.movement.spoken}</span>
+              </span>
+            )}
           </div>
         )}
         {self && !participated && rushRound && <p style={{ margin: '12px 0 0', color: '#c3d2ea' }}>Tap the features on your graphs to earn points.</p>}

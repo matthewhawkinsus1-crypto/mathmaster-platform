@@ -1,5 +1,6 @@
 import React from 'react';
 import { SKILLS_MOVED_STATE } from '../../platform/mastery/sessionSkillMovement.js';
+import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 
 // "Skills that moved" on the session end screen. The state is computed by
 // describeSessionSkillsMoved (src/platform/mastery/sessionSkillMovement.js);
@@ -26,6 +27,17 @@ const HEADING = {
 
 const percent = (value) => (value == null ? null : `${value}%`);
 
+// The arrow between "before" and "after": drawn as →, said "to". A label on a
+// bare span is not read, so the word is a hidden span's (AX18).
+function Arrow() {
+  return (
+    <>
+      <span aria-hidden="true">→</span>
+      <span style={SR_ONLY_STYLE}>to</span>
+    </>
+  );
+}
+
 function Move({ move }) {
   const estimateChanged = move.estimateBefore !== move.estimateAfter;
   const statusChanged = move.statusBefore !== move.statusAfter;
@@ -34,12 +46,12 @@ function Move({ move }) {
       <strong style={{ color: 'var(--mm-text-strong)', fontSize: 'calc(14.5 * var(--mm-px))' }}>{move.label}</strong>
       <span style={{ color: 'var(--mm-text)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.5 }}>
         {estimateChanged
-          ? <>{percent(move.estimateBefore) || 'New'} <span aria-label="to">→</span> <strong>{percent(move.estimateAfter) || '—'}</strong></>
+          ? <>{percent(move.estimateBefore) || 'New'} <Arrow /> <strong>{percent(move.estimateAfter) || '—'}</strong></>
           : percent(move.estimateAfter)}
         {statusChanged && (
           <>
             {(estimateChanged || move.estimateAfter != null) ? ' · ' : ''}
-            {move.statusBefore} <span aria-label="to">→</span> <strong>{move.statusAfter}</strong>
+            {move.statusBefore} <Arrow /> <strong>{move.statusAfter}</strong>
           </>
         )}
       </span>

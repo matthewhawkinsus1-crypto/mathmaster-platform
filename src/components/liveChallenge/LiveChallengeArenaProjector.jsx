@@ -169,7 +169,9 @@ function ArenaBadge({ children, accent = '#7aa8ff' }) {
 function RoundProgress({ currentRound, roundCount, accent }) {
   const count = Math.max(1, Math.min(30, roundCount));
   return (
-    <div aria-label={`Round ${currentRound} of ${roundCount}`} style={{ display: 'flex', gap: count > 16 ? 4 : 6, width: '100%' }}>
+    // A picture of the rounds so far, so it is an image with its text alternative
+    // (a label on a bare div is not read, AX18).
+    <div role="img" aria-label={`Round ${currentRound} of ${roundCount}`} style={{ display: 'flex', gap: count > 16 ? 4 : 6, width: '100%' }}>
       {Array.from({ length: count }, (_, index) => {
         const round = index + 1;
         const complete = round < currentRound;

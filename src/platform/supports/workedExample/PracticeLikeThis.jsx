@@ -121,7 +121,8 @@ export default function PracticeLikeThis({
                               inputStatus={verdict === PRACTICE_VERDICT.CORRECT ? 'correct' : verdict === PRACTICE_VERDICT.INCORRECT ? 'incorrect' : 'neutral'}
                             />
                           </div>
-                          {mark && <span aria-label={mark.label} title={mark.label} style={{ color: mark.color, fontWeight: 900, fontSize: 'calc(18 * var(--mm-px))' }}>{mark.symbol}</span>}
+                          {/* The mark is a picture of the verdict: an image with its words (a label on a bare span is not read, AX18). */}
+                          {mark && <span role="img" aria-label={mark.label} title={mark.label} style={{ color: mark.color, fontWeight: 900, fontSize: 'calc(18 * var(--mm-px))' }}>{mark.symbol}</span>}
                         </div>
                       </div>
                     );

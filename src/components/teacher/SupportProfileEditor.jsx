@@ -290,7 +290,7 @@ function CurrentProfileSummary({ plan, revision }) {
           <strong>Inclusion status on</strong> — also applies: {INCLUSION_IMPLIED_SUPPORT_IDS.map((id) => supportLabel(id).toLowerCase()).join(', ')}.
         </div>
       )}
-      <div className="se-chips" aria-label="Accommodations">
+      <div className="se-chips" role="group" aria-label="Accommodations">
         {accommodations.length ? accommodations.map((entry) => (
           <span key={entry.id} className="tw-pill" data-tone="primary" title={supportLabel(entry.id)}>
             {supportLabel(entry.id)}
@@ -298,7 +298,7 @@ function CurrentProfileSummary({ plan, revision }) {
           </span>
         )) : <span className="tw-small tw-muted">No accommodations.</span>}
       </div>
-      <div className="se-chips" aria-label="Modifications">
+      <div className="se-chips" role="group" aria-label="Modifications">
         {modifications.length ? modifications.map((entry) => (
           <span key={entry.id} className="se-tag" data-kind="modification">MOD · {supportLabel(entry.id)}</span>
         )) : <span className="tw-small tw-muted">No modifications — grade-level expectations.</span>}

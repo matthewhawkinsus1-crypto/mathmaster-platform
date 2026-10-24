@@ -187,6 +187,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
       {question.permittedTools?.includes('linearRegression') && <LinearRegressionPanel />}
       {candidateGraphs.length > 0 && (
         <div
+          role="group"
           aria-label="Candidate graphs"
           style={{
             display: 'grid',

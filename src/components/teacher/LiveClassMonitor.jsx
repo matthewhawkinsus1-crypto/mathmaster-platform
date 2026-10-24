@@ -1192,7 +1192,7 @@ export default function LiveClassMonitor({
       )}
 
       {activeSectionTimers.length > 0 && (
-        <div aria-label="Active class timers" style={{ margin: '-2px 0 14px', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-border)', background: 'var(--mm-surface-tint)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <div role="group" aria-label="Active class timers" style={{ margin: '-2px 0 14px', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-border)', background: 'var(--mm-surface-tint)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <strong style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text)', marginRight: 2 }}>ACTIVE TIMERS</strong>
           {activeSectionTimers.map(({ kind, assignment, endsAt, students: extraTimeStudents }) => {
             const isDol = kind !== 'Warm-Up';

@@ -442,7 +442,7 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
         </section>
       </div>
 
-      <div className="graph-scenario-mobile-match-summary" aria-label="Current matches">
+      <div className="graph-scenario-mobile-match-summary" role="group" aria-label="Current matches">
         {scenarios.map((scenario) => {
           const matchedGraph = graphById.get(matches[scenario.id]);
           if (!matchedGraph) return null;

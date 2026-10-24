@@ -210,7 +210,7 @@ export function SystemsWorkTrail({ stages = [] }) {
   const activeIndex = stages.findIndex((stage) => !stage.complete);
   return (
     <div className="mathmaster-systems-work-trail">
-      <div className="mathmaster-systems-work-trail-steps" aria-label="Systems solving progress">
+      <div className="mathmaster-systems-work-trail-steps" role="group" aria-label="Systems solving progress">
         {stages.map((stage, index) => {
           const active = activeIndex === index || (activeIndex < 0 && index === stages.length - 1);
           return (

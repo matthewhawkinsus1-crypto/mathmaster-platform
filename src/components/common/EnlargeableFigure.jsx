@@ -688,6 +688,9 @@ export default function EnlargeableFigure({
           {task ? (
             <div
               className="mathmaster-work-view-persistent-task"
+              // A group, so its name is read (a label on a bare div is not,
+              // AX18); the group says "Your task", so the words are not said twice.
+              role="group"
               aria-label="Your task"
               style={{
                 minWidth: 0,
@@ -698,7 +701,7 @@ export default function EnlargeableFigure({
                 lineHeight: 1.35,
               }}
             >
-              <span style={{ color: 'var(--mm-primary-text)', fontWeight: 900 }}>Your task: </span>
+              <span aria-hidden="true" style={{ color: 'var(--mm-primary-text)', fontWeight: 900 }}>Your task: </span>
               {typeof task === 'string' ? <MathText>{task}</MathText> : task}
             </div>
           ) : null}

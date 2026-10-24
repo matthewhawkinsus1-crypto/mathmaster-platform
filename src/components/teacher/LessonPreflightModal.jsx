@@ -62,6 +62,7 @@ import {
   unavailableTestCycleFamilies,
 } from '../../platform/teacher/testCycleFamilyRegistration.js';
 import Dialog from '../../ui/Dialog.jsx';
+import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 import RepresentationAudit from './RepresentationAudit';
 import RecoveryReadinessPanel from './RecoveryReadinessPanel.jsx';
 import { RECOVERY_REPAIR_INSTRUCTION } from '../../platform/recovery/recoveryReadinessCopy.js';
@@ -2398,8 +2399,9 @@ export const LessonPreflightModal = ({
                 <span style={{ display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
                   {isNarrow ? step.label : `${index + 1}. ${step.label}`}
                   {problems > 0 && (
-                    <span aria-label={`${problems} to fix`} style={{ minWidth: 18, height: 18, padding: '0 5px', borderRadius: 999, background: '#d93025', color: '#fff', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, display: 'grid', placeItems: 'center' }}>
-                      {problems}
+                    <span style={{ minWidth: 18, height: 18, padding: '0 5px', borderRadius: 999, background: '#d93025', color: '#fff', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, display: 'grid', placeItems: 'center' }}>
+                      <span aria-hidden="true">{problems}</span>
+                      <span style={SR_ONLY_STYLE}>{`${problems} to fix`}</span>
                     </span>
                   )}
                 </span>

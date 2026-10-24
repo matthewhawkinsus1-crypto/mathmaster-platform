@@ -376,7 +376,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
       {questionData.showGivenRelation !== false ? (
         <Panel title="Given relation">
           <p style={{ margin: '0 0 8px', color: 'var(--mm-text-muted)' }}>{givenRelationInstruction(ask)}</p>
-          <div aria-label="Given ordered pairs" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <div role="group" aria-label="Given ordered pairs" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {pairs.map(([x, y]) => (
               <span key={`${x}|${y}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '7px 10px', borderRadius: 999, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface-tint)', fontWeight: 700 }}>
                 <MathDisplay value={`(${x}, ${y})`} format="ascii-math" inline ariaLabel={`Ordered pair ${x}, ${y}`} />

@@ -2179,6 +2179,7 @@ export default function StepByStepAlgebra({
           onPointerUp={() => finishStroke(side, cancellationModel)}
           onPointerCancel={() => setStroke(null)}
           style={{ position: 'relative', width: 'min(96%, 520px)', maxWidth: '100%', minHeight: '132px', margin: '12px auto 4px', padding: '24px 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '14px', background: cancellationHintsEnabled ? 'var(--mm-warning-subtle)' : 'var(--mm-surface)', outline: cancellationHintsEnabled ? '2px solid rgba(249,171,0,.32)' : 'none', touchAction: 'none', cursor: cancelAnimating ? 'wait' : 'crosshair', userSelect: 'none', overflowX: 'hidden', overflowY: 'hidden', fontSize: 'inherit' }}
+          role="group"
           aria-label="Cancellation workspace. Draw through matching factors directly in this equation."
         >
           {renderCancellationInk(side)}

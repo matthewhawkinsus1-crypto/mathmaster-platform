@@ -108,6 +108,10 @@ function FactorTokenGroup({ termText, tokens, chosen = [], pulled = false, onTok
             ) : (
               <span
                 className={`algebra-structure-token is-static${token.kind === 'sign' ? ' is-sign' : ''}${pulled && isChosen ? ' is-pulled' : ''}`}
+                // A picture of a factor with its words, so the label is read: a
+                // label on a bare span is not (AX18). The group of buttons beside
+                // it names its own factors the same way.
+                role="img"
                 aria-label={token.kind === 'sign' ? `negative one, the sign of ${spokenMathValue(termText)}` : `Factor ${spokenMathValue(token.latex)}${pulled && isChosen ? ', pulled out' : ''}`}
               >
                 <MathDisplay value={token.latex} format="latex" inline style={{ fontSize: 'inherit' }} />
@@ -505,7 +509,7 @@ function ReductionTokenRow({ tokens, row, tool, onTap, disabled }) {
                 <MathDisplay value={token.latex} format="latex" inline style={{ fontSize: 'inherit' }} />
               </FocusSafeButton>
             ) : (
-              <span className="algebra-structure-token is-static" aria-label={`Factor ${spokenMathValue(token.latex)}`}>
+              <span className="algebra-structure-token is-static" role="img" aria-label={`Factor ${spokenMathValue(token.latex)}`}>
                 <MathDisplay value={token.latex} format="latex" inline style={{ fontSize: 'inherit' }} />
               </span>
             )}

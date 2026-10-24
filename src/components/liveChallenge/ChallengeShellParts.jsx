@@ -4,6 +4,7 @@ import { usePrefersReducedMotion, useTicker } from '../../platform/liveChallenge
 import { formatPoints, standingsWindow } from '../../platform/liveChallenge/challengeStandingsModel.js';
 import { SHELL_CSS } from './challengeShellCss.js';
 import Dialog from '../../ui/Dialog.jsx';
+import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 
 /*
  * THE SHARED LIVE CHALLENGE SHELL: pieces every screen uses.
@@ -122,12 +123,16 @@ export function ChallengeCountdown({ clock, look = 'projector', title = '', deta
   );
 }
 
-/** A row's rank: "1", "T-2" — with words for a screen reader. */
+/**
+ * A row's rank: "1", "T-2" — with words for a screen reader. The words are a
+ * hidden span's: a label on a bare <strong> is not read (AX18).
+ */
 function RankCell({ row, style, look }) {
   const medal = look !== 'console' && row.rank === 1 ? style.gold : null;
   return (
-    <strong aria-label={row.place.spoken} style={{ textAlign: 'center', color: medal || style.text, fontVariantNumeric: 'tabular-nums' }}>
-      {row.place.short}
+    <strong style={{ textAlign: 'center', color: medal || style.text, fontVariantNumeric: 'tabular-nums' }}>
+      <span aria-hidden="true">{row.place.short}</span>
+      <span style={SR_ONLY_STYLE}>{row.place.spoken}</span>
     </strong>
   );
 }
@@ -211,7 +216,10 @@ export function StandingsBoard({
         <span style={{ display: 'flex', alignItems: 'center', gap: 10, color: style.muted, fontSize: '.85em', whiteSpace: 'nowrap' }}>
           {showCorrect && <span>{row.correctCount} ✓</span>}
           {showMovement && row.movement && row.movement.direction !== 'same' && (
-            <span aria-label={row.movement.spoken} style={{ fontWeight: 900, color: row.movement.direction === 'up' ? style.up : style.down }}>{row.movement.text}</span>
+            <span style={{ fontWeight: 900, color: row.movement.direction === 'up' ? style.up : style.down }}>
+              <span aria-hidden="true">{row.movement.text}</span>
+              <span style={SR_ONLY_STYLE}>{row.movement.spoken}</span>
+            </span>
           )}
         </span>
         <strong key={row.score} className="mm-shell-bump" style={{ fontVariantNumeric: 'tabular-nums', padding: '0 4px', textAlign: 'right' }}>
@@ -270,7 +278,10 @@ export function RoundResultsTable({ view, presentation, look = 'console', limit 
       background: row.isSelf ? style.self : style.row, border: `${row.isSelf ? 2 : 1}px solid ${row.isSelf ? style.selfBorder : style.rowBorder}`,
       color: style.text, fontSize: style.size,
     }}>
-      <strong aria-label={row.place.spoken} style={{ textAlign: 'center' }}>{row.place.ordinal}</strong>
+      <strong style={{ textAlign: 'center' }}>
+        <span aria-hidden="true">{row.place.ordinal}</span>
+        <span style={SR_ONLY_STYLE}>{row.place.spoken}</span>
+      </strong>
       <span style={{ fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.alias}</span>
       <span style={{ color: style.muted, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{roundPerformanceText(row, presentation)}</span>
       <strong style={{ color: style.good, fontVariantNumeric: 'tabular-nums', minWidth: 40, textAlign: 'right', whiteSpace: 'nowrap' }}>

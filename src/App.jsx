@@ -10555,10 +10555,12 @@ function App() {
               </strong>
               {Number(liveTeachingSession?.timer?.durationSeconds || 0) > Number(questions[currentQuestionIndex]?.suggestedWorkSeconds || 0) && (
                 <strong
-                  aria-label="Live timer has been extended beyond the authored plan"
                   style={{ padding: '3px 7px', borderRadius: 999, background: '#fdd663', color: 'var(--mm-warning-text)', fontSize: 'calc(11 * var(--mm-px))' }}
                 >
-                  EXTENDED +{Math.floor((Number(liveTeachingSession.timer.durationSeconds) - Number(questions[currentQuestionIndex]?.suggestedWorkSeconds || 0)) / 60)}:{String((Number(liveTeachingSession.timer.durationSeconds) - Number(questions[currentQuestionIndex]?.suggestedWorkSeconds || 0)) % 60).padStart(2, '0')}
+                  {/* A label on a bare <strong> is not read (AX18): the words
+                      a screen reader gets are a hidden span's. */}
+                  <span aria-hidden="true">EXTENDED +{Math.floor((Number(liveTeachingSession.timer.durationSeconds) - Number(questions[currentQuestionIndex]?.suggestedWorkSeconds || 0)) / 60)}:{String((Number(liveTeachingSession.timer.durationSeconds) - Number(questions[currentQuestionIndex]?.suggestedWorkSeconds || 0)) % 60).padStart(2, '0')}</span>
+                  <span style={SR_ONLY_STYLE}>Live timer has been extended beyond the authored plan</span>
                 </strong>
               )}
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -10937,7 +10939,7 @@ function App() {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '10px', color: sectionMeta.color, flexWrap: 'wrap' }}>
                     <strong style={{ fontSize: 'calc(15 * var(--mm-px))', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{sectionName}</strong>
                     {section.allCorrect ? (
-                      <span aria-label={`${sectionName} section complete`} style={{ padding: '7px 11px', borderRadius: 999, background: '#188038', color: '#fff', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 950, letterSpacing: '0.02em', boxShadow: '0 2px 6px rgba(24,128,56,0.28)' }}>✓ {sectionName.toUpperCase()} COMPLETE</span>
+                      <span style={{ padding: '7px 11px', borderRadius: 999, background: '#188038', color: '#fff', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 950, letterSpacing: '0.02em', boxShadow: '0 2px 6px rgba(24,128,56,0.28)' }}><span aria-hidden="true">✓ {sectionName.toUpperCase()} COMPLETE</span><span style={SR_ONLY_STYLE}>{`${sectionName} section complete`}</span></span>
                     ) : (
                       <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{section.progress.label === 'All submitted' ? 'All submitted' : `${section.progress.done} of ${section.progress.total} done`}</span>
                     )}
@@ -10971,7 +10973,7 @@ function App() {
                           key={index}
                           onClick={() => !sectionUnavailable && changeQuestion(index)}
                           disabled={sectionUnavailable}
-                          aria-label={`${sectionName} question ${sectionPosition + 1}: ${shown.label}`}
+                          aria-label={`${sectionName} question ${sectionPosition + 1}: ${shown.label}${cardAssessmentLabel ? `, ${cardAssessmentLabel}` : ''}`}
                           style={{
                             padding: '14px',
                             cursor: sectionUnavailable ? 'not-allowed' : 'pointer',
@@ -10988,7 +10990,8 @@ function App() {
                         >
                           <div style={{ fontSize: 'calc(14 * var(--mm-px))', fontWeight: 'bold' }}>Question {sectionPosition + 1}</div>
                           <div style={{ marginTop: '5px', padding: '3px 7px', borderRadius: '999px', background: sectionMeta.background, color: sectionMeta.color, border: `1px solid ${sectionMeta.border}`, fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900 }}>{sectionName}</div>
-                          {cardAssessmentLabel && <div aria-label={`${cardAssessmentLabel} question`} style={{ marginTop: '5px', padding: '3px 7px', borderRadius: 999, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', border: '1px solid var(--mm-accent-border)', fontSize: 'calc(10 * var(--mm-px))', fontWeight: 950 }}>{cardAssessmentLabel}</div>}
+                          {/* Named in the button's own label above: a label on this div, inside a button that has one, was never read (AX18). */}
+                          {cardAssessmentLabel && <div style={{ marginTop: '5px', padding: '3px 7px', borderRadius: 999, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', border: '1px solid var(--mm-accent-border)', fontSize: 'calc(10 * var(--mm-px))', fontWeight: 950 }}>{cardAssessmentLabel}</div>}
                           <div style={{ fontSize: 'calc(12 * var(--mm-px))', marginTop: '7px', fontWeight: 'bold' }}>{shown.label}</div>
                           {record.totalAttempts > 0 && <div style={{ fontSize: 'calc(11 * var(--mm-px))', marginTop: '3px', opacity: 0.85 }}>{record.totalAttempts} {record.totalAttempts === 1 ? 'try' : 'tries'} used</div>}
                         </button>
@@ -11008,7 +11011,7 @@ function App() {
           <main ref={assignmentQuestionStageRef} className="mathmaster-question-stage" style={{ background: 'var(--mm-surface)', borderRadius: '12px', padding: '10px', minHeight: '500px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
             {questions[currentQuestionIndex]?.instructionalPhase
               && (preview || assignment.showInstructionalPhaseLabelsToStudents === true)
-              && <div aria-label="Instructional phase" style={{ display: 'inline-block', margin: '6px 8px', padding: '5px 10px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 950, letterSpacing: '0.08em' }}>{({ iDo: 'I DO', weDo: 'WE DO', youDo: 'YOU DO' })[questions[currentQuestionIndex].instructionalPhase]}</div>}
+              && <div style={{ display: 'inline-block', margin: '6px 8px', padding: '5px 10px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 950, letterSpacing: '0.08em' }}><span style={SR_ONLY_STYLE}>Instructional phase: </span>{({ iDo: 'I DO', weDo: 'WE DO', youDo: 'YOU DO' })[questions[currentQuestionIndex].instructionalPhase]}</div>}
             {/* "Ask my teacher" answers, on any question of this assignment —
                 one closed since it was asked keeps its answer here. */}
             {!preview && <TeacherAnswersList questions={askMyTeacher.questions} compact />}

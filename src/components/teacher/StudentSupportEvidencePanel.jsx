@@ -145,7 +145,7 @@ export default function StudentSupportEvidencePanel({
               : `Revision ${plan.revision} · effective ${plan.effectiveStart}${plan.effectiveEnd ? ` to ${plan.effectiveEnd}` : ''}`}
             {plan.inclusionStatus ? ' · inclusion' : ''}
           </div>
-          <div className="se-chips" aria-label="Accommodations in effect">
+          <div className="se-chips" role="group" aria-label="Accommodations in effect">
             {plan.accommodations.map((entry) => (
               <span key={entry.id} className="tw-pill" data-tone="primary">{supportShortLabel(entry.id)}{supportParamSuffix(entry)}</span>
             ))}
@@ -158,7 +158,7 @@ export default function StudentSupportEvidencePanel({
             {!plan.accommodations.length && !plan.inclusionStatus && <span className="tw-small tw-muted">No accommodations.</span>}
           </div>
           {plan.modifications.length > 0 && (
-            <div className="se-chips" aria-label="Modifications in effect">
+            <div className="se-chips" role="group" aria-label="Modifications in effect">
               {plan.modifications.map((entry) => <span key={entry.id} className="se-tag" data-kind="modification">MOD · {supportShortLabel(entry.id)}</span>)}
             </div>
           )}

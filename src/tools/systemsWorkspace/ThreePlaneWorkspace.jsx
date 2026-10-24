@@ -365,7 +365,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
       }}
     >
       <div className="mathmaster-threeplane-layout">
-        <div className="mathmaster-threeplane-equations" aria-label="The three original equations">
+        <div className="mathmaster-threeplane-equations" role="group" aria-label="The three original equations">
           {equations.map((equation, index) => (
             <div key={equation} className="mathmaster-reduction-equation-card" style={{ borderLeft: `4px solid ${PLANE_COLORS[index % PLANE_COLORS.length]}` }}>
               <span className="mathmaster-reduction-equation-label">Plane {index + 1}</span>

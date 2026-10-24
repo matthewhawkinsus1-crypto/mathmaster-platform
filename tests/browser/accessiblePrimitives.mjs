@@ -12,6 +12,9 @@
  * interactive span with inline outline:none shows the ring on keyboard focus
  * and not on a mouse press. Announcer: a question change puts position and the
  * rendered prompt — math in words, no LaTeX — in a polite status region.
+ * Marks (AX18): a Live Challenge board's places and movement, My Math Path's
+ * "to" and the sign between two equations reach the accessibility tree in
+ * words, where a label on a bare span or strong did not.
  */
 import assert from 'node:assert/strict';
 
@@ -128,7 +131,31 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   assert.equal(said, 'Practice, question 2 of 3. Graph y equals negative 2 over 3 x plus 4.', `${at}: announcement`);
   assert.equal(await status.getAttribute('aria-live'), 'polite');
   assert.equal(await status.getAttribute('role'), 'status');
+
+  // ---- Marks a screen reader is given in words (AX18). A label on a bare
+  // span or strong is not read; these are the real components, and the lines
+  // are Chromium's own accessibility tree.
+  const tree = (id) => page.locator(`[data-test="${id}"]`).ariaSnapshot();
+  assert.equal(await tree('standings'), [
+    '- list "Standings":',
+    '  - listitem:',
+    '    - strong: 1st',
+    '    - text: Swift Otter up 2 places',
+    '    - strong: 120 pts',
+    '  - listitem:',
+    '    - strong: tied for 2nd',
+    '    - text: Quick Fox down 1 place',
+    '    - strong: 90 pts',
+    '  - listitem:',
+    '    - strong: tied for 2nd',
+    '    - text: Calm Heron',
+    '    - strong: 90 pts',
+  ].join('\n'), `${at}: a Live Challenge board says "tied for 2nd" and "up 2 places", not "T-2" and "↑2"`);
+  const skills = await tree('skills-moved');
+  assert.match(skills, /- text: 62% to\n\s+- strong: 71%\n\s+- text: · Developing to\n\s+- strong: Secure/, `${at}: My Math Path says "to" where the arrow is drawn`);
+  assert.doesNotMatch(skills, /→/, `${at}: and never reads the arrow`);
+  assert.equal(await tree('sign'), '- img "minus": −', `${at}: the sign between two equations is an image named "minus"`);
   await page.close();
-  console.log(`${at}: dialog, focus ring and announcer OK`);
+  console.log(`${at}: dialog, focus ring, announcer and marks OK`);
 }
 await browser.close();

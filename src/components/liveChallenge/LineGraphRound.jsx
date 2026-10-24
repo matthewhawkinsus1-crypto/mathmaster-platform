@@ -41,6 +41,7 @@ import {
 } from '../../platform/liveChallenge/lineGraphSession.js';
 import { getLineGraphRound, submitLineGraphAttempts, timestampMillis } from '../../platform/liveChallenge/liveChallengeService.js';
 import { studentErrorSentence } from '../../platform/student/studentErrorWords.js';
+import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 
 /*
  * GRAPH THE LINE: A STUDENT'S ROUND.
@@ -391,8 +392,8 @@ function ChoiceAnswer({ question, disabled, feedback, onChoose }) {
             disabled={disabled || settled}
             onClick={() => onChoose(choice.id)}
           >
-            {state === 'right' && <span aria-label="Right answer: ">✓ </span>}
-            {state === 'wrong' && <span aria-label="Your answer: ">✗ </span>}
+            {state === 'right' && <><span aria-hidden="true">✓ </span><span style={SR_ONLY_STYLE}>Right answer: </span></>}
+            {state === 'wrong' && <><span aria-hidden="true">✗ </span><span style={SR_ONLY_STYLE}>Your answer: </span></>}
             <LineEquation equation={choice.equation} />
           </button>
         );
@@ -777,9 +778,9 @@ export default function LineGraphRound({
       <header className="mm-line-bar">
         {alias && <span className="mm-line-chip">{alias}</span>}
         <span className="mm-line-round">{practice ? 'Practice' : `Round ${roundIndex + 1} of ${roundCount}`}</span>
-        {progress && <span className="mm-line-progress" aria-label={`${progress.replace(' / ', ' of ')} done`}>{progress}</span>}
-        <span className="mm-line-done" aria-label={`${completed} right`}><span aria-hidden="true">✓ </span>{completed}</span>
-        {streak >= 2 && <span className="mm-line-streak" aria-label={`${streak} right in a row`}><span aria-hidden="true">🔥 </span>{streak}</span>}
+        {progress && <span className="mm-line-progress"><span aria-hidden="true">{progress}</span><span style={SR_ONLY_STYLE}>{`${progress.replace(' / ', ' of ')} done`}</span></span>}
+        <span className="mm-line-done"><span aria-hidden="true">✓ {completed}</span><span style={SR_ONLY_STYLE}>{`${completed} right`}</span></span>
+        {streak >= 2 && <span className="mm-line-streak"><span aria-hidden="true">🔥 {streak}</span><span style={SR_ONLY_STYLE}>{`${streak} right in a row`}</span></span>}
         {connection === 'retrying' && <span className="mm-line-sync" role="status">Reconnecting… your answers are saved</span>}
         <LineClock startMono={timing.startMono} endMono={timing.endMono} />
         {typeof onExit === 'function' && <button type="button" className="mm-line-exit" onClick={onExit}>{exitLabel}</button>}

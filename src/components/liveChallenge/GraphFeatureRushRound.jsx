@@ -32,6 +32,7 @@ import {
   timestampMillis,
 } from '../../platform/liveChallenge/liveChallengeService.js';
 import { studentErrorSentence } from '../../platform/student/studentErrorWords.js';
+import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 
 /*
  * GRAPH FEATURE RUSH: A STUDENT'S ROUND.
@@ -593,7 +594,7 @@ export default function GraphFeatureRushRound({
       <header className="mm-rush-bar">
         {alias && <span className="mm-rush-chip">{alias}</span>}
         <span className="mm-rush-round">{practice ? 'Practice' : `Round ${roundIndex + 1} of ${roundCount}`}</span>
-        <span className="mm-rush-done" aria-label={`${completed} graphs completed`}><span aria-hidden="true">✓ </span>{completed}</span>
+        <span className="mm-rush-done"><span aria-hidden="true">✓ {completed}</span><span style={SR_ONLY_STYLE}>{`${completed} graphs completed`}</span></span>
         {connection === 'retrying' && <span className="mm-rush-sync" role="status">Reconnecting… your taps are saved</span>}
         <RushClock startMono={timing.startMono} endMono={timing.endMono} />
         {typeof onExit === 'function' && <button type="button" className="mm-rush-exit" onClick={onExit}>{exitLabel}</button>}

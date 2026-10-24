@@ -392,7 +392,7 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
           ) : null}
 
           {solution && Object.keys(solution).length ? (
-            <div className="mathmaster-reduction-solved-values" aria-label="Solved values">
+            <div className="mathmaster-reduction-solved-values" role="group" aria-label="Solved values">
               {system.variables.filter((name) => solution[name] != null).map((name) => (
                 <span key={name} className="mathmaster-reduction-value-chip">{name} = {name === sourceVariable ? reduction.back.solved.text : exactNumberText(solution[name])}</span>
               ))}

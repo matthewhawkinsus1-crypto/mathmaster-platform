@@ -59,6 +59,7 @@ import { relationDistributionCandidates } from './algebraRelationStructureModel.
 import { useContentStableValue } from './platform/react/useContentStableValue.js';
 import { persistablePendingFlip, restoredPendingFlip } from './relationPendingFlipDraft.js';
 import { isStepNotQueued } from './platform/student/submissionNotQueued.js';
+import { SR_ONLY_STYLE } from './ui/srOnly.js';
 
 const BASIC_OPERATIONS = [
   { id: 'add', symbol: '+', label: 'Add' },
@@ -2322,7 +2323,10 @@ export default function MultiRelationAlgebra({
           style={{ display: 'grid', gap: 10 }}
         >
           {denseWorkspace && relationState.branches.length > 1 && relationState.connective === 'OR' && (
-            <div className="multi-relation-dense-connective" aria-label="Branches are connected by OR">OR</div>
+            <div className="multi-relation-dense-connective">
+              <span aria-hidden="true">OR</span>
+              <span style={SR_ONLY_STYLE}>Branches are connected by OR</span>
+            </div>
           )}
           {denseWorkspace && relationState.branches.length > 1 && operationDock}
 

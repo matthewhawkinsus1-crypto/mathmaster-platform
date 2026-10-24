@@ -9,7 +9,24 @@ import Dialog from '../../src/ui/Dialog.jsx';
 import QuestionAnnouncer from '../../src/components/common/QuestionAnnouncer.jsx';
 import QuestionPrompt from '../../src/QuestionPrompt.jsx';
 import MathInput from '../../src/MathInput.jsx';
+import { standingsRows } from '../../src/platform/liveChallenge/challengeStandingsModel.js';
+import { StandingsBoard } from '../../src/components/liveChallenge/ChallengeShellParts.jsx';
+import MyMathPathSkillsMoved from '../../src/components/student/MyMathPathSkillsMoved.jsx';
+import { EliminationOperationSymbol } from '../../src/tools/systemsWorkspace/EliminationStack.jsx';
 import '../../src/index.css';
+
+// Marks a screen reader must be given in words (AX18): the places and movement
+// on a Live Challenge board, the "to" between a skill's before and after, and
+// the sign between two equations. Read from the accessibility tree.
+const STANDINGS = standingsRows([
+  { playerKey: 'a', alias: 'Swift Otter', rank: 1, score: 120, correctCount: 3 },
+  { playerKey: 'b', alias: 'Quick Fox', rank: 2, tied: true, score: 90, correctCount: 2 },
+  { playerKey: 'c', alias: 'Calm Heron', rank: 2, tied: true, score: 90, correctCount: 2 },
+], { movement: new Map([['a', 2], ['b', -1], ['c', 0]]) });
+const SKILLS_MOVED = {
+  state: 'ready',
+  moves: [{ code: 'A.5A', label: 'Solving linear equations', estimateBefore: 62, estimateAfter: 71, statusBefore: 'Developing', statusAfter: 'Secure' }],
+};
 
 const PROMPTS = ['Solve $2x+3=7$.', 'Graph $y = -\\frac{2}{3}x + 4$.', 'What is $\\frac{3}{4}$ of 12?'];
 
@@ -51,6 +68,11 @@ function Harness() {
           </Dialog>
         </div>
       )}
+      <section data-test="marks" aria-label="Marks read to a screen reader">
+        <div data-test="standings"><StandingsBoard rows={STANDINGS} presentation={null} look="student" label="Standings" /></div>
+        <div data-test="skills-moved"><MyMathPathSkillsMoved skillsMoved={SKILLS_MOVED} /></div>
+        <div data-test="sign"><EliminationOperationSymbol operation="subtract" /></div>
+      </section>
       {/* A modal that is not a Dialog (like the Toast confirm), portalled to the end of <body>. */}
       {foreign && createPortal(
         <div role="alertdialog" aria-modal="true" aria-label="Foreign confirm" data-test="foreign"
