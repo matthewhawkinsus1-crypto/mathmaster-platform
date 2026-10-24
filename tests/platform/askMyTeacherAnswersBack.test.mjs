@@ -270,7 +270,7 @@ test('the hook owns the hand: restored on entering an assignment, forgotten on l
   assert.match(hook, /acknowledgement: acknowledgementFor\(helpRequest, acknowledgement\),/);
 
   const app = code('src/App.jsx');
-  assert.match(app, /^import \{ useAskMyTeacher \} from '\.\/platform\/supports\/useAskMyTeacher\.js';$/m);
+  assert.match(app, /^import \{ useAskMyTeacher, useTeacherQuestionsOn \} from '\.\/platform\/supports\/useAskMyTeacher\.js';$/m);
   assert.match(app, /^import \{ questionFor \} from '\.\/platform\/supports\/askTeacher\.js';$/m);
   assert.match(app, /^import \{ TeacherAnswersList \} from '\.\/components\/student\/TeacherAnswersList\.jsx';$/m);
   const wiring = region(app, 'const askMyTeacher = useAskMyTeacher({', 'const { helpRequest, setHelpRequest } = askMyTeacher;', 'the hook call');

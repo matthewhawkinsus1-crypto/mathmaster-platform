@@ -164,7 +164,7 @@ import {
 } from './assignmentLifecycle';
 import { HEARTBEAT_INTERVAL_MS, buildLiveStatus, encodeQuestionStates } from './livePresence';
 import { helpRequestAfterClose, helpRequestFields, nextHelpRequest } from './platform/supports/helpRequest.js';
-import { useAskMyTeacher } from './platform/supports/useAskMyTeacher.js';
+import { useAskMyTeacher, useTeacherQuestionsOn } from './platform/supports/useAskMyTeacher.js';
 import { questionFor } from './platform/supports/askTeacher.js';
 import TeacherAnswers from './components/student/TeacherAnswers.jsx';
 import { TeacherAnswersList } from './components/student/TeacherAnswersList.jsx';
@@ -1968,6 +1968,15 @@ function App() {
     assignmentId: activeAssignmentId,
   });
   const { helpRequest, setHelpRequest } = askMyTeacher;
+  // The open Recovery's questions for the teacher, for its "out of practice
+  // questions" screen (RC10, SectionRecoveryRunner). Read only while a
+  // Recovery is open and the student has a teacher to send to.
+  const recoveryTeacherQuestions = useTeacherQuestionsOn({
+    studentId: askingStudentId && user?.assignedTeacherEmail ? askingStudentId : null,
+    classId: user?.classId || null,
+    teacherEmail: askingStudentId ? user.assignedTeacherEmail || null : null,
+    assignmentId: recoverySession?.assignmentId || null,
+  });
   const publishPresenceNowRef = useRef(null);
   const spotlightPublisherRef = useRef(null);
   const [studentSpotlightRequest, setStudentSpotlightRequest] = useState(null);
@@ -12157,8 +12166,8 @@ function App() {
             entry={openRecoveryEntry}
             studentId={user.id}
             studentProfile={user.profile}
-            classId={user.classId || null}
-            teacherEmail={user.assignedTeacherEmail || null}
+            teacherQuestions={recoveryTeacherQuestions.questions}
+            sendTeacherQuestion={recoveryTeacherQuestions.canLeaveQuestion ? recoveryTeacherQuestions.sendQuestion : null}
             onExit={() => setRecoverySession(null)}
             onRecord={(section, record) => mergeSectionRecoveryRecord(recoveryAssignment.id, section, record)}
             onStartAssessment={(section) => startStudentRecovery(recoveryAssignment.id, section)}

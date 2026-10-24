@@ -59,9 +59,9 @@ import useRecoveryAnswerDrafts from './useRecoveryAnswerDrafts.js';
 import { RECOVERY_PRACTICE_ANSWERS, RECOVERY_PRACTICE_ONE_ANSWER } from '../../platform/recovery/recoveryPracticeAttempts.js';
 import { recoveryMeterRule, recoveryPracticeOutcomeMessage } from '../../platform/recovery/recoveryPracticeCopy.js';
 import { RECOVERY_HINT_COST_SENTENCE } from '../../platform/supports/hints/hintCopy.js';
-import { ASK_MODE, recoveryQuestionPlace } from '../../platform/supports/askTeacher.js';
+import { ASK_MODE } from '../../platform/supports/askTeacher.js';
+import { recoveryQuestionPlace } from '../../platform/supports/recoveryTeacherQuestion.js';
 import { useAskTeacherControl } from '../../platform/supports/AskTeacherControl.jsx';
-import { useTeacherQuestionsOn } from '../../platform/supports/useAskMyTeacher.js';
 
 // Practice's own attempt policy for step tools; the final answer is still one
 // server-graded submission per item.
@@ -259,25 +259,20 @@ const dealtItem = (value) => (value && typeof value === 'object' && value.pin?.f
 // RC10: the empty Practice sends the student to their teacher, so it offers
 // the way to reach them from here: a question left for the teacher, filed
 // under one of this section's questions with the Recovery's name
-// (askTeacher.js recoveryQuestionPlace). The teacher answers it from Teacher
-// Home; the answer shows here and in Review My Work. With no teacher on the
-// student's roster there is nothing to offer, and nothing is read.
+// (recoveryTeacherQuestion.js). The teacher answers it from Teacher Home; the
+// answer shows here and in Review My Work. App reads the student's questions
+// and hands in the sender (useTeacherQuestionsOn); with no teacher on the
+// student's roster there is no sender, and nothing to offer.
 const RECOVERY_QUESTION_HELP = 'Say what you have tried and where you are stuck. Your teacher sees this with your Recovery, and their answer will show here and in Review My Work.';
 
-function RecoveryTeacherQuestion({ assignment, entry, studentId, classId, teacherEmail }) {
-  const { questions, sendQuestion } = useTeacherQuestionsOn({
-    studentId: teacherEmail ? studentId : null,
-    classId,
-    teacherEmail,
-    assignmentId: assignment.id,
-  });
+function RecoveryTeacherQuestion({ assignment, entry, questions = [], sendQuestion = null }) {
   const place = recoveryQuestionPlace({
     questions,
     assignmentId: assignment.id,
     questionIndexes: Object.keys(entry.questionsByIndex || {}),
     label: entry.label,
   });
-  const askTeacher = teacherEmail && place ? {
+  const askTeacher = sendQuestion && place ? {
     mode: ASK_MODE.QUESTION,
     question: place.question,
     composeHelp: RECOVERY_QUESTION_HELP,
@@ -299,7 +294,7 @@ function RecoveryTeacherQuestion({ assignment, entry, studentId, classId, teache
   );
 }
 
-function PracticeRunner({ assignment, entry, studentId, studentProfile, classId = null, teacherEmail = null, onExit, onRecord, onStartAssessment }) {
+function PracticeRunner({ assignment, entry, studentId, studentProfile, teacherQuestions = [], sendTeacherQuestion = null, onExit, onRecord, onStartAssessment }) {
   const [item, setItem] = useState(null);
   // The item the SERVER dealt (targeted Recovery). While one is in play the
   // record's own next item does not replace it.
@@ -517,7 +512,7 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, classId 
           <p data-recovery-practice-empty="true" style={{ ...panelStyle, margin: 0 }}>
             There are no new practice questions left for this Recovery. Let your teacher know — they can help you with what comes next.
           </p>
-          <RecoveryTeacherQuestion assignment={assignment} entry={entry} studentId={studentId} classId={classId} teacherEmail={teacherEmail} />
+          <RecoveryTeacherQuestion assignment={assignment} entry={entry} questions={teacherQuestions} sendQuestion={sendTeacherQuestion} />
         </>
       )}
       {triesUsedUp && (
@@ -909,8 +904,10 @@ export default function SectionRecoveryRunner({
   entry,
   studentId,
   studentProfile = null,
-  classId = null,
-  teacherEmail = null,
+  // The student's questions on this assignment and the way to send one
+  // (App.jsx useTeacherQuestionsOn); no sender without a teacher (RC10).
+  teacherQuestions = [],
+  sendTeacherQuestion = null,
   onExit,
   onRecord,
   onStartAssessment,
@@ -941,8 +938,8 @@ export default function SectionRecoveryRunner({
       entry={entry}
       studentId={studentId}
       studentProfile={studentProfile}
-      classId={classId}
-      teacherEmail={teacherEmail}
+      teacherQuestions={teacherQuestions}
+      sendTeacherQuestion={sendTeacherQuestion}
       onExit={onExit}
       onRecord={onRecord}
       onStartAssessment={onStartAssessment}

@@ -16,7 +16,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
 
 import { region } from './helpers/sourceContract.mjs';
-import { QUESTION_STATUS, recoveryQuestionPlace, teacherQuestionPlace } from '../../src/platform/supports/askTeacher.js';
+import { QUESTION_STATUS, teacherQuestionPlace } from '../../src/platform/supports/askTeacher.js';
+import { recoveryQuestionPlace } from '../../src/platform/supports/recoveryTeacherQuestion.js';
 import { RECOVERY_NAME } from '../../src/platform/student/studentWords.js';
 
 const code = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
@@ -87,10 +88,10 @@ test('the empty Recovery offers the question box, and only to a student with a t
     const render = (props) => renderToStaticMarkup(React.createElement(SectionRecoveryRunner, {
       mode: 'practice', assignment: { id: 'A1', title: 'Slope' }, entry: ENTRY, studentId: 'S1', onExit: () => {}, onRecord: () => {}, onStartAssessment: () => {}, ...props,
     }));
-    const withTeacher = render({ classId: 'C1', teacherEmail: 'teacher@example.org' });
+    const withTeacher = render({ teacherQuestions: [], sendTeacherQuestion: async () => {} });
     assert.match(withTeacher, /no new practice questions left for this Recovery/);
     assert.match(withTeacher, /<div data-recovery-ask-teacher=""[^>]*><button type="button"[^>]*>✉ Leave a question for my teacher<\/button><\/div>/);
-    const noTeacher = render({ classId: 'C1', teacherEmail: null });
+    const noTeacher = render({ teacherQuestions: [], sendTeacherQuestion: null });
     assert.match(noTeacher, /no new practice questions left for this Recovery/);
     assert.doesNotMatch(noTeacher, /data-recovery-ask-teacher|Leave a question/, 'no teacher on the roster: nothing to offer');
   } finally {
@@ -98,15 +99,20 @@ test('the empty Recovery offers the question box, and only to a student with a t
   }
 });
 
-test('the question is sent with the Recovery\'s place and its own opening line; App passes the student\'s teacher', () => {
+test('the question is sent with the Recovery\'s place and its own opening line; App reads and sends for it', () => {
   const runner = code('src/components/student/SectionRecoveryRunner.jsx');
   const asking = region(runner, 'function RecoveryTeacherQuestion(', '\n}\n', 'the Recovery question');
   assert.match(asking, /questionIndex: place\.questionIndex,\s*questionLabel: entry\.label,/);
   assert.match(asking, /composeHelp: RECOVERY_QUESTION_HELP,/);
-  // Nothing is read for a student with no teacher to send to.
-  assert.match(asking, /studentId: teacherEmail \? studentId : null,/);
   assert.match(code('src/platform/supports/AskTeacherControl.jsx'), /\{askTeacher\.composeHelp \|\| 'Your teacher is not in class with you right now\./);
-  const mount = region(code('src/App.jsx'), '<SectionRecoveryRunner', '/>', 'the Recovery mount');
-  assert.match(mount, /teacherEmail=\{user\.assignedTeacherEmail \|\| null\}/);
-  assert.match(mount, /classId=\{user\.classId \|\| null\}/);
+  // The lazy Recovery screen imports no Firestore store: App reads the
+  // questions, and only while a Recovery is open and there is a teacher.
+  assert.doesNotMatch(runner, /useAskMyTeacher|askTeacherStore/);
+  const app = code('src/App.jsx');
+  const reading = region(app, 'const recoveryTeacherQuestions = useTeacherQuestionsOn({', '});', 'App reads the Recovery\'s questions');
+  assert.match(reading, /studentId: askingStudentId && user\?\.assignedTeacherEmail \? askingStudentId : null,/);
+  assert.match(reading, /assignmentId: recoverySession\?\.assignmentId \|\| null,/);
+  const mount = region(app, '<SectionRecoveryRunner', '/>', 'the Recovery mount');
+  assert.match(mount, /teacherQuestions=\{recoveryTeacherQuestions\.questions\}/);
+  assert.match(mount, /sendTeacherQuestion=\{recoveryTeacherQuestions\.canLeaveQuestion \? recoveryTeacherQuestions\.sendQuestion : null\}/);
 });
