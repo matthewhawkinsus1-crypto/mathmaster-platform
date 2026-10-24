@@ -297,11 +297,14 @@ const makeTerm = (coefficient, powers) => {
   return { coefficient: tidy(coefficient), powers: clean, signature: monomialSignature(clean) };
 };
 
-/** An authored polynomial's terms in written order, or null when it is not one to draw. */
-export const authoredPolynomialTerms = (value) => {
+/**
+ * An authored polynomial's terms in written order, or null when it is not one
+ * to draw. `maxTerms`: a division dividend of degree 6 may have seven (TL10).
+ */
+export const authoredPolynomialTerms = (value, { maxTerms = POLYNOMIAL_TEXT_LIMITS.terms } = {}) => {
   if (typeof value !== 'string' || !value.trim()) return null;
   const terms = simplifiedPolynomialTerms(value);
-  if (!terms || !terms.length || terms.length > POLYNOMIAL_TEXT_LIMITS.terms) return null;
+  if (!terms || !terms.length || terms.length > maxTerms) return null;
   if (terms.some((term) => term.coefficient === 0)) return null;
   return terms.map((term) => makeTerm(term.coefficient, term.powers));
 };
@@ -504,13 +507,20 @@ export const ratioValue = (a) => a.n / a.d;
 const SAFE_RATIO = 1e12;
 const safeRatio = (a) => Number.isSafeInteger(a.n) && Number.isSafeInteger(a.d) && Math.abs(a.n) <= SAFE_RATIO && a.d <= SAFE_RATIO;
 
-/** An authored polynomial in at most one letter: exact coefficients, highest power first; or null. */
-const authoredOneLetter = (value) => {
-  const terms = authoredPolynomialTerms(value);
+/**
+ * An authored polynomial in at most one letter: exact coefficients, highest
+ * power first; or null. The degree is checked BEFORE a coefficient is laid
+ * out per power: x^100000000 built a hundred million of them and froze
+ * Pre-Flight before the limit refused it (TL10). A dense polynomial of the
+ * largest degree has one term more than that degree.
+ */
+const authoredOneLetter = (value, { maxDegree }) => {
+  const terms = authoredPolynomialTerms(value, { maxTerms: maxDegree + 1 });
   if (!terms) return null;
   const letters = [...new Set(terms.flatMap((term) => Object.keys(term.powers)))];
   if (letters.length > 1 || !terms.every((term) => Number.isSafeInteger(term.coefficient))) return null;
   const degree = Math.max(...terms.map(termDegree));
+  if (!Number.isSafeInteger(degree) || degree > maxDegree) return null;
   const coefficients = Array.from({ length: degree + 1 }, (_, index) => {
     const term = terms.find((entry) => termDegree(entry) === degree - index);
     return ratio(term ? term.coefficient : 0);
@@ -520,8 +530,8 @@ const authoredOneLetter = (value) => {
 
 /** The dividend and divisor a division view draws, or null when it cannot draw them. */
 const divisionOperands = (question = {}) => {
-  const dividend = authoredOneLetter(question.dividend);
-  const divisor = authoredOneLetter(question.divisor);
+  const dividend = authoredOneLetter(question.dividend, { maxDegree: DIVISION_LIMITS.degree });
+  const divisor = authoredOneLetter(question.divisor, { maxDegree: DIVISION_LIMITS.divisorDegree });
   if (!dividend || !divisor || !divisor.letter) return null;
   if (dividend.letter && dividend.letter !== divisor.letter) return null;
   if (divisor.degree < 1 || divisor.degree > DIVISION_LIMITS.divisorDegree) return null;

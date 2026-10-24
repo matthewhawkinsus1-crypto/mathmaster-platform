@@ -306,6 +306,26 @@ test('the workload: long division counts its rounds, synthetic division its colu
   assert.ok(units(synthetic('g^4-3g^2-18', 'g-2')) >= units(synthetic('x^2+8x+7', 'x+1')));
 });
 
+// TL10: a full degree-6 dividend has seven terms, but the six-term text cap
+// refused it; and x^100000000 laid out a coefficient per power (and the
+// workload an item per round) before any limit refused it, freezing
+// Pre-Flight for seconds.
+test('a dense degree-6 dividend is drawn; a huge exponent is refused at once', () => {
+  const dense = { mode: 'longDivision', dividend: 'x^6+x^5+x^4+x^3+x^2+x+1', divisor: 'x-1' };
+  assert.ok(longDivisionKey(dense), 'seven terms, degree 6: long division');
+  assert.ok(syntheticDivisionKey({ ...dense, mode: 'syntheticDivision' }), 'and synthetic');
+  assert.equal(longDivisionKey({ ...dense, dividend: 'x^7+x^6+x^5+x^4+x^3+x^2+x+1' }), null, 'degree 7 is still past the limit');
+  assert.equal(longDivisionKey({ ...dense, divisor: 'x^4-1' }), null, 'a divisor past degree 3 too');
+  for (const dividend of ['x^20000000+1', 'x^100000000']) {
+    const started = Date.now();
+    assert.equal(longDivisionKey({ ...dense, dividend }), null);
+    assert.equal(syntheticDivisionKey({ ...dense, mode: 'syntheticDivision', dividend }), null);
+    const units = estimateQuestionValue(long(dividend, 'x-1')).units;
+    assert.ok(Number.isFinite(units), 'a workload all the same');
+    assert.ok(Date.now() - started < 1000, `${dividend}: refused in ${Date.now() - started} ms`);
+  }
+});
+
 /* --------------------------------------------------------- the screen */
 
 const code = executableSource(fs.readFileSync(new URL('../../src/tools/polynomialWorkshop/PolynomialWorkshop.jsx', import.meta.url), 'utf8'));

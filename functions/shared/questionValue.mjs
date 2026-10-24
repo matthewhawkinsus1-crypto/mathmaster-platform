@@ -136,10 +136,14 @@ const writtenTermCount = (value) => String(value ?? '').trim().replace(/^[+-]/, 
 // The degree of a one-letter polynomial written as text ("x^3-4x+2" is 3): its
 // largest exponent, 1 for a bare letter, 0 for a number. A count for the
 // workload, never a reading of the mathematics.
+// Capped: the workload lays out an item per round, and x^100000000 from a
+// bad import made it build tens of millions (TL10). No division view draws a
+// dividend past degree 6.
+const MAX_WRITTEN_DEGREE = 12;
 const writtenDegree = (value) => {
   const text = String(value ?? '');
   const exponents = [...text.matchAll(/[a-z]\^\{?(\d+)/gi)].map((match) => Number(match[1]));
-  return Math.max(/[a-z]/i.test(text) ? 1 : 0, ...exponents);
+  return Math.min(MAX_WRITTEN_DEGREE, Math.max(/[a-z]/i.test(text) ? 1 : 0, ...exponents));
 };
 
 const select = (label, count = 1) => work(WORK_KIND.SELECT, label, count);
