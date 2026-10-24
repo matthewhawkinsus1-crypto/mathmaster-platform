@@ -39,6 +39,7 @@ import { serverResponseGradingSupport } from './serverGrading/gradingSupport.mjs
 import { getPlatformQuestionFamily } from './questionFamilyRegistry.mjs';
 import { deliveredQuestionForGrading, runtimeRepairedQuestion } from './serverGrading/deliveredQuestion.mjs';
 import { gradeStepAlgebraFinalAnswer } from './serverGrading/stepAlgebraFinalAnswer.mjs';
+import { effectiveFlatSupportProfile } from './supportProfileModel.mjs';
 
 export const FAMILY_DELIVERY_VERIFICATION = Object.freeze({
   SEAT_VERIFIED: 'seat-verified',
@@ -155,6 +156,44 @@ export const deliveryPinAllocationProblem = ({ assignment = null, question = nul
   return 'pin-index-not-allocated';
 };
 
+/*
+ * THE SUPPORTS A STUDENT'S PIN MAY NAME (SI03, VH-48).
+ *
+ * A family can narrow its numbers for a student support (`supportConstraints`,
+ * e.g. "reduce-complexity"), and a delivery pin names the support its instance
+ * was built under. The browser picks that support from the student's own
+ * profile (src/problemGenerator.js, studentHasSupport), so without a check a
+ * forged pin could choose the narrower list for a student who has no such
+ * support. The server asks the same question of the same profile: the grade
+ * document's `profile`, or the row itself when it has none (App.jsx reads
+ * `studentData.profile || studentData`), through the same effective view
+ * (supportProfileModel.mjs effectiveFlatSupportProfile, which
+ * src/studentSupport.js normalizeStudentProfile uses too).
+ *
+ * A support counts if the profile granted it at ANY of the moments given — the
+ * time the student did the work and the time the server heard of it — so a
+ * plan that changes at midnight, or a queue that drains the next morning, never
+ * refuses what the student was entitled to when they answered.
+ */
+export const familySupportsGranted = (gradeDocument = null, { at = [] } = {}) => {
+  const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+  const row = isPlainObject(gradeDocument) ? gradeDocument : {};
+  const stored = row.profile || row;
+  const profile = isPlainObject(stored) ? stored : {};
+  // A moment nobody recorded (null) is skipped, never read as 1970.
+  const moments = (Array.isArray(at) ? at : [at])
+    .filter((value) => value !== null && value !== undefined && value !== '')
+    .map(Number)
+    .filter((value) => Number.isFinite(value) && value > 0);
+  const granted = new Set();
+  (moments.length ? moments : [Date.now()]).forEach((nowValue) => {
+    const flat = effectiveFlatSupportProfile(profile, { nowValue });
+    [...flat.accommodations, ...flat.modifications].forEach((id) => granted.add(String(id).trim()));
+  });
+  granted.delete('');
+  return [...granted].sort();
+};
+
 // The same delivery: everything that names the instance (its locator,
 // `resolvedIndex`, may have been corrected by a rebuild).
 const sameDelivery = (pin, other) => Boolean(pin && other)
@@ -187,9 +226,29 @@ export const resolveFamilyQuestionForGrading = ({
   claimedDelivery = null,
   studentId = null,
   classId = null,
+  // The supports this student holds (familySupportsGranted). null: the caller
+  // does not check — a teacher's inspection, or a regrade of records the
+  // server already accepted, which must keep their verdicts.
+  grantedSupports = null,
 } = {}) => {
   if (!isFamilyBackedQuestion(question)) return { familyBacked: false, question, pin: null, reason: null };
   const variant = Math.max(0, Math.floor(Number(variantIndex) || 0));
+  const granted = grantedSupports === null || grantedSupports === undefined ? null : new Set(grantedSupports);
+  /*
+   * A PIN THAT NAMES A SUPPORT THE STUDENT DOES NOT HOLD IS REFUSED (SI03).
+   *
+   * Refused rather than graded as the unsupported instance: that instance has
+   * other numbers, so a student who was entitled when they were shown the
+   * question would be marked wrong for a right answer. A refusal holds the work
+   * for a teacher (needs-review), as for any pin the server cannot trust.
+   *
+   * The canonical record's own delivery is never refused for this: the server
+   * accepted it with the student's first answer, so a support that has ended
+   * since does not take away the question they started.
+   */
+  const supportNotHeld = (pin, canonicalDelivery) => Boolean(
+    granted && pin?.support && !canonicalDelivery && !granted.has(pin.support),
+  );
   const claimed = normalizeDeliveryPin(claimedDelivery);
   const canonical = normalizeDeliveryPin(canonicalRecord?.familyDelivery);
   // The pin this attempt carries first (it names what this device showed),
@@ -204,6 +263,10 @@ export const resolveFamilyQuestionForGrading = ({
     // version after a content upgrade (RT03). A pin a submission claims for
     // anything else gets the slot as it is now.
     const keepPinnedVersion = sameDelivery(pin, canonical);
+    if (supportNotHeld(pin, keepPinnedVersion)) {
+      refusal ||= { pin, reason: 'family-pin-support-not-granted' };
+      continue;
+    }
     const reproduced = reproduceFamilyQuestionFromPin({
       question,
       assignmentId: assignment?.id || '',
@@ -280,6 +343,7 @@ export const resolveServerGradingQuestion = ({
   claimedDelivery = null,
   studentId = null,
   classId = null,
+  grantedSupports = null,
 } = {}) => {
   if (!question || typeof question !== 'object') return { familyBacked: false, question: null, pin: null, reason: 'question-index-not-found' };
   // In QuestionEngine's order: the family is resolved from the repaired
@@ -294,6 +358,7 @@ export const resolveServerGradingQuestion = ({
     claimedDelivery,
     studentId,
     classId,
+    grantedSupports,
   });
   if (!family.familyBacked) return { ...family, question: deliveredQuestionForGrading(question) };
   if (!family.question) return family;

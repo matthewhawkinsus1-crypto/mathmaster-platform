@@ -1050,12 +1050,20 @@ My Math Path and Live Challenge.
   a provisional pin can choose *which* instance of the family to answer — never
   credit for an instance they did not answer correctly. Seating the class
   (which every roster sync does) closes it for that assignment.
-* **A pin's support modification is the browser's claim.** A family can narrow
-  its parameters for a student support (`supportConstraints`), and the pin
-  names the support it was built under. The server rebuilds and grades that
-  instance faithfully but does not cross-check the support against the
-  student's profile at delivery time. As above, this can choose an instance; it
-  cannot turn a wrong answer into credit.
+* **~~A pin's support modification is the browser's claim.~~ Closed (SI03,
+  2026-10-24).** A family can narrow its parameters for a student support
+  (`supportConstraints`), and the pin names the support it was built under.
+  Ingestion and the deadline finalizer now check that support against the
+  student's profile (`familySupportsGranted` in `questionFamilyGrading.mjs`:
+  the grade document's `profile`, read as the student's app reads it, granted
+  on the day of the work or the day it arrived). A pin naming a support the
+  profile does not grant is refused (`family-pin-support-not-granted`): the
+  work is held for a teacher, never graded as the unsupported instance, whose
+  numbers differ. The canonical record's own delivery keeps its support after
+  a plan ends. Left: a canonical pin written before this check is trusted as
+  stored, and a student whose modification is ended between first seeing a
+  question and first submitting it has that answer held for review.
+  Tests: `tests/platform/familyPinSupportGrant.test.mjs`.
 * **Other content-upgrade regrades.** The content-upgrade migration's own
   regrades for safe response controls and systems-workspace upgrades keep their
   existing logic; only the Data Modeling prediction case (§2) was corrected.
