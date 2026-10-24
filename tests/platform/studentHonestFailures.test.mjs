@@ -318,7 +318,7 @@ test('a student\'s own later close says "extra time" only once the class\'s own 
 
 /* ---- 4. "not being saved" across a reload of the tab ---------------------- */
 
-test('a backup problem is kept across a reload while the draft is still on the device, and clears the moment it saves', async () => {
+test('a save problem is kept across a reload while it is still true, and clears the moment the draft saves', async () => {
   const fakeStorage = (entries = {}) => {
     const map = new Map(Object.entries(entries));
     return {
@@ -339,16 +339,18 @@ test('a backup problem is kept across a reload while the draft is still on the d
     const first = await reload();
     first.reportDraftSaveProblem(first.DRAFT_SAVE_PROBLEM.BACKUP_REFUSED, draft(0));
     first.reportDraftSaveProblem(first.DRAFT_SAVE_PROBLEM.BACKUP_FULL, draft(1));
-    first.reportDraftSaveProblem(first.DRAFT_SAVE_PROBLEM.DEVICE_FULL, draft(0));
+    // Storage refused question 2's draft: no copy of it reached this device.
+    first.reportDraftSaveProblem(first.DRAFT_SAVE_PROBLEM.DEVICE_FULL, draft(2));
 
     // Question 1's draft is retired before the reload: no longer unsaved work.
     window.localStorage.removeItem(draft(1));
     const second = await reload();
-    assert.deepEqual(second.currentDraftSaveProblems(), { 'device-full': 0, 'backup-refused': 1, 'backup-full': 0 },
-      'the refused backup is still true; storage-full is found again by the next write; a retired draft is dropped');
-    assert.equal(second.describeDraftSaveProblems(second.draftSaveProblemsForStudent('stu-1'))?.kind, 'backup-refused', 'Home says it after the reload');
+    assert.deepEqual(second.currentDraftSaveProblems(), { 'device-full': 1, 'backup-refused': 1, 'backup-full': 0 },
+      'the refused backup and the full device are still true (RT07); a retired draft is dropped');
+    assert.equal(second.describeDraftSaveProblems(second.draftSaveProblemsForStudent('stu-1'))?.kind, 'device-full', 'Home says the most serious after the reload');
 
-    // Backed up at last: the notice goes, and does not come back on the next reload.
+    // Saved and backed up at last: each notice goes, and does not come back on the next reload.
+    second.clearDraftSaveProblem(second.DRAFT_SAVE_PROBLEM.DEVICE_FULL, draft(2));
     second.clearDraftSaveProblem(second.DRAFT_SAVE_PROBLEM.BACKUP_REFUSED, draft(0));
     const third = await reload();
     assert.deepEqual(third.currentDraftSaveProblems(), { 'device-full': 0, 'backup-refused': 0, 'backup-full': 0 });
