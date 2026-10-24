@@ -480,8 +480,10 @@ export default function RelationMapping({ questionData = {}, onAction }) {
             <text x={LEFT_X} y={18} textAnchor="middle" fontSize="13" fontWeight="700" style={{ fill: 'var(--mm-text-muted)' }}>{questionData.domainLabel || 'Domain (x)'}</text>
             <text x={RIGHT_X} y={18} textAnchor="middle" fontSize="13" fontWeight="700" style={{ fill: 'var(--mm-text-muted)' }}>{questionData.rangeLabel || 'Range (y)'}</text>
 
-            <ellipse cx={LEFT_X} cy={height / 2} rx="58" ry={domainValues.length * ROW / 2 + 18} style={{ fill: 'var(--mm-primary-subtle)', stroke: 'var(--mm-primary-border)' }} strokeWidth="2" />
-            <ellipse cx={RIGHT_X} cy={height / 2} rx="58" ry={rangeValues.length * ROW / 2 + 18} style={{ fill: 'var(--mm-accent-subtle)', stroke: 'var(--mm-accent-border)' }} strokeWidth="2" />
+            {/* The domain and range groupings, outlined at 3:1 or more in both
+                themes (AX29: the border tokens were 1.65:1 and 2.0:1 in light). */}
+            <ellipse cx={LEFT_X} cy={height / 2} rx="58" ry={domainValues.length * ROW / 2 + 18} style={{ fill: 'var(--mm-primary-subtle)', stroke: 'var(--mm-primary)' }} strokeWidth="2" />
+            <ellipse cx={RIGHT_X} cy={height / 2} rx="58" ry={rangeValues.length * ROW / 2 + 18} style={{ fill: 'var(--mm-accent-subtle)', stroke: 'var(--mm-accent)' }} strokeWidth="2" />
 
             {arrows.map(([x, y], index) => {
               const from = domainValues.indexOf(x);

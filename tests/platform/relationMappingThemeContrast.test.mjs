@@ -45,3 +45,22 @@ test('on the plot\'s surface, numbers reach 4.5:1 and axes 3:1 in both themes', 
     assert.ok(contrast(axes[theme], surfaces[theme]) >= 3, `axes, theme ${theme}: ${contrast(axes[theme], surfaces[theme]).toFixed(2)}`);
   });
 });
+
+// AX29: the mapping diagram's domain and range outlines were 1.65:1 and 2.0:1
+// in light mode (the *-border tokens). They now take the strong tokens: 3:1 or
+// more against the page and against their own fill, in both themes.
+test('the mapping diagram outlines its domain and range at 3:1 in both themes', () => {
+  const diagram = executableSource(read('src/tools/relationMapping/RelationMapping.jsx'));
+  assert.match(diagram, /style=\{\{ fill: 'var\(--mm-primary-subtle\)', stroke: 'var\(--mm-primary\)' \}\}/);
+  assert.match(diagram, /style=\{\{ fill: 'var\(--mm-accent-subtle\)', stroke: 'var\(--mm-accent\)' \}\}/);
+  const css = read('src/theme/tokens.css');
+  const surfaces = tokenValues(css, 'mm-surface');
+  for (const [stroke, fill] of [['mm-primary', 'mm-primary-subtle'], ['mm-accent', 'mm-accent-subtle']]) {
+    const strokes = tokenValues(css, stroke);
+    const fills = tokenValues(css, fill);
+    [0, 1].forEach((theme) => {
+      assert.ok(contrast(strokes[theme], surfaces[theme]) >= 3, `${stroke} on the page, theme ${theme}: ${contrast(strokes[theme], surfaces[theme]).toFixed(2)}`);
+      assert.ok(contrast(strokes[theme], fills[theme]) >= 3, `${stroke} on ${fill}, theme ${theme}: ${contrast(strokes[theme], fills[theme]).toFixed(2)}`);
+    });
+  }
+});
