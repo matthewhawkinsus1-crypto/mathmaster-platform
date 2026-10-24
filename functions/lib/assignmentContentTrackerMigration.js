@@ -1,5 +1,7 @@
 "use strict";
 
+const { normalizeStoredQuestionRecord } = require("./classroomGradeRuntime");
+
 const clamp = (value) => Math.max(0, Math.min(100, Number.isFinite(Number(value)) ? Number(value) : 0));
 
 function parseStoredResponse(record = {}) {
@@ -91,6 +93,20 @@ function compactHistory(history, entry) {
   return [...(Array.isArray(history) ? history : []), entry].slice(-20);
 }
 
+/*
+ * A REPAIR GIVES BACK AN ATTEMPT, NEVER AN ATTEMPT NUMBER.
+ *
+ * A returned attempt lowers attemptCount (what is left to spend); the attempts
+ * made still happened. A record from before totalAttempts existed counts them
+ * in attemptCount alone, so lowering it lowered the number too: the next
+ * attempt reused the last one's number and evidence key, overwrote that
+ * event, the create trigger never fired, and the redone work never reached
+ * mastery (GR20). So every migrated record writes its number down, read as
+ * every grader reads it, as the browser's own correction
+ * (liveQuestionCorrection.js) already keeps it.
+ */
+const attemptNumberOf = (record) => normalizeStoredQuestionRecord(record).totalAttempts;
+
 function migrateResponseControlRecord(record = {}, change = {}, correctedAt) {
   const affected = new Set((change.affectedFieldIds || []).map(String));
   if (!affected.size || !Array.isArray(record.partGrades) || !record.partGrades.length) return record;
@@ -113,6 +129,7 @@ function migrateResponseControlRecord(record = {}, change = {}, correctedAt) {
     status: allCorrect ? "correct" : (wasExpired ? "attempted" : record.status),
     attemptCount: allCorrect ? Number(record.attemptCount || 0)
       : (wasExpired ? Math.max(0, Number(record.attemptCount || 0) - 1) : Number(record.attemptCount || 0)),
+    totalAttempts: attemptNumberOf(record),
     partialCredit: allCorrect ? 100 : Math.max(clamp(record.partialCredit), recalculated),
     bestPartialCredit: allCorrect ? 100 : Math.max(clamp(record.bestPartialCredit), recalculated),
     partGrades,
@@ -121,7 +138,7 @@ function migrateResponseControlRecord(record = {}, change = {}, correctedAt) {
       questionId: change.questionId,
       affectedFieldIds: [...affected],
       correctedAt,
-      preservedTotalAttempts: Number(record.totalAttempts || 0),
+      preservedTotalAttempts: attemptNumberOf(record),
       grantedRepairRetry: wasExpired && !allCorrect,
     }),
   };
@@ -195,13 +212,14 @@ function migrateGradingExpansionRecord(record = {}, change = {}, correctedAt) {
         ...record,
         status: "attempted",
         attemptCount: Math.max(0, Number(record.attemptCount || 0) - 1),
+        totalAttempts: attemptNumberOf(record),
         contentVersionRegradeHistory: compactHistory(record.contentVersionRegradeHistory, {
           kind: "grading-expansion",
           questionId: change.questionId,
           correctedAt,
           previousBestPartialCredit: clamp(record.bestPartialCredit),
           newBestPartialCredit: clamp(record.bestPartialCredit),
-          preservedTotalAttempts: Number(record.totalAttempts || 0),
+          preservedTotalAttempts: attemptNumberOf(record),
           grantedRepairRetry: true,
         }),
       } : record;
@@ -225,13 +243,14 @@ function migrateSystemsWorkspaceUpgradeRecord(record = {}, change = {}, correcte
     ...record,
     status: "attempted",
     attemptCount: Math.max(0, Number(record.attemptCount || 0) - 1),
+    totalAttempts: attemptNumberOf(record),
     contentVersionRegradeHistory: compactHistory(record.contentVersionRegradeHistory, {
       kind: "systems-workspace-upgrade",
       questionId: change.questionId,
       correctedAt,
       previousBestPartialCredit: clamp(record.bestPartialCredit),
       newBestPartialCredit: clamp(record.bestPartialCredit),
-      preservedTotalAttempts: Number(record.totalAttempts || 0),
+      preservedTotalAttempts: attemptNumberOf(record),
       grantedRepairRetry: true,
     }),
   };

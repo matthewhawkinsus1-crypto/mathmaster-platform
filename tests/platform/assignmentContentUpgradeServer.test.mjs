@@ -376,6 +376,48 @@ test('Content V2 can restore a live legacy system in place and return one exhaus
   assert.equal(exhaustedResult.tracker[0].contentVersionRegradeHistory.at(-1).grantedRepairRetry, true);
 });
 
+test('a repair gives back an attempt, never an attempt number: the redone work is new evidence (GR20)', async () => {
+  const { recordQuestionAttempt } = await import('../../functions/shared/attemptPolicy.mjs');
+  const { buildAttemptEvidenceEvent } = await import('../../functions/shared/attemptEvidenceEvent.mjs');
+  const eventKeyOf = (record) => buildAttemptEvidenceEvent({
+    studentId: 'S1', assignment: { id: 'A1' }, question: { questionId: 'systems-q' }, questionIndex: 0,
+    activityRole: 'practice', attemptRecord: record, attemptResult: { isCorrect: record.status === 'correct' },
+  }).eventKey;
+  // A record from before totalAttempts existed: three attempts, all spent;
+  // the third wrote this evidence event.
+  const legacy = { status: 'expired', attemptCount: 3, partialCredit: 0, bestPartialCredit: 0, partGrades: [] };
+  const lastEventKey = eventKeyOf(legacy);
+  const plans = {
+    systemsWorkspaceUpgrade: { flatIndex: 0, classification: 'systemsWorkspaceUpgrade', questionId: 'systems-q' },
+    safeResponseControl: { flatIndex: 0, classification: 'safeResponseControl', questionId: 'systems-q', affectedFieldIds: ['x'] },
+    gradingExpansion: { flatIndex: 0, classification: 'gradingExpansion', questionId: 'systems-q',
+      afterQuestion: { type: 'dataModelingLab', mode: 'lineFit', points: [[0, 0], [1, 1], [2, 2]] } },
+  };
+  const records = {
+    systemsWorkspaceUpgrade: legacy,
+    safeResponseControl: { ...legacy, partGrades: [{ id: 'x', isComplete: true, isCorrect: false }, { id: 'y', isComplete: true, isCorrect: false }] },
+    gradingExpansion: { ...legacy, lastResponseKey: JSON.stringify({ m: 5, b: 5 }) },
+  };
+  for (const [kind, change] of Object.entries(plans)) {
+    const repaired = migrateTrackerForContentUpgrade({
+      tracker: { 0: records[kind] }, plan: { changes: [change] }, correctedAt: '2026-10-24T15:00:00.000Z',
+    }).tracker[0];
+    assert.equal(repaired.status, 'attempted', kind);
+    assert.equal(repaired.attemptCount, 2, `${kind}: one attempt back`);
+    assert.equal(repaired.totalAttempts, 3, `${kind}: the three attempts made still happened`);
+    // The student's next attempt is their fourth, so its evidence is a new
+    // document (the create trigger scores it), not an overwrite of the third.
+    const { record: redone } = recordQuestionAttempt({ record: repaired, isCorrect: true });
+    assert.equal(redone.totalAttempts, 4, kind);
+    assert.notEqual(eventKeyOf(redone), lastEventKey, kind);
+  }
+  // A record that kept its own count is unchanged in that count.
+  const modern = migrateTrackerForContentUpgrade({
+    tracker: { 0: { ...legacy, totalAttempts: 5 } }, plan: { changes: [plans.systemsWorkspaceUpgrade] },
+  }).tracker[0];
+  assert.equal(modern.totalAttempts, 5);
+});
+
 /*
  * RECOVERY V2 THROUGH CONTENT V2: a release that turns a static Warm-Up or DOL
  * question into a Question Family slot does not replace the question students
