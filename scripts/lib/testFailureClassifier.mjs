@@ -14,6 +14,16 @@ import { fileURLToPath } from 'node:url';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
+/**
+ * The exit code a run of the suite ends with. A runner stopped by a signal (a
+ * kill by pattern from another job on the machine, or memory running out)
+ * closes with no code and no failures in its output: it did not pass, and
+ * `process.exit(null)` would have said it did.
+ */
+export const suiteExitCode = ({ code = null, signal = null } = {}) => (
+  signal || typeof code !== 'number' ? 1 : code
+);
+
 export const FUNCTIONS_DEPENDENCIES_NOTE = 'functions/ dependencies are not installed — run `npm --prefix functions ci`; this is not a regression.';
 
 export const GUIDANCE = {

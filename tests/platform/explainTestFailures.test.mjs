@@ -16,7 +16,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,6 +27,7 @@ import {
   missingPackages,
   packageName,
   parseFailures,
+  suiteExitCode,
 } from '../../scripts/lib/testFailureClassifier.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -275,4 +276,18 @@ test('when a missing install is the only failure, there is nothing else to read'
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
+});
+
+// A run killed part-way (here, by another job's `pkill -f "node --test …"` on
+// the same machine) printed 9,816 passes, no failures and no summary, and
+// exited 0: `process.exit(null)`.
+test('a run stopped by a signal never exits 0', () => {
+  assert.equal(suiteExitCode({ code: 0, signal: null }), 0);
+  assert.equal(suiteExitCode({ code: 1, signal: null }), 1);
+  assert.equal(suiteExitCode({ code: null, signal: 'SIGTERM' }), 1);
+  assert.equal(suiteExitCode({ code: null, signal: null }), 1);
+  const script = readFileSync(path.join(repo, 'scripts/explain-test-failures.mjs'), 'utf8');
+  assert.match(script, /child\.on\('close', \(code, signal\) => resolve\(\{ out, code, signal \}\)\);/);
+  assert.match(script, /const exitCode = suiteExitCode\(\{ code, signal \}\);/);
+  assert.doesNotMatch(script, /process\.exit\(code\b/, 'every exit goes through suiteExitCode');
 });
