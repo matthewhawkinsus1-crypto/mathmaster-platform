@@ -3,7 +3,7 @@
  *
  *   genericMissCheck({ student, expected, open }) → { check, message } | null
  *
- * Null while `open` (the default): see below.
+ * While `open` (the default) only `not-simplified` speaks: see below.
  *
  * `student` and `expected` are one answer each: a number (or numeric text,
  * fractions included) or an ordered pair. The checks, in order:
@@ -24,10 +24,13 @@
  * "negate it" (release-candidate QA M1). So while attempts are left a check
  * says nothing at all — the miss looks exactly like one no check explains —
  * and the caller asks with `open: false` only once the item has closed
- * (missDiagnosis.js). DISPLAY ONLY — nothing here is stored, sent with the
- * attempt or read by grading, and a check can only describe work the grader
- * already marked wrong (the caller decides that; a correct answer is never
- * checked).
+ * (missDiagnosis.js). The one exception is `not-simplified` (OPEN_ITEM_CHECKS,
+ * FB23): the value is already right, so saying the form is not in lowest
+ * terms hands over no move toward a different answer.
+ *
+ * DISPLAY ONLY — nothing here is stored, sent with the attempt or read by
+ * grading, and a check can only describe work the grader already marked
+ * wrong (the caller decides that; a correct answer is never checked).
  */
 const EPSILON = 1e-9;
 const near = (a, b) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= EPSILON * Math.max(1, Math.abs(a), Math.abs(b));
@@ -44,6 +47,10 @@ const gcd = (a, b) => (b === 0 ? Math.abs(a) : gcd(b, a % b));
 /** A number, or a fraction n/d with its parts, from typed or LaTeX text. */
 export const readNumber = (value) => {
   if (typeof value === 'number') return Number.isFinite(value) ? { value, fraction: null } : null;
+  // Two numbers apart are not one: a mixed number typed `3 2/5` would close
+  // up into 32/5, and "Your value is right" would be said of 64/10 against it
+  // — while the item is open, now that that check speaks then (FB23).
+  if (/\d\s+[\d.]/.test(String(value ?? ''))) return null;
   const text = stripMath(value);
   if (!text) return null;
   const latex = text.match(/^(-?)\\frac\{(-?\d+)\}\{(-?\d+)\}$/);
@@ -79,11 +86,22 @@ export const GENERIC_MISS_MESSAGES = Object.freeze({
   'not-simplified': 'Your value is right, but it is not in simplest form. Divide the numerator and denominator by their greatest common factor.',
 });
 
+/*
+ * THE ONE CHECK AN OPEN ITEM HEARS (the owner, 2026-10-23; FB23). "Not in
+ * lowest terms" says the value is already right and names its FORM, not a
+ * move toward another value, the rule the right-line-wrong-form and
+ * simplest-form messages already follow while an item is open. Without it a
+ * student repeated the same unreduced fraction, told only "Focus on:
+ * Fraction answer".
+ */
+export const OPEN_ITEM_CHECKS = Object.freeze(['not-simplified']);
+
 export const genericMissCheck = ({ student, expected, open = true } = {}) => {
   // Open (attempts left) unless the caller says the item has closed — and an
-  // open item gets nothing, whichever check would have fired.
-  if (open !== false) return null;
-  const result = (check) => ({ check, message: GENERIC_MISS_MESSAGES[check] });
+  // open item gets nothing but a form miss, whichever check would have fired.
+  const result = (check) => (open !== false && !OPEN_ITEM_CHECKS.includes(check)
+    ? null
+    : { check, message: GENERIC_MISS_MESSAGES[check] });
   try {
     const studentPair = readPair(student);
     const expectedPair = readPair(expected);

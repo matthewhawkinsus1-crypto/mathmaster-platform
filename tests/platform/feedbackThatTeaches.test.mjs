@@ -199,7 +199,18 @@ test('2. while attempts are left, a miss a generic check explains looks exactly 
           return [check, JSON.stringify({ diagnosis, shown: missFeedback({ question, attemptNumber, diagnosis, parts: grading.parts }) })];
         });
         const ordinary = shown.find(([check]) => check === 'none')[1];
-        shown.forEach(([check, output]) => assert.equal(output, ordinary, `${answer}, attempt ${attemptNumber}, ${attemptFeedback ? 'authored' : 'no authored'} feedback: ${check} shows what an ordinary miss shows`));
+        shown.forEach(([check, output]) => {
+          const context = `${answer}, attempt ${attemptNumber}, ${attemptFeedback ? 'authored' : 'no authored'} feedback: ${check}`;
+          // The one exception (FB23, the owner 2026-10-23; lowestTermsWhileOpen
+          // .test.mjs): "not in lowest terms" names the form of a right value,
+          // no move toward another one, so it is said while the item is open.
+          if (check === 'not-simplified') {
+            assert.notEqual(output, ordinary, `${context} is said while open`);
+            assert.equal(JSON.parse(output).shown.message, GENERIC_MISS_MESSAGES['not-simplified'], context);
+            return;
+          }
+          assert.equal(output, ordinary, `${context} shows what an ordinary miss shows`);
+        });
       }
     }
   }

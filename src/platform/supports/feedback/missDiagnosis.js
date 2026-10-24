@@ -16,7 +16,9 @@
  *      (`attemptsLeft`, the default) they say nothing: each relates the
  *      student's answer to the key by one move, so any wording that differs by
  *      check — or by whether one fired — hands over the move (QA M1). The miss
- *      then reads exactly like one no check explains.
+ *      then reads exactly like one no check explains. Only "not in lowest
+ *      terms" is said while open (FB23): the value is right, and naming its
+ *      form names no move toward another answer.
  *
  * A CHOICE FIELD GETS NO DIAGNOSIS. With options {5, 0, −5}, "the opposite
  * sign" after −5 leaves one option: any message about how a picked option
