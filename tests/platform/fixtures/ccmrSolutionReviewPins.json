@@ -282,7 +282,7 @@
       "mm_sat_A2_4F_challenge_nested-linear-radical_v21": {"sha256":"fefe8e1252673d0ca0723736cc365706aea1c2cdf89f2d48fdcf0d63e6aef359","derived":{"a":"r*r-m*xsol","n":"r+c"},"genericReview":"26954c6ff369bf05"},
       "mm_sat_A2_4F_translated-square-root-equation_v21": {"sha256":"d304d7e983a2c4199b364fedb07ce19c3b081b79b633f06a5dbe42f4ab3d8ab2","derived":{"n":"k+gap","xsol":"gap*gap+h"},"genericReview":"26954c6ff369bf05"},
       "mm_sat_A2_4G_shifted-radical-check_v21": {"sha256":"b97d655cf987e1cea5202c5f295c42d3eb37b5a24eb54c209ece7e1bb079a807","derived":{"B":"b+d","p":"B+r","q":"B+1-r","a":"B*B-p*q"},"genericReview":"41eec1e14f5dc1c0"},
-      "mm_sat_A2_4G_why-invalid-decreasing-radicand_v21": {"sha256":"cdb138f190571429f57916c7b1c622be1cfb9591f9edf261ca67a2e196334af0","derived":{"p":"b+r","q":"b-1-r","A":"b*b-p*q"},"genericReview":"41eec1e14f5dc1c0"},
+      "mm_sat_A2_4G_why-invalid-decreasing-radicand_v21": {"sha256":"1f2f4ee8a0d44dfdcc77d5b42094640ac5f0602083bf670efa4e861acfa00888","derived":{"p":"b+r","q":"b-1-r","A":"b*b-p*q"},"genericReview":"41eec1e14f5dc1c0"},
       "mm_sat_A2_5B_anchor-two-values-model_v21": {"sha256":"36549b0c07d90c4b12c889d79d1d7a7fd98901e3b316ab3a93ec80494d684f4e","derived":{"N":"M*b*b","bp1":"b+1"},"genericReview":"28dcf9dfeb1a21de"},
       "mm_sat_A2_5B_anchored-decay-interval-model_v21": {"sha256":"14fb50e37b57d669efd20e79414e725144dcb82e4f74d91d41490d441cbc0513","derived":{"dp1":"d+1"},"genericReview":"28dcf9dfeb1a21de"},
       "mm_sat_A2_5B_challenge-factor-from-separated-observations_v21": {"sha256":"fe87f3df177a56a5dcc32eea8e3213c97ff5b202ecb4552d951ea3fe9b09b4eb","derived":{"t2":"s+2*k","N":"M*b*b","b2":"b*b","bp1":"b+1"},"genericReview":"28dcf9dfeb1a21de"},

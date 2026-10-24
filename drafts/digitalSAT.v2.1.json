@@ -23780,7 +23780,7 @@
         "answerSummary": "Reject any candidate that fails the original equation."
       },
       "assessmentItemFormat": "multipleChoice",
-      "prompt": "For $\\sqrt{{{A}}-x}=x-{{b}}$, squaring gives $x={{p}}$ and $x={{q}}$, where $q<b<p$. Why must $x={{q}}$ be rejected?",
+      "prompt": "For $\\sqrt{{{A}}-x}=x-{{b}}$, squaring gives $x={{p}}$ and $x={{q}}$. Why must $x={{q}}$ be rejected?",
       "generator": {
         "parameters": {
           "b": {
@@ -24132,7 +24132,7 @@
         "answerSummary": "$x={{q}}$"
       },
       "assessmentItemFormat": "multipleChoice",
-      "prompt": "Squaring $\\sqrt{{{m}}x {{a|signed}}}=x-{{b}}$ gives roots $x={{p}}$ and $x={{q}}$, where $q<b<p$. What is the extraneous root?",
+      "prompt": "Squaring $\\sqrt{{{m}}x {{a|signed}}}=x-{{b}}$ gives roots $x={{p}}$ and $x={{q}}$. What is the extraneous root?",
       "generator": {
         "parameters": {
           "m": {

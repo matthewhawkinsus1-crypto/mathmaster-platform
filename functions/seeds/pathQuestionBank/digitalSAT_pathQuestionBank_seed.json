@@ -53668,7 +53668,7 @@
         "answerSummary": "$x={{q}}$"
       },
       "assessmentItemFormat": "multipleChoice",
-      "prompt": "Squaring $\\sqrt{{{m}}x {{a|signed}}}=x-{{b}}$ gives roots $x={{p}}$ and $x={{q}}$, where $q<b<p$. What is the extraneous root?",
+      "prompt": "Squaring $\\sqrt{{{m}}x {{a|signed}}}=x-{{b}}$ gives roots $x={{p}}$ and $x={{q}}$. What is the extraneous root?",
       "generator": {
         "parameters": {
           "m": {
@@ -54419,7 +54419,7 @@
         "answerSummary": "At $x={{q}}$, the right side $x-{{b}}$ is negative, but the principal square root is nonnegative."
       },
       "assessmentItemFormat": "multipleChoice",
-      "prompt": "For $\\sqrt{{{A}}-x}=x-{{b}}$, squaring gives $x={{p}}$ and $x={{q}}$, where $q<b<p$. Why must $x={{q}}$ be rejected?",
+      "prompt": "For $\\sqrt{{{A}}-x}=x-{{b}}$, squaring gives $x={{p}}$ and $x={{q}}$. Why must $x={{q}}$ be rejected?",
       "generator": {
         "parameters": {
           "b": {
