@@ -6,7 +6,7 @@ import {
 } from '../assessment/testCycle.js';
 import { normalizeQuestionRecord } from '../../../functions/shared/attemptPolicy.mjs';
 import { opensWhenPhrase } from './studentWhen.js';
-import { studentSkillName } from '../assessment/secureExamResultsModel.js';
+import { studentSkillName } from '../assessment/studentSkillName.js';
 import { studentMisconceptionMessage } from '../../../functions/shared/misconceptionStudentMessages.mjs';
 
 /*

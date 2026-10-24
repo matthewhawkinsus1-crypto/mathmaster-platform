@@ -167,3 +167,17 @@ test('the worksheet and answer-key builders are not in the first load', () => {
     assert.ok(!graph.has(key), `${file} is in the first load: ${graph.has(key) ? chainTo(graph, key) : ''}`);
   }
 });
+
+// The student Test Cycle card names a skill with one small helper; reaching
+// it through the secure exam results model put that model, the score
+// predictor and the exam policies (about 8 KB gzip) on every first load.
+test('the secure exam results model is not in the first load (only its skill names are)', () => {
+  for (const file of [
+    'src/platform/assessment/secureExamResultsModel.js',
+    'src/platform/assessment/examScorePredictor.js',
+  ]) {
+    const key = path.join(repo, file);
+    assert.ok(!graph.has(key), `${file} is in the first load: ${graph.has(key) ? chainTo(graph, key) : ''}`);
+  }
+  assert.ok(graph.has(path.join(repo, 'src/platform/assessment/studentSkillName.js')), 'the skill names the card uses are');
+});
