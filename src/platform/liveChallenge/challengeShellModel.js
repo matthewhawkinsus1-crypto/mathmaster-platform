@@ -45,6 +45,14 @@ export const GO_FLASH_MS = 800;
 // everyone has finished early it waits a moment, so the last student sees
 // their own answer's feedback before the results replace it.
 export const ROUND_CLOSE_AFTER_DEADLINE_MS = 1_500;
+/*
+ * A LONG WAIT FOR RESULTS SAYS SO (LC20). With a teacher screen open a round
+ * closes a moment after its deadline. With none, the server's sweep closes it,
+ * which can take up to about 70 seconds, and "The results are coming." read as
+ * a frozen game. After this long locked, the words say it can take a minute.
+ */
+export const LOCKED_WAIT_NOTICE_MS = 10_000;
+export const LOCKED_LONG_DETAIL = 'Your work is locked in. Still counting everyone’s answers — this can take up to a minute. Keep this screen open.';
 export const ROUND_CLOSE_AFTER_ALL_DONE_MS = 1_200;
 
 // Modes whose rounds hold many questions per player. Read from the room's mode
@@ -347,6 +355,8 @@ export const studentGuidance = ({
   answered = false,
   finishedEarly = false,
   joinedAtRound = null,
+  // How long the round has sat locked waiting for its results (LC20).
+  lockedForMs = 0,
 } = {}) => {
   const counts = roundCounts(room);
   // `joinedAtRound` is set only for a student who joined after the game began:
@@ -373,7 +383,11 @@ export const studentGuidance = ({
     case MATCH_STATE.ROUND_PAUSED:
       return Object.freeze({ tone: 'waiting', headline: 'Paused', detail: 'Your teacher paused the round. The clock is stopped.' });
     case MATCH_STATE.ROUND_LOCKED:
-      return Object.freeze({ tone: 'done', headline: 'Time’s up!', detail: 'Your work is locked in. The results are coming.' });
+      return Object.freeze({
+        tone: 'done',
+        headline: 'Time’s up!',
+        detail: Number(lockedForMs) >= LOCKED_WAIT_NOTICE_MS ? LOCKED_LONG_DETAIL : 'Your work is locked in. The results are coming.',
+      });
     case MATCH_STATE.ROUND_RESULTS:
       return Object.freeze({
         tone: 'results',

@@ -44,7 +44,12 @@ test('a student\'s screen is a function of the match\'s stage, read at its calib
 test('a live round says what comes next — its results — and when you finished early', () => {
   const round = region(student, 'export function ChallengeRound(', 'export default function LiveChallengeStudent', 'ChallengeRound');
   assert.match(student, /\n\s*persistResult\n\s*liveShell\n/, 'the live screen opts into the live wording');
-  assert.match(round, /liveShell \? 'Time is up! The results are coming\.' : 'Time is up\. Wait for your teacher to start the next round\.'/);
+  assert.match(round, /liveShell\s*\? \(lockedLong \? 'Time is up\. Still counting everyone’s answers — this can take up to a minute\. Keep this screen open\.' : 'Time is up! The results are coming\.'\)\s*: 'Time is up\. Wait for your teacher to start the next round\.'/);
+  // LC20: "still counting" only well past this student's own deadline, and
+  // never once the round has closed.
+  assert.match(round, /const lockedLong = !roundClosed && endsAtMs > 0 && elapsedMs - personalClock\.durationMs >= LOCKED_WAIT_NOTICE_MS;/);
+  assert.match(student, /const guidance = studentGuidance\(\{ room, stage, joinedAtRound, lockedForMs: lockedLongAtStage \? LOCKED_WAIT_NOTICE_MS : 0 \}\);/);
+  assert.match(student, /const wait = Math\.max\(0, lockedRoundEndsAtMs \+ LOCKED_WAIT_NOTICE_MS - \(Date\.now\(\) \+ clock\.offsetMs\)\);/);
   assert.match(round, /\{liveShell && result && !expired && <div [^>]*data-mm-finished-early="1"/);
   // 3 · 2 · 1 over the question, which stays mounted but unseen until GO.
   assert.match(round, /\{\(!roundStarted \|\| elapsedMs < GO_FLASH_MS\) && \(\s*<div data-mm-round-countdown=/);
@@ -84,7 +89,7 @@ test('a student who arrives after the start is told they play from this round', 
   const join = region(studentMain, 'joinLiveChallenge({ roomId })', '.finally(', 'join');
   assert.match(join, /reply\.rejoined === false && room\.status === 'running' && room\.roundState !== 'closed'/);
   assert.match(join, /setJoinedAtRound\(Number\(room\.currentRound\) \|\| 0\)/);
-  assert.match(studentMain, /studentGuidance\(\{ room, stage, joinedAtRound \}\)/);
+  assert.match(studentMain, /studentGuidance\(\{ room, stage, joinedAtRound, lockedForMs: [^}]+\}\)/);
 });
 
 test('a finished game: your place, then what reached your wallet, then the top of the class', () => {

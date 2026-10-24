@@ -9,7 +9,7 @@ import { PROJECTION_KIND, standingsFromProjection } from '../../../functions/sha
 import { summaryFinal, summaryRound, summaryUnansweredRounds } from '../../../functions/shared/liveChallengePlayerSummary.mjs';
 import { calculateStepPartialCredit, emptyQuestionRecord, recordQuestionStep } from '../../attemptPolicy.js';
 import { hasMeaningfulRawPathResponse, questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
-import { CHALLENGE_STAGE, GO_FLASH_MS, QUESTION_SET_GAME, personalRoundClock, questionSetGameOf, studentGuidance } from '../../platform/liveChallenge/challengeShellModel.js';
+import { CHALLENGE_STAGE, GO_FLASH_MS, LOCKED_WAIT_NOTICE_MS, QUESTION_SET_GAME, personalRoundClock, questionSetGameOf, studentGuidance } from '../../platform/liveChallenge/challengeShellModel.js';
 import { speakAloud, speechAvailable, stopSpeaking } from '../../platform/language/speechText.js';
 import { projectionBoardRows, rewardSummaryLines, roundResultsView, scorePresentation, standingsRows } from '../../platform/liveChallenge/challengeStandingsModel.js';
 import { readLastSeenRound, roundsClosedWhileAway, seenRoundOf, missedRoundsNotice, writeLastSeenRound } from '../../platform/liveChallenge/challengeMissedRounds.js';
@@ -193,6 +193,9 @@ export function ChallengeRound({
   // accepts nothing more for it.
   const roundClosed = room.roundState === 'closed';
   const expired = roundClosed || (endsAtMs > 0 && remainingMs <= 0);
+  // Still waiting on the round's results well past this student's deadline:
+  // the server's sweep is closing it (LC20, challengeShellModel.js).
+  const lockedLong = !roundClosed && endsAtMs > 0 && elapsedMs - personalClock.durationMs >= LOCKED_WAIT_NOTICE_MS;
   const urgent = !expired && remainingMs <= 10000;
   const resultKey = persistResult ? challengeResultKey(room.roomId, roundIndex, room.roundVersion) : null;
   const [result, setResult] = useState(() => readStoredJson(resultKey));
@@ -620,7 +623,9 @@ export function ChallengeRound({
       {submitError && <div role="alert" style={{ padding: 11, borderRadius: 9, background: '#4a3708', color: '#ffe9a8', border: '1px solid #f9ab00' }}>{submitError}</div>}
       {pending && !result && <button type="button" onClick={retryPending}>Retry locked answer</button>}
       {!result && !pending && (answeredOnServer || alreadyRecorded) && <div aria-live="polite" style={{ padding: 12, borderRadius: 9, background: '#17365f', color: '#dbeafe', fontWeight: 900 }}>{liveShell ? 'Your answer for this round is recorded. The results show when the round ends.' : 'Your answer for this round is recorded. Wait for your teacher to start the next round.'}</div>}
-      {expired && !answerRecorded && <div aria-live="polite" style={{ padding: 15, borderRadius: 11, background: 'rgba(255,255,255,.08)', color: '#eef1f6', border: '1px solid rgba(255,255,255,.16)', fontWeight: 900 }}>{liveShell ? 'Time is up! The results are coming.' : 'Time is up. Wait for your teacher to start the next round.'}</div>}
+      {expired && !answerRecorded && <div aria-live="polite" style={{ padding: 15, borderRadius: 11, background: 'rgba(255,255,255,.08)', color: '#eef1f6', border: '1px solid rgba(255,255,255,.16)', fontWeight: 900 }}>{liveShell
+        ? (lockedLong ? 'Time is up. Still counting everyone’s answers — this can take up to a minute. Keep this screen open.' : 'Time is up! The results are coming.')
+        : 'Time is up. Wait for your teacher to start the next round.'}</div>}
       {liveShell && result && !expired && <div aria-live="polite" data-mm-finished-early="1" style={{ padding: 12, borderRadius: 9, background: '#17365f', color: '#dbeafe', fontWeight: 900 }}>Round complete for you — waiting for the others. The results show when the round ends.</div>}
       {result && (
         <section aria-live="polite" style={{ padding: 16, borderRadius: 12, background: result.isCorrect ? 'var(--mm-success-bg)' : 'var(--mm-warning-soft)', color: result.isCorrect ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', textAlign: 'left' }}>
@@ -1011,6 +1016,18 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   // each boundary (a countdown step, the start, the deadline) — not on a timer.
   const stageClock = useChallengeClock(room, clock.offsetMs);
   const stage = stageClock.stage;
+  // LC20: a round left locked LOCKED_WAIT_NOTICE_MS past its deadline is
+  // waiting on the server's sweep; the guidance then says it can take a
+  // minute. One timer from the deadline, since the stage itself does not tick.
+  const [lockedLongAtStage, setLockedLongAtStage] = useState(false);
+  const lockedRoundEndsAtMs = stage === CHALLENGE_STAGE.ROUND_LOCKED ? timestampMillis(room?.roundEndsAt) : 0;
+  useEffect(() => {
+    setLockedLongAtStage(false);
+    if (!lockedRoundEndsAtMs) return undefined;
+    const wait = Math.max(0, lockedRoundEndsAtMs + LOCKED_WAIT_NOTICE_MS - (Date.now() + clock.offsetMs));
+    const timer = window.setTimeout(() => setLockedLongAtStage(true), wait);
+    return () => window.clearTimeout(timer);
+  }, [lockedRoundEndsAtMs, clock.offsetMs]);
   useEffect(() => {
     if (room?.status !== 'running' || stage !== CHALLENGE_STAGE.ROUND_ACTIVE) return undefined;
     collectLaunchEvent('game_mounted', room);
@@ -1182,7 +1199,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   const clockReady = clock.sampleCount > 0 || clock.quality === 'degraded';
   const roundOpen = room.status === 'running' && room.roundState !== 'closed';
   const roundIndex = Number(room.currentRound) || 0;
-  const guidance = studentGuidance({ room, stage, joinedAtRound });
+  const guidance = studentGuidance({ room, stage, joinedAtRound, lockedForMs: lockedLongAtStage ? LOCKED_WAIT_NOTICE_MS : 0 });
   const connection = studentConnectionState({ online, fromCache: roomFromCache, everInSync });
   // The header: the student's own score from their own row (it moves the
   // moment their answer lands). Never their place: a rank in the corner of
