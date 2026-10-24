@@ -42,9 +42,10 @@ stated answer with the tool's shared grader before returning it.
   fed from `assignmentFeedbackWasReleased` only). A DOL's per-item right/wrong release is not enough: "Grant one more
   DOL attempt" reopens the same item. An unknown activity role fails closed. The outcome box is additionally gated on
   `showOutcomeFeedback`, so there are two layers.
-- **A miss message never hands over the answer.** While attempts are left a generic check is worded without the move
-  that yields the answer (`GENERIC_MISS_MESSAGES_OPEN`); the named error only once the item has closed. A choice field
-  gets no diagnosis at all (`partIsChoice`). The partial-credit breakdown follows `feedbackOpen` too.
+- **A miss message never hands over the answer.** While attempts are left a generic check says nothing except that a
+  right value is not in lowest terms, which names its form and no move (`OPEN_ITEM_CHECKS` in genericMissChecks.js,
+  FB23; the earlier `GENERIC_MISS_MESSAGES_OPEN` wording is gone); the named error only once the item has closed. A
+  choice field gets no diagnosis at all (`partIsChoice`). The partial-credit breakdown follows `feedbackOpen` too.
 - **Grading is unchanged.** The miss message is computed after the attempt was handed to the recorder, from a copy of
   the grader's result held in state the recorder never reads (`gradedForDisplay`). The registry-tool forwarder region
   still contains no diagnosis (`misconceptionCodePassThrough.test.mjs`). The recorded evidence is still only the
