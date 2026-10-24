@@ -20494,6 +20494,19 @@ function testCycleSkillList(blueprint) {
  * for a correction question by correctionId and the server decides what to
  * instantiate. What IS kept is the standard and the reason, because a student
  * doing corrections is entitled to know what they are working on.
+ *
+ * THE NAMED MISTAKE IS SHOWN WHILE THE CLASS STILL TESTS (TC12; kept as built).
+ * Corrections open when this student's own Test is released, whether or not the
+ * class has finished (`testAnswersHeld`). Beside their own released answer, "the
+ * mistake to watch for" lets that student undo it and read their own correct
+ * answer. What the hold keeps back is the class's correct answers and worked
+ * solutions, and those stay held; this names one error on one student's own,
+ * already-submitted work, and Test instances are seeded per student, so it never
+ * hands a classmate theirs. To withhold it until the class has finished
+ * instead, drop `diagnosis`, `misconception` and `diagnosisDetail` here while
+ * getStudentTestCycle's `testAnswersHeld` is true, and say on the screen that
+ * the named mistakes open with the answers. That costs an early finisher the
+ * most useful line Corrections has.
  */
 function studentVisibleCorrectionPlan(plan) {
   return {
