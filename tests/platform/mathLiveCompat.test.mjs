@@ -11,9 +11,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   MATHLIVE_HIDDEN_CSS_PARTS,
+  MATHLIVE_RECOLORED_CSS_PARTS,
   MATHLIVE_REPOSITIONED_CSS_PARTS,
   MATHLIVE_KEYBOARD_SINK_SELECTOR,
   MATHLIVE_RENDER_PART_SELECTOR,
+  MATHLIVE_TEXT_TINT_VARIABLES,
   MATHLIVE_VERIFIED_VERSION,
   mathElementHasRendered,
   mathFieldCompatProblems,
@@ -47,9 +49,16 @@ test('the installed MathLive still builds the shadow DOM the focus hand-off depe
   assert.match(bundle, /setAttribute\("part", "render"\)/, `${UPGRADE} (render part is gone)`);
   assert.equal(MATHLIVE_RENDER_PART_SELECTOR, '[part="render"]');
   // The controls src/index.css hides so MathMaster's own keypad is the only one,
-  // and the keyboard sink it repositions onto its field.
-  [...MATHLIVE_HIDDEN_CSS_PARTS, ...MATHLIVE_REPOSITIONED_CSS_PARTS].forEach((part) => {
+  // the keyboard sink it repositions onto its field, and the placeholder it
+  // recolours (AX17).
+  [...MATHLIVE_HIDDEN_CSS_PARTS, ...MATHLIVE_REPOSITIONED_CSS_PARTS, ...MATHLIVE_RECOLORED_CSS_PARTS].forEach((part) => {
     assert.match(bundle, new RegExp(`part=${part}\\b`), `${UPGRADE} (::part(${part}) is gone)`);
+  });
+  // The tint behind a focused field's text-mode content, which index.css sets
+  // to nothing so the placeholder is read against the box: MathLive still
+  // reads both names (the light scheme's and the dark scheme's).
+  MATHLIVE_TEXT_TINT_VARIABLES.forEach((variable) => {
+    assert.ok(bundle.includes(`var(${variable},`), `${UPGRADE} (${variable} is no longer read)`);
   });
 });
 
@@ -82,9 +91,14 @@ test('src/index.css styles exactly the MathLive parts the adapter lists', () => 
   const styled = [...css.matchAll(/math-field::part\(([\w-]+)\)/g)].map((match) => match[1]);
   assert.deepEqual(
     [...new Set(styled)].sort(),
-    [...MATHLIVE_HIDDEN_CSS_PARTS, ...MATHLIVE_REPOSITIONED_CSS_PARTS].sort(),
+    [...MATHLIVE_HIDDEN_CSS_PARTS, ...MATHLIVE_REPOSITIONED_CSS_PARTS, ...MATHLIVE_RECOLORED_CSS_PARTS].sort(),
     'every MathLive part index.css styles is named in src/platform/math/mathLiveCompat.js, so an upgrade re-verifies it',
   );
+  // Likewise the custom properties it sets on the field for MathLive to read.
+  const fieldRule = css.match(/(?:^|\n)math-field \{([^}]*)\}/g).find((rule) => rule.includes('--caret-color')) || '';
+  MATHLIVE_TEXT_TINT_VARIABLES.forEach((variable) => {
+    assert.match(fieldRule, new RegExp(`${variable}:\\s*transparent;`), `index.css sets ${variable} on math-field`);
+  });
 });
 
 test('no module outside the adapter reaches into MathLive internals', () => {

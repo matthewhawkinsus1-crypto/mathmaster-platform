@@ -186,9 +186,24 @@ math-div {
 math-field {
   --caret-color: var(--mm-focus);
   --selection-background-color: rgba(26, 115, 232, 0.16);
+  /* While a field has focus MathLive tints its text-mode content, and a
+     placeholder is text mode: pale blue behind it in light, a heavy blue in an
+     OS dark scheme. The light and dark schemes read different names, so both
+     are set. The placeholder is then read against the box itself (below). */
+  --highlight-text: transparent;
+  --text-highlight-background-color: transparent;
   color: var(--mm-input-text);
   background: var(--mm-input-bg);
   border-color: var(--mm-border);
+}
+
+/* A MATH BOX'S PLACEHOLDER ("Type your answer", an example) IS READABLE (AX17).
+   MathLive paints it #bdbdbd, which axe measured at 1.66:1 on the focused box
+   (pass 3, A11Y-7). It is the same hint a text box shows, so it takes the same
+   token: 4.8:1 on a light box and 6.7:1 on a dark one, and clear of the correct
+   and incorrect tints too (tests/platform/mathFieldPlaceholderContrast.test.mjs). */
+math-field::part(placeholder) {
+  color: var(--mm-input-placeholder);
 }
 
 /* MathMaster uses its own focused math toolbar. Hide MathLive's broad menu and keyboard controls. */

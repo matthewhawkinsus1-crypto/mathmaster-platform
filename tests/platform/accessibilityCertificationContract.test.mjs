@@ -35,6 +35,17 @@ test('all seven student screens are certified, each with at least one driven sce
   assert.ok(SCREENS.find((screen) => screen.id === 'secure-exam').scenes.some((scene) => scene.id === 'question'));
 });
 
+// AX17: a math box's placeholder was 1.66:1 and no scene had a box that showed
+// one. The scene must keep waiting for the placeholder it audits.
+test('an empty math box with its placeholder showing is among the audited scenes', () => {
+  const tools = SCREENS.find((screen) => screen.id === 'assignment-tools');
+  assert.ok(tools.scenes.some((scene) => scene.id === 'math-box-placeholder'), 'the assignment tools audit an empty math box');
+  const source = executableSource(readFileSync(new URL('../browser/accessibilityCertification.mjs', import.meta.url), 'utf8'));
+  const scene = region(source, 'const openMathBoxPlaceholder', '\n};', 'the placeholder scene');
+  assert.match(scene, /uxQuestion\('ux-simple'/, 'a question whose answer box is empty');
+  assert.match(scene, /\[part="placeholder"\]/, 'and waits until the placeholder is drawn, so it audits what it names');
+});
+
 test('both viewports: Chromebook 1366×768 and phone 390×844', () => {
   const sizes = VIEWPORTS.map((viewport) => `${viewport.width}x${viewport.height}`);
   assert.ok(sizes.includes('1366x768'), `viewports: ${sizes.join(', ')}`);

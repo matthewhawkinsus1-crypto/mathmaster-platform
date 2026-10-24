@@ -39,8 +39,9 @@
  *   assignment-tools
  *       studentUxPlatform.html: one assignment compiled through the teacher
  *       import chain, in App.jsx's assignment wrappers — Step Algebra,
- *       Graphing 2 and the Linear Table Workbench open. The harness's own
- *       stand-in navigator is excluded; the question stage is audited.
+ *       Graphing 2 and the Linear Table Workbench open, and an empty math box
+ *       showing its placeholder. The harness's own stand-in navigator is
+ *       excluded; the question stage is audited.
  *   secure-exam
  *       accessibilitySecureExam.html: the Test Cycle card at its Test stage,
  *       then the REAL SecureExamContainer's start screen and a secure question
@@ -143,6 +144,19 @@ const uxQuestion = (questionId, ready) => async (page, origins, { first }) => {
   await page.waitForTimeout(2500);
 };
 
+// An empty math box with its placeholder showing ("for example -4"). MathLive
+// paints that hint #bdbdbd, which axe measured at 1.66:1 (pass 3, A11Y-7) while
+// no scene rendered one, so nothing could fail (AX17). The scene waits for the
+// placeholder itself: a box that stopped drawing it cannot pass by being absent.
+const openMathBoxPlaceholder = async (page, origins, state) => {
+  await uxQuestion('ux-simple', '.mathmaster-question-engine')(page, origins, state);
+  await page.waitForFunction(
+    () => document.querySelector('[data-question-id="ux-simple"] math-field')?.shadowRoot?.querySelector('[part="placeholder"]'),
+    null,
+    { timeout: 30_000 },
+  );
+};
+
 // A section the student has finished, as its tab shows it: the fixture's
 // student has last week's Warm-Up right, and the active lesson opens with that
 // tab marked "Complete" (pass 3, A11Y-7: its badge was 9px white on #a66b00,
@@ -175,6 +189,7 @@ export const SCREENS = [
       { id: 'step-algebra', run: uxQuestion('ux-step', '.mathmaster-question-engine') },
       { id: 'graphing', run: uxQuestion('ux-graph2', 'svg.mathmaster-responsive-canvas') },
       { id: 'table-workbench', run: uxQuestion('ux-ltw', '.mathmaster-question-engine') },
+      { id: 'math-box-placeholder', run: openMathBoxPlaceholder },
     ],
   },
   studentAppScreen('my-math-path', 'My Math Path', 'Your Weekly Math Path'),
