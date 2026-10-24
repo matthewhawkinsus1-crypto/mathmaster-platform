@@ -119,7 +119,11 @@ export default function MathDisplay({
         // than the line (the solved value 20/9 in a substitution token) was
         // clipped and grew a horizontal scrollbar under it.
         overflowY: inline ? 'visible' : 'hidden',
-        verticalAlign: inline ? '-0.16em' : 'middle',
+        // Inline math sits on the line's baseline, as typeset mathematics
+        // does. It was pushed 0.16em below it, so the text's own full stop
+        // after "$g$." stood level with the middle of the mathematics and read
+        // as a multiplication dot ("graph of g·", "= d·", RT14).
+        verticalAlign: inline ? 'baseline' : 'middle',
         lineHeight: 1.35,
         // Block math clips vertically at its padding box, and a stacked
         // fraction hangs ~0.4em below the line: denominators on the systems
