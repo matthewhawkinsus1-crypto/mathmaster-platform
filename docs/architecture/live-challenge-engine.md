@@ -630,11 +630,24 @@ list them), and scrubs their rows from match results and reports (by the
 `studentIds` key both carry). It also takes their rows out of the private
 round results (`liveChallengePrivate/{roomId}/rounds/{round}`) of the room
 their invite names, which a room retired without finishing keeps, and of each
-match they played whose private cleanup has not run (SI13). Known gaps:
-reports written before that key existed are not reachable by query, and a
-retired room the invite no longer names (the teacher has started another
-match since) keeps its private round results until the pre-production reset,
-which clears every collection above.
+match they played whose private cleanup has not run (SI13). A report's
+question-set rows (`lineGraph.players`, `graphFeatureRush.players`) go too
+(`reportRowsWithout`, SI07).
+
+A match that finishes while the deletion runs never pays or reports the
+student (SI07). The deletion's first write marks their roster row
+(`permanentDeletionStartedAt`, `functions/shared/studentDeletionMark.mjs`),
+and every finalization effect that writes about a student reads the roster
+rows in the transaction that writes: the report, Warm-Up credit and evidence
+leave out a student whose row is marked or gone, reward staging does not
+stage them, and award delivery's roster re-check skips them
+(`student_being_deleted`). A transaction that read a row just before the mark
+runs again and sees it; whatever committed before the mark is erased by the
+deletion's later steps. Known gaps: reports written before the `studentIds`
+key existed are not reachable by query, and a retired room the invite no
+longer names (the teacher has started another match since) keeps its private
+round results until the pre-production reset, which clears every collection
+above.
 
 ### 12a. The standings snapshot
 

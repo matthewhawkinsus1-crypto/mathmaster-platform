@@ -73,10 +73,17 @@ const ROUND_STANDARDS = {
 const seed = async () => {
   await db.recursiveDelete(db.collection('liveChallengeRooms').doc(ROOM)).catch(() => {});
   await db.recursiveDelete(db.collection('liveChallengePrivate').doc(ROOM)).catch(() => {});
-  for (const id of ['student-played', 'student-absent']) {
+  for (const id of ['student-played', 'student-absent', 'student-leaving']) {
     await db.collection('grades').doc(id).delete().catch(() => {});
     await db.recursiveDelete(db.collection('grades').doc(id).collection('evidenceEvents')).catch(() => {});
+    // On the class roster, as every player is (a match's players come from
+    // it). A finished match writes about a student only while their roster
+    // row is there and not marked for deletion (SI07).
+    await db.collection('grades').doc(id).set({ classId: 'class-1', assignedTeacherEmail: TEACHER, status: 'active' });
   }
+  // Their permanent deletion began as the match finished: its first write
+  // marks the roster row (functions/shared/studentDeletionMark.mjs).
+  await db.collection('grades').doc('student-leaving').set({ permanentDeletionStartedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
   await db.collection('liveChallengeReports').doc(ROOM).delete().catch(() => {});
 
   await db.collection('liveChallengeRooms').doc(ROOM).set({
@@ -112,6 +119,12 @@ const seed = async () => {
     studentId: 'student-played', playerKey: 'pk-1', alias: 'Swift Otter', joined: true,
     joinedAtRound: 0, score: 3000, correctCount: 3, roundsAnswered: 4,
     answeredRounds: [0, 1, 2, 3, 4], missedRounds: [1],
+  });
+  // Played every round — and is being permanently deleted (above).
+  await db.collection('liveChallengePrivate').doc(ROOM).collection('players').doc('student-leaving').set({
+    studentId: 'student-leaving', playerKey: 'pk-3', alias: 'Quiet Lynx', joined: true,
+    joinedAtRound: 0, score: 2000, correctCount: 2, roundsAnswered: 4,
+    answeredRounds: [0, 1, 2, 3], missedRounds: [],
   });
   // Never joined. Must produce no credit and no evidence at all.
   await db.collection('liveChallengePrivate').doc(ROOM).collection('players').doc('student-absent').set({
@@ -200,6 +213,17 @@ test('mastery evidence is written per standard, with the replay excluded', async
     assert.equal(event.performance.isMathematicallyIndependent, true);
     assert.match(event.conditions, /Timed/);
   }
+});
+
+test('a student whose permanent deletion began as the match finished is not credited, given evidence or reported (SI07)', async () => {
+  const grades = await db.collection('grades').doc('student-leaving').get();
+  assert.equal(grades.data().warmupChallengeByAssignment, undefined, 'no Warm-Up credit');
+  const events = await db.collection('grades').doc('student-leaving').collection('evidenceEvents').get();
+  assert.equal(events.size, 0, 'no mastery evidence');
+  const report = (await db.collection('liveChallengeReports').doc(ROOM).get()).data();
+  assert.ok(report.studentIds.includes('student-played'), 'the classmate is reported');
+  assert.equal(report.studentIds.includes('student-leaving'), false);
+  assert.doesNotMatch(JSON.stringify(report), /student-leaving|Quiet Lynx/, 'no report row anywhere');
 });
 
 test('a student who never joined leaves no mastery evidence', async () => {

@@ -19,6 +19,7 @@ import {
 } from './liveChallengeRewardRules.mjs';
 import { buildMatchResult, standingFromPlayer } from './liveChallengeResults.mjs';
 import { REWARD_GRANTS_COLLECTION, buildRewardGrant } from './rewardGrants.mjs';
+import { STUDENT_DELETION_MARK, rosterRowAcceptsEffects } from './studentDeletionMark.mjs';
 
 /*
  * LIVE CHALLENGE REWARD DELIVERY (server only).
@@ -141,6 +142,9 @@ export function rosterAuthorizationFromRecords({ classId, classExists = true, cl
     return { valid: false, reason: 'missing_teacher_of_record' };
   }
   if (!gradeExists || !gradeData) return { valid: false, reason: 'grade_not_found' };
+  // Being permanently deleted (the deletion's first write marks the row,
+  // studentDeletionMark.mjs): never paid again, however the match finished (SI07).
+  if (gradeData[STUDENT_DELETION_MARK]) return { valid: false, reason: 'student_being_deleted' };
   if (gradeData.classId !== classId) return { valid: false, reason: 'grade_class_mismatch' };
   if (!gradeData.assignedTeacherEmail || gradeData.assignedTeacherEmail !== teacherOfRecord) {
     return { valid: false, reason: 'teacher_mismatch_or_missing' };
@@ -280,8 +284,16 @@ export async function stageLiveChallengeRewards(db, { matchResult, policy, perso
   const jobRef = db.collection(JOBS_COLLECTION).doc(roomId);
   const awards = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(jobRef);
+    // A student deleted while the match finished is not staged at all (SI07):
+    // the job is cleaned of them by the deletion, and an award staged after
+    // that from an earlier read of the result would keep their id on it.
+    const plannedIds = [...new Set(planned.map((award) => String(award.studentId || '').trim()).filter(Boolean))];
+    const rows = plannedIds.length
+      ? await transaction.getAll(...plannedIds.map((studentId) => db.collection('grades').doc(studentId)))
+      : [];
+    const recipients = new Set(rows.filter((row) => rosterRowAcceptsEffects(row)).map((row) => row.id));
     const existing = snapshot.exists ? (snapshot.data()?.awards || []) : [];
-    const merged = mergeStagedAwards(existing, planned);
+    const merged = mergeStagedAwards(existing, planned.filter((award) => recipients.has(String(award.studentId || '').trim())));
     transaction.set(jobRef, {
       roomId,
       classId: matchResult.classId,

@@ -7234,24 +7234,23 @@ async function deleteStudentLiveChallengeFootprint(db, studentId, deleted) {
   }
   if (roundsScrubbed) deleted.liveChallengePrivateRoundsScrubbed = roundsScrubbed;
 
-  const scrub = async (collectionName, rowFields) => {
+  const scrub = async (collectionName, patchOf) => {
     const snapshot = await db.collection(collectionName).where("studentIds", "array-contains", studentId).get();
     for (const recordDoc of snapshot.docs) {
-      const data = recordDoc.data() || {};
-      const patch = {
-        studentIds: (Array.isArray(data.studentIds) ? data.studentIds : []).filter((id) => id !== studentId),
-      };
-      rowFields.forEach((field) => {
-        if (Array.isArray(data[field])) patch[field] = data[field].filter((row) => row?.studentId !== studentId);
-      });
       // eslint-disable-next-line no-await-in-loop
-      await recordDoc.ref.set(patch, { merge: true });
+      await recordDoc.ref.set(patchOf(recordDoc.data() || {}), { merge: true });
     }
     return snapshot.size;
   };
-  const resultsScrubbed = await scrub(LIVE_CHALLENGE_MATCH_RESULTS, ["standings"]);
+  const resultsScrubbed = await scrub(LIVE_CHALLENGE_MATCH_RESULTS, (data) => ({
+    studentIds: (Array.isArray(data.studentIds) ? data.studentIds : []).filter((id) => id !== studentId),
+    ...(Array.isArray(data.standings) ? { standings: data.standings.filter((row) => row?.studentId !== studentId) } : {}),
+  }));
   if (resultsScrubbed) deleted.liveChallengeMatchResultsScrubbed = resultsScrubbed;
-  const reportsScrubbed = await scrub(LIVE_CHALLENGE_REPORTS, ["players", "neverJoined"]);
+  // Every row a report names them in, a question-set mode's own player rows
+  // included (lineGraph / graphFeatureRush; SI07) — the class's totals stay.
+  const reportRules = await liveChallengeReportRules();
+  const reportsScrubbed = await scrub(LIVE_CHALLENGE_REPORTS, (data) => reportRules.reportRowsWithout(data, (id) => id === studentId));
   if (reportsScrubbed) deleted.liveChallengeReportsScrubbed = reportsScrubbed;
 }
 
@@ -7293,6 +7292,15 @@ exports.permanentlyDeleteStudent = onCall(async (request) => {
   ]);
   if (!rosterSnapshot.exists && directorySnapshot.empty && aliasSnapshot.empty) {
     throw new HttpsError("not-found", "That student account is not present in MathMaster.");
+  }
+
+  // The FIRST write marks the roster row (SI07): a Live Challenge finishing
+  // while this runs reads the row in each effect's transaction and pays,
+  // credits and reports this student no more (studentDeletionMark.mjs). The
+  // row, mark and all, is deleted below; a retry finds it marked and goes on.
+  if (rosterSnapshot.exists) {
+    const { STUDENT_DELETION_MARK } = await studentDeletionMark();
+    await rosterRef.update({ [STUDENT_DELETION_MARK]: FieldValue.serverTimestamp() });
   }
 
   // Class Points must be erased while the student's ordinary identity records
@@ -10939,6 +10947,13 @@ async function warmupChallengeRules() {
   return warmupChallengeModule;
 }
 
+// The roster-row mark permanent deletion writes first (SI07).
+let studentDeletionMarkModule = null;
+async function studentDeletionMark() {
+  if (!studentDeletionMarkModule) studentDeletionMarkModule = await import("./shared/studentDeletionMark.mjs");
+  return studentDeletionMarkModule;
+}
+
 let liveChallengeEvidenceModule = null;
 async function liveChallengeEvidenceRules() {
   if (!liveChallengeEvidenceModule) liveChallengeEvidenceModule = await import("./shared/liveChallengeEvidence.mjs");
@@ -13084,6 +13099,26 @@ async function questionSetModeReport(mode, result) {
   return { key: "graphFeatureRush", report: (await graphFeatureRushRules()).rush.buildRushReport(result) };
 }
 
+/*
+ * WHO A FINISHED MATCH MAY STILL WRITE ABOUT (SI07).
+ *
+ * The effects below run from the match result, which may have been read just
+ * before a permanent deletion scrubbed it. Each reads the roster rows of the
+ * students it is about to write about, in the transaction that writes: a row
+ * that is gone, or that permanentlyDeleteStudent has marked (its first write;
+ * functions/shared/studentDeletionMark.mjs), gets no report row, Warm-Up
+ * credit or evidence. A deletion that marks a row meanwhile makes the
+ * transaction run again, and the rerun sees the mark. Rewards make the same
+ * check in their own delivery transaction (liveChallengeClassPoints.mjs).
+ */
+async function liveChallengeEffectRecipients(transaction, db, studentIds = []) {
+  const { rosterRowAcceptsEffects } = await studentDeletionMark();
+  const ids = [...new Set(studentIds.map((id) => String(id || "").trim()).filter(Boolean))];
+  if (!ids.length) return new Set();
+  const rows = await transaction.getAll(...ids.map((id) => db.collection("grades").doc(id)));
+  return new Set(rows.filter((row) => rosterRowAcceptsEffects(row)).map((row) => row.id));
+}
+
 async function writeLiveChallengeReportFromResult(db, result) {
   const reportRules = await liveChallengeReportRules();
   const challengeRules = await liveChallengeRules();
@@ -13116,7 +13151,7 @@ async function writeLiveChallengeReportFromResult(db, result) {
   const resultMode = modes.getChallengeMode(result.modeId);
   const questionSet = modes.roundStructureFor(resultMode).id === modes.ROUND_STRUCTURE.QUESTION_SET;
   const modeReport = questionSet ? await questionSetModeReport(resultMode, result) : null;
-  await db.collection(LIVE_CHALLENGE_REPORTS).doc(result.roomId).set({
+  const document = {
     ...report,
     ...(modeReport ? {
       [modeReport.key]: modeReport.report,
@@ -13135,6 +13170,16 @@ async function writeLiveChallengeReportFromResult(db, result) {
     studentIds: players.map((player) => player.studentId).filter(Boolean),
     finishedAt,
     createdAt: finishedAt,
+  };
+  // A student deleted while the match finished is not reported (SI07): their
+  // rows leave the report as permanent deletion's scrub would take them out.
+  const reportRef = db.collection(LIVE_CHALLENGE_REPORTS).doc(result.roomId);
+  await db.runTransaction(async (transaction) => {
+    const recipients = await liveChallengeEffectRecipients(transaction, db, reportRules.reportStudentIds(document));
+    transaction.set(reportRef, {
+      ...document,
+      ...reportRules.reportRowsWithout(document, (studentId) => !recipients.has(studentId)),
+    });
   });
 }
 
@@ -13151,32 +13196,37 @@ async function writeWarmupCreditFromResult(db, result) {
   // would make an absence indistinguishable from a student who sat through
   // the game and answered nothing.
   const joinedPlayers = (result.standings || []).filter((player) => player.joined === true && player.studentId);
-  for (let start = 0; start < joinedPlayers.length; start += 450) {
-    const batch = db.batch();
-    joinedPlayers.slice(start, start + 450).forEach((player) => {
-      const credit = warmup.warmupChallengeCredit({
-        roundsAnswered: player.roundsAnswered,
-        correctCount: player.correctCount,
-        roundsAvailable: warmup.roundsAvailableToStudent({
-          totalRounds,
-          joinedAtRound: player.joinedAtRound,
-        }),
-      });
-      batch.set(db.collection("grades").doc(player.studentId), {
-        warmupChallengeByAssignment: {
-          [result.assignmentId]: {
-            ...credit,
-            roomId: result.roomId,
-            status: result.status,
-            roundCount: scheduledRounds,
-            roundsPlayed: totalRounds,
-            recordedAt: FieldValue.serverTimestamp(),
-          },
-        },
-      }, { merge: true });
-    });
+  for (let start = 0; start < joinedPlayers.length; start += 200) {
+    const chunk = joinedPlayers.slice(start, start + 200);
     // eslint-disable-next-line no-await-in-loop
-    await batch.commit();
+    await db.runTransaction(async (transaction) => {
+      // A student deleted while the match finished is credited nothing, and
+      // their grade row is never written again (SI07). The merge below would
+      // otherwise re-create a deleted row — and wake Classroom passback.
+      const recipients = await liveChallengeEffectRecipients(transaction, db, chunk.map((player) => player.studentId));
+      chunk.filter((player) => recipients.has(String(player.studentId).trim())).forEach((player) => {
+        const credit = warmup.warmupChallengeCredit({
+          roundsAnswered: player.roundsAnswered,
+          correctCount: player.correctCount,
+          roundsAvailable: warmup.roundsAvailableToStudent({
+            totalRounds,
+            joinedAtRound: player.joinedAtRound,
+          }),
+        });
+        transaction.set(db.collection("grades").doc(player.studentId), {
+          warmupChallengeByAssignment: {
+            [result.assignmentId]: {
+              ...credit,
+              roomId: result.roomId,
+              status: result.status,
+              roundCount: scheduledRounds,
+              roundsPlayed: totalRounds,
+              recordedAt: FieldValue.serverTimestamp(),
+            },
+          },
+        }, { merge: true });
+      });
+    });
   }
 }
 
@@ -13217,15 +13267,38 @@ async function writeChallengeEvidenceFromResult(db, result) {
     // nothing for it; its own rules do (behind the owner's switch).
     ...await lineGraphEvidenceEventsFor(db, result),
   ];
-  for (let start = 0; start < events.length; start += 450) {
-    const batch = db.batch();
-    events.slice(start, start + 450).forEach((evidenceEvent) => {
-      const ref = db.collection("grades").doc(evidenceEvent.studentId)
-        .collection("evidenceEvents").doc(mathPath.opaqueId("challengeEvidence", evidenceEvent.eventKey));
-      batch.set(ref, evidenceEvent);
-    });
+  // One student's events stay in one transaction, at most about 450 writes
+  // each, and each transaction reads its students' roster rows first: a
+  // student deleted while the match finished gets no evidence (SI07), which
+  // would otherwise land under a grade row the deletion has erased.
+  const byStudent = new Map();
+  events.forEach((evidenceEvent) => {
+    const studentId = String(evidenceEvent.studentId || "").trim();
+    if (!studentId) return;
+    if (!byStudent.has(studentId)) byStudent.set(studentId, []);
+    byStudent.get(studentId).push(evidenceEvent);
+  });
+  const chunks = [];
+  byStudent.forEach((studentEvents, studentId) => {
+    const last = chunks.at(-1);
+    if (!last || last.count + studentEvents.length > 450) chunks.push({ studentIds: [studentId], count: studentEvents.length });
+    else {
+      last.studentIds.push(studentId);
+      last.count += studentEvents.length;
+    }
+  });
+  for (const chunk of chunks) {
     // eslint-disable-next-line no-await-in-loop
-    await batch.commit();
+    await db.runTransaction(async (transaction) => {
+      const recipients = await liveChallengeEffectRecipients(transaction, db, chunk.studentIds);
+      chunk.studentIds.filter((studentId) => recipients.has(studentId)).forEach((studentId) => {
+        byStudent.get(studentId).forEach((evidenceEvent) => {
+          const ref = db.collection("grades").doc(evidenceEvent.studentId)
+            .collection("evidenceEvents").doc(mathPath.opaqueId("challengeEvidence", evidenceEvent.eventKey));
+          transaction.set(ref, evidenceEvent);
+        });
+      });
+    });
   }
 }
 

@@ -28,9 +28,9 @@ const NAMES = ['LIVE_CHALLENGE_ROOMS', 'LIVE_CHALLENGE_PRIVATE', 'LIVE_CHALLENGE
 const C = Object.fromEntries(NAMES.map((name) => [name, constant(name)]));
 
 const deleteFootprint = new Function(
-  ...NAMES,
+  ...NAMES, 'liveChallengeReportRules',
   `"use strict";\n${topLevelFunction('deleteStudentLiveChallengeFootprint')}\nreturn deleteStudentLiveChallengeFootprint;`,
-)(...NAMES.map((name) => C[name]));
+)(...NAMES.map((name) => C[name]), async () => import('../../functions/shared/liveChallengeReport.mjs'));
 
 const ROOM = C.LIVE_CHALLENGE_ROOMS;
 const PRIVATE = C.LIVE_CHALLENGE_PRIVATE;
@@ -139,6 +139,28 @@ test('a student never invited to a Live Challenge: nothing in any room changes',
   await deleteFootprint(db, 's-none', deleted);
   assert.deepEqual(db.dump(), before);
   assert.deepEqual(deleted, {});
+});
+
+// SI07: a question-set game's report keeps its mode's own player rows
+// (lineGraph.players, graphFeatureRush.players), each naming a student. The
+// deletion took them out of `players` and `neverJoined` only.
+test('a deleted student leaves a question-set report\'s own player rows too; the class totals stay', async () => {
+  const db = world();
+  db.docsOf(C.LIVE_CHALLENGE_REPORTS).set('R2', {
+    studentIds: ['s1', 's3'],
+    players: [{ studentId: 's1' }, { studentId: 's3' }],
+    neverJoined: [{ studentId: 's9', alias: 'Grey Elk' }],
+    lineGraph: { accuracyPercent: 75, attempts: 12, players: [{ studentId: 's1', alias: 'Blue Fox' }, { studentId: 's3', alias: 'Gold Elk' }] },
+    graphFeatureRush: { accuracyPercent: 60, players: [{ studentId: 's3', alias: 'Gold Elk' }, { studentId: 's1', alias: 'Blue Fox' }] },
+  });
+  await deleteFootprint(db, 's1', {});
+  const report = db.data(C.LIVE_CHALLENGE_REPORTS, 'R2');
+  assert.deepEqual(report.studentIds, ['s3']);
+  assert.deepEqual(report.players, [{ studentId: 's3' }]);
+  assert.deepEqual(report.neverJoined, [{ studentId: 's9', alias: 'Grey Elk' }], 'nobody else leaves');
+  assert.deepEqual(report.lineGraph, { accuracyPercent: 75, attempts: 12, players: [{ studentId: 's3', alias: 'Gold Elk' }] });
+  assert.deepEqual(report.graphFeatureRush, { accuracyPercent: 60, players: [{ studentId: 's3', alias: 'Gold Elk' }] });
+  assert.doesNotMatch(JSON.stringify(report), /"s1"|Blue Fox/);
 });
 
 // SI13: the private round results (liveChallengePrivate/{room}/rounds/{n})

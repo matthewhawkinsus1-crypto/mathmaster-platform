@@ -197,4 +197,53 @@ export const buildChallengeReport = ({
   };
 };
 
+/*
+ * EVERY PLACE A REPORT NAMES A STUDENT (SI07).
+ *
+ * The class list (`players`), who never joined (`neverJoined`), the key
+ * permanent deletion searches by (`studentIds`), and a question-set mode's own
+ * player rows (`lineGraph.players`, `graphFeatureRush.players`). A student
+ * taken out of a report leaves every one of them; the class's totals stay, the
+ * class's record, as permanent deletion has always left them.
+ */
+export const REPORT_STUDENT_ROW_PATHS = Object.freeze(['players', 'neverJoined', 'lineGraph.players', 'graphFeatureRush.players']);
+
+const rowStudentId = (row) => (row && typeof row === 'object' ? String(row.studentId || '').trim() : '');
+
+/** Every student id a report names, in any of its rows. */
+export const reportStudentIds = (report = {}) => {
+  const ids = new Set((Array.isArray(report?.studentIds) ? report.studentIds : []).map((id) => String(id || '').trim()));
+  REPORT_STUDENT_ROW_PATHS.forEach((path) => {
+    const [parent, child] = path.split('.');
+    const rows = child ? report?.[parent]?.[child] : report?.[parent];
+    (Array.isArray(rows) ? rows : []).forEach((row) => ids.add(rowStudentId(row)));
+  });
+  ids.delete('');
+  return [...ids].sort();
+};
+
+/**
+ * The fields of `report` that change when the students `removed(id)` names
+ * leave it — top-level fields whole, so the result can be written as a merge
+ * patch or spread over the report. Fields the report does not have are left
+ * out.
+ */
+export const reportRowsWithout = (report = {}, removed = () => false) => {
+  const keep = (row) => !removed(rowStudentId(row));
+  const patch = {};
+  if (Array.isArray(report?.studentIds)) patch.studentIds = report.studentIds.filter((id) => !removed(String(id || '').trim()));
+  REPORT_STUDENT_ROW_PATHS.forEach((path) => {
+    const [parent, child] = path.split('.');
+    if (!child) {
+      if (Array.isArray(report?.[parent])) patch[parent] = report[parent].filter(keep);
+      return;
+    }
+    const holder = report?.[parent];
+    if (holder && typeof holder === 'object' && Array.isArray(holder[child])) {
+      patch[parent] = { ...holder, [child]: holder[child].filter(keep) };
+    }
+  });
+  return patch;
+};
+
 export default buildChallengeReport;
