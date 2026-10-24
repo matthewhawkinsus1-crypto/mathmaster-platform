@@ -137,7 +137,9 @@ test('the tray is wired into questions, Work View and the Path, and loads lazily
   const engine = executableSource(readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8'));
   assert.match(engine, /supportEntitlement \|\| toolsEntitlementFromProfile\(stableStudentProfile, \{ activityRole(?:, universalDesignRole: explicitActivityRole)? \}\)/);
   assert.match(engine, /supportTray=\{supportTrayFor\('assignment'\)\}/);
-  assert.match(engine, /supports: languageTools\.tools\.length \? \{ label: 'Support tools', render: \(\) => supportTrayFor\('enlarged'\) \} : null,/);
+  // Work View's drawer carries the tray under the tray's own name, not the
+  // header list's "Support tools" (studentWords.js LANGUAGE_TOOLS, RUN-22).
+  assert.match(engine, /supports: languageTools\.tools\.length \? \{ label: LANGUAGE_TOOLS, render: \(\) => supportTrayFor\('enlarged'\) \} : null,/);
   assert.match(engine, /onEvidence=\{reportToolEvidence\}/);
   const shell = readFileSync(new URL('../../src/components/common/EnlargeableFigure.jsx', import.meta.url), 'utf8');
   assert.match(shell, /\{enlarged && drawer === 'supports' \? supports\.render\(\) : null\}/);

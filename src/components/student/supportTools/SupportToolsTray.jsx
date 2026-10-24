@@ -8,13 +8,17 @@ import { loadMathGlossary } from '../../../platform/language/mathVocabulary.js';
 import { speakAloud, speechAvailable, stopSpeaking } from '../../../platform/language/speechText.js';
 import { questionReadingText } from '../../../platform/language/questionReading.js';
 import { secureVocabularyEntries, secureVocabularyLabels } from '../../../platform/assessment/secureSupportPanels.js';
+import { LANGUAGE_TOOLS } from '../../../platform/student/studentWords.js';
 
 /*
- * THE SUPPORT TOOLS TRAY — loaded only for a student entitled to a language
+ * THE LANGUAGE TOOLS TRAY — loaded only for a student entitled to a language
  * tool (StudentSupportTools.jsx StudentSupportTray). It sits INLINE under the
  * task, never over it: the answer fields, the graph, the Step Algebra
  * workspace and the calculator stay where they are, and a panel scrolls inside
- * itself on a phone. Labels are neutral ("Support tools"), never a program.
+ * itself on a phone. Labels are neutral ("Language tools"), never a program.
+ * It is "Language tools", not "Support tools": the header's list of a
+ * student's supports and teacher materials already has that name, and two
+ * different sets of tools must not share one (studentWords.js, RUN-22).
  *
  * Evidence (onEvidence) is the support evidence system's: each tool's state
  * once per item (available / provided / not applicable / unavailable — see
@@ -347,10 +351,10 @@ export default function SupportToolsTray({
   const partsOpen = partsOffered && (openTool === READ_PARTS || openTool === SUPPORT_TOOL.READ_ALOUD);
 
   return (
-    <div className={`mathmaster-support-tray${className ? ` ${className}` : ''}`} data-student-support-tray={surface} role="group" aria-label="Support tools">
+    <div className={`mathmaster-support-tray${className ? ` ${className}` : ''}`} data-student-support-tray={surface} role="group" aria-label={LANGUAGE_TOOLS}>
       {allButtons.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-          <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Support tools</span>
+          <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{LANGUAGE_TOOLS}</span>
           {allButtons.map((tool) => (
             <button
               key={tool.tool}

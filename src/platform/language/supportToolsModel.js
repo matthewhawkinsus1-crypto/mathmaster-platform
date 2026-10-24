@@ -1,8 +1,8 @@
 /*
- * SUPPORT TOOLS FOR ONE ITEM — entitled AND backed, or not shown.
+ * LANGUAGE TOOLS FOR ONE ITEM — entitled AND backed, or not shown.
  *
- * The student's neutral "Support tools" (src/components/student/
- * StudentSupportTools.jsx) offer at most five language tools. Each appears only
+ * The student's neutral "Language tools" (the tray in src/components/student/
+ * supportTools/SupportToolsTray.jsx) offer at most five tools. Each appears only
  * when BOTH are true:
  *
  *   entitled  the student's effective support profile includes it — the same

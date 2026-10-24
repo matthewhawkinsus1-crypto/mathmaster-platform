@@ -30,6 +30,7 @@ import { buildSimilarWorkedExample } from './platform/supports/workedExample/sim
 import PracticeLikeThis from './platform/supports/workedExample/PracticeLikeThis.jsx';
 import { chosenOptionReasons, oneTryNotice } from './platform/supports/feedback/oneTryChoice.js';
 import { SAME_ANSWER_AGAIN, missOutcomeText, submitActionLabel, submitTryCost, triesLeftText } from './platform/student/submitCost.js';
+import { LANGUAGE_TOOLS } from './platform/student/studentWords.js';
 import './components/student/SubmitCost.css';
 import { closedQuestionEnterAction } from './platform/interaction/closedQuestionEnter.js';
 import { READ_ONLY_WORK_AREA_LABEL, READ_ONLY_WORK_AREA_SELECTOR, bindReadOnlyWorkArea } from './platform/interaction/readOnlyWorkArea.js';
@@ -323,7 +324,7 @@ function QuestionEngineBody({
   // caller filters to supports the student is entitled to and de-duplicates.
   // Student assignment work only; previews pass nothing.
   onSupportEvidence = null,
-  // Which language Support tools to offer, when the caller already knows
+  // Which Language tools to offer, when the caller already knows
   // (supportToolsEntitlement.js toolsEntitlementFromPath on My Math Path).
   supportEntitlement = null,
   // The graph read-out (AX03), when the caller already knows (a secure item
@@ -3179,9 +3180,9 @@ function QuestionEngineBody({
         task: { text:processedQuestion?.prompt || processedQuestion?.scenario || 'Complete the math task.', authoritative:true },
         help: workViewPlatformHelp,
         instruction: taskContextPresentation.currentStagePrompt ? { text:taskContextPresentation.currentStagePrompt, authoritative:true } : null,
-        // The same Support tools inside Work View, so an enlarged tool never
+        // The same Language tools inside Work View, so an enlarged tool never
         // loses them (rendered only while that drawer is open).
-        supports: languageTools.tools.length ? { label: 'Support tools', render: () => supportTrayFor('enlarged') } : null,
+        supports: languageTools.tools.length ? { label: LANGUAGE_TOOLS, render: () => supportTrayFor('enlarged') } : null,
         // "Information you need" in Work View too (TOOL-12): the question's own
         // content, so it stays on every activity, assessments included.
         reference: referenceInfo ? { content: <ReferenceInfoCard referenceInfo={referenceInfo} />, authoritative: true } : null,

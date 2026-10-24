@@ -8,9 +8,10 @@ import { loadMathGlossary } from '../../platform/language/mathVocabulary.js';
 import { speakAloud, speechAvailable, stopSpeaking } from '../../platform/language/speechText.js';
 import { SECURE_ACCESS_TOOLS } from '../../platform/assessment/secureItemAccess.js';
 import { secureTranslationView, secureVocabularyEntries } from '../../platform/assessment/secureSupportPanels.js';
+import { LANGUAGE_TOOLS } from '../../platform/student/studentWords.js';
 
 /*
- * THE SUPPORT TOOLS TRAY, AS A SECURE ITEM SHOWS IT.
+ * THE LANGUAGE TOOLS TRAY, AS A SECURE ITEM SHOWS IT.
  *
  * Loaded only for a student entitled to one of the three tools
  * (SecureItemAccessSupports.jsx), and built from the same parts as the tray on
@@ -212,9 +213,9 @@ export default function SecureSupportToolsTray({
   const open = buttons.find((tool) => tool.tool === openTool) || null;
 
   return (
-    <div className="mathmaster-support-tray" data-student-support-tray={surface} role="group" aria-label="Support tools" style={{ margin: '0 0 16px' }}>
+    <div className="mathmaster-support-tray" data-student-support-tray={surface} role="group" aria-label={LANGUAGE_TOOLS} style={{ margin: '0 0 16px' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-        <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Support tools</span>
+        <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{LANGUAGE_TOOLS}</span>
         {buttons.map((tool) => (
           <button
             key={tool.tool}

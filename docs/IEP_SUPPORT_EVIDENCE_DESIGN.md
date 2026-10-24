@@ -447,7 +447,7 @@ due date) is reported as a count.
 - Secure Test Cycles are not reduced.
 - Parts inside one question record are not reduced (see 11.4).
 
-## 12. Language access through Support tools (Translate, Vocabulary, Read aloud, Break it down, Help me say it)
+## 12. Language access through Language tools (Translate, Vocabulary, Read aloud, Break it down, Help me say it)
 
 Language access is never easier mathematics. Every tool here changes the words around a task — never its numbers,
 expressions, coordinates, answer expressions, or what is asked. There is no "EB mode", no EB-only profile and no
@@ -544,7 +544,7 @@ mathematics.
   under the task — inside the task panel on a phone (which scrolls within its own capped height), under the task on
   tablets and Chromebooks, and above the work when a focused solver workspace hides the task. Never over the answer
   fields, graphs, Step Algebra or the calculator. Read aloud stays the work-bar "Read" button.
-- **Work View** (enlarged rich tools): a header **Support tools** drawer (capability `supports`, rendered only while
+- **Work View** (enlarged rich tools): a header **Language tools** drawer (capability `supports`, rendered only while
   open) with the same tools, Read aloud included.
 - **My Math Path**: `PathSupportBar` renders the same tray from the server's applicable list. A tool question renders
   `QuestionEngine` instead, which is handed the same server list (`supportEntitlement`) and folds its tray facts into
@@ -552,7 +552,8 @@ mathematics.
   the student opened travel with the attempt (`supportsPresented` / `supportsUsed`), which the server intersects with
   what it authorized (`reconcileSupportDelivery`).
 
-Labels are neutral ("Support tools"); nothing names a program or a classification.
+Labels are neutral ("Support tools" for the header's list of a student's supports and materials, "Language tools" for
+the tray and its Work View drawer; student pass 3, A3-53); nothing names a program or a classification.
 
 ### 12.9 Evidence and reporting
 

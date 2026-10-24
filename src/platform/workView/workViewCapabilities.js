@@ -4,7 +4,7 @@ export const WORK_VIEW_CAPABILITIES = Object.freeze([
   'undo', 'redo', 'fitView', 'panZoom', 'pointEditing', 'numericControls',
   'equationInput', 'tableData', 'instruction', 'task', 'help',
   'primaryActions', 'secondaryActions',
-  // The student's Support tools (language tools), as a header drawer.
+  // The student's Language tools, as a header drawer.
   'supports',
   // The Help drawer's other two parts (student pass 3, TOOL-3): the tool's
   // description and "How to do this" steps, which Work View hides with the

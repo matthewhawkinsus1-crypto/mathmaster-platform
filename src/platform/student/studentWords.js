@@ -124,6 +124,57 @@ export const triesCount = (count) => {
   return `${n} ${n === 1 ? 'try' : 'tries'}`;
 };
 
+// --- Two sets of tools -------------------------------------------------------
+
+/*
+ * Two different sets of tools were both called "Support tools" (student pass
+ * 3, RUN-22 / A3-53): the header's list of what a student can use and the
+ * materials their teacher attached, and the tray under a question that reads
+ * it aloud, translates it and explains its words. A student, and a screen
+ * reader, could not tell them apart. The header's list keeps the neutral
+ * "Support tools" (nothing names a program or a plan); the tray, and the
+ * Work View drawer that holds it, are "Language tools".
+ */
+export const SUPPORT_TOOLS = 'Support tools';
+export const LANGUAGE_TOOLS = 'Language tools';
+
+// --- Work View's caption -----------------------------------------------------
+
+/*
+ * WHAT THE ENLARGED VIEW CARRIES, IN A STUDENT'S WORDS (student pass 3, TOOL-6
+ * / A3-105; VH-32).
+ *
+ * The caption under Work View's controls ("In this view: …") was built from
+ * the platform's capability keys by splitting them, so a student read
+ * "Numeric controls · Equation input · Table data · Edit mathematical objects".
+ * These are the same things in the words a student uses for them. A tool that
+ * has better words for what it holds ("Sequence table", "Your line: y = 2x + 3")
+ * says them itself and they win; this is the fallback, so a key is never
+ * printed. The map covers every capability, shown in the caption or not, and a
+ * test holds it to the platform's list.
+ */
+export const WORK_VIEW_CAPABILITY_WORDS = Object.freeze({
+  undo: 'Undo',
+  redo: 'Redo',
+  fitView: 'Fit View',
+  panZoom: 'Pan and zoom',
+  pointEditing: 'Things you can move or change',
+  numericControls: 'Number boxes',
+  equationInput: 'Equation boxes',
+  tableData: 'Tables',
+  instruction: 'What to do next',
+  task: 'Your task',
+  help: 'Help',
+  primaryActions: 'Main buttons',
+  secondaryActions: 'Other buttons',
+  supports: LANGUAGE_TOOLS,
+  directions: 'How to do this',
+  toolHelp: 'Help with this tool',
+  reference: 'Information you need',
+});
+/** A capability's student word; nothing at all for a key the list does not know. */
+export const workViewCapabilityWord = (key) => WORK_VIEW_CAPABILITY_WORDS[key] || '';
+
 // --- Hints -------------------------------------------------------------------
 
 /*

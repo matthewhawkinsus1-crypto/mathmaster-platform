@@ -8,7 +8,7 @@ import {
 /*
  * READ ALOUD AND TRANSLATE FOR WHAT MATHMASTER SAYS BACK.
  *
- * The prompt already has both (the work bar's Read button, the Support tools
+ * The prompt already has both (the work bar's Read button, the Language tools
  * tray). Feedback, hints and the worked solution are text the student did not
  * have before the attempt, so a student entitled to Read aloud or Translate
  * gets the same two actions beside each of them — and only that student:

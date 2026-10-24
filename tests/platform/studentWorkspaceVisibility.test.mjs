@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { ASSIGNMENT_NAV_HEIGHT_VAR, STICKY_TASK_HEIGHT_VAR, stickyHeightRef } from '../../src/platform/layout/stickyHeightRef.js';
 import { region } from './helpers/sourceContract.mjs';
+import { workViewCapabilityWord } from '../../src/platform/student/studentWords.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -140,19 +141,21 @@ test('Work View holds the tool’s place and restores the scroll position on clo
 
 // Live QA round 2, Connect the Line in Work View: the header showed "Your task:
 // …" and the instruction banner under it repeated the same prompt; the rail
-// chips read "numeric Controls" and "table Data".
-test('registered-tool Work View shows the task once and labels chips in sentence case', () => {
+// chips read "numeric Controls" and "table Data" (then "Numeric controls" and
+// "Table data": the key split into words, VH-32).
+test('registered-tool Work View shows the task once and names what it carries in the student\'s words', () => {
   const source = read('src/tools/shared/RegisteredToolWorkView.jsx');
   const describe = source.slice(source.indexOf('const capabilityDescriptor'), source.indexOf('// Final-registry safety net'));
   assert.match(describe, /if \(key === 'instruction'\) return descriptor\(key\);/);
   assert.doesNotMatch(describe, /'instruction'\) return \{[^}]*content: taskText/);
 
-  // Evaluate the label helper without importing JSX.
-  const helper = source.slice(source.indexOf('export const capabilityLabel'), source.indexOf('const descriptor'));
-  const capabilityLabel = new Function(`${helper.replace('export const', 'const')} return capabilityLabel;`)();
-  assert.equal(capabilityLabel('numericControls'), 'Numeric controls');
-  assert.equal(capabilityLabel('tableData'), 'Table data');
-  assert.equal(capabilityLabel('pointEditing'), 'Edit mathematical objects');
+  // The caption's words come from the student word list, not from splitting
+  // the capability key.
+  assert.match(source, /const descriptor = \(key\) => \(\{\s*label: workViewCapabilityWord\(key\),/);
+  assert.equal(workViewCapabilityWord('numericControls'), 'Number boxes');
+  assert.equal(workViewCapabilityWord('equationInput'), 'Equation boxes');
+  assert.equal(workViewCapabilityWord('tableData'), 'Tables');
+  assert.equal(workViewCapabilityWord('pointEditing'), 'Things you can move or change');
 });
 
 // Live QA round 2, 1536×900 Work View: twelve line cards in a 540px column with

@@ -318,6 +318,34 @@ function OperationChip({ token, latex = '' }) {
   return sign ? <span>{sign}{operand}</span> : <span>{token.text}</span>;
 }
 
+/**
+ * What the solver says when the question's equation is missing or cannot be
+ * read. A student cannot repair it, so the panel says what happened and points
+ * at the person who can.
+ *
+ * The parser's own message ("…require one equation with one equals sign") is
+ * for that person, so only a teacher's preview shows it. A student reads the
+ * sentences and nothing from the parser (pass 3, RUN-16).
+ */
+export function UnreadableEquationPanel({ parseError = null, teacherView = false }) {
+  return (
+    <section style={{ maxWidth: '760px', margin: '0 auto', padding: '26px', textAlign: 'left' }}>
+      <div style={{ padding: '22px 24px', borderRadius: '12px', background: 'var(--mm-warning-soft, var(--mm-warning-bg))', border: '1px solid var(--mm-warning, #f9ab00)' }}>
+        <h3 style={{ margin: 0, color: 'var(--mm-warning-text)' }}>This question could not be loaded</h3>
+        <p style={{ margin: '10px 0 0', color: 'var(--mm-ink, var(--mm-text-strong))', lineHeight: 1.55 }}>
+          Its equation is missing or written in a form the step-by-step solver cannot read, so there is nothing here for you to solve.
+          Nothing you did caused this and your grade is not affected. Let your teacher know so they can fix the question.
+        </p>
+        {parseError && teacherView && (
+          <p style={{ margin: '12px 0 0', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-ink-muted, var(--mm-text-muted))' }}>
+            Details for your teacher: {parseError}
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export default function StepByStepAlgebra({
   question: questionProp,
   questionRecord,
@@ -2360,24 +2388,7 @@ export default function StepByStepAlgebra({
   // Placed after every hook so hook order stays identical whether or not the
   // blueprint parsed. A student can't repair the JSON, so this states what
   // happened and points at the person who can.
-  if (!equation) {
-    return (
-      <section style={{ maxWidth: '760px', margin: '0 auto', padding: '26px', textAlign: 'left' }}>
-        <div style={{ padding: '22px 24px', borderRadius: '12px', background: 'var(--mm-warning-soft, var(--mm-warning-bg))', border: '1px solid var(--mm-warning, #f9ab00)' }}>
-          <h3 style={{ margin: 0, color: 'var(--mm-warning-text)' }}>This question could not be loaded</h3>
-          <p style={{ margin: '10px 0 0', color: 'var(--mm-ink, var(--mm-text-strong))', lineHeight: 1.55 }}>
-            Its equation is missing or written in a form the step-by-step solver cannot read, so there is nothing here for you to solve.
-            Nothing you did caused this and your grade is not affected. Let your teacher know so they can fix the question.
-          </p>
-          {parseError && (
-            <p style={{ margin: '12px 0 0', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-ink-muted, var(--mm-text-muted))' }}>
-              Details for your teacher: {parseError}
-            </p>
-          )}
-        </div>
-      </section>
-    );
-  }
+  if (!equation) return <UnreadableEquationPanel parseError={parseError} teacherView={teacherView} />;
 
   return (
     <section className={`${shake ? 'algebra-shake' : ''}${embedded ? ' algebra-embedded' : ''}`} style={{ maxWidth: '1120px', margin: '0 auto', padding: embedded ? '4px 0 8px' : '10px 10px 24px', textAlign: 'left' }}>

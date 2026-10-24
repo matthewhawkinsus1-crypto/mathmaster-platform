@@ -8,7 +8,7 @@ const SecureSupportToolsTray = lazy(() => import('./SecureSupportToolsTray.jsx')
 /*
  * READ ALOUD, TRANSLATE AND VOCABULARY FOR A SECURE ITEM'S PROMPT.
  *
- * The Support tools a student meets on every assignment — the same speech,
+ * The Language tools a student meets on every assignment — the same speech,
  * the same translation providers, the same glossary, the same evidence
  * records (SecureSupportToolsTray.jsx says what it shares and what it shows
  * differently) — given two limits that make them safe on a secure item:

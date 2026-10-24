@@ -13,7 +13,7 @@
  *   questionReadingText(parts)              → the whole question, one text
  *
  * Each part is one thing on the screen, so a student can hear just that part
- * again (the Support tools tray lists them). `text` is what the screen shows,
+ * again (the Language tools tray lists them). `text` is what the screen shows,
  * mathematics included; speakAloud (./speechText.js) turns the mathematics
  * into words, so a part says "c of x" and "4 dollars and 50 cents" like the
  * rest of Read aloud. `functionNames` (the one-letter functions the question

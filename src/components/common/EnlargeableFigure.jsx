@@ -18,6 +18,7 @@ import { revealWorkViewTarget } from '../../platform/workView/workViewReveal.js'
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 import { useModalDialog } from '../../ui/Dialog.jsx';
 import { relabelToolPrimaryActions, useMethodWithheld, useToolRuntimeContext } from '../../tools/shared/ToolRuntimeContext.jsx';
+import { LANGUAGE_TOOLS, workViewCapabilityWord } from '../../platform/student/studentWords.js';
 import { useFocusSafeDisabled } from './useFocusSafeDisabled.js';
 import './WorkViewShell.css';
 
@@ -523,7 +524,7 @@ export default function EnlargeableFigure({
   // the work lost the numbers the question gives. It is the question's own
   // content, not help: it stays on a DOL, quiz or test. It gets its own header
   // button and drawer; on a phone, where a fourth header button squeezes the
-  // task (see Support tools below), it opens inside the Task drawer instead,
+  // task (see Language tools below), it opens inside the Task drawer instead,
   // as its own labelled group.
   const reference = helpPart(registeredCapabilities.reference);
   const referenceInTask = Boolean(reference && task && viewport.mode === 'mobile');
@@ -545,18 +546,24 @@ export default function EnlargeableFigure({
     (name) => registeredCapabilities[name]?.onAction || registeredCapabilities[name]?.onClick,
   );
   const supports = registeredCapabilities.supports?.render ? registeredCapabilities.supports : null;
-  // ONE DRAWER FOR HELP AND SUPPORT TOOLS ON A PHONE. Every student now has
-  // Support tools outside assessments (universal design), and a fourth 44px
+  // ONE DRAWER FOR HELP AND LANGUAGE TOOLS ON A PHONE. Every student now has
+  // Language tools outside assessments (universal design), and a fourth 44px
   // header button squeezed a phone's task from four lines to six — cut off in
   // the header (studentUxPlatform "staged", PR #454). With Help present, the
   // tools open inside Help there; elsewhere they keep their own button. The
   // button is still named "Help" and the drawer "Help and instructions": the
-  // tray inside is its own group, "Support tools".
+  // tray inside is its own group, "Language tools".
   const supportsInHelp = Boolean(help && supports && viewport.mode === 'mobile');
+  // What the caption says for a capability, in a student's words: the tool's
+  // own label where it has one, else the word list's (studentWords.js). One
+  // the list does not know is left out of the caption rather than printed as
+  // its key (VH-32).
+  const captionWord = (name) => registeredCapabilities[name]?.label || workViewCapabilityWord(name);
   const capabilityNames = workViewCapabilitySummary(registeredCapabilities)
     .filter((name) => !['task', 'help', 'directions', 'toolHelp', 'instruction', 'primaryActions', 'secondaryActions', 'supports'].includes(name))
     .filter((name) => name !== 'reference')
-    .filter((name) => !shellActionNames.includes(name));
+    .filter((name) => !shellActionNames.includes(name))
+    .filter((name) => captionWord(name));
   const shellActions = [
     registeredCapabilities.undo,
     registeredCapabilities.redo,
@@ -726,7 +733,7 @@ export default function EnlargeableFigure({
             Help
           </button>
         ) : null}
-        {supports && !supportsInHelp ? <button type="button" data-work-view-supports aria-expanded={drawer === 'supports'} onClick={() => setDrawer((value) => toggleWorkViewDrawer(value, 'supports'))}>{supports.label || 'Support tools'}</button> : null}
+        {supports && !supportsInHelp ? <button type="button" data-work-view-supports aria-expanded={drawer === 'supports'} onClick={() => setDrawer((value) => toggleWorkViewDrawer(value, 'supports'))}>{supports.label || LANGUAGE_TOOLS}</button> : null}
         <button ref={closeRef} type="button" onClick={close}>{openEnlarged ? 'Close full screen ✕' : 'Close ✕'}</button>
       </header>
       <section className="mathmaster-work-view-drawer" data-open={enlarged && drawer === 'task' ? 'true' : 'false'} aria-label="Original task">
@@ -743,7 +750,7 @@ export default function EnlargeableFigure({
         {supportsInHelp && enlarged && drawer === 'help' ? supports.render() : null}
       </section>
       {supports && !supportsInHelp ? (
-        <section className="mathmaster-work-view-drawer" data-open={enlarged && drawer === 'supports' ? 'true' : 'false'} aria-label="Support tools">
+        <section className="mathmaster-work-view-drawer" data-open={enlarged && drawer === 'supports' ? 'true' : 'false'} aria-label={supports.label || LANGUAGE_TOOLS}>
           {enlarged && drawer === 'supports' ? supports.render() : null}
         </section>
       ) : null}
@@ -769,7 +776,7 @@ export default function EnlargeableFigure({
               {capabilityNames.map((name, index) => (
                 <React.Fragment key={name}>
                   {index ? ' · ' : null}
-                  <span className="mathmaster-work-view-capability" data-work-view-capability={name}>{registeredCapabilities[name]?.label || name}</span>
+                  <span className="mathmaster-work-view-capability" data-work-view-capability={name}>{captionWord(name)}</span>
                 </React.Fragment>
               ))}
             </p>

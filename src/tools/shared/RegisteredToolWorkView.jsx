@@ -8,17 +8,13 @@ import { useHintUseReporter, useOwnHintLadder } from './ToolRuntimeContext';
 import { HintPanel } from './ToolShell';
 import { readToolCheck, sameToolCheck, toolCheckRailAction } from './toolCheckMirror.js';
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
+import { workViewCapabilityWord } from '../../platform/student/studentWords.js';
 
-// Sentence case for the rail labels: `numericControls` used to read
-// "numeric Controls" to the student.
-export const capabilityLabel = (key) => {
-  if (key === 'pointEditing') return 'Edit mathematical objects';
-  const words = key.replace(/([A-Z])/g, ' $1').toLowerCase();
-  return words.charAt(0).toUpperCase() + words.slice(1);
-};
-
+// The caption's word for a capability is the student's own word for the thing
+// ("Number boxes", "Tables"), never the key split into words: `numericControls`
+// read "numeric Controls", then "Numeric controls" (studentWords.js, VH-32).
 const descriptor = (key) => ({
-  label: capabilityLabel(key),
+  label: workViewCapabilityWord(key),
   studentState: !['task', 'help', 'instruction'].includes(key),
 });
 

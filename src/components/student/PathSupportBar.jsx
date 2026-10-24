@@ -65,8 +65,8 @@ export default function PathSupportBar({
   questionInstanceId = '',
   onDelivery = null,
   disabled = false,
-  // The language Support tools (translation, vocabulary, Break it down, Help
-  // me say it) use the same tray as assignments, from the same server list.
+  // The Language tools (translation, vocabulary, Break it down, Help me say
+  // it) use the same tray as assignments, from the same server list.
   prompt = '',
   toolType = '',
   supportLanguage = null,

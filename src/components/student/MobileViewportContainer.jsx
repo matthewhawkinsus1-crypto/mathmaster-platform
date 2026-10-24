@@ -54,7 +54,7 @@ export const MobileViewportContainer = ({
   taskMeta = null,
   taskContextPanel = null,
   contextPanel = null,
-  // The student's language Support tools for this item (StudentSupportTray):
+  // The student's Language tools for this item (StudentSupportTray):
   // inline under the task, never over the answer fields or the tool.
   supportTray = null,
   // Universal-design tools only (no plan support): on a laptop the tray goes
@@ -515,7 +515,7 @@ export const MobileViewportContainer = ({
         </>
       )}
 
-      {/* A focused solver workspace hides the task panel; the Support tools
+      {/* A focused solver workspace hides the task panel; the Language tools
           stay reachable above the work. */}
       {workspaceActive && supportTray && !(supportTrayAfterWork && !isMobile) && <div className="mathmaster-question-support-tray">{supportTray}</div>}
       <div ref={workspaceRef} className="math-tool-workspace" role={hostHasMain ? undefined : 'main'}>
