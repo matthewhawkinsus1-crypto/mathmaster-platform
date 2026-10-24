@@ -200,15 +200,15 @@ jobs:
       # regenerates (firebase.json), so a seed that drifted from its source
       # would dirty the tree at deploy time and stop the release. These checks
       # lived in ccmr-v2-1-*.yml, which ran only on a branch idle since August.
-      # The TSIA2 V2.1 release check is not here yet: since Oct 18 it fails on
-      # main (a TSIA2 prompt template the same as an ACT one), which is a
-      # content decision, not CI's.
       - name: Check the Digital SAT V2.1 release package
         if: ${{ !cancelled() }}
         run: node scripts/build-digital-sat-v2-1.mjs --release --check
       - name: Check the ACT V2.1 release package
         if: ${{ !cancelled() }}
         run: node scripts/build-act-v2-1.mjs --release --check
+      - name: Check the TSIA2 V2.1 release package
+        if: ${{ !cancelled() }}
+        run: node scripts/build-tsia2-v2-1.mjs --release --check
       - name: Check the coordinated CCMR V2.1 production seeds
         if: ${{ !cancelled() }}
         run: node scripts/build-ccmr-v2-1-production-release.mjs --check

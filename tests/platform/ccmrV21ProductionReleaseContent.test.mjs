@@ -125,6 +125,7 @@ test('release CI checks the authored frameworks and never rewrites production se
   const requiredChecks = [
     'node scripts/build-digital-sat-v2-1.mjs --release --check',
     'node scripts/build-act-v2-1.mjs --release --check',
+    TSIA2_CHECK,
     UNIFIED_CHECK,
   ];
 
@@ -136,19 +137,14 @@ test('release CI checks the authored frameworks and never rewrites production se
     'release CI must never run the TSIA2-only writer');
 });
 
-// Since Oct 18 the TSIA2 V2.1 release check fails on main for one reason: a
-// TSIA2 item and an ACT item share a prompt template, which it forbids across
-// frameworks. Rewording a live question is a content decision, not CI's. Until
-// then this holds the check to that one known finding (any other failure is
-// red here), and the day it passes, this is red until CI runs it.
-const KNOWN_TSIA2_FAILURES = [
-  'Cross-framework exact prompt clone: TSIA2 mm_tsia2_qr_leei_5_v21 matches ACT mm_act_ies_simpleequationsinequalities_1_two-step-equation_v21',
-];
-
-test('the TSIA2 V2.1 release check runs in CI, or fails only for its one known finding', () => {
-  if (fs.readFileSync(RELEASE_CI, 'utf8').includes(TSIA2_CHECK)) return;
+// From Oct 18 the TSIA2 V2.1 release check failed, and stayed out of CI, for
+// one reason: mm_tsia2_qr_leei_5_v21 asked "What value of $x$ satisfies
+// $ax + b = c$?", the same prompt template as an ACT item, which it forbids
+// across frameworks. The TSIA2 item was reworded, its mathematics and key
+// kept (CT23); the check passes and CI runs it.
+test('the TSIA2 V2.1 release check passes: no TSIA2 prompt is a Digital SAT or ACT prompt', () => {
   const run = spawnSync(process.execPath, ['scripts/build-tsia2-v2-1.mjs', '--release', '--check'], { encoding: 'utf8' });
-  assert.notEqual(run.status, 0, `${TSIA2_CHECK} passes now: add it to ${RELEASE_CI} beside the Digital SAT and ACT checks`);
-  const report = JSON.parse(run.stderr);
-  assert.deepEqual(report.failures, KNOWN_TSIA2_FAILURES, 'a new TSIA2 release finding');
+  const report = JSON.parse(run.status === 0 ? run.stdout : run.stderr);
+  assert.deepEqual(report.failures, [], `${TSIA2_CHECK} reports findings`);
+  assert.equal(run.status, 0);
 });

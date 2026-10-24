@@ -34460,7 +34460,7 @@
         "commonError": "Moving the constant without changing its sign.",
         "answerSummary": "$x={{answer}}$"
       },
-      "prompt": "What value of $x$ satisfies ${{a}}x {{b|signed}}={{c}}$?",
+      "prompt": "The expression ${{a}}x {{b|signed}}$ is equal to ${{c}}$. What is the value of $x$?",
       "generator": {
         "parameters": {
           "a": {
