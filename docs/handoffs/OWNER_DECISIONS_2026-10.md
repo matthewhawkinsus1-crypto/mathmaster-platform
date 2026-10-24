@@ -37,6 +37,7 @@ stands, so a later audit does not raise it again.
 | SI05 | Honors SAT items Pre-Flight adds were graded on the device. | Route them through server grading. | `22e4bd67` |
 | TC01 | A Test day marked A/B after its period ended marked the class as missing it. | Warn in the day picker, and do not mark a class missed for a day set after the fact. | `9f21105f` |
 | TC07 | Should a student's own extension move the Corrections/Retest close? | Yes. | `32c7b780` |
+| TC15 | The "fewer items" accommodation was not applied on secure Test Cycles. | A teacher-chosen subset: for a student whose plan lists it, the teacher picks the questions the student skips (at least one per skill, at most half), before the student starts; graded over the questions asked; the Retest is shorter by the same share. | `48ed99fa` |
 | TL01 | The assignment's graphing setting widened exit tickets, quizzes and tests. | There, the assignment setting may only narrow an item's calculator. | `adce28fa` |
 | TL25 | Matrix Lab singular systems. | The "why no / many solutions" reason is the default on singular items; the decision weighs more on DOL 3. | `d81b11c4` |
 | TL37 | Which tool steps count as "method" on assessments. | A route sentence shows on an assessment only when the grader requires that route. | `be3b8488` |
@@ -70,12 +71,6 @@ confirms each as it stands. Any of them can still be changed later.
 | MP15 | My Math Path has no Spanish content. | Later; it depends on how many emergent bilingual students use the Path. |
 | PH04 | Phone save lines and notices squeeze the work area at 200% text. | Accept the current cap; revisit if students on 200% text report trouble. |
 | RC04 | Extend Recovery credit-back to Classwork and Practice? | Not now. Recovery credit stays with Warm-Up and DOL; Classwork has "practise one like this". |
-
-## In progress at the time of writing
-
-| Id | Question | Decision |
-| --- | --- | --- |
-| TC15 | The "fewer items" accommodation is not applied on secure Test Cycles. | A teacher-chosen subset is the simplest version. |
 
 ## Needs the owner
 
