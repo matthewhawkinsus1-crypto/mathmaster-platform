@@ -1,13 +1,17 @@
 # Keyboard sweep — student tools (WCAG 2.1.1 Keyboard, 2.4.7 Focus Visible)
 
-Audit date: 2026-10-07. Re-runnable: `tests/browser/keyboardSweep.mjs` (an audit,
-not a gate; always exits 0). Nothing in application source was changed.
+Audit date: 2026-10-07 (the legacy question types were added 2026-10-24: see
+[Legacy question types](#legacy-question-types-ci09-2026-10-24)). Re-runnable:
+`tests/browser/keyboardSweep.mjs` (an audit that always exits 0, unless run with
+`--gate`, which no workflow does). Nothing in application source was changed.
 
 ```
 npx vite --host 127.0.0.1 --port 5499 --strictPort &
-AUDIT_ORIGIN=http://127.0.0.1:5499 node tests/browser/keyboardSweep.mjs              # 24 tools + extra modes
+AUDIT_ORIGIN=http://127.0.0.1:5499 node tests/browser/keyboardSweep.mjs              # 24 tools + extra modes + 21 legacy question types
 AUDIT_ORIGIN=http://127.0.0.1:5499 node tests/browser/keyboardSweep.mjs --host=bare  # without the assignment-screen wrapper
 #   --tool=<id> | --tool=<id>:<variant>   one scene      --extras-only / --no-extras
+#   --legacy-only / --no-legacy           only / without the 21 legacy question-type scenes
+#   --gate                                judge the report, exit 1 if a scene breaks a criterion
 #   --out=<name>                          write report-<name>.json instead of report.json
 ```
 
@@ -62,9 +66,12 @@ per-tool sweep (job A's files).
   plus 7 extra scenes for tools whose modes are different interfaces
   (Systems Workspace inequality builder / algebraic board / augmented matrix /
   3D three-plane view, Transformations Lab parameter matching, Sequence Explorer
-  full bridge, Mapping Diagram coordinate plot). 31 scenes in all.
+  full bridge, Mapping Diagram coordinate plot). 31 scenes in all (the 2026-10-07
+  run; the sweep has since gained scenes, and 33 ran on 2026-10-24).
   Legacy question types outside the registry (StepByStepAlgebra, GraphAxisEditor,
-  the graders in `src/*.jsx`) are **not** covered.
+  the graders in `src/*.jsx`) were **not** covered then; 21 scenes cover them since
+  2026-10-24, reported in their own section below. Every number in this section and
+  in Counts is the 2026-10-07 run, registry tools only.
 * **Surface.** `tests/browser/keyboardSweep.html` mounts the tool through
   `QuestionEngine` exactly as `workViewCertificationMain.jsx` does, inside the
   same `mathmaster-assignment-screen` wrapper App.jsx uses, with both
@@ -154,6 +161,79 @@ in S9. S1–S4 and S7 hit every tool; S5 hits every tool on hosts other than the
 assignment screen; S6 hits the 9 call sites that let a student move a point;
 S8 and S9 are latent. **7 tool-specific gaps** (T1–T7: 2 block a mode, 1
 partial, 4 minor) plus a 6-site CSS watch list (T8).
+
+---
+
+## Legacy question types (CI09, 2026-10-24)
+
+QuestionEngine's type switch still mounts graders from `src/*.jsx` that are not
+in the tool registry. The sweep now mounts each of them with the authoring
+catalog's example of the type (`QUESTION_TYPE_CATALOG[type].example`) and puts it
+through the same seven steps as a registry tool: 21 scenes. StepByStepAlgebra's
+equation, relation and intercepts workspaces; the literal grader typed and on the
+balance; fraction, number line, system, table, ordered pair, multi-answer;
+graphing, function graph, function investigation, graph analysis; the
+relationship model typed and with the drag-the-cards axis editor
+(`GraphAxisEditor`); graph scenario match, graph comparison, graph story,
+context interpretation. A test (`tests/platform/keyboardSweepGate.test.mjs`)
+fails if a type the switch mounts has no scene.
+
+```
+AUDIT_ORIGIN=http://127.0.0.1:5499 node tests/browser/keyboardSweep.mjs --legacy-only --out=legacy         # about 18 minutes
+AUDIT_ORIGIN=http://127.0.0.1:5499 node tests/browser/keyboardSweep.mjs --legacy-only --out=legacy --gate  # and exit 1 if a scene fails
+```
+
+`--gate` judges every scene against hard criteria, each a failure of a success
+criterion the sweep measures directly: a trap forward or back (2.1.2), a control
+the keyboard cannot reach or operate, or a draggable one with no key route
+(2.1.1), a Tab stop with no visible focus (2.4.7) or one under a sticky bar
+(2.4.11), no accessible name (4.1.2), a dialog or panel that will not close, a
+modal that lets Tab out, focus thrown to `<body>` (2.4.3), a scene that did not
+run, mount or stay free of page errors, and an empty run. What stays a number to
+read: a plain disclosure that does not close (Read aloud's panel), a Check the
+generic probe could not satisfy, stops off screen. The criteria are in
+`tests/browser/support/keyboardSweepGate.mjs`.
+
+**It is not a CI gate, because it is not green.** On the commit that added it:
+
+| Run | Scenes | Tab stops | Scenes that break a criterion |
+| --- | --- | --- | --- |
+| Registry tools and their extra modes | 33 | 539 | **0** |
+| Legacy question types | 21 | 326 | **6** |
+
+A job that runs the whole sweep would be red from its first run, so no workflow
+runs it. The registry half alone passes it (the same gate over its 33-scene report;
+`--no-legacy --gate` runs it in about 23 minutes). The six legacy scenes, and why:
+
+| Scene | Breaks | What the sweep saw | Reading |
+| --- | --- | --- | --- |
+| `stepAlgebra:equation`, `literal:balance` | mouseOnly ×2 each | The LEFT SIDE and RIGHT SIDE boxes (`algebra-equation-box`, `StepByStepAlgebraCore.jsx`) have `onClick` and are not Tab stops | **Not a gap.** A side is a click target only while an operation tile is in hand (`tapPlacementOnSide` returns at once otherwise) and is `role="button"` with `tabIndex={0}` exactly then. The sweep reads the resting state. |
+| `numberLine:legacy` | noVisibleFocus ×1, focusHidden ×1 | The second Tab stop, "Show a hint" (`mathmaster-question-context-panel`), is entirely under the sticky task card when focused | **Gap** in the sweep's host (1366×768, scrolled to the top; not re-checked in the app shell). |
+| `functionInvestigation:legacy` | noVisibleFocus ×1, focusHidden ×1 | The "1. Construct Graph" stage tab is partly under the sticky task anchor (3 of 5 sampled points) | **Gap**, partial: the ring shows below the card. Same cause as the number line. |
+| `graphScenarioMatch:legacy` | noVisibleFocus ×1 | The "Scrollable scenario bank" region takes focus (`tabIndex={0}`, an outline is computed) and not one pixel changes | **Gap.** |
+| `graphComparison:legacy` | focusLost ×1 | After a keyboard Submit that completes the question ("Correct! This question is complete.") focus ends on `<body>` | **Gap.** |
+
+So 4 real gaps in 4 scenes, from 3 causes (the sticky task card over the first
+control, the scenario-bank scroll pane with no visible ring, focus not placed
+anywhere when the question completes), and one sweep artifact in 2 scenes
+(state-dependent tab stops). Graph Scenario Match's draggable graph cards are
+flagged by the sweep's `dragOnly` list; each holds a "Select this graph" button
+that does the same by key, so the gate judges the card by what is inside it, as
+it does a clickable wrapper. **Nothing in application source was changed**, so
+none of the four is fixed here. When they are, run the whole sweep with `--gate`
+and, if it is green, add it to `accessibility-certification.yml`.
+
+How far to trust the legacy scenes: the generic keyboard-only attempt (step 4)
+graded in 9 of the 21 (literal typed, fraction, number line, table, multi-answer,
+graphing, graph analysis, graph comparison, context interpretation). In the other
+12 (the three StepByStepAlgebra workspaces, literal on the balance, system,
+ordered pair, function graph, function investigation, the relationship model
+twice, graph scenario match, graph story) the probe pressed no Check: it cannot
+build those answers, so "a student can finish this by keyboard" is not shown for
+them. The walks, the popups, the handler audit, the focus rings and the names
+ran in all 21. Thirteen scenes also show a disclosure that stays open with no
+control to close it (Read aloud's panel, as in the registry run: 21 there); the
+gate does not count them.
 
 ---
 
