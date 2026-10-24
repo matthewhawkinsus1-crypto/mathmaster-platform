@@ -235,7 +235,7 @@ test('zeros, minimum and maximum are listed only where they cannot state an unre
   assert.match(engine, /import \{ CALCULATOR_MODES, calculatorKeyPointsShown, resolveCalculatorPolicy \} from '\.\/platform\/policies\/calculatorPolicy';/);
   const host = source('src/components/calculator/AssignmentGraphingCalculator.jsx');
   assert.match(region(host, '<GraphingCalculatorPanel', '/>', 'panel element'), /keyPoints=\{keyPoints\}/);
-  assert.match(host, /roomRef = null, keyPoints = false \}\)/, 'off unless the engine says so');
+  assert.match(host, /roomRef = null, keyPoints = false, keepLinesKey = null \}\)/, 'off unless the engine says so');
 });
 
 test('the student assignment screen forwards the assignment\'s calculator setting, and QuestionEngine resolves with it', () => {
@@ -303,15 +303,18 @@ test('the graphing calculator is loaded lazily, and a failed load falls back to 
 
 test('the graphing calculator is given nothing about the question', () => {
   const host = source('src/components/calculator/AssignmentGraphingCalculator.jsx');
-  assert.match(host, /export default function AssignmentGraphingCalculator\(\{ open = false, onOpenChange = null, roomRef = null, keyPoints = false \}\)/);
+  assert.match(host, /export default function AssignmentGraphingCalculator\(\{ open = false, onOpenChange = null, roomRef = null, keyPoints = false, keepLinesKey = null \}\)/);
   const panelElement = region(host, '<GraphingCalculatorPanel', '/>', 'panel element');
   assert.deepEqual(
     [...panelElement.matchAll(/^\s+([a-zA-Z]+)(?:=|$)/gm)].map((match) => match[1]).sort(),
-    ['keyPoints', 'onOpenChange', 'open', 'showLauncher'],
+    ['keepLinesKey', 'keyPoints', 'onOpenChange', 'open', 'showLauncher'],
   );
   const engine = source('src/QuestionEngine.jsx');
   const mount = region(engine, '<AssignmentGraphingCalculator\n', '/>', 'host element');
-  assert.deepEqual([...mount.matchAll(/\s([a-zA-Z]+)=\{/g)].map((match) => match[1]), ['open', 'onOpenChange', 'roomRef', 'keyPoints', 'fallback', 'onUnavailable']);
+  assert.deepEqual([...mount.matchAll(/\s([a-zA-Z]+)=\{/g)].map((match) => match[1]), ['open', 'onOpenChange', 'roomRef', 'keyPoints', 'keepLinesKey', 'fallback', 'onUnavailable']);
+  // Where the student's own lines are kept: the assignment's identity from the
+  // draft key, never the question (TL18, graphingLineMemory.js).
+  assert.match(mount, /keepLinesKey=\{graphingLinesKeyFor\(draftKey\)\}/);
   assert.match(mount, /keyPoints=\{calculatorKeyPointsShown\(\{ policy: calculatorPolicy, assessmentReviewReleased \}\)\}/, 'a policy flag and the release, not question data');
   assert.match(mount, /roomRef=\{questionEngineRef\}/, 'the element to pad, not its content');
 });

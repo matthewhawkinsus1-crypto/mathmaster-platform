@@ -61,6 +61,7 @@ import MathDisplay from './MathDisplay';
 import { generateQuestion } from './problemGenerator';
 import { buildSupportUsage, getStudentSupportPresentation } from './studentSupport';
 import { quarantineQuestionDraftFamily, removeQuestionDraftFamily, resetQuestionDraftFamily } from './questionDraftStorage';
+import { graphingLinesKeyFor } from './components/calculator/graphingLineMemory.js';
 import CalculatorPanel from './components/CalculatorPanel';
 import ProblemUnderstandingPanel from './components/ProblemUnderstandingPanel';
 import MobileViewportContainer, { isMobileQuestionViewport } from './components/student/MobileViewportContainer';
@@ -3409,6 +3410,8 @@ function QuestionEngineBody({
               // Zeros, minimum and maximum: not where they would state the
               // answer before the assessment is released (calculatorPolicy.js).
               keyPoints={calculatorKeyPointsShown({ policy: calculatorPolicy, assessmentReviewReleased })}
+              // The student's lines stay for the whole assignment (TL18).
+              keepLinesKey={graphingLinesKeyFor(draftKey)}
               fallback={keypadCalculator}
               onUnavailable={markGraphingCalculatorFailed}
             />

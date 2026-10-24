@@ -8,6 +8,7 @@ import {
   EXAM_TOOL_DRAWERS, EXAM_TOOL_IDS, EXAM_TOOL_LAYERS, EXAM_TOOL_OPEN_EVENT, examToolYieldsTo,
 } from '../../platform/assessment/examToolLayout.js';
 import { useExamToolbarOffset, useNarrowScreen } from './examToolDrawerHooks.js';
+import { readGraphingLines, writeGraphingLines } from '../calculator/graphingLineMemory.js';
 
 /*
  * A GRAPHING CALCULATOR FOR SECURE PRACTICE TESTS — OFFLINE, AND THE STUDENT'S
@@ -201,12 +202,22 @@ export default function GraphingCalculatorPanel({
   showLauncher = true,
   // Optional: list the zeros, minimum and maximum of a line in the view.
   keyPoints = false,
+  // Optional: keep the typed lines under this key for the rest of the
+  // assignment (graphingLineMemory.js; an ordinary assignment's panel is
+  // mounted per question).
+  keepLinesKey = null,
 }) {
   const baseId = `mm-graphing-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const narrow = useNarrowScreen();
   const [open, setOpenState] = useState(Boolean(typeof openProp === 'boolean' ? openProp : defaultOpen));
   const [featureLine, setFeatureLine] = useState(null);
-  const [lines, setLines] = useState(() => [newLine('')]);
+  const [lines, setLines] = useState(() => {
+    const kept = readGraphingLines(keepLinesKey);
+    return kept.length ? kept.map((text) => newLine(text)) : [newLine('')];
+  });
+  useEffect(() => {
+    writeGraphingLines(keepLinesKey, lines.map((line) => line.text));
+  }, [keepLinesKey, lines]);
   const [angleMode, setAngleMode] = useState(ANGLE_MODES.RADIANS);
   const [view, setView] = useState(() => [...DEFAULT_VIEWPORT]);
   const [graphState, setGraphState] = useState('idle');
