@@ -51,9 +51,15 @@ test('a live round says what comes next — its results — and when you finishe
   assert.match(student, /const guidance = studentGuidance\(\{ room, stage, joinedAtRound, lockedForMs: lockedLongAtStage \? LOCKED_WAIT_NOTICE_MS : 0 \}\);/);
   assert.match(student, /const wait = Math\.max\(0, lockedRoundEndsAtMs \+ LOCKED_WAIT_NOTICE_MS - \(Date\.now\(\) \+ clock\.offsetMs\)\);/);
   assert.match(round, /\{liveShell && result && !expired && <div [^>]*data-mm-finished-early="1"/);
-  // 3 · 2 · 1 over the question, which stays mounted but unseen until GO.
+  // 3 · 2 · 1 over the question's place. The question itself is mounted only
+  // at GO (SI08): before it, an empty box holds the place, so the question is
+  // not in the page for the inspector or a screen reader to read early.
   assert.match(round, /\{\(!roundStarted \|\| elapsedMs < GO_FLASH_MS\) && \(\s*<div data-mm-round-countdown=/);
-  assert.match(round, /<div style=\{\{ visibility: roundStarted \? 'visible' : 'hidden' \}\}>/);
+  const atGo = region(round, '{!roundStarted ? <div aria-hidden="true" data-mm-question-at-go="1" style={{ minHeight: 220 }} /> : (', '\n      )}\n      </div>', 'the question, mounted at GO');
+  assert.equal((round.match(/<QuestionEngine\b/g) || []).length, 1);
+  assert.match(atGo, /<QuestionEngine\b/, 'the rich-tool question renders only at GO');
+  assert.match(atGo, /<LiveChallengeFieldQuestion /, 'and so does the answer-field question');
+  assert.doesNotMatch(executableSource(round), /visibility: roundStarted/, 'never mounted early and merely hidden');
   assert.match(round, /assignmentLocked=\{locked \|\| expired \|\| !roundStarted\}/, 'and nothing can be answered before it');
 });
 

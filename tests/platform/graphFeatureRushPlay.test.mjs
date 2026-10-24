@@ -245,12 +245,14 @@ test('the per-graph and per-round limits bound the private record', () => {
   assert.equal(rushRoundState({ receipts: legacy, roundIndex: 0, poolSize: 50 }).cursor, 0);
   const more = play(full, [tap('one-more', 0, -4)]);
   assert.deepEqual([more.verdicts[0].verdict, more.recorded], [RUSH_VERDICT.LIMIT, 0]);
-  // Per round: graph after graph of misses stops at the round's limit.
+  // Per round: graph after graph of misses stops at the round's limit. The
+  // limit is a backstop behind pacing (SI08): this player is given all the
+  // server time their cooldowns need, so only the limit can stop them.
   const pool = Array.from({ length: 50 }, (_, index) => question({ questionIndex: index }));
   let player = {};
   let limited = 0;
   for (let graph = 0; graph < 50 && !limited; graph += 1) {
-    const outcome = play(player, Array.from({ length: RUSH_AUTO_SKIP_MISSES }, (_, index) => tap(`g${graph}-${index}`, graph, 8, 8)), { questions: pool });
+    const outcome = play(player, Array.from({ length: RUSH_AUTO_SKIP_MISSES }, (_, index) => tap(`g${graph}-${index}`, graph, 8, 8)), { questions: pool, arrivalElapsedMs: 3_600_000 });
     player = carry(player, outcome);
     limited = outcome.verdicts.filter((row) => row.verdict === RUSH_VERDICT.LIMIT).length;
   }

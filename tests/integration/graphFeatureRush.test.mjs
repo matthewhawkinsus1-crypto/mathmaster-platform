@@ -21,6 +21,7 @@ const require = createRequire(import.meta.url);
 assert.ok(process.env.FIRESTORE_EMULATOR_HOST, 'Run through npm run test:challenge-finish.');
 
 const functionsIndex = require(path.join(repo, 'functions/index.js'));
+const rush = await import('../../functions/shared/graphFeatureRush.mjs');
 const admin = require(path.join(repo, 'functions/node_modules/firebase-admin'));
 const db = admin.firestore();
 const { Timestamp } = admin.firestore;
@@ -111,6 +112,23 @@ const answerAttempts = (question) => (question.targets.length
   ? question.targets.map((target) => tapAt(question, target))
   : [{ attemptId: randomUUID(), questionIndex: question.questionIndex, kind: 'dne', clientElapsedMs: 4_000 }]);
 
+/*
+ * The server takes an attempt only once the round has run long enough for the
+ * student's own device to have made it — its completion flash, skip pause and
+ * miss cooldowns, and a moment to see each new graph (SI08,
+ * graphFeatureRush.mjs rushRoundPace). A test that plays through graphs waits
+ * for that, as a real device's pauses would. It waits for the attempt itself,
+ * leaving the server's slack for the pauses inside one batch.
+ */
+const waitForPace = async (roomId, studentId, questionIndex) => {
+  const [room, player] = await Promise.all([roomOf(roomId), privatePlayer(roomId, studentId)]);
+  const required = rush.rushNextAttemptRequiredMs({
+    receipts: player?.submissionReceipts || {}, roundIndex: Number(room.currentRound), questionIndex,
+  });
+  const delay = (room.startsAt?.toMillis?.() || 0) + required + 50 - Date.now();
+  if (delay > 0) await sleep(delay);
+};
+
 /** A student completes `graphs` graphs, making `misses` wrong taps first. */
 const play = async (roomId, studentId, { graphs = 1, misses = 0 } = {}) => {
   const identity = await identityOf(roomId);
@@ -126,6 +144,8 @@ const play = async (roomId, studentId, { graphs = 1, misses = 0 } = {}) => {
       const attempts = [];
       while (missesLeft > 0 && attempts.length < 2) { attempts.push(missTap(question)); missesLeft -= 1; }
       attempts.push(...answerAttempts(question));
+      // eslint-disable-next-line no-await-in-loop
+      await waitForPace(roomId, studentId, question.questionIndex);
       // eslint-disable-next-line no-await-in-loop
       const result = await call('submitGraphFeatureRushAttempts', student(studentId, { ...identity, attempts }));
       assert.equal(result.verdicts.at(-1).completesQuestion, true, JSON.stringify(result.verdicts));
@@ -233,20 +253,26 @@ test('a refresh mid-graph resumes on the same graph with its found targets', asy
   const identity = await identityOf(G1);
   // Find a multi-target graph for B and tap only its first target. About one
   // graph in nine has several targets under this preset, so B looks eight
-  // graphs ahead at a time and finishes the ones before it in one batch.
+  // graphs ahead at a time and finishes the ones before it, each when B's
+  // device would have shown it (SI08: the server holds every player to their
+  // device's pace).
   let resumed = null;
   for (let looked = 0; looked < 120 && !resumed;) {
     // eslint-disable-next-line no-await-in-loop
     const { questions } = await call('getGraphFeatureRushRound', student(B, { ...identity, count: 8 }));
-    const multi = questions.find((question) => question.targets.length >= 2);
-    const before = multi ? questions.filter((question) => question.questionIndex < multi.questionIndex) : questions;
-    const attempts = before.flatMap(answerAttempts);
-    if (multi) attempts.push(tapAt(multi, multi.targets[0]));
-    for (let start = 0; start < attempts.length; start += 12) {
+    for (const question of questions) {
       // eslint-disable-next-line no-await-in-loop
-      await call('submitGraphFeatureRushAttempts', student(B, { ...identity, attempts: attempts.slice(start, start + 12) }));
+      await waitForPace(G1, B, question.questionIndex);
+      const multi = question.targets.length >= 2;
+      // eslint-disable-next-line no-await-in-loop
+      await call('submitGraphFeatureRushAttempts', student(B, {
+        ...identity, attempts: multi ? [tapAt(question, question.targets[0])] : answerAttempts(question),
+      }));
+      if (multi) {
+        resumed = question;
+        break;
+      }
     }
-    resumed = multi || null;
     looked += questions.length;
   }
   assert.ok(resumed, 'a multi-target graph came up');
@@ -266,10 +292,26 @@ test('the eighth miss on a graph skips it on the server; a refresh resumes on th
   assert.equal(before.joined, true);
   assert.ok(before.poolSize >= 120, `a pool of ${before.poolSize} outlasts the fastest student`);
   const [question] = before.questions;
-  // Eight wrong taps in one batch: a device that skipped its cooldown.
-  const result = await call('submitGraphFeatureRushAttempts', student(B, { ...identity, attempts: Array.from({ length: 8 }, () => missTap(question)) }));
-  assert.deepEqual(result.verdicts.map((row) => row.verdict), Array(8).fill('miss'));
-  assert.deepEqual(result.verdicts.map((row) => row.autoSkipped === true), [...Array(7).fill(false), true]);
+  // Eight wrong taps in one batch: a device that skipped its cooldown. The
+  // server takes the misses its pace allows and refuses the rest, which
+  // record nothing (SI08)…
+  await waitForPace(G1, B, question.questionIndex);
+  const burst = await call('submitGraphFeatureRushAttempts', student(B, { ...identity, attempts: Array.from({ length: 8 }, () => missTap(question)) }));
+  const taken = burst.verdicts.filter((row) => row.verdict === 'miss').length;
+  assert.ok(taken >= 2 && taken < 8, `${taken} of 8 misses taken at once`);
+  assert.deepEqual(burst.verdicts.slice(taken).map((row) => row.verdict), Array(8 - taken).fill('tooFast'));
+  assert.equal(burst.recorded, taken);
+  assert.equal(burst.state.cursor, question.questionIndex, 'still on the graph');
+  // …and each later one when the cooldown has passed: the eighth skips it.
+  let result = null;
+  for (let miss = taken; miss < 8; miss += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await waitForPace(G1, B, question.questionIndex);
+    // eslint-disable-next-line no-await-in-loop
+    result = await call('submitGraphFeatureRushAttempts', student(B, { ...identity, attempts: [missTap(question)] }));
+    assert.equal(result.verdicts[0].verdict, 'miss');
+    assert.equal(result.verdicts[0].autoSkipped === true, miss === 7, `miss ${miss + 1}`);
+  }
   assert.equal(result.state.cursor, question.questionIndex + 1);
   // The device never sent a skip and reloads: it is on the next graph.
   const after = await call('getGraphFeatureRushRound', student(B, { ...identity, count: 1 }));

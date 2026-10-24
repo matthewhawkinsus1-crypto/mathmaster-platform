@@ -561,8 +561,10 @@ export function ChallengeRound({
 
       <div style={{ position: 'relative' }}>
       {/* 3 · 2 · 1 off the round's authoritative start (this device's
-          monotonic anchor of it). The question stays mounted — so GO shows
-          it at once — but unseen until then; GO never blocks a tap. */}
+          monotonic anchor of it). The question is mounted only at GO (SI08):
+          until then it is not in the page at all, so neither the inspector
+          nor a screen reader can read it during the countdown. An empty box
+          keeps the countdown's size; GO never blocks a tap. */}
       {(!roundStarted || elapsedMs < GO_FLASH_MS) && (
         <div data-mm-round-countdown={roundStarted ? 'go' : 'counting'} style={{ position: 'absolute', inset: 0, zIndex: 2, display: 'grid', placeItems: 'center', borderRadius: 14, pointerEvents: roundStarted ? 'none' : 'auto', background: roundStarted ? 'transparent' : 'radial-gradient(120% 90% at 50% 0%, #22325a 0%, #141a2b 100%)', minHeight: 220 }}>
           <ChallengeCountdown
@@ -572,7 +574,8 @@ export function ChallengeRound({
           />
         </div>
       )}
-      <div style={{ visibility: roundStarted ? 'visible' : 'hidden' }}>
+      {!roundStarted ? <div aria-hidden="true" data-mm-question-at-go="1" style={{ minHeight: 220 }} /> : (
+      <div>
       {secureQuestion ? (
         <section style={{ background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', borderRadius: 14, border: '1px solid var(--mm-border)', overflow: 'hidden' }}>
           <QuestionEngine
@@ -616,6 +619,7 @@ export function ChallengeRound({
         <LiveChallengeFieldQuestion question={question} disabled={locked || expired || !roundStarted} onSubmit={submit} />
       )}
       </div>
+      )}
       </div>
 
       {pending && !result && <div aria-live="assertive" style={{ padding: 12, borderRadius: 9, background: '#17365f', color: '#dbeafe', fontWeight: 900 }}>{waitingForGo ? 'Your answer is locked in and will send at GO.' : waitingForResume ? 'The round is paused. Your answer is locked in and will send when it resumes.' : 'Answer locked in · checking it…'}</div>}

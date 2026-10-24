@@ -15248,9 +15248,14 @@ exports.submitGraphFeatureRushAttempts = onCall(async (request) => {
       recorded: applied.recorded,
       score: applied.totals.score,
       correctCount: applied.totals.correctCount,
+      paceRefused: applied.paceRefused,
     };
   });
-  return { roomId, roundIndex, ...outcome };
+  // Attempts sooner than the student's own device could make them (SI08;
+  // graphFeatureRushRules.mjs RUSH_PACING): counted for support, no student id.
+  const { paceRefused, ...reply } = outcome;
+  if (paceRefused > 0) logger.warn("liveChallenge.rush.paceRefused", { roomId, roundIndex, refused: paceRefused });
+  return { roomId, roundIndex, ...reply };
 });
 
 exports.previewGraphFeatureRush = onCall(async (request) => {
