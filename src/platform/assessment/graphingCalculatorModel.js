@@ -410,6 +410,23 @@ export const formatNumber = (value) => {
 };
 
 /*
+ * A TAPPED x, AS THE TRACE BOX SHOWS IT (TL18). A tap means an x only to
+ * within a pixel, so it is rounded to the decimal place one pixel spans (a
+ * view 20 wide on 400 pixels is 0.05 a pixel: two places), and a whole number
+ * within a pixel is that whole number. Typed the way a student would type it.
+ */
+export const tapTraceText = (x, unitsPerPixel) => {
+  const value = Number(x);
+  const pixel = Number(unitsPerPixel);
+  if (!Number.isFinite(value) || !Number.isFinite(pixel) || pixel <= 0) return '';
+  const whole = Math.round(value);
+  if (Math.abs(value - whole) <= pixel) return String(whole === 0 ? 0 : whole);
+  const places = Math.min(10, Math.max(0, Math.ceil(-Math.log10(pixel))));
+  const rounded = Number(value.toFixed(places));
+  return String(rounded === 0 ? 0 : rounded);
+};
+
+/*
  * ZEROS, MINIMUM AND MAXIMUM — WHAT A HANDHELD'S zero / minimum / maximum
  * COMMANDS FIND, FOR THE PART OF THE GRAPH ON SCREEN.
  *
@@ -686,6 +703,80 @@ export const findGraphFeatures = (entry, { xMin, xMax } = {}) => {
     maxima: maxima.slice(0, cap),
     more: { zeros: zeros.length > cap, minima: minima.length > cap, maxima: maxima.length > cap },
   };
+};
+
+/*
+ * WHERE TWO LINES MEET — A HANDHELD'S intersect COMMAND, FOR THE PART OF THE
+ * GRAPH ON SCREEN (TL18; the rest of #383 R3).
+ *
+ * Two lines of x meet where their difference is 0, so this is the zero search
+ * above run on f − g: the same sampling, narrowing and "near 0" test, and the
+ * same cap. A crossing's y is the lines' value at the narrowed x, before that
+ * x is rounded for display. A vertical line x = a meets a line of x once, at
+ * (a, f(a)), when a is on screen and f is defined there.
+ *
+ * Lines that are the same (2(x + 1) and 2x + 2) differ only by rounding error,
+ * which would read as dozens of crossings; a difference that small is 0, and
+ * `together` says whether the lines lie on top of each other on all of the
+ * screen ('all'), on a stretch of it ('part': abs(x) and x), or nowhere
+ * (false). Lines on top of each other have no single crossing there.
+ *
+ * @returns {{ points: {x,y}[], more: boolean, together: 'all' | 'part' | false } | null}
+ *   null when either entry is not a line (a calculation, an error, empty)
+ */
+export const findIntersections = (first, second, { xMin, xMax, yMin, yMax } = {}) => {
+  const left = Number(xMin);
+  const right = Number(xMax);
+  if (!Number.isFinite(left) || !Number.isFinite(right) || right <= left) return null;
+  const lineKinds = [ENTRY_KINDS.FUNCTION, ENTRY_KINDS.VERTICAL];
+  if (!lineKinds.includes(first?.kind) || !lineKinds.includes(second?.kind)) return null;
+  const span = right - left;
+  const height = Number(yMax) - Number(yMin);
+  const ySpan = Number.isFinite(height) && height > 0 ? height : span;
+  const none = { points: [], more: false, together: false };
+
+  if (first.kind === ENTRY_KINDS.VERTICAL && second.kind === ENTRY_KINDS.VERTICAL) {
+    return first.x === second.x ? { ...none, together: 'all' } : none;
+  }
+  if (first.kind === ENTRY_KINDS.VERTICAL || second.kind === ENTRY_KINDS.VERTICAL) {
+    const [vertical, line] = first.kind === ENTRY_KINDS.VERTICAL ? [first, second] : [second, first];
+    const y = vertical.x >= left && vertical.x <= right ? line.evaluate(vertical.x) : null;
+    return y === null ? none : { ...none, points: [{ x: vertical.x, y: settle(y, ySpan) }] };
+  }
+
+  const f = (x) => first.evaluate(x);
+  const difference = (x) => {
+    const a = f(x);
+    const b = second.evaluate(x);
+    if (a === null || b === null) return null;
+    const gap = a - b;
+    return Math.abs(gap) <= 1e-12 * Math.max(1, Math.abs(a), Math.abs(b)) ? 0 : gap;
+  };
+  const found = findGraphFeatures({ kind: ENTRY_KINDS.FUNCTION, evaluate: difference }, { xMin: left, xMax: right });
+  if (!found) return null;
+
+  const count = GRAPH_FEATURE_LIMITS.samples;
+  const gap = span / count;
+  const samples = Array.from({ length: count + 1 }, (unused, index) => difference(left + index * gap));
+  const defined = samples.filter((value) => value !== null);
+  const onTop = samples.some((value, index) => value === 0 && samples[index + 1] === 0);
+  const together = defined.length && defined.every((value) => value === 0) ? 'all' : (onTop ? 'part' : false);
+
+  // The crossing before rounding: narrowed again inside half a sample step,
+  // so y is not off by the rounding of x (slope × 5 × 10^-11).
+  const unrounded = (x) => {
+    const a = x - gap / 2;
+    const b = x + gap / 2;
+    const da = difference(a);
+    const db = difference(b);
+    if (da === null || db === null || da === 0 || db === 0 || Math.sign(da) === Math.sign(db)) return x;
+    return bisectZero(difference, a, b, da) ?? x;
+  };
+  const points = found.zeros
+    .map((x) => ({ x, y: f(unrounded(x)) }))
+    .filter(({ y }) => y !== null)
+    .map(({ x, y }) => ({ x, y: settle(y, ySpan) }));
+  return { points, more: found.more.zeros, together };
 };
 
 const clampBox = ([left, top, right, bottom]) => {

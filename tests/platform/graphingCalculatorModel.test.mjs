@@ -11,8 +11,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  ANGLE_MODES, DEFAULT_VIEWPORT, ENTRY_KINDS, GRAPHING_LIMITS, evaluateAt, findGraphFeatures, formatNumber, normalizeEntryText,
-  panViewport, parseGraphEntries, parseGraphEntry, readNumberEntry, tableOfValues, zoomViewport,
+  ANGLE_MODES, DEFAULT_VIEWPORT, ENTRY_KINDS, GRAPHING_LIMITS, evaluateAt, findGraphFeatures, findIntersections, formatNumber,
+  normalizeEntryText, panViewport, parseGraphEntries, parseGraphEntry, readNumberEntry, tableOfValues, tapTraceText, zoomViewport,
 } from '../../src/platform/assessment/graphingCalculatorModel.js';
 import { executableSource } from './helpers/sourceContract.mjs';
 
@@ -287,4 +287,64 @@ test('a turn flatter than a parabola reads where it is, in every view', () => {
   assert.deepEqual(turns('y = abs(x - 0.3) - 2').minima, [{ x: 0.3, y: -2 }]);
   // A flat inflection is not a turn.
   assert.deepEqual([turns('y = (x - 2.718)^5 + 1').minima, turns('y = (x - 2.718)^5 + 1').maxima], [[], []]);
+});
+
+// Where two lines meet (TL18, the rest of #383 R3): the handheld's intersect,
+// for the part of the graph on screen.
+test('where two lines meet: the crossings on screen, with y at the crossing', () => {
+  const view = { xMin: -10, xMax: 10, yMin: -10, yMax: 10 };
+  const meet = (a, b, at = view) => findIntersections(parseGraphEntry(a), parseGraphEntry(b), at);
+  const crossings = (a, b, at) => meet(a, b, at).points;
+  assert.deepEqual(crossings('y = 2x + 1', 'y = -x + 4'), [{ x: 1, y: 3 }]);
+  // x² − 4 = −(x − 1)² + 3 at x = (1 ± √13)/2; y is read at the crossing, not
+  // at x rounded to 10 digits (which would move y's last digit).
+  assert.deepEqual(crossings('f(x) = x^2 - 4', 'y = -(x - 1)^2 + 3'), [
+    { x: -1.302775638, y: -2.302775638 },
+    { x: 2.302775638, y: 1.302775638 },
+  ]);
+  // A tangent line touches once; a crossing at y = 0 is 0, not 10^−11.
+  assert.deepEqual(crossings('y = x^2', 'y = 2x - 1'), [{ x: 1, y: 1 }]);
+  assert.deepEqual(crossings('y = x - 1/3', 'y = 1/3 - x'), [{ x: 0.3333333333, y: 0 }]);
+  assert.deepEqual(crossings('y = x^3', 'y = x'), [{ x: -1, y: -1 }, { x: 0, y: 0 }, { x: 1, y: 1 }]);
+  assert.deepEqual(crossings('y = sqrt(x)', 'y = x'), [{ x: 0, y: 0 }, { x: 1, y: 1 }]);
+  // Parallel lines, and a break (1/x jumps across y = 0 but never meets it).
+  assert.deepEqual(meet('y = x', 'y = x + 1'), { points: [], more: false, together: false });
+  assert.deepEqual(crossings('y = 1/x', 'y = 0'), []);
+  // A vertical line meets a line of x once, when that is on screen.
+  assert.deepEqual(crossings('x = 3', 'y = 2x'), [{ x: 3, y: 6 }]);
+  assert.deepEqual(crossings('y = 2x', 'x = 30'), []);
+  assert.deepEqual(meet('x = 2', 'x = 3'), { points: [], more: false, together: false });
+  // At most a few, and "more" when the view holds more.
+  const many = meet('y = sin(x)', 'y = 0', { xMin: -100, xMax: 100, yMin: -2, yMax: 2 });
+  assert.equal(many.points.length, 8);
+  assert.equal(many.more, true);
+  // Only lines meet: a calculation, an error or an empty line is no line.
+  assert.equal(meet('3 + 4', 'y = x'), null);
+  assert.equal(meet('y = x', ''), null);
+  assert.equal(meet('y = x', 'y = 2x', { xMin: 1, xMax: 1 }), null);
+});
+
+test('lines that are the same say so, instead of rounding error reading as crossings', () => {
+  const meet = (a, b) => findIntersections(parseGraphEntry(a), parseGraphEntry(b), { xMin: -10, xMax: 10, yMin: -10, yMax: 10 });
+  for (const [a, b] of [['y = 2(x + 1)', 'y = 2x + 2'], ['y = (x + 1)^2', 'y = x^2 + 2x + 1'], ['y = sin(x)^2 + cos(x)^2', 'y = 1'], ['x = 2', 'x = 2']]) {
+    assert.deepEqual(meet(a, b), { points: [], more: false, together: 'all' }, `${a} and ${b}`);
+  }
+  // On top of each other for x ≥ 0 only.
+  assert.deepEqual(meet('y = abs(x)', 'y = x'), { points: [], more: false, together: 'part' });
+  // Close is not the same: 10^−7 apart is two lines.
+  assert.equal(meet('y = 0.1x', 'y = 0.1x + 0.0000001').together, false);
+});
+
+test('a tap traces at the x it can mean: a pixel\'s worth of digits, a whole number when one is that close', () => {
+  // A view 20 wide on 400 pixels: 0.05 a pixel.
+  assert.equal(tapTraceText(3.14159, 0.05), '3.14');
+  assert.equal(tapTraceText(-3.456, 0.05), '-3.46');
+  assert.equal(tapTraceText(2.98, 0.05), '3');
+  assert.equal(tapTraceText(-0.01, 0.05), '0');
+  assert.equal(tapTraceText(0.123456, 0.001), '0.123');
+  assert.equal(tapTraceText(7.5, 0.4), '7.5');
+  // The trace box reads it back as the same number.
+  assert.equal(readNumberEntry(tapTraceText(-3.456, 0.05)), -3.46);
+  assert.equal(tapTraceText(Number.NaN, 0.05), '');
+  assert.equal(tapTraceText(1, 0), '');
 });

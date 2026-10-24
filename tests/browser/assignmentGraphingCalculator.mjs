@@ -87,6 +87,33 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   await page.getByRole('textbox', { name: 'Find y when x =' }).fill('3');
   await page.waitForSelector('[data-graphing-trace="1"]');
   assert.match(await page.locator('[data-graphing-trace="1"]').textContent(), /Line 1: y = 5/, `${at}: trace`);
+
+  // Where the two lines meet (TL18): x² − 4 = −(x − 1)² + 3 at (1 ± √13)/2.
+  await page.waitForFunction(() => /2\.302775638/.test(document.querySelector('[data-graphing-meet]')?.textContent || ''));
+  assert.equal((await page.locator('[data-graphing-meet]').textContent()).trim(), '(−1.302775638, −2.302775638); (2.302775638, 1.302775638)', `${at}: where the lines meet`);
+
+  // Trace by tapping the graph (TL18): a tap at the middle of the view is
+  // x = 0, traced on both lines and marked on them; a drag pans and traces
+  // nothing.
+  const board = page.locator('[data-graphing-board="ready"]');
+  await board.scrollIntoViewIfNeeded();
+  const area = await board.boundingBox();
+  await page.mouse.click(area.x + area.width / 2, area.y + area.height * 0.3);
+  await page.waitForFunction(() => document.querySelector('[data-graphing-trace="2"]')?.textContent?.includes('y = 2'));
+  assert.equal(await page.getByRole('textbox', { name: 'Find y when x =' }).inputValue(), '0', `${at}: a tap puts its x in the trace box`);
+  assert.match(await page.locator('[data-graphing-trace="1"]').textContent(), /Line 1: y = −4/, `${at}: traced on line 1`);
+  // (JSXGraph's axes keep four hidden points of their own.)
+  const markedPoints = () => board.evaluate((element) => [...element.querySelectorAll('ellipse')].filter((dot) => getComputedStyle(dot).display !== 'none').length);
+  assert.equal(await markedPoints(), 2, `${at}: the traced points are marked on both lines`);
+  await page.mouse.move(area.x + area.width * 0.6, area.y + area.height * 0.5);
+  await page.mouse.down();
+  await page.mouse.move(area.x + area.width * 0.4, area.y + area.height * 0.5, { steps: 6 });
+  await page.mouse.up();
+  await page.waitForFunction(() => !/x from −10 to 10,/.test(document.querySelector('[data-graphing-board]')?.getAttribute('aria-label') || ''), null, { timeout: 5000 });
+  assert.equal(await page.getByRole('textbox', { name: 'Find y when x =' }).inputValue(), '0', `${at}: a drag pans and leaves the trace alone`);
+  await page.getByRole('button', { name: 'Reset the view' }).click();
+  await page.waitForFunction(() => /x from −10 to 10,/.test(document.querySelector('[data-graphing-board]')?.getAttribute('aria-label') || ''));
+
   await page.getByRole('textbox', { name: 'Line 1', exact: true }).focus();
   await page.keyboard.press('Enter');
   assert.equal(await page.evaluate(() => window.__mmGraded.length), 0, `${at}: Enter in the calculator submitted nothing`);
