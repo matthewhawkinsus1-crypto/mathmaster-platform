@@ -6058,7 +6058,9 @@ function App() {
       return;
     }
     const access = prerequisiteAccess({ assignment: assignmentData, classworkGradesByAssignment, nowValue: Date.now() });
-    if (user?.role === 'student' && !access.open) {
+    // Waiting on the prerequisite says so; a quiz waiting only for its date
+    // (RT17) is told when it opens, below, like any scheduled work.
+    if (user?.role === 'student' && !access.open && access.reason === 'prerequisiteRequired') {
       landOnResult(describeOpenNotice({
         kind: OPEN_NOTICE.PREREQUISITE,
         prerequisiteTitle: assignments.find((assignment) => assignment.id === access.prerequisiteId)?.title || '',

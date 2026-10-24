@@ -205,7 +205,9 @@ test('NAV-4 / NAV-10: every blocked start in startAssignment lands on the result
   // Computed for a student (review fix 2: 'teacher' here left the suite green).
   assert.match(gate, /const closedByTeacher = user\?\.role === 'student' \? teacherClosedState\(assignmentData\) : null;/);
   assert.match(gate, /if \(closedByTeacher\) \{\s*landOnResult\(describeOpenNotice\(\{ kind: closedByTeacher \}\)\);\s*return;/);
-  assert.match(gate, /if \(user\?\.role === 'student' && !access\.open\) \{\s*landOnResult\(describeOpenNotice\(\{\s*kind: OPEN_NOTICE\.PREREQUISITE/);
+  // Only a prerequisite still to finish says so; a quiz that waits only for
+  // its date (RT17) falls through to the "not open yet" notice below.
+  assert.match(gate, /if \(user\?\.role === 'student' && !access\.open && access\.reason === 'prerequisiteRequired'\) \{\s*landOnResult\(describeOpenNotice\(\{\s*kind: OPEN_NOTICE\.PREREQUISITE/);
   assert.match(gate, /landOnResult\(describeOpenNotice\(\{ kind: OPEN_NOTICE\.NOT_OPEN_YET/);
   assert.match(gate, /landOnResult\(describeOpenNotice\(\{ kind: OPEN_NOTICE\.EXCUSED \}\)\);/);
   // No student toast is left on these paths.

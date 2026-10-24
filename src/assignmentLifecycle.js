@@ -890,13 +890,24 @@ export const evaluateClassworkCompletion = ({ assignment, assignmentTracker, act
   });
 };
 
+// A quiz or a test opens at its release date for the whole class (RT17): a
+// met prerequisite opens a lesson early, never an assessment. (Legacy data
+// only: no writer sets prerequisiteAssignmentId today.)
+const ASSESSMENT_KINDS = new Set(['quiz', 'test']);
+const opensAtReleaseForEveryone = (assignment) => (
+  ASSESSMENT_KINDS.has(String(assignment?.assignmentType || '').trim().toLowerCase())
+  || assignment?.assessmentPolicy?.mode === 'testCycle'
+  || projectCurrentAssignmentContent(assignment).entries.some((entry) => ASSESSMENT_KINDS.has(entry.logicalRole))
+);
+
 export const prerequisiteAccess = ({ assignment, classworkGradesByAssignment = {}, nowValue = Date.now() }) => {
   const prerequisiteId = assignment?.prerequisiteAssignmentId;
   const releaseAt = getAssignmentDate(assignment, 'release');
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
   if (!prerequisiteId) return { open: !releaseAt || now >= releaseAt, reason: releaseAt && now < releaseAt ? 'scheduled' : 'open' };
   const met = Number(classworkGradesByAssignment?.[prerequisiteId]?.score) === 100;
-  if (met) return { open: true, reason: 'prerequisiteMet' };
+  if (met && !opensAtReleaseForEveryone(assignment)) return { open: true, reason: 'prerequisiteMet' };
+  if (met) return { open: !releaseAt || now >= releaseAt, reason: releaseAt && now < releaseAt ? 'scheduled' : 'open' };
   if (releaseAt && now >= releaseAt) return { open: true, reason: 'automaticRelease' };
   return { open: false, reason: 'prerequisiteRequired', prerequisiteId, releaseAt };
 };
