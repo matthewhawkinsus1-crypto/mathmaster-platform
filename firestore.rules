@@ -1148,6 +1148,10 @@ service cloud.firestore {
         ])
         && data.schemaVersion == 1
         && data.assignmentId is string && data.assignmentId.size() > 0 && data.assignmentId.size() <= 200
+        // SI04: the question id below names one student and one assignment only
+        // if the assignment id has no "_" at either end and no "__" (askTeacher.js
+        // teacherQuestionId). Auto-ids have no "_" at all.
+        && !data.assignmentId.matches('_.*|.*_|.*__.*')
         && exists(/databases/$(database)/documents/assignments/$(data.assignmentId))
         && get(/databases/$(database)/documents/assignments/$(data.assignmentId)).data
           .get('assignedClassIds', []).hasAny([roster.get('classId', '')])

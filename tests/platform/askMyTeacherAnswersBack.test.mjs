@@ -127,6 +127,33 @@ test('a question is short, about one question of one assignment, and has exactly
   assert.equal(teacherQuestionId({ studentId: 'S1', assignmentId: 'A1', questionIndex: -1 }), null);
   assert.equal(cleanQuestionText('  why does b move?  '), 'why does b move?');
 
+  // SI04: student ids may hold "_" and "__", so an assignment id with "_" at
+  // an end or "__" inside could make two questions share an id: student "a__"
+  // on assignment "X" and student "a_" on assignment "_X" are both
+  // "a____X__0". Those assignment ids get no id (auto-ids have no "_").
+  assert.equal(teacherQuestionId({ studentId: 'a__', assignmentId: 'X', questionIndex: 0 }), 'a____X__0');
+  assert.equal(teacherQuestionId({ studentId: 'a_', assignmentId: '_X', questionIndex: 0 }), null);
+  assert.equal(teacherQuestionId({ studentId: 'a', assignmentId: 'X_', questionIndex: 0 }), null);
+  assert.equal(teacherQuestionId({ studentId: 'a', assignmentId: 'P__Q', questionIndex: 0 }), null);
+  assert.equal(teacherQuestionId({ studentId: 'a', assignmentId: 'A_1', questionIndex: 0 }), 'a__A_1__0', 'one "_" inside is fine');
+  // Every student id and assignment id up to four characters of "a" and "_",
+  // two positions: no two questions share an id.
+  const words = (length) => (length === 0 ? [''] : words(length - 1).flatMap((word) => [`${word}a`, `${word}_`]));
+  const upTo = (max) => Array.from({ length: max }, (_, index) => words(index + 1)).flat();
+  const seen = new Map();
+  for (const studentId of upTo(4)) {
+    for (const assignmentId of upTo(4)) {
+      for (const questionIndex of [0, 10]) {
+        const id = teacherQuestionId({ studentId, assignmentId, questionIndex });
+        if (id === null) continue;
+        const who = `${studentId} | ${assignmentId} | ${questionIndex}`;
+        assert.equal(seen.get(id) ?? who, who, `"${id}" names two questions`);
+        seen.set(id, who);
+      }
+    }
+  }
+  assert.ok(seen.size > 300, 'the check covered the cases it means to');
+
   // Cross-check with firestore.rules: every field the browser writes is one
   // the rule allows, and every field it requires is written.
   const create = region(rulesSource, 'function teacherQuestionCreateValid(questionId) {', '\n    }', 'the create rule');

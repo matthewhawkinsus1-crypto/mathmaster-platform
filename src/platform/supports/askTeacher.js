@@ -92,6 +92,17 @@ export const askTeacherMode = (inClass) => (inClass ? ASK_MODE.HAND : ASK_MODE.Q
 /** The student's words, trimmed and capped — '' when there is nothing to send. */
 export const cleanQuestionText = (value, max = QUESTION_TEXT_MAX) => text(value).slice(0, max).trim();
 
+/*
+ * ONE ID, ONE QUESTION (SI04). A student id may hold "_" anywhere, "__" too,
+ * so the id below is read back unambiguously only because the assignment id
+ * neither starts nor ends with "_" and has no "__" in it: then the student is
+ * everything before the last run of two or more underscores but its last two
+ * (student "a__" with assignment "X" and student "a_" with assignment "_X"
+ * would both be "a____X__0"). Every assignment is created with a Firestore
+ * auto-id, which has no "_" at all; firestore.rules refuses the same shapes.
+ */
+const SEPARABLE_ASSIGNMENT_ID = /^(?!_)(?!.*__)(?!.*_$).+$/;
+
 /**
  * One question per student per question of an assignment: the id is the
  * student, the assignment and the question position, so asking again edits
@@ -104,6 +115,7 @@ export const teacherQuestionId = ({ studentId, assignmentId, questionIndex } = {
   const assignment = text(assignmentId);
   const index = Number(questionIndex);
   if (!student || !assignment || !Number.isInteger(index) || index < 0) return null;
+  if (!SEPARABLE_ASSIGNMENT_ID.test(assignment)) return null;
   return `${student}__${assignment}__${index}`;
 };
 

@@ -149,6 +149,22 @@ test('only the student writes their own question, to the teacher on their roster
   await assertFails(setDoc(questionRef(studentA(), 'AQ_STUDENT_A__A1__3'), rawQuestion({ questionIndex: 3, classId: 'class-b' })));
 });
 
+test('an assignment id that could make two questions share an id is refused (SI04)', async () => {
+  // Student ids may hold "_" and "__": with an assignment id that starts or
+  // ends with "_" or holds "__", student "a__" on "X" and student "a_" on "_X"
+  // would both be "a____X__0". Auto-ids have no "_"; one inside is harmless.
+  await env.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    const assignment = { schemaVersion: 5, title: 'Odd id', assignedClassIds: ['class-a'], sections: [{ id: 'cw', role: 'classwork', questions: [{ id: 'q1' }] }] };
+    for (const id of ['X_', '_Y', 'P__Q', 'A_1']) await setDoc(doc(db, `assignments/${id}`), assignment);
+  });
+  const odd = (assignmentId) => rawQuestion({ assignmentId, questionIndex: 0, questionLabel: 'Classwork · Question 1' });
+  await assertFails(setDoc(questionRef(studentA(), 'AQ_STUDENT_A__X___0'), odd('X_')));
+  await assertFails(setDoc(questionRef(studentA(), 'AQ_STUDENT_A___Y__0'), odd('_Y')));
+  await assertFails(setDoc(questionRef(studentA(), 'AQ_STUDENT_A__P__Q__0'), odd('P__Q')));
+  await assertSucceeds(setDoc(questionRef(studentA(), 'AQ_STUDENT_A__A_1__0'), odd('A_1')));
+});
+
 test('a question is about one question of one assignment, and a few sentences long', async () => {
   const id = 'AQ_STUDENT_A__A1__4';
   // The id names the student, the assignment and the question: no second
