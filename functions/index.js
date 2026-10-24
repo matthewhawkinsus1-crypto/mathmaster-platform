@@ -26717,19 +26717,45 @@ exports.updateTestCycleAvailability = onCall(TEST_CYCLE_ACTION_OPTIONS, async (r
     if (!sched.isDateKey(fromDateKey)) throw new HttpsError("invalid-argument", "Choose the first Test day.");
     if (fromDateKey < todayKey) throw new HttpsError("invalid-argument", "That day has already passed.");
     const chosen = [];
+    // Who has started the Test, or a Retest in its place, by the class whose
+    // windows they follow (as the teacher's table counts it, classSittingsOf).
+    // Read once, when a class's window has opened; a started record naming
+    // no class counts for every class.
+    let started = null;
+    const startedIn = async (classId) => {
+      if (!started) {
+        const notStarted = [shared.record.SESSION_STATE.NONE, shared.record.SESSION_STATE.ASSIGNED];
+        const begun = (stage) => !notStarted.includes(stage?.state || shared.record.SESSION_STATE.NONE);
+        const records = await db.collection(TEST_CYCLE_RECORDS).where("assignmentId", "==", assignmentId).get();
+        started = { byClass: new Map(), unplaced: 0 };
+        records.docs.forEach((recordDoc) => {
+          const record = shared.record.normalizeTestCycleRecord(recordDoc.data() || {});
+          if (!begun(record.test) && !begun(record.retest)) return;
+          const sitsWith = record.audience?.withClassId || record.classId;
+          if (!sitsWith) started.unplaced += 1;
+          else started.byClass.set(sitsWith, (started.byClass.get(sitsWith) || 0) + 1);
+        });
+      }
+      return (started.byClass.get(classId) || 0) + started.unplaced;
+    };
     for (const classId of audienceClassIds) {
       // eslint-disable-next-line no-await-in-loop
       const classPeriod = await classPeriodOf(classId);
-      // A class whose window has already opened (it sat the Test, or is
-      // sitting it) is kept: moving it would put its Corrections back behind a
-      // new window and un-miss its absent students. Its own row moves it.
+      // A class whose window has already opened and where someone started
+      // the Test (it sat it, or is sitting it) is kept: moving it would put
+      // its Corrections back behind a new window and un-miss its absent
+      // students. Its own row moves it. A day that passed with nobody
+      // starting (a snow day the bell schedule never heard of) moves with
+      // the rest (TC03).
       const ran = sched.resolveClassWindows({ availability: assignment?.testAvailability, classId, classPeriod, schedule: bell, timeZone })
         .filter((window) => window.resolved && window.opensAt <= now)
         .sort((left, right) => right.opensAt - left.opensAt)[0];
-      if (ran) {
+      // eslint-disable-next-line no-await-in-loop
+      if (ran && await startedIn(classId) > 0) {
         notes.push(`${classPeriod || classId}: kept — its Test window already opened (${sched.formatSchoolRange(ran.opensAt, ran.closesAt, timeZone)}). Change its day on its own row if it should move.`);
         continue;
       }
+      if (ran) notes.push(`${classPeriod || classId}: its Test day (${sched.formatSchoolRange(ran.opensAt, ran.closesAt, timeZone)}) passed with nobody starting, so it moves too.`);
       const first = classPeriod
         ? sched.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey, count: 1, timeZone, now }).days[0]
         : null;

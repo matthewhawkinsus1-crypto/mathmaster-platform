@@ -1171,6 +1171,18 @@ test('J: a Test day is never scheduled into a meeting that has ended, and an unr
   const lateStart = await refusal(fns.startSecureExamSession.run(studentRequest(STUDENT, { examSessionId: late.examSessionId })));
   assert.equal(lateStart?.code, 'failed-precondition');
   assert.match(lateStart.message, /waiting for a new Test day/);
+  // TC03: "each class's first meeting from today" moves a class whose day
+  // ran with nobody starting (a snow day the bell schedule never heard of):
+  // the day was set before the meeting, so its window opened and closed. A
+  // class where someone started is still kept (scenario L).
+  await db.collection('assignments').doc(ASSIGNMENT).update({
+    testAvailability: withClassTestDay(null, { classId: CLASS, dateKey: today, at: Date.now() - 2 * 24 * 60 * 60 * 1000 }),
+  });
+  const moved = await availability({ action: 'setTestDayForClasses', fromDateKey: today });
+  assert.match(moved.notes.join(' '), /passed with nobody starting, so it moves too/);
+  const movedDays = (await db.collection('assignments').doc(ASSIGNMENT).get()).data().testAvailability.classWindows[CLASS].map((entry) => entry.dateKey);
+  assert.deepEqual(movedDays, [dayKey(1)]);
+  assert.equal((await notMissed('moved to the class\'s next meeting')).schedule.test.state, 'upcoming');
 
   // 4. A day the bell schedule never gave times for, after its midnight.
   await db.collection('assignments').doc(ASSIGNMENT).update({
