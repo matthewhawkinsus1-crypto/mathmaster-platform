@@ -325,3 +325,47 @@ test('a finished Recovery does not promise practice the server refuses (coordina
   assert.doesNotMatch(completed, /practice/i);
   assert.match(model, /canPractice: \[RECOVERY_STATE\.LOCKED, RECOVERY_STATE\.UNLOCKED\]\.includes\(eligibility\.state\)/, 'Practice is offered only before the Recovery starts');
 });
+
+// RC12: "the later reading as the start" was targeted on any reading story
+// whose numbers were finite, but the classifier names it only when the later
+// reading equals no other number of the story. A version where it does (the
+// reading one period before empty holds exactly `rate`) cannot show the error,
+// so Recovery must not deal it as targeted practice.
+test('a reading story is targeted for "the later reading as the start" only where the classifier can name it (RC12)', async () => {
+  const { resolveFamilyConstraints } = await import('../../functions/shared/questionFamilyContract.mjs');
+  const { createFamilyInstanceSequence } = await import('../../functions/shared/questionFamilyEngine.mjs');
+  const { getPlatformQuestionFamily } = await import('../../functions/shared/questionFamilyRegistry.mjs');
+  const board = getPlatformQuestionFamily('linear.multipleRepresentations', 1);
+  const familyKey = 'linear.multipleRepresentations@1';
+  const codes = ['initial-value-from-later-reading'];
+  const near = (a, b) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
+  let shown = 0;
+  let hidden = 0;
+  for (const constraints of [
+    { given: 'scenario', scenarioStart: 'fromReading', slope: 'fraction', rateRange: [2, 7], denominatorRange: [2, 4], startRange: [12, 48], durationRange: [6, 30] },
+    { given: 'scenario', scenarioStart: 'fromReading', slope: 'integer', rateRange: [2, 9], denominatorRange: [2, 3], startRange: [6, 60], durationRange: [3, 30] },
+  ]) {
+    const { values: constraintValues, issues } = resolveFamilyConstraints(board, constraints);
+    assert.deepEqual(issues, [], JSON.stringify(constraints));
+    const sequence = createFamilyInstanceSequence(board, constraintValues, `rc12|${JSON.stringify(constraints)}`);
+    for (let index = 0; index < 300; index += 1) {
+      const values = sequence.instanceAt(index)?.values;
+      if (!values) break;
+      // The classifier's own condition (misconceptionClassifiers.mjs): the
+      // reading is a number no other story number equals, and not the start.
+      const others = [values.rate, -values.rate, values.per, values.zero, values.readTime, values.remaining, -values.b, values.n / values.d, values.d / values.n, values.b];
+      const nameable = !others.some((value) => near(value, values.readAmount));
+      assert.equal(instanceExposesMisconception({ familyKey, values, codes }), nameable, JSON.stringify(values));
+      if (nameable) shown += 1; else hidden += 1;
+    }
+  }
+  assert.ok(shown > 0 && hidden > 0, `both kinds of version were met (${shown} shown, ${hidden} hidden)`);
+});
+
+test('the targeting rule keeps the classifier\'s blockers for "the later reading as the start" (RC12)', () => {
+  const classifier = executableSource(read('functions/shared/misconceptionClassifiers.mjs'));
+  const targeting = executableSource(read('functions/shared/recoveryMisconceptionTargeting.mjs'));
+  const classifierOthers = classifier.match(/const others = \[values\.rate, -values\.rate, values\.per, zero, values\.readTime, values\.remaining, -b, slope, d \/ n\];/);
+  assert.ok(classifierOthers, 'the classifier\'s list changed: bring the targeting rule (and this test) along');
+  assert.match(targeting, /const others = \[rate, -rate, per, zero, readTime, remaining, -b, n \/ d, d \/ n\];/);
+});
