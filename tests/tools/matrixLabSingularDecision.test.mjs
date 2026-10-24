@@ -30,6 +30,7 @@ import { getPlatformQuestionFamily } from '../../functions/shared/questionFamily
 import { resolveFamilyConstraints } from '../../functions/shared/questionFamilyContract.mjs';
 import { buildFamilyQuestion, createFamilyInstanceSequence } from '../../functions/shared/questionFamilyEngine.mjs';
 import { recoverySourceQuestion } from '../../functions/shared/recoveryContent.mjs';
+import { executableSource, region } from '../platform/helpers/sourceContract.mjs';
 
 const grade = (question, state) => gradeToolWork({ toolId: 'matrixLab', question, work: matrixLabWork(question, state) });
 const compileOne = (question) => compileAuthoringIntentV5({
@@ -155,4 +156,52 @@ test('a Recovery version of DOL 3 asks the reason and weighs the decision as DOL
   assert.equal(grade(version, { ...rows, classification: 'none', singularReason: reason }).isCorrect, true, 'its own key passes');
   const misread = grade(version, { ...rows, classification: 'many', singularReason: { ...reason, constant: 'follows' } });
   assert.equal(misread.score, 3 / 6, 'the same 50% as DOL 3');
+});
+
+/*
+ * TS08: THE REASON IS ASKED ON EVERY "NONE" OR "MANY".
+ *
+ * The panel used to appear only where the question grades the reason
+ * (justifySingular), and a singular system asks for it by default, so
+ * choosing "No solution" on DOL 2 (no panel) beside DOL 3 (a panel) said
+ * which system was singular. Every solve item now asks it, and waits for it,
+ * the same way. Where the question does not grade it, the reason is never
+ * sent: no verdict, no part, no change to the score.
+ */
+test('TS08: every solve item asks the reason on "none" or "many", whatever the question grades', () => {
+  const lab = executableSource(readFileSync(new URL('../../src/tools/matrixLab/MatrixLab.jsx', import.meta.url), 'utf8'));
+  const solve = region(lab, 'function SolveMode', 'function CompleteSystemMode', 'SolveMode');
+  const asks = region(solve, 'const asksReason = ', ';', 'when the reason is asked');
+  assert.match(asks, /classification === SOLUTION_TYPES\.NONE \|\| classification === SOLUTION_TYPES\.MANY/);
+  assert.doesNotMatch(asks, /justifySingular/, 'the panel must not say which system is singular');
+  // Shown, and waited for, by that one rule.
+  assert.match(solve, /\{asksReason \? <SingularReason /);
+  assert.match(solve, /const reasonDone = !asksReason \|\| \(singularReason\.row && singularReason\.otherRow && String\(singularReason\.factor\)\.trim\(\) && singularReason\.constant\);/);
+  assert.match(solve, /const answered = classification && \(classification !== SOLUTION_TYPES\.ONE \|\| values\.every\(\(value\) => String\(value\)\.trim\(\)\)\) && reasonDone;/);
+  assert.equal(solve.match(/justifySingular/g), null, 'nothing in the solve view reads justifySingular');
+});
+
+test('TS08: where the question does not grade the reason, it is never sent and changes no part or score', () => {
+  const ONE_ROWS = { A: [['2', '-3', '0'], ['0', '1', '1'], ['1', '2', '4']], B: ['7', '-5', '-17'] };
+  const NO_PAIR_ROWS = { A: [['1', '1', '1'], ['1', '-1', '1'], ['2', '0', '2']], B: ['1', '2', '3'] };
+  for (const [label, question, state] of [
+    ['a one-solution system (DOL 2)', { type: 'matrixLab', mode: 'solve', equations: ONE }, { ...ONE_ROWS, classification: 'none' }],
+    ['a singular system its author turned off', { type: 'matrixLab', mode: 'solve', equations: NONE, justifySingular: false }, { ...NONE_ROWS, classification: 'none' }],
+    ['a singular system published before the default', { type: 'matrixLab', mode: 'solve', equations: MANY }, MANY_WORK],
+    ['a singular system with no row a multiple of another', { type: 'matrixLab', mode: 'solve', equations: NO_PAIR }, { ...NO_PAIR_ROWS, classification: 'many' }],
+  ]) {
+    for (const reason of [NONE_REASON, MANY_REASON, { row: '2', otherRow: '1', factor: '7', constant: 'follows' }]) {
+      assert.equal(matrixLabWork(question, { ...state, singularReason: reason }).singularReason, undefined, `${label}: not sent`);
+      const without = grade(question, state);
+      const withReason = grade(question, { ...state, singularReason: reason });
+      assert.deepEqual(withReason.parts, without.parts, `${label}: the same parts`);
+      assert.deepEqual([withReason.isCorrect, withReason.score], [without.isCorrect, without.score], `${label}: the same score`);
+      assert.equal(withReason.parts.some((part) => part.id === 'singularReason'), false, `${label}: no verdict on the reason`);
+    }
+  }
+  // A right decision there is right with any reason, or none.
+  assert.equal(grade({ type: 'matrixLab', mode: 'solve', equations: NONE, justifySingular: false }, { ...NONE_ROWS, classification: 'none', singularReason: { ...NONE_REASON, factor: '5' } }).isCorrect, true);
+  // Where the question asks (DOL 3), the reason is still a graded part.
+  assert.equal(grade(DOL3, { ...NONE_ROWS, classification: 'none' }).isCorrect, false);
+  assert.equal(grade(DOL3, { ...NONE_ROWS, classification: 'none', singularReason: NONE_REASON }).isCorrect, true);
 });

@@ -454,10 +454,11 @@ const EMPTY_REASON = Object.freeze({ row: '', otherRow: '', factor: '', constant
  * WHY A SINGULAR SYSTEM HAS NO SOLUTION OR INFINITELY MANY (P2-2).
  *
  * Three buttons and three tries let a student pass "none or many" on a second
- * guess. Where the question asks (justifySingular), the decision comes with
- * its reason, read from the student's own A and B: which row is a multiple of
- * which, by what, and whether the constants follow. Only the rows and the
- * arithmetic on screen decide it.
+ * guess. So the decision comes with its reason, read from the student's own A
+ * and B: which row is a multiple of which, by what, and whether the constants
+ * follow. Only the rows and the arithmetic on screen decide it. It is graded
+ * where the question asks (justifySingular), and asked on every solve item
+ * (TS08).
  */
 function SingularReason({ size, value, onChange }) {
   const rows = Array.from({ length: size }, (_, index) => String(index + 1));
@@ -530,8 +531,14 @@ function SolveMode({ questionData, model, onAction }) {
     ? A.every((row) => row.every((cell) => String(cell).trim())) && B.every((cell) => String(cell).trim())
     : true;
   const inverseDone = !model.askInverse || inverse.every((row) => row.every((cell) => String(cell).trim()));
-  // Asked for its reason (justifySingular) once the student says none or many.
-  const asksReason = model.justifySingular && (classification === SOLUTION_TYPES.NONE || classification === SOLUTION_TYPES.MANY);
+  // THE REASON ON EVERY "NONE" OR "MANY" (TS08). Asked only where the
+  // question grades it (justifySingular), which a singular system does by
+  // default, its absence told a student who chose "No solution" that the
+  // system was not singular. Every solve item now asks it the same way, and
+  // waits for it the same way. Where the question does not grade it, the
+  // reason is never sent (matrixLabWork), so it shows no verdict and changes
+  // no score.
+  const asksReason = classification === SOLUTION_TYPES.NONE || classification === SOLUTION_TYPES.MANY;
   const reasonDone = !asksReason || (singularReason.row && singularReason.otherRow && String(singularReason.factor).trim() && singularReason.constant);
   const answered = classification && (classification !== SOLUTION_TYPES.ONE || values.every((value) => String(value).trim())) && reasonDone;
   const blocker = formatProblem([

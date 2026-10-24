@@ -251,10 +251,28 @@ const session = async (viewport, { appScrollPadding = false, touch = false } = {
   await s.go('l3m-dol-2');
   await s.fillSystem([[1, 2, 1, 3], [3, -1, -1, 4], [2, -1, 3, 14]]);
   await page.getByRole('button', { name: /A inverse times B/i }).click();
+  // TS08: DOL 2 is not singular and does not grade a reason, but "No
+  // solution" asks for one and waits for it exactly as on DOL 3, so the
+  // panel says nothing about which system is singular.
+  await page.getByRole('radio', { name: 'No solution' }).click();
+  check((await page.locator('[data-singular-reason]').count()) === 1, 'DOL 2 asks for the reason on "No solution" too (TS08)');
+  check(!(await s.checkButton().isEnabled()), 'DOL 2: "No solution" waits for its reason, as on DOL 3');
+  await page.getByLabel('The row that is a multiple').selectOption('3');
+  await s.fill('The multiple', 2);
+  await page.getByLabel('The row it is a multiple of').selectOption('1');
+  await page.getByRole('radio', { name: 'do not follow it' }).click();
+  check(await s.checkButton().isEnabled(), 'DOL 2: with its reason, the answer can be submitted');
   await page.getByRole('radio', { name: 'Exactly one solution' }).click();
+  check((await page.locator('[data-singular-reason]').count()) === 0, 'DOL 2: "Exactly one solution" asks no reason');
   await s.fill('Value of x', 2); await s.fill('Value of y', -1); await s.fill('Value of z', 4);
   await s.press();
   check((await s.record('l3m-dol-2'))?.supportUsage?.calculatorUsed === true, 'DOL 2: the [A]⁻¹·[B] press is recorded as calculatorUsed (P2-12)');
+  // The work the attempt carries (its response key) holds the decision, and
+  // no reason: DOL 2 does not grade one (TS08).
+  const dol2Sent = String((await s.record('l3m-dol-2'))?.lastResponseKey || '');
+  check(dol2Sent.includes('classification') && !dol2Sent.includes('singularReason'), `DOL 2: the reason it does not grade is never sent (TS08): ${dol2Sent.slice(0, 160)}`);
+  const dol2Grade = await s.lastGrade();
+  check(dol2Grade?.questionId === 'l3m-dol-2' && !(dol2Grade.parts || []).some((part) => /singularReason|no inverse/i.test(`${part.id} ${part.label}`)), 'DOL 2: no part for the reason');
   check((await s.fixList()).length === 0, 'DOL 2: no list after a wrong z');
   await s.go('l3m-dol-3');
   await s.fillSystem([[1, -2, 3, 4], [2, 1, -1, 1], [-3, 6, -9, 12]]);
