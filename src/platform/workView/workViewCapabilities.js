@@ -56,6 +56,15 @@ export const instructionShown = (instruction, withholdsMethod) => (
   instruction && (!withholdsMethod || instruction.controlsOnly || instruction.authoritative) ? instruction : undefined
 );
 
+// THE TASK FAILS CLOSED THE SAME WAY (TS11). Inside a question QuestionEngine's
+// authored task is `authoritative` and replaces a tool's own (the merge
+// below). A tool's own task can name the route — Linear Intercepts' "Decide
+// which variable becomes 0, place the 0 on that variable…" — so a tool shell
+// with no question around it (EnlargeableFigure) shows it only where the
+// activity keeps the method, unless it is marked `authoritative` or
+// `controlsOnly`.
+export const taskShown = (task, withholdsMethod) => instructionShown(task, withholdsMethod);
+
 export function mergeWorkViewCapabilities(platform, tool) {
   const base = normalizeWorkViewCapabilities(platform);
   const local = normalizeWorkViewCapabilities(tool);

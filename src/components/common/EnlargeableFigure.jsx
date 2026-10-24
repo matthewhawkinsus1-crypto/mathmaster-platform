@@ -4,6 +4,7 @@ import {
   WorkViewCapabilityPortProvider,
   combinePublishedCapabilities,
   instructionShown,
+  taskShown,
   toggleWorkViewDrawer,
   useHasParentWorkView,
   usePublishWorkViewCapabilities,
@@ -492,7 +493,13 @@ export default function EnlargeableFigure({
   const shortHeight = enlarged && viewport.shortHeight;
   const presentation = useMemo(() => ({ enlarged, shortHeight }), [enlarged, shortHeight]);
 
-  const task = registeredCapabilities.task?.content || registeredCapabilities.task?.text || taskText;
+  // A tool's own task on an exit ticket, quiz or test: only one marked
+  // `authoritative` or `controlsOnly` (TS11; taskShown). Under QuestionEngine
+  // its authored task is authoritative and replaces the tool's; this covers a
+  // tool shell with no question around it, whose `taskText` is the tool's
+  // own words too.
+  const shownTask = taskShown(registeredCapabilities.task, methodWithheld);
+  const task = shownTask?.content || shownTask?.text || (methodWithheld ? '' : taskText);
   // THE HELP DRAWER, IN THREE PARTS (student pass 3, TOOL-3): the tool's
   // description and steps (its TaskCard, which Work View hides), then the
   // platform's Help — the hint ladder and "Ask my teacher", never replaced —

@@ -29,7 +29,7 @@ import { createServer } from 'vite';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { instructionShown, mergeWorkViewCapabilities } from '../../src/platform/workView/workViewCapabilities.js';
+import { instructionShown, mergeWorkViewCapabilities, taskShown } from '../../src/platform/workView/workViewCapabilities.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const code = (path) => executableSource(read(path));
@@ -169,10 +169,10 @@ test('W6-4: Linear Table Workbench, Rewrite Linear Form, Linear Intercepts and t
       question: { type: 'stepAlgebra2', mode: 'linearIntercepts', standard: { A: 2, B: 3, C: 12 }, prompt: 'Find the intercepts of 2x + 3y = 12.' },
       controls: ['Place the 0 on a variable (drag it, or tap the 0 and then the variable), then press Substitute and solve.', 'Solve the one-variable equation with the operation buttons. Return to substitution starts the substitution again.', 'Write the x-intercept as an ordered pair and press Check x-intercept.'],
       method: ['Decide which coordinate is always 0 at the x-intercept.'],
-      // No directions check: the same sentence is this tool's Work View
-      // `task`, drawn in the header of a figure with no question around it.
-      // Every student host puts QuestionEngine around it, whose authored task
-      // is authoritative and replaces it (mergeWorkViewCapabilities).
+      // The same sentence is this tool's Work View `task`, drawn in the header
+      // of a figure with no question around it: withheld there too on a DOL
+      // (TS11, taskShown). Under QuestionEngine the authored task replaces it.
+      directions: 'Decide which variable becomes 0, place the 0 on that variable',
     });
     await assertSplit(load, {
       label: 'Constraint Function Builder',
@@ -328,6 +328,37 @@ test('W6-4: a tool\'s Work View instruction banner fails closed where the method
   assert.match(figure, /const instruction = shownInstruction\?\.content \|\| shownInstruction\?\.text;/);
   // QuestionEngine's authored stage prompt is the platform's own.
   assert.match(code('src/QuestionEngine.jsx'), /instruction: taskContextPresentation\.currentStagePrompt \? \{ text:taskContextPresentation\.currentStagePrompt, authoritative:true \} : null,/);
+});
+
+test('TS11: a tool\'s Work View task fails closed where the method is withheld, in a shell with no question around it', async () => {
+  const ROUTE = 'Find the x-intercept. Decide which variable becomes 0, place the 0 on that variable, solve, then write the intercept as an ordered pair.';
+  const method = { task: { text: ROUTE } };
+  assert.equal(taskShown(method.task, true), undefined);
+  assert.equal(taskShown(method.task, false).text, ROUTE);
+  assert.equal(taskShown({ text: 'authored', authoritative: true }, true).text, 'authored');
+  assert.equal(taskShown({ text: 'Click the line.', controlsOnly: true }, true).text, 'Click the line.');
+  // Under QuestionEngine the authored task replaces the tool's on every activity.
+  assert.equal(mergeWorkViewCapabilities({ task: { text: 'Find the intercepts of 2x + 3y = 12.', authoritative: true } }, method).task.text, 'Find the intercepts of 2x + 3y = 12.');
+
+  await withVite(async (load) => {
+    const { ToolRuntimeProvider } = await load('/src/tools/shared/ToolRuntimeContext.jsx');
+    const Figure = (await load('/src/components/common/EnlargeableFigure.jsx')).default;
+    const render = (runtime, props) => words(renderToStaticMarkup(React.createElement(ToolRuntimeProvider, runtime,
+      React.createElement(Figure, { openEnlarged: true, label: 'Intercept workspace', ...props }, React.createElement('div', null, 'work')))));
+    // Practice: the tool's own task, from its capability or its taskText.
+    assert.ok(render(PRACTICE, { capabilities: method }).includes(ROUTE), 'practice: the tool\'s task');
+    assert.ok(render(PRACTICE, { taskText: ROUTE }).includes(ROUTE), 'practice: the tool\'s taskText');
+    // DOL: neither, and the header names the figure instead.
+    const dol = render(DOL, { capabilities: method, taskText: ROUTE });
+    assert.ok(!dol.includes('Decide which variable'), 'DOL: no task that names the route');
+    assert.ok(dol.includes('Intercept workspace'), 'DOL: the header names the figure');
+    // A task marked authoritative is the platform's, and stays.
+    assert.ok(render(DOL, { capabilities: { task: { text: 'Find the intercepts of 2x + 3y = 12.', authoritative: true } }, taskText: ROUTE }).includes('Find the intercepts of 2x + 3y = 12.'));
+  });
+
+  const figure = code('src/components/common/EnlargeableFigure.jsx');
+  assert.match(figure, /const shownTask = taskShown\(registeredCapabilities\.task, methodWithheld\);/);
+  assert.match(figure, /const task = shownTask\?\.content \|\| shownTask\?\.text \|\| \(methodWithheld \? '' : taskText\);/);
 });
 
 test('W6-4: the banners kept on an assessment are the ones that only say how to work the controls', () => {

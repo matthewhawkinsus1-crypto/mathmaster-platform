@@ -302,6 +302,10 @@ for (const { tool, grading = '', control, method, banner = null, dolOnly = false
   await page.waitForTimeout(400);
   const shown = await bannerText(page);
   check(!/Choose which variable becomes zero/.test(shown), 'intercepts DOL (assignment): no method banner', shown);
+  // The header's task is the question's own (QuestionEngine's, authoritative),
+  // never the tool's "Decide which variable becomes 0…" (TS11).
+  const task = await page.locator('.mathmaster-work-view-persistent-task').first().innerText().catch(() => '');
+  check(task.includes('Find the x- and y-intercepts of 2x + 3y = 12.') && !/Decide which variable/.test(task), 'intercepts DOL (assignment): Work View\'s task is the question\'s', task);
   await page.close();
 }
 {
