@@ -70,6 +70,26 @@
 [data-open="true"] .mathmaster-work-view-surface { overflow: auto; min-width: 0; min-height: 0; margin: 12px; }
 .mathmaster-work-view-actions { display: none; }
 [data-open="true"] .mathmaster-work-view-actions { display: flex; flex-direction: column; gap: 8px; padding: 12px; overflow: auto; border-left: 1px solid var(--mm-border); background: var(--mm-surface); }
+
+/*
+ * A RAIL THAT HOLDS MORE THAN FITS SHOWS IT (PH08, findings C1-115, B-74).
+ *
+ * Graphing 2's practice rail holds seven actions, and at 740x360 seven 44px
+ * targets are 308px of a 311px rail: the tuning below keeps all seven on screen
+ * with nothing to spare. An eighth (Hint, Read aloud) was below the edge, reached
+ * only by scrolling a rail with nothing to say it scrolls. A soft edge on the
+ * side that has more: the two `local` layers are covers that scroll with the
+ * content and hide the shadow once the end is reached; the two `scroll` layers
+ * are the shadows, fixed to the rail. A rail that fits shows neither.
+ */
+[data-open="true"] .mathmaster-work-view-actions {
+  background:
+    linear-gradient(to bottom, var(--mm-surface), transparent) top center / 100% 20px no-repeat local,
+    linear-gradient(to top, var(--mm-surface), transparent) bottom center / 100% 20px no-repeat local,
+    linear-gradient(to bottom, color-mix(in srgb, var(--mm-text-strong) 28%, transparent), transparent) top center / 100% 10px no-repeat scroll,
+    linear-gradient(to top, color-mix(in srgb, var(--mm-text-strong) 28%, transparent), transparent) bottom center / 100% 10px no-repeat scroll,
+    var(--mm-surface);
+}
 /* What the view carries, as one line of caption text under the actions
    (PQ-027). Each label used to be a grey rounded chip the size of a button, and
    a student read "Pan and zoom" as a button that would not press. */

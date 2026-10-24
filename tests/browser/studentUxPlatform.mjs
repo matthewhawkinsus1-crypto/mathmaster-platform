@@ -837,6 +837,64 @@ const JOURNEYS = {
       await context.close();
     }
   },
+
+  async rail(browser) {
+    // PH08 (C1-115, B-74): Graphing 2's Work View rail on a phone on its side
+    // holds seven actions, and at 740×360 seven 44px targets are 308px of a
+    // 311px rail, so an eighth was below the screen with nothing to say the rail
+    // scrolls. Every action it has is on screen; with two more it scrolls, shows
+    // a soft edge on the side that has more, and the last is reached by scrolling.
+    for (const [width, height] of [[844, 390], [740, 360], [667, 375]]) {
+      const context = await browser.newContext({ viewport: { width, height }, hasTouch: true, isMobile: true });
+      const page = await context.newPage();
+      await open(page, 'ux-graph2');
+      await page.locator('.mathmaster-work-view-host[data-open="false"] > .mathmaster-work-view-body > .mathmaster-work-view-surface > button', { hasText: /Enlarge|Open Work View/ }).first().tap();
+      await settle(page, 1500);
+      const where = `${width}×${height}`;
+      const readRail = () => page.evaluate(() => {
+        const rail = document.querySelector('.mathmaster-work-view-host[data-open="true"] .mathmaster-work-view-actions');
+        const buttons = rail ? [...rail.querySelectorAll('button')].filter((button) => button.getBoundingClientRect().width > 0) : [];
+        const last = buttons[buttons.length - 1];
+        return {
+          found: Boolean(rail),
+          side: rail?.closest('[data-controls]')?.getAttribute('data-controls') === 'side',
+          count: buttons.length,
+          below: buttons.filter((button) => button.getBoundingClientRect().bottom > innerHeight + 0.5).map((button) => button.textContent.trim().slice(0, 20)),
+          scrolls: rail ? rail.scrollHeight > rail.clientHeight + 1 : false,
+          edges: rail ? (getComputedStyle(rail).backgroundImage.match(/linear-gradient/g) || []).length : 0,
+          lastBottom: last ? Math.round(last.getBoundingClientRect().bottom) : null,
+        };
+      });
+      const real = await readRail();
+      if (!check(real.found && real.side, `${where}: Work View is not open with a side rail`)) { await context.close(); continue; }
+      check(real.count >= 6 && real.below.length === 0, `${where}: Graphing 2's ${real.count} actions are not all on screen (below the edge: ${real.below.join(', ') || 'none'})`);
+      check(!real.scrolls, `${where}: a rail that fits scrolls`);
+      // Two more actions than it has: a rail with more than fits.
+      await page.evaluate(() => {
+        const rail = document.querySelector('.mathmaster-work-view-host[data-open="true"] .mathmaster-work-view-actions');
+        const model = rail.querySelector('button');
+        for (const label of ['Extra one', 'Extra two']) {
+          const clone = model.cloneNode(true);
+          clone.textContent = label;
+          rail.appendChild(clone);
+        }
+      });
+      await settle(page, 300);
+      const more = await readRail();
+      check(more.scrolls, `${where}: with two more actions the rail scrolls`);
+      check(more.edges >= 4, `${where}: the rail shows a soft edge where it has more (${more.edges} gradient layers)`);
+      const reached = await page.evaluate(() => {
+        const rail = document.querySelector('.mathmaster-work-view-host[data-open="true"] .mathmaster-work-view-actions');
+        rail.scrollTop = rail.scrollHeight;
+        const buttons = [...rail.querySelectorAll('button')].filter((button) => button.getBoundingClientRect().width > 0);
+        const bottom = buttons[buttons.length - 1].getBoundingClientRect().bottom;
+        return { bottom: Math.round(bottom), top: Math.round(buttons[buttons.length - 1].getBoundingClientRect().top), inner: innerHeight };
+      });
+      check(reached.bottom <= reached.inner + 1 && reached.top >= 0, `${where}: scrolling the rail does not bring its last action fully on screen (${JSON.stringify(reached)})`);
+      await shot(page, `rail-${width}x${height}`);
+      await context.close();
+    }
+  },
 };
 
 // ------------------------------------------------------------------ runner
