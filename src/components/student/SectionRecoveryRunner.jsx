@@ -177,6 +177,10 @@ function PinnedQuestion({
   onUnavailable = null,
   // Practice: what a hint costs here (HELP-4). The assessment withholds hints.
   hintCostNote = null,
+  // The assignment's calculator setting (RC08): Recovery runs inside the
+  // assignment, so its questions follow the same setting, by the same rules
+  // (an assessment's setting only narrows; QuestionEngine resolves it).
+  assignmentCalculatorMode = null,
 }) {
   // A stored plan item whose pin did not survive normalizeRecoveryRecord (a
   // pin from another build, a damaged record) is null here. Reading
@@ -238,6 +242,7 @@ function PinnedQuestion({
       assignmentId={assignmentId}
       showStandardBadge={false}
       hintCostNote={hintCostNote}
+      assignmentCalculatorMode={assignmentCalculatorMode}
     />
   );
 }
@@ -442,6 +447,7 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
           item={item}
           question={question}
           assignmentId={assignment.id}
+          assignmentCalculatorMode={assignment?.toolPolicy?.calculator || null}
           section={entry.section}
           studentId={studentId}
           studentProfile={studentProfile}
@@ -807,6 +813,7 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
           item={current}
           question={currentQuestion}
           assignmentId={assignment.id}
+          assignmentCalculatorMode={assignment?.toolPolicy?.calculator || null}
           section={entry.section}
           studentId={studentId}
           studentProfile={studentProfile}

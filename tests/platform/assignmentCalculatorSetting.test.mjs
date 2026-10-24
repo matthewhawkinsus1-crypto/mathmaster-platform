@@ -438,3 +438,17 @@ test('only the view is searched, and long lists are capped', () => {
   assert.equal(findGraphFeatures(parseGraphEntry('3 + 4'), { xMin: -1, xMax: 1 }), null, 'a value is not a graph');
   assert.equal(findGraphFeatures({ kind: ENTRY_KINDS.FUNCTION, evaluate: () => 0 }, { xMin: 2, xMax: 1 }), null, 'an empty view');
 });
+
+// RC08: Recovery runs inside the assignment, so its questions follow the
+// assignment's calculator setting, by the same rules QuestionEngine applies on
+// the assignment screen (an assessment's setting only narrows, TL01).
+test('Recovery passes the assignment\'s calculator setting to every question it shows', () => {
+  const runner = executableSource(source('src/components/student/SectionRecoveryRunner.jsx'));
+  const pinned = region(runner, 'function PinnedQuestion({', '\n}\n', 'PinnedQuestion');
+  assert.match(pinned, /assignmentCalculatorMode = null,/);
+  assert.match(region(pinned, '<QuestionEngine', '/>', 'its engine'), /assignmentCalculatorMode=\{assignmentCalculatorMode\}/);
+  // Both runners (practice and the graded Recovery) hand it over.
+  const mounts = [...runner.matchAll(/<PinnedQuestion([\s\S]*?)\/>/g)].map((match) => match[1]);
+  assert.equal(mounts.length, 2);
+  mounts.forEach((props) => assert.match(props, /assignmentCalculatorMode=\{assignment\?\.toolPolicy\?\.calculator \|\| null\}/));
+});
