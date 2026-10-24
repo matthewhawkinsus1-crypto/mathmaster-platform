@@ -583,6 +583,47 @@ const flatTurn = (f, x, turnValue, tolerance, gap, span, lowest) => {
   return { center: symmetric ? high.middle : x, reach, distance: d };
 };
 
+/*
+ * A FLAT TURN READS TO ITS OWN ROUNDING ERROR, NOT THE VIEW'S (TL17).
+ *
+ * The tolerance above stands in for the size of the line's terms with its
+ * typical size on screen, which a flat turn's far walls inflate: (x − 3.14159)⁶
+ * − 3 is about 10⁴ across [−10, 10], so its minimum read x = 3.1416 there and
+ * 3.142 across [−50, 50]. At the basin's middle a flat turn changes by far
+ * less than rounding error over a few millionths, so the spread of the line's
+ * values there IS its rounding error, whatever form it was typed in (an
+ * expanded sextic's large terms show up in it too). Eight times that spread
+ * may only tighten the tolerance, and only when the basin, measured again at
+ * that tolerance, still has a middle; otherwise the reading is flatTurn's.
+ */
+const NOISE_SAMPLES = 16;
+const noiseAt = (f, x) => {
+  const center = f(x);
+  if (center === null) return null;
+  const step = 1e-7 * Math.max(1, Math.abs(x));
+  let spread = 0;
+  for (let k = 1; k <= NOISE_SAMPLES; k += 1) {
+    const left = f(x - k * step);
+    const right = f(x + k * step);
+    if (left === null || right === null) return null;
+    spread = Math.max(spread, Math.abs(left - center), Math.abs(right - center));
+  }
+  return spread;
+};
+
+const flatTurnAtItsOwnPrecision = (f, x, turnValue, tolerance, gap, span, lowest) => {
+  const flat = flatTurn(f, x, turnValue, tolerance, gap, span, lowest);
+  if (!flat) return null;
+  const asMeasured = { ...flat, tolerance };
+  if (flat.center === x) return asMeasured;
+  const noise = noiseAt(f, flat.center);
+  const tighter = noise === null ? tolerance : Math.max(8 * noise, 4e-16 * Math.max(1, Math.abs(turnValue)));
+  if (!(tighter < tolerance)) return asMeasured;
+  const again = flatTurn(f, x, turnValue, tighter, gap, span, lowest);
+  if (!again || again.center === x) return asMeasured;
+  return { ...again, tolerance: tighter };
+};
+
 /**
  * @param entry  a FUNCTION entry from parseGraphEntry
  * @param view   { xMin, xMax } — the x-range on screen
@@ -665,12 +706,15 @@ export const findGraphFeatures = (entry, { xMin, xMax } = {}) => {
       const local = Math.max(...[f(x - gap), f(x + gap)].filter((value) => value !== null).map((value) => Math.abs(value - turnValue)), 0);
       const tolerance = 1e-14 * Math.max(1, Math.abs(turnValue), local, viewScale);
       // A flat turn (a sixth power's) is anchored at its basin's middle and
-      // rounded only as far as its shape allows; see flatTurn.
-      const flat = flatTurn(f, x, turnValue, tolerance, gap, span, lowest);
+      // rounded only as far as its shape allows; see flatTurn. Its rounding
+      // error is then measured where it turns (TL17), which may only tighten
+      // the reading.
+      const flat = flatTurnAtItsOwnPrecision(f, x, turnValue, tolerance, gap, span, lowest);
+      const near = flat ? flat.tolerance : tolerance;
       const at = shortestEquivalent(flat ? flat.center : x, (candidate) => {
         const value = f(candidate);
         if (value === null) return false;
-        return (lowest ? value <= turnValue : value >= turnValue) || Math.abs(value - turnValue) <= tolerance;
+        return (lowest ? value <= turnValue : value >= turnValue) || Math.abs(value - turnValue) <= near;
       }, flat ? 2 * flat.reach : gap);
       const y = f(at);
       if (y === null) continue;

@@ -287,6 +287,13 @@ test('a turn flatter than a parabola reads where it is, in every view', () => {
   assert.deepEqual(turns('y = abs(x - 0.3) - 2').minima, [{ x: 0.3, y: -2 }]);
   // A flat inflection is not a turn.
   assert.deepEqual([turns('y = (x - 2.718)^5 + 1').minima, turns('y = (x - 2.718)^5 + 1').maxima], [[], []]);
+  // TL17: a flat turn reads to its own rounding error, not to the size of its
+  // far walls (about 10^4 across [−10, 10], 10^10 across [−50, 50]), which
+  // read 3.1416 and 3.142.
+  for (const [xMin, xMax] of [[-10, 10], [-50, 50], [2, 4]]) {
+    assert.deepEqual(turns('y = (x - 3.14159)^6 - 3', xMin, xMax).minima, [{ x: 3.14159, y: -3 }], `(x − 3.14159)⁶ − 3 on [${xMin}, ${xMax}]`);
+  }
+  assert.deepEqual(turns('y = (x - 7.654321)^6', -20, 20).minima, [{ x: 7.654321, y: 0 }]);
 });
 
 // Where two lines meet (TL18, the rest of #383 R3): the handheld's intersect,

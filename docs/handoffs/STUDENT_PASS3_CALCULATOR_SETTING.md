@@ -354,7 +354,8 @@ EOF
 ## Not done / noticed
 
 - ~~**Flat higher-order turns are over-rounded (reviewer's note).**~~ Fixed (W6-4): a flat turn is anchored at the
-  middle of its basin (`flatTurn` in graphingCalculatorModel.js).
+  middle of its basin (`flatTurn` in graphingCalculatorModel.js). TL17: its rounding error is measured where it turns
+  (`flatTurnAtItsOwnPrecision`), so a sixth power in a wide view reads 3.14159, not 3.1416.
 
 - **Follow-up (from W5-4's reviewer):** the graphing calculator (`GraphingCalculatorPanel` and its model) keeps its own
   error handling. It does not use W5-4's TOOL-8 reasons (what to change after an Error), and it does not have W5-4's
