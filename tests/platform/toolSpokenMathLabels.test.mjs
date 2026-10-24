@@ -131,3 +131,17 @@ test('the scan sees the shapes it guards (it can fail)', () => {
   assert.equal(rawMathInLabels('<b aria-label={`Pick up the factor ${spokenMathValue(state.factorText)}`} />').length, 0);
   assert.equal(rawMathInLabels('<b aria-label={`Isolate ${v} in ${equationName(index)}`} />').length, 0);
 });
+
+// AX40: Step Algebra's cancellation area was the same "Cancellation
+// workspace" on every step, and a micro-question's box was named only by its
+// placeholder, "Algebraic expression". Each now says what it is about.
+test('Step Algebra names its cancellation area by the side it cancels, and each micro-question box by its question', () => {
+  const core = executableSource(readFileSync(new URL('../../src/StepByStepAlgebraCore.jsx', import.meta.url), 'utf8'));
+  assert.match(core, /role="group"\s*aria-label=\{`Cancellation on the \$\{side\} side: \$\{spokenMathValue\(sideExpression\(side\)\)\}\. Draw through matching factors\.`\}/);
+  assert.doesNotMatch(core, /aria-label="Cancellation workspace\./);
+  assert.match(core, /const heading = prompt\.prompt \|\| prompt\.label \|\| `Simplify expression \$\{index \+ 1\}`;/);
+  assert.match(core, /placeholder="Algebraic expression" ariaLabel=\{`Answer to \$\{spokenMathValue\(heading\)\}`\}/);
+  // What those names say, for the shapes they carry.
+  assert.equal(`Answer to ${spokenMathValue('Expand $2(x+1)$.')}`, 'Answer to Expand 2 times the quantity x plus 1.');
+  assert.equal(`Cancellation on the left side: ${spokenMathValue('6x/3')}. Draw through matching factors.`, 'Cancellation on the left side: 6 x over 3. Draw through matching factors.');
+});

@@ -2180,7 +2180,9 @@ export default function StepByStepAlgebra({
           onPointerCancel={() => setStroke(null)}
           style={{ position: 'relative', width: 'min(96%, 520px)', maxWidth: '100%', minHeight: '132px', margin: '12px auto 4px', padding: '24px 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '14px', background: cancellationHintsEnabled ? 'var(--mm-warning-subtle)' : 'var(--mm-surface)', outline: cancellationHintsEnabled ? '2px solid rgba(249,171,0,.32)' : 'none', touchAction: 'none', cursor: cancelAnimating ? 'wait' : 'crosshair', userSelect: 'none', overflowX: 'hidden', overflowY: 'hidden', fontSize: 'inherit' }}
           role="group"
-          aria-label="Cancellation workspace. Draw through matching factors directly in this equation."
+          // Named by the side and what is on it (AX40): every step's area was
+          // the same "Cancellation workspace".
+          aria-label={`Cancellation on the ${side} side: ${spokenMathValue(sideExpression(side))}. Draw through matching factors.`}
         >
           {renderCancellationInk(side)}
           {directMath}
@@ -2613,7 +2615,10 @@ export default function StepByStepAlgebra({
           <div style={{ display: 'grid', gap: '12px' }}>
             {question.algebraPrompts.map((prompt, index) => {
               const id = String(prompt.id || `algebra-prompt-${index + 1}`);
-              return <div key={id} style={{ padding: '12px', borderRadius: '10px', background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)' }}><strong style={{ display: 'block', marginBottom: '8px' }}>{prompt.prompt || prompt.label || `Simplify expression ${index + 1}`}</strong>{prompt.expression && <div style={{ marginBottom: '8px', fontSize: 'calc(22 * var(--mm-px))' }}><MathDisplay value={prompt.expression} /></div>}<MathInput value={promptAnswers[id] || ''} onChange={(value) => setPromptAnswers((current) => ({ ...current, [id]: value }))} placeholder="Algebraic expression" /></div>;
+              const heading = prompt.prompt || prompt.label || `Simplify expression ${index + 1}`;
+              // Each box is named by its own question, not only "Algebraic
+              // expression", its placeholder (AX40).
+              return <div key={id} style={{ padding: '12px', borderRadius: '10px', background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)' }}><strong style={{ display: 'block', marginBottom: '8px' }}>{heading}</strong>{prompt.expression && <div style={{ marginBottom: '8px', fontSize: 'calc(22 * var(--mm-px))' }}><MathDisplay value={prompt.expression} /></div>}<MathInput value={promptAnswers[id] || ''} onChange={(value) => setPromptAnswers((current) => ({ ...current, [id]: value }))} placeholder="Algebraic expression" ariaLabel={`Answer to ${spokenMathValue(heading)}`} /></div>;
             })}
           </div>
         </div>
