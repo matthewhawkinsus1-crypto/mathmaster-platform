@@ -165,7 +165,7 @@ export default function StudentDashboardView({
 }) {
   const {
     visibleAssignments, resumeAssignment, resumeQuestionIndex, resumeQuestionAddress = null, resumeLifecycle,
-    resumeRecordedGrade, resumeQuestionsAttempted, resumeFeedbackHeld,
+    resumeRecordedGrade, resumeQuestionsAttempted, resumeFeedbackHeld, resumeDueToday = false,
     activeDols = [], activeWarmups = [], groups,
   } = dashboard;
   const hideCountdowns = Boolean(supportPresentation.hideCountdowns);
@@ -371,6 +371,7 @@ export default function StudentDashboardView({
           <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.55, marginTop: 6 }}>
             {waitLine && <strong data-wait-line style={{ display: 'block', color: 'var(--mm-text)' }}>{waitLine}</strong>}
             {!finished && <>{dates.dueLine}{dates.finalLine ? ` · ${dates.finalLine}` : ''}</>}
+            {!finished && entry.dueTodayInProgress && <strong data-due-today="" style={{ color: 'var(--mm-text)' }}> · Due today</strong>}
             {finished && !excused && dates.dueLine}
             {late && <><br /><strong style={{ color: 'var(--mm-warning-text)' }}>Late work is still open for {formatRemainingTime(lifecycle.millisecondsRemaining)}.</strong></>}
             {dolOpensAt && !waitLine && <><br />{EXIT_TICKET} opens at {dolOpensAt}.</>}
@@ -558,6 +559,7 @@ export default function StudentDashboardView({
                 Continue at {resumeQuestionLabel}. Your answers are kept as you go.
                 {resumeGradeText ? ` ${resumeGradeText}.` : ''}
                 {' '}{resumeLifecycle.isLate ? `Late · ${formatRemainingTime(resumeLifecycle.millisecondsRemaining)} until it closes` : studentDueDateLines(resumeAssignment, resumeLifecycle).dueLine}
+                {!resumeLifecycle.isLate && resumeDueToday && <strong data-due-today="" style={{ color: 'var(--mm-text)' }}> · Due today</strong>}
               </div>
             </div>
             <button type="button" onClick={() => onStartAssignment(resumeAssignment.id, resumeQuestionIndex)} style={{ minHeight: 44, padding: '10px 16px', border: '2px solid var(--mm-primary-border)', borderRadius: '10px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 900 }}>Continue</button>

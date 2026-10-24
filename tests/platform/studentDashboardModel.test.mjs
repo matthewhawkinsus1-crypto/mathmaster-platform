@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { BUCKET, buildStudentDashboardModel } from '../../src/studentDashboardModel.js';
 import {
   assignmentIsForStudent, getAssignmentLifecycle, getDOLState, getWarmupState, getIncludedQuestionIndices,
@@ -436,4 +437,39 @@ test('Home does not claim caught up until weekly Path completion is verified', a
   assert.equal(informed.kind, 'clear');
   assert.match(informed.detail, /Math Path goal is complete/i,
     'verified completion may unlock the caught-up state');
+});
+
+// NV11: started work due today sits under "Keep going", so its card says it
+// is due today; "Due today" itself lists only work not yet started.
+test('started work due today says so on its Keep going card', () => {
+  const twoQuestions = [
+    { type: 'algebra', prompt: 'a', equationLatex: '2x=8' },
+    { type: 'algebra', prompt: 'b', equationLatex: '3x=9' },
+  ];
+  const result = model({
+    assignments: [
+      practice('started-today', { questions: twoQuestions }),
+      practice('started-tomorrow', { questions: twoQuestions, dueAt: inHours(30) }),
+      practice('not-started-today', { questions: twoQuestions }),
+    ],
+    tracker: {
+      'started-today': { 0: { status: 'correct', totalAttempts: 1 } },
+      'started-tomorrow': { 0: { status: 'correct', totalAttempts: 1 } },
+    },
+    resumeAction: { assignmentId: 'nothing' },
+  });
+  // The soonest started one may lead Home as its Continue card; allEntries
+  // holds every row either way.
+  const entry = (id) => result.allEntries.find((item) => item.assignment.id === id);
+  assert.equal(entry('started-today').bucket, BUCKET.IN_PROGRESS);
+  assert.equal(entry('started-today').dueTodayInProgress, true);
+  assert.equal(entry('started-tomorrow').dueTodayInProgress, false);
+  assert.equal(entry('not-started-today').bucket, BUCKET.DO_NOW);
+  assert.equal(entry('not-started-today').dueTodayInProgress, false, 'its group already says Due today');
+  // The soonest of them leads Home as the Continue card, which says it too.
+  assert.equal(result.resumeAssignment?.id, 'started-today');
+  assert.equal(result.resumeDueToday, true);
+  const view = readFileSync(new URL('../../src/components/student/StudentDashboardView.jsx', import.meta.url), 'utf8');
+  assert.match(view, /\{!finished && entry\.dueTodayInProgress && <strong data-due-today=""[^>]*> · Due today<\/strong>\}/);
+  assert.match(view, /\{!resumeLifecycle\.isLate && resumeDueToday && <strong data-due-today=""[^>]*> · Due today<\/strong>\}/);
 });

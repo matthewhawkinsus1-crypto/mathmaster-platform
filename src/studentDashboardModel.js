@@ -547,9 +547,15 @@ export const buildStudentDashboardModel = ({
             : byDueDate;
 
       const waitText = !done && !actionable && lesson ? describeSectionWait(lesson.nextOpening, { nowValue }) : null;
+      // Started work due today is filed under "Keep going" (it is work to
+      // continue), so "Due today" lists only work not yet started: the card
+      // itself says it is due today (NV11), by the student's own due date.
+      const dueTodayInProgress = bucket === BUCKET.IN_PROGRESS && !lifecycle.isLate
+        && Boolean(lifecycle.dueAt) && localDateKey(lifecycle.dueAt) === localDateKey(nowValue);
 
       return {
         started,
+        dueTodayInProgress,
         assignment, assignmentTracker, isAttempted, lifecycle, access, recordedGrade,
         activity, classwork, dol,
         disabled: testCycle ? testCycle.key === 'opensLater' : (!done && !actionable),
@@ -587,6 +593,8 @@ export const buildStudentDashboardModel = ({
     resumeRecordedGrade,
     resumeQuestionsAttempted,
     resumeFeedbackHeld,
+    // The Continue card is started work too: it says when that is due today.
+    resumeDueToday: Boolean(resumeAssignment && allEntries.find((entry) => entry.assignment.id === resumeAssignment.id)?.dueTodayInProgress),
     activeDols,
     activeWarmups,
     entries,
