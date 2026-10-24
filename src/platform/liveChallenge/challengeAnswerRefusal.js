@@ -19,10 +19,16 @@
  *                     same envelope, with the same submission id, is sent
  *                     again once this device's server time passes startsAt
  *                     plus a margin.
+ *   paused            the teacher paused the round. The envelope is kept and
+ *                     sent again when the round resumes (LC06: it was read as
+ *                     closed and dropped, and the student read "Time was up").
  *   closed            the round is over for this answer (time up, closed,
  *                     gone). The screen catches up, as it always has.
- *   transient         anything else (offline, a server hiccup). The envelope
- *                     is kept for a retry.
+ *   transient         anything else (offline, a server hiccup, and this
+ *                     device's own request timing out: httpsCallable reports
+ *                     that as deadline-exceeded too, with no reason from the
+ *                     server, and it was read as a closed round, so the locked
+ *                     answer was dropped; LC06). The envelope is kept.
  *
  * The server gives its reason for refusing an early answer in the HttpsError's
  * details, { reason: 'round_not_started' } (liveChallengeArrivalRefusal in
@@ -40,6 +46,7 @@
 export const REFUSAL_OUTCOME = Object.freeze({
   ALREADY_RECORDED: 'already-recorded',
   RETRY_AT_GO: 'retry-at-go',
+  PAUSED: 'paused',
   CLOSED: 'closed',
   TRANSIENT: 'transient',
 });
@@ -47,6 +54,12 @@ export const REFUSAL_OUTCOME = Object.freeze({
 // The server's reason for an answer that arrived before the round's GO
 // (functions/shared/liveChallengeParity.mjs submissionArrivalDecision).
 export const ROUND_NOT_STARTED = 'round_not_started';
+// ...while the teacher had the round paused (liveChallengeTimer.mjs).
+export const ROUND_PAUSED = 'round_paused';
+// ...after the round's time, grace included, or on a round with no timeline.
+const TIME_UP_REASONS = new Set(['arrival_window_expired', 'invalid_timeline']);
+
+const serverReason = (error) => (typeof error?.details?.reason === 'string' ? error.details.reason : null);
 
 // A refused answer is resent this long after GO, on this device's server time.
 export const RESEND_AT_GO_MARGIN_MS = 250;
@@ -63,11 +76,30 @@ export const refusedBeforeGo = (error) => {
   return /has not started yet/i.test(String(error?.message || ''));
 };
 
+/** Whether the server refused this answer because the teacher had paused the round. */
+export const refusedWhilePaused = (error) => {
+  if (!/deadline-exceeded/.test(String(error?.code || ''))) return false;
+  const reason = serverReason(error);
+  if (reason !== null) return reason === ROUND_PAUSED;
+  return /paused/i.test(String(error?.message || ''));
+};
+
+// The server said the time was up: its reason, or (from a server older than
+// the reasons) its own words. A deadline-exceeded with neither is this
+// device's request timing out, not the round.
+const serverSaidTimeUp = (error) => {
+  const reason = serverReason(error);
+  if (reason !== null) return TIME_UP_REASONS.has(reason);
+  return /time (is|was) up/i.test(String(error?.message || ''));
+};
+
 /** What a refused answer means for its locked envelope: a REFUSAL_OUTCOME. */
 export const classifyAnswerRefusal = (error) => {
   const code = String(error?.code || '');
   if (/already-exists/.test(code)) return REFUSAL_OUTCOME.ALREADY_RECORDED;
   if (refusedBeforeGo(error)) return REFUSAL_OUTCOME.RETRY_AT_GO;
+  if (refusedWhilePaused(error)) return REFUSAL_OUTCOME.PAUSED;
+  if (/deadline-exceeded/.test(code) && !serverSaidTimeUp(error)) return REFUSAL_OUTCOME.TRANSIENT;
   if (/failed-precondition|deadline-exceeded|not-found/.test(code)) return REFUSAL_OUTCOME.CLOSED;
   return REFUSAL_OUTCOME.TRANSIENT;
 };
@@ -101,18 +133,21 @@ export const resendAtGoDelayMs = ({ serverNowMs, startsAtMs, endsAtMs = 0, resen
 };
 
 /*
- * GRAPH FEATURE RUSH sends taps in batches, and its server refuses a batch
- * outside the round with a bare deadline-exceeded: "Time is up for this
- * round." whether it came after the deadline or just before GO
- * (submitGraphFeatureRushAttempts in functions/index.js), and a client-side
- * timeout has the same code. This device's own clock tells them apart: in the
+ * GRAPH FEATURE RUSH sends taps in batches, and a client-side timeout has the
+ * same deadline-exceeded code as the server's refusal of a batch outside the
+ * round. The server now says why (submitGraphFeatureRushAttempts refuses with
+ * liveChallengeArrivalRefusal, LC06: it said "Time is up for this round." to
+ * a tap before GO too): time up only for a late batch; before GO or during a
+ * pause the taps are kept and sent again. Without a reason (a timeout, or a
+ * server older than the reasons) this device's own clock decides: in the
  * round's last RUSH_TIME_UP_WINDOW_MS it is time up and the queue is dropped;
- * earlier it is a batch that reached the server before its GO (this clock runs
- * a little ahead) or a timeout, so the taps are kept and sent again.
+ * earlier the taps are kept and sent again.
  */
 export const RUSH_TIME_UP_WINDOW_MS = 1_500;
 
-/** Whether a refused rush batch means time is up (`code` is the error's code). */
-export const rushRefusalIsTimeUp = (code, msUntilEnd) => (
-  /deadline-exceeded/.test(String(code || '')) && Number(msUntilEnd) <= RUSH_TIME_UP_WINDOW_MS
-);
+/** Whether a refused rush batch means time is up (`code`, and the server's `reason` when it gave one). */
+export const rushRefusalIsTimeUp = (code, msUntilEnd, reason = null) => {
+  if (!/deadline-exceeded/.test(String(code || ''))) return false;
+  if (typeof reason === 'string') return TIME_UP_REASONS.has(reason);
+  return Number(msUntilEnd) <= RUSH_TIME_UP_WINDOW_MS;
+};

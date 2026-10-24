@@ -14511,10 +14511,19 @@ exports.updateLiveChallengePacing = onCall(async (request) => {
 const LIVE_CHALLENGE_SUBMISSION_ID = /^[A-Za-z0-9_-]{1,100}$/;
 
 // What a student reads when an answer arrives outside its round's window: an
-// answer sent before GO is told to wait for GO, a late one that time was up.
-const liveChallengeArrivalRefusal = (arrival) => new HttpsError("deadline-exceeded", arrival?.reason === "round_not_started"
-  ? "This round has not started yet. Wait for GO, then answer."
-  : "Time was up before your answer arrived, so it was not counted.", { reason: arrival?.reason || null });
+// answer sent before GO is told to wait for GO, one sent while the teacher had
+// the round paused that it is kept until the round resumes (LC06: it read
+// "Time was up"), a late one that time was up. The reason rides in the
+// details, so the device can tell these from its own request timing out.
+const LIVE_CHALLENGE_ARRIVAL_WORDS = Object.freeze({
+  round_not_started: "This round has not started yet. Wait for GO, then answer.",
+  round_paused: "Your teacher paused the round. Your locked answer is kept and goes when the round resumes.",
+});
+const liveChallengeArrivalRefusal = (arrival) => new HttpsError(
+  "deadline-exceeded",
+  LIVE_CHALLENGE_ARRIVAL_WORDS[arrival?.reason] || "Time was up before your answer arrived, so it was not counted.",
+  { reason: arrival?.reason || null },
+);
 
 // A round whose question can no longer be rebuilt cannot check answers. Rare
 // (the question was deleted mid-game); the student is told what happens next.
@@ -14984,9 +14993,9 @@ exports.submitGraphFeatureRushAttempts = onCall(async (request) => {
   if (precheck.outcome !== lifecycle.LIFECYCLE_OUTCOME.APPLY) {
     throw new HttpsError("failed-precondition", precheck.message, { lifecycle: precheck.code });
   }
-  if (!roundTimer.timerAcceptsArrival(roundTimer.timerFromRoom(room), requestArrivedAt).accepted) {
-    throw new HttpsError("deadline-exceeded", "Time is up for this round.");
-  }
+  // A tap before GO, or during a pause, is told so, not "time is up" (LC06).
+  const arrivalCheck = roundTimer.timerAcceptsArrival(roundTimer.timerFromRoom(room), requestArrivedAt);
+  if (!arrivalCheck.accepted) throw liveChallengeArrivalRefusal(arrivalCheck);
   const poolSize = mode.questionSpecs.length;
   const issue = graphFeatureRushIssuer({ rules, rushState, studentId, roundIndex });
 
@@ -15005,7 +15014,7 @@ exports.submitGraphFeatureRushAttempts = onCall(async (request) => {
     }
     const latestTimer = roundTimer.timerFromRoom(latestRoom);
     const arrival = roundTimer.timerAcceptsArrival(latestTimer, requestArrivedAt);
-    if (!arrival.accepted) throw new HttpsError("deadline-exceeded", "Time is up for this round.");
+    if (!arrival.accepted) throw liveChallengeArrivalRefusal(arrival);
     if (player.joined !== true || !player.playerKey) throw new HttpsError("failed-precondition", "Join the Live Challenge before playing.");
     const strategy = engine.scoring.getScoringStrategy(engine.scoring.roomScoringStrategyId(latestRoom));
     const applied = rules.rush.applyRushAttempts({
@@ -15213,9 +15222,9 @@ exports.submitLineGraphAttempts = onCall(async (request) => {
   if (precheck.outcome !== lifecycle.LIFECYCLE_OUTCOME.APPLY) {
     throw new HttpsError("failed-precondition", precheck.message, { lifecycle: precheck.code });
   }
-  if (!roundTimer.timerAcceptsArrival(roundTimer.timerFromRoom(room), requestArrivedAt).accepted) {
-    throw new HttpsError("deadline-exceeded", "Time is up for this round.");
-  }
+  // A tap before GO, or during a pause, is told so, not "time is up" (LC06).
+  const arrivalCheck = roundTimer.timerAcceptsArrival(roundTimer.timerFromRoom(room), requestArrivedAt);
+  if (!arrivalCheck.accepted) throw liveChallengeArrivalRefusal(arrivalCheck);
   const issue = lineGraphIssuer({ modules, lineState, config, studentId, roundIndex });
 
   const outcome = await db.runTransaction(async (transaction) => {
@@ -15233,7 +15242,7 @@ exports.submitLineGraphAttempts = onCall(async (request) => {
     }
     const latestTimer = roundTimer.timerFromRoom(latestRoom);
     const arrival = roundTimer.timerAcceptsArrival(latestTimer, requestArrivedAt);
-    if (!arrival.accepted) throw new HttpsError("deadline-exceeded", "Time is up for this round.");
+    if (!arrival.accepted) throw liveChallengeArrivalRefusal(arrival);
     if (player.joined !== true || !player.playerKey) throw new HttpsError("failed-precondition", "Join the Live Challenge before playing.");
     const strategy = engine.scoring.getScoringStrategy(engine.scoring.roomScoringStrategyId(latestRoom));
     const applied = modules.attempts.applyLineGraphAttempts({

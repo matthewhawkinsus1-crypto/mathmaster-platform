@@ -509,7 +509,7 @@ export default function LineGraphRound({
       const code = String(error?.code || '');
       // "Time is up" from the server, when this device's clock agrees; a
       // client-side timeout with the same code mid-round is retried.
-      const timeIsUp = rushRefusalIsTimeUp(code, timing.endMono - performance.now());
+      const timeIsUp = rushRefusalIsTimeUp(code, timing.endMono - performance.now(), error?.details?.reason);
       if (isFinalRefusal(error) || timeIsUp) {
         // The server's own words stay here, for support; the student reads
         // a sentence written for them (studentErrorText.js).
@@ -569,7 +569,7 @@ export default function LineGraphRound({
         } catch (error) {
           // The flush's rule: deadline-exceeded is final only once this
           // device's clock says time is up.
-          if (isFinalRefusal(error) || rushRefusalIsTimeUp(error?.code, timing.endMono - performance.now())) {
+          if (isFinalRefusal(error) || rushRefusalIsTimeUp(error?.code, timing.endMono - performance.now(), error?.details?.reason)) {
             pending = [];
             writeQueue(queueKey, pending);
             break;

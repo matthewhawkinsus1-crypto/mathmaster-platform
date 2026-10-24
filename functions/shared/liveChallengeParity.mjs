@@ -144,7 +144,10 @@ export function authoritativeElapsed({ humanElapsedMs, arrivedAtMs, startsAtMs, 
   // human work. The server still caps its possible advantage: a claim may be
   // at most MAX_CAPTURE_TRANSPORT_MS ahead of observable arrival. Missing or
   // invalid calibration degrades to arrival timing and grants no advantage.
-  if (!Number.isFinite(claimed)) return Math.min(Number(totalMs), arrivalElapsed);
+  // So does a claim from before GO (LC06): nobody answers a question before it
+  // is shown, and taking it as "0 ms" gave a bad clock, or a forged claim, the
+  // whole 750 ms on every answer.
+  if (!Number.isFinite(claimed) || claimed < 0) return Math.min(Number(totalMs), arrivalElapsed);
   const minimum = Math.max(0, arrivalElapsed - MAX_CAPTURE_TRANSPORT_MS);
   return Math.min(Number(totalMs), arrivalElapsed, Math.max(minimum, claimed));
 }

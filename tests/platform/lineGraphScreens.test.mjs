@@ -206,7 +206,7 @@ test('the line round: refs at the input gate, one clock anchor, a stored queue, 
   assert.match(round, /useEffect\(\(\) => \{\n\s+if \(finished\) flushRef\.current\(\);\n\s+\}, \[finished\]\);/, 'a finished set goes at once: the round may close early');
   const failure = region(round, '} catch (error) {\n      if (!mountedRef.current) return;\n      const code', '} finally {', 'send failure');
   assert.match(failure, /if \(isFinalRefusal\(error\) \|\| timeIsUp\) \{[\s\S]*dropQueue\(/);
-  assert.match(failure, /rushRefusalIsTimeUp\(code, timing\.endMono - performance\.now\(\)\)/);
+  assert.match(failure, /rushRefusalIsTimeUp\(code, timing\.endMono - performance\.now\(\), error\?\.details\?\.reason\)/);
   assert.match(failure, /flushTimerRef\.current = window\.setTimeout\(\(\) => flushRef\.current\(\), retryDelayRef\.current\)/, 'anything else is retried');
   // Skip is a Sprint's and a Rush's; a Classic line is worked until right or shown.
   assert.match(round, /const canSkip = format !== LINE_GRAPH_FORMAT\.CLASSIC;/);

@@ -21,6 +21,7 @@ import { useChallengeClock, usePreviousRoundSummary, useRoundSolution, useRoundS
 import { SOLUTION_STATE, roundSolutionState, solutionRevealed } from '../../platform/liveChallenge/challengeSolutionModel.js';
 import { studentConnectionState } from '../../platform/liveChallenge/challengePresenceModel.js';
 import { REFUSAL_OUTCOME, classifyAnswerRefusal, resendAtGoDelayMs } from '../../platform/liveChallenge/challengeAnswerRefusal.js';
+import { timerFromRoom } from '../../../functions/shared/liveChallengeTimer.mjs';
 import LiveChallengeFieldQuestion from './LiveChallengeFieldQuestion.jsx';
 import { ChallengeCountdown, ChallengeShellStyles, Confetti, ConnectionPill } from './ChallengeShellParts.jsx';
 import { StudentFinalCard, StudentGuidance, StudentLobbyCard, StudentMatchRecap, StudentRoundResultsCard } from './ChallengeStudentShell.jsx';
@@ -218,6 +219,10 @@ export function ChallengeRound({
   // A locked answer the server refused because it arrived before GO, waiting
   // to be sent again at GO (holdForGo, below).
   const [waitingForGo, setWaitingForGo] = useState(false);
+  // A locked answer the server refused because the teacher had paused the
+  // round (LC06). Kept, and sent again when the round resumes.
+  const [waitingForResume, setWaitingForResume] = useState(false);
+  const roundPaused = Boolean(timerFromRoom(room || {}).pausedAtMs);
   const resendTimerRef = useRef(null);
   const resendsAtGoRef = useRef(0);
   const latestRetryRef = useRef(null);
@@ -323,6 +328,16 @@ export function ChallengeRound({
   };
   useEffect(() => () => window.clearTimeout(resendTimerRef.current), []);
 
+  const holdForResume = () => {
+    setSubmitError('');
+    setWaitingForResume(true);
+  };
+  useEffect(() => {
+    if (!waitingForResume || roundPaused || !pending || result) return;
+    setWaitingForResume(false);
+    latestRetryRef.current?.();
+  }, [waitingForResume, roundPaused, pending, result]);
+
   const reportedRef = useRef('');
   useEffect(() => {
     if (result || answeredOnServer || expired || !room?.roomId) return undefined;
@@ -384,6 +399,7 @@ export function ChallengeRound({
       const outcome = classifyAnswerRefusal(error);
       if (outcome === REFUSAL_OUTCOME.ALREADY_RECORDED) settleAsAlreadyRecorded();
       else if (outcome === REFUSAL_OUTCOME.RETRY_AT_GO) holdForGo();
+      else if (outcome === REFUSAL_OUTCOME.PAUSED) holdForResume();
       else {
         console.error('Live Challenge answer was not submitted:', error);
         setSubmitError(studentErrorSentence(error, 'Your answer could not be submitted.'));
@@ -426,6 +442,7 @@ export function ChallengeRound({
       const outcome = classifyAnswerRefusal(error);
       if (outcome === REFUSAL_OUTCOME.ALREADY_RECORDED) settleAsAlreadyRecorded();
       else if (outcome === REFUSAL_OUTCOME.RETRY_AT_GO) holdForGo();
+      else if (outcome === REFUSAL_OUTCOME.PAUSED) holdForResume();
       else if (outcome === REFUSAL_OUTCOME.CLOSED) {
         setPending(null);
         pendingRef.current = null;
@@ -598,7 +615,7 @@ export function ChallengeRound({
       </div>
       </div>
 
-      {pending && !result && <div aria-live="assertive" style={{ padding: 12, borderRadius: 9, background: '#17365f', color: '#dbeafe', fontWeight: 900 }}>{waitingForGo ? 'Your answer is locked in and will send at GO.' : 'Answer locked in · checking it…'}</div>}
+      {pending && !result && <div aria-live="assertive" style={{ padding: 12, borderRadius: 9, background: '#17365f', color: '#dbeafe', fontWeight: 900 }}>{waitingForGo ? 'Your answer is locked in and will send at GO.' : waitingForResume ? 'The round is paused. Your answer is locked in and will send when it resumes.' : 'Answer locked in · checking it…'}</div>}
 
       {submitError && <div role="alert" style={{ padding: 11, borderRadius: 9, background: '#4a3708', color: '#ffe9a8', border: '1px solid #f9ab00' }}>{submitError}</div>}
       {pending && !result && <button type="button" onClick={retryPending}>Retry locked answer</button>}
