@@ -509,7 +509,7 @@ body :is(
   /* Assignments: the search and the marking period fold behind one button. */
   .mm-assignments-filters__toggle { display: flex !important; }
   .mm-assignments-filters[data-open="false"] { display: none !important; }
-  .mm-student-nav > button { padding-left: 9px !important; padding-right: 9px !important; }
+  .mm-student-nav > a, .mm-student-nav > button { padding-left: 9px !important; padding-right: 9px !important; }
 }
 /* Read by screen readers, never drawn (the screen-change announcement, NAV-3). */
 .mm-visually-hidden {

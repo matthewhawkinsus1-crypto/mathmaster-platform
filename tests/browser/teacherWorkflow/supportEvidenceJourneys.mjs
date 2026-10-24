@@ -261,7 +261,7 @@ const journeys = {
     expect('S1', /Your due date: /.test(nextCard), `"Do this next" names the student's own due date (${nextCard.slice(0, 200)})`);
     expect('S1', nextDue !== classDue, `"Do this next" does not show the class due date (${classDue})`);
     for (const tab of ['Assignments', 'Grades']) {
-      await page.getByRole('button', { name: new RegExp(`^${tab}$`) }).first().click();
+      await page.getByRole('link', { name: new RegExp(`^${tab}$`) }).first().click();
       await page.waitForTimeout(1200);
       const row = page.locator('article').filter({ hasText: LESSON_3 }).first();
       const rowDue = (await text(row)).match(DUE)?.[1] || null;
@@ -276,7 +276,7 @@ const journeys = {
         await page.waitForTimeout(800);
       }
     }
-    await page.getByRole('button', { name: /^Home$/ }).first().click();
+    await page.getByRole('link', { name: /^Home$/ }).first().click();
     await page.locator('section[aria-labelledby="what-now-heading"]').waitFor({ timeout: 20000 });
     await page.waitForTimeout(1200);
 

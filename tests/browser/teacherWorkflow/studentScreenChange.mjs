@@ -103,7 +103,7 @@ const checkScreen = (step, state, said) => {
 
 const pressDestination = async (page, label, phone) => {
   const nav = page.locator(NAV).filter({ visible: true }).first();
-  let button = nav.locator('button', { hasText: label }).first();
+  let button = nav.locator('a', { hasText: label }).first();
   if (phone && !(await button.isVisible())) {
     const more = nav.locator('button.mm-student-nav__more');
     await more.focus();
@@ -112,7 +112,7 @@ const pressDestination = async (page, label, phone) => {
     // Opening More moves focus to its first place (one frame later): let it land.
     await page.waitForFunction(() => document.activeElement?.classList.contains('mm-student-nav__folded'), null, { timeout: 3000 }).catch(() => {});
   }
-  button = nav.locator('button', { hasText: label }).first();
+  button = nav.locator('a', { hasText: label }).first();
   await button.focus();
   await page.keyboard.press('Enter');
 };
@@ -156,11 +156,11 @@ for (const viewport of VIEWPORTS) {
     const nav = page.locator(NAV).filter({ visible: true }).first();
     const more = nav.locator('button.mm-student-nav__more');
     expect(`S3 ${tag}`, await more.isVisible(), 'no More button on a phone');
-    expect(`S3 ${tag}`, !(await nav.locator('button', { hasText: 'My Rewards' }).isVisible()), 'My Rewards is not folded on a phone');
+    expect(`S3 ${tag}`, !(await nav.locator('a', { hasText: 'My Rewards' }).isVisible()), 'My Rewards is not folded on a phone');
     await more.focus();
     await page.keyboard.press('Enter');
     expect(`S3 ${tag}`, (await more.getAttribute('aria-expanded')) === 'true', 'More did not expand');
-    expect(`S3 ${tag}`, await nav.locator('button', { hasText: 'My Rewards' }).isVisible(), 'More did not show My Rewards');
+    expect(`S3 ${tag}`, await nav.locator('a', { hasText: 'My Rewards' }).isVisible(), 'More did not show My Rewards');
     await page.keyboard.press('Escape');
     expect(`S3 ${tag}`, (await more.getAttribute('aria-expanded')) === 'false', 'Escape did not fold More');
     expect(`S3 ${tag}`, await page.evaluate(() => document.activeElement?.classList.contains('mm-student-nav__more')), 'Escape did not return focus to More');

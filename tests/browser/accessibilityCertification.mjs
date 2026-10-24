@@ -91,7 +91,7 @@ const openStudentApp = async (page, origins) => {
 // The student nav, clicked programmatically as darkModeCertification does
 // (on a phone the nav can sit under a sticky bar).
 const studentTab = (name, ready) => async (page) => {
-  await page.locator('nav[aria-label="Student navigation"] button').filter({ hasText: name }).first().evaluate((button) => button.click());
+  await page.locator('nav[aria-label="Student navigation"] a').filter({ hasText: name }).first().evaluate((link) => link.click());
   await page.getByText(ready).first().waitFor({ timeout: 30_000 });
   await page.waitForTimeout(900);
 };

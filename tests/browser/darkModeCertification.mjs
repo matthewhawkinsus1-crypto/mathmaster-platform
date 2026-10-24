@@ -342,7 +342,7 @@ const TEACHER_STEPS = [
 const STUDENT_STEPS = [...['Home', 'Assignments', 'Grades', 'My Rewards', 'My Math Path', 'Tests & Exams'].map((name) => ({
   id: `student-${name.toLowerCase().replace(/\W+/g, '-').replace(/-$/, '')}`,
   run: async (page) => {
-    await page.locator('nav button').filter({ hasText: name }).first().evaluate((element) => element.click());
+    await page.locator('nav[aria-label="Student navigation"] a').filter({ hasText: name }).first().evaluate((element) => element.click());
     await page.waitForTimeout(900);
   },
 })),
@@ -353,7 +353,7 @@ const STUDENT_STEPS = [...['Home', 'Assignments', 'Grades', 'My Rewards', 'My Ma
   id: 'student-completed-section',
   required: '.mathmaster-section-tab.is-complete small',
   run: async (page) => {
-    await page.locator('nav button').filter({ hasText: 'Assignments' }).first().evaluate((element) => element.click());
+    await page.locator('nav[aria-label="Student navigation"] a').filter({ hasText: 'Assignments' }).first().evaluate((element) => element.click());
     await page.getByText('My Assignments').first().waitFor({ timeout: 30_000 });
     await openCompletedSection(page);
   },

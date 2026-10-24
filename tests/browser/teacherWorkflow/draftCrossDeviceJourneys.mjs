@@ -468,7 +468,7 @@ if (wanted('practice')) {
   // a fresh tracker — every question unattempted — sent at once.
   const PRACTICE_DOC = `studentWorkspaceDrafts/${STUDENT}__a-lastweek`;
   const openPractice = async (page) => {
-    await page.getByRole('button', { name: /^Grades$/ }).first().click();
+    await page.getByRole('link', { name: /^Grades$/ }).first().click();
     await page.waitForTimeout(800);
     // A closed row's voluntary-practice button — "Try it again — no credit"
     // (student copy keeps "Practice" for the lesson's Practice section).

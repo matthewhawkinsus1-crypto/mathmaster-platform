@@ -2,10 +2,12 @@ import React, { useId, useState } from 'react';
 import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoundation.js';
 import {
   STUDENT_DESTINATION,
+  STUDENT_DESTINATION_DASHBOARD_MODE,
   STUDENT_DESTINATION_LABEL,
   STUDENT_DESTINATION_ORDER,
   phoneNavGroups,
 } from '../../platform/student/navigationModel.js';
+import { studentPathFor } from '../../app/routes/appUrl.js';
 
 /*
  * ONE STUDENT NAVIGATION, IN ONE FILE.
@@ -38,7 +40,17 @@ import {
  * rest in place (student pass 3, NAV-13; phoneNavGroups). Nothing scrolls
  * sideways: a horizontally scrolling nav hides destinations behind a gesture
  * nobody is told about. Every control is at least 44px tall.
+ *
+ * DESTINATIONS ARE LINKS (AX41). Every screen has an address, so each
+ * destination is a link to it: it is in a screen reader's links list, and
+ * Ctrl/⌘/Shift/middle click opens it in a new tab, where it arrives as a
+ * reload does (useUrlArrival). A plain click stays in this tab and goes
+ * through `onNavigate`, the same call it made as a button.
  */
+
+// A click the browser should handle: a new tab or window.
+const opensElsewhere = (event) => event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
+const destinationHref = (destination) => studentPathFor({ dashboardMode: STUDENT_DESTINATION_DASHBOARD_MODE[destination] });
 
 // Re-exported so a screen importing the nav gets its destinations from the
 // same place, rather than reaching past it into the navigation model.
@@ -102,18 +114,23 @@ export default function StudentGlobalNav({
         const tone = TONE[destination];
         const folded = groups.folded.includes(destination);
         return (
-          <button
+          <a
             key={destination}
-            type="button"
+            href={destinationHref(destination)}
             id={folded ? foldedId(destination) : undefined}
             className={folded ? 'mm-student-nav__folded' : undefined}
-            // The current screen is still a button so the row does not reflow
+            // The current screen is still a link so the row does not reflow
             // when a student moves between destinations, but it is marked and
             // does not navigate.
             aria-current={active ? 'page' : undefined}
-            onClick={() => { if (!active) onNavigate?.(destination); }}
+            onClick={(event) => {
+              if (opensElsewhere(event)) return;
+              event.preventDefault();
+              if (!active) onNavigate?.(destination);
+            }}
             style={{
-              appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
+              fontFamily: 'inherit',
+              display: 'inline-flex', alignItems: 'center', textDecoration: 'none', boxSizing: 'border-box',
               minHeight: MIN_TOUCH_TARGET_PX,
               padding: dense ? '9px 12px' : '10px 15px',
               borderRadius: 9,
@@ -126,7 +143,7 @@ export default function StudentGlobalNav({
             }}
           >
             {STUDENT_DESTINATION_LABEL[destination]}
-          </button>
+          </a>
         );
       })}
       {/* Drawn only on a phone (index.css): unfolds the places above. */}

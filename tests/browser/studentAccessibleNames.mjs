@@ -248,7 +248,7 @@ const runMathBoxes = async (page, viewport) => {
 };
 
 const runCompleteBadge = async (page, viewport) => {
-  await page.locator('nav[aria-label="Student navigation"] button').filter({ hasText: 'Assignments' }).first().evaluate((button) => button.click());
+  await page.locator('nav[aria-label="Student navigation"] a').filter({ hasText: 'Assignments' }).first().evaluate((link) => link.click());
   await page.getByText('My Assignments').first().waitFor({ timeout: 30_000 });
   await openCompletedSection(page);
   const badge = await page.locator('.mathmaster-section-tab.is-complete small').first().evaluate((element) => ({

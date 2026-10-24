@@ -182,7 +182,7 @@ const runStudentJourneys = async (viewport) => {
   await record(/[Qq]uestion 2 of 2/);
   await page.getByRole('button', { name: /^(← )?Back to (Home|dashboard)$/ }).filter({ visible: true }).first().click();
   await record(/Welcome, /);
-  await page.getByRole('button', { name: /^Grades$/ }).filter({ visible: true }).first().click();
+  await page.getByRole('link', { name: /^Grades$/ }).filter({ visible: true }).first().click();
   await record(/My Grades/);
   expect(`U2 ${tag}`, walk.length >= 5, `the walk recorded only ${walk.map((step) => step.path).join(' → ')}`);
   expect(`U2 ${tag}`, walk.some((step) => step.path === `/assignments/${TODAY}/classwork/1`)
@@ -246,7 +246,7 @@ const runStudentJourneys = async (viewport) => {
   await page.getByRole('button', { name: /^My Progress$/ }).filter({ visible: true }).first().click();
   await page.waitForTimeout(700);
   expect(`U8 ${tag}`, pathOf(page) === '/path/progress', `My Progress wrote ${pathOf(page)}`);
-  await page.getByRole('button', { name: /^Home$/ }).filter({ visible: true }).first().click();
+  await page.getByRole('link', { name: /^Home$/ }).filter({ visible: true }).first().click();
   await ready(page, /Welcome, /);
   await page.goBack();
   await ready(page, /Math Path/);
@@ -314,7 +314,7 @@ const runSharedChromebookJourney = async (viewport) => {
   await shown(page, QUESTION).waitFor({ timeout: 30_000 });
   await page.getByRole('button', { name: /^(← )?Back to (Home|dashboard)$/ }).filter({ visible: true }).first().click();
   await ready(page, /Welcome, /);
-  await page.getByRole('button', { name: /^Grades$/ }).filter({ visible: true }).first().click();
+  await page.getByRole('link', { name: /^Grades$/ }).filter({ visible: true }).first().click();
   await ready(page, /My Grades/);
   await page.getByRole('button', { name: /^Log Out$/ }).filter({ visible: true }).first().click();
   await page.waitForTimeout(500);
