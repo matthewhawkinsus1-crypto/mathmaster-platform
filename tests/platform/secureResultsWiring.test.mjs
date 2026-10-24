@@ -194,8 +194,8 @@ test('each question shows the answer given, the right answer and the worked solu
   assert.match(reviewScreen, /^import SolutionReviewPanel from '\.\.\/\.\.\/SolutionReviewPanel\.jsx';$/m);
   assert.doesNotMatch(executableSource(reviewScreen), /PathSolutionReview/, 'one panel, not two');
   const supports = region(reviewScreen, 'const solutionSupports = useMemo(', ');', 'solution supports');
-  assert.match(supports, /workedSolutionSupports\(secureAccessEntitlement\(studentSupportProfile\), \{ speechReady: speechAvailable\(\) \}\)/);
-  assert.match(reviewScreen, /^import \{ secureAccessEntitlement \} from '\.\.\/\.\.\/platform\/assessment\/secureItemAccess\.js';$/m);
+  assert.match(supports, /workedSolutionSupports\(releasedReviewAccessEntitlement\(studentSupportProfile\), \{ speechReady: speechAvailable\(\) \}\)/);
+  assert.match(reviewScreen, /^import \{ releasedReviewAccessEntitlement \} from '\.\.\/\.\.\/platform\/assessment\/secureItemAccess\.js';$/m);
   assert.match(reviewScreen, /^import \{ workedSolutionSupports \} from '\.\.\/\.\.\/platform\/supports\/workedSolutionSupports\.js';$/m);
 });
 

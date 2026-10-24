@@ -53,6 +53,24 @@ export const secureAccessEntitlement = (studentSupportProfile, { nowValue = Date
   return { tools, language: tools.includes(SUPPORT_TOOL.TRANSLATE) ? entitled.language : null };
 };
 
+/*
+ * A RELEASED TEST'S RESULTS (AX42). Read aloud and Translate beside its
+ * worked solutions followed the plan for a test only, so a plan that gives
+ * Read aloud for practice gave nothing on the results, though the test is
+ * over and nothing on that page can change it. They now follow the plan for
+ * a test or for practice, whichever gives more; still only the three secure
+ * access tools.
+ */
+export const releasedReviewAccessEntitlement = (studentSupportProfile, { nowValue = Date.now() } = {}) => {
+  if (!studentSupportProfile || typeof studentSupportProfile !== 'object') return NONE;
+  const granted = [SECURE_ACTIVITY_ROLE, 'practice']
+    .map((activityRole) => toolsEntitlementFromProfile(studentSupportProfile, { nowValue, activityRole }));
+  const tools = SECURE_ACCESS_TOOLS.filter((tool) => granted.some((entitled) => (entitled.tools || []).includes(tool)));
+  if (!tools.length) return NONE;
+  const language = granted.map((entitled) => entitled.language).find(Boolean) || null;
+  return { tools, language: tools.includes(SUPPORT_TOOL.TRANSLATE) ? language : null };
+};
+
 const isObject = (value) => Boolean(value && typeof value === 'object' && !Array.isArray(value));
 
 /**

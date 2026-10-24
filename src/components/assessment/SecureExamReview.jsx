@@ -4,7 +4,7 @@ import MathText from '../common/MathText.jsx';
 import StandardBadge from '../common/StandardBadge.jsx';
 import SolutionReviewPanel from '../../SolutionReviewPanel.jsx';
 import PathQuestionStimulus from '../student/PathQuestionStimulus.jsx';
-import { secureAccessEntitlement } from '../../platform/assessment/secureItemAccess.js';
+import { releasedReviewAccessEntitlement } from '../../platform/assessment/secureItemAccess.js';
 import { workedSolutionSupports } from '../../platform/supports/workedSolutionSupports.js';
 import { speechAvailable } from '../../platform/language/speechText.js';
 import { FRAMEWORK_LABELS } from '../../platform/ccmr/assessmentCrosswalk.js';
@@ -158,8 +158,9 @@ const reviewRefused = (error) => /failed-precondition|permission-denied|not-foun
 /*
  * `studentSupportProfile` is the student's OWN profile (not the flattened
  * assessment one): Read aloud and Translate beside a released worked solution
- * follow their plan for a test, as the test's own items did
- * (secureItemAccess.js). Nothing else on this screen reads it.
+ * follow their plan for a test or for practice: the test is over (AX42,
+ * secureItemAccess.js releasedReviewAccessEntitlement). Nothing else on this
+ * screen reads it.
  */
 export default function SecureExamReview({ examSessionId, onBack, onPracticeSkill = null, skillLabels = null, backLabel = 'Back to Tests & Exams', studentSupportProfile = null }) {
   const [review, setReview] = useState(null);
@@ -168,7 +169,7 @@ export default function SecureExamReview({ examSessionId, onBack, onPracticeSkil
   const headingRef = useRef(null);
   const released = !loading && !error && reviewIsReleased(review);
   const solutionSupports = useMemo(
-    () => workedSolutionSupports(secureAccessEntitlement(studentSupportProfile), { speechReady: speechAvailable() }),
+    () => workedSolutionSupports(releasedReviewAccessEntitlement(studentSupportProfile), { speechReady: speechAvailable() }),
     [studentSupportProfile],
   );
 
