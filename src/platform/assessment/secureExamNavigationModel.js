@@ -565,11 +565,16 @@ export function finishedSummary(session, { courseTest = false } = {}) {
   return { title, message: `${lead}${counts}${results}`, canSeeResults: released };
 }
 
-const calculatorRule = (mode) => {
+/**
+ * The calculator rule in a student's words: the start screen says it, and so do
+ * the Test Cycle card and Tests & Exams ("what to have", TC16), so it is worded
+ * here once. A setting's own spelling ("squareRoot") is never shown as it is.
+ */
+export const calculatorRule = (mode) => {
   const value = String(mode || 'questionSpecific');
   if (value === 'none') return 'There is no calculator on this test.';
   if (value === 'questionSpecific') return 'A calculator appears only on questions where your teacher allows one.';
-  return `A ${value} calculator is available on this test.`;
+  return `A ${value.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()} calculator is available on this test.`;
 };
 
 /** The time line of the start screen: how long, from when — or, coming back, how long is left. */

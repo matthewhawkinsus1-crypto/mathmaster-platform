@@ -19,6 +19,7 @@
  */
 
 import { isTestCycleAssignment } from '../assessment/testCycle.js';
+import { calculatorRule } from '../assessment/secureExamNavigationModel.js';
 import { studentScheduleBlocks } from './testCycleScheduleView.js';
 import { sittingFactsFor, testCycleCardDueFacts } from './testCycleDiscovery.js';
 
@@ -56,6 +57,32 @@ export const testCycleDeliveryText = (card = {}) => {
   return sitting.questionCount ? `${length} ${sitting.questionCount} questions.` : length;
 };
 
+/*
+ * WHAT TO HAVE FOR THE SITTING, SAID ONCE (TC16).
+ *
+ * The card and Tests & Exams both used to say how long a Test is and when, and
+ * nothing about what a student needs for it. Two things are known:
+ *
+ *   - a charged device: the Test is taken on it, and a battery that runs out
+ *     partway costs the student their time (the answers themselves are saved);
+ *   - the calculator rule, from the Test's own setting (`delivery.calculatorMode`),
+ *     in the words the start screen uses (calculatorRule).
+ *
+ * Paper and other materials are NOT mentioned: no setting says what a class
+ * allows, and a line the teacher did not write would be a rule nobody set.
+ * Null when the card has no delivery facts (a look that returned none).
+ */
+export const TEST_CYCLE_DEVICE_LINE = 'Have your device charged.';
+export const testCycleBringText = (card = {}) => {
+  if (!card?.delivery) return null;
+  return `${TEST_CYCLE_DEVICE_LINE} ${calculatorRule(card.delivery.calculatorMode)}`;
+};
+
+/** The same line for a listed course-Test session, from the session's own calculator mode (none recorded: none said). */
+export const sessionBringText = (session = {}) => (
+  session?.calculatorMode ? testCycleBringText({ delivery: { calculatorMode: session.calculatorMode } }) : null
+);
+
 /**
  * One row, from the read-only card and the student's own dates.
  *
@@ -79,6 +106,7 @@ export const assignedTestCycleRow = ({ card = null, assignment = null, dueAt = n
     detail: clean(card?.detail) || null,
     when: when ? { headline: when.headline, detail: when.detail, home: when.home } : null,
     delivery: testCycleDeliveryText(card),
+    bring: testCycleBringText(card),
     dueAt: due.dueAt,
     finalLateDueAt: due.finalLateDueAt,
   };

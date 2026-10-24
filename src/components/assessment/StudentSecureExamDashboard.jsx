@@ -3,7 +3,7 @@ import SecureExamContainer from './SecureExamContainer.jsx';
 import SecureExamReview from './SecureExamReview.jsx';
 import { listStudentSecureExamSessions } from '../../services/secureExamService.js';
 import { getStudentTestCycle } from '../../services/testCycleService.js';
-import { assignedTestCycleRow, testCycleRowsKey, testCyclesWithoutSession } from '../../platform/student/assignedTestCyclesModel.js';
+import { assignedTestCycleRow, sessionBringText, testCycleRowsKey, testCyclesWithoutSession } from '../../platform/student/assignedTestCyclesModel.js';
 import { formatDateTime } from '../../assignmentLifecycle.js';
 import { resultsTimingText, sessionWasReplaced, studentSessionStatus, timeAllowance, timeAllowanceText } from '../../platform/assessment/secureExamNavigationModel.js';
 
@@ -140,6 +140,7 @@ export const StudentSecureExamDashboard = ({ studentProfile, onOpenCourseTest = 
                         <span data-secure-status-label="" style={{ padding: '3px 9px', borderRadius: 999, fontWeight: 800, ...STATUS_TONE.neutral }}>{row.statusLabel}</span>
                         {row.delivery && <span>{row.delivery}</span>}
                       </div>
+                      {row.bring && <div data-test-cycle-bring="" style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{row.bring}</div>}
                       {row.when && (
                         <div data-assigned-test-window="" style={{ color: 'var(--mm-text)', fontSize: 'calc(13 * var(--mm-px))' }}>
                           <strong>{row.when.headline}</strong>{row.when.detail ? ` ${row.when.detail}` : ''}{row.when.home ? ` ${row.when.home}` : ''}
@@ -168,6 +169,8 @@ export const StudentSecureExamDashboard = ({ studentProfile, onOpenCourseTest = 
                   const canReview = done && session.feedbackReleased === true && !sessionWasReplaced(session);
                   const status = studentSessionStatus(session);
                   const timing = resultsTimingText(session);
+                  // What to have for a course Test still ahead, as on its card (TC16).
+                  const bring = isCourseTest(session) && !done ? sessionBringText(session) : null;
                   return (
                     <article key={session.examSessionId} data-secure-session-status={session.status} style={{ background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', borderRadius: 12, padding: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 15, flexWrap: 'wrap' }}>
                       <div style={{ minWidth: 0, textAlign: 'left' }}>
@@ -176,6 +179,7 @@ export const StudentSecureExamDashboard = ({ studentProfile, onOpenCourseTest = 
                           <span data-secure-status-label="" style={{ padding: '3px 9px', borderRadius: 999, fontWeight: 800, ...(STATUS_TONE[status.tone] || STATUS_TONE.neutral) }}>{status.label}</span>
                           <span>{session.requiredQuestions} questions · {timeAllowanceText(timeAllowance(session))}</span>
                         </div>
+                        {bring && <div data-test-cycle-bring="" style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{bring}</div>}
                         {timing && <div style={{ marginTop: 6, color: done ? 'var(--mm-warning-text)' : 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{timing}</div>}
                       </div>
                       {/*

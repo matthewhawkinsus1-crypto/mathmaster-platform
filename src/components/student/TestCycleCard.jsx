@@ -6,6 +6,7 @@ import { getStudentTestCycle } from '../../services/testCycleService.js';
 import { TEST_CYCLE_STAGE, stageIsSecure } from '../../platform/assessment/testCycle.js';
 import { studentScheduleBlocks } from '../../platform/student/testCycleScheduleView.js';
 import { formatDateTime } from '../../assignmentLifecycle.js';
+import { testCycleBringText, testCycleDeliveryText } from '../../platform/student/assignedTestCyclesModel.js';
 import { opensWhenPhrase } from '../../platform/student/studentWhen.js';
 import { describeStudentError } from '../../platform/student/studentErrorText.js';
 import { LEVEL } from '../../platform/student/navigationModel.js';
@@ -15,7 +16,6 @@ import {
   reviewRequirementText,
   reviewSkillRows,
   reviewWasWaived,
-  sittingFactsFor,
   testCycleCardDueFacts,
   testReviewLabel,
   testReviewSessionIdFor,
@@ -394,7 +394,11 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
   // called the Test or given the Test's length, and late work that is still
   // open says until when (each from a tested helper in testCycleDiscovery.js).
   const reviewWaived = reviewWasWaived(card);
-  const sitting = sittingFactsFor(card);
+  // How long the sitting ahead is, and what to have for it, are the Tests &
+  // Exams row's own sentences (TC16): said in one helper, so the card and the
+  // row cannot drift apart.
+  const deliveryText = testCycleDeliveryText(card);
+  const bringText = testCycleBringText(card);
   // The student's own dates; in Corrections and the Retest, the home-window
   // close the server enforces (testCycleCardDueFacts).
   const due = testCycleCardDueFacts({ card, dueAt, lateDueAt });
@@ -479,16 +483,16 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
 
       {/* The facts a student would otherwise have to ask about. */}
       <div style={{ display: 'grid', gap: 4 }}>
-        {card.delivery && sittingAhead && (
+        {deliveryText && sittingAhead && (
           <p data-test-cycle-delivery="" style={factStyle}>
             {/* The minutes are this student's own, extended time included
                 (testCycleDeliveryFacts). Answers stay changeable until Submit:
                 every secure item is a draft until the session is finalized. */}
-            {card.delivery.timed
-              ? `${sitting.noun} is timed: ${card.delivery.timeLimitMinutes} minutes once you start${Number(card.delivery.extendedTimeMultiplier) > 1 ? ', including your extended time' : ''}.`
-              : `${sitting.noun} is not timed.`}
-            {sitting.questionCount ? ` ${sitting.questionCount} questions. You can change your answers until you submit.` : ' You can change your answers until you submit.'}
+            {deliveryText} You can change your answers until you submit.
           </p>
+        )}
+        {bringText && sittingAhead && (
+          <p data-test-cycle-bring="" style={factStyle}>{bringText}</p>
         )}
         {/* Only while a retest could still happen. A student who passed is not
             read a cap meant for a failing grade, and once the cycle is finished

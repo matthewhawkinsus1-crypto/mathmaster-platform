@@ -84,7 +84,7 @@ test('a submitted Retest is announced as a Retest', () => {
 /* --- the card uses them --------------------------------------------------- */
 
 test('the card says a waived Review was waived, in the phase list and where the Test unlocks', () => {
-  assert.match(card, /import \{[^}]*\breviewWasWaived,[^}]*\bsittingFactsFor,[^}]*\btestCycleCardDueFacts,[^}]*\} from '\.\.\/\.\.\/platform\/student\/testCycleDiscovery\.js';/s);
+  assert.match(card, /import \{[^}]*\breviewWasWaived,[^}]*\btestCycleCardDueFacts,[^}]*\} from '\.\.\/\.\.\/platform\/student\/testCycleDiscovery\.js';/s);
   assert.match(card, /const reviewWaived = reviewWasWaived\(card\);/);
   const phases = region(card, '<ol aria-label="Test Cycle phases"', '</ol>', 'phase list');
   assert.match(phases, /phase\.id === 'review' && phase\.status === 'completed' && reviewWaived \? 'Waived by your teacher' : \(PHASE_STATUS_LABEL\[phase\.status\] \|\| phase\.status\)/);
@@ -94,12 +94,15 @@ test('the card says a waived Review was waived, in the phase list and where the 
 
 test('the card describes the sitting that is actually ahead, and the dates that still apply', () => {
   const facts = region(card, '{/* The facts a student would otherwise have to ask about. */}', '<div style={{ display: \'flex\', gap: 10, flexWrap: \'wrap\' }}>', 'facts');
-  assert.match(card, /const sitting = sittingFactsFor\(card\);/);
-  assert.match(facts, /`\$\{sitting\.noun\} is not timed\.`/);
-  assert.match(facts, /`\$\{sitting\.noun\} is timed: \$\{card\.delivery\.timeLimitMinutes\} minutes once you start/);
-  // The count comes from the helper, never straight from the Test's delivery facts.
-  assert.match(facts, /\{sitting\.questionCount \? ` \$\{sitting\.questionCount\} questions\. You can change your answers until you submit\.` : ' You can change your answers until you submit\.'\}/);
-  assert.doesNotMatch(executableSource(facts), /card\.delivery\.questionCount/);
+  // The sentence about the sitting (Test or Retest, its length, its count) is
+  // the Tests & Exams row's own helper (TC16, C2-147): what it says is tested
+  // above (sittingFactsFor) and in testsAndExamsAssignedTestCycle.test.mjs. The
+  // card holds no second copy of those words that could drift from the row's,
+  // and never reads the count straight from the Test's delivery facts.
+  assert.match(card, /const deliveryText = testCycleDeliveryText\(card\);/);
+  assert.match(facts, /\{deliveryText && sittingAhead && \(/);
+  assert.match(facts, /\{deliveryText\} You can change your answers until you submit\./);
+  assert.doesNotMatch(executableSource(facts), /is timed|is not timed|card\.delivery\.(questionCount|timeLimitMinutes)/);
   // The dates for the stage the student is at (testCycleCardDueFacts, tested below).
   assert.match(card, /const due = testCycleCardDueFacts\(\{ card, dueAt, lateDueAt \}\);/);
   assert.match(facts, /Due \{formatDateTime\(due\.dueAt\)\}\.\{due\.finalLateDueAt \? ` Late work is accepted until \$\{formatDateTime\(due\.finalLateDueAt\)\}\.` : ''\}/);
