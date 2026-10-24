@@ -311,6 +311,21 @@ EOF
 
 (Checked here only that the imports resolve this way from `functions/`; the query itself was not run.)
 
+**The same count as a script (OP03), for this release and any later one that changes a calculator.**
+`scripts/report-assignment-calculator-settings.mjs` is read-only like `report-assignment-key-exposure.mjs`
+(`tests/platform/assignmentCalculatorSettingsReport.test.mjs`): live assignments only, with a setting on the
+assignment *or* on a question, counted by section role, and the exit tickets, quizzes and tests among them that are open
+now (or open within `--within-hours`) listed in `release-reports/assignment-calculator-settings-<time>.json`
+(gitignored; standard output is counts only). The owner runs it, from a checkout with `npm --prefix functions ci` done,
+on Application Default Credentials with read access to Firestore (Cloud Shell already has them):
+
+```bash
+node scripts/report-assignment-calculator-settings.mjs --project mathmaster-aleks --within-hours 24
+```
+
+An exit ticket counts as open for its whole school day (the bell schedule is not read), and a student's private
+extension is not read either; the script's header ("WHICH ASSESSMENTS ARE OPEN") says exactly what a quiet answer covers.
+
 ## Decisions for the owner
 
 1. **Assignment above question.** As asked, the assignment's setting now beats a question's own authored mode on
