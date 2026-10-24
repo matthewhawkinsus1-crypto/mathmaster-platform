@@ -166,9 +166,10 @@ test('the comparison is opt-in: sameValue and a bare field keep the form the key
   assert.equal(sameValue('y\\le-3x+5', 'y=-3x+5', 1e-6, { anyLineForm: true }), false);
   assert.equal(matchesFieldAnswer('3x+y=5', { answer: 'y=-3x+5' }), false);
   assert.equal(matchesFieldAnswer('3x+y=5', { answer: 'y=-3x+5', lineForm: 'any' }), true);
-  // A field that does not take any form reads exactly as before.
-  assert.deepEqual(fieldValueOptions({ inputProfile: 'equation' }), { thousandsSeparators: true, exactNumber: false });
-  assert.deepEqual(fieldValueOptions({ inputProfile: 'equation', lineForm: 'any' }), { thousandsSeparators: true, exactNumber: false, anyLineForm: true });
+  // A field that does not take any form reads exactly as before (GR01's
+  // `arithmetic` flag rides along on every field).
+  assert.deepEqual(fieldValueOptions({ inputProfile: 'equation' }), { thousandsSeparators: true, exactNumber: false, arithmetic: true });
+  assert.deepEqual(fieldValueOptions({ inputProfile: 'equation', lineForm: 'any' }), { thousandsSeparators: true, exactNumber: false, arithmetic: true, anyLineForm: true });
 });
 
 // --- Path: the decision is stored with the private grading at issue ---------------
