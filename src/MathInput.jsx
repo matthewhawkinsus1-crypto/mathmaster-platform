@@ -19,6 +19,7 @@ import {
   typedFractionKeyStep,
   typedFractionValueStep,
 } from './platform/math/typedFractionEntry.js';
+import { mathFieldAccessibleDescription, useMathFieldDescription } from './platform/math/mathFieldDescription.js';
 
 const BASIC_KEYS = [
   { label: 'π', command: '\\pi', ariaLabel: 'Insert pi' },
@@ -378,6 +379,16 @@ export default function MathInput({
   // On a closed question the name says the answer as well (AX01).
   const fieldName = mathFieldAccessibleName({ name: ariaLabel || placeholder, value, closed: questionTerminal });
   useMathFieldName(mfRef, fieldName);
+
+  // And what is in it, said once focus lands: the name took over the label
+  // MathLive's own account of the content used to sit in, so a filled box was
+  // heard by its name alone (mathFieldDescription.js, AX11). It follows every
+  // key, so it is worked out once per value.
+  const fieldDescription = useMemo(
+    () => mathFieldAccessibleDescription({ value, closed: questionTerminal }),
+    [value, questionTerminal],
+  );
+  useMathFieldDescription(mfRef, fieldDescription);
 
   useEffect(() => {
     const mathField = mfRef.current;
