@@ -31,9 +31,13 @@
  *     14 days. A signal for the owner, not a decision.
  *
  * READS. `settings/serverGrading`; `studentDevicePersistenceReports` and
- * `grades`, paged by id, each through a field mask (FIELDS below): no name,
- * no student id and no answer is read, and none is in the output — only
- * counts, assignment ids and times.
+ * `grades`, paged by id, each through a field mask (FIELDS below), so no
+ * name and no support profile is read. A mask cannot reach inside
+ * `gradesByAssignment` (its keys are assignment ids), so each question record
+ * is read whole, step work (`equationBefore`/`equationAfter`) included; the
+ * report uses only `gradedBy`, `serverGradingReason` and `ingestedAt`.
+ * Document ids, which are student ids, are used only to page. The output
+ * holds only counts, assignment ids and times: no id, name or answer.
  * WRITES. One local file, release-reports/legacy-step-queue-<time>.json
  * (gitignored). Standard output is counts only. No Firestore write anywhere
  * (tests/platform/legacyStepQueueReport.test.mjs runs it against a database
@@ -207,7 +211,7 @@ export const runLegacyStepQueueReport = async ({
       `queued.devicesHoldingWorkFromBeforeStepWork: devices whose oldest waiting action was captured before ${stepWorkSince}, when no client sent step work.`,
       `arriving: question records whose last write was a step without step work (gradedBy 'client', serverGradingReason '${LEGACY_STEP_REASON}'). A record keeps only its last write.`,
       `readyToRequireStepWork: no device holding pre-step-work items with a queued step, and no such step arrived in the last ${RECENT_DAYS} days. A signal for the owner; this report changes no setting.`,
-      'Only the fields in FIELDS were read (field masks). No student id, name or answer was read or is in this report.',
+      'Only the fields in FIELDS were read (field masks); question records inside gradesByAssignment are read whole, but only gradedBy, serverGradingReason and ingestedAt are used. No student id, name or answer is in this report.',
     ],
   };
 };
