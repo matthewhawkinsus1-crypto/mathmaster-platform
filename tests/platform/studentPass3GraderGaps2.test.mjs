@@ -165,15 +165,21 @@ test('a simplified radical key asks for the simplified form, and an expression f
 test('0.0005 and 1/2000 are 10^{-3}/2 in a number field; 0.005 is not', async () => {
   assert.deepEqual(await verdicts('0.0005', '10^{-3}/2'), ALL_RIGHT);
   assert.deepEqual(await verdicts('\\frac{1}{2000}', '10^{-3}/2'), ALL_RIGHT);
-  assert.deepEqual(await verdicts('\\frac{10^{-3}}{2}', '10^{-3}/2'), ALL_RIGHT);
+  // The key's own unworked spelling is a calculation, which a number box
+  // refuses unless the field allows one (GR01, the owner, 2026-10-23;
+  // numberBoxArithmetic.test.mjs): the value is the answer.
+  assert.deepEqual(await verdicts('\\frac{10^{-3}}{2}', '10^{-3}/2'), ALL_WRONG);
   assert.deepEqual(await verdicts('0.005', '10^{-3}/2'), ALL_WRONG);
   // N2's wrong reading stays wrong.
   assert.deepEqual(await verdicts('10^-\\frac{3}{2}', '10^{-3}/2'), ALL_WRONG);
 });
 
 test('every field grader asks fieldValueOptions, so a number box reads the same on Path, a test, Live Challenge, the simulation and an assignment', () => {
-  assert.deepEqual(fieldValueOptions({ inputProfile: 'number' }), { thousandsSeparators: true, exactNumber: true });
-  assert.deepEqual(fieldValueOptions({ inputProfile: 'orderedPair' }), { thousandsSeparators: false, exactNumber: false });
+  // `arithmetic`: whether the field takes a calculation (GR01) — a number box
+  // only when it opts in.
+  assert.deepEqual(fieldValueOptions({ inputProfile: 'number' }), { thousandsSeparators: true, exactNumber: true, arithmetic: false });
+  assert.deepEqual(fieldValueOptions({ inputProfile: 'number', allowArithmetic: true }), { thousandsSeparators: true, exactNumber: true, arithmetic: true });
+  assert.deepEqual(fieldValueOptions({ inputProfile: 'orderedPair' }), { thousandsSeparators: false, exactNumber: false, arithmetic: true });
   const pathSource = executableSource(readFileSync(new URL('../../functions/lib/mathPath.js', import.meta.url), 'utf8'));
   assert.match(pathSource, /return equivalence\.sameValue\(actual, expected, tolerance, equivalence\.fieldValueOptions\(field\)\);/);
   const simulation = executableSource(readFileSync(new URL('../../src/platform/simulation/teacherPathRuntime.js', import.meta.url), 'utf8'));

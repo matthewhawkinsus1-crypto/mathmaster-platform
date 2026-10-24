@@ -412,6 +412,8 @@ function responseFieldToIntent(field = {}, document = {}) {
   if (clean(document?.assessmentContext?.framework) === "digitalSAT" && ["number", "numeric"].includes(inputProfile)) {
     out.numberRules = "digitalSAT";
   }
+  // GR01: a number box that takes a calculation keeps saying so.
+  if (field.allowArithmetic === true) out.allowArithmetic = true;
   if (type) out.type = type;
   Object.keys(out).forEach((key) => out[key] === undefined && delete out[key]);
   return out;

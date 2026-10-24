@@ -1304,6 +1304,63 @@ export const fieldIsNumberBox = (field = {}) => {
   return NUMBER_FIELD_KINDS.has(String(declared ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ''));
 };
 
+/*
+ * A CALCULATION IN A NUMBER BOX (the owner, 2026-10-23; GR01). A number box
+ * asks for a value. `64 − 6` was right for 58 and `1+2` for 3, because the
+ * expanded-polynomial comparison works a calculation out, so a student could
+ * copy the computation instead of doing it. A number box now refuses a
+ * calculation unless its field says `allowArithmetic: true` (an item whose
+ * answer is the calculation itself).
+ *
+ * Read narrowly: two or more numerals joined by an operation (+ − × ÷, a
+ * power, a number against a bracket, a fraction bar over or under more than
+ * one number). The ways ONE number is written are not a calculation and keep
+ * every verdict they had: a fraction (3/4, \frac{6}{8}, 12/4), a sign or
+ * brackets (−5, +5, (−5)), a decimal, a percent or dollar sign, a mixed
+ * number (3½, 3 1/2), thousands separators (8,050) and scientific notation
+ * (1.2 × 10³, 10³, 1e3). Text with a root, π, a letter, a relation or a list
+ * is not one either: its own rules decide (an exact constant's form, W6-6;
+ * `x = 5`, Job P).
+ */
+const NUMERALS = /\d+(?:\.\d*)?|\.\d+/g;
+const SCIENTIFIC_NOTATION = /^(?:(?:\d+(?:\.\d+)?|\.\d+)\*)?10\^\(?-?\d+\)?$/;
+// Brackets around the whole text as one pair: `(-5)`, never `(2)(29)`.
+const wrappedInOnePair = (text) => {
+  if (!text.startsWith('(') || !text.endsWith(')')) return false;
+  let depth = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] === '(') depth += 1;
+    else if (text[index] === ')') {
+      depth -= 1;
+      if (depth === 0 && index < text.length - 1) return false;
+    }
+  }
+  return depth === 0;
+};
+const writtenAsOneNumber = (normalized) => {
+  let text = normalized;
+  // Signs and whole-text brackets around one number: +5, -(5), (-5).
+  for (let guard = 0; guard < 8; guard += 1) {
+    const next = /^[+-]/.test(text) ? text.slice(1) : (wrappedInOnePair(text) ? text.slice(1, -1) : text);
+    if (next === text) break;
+    text = next;
+  }
+  return asNumber(text) !== null
+    || mixedNumberShape(text) !== null
+    || withoutThousandsSeparators(text) !== null
+    || SCIENTIFIC_NOTATION.test(text);
+};
+/** Is this a calculation with numbers (`64-6`, `2(29)`, `\frac{1}{2}+\frac{1}{4}`), not one number however written? */
+export const looksLikeArithmetic = (value) => {
+  const text = normalizeAnswer(value).replace(/[×·]/g, '*');
+  if (!text || writtenAsOneNumber(text)) return false;
+  const operations = text.replace(/\\(?:frac|div)(?![a-z])|÷/g, ' ');
+  return /^[\d.+\-*/^(){}\s]+$/.test(operations) && (operations.match(NUMERALS) || []).length >= 2;
+};
+
+/** Does this field take a calculation as an answer? Every field but a number box, and a number box that opts in (GR01). */
+export const fieldAllowsArithmetic = (field = {}) => !fieldIsNumberBox(field) || field?.allowArithmetic === true;
+
 /**
  * The sameValue options one response field asks for. Every field grader — the
  * Path, secure and Live Challenge one (functions/lib/mathPath.js), the
@@ -1313,6 +1370,7 @@ export const fieldIsNumberBox = (field = {}) => {
 export const fieldValueOptions = (field = {}) => ({
   thousandsSeparators: fieldAcceptsThousandsSeparators(field),
   exactNumber: fieldIsNumberBox(field),
+  arithmetic: fieldAllowsArithmetic(field),
 });
 
 const hasInequalitySymbol = (value) => /[<>≤≥≠]|\\(?:le|ge|ne|lt|gt)/.test(String(value ?? ''));
@@ -1445,7 +1503,10 @@ const sameEquationSideBySide = (left, right, tolerance) => (
   || sameLinearEquation(left, right, tolerance)
 );
 
-export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators = true, exactNumber = false } = {}) => {
+export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators = true, exactNumber = false, arithmetic = true } = {}) => {
+  // A number box that takes no calculation refuses one before any comparison
+  // below can work it out (GR01; fieldValueOptions `arithmetic`).
+  if (!arithmetic && looksLikeArithmetic(left)) return false;
   const leftSet = parseFiniteSetNotation(left);
   const rightSet = parseFiniteSetNotation(right);
   if (leftSet !== null || rightSet !== null) {
@@ -1461,7 +1522,7 @@ export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators =
   const leftSides = mixedSidesAsFractions(left);
   const rightSides = mixedSidesAsFractions(right);
   if (leftSides !== String(left ?? '') || rightSides !== String(right ?? '')) {
-    return sameValue(leftSides, rightSides, tolerance, { thousandsSeparators, exactNumber });
+    return sameValue(leftSides, rightSides, tolerance, { thousandsSeparators, exactNumber, arithmetic });
   }
   if (exactNumber && sameExactNumber(left, right, tolerance)) return true;
   if (thousandsSeparators && sameThousandsGroupedNumber(left, right, tolerance)) return true;

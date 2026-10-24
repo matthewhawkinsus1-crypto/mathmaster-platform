@@ -1,5 +1,5 @@
 import { answerFormatOf } from './answerFormatHints.js';
-import { looksLikeMixedNumber } from '../../../functions/shared/answerEquivalence.mjs';
+import { fieldAllowsArithmetic, looksLikeArithmetic, looksLikeMixedNumber } from '../../../functions/shared/answerEquivalence.mjs';
 import { fractionAnswerCandidates, fractionAnswerRequiresLowestTerms } from '../../../functions/shared/fractionAnswer.mjs';
 
 /*
@@ -42,6 +42,13 @@ export const formatProblemForResponse = (field = {}, value = '') => {
   }
   if (format === 'equation' && !hasEqualsSign(value) && keys.length && keys.every(hasEqualsSign)) {
     return 'Write the full equation, including the equals sign.';
+  }
+  // A number box takes the value, never the calculation (GR01). The grader
+  // refuses `64 − 6` for every key unless the field allows a calculation, so
+  // this asks the grader's own question (fieldAllowsArithmetic) and holds back
+  // nothing it would accept.
+  if (!fieldAllowsArithmetic(field) && looksLikeArithmetic(value)) {
+    return 'Write the value, not the calculation. Work it out, then enter the number.';
   }
   // A Digital SAT number box (numberRules, set by the CCMR hydration): the
   // grader reads 3½ as 7/2, but the SAT itself does not take a mixed number,

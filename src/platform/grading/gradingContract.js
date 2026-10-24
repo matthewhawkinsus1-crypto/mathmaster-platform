@@ -1,4 +1,4 @@
-import { sameValue } from '../../../functions/shared/answerEquivalence.mjs';
+import { fieldAllowsArithmetic, looksLikeArithmetic, sameValue } from '../../../functions/shared/answerEquivalence.mjs';
 import { parseFactoredProduct, sameFactoredPolynomialExpression } from '../../../functions/shared/factoredPolynomialExpressionEquivalence.mjs';
 import { isSimplestRadicalForm, sameSimplestRadicalForm } from '../../../functions/shared/simplestRadicalFormEquivalence.mjs';
 // Pre-Flight's self-grade check runs the shared field grader, which reads the
@@ -266,8 +266,20 @@ const validateField = (field, {
     );
   }
 
+  // GR01: a number field takes one value and refuses a calculation, so a key
+  // written as one ("64-6") could never be typed and marked right. Name the
+  // two fixes rather than only that the key does not grade itself.
+  const calculationKey = fieldAllowsArithmetic(field)
+    ? null
+    : [primary, ...accepted].find((value) => comparableScalar(value) && isPresent(value) && looksLikeArithmetic(value));
+  if (calculationKey) {
+    errors.push(
+      `${display} is a number field, but its key "${clean(calculationKey)}" is a calculation. A number field takes one value: write the key as that value, or set "allowArithmetic": true when the calculation itself is the answer.`,
+    );
+  }
+
   const runtimeSelfGrade = runtimeSelfGradesCanonicalKey({ collection, field, primary, accepted });
-  if (runtimeSelfGrade === false) {
+  if (runtimeSelfGrade === false && !calculationKey) {
     errors.push(
       `${display} fails MathMaster's runtime self-grade check: the canonical grading key is not accepted by the same grader the student will use. Fix the key/grading metadata before publishing.`,
     );

@@ -596,6 +596,9 @@ function privateGradingDefinition(question) {
         : [field?.inputProfile, field?.toolProfile, field?.answerFormat, field?.notation]
           .some((value) => String(value || '').toLowerCase() === 'interval') ? 'interval' : null,
       ...(digitalSatNumberField(question, field) ? { numberRules: 'digitalSAT' } : {}),
+      // A number box whose answer is a calculation (GR01: answerEquivalence
+      // fieldAllowsArithmetic). Stored on new issues only, like the kind below.
+      ...(field?.allowArithmetic === true ? { allowArithmetic: true } : {}),
       // What kind of answer the field takes, so the grader can tell a list
       // or a pair (where `1,250` is two values) from one number
       // (answerEquivalence fieldAcceptsThousandsSeparators). Stored on new
