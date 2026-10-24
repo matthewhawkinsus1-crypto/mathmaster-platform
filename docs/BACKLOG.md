@@ -36,6 +36,12 @@ exist:
 Not gated behind a per-challenge teacher opt-in. The weight is the control, and
 a switch that had to be remembered mid-lesson would mostly be forgotten.
 
+Graph the Line (LC12) has its own rules at the same weight — each line's first
+try only, Graph it as A.3C and Name it as A.2C — built and switched off: no
+event is written until the owner sets `platformFlags/liveChallengeEvidence`
+`lineGraph: true` (a platform switch, not a teacher's). See
+`docs/architecture/graph-the-line.md` §11.
+
 ### ~~Who may reconcile attendance?~~ — decided
 **Status:** decided · the teacher reconciles
 

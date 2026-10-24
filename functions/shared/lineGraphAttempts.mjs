@@ -61,6 +61,7 @@ import {
 import { SCORE_ACCUMULATION } from './liveChallengeScoring.mjs';
 import { DIAGNOSIS_LABELS } from './lineGraphFeedback.mjs';
 import { checkChoiceAnswer, checkEquationAnswer, checkLineAnswer, normalizeEquationFields } from './lineGraphGrading.mjs';
+import { lineKey } from './lineGraphMath.mjs';
 import {
   LINE_ANSWER_STYLE,
   LINE_ATTEMPT_KIND,
@@ -414,6 +415,9 @@ export const applyLineGraphAttempts = ({
       // What was asked, for the teacher's report.
       tier: question.tier,
       reportTags: { form: question.form, itemType: question.itemType, variant: question.variant },
+      // Which line it asked (lineGraphMath.lineKey): the evidence counts a
+      // line met again only once (lineGraphEvidence.mjs).
+      itemKey: lineKey(question.line),
       attemptKind: attempt.kind,
       targetId,
       isCorrect,

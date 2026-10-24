@@ -511,3 +511,4 @@ where keeping the moved term's sign gives the sign-flipped answer), only the pla
 | Context-meaning choices on the representations board | The filled choice text does not keep its template. |
 | Practice Mode drafts | Not server-graded attempts. |
 | Recovery practice targeted by stored codes | Wave 2 of the student push: choose Recovery items from a student's recurring trusted codes. |
+| Graph the Line first tries (Live Challenge) | A wrong first Graph it line is server-graded structured work, and its slope cases are provable by `tool:graphing2`'s rule (the form's own point, slope exactly −m or 1/m; blocker −1/m; none when \|m\| = 1). The game's mastery evidence (`lineGraphEvidence.mjs`, built switched off) is one event per standard per game, and the case review counts questions: a code needs its own per-item record and a reader. |

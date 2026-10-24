@@ -21,8 +21,10 @@ first", the host's race and report, the projector, the Classic reveal, early
 close) and Phase 4 (certification: whole classes of 30 and 35 playing every
 format at class scale, then the launch) are built and tested. The three modes
 are `teacherSelectable: true`: every teacher's console offers "Graph the
-Line". **Mastery evidence is deliberately not written yet** (§11, with the
-reason).
+Line". **Mastery evidence** has its own rules — each line's first try only,
+Graph it as A.3C and Name it as A.2C, at a Live Challenge's weight — and is
+built **switched off**: no event is written until the owner turns it on
+(§11, LC12).
 
 ---
 
@@ -209,8 +211,11 @@ the equation ("(x − 4) means x = 4") — that is reading the prompt.
 Diagnoses with the same meaning as a registered misconception code
 (`DIAGNOSIS_MISCONCEPTION`: slope sign, run over rise, slope/intercept
 swapped, intercepts swapped, ordered pair reversed) are mapped, **for later**:
-a code becomes evidence only from a classifier declared in the registry,
-which ships with mastery evidence (§11). Intercept sign, point-slope sign and
+a code becomes evidence only from a classifier declared in the registry. The
+game's mastery evidence (§11) records none yet: the registry's codes are read
+per question, and that evidence is one event per standard per game, so a
+first try's code needs its own per-item record and a reader
+(`MISCONCEPTION_EVIDENCE.md`, backlog). Intercept sign, point-slope sign and
 horizontal/vertical confusion have no registry code yet. Today diagnoses
 reach the hint, the teacher's report and the Classic reveal's label.
 
@@ -380,12 +385,14 @@ instead of comparing the rush's id; a test holds those sets to the registry.
 | --- | --- |
 | `liveChallengeRooms/{room}` | `challengeMode`, `lineGraph: { config, generatorVersion }` — no seed; while a round is open, `currentQuestion` is a card (`kind: 'lineGraph'`, format, forms, item types, `roundQuestionCount`) — never an equation |
 | `liveChallengePrivate/{room}` | `lineGraph: { seed, config, generatorVersion }`; `questionIds` are placeholders (`lineGraph:round:N`) with no standard |
-| `…/players/{studentId}` receipts | `targetAttempt`, `targetCount: 1`, `roundQuestionCount`, `tier`, `reportTags: { form, itemType, variant }`, the answer (`points` [x₁, y₁, x₂, y₂], `choice`, or `fields`), and for a miss its `diagnosis` and `answerKey`; `forfeit` + `revealed` on the miss that used the last try |
+| `…/players/{studentId}` receipts | `targetAttempt`, `targetCount: 1`, `roundQuestionCount`, `tier`, `reportTags: { form, itemType, variant }`, `itemKey` (the line asked, `lineKey`: the evidence counts a line met again once — LC12), the answer (`points` [x₁, y₁, x₂, y₂], `choice`, or `fields`), and for a miss its `diagnosis` and `answerKey`; `forfeit` + `revealed` on the miss that used the last try |
 | `…/players/{studentId}` (LC09) | from the join: `timeMultiplier` (> 1 only in Classic and Sprint) and `lineSlopeHelper` (the plan's graphing aid); `extraTimeReceipts`: attempts made after the class's buzzer in extended time (`extraTime: true`, no points), apart from the race's `submissionReceipts` (§7) |
 | `…/players/{key}` (public row) | score, accuracy and the rush's race fields (`rushRound`, `rushRoundCompleted`, `rushActiveAt`, and since Phase 3 `rushRoundFinished`: this round's items are all done), so the shared race board, early close and presence read them; `lastRound` after a close. No student id, no answers |
 | `liveChallengePrivate/{room}` (Phase 3) | a Classic game with the same equations: `roundSolutions[round]`, its line's worked solution, captured when the round opens; the plan's `sharedLineKeys`, which hold a round's reveal while a later round asks the same line |
 | `liveChallengeRooms/{room}/solutions/{round}` (Phase 3) | after the round closes: the worked solution with `lineGraph` (the line, key points, equation tokens, options) and `class: { answered, correct, firstTry, mistake }` — counts only; `revealedSolutionRounds` on the room lists it |
-| `liveChallengeMatchResults/{room}` | each standing's `questionSetSummary` now also carries `byTag` (the mode's report tags) and `mistakes` (diagnosis counts) — empty for the rush |
+| `liveChallengeMatchResults/{room}` | each standing's `questionSetSummary` now also carries `byTag` (the mode's report tags) and `mistakes` (diagnosis counts) — empty for the rush; in a line game (LC12) each standing's `lineGraphEvidence`: `{ version, graph, name, slopeHelper }`, per item type the lines counted, right on the first try and first tried in extended time — counted at the finish from the receipts, so the evidence effect reads the result, never private state, and deleting the student removes it with the standing |
+| `platformFlags/liveChallengeEvidence` (LC12) | the owner's switch: `lineGraph: true` (only the boolean) lets the evidence effect write a line game's events; absent, off. Like every `platformFlags` switch, signed-in clients may read it and only the Admin SDK writes it (`firestore.rules`) |
+| `grades/{student}/evidenceEvents/{id}` (LC12, switch on) | one event per student per standard per game: `eventKey` `liveChallenge_{room}_{A.3C\|A.2C}`, `source: { kind: 'liveChallenge', activityRole: 'liveChallenge', itemType, evidenceVersion }`, `performance.score` = right on the first try ÷ lines counted (`linesCounted`, `linesRightFirstTry`), `supportUsage` (independent; `accommodations: ['extra-time']` and `slopeHelper` stated, never discounting), `conditions` in words |
 | `liveChallengeReports/{room}` | `lineGraph`: items completed and ended, accuracy, by form, by item type, by tier (hardest first), mistakes (most first, labelled), per student |
 
 **Engine changes Phase 2 made** (each additive; Graph Feature Rush is
@@ -417,6 +424,7 @@ unchanged and its suites pass):
 | `functions/shared/lineGraphAttempts.mjs` | the submit transaction's body (`applyLineGraphAttempts`), round state from receipts, player totals, the report |
 | `functions/shared/seededRandom.mjs` | the integer-only seeded random source (moved verbatim from the rush generator, which re-exports it; its output is unchanged) |
 | `functions/shared/lineGraphReveal.mjs` | a shared Classic round's worked solution, and the class's facts added at its close |
+| `functions/shared/lineGraphEvidence.mjs` | mastery evidence (LC12): each student's first tries per item type (`lineEvidenceFacts`), the events (`buildLineGraphEvidenceEvents`), the conditions text, the owner's switch |
 | `functions/index.js` | `lineGraphModules()`, `LINE_GRAPH_PLANNER` (with the shared round's solution), the preview gate in `createLiveChallenge` (for any mode not yet offered), `getLineGraphRound`, `submitLineGraphAttempts` (writes `rushRoundFinished`), `previewLineGraph`, the reveal's class facts |
 | `src/platform/liveChallenge/liveChallengeService.js` | the three callables for the screens (mirrored in the emulator bridge) |
 | `src/platform/liveChallenge/lineGraphModel.js` | the grid as geometry: unit space, snapping, the line edge to edge, the draft reducer (press, drag, release), the keyboard, where labels and the ✓/✗ float |
@@ -495,8 +503,9 @@ unchanged and its suites pass):
   close with the class's facts; on the projector, the console and the results
   card.
 - [x] The report screen (`report.lineGraph`), beside the rush's.
-- [ ] **Mastery evidence — deferred, on purpose.** Turning it on now would
-  write wrong evidence about real students. `liveChallengeEvidence.mjs` counts
+- [x] **Mastery evidence — deferred here, on purpose; built in LC12 (below),
+  switched off.** Turning it on then would have written wrong evidence about
+  real students. `liveChallengeEvidence.mjs` counts
   a ROUND as one answer to one bank question, and stamps every record "One
   attempt, no hints" and `isMathematicallyIndependent: true`. A line round is
   up to 150 items, each with a hint after a miss and up to three (or
@@ -573,6 +582,58 @@ keyboard — against the real handlers: `tests/browser/lineGraphGame.mjs`.)
   offered; set the flag back to false and the administrator-only preview
   returns, label and all.
 
+**LC12 — mastery evidence. Built, switched off.** BACKLOG decided a Live
+Challenge counts as evidence at weight 0.7; a line game gets there by its own
+rules (`lineGraphEvidence.mjs`), never through the bank rounds' builder,
+whose path and output are unchanged (it still writes nothing for a line game:
+no standard per round).
+
+- [x] **The first try on each line, only.** Each item's first recorded
+  attempt, in the order the student met the items; every later try follows a
+  hint, and a line out of tries is shown. What is never recorded (`repeated`,
+  `method`, `form`) is never a first try; a retried or replayed batch adds
+  nothing. Nothing to farm: repeating, hints and retries never add a right
+  first try, and a line met again later in the game (a long Rush, a Classic
+  schedule) counts once, by the receipt's `itemKey` — a receipt without one
+  counts for nothing.
+- [x] **A skip is not right.** A skipped line is a line counted and not right
+  — otherwise skipping every unsure line would record only the sure ones. A
+  line still on screen at the buzzer with no attempt counts for nothing (the
+  bank rounds' rule).
+- [x] **Per item type, per standard.** Graph it is A.3C (graph linear
+  functions), so a vertical Graph it line — no function's graph — is left
+  out; Name it is A.2C. One event per student per standard per game, worth
+  the share right on the first try (a Live Challenge's evidence is always
+  aggregated: one timed item is close to a coin flip), `activityRole:
+  'liveChallenge'` (0.7). The event key is stable, so a retried finish
+  writes the same event again.
+- [x] **Conditions on the record.** Timed, first tries only, a skip not
+  right, a line met again once — in words on the event. The slope helper
+  (the room's, or the plan's — LC09) and extended time are stated when they
+  were there and never lower the credit: they are access, not help with the
+  mathematics. A first try in extended time counts like any other; the race
+  never read it, the evidence does.
+- [x] **Wiring.** The finish counts each joined student's facts from their
+  receipts (race and extra time) into their standing on the match result, in
+  the same commit; the `evidence` effect adds the line events after the bank
+  builder's, from the result alone. Every line game records the facts; the
+  events are written only while `platformFlags/liveChallengeEvidence` has
+  `lineGraph: true` — the boolean, which the owner sets in the Firebase
+  console (the console's "Add field" default, a string, is not a decision).
+  It is **off**: no document, so nothing is written. A game finished while it
+  was off is not written later.
+- [ ] **Misconception codes — not yet.** A wrong first Graph it line's slope
+  mistake is provable by `tool:graphing2`'s rule (through the form's own
+  point, slope exactly −m or 1/m, blockers −1/m, none when |m| = 1), but the
+  registry's codes are read per question and the case review counts
+  questions, while this evidence is one event per standard per game. It
+  needs a per-item record and a reader (`MISCONCEPTION_EVIDENCE.md`,
+  backlog).
+- [ ] **Turning it on — the owner's decision.** Worth knowing first: a
+  student's device holds each item's answer (the instant check needs it), so
+  a student who reads the network traffic could answer any line — the race
+  and its rewards already accept that, and the evidence would too.
+
 ---
 
 ## 12. Testing
@@ -586,7 +647,8 @@ keyboard — against the real handlers: `tests/browser/lineGraphGame.mjs`.)
 | `tests/platform/lineGraphConfig.test.mjs` | defaults per format; validation; presets; round limits; pools; mode ids; tries; the pause |
 | `tests/platform/lineGraphPlay.test.mjs` | the attempt pipeline: a right answer completes once; a miss with its mistake; `repeated`; the last try ends the item in one receipt; tries 1/2/3/until right; one try for a choice; `method` and `form`; replays, late, early, malformed and mismatched attempts; skips; claimed times; record limits; a Sprint's length read back by the engine; the report; the receipt size budget; the fairness simulation |
 | `tests/platform/lineGraphEngine.test.mjs` | the three mode declarations; the format is the mode's; limits per format; a Sprint round ranked by `buildRoundResult` from pipeline receipts |
-| `tests/integration/lineGraph.test.mjs` (emulator, `npm run test:challenge-finish`) | every teacher launches each format; a three-student Sprint through the callables (private seed, own items, instant verdicts, `repeated`, replays, the end of the Sprint, three misses and a refresh, `rushRoundFinished`, close without force when everyone is done, the engine's ranking, the report); a Classic game (the same equation for everyone, refusals, one item a round; the reveal published only at the close, with the class's counts and no student id); a student's plan (extended time after the buzzer in a Classic round: the round held for them, their line recorded apart, the race ranked at the buzzer, no public document naming them, the report counting it; their own slope helper; a Rush at ×1); previews |
+| `tests/integration/lineGraph.test.mjs` (emulator, `npm run test:challenge-finish`) | every teacher launches each format; a three-student Sprint through the callables (private seed, own items, instant verdicts, `repeated`, replays, the end of the Sprint, three misses and a refresh, `rushRoundFinished`, close without force when everyone is done, the engine's ranking, the report); a Classic game (the same equation for everyone, refusals, one item a round; the reveal published only at the close, with the class's counts and no student id); a student's plan (extended time after the buzzer in a Classic round: the round held for them, their line recorded apart, the race ranked at the buzzer, no public document naming them, the report counting it; their own slope helper; a Rush at ×1); mastery evidence (no event while the switch is off, the facts on the result anyway; with it on, a Graph it and Name it Sprint writes each joined student's first tries — a retried line, a missed choice, a skip — as A.3C and A.2C, counted against the test's own tally); previews |
+| `tests/platform/lineGraphEvidence.test.mjs` | the evidence rules (LC12): each receipt names its line; the first try only (a retry, a replay, a repeat add nothing); a skip is not right; a line met again counts once; a receipt without its line counts for nothing; Graph it A.3C without vertical lines, Name it A.2C; extended time counted and stated; the slope helper stated, never discounting; the events, their key and their weight through the mastery estimate; the switch takes only the boolean; the server's wiring |
 | `tests/platform/lineGraphAccommodations.test.mjs` | which modes extend time and how; the plan's slope helper (graph paper, graphic organizer; nothing else; a revision not in effect); extra time through the pipeline (recorded apart, no points, a device's claim after the buzzer inside the grace, tries and repeats across the buzzer); the round ranked at the buzzer; readiness once their set is finished; the reveal's counts; the screens and the server wiring |
 | `tests/platform/lineGraphScreenModels.test.mjs` | the grid's geometry and gestures (checked only on a release that completes or changes a line); where the held label and the ✓/✗ float; the keyboard; the device session — tries, pauses, reveals, method, naming, skips, the queue, the server's word — and its verdicts replayed through the server's pipeline over random rounds; shown answers read back by the oracle |
 | `tests/platform/lineGraphReveal.test.mjs` | every slot's worked solution is the item's own line, every point a step names on it; the class's facts (distinct students, skips, who left); a mistake shown only when two students made it; the published document names no student; a line held while a later round asks it |
@@ -623,6 +685,7 @@ rule, grace, round scope and second look; and the plans' old ±4 offsets.
 
 Inequalities (dashed or solid boundary, shading — the same line tool), systems
 (graph two lines, tap the intersection), real-world contexts, a Warm-Up link
-for Classic, student self-practice outside a live game. (Per-student
-accommodations — the slope helper from a plan, extended time after the buzzer
-in Classic and Sprint — are built: §7.)
+for Classic, student self-practice outside a live game; a first try's
+misconception code as evidence (§11, LC12). (Per-student accommodations — the
+slope helper from a plan, extended time after the buzzer in Classic and
+Sprint — are built: §7. Mastery evidence is built and switched off: §11.)

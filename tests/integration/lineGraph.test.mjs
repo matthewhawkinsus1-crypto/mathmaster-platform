@@ -11,8 +11,10 @@
 // they have), and the engine ranks it; the finished match writes the report
 // by form, item type and mistake; a Classic round the class graphed together
 // publishes its line and the class's most common mistake — only once it has
-// closed; and a student with extended time finishes after the buzzer while
-// the race stays the class's, and nothing public says who.
+// closed; a student with extended time finishes after the buzzer while the
+// race stays the class's, and nothing public says who; and a finished game
+// writes each student's first tries as mastery evidence only while the
+// owner's switch is on.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -173,7 +175,7 @@ test('a Sprint lobby carries its settings, and its seed stays on the server', as
   assert.ok(secret.lineGraph.seed);
   assert.equal(secret.scoringConfig.placementCurve, 'field');
   assert.deepEqual(secret.questionIds, ['lineGraph:round:1', 'lineGraph:round:2']);
-  assert.deepEqual(Object.values(secret.roundStandards), ['', ''], 'no standard per round: no evidence until outcomes can feed it');
+  assert.deepEqual(Object.values(secret.roundStandards), ['', ''], 'no standard per round: the bank rounds\' evidence never reads a line game (its own rules do: lineGraphEvidence.mjs)');
 });
 
 test('a round opens with a card, never an equation, and students get their own items', async () => {
@@ -495,6 +497,120 @@ test('a Rush gives no extra time; the slope helper from the plan still goes with
   assert.equal(record.timeMultiplier, 1, 'as many as you can before the clock: nothing to finish');
   assert.equal(record.lineSlopeHelper, true);
   await call('cancelLiveChallenge', administrator({ roomId }));
+});
+
+/* ===== GAME 4: mastery evidence — each line's first try, per kind of item, behind the owner's switch ===== */
+
+const evidenceSwitch = db.collection('platformFlags').doc('liveChallengeEvidence');
+const lineEvidenceOf = async (studentId, roomId) => (await db.collection('grades').doc(studentId).collection('evidenceEvents')
+  .where('source.roomId', '==', roomId).get()).docs.map((doc) => doc.data());
+
+// A wrong answer of the item's own kind.
+const wrongAttempt = (item) => (item.answerStyle === 'choice'
+  ? { attemptId: randomUUID(), questionIndex: item.questionIndex, kind: 'choice', choice: item.choices.find((choice) => choice.id !== item.answerChoice).id, clientElapsedMs: 3_000 }
+  : wrongLine(item, 0));
+
+// What the rules should count, from what this test did: each line once (the
+// first meeting), a vertical Graph it line never, right only when the first try was.
+const expectedFirstTries = (items, firstTryRight) => {
+  const tally = { graph: { lines: 0, right: 0 }, name: { lines: 0, right: 0 } };
+  const met = new Set();
+  items.forEach((item, index) => {
+    if (item.itemType === 'graph' && item.line.b === 0) return;
+    const identity = `${item.itemType}|${item.line.a}|${item.line.b}|${item.line.c}`;
+    if (met.has(identity)) return;
+    met.add(identity);
+    tally[item.itemType].lines += 1;
+    if (firstTryRight(index)) tally[item.itemType].right += 1;
+  });
+  return tally;
+};
+
+test('a line game writes no mastery evidence while the owner\'s switch is off', async () => {
+  // GAME 1 finished with the switch off: its facts are on the result, and no event.
+  const match = (await db.collection('liveChallengeMatchResults').doc(S).get()).data();
+  assert.ok(match.standings.filter((row) => row.joined).every((row) => row.lineGraphEvidence?.version === 1), 'the facts are always counted');
+  for (const studentId of [A, B, C]) {
+    // eslint-disable-next-line no-await-in-loop
+    assert.deepEqual(await lineEvidenceOf(studentId, S), [], studentId);
+  }
+});
+
+test('with the switch on, a finished line game writes each student\'s first tries: Graph it as A.3C, Name it as A.2C', async () => {
+  await evidenceSwitch.set({ lineGraph: true });
+  try {
+    const created = await createLine('sprint', 'lineGraphSprint', { presetId: 'graphAndName', itemTypes: ['graph', 'name'], nameStyle: 'choice', sprintLength: 5, triesPerItem: 2 }, { roundCount: 1, roundSeconds: 60 });
+    const roomId = created.roomId;
+    await Promise.all([A, B].map((studentId) => call('joinLiveChallenge', student(studentId, { roomId }))));
+    await call('startLiveChallenge', administrator({ roomId }));
+    await waitForRoundStart(roomId);
+    // Five of a block of six, two of which are Name it: at least three Graph
+    // it lines and one Name it. A: the first Graph it line wrong, then right
+    // after the hint; the first Name it wrong (one try); the next line
+    // skipped; the rest right at once. B: every line right at once. C never
+    // joined.
+    const aItems = (await fetchItems(roomId, A)).questions;
+    assert.equal(aItems.length, 5);
+    const retried = aItems.findIndex((item) => item.itemType === 'graph');
+    const missed = aItems.findIndex((item) => item.itemType === 'name');
+    const skipped = aItems.findIndex((_, index) => index !== retried && index !== missed);
+    assert.ok(retried >= 0 && missed >= 0 && skipped >= 0, JSON.stringify(aItems.map((item) => item.itemType)));
+    for (const [index, item] of aItems.entries()) {
+      if (index === retried) {
+        // eslint-disable-next-line no-await-in-loop
+        await submit(roomId, A, [wrongAttempt(item)]);
+        // eslint-disable-next-line no-await-in-loop
+        assert.equal((await submit(roomId, A, [rightAttempt(item)])).verdicts[0].verdict, 'correct', 'right on the second try');
+      } else if (index === missed) {
+        // eslint-disable-next-line no-await-in-loop
+        assert.equal((await submit(roomId, A, [wrongAttempt(item)])).verdicts[0].revealed, true, 'one try, then the answer is shown');
+      } else if (index === skipped) {
+        // eslint-disable-next-line no-await-in-loop
+        await submit(roomId, A, [{ attemptId: randomUUID(), questionIndex: item.questionIndex, kind: 'skip' }]);
+      } else {
+        // eslint-disable-next-line no-await-in-loop
+        await submit(roomId, A, [rightAttempt(item)]);
+      }
+    }
+    const bItems = (await fetchItems(roomId, B)).questions;
+    await submit(roomId, B, bItems.map(rightAttempt));
+    const done = await call('finishLiveChallenge', administrator({ roomId }));
+    assert.equal(done.status, 'finished');
+
+    const expectedA = expectedFirstTries(aItems, (index) => ![retried, missed, skipped].includes(index));
+    const expectedB = expectedFirstTries(bItems, () => true);
+    const match = (await db.collection('liveChallengeMatchResults').doc(roomId).get()).data();
+    const factsOf = (studentId) => match.standings.find((row) => row.studentId === studentId).lineGraphEvidence;
+    assert.deepEqual([factsOf(A).graph.lines, factsOf(A).graph.firstTryRight, factsOf(A).name.lines, factsOf(A).name.firstTryRight],
+      [expectedA.graph.lines, expectedA.graph.right, expectedA.name.lines, expectedA.name.right]);
+
+    for (const [studentId, expected] of [[A, expectedA], [B, expectedB]]) {
+      // eslint-disable-next-line no-await-in-loop
+      const events = await lineEvidenceOf(studentId, roomId);
+      const byStandard = Object.fromEntries(events.map((event) => [event.alignmentKeys[0], event]));
+      assert.equal(events.length, ['graph', 'name'].filter((itemType) => expected[itemType].lines).length, `${studentId}: one event per standard`);
+      for (const [itemType, standard] of [['graph', 'A.3C'], ['name', 'A.2C']]) {
+        const want = expected[itemType];
+        if (!want.lines) {
+          assert.equal(byStandard[standard], undefined, `${studentId}: no ${standard} without a ${itemType} line`);
+          continue;
+        }
+        const event = byStandard[standard];
+        assert.ok(event, `${studentId}: ${standard}`);
+        assert.equal(event.performance.linesCounted, want.lines);
+        assert.equal(event.performance.linesRightFirstTry, want.right);
+        assert.equal(event.performance.score, want.right / want.lines);
+        assert.equal(event.source.kind, 'liveChallenge');
+        assert.equal(event.source.activityRole, 'liveChallenge', 'weighted as a Live Challenge');
+        assert.equal(event.source.itemType, itemType);
+        assert.match(event.conditions, /first try/i, 'the record states its conditions');
+      }
+    }
+    // A student who never joined has no evidence from the game.
+    assert.deepEqual(await lineEvidenceOf(C, roomId), []);
+  } finally {
+    await evidenceSwitch.delete();
+  }
 });
 
 /* ================================ preview ================================ */

@@ -428,7 +428,7 @@ runs each effect **from the match result**, never from private game state:
 | `report` | `liveChallengeReports/{roomId}` |
 | `invites` | invite status — only invites that still point at this room |
 | `warmupCredit` | the assignment's participation/accuracy credit, measured against rounds actually played |
-| `evidence` | mastery evidence (weight 0.7, replays excluded) |
+| `evidence` | mastery evidence (weight 0.7, replays excluded); a line game's by its own rules — each line's first try, per item type, from each standing's `lineGraphEvidence` (`lineGraphEvidence.mjs`, `graph-the-line.md` §11) — only while the owner's switch `platformFlags/liveChallengeEvidence` has `lineGraph: true` (off) |
 | `rewards` | reward delivery (section 9); finished matches only |
 | `privateCleanup` | deletes `liveChallengePrivate/{roomId}` — last, once every other effect has settled, or on the last attempt |
 

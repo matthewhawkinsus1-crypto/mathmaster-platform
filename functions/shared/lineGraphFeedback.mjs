@@ -79,7 +79,9 @@ export const LINE_DIAGNOSIS = Object.freeze({
  * The platform's misconception codes a diagnosis corresponds to, where the
  * meaning is the same. Informational until the mode's classifier is declared
  * in misconceptionCodes.mjs: a code becomes evidence only from a declared
- * server classifier, never from this table.
+ * server classifier, never from this table. The line game's mastery evidence
+ * (lineGraphEvidence.mjs) records none yet, and says why: the registry reads
+ * codes per question, and that evidence is one event per standard per game.
  */
 export const DIAGNOSIS_MISCONCEPTION = Object.freeze({
   [LINE_DIAGNOSIS.SLOPE_SIGN]: 'slope-sign-reversed',

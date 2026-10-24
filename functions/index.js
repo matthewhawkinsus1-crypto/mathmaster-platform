@@ -10980,7 +10980,7 @@ async function lineGraphModules() {
 let liveChallengeEngineModules = null;
 async function liveChallengeEngine() {
   if (!liveChallengeEngineModules) {
-    const [lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary, lineReveal, serverSweep] = await Promise.all([
+    const [lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary, lineReveal, serverSweep, lineEvidence] = await Promise.all([
       import("./shared/liveChallengeLifecycle.mjs"),
       import("./shared/liveChallengeTimer.mjs"),
       import("./shared/liveChallengeModes.mjs"),
@@ -11000,9 +11000,12 @@ async function liveChallengeEngine() {
       // same reveal as a shared question, with the class's own mistake added.
       import("./shared/lineGraphReveal.mjs"),
       import("./shared/liveChallengeServerSweep.mjs"),
+      // A Graph the Line game's first tries, counted onto each standing at the
+      // finish, and its own mastery evidence (behind the owner's switch).
+      import("./shared/lineGraphEvidence.mjs"),
     ]);
     liveChallengeEngineModules = {
-      lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary, lineReveal, serverSweep,
+      lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary, lineReveal, serverSweep, lineEvidence,
     };
   }
   return liveChallengeEngineModules;
@@ -12951,6 +12954,20 @@ function applyLiveChallengeMatchFinalization(transaction, {
   const matchResult = engine.results.buildMatchResult({
     roomId: roomRef.id, room, privateState, players, status, finalizedAtMs: nowMs, finalizationId,
   });
+  // GRAPH THE LINE'S FIRST TRIES (lineGraphEvidence.mjs), counted from each
+  // student's receipts in this commit and kept on their own standing: the
+  // evidence effect reads the result, never private state, and permanent
+  // deletion, which removes the standing, removes them with it.
+  const resultMode = engine.modes.getChallengeMode(room.challengeMode);
+  const lineRoom = resultMode.questionSource === engine.modes.QUESTION_SOURCE.LINE_GRAPH_GENERATOR;
+  const roomSlopeHelper = (privateState.lineGraph?.config || room.lineGraph?.config || {}).slopeHelper === true;
+  const playerById = new Map((Array.isArray(players) ? players : []).map((player) => [String(player?.studentId || ""), player]));
+  const resultStandings = lineRoom
+    ? matchResult.standings.map((standing) => ({
+      ...standing,
+      lineGraphEvidence: engine.lineEvidence.lineEvidenceFacts({ player: playerById.get(standing.studentId) || {}, roomSlopeHelper }),
+    }))
+    : matchResult.standings;
   // RECOGNITION BEYOND THE PODIUM (liveChallengeRecognitions.mjs), decided
   // from this result in this commit, so the podium screen and the rewards
   // effect read the same list. Aliases and player keys only. A finished match
@@ -12963,6 +12980,7 @@ function applyLiveChallengeMatchFinalization(transaction, {
     : [];
   transaction.set(db.collection(LIVE_CHALLENGE_MATCH_RESULTS).doc(roomRef.id), {
     ...matchResult,
+    standings: resultStandings,
     ...(finished ? { recognitions } : {}),
     // Lets permanent student deletion find this document.
     studentIds: matchResult.standings.map((standing) => standing.studentId),
@@ -13162,18 +13180,43 @@ async function writeWarmupCreditFromResult(db, result) {
   }
 }
 
+/*
+ * GRAPH THE LINE'S OWN MASTERY EVIDENCE (lineGraphEvidence.mjs): first tries,
+ * per kind of item, from each student's facts on the match result — and only
+ * while the owner's switch is on (platformFlags/liveChallengeEvidence,
+ * `lineGraph: true`). A game whose effect ran while it was off is not written
+ * later. Any other game: none from here.
+ */
+async function lineGraphEvidenceEventsFor(db, result) {
+  const { modes, lineEvidence } = await liveChallengeEngine();
+  if (modes.getChallengeMode(result.modeId).questionSource !== modes.QUESTION_SOURCE.LINE_GRAPH_GENERATOR) return [];
+  const switchSnapshot = await db.collection(lineEvidence.LINE_EVIDENCE_SWITCH_COLLECTION).doc(lineEvidence.LINE_EVIDENCE_SWITCH).get();
+  if (!lineEvidence.lineEvidenceSwitchedOn(switchSnapshot.exists ? switchSnapshot.data() : null)) return [];
+  return lineEvidence.buildLineGraphEvidenceEvents({
+    roomId: result.roomId,
+    modeId: result.modeId,
+    standings: result.standings || [],
+    occurredAt: Number(result.finalizedAtMs) || Date.now(),
+  });
+}
+
 async function writeChallengeEvidenceFromResult(db, result) {
   // Aggregated per standard rather than per round, because a single timed
   // question is close to a coin flip and a proportion is what the estimate can
   // use. Replays are excluded so one question cannot enter a record twice.
   const evidenceRules = await liveChallengeEvidenceRules();
-  const events = evidenceRules.buildChallengeEvidenceEvents({
-    roomId: result.roomId,
-    players: result.standings || [],
-    roundStandards: result.roundStandards || {},
-    secondChanceOf: result.secondChanceOf || {},
-    occurredAt: Number(result.finalizedAtMs) || Date.now(),
-  });
+  const events = [
+    ...evidenceRules.buildChallengeEvidenceEvents({
+      roomId: result.roomId,
+      players: result.standings || [],
+      roundStandards: result.roundStandards || {},
+      secondChanceOf: result.secondChanceOf || {},
+      occurredAt: Number(result.finalizedAtMs) || Date.now(),
+    }),
+    // A line game has no standard per round, so the builder above writes
+    // nothing for it; its own rules do (behind the owner's switch).
+    ...await lineGraphEvidenceEventsFor(db, result),
+  ];
   for (let start = 0; start < events.length; start += 450) {
     const batch = db.batch();
     events.slice(start, start + 450).forEach((evidenceEvent) => {
