@@ -379,8 +379,8 @@ EOF
   the secure exam included (it only fills in the trace box). Still not done: sending a calculator point into the answer.
   The calculator deliberately knows nothing about the question, so this needs a design call (a copy button is the
   smallest version that keeps that rule). The regression tool's own graph is still separate.
-- Other QuestionEngine hosts (Path sessions, SectionRecoveryRunner, Live Challenge) do not pass an assignment
-  setting; only App's assignment screen does. Section recovery runs inside an assignment and could pass it.
+- Other QuestionEngine hosts (Path sessions, Live Challenge) do not pass an assignment setting. Section Recovery runs
+  inside an assignment and now passes it (RC08, `SectionRecoveryRunner.jsx` PinnedQuestion).
 - `getCalculatorDrawerLabel` (graphing → "SCIENTIFIC") still titles the keypad where graphing reaches it inside an
   assessment context; that is the H-19 area (W5-6).
 - The `studentHome` budget is over its baseline on the base by 25.2 KB (W5-1's lane).
