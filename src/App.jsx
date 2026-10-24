@@ -22,6 +22,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import {
+  buildResponseCheckpointAction,
   checkpointDocumentId,
   checkpointEligibility,
   enqueueResponseCheckpoint,
@@ -7119,23 +7120,28 @@ function App() {
       // The grade document's own `profile` field, as the finalizer reads it (D7).
       studentProfile: user.timingProfile || null,
     });
+    const checkpoint = {
+      identity,
+      question: gradingQuestion,
+      familyDelivery: familyDelivery?.pin || null,
+      activityRole: activeQuestionRole,
+      answerState,
+      revision: now,
+      finalizeAt: close.closesAtMs ? new Date(close.closesAtMs).toISOString() : null,
+      finalizationReason: close.reason,
+      finalizationContext: { classId: user.classId || null, classPeriod: user.classPeriod || null },
+      previousTotalAttempts: currentRecord.totalAttempts,
+      supportUsage: buildSupportUsage(user?.profile, storedQuestion),
+      timeSpentSeconds: activeTimeRef.current,
+      capturedAt: now,
+    };
+    // Nothing to queue (no close the scheduler could finalize at): the save
+    // line stays as it is. Setting "capturing" first left it reading
+    // "Saving…" for a save that was not happening (RT18).
+    if (!buildResponseCheckpointAction(checkpoint)) return;
     try {
       setStudentPersistenceStatus('capturing');
-      const queued = await enqueueResponseCheckpoint({
-        identity,
-        question: gradingQuestion,
-        familyDelivery: familyDelivery?.pin || null,
-        activityRole: activeQuestionRole,
-        answerState,
-        revision: now,
-        finalizeAt: close.closesAtMs ? new Date(close.closesAtMs).toISOString() : null,
-        finalizationReason: close.reason,
-        finalizationContext: { classId: user.classId || null, classPeriod: user.classPeriod || null },
-        previousTotalAttempts: currentRecord.totalAttempts,
-        supportUsage: buildSupportUsage(user?.profile, storedQuestion),
-        timeSpentSeconds: activeTimeRef.current,
-        capturedAt: now,
-      });
+      const queued = await enqueueResponseCheckpoint(checkpoint);
       if (!queued) return;
       checkpointFingerprintRef.current.set(documentId, fingerprint);
       setStudentOutboxDepth((depth) => depth + 1);

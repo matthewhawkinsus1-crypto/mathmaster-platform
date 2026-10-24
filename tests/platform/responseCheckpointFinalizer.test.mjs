@@ -12,7 +12,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assertCapability } from './helpers/sourceContract.mjs';
+import { assertCapability, executableSource } from './helpers/sourceContract.mjs';
 import { readFileSync } from 'node:fs';
 
 import {
@@ -1240,6 +1240,29 @@ test('an explicit submission retires its checkpoint in the same transaction as t
   assert.match(block, /checkpointRef \? transaction\.get\(checkpointRef\) : Promise\.resolve\(null\)/);
   assert.match(block, /transaction\.update\(checkpointRef, \{\s*\n\s*status: "explicitly-submitted"/);
   assert.match(block, /candidateFinalizeAt: null/);
+});
+
+test('a checkpoint with nothing to queue never sets the save line to "Saving…" (RT18)', () => {
+  const input = {
+    identity: { studentId: 'S1042', assignmentId: 'A1', questionIndex: 0, questionId: warmupQuestion.questionId, variantIndex: 0, generationKey: 'A1|S1042|0|variant:0' },
+    question: warmupQuestion,
+    activityRole: 'warmup',
+    answerState: { isComplete: false, responseKey: 'A/', parts: [] },
+    revision: 1,
+    finalizeAt: new Date(WARMUP_CLOSE).toISOString(),
+    finalizationReason: 'warmup-close',
+    capturedAt: DURING_WARMUP,
+  };
+  // No close the scheduler could finalize at: nothing is built, so nothing is queued.
+  assert.ok(buildResponseCheckpointAction(input), 'with a close, a checkpoint is built');
+  assert.equal(buildResponseCheckpointAction({ ...input, finalizeAt: null }), null);
+  const start = appSource.indexOf('const handleResponseCheckpoint = useCallback');
+  const handler = executableSource(appSource.slice(start, appSource.indexOf('const handleGradeSubmit', start)));
+  // The handler asks the same builder before it says anything is being saved.
+  const guard = handler.indexOf('if (!buildResponseCheckpointAction(checkpoint)) return;');
+  const capturing = handler.indexOf("setStudentPersistenceStatus('capturing');");
+  assert.ok(guard > 0 && capturing > guard, 'the builder is asked before "capturing" is set');
+  assert.match(handler, /const queued = await enqueueResponseCheckpoint\(checkpoint\);/);
 });
 
 test('the checkpoint handler builds a draft, and derives no grade of its own', () => {
