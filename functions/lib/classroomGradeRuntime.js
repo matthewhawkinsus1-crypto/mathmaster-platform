@@ -253,7 +253,30 @@ function deferredClassCheckpoint({ assignment, releaseSignal, nowValue = Date.no
   return null;
 }
 
-function classroomGradeReleasePolicy({ stage, assignment, nowValue = Date.now(), studentDueAt = null }) {
+/**
+ * NV02 (the owner, 2026-10-23): HOLD THE RETURN UNTIL THE STUDENT'S OWN CLOSE.
+ *
+ * A late-progress checkpoint, or a teacher's retry after the due date, is
+ * returned to the student: Classroom shows them a partial grade. For a student
+ * still on their own extended time — their final cutoff (an attendance
+ * extension or an extra-time date) later than the class's, and not reached —
+ * that return waits: Classroom gets the grade as a teacher-only draft, and the
+ * student sees nothing returned before their own close. Returns that cutoff
+ * (ms) while it is ahead, else null. A student with no individual cutoff, or
+ * one no later than the class's, is never held. Their final grade is returned
+ * at their own cutoff: the trigger records it for the scheduler, as it does a
+ * class-wide wake-up it sets aside (deferredClassCheckpoint, H-116).
+ */
+function extendedTimeReturnHeldUntil({ assignment, nowValue = Date.now(), studentFinalCutoff = null } = {}) {
+  const own = toDate(studentFinalCutoff);
+  if (!own) return null;
+  const classFinal = toDate(assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate);
+  if (classFinal && own.getTime() <= classFinal.getTime()) return null;
+  const now = Number(nowValue) || Date.now();
+  return now < own.getTime() ? own.getTime() : null;
+}
+
+function classroomGradeReleasePolicy({ stage, assignment, nowValue = Date.now(), studentDueAt = null, studentFinalCutoff = null }) {
   const now = Number(nowValue) || Date.now();
   const dueAt = laterDate(assignment?.dueAt || assignment?.dueDate, studentDueAt);
   const explicitlyStudentVisible = [
@@ -267,14 +290,21 @@ function classroomGradeReleasePolicy({ stage, assignment, nowValue = Date.now(),
     "testcycle-test",
     "testcycle-retest",
   ].includes(stage);
-  const studentVisible = explicitlyStudentVisible
-    || String(stage || "").startsWith("late-progress")
+  // A partial grade after the due date: returned, unless the student is still
+  // on their own extended time (NV02, above).
+  const partialAfterDue = String(stage || "").startsWith("late-progress")
     || (stage === "manual-retry" && Boolean(dueAt && now >= dueAt.getTime()));
+  const heldUntilMs = !explicitlyStudentVisible && partialAfterDue
+    ? extendedTimeReturnHeldUntil({ assignment, nowValue: now, studentFinalCutoff })
+    : null;
+  const studentVisible = explicitlyStudentVisible || (partialAfterDue && heldUntilMs === null);
 
   return {
     studentVisible,
     assignToStudent: studentVisible,
     shouldReturn: studentVisible,
+    // Only when a return was held: the trigger records it for the scheduler.
+    ...(heldUntilMs !== null ? { heldUntilMs } : {}),
   };
 }
 
@@ -292,4 +322,5 @@ module.exports = {
   resolveClassroomGradeStage,
   classroomGradeReleasePolicy,
   deferredClassCheckpoint,
+  extendedTimeReturnHeldUntil,
 };

@@ -47,7 +47,7 @@ const {
 } = require("./lib/classroomPushErrors");
 const classroomPushQueue = require("./lib/classroomPushQueue");
 const classroomStudentCheckpoints = require("./lib/classroomStudentCheckpoints");
-const { deferredClassCheckpoint } = require("./lib/classroomGradeRuntime");
+const { deferredClassCheckpoint, extendedTimeReturnHeldUntil } = require("./lib/classroomGradeRuntime");
 const {
   GOOGLE_API_SECRETS,
   GOOGLE_AND_LINK_SECRETS,
@@ -3419,7 +3419,7 @@ function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowVa
   return progressCheckpointStage(progress);
 }
 
-function classroomGradeReleasePolicy({ stage, assignment, nowValue = Date.now(), studentDueAt = null }) {
+function classroomGradeReleasePolicy({ stage, assignment, nowValue = Date.now(), studentDueAt = null, studentFinalCutoff = null }) {
   const now = Number(nowValue) || Date.now();
   const dueAt = studentDueDate(assignment, studentDueAt);
   const explicitlyStudentVisible = [
@@ -3428,14 +3428,21 @@ function classroomGradeReleasePolicy({ stage, assignment, nowValue = Date.now(),
     "final-deadline",
     "assessment-release",
   ].includes(stage);
-  const studentVisible = explicitlyStudentVisible
-    || String(stage || "").startsWith("late-progress")
+  // A partial grade after the due date is returned — unless the student is
+  // still on their own extended time: then it is a draft until their own close
+  // (NV02, the owner 2026-10-23; the lib's extendedTimeReturnHeldUntil).
+  const partialAfterDue = String(stage || "").startsWith("late-progress")
     || (stage === "manual-retry" && Boolean(dueAt && now >= dueAt.getTime()));
+  const heldUntilMs = !explicitlyStudentVisible && partialAfterDue
+    ? extendedTimeReturnHeldUntil({ assignment, nowValue: now, studentFinalCutoff })
+    : null;
+  const studentVisible = explicitlyStudentVisible || (partialAfterDue && heldUntilMs === null);
 
   return {
     studentVisible,
     assignToStudent: studentVisible,
     shouldReturn: studentVisible,
+    ...(heldUntilMs !== null ? { heldUntilMs } : {}),
   };
 }
 
@@ -10177,7 +10184,21 @@ exports.syncGradeToClassroom = onDocumentWritten(
         assignment,
         nowValue: stageNow,
         studentDueAt,
+        studentFinalCutoff,
       });
+      // NV02: a partial grade held for the student's own extended time is
+      // returned at their own cutoff, so the scheduler must wake them then —
+      // also when no class-wide wake-up reached them first (an extension
+      // granted after the class's final cutoff).
+      if (releasePolicy.heldUntilMs) {
+        // eslint-disable-next-line no-await-in-loop
+        await classroomStudentCheckpoints.recordDeferredStudentCheckpoint({
+          stateRef: db.collection(CLASSROOM_GRADE_CHECKPOINT_COLLECTION).doc(assignmentId),
+          assignmentId,
+          studentId: event.params.studentId,
+          deferred: { kind: "final", atMs: releasePolicy.heldUntilMs },
+        });
+      }
       // A push queued again after Google's per-minute limit sends only the
       // columns that did not go through; the rest are already current.
       const quotaRetry = Math.max(0, Number(releaseSignal?.quotaRetry) || 0);

@@ -688,6 +688,8 @@ const syncSectionGradeToClassroom = onDocumentWritten(
 
       const successfulBySection = new Map();
       let ownDeadlines = null;
+      // A held return (NV02) is recorded for the scheduler once per student.
+      let heldReturnRecorded = false;
       // One clock for this student's stage, deferral and release (H-116).
       const stageNow = Date.now();
       for (const publicationDoc of publications) {
@@ -781,7 +783,21 @@ const syncSectionGradeToClassroom = onDocumentWritten(
           studentDueAt: ownDeadlines.studentDueAt,
         });
         if (!stage) continue;
-        const releasePolicy = classroomGradeReleasePolicy({ stage, assignment, nowValue: stageNow, studentDueAt: ownDeadlines.studentDueAt });
+        const releasePolicy = classroomGradeReleasePolicy({
+          stage, assignment, nowValue: stageNow, studentDueAt: ownDeadlines.studentDueAt, studentFinalCutoff: ownDeadlines.studentFinalCutoff,
+        });
+        // NV02: a partial grade held for the student's own extended time is
+        // returned at their own cutoff; the section scheduler wakes them then.
+        if (releasePolicy.heldUntilMs && !heldReturnRecorded) {
+          heldReturnRecorded = true;
+          // eslint-disable-next-line no-await-in-loop
+          await classroomStudentCheckpoints.recordDeferredStudentCheckpoint({
+            stateRef: db.collection(SECTION_CHECKPOINT_COLLECTION).doc(assignmentId),
+            assignmentId,
+            studentId: event.params.studentId,
+            deferred: { kind: "final", atMs: releasePolicy.heldUntilMs },
+          });
+        }
         const courseId = String(publication.courseId || "");
         if (!courseId) continue;
         const maxPoints = classroomMaxPoints(publication.maxPoints);
