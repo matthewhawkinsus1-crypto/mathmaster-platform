@@ -18,7 +18,9 @@
  *   system              the typed point is the solution with x and y exchanged
  *                       (x ≠ y) → ordered-pair-reversed
  *   systemsWorkspace    linear mode, "one solution" chosen, the point typed is
- *                       the solution exchanged → ordered-pair-reversed
+ *                       the solution exchanged → ordered-pair-reversed; else a
+ *                       point on exactly one of the two lines the workspace
+ *                       showed → system-point-on-one-line-only (TC05)
  *   intervalNumberLine  the graph has the key's endpoints with an endpoint
  *                       included or excluded wrongly, or is the key's ray
  *                       pointing the other way — the classifier's own rule
@@ -141,6 +143,29 @@ const lineFormFindings = ({ keysById, authoredFields, prompt, responses, grading
   return [...byCode].map(([code, ids]) => finding(code, ids));
 };
 
+// Two numbers equal to the precision the platform classifiers use (misconceptionClassifiers.mjs `near`).
+const closeTo = (a, b) => finite(a) && finite(b) && Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
+
+/*
+ * TC05: A POINT ON EXACTLY ONE OF THE WORKSPACE'S TWO LINES.
+ *
+ * The lines are the item's own public `system` ({ m1, b1, m2, b2 }), the same
+ * numbers the key was solved from. A point is on a line only when it satisfies
+ * it exactly, and the key's solution must be on both: an item whose shown lines
+ * do not meet at its key is not read at all, so nothing is named from numbers
+ * the grader did not use.
+ */
+const pointOnOneLineOnly = (system, point, solution) => {
+  const [m1, b1, m2, b2] = ['m1', 'b1', 'm2', 'b2'].map((key) => toNumber(system?.[key]));
+  if ([m1, b1, m2, b2].some((value) => value === null)) return [];
+  const lines = [[m1, b1], [m2, b2]];
+  const onLine = ([m, b], [x, y]) => closeTo(y, m * x + b);
+  if (!lines.every((line) => onLine(line, solution))) return [];
+  return lines.filter((line) => onLine(line, point)).length === 1
+    ? [finding('system-point-on-one-line-only', ['solution'])]
+    : [];
+};
+
 const DETECTORS = {
   system: ({ definition, grading, raw }) => {
     if (!wrongPart(grading, 'solution')) return [];
@@ -154,7 +179,7 @@ const DETECTORS = {
     // right, so the 'solution' part check above already rules it out.
     return exchanged(given, expected, tolerance) ? [finding('ordered-pair-reversed', ['solution'])] : [];
   },
-  systemsWorkspace: ({ definition, grading, raw }) => {
+  systemsWorkspace: ({ definition, grading, raw, question }) => {
     // Linear mode only; "one solution" chosen and graded right, the point wrong.
     if (definition?.mode !== 'linear' || definition?.solution?.type !== 'one') return [];
     if (!rightPart(grading, 'classification') || !wrongPart(grading, 'solution')) return [];
@@ -162,7 +187,10 @@ const DETECTORS = {
     const given = [toNumber(raw?.x), toNumber(raw?.y)];
     if (!finite(x) || !finite(y) || given.some((value) => value === null)) return [];
     const tolerance = Math.max(1e-9, Number(definition?.tolerance) || 0.05);
-    return exchanged(given, [x, y], tolerance) ? [finding('ordered-pair-reversed', ['solution'])] : [];
+    if (exchanged(given, [x, y], tolerance)) return [finding('ordered-pair-reversed', ['solution'])];
+    // Not the exchanged pair (which can itself sit on one line, and is the
+    // more specific mistake): a point that works in one equation only.
+    return pointOnOneLineOnly(isObject(question) ? question.system : null, given, [x, y]);
   },
   intervalNumberLine: ({ definition, grading, raw }) => {
     if (!wrongPart(grading, 'graph') || !Array.isArray(raw?.intervals)) return [];
