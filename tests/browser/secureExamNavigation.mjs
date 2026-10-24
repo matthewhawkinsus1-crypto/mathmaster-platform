@@ -358,6 +358,9 @@ const practiceJourney = async (context, device) => {
   await graphButton.click();
   const graph = page.locator('[role="dialog"]').filter({ has: page.getByRole('button', { name: 'Close graphing calculator' }) });
   check(await graph.first().waitFor({ timeout: 5000 }).then(() => true).catch(() => false), label('the graphing calculator opens'));
+  // A practice test's calculator lists zeros, minimum and maximum, as the
+  // Digital SAT's Desmos does (TS04); a teacher's secure Test does not.
+  check(await graph.first().locator('[data-graphing-key-points]').count() === 1, label('the practice calculator offers zeros, minimum and maximum'));
   await shot(page, device, 'practice-03a-graphing-calculator');
   await page.getByRole('button', { name: 'Close graphing calculator' }).click();
   text = await bodyText(page);

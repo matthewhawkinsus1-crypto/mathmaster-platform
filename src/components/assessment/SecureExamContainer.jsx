@@ -1023,6 +1023,10 @@ export const SecureExamContainer = ({
       {tools.referenceSheet && <SatReferenceSheet buttonStyle={EXAM_HEADER_CONTROL} onOpenChange={setReferenceSheetOpen} />}
       <GraphingCalculatorPanel
         available={tools.graphingCalculator && !pause}
+        // A practice test's calculator lists zeros, minimum and maximum, as the
+        // Digital SAT's Desmos does (TS04). A teacher's secure Test does not:
+        // there a listed point could state an answer (keyPointsAllowed).
+        keyPoints={!courseTest}
         launcherStyle={EXAM_HEADER_CONTROL}
         onOpenChange={setGraphingCalculatorOpen}
         onOpened={() => { if (question?.questionInstanceId) calculatorUsedRef.current.add(question.questionInstanceId); }}

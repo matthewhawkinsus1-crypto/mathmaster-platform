@@ -319,10 +319,15 @@ test('the graphing calculator is given nothing about the question', () => {
   assert.match(mount, /roomRef=\{questionEngineRef\}/, 'the element to pad, not its content');
 });
 
-test('the secure test\'s graphing calculator is used exactly as before: its own launcher, its own state, no key points', () => {
+test('the secure test\'s graphing calculator keeps its own launcher and state; key points on practice tests only', () => {
   const container = source('src/components/assessment/SecureExamContainer.jsx');
   const element = region(container, '<GraphingCalculatorPanel', '/>', 'secure exam panel');
-  assert.doesNotMatch(element, /\b(open|showLauncher|keyPoints)\b/);
+  assert.doesNotMatch(element, /\b(open|showLauncher)\b/);
+  // TS04: zeros, minimum and maximum, as the Digital SAT's Desmos lists them,
+  // on a practice test; never on a teacher's secure Test, where a listed point
+  // could state an answer.
+  assert.match(element, /keyPoints=\{!courseTest\}/);
+  assert.match(container, /const courseTest = examType === COURSE_TEST_EXAM_TYPE \|\| session\?\.examType === COURSE_TEST_EXAM_TYPE;/);
   const panel = source('src/components/assessment/GraphingCalculatorPanel.jsx');
   const props = region(panel, 'export default function GraphingCalculatorPanel({', '}) {', 'panel props');
   assert.match(props, /open: openProp = undefined,/);
