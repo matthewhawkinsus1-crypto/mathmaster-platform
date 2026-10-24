@@ -68,7 +68,7 @@ Each pinned a spelling whose behaviour moved; each now asserts the behaviour and
 - `assignmentNavigationChrome` — "App wires automatic compacting to window scroll" → the navigator starts compact
   on every open path (no path sets it expanded), and the toggle keeps the work in place (anchor + scroll).
   The scroll-driven auto-compact effect is gone: compact is the default, and expanding is the student's choice.
-  `assignmentNavigationChrome.js` and its unit test stay (unused by App now).
+  `assignmentNavigationChrome.js` and its unit test stayed (unused by App); both were removed later (OT03).
 - `assignmentStudentProgressUi` — "Current grade … if submitted now" in the navigator → Overview's grade lines
   ("Grade so far", answered, accuracy, held, set at close); the navigator holds no grade; Overview opens from the
   compact row.

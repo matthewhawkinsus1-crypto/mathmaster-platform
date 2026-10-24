@@ -2,13 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { region } from './helpers/sourceContract.mjs';
-import { shouldCompactAssignmentNavigation } from '../../src/platform/layout/assignmentNavigationChrome.js';
 
-test('navigation compacts for active work and short landscape, not at the page introduction', () => {
-  assert.equal(shouldCompactAssignmentNavigation({ viewportWidth: 1366, viewportHeight: 768, workTop: 300 }), true);
-  assert.equal(shouldCompactAssignmentNavigation({ viewportWidth: 1366, viewportHeight: 768, workTop: 600 }), false);
-  assert.equal(shouldCompactAssignmentNavigation({ viewportWidth: 844, viewportHeight: 390, workTop: 900 }), true);
-});
+// The scroll-driven auto-compact rule (shouldCompactAssignmentNavigation) and
+// its unit test were removed with the module once App stopped using it (OT03).
 
 // Pass 3, RUN-7: the navigator no longer waits for a window scroll to compact
 // (a phone's window never scrolls, so it never did there). It starts compact
