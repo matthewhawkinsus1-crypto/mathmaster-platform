@@ -10,7 +10,14 @@ import { revealMathFieldHost, revealUnlessVisibleWhileZoomed } from './platform/
 import { useQuestionLifecycle } from './platform/question/QuestionLifecycleContext.jsx';
 import { useRovingToolbar } from './platform/interaction/rovingToolbar.js';
 import { useMathFieldName } from './platform/math/mathFieldName.js';
-import { typedFractionCommandStep, typedFractionKeyStep, typedFractionValueStep } from './platform/math/typedFractionEntry.js';
+import {
+  TYPED_FRACTION_OPENING,
+  mixedNumberKeyStep,
+  mixedNumberSpaceStep,
+  typedFractionCommandStep,
+  typedFractionKeyStep,
+  typedFractionValueStep,
+} from './platform/math/typedFractionEntry.js';
 
 const BASIC_KEYS = [
   { label: 'π', command: '\\pi', ariaLabel: 'Insert pi' },
@@ -257,6 +264,9 @@ export default function MathInput({
   // Whether the cursor sits in the denominator of a fraction the student opened
   // by typing `/`, and what they have typed there (typedFractionEntry.js).
   const typedFractionRef = useRef(null);
+  // A space typed after a whole number, waiting to see whether a mixed number
+  // follows (GR33, typedFractionEntry.js mixedNumberKeyStep).
+  const mixedNumberRef = useRef(null);
   const emit = useCallback((next) => {
     echoGuardRef.current.emitted(next);
     onChangeRef.current(next);
@@ -399,6 +409,22 @@ export default function MathInput({
     };
 
     const preventUnusedModes = (event) => {
+      // "3 1/2" is 3½: the digits after a space that followed a whole number
+      // become the numerator, not part of the whole number (GR33).
+      if (event.key !== ' ' && event.code !== 'Space') {
+        const mixed = mixedNumberKeyStep(mixedNumberRef.current, event);
+        mixedNumberRef.current = mixed.state;
+        if (mixed.numerator) {
+          event.preventDefault();
+          event.stopPropagation();
+          for (let typed = 0; typed < mixed.numerator.length; typed += 1) mathField.executeCommand('deleteBackward');
+          mathField.insert(`\\frac{${mixed.numerator}}{#?}`, { selectionMode: 'placeholder' });
+          typedFractionRef.current = TYPED_FRACTION_OPENING;
+          emit(mathField.value);
+          stabilizeMobileViewport();
+          return;
+        }
+      }
       // A typed `/` builds the fraction the same characters mean as text:
       // once the denominator is a plain number, a letter, operator, relation,
       // comma or bracket starts after it — y=-2/3x+4 is −(2/3)x + 4,
@@ -416,7 +442,13 @@ export default function MathInput({
       if (event.key === ' ' || event.code === 'Space') {
         event.preventDefault();
         event.stopPropagation();
+        const before = mathField.position;
         mathField.executeCommand?.('moveAfterParent');
+        // Only a space at the top level can start a mixed number: one inside
+        // a power or a fraction leaves it, as it always has.
+        mixedNumberRef.current = mathField.position === before
+          ? mixedNumberSpaceStep(mathField.getValue?.(0, mathField.position, 'latex'))
+          : null;
         emit(mathField.value);
         stabilizeMobileViewport();
         return;
@@ -438,7 +470,10 @@ export default function MathInput({
     };
     const preventContextMenu = (event) => event.preventDefault();
     // A click or tap can put the caret anywhere: stop watching the fraction.
-    const forgetTypedFraction = () => { typedFractionRef.current = null; };
+    const forgetTypedFraction = () => {
+      typedFractionRef.current = null;
+      mixedNumberRef.current = null;
+    };
     const handleFocus = () => {
       forgetTypedFraction();
       stabilizeMobileViewport();
@@ -467,6 +502,7 @@ export default function MathInput({
       mathField.value = value || '';
       // Written from outside: whatever the student was typing into is gone.
       typedFractionRef.current = null;
+      mixedNumberRef.current = null;
       // And so is the field's own undo history. MathLive keeps one per field,
       // and after a platform Undo cleared "[-3,5)" a Ctrl+Z in the field put
       // it straight back (tests/browser/undoTyping.mjs). The field's history
@@ -547,6 +583,7 @@ export default function MathInput({
     mathField.focus({ preventScroll: true });
     if (action) {
       typedFractionRef.current = null;
+      mixedNumberRef.current = null;
       mathField.executeCommand?.(action);
       emit(mathField.value);
       stabilizeMobileViewport();
@@ -556,6 +593,7 @@ export default function MathInput({
     // physical key; a template key (a/b, xʸ, √) ends the watch.
     const fractionStep = typedFractionCommandStep(typedFractionRef.current, command, mathField.value);
     typedFractionRef.current = fractionStep.state;
+    mixedNumberRef.current = null;
     if (fractionStep.leaveFraction) mathField.executeCommand?.('moveAfterParent');
     mathField.insert(command, {
       insertionMode: 'replaceSelection',

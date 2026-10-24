@@ -138,3 +138,37 @@ export const typedFractionCommandStep = (state, command, fieldValue) => {
 };
 
 export const TYPED_FRACTION_IDLE = IDLE;
+/** The watch state a typed `/` starts, for a fraction the field wiring builds itself. */
+export const TYPED_FRACTION_OPENING = OPENING;
+
+/*
+ * A MIXED NUMBER TYPED WITH A SPACE (GR33).
+ *
+ * A math field drops a typed space, so "3 1/2" built 31/2: the 1 joined the 3,
+ * the slash took 31 as its numerator, and a student who wrote 3½ was marked
+ * wrong. Now a space after a whole number is remembered, and if digits and
+ * then a slash follow, those digits alone become the numerator of a fraction
+ * after the whole number: 3 1/2 is 3½ (which every grader reads as 7/2).
+ * Anything else after the space (a letter, an operator, Backspace, a click)
+ * forgets it, and the field behaves exactly as before: 12 345 still joins.
+ *
+ * mixedNumberSpaceStep — the space, with the field's latex before the caret
+ * (at the top level only: a space inside a power or a fraction leaves it).
+ * mixedNumberKeyStep — every other key; `numerator` is set when the slash
+ * arrives, and the wiring then removes those digits and builds
+ * \frac{numerator}{} itself, before MathLive inserts the slash.
+ */
+const WHOLE_NUMBER_AT_END = /(?:^|[^0-9.A-Za-z}_^\\])\d+$/;
+
+export const mixedNumberSpaceStep = (latexBeforeCaret) => (
+  WHOLE_NUMBER_AT_END.test(String(latexBeforeCaret ?? '')) ? Object.freeze({ digits: '' }) : IDLE
+);
+
+export const mixedNumberKeyStep = (state, event) => {
+  const key = String(event?.key ?? '');
+  if (!state || PASSIVE_KEYS.has(key)) return { state, numerator: null };
+  if (event?.isComposing || hasModifier(event)) return { state: IDLE, numerator: null };
+  if (/^[0-9]$/.test(key)) return { state: Object.freeze({ digits: `${state.digits}${key}` }), numerator: null };
+  if ((key === '/' || key === '÷') && state.digits) return { state: IDLE, numerator: state.digits };
+  return { state: IDLE, numerator: null };
+};

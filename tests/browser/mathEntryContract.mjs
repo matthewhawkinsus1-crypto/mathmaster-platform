@@ -38,6 +38,17 @@ const ANSWER_CASES = [
   ['/2x', '\\frac{2x}{\\placeholder{}}'],
   // A second slash nests rather than leaving an empty fraction.
   ['2/3/4', '\\frac{2}{\\frac34}'],
+  // GR33: a space after a whole number, then digits and a slash, is a mixed
+  // number: 3 1/2 is 3½, not 31/2. Anything else after the space joins as
+  // before, so 12 345 and 3 x are unchanged.
+  ['3 1/2', '3\\frac12'],
+  ['y=2 3/4', 'y=2\\frac34'],
+  ['12 34/5', '12\\frac{34}{5}'],
+  ['-3 1/2', '-3\\frac12'],
+  ['3 1/2x', '3\\frac12x'],
+  ['12 345', '12345'],
+  ['3 x', '3x'],
+  ['3.5 1/2', '\\frac{3.51}{2}'],
 ];
 
 // [typed then Enter, displayed result]
