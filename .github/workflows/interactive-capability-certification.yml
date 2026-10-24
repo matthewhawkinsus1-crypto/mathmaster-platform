@@ -50,7 +50,7 @@ jobs:
         shard: ${{ fromJSON(github.event_name != 'pull_request' && (inputs.tier || 'release') == 'release' && '["capabilities","question-family-cases","work-view"]' || '["capabilities"]') }}
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install application dependencies and Chromium
         uses: ./.github/actions/setup

@@ -14,7 +14,7 @@ jobs:
     steps:
       # Two commits: on a pull request, the merge commit and its base, which
       # the familyVersion check below compares with.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 2
       - uses: ./.github/actions/setup

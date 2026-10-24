@@ -46,7 +46,7 @@ jobs:
       areas: ${{ steps.areas.outputs.areas }}
     steps:
       # The merge of the pull request and its base, which the diff is against.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 2
       - id: areas
@@ -166,7 +166,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           sparse-checkout: scripts
       - name: Every workflow that had to run passed
