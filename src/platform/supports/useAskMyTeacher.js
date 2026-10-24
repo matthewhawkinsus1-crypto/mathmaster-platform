@@ -57,8 +57,9 @@ export function useAskMyTeacher({
   const request = hand.studentId === studentId && hand.assignmentId === assignmentId ? hand.request : null;
   const setRequest = useCallback((next) => setHand((current) => nextHand(current, next)), []);
   const [acknowledgement, setAcknowledgement] = useState(null);
-  const [questions, setQuestions] = useState([]);
-  const [questionsUnavailable, setQuestionsUnavailable] = useState(false);
+  const { questions, questionsUnavailable, canLeaveQuestion, sendQuestion } = useTeacherQuestionsOn({
+    studentId, classId, teacherEmail, assignmentId,
+  });
   const enteredAssignment = useRef(null);
 
   // The bell decides once a minute, not on every second's tick.
@@ -97,6 +98,36 @@ export function useAskMyTeacher({
     return watchHelpAcknowledgement(db, studentId, setAcknowledgement, () => setAcknowledgement(null));
   }, [studentId, handRaised]);
 
+  return {
+    helpRequest,
+    setHelpRequest: setRequest,
+    inClass,
+    mode: askTeacherMode(inClass),
+    acknowledgement: acknowledgementFor(helpRequest, acknowledgement),
+    questions,
+    questionsUnavailable,
+    canLeaveQuestion,
+    sendQuestion,
+  };
+}
+
+/*
+ * THE STUDENT'S QUESTIONS ON ONE ASSIGNMENT, AND A WAY TO LEAVE ONE.
+ *
+ * The question half of useAskMyTeacher, for a screen outside the assignment
+ * workspace too: a Recovery that has run out of practice questions
+ * (SectionRecoveryRunner, RC10). Nothing is read without a signed-in student
+ * and an assignment; nothing can be sent without the student's teacher.
+ */
+export function useTeacherQuestionsOn({
+  studentId = null,
+  classId = null,
+  teacherEmail = null,
+  assignmentId = null,
+} = {}) {
+  const [questions, setQuestions] = useState([]);
+  const [questionsUnavailable, setQuestionsUnavailable] = useState(false);
+
   useEffect(() => {
     setQuestions([]);
     setQuestionsUnavailable(false);
@@ -115,11 +146,6 @@ export function useAskMyTeacher({
   ), [studentId, classId, teacherEmail, assignmentId]);
 
   return {
-    helpRequest,
-    setHelpRequest: setRequest,
-    inClass,
-    mode: askTeacherMode(inClass),
-    acknowledgement: acknowledgementFor(helpRequest, acknowledgement),
     questions,
     questionsUnavailable,
     canLeaveQuestion: Boolean(studentId && teacherEmail),

@@ -59,6 +59,9 @@ import useRecoveryAnswerDrafts from './useRecoveryAnswerDrafts.js';
 import { RECOVERY_PRACTICE_ANSWERS, RECOVERY_PRACTICE_ONE_ANSWER } from '../../platform/recovery/recoveryPracticeAttempts.js';
 import { recoveryMeterRule, recoveryPracticeOutcomeMessage } from '../../platform/recovery/recoveryPracticeCopy.js';
 import { RECOVERY_HINT_COST_SENTENCE } from '../../platform/supports/hints/hintCopy.js';
+import { ASK_MODE, recoveryQuestionPlace } from '../../platform/supports/askTeacher.js';
+import { useAskTeacherControl } from '../../platform/supports/AskTeacherControl.jsx';
+import { useTeacherQuestionsOn } from '../../platform/supports/useAskMyTeacher.js';
 
 // Practice's own attempt policy for step tools; the final answer is still one
 // server-graded submission per item.
@@ -253,7 +256,50 @@ export const SERVER_DEAL_TIMEOUT_MS = 4000;
 
 const dealtItem = (value) => (value && typeof value === 'object' && value.pin?.fingerprint ? value : null);
 
-function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, onRecord, onStartAssessment }) {
+// RC10: the empty Practice sends the student to their teacher, so it offers
+// the way to reach them from here: a question left for the teacher, filed
+// under one of this section's questions with the Recovery's name
+// (askTeacher.js recoveryQuestionPlace). The teacher answers it from Teacher
+// Home; the answer shows here and in Review My Work. With no teacher on the
+// student's roster there is nothing to offer, and nothing is read.
+const RECOVERY_QUESTION_HELP = 'Say what you have tried and where you are stuck. Your teacher sees this with your Recovery, and their answer will show here and in Review My Work.';
+
+function RecoveryTeacherQuestion({ assignment, entry, studentId, classId, teacherEmail }) {
+  const { questions, sendQuestion } = useTeacherQuestionsOn({
+    studentId: teacherEmail ? studentId : null,
+    classId,
+    teacherEmail,
+    assignmentId: assignment.id,
+  });
+  const place = recoveryQuestionPlace({
+    questions,
+    assignmentId: assignment.id,
+    questionIndexes: Object.keys(entry.questionsByIndex || {}),
+    label: entry.label,
+  });
+  const askTeacher = teacherEmail && place ? {
+    mode: ASK_MODE.QUESTION,
+    question: place.question,
+    composeHelp: RECOVERY_QUESTION_HELP,
+    onSendQuestion: ({ existing, text }) => sendQuestion({
+      existing,
+      text,
+      questionIndex: place.questionIndex,
+      questionLabel: entry.label,
+      assignmentTitle: assignment.title || '',
+    }),
+  } : null;
+  const { button, status } = useAskTeacherControl(askTeacher, actionButton(false));
+  if (!button && !status) return null;
+  return (
+    <div data-recovery-ask-teacher="" style={{ display: 'grid', gap: 8, justifyItems: 'start' }}>
+      {button}
+      {status}
+    </div>
+  );
+}
+
+function PracticeRunner({ assignment, entry, studentId, studentProfile, classId = null, teacherEmail = null, onExit, onRecord, onStartAssessment }) {
   const [item, setItem] = useState(null);
   // The item the SERVER dealt (targeted Recovery). While one is in play the
   // record's own next item does not replace it.
@@ -467,9 +513,12 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
         // means they have seen them all (or the question cannot be made right
         // now). Either way the next step is a person, not a retry: a teacher
         // can review the practice and, for a DOL, grant another attempt.
-        <p data-recovery-practice-empty="true" style={{ ...panelStyle, margin: 0 }}>
-          There are no new practice questions left for this Recovery. Let your teacher know — they can help you with what comes next.
-        </p>
+        <>
+          <p data-recovery-practice-empty="true" style={{ ...panelStyle, margin: 0 }}>
+            There are no new practice questions left for this Recovery. Let your teacher know — they can help you with what comes next.
+          </p>
+          <RecoveryTeacherQuestion assignment={assignment} entry={entry} studentId={studentId} classId={classId} teacherEmail={teacherEmail} />
+        </>
       )}
       {triesUsedUp && (
         <div role="status" style={{ ...panelStyle, display: 'grid', gap: 8 }}>
@@ -860,6 +909,8 @@ export default function SectionRecoveryRunner({
   entry,
   studentId,
   studentProfile = null,
+  classId = null,
+  teacherEmail = null,
   onExit,
   onRecord,
   onStartAssessment,
@@ -890,6 +941,8 @@ export default function SectionRecoveryRunner({
       entry={entry}
       studentId={studentId}
       studentProfile={studentProfile}
+      classId={classId}
+      teacherEmail={teacherEmail}
       onExit={onExit}
       onRecord={onRecord}
       onStartAssessment={onStartAssessment}

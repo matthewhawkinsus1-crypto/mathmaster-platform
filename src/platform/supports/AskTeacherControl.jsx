@@ -19,7 +19,8 @@ import {
  *   question  Out of class. "Leave a question for my teacher" opens a short
  *             box (QUESTION_TEXT_MAX characters). Sent with this question's
  *             place in the assignment; the teacher's answer shows here and in
- *             Review My Work.
+ *             Review My Work. `composeHelp` replaces the box's opening line
+ *             where "not in class" is not the reason (a Recovery, RC10).
  *
  * The student's words are only ever handed to `onSendQuestion`; nothing here
  * logs or reports them.
@@ -99,7 +100,7 @@ export function useAskTeacherControl(askTeacher, buttonStyle = {}) {
       <form onSubmit={send} data-ask-teacher-form="" style={{ display: 'grid', gap: 8, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface-tint)' }}>
         <label htmlFor={fieldId} style={{ fontWeight: 800 }}>Your question for your teacher</label>
         <p id={`${fieldId}-help`} style={{ margin: 0, color: 'var(--mm-text-muted)' }}>
-          Your teacher is not in class with you right now. Say what you tried or where you got stuck — they will see this question with it, and their answer will show here and in Review My Work.
+          {askTeacher.composeHelp || 'Your teacher is not in class with you right now. Say what you tried or where you got stuck — they will see this question with it, and their answer will show here and in Review My Work.'}
         </p>
         <textarea
           id={fieldId}

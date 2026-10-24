@@ -12137,6 +12137,8 @@ function App() {
             entry={openRecoveryEntry}
             studentId={user.id}
             studentProfile={user.profile}
+            classId={user.classId || null}
+            teacherEmail={user.assignedTeacherEmail || null}
             onExit={() => setRecoverySession(null)}
             onRecord={(section, record) => mergeSectionRecoveryRecord(recoveryAssignment.id, section, record)}
             onStartAssessment={(section) => startStudentRecovery(recoveryAssignment.id, section)}
