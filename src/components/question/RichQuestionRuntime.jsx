@@ -144,7 +144,7 @@ const InstructionalSupport = ({ policy, feedback, isToolItem, supportProfile = n
  * given the raw profile, because the flattened assessment profile loses the
  * plan's per-activity limits). Nothing here reads or computes correctness.
  */
-const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, rawStudentSupportProfile = null, graphReadOut = false, initialResponsePayload, busy, closed, feedback, attempt = null, navigationMode = false, calculatorInToolbar = false, onSubmit, onDraftChange }) => {
+const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, rawStudentSupportProfile = null, graphReadOut = false, initialResponsePayload, busy, closed, feedback, attempt = null, navigationMode = false, calculatorInToolbar = false, examType = null, onSubmit, onDraftChange }) => {
   const [responses, setResponses] = useState(() => initialResponsePayload?.responses || {});
   const [calculatorUsed, setCalculatorUsed] = useState(false);
   const [regressionState, setRegressionState] = useState(() => {
@@ -232,6 +232,9 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
                       autoFocus={fieldIndex === 0}
                       ariaLabel={field.label || `Response ${fieldIndex + 1}`}
                       prompt={question?.prompt || ''}
+                      // A practice exam's number line keeps its test's rule
+                      // on mixed numbers; a course Test's does not (TS04).
+                      examType={examType}
                     />
                   )}
                 </fieldset>
@@ -545,6 +548,7 @@ export default function RichQuestionRuntime({
       attempt={attempt}
       navigationMode={navigationMode}
       calculatorInToolbar={calculatorInToolbar}
+      examType={examType}
       onSubmit={onSubmit}
       onDraftChange={onDraftChange}
     />

@@ -39,8 +39,9 @@
  * fraction. So a secure field hands MathInput no such symbols: what it needs
  * goes into the keypad itself (`keys`), uncaptioned, and every key a profile
  * adds is the same on every item of that profile. The one item-specific set
- * is an inequality's letters, which come from the PROMPT the student is
- * reading (variablesInPrompt), never from the key.
+ * is an inequality's letters, which come from what the student is reading —
+ * the PROMPT and the field's own label — beside x and y on every inequality
+ * (inequalityLetters), never from the key.
  *
  * Nothing here decides correctness or rewrites an answer. It picks a keyboard.
  */
@@ -134,9 +135,9 @@ export const SECURE_PROFILE_KEYS = Object.freeze({
  * A prompt that names none gets x. At most four.
  */
 const MAX_PROMPT_VARIABLES = 4;
-export const variablesInPrompt = (prompt = '') => {
+const lettersInMath = (text = '') => {
   const letters = [];
-  const math = splitMathSegments(String(prompt ?? '')).filter(isMathSegment);
+  const math = splitMathSegments(String(text ?? '')).filter(isMathSegment);
   for (const segment of math) {
     const body = segment
       .replace(/\\(?:text|mathrm|operatorname|textbf|mbox)\s*\{[^{}]*\}/g, ' ')
@@ -148,8 +149,44 @@ export const variablesInPrompt = (prompt = '') => {
       for (const letter of run) if (!letters.includes(letter)) letters.push(letter);
     }
   }
+  return letters;
+};
+export const variablesInPrompt = (prompt = '') => {
+  const letters = lettersInMath(prompt);
   return (letters.length ? letters : ['x']).slice(0, MAX_PROMPT_VARIABLES);
 };
+
+/*
+ * THE LETTERS AN INEQUALITY'S KEYPAD OFFERS (TS04). The prompt's letters
+ * (above) left some keys untypeable on a phone. A sweep of every family the
+ * secure runtime can issue (12 draws each) found 16 inequality fields whose
+ * key's letter had no key: 13 in y — a range written in y beside f(x), or a
+ * boundary line shown only in a table or a graph — and 3 whose letter the
+ * item names only in words ("Reasonable domain of h", "Range of C",
+ * "Physical restriction on v"). So the keypad also offers:
+ *
+ *   x and y, on every inequality: the same two keys on every item say nothing
+ *   about any one answer;
+ *   the single letters the field's own label names, in words or in
+ *   mathematics: the legend the student reads above the box. In words, a
+ *   letter standing alone, but not "a", "A" or "I", which are words.
+ *
+ * Still never the key's letters.
+ */
+export const EVERY_INEQUALITY_LETTER = Object.freeze(['x', 'y']);
+const NOT_LETTER_WORDS = new Set(['a', 'A', 'I']);
+const lettersInWords = (text = '') => {
+  const words = splitMathSegments(String(text ?? '')).filter((segment) => !isMathSegment(segment)).join(' ');
+  return [...words.matchAll(/(?<![A-Za-z0-9'’-])[A-Za-z](?![A-Za-z0-9'’])/g)]
+    .map(([letter]) => letter)
+    .filter((letter) => !NOT_LETTER_WORDS.has(letter));
+};
+export const inequalityLetters = ({ prompt = '', label = '' } = {}) => [...new Set([
+  ...lettersInMath(prompt).slice(0, MAX_PROMPT_VARIABLES),
+  ...lettersInMath(label),
+  ...lettersInWords(label),
+  ...EVERY_INEQUALITY_LETTER,
+])];
 
 const variableKey = (letter) => tool(letter, letter, `Insert ${/[A-Z]/.test(letter) ? 'capital ' : ''}${letter}`);
 
@@ -161,7 +198,7 @@ const variableKey = (letter) => tool(letter, letter, `Insert ${/[A-Z]/.test(lett
  * with the item, presentation only) wins when the field has one.
  */
 export const SECURE_ENTRY_HINTS = Object.freeze({
-  number: 'Type only the number. Make a fraction with / or the a/b key, and write a mixed number as a fraction or a decimal. Leave out commas, units, % and $.',
+  number: 'Type only the number. Make a fraction with / or the a/b key. Leave out commas, units, % and $.',
   set: 'Write your answer as a set, with the numbers separated by commas.',
   interval: 'Write your answer in interval notation.',
   orderedPair: 'Write your answer as an ordered pair: (x, y). Make a fraction with / or the a/b key.',
@@ -170,7 +207,27 @@ export const SECURE_ENTRY_HINTS = Object.freeze({
   equation: 'Write a full equation. Use ^ for a power, / for a fraction and parentheses to group.',
 });
 
+/*
+ * A MIXED NUMBER DEPENDS ON THE EXAM (TS04). Every grader reads 3½ as 7/2
+ * (GR13) and the editor builds 3½ from a typed "3 1/2" (GR33), so a teacher's
+ * course Test — and its Corrections, which name no exam — no longer tells the
+ * student to avoid one. Every practice exam keeps the line: it is the real
+ * rule on the Digital SAT, which takes no mixed number. The grader is the same
+ * on both; only the words differ. Neither line is read by Read aloud or
+ * Translate (a secure item's supports read the prompt only), so neither has a
+ * Spanish entry.
+ */
+export const SECURE_PRACTICE_EXAM_HINTS = Object.freeze({
+  number: 'Type only the number. Make a fraction with / or the a/b key, and write a mixed number as a fraction or a decimal. Leave out commas, units, % and $.',
+});
+
 const clean = (value) => String(value ?? '').trim();
+
+/** A practice exam (Digital SAT, ACT, TSIA2, ASVAB), not a teacher's course Test. */
+export const isPracticeExam = (examType) => Boolean(clean(examType)) && clean(examType) !== 'courseTest';
+const entryHintFor = (profile, examType) => (
+  (isPracticeExam(examType) && SECURE_PRACTICE_EXAM_HINTS[profile]) || SECURE_ENTRY_HINTS[profile] || ''
+);
 const isObject = (value) => Boolean(value && typeof value === 'object' && !Array.isArray(value));
 
 const requiredSymbolsOf = (field) => (Array.isArray(field.requiredSymbols) ? field.requiredSymbols : field.inputContract?.requiredSymbols || [])
@@ -196,9 +253,11 @@ const keyId = (key) => key.command;
  *   requiredSymbols, responseHint, placeholder, unit)
  * @param {object} [context]
  * @param {string} [context.prompt] the item's public prompt (an inequality's
- *   letters come from it)
+ *   letters come from it and from the field's label)
+ * @param {string} [context.examType] the session's exam type: a practice exam
+ *   keeps its test's own number line (SECURE_PRACTICE_EXAM_HINTS)
  */
-export const secureAnswerEntryFor = (field = {}, { prompt = '' } = {}) => {
+export const secureAnswerEntryFor = (field = {}, { prompt = '', examType = null } = {}) => {
   const safe = isObject(field) ? field : {};
   const profile = normalizeInteractionInputProfile(safe.inputProfile) || 'text';
   const serverHint = clean(safe.responseHint);
@@ -207,7 +266,7 @@ export const secureAnswerEntryFor = (field = {}, { prompt = '' } = {}) => {
     const keys = [];
     const add = (key) => { if (key && !keys.some((existing) => keyId(existing) === keyId(key))) keys.push(key); };
     (SECURE_PROFILE_KEYS[profile] || []).forEach(add);
-    if (profile === 'inequality') variablesInPrompt(prompt).forEach((letter) => add(variableKey(letter)));
+    if (profile === 'inequality') inequalityLetters({ prompt, label: safe.label }).forEach((letter) => add(variableKey(letter)));
     named.forEach((symbol) => add(requiredAnswerToolForSymbol(symbol)));
     return {
       editor: SECURE_ANSWER_EDITORS.MATH,
@@ -219,7 +278,7 @@ export const secureAnswerEntryFor = (field = {}, { prompt = '' } = {}) => {
       // (MathInput leaves it for an unserved symbol); it shows no key, so
       // nothing is captioned "Needed for this answer".
       unservedSymbols: named.filter((symbol) => !requiredAnswerToolForSymbol(symbol)),
-      hint: serverHint || SECURE_ENTRY_HINTS[profile] || '',
+      hint: serverHint || entryHintFor(profile, examType),
     };
   }
   return {
@@ -229,7 +288,7 @@ export const secureAnswerEntryFor = (field = {}, { prompt = '' } = {}) => {
     // here may need a variable, "and", a bracket or a slash. Never an HTML
     // number input, which refuses 3/4.
     inputMode: 'text',
-    hint: serverHint || SECURE_ENTRY_HINTS[profile] || '',
+    hint: serverHint || entryHintFor(profile, examType),
   };
 };
 

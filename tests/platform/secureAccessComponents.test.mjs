@@ -22,8 +22,9 @@ const PANEL = read('src/components/assessment/GraphingCalculatorPanel.jsx');
 
 test('the field picks its editor from the entry policy, not from a list of its own', () => {
   const component = region(FIELD, 'export default function SecureMathAnswerField', '\n}\n', 'the field');
-  // The prompt goes in too: an inequality's keypad offers its letters (H-13).
-  assert.match(component, /const entry = useMemo\(\(\) => secureAnswerEntryFor\(field, \{ prompt \}\), \[field, prompt\]\);/);
+  // The prompt goes in too: an inequality's keypad offers its letters (H-13);
+  // and the exam type, which picks a practice exam's number line (TS04).
+  assert.match(component, /const entry = useMemo\(\(\) => secureAnswerEntryFor\(field, \{ prompt, examType \}\), \[field, prompt, examType\]\);/);
   assert.match(component, /\{entry\.editor === SECURE_ANSWER_EDITORS\.MATH \? \(\s*<MathEditor/, 'the math editor only where the policy says the grader reads it');
   assert.match(component, /\) : \(\s*<TextEditor/);
   assert.match(FIELD, /^import \{\n[^}]*\bsecureAnswerEntryFor,\n\} from '\.\.\/\.\.\/platform\/assessment\/secureAnswerEntry\.js';$/m);

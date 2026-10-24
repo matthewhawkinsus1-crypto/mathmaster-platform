@@ -30,6 +30,20 @@ test('a typed answer is entered in the math editor component, which picks the ed
   assert.doesNotMatch(executableSource(field), /<input\s+autoComplete="off"/);
 });
 
+test("a typed answer's line under the box knows the session's exam: a practice exam keeps its test's rule on mixed numbers (TS04)", () => {
+  // The exam type travels from the secure container's player to the field,
+  // and into the pure choice of words (secureMathAnswerRoundTrip pins them).
+  const player = componentSource('src/components/assessment/SecureExamQuestionPlayer.jsx');
+  assert.match(region(player, '<RichQuestionRuntime', '/>', 'runtime'), /examType=\{examType\}/);
+  const root = region(runtime, 'export default function RichQuestionRuntime(', '\n}\n', 'root');
+  assert.match(region(root, '<FieldItem', '/>', 'FieldItem props'), /examType=\{examType\}/);
+  const field = region(runtime, 'const FieldItem = (', '\n};\n', 'FieldItem');
+  assert.match(field, /^const FieldItem = \(\{[^}]*\bexamType = null\b[^}]*\}\) => \{/);
+  assert.match(region(field, '<SecureMathAnswerField', '/>', 'answer field props'), /examType=\{examType\}/);
+  const answerField = componentSource('src/components/assessment/SecureMathAnswerField.jsx');
+  assert.match(answerField, /const entry = useMemo\(\(\) => secureAnswerEntryFor\(field, \{ prompt, examType \}\), \[field, prompt, examType\]\);/);
+});
+
 test("a secure field item offers prompt-only supports from the student's own plan, not the flattened profile", () => {
   assert.match(runtime, /^import SecureItemAccessSupports from '\.\.\/assessment\/SecureItemAccessSupports\.jsx';$/m);
   const field = region(runtime, 'const FieldItem = (', '\n};\n', 'FieldItem');
