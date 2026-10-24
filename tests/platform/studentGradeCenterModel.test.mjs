@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import {
   EXCLUSION_REASON,
   GRADE_STATUS,
+  GRADE_STATUS_LABEL,
   buildStudentGradeCenter,
   findGradeCenterEntry,
   gradeCountsTowardPeriod,
@@ -225,8 +226,31 @@ test('grade status is decided in one place, in priority order', () => {
   assert.equal(resolveGradeStatus({ overall: none, lifecycle: late }), GRADE_STATUS.MISSING);
   assert.equal(resolveGradeStatus({ overall: none, lifecycle: open }), GRADE_STATUS.NOT_STARTED);
   assert.equal(resolveGradeStatus({ overall: none, lifecycle: open, locked: true }), GRADE_STATUS.LOCKED);
-  // Reopened is read from explicit teacher data; it never outranks a held grade.
-  assert.equal(resolveGradeStatus({ overall: some, lifecycle: open, reopened: true }), GRADE_STATUS.REOPENED);
+});
+
+test('NV08: a teacher\'s "reopened" flag never shows a student the word; they see what they can do with the work now', () => {
+  const IN_LATE_WINDOW = Date.parse('2026-09-09T12:00:00.000Z');
+  // [case, when, tracker, the status the student sees, the row's Start button]
+  const cases = [
+    ['open, started', BEFORE_DUE, { 0: correct }, GRADE_STATUS.IN_PROGRESS, 'Continue'],
+    ['open, not begun', BEFORE_DUE, {}, GRADE_STATUS.NOT_STARTED, 'Start'],
+    ['late work open, not begun', IN_LATE_WINDOW, {}, GRADE_STATUS.MISSING, 'Start'],
+    ['open, every question done', BEFORE_DUE, workedTracker, GRADE_STATUS.GRADED, null],
+    ['closed, worked', AFTER_CLOSE, { 0: correct }, GRADE_STATUS.GRADED, null],
+    ['closed, nothing recorded', AFTER_CLOSE, {}, GRADE_STATUS.PRACTICE_ONLY, null],
+  ];
+  for (const [label, nowValue, tracker, status, start] of cases) {
+    const entryFor = (assignment) => findGradeCenterEntry(build({ nowValue, assignments: [assignment], tracker: { 'lesson-1': tracker } }), 'lesson-1');
+    const flagged = entryFor(lesson({ reopenedStudentIds: ['student-1'] }));
+    const plain = entryFor(lesson());
+    assert.equal(flagged.reopened, true, `${label}: the fixture carries the teacher's flag`);
+    assert.equal(flagged.status, status, label);
+    assert.equal(flagged.statusLabel, plain.statusLabel, `${label}: the flag opens nothing, so it changes nothing the student is told`);
+    assert.doesNotMatch(flagged.statusLabel, /reopen/i, label);
+    assert.equal(flagged.actions.start?.label ?? null, start, `${label}: the row offers what the work allows`);
+  }
+  // No word a student's Grades or Assignments row can show says "Reopened".
+  Object.values(GRADE_STATUS_LABEL).forEach((text) => assert.doesNotMatch(String(text), /reopen/i));
 });
 
 test('excused and reopened are read from explicit platform data and never inferred', () => {

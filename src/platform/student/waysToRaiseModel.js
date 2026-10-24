@@ -204,7 +204,6 @@ export const buildWaysToRaise = ({
       return;
     }
     const startedLate = entry.status === GRADE_STATUS.LATE
-      || entry.status === GRADE_STATUS.REOPENED
       || entry.status === GRADE_STATUS.IN_PROGRESS;
     if (startedLate && lateWindowOpen(entry, nowValue)) {
       add({

@@ -40,7 +40,6 @@ export const WHAT_CHANGED_KIND = Object.freeze({
   RELEASED: 'released',
   GRADE_CHANGED: 'gradeChanged',
   EXCUSED: 'excused',
-  REOPENED: 'reopened',
   EXTENDED: 'extended',
   MORE_ATTEMPTS: 'moreAttempts',
   NEW: 'new',
@@ -256,11 +255,10 @@ const controlChanges = ({ assignment, control, studentId, nowValue = Date.now() 
    * was reopened" led to a result page saying the grade "can no longer
    * change"; NAV-14 then listed it only while the lesson was open, as "open
    * for you until <the class's own date>" — which is true of every student,
-   * so nothing had changed for this one. Until the owner decides what
-   * "reopened" means (wave 3's decision list, C), only a real change is
-   * listed: an extension, in its own line below ("You have more time on …"),
-   * whose date the lifecycle applies to this student. The REOPENED kind stays
-   * for a later decision; nothing emits it.
+   * so nothing had changed for this one. The owner decided (NV08,
+   * 2026-10-23) that students are not told "reopened" at all: only a real
+   * change is listed, an extension, in its own line below ("You have more
+   * time on …"), whose date the lifecycle applies to this student.
    */
   // An extension whose date has passed is no longer more time: "now due
   // <yesterday>" was not true any more (pass 3, wave 6 "Found here").
@@ -443,5 +441,5 @@ export const whatChangedUpdatesLabel = (count) => {
 
 /** Keys of the untimed (state) items, for rememberWhatChangedFirstSeen. */
 export const untimedWhatChangedKeys = (items = []) => (Array.isArray(items) ? items : [])
-  .filter((item) => item && (item.kind === WHAT_CHANGED_KIND.EXCUSED || item.kind === WHAT_CHANGED_KIND.REOPENED))
+  .filter((item) => item && item.kind === WHAT_CHANGED_KIND.EXCUSED)
   .map((item) => item.key);

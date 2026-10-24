@@ -495,8 +495,10 @@ test('onMarkSeen is called once, after the list has been on screen', () => {
   assert.match(list, /const canMark = typeof onMarkSeen === 'function';/);
 });
 
-test('the kinds are the six decision-6 events plus another DOL try', () => {
-  assert.deepEqual(Object.values(WHAT_CHANGED_KIND).sort(), ['excused', 'extended', 'gradeChanged', 'moreAttempts', 'new', 'released', 'reopened', 'retest']);
+test('the kinds are the decision-6 events plus another DOL try, and never "reopened"', () => {
+  // "reopened" left with NV08 (2026-10-23): nothing emitted it, and a student
+  // is never told that word (studentGradeCenterModel.js).
+  assert.deepEqual(Object.values(WHAT_CHANGED_KIND).sort(), ['excused', 'extended', 'gradeChanged', 'moreAttempts', 'new', 'released', 'retest']);
 });
 
 /* ---- student pass 3: NAV-14, NAV-6, NAV-7 -------------------------------- */

@@ -35,7 +35,6 @@ const TONE = {
   [GRADE_STATUS.MISSING]: { bg: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' },
   [GRADE_STATUS.PRACTICE_ONLY]: { bg: 'var(--mm-primary-subtle)', color: 'var(--mm-accent-text)' },
   [GRADE_STATUS.EXCUSED]: { bg: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
-  [GRADE_STATUS.REOPENED]: { bg: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)' },
   [GRADE_STATUS.LOCKED]: { bg: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
   [GRADE_STATUS.NOT_STARTED]: { bg: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
 };

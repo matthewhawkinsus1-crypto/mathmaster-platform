@@ -39,7 +39,6 @@ const STATUS_TONE = {
   missing: { bg: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' },
   practiceOnly: { bg: 'var(--mm-primary-subtle)', color: 'var(--mm-accent-text)' },
   excused: { bg: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
-  reopened: { bg: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)' },
   locked: { bg: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
   notStarted: { bg: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
 };
