@@ -19,6 +19,9 @@ on:
   workflow_call:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   work-view-matrix:
     runs-on: ubuntu-latest
