@@ -103,7 +103,8 @@ export const buildWorkflowReviewState = ({
       ...(reason ? { reason } : {}),
     };
   });
-  return withUpstreamChanges(Array.isArray(stages) ? stages : [], states);
+  const list = Array.isArray(stages) ? stages : [];
+  return withFollowsIncorrect(list, withUpstreamChanges(list, states));
 };
 
 /*
@@ -134,6 +135,48 @@ const withUpstreamChanges = (stages, states) => {
     changed.add(state.id);
     return { id: state.id, index: state.index, status: 'changed', part: state.part, upstreamChanged: upstream };
   });
+};
+
+/*
+ * A STEP THAT FOLLOWS A RED CHOICE (FB24).
+ *
+ * Domain and range are asked in the form the student's "discrete or
+ * continuous" calls for, and on a branch the key does not take there is
+ * nothing to check them against: the grader leaves them unmarked. Beside one
+ * red step they looked settled, though they are asked again once it is fixed
+ * (walkthrough 2026-10-22, DOL #3 PR 2: "1 step needs attention"). Such a step
+ * names the red choice it follows (`followsIncorrect`), so the screen says so.
+ */
+const withFollowsIncorrect = (stages, states) => {
+  const incorrect = new Set(states.filter((state) => state.status === 'incorrect').map((state) => state.id));
+  if (!incorrect.size) return states;
+  return states.map((state, index) => {
+    if (state.status !== 'reviewed') return state;
+    const choice = String(stages[index]?.showWhen?.stage || '').trim();
+    return choice && incorrect.has(choice) ? { ...state, followsIncorrect: choice } : state;
+  });
+};
+
+/*
+ * A STEP THAT STARTED AGAIN BECAUSE A CHOICE CHANGED (FB24).
+ *
+ * Changing "discrete or continuous" swaps the domain and range steps for the
+ * ones the new answer asks for, in its own notation, so what the student typed
+ * under the other answer is not carried over. Nothing said why the boxes were
+ * empty again. Returns the id of the choice when this empty step stands where
+ * an answered step of the same kind stood under another answer to it.
+ */
+export const branchRestartedBy = ({ stage, authoredStages = [], responses = {} } = {}) => {
+  const choice = String(stage?.showWhen?.stage || '').trim();
+  if (!choice || hasStageResponse(responses?.[stage.id])) return '';
+  const replaced = (Array.isArray(authoredStages) ? authoredStages : []).some((other) => (
+    other?.id !== stage.id
+    && other?.kind === stage.kind
+    && String(other?.showWhen?.stage || '').trim() === choice
+    && other?.showWhen?.is !== stage.showWhen?.is
+    && hasStageResponse(responses?.[other.id])
+  ));
+  return replaced ? choice : '';
 };
 
 export const firstIncorrectWorkflowIndex = (reviewState = []) => (

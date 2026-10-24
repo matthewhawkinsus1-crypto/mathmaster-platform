@@ -38,7 +38,7 @@ import { stageFamily, stageFamilyLabel } from './stageFamilies';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../interaction/choiceOptions.js';
 import { checkedGraphIsPointOnly, graphWindowOnly, studentPlottedPoints, workflowEndpointMarkers, workflowGraphDomainRestriction } from './workflowGraphVisuals.js';
 import { resolveWorkflowTaskPrompt, selectPersistentWorkflowGraph } from './workflowPresentation.js';
-import { buildWorkflowReviewState, firstIncorrectWorkflowIndex } from './workflowReviewState.js';
+import { branchRestartedBy, buildWorkflowReviewState, firstIncorrectWorkflowIndex } from './workflowReviewState.js';
 import { graphArtifactAwaitsVerdict, stagesAwaitingVerdict } from './workflowDraftProjection.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../workView/useMathUndoHistory.js';
 import { useWorkViewPresentation } from '../workView/workViewPresentation.js';
@@ -1132,6 +1132,17 @@ export default function WorkflowRunner({
     () => reviewState.filter((entry) => entry.status === 'incorrect'),
     [reviewState],
   );
+  // The steps that follow each red choice and are asked again once it is
+  // right (FB24), by the choice's id.
+  const followersByStageId = useMemo(() => {
+    const byChoice = new Map();
+    reviewState.forEach((entry) => {
+      if (!entry.followsIncorrect) return;
+      if (!byChoice.has(entry.followsIncorrect)) byChoice.set(entry.followsIncorrect, []);
+      byChoice.get(entry.followsIncorrect).push(entry.index);
+    });
+    return byChoice;
+  }, [reviewState]);
   const reviewAttemptKey = submissionReview
     ? `${submissionReview.attemptNumber ?? 'attempt'}:${submissionReview.responseKey || ''}`
     : '';
@@ -1298,6 +1309,8 @@ export default function WorkflowRunner({
   const renderStage = (stage, index, { focused = false } = {}) => {
     const reviewStatus = reviewByStageId.get(stage.id)?.status || 'unanswered';
     const stageReason = reviewByStageId.get(stage.id)?.reason || '';
+    const restartedBy = branchRestartedBy({ stage, authoredStages: authoredWorkflow, responses });
+    const restartedByIndex = restartedBy ? workflow.findIndex((entry) => entry.id === restartedBy) : -1;
     // A sort marked wrong names its wrong figures (P2-4). Only from a review,
     // which QuestionEngine passes only where outcome feedback is shown, and
     // only for the exact response that was checked ('incorrect', not
@@ -1374,6 +1387,11 @@ export default function WorkflowRunner({
             not match."), under the step it is about. It exists only in a
             review, which QuestionEngine hands over only where outcome feedback
             is shown, and only for the response that was checked. */}
+        {restartedByIndex >= 0 ? (
+          <p className="workflow-stage__restarted" data-stage-restarted={stage.id} style={{ margin: '0 0 12px', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-text-muted)' }}>
+            You changed Step {restartedByIndex + 1} ({stepName(workflow[restartedByIndex])}), so this step starts again, written the way that answer needs.
+          </p>
+        ) : null}
         {reviewStatus === 'incorrect' && stageReason ? (
           <p className="workflow-stage__reason" data-stage-reason={stage.id} style={{ margin: '0 0 12px', padding: '8px 12px', borderRadius: 8, background: 'var(--mm-error-bg)', color: 'var(--mm-danger)', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 700, lineHeight: 1.45 }}>
             {stageReason}
@@ -1454,6 +1472,8 @@ export default function WorkflowRunner({
 
   const activeFamily = stageFamily(activeStage?.kind);
   const activeReviewStatus = reviewByStageId.get(activeStage?.id)?.status || (activeAnswered ? 'draft' : 'unanswered');
+  const activeFollows = reviewByStageId.get(activeStage?.id)?.followsIncorrect || '';
+  const activeFollowsIndex = activeFollows ? workflow.findIndex((entry) => entry.id === activeFollows) : -1;
   // Graph steps restored without their verdict, other than the one on screen
   // (that one's workspace is open and is already working it out). Opening a
   // step mounts its workspace, which reports again from the student's own
@@ -1478,6 +1498,7 @@ export default function WorkflowRunner({
         {activeReviewStatus === 'correct' ? <span className="workflow-focus__review-status workflow-focus__review-status--correct">✓ Checked correct</span> : null}
         {activeReviewStatus === 'incorrect' ? <span className="workflow-focus__review-status workflow-focus__review-status--incorrect">! Needs revision</span> : null}
         {activeReviewStatus === 'changed' ? <span className="workflow-focus__review-status workflow-focus__review-status--changed">{reviewByStageId.get(activeStage?.id)?.upstreamChanged ? '↻ An earlier step changed — check again' : '↻ Edited — check again'}</span> : null}
+        {activeFollowsIndex >= 0 ? <span className="workflow-focus__review-status workflow-focus__review-status--changed">Follows Step {activeFollowsIndex + 1}, which needs revision</span> : null}
       </div>
       <span className="workflow-focus__counter">{safeActiveIndex + 1} of {stepsToShow}</span>
     </div>
@@ -1511,7 +1532,9 @@ export default function WorkflowRunner({
               ? ', needs revision'
               : reviewStatus === 'changed'
                 ? (reviewByStageId.get(stage.id)?.upstreamChanged ? ', an earlier step changed since the last check' : ', edited since last check')
-                : answered
+                : reviewByStageId.get(stage.id)?.followsIncorrect
+                  ? ', follows a step that needs revision'
+                  : answered
                   ? ', answered, not checked'
                   : '';
           const className = [
@@ -1563,6 +1586,15 @@ export default function WorkflowRunner({
               );
             })}
           </div>
+          {incorrectReviewStages.filter((entry) => followersByStageId.has(entry.id)).map((entry) => {
+            const followers = followersByStageId.get(entry.id).map((index) => `Step ${index + 1}`);
+            const named = followers.length > 1 ? `${followers.slice(0, -1).join(', ')} and ${followers.at(-1)}` : followers[0];
+            return (
+              <p key={`follows-${entry.id}`} className="workflow-focus__review-follows" data-follows-stage={entry.id}>
+                {named} {followers.length > 1 ? 'follow' : 'follows'} your answer to Step {entry.index + 1}, so {followers.length > 1 ? 'they are' : 'it is'} asked again once Step {entry.index + 1} is right.
+              </p>
+            );
+          })}
         </section>
       ) : null}
 
