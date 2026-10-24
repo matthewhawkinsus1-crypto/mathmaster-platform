@@ -3,6 +3,7 @@ import QuestionPrompt from '../../QuestionPrompt';
 import './MathToolMobileLayout.css';
 import '../../platform/mobile/MobileInteractionFoundation.css';
 import {
+  revealFocusedControlAfterResize,
   scheduleHorizontalViewportStabilization,
   scrollFocusedControlVertically,
   stabilizeHorizontalViewport,
@@ -108,6 +109,7 @@ export const MobileViewportContainer = ({
   }, [questionTerminal]);
 
   useEffect(() => {
+    let lastVisibleHeight = readStableViewportBox(window).height;
     const updateViewportMode = () => {
       const mobile = detectMobile();
       setIsMobile(mobile);
@@ -122,6 +124,16 @@ export const MobileViewportContainer = ({
           ? current
           : nextViewport
       ));
+      // THE SCREEN KEYBOARD OPENS AFTER THE FIELD HAS FOCUS (PH05). Focus
+      // revealed the field while the screen was whole; when the keyboard takes
+      // its half the visible height changes and the field it was typing into is
+      // left under it (11 of 70px showing at 390x480). Reveal it again, two
+      // frames on so the container has its new height; only when the height
+      // changed, so panning or zooming the view never scrolls the work.
+      if (mobile && Math.abs(nextViewport.height - lastVisibleHeight) > 1 && !nextViewport.pinchZoomed) {
+        window.requestAnimationFrame(() => window.requestAnimationFrame(() => revealFocusedControlAfterResize({ root: rootRef.current })));
+      }
+      lastVisibleHeight = nextViewport.height;
     };
     updateViewportMode();
     window.addEventListener('resize', updateViewportMode);
