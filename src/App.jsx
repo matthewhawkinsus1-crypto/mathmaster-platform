@@ -189,6 +189,7 @@ import {
 
 import { TEXAS_MATH_ACTIVE_COURSES, getTexasStandardsForCourse } from './texasStandards.js';
 import QuestionAnnouncer from './components/common/QuestionAnnouncer.jsx';
+import ScreenErrorBoundary from './components/common/ScreenErrorBoundary.jsx';
 import Dialog from './ui/Dialog.jsx';
 import { MAIN_CONTENT_ID, SkipToContent, pageTitleFor, useDocumentTitle } from './components/common/pageChrome.jsx';
 import { subscribeToReadingActivity } from './components/common/readingActivity.js';
@@ -1495,11 +1496,13 @@ function App() {
     if (activeView !== 'dashboard' || !RECOVERY_ANNOUNCEMENT_MODES.has(studentDashboardMode)) return;
     if (isSecureExamActive()) return;
     const fresh = studentRecoveryDiscovery.filter((opportunity) => opportunity.notify
-      && !recoveryAnnouncedRef.current.has(opportunity.noticeKey)
+      && !recoveryAnnouncedRef.current.has(`${user.id}:${opportunity.noticeKey}`)
       && !recoveryWasNotified(user.id, opportunity));
     if (!fresh.length) return;
     fresh.forEach((opportunity) => {
-      recoveryAnnouncedRef.current.add(opportunity.noticeKey);
+      // Keyed by student (RC09): the next student signing in on a shared
+      // Chromebook still hears about their own Recovery.
+      recoveryAnnouncedRef.current.add(`${user.id}:${opportunity.noticeKey}`);
       markRecoveryNotified(user.id, opportunity);
     });
     const notice = recoveryNotice(fresh);
@@ -12064,7 +12067,16 @@ function App() {
       ? studentRecoverySummary.find((entry) => entry.section === recoverySession.section) || null
       : null;
     if (recoveryAssignment && openRecoveryEntry) {
+      // Its own boundary (RC09): a Recovery screen error stays on this
+      // screen, with the way back to the result page.
+      const recoveryBoundary = {
+        source: 'section-recovery',
+        title: 'Recovery could not open',
+        message: 'Something went wrong on this screen. Answers you already submitted are kept. Go back to your results and open Recovery again.',
+        exitLabel: 'Back to your results',
+      };
       return renderStudentScreen(
+        <ScreenErrorBoundary {...recoveryBoundary} onExit={() => setRecoverySession(null)}>
         <Suspense fallback={<p role="status" style={{ padding: 24, margin: 0 }}>Opening Recovery…</p>}>
           <SectionRecoveryRunner
             mode={recoverySession.mode}
@@ -12076,7 +12088,8 @@ function App() {
             onRecord={(section, record) => mergeSectionRecoveryRecord(recoveryAssignment.id, section, record)}
             onStartAssessment={(section) => startStudentRecovery(recoveryAssignment.id, section)}
           />
-        </Suspense>,
+        </Suspense>
+        </ScreenErrorBoundary>,
       );
     }
     return renderStudentIdentityShell(
