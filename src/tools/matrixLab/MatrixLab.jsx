@@ -18,6 +18,7 @@ import {
   readMatrixLabQuestion,
 } from './matrixLabMath.js';
 import MatrixCalculator from './MatrixCalculator.jsx';
+import { negativeInParentheses } from './matrixCalculatorDisplay.js';
 import { spokenMathValue } from '../shared/spokenMathValue.js';
 import {
   CellInput, CheckRow, DimensionsInput, MatrixInput, Step, Symbol, SystemDisplay, VariableMatrix, YesNo,
@@ -346,7 +347,7 @@ function OperateMode({ questionData, model, onAction }) {
               {focusedTerms ? (
                 <p aria-live="polite" style={{ textAlign: 'center', margin: '12px 0 0', fontSize: 'calc(17 * var(--mm-px))' }}>
                   Row {focus.i + 1} of {model.left} · column {focus.j + 1} of {model.right} ={' '}
-                  <MathText>{focusedTerms.map((term) => `${formatRational(term.left)}(${formatRational(term.right)})`.replace(/-/g, '−')).join(' + ')}</MathText>
+                  <MathText>{focusedTerms.map((term) => `${negativeInParentheses(formatRational(term.left))}(${formatRational(term.right)})`.replace(/-/g, '−')).join(' + ')}</MathText>
                 </p>
               ) : null}
             </Step>
@@ -665,7 +666,7 @@ function CompleteSystemMode({ questionData, model, onAction }) {
               <Symbol>=</Symbol>
               <CellInput value={row.constant} label={`${label(target)}: constant`} onChange={(value) => edit(target.id, { ...row, constant: value })} />
             </div>
-            <MatrixCalculator title="Test this system" left={{ name: 'A', cells: testA }} right={{ name: 'B', cells: testB }} operations={model.technology} onRun={reportCalculator(onAction)} />
+            <MatrixCalculator title="Test this system" historyKey="testCalculatorHistory" left={{ name: 'A', cells: testA }} right={{ name: 'B', cells: testB }} operations={model.technology} onRun={reportCalculator(onAction)} />
           </Step>
         );
       })}
