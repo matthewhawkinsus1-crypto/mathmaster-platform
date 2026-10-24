@@ -14,6 +14,9 @@ import graphing2Grader, { readConstructionFeedback } from '../../../functions/sh
 import { lineFromPoints, targetLineFromQuestion, withDefaultTargetLine } from './graphingMath';
 import { lineReadoutLatex, lineReadoutText, standardFormReadoutText } from './lineReadout.js';
 import { placePoint } from './placePoint.js';
+// What the form-aware policy will check, said before any point is checked;
+// on an assessment, only what is checked (anchorInstruction.js).
+import { anchorInstruction } from './anchorInstruction.js';
 import MathDisplay from '../../MathDisplay';
 import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
 import { constructionReadyToCheck, requiredConstructionPointCount, resolveConstructionPolicy } from './constructionPolicy';
@@ -72,19 +75,6 @@ const nextInstruction = (plottedCount, requiredCount = 2, finalLabel = null) => 
         ? `All ${requiredCount} points plotted — move any point, or press ${finalLabel} when you are done.`
         : `All ${requiredCount} points plotted — check your construction.`
 );
-
-// What the form-aware policy needs to see, before any point is checked, so
-// the student is told what to demonstrate rather than left to guess from a
-// wrong-answer message after the fact. Never reveals the actual coordinate —
-// that stays hidden until the student supplies it and Check confirms it.
-const anchorInstruction = (mode, policy) => {
-  if (policy.strategy !== 'formAware') return null;
-  if (mode === 'slopeIntercept') return 'This question requires you to plot the y-intercept as one of your points.';
-  if (mode === 'factoredLinear') return 'This question requires you to plot the x-intercept yourself, then use the slope for another point.';
-  if (mode === 'pointSlope') return 'This question requires you to plot the given point yourself — it is not already on the graph.';
-  if (mode === 'standardForm') return 'This question requires you to plot the line’s intercept(s) as your evidence, not just any two points on the line.';
-  return null;
-};
 
 const targetPrompt = (questionData, target) => {
   const mode = questionData.mode || 'slopeIntercept';
@@ -216,12 +206,12 @@ export default function Graphing2({ questionData = {}, onAction }) {
   const givenPoints = mode === 'throughPoints' ? (questionData.givenPoints || []) : [];
   const snapStep = resolveSnapStep(questionData, target);
   const hints = hintsForMode(mode, target, questionData);
-  const anchorNote = anchorInstruction(mode, policy);
   // The snap step is worked out from the answer line, so "the nearest 0.5"
   // tells a student the slope or intercept is not whole. Said plainly where
   // the activity withholds the method (R-10); the anchor note is a grading
-  // requirement and stays.
+  // requirement and stays, worded there as only what is checked.
   const methodWithheld = useMethodWithheld();
+  const anchorNote = anchorInstruction(mode, policy, { methodWithheld });
 
   const plot = (point) => {
     clearFeedback();
