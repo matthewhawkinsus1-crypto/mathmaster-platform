@@ -36,6 +36,7 @@ import {
   HOST_COMMAND,
   QUESTION_SET_GAME,
   cueRemainingMs,
+  hostEndedNote,
   hostPrimaryAction,
   questionSetGameOf,
   roundCloseDue,
@@ -1334,6 +1335,7 @@ export default function LiveChallengeTeacher({
           <section style={{ ...panel, background: 'var(--mm-success-bg)', borderColor: 'var(--mm-success-border)', display: 'grid', gap: 12 }}>
             <div>
               <h2 style={{ margin: 0, fontSize: 'calc(26 * var(--mm-px))', color: 'var(--mm-success-text)' }}>Challenge complete</h2>
+              {hostEndedNote(room) && <p data-mm-host-ended-note="1" style={{ margin: '6px 0 0', color: 'var(--mm-success-text)', fontWeight: 800 }}>{hostEndedNote(room)}</p>}
               <p style={{ margin: '6px 0 0', color: 'var(--mm-success-text)' }}>Competition points are game results only. Warm-Up academic credit uses participation and mathematical accuracy.</p>
             </div>
             {rewardLines.length > 0 && <div style={{ color: 'var(--mm-success-text)' }}><strong>Rewards from this game:</strong> {rewardLines.join(' · ')}. Each student&apos;s screen shows what reached their wallet.</div>}

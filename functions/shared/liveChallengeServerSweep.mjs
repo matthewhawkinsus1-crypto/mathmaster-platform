@@ -17,14 +17,15 @@
  *     deadline, long before this, so the sweep only ever acts for a class
  *     whose console is gone — and if both arrive, one closes it and the other
  *     is told it is already closed;
- *   - only when the owner switches it on (finishAbandonedGames, default
- *     off): a round's results that have stood HOST_AWAY_FINISH_MS with no
- *     host screen heard for as long are finished by the console's own Finish
+ *   - a round's results that have stood HOST_AWAY_FINISH_MS with no host
+ *     screen heard for as long are finished by the console's own Finish
  *     (End Game: answers already given count, the match result and its
- *     rewards are written once). A teacher still on the results, talking
- *     the round through, keeps calibrating their console's clock, and that
- *     heartbeat holds the finish off. Never a game that writes a grade
- *     (a Warm-Up), and never one whose host the server has not heard.
+ *     rewards are written once). On by default since the owner's decision
+ *     (LC05, 2026-10-23); the switch below turns it off (finishAbandonedGames).
+ *     A teacher still on the results, talking the round through, keeps
+ *     calibrating their console's clock, and that heartbeat holds the finish
+ *     off. Never a game that writes a grade (a Warm-Up), and never one whose
+ *     host the server has not heard.
  *
  * WHEN THE SWEEP LOOKS. Each room's private state carries `serverSweepDueAt`:
  * set when a round opens (its deadline plus the grace) and when a round
@@ -42,10 +43,13 @@
 // (ROUND_CLOSE_AFTER_DEADLINE_MS, 1.5 s) and the arrival grace (0.75 s), so a
 // console that is open always closes first and an answer sent at 0:00 counts.
 export const SERVER_CLOSE_GRACE_MS = 10_000;
-// A round's results with no host heard for this long end the game — when
-// the owner has switched that on (SWEEP_SETTINGS_FLAG, finishAbandonedGames).
-// Longer than a class's discussion of a round, and than a laptop's nap.
+// A round's results with no host heard for this long end the game, unless the
+// switch turns that off (SWEEP_SETTINGS_FLAG, finishAbandonedGames). Longer
+// than a class's discussion of a round, and than a laptop's nap.
 export const HOST_AWAY_FINISH_MS = 30 * 60_000;
+// What the finish records on the room (`endedBy`) when the server ended it, so
+// the teacher's console can say why the game is over.
+export const HOST_AWAY_ENDED_BY = 'hostAway';
 // How often a console's calibration may refresh `hostHeardAt` (a console
 // calibrates five times every 30 s; a background tab about once a minute).
 export const HOST_HEARD_WRITE_INTERVAL_MS = 60_000;
@@ -70,18 +74,25 @@ export const SERVER_SWEEP_LIMIT = 25;
  *                         missing field (or document) means the default, on.
  *                         It fails CLOSED: a console's "Add field" defaults to
  *                         a string, and a rollback must not silently not take.
- *   finishAbandonedGames  only the boolean true: abandoned results are ended
- *                         (End Game). Default FALSE: the owner decides
- *                         (docs/handoffs/STUDENT_PASS3_LIVE_CHALLENGE_ROUNDS.md).
+ *   finishAbandonedGames  abandoned results are ended (End Game). Default ON,
+ *                         the owner's decision (LC05, 2026-10-23: games that
+ *                         write no grade, after HOST_AWAY_FINISH_MS with no
+ *                         host heard). It fails closed like `enabled`: any
+ *                         value but the boolean true turns it off, and only a
+ *                         missing field (or document) means the default.
  *                         Read again inside each finish's transaction.
  */
 export const SWEEP_SETTINGS_COLLECTION = 'platformFlags';
 export const SWEEP_SETTINGS_FLAG = 'liveChallengeServerSweep';
 
+const switchField = (stored, field) => (
+  stored && Object.prototype.hasOwnProperty.call(stored, field) ? stored[field] === true : true
+);
+
 /** The switch as stored (or absent): what this run may do. */
 export const sweepSettingsFrom = (stored = null) => Object.freeze({
-  enabled: stored && Object.prototype.hasOwnProperty.call(stored, 'enabled') ? stored.enabled === true : true,
-  finishAbandonedGames: stored?.finishAbandonedGames === true,
+  enabled: switchField(stored, 'enabled'),
+  finishAbandonedGames: switchField(stored, 'finishAbandonedGames'),
 });
 
 export const SWEEP_ACTION = Object.freeze({

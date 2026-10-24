@@ -218,8 +218,8 @@ const calibrateAMinuteLater = async (klass, roomId) => {
   }
 };
 
-// Ending abandoned games is off until the owner switches it on; this suite
-// switches it on, and each test that needs otherwise says so.
+// Ending abandoned games is on by default (the owner's decision, LC05); this
+// suite writes it on explicitly, and each test that needs otherwise says so.
 await switchRef.set({ enabled: true, finishAbandonedGames: true });
 
 /* ===================== Q-23: an overdue round, no host screen ===================== */
@@ -276,7 +276,7 @@ test('results nobody moves on from, with the host long unheard, end the game onc
   await Promise.all([runSweep(), runSweep()]);
   const room = await roomOf(aloneRoom);
   assert.equal(room.status, 'finished', 'the game is finished');
-  assert.equal(room.endedBy, 'hostAway', 'and says the server ended it');
+  assert.equal(room.endedBy, sweep.HOST_AWAY_ENDED_BY, 'and says the server ended it');
   const result = (await db.collection('liveChallengeMatchResults').doc(aloneRoom).get()).data();
   assert.equal(result.finalizationId, room.finalizationId, 'one finish');
   const finalByKey = Object.fromEntries(result.standings.map((row) => [row.playerKey, row]));
@@ -425,32 +425,47 @@ test('results the server must never end are left to the teacher', async () => {
   await call('finishLiveChallenge', warmup.as({ roomId: warmupRoom }));
 });
 
-test('the switch: ending abandoned games is off unless set, and off turns the whole sweep off', async () => {
+test('the switch: with no document, overdue rounds close and abandoned results end (LC05); a rollback turns either off', async () => {
   const klass = await seedClass('switch');
   const roomId = await roundZeroPlayed(klass);
-  // No switch document: the default. Overdue rounds close; abandoned results stay.
+  const rollback = await seedClass('switch-rollback');
+  const rollbackRoom = await roundZeroPlayed(rollback);
+  // No switch document: the defaults. Overdue rounds close, and the results of
+  // a game that writes no grade end once the host is away (the owner's
+  // decision, LC05).
   await switchRef.delete();
   try {
     await deadlinePassedLongAgo(roomId);
     await runSweep();
     assert.equal((await roomOf(roomId)).roundState, 'closed', 'closing overdue rounds is on by default');
     await resultsAbandonedLongAgo(roomId);
-    assert.equal((await runSweep()).outcomes[roomId], 'cleared', 'ending abandoned results is off by default');
-    assert.equal((await roomOf(roomId)).status, 'running');
-    // enabled: "false" (typed into a console as a string) — a rollback's first
-    // step still takes. Nothing is read or written.
+    assert.equal((await runSweep()).outcomes[roomId], 'finished', 'ending abandoned results is on by default');
+    const ended = await roomOf(roomId);
+    assert.equal(ended.status, 'finished');
+    assert.equal(ended.endedBy, sweep.HOST_AWAY_ENDED_BY);
+    // finishAbandonedGames: "false" (typed into a console as a string) turns
+    // ending games off, and closing overdue rounds goes on.
+    await switchRef.set({ finishAbandonedGames: 'false' });
+    await deadlinePassedLongAgo(rollbackRoom);
+    await runSweep();
+    assert.equal((await roomOf(rollbackRoom)).roundState, 'closed', 'closing overdue rounds is still on');
+    await resultsAbandonedLongAgo(rollbackRoom);
+    assert.equal((await runSweep()).outcomes[rollbackRoom], 'cleared', 'abandoned results are left to the teacher');
+    assert.equal((await roomOf(rollbackRoom)).status, 'running');
+    // enabled: "false" — a rollback's first step still takes. Nothing is read
+    // or written.
     await switchRef.set({ enabled: 'false', finishAbandonedGames: true });
-    await resultsAbandonedLongAgo(roomId);
+    await resultsAbandonedLongAgo(rollbackRoom);
     const off = await runSweep();
     assert.equal(off.disabled, true);
     assert.equal(off.scanned, 0);
-    assert.equal((await roomOf(roomId)).status, 'running');
-    assert.equal(millis((await privateOf(roomId)).serverSweepDueAt), LONG_AGO_MS, 'not even rescheduled');
+    assert.equal((await roomOf(rollbackRoom)).status, 'running');
+    assert.equal(millis((await privateOf(rollbackRoom)).serverSweepDueAt), LONG_AGO_MS, 'not even rescheduled');
   } finally {
     await switchRef.set({ enabled: true, finishAbandonedGames: true });
   }
-  await privateRef(roomId).update({ serverSweepDueAt: null });
-  await call('finishLiveChallenge', klass.as({ roomId }));
+  await privateRef(rollbackRoom).update({ serverSweepDueAt: null });
+  await call('finishLiveChallenge', rollback.as({ roomId: rollbackRoom }));
 });
 
 test('a finished game is never swept again, even if its private state outlived the finish', async () => {

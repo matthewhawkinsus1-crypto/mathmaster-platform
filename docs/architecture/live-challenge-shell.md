@@ -125,8 +125,9 @@ every minute (`functions/shared/liveChallengeServerSweep.mjs`):
   console always closes first (1.5 s); if both arrive, one closes it and the
   other is told it is already closed. A student waits at most about 70 s on
   "Time is up! The results are coming." instead of until the teacher returns;
-- **only when the owner switches it on** (`platformFlags/liveChallengeServerSweep`,
-  `finishAbandonedGames`, default off): results that have stood
+- **on by default since the owner's decision (LC05, 2026-10-23)**; the switch
+  (`platformFlags/liveChallengeServerSweep`, `finishAbandonedGames`) turns it
+  off: results that have stood
   `HOST_AWAY_FINISH_MS` (30 min) with no host screen heard for as long are
   ended by the console's own Finish (End Game: answers given count; one match
   result, its standings and rewards). Never a game that writes a grade (a
@@ -135,8 +136,10 @@ every minute (`functions/shared/liveChallengeServerSweep.mjs`):
   private state, written at most once a minute), so a teacher talking the
   round through is never ended; the finish re-checks the round, the heartbeat
   and the switch inside its transaction, so a Next Round that lands first is
-  played. The room records `endedBy: "hostAway"` (readable by the class).
-  Otherwise results wait for the teacher, as before.
+  played. The room records `endedBy: "hostAway"` (readable by the class), and
+  the teacher's console, reopening that game, says why it ended
+  (`hostEndedNote`). With the switch off, results wait for the teacher, as
+  before.
 
 On the same switch, `enabled` set to anything but the boolean `true` (`false`,
 `"false"`, `0`, …) turns the whole sweep off — it fails closed — and each run

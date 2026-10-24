@@ -13827,7 +13827,7 @@ async function sweepLiveChallengeRoom(db, privateDoc, nowMs, settings) {
           settings: serverSweep.sweepSettingsFrom(latestSwitch.exists ? latestSwitch.data() : null),
         });
       },
-      endedBy: "hostAway",
+      endedBy: serverSweep.HOST_AWAY_ENDED_BY,
     });
     if (finished.skipped) {
       // The teacher came back (or moved on): look again after the window.

@@ -29,6 +29,7 @@ import { timerElapsedMs, timerFromRoom } from '../../../functions/shared/liveCha
 import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { LINE_GRAPH_MODE_ID, LINE_GRAPH_MODE_IDS } from '../../../functions/shared/lineGraphRules.mjs';
 import { personalRoundTimer, storedTimeMultiplier } from '../../../functions/shared/liveChallengeAccommodations.mjs';
+import { HOST_AWAY_ENDED_BY, HOST_AWAY_FINISH_MS } from '../../../functions/shared/liveChallengeServerSweep.mjs';
 
 export const CHALLENGE_STAGE = MATCH_STATE;
 
@@ -320,6 +321,21 @@ export const hostPrimaryAction = ({
       return Object.freeze({ command: null, label: null, disabled: true, hint: '' });
   }
 };
+
+/*
+ * WHY A FINISHED GAME ENDED, FOR THE TEACHER WHO COMES BACK TO IT (LC05).
+ *
+ * The server ends a game whose results stood HOST_AWAY_FINISH_MS with no
+ * teacher screen open (liveChallengeServerSweep.mjs; never a Warm-Up, whose
+ * result is a grade). The console reopens the last game it hosted, so the
+ * teacher reads why it is over instead of finding it finished with no reason.
+ * Null for a game the teacher ended.
+ */
+export const hostEndedNote = (room = {}) => (
+  room?.endedBy === HOST_AWAY_ENDED_BY
+    ? `MathMaster ended this game because no teacher screen was open for ${Math.round(HOST_AWAY_FINISH_MS / 60_000)} minutes after the last results. Answers students gave still count.`
+    : null
+);
 
 /*
  * WHAT A STUDENT SHOULD DO NOW. Every stage answers it in words — never a
