@@ -38,6 +38,21 @@ stands, so a later audit does not raise it again.
 | TS02 | "Connect my points" on exit tickets. | Offer it on exit tickets, quizzes and tests only to students with a keyboard-access accommodation. | `2e155960`, `85f40b70` |
 | TT15 | The Honors auto-swap replaced blueprint items with off-topic SAT/ACT items. | Match swaps on task type, not only TEKS. | `2110f95d` |
 
+## Confirmed as built
+
+These smaller items asked the owner to confirm a behaviour that was already built. The answer was "Do it", which
+confirms each as it stands. Any of them can still be changed later.
+
+| Id | What is confirmed |
+| --- | --- |
+| NV01 | The account-load failure reads "Something went wrong while loading your account. Return to sign in and try again." It does not say "tell your teacher", because teachers see it too (`SessionGate.jsx`). |
+| NV04 | Closed work is called "Closed"; "no credit" is said only when a student tries it again (`CLOSED_WORK`). |
+| NV05 | The 640 px phone breakpoint for the folded navigation and search; info and warning toasts last 10 seconds and pause; a Classroom link outside the student's list says "That assignment is not available". |
+| NV06 | Export PDF for finished work is on the result page; Grades has no second "← Home"; the pack-up line is one slim warning line; leaving a Live Challenge returns to where the student joined. |
+| TL05 | The Data Modeling Lab's "estimate it yourself" line starts pre-fitted; Controlled Sort says cards need to move without a count; Systems substitution offers "Simplify first (optional)". |
+| TL06 | The work-bar Undo is hidden when a question has no history; Undo history for ten tools survives a reload; Connect stays as "✓ Curve drawn". |
+| OT02 | The deploy page's defaults D9–D14, D20 and D21 (Test answers held until all have submitted, the Test unlock rule, practice tests auto-release, blank = 0 with no mastery evidence, the last hint names the move, Ask my teacher on a DOL, swapped sides right everywhere, the SAT decimal rule). |
+
 ## Recorded, not built
 
 | Id | Question | Decision |
