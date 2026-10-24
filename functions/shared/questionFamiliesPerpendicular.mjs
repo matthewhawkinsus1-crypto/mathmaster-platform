@@ -311,6 +311,8 @@ export const rotationSlopesFamily = defineQuestionFamily({
           authored: authored?.prompt,
           tokens: { b: pairShown(x, y) },
           fallback: `Segment AB has endpoints A(0, 0) and B${pairShown(x, y)}. Rotating AB counterclockwise about the origin gives A′B′ (90°), A″B″ (180°) and A‴B‴ (270°). Determine the slope of each segment from the rotation, then describe the pattern.`,
+          // An author's own words without {{b}} keep the givens (RC07).
+          mathSentence: `Segment AB has endpoints A(0, 0) and B${pairShown(x, y)}.`,
         }),
         answerFields: [
           fractionField('ab', 'Slope of AB', rationalKey(...slopes.ab)),
@@ -517,7 +519,10 @@ export const perpendicularFromEquationFamily = defineQuestionFamily({
         type: 'multiAnswer',
         prompt: composeFamilyPrompt({
           authored: authored?.prompt,
+          tokens: { line: `y = ${lineText(slope, intercept)}`, point: pairShown(px, py) },
           fallback: `Write the equation of the line perpendicular to y = ${lineText(slope, intercept)} that passes through ${pairShown(px, py)}.`,
+          // An author's own words keep the line and the point (RC07).
+          mathSentence: `The given line is y = ${lineText(slope, intercept)}, and the point is ${pairShown(px, py)}.`,
         }),
         answerFields: [
           fractionField('m', 'Slope of the perpendicular line', rationalKey(num, den)),
@@ -673,7 +678,10 @@ export const perpendicularFromPointsFamily = defineQuestionFamily({
         type: 'multiAnswer',
         prompt: composeFamilyPrompt({
           authored: authored?.prompt,
+          tokens: { p1: pairShown(x1, y1), p2: pairShown(x2, y2) },
           fallback: `A line passes through ${pairShown(x1, y1)} and ${pairShown(x2, y2)}. Write the equation of the line perpendicular to it that passes through ${pairShown(x2, y2)}.`,
+          // An author's own words keep the points (RC07).
+          mathSentence: `The line passes through ${pairShown(x1, y1)} and ${pairShown(x2, y2)}; the perpendicular line passes through ${pairShown(x2, y2)}.`,
         }),
         answerFields: [
           fractionField('given', `Slope of the line through ${pairShown(x1, y1)} and ${pairShown(x2, y2)}`, rationalKey(sign, size)),
