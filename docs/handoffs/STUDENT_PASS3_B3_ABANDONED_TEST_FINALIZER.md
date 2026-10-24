@@ -197,7 +197,17 @@ hint leaves a session to the sweep (6-hour settle) or to the student's next
 resume, at worst as today. **Do not pause or resume a live Test while
 `manageAssignmentLifecycle` is rolling out** (same note as B2).
 
-## Open decisions
+## Decisions (confirmed as built, TS01)
+
+These were open decisions. In the October 2026 review the owner confirmed
+each one as built ("Do it" on TS01); nothing was changed. Checked again on
+`333e7711`: `AUTO_FINALIZE_GRACE_MS` and `AUTO_FINALIZE_STATES`
+(`functions/lib/secureExam.js`), the 5-minute schedule
+(`finalizeAbandonedSecureExams`) and the bookmark
+(`secureExamAutoFinalize.js` `SWEEP_DOC_ID`) are as described here. TS09's
+resume grace (up to 5 seconds banked when a teacher lifts a pause) moves the
+deadline every call reads, and the finalizer's hint is computed after it, so
+the 2–7 minutes still count from the student's own deadline.
 
 - **Grace: 2 minutes; schedule: every 5 minutes.** So a finish lands 2–7
   minutes after the deadline. The student who is present finishes at the
