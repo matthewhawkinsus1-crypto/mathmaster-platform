@@ -6,6 +6,7 @@
  *   npm run certify:capabilities -- --tier pr         node gates only, seconds
  *   npm run certify:capabilities -- --tier release    everything, before a deploy
  *   npm run certify:capabilities -- --origin http://127.0.0.1:5199   reuse a running harness
+ *   npm run certify:capabilities -- --tier release --shard work-view   one shard's share (CI03)
  *
  * Reads src/platform/certification/interactiveCapabilityManifest.js, runs the
  * node gate and the browser suites for the tier, and prints one report grouped
@@ -13,15 +14,21 @@
  * the screenshot. The report is also written to
  * tests/browser/artifacts/capability-certification-report.{md,json} and, in
  * GitHub Actions, to the job summary. Exit 1 on any failure.
+ *
+ * With a shard (--shard, or CERTIFICATION_SHARD as the workflow sets it) only
+ * that shard's suites run, and the node gate and the capability verdicts only
+ * in the capabilities shard; CI runs the shards as parallel jobs.
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import {
+  CERTIFICATION_SHARDS,
   CERTIFICATION_SUBSYSTEMS,
   CERTIFICATION_TIERS,
   INTERACTIVE_CAPABILITIES,
+  NODE_GATE_SHARD,
   suitesForTier,
 } from '../src/platform/certification/interactiveCapabilityManifest.js';
 
@@ -34,6 +41,13 @@ if (!CERTIFICATION_TIERS.includes(tier)) {
   console.error(`Unknown tier ${tier}. Use one of: ${CERTIFICATION_TIERS.join(', ')}`);
   process.exit(2);
 }
+const shard = arg('shard', process.env.CERTIFICATION_SHARD || '') || null;
+if (shard && !CERTIFICATION_SHARDS.includes(shard)) {
+  console.error(`Unknown shard ${shard}. Use one of: ${CERTIFICATION_SHARDS.join(', ')}`);
+  process.exit(2);
+}
+// Without a shard everything runs here, as one job did before CI03.
+const runsNodeGate = !shard || shard === NODE_GATE_SHARD;
 const reportDir = path.resolve(arg('report-dir', 'tests/browser/artifacts'));
 mkdirSync(reportDir, { recursive: true });
 const PORT = Number(process.env.CERTIFICATION_PORT || 5199);
@@ -57,10 +71,12 @@ const run = (command, env = {}, timeoutMs = 20 * 60 * 1000) => new Promise((reso
 });
 
 // ------------------------------------------------------------- 1. node gate
-console.log(`\n=== Capability certification · tier ${tier} · ${commit} ===\n`);
-const nodeGate = await run(['node', '--test', 'tests/platform/interactiveCapabilityCertification.test.mjs', 'tests/platform/algebraWorkspaceRoute.test.mjs']);
+console.log(`\n=== Capability certification · tier ${tier}${shard ? ` · shard ${shard}` : ''} · ${commit} ===\n`);
+const nodeGate = runsNodeGate
+  ? await run(['node', '--test', 'tests/platform/interactiveCapabilityCertification.test.mjs', 'tests/platform/algebraWorkspaceRoute.test.mjs'])
+  : { code: 0, output: '' };
 const nodeStatus = new Map();
-for (const capability of INTERACTIVE_CAPABILITIES) {
+for (const capability of runsNodeGate ? INTERACTIVE_CAPABILITIES : []) {
   const name = `${capability.label}: a student can reach it and use it`;
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   if (new RegExp(`^not ok \\d+ - ${escaped}$`, 'm').test(nodeGate.output)) nodeStatus.set(capability.id, 'fail');
@@ -69,7 +85,7 @@ for (const capability of INTERACTIVE_CAPABILITIES) {
 }
 
 // ---------------------------------------------------------- 2. browser suites
-const suites = suitesForTier(tier);
+const suites = suitesForTier(tier, { shard });
 const suiteResults = [];
 let server = null;
 if (suites.some((suite) => suite.server) && !origin) {
@@ -116,7 +132,8 @@ if (server) server.kill('SIGTERM');
 
 // ------------------------------------------------------------- 3. verdicts
 const suiteByHarness = new Map(suites.map((suite) => [suite.command[1], suiteResults.find((result) => result.id === suite.id)]));
-const capabilityResults = INTERACTIVE_CAPABILITIES.map((capability) => {
+// The capability verdicts belong to the shard that ran the node gate.
+const capabilityResults = (runsNodeGate ? INTERACTIVE_CAPABILITIES : []).map((capability) => {
   const node = nodeStatus.get(capability.id);
   const suite = suiteByHarness.get(capability.browser.harness);
   let browser = 'not run';
@@ -139,15 +156,20 @@ const capabilityResults = INTERACTIVE_CAPABILITIES.map((capability) => {
 const lines = [];
 const md = [];
 lines.push('MathMaster Interactive Capability Certification');
-lines.push(`Tier: ${tier} · Commit: ${commit}${tier === 'pr' ? ' · browser journeys not run at this tier' : ''}`);
-md.push('## MathMaster Interactive Capability Certification', '', `Tier **${tier}** · commit \`${commit}\``, '');
+lines.push(`Tier: ${tier}${shard ? ` · Shard: ${shard}` : ''} · Commit: ${commit}${tier === 'pr' ? ' · browser journeys not run at this tier' : ''}`);
+md.push('## MathMaster Interactive Capability Certification', '', `Tier **${tier}**${shard ? ` · shard **${shard}**` : ''} · commit \`${commit}\``, '');
 for (const subsystem of CERTIFICATION_SUBSYSTEMS) {
   const capabilities = capabilityResults.filter((entry) => entry.subsystem === subsystem);
   const extraSuites = suiteResults.filter((entry) => entry.subsystem === subsystem);
-  // A subsystem with nothing run at this tier is shown, never silently left out.
+  // A subsystem with nothing run at this tier is shown, never silently left
+  // out; one another shard reports says so.
   if (!capabilities.length && !extraSuites.length) {
-    lines.push('', subsystem, `NOT COVERED at tier ${tier}`);
-    md.push(`### ${subsystem}`, '', `⚪ Not covered at tier **${tier}**.`, '');
+    const elsewhere = Boolean(shard) && (
+      (!runsNodeGate && INTERACTIVE_CAPABILITIES.some((capability) => capability.subsystem === subsystem))
+      || suitesForTier(tier).some((suite) => suite.subsystem === subsystem && suite.shard !== shard)
+    );
+    lines.push('', subsystem, elsewhere ? `reported by another shard at tier ${tier}` : `NOT COVERED at tier ${tier}`);
+    md.push(`### ${subsystem}`, '', elsewhere ? `⚪ Reported by another shard at tier **${tier}**.` : `⚪ Not covered at tier **${tier}**.`, '');
     continue;
   }
   lines.push('', subsystem);
@@ -177,7 +199,7 @@ md.push(failures ? `**${failures} failure(s).** Screenshots are in the \`capabil
 const report = lines.join('\n');
 console.log(`\n${report}\n`);
 writeFileSync(path.join(reportDir, 'capability-certification-report.md'), `${md.join('\n')}\n`);
-writeFileSync(path.join(reportDir, 'capability-certification-report.json'), `${JSON.stringify({ tier, commit, capabilities: capabilityResults, suites: suiteResults }, null, 2)}\n`);
+writeFileSync(path.join(reportDir, 'capability-certification-report.json'), `${JSON.stringify({ tier, shard, commit, capabilities: capabilityResults, suites: suiteResults }, null, 2)}\n`);
 if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${md.join('\n')}\n`);
 
 process.exit(failures || nodeGate.code !== 0 ? 1 : 0);

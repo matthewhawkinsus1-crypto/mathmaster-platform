@@ -46,7 +46,7 @@ compiled question (see the comment at the top of
 | --- | --- | --- | --- |
 | **pr** | Node gate for every capability (route, engine, wiring, model), plus the node suites for TEACHER EXPERIENCE, ASSESSMENTS and PERSISTENCE | Every PR, inside the Full Platform Test Suite; locally `npm run certify:capabilities -- --tier pr` | seconds |
 | **merge** | pr + the interactive capability journeys, factoring/fraction/slope-intercept, systems substitution/elimination, 3×3 | `Interactive Capability Certification` workflow on every PR to `main` that touches runtime code (`src/**`, harnesses, Vite, dependencies) | about 10 min |
-| **release** | merge + draft persistence (navigate/reload/reopen, 14 families), durable outbox, Test Cycle on Chromebook and phone, regression calculator at 390px, Work View certification, Work View graphing matrix | Push to `main`, nightly at 09:17 UTC, manual dispatch; run locally before every production deploy | under an hour |
+| **release** | merge + draft persistence (navigate/reload/reopen, 14 families), durable outbox, Test Cycle on Chromebook and phone, regression calculator at 390px, Work View certification, Work View graphing matrix | Push to `main`, nightly at 09:17 UTC, manual dispatch; run locally before every production deploy. In CI as three parallel jobs, one per shard (`CERTIFICATION_SHARDS`: capabilities, question-family-cases, work-view; CI03) | one job took about 43 min; the longest shard about 17 (estimated from that run's per-suite times) |
 
 The PR path filter is deliberately broad: a capability disappears as easily
 through a routing, compiler or runtime-repair change as through the tool
