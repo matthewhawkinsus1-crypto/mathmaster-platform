@@ -324,7 +324,9 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
     await open(page, 'story');
     const SKETCH = 'svg[aria-label="Graph story sketch"]';
     const before = await axNode(page, SKETCH);
-    assert.equal(before.description, 'x-axis: x. y-axis: y. Nothing is drawn yet.');
+    // What is drawn, then the keyboard route (AX14).
+    assert.equal(before.role, 'application');
+    assert.match(before.description, /^x-axis: x\. y-axis: y\. Nothing is drawn yet\. Arrow keys move the crosshair one square/, before.description);
     const box = await page.locator(SKETCH).boundingBox();
     await page.locator(SKETCH).scrollIntoViewIfNeeded();
     const fresh = await page.locator(SKETCH).boundingBox();
@@ -336,7 +338,42 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
     await page.mouse.up();
     await page.waitForTimeout(200);
     const after = await axNode(page, SKETCH);
-    assert.equal(after.description, 'x-axis: x. y-axis: y. You drew 1 stroke.');
+    assert.match(after.description, /^x-axis: x\. y-axis: y\. You drew 1 stroke\. /, after.description);
+  });
+
+  // AX14: the sketch has a keyboard route. Reached with Tab, arrow keys move a
+  // crosshair over the grid, Enter places points that join in order into one
+  // line, Escape finishes it.
+  await step(at, 'graph story sketch by keyboard: points joined in order', async () => {
+    await open(page, 'story');
+    const SKETCH = 'svg[aria-label="Graph story sketch"]';
+    await page.getByRole('button', { name: 'Clear graph' }).focus();
+    await page.keyboard.press('Tab');
+    assert.ok(await page.evaluate((selector) => document.activeElement === document.querySelector(selector), SKETCH), 'Tab reaches the sketch');
+    assert.equal(await page.locator('[data-graph-story-keys]').count(), 1, 'the keyboard route is on screen once the sketch has keyboard focus');
+    const said = () => page.evaluate(() => document.querySelector('[data-graph-story-description] ~ p[aria-live="polite"]')?.textContent || '');
+    await page.keyboard.press('Enter');
+    assert.equal(await said(), 'Point 1 placed at 0 right, 0 up. The line has 1 point.');
+    for (const arrow of ['ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowUp', 'ArrowUp']) await page.keyboard.press(arrow);
+    assert.equal(await said(), '3 right, 2 up');
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Shift+ArrowRight');
+    await page.keyboard.press(' ');
+    assert.equal(await said(), 'Point 3 placed at 8 right, 2 up. The line has 3 points.');
+    const lines = await page.locator(`${SKETCH} polyline`).evaluateAll((nodes) => nodes.map((node) => node.getAttribute('points')));
+    assert.deepEqual(lines, ['44,376 170,292 380,292'], 'one line through the three points, in order');
+    assert.match((await axNode(page, SKETCH)).description, /You drew 1 stroke\./);
+    await page.keyboard.press('Escape');
+    assert.equal(await said(), 'Line finished with 3 points. The next point starts a new line.');
+    await page.keyboard.press('Enter');
+    assert.match((await axNode(page, SKETCH)).description, /You drew 2 strokes\./, 'Escape finished the line: a new one starts');
+    // Finished, the sketch is the student's work to read (AX01): an image,
+    // out of the Tab order, with no keyboard route offered.
+    await open(page, 'story', { closed: true });
+    const closedSketch = await axNode(page, SKETCH);
+    assert.equal(closedSketch.role, 'image');
+    assert.doesNotMatch(closedSketch.description, /Arrow keys/);
+    assert.equal(await page.locator(SKETCH).getAttribute('tabindex'), null);
   });
 
   await context.close();

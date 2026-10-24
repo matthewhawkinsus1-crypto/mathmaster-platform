@@ -152,7 +152,9 @@ test('the legacy graph workspace and the Graph Story sketch are described by the
   assert.match(workspace, /<span id=\{workspaceDescriptionId\}[^>]*>\{workspaceDescription\}<\/span>/);
   const story = executableSource(read('src/GraphStory.jsx'));
   assert.match(story, /const strokeCount = Array\.isArray\(values\.strokes\) \? values\.strokes\.length : 0;/);
-  assert.match(story, /role="img" aria-label="Graph story sketch" aria-describedby=\{sketchDescriptionId\}/);
+  // Since AX14 the sketch takes keys (role="application"); its description is
+  // what is drawn, then the keyboard route (graphStorySketchKeys.test.mjs).
+  assert.match(story, /role=\{keyboardRoute \? 'application' : 'img'\}\s*aria-label="Graph story sketch"\s*aria-describedby=\{keyboardRoute \? `\$\{sketchDescriptionId\} \$\{sketchDescriptionId\}-keys` : sketchDescriptionId\}/);
   assert.match(story, /<span id=\{sketchDescriptionId\}[^>]*>\{sketchDescription\}<\/span>/);
 });
 
