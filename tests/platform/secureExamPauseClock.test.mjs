@@ -106,7 +106,9 @@ test('the screen shows a teacher pause for a Test whose assessment is paused, an
   const paused = region(container, "if (problem.kind === 'paused') {", 'return true;', 'paused');
   assert.match(paused, /refreshSession\(\);/);
   assert.match(container, /if \(!session\?\.examSessionId \|\| !\(locked\.has\(session\.status\) \|\| session\.clockPaused === true\)\) return undefined;/);
-  assert.match(container, /clockPaused=\{session\.clockPaused === true\}\s+pausedRemainingSeconds=\{session\.pausedRemainingSeconds\}/);
+  // The header stops at the server's time left: the test's, or a module's own
+  // share of it (moduleClock reads session.pausedRemainingSeconds, TS03).
+  assert.match(container, /clockPaused=\{session\.clockPaused === true\}\s+pausedRemainingSeconds=\{moduleTime \? moduleTime\.pausedRemainingSeconds : session\.pausedRemainingSeconds\}/);
 });
 
 test('the header clock stops at the server\'s time left and ends nothing while stopped', () => {

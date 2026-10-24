@@ -326,6 +326,7 @@ const practiceJourney = async (context, device) => {
   await page.waitForSelector('[data-secure-start-rules]');
   text = await bodyText(page);
   check(/skip a question/.test(text) && /change any answer until you submit/.test(text) && /2 modules/.test(text), label('start screen states the new rules'));
+  check(/The timer shows module 1's own time first, as on test day\./.test(text), label('start screen says the timer shows module 1\'s own time first (TS03)'));
   check(!/one attempt per question|cannot go back|monitored web delivery|lockdown/i.test(text), label('start screen has none of the old rules or jargon'));
   await shot(page, device, 'practice-02-start');
   await layout(page, label('start'));
@@ -437,7 +438,12 @@ const practiceJourney = async (context, device) => {
   await page.keyboard.press('Escape');
   check(await page.waitForSelector('[data-secure-navigator]', { state: 'detached', timeout: 5000 }).then(() => true).catch(() => false), label('Escape on the question button closes the list'));
   const timerName = await page.locator('[data-secure-timer]').getAttribute('aria-label');
-  check(/^(Untimed test|Show the timer|Time left \d+:\d{2}\. (Hide the timer|Shown for the last five minutes))$/.test(timerName || ''), label('the timer button says what it shows and does'), timerName);
+  check(/^(Untimed test|Show the timer|(Module \d+ time|Time) left \d+:\d{2}\. (Hide the timer|Shown for the last five minutes))$/.test(timerName || ''), label('the timer button says what it shows and does'), timerName);
+  // In module 1 the timer is module 1's own time (TS03): its share of the
+  // 7 minutes this 4-question practice test has.
+  const moduleTimer = await page.locator('[data-secure-timer]').innerText();
+  const moduleSeconds = (([, m, s]) => Number(m) * 60 + Number(s))(/(\d+):(\d{2})/.exec(moduleTimer) || [0, 0, 0]);
+  check((timerName || '').startsWith('Module 1 time left') && /^Module 1 · \d+:\d{2}$/.test(moduleTimer) && moduleSeconds > 0 && moduleSeconds <= 210, label('module 1 shows its own time (TS03)'), `${timerName} | ${moduleTimer}`);
   await page.locator('[data-secure-navigator-toggle]').click();
   await page.waitForSelector('[data-secure-navigator]');
 
@@ -468,6 +474,9 @@ const practiceJourney = async (context, device) => {
   await page.getByRole('button', { name: 'Start module 2' }).click();
   await page.waitForFunction(() => document.querySelector('[data-secure-navigator-toggle]')?.textContent.includes('Question 3 of 4'));
   check(await page.locator('[data-secure-nav="previous"]').isDisabled(), label('module 1 is closed: Previous is off on question 3'));
+  // Module 2, the last: the test's own time again (TS03).
+  const testTimer = await page.locator('[data-secure-timer]').getAttribute('aria-label');
+  check(/^Time left \d+:\d{2}\./.test(testTimer || '') && !/Module/.test(await page.locator('[data-secure-timer]').innerText()), label('module 2 shows the test\'s own time (TS03)'), testTimer);
   await page.locator('[data-secure-navigator-toggle]').click();
   await page.waitForSelector('[data-secure-navigator]');
   const closed = await page.evaluate(() => [...document.querySelectorAll('[data-secure-navigator] [data-question-status]')].slice(0, 2).every((cell) => cell.disabled));

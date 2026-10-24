@@ -44,6 +44,8 @@ import {
   integrityPauseText,
   integrityNoticeText,
   integrityWarningDue,
+  moduleClock,
+  moduleTimeUpNotice,
   navigatorCells,
   nextActionLabel,
   nextTarget,
@@ -387,4 +389,63 @@ test('a refusal that says only "paused" keeps the pause already on screen', () =
   assert.equal(pausedStatusAfterRefusal(null, 'locked_proctor'), 'locked_proctor');
   assert.equal(pausedStatusAfterRefusal(null, 'in_progress'), 'locked_proctor', 'nothing on screen yet: the teacher\'s, until the server says');
   assert.equal(pausedStatusAfterRefusal('something_else', 'in_progress'), 'locked_proctor');
+});
+
+/*
+ * TS03 (a first slice): EACH MODULE'S OWN TIME ON THE TIMER. Read through the
+ * server's own public session (secureExam.publicSession), which is all a
+ * browser receives: module 1's share of the limit, taken off the server's
+ * deadline, so pauses, added time and extended time move it as they move the
+ * test's. It closes and refuses nothing.
+ */
+test('TS03: a Digital SAT practice test\'s timer shows module 1\'s own time first, off the server\'s deadline', () => {
+  const secureExam = require_('../../functions/lib/secureExam.js');
+  const now = Date.now();
+  const startedAt = now - 60_000;
+  const sat = (overrides = {}) => {
+    const required = overrides.requiredQuestions ?? 44;
+    return secureExam.publicSession({
+      examSessionId: 's', examType: 'digitalSAT', status: 'in_progress', requiredQuestions: required,
+      timeLimitSeconds: 70 * 60, addedTimeSeconds: 0, startedAt, responses: {},
+      navigation: server.initialNavigation({ examType: overrides.examType || 'digitalSAT', requiredQuestions: required }),
+      ...overrides,
+    });
+  };
+  const clock = moduleClock(sat(), { now });
+  assert.deepEqual([clock.number, clock.expiresAt, clock.timeUp, clock.pausedRemainingSeconds], [1, startedAt + 35 * 60_000, false, null], 'module 1: 35 of the 70 minutes, from the start');
+  assert.equal(moduleClock(sat(), { now: startedAt + 35 * 60_000 }).timeUp, true);
+  assert.equal(moduleClock(sat(), { now: startedAt + 35 * 60_000 - 1 }).timeUp, false);
+  // Extended time (×1.5 in the limit) and the teacher's added time and past
+  // pauses (in the server's deadline) reach module 1 as they reach the test.
+  assert.equal(moduleClock(sat({ timeLimitSeconds: 105 * 60 }), { now }).expiresAt, startedAt + 52.5 * 60_000);
+  assert.equal(moduleClock(sat({ addedTimeSeconds: 300, pausedSeconds: 90 }), { now }).expiresAt, startedAt + (35 * 60 + 300 + 90) * 1000);
+  // A shortened test keeps the pace: 10 questions, 16 minutes, 8 for module 1.
+  assert.equal(moduleClock(sat({ requiredQuestions: 10, timeLimitSeconds: 16 * 60 }), { now }).expiresAt, startedAt + 8 * 60_000);
+  // An odd count splits by questions: 6 of 11 in module 1.
+  assert.equal(moduleClock(sat({ requiredQuestions: 11, timeLimitSeconds: 18 * 60 }), { now }).expiresAt, startedAt + (18 * 60 - Math.round((18 * 60 * 5) / 11)) * 1000);
+  // Module 1 finished (the student moved on): the test's own time.
+  const moved = server.initialNavigation({ examType: 'digitalSAT', requiredQuestions: 44 });
+  assert.equal(moduleClock(sat({ navigation: { ...moved, closedThrough: 22 } }), { now }), null);
+  // Nothing to show: untimed, a one-module exam, a session from before modules.
+  assert.equal(moduleClock(sat({ timeLimitSeconds: null }), { now }), null);
+  assert.equal(moduleClock(sat({ examType: 'act', requiredQuestions: 45, timeLimitSeconds: 50 * 60 }), { now }), null);
+  assert.equal(moduleClock(sat({ navigation: { ...moved, modules: null } }), { now }), null);
+  assert.equal(moduleClock(null), null);
+  // A teacher's pause: stopped at the server's time left less module 2's
+  // share, and it never runs out while stopped, whatever the device's clock.
+  const paused = sat({ teacherPause: { since: now - 1000, holds: ['assignment'] } });
+  const stopped = moduleClock(paused, { now: now + 24 * 60 * 60_000 });
+  assert.equal(stopped.pausedRemainingSeconds, paused.pausedRemainingSeconds - 35 * 60);
+  assert.equal(stopped.timeUp, false);
+  // Paused after module 1's own time had run out: 0, and up.
+  const late = sat({ startedAt: now - 40 * 60_000, teacherPause: { since: now - 1000, holds: ['assignment'] } });
+  assert.deepEqual([moduleClock(late, { now }).pausedRemainingSeconds, moduleClock(late, { now }).timeUp], [0, true]);
+  assert.equal(moduleTimeUpNotice(1), 'Module 1\'s time is up. On test day, module 2 would start now. Your test time is still running.');
+});
+
+test('TS03: the start screen says the timer shows module 1\'s own time first, on a timed test with modules only', () => {
+  const timed = startScreenRules({ questionCount: 44, allowance: { timed: true, minutes: 70 }, modules: true }).join('\n');
+  assert.match(timed, /This test has 2 modules\. The timer shows module 1's own time first, as on test day\. At the end of module 1 you review it/);
+  assert.doesNotMatch(startScreenRules({ questionCount: 44, allowance: { timed: false }, modules: true }).join('\n'), /own time/);
+  assert.doesNotMatch(startScreenRules({ courseTest: true, questionCount: 20, allowance: { timed: true, minutes: 40 } }).join('\n'), /own time|modules/);
 });

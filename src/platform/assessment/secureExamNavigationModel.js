@@ -441,6 +441,51 @@ export function startScreenTime({ session = null, delivery = null, courseTest = 
   return null;
 }
 
+/*
+ * EACH MODULE'S OWN TIME, ON THE TIMER (TS03, a first slice).
+ *
+ * On the Digital SAT each module has its own time (35 minutes for 22
+ * questions), and the timer shows the module's. A practice test here has one
+ * limit for the whole test, which the server keeps (`expiresAt`). So while a
+ * module with another after it is open, the timer counts down that module's
+ * share of the limit — its share of the questions, taken off the same
+ * deadline, so a teacher's pause, added time and extended time move it
+ * exactly as they move the test's — and then the test's own time.
+ *
+ * It is for pacing only: it closes and refuses nothing. The server does not
+ * yet end a module when its time runs out (that needs it to close the
+ * questions the student has not opened), so the student is told, and the
+ * test's own time runs on.
+ *
+ * null when there is nothing to show: an untimed test, one module, or the
+ * last module open.
+ */
+export function moduleClock(session, { now = Date.now() } = {}) {
+  const navigation = readNavigation(session);
+  const modules = navigation.modules;
+  const deadline = Number(session?.expiresAt);
+  const limit = Number(session?.timeLimitSeconds);
+  if (!modules || modules.length < 2 || !Number.isFinite(deadline) || deadline <= 0 || !Number.isFinite(limit) || limit <= 0) return null;
+  const index = modules.findIndex((entry) => !entry.closed);
+  if (index < 0 || index === modules.length - 1) return null;
+  const questionsIn = (entries) => entries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
+  const laterSeconds = Math.round((limit * questionsIn(modules.slice(index + 1))) / questionsIn(modules));
+  const paused = session?.clockPaused === true;
+  const pausedLeft = Number(session?.pausedRemainingSeconds);
+  const pausedRemainingSeconds = paused && Number.isFinite(pausedLeft) ? Math.max(0, pausedLeft - laterSeconds) : null;
+  const expiresAt = deadline - laterSeconds * 1000;
+  return {
+    number: modules[index].number,
+    expiresAt,
+    pausedRemainingSeconds,
+    // A paused clock does not run out, whatever the device's own clock says.
+    timeUp: paused ? pausedRemainingSeconds !== null && pausedRemainingSeconds <= 0 : Number(now) >= expiresAt,
+  };
+}
+
+/** What the screen says when a module's own time has run out (moduleClock). */
+export const moduleTimeUpNotice = (number) => `Module ${number}'s time is up. On test day, module ${number + 1} would start now. Your test time is still running.`;
+
 export function timeAllowanceText(allowance) {
   if (!allowance?.timed) return 'Untimed';
   return `${plural(allowance.minutes, 'minute')}${allowance.extended ? ' (includes your extended time)' : ''}`;
@@ -570,7 +615,8 @@ export function startScreenRules({
     timeRule({ allowance, courseTest, questions }),
     'Move between questions with Previous and Next, or open the question list. You can skip a question and come back to it.',
     'Mark any question for review. You can change any answer until you submit.',
-    modules ? 'This test has 2 modules. At the end of module 1 you review it, then start module 2. After that you can\'t go back to module 1.' : null,
+    // A timed test's timer shows module 1's own time first (moduleClock, TS03).
+    modules ? `This test has 2 modules.${allowance?.timed ? ' The timer shows module 1\'s own time first, as on test day.' : ''} At the end of module 1 you review it, then start module 2. After that you can't go back to module 1.` : null,
     courseTest
       ? 'Your answers save automatically. If you lose your connection or the page reloads, open the test again and you\'ll pick up where you left off.'
       : 'Your answers save automatically as you work.',

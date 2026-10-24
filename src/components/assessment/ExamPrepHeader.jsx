@@ -40,6 +40,9 @@ export const ExamPrepHeader = ({
   tools = null,
   // The session's time includes the student's extended-time accommodation.
   extendedTime = false,
+  // The timer shows a module's own time (moduleClock, TS03): { module: 1 }.
+  // At its end `onTimeExpired` is the module's, never the test's.
+  timeScope = null,
 }) => {
   const policy = getExamPolicy(examType);
   /*
@@ -89,14 +92,18 @@ export const ExamPrepHeader = ({
    */
   const [timeAlert, setTimeAlert] = useState(null);
   const previousRemainingMsRef = useRef(null);
+  // A module's own time says so, and nothing is turned in when it ends (TS03).
+  const scopeModule = Number.isInteger(timeScope?.module) ? timeScope.module : null;
   useEffect(() => {
     if (secondsRemaining == null || clockPaused) { previousRemainingMsRef.current = null; return; }
     const remainingMs = secondsRemaining * 1000;
-    const due = takeDueTimeAlert({ key: `test|${initialDeadline}`, remainingMs, previousRemainingMs: previousRemainingMsRef.current });
+    const due = takeDueTimeAlert({ key: `${scopeModule ? `module${scopeModule}` : 'test'}|${initialDeadline}`, remainingMs, previousRemainingMs: previousRemainingMsRef.current });
     previousRemainingMsRef.current = remainingMs;
     if (due) setTimeAlert(due);
-  }, [secondsRemaining, clockPaused, initialDeadline]);
-  const timeAlertText = timeAlert ? `${timeAlert.words} on this test. ${UNFINISHED_WORK_LINE.test}` : '';
+  }, [secondsRemaining, clockPaused, initialDeadline, scopeModule]);
+  const timeAlertText = timeAlert
+    ? (scopeModule ? `${timeAlert.words} of module ${scopeModule}'s time.` : `${timeAlert.words} on this test. ${UNFINISHED_WORK_LINE.test}`)
+    : '';
 
   const forceVisible = secondsRemaining != null && secondsRemaining <= 5 * 60;
   // The timer button's name says what it shows and what pressing it does.
@@ -104,7 +111,7 @@ export const ExamPrepHeader = ({
     ? 'Untimed test'
     : timerHidden && !forceVisible
       ? 'Show the timer'
-      : `Time left ${formatTime(secondsRemaining)}${clockPaused ? ', stopped while your teacher has the test paused' : ''}. ${forceVisible ? 'Shown for the last five minutes' : 'Hide the timer'}`;
+      : `${scopeModule ? `Module ${scopeModule} time` : 'Time'} left ${formatTime(secondsRemaining)}${clockPaused ? ', stopped while your teacher has the test paused' : ''}. ${forceVisible ? 'Shown for the last five minutes' : 'Hide the timer'}`;
   const total = totalQuestions || policy.totalQuestions;
   const position = `Question ${questionOrdinal} of ${total}`;
   return (
@@ -130,7 +137,7 @@ export const ExamPrepHeader = ({
       </div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <button type="button" data-secure-timer="" aria-label={timerLabel} onClick={() => setTimerHidden((value) => !value)} disabled={forceVisible || secondsRemaining == null} style={{ ...control, fontWeight: 700, cursor: forceVisible || secondsRemaining == null ? 'default' : 'pointer' }}>
-          {secondsRemaining == null ? 'Untimed' : timerHidden && !forceVisible ? 'Show timer' : `${formatTime(secondsRemaining)}${clockPaused ? ' · stopped' : ''}`}
+          {secondsRemaining == null ? 'Untimed' : timerHidden && !forceVisible ? 'Show timer' : `${scopeModule ? `Module ${scopeModule} · ` : ''}${formatTime(secondsRemaining)}${clockPaused ? ' · stopped' : ''}`}
         </button>
         {extendedTime && secondsRemaining != null && <span style={{ padding: '7px 10px', borderRadius: 7, background: '#303134', color: '#e8eaed', fontSize: 'calc(12 * var(--mm-px))' }}>Includes your extended time</span>}
         {onToggleReviewFlag && (

@@ -106,8 +106,10 @@ test('RUN-10: a secure test warns at 2:00 and 0:30, never while its clock is sto
   assert.match(code, /import \{ UNFINISHED_WORK_LINE, takeDueTimeAlert \} from '\.\.\/\.\.\/platform\/student\/timeLeftAlerts\.js';/);
   const effect = region(code, 'const [timeAlert, setTimeAlert] = useState(null);', 'const timeAlertText', 'the warning effect');
   assert.match(effect, /if \(secondsRemaining == null \|\| clockPaused\) \{ previousRemainingMsRef\.current = null; return; \}/);
-  assert.match(effect, /takeDueTimeAlert\(\{ key: `test\|\$\{initialDeadline\}`/);
-  assert.match(code, /\$\{timeAlert\.words\} on this test\. \$\{UNFINISHED_WORK_LINE\.test\}/);
+  // Once per deadline: the test's own, or a module's own time (TS03), each its
+  // own window, and only the test's end says what is turned in.
+  assert.match(effect, /takeDueTimeAlert\(\{ key: `\$\{scopeModule \? `module\$\{scopeModule\}` : 'test'\}\|\$\{initialDeadline\}`/);
+  assert.match(code, /\(scopeModule \? `\$\{timeAlert\.words\} of module \$\{scopeModule\}'s time\.` : `\$\{timeAlert\.words\} on this test\. \$\{UNFINISHED_WORK_LINE\.test\}`\)/);
   assert.match(code, /<span role="alert" style=\{SR_ONLY_STYLE\}>\{timeAlertText\}<\/span>/);
 });
 

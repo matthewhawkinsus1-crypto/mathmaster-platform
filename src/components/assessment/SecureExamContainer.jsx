@@ -23,6 +23,8 @@ import {
   integrityNoticeText,
   integrityPauseText,
   integrityWarningDue,
+  moduleClock,
+  moduleTimeUpNotice,
   nextActionLabel,
   nextTarget,
   pauseKind,
@@ -934,6 +936,10 @@ export const SecureExamContainer = ({
   finishRef.current = finish;
 
   const onTimeExpired = useCallback(() => { finishRef.current?.('timeExpired'); }, []);
+  // The end of a module's own time (moduleClock, TS03) ends nothing: the
+  // screen draws again, now with the test's own time and the line saying so.
+  const [, setModuleClockTick] = useState(0);
+  const onModuleTimeUp = useCallback(() => { setModuleClockTick((tick) => tick + 1); }, []);
 
   const policyTitle = getExamPolicy(examType).title;
   // What the start screen knows about the session: what the student's list
@@ -993,6 +999,10 @@ export const SecureExamContainer = ({
   const previous = current === null ? null : previousTarget(navigation, current);
   const pause = pauseKind(session.status, session.clockPaused === true);
   const allowance = timeAllowance(session);
+  // A Digital SAT practice test's timer shows module 1's own time first
+  // (TS03); once that has run out, the test's own time, and a line saying so.
+  const clock = moduleClock(session);
+  const moduleTime = clock && !clock.timeUp ? clock : null;
   const threshold = Number(session.integrityLockThreshold) || DEFAULT_INTEGRITY_LOCK_THRESHOLD;
   const fullscreenAvailable = typeof document !== 'undefined' && document.fullscreenEnabled !== false && typeof document.documentElement?.requestFullscreen === 'function';
   const reviewing = view.kind === 'review' || view.kind === 'moduleEnd';
@@ -1051,10 +1061,11 @@ export const SecureExamContainer = ({
         title={courseTest ? (session.title || examTitle) : null}
         questionOrdinal={(current ?? navigation.cursor) + 1}
         totalQuestions={navigation.total || session.requiredQuestions}
-        expiresAt={session.expiresAt}
+        expiresAt={moduleTime ? moduleTime.expiresAt : session.expiresAt}
         clockPaused={session.clockPaused === true}
-        pausedRemainingSeconds={session.pausedRemainingSeconds}
-        onTimeExpired={onTimeExpired}
+        pausedRemainingSeconds={moduleTime ? moduleTime.pausedRemainingSeconds : session.pausedRemainingSeconds}
+        onTimeExpired={moduleTime ? onModuleTimeUp : onTimeExpired}
+        timeScope={moduleTime ? { module: moduleTime.number } : null}
         reviewFlagged={currentFlagged}
         onToggleReviewFlag={!reviewing && question && !pause ? toggleFlag : null}
         onOpenNavigator={navigation.total ? (navigatorOpen ? () => setNavigatorOpen(false) : openNavigator) : null}
@@ -1076,6 +1087,7 @@ export const SecureExamContainer = ({
       )}
       {session.watermarkEnabled !== false && <div aria-hidden="true" style={{ position: 'fixed', inset: 0, pointerEvents: 'none', display: 'grid', placeItems: 'center', opacity: .025, fontSize: 'clamp(calc(36 * var(--mm-px)),calc(10vw * var(--mm-text-scale, 1)),calc(100 * var(--mm-px)))', fontWeight: 900, transform: 'rotate(-20deg)' }}>MATHMASTER SECURE</div>}
       {notice && <div role="status" data-secure-notice="" style={bannerStyle('info')}>{notice}</div>}
+      {clock?.timeUp && <div role="status" data-secure-module-time-up={clock.number} style={bannerStyle('info')}>{moduleTimeUpNotice(clock.number)}</div>}
       {error && <div role="alert" style={bannerStyle('error')}>{error}</div>}
       <div ref={columnRef} data-secure-question-column="" style={{ paddingLeft: room.paddingLeft, paddingRight: room.paddingRight }}>
       {reviewing ? (
