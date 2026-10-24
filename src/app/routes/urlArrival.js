@@ -120,12 +120,17 @@ export const planStudentArrival = ({
   if (route.surface === 'assignment') {
     const assignment = findAssignment(route.assignmentId);
     if (!assignment) return home(ARRIVAL_MESSAGES.studentStale);
-    if (!extras.question) return { action: 'assignment', assignmentId: assignment.id, storageIndex: null, exact: false };
+    // A reload of a section-scoped Classroom launch keeps the section (NV03):
+    // the scope is in this tab's entry, never in the address.
+    const scope = historyRoute?.surface === 'assignment' && historyRoute.assignmentId === assignment.id && historyRoute.sectionScope
+      ? { sectionKey: historyRoute.sectionScope }
+      : {};
+    if (!extras.question) return { action: 'assignment', assignmentId: assignment.id, storageIndex: null, exact: false, ...scope };
     const storageIndex = storageIndexForAddress(questionEntriesFor(assignment), extras.question);
     if (storageIndex === null) {
-      return { action: 'assignment', assignmentId: assignment.id, storageIndex: null, exact: false, message: ARRIVAL_MESSAGES.questionGone };
+      return { action: 'assignment', assignmentId: assignment.id, storageIndex: null, exact: false, message: ARRIVAL_MESSAGES.questionGone, ...scope };
     }
-    return { action: 'assignment', assignmentId: assignment.id, storageIndex, exact: true };
+    return { action: 'assignment', assignmentId: assignment.id, storageIndex, exact: true, ...scope };
   }
 
   if (route.surface === 'assignmentResult') {

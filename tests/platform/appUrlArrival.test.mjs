@@ -143,7 +143,7 @@ test('an arrival opens once, with the calls a click makes (app/routes/useUrlArri
   assert.match(hook, /setTimeout\(\(\) => setWaitedOut\(true\), ARRIVAL_SETTLE_TIMEOUT_MS\)/);
   assert.match(effect, /setUrlArrival\(null\);/, 'an arrival opens once');
   assert.match(effect, /if \(openedRef\.current === arrival\) return;\s*openedRef\.current = arrival;/, 'once, even when the effect runs twice');
-  assert.match(effect, /student\.startAssignment\(plan\.assignmentId, plan\.storageIndex \?\? 0, plan\.exact \? \{ keepRequestedQuestion: true \} : \{\}\)/);
+  assert.match(effect, /student\.startAssignment\(plan\.assignmentId, plan\.storageIndex \?\? 0, \{\s*\.\.\.\(plan\.exact \? \{ keepRequestedQuestion: true \} : \{\}\),\s*\.\.\.\(plan\.sectionKey \? \{ sectionKey: plan\.sectionKey \} : \{\}\),\s*\}\)/);
   assert.match(effect, /student\.openStudentAssignmentResult\(plan\.assignmentId/);
   assert.match(effect, /student\.setActiveTestCycleAssignmentId\(plan\.assignmentId\);\s*student\.openStudentDashboardMode\('testCycle'\)/);
   assert.match(effect, /student\.setPathLaunchTeks\(plan\.launchTeks\)/);
@@ -273,4 +273,26 @@ test('the hook asks before opening, and App hands it the time and the student\'s
   const call = region(app, 'useUrlArrival({', '\n  });', 'useUrlArrival call');
   assert.match(call, /arrivedAt: urlArrivalAtRef\.current,/);
   assert.match(call, /routeKey: user\?\.role === 'student' && studentBrowserRoute \? studentRouteKey\(studentBrowserRoute\) : null,/);
+});
+
+// NV03: a section-scoped Classroom launch keeps its section on a reload or
+// Back: the scope rides in this tab's history entry, never in the address.
+test('a reload of a section-scoped launch keeps the section; a fresh link opens the whole assignment', async () => {
+  const { normalizeStudentRoute, studentRouteKey } = await import('../../src/platform/student/browserHistory.js');
+  assert.deepEqual(normalizeStudentRoute({ surface: 'assignment', assignmentId: 'A1', questionIndex: 3, sectionScope: 'dol' }),
+    { surface: 'assignment', assignmentId: 'A1', questionIndex: 3, sectionScope: 'dol' });
+  assert.equal('sectionScope' in normalizeStudentRoute({ surface: 'assignment', assignmentId: 'A1', sectionScope: 'everything' }), false, 'only a real section');
+  assert.notEqual(studentRouteKey({ surface: 'assignment', assignmentId: 'A1', questionIndex: 3, sectionScope: 'dol' }),
+    studentRouteKey({ surface: 'assignment', assignmentId: 'A1', questionIndex: 3 }), 'the scope is part of the entry');
+  const assignments = [{ id: 'A1', title: 'Lesson 1' }];
+  const arrival = readUrlArrival({ pathname: '/assignments/A1' });
+  const reload = planStudentArrival({ arrival, assignments, historyRoute: { surface: 'assignment', assignmentId: 'A1', questionIndex: 0, sectionScope: 'dol' } });
+  assert.equal(reload.action, 'assignment');
+  assert.equal(reload.sectionKey, 'dol');
+  assert.equal('sectionKey' in planStudentArrival({ arrival, assignments }), false, 'a fresh link: the whole assignment');
+  assert.equal('sectionKey' in planStudentArrival({ arrival, assignments, historyRoute: { surface: 'assignment', assignmentId: 'B2', sectionScope: 'dol' } }), false, 'another assignment\'s scope is not this one\'s');
+  const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
+  const route = region(app, 'const studentBrowserRoute = useMemo(() => {', '}, [user?.role, activeView', 'the student route');
+  assert.match(route, /\.\.\.\(activeClassroomSectionKey \? \{ sectionScope: activeClassroomSectionKey \} : \{\}\),/);
+  assert.match(app, /setActiveClassroomSectionKey\(route\.sectionScope \|\| null\);/, 'Back onto the entry restores the scope');
 });

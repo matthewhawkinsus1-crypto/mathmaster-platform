@@ -55,14 +55,22 @@ const cleanIndex = (value, fallback = 0) => {
  */
 const STUDENT_SURFACES = new Set(['assignment', 'assignmentResult', 'dashboard']);
 
+// The sections a Classroom post can be scoped to (App.jsx startAssignment).
+const SECTION_SCOPES = Object.freeze(['warmup', 'classwork', 'practice', 'dol']);
+
 export const normalizeStudentRoute = (route = {}) => {
   const requested = cleanString(route?.surface);
   const surface = STUDENT_SURFACES.has(requested) ? requested : 'dashboard';
   if (surface === 'assignment') {
+    // A Google Classroom post for one section shows that section only. The
+    // scope rides in this tab's entry, so a reload or Back keeps it (NV03);
+    // a fresh link to the same address opens the whole assignment.
+    const sectionScope = SECTION_SCOPES.includes(cleanString(route.sectionScope)) ? cleanString(route.sectionScope) : '';
     return {
       surface,
       assignmentId: cleanString(route.assignmentId),
       questionIndex: cleanIndex(route.questionIndex),
+      ...(sectionScope ? { sectionScope } : {}),
     };
   }
 
@@ -119,7 +127,7 @@ export const normalizeMathPathRoute = (route = {}) => ({
 export const studentRouteKey = (route = {}) => {
   const normalized = normalizeStudentRoute(route);
   if (normalized.surface === 'assignment') {
-    return `assignment:${normalized.assignmentId}:${normalized.questionIndex}`;
+    return `assignment:${normalized.assignmentId}:${normalized.questionIndex}${normalized.sectionScope ? `:${normalized.sectionScope}` : ''}`;
   }
   if (normalized.surface === 'assignmentResult') {
     // The origin is part of the identity: the same assignment opened from

@@ -1162,6 +1162,8 @@ function App() {
         surface: 'assignment',
         assignmentId: activeAssignmentId || '',
         questionIndex: currentQuestionIndex,
+        // A section-scoped Classroom launch, kept in this tab's entry (NV03).
+        ...(activeClassroomSectionKey ? { sectionScope: activeClassroomSectionKey } : {}),
       };
     }
     // Assignment Result is its own entry so the required Back chain —
@@ -1182,7 +1184,7 @@ function App() {
         ? { testCycleAssignmentId: activeTestCycleAssignmentId || '', origin: activeTestCycleOrigin }
         : {}),
     };
-  }, [user?.role, activeView, activeAssignmentId, currentQuestionIndex, studentDashboardMode, assignmentResultRoute, activeTestCycleAssignmentId, activeTestCycleOrigin]);
+  }, [user?.role, activeView, activeAssignmentId, currentQuestionIndex, activeClassroomSectionKey, studentDashboardMode, assignmentResultRoute, activeTestCycleAssignmentId, activeTestCycleOrigin]);
 
   useEffect(() => {
     if (!studentBrowserRoute) {
@@ -1285,6 +1287,8 @@ function App() {
         setStudentDashboardMode('assignments');
         setPathLaunchTeks(null);
         setActiveAssignmentId(route.assignmentId || null);
+        // Back onto a section-scoped launch shows that section again (NV03).
+        setActiveClassroomSectionKey(route.sectionScope || null);
         setCurrentQuestionIndex(route.questionIndex || 0);
         setActiveView('assignment');
         return;

@@ -76,7 +76,10 @@ export const useUrlArrival = ({
       if (!plan) return;
       if (plan.message && plan.action !== 'assignment') toastInfo(plan.message.title, plan.message.body);
       if (plan.action === 'assignment') {
-        const opening = student.startAssignment(plan.assignmentId, plan.storageIndex ?? 0, plan.exact ? { keepRequestedQuestion: true } : {});
+        const opening = student.startAssignment(plan.assignmentId, plan.storageIndex ?? 0, {
+          ...(plan.exact ? { keepRequestedQuestion: true } : {}),
+          ...(plan.sectionKey ? { sectionKey: plan.sectionKey } : {}),
+        });
         // A notice about the work is shown with the work, not over the screen
         // it is leaving; a start that went elsewhere (the result page, a
         // section not open) says it now.
