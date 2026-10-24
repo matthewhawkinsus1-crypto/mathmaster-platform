@@ -7187,7 +7187,7 @@ async function deleteStudentLiveChallengeFootprint(db, studentId, deleted) {
       rosterRowRemoved = rosterSnapshot.exists;
     }
     transaction.delete(inviteRef);
-    return { rosterRowRemoved };
+    return { rosterRowRemoved, roomId: invitedRoomId };
   });
   if (membership) {
     if (membership.rosterRowRemoved) deleted.liveChallengeRoomMemberships = 1;
@@ -7212,6 +7212,27 @@ async function deleteStudentLiveChallengeFootprint(db, studentId, deleted) {
     summariesDeleted += 1;
   }
   if (summariesDeleted) deleted.liveChallengePlayerSummaries = summariesDeleted;
+
+  // Their rows in the private round results (liveChallengePrivate/{room}/
+  // rounds/{n}: named standings, SI13). A finished match's private state is
+  // removed by its finalization, but a room retired before it finished keeps
+  // it, and no sweep removes it. The invite names that room; a played match
+  // whose private cleanup has not run yet is listed by its result. Read after
+  // the transaction above: no round closed later can name them again.
+  const roomIds = new Set([membership?.roomId, ...playedSnapshot.docs.map((resultDoc) => resultDoc.id)].filter(Boolean));
+  let roundsScrubbed = 0;
+  for (const roomId of roomIds) {
+    // eslint-disable-next-line no-await-in-loop
+    const rounds = await db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId).collection("rounds").get();
+    for (const roundDoc of rounds.docs) {
+      const standings = Array.isArray(roundDoc.data()?.standings) ? roundDoc.data().standings : [];
+      if (!standings.some((row) => row?.studentId === studentId)) continue;
+      // eslint-disable-next-line no-await-in-loop
+      await roundDoc.ref.set({ standings: standings.filter((row) => row?.studentId !== studentId) }, { merge: true });
+      roundsScrubbed += 1;
+    }
+  }
+  if (roundsScrubbed) deleted.liveChallengePrivateRoundsScrubbed = roundsScrubbed;
 
   const scrub = async (collectionName, rowFields) => {
     const snapshot = await db.collection(collectionName).where("studentIds", "array-contains", studentId).get();

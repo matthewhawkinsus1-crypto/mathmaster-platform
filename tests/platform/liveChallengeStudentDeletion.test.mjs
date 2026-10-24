@@ -140,3 +140,37 @@ test('a student never invited to a Live Challenge: nothing in any room changes',
   assert.deepEqual(db.dump(), before);
   assert.deepEqual(deleted, {});
 });
+
+// SI13: the private round results (liveChallengePrivate/{room}/rounds/{n})
+// name every player. A finished match's finalization removes them with the
+// rest of its private state, but a room retired before it finished keeps
+// them, and nothing else ever did. The deletion now takes the student's rows
+// out of the rooms it can find: the one their invite names, and each played
+// match whose private cleanup has not run.
+test('a deleted student leaves the private round results of their rooms; classmates keep their rows', async () => {
+  const db = world();
+  db.collections.set(`${PRIVATE}/R1/rounds`, new Map([
+    ['0', { roundIndex: 0, standings: [{ studentId: 's2', rank: 1 }, { studentId: 's1', rank: 2 }] }],
+    ['1', { roundIndex: 1, standings: [{ studentId: 's2', rank: 1 }] }],
+  ]));
+  // R0 finished, but its private cleanup has not run yet.
+  db.collections.set(`${PRIVATE}/R0/rounds`, new Map([
+    ['0', { roundIndex: 0, standings: [{ studentId: 's1', rank: 1 }, { studentId: 's3', rank: 2 }] }],
+  ]));
+  // A room s1 never played in.
+  db.collections.set(`${PRIVATE}/R9/rounds`, new Map([
+    ['0', { roundIndex: 0, standings: [{ studentId: 's1', rank: 1 }] }],
+  ]));
+  const deleted = {};
+  await deleteFootprint(db, 's1', deleted);
+
+  assert.deepEqual(db.data(`${PRIVATE}/R1/rounds`, '0').standings, [{ studentId: 's2', rank: 1 }]);
+  assert.deepEqual(db.data(`${PRIVATE}/R1/rounds`, '1').standings, [{ studentId: 's2', rank: 1 }], 'a round without them is untouched');
+  assert.deepEqual(db.data(`${PRIVATE}/R0/rounds`, '0').standings, [{ studentId: 's3', rank: 2 }]);
+  assert.equal(deleted.liveChallengePrivateRoundsScrubbed, 2);
+  const roundWrites = db.writes.filter((write) => /\/rounds$/.test(write.collection));
+  assert.deepEqual(roundWrites.map((write) => `${write.collection}/${write.id}`).sort(), [`${PRIVATE}/R0/rounds/0`, `${PRIVATE}/R1/rounds/0`]);
+  // Only rooms the student is traced to are read: an unrelated room is not.
+  assert.deepEqual(db.data(`${PRIVATE}/R9/rounds`, '0').standings, [{ studentId: 's1', rank: 1 }]);
+  assert.equal(db.reads.some((read) => read.collection === `${PRIVATE}/R9/rounds`), false);
+});

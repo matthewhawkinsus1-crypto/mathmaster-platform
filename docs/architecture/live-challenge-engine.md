@@ -627,10 +627,14 @@ writes them again: no summary, no place in the final result or report, no
 reward. It then removes their grants and award-job references, deletes their
 own summary in every match they played (found through the match results that
 list them), and scrubs their rows from match results and reports (by the
-`studentIds` key both carry). Known gaps: reports written before that key
-existed are not reachable by query, and a room retired without finishing keeps
-its private round results until the pre-production reset, which clears every
-collection above.
+`studentIds` key both carry). It also takes their rows out of the private
+round results (`liveChallengePrivate/{roomId}/rounds/{round}`) of the room
+their invite names, which a room retired without finishing keeps, and of each
+match they played whose private cleanup has not run (SI13). Known gaps:
+reports written before that key existed are not reachable by query, and a
+retired room the invite no longer names (the teacher has started another
+match since) keeps its private round results until the pre-production reset,
+which clears every collection above.
 
 ### 12a. The standings snapshot
 
