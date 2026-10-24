@@ -15,8 +15,12 @@ import {
 //
 // The splitting itself lives in ./mathSegments.js, shared with QuestionPrompt,
 // so the two can never disagree about where the mathematics is.
+//
+// `language` is the language the prose around the mathematics is shown in. A
+// translation passes its own ("es"), so the formulas inside it are spoken in
+// that language and not as English in the middle of a Spanish sentence (AX06).
 
-export const MathText = ({ children, style = {}, as: Tag = 'span' }) => {
+export const MathText = ({ children, style = {}, as: Tag = 'span', language }) => {
   const text = mathTextFromChildren(children);
   if (!text) return null;
   const segments = splitMathSegments(text);
@@ -31,7 +35,7 @@ export const MathText = ({ children, style = {}, as: Tag = 'span' }) => {
           return (
             <React.Fragment key={`t-${index}`}>
               {fractionRuns.map((run, runIndex) => (run.isFraction
-                ? <MathDisplay key={`t-${index}-f-${runIndex}`} value={run.text} inline style={{ margin: '0 0.15em' }} />
+                ? <MathDisplay key={`t-${index}-f-${runIndex}`} value={run.text} inline language={language} style={{ margin: '0 0.15em' }} />
                 : <React.Fragment key={`t-${index}-p-${runIndex}`}>{normalizePlainMathTypography(run.text)}</React.Fragment>))}
             </React.Fragment>
           );
@@ -42,6 +46,7 @@ export const MathText = ({ children, style = {}, as: Tag = 'span' }) => {
             key={`m-${index}`}
             value={math.value}
             inline={math.inline}
+            language={language}
             style={math.inline ? { margin: '0 0.15em' } : { margin: '10px 0' }}
           />
         );

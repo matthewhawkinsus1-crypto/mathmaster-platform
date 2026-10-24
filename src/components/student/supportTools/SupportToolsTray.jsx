@@ -44,7 +44,7 @@ const READ_PARTS = 'read-parts';
 const languageName = (code) => LANGUAGE_NAMES[String(code || '').split('-')[0]] || String(code || '').toUpperCase();
 const isSpanish = (code) => String(code || '').toLowerCase().startsWith('es');
 
-function TranslatePanel({ tool }) {
+export function TranslatePanel({ tool }) {
   const translation = tool.translation;
   if (!translation) return null;
   if (translation.provider === 'authored') {
@@ -63,12 +63,18 @@ function TranslatePanel({ tool }) {
         {languageName(translation.language)}{tool.coverage === 'partial' ? ' · some sentences are in English' : ''}
       </div>
       <div style={{ display: 'grid', gap: 4, marginTop: 4 }}>
-        {(translation.sentences || []).filter((sentence) => !sentence.mathOnly || translation.sentences.length === 1).map((sentence, index) => (
-          <div key={index} data-translated={sentence.translated ? 'true' : 'false'}>
-            <MathText>{sentence.text}</MathText>
-            {!sentence.translated && !sentence.mathOnly && <span style={{ marginLeft: 6, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>(English)</span>}
-          </div>
-        ))}
+        {(translation.sentences || []).filter((sentence) => !sentence.mathOnly || translation.sentences.length === 1).map((sentence, index) => {
+          // A sentence the pack could not translate is English, and its
+          // mathematics is said in English; every other formula is said in the
+          // panel's language (AX06).
+          const english = !sentence.translated && !sentence.mathOnly;
+          return (
+            <div key={index} lang={english ? 'en' : undefined} data-translated={sentence.translated ? 'true' : 'false'}>
+              <MathText language={english ? 'en' : translation.language}>{sentence.text}</MathText>
+              {english && <span style={{ marginLeft: 6, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>(English)</span>}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

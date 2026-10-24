@@ -64,6 +64,11 @@ export default function MathDisplay({
   // ("y equals negative 2 over 3 x plus 4"); a label in program syntax or
   // LaTeX is spoken in words too (../platform/language/mathSpeechLabel.js).
   ariaLabel = null,
+  // The language of the words this math sits in. Inside a translation shown in
+  // Spanish the hidden spoken copy is Spanish too ("x al cuadrado"), not an
+  // English formula in the middle of a Spanish sentence (AX06). Callers that
+  // show a translation pass it; everything else is English.
+  language = 'en',
   style = {},
   className = '',
 }) {
@@ -79,7 +84,7 @@ export default function MathDisplay({
     stackDivisions(repairLegacyMathLiveRelations(stripMathDelimiters(value))),
   );
   // ONE SPOKEN COPY (below). Memoised: a screen of math re-renders often.
-  const spoken = useMemo(() => mathSpeechLabel({ value: cleanValue, ariaLabel }), [cleanValue, ariaLabel]);
+  const spoken = useMemo(() => mathSpeechLabel({ value: cleanValue, ariaLabel, language }), [cleanValue, ariaLabel, language]);
   const elementRef = useRef(null);
   useEffect(() => ensureMathElementRenders(elementRef.current), [cleanValue, format]);
   if (!cleanValue) return null;

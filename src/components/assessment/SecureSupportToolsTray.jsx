@@ -48,19 +48,25 @@ const ICON = {
   [SUPPORT_TOOL.READ_ALOUD]: '🔊',
 };
 
-function TranslatePanel({ translation }) {
+export function TranslatePanel({ translation }) {
   const view = secureTranslationView(translation);
   if (!view) return null;
   return (
     <div data-support-panel="translate" lang={view.language || undefined}>
       <div style={PANEL_LABEL}>{view.languageName}{view.partial ? ' · some sentences are in English' : ''}</div>
       <div style={{ display: 'grid', gap: 4, marginTop: 4 }}>
-        {view.lines.map((line, index) => (
-          <div key={index} data-translated={line.translated ? 'true' : 'false'}>
-            <MathText>{line.text}</MathText>
-            {!line.translated && !line.mathOnly && <span lang="en" style={{ marginLeft: 6, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>(English)</span>}
-          </div>
-        ))}
+        {view.lines.map((line, index) => {
+          // A sentence the pack could not translate is English, and its
+          // mathematics is said in English; every other formula is said in the
+          // panel's language (AX06).
+          const english = !line.translated && !line.mathOnly;
+          return (
+            <div key={index} lang={english ? 'en' : undefined} data-translated={line.translated ? 'true' : 'false'}>
+              <MathText language={english ? 'en' : view.language || undefined}>{line.text}</MathText>
+              {english && <span lang="en" style={{ marginLeft: 6, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>(English)</span>}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

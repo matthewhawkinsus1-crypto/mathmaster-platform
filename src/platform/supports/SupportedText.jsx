@@ -134,7 +134,8 @@ export const SupportedTextActions = ({ text, readAloud = null, translation = nul
       </span>
       {shown && (
         <span lang={language} data-translated-text="" style={{ display: 'block', marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'var(--mm-surface-tint)', color: 'var(--mm-text)', fontWeight: 600 }}>
-          <MathText>{translated.text}</MathText>
+          {/* The formulas are said in the translation's language too (AX06). */}
+          <MathText language={language}>{translated.text}</MathText>
           {translated.coverage === TRANSLATION_COVERAGE.PARTIAL && (
             <span lang="en" style={{ display: 'block', marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 600 }}>
               Some sentences are still in English.
