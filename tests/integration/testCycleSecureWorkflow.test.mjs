@@ -943,6 +943,16 @@ test('deleting a Test nobody has worked on removes everything linked to it; one 
   // With no work on it, the title must still be typed exactly.
   const FieldValue = (await import('./testCycleCertificationHarness.mjs')).admin.firestore.FieldValue;
   await db.collection('grades').doc(student).update({ [`gradesByAssignment.${DELETE}`]: FieldValue.delete() });
+
+  // Class sittings recorded for its Test days (TC04) go with it; another
+  // assignment's stay. (A sitting is written by the first Test start in a class
+  // period's window; two days here, because a teacher can move the Test day.)
+  const sitting = (assignmentId, dateKey) => ({ assignmentId, classId: CLASS_LIFE, dateKey, windowId: `day-${dateKey}`, period: 'Period 3', dayType: 'A', opensAt: 1, closesAt: 2, recordedAt: 3 });
+  const ownSittings = [`${DELETE}__${CLASS_LIFE}__2026-10-12`, `${DELETE}__${CLASS_LIFE}__2026-10-14`];
+  const othersSitting = `${ARCHIVE}__${CLASS_LIFE}__2026-10-12`;
+  await db.collection('testCycleClassSittings').doc(ownSittings[0]).set(sitting(DELETE, '2026-10-12'));
+  await db.collection('testCycleClassSittings').doc(ownSittings[1]).set(sitting(DELETE, '2026-10-14'));
+  await db.collection('testCycleClassSittings').doc(othersSitting).set(sitting(ARCHIVE, '2026-10-12'));
   assert.equal((await fns.getAssignmentEvidenceSummary.run(teacherRequest({ assignmentId: DELETE }))).canDelete, true);
   assert.equal((await refusal(fns.manageAssignmentLifecycle.run(teacherRequest({ assignmentId: DELETE, action: 'delete', confirmTitle: 'wrong' }))))?.code, 'failed-precondition');
 
@@ -954,6 +964,11 @@ test('deleting a Test nobody has worked on removes everything linked to it; one 
   assert.equal((await db.collection('testCycleOperations').where('assignmentId', '==', DELETE).get()).size, 0);
   assert.equal((await readGradeDoc(student)).testCycleGrades?.[DELETE], undefined, 'no grade projection is left behind');
   assert.equal((await db.collection('assignmentDeletionLog').doc(DELETE).get()).data().removedSecureSessions, 2);
+  for (const sittingId of ownSittings) assert.equal((await db.collection('testCycleClassSittings').doc(sittingId).get()).exists, false, `${sittingId} goes with the assignment`);
+  assert.equal((await db.collection('testCycleClassSittings').where('assignmentId', '==', DELETE).get()).size, 0);
+  assert.equal((await db.collection('testCycleClassSittings').doc(othersSitting).get()).exists, true, 'another assignment\'s sitting is not touched');
+  assert.equal((await db.collection('assignmentDeletionLog').doc(DELETE).get()).data().removedClassSittings, 2);
+  await db.collection('testCycleClassSittings').doc(othersSitting).delete();
 
   // A session id a student kept cannot be started, issued or released.
   assert.ok((await refusal(fns.startSecureExamSession.run(studentRequest(student, { examSessionId: sessionIds[0] })))));

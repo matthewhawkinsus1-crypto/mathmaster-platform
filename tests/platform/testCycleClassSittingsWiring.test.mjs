@@ -40,12 +40,15 @@ test('the write is create-if-absent and a failure is logged, never thrown', () =
 });
 
 test('the teacher decides: a sitting is read only by id, by the panel and by countClassSitting; no resolver takes one', () => {
-  // Named three times: the create, the panel's read of stranded days, and the action's read.
+  // Named four times: the create, the panel's read of stranded days, the
+  // action's read, and the one lookup that finds them to delete them (TC04).
   const uses = server.split('TEST_CYCLE_CLASS_SITTINGS').length - 1;
-  assert.equal(uses, 3, 'the create, the panel, the count action');
+  assert.equal(uses, 4, 'the create, the panel, the count action, the delete cleanup');
   assert.doesNotMatch(server, /testCycleClassSittings/, 'never named as a literal path either');
-  // Never queried: every read names one document.
-  [...server.matchAll(/collection\((?:shared\.schedule|sched)\.TEST_CYCLE_CLASS_SITTINGS\)([^;\n]*)/g)].forEach(([, rest]) => {
+  // Never queried to decide anything: every read names one document. The one
+  // lookup by assignment is the cleanup's, and it is held to its own contract below.
+  const cleanup = region(server, 'async function classSittingRefsOf(', '\n}\n', 'classSittingRefsOf');
+  [...server.replace(cleanup, '').matchAll(/collection\((?:shared\.schedule|sched)\.TEST_CYCLE_CLASS_SITTINGS\)([^;\n]*)/g)].forEach(([, rest]) => {
     assert.match(rest, /^\.doc\(/, `read by id: ${rest}`);
   });
   const panel = region(server, 'async function teacherTestCycleSchedule(', 'const lateDue = shared.schedule.defaultFollowUpClose(assignment, timeZone);', 'teacherTestCycleSchedule');
@@ -66,6 +69,22 @@ test('the teacher decides: a sitting is read only by id, by the panel and by cou
   // class could have sat: one that does not resolve, or whose A/B day was set
   // only after it had met (TC01).
   assert.match(resolver, /if \(\(!day\.resolved \|\| dayTypeSetLate\) && window\.held\) \{/);
+});
+
+test('TC04: deleting an assignment deletes the class sittings recorded for it, found by the assignment and read for nothing else', () => {
+  // The lookup returns references only (select() reads no field), for exactly one assignment.
+  const cleanup = region(server, 'async function classSittingRefsOf(', '\n}\n', 'classSittingRefsOf');
+  assert.match(cleanup, /\.where\("assignmentId", "==", String\(assignmentId\)\)\.select\(\)\.get\(\);/);
+  assert.match(cleanup, /return snapshot\.docs\.map\(\(sittingSnapshot\) => sittingSnapshot\.ref\);/);
+  // Called from one place: the delete branch of manageAssignmentLifecycle, which only deletes them.
+  assert.equal(server.split('classSittingRefsOf(').length - 1, 2, 'its definition and one call');
+  const lifecycle = region(server, 'exports.manageAssignmentLifecycle = onCall(', '\n});\n', 'manageAssignmentLifecycle');
+  const deleteBranch = lifecycle.slice(lifecycle.indexOf('const writes = [];'));
+  assert.match(deleteBranch, /const sittingRefs = await classSittingRefsOf\(db, ref\.id\);\s*sittingRefs\.forEach\(\(sittingRef\) => writes\.push\(\(batch\) => batch\.delete\(sittingRef\)\)\);/);
+  // Before the assignment itself goes, like the rest of the scaffolding: a failed group leaves
+  // the assignment in place for the teacher to delete again.
+  assert.ok(deleteBranch.indexOf('classSittingRefsOf(') < deleteBranch.indexOf('await ref.delete();'));
+  assert.match(deleteBranch, /removedClassSittings: sittingRefs\.length,/);
 });
 
 test('the mistake diagnosis starts loading at entry and is awaited before every grading transaction, never inside it', () => {

@@ -19291,6 +19291,21 @@ async function recordClassTestSitting(db, shared, { assignmentId, schedule, now 
   }
 }
 
+/*
+ * THE CLASS SITTINGS RECORDED FOR ONE ASSIGNMENT, AS REFERENCES ONLY (TC04).
+ *
+ * For deleting them with the assignment (manageAssignmentLifecycle), which is
+ * the only reason to find them this way. `select()` reads no field, and nothing
+ * decides anything from this: the teacher's panel and `countClassSitting` read
+ * one sitting by its id.
+ */
+async function classSittingRefsOf(db, assignmentId) {
+  const shared = await testCycleLib.shared();
+  const snapshot = await db.collection(shared.schedule.TEST_CYCLE_CLASS_SITTINGS)
+    .where("assignmentId", "==", String(assignmentId)).select().get();
+  return snapshot.docs.map((sittingSnapshot) => sittingSnapshot.ref);
+}
+
 /** A schedule as a student's or teacher's screen receives it: instants and the sentences. */
 function publicTestCycleSchedule(shared, schedule, { audience = "student", missedTest = false } = {}) {
   if (!schedule) return null;
@@ -26442,8 +26457,8 @@ exports.manageAssignmentLifecycle = onCall(TEST_CYCLE_PANEL_OPTIONS, async (requ
    * No student has worked on it, so the only things to remove are the
    * assignment and the untouched secure scaffolding opened for it: unstarted
    * sessions, score-less records and their plans, the projection each record
-   * wrote on its student's grade document, any answer release, and the
-   * class-wide operation logs.
+   * wrote on its student's grade document, any answer release, the class-wide
+   * operation logs, and the class sittings recorded for its Test days.
    *
    * ORDER, AND WHY IT IS NOT ONE BATCH. A batch holds 500 writes and a class
    * set can need more, which used to fail the whole delete with a bare server
@@ -26473,6 +26488,10 @@ exports.manageAssignmentLifecycle = onCall(TEST_CYCLE_PANEL_OPTIONS, async (requ
   });
   summary.operationIds.forEach((id) => writes.push((batch) => batch.delete(db.collection(TEST_CYCLE_OPERATIONS).doc(id))));
   writes.push((batch) => batch.delete(db.collection(TEST_CYCLE_ANSWER_RELEASES).doc(ref.id)));
+  // The class sittings recorded for its Test days (TC04): one small server-only
+  // document per class and day, which nothing else would ever remove.
+  const sittingRefs = await classSittingRefsOf(db, ref.id);
+  sittingRefs.forEach((sittingRef) => writes.push((batch) => batch.delete(sittingRef)));
   for (let index = 0; index < writes.length; index += 400) {
     const batch = db.batch();
     writes.slice(index, index + 400).forEach((write) => write(batch));
@@ -26487,6 +26506,7 @@ exports.manageAssignmentLifecycle = onCall(TEST_CYCLE_PANEL_OPTIONS, async (requ
     deletedBy: actor,
     removedSecureSessions: summary.unstartedSessionIds.length,
     removedTestCycleRecords: summary.recordIds.length,
+    removedClassSittings: sittingRefs.length,
   });
   return { success: true, assignmentId: ref.id, action, deleted: true };
 });
