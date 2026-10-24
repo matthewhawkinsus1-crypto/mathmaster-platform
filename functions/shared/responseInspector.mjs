@@ -733,6 +733,10 @@ export const buildGradeOverride = ({
       fieldOverrides,
       updatedAt: at,
       source,
+      // The fixed reason the teacher picked (OVERRIDE_REASONS), so the
+      // student's "What changed" can say why (NV15). The label only: the
+      // teacher's note stays in the audit.
+      reason,
       automaticScore: automaticQuestionScore(record),
       submissionId: record?.lastSubmissionId ? String(record.lastSubmissionId) : null,
       lastAttemptAt: record?.lastAttemptAt || record?.academicOccurredAt || null,

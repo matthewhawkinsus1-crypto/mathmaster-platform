@@ -118,7 +118,7 @@ const overrideOn = (index, extra = {}) => ({
   updatedAt: iso(NOW - HOUR), ...extra,
 });
 
-test('a per-question teacher override names the question, with no reason', () => {
+test('a per-question teacher override names the question, with no reason when none was kept', () => {
   const items = build({
     assignments: [v5Lesson('a1', questions(4))],
     trackerByAssignment: { a1: { 2: attempt(2) } },
@@ -128,6 +128,50 @@ test('a per-question teacher override names the question, with no reason', () =>
   assert.equal(items[0].text, 'Your teacher updated your grade on Lesson a1 (Question 3)');
   assert.equal(items[0].reasonText, null);
   assert.equal(items[0].at, NOW - HOUR);
+});
+
+// NV15: a correction keeps the fixed reason the teacher picked, and What
+// changed says it (the label only; the teacher's note stays in the audit).
+test('a per-question correction says why: one reason, or each with its questions', () => {
+  const tracker = { 0: attempt(0), 1: attempt(1), 2: attempt(2), 3: attempt(3) };
+  const changed = (overrides) => build({
+    assignments: [v5Lesson('a1', questions(4))],
+    trackerByAssignment: { a1: tracker },
+    teacherGradeOverridesByAssignment: { a1: overrides },
+  })[0];
+  const one = changed({ 2: overrideOn(2, { reason: 'Equivalent answer accepted by teacher' }) });
+  assert.equal(one.text, 'Your teacher updated your grade on Lesson a1 (Question 3)');
+  assert.equal(one.reasonText, 'Equivalent answer accepted by teacher');
+  const shared = changed({
+    0: overrideOn(0, { reason: 'Platform/grader issue' }),
+    3: overrideOn(3, { reason: 'Platform/grader issue' }),
+  });
+  assert.equal(shared.reasonText, 'Platform/grader issue');
+  const mixed = changed({
+    0: overrideOn(0, { reason: 'Partial credit awarded' }),
+    1: overrideOn(1, { reason: 'Correct response was incorrectly graded' }),
+    3: overrideOn(3, { reason: 'Partial credit awarded' }),
+  });
+  assert.equal(mixed.reasonText, 'Partial credit awarded (Questions 1 and 4); Correct response was incorrectly graded (Question 2)');
+  // "Other" says nothing a student can use; an older correction kept none.
+  assert.equal(changed({ 1: overrideOn(1, { reason: 'Other' }) }).reasonText, null);
+  assert.equal(changed({ 1: overrideOn(1, { reason: 'Partial credit awarded' }), 2: overrideOn(2) }).reasonText, 'Partial credit awarded (Question 2)');
+  // Never anything but a fixed label.
+  assert.equal(changed({ 1: overrideOn(1, { reason: 'Talked to me after class about it' }) }).reasonText, null);
+});
+
+test('the correction record keeps the fixed reason, never the teacher\'s note (responseInspector.mjs)', async () => {
+  const { buildGradeOverride, OVERRIDE_REASONS } = await import('../../functions/shared/responseInspector.mjs');
+  const { CORRECTION_REASONS } = await import('../../src/platform/student/whatChangedModel.js');
+  const { override, audit } = buildGradeOverride({
+    record: { status: 'attempted', partialCredit: 0, totalAttempts: 1, variantIndex: 0, lastSubmissionId: 'sub-1' },
+    score: 100, reason: 'Equivalent answer accepted by teacher', note: 'Spoke with them; they meant 3/4.', actor: { uid: 't1', email: 't@example.org' },
+  });
+  assert.equal(override.reason, 'Equivalent answer accepted by teacher');
+  assert.doesNotMatch(JSON.stringify(override), /Spoke with them|t@example\.org|t1/, 'no note and no teacher identity on the student-readable record');
+  assert.equal(audit.note, 'Spoke with them; they meant 3/4.');
+  // What changed shows exactly the teacher's labels, less "Other".
+  assert.deepEqual([...CORRECTION_REASONS].sort(), OVERRIDE_REASONS.filter((reason) => reason !== 'Other').sort());
 });
 
 test('several changed questions are one line, numbered in order, at the latest time', () => {
