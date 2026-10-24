@@ -22,6 +22,7 @@ stands, so a later audit does not raise it again.
 | FB20 | Recovery practice try count; Guided Notes default for Practice. | The real try count was already built. Guided Notes stays off by default in Practice. | `872d92c6` |
 | FB23 | Say "not in lowest terms" while a fraction item is open? | Yes: it names the form, not a move. | `3de6afa2` |
 | GR01 | Number boxes accepted arithmetic ("64 − 6" for 58). | Refuse arithmetic unless the item opts in. | `61d29a2e`, `4aa10f68` |
+| GR03 | Accept any equation of the line when no form is asked. | Yes where nothing the student reads asks for a form, after an equivalence report (`scripts/report-line-form-equivalence.mjs`: 0 right-to-wrong; 2,005 known answers wrong-to-right, all the key's line in another form). Fields whose prompt names a form, or that already show the line, are held. | `b2cd212d` |
 | GR13 | Mixed numbers like 3½. | Keep accepting them; a mixed number with a reduced fraction is in lowest terms; a mixed-number key asks for one. | `93890e34` |
 | GR18 | Vertex and center keyed for every function type. | Key "vertex" only for quadratics and absolute value, "center" only for rational, cubic and cube-root graphs. | `98918b7f` |
 | GR21 | Ten Algebra I fields re-asked at `dc2ae1ad` never moved `familyVersion`. | Do it: their seven families move to version 4. | `633496d4` |
@@ -74,7 +75,6 @@ confirms each as it stands. Any of them can still be changed later.
 
 | Id | Question | Decision |
 | --- | --- | --- |
-| GR03 | Accept any equation of the line when the field names no form. | Yes for any field that names no form; change older lessons only after an equivalence report. |
 | TC15 | The "fewer items" accommodation is not applied on secure Test Cycles. | A teacher-chosen subset is the simplest version. |
 
 ## Needs the owner
