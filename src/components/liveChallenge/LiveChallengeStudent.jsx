@@ -1299,6 +1299,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
               alias={invite.alias}
               onExit={onExit}
               exitLabel="Exit"
+              timeMultiplier={timeMultiplier}
             />
           </Suspense>
         )}

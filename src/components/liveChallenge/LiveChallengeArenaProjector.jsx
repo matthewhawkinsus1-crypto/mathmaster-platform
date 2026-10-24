@@ -612,7 +612,10 @@ const LINE_FORMAT_LABELS = Object.freeze({
   [LINE_GRAPH_FORMAT.RUSH]: 'Rush',
 });
 
-function LineRunningView({ room, clock, clockOffsetMs, players, joinedCount, rows }) {
+// `finishing`: past the class's buzzer while students with extended time
+// finish their set (Classic, Sprint) — the room's neutral "still finishing",
+// never who. Their lines after the buzzer never move the race board.
+function LineRunningView({ room, clock, clockOffsetMs, players, joinedCount, rows, finishing = false }) {
   const roundIndex = Number(room?.currentRound) || 0;
   const locked = clock.stage === CHALLENGE_STAGE.ROUND_LOCKED;
   const format = lineGraphFormatOfMode(room?.challengeMode);
@@ -649,7 +652,7 @@ function LineRunningView({ room, clock, clockOffsetMs, players, joinedCount, row
         </div>
       </section>
       <section style={{ display: 'grid', gridTemplateRows: 'auto minmax(0,1fr)', gap: 'clamp(10px, 1.4vh, 16px)', minHeight: 0 }}>
-        <ArenaClock room={room} clock={clock} clockOffsetMs={clockOffsetMs} />
+        <ArenaClock room={room} clock={clock} clockOffsetMs={clockOffsetMs} finishing={finishing} />
         <div style={{ ...glassPanel, padding: 'clamp(10px, 1.4vw, 18px)', overflow: 'hidden' }}>
           <div style={{ ...labelStyle, marginBottom: 10 }}>Live race · lines right this round</div>
           {raceBoard.rows.length > 0 && <RushRaceBoard players={players} roundIndex={roundIndex} limit={raceBoard.rows.length} look="projector" label="Lines right this round" />}
@@ -1001,7 +1004,7 @@ export default function LiveChallengeArenaProjector({
           {!loading && stage === CHALLENGE_STAGE.LOBBY && <LobbyView room={room} leaderboard={leaderboard} joinedCount={joinedCount} busy={busy} onStart={onStart} />}
           {!loading && stage === CHALLENGE_STAGE.COUNTDOWN && <CountdownView room={room} clock={clock} />}
           {!loading && openRound && room?.challengeMode === RUSH_MODE_ID && <RushRunningView room={room} clock={clock} clockOffsetMs={clockOffsetMs} players={players} joinedCount={joinedCount} rows={rows} />}
-          {!loading && openRound && questionSetGameOf(room) === QUESTION_SET_GAME.LINE_GRAPH && <LineRunningView room={room} clock={clock} clockOffsetMs={clockOffsetMs} players={players} joinedCount={joinedCount} rows={rows} />}
+          {!loading && openRound && questionSetGameOf(room) === QUESTION_SET_GAME.LINE_GRAPH && <LineRunningView room={room} clock={clock} clockOffsetMs={clockOffsetMs} players={players} joinedCount={joinedCount} rows={rows} finishing={finishing} />}
           {!loading && openRound && !roomRunsQuestionSets(room) && <RunningView room={room} clock={clock} clockOffsetMs={clockOffsetMs} leaderboard={leaderboard} presentation={presentation} joinedCount={joinedCount} answeredCount={answeredCount} rows={rows} />}
           {!loading && stage === CHALLENGE_STAGE.ROUND_RESULTS && <ResultsView room={room} clock={clock} roundView={roundView} presentation={presentation} leaderboard={leaderboard} rows={rows} solution={solution} solutionState={solutionState} solutionHidden={solutionHidden} />}
           {!loading && stage === CHALLENGE_STAGE.COMPLETED && (

@@ -12414,10 +12414,13 @@ function liveChallengeRoundCompletion(engine, room, players, nowMs = Date.now())
     if (player.joined !== true) return;
     joinedCount += 1;
     // Per-player modes read each player's own question specs from their log;
-    // a rush player "finishes" only by working through the whole pool.
-    const questionSpecs = engine.modes.roundQuestionSpecsFor(mode, { receipts: player.submissionReceipts, roundIndex });
+    // a rush player "finishes" only by working through the whole pool. All
+    // of their work: a student who finishes their set in extra time, after
+    // the class's buzzer, is finished, and the round need not wait longer.
+    const receipts = engine.responses.playerWorkReceipts(player);
+    const questionSpecs = engine.modes.roundQuestionSpecsFor(mode, { receipts, roundIndex });
     const finished = Number(player.answeredRound) === roundIndex
-      || engine.responses.summarizeRoundProgress({ receipts: player.submissionReceipts, roundIndex, questionSpecs }).finished;
+      || engine.responses.summarizeRoundProgress({ receipts, roundIndex, questionSpecs }).finished;
     if (finished) completedCount += 1;
     progress.push({ joined: true, finished, timeMultiplier: player.timeMultiplier });
   });
@@ -12463,7 +12466,7 @@ async function prepareLiveChallengeRoundOpening(db, { roomId, room, privateState
 /** Whether any joined player has extended time in a mode that allows it. */
 function liveChallengeExtendedTimeInPlay(engine, room, players = []) {
   const mode = engine.modes.getChallengeMode(room.challengeMode);
-  if (engine.modes.roundStructureFor(mode).id !== engine.modes.ROUND_STRUCTURE.SYNCHRONIZED_QUESTION) return false;
+  if (engine.accommodations.extendedTimeRuleFor(mode) === engine.accommodations.EXTENDED_TIME_RULE.NONE) return false;
   return (Array.isArray(players) ? players : [])
     .some((player) => player?.joined === true && engine.accommodations.storedTimeMultiplier(player.timeMultiplier) > 1);
 }
@@ -13432,16 +13435,29 @@ exports.joinLiveChallenge = onCall(async (request) => {
     // already closed is not one they could play, so it is not counted either.
     const joinedAtRound = lifecycle.joinRoundFor({ room, recordedJoinRound: player.joinedAtRound });
     // EXTENDED TIME, from the student's own support profile, where the mode
-    // allows it: a synchronized question round. Read at every join, so a plan
-    // changed since the last game applies to this one. Private: the student's
-    // record and their own invite. The room learns only the largest multiplier
-    // in play, never whose (liveChallengeAccommodations.mjs).
-    const extendedTimeAllowed = modes.roundStructureFor(modes.getChallengeMode(room.challengeMode)).id
-      === modes.ROUND_STRUCTURE.SYNCHRONIZED_QUESTION;
-    const timeMultiplier = extendedTimeAllowed
-      ? accommodations.gameTimeMultiplierFor(gradeSnapshot.exists ? (gradeSnapshot.data()?.profile || null) : null)
-      : 1;
-    const joinedPlayer = { ...player, joined: true, joinedAtRound, timeMultiplier, updatedAt: FieldValue.serverTimestamp() };
+    // allows it: a synchronized question round (their own deadline), or a
+    // race with a set to finish — Graph the Line's Classic and Sprint — where
+    // it comes after the class's buzzer and never counts in the race. Read at
+    // every join, so a plan changed since the last game applies to this one.
+    // Private: the student's record and their own invite. The room learns
+    // only that someone has more time, never who
+    // (liveChallengeAccommodations.mjs).
+    const roomMode = modes.getChallengeMode(room.challengeMode);
+    const supportProfile = gradeSnapshot.exists ? (gradeSnapshot.data()?.profile || null) : null;
+    const extendedTimeAllowed = accommodations.extendedTimeRuleFor(roomMode) !== accommodations.EXTENDED_TIME_RULE.NONE;
+    const timeMultiplier = extendedTimeAllowed ? accommodations.gameTimeMultiplierFor(supportProfile) : 1;
+    // GRAPH THE LINE'S SLOPE HELPER, from the plan (a graphing aid turns it on
+    // for this student alone). Private too: their record, handed only to
+    // their own device with their items (getLineGraphRound).
+    const lineRoom = roomMode.questionSource === modes.QUESTION_SOURCE.LINE_GRAPH_GENERATOR;
+    const joinedPlayer = {
+      ...player,
+      joined: true,
+      joinedAtRound,
+      timeMultiplier,
+      ...(lineRoom ? { lineSlopeHelper: accommodations.planTurnsOnSlopeHelper(supportProfile) } : {}),
+      updatedAt: FieldValue.serverTimestamp(),
+    };
     // Nothing about it reaches the room here: a room field that changed in
     // the same commit as this student's public row would name them. The room
     // learns only, when a round opens, whether anyone in it has extended time
@@ -15203,6 +15219,39 @@ async function loadLineGraphContext(db, { studentId, roomId }) {
   };
 }
 
+/*
+ * WHETHER AN ATTEMPT BELONGS TO THE ROUND, AND TO WHICH PART OF IT
+ * (liveChallengeAccommodations.mjs). Everyone races on the class's clock: an
+ * attempt that arrives by the class's deadline (and its arrival grace) is the
+ * race's. A student with extended time in a Classic or Sprint room keeps
+ * working after the buzzer, to their own deadline: what arrives then is their
+ * extra time — recorded, but never the race's. `extraTimeFromMs` is the
+ * class's round length, for such a student only: an attempt their device
+ * made after the buzzer is extra time even inside the grace.
+ */
+function lineGraphArrival(engine, { mode, room, player, arrivedAtMs }) {
+  const { timer: roundTimer, accommodations } = engine;
+  const classTimer = roundTimer.timerFromRoom(room);
+  const classArrival = roundTimer.timerAcceptsArrival(classTimer, arrivedAtMs);
+  const afterBuzzer = accommodations.extendedTimeRuleFor(mode) === accommodations.EXTENDED_TIME_RULE.AFTER_BUZZER
+    && accommodations.storedTimeMultiplier(player?.timeMultiplier) > 1;
+  const classLengthMs = classTimer.startsAtMs && classTimer.endsAtMs ? classTimer.endsAtMs - classTimer.startsAtMs : null;
+  const extraTimeFromMs = afterBuzzer ? classLengthMs : null;
+  if (classArrival.accepted || !afterBuzzer) {
+    return { ...classArrival, extraTime: false, roundDurationMs: classTimer.durationMs, extraTimeFromMs };
+  }
+  const personal = accommodations.personalRoundTimer(classTimer, player.timeMultiplier, {
+    fullDurationMs: accommodations.roomFullRoundMs(room),
+  });
+  const personalArrival = roundTimer.timerAcceptsArrival(personal, arrivedAtMs);
+  return {
+    ...personalArrival,
+    extraTime: personalArrival.accepted,
+    roundDurationMs: personal.endsAtMs && personal.startsAtMs ? personal.endsAtMs - personal.startsAtMs : classTimer.durationMs,
+    extraTimeFromMs,
+  };
+}
+
 /** Item k of one student's round: deterministic, generated once per call. */
 function lineGraphIssuer({ modules, lineState, config, studentId, roundIndex }) {
   const issued = new Map();
@@ -15228,7 +15277,9 @@ exports.getLineGraphRound = onCall(async (request) => {
   }
   const { engine, modules, room, player, lineState, config, poolSize } = await loadLineGraphContext(db, { studentId, roomId });
   const { lifecycle } = engine;
-  const state = modules.attempts.lineRoundState({ receipts: player.submissionReceipts || {}, roundIndex, poolSize });
+  // Where the student is, from all their work (extra time after the buzzer
+  // included): what their device resumes from.
+  const state = modules.attempts.lineRoundState({ receipts: engine.responses.playerWorkReceipts(player), roundIndex, poolSize });
   const roundOpen = lifecycle.planLifecycleCommand({
     command: lifecycle.LIFECYCLE_COMMAND.SUBMIT,
     room,
@@ -15247,8 +15298,11 @@ exports.getLineGraphRound = onCall(async (request) => {
     ? Array.from({ length: Math.max(0, Math.min(count, poolSize - fromIndex)) }, (_, offset) => modules.generator.publicLineQuestion(issue(fromIndex + offset)))
     : [];
   // `poolSize` is where the round's items end (a Sprint's length); `joined`
-  // tells a device whose join is still on its way to ask again.
-  return { roomId, roundIndex, roundOpen, joined, poolSize, state, questions };
+  // tells a device whose join is still on its way to ask again. `slopeHelper`:
+  // the room's setting, or this student's own from their plan — said only to
+  // them, here (liveChallengeAccommodations.planTurnsOnSlopeHelper).
+  const slopeHelper = config.slopeHelper === true || player.lineSlopeHelper === true;
+  return { roomId, roundIndex, roundOpen, joined, poolSize, state, questions, slopeHelper };
 });
 
 exports.submitLineGraphAttempts = onCall(async (request) => {
@@ -15263,17 +15317,21 @@ exports.submitLineGraphAttempts = onCall(async (request) => {
   if (!roomId || !Number.isInteger(roundIndex) || roundIndex < 0 || !Number.isInteger(roundVersion) || !attempts.length) {
     throw new HttpsError("invalid-argument", "roomId, roundIndex, roundVersion and attempts are required.");
   }
-  const { engine, modules, mode, room, roomRef, privatePlayerRef, lineState, config, poolSize } = await loadLineGraphContext(db, { studentId, roomId });
-  const { lifecycle, timer: roundTimer } = engine;
+  const {
+    engine, modules, mode, room, roomRef, privatePlayerRef, player: playerAtStart, lineState, config, poolSize,
+  } = await loadLineGraphContext(db, { studentId, roomId });
+  const { lifecycle } = engine;
   const expected = { roundIndex, roundVersion, roundToken };
   // Cheap refusals before the transaction: a stale round, a closed one, or a
-  // request that arrived after the deadline's bounded grace.
+  // request that arrived after the deadline's bounded grace (the student's
+  // own deadline, for extra time after the buzzer).
   const precheck = lifecycle.planLifecycleCommand({ command: lifecycle.LIFECYCLE_COMMAND.SUBMIT, room, expected });
   if (precheck.outcome !== lifecycle.LIFECYCLE_OUTCOME.APPLY) {
     throw new HttpsError("failed-precondition", precheck.message, { lifecycle: precheck.code });
   }
-  // A tap before GO, or during a pause, is told so, not "time is up" (LC06).
-  const arrivalCheck = roundTimer.timerAcceptsArrival(roundTimer.timerFromRoom(room), requestArrivedAt);
+  // A tap before GO, or during a pause, is told so, not "time is up" (LC06);
+  // a student on extra time is checked against their own deadline (LC09).
+  const arrivalCheck = lineGraphArrival(engine, { mode, room, player: playerAtStart, arrivedAtMs: requestArrivedAt });
   if (!arrivalCheck.accepted) throw liveChallengeArrivalRefusal(arrivalCheck);
   const issue = lineGraphIssuer({ modules, lineState, config, studentId, roundIndex });
 
@@ -15290,8 +15348,7 @@ exports.submitLineGraphAttempts = onCall(async (request) => {
     if (plan.outcome !== lifecycle.LIFECYCLE_OUTCOME.APPLY) {
       throw new HttpsError("failed-precondition", plan.message, { lifecycle: plan.code });
     }
-    const latestTimer = roundTimer.timerFromRoom(latestRoom);
-    const arrival = roundTimer.timerAcceptsArrival(latestTimer, requestArrivedAt);
+    const arrival = lineGraphArrival(engine, { mode, room: latestRoom, player, arrivedAtMs: requestArrivedAt });
     if (!arrival.accepted) throw liveChallengeArrivalRefusal(arrival);
     if (player.joined !== true || !player.playerKey) throw new HttpsError("failed-precondition", "Join the Live Challenge before playing.");
     const strategy = engine.scoring.getScoringStrategy(engine.scoring.roomScoringStrategyId(latestRoom));
@@ -15304,26 +15361,34 @@ exports.submitLineGraphAttempts = onCall(async (request) => {
       config,
       arrivedAtMs: requestArrivedAt,
       arrivalElapsedMs: arrival.elapsedMs,
-      roundDurationMs: latestTimer.durationMs || mode.roundLimits.maxSeconds * 1000,
+      roundDurationMs: arrival.roundDurationMs || mode.roundLimits.maxSeconds * 1000,
       strategy,
       poolSize,
+      extraTime: arrival.extraTime === true,
+      extraTimeFromMs: arrival.extraTimeFromMs,
     });
     // Replays, repeated answers and resolved items record nothing, so a batch
     // of only those writes nothing either. Never `answeredRound`: it would
     // mark the player finished with the round (liveChallengeRoundCompletion).
+    const raceRecorded = applied.recorded - applied.extraTimeRecorded;
     if (applied.recorded > 0) {
       const { totals } = applied;
       transaction.set(privatePlayerRef, {
-        submissionReceipts: applied.receipts,
         attemptSequence: applied.attemptSequence,
-        score: totals.score,
-        rawScore: totals.rawScore,
-        correctCount: totals.correctCount,
-        roundsAnswered: totals.roundsAnswered,
-        answeredRounds: totals.answeredRounds,
-        targetAttempts: totals.targetAttempts,
-        targetHits: totals.targetHits,
-        matchAccuracy: totals.matchAccuracy,
+        ...(raceRecorded > 0 ? {
+          submissionReceipts: applied.receipts,
+          score: totals.score,
+          rawScore: totals.rawScore,
+          correctCount: totals.correctCount,
+          roundsAnswered: totals.roundsAnswered,
+          answeredRounds: totals.answeredRounds,
+          targetAttempts: totals.targetAttempts,
+          targetHits: totals.targetHits,
+          matchAccuracy: totals.matchAccuracy,
+        } : {}),
+        // Extra time after the buzzer: the student's own work, apart from
+        // the race's receipts, which alone are ranked.
+        ...(applied.extraTimeRecorded > 0 ? { [engine.responses.EXTRA_TIME_RECEIPTS_FIELD]: applied.extraTimeReceipts } : {}),
         updatedAt: FieldValue.serverTimestamp(),
       }, { merge: true });
       // The player's own public row: the board's numbers and the host's
@@ -15331,19 +15396,22 @@ exports.submitLineGraphAttempts = onCall(async (request) => {
       // reads — and whether they have worked through the whole round, which
       // the host's early close of a Classic or Sprint round counts (the
       // server's close guard reads the same receipts). No student id, no
-      // answers.
-      transaction.set(roomRef.collection("players").doc(String(player.playerKey)), {
-        score: totals.score,
-        rawScore: totals.rawScore,
-        correctCount: totals.correctCount,
-        roundsAnswered: totals.roundsAnswered,
-        matchAccuracy: totals.matchAccuracy,
-        rushRound: roundIndex,
-        rushRoundCompleted: applied.state.questionsCorrect,
-        rushRoundFinished: applied.state.finished === true,
-        rushActiveAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      }, { merge: true });
+      // answers. The race only: work in extra time after the buzzer never
+      // moves it — a row that changed then would name the student.
+      if (raceRecorded > 0) {
+        transaction.set(roomRef.collection("players").doc(String(player.playerKey)), {
+          score: totals.score,
+          rawScore: totals.rawScore,
+          correctCount: totals.correctCount,
+          roundsAnswered: totals.roundsAnswered,
+          matchAccuracy: totals.matchAccuracy,
+          rushRound: roundIndex,
+          rushRoundCompleted: applied.raceState.questionsCorrect,
+          rushRoundFinished: applied.raceState.finished === true,
+          rushActiveAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
     }
     return {
       verdicts: applied.verdicts,

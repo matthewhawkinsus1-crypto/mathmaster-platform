@@ -158,7 +158,21 @@ test('a question-set round is never "held for a Second Chance": its line comes a
   assert.equal(roundSolutionState({ room: revealed, roundIndex: 0, solution: { available: true, solutionReview: { headline: 'h' }, lineGraph: {} } }), SOLUTION_STATE.READY);
   // A bank round still waits for a Second Chance replay.
   assert.equal(roundSolutionState({ room: { ...closed, challengeMode: 'standard' }, roundIndex: 0 }), SOLUTION_STATE.HELD);
-  assert.equal(roundWaitingOnExtendedTime({ room: { challengeMode: LINE_GRAPH_MODE_ID.SPRINT, extendedTimeInPlay: true }, locked: true, joinedCount: 3, answeredCount: 1 }), false);
+});
+
+test('past the buzzer, a Classic or Sprint round waiting on extra time says "still finishing"; a Rush never waits', () => {
+  // Extra time after the buzzer (liveChallengeAccommodations.mjs): the round
+  // is held for a student finishing their set, and the screens say only that
+  // someone is — never who. A Rush (and Graph Feature Rush) has no extra time.
+  const held = (challengeMode) => roundWaitingOnExtendedTime({ room: { challengeMode, extendedTimeInPlay: true }, locked: true, joinedCount: 3, answeredCount: 1 });
+  assert.equal(held(LINE_GRAPH_MODE_ID.CLASSIC), true);
+  assert.equal(held(LINE_GRAPH_MODE_ID.SPRINT), true);
+  assert.equal(held(LINE_GRAPH_MODE_ID.RUSH), false);
+  assert.equal(held(RUSH_MODE_ID), false);
+  // Not before the buzzer, not when nobody has extra time, not once everyone has finished.
+  assert.equal(roundWaitingOnExtendedTime({ room: { challengeMode: LINE_GRAPH_MODE_ID.SPRINT, extendedTimeInPlay: true }, locked: false, joinedCount: 3, answeredCount: 1 }), false);
+  assert.equal(roundWaitingOnExtendedTime({ room: { challengeMode: LINE_GRAPH_MODE_ID.SPRINT, extendedTimeInPlay: false }, locked: true, joinedCount: 3, answeredCount: 1 }), false);
+  assert.equal(roundWaitingOnExtendedTime({ room: { challengeMode: LINE_GRAPH_MODE_ID.SPRINT, extendedTimeInPlay: true }, locked: true, joinedCount: 3, answeredCount: 3 }), false);
 });
 
 test('Play Again replays a Graph the Line room with every one of its settings', () => {
@@ -344,8 +358,13 @@ test('the server: the finished flag on the public row, and a shared line capture
   const server = read('../../functions/index.js');
   const submit = region(server, 'exports.submitLineGraphAttempts = onCall', '\nexports.', 'line submit');
   const publicWrite = region(submit, 'transaction.set(roomRef.collection("players")', '}, { merge: true });', 'public row');
-  assert.match(publicWrite, /rushRoundFinished: applied\.state\.finished === true,/);
-  assert.doesNotMatch(publicWrite, /submissionReceipts|studentId|answeredRound/);
+  // The race's own state: work a student does in extra time after the buzzer
+  // never moves their public row (it would name them, and it is not the race).
+  assert.match(publicWrite, /rushRoundCompleted: applied\.raceState\.questionsCorrect,/);
+  assert.match(publicWrite, /rushRoundFinished: applied\.raceState\.finished === true,/);
+  assert.doesNotMatch(publicWrite, /submissionReceipts|studentId|answeredRound|extraTime/);
+  assert.match(submit, /if \(raceRecorded > 0\) \{\s*transaction\.set\(roomRef\.collection\("players"\)/, 'a batch made only in extra time writes no public row');
+  assert.match(submit, /\.\.\.\(raceRecorded > 0 \? \{\s*submissionReceipts: applied\.receipts,/, 'the race\'s receipts change only with race attempts');
   const planner = region(server, 'const LINE_GRAPH_PLANNER = Object.freeze({', '\n});', 'line planner');
   assert.match(planner, /const sharedLineKeys = lineGraphSharesRounds\(config\)/);
   assert.match(planner, /privateFields: \{ lineGraph: \{ seed, config, generatorVersion, \.\.\.\(sharedLineKeys \? \{ sharedLineKeys \} : \{\}\) \} \}/);

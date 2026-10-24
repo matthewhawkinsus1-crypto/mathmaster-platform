@@ -59,6 +59,17 @@ export const isLineGraphMode = (modeId) => Object.hasOwn(FORMAT_BY_MODE, String(
 export const lineGraphFormatOfMode = (modeId) => FORMAT_BY_MODE[String(modeId || '')] || null;
 export const lineGraphModeOfFormat = (format) => MODE_BY_FORMAT[String(format || '')] || null;
 
+/*
+ * EXTENDED TIME. Classic and Sprint hand every student a set to finish, so a
+ * student with extended time on their plan gets it — after the class's
+ * buzzer, to finish their set; the race is decided at the buzzer
+ * (liveChallengeAccommodations.mjs; the modes' `extraTimeAfterBuzzer`). A
+ * Rush is as many as you can before the clock: there is nothing to finish,
+ * and more time would only be more race.
+ */
+export const LINE_FORMATS_WITH_EXTRA_TIME = Object.freeze([LINE_GRAPH_FORMAT.CLASSIC, LINE_GRAPH_FORMAT.SPRINT]);
+export const lineFormatGivesExtraTime = (format) => LINE_FORMATS_WITH_EXTRA_TIME.includes(String(format || ''));
+
 export const LINE_FORM = Object.freeze({
   SLOPE_INTERCEPT: 'slopeIntercept',
   STANDARD: 'standard',

@@ -139,7 +139,11 @@ test('a round past the class deadline waits for an unfinished student inside the
 
 test('the server reads the multiplier at join, keeps it private, and judges arrivals against it', () => {
   const join = regionOf(server, 'exports.joinLiveChallenge = onCall', '\nexports.');
-  assert.match(join, /accommodations\.gameTimeMultiplierFor\(gradeSnapshot\.exists/);
+  // From the student's own support profile, read in the join's transaction,
+  // and only where the mode gives extended time.
+  assert.match(join, /const supportProfile = gradeSnapshot\.exists \? \(gradeSnapshot\.data\(\)\?\.profile \|\| null\) : null;/);
+  assert.match(join, /const timeMultiplier = extendedTimeAllowed \? accommodations\.gameTimeMultiplierFor\(supportProfile\) : 1;/);
+  assert.match(join, /const extendedTimeAllowed = accommodations\.extendedTimeRuleFor\(roomMode\) !== accommodations\.EXTENDED_TIME_RULE\.NONE;/);
   // Never on the public player row.
   const publicRow = join.slice(join.indexOf('transaction.set(publicPlayerRef'), join.indexOf('transaction.set(inviteRef'));
   assert.doesNotMatch(publicRow, /timeMultiplier/);

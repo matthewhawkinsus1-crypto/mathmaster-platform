@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import LineEquation from './LineEquation.jsx';
 import LineGraphCanvas from './LineGraphCanvas.jsx';
 import { monotonicRoundOrigin } from '../../../functions/shared/liveChallengeParity.mjs';
+import { roomFullRoundMs } from '../../../functions/shared/liveChallengeAccommodations.mjs';
 import { BUILD_FIELDS, buildPreview, LINE_FORM } from '../../../functions/shared/lineGraphForms.mjs';
 import {
   LINE_ANSWER_STYLE,
@@ -9,9 +10,11 @@ import {
   LINE_ITEM_TYPE,
   LINE_LIMITS,
   LINE_VERDICT,
+  lineFormatGivesExtraTime,
   lineGraphFormatOfMode,
 } from '../../../functions/shared/lineGraphRules.mjs';
 import { rushRefusalIsTimeUp } from '../../platform/liveChallenge/challengeAnswerRefusal.js';
+import { personalRoundClock } from '../../platform/liveChallenge/challengeShellModel.js';
 import { pointsKey } from '../../platform/liveChallenge/lineGraphModel.js';
 import {
   LINE_FEEDBACK,
@@ -58,7 +61,14 @@ import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
  *
  * TIME. The round's start and deadline are the room's, anchored once to this
  * device's monotonic clock — a device clock change mid-round moves nothing,
- * and a refresh resumes on the same deadline. Input stops at zero.
+ * and a refresh resumes on the same deadline. Input stops at zero. A student
+ * whose plan gives them extended time, in a Classic or Sprint round, keeps
+ * working past the class's buzzer to their own deadline (the one the server
+ * judges against): the race was decided at the buzzer, and the screen says
+ * so plainly — to them alone (liveChallengeAccommodations.mjs).
+ *
+ * THE SLOPE HELPER shows when the room turns it on, or when this student's
+ * plan does — which only their own round request says.
  *
  * NETWORK. Attempts are sent one request at a time, gathered for a moment,
  * and kept in localStorage until the server answers: a refresh or a dropped
@@ -416,6 +426,8 @@ const VERDICT_STYLE = Object.freeze({
  *                                   so a teacher's practice plays the same screen
  * @param {boolean}  props.persist   keep unsent attempts across a refresh
  * @param {boolean}  props.practice  a teacher's practice: nothing is recorded
+ * @param {number}   props.timeMultiplier  this student's own (their invite; 1
+ *                                   without extended time)
  */
 export default function LineGraphRound({
   room,
@@ -426,6 +438,7 @@ export default function LineGraphRound({
   persist = true,
   practice = false,
   onPracticeAgain = null,
+  timeMultiplier = 1,
 }) {
   const roomId = room.roomId;
   const roundIndex = Number(room.currentRound) || 0;
@@ -440,6 +453,8 @@ export default function LineGraphRound({
   const queueKey = persist ? lineQueueKey(roomId, roundIndex, roundVersion) : null;
 
   // Anchored once per mount; the parent mounts one of these per round.
+  // `buzzerMono` is the class's deadline; `endMono` this student's — later
+  // only with extended time in a round that gives it after the buzzer.
   const [timing] = useState(() => {
     const startsAtMs = timestampMillis(room.startsAt || room.roundStartedAt);
     const endsAtMs = timestampMillis(room.roundEndsAt || room.endsAt);
@@ -448,7 +463,12 @@ export default function LineGraphRound({
       serverNowMs: Number(room.serverNowAtRender) || Date.now(),
       startsAtMs,
     });
-    return { startMono, endMono: startMono + Math.max(0, endsAtMs - startsAtMs) };
+    const afterBuzzer = !practice && lineFormatGivesExtraTime(format);
+    const own = personalRoundClock({
+      startsAtMs, endsAtMs, timeMultiplier: afterBuzzer ? timeMultiplier : 1, fullDurationMs: roomFullRoundMs(room),
+    });
+    const buzzerMono = startMono + Math.max(0, endsAtMs - startsAtMs);
+    return { startMono, buzzerMono, endMono: Math.max(buzzerMono, startMono + Math.max(0, own.endsAtMs - startsAtMs)) };
   });
 
   const [session, setSession] = useState(null);
@@ -460,6 +480,12 @@ export default function LineGraphRound({
   const [connection, setConnection] = useState('ok');
   const [started, setStarted] = useState(() => performance.now() >= timing.startMono);
   const [timeUp, setTimeUp] = useState(() => performance.now() >= timing.endMono);
+  // Past the class's buzzer (the same moment as timeUp, unless this student
+  // has extra time after it).
+  const [pastBuzzer, setPastBuzzer] = useState(() => performance.now() >= timing.buzzerMono);
+  // The slope helper from this student's own plan: their round request says
+  // so; nothing on the room does.
+  const [ownSlopeHelper, setOwnSlopeHelper] = useState(false);
   const [, setWake] = useState(0);
   // The line last checked on this item, and how it was judged.
   const [lineCheck, setLineCheck] = useState(null);
@@ -594,6 +620,7 @@ export default function LineGraphRound({
             await wait(JOIN_WAIT_MS);
             continue;
           }
+          setOwnSlopeHelper(reply?.slopeHelper === true);
           commit(createLineSession({ roundIndex, serverState: reply?.state || {}, questions: reply?.questions || [], poolSize: reply?.poolSize ?? null, rules }));
           setConnection('ok');
           setPhase('ready');
@@ -627,11 +654,13 @@ export default function LineGraphRound({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // The round's start and its deadline, on the monotonic clock.
+  // The round's start, the class's buzzer and this student's deadline, on the
+  // monotonic clock.
   useEffect(() => {
     const now = performance.now();
     const timers = [];
     if (now < timing.startMono) timers.push(window.setTimeout(() => setStarted(true), timing.startMono - now));
+    if (now < timing.buzzerMono) timers.push(window.setTimeout(() => setPastBuzzer(true), timing.buzzerMono - now));
     if (now < timing.endMono) timers.push(window.setTimeout(() => setTimeUp(true), timing.endMono - now));
     return () => timers.forEach((timer) => window.clearTimeout(timer));
   }, [timing]);
@@ -688,7 +717,10 @@ export default function LineGraphRound({
   const input = session ? inputState(session, nowMs) : LINE_INPUT.WAITING;
   const playing = phase === 'ready' && started && !over;
   const lockMs = session ? lockRemainingMs(session, nowMs) : 0;
-  const spoken = useTimeAnnouncements(timing.endMono, playing);
+  // The clock a student reads: the race's (the class's buzzer) while it runs —
+  // the same countdown as everyone's — then, with extra time, their own.
+  const clockEndMono = pastBuzzer ? timing.endMono : timing.buzzerMono;
+  const spoken = useTimeAnnouncements(clockEndMono, playing);
 
   // Refs only: the handlers are memoized for the canvas, and must never see
   // a stale phase.
@@ -772,6 +804,9 @@ export default function LineGraphRound({
   } else if (!question) overlay = <><strong>Loading…</strong><span>Getting your next line.</span></>;
 
   const prompt = playing && question;
+  // EXTRA TIME, past the class's buzzer and before this student's own
+  // deadline: said to them, on their own screen, and nowhere else.
+  const extraTime = playing && pastBuzzer;
   return (
     <div className="mm-line-shell" role="region" aria-label={practice ? 'Graph the Line practice' : `Graph the Line, round ${roundIndex + 1}`}>
       <style>{LINE_CSS}</style>
@@ -782,12 +817,17 @@ export default function LineGraphRound({
         <span className="mm-line-done"><span aria-hidden="true">✓ {completed}</span><span style={SR_ONLY_STYLE}>{`${completed} right`}</span></span>
         {streak >= 2 && <span className="mm-line-streak"><span aria-hidden="true">🔥 {streak}</span><span style={SR_ONLY_STYLE}>{`${streak} right in a row`}</span></span>}
         {connection === 'retrying' && <span className="mm-line-sync" role="status">Reconnecting… your answers are saved</span>}
-        <LineClock startMono={timing.startMono} endMono={timing.endMono} />
+        <LineClock startMono={timing.startMono} endMono={clockEndMono} />
         {typeof onExit === 'function' && <button type="button" className="mm-line-exit" onClick={onExit}>{exitLabel}</button>}
       </header>
       <div className="mm-line-stage">
         <section className="mm-line-prompt" aria-live="polite">
           {practice && <div className="mm-line-banner" style={{ marginBottom: 6 }}>Practice — nothing is recorded.</div>}
+          {extraTime && (
+            <div className="mm-line-banner" data-mm-line-extra-time="1" style={{ marginBottom: 6 }}>
+              Your extra time. The race is over — finish your lines. They count for your practice, not the race.
+            </div>
+          )}
           <h2>{prompt ? question.title : 'Graph the Line'}</h2>
           {prompt && graphing && <LineEquation className="mm-line-equation" equation={question.equation} />}
           {prompt && question.instructions && <p className="mm-line-hint">{question.instructions}</p>}
@@ -811,7 +851,7 @@ export default function LineGraphRound({
                     paused={disabled}
                     verdict={verdict}
                     revealed={Boolean(revealed && graphing)}
-                    slopeHelper={config.slopeHelper === true}
+                    slopeHelper={config.slopeHelper === true || ownSlopeHelper}
                     resetKey={`${question.questionIndex}:${startOver}`}
                     onLine={onLine}
                     label={graphing

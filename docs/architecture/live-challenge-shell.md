@@ -327,7 +327,8 @@ places, from the room's reward summary). Host controls run along the bottom.
 - **Recognitions** under the podium (`room.recognitions`, aliases only).
 - **Extended time**: after the class deadline, while a round waits for a
   student with extended time, "A few students are still finishing — results in
-  a moment" (never who).
+  a moment" (never who) — a synchronized round, or a Graph the Line Classic or
+  Sprint round, whose race board does not move meanwhile.
 - **Large classes**: the top of the board, then "and N more players" — never
   the bottom of the class singled out. The lobby lists every alias that fits
   (chips shrink before anyone is hidden). Under the final podium the standings
@@ -388,7 +389,11 @@ places, from the room's reward summary). Host controls run along the bottom.
 - **Accommodations**: extended time counts down to the student's own deadline
   (invite `timeMultiplier`, `personalRoundClock`); a student whose plan grants
   text-to-speech gets Read aloud on the round prompt. A Warm-Up game receives
-  the whole support profile and the rewards card a standalone game has.
+  the whole support profile and the rewards card a standalone game has. In a
+  Graph the Line Classic or Sprint round the extra time comes after the
+  class's buzzer, to finish the set, and the race is decided at the buzzer
+  ("Your extra time…", on their screen only); a Rush has none; a plan's
+  graphing aid turns on their own slope helper (`graph-the-line.md` §7).
 
 **Plain words.** What a student reads never carries the server's vocabulary:
 an answer sent before GO is told "This round has not started yet. Wait for

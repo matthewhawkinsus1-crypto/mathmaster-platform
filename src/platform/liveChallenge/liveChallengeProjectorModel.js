@@ -1,11 +1,12 @@
 import { getChallengeMode } from '../../../functions/shared/liveChallengeModes.mjs';
+import { EXTENDED_TIME_RULE, extendedTimeRuleFor } from '../../../functions/shared/liveChallengeAccommodations.mjs';
 import {
   PODIUM_PLACES,
   PUBLIC_TOP_COUNT,
   publicStandingsRows,
   roomShowsFullStandings,
 } from '../../../functions/shared/liveChallengePrivacy.mjs';
-import { CHALLENGE_STAGE, roomRunsQuestionSets } from './challengeShellModel.js';
+import { CHALLENGE_STAGE } from './challengeShellModel.js';
 import { SOLUTION_STATE } from './challengeSolutionModel.js';
 
 const FAMILY_LABELS = Object.freeze({
@@ -186,15 +187,17 @@ export const podiumRecognitionRows = (room = {}) => {
  * extended time has not finished. The room says only that someone has more
  * time (`extendedTimeInPlay`, set when the round opened, or by the host's
  * refused close when a student with it joined mid-round — never who) — and so do the screens: "A few
- * students are still finishing", not a frozen "Time!". Only a synchronized
- * question round is extended (never a question-set round: Graph Feature
- * Rush, Graph the Line), and once everyone
- * has answered there is nobody left to wait for.
+ * students are still finishing", not a frozen "Time!". A synchronized
+ * question round is extended, and so is a race with a set to finish (Graph
+ * the Line's Classic and Sprint, whose extra time comes after the buzzer and
+ * never counts in the race) — never an "as many as you can" race (Graph
+ * Feature Rush, Graph the Line's Rush). Once everyone has answered (or
+ * finished their set) there is nobody left to wait for.
  */
 export const EXTENDED_TIME_MESSAGE = 'A few students are still finishing — results in a moment';
 export const roundWaitingOnExtendedTime = ({ room = {}, locked = false, joinedCount = 0, answeredCount = 0 } = {}) => (
   locked === true
-  && !roomRunsQuestionSets(room)
+  && extendedTimeRuleFor(getChallengeMode(room?.challengeMode)) !== EXTENDED_TIME_RULE.NONE
   && room?.extendedTimeInPlay === true
   && Number(joinedCount) > Number(answeredCount)
 );

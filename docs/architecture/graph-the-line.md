@@ -243,6 +243,41 @@ reach the hint, the teacher's report and the Classic reveal's label.
   measured by test and 1,200 of them stay under the rush's 800 KiB budget.
 - A typed equation whose boxes each read but together leave the exact integer
   range is `form` ("too large"), never an exception inside the transaction.
+- **A student's support plan** (LC09). The race stays one race for everyone,
+  and nothing public says who has an accommodation:
+  - **Extended time comes after the buzzer, in Classic and Sprint** (the
+    modes' `extraTimeAfterBuzzer`; `lineFormatGivesExtraTime`). A question-set
+    race ranks how much each student completes against one clock, so
+    stretching one student's clock would change the race. Instead the race is
+    decided at the class's buzzer, exactly as if nobody had extra time, and a
+    student whose plan gives them extended time (the join reads it, ≤ 2×, as
+    for every game) keeps working to their own deadline to finish their set.
+    The server routes what arrives after the class's window — or what their
+    device made after the buzzer, even inside the arrival grace — into its own
+    map, `extraTimeReceipts` (`extraTime: true`, no points), beside the race's
+    `submissionReceipts`. Everything that ranks, scores or rewards reads only
+    the race's receipts; the item rules (tries, `repeated`, where they are),
+    the round's readiness (the round waits for them, `extended_time`, and
+    closes the moment their set is finished), the Classic reveal's counts,
+    the teacher's report (`itemsCompletedInExtraTime`) and mastery evidence
+    read all of their work. Their public row never moves after the buzzer (a
+    row that changed then would name them); the room says only
+    `extendedTimeInPlay`, and the projector "A few students are still
+    finishing". So nobody's place changes because a classmate had extra time,
+    and the student is never placed below where the class's clock alone would
+    put them. **A Rush gives none**: it is as many lines as the clock allows,
+    with nothing to finish. The teacher reads the rule under "Time per round"
+    (`lineExtraTimeRule`), and the student, on their own screen at the
+    buzzer: "Your extra time. The race is over — finish your lines. They count
+    for your practice, not the race."
+  - **The slope helper is the student's own** when their plan gives them a
+    graphing aid — graph paper or a graphic organizer
+    (`planTurnsOnSlopeHelper`). It draws the rise and run of their own line
+    and never says which line is right, so it changes how they work, not how
+    many lines they finish. Decided at the join, kept on the private player
+    record (`lineSlopeHelper`) and returned only by their own
+    `getLineGraphRound` (`slopeHelper`); the room's own setting still turns it
+    on for everyone.
 - **Bundles.** Registering the modes puts their settings module
   (`lineGraphConfig.mjs`, with `lineGraphRules.mjs`) into the chunk that
   carries the mode registry — the student Live Challenge chunk, which the
@@ -271,7 +306,11 @@ and the hint, with the tries left; after the last try the answer dashed
 through its key points. The ✓ or ✗ sits on the line where it covers neither
 point nor either point's coordinates (`verdictBadgeSpot`); colour is never the
 only signal. The slope helper ("up 2, right 3") shows between the points when
-the teacher turns it on. Keyboard: arrows move a crosshair (Shift: five),
+the teacher turns it on, or when the student's own plan does (their round
+request says so, §7). A student with extended time in Classic and Sprint
+reads the race's countdown like everyone, then, past the class's buzzer,
+"Your extra time" and their own countdown (§7). Keyboard: arrows move a
+crosshair (Shift: five),
 Enter places, picks up and drops a point, Escape puts a held point back;
 coordinates and outcomes are announced. The grid draws its own keyboard ring,
 shown only after keyboard use (`data-focus-ring="own"` keeps the page's
@@ -302,7 +341,9 @@ its first six lines in a row. **Play Again** carries every setting.
 round, the race board (the rush's, with each student's lines right and, in
 Classic and Sprint, "✓ done") and how many have finished. Never an equation
 during a round: each student may have their own, and the projector is for the
-whole room.
+whole room. A round held past the buzzer for extra time says so on the
+console alone ("the race is decided… those count for their practice, not the
+race"), with End Round Now; the projector says only "still finishing".
 
 **Early close.** Classic and Sprint rounds close when every joined student has
 finished — the host sees it from each public row's `rushRoundFinished`, and
@@ -340,6 +381,7 @@ instead of comparing the rush's id; a test holds those sets to the registry.
 | `liveChallengeRooms/{room}` | `challengeMode`, `lineGraph: { config, generatorVersion }` — no seed; while a round is open, `currentQuestion` is a card (`kind: 'lineGraph'`, format, forms, item types, `roundQuestionCount`) — never an equation |
 | `liveChallengePrivate/{room}` | `lineGraph: { seed, config, generatorVersion }`; `questionIds` are placeholders (`lineGraph:round:N`) with no standard |
 | `…/players/{studentId}` receipts | `targetAttempt`, `targetCount: 1`, `roundQuestionCount`, `tier`, `reportTags: { form, itemType, variant }`, the answer (`points` [x₁, y₁, x₂, y₂], `choice`, or `fields`), and for a miss its `diagnosis` and `answerKey`; `forfeit` + `revealed` on the miss that used the last try |
+| `…/players/{studentId}` (LC09) | from the join: `timeMultiplier` (> 1 only in Classic and Sprint) and `lineSlopeHelper` (the plan's graphing aid); `extraTimeReceipts`: attempts made after the class's buzzer in extended time (`extraTime: true`, no points), apart from the race's `submissionReceipts` (§7) |
 | `…/players/{key}` (public row) | score, accuracy and the rush's race fields (`rushRound`, `rushRoundCompleted`, `rushActiveAt`, and since Phase 3 `rushRoundFinished`: this round's items are all done), so the shared race board, early close and presence read them; `lastRound` after a close. No student id, no answers |
 | `liveChallengePrivate/{room}` (Phase 3) | a Classic game with the same equations: `roundSolutions[round]`, its line's worked solution, captured when the round opens; the plan's `sharedLineKeys`, which hold a round's reveal while a later round asks the same line |
 | `liveChallengeRooms/{room}/solutions/{round}` (Phase 3) | after the round closes: the worked solution with `lineGraph` (the line, key points, equation tokens, options) and `class: { answered, correct, firstTry, mistake }` — counts only; `revealedSolutionRounds` on the room lists it |
@@ -544,7 +586,8 @@ keyboard — against the real handlers: `tests/browser/lineGraphGame.mjs`.)
 | `tests/platform/lineGraphConfig.test.mjs` | defaults per format; validation; presets; round limits; pools; mode ids; tries; the pause |
 | `tests/platform/lineGraphPlay.test.mjs` | the attempt pipeline: a right answer completes once; a miss with its mistake; `repeated`; the last try ends the item in one receipt; tries 1/2/3/until right; one try for a choice; `method` and `form`; replays, late, early, malformed and mismatched attempts; skips; claimed times; record limits; a Sprint's length read back by the engine; the report; the receipt size budget; the fairness simulation |
 | `tests/platform/lineGraphEngine.test.mjs` | the three mode declarations; the format is the mode's; limits per format; a Sprint round ranked by `buildRoundResult` from pipeline receipts |
-| `tests/integration/lineGraph.test.mjs` (emulator, `npm run test:challenge-finish`) | every teacher launches each format; a three-student Sprint through the callables (private seed, own items, instant verdicts, `repeated`, replays, the end of the Sprint, three misses and a refresh, `rushRoundFinished`, close without force when everyone is done, the engine's ranking, the report); a Classic game (the same equation for everyone, refusals, one item a round; the reveal published only at the close, with the class's counts and no student id); extended time (a question-set room plays at ×1 and closes at its deadline); previews |
+| `tests/integration/lineGraph.test.mjs` (emulator, `npm run test:challenge-finish`) | every teacher launches each format; a three-student Sprint through the callables (private seed, own items, instant verdicts, `repeated`, replays, the end of the Sprint, three misses and a refresh, `rushRoundFinished`, close without force when everyone is done, the engine's ranking, the report); a Classic game (the same equation for everyone, refusals, one item a round; the reveal published only at the close, with the class's counts and no student id); a student's plan (extended time after the buzzer in a Classic round: the round held for them, their line recorded apart, the race ranked at the buzzer, no public document naming them, the report counting it; their own slope helper; a Rush at ×1); previews |
+| `tests/platform/lineGraphAccommodations.test.mjs` | which modes extend time and how; the plan's slope helper (graph paper, graphic organizer; nothing else; a revision not in effect); extra time through the pipeline (recorded apart, no points, a device's claim after the buzzer inside the grace, tries and repeats across the buzzer); the round ranked at the buzzer; readiness once their set is finished; the reveal's counts; the screens and the server wiring |
 | `tests/platform/lineGraphScreenModels.test.mjs` | the grid's geometry and gestures (checked only on a release that completes or changes a line); where the held label and the ✓/✗ float; the keyboard; the device session — tries, pauses, reveals, method, naming, skips, the queue, the server's word — and its verdicts replayed through the server's pipeline over random rounds; shown answers read back by the oracle |
 | `tests/platform/lineGraphReveal.test.mjs` | every slot's worked solution is the item's own line, every point a step names on it; the class's facts (distinct students, skips, who left); a mistake shown only when two students made it; the published document names no student; a line held while a later round asks it |
 | `tests/platform/lineGraphScreens.test.mjs` | the setup model against the server's validation; formats and presets; which rooms end on the clock; who has finished; Play Again; source contracts for the student, round, canvas, teacher, projector and server wiring |
@@ -580,6 +623,6 @@ rule, grace, round scope and second look; and the plans' old ±4 offsets.
 
 Inequalities (dashed or solid boundary, shading — the same line tool), systems
 (graph two lines, tap the intersection), real-world contexts, a Warm-Up link
-for Classic, student self-practice outside a live game, per-student
-accommodations (slope helper on, extended time — today extended time applies
-to synchronized rounds only).
+for Classic, student self-practice outside a live game. (Per-student
+accommodations — the slope helper from a plan, extended time after the buzzer
+in Classic and Sprint — are built: §7.)
