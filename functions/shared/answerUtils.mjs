@@ -202,8 +202,23 @@ const isOrderedPairField = (field) => (
 );
 
 /** A single-number answer written with (or keyed with) thousands separators. */
-export const matchesAnyNumberWithThousandsSeparators = (studentAnswer, acceptedAnswers = []) =>
-  acceptedAnswers.some((acceptedAnswer) => sameNumberWithThousandsSeparators(studentAnswer, acceptedAnswer));
+export const matchesAnyNumberWithThousandsSeparators = (studentAnswer, acceptedAnswers = [], tolerance = 1e-6) =>
+  acceptedAnswers.some((acceptedAnswer) => sameNumberWithThousandsSeparators(studentAnswer, acceptedAnswer, tolerance));
+
+/*
+ * GR35b: the author's `numericTolerance` on a typed field. Path has always
+ * read it (functions/lib/mathPath.js valuesEquivalent); this matcher did not,
+ * so "round each prediction to the nearest whole item" (±1) took 48 for 49 on
+ * the secure test and refused it in the assignment. It only ever WIDENS a
+ * comparison: a tolerance below the one a comparison already uses is no
+ * reason to refuse an answer that was right. Not a finite number ≥ 0: ignored.
+ */
+const authoredTolerance = (field = {}) => {
+  const raw = field?.numericTolerance;
+  if (raw === undefined || raw === null || raw === '') return null;
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 0 ? value : null;
+};
 
 /*
  * FORM-SPECIFIC FIELD GRADING, LOADED WITH THE SURFACES THAT GRADE.
@@ -274,6 +289,8 @@ const pickedChoiceVerdict = (studentAnswer, field, acceptedAnswers, options) => 
 
 export const matchesFieldAnswer = (studentAnswer, field = {}) => {
   const acceptedAnswers = answerCandidatesForField(field);
+  const authored = authoredTolerance(field);
+  const tolerance = (usual) => (authored === null ? usual : Math.max(usual, authored));
 
   const choice = pickedChoiceVerdict(studentAnswer, field, acceptedAnswers, fieldValueOptions(field));
   if (choice !== null) return choice;
@@ -294,7 +311,7 @@ export const matchesFieldAnswer = (studentAnswer, field = {}) => {
   if (isOrderedPairField(field)) {
     return acceptedAnswers.some((acceptedAnswer) => {
       const expectedPair = Array.isArray(acceptedAnswer) ? acceptedAnswer : parseOrderedPair(acceptedAnswer);
-      if (expectedPair) return compareOrderedPair(studentAnswer, expectedPair);
+      if (expectedPair) return compareOrderedPair(studentAnswer, expectedPair, tolerance(1e-9));
       // A key with a root in a coordinate is not a pair of plain numbers:
       // compared by exact value (sameNumericPair, student pass 3), or, for a
       // pair key that is not two constants (`(\pi,\sqrt{2})`,
@@ -302,13 +319,13 @@ export const matchesFieldAnswer = (studentAnswer, field = {}) => {
       // pair at all ("none") is still not one this box can take.
       if (typeof acceptedAnswer !== 'string') return false;
       const key = normalizeAnswer(acceptedAnswer);
-      return sameNumericPair(studentAnswer, acceptedAnswer)
+      return sameNumericPair(studentAnswer, acceptedAnswer, tolerance(1e-6))
         || (/^\(.*,.*\)$/.test(key) && normalizeAnswer(studentAnswer) === key);
     });
   }
 
   const options = fieldValueOptions(field);
-  if (options.thousandsSeparators && matchesAnyNumberWithThousandsSeparators(studentAnswer, acceptedAnswers)) {
+  if (options.thousandsSeparators && matchesAnyNumberWithThousandsSeparators(studentAnswer, acceptedAnswers, tolerance(1e-6))) {
     return true;
   }
 
@@ -318,14 +335,14 @@ export const matchesFieldAnswer = (studentAnswer, field = {}) => {
   // (teacherPathRuntime): by default an equation keeps the form it is keyed
   // in, because "write it in slope-intercept form" is often the question.
   if (field?.equivalence === 'polynomialRelation') {
-    return acceptedAnswers.some((acceptedAnswer) => samePolynomialEquationRelation(studentAnswer, acceptedAnswer));
+    return acceptedAnswers.some((acceptedAnswer) => samePolynomialEquationRelation(studentAnswer, acceptedAnswer, tolerance(1e-6)));
   }
 
   if (field?.gradingMode === 'equivalentExpression') {
     // A mixed number against a number key is read as one here too, never as
     // a product (answerEquivalence.sameMixedNumber).
     return acceptedAnswers.some((acceptedAnswer) => (
-      sameMixedNumber(studentAnswer, acceptedAnswer) ?? sameEquivalentExpression(studentAnswer, acceptedAnswer)));
+      sameMixedNumber(studentAnswer, acceptedAnswer, tolerance(1e-6)) ?? sameEquivalentExpression(studentAnswer, acceptedAnswer, tolerance(1e-6))));
   }
 
   // factoredForm: a factoring answer in any factor order, with a sign moved
@@ -342,7 +359,7 @@ export const matchesFieldAnswer = (studentAnswer, field = {}) => {
       || sameWrittenForm(studentAnswer, acceptedAnswer)));
   }
 
-  return matchesAnyAnswer(studentAnswer, acceptedAnswers, options);
+  return acceptedAnswers.some((acceptedAnswer) => compareMathAnswer(studentAnswer, acceptedAnswer, tolerance(1e-9), options));
 };
 
 export const parseOrderedPair = (value) => {

@@ -17,6 +17,7 @@ import {
 import { stackDivisions } from './stackDivisions.mjs';
 import { exactConstantValue } from './exactConstantValue.mjs';
 import { sameExpandedPolynomialExpression } from './expandedPolynomialExpressionEquivalence.mjs';
+import { sameMonomialQuotient } from './monomialQuotientEquivalence.mjs';
 import { sameLinearInequality } from './linearInequalityEquivalence.mjs';
 import { LINE_FORMS, LINE_FORM_ANY, sameLine, wholeMultipleOfLine, writtenLineForm } from './linearEquationForm.mjs';
 export { sameNonnegativeRadicalExpression } from './nonnegativeRadicalExpressionEquivalence.mjs';
@@ -41,7 +42,27 @@ const unwrapWordGroups = (value) => {
   return text;
 };
 
-export const normalizeStructuralMathLive = (value) => expandLatexShorthand(value, { keepNegativeExponentGroups: true })
+/*
+ * GR35c: a key written as plain text, `x²`, `x⁻¹`, `2·x` or `3 × 10⁵`, is the
+ * editor's `x^{2}`, `x^{-1}`, `2\cdot x` and `3\times 10^{5}`. The editor never
+ * sends those characters, so such a key matched nothing a student typed.
+ *
+ * Here, for the comparisons of what is written (normalizeAnswer, the
+ * form-preserving comparison), and NOT for the polynomial reader
+ * (algebraicForm.expandLatexShorthand), deliberately: a choice is graded by
+ * its option's text against the key, and value-equal options are wrong ones.
+ * "24x² + 4x − 26x + 3" and the key "24x² − 4x − 18x + 3" (factoring, "split
+ * the middle term") are one polynomial, and "4 × 3" is 12 like "3 × 4" (a
+ * matrix size). So such a key takes the editor's spelling of the same
+ * expression, not every expression of the same value.
+ */
+const SUPERSCRIPT_DIGITS = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+const asEditorSpelling = (value) => String(value ?? '')
+  .replace(/⁻?[⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, (power) => `^{${[...power].map((character) => (character === '⁻' ? '-' : SUPERSCRIPT_DIGITS.indexOf(character))).join('')}}`)
+  .replace(/[·⋅]/g, '\\cdot ')
+  .replace(/×/g, '\\times ');
+
+export const normalizeStructuralMathLive = (value) => expandLatexShorthand(asEditorSpelling(value), { keepNegativeExponentGroups: true })
   .trim()
   // Directional marks and zero-width format characters are not visible math.
   // MathLive/IME combinations may insert them between otherwise identical
@@ -1569,6 +1590,11 @@ export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators =
   // side contains a grouped variable expression such as (x+2)(x+3), it
   // refuses rather than silently turning a factoring task into expansion.
   if (sameExpandedPolynomialExpression(left, right, tolerance)) return true;
+  // GR35a: a monomial quotient or negative-exponent answer, which the
+  // polynomial reader refuses, compared factor for factor with the key, so
+  // any order of the key's own factors is right and nothing unsimplified is
+  // (monomialQuotientEquivalence.mjs).
+  if (sameMonomialQuotient(left, right)) return true;
   if (sameInverseFunctionEquation(left, right, tolerance)) return true;
   if (sameExpandedPolynomialEquation(left, right, tolerance)) return true;
   // LAST RESORT, and only for equations. Text equality already handled every
