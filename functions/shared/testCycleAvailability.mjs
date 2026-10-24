@@ -312,6 +312,14 @@ export const upcomingClassPeriodDays = ({
  * it (`at`) is unresolved too, reason `endedBeforeSet`: nobody could have sat
  * it, so nobody missed it.
  *
+ * KEPT FOR OLD DATA (the owner, October 2026, TC10). A day the class really sat
+ * that an older server re-saved after the meeting (rewriting `at`) reads the same
+ * way. Students who sat it go on; students who never started it wait for a new
+ * Test day instead of being marked missed. That is the side that can be undone:
+ * the teacher sets a day and the absent student sits the real Test. Dropping this
+ * branch marks them missed, caps their Retest at 70, and cannot be undone once
+ * they start it.
+ *
  * So is one whose day only got its A/B day after the window had closed
  * (`dayTypeSetAfterEnd`, the owner 2026-10-23, TC01): a Friday set to A in the
  * afternoon gives that morning's periods times they never had while the class
