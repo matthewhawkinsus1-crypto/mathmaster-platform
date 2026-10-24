@@ -337,3 +337,24 @@ for (const variant of ['standard', 'honors']) {
     ]);
   });
 }
+
+// RC11 (Codex on #511): the singular-system recognizer read the case from the
+// first pair of proportional rows only. When every row is a multiple of the
+// first, the first pair can keep its constants while another pair breaks
+// them: that system has no solution, and is now recognized as "none".
+test('a singular system is classified by all its proportional rows, not the first pair', () => {
+  const singular = getPlatformQuestionFamily('matrices.singularSystem3x3');
+  const system = (equations) => ({ type: 'matrixLab', mode: 'solve', justifySingular: true, equations });
+  // Row 3 = 2 · row 1 with its constant following (2 · 3 = 6), but row 2 =
+  // −1 · row 1 with its constant broken (−3 ≠ 5): no solution.
+  const broken = singular.recognize(system(['x + y + z = 3', '-x - y - z = 5', '2x + 2y + 2z = 6']));
+  assert.equal(broken.constraints.singularCase, 'none');
+  const { row, otherRow, factor } = broken.params.multiple;
+  assert.notEqual(broken.params.B[row - 1], factor * broken.params.B[otherRow - 1], 'the pair named is one that breaks');
+  // Every pair follows: infinitely many.
+  const kept = singular.recognize(system(['x + y + z = 3', '-x - y - z = -3', '2x + 2y + 2z = 6']));
+  assert.equal(kept.constraints.singularCase, 'many');
+  // One proportional pair, as the family writes them, reads as before.
+  assert.equal(singular.recognize(system(['x + 2y - z = 4', '3x - y + 2z = 1', '2x + 4y - 2z = 8'])).constraints.singularCase, 'many');
+  assert.equal(singular.recognize(system(['x + 2y - z = 4', '3x - y + 2z = 1', '2x + 4y - 2z = 9'])).constraints.singularCase, 'none');
+});
