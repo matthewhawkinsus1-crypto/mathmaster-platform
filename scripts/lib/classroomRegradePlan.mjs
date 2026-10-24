@@ -45,7 +45,9 @@
  * in a spelling P's equivalence changes read, a number-line inequality with
  * an exact endpoint, a line asked for its monotone intervals or range, and an
  * exponential bridge written with `b`. Item 8 (a vertex or center keyed on a
- * function that has none) changes no grader: those attempts are needs-teacher.
+ * function that has none) is keyed "Does not exist" since GR18 (the owner,
+ * 2026-10-23): those attempts are listed as needs-teacher, with the direction
+ * their verdict moves, and never re-graded here.
  *
  * THE DEFECTS (DEFECT below), each recognised on the graded question and the
  * stored work, never inferred from the verdict change itself:
@@ -162,6 +164,7 @@ import {
 } from '../../functions/shared/toolMath/polynomialWorkshop/polynomialMath.mjs';
 import { evaluatePolynomial } from '../../functions/shared/toolMath/shared/toolMath.mjs';
 import { looksLikeFiniteSetNotation } from '../../functions/shared/answerEquivalence.mjs';
+import { FUNCTION_TYPES_WITH_FEATURE, ownPointFeature } from '../../functions/shared/toolMath/graphWorkspace/interactiveGraphEngine.mjs';
 
 export const REGRADE_CLASS = Object.freeze({
   CANDIDATE: 're-grade-candidate',
@@ -206,7 +209,7 @@ export const DEFECT = Object.freeze({
   P_INTERVAL_INEQUALITY_EXACT: 'p-number-line-inequality-exact-endpoint',
   P_LINE_FEATURES: 'p-graph-line-monotone-and-horizontal-range',
   P_BRIDGE_B_IS_BASE: 'p-exponential-bridge-b-is-the-base',
-  // Not a grading change: item 8 is listed for the owner, never re-graded.
+  // Item 8: keyed "Does not exist" since GR18; listed for the owner, never re-graded.
   P_FEATURE_NOT_ON_FUNCTION: 'p-graph-vertex-or-center-keyed-on-a-function-without-one',
 });
 
@@ -226,9 +229,10 @@ export const NEEDS_TEACHER_REASON = Object.freeze({
   SIGN_DENOMINATOR_IGNORED_NO_SOURCE: 'sign-chart-denominator-ignored-no-v5-source',
   // No two snap-grid points are on the target line: no answer can be right.
   GRAPHING2_NO_GRID_ANSWER: 'graphing2-no-grid-point-on-target-line-void-question',
-  // Job P item 8: a "vertex" or "center" keyed at (h, k) on a function type
-  // that has none (exponential, logarithmic, a line ...). The verdict does not
-  // change; the owner decides whether the question should stand.
+  // Job P item 8: a "vertex" or "center" asked of a function type that has
+  // none (exponential, logarithmic, a line ...). Keyed at (h, k) when the
+  // attempt was recorded, "Does not exist" since GR18 (2026-10-23), so the
+  // verdict may move either way; the owner decides what to do with each.
   FEATURE_NOT_ON_FUNCTION: 'vertex-or-center-keyed-on-a-function-without-one-owner-decides',
   // Graded as z × w before; the lab never offered it, now ungraded.
   COMPLEX_OPERATION_NOT_OFFERED: 'complex-plane-operation-not-offered-now-ungraded',
@@ -697,21 +701,23 @@ const pAnswerSpelling = (work) => stringsIn(work).some((value) => P_SPELLINGS.so
 const lineSpec = (spec) => isObject(spec) && ['linear', 'line'].includes(spec.type);
 const graphSpec = (question) => question.functionSpec || question.function || null;
 const LINE_FEATURE_KINDS = new Set(['increasing', 'decreasing', 'constant', 'range']);
-const FEATURES_A_FUNCTION_HAS = Object.freeze({
-  vertex: new Set(['quadratic', 'absolute']),
-  center: new Set(['rational', 'cubic', 'cubeRoot']),
-});
 
-/** Job P item 8: the point requests keyed at (h, k) that the function type does not have. */
+/*
+ * Job P item 8: the point requests for a vertex or center the function type
+ * does not have — the grader's own table (FUNCTION_TYPES_WITH_FEATURE) and its
+ * own default for a question that names none (ownPointFeature, GR18), so a
+ * rational, cubic or cube-root question whose default is now its center (still
+ * keyed at (h, k)) is not listed.
+ */
 export const featuresNotOnFunction = (question) => {
   const spec = graphSpec(question);
   if (!isObject(spec) || !spec.type) return [];
   const requests = list(question.analysisRequests).length
     ? list(question.analysisRequests)
-    : (question.analysisFeature || question.type === 'graphAnalysis' ? [{ feature: question.analysisFeature || 'vertex' }] : []);
+    : (question.analysisFeature || question.type === 'graphAnalysis' ? [{ feature: question.analysisFeature || ownPointFeature(spec) }] : []);
   return requests
     .map((request) => request?.feature || request?.kind)
-    .filter((feature) => FEATURES_A_FUNCTION_HAS[feature] && !FEATURES_A_FUNCTION_HAS[feature].has(spec.type));
+    .filter((feature) => FUNCTION_TYPES_WITH_FEATURE[feature] && !FUNCTION_TYPES_WITH_FEATURE[feature].includes(spec.type));
 };
 
 const pDefectsOf = ({ question, surface, work }) => {
@@ -1083,8 +1089,8 @@ export const planClassroomAttempt = ({
   if (defects.includes(DEFECT.INVERSE_QUESTION_BRANCH)) needsTeacher = NEEDS_TEACHER_REASON.INVERSE_BOX_NEVER_SHOWN;
   if (isDol1AnalyzeCopy(gradedQuestion)) needsTeacher = NEEDS_TEACHER_REASON.DOL1_ITEM_MUST_BE_REPLACED;
   if (defects.includes(DEFECT.COMPLEX_OPERATION)) needsTeacher = NEEDS_TEACHER_REASON.COMPLEX_OPERATION_NOT_OFFERED;
-  // Job P item 8: the grader is unchanged; the attempt is listed so the owner
-  // can decide whether a question keyed on a feature its function lacks stands.
+  // Job P item 8: the key moved to "Does not exist" (GR18); the attempt is
+  // listed, with its direction, so the owner decides what to do with it.
   if (!needsTeacher && defects.includes(DEFECT.P_FEATURE_NOT_ON_FUNCTION)) needsTeacher = NEEDS_TEACHER_REASON.FEATURE_NOT_ON_FUNCTION;
 
   // The replay: against the rebuilt question when there is one (its stored

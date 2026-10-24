@@ -36,8 +36,9 @@
  * endpoints, a line's monotone and horizontal-range keys (graphAnalysis,
  * functionGraph), and an exponential bridge written with `b` (now the base).
  * P's equivalence changes only accept more; the line keys and `b` move both
- * ways. Item 8 — a "vertex" or "center" keyed on a function type that has
- * none — changes no verdict and is listed as needs-teacher for the owner.
+ * ways. Item 8 — a "vertex" or "center" asked of a function type that has
+ * none — is keyed "Does not exist" since GR18 (2026-10-23); its attempts are
+ * listed as needs-teacher, with their direction, for the owner.
  *
  * NOT IN THIS REPORT: My Math Path (see REPORT_NOTES).
  *
@@ -96,7 +97,7 @@ export const REPORT_NOTES = Object.freeze([
   'My Math Path is not read: the Path quadratic fit and model-choice tie apply only to questions issued after deploy (stored privateGrading keeps its expectedModelId and model, and has no tiedModelIds), and Digital SAT union-overlap changes only sessions issued from the regenerated seed (wrong -> right only). Re-grade those from pathSessions privateGrading, not from this report.',
   'Prompt-only edits (A2.4G, TSIA2 leei_4) change no key, so no verdict.',
   'Job P, My Math Path: the answer-equivalence changes only accept more (wrong -> right), and a stored Path verdict is never re-graded by anything. The Digital SAT decimal rule reaches only Path sessions issued after deploy (it is stored with the issued private grading, numberRules) and assignment questions hydrated from the CCMR bank after deploy.',
-  'Job P, item 8: a graph question keyed on a vertex or center its function does not have (exponential, logarithmic, a line ...) keeps its verdict. Each attempt on one is listed as needs-teacher so the owner can decide whether the question stands; no grader changed.',
+  'Job P, item 8: a graph question asking for a vertex or center its function does not have (exponential, logarithmic, a line ...) was keyed at (h, k); since GR18 (2026-10-23) it is keyed "Does not exist" (a vertex only for a parabola or absolute value, a center only for a rational, cubic or cube-root graph). Each attempt on one is listed as needs-teacher with the direction its verdict moves (clicking (h, k) is now lower, "Does not exist" higher), so the owner decides; this report re-grades nothing.',
 ]);
 
 const USAGE = `Usage: node scripts/report-classroom-regrade-candidates.mjs --project <id> [options]

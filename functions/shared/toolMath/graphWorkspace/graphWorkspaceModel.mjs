@@ -38,6 +38,7 @@ import {
   getGraphFeaturePoints,
   getMonotonicAcceptedAnswers,
   getSignAcceptedAnswers,
+  ownPointFeature,
   pointSetInputMatches,
   resolveTaskExpected,
   roughSketchMatchesGraph,
@@ -84,7 +85,10 @@ const pointLabel = ([x, y]) => `(${x}, ${y})`;
  */
 export const normalizeAnalysisRequests = (question, spec, viewWindow, allowDefault) => {
   const provided = Array.isArray(question.analysisRequests) && question.analysisRequests.length ? question.analysisRequests : null;
-  const requests = provided || (allowDefault ? [{ id: 'feature', kind: 'point', feature: question.analysisFeature || 'vertex', label: question.analysisFeatureLabel || question.analysisFeature || 'requested feature' }] : []);
+  // A question that names no feature asks for the function's own point
+  // (GR18): its center where it has one, else its vertex — the (h, k) it
+  // always keyed, so a rational, cubic or cube-root graph keeps its key.
+  const requests = provided || (allowDefault ? [{ id: 'feature', kind: 'point', feature: question.analysisFeature || ownPointFeature(spec), label: question.analysisFeatureLabel || question.analysisFeature || 'requested feature' }] : []);
   return requests.map((request, index) => {
     const id = String(request.id || `analysis-${index + 1}`);
     if (request.kind === 'inversePoint') {
@@ -152,9 +156,10 @@ export const normalizeAnalysisRequests = (question, spec, viewWindow, allowDefau
     // An unrecognised kind used to land here and become a point task named
     // after the kind — "point", "positive" — with no locatable feature, so the
     // student saw an empty click target they could never satisfy. Fall back to
-    // the vertex, which every supported function has, rather than to nothing.
+    // the function's own point (its center or vertex, GR18), answered with
+    // "Does not exist" where it has neither, rather than to nothing.
     const requestedFeature = request.feature || request.kind;
-    const feature = POINT_FEATURES.includes(requestedFeature) ? requestedFeature : 'vertex';
+    const feature = POINT_FEATURES.includes(requestedFeature) ? requestedFeature : ownPointFeature(spec);
     const expected = request.expected || getGraphFeaturePoints(spec, feature, viewWindow);
     return {
       ...request,

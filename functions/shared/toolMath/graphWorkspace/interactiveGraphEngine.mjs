@@ -330,9 +330,25 @@ const findXIntercepts = (spec, window) => {
   return dedupePoints(roots.map(([x, y]) => [round(x, 4), y]), 0.12);
 };
 
+/*
+ * WHICH FUNCTIONS HAVE A VERTEX OR A CENTER (the owner, 2026-10-23; GR18).
+ * (h, k) is the vertex of a parabola and of an absolute-value graph, and the
+ * center of a rational, cubic or cube-root graph. It was keyed as both for
+ * every type, so a student asked for the vertex of an exponential, a
+ * logarithm or a line was right only by clicking a point that is no feature
+ * of the graph. Anywhere else the key is empty: "Does not exist".
+ */
+export const FUNCTION_TYPES_WITH_FEATURE = Object.freeze({
+  vertex: Object.freeze(['quadratic', 'absolute']),
+  center: Object.freeze(['rational', 'cubic', 'cubeRoot']),
+});
+
+/** The point feature a graph question asks for when it names none: the function's center where it has one, else its vertex. */
+export const ownPointFeature = (spec = {}) => (FUNCTION_TYPES_WITH_FEATURE.center.includes(spec?.type) ? 'center' : 'vertex');
+
 export const getGraphFeaturePoints = (spec, feature, window) => {
   const h = Number(spec.h ?? 0); const k = Number(spec.k ?? 0);
-  if (feature === 'vertex' || feature === 'center') return [[h, k]];
+  if (feature === 'vertex' || feature === 'center') return FUNCTION_TYPES_WITH_FEATURE[feature].includes(spec.type) ? [[h, k]] : [];
   if (feature === 'localMaximum') return Number(spec.a ?? 1) < 0 && ['absolute', 'quadratic'].includes(spec.type) ? [[h, k]] : [];
   if (feature === 'localMinimum') return Number(spec.a ?? 1) > 0 && ['absolute', 'quadratic'].includes(spec.type) ? [[h, k]] : [];
   if (feature === 'yIntercept') {
