@@ -1,11 +1,13 @@
-// REAL LESSONS, AS A STUDENT'S ASSIGNMENT IN THE HARNESS (PH10).
+// REAL LESSONS, AS A STUDENT'S ASSIGNMENT IN THE HARNESS (PH10, PH06).
 //
 // `?questions=matrices` makes today's lesson (a-today) the Algebra II · Module 1
 // · Topic 2 · Lesson 3 lesson of Solving Systems with Matrices: Matrix Lab
 // items with their Check button, a figure sort, a three-box Warm-Up, an exit
-// ticket. The questions are NOT the raw JSON: they go through the chain a
-// teacher import and publish run (parse -> preflight review -> preflight model
-// -> validateAssignmentQuestions -> rebuildV5SectionsFromQuestions), exactly as
+// ticket. `?questions=dividing` makes it Algebra II Honors · Module 2 · Lesson 2,
+// Dividing Polynomials: long division, synthetic division, an exit ticket. The
+// questions are NOT the raw JSON: they go through the chain a teacher import and
+// publish run (parse -> preflight review -> preflight model ->
+// validateAssignmentQuestions -> rebuildV5SectionsFromQuestions), exactly as
 // tests/browser/algebra2MatricesLessonMain.jsx mounts them, because import
 // recompiles by studentActions and raw JSON can pass where the published
 // assignment is broken.
@@ -18,8 +20,9 @@ import { buildPreflightReviewedAssignmentV5 } from '../../../src/components/teac
 import { buildAssignmentV5PreflightModel } from '../../../src/platform/preflight/assignmentV5PreflightModel.js';
 import { flattenV5Sections, rebuildV5SectionsFromQuestions } from '../../../src/platform/contract/assignmentSchemaV5.js';
 import MATRICES_TEXT from '../../../teacher-import-jsons/algebra2-honors-module1/T2_L3_Solving_Systems_with_Matrices.json?raw';
+import DIVIDING_TEXT from '../../../teacher-import-jsons/algebra2-honors-module2/L2_Dividing_Polynomials.json?raw';
 
-const LESSON_TEXT = Object.freeze({ matrices: MATRICES_TEXT });
+const LESSON_TEXT = Object.freeze({ matrices: MATRICES_TEXT, dividing: DIVIDING_TEXT });
 
 const compile = (text) => {
   const parsed = parseAssignmentBlueprintText(text);

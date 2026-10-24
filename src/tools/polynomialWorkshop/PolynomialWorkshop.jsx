@@ -387,7 +387,7 @@ function LongDivisionLayout({ divisionKey, terms, products, differences, showPla
   const label = `Your long division so far: ${exactPolynomialPlainText(entriesOf(dividend.coefficients), letter)} divided by ${exactPolynomialPlainText(entriesOf(divisor.coefficients), letter)}`;
   return (
     <div className="mm-long-division-scroll">
-      <div className="mm-long-division" role="img" aria-label={label} style={{ gridTemplateColumns: `auto repeat(${n + 1}, minmax(2.8em, auto))` }}>
+      <div className="mm-long-division" role="img" aria-label={label} style={{ gridTemplateColumns: `auto repeat(${n + 1}, minmax(var(--mm-ld-column, 2.8em), auto))` }}>
         {quotientCells.map((cell) => <span key={`q${cell.power}`} className="mm-ld-cell mm-ld-quotient" style={{ gridRow: 1, gridColumn: columnOf(cell.power) }}><MathDisplay value={cell.latex} inline /></span>)}
         <span className="mm-ld-divisor" style={{ gridRow: 2, gridColumn: 1 }}><MathDisplay value={divisorLatex} inline /></span>
         {dividendCells.map((cell) => <span key={`d${cell.power}`} className="mm-ld-cell mm-ld-dividend" style={{ gridRow: 2, gridColumn: columnOf(cell.power) }}><MathDisplay value={cell.latex} inline /></span>)}
@@ -531,7 +531,7 @@ function SyntheticDivision({ questionData, feedback, submit, clearFeedback, onAc
       <div className="mm-division-problem"><MathDisplay value={`\\left(${dividendLatex}\\right)\\div\\left(${divisorLatex}\\right)`} /></div>
       {scaled ? <p style={{margin:'0 0 8px'}}>The leading coefficient of <MathDisplay value={divisorLatex} inline /> is <MathDisplay value={ratioLatex(leading)} inline />: divide every coefficient of the dividend by <MathDisplay value={ratioLatex(leading)} inline /> before it goes in the table, and write the divisor as <MathDisplay value={reducedDivisor} inline />.</p> : null}
       <div className="mm-synthetic-scroll">
-        <div className="mm-synthetic" role="group" aria-label="Synthetic division table" style={{gridTemplateColumns:`minmax(var(--mm-synthetic-column), auto) repeat(${columns}, minmax(var(--mm-synthetic-column), 1fr))`}}>
+        <div className="mm-synthetic" role="group" aria-label="Synthetic division table" style={{gridTemplateColumns:`minmax(var(--mm-synthetic-column), var(--mm-synthetic-r-width, auto)) repeat(${columns}, minmax(var(--mm-synthetic-column), 1fr))`}}>
           <span aria-hidden="true" className="mm-synthetic-head" style={{gridRow:1,gridColumn:1}}>r</span>
           {key.coefficients.map((_, index) => <span key={`h${index}`} aria-hidden="true" className="mm-synthetic-head" style={{gridRow:1,gridColumn:index + 2}}><MathDisplay value={n - index === 0 ? '1' : n - index === 1 ? letter : `${letter}^{${n - index}}`} inline /></span>)}
           <span aria-hidden="true" className="mm-synthetic-bar" style={{gridRow:'2 / 5',gridColumn:1}} />
