@@ -162,4 +162,8 @@ ships after Batch 3.
 - The new vertical-boundary drawing is covered by unit and source tests, not yet seen in a browser.
 - A real screen-reader pass of the new announcements (Batch 6 asks for one across the platform).
 - Very old browsers that send Step Algebra steps without move details still go through the older path, where the
-  server takes the browser's attempt count.
+  server takes the browser's attempt count. `settings/serverGrading.requireStepWork` retires it. To decide when, run the
+  read-only `node scripts/report-legacy-step-queue.mjs --project <id>` (SI11): it counts the steps still waiting in
+  device queues, the devices holding work from before step work existed, and the questions an old-style step wrote
+  last (with when), and reads "ready" once no old work waits and none arrived in 14 days. It changes no setting; the
+  switch stays off until the owner turns it on.
