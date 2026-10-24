@@ -366,6 +366,9 @@ export const teacherActionsForRow = (row = {}, { external = false } = {}) => {
   // Once the Retest is turned in, the same panel also says what it showed (TC02).
   const retestTurnedIn = ['submitted', 'released'].includes(retest.state);
   if (testReleased) actions.push({ key: 'plans', kind: 'plans', label: retestTurnedIn ? 'View plans and what the Retest showed' : 'View correction and retest plans' });
+  // A student who missed the Test sat the Retest in its place: no released Test, so
+  // no plans to view, but what the Retest showed is read the same way (TC02).
+  else if (row.missedTest && retestTurnedIn) actions.push({ key: 'plans', kind: 'plans', label: 'View what the Retest showed' });
   actions.push(adjustGradeAction(row));
   return actions;
 };

@@ -1242,6 +1242,7 @@ test('K: a preview of a Test whose session is not open describes it and opens no
   const { zonedDateKey } = await import('../../functions/shared/instructionalCalendar.mjs');
   const { SCHOOL_TIME_ZONE } = await import('../../functions/shared/sectionDeadline.mjs');
   const { withClassTestDay } = await import('../../functions/shared/testCycleAvailability.mjs');
+  const { teacherActionsForRow } = await import('../../src/platform/teacher/testCycleTeacherRows.js');
   const DAY = 86400000;
   const dayKey = (offset) => zonedDateKey(Date.now() + offset * DAY, SCHOOL_TIME_ZONE);
   const ASSIGNMENT = `${CERT_PREFIX}pr20`;
@@ -1306,6 +1307,31 @@ test('K: a preview of a Test whose session is not open describes it and opens no
   assert.equal(card.stage, 'retest');
   assert.ok((await readRecord(ASSIGNMENT, STUDENT)).retest.examSessionId);
   assert.equal((await db.collection('examSessions').where('courseTest.assignmentId', '==', ASSIGNMENT).get()).size, sessionsBefore + 1);
+
+  // TC02: the stand-in Retest is this student's only sitting, so the teacher's view
+  // reads what it showed all the same, once it is turned in. There was no Test.
+  const standIn = (await readRecord(ASSIGNMENT, STUDENT)).retest.examSessionId;
+  const plansOf = () => fns.getTeacherTestCyclePlans.run(teacherRequest({ assignmentId: ASSIGNMENT, studentId: STUDENT }));
+  const rowOf = async () => (await fns.listTeacherTestCycleRecords.run(teacherRequest({ assignmentId: ASSIGNMENT }))).rows.find((entry) => entry.studentId === STUDENT);
+  await fns.startSecureExamSession.run(studentRequest(STUDENT, { examSessionId: standIn }));
+  const question = await fns.issueSecureExamQuestion.run(studentRequest(STUDENT, { examSessionId: standIn }));
+  await fns.submitSecureExamResponse.run(studentRequest(STUDENT, {
+    examSessionId: standIn,
+    questionInstanceId: question.questionInstance.questionInstanceId,
+    responsePayload: { responses: { answer: CERT_WRONG_ANSWER } },
+    submissionId: 'cert-pr20-standin-1',
+  }));
+  assert.equal((await plansOf()).retestMistakes, null, 'nothing to read before the Retest is turned in');
+  assert.equal(teacherActionsForRow(await rowOf()).some((action) => action.kind === 'plans'), false, 'and nothing to open');
+  await fns.finalizeSecureExam.run(studentRequest(STUDENT, { examSessionId: standIn, reason: 'studentSubmit' }));
+  const shown = await plansOf();
+  assert.equal(shown.corrections, null, 'there was no Test to correct');
+  assert.equal(shown.retest.audit.withoutOriginal, true, 'so the panel can say the Retest stood in');
+  assert.equal(shown.retestMistakes.examSessionId, standIn);
+  assert.ok(shown.retestMistakes.skills.reduce((sum, skill) => sum + skill.missed, 0) >= 1, 'the answer given was missed');
+  const finished = await rowOf();
+  assert.equal(finished.missedTest, true);
+  assert.equal(teacherActionsForRow(finished).find((action) => action.kind === 'plans')?.label, 'View what the Retest showed', 'the row offers it');
 });
 
 /* ======================================================================== */

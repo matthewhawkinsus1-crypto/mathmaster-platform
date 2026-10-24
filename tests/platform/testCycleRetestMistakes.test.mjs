@@ -15,7 +15,9 @@ import { readFileSync } from 'node:fs';
 
 import { retestMistakesForTeacher } from '../../functions/shared/testCycleRetestMistakes.mjs';
 import { buildMisconceptionEvidence, getMisconceptionCode } from '../../functions/shared/misconceptionCodes.mjs';
-import { describeRetestMistakes, RETEST_NOTHING_MISSED, RETEST_NO_PATTERN } from '../../src/platform/teacher/retestMistakesView.js';
+import {
+  describeRetestMistakes, NO_CORRECTION_PLAN, RETEST_NOTHING_MISSED, RETEST_NO_PATTERN, RETEST_STOOD_IN, retestStoodIn,
+} from '../../src/platform/teacher/retestMistakesView.js';
 import { teacherActionsForRow } from '../../src/platform/teacher/testCycleTeacherRows.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
@@ -140,6 +142,23 @@ test('the row offers to view it once the Retest is turned in, for both kinds of 
   assert.equal(planAction({ ...external, test: { state: 'inProgress', examSessionId: 't' } }, { external: true }), undefined);
   assert.equal(planAction({ ...external, test: { state: 'submitted', examSessionId: 't' } }, { external: true }).label, 'View what the Retest showed');
   assert.equal(planAction({ ...external, test: { state: 'released', examSessionId: 't' } }, { external: true }).label, 'View what the Retest showed');
+  // A student who missed the Test sat the Retest in its place: no released Test, so
+  // no plans to view, but what the Retest showed is read the same way, once it is in.
+  const standIn = { stage: 'retest', missedTest: true, test: { state: 'none' }, teacherControls: {}, corrections: {} };
+  assert.equal(planAction({ ...standIn, retest: { state: 'inProgress', examSessionId: 'r' } }), undefined);
+  assert.equal(planAction({ ...standIn, retest: { state: 'submitted', examSessionId: 'r' } }).label, 'View what the Retest showed');
+  assert.equal(planAction({ ...standIn, retest: { state: 'released', examSessionId: 'r' } }).label, 'View what the Retest showed');
+  // Not for a student who has simply not sat the Test yet.
+  assert.equal(planAction({ ...standIn, missedTest: false, retest: { state: 'submitted', examSessionId: 'r' } }), undefined);
+});
+
+test('a Retest that stood in for a missed Test is told apart from a Test that was passed', () => {
+  const targeted = { retest: { audit: { questionCount: 4, targetedQuestionCount: 3, anchorQuestionCount: 1 } } };
+  const standIn = { retest: { audit: { withoutOriginal: true, questionCount: 4, targetedQuestionCount: 0, anchorQuestionCount: 4 } } };
+  assert.equal(retestStoodIn(standIn), true);
+  assert.equal(retestStoodIn(targeted), false);
+  for (const nothing of [null, undefined, {}, { retest: null }, { retest: {} }, { retest: { audit: { withoutOriginal: 'yes' } } }]) assert.equal(retestStoodIn(nothing), false);
+  assert.notEqual(RETEST_STOOD_IN, NO_CORRECTION_PLAN, 'the two reasons for having no correction plan are not worded as one');
 });
 
 /* --- the wiring ------------------------------------------------------------- */
@@ -180,12 +199,15 @@ test('no student payload carries a Retest\'s mistakes', () => {
 
 test('the panel shows it from the callable\'s answer, for both kinds of cycle', () => {
   const panel = executableSource(read('src/components/teacher/TestCycleControls.jsx'));
-  assert.match(panel, /import \{ describeRetestMistakes \} from '\.\.\/\.\.\/platform\/teacher\/retestMistakesView\.js';/);
+  assert.match(panel, /import \{[^}]*\bdescribeRetestMistakes\b[^}]*\} from '\.\.\/\.\.\/platform\/teacher\/retestMistakesView\.js';/);
   assert.match(panel, /const retestShown = plans \? describeRetestMistakes\(plans\.retestMistakes\) : null;/);
   const shown = region(panel, '{retestShown && (', '\n              )}', 'retest mistakes block');
   assert.match(shown, /\{retestShown\.heading\}/);
   assert.match(shown, /retestShown\.skills\.map/);
   // An external-original cycle has no corrections or retest plan to show.
   assert.match(panel, /\{!external && \(plans\.corrections \? \(/);
-  assert.match(panel, /\{!external && \(plans\.retest \? \(/);
+  // A Retest that stood in for a missed Test says so, in place of "did not fail", and has no targeting to describe.
+  assert.match(panel, /const standIn = plans \? retestStoodIn\(plans\) : false;/);
+  assert.match(panel, /\{standIn \? RETEST_STOOD_IN : NO_CORRECTION_PLAN\}/);
+  assert.match(panel, /\{!external && !standIn && \(plans\.retest \? \(/);
 });

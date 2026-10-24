@@ -19,7 +19,7 @@ import { getAssignmentEvidenceSummary, manageAssignmentLifecycle } from '../../s
 import { GRADE_REPLACEMENT } from '../../platform/assessment/testCycle.js';
 import { TEACHER_BUCKET_LABEL, TEACHER_BUCKET_ORDER, describeTeacherRow, teacherActionsForRow } from '../../platform/teacher/testCycleTeacherRows.js';
 import { describeTestCycleCallError } from '../../platform/teacher/testCycleCallErrors.js';
-import { describeRetestMistakes } from '../../platform/teacher/retestMistakesView.js';
+import { NO_CORRECTION_PLAN, RETEST_STOOD_IN, describeRetestMistakes, retestStoodIn } from '../../platform/teacher/retestMistakesView.js';
 import { describeCorrectionReflection } from '../../platform/teacher/correctionReflectionView.js';
 import {
   BULK_ACTION,
@@ -331,6 +331,8 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
 
   // What the Retest showed, for the plans panel (TC02); null until it is turned in.
   const retestShown = plans ? describeRetestMistakes(plans.retestMistakes) : null;
+  // A student who missed the Test sat the Retest in its place: nothing was targeted.
+  const standIn = plans ? retestStoodIn(plans) : false;
 
   const applyRowAction = (row, item) => {
     const name = rosterStudentLabel(row.studentId, students, row.studentName);
@@ -1090,8 +1092,8 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
                     );
                   })}
                 </>
-              ) : <p style={{ fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>No correction plan — this student did not fail the Test.</p>)}
-              {!external && (plans.retest ? (
+              ) : <p style={{ fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{standIn ? RETEST_STOOD_IN : NO_CORRECTION_PLAN}</p>)}
+              {!external && !standIn && (plans.retest ? (
                 <>
                   <h4 style={{ marginBottom: 4, fontSize: 'calc(13 * var(--mm-px))' }}>Retest targeting</h4>
                   <p style={{ fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.55, margin: 0 }}>

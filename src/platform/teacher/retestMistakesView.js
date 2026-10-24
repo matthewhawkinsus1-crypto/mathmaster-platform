@@ -17,6 +17,16 @@ export const RETEST_MISTAKES_HEADING = 'What the Retest showed';
 export const RETEST_NOTHING_MISSED = 'Nothing was missed on the Retest.';
 export const RETEST_NO_PATTERN = 'No specific mistake was recorded. The work did not show one pattern.';
 
+export const RETEST_STOOD_IN = 'No correction plan — this student missed the Test, so the Retest stood in for it.';
+export const NO_CORRECTION_PLAN = 'No correction plan — this student did not fail the Test.';
+
+/**
+ * Whether this student's Retest stood in for a Test they missed. The plan stored
+ * for it says nothing was targeted (there was no Test to target from), so the panel
+ * says that instead of "did not fail the Test", and has no targeting to describe.
+ */
+export const retestStoodIn = (plans) => plans?.retest?.audit?.withoutOriginal === true;
+
 /** The panel's lines, or null when there is nothing to show (no Retest turned in yet). */
 export const describeRetestMistakes = (retestMistakes) => {
   if (!retestMistakes || !Array.isArray(retestMistakes.skills)) return null;
