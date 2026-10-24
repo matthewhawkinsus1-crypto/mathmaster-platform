@@ -1682,7 +1682,13 @@
                 "{{dRoundedUp}}",
                 "{{dSquaredCoefficient}}"
               ],
-              "answer": "{{answer}}"
+              "answer": "{{answer}}",
+              "optionRationales": {
+                "{{answer}}": "{{a}}x^(5/2) ÷ x^(1/2) = {{a}}x², and at x = {{xval}} that is {{answer}}.",
+                "{{dDroppedCoefficient}}": "{{dDroppedCoefficient}} is x² alone; √{{a2}} = {{a}} still multiplies it.",
+                "{{dRoundedUp}}": "{{dRoundedUp}} keeps too high a power of x; subtract the exponents 5/2 − 1/2.",
+                "{{dSquaredCoefficient}}": "{{dSquaredCoefficient}} keeps {{a2}} instead of its square root and uses x to the first power."
+              }
             }
           ],
           "alignments": [

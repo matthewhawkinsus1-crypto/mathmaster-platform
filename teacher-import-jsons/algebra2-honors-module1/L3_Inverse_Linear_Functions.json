@@ -55,7 +55,12 @@
                 "−1",
                 "0"
               ],
-              "answer": "1"
+              "answer": "1",
+              "optionRationales": {
+                "0": "A slope of 0 is a horizontal line; y = x rises as x increases.",
+                "1": "y = x rises 1 unit for each unit to the right.",
+                "−1": "A slope of −1 falls to the right, like y = −x; y = x rises."
+              }
             },
             {
               "id": "role",
@@ -66,7 +71,12 @@
                 "a vertical asymptote",
                 "the x-axis"
               ],
-              "answer": "the reflection line"
+              "answer": "the reflection line",
+              "optionRationales": {
+                "the reflection line": "A function and its inverse swap x and y, which mirrors the graph across y = x.",
+                "a vertical asymptote": "y = x is a slanted line that both graphs can cross, not a vertical line they approach.",
+                "the x-axis": "The x-axis is y = 0; y = x is the slanted line through the origin."
+              }
             }
           ],
           "dok": 1,
@@ -102,7 +112,12 @@
                 "[0, ∞)",
                 "(0, ∞)"
               ],
-              "answer": "(−∞, ∞)"
+              "answer": "(−∞, ∞)",
+              "optionRationales": {
+                "(−∞, ∞)": "Any real number can be tripled and increased by 2, so every x is allowed.",
+                "[0, ∞)": "Negative inputs work too: f(−1) = −1.",
+                "(0, ∞)": "Every real input works, including 0 and negatives: f(0) = 2."
+              }
             },
             {
               "id": "range",
@@ -113,7 +128,12 @@
                 "[2, ∞)",
                 "(0, ∞)"
               ],
-              "answer": "(−∞, ∞)"
+              "answer": "(−∞, ∞)",
+              "optionRationales": {
+                "(−∞, ∞)": "A line with a nonzero slope reaches every real output.",
+                "[2, ∞)": "2 is the y-intercept, not a lowest value; the line keeps going down to the left: f(−1) = −1.",
+                "(0, ∞)": "Outputs can be 0 or negative: f(−1) = −1."
+              }
             }
           ],
           "dok": 1,
@@ -142,7 +162,12 @@
                 "{(−26, 3), (−11, −2), (1, −6), (−20, 1)}",
                 "{(−3, 26), (2, 11), (6, −1), (−1, 20)}"
               ],
-              "answer": "{(26, −3), (11, 2), (−1, 6), (20, −1)}"
+              "answer": "{(26, −3), (11, 2), (−1, 6), (20, −1)}",
+              "optionRationales": {
+                "{(26, −3), (11, 2), (−1, 6), (20, −1)}": "Each pair has its x and y swapped: (−3, 26) becomes (26, −3).",
+                "{(−26, 3), (−11, −2), (1, −6), (−20, 1)}": "This swaps the coordinates but also changes their signs; finding an inverse never changes signs.",
+                "{(−3, 26), (2, 11), (6, −1), (−1, 20)}": "This is the relation as given; its inverse has to change each pair."
+              }
             },
             {
               "id": "property",
@@ -153,7 +178,12 @@
                 "change both signs",
                 "reverse the order of the pairs only"
               ],
-              "answer": "swap x and y"
+              "answer": "swap x and y",
+              "optionRationales": {
+                "swap x and y": "An inverse undoes the relation, so each output becomes an input: (x, y) turns into (y, x).",
+                "change both signs": "Changing both signs reflects each point through the origin; it does not undo the relation.",
+                "reverse the order of the pairs only": "The order of the pairs in a set does not matter; listing them backward gives the same relation."
+              }
             }
           ],
           "dok": 2,
@@ -197,7 +227,13 @@
                 "(x−7)/3",
                 "7−3x"
               ],
-              "answer": "(x+7)/3"
+              "answer": "(x+7)/3",
+              "optionRationales": {
+                "(x+7)/3": "Swap x and y in y = 3x − 7, then undo the steps: add 7, then divide by 3.",
+                "3x+7": "This changes the sign of −7 but keeps multiplying by 3; an inverse also undoes the multiplication.",
+                "(x−7)/3": "This undoes the 3 but not the −7: subtracting 7 again repeats a step of f.",
+                "7−3x": "This is −f(x), the negative of f, not its inverse."
+              }
             },
             {
               "id": "check",
@@ -208,7 +244,12 @@
                 "f(x)+f⁻¹(x)",
                 "f(x)−f⁻¹(x)"
               ],
-              "answer": "f(f⁻¹(x))"
+              "answer": "f(f⁻¹(x))",
+              "optionRationales": {
+                "f(f⁻¹(x))": "Applying f⁻¹ and then f undoes every step, so you get back x.",
+                "f(x)+f⁻¹(x)": "Adding the two outputs does not undo anything; a check feeds one function into the other.",
+                "f(x)−f⁻¹(x)": "Subtracting the two outputs does not undo anything; a check feeds one function into the other."
+              }
             }
           ],
           "dok": 2,
@@ -231,7 +272,13 @@
                 "−4x−12",
                 "4x+12"
               ],
-              "answer": "(12−x)/4"
+              "answer": "(12−x)/4",
+              "optionRationales": {
+                "(12−x)/4": "Swap x and y in y = −4x + 12, subtract 12, then divide by −4.",
+                "(x−12)/4": "This divides by 4 instead of −4, so the sign is lost; the inverse of a falling line also falls.",
+                "−4x−12": "This changes the sign of 12 but keeps multiplying by −4; an inverse also undoes the multiplication.",
+                "4x+12": "This changes the sign of −4 but keeps multiplying; an inverse divides instead."
+              }
             },
             {
               "id": "slope",
@@ -243,7 +290,13 @@
                 "−4",
                 "4"
               ],
-              "answer": "−1/4"
+              "answer": "−1/4",
+              "optionRationales": {
+                "4": "This changes the sign of the slope of f instead of undoing it; the inverse undoes multiplying by −4.",
+                "−1/4": "The inverse undoes multiplying by −4, so its slope is the reciprocal, 1/(−4) = −1/4.",
+                "1/4": "This takes the reciprocal but drops the negative; f falls, so its inverse falls too.",
+                "−4": "−4 is the slope of f; the inverse undoes multiplying by −4."
+              }
             }
           ],
           "dok": 2,
@@ -284,7 +337,13 @@
                 "12−x/9",
                 "9x−12"
               ],
-              "answer": "(12−x)/9"
+              "answer": "(12−x)/9",
+              "optionRationales": {
+                "(12−x)/9": "Swap x and y in y = 12 − 9x, then solve for y: 9y = 12 − x.",
+                "(x−12)/9": "This divides by 9 instead of −9, so the sign is lost; the inverse of a falling line also falls.",
+                "12−x/9": "This divides only x by 9, not the whole 12 − x.",
+                "9x−12": "This is −f(x), the negative of f, not its inverse."
+              }
             },
             {
               "id": "check",
@@ -295,7 +354,12 @@
                 "f⁻¹(1)=3",
                 "f⁻¹(3)=−1"
               ],
-              "answer": "f⁻¹(3)=1"
+              "answer": "f⁻¹(3)=1",
+              "optionRationales": {
+                "f⁻¹(3)=1": "An inverse sends each output back to its input: 3 came from 1.",
+                "f⁻¹(1)=3": "This keeps the input and output in the same places; the inverse swaps them.",
+                "f⁻¹(3)=−1": "An inverse swaps input and output; it does not change their signs."
+              }
             }
           ],
           "dok": 2,
@@ -352,7 +416,12 @@
                 "{(4, 8), (−6, 6), (3, 3), (0, −8)}",
                 "{(−8, −4), (−6, 6), (−3, −3), (8, 0)}"
               ],
-              "answer": "{(8, 4), (6, −6), (3, 3), (−8, 0)}"
+              "answer": "{(8, 4), (6, −6), (3, 3), (−8, 0)}",
+              "optionRationales": {
+                "{(8, 4), (6, −6), (3, 3), (−8, 0)}": "Each pair has its x and y swapped: (4, 8) becomes (8, 4).",
+                "{(4, 8), (−6, 6), (3, 3), (0, −8)}": "This is the relation as given; its inverse has to change each pair.",
+                "{(−8, −4), (−6, 6), (−3, −3), (8, 0)}": "This swaps the coordinates but also changes their signs; finding an inverse never changes signs."
+              }
             },
             {
               "id": "function",
@@ -362,7 +431,11 @@
                 "yes",
                 "no"
               ],
-              "answer": "yes"
+              "answer": "yes",
+              "optionRationales": {
+                "yes": "Its inputs 8, 6, 3 and −8 are all different, so each input has exactly one output.",
+                "no": "A relation fails to be a function only when an input repeats with a new output; no x-value repeats here."
+              }
             }
           ],
           "dok": 2,
@@ -385,7 +458,13 @@
                 "(x+10)/5",
                 "x/5+10"
               ],
-              "answer": "(x−10)/5"
+              "answer": "(x−10)/5",
+              "optionRationales": {
+                "(x−10)/5": "Swap x and y in y = 5x + 10, then undo the steps: subtract 10, then divide by 5.",
+                "5x−10": "This changes the sign of +10 but keeps multiplying by 5; an inverse also undoes the multiplication.",
+                "(x+10)/5": "This undoes the 5 but not the +10: adding 10 again repeats a step of f.",
+                "x/5+10": "This divides by 5 but keeps the +10; an inverse undoes the +10 first."
+              }
             },
             {
               "id": "slope",
@@ -397,7 +476,13 @@
                 "−1/5",
                 "−5"
               ],
-              "answer": "1/5"
+              "answer": "1/5",
+              "optionRationales": {
+                "5": "5 is the slope of f; the inverse undoes multiplying by 5.",
+                "1/5": "The inverse undoes multiplying by 5, so its slope is the reciprocal, 1/5.",
+                "−1/5": "This is the slope of a perpendicular line; an inverse keeps the sign of the slope.",
+                "−5": "This changes the sign of the slope of f; the inverse undoes multiplying by 5 instead."
+              }
             }
           ],
           "dok": 2,
@@ -420,7 +505,13 @@
                 "−2x+6",
                 "(x−6)/2"
               ],
-              "answer": "−(x+6)/2"
+              "answer": "−(x+6)/2",
+              "optionRationales": {
+                "−(x+6)/2": "Swap x and y in y = −2x − 6, add 6, then divide by −2.",
+                "(x+6)/2": "This divides by 2 instead of −2, so the sign is lost; the inverse of a falling line also falls.",
+                "−2x+6": "This changes the sign of −6 but keeps multiplying by −2; an inverse also undoes the multiplication.",
+                "(x−6)/2": "This subtracts 6 again, repeating a step of f, and divides by 2 instead of −2."
+              }
             },
             {
               "id": "check",
@@ -431,7 +522,12 @@
                 "f⁻¹(3)=−12",
                 "f⁻¹(12)=−3"
               ],
-              "answer": "f⁻¹(−12)=3"
+              "answer": "f⁻¹(−12)=3",
+              "optionRationales": {
+                "f⁻¹(−12)=3": "An inverse sends each output back to its input: −12 came from 3.",
+                "f⁻¹(3)=−12": "This keeps the input and output in the same places; the inverse swaps them.",
+                "f⁻¹(12)=−3": "An inverse swaps input and output; it does not change their signs."
+              }
             }
           ],
           "dok": 2,
@@ -499,7 +595,12 @@
                 "0",
                 "−5"
               ],
-              "answer": "5"
+              "answer": "5",
+              "optionRationales": {
+                "0": "A point on a graph gives the output at that input; an output of 0 would put the point on the x-axis.",
+                "5": "(5, 5) is on the graph of f, so f sends 5 to 5.",
+                "−5": "An output of −5 would make the point (5, −5), which is not on y = x."
+              }
             },
             {
               "id": "inversevalue",
@@ -510,7 +611,12 @@
                 "0",
                 "−5"
               ],
-              "answer": "5"
+              "answer": "5",
+              "optionRationales": {
+                "0": "An inverse swaps the coordinates of each point; swapping (5, 5) cannot produce a 0.",
+                "5": "Swapping the coordinates of (5, 5) gives (5, 5) again, so the inverse also sends 5 to 5.",
+                "−5": "An inverse swaps input and output; it does not change their signs."
+              }
             }
           ],
           "dok": 2,
@@ -539,7 +645,12 @@
                 "{(−5, 2), (−7, −1), (0, −4)}",
                 "{(−2, 5), (1, 7), (4, 0)}"
               ],
-              "answer": "{(5, −2), (7, 1), (0, 4)}"
+              "answer": "{(5, −2), (7, 1), (0, 4)}",
+              "optionRationales": {
+                "{(5, −2), (7, 1), (0, 4)}": "Each pair has its x and y swapped: (−2, 5) becomes (5, −2).",
+                "{(−5, 2), (−7, −1), (0, −4)}": "This swaps the coordinates but also changes their signs; finding an inverse never changes signs.",
+                "{(−2, 5), (1, 7), (4, 0)}": "This is the relation as given; its inverse has to change each pair."
+              }
             },
             {
               "id": "rule",
@@ -550,7 +661,12 @@
                 "negating x and y",
                 "adding x and y"
               ],
-              "answer": "swapping x and y"
+              "answer": "swapping x and y",
+              "optionRationales": {
+                "swapping x and y": "An inverse undoes the relation, so each output becomes an input: (x, y) turns into (y, x).",
+                "negating x and y": "Negating both coordinates reflects each point through the origin; it does not undo the relation.",
+                "adding x and y": "Adding the coordinates gives one number, not a new ordered pair."
+              }
             }
           ],
           "dok": 2,
@@ -573,7 +689,13 @@
                 "4x+9",
                 "9−4x"
               ],
-              "answer": "(x+9)/4"
+              "answer": "(x+9)/4",
+              "optionRationales": {
+                "(x+9)/4": "Swap x and y in y = 4x − 9, then undo the steps: add 9, then divide by 4.",
+                "(x−9)/4": "This undoes the 4 but not the −9: subtracting 9 again repeats a step of f.",
+                "4x+9": "This changes the sign of −9 but keeps multiplying by 4; an inverse also undoes the multiplication.",
+                "9−4x": "This is −f(x), the negative of f, not its inverse."
+              }
             },
             {
               "id": "check",
@@ -584,7 +706,12 @@
                 "f⁻¹(6)=15",
                 "f⁻¹(15)=−6"
               ],
-              "answer": "f⁻¹(15)=6"
+              "answer": "f⁻¹(15)=6",
+              "optionRationales": {
+                "f⁻¹(15)=6": "An inverse sends each output back to its input: 15 came from 6.",
+                "f⁻¹(6)=15": "This keeps the input and output in the same places; the inverse swaps them.",
+                "f⁻¹(15)=−6": "An inverse swaps input and output; it does not change their signs."
+              }
             }
           ],
           "dok": 2,

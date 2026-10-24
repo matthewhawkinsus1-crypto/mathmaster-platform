@@ -442,7 +442,11 @@
                 "discrete",
                 "continuous"
               ],
-              "answer": "continuous"
+              "answer": "continuous",
+              "optionRationales": {
+                "discrete": "Discrete fits separate counts, like whole trips; here t can be any real time, such as 2.5 minutes.",
+                "continuous": "Travel time can be any real number from 0 to 20, so the graph is one unbroken segment."
+              }
             },
             {
               "id": "domain",
@@ -453,7 +457,12 @@
                 "{0, 1, 2, …, 20}",
                 "(−∞, ∞)"
               ],
-              "answer": "[0, 20]"
+              "answer": "[0, 20]",
+              "optionRationales": {
+                "[0, 20]": "t can be any real time from 0 to 20 minutes, with both endpoints included.",
+                "{0, 1, 2, …, 20}": "This lists whole minutes only, but the time can be any real number, like 7.5.",
+                "(−∞, ∞)": "The formula works for any t, but the situation only allows times from 0 to 20 minutes."
+              }
             },
             {
               "id": "range",
@@ -464,7 +473,12 @@
                 "[0, 60]",
                 "{5, 8, 11, …, 65}"
               ],
-              "answer": "[5, 65]"
+              "answer": "[5, 65]",
+              "optionRationales": {
+                "[5, 65]": "The fare starts at C(0) = 5 and rises to C(20) = 65, taking every value between.",
+                "[0, 60]": "This leaves out the + 5 in the fare: 3t alone runs from 0 to 60.",
+                "{5, 8, 11, …, 65}": "This lists fares for whole minutes only, but t can be any real time, so the fares fill in between."
+              }
             }
           ],
           "dok": 2,
@@ -540,7 +554,11 @@
                 "discrete",
                 "continuous"
               ],
-              "answer": "continuous"
+              "answer": "continuous",
+              "optionRationales": {
+                "discrete": "Discrete fits separate counts; here time runs through every value, including parts of a minute.",
+                "continuous": "Water flows in at every moment, so t takes every real value from 0 to 12 and the graph is unbroken."
+              }
             },
             {
               "id": "domain",
@@ -551,7 +569,12 @@
                 "{0, 1, 2, …, 12}",
                 "(−∞, ∞)"
               ],
-              "answer": "[0, 12]"
+              "answer": "[0, 12]",
+              "optionRationales": {
+                "[0, 12]": "The rule holds for 0 ≤ t ≤ 12: every real time, with both endpoints included.",
+                "{0, 1, 2, …, 12}": "This keeps whole minutes only, but t can be any real time, like 3.5 minutes.",
+                "(−∞, ∞)": "The formula works for any t, but the filling only lasts from 0 to 12 minutes."
+              }
             },
             {
               "id": "range",
@@ -562,7 +585,12 @@
                 "[4, 48]",
                 "{0, 4, 8, …, 48}"
               ],
-              "answer": "[0, 48]"
+              "answer": "[0, 48]",
+              "optionRationales": {
+                "[0, 48]": "The volume starts at V(0) = 0 and reaches V(12) = 48, taking every value between.",
+                "[4, 48]": "This starts the volume at the rate, 4 gallons, instead of at the volume when t = 0.",
+                "{0, 4, 8, …, 48}": "This lists volumes at whole minutes only, but time runs continuously, so the volume fills in between."
+              }
             }
           ],
           "dok": 2,

@@ -156,7 +156,12 @@
                 "Not like terms — the exponents are different",
                 "Not like terms — the letters are different"
               ],
-              "answer": "Like terms — same letters, same exponents"
+              "answer": "Like terms — same letters, same exponents",
+              "optionRationales": {
+                "Like terms — same letters, same exponents": "Both are x² times y; the order the letters are written in does not matter.",
+                "Not like terms — the exponents are different": "Match each letter to its own exponent: both have x² and y, written in a different order.",
+                "Not like terms — the letters are different": "Both use x and y; writing yx² instead of x²y does not change the letters."
+              }
             },
             {
               "id": "pair2",
@@ -167,7 +172,12 @@
                 "Not like terms — the letters are different",
                 "Like terms — same letters, same exponents"
               ],
-              "answer": "Not like terms — the exponents are different"
+              "answer": "Not like terms — the exponents are different",
+              "optionRationales": {
+                "Not like terms — the exponents are different": "Same letter, a, but a³ and a² have different exponents.",
+                "Not like terms — the letters are different": "Both terms use only the letter a; compare the exponents next.",
+                "Like terms — same letters, same exponents": "The matching 4s are coefficients, and coefficients do not decide like terms; check the letters and exponents."
+              }
             },
             {
               "id": "pair3",
@@ -178,7 +188,12 @@
                 "Like terms — same letters, same exponents",
                 "Not like terms — the exponents are different"
               ],
-              "answer": "Not like terms — the letters are different"
+              "answer": "Not like terms — the letters are different",
+              "optionRationales": {
+                "Not like terms — the letters are different": "Both are squared, but m and n are different letters.",
+                "Like terms — same letters, same exponents": "The matching 6s are coefficients, and coefficients do not decide like terms; check the letters and exponents.",
+                "Not like terms — the exponents are different": "Both exponents are 2, so the exponents match; look again at what is being squared."
+              }
             }
           ],
           "hints": [

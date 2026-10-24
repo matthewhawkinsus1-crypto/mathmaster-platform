@@ -1720,7 +1720,13 @@
                 "{{dSquaredFirst}}",
                 "{{dCollectedAll}}"
               ],
-              "answer": "{{t}}"
+              "answer": "{{t}}",
+              "optionRationales": {
+                "{{t}}": "Multiplying out, the constant term of (x + {{p}})(x² + {{k}}) is {{p}} · {{k}} = {{t}}.",
+                "{{dSum}}": "{{dSum}} adds {{p}} and {{k}}; the constant term of a product comes from multiplying the constant terms.",
+                "{{dSquaredFirst}}": "{{dSquaredFirst}} squares {{p}}; the constant term multiplies one constant from each factor.",
+                "{{dCollectedAll}}": "{{dCollectedAll}} adds the coefficients {{p}} and {{k}} to the constant; t is only the constant term."
+              }
             }
           ],
           "alignments": [

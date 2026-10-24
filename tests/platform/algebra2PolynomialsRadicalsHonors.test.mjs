@@ -279,11 +279,14 @@ for (const lesson of LESSONS) {
       assert.ok(document, `${question.ccmrSource.documentId} is in the bank`);
       assert.notEqual(document.active, false, 'an active document');
       const intent = bank.bankDocumentToV5Intent(document, { activityRole: 'practice' });
-      // What the bank audited is unchanged…
+      // What the bank audited is unchanged… A choice field also carries the
+      // lesson's reason for each option (FB05), a support like the back-up
+      // step; the rest of the field is the bank's.
+      const bankPart = (key, value) => (key === 'answerFields' ? value.map(({ optionRationales: _reasons, ...field }) => field) : value);
       ['prompt', 'generator', 'answerFields', 'alignments', 'assessmentContext', 'assessmentItemFormat', 'ccmrSource', 'ccmrAuthenticLanguage',
         'familyId', 'familyVersion', 'standard', 'studentActions', 'dok', 'difficultyBand', 'calculatorPolicy', 'taskType', 'representation',
         'ccmrChallengeTier', 'ccmrFamilyRole', 'supportHints', 'attemptFeedback'].forEach((key) => {
-        assert.deepEqual(question[key], intent[key], `${question.questionId}.${key} is the bank's`);
+        assert.deepEqual(bankPart(key, question[key]), intent[key], `${question.questionId}.${key} is the bank's`);
       });
       assert.equal(question.ccmrSource.source, 'auditedBank');
       assert.equal(question.ccmrSource.releaseTarget, 'ccmr-fidelity-v2.1-authentic-language');

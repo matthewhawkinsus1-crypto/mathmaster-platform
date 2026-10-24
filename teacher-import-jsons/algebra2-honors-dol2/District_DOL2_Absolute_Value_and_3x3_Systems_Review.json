@@ -2450,7 +2450,13 @@
                 "{{dLesserSolution}}",
                 "{{dCentre}}"
               ],
-              "answer": "{{sum}}"
+              "answer": "{{sum}}",
+              "optionRationales": {
+                "{{sum}}": "The solutions are {{h}} + {{r}} and {{h}} − {{r}}; the ±{{r}} cancels, so they add to 2({{h}}) = {{sum}}.",
+                "{{dGreaterSolution}}": "{{dGreaterSolution}} is only one of the two solutions; the question asks for the sum of both.",
+                "{{dLesserSolution}}": "{{dLesserSolution}} is only one of the two solutions; the question asks for the sum of both.",
+                "{{dCentre}}": "{{dCentre}} is the center the two solutions sit around, not the sum of the solutions."
+              }
             }
           ],
           "alignments": [

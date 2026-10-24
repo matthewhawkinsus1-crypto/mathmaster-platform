@@ -1189,7 +1189,13 @@
                 "The data prove that higher Y causes higher X",
                 "The data show that X and Y have no relationship"
               ],
-              "answer": "The data show an association, but they do not establish that one variable caused the other"
+              "answer": "The data show an association, but they do not establish that one variable caused the other",
+              "optionRationales": {
+                "The data show an association, but they do not establish that one variable caused the other": "With no experiment, the data show only that X and Y rise together; some other factor could be driving both.",
+                "The data prove that higher X causes higher Y": "This reads a pattern as proof of cause; without random assignment, a third variable could be raising both X and Y.",
+                "The data prove that higher Y causes higher X": "Turning the cause around does not fix it: observational data cannot show which variable, if either, causes the other.",
+                "The data show that X and Y have no relationship": "Higher values of X do tend to come with higher values of Y, so there is a relationship to describe."
+              }
             }
           ],
           "alignments": [

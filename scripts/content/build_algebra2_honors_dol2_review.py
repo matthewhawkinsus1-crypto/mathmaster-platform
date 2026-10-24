@@ -1466,6 +1466,33 @@ CCMR_COMMON_ERRORS = {
         'Giving one solution, or the center {{h}}, instead of the sum: the solutions are {{h}} + {{r}} and {{h}} − {{r}}, so they add to 2({{h}}) = {{sum}}.',
 }
 
+# A choice-only item has one try, so it gets a reason for each option, shown
+# after that try (FB05, the owner, 2026-10-16). Keyed by the bank's own option
+# text; a wrong option's reason names the mistake without stating the answer.
+CCMR_OPTION_RATIONALES = {
+    'mm_sat_A2_6E_challenge_sum_of_solutions_scaled_v21': {
+        'answer': {
+            '{{sum}}': 'The solutions are {{h}} + {{r}} and {{h}} − {{r}}; the ±{{r}} cancels, so they add to 2({{h}}) = {{sum}}.',
+            '{{dGreaterSolution}}': '{{dGreaterSolution}} is only one of the two solutions; the question asks for the sum of both.',
+            '{{dLesserSolution}}': '{{dLesserSolution}} is only one of the two solutions; the question asks for the sum of both.',
+            '{{dCentre}}': '{{dCentre}} is the center the two solutions sit around, not the sum of the solutions.',
+        },
+    },
+}
+
+
+def with_option_rationales(field, reasons):
+    """The field with a reason for each of its options, right after its answer."""
+    options = [str(option) for option in field.get('options', [])]
+    assert sorted(options) == sorted(reasons), (field.get('id'), options, list(reasons))
+    out = {}
+    for key, value in field.items():
+        out[key] = value
+        if key == 'answer':
+            out['optionRationales'] = {option: reasons[option] for option in options}
+    return out
+
+
 for item in CCMR_ITEMS:
     item['questionFamily'] = fam()
     review_text = item.get('solutionReview', {})
@@ -1474,6 +1501,10 @@ for item in CCMR_ITEMS:
     if not review_text.get('commonError'):
         review_text['commonError'] = CCMR_COMMON_ERRORS[item['ccmrSource']['documentId']]
     item.setdefault('scaffold', CCMR_SCAFFOLDS[item['ccmrSource']['documentId']])
+    rationales = CCMR_OPTION_RATIONALES.get(item['ccmrSource']['documentId'])
+    if rationales:
+        item['answerFields'] = [with_option_rationales(field, rationales[field['id']]) if field.get('id') in rationales else field
+                                for field in item['answerFields']]
 practice[10:10] = CCMR_ITEMS
 
 STUDY_GUIDE = {

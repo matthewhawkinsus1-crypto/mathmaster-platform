@@ -2069,7 +2069,13 @@
                 "{{dRoundedUp}}",
                 "{{dSquaredCoefficient}}"
               ],
-              "answer": "{{answer}}"
+              "answer": "{{answer}}",
+              "optionRationales": {
+                "{{answer}}": "√({{a2}}x⁵)/√x = √({{a2}}x⁴) = {{a}}x², and at x = {{xval}} that is {{answer}}.",
+                "{{dDroppedCoefficient}}": "{{dDroppedCoefficient}} is x² alone; √{{a2}} = {{a}} still multiplies it.",
+                "{{dRoundedUp}}": "{{dRoundedUp}} keeps too high a power of x; check what √(x⁵) ÷ √x leaves under one radical.",
+                "{{dSquaredCoefficient}}": "{{dSquaredCoefficient}} keeps {{a2}} instead of its square root and uses x to the first power."
+              }
             }
           ],
           "alignments": [

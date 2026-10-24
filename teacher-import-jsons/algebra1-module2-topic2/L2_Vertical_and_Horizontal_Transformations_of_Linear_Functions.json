@@ -2128,7 +2128,13 @@
                 "slope only",
                 "y-intercept only"
               ],
-              "answer": "input values (x-coordinates)"
+              "answer": "input values (x-coordinates)",
+              "optionRationales": {
+                "input values (x-coordinates)": "A change inside the parentheses happens to x before f acts, so it moves or scales the x-coordinates.",
+                "output values (y-coordinates)": "Changes to outputs sit outside f, like f(x) + c or a·f(x); here the change is written inside the parentheses.",
+                "slope only": "Slope is a feature of the result, not what the change acts on; f(x − c) can leave the slope the same.",
+                "y-intercept only": "The y-intercept is a feature of the result, not what the change acts on; f(bx) can leave it the same."
+              }
             },
             {
               "id": "sameAs4f",
@@ -2140,7 +2146,13 @@
                 "f(x + 4)",
                 "f(x) + 4"
               ],
-              "answer": "f(4x)"
+              "answer": "f(4x)",
+              "optionRationales": {
+                "f(4x)": "For f(x) = x, f(4x) = 4x, which is exactly 4f(x) = 4x.",
+                "f((1/4)x)": "This uses the reciprocal, as a horizontal stretch would: f((1/4)x) = (1/4)x, a smaller slope than 4f(x).",
+                "f(x + 4)": "This adds 4 instead of multiplying by 4: f(x + 4) = x + 4.",
+                "f(x) + 4": "This adds 4 to the output instead of multiplying it by 4: f(x) + 4 = x + 4."
+              }
             },
             {
               "id": "leftN",
@@ -2152,7 +2164,13 @@
                 "moving it right n units",
                 "stretching it vertically by n"
               ],
-              "answer": "moving it up n units"
+              "answer": "moving it up n units",
+              "optionRationales": {
+                "moving it up n units": "Left n units is f(x + n) = x + n, which is also f(x) + n: y = x looks the same moved up n.",
+                "moving it down n units": "This pairs left with down by direction; for y = x, compare f(x + n) with f(x) − n and they differ.",
+                "moving it right n units": "Right n units is f(x − n), the opposite horizontal move, so it gives a different graph.",
+                "stretching it vertically by n": "A stretch changes the slope of y = x, but moving the line left keeps its slope at 1."
+              }
             }
           ]
         }

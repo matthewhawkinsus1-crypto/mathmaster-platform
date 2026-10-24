@@ -1518,7 +1518,13 @@
                 "0",
                 "−2"
               ],
-              "answer": "−6"
+              "answer": "−6",
+              "optionRationales": {
+                "0": "This uses only the first pair, 0 · 4; an entry of a product adds the products of every matching pair.",
+                "6": "This drops the negative sign of −2 in column 1 of B; 3 times a negative number is negative.",
+                "−6": "Row 2 of A is (0, 3) and column 1 of B is (4, −2): 0 · 4 + 3 · (−2) = −6.",
+                "−2": "−2 is an entry of B; the product entry combines row 2 of A with column 1 of B."
+              }
             },
             {
               "id": "dimsCD",
@@ -1530,7 +1536,13 @@
                 "4 × 3",
                 "CD is not defined"
               ],
-              "answer": "3 × 4"
+              "answer": "3 × 4",
+              "optionRationales": {
+                "3 × 4": "The inner dimensions match (2 and 2), and the product takes the outer ones: 3 rows from C, 4 columns from D.",
+                "2 × 2": "These are the inner dimensions, which have to match; the product takes the outer ones.",
+                "4 × 3": "This reverses rows and columns; the first factor gives the rows.",
+                "CD is not defined": "C has 2 columns and D has 2 rows, so they match and CD is defined."
+              }
             },
             {
               "id": "dimsDC",
@@ -1542,7 +1554,13 @@
                 "4 × 3",
                 "3 × 4"
               ],
-              "answer": "DC is not defined"
+              "answer": "DC is not defined",
+              "optionRationales": {
+                "DC is not defined": "D has 4 columns but C has 3 rows; the inner dimensions do not match, so DC is not defined.",
+                "2 × 2": "This uses the outer dimensions without checking the inner ones; the columns of D must equal the rows of C.",
+                "4 × 3": "These are the inner dimensions, and they have to match before any product exists.",
+                "3 × 4": "This is the size of CD; the order of the factors matters in matrix multiplication."
+              }
             }
           ],
           "hints": [

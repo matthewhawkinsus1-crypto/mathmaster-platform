@@ -1520,7 +1520,13 @@
                 "{{dNoSquare}}",
                 "{{dRightConstant}}"
               ],
-              "answer": "{{k}}"
+              "answer": "{{k}}",
+              "optionRationales": {
+                "{{k}}": "At x = {{p}}, √({{p}} + k) = {{r}}, so {{p}} + k = {{r}}² and k = {{k}}.",
+                "{{dSignError}}": "{{dSignError}} adds {{p}} to {{r}}²; moving {{p}} to the other side changes its sign.",
+                "{{dNoSquare}}": "{{dNoSquare}} doubles {{r}} instead of squaring it; undoing a square root means squaring both sides.",
+                "{{dRightConstant}}": "{{dRightConstant}} is the constant from the right side, x − {{b}}; k has to make the equation true at x = {{p}}."
+              }
             }
           ],
           "alignments": [
