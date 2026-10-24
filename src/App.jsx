@@ -8361,9 +8361,12 @@ function App() {
         toastInfo('The DOL is not open', `${assignment.title} is not open for ${classLabel} right now.`);
         return;
       }
+      // RT05 (the owner, 2026-10-23): the close ends the class's window; a
+      // student on extra time keeps their own remaining time (sectionDeadline.mjs
+      // resolveDolWindow), and the teacher is told so before pressing it.
       confirmation = {
         title: `Close the DOL now for ${classLabel}?`,
-        message: `Students in ${classLabel} stop working on the DOL now, exactly as if its timer had run out: answers so far are kept and graded. Other classes are unaffected, and you can reopen it afterwards.`,
+        message: `Students in ${classLabel} stop working on the DOL now, exactly as if its timer had run out: answers so far are kept and graded. A student on extra time keeps their own remaining time. Other classes are unaffected, and you can reopen it afterwards.`,
         confirmLabel: 'Close DOL',
       };
       build = () => requireTeacherKit().buildDolClose({ assignment, classId, dateKey: todayKey, teacherId, now: Date.now() });
