@@ -656,6 +656,9 @@ function App() {
       ? null
       : readUrlArrival({ pathname: window.location.pathname, search: window.location.search })
   ));
+  // When it was read: an address left waiting on a signed-out page too long
+  // is not the next account's (useUrlArrival, NV09).
+  const urlArrivalAtRef = useRef(Date.now());
   // My Math Path's tab or session from an arrival, handed to MyMathPathApp
   // when it mounts; cleared once the student leaves My Math Path.
   const [mathPathArrival, setMathPathArrival] = useState(null);
@@ -11425,6 +11428,8 @@ function App() {
     urlArrival,
     setUrlArrival,
     user,
+    arrivedAt: urlArrivalAtRef.current,
+    routeKey: user?.role === 'student' && studentBrowserRoute ? studentRouteKey(studentBrowserRoute) : null,
     // A student's lessons carry their own controls (an extension, an
     // excusal, a reopen): the address opens once the lessons on screen were
     // projected with the controls the listener answered, not before.
