@@ -17,6 +17,7 @@ import {
 import { normalizeQuestionFamilyReference } from '../../../functions/shared/questionFamilyInstance.mjs';
 import { hasLocalFamilyTemplate, lostTemplatePlaceholders } from '../../../functions/shared/questionFamilyTemplate.mjs';
 import { isValidLogBase } from '../../../functions/shared/toolMath/exponentialLog/exponentialLogMath.mjs';
+import { asksSingularReasonByDefault } from '../../../functions/shared/toolMath/matrixLab/matrixLabModel.mjs';
 
 const asArray = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
@@ -2220,7 +2221,13 @@ const compileOne = (q, index, repairs) => {
         showEquations: q.showEquations,
         technology: q.technology,
         justifySingular: q.justifySingular,
+        decisionWeight: q.decisionWeight,
       });
+      // A singular system asks why it has no solution or infinitely many
+      // unless its author turned that off (the owner, 2026-10-23, C2-61).
+      // Decided here, where the question is created, so a published question
+      // keeps the grading it was published with (matrixLabModel.mjs).
+      if (out.justifySingular == null && asksSingularReasonByDefault(out)) out.justifySingular = true;
       break;
     }
     case 'expressionMeaning': {

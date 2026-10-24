@@ -217,12 +217,19 @@ const gradeSolve = (question, work) => {
     });
   }
   const classification = choiceText(work.classification);
+  // The decision weighs `decisionWeight` parts where the author says so (DOL 3:
+  // as much as its three rows), shared with its reason where that is asked
+  // (the owner, 2026-10-23, A2-17). Unset, each counts one part, as before. A
+  // weight moves partial credit only: all parts right is still 100%.
+  const reasonAsked = model.justifySingular && model.classification.type !== SOLUTION_TYPES.ONE;
+  const decisionPartWeight = model.decisionWeight ? { weight: model.decisionWeight / (reasonAsked ? 2 : 1) } : {};
   parts.push({
     id: 'classification',
     label: 'Number of solutions',
     isComplete: Object.values(SOLUTION_TYPES).includes(classification),
     isCorrect: classification === model.classification.type,
     response: CLASSIFICATION_LABEL[classification] || '',
+    ...decisionPartWeight,
   });
   // A singular system's decision needs its reason (P2-2): with three buttons
   // and three tries, "none or many" could be passed on a second guess. The
@@ -231,7 +238,7 @@ const gradeSolve = (question, work) => {
   // the student CHOSE ("follows" with many, "breaks" with none). So a right
   // reason about wrong rows earns this part (carried-error credit) while the
   // rows and the decision are marked on their own parts.
-  if (model.justifySingular && model.classification.type !== SOLUTION_TYPES.ONE) {
+  if (reasonAsked) {
     const reason = singularReasonOf(work);
     const { A, B } = model.buildEquation
       ? studentSystem(model, work)
@@ -244,6 +251,7 @@ const gradeSolve = (question, work) => {
       isComplete: Boolean(classification),
       isCorrect: decided && consistent && singularReasonHolds(A, B, reason),
       response: decided ? `row ${reason.row} = ${reason.factor} × row ${reason.otherRow}; constants ${reason.constant}` : '',
+      ...decisionPartWeight,
     });
   }
   if (model.classification.type === SOLUTION_TYPES.ONE) {

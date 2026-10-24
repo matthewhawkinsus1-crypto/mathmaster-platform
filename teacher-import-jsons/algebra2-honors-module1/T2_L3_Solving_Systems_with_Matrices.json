@@ -1659,6 +1659,7 @@
           "difficultyBand": 3,
           "prompt": "Write the matrix equation and use technology. Then classify the system.",
           "justifySingular": true,
+          "decisionWeight": 3,
           "equations": [
             "x - 2y + 3z = 4",
             "2x + y - z = 1",

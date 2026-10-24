@@ -322,6 +322,14 @@ Each row: the break, then the new tests (`matrixLabFeedback` + `algebra2Matrices
    - On for the repo's three singular items. Make it the default for every singular `solve` item?
    - DOL 3: a wrong read now scores 3 of 5 parts (60 %, was 75 %). Should the decision weigh more, e.g. a part weight?
    - `questionValue` (grade weight) does not count the new step.
+
+   **Decided 2026-10-23 (C2-61, A2-17): the reason by default, and more weight on DOL 3.** The V5 compile asks for
+   the reason on every singular `solve` system with two rows of A that are multiples, unless the author writes
+   `justifySingular: false` (`asksSingularReasonByDefault`, matrixLabModel.mjs). It is decided when a question is
+   created, never at read time, so published assignments keep their grading until they are re-imported. A new authored
+   `decisionWeight` (how many parts' worth the number of solutions counts, shared with its reason) is 3 on DOL 3: the
+   decision weighs as much as the three rows, and a wrong read scores 50 %. Its Recovery versions carry the same weight.
+   `questionValue` still does not count the reason step (not part of the decision).
 3. **PR-33's "at most n − 1 facts".** It accepts substitution (the walkthrough's case and PR 11's) and refuses the
    answer as rows at every size. It would also refuse an honest row combining all n facts. The literal R-4 (any
    full-rank system with the solution set) accepts the answer as rows.

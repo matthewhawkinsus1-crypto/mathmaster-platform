@@ -220,17 +220,20 @@ export const recoveryBindingsHash = (bindings = {}) => `rb1:${hashHex(stableStri
  * The question Recovery works on.
  * ------------------------------------------------------------------------- */
 
-// The original's identity — never its mathematics.
+// The original's identity — never its mathematics. With its grade value goes
+// how its credit splits: a Matrix Lab decision weight (DOL 3's, the owner
+// 2026-10-23), so a Recovery version scores the decision as the original did.
 const IDENTITY_FIELDS = Object.freeze([
   'questionId', 'id', 'activityRole', 'sectionId', 'sectionTitle',
   'alignments', 'standard', 'teks', 'dok', 'difficultyBand',
-  'questionWeight', 'questionWeightBasis', 'studentActions',
+  'questionWeight', 'questionWeightBasis', 'studentActions', 'decisionWeight',
 ]);
 
 /**
  * The family slot Recovery generates from for a bound static question.
  * Carries the original's id (so slot keys and seats are the original's), its
- * section, standards, rigor and grade value — and the binding's family.
+ * section, standards, rigor, grade value and decision weight — and the
+ * binding's family.
  */
 export const recoverySourceQuestion = (question = {}, binding = {}, { contentVersion = null } = {}) => {
   const source = {};
