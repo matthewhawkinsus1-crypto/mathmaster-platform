@@ -1663,5 +1663,20 @@ test('N: a miss on the Test is recorded server-side, hidden until release, and n
   assert.equal((await fns.teacherTestCycleAction.run(teacherRequest({ assignmentId: ASSIGNMENT, studentId: STUDENT, action: 'waiveCorrections' }))).retestOpened, true);
   const retestCard = await cardOf();
   assert.deepEqual([retestCard.stage, retestCard.canEnter], ['retest', true]);
+
+  // TC02: a Retest has no Corrections after it, so its recorded mistakes are
+  // read in the teacher's per-student view, and only once it is turned in.
+  const plansOf = (email) => fns.getTeacherTestCyclePlans.run(teacherRequest({ assignmentId: ASSIGNMENT, studentId: STUDENT }, email));
+  assert.equal((await plansOf()).retestMistakes, null, 'nothing to read before the Retest is turned in');
   await sitWrongForm(retestCard.examSessionId, 'Retest');
+  const shown = (await plansOf()).retestMistakes;
+  assert.equal(shown.examSessionId, retestCard.examSessionId);
+  assert.equal(shown.skills.reduce((sum, skill) => sum + skill.missed, 0), 2, 'both Retest questions were missed');
+  const named = shown.skills.flatMap((skill) => skill.mistakes);
+  assert.ok(named.length >= 1 && named.every((mistake) => mistake.code === 'line-wrong-form-slope-intercept'), 'the mistake the work proved, from the server-only session');
+  assert.ok(named.every((mistake) => mistake.label && mistake.meaning), 'in the registry\'s words for a teacher');
+  // Teacher of record only, and no student payload carries it.
+  assert.ok(await refusal(plansOf(OTHER_TEACHER_EMAIL)), 'another teacher cannot read it');
+  assert.ok(await refusal(fns.getTeacherTestCyclePlans.run(studentRequest(STUDENT, { assignmentId: ASSIGNMENT, studentId: STUDENT }))), 'a student cannot read it');
+  assert.equal(leaks(await cardOf()), false);
 });

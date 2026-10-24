@@ -205,6 +205,8 @@ const externalActionsForRow = (row, actions) => {
   }
   const fewerItems = fewerItemsAction(row, { external: true });
   if (fewerItems) actions.push(fewerItems);
+  // What the retest showed (TC02): its recorded mistakes are read in the plans panel.
+  if (['submitted', 'released'].includes(test.state)) actions.push({ key: 'plans', kind: 'plans', label: 'View what the Retest showed' });
   if (test.examSessionId) {
     actions.push({
       key: 'resetTest',
@@ -361,7 +363,9 @@ export const teacherActionsForRow = (row = {}, { external = false } = {}) => {
   if (retest.examSessionId) {
     actions.push({ key: 'resetRetest', action: 'resetSecureSession', stage: 'retest', label: 'Reset Retest session', detail: 'Discards this retest and issues a new one.', confirm: true });
   }
-  if (testReleased) actions.push({ key: 'plans', kind: 'plans', label: 'View correction and retest plans' });
+  // Once the Retest is turned in, the same panel also says what it showed (TC02).
+  const retestTurnedIn = ['submitted', 'released'].includes(retest.state);
+  if (testReleased) actions.push({ key: 'plans', kind: 'plans', label: retestTurnedIn ? 'View plans and what the Retest showed' : 'View correction and retest plans' });
   actions.push(adjustGradeAction(row));
   return actions;
 };

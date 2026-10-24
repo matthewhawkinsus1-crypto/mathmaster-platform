@@ -19,6 +19,7 @@ import { getAssignmentEvidenceSummary, manageAssignmentLifecycle } from '../../s
 import { GRADE_REPLACEMENT } from '../../platform/assessment/testCycle.js';
 import { TEACHER_BUCKET_LABEL, TEACHER_BUCKET_ORDER, describeTeacherRow, teacherActionsForRow } from '../../platform/teacher/testCycleTeacherRows.js';
 import { describeTestCycleCallError } from '../../platform/teacher/testCycleCallErrors.js';
+import { describeRetestMistakes } from '../../platform/teacher/retestMistakesView.js';
 import {
   BULK_ACTION,
   describeBulkPlan,
@@ -326,6 +327,9 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
     TEACHER_BUCKET_ORDER.indexOf(left.bucket) - TEACHER_BUCKET_ORDER.indexOf(right.bucket)
     || rosterStudentLabel(left.studentId, students, left.studentName).localeCompare(rosterStudentLabel(right.studentId, students, right.studentName))
   ));
+
+  // What the Retest showed, for the plans panel (TC02); null until it is turned in.
+  const retestShown = plans ? describeRetestMistakes(plans.retestMistakes) : null;
 
   const applyRowAction = (row, item) => {
     const name = rosterStudentLabel(row.studentId, students, row.studentName);
@@ -1062,8 +1066,9 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
               "the algorithm decided". */}
           {plans && (
             <div style={{ marginTop: 18, padding: 14, borderRadius: 10, background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border-soft)' }}>
-              <h3 style={{ marginTop: 0, fontSize: 'calc(15 * var(--mm-px))' }}>Generated plans · {rosterStudentLabel(plans.studentId, students, plans.studentName)}</h3>
-              {plans.corrections ? (
+              <h3 style={{ marginTop: 0, fontSize: 'calc(15 * var(--mm-px))' }}>{external ? 'Retest' : 'Generated plans'} · {rosterStudentLabel(plans.studentId, students, plans.studentName)}</h3>
+              {/* An external-original cycle has no corrections or retest plan: its one secure session is the retest. */}
+              {!external && (plans.corrections ? (
                 <>
                   <h4 style={{ marginBottom: 4, fontSize: 'calc(13 * var(--mm-px))' }}>Corrections, mapped to the failed Test evidence</h4>
                   {plans.corrections.targets.map((target) => (
@@ -1075,8 +1080,8 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
                     </div>
                   ))}
                 </>
-              ) : <p style={{ fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>No correction plan — this student did not fail the Test.</p>}
-              {plans.retest ? (
+              ) : <p style={{ fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>No correction plan — this student did not fail the Test.</p>)}
+              {!external && (plans.retest ? (
                 <>
                   <h4 style={{ marginBottom: 4, fontSize: 'calc(13 * var(--mm-px))' }}>Retest targeting</h4>
                   <p style={{ fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.55, margin: 0 }}>
@@ -1086,7 +1091,23 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
                     against {plans.retest.audit.originalQuestionCount} on the original Test.
                   </p>
                 </>
-              ) : <p style={{ fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>No retest plan has been generated yet.</p>}
+              ) : <p style={{ fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>No retest plan has been generated yet.</p>)}
+              {/* What the Retest showed (TC02): the cycle has no Corrections after
+                  a Retest, so this is where its recorded mistakes are read. Only
+                  once the student has turned the Retest in. */}
+              {retestShown && (
+                <div data-retest-mistakes="">
+                  <h4 style={{ marginBottom: 4, fontSize: 'calc(13 * var(--mm-px))' }}>{retestShown.heading}</h4>
+                  {retestShown.empty && <p style={{ fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)', margin: 0 }}>{retestShown.empty}</p>}
+                  {retestShown.skills.map((skill) => (
+                    <div key={skill.key} style={{ fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.55, marginBottom: 7 }}>
+                      <strong>{skill.title}</strong> · {skill.missed}
+                      {skill.mistakes.map((mistake) => <div key={mistake.key} style={{ color: 'var(--mm-text-muted)' }}>{mistake.text}</div>)}
+                      {skill.note && <div style={{ color: 'var(--mm-text-muted)' }}>{skill.note}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
               <button type="button" onClick={() => setPlans(null)} style={{ ...button(), marginTop: 10 }}>Close plans</button>
             </div>
           )}

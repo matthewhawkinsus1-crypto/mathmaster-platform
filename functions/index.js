@@ -21692,12 +21692,50 @@ function testCyclePolicyLocks(shared, records, { external = false } = {}) {
   };
 }
 
+/*
+ * THE MISTAKES RECORDED ON A STUDENT'S RETEST, FOR THEIR TEACHER (TC02).
+ *
+ * A Retest records a mistake where it grades a miss, as a Test does, and the
+ * cycle has no Corrections after it, so nothing read it. The teacher's
+ * per-student view reads it here, once the student has turned the Retest in:
+ * the skills it missed, and the mistake each one's work proved
+ * (shared/testCycleRetestMistakes.mjs, through the registry's trust gate). It
+ * goes to the teacher of record only, never to a student, and moves no grade.
+ *
+ * Null when there is nothing to read: no Retest yet, one still under way, or a
+ * session that is not this student's for this assignment. Never fails the panel:
+ * the plans beside it are worth showing without it.
+ */
+async function retestMistakesFor(db, { studentId, assignmentId, policy, blueprint, record, retestPlan }) {
+  try {
+    // An external-original cycle's one secure session IS the retest.
+    const sitting = policy.externalAssessment ? record?.test : record?.retest;
+    const examSessionId = String(sitting?.examSessionId || "");
+    const retestBlueprint = policy.externalAssessment ? blueprint : retestPlan?.blueprint;
+    if (!examSessionId || !retestBlueprint) return null;
+    const sessionSnapshot = await db.collection("examSessions").doc(examSessionId).get();
+    const session = sessionSnapshot.exists ? sessionSnapshot.data() || {} : null;
+    if (!session
+      || String(session.studentId || "") !== studentId
+      || String(session.courseTest?.assignmentId || "") !== assignmentId
+      || !secureExam.TERMINAL_STATES.has(session.status)) return null;
+    const { retestMistakesForTeacher } = await import("./shared/testCycleRetestMistakes.mjs");
+    return {
+      examSessionId,
+      skills: retestMistakesForTeacher({ blueprint: retestBlueprint, responses: testCycleLib.responsesForProfile(session) }),
+    };
+  } catch (error) {
+    console.error("test_cycle_retest_mistakes_not_read", { assignmentId, message: error?.message || String(error) });
+    return null;
+  }
+}
+
 /** Teacher inspection of a generated correction or retest plan. */
 exports.getTeacherTestCyclePlans = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) => {
   const db = getFirestore();
   const assignmentSnapshot = await assignmentForTeacherCall(request, db);
   await assertTeacherMayManageAssignment(request, assignmentSnapshot);
-  const { assignmentId, shared } = await loadTestCycleAssignment(db, assignmentSnapshot.id);
+  const { assignmentId, policy, blueprint, shared } = await loadTestCycleAssignment(db, assignmentSnapshot.id);
   const studentId = String(request.data?.studentId || "").trim();
   if (!studentId) throw new HttpsError("invalid-argument", "A studentId is required.");
   const recordId = testCycleRecordKey(assignmentId, studentId);
@@ -21709,11 +21747,12 @@ exports.getTeacherTestCyclePlans = onCall(TEST_CYCLE_ACTION_OPTIONS, async (requ
   ]);
   const correctionPlan = correctionSnapshot.exists ? correctionSnapshot.data()?.plan || null : null;
   const retestPlan = retestSnapshot.exists ? retestSnapshot.data() : null;
+  const record = recordSnapshot.exists ? shared.record.normalizeTestCycleRecord(recordSnapshot.data()) : null;
 
   return {
     success: true,
     studentId,
-    record: recordSnapshot.exists ? shared.record.normalizeTestCycleRecord(recordSnapshot.data()) : null,
+    record,
     // The correction plan keeps its evidence mapping: a teacher opening this
     // sees exactly which failed Test items sent the student where.
     corrections: correctionPlan
@@ -21722,6 +21761,8 @@ exports.getTeacherTestCyclePlans = onCall(TEST_CYCLE_ACTION_OPTIONS, async (requ
     retest: retestPlan
       ? { audit: retestPlan.audit, blueprint: retestPlan.blueprint, plan: testCycleLib.teacherVisiblePlan(retestPlan.plan) }
       : null,
+    // What the Retest showed, once it is turned in (TC02).
+    retestMistakes: await retestMistakesFor(db, { studentId, assignmentId, policy, blueprint, record, retestPlan }),
   };
 });
 
