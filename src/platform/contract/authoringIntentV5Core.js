@@ -1957,6 +1957,13 @@ const compileOne = (q, index, repairs) => {
       const data = q.data || {};
       out = copyCommon(q, { type, mode: q.mode || (actions.includes('fitDataModel') ? 'lineFit' : actions.includes('predictFromModel') ? 'prediction' : 'full'), points: q.points || data.points, predictionX: q.predictionX ?? data.predictionX, predictionTolerance: q.predictionTolerance ?? data.predictionTolerance });
       copyAxisLabels(q, out);
+      // Whether the study supports a causal claim: both graders key the
+      // association question on it, and an import dropped it, so an imported
+      // item could never accept "causation" (TL09). Copied only when authored,
+      // as a real boolean: the browser reads it as truthy and Path as === true,
+      // so an authored "true" string would otherwise grade two ways.
+      const causationSupported = q.causationSupported ?? data.causationSupported;
+      if (causationSupported !== undefined) out.causationSupported = causationSupported === true || String(causationSupported).trim().toLowerCase() === 'true';
       break;
     }
     case 'regressionCalculator': {
