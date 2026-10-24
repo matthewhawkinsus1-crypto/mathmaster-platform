@@ -95,3 +95,16 @@ test('"the right line" is only said of the graph the student was shown: images o
   const alongT = [[0, 3], [1, 4]];
   assert.equal(plottedPointCorrespondence({ plotted: alongT, images: offImages, spec: resolved.investigationSpec }), null);
 });
+
+// FB22: the fallback names no letter the plotTransform screen never defines.
+test('any other wrong plot counts the right images and says the rule in the lab\'s words', async () => {
+  const { plotTransformFallbackMessage } = await import('../../src/tools/transformations/plotTransformFeedback.js');
+  const text = plotTransformFallbackMessage(1, 5);
+  assert.match(text, /^1 of 5 defining points are in the right place\./);
+  assert.doesNotMatch(text, /x\/b|ay \+ k|\b[abhk]\b/, text);
+  assert.match(text, /inside the parentheses/);
+  assert.match(text, /outside exactly as written/);
+  const lab = fs.readFileSync(new URL('../../src/tools/transformations/TransformationsLab.jsx', import.meta.url), 'utf8');
+  assert.match(lab, /return plotTransformFallbackMessage\(feedbackPartsCorrect, expectedCount\);/);
+  assert.doesNotMatch(lab, /Use x\/b \+ h for x and ay \+ k for y/);
+});

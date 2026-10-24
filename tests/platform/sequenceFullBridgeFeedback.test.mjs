@@ -38,6 +38,15 @@ test('a right table with a wrong graph is told the table is right', () => {
   assert.match(fullBridgeMissMessage({ parts: result.parts, work, spec }), /^Your table is right\./);
 });
 
+// FB22 (Codex on #517): a plot-only item has no table to call right.
+test('a wrong graph on an item with no table part is never told its table is right', () => {
+  const message = fullBridgeMissMessage({ parts: [{ id: 'plot', isCorrect: false }], work: {}, spec: { kind: 'arithmetic', difference: 3 } });
+  assert.doesNotMatch(message, /table is right/);
+  assert.match(message, /^Plot each pair \(n, aₙ\) as its own point/);
+  // With a table part the grader marked right, it still says so.
+  assert.match(fullBridgeMissMessage({ parts: [{ id: 'table', isCorrect: true }, { id: 'plot', isCorrect: false }], work: {}, spec: {} }), /^Your table is right\./);
+});
+
 test('rule sentences appear only for the rule parts that are wrong', () => {
   const parts = [{ id: 'explicit-rule', isCorrect: false }, { id: 'recursive-first', isCorrect: true }, { id: 'recursive-rule', isCorrect: true }];
   assert.match(fullBridgeMissMessage({ parts, work: {}, spec }), /your explicit rule/);

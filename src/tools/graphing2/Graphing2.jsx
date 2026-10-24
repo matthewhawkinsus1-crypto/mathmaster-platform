@@ -17,6 +17,7 @@ import { placePoint } from './placePoint.js';
 // What the form-aware policy will check, said before any point is checked;
 // on an assessment, only what is checked (anchorInstruction.js).
 import { anchorInstruction } from './anchorInstruction.js';
+import { orientationMissMessage } from './orientationMiss.js';
 import MathDisplay from '../../MathDisplay';
 import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
 import { constructionReadyToCheck, requiredConstructionPointCount, resolveConstructionPolicy } from './constructionPolicy';
@@ -313,6 +314,8 @@ export default function Graphing2({ questionData = {}, onAction }) {
     if (feedback.metadata?.strategy === 'formAware' && category) return formAwareFeedback(category);
     const onLine = checks.filter(Boolean).length;
     if (!studentLine) return 'Those two clicks landed on the same spot. Two different points are needed to determine a line.';
+    const turned = orientationMissMessage(target, studentLine);
+    if (turned) return turned;
     if (onLine === 0) return 'Neither point is on the target line yet. Find one point you are certain about — the y-intercept is usually easiest — and start there.';
     if (onLine === 1) return `Point ${checks[0] ? 'P1' : 'P2'} is on the line, but the other one is not. Keep the good point and move the other.`;
     return 'Both points are close, but the line through them does not match the target. Re-read each coordinate carefully.';

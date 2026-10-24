@@ -41,6 +41,7 @@ export const plotMatchesTable = (plottedPoints = [], tableValues = []) => {
 };
 
 export const fullBridgeMissMessage = ({ parts = [], work = {}, spec = {}, targetN = 0 } = {}) => {
+  const graded = new Set((Array.isArray(parts) ? parts : []).map((part) => part?.id));
   const wrong = new Set((Array.isArray(parts) ? parts : []).filter((part) => part?.isCorrect !== true).map((part) => part?.id));
   const geometric = spec.kind === 'geometric';
   const change = geometric ? 'multiply the previous term by the common ratio' : 'add the common difference to the previous term';
@@ -56,7 +57,11 @@ export const fullBridgeMissMessage = ({ parts = [], work = {}, spec = {}, target
       sentences.push('Then plot each pair (n, aₙ) from the table as its own point.');
     }
   } else if (wrong.has('plot')) {
-    sentences.push('Your table is right. Plot each pair (n, aₙ) from it as its own point, with n across and aₙ up.');
+    // Only a table the grader marked right is "right"; an item with no table
+    // part has nothing to praise (FB22, Codex on #517).
+    sentences.push(graded.has('table')
+      ? 'Your table is right. Plot each pair (n, aₙ) from it as its own point, with n across and aₙ up.'
+      : 'Plot each pair (n, aₙ) as its own point, with n across and aₙ up.');
   }
   if (wrong.has('kind') || wrong.has('change')) {
     sentences.push('Classify from the table: equal differences make a sequence arithmetic; equal ratios make it geometric.');

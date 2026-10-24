@@ -12,6 +12,11 @@
  *   sign-flipped         −v for v ≠ 0 (or a pair with both signs flipped)
  *   reciprocal           1/v for v ∉ {0, 1, −1}
  *   not-simplified       the same value, written as an unreduced fraction
+ *   point-for-value      an ordered pair where one number is asked, and
+ *   value-for-point      the reverse ("(0, 4)" for a y-intercept of 4)
+ *   interval-notation-…  an inequality where interval notation is asked,
+ *   inequality-…         and the reverse; "-right-value" when it names the
+ *                        same numbers, "-asked" when it does not
  *
  * Each message names the likely error and NEVER the answer: they are fixed
  * text, and no number from the question reaches them.
@@ -32,6 +37,12 @@
  * grading, and a check can only describe work the grader already marked
  * wrong (the caller decides that; a correct answer is never checked).
  */
+import {
+  parseInequalityText,
+  parseIntervalNotation,
+  sameIntervals,
+} from '../../../../functions/shared/toolMath/intervalNumberLine/intervalMath.mjs';
+
 const EPSILON = 1e-9;
 const near = (a, b) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= EPSILON * Math.max(1, Math.abs(a), Math.abs(b));
 
@@ -80,6 +91,12 @@ export const readPair = (value) => {
 };
 
 export const GENERIC_MISS_MESSAGES = Object.freeze({
+  'point-for-value': 'This asks for a single number, not an ordered pair.',
+  'value-for-point': 'This asks for an ordered pair (x, y), not a single number.',
+  'interval-notation-right-value': 'Your inequality describes the right numbers, but this asks for interval notation.',
+  'interval-notation-asked': 'This asks for interval notation, not an inequality.',
+  'inequality-right-value': 'Your interval describes the right numbers, but this asks for an inequality.',
+  'inequality-asked': 'This asks for an inequality, not interval notation.',
   'coordinates-swapped': 'Check the order of your coordinates. An ordered pair is written (x, y), with the x-coordinate first.',
   'sign-flipped': 'Your answer has the right size but the opposite sign. Look for a step where a negative sign was dropped or added — especially when subtracting or moving a term.',
   reciprocal: 'Your answer looks like it is upside down — the numerator and denominator may have traded places. Check which quantity goes on top.',
@@ -94,7 +111,49 @@ export const GENERIC_MISS_MESSAGES = Object.freeze({
  * student repeated the same unreduced fraction, told only "Focus on:
  * Fraction answer".
  */
-export const OPEN_ITEM_CHECKS = Object.freeze(['not-simplified']);
+export const OPEN_ITEM_CHECKS = Object.freeze([
+  'not-simplified',
+  // FB22: the same kind of sentence. Each names only the FORM the field asks
+  // for (a number, a pair, interval notation, an inequality) and, at most,
+  // that the student's own numbers are already right, never a move toward a
+  // different value.
+  'point-for-value', 'value-for-point',
+  'interval-notation-right-value', 'interval-notation-asked',
+  'inequality-right-value', 'inequality-asked',
+]);
+
+// What a math box gives (\le, \infty, \cup), as the interval readers' text.
+// The commands go first: a space is what ends one ("\le x"), and stripMath
+// takes the spaces out.
+const asPlainRelation = (value) => stripMath(String(value ?? '')
+  .replace(/\\leq?(?![a-zA-Z])/g, '<=')
+  .replace(/\\geq?(?![a-zA-Z])/g, '>=')
+  .replace(/\\lt(?![a-zA-Z])/g, '<')
+  .replace(/\\gt(?![a-zA-Z])/g, '>')
+  .replace(/\\infty|∞/g, 'inf')
+  .replace(/\\cup(?![a-zA-Z])/g, 'U'));
+const RELATION = /[<>≤≥]/;
+const readRelation = (text) => {
+  const letters = [...new Set(text.replace(/inf|or/g, '').match(/[a-zA-Z]/g) || [])];
+  return letters.length === 1 ? parseInequalityText(text, letters[0]) : null;
+};
+
+/** An inequality typed where interval notation is asked, or the reverse (FB22). */
+export const notationMiss = (student, expected) => {
+  const key = asPlainRelation(expected);
+  const typed = asPlainRelation(student);
+  if (!key || !typed) return null;
+  if (!RELATION.test(key)) {
+    const intervals = parseIntervalNotation(key);
+    if (!intervals || !RELATION.test(typed)) return null;
+    const read = readRelation(typed);
+    return read && sameIntervals(read, intervals) ? 'interval-notation-right-value' : 'interval-notation-asked';
+  }
+  const asked = readRelation(key);
+  const intervals = RELATION.test(typed) ? null : parseIntervalNotation(typed);
+  if (!asked || !intervals) return null;
+  return sameIntervals(asked, intervals) ? 'inequality-right-value' : 'inequality-asked';
+};
 
 export const genericMissCheck = ({ student, expected, open = true } = {}) => {
   // Open (attempts left) unless the caller says the item has closed — and an
@@ -103,8 +162,12 @@ export const genericMissCheck = ({ student, expected, open = true } = {}) => {
     ? null
     : { check, message: GENERIC_MISS_MESSAGES[check] });
   try {
+    const notation = notationMiss(student, expected);
+    if (notation) return result(notation);
     const studentPair = readPair(student);
     const expectedPair = readPair(expected);
+    if (studentPair && !expectedPair && readNumber(expected)) return result('point-for-value');
+    if (expectedPair && !studentPair && readNumber(student)) return result('value-for-point');
     if (studentPair && expectedPair) {
       const [ex, ey] = expectedPair;
       const [sx, sy] = studentPair;

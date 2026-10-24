@@ -11,7 +11,7 @@ import useReportToolWork from '../shared/useReportToolWork.js';
 import { useMethodWithheld } from '../shared/ToolRuntimeContext';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import transformationsGrader from '../../../functions/shared/serverGrading/tools/transformationsLab.mjs';
-import { plotTransformMissMessage } from './plotTransformFeedback.js';
+import { plotTransformFallbackMessage, plotTransformMissMessage } from './plotTransformFeedback.js';
 import {
   TRANSFORMATION_FAMILY_LABELS,
   evaluateParentFunction,
@@ -232,7 +232,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
       const correspondence = plotTransformMissMessage({ plotted: feedback.response?.plottedPoints, images: expectedTransformedPoints, spec: investigationSpec, family });
       if (correspondence) return correspondence;
       const expectedCount = Number(feedbackParts.length || expectedTransformedPoints.length || 0);
-      return `${feedbackPartsCorrect} of ${expectedCount} defining points are in the correct transformed locations. Use x/b + h for x and ay + k for y.`;
+      return plotTransformFallbackMessage(feedbackPartsCorrect, expectedCount);
     }
     if (mode === 'anchor') {
       if (feedbackPartsCorrect === 1) return `One coordinate of the ${anchor.label} is right. Check the other — h moves it sideways and k moves it up or down.`;

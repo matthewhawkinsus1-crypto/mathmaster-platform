@@ -35,3 +35,14 @@ export const plotTransformMissMessage = ({ plotted = [], images = [], spec = {},
   }
   return null;
 };
+
+/*
+ * Any other wrong plot: how many images are right, and how to find the rest
+ * in words the screen defines (FB22). It used to end "Use x/b + h for x and
+ * ay + k for y.", letters this mode never defines (the bridge is Help-only
+ * here, owner 2026-10-22, #517). The rule is said the way the lab's own hints
+ * say it, with no image named.
+ */
+export const plotTransformFallbackMessage = (correctCount, expectedCount) => (
+  `${correctCount} of ${expectedCount} defining points are in the right place. Find each image from its own original point: for x, undo what happens inside the parentheses; for y, apply what happens outside exactly as written.`
+);

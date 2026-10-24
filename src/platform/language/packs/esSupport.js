@@ -92,6 +92,13 @@ const missMessages = [
   ['Check which quantity goes on top.', 'Revisa qué cantidad va arriba.'],
   ['Your value is right, but it is not in simplest form.', 'Tu valor es correcto, pero no está en su forma más simple.'],
   ['Divide the numerator and denominator by their greatest common factor.', 'Divide el numerador y el denominador entre su máximo común divisor.'],
+  // Form checks said while the item is open (FB22).
+  ['This asks for a single number, not an ordered pair.', 'Aquí se pide un solo número, no un par ordenado.'],
+  ['This asks for an ordered pair {1}, not a single number.', 'Aquí se pide un par ordenado {1}, no un solo número.'],
+  ['Your inequality describes the right numbers, but this asks for interval notation.', 'Tu desigualdad describe los números correctos, pero aquí se pide notación de intervalo.'],
+  ['This asks for interval notation, not an inequality.', 'Aquí se pide notación de intervalo, no una desigualdad.'],
+  ['Your interval describes the right numbers, but this asks for an inequality.', 'Tu intervalo describe los números correctos, pero aquí se pide una desigualdad.'],
+  ['This asks for an inequality, not interval notation.', 'Aquí se pide una desigualdad, no notación de intervalo.'],
 ];
 
 // --- The attempt outcome (QuestionEngine attemptOutcomeText, closedAttemptText)
