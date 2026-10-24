@@ -18,9 +18,11 @@
 //
 // The misconception classifier (misconceptionClassifiers.mjs,
 // `ordinary:multiAnswer`) uses it to name the reason for a miss the grader
-// already made. One grading rule reads it too: a point-slope answer through
+// already made. Two grading rules read it too: a point-slope answer through
 // another point of the key's line is right (answerEquivalence.mjs,
-// samePointSlopeLine; the owner, 2026-10-20). Nothing else here grades.
+// samePointSlopeLine; the owner, 2026-10-20), and so is a whole-number
+// multiple of a standard-form key (sameStandardFormMultiple, wholeMultipleOfLine;
+// the owner, 2026-10-23). Nothing else here grades.
 
 import { parsePolynomial, splitEquationSides, polynomialDegree } from './algebraicForm.mjs';
 
@@ -79,6 +81,22 @@ export const sameLine = (first, second) => {
     }
   }
   return true;
+};
+
+/*
+ * HOW MANY TIMES ONE EQUATION OF A LINE IS ANOTHER (GR29). The whole number n
+ * with first = n × second term by term — 4x + 2y = 6 is 2 × (2x + y = 3), and
+ * −2x − y = −3 is −1 × it — or null when they are not the same line or no
+ * whole number scales one onto the other (x + 0.5y = 1.5 is ½ × it).
+ */
+export const wholeMultipleOfLine = (first, second) => {
+  const p = lineCoefficients(first);
+  const q = lineCoefficients(second);
+  if (!p || !q || !sameLine(first, second)) return null;
+  const index = q.findIndex((value) => Math.abs(value) > EPSILON);
+  const ratio = p[index] / q[index];
+  const whole = Math.round(ratio);
+  return whole !== 0 && Math.abs(ratio - whole) <= 1e-9 * Math.max(1, Math.abs(ratio)) ? whole : null;
 };
 
 /** A vertical line (x = c): it has no y term, so it has no y = mx + b form. */

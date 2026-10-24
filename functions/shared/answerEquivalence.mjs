@@ -18,7 +18,7 @@ import { stackDivisions } from './stackDivisions.mjs';
 import { exactConstantValue } from './exactConstantValue.mjs';
 import { sameExpandedPolynomialExpression } from './expandedPolynomialExpressionEquivalence.mjs';
 import { sameLinearInequality } from './linearInequalityEquivalence.mjs';
-import { LINE_FORMS, sameLine, writtenLineForm } from './linearEquationForm.mjs';
+import { LINE_FORMS, sameLine, wholeMultipleOfLine, writtenLineForm } from './linearEquationForm.mjs';
 export { sameNonnegativeRadicalExpression } from './nonnegativeRadicalExpressionEquivalence.mjs';
 export { sameRationalExpression } from './rationalExpressionEquivalence.mjs';
 
@@ -1502,6 +1502,26 @@ const samePointSlopeLine = (student, key) => {
     && sameLine(studentText, keyText);
 };
 
+/*
+ * A WHOLE-NUMBER MULTIPLE OF A STANDARD-FORM KEY (the owner, 2026-10-23;
+ * GR29). For a key written Ax + By = C, the same equation with every term
+ * multiplied by one nonzero whole number — 4x + 2y = 6, or −2x − y = −3, for
+ * 2x + y = 3 — is the same line in the same form, and is right. It stays a
+ * form comparison: the answer must itself be written in standard form
+ * (writtenLineForm), so `y = −2x + 3` and `4x + 2y − 6 = 0` are still other
+ * forms, and a multiple by a fraction (x + 0.5y = 1.5) is still not the key's.
+ * The owner also asked that the student be told to divide out the common
+ * factor; no grading surface carries a note with a right answer yet, so the
+ * multiple is accepted without one until there is a place for it.
+ */
+const sameStandardFormMultiple = (student, key) => {
+  const studentText = normalizeAnswer(student);
+  const keyText = normalizeAnswer(key);
+  return writtenLineForm(keyText) === LINE_FORMS.STANDARD
+    && writtenLineForm(studentText) === LINE_FORMS.STANDARD
+    && wholeMultipleOfLine(studentText, keyText) !== null;
+};
+
 /** The equation comparisons that read one side against the matching side. */
 const sameEquationSideBySide = (left, right, tolerance) => (
   sameFormPreservingEquation(left, right)
@@ -1555,6 +1575,7 @@ export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators =
   // "simplify" or "vertex form" question. See functions/shared/algebraicForm.mjs.
   if (sameLinearEquation(left, right, tolerance)) return true;
   if (samePointSlopeLine(left, right)) return true;
+  if (sameStandardFormMultiple(left, right)) return true;
   if (sameCompoundInequality(left, right, tolerance)) return true;
   // The same equation with its sides swapped, `5 = x` for `x = 5` and
   // `2x + 1 = y` for `y = 2x + 1` (Job P). Each side is still compared with
