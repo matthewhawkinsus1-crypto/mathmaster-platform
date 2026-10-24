@@ -26,6 +26,7 @@ import ThreePlaneWorkspace from './ThreePlaneWorkspace.jsx';
 import StudentBuildInequalityMode from './StudentBuildInequalityMode.jsx';
 import { ChoiceGroup, InequalityLayout, LineStyleIcon, StepFeedback, YesNoQuestion } from './InequalityControls.jsx';
 import { POINT_COLORS, constraintColor } from './constraintPalette.js';
+import { regionCornersText } from './inequalityGraphMarks.js';
 import { formatInequality, formatLine, formatPoint, formatQuadratic } from './inequalityFormat.js';
 import { resolveSystemsWorkspaceMode } from './systemsWorkspaceMode.js';
 import { systemAxisNames } from './systemAxisNames.js';
@@ -330,6 +331,7 @@ function ClassicInequalityMode({ questionData, onAction }) {
   };
 
   const shownPolygon = requiresConstruction ? studentPolygon : correctPolygon;
+  const regionIntro = `1 shaded region${requiresConstruction ? '' : ', where every inequality is true'}`;
   const checkLabel = useSubmitLabel(requiresConstruction ? 'Check inequality graph' : 'Check feasible region');
 
   return <EnlargeableFigure label="Inequality system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{
@@ -353,8 +355,13 @@ function ClassicInequalityMode({ questionData, onAction }) {
             showPlotHelp="keyboard"
             cursorLabel={nextPoint ? `Inequality ${nextPoint.index + 1}, point ${nextPoint.which}` : 'Point'}
             ariaLabel={requiresConstruction ? 'Student-constructed graph of the inequality solution region' : 'Graph of the system of inequalities with its shaded feasible region'}
-            // The region it shades below, said by the plane (no corners: they are positions).
-            toolMarks={{ kinds: shownPolygon.length >= 3 ? `1 shaded region${requiresConstruction ? '' : ', where every inequality is true'}.` : 'No region is shaded yet.' }}
+            // The region it shades below, said by the plane: its kind while the
+            // question is open (no corners: they are positions), its corners
+            // once positions may be said (AX12).
+            toolMarks={{
+              kinds: shownPolygon.length >= 3 ? `${regionIntro}.` : 'No region is shaded yet.',
+              features: regionCornersText({ polygon: shownPolygon, lines: requiresConstruction ? studentInequalities : inequalities, intro: regionIntro }) || undefined,
+            }}
             viewResetKey={questionData?.questionId ?? null}
             enlargeable={false}
           >

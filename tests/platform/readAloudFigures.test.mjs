@@ -298,11 +298,39 @@ test('the student\'s inequality graph is said as drawn — line styles, shaded s
   assert.equal(inequalityGraphMarksText({}), 'No boundary line is drawn yet.');
 });
 
+// AX12: a closed question's inequality region now reads its corners; while
+// the question is open the plane still says only that a region is shaded.
+test('the inequality region names its corners once positions may be said, and says when it goes on', async () => {
+  const { regionCornersText } = await import('../../src/tools/systemsWorkspace/inequalityGraphMarks.js');
+  const { feasibleRegionPolygon } = await import('../../src/tools/systemsWorkspace/inequalityBuilderAdapter.js');
+  const { describeCoordinatePlane } = await import('../../src/platform/language/graphDescription.js');
+  const bounds = { xMin: -6, xMax: 8, yMin: -4, yMax: 10 };
+  // A closed triangle: three corners, nothing past the edge.
+  const triangle = [{ m: 0, b: 0, relation: '>=' }, { m: -1, b: 4, relation: '<=' }, { m: 1, b: 0, relation: '<=' }];
+  assert.equal(
+    regionCornersText({ polygon: feasibleRegionPolygon(triangle, bounds), lines: triangle, intro: '1 shaded region' }),
+    '1 shaded region, with corners at (0, 0), (4, 0) and (2, 2).',
+  );
+  // An open region: only where boundaries meet is a corner; the window's cut is not.
+  const open = [{ m: 0, b: 0, relation: '>=' }, { m: -1, b: 4, relation: '<=' }, { m: 1, b: -2, relation: '>=' }];
+  const said = regionCornersText({ polygon: feasibleRegionPolygon(open, bounds), lines: open, intro: '1 shaded region' });
+  assert.equal(said, '1 shaded region, with corners at (2, 0) and (3, 1). It goes on past the edge of the graph.');
+  assert.doesNotMatch(said, /−6/, 'a window edge is no corner');
+  assert.equal(regionCornersText({ polygon: [[0, 0], [1, 0]], lines: open }), null, 'no region, no sentence');
+  // Through the plane: open, the kind only; closed, the corners.
+  const base = { xMin: -6, xMax: 8, yMin: -4, yMax: 10, xTickStep: 1, yTickStep: 1, hasUndescribedMarks: true };
+  const toolMarks = { kinds: '1 shaded region.', features: regionCornersText({ polygon: feasibleRegionPolygon(triangle, bounds), lines: triangle, intro: '1 shaded region' }) };
+  assert.doesNotMatch(describeCoordinatePlane({ ...base, toolMarks }).description, /corner|\(\d/);
+  assert.match(describeCoordinatePlane({ ...base, toolMarks, detail: 'features' }).description, /corners at \(0, 0\), \(4, 0\) and \(2, 2\)\.$/);
+});
+
 test('the Complex Plane, the sideways parabola and the inequality region pass their words to the plane', async () => {
   assert.match(code('src/tools/complexPlane/ComplexPlaneLab.jsx'), /toolMarks=\{\{ kinds: 'A segment joins the origin to each point\.' \}\}\s*>\s*\{\(\{ sx, sy \}\) => <>\{items\.map\(\(item\) => <line/);
   const parabola = code('src/tools/parabolaGeometry/ParabolaGeometryLab.jsx');
   assert.match(parabola, /toolMarks=\{\{ kinds: '1 curve\.', features: `1 curve, opening to the \$\{spec\.p>0\?'right':'left'\}\.` \}\}>[^<]*?\{spec\.orientation==='horizontal' \? \(\{sx,sy\}\)=> <path/, 'only a sideways parabola draws (and names) its own curve');
-  assert.match(code('src/tools/systemsWorkspace/SystemsWorkspace.jsx'), /toolMarks=\{\{ kinds: shownPolygon\.length >= 3 \? `1 shaded region\$\{requiresConstruction \? '' : ', where every inequality is true'\}\.` : 'No region is shaded yet\.' \}\}/);
+  const systems = code('src/tools/systemsWorkspace/SystemsWorkspace.jsx');
+  assert.match(systems, /const regionIntro = `1 shaded region\$\{requiresConstruction \? '' : ', where every inequality is true'\}`;/);
+  assert.match(systems, /toolMarks=\{\{\s*kinds: shownPolygon\.length >= 3 \? `\$\{regionIntro\}\.` : 'No region is shaded yet\.',\s*features: regionCornersText\(\{ polygon: shownPolygon, lines: requiresConstruction \? studentInequalities : inequalities, intro: regionIntro \}\) \|\| undefined,\s*\}\}/);
   assert.match(code('src/tools/systemsWorkspace/StudentBuildInequalityMode.jsx'), /toolMarks=\{\{ kinds: inequalityGraphMarksText\(\{ build, effectiveLines, buildConfig, workingConstraints, bounds, combined, studentPolygon \}\) \}\}/);
   const plane = code('src/tools/shared/CoordinatePlane.jsx');
   assert.match(plane, /hasUndescribedMarks: hasToolMarks,\s*toolMarks: hasToolMarks \? toolMarks : null,/);
