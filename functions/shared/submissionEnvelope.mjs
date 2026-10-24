@@ -73,12 +73,32 @@ const text = (value) => String(value ?? '');
 const trimmed = (value) => text(value).trim();
 const finite = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
 
-const containsForbiddenField = (value, depth = 0) => {
-  if (depth > 6 || !value || typeof value !== 'object') return false;
-  if (Array.isArray(value)) return value.some((entry) => containsForbiddenField(entry, depth + 1));
-  return Object.entries(value).some(([key, nested]) => (
-    forbiddenEnvelopeEntry(key, nested) || containsForbiddenField(nested, depth + 1)
-  ));
+/*
+ * EVERY DEPTH (SI12). The scan used to stop at depth 6, so a crafted envelope
+ * could hide a forbidden key below it. It now reads every level, iteratively
+ * (no recursion for a deep object to exhaust). An envelope nested deeper than
+ * ENVELOPE_SCAN_LIMITS.depth, or with more than ENVELOPE_SCAN_LIMITS.nodes
+ * values, is no student's work: it counts as carrying forbidden data.
+ */
+export const ENVELOPE_SCAN_LIMITS = Object.freeze({ depth: 64, nodes: 100_000 });
+const containsForbiddenField = (root) => {
+  const pending = [[root, 0]];
+  let seen = 0;
+  while (pending.length) {
+    const [value, depth] = pending.pop();
+    if (!value || typeof value !== 'object') continue;
+    seen += 1;
+    if (depth > ENVELOPE_SCAN_LIMITS.depth || seen > ENVELOPE_SCAN_LIMITS.nodes) return true;
+    if (Array.isArray(value)) {
+      value.forEach((entry) => pending.push([entry, depth + 1]));
+      continue;
+    }
+    for (const [key, nested] of Object.entries(value)) {
+      if (forbiddenEnvelopeEntry(key, nested)) return true;
+      pending.push([nested, depth + 1]);
+    }
+  }
+  return false;
 };
 
 /*
