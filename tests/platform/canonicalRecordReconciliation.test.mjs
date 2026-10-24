@@ -176,6 +176,20 @@ test('ahead means more attempts on the same variant, or a later variant', () => 
   assert.equal(canonicalRecordIsAhead(undefined, 'attempted'), false);
 });
 
+test('a deadline race: at the same count, the deadline\'s recorded attempt replaces the device\'s unrecorded one (RT20)', () => {
+  const deadline = (n, extra = {}) => ({ ...attempted(n), status: 'expired', submissionOrigin: 'deadline-auto-submit', ...extra });
+  // The device showed its own third attempt as correct; the server recorded the deadline's.
+  assert.equal(canonicalRecordIsAhead({ ...attempted(3), status: 'correct' }, deadline(3)), true);
+  const { grades, adopted } = adoptCanonicalAdvances({ a: { 0: { ...attempted(3), status: 'correct' } } }, { a: { 0: deadline(3) } });
+  assert.equal(grades.a[0].status, 'expired', 'the screen shows what the server recorded');
+  assert.deepEqual(adopted, [{ assignmentId: 'a', questionIndex: 0, totalAttempts: 3, variantIndex: 0 }]);
+  // Already the deadline's record, or nothing attempted: nothing moves.
+  assert.equal(canonicalRecordIsAhead(deadline(3), deadline(3)), false);
+  assert.equal(canonicalRecordIsAhead(attempted(0), deadline(0)), false);
+  // A level record the device itself delivered stays the session's own.
+  assert.equal(canonicalRecordIsAhead(attempted(3), attempted(3)), false);
+});
+
 /* ------------------------------------------------------------ the wiring */
 
 const app = read('src/App.jsx');
