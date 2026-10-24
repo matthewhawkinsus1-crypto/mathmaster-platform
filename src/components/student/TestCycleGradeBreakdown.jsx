@@ -1,5 +1,6 @@
 import React from 'react';
 import { testCycleGradeBreakdown } from '../../platform/assessment/testCycle.js';
+import HiddenGradeMask from './HiddenGradeMask.jsx';
 
 /*
  * THE TEST CYCLE GRADE, EXPLAINED WHERE THE GRADE IS SHOWN.
@@ -52,7 +53,7 @@ export const TestCycleGradeBreakdown = ({ entry, hidden = false, compact = false
         <div key={row.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
           <dt style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{row.label}</dt>
           <dd style={{ margin: 0, fontSize: 'calc(12 * var(--mm-px))', fontWeight: row.key === 'recordedGrade' ? 900 : 700, color: 'var(--mm-text-strong)' }}>
-            {hidden ? '••' : row.value}
+            {hidden ? <HiddenGradeMask /> : row.value}
           </dd>
         </div>
       ))}
