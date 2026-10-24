@@ -243,6 +243,72 @@ test('a meeting that has already ended is never offered or scheduled as the Test
 });
 
 /*
+ * A DAY WHOSE A/B DAY IS SET ONLY AFTER ITS CLASS MET (the owner, 2026-10-23,
+ * TC01). The Test day was set in good time on an undesignated Friday, and the
+ * Friday was set to A only in the afternoon: Period 3's 10:15–11:05 never had
+ * times while it met, so nobody could start the Test in it. It waits for a new
+ * Test day instead of marking the class missed. The bell schedule records when
+ * each date's A/B day was set (`dayTypeSetAt`, stamped by the save).
+ */
+test('a Test day whose A/B day is set only after its class met is never read as missed', () => {
+  const FRI = FRI_UNSET;
+  const friday = assignment(withClassTestDay(null, { classId: 'c3', dateKey: FRI, at: at(2026, 10, 14, 9) }));
+  const setTo = (dayType, setAt, extra = {}) => ({ ...bell, dayTypeOverrides: { ...bell.dayTypeOverrides, [FRI]: dayType }, dayTypeSetAt: { [FRI]: setAt }, ...extra });
+  const statusOn = (schedule, now, { config = friday, classId = 'c3', classPeriod = 'Period 3' } = {}) => resolveStudentTestCycleSchedule({ assignment: config, classId, classPeriod, schedule, now, timeZone: TZ });
+  const absent = { assignmentId: 'a1', studentId: 's-absent', test: { state: 'assigned' } };
+
+  // Set that morning, before the bell: a real chance, and missed as before.
+  const morning = statusOn(setTo('A', at(2026, 10, 16, 9)), at(2026, 10, 16, 13));
+  assert.equal(morning.test.state, WINDOW_STATE.CLOSED);
+  assert.equal(studentMissedOriginalTest({ record: absent, schedule: morning }), true);
+  // Set during the period: open for the rest of it, then closed.
+  const midPeriod = setTo('A', at(2026, 10, 16, 10, 30));
+  assert.equal(statusOn(midPeriod, at(2026, 10, 16, 10, 40)).test.state, WINDOW_STATE.OPEN);
+  assert.equal(statusOn(midPeriod, at(2026, 10, 16, 11, 5)).test.state, WINDOW_STATE.CLOSED);
+
+  // Set after the bell: it never opened, so nobody missed it.
+  const afternoon = setTo('A', at(2026, 10, 16, 13));
+  const [window] = resolveClassWindows({ availability: friday.testAvailability, classId: 'c3', classPeriod: 'Period 3', schedule: afternoon, timeZone: TZ });
+  assert.deepEqual([window.resolved, window.pending, window.reason, window.closesAt], [false, false, 'dayTypeSetAfterEnd', at(2026, 10, 16, 11, 5)]);
+  const late = statusOn(afternoon, at(2026, 10, 16, 13, 5));
+  assert.deepEqual([late.test.state, late.test.enforced, late.test.stranded, late.test.pendingReason], [WINDOW_STATE.UPCOMING, true, true, 'dayPassedWithoutTimes']);
+  assert.equal(studentMissedOriginalTest({ record: absent, schedule: late }), false, 'not moved to a Retest');
+  assert.equal(studentMissedOriginalTest({ record: absent, schedule: statusOn(afternoon, at(2026, 11, 30, 9)) }), false, 'weeks later, still not');
+  assert.equal(testWindowRefusal(late.test, { timeZone: TZ }), 'This Test is waiting for a new Test day. Your teacher will set one.');
+  assert.equal(describeTestWindow(late.test, { timeZone: TZ }).detail, 'Fri, Oct 16 passed before the bell schedule gave this class\'s times for it. Your teacher will set a new Test day.');
+  assert.equal(classNeedsNewTestDay(late.test, { started: 0, waiting: 24 }), true, 'the panel flags the class');
+  // A make-up the teacher arranged still runs, and whoever sat goes on.
+  assert.equal(late.followUp.state, WINDOW_STATE.OPEN);
+
+  // Exactly at the bell is after it; a moment before is a real (closing) window.
+  assert.equal(statusOn(setTo('A', at(2026, 10, 16, 11, 5)), at(2026, 10, 16, 12)).test.stranded, true);
+  assert.equal(statusOn(setTo('A', at(2026, 10, 16, 11, 5) - 1), at(2026, 10, 16, 12)).test.state, WINDOW_STATE.CLOSED);
+  // An extension past the bell that runs past the late setting: open until it ends.
+  const extended = assignment(withClassWindowExtended(friday.testAvailability, { classId: 'c3', windowId: `day-${FRI}`, closesAt: at(2026, 10, 16, 15), at: at(2026, 10, 15, 9) }));
+  assert.equal(statusOn(afternoon, at(2026, 10, 16, 13, 5), { config: extended }).test.state, WINDOW_STATE.OPEN);
+  assert.equal(studentMissedOriginalTest({ record: absent, schedule: statusOn(afternoon, at(2026, 10, 16, 15), { config: extended }) }), true);
+
+  // Switched to B at 2 pm: Period 4 (12:30–13:20) never met as a B period;
+  // set at noon instead, it opens as usual.
+  const fridayB = assignment(withClassTestDay(null, { classId: 'c4', dateKey: FRI, at: at(2026, 10, 14, 9) }));
+  assert.equal(statusOn(setTo('B', at(2026, 10, 16, 14)), at(2026, 10, 16, 14, 5), { config: fridayB, classId: 'c4', classPeriod: 'Period 4' }).test.stranded, true);
+  assert.equal(statusOn(setTo('B', at(2026, 10, 16, 12)), at(2026, 10, 16, 12, 45), { config: fridayB, classId: 'c4', classPeriod: 'Period 4' }).test.state, WINDOW_STATE.OPEN);
+
+  // Where nothing records when the day was set — older saves, the weekly
+  // pattern — a resolving day reads exactly as before.
+  const unstamped = { ...bell, dayTypeOverrides: { ...bell.dayTypeOverrides, [FRI]: 'A' } };
+  assert.equal(statusOn(unstamped, at(2026, 10, 16, 13)).test.state, WINDOW_STATE.CLOSED);
+  // A day with its own special times is timed by them, not by its A/B day.
+  const special = setTo('A', at(2026, 10, 16, 13), { modifiedSchedules: { [FRI]: { periods: { 'Period 3': { enabled: true, start: '10:15', end: '11:05' } } } } });
+  assert.equal(statusOn(special, at(2026, 10, 16, 13, 5)).test.state, WINDOW_STATE.CLOSED);
+  // The teacher counting the class's sitting on it is the teacher's word.
+  const counted = assignment(withClassSittingHeld(friday.testAvailability, { classId: 'c3', windowId: `day-${FRI}`, opensAt: at(2026, 10, 16, 10, 15), closesAt: at(2026, 10, 16, 11, 5), at: at(2026, 10, 16, 14) }));
+  const heldDay = statusOn(afternoon, at(2026, 10, 16, 14, 5), { config: counted });
+  assert.deepEqual([heldDay.test.state, heldDay.test.closesAt], [WINDOW_STATE.CLOSED, at(2026, 10, 16, 11, 5)]);
+  assert.equal(studentMissedOriginalTest({ record: absent, schedule: heldDay }), true);
+});
+
+/*
  * A STRANDED DAY NEVER HIDES A WINDOW THAT RAN. When a real window has opened
  * and closed — the teacher's reopen of a stranded day, another day that did
  * resolve, one student's make-up — the Test is closed as it would be without

@@ -46,7 +46,7 @@
  * Pure by construction: no Firestore, no network, no clock of its own.
  */
 
-import { resolvePeriodWindow, resolveScheduleDayType } from './classSchedule.mjs';
+import { dayTypeSetAtOf, resolvePeriodWindow, resolveScheduleDayType } from './classSchedule.mjs';
 import { parseInstant, zonedDateKey, zonedInstant } from './instructionalCalendar.mjs';
 import { resolveStudentDeadlines } from './studentAssignmentOverrides.mjs';
 
@@ -240,6 +240,9 @@ export const resolveClassPeriodDay = ({ schedule = null, classPeriod = null, dat
   const at = noonOf(dateKey, timeZone);
   const window = resolvePeriodWindow({ schedule, classPeriod, nowValue: at, timeZone });
   if (window) {
+    // When this date's A/B day was set, where the bell schedule records it
+    // (TC01). A day with its own special times is timed by them, not by it.
+    const dayTypeSetAt = window.modified === true ? null : dayTypeSetAtOf(schedule, clean(dateKey));
     return {
       resolved: true,
       pending: false,
@@ -249,6 +252,7 @@ export const resolveClassPeriodDay = ({ schedule = null, classPeriod = null, dat
       period: classPeriod,
       dayType: window.dayType || null,
       modifiedSchedule: window.modified === true,
+      ...(dayTypeSetAt !== null ? { dayTypeSetAt } : {}),
     };
   }
   const weekday = new Date(`${clean(dateKey)}T00:00:00Z`).getUTCDay();
@@ -307,6 +311,12 @@ export const upcomingClassPeriodDays = ({
  * A class-period window whose meeting had already ended when the teacher set
  * it (`at`) is unresolved too, reason `endedBeforeSet`: nobody could have sat
  * it, so nobody missed it.
+ *
+ * So is one whose day only got its A/B day after the window had closed
+ * (`dayTypeSetAfterEnd`, the owner 2026-10-23, TC01): a Friday set to A in the
+ * afternoon gives that morning's periods times they never had while the class
+ * met. It waits for a new Test day — unless the teacher counted the class's
+ * sitting on it (`held`).
  */
 export const resolveClassWindows = ({
   availability = null,
@@ -321,7 +331,11 @@ export const resolveClassWindows = ({
       return { id: window.id, source: 'teacher', opensAt: window.opensAt, closesAt: window.closesAt, resolved: true, pending: false };
     }
     const day = resolveClassPeriodDay({ schedule, classPeriod, dateKey: window.dateKey, timeZone });
-    if (!day.resolved && window.held) {
+    // The day's A/B day was set at or after this window's close (an extension
+    // included): it had no class time while the class met (TC01).
+    const dayTypeSetLate = day.resolved && day.dayTypeSetAt !== undefined
+      && Math.max(day.closesAt, Number(window.closesAtOverride) || 0) <= day.dayTypeSetAt;
+    if ((!day.resolved || dayTypeSetLate) && window.held) {
       // The class sat it and the teacher said so: the day ran at the times
       // its sitting recorded, so it opened and closed like any other day. The
       // sitting keeps the bell's close and an extension stays on the window,
@@ -340,6 +354,18 @@ export const resolveClassWindows = ({
         closesAt: extended ? window.closesAtOverride : window.held.closesAt,
         scheduledClosesAt: window.held.closesAt,
         extended,
+      };
+    }
+    if (dayTypeSetLate) {
+      return {
+        id: window.id,
+        source: 'bellSchedule',
+        dateKey: window.dateKey,
+        resolved: false,
+        pending: false,
+        reason: 'dayTypeSetAfterEnd',
+        opensAt: null,
+        closesAt: Math.max(day.closesAt, Number(window.closesAtOverride) || 0),
       };
     }
     if (!day.resolved) {
@@ -504,8 +530,9 @@ export const resolveTestWindowStatus = ({
   }
 
   // A window the bell schedule never gave times for — its day passed while
-  // undesignated, the class stopped meeting that day, or it was set after the
-  // meeting ended — was never open to anyone, so on its own it is never
+  // undesignated or got its A/B day only after the class met, the class
+  // stopped meeting that day, or it was set after the meeting ended — was
+  // never open to anyone, so on its own it is never
   // "missed": the Test stays enforced (it cannot be started) and waits for a
   // new day, and nobody is moved to a Retest because of it.
   //

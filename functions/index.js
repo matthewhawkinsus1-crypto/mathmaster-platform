@@ -21100,7 +21100,10 @@ async function teacherTestCycleSchedule(db, shared, { assignmentId = null, assig
           ? shared.schedule.formatSchoolRange(window.opensAt, window.closesAt, timeZone)
           : window.reason === "endedBeforeSet"
             ? `${shared.schedule.formatSchoolDate(window.dateKey, timeZone)} (that day's class had ended when it was set: choose a new day)`
-            : `${shared.schedule.formatSchoolDate(window.dateKey, timeZone)} (times not on the bell schedule yet)`,
+            : window.reason === "dayTypeSetAfterEnd"
+              // TC01: the day's A/B day was set only after this class had met.
+              ? `${shared.schedule.formatSchoolDate(window.dateKey, timeZone)} (its A/B day was set after this class had met: choose a new day)`
+              : `${shared.schedule.formatSchoolDate(window.dateKey, timeZone)} (times not on the bell schedule yet)`,
       })),
       // The next days this class sits, straight from the bell schedule.
       upcomingDays: upcoming.days.map((day) => ({

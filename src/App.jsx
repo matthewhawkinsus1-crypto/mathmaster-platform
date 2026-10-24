@@ -159,6 +159,7 @@ import {
   studentDueDateLines,
   studentExtraTimeDolOpen,
   studentRequiredQuestions,
+  withDayTypeSetAt,
 } from './assignmentLifecycle';
 import { HEARTBEAT_INTERVAL_MS, buildLiveStatus, encodeQuestionStates } from './livePresence';
 import { helpRequestAfterClose, helpRequestFields, nextHelpRequest } from './platform/supports/helpRequest.js';
@@ -8751,8 +8752,13 @@ function App() {
   };
 
   const handleSaveClassSchedule = async () => {
-    const normalized = normalizeSchedule(classSchedule);
-    await setDoc(doc(db, 'settings', 'classSchedule'), normalized);
+    const scheduleRef = doc(db, 'settings', 'classSchedule');
+    // TC01 (the owner, 2026-10-23): each date whose A/B day this save changes
+    // is stamped with the server's clock, so a Test day whose A/B day is set
+    // only after its class met is never read as missed.
+    const saved = await getDoc(scheduleRef);
+    const normalized = withDayTypeSetAt(saved.exists() ? saved.data() : null, normalizeSchedule(classSchedule), serverTimestamp());
+    await setDoc(scheduleRef, normalized);
     setClassSchedule(normalized);
     toastSuccess('A/B schedule saved', 'DOL windows now use the selected A/B day and any date-specific bell schedule.');
   };

@@ -62,7 +62,10 @@ test('the teacher decides: a sitting is read only by id, by the panel and by cou
   const shared = executableSource(readFileSync(new URL('../../functions/shared/testCycleAvailability.mjs', import.meta.url), 'utf8'));
   const resolver = region(shared, 'export const resolveClassWindows = (', '\n};\n', 'resolveClassWindows');
   assert.doesNotMatch(resolver.replace(/heldFromSitting/g, ''), /sitting/i, 'reads the teacher\'s held decision, never a sitting');
-  assert.match(resolver, /if \(!day\.resolved && window\.held\) \{/);
+  // The held decision is used for a day the bell schedule gives no times the
+  // class could have sat: one that does not resolve, or whose A/B day was set
+  // only after it had met (TC01).
+  assert.match(resolver, /if \(\(!day\.resolved \|\| dayTypeSetLate\) && window\.held\) \{/);
 });
 
 test('the mistake diagnosis starts loading at entry and is awaited before every grading transaction, never inside it', () => {
