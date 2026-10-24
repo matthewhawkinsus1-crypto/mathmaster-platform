@@ -5,6 +5,12 @@
 // response module that re-reports unchanged work, shows up as commits during a
 // window in which nobody touched anything. `window.__mmTick()` re-renders the
 // host the way App's 30-second clock or a Firestore snapshot does.
+//
+// The `supportChange*` scenes host the question with a student profile:
+// `window.__mmSupport([...accommodations])` is a support-plan revision the
+// teacher saves while the student works (App applies it live), which
+// generates the question again with new presentation; `window.__mmEditEquation(eq)`
+// is its equation edited — a different problem.
 import { Profiler, useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import QuestionEngine from '../../src/QuestionEngine.jsx';
@@ -43,6 +49,16 @@ const SCENES = {
       grading: { solve: { expected: 'x=4' } },
     },
   },
+  // A Step Algebra question, and an inequality (the relation workspace), opened
+  // with no draft (TL16).
+  supportChangeStepAlgebra: {
+    question: { type: 'stepAlgebra', questionId: 'render-support-step', prompt: 'Solve for x.', equation: '4x - 7 = 13', solveFor: 'x' },
+    host: 'profile',
+  },
+  supportChangeRelation: {
+    question: { type: 'stepAlgebra', questionId: 'render-support-relation', prompt: 'Solve the inequality.', equation: '2x + 3 < 11', solveFor: 'x' },
+    host: 'profile',
+  },
 };
 
 function ChallengeRoundLikeHost({ question, tick }) {
@@ -74,6 +90,28 @@ function PlainHost({ question, tick }) {
   );
 }
 
+function ProfileHost({ question: authored, tick }) {
+  window.__mmHostRenders += 1;
+  const onGrade = useCallback(async () => null, []);
+  const [accommodations, setAccommodations] = useState([]);
+  const [equation, setEquation] = useState(null);
+  useEffect(() => {
+    window.__mmSupport = (next) => setAccommodations(next);
+    window.__mmEditEquation = (next) => setEquation(next);
+  }, []);
+  const question = equation ? { ...authored, equation } : authored;
+  return (
+    <QuestionEngine
+      question={question}
+      questionRecord={{ status: 'unattempted', attemptCount: 0 }}
+      draftKey={`render-stability-${authored.questionId}`}
+      studentProfile={{ accommodations }}
+      onGrade={onGrade}
+      data-tick={tick}
+    />
+  );
+}
+
 function Harness() {
   const [sceneId, setSceneId] = useState(null);
   const [tick, setTick] = useState(0);
@@ -85,7 +123,7 @@ function Harness() {
   }, []);
   if (!sceneId) return <div data-render-idle="1">idle</div>;
   const scene = SCENES[sceneId];
-  const Host = scene.host === 'challengeRound' ? ChallengeRoundLikeHost : PlainHost;
+  const Host = scene.host === 'challengeRound' ? ChallengeRoundLikeHost : scene.host === 'profile' ? ProfileHost : PlainHost;
   return (
     <div className="mathmaster-question-container" data-render-scene={sceneId}>
       <Profiler id={sceneId} onRender={() => { window.__mmCommits += 1; }}>

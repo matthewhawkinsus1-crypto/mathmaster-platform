@@ -690,7 +690,17 @@ export default function MultiRelationAlgebra({
   const representationsWithheld = showImmediateFeedback === false;
   const [candidateChecks, setCandidateChecks] = useState(() => initialCandidateChecksFor(draftKey));
 
+  // The problem the reset below sets up: this draft and the relation the
+  // question asks about. The same problem generated again — a support-plan
+  // revision saved while the student works, with new presentation — is not a
+  // new question, and resetting for it took the operation the student had
+  // picked and the number they were typing (TL16, as in StepByStepAlgebraCore).
+  const problemKey = useMemo(() => JSON.stringify([draftKey ?? null, pristine]), [draftKey, pristine]);
+  const problemSetUpRef = useRef(null);
+
   useEffect(() => {
+    if (problemSetUpRef.current === problemKey) return;
+    problemSetUpRef.current = problemKey;
     setRelationState(initialStateFor(question, draftKey));
     setHistory([]);
     setActiveBranch(0);

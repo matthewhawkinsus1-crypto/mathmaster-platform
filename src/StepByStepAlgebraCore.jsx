@@ -555,8 +555,24 @@ export default function StepByStepAlgebra({
     equation?.variable,
   ), [question?.equation, question?.formula, question?.solveFor, equation]);
 
+  // THE PROBLEM THE RESET BELOW SETS UP, NOT EVERY FIELD OF THE QUESTION
+  // (TL16, A2-117). The question's content also changes when the problem does
+  // not: a support-plan revision the teacher saves while the student works
+  // (App applies it at once) or the adaptive band moving generates it again
+  // with new presentation. On a question that opened with no draft, that reset
+  // the board under the student — the operation they had picked, the number
+  // they were typing, the step they had placed. Only a new equation, support
+  // level, first-step support or draft is a new problem.
+  const problemKey = useMemo(
+    () => JSON.stringify([localDraftKey, pristineEquation, question.workspaceDifficulty ?? question.mode ?? null, Boolean(question.prefillFirstStep)]),
+    [localDraftKey, pristineEquation, question.workspaceDifficulty, question.mode, question.prefillFirstStep],
+  );
+  const problemSetUpRef = useRef(null);
+
   useEffect(() => {
     if (savedDraft) return;
+    if (problemSetUpRef.current === problemKey) return;
+    problemSetUpRef.current = problemKey;
     setCommittedHistory([]);
     // getInitialEquation returns { equation, error }, not an equation. Putting
     // the wrapper into state left `equation.left` undefined on every question
@@ -586,12 +602,13 @@ export default function StepByStepAlgebra({
   }, [question, savedDraft]);
 
   // A saved draft skips the fresh-question reset block above, so clear Undo
-  // history explicitly whenever the question/draft identity changes. History
+  // history explicitly whenever the problem (or its draft) changes. History
   // belongs to this mounted work session; it is not reconstructed from old
-  // server state and can never leak into the next problem.
+  // server state and can never leak into the next problem — and the same
+  // problem generated again keeps it, like the board (problemKey).
   useEffect(() => {
     setCommittedHistory([]);
-  }, [question, localDraftKey]);
+  }, [problemKey]);
 
   useEffect(() => {
     // A JSON author cannot turn this on for the whole class. The automatic
