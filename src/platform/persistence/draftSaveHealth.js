@@ -201,6 +201,27 @@ export const draftSaveProblemsFor = ({ studentId, assignmentId } = {}) => {
   return Object.fromEntries(KINDS.map((kind) => [kind, [...problems.get(kind)].filter((key) => key.startsWith(prefix)).length]));
 };
 
+/*
+ * The assignments where one student has a problem, for Home to name them
+ * (NV10). Draft keys are `mathmaster:draft:v2::<student>:<assignment>:…`.
+ */
+export const draftSaveProblemAssignmentIds = (studentId) => {
+  if (!studentId) return [];
+  const prefix = `mathmaster:draft:v2::${encodeURIComponent(String(studentId))}:`;
+  const ids = new Set();
+  KINDS.forEach((kind) => problems.get(kind).forEach((key) => {
+    if (!key.startsWith(prefix)) return;
+    const part = key.slice(prefix.length).split(':')[0];
+    try {
+      const id = decodeURIComponent(part);
+      if (id) ids.add(id);
+    } catch {
+      // A key this build did not write names nothing.
+    }
+  }));
+  return [...ids];
+};
+
 /* Every problem of one student, on any assignment: what Home's status line reads. */
 export const draftSaveProblemsForStudent = (studentId) => {
   if (!studentId) return Object.fromEntries(KINDS.map((kind) => [kind, 0]));

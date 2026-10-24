@@ -30,7 +30,7 @@ import {
   responseFingerprint,
 } from './platform/performance/responseCheckpoint.js';
 import { FAMILY_PIN_SERVER_WAIT_MS, WORKSPACE_DRAFT_REREAD_AFTER_HIDDEN_MS, createWorkspaceDraftSync } from './platform/persistence/workspaceDraftSync.js';
-import { accountChangeClearsDraftProblems, clearDraftSaveProblems, describeDraftSaveProblems, draftSaveProblemsFor, draftSaveProblemsForStudent, subscribeDraftSaveHealth } from './platform/persistence/draftSaveHealth.js';
+import { accountChangeClearsDraftProblems, clearDraftSaveProblems, describeDraftSaveProblems, draftSaveProblemAssignmentIds, draftSaveProblemsFor, draftSaveProblemsForStudent, subscribeDraftSaveHealth } from './platform/persistence/draftSaveHealth.js';
 import { REPLACEMENT_NOT_QUEUED, STEP_NOT_QUEUED, SUBMISSION_NOT_QUEUED } from './platform/student/submissionNotQueued.js';
 import { readLatestWorkspaceResume, readWorkspaceDraft, writeWorkspaceDraft } from './platform/persistence/workspaceDraftStore.js';
 import { readWorkspaceDeliveryPins, readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
@@ -867,6 +867,8 @@ function App() {
   // reason to worry a student, and a pending Submit is.
   const [studentPendingGradeCount, setStudentPendingGradeCount] = useState(0);
   const [studentNeedsReviewCount, setStudentNeedsReviewCount] = useState(0);
+  // The assignments those answers are on, for Home to name (NV10).
+  const [studentNeedsReviewAssignmentIds, setStudentNeedsReviewAssignmentIds] = useState([]);
   const [studentPersistenceStatus, setStudentPersistenceStatus] = useState('idle');
   // Unfinished work this device could not save, or the backup could not take
   // (draftSaveHealth.js). Bumped on every change; the line below reads it.
@@ -3281,6 +3283,9 @@ function App() {
     setStudentOutboxDepth(result.remaining);
     setStudentPendingGradeCount(result.remainingGrade);
     setStudentNeedsReviewCount(result.tally.needsReview);
+    setStudentNeedsReviewAssignmentIds([...new Set((result.retained || [])
+      .filter((entry) => entry.disposition === SUBMISSION_DISPOSITION.NEEDS_REVIEW && entry.assignmentId)
+      .map((entry) => entry.assignmentId))]);
     setStudentPersistenceStatus(
       result.remaining
         ? (result.tally.needsReview ? 'needs-review' : (navigator.onLine ? 'syncing' : 'offline'))
@@ -9202,12 +9207,18 @@ function App() {
   // The student's save status, as Home's status line shows it (Batch 3: drafts
   // that are not being saved count). The pack-up line reads the same one, so
   // the two never disagree (NAV-24 review B2).
+  // Which assignments the work is on, by the titles the student sees (NV10).
+  const studentAssignmentTitles = (ids) => ids
+    .map((id) => assignments.find((assignment) => assignment.id === id)?.title)
+    .filter(Boolean);
   const studentSaveStatusNow = () => describeSaveStatus({
     persistenceStatus: studentPersistenceStatus,
     outboxDepth: studentOutboxDepth,
     pendingGradeCount: studentPendingGradeCount,
     online: typeof navigator === 'undefined' ? true : navigator.onLine !== false,
     draftsUnsaved: draftSaveHealthVersion >= 0 && Boolean(describeDraftSaveProblems(draftSaveProblemsForStudent(user?.id))),
+    needsReviewTitles: studentAssignmentTitles(studentNeedsReviewAssignmentIds),
+    unsavedDraftTitles: studentAssignmentTitles(draftSaveHealthVersion >= 0 ? draftSaveProblemAssignmentIds(user?.id) : []),
   });
 
   const renderStudentPackUpNotice = () => {

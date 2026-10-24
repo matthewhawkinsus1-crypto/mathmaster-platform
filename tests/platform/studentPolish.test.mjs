@@ -103,7 +103,8 @@ test('every persistence status has a line a student can read', () => {
   assert.equal(describeSaveStatus({}).text, 'All work saved');
   assert.equal(describeSaveStatus({ persistenceStatus: 'queued' }).text, 'Saving…');
   assert.equal(describeSaveStatus({ persistenceStatus: 'offline' }).text, 'Offline — your work is saved on this device and will send when you reconnect');
-  assert.equal(describeSaveStatus({ persistenceStatus: 'needs-review' }).text, 'Some work needs attention — keep this tab open');
+  // NV10: the attention line says what is wrong and what to do (homeSaveStatusNamesWork.test.mjs).
+  assert.equal(describeSaveStatus({ persistenceStatus: 'needs-review' }).text, 'Some work needs attention: some answers have not been recorded yet. Keep this tab open while MathMaster sends them.');
   assert.equal(describeSaveStatus({ persistenceStatus: 'rejected' }).text, SAVE_STATUS_TEXT.rejected);
 });
 

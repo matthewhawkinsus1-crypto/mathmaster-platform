@@ -1170,7 +1170,7 @@ export const drainDurableActions = ({
         if (normalized.disposition === SUBMISSION_DISPOSITION.NEEDS_REVIEW) tally.needsReview += 1;
         else tally.retryable += 1;
         if (stream.lane === LANE.GRADE) gradeBlocked += 1;
-        retained.push({ actionId: action.actionId, kind: action.kind, ...normalized });
+        retained.push({ actionId: action.actionId, kind: action.kind, assignmentId: String(action.assignmentId || ''), ...normalized });
         const attemptedAt = Number(now) || Date.now();
         const delivery = {
           attempts: Number(action.delivery?.attempts || 0) + 1,
