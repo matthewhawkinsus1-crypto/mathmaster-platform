@@ -38,6 +38,7 @@ import { buildPartReviewRows, closedQuestionHasReview } from './platform/support
 import { closedAttemptText, feedbackOpenForItem, hintOfferedAfterMiss, missFeedback } from './platform/supports/feedback/attemptFeedbackPlan.js';
 import { attemptSupportUsageFrom, rememberSupportUse, restoredSupportUse } from './platform/supports/supportUseMemory.js';
 import { diagnoseMiss, displayFamilyValues } from './platform/supports/feedback/missDiagnosis.js';
+import { standardFormMultipleNote } from './platform/supports/feedback/standardFormMultipleNote.js';
 import { backUpStepFor, backUpStepWritten } from './platform/supports/feedback/backUpStep.js';
 import { partialCreditBreakdown } from './platform/supports/feedback/partialCreditBreakdown.js';
 import { displayGradingSurface } from './platform/grading/displayGradingSurface.js';
@@ -1944,6 +1945,13 @@ function QuestionEngineBody({
     const diagnosis = diagnoseMiss({ question: processedQuestion, grading: gradedForDisplay.grading, response: gradedForDisplay.response, familyValues, attemptsLeft: !isExpired });
     return missFeedback({ question: processedQuestion, attemptNumber: Number(feedback.attemptCount) || record.attemptCount, diagnosis, parts: gradedForDisplay.grading?.parts });
   }, [feedback, feedbackOpen, gradedForDisplay, runtimeQuestion, processedQuestion, familyAssignmentId, familyStorageIndex, record.attemptCount, isExpired]);
+  // A right line that still carries a common factor (GR29): said under
+  // "Correct!", where outcome feedback is open.
+  const correctNote = useMemo(() => {
+    if (!feedback?.isCorrect || feedback.blocked || !feedbackOpen) return '';
+    if (!gradedForDisplay || gradedForDisplay.feedback !== feedback) return '';
+    return standardFormMultipleNote({ question: processedQuestion, parts: gradedForDisplay.grading?.parts });
+  }, [feedback, feedbackOpen, gradedForDisplay, processedQuestion]);
   // An attempt made after a specific miss message was shown is feedback-
   // assisted, not independent (PR #462 review M6c).
   useEffect(() => {
@@ -2822,6 +2830,12 @@ function QuestionEngineBody({
           )}
           {attemptOutcomeFocus && (
             <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)' }}>{attemptOutcomeFocus}</div>
+          )}
+          {correctNote && (
+            <div data-correct-note="common-factor" style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(24,128,56,0.24)', fontWeight: 600 }}>
+              {correctNote}
+              <SupportedTextActions text={correctNote} readAloud={supportedTextReadAloud} translation={supportedTextTranslation} label="the note" onEvidence={reportSupportedTextUse} />
+            </div>
           )}
           {(attemptHintOffered || attemptSimilarOffered) && (
             <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)', fontWeight: 600 }}>

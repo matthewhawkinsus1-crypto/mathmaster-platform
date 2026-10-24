@@ -106,6 +106,9 @@ const attemptOutcome = [
   ['You have {1} tries left on this version.', 'Te quedan {1} intentos en esta versión.'],
   ['You have {1} try left on this version.', 'Te queda {1} intento en esta versión.'],
   ['Correct! This question is complete.', '¡Correcto! Esta pregunta está completa.'],
+  // src/platform/supports/feedback/standardFormMultipleNote.js (GR29)
+  ['Every term shares a factor of {1}.', 'Todos los términos tienen un factor común de {1}.'],
+  ['Divide it out to write the equation with the smallest whole numbers.', 'Divide entre ese factor para escribir la ecuación con los números enteros más pequeños.'],
   ['That was the final allowed attempt ({1} total).', 'Ese fue el último intento permitido ({1} en total).'],
   ['That was the final allowed try ({1} total).', 'Ese fue el último intento permitido ({1} en total).'],
   ['That was your last try ({1} total).', 'Ese fue tu último intento ({1} en total).'],
