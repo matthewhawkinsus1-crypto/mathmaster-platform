@@ -331,6 +331,18 @@ export const validateToolQuestion = (question = {}) => {
       if (f.h != null && !Number.isFinite(Number(f.h))) errors.push('inverseCompositionLab deriveInverse mode requires finite h when supplied.');
       if (f.k != null && !Number.isFinite(Number(f.k))) errors.push('inverseCompositionLab deriveInverse mode requires finite k when supplied.');
     }
+    // The lab draws, labels and grades a function from a, h, k (and base)
+    // only. A line written as y = mx + b (m, slope, or b as its intercept), or
+    // a horizontal scale b, was shown and marked as a different function than
+    // the prompt states, and its worked review fell silent (FB14). Refused,
+    // with how to write it.
+    ['f', 'g'].forEach((key) => {
+      const fn = question[key];
+      if (!fn || typeof fn !== 'object') return;
+      const ignored = ['m', 'slope'].filter((field) => fn[field] != null);
+      if (fn.b != null && Number(fn.b) !== 1) ignored.push('b');
+      if (ignored.length) errors.push(`inverseCompositionLab ${key} uses ${ignored.join(', ')}, which the lab ignores. Write it with a, h and k: for a line y = mx + c, use a = m, h = 0, k = c.`);
+    });
     if (f.type === 'quadratic' && !f.inverseBranch && !question.inverseBranch && f.domain?.min == null && f.domain?.max == null) warnings.push('Quadratic inverse family should declare inverseBranch or a one-sided domain restriction.');
     if (['exponential','logarithmic'].includes(f.type)) {
       const base = Number(f.base ?? 2);

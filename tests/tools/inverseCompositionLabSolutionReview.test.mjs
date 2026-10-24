@@ -327,3 +327,18 @@ test('never throws: null, {}, and malformed input give null', () => {
   assert.equal(buildToolSolutionReviewModel({}), null);
   assert.equal(buildToolSolutionReviewModel({ toolId: TOOL_ID }), null);
 });
+
+// FB14: the lab reads a, h, k only, so a line written y = mx + b (or a
+// horizontal scale b) is refused when it is authored, not only by the review.
+test('authoring refuses a function the lab would read as a different one, and says how to write it', async () => {
+  const { validateToolQuestion } = await import('../../src/tools/toolSchemas.js');
+  const errorsFor = (question) => validateToolQuestion({ toolId: 'inverseCompositionLab', mode: 'inverse', x: 2, ...question }).errors;
+  for (const [label, f] of [['an intercept b', { type: 'linear', a: 2, b: 3 }], ['a slope m', { type: 'linear', m: 2, k: 1 }], ['a slope field', { type: 'linear', slope: 2, k: 1 }]]) {
+    const errors = errorsFor({ f });
+    assert.ok(errors.some((error) => /inverseCompositionLab f uses .*which the lab ignores\. Write it with a, h and k/.test(error)), `${label}: ${errors.join(' | ')}`);
+  }
+  assert.ok(errorsFor({ f: { type: 'linear', a: 2, k: 1 }, g: { type: 'linear', m: 3 } }).some((error) => /inverseCompositionLab g uses m/.test(error)));
+  // a, h, k (and b of 1, the identity scale) are what the lab reads.
+  assert.deepEqual(errorsFor({ f: { type: 'linear', a: 2, h: 0, k: 1 } }).filter((error) => /ignores/.test(error)), []);
+  assert.deepEqual(errorsFor({ f: { type: 'quadratic', a: 1, b: 1, h: 0, k: 0, inverseBranch: 'right' } }).filter((error) => /ignores/.test(error)), []);
+});

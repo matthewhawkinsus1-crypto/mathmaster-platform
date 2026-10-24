@@ -21,8 +21,10 @@
  * Null — never a guess — when:
  *   - the question authors no f (the lab's demonstration functions are not a
  *     question), or a view that asks for compositions authors no g;
- *   - a function carries a field the lab and grader ignore (a horizontal scale
- *     `b`, a slope `m`) — the prompt and the screen would disagree;
+ *   - a function carries a field the lab and grader ignore (`b`, which an
+ *     author of a line usually means as its intercept and the family readers
+ *     as a horizontal scale; a slope `m`) — the prompt and the screen would
+ *     disagree. Tool validation now refuses these (toolSchemas.js, FB14);
  *   - the view is not one the lab draws its inputs for (an unknown `mode`
  *     shows no composition boxes but the grader still asks for them);
  *   - no answer can be right: a composition or f(x) outside a domain, an f the
