@@ -1349,9 +1349,10 @@
 }
 
 /* Full strength: at 0.9 opacity a tab's count ("0/2") fell below 4.5:1 on its
-   own tab (Practice: 4.33:1; pass 3, A11Y-7). */
+   own tab (Practice: 4.33:1; pass 3, A11Y-7). 12px, as the Complete badge:
+   10px on a laptop was too small to read (AX38). */
 .mathmaster-section-tab small {
-  font-size: calc(10 * var(--mm-px));
+  font-size: calc(12 * var(--mm-px));
   font-weight: 900;
   white-space: nowrap;
   opacity: 1;
@@ -1584,7 +1585,7 @@
   }
 
   .mathmaster-assignment-screen .mathmaster-section-tab small {
-    font-size: calc(8 * var(--mm-px));
+    font-size: calc(12 * var(--mm-px));
   }
 
   .mathmaster-assignment-screen .mathmaster-overview-button {

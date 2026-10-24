@@ -255,6 +255,10 @@ const runCompleteBadge = async (page, viewport) => {
     text: element.textContent.trim(), size: parseFloat(getComputedStyle(element).fontSize),
   }));
   check(badge.size >= 12, `${viewport} section tabs: the "${badge.text}" badge is at least 12px (${badge.size}px)`);
+  // AX38: every tab's count, not only the Complete badge (10px on a laptop).
+  const counts = await page.locator('.mathmaster-section-tab small').evaluateAll((elements) => elements
+    .map((element) => ({ text: element.textContent.trim(), size: parseFloat(getComputedStyle(element).fontSize) })));
+  check(counts.length > 0 && counts.every((count) => count.size >= 12), `${viewport} section tabs: every count is at least 12px (${counts.map((count) => `${count.text} ${count.size}px`).join(', ')})`);
   // AX45: one main landmark on the assignment screen; its work area is not a
   // second one nested inside it.
   const landmarks = await page.evaluate(() => ({
