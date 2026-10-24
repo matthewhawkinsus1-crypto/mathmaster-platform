@@ -59,3 +59,15 @@ test('a plain click stays in the tab; a new-tab click is the browser\'s', () => 
   assert.match(nav, /const opensElsewhere = \(event\) => event\.button !== 0 \|\| event\.metaKey \|\| event\.ctrlKey \|\| event\.shiftKey \|\| event\.altKey;/);
   assert.match(nav, /onClick=\{\(event\) => \{\s*if \(opensElsewhere\(event\)\) return;\s*event\.preventDefault\(\);\s*if \(!active\) onNavigate\?\.\(destination\);\s*\}\}/);
 });
+
+// The phone folds destinations behind "More" with a stylesheet rule
+// (index.css); an inline display on a link would beat it, and the nav wrapped
+// to three rows on a 390px phone (caught by studentScreenChange S3).
+test('the links take their layout from the stylesheet, so the phone fold still hides them', () => {
+  const nav = executableSource(readFileSync(new URL('../../src/components/student/StudentGlobalNav.jsx', import.meta.url), 'utf8'));
+  const link = nav.slice(nav.indexOf('<a'), nav.indexOf('</a>'));
+  assert.doesNotMatch(link, /display:/, 'no inline display on a destination link');
+  const css = readFileSync(new URL('../../src/index.css', import.meta.url), 'utf8');
+  assert.match(css, /\.mm-student-nav > a \{ display: inline-flex; align-items: center; \}/);
+  assert.match(css, /\.mm-student-nav\[data-more-open="false"\] \.mm-student-nav__folded \{ display: none; \}/);
+});

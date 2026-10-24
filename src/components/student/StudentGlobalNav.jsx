@@ -128,9 +128,11 @@ export default function StudentGlobalNav({
               event.preventDefault();
               if (!active) onNavigate?.(destination);
             }}
+            // Laid out by index.css (.mm-student-nav > a): an inline `display`
+            // would beat the phone's fold behind "More".
             style={{
               fontFamily: 'inherit',
-              display: 'inline-flex', alignItems: 'center', textDecoration: 'none', boxSizing: 'border-box',
+              textDecoration: 'none', boxSizing: 'border-box',
               minHeight: MIN_TOUCH_TARGET_PX,
               padding: dense ? '9px 12px' : '10px 15px',
               borderRadius: 9,

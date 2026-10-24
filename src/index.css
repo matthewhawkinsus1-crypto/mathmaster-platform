@@ -500,6 +500,7 @@ body :is(
 /* The student navigation on a phone (StudentGlobalNav.jsx, NAV-13): Home,
    Assignments and Grades (and the current screen) in the row; the rest fold
    behind "More". Wider screens keep all six and never draw "More". */
+.mm-student-nav > a { display: inline-flex; align-items: center; }
 .mm-student-nav__more { display: none; }
 .mm-assignments-filters__toggle { display: none !important; }
 @media (max-width: 640px) {
