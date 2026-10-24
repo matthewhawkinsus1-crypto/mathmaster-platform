@@ -18,6 +18,7 @@ import fs from 'node:fs';
 import { compileTeacherImport } from '../../scripts/check-teacher-import.mjs';
 import { gradeToolWork } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
 import { plottedPointCorrespondence, resolveTransformationsQuestion, transformedSourcePoints } from '../../functions/shared/toolMath/transformations/transformationsMath.mjs';
+import { labGuidanceFor } from '../../src/tools/transformations/transformationsGuidance.js';
 import { correspondenceList, plotTransformMissMessage } from '../../src/tools/transformations/plotTransformFeedback.js';
 
 const lesson = compileTeacherImport(fs.readFileSync(new URL('../../teacher-import-jsons/algebra1-module2-topic2/L2_Vertical_and_Horizontal_Transformations_of_Linear_Functions.json', import.meta.url), 'utf8'));
@@ -71,7 +72,10 @@ test('the lab uses it on a plot miss, and its order hint says P1 is S1\'s image'
   const plotBranch = source.slice(source.indexOf("if (mode === 'plotTransform') {", source.indexOf('const feedbackMessage')), source.indexOf("if (mode === 'anchor')", source.indexOf('const feedbackMessage')));
   assert.match(plotBranch, /const correspondence = plotTransformMissMessage\(\{ plotted: feedback\.response\?\.plottedPoints, images: expectedTransformedPoints/);
   assert.match(plotBranch, /if \(correspondence\) return correspondence;/);
-  assert.match(source, /'plotTransform': \[[^\]]*Order matters: P1 is the image of S1/);
+  // The hints the lab shows for this lesson's line (transformationsGuidance.js,
+  // which the lab reads for the family it draws).
+  assert.match(labGuidanceFor('linear').hints.plotTransform.join(' '), /Order matters: P1 is the image of S1/);
+  assert.match(source, /const \{ steps: MODE_STEPS, hints: HINTS \} = labGuidanceFor\(family\);/);
 });
 
 test('some images already in place: the lab keeps its count sentence, never "not the images of their own points" (review S2)', () => {

@@ -37,8 +37,10 @@ import { buildFamilyQuestion, cachedFamilyInstanceSequence } from '../../functio
  * enter (each stated value typed into its box, each stated point plotted in
  * order) and graded by the shared grader the server records with: it must
  * come back correct. Where the graph a student reads does not fix the value
- * the grader marks (a line's h and k, an exponential's a and h, any a·b trade
- * off), the review is null rather than a guess dressed as a deduction.
+ * the grader marks (an exponential's a and h, any a·b trade off), the review
+ * is null rather than a guess dressed as a deduction. A line's h and k are the
+ * one exception (TL20): its identify and describe reviews read the question's
+ * own point, say it is a choice, and name a second one the grader accepts.
  */
 
 const TOOL_ID = 'transformationsLab';
@@ -262,11 +264,36 @@ test('identify: no review where the graph does not fix the graded a, h, k', () =
   const exponential = q({ mode: 'identify', family: 'exponential', function: { a: 2, h: 1, k: -3 } });
   assert.equal(grade(exponential, { a: '1', h: '0', k: '-3' }).isCorrect, true, 'the other reading of the same curve is marked right');
   assert.equal(build(exponential), null);
-  // A line passes through every one of its points: h and k are not readable.
-  assert.equal(build(q({ mode: 'identify', family: 'linear', function: { a: 2, h: 1, k: 3 } })), null);
-  // With a b box, a and b trade off (|2x| is 2|x|).
+  // With a b box, a and b trade off (|2x| is 2|x|) — a line's too.
+  assert.equal(build(q({ mode: 'identify', family: 'linear', includeHorizontalScale: true, function: { a: 2, h: 1, k: 3 } })), null);
   assert.equal(build(q({ mode: 'identify', family: 'absolute', function: { a: 1, b: 2, h: 0, k: 0 } })), null);
   assert.equal(build(q({ mode: 'identify', family: 'absolute', includeHorizontalScale: true, function: { a: 2, h: 0, k: 0 } })), null);
+});
+
+// The second reading a line's note names: "$h = 0$ and $k = 1$ give …".
+const namedLinePoint = (note) => {
+  const named = /\$h = (-?[\d.]+)\$ and \$k = (-?[\d.]+)\$ give/.exec(String(note));
+  return named ? { h: named[1], k: named[2] } : null;
+};
+
+test('identify: a line is read at the question\'s own point, says that is a choice, and names another the grader accepts (TL20)', () => {
+  // A line passes through every one of its points, so h and k are whichever
+  // point the reader picks: the review picks the question's own, and says so.
+  const cases = [
+    [q({ mode: 'identify', family: 'linear', function: { a: 2, h: 1, k: 3 } }), { a: '2', h: '1', k: '3' }, { h: '0', k: '1' }],
+    [q({ mode: 'identify', family: 'linear', function: { type: 'linear', a: 1, h: 0, k: 3 } }), { a: '1', h: '0', k: '3' }, { h: '-3', k: '0' }],
+    [q({ mode: 'identify', family: 'linear', function: { a: -0.5, h: 2, k: -1 } }), { a: '-0.5', h: '2', k: '-1' }, { h: '0', k: '0' }],
+    // Its x-intercept, −1/3, cannot be typed exactly: the next point is named.
+    [q({ mode: 'identify', family: 'linear', function: { a: 3, h: 0, k: 1 } }), { a: '3', h: '0', k: '1' }, { h: '1', k: '4' }],
+  ];
+  for (const [question, expected, other] of cases) {
+    const label = `identify linear ${JSON.stringify(question.function)}`;
+    const { model, work } = assertReviewGradesCorrect(question, label);
+    assert.deepEqual(work, expected, `${label}: the question's own a, h, k`);
+    assert.match(model.steps.join(' '), /A line has no vertex or other special point, so any point on the graph can be \$\(h, k\)\$\./, `${label}: the point is a choice, and said to be`);
+    assert.deepEqual(namedLinePoint(model.note), other, `${label}: the note names a second point`);
+    assert.equal(grade(question, { a: expected.a, ...other }).isCorrect, true, `${label}: and the grader accepts it`);
+  }
 });
 
 /* ------------------------------------------------------------------ */
@@ -389,9 +416,28 @@ test('describe: no review where the graph does not fix the graded descriptions',
   // which describes as "unchanged, right 1" where the grader wants "stretch 2, right 2".
   const exponential = q({ mode: 'describe', family: 'exponential', function: { family: 'exponential', a: -2, base: 2, h: 2, k: 1, type: 'exponential' } });
   assert.equal(build(exponential), null);
-  assert.equal(build(q({ mode: 'describe', family: 'linear', function: { a: 2, h: 1, k: 0 } })), null);
-  // An inside multiplier trades off with a: |2x| is 2|x|.
+  // An inside multiplier trades off with a: |2x| is 2|x| — and 2x is 2·x.
   assert.equal(build(q({ mode: 'describe', family: 'absolute', function: { a: 1, b: 2, h: 0, k: 0 } })), null);
+  assert.equal(build(q({ mode: 'describe', family: 'linear', function: { a: 1, b: 2, h: 0, k: 0 } })), null);
+});
+
+test('describe: a line is described at the question\'s own point, and "up 3" is shown to be "left 3" (TL20)', () => {
+  const upThree = q({ mode: 'describe', family: 'linear', function: { a: 1, h: 0, k: 3 } });
+  const { model, work } = assertReviewGradesCorrect(upThree, 'describe linear y = x + 3');
+  assert.deepEqual(model.items.map((item) => item.value), ['No', 'Unchanged', '1', 'No', 'Unchanged', '1', 'None', '0', 'Up', '3']);
+  assert.match(model.steps.join(' '), /A line has no vertex or other special point, so any point on the graph can be \$\(h, k\)\$\./);
+  // The same line, one move to the side: the note says so, and the grader agrees.
+  assert.match(model.note, /a shift left 3 units and no vertical shift gives \$y = x \+ 3\$, the same line, and is also accepted\./);
+  const leftThree = { ...work, horizontalDirection: 'left', horizontalDistance: '3', verticalDirection: 'none', verticalDistance: '0' };
+  assert.equal(grade(upThree, leftThree).isCorrect, true, '"left 3" is right for y = x + 3');
+  assert.equal(grade(upThree, { ...work, verticalDistance: '2' }).isCorrect, false, 'a different line is still wrong');
+
+  const stretched = q({ mode: 'describe', family: 'linear', function: { a: 2, h: 1, k: 3 } });
+  const second = assertReviewGradesCorrect(stretched, 'describe linear y = 2(x − 1) + 3');
+  assert.deepEqual(second.model.items.map((item) => item.value), ['No', 'Stretch', '2', 'No', 'Unchanged', '1', 'Right', '1', 'Up', '3']);
+  assert.match(second.model.note, /with the same vertical scale, no horizontal shift and a shift up 1 unit gives \$y = 2x \+ 1\$, the same line/);
+  const atIntercept = { ...second.work, horizontalDirection: 'none', horizontalDistance: '0', verticalDirection: 'up', verticalDistance: '1' };
+  assert.equal(grade(stretched, atIntercept).isCorrect, true, 'the note\'s description is graded right');
 });
 
 /* ------------------------------------------------------------------ */

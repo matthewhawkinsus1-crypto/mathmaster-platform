@@ -31,7 +31,10 @@
 //     that does not fix it. identify accepts any parameters that draw the
 //     same function (sameTransformedFunction), but a review must still pick
 //     one reading, and
-//       · a line has no distinguished point, so h and k are not readable;
+//       · a line has no distinguished point, so h and k are not readable —
+//         except as a choice: identify and describe review a line at the
+//         question's own point, say so, and name a second point the grader
+//         also accepts (CHOSEN_POINT_FAMILIES); anchor still has no review;
 //       · an exponential's a and h trade off (2·2^(x−1) is 2^x), so its a, h,
 //         reference point and descriptions are not readable;
 //       · with an inside multiplier b ≠ 1 (or a b box), a and b trade off
@@ -74,6 +77,18 @@ const capitalize = (text) => String(text).replace(/^./, (character) => character
 // Families whose graph fixes a, h and k once b = 1 (the identify/describe
 // boxes' own form, y = a·f(x − h) + k).
 const READABLE_FAMILIES = new Set(['quadratic', 'absolute', 'cubic', 'cubeRoot', 'squareRoot', 'rational', 'logarithmic']);
+/*
+ * A LINE IS READ AT A POINT OF ITS OWN CHOOSING (TL20, walkthrough R-6).
+ *
+ * A line passes through every one of its points, so its graph fixes a (its
+ * slope) but not h and k: any point of the line can be (h, k), and the grader
+ * accepts every one (sameTransformedFunction, descriptionDrawsSameFunction).
+ * So identify and describe review a line at the question's own point, say
+ * that it is a choice, and name a second point that draws the same line —
+ * "left 3" and "up 3" are the same move for y = x + 3 — graded before it is
+ * stated. Never a guess dressed as a deduction.
+ */
+const CHOSEN_POINT_FAMILIES = new Set(['linear']);
 // The defining feature at the parent's origin — a shape of the graph, so it
 // lands at (h, k) whatever a and b are.
 const ORIGIN_FEATURES = Object.freeze({
@@ -308,7 +323,7 @@ const readingSteps = (w, spec, subject) => {
 
   if (type === 'linear') {
     const image = mapExact([1, 1], spec);
-    steps.push(`The parent line $y = x$ passes through $(0, 0)$ with slope 1. ${capitalize(subject)} passes through $(${H}, ${K})$, so use $h = ${H}$ and $k = ${K}$.`);
+    steps.push(`The parent line $y = x$ passes through $(0, 0)$ with slope 1. A line has no vertex or other special point, so any point on ${subject} can be $(h, k)$. ${capitalize(subject)} passes through $(${H}, ${K})$, so use $h = ${H}$ and $k = ${K}$.`);
     steps.push(b === 1
       ? `1 unit right of $(${H}, ${K})$, at $x = ${w.tex(image[0])}$, ${subject} is at $y = ${w.tex(image[1])}$: a change of $${w.tex(image[1])} - ${w.paren(k)} = ${A}$, where the parent's is 1. So $a = ${A}$.`
       : `The parent's point $(1, 1)$ lands at $${pointTex(w, image)}$. Across: ${sideways(image)}. Up: $${w.tex(image[1])} - ${w.paren(k)} = ${A}$, which is $a$.`);
@@ -325,6 +340,37 @@ const pointsOnGraph = (spec, points) => points.length > 0
 const checkPointsText = (w, points) => points
   .map(([x, y]) => `$x = ${w.tex(x)}$ gives $y = ${w.tex(y)}$`)
   .join(' and ');
+
+/*
+ * A second reading of a line (CHOSEN_POINT_FAMILIES): its y-intercept, else
+ * its x-intercept, else the point one unit along — the first whose h and k a
+ * student types exactly and whose work (`workFor`) the grader accepts. Probed
+ * with a writer of its own, so a candidate that does not type exactly never
+ * blanks the review itself. Null when none qualifies.
+ */
+const otherLineReading = (question, spec, digits, workFor) => {
+  const candidates = [
+    isZero(spec.h) ? null : [0, spec.k - spec.a * spec.h],
+    isZero(spec.k) ? null : [spec.h - spec.k / spec.a, 0],
+    [spec.h + 1, spec.k + spec.a],
+  ].filter(Boolean);
+  for (const [h, k] of candidates) {
+    const probe = makeWriter();
+    const typedExactly = [h, k].every((value) => {
+      const entry = probe.entry(value, digits);
+      return entry.typed === entry.shown;
+    });
+    const other = { ...spec, h, k };
+    if (typedExactly && probe.exact() && acceptedByGrader(question, workFor(probe, other))) return other;
+  }
+  return null;
+};
+
+// "a shift right 2 units and no vertical shift"
+const shiftsText = (w, spec) => [
+  isZero(spec.h) ? 'no horizontal shift' : `a shift ${moveText(w, spec.h, 'right', 'left')}`,
+  isZero(spec.k) ? 'no vertical shift' : `a shift ${moveText(w, spec.k, 'up', 'down')}`,
+].join(' and ');
 
 /* ------------------------------------------------------------------ */
 /* the six modes                                                       */
@@ -365,11 +411,21 @@ const buildMatch = (w, question, resolved, digits) => {
 
 const buildIdentify = (w, question, resolved, digits) => {
   const spec = resolved.investigationSpec;
-  if (!READABLE_FAMILIES.has(spec.type) || resolved.showB || spec.b !== 1) return null;
+  const chosenPoint = CHOSEN_POINT_FAMILIES.has(spec.type);
+  if ((!READABLE_FAMILIES.has(spec.type) && !chosenPoint) || resolved.showB || spec.b !== 1) return null;
   const reading = readingSteps(w, spec, 'the graph');
   if (!reading || !pointsOnGraph(spec, reading.points)) return null;
   const entries = { a: w.entry(spec.a, digits), h: w.entry(spec.h, digits), k: w.entry(spec.k, digits) };
   const equation = rightSideTex(w, spec);
+  // A line's (h, k) is the point this review chose: it says so, and names
+  // another the grader accepts too.
+  const other = chosenPoint
+    ? otherLineReading(question, spec, digits, (probe, line) => ({ a: probe.entry(line.a, digits).typed, h: probe.entry(line.h, digits).typed, k: probe.entry(line.k, digits).typed }))
+    : null;
+  const note = !chosenPoint ? null
+    : other
+      ? `A line has no special point, so these are not the only right values: any point of the line can be (h, k), with the same a. For example, $h = ${w.tex(other.h)}$ and $k = ${w.tex(other.k)}$ give $y = ${rightSideTex(w, other)}$, the same line, and are also accepted.`
+      : 'A line has no special point, so these are not the only right values: any point of the line can be (h, k), with the same a, and is also accepted.';
   return {
     title: 'Parameter solution',
     items: [
@@ -384,7 +440,7 @@ const buildIdentify = (w, question, resolved, digits) => {
       `So ${parametersTex(w, spec, ['a', 'h', 'k'])}, and the graph is $y = ${equation}$.`,
     ],
     why: `Check: substitute back into $y = ${equation}$: ${checkPointsText(w, reading.points)} — the ${reading.points.length === 1 ? 'point' : 'points'} read from the graph.`,
-    note: null,
+    note,
     work: { a: entries.a.typed, h: entries.h.typed, k: entries.k.typed },
   };
 };
@@ -398,13 +454,9 @@ const scaleSentence = (w, kind, factor, direction) => {
   return `is 1 — the ${direction} scale is unchanged (factor 1)`;
 };
 
-const buildDescribe = (w, question, resolved, digits) => {
-  const spec = resolved.investigationSpec;
-  if (!READABLE_FAMILIES.has(spec.type) || spec.b !== 1) return null;
-  const reading = readingSteps(w, spec, 'the graph');
-  if (!reading || !pointsOnGraph(spec, reading.points)) return null;
+// The ten descriptions of `spec`, as a student following the review enters them.
+const describeEntries = (w, spec, digits) => {
   const descriptor = transformationDescriptor(spec);
-  const equation = rightSideTex(w, spec);
   const verticalFactor = w.entry(descriptor.verticalScale, digits);
   const horizontalFactor = w.entry(descriptor.horizontalScale, digits);
   const horizontalDistance = w.entry(descriptor.horizontalDistance, digits);
@@ -421,6 +473,24 @@ const buildDescribe = (w, question, resolved, digits) => {
     verticalDirection: descriptor.verticalDirection,
     verticalDistance: verticalDistance.typed,
   };
+  return { descriptor, verticalFactor, horizontalFactor, horizontalDistance, verticalDistance, work };
+};
+
+const buildDescribe = (w, question, resolved, digits) => {
+  const spec = resolved.investigationSpec;
+  const chosenPoint = CHOSEN_POINT_FAMILIES.has(spec.type);
+  if ((!READABLE_FAMILIES.has(spec.type) && !chosenPoint) || spec.b !== 1) return null;
+  const reading = readingSteps(w, spec, 'the graph');
+  if (!reading || !pointsOnGraph(spec, reading.points)) return null;
+  const equation = rightSideTex(w, spec);
+  const { descriptor, verticalFactor, horizontalFactor, horizontalDistance, verticalDistance, work } = describeEntries(w, spec, digits);
+  // A line slides along itself: the description at another of its points is
+  // as right as this one, and the review names one the grader accepts.
+  const other = chosenPoint ? otherLineReading(question, spec, digits, (probe, line) => describeEntries(probe, line, digits).work) : null;
+  const note = !chosenPoint ? null
+    : other
+      ? `A line slides along itself, so this is not the only right description: with the same vertical scale, ${shiftsText(w, other)} gives $y = ${rightSideTex(w, other)}$, the same line, and is also accepted.`
+      : 'A line slides along itself, so this is not the only right description: shifts that carry it onto itself, with the same vertical scale, draw the same line and are also accepted.';
   const A = w.tex(spec.a);
   const hStep = descriptor.horizontalDirection === 'none'
     ? '$h = 0$: there is no horizontal translation (None, 0 units).'
@@ -458,7 +528,7 @@ const buildDescribe = (w, question, resolved, digits) => {
       kStep,
     ],
     why: `Check: put the descriptions back together — ${rebuilt.join(', ')} — and the parent $y = ${parentTex(w, spec)}$ becomes $y = ${equation}$, the graph shown.`,
-    note: null,
+    note,
     work,
   };
 };
