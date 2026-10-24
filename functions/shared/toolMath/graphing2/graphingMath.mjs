@@ -63,6 +63,58 @@ export const withDefaultTargetLine = (question = {}) => (
 
 export const graphingTargetLine = (question = {}) => targetLineFromQuestion(withDefaultTargetLine(question));
 
+/*
+ * THE GIVEN LINE OF A REFERENCE-LINE QUESTION (TL20, walkthrough R-7).
+ *
+ * A point-slope question may name a line its answer is perpendicular or
+ * parallel to: `referenceLine: { m, b, relation: 'perpendicular' | 'parallel' }`
+ * (y = mx + b). Graphing2 then draws that line and asks for the line through
+ * the point WITHOUT printing the slope, which is what such an item assesses.
+ * The target is still the authored point and slope, so grading is unchanged
+ * (targetLineFromQuestion does not read this).
+ *
+ * The two must agree — a perpendicular line's slope is the negative
+ * reciprocal of the given one's, a parallel line's the same — or the screen
+ * would ask for one line and the grader mark another. A reference that does
+ * not agree is not one: referenceLineOf is null, so the tool, its hints and
+ * its review fall back to the plain point-slope question, which prints the
+ * slope it grades. toolSchemas.js refuses to author it (referenceLineProblem).
+ */
+export const REFERENCE_LINE_RELATIONS = Object.freeze(['perpendicular', 'parallel']);
+const REFERENCE_EPSILON = 1e-9;
+
+/** Why a question's reference line cannot be shown, or null (also null when it has none). */
+export const referenceLineProblem = (question = {}) => {
+  const raw = question?.referenceLine;
+  if (raw === undefined || raw === null) return null;
+  if (graphingModeOf(question) !== 'pointSlope') return 'A reference line needs mode pointSlope: the answer is the line through the given point.';
+  if (typeof raw !== 'object' || Array.isArray(raw)) return 'referenceLine must be { m, b, relation }.';
+  const m = Number(raw.m);
+  const b = Number(raw.b);
+  if (raw.m === null || raw.m === '' || raw.b === null || raw.b === '' || !Number.isFinite(m) || !Number.isFinite(b)) return 'referenceLine needs a finite slope m and intercept b (y = mx + b).';
+  if (!REFERENCE_LINE_RELATIONS.includes(raw.relation)) return 'referenceLine.relation must be perpendicular or parallel.';
+  const slope = Number(question.slope);
+  const point = Array.isArray(question.point) && question.point.length === 2 ? question.point.map(Number) : null;
+  if (!Number.isFinite(slope) || !point || !point.every(Number.isFinite)) return 'A reference-line question still needs its point and the slope it grades.';
+  if (raw.relation === 'perpendicular') {
+    // Perpendicular to a horizontal line is vertical: point-slope cannot grade it.
+    if (Math.abs(m) <= REFERENCE_EPSILON) return 'A line perpendicular to a horizontal reference line is vertical; point-slope cannot ask for it.';
+    if (Math.abs(slope * m + 1) > REFERENCE_EPSILON) return `slope ${slope} is not perpendicular to the reference line's slope ${m}: perpendicular slopes multiply to −1.`;
+    return null;
+  }
+  if (Math.abs(slope - m) > REFERENCE_EPSILON) return `slope ${slope} is not parallel to the reference line's slope ${m}: parallel lines have the same slope.`;
+  // The parallel line through a point ON the given line is that line: the answer would already be drawn.
+  if (Math.abs(m * point[0] + b - point[1]) <= REFERENCE_EPSILON) return 'The point is on the reference line, so the parallel line through it is the line already drawn.';
+  return null;
+};
+
+/** The reference line to draw ({ kind, m, b, relation }), or null when there is none or it does not fit. */
+export const referenceLineOf = (question = {}) => {
+  if (question?.referenceLine === undefined || question?.referenceLine === null || referenceLineProblem(question)) return null;
+  const { m, b, relation } = question.referenceLine;
+  return { kind: 'slopeIntercept', m: Number(m), b: Number(b), relation };
+};
+
 export const linesEquivalent = (left, right, tolerance = 0.08) => {
   if (!left || !right || left.kind !== right.kind) return false;
   if (left.kind === 'vertical') return nearlyEqual(left.x, right.x, tolerance);

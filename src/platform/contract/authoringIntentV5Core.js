@@ -2280,7 +2280,7 @@ const compileOne = (q, index, repairs) => {
       const l = q.lineIntent || q.line || {};
       let mode = q.mode || l.mode;
       if (!mode) mode = q.givenPoints || l.givenPoints ? 'throughPoints' : q.point || l.point ? 'pointSlope' : q.standardForm || l.standard ? 'standardForm' : q.orientation || l.orientation ? 'verticalHorizontal' : 'slopeIntercept';
-      out = copyCommon(q, { type, mode, line: q.line || (mode === 'slopeIntercept' ? { m: q.m ?? l.m, b: q.b ?? l.b } : undefined), factored: q.factored || l.factored, givenPoints: q.givenPoints || l.givenPoints, point: q.point || l.point, slope: q.slope ?? l.slope, standard: q.standardForm || l.standard, orientation: q.orientation || l.orientation, value: q.value ?? l.value, constructionPolicy: q.constructionPolicy || l.constructionPolicy, graphBounds: q.graphBounds || l.graphBounds, snapStep: q.snapStep ?? l.snapStep, tolerance: q.tolerance ?? l.tolerance });
+      out = copyCommon(q, { type, mode, line: q.line || (mode === 'slopeIntercept' ? { m: q.m ?? l.m, b: q.b ?? l.b } : undefined), factored: q.factored || l.factored, givenPoints: q.givenPoints || l.givenPoints, point: q.point || l.point, slope: q.slope ?? l.slope, standard: q.standardForm || l.standard, orientation: q.orientation || l.orientation, value: q.value ?? l.value, constructionPolicy: q.constructionPolicy || l.constructionPolicy, graphBounds: q.graphBounds || l.graphBounds, snapStep: q.snapStep ?? l.snapStep, tolerance: q.tolerance ?? l.tolerance, referenceLine: q.referenceLine || l.referenceLine });
       break;
     }
     case 'stepAlgebra2':

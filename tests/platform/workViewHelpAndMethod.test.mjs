@@ -151,7 +151,8 @@ test('R-10: the gate is the activity\'s own hint and verdict signals', () => {
   }
   // Graphing2's snap note is worked out from the answer line; on an
   // assessment it says only that points snap (review N2).
-  assert.match(code('src/tools/graphing2/Graphing2.jsx'), /methodWithheld\s*\?\s*'Points snap to the grid as you place them\.'/);
+  // (A reference-line question, whose slope is the answer, says the same: TL20.)
+  assert.match(code('src/tools/graphing2/Graphing2.jsx'), /methodWithheld(?: \|\| reference)?\s*\?\s*'Points snap to the grid as you place them\.'/);
 });
 
 test('R-10: Transformations Lab withholds its bridge and its first step where the method is withheld', () => {

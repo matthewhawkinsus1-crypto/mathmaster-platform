@@ -12,7 +12,7 @@ import { normalizeLinearInequality } from './systemsWorkspace/linearInequalityEn
 import { linearEquationCoefficients, validateAlgebraicSystemAuthoring } from './systemsWorkspace/algebraicSystemsEngine.js';
 import { resolveSystemsWorkspaceMode } from './systemsWorkspace/systemsWorkspaceMode.js';
 import { axisLabelProblems } from './shared/planeAxisTitles.js';
-import { GRAPHING2_DEFAULT_BOUNDS, targetLineFromQuestion } from './graphing2/graphingMath.js';
+import { GRAPHING2_DEFAULT_BOUNDS, referenceLineOf, referenceLineProblem, targetLineFromQuestion } from './graphing2/graphingMath.js';
 import { formAwareAnchorsForMode, resolveConstructionPolicy } from './graphing2/constructionPolicy.js';
 import { radicalSolveKey } from './signSolutionAnalyzer/signSolutionMath.js';
 const TOOL_IDS = new Set([
@@ -46,6 +46,13 @@ const graphing2WindowErrors = (question, mode) => {
     ? target.x >= xMin && target.x <= xMax
     : Math.max(...ends) >= yMin && Math.min(...ends) <= yMax;
   if (!crosses) return [`graphing2 line never crosses the drawn window (${window}); add graphBounds that contain it.`];
+  // The given line of a reference-line question is drawn too: one the window
+  // misses leaves the student nothing to read the slope from.
+  const reference = referenceLineOf(question);
+  if (reference) {
+    const [left, right] = [xMin, xMax].map((x) => reference.m * x + reference.b);
+    if (Math.max(left, right) < yMin || Math.min(left, right) > yMax) return [`graphing2 referenceLine never crosses the drawn window (${window}); add graphBounds that show it.`];
+  }
   if (resolveConstructionPolicy(question).strategy !== 'formAware') return [];
   const tolerance = 1e-9;
   const outside = formAwareAnchorsForMode(mode, question, target).anchors.filter(({ point: [x, y] }) => (
@@ -670,6 +677,11 @@ export const validateToolQuestion = (question = {}) => {
     if (mode === 'pointSlope') {
       if (!isFinitePoint(question.point) || !Number.isFinite(Number(question.slope))) errors.push('pointSlope mode requires a finite point and slope.');
     }
+    // A reference line the slope does not agree with would ask for one line
+    // and grade another; the tool would quietly fall back to printing the
+    // slope (graphingMath referenceLineProblem, TL20).
+    const referenceProblem = referenceLineProblem(question);
+    if (referenceProblem) errors.push(`graphing2 referenceLine: ${referenceProblem}`);
     if (mode === 'standardForm') {
       const standard = question.standard || {};
       if (![standard.A,standard.B,standard.C].every((value) => Number.isFinite(Number(value)))) errors.push('standardForm mode requires finite A, B, and C coefficients.');

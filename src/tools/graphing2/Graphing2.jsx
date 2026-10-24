@@ -11,7 +11,7 @@ import { useHintsAllowed, useHostSubmitLabel, useMethodWithheld, useOwnHintLadde
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import graphing2Grader, { readConstructionFeedback } from '../../../functions/shared/serverGrading/tools/graphing2.mjs';
-import { lineFromPoints, targetLineFromQuestion, withDefaultTargetLine } from './graphingMath';
+import { lineFromPoints, referenceLineOf, targetLineFromQuestion, withDefaultTargetLine } from './graphingMath';
 import { lineReadoutLatex, lineReadoutText, standardFormReadoutText } from './lineReadout.js';
 import { placePoint } from './placePoint.js';
 // What the form-aware policy will check, said before any point is checked;
@@ -58,6 +58,8 @@ const MODE_LABELS = {
   standardForm: 'Standard form',
   verticalHorizontal: 'Vertical or horizontal line',
 };
+// A point-slope question with a reference line (graphingMath referenceLineOf).
+const REFERENCE_LABELS = { perpendicular: 'Perpendicular line', parallel: 'Parallel line' };
 
 const formatPoint = (point) => `(${point[0]}, ${point[1]})`;
 
@@ -80,6 +82,10 @@ const nextInstruction = (plottedCount, requiredCount = 2, finalLabel = null) => 
 const targetPrompt = (questionData, target) => {
   const mode = questionData.mode || 'slopeIntercept';
   if (mode === 'throughPoints') return `Graph the line that passes through ${(questionData.givenPoints || []).map(formatPoint).join(' and ')}.`;
+  // A reference-line question names the given line, never the slope it
+  // assesses (TL20): finding that slope is the question.
+  const reference = mode === 'pointSlope' ? referenceLineOf(questionData) : null;
+  if (reference) return `Graph the line through ${formatPoint(questionData.point)} that is ${reference.relation} to ${lineReadoutText(reference)}.`;
   if (mode === 'pointSlope') return `Graph the line through ${formatPoint(questionData.point || [0, 0])} with slope ${questionData.slope}.`;
   if (mode === 'factoredLinear') return `Graph y = ${questionData.factored?.a}(x − ${questionData.factored?.c}).`;
   if (mode === 'standardForm') return `Graph ${standardFormReadoutText(questionData.standard)}.`;
@@ -130,6 +136,25 @@ export const hintsForMode = (mode, target, questionData) => {
       'Plot your point exactly on top of each purple point, then check that the two readings match.',
     ];
   }
+  // A reference-line question assesses the slope itself, so no rung states it
+  // (or quotes a number it could be read from): the first names the rule.
+  // The words are the platform family's own (linesAndSlope.js), so inside a
+  // question the two ladders merge instead of saying everything twice.
+  const reference = mode === 'pointSlope' ? referenceLineOf(questionData) : null;
+  if (reference) {
+    const plot = 'Start at the given point: use your slope as rise over run to step to a second point.';
+    return reference.relation === 'perpendicular'
+      ? [
+        'Perpendicular lines have slopes that are negative reciprocals: flip the given line’s slope over and change its sign.',
+        'Read the given line’s slope: the number multiplied by x. Then use the rule to find the slope of your line.',
+        plot,
+      ]
+      : [
+        'Parallel lines have the same slope.',
+        'Read the given line’s slope: the number multiplied by x. Your line uses that same slope.',
+        plot,
+      ];
+  }
   if (mode === 'pointSlope') {
     const point = questionData.point || [0, 0];
     const step = slopeStepForHint(questionData.slope);
@@ -176,6 +201,9 @@ export default function Graphing2({ questionData = {}, onAction }) {
   // the shared grader reads the target through the same helper.
   const normalizedQuestion = withDefaultTargetLine(questionData);
   const target = targetLineFromQuestion(normalizedQuestion);
+  // The given line a perpendicular or parallel question is about, drawn on
+  // the plane; null for every other question (TL20).
+  const reference = mode === 'pointSlope' ? referenceLineOf(questionData) : null;
   const policy = resolveConstructionPolicy(questionData);
   const requiredPointCount = requiredConstructionPointCount(questionData);
   const [points, setPoints] = usePersistentToolState('points', []);
@@ -289,6 +317,9 @@ export default function Graphing2({ questionData = {}, onAction }) {
     ...points.map((point, index) => ({ x: point[0], y: point[1], label: `P${index + 1}`, fill: '#1a73e8' })),
   ];
   const studentLines = studentLine?.kind === 'slopeIntercept' ? [{ m: studentLine.m, b: studentLine.b, stroke: '#1a73e8' }] : [];
+  // The given line under the student's: grey and dashed, and named in the
+  // legend, so "given" never rests on colour alone (A11Y-4).
+  const referenceLines = reference ? [{ m: reference.m, b: reference.b, stroke: '#5f6b7a', dash: '9 6' }] : [];
   const verticalStudentLine = studentLine?.kind === 'vertical'
     ? ({ sx, pad, height }) => <line x1={sx(studentLine.x)} x2={sx(studentLine.x)} y1={pad} y2={height - pad} stroke="#1a73e8" strokeWidth="3" />
     : null;
@@ -353,7 +384,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
     <ToolShell
       title="Graphing"
       subtitle="Build a line from the conditions you are given, and keep your plotted points as evidence of how you got there."
-      badge={MODE_LABELS[mode] || 'Linear graphing'}
+      badge={reference ? REFERENCE_LABELS[reference.relation] : MODE_LABELS[mode] || 'Linear graphing'}
     >
       <TaskCard
         question={questionData}
@@ -367,7 +398,9 @@ export default function Graphing2({ questionData = {}, onAction }) {
           `Press ${checkLabel} when all ${requiredPointCount} points are where you want them.`,
         ]}
         note={[
-          methodWithheld
+          // A reference-line question assesses the slope: "the nearest 0.5"
+          // would say it is not a whole number (TL20).
+          methodWithheld || reference
             ? 'Points snap to the grid as you place them.'
             : snapStep === 1
               ? 'Points snap to whole numbers, so you cannot land between the gridlines.'
@@ -407,7 +440,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
             viewResetKey={questionData?.id ?? questionData?.prompt ?? null}
             snapStep={snapStep}
             points={plottedPoints}
-            lines={studentLines}
+            lines={[...referenceLines, ...studentLines]}
             cursorLabel="Plot"
             ariaLabel="Coordinate plane for constructing your line"
             // This tool wraps its whole split in Work View, so a second enlarge
@@ -422,6 +455,12 @@ export default function Graphing2({ questionData = {}, onAction }) {
             <p data-graphing-legend="" style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginBottom: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 14px' }}>
               <span><span aria-hidden="true" style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#8a3ffc', marginRight: 6, verticalAlign: 'middle' }} />Purple squares labelled “given” are given to you.</span>
               <span><span aria-hidden="true" style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 999, background: '#1a73e8', marginRight: 6, verticalAlign: 'middle' }} />Blue dots labelled P1, P2 are yours.</span>
+            </p>
+          ) : null}
+          {reference ? (
+            <p data-graphing-reference-legend="" style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginBottom: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 14px' }}>
+              <span><svg width="26" height="8" style={{ verticalAlign: 'middle', marginRight: 6 }} aria-hidden="true"><line x1="0" y1="4" x2="26" y2="4" stroke="#5f6b7a" strokeWidth="3" strokeDasharray="9 6" /></svg>The dashed grey line is the given line, {lineReadoutText(reference)}.</span>
+              <span><span aria-hidden="true" style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 999, background: '#1a73e8', marginRight: 6, verticalAlign: 'middle' }} />Your line goes through your blue points.</span>
             </p>
           ) : null}
         </Panel>

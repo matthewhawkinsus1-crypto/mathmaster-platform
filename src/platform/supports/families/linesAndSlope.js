@@ -25,7 +25,11 @@
 //                  (slopeIntercept, throughPoints, pointSlope, standardForm,
 //                  verticalHorizontal, factoredLinear). The target line is
 //                  the one the shared grader reads (graphingTargetLine),
-//                  computed exactly from the same authored fields.
+//                  computed exactly from the same authored fields. A
+//                  point-slope item with a reference line (referenceLineOf,
+//                  TL20) never prints its slope: the slope is always an
+//                  answer here, and the hints name the perpendicular or
+//                  parallel rule instead of the slope.
 //   table*         `linearTableWorkbench`: constantRate (is the rate
 //                  constant?), deriveEquation (y = mx + b from the table) and
 //                  repairValue (find and fix the one broken row).
@@ -98,7 +102,7 @@ import {
   toNumber,
 } from '../../../../functions/shared/questionFamilyExact.mjs';
 import { lineFeatureKey } from '../../../../functions/shared/serverGrading/tools/graphing.mjs';
-import { graphingModeOf, graphingTargetLine } from '../../../../functions/shared/toolMath/graphing2/graphingMath.mjs';
+import { graphingModeOf, graphingTargetLine, referenceLineOf } from '../../../../functions/shared/toolMath/graphing2/graphingMath.mjs';
 import {
   LINEAR_TABLE_WORKBENCH_MODES,
   findTableRepair,
@@ -411,8 +415,22 @@ const graphLineModel = (question) => {
     model.line = slopeInterceptLine(slope, subtract(point[1], multiply(slope, point[0])));
     model.givenPoints = [point];
     model.point = point;
-    model.printed = [...point, slope];
-    model.display = `the line through ${pt(point)} with slope ${show(slope)}`;
+    // A reference-line question (TL20) prints the given line and NOT the
+    // slope: finding it is what the item assesses, so no hint may say it.
+    const reference = referenceLineOf(question);
+    if (reference) {
+      const refM = exact(reference.m);
+      const refB = exact(reference.b);
+      // A given line this family cannot write exactly: it does not claim the
+      // question, rather than fall back to hints that quote the slope.
+      if (!refM || !refB) return null;
+      model.reference = { relation: reference.relation, m: refM, b: refB };
+      model.printed = [...point, refM, refB];
+      model.display = `the line through ${pt(point)} ${reference.relation} to ${lineText(refM, refB)}`;
+    } else {
+      model.printed = [...point, slope];
+      model.display = `the line through ${pt(point)} with slope ${show(slope)}`;
+    }
   } else if (mode === 'standardForm') {
     const A = exact(question.standard?.A);
     const B = exact(question.standard?.B);
@@ -675,7 +693,9 @@ const graphLineAnswers = (model) => {
     return unique(out);
   }
   const { m, b } = line;
-  if (!isPrinted(m)) out.push(...numberForms(m));
+  // A reference-line question's slope is the answer even where it equals the
+  // printed given line's (a parallel line): no hint may state it.
+  if (!isPrinted(m) || model.reference) out.push(...numberForms(m));
   if (!isPrinted(b)) out.push(...numberForms(b));
   if (!isGiven([ZERO, b])) out.push(...pairForms([ZERO, b]));
   if (!isZero(m)) {
@@ -860,6 +880,22 @@ const graphLineHints = (model) => {
       [`Your line must pass through ${pt(first)} and ${pt(second)}. Two points are enough to fix a line.`, 'Your line must pass through both given points. Two points are enough to fix a line.'],
       [null, 'Plot each point carefully: move across to its x-coordinate first, then up or down to its y-coordinate.'],
       [`Check: going from ${pt(first)} to ${pt(second)}, your line should rise or fall exactly as the coordinates do.`, 'Check: going from one given point to the other, your line should rise or fall exactly as the coordinates do.'],
+    ];
+  }
+  if (mode === 'pointSlope' && model.reference) {
+    // The rule first; the given line's slope is read by the student, and
+    // theirs is never written (TL20).
+    const given = lineText(model.reference.m, model.reference.b);
+    const perpendicular = model.reference.relation === 'perpendicular';
+    return [
+      [null, perpendicular
+        ? 'Perpendicular lines have slopes that are negative reciprocals: flip the given line’s slope over and change its sign.'
+        : 'Parallel lines have the same slope.'],
+      perpendicular
+        ? [`Read the slope of ${given}: the number multiplied by x. Then use the rule to find the slope of your line.`, 'Read the given line’s slope: the number multiplied by x. Then use the rule to find the slope of your line.']
+        : [`Read the slope of ${given}: the number multiplied by x. Your line uses that same slope.`, 'Read the given line’s slope: the number multiplied by x. Your line uses that same slope.'],
+      [`Start at the given point ${pt(model.point)}: use your slope as rise over run to step to a second point.`, 'Start at the given point: use your slope as rise over run to step to a second point.'],
+      [null, perpendicular ? 'Check: your line should cross the given line at a right angle.' : 'Check: your line and the given line should never meet.'],
     ];
   }
   if (mode === 'pointSlope') {
@@ -1047,6 +1083,11 @@ const backUpFor = (model) => {
         return [step(`Let’s back up. To graph ${display}, which point do you plot first?`, options, options[0]), step('Let’s back up. To graph a line in slope-intercept form, which point do you plot first?', options, options[0])];
       }
       if (mode === 'throughPoints') return [step('Let’s back up. Which points must your line pass through?', ['The two given points', 'The origin and one given point'], 'The two given points')];
+      if (mode === 'pointSlope' && model.reference) {
+        const options = ['The negative reciprocal of its slope', 'The same slope'];
+        const correct = model.reference.relation === 'perpendicular' ? options[0] : options[1];
+        return [step(`Let’s back up. A line ${model.reference.relation} to the given line has which slope?`, options, correct)];
+      }
       if (mode === 'pointSlope') {
         return [
           step(`Let’s back up. Where do you start graphing ${display}?`, [`At ${pt(model.point)}`, 'At the origin'], `At ${pt(model.point)}`),
@@ -1274,6 +1315,33 @@ const siblingGraphLine = (question, model, seed) => {
           `Draw the line through ${pt(first)} and ${pt(second)}; it is ${lineText(m, b)}.`,
         ],
         answer: `The line through ${pt(first)} and ${pt(second)}: ${lineText(m, b)}`,
+      };
+    });
+  }
+  if (mode === 'pointSlope' && model.reference) {
+    // A sibling of a reference-line question is one too: another given line,
+    // and its slope found by the same rule.
+    const { relation } = model.reference;
+    const perpendicular = relation === 'perpendicular';
+    const candidates = product(isInteger(line.m) ? INTEGER_SLOPES : HALF_SLOPES, [2, -1, 3, -2, 1, -3].map(R), [-2, 3, 1, -4, 4, -1].map(R), [-3, 2, 1, -1, 4].map(R))
+      // A parallel line through a point on the given line would be that line.
+      .filter(([m, x, y, refB]) => !equals(m, line.m) && !samePoint([x, y], model.point) && (perpendicular || !equals(add(multiply(m, x), refB), y)));
+    return safe(candidates, ([m, x, y, refB]) => {
+      const refM = perpendicular ? divide(negate(ONE), m) : m;
+      const start = [x, y];
+      const second = [add(x, rational(m.d)), add(y, rational(m.n))];
+      const given = lineText(refM, refB);
+      return {
+        prompt: `Graph the line through ${pt(start)} that is ${relation} to ${given}.`,
+        steps: [
+          perpendicular
+            ? `The given line ${given} has slope ${show(refM)}. Perpendicular lines have slopes that are negative reciprocals, so this line's slope is ${show(m)}.`
+            : `The given line ${given} has slope ${show(refM)}. Parallel lines have the same slope, so this line's slope is ${show(m)} too.`,
+          `Plot the given point ${pt(start)}.`,
+          `The slope ${show(m)} means ${riseRunText(m)}: from ${pt(start)} move ${moveText(m)} to ${pt(second)}.`,
+          `Draw the line through ${pt(start)} and ${pt(second)}.`,
+        ],
+        answer: `The line through ${pt(start)} and ${pt(second)}`,
       };
     });
   }
@@ -1879,8 +1947,15 @@ const workedGraphLine = (question, model) => {
   } else if (mode === 'pointSlope') {
     const { m, b } = line;
     const points = slopeWalk(model.point, m, count);
+    // A reference-line question: the slope is found from the given line first.
+    const reference = model.reference;
+    const rule = !reference ? []
+      : [reference.relation === 'perpendicular'
+        ? `The given line ${lineText(reference.m, reference.b)} has slope ${show(reference.m)}. Perpendicular lines have slopes that are negative reciprocals, so this line's slope is ${show(m)}.`
+        : `The given line ${lineText(reference.m, reference.b)} has slope ${show(reference.m)}. Parallel lines have the same slope, so this line's slope is ${show(m)} too.`];
     built = {
       steps: [
+        ...rule,
         `Plot the given point ${pt(model.point)}.`,
         slopeMoveStep(m, points[0], points[1]),
         ...extraPointStep(points),
