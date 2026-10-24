@@ -7736,7 +7736,7 @@ function App() {
     const semanticGaps = gaps.filter((miss) => miss?.reason === 'no_semantically_compatible_audited_item'
       || (Array.isArray(miss?.details) && miss.details.some((detail) => detail?.reason === 'no_semantically_compatible_audited_item')));
     if (semanticGaps.length) {
-      messages.push('MathMaster kept the teacher-authored Practice question(s) as written: the audited CCMR bank has same-TEKS items, but none that match this question\'s construct (e.g. system dimension, or linear vs. linear–quadratic), so nothing was substituted.');
+      messages.push('MathMaster kept the teacher-authored Practice question(s) as written: the audited CCMR bank has same-TEKS items, but none that match this question\'s construct (e.g. a sequence rather than function evaluation, a matrix task, or a system\'s dimension), so nothing was substituted.');
     }
     // proveImportedCcmrClaims: every audited item offered for an exam-style
     // question failed MathMaster's checks in its place, so none was used.

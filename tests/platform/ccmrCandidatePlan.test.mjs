@@ -89,41 +89,70 @@ test('ranking: an item on the place’s primary TEKS comes before one that share
 
 test('places are offered different items: one that fails or is set aside never empties the plan', () => {
   const idsOf = (slot) => slot.candidates.map((intent) => intent.ccmrSource.documentId);
-  // Thirteen Practice places on A.3E/A.3C and dozens of compatible items:
-  // every candidate offered is a different item. (Offering each place the
-  // same top five left five items in all, three of which promise a graph.)
-  const wide = bank.replaceDirectCcmrQuestionsWithAuditedBank(clone(TRANSFORMATIONS), { ensurePracticeTarget: true, includeCandidates: true }).audit.plan;
-  const wideIds = wide.slots.flatMap(idsOf);
-  assert.ok(wideIds.length > 5);
-  assert.equal(new Set(wideIds).size, wideIds.length, 'no item is offered at two places');
+  // Place by place: each gets as many items as it can use while the budget
+  // lasts, lists the items no earlier place was offered first, and takes one
+  // offered elsewhere only when too few of its own are left (a narrow
+  // construct, a small pool) — checked against the bank, not counted.
+  const offeredInTurn = (assignment, plan) => {
+    const offered = new Set();
+    let budget = 40;
+    for (const slot of plan.slots) {
+      const ids = idsOf(slot);
+      const source = assignment.sections[slot.sectionIndex].questions[slot.questionIndex];
+      assert.equal(ids.length, Math.min(5, slot.semanticallyCompatibleCount, budget), `${slot.questionId} gets as many as it can use`);
+      const fresh = ids.filter((id) => !offered.has(id));
+      assert.deepEqual(ids.slice(0, fresh.length), fresh, `${slot.questionId} lists its own items before ones offered elsewhere`);
+      if (fresh.length < ids.length) {
+        const own = bank.rankAuditedBankDocuments({ teksCodes: slot.teksCodes, sourceQuestion: source, excludeDocumentIds: [...offered] });
+        assert.equal(own.length, fresh.length, `${slot.questionId} repeats an item only after its own ran out`);
+      }
+      ids.forEach((id) => offered.add(id));
+      budget -= ids.length;
+    }
+    return offered;
+  };
 
-  // Six places sharing 24 compatible items: each place still gets five, its
-  // own first; once all 24 are offered, a place is filled out with items
-  // offered elsewhere rather than left with too few.
+  // Thirteen Practice places on A.3E/A.3C. The places whose task does not
+  // show share dozens of compatible items, and each is offered items no other
+  // place was. (Offering each place the same top five left five items in
+  // all, three of which promise a graph.) The Transformations Lab places
+  // share the items that practise a transformation (TT15).
+  const wide = bank.replaceDirectCcmrQuestionsWithAuditedBank(clone(TRANSFORMATIONS), { ensurePracticeTarget: true, includeCandidates: true }).audit.plan;
+  offeredInTurn(TRANSFORMATIONS, wide);
+  const taskHidden = wide.slots
+    .filter((slot) => bank.deriveSourceSemanticProfile(TRANSFORMATIONS.sections[slot.sectionIndex].questions[slot.questionIndex]).taskKinds.length === 0)
+    .flatMap(idsOf);
+  assert.ok(taskHidden.length > 5);
+  assert.equal(new Set(taskHidden).size, taskHidden.length, 'no item is offered at two of those places');
+
+  // Six inverse-function places share a small pool: once it is all offered, a
+  // place is filled out with items offered elsewhere rather than left with too few.
   const narrow = bank.replaceDirectCcmrQuestionsWithAuditedBank(clone(INVERSES), { ensurePracticeTarget: true, includeCandidates: true }).audit.plan;
-  const offered = new Set();
-  for (const slot of narrow.slots) {
-    const ids = idsOf(slot);
-    assert.equal(ids.length, Math.min(5, slot.semanticallyCompatibleCount), `place ${slot.questionIndex + 1} gets as many as it can use`);
-    const fresh = ids.filter((id) => !offered.has(id));
-    assert.deepEqual(ids.slice(0, fresh.length), fresh, `place ${slot.questionIndex + 1} lists its own items before ones offered elsewhere`);
-    ids.forEach((id) => offered.add(id));
-  }
+  const offered = offeredInTurn(INVERSES, narrow);
   assert.equal(offered.size, narrow.slots[0].semanticallyCompatibleCount, 'every compatible item is offered somewhere');
 });
 
 test('ranking: a narrowly aligned item comes before one crosswalked onto dozens of TEKS', () => {
-  const practice = INVERSES.sections.find((section) => section.role === 'practice');
-  const source = practice.questions[practice.questions.length - 1];
+  // Where a place's task does not show, the TEKS match decides and breadth
+  // orders it: a multi-part transformations question shares A.3E with narrow
+  // Digital SAT items and with items crosswalked onto dozens of TEKS.
+  const practice = TRANSFORMATIONS.sections.find((section) => section.role === 'practice');
+  const source = practice.questions.find((question) => bank.deriveSourceSemanticProfile(question).taskKinds.length === 0);
   const ranked = bank.rankAuditedBankDocuments({ teksCodes: bank.questionTeksCodes(source), seed: 'breadth', sourceQuestion: source });
-  assert.ok(ranked.length > 0);
   const breadths = ranked.map((document) => bank.documentTeksCodes(document).length);
   const firstBroad = breadths.findIndex((count) => count >= 6);
-  if (firstBroad >= 0) {
-    assert.ok(breadths.slice(firstBroad).every((count) => count >= 6), 'every narrow candidate is offered before any broad one');
-  }
-  assert.ok(breadths[0] < 6, `the first choice is narrowly aligned (${ranked[0].id}: ${breadths[0]} TEKS)`);
-  assert.notEqual(ranked[0].id, 'mm_act_fn_4_translated-point_v21', 'the 152-TEKS translation item no longer fronts an inverse-functions lesson');
+  assert.ok(firstBroad > 0, `both are offered, a narrow one first (${ranked[0].id}: ${breadths[0]} TEKS)`);
+  assert.ok(breadths.slice(firstBroad).every((count) => count >= 6), 'every narrow candidate is offered before any broad one');
+
+  // An inverse-functions question shows its task (TT15), so the 152-TEKS
+  // translation item — and every other item that does not practise an
+  // inverse function — is not offered for it at all.
+  const inverses = INVERSES.sections.find((section) => section.role === 'practice');
+  const inverse = inverses.questions[inverses.questions.length - 1];
+  const forInverse = bank.rankAuditedBankDocuments({ teksCodes: bank.questionTeksCodes(inverse), seed: 'breadth', sourceQuestion: inverse });
+  assert.ok(forInverse.length > 0);
+  assert.ok(!forInverse.some((document) => document.id === 'mm_act_fn_4_translated-point_v21'), 'the 152-TEKS translation item no longer fronts an inverse-functions lesson');
+  forInverse.forEach((document) => assert.match(document.taskType, /inverse/i, `${document.id} practises an inverse function`));
 });
 
 test('the #359 construct gate still holds inside every ranked list', () => {

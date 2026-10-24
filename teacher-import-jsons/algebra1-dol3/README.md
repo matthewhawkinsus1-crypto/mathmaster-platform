@@ -30,7 +30,7 @@ Or plan the release with `node scripts/release-firebase.mjs`. Never use a raw `f
 
 1. Import `Algebra1_DOL3_Review.json` for Algebra I classes and `Algebra1_DOL3_Review_Honors.json` for Algebra I Honors classes. Pre-Flight shows each one ready, with no errors or warnings.
 2. For an Honors class, Pre-Flight builds the Honors version. Questions 15 and 16 are audited items from MathMaster's CCMR bank, so the Honors file already meets the 15% CCMR share, and Pre-Flight keeps every question.
-   - Do not assign the regular file to an Honors class. Pre-Flight would replace question 12 (the function sort) and question 13 (the recursive sequence) with exam items. The item it chooses for question 13 does not practise sequences.
+   - Do not assign the regular file to an Honors class. Pre-Flight would replace two of its Practice questions with exam items, on standards the review teaches more than once. It no longer touches question 13: the bank has no sequence item on A.12C, only ACT function items crosswalked onto it.
 3. Students get 3 tries on each question, with hints and immediate feedback. In the Honors file, questions 14–16 give each student their own numbers.
 
 ## What is in it
@@ -89,4 +89,3 @@ The builder copies questions 1–13 and builds question 14 with the recipe. It c
 ## Known follow-ups (not changed here)
 
 - The Sequence Explorer writes terms as aₙ, while the DOL uses f(n). Question 13's prompt explains the mapping.
-- On the regular review, the CCMR swap for an Honors class matches question 13 (A.12C, a recursive sequence) to an ACT function-evaluation item tagged A.12C. The bank's semantic-fit check does not yet tell sequences apart from function evaluation. The Honors file avoids this, but any other A.12C lesson assigned to an Honors class would not.

@@ -104,7 +104,106 @@ const QUADRATIC_TASK_TYPE_PATTERN = /quadratic/i;
 // letter (z) the way a 2-variable "system" item never does.
 const THREE_VARIABLE_SIGNAL_PATTERN = /three[-\s]?(?:variable|equation)|3\s?[x×]\s?3|\bz\b/i;
 
-function deriveSourceSemanticProfile(question = {}) {
+/*
+ * TASK TYPE, NOT ONLY TEKS (TT15).
+ *
+ * A shared TEKS code says nothing about a crosswalked item. Every ACT and
+ * TSIA2 "native" item (and the Digital SAT native ones) is crosswalked onto
+ * every TEKS its skill touches: the ACT polynomial-evaluation item lists 151.
+ * On TEKS alone that item replaced a recursive-sequence question (A.12C), an
+ * ACT linear equation a(x − b) = c replaced a Matrix Lab question on DOL #2,
+ * and a quadratic-zero item replaced a matrix-inverse check. A Digital SAT
+ * item is different: its one TEKS alignment is an assessment
+ * (`evidenceLevel: "assessed"`), so that TEKS is what it practises.
+ *
+ * So when the matcher can see what the source question asks, a crosswalked
+ * candidate must name that same task in its own taskType; one that does not
+ * is off-topic however many TEKS it shares, and when no candidate of the
+ * right task type exists the place keeps the teacher's question (#359's
+ * "no_semantically_compatible_audited_item"). What the matcher can see: the
+ * tool's student actions below, the tool itself (a sequence workspace, the
+ * Matrix Lab), a sequence or matrices the question carries, or a plain
+ * question's prompt naming a sequence, a matrix, an inverse or composite
+ * function, or a complex number. A question that shows none of these (a
+ * generic solve, a sort, a plain multi-part question) keeps the TEKS match.
+ *
+ * Each row: the task, the V5 student actions that ask for it, and how a bank
+ * taskType that practises it reads.
+ */
+const TASK_KINDS = Object.freeze([
+  ["sequence", ["analyzeSequence", "findSequenceTerm", "findMissingTerm", "writeRecursive", "writeExplicit", "compareSequences", "partialSum", "buildSequenceTable", "plotSequence"], /sequence|recursive/i],
+  ["matrix", ["locateMatrixElements", "operateOnMatrices", "checkInverseMatrices", "writeMatrixEquation", "solveMatrixEquation", "completeSingularSystem", "rowReduce"], /matri/i],
+  ["composition", ["composeFunctions"], /composition/i],
+  ["inverseFunction", ["findInverse"], /inverseFunction|inverse[-\s]?(?:function|linear)/i],
+  ["relation", ["buildMapping", "plotRelation", "classifyFunction"], /relation(?!ship)|mapping/i],
+  ["domainRange", ["analyzeDomain", "analyzeRange", "stateDomain", "stateRange"], /domain/i],
+  ["functionFeatures", ["findVertex", "findXIntercepts", "findYIntercept", "findZeros", "findMaximum", "findMinimum", "findAxisOfSymmetry", "analyzeIncreasing", "analyzeDecreasing", "analyzeConstant", "analyzePositive", "analyzeNegative"], /zero|intercept|vertex|axisOfSymmetry|symmetricInput/i],
+  ["transformation", ["analyzeTransformations"], /^function(?:Translation|Transformation)/i],
+  ["inequality", ["solveInequality", "chooseNumberLine", "constructInterval", "writeInterval"], /inequalit/i],
+  ["polynomial", ["factorPolynomial", "dividePolynomial", "longDivision", "syntheticDivision", "multiplyPolynomials", "addSubtractPolynomials"], /polynomial|binomial|^factor(?:Monic|Difference|Polynomial)/i],
+  ["radicalEquation", ["solveRadicalEquation"], /radicalEquation|solveRadical|cubeRoot/i],
+  ["exponentialLog", ["exponentialLogBridge", "solveExponential", "solveLogarithmic"], /exponential|logarithm/i],
+  ["complexNumber", ["complexOperations", "analyzeComplex"], /complex/i],
+  ["parabolaGeometry", ["analyzeParabolaGeometry"], /parabola|focus|directrix/i],
+  ["literalEquation", ["solveLiteral"], /literal|rearrange/i],
+  ["dataModel", ["analyzeData", "fitDataModel", "predictFromModel", "calculateCorrelation"], /fit|residual|correlat|predict|trend|regression|scatter|bivariate/i],
+]);
+const TASK_KIND_BY_ACTION = new Map(TASK_KINDS.flatMap(([kind, actions]) => actions.map((action) => [action, kind])));
+// A plain question shows its task only in its words, and only these name an
+// object few tasks use. "Sequence" needs a term with it, so a "sequence of
+// transformations" is not a sequence task.
+const PROMPT_TASK_KINDS = Object.freeze([
+  ["sequence", /\b(?:arithmetic|geometric)\s+sequences?\b|\brecursive(?:ly)?\b|\bnth term\b|\bsequences?\b[^.?!]*\bterms?\b|\bterms?\b[^.?!]*\bsequences?\b/i],
+  ["matrix", /\bmatri(?:x|ces)\b/i],
+  ["inverseFunction", /\binverse\b(?!\s+(?:operations?|variation|propert))/i],
+  ["composition", /\bcomposition\b(?!\s+of\s+(?:transformations?|rigid|reflections?|rotations?|translations?))|\bcomposite functions?\b|\b[a-z]\s*\(\s*[a-z]\s*\(\s*x\s*\)\s*\)/i],
+  ["complexNumber", /\bcomplex numbers?\b|\bimaginary\b/i],
+]);
+
+function sourceTaskKinds(question = {}) {
+  const kinds = new Set();
+  (Array.isArray(question.studentActions) ? question.studentActions : []).forEach((action) => {
+    const kind = TASK_KIND_BY_ACTION.get(clean(action));
+    if (kind) kinds.add(kind);
+  });
+  const type = clean(question.type);
+  if (/sequence/i.test(type) || (question.sequence && typeof question.sequence === "object")) kinds.add("sequence");
+  if (/matrix/i.test(type) || (question.matrices && typeof question.matrices === "object")) kinds.add("matrix");
+  if (!kinds.size) {
+    const prompt = clean(question.prompt);
+    PROMPT_TASK_KINDS.forEach(([kind, pattern]) => {
+      if (pattern.test(prompt)) kinds.add(kind);
+    });
+    // A matrix's inverse is a matrix task, not an inverse function.
+    if (kinds.has("matrix")) kinds.delete("inverseFunction");
+  }
+  return [...kinds];
+}
+
+function documentTaskKinds(document = {}) {
+  const taskType = clean(document.taskType);
+  return taskType ? TASK_KINDS.filter(([, , pattern]) => pattern.test(taskType)).map(([kind]) => kind) : [];
+}
+
+// The item assesses one of these TEKS (a Digital SAT item) rather than being
+// crosswalked onto it.
+function assessesTeks(document = {}, teksCodes = []) {
+  const codes = new Set((teksCodes || []).map(normalizeTeks));
+  return (Array.isArray(document.alignments) ? document.alignments : []).some((entry) => (
+    clean(entry?.framework || "teks") === "teks"
+    && clean(entry?.evidenceLevel).toLowerCase() === "assessed"
+    && codes.has(normalizeTeks(entry?.code))
+  ));
+}
+
+function isTaskKindCompatible(sourceProfile, document) {
+  const kinds = Array.isArray(sourceProfile?.taskKinds) ? sourceProfile.taskKinds : [];
+  if (!kinds.length) return true;
+  if (assessesTeks(document, sourceProfile.teksCodes)) return true;
+  return documentTaskKinds(document).some((kind) => kinds.includes(kind));
+}
+
+function deriveSourceSemanticProfile(question = {}, { teksCodes = null } = {}) {
   const equations = Array.isArray(question.equations) ? question.equations : null;
   const variables = Array.isArray(question.variables) ? question.variables : null;
   const dimension = equations?.length || variables?.length || null;
@@ -125,6 +224,8 @@ function deriveSourceSemanticProfile(question = {}) {
     method: clean(question.method),
     taskType: clean(question.taskType),
     representation: clean(question.representation),
+    taskKinds: sourceTaskKinds(question),
+    teksCodes: (Array.isArray(teksCodes) && teksCodes.length ? teksCodes : questionTeksCodes(question)).map(normalizeTeks),
   };
 }
 
@@ -141,13 +242,16 @@ function documentSemanticProfile(document = {}) {
 }
 
 /**
- * Does this candidate's own taskType contradict the source question's
- * mathematical family? Absence of metadata is never treated as a mismatch —
- * only a stated contradiction rejects a candidate, so sparsely-tagged bank
- * content is not needlessly excluded.
+ * Does this candidate practise what the source question asks? First the task
+ * type (TT15): when the source's task shows, a crosswalked candidate must name
+ * it. Then, for a system source, does its own taskType contradict the
+ * system's family (#359)? There, absence of metadata is not a mismatch — only
+ * a stated contradiction rejects a candidate.
  */
 function isSemanticallyCompatible(sourceProfile, document) {
-  if (!sourceProfile || !sourceProfile.isSystem) return true;
+  if (!sourceProfile) return true;
+  if (!isTaskKindCompatible(sourceProfile, document)) return false;
+  if (!sourceProfile.isSystem) return true;
   const docProfile = documentSemanticProfile(document);
   // A system (2+ equations) source must be matched by a bank item that is
   // itself a system task, not a single-equation solve carrying the same
@@ -227,7 +331,7 @@ function rankCandidates(candidates, { dok, difficultyBand, seed }) {
 
 function compatibleCandidates({ framework, domainId, teksCodes, excludeDocumentIds, sourceQuestion }) {
   const candidates = sameTeksCandidates({ framework, domainId, teksCodes, excludeDocumentIds });
-  const sourceProfile = sourceQuestion ? deriveSourceSemanticProfile(sourceQuestion) : null;
+  const sourceProfile = sourceQuestion ? deriveSourceSemanticProfile(sourceQuestion, { teksCodes }) : null;
   return sourceProfile
     ? candidates.filter((document) => isSemanticallyCompatible(sourceProfile, document))
     : candidates;
@@ -338,7 +442,7 @@ function chooseAuditedBankDocumentAnyFramework({
  */
 function explainAuditedBankMatch(sourceQuestion = {}, { teksCodes, dok, difficultyBand, seed = "", excludeDocumentIds = [] } = {}) {
   const codes = teksCodes && teksCodes.length ? teksCodes : questionTeksCodes(sourceQuestion);
-  const sourceProfile = deriveSourceSemanticProfile(sourceQuestion);
+  const sourceProfile = deriveSourceSemanticProfile(sourceQuestion, { teksCodes: codes });
   const frameworks = Object.keys(FRAMEWORK_FILES);
   let sameTeksCount = 0;
   let semanticallyCompatibleCount = 0;
@@ -358,6 +462,7 @@ function explainAuditedBankMatch(sourceQuestion = {}, { teksCodes, dok, difficul
       isLinearQuadratic: sourceProfile.isLinearQuadratic,
       dimension: sourceProfile.dimension,
       method: sourceProfile.method || null,
+      taskKinds: sourceProfile.taskKinds,
     },
     sameTeksCount,
     semanticallyCompatibleCount,
@@ -756,10 +861,31 @@ function ensureAuditedCcmrPractice(assignment = {}, audit = null, options = {}) 
     ?? question?.complexity?.level
     ?? 0
   );
+  // TT15: an audited item counts as Honors CCMR transfer only on a TEKS that
+  // an ordinary question elsewhere in the lesson also teaches (courseRigor's
+  // ccmrEnrichment). An off-topic item crosswalked onto 151 TEKS always looked
+  // like transfer; an on-topic item on the place's own TEKS is transfer only
+  // when another question teaches that TEKS. So, after the DOK 3 rule, places
+  // whose TEKS the lesson teaches again come first, and a standard the lesson
+  // teaches once keeps its authored question.
+  const ordinary = assignment.sections.flatMap((section, sectionIndex) => (
+    (Array.isArray(section?.questions) ? section.questions : [])
+      .map((question, questionIndex) => ({ question, sectionIndex, questionIndex }))
+  )).filter(({ question }) => (
+    question && question.teacherExcluded !== true && !isAuditedBankQuestion(question) && !directCcmrClaim(question)
+  ));
+  const taughtOnlyHere = new Set(positions.filter((position) => {
+    const codes = questionTeksCodes(position.question);
+    return !ordinary.some((entry) => (
+      (entry.sectionIndex !== position.sectionIndex || entry.questionIndex !== position.questionIndex)
+      && questionTeksCodes(entry.question).some((code) => codes.includes(code))
+    ));
+  }));
   const candidates = [...positions]
     .reverse()
     .sort((left, right) => (
       Number(questionDok(left.question) >= 3) - Number(questionDok(right.question) >= 3)
+      || Number(taughtOnlyHere.has(left)) - Number(taughtOnlyHere.has(right))
     ));
   const compatibilityMisses = [];
   for (const position of candidates) {

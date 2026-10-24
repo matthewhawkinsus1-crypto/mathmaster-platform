@@ -413,7 +413,7 @@ const explainNeedsDecision = ({ targetCount, sourcedCount, selection, ccmrEnrich
   }
   if (failedCount) parts.push(`${failedCount === 1 ? 'One audited candidate' : `${failedCount} audited candidates`} offered on this lesson’s TEKS failed MathMaster’s assignment checks; the questions and the reasons are listed below.`);
   if (depthOnly) parts.push('Some audited items would fit, but only in place of a question that carries Honors depth this lesson needs, so MathMaster kept that question.');
-  if (semanticGap) parts.push('The audited bank has items on this lesson’s TEKS, but none that match the question’s construct (for example, system dimension, or linear vs. linear–quadratic).');
+  if (semanticGap) parts.push('The audited bank has items on this lesson’s TEKS, but none that match the question’s construct (for example, a sequence rather than function evaluation, a matrix task, or a system’s dimension).');
   if (noSameTeks) parts.push('The audited CCMR Fidelity V2.1 bank has no Practice family on this lesson’s TEKS.');
   return parts.join(' ');
 };
