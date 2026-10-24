@@ -2454,6 +2454,43 @@
   opacity: 0.85;
 }
 
+/* THE ROWS BETWEEN THE TASK AND THE WORK ARE FEWER (PH03).
+   At 1366x768 the tool started 432-481px down a 768px screen: the task, then
+   "Learning goal" on a row, "Support tools" on the next, a full-width tries
+   pill, "Grade weight" under it. Each of those is a short phrase or a chip, so
+   the two chip rows share one row and the tries and the weight share another
+   (about 90px of the screen back). The phone's panel does the same
+   (MathToolMobileLayout.css). Anything else the context panel holds keeps its
+   own full row. */
+.mathmaster-desktop-task-extras {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+}
+
+.mathmaster-desktop-task-extras > * {
+  min-width: 0;
+}
+
+.mathmaster-desktop-question-content .mathmaster-question-context-panel:has(> *) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 10px;
+}
+
+.mathmaster-desktop-question-content .mathmaster-question-context-panel > * {
+  flex: 1 1 100%;
+}
+
+.mathmaster-desktop-question-content .mathmaster-question-context-panel > .mathmaster-question-attempt-strip,
+.mathmaster-desktop-question-content .mathmaster-question-context-panel > [data-grade-weight] {
+  flex: 0 1 auto;
+  margin: 0 0 12px !important;
+}
+
 /* Live Challenge — the last ten seconds of a round.
    Guarded so a viewer who has asked for less motion gets a still clock rather
    than a pulsing one; the colour shift already carries the urgency. */

@@ -442,6 +442,11 @@ export const MobileViewportContainer = ({
             <section className="question-prompt-panel" aria-label="Question prompt and response controls">
               <div className="question-prompt-heading">
                 <span>YOUR TASK</span>
+                {/* "Learning goal" shares the heading's row on a phone held upright:
+                    on its own row under the task it was 44px of a screen the
+                    work is already short of (PH03). Whole width on its side,
+                    where the panel is a narrow column and the row has no room. */}
+                {!isLandscape && !isPromptCollapsed && taskMeta && <div className="mathmaster-question-task-meta mathmaster-heading-meta">{taskMeta}</div>}
                 {!isLandscape && (
                   <button className="mm-button-neutral" type="button" onClick={() => setIsPromptCollapsed((current) => !current)}>
                     {isPromptCollapsed ? 'Show Prompt ▼' : 'Minimize ▲'}
@@ -459,7 +464,7 @@ export const MobileViewportContainer = ({
                       <QuestionPrompt variant="plain">{currentStagePrompt}</QuestionPrompt>
                     </div>
                   )}
-                  {taskMeta && <div className="mathmaster-question-task-meta">{taskMeta}</div>}
+                  {taskMeta && isLandscape && <div className="mathmaster-question-task-meta">{taskMeta}</div>}
                   {taskContextPanel && <div className="mathmaster-question-task-context">{taskContextPanel}</div>}
                 </div>
               )}
@@ -508,8 +513,17 @@ export const MobileViewportContainer = ({
           {/* Standards and CCMR links are reference, not the task: they scroll
               with the page instead of riding in the sticky anchor, where they
               floated over the tool's own buttons (live QA). */}
-          {!workspaceActive && !isPromptCollapsed && taskMeta && <div className="mathmaster-question-task-meta mathmaster-desktop-task-meta">{taskMeta}</div>}
-          {!workspaceActive && supportTray && !supportTrayAfterWork && <div className="mathmaster-question-support-tray">{supportTray}</div>}
+          {/* "Learning goal" and the Support tools are two short rows of chips;
+              side by side they are one (PH03: at 1366x768 the work started 432
+              to 481px down a 768px screen). One wrapper that stays while
+              either shows, so the tray is never remounted — and its open panel
+              lost — when the task is hidden and shown. */}
+          {!workspaceActive && ((!isPromptCollapsed && taskMeta) || (supportTray && !supportTrayAfterWork)) && (
+            <div className="mathmaster-desktop-task-extras">
+              {!isPromptCollapsed && taskMeta ? <div className="mathmaster-question-task-meta mathmaster-desktop-task-meta">{taskMeta}</div> : null}
+              {supportTray && !supportTrayAfterWork ? <div className="mathmaster-question-support-tray">{supportTray}</div> : null}
+            </div>
+          )}
           {!workspaceActive && contextPanel}
           {responseFields}
         </>

@@ -80,9 +80,16 @@ test('the navigator height ref is stable across renders and publishes the height
 test('reference chips scroll with the page; the Hide task control sits on the card', () => {
   const container = read('src/components/student/MobileViewportContainer.jsx');
   const anchorStart = container.lastIndexOf('<div', container.indexOf('className={`mathmaster-desktop-question-anchor'));
-  const anchorEnd = container.indexOf('{!workspaceActive && !isPromptCollapsed && taskMeta');
+  // The anchor ends where the rows under the task begin (their own comment
+  // says why they are not in it).
+  const anchorEnd = container.indexOf('Standards and CCMR links are reference, not the task');
   assert.ok(anchorStart > 0 && anchorEnd > anchorStart);
-  assert.doesNotMatch(container.slice(anchorStart, anchorEnd), /taskMeta &&/, 'chips are not inside the sticky anchor');
+  assert.doesNotMatch(container.slice(anchorStart, anchorEnd), /taskMeta/, 'chips are not inside the sticky anchor');
+  // They are drawn after it, in the row they share with the Support tools (PH03),
+  // where the page scrolls them.
+  const extras = container.indexOf('<div className="mathmaster-desktop-task-extras">');
+  assert.ok(extras > anchorEnd, 'after the anchor');
+  assert.match(container.slice(extras, extras + 700), /<div className="mathmaster-question-task-meta mathmaster-desktop-task-meta">\{taskMeta\}<\/div>/);
   const css = read('src/App.css');
   assert.match(css, /\.mathmaster-desktop-question-anchor:not\(\.is-collapsed\) \.mathmaster-desktop-task-toggle-row \{\s*position: absolute;/);
   assert.match(css, /\.mathmaster-desktop-question-anchor:not\(\.is-collapsed\) > \.mathmaster-question-prompt \{\s*padding-right: 104px !important;/);
