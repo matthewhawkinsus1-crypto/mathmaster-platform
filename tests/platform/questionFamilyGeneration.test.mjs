@@ -412,9 +412,26 @@ const LEGACY_GOLDEN = {
   'legacy-static': ['8deb6af1a16ef6a22500d440', '8deb6af1a16ef6a22500d440', '8deb6af1a16ef6a22500d440', '8deb6af1a16ef6a22500d440'],
 };
 
+// Every question carries the student's support presentation
+// (applyStudentSupportToQuestion writes it from the student's profile at
+// delivery; it is not generated content). Keys added to that presentation
+// after the record was taken are taken out before hashing, so the record still
+// proves the generated question itself is unchanged, and each must read as a
+// support this default student does not have. keyboardAccess: TS02, "Connect
+// my points" on an assessment for a student with keyboard access.
+const PRESENTATION_KEYS_ADDED_SINCE = { keyboardAccess: false };
+const asRecorded = (question) => {
+  const supportPresentation = { ...question.supportPresentation };
+  for (const [key, value] of Object.entries(PRESENTATION_KEYS_ADDED_SINCE)) {
+    assert.equal(supportPresentation[key], value, `${question.questionId}: supportPresentation.${key} for a student without that support`);
+    delete supportPresentation[key];
+  }
+  return { ...question, supportPresentation };
+};
+
 test('legacy questions generate exactly what they generated before the family engine', () => {
   for (const blueprint of LEGACY_BLUEPRINTS) {
-    const hashes = LEGACY_KEYS.map((key) => createHash('sha256').update(JSON.stringify(generateQuestion(blueprint, key))).digest('hex').slice(0, 24));
+    const hashes = LEGACY_KEYS.map((key) => createHash('sha256').update(JSON.stringify(asRecorded(generateQuestion(blueprint, key)))).digest('hex').slice(0, 24));
     assert.deepEqual(hashes, LEGACY_GOLDEN[blueprint.questionId], `${blueprint.questionId} changed for a legacy assignment`);
   }
 });
