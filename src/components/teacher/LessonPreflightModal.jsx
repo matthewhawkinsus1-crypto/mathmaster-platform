@@ -2052,9 +2052,9 @@ export const LessonPreflightModal = ({
         </div>
       )}
 
-      {/* Advice, not a readiness finding (answerKeyPreflight.js, GR04): a
-          typed key that reads two ways, so students may be graded against
-          the reading the author did not mean. */}
+      {/* Advice, not a readiness finding (answerKeyPreflight.js): a typed key
+          that reads two ways (GR04), or "lowest terms" asked of a box that
+          takes any equal value (GR14). */}
       {preflightModel.answerKeys?.warnings?.length > 0 && (
         <div data-answer-key-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-info-border)', borderRadius: 10, background: 'var(--mm-info-bg)', color: 'var(--mm-text)' }}>
           <strong style={{ color: 'var(--mm-info-text)' }}>Answer keys to check</strong>

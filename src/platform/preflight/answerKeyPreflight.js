@@ -15,8 +15,17 @@
  * question with a bare negative exponent. Only typed keys are read: a choice
  * is graded by the option picked, never by reading its text. A braced
  * exponent (`2^{x-1}/3`) or a `\frac` is unambiguous and is not flagged.
+ *
+ * "LOWEST TERMS" ASKED OF A BOX THAT TAKES ANY EQUAL VALUE (GR14). Only a
+ * Fraction question holds its answer to lowest terms (ordinaryResponseGrading
+ * matchesAuthoredFractionAnswer). A multi-answer field compares values, so a
+ * field keyed 3/4 on "Write 6/8 in lowest terms" took 6/8, 12/16 and 0.75 as
+ * well (LIVE-17). Listed when the question or the field asks for lowest terms
+ * or simplest form, the key is a fraction in lowest terms, and the field's own
+ * grader takes that fraction unreduced.
  */
-import { isChoiceAnswerField } from '../../../functions/shared/answerUtils.mjs';
+import { isChoiceAnswerField, matchesFieldAnswer } from '../../../functions/shared/answerUtils.mjs';
+import { isWrittenInLowestTerms, parseWrittenNumber } from '../../../functions/shared/fractionAnswer.mjs';
 
 const asArray = (value) => (Array.isArray(value) ? value : []);
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -150,15 +159,48 @@ const ambiguousKeyWarning = (questionNumber, { key, label }) => {
     : `${where}: the answer "${key}" has a power in brackets right before a "/", which can be read two ways. Add brackets to show what is divided, so students are graded against the one you mean.`;
 };
 
+// Asking for the form, in words, or "simplify"/"reduce" right before a
+// fraction ("Simplify 10/15"). A bare "Simplify" about something else (the
+// radicals of a question whose box is an exponent) is not this question.
+const ASKS_LOWEST_TERMS = /\blowest terms\b|\bsimplest (?:form|terms)\b|\bfully reduced\b|\breduced (?:form|fraction)\b|\b(?:simplify|reduce) (?:the|this|each|your) fractions?\b|\b(?:simplify|reduce)\s*:?\s*\$?\s*(?:-?\d+\s*\/\s*\d+|\\[dt]?frac\{)/i;
+const terminatingDecimal = (numerator, denominator) => {
+  let rest = Math.abs(denominator);
+  for (const factor of [2, 5]) while (rest % factor === 0) rest /= factor;
+  return rest === 1 ? String(numerator / denominator) : null;
+};
+
+/**
+ * A typed field that is asked for lowest terms and takes any equal value:
+ * { key, unreduced, decimal } (the forms it would mark right), or null.
+ */
+export const lowestTermsNotHeld = (question = {}, field = {}) => {
+  if (!isTypedField(field)) return null;
+  const key = field.answer ?? field.expected;
+  const written = typeof key === 'string' ? parseWrittenNumber(key) : null;
+  if (written?.form !== 'fraction' || !isWrittenInLowestTerms(key)) return null;
+  if (!ASKS_LOWEST_TERMS.test(`${text(question.prompt)} ${text(field.label)}`)) return null;
+  const unreduced = `${written.numerator * 2}/${written.denominator * 2}`;
+  if (!matchesFieldAnswer(unreduced, field)) return null;
+  const decimal = terminatingDecimal(written.numerator, written.denominator);
+  return { key: key.trim(), unreduced, decimal: decimal !== null && matchesFieldAnswer(decimal, field) ? decimal : null };
+};
+
+const lowestTermsWarning = (questionNumber, question, field) => {
+  const found = lowestTermsNotHeld(question, field);
+  if (!found) return null;
+  const label = text(field.label).trim();
+  const others = found.decimal ? `${found.unreduced} or ${found.decimal}` : found.unreduced;
+  return `Question ${questionNumber}${label ? ` (${label})` : ''}: the question asks for lowest terms, but this box takes any equal value, so ${others} is marked right for ${found.key}. A Fraction question (type "fraction") holds the answer to lowest terms.`;
+};
+
 export const auditAssignmentAnswerKeys = (questions = [], { deliveredOnly = true } = {}) => {
   const warnings = [];
+  const add = (warning) => { if (warning && !warnings.includes(warning)) warnings.push(warning); };
   asArray(questions).forEach((question, index) => {
     if (!isObject(question)) return;
     if (deliveredOnly && question.teacherExcluded === true) return;
-    typedKeysOf(question).forEach((entry) => {
-      const warning = ambiguousKeyWarning(index + 1, entry);
-      if (warning && !warnings.includes(warning)) warnings.push(warning);
-    });
+    typedKeysOf(question).forEach((entry) => add(ambiguousKeyWarning(index + 1, entry)));
+    asArray(question.answerFields).forEach((field) => add(lowestTermsWarning(index + 1, question, field)));
   });
   return { warnings };
 };

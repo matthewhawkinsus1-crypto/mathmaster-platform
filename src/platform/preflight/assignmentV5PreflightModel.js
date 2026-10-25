@@ -177,7 +177,8 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   // Choice options worth the same as the key (GR06): advisory, like hintAnswers.
   const choiceOptions = auditAssignmentChoiceOptions(questions, deliveredOnly);
   // Typed keys that may be graded in another reading than the author's
-  // (answerKeyPreflight.js, GR04): advisory, like hintAnswers.
+  // (GR04), and "lowest terms" asked of a box that takes any equal value
+  // (GR14), from answerKeyPreflight.js: advisory, like hintAnswers.
   const answerKeys = auditAssignmentAnswerKeys(questions, deliveredOnly);
   // Question ↔ tool contract: judged on the LITERAL record, because it also
   // reports records that only work because a runtime repair rescues them and
