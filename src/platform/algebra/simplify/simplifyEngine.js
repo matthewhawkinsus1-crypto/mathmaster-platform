@@ -45,6 +45,7 @@ import {
 import { findLikeTermGroups, monomialSignature } from '../../../algebraLikeTermsModel.js';
 import { rebuildSideSafely, serializeItems, sideItems } from '../../../algebraStructureToolState.js';
 import { spokenMathLabel } from '../../language/mathSpeechLabel.js';
+import { letterRunsAsProducts } from '../../math/latexToExpression.js';
 
 export const SIMPLIFY_PART_KINDS = Object.freeze({
   PRODUCT: 'product',
@@ -392,11 +393,14 @@ export const partNeedsAnswer = (part) => Boolean(part) && !(
 /** Does this part ask for a sign on each term (parentheses after a minus)? */
 export const partNeedsSigns = (part) => part?.kind === SIMPLIFY_PART_KINDS.PARENTHESES && part.sign < 0;
 
-const readTyped = (answer) => {
+// `context`: the expressions on the board the answer is checked against, so a
+// typed 5xy reads as 5·x·y where the board has x and y (GR36,
+// letterRunsAsProducts). The board's own reading is never changed.
+const readTyped = (answer, context = []) => {
   const raw = String(answer ?? '').trim();
   if (!raw) return { reason: 'empty' };
   try {
-    const expression = latexToExpression(raw);
+    const expression = letterRunsAsProducts(latexToExpression(raw), context);
     const node = parse(expression);
     return { expression, node };
   } catch {
@@ -498,7 +502,8 @@ export const checkSimplifyPart = (part, { answer = '', signs = [] } = {}) => {
     return { ok: true, items: part.innerTerms.map(({ magnitude }, index) => ({ sign: signs[index], magnitude })) };
   }
 
-  const typed = readTyped(answer);
+  // Checked against the part's own expression: its terms, or its letters.
+  const typed = readTyped(answer, [part.selectedExpression, ...(Array.isArray(part.rest) ? part.rest : [])]);
   if (typed.reason) return { ok: false, reason: typed.reason };
 
   if (part.kind === SIMPLIFY_PART_KINDS.PRODUCT) {
@@ -644,7 +649,7 @@ export const checkRegionRewrite = (region, answer, { read = null, equivalent = n
     if (!String(answer ?? '').trim()) return { ok: false, reason: 'empty' };
     try { typed = { expression: read(answer) }; } catch { return { ok: false, reason: 'unreadableSide' }; }
   } else {
-    typed = readTyped(answer);
+    typed = readTyped(answer, [region.expression]);
     if (typed.reason) return { ok: false, reason: typed.reason === 'unreadable' ? 'unreadableSide' : typed.reason };
   }
   let equal = false;

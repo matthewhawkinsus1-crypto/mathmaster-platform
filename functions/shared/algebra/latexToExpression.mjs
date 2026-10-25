@@ -60,3 +60,33 @@ export const latexToExpression = (rawValue) => {
   }
   return text.trim();
 };
+
+/*
+ * LETTERS TYPED TOGETHER, READ AS THE PRODUCT THEY ARE — WHERE THAT IS SAFE
+ * (GR36). mathjs reads `xy` as one name, so a typed 5xy was not 5·x·y: on a
+ * board the engine holds as 2·x·y + 3·x·y (drawn 2xy + 3xy), One Simplify
+ * refused the student's 5xy and 5yx. A run of letters is read as those
+ * letters multiplied only when every letter is a variable the context (the
+ * board being simplified) uses on its own, the run itself is not a name the
+ * context uses, and it is no function or constant (log, ln, sin, pi, …).
+ * Anything else stays exactly as typed: a board that holds `xy` as one name,
+ * a formula's multi-letter quantity (Area), a letter the board does not have.
+ * Only ever reads a right answer as right; the answer graders already read
+ * 5xy as 5·x·y (algebraicForm.mjs) and do not come through here.
+ */
+const NAMES_NEVER_SPLIT = new Set(['pi', 'sqrt', 'cbrt', 'abs', 'exp', 'log', 'ln', 'sin', 'cos', 'tan', 'sec', 'csc', 'cot', 'mod', 'min', 'max', 'nthRoot', 'nthroot']);
+// A run of letters standing alone: never part of a command (\pi), a
+// subscripted or digit-carrying name (x_1, x2), or a call (f(x), sqrt(…)).
+const LETTER_RUN = /(?<![A-Za-z_\\])[A-Za-z]+(?![A-Za-z0-9_(])/g;
+
+export const letterRunsAsProducts = (expression, context = []) => {
+  const singles = new Set();
+  const runs = new Set();
+  (Array.isArray(context) ? context : [context]).forEach((text) => {
+    (String(text ?? '').match(LETTER_RUN) || []).forEach((run) => (run.length === 1 ? singles : runs).add(run));
+  });
+  return String(expression ?? '').replace(LETTER_RUN, (run) => {
+    if (run.length < 2 || NAMES_NEVER_SPLIT.has(run) || runs.has(run)) return run;
+    return [...run].every((letter) => singles.has(letter)) ? [...run].join(' ') : run;
+  });
+};
