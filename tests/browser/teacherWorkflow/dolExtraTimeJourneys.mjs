@@ -135,6 +135,9 @@ const run = async (viewport) => {
     const box = await line.boundingBox();
     expect(`X1 ${tag}`, Boolean(box && box.x >= 0 && box.x + box.width <= viewport.width + 1), `the line is clipped sideways: ${JSON.stringify(box)}`);
   }
+  // The window line is part of the workspace; the answer box comes with the
+  // question's own code, which can arrive after it (its own loading boundary).
+  await page.locator('math-field, input[type="text"], textarea').filter({ visible: true }).first().waitFor({ state: 'visible', timeout: 20_000 }).catch(() => {});
   expect(`X1 ${tag}`, await page.locator('math-field, input[type="text"], textarea').filter({ visible: true }).count() > 0, 'no answer field: the DOL is not workable');
   expect(`X1 ${tag}`, !PACK_UP.test(studentText), 'the pack-up banner tells a student mid-DOL (on extra time) to sign out');
   await page.screenshot({ path: path.join(ARTIFACTS, `X1-student-extra-time-${tag}.png`) });
