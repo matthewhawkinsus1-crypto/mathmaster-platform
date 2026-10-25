@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   axisLabels,
   describeCursor,
@@ -158,8 +158,14 @@ function GraphFeatureRushGraph({ question, drawing, side, found = [], feedback =
   const [announcement, setAnnouncement] = useState('');
   useEffect(watchModality, []);
 
-  // A new graph starts the keyboard cursor at its origin again.
-  useEffect(() => {
+  // A new graph starts the keyboard cursor at its origin again. A LAYOUT
+  // effect, so the reset has happened before the browser can hand this graph
+  // a key: a passive effect runs a moment after the commit, and an arrow
+  // pressed in that moment was moved and announced by its handler, then
+  // reset by the effect that ran after it — the first key on a new graph said
+  // nothing and moved nothing (CI06: it failed the game driver on a loaded
+  // machine; a slow Chromebook has the same window).
+  useLayoutEffect(() => {
     setCursor(initialCursor(view));
     setAnnouncement('');
   }, [question.questionIndex, view]);

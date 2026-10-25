@@ -218,6 +218,24 @@ test('the rush graph draws its own keyboard ring, and a tap takes it away', () =
   assert.match(region(css, 'body :is(', '}', 'the global focus ring'), /:not\(\[data-focus-ring="own"\]\):focus-visible \{/);
 });
 
+// CI06. A new graph resets the keyboard cursor and clears what was announced.
+// As a passive effect that reset ran a moment AFTER the commit, so an arrow
+// pressed in that moment was moved and announced by its handler and then reset
+// by the late effect: the first key on a new graph said nothing and moved
+// nothing (reproduced by dispatching the key in the commit's own microtask:
+// 1 of 6 announced; it failed the game driver once on a loaded machine). A
+// layout effect has run before the browser can deliver any key. Browser proof:
+// tests/browser/graphFeatureRushGame.mjs, "the keyboard cursor is not announced".
+test('the rush graph resets its keyboard cursor before a key can reach the new graph', () => {
+  const graph = executableSource(read('../../src/components/liveChallenge/GraphFeatureRushGraph.jsx'));
+  const reset = region(graph, 'useLayoutEffect(() => {', '[question.questionIndex, view]);', 'the new-graph reset');
+  assert.match(reset, /setCursor\(initialCursor\(view\)\);/, 'the cursor goes back to the origin');
+  assert.match(reset, /setAnnouncement\(''\);/, 'what was announced is cleared');
+  assert.match(graph, /import \{[^}]*\buseLayoutEffect\b[^}]*\} from 'react';/);
+  // The same two resets must not also sit in a passive effect (it would run late and undo a key).
+  assert.doesNotMatch(graph, /useEffect\(\(\) => \{\s*setCursor\(/, 'no passive effect resets the cursor');
+});
+
 /* --------------------------- the teacher's screens ------------------------- */
 
 test('the teacher console offers the rush and creates it with its own settings', () => {
