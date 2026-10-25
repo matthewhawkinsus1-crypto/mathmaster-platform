@@ -1570,7 +1570,9 @@ export default function MultiRelationAlgebra({
       setAbsoluteSplitRelations(['', '']);
       setMessage({
         tone: 'growth',
-        text: 'Choose the equivalent structure yourself. Then enter the split bounds and relation symbols MathMaster should check.',
+        // Said to the student, in the words on the buttons (TL45): what to
+        // pick and what to fill in, never which choice is right.
+        text: 'Write it without the absolute value bars: pick Two branches (OR) or Three-part compound (AND), then type each number and choose each sign.',
       });
       return;
     }
