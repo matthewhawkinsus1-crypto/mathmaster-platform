@@ -74,6 +74,9 @@ name: Student Runtime Browser Gates
 #   planePhoneReach     on a phone the plane's text renders at 12 px or more, a
 #                       press beside a point picks it up, and a third point keeps
 #                       the line (pass 3, TOOL-11)
+#   planeReadoutEscape  the plane's hover crosshair and a hovered point's
+#                       coordinates close on Escape without the pointer or focus
+#                       moving, and Escape still closes Work View (WCAG 1.4.13)
 #   focusSafeToolControls  Start over, Reset view and Step Algebra's distribution
 #                       targets keep keyboard focus when they disable themselves
 #                       (pass 3, A11Y-2)
@@ -313,6 +316,12 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/planePhoneReach.mjs
+      - name: The plane's hover readout closes on Escape
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/planeReadoutEscape.mjs
       - name: Self-disabling tool controls keep keyboard focus
         if: ${{ !cancelled() }}
         env:

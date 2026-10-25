@@ -305,6 +305,14 @@ export default function CoordinatePlane({
   // has been dragged to. Null when the gesture is placing a new point instead.
   const [dragIndex, setDragIndex] = useState(null);
   const [gestureActive, setGestureActive] = useState(false);
+  // CONTENT ON HOVER (WCAG 1.4.13). The pointer's crosshair, its coordinate
+  // chip and a hovered point's coordinates are drawn over the plot, so Escape
+  // puts them away without the pointer or focus moving. They come back when
+  // the student acts on the plane again: a press, an arrow key, Enter, or the
+  // pointer leaving and coming back. Escape still does what it did (Work View
+  // closes on it): one key, never two, to leave. The keyboard crosshair is the
+  // student's own cursor, put there by the arrow keys, so it stays.
+  const [readoutDismissed, setReadoutDismissed] = useState(false);
 
   // WHAT A PLOT DID, SAID ONCE (plotAnnouncement.js). The points before a plot
   // are kept until the tool hands the plane its points after it; the sentence
@@ -469,6 +477,7 @@ export default function CoordinatePlane({
     plotCommitRef.current = null;
     setPlotAnnouncement('');
     setKeyboardActive(false);
+    setReadoutDismissed(false);
     setGestureActive(true);
     setDragIndex(pointIndexNear(point));
     setPointerPreview(point);
@@ -509,12 +518,14 @@ export default function CoordinatePlane({
     if (gestureActive) return;
     setPointerPreview(null);
     setHoveredPointIndex(null);
+    setReadoutDismissed(false);
   };
 
   const moveKeyboardCursor = (dx, dy) => {
     plotCommitRef.current = null;
     setPlotAnnouncement('');
     setKeyboardActive(true);
+    setReadoutDismissed(false);
     setPointerPreview(null);
     setKeyboardCursor((current) => {
       const base = current || [snapValue(clamp(0, xMin, xMax), snapStep), snapValue(clamp(0, yMin, yMax), snapStep)];
@@ -539,6 +550,7 @@ export default function CoordinatePlane({
         const target = keyboardCursor || [snapValue(clamp(0, xMin, xMax), snapStep), snapValue(clamp(0, yMin, yMax), snapStep)];
         setKeyboardCursor(target);
         setKeyboardActive(true);
+        setReadoutDismissed(false);
         // Holding a point: Enter drops it where the crosshair is.
         if (keyboardHeldIndex != null) {
           const moved = keyboardHeldIndex;
@@ -628,6 +640,23 @@ export default function CoordinatePlane({
   // Null until measured: the toggle must never render, even for one frame,
   // inside a control it would be nested in.
   const planeRef = useRef(null);
+
+  // The pointer's readout hears Escape wherever focus is (the plane, a field,
+  // a button), so the document listens while it shows. It only puts the
+  // readout away; the key still does whatever else it does there. (An Escape
+  // that puts a held point back stops at the plane and is not heard here.)
+  const pointerReadoutShowing = !readoutDismissed && !keyboardActive
+    && (pointerPreview != null || (pointHoverEnabled && revealCoordinates && hoveredPointIndex != null));
+  useEffect(() => {
+    if (!pointerReadoutShowing) return undefined;
+    const doc = planeRef.current?.ownerDocument;
+    if (!doc) return undefined;
+    const onKey = (event) => {
+      if (event.key === 'Escape') setReadoutDismissed(true);
+    };
+    doc.addEventListener('keydown', onKey);
+    return () => doc.removeEventListener('keydown', onKey);
+  }, [pointerReadoutShowing]);
   const [insideControl, setInsideControl] = useState(null);
   useLayoutEffect(() => {
     const host = planeRef.current?.parentElement;
@@ -699,11 +728,14 @@ export default function CoordinatePlane({
     && descriptionDetail === 'features' && !readOut && revealCoordinates !== false && pointHoverEnabled !== false
     && generatedDescription.tables.length > 0;
 
-  const preview = keyboardActive ? keyboardCursor : pointerPreview;
+  // Escape puts away only what is drawn: the spoken readout below is the
+  // plane a screen-reader student has, so it keeps following the cursor.
+  const cursorAt = keyboardActive ? keyboardCursor : pointerPreview;
+  const preview = readoutDismissed ? null : cursorAt;
   const heldPoint = keyboardHeldIndex != null ? points[keyboardHeldIndex] : null;
   const previewText = heldPoint && keyboardCursor
     ? `Moving the point from ${formatCoordinate(heldPoint)} to ${formatCoordinate(keyboardCursor)}. Enter to drop it here, Escape to put it back.`
-    : preview ? `${cursorLabel} ${formatCoordinate(preview)}` : '';
+    : cursorAt ? `${cursorLabel} ${formatCoordinate(cursorAt)}` : '';
 
   // The readout chip flips to the other side of the cursor near the edges so it
   // never gets clipped by the plot border.
@@ -905,7 +937,7 @@ export default function CoordinatePlane({
         {/* Preview crosshair: the student sees exactly where the click lands
             before committing to it. */}
         {preview && chip ? (
-          <g pointerEvents="none">
+          <g pointerEvents="none" data-plane-readout="">
             <line x1={chip.cx} x2={chip.cx} y1={pad} y2={height - pad} stroke="#1a73e8" strokeDasharray="4 4" strokeWidth="1.5" opacity="0.55" />
             <line x1={pad} x2={width - pad} y1={chip.cy} y2={chip.cy} stroke="#1a73e8" strokeDasharray="4 4" strokeWidth="1.5" opacity="0.55" />
             <circle cx={chip.cx} cy={chip.cy} r={dotRadius(5) * 1.8} fill="#1a73e8" opacity="0.16" />
@@ -987,7 +1019,7 @@ export default function CoordinatePlane({
                   cannot hide them: a fixed #24324a was 1.35:1 on the dark
                   plane (A11Y-4). */}
               {point?.label ? <text data-point-label="" x={labelSpots[index]?.x ?? sx(pointX) + 10} y={labelSpots[index]?.y ?? sy(pointY) - 9} textAnchor={labelSpots[index]?.anchor || 'start'} fontSize={svgFont(11)} fontWeight="700" style={POINT_LABEL_STYLE}>{point.label}</text> : null}
-              {hovered && revealCoordinates ? <text x={sx(pointX) + 10} y={sy(pointY) + 16} fontSize={svgFont(11)} style={POINT_LABEL_STYLE}>{formatCoordinate(point)}</text> : null}
+              {hovered && revealCoordinates && !readoutDismissed ? <text data-plane-point-readout="" x={sx(pointX) + 10} y={sy(pointY) + 16} fontSize={svgFont(11)} style={POINT_LABEL_STYLE}>{formatCoordinate(point)}</text> : null}
             </g>
           );
         })}

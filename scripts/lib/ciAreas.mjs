@@ -246,6 +246,7 @@ export const CI_AREAS = {
     'tests/browser/unansweredChoiceGates*',
     'tests/browser/graphKeyboardRoute*',
     'tests/browser/planePhoneReach*',
+    'tests/browser/planeReadoutEscape*',
     'tests/browser/focusSafeToolControls*',
     'tests/browser/composedDraftRestore*',
     'tests/browser/draftEditTime.mjs',
