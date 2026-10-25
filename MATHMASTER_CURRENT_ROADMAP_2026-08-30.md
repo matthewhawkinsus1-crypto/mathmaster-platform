@@ -99,6 +99,12 @@ The V5 foundation, secure grading contracts, Honors authentic-CCMR authoring rul
 Still planned as a focused QA/polish pass rather than another schema rebuild:
 - assignment score/progress visibility for students;
 - verify assignment evidence affects Path only when alignment/evidence quality warrants it;
+  **Traced and recorded (MP25, 2026-10-25):** the rules are written beside `favourableMasteryBySkill` in
+  `src/platform/path/masteryAdapter.js` and pinned by `tests/platform/pathAssignmentEvidence.test.mjs`. Two paths
+  moved the Path on evidence that did not warrant it, and are fixed: one assignment question missed on a prerequisite
+  locked every skill built on it (evidence the one rule cannot judge now never locks), and work from an assignment
+  marked "not for mastery" still moved the server's profile (now skipped there too, from new answers on). Kept as
+  decided: one right answer reads Mastered on the 0.9 assignment record.
 - multi-part question continuity, especially sequence table -> plotted points -> equation workflows;
 - alignment/CCMR controls remain visible in the student task area;
 - three-dot assignment menu positioning;

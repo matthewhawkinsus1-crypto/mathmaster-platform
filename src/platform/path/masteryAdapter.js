@@ -82,16 +82,63 @@ const better = (a, b) => (a == null ? b : (b == null ? a : Math.max(a, b)));
  * A skill only Path evidence knows was unproven to main's engine, which never
  * locks on unproven. So such a record adds its Mastered verdict but never a
  * lock and never a lower readiness (`gate: false`).
+ *
+ * EVIDENCE TOO THIN TO JUDGE NEVER CLOSES A DOOR (MP25). When neither record
+ * can be judged by the one rule ("Not Enough Evidence": one assignment
+ * question, and fewer than two Path questions or under 1.1 of weight) and the
+ * skill is not Mastered, the record carries `lock: false`: as a prerequisite
+ * it never locks a skill and never sends one to remediation. One assignment
+ * question missed on a prerequisite used to lock every skill built on it.
+ * It still counts in readiness and Challenge evidence exactly as main counted
+ * it, so nothing main gave a student is lost (a single answer right on the
+ * second try still lifts readiness); readiness only orders the open cards.
+ * When either record has enough evidence to judge, it locks as before.
+ *
+ * WHEN ASSIGNMENT EVIDENCE MOVES THE PATH (MP25, traced 2026-10-25; tested in
+ * tests/platform/pathAssignmentEvidence.test.mjs):
+ *   1. Which work counts. An assignment marked `evidencePolicy.masteryEligible:
+ *      false` counts for neither record (masteryEngine.js collectStudentEvidence;
+ *      on the server, attemptEvidenceEvent.mjs stamps it and masteryScoring.mjs
+ *      masteryEventFacts drops it). A question the teacher excluded, or never
+ *      attempted, does not count. A `recommendationEligible: false` assignment
+ *      still counts as evidence but never marks a skill as what the class is
+ *      working on (collectAssignmentSkillIds, below).
+ *   2. Which skill it moves. Only a question's PRIMARY TEKS alignments (and,
+ *      on the server, the question's declared mastery evidence keys).
+ *   3. How much. Weighted by activity role, DOK, the standard's classification
+ *      and recency; a modified question carries no grade-level weight, and a
+ *      supported success is credited at 0.75.
+ *   4. What it can do to the Path. The more favourable number (above). Mastered
+ *      at 0.9 on the record, from any number of questions (decided). A lock or
+ *      remediation only from evidence the one rule can judge (`lock: false`
+ *      above). Readiness, which orders open cards (Recommended or Available),
+ *      reads every record, so one answer can reorder cards but never close
+ *      one. A Challenge card only when its prerequisites' evidence strength
+ *      reaches EXTENSION_PREREQUISITE_EVIDENCE (recommendationEngine.js),
+ *      about three weighted questions.
  */
+// The record's own status, by the one rule, on its own number and questions.
+const recordStatus = (old) => classifyMasteryStatus({
+  estimate: Number(old.mastery) * 100,
+  eligibleEvents: Number(old.attempts) || 0,
+  effectiveWeight: Number(old.attempts) || 0,
+});
 export const favourableMasteryBySkill = ({ legacy = {}, unified = {} } = {}) => {
   const result = {};
   new Set([...Object.keys(legacy || {}), ...Object.keys(unified || {})]).forEach((skillId) => {
     const old = legacy?.[skillId] || null;
     const now = unified?.[skillId] || null;
-    if (!now) { result[skillId] = old; return; }
+    if (!now) {
+      const thin = old && Number(old.mastery) < LEGACY_MASTERED && recordStatus(old) === MASTERY_STATUS.NOT_ENOUGH_EVIDENCE;
+      result[skillId] = thin ? { ...old, lock: false } : old;
+      return;
+    }
     if (!old) { result[skillId] = now.mastered ? now : { ...now, gate: false }; return; }
     const mastered = now.mastered === true || Number(old.mastery) >= LEGACY_MASTERED;
     const oldLeads = Number(old.mastery) > Number(now.mastery);
+    // Too thin to judge on both records: the unified status ranks each side
+    // and is "Not Enough Evidence" only when neither can be judged.
+    const thin = !mastered && now.status === MASTERY_STATUS.NOT_ENOUGH_EVIDENCE;
     result[skillId] = {
       ...now,
       mastery: Math.max(Number(old.mastery) || 0, Number(now.mastery) || 0),
@@ -102,11 +149,8 @@ export const favourableMasteryBySkill = ({ legacy = {}, unified = {} } = {}) => 
       mastered,
       // The shared rule's band for the number shown; only the verdict above
       // may say Mastered.
-      status: mastered ? MASTERY_STATUS.MASTERED : (oldLeads ? classifyMasteryStatus({
-        estimate: Number(old.mastery) * 100,
-        eligibleEvents: Number(old.attempts) || 0,
-        effectiveWeight: Number(old.attempts) || 0,
-      }) : now.status),
+      status: mastered ? MASTERY_STATUS.MASTERED : (oldLeads ? recordStatus(old) : now.status),
+      ...(thin ? { lock: false } : {}),
     };
   });
   return result;

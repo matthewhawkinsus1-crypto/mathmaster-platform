@@ -467,6 +467,21 @@ and `skillMastered` events with idempotency keys. Documented in
   can be lower than the Path's count. Outside this lane: the teacher screens
   (roster Learning Profile, profile drawer, Weekly Path explainer) read the
   assignment record alone; they load no server profile.
+- **When assignment evidence moves the Path (MP25, 2026-10-25).** Traced and
+  written beside `favourableMasteryBySkill` (`masteryAdapter.js`), pinned by
+  `tests/platform/pathAssignmentEvidence.test.mjs`. Two moves on evidence that
+  did not warrant them are fixed: (1) a prerequisite too thin for the one rule
+  to judge on both records (one assignment question, under two Path
+  questions) locked every skill built on it after a single miss; it no longer
+  locks or sends a skill to remediation (`lock: false`). It still counts in
+  readiness as main counted it, so the skills built on it stay open but can
+  drop from Recommended to Available, and nothing main credited is lost; with
+  enough evidence on either record it locks as before; (2) work from an
+  assignment marked "not for mastery"
+  (`evidencePolicy.masteryEligible: false`) was skipped by the assignment
+  record but still moved the server's profile; new answers from such work no
+  longer do (stored events are not rewritten). Kept as decided: one right
+  answer reads Mastered on the 0.9 record.
 - **Swap lock ids** are still per target and slot (changing them would orphan
   in-flight sessions); the client resumes the open session.
 - **My Progress history starts at deploy** (profiles were never time-indexed).

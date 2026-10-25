@@ -144,6 +144,10 @@ const masteryFor = (masteryBySkill, skillId) => {
     // False for evidence main's engine never saw (Path only, not Mastered):
     // it may credit a skill but never lock one (masteryAdapter.js).
     gate: entry.gate !== false,
+    // False for evidence too thin for the one rule to judge on either record
+    // (MP25): it counts in readiness as main counted it, but never locks a
+    // skill or sends one to remediation (masteryAdapter.js).
+    lock: entry.lock !== false,
   };
 };
 
@@ -186,6 +190,9 @@ export const evaluatePrerequisites = (skill, masteryBySkill) => {
     // prerequisite is unproven, not deficient, and locking on that would stop
     // every new student from starting anything.
     if (!state) return;
+    // Nor is evidence too thin to judge (MP25): one question missed must not
+    // close every skill built on it.
+    if (!state.lock) return;
     if (mastery < SEVERE_GAP_MASTERY) severe.push(entry.skillId);
     else if (mastery < entry.minimumMastery) unmet.push(entry.skillId);
   });

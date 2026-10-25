@@ -163,6 +163,11 @@ export const buildAttemptEvidenceEvent = ({
       activityRole: String(activityRole || 'practice'),
       activitySessionId: String(assignment?.id || ''),
       questionIndex: Number(questionIndex) || 0,
+      // The teacher's "not for mastery" (evidencePolicy.masteryEligible: false),
+      // carried with the evidence so the mastery trigger skips it as the
+      // assignment record does (masteryScoring.mjs masteryEventFacts, MP25).
+      // Present only when false: every other event keeps its earlier shape.
+      ...(assignment?.evidencePolicy?.masteryEligible === false ? { masteryEligible: false } : {}),
     },
     performance: {
       score,
