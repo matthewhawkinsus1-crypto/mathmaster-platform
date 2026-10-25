@@ -900,6 +900,32 @@ const opensAtReleaseForEveryone = (assignment) => (
   || projectCurrentAssignmentContent(assignment).entries.some((entry) => ASSESSMENT_KINDS.has(entry.logicalRole))
 );
 
+/**
+ * Whether some students can be in this lesson before its release (TT28): a
+ * lesson with a prerequisite opens early for each student who met it
+ * (prerequisiteAccess below), except an assessment, which opens at release
+ * for everyone.
+ */
+export const opensEarlyByPrerequisite = (assignment) => (
+  Boolean(assignment?.prerequisiteAssignmentId) && !opensAtReleaseForEveryone(assignment)
+);
+
+/**
+ * Before release, the Classwork/Practice state the students who opened the
+ * lesson early work under, for the teacher's own control (TT28): the same
+ * rule, read as a student whose prerequisite is met. The class's override is
+ * what those students get now and the whole class gets at release, and the
+ * server reads the same override (submissionEnvelope.mjs resolveLiveSectionAccess).
+ */
+export const earlySectionAccessState = ({ assignment, activityRole, classId = null, classPeriod = null, nowValue = Date.now() }) => getSectionAccessState({
+  assignment,
+  activityRole,
+  classId,
+  classPeriod,
+  nowValue,
+  classworkGradesByAssignment: { [assignment?.prerequisiteAssignmentId]: { score: 100 } },
+});
+
 export const prerequisiteAccess = ({ assignment, classworkGradesByAssignment = {}, nowValue = Date.now() }) => {
   const prerequisiteId = assignment?.prerequisiteAssignmentId;
   const releaseAt = getAssignmentDate(assignment, 'release');

@@ -121,6 +121,32 @@ test('TT30: the DOL control says who still has extra time — a count and a time
   assert.match(source('src/components/teacher/ClassLessonControls.jsx'), /<details[^>]*data-dol-extra-time[^>]*>[\s\S]*?row\.extraTime\.students\.map[\s\S]*?<\/details>/);
 });
 
+test('TT28: before release, a lesson that opens early by prerequisite shows its sections to the teacher, as early students have them', () => {
+  const unreleased = (extra) => lesson({ id: 'early', dolDate: '2026-09-09', extra: { releaseAt: '2026-09-08T08:00', ...extra } });
+  const locked = { sectionAccess: { classwork: { defaultState: 'closed' } } };
+  const rows = (assignment) => describeClassLesson({ assignment, classContext, schedule, nowValue: at(9, 0) }).rows;
+  const classworkOf = (assignment) => rows(assignment).find((row) => row.kind === 'classwork') || null;
+
+  const early = classworkOf(unreleased({ prerequisiteAssignmentId: 'prev', ...locked }));
+  assert.ok(early, 'the teacher can reach it before release');
+  assert.equal(early.status, 'closed');
+  assert.equal(early.headline, 'Starts locked · waiting for you');
+  assert.deepEqual(early.actions.map((action) => action.label), ['Open Classwork']);
+  assert.match(early.schedule, /^Not released yet: only students who met the prerequisite can work in it now/);
+  // The class's override is what those students work under (and what the server reads).
+  const opened = classworkOf(unreleased({ prerequisiteAssignmentId: 'prev', sectionAccess: { classwork: { defaultState: 'closed', overridesByClassId: { 'class-a': { state: 'open', changedAt: '2026-08-31T08:30:00' } } } } }));
+  assert.equal(opened.status, 'open');
+  assert.deepEqual(opened.actions.map((action) => action.label), ['Close Classwork']);
+  // No prerequisite, or an assessment (it opens at release for everyone): nobody is in it yet.
+  assert.equal(classworkOf(unreleased(locked)), null);
+  assert.equal(classworkOf(unreleased({ prerequisiteAssignmentId: 'prev', assignmentType: 'quiz', ...locked })), null);
+  // The App handler takes the same path: it refuses only a lesson nobody can be in yet.
+  const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+  const toggle = app.slice(app.indexOf('const handleToggleSectionAccessForClass = async'), app.indexOf('const handleLoadDeliveredRigor = async'));
+  assert.match(toggle, /const beforeRelease = state\.status === 'scheduled' && opensEarlyByPrerequisite\(assignment\);\s*if \(state\.status === 'scheduled' && !beforeRelease\) \{/);
+  assert.match(toggle, /const current = beforeRelease\s*\? earlySectionAccessState\(\{ assignment, activityRole, classId, classPeriod, nowValue: Date\.now\(\) \}\)\s*: state;\s*const nextState = current\.isOpen \? 'closed' : 'open';/);
+});
+
 test('a teacher-closed DOL reads as closed by the teacher and reopens (never silently restarts)', () => {
   const closed = { ...today, dol: buildDolClose({ assignment: today, classId: 'class-a', dateKey: TODAY, now: at(9, 17).getTime() }).dol };
   const dol = describeClassLesson({ assignment: closed, classContext, schedule, nowValue: at(9, 18) }).rows.find((row) => row.kind === 'dol');

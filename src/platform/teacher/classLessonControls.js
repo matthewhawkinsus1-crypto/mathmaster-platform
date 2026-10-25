@@ -25,12 +25,14 @@
  */
 import {
   assignmentIsForStudent,
+  earlySectionAccessState,
   getAssignmentLifecycle,
   getDOLState,
   getPeriodWindow,
   getSectionAccessState,
   getWarmupState,
   localDateKey,
+  opensEarlyByPrerequisite,
 } from '../../assignmentLifecycle.js';
 import { scheduledDolDateFor } from '../assessment/assessmentRecovery.js';
 import { dolExtraTimeForClass } from './dolExtraTimeRoster.js';
@@ -222,8 +224,10 @@ export const describeWarmupControl = ({ state, nowValue = Date.now() }) => {
 };
 
 /** Classwork or Practice access for one class (only while the assignment is open). */
-export const describeSectionAccessControl = ({ state, role }) => {
-  if (!state?.enabled || state.practiceOnly || !state.lifecycle?.isOpen) return null;
+export const describeSectionAccessControl = ({ state, role, beforeRelease = false }) => {
+  // Before release only a lesson that opens early by prerequisite has
+  // students in it (TT28); its state is the one they work under.
+  if (!state?.enabled || state.practiceOnly || (!state.lifecycle?.isOpen && !beforeRelease)) return null;
   const label = role === 'practice' ? 'Practice' : 'Classwork';
   const closedByTeacher = state.override?.state === 'closed';
   return {
@@ -233,7 +237,10 @@ export const describeSectionAccessControl = ({ state, role }) => {
     relation: 'today',
     tone: state.isOpen ? 'success' : 'neutral',
     headline: state.isOpen ? 'Open for new work' : closedByTeacher ? 'Closed by teacher · work saved' : 'Starts locked · waiting for you',
-    schedule: state.defaultState === 'closed' ? 'Set to start locked until the teacher opens it' : 'Open whenever the assignment is open',
+    schedule: [
+      ...(beforeRelease ? ['Not released yet: only students who met the prerequisite can work in it now'] : []),
+      state.defaultState === 'closed' ? 'Set to start locked until the teacher opens it' : 'Open whenever the assignment is open',
+    ].join(' · '),
     overrides: state.override ? [`${state.isOpen ? 'Opened' : 'Closed'} by teacher`] : [],
     override: Boolean(state.override),
     countdownEndsAt: null,
@@ -259,8 +266,12 @@ export const describeClassLesson = ({ assignment, classContext, schedule, nowVal
     ? dolExtraTimeForClass({ assignment, schedule, classContext, roster, nowValue })
     : null;
   const dol = describeDolControl({ assignment, state: dolState, classId, nowValue, attemptBonus, extraTime });
-  const classwork = describeSectionAccessControl({ state: getSectionAccessState({ assignment, activityRole: 'classwork', classId, classPeriod, nowValue }), role: 'classwork' });
-  const practice = describeSectionAccessControl({ state: getSectionAccessState({ assignment, activityRole: 'practice', classId, classPeriod, nowValue }), role: 'practice' });
+  const beforeRelease = lifecycle.isScheduled && opensEarlyByPrerequisite(assignment);
+  const sectionState = (activityRole) => (beforeRelease
+    ? earlySectionAccessState({ assignment, activityRole, classId, classPeriod, nowValue })
+    : getSectionAccessState({ assignment, activityRole, classId, classPeriod, nowValue }));
+  const classwork = describeSectionAccessControl({ state: sectionState('classwork'), role: 'classwork', beforeRelease });
+  const practice = describeSectionAccessControl({ state: sectionState('practice'), role: 'practice', beforeRelease });
   const rows = [warmup, classwork, practice, dol].filter(Boolean);
 
   const today = Boolean(

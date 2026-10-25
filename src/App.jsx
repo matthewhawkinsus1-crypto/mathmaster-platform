@@ -139,6 +139,7 @@ import {
   CLASS_PERIODS,
   DEFAULT_CLASS_SCHEDULE,
   assignmentIsForStudent,
+  earlySectionAccessState,
   formatDateTime,
   formatRemainingTime,
   getAssignmentLifecycle,
@@ -151,6 +152,7 @@ import {
   getSectionVariantMode,
   localDateKey,
   normalizeSchedule,
+  opensEarlyByPrerequisite,
   prerequisiteAccess,
   recordAssignmentActivity,
   sectionAccessForStudent,
@@ -8733,22 +8735,30 @@ function App() {
       toastInfo('Assignment is in Practice Mode', 'After the final cutoff, all sections stay available for ungraded review and practice.');
       return;
     }
-    if (state.status === 'scheduled') {
+    // Before release, a lesson that opens early by prerequisite already has
+    // students in it (TT28): its sections are the teacher's to open or close
+    // for them, read as they read them. Any other unreleased lesson waits.
+    const beforeRelease = state.status === 'scheduled' && opensEarlyByPrerequisite(assignment);
+    if (state.status === 'scheduled' && !beforeRelease) {
       toastWarning('Assignment has not opened yet', 'Section controls become active when the assignment is released.');
       return;
     }
-    if (!state.lifecycle?.isOpen) {
+    if (!state.lifecycle?.isOpen && !beforeRelease) {
       toastWarning('Assignment is not open', 'This section cannot be changed while the graded assignment is closed.');
       return;
     }
+    const current = beforeRelease
+      ? earlySectionAccessState({ assignment, activityRole, classId, classPeriod, nowValue: Date.now() })
+      : state;
 
-    const nextState = state.isOpen ? 'closed' : 'open';
+    const nextState = current.isOpen ? 'closed' : 'open';
     const label = activityRole === 'classwork' ? 'Classwork' : 'Practice';
+    const who = beforeRelease ? `Students in ${classLabel} who opened this lesson early (their prerequisite met)` : `Students in ${classLabel}`;
     const proceed = await confirmAction({
       title: `${nextState === 'open' ? 'Open' : 'Close'} ${label} for ${classLabel}?`,
       message: nextState === 'open'
-        ? `Students in ${classLabel} will be able to work in the ${label} section. Other classes are unaffected.`
-        : `Students in ${classLabel} will keep saved ${label} work for review, but new graded responses in that section will be locked until you reopen it. Other classes are unaffected.`,
+        ? `${who} will be able to work in the ${label} section.${beforeRelease ? ' Everyone else in the class gets it open when the lesson is released.' : ''} Other classes are unaffected.`
+        : `${who} will keep saved ${label} work for review, but new graded responses in that section will be locked until you reopen it. Other classes are unaffected.`,
       confirmLabel: `${nextState === 'open' ? 'Open' : 'Close'} ${label}`,
     });
     if (!proceed) return;
