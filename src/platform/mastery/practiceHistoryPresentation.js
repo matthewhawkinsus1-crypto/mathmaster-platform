@@ -117,3 +117,65 @@ export const summarizePracticeByWeek = (timeline = [], {
       partial: Boolean(cutWeekKey && row.weekKey <= cutWeekKey),
     }));
 };
+
+// "SEE THE SOLUTION" ON A MISSED PATH QUESTION (MP18).
+//
+// Practice History was read-only: a missed question offered no way to see
+// why. A My Math Path question the student finished without getting right
+// now offers its worked solution, from the same review the session's end
+// screen shows (getMyPathSessionRecap), fetched only when asked for. The
+// review is released only for a finished session, so the solution is too.
+//
+// Not offered: "Try a similar one". The review hands this screen the question
+// as the student saw it, and no generator builds a sibling from that (none of
+// the 3,337 Path templates' questions, in that shape, matched a family that
+// makes one), so a new question would need a new server call and a way to
+// practise it unscored. Assignment misses keep their own review in Review My
+// Work.
+
+const textOf = (value) => String(value ?? '').trim();
+
+/**
+ * The session and question whose solution a Practice History answer can open,
+ * or null. Only a My Math Path answer that CLOSED its question without getting
+ * it right: an earlier miss on a question later answered right has nothing
+ * to review, and the review is keyed by the session and the question.
+ */
+export const practiceHistorySolutionSource = (event = {}) => {
+  if (event?.source?.kind !== 'myMathPath') return null;
+  if (event?.performance?.status !== 'finalized' || event?.performance?.isCorrect === true) return null;
+  const sessionId = textOf(event.source.activitySessionId);
+  const questionInstanceId = textOf(event.questionSnapshot?.questionInstanceId);
+  return sessionId && questionInstanceId ? { sessionId, questionInstanceId } : null;
+};
+
+export const PRACTICE_SOLUTION = Object.freeze({
+  READY: 'ready',
+  NOT_FINISHED: 'notFinished',
+  NOT_AVAILABLE: 'notAvailable',
+  ERROR: 'error',
+});
+
+const NOT_FINISHED_MESSAGE = 'You can see the solution once you finish this session.';
+const NOT_AVAILABLE_MESSAGE = 'This solution cannot be shown here. Your teacher can go over it with you.';
+const ERROR_MESSAGE = 'The solution could not load. Your work is saved.';
+
+/**
+ * What the solution panel shows, from the session's review (or the error the
+ * request ended with). READY carries the review's own item for the question.
+ */
+export const describePracticeHistorySolution = ({ recap = null, error = null, questionInstanceId = '' } = {}) => {
+  if (error) {
+    const code = textOf(error?.code).replace(/^functions\//, '');
+    if (code === 'failed-precondition') return { state: PRACTICE_SOLUTION.NOT_FINISHED, message: NOT_FINISHED_MESSAGE };
+    if (code === 'not-found') return { state: PRACTICE_SOLUTION.NOT_AVAILABLE, message: NOT_AVAILABLE_MESSAGE };
+    return { state: PRACTICE_SOLUTION.ERROR, message: ERROR_MESSAGE };
+  }
+  if (!recap || recap.available === false) return { state: PRACTICE_SOLUTION.NOT_FINISHED, message: NOT_FINISHED_MESSAGE };
+  const wanted = textOf(questionInstanceId);
+  const item = (Array.isArray(recap.items) ? recap.items : []).find((entry) => wanted && textOf(entry?.questionInstanceId) === wanted);
+  // Not in the review: answered before reviews were recorded.
+  return item
+    ? { state: PRACTICE_SOLUTION.READY, item }
+    : { state: PRACTICE_SOLUTION.NOT_AVAILABLE, message: NOT_AVAILABLE_MESSAGE };
+};

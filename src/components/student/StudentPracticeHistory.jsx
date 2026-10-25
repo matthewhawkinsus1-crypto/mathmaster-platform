@@ -1,24 +1,96 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { buildStudentEvidenceTimeline, getTimelineTeksOptions } from '../../platform/history/evidenceTimelineService.js';
 import { toDisplayCode } from '../../utils/teksUtils.js';
 import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
+import { RecapItem } from './MyMathPathSessionRecap.jsx';
 import {
   PRACTICE_HISTORY_EVENT_LIMIT,
+  PRACTICE_SOLUTION,
+  describePracticeHistorySolution,
   practiceHistoryCapNotice,
+  practiceHistorySolutionSource,
   studentAttemptLabel,
   studentSupportNames,
   summarizePracticeByWeek,
 } from '../../platform/mastery/practiceHistoryPresentation.js';
 
 const chipStyle = { display: 'inline-flex', alignItems: 'center', padding: '3px 8px', borderRadius: '999px', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800 };
+const solutionButtonStyle = { minHeight: '44px', padding: '0 14px', border: '1px solid var(--mm-border)', borderRadius: '8px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 850, cursor: 'pointer' };
+
+/**
+ * "See the solution" for one missed My Math Path question (MP18). Nothing is
+ * fetched until the student asks; the review is drawn exactly as the
+ * session's end screen draws it (RecapItem). This screen is part of the
+ * lazily loaded My Math Path, as that component already is.
+ */
+export const PracticeHistorySolution = ({ sessionId, questionInstanceId, loadRecap }) => {
+  const [open, setOpen] = useState(false);
+  const [view, setView] = useState(null);
+  const [request, setRequest] = useState(0);
+  const panelId = useId();
+
+  useEffect(() => {
+    if (!open || !sessionId || typeof loadRecap !== 'function') return undefined;
+    let current = true;
+    setView({ state: 'loading' });
+    Promise.resolve()
+      .then(() => loadRecap(sessionId))
+      .then((recap) => { if (current) setView(describePracticeHistorySolution({ recap, questionInstanceId })); })
+      .catch((caught) => { if (current) setView(describePracticeHistorySolution({ error: caught || {}, questionInstanceId })); });
+    return () => { current = false; };
+  }, [open, request, sessionId, questionInstanceId, loadRecap]);
+
+  return (
+    <div style={{ marginTop: '12px' }}>
+      <button type="button" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((value) => !value)} style={solutionButtonStyle}>
+        {open ? 'Hide the solution' : 'See the solution'}
+      </button>
+      {open && (
+        <div id={panelId} data-practice-solution style={{ marginTop: '10px', minWidth: 0 }}>
+          {(!view || view.state === 'loading') && (
+            <p role="status" style={{ margin: 0, color: 'var(--mm-text-muted)', fontSize: 'calc(13.5 * var(--mm-px))' }}>Loading the solution…</p>
+          )}
+          {view?.state === PRACTICE_SOLUTION.READY && (
+            <ol style={{ margin: 0, padding: 0 }}><RecapItem item={view.item} /></ol>
+          )}
+          {(view?.state === PRACTICE_SOLUTION.NOT_FINISHED || view?.state === PRACTICE_SOLUTION.NOT_AVAILABLE) && (
+            <p style={{ margin: 0, color: 'var(--mm-text)', fontSize: 'calc(13.5 * var(--mm-px))', lineHeight: 1.55 }}>{view.message}</p>
+          )}
+          {view?.state === PRACTICE_SOLUTION.ERROR && (
+            <div role="alert" style={{ padding: '10px 12px', borderRadius: '8px', background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', lineHeight: 1.55 }}>
+              {view.message}
+              <button type="button" onClick={() => setRequest((value) => value + 1)} style={{ ...solutionButtonStyle, display: 'block', marginTop: '8px', color: 'var(--mm-warning-text)' }}>
+                Try again
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const StudentPracticeHistory = ({
   evidenceEvents = [], availableTeks = [], loading = false, error = null,
   // How many answers the caller loaded at most. Reaching it means the list is
   // the most recent answers, not all of them, and the screen says so.
   eventLimit = PRACTICE_HISTORY_EVENT_LIMIT,
+  // ({ sessionId }) => the session's review (getMyPathSessionRecap). Absent —
+  // a teacher's read-only view, the simulator — and no solution is offered.
+  loadSessionRecap = null,
 }) => {
   const [teksFilter, setTeksFilter] = useState('all');
+  // One review per session, shared by its questions; a failed load is
+  // forgotten, so "Try again" asks again.
+  const recaps = useRef(new Map());
+  const loadRecap = useCallback((sessionId) => {
+    if (!recaps.current.has(sessionId)) {
+      const pending = Promise.resolve().then(() => loadSessionRecap({ sessionId }));
+      pending.catch(() => { if (recaps.current.get(sessionId) === pending) recaps.current.delete(sessionId); });
+      recaps.current.set(sessionId, pending);
+    }
+    return recaps.current.get(sessionId);
+  }, [loadSessionRecap]);
   const options = useMemo(() => [...new Set([
     ...availableTeks.map(toDisplayCode),
     ...getTimelineTeksOptions(evidenceEvents),
@@ -129,6 +201,9 @@ export const StudentPracticeHistory = ({
                   <div><strong>Tools on screen:</strong> {studentSupportNames(item.supportsPresented).join(', ') || 'None'}</div>
                   <div><strong>You used:</strong> {studentSupportNames(item.supportsUsed).join(', ') || 'None'}</div>
                 </div>
+                {typeof loadSessionRecap === 'function' && practiceHistorySolutionSource(item.rawEvent) && (
+                  <PracticeHistorySolution {...practiceHistorySolutionSource(item.rawEvent)} loadRecap={loadRecap} />
+                )}
               </article>
             ))}
           </div>

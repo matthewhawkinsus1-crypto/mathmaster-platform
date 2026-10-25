@@ -9,7 +9,7 @@ import MyMathPathProgress from './MyMathPathProgress.jsx';
 import StudentGlobalNav, { STUDENT_DESTINATION } from './StudentGlobalNav.jsx';
 import { fetchStudentMasteryState } from '../../services/masteryStateService.js';
 import { buildUnifiedMasteryProfiles } from '../../platform/mastery/unifiedMastery.js';
-import { fetchMyMathPathSkillProgress } from '../../services/pathSessionService.js';
+import { fetchMyMathPathSkillProgress, fetchPathSessionRecap } from '../../services/pathSessionService.js';
 import { fetchStudentEvidenceEvents } from '../../platform/history/evidencePersistence.js';
 import { toCanonicalKey, toDisplayCode } from '../../utils/teksUtils.js';
 import { fetchPathCoverage } from '../../platform/path/pathCoverageService.js';
@@ -863,7 +863,10 @@ export const MyMathPathExperience = ({
           onOpenPath={readOnly ? null : () => setActiveTab('path')}
         />
       )}
-      {activeTab === 'history' && <StudentPracticeHistory evidenceEvents={evidenceEvents} availableTeks={availableTeks} loading={loading} error={historyError} eventLimit={PRACTICE_HISTORY_EVENT_LIMIT} />}
+      {/* "See the solution" asks the student's own review callable, so it is
+          offered only on the student's own live Path (MP18): never in a
+          teacher's read-only view or the simulator. */}
+      {activeTab === 'history' && <StudentPracticeHistory evidenceEvents={evidenceEvents} availableTeks={availableTeks} loading={loading} error={historyError} eventLimit={PRACTICE_HISTORY_EVENT_LIMIT} loadSessionRecap={readOnly || sessionProvider ? null : fetchPathSessionRecap} />}
       </ScreenBody>
       {/* Keyed per launch: "Start session N of M" from the end screen opens a
           fresh container instead of carrying the last review into it. */}

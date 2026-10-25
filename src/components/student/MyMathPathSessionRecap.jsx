@@ -64,7 +64,9 @@ const AnswerList = ({ entries }) => (
   </div>
 );
 
-function RecapItem({ item }) {
+// One reviewed question. Practice History opens one at a time ("See the
+// solution", MP18).
+export function RecapItem({ item }) {
   const skill = item.skillCode ? (studentLabelForTeks(item.skillCode) || item.skillCode) : null;
   // A question that comes back in practice keeps its answer and steps out of
   // the recap (functions/shared/pathRecapWithheld.mjs).

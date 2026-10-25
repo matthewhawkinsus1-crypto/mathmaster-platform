@@ -211,6 +211,15 @@ server rule (85+, four events, two independent successes, a DOK-3 item).
   (`getMyWeeklyPathHistory`).
 - Practice History: support ids become student-facing names, raw ids are never
   shown, and the 300-answer cap is stated with a by-week summary.
+  **Added (MP18, 2026-10-25):** a My Math Path question the student finished
+  without getting right offers **See the solution**: the session's own review
+  item (`getMyPathSessionRecap`, drawn by `RecapItem`), fetched only when asked
+  and once per session. A session not finished yet says the solution opens when
+  it is; a question answered before reviews were recorded says it cannot be
+  shown. Not in a teacher's read-only view or the simulator (the callable is
+  the student's own). **Not offered: "Try a similar one"** (no generator builds
+  a sibling from the question the review releases; recorded beside
+  `practiceHistorySolutionSource`). Assignment misses keep Review My Work.
 - "N of M recent weeks hit" no longer counts the week in progress as a miss.
   On Sunday evening, when last week is still open by the Central-time
   deadline, the streak card says "Including last week".
