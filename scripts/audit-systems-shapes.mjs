@@ -6,9 +6,22 @@
  *   node scripts/audit-systems-shapes.mjs              # report, exit 0
  *   node scripts/audit-systems-shapes.mjs --draws 48   # more draws per generated template
  *   node scripts/audit-systems-shapes.mjs --json       # machine-readable report
+ *   node scripts/audit-systems-shapes.mjs --project <id>   # the teachers' own assignments in Firestore
  *
- * Read-only. No network, no Firestore: it reads tracked JSON banks from disk
- * and runs them through the platform's own routing, parsers and geometry.
+ * Read-only. By default no network, no Firestore: it reads tracked JSON banks
+ * from disk and runs them through the platform's own routing, parsers and
+ * geometry.
+ *
+ * `--project <id>` (CI17, B-51) counts what the banks cannot see: the items
+ * teachers authored straight into Firestore. It reads the `assignments`
+ * collection, paged, with a field mask (title, sections, questions: no
+ * per-student field is ever read), through firebase-admin from functions/ and
+ * Application Default Credentials (a Firestore viewer role is enough); it
+ * writes nothing, anywhere. Run `npm --prefix functions ci` first. A match
+ * whose item id also ships in a tracked bank is marked, so the count that is
+ * new is the one without the mark. Under FIRESTORE_EMULATOR_HOST it reads the
+ * emulator.
+ *
  * It reports; it never fails the build (see the "Not done" section of
  * docs/handoffs/STUDENT_PASS3_SYSTEMS_TOOLS.md for why these are known gaps).
  *
@@ -50,6 +63,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -181,7 +195,7 @@ export const bankItems = (parsed) => {
   return [];
 };
 
-const itemId = (node, fallback) => String(node?.id ?? node?.questionId ?? node?.familyId ?? fallback);
+export const itemId = (node, fallback) => String(node?.id ?? node?.questionId ?? node?.familyId ?? fallback);
 
 /** The concrete questions one authored item can become: itself, or its generated draws. */
 export const itemInstances = (item, draws = 24) => {
@@ -245,22 +259,70 @@ export const bankFiles = (roots = BANK_ROOTS) => {
   return listed.split('\n').filter((file) => file.endsWith('.json')).sort();
 };
 
-export const runAudit = ({ draws = 24, roots = BANK_ROOTS } = {}) => {
-  const banks = [];
-  const unreadable = [];
-  for (const file of bankFiles(roots)) {
-    let parsed;
-    try {
-      parsed = JSON.parse(readFileSync(path.join(ROOT, file), 'utf8'));
-    } catch (error) {
-      unreadable.push({ file, error: error.message });
-      continue;
-    }
-    banks.push(scanBank(parsed, file, { draws }));
-  }
+const summarize = (banks, unreadable) => {
   const totals = Object.fromEntries(Object.keys(SHAPES).map((key) => [key, banks.flatMap((bank) => bank.matches[key])]));
   const examined = Object.fromEntries(Object.keys(SHAPES).map((key) => [key, banks.reduce((sum, bank) => sum + bank.examined[key], 0)]));
   return { banks, unreadable, totals, examined };
+};
+
+/** Every tracked bank file, parsed once: the ones read and the ones that would not parse. */
+const readBanks = (roots) => {
+  const read = [];
+  const unreadable = [];
+  for (const file of bankFiles(roots)) {
+    try {
+      read.push({ file, parsed: JSON.parse(readFileSync(path.join(ROOT, file), 'utf8')) });
+    } catch (error) {
+      unreadable.push({ file, error: error.message });
+    }
+  }
+  return { read, unreadable };
+};
+
+export const runAudit = ({ draws = 24, roots = BANK_ROOTS } = {}) => {
+  const { read, unreadable } = readBanks(roots);
+  return summarize(read.map(({ file, parsed }) => scanBank(parsed, file, { draws })), unreadable);
+};
+
+/*
+ * THE TEACHERS' OWN ASSIGNMENTS, IN FIRESTORE (CI17, B-51).
+ *
+ * The banks above are what the repository tracks. An assignment a teacher
+ * imports lives in Firestore, and one authored there never was in a bank, so
+ * the bank count does not see it. Only the fields below are read (a field mask
+ * on every page): the per-student fields an assignment can still carry are
+ * never in this process. `db` is a Firestore (Admin SDK); only collection /
+ * orderBy / select / limit / startAfter / get are used.
+ */
+export const ASSIGNMENT_FIELDS = Object.freeze(['title', 'sections', 'questions']);
+
+/** The ids of every item the tracked banks ship, to tell the Firestore-only ones apart. */
+export const shippedItemIds = (roots = BANK_ROOTS) => {
+  const ids = new Set();
+  readBanks(roots).read.forEach(({ file, parsed }) => {
+    bankItems(parsed).forEach((item, index) => ids.add(itemId(item, `${file}#${index}`)));
+  });
+  return ids;
+};
+
+export const runFirestoreAudit = async ({ db, draws = 24, pageSize = 100, documentIdField = '__name__', shipped = shippedItemIds() } = {}) => {
+  const banks = [];
+  let last = null;
+  for (;;) {
+    let page = db.collection('assignments').orderBy(documentIdField).select(...ASSIGNMENT_FIELDS).limit(pageSize);
+    if (last) page = page.startAfter(last);
+    // eslint-disable-next-line no-await-in-loop
+    const snapshot = await page.get();
+    snapshot.docs.forEach((doc) => banks.push(scanBank(doc.data(), `assignments/${doc.id}`, { draws })));
+    if (snapshot.docs.length < pageSize) break;
+    last = snapshot.docs[snapshot.docs.length - 1];
+  }
+  const report = summarize(banks, []);
+  // A match is new unless the same item id ships in a tracked bank (an imported lesson).
+  Object.values(report.totals).forEach((list) => list.forEach((match) => {
+    match.alsoInBank = shipped.has(match.id) || shipped.has(match.itemId);
+  }));
+  return report;
 };
 
 /* ------------------------------------------------------------------ main */
@@ -270,13 +332,43 @@ const argOf = (name, fallback) => {
   return index >= 0 ? process.argv[index + 1] : fallback;
 };
 
+/** The report for `--project`: the assignments in Firestore, read through the Admin SDK. */
+const firestoreReport = async ({ project, draws }) => {
+  // firebase-admin lives in functions/ (CommonJS).
+  const functionsRequire = createRequire(new URL('../functions/package.json', import.meta.url));
+  let admin;
+  try {
+    admin = functionsRequire('firebase-admin');
+  } catch (error) {
+    if (error?.code === 'MODULE_NOT_FOUND') {
+      console.error('audit-systems-shapes: firebase-admin is not installed in functions/. Run `npm --prefix functions ci` first.');
+      process.exit(2);
+    }
+    throw error;
+  }
+  // Application Default Credentials; under FIRESTORE_EMULATOR_HOST the Admin SDK reads the emulator.
+  const app = admin.initializeApp({ projectId: project }, 'audit-systems-shapes');
+  try {
+    return await runFirestoreAudit({ db: app.firestore(), draws, documentIdField: admin.firestore.FieldPath.documentId() });
+  } finally {
+    // Firestore keeps gRPC channels open; without this the process lingers.
+    await app.delete().catch(() => {});
+  }
+};
+
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   const draws = Math.max(1, Number(argOf('--draws', '24')) || 24);
-  const report = runAudit({ draws });
+  const project = process.argv.includes('--project') ? String(argOf('--project', '') || '').trim() : null;
+  if (project === '' || (project && project.startsWith('--'))) {
+    console.error('audit-systems-shapes: --project needs a Firebase project id, e.g. --project mathmaster-aleks');
+    process.exit(2);
+  }
+  const report = project ? await firestoreReport({ project, draws }) : runAudit({ draws });
   if (process.argv.includes('--json')) {
     console.log(JSON.stringify({
       draws,
+      ...(project ? { project, source: 'firestore assignments' } : {}),
       banks: report.banks.map(({ file, itemCount, examined }) => ({ file, itemCount, examined })),
       unreadable: report.unreadable,
       shapes: Object.fromEntries(Object.entries(report.totals).map(([key, list]) => [key, { examined: report.examined[key], count: list.length, matches: list }])),
@@ -284,12 +376,17 @@ if (isMain) {
   } else {
     const items = report.banks.reduce((sum, bank) => sum + bank.itemCount, 0);
     console.log('MathMaster Systems Shapes Audit (read-only)\n');
-    console.log(`Banks scanned: ${report.banks.length} files, ${items} items (${draws} draws per generated template)`);
+    if (project) {
+      console.log(`Firestore project ${project}${process.env.FIRESTORE_EMULATOR_HOST ? ` (emulator ${process.env.FIRESTORE_EMULATOR_HOST})` : ''}: ${report.banks.length} assignments, ${items} items (${draws} draws per generated template)`);
+    } else {
+      console.log(`Banks scanned: ${report.banks.length} files, ${items} items (${draws} draws per generated template)`);
+    }
     if (report.unreadable.length) console.log(`Unreadable JSON skipped: ${report.unreadable.map((entry) => entry.file).join(', ')}`);
     for (const [key, shape] of Object.entries(SHAPES)) {
       const list = report.totals[key];
-      console.log(`\n${shape.label}: ${list.length}  (of ${report.examined[key]} items of that kind examined)`);
-      list.forEach((match) => console.log(`  - ${match.id}  ${match.file}\n      ${match.detail}`));
+      const alsoInBank = list.filter((match) => match.alsoInBank).length;
+      console.log(`\n${shape.label}: ${list.length}${project ? ` (${list.length - alsoInBank} not in any tracked bank, ${alsoInBank} also shipped in one)` : ''}  (of ${report.examined[key]} items of that kind examined)`);
+      list.forEach((match) => console.log(`  - ${match.id}  ${match.file}${match.alsoInBank ? '  [also in a tracked bank]' : ''}\n      ${match.detail}`));
     }
   }
   process.exit(0);

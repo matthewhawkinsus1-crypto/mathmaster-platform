@@ -237,6 +237,12 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
   // now). Under 10, the Warm-Up is still inside its default ten-minute window,
   // so with no parameter it is open; every journey that passes none relies on
   // that. Pass e.g. 40 for a period well under way with its Warm-Up closed.
+  // DECIDED (CI17, the owner): the default stays 0. It once read "40" in this
+  // comment while the code gave 0, and 40 would close the Warm-Up for the 23
+  // of the 29 journeys that open this harness and pass none: each was written
+  // for a student who walks in at the bell, and each would have to set it
+  // back for no gain in realism. A journey that wants a period under way
+  // asks (40 for the Warm-Up closed, 5 or 8 for it nearly over).
   const p3StartParam = params?.get?.('p3StartMin');
   const p3StartMin = p3StartParam == null || p3StartParam === '' ? 0 : Number(p3StartParam);
   const p3StartMs = now - (Number.isFinite(p3StartMin) && p3StartMin >= 0 ? p3StartMin : 0) * 60_000;
