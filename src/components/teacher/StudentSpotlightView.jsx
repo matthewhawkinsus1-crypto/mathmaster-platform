@@ -1,4 +1,5 @@
 import MathText from '../common/MathText.jsx';
+import { readableStoredResponse } from '../../tools/graphing2/storedLineText.js';
 
 const panelStyle = { padding: 18, borderRadius: 12, background: '#2b2435' };
 
@@ -47,7 +48,7 @@ export default function StudentSpotlightView({ request, frame, onStop }) {
           <div style={panelStyle}>
             <strong style={{ display: 'block', marginBottom: 10, color: '#d7b9ff' }}>Current student work</strong>
             {Array.isArray(frame.work?.parts) && frame.work.parts.length > 0
-              ? frame.work.parts.map((part, index) => <StructuredValue key={part?.id || index} label={part?.label || `Part ${index + 1}`} value={part?.value ?? part?.response ?? part} />)
+              ? frame.work.parts.map((part, index) => <StructuredValue key={part?.id || index} label={part?.label || `Part ${index + 1}`} value={readableStoredResponse(part?.value ?? part?.response ?? part, frame.question)} />)
               : <StructuredValue value={frame.work?.response ?? frame.work?.toolState ?? frame.work} />}
           </div>
         </div>

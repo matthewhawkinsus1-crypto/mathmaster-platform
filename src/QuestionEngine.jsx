@@ -76,6 +76,7 @@ import { buildRawPathResponse } from './platform/path/pathToolResponses';
 import { ToolRuntimeProvider } from './tools/shared/ToolRuntimeContext';
 import { createAttemptOutcomeSlots } from './tools/shared/attemptOutcomeSlots.js';
 import { createToolHintChannel } from './tools/shared/toolHintChannel.js';
+import { readableStoredResponseLatex } from './tools/graphing2/storedLineText.js';
 import { gradeRegistryToolWork, sharedVerdictWithholdsAttempt } from './platform/grading/registryToolGrading.js';
 import { attemptInputsFromGrading } from '../functions/shared/serverGrading/gradingResult.mjs';
 import { buildModelingLabResponse, gradeModelingLabEvaluation } from '../functions/shared/serverGrading/modelingLabGrading.mjs';
@@ -2664,10 +2665,12 @@ function QuestionEngineBody({
   // What the student wrote, for the closed card (RUN-6): the parts of the
   // final attempt as graded on this device, when each carries its typed
   // response. A tool's work is reviewed by its own panel, so it shows none.
+  // A Graphing line reads as the student's readout writes it, y = x, never
+  // the stored record's y = 1x + 0 (GR30, storedLineText.js).
   const closedYourAnswer = isExpired && gradedForDisplay && gradedForDisplay.feedback === feedback
     ? (gradedForDisplay.grading?.parts || [])
       .filter((part) => typeof part?.response === 'string' && part.response.trim())
-      .map((part, index) => ({ key: String(part.id ?? part.label ?? index), label: String(part.label || ''), response: part.response, isCorrect: typeof part.isCorrect === 'boolean' ? part.isCorrect : null }))
+      .map((part, index) => ({ key: String(part.id ?? part.label ?? index), label: String(part.label || ''), response: readableStoredResponseLatex(part.response, processedQuestion), isCorrect: typeof part.isCorrect === 'boolean' ? part.isCorrect : null }))
     : [];
   // HELP-18. Before the single try of a choice-only item, say so (and that a
   // hint is there — the hint control's own release rule decides that); after
