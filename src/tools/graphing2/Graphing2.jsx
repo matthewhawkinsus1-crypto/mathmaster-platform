@@ -425,8 +425,14 @@ export default function Graphing2({ questionData = {}, onAction }) {
             borderRadius: 999, background: points.length >= requiredPointCount ? 'var(--mm-success-bg)' : 'var(--mm-primary-soft)',
             color: points.length >= requiredPointCount ? 'var(--mm-success-text)' : 'var(--mm-primary-text)', fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))',
           }}>
-            <span>{points.length >= requiredPointCount ? '✓' : `${points.length}/${requiredPointCount}`}</span>
-            <span>{nextInstruction(points.length, requiredPointCount, hostSubmitLabel)}</span>
+            {/* Each holds room for the longest thing it will say, so the plane
+                below never moves when a point is placed (App.css). */}
+            <span className="mathmaster-steady-text" data-steady-a={`${requiredPointCount}/${requiredPointCount}`} data-steady-b="✓">
+              <span>{points.length >= requiredPointCount ? '✓' : `${points.length}/${requiredPointCount}`}</span>
+            </span>
+            <span className="mathmaster-steady-text" data-steady-a={nextInstruction(0, requiredPointCount, hostSubmitLabel)} data-steady-b={nextInstruction(requiredPointCount, requiredPointCount, hostSubmitLabel)}>
+              <span>{nextInstruction(points.length, requiredPointCount, hostSubmitLabel)}</span>
+            </span>
           </div>
           <CoordinatePlane
             {...bounds}

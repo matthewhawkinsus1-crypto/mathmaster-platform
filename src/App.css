@@ -490,6 +490,35 @@
 
 }
 
+/* A LINE THAT CHANGES ITS WORDS MUST NOT MOVE WHAT IS UNDER IT.
+   Graphing 2's "what to do next" line sits above the plane, and its first
+   wording is two lines long (three on a phone) where the next is one: the
+   plane jumped up 18px between a student's first click and their second. The
+   wordings the line can change to ride in data-steady-a and data-steady-b and
+   are laid in the same grid cell, hidden, so the cell is as tall and as wide
+   as the longest at whatever width the row has. Generated content is not in
+   the page's text, and hidden it is not in the accessibility tree either. */
+.mathmaster-steady-text {
+  display: grid;
+}
+
+.mathmaster-steady-text > *,
+.mathmaster-steady-text::before,
+.mathmaster-steady-text::after {
+  grid-area: 1 / 1;
+  align-self: center;
+}
+
+.mathmaster-steady-text::before {
+  content: attr(data-steady-a);
+  visibility: hidden;
+}
+
+.mathmaster-steady-text::after {
+  content: attr(data-steady-b);
+  visibility: hidden;
+}
+
 /* The interactive plane is a click target, so it needs a visible focus ring of
    its own for keyboard plotting. */
 /* NEVER TALLER THAN THE BOX IT WAS GIVEN, OR THAN THE SCREEN.

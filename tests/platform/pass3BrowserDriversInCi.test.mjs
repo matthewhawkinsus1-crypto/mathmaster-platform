@@ -41,6 +41,9 @@ const DRIVERS = [
   ['student-runtime-browser-gates.yml', 'student-runtime-2', 'plain', ['algebra1Module2Topic2']],
   // WCAG 1.4.13: the plane's hover readout and the wheels' detail close on Escape.
   ['student-runtime-browser-gates.yml', 'student-runtime-3', 'plain', ['planeReadoutEscape', 'wheelEscape']],
+  // Ran by hand only, and had gone stale: Graphing 2's plane stays put while
+  // points are placed (it jumped 18px), and a point is dragged from its dot.
+  ['student-runtime-browser-gates.yml', 'student-runtime-3', 'plain', ['plotInteraction']],
   // FB10: after a miss, the hint opens under it and Check stays in view.
   ['student-teacher-journeys.yml', 'student', 'plain', ['feedbackTeachesHintPlace']],
   ['student-runtime-browser-gates.yml', 'pass3-secure-screens', 'stubbed', ['secureAccessParity']],
