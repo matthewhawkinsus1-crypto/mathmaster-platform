@@ -410,6 +410,15 @@ and `skillMastered` events with idempotency keys. Documented in
     server answers; a simulator comment overstates what it follows; every
     plan snapshot rebuilds the weekly plan; three container guards in
     `ccmrPlanWiring.test.mjs` can be broken with every test green.
+    **Done (MP17, 2026-10-25), all six:** the saved date is not checked as a
+    draft (`ccmrTestDateDraftProblem(…, { saved })`); under a framework the
+    teacher picked, the hub says so instead of promising the lean
+    (`ccmrTestDateGuidance`); editing waits for the server, never a cached copy
+    (`ccmrPlanContainerView`); the simulator's comment says its week has no test
+    practice; a snapshot with an unchanged plan keeps the same object
+    (`ccmrPlanStateFromSnapshot`), so the week is not rebuilt; the container's
+    guards are tested steps in `ccmrPlan.js` (`ccmrPlanClient.test.mjs`). One
+    cost: offline with a cached plan, the plan shows but cannot be edited.
   - retention: `submitPathResponse` imports `pathRetentionCheck.mjs` inside its
     transaction (a cold-start cost, not a correctness issue); the "· 2
     questions" start label has no test; in the Teacher Path Simulator a passed

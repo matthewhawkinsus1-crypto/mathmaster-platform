@@ -254,8 +254,12 @@ export default function SimulatedStudentExperience({
   // the student's own CCMR hub below, exactly as a student would; the saves
   // stay here in memory and never reach the setMyCcmrPlan callable or a real
   // student's document. The same plan feeds the CCMR screens (through the
-  // context override) and the weekly Path (through `ccmrPlan`), so the
-  // simulated week follows a goal or a test date the way a real one does.
+  // context override) and reaches the weekly planner (through `ccmrPlan`),
+  // where a plan only ever chooses the format of a test-practice slot. This
+  // simulator hands the planner no class weekly settings and no course level,
+  // so its week is planned like a standard class that expects no test
+  // practice: a goal or a test date changes the CCMR screens here, not the
+  // simulated week. (This comment used to say the week follows them; MP17.)
   //
   // One plan per simulated learner: each slot is a different synthetic
   // student (its id names the slot), and one student's test date must not

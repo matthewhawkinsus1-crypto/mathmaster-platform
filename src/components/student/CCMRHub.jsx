@@ -5,7 +5,7 @@ import {
 } from '../../platform/ccmr/assessmentPathways';
 import { getAssessmentProfile } from '../../platform/ccmr/assessmentProfiles';
 import {
-  ccmrTestDateBounds, ccmrTestDateDraftProblem, describeCcmrPlan,
+  ccmrTestDateBounds, ccmrTestDateDraftProblem, ccmrTestDateGuidance, describeCcmrPlan,
 } from '../../platform/ccmr/ccmrPlan.js';
 import { matchesAssessmentReferenceSearch, referenceLabel } from '../../platform/ccmr/assessmentStandardReferences.js';
 import CcmrReferenceList from '../common/CcmrReferenceList.jsx';
@@ -59,7 +59,7 @@ const planStatusText = (planStatus, readOnly) => {
 
 // "I'm preparing for…", the test date, and what each test's benchmark is.
 // The plan is the student's saved CCMR plan; a teacher sees it read-only.
-function CcmrPlanPanel({ goals, plan, planStatus, readOnly, now, onToggleGoal, onChangeTest }) {
+function CcmrPlanPanel({ goals, plan, planStatus, teacherFramework = null, readOnly, now, onToggleGoal, onChangeTest }) {
   const described = useMemo(
     () => describeCcmrPlan(plan, { now, audience: readOnly ? 'teacher' : 'student' }),
     [plan, now, readOnly],
@@ -78,7 +78,9 @@ function CcmrPlanPanel({ goals, plan, planStatus, readOnly, now, onToggleGoal, o
   const locked = !readOnly && Boolean(planStatus) && planStatus.editable === false;
   const bounds = ccmrTestDateBounds({ now });
   const framework = goals.includes(draftFramework) ? draftFramework : (goals[0] || '');
-  const problem = ccmrTestDateDraftProblem(draftDate, { now });
+  // The saved date is not a draft: a test that has passed is described, not
+  // flagged as an error the moment the hub opens (MP17).
+  const problem = ccmrTestDateDraftProblem(draftDate, { now, saved: savedDate });
   const changed = draftDate !== savedDate || (Boolean(draftDate) && framework !== savedFramework);
   const status = planStatusText(planStatus, readOnly);
   const statusIsError = Boolean(planStatus?.error) || planStatus?.state === 'error';
@@ -165,7 +167,7 @@ function CcmrPlanPanel({ goals, plan, planStatus, readOnly, now, onToggleGoal, o
               </div>
               {problem && <p role="alert" style={{ margin: '6px 0 0', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-error-text)' }}>{problem}</p>}
               <p style={{ margin: '6px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>
-                When your weekly Path includes test practice, it leans toward this test in the four weeks before it.
+                {ccmrTestDateGuidance({ teacherFramework })}
               </p>
             </fieldset>
           )}
@@ -291,6 +293,9 @@ export default function CCMRHub({
   // stands. Both optional: without them the hub still lists and ranks.
   plan = null,
   planStatus = null,
+  // The class's weekly framework setting ("auto" or the test the teacher
+  // picked). A picked test wins over the student's own date (MP17).
+  teacherFramework = null,
   teacherPriorities = [],
   onChangeGoals,
   onChangeTest,
@@ -376,6 +381,7 @@ export default function CCMRHub({
         goals={goals}
         plan={plan}
         planStatus={planStatus}
+        teacherFramework={teacherFramework}
         readOnly={readOnly}
         now={now ?? Date.now()}
         onToggleGoal={toggleGoal}

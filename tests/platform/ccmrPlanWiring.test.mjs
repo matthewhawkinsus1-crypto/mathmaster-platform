@@ -61,26 +61,38 @@ test('the store reads the plan document live and writes only through the callabl
 test('the live container subscribes to the student\'s plan and hands it down as data', () => {
   assert.match(pathApp, /import \{\s*clearLegacyCcmrGoals, readLegacyCcmrGoals, saveMyCcmrPlan, subscribeStudentCcmrPlan,\s*\} from '\.\.\/\.\.\/platform\/ccmr\/ccmrPlanStore\.js';/);
   assert.match(container, /return subscribeStudentCcmrPlan\(\{\s*studentId,/);
-  assert.match(container, /ccmrPlan=\{ccmrPlanCurrent \? ccmrPlanState\.plan : null\}/);
-  // Editable only once KNOWN: a cached "no plan" is not an answer, and a save
-  // built on it could overwrite a plan saved on another device.
-  assert.match(container, /ccmrPlanLoaded=\{ccmrPlanKnown\}/);
-  assert.match(container, /const ccmrPlanKnown = ccmrPlanCurrent && ccmrPlanState\.loaded && !ccmrPlanState\.error\s*&& \(ccmrPlanState\.exists \|\| !ccmrPlanState\.fromCache\);/);
-  // The week waits for a known plan, an error, or a few seconds offline.
-  assert.match(container, /ccmrPlanSettled=\{ccmrPlanSettled\}/);
-  assert.match(container, /const ccmrPlanSettled = ccmrPlanCurrent && \(ccmrPlanKnown \|\| Boolean\(ccmrPlanState\.error\) \|\| ccmrPlanWaitExpired\);/);
+  // Every guard is a tested step in ccmrPlan.js (ccmrPlanClient.test.mjs), so
+  // what is pinned here is that the container takes each one (MP17: three
+  // guards written inline here could be broken with every test green).
+  //   - a snapshot becomes state through the step that keeps an unchanged plan
+  //     object, so the server confirming the cache does not rebuild the week;
+  const subscription = region(container, 'return subscribeStudentCcmrPlan({', '\n    });', 'the plan subscription');
+  assert.match(subscription, /onChange: \(\{ plan, exists, fromCache \}\) => setCcmrPlanState\(\(previous\) => ccmrPlanStateFromSnapshot\(previous, \{ studentId, plan, exists, fromCache \}\)\),/);
+  //   - the screen's plan, editability and settling come from one view of the
+  //     state for THIS student, and nothing else is handed down;
+  assert.match(container, /const ccmrView = ccmrPlanContainerView\(\{ state: ccmrPlanState, studentId, waitExpired: ccmrPlanWaitExpired \}\);/);
+  const mount = region(container, '<MyMathPathExperience', '/>', 'the container mount');
+  assert.match(mount, /ccmrPlan=\{ccmrView\.plan\}/);
+  assert.match(mount, /ccmrPlanLoaded=\{ccmrView\.editable\}/, 'editing waits for the server, never a cached copy');
+  assert.match(mount, /ccmrPlanSettled=\{ccmrView\.settled\}/);
+  assert.match(mount, /ccmrPlanError=\{ccmrView\.error\}/);
+  assert.doesNotMatch(mount, /ccmrPlanState\./, 'the raw state of whichever student the view last showed never reaches the screen');
   // A teacher's read-only view reads the student's plan and can never save it.
   assert.match(container, /onSaveCcmrPlan=\{readOnly \? null : saveCcmrPlan\}/);
   assert.match(container, /const readOnly = Boolean\(props\.readOnly\)/);
-  // Saves go out one at a time, in order, through the callable wrapper.
+  // Saves go out one at a time, in order, through the callable wrapper, and a
+  // save's result lands only on the student it was saved for.
   const queue = region(container, 'const saveCcmrPlan = useCallback(', '}, [studentId]);', 'container save queue');
   assert.match(queue, /ccmrSaveQueue\.current\.catch\(\(\) => \{\}\)\.then\(\(\) => saveMyCcmrPlan\(request\)\)/);
+  assert.match(queue, /setCcmrPlanState\(\(current\) => ccmrPlanStateAfterSave\(current, \{ studentId, plan \}\)\);/);
 });
 
 test('browser goals move to the account once, by the tested decision, then are forgotten', () => {
   assert.match(pathApp, /decideLegacyCcmrMigration,?[\s\S]{0,80}\} from '\.\.\/\.\.\/platform\/ccmr\/ccmrPlan\.js'/);
-  const migration = region(container, 'const ccmrMigrationAttempted = useRef(null);', 'const ccmrPlanCurrent', 'migration effect');
-  assert.match(migration, /decideLegacyCcmrMigration\(\{[\s\S]*readOnly,[\s\S]*fromCache: ccmrPlanState\.fromCache,[\s\S]*legacyGoals: readLegacyCcmrGoals\(studentId\),[\s\S]*attempted: ccmrMigrationAttempted\.current === studentId,/);
+  const migration = region(container, 'const ccmrMigrationAttempted = useRef(null);', 'const [ccmrPlanWaitExpired', 'migration effect');
+  // Whether the reply is this student's, and whether the read failed, are the
+  // decision's own inputs now (tested in ccmrPlanClient.test.mjs).
+  assert.match(migration, /decideLegacyCcmrMigration\(\{\s*current: ccmrPlanState\.studentId === studentId,\s*error: ccmrPlanState\.error,[\s\S]*readOnly,[\s\S]*fromCache: ccmrPlanState\.fromCache,[\s\S]*legacyGoals: readLegacyCcmrGoals\(studentId\),[\s\S]*attempted: ccmrMigrationAttempted\.current === studentId,/);
   assert.match(migration, /if \(decision\.action === 'clear'\) clearLegacyCcmrGoals\(studentId\)/);
   const migrateAt = migration.indexOf("if (decision.action !== 'migrate') return;");
   const markAt = migration.indexOf('ccmrMigrationAttempted.current = studentId;');
@@ -120,7 +132,15 @@ test('the student\'s goals and test date are saved through the container, never 
 
 test('the CCMR hub has a bounded test-date field, benchmark lines, and stays read-only for teachers', () => {
   const panel = region(hub, 'function CcmrPlanPanel(', '\n}\n', 'CcmrPlanPanel');
-  assert.match(hub, /import \{\s*ccmrTestDateBounds, ccmrTestDateDraftProblem, describeCcmrPlan,\s*\} from '\.\.\/\.\.\/platform\/ccmr\/ccmrPlan\.js';/);
+  assert.match(hub, /import \{\s*ccmrTestDateBounds, ccmrTestDateDraftProblem, ccmrTestDateGuidance, describeCcmrPlan,\s*\} from '\.\.\/\.\.\/platform\/ccmr\/ccmrPlan\.js';/);
+  // The saved date is not a draft (MP17): its problem is computed against it.
+  assert.match(panel, /const problem = ccmrTestDateDraftProblem\(draftDate, \{ now, saved: savedDate \}\);/);
+  // The lean toward a test is promised only on Auto (MP17): the sentence comes
+  // from the class's framework setting, handed from the planner's own inputs.
+  assert.match(panel, /\{ccmrTestDateGuidance\(\{ teacherFramework \}\)\}/);
+  assert.doesNotMatch(panel, /leans toward this test/, 'the sentence lives in the tested helper');
+  assert.match(region(hub, '<CcmrPlanPanel', '/>', 'the panel mount'), /teacherFramework=\{teacherFramework\}/);
+  assert.match(region(experience, '<CCMRHub', '/>', 'CCMRHub mount'), /teacherFramework=\{weeklyPlanClassInputs\(\{ config: weeklyGoalConfig \|\| \{\}, honors \}\)\.ccmrFramework\}/);
   assert.match(panel, /type="date"[\s\S]*min=\{bounds\.min\}[\s\S]*max=\{bounds\.max\}/);
   assert.match(panel, /onClick=\{\(\) => onChangeTest\?\.\(\{ testDate: draftDate, testFramework: framework \}\)\}/);
   // Save is off until a valid, different date is entered — and looks off.
