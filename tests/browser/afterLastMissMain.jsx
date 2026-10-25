@@ -4,6 +4,10 @@
 //
 //   ?role=classwork|practice|warmup|dol  the section's role
 //   ?q=inverse|choice                    a real compiled lesson item
+//   ?q=mapping|solutions|asymptotes|shift|graph
+//                                        the five lesson items whose sibling answer has a
+//                                        fixed shape (CT13); with ?direct=1 only the
+//                                        practice is mounted, open, on that item
 //   ?host=0                              the host does not vouch for the practice
 //                                        (Recovery, Path, a preview elsewhere)
 //
@@ -21,6 +25,11 @@ import { buildSimilarWorkedExample } from '../../src/platform/supports/workedExa
 import { isChoiceOnlyQuestion } from '../../functions/shared/attemptPolicy.mjs';
 import inverseLesson from '../../teacher-import-jsons/algebra2-honors-module1/L3_Inverse_Linear_Functions.json';
 import transformationsLesson from '../../teacher-import-jsons/algebra2-honors-module1/L2_Day2_Transformations.json';
+import parentFunctionsLesson from '../../teacher-import-jsons/algebra2-honors-module1/L2_Day1_Parent_Functions_Key_Attributes.json';
+import dol1Lesson from '../../teacher-import-jsons/algebra1-dol1/District_DOL1_Technology_Graph_Analysis_Review.json';
+import dol2Lesson from '../../teacher-import-jsons/algebra2-honors-dol2/District_DOL2_Absolute_Value_and_3x3_Systems_Review.json';
+import sampleLesson from '../../SAMPLE_AUTHORING_INTENT_V5.json';
+import PracticeLikeThis from '../../src/platform/supports/workedExample/PracticeLikeThis.jsx';
 import '../../src/index.css';
 import '../../src/App.css';
 
@@ -37,8 +46,15 @@ const policy = getEffectiveActivityPolicy(role);
 const practiceLike = (lesson) => compileAuthoringIntentV5(lesson).package.sections
   .filter((section) => ['classwork', 'practice'].includes(section.role))
   .flatMap((section) => section.questions);
+const lessonItem = (lesson, questionId) => practiceLike(lesson).find((entry) => entry.questionId === questionId);
 
 const QUESTIONS = {
+  // CT13: items whose sibling's answer has a fixed shape, so it is checked as it is typed.
+  mapping: () => lessonItem(dol1Lesson, 'q_section-3_3_9'),
+  solutions: () => lessonItem(dol2Lesson, 'dol2r-cw-6'),
+  asymptotes: () => lessonItem(parentFunctionsLesson, 'q_classwork-2_2_8'),
+  shift: () => lessonItem(transformationsLesson, 'q_classwork-2_2_5'),
+  graph: () => lessonItem(sampleLesson, 'q_classwork-2_2_2'),
   // A typed item ("If f(a) = b, …f⁻¹…") whose sibling can be checked.
   inverse: () => practiceLike(inverseLesson).find((question) => buildPracticeLikeThis(question)?.checkable
     && (question.answerFields || []).length >= 1 && question.answerFields.every((field) => !Array.isArray(field.options))),
@@ -90,4 +106,15 @@ function Harness() {
   );
 }
 
-createRoot(document.getElementById('root')).render(<Harness />);
+// ?direct=1: only the practice, open, on the item (the engine around it is covered by the other journeys).
+function DirectPractice() {
+  return (
+    <div className="mathmaster-assignment-screen" data-after-last-miss={which} style={{ fontFamily: '"Segoe UI", sans-serif', minHeight: '100vh', padding: 12 }}>
+      <main className="mathmaster-question-stage" style={{ maxWidth: 1120, margin: '0 auto', background: 'var(--mm-surface)', borderRadius: 12, padding: 10 }}>
+        <PracticeLikeThis question={question} seed={0} avoidPrompts={hintSibling ? [hintSibling.prompt] : []} startOpen />
+      </main>
+    </div>
+  );
+}
+
+createRoot(document.getElementById('root')).render(params.get('direct') === '1' ? <DirectPractice /> : <Harness />);

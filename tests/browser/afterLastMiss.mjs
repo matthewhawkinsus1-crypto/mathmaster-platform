@@ -144,6 +144,61 @@ for (const device of DEVICES) {
     await context.close();
   }
 
+  /* ------- CT13: answers with a fixed shape, typed with real keys into the real math box */
+  // A mapping, several solutions, asymptotes, a shift and a graph's points used to
+  // get "compare it with the worked solution" and no mark. The keys are pressed the
+  // way a student presses them, so MathLive's own rewriting of the words is what is
+  // read back: "or" becomes \lor, "the" becomes \operatorname{\mathrm{th}}e. The
+  // phone checks the boxes and their longer labels fit, without typing.
+  {
+    const FLIP = { right: 'left', left: 'right', up: 'down', down: 'up' };
+    const SHAPES = {
+      shift: { right: (part) => part.expected, wrong: (part) => part.expected.replace(/left|right|up|down/, (word) => FLIP[word]) },
+      solutions: { right: (part) => part.expected, wrong: () => 'x = 41 or x = 42' },
+      mapping: { right: (part) => part.expected.replace(/→/g, '->'), wrong: () => '1->1' },
+      asymptotes: { right: (part) => part.expected.replace(/^\w+:\s*asymptotes?\s+/, ''), wrong: () => 'x = 100' },
+      graph: { right: (part) => part.expected.match(/\([^)]*\)/g).slice(0, 2).join(', '), wrong: () => '(0, 0), (1, 5)' },
+    };
+    for (const [kind, shape] of Object.entries(SHAPES)) {
+      const { page, context } = await open(device, `q=${kind}&role=classwork&direct=1`);
+      const practice = await page.evaluate(() => window.__mmPractice);
+      check(Boolean(practice?.prompt), `${device.name} ${kind}: the lesson item has a family sibling`, practice?.prompt);
+      const section = page.locator('[data-practice-like-this="open"]');
+      const checkable = practice.parts.filter((part) => part.checkable);
+      const boxes = section.locator('[data-practice-part] math-field');
+      check(checkable.length > 0 && await boxes.count() === checkable.length, `${device.name} ${kind}: one box for each part that can be checked`, `${checkable.length} (${checkable.map((part) => part.label).join(' | ')})`);
+      const shown = await section.textContent();
+      check(checkable.every((part) => shown.includes(String(part.label).replace(/ =$/, ''))), `${device.name} ${kind}: each box is labelled`);
+      check(await reachable(page, boxes.first()), `${device.name} ${kind}: the first box can be reached`);
+      const typeAll = async (pick) => {
+        for (let index = 0; index < checkable.length; index += 1) {
+          await boxes.nth(index).evaluate((element) => { element.setValue(''); element.focus(); });
+          // A box that has just been focused drops its first keys; a student's hand is slower than this.
+          await page.waitForTimeout(300);
+          await page.keyboard.type(pick(checkable[index]), { delay: 8 });
+        }
+        await section.getByRole('button', { name: 'Check my practice answer' }).click();
+        await page.waitForTimeout(300);
+        return {
+          marks: await section.locator('[data-practice-part]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-practice-verdict'))),
+          message: await section.locator('[data-practice-message]').textContent(),
+        };
+      };
+      if (device.name === 'desktop') {
+        const wrong = await typeAll(shape.wrong);
+        check(wrong.marks.every((mark) => mark === 'incorrect') && wrong.message.startsWith('Not quite'),`${device.name} ${kind}: a wrong answer typed with real keys is marked ✗`, `${wrong.marks.join(',')} · ${wrong.message}`);
+        const right = await typeAll(shape.right);
+        check(right.marks.every((mark) => mark === 'correct') && /That matches|Your checked answers match/.test(right.message), `${device.name} ${kind}: the right answer typed with real keys is marked ✓`, `${right.marks.join(',')} · ${right.message}`);
+      }
+      if (practice.wordsOnly?.length || practice.parts.some((part) => !part.checkable)) {
+        check((await section.textContent()).includes('Part of this answer is said in words'), `${device.name} ${kind}: the part left in words says so`);
+      }
+      await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `${device.name}-shape-${kind}.png`), fullPage: true });
+      await noSidewaysScroll(page, `${device.name} ${kind} practice`);
+      await context.close();
+    }
+  }
+
   /* --------------------------- no practice on Warm-Up, DOL, or an unvouched host */
   for (const query of ['q=inverse&role=warmup', 'q=inverse&role=dol', 'q=inverse&role=classwork&host=0']) {
     const { page, context } = await open(device, query);

@@ -81,6 +81,7 @@ test('HELP-1: every real Classwork/Practice item with a family sibling gets an u
   assert.ok(items.length >= 200, 'the real lessons are read');
   let offered = 0;
   let checkable = 0;
+  const onlyWords = [];
   items.forEach(({ question }) => {
     const practice = buildPracticeLikeThis(question, { seed: 0 });
     // Offered exactly where the family can work a sibling: no sibling, nothing new.
@@ -90,13 +91,19 @@ test('HELP-1: every real Classwork/Practice item with a family sibling gets an u
     assert.notEqual(practice.prompt, String(question.prompt || '').trim(), 'never this question in disguise');
     assert.ok(practice.steps.length > 0, 'a worked solution to compare with');
     if (practice.checkable) checkable += 1;
+    else onlyWords.push(`${question.questionId}: ${practice.prompt} → ${practice.answer}`);
     // The sibling's own answer, typed part by part, is never marked wrong.
     const responses = Object.fromEntries(practice.parts.map((part) => [part.id, part.expected]));
     const result = checkPracticeAnswers(practice, responses);
     assert.deepEqual(result.parts.filter((part) => part.verdict === PRACTICE_VERDICT.INCORRECT), [], `${practice.answer}: its own answer is right`);
   });
   assert.ok(offered >= 100, `practice offered on ${offered} items`);
-  assert.ok(checkable >= offered - 12, `${checkable} of ${offered} have a part that can be checked`);
+  // CT13: was "at most 12 items with nothing to check" (then 6). The last six are
+  // read in practiceLikeThis.js, so the ratchet is closed: a new lesson item whose
+  // sibling is only words is named here, to be read in a fixed shape or recorded
+  // as a part that stays in words beside one that can be checked.
+  assert.deepEqual(onlyWords, [], `${checkable} of ${offered} have a part that can be checked`);
+  assert.equal(checkable, offered);
 });
 
 test('HELP-1: "another one" and the Hint panel\'s sibling are not repeated', () => {
@@ -132,11 +139,13 @@ test('HELP-1: a practice answer is checked the way a field is graded, whatever w
   assert.deepEqual(verdicts('slope 4', ''), ['blank']);
 });
 
-test('HELP-1: words, rosters with an ellipsis and mappings are never marked right or wrong', () => {
+test('HELP-1: words and rosters with an ellipsis are never marked right or wrong; a mapping and a shift only once they are read completely (CT13)', () => {
   const { parts } = readPracticeAnswer('arrows -7 → 5, -3 → 8; domain {0, 1, 2, ..., 40}; falls, then rises; Horizontal: 6 units to the left');
   assert.equal(parts.length, 4);
+  // A mapping and a distance with a direction have a fixed shape: checked (practiceLikeThisFixedShapes.test.mjs).
+  assert.deepEqual(parts.map((part) => [part.kind, part.checkable]), [['mapping', true], ['value', false], ['words', false], ['shift', true]]);
   parts.forEach((part) => {
-    assert.equal(part.checkable, false, `${part.expected}: compared, not judged`);
+    // Whatever cannot be read completely is compared, never called wrong.
     assert.equal(checkPracticePart(part, 'anything'), PRACTICE_VERDICT.COMPARE);
   });
   const checked = checkPracticeAnswers(readPracticeAnswer('domain [0, 2]; rises everywhere'), { 'part-1': '[0,2]' });
