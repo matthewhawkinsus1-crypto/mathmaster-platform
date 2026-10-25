@@ -15,6 +15,10 @@
 //   warmup / dol / host=0   no practice after the item closes.
 //   choice     "This has one try — a hint is available." before the single
 //              try; after a wrong pick, the author's reason for that option.
+//   system3    (FB19) a closed 3×3 system, which no question family covers,
+//              offers the same system with new numbers: one box per
+//              variable, ✗ then ✓ typed with real keys, no grade, the worked
+//              solution, another one; nothing on a DOL or an unvouched host.
 //
 // Exits non-zero on any failure. Screenshots: tests/browser/artifacts/afterLastMiss.
 import { mkdirSync } from 'node:fs';
@@ -197,6 +201,72 @@ for (const device of DEVICES) {
       await noSidewaysScroll(page, `${device.name} ${kind} practice`);
       await context.close();
     }
+  }
+
+  /* ---- FB19: no family sibling — the closed 3×3 system offers itself with new numbers */
+  // 3x3-d1-pr-5 is worked in the Systems Workspace, which a journey cannot
+  // miss three times quickly: ?closed=1 mounts it with the record its three
+  // misses leave (recordQuestionAttempt), so this is the card a student reaches.
+  {
+    const { page, context } = await open(device, 'q=system3&role=practice&closed=1');
+    const practice = await page.evaluate(() => window.__mmPractice);
+    check(practice?.source === 'numericVariant', `${device.name} 3×3: no family sibling, so the practice is the system with new numbers`, practice?.prompt);
+    const card = page.locator('[data-closed-question-card]');
+    check(await card.isVisible(), `${device.name} 3×3: the item is closed`);
+    const section = card.locator('[data-practice-like-this]');
+    check(await section.count() === 1, `${device.name} 3×3: the closed card offers the practice`);
+    const opener = section.getByRole('button', { name: 'Practise one like this (no score)' });
+    check(await reachable(page, opener), `${device.name} 3×3: the offer can be reached`);
+    await opener.click();
+    await page.waitForTimeout(300);
+    check((await section.textContent()).includes('Solve the system by elimination'), `${device.name} 3×3: the new system is shown`);
+    const boxes = section.locator('[data-practice-part] math-field');
+    check(await boxes.count() === 3, `${device.name} 3×3: one box for each variable`, String(await boxes.count()));
+    const labels = await section.locator('[data-practice-part]').evaluateAll((nodes) => nodes.map((node) => node.firstElementChild?.textContent?.trim()));
+    check(labels.join('|') === 'x =|y =|z =', `${device.name} 3×3: the boxes are x, y and z`, labels.join(' | '));
+    check(await reachable(page, boxes.first()), `${device.name} 3×3: the first box can be reached`);
+    const graded = await page.evaluate(() => window.__mmGrades.length);
+    // Real keys on the desktop (Enter in the last box checks the practice, never
+    // the question); on the phone the values are set and Check is tapped.
+    const typeAll = async (pick) => {
+      for (let index = 0; index < 3; index += 1) {
+        if (device.name !== 'desktop') {
+          await setField(boxes.nth(index), pick(practice.parts[index]));
+          continue;
+        }
+        await boxes.nth(index).evaluate((element) => { element.setValue(''); element.focus(); });
+        // A box that has just been focused drops its first keys; a student's hand is slower than this.
+        await page.waitForTimeout(300);
+        await page.keyboard.type(pick(practice.parts[index]), { delay: 8 });
+      }
+      if (device.name === 'desktop') await page.keyboard.press('Enter');
+      else await section.getByRole('button', { name: 'Check my practice answer' }).click();
+      await page.waitForTimeout(400);
+      return {
+        marks: await section.locator('[data-practice-part]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-practice-verdict'))),
+        message: await section.locator('[data-practice-message]').textContent(),
+      };
+    };
+    const wrong = await typeAll((part) => String(Number(part.expected) + 1));
+    check(wrong.marks.every((mark) => mark === 'incorrect') && wrong.message.startsWith('Not quite'), `${device.name} 3×3: wrong values are marked ✗`, `${wrong.marks.join(',')} · ${wrong.message}`);
+    const right = await typeAll((part) => part.expected);
+    check(right.marks.every((mark) => mark === 'correct') && /That matches/.test(right.message), `${device.name} 3×3: the solution is marked ✓`, `${right.marks.join(',')} · ${right.message}`);
+    check((await page.evaluate(() => window.__mmGrades.length)) === graded, `${device.name} 3×3: no attempt, grade or submission from the practice`);
+    await section.getByRole('button', { name: 'Show the worked solution' }).click();
+    const steps = await section.locator('[data-practice-solution] li').count();
+    check(steps >= 5, `${device.name} 3×3: the worked solution, step by step`, `${steps} steps`);
+    await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `${device.name}-system3.png`), fullPage: true });
+    await noSidewaysScroll(page, `${device.name} 3×3 practice`);
+    const before = await section.locator('p').first().textContent();
+    await section.getByRole('button', { name: 'Another one like this' }).click();
+    await page.waitForTimeout(300);
+    check((await section.locator('p').first().textContent()) !== before, `${device.name} 3×3: another one is a different system`);
+    await context.close();
+  }
+  for (const query of ['q=system3&role=dol&closed=1', 'q=system3&role=practice&closed=1&host=0']) {
+    const { page, context } = await open(device, query);
+    check(await page.locator('[data-practice-like-this]').count() === 0, `${device.name} ${query}: no practice`);
+    await context.close();
   }
 
   /* --------------------------- no practice on Warm-Up, DOL, or an unvouched host */

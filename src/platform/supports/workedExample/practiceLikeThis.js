@@ -9,10 +9,13 @@
  *
  * The sibling is the question family's own worked sibling
  * (similarProblem.js: different numbers, never this question in disguise,
- * steps that never state this question's answer). Its answer is one line of
- * text — "domain [-1, 4]; range [-4, 6]", "(7, -6), (3, 5), (-6, 8), in that
- * order", "f⁻¹(x) = (x − 5)/7" — so it is read here into labelled parts the
- * student can answer one box at a time.
+ * steps that never state this question's answer) — or, for an item whose
+ * family has no sibling, the item itself with new numbers where they can
+ * change without changing the method (numericVariant.js, FB19). Its answer
+ * is one line of text — "domain [-1, 4]; range [-4, 6]", "(7, -6), (3, 5),
+ * (-6, 8), in that order", "f⁻¹(x) = (x − 5)/7", "x = 2, y = -1, z = 3" — so
+ * it is read here into labelled parts the student can answer one box at a
+ * time.
  *
  * A verdict is given only when it can be trusted. Each part is compared with
  * the platform's own answer matcher (compareMathAnswer, the one that grades
@@ -56,6 +59,7 @@ import { sameNumberWithThousandsSeparators } from '../../../../functions/shared/
 import { sameEquivalentExpression } from '../../../../functions/shared/equivalentExpression.mjs';
 import { latexToExpression } from '../../../../functions/shared/algebra/latexToExpression.mjs';
 import { parse } from '../../math/mathjs.js';
+import { NUMERIC_VARIANT_SOURCE, buildNumericVariant } from './numericVariant.js';
 import { buildSimilarWorkedExample } from './similarProblem.js';
 
 export const PRACTICE_LIKE_THIS_ROLES = Object.freeze(['classwork', 'practice']);
@@ -501,17 +505,30 @@ const lineThrough = (points) => {
   return numbers.every(([x, y]) => Math.abs(dx * (y - y1) - dy * (x - x1)) <= 1e-6 * scale * scale) ? points.slice(0, 2) : null;
 };
 
+/** Where a practice came from: the item's question family, or the item itself with new numbers (FB19). */
+export const PRACTICE_SOURCE = Object.freeze({ FAMILY: 'family', NUMERIC_VARIANT: NUMERIC_VARIANT_SOURCE });
+
 /**
  * The family's worked sibling, read into parts. `avoidPrompts` keeps "another
  * one" from repeating the one just done, and keeps the sibling the Hint panel
  * showed while the item was open from coming back as "practice".
+ *
+ * An item whose family has no sibling gets a numeric variant of itself where
+ * its numbers can change without changing the method (FB19,
+ * numericVariant.js: never easier, never a give-away, its key confirmed by the
+ * item's own grader). A family sibling always comes first.
  */
 export const buildPracticeLikeThis = (question, { seed = 0, avoidPrompts = [] } = {}) => {
   const avoid = new Set(list(avoidPrompts).map(text).filter(Boolean));
   for (let offset = 1; offset <= 12; offset += 1) {
     const example = buildSimilarWorkedExample(question, { seed: Number(seed) + 97 * offset });
     if (!example || avoid.has(example.prompt)) continue;
-    return { ...example, ...readPracticeAnswer(example.answer) };
+    return { ...example, source: PRACTICE_SOURCE.FAMILY, ...readPracticeAnswer(example.answer) };
+  }
+  for (let offset = 1; offset <= 12; offset += 1) {
+    const variant = buildNumericVariant(question, { seed: Number(seed) + 97 * offset });
+    if (!variant || avoid.has(variant.prompt)) continue;
+    return { ...variant, ...readPracticeAnswer(variant.answer) };
   }
   return null;
 };

@@ -31,6 +31,7 @@ import { executableSource, region } from './helpers/sourceContract.mjs';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
 import {
   PRACTICE_LIKE_THIS_ROLES,
+  PRACTICE_SOURCE,
   PRACTICE_VERDICT,
   buildPracticeLikeThis,
   checkPracticeAnswers,
@@ -40,6 +41,7 @@ import {
   readPracticeAnswer,
 } from '../../src/platform/supports/workedExample/practiceLikeThis.js';
 import { buildSimilarWorkedExample } from '../../src/platform/supports/workedExample/similarProblem.js';
+import { buildNumericVariant } from '../../src/platform/supports/workedExample/numericVariant.js';
 import { buildClosedQuestionReview, buildPartReviewRows, legacyReviewSpeechLines, partReviewSpeech } from '../../src/platform/supports/review/closedQuestionReview.js';
 import { auditAssignmentSolutionReviews, workedSolutionDepth } from '../../src/platform/preflight/solutionReviewPreflight.js';
 import { ONE_TRY, ONE_TRY_WITH_HINT, chosenOptionReasons, oneTryNotice, optionRationale, optionRationaleProblems } from '../../src/platform/supports/feedback/oneTryChoice.js';
@@ -84,8 +86,13 @@ test('HELP-1: every real Classwork/Practice item with a family sibling gets an u
   const onlyWords = [];
   items.forEach(({ question }) => {
     const practice = buildPracticeLikeThis(question, { seed: 0 });
-    // Offered exactly where the family can work a sibling: no sibling, nothing new.
-    assert.equal(Boolean(practice), Boolean(buildSimilarWorkedExample(question)), 'a practice only where a sibling exists');
+    // Offered where the family can work a sibling — and, since FB19, where the
+    // item has none but can be varied in its own numbers (numericVariant.js;
+    // which items, and how, is practiceLikeThisNumericVariant.test.mjs). A
+    // family sibling always wins; with neither, nothing new.
+    const familySibling = buildSimilarWorkedExample(question);
+    assert.equal(Boolean(practice), Boolean(familySibling || buildNumericVariant(question)), 'a practice only where a sibling or a variant exists');
+    if (familySibling) assert.equal(practice.source, PRACTICE_SOURCE.FAMILY, 'the family sibling, where there is one');
     if (!practice) return;
     offered += 1;
     assert.notEqual(practice.prompt, String(question.prompt || '').trim(), 'never this question in disguise');
@@ -197,6 +204,8 @@ test('HELP-1: the practice records nothing — no grader, attempt, grade, eviden
   const forbidden = /onGrade|onStateChange|recordQuestionAttempt|onSupportEvidence|onEvidence|reportSupportEvidence|setDoc|updateDoc|addDoc|httpsCallable|localStorage|sessionStorage|indexedDB|questionDraftStorage|evidence/i;
   assert.doesNotMatch(code('src/platform/supports/workedExample/PracticeLikeThis.jsx'), forbidden);
   assert.doesNotMatch(code('src/platform/supports/workedExample/practiceLikeThis.js'), forbidden);
+  // FB19's variants: the grader is asked about the variant's key, and its verdict goes nowhere.
+  assert.doesNotMatch(code('src/platform/supports/workedExample/numericVariant.js'), forbidden);
   // The engine hands it the question and the text supports, and nothing that reports.
   const engine = code('src/QuestionEngine.jsx');
   const mount = region(engine, 'const practiceLikeThis = practiceOffered ? (', ') : null;');
