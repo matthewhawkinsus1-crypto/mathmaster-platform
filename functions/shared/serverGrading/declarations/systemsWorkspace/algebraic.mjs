@@ -22,7 +22,8 @@
  *     reducedStatement  the no-variable statement the reduction reached
  *     specialCase       { statementTruth, solutionCount, classification }
  *     efficiencyReason  optional free text (never graded)
- *   3×3 elimination only:
+ *   3×3, dependent or inconsistent systems only (by elimination or by
+ *   substitution — the rubric is the system's, not the method's):
  *     outcome           { statement, classificationChoice, classificationKind,
  *                         planes: { '1-2', '1-3', '2-3' } }
  *                       the checked statement, the classification the

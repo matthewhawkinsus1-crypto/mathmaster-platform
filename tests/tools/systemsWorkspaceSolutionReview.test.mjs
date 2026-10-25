@@ -642,7 +642,8 @@ test('the index serves this builder, and empty or malformed questions get no rev
     sw({ mode: 'algebraic', equations: ['x +', 'y'] }),
     sw({ mode: 'algebraic', equations: ['x^2 + y = 3', 'x - y = 1'] }),
     sw({ mode: 'algebraic', equations: [1, 2] }),
-    // A nonunique 3×3 outside the elimination workflow is not graded.
+    // A nonunique 3×3 outside the elimination workflow is graded (TL11) but has no worked
+    // review: the write-up follows elimination only, and returns nothing rather than guess.
     sw({ mode: 'algebraic', method: 'substitution', equations: TRIPLE_SPECIAL.dependent.equations }),
     sw({ mode: 'spatial', answerFields: [] }),
     sw({ mode: 'spatial', spatialModel: { kind: 'threePlanes' }, equations: ['x + y + z = 1', 'x = 0', 'y = 0'] }),

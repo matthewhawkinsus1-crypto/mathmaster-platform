@@ -302,8 +302,9 @@ export const validateToolQuestion = (question = {}) => {
     if (mode === 'linearQuadratic' && Number(question.linearQuadratic?.quadratic?.a ?? 1) === 0) errors.push('linearQuadratic mode requires a nonzero quadratic coefficient.');
     if (mode === 'algebraic') {
       // 2×2 and, since #341, 3×3. One validator decides what the workflow can
-      // honestly run — counts, linearity, the 3×3 unique-solution gate, and
-      // which methods exist at each size — and the preflight reports it.
+      // honestly run — counts, linearity and which methods exist at each size
+      // (a dependent or inconsistent 3×3 works with every method since TL11) —
+      // and the preflight reports it.
       const algebraic = validateAlgebraicSystemAuthoring(question);
       errors.push(...algebraic.errors);
       warnings.push(...algebraic.warnings);
@@ -311,14 +312,16 @@ export const validateToolQuestion = (question = {}) => {
     if (mode === 'spatial') {
       // #359: the three-plane exploration needs exactly three linear
       // equations in exactly three variables — the same shape and linearity
-      // rules as a 3×3 algebraic system, minus the unique-solution gate
-      // (a spatial exploration may intentionally show no solution or
-      // infinitely many, for Day 2 classification).
+      // rules as a 3×3 algebraic system (a spatial exploration may
+      // intentionally show no solution or infinitely many, for Day 2
+      // classification).
       //
-      // Validated as an elimination system, the one method that accepts a
-      // non-unique 3×3 (#390) — never by filtering the uniqueness message out
-      // by its wording: #390 reworded it, the filter stopped matching, and
-      // every dependent/inconsistent three-plane question was refused (#392).
+      // Validated as an elimination system, which accepts a non-unique 3×3 —
+      // never by filtering the uniqueness message out by its wording: #390
+      // reworded it, the filter stopped matching, and every dependent/
+      // inconsistent three-plane question was refused (#392). Every method
+      // accepts one since TL11; the pin stays so a future method rule cannot
+      // refuse a three-plane question again.
       const spatial = validateAlgebraicSystemAuthoring({ ...question, method: 'elimination' });
       errors.push(...spatial.errors);
       if (String(question.spatialModel?.kind || '').trim().toLowerCase() !== 'threeplanes') {

@@ -346,36 +346,91 @@ test('3×3: the method screen, and systems the workspace refuses', () => {
   assert.equal(choosing.graded, true);
   assert.equal(choosing.isComplete, false);
   assert.equal(choosing.isCorrect, false);
-  // A dependent or inconsistent 3×3 by substitution shows an "unsupported" notice
-  // and no Check; an unreadable system does in both workspaces.
+  // Both workspaces replace the workflow with an "unsupported" notice and no
+  // Check for a system they cannot read as a linear system, whatever method is
+  // authored or picked. (A dependent or inconsistent system is not one of them
+  // any more: TL11, below.)
+  const unreadable = ['x + y + z = 6', 'x^2 + y = 3', 'z = 1'];
   const refusals = [
-    [{ ...ELIM_DEPENDENT, method: 'substitution' }, tripleWork()],
-    [{ ...ELIM_DEPENDENT, method: 'studentChoice' }, tripleWork({ method: 'substitution' })],
-    [{ ...TRIPLE, method: 'elimination', equations: ['x + y + z = 6', 'x^2 + y = 3', 'z = 1'] }, tripleWork({ method: 'elimination' })],
+    [{ ...TRIPLE, method: 'substitution', equations: unreadable }, tripleWork()],
+    [{ ...TRIPLE, method: 'elimination', equations: unreadable }, tripleWork({ method: 'elimination' })],
+    [{ ...TRIPLE, method: 'studentChoice', equations: unreadable }, tripleWork({ method: 'substitution' })],
+    [{ ...TRIPLE, method: 'studentChoice', equations: unreadable }, tripleWork({ method: 'elimination' })],
   ];
   for (const [question, work] of refusals) {
     const result = both(question, work);
-    assert.equal(result.graded, false);
+    assert.equal(result.graded, false, `${question.method} / ${work.method}`);
     assert.equal(result.reason, 'unsupported-system');
   }
 });
 
-test('3×3: an authored method decides the route; only studentChoice reads the method the work names', () => {
+// TL11. A dependent or inconsistent 3×3 used to be graded only when it was
+// worked by elimination: the substitution workspace could not reach the statement
+// with no variable, so it refused the system and the grader returned
+// "unsupported-system" for it. It reaches the statement now, and what the grader
+// judges is that statement, the student's reading of it and the planes — the
+// system's rubric, never the method that got the student there.
+test('3×3 dependent or inconsistent: substitution, studentChoice and elimination are graded by one rubric', () => {
+  const systems = [
+    { equations: DEPENDENT, type: 'infinite', statement: '0 = 0', other: '0 = 4', kind: 'identity', otherKind: 'contradiction' },
+    { equations: INCONSISTENT, type: 'none', statement: '0 = 9/2', other: '0 = 0', kind: 'contradiction', otherKind: 'identity' },
+  ];
+  for (const { equations, type, statement, other, kind, otherKind } of systems) {
+    const truth = truthFor(equations);
+    // One plane pair stated wrongly, whichever way the pair really meets.
+    const firstPair = Object.keys(truth)[0];
+    const wrongPlanes = { ...truth, [firstPair]: truth[firstPair] === 'line' ? 'parallel' : 'line' };
+    const right = { statement, classificationChoice: type, classificationKind: kind, planes: truth };
+    const works = [
+      right,
+      // The statement as the student wrote it in their own numbers.
+      { ...right, statement: type === 'infinite' ? '27 = 27' : '1 = 2' },
+      { ...right, classificationChoice: type === 'infinite' ? 'none' : 'infinite' },
+      { ...right, classificationChoice: 'unique' },
+      { ...right, classificationKind: otherKind },
+      { ...right, classificationKind: 'origin' },
+      { ...right, statement: other },
+      { ...right, planes: wrongPlanes },
+      { ...right, planes: { '1-2': truth['1-2'] } },
+      { ...right, classificationChoice: '' },
+      null,
+    ];
+    const base = { type: 'systemsWorkspace', mode: 'algebraic', equations };
+    for (const outcome of works) {
+      const reference = both({ ...base, method: 'elimination' }, interpretationWork(outcome));
+      assert.equal(reference.graded, true);
+      for (const method of ['substitution', 'studentChoice', 'elimination']) {
+        for (const named of ['substitution', 'elimination']) {
+          const result = both({ ...base, method }, interpretationWork(outcome, { method: named }));
+          assert.deepEqual(verdict(result), verdict(reference), `${type} ${method}/${named}: ${JSON.stringify(outcome)}`);
+        }
+      }
+    }
+    // And the verdicts are the real ones: right is right, half is half, wrong is wrong.
+    const substituted = (outcome) => both({ ...base, method: 'substitution' }, interpretationWork(outcome, { method: 'substitution' }));
+    assert.equal(substituted(right).isCorrect, true);
+    assert.equal(substituted(right).score, 1);
+    assert.equal(substituted({ ...right, planes: wrongPlanes }).score, 0.5, 'a right classification earns its half');
+    assert.equal(substituted({ ...right, classificationChoice: type === 'infinite' ? 'none' : 'infinite' }).score, 0.5, 'right planes earn theirs');
+    assert.equal(substituted({ ...right, statement: other }).score, 0, 'neither counts without the system\'s own statement');
+    assert.equal(substituted(null).isComplete, false);
+  }
+});
+
+test('3×3: the authored method is still the one the student works, but it no longer decides the rubric', () => {
   // Algebraic3SystemMode renders the AUTHORED method's workspace; the work's
-  // `method` matters only when the student picked it.
+  // `method` matters only when the student picked it (the choice screen).
   const interpretation = interpretationWork({ statement: '0 = 0', classificationChoice: 'infinite', planes: truthFor(DEPENDENT) });
-  // Authored substitution on a dependent 3×3 is the "unsupported" notice,
-  // whatever route the work claims.
-  const claimsElimination = both({ ...ELIM_DEPENDENT, method: 'substitution' }, { ...interpretation, method: 'elimination' });
-  assert.equal(claimsElimination.graded, false);
-  assert.equal(claimsElimination.reason, 'unsupported-system');
-  // Authored elimination is graded as elimination even if the work names substitution.
-  const claimsSubstitution = both(ELIM_DEPENDENT, { ...interpretation, method: 'substitution' });
-  assert.equal(claimsSubstitution.graded, true);
-  assert.equal(claimsSubstitution.isCorrect, true);
-  // Under studentChoice the pick is the student's, so it routes the grade.
-  assert.equal(both({ ...ELIM_DEPENDENT, method: 'studentChoice' }, interpretation).isCorrect, true);
-  assert.equal(both({ ...ELIM_DEPENDENT, method: 'studentChoice' }, { ...interpretation, method: 'substitution' }).reason, 'unsupported-system');
+  assert.equal(both({ ...ELIM_DEPENDENT, method: 'substitution' }, { ...interpretation, method: 'elimination' }).isCorrect, true);
+  assert.equal(both(ELIM_DEPENDENT, { ...interpretation, method: 'substitution' }).isCorrect, true);
+  // Under studentChoice nothing is graded until a method is picked.
+  const unchosen = both({ ...ELIM_DEPENDENT, method: 'studentChoice' }, { ...interpretation, method: '' });
+  assert.equal(unchosen.isComplete, false);
+  assert.equal(unchosen.isCorrect, false);
+  assert.deepEqual(unchosen.parts.map((part) => part.id), ['method']);
+  for (const pick of ['substitution', 'elimination']) {
+    assert.equal(both({ ...ELIM_DEPENDENT, method: 'studentChoice' }, { ...interpretation, method: pick }).isCorrect, true, pick);
+  }
 });
 
 test('3×3: an unauthored method is the student\'s choice, and verification is still required', () => {

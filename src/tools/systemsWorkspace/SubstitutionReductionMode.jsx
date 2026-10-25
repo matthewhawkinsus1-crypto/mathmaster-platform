@@ -17,6 +17,14 @@
  * screen. It performs no algebra: every expression comes from Step Algebra or
  * from the student and is checked, never generated.
  *
+ * A DEPENDENT OR INCONSISTENT SYSTEM (TL11) ends the round early, in a statement
+ * with no variable, and is interpreted exactly as the elimination workspace
+ * interprets it (AlgebraicOutcome, resolveInterpretationGate, the plane
+ * relationships) and graded by the same shared rubric. The statement comes from
+ * one of two places: a substitution that cancels every variable, which the
+ * student finishes side by side (SubstitutedStatementEntry), or the reduced 2×2,
+ * which earns it in its own workflow. The unique-solution path is unchanged.
+ *
  * Persistence: the whole round is one draft-backed, versioned field
  * (`reduction`) read back through a deterministic repair. The reduced 2×2 is
  * the existing AlgebraicSystemMode mounted under its own draft scope, keyed by
@@ -27,7 +35,7 @@
  * then whichever of this round's history and the reduced subsystem's history
  * holds the most recent work (see `compositeUndo`).
  */
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import usePersistentToolState, { ToolDraftScopeProvider, readToolDraftRecord, useToolDraftScope } from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { WorkViewUndoProvider, questionUndoResetKey, useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory.js';
@@ -39,6 +47,7 @@ import systemsWorkspaceGrader from '../../../functions/shared/serverGrading/tool
 import { solvedValuesWork, verificationSidesWork } from '../../../functions/shared/serverGrading/tools/systemsWorkspace/algebraic.mjs';
 import MathDisplay from '../../MathDisplay';
 import { spokenMathValue } from '../shared/spokenMathValue.js';
+import { scrollMotion } from '../../motionPreference.js';
 import MathInput from '../../MathInput';
 import { latexToExpression } from '../../algebraAstEngine.js';
 import AlgebraicSystemMode, {
@@ -64,6 +73,7 @@ import {
   buildReductionSystem,
   carryTargetUnchanged,
   changeSubstitutionToken,
+  checkTargetStatement,
   checkTokenSimplification,
   chooseReductionSource,
   clearBackDestination,
@@ -83,19 +93,27 @@ import {
   remainingVariables,
   repairReductionState,
   resetReductionSource,
+  setTargetStatementAnswer,
   setTokenSimplificationDraft,
   startTokenSimplification,
+  substitutionOutcome,
+  substitutionSeparatedReduction,
   substitutionToken,
   targetIsReduced,
+  targetStatementResult,
+  targetStatementSides,
   // A pure state transition, not a React hook: imported under a name without
   // the `use` prefix so neither a reader nor the hooks lint mistakes the
   // onClick calls below for a hook called in a callback.
   useIsolatedExpressionAsToken as adoptIsolatedExpressionAsToken,
 } from './substitutionReduction.js';
 import OriginalEquationsVerification from './OriginalEquationsVerification.jsx';
+import SubstitutedStatementEntry from './SubstitutedStatementEntry.jsx';
 import './AlgebraicSystemMode.css';
 import AlgebraicOutcome from './AlgebraicOutcome.jsx';
-import { SubmitText } from '../shared/ToolRuntimeContext';
+import { resolveInterpretationGate } from './algebraicOutcomeModel.js';
+import { planePairs } from './spatialFeedback.js';
+import { SubmitText, useToolRuntimeContext } from '../shared/ToolRuntimeContext';
 
 const SUBSCRIPTS = ['₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉'];
 const lineageName = (id) => String(id || '').replace(/\d/g, (digit) => SUBSCRIPTS[Number(digit)]);
@@ -167,10 +185,47 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
   const [subsystemUndoController, setSubsystemUndoController] = useState(null);
   const [subsystemReport, setSubsystemReport] = useState(null);
   const { feedback, submit } = useToolSubmission(onAction);
+  // False on a DOL, quiz or test: there interpreting an identity or
+  // contradiction records the student's answers and says nothing about them
+  // until the question is submitted (resolveInterpretationGate).
+  const { showImmediateFeedback } = useToolRuntimeContext();
+
+  // The student's reading of a statement with no variable (TL11), and how they
+  // say the planes meet. Draft-backed like the algebra that earned them, under
+  // their own names so a student who switches method keeps each method's work
+  // (the elimination workspace keeps its own pair). Each is tagged with the
+  // outcome it answers and used only while that outcome stands.
+  const [outcomeClassification, setOutcomeClassification] = usePersistentToolState('substitutionClassification', null);
+  const [storedPlaneWork, setPlaneWork] = usePersistentToolState('substitutionPlanes', null);
+
+  // The statement the student's OWN simplified sides made, if one has settled
+  // the system (the other road to an outcome is the reduced 2×2, below).
+  const directOutcome = useMemo(() => substitutionOutcome(reduction, system), [reduction, system]);
+
+  // The statement entry that opens while the student works comes into view
+  // instead of appearing below the fold. Not on the first render: a resumed
+  // question's position belongs to the question-entry scroll.
+  const mountedRef = useRef(false);
+  React.useEffect(() => { mountedRef.current = true; }, []);
+  const revealOnAppear = useCallback((element) => {
+    if (!element || !mountedRef.current || typeof window === 'undefined') return;
+    window.requestAnimationFrame(() => element.scrollIntoView?.({ block: 'nearest', behavior: scrollMotion() }));
+  }, []);
 
   const apply = useCallback((transition) => {
     if (!transition) return;
-    if (transition.state && transition.state !== reduction) setStoredReduction(transition.state);
+    if (transition.state && transition.state !== reduction) {
+      setStoredReduction(transition.state);
+      // An interpretation belongs to the algebra that earned it. When a move
+      // takes that statement away or changes it, the interpretation goes in
+      // the SAME update, so one Undo restores the algebra and its
+      // interpretation together.
+      const after = substitutionOutcome(transition.state, system);
+      if (directOutcome && after?.statement !== directOutcome.statement) {
+        setOutcomeClassification(null);
+        setPlaneWork(null);
+      }
+    }
     setReductionFeedback(transition.feedback || null);
     // A placement that landed puts the value down; a rejected one leaves it selected
     // so the student can try another location. During verification, keep the
@@ -185,7 +240,7 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
         return null;
       });
     }
-  }, [reduction, setStoredReduction, system.equations]);
+  }, [reduction, setStoredReduction, setOutcomeClassification, setPlaneWork, directOutcome, system]);
 
   /* ----------------------------------------------------- reduced subsystem */
   const reduced = useMemo(() => reducedSystem(reduction, system), [reduction, system]);
@@ -194,7 +249,14 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
   const subsystemScope = reducedIdentity ? `${scopeContext?.scope || 'tool'}:reduced-${reducedIdentity}` : null;
   const handleSubsystemSolution = useCallback((report) => {
     setSubsystemReport({ identity: reducedIdentity, report });
-  }, [reducedIdentity]);
+    // The reduced 2×2 can earn the statement too (a dependent or inconsistent
+    // pair). When it stops reporting one — an edit, an Undo — the
+    // interpretation of it goes with it (a no-op while none is stored).
+    if (!report?.outcome) {
+      setOutcomeClassification(null);
+      setPlaneWork(null);
+    }
+  }, [reducedIdentity, setOutcomeClassification, setPlaneWork]);
   // The subsystem's own draft record is the truth; its report keeps this
   // render in step with it. Before it has reported (the first render after a
   // reload) read the record directly so a solved subsystem does not flash open.
@@ -202,11 +264,40 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
     if (!reducedIdentity) return null;
     if (subsystemReport?.identity === reducedIdentity) return subsystemReport.report;
     if (!scopeContext?.draftKey || !subsystemScope) return null;
-    return subsystemReportFromDraft(readToolDraftRecord(scopeContext.draftKey, subsystemScope));
-  }, [reducedIdentity, subsystemReport, scopeContext?.draftKey, subsystemScope]);
-  const reducedSolution = subsystemState?.solution || null;
+    return subsystemReportFromDraft(readToolDraftRecord(scopeContext.draftKey, subsystemScope), reduced?.variables);
+  }, [reducedIdentity, subsystemReport, scopeContext?.draftKey, subsystemScope, reduced?.variables]);
+  // Rows that each hold one different variable leave the 2×2 workflow nothing to
+  // do: when they read y = 4, z = 3 they are its solution; otherwise the student is
+  // pointed back (TL11 re-examined missing variables, C2-136).
+  const separated = useMemo(() => substitutionSeparatedReduction(reduction, system), [reduction, system]);
+  const reducedSolution = separated ? separated.solution : (subsystemState?.solution || null);
 
-  const phase = reductionPhase(reduction, system, { reducedSolution, requireVerification: config.requireVerification });
+  // The outcome the student earned, from either road: the statement their own
+  // simplified sides made, or the one the reduced 2×2 reached (TL11).
+  const outcome = directOutcome || subsystemState?.outcome || null;
+  const outcomeIdentity = outcome ? `${reducedIdentity || 'direct'}|${outcome.statement}` : null;
+  const classificationRecord = outcome && outcomeClassification?.identity === outcomeIdentity ? outcomeClassification : null;
+  const planeWork = outcome && storedPlaneWork?.identity === outcomeIdentity ? storedPlaneWork : null;
+  // After classifying, the student states how the planes meet. Planes are
+  // judged against THIS question's equations, never the reduced ones.
+  const planeQuestion = useMemo(() => ({ ...questionData, equations: system.equations.map((equation) => equation.text), variables: system.variables }), [questionData, system]);
+  // EVERY PLACE INTERPRETING THE RESULT COULD SAY "RIGHT OR WRONG" BEFORE
+  // SUBMIT, DECIDED ONCE (algebraicOutcomeModel.js): when the classification
+  // counts as done, when the planes do, and what the checks say. The grade is
+  // the shared grader's, from the work below.
+  const interpretation = useMemo(() => resolveInterpretationGate({
+    showImmediateFeedback,
+    outcome,
+    classification: classificationRecord,
+    planeWork,
+    questionData: planeQuestion,
+  }), [showImmediateFeedback, outcome, classificationRecord, planeWork, planeQuestion]);
+  const classified = interpretation.classified;
+  const planesEarned = Boolean(outcome && interpretation.planesDone);
+
+  const phase = outcome
+    ? (classified ? 'classified' : 'classify')
+    : reductionPhase(reduction, system, { reducedSolution, requireVerification: config.requireVerification });
   const source = reduction.source;
   const sourceVariable = source?.variable || null;
   const isolated = isolatedExpression(reduction, system);
@@ -224,8 +315,18 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
   const backEquation = reducedSolution ? backSubstitutionEquation(reduction, system, reducedSolution) : null;
 
   /* ------------------------------------------------------------ undo */
-  const historyState = useMemo(() => ({ reduction: storedReduction }), [storedReduction]);
-  const restore = useCallback((value) => setStoredReduction(value?.reduction ?? emptyReductionState()), [setStoredReduction]);
+  // The interpretation joins the history only once there is one, so the
+  // snapshots of a solve with a unique answer are exactly what they always were.
+  const historyState = useMemo(() => ({
+    reduction: storedReduction,
+    ...(outcomeClassification ? { outcomeClassification } : {}),
+    ...(storedPlaneWork ? { planeWork: storedPlaneWork } : {}),
+  }), [storedReduction, outcomeClassification, storedPlaneWork]);
+  const restore = useCallback((value) => {
+    setStoredReduction(value?.reduction ?? emptyReductionState());
+    setOutcomeClassification(value?.outcomeClassification ?? null);
+    setPlaneWork(value?.planeWork ?? null);
+  }, [setStoredReduction, setOutcomeClassification, setPlaneWork]);
   const undoHistory = useMathUndoHistory({
     persist: true,
     label: 'Undo the last 3×3 substitution edit',
@@ -241,10 +342,12 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
   const compositeUndo = useMemo(() => {
     const historyController = { canUndo: undoHistory.canUndo, onUndo: undoHistory.undo, label: 'Undo the last 3×3 substitution edit' };
     if (embeddedUndoController?.canUndo) return embeddedUndoController;
-    if (phase === 'subsystem' && subsystemUndoController?.canUndo) return subsystemUndoController;
+    // An outcome the reduced 2×2 earned is that workflow's own last step until
+    // the student classifies it; after that the interpretation is undone first.
+    if ((phase === 'subsystem' || (subsystemState?.outcome && !classified)) && subsystemUndoController?.canUndo) return subsystemUndoController;
     if (reducedSolution && !hasPostSubsystemWork && subsystemUndoController?.canUndo) return subsystemUndoController;
     return historyController;
-  }, [embeddedUndoController, subsystemUndoController, phase, reducedSolution, hasPostSubsystemWork, undoHistory.canUndo, undoHistory.undo]);
+  }, [embeddedUndoController, subsystemUndoController, phase, reducedSolution, hasPostSubsystemWork, undoHistory.canUndo, undoHistory.undo, subsystemState?.outcome, classified]);
   useActiveUndoOwner({ id: 'algebraic-reduction-composite', active: true, priority: 60, controller: compositeUndo });
   const undoCapability = {
     label: '↶ Undo',
@@ -278,18 +381,32 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
    * THE STUDENT'S WORK, AS THE SHARED GRADER READS IT
    * (functions/shared/serverGrading/tools/systemsWorkspace/algebraic.mjs):
    * every value found so far and the sides typed in each original-equation
-   * check — never the key, never a checked/valid flag. Reported live so a
-   * deadline can finalize it; Check submits this same object.
+   * check; or, once the algebra reaches a statement with no variable (TL11),
+   * that statement, the classification the student RECORDED for it (never the
+   * outcome type the algebra implies) with their reading of it, and how they
+   * say each pair of planes meets — the same `outcome` the elimination
+   * workspace sends. Never the key, never a checked/valid flag. Reported live
+   * so a deadline can finalize it; Check submits this same object.
    */
   const work = {
     dimension: config.dimension,
     method: 'substitution',
     values: solvedValuesWork(solution),
     verification: verificationSidesWork(reduction.verification),
+    ...(outcome ? {
+      outcome: {
+        statement: outcome.statement,
+        classificationChoice: classificationRecord?.choice || '',
+        classificationKind: classificationRecord?.kind || '',
+        planes: Object.fromEntries(planePairs(3).map(({ id }) => [id, planeWork?.answers?.[id] || ''])),
+      },
+    } : {}),
   };
   useReportToolWork(work);
 
-  const readyToSubmit = phase === 'complete';
+  // A unique solution is submitted once it is found and verified; a statement
+  // with no variable, once it is classified and the planes are stated.
+  const readyToSubmit = phase === 'complete' || (phase === 'classified' && planesEarned);
   const check = () => {
     const result = gradeToolCheck(systemsWorkspaceGrader, questionData, work);
     submit({ isCorrect: result.isCorrect, score: result.score }, work, {
@@ -313,7 +430,9 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
     {
       id: 'reduce',
       label: `Reduce ${reducedCount}/${targets.length || system.equations.length - 1}`,
-      complete: allTargetsReduced(reduction, system),
+      // A contradiction settles the system before the other equation is
+      // reduced: nothing more is asked, so the step is not left looking undone.
+      complete: allTargetsReduced(reduction, system) || Boolean(directOutcome),
       summary: reduced ? reduced.equations.map((equation) => `${lineageName(equation.id)}: ${equation.text}`).join(' · ') : '',
     },
     {
@@ -334,15 +453,32 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
       complete: !config.requireVerification || allOriginalsVerified(reduction, system),
       summary: allOriginalsVerified(reduction, system) ? 'Checked in all three original equations' : '',
     },
-  ];
+  ]
+    // An outcome has no 2×2 solution, back-substitution or verification to
+    // show; the interpretation stages stand in for them.
+    .filter((stage) => !outcome || !['subsystem', 'back', 'verify'].includes(stage.id));
+  if (outcome) {
+    workTrailStages.push({ id: 'classification', label: 'Interpret result', complete: classified });
+    workTrailStages.push({ id: 'planes', label: 'Connect to 3D', complete: planesEarned });
+  }
 
+  // A statement entry is not a Step Algebra problem: only the standard-form
+  // solve takes the wider layout.
+  const activeStatementSides = activeTargetId && reduction.targets[activeTargetId]
+    ? targetStatementSides(reduction, system, activeTargetId)
+    : null;
   const embeddedSolverActive = ['isolate'].includes(phase)
-    || (phase === 'reduce' && Boolean(activeTargetId))
+    || (phase === 'reduce' && Boolean(activeTargetId) && !activeStatementSides)
     || (phase === 'back-substitute' && Boolean(backEquation));
   const note = feedbackText(reductionFeedback, system, sourceVariable);
+  // What a reduced equation reads as: its standard form, or the statement the
+  // student wrote when every variable cancelled.
+  const reducedText = (entry) => entry.standardText || entry.statement?.text || entry.rawText;
 
   /* ------------------------------------------------------------ view */
-  const unsupported = answerKey.type !== 'unique';
+  // Only a system the workspace cannot read as a linear system is refused. One
+  // that is not a single solution is solved here and interpreted (TL11).
+  const unsupported = answerKey.type === 'invalid';
   return (
     <EnlargeableFigure
       label="3×3 algebraic systems workspace"
@@ -384,7 +520,7 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
                     <span className="mathmaster-reduction-equation-label">
                       {lineageName(id)} <span className="mathmaster-reduction-lineage-from">from {equation.label}{entry.mode === 'carried' ? ' (carried over)' : ''}</span>
                     </span>
-                    <MathDisplay value={classroomEquationText(entry.standardText || entry.rawText)} format="ascii-math" />
+                    <MathDisplay value={classroomEquationText(reducedText(entry))} format="ascii-math" />
                   </div>
                 );
               })}
@@ -410,7 +546,7 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
             {unsupported ? (
               <div className="mathmaster-reduction-unsupported" role="alert">
                 <strong>This system cannot be solved in this workspace yet.</strong>
-                <p>It does not have exactly one solution, and the 3×3 substitution workspace only supports systems that do. Nothing you did caused this. Let your teacher know so they can fix the question.</p>
+                <p>Its equations could not be read as a linear system. Nothing you did caused this. Let your teacher know so they can fix the question.</p>
               </div>
             ) : (
               <>
@@ -541,9 +677,9 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
                         return (
                           <div key={equation.id} className={`mathmaster-reduction-target-card is-substituted${reducedDone ? ' is-reduced' : ''}${isActive ? ' is-active' : ''}`} data-target-id={equation.id}>
                             <div className="mathmaster-systems-backsub-equation-label">{lineageName(id)} · from {equation.label}</div>
-                            <MathDisplay value={classroomEquationText(reducedDone ? entry.standardText : entry.rawText)} format="ascii-math" />
+                            <MathDisplay value={classroomEquationText(reducedDone ? reducedText(entry) : entry.rawText)} format="ascii-math" />
                             {reducedDone ? (
-                              <span className="mathmaster-reduction-done">✓ Standard form</span>
+                              <span className="mathmaster-reduction-done">{entry.statement ? '✓ Simplified' : '✓ Standard form'}</span>
                             ) : isActive ? (
                               <span className="mathmaster-reduction-working">Simplifying below</span>
                             ) : (
@@ -555,7 +691,25 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
                         );
                       })}
                     </div>
-                    {activeTargetId && reduction.targets[activeTargetId] && !targetIsReduced(reduction.targets[activeTargetId]) ? (
+                    {activeStatementSides && !targetIsReduced(reduction.targets[activeTargetId]) ? (
+                      // Every variable cancelled (a dependent or inconsistent system, TL11):
+                      // Step Algebra has nothing to isolate, so the student finishes the
+                      // equation side by side and the statement THEY wrote is the result.
+                      <SubstitutedStatementEntry
+                        key={activeTargetId}
+                        equationText={reduction.targets[activeTargetId].rawText}
+                        name={lineageName(reducedEquationId(reduction, system, activeTargetId))}
+                        sides={activeStatementSides}
+                        entries={{
+                          left: reduction.targets[activeTargetId].statementWork?.left || '',
+                          right: reduction.targets[activeTargetId].statementWork?.right || '',
+                        }}
+                        result={targetStatementResult(reduction, system, activeTargetId)}
+                        onChange={(side, value) => apply(setTargetStatementAnswer(reduction, activeTargetId, side, value))}
+                        onCheck={() => apply(checkTargetStatement(reduction, system, activeTargetId))}
+                        stageRef={revealOnAppear}
+                      />
+                    ) : activeTargetId && reduction.targets[activeTargetId] && !targetIsReduced(reduction.targets[activeTargetId]) ? (
                       <EmbeddedStepAlgebra
                         label={`Simplify ${lineageName(reducedEquationId(reduction, system, activeTargetId))} to standard form`}
                         prompt={`Distribute, simplify, and combine like terms until the equation has the form ${remaining.map((name, index) => `${String.fromCharCode(97 + index)}${name}`).join(' + ')} = ${String.fromCharCode(97 + remaining.length)}.`}
@@ -577,11 +731,23 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
                   </div>
                 ) : null}
 
-                {reduced ? (
+                {separated ? (
+                  <div className="mathmaster-reduction-subsystem-solved" data-separated={separated.solution ? 'solved' : 'stuck'} role={separated.solution ? undefined : 'status'}>
+                    <span>
+                      {separated.solution
+                        ? <><strong>Reduced 2×2:</strong>{' '}{`${Object.keys(separated.solution).map((name) => `${name} = ${exactNumberText(separated.solution[name])}`).join(' and ')} — each row already gives one value, so there is nothing to solve. Back-substitute them.`}</>
+                        : `${lineageName('R1')} and ${lineageName('R2')} each hold a different single variable, so there is nothing to substitute between them. Use Undo to go back and isolate a different equation or variable.`}
+                    </span>
+                  </div>
+                ) : null}
+
+                {reduced && !separated ? (
                   // Mounted from the moment the reduced system exists, and kept
                   // mounted once solved (only hidden), so an Undo can still walk
-                  // back into it. Its own draft scope and Undo channel.
-                  <div className="mathmaster-reduction-subsystem" hidden={phase !== 'subsystem'}>
+                  // back into it. Its own draft scope and Undo channel. It stays
+                  // open while it holds a statement with no variable (a dependent or
+                  // inconsistent pair): that is the work the interpretation is about.
+                  <div className="mathmaster-reduction-subsystem" hidden={phase !== 'subsystem' && !subsystemState?.outcome}>
                     <div className="mathmaster-reduction-subsystem-heading">
                       <strong>Reduced subsystem</strong>
                       <span>{reduced.equations.map((equation) => `${lineageName(equation.id)} from ${system.equations.find((original) => original.id === equation.fromEquationId)?.label}`).join(' · ')}</span>
@@ -630,7 +796,20 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
 
                 {note ? <p className="mathmaster-systems-substitution-feedback is-error" role="status">{note}</p> : null}
 
-                {readyToSubmit ? <AlgebraicOutcome questionData={questionData} solution={solution} onAction={onAction} /> : null}
+                {outcome ? (
+                  <AlgebraicOutcome
+                    key={outcomeIdentity}
+                    outcome={outcome}
+                    classified={classified}
+                    questionData={planeQuestion}
+                    planeWork={planeWork}
+                    onPlaneWorkChange={(next) => setPlaneWork({ ...next, identity: outcomeIdentity })}
+                    onAction={onAction}
+                    interpretation={interpretation}
+                    onClassify={(choice, kind) => setOutcomeClassification({ identity: outcomeIdentity, choice, kind })}
+                  />
+                ) : null}
+                {!outcome && readyToSubmit ? <AlgebraicOutcome questionData={questionData} solution={solution} onAction={onAction} /> : null}
                 {readyToSubmit ? <button type="button" onClick={check} style={actionStyle}><SubmitText>Check my work</SubmitText></button> : null}
                 {feedback ? (
                   <div style={{ marginTop: 14 }}>

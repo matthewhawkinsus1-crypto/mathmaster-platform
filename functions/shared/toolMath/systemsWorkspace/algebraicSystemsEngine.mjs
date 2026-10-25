@@ -925,9 +925,11 @@ export const classifyLinearSystem = (forms, variables) => {
  *
  *   - equation and variable counts must match, and be 2 or 3;
  *   - every equation must be linear in exactly the authored variables;
- *   - nonunique 3×3 systems use method "elimination", whose checked rows
- *     and reduced 2×2 work now lead to student classification (#390).
- *     Substitution/studentChoice retain their existing unique-system contract;
+ *   - a dependent or inconsistent 3×3 system works with every method: by
+ *     elimination the checked rows and reduced 2×2 lead to the student's
+ *     classification (#390), and by substitution the student's own simplified
+ *     statement, or the reduced 2×2's, does (TL11: substitutionReduction.mjs).
+ *     It used to be an error unless the method was "elimination";
  *   - 3×3 elimination is a real workflow (#359): substitution, elimination,
  *     and studentChoice are all offered on a 3×3 system, exactly as on 2×2.
  *
@@ -997,13 +999,10 @@ export const validateAlgebraicSystemAuthoring = (questionData = {}) => {
         warnings.push(`systemsWorkspace 3×3 algebraic system: ${nowhere.join(' and ')} ${nowhere.length === 1 ? 'has' : 'have'} a zero coefficient in all three equations, so ${nowhere.length === 1 ? 'it is' : 'they are'} never determined and the system has no solution or infinitely many. Students can classify it by elimination; check this is the system you meant.`);
       }
     }
-    if (!errors.length) {
-      const trimmed = variables.map((value) => String(value).trim());
-      const classification = classifyLinearSystem(rawEquations.map((equation) => linearEquationForm(equation, trimmed)), trimmed);
-      if (classification.type !== 'unique' && questionData.method !== 'elimination') {
-        errors.push(`Use method "elimination" for nonunique 3×3 algebraic systems; this system is ${classification.type === 'none' ? 'inconsistent (no solution)' : 'dependent (infinitely many solutions)'}. Dependent and inconsistent 3×3 systems are not supported by the substitution workflow yet.`);
-      }
-    }
+    // A system that is not exactly one solution is NOT refused for a method
+    // (TL11). Every method reaches the statement with no variable and the
+    // student interprets it; the shared grader judges that the same way
+    // whichever method got there (serverGrading/tools/systemsWorkspace/algebraic.mjs).
   }
   if (questionData.requireVerification != null && typeof questionData.requireVerification !== 'boolean') {
     errors.push('systemsWorkspace algebraic requireVerification must be boolean when supplied.');

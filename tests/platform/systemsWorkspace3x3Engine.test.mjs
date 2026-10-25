@@ -200,10 +200,21 @@ test('the authoring gate accepts 2×2 and 3×3 substitution and elimination, and
   assert.deepEqual(choice.errors, []);
   assert.deepEqual(choice.warnings, []);
 
-  const dependent = validateAlgebraicSystemAuthoring({ equations: ['x + y + z = 1', '2x + 2y + 2z = 2', 'x - y = 0'], variables: XYZ });
-  assert.ok(dependent.errors.some((message) => /Use method "elimination".*this system is dependent/.test(message)));
-  const inconsistent = validateAlgebraicSystemAuthoring({ equations: ['x + y + z = 1', 'x + y + z = 2', 'x - y = 0'], variables: XYZ });
-  assert.ok(inconsistent.errors.some((message) => /this system is inconsistent/.test(message)));
+  // A dependent or inconsistent 3×3 is authorable with EVERY method (TL11): the
+  // substitution workspace reaches the statement with no variable and the student
+  // interprets it, exactly as they do after elimination. It used to be an error
+  // unless the method was "elimination".
+  for (const equations of [['x + y + z = 1', '2x + 2y + 2z = 2', 'x - y = 0'], ['x + y + z = 1', 'x + y + z = 2', 'x - y = 0']]) {
+    for (const method of [undefined, 'substitution', 'elimination', 'studentChoice']) {
+      const authored = validateAlgebraicSystemAuthoring({ equations, variables: XYZ, ...(method ? { method } : {}) });
+      assert.deepEqual(authored.errors, [], `${equations[1]} with ${method || 'no method'}`);
+    }
+  }
+  // Only what the workspace cannot read is still refused, under every method.
+  for (const method of ['substitution', 'elimination', 'studentChoice']) {
+    const unreadable = validateAlgebraicSystemAuthoring({ equations: ['x*y + z = 1', SYSTEM[1], SYSTEM[2]], variables: XYZ, method });
+    assert.ok(unreadable.errors.some((message) => /equation 1 must be linear in the three authored variables/.test(message)), method);
+  }
   // 2×2 special cases stay authorable: the 2×2 workflow interprets them.
   assert.deepEqual(validateAlgebraicSystemAuthoring({ equations: ['x + y = 1', 'x + y = 2'], variables: ['x', 'y'] }).errors, []);
 });
@@ -218,9 +229,13 @@ test('the plain authored shape from #341 routes to the algebraic workspace and v
   };
   assert.equal(resolveSystemsWorkspaceMode(plain), 'algebraic');
   assert.equal(validateToolQuestion({ ...plain, toolId: 'systemsWorkspace' }).isValid, true);
-  // The same shape with a dependent system is caught before a student sees it.
+  // The same shape with a dependent system is a real question now (TL11): the
+  // student reaches the statement with no variable by substitution and interprets
+  // it. A system the workspace cannot read is still caught before a student sees it.
   const dependent = validateToolQuestion({ ...plain, toolId: 'systemsWorkspace', equations: ['x + y + z = 1', '2x + 2y + 2z = 2', 'x - y = 0'] });
-  assert.equal(dependent.isValid, false);
+  assert.equal(dependent.isValid, true, JSON.stringify(dependent.errors));
+  const unreadable = validateToolQuestion({ ...plain, toolId: 'systemsWorkspace', equations: ['x*y + z = 1', SYSTEM[1], SYSTEM[2]] });
+  assert.equal(unreadable.isValid, false);
   // Graph content is untouched.
   assert.equal(resolveSystemsWorkspaceMode({ type: 'systemsWorkspace', system: { m1: 1, b1: 2, m2: -1, b2: 6 } }), 'linear');
   assert.equal(resolveSystemsWorkspaceMode({ type: 'systemsWorkspace', equations: ['y = x', 'y = 2'], studentActions: ['graphSystem'] }), 'linear');
