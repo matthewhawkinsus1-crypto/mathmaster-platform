@@ -28,6 +28,7 @@ lobby ──Start──► countdown ──startsAt──► round ──deadlin
 | `…/challengeStandingsModel.js` | labels for engine ranks (T-2, competition ranking), what a board's numbers mean per strategy, movement between two engine standings, large-class windows, one round's results view (and its order), placement rewards as delivered | yes |
 | `…/challengePresenceModel.js` | presence from what the server last heard, the console roster by name, a student's own connection state | yes |
 | `…/challengeReplayModel.js` | Play Again: the create request that replays a room as a fresh match | yes |
+| `…/challengeRecapModel.js`, `…/challengeOwnAnswers.js` | the end-of-game recap as the server sent it, and the copy of the student's own answers their device keeps and sets beside its rounds (LC19) | yes (storage is passed in) |
 | `…/challengeHooks.js` | the boundary-timed clock hook, a ticker for digits, round result watchers | React |
 | `functions/shared/liveChallengePresence.mjs` | the heartbeat a game screen's calibration writes (sessions, reconnects) | yes |
 | `src/components/liveChallenge/ChallengeShellParts.jsx` | shared pieces: countdown, self-ticking clock, standings board, round results table, confirmation dialog, confetti, connection pill | — |
@@ -428,9 +429,18 @@ places, from the room's reward summary). Host controls run along the bottom.
 - **Missed rounds**: back from a reconnect, a reload or a sleep, rounds that
   closed meanwhile without their answer get one notice
   (`challengeMissedRounds.js`).
-- **Recap**: a finished game lists the student's own rounds — result and worked
-  solution — with private personal bests and their recognitions
-  (`getLiveChallengeMatchRecap`, `challengeRecapModel.js`).
+- **Recap**: a finished game lists the student's own rounds — result, what they
+  answered and the worked solution — with private personal bests and their
+  recognitions (`getLiveChallengeMatchRecap`, `challengeRecapModel.js`). The
+  answer is theirs alone: the server keeps a verdict and its points, not what
+  was typed, and no document a classmate can read carries an answer. So the
+  device that sent an answer keeps a short readable copy of each one the
+  server confirmed (`challengeOwnAnswers.js`: a typed answer, the choice in its
+  own words, or what a tool says they built, as a released test reads it back),
+  keyed by student, game and round, for the last eight games and a month, and
+  the recap sets it beside the rounds the server says they answered. A round
+  they did not answer shows none. A second device, or a browser that keeps no
+  storage, shows the recap without answers (§14).
 - **Honest about grades**: a Warm-Up game says "Your accuracy counts as your
   Warm-Up; game points don't."; a standalone game says game points change no
   grade.
@@ -626,5 +636,27 @@ GC) flat across them.
   A moved student leaving the first game (C2-44) is this removal plus a late
   invite, and should wait for it; skip graded Warm-Up games and students who
   already answered.
+- **A student's own answers in the recap on every device (LC19).** Built for
+  the device that played: the recap shows what the student answered from the
+  copy that device kept (§9). A student who played on a Chromebook and opens
+  the recap on a phone sees their rounds and the worked solutions without their
+  answers, and so does one whose browser keeps no storage. Showing them
+  everywhere means the server keeping what each student typed, which is a
+  retention decision before it is a change:
+  - *Where.* Not the match result: one document that the report, Warm-Up
+    credit, mastery evidence and rewards are built from, and that outlives the
+    game. The student's own summary (`playerSummaries/{studentId}`, written at
+    each round's close, readable by the student, the room's teacher and a root
+    admin) is the document to look at.
+  - *What.* The rows `challengeOwnAnswers.js` builds, and nothing else (never
+    the question, never a verdict). The submit path would have to write them:
+    it records only the verdict and its points today.
+  - *Who sees them, and for how long.* The room's teacher could then read what
+    each student typed, and the answers would outlive the private state a game
+    deletes when it finishes. Decide both, and keep them inside the
+    account-deletion footprint (`deleteStudentLiveChallengeFootprint` already
+    removes the summaries).
+  - *Then* `getLiveChallengeMatchRecap` returns them with the rounds, and the
+    device copy becomes a fallback or goes.
 - **A lobby, or a Pace Race round, nobody comes back to** is not ended by the
   server (§4); it waits for the teacher to finish or cancel it.

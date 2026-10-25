@@ -9,6 +9,10 @@
  * read, and it holds only this student's own facts: never another student's
  * name, answers or place.
  *
+ * Their own ANSWERS are not in the reply (the server keeps a verdict, not what
+ * was typed): the device that sent them keeps a copy, and withOwnAnswers puts it
+ * beside the rounds (challengeOwnAnswers.js).
+ *
  * This module reads the reply defensively (the callable may be older or newer
  * than this screen) and turns it into what the card says. A reply that cannot
  * be read is null, and a null recap shows nothing: the final card already
@@ -125,6 +129,25 @@ export const normalizeMatchRecap = (reply = null, { roomId = null, scheduledRoun
     // The server withholds worked solutions while another game the student
     // is in can still be answered (it may ask the same questions).
     solutionsWithheld: reply.solutionsWithheld === true,
+  });
+};
+
+/**
+ * The recap with the student's own answers beside the rounds they were kept
+ * for (challengeOwnAnswers.js, `{ [roundIndex]: rows }` from this device).
+ * Only a round the server says they answered carries one: an answer kept for a
+ * round the server never received would contradict "No answer". A recap with
+ * nothing to add is returned as it is.
+ */
+export const withOwnAnswers = (recap = null, answers = {}) => {
+  if (!recap) return recap;
+  const kept = answers && typeof answers === 'object' ? answers : {};
+  if (!recap.rounds.some((round) => round.answered && kept[round.roundIndex])) return recap;
+  return Object.freeze({
+    ...recap,
+    rounds: Object.freeze(recap.rounds.map((round) => (round.answered && kept[round.roundIndex]
+      ? Object.freeze({ ...round, ownAnswer: kept[round.roundIndex] })
+      : round))),
   });
 };
 

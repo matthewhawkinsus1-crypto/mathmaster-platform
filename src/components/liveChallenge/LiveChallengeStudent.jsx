@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BACK_TO_HOME } from '../../platform/student/studentWords.js';
 import QuestionEngineView from '../../QuestionEngine.jsx';
 import useActionBarFocusReveal from '../common/useActionBarFocusReveal.js';
@@ -13,7 +13,8 @@ import { CHALLENGE_STAGE, GO_FLASH_MS, LOCKED_WAIT_NOTICE_MS, QUESTION_SET_GAME,
 import { speakAloud, speechAvailable, stopSpeaking } from '../../platform/language/speechText.js';
 import { projectionBoardRows, rewardSummaryLines, roundResultsView, scorePresentation, standingsRows } from '../../platform/liveChallenge/challengeStandingsModel.js';
 import { readLastSeenRound, roundsClosedWhileAway, seenRoundOf, missedRoundsNotice, writeLastSeenRound } from '../../platform/liveChallenge/challengeMissedRounds.js';
-import { normalizeMatchRecap, recapHighlights } from '../../platform/liveChallenge/challengeRecapModel.js';
+import { normalizeMatchRecap, recapHighlights, withOwnAnswers } from '../../platform/liveChallenge/challengeRecapModel.js';
+import { keepOwnAnswer, recallOwnAnswers } from '../../platform/liveChallenge/challengeOwnAnswers.js';
 import { roomShowsFullStandings } from '../../../functions/shared/liveChallengePrivacy.mjs';
 import { roomFullRoundMs, storedTimeMultiplier } from '../../../functions/shared/liveChallengeAccommodations.mjs';
 import { resolveSupportEntitlements } from '../../../functions/shared/supportEntitlements.mjs';
@@ -72,6 +73,11 @@ const formatClock = (milliseconds) => {
 // The server's answer to this device's locked response, kept for the round so
 // a refresh shows the result instead of reopening a question already answered.
 const challengeResultKey = (roomId, roundIndex, roundVersion) => `live-challenge-result-${roomId}-${roundIndex}-${roundVersion || 0}`;
+// The device's storage for a student's own answers in the recap (LC19). A
+// browser that refuses it (a private window) shows a recap without answers.
+const ownAnswerStorage = () => {
+  try { return window.localStorage; } catch { return null; }
+};
 const readStoredJson = (key) => {
   if (!key) return null;
   try { return JSON.parse(window.localStorage.getItem(key) || 'null'); } catch { return null; }
@@ -165,6 +171,10 @@ export function ChallengeRound({
   persistResult = false,
   // What a live round says comes next (its results); a rehearsal keeps its own words.
   liveShell = false,
+  // Told, once the server has confirmed an answer THIS device sent, what was
+  // asked and what was sent, so the screen can keep the answer for the recap
+  // (LC19). A rehearsal passes none and keeps nothing.
+  onOwnAnswer = null,
 }) {
   const question = room.currentQuestion;
   const roundIndex = Number(room.currentRound) || 0;
@@ -307,6 +317,10 @@ export function ChallengeRound({
   // The same lock and messages for each way a round can already be over for
   // this student.
   const settle = (grading) => {
+    // The envelope this device sent: its payload is what the server graded.
+    // Read before it is cleared, and only here — an answer the server already
+    // held from another device (settleAsAlreadyRecorded) is not this payload.
+    const sent = pendingRef.current;
     setResult(grading);
     resultRef.current = grading;
     writeStoredJson(resultKey, grading);
@@ -314,6 +328,7 @@ export function ChallengeRound({
     pendingRef.current = null;
     window.localStorage.removeItem(pendingKey);
     onResult?.(grading);
+    if (sent?.responsePayload) onOwnAnswer?.({ roundIndex: sent.roundIndex, question, responsePayload: sent.responsePayload });
   };
   const settleAsAlreadyRecorded = () => {
     // The server refused a second answer for this round: the first one is
@@ -1199,6 +1214,23 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
     return () => { cancelled = true; };
   }, [roomId, room?.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // THEIR OWN ANSWERS (LC19). The server keeps a verdict, not what was typed,
+  // so this device keeps the answers it sent (challengeOwnAnswers.js) and the
+  // recap shows them beside the rounds they belong to — this student's only.
+  // Counted when an answer is kept, so a last answer confirmed after the recap
+  // arrived (the room can finish a moment before this device's own reply) still
+  // reaches it.
+  const [ownAnswersKept, setOwnAnswersKept] = useState(0);
+  const keepAnswerHere = useCallback(({ roundIndex, question, responsePayload }) => {
+    const kept = keepOwnAnswer({ storage: ownAnswerStorage(), studentId, roomId, roundIndex, question, responsePayload });
+    if (kept && mountedRef.current) setOwnAnswersKept((count) => count + 1);
+  }, [studentId, roomId]);
+  const recapWithAnswers = useMemo(
+    () => withOwnAnswers(recap, recallOwnAnswers({ storage: ownAnswerStorage(), studentId, roomId })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [recap, studentId, roomId, ownAnswersKept],
+  );
+
   // READ ALOUD, for a student whose support plan grants text-to-speech, on a
   // browser that can speak.
   const readAloud = useMemo(
@@ -1345,6 +1377,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
             studentProfile={studentProfile}
             persistResult
             liveShell
+            onOwnAnswer={keepAnswerHere}
             timeMultiplier={timeMultiplier}
             readAloud={readAloud}
             beforeQuestion={(
@@ -1382,7 +1415,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
               room={room}
               lastRank={finalLastRank}
             />
-            <StudentMatchRecap recap={recap} />
+            <StudentMatchRecap recap={recapWithAnswers} />
             <button type="button" onClick={onExit} style={{ ...exitButton, justifySelf: 'center' }}>{exitLabel}</button>
           </div>
         )}

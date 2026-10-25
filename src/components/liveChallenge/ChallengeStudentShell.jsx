@@ -5,6 +5,8 @@ import { finalPlaceIsPrivate, gameGradeSentence, recapHasContent, RESULT_TONE } 
 import { publicStandingsRows } from '../../platform/liveChallenge/liveChallengeProjectorModel.js';
 import { RoundResultsTable, StandingsBoard } from './ChallengeShellParts.jsx';
 import { RoundSolutionCard } from './ChallengeSolutionParts.jsx';
+import { MathText } from '../common/MathText.jsx';
+import { OWN_ANSWER_FORMAT } from '../../platform/liveChallenge/challengeOwnAnswers.js';
 import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 
 /*
@@ -276,11 +278,36 @@ const RESULT_COLOURS = {
 };
 
 /**
+ * What a student answered in one round (challengeOwnAnswers.js, kept on the
+ * device they answered on): what they typed as they typed it, the math editor's
+ * LaTeX typeset, a choice in its own words. A typed answer is never handed to
+ * MathText, which would read a "$" in it as the start of mathematics.
+ */
+function OwnAnswer({ rows }) {
+  return (
+    <div data-mm-recap-own-answer="1" style={{ display: 'grid', gap: 4, padding: '8px 12px', borderRadius: 10, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.14)' }}>
+      <span style={{ ...eyebrow, textAlign: 'left' }}>Your answer</span>
+      {rows.map((row, index) => (
+        <div key={`${row.label}-${index}`} style={{ overflowWrap: 'anywhere' }}>
+          {row.label && <><MathText as="span" style={{ color: '#9fb0cc' }}>{row.label}</MathText>{': '}</>}
+          {row.format === OWN_ANSWER_FORMAT.LATEX
+            ? <MathText as="span" style={{ fontWeight: 800 }}>{`$${row.value}$`}</MathText>
+            : row.format === OWN_ANSWER_FORMAT.AUTHORED
+              ? <MathText as="span" style={{ fontWeight: 800 }}>{row.value}</MathText>
+              : <span style={{ fontWeight: 800 }}>{row.value}</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
  * THE STUDENT'S OWN RECAP of a finished game (challengeRecapModel.js): what
  * they beat of their own record, what they earned, and each round they could
- * play — how their answer went and the worked solution, now that no round can
- * be answered. Only their own facts; nothing here names anyone else. With no
- * recap (the server has not answered, or cannot) it shows nothing at all.
+ * play — how their answer went, what they answered (when this device kept it:
+ * LC19) and the worked solution, now that no round can be answered. Only their
+ * own facts; nothing here names anyone else. With no recap (the server has not
+ * answered, or cannot) it shows nothing at all.
  */
 export function StudentMatchRecap({ recap = null }) {
   if (!recapHasContent(recap)) return null;
@@ -326,6 +353,7 @@ export function StudentMatchRecap({ recap = null }) {
                 </strong>
                 <span style={{ padding: '3px 10px', borderRadius: 999, fontWeight: 900, ...RESULT_COLOURS[round.result.tone] }}>{round.result.text}</span>
               </div>
+              {round.ownAnswer && <OwnAnswer rows={round.ownAnswer} />}
               {round.solutionReview && <RoundSolutionCard compact review={round.solutionReview} prompt={round.prompt} />}
             </li>
           ))}

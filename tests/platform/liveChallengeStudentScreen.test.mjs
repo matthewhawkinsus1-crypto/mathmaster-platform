@@ -161,7 +161,7 @@ test('a finished game asks once for the student\'s own recap, and a failure show
   assert.match(effect, /room\?\.status !== 'finished' \|\| recapAskedRef\.current === roomId\) return undefined;\s*recapAskedRef\.current = roomId;/);
   assert.match(effect, /getLiveChallengeMatchRecap\(\{ roomId \}\)/);
   assert.match(effect, /\.catch\(\(\) => \{ if \(!cancelled\) setRecap\(null\); \}\)/);
-  assert.match(finished, /<StudentMatchRecap recap=\{recap\} \/>/);
+  assert.match(finished, /<StudentMatchRecap recap=\{recapWithAnswers\} \/>/);
   const recapCard = region(shell, 'export function StudentMatchRecap(', '\n}\n', 'recap card');
   assert.match(recapCard, /if \(!recapHasContent\(recap\)\) return null;/);
   assert.match(recapCard, /round\.solutionReview && <RoundSolutionCard /);

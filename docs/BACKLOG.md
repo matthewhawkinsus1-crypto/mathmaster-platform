@@ -158,6 +158,11 @@ See `docs/architecture/live-challenge-shell.md`.
   looked at (LC02, VH-55) and is not small and safe: §14 lists what it needs (a
   callable, a tombstone against re-invitation, seat bookkeeping, the engine
   effects, the student's screen, the console, certification).
+- **A student's own answers in the recap, on every device.** Built for the
+  device that played (LC19): the recap shows what the student answered from a
+  copy that device keeps, and a second device shows the rounds and worked
+  solutions without it. The server keeping the answers is a retention decision
+  (who reads them, how long): `live-challenge-shell.md` §14 lists what it needs.
 - **Countdown sound** tied to `startsAt` (cues are tied to the deadline today).
 
 ### ~~Live Challenge engine and rewards foundation~~ — shipped
