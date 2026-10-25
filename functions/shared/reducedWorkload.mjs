@@ -295,6 +295,37 @@ export const resolveItemReductionPolicy = ({ profile = null, assignment = null, 
   };
 };
 
+/**
+ * EVERYTHING IN A PROFILE THAT DECIDES A STUDENT'S REDUCTION, as one string
+ * (TT23). Two profiles with the same key resolve to the same reduction on every
+ * assignment, so a profile change that leaves the key alone cannot move any
+ * student's required items, and so cannot move a grade. The server uses that
+ * to leave the (very common) profile edit that has nothing to do with item
+ * reduction alone, and to look further only when this changes.
+ *
+ * It reads the three sources `resolveItemReductionPolicy` reads, in the same
+ * order — the compact history, else the plan's windows, else the legacy flat
+ * list — so a change to one must be made to the other. A key that differs when
+ * the policy does not is harmless (the caller compares what each assignment
+ * resolves to next); a key that is the same when the policy differs would hide
+ * a grade change, which is what the tests hold it to.
+ */
+export const profileItemReductionKey = (profile = null) => {
+  if (!isObject(profile)) return 'none';
+  const plan = isObject(profile.supportPlan) ? profile.supportPlan : null;
+  const history = list(plan?.itemReductionHistory);
+  if (history.length) return `history:${JSON.stringify(history)}`;
+  const windows = list(plan?.windows);
+  if (windows.length) return `windows:${JSON.stringify(windows.map(itemReductionHistoryRow))}`;
+  const ids = list(profile.accommodations).map((id) => (typeof id === 'string' ? id : id?.id));
+  return ids.includes(REDUCED_WORKLOAD_SUPPORT_ID) ? 'manual' : 'none';
+};
+
+/** What a resolved policy asks of the student, without which revision said so. */
+export const itemReductionPolicySummary = (policy = null) => (
+  `${policy?.status || 'none'}|${Number(policy?.percent) || 0}|${list(policy?.appliesTo).map(clean).sort().join(',')}`
+);
+
 // --- The content, as items ------------------------------------------------------------
 
 /**

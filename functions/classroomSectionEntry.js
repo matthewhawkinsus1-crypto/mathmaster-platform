@@ -32,6 +32,7 @@ const {
 const { runtimeQuestionsFromAssignment } = require("./lib/assignmentRuntime");
 const { classroomPublicationGrade } = require("./lib/classroomSectionGrade");
 const { studentOmittedFor } = require("./lib/studentWorkloadIndices");
+const studentWorkloadIndices = require("./lib/studentWorkloadIndices");
 const {
   assignmentGradeProgress,
   releaseSignalReason,
@@ -618,6 +619,21 @@ const syncSectionGradeToClassroom = onDocumentWritten(
     // wakes the section passback exactly like a changed answer does.
     const recoveryChangedIds = sectionRecoveryGrades.recoveryChangedAssignmentIds(afterData, beforeData);
     const assignmentIds = [...new Set([...gradeChangedAssignmentIds, ...signaledAssignmentIds, ...recoveryChangedIds])];
+    // TT23: a support-profile change that moves which items the student owes
+    // moves their section columns too. It gets the same push an answer would,
+    // but only to correct a grade Classroom already holds (the whole-assignment
+    // trigger in functions/index.js explains why).
+    const profileMovedIds = await studentWorkloadIndices.profileMovedAssignmentIds({
+      db: getFirestore(),
+      beforeData,
+      afterData,
+      onError: (error) => logger.warn("Support-profile change: could not tell which assignments it moved", {
+        studentId: event.params.studentId,
+        message: String(error?.message || error),
+      }),
+    });
+    const profileOnlyIds = new Set(profileMovedIds.filter((id) => !assignmentIds.includes(id)));
+    assignmentIds.push(...profileOnlyIds);
     if (!assignmentIds.length) return;
 
     const db = getFirestore();
@@ -808,6 +824,9 @@ const syncSectionGradeToClassroom = onDocumentWritten(
         // eslint-disable-next-line no-await-in-loop
         const priorSnapshot = await db.doc(`classroomGradeSyncs/${syncId}`).get();
         const prior = priorSnapshot.exists ? priorSnapshot.data() || {} : {};
+        // TT23: woken by a profile change alone, this column is corrected only
+        // if Classroom already holds a pushed grade and the grade now differs.
+        if (profileOnlyIds.has(assignmentId) && !studentWorkloadIndices.profileChangeNeedsPush(prior, gradeResult.grade)) continue;
         const priorReturned = prior.returnedToStudent === true
           || String(prior.submissionState || "").toUpperCase() === "RETURNED";
         const evidenceFingerprint = sectionGradeEvidenceFingerprint({

@@ -463,10 +463,19 @@ due date) is reported as a count.
 
 ### 11.9 Known limits
 
-- A profile change does not by itself re-send Classroom grades; the next grade write on that assignment does.
-  MathMaster's gradebook and TEAMS export reflect it immediately.
+- A profile change that moves which items a student owes on open work now re-sends the Classroom grades it moved
+  (TT23): both Classroom triggers (`syncGradeToClassroom`, `syncSectionGradeToClassroom`) ask
+  `studentWorkloadIndices.profileMovedAssignmentIds` which assignments the change moved, then give them the push an
+  answer would. It corrects only a grade Classroom already holds (`profileChangeNeedsPush`: last push `synced`, grade
+  now different): it never starts a column, retries a failed one, or sends the same number twice, and a change that
+  leaves a student's omitted items as they were (an unrelated edit, answered work, a reduction that rounds to nothing)
+  wakes nothing. Taking a reduction off sends the lower grade the gradebook already shows. Work already due is not
+  touched (11.6: a revision governs work due from the day it was saved). A future-dated revision that switches on
+  by itself is not a profile write, so it still reaches Classroom with the next grade write or the due-date checkpoint.
+  MathMaster's gradebook and TEAMS export reflect every change immediately.
 - Secure Test Cycles are not reduced.
-- Parts inside one question record are not reduced (see 11.4).
+- Parts inside one question record are not reduced (see 11.4). A multi-part question counts as one item, so a
+  reduction can never lighten the parts inside it; this stays a design limit, not a gap in the Classroom push.
 
 ## 12. Language access through Language tools (Translate, Vocabulary, Read aloud, Break it down, Help me say it)
 

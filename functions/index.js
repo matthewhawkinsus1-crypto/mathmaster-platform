@@ -10040,6 +10040,28 @@ exports.syncGradeToClassroom = onDocumentWritten(
       ...releaseSignaledAssignmentIds,
       ...recoveryChangedIds,
     ])];
+    /*
+     * A SUPPORT-PROFILE CHANGE THAT MOVES WHICH ITEMS THE STUDENT OWES (TT23).
+     *
+     * Saving a support profile writes only `grades/{id}.profile`, so a
+     * reduced-item-count accommodation changed on open work changed the grade
+     * MathMaster shows and left Classroom on the old one until the next answer.
+     * The assignments the change moved get the push an answer would give them,
+     * with one rule of their own below: it only corrects a grade Classroom
+     * already holds, and only when the grade really differs. (Parts inside one
+     * question are not reduced: design 11.9.)
+     */
+    const profileMovedIds = await studentWorkloadIndices.profileMovedAssignmentIds({
+      db: getFirestore(),
+      beforeData,
+      afterData,
+      onError: (error) => logger.warn("Support-profile change: could not tell which assignments it moved", {
+        studentId: event.params.studentId,
+        message: String(error?.message || error),
+      }),
+    });
+    const profileOnlyIds = new Set(profileMovedIds.filter((id) => !changedAssignmentIds.includes(id)));
+    changedAssignmentIds.push(...profileOnlyIds);
     if (changedAssignmentIds.length === 0) return;
 
     const db = getFirestore();
@@ -10378,6 +10400,9 @@ exports.syncGradeToClassroom = onDocumentWritten(
         // eslint-disable-next-line no-await-in-loop
         const priorAuditSnap = await db.doc(`classroomGradeSyncs/${syncId}`).get();
         const priorAudit = priorAuditSnap.exists ? priorAuditSnap.data() || {} : {};
+        // TT23: woken by a profile change alone, this column is corrected only
+        // if Classroom already holds a pushed grade and the grade now differs.
+        if (profileOnlyIds.has(assignmentId) && !studentWorkloadIndices.profileChangeNeedsPush(priorAudit, grade)) continue;
         const priorReturnConfirmed = priorAudit.returnedToStudent === true
           || String(priorAudit.submissionState || "").toUpperCase() === "RETURNED";
         if (
