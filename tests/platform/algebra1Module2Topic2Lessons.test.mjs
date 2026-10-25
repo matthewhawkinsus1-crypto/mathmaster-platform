@@ -12,17 +12,23 @@
  * the prompt's givens, so a key that is wrong cannot pass by agreeing with
  * itself.
  */
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import React from 'react';
 import { compileTeacherImport } from '../../scripts/check-teacher-import.mjs';
+import { closeEngine, loadEngine } from './helpers/actionBarRender.mjs';
+import { render, withBrowser } from './helpers/studentToolRender.mjs';
+import { STATIC_GRAPH_PLOT_ASPECT, fitStaticGraphViewport } from '../../src/graphSpecUtils.js';
 import { gradeMultiAnswerResponse, gradeTableResponse } from '../../functions/shared/ordinaryResponseGrading.mjs';
 import { gradeToolWork } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
 import { mapParentPoint } from '../../functions/shared/toolMath/transformations/transformationsMath.mjs';
 import { buildFigureMatchResponse } from '../../src/platform/workflow/figureMatch.js';
 import { gradeWorkflow } from '../../src/platform/workflow/workflowGrading.js';
+
+after(closeEngine);
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DIR = path.resolve(here, '../../teacher-import-jsons/algebra1-module2-topic2');
@@ -125,14 +131,14 @@ test('L2: the simplified equations are the algebra of the stated transformation'
     ['l2-cw-3', 'tSimplified', (x) => x + 3],
     ['l2-cw-5', 'qSimplified', (x) => j(x) + 4],
     ['l2-cw-5', 'rSimplified', (x) => j(x + 4)],
-    ['l2-cw-6', 'bSimplified', (x) => j(x - 2)],
+    ['l2-cw-6', 'uSimplified', (x) => j(x - 2)],
     ['l2-cw-6', 'vSimplified', (x) => j(x) - 2],
     ['l2-cw-10', 'twoJ', (x) => 2 * j(x)],
     ['l2-cw-10', 'jTwoX', (x) => j(2 * x)],
     ['l2-pr-12', 'gSimplified', (x) => (x - 4) + 1],
     ['l2-pr-12', 'hSimplified', (x) => 3 * x - 2],
-    ['l2-pr-13', 'mSimplified', (x) => -(x + 2) + 6],
-    ['l2-pr-13', 'nSimplified', (x) => (-x + 6) - 2],
+    ['l2-pr-13', 'pSimplified', (x) => -(x + 2) + 6],
+    ['l2-pr-13', 'sSimplified', (x) => (-x + 6) - 2],
     ['l2-dol-2', 'simplified', (x) => 3 * (x - 2) + 1],
   ];
   for (const [id, fieldId, rule] of checks) {
@@ -153,6 +159,82 @@ test('L2: the dilation table is keyed by the stated factors, and decimals are ac
   assert.equal(gradeTableResponse(question, right).isCorrect, true);
   assert.equal(gradeTableResponse(question, { ...right, '0:dx': '-1.6' }).isCorrect, false, 'c(x)\'s value in d(x)\'s input column is wrong');
 });
+
+test('L2: CW 9 names the column d draws its input in by the words its prompt uses, and says what a row is (CT04 / E3-43)', () => {
+  const question = compiled('L2', 'l2-cw-9');
+  const header = question.table.columns.find((column) => column.key === 'dx').label;
+  // The column read "input of d" and nothing said that a row's (new input, d(x)) is
+  // the point d draws. The walkthrough found it needed a second read and was the
+  // slowest item in the lesson (about five minutes).
+  assert.match(header, /new input/i, `"${header}" says the input is the new one`);
+  // After "Complete the table." the prompt walks the row: where it starts and where it
+  // lands for c and for d, naming every column by the header the student sees.
+  const walk = question.prompt.slice(question.prompt.indexOf('Complete the table.'));
+  assert.ok(walk.length > 'Complete the table.'.length, 'the prompt says what a row is');
+  question.table.columns.forEach((column) => assert.ok(walk.includes(column.label), `the prompt names the column "${column.label}" as the table does`));
+});
+
+test('L2: each function CW 10 looks back at is made by one Classwork question, and no function is named for a number its own question uses (CT04 / A2-43)', () => {
+  const classwork = LESSONS.L2.raw.sections[1].questions;
+  const lookBack = classwork.find((question) => /^Look back at/.test(question.prompt));
+  assert.ok(lookBack, 'CW 10 looks back at the functions made before it');
+  for (const name of ['a', 'b', 'c', 'd']) {
+    assert.match(lookBack.prompt, new RegExp(`\\b${name}\\(x\\)`), `CW 10 looks back at ${name}(x)`);
+    const makers = classwork.filter((question) => question !== lookBack && new RegExp(`\\b${name}\\(x\\)`).test(JSON.stringify(question)));
+    // CW 6 used to make a b(x) of its own ("j shifted right 2") and CW 8 another
+    // ("inputs × 1/2"), so "look back at b(x)" meant two functions.
+    assert.equal(makers.length, 1, `${name}(x) is made by ${makers.map((question) => question.questionId).join(' and ')}`);
+  }
+  // PR 13 named two functions m(x) and n(x), then asked about a line "with slope m"
+  // shifted "n units".
+  const pr13 = LESSONS.L2.raw.sections[2].questions.find((question) => question.questionId === 'l2-pr-13');
+  const named = [...pr13.prompt.matchAll(/\b([a-z])\(x\)\s*=/g)].map(([, name]) => name).filter((name) => name !== 'j');
+  assert.equal(named.length, 2, 'PR 13 makes two functions from j(x)');
+  const general = pr13.responses.find((response) => response.id === 'general').label;
+  const numbers = new Set(general.match(/\b[mn]\b/g));
+  assert.deepEqual([...numbers].sort(), ['m', 'n'], 'its last part talks about a slope m and a distance n');
+  named.forEach((name) => assert.ok(!numbers.has(name), `${name}(x) is also a number in the same question`));
+});
+
+test('L2: the Warm-Up graphs of g(x) = 3x − 8 and h(x) = −(2/3)x + 5 are drawn with equal units, so each slope looks its size (CT04 / A2-43)', () => {
+  for (const id of ['l2-wu-2', 'l2-wu-3']) {
+    const question = compiled('L2', id);
+    const [{ m, b }] = question.graph.functions;
+    // The picture a student sees: the authored window, reframed as GraphDisplay reframes it.
+    const framed = fitStaticGraphViewport(question.graph);
+    const width = framed.xMax - framed.xMin;
+    const height = framed.yMax - framed.yMin;
+    // One unit of x as long as one unit of y: the window is as wide, in units, as the
+    // plot is wide in pixels. Without it the fitter widened y to −50…30 to keep the
+    // steep line in frame and slope 3 drew at about half a unit of slope.
+    assert.ok(Math.abs(width / height - STATIC_GRAPH_PLOT_ASPECT) < 0.02, `${id}: ${width} × ${height} units is not the plot's shape`);
+    assert.ok(height <= 30, `${id}: y spans ${height} units`);
+    // Both intercepts the question asks for are on the page.
+    const inside = (x, y) => x >= framed.xMin && x <= framed.xMax && y >= framed.yMin && y <= framed.yMax;
+    assert.ok(inside(0, b), `${id}: the y-intercept (0, ${b}) is in the window`);
+    assert.ok(inside(-b / m, 0), `${id}: the x-intercept (${-b / m}, 0) is in the window`);
+  }
+});
+
+for (const [key, lesson] of Object.entries(LESSONS)) {
+  test(`${key}: every box that takes an expression is a math field, not a plain text box (CT04 / A2-43)`, async () => {
+    // The box chooser reads a key with no sign it knows as plain words, and a minus is
+    // not one (a hyphenated word must stay a word): "2x-5" was a text box beside "2x+3"
+    // as a math field, on the same kind of question. Rendered here, as a student sees it.
+    const { server } = await loadEngine();
+    const { default: MultiAnswerGrader } = await server.ssrLoadModule('/src/MultiAnswerGrader.jsx');
+    let boxes = 0;
+    for (const question of lesson.questions.filter((candidate) => candidate.type === 'multiAnswer')) {
+      const markup = await withBrowser(() => render(React.createElement(MultiAnswerGrader, { question, onStateChange() {}, onUndoStateChange() {}, feedback: null, draftKey: null })));
+      const typed = question.answerFields.filter((field) => field.type !== 'choice');
+      const words = typed.filter((field) => field.type === 'text');
+      boxes += typed.length;
+      assert.equal((markup.match(/<math-field\b/g) || []).length, typed.length - words.length, `${question.questionId}: a typed answer is in a math field`);
+      assert.equal((markup.match(/<input\b[^>]*type="text"/g) || []).length, words.length, `${question.questionId}: only a field that asks for words is a plain box`);
+    }
+    assert.ok(boxes >= 15, `${boxes} typed boxes were looked at`);
+  });
+}
 
 test('L2: the graph-sort matches each line to the equation that draws it', () => {
   const question = compiled('L2', 'l2-pr-8');

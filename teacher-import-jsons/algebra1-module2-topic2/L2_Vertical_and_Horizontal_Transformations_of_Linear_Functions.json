@@ -101,7 +101,8 @@
                 "m": 3,
                 "b": -8
               }
-            ]
+            ],
+            "equalUnits": true
           },
           "responses": [
             {
@@ -213,7 +214,8 @@
                 "m": -0.6666666666666666,
                 "b": 5
               }
-            ]
+            ],
+            "equalUnits": true
           },
           "responses": [
             {
@@ -718,23 +720,25 @@
           ],
           "dok": 3,
           "difficultyBand": 3,
-          "prompt": "Still using j(x) = 2x − 1: let b(x) be j(x) shifted RIGHT 2 units and v(x) be j(x) shifted DOWN 2 units.",
+          "prompt": "Still using j(x) = 2x − 1: let u(x) be j(x) shifted RIGHT 2 units and v(x) be j(x) shifted DOWN 2 units.",
           "responses": [
             {
-              "id": "bSimplified",
-              "label": "Simplify: b(x) = j(x − 2) =",
+              "id": "uSimplified",
+              "label": "Simplify: u(x) = j(x − 2) =",
+              "type": "math",
               "answer": "2x-5",
               "gradingMode": "equivalentExpression"
             },
             {
               "id": "vSimplified",
               "label": "Simplify: v(x) = j(x) − 2 =",
+              "type": "math",
               "answer": "2x-3",
               "gradingMode": "equivalentExpression"
             },
             {
               "id": "same",
-              "label": "Do b(x) and v(x) have the same graph?",
+              "label": "Do u(x) and v(x) have the same graph?",
               "type": "choice",
               "options": [
                 "Yes — they are the same line.",
@@ -756,7 +760,7 @@
             }
           ],
           "hints": [
-            "b(x) = 2(x − 2) − 1.",
+            "u(x) = 2(x − 2) − 1.",
             "v(x) = (2x − 1) − 2.",
             "For f(x) = x it worked because the slope is 1. Here the slope is 2."
           ],
@@ -937,7 +941,7 @@
           ],
           "dok": 2,
           "difficultyBand": 3,
-          "prompt": "c(x) changes the OUTPUT values of f(x) = x by a factor of 4/5. d(x) changes the INPUT values of f(x) = x by a factor of 5/4. Complete the table. Fractions or decimals are fine.",
+          "prompt": "c(x) changes the OUTPUT values of f(x) = x by a factor of 4/5. d(x) changes the INPUT values of f(x) = x by a factor of 5/4. Complete the table. Each row starts at the point with input x and output f(x). For c, it lands at x and c(x). For d, it lands at the new input for d and d(x). Fractions or decimals are fine.",
           "table": {
             "columns": [
               {
@@ -954,7 +958,7 @@
               },
               {
                 "key": "dx",
-                "label": "input of d"
+                "label": "new input for d"
               },
               {
                 "key": "dy",
@@ -1076,12 +1080,14 @@
             {
               "id": "twoJ",
               "label": "Simplify 2·j(x) =",
+              "type": "math",
               "answer": "4x-2",
               "gradingMode": "equivalentExpression"
             },
             {
               "id": "jTwoX",
               "label": "Simplify j(2x) =",
+              "type": "math",
               "answer": "4x-1",
               "gradingMode": "equivalentExpression"
             },
@@ -1871,6 +1877,7 @@
             {
               "id": "gSimplified",
               "label": "Simplify: g(x) =",
+              "type": "math",
               "answer": "x-3",
               "gradingMode": "equivalentExpression"
             },
@@ -1889,6 +1896,7 @@
             {
               "id": "hSimplified",
               "label": "Simplify: h(x) =",
+              "type": "math",
               "answer": "3x-2",
               "gradingMode": "equivalentExpression"
             }
@@ -1927,23 +1935,23 @@
           ],
           "dok": 3,
           "difficultyBand": 4,
-          "prompt": "Let j(x) = −x + 6. Let m(x) = j(x + 2) and n(x) = j(x) − 2.",
+          "prompt": "Let j(x) = −x + 6. Let p(x) = j(x + 2) and s(x) = j(x) − 2.",
           "responses": [
             {
-              "id": "mSimplified",
-              "label": "Simplify: m(x) =",
+              "id": "pSimplified",
+              "label": "Simplify: p(x) =",
               "answer": "-x+4",
               "gradingMode": "equivalentExpression"
             },
             {
-              "id": "nSimplified",
-              "label": "Simplify: n(x) =",
+              "id": "sSimplified",
+              "label": "Simplify: s(x) =",
               "answer": "-x+4",
               "gradingMode": "equivalentExpression"
             },
             {
               "id": "same",
-              "label": "Compare the graphs of m(x) and n(x).",
+              "label": "Compare the graphs of p(x) and s(x).",
               "type": "choice",
               "options": [
                 "They are the same line.",
@@ -1966,12 +1974,12 @@
             }
           ],
           "hints": [
-            "m(x) = −(x + 2) + 6.",
-            "n(x) = (−x + 6) − 2.",
+            "p(x) = −(x + 2) + 6.",
+            "s(x) = (−x + 6) − 2.",
             "Check the earlier cases: slope 1 moved left 3 = up 3; slope 2 moved left 4 = up 8."
           ],
           "scaffold": {
-            "prompt": "Let’s back up. To simplify m(x) = j(x + 2), what replaces x in −x + 6?",
+            "prompt": "Let’s back up. To simplify p(x) = j(x + 2), what replaces x in −x + 6?",
             "options": [
               "2",
               "x + 2"
@@ -2079,6 +2087,7 @@
             {
               "id": "simplified",
               "label": "Simplify: r(x) =",
+              "type": "math",
               "answer": "3x-5",
               "gradingMode": "equivalentExpression"
             },

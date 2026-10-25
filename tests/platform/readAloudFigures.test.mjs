@@ -82,9 +82,9 @@ test('a fillable table is read by rows with its headers, and a cell to fill in i
     assert.deepEqual(table.rows[Number(row)][index], { entered: '' }, `${key} is blank`);
   });
   const said = speechTextFor(tableReading(table));
-  assert.match(said, /^A table, 5 rows\. Columns: x; f of x; c of x; input of d; d of x\. Row 1: x, negative 2; f of x, negative 2; c of x, blank; input of d, blank; d of x, negative 2\./);
+  assert.match(said, /^A table, 5 rows\. Columns: x; f of x; c of x; new input for d; d of x\. Row 1: x, negative 2; f of x, negative 2; c of x, blank; new input for d, blank; d of x, negative 2\./);
   // No row says a value where the student writes one.
-  assert.doesNotMatch(said, /c of x, (?!blank)|input of d, (?!blank)/);
+  assert.doesNotMatch(said, /c of x, (?!blank)|new input for d, (?!blank)/);
 });
 
 test('even when the row data holds the answer, a cell to fill in is read "blank"', () => {
@@ -392,9 +392,9 @@ test('S5: a cell the student filled is read as what they wrote; an empty one is 
   const question = real('l2-cw-9');
   const table = displayTableFor(question, { editable: true, entries: { '0:cx': ' 8/5 ', '1:cx': '' } });
   const said = speechTextFor(tableReading(table));
-  assert.match(said, /Row 1: x, negative 2; f of x, negative 2; c of x, you wrote 8 over 5; input of d, blank;/, said);
+  assert.match(said, /Row 1: x, negative 2; f of x, negative 2; c of x, you wrote 8 over 5; new input for d, blank;/, said);
   assert.match(said, /Row 2: x, negative 1; f of x, negative 1; c of x, blank;/);
-  assert.match(tableReading(table, { language: 'es' }), /c de x, escribiste 8\/5; input of d, en blanco/);
+  assert.match(tableReading(table, { language: 'es' }), /c de x, escribiste 8\/5; new input for d, en blanco/);
   // The reader is handed the student's text only — no grade travels with it,
   // so on a DOL, quiz or test before release there is no verdict to say.
   assert.doesNotMatch(said, /correct|wrong|check this|✓|✗/i);

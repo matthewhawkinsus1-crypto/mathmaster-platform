@@ -167,9 +167,9 @@ for (const device of DEVICES) {
     const { page, context } = await open(device, 'q=table&role=classwork&support=read');
     await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
     const said = (await lastSpoken(page))?.text || '';
-    check(/A table, 5 rows\. Columns: x; f of x; c of x; input of d; d of x\. Row 1: x, negative 2; f of x, negative 2; c of x, blank; input of d, blank; d of x, negative 2\./.test(said), `${device.name}: the table is read by rows with its headers`, said.slice(0, 260));
+    check(/A table, 5 rows\. Columns: x; f of x; c of x; new input for d; d of x\. Row 1: x, negative 2; f of x, negative 2; c of x, blank; new input for d, blank; d of x, negative 2\./.test(said), `${device.name}: the table is read by rows with its headers`, said.slice(0, 260));
     const answers = await page.evaluate(() => window.__mmAnswers);
-    const filled = [...said.matchAll(/(?:c of x|input of d), ([^;.]+)/g)].map((match) => match[1]);
+    const filled = [...said.matchAll(/(?:c of x|new input for d), ([^;.]+)/g)].map((match) => match[1]);
     check(answers.length >= 10 && filled.length === 10 && filled.every((cell) => cell === 'blank'), `${device.name}: every cell to fill in is "blank", never its answer`, filled.join(' | '));
     const partsButton = page.locator('[data-support-tool="read-parts"]').first();
     if (await partsButton.count()) {
@@ -197,7 +197,7 @@ for (const device of DEVICES) {
     const read = page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]');
     await read.click();
     const before = (await lastSpoken(page))?.text || '';
-    check(/Row 1: x, negative 2; f of x, negative 2; c of x, you wrote 8 over 5; input of d, blank;/.test(before), `${device.name}: the student's own entry is read as theirs`, before.slice(0, 320));
+    check(/Row 1: x, negative 2; f of x, negative 2; c of x, you wrote 8 over 5; new input for d, blank;/.test(before), `${device.name}: the student's own entry is read as theirs`, before.slice(0, 320));
     const inputs = page.locator('table input');
     const count = await inputs.count();
     for (let index = 0; index < count; index += 1) await inputs.nth(index).fill('1');
