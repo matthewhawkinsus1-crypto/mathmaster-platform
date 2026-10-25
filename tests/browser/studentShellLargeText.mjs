@@ -19,7 +19,9 @@
  *          graphs, tables and canvases excepted, as 1.4.10 exempts them.
  *          Scenes: the certification's student screens, plus (job N, the
  *          px→rem sweep) more assignment tools, Recovery on Home and in the
- *          Assignments Center, and the teacher workspace (Home, a class).
+ *          Assignments Center, and the teacher workspace (Home, a class), plus
+ *          (CI01, VH-29) the registry-tools screen: eight registry tools in CI,
+ *          every one with LARGE_TEXT_REGISTRY_TOOLS=all (or a list of ids).
  * default  The sweep must not change the default size: every scene at 100%
  *          text, both viewports, screenshotted to --shots=<dir>; with
  *          --compare=<dir> (shots taken before the change) each pair is
@@ -102,6 +104,11 @@ const MEASURE = (rootSelector) => {
   const srOnly = (element) => {
     for (let node = element; node && node !== document.body; node = node.parentElement) {
       const style = getComputedStyle(node);
+      // A `display: contents` wrapper has no box of its own, so it reads 0×0
+      // without hiding anything. Work View's body is one when a tool sits in the
+      // page: until this skip, every text box of a tool read as visually hidden
+      // and was never measured (CI01, VH-29).
+      if (style.display === 'contents') continue;
       const rect = node.getBoundingClientRect();
       if ((style.clip && style.clip !== 'auto') || style.clipPath === 'inset(50%)' || (rect.width <= 1 && rect.height <= 1)) return true;
     }
@@ -186,9 +193,9 @@ const MEASURE = (rootSelector) => {
 
 // Job N: the surfaces the px→rem sweep reached that the certification's
 // screens do not show.
-const toolQuestion = (questionId) => async (page, origins, { first }) => {
+const toolQuestion = (questionId, extraQuery = '') => async (page, origins, { first }) => {
   if (first) {
-    await page.goto(`${origins.audit}/tests/browser/studentUxPlatform.html?q=${questionId}&run=a11y`, { timeout: 180_000 });
+    await page.goto(`${origins.audit}/tests/browser/studentUxPlatform.html?q=${questionId}&run=a11y${extraQuery}`, { timeout: 180_000 });
     await page.waitForFunction((qid) => window.__ux && document.querySelector(`[data-question-id="${qid}"]`), questionId, { timeout: 180_000 });
   } else {
     await page.evaluate((qid) => window.__ux.go(qid), questionId);
@@ -244,6 +251,33 @@ const rushRound = async (page, origins, context) => {
   if (covered.length) throw new Error(`the Rush round's top row is covered: ${covered.join('; ')}`);
 };
 
+// CI01 (VH-29): registry tools the scenes above never showed, each its own
+// sample spec in the real QuestionEngine (the UX harness' ?tools=1 section, as
+// the Work View certification mounts them). All 21 below pass 200% text, 320 px,
+// text spacing and target size (measured 2026-10-25 with the sr-only fix above:
+// 12.6 minutes for the 21 on a loaded machine, so about 0.6 per tool). CI
+// carries the eight with the most layout to lose (a table and plot, a plane, a
+// grid, cards, a number line, a mapping, a multi-representation board).
+// LARGE_TEXT_REGISTRY_TOOLS=all, or a comma list of ids, measures others by hand.
+const ALL_REGISTRY_TOOLS = [
+  'dataModelingLab', 'regressionCalculator', 'inverseCompositionLab', 'functionOperationsLab', 'systemsWorkspace',
+  'parabolaGeometryLab', 'polynomialWorkshop', 'signSolutionAnalyzer', 'sequenceExplorer', 'complexPlaneLab',
+  'exponentialLogBridge', 'transformationsLab', 'functionInvestigation2', 'solutionReview2', 'intervalNumberLine',
+  'relationMapping', 'openSortBoard', 'constraintFunctionBuilder', 'expressionMeaning', 'representationBridge', 'matrixLab',
+];
+const CI_REGISTRY_TOOLS = [
+  'dataModelingLab', 'regressionCalculator', 'systemsWorkspace', 'intervalNumberLine',
+  'relationMapping', 'openSortBoard', 'representationBridge', 'matrixLab',
+];
+const REGISTRY_TOOLS = (() => {
+  const asked = process.env.LARGE_TEXT_REGISTRY_TOOLS;
+  if (asked === 'all') return ALL_REGISTRY_TOOLS;
+  return asked ? asked.split(',').filter(Boolean) : CI_REGISTRY_TOOLS;
+})();
+
+// A tool whose sample spec names its own question id keeps it in the harness' list.
+const REGISTRY_QUESTION_IDS = { expressionMeaning: 'preview-expression-meaning', matrixLab: 'preview-matrix-lab' };
+
 export const LARGE_TEXT_SCREENS = [
   ...SCREENS,
   { id: 'graph-feature-rush', open: liveChallenge.open, scenes: [{ id: 'round', run: rushRound }] },
@@ -254,6 +288,11 @@ export const LARGE_TEXT_SCREENS = [
       { id: 'multiple-responses', run: toolQuestion('ux-multi') },
       { id: 'representation-match', run: toolQuestion('ux-rm-table') },
     ],
+  },
+  {
+    id: 'registry-tools',
+    include: '.mathmaster-question-stage',
+    scenes: REGISTRY_TOOLS.map((toolId) => ({ id: toolId, run: toolQuestion(REGISTRY_QUESTION_IDS[toolId] || `tool-${toolId}`, '&tools=1') })),
   },
   {
     id: 'recovery',
