@@ -447,9 +447,22 @@ game stops calibrating.
   (`setStudentClass`, `createStudentAccount`, `assignStudentToTeacher` call
   `inviteStudentToClassLiveChallenge`): the next seat and code name, an invite
   their screen follows at once, and the late-join rule below. A student whose
-  invite is for another class's game that is still live is left in it. Game names are handed
+  invite is for another class's game that is still live is left in it: **a
+  student moved between two classes that both have a game stays in the first**
+  (decided 2026-10-25, LC02; nothing invites a student out of a room, because
+  leaving a game is a removal, which is not built, §14). Game names are handed
   out in a shuffled order, so a name's number says nothing about who holds
   it, and a Warm-Up link must be one of the class's own assignments.
+- **A bulk roster change invites too** (LC02, `liveChallengeBulkInvite.mjs`):
+  `saveClass` (an administrator editing a class restamps its students' teacher
+  and period, which also repairs a student whose stored teacher had drifted
+  off the class, so a game created earlier did not invite them) and
+  `migrateClassesFromPeriods` hand the students they moved to the same safe
+  single invite, after the change is made and audited. A teacher with no
+  active game costs one read however many students moved; one with a game has
+  each moved student invited in turn, within 15 seconds (the rest sit out this
+  game, and the log says how many); a failure is logged and never fails the
+  roster change.
 - **Late join**: a rostered student who arrives after the start joins at once
   and plays from the round that is open now — the server records
   `joinedAtRound`, a round that already closed is not counted against them,
@@ -547,5 +560,38 @@ GC) flat across them.
   Count; only the setup control is missing).
 - **Teacher removal of a student** from a running game (removal happens
   through account deletion). Adding a student mid-game invites them (§10).
+  Looked at for LC02 (VH-55) and not built, because it is not small and safe;
+  what it needs, so the next person does not start from a grep:
+  - *A callable* (`removeLiveChallengePlayer`, room owner only, lobby or
+    running) doing in ONE transaction what `deleteStudentLiveChallengeFootprint`
+    does for the room a deleted student is in: the private roster row, the
+    public player row, diagnostics, their summary, and their invite when it
+    names this room.
+  - *A tombstone* (`privateState.removedStudentIds`) that `joinLiveChallenge`
+    and the late invite honour, or the next roster change invites them straight
+    back (with a new seat and a new code name).
+  - *Seat bookkeeping.* `eligibleCount` is both the console's "N invited" and
+    the next seat a late invite allocates (the code name's seed): it cannot be
+    decremented. The console needs a `removedCount` to subtract.
+  - *Engine effects to decide and test:* a round that closes when every joined
+    player has answered (the denominator shrinks mid-round); Grand Prix's field
+    size for later rounds; the public tables already published for earlier
+    rounds, which keep a row for a player the final result will not have;
+    reports, recognitions, class points and rewards (none for a removed
+    student); a graded Warm-Up game, where a removed student has no grade for
+    it, which the teacher must be told before they press the button.
+  - *The student's screen:* the room listener fails once their invite is
+    gone, and shows a generic error; it needs "Your teacher removed you from
+    this game".
+  - *The console:* a Remove control on a roster row with `ConfirmDialog`, a
+    service wrapper, and the bridge and stub the browser harness swaps in
+    (`tests/browser/emulator/liveChallengeBridgeService.js`,
+    `liveChallengeServiceStub.js`).
+  - *Certification:* emulator tests for each stage (lobby, between rounds,
+    mid-round, after the student answered, a graded Warm-Up) and a browser run
+    with a removed student's screen open.
+  A moved student leaving the first game (C2-44) is this removal plus a late
+  invite, and should wait for it; skip graded Warm-Up games and students who
+  already answered.
 - **A lobby, or a Pace Race round, nobody comes back to** is not ended by the
   server (§4); it waits for the teacher to finish or cancel it.

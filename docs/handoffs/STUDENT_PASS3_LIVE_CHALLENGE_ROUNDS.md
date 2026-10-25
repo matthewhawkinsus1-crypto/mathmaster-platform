@@ -284,8 +284,13 @@ before that deploy, and delete such a field (or set it to `true`). Writing
    (`hostEndedNote`, challengeShellModel.js).
 4. **A student moved between two classes with live games** stays in the first
    game.
+   **Decided 2026-10-25 (LC02): stays.** Leaving a game is a removal, which is
+   not built (`live-challenge-shell.md` §14); the single invite never takes a
+   student out of a room, and an integration test pins it.
 5. **Bulk roster paths** (`migrateClassesFromPeriods`, `saveClass`) do not
    late-invite.
+   **Built 2026-10-25 (LC02):** both invite the students they move, through the
+   same safe wrapper (`functions/shared/liveChallengeBulkInvite.mjs`).
 
 ## Not done, and known limits
 

@@ -4720,10 +4720,15 @@ exports.saveClass = onCall(async (request) => {
   // here has to reach them in the same operation or the two disagree — which is
   // exactly the "admin says one thing, teacher sees another" failure.
   let rostersUpdated = 0;
+  // The students' stored teachers as they are BEFORE the restamp: what says
+  // which of them it newly puts under the class's teacher, and so who is
+  // invited into that teacher's game below, if one is on (LC02).
+  let storedTeachers = [];
   const periodChanged = !isNew && existing?.period !== record.period;
   const teacherChanged = !isNew && (existing?.teacherOfRecord || null) !== record.teacherOfRecord;
   if (periodChanged || teacherChanged) {
     const members = await db.collection("grades").where("classId", "==", ref.id).get();
+    storedTeachers = members.docs.map((member) => ({ studentId: member.id, assignedTeacherEmail: member.data()?.assignedTeacherEmail ?? null }));
     const batch = db.batch();
     members.docs.forEach((member) => {
       batch.set(member.ref, {
@@ -4747,6 +4752,9 @@ exports.saveClass = onCall(async (request) => {
   }
 
   await writeAdminAudit(db, actor, isNew ? "class_created" : "class_updated", ref.id, { ...record, rostersUpdated });
+  // The roster change is whole, and audited, before any game is asked; a game
+  // that cannot be reached never fails it.
+  await inviteStudentsToClassLiveChallengeSafely(db, (bulk) => bulk.movedByClassRestamp({ members: storedTeachers, teacherEmail: record.teacherOfRecord }));
   return { classId: ref.id, ...record, rostersUpdated };
 });
 
@@ -4851,6 +4859,10 @@ exports.migrateClassesFromPeriods = onCall(async (request) => {
     }
 
     await writeAdminAudit(db, actor, "classes_migrated_from_periods", "classes", plan.report);
+
+    // A student the migration attached to a class whose teacher has a game on
+    // is invited into it, as setStudentClass would (LC02).
+    await inviteStudentsToClassLiveChallengeSafely(db, (bulk) => bulk.movedFromMigrationUpdates(plan.studentUpdates));
   }
 
   return { dryRun, ...plan.report };
@@ -11546,6 +11558,20 @@ async function updateLiveChallengeInvitesByRoom(db, { roomId, teacherEmail, fiel
  * Never takes a student out of another game: an invite to a different room
  * that is still live is left alone. Only a game active in the last 12 hours.
  * Never fails the roster change.
+ *
+ * A STUDENT MOVED BETWEEN TWO CLASSES THAT BOTH HAVE A GAME STAYS IN THE FIRST
+ * (decided 2026-10-25, LC02 / C2-44; pinned by the integration test "a student
+ * already in another live game is not pulled out of it"). Leaving a game is a
+ * removal — their seat, their points so far, a graded Warm-Up's grade — and
+ * the game has no teacher-side removal yet (live-challenge-shell.md §14), so
+ * nothing here ever takes a student out of a room. The new class's game
+ * invites them once the first one ends or is cancelled and the roster is
+ * touched again, or in its next game.
+ *
+ * The callers: one student at a time (setStudentClass,
+ * assignStudentToTeacher, createStudentAccount) and, for a bulk roster change,
+ * saveClass and migrateClassesFromPeriods through
+ * inviteStudentsToClassLiveChallengeSafely (liveChallengeBulkInvite.mjs).
  */
 // A game idle longer than this is not "on" for a newly enrolled student.
 const LIVE_CHALLENGE_LATE_INVITE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
@@ -11644,6 +11670,41 @@ async function inviteStudentToClassLiveChallengeSafely(db, studentId) {
   } catch (error) {
     logger.error("liveChallenge.lateInvite.failed", { message: error?.message || String(error) });
     return { invited: false, reason: "failed" };
+  }
+}
+
+// A BULK roster change's invites (saveClass, migrateClassesFromPeriods): the
+// rules are pure and live beside the single invite's, in
+// shared/liveChallengeBulkInvite.mjs.
+let liveChallengeBulkInviteModule = null;
+async function liveChallengeBulkInvite() {
+  if (!liveChallengeBulkInviteModule) liveChallengeBulkInviteModule = await import("./shared/liveChallengeBulkInvite.mjs");
+  return liveChallengeBulkInviteModule;
+}
+
+/**
+ * After a BULK roster change: invite the students it moved into their
+ * teacher's game, if one is on — each through the safe single invite, so the
+ * same rules apply (never out of another game, only a game active in the last
+ * 12 hours). One small read per teacher; only a teacher with a game is asked
+ * about their students, one at a time, within a time budget. Never throws:
+ * the roster change is already made. `moved` is the list of moves, or a
+ * function of the rules module that makes it, so nothing about who moved is
+ * worked out outside this guard.
+ */
+async function inviteStudentsToClassLiveChallengeSafely(db, moved) {
+  try {
+    const bulk = await liveChallengeBulkInvite();
+    const summary = await bulk.inviteMovedStudents({
+      moved: typeof moved === "function" ? await moved(bulk) : moved,
+      hasGame: async (teacherEmail) => Boolean(String((await db.collection(LIVE_CHALLENGE_TEACHER_ACTIVE).doc(teacherEmail).get()).data()?.roomId || "").trim()),
+      invite: (studentId) => inviteStudentToClassLiveChallengeSafely(db, studentId),
+    });
+    if (summary.invited || summary.notReached) logger.info("liveChallenge.bulkLateInvite", summary);
+    return summary;
+  } catch (error) {
+    logger.error("liveChallenge.bulkLateInvite.failed", { message: error?.message || String(error) });
+    return { considered: 0, invited: 0, notReached: 0, failed: true };
   }
 }
 
