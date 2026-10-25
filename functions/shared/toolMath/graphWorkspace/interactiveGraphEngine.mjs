@@ -27,9 +27,6 @@ const reorderWithKeyInMiddle = (points, keyPoint) => {
   return output.slice(0, 5);
 };
 
-/** A workflow graph plots every row of the student's table, up to this many. */
-export const MAX_WORKFLOW_POINT_TASKS = 12;
-
 export const buildInteractivePointTasks = (spec, options = {}) => {
   const keyPoint = getGraphKeyPoint(spec);
   const suggested = Array.isArray(options.points) && options.points.length ? options.points : getSuggestedGraphPoints(spec);
@@ -52,8 +49,14 @@ export const buildInteractivePointTasks = (spec, options = {}) => {
     // Every one: a six-row table (x = 0…5) once offered P1–P5 only, so the
     // last row could not be plotted, "All point placements are correct" was
     // said with a point missing, and the graph was marked right without it
-    // (walkthrough 2026-10-22, DOL #3 PR 2). The cap only bounds a runaway list.
-    suggested.slice(0, MAX_WORKFLOW_POINT_TASKS).forEach((point, index) => tasks.push({
+    // (walkthrough 2026-10-22, DOL #3 PR 2). A cap of 12 then did the same to
+    // rows 13–20 of a 20-row table, which the workflow allows (TL48), so there
+    // is no cap. The list is never the student's to lengthen: it is the
+    // authored table's rows (the server rebuilds them from the question), or a
+    // generated question's five points. And a graph whose work cannot carry a
+    // placement for every row (the work keeps 100, graphWorkspaceModel.mjs)
+    // can never be finished, so it is never marked right with a row missing.
+    suggested.forEach((point, index) => tasks.push({
       id: `point-${index + 1}`,
       label: `P${index + 1}`,
       role: 'point',
