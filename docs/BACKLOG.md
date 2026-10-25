@@ -315,7 +315,7 @@ one prop swapped, not a copy of it — a lookalike would reassure a teacher abou
 a screen students never see.
 
 ### A `liveChallenge` authoring contract slice
-**Status:** open · do after the selector
+**Status:** slice and timing validator built (LC14, 2026-10-25) · the request that hands it to an outside AI, and the import, are not
 
 A challenge question has constraints an assignment question does not: answerable
 in 45 seconds, single part, no multi-stage tool, no scratchpad dependency,
@@ -323,8 +323,25 @@ unambiguous when read fast. `CONTRACT_SLICES` and the `issuable` template gate
 already exist; this adds the slice and a timing validator so an outside AI can
 produce usable rounds.
 
-Worth doing **after** the selector, so the constraints are written from what a
-good round turned out to be in practice.
+**Built.** `CONTRACT_SLICES.liveChallenge` (authoringContract.js) is the V5
+wrapper and question rules plus a "Live Challenge rounds" section
+(`liveChallengeContract.js`) that the full Assignment V5 contract does not
+carry. Its numbers are read from `functions/shared/liveChallengeRoundTiming.mjs`,
+the timing validator: per question it applies the game's own gates (a live round
+can draw the answer; a DOK 3 question only in a round the game fits to 90 seconds
+or more, DOK 4 never in a timed round) and warns about what is probably unfair
+(reading takes more than 40% of the round at 3 words a second, several answer
+boxes, a request to explain); per set it checks 3-20 rounds of 15-120 seconds.
+`tests/platform/liveChallengeContractSlice.test.mjs` reads the section's numbers
+out of its text and plays them against the validator.
+
+**Not built.** (1) The teacher-facing "Copy a prompt for an outside AI" on the
+create panel, which would wrap this slice the way `questionRepairRequest.js`
+wraps its own. (2) Running the validator anywhere a teacher sees it: the Question
+Library's import preview is the natural place. (3) Judging "unambiguous when read
+fast", a scratchpad dependency or a multi-stage tool: no data says which tools
+are multi-stage, so the section only tells the author. The reading pace and share
+are assumptions chosen in LC14; adjust them from what real rounds show.
 
 ### ~~Export a challenge as JSON~~ — shipped
 **Status:** shipped
@@ -366,6 +383,22 @@ time, with no preflight and no way to back out mid-game.
 
 So this waits on the `liveChallenge` contract slice and the timing validator.
 Export first, import second.
+
+**After LC14 (2026-10-25) the slice and validator exist; the import does not.**
+What the import still needs: (1) a callable that takes `parseChallengeExport`'s
+payload and, for each `questionId`, loads the bank question and runs
+`safeBuildTemplateIssuePlan` (the gate every drawn question passes today), the
+liveChallengeEligible readiness check and `validateChallengeRoundSet` with the
+file's `roundSeconds`, refusing the whole set with a sentence per round when any
+fails, because a question can have been retired or edited since it was exported;
+(2) a way to start a game from the validated ids in the order given (the
+create path draws from candidates today, so this is a new planner source that
+fixes `questionIds` instead of sampling); (3) the rules for who may import (the
+teacher whose class it is) and a size limit; (4) a console control and an
+emulator test that a stale id, a retired question and a too-long set are each
+refused before a student sees anything. The export's rounds carry bank ids only,
+so a set an outside AI authors reaches the bank through the Question Library
+first (its own server validation), then is exported or chosen by id.
 
 ### More ways to be recognised at the end
 **Status:** open

@@ -16,6 +16,7 @@ import { QUESTION_TYPE_CATALOG, REPRESENTATIONS } from './questionTypeCatalog.js
 import { TYPES_THAT_RENDER_A_TABLE } from './semanticValidation.js';
 import { AUTHORING_INTENT_V5_ACTIONS } from './authoringIntentV5.js';
 import { allRegisteredQuestionFamilies } from '../../../functions/shared/questionFamilyRegistry.mjs';
+import { LIVE_CHALLENGE_SECTION, liveChallengeSectionLines } from './liveChallengeContract.js';
 import { ANALYSIS_NOTATIONS, NOTATION_ANALYSIS_KINDS, POINT_FEATURES } from '../../analysisRequestCatalog.js';
 import {
   ALIGNMENT_FRAMEWORK_IDS,
@@ -519,7 +520,7 @@ export const AUTHORING_INTENT_SCHEMA_NAME = 'MathMaster Assignment V5';
  * Canonical teacher-facing Assignment V5 contract. Outside AIs author
  * mathematical intent; MathMaster chooses renderer implementation details.
  */
-export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = null } = {}) => [
+export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = null, includeLiveChallenge = false } = {}) => [
   `# ${AUTHORING_INTENT_SCHEMA_NAME}`,
   `Generated from MathMaster on ${generatedAt.toISOString().slice(0, 10)}.`,
   '',
@@ -684,6 +685,9 @@ export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = nu
   '- Use the live Assignment Question Editor → Copy Safe Repair Pack Prompt. That prompt contains the protected before-state and requires kind "mathmasterSafeLiveRepairPack" with replacementQuestions keyed to existing question IDs.',
   '- Safe live packs may change only MathMaster-approved response-entry mechanics. They may not silently rewrite prompts, mathematics, graphs/tables, standards, question IDs/order, weights, or student state.',
   '',
+  // Only in the "liveChallenge" slice: an assignment prompt never carries it
+  // (liveChallengeContract.js).
+  ...(includeLiveChallenge ? liveChallengeSectionLines() : []),
   '## Output',
   'Return exactly one MathMaster Assignment V5 JSON object. Older assignment formats and raw question arrays are unsupported.',
   ...guidanceSections(),
@@ -781,9 +785,9 @@ const splitByMark = (text, mark) => {
   return chunks.map((chunk) => ({ name: chunk.name, text: chunk.lines.join('\n').trimEnd() }));
 };
 
-/** Every section heading the contract currently produces. */
+/** Every section heading the contract can produce, including the one only a slice carries. */
 export const authoringContractSections = (options = {}) => splitByMark(
-  buildAuthoringContract(options), SECTION_MARK,
+  buildAuthoringContract({ ...options, includeLiveChallenge: true }), SECTION_MARK,
 ).map((section) => section.name);
 
 /**
@@ -797,7 +801,9 @@ export const buildContractSlice = ({
   courseId = null,
   generatedAt = new Date(),
 } = {}) => {
-  const full = buildAuthoringContract({ courseId, generatedAt });
+  const full = buildAuthoringContract({
+    courseId, generatedAt, includeLiveChallenge: sections.includes(LIVE_CHALLENGE_SECTION),
+  });
   const parts = splitByMark(full, SECTION_MARK);
   const byName = new Map(parts.map((part) => [part.name, part.text]));
 
@@ -842,6 +848,16 @@ export const CONTRACT_SLICES = Object.freeze({
   ]),
   publishingPackage: Object.freeze([
     'PDF / printable output',
+    'Output',
+  ]),
+  // Questions for a timed class game (LC14): the V5 wrapper and question
+  // rules, plus the round's own limits. The result is still one V5 object.
+  liveChallenge: Object.freeze([
+    LIVE_CHALLENGE_SECTION,
+    'Required assignment shape',
+    'Section rules',
+    'Question authoring',
+    'Common studentActions',
     'Output',
   ]),
 });
