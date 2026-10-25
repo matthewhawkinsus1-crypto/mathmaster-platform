@@ -20,6 +20,7 @@ import { isRootAdminEmail } from '../../../functions/shared/rolePolicy.mjs';
 import { getChallengeMode } from '../../../functions/shared/liveChallengeModes.mjs';
 import { LINE_GRAPH_MODE_IDS } from '../../../functions/shared/lineGraphRules.mjs';
 import { LiveChallengeAudioDirector } from '../../platform/liveChallenge/liveChallengeAudio.js';
+import { teacherErrorSentence } from '../../platform/teacher/teacherErrorWords.js';
 import {
   EXTENDED_TIME_HOST_HINT,
   EXTENDED_TIME_MESSAGE,
@@ -437,7 +438,10 @@ export default function LiveChallengeTeacher({
     return watchLiveChallengeRoom(roomId, (next) => {
       setRoomMissing(!next);
       setRoom((current) => acceptChallengeSnapshot(current, next));
-    }, (error) => setMessage(error?.message || 'Could not load the Live Challenge.'));
+    }, (error) => {
+      console.warn('Live Challenge room listener failed:', error);
+      setMessage(teacherErrorSentence(error, 'Could not load the Live Challenge.'));
+    });
   }, [roomId]);
   // CLOCK CALIBRATION, only while the game can still need a clock: the lobby
   // (its first countdown) and the rounds. A finished game stops calling.
@@ -465,7 +469,10 @@ export default function LiveChallengeTeacher({
   }, [roomId]);
   useEffect(() => {
     if (!roomId) { setPlayers([]); return undefined; }
-    return watchLiveChallengePlayers(roomId, setPlayers, (error) => setMessage(error?.message || 'Could not load Live Challenge players.'));
+    return watchLiveChallengePlayers(roomId, setPlayers, (error) => {
+      console.warn('Live Challenge player listener failed:', error);
+      setMessage(teacherErrorSentence(error, 'Could not load Live Challenge players.'));
+    });
   }, [roomId]);
   // The names behind the game aliases, for this console: once per room — in the
   // lobby, during the game AND after it (the server reads a finished game's
@@ -624,7 +631,11 @@ export default function LiveChallengeTeacher({
     setBusy(key);
     setMessage('');
     try { return await task(); }
-    catch (error) { setMessage(error?.message || 'Live Challenge action failed.'); return null; }
+    catch (error) {
+      console.warn(`Live Challenge action failed (${key}):`, error);
+      setMessage(teacherErrorSentence(error, 'Live Challenge action failed.'));
+      return null;
+    }
     finally { setBusy(''); }
   };
 
@@ -695,8 +706,9 @@ export default function LiveChallengeTeacher({
         try {
           await configureLiveChallengeExperience({ roomId: created.roomId, speedInfluencePercent: 0, playerDisplayMode });
         } catch (configurationError) {
+          console.warn('Live Challenge lobby settings were not saved:', configurationError);
           await cancelLiveChallenge({ roomId: created.roomId }).catch(() => {});
-          throw new Error(`The lobby was cancelled because its name settings could not be secured. ${configurationError?.message || ''}`.trim());
+          throw new Error('The lobby was cancelled because its name settings could not be secured. Try again.');
         }
         return created;
       }
@@ -743,8 +755,9 @@ export default function LiveChallengeTeacher({
       try {
         await configureLiveChallengeExperience({ roomId: created.roomId, speedInfluencePercent, playerDisplayMode });
       } catch (configurationError) {
+        console.warn('Live Challenge lobby settings were not saved:', configurationError);
         await cancelLiveChallenge({ roomId: created.roomId }).catch(() => {});
-        throw new Error(`The lobby was cancelled because its scoring/name settings could not be secured. ${configurationError?.message || ''}`.trim());
+        throw new Error('The lobby was cancelled because its scoring/name settings could not be secured. Try again.');
       }
       return created;
     });
@@ -856,8 +869,9 @@ export default function LiveChallengeTeacher({
       try {
         await configureLiveChallengeExperience({ roomId: created.roomId, ...replayExperienceFromRoom(room) });
       } catch (configurationError) {
+        console.warn('Live Challenge lobby settings were not saved:', configurationError);
         await cancelLiveChallenge({ roomId: created.roomId }).catch(() => {});
-        throw new Error(`The new lobby was cancelled because its name settings could not be secured. ${configurationError?.message || ''}`.trim());
+        throw new Error('The new lobby was cancelled because its name settings could not be secured. Try again.');
       }
       return created;
     });
