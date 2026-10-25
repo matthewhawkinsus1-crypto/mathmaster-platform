@@ -19,7 +19,7 @@ import { exactConstantValue } from './exactConstantValue.mjs';
 import { sameExpandedPolynomialExpression } from './expandedPolynomialExpressionEquivalence.mjs';
 import { sameMonomialQuotient } from './monomialQuotientEquivalence.mjs';
 import { sameLinearInequality } from './linearInequalityEquivalence.mjs';
-import { LINE_FORMS, LINE_FORM_ANY, sameLine, wholeMultipleOfLine, writtenLineForm } from './linearEquationForm.mjs';
+import { LINE_FORMS, LINE_FORM_ANY, pointSlopeParts, sameLine, wholeMultipleOfLine, writtenLineForm } from './linearEquationForm.mjs';
 export { sameNonnegativeRadicalExpression } from './nonnegativeRadicalExpressionEquivalence.mjs';
 export { sameRationalExpression } from './rationalExpressionEquivalence.mjs';
 
@@ -1563,15 +1563,24 @@ export const sameCompoundInequality = (left, right, tolerance = 1e-6) => {
  * the line written through one of its points. `y - 7 = 2(x - 2)` is the same
  * line through another of its points, in the same form, and is right. It stays
  * a form comparison: the answer must itself be written y − y₁ = m(x − x₁)
- * (writtenLineForm), so `y = 2x + 3` is still another form for a point-slope
+ * (pointSlopeParts), so `y = 2x + 3` is still another form for a point-slope
  * question, and the rule never reads a key written in another form.
+ *
+ * GR19: the form is read from its structure, not guessed from a bracketed x:
+ * `y − 7 = x + (x − 4)` is the key's line in no form and is not this rule's,
+ * while `y − 0 = 2(x + 1.5)` is the form through (−1.5, 0) and is. The slope
+ * and the point are compared within the caller's tolerance (a field's own
+ * numericTolerance; 0 on an exact Path field, with a floor for floating
+ * point only), never a fixed one.
  */
-const samePointSlopeLine = (student, key) => {
-  const studentText = normalizeAnswer(student);
-  const keyText = normalizeAnswer(key);
-  return writtenLineForm(keyText) === LINE_FORMS.POINT_SLOPE
-    && writtenLineForm(studentText) === LINE_FORMS.POINT_SLOPE
-    && sameLine(studentText, keyText);
+const samePointSlopeLine = (student, key, tolerance = 1e-6) => {
+  const answer = pointSlopeParts(normalizeAnswer(student));
+  const keyed = answer && pointSlopeParts(normalizeAnswer(key));
+  if (!answer || !keyed) return false;
+  const allowed = Number.isFinite(Number(tolerance)) && Number(tolerance) > 0 ? Number(tolerance) : 0;
+  const near = (a, b) => Math.abs(a - b) <= Math.max(allowed, 1e-9 * Math.max(1, Math.abs(a), Math.abs(b)));
+  // The same slope, and the answer's point on the key's line.
+  return near(answer.slope, keyed.slope) && near(answer.y1, keyed.y1 + keyed.slope * (answer.x1 - keyed.x1));
 };
 
 /*
@@ -1651,7 +1660,7 @@ export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators =
   // same line, and it refuses above degree one so it cannot silently grade a
   // "simplify" or "vertex form" question. See functions/shared/algebraicForm.mjs.
   if (sameLinearEquation(left, right, tolerance)) return true;
-  if (samePointSlopeLine(left, right)) return true;
+  if (samePointSlopeLine(left, right, tolerance)) return true;
   if (sameStandardFormMultiple(left, right)) return true;
   if (sameCompoundInequality(left, right, tolerance)) return true;
   // The same equation with its sides swapped, `5 = x` for `x = 5` and

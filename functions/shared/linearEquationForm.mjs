@@ -26,7 +26,7 @@
 // its line (GR03, below: asksForAForm, equationsInText, isObliqueLine;
 // lineFormPolicy.mjs decides the field). Nothing else here grades.
 
-import { parsePolynomial, splitEquationSides, polynomialDegree } from './algebraicForm.mjs';
+import { normalizeAlgebraicText, parsePolynomial, splitEquationSides, polynomialDegree } from './algebraicForm.mjs';
 
 const EPSILON = 1e-9;
 const text = (value) => String(value ?? '');
@@ -125,14 +125,126 @@ export const isObliqueLine = (value) => {
 const bareY = (side) => /^\s*y\s*$/i.test(text(side).replace(/\\left|\\right|[{}]/g, ''));
 const has = (poly, key) => Math.abs(coefficient(poly, key)) > EPSILON;
 const onlyConstant = (poly) => !has(poly, 'x') && !has(poly, 'y');
-// A bracket that holds x — what makes m(x − x₁) point-slope rather than mx + b
-// (a fraction's brackets, `\frac{1}{3}x`, hold numbers only).
+// A bracket that holds x: y = 2(x + 1.5) is not slope-intercept form.
 const bracketsAroundX = (side) => /\([^()]*x[^()]*\)/i.test(text(side).replace(/\\left|\\right/g, ''));
+
+/*
+ * POINT-SLOPE FORM, READ FROM ITS STRUCTURE (GR19). `y − y₁ = m(x − x₁)`: one
+ * side is y and a written number (y − 5, y + 3, y − (−3), y − 0), the other a
+ * number — or nothing, or a lone minus — times ONE bracket that holds x and a
+ * written number: 2(x − 1), −(x + 4), \frac{2}{3}(x − 1), or that product over
+ * a number (\frac{2(x − 1)}{3}). A letter and its number may come in either
+ * order (−1 + x), and so may the two sides. It used to be
+ * any y-side with a constant against any side with a bracketed x, so
+ * y − 7 = x + (x − 4) counted (it is the right line, not this form), and
+ * y − 0 = 2(x + 1.5) did not. A bare y, y = 2(x + 1.5), is not read as this
+ * form: it never was, and the y − y₁ is what the form writes.
+ *
+ * Returns the written slope and point, { slope, x1, y1, ySide }, or null.
+ */
+const constantOf = (value) => {
+  if (!value || /[A-Za-z]/.test(value)) return null;
+  const poly = parsePolynomial(value);
+  if (!poly || [...poly.keys()].some((key) => key !== '')) return null;
+  const constant = coefficient(poly, '');
+  return Number.isFinite(constant) ? constant : null;
+};
+
+// The whole text inside one pair of brackets that wraps all of it, else itself.
+const unwrapped = (value) => {
+  let current = value;
+  for (let guard = 0; guard < 8 && current.startsWith('(') && current.endsWith(')'); guard += 1) {
+    let depth = 0;
+    let wraps = true;
+    for (let index = 0; index < current.length - 1; index += 1) {
+      if (current[index] === '(') depth += 1;
+      else if (current[index] === ')') depth -= 1;
+      if (depth === 0) { wraps = false; break; }
+    }
+    if (!wraps) break;
+    current = current.slice(1, -1);
+  }
+  return current;
+};
+
+// The letter and a written number, either order (y − 5, −5 + y): the number
+// subtracted from it, y₁ or x₁. Null for anything else.
+const shiftOf = (written, letter) => {
+  const after = new RegExp(`^${letter}([+-])(.+)$`).exec(written);
+  if (after) {
+    const number = constantOf(after[2]);
+    if (number === null) return null;
+    return after[1] === '-' ? number : -number;
+  }
+  if (written.endsWith(`+${letter}`)) {
+    const number = constantOf(written.slice(0, -2));
+    return number === null ? null : -number;
+  }
+  return null;
+};
+
+// `y`, a sign and a number: the y₁ it names.
+const pointSlopeY = (side) => shiftOf(side, 'y');
+
+// `x`, or `x`, a sign and a number: the x₁ it names.
+const pointSlopeX = (inner) => (inner === 'x' ? 0 : shiftOf(inner, 'x'));
+
+// [number][*](x ± number), or that over a number: { slope, x1 }.
+const pointSlopeProduct = (side) => {
+  const sign = side.startsWith('-') ? -1 : 1;
+  const body = /^[+-]/.test(side) ? side.slice(1) : side;
+  if (body.endsWith(')')) {
+    let depth = 0;
+    let open = -1;
+    for (let index = body.length - 1; index >= 0; index -= 1) {
+      if (body[index] === ')') depth += 1;
+      else if (body[index] === '(') {
+        depth -= 1;
+        if (depth === 0) { open = index; break; }
+      }
+    }
+    const x1 = open >= 0 ? pointSlopeX(body.slice(open + 1, -1)) : null;
+    if (x1 !== null) {
+      const factor = body.slice(0, open).replace(/\*$/, '');
+      const slope = factor === '' ? 1 : constantOf(factor);
+      if (slope !== null) return { slope: sign * slope, x1 };
+    }
+  }
+  // \frac{2(x − 1)}{3}: the product over a number.
+  const whole = unwrapped(body);
+  let depth = 0;
+  for (let index = 0; index < whole.length; index += 1) {
+    if (whole[index] === '(') depth += 1;
+    else if (whole[index] === ')') depth -= 1;
+    else if (whole[index] === '/' && depth === 0) {
+      const over = constantOf(whole.slice(index + 1));
+      const product = over ? pointSlopeProduct(unwrapped(whole.slice(0, index))) : null;
+      return product && whole.slice(0, index) !== '' ? { slope: (sign * product.slope) / over, x1: product.x1 } : null;
+    }
+  }
+  return null;
+};
+
+export const pointSlopeParts = (value) => {
+  if (/[<>≤≥≠]|\\(?:leq?|geq?|neq?|ne)(?![A-Za-z])/.test(text(value))) return null;
+  let written;
+  try {
+    written = normalizeAlgebraicText(value).replace(/\s+/g, '');
+  } catch {
+    return null;
+  }
+  const sides = written.split('=');
+  if (sides.length !== 2) return null;
+  for (const [ySide, yText, xText] of [['left', sides[0], sides[1]], ['right', sides[1], sides[0]]]) {
+    const y1 = pointSlopeY(yText);
+    const product = y1 === null ? null : pointSlopeProduct(xText);
+    if (product) return { slope: product.slope, x1: product.x1, y1, ySide };
+  }
+  return null;
+};
 
 const formOfSides = (sideText, sidePoly, otherText, otherPoly) => {
   if (bareY(sideText) && !has(otherPoly, 'y') && has(otherPoly, 'x') && !bracketsAroundX(otherText)) return LINE_FORMS.SLOPE_INTERCEPT;
-  if (Math.abs(coefficient(sidePoly, 'y') - 1) < EPSILON && !has(sidePoly, 'x') && has(sidePoly, '')
-    && !has(otherPoly, 'y') && has(otherPoly, 'x') && bracketsAroundX(otherText)) return LINE_FORMS.POINT_SLOPE;
   if (has(sidePoly, 'x') && has(sidePoly, 'y') && !has(sidePoly, '') && onlyConstant(otherPoly)) return LINE_FORMS.STANDARD;
   return null;
 };
@@ -141,6 +253,7 @@ const formOfSides = (sideText, sidePoly, otherText, otherPoly) => {
 export const writtenLineForm = (value) => {
   const equation = readLinearEquation(value);
   if (!equation) return null;
+  if (pointSlopeParts(value)) return LINE_FORMS.POINT_SLOPE;
   const { sides, left, right } = equation;
   return formOfSides(sides.left, left, sides.right, right) || formOfSides(sides.right, right, sides.left, left);
 };
