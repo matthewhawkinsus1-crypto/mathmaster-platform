@@ -120,6 +120,9 @@ const run = async (viewport) => {
   // X1 — the student with extra time.
   await page.goto(`${ORIGIN}/assignments/${LESSON}/dol/1?${SCENARIO}&as=student&studentId=${EXTENDED}`, { timeout: 180_000 });
   await shown(page, /[Qq]uestion \d+ of \d+|RESULT SO FAR|Welcome, /).waitFor({ timeout: 60_000 });
+  // The window line can come in after the question on a busy machine: wait for
+  // it, or for the closed message, rather than read the page once.
+  await shown(page, new RegExp(`${EXTRA_TIME_LINE.source}|time is up|no new submission is allowed`, 'i')).waitFor({ timeout: 20_000 }).catch(() => {});
   await page.waitForTimeout(1500);
   const studentText = await bodyText(page);
   expect(`X1 ${tag}`, pathOf(page) === `/assignments/${LESSON}/dol/1`, `the DOL did not open for the student with extra time (at ${pathOf(page)})`);
@@ -148,6 +151,9 @@ const run = async (viewport) => {
   expect(`X5 ${tag}`, !/lobby/i.test(onDol.said), `the lobby was announced on the open exit ticket: "${onDol.said}"`);
   await page.goto(`${ORIGIN}/assignments/${LESSON}/classwork/1?${SCENARIO}&as=student&studentId=${EXTENDED}`, { timeout: 180_000 });
   await page.locator('.mathmaster-assignment-unified-nav').first().waitFor({ timeout: 60_000 }).catch(() => {});
+  // The invite arrives by listener: give it time to come in before deciding it never does.
+  await page.waitForFunction(() => [...document.querySelectorAll('[data-live-challenge-invite]')].some((node) => node.getClientRects().length > 0)
+    || /Challenge lobby open/.test(document.body.innerText), null, { timeout: 15_000 }).catch(() => {});
   await page.waitForTimeout(1500);
   const onClasswork = await page.evaluate(() => ({
     banner: [...document.querySelectorAll('[data-live-challenge-invite]')].some((node) => node.getClientRects().length > 0),
@@ -160,6 +166,7 @@ const run = async (viewport) => {
   // X2 — a classmate, same moment: the class window.
   await page.goto(`${ORIGIN}/assignments/${LESSON}/dol/1?${SCENARIO}&as=student&studentId=${CLASSMATE}`, { timeout: 180_000 });
   await shown(page, /[Qq]uestion \d+ of \d+|RESULT SO FAR|Welcome, /).waitFor({ timeout: 60_000 });
+  await shown(page, PACK_UP).waitFor({ timeout: 20_000 }).catch(() => {});
   await page.waitForTimeout(1500);
   const classmateText = await bodyText(page);
   expect(`X2 ${tag}`, !EXTRA_TIME_LINE.test(classmateText), 'a classmate without extra time reads an extra-time line');
@@ -174,6 +181,7 @@ const run = async (viewport) => {
   // X4 — the classmate in Classwork while the pack-up line shows.
   await page.goto(`${ORIGIN}/assignments/${LESSON}/classwork/1?${SCENARIO}&as=student&studentId=${CLASSMATE}`, { timeout: 180_000 });
   await page.locator('.mathmaster-assignment-unified-nav').first().waitFor({ timeout: 60_000 }).catch(() => {});
+  await page.locator('[data-pack-up-notice]').first().waitFor({ timeout: 20_000 }).catch(() => {});
   await page.waitForTimeout(1200);
   for (const scrolled of [0, 600]) {
     await page.evaluate((y) => window.scrollTo(0, y), scrolled);
@@ -209,6 +217,7 @@ const run = async (viewport) => {
   await page.locator('.mathmaster-assignment-unified-nav').first().waitFor({ timeout: 60_000 }).catch(() => {});
   await page.waitForTimeout(1200);
   const field = page.locator('math-field, input[type="text"], textarea').filter({ visible: true }).first();
+  await field.waitFor({ state: 'visible', timeout: 20_000 }).catch(() => {});
   if (expect(`X6 ${tag}`, await field.count(), 'no answer field in Classwork to type into')) {
     await field.click();
     await page.keyboard.type('12');

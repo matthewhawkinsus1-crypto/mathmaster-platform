@@ -133,6 +133,8 @@ const run = async (viewport) => {
   expect(`P1 ${tag}`, pathOf(page) === `/assignments/${LESSON}/classwork/1`, `the lesson opened at ${pathOf(page)}, not Classwork Question 1`);
   expect(`P1 ${tag}`, !RESULT.test(await bodyText(page)), 'the met student was sent to the result page ("not open yet")');
   const field = page.locator('math-field').filter({ visible: true }).first();
+  // The answer box can draw after the question's words on a busy machine: wait for it.
+  await field.waitFor({ state: 'visible', timeout: 20_000 }).catch(() => {});
   if (expect(`P1 ${tag}`, await field.count(), 'Classwork Question 1 has no answer field')) {
     await field.click();
     await page.keyboard.type('3/4');
@@ -153,6 +155,7 @@ const run = async (viewport) => {
   expect(`P1 ${tag}`, practice && !practice.disabled, `Practice Q1 is not choosable: ${JSON.stringify(practice)}`);
   await openAs(page, MET, `/assignments/${LESSON}/practice/1`, QUESTION);
   expect(`P1 ${tag}`, pathOf(page) === `/assignments/${LESSON}/practice/1`, `Practice Question 1's address opened ${pathOf(page)}`);
+  await page.locator('math-field').filter({ visible: true }).first().waitFor({ state: 'visible', timeout: 20_000 }).catch(() => {});
   expect(`P1 ${tag}`, await page.locator('math-field').filter({ visible: true }).count() > 0, 'Practice Question 1 has no answer field');
 
   // P2 — met: the timed sections stay closed.
