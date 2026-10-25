@@ -265,7 +265,7 @@ test('App reads the server\'s pins with the draft copy, waits for them before a 
   for (const condition of [/!preview/, /user\?\.role === 'student'/, /!isTeacherPreview/, /activeAssignmentUsesWorkspaceDrafts/, /!serverPinsRead/, /!currentFamilyContext\.pin\b/, /!currentFamilyContext\.pinUnreadable/]) {
     assert.match(pending, condition, `the wait requires ${condition}`);
   }
-  assert.match(app, /\{familyEngineLoading \|\| familyPinPending \? <p role="status"[^>]*>Loading this question…<\/p> : <QuestionEngine/);
+  assert.match(app, /\{familyEngineLoading \|\| familyPinPending \? <p role="status"[^>]*>Loading this question…<\/p> : <Suspense fallback=\{<p role="status"[^>]*>Loading this question…<\/p>\}><QuestionEngine/);
 
   // What is shown is pinned on the server too, replacing a pin it had to drop.
   const delivery = region(app, 'const handleFamilyDelivery = useCallback(', '}, [user?.role, user?.id, isTeacherPreview]);', 'handleFamilyDelivery');

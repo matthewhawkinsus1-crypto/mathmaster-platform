@@ -11151,7 +11151,13 @@ function App() {
             {/* "Ask my teacher" answers, on any question of this assignment —
                 one closed since it was asked keeps its answer here. */}
             {!preview && <TeacherAnswersList questions={askMyTeacher.questions} compact />}
-            {familyEngineLoading || familyPinPending ? <p role="status" style={{ padding: 24, margin: 0 }}>Loading this question…</p> : <QuestionEngine
+            {/* The engine's code arrives on its own (app/lazyScreens.js), so it
+                has its own boundary, with the same words as the wait before it.
+                Without one, a question that mounts after the workspace is on
+                screen (one that waited for its pin, RT15) suspended the whole
+                app back to "Loading your MathMaster workspace…" until the code
+                came: the page went blank for seconds on a cold Chromebook. */}
+            {familyEngineLoading || familyPinPending ? <p role="status" style={{ padding: 24, margin: 0 }}>Loading this question…</p> : <Suspense fallback={<p role="status" style={{ padding: 24, margin: 0 }}>Loading this question…</p>}><QuestionEngine
               key={`${activeAssignmentId}-${currentQuestionIndex}-${currentRecord.variantIndex}-${preview ? `preview-${previewSessionId}` : lifecycle.status}-draft${workspaceDraftGeneration}`}
               draftRestore={draftRestoreFocus?.questionIndex === currentQuestionIndex ? draftRestoreFocus : null}
               question={questions[currentQuestionIndex]}
@@ -11242,7 +11248,7 @@ function App() {
                   })
                   : null,
               }}
-            />}
+            /></Suspense>}
             {/* SAVE HEALTH, IN THE STUDENT'S WORDS.
                 A STUDENT IS NEVER TOLD "SUBMITTED" BEFORE THE SERVER HAS IT.
                 That sentence is the whole point of this line: during the

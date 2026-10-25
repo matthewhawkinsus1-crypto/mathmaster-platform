@@ -150,7 +150,11 @@ test('the Question Family registry and its families are not in the first load', 
   // A question waits for it rather than render with its pin unchecked (and,
   // with no pin, for the server's pins: RT15, familyServerDeliveryPin.test.mjs).
   assert.match(app, /const familyEngineLoading = !familyDelivery;/);
-  assert.match(app, /\{familyEngineLoading(?: \|\| familyPinPending)? \? <p role="status"[^>]*>Loading this question…<\/p> : <QuestionEngine/);
+  // The engine's own code loads under its own boundary, in the same words, so
+  // a question that mounts after the workspace never blanks the app (the root
+  // boundary is the full-screen "Loading your MathMaster workspace…").
+  assert.match(app, /\{familyEngineLoading(?: \|\| familyPinPending)? \? <p role="status"[^>]*>Loading this question…<\/p> : <Suspense fallback=\{<p role="status"[^>]*>Loading this question…<\/p>\}><QuestionEngine/);
+  assert.match(app, /\n\s*\/><\/Suspense>\}\n\s*\{\/\* SAVE HEALTH, IN THE STUDENT'S WORDS\./, 'the boundary closes right after the engine');
 });
 
 // The worksheet and answer-key builders run when someone asks for a PDF, so
