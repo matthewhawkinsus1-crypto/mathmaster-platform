@@ -54,6 +54,17 @@ const SCENES = [
       { id: 'candle', context: 'A 20 cm candle burns down 3 cm every hour.', slopeIntercept: 'y = -3x + 20', slope: -3, graphSpec: { type: 'linear', a: -3, h: 0, k: 20 } },
     ],
   }, group: /to sort cards into$/ },
+  // VH-12: "which one does not belong" in its three places. The cards and rows
+  // were plain buttons or colour-only; each is a radio group with a ✓ now.
+  { name: 'representationMatch find the mismatch', tool: 'representationMatch', spec: { mode: 'findMismatch' }, group: 'Which card does not belong?' },
+  { name: 'representationMatch check the table', tool: 'representationMatch', spec: { mode: 'tableAudit' }, group: 'Which row does not fit the rule?' },
+  { name: 'representationMatch find the mismatched line', tool: 'representationMatch', spec: {
+    mode: 'linearConnections', task: 'findMismatch',
+    sets: [{ id: 'm', slopeIntercept: 'y=-2x+5', factoredLinear: 'y=-2(x-2.5)', pointSlope: 'y-1=-2(x+2)', standard: '2x+y=5' }],
+    mismatchSetId: 'm',
+    correctionOptions: [{ id: 'minus', label: 'y-1=-2(x-2)' }, { id: 'plus', label: 'y+1=-2(x+2)' }],
+    correctionAnswerId: 'minus',
+  }, group: 'Which card does not describe the same line?' },
   { tool: 'matrixLab', spec: null, group: 'How many solutions does the system have?' },
   { name: 'relationMapping function question', tool: 'relationMapping', spec: RELATION_CHOICES, group: 'Is this relation a function?' },
   { name: 'relationMapping analysis choices', tool: 'relationMapping', spec: RELATION_CHOICES, group: 'Discrete or continuous?' },

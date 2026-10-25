@@ -192,6 +192,41 @@ function GraphChoices({ sets, value, onSelect, bounds }) {
   );
 }
 
+/*
+ * "Pick the one that does not belong / does not fit": the three places this
+ * tool asks for one card or one row, each a radio group too (choiceGroup.js).
+ * The chosen one was shown by its border and fill alone, and Find the Mismatch
+ * and Check the Table were plain buttons that told a screen reader nothing
+ * about which was chosen (VH-12). Picking never checks.
+ */
+function PickOneCards({ label, items, idOf, value, onSelect, renderItem, padding = 12, radius = 10, weight = 400, gap = 10 }) {
+  const ids = items.map(idOf);
+  const optionProps = useChoiceGroup({ ids, value, onSelect: (id) => onSelect(id) });
+  return (
+    <div role="radiogroup" aria-label={label} style={{ display: 'grid', gap }}>
+      {items.map((item, index) => {
+        const selected = value === ids[index];
+        return (
+          <button
+            type="button"
+            key={ids[index]}
+            {...optionProps(index)}
+            onClick={() => onSelect(ids[index])}
+            style={{
+              textAlign: 'left', padding, borderRadius: radius, fontWeight: weight, cursor: 'pointer', color: 'var(--mm-text-strong)',
+              border: selected ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)',
+              background: selected ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)',
+            }}
+          >
+            <ChoiceMark selected={selected} />
+            {renderItem(item, index)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function SortSlotChoices({ label, labels, value, onSelect, colorFor, countFor }) {
   const optionProps = useChoiceGroup({ ids: labels.map((_, index) => index), value, onSelect: (_, index) => onSelect(index) });
   return (
@@ -457,13 +492,31 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
 
         {mode === 'findMismatch' ? <>
           <p>Two of these cards describe the same relationship. Select the one that does not belong.</p>
-          <div style={{ display: 'grid', gap: 10 }}>{cards.map((card) => <button type="button" key={card.kind} onClick={() => setMismatchKind(card.kind)} style={{ textAlign: 'left', padding: 12, borderRadius: 10, border: mismatchKind === card.kind ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: mismatchKind === card.kind ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', cursor: 'pointer' }}><strong style={{ textTransform: 'capitalize' }}>{card.kind}</strong><div style={{ marginTop: 5, color: 'var(--mm-text-muted)' }}>{card.kind === 'equation' ? <MathDisplay value={card.value} format="ascii-math" inline /> : card.value}</div></button>)}</div>
+          <PickOneCards
+            label="Which card does not belong?"
+            items={cards}
+            idOf={(card) => card.kind}
+            value={mismatchKind}
+            onSelect={setMismatchKind}
+            renderItem={(card) => <><strong style={{ textTransform: 'capitalize' }}>{card.kind}</strong><div style={{ marginTop: 5, color: 'var(--mm-text-muted)' }}>{card.kind === 'equation' ? <MathDisplay value={card.value} format="ascii-math" inline /> : card.value}</div></>}
+          />
           <button type="button" data-work-view-check="true" onClick={check} disabled={!mismatchKind} style={{ ...buttonStyle, marginTop: 12, opacity: mismatchKind ? 1 : .55 }}><SubmitText>Check mismatch</SubmitText></button>
         </> : null}
 
         {mode === 'tableAudit' ? <>
           <p>Exactly one row does not satisfy the relationship. Select it.</p>
-          <div style={{ display: 'grid', gap: 8 }}>{tableRows.map((row, index) => <button type="button" key={index} onClick={() => setBadRow(index)} style={{ padding: 10, borderRadius: 9, border: badRow === index ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: badRow === index ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', fontWeight: 700, cursor: 'pointer' }}>Row {index + 1}: ({row[0]}, {row[1]})</button>)}</div>
+          <PickOneCards
+            label="Which row does not fit the rule?"
+            items={tableRows}
+            idOf={(row, index) => index}
+            value={badRow}
+            onSelect={setBadRow}
+            padding={10}
+            radius={9}
+            weight={700}
+            gap={8}
+            renderItem={(row, index) => <>Row {index + 1}: ({row[0]}, {row[1]})</>}
+          />
           <button type="button" data-work-view-check="true" onClick={check} disabled={badRow == null} style={{ ...buttonStyle, marginTop: 12, opacity: badRow == null ? .55 : 1 }}><SubmitText>Check row</SubmitText></button>
         </> : null}
 
@@ -532,20 +585,14 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
 
         {mode === 'linearConnections' && linearTask === 'findMismatch' ? <>
           <p>These cards claim to describe the same line, but one of them does not. Select the card that does not belong.</p>
-          <div style={{ display: 'grid', gap: 10 }}>
-            {linearMismatchCards.map((card) => (
-              <button
-                type="button"
-                key={card.id}
-                onClick={() => setMismatchSelection(card.id)}
-                aria-pressed={mismatchSelection === card.id}
-                style={{ textAlign: 'left', padding: 12, borderRadius: 10, border: mismatchSelection === card.id ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: mismatchSelection === card.id ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', cursor: 'pointer' }}
-              >
-                <strong>{LINEAR_KIND_LABELS[card.kind]}</strong>
-                <div style={{ marginTop: 5, color: 'var(--mm-text-muted)' }}>{renderLinearCardBody(card)}</div>
-              </button>
-            ))}
-          </div>
+          <PickOneCards
+            label="Which card does not describe the same line?"
+            items={linearMismatchCards}
+            idOf={(card) => card.id}
+            value={mismatchSelection}
+            onSelect={setMismatchSelection}
+            renderItem={(card) => <><strong>{LINEAR_KIND_LABELS[card.kind]}</strong><div style={{ marginTop: 5, color: 'var(--mm-text-muted)' }}>{renderLinearCardBody(card)}</div></>}
+          />
           {questionData.correctionOptions?.length ? (
             <label style={{ display: 'block', marginTop: 12 }}>
               What should that card say instead?
