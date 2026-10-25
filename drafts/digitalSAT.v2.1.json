@@ -28391,7 +28391,7 @@
         ],
         "answerSummary": "Check the result in the original inequality."
       },
-      "prompt": "A machine part is acceptable when its length $L$, in millimeters, differs from {{target}} by at most {{tol}} millimeters. What is the greatest acceptable length, in millimeters?",
+      "prompt": "A machine part is acceptable when its length $L$, in millimeters, differs from {{target}} by at most {{tol}}. What is the greatest acceptable length, in millimeters?",
       "generator": {
         "parameters": {
           "target": {

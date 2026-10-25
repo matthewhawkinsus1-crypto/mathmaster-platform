@@ -47,6 +47,7 @@ first seat, seats 1–3, 4–6, … each get one of each case); its capacity is 
 | `matrices.multiplication` | v1 · what an unpinned reference means | — | — | `matrixLab` (operate) | yes — shared server grader | yes | about 140,390 — every student unique | — |
 | `matrices.singularSystem3x3` | v1 · what an unpinned reference means | — | — | `matrixLab` (solve) | yes — shared server grader | yes | about 91,328 — every student unique | — |
 | `matrices.solveSystem3x3` | v1 · what an unpinned reference means | — | — | `matrixLab` (solve) | yes — shared server grader | yes | about 60,390 — every student unique | — |
+| `matrices.solveSystem3x3` | v2 · only when pinned (`"version": 2`) | — | — | `matrixLab` (solve) | yes — shared server grader | yes | about 60,859 — every student unique | — |
 | `numbers.multiplicativeInverse` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 1,695 — every student unique | — |
 | `numbers.reciprocals` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 2,257,376 — every student unique | — |
 | `polynomials.distributeMonomial` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 36,632,250 — every student unique | — |
@@ -680,6 +681,24 @@ Solve a system of three equations with matrices.
 | Setting | Distinct questions | Per case / shape |
 | --- | --- | --- |
 | default | about 60,390 | — |
+
+### `matrices.solveSystem3x3` v2
+
+Solve a system of three equations with matrices.
+
+- **Pinning:** used only by a slot that says `"version": 2`; an unpinned reference still means v1, so no existing question changes.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A2.3B
+- **Answered in:** `matrixLab` (solve)
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 60,859 | — |
 
 ### `numbers.multiplicativeInverse` v1
 

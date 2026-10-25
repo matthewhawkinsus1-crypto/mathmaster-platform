@@ -3175,6 +3175,47 @@
       "declared": {}
     },
     {
+      "id": "matrices.solveSystem3x3",
+      "version": 2,
+      "title": "Solve a system of three equations with matrices",
+      "alignments": [
+        "A2.3B"
+      ],
+      "unpinnedReferenceMeansThisVersion": false,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "matrixLab",
+          "default": true,
+          "mode": "solve",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 60859,
+          "exact": false
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
       "id": "numbers.multiplicativeInverse",
       "version": 1,
       "title": "The multiplicative inverse of a number",

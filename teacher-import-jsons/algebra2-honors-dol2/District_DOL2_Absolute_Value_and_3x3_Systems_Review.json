@@ -2530,7 +2530,7 @@
           "familyId": "mathmaster:sat:A2.6F:tolerance-context",
           "familyVersion": 2,
           "standard": "A2.6F",
-          "prompt": "A machine part is acceptable when its length $L$, in millimeters, differs from {{target}} by at most {{tol}} millimeters. What is the greatest acceptable length, in millimeters?",
+          "prompt": "A machine part is acceptable when its length $L$, in millimeters, differs from {{target}} by at most {{tol}}. What is the greatest acceptable length, in millimeters?",
           "studentActions": [
             "multipleResponses"
           ],
@@ -2995,7 +2995,7 @@
           },
           "questionFamily": {
             "id": "matrices.solveSystem3x3",
-            "version": 1
+            "version": 2
           }
         },
         {
@@ -3588,7 +3588,7 @@
           },
           "questionFamily": {
             "id": "matrices.solveSystem3x3",
-            "version": 1
+            "version": 2
           }
         }
       ]

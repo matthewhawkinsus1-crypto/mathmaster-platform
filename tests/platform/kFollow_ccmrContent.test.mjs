@@ -15,7 +15,7 @@ const { compilePathRecordForStorage } = require('../../functions/lib/pathFiresto
  *
  * CT19 adds the same fix for two more A2.4G items that printed "where q<b<p":
  * the letters are the generator's names for the numbers, never defined for a
- * student.
+ * student. CT03 adds the tolerance item that read "at most 1 millimeters".
  */
 
 const bank = (framework) => JSON.parse(readFileSync(new URL(`../../functions/seeds/pathQuestionBank/${framework}_pathQuestionBank_seed.json`, import.meta.url), 'utf8')).documents;
@@ -131,4 +131,30 @@ test('no student-visible string in any bank prints an ordering of three bare let
     .filter(([, text]) => LETTER_CHAIN.test(text))
     .map(([trail, text]) => `${file} ${doc.id} ${trail}: ${text.slice(0, 120)}`));
   assert.deepEqual(found, []);
+});
+
+// CT03: the tolerance item ended its first sentence "by at most {{tol}} millimeters",
+// which read "at most 1 millimeters" on the draws where the tolerance is 1. The unit is
+// already given in the same sentence ("its length $L$, in millimeters"), so the trailing
+// word is gone and the tolerance is a bare number, the way every other draw reads.
+const TOLERANCE_ITEM = 'mm_sat_A2_6F_tolerance_context_v21';
+const toleranceQuestion = (target, tol) => {
+  const item = bank('digitalSAT').find((entry) => entry.id === TOLERANCE_ITEM);
+  assert.ok(item, `${TOLERANCE_ITEM} is in the bank`);
+  const pinned = (value) => ({ type: 'int', min: value, max: value });
+  const drawn = { ...item, generator: { ...item.generator, parameters: { target: pinned(target), tol: pinned(tol) } } };
+  const { question } = generatePathInstanceWithRetries(compilePathRecordForStorage({ ...drawn, active: true }).document, `ct03-tolerance-${target}-${tol}`, 4);
+  assert.ok(question, `target ${target}, tolerance ${tol} is issued`);
+  return question;
+};
+
+test('the tolerance item never says "1 millimeters": the unit is given once, in the first clause, and the tolerance is a bare number', () => {
+  for (let tol = 1; tol <= 8; tol += 1) {
+    const { prompt, responseFields } = toleranceQuestion(50, tol);
+    assert.match(prompt, new RegExp(`differs from 50 by at most ${tol}\\. What is the greatest acceptable length, in millimeters\\?$`), prompt);
+    assert.doesNotMatch(prompt, /\d\s+millimeters/, `a number never stands before the unit: ${prompt}`);
+    assert.equal((prompt.match(/millimeters/g) || []).length, 2, `the unit is named for the length and for the answer, and nowhere else: ${prompt}`);
+    // The key is the greatest acceptable length, the target plus the tolerance, whatever the wording.
+    assert.equal(String(responseFields[0].expected), String(50 + tol), prompt);
+  }
 });

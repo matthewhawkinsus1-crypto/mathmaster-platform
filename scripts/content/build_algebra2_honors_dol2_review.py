@@ -1160,7 +1160,7 @@ practice = [
             'The ordered triple (x, y, z) read from A⁻¹ · B.',
             'Copying coefficients from an equation that is not yet in standard form, so a term moved across the equal sign keeps the wrong sign.',
         ),
-        'questionFamily': {'id': 'matrices.solveSystem3x3', 'version': 1},
+        'questionFamily': {'id': 'matrices.solveSystem3x3', 'version': 2},
     },
     {
         'questionId': 'dol2r-pr-18',
@@ -1406,7 +1406,7 @@ dol = [
             'The ordered triple (x, y, z) read from A⁻¹ · B.',
             'Copying coefficients from an equation that is not yet in standard form, so a term moved across the equal sign keeps the wrong sign.',
         ),
-        'questionFamily': {'id': 'matrices.solveSystem3x3', 'version': 1},
+        'questionFamily': {'id': 'matrices.solveSystem3x3', 'version': 2},
     },
 ]
 
