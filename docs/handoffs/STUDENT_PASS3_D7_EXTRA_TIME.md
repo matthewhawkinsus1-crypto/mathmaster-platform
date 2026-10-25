@@ -201,7 +201,10 @@ scheduler deploying, a deferred student is recorded but not yet woken: deploy `s
    exams implement — while, per the H-120 decision as implemented, the legacy box still moves no due date. Two
    meanings of one box, now documented in one place (`sectionDeadline.mjs`). Confirm, or say the DOL should wait for
    an explicit timing setting like the due date does.
+   **Decided** (product owner, "Do it", recorded 2026-10-25, TT09): confirmed as built, with the design's §10
+   decisions (`docs/IEP_SUPPORT_EVIDENCE_DESIGN.md`).
 2. **An expired profile keeps extending the DOL** (H-120 as implemented). Confirm.
+   **Decided** (product owner, "Do it", recorded 2026-10-25, TT09): confirmed as built.
 3. **Extra time can run past the bell** (2× ends 5 minutes after it; 1.5× ends at it). The class pack-up banner now
    stands aside for that student while their exit ticket is open, as it does for a student mid-Test. Confirm, or
    cap the window at the bell.

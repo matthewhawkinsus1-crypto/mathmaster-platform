@@ -274,16 +274,35 @@ helpers pass the profile), `src/platform/gradeTransfer/studentDeadlineResolver.j
 - `firestore.indexes.json` is unchanged, because every new query is single-field within one student's subcollection;
 - the assignment header is hidden on phones and portrait tablets, so Support tools also render in the expanded assignment navigator there (`App.css` / `MathToolMobileLayout.css`, `.mathmaster-narrow-support-tools`).
 
-The four decisions below were implemented as proposed. They are listed in the PR for confirmation.
+The four decisions below were implemented as proposed, and the product owner has since confirmed all four (§10).
 
-## 10. Decisions to confirm with the product owner
+## 10. Decisions (confirmed by the product owner)
+
+**Decided** — all four, product owner, "Do it", recorded 2026-10-25 (tracked as TT09, audit finding A1-79). Each one
+was checked against the code on that date: the build does what the decision says, and a test pins it. Change one only
+by a new decision, recorded here.
 
 1. `algebra-auto-apply` stays an **accommodation** (as the current UI classifies it) but is flagged "affects
    independence evidence"; reclassifying it would retroactively flip students to Modified.
+   **Decided.** `supportCatalog.mjs` classifies it `A` with `affectsIndependence: true`; the teacher's editor and the
+   evidence report print "affects independence evidence" beside it (`tests/platform/supportCatalog.test.mjs`).
 2. An expired profile keeps applying (flagged) rather than silently removing supports.
+   **Decided.** An expired plan stays `active` and carries `expired: true` plus the `expired` warning, "Supports are
+   still applied until you renew or end the profile" (`tests/platform/supportProfileModel.test.mjs`); the exit ticket's
+   extra time reads the same plan (`tests/platform/dolExtraTime.test.mjs`, H-120).
 3. Legacy `extra-time` does not start moving deadlines until a teacher sets the extension.
+   **Decided.** A student with only the legacy box, or inclusion status, keeps the class due date and final cutoff
+   until a teacher sets a due-date extension (school days or hours) in the support profile; the box still turns off the
+   idle prompt (`supportDeadline.mjs`; `tests/platform/supportDeadline.test.mjs`, "a legacy extra-time box moves no
+   deadline"). The same box does stretch a timed exit ticket (DOL) 1.5x, as a secure exam does for that student: D7,
+   decision 1 in `docs/handoffs/STUDENT_PASS3_D7_EXTRA_TIME.md`, confirmed with this one.
 4. Providers without a MathMaster teacher-of-record account are recorded by the teacher of record with a
    provider role/label (no new provider role in this build).
+   **Decided.** A provider entry and a service-log minute are written by the student's own teacher (the rules let only
+   that teacher or the root administrator write them), carrying a provider role from the fixed list and an optional
+   label of up to 80 characters; there is no provider sign-in and no extra role
+   (`supportEvidenceModel.mjs` `PROVIDER_ROLES`, `buildStaffEvidenceEvent`, `buildServiceLogEntry`;
+   `tests/platform/supportEvidenceModel.test.mjs`).
 
 ## 11. Automatic reduced number of items (same TEKS, same rigor)
 
