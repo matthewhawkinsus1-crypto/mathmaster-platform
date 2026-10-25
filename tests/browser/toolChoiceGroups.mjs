@@ -10,8 +10,11 @@
  *   PLAYWRIGHT_MODULE / CHROMIUM_PATH as in keyboardSweep.mjs.
  *
  * For every choice group on Representation Match (equation choices, graph
- * choices, the groups a card sorts into), Matrix Lab (how many solutions) and
- * Relation Mapping (is it a function; an analysis question's choices, AX37):
+ * choices, the groups a card sorts into), Matrix Lab (how many solutions),
+ * Relation Mapping (is it a function; an analysis question's choices, AX37),
+ * Linear Intercepts (which variable is 0 at the x-intercept) and a multi-answer
+ * question's choice field (MultiAnswerGrader) (CI02, C1-36: these two were
+ * checked in node only):
  *
  *   - ONE tab stop: exactly one radio has tabindex 0;
  *   - ArrowRight / ArrowDown move focus to the next option AND check it,
@@ -68,7 +71,25 @@ const SCENES = [
   { tool: 'matrixLab', spec: null, group: 'How many solutions does the system have?' },
   { name: 'relationMapping function question', tool: 'relationMapping', spec: RELATION_CHOICES, group: 'Is this relation a function?' },
   { name: 'relationMapping analysis choices', tool: 'relationMapping', spec: RELATION_CHOICES, group: 'Discrete or continuous?' },
+  // CI02 (C1-36). Linear Intercepts' first question, "which variable is 0 at the
+  // x-intercept?" (the intercepts orchestrator, the keyboard sweep's own
+  // stepAlgebra/intercepts scene), and a choice field of a multi-answer
+  // question beside a typed one (MultiAnswerGrader; its options are shuffled
+  // per student, so the scene never assumes an order).
+  { name: 'linear intercepts which variable is 0', tool: 'stepAlgebra', spec: { mode: 'linearIntercepts', prompt: 'Find both intercepts.', equation: '3x + 4y = 24' }, group: 'Variable that equals zero at the x-intercept' },
+  { name: 'multiAnswer choice field', tool: 'multiAnswer', spec: {
+    prompt: 'Look at the graph, then answer both parts.',
+    answerFields: [
+      { id: 'kind', label: 'Which kind of function is it?', type: 'choice', options: ['linear', 'quadratic', 'exponential'], answer: 'quadratic' },
+      { id: 'domain', label: 'Domain', answer: '(-∞, ∞)' },
+    ],
+  }, group: 'Which kind of function is it?' },
 ];
+const sceneLabel = ({ name, tool, spec }) => name || `${tool}${spec ? ` ${spec.mode}${spec.task ? `/${spec.task}` : ''}` : ''}`;
+// TOOL_CHOICE_GROUPS_ONLY="figureMatch,multiAnswer choice field" runs just those
+// (every scene when it is not set), to work on one without the rest.
+const ONLY = (process.env.TOOL_CHOICE_GROUPS_ONLY || '').split(',').map((entry) => entry.trim()).filter(Boolean);
+const wanted = (label) => !ONLY.length || ONLY.includes(label);
 
 const failures = [];
 const check = (ok, message) => {
@@ -93,7 +114,7 @@ const readGroup = (group) => group.evaluate((element) => {
 });
 
 const runScene = async (page, { name, tool, spec, group: groupName }) => {
-  const label = name || `${tool}${spec ? ` ${spec.mode}${spec.task ? `/${spec.task}` : ''}` : ''}`;
+  const label = sceneLabel({ name, tool, spec });
   console.log(`\n${label}`);
   const query = spec ? `&spec=${encodeURIComponent(JSON.stringify(spec))}` : '';
   await page.goto(`${ORIGIN}/tests/browser/keyboardSweep.html?tool=${tool}${query}`, { timeout: 180_000 });
@@ -212,12 +233,14 @@ const main = async () => {
     ));
     const page = await context.newPage();
     try {
-      await runFigureMatch(page);
+      if (wanted('figureMatch')) await runFigureMatch(page);
     } catch (error) {
       check(false, `figureMatch: could not finish — ${error.message.split('\n')[0]}`);
       await page.screenshot({ path: path.join(artifacts, 'FAIL-figureMatch.png'), fullPage: true }).catch(() => {});
     }
-    for (const scene of SCENES) {
+    const unknown = ONLY.filter((label) => label !== 'figureMatch' && !SCENES.some((scene) => sceneLabel(scene) === label));
+    if (unknown.length) check(false, `TOOL_CHOICE_GROUPS_ONLY names a scene that does not exist: ${unknown.join(', ')}`);
+    for (const scene of SCENES.filter((entry) => wanted(sceneLabel(entry)))) {
       try {
         await runScene(page, scene);
       } catch (error) {
