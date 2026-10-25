@@ -238,7 +238,10 @@ function RelationChoiceGroup({ legend, options, value, onSelect }) {
   );
 }
 
-export default function RelationMapping({ questionData = {}, onAction }) {
+// `coachingReplaced`: a composed question has marked this step wrong and the
+// step shows the grader's reason (WorkflowRunner, FB06), so the step's own
+// verdict and coaching from its Check stay out of the way: one message, not two.
+export default function RelationMapping({ questionData = {}, onAction, coachingReplaced = false }) {
   const pairs = useMemo(() => relationPairsOf(questionData.pairs), [questionData.pairs]);
 
   const domainValues = useMemo(() => uniqueSorted(pairs.map(([x]) => x)), [pairs]);
@@ -617,7 +620,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
 
           <button data-mm-enter-action="submit" type="button" onClick={check} style={{ ...primaryButton, width: '100%' }}>{submitActionLabel}</button>
 
-          {feedback ? (
+          {feedback && !coachingReplaced ? (
             <div style={{ marginTop: 14 }}>
               <ResultPill ok={feedback.isCorrect} message={message()}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
             </div>

@@ -179,6 +179,15 @@ export const branchRestartedBy = ({ stage, authoredStages = [], responses = {} }
   return replaced ? choice : '';
 };
 
+/*
+ * WHETHER A STEP SHOWS THE GRADER'S REASON (FB06): it was marked wrong on the
+ * exact response on screen and the grader says why. The same answer decides
+ * the other half of "one message under a red step": a tool's own verdict and
+ * coaching from its earlier Check (a mapping step's) step aside while the
+ * reason is shown, so the student reads one sentence, not two that agree.
+ */
+export const stageShowsReason = (entry) => entry?.status === 'incorrect' && Boolean(entry?.reason);
+
 export const firstIncorrectWorkflowIndex = (reviewState = []) => (
   (Array.isArray(reviewState) ? reviewState : []).find((entry) => entry?.status === 'incorrect')?.index ?? -1
 );

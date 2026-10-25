@@ -38,7 +38,7 @@ import { stageFamily, stageFamilyLabel } from './stageFamilies';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../interaction/choiceOptions.js';
 import { checkedGraphIsPointOnly, graphWindowOnly, studentPlottedPoints, workflowEndpointMarkers, workflowGraphDomainRestriction } from './workflowGraphVisuals.js';
 import { resolveWorkflowTaskPrompt, selectPersistentWorkflowGraph } from './workflowPresentation.js';
-import { branchRestartedBy, buildWorkflowReviewState, firstIncorrectWorkflowIndex } from './workflowReviewState.js';
+import { branchRestartedBy, buildWorkflowReviewState, firstIncorrectWorkflowIndex, stageShowsReason } from './workflowReviewState.js';
 import { graphArtifactAwaitsVerdict, stagesAwaitingVerdict } from './workflowDraftProjection.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../workView/useMathUndoHistory.js';
 import { useWorkViewPresentation } from '../workView/workViewPresentation.js';
@@ -521,7 +521,7 @@ const DELEGATES = {
       onAction={toolAction(onChange)}
     />
   ),
-  mappingDiagram: ({ stage, content, onChange }) => (
+  mappingDiagram: ({ stage, content, onChange, coachingReplaced = false }) => (
     <RelationMapping
       questionData={{
         pairs: content?.pairs || stage.pairs || [],
@@ -530,6 +530,7 @@ const DELEGATES = {
         rangeLabel: stage.rangeLabel,
       }}
       onAction={toolAction(onChange)}
+      coachingReplaced={coachingReplaced}
     />
   ),
   /*
@@ -619,7 +620,7 @@ const DELEGATES = {
 const NOTATION_PROFILE = { interval: 'interval', inequality: 'inequality', set: 'set' };
 export const ALL_REAL_NUMBERS_RESPONSE = '\\text{All Real Numbers}';
 
-function StageBody({ stage, input, content, value, onReport, disabled, draftKey, canonicalSavedAt = 0, controlsBranch = false, openKeypad = true, showFigure = true, revealCorrectness = true, keyboardAccess = false, onSupportEvidence = null, graphStage = null, wrongItems = [] }) {
+function StageBody({ stage, input, content, value, onReport, disabled, draftKey, canonicalSavedAt = 0, controlsBranch = false, openKeypad = true, showFigure = true, revealCorrectness = true, keyboardAccess = false, onSupportEvidence = null, graphStage = null, wrongItems = [], coachingReplaced = false }) {
   /*
    * WHAT A STEP REPORTS IS AN EDIT ONLY IF THE STUDENT HAS TOUCHED THE PAGE
    * SINCE THE STEP APPEARED (PQ-044).
@@ -653,7 +654,7 @@ function StageBody({ stage, input, content, value, onReport, disabled, draftKey,
         scope={`stage-${stage.id || stage.kind}`}
         canonicalSavedAt={canonicalSavedAt}
       >
-        {delegate({ stage, input, content, onChange, draftKey, disabled, revealCorrectness, keyboardAccess, onSupportEvidence, graphStage })}
+        {delegate({ stage, input, content, onChange, draftKey, disabled, revealCorrectness, keyboardAccess, onSupportEvidence, graphStage, coachingReplaced })}
       </ToolDraftScopeProvider>
     );
   }
@@ -1323,6 +1324,12 @@ export default function WorkflowRunner({
   const renderStage = (stage, index, { focused = false } = {}) => {
     const reviewStatus = reviewByStageId.get(stage.id)?.status || 'unanswered';
     const stageReason = reviewByStageId.get(stage.id)?.reason || '';
+    // ONE MESSAGE UNDER A RED STEP (FB06). Once Submit has marked a step wrong
+    // and the grader says why, that reason is the step's message: the tool's
+    // own coaching from its earlier Check (a mapping step's "The arrows do not
+    // match the relation…") said the same thing a second time, so it steps
+    // aside until the student changes the work and checks again.
+    const reasonShown = stageShowsReason(reviewByStageId.get(stage.id));
     const restartedBy = branchRestartedBy({ stage, authoredStages: authoredWorkflow, responses });
     const restartedByIndex = restartedBy ? workflow.findIndex((entry) => entry.id === restartedBy) : -1;
     // A sort marked wrong names its wrong figures (P2-4). Only from a review,
@@ -1406,7 +1413,7 @@ export default function WorkflowRunner({
             You changed Step {restartedByIndex + 1} ({stepName(workflow[restartedByIndex])}), so this step starts again, written the way that answer needs.
           </p>
         ) : null}
-        {reviewStatus === 'incorrect' && stageReason ? (
+        {reasonShown ? (
           <p className="workflow-stage__reason" data-stage-reason={stage.id} style={{ margin: '0 0 12px', padding: '8px 12px', borderRadius: 8, background: 'var(--mm-error-bg)', color: 'var(--mm-danger)', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 700, lineHeight: 1.45 }}>
             {stageReason}
           </p>
@@ -1449,6 +1456,7 @@ export default function WorkflowRunner({
               onSupportEvidence={onSupportEvidence}
               graphStage={graphStage}
               wrongItems={wrongItems}
+              coachingReplaced={reasonShown}
             />
           </>
         )}
