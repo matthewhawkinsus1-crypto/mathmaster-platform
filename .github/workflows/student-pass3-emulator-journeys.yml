@@ -17,11 +17,16 @@ name: Student Pass 3 Emulator Journeys
 #                                 shell played whole (console, projector,
 #                                 students), a class of 40 launching, five
 #                                 games in a row
+#   pass3-graph-feature-rush      graphFeatureRushGame (CI06): whole Graph
+#                                 Feature Rush games: a two-player Grand Prix
+#                                 by mouse, touch and keyboard, four devices
+#                                 on correct-count, a class of twelve, the
+#                                 teacher's practice round, tap latency
 #
 # Their own workflow and area (scripts/lib/ciAreas.mjs, which ci.yml reads), so
-# that only a change that can reach them runs them on a pull request (about 15
-# runner-minutes together); every push to main, every night, and on demand,
-# they run whatever changed. Read-only: this workflow writes nothing back and
+# that only a change that can reach them runs them on a pull request (about 25
+# runner-minutes together, in four jobs); every push to main, every night, and
+# on demand, they run whatever changed. Read-only: this workflow writes nothing back and
 # uses no secrets.
 
 on:
@@ -88,3 +93,23 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/liveChallengeShellQa.mjs
+
+  # Whole Graph Feature Rush games in real browsers against the real callables
+  # on the Firestore emulator (CI06; it ran by hand until now): a two-player
+  # Grand Prix on a Chromebook and a phone by mouse, touch and keyboard (a
+  # miss, the cooldown, a refresh, the network dropping), four devices on
+  # correct-count, a class of twelve tapping at once, the teacher's practice
+  # round, and the tap-to-mark latency with the CPU slowed 4x. About 7 minutes
+  # locally.
+  pass3-graph-feature-rush:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      - run: npm --prefix functions ci
+      - name: Graph Feature Rush played whole
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/graphFeatureRushGame.mjs

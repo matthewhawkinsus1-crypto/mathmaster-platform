@@ -205,6 +205,7 @@ export const CI_AREAS = {
     'tests/browser/testCycleRichToolQa*',
     'tests/browser/testCycleLifecycleQa*',
     'tests/browser/liveChallengeShellQa*',
+    'tests/browser/graphFeatureRushGame*',
     'tests/browser/graphFeatureRushStudent*',
     'tests/browser/graphFeatureRushTeacher*',
     'tests/fixtures/secureRichToolAnswers.mjs',

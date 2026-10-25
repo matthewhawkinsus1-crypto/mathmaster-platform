@@ -49,6 +49,8 @@ const DRIVERS = [
   // CI16: a whole Test Cycle, ran by hand until it was run twice in a row green.
   ['student-pass3-emulator-journeys.yml', 'pass3-test-cycle-lifecycle', 'self', ['testCycleLifecycleQa']],
   ['student-pass3-emulator-journeys.yml', 'pass3-live-challenge-shell', 'self', ['liveChallengeShellQa']],
+  // CI06: whole Graph Feature Rush games, ran by hand until it was green twice in a row.
+  ['student-pass3-emulator-journeys.yml', 'pass3-graph-feature-rush', 'self', ['graphFeatureRushGame']],
 ];
 
 for (const [workflow, job, server, drivers] of DRIVERS) {
@@ -118,6 +120,7 @@ test('a pull request that changes one of these drivers, or a page it opens, runs
   ['functions/lib/anything.js', 'src/QuestionEngine.jsx', 'tests/browser/emulator/vite.bridge.config.mjs',
     'tests/browser/support/anything.mjs', 'tests/browser/testCycleRichToolQa.mjs', 'tests/browser/liveChallengeShellQa.mjs',
     'tests/browser/testCycleLifecycleQa.mjs', 'tests/browser/testCycleLifecycleQa.html', 'tests/fixtures/testCycleCertificationFixture.mjs',
+    'tests/browser/graphFeatureRushGame.mjs', 'src/components/liveChallenge/GraphFeatureRushGraph.jsx',
     'tests/fixtures/secureRichToolAnswers.mjs'].forEach((file) => {
     assert.ok(runsOnPullRequest(emulator, file), `a change to ${file} runs the emulator journeys`);
   });
@@ -137,7 +140,7 @@ test('the emulator journeys run on their own area, nightly and on demand; the ga
   ['mathPath', 'pathContentCompiler', 'pathFirestoreShape', 'secureItems', 'secureItemStorage'].forEach((name) => {
     assert.ok(runsOnPullRequest(gates, `functions/lib/${name}.js`), `${name}.js runs the gates (secureAccessParity)`);
   });
-  assert.doesNotMatch(read(gates), /pass3-(test-cycle-rich-tools|test-cycle-lifecycle|live-challenge-shell):/, 'the long jobs left the gates');
+  assert.doesNotMatch(read(gates), /pass3-(test-cycle-rich-tools|test-cycle-lifecycle|live-challenge-shell|graph-feature-rush):/, 'the long jobs left the gates');
 });
 
 // The emulator journeys' area (scripts/lib/ciAreas.mjs) is all of src/ minus the

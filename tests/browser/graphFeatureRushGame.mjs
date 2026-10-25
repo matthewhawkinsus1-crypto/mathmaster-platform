@@ -21,7 +21,11 @@
 //
 // NOTHING TOUCHES PRODUCTION: firebase.js is swapped for an emulator module,
 // the browsers block every non-local request, and the project id is throwaway.
-// This is a QA tool, not part of the CI gate.
+// It runs in CI (CI06): .github/workflows/student-pass3-emulator-journeys.yml,
+// job pass3-graph-feature-rush, on a pull request that touches what it loads,
+// nightly and on demand. About 7 minutes. It was added once it passed twice in a
+// row on a loaded 4-core machine; its one real failure there was a keyboard
+// press lost to GraphFeatureRushGraph's late reset effect (a layout effect now).
 
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
