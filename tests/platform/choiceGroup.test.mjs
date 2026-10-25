@@ -119,6 +119,8 @@ const GROUPS = [
   ['src/tools/stepAlgebra2/linearInterceptsConceptualUi.jsx', 'export function ZeroVariableChoice(', 'which variable equals 0'],
   // AX37: "Is this relation a function?" and every analysis question with choices.
   ['src/tools/relationMapping/RelationMapping.jsx', 'function RelationChoiceGroup(', 'Relation Mapping\'s function and analysis choices'],
+  // The last group TOOL-6 left without arrow keys (AX37 follow-up): My Math Path's own response cards.
+  ['src/components/student/PathResponseFields.jsx', 'function ChoiceGroup(', 'My Math Path\'s response choices'],
 ];
 
 for (const [file, start, what] of GROUPS) {
@@ -146,7 +148,7 @@ test('the old per-site groups are gone: each place uses its shared group', () =>
   const match = executableSource(componentSource('src/tools/representationMatch/RepresentationMatch.jsx'));
   assert.equal((match.match(/role="radio"/g) || []).length, 0, 'Representation Match draws no radio of its own');
   for (const name of ['EquationChoices', 'GraphChoices', 'SortSlotChoices']) assert.match(match, new RegExp(`<${name}\\b`), `${name} is drawn`);
-  for (const file of ['src/MultiAnswerGrader.jsx', 'src/platform/workflow/FigureMatchStage.jsx']) {
+  for (const file of ['src/MultiAnswerGrader.jsx', 'src/platform/workflow/FigureMatchStage.jsx', 'src/components/student/PathResponseFields.jsx']) {
     assert.doesNotMatch(executableSource(componentSource(file)), /role="radio"/, `${file} draws no radio of its own`);
   }
   // Relation Mapping (AX37): both of its choice questions are the one group.
