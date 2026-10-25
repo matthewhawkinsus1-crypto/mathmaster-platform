@@ -152,6 +152,63 @@ const constantBefore = (text, index, options) => {
 };
 
 /*
+ * DISPLAY ONLY: A UNICODE RADICAL KEEPS ITS RADICAND, A SUPERSCRIPT ITS BASE.
+ *
+ * The Radical Expressions lessons write their mathematics as it looks: "√3/3",
+ * "x√(xy)/y⁴", "∛(6x²)/(3x)", "ⁿ√a / ⁿ√b". The scanner read only the 3 after √
+ * as a numerator, and stopped a denominator before ⁴, so a student was shown
+ * √(3/3) and (√(xy)/y)⁴ in a lesson about simplifying exactly those. With
+ * `unicodeMath` (MathDisplay and the prose splitter, never grading, whose
+ * radical-form grader parses these itself) a radical sign with its index
+ * (⁶√, ⁿ√) and radicand is one factor, a number coefficient before it comes
+ * along as it does for \sqrt above (`2√3/3` is (2√3)/3), and a run of
+ * superscript characters is the power of what it follows.
+ */
+const RADICAL_SIGN = /[√∛∜]/;
+const SUPERSCRIPT_CHARACTER = /[⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ⁺⁻]/;
+
+// Where a radical written just before `start` begins (its index, its sign and
+// a number coefficient), or `start` when there is none.
+const withRadicalBefore = (text, start, options) => {
+  if (!options.unicodeMath || start <= 0 || !RADICAL_SIGN.test(text[start - 1])) return start;
+  const sign = start - 1;
+  let begin = sign;
+  while (begin > 0 && SUPERSCRIPT_CHARACTER.test(text[begin - 1])) begin -= 1;
+  // Superscripts right after a letter, a number or a bracket are its power
+  // ("y⁴√x" is y⁴ times √x), not the root's index.
+  if (begin < sign && begin > 0 && /[A-Za-z\d)\]]/.test(text[begin - 1])) return sign;
+  return withNumberCoefficient(text, begin);
+};
+
+// The end of a run of superscript characters starting at `end`.
+const pastSuperscripts = (text, end, options) => {
+  if (!options.unicodeMath) return end;
+  let after = end;
+  while (SUPERSCRIPT_CHARACTER.test(text[after] || '')) after += 1;
+  return after;
+};
+
+// A radical after a slash (`1/√3`, `/ⁿ√b`, `/∛(9x)`): its index, sign and
+// radicand, with any power after it. Null when it is not one.
+const radicalAfter = (text, index) => {
+  let at = index;
+  while (SUPERSCRIPT_CHARACTER.test(text[at] || '')) at += 1;
+  if (!RADICAL_SIGN.test(text[at] || '')) return null;
+  at += 1;
+  let end;
+  if (text[at] === '(') {
+    const close = matchForwards(text, at);
+    if (close < 0) return null;
+    end = close + 1;
+  } else if (/\d/.test(text[at] || '')) {
+    end = at;
+    while (/[\d.]/.test(text[end] || '')) end += 1;
+  } else if (/[A-Za-z]/.test(text[at] || '')) end = at + 1;
+  else return null;
+  return end;
+};
+
+/*
  * The end of an exponent starting at `start` (just after `^`): a run of
  * digits, or a bracketed group. -1 when it cannot be read.
  */
@@ -218,10 +275,18 @@ const operandBefore = (text, end, options = {}) => {
     if (constant) return constant;
   }
 
+  // Display: "y⁴" and "(x + 1)²" end in their power.
+  if (options.unicodeMath && SUPERSCRIPT_CHARACTER.test(text[index])) {
+    let baseEnd = index;
+    while (baseEnd >= 0 && SUPERSCRIPT_CHARACTER.test(text[baseEnd])) baseEnd -= 1;
+    const base = baseEnd >= 0 && !/\s/.test(text[baseEnd]) ? operandBefore(text, baseEnd, options) : null;
+    return base ? { start: base.start, text: text.slice(base.start, index + 1) } : null;
+  }
+
   if (text[index] === ')' || text[index] === ']') {
     const open = matchBackwards(text, index);
     if (open < 0) return null;
-    const start = withLeftPrefix(text, open);
+    const start = withRadicalBefore(text, withLeftPrefix(text, open), options);
     return { start, text: text.slice(start, index + 1) };
   }
   // A closing brace is the tail of a `\frac{…}{…}` or a superscript group as
@@ -266,7 +331,8 @@ const operandBefore = (text, end, options = {}) => {
     const name = subscriptedName(text, start - 1);
     return name === null ? null : { start: name, text: text.slice(name, index + 1) };
   }
-  return { start, text: text.slice(start, index + 1) };
+  const whole = withRadicalBefore(text, start, options);
+  return { start: whole, text: text.slice(whole, index + 1) };
 };
 
 /** The operand starting at `start`, or null when it cannot be read. */
@@ -280,11 +346,19 @@ const operandAfter = (text, start, options = {}) => {
     if (constant) return constant;
   }
 
+  if (options.unicodeMath) {
+    const radicalEnd = radicalAfter(text, index);
+    if (radicalEnd !== null) {
+      const end = pastSuperscripts(text, radicalEnd, options);
+      return { end, text: text.slice(index, end) };
+    }
+  }
+
   const openIndex = text.startsWith('\\left(', index) ? index + 5 : index;
   if (text[openIndex] === '(' || text[openIndex] === '[') {
     const close = matchForwards(text, openIndex);
     if (close < 0) return null;
-    const end = withRightSuffix(text, close);
+    const end = pastSuperscripts(text, withRightSuffix(text, close), options);
     return { end, text: text.slice(index, end) };
   }
   // A command after the slash (`3/\sqrt{2}`, `3/\frac{1}{2}`) needs a parser
@@ -294,6 +368,10 @@ const operandAfter = (text, start, options = {}) => {
   // A power belongs to the denominator: `180/d^2` is 180 over d-squared, not
   // 180 over d, all squared. A subscript is part of a name, so it comes too.
   const withTrailingPower = (end) => {
+    if (options.unicodeMath && SUPERSCRIPT_CHARACTER.test(text[end] || '')) {
+      const after = pastSuperscripts(text, end, options);
+      return { end: after, text: text.slice(index, after) };
+    }
     if (text[end] !== '^') return { end, text: text.slice(index, end) };
     // Grading: a braced exponent on a denominator (`3/x^{n-1}`) is its power.
     if (options.constantOperands && text[end + 1] === '{') {
@@ -331,8 +409,8 @@ const operandAfter = (text, start, options = {}) => {
  * Returns the input unchanged when there is nothing to do, so callers can use
  * the result unconditionally.
  */
-export const stackDivisions = (value, { skipAsciiCalls = true, constantOperands = false } = {}) => {
-  const options = { constantOperands };
+export const stackDivisions = (value, { skipAsciiCalls = true, constantOperands = false, unicodeMath = false } = {}) => {
+  const options = { constantOperands, unicodeMath };
   const text = String(value ?? '');
   if (!text.includes('/')) return text;
   // The ASCIIMath guard exists to protect RENDERING: introducing a `\frac`

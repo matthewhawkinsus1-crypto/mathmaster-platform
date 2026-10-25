@@ -165,3 +165,13 @@ test('the pieces always put the sentence back together', () => {
     assert.equal(joined.replace(/\./g, ''), stackDivisions(removeRedundantPlainFractionParens(text)).replace(/\./g, ''), text);
   }
 });
+
+test('brackets a radical owns, or a power follows, are not dropped as redundant', () => {
+  assert.equal(removeRedundantPlainFractionParens('√(5/4)'), '√(5/4)');
+  assert.equal(removeRedundantPlainFractionParens('ⁿ√(a/b)'), 'ⁿ√(a/b)');
+  assert.equal(removeRedundantPlainFractionParens('(8/3)²'), '(8/3)²');
+  assert.equal(removeRedundantPlainFractionParens('(2/3)^2'), '(2/3)^2');
+  assert.equal(removeRedundantPlainFractionParens('Find (1/2) of 8'), 'Find 1/2 of 8', 'a fraction grouped on its own still loses them');
+  assert.equal(pieces('Not (8/3)²: take the root first.'), 'Not ([\\frac{8}{3}])²: take the root first.');
+  assert.equal(pieces('√(5/4) = √5/2.'), '√([\\frac{5}{4}]) = [\\frac{√5}{2}].');
+});

@@ -53,14 +53,14 @@ const shownStrings = () => {
 
 // What MathDisplay hands MathLive for a value (MathDisplay.jsx).
 const typeset = (value) => {
-  const stacked = stackDivisions(value);
+  const stacked = stackDivisions(value, { unicodeMath: true });
   return braceScriptGroups(stacked, resolveMathDisplayFormat(stacked, 'auto'));
 };
 
 const STRINGS = shownStrings();
 
 const problems = () => {
-  const found = { code: [], caret: [], bracket: [], tower: [] };
+  const found = { code: [], caret: [], bracket: [], tower: [], radical: [] };
   for (const [text, where] of STRINGS) {
     const pieces = splitMathSegments(text).flatMap((segment) => (isMathSegment(segment)
       ? [{ math: typeset(unwrapMathSegment(segment).value) }]
@@ -71,6 +71,9 @@ const problems = () => {
     if (pieces.some((piece, index) => piece.prose !== undefined && /\^\(?\s*$/.test(piece.prose) && pieces[index + 1]?.math !== undefined)) found.caret.push(at);
     if ([asLabel, ...pieces.map((piece) => piece.math).filter(Boolean)].some((value) => resolveMathDisplayFormat(value, 'auto') === 'latex' && /[\^_]\s*\(/.test(value))) found.bracket.push(at);
     if ([asLabel, ...pieces.map((piece) => piece.math).filter(Boolean)].some((value) => /\^\\frac/.test(value))) found.tower.push(at);
+    // A radical sign the fraction took its radicand from (√\frac{3}{3}), or a
+    // power left outside the fraction its base is in (\frac{√(xy)}{y}⁴).
+    if ([asLabel, ...pieces.map((piece) => piece.math).filter(Boolean)].some((value) => /[√∛∜]\\frac|\}[⁰¹²³⁴⁵⁶⁷⁸⁹]/.test(value))) found.radical.push(at);
   }
   return found;
 };
@@ -101,6 +104,11 @@ test('no prose leaves a caret in front of a typeset piece', () => {
 
 test('no typeset LaTeX keeps a bracketed exponent or subscript', () => {
   assert.deepEqual(FOUND.bracket, [], `"^(" in LaTeX raises the bracket alone ${list(FOUND.bracket)}`);
+});
+
+// Radical Expressions showed √3/3 as √(3/3) and x√(xy)/y⁴ as x(√(xy)/y)⁴.
+test('a radical keeps its radicand and a power its base', () => {
+  assert.deepEqual(FOUND.radical, [], `drawn as different mathematics ${list(FOUND.radical)}`);
 });
 
 test('no lesson relies on the B^(E)/N reading', () => {

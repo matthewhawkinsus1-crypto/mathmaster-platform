@@ -80,8 +80,9 @@ export default function MathDisplay({
   // stacks in both modes, so writing it out settles the question before format
   // detection runs. Anything ambiguous is left exactly as authored — see
   // ../functions/shared/stackDivisions.mjs.
+  // `unicodeMath`: √3/3 is √3 over 3, and y⁴ keeps its power (stackDivisions.mjs).
   const cleanValue = stripRedundantStackedFractionParens(
-    stackDivisions(repairLegacyMathLiveRelations(stripMathDelimiters(value))),
+    stackDivisions(repairLegacyMathLiveRelations(stripMathDelimiters(value)), { unicodeMath: true }),
   );
   // ONE SPOKEN COPY (below). Memoised: a screen of math re-renders often.
   const spoken = useMemo(() => mathSpeechLabel({ value: cleanValue, ariaLabel, language }), [cleanValue, ariaLabel, language]);

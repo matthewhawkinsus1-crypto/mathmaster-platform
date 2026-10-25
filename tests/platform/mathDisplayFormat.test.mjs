@@ -88,4 +88,6 @@ test('MathDisplay braces the value it typesets, not the words it speaks', () => 
   const display = readFileSync(new URL('../../src/MathDisplay.jsx', import.meta.url), 'utf8');
   assert.match(display, /const typesetValue = braceScriptGroups\(unicodeSubscriptsToMathMarkup\(cleanValue, resolvedFormat\), resolvedFormat\);/);
   assert.match(display, /mathSpeechLabel\(\{ value: cleanValue,/);
+  // √3/3 is √3 over 3 on screen (stackDivisions.mjs unicodeMath).
+  assert.match(display, /stackDivisions\(repairLegacyMathLiveRelations\(stripMathDelimiters\(value\)\), \{ unicodeMath: true \}\)/);
 });
