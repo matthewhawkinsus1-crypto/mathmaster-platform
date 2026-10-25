@@ -232,7 +232,12 @@ It is documented under Deploy. Left as is: `x·1` shows its prompt as `x1` (low;
 ## Not in scope (owner did not choose them) — possible follow-ups
 
 - Option 3: support-level variants of Simplify (for example, at level 1, showing which kind of part to look for).
-- Option 5: a "check my simplification" diagnosis that names the likely error in a part.
+  Still not built (TL41): every support level gets the same Simplify.
+- Option 5: a "check my simplification" diagnosis that names the likely error in a part. TL41 built its smallest
+  slice: one slip (a sign left as it was when parentheses after a minus sign were removed), named in Step Algebra's
+  whole-side route only when the student's own line shows it, verdicts are shown, and fixing it would not put the
+  answer on the board. The rules and what stays unbuilt are in `regionRewriteSlip`
+  (`src/platform/algebra/simplify/simplifyEngine.js`).
 - The authored bare group and the server step label (above).
 - The Path question-bank seeds still say "Combine like terms" in some hints. They name the math, and they are job O's
   lane.

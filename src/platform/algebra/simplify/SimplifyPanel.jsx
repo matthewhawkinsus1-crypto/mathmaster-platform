@@ -29,6 +29,7 @@ import {
   partNeedsAnswer,
   partNeedsSigns,
   partPromptLatex,
+  regionRewriteSlip,
   simplifyMessage,
 } from './simplifyEngine.js';
 import {
@@ -101,6 +102,10 @@ export default function SimplifyPanel({
   // How a typed whole region is read and compared, when the host reads
   // expressions its own way (checkRegionRewrite's `read` / `equivalent`).
   regionCheck = null,
+  // TL41: a typed whole side that shows a sign left as it was inside
+  // parentheses after a minus is told so (regionRewriteSlip), where the host
+  // asks: an equation whose verdicts are shown. Never with a host's own reader.
+  nameSlips = false,
 }) {
   const chipRefs = useRef(new Map());
   const typedRef = useRef(null);
@@ -196,7 +201,10 @@ export default function SimplifyPanel({
     const answer = regionTypedRef.current == null ? state.regionAnswer : regionTypedRef.current;
     const result = checkRegionRewrite(region, answer, regionCheck || {});
     if (!result.ok) {
-      notify?.({ tone: 'growth', text: simplifyMessage(result.reason) });
+      const slip = nameSlips && !regionCheck && result.reason === 'notEquivalentSide'
+        ? regionRewriteSlip(regions, region.key, answer)
+        : null;
+      notify?.({ tone: 'growth', text: simplifyMessage(slip || result.reason) });
       setRegionFocus((signal) => signal + 1);
       return;
     }

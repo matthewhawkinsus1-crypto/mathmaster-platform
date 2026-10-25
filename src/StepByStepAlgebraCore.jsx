@@ -1680,6 +1680,11 @@ export default function StepByStepAlgebra({
     }
     const incorrect = targets.filter((target) => !expressionsEquivalent(simplificationAnswers[target.side], target.simplifiedExpression, equation.variable));
     if (incorrect.length) {
+      // TL41 (confirmed as built): this box names the side to revise, never a
+      // likely slip. It holds the arithmetic a move leaves on a side (15/3
+      // after dividing 3x = 15 by 3), usually the answer itself, so naming the
+      // slip would give the answer away. Simplify's whole-side route names one
+      // slip where that cannot happen (regionRewriteSlip).
       triggerShake();
       // An intermediate simplification is checked before it is committed, so a
       // wrong one is a slip to revise, not an answer: never a try (decision
@@ -2635,6 +2640,9 @@ export default function StepByStepAlgebra({
           contextSymbols={operationContextSymbols}
           collapseSignal={mathToolsCollapseSignal}
           boardHighlights={inlineExpressionTools}
+          // TL41: a retyped side that shows a sign left as it was inside
+          // parentheses after a minus is named, only where verdicts are shown.
+          nameSlips={verdictsShown}
           focusSignal={simplifyFocusSignal}
           onFocusConsumed={() => setSimplifyFocusSignal(0)}
           idPrefix={`${localDraftKey || 'step-algebra'}-simplify`.replace(/[^a-zA-Z0-9_-]/g, '-')}

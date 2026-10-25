@@ -687,6 +687,228 @@ export const checkRegionRewrite = (region, answer, { read = null, equivalent = n
   return { ok: true, expression };
 };
 
+// --- Check my simplification: the one slip it names (TL41) -----------------------------------
+
+/*
+ * CHECK MY SIMPLIFICATION NAMES ONE SLIP (TL41, the smallest slice of the
+ * owner's option 5: "a 'check my simplification' diagnosis that names the
+ * likely error").
+ *
+ * A whole side typed in Simplify that is not equal to the side on the board is
+ * normally told only that (notEquivalentSide). One slip is named instead: a
+ * sign left as it was when parentheses the board shows after a minus sign, or
+ * after a negative number, were removed — 5 − 3(x − 2) typed as 5 − 3x − 6, or
+ * 4x − 2(x + 3) typed as 4x − 2x + 6. It is named only when all of these hold:
+ *
+ *   1. The student's own line SHOWS it. Term for term, in any order, the line
+ *      is the side as the board draws it with those parentheses removed and at
+ *      least one sign inside left as it was; any other group may be kept or
+ *      correctly removed. A line that also combined terms (2x + 6 for
+ *      4x − 2(x + 3)) is consistent with the slip but does not show it, and a
+ *      line with a second error does not match: both keep the plain message.
+ *      So does a bare −(x + 1): the board draws it already opened (− x − 1),
+ *      so the student removed no parentheses there.
+ *   2. Fixing the slip would not put the answer on the board. The corrected
+ *      line must not read "a letter = something that does not depend on it",
+ *      either way round and however the letter is written (x, 1x,
+ *      x − 2(2 − 2)), and the equation must have a letter at all. In
+ *      x = 10 − 2(3 + 1), y = 4x − 2(x + 3), x − 2(2 − 2) = 10 or
+ *      10 − 2(3 + 1) = 2 the corrected line IS the answer, so naming the slip
+ *      would give the next line away: those keep the plain message.
+ *   3. The host asks for it: Step Algebra's equations, and only where verdicts
+ *      are shown, never in an activity that withholds them. The relation
+ *      workspace does not ask.
+ *
+ * The message names the kind of slip and the rule — never a term, a number or
+ * a corrected line (SIMPLIFY_MESSAGES.signInsideParentheses).
+ *
+ * NOT BUILT (TL41):
+ *   - Any other slip. Each needs its own "the line shows it" test and its own
+ *     proof that naming it cannot give the answer away.
+ *   - Naming a slip in the "Check my simplification" box after a balanced move
+ *     (StepByStepAlgebraCore, checkSimplifications). That box holds the
+ *     arithmetic a move leaves on a side — 15/3 after dividing 3x = 15 by 3 —
+ *     which is usually the answer itself, so it keeps naming only the side to
+ *     revise.
+ *   - Option 3, support-level variants of Simplify (for example, at level 1,
+ *     showing which kind of part to look for). The owner did not choose it:
+ *     every support level gets the same Simplify, this message included.
+ */
+export const SIMPLIFY_SLIPS = Object.freeze({
+  SIGN_INSIDE_PARENTHESES: 'signInsideParentheses',
+});
+
+// Irregular values, so two different terms never agree at all of them by chance.
+const SLIP_PROBES = Object.freeze([1.37, -2.11, 3.53, -0.71, 2.89]);
+const SLIP_SHIFT = 1.618;
+// Past these the line is not searched; it keeps the plain message.
+const MAX_SLIP_TERMS = 12;
+const MAX_SLIP_GROUPS = 4;
+const MAX_SLIP_SIGNS = 8;
+
+// The signed terms of a sum as written. A group in parentheses stays one term.
+const writtenChain = (node, sign = 1, terms = []) => {
+  if (node?.type === 'OperatorNode' && node.args?.length === 2 && (node.fn === 'add' || node.fn === 'subtract')) {
+    writtenChain(node.args[0], sign, terms);
+    writtenChain(node.args[1], node.fn === 'add' ? sign : -sign, terms);
+  } else if (node?.type === 'OperatorNode' && node.args?.length === 1 && (node.fn === 'unaryMinus' || node.fn === 'unaryPlus')) {
+    writtenChain(node.args[0], node.fn === 'unaryMinus' ? -sign : sign, terms);
+  } else {
+    terms.push({ node, sign });
+  }
+  return terms;
+};
+
+/**
+ * A group in parentheses, alone or times a number — −(x + 1), −3(x − 2),
+ * 2(x − 3), a substitution's stored −1(…) — as the number it is multiplied by
+ * (the term's sign included) and the terms inside. Null for anything else.
+ */
+const writtenGroup = ({ node, sign }) => {
+  const inside = (candidate) => (candidate?.type === 'ParenthesisNode' && isSum(candidate) ? writtenChain(unwrap(candidate)) : null);
+  const alone = inside(node);
+  if (alone) return { multiplier: sign, inner: alone };
+  if (node?.type !== 'OperatorNode' || node.fn !== 'multiply' || node.args?.length !== 2) return null;
+  const inner = inside(node.args[1]);
+  if (!inner || hasSymbols(node.args[0])) return null;
+  const value = exactRationalFromNode(node.args[0]);
+  if (!value || value.n === 0) return null;
+  return { multiplier: sign * (value.n / value.d), inner };
+};
+
+const letterNames = (node) => [...new Set(node
+  .filter((child) => child.isSymbolNode && !['e', 'pi'].includes(child.name))
+  .map((child) => child.name))];
+
+// A term's values at the probes, times a number; null when it cannot be read.
+const valuesAt = (scopes) => (node, coefficient = 1) => {
+  let code;
+  try { code = node.compile(); } catch { return null; }
+  const values = [];
+  for (const scope of scopes) {
+    let value;
+    try { value = coefficient * Number(code.evaluate({ ...scope })); } catch { return null; }
+    if (!Number.isFinite(value)) return null;
+    values.push(value);
+  }
+  return values;
+};
+
+const sameValues = (a, b) => a.length === b.length
+  && a.every((value, index) => Math.abs(value - b[index]) <= 1e-9 * Math.max(1, Math.abs(value), Math.abs(b[index])));
+
+// Term for term, in any order: each expected term matched by its own typed term.
+const sameTermsInAnyOrder = (typed, expected) => {
+  if (typed.length !== expected.length) return false;
+  const used = typed.map(() => false);
+  return expected.every((values) => {
+    const at = typed.findIndex((candidate, index) => !used[index] && sameValues(candidate, values));
+    if (at < 0) return false;
+    used[at] = true;
+    return true;
+  });
+};
+
+/**
+ * The slip a typed whole side shows, or null (see the block above). `regions`
+ * are the equation's two sides; `regionKey` the side the student retyped;
+ * `answer` what they typed. Only a host that wants slips named calls this, and
+ * only after checkRegionRewrite has said notEquivalentSide.
+ */
+export const regionRewriteSlip = (regions, regionKey, answer) => {
+  if (!Array.isArray(regions) || regions.length !== 2) return null;
+  const region = regions.find((entry) => entry?.key === regionKey);
+  const other = regions.find((entry) => entry && entry.key !== regionKey);
+  if (!region || !other || String(region.expression ?? '') === '' || String(other.expression ?? '') === '') return null;
+  const typed = readTyped(answer, [region.expression]);
+  if (typed.reason) return null;
+  let sideNode;
+  let otherNode;
+  try {
+    sideNode = parse(String(region.expression));
+    otherNode = parse(String(other.expression));
+  } catch {
+    return null;
+  }
+  if ([sideNode, otherNode, typed.node].some((node) => node.filter((child) => child.type === 'FunctionNode').length)) return null;
+
+  // No letter: nothing to solve, and the side's value is all the line says.
+  const boardLetters = [...new Set([...letterNames(sideNode), ...letterNames(otherNode)])];
+  if (!boardLetters.length) return null;
+  const letters = [...new Set([...boardLetters, ...letterNames(typed.node)])];
+  if (letters.length > SLIP_PROBES.length) return null;
+  const scopesWith = (shifted = null) => SLIP_PROBES.map((_, probe) => Object.fromEntries(letters.map((name, index) => [
+    name,
+    SLIP_PROBES[(probe + index) % SLIP_PROBES.length] + (name === shifted ? SLIP_SHIFT : 0),
+  ])));
+  const scopes = scopesWith();
+  const valuesOf = valuesAt(scopes);
+  const sideValues = valuesOf(sideNode);
+  const otherValues = valuesOf(otherNode);
+  const typedValues = valuesOf(typed.node);
+  if (!sideValues || !otherValues || !typedValues) return null;
+  // An equal line is never a slip.
+  if (sameValues(typedValues, sideValues)) return null;
+
+  // Fixing the slip leaves this side's value as it is on the board now. If the
+  // corrected line would be "a letter = something that does not depend on it",
+  // it is the answer: never named. Unreadable counts as the answer.
+  const answerStatement = (letterValues, againstNode, againstValues) => {
+    const name = letters.find((entry) => sameValues(letterValues, scopes.map((scope) => scope[entry])));
+    if (!name) return false;
+    const moved = valuesAt(scopesWith(name))(againstNode);
+    return !moved || sameValues(moved, againstValues);
+  };
+  if (answerStatement(otherValues, sideNode, sideValues) || answerStatement(sideValues, otherNode, otherValues)) return null;
+
+  // The side as the board draws it: the shared splitter's terms. A group the
+  // board keeps whole (a number times parentheses, a substitution's −1(…)) is
+  // one the student removes. A bare −(x + 1) is drawn already opened
+  // (− x − 1), so a sign typed wrong there is a copying slip, not this one.
+  const terms = (splitAdditiveTerms(region.expression) || []).map((term) => {
+    try { return { node: parse(String(term.magnitudeText)), sign: term.sign < 0 ? -1 : 1 }; } catch { return null; }
+  });
+  if (!terms.length || terms.some((term) => !term)) return null;
+  const typedTerms = writtenChain(unwrap(typed.node));
+  if (terms.length > MAX_SLIP_TERMS || typedTerms.length > MAX_SLIP_TERMS + MAX_SLIP_SIGNS) return null;
+  const typedPrints = typedTerms.map(({ node, sign }) => valuesOf(node, sign));
+  if (typedPrints.some((values) => !values)) return null;
+
+  const plain = [];
+  const groups = [];
+  for (const term of terms) {
+    const whole = valuesOf(term.node, term.sign);
+    if (!whole) return null;
+    const group = writtenGroup(term);
+    if (!group) {
+      plain.push(whole);
+      continue;
+    }
+    const inner = group.inner.map(({ node, sign }) => valuesOf(node, group.multiplier * sign));
+    if (inner.some((values) => !values)) return null;
+    groups.push({ whole, inner, negative: group.multiplier < 0 });
+  }
+  if (!groups.some((group) => group.negative) || groups.length > MAX_SLIP_GROUPS) return null;
+
+  // Each group kept whole or removed; removed after a minus, each sign inside
+  // either changed (right) or left as it was (the slip) — at least one left.
+  for (let removed = 1; removed < (1 << groups.length); removed += 1) {
+    const fixed = [...plain];
+    const signed = [];
+    groups.forEach((group, index) => {
+      if (!(removed & (1 << index))) fixed.push(group.whole);
+      else if (group.negative) signed.push(...group.inner);
+      else fixed.push(...group.inner);
+    });
+    if (!signed.length || signed.length > MAX_SLIP_SIGNS || fixed.length + signed.length !== typedPrints.length) continue;
+    for (let leftAsItWas = 1; leftAsItWas < (1 << signed.length); leftAsItWas += 1) {
+      const expected = [...fixed, ...signed.map((values, index) => (leftAsItWas & (1 << index) ? values.map((value) => -value) : values))];
+      if (sameTermsInAnyOrder(typedPrints, expected)) return SIMPLIFY_SLIPS.SIGN_INSIDE_PARENTHESES;
+    }
+  }
+  return null;
+};
+
 // --- Student-safe messages ------------------------------------------------------------------
 
 /**
@@ -708,6 +930,8 @@ export const SIMPLIFY_MESSAGES = Object.freeze({
   signsMissing: 'Choose a sign for every term inside the parentheses.',
   signsWrong: 'Not every sign is right yet. A minus sign in front of parentheses changes the sign of every term inside. Your equation has not been changed.',
   notEquivalentSide: 'That is not equivalent to that side. Your equation has not been changed.',
+  // TL41: named only when the student's own line shows it (regionRewriteSlip).
+  [SIMPLIFY_SLIPS.SIGN_INSIDE_PARENTHESES]: 'A sign was left as it was when you removed the parentheses. A minus sign or a negative number in front of parentheses changes the sign of every term inside. Your equation has not been changed.',
   unchanged: 'That is the expression already shown. Type a simpler form to change it.',
   moreToSimplify: 'That leaves more to simplify than before. Your equation has not been changed.',
   stale: 'The equation changed, so that step was not applied. Choose the part again.',
