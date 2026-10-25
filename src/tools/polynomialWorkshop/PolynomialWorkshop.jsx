@@ -31,7 +31,9 @@ import {
   termPlainText,
   polynomialDegree,
   syntheticAsks,
-  syntheticDivisionRoot,
+  syntheticRemainderDivisor,
+  syntheticRootText,
+  xMinusRootText,
 } from './polynomialMath';
 import MathInput from '../../MathInput.jsx';
 import MathDisplay from '../../MathDisplay.jsx';
@@ -40,6 +42,7 @@ import './PolynomialWorkshop.css';
 import { polynomialReadoutText } from './polynomialReadout.js';
 import { SubmitText, useMethodWithheld } from '../shared/ToolRuntimeContext';
 import { SYNTHETIC_TABLE_RETRY, SYNTHETIC_TABLE_WITHHELD, syntheticMissMessage, syntheticTableMissMessage } from './syntheticFeedback.js';
+import { spokenMathValue } from '../shared/spokenMathValue.js';
 
 const inputStyle = { width:'100%', padding:9, border:'1px solid var(--mm-tint-border)', borderRadius:8, boxSizing:'border-box' };
 const actionStyle = { marginTop:14, padding:'10px 16px', border:0, borderRadius:8, background:'#1a73e8', color:'#fff', fontWeight:800, cursor:'pointer' };
@@ -627,8 +630,14 @@ const xPowerName = (degree) => (degree === 0 ? 'constant term' : degree === 1 ? 
 // Dividing Polynomials' ax + b view.
 function SyntheticRemainderFactor({ questionData, feedback, submit, onAction }) {
   const dividend = questionData.dividend || DEFAULTS.synthetic.dividend;
-  const authoredRoot = syntheticDivisionRoot(questionData);
-  const root = questionData.dividend ? authoredRoot : (authoredRoot ?? DEFAULTS.synthetic.candidateRoot);
+  // r may be a fraction, and the divisor ax + b with a ≠ 1 (TL49): the table
+  // divides by x − r, and the quotient asked is for the divisor named
+  // (polynomialMath.mjs syntheticRemainderDivisor).
+  const authoredDivisor = syntheticRemainderDivisor(questionData);
+  const division = questionData.dividend
+    ? authoredDivisor
+    : (authoredDivisor ?? { root: DEFAULTS.synthetic.candidateRoot, leading: 1, divisor: null });
+  const root = division ? division.root : null;
   const asks = syntheticAsks(questionData);
   // The table's shape only — one column per power, as written. Its entries
   // are the student's to find; the shared grader holds the key.
@@ -659,10 +668,15 @@ function SyntheticRemainderFactor({ questionData, feedback, submit, onAction }) 
   });
   const check=()=>{
     const result=gradeToolCheck(polynomialWorkshopGrader,questionData,work);
-    setMissMessage(result.isCorrect ? '' : syntheticTableMissMessage({ parts: result.parts, root, typedRoot: rootBox, methodWithheld }));
+    setMissMessage(result.isCorrect ? '' : syntheticTableMissMessage({ parts: result.parts, root, typedRoot: rootBox, methodWithheld, leading: division?.leading ?? 1 }));
     submit({ isCorrect: result.isCorrect, score: result.score },work,{mode:'synthetic',parts:result.parts});
   };
-  const divisorText = polynomialReadoutText([1, -(root ?? 0)]);
+  // No r to divide by (a divisor that is not linear): nothing to work on.
+  if (!division) return <MissingProblem title="Divide by x − r with synthetic division." />;
+  // r exactly as a fraction: x − 1/2 and P(1/2), never x − 0.5 (TL49).
+  const rootText = syntheticRootText(root);
+  const divisorText = division.divisor ? polynomialReadoutText(division.divisor) : xMinusRootText(root);
+  const leadingText = syntheticRootText(division.leading);
   const columns = `minmax(52px, 64px) repeat(${size}, minmax(44px, 1fr))`;
   const ruled = { borderTop: '2px solid var(--mm-text-strong)', paddingTop: 6 };
   return <ToolShell title="Polynomial Workshop" subtitle="Divide by x − r with synthetic division, then read what the table tells you." badge="Algebra II · Synthetic Division">
@@ -671,6 +685,9 @@ function SyntheticRemainderFactor({ questionData, feedback, submit, onAction }) 
       <Panel title="Synthetic division">
         <p style={{ fontSize: 'calc(19 * var(--mm-px))', fontWeight: 800, margin: '0 0 6px' }}>P(x) = {polynomialText(dividend)}</p>
         <p style={{ margin: '0 0 12px' }}>Divisor: <strong>{divisorText}</strong></p>
+        {/* ax + b with a ≠ 1: what the table divides by, and what that means
+            for the quotient, without saying what r is. */}
+        {division.divisor ? <p data-synthetic-scaled-divisor="" style={{ margin: '0 0 12px' }}>The table divides by x − r, where r is the value of x that makes {divisorText} zero. Because {divisorText} = {leadingText}(x − r), the quotient for {divisorText} is the table’s quotient divided by {leadingText}.</p> : null}
         <div role="group" aria-label="Synthetic division table" style={{ display: 'grid', gridTemplateColumns: columns, gap: 6, alignItems: 'end' }}>
           <div style={{ borderRight: '2px solid var(--mm-text-strong)', paddingRight: 6 }}>
             <input value={rootBox} onChange={(event) => setRootBox(event.target.value)} style={cellStyle} aria-label="Number in the box" placeholder="r" />
@@ -687,8 +704,8 @@ function SyntheticRemainderFactor({ questionData, feedback, submit, onAction }) 
         <p style={{ color: 'var(--mm-text-muted)', margin: '10px 0 0', fontSize: 'calc(13 * var(--mm-px))' }}>The boxed bottom-right number is the remainder.</p>
       </Panel>
       <Panel title="What the table tells you">
-        {asks.includes('value') && <label style={{ display: 'block', marginBottom: 10 }}>P({root ?? 'r'}) = <input value={value} onChange={(event) => setValue(event.target.value)} style={{ ...inputStyle, width: 140, marginLeft: 8 }} aria-label={`P of ${root ?? 'r'}`} /></label>}
-        {asks.includes('quotient') && <label style={{ display: 'block', marginBottom: 10 }}>Quotient (a polynomial in x)<input value={quotient} onChange={(event) => setQuotient(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="for example x^2 + 7x + 6" /></label>}
+        {asks.includes('value') && <label style={{ display: 'block', marginBottom: 10 }}>P({rootText}) = <input value={value} onChange={(event) => setValue(event.target.value)} style={{ ...inputStyle, width: 140, marginLeft: 8 }} aria-label={`P of ${spokenMathValue(rootText)}`} /></label>}
+        {asks.includes('quotient') && <label style={{ display: 'block', marginBottom: 10 }}>{division.divisor ? `Quotient of P(x) ÷ (${divisorText}) (a polynomial in x)` : 'Quotient (a polynomial in x)'}<input value={quotient} onChange={(event) => setQuotient(event.target.value)} style={{ ...inputStyle, marginTop: 6 }} placeholder="for example x^2 + 7x + 6" /></label>}
         {asks.includes('factor') && <label style={{ display: 'block', marginBottom: 10 }}>Is ({divisorText}) a factor of P(x)?<select value={factorChoice} onChange={(event) => setFactorChoice(event.target.value)} style={{ ...inputStyle, marginTop: 6 }}><option value={UNANSWERED}>Choose…</option><option value="yes">Yes</option><option value="no">No</option></select></label>}
         <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check synthetic division</SubmitText></button>
         <Feedback feedback={feedback} success="Every row is right, and so is what it tells you." retry={missMessage || (methodWithheld ? SYNTHETIC_TABLE_WITHHELD : SYNTHETIC_TABLE_RETRY)} />

@@ -7,7 +7,7 @@ import { validateLinearTableWorkbenchQuestion } from './linearTableWorkbench/lin
 import { validateExpressionMeaningQuestion } from './expressionMeaning/expressionMeaningMath.js';
 import { validateRepresentationBridgeQuestion } from './representationBridge/representationBridgeMath.js';
 import { validateMatrixLabQuestion } from './matrixLab/matrixLabMath.js';
-import { DIVISION_LIMITS, POLYNOMIAL_TEXT_LIMITS, addSubtractKey, areaModelKey, longDivisionKey, syntheticDivisionKey } from './polynomialWorkshop/polynomialMath.js';
+import { DIVISION_LIMITS, POLYNOMIAL_TEXT_LIMITS, addSubtractKey, areaModelKey, longDivisionKey, syntheticDivisionKey, syntheticRemainderDivisor } from './polynomialWorkshop/polynomialMath.js';
 import { normalizeLinearInequality } from './systemsWorkspace/linearInequalityEngine.js';
 import { linearEquationCoefficients, validateAlgebraicSystemAuthoring } from './systemsWorkspace/algebraicSystemsEngine.js';
 import { resolveSystemsWorkspaceMode } from './systemsWorkspace/systemsWorkspaceMode.js';
@@ -413,14 +413,14 @@ export const validateToolQuestion = (question = {}) => {
     if (question.mode === 'graphConnection' && (!Array.isArray(question.roots) || question.roots.length < 1)) errors.push('graphConnection mode requires at least one root/multiplicity entry.');
     if (question.mode === 'synthetic') {
       // Synthetic division divides by x − r: the dividend's full coefficient
-      // list (a 0 for each missing power) and r, as candidateRoot or a monic
-      // linear divisor [1, −r].
+      // list (a 0 for each missing power) and r, as candidateRoot (a number
+      // or a fraction, "1/2") or a linear divisor [a, b] — 2x − 1 is
+      // [2, -1], divided as x − 1/2 (TL49, syntheticRemainderDivisor).
       const dividend = Array.isArray(question.dividend) ? question.dividend.map(Number) : null;
       if (!dividend || dividend.length < 2 || !dividend.every(Number.isFinite) || dividend[0] === 0) errors.push('synthetic mode requires a dividend coefficient array of degree at least 1 with a nonzero leading coefficient.');
       const rootGiven = question.candidateRoot !== undefined && question.candidateRoot !== null && question.candidateRoot !== '';
-      const divisor = Array.isArray(question.divisor) ? question.divisor.map(Number) : null;
-      if (rootGiven && !Number.isFinite(Number(question.candidateRoot))) errors.push('synthetic mode candidateRoot must be a number.');
-      if (!rootGiven && !(divisor && divisor.length === 2 && divisor[0] === 1 && Number.isFinite(divisor[1]))) errors.push('synthetic mode divides by x − r: give candidateRoot r or a divisor [1, -r].');
+      if (rootGiven && !syntheticRemainderDivisor({ candidateRoot: question.candidateRoot })) errors.push('synthetic mode candidateRoot must be a number or a fraction such as 1/2.');
+      if (!rootGiven && !syntheticRemainderDivisor({ divisor: question.divisor })) errors.push('synthetic mode divides by x − r: give candidateRoot r (a number or a fraction such as 1/2) or a linear divisor [a, b] (2x − 1 is [2, -1], divided as x − 1/2).');
       if (question.ask !== undefined && (!Array.isArray(question.ask) || !question.ask.length || question.ask.some((entry) => !['value', 'quotient', 'factor'].includes(entry)))) errors.push('synthetic mode ask must list one or more of "value", "quotient", "factor".');
     }
     if (question.mode === 'rationalFeatures' && (!Array.isArray(question.denominatorRoots) || question.denominatorRoots.length < 1)) errors.push('rationalFeatures mode requires denominatorRoots.');

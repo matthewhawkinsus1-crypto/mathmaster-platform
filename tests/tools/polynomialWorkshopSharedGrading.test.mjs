@@ -170,11 +170,13 @@ test('the views draw their unauthored problem from the same defaults table the g
   }
   assert.match(region(code, 'function GraphConnection(', '\nfunction ', 'GraphConnection'), /graphConnectionTargetEntry\(roots, questionData\.targetRoot\)/);
   assert.match(region(code, 'function RationalFeatures(', '\n}', 'RationalFeatures'), /rationalFeatureTargetValue\(features, questionData\.targetValue\)/);
-  // The synthetic view's r is the grader's: syntheticDivisionRoot, and the
-  // shared default only for an unauthored problem.
-  assert.match(region(code, 'function SyntheticRemainderFactor(', '\n}', 'SyntheticRemainderFactor'),
-    /const root = questionData\.dividend \? authoredRoot : \(authoredRoot \?\? DEFAULTS\.synthetic\.candidateRoot\);/);
-  assert.match(region(code, 'function SyntheticRemainderFactor(', '\n}', 'SyntheticRemainderFactor'), /const authoredRoot = syntheticDivisionRoot\(questionData\);/);
+  // The synthetic view's r is the grader's — syntheticRemainderDivisor, which
+  // the grader keys with (TL49 widened it to a fractional r and to ax + b) —
+  // and the shared default only for an unauthored problem.
+  const synthetic = region(code, 'function SyntheticRemainderFactor(', '\n}', 'SyntheticRemainderFactor');
+  assert.match(synthetic, /const authoredDivisor = syntheticRemainderDivisor\(questionData\);/);
+  assert.match(synthetic, /const division = questionData\.dividend\s*\?\s*authoredDivisor\s*:\s*\(authoredDivisor \?\? \{ root: DEFAULTS\.synthetic\.candidateRoot, leading: 1, divisor: null \}\);/);
+  assert.match(synthetic, /const root = division \? division\.root : null;/);
 });
 
 test('the inline verdict code is gone from the component', () => {
@@ -677,8 +679,13 @@ test('Pre-Flight: a synthetic question names its whole dividend and r, and asks 
   assert.deepEqual(errors({ dividend: [2, -3, 0, 4], candidateRoot: 2, ask: ['value', 'factor'] }), []);
   assert.match(errors({ candidateRoot: 3 }).join(' '), /requires a dividend/, 'no demonstration problem for an authored question');
   assert.match(errors({ dividend: [0, 1, 2], candidateRoot: 3 }).join(' '), /nonzero leading coefficient/);
-  assert.match(errors({ dividend: [1, 4, -15, -18] }).join(' '), /give candidateRoot r or a divisor \[1, -r\]/);
-  assert.match(errors({ dividend: [1, 4, -15, -18], divisor: [2, -3] }).join(' '), /divides by x − r/, 'a divisor that is not x − r');
+  assert.match(errors({ dividend: [1, 4, -15, -18] }).join(' '), /give candidateRoot r .* or a linear divisor \[a, b\]/);
+  // TL49: a fractional r, as a fraction or from ax + b, is a question the
+  // view draws (2x − 3 divides as x − 3/2); a divisor that is not linear is not.
+  assert.deepEqual(errors({ dividend: [1, 4, -15, -18], divisor: [2, -3] }), [], '2x − 3 is x − 3/2 (TL49)');
+  assert.deepEqual(errors({ dividend: [6, 7, -1, -2], candidateRoot: '1/2' }), [], 'a fraction for r (TL49)');
+  assert.match(errors({ dividend: [1, 4, -15, -18], divisor: [1, 2, 3] }).join(' '), /divides by x − r/, 'a divisor that is not linear');
+  assert.match(errors({ dividend: [1, 4, -15, -18], divisor: [0, 3] }).join(' '), /divides by x − r/, 'a divisor with no x term');
   assert.match(errors({ dividend: [1, 4, -15, -18], candidateRoot: 'three' }).join(' '), /candidateRoot must be a number/);
   assert.match(errors({ dividend: [1, 4, -15, -18], candidateRoot: 3, ask: ['remainder'] }).join(' '), /ask must list/);
   assert.match(errors({ dividend: [1, 4, -15, -18], candidateRoot: 3, ask: [] }).join(' '), /ask must list/);
@@ -747,7 +754,9 @@ test('non-object, oversize and unrenderable questions are not graded, on either 
     q({ mode: 'rationalFeatures', numeratorRoots: 5 }),
     q({ mode: 'synthetic', dividend: '1,4,-15,-18', candidateRoot: 3 }),
     q({ mode: 'synthetic', dividend: [1, 4, -15, -18] }),
-    q({ mode: 'synthetic', dividend: [1, 4, -15, -18], divisor: [2, -3] }),
+    // Not linear, and no x term (2x − 3 is drawn and graded since TL49).
+    q({ mode: 'synthetic', dividend: [1, 4, -15, -18], divisor: [1, 2, 3] }),
+    q({ mode: 'synthetic', dividend: [1, 4, -15, -18], divisor: [0, 3] }),
     q({ mode: 'synthetic', dividend: [5], candidateRoot: 1 }),
     q({ mode: 'synthetic', dividend: [1, 'a', 2], candidateRoot: 1 }),
   ]) {
