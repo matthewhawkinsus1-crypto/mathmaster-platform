@@ -31,7 +31,24 @@ import { studentAssignmentView } from '../../../functions/shared/studentAssignme
  * Teachers keep the whole-collection listener; their screens span classes.
  */
 
-export const MAX_PRIOR_WORK_ASSIGNMENTS = 200;
+/*
+ * NO STUDENT'S EARLIER WORK IS LEFT UNREAD (MP01).
+ *
+ * This used to be a CAP, MAX_PRIOR_WORK_ASSIGNMENTS = 200: each read took the
+ * first 200 ids in sort order and silently dropped the rest. A student with more
+ * than 200 graded assignments outside their current class (a move between
+ * classes, a repeated course) then showed less mastery evidence in the scoped
+ * read than the old whole-collection read gave, with nothing to say so. The
+ * owner decided to lift it (MP01, 2026-10-23).
+ *
+ * Every id is read now. 200 is the size of ONE round of reads, the most this
+ * read ever had in flight at once, so a student at or under it reads exactly
+ * as before and a larger account takes a few rounds, one after the other,
+ * instead of an unbounded burst on a Chromebook. The ids come from the
+ * student's own grade document, which only the server writes, so the number
+ * is bounded by the work they have actually done.
+ */
+export const PRIOR_WORK_READ_BATCH = 200;
 
 const cleanId = (value) => String(value ?? '').trim();
 
@@ -45,8 +62,9 @@ export const studentClassAssignmentsQuery = (db, classId) => query(
 
 /**
  * Assignments the student has recorded work on that `loadedIds` does not
- * already hold, plus any explicitly needed id (a resume target). Sorted and
- * capped, so the result is stable for a given set of work.
+ * already hold, plus any explicitly needed id (a resume target). All of them,
+ * sorted, so the result is stable for a given set of work (PRIOR_WORK_READ_BATCH
+ * says how they are read; there is no longer a cap).
  */
 export const priorWorkAssignmentIds = ({ gradesByAssignment = {}, loadedIds = [], extraIds = [] } = {}) => {
   const loaded = new Set((loadedIds || []).map(cleanId));
@@ -54,7 +72,7 @@ export const priorWorkAssignmentIds = ({ gradesByAssignment = {}, loadedIds = []
     ...Object.keys(gradesByAssignment && typeof gradesByAssignment === 'object' ? gradesByAssignment : {}),
     ...(extraIds || []),
   ].map(cleanId).filter(Boolean));
-  return [...wanted].filter((id) => !loaded.has(id)).sort().slice(0, MAX_PRIOR_WORK_ASSIGNMENTS);
+  return [...wanted].filter((id) => !loaded.has(id)).sort();
 };
 
 /**
@@ -142,15 +160,29 @@ export const studentScopedAssignment = (id, data, studentId) => ({
 
 const snapshotToStudentAssignment = (snapshot, studentId) => studentScopedAssignment(snapshot.id, snapshot.data(), studentId);
 
-/** Read assignments one id at a time (the rules allow any signed-in user to open one by id). */
-export const fetchAssignmentsById = async (db, ids = [], { studentId = null } = {}) => {
-  const snapshots = await Promise.all((ids || []).map((id) => getDoc(doc(db, 'assignments', id)).catch(() => null)));
+/**
+ * Read assignments one id at a time (the rules allow any signed-in user to open
+ * one by id), PRIOR_WORK_READ_BATCH at a time, in the order given. An id that
+ * cannot be read is skipped; it never fails the others. `readOne` is the seam
+ * for a test (it returns a snapshot or null); the app reads the real document.
+ */
+export const fetchAssignmentsById = async (db, ids = [], {
+  studentId = null,
+  readOne = (id) => getDoc(doc(db, 'assignments', id)).catch(() => null),
+} = {}) => {
+  const wanted = ids || [];
+  const snapshots = [];
+  for (let start = 0; start < wanted.length; start += PRIOR_WORK_READ_BATCH) {
+    // One round at a time: the next starts when this one is back.
+    // eslint-disable-next-line no-await-in-loop
+    snapshots.push(...await Promise.all(wanted.slice(start, start + PRIOR_WORK_READ_BATCH).map((id) => readOne(id))));
+  }
   return snapshots.filter((snapshot) => snapshot?.exists?.()).map((snapshot) => snapshotToStudentAssignment(snapshot, studentId));
 };
 
 /** The student's class assignments once, plus their prior work by id. */
 export const fetchStudentAssignments = async ({
-  db, studentId = null, classId = null, gradesByAssignment = {}, extraIds = [], individualAssignmentIds = [],
+  db, studentId = null, classId = null, gradesByAssignment = {}, extraIds = [], individualAssignmentIds = [], readOne,
 } = {}) => {
   const classAssignments = cleanId(classId)
     ? (await getDocs(studentClassAssignmentsQuery(db, classId))).docs.map((snapshot) => snapshotToStudentAssignment(snapshot, studentId))
@@ -160,7 +192,7 @@ export const fetchStudentAssignments = async ({
     loadedIds: classAssignments.map((assignment) => assignment.id),
     extraIds: [...(extraIds || []), ...(individualAssignmentIds || [])],
   });
-  const priorWork = markIndividuallyAssigned(await fetchAssignmentsById(db, priorIds, { studentId }), individualAssignmentIds);
+  const priorWork = markIndividuallyAssigned(await fetchAssignmentsById(db, priorIds, { studentId, readOne }), individualAssignmentIds);
   return mergeStudentAssignments(classAssignments, priorWork);
 };
 
