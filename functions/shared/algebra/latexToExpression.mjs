@@ -42,6 +42,17 @@ const LATEX_TO_EXPRESSION = [
   // it made the isolated expression unparseable (issue #334). A space, not
   // nothing: `x~y` is the product x y, never the single symbol `xy`.
   [/\s*~\s*/g, ' '],
+  // MathJS's toTex also writes the BASE of every power in braces — { r}^{2},
+  // {2}^{ x}, {\left( x+1\right)}^{2} — a TeX group, which mathjs reads as an
+  // object literal, so r² h did not read back (TL32, finding C2-57; it left
+  // `{ r}^(2) h`). The group is the whole base: a bare symbol or number needs
+  // no bracket, a bracketed one keeps its own, anything longer gets one pair.
+  // Only a group that a power follows, and only where nothing makes it an
+  // argument: a command's own braces (\mathrm{h}, \frac{a}{b}, \sqrt[3]{x}),
+  // a subscript's (x_{12}^{2}) and a set's \{…\} are all left to their rules.
+  [/(?<![\\A-Za-z0-9_\]}])\{\s*([A-Za-z0-9.]+)\s*\}(?=\^)/g, '$1'],
+  [/(?<![\\A-Za-z0-9_\]}])\{\s*(\([^(){}]*\))\s*\}(?=\^)/g, '$1'],
+  [/(?<![\\A-Za-z0-9_\]}])\{\s*([^{}]*[^{}\s])\s*\}(?=\^)/g, '($1)'],
   [/\^\{([^{}]*)\}/g, '^($1)'],
   [/_\{([^{}]*)\}/g, '_$1'],
 ];
