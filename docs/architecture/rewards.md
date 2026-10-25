@@ -288,3 +288,31 @@ writes. Screens: the student's rewards center (class rewards shelf, Practice
 Pass first) and the teacher's Classes workspace (`ClassRewardRequestsPanel`,
 `ClassRewardCatalogEditor`).
 
+**Why a class reward cannot change a grade (LC04).** The promise on the student's
+screen, "none of these change a grade", is kept in three layers, and only the
+last is a word list:
+
+1. *Nothing reads a reward.* No grader, assignment, deadline, attempt or mastery
+   code imports `classRewardCatalog.mjs` or reads its two collections.
+   `tests/platform/classRewardNoAcademicReach.test.mjs` lists every file that
+   knows class rewards exist (and, in `functions/index.js`, every line), fails
+   when another one appears, checks that the store writes only its own
+   documents, the Class Points ledger and the student's Class Points account,
+   and that no document it writes has a grade-, score-, deadline- or
+   mastery-like key. This layer holds however a reward is worded.
+2. *An item is six fields* (`CLASS_REWARD_ITEM_FIELDS`). The server rebuilds an
+   item from them and refuses a payload with any other field, instead of
+   trimming it; the list of grade-like names only chooses the sentence.
+3. *Free text is screened and only ever shown as a reward.* A name or
+   description that promises an academic effect is refused (case, width,
+   accents, invisible characters and look-alike digits folded; English and
+   Spanish), and the student screens put MathMaster's own sentence beside it.
+
+What the screen cannot catch, by design of a word list: a promise made without
+the words ("A pass on tonight's problem set"); a spelling it has no rule for (a
+typo, spaced-out letters, slang, a language other than English and Spanish, an
+emoji); context ("pass"); the teacher's decline reason (free text shown to the
+student, but not a reward); and anything said or written in the room. Layers 1
+and 2 are why none of those can move a grade; layer 3 only stops MathMaster
+from publishing the promise itself.
+

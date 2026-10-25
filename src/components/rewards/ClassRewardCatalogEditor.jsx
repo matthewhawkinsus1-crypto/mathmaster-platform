@@ -225,7 +225,9 @@ function ClassCatalogEditorBody({ classId, className, ownerUid }) {
       <h2 id="class-reward-editor-heading">🎁 Class rewards{className ? ` — ${className}` : ''}</h2>
       <p className="rw-text">
         Things you hand out in class that students buy with Class Points. They never change a grade or required work —
-        a reward that mentions homework, extra credit, a quiz or a test is refused. The Practice Pass stays available as before.
+        a reward that mentions homework, extra credit, a quiz or a test is refused. MathMaster checks the words you type,
+        but it cannot read your mind: whatever a reward is called, it must not change a grade or required work.
+        The Practice Pass stays available as before.
       </p>
       {unavailable && <p className="rw-feedback rw-feedback--info" role="status">The reward list could not load. Check again in a minute.</p>}
       {!loaded && !unavailable && <p className="rw-muted" role="status">Loading…</p>}

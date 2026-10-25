@@ -235,6 +235,17 @@ test('the catalog: only the teacher of record or the root administrator saves it
   await assert.rejects(store.saveClassRewardCatalogHandler(teacherRequest({
     classId: CLASS_ID, items: [{ ...ITEMS[0], gradeEffect: '+5' }],
   }), { db, nowMs: NOW }), (error) => error.code === 'invalid-argument');
+  // LC04: not only the names on the grade-like list. An item is six fields; a
+  // seventh, whatever it is called, is refused and nothing is saved.
+  await assert.rejects(store.saveClassRewardCatalogHandler(teacherRequest({
+    classId: CLASS_ID, items: [{ ...ITEMS[0], bumpMyMark: 5 }],
+  }), { db, nowMs: NOW }), (error) => error.code === 'invalid-argument' && /bumpMyMark/.test(error.message) && error.details?.field === 'bumpMyMark');
+  // …and the same promise in Spanish, or with a look-alike digit, is refused.
+  for (const label of ['Noche sin tarea', 'H0mework pass']) {
+    await assert.rejects(store.saveClassRewardCatalogHandler(teacherRequest({
+      classId: CLASS_ID, items: [{ ...ITEMS[0], label }],
+    }), { db, nowMs: NOW }), (error) => error.code === 'invalid-argument' && /can't change grades/.test(error.message), label);
+  }
   // Two tabs: the second save, based on a revision that has moved on, is refused.
   const base = saved.revision;
   await store.saveClassRewardCatalogHandler(teacherRequest({ classId: CLASS_ID, items: ITEMS, baseRevision: base }), { db, nowMs: NOW });

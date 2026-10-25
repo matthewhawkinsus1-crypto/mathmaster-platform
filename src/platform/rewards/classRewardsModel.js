@@ -161,10 +161,15 @@ export const availableStarters = (draft = []) => {
 
 export const catalogIsFull = (draft = []) => draft.length >= MAX_CATALOG_ITEMS;
 
-/** The first problem with one draft item, as { field, message }, or null. */
+/**
+ * The first problem with one draft item, as { field, message }, or null. It
+ * checks what Save would SEND (catalogPayload: the six reward fields), so a
+ * stray property on a draft can never turn into a refusal the teacher cannot
+ * fix on screen.
+ */
 export const draftItemProblem = (item) => {
   try {
-    validateCatalogItem({ ...item, cost: item?.cost === '' ? NaN : Number(item?.cost), weeklyLimitPerStudent: Number(item?.weeklyLimitPerStudent) || 0 });
+    validateCatalogItem(catalogPayload([item])[0]);
     return null;
   } catch (error) {
     if (error instanceof ClassRewardInputError || error?.name === 'ClassRewardInputError') return { field: error.field, message: error.message };
@@ -175,10 +180,7 @@ export const draftItemProblem = (item) => {
 /** The whole draft's first problem (duplicates, too many), or null. */
 export const draftProblem = (classId, draft = []) => {
   try {
-    validateCatalogInput({
-      classId,
-      items: draft.map((item) => ({ ...item, cost: Number(item.cost), weeklyLimitPerStudent: Number(item.weeklyLimitPerStudent) || 0 })),
-    });
+    validateCatalogInput({ classId, items: catalogPayload(draft) });
     return null;
   } catch (error) {
     return error?.message || 'Check the reward list.';
