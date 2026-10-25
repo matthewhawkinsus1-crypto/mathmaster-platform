@@ -82,6 +82,7 @@ import {
   newlyIntroducedPreflightErrors,
   replaceQuestionAtFlatIndex,
 } from '../../platform/preflight/preflightQuestionRepair.js';
+import { scrollMotion } from '../../motionPreference.js';
 
 // The full student preview of a Test Cycle mounts the secure question player
 // and every Rich Tool, so it loads only when a teacher opens it.
@@ -956,7 +957,7 @@ export const LessonPreflightModal = ({
     setDemoQuestionIndex(questionIndex);
     if (isNarrow) setActiveStep('check');
     window.requestAnimationFrame?.(() => {
-      document.getElementById('preflight-student-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.getElementById('preflight-student-preview')?.scrollIntoView({ behavior: scrollMotion(), block: 'start' });
     });
   };
   // "Use a different audited item": the server is asked again without it, and
@@ -1095,7 +1096,7 @@ export const LessonPreflightModal = ({
     if (isNarrow) {
       document.querySelector('[data-preflight-scroll]')?.scrollTo({ top: 0 });
     } else {
-      document.getElementById(`preflight-step-${stepId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.getElementById(`preflight-step-${stepId}`)?.scrollIntoView({ behavior: scrollMotion(), block: 'start' });
     }
   };
 

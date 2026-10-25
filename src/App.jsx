@@ -32,6 +32,7 @@ import {
 import { FAMILY_PIN_SERVER_WAIT_MS, WORKSPACE_DRAFT_REREAD_AFTER_HIDDEN_MS, createWorkspaceDraftSync } from './platform/persistence/workspaceDraftSync.js';
 import { accountChangeClearsDraftProblems, clearDraftSaveProblems, describeDraftSaveProblems, draftSaveProblemAssignmentIds, draftSaveProblemsFor, draftSaveProblemsForStudent, subscribeDraftSaveHealth } from './platform/persistence/draftSaveHealth.js';
 import { REPLACEMENT_NOT_QUEUED, STEP_NOT_QUEUED, SUBMISSION_NOT_QUEUED } from './platform/student/submissionNotQueued.js';
+import { scrollMotion } from './motionPreference.js';
 import { readLatestWorkspaceResume, readWorkspaceDraft, writeWorkspaceDraft } from './platform/persistence/workspaceDraftStore.js';
 import { readWorkspaceDeliveryPins, readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
 import { canonicalResponseSavedAt } from './platform/persistence/canonicalResponseTime.js';
@@ -1069,7 +1070,7 @@ function App() {
   useEffect(() => {
     if (teacherTab !== 'assignments' || !editingAssignmentId) return undefined;
     const frame = window.requestAnimationFrame(() => {
-      document.querySelector(`[data-assignment-card="${CSS.escape(editingAssignmentId)}"]`)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+      document.querySelector(`[data-assignment-card="${CSS.escape(editingAssignmentId)}"]`)?.scrollIntoView?.({ behavior: scrollMotion(), block: 'start' });
     });
     return () => window.cancelAnimationFrame(frame);
   }, [teacherTab, editingAssignmentId]);

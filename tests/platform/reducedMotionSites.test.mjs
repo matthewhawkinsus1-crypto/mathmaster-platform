@@ -65,11 +65,19 @@ const SAYS_NOTHING = {
     why: 'the outline that shows what Undo changed fades box-shadow colour only, with no movement, and says in the file that it stays under reduced motion',
     check: () => assert.match(read('tools/representationBridge/LinearMultipleRepresentationsBoard.css'), /a change of colour, not of position[\s\S]{0,40}stays under reduced motion/),
   },
-  'App.jsx': { why: 'OPEN: a smooth scroll to the teacher\'s assignment card (VPAT 2.2.2 lists the teacher screens\' scrolls as still open)', open: true },
-  'AssignmentQuestionEditorBase.jsx': { why: 'OPEN: two smooth scrolls in the teacher\'s question editor', open: true },
-  'TeacherHome.jsx': { why: 'OPEN: a smooth scroll to the live-session card on the teacher\'s Home', open: true },
-  'components/teacher/LessonPreflightModal.jsx': { why: 'OPEN: two smooth scrolls in the teacher\'s pre-flight review', open: true },
 };
+
+// The teacher screens' six scrolls (the assignment card, the question editor's
+// two, Home's live-session card, Pre-Flight's two) were the last open entries
+// above; they ask scrollMotion() now. Named so a reverted one fails here, not
+// only in the scan.
+test('the teacher screens\' scrolls follow the reduced-motion preference', () => {
+  for (const [file, count] of [['App.jsx', 1], ['AssignmentQuestionEditorBase.jsx', 2], ['TeacherHome.jsx', 1], ['components/teacher/LessonPreflightModal.jsx', 2]]) {
+    const source = read(file);
+    assert.equal(source.match(/behavior: scrollMotion\(\)/g)?.length || 0, count, file);
+    assert.doesNotMatch(source, /behavior: 'smooth'/, file);
+  }
+});
 
 test('the scan can tell a moving file from a still one, and a guarded one from an unguarded one', () => {
   assert.equal(startsMotion('.a { animation: spin 1s linear infinite; }'), true);

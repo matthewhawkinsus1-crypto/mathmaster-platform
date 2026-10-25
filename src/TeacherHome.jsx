@@ -15,6 +15,7 @@ import { projectClassLessons } from './platform/teacher/classLessonControls.js';
 import { classIdsForTeacher, studentsInClass } from '../functions/shared/classModel.mjs';
 import { buildStudentIdentityIndex } from './platform/studentName.js';
 import './components/teacher/teacherWorkspace.css';
+import { scrollMotion } from './motionPreference.js';
 
 const formatClock = (date) => date instanceof Date ? date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '';
 
@@ -163,7 +164,7 @@ export default function TeacherHome({ allStudents = [], studentIdentityIndex = n
     : null;
   const liveRef = useRef(null);
   useEffect(() => {
-    if (liveFocus?.nonce && liveRef.current?.scrollIntoView) liveRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (liveFocus?.nonce && liveRef.current?.scrollIntoView) liveRef.current.scrollIntoView({ behavior: scrollMotion(), block: 'start' });
   }, [liveFocus?.nonce]);
 
   const timeRange = (window) => (window ? `${formatClock(window.start)} – ${formatClock(window.end)}` : 'Not meeting today');
