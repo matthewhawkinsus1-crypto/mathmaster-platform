@@ -526,6 +526,10 @@ const eliminationMove = (equations, variables, only = null) => {
 
 const moveShape = (move) => `${move.k1 === 1 ? 1 : 'k'}|${move.k2 === 1 ? 1 : 'k'}|${move.op}`;
 
+// Each equation holds one variable and they are different ones (3x = 6 and
+// y - 4 = 1): there is nothing to substitute and nothing to eliminate.
+const separateEquations = (equations) => equations.every((equation) => !equation.a !== !equation.b) && !equations[0].a !== !equations[1].a;
+
 const planFor = (question, system) => {
   if (!system || system.kind === 'unparsed') return { method: 'generic' };
   const { equations, variables } = system;
@@ -565,7 +569,10 @@ const planFor = (question, system) => {
         best = { method: 'isolateAny', equation, other: equations[1 - index], v, w: variables[1 - vIndex], vIndex, coefficient };
       }
     }));
-    return best || { method: 'generic' };
+    // Two one-variable equations written 3x = 6 and y - 4 = 1 name no variable
+    // to isolate and have no second variable to substitute into: each is solved
+    // on its own (they used to get no steps and no similar problem).
+    return best || (separateEquations(equations) ? { method: 'separate' } : { method: 'generic' });
   }
   // move is null when no whole-number multiplier can be named (fractional
   // coefficients): the ladder then says what to look for instead.
@@ -608,6 +615,23 @@ const ladderFor = (question, system, plan) => {
   ];
   // Each level lists its wordings from most to least specific; hints() keeps
   // the first one that names no answer value.
+
+  if (plan.method === 'separate') {
+    return [
+      [
+        `Look at ${math(e1.display)} and ${math(e2.display)}: each equation has only one variable in it, so there is nothing to substitute. Solve them one at a time.`,
+        'Each equation has only one variable in it, so there is nothing to substitute. Solve them one at a time.',
+      ],
+      [
+        `Solve ${math(e1.display)} for ${math(X)} and ${math(e2.display)} for ${math(Y)}: undo what is added or subtracted, then divide by the number next to the letter.`,
+        `Solve the first equation for ${math(X)} and the second for ${math(Y)}: undo what is added or subtracted, then divide by the number next to the letter.`,
+      ],
+      [
+        `The two values together are the solution, written as the ordered pair ${math(`(${X}, ${Y})`)}.${special}`,
+      ],
+      check,
+    ];
+  }
 
   if (plan.method === 'graph') {
     const [l1, l2] = system.equations.map((equation) => equation.line);
@@ -977,6 +1001,31 @@ const workElimination = ({ variables, rows, point, only = null, matrix = false, 
   return { prompt, steps, answer: `(${f.num(point.x)}, ${f.num(point.y)})`, printed: f.printed, point, shape: moveShape(move), reduced: { A, C, wValue }, exact: f.isExact() };
 };
 
+// a·X = c1 and b·Y = c2: each equation has one variable, so each is solved on its own.
+const workSeparate = ({ variables, point, random, methodWord }) => {
+  const f = formatter();
+  const [a, b] = [nonZero(random, -6, 6), nonZero(random, -6, 6)];
+  // A coefficient of 1 would leave nothing to divide by, and a zero constant nothing to check.
+  if (Math.abs(a) < 2 || Math.abs(b) < 2) return null;
+  const rows = [{ a, b: 0, c: a * point.x }, { a: 0, b, c: b * point.y }];
+  if (rows.some((row) => !row.c)) return null;
+  const E = rows.map((row) => f.std(row, variables));
+  const steps = rows.map((row, index) => {
+    const v = variables[index];
+    return `The ${ORDINALS[index]} equation has only ${math(v)} in it: ${math(E[index])}, so ${math(`${v} = ${f.num(index === 0 ? point.x : point.y)}`)}.`;
+  });
+  steps.push(`Check: ${math(`${f.times(a, point.x)} = ${f.num(rows[0].c)}`)} in the first equation and ${math(`${f.times(b, point.y)} = ${f.num(rows[1].c)}`)} in the second, which are both true.`);
+  return {
+    prompt: `Solve the system${methodWord ? ` by ${methodWord}` : ''}: ${math(E[0])} and ${math(E[1])}.`,
+    steps,
+    answer: `(${f.num(point.x)}, ${f.num(point.y)})`,
+    printed: f.printed,
+    point,
+    shape: 'separate',
+    exact: f.isExact(),
+  };
+};
+
 const ATTEMPTS = 3000;
 
 export const similarProblem = (question, { seed = 0 } = {}) => {
@@ -1020,6 +1069,8 @@ export const similarProblem = (question, { seed = 0 } = {}) => {
           methodWord,
         });
       }
+      // Two one-variable equations: another pair of them, each solved on its own.
+      if (plan.method === 'separate') return workSeparate({ variables: system.variables, point: { x: coordinate(), y: coordinate() }, random, methodWord });
       // elimination / matrix: a one-solution system whose first move has the same shape.
       const point = { x: coordinate(), y: coordinate() };
       if (!point.x && !point.y) return null;
@@ -1200,6 +1251,11 @@ const pointWorked = (question, system, plan, point) => {
   const [X] = variables;
   const vOf = (v) => (v === X ? point.x : point.y);
   const nameOf = (equation) => ORDINALS[equations.indexOf(equation)];
+  // "y = 5, so y = 5" says nothing: an equation written y - 4 = 1 is shown as written.
+  const asShown = (equation, v, value) => {
+    const standard = f.std(equation, variables);
+    return standard.replace(/\s+/g, '') === `${v}=${f.num(value)}`.replace(/\s+/g, '') ? equation.display : standard;
+  };
   const lead = [];
   const rewrite = (equation) => {
     if (!isStandard(equation, variables)) lead.push(`Write the ${nameOf(equation)} equation with the variables on the left: ${math(f.std(equation, variables))}.`);
@@ -1231,7 +1287,7 @@ const pointWorked = (question, system, plan, point) => {
       if (!sameNumber(aW * wValue, other.c) || !sameNumber(solved.m * wValue + solved.k, vOf(v))) return null;
       const steps = [aW === 1 && other.display.replace(/\s+/g, '') === `${w}=${f.num(other.c)}`.replace(/\s+/g, '')
         ? `The ${nameOf(other)} equation gives ${math(`${w} = ${f.num(wValue)}`)} directly.`
-        : `The ${nameOf(other)} equation has only ${math(w)} in it: ${math(f.std(other, variables))}, so ${math(`${w} = ${f.num(wValue)}`)}.`];
+        : `The ${nameOf(other)} equation has only ${math(w)} in it: ${math(asShown(other, w, wValue))}, so ${math(`${w} = ${f.num(wValue)}`)}.`];
       const isoText = `${v} = ${f.linear([[solved.m, w], [solved.k, null]])}`;
       if (solved.m) {
         const back = `${f.times(solved.m, wValue)}${solved.k ? (solved.k > 0 ? ` + ${f.num(solved.k)}` : ` - ${f.num(-solved.k)}`) : ''}`;
@@ -1248,9 +1304,9 @@ const pointWorked = (question, system, plan, point) => {
       });
       if (result && !(sameNumber(result.isoK, solved.k) && sameNumber(result.otherC, other.c))) return null;
     }
-  } else if (plan.method === 'elimination' && equations.every((equation) => !equation.a !== !equation.b) && !equations[0].a !== !equations[1].a) {
+  } else if ((plan.method === 'elimination' || plan.method === 'separate') && separateEquations(equations)) {
     // Each equation already has only one variable (-5y = 10 and x = 9): there is
-    // nothing to eliminate, so each one is solved on its own.
+    // nothing to eliminate or substitute, so each one is solved on its own.
     const steps = equations.map((equation) => {
       const vIndex = equation.a ? 0 : 1;
       const v = variables[vIndex];
@@ -1259,7 +1315,7 @@ const pointWorked = (question, system, plan, point) => {
       if (!sameNumber(coefficient * value, equation.c)) return null;
       return coefficient === 1 && equation.display.replace(/\s+/g, '') === `${v}=${f.num(equation.c)}`
         ? `The ${nameOf(equation)} equation gives ${math(`${v} = ${f.num(value)}`)} directly.`
-        : `The ${nameOf(equation)} equation has only ${math(v)} in it: ${math(f.std(equation, variables))}, so ${math(`${v} = ${f.num(value)}`)}.`;
+        : `The ${nameOf(equation)} equation has only ${math(v)} in it: ${math(asShown(equation, v, value))}, so ${math(`${v} = ${f.num(value)}`)}.`;
     });
     if (steps.some((step) => !step)) return null;
     result = { steps, exact: true };
@@ -1371,7 +1427,7 @@ export const workedSolution = (question) => {
     const plan = planFor(question, system);
     const worked = pointWorked(question, system, plan, { x: exact[0].n / exact[0].d, y: exact[1].n / exact[1].d });
     if (!worked) return null;
-    const how = { graph: 'graph both lines and find where they cross', setEqual: 'set the two expressions equal', matrix: 'use row operations' }[plan.method]
+    const how = { graph: 'graph both lines and find where they cross', setEqual: 'set the two expressions equal', matrix: 'use row operations', separate: 'solve each equation on its own' }[plan.method]
       || (plan.method === 'elimination' ? 'eliminate one variable' : 'substitute one equation into the other');
     return {
       headline: `Solve ${shown}: ${how}.`,

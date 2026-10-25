@@ -1877,6 +1877,9 @@ const keyTextsOf = (field) => answerCandidatesForField(field)
   .map(text)
   .filter(Boolean);
 
+// Seven or more decimal places is a float that was never a decimal a person chose.
+const FLOAT_ARTEFACT = /\d\.\d{7,}/;
+
 /*
  * The spelling of one field's answer to state: a computed spelling the field's
  * grader accepts, or a key the computation shows to be the same value (a
@@ -1889,7 +1892,11 @@ const statedFor = (field, computed, sameAs) => {
   });
   const mine = unique(computed);
   const order = isChoiceField(field) ? [...keys, ...mine] : [...mine, ...keys];
-  return unique(order).find((spelling) => accepts(field, spelling)) || null;
+  const found = unique(order).find((spelling) => accepts(field, spelling)) || null;
+  // An authored key can carry a float artefact (x+0.3333333333333333). The
+  // key has just been shown to be the computed value, so the value is stated
+  // the way this module writes numbers (x + 1/3), not echoed digit for digit.
+  return found && keys.includes(found) && FLOAT_ARTEFACT.test(found) ? (mine[0] || found) : found;
 };
 const constantOf = (raw) => {
   const poly = parsePolynomial(raw);
