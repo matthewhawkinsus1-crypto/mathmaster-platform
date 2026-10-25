@@ -170,7 +170,8 @@ test('the assignment matcher keeps a list or roster field comma-literal under #4
   assert.equal(gradeField('1234', '1,234', { answerFormat: 'list' }).isCorrect, false);
   assert.equal(gradeField('1234', '1,234', { partialCredit: 'matchedElements' }).isCorrect, false);
   // A comma and a space is a list of two numbers, never one (#496's rule; the
-  // pass-3 matcher used to accept `1, 250` for 1250).
+  // pass-3 matcher used to accept `1, 250` for 1250). The owner confirmed it
+  // (GR02).
   assert.equal(gradeField('1250', '1, 250').isCorrect, false);
   assert.equal(withoutThousandsSeparators('1, 250'), null);
   assert.equal(gradeField('1250', '1,250').isCorrect, true);

@@ -306,7 +306,9 @@ export const sameText = (left, right) => normalizeAnswer(left) === normalizeAnsw
  */
 const GROUPED_NUMBER = /^-?(?:\\?\$)?[1-9]\d{0,2}(?:,\d{3})+(?:\.\d+)?(?:\\?%)?$/;
 export const withoutThousandsSeparators = (value) => {
-  // `1, 250` is a list of two numbers, whatever the normaliser does to the space.
+  // `1, 250` is a list of two numbers, whatever the normaliser does to the
+  // space, so it is never 1250 in any field. The owner confirmed this (GR02):
+  // it is what live has done since #496, and a separator has no space.
   if (/,\s/.test(String(value ?? ''))) return null;
   const text = normalizeAnswer(value);
   return GROUPED_NUMBER.test(text) ? text.replace(/,/g, '') : null;
