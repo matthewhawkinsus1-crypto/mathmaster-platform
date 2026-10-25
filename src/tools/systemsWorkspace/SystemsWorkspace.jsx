@@ -106,7 +106,7 @@ function LinearMode({ questionData, onAction }) {
     return 'The classification is right, but the coordinates are not. Read the crossing point off the graph, then substitute it into both equations to confirm.';
   };
 
-  return <EnlargeableFigure label="Linear system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{
+  return <EnlargeableFigure label="Linear system workspace" style={{ width: '100%' }} capabilities={{
     undo: undoHistory.capability,
     equationInput: { label: 'Both equations', studentState: true },
     numericControls: { label: 'Solution and classification', studentState: true },
@@ -334,7 +334,7 @@ function ClassicInequalityMode({ questionData, onAction }) {
   const regionIntro = `1 shaded region${requiresConstruction ? '' : ', where every inequality is true'}`;
   const checkLabel = useSubmitLabel(requiresConstruction ? 'Check inequality graph' : 'Check feasible region');
 
-  return <EnlargeableFigure label="Inequality system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{
+  return <EnlargeableFigure label="Inequality system workspace" style={{ width: '100%' }} capabilities={{
     undo: undoHistory.capability,
     equationInput: { label: 'Both inequalities', studentState: true },
     numericControls: { label: requiresConstruction ? 'Boundary and shading controls' : 'Solution controls', studentState: true },
@@ -568,7 +568,7 @@ function LinearConstructMode({ questionData, onAction }) {
     return 'Your lines and classification are right, but the coordinates are not. Read where your lines cross, then substitute that point into both equations to confirm.';
   };
 
-  return <EnlargeableFigure label="Linear system graphing workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{
+  return <EnlargeableFigure label="Linear system graphing workspace" style={{ width: '100%' }} capabilities={{
     undo: undoHistory.capability,
     equationInput: { label: 'Both equations', studentState: true },
     numericControls: { label: 'Line points, solution and classification', studentState: true },
@@ -687,7 +687,7 @@ function LinearQuadraticMode({ questionData, onAction }) {
     return 'The count is right but at least one coordinate is off. Substitute each point into both the line and the parabola: a real intersection satisfies both.';
   };
 
-  return <EnlargeableFigure label="Linear-quadratic system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, equationInput: { label: 'Line and quadratic equations' }, numericControls: { label: 'Intersection controls', studentState: true }, instruction: { text: 'Find every point satisfying both equations.' }, primaryActions: [{ id: 'check-intersections', label: checkIntersectionsLabel, onAction: check, disabled: count === '' }] }}><ToolSplit>
+  return <EnlargeableFigure label="Linear-quadratic system workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, equationInput: { label: 'Line and quadratic equations' }, numericControls: { label: 'Intersection controls', studentState: true }, instruction: { text: 'Find every point satisfying both equations.' }, primaryActions: [{ id: 'check-intersections', label: checkIntersectionsLabel, onAction: check, disabled: count === '' }] }}><ToolSplit>
     <Panel title="Line and parabola">
       <CoordinatePlane xMin={questionData.graph?.xMin ?? -6} xMax={questionData.graph?.xMax ?? 6} yMin={questionData.graph?.yMin ?? -8} yMax={questionData.graph?.yMax ?? 12}
         lines={[{ ...config.line, stroke:'#d93025', dash:'10 6' }]}
@@ -778,7 +778,7 @@ function MatrixMode({ questionData, onAction }) {
 
   const showRref = isMatrix3 && (technologyUsed || revealAnswers);
 
-  return <EnlargeableFigure label="Matrix system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, equationInput: { label: isMatrix3 ? 'Three equations and RREF' : 'Both equations and augmented matrix' }, numericControls: { label: 'Row reduction and solution controls', studentState: true }, instruction: { text: isMatrix3 ? 'Compute and interpret the RREF.' : 'Classify and solve the augmented system.' }, primaryActions: [{ id: 'check-matrix', label: checkMatrixLabel, onAction: check, disabled: !ready }] }}><ToolSplit>
+  return <EnlargeableFigure label="Matrix system workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, equationInput: { label: isMatrix3 ? 'Three equations and RREF' : 'Both equations and augmented matrix' }, numericControls: { label: 'Row reduction and solution controls', studentState: true }, instruction: { text: isMatrix3 ? 'Compute and interpret the RREF.' : 'Classify and solve the augmented system.' }, primaryActions: [{ id: 'check-matrix', label: checkMatrixLabel, onAction: check, disabled: !ready }] }}><ToolSplit>
     <Panel title={isMatrix3 ? "3×3 augmented matrix" : "Augmented matrix"}>
       <div style={{
         display:'grid',

@@ -69,7 +69,7 @@ export default function Algebraic3SystemMode({ questionData = {}, onAction, draf
 
   if (isStudentChoice && !effectiveMethod) {
     return (
-      <EnlargeableFigure label="3×3 algebraic systems workspace" enlargeLabel="Enlarge 3×3 algebraic systems workspace" style={{ width: '100%' }}>
+      <EnlargeableFigure label="3×3 algebraic systems workspace" style={{ width: '100%' }}>
         <Panel title="3×3 algebraic systems">
           {/* The prompt asks the student to choose "based on the structure you
               see" — so the structure has to be on screen when they choose

@@ -15,7 +15,9 @@
  */
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import React from 'react';
 
 import { closeEngine, loadEngine } from './helpers/actionBarRender.mjs';
@@ -87,4 +89,15 @@ test('TL35: the opener is built from the one word, not from a label a tool hands
   const button = region(figure, '<button ref={openerRef}', '</button>', 'the opener button');
   assert.match(button, /⤢ \{OPEN_WORK_VIEW\}/);
   assert.equal(OPEN_WORK_VIEW, 'Open Work View');
+});
+
+test('TL35: no tool hands the opener a label any more (the prop is gone, so a label would say nothing)', () => {
+  const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) return walk(full);
+    return /\.(jsx?|mjs)$/.test(entry.name) ? [full] : [];
+  });
+  const src = fileURLToPath(new URL('../../src', import.meta.url));
+  const passing = walk(src).filter((file) => /\benlargeLabel\s*=/.test(readFileSync(file, 'utf8')));
+  assert.deepEqual(passing.map((file) => path.relative(src, file)), []);
 });

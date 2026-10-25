@@ -356,7 +356,6 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
   return (
     <EnlargeableFigure
       label="Three-plane systems workspace"
-      enlargeLabel="Enlarge three-plane systems workspace"
       style={{ width: '100%' }}
       capabilities={{
         // The model's controls (W6-4): kept on a DOL.

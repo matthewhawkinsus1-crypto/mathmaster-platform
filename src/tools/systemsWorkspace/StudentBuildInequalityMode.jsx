@@ -827,7 +827,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
   })();
 
   return (
-    <EnlargeableFigure label="Student-build inequality workspace" enlargeLabel="Enlarge system workspace" style={{ width:'100%' }} capabilities={{
+    <EnlargeableFigure label="Student-build inequality workspace" style={{ width:'100%' }} capabilities={{
       undo: undoHistory.capability,
       equationInput: { label: modeling ? 'Constraints you write' : 'Every inequality', studentState: true },
       numericControls: { label: 'Boundary, style, shading and reasoning controls', studentState: true },

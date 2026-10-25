@@ -484,7 +484,6 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
   return (
     <EnlargeableFigure
       label="3×3 algebraic systems workspace"
-      enlargeLabel="Enlarge 3×3 algebraic systems workspace"
       style={{ width: '100%' }}
       capabilities={{
         undo: undoCapability,

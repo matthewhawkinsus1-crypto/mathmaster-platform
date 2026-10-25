@@ -2138,7 +2138,6 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   return (
     <EnlargeableFigure
       label="Algebraic systems workspace"
-      enlargeLabel="Enlarge algebraic systems workspace"
       style={{ width: '100%' }}
       capabilities={{
         undo: activeUndoCapability,
