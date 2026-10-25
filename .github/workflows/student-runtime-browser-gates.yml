@@ -85,6 +85,9 @@ name: Student Runtime Browser Gates
 #                       answer control on screen together, a plane big enough
 #                       to mark, zoom offered, no coordinates printed where a
 #                       later step asks for them
+#   algebra1Module2Topic2  Algebra I M2 T2 lessons 2 and 3: every question opens
+#                       on a laptop and by touch on a phone, and a try is
+#                       counted as it is for a signed-in student (CI10)
 #   composedDraftRestore a composed question with a graph step reaches the
 #                       server backup with no verdict in it, comes back on
 #                       another device (the graph step re-derived when opened)
@@ -285,6 +288,12 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/stagedQuestion.mjs
+      - name: Algebra I M2 T2 lessons open on a laptop and a phone, and tries are counted
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/algebra1Module2Topic2.mjs
 
   # The student-runtime gates, continued (see the header).
   student-runtime-3:
