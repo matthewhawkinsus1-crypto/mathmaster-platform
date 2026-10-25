@@ -169,7 +169,8 @@ export const vocabularyInText = (text) => {
  * The vocabulary for one item in one tool: terms the prose uses first, then the
  * tool's own control vocabulary. Capped so the panel stays short on a phone.
  */
-export const vocabularyForContext = ({ text = '', toolType = '', limit = 10 } = {}) => {
+export const VOCABULARY_LIMIT = 10;
+export const vocabularyForContext = ({ text = '', toolType = '', limit = VOCABULARY_LIMIT } = {}) => {
   const ids = [...vocabularyInText(text), ...(TOOL_VOCABULARY[toolType] || [])];
   return [...new Set(ids)].slice(0, limit);
 };

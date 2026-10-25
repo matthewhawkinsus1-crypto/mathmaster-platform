@@ -30,7 +30,7 @@ import { SUPPORT_TOOL, TOOL_STATE, TOOL_SUPPORT_ID } from './supportToolsEntitle
 import { chunkDirections } from './directionChunks.js';
 import { sentenceFramesFor } from './sentenceFrames.js';
 import { TRANSLATION_COVERAGE } from './translationProviders.js';
-import { vocabularyForContext } from './mathVocabulary.js';
+import { VOCABULARY_LIMIT, vocabularyForContext } from './mathVocabulary.js';
 
 export {
   LANGUAGE_SUPPORT_IDS, SUPPORT_TOOL, TOOL_ORDER, TOOL_STATE, TOOL_SUPPORT_ID, toolsEntitlementFromPath, toolsEntitlementFromProfile,
@@ -40,7 +40,7 @@ export {
  * The tools for one item, synchronously. `speech` says whether this browser
  * can speak (speechText.js speechAvailable). Translation starts `pending`.
  */
-export const supportToolsForItem = ({ entitlement, prompt = '', question = null, toolType = '', speech = true } = {}) => {
+export const supportToolsForItem = ({ entitlement, prompt = '', question = null, toolType = '', speech = true, seenText = '' } = {}) => {
   if (!entitlement?.tools?.length) return { any: false, tools: [] };
   const text = String(prompt ?? '');
   const tools = entitlement.tools.map((tool) => {
@@ -58,7 +58,13 @@ export const supportToolsForItem = ({ entitlement, prompt = '', question = null,
       // (`labelTermIds`, TS07): the words practice lists, so a student can
       // read the controls. A label says what a word is called, never how to
       // use it.
-      const listed = vocabularyForContext({ text, toolType });
+      // The words in the hints and feedback the student has SEEN (seenHelpText.js,
+      // AX43) follow the prompt's and the tool's, so what was offered before a
+      // hint was opened stays where it was. A secure test shows no help, and
+      // defines its prompt's words only.
+      const fromPrompt = vocabularyForContext({ text, toolType });
+      const fromSeen = entitlement.promptTermsOnly ? [] : vocabularyForContext({ text: String(seenText ?? '') });
+      const listed = [...new Set([...fromPrompt, ...fromSeen])].slice(0, VOCABULARY_LIMIT);
       const promptWords = entitlement.promptTermsOnly ? vocabularyForContext({ text }) : listed;
       const termIds = listed.filter((id) => promptWords.includes(id));
       const labelTermIds = listed.filter((id) => !promptWords.includes(id));

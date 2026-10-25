@@ -228,6 +228,9 @@ function StepsBox({ tool, open, onToggle }) {
 export default function SupportToolsTray({
   entitlement,
   prompt = '',
+  // The hints and feedback on the student's screen, as text (seenHelpText.js,
+  // AX43): Vocabulary explains their words too. Empty where none is shown.
+  seenText = '',
   readingParts = null,
   readingLanguage = null,
   question = null,
@@ -277,7 +280,7 @@ export default function SupportToolsTray({
   const translation = resolved?.key === translationKey ? resolved.result : null;
 
   const model = useMemo(() => {
-    const base = supportToolsForItem({ entitlement, prompt, question, toolType, speech: speech && !speechFailed });
+    const base = supportToolsForItem({ entitlement, prompt, question, toolType, speech: speech && !speechFailed, seenText });
     const withLanguage = withTranslation(base, translation);
     const tools = withLanguage.tools
       .filter((tool) => includeReadAloud || tool.tool !== SUPPORT_TOOL.READ_ALOUD)
@@ -285,7 +288,7 @@ export default function SupportToolsTray({
         ? { ...tool, state: TOOL_STATE.UNAVAILABLE, reason: 'glossary-load-failed' }
         : tool));
     return { ...withLanguage, tools };
-  }, [entitlement, prompt, question, toolType, speech, speechFailed, translation, includeReadAloud, glossaryFailed]);
+  }, [entitlement, prompt, seenText, question, toolType, speech, speechFailed, translation, includeReadAloud, glossaryFailed]);
 
   // What this item actually offered — once per item and fact.
   useEffect(() => {

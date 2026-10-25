@@ -68,6 +68,8 @@ export default function PathSupportBar({
   // The Language tools (translation, vocabulary, Break it down, Help me say
   // it) use the same tray as assignments, from the same server list.
   prompt = '',
+  // The hint and feedback on screen, for Vocabulary (AX43).
+  seenText = '',
   toolType = '',
   supportLanguage = null,
   // The player's pathUniversalDesignRole: 'practice' adds the universal
@@ -134,6 +136,7 @@ export default function PathSupportBar({
     <StudentSupportTray
       entitlement={languageTools}
       prompt={prompt}
+      seenText={seenText}
       toolType={toolType}
       surface="path"
       itemKey={questionInstanceId}

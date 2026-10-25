@@ -128,6 +128,7 @@ import { useActiveWorkTab } from './platform/persistence/activeWorkTab.js';
 import { pausedWorkNeedsRefresh, recordAttemptRevision } from './platform/persistence/pausedWorkRefresh.js';
 import { StudentSupportTray } from './components/student/StudentSupportTools.jsx';
 import { toolsEntitlementFromProfile } from './platform/language/supportToolsEntitlement.js';
+import { seenHelpText } from './platform/language/seenHelpText.js';
 import { useFocusReturnAfterLock } from './components/common/useFocusReturnAfterLock.js';
 import { speakAloud, speechAvailable } from './platform/language/speechText.js';
 import { backUpQuestionText, questionReadingParts, questionReadingText } from './platform/language/questionReading.js';
@@ -707,6 +708,7 @@ function QuestionEngineBody({
     <StudentSupportTray
       entitlement={languageTools}
       prompt={processedQuestion?.prompt || ''}
+      seenText={seenHelp}
       readingParts={readingParts}
       readingLanguage={readAloudLanguage}
       question={processedQuestion}
@@ -2040,6 +2042,19 @@ function QuestionEngineBody({
     ? `Focus on: ${feedback.incorrectParts.join(', ')}.`
     : '';
   const attemptOutcomeSpecific = missDetail?.message || '';
+  // THE HELP THE STUDENT HAS SEEN, for the Language tools' Vocabulary (AX43):
+  // the hints they opened (never the rungs still waiting), "What might have
+  // gone wrong" once asked for, and the outcome words where the screen shows
+  // them — the box below the question, or "Your last try" once they edit.
+  // Where hints or feedback are withheld (a DOL, quiz or test) there is nothing.
+  const seenHelp = seenHelpText({
+    hints: hintLadder.hints,
+    revealed: hintLadder.revealed,
+    diagnosis: missRung?.shown ? missRung.hint : '',
+    feedback: feedback && !feedback.blocked && showOutcomeFeedback
+      ? [attemptOutcomeText, attemptOutcomeSpecific]
+      : (!feedback && previousMiss && !locked && showOutcomeFeedback ? [previousMiss.text, previousMiss.specific] : []),
+  });
   // WHERE A TOOL'S ATTEMPT OUTCOME IS SHOWN (PQ-022). In the tool's result
   // area, beside its own verdict, when the tool showed one for this attempt and
   // the box below would have shown the outcome at all: outcome feedback
