@@ -88,4 +88,4 @@ The builder copies questions 1–13 and builds question 14 with the recipe. It c
 
 ## Known follow-ups (not changed here)
 
-- The Sequence Explorer writes terms as aₙ, while the DOL uses f(n). Question 13's prompt explains the mapping.
+- Question 13 sets `"notation": "f(n)"`, so the Sequence Explorer writes its terms as f(n), as the DOL does (the table, the graph labels, the feedback and the solution review); its prompt no longer explains a mapping from aₙ. Still aₙ, by design: a question that has the student type a rule in the tool (`writeExplicit`, `writeRecursive`, or the rule mode) — those boxes and their grader read aₙ, and the authoring check refuses f(n) there — and the Help steps the platform writes for itself ("Let's back up. In aₙ, …"), which do not know the question's notation yet.

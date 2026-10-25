@@ -10,7 +10,9 @@ const source = fs.readFileSync('src/tools/sequenceExplorer/SequenceExplorer.jsx'
 test('integrated sequence workflow requires students to build table, plot points, write rules, and use the rule', () => {
   assert.match(source, /function FullSequenceBridge/);
   assert.match(source, /Domain input n/);
-  assert.match(source, /Output aₙ/);
+  // "Output aₙ", or "Output f(n)" for a question that says so (TL39:
+  // sequenceNotation.test.mjs renders both).
+  assert.match(source, /Output \$\{words\.general\}/);
   assert.match(source, /n is the domain input/);
   assert.match(source, /onPlot=\{requirePlot \? handlePlot : null\}/);
   assert.match(source, /Explicit rule/);

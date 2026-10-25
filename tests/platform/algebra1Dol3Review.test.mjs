@@ -559,4 +559,24 @@ test('A.12C: f(1) = −7 and f(n) = f(n − 1) + 4, applied term by term, fill t
   assert.equal(grade({ tableValues: terms.map((value, index) => String(index === 3 ? value + 1 : value)) }).isCorrect, false, 'a slip in one term');
   assert.equal(grade({ plottedPoints: terms.map((value, index) => [index, value]) }).isCorrect, false, 'points plotted at n − 1');
   assert.equal(grade({ kindAnswer: 'geometric' }).isCorrect, false, 'adding is not multiplying');
+
+  // TL39 (findings E2-9, D-76): the tool writes the terms the way the DOL does,
+  // so the prompt no longer explains a mapping from aₙ to f(n)...
+  assert.equal(question.notation, 'f(n)');
+  assert.doesNotMatch(question.prompt, /aₙ|in the tool/i, 'no notation to translate');
+  assert.match(question.prompt, /f\(n\) = f\(n − 1\) \+ 4/, 'the rule stays in the DOL\'s words');
+  // ...and the notation is a label: no verdict depends on it.
+  const unlabelled = { ...question };
+  delete unlabelled.notation;
+  const works = [
+    work,
+    { ...work, tableValues: terms.map((value, index) => String(index === 3 ? value + 1 : value)) },
+    { ...work, plottedPoints: terms.map((value, index) => [index, value]) },
+    { ...work, kindAnswer: 'geometric' },
+    { ...work, changeAnswer: '5' },
+    { ...work, plottedPoints: [] },
+  ];
+  const verdicts = (asked) => works.map((attempt) => gradeToolWork({ toolId: 'sequenceExplorer', question: asked, work: attempt }));
+  assert.deepEqual(verdicts(question), verdicts(unlabelled), 'every right and wrong answer is graded as it was');
+  assert.deepEqual(verdicts(question).map((verdict) => verdict.isCorrect), [true, false, false, false, false, false]);
 });

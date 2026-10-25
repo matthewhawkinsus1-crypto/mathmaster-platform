@@ -993,10 +993,11 @@
             "difference": 4
           },
           "displayCount": 6,
+          "notation": "f(n)",
           "dok": 2,
           "difficultyBand": 3,
           "questionWeight": 1,
-          "prompt": "A sequence is given in function form by f(1) = −7 and f(n) = f(n − 1) + 4 for n ≥ 2. In the tool, the nth term f(n) is written aₙ. Use the recursive rule to find the first six terms, plot them, and identify the common difference.",
+          "prompt": "A sequence is given in function form by f(1) = −7 and f(n) = f(n − 1) + 4 for n ≥ 2. Use the recursive rule to find the first six terms, plot them, and identify the common difference.",
           "hints": [
             "A recursive rule tells you how to get each term from the term just before it.",
             "Start with the first term the rule gives you. Apply the rule to it to get the second term, then apply the rule again to get the third.",

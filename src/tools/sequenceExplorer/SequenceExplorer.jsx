@@ -26,6 +26,7 @@ import { FRACTION_ENTRY_PROPS } from '../../platform/interaction/numberEntry.js'
 import { SubmitText } from '../shared/ToolRuntimeContext';
 import { fullBridgeMissMessage } from './fullBridgeFeedback.js';
 import { TABLE_BOX_MIN_WIDTH, TABLE_CELL_SIDE, sequenceTableColumn, sequenceTableWidth } from './sequenceTableLayout.js';
+import { A_N_WORDS, sequenceWords } from './sequenceNotation.js';
 
 /*
  * Every Check is marked by the shared grader
@@ -69,7 +70,13 @@ const graphBounds = (values = []) => {
   return { yMin: Math.floor(low), yMax: Math.ceil(high) };
 };
 
-function SequenceVisual({ spec, count = 7, title = 'Table + discrete graph' }) {
+// A term's name drawn with its number: a subscript for aₙ (a<sub>6</sub>), and
+// f(6) for f(n) (TL39, sequenceNotation.js).
+function TermName({ words, n }) {
+  return words.notation === 'f(n)' ? <>{words.term(n)}</> : <>a<sub>{n}</sub></>;
+}
+
+function SequenceVisual({ spec, count = 7, title = 'Table + discrete graph', words = A_N_WORDS }) {
   const rows = generateSequence(spec, count);
   const bounds = graphBounds(rows.map((row) => row.value));
   return <Panel title={title}>
@@ -78,13 +85,13 @@ function SequenceVisual({ spec, count = 7, title = 'Table + discrete graph' }) {
       xMax={count + 1}
       yMin={bounds.yMin}
       yMax={bounds.yMax}
-      points={rows.map((row) => ({ x: row.n, y: row.value, label: `a${row.n}` }))}
+      points={rows.map((row) => ({ x: row.n, y: row.value, label: words.term(row.n) }))}
       enlargeable={false}
     />
     <div style={{ overflowX: 'auto', marginTop: 12 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 280 }}>
         <thead><tr><th style={{ padding: 6 }}>n</th>{rows.map((row) => <th key={row.n} style={{ padding: 6 }}>{row.n}</th>)}</tr></thead>
-        <tbody><tr><th style={{ padding: 6 }}>aₙ</th>{rows.map((row) => <td key={row.n} style={{ padding: 6, textAlign: 'center' }}>{numberText(row.value)}</td>)}</tr></tbody>
+        <tbody><tr><th style={{ padding: 6 }}>{words.general}</th>{rows.map((row) => <td key={row.n} style={{ padding: 6, textAlign: 'center' }}>{numberText(row.value)}</td>)}</tr></tbody>
       </table>
     </div>
     <p style={{ marginBottom: 0, color: 'var(--mm-text-muted)' }}>A sequence is a function with discrete term-number inputs. The graph keeps those inputs visually separate.</p>
@@ -104,6 +111,7 @@ export default function SequenceExplorer({ questionData = {}, onAction }) {
 
 function AnalyzeSequence({ questionData, feedback, submit, onAction }) {
   const spec = sequenceSpecFromQuestion(questionData);
+  const words = sequenceWords(questionData);
   const targetN = Number(questionData.targetN ?? 8);
   sequenceTerm(spec, targetN); // a target with no term fails before render (see top of file)
   const [kindAnswer, setKindAnswer] = usePersistentToolState('kindAnswer', '');
@@ -122,11 +130,11 @@ function AnalyzeSequence({ questionData, feedback, submit, onAction }) {
     <TaskCard question={questionData} task={'Decide whether this sequence is arithmetic or geometric, then give its change and the requested term.'} steps={['Compare consecutive terms by subtracting, then by dividing.', 'Whichever stays constant tells you the type.', 'Use that constant to reach the requested term.']} />
     <EnlargeableFigure label="Sequence analysis workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, tableData: { label: 'Sequence table' }, equationInput: { label: 'Sequence analysis', studentState: true }, instruction: { text: 'Classify the pattern and find the requested term.' }, primaryActions: [{ id: 'check-analysis', label: 'Check analysis', onAction: check }] }}>
     <ToolGrid min={340}>
-      <SequenceVisual spec={spec} count={sequenceEvidenceCount(questionData.displayCount ?? 7, targetN, { revealTarget: questionData.revealTargetTerm === true })} />
+      <SequenceVisual spec={spec} words={words} count={sequenceEvidenceCount(questionData.displayCount ?? 7, targetN, { revealTarget: questionData.revealTargetTerm === true })} />
       <Panel title="Analyze the pattern">
         <label>Sequence family<select value={kindAnswer} onChange={(event) => setKindAnswer(event.target.value)} style={inputStyle}><option value="">Choose…</option><option value="arithmetic">Arithmetic</option><option value="geometric">Geometric</option></select></label>
         <label style={{ display: 'block', marginTop: 10 }}>Common {kindAnswer === 'arithmetic' ? 'difference' : kindAnswer === 'geometric' ? 'ratio' : 'change'}<input value={changeAnswer} onChange={(event) => setChangeAnswer(event.target.value)} {...FRACTION_ENTRY_PROPS} style={inputStyle} /></label>
-        <label style={{ display: 'block', marginTop: 10 }}>a<sub>{targetN}</sub><input value={termAnswer} onChange={(event) => setTermAnswer(event.target.value)} {...FRACTION_ENTRY_PROPS} style={inputStyle} /></label>
+        <label style={{ display: 'block', marginTop: 10 }}><TermName words={words} n={targetN} /><input value={termAnswer} onChange={(event) => setTermAnswer(event.target.value)} {...FRACTION_ENTRY_PROPS} style={inputStyle} /></label>
         <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check analysis</SubmitText></button>
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Pattern, common change, and target term all agree.' : 'Use equal differences for arithmetic sequences and equal ratios for geometric sequences.'}</ResultPill></div> : null}
       <HintPanel hints={['Look at how each term becomes the next one. Adding the same amount every time is arithmetic; multiplying by the same amount is geometric.', 'Subtract each term from the one after it. If you always get the same number, that number is the common difference.', 'If subtraction does not give a constant, try dividing instead — a constant ratio means geometric.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
@@ -144,6 +152,9 @@ const listParts = (names) => {
 
 function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
   const spec = sequenceSpecFromQuestion(questionData);
+  // How the terms are written (aₙ, or f(n) where the question says so and no
+  // rule is typed here; TL39).
+  const words = sequenceWords(questionData);
   const actions = sequenceStudentActions(questionData);
   const targetN = Number(questionData.targetN || 0);
   const count = fullBridgeTermCount(questionData);
@@ -218,7 +229,7 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
 
   const check = () => {
     const result = gradeToolCheck(sequenceExplorerGrader, questionData, work);
-    setMissMessage(result.isCorrect ? '' : fullBridgeMissMessage({ parts: result.parts, work, spec, targetN: requireTarget ? targetN : 0 }));
+    setMissMessage(result.isCorrect ? '' : fullBridgeMissMessage({ parts: result.parts, work, spec, targetN: requireTarget ? targetN : 0, words }));
     submit(
       { isCorrect: result.isCorrect, score: result.score },
       work,
@@ -232,11 +243,11 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
   };
 
   const taskSteps = [
-    requireTable && 'Build the table so the term number n is the input and aₙ is the output.',
-    requirePlot && 'Plot the ordered pairs (n, aₙ) as separate discrete points.',
+    requireTable && `Build the table so the term number n is the input and ${words.general} is the output.`,
+    requirePlot && `Plot the ordered pairs (n, ${words.general}) as separate discrete points.`,
     requireAnalyze && 'Classify the pattern and identify its common difference or ratio.',
     (requireExplicit || requireRecursive) && 'Write the sequence rules, not just the constants in a template.',
-    requireTarget && `Use your explicit rule to determine a₍${targetN}₎ without extending every intermediate term.`,
+    requireTarget && `Use your explicit rule to determine ${words.inSentence(targetN)} without extending every intermediate term.`,
   ].filter(Boolean);
 
   return <ToolShell title="Build the Sequence Model" subtitle="Keep the table, discrete graph, pattern, and rules connected in one piece of work." badge="Integrated sequence model">
@@ -273,11 +284,11 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
             </thead>
             <tbody>
               <tr>
-                <th style={{ padding: 7, textAlign: 'left' }}>Output aₙ</th>
+                <th style={{ padding: 7, textAlign: 'left' }}>{`Output ${words.general}`}</th>
                 {rows.map((row, index) => (
                   <td key={row.n} style={{ padding: `5px ${TABLE_CELL_SIDE}px` }}>
                     <input
-                      aria-label={`Sequence output a${row.n}`}
+                      aria-label={`Sequence output ${words.term(row.n)}`}
                       value={tableValues[index] ?? ''}
                       // One entry per row on screen: a draft saved when the
                       // table had fewer rows still lets every box be filled,
@@ -296,8 +307,8 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
           </table>
         </div>
         <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>
-          The term number <strong>n is the domain input</strong>. Each sequence value aₙ is the output paired with that input.
-          A sequence graph is discrete, so plot only the individual ordered pairs — do not connect them.
+          The term number <strong>n is the domain input</strong>
+          {`. Each sequence value ${words.general} is the output paired with that input. A sequence graph is discrete, so plot only the individual ordered pairs — do not connect them.`}
         </p>
         <CoordinatePlane
           xMin={0}
@@ -386,7 +397,7 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
 
         {requireTarget && (
           <label style={{ display: 'block', marginTop: 16 }}>
-            Use the rule to find a<sub>{targetN}</sub>
+            Use the rule to find <TermName words={words} n={targetN} />
             <input value={termAnswer} onChange={(event) => setTermAnswer(event.target.value)} {...FRACTION_ENTRY_PROPS} style={inputStyle} />
           </label>
         )}
@@ -404,8 +415,8 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
             'Start with the table: n = 1, 2, 3, … are the domain inputs. Generate the matching sequence outputs before you graph anything.',
             'Every point on the graph should be (term number, term value). Sequence graphs use separate points because n takes whole-number positions.',
             spec.kind === 'arithmetic'
-              ? 'For an arithmetic sequence, an explicit rule can be written as aₙ = a₁ + (n − 1)d. The recursive rule starts at a₁ and adds d to the previous term.'
-              : 'For a geometric sequence, an explicit rule can be written as aₙ = a₁(r)ⁿ⁻¹. The recursive rule starts at a₁ and multiplies the previous term by r.',
+              ? `For an arithmetic sequence, an explicit rule can be written as ${words.general} = ${words.first} + (n − 1)d. The recursive rule starts at ${words.first} and adds d to the previous term.`
+              : `For a geometric sequence, an explicit rule can be written as ${words.general} = ${words.first}(r)ⁿ⁻¹. The recursive rule starts at ${words.first} and multiplies the previous term by r.`,
           ]}
           onHintUsed={() => onAction?.("HINT_USED")}
         />
@@ -485,6 +496,7 @@ function RuleBridge({ questionData, feedback, submit, onAction }) {
 
 function MissingTerm({ questionData, feedback, submit, onAction }) {
   const spec = sequenceSpecFromQuestion(questionData);
+  const words = sequenceWords(questionData);
   const missingIndex = Number(questionData.missingIndex ?? 4);
   const count = missingTermCount(questionData);
   const rows = generateSequence(spec, count);
@@ -505,11 +517,11 @@ function MissingTerm({ questionData, feedback, submit, onAction }) {
     <EnlargeableFigure label="Missing term workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, tableData: { label: 'Sequence with a gap' }, numericControls: { label: 'Missing term controls', studentState: true }, instruction: { text: 'Recover the missing term and classify the sequence.' }, primaryActions: [{ id: 'check-missing', label: 'Check missing term', onAction: check }] }}>
     <ToolGrid min={320}>
       <Panel title="Sequence with a gap">
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{rows.map((row) => <div key={row.n} style={{ minWidth: 66, padding: '10px 12px', textAlign: 'center', borderRadius: 10, border: '1px solid var(--mm-tint-border)', background: row.n === missingIndex ? 'var(--mm-warning-bg)' : 'var(--mm-surface)' }}><div style={{ fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>a{row.n}</div><strong>{row.n === missingIndex ? '?' : numberText(row.value)}</strong></div>)}</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{rows.map((row) => <div key={row.n} style={{ minWidth: 66, padding: '10px 12px', textAlign: 'center', borderRadius: 10, border: '1px solid var(--mm-tint-border)', background: row.n === missingIndex ? 'var(--mm-warning-bg)' : 'var(--mm-surface)' }}><div style={{ fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{words.term(row.n)}</div><strong>{row.n === missingIndex ? '?' : numberText(row.value)}</strong></div>)}</div>
         <p style={{ color: 'var(--mm-text-muted)' }}>Use the terms on both sides of the gap. A valid common change must work across the entire sequence.</p>
       </Panel>
       <Panel title="Recover the structure">
-        <label>Missing value a<sub>{missingIndex}</sub><input value={termAnswer} onChange={(event) => setTermAnswer(event.target.value)} style={inputStyle} /></label>
+        <label>Missing value <TermName words={words} n={missingIndex} /><input value={termAnswer} onChange={(event) => setTermAnswer(event.target.value)} style={inputStyle} /></label>
         <label style={{ display: 'block', marginTop: 10 }}>Sequence family<select value={kindAnswer} onChange={(event) => setKindAnswer(event.target.value)} style={inputStyle}><option value="">Choose…</option><option value="arithmetic">Arithmetic</option><option value="geometric">Geometric</option></select></label>
         <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check missing term</SubmitText></button>
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'The missing term preserves the sequence structure.' : 'Check the common difference or ratio on both sides of the blank.'}</ResultPill></div> : null}
@@ -520,6 +532,7 @@ function MissingTerm({ questionData, feedback, submit, onAction }) {
 
 function PartialSum({ questionData, feedback, submit, onAction }) {
   const spec = sequenceSpecFromQuestion(questionData);
+  const words = sequenceWords(questionData);
   const sumN = Number(questionData.sumN ?? 6);
   sequenceTerm(spec, sumN); // a sum length with no last term fails before render (see top of file)
   const [lastTerm, setLastTerm] = usePersistentToolState('lastTerm', '');
@@ -537,13 +550,13 @@ function PartialSum({ questionData, feedback, submit, onAction }) {
     <TaskCard question={questionData} task={'Find the last term of this finite sequence and the sum of all its terms.'} steps={['Extend the sequence to the requested number of terms.', 'Identify the last term.', 'Add all the terms, or use the appropriate sum formula.']} />
     <EnlargeableFigure label="Finite sequence workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, tableData: { label: 'Sequence evidence' }, numericControls: { label: 'Finite sum controls', studentState: true }, instruction: { text: `Find the last term and S${sumN}.` }, primaryActions: [{ id: 'check-sum', label: 'Check finite sum', onAction: check }] }}>
     <ToolGrid min={320}>
-      <SequenceVisual spec={spec} count={sequenceEvidenceCount(7, sumN, { revealTarget: questionData.revealTargetTerm === true, cap: 7 })} title="Sequence evidence" />
+      <SequenceVisual spec={spec} words={words} count={sequenceEvidenceCount(7, sumN, { revealTarget: questionData.revealTargetTerm === true, cap: 7 })} title="Sequence evidence" />
       <Panel title={`Find S${sumN}`}>
-        <p><strong>S<sub>{sumN}</sub> = a₁ + a₂ + ··· + a<sub>{sumN}</sub></strong></p>
-        <label>Last included term a<sub>{sumN}</sub><input value={lastTerm} onChange={(event) => setLastTerm(event.target.value)} style={inputStyle} /></label>
+        <p><strong>S<sub>{sumN}</sub> = {words.first} + {words.subscripted(2)} + ··· + <TermName words={words} n={sumN} /></strong></p>
+        <label>Last included term <TermName words={words} n={sumN} /><input value={lastTerm} onChange={(event) => setLastTerm(event.target.value)} style={inputStyle} /></label>
         <label style={{ display: 'block', marginTop: 10 }}>Partial sum S<sub>{sumN}</sub><input value={sumAnswer} onChange={(event) => setSumAnswer(event.target.value)} style={inputStyle} /></label>
         <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check finite sum</SubmitText></button>
-        {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'The last term and finite sum are consistent.' : 'Find the correct final term first, then include every term from a₁ through it.'}</ResultPill></div> : null}
+        {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'The last term and finite sum are consistent.' : `Find the correct final term first, then include every term from ${words.first} through it.`}</ResultPill></div> : null}
       <HintPanel hints={['A series is what you get when you add the terms of a sequence together.', 'Find the last term first — you need it before you can use most sum formulas.', 'For an arithmetic series the sum is the number of terms times the average of the first and last term.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
     </ToolGrid></EnlargeableFigure>
   </ToolShell>;

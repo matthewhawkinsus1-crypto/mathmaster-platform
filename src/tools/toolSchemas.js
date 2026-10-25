@@ -15,6 +15,7 @@ import { axisLabelProblems } from './shared/planeAxisTitles.js';
 import { GRAPHING2_DEFAULT_BOUNDS, referenceLineOf, referenceLineProblem, targetLineFromQuestion } from './graphing2/graphingMath.js';
 import { formAwareAnchorsForMode, resolveConstructionPolicy } from './graphing2/constructionPolicy.js';
 import { radicalSolveKey } from './signSolutionAnalyzer/signSolutionMath.js';
+import { SEQUENCE_NOTATIONS, sequenceWritesRules } from './sequenceExplorer/sequenceNotation.js';
 const TOOL_IDS = new Set([
   'dataModelingLab','regressionCalculator','inverseCompositionLab','functionOperationsLab','systemsWorkspace','parabolaGeometryLab','polynomialWorkshop',
   'signSolutionAnalyzer','sequenceExplorer','complexPlaneLab','exponentialLogBridge','transformationsLab',
@@ -479,6 +480,15 @@ export const validateToolQuestion = (question = {}) => {
       if (mode === 'partialSum' && !isPositiveInteger(question.sumN)) errors.push('partialSum mode requires sumN as a positive integer.');
     }
     if (question.displayCount != null && (!isPositiveInteger(question.displayCount) || Number(question.displayCount) > 20)) errors.push('sequenceExplorer displayCount must be an integer from 1 to 20.');
+    // How the terms are written (TL39): a label only. Where the student types a
+    // rule the boxes read aₙ and the grader reads aₙ, so f(n) is refused there
+    // instead of being ignored.
+    if (question.notation != null) {
+      if (!SEQUENCE_NOTATIONS.includes(question.notation)) errors.push('sequenceExplorer notation must be "a_n" or "f(n)".');
+      else if (question.notation === 'f(n)' && sequenceWritesRules(question)) {
+        errors.push('sequenceExplorer notation "f(n)" is for questions that do not have the student write a rule in the tool: the rule boxes read aₙ and the grader reads rules written with aₙ. Drop the notation, or the writeExplicit / writeRecursive actions (and the ruleBridge mode).');
+      }
+    }
     if (mode === 'analyze' && question.revealTargetTerm !== true && question.displayCount != null && question.targetN != null && Number(question.displayCount) >= Number(question.targetN)) {
       errors.push('sequenceExplorer analyze mode must not display the requested target term before the student answers. Use displayCount < targetN, or set revealTargetTerm: true only when intentionally showing the answer as worked evidence.');
     }

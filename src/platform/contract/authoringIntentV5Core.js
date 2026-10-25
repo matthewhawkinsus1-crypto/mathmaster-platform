@@ -2146,6 +2146,9 @@ const compileOne = (q, index, repairs) => {
         leftLabel: q.leftLabel,
         rightLabel: q.rightLabel,
         plotSnapStep: q.plotSnapStep,
+        // How the terms are written on the screen: "a_n" (the default) or
+        // "f(n)", as the district's DOL writes them. A label only (TL39).
+        notation: q.notation,
       });
       break;
     }
