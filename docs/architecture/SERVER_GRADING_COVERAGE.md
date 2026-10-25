@@ -1027,17 +1027,26 @@ My Math Path and Live Challenge.
   ingestion's sanitized, attempt-bounded client record, unchanged.
 * **My Math Path and Live Challenge contracts diverge from the tools.** Path
   is its own server-authoritative subsystem, and migrating its contracts to
-  the shared graders would change live Path scores, so it is left to a
-  dedicated change. Fixed here: the relation-mapping functionhood vocabulary
-  (every correct answer was marked wrong). Still divergent, from the audit and
-  the tool reviews: relation mapping (`yes-output-rule` accepted, domain and
-  range compared as multisets, a 1e-6 tolerance, plot and analysis fields
-  ignored); systems workspace (every mode but inequalities and matrix3 treated
-  as `linear`); data modeling (causation, intercept default, a line fit with a
-  prediction graded on the fit alone); Step Algebra (form objectives,
-  candidate checks and representations ignored). Path's `algebra` contract
-  cannot read the balance workspace's answer, but the Path question bank holds
-  no `algebra` items. The shared graders export the helpers Path can adopt.
+  the shared graders would change live Path scores, so it moves one rule at a
+  time. Fixed: the relation-mapping functionhood vocabulary (every correct
+  answer was marked wrong); "is it a function?" through the tool's own rule,
+  so `yes-output-rule` is wrong on the Path too, and the `algebra` contract
+  reading the balance workspace's equation (both 2026-10-01, PR #415); the
+  typed domain and range read as sets by the lab's own rule
+  (`toolMath/relationMapping/relationSets.mjs`, MP07: a value typed twice was
+  wrong on the Path only). The rest are pinned on every live item, with the
+  side that is right, by `tests/platform/pathToolSharedParity.test.mjs`
+  (`KNOWN_DIVERGENCES`), and the verdicts a change moves are listed by
+  `scripts/sweep-path-tool-verdicts.mjs`. On live items: a linear system's
+  authored `numericTolerance` (the Path honours 0.15 on the estimate items,
+  the shared grader always uses 0.05), a typed line's intercept tolerance
+  (Path max(0.8, 8% of |b|), the lab 0.8), all-or-nothing scores on the Path
+  where the shared graders give the share of right parts, and shapes today's
+  tools no longer send. Not reached by any live item (each asserted there):
+  relation plot and analysis fields (not served or graded on the Path),
+  systems modes other than linear, inequalities and matrix3, data modeling's
+  causation and line-fit prediction modes, and Step Algebra's form
+  objectives, candidate checks and representations.
 * **Secure Test Cycle issuability.** The audit found the issuability gate accepts
   any Path tool-contract family while the secure runtime grades with the legacy
   field grader. Recorded for the Test Cycle owners; unchanged here.

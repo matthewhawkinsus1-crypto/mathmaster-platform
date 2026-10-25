@@ -82,6 +82,7 @@ import {
   validateGraphingResponse,
 } from './pathGraphingGrading.mjs';
 import { functionAnswerIsCorrect } from './relationFunctionChoice.mjs';
+import { sameSet as sameRelationSet } from './toolMath/relationMapping/relationSets.mjs';
 
 export {
   asNumber,
@@ -752,8 +753,15 @@ const CONTRACTS = {
   // gained the reasons: every function was marked wrong and every non-function
   // right, whatever the student chose. The tool and this grader now share one
   // rule (relationFunctionChoice.mjs); a bare yes / no / boolean is still read.
+  //
+  // Version 3 (MP07). Version 2 compared the typed domain and range as lists,
+  // so a set with a value typed twice was wrong here and right in the lab:
+  // the range of {(-7, -2), (2, 1), (14, -2)} typed as its pairs give it,
+  // "-2, 1, -2". Both now go through the lab's own set rule
+  // (toolMath/relationMapping/relationSets.mjs). The stored definition did not
+  // change, so a question issued under version 2 is graded the same way.
   relationMapping: {
-    serverGradingVersion: 2,
+    serverGradingVersion: 3,
     responseShape: 'relation',
     // No secret in the pairs — a student can see the relation and work its
     // domain out. What the server protects is the verdict, not the data.
@@ -791,11 +799,13 @@ const CONTRACTS = {
       if (definition.ask.includes('mapping')) {
         parts.push({ id: 'mapping', isCorrect: samePairs(list(raw.arrows), definition.arrows) });
       }
+      // `domain` / `range` are the boxes as the lab parses them (parseList),
+      // compared as sets exactly as the lab's Check compares them.
       if (definition.ask.includes('domain')) {
-        parts.push({ id: 'domain', isCorrect: sameSet(list(raw.domain), definition.domain) });
+        parts.push({ id: 'domain', isCorrect: sameRelationSet(list(raw.domain), definition.domain) });
       }
       if (definition.ask.includes('range')) {
-        parts.push({ id: 'range', isCorrect: sameSet(list(raw.range), definition.range) });
+        parts.push({ id: 'range', isCorrect: sameRelationSet(list(raw.range), definition.range) });
       }
       if (definition.ask.includes('isFunction')) {
         // The tool answers with a reason ('yes-definition', …); only the
