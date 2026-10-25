@@ -2,6 +2,7 @@ import html2canvas from 'html2canvas';
 import { convertLatexToMarkup } from 'mathlive';
 import 'mathlive/static.css';
 import { isMathSegment, splitMathSegments, splitProseFractionRuns, unwrapMathSegment } from '../../components/common/mathSegments.js';
+import { braceScriptGroups } from '../../mathDisplayFormat.js';
 import { PRINT_OUTPUT_MODES, worksheetFileName } from './assignmentWorksheetPdfModel.js';
 import { renderWorksheetVisual } from './assignmentWorksheetVisuals.js';
 
@@ -27,7 +28,8 @@ const appendRichText = (parent, value, { size = 15, weight = 400 } = {}) => {
       fontSize: `${size}px`,
       verticalAlign: 'middle',
     });
-    span.innerHTML = convertLatexToMarkup(latex);
+    // "x^(\frac{1}{3})" is a power: in LaTeX its bracket is braces (MathDisplay does the same).
+    span.innerHTML = convertLatexToMarkup(braceScriptGroups(latex, 'latex'));
     line.appendChild(span);
   };
   splitMathSegments(String(value ?? '')).forEach((segment) => {
@@ -49,7 +51,7 @@ const appendRichText = (parent, value, { size = 15, weight = 400 } = {}) => {
       fontSize: math.inline ? `${size}px` : `${Math.max(size + 3, 18)}px`,
       verticalAlign: 'middle',
     });
-    span.innerHTML = convertLatexToMarkup(math.value);
+    span.innerHTML = convertLatexToMarkup(braceScriptGroups(math.value, 'latex'));
     line.appendChild(span);
   });
   parent.appendChild(line);
