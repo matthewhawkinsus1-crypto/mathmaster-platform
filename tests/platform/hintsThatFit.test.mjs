@@ -161,7 +161,10 @@ test('a hint that states an answer is still dropped: a value, a point, an expres
   assert.equal(buildQuestionHints(pointAnswer).some((hint) => hint.text.includes('(6, 3)')), false);
   assert.ok(hintAnswerLeak('It lands at (6, 3).', { answers: questionAnswerValues(pointAnswer), visibleText: questionVisibleText(pointAnswer) }));
   // A value read by value: "6/2" writes 3, "x/2" writes 2, "12" does not write 2.
-  assert.deepEqual(statedAnswers('That is 6/2.', { answers: ['3'], visibleText: 'y = 3x' }), [], 'the shared guard never read 6/2 as 3 — only matches it found are refined');
+  // (6/2 was not read as 3 until FB03: the guard only refined what the shared
+  // text guard matched. The same number in another spelling is stated; see
+  // hintGuardSpellings.test.mjs.)
+  assert.deepEqual(statedAnswers('That is 6/2.', { answers: ['3'], visibleText: 'y = 3x' }), ['3'], 'an unreduced fraction is the answer written another way');
   assert.deepEqual(statedAnswers('It is 3/1.', { answers: ['3'], visibleText: '' }), ['3']);
   assert.deepEqual(statedAnswers('Write f(x/2).', { answers: ['2'], visibleText: '' }), ['2']);
   assert.deepEqual(statedAnswers('Add 12 to both sides.', { answers: ['2'], visibleText: '' }), []);

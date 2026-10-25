@@ -1253,8 +1253,8 @@
             }
           ],
           "hints": [
-            "Slope through (−6, 1) and (0, 4) is 3/6.",
-            "Simplify 3/6 first. Then flip the fraction and change the sign.",
+            "Find the slope through (−6, 1) and (0, 4) first.",
+            "Simplify that fraction. Then flip it and change the sign.",
             "Substitute the point the line passes through and the perpendicular slope into y = mx + b, then solve for b."
           ],
           "scaffold": {

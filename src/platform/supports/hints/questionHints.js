@@ -104,6 +104,34 @@ export const questionVisibleText = (question = {}) => [
   ...list(question.answerFields).map((field) => field?.label),
 ].filter((value) => typeof value === 'string' && value.trim()).join('\n');
 
+/*
+ * Everything the student is SHOWN, for the one question the guard asks of a number
+ * written another way: is it new to them (hintLeakGuard.js)? The prompt and the
+ * labels (questionVisibleText) and the mathematics the problem displays — an
+ * expression, an equation, a table's cells, a drill's fractions. Never an answer,
+ * a choice or a hint. The given of a "simplify" or "convert" question equals its
+ * answer in value and is not it, so a hint quoting it is not a leak.
+ */
+const DISPLAY_KEYS = ['expressionLatex', 'expression', 'equation', 'equations', 'inequalityText', 'leftExpression', 'rightExpression', 'mathDisplay', 'supportingMath', 'givenExpression', 'stimulus', 'dividend', 'divisor', 'leftFactor', 'rightFactor'];
+export const questionDisplayText = (question = {}) => {
+  const pieces = [questionVisibleText(question)];
+  const add = (value) => {
+    if (typeof value === 'string' && value.trim()) pieces.push(value);
+    else if (typeof value === 'number' && Number.isFinite(value)) pieces.push(String(value));
+    else if (Array.isArray(value)) value.forEach(add);
+  };
+  DISPLAY_KEYS.forEach((key) => add(question[key]));
+  const table = question.table;
+  if (table && typeof table === 'object') {
+    add(table.columns);
+    list(table.rows).forEach((row) => (row && typeof row === 'object' ? Object.values(row).forEach(add) : add(row)));
+  }
+  [['n1', 'd1'], ['n2', 'd2']].forEach(([top, bottom]) => {
+    if (Number.isFinite(question[top]) && Number.isFinite(question[bottom])) pieces.push(`${question[top]}/${question[bottom]}`);
+  });
+  return pieces.join('\n');
+};
+
 // The fallbacks, by what the student does. Each is about reading and checking
 // the student's own work, never a method step the item measures.
 export const FALLBACK_HINTS = Object.freeze({
@@ -189,7 +217,7 @@ export const questionHintAudit = (question = {}, { toolHints = [] } = {}) => {
   const tool = list(toolHints).map((entry) => ({ value: hintText(entry), standing: entry?.standing === true }))
     .filter(({ value }) => value)
     .map(({ value, standing }) => (standing ? { text: value, source: 'tool', standing: true } : { text: value, source: 'tool' }));
-  const options = { answers: questionAnswerValues(question), visibleText: questionVisibleText(question) };
+  const options = { answers: questionAnswerValues(question), visibleText: questionVisibleText(question), displayText: questionDisplayText(question) };
   const seen = new Set();
   return [...authored, ...family, ...tool].map((hint) => {
     const key = hint.text.toLowerCase();
