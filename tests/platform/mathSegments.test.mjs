@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   isMathSegment, removeRedundantPlainFractionParens, splitMathSegments, splitProseFractionRuns, unwrapMathSegment,
 } from '../../src/components/common/mathSegments.js';
+import { stackDivisions } from '../../functions/shared/stackDivisions.mjs';
 
 // Where the mathematics is in a sentence. Both MathText and QuestionPrompt read
 // this, so a mistake here is a mistake on every student screen at once.
@@ -119,5 +120,48 @@ test('a bracketed fraction attached to an exponent, a subscript or a name keeps 
   assert.equal(strip('x_(1/2)'), 'x_(1/2)');
   assert.equal(strip('f(1/2)'), 'f(1/2)');
   assert.equal(strip('Find (1/2) of 8'), 'Find 1/2 of 8', 'a fraction grouped on its own still loses its brackets');
-  assert.deepEqual(split('Write x^(1/3) as a radical.').map((chunk) => chunk.text), ['Write x^(', '\\frac{1}{3}', ') as a radical.']);
+  // The power is typeset whole, its base and brackets with it (next test).
+  assert.deepEqual(split('Write x^(1/3) as a radical.').map((chunk) => chunk.text), ['Write ', 'x^(\\frac{1}{3})', ' as a radical.']);
+});
+
+const pieces = (text) => splitProseFractionRuns(text).map(({ text: piece, isFraction }) => (isFraction ? `[${piece}]` : piece)).join('');
+
+// Rational Exponents: "x^(" then a stacked ⅓ then ")" was what a student read.
+test('a power whose exponent is a fraction is typeset whole, with its base', () => {
+  assert.equal(pieces('y^(1/7) · y^(4/7) = y^(5/7).'), '[y^(\\frac{1}{7})] · [y^(\\frac{4}{7})] = [y^(\\frac{5}{7})].');
+  assert.equal(pieces('x^(−2/3) has a negative exponent'), '[x^(−\\frac{2}{3})] has a negative exponent');
+  assert.equal(pieces('An even root: (−16)^(1/2) is not real.'), 'An even root: [(−16)^(\\frac{1}{2})] is not real.');
+  assert.equal(pieces('Multiply 2x^(1/3) by 3.'), 'Multiply [2x^(\\frac{1}{3})] by 3.');
+  // A power of a power is one piece, written either way.
+  assert.equal(pieces('√(∛x) = (x^(1/3))^(1/2) = x^(1/6).'), '√(∛x) = [(x^(\\frac{1}{3}))^(\\frac{1}{2})] = [x^(\\frac{1}{6})].');
+  assert.equal(pieces('x^(1/2)^(1/3)'), '[x^(\\frac{1}{2})^(\\frac{1}{3})]');
+  // A stacked fraction can be the base.
+  assert.equal(pieces('It is 1/(3x^3)^(3/3).'), 'It is [\\frac{1}{3x^3}^(\\frac{3}{3})].');
+  // What is not a power keeps its brackets in the prose.
+  assert.equal(pieces('Find f(1/2).'), 'Find f([\\frac{1}{2}]).');
+  assert.equal(pieces('Then 2^(x-1) doubles.'), 'Then 2^(x-1) doubles.');
+});
+
+// Dividing Polynomials: 2/(y + 1/2) stacks as \frac{2}{y + \frac{1}{2}}, and
+// a pattern that stopped at the first inner brace showed "\frac{2}{y + " as text.
+test('a fraction inside a fraction is typeset whole, never shown as code', () => {
+  assert.equal(pieces('2/(y + 1/2) = 4/(2y + 1).'), '[\\frac{2}{y + \\frac{1}{2}}] = [\\frac{4}{2y + 1}].');
+  assert.equal(pieces('x^(−2/3) = 1/x^(2/3).'), '[x^(−\\frac{2}{3})] = [\\frac{1}{x^(\\frac{2}{3})}].');
+  // stackDivisions reads B^(E)/N as B^((E)/N) (GR04): drawn whole, base and all.
+  assert.equal(pieces('Not 2^(x-1)/3.'), 'Not [2^\\frac{x-1}{3}].');
+  for (const text of ['2/(y + 1/2) = 4/(2y + 1).', 'Not 2^(x-1)/3.', 'x^(−2/3) = 1/x^(2/3). Multiply by (x^(1/3))/(x^(1/3)).']) {
+    assert.ok(splitProseFractionRuns(text).every(({ text: piece, isFraction }) => isFraction || !/\\[A-Za-z]/.test(piece)), text);
+  }
+});
+
+test('the pieces always put the sentence back together', () => {
+  for (const text of [
+    'y^(1/7) · y^(4/7) = y^(5/7).', '√(∛x) = (x^(1/3))^(1/2) = x^(1/6) = ⁶√x.', 'x^(1/2)^(1/3) and 1/(3x^3)^(3/3).',
+    'Simplify 2/6.', 'Graph y = (2/3)x + 7.', '6(3/2) + −1(1/6)', '2/(y + 1/2) is 4/(2y + 1), not 2/(2y + 1).',
+  ]) {
+    // The stacked sentence, split and not changed: only a sentence's full stop
+    // moves, out of a denominator.
+    const joined = splitProseFractionRuns(text).map((piece) => piece.text).join('');
+    assert.equal(joined.replace(/\./g, ''), stackDivisions(removeRedundantPlainFractionParens(text)).replace(/\./g, ''), text);
+  }
 });

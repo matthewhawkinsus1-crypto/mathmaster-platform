@@ -108,7 +108,8 @@ test('Unicode subscripts are rewritten into the syntax of the format that parses
   assert.equal(unicodeSubscriptsToMathMarkup('aₙ₋₁', 'latex'), 'a_{n-1}');
   assert.equal(unicodeSubscriptsToMathMarkup('x^2 + 1', 'ascii-math'), 'x^2 + 1');
   const display = source('src/MathDisplay.jsx');
-  assert.match(display, /const typesetValue = unicodeSubscriptsToMathMarkup\(cleanValue, resolvedFormat\)/);
+  // Whatever else wraps it (braceScriptGroups, mathDisplayFormat.js), the typeset value has its subscripts rewritten.
+  assert.match(display, /const typesetValue = [^;\n]*unicodeSubscriptsToMathMarkup\(cleanValue, resolvedFormat\)/);
   assert.match(region(display, '<Element', '</Element>', 'rendered math'), /\{typesetValue\}/);
 });
 

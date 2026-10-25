@@ -654,7 +654,7 @@
             {
               "id": "negative",
               "label": "x^(−2/3) =",
-              "answer": "x^(1/3)/x",
+              "answer": "(x^(1/3))/x",
               "inputProfile": "expression",
               "gradingMode": "simplestRadicalForm"
             }
@@ -667,7 +667,7 @@
               },
               {
                 "title": "Clearing a fractional exponent from a denominator",
-                "instruction": "x^(−2/3) = 1/x^(2/3). Multiply by x^(1/3)/x^(1/3): x^(1/3)/x^(2/3 + 1/3) = x^(1/3)/x."
+                "instruction": "x^(−2/3) = 1/x^(2/3). Multiply by (x^(1/3))/(x^(1/3)): (x^(1/3))/(x^(2/3 + 1/3)) = (x^(1/3))/x."
               }
             ]
           },
@@ -688,9 +688,9 @@
             "headline": "Add exponents; then clear the denominator.",
             "reasoning": [
               "y^(1/7) · y^(4/7) = y^(5/7).",
-              "x^(−2/3) = 1/x^(2/3). Multiplying by x^(1/3)/x^(1/3) gives x^(1/3)/x."
+              "x^(−2/3) = 1/x^(2/3). Multiplying by (x^(1/3))/(x^(1/3)) gives (x^(1/3))/x."
             ],
-            "answerSummary": "y^(5/7); x^(1/3)/x",
+            "answerSummary": "y^(5/7); (x^(1/3))/x",
             "commonError": "1/x^(2/3) still has a fractional exponent in the denominator, so it is not simplified."
           }
         },
@@ -852,7 +852,7 @@
             },
             {
               "id": "d",
-              "label": "x^(1/3)/x"
+              "label": "(x^(1/3))/x"
             },
             {
               "id": "e",
@@ -907,11 +907,11 @@
           "solutionReview": {
             "headline": "Check every rule for simplified form.",
             "reasoning": [
-              "Simplified: x^(3/5), x^(1/3)/x, ∛(2x²) and 2^(1/3).",
-              "Not yet: x^(−2/3) has a negative exponent (it is x^(1/3)/x); 1/x^(1/2) has a fractional exponent in the denominator (x^(1/2)/x); y^(10/14) reduces to y^(5/7); ⁶√(4x⁴) has a larger index than needed (∛(2x²)); y^(1/7) · y^(4/7) writes the base twice (y^(5/7))."
+              "Simplified: x^(3/5), (x^(1/3))/x, ∛(2x²) and 2^(1/3).",
+              "Not yet: x^(−2/3) has a negative exponent (it is (x^(1/3))/x); 1/x^(1/2) has a fractional exponent in the denominator ((x^(1/2))/x); y^(10/14) reduces to y^(5/7); ⁶√(4x⁴) has a larger index than needed (∛(2x²)); y^(1/7) · y^(4/7) writes the base twice (y^(5/7))."
             ],
-            "answerSummary": "Simplified: x^(3/5), x^(1/3)/x, ∛(2x²), 2^(1/3). Not yet: x^(−2/3), 1/x^(1/2), y^(10/14), ⁶√(4x⁴), y^(1/7) · y^(4/7).",
-            "commonError": "x^(1/3)/x is simplified: the denominator x has a whole-number exponent."
+            "answerSummary": "Simplified: x^(3/5), (x^(1/3))/x, ∛(2x²), 2^(1/3). Not yet: x^(−2/3), 1/x^(1/2), y^(10/14), ⁶√(4x⁴), y^(1/7) · y^(4/7).",
+            "commonError": "(x^(1/3))/x is simplified: the denominator x has a whole-number exponent."
           }
         }
       ]
@@ -1319,7 +1319,7 @@
             {
               "id": "negative",
               "label": "y^(−3/4) =",
-              "answer": "y^(1/4)/y",
+              "answer": "(y^(1/4))/y",
               "inputProfile": "expression",
               "gradingMode": "simplestRadicalForm"
             }
@@ -1340,9 +1340,9 @@
             "headline": "Add exponents; then clear the denominator.",
             "reasoning": [
               "x^(1/5) · x^(2/5) = x^(3/5).",
-              "y^(−3/4) = 1/y^(3/4). Multiplying by y^(1/4)/y^(1/4) gives y^(1/4)/y."
+              "y^(−3/4) = 1/y^(3/4). Multiplying by (y^(1/4))/(y^(1/4)) gives (y^(1/4))/y."
             ],
-            "answerSummary": "x^(3/5); y^(1/4)/y",
+            "answerSummary": "x^(3/5); (y^(1/4))/y",
             "commonError": "1/y^(3/4) still has a fractional exponent in the denominator."
           }
         },
@@ -1635,7 +1635,7 @@
             },
             {
               "id": "d",
-              "label": "b^(1/2)/b"
+              "label": "(b^(1/2))/b"
             },
             {
               "id": "e",
@@ -1651,7 +1651,7 @@
             },
             {
               "id": "h",
-              "label": "c^(1/4)/c"
+              "label": "(c^(1/4))/c"
             }
           ],
           "validSchemes": [
@@ -1685,11 +1685,11 @@
           "solutionReview": {
             "headline": "Check every rule for simplified form.",
             "reasoning": [
-              "Simplified: a^(2/5), b^(1/2)/b, √5 and c^(1/4)/c.",
-              "Not yet: a^(4/10) reduces to a^(2/5); b^(−1/2) has a negative exponent (b^(1/2)/b); 1/c^(3/4) has a fractional exponent in the denominator (c^(1/4)/c); ⁴√25 = √5 has a smaller index."
+              "Simplified: a^(2/5), (b^(1/2))/b, √5 and (c^(1/4))/c.",
+              "Not yet: a^(4/10) reduces to a^(2/5); b^(−1/2) has a negative exponent ((b^(1/2))/b); 1/c^(3/4) has a fractional exponent in the denominator ((c^(1/4))/c); ⁴√25 = √5 has a smaller index."
             ],
-            "answerSummary": "Simplified: a^(2/5), b^(1/2)/b, √5, c^(1/4)/c. Not yet: a^(4/10), b^(−1/2), 1/c^(3/4), ⁴√25.",
-            "commonError": "b^(1/2)/b is simplified: the fractional exponent is in the numerator."
+            "answerSummary": "Simplified: a^(2/5), (b^(1/2))/b, √5, (c^(1/4))/c. Not yet: a^(4/10), b^(−1/2), 1/c^(3/4), ⁴√25.",
+            "commonError": "(b^(1/2))/b is simplified: the fractional exponent is in the numerator."
           }
         }
       ]
@@ -1791,7 +1791,7 @@
             {
               "id": "simplified",
               "label": "Simplified",
-              "answer": "{{k|coef}}x^({{b}}/{{n}})/x",
+              "answer": "({{k|coef}}x^({{b}}/{{n}}))/x",
               "inputProfile": "expression",
               "gradingMode": "simplestRadicalForm"
             }
@@ -1836,9 +1836,9 @@
             "reasoning": [
               "{{k|coef}}x^(−{{a}}/{{n}}) = {{k}}/x^({{a}}/{{n}}).",
               "Multiply the top and the bottom by x^({{b}}/{{n}}): x^({{a}}/{{n}}) · x^({{b}}/{{n}}) = x.",
-              "So the simplified form is {{k|coef}}x^({{b}}/{{n}})/x."
+              "So the simplified form is ({{k|coef}}x^({{b}}/{{n}}))/x."
             ],
-            "answerSummary": "{{k|coef}}x^({{b}}/{{n}})/x",
+            "answerSummary": "({{k|coef}}x^({{b}}/{{n}}))/x",
             "commonError": "{{k}}/x^({{a}}/{{n}}) still has a fractional exponent in the denominator."
           }
         }

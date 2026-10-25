@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveMathDisplayFormat } from '../../src/mathDisplayFormat.js';
+import { braceScriptGroups, resolveMathDisplayFormat } from '../../src/mathDisplayFormat.js';
 import { readFileSync } from 'node:fs';
 
 test('forces LaTeX after a display rewrite introduces a LaTeX fraction', () => {
@@ -63,4 +63,29 @@ test('plain ASCII math with no backslash stays ASCIIMath', () => {
   for (const value of ['(2, -2), (4, -1)', 'y = 2x - 4', 'sqrt(x) + 1', 'x^2 - 3x', '1/2 b h', 'f(x) = |x - 3|']) {
     assert.equal(resolveMathDisplayFormat(value), 'ascii-math', value);
   }
+});
+
+// Rational Exponents: once a fraction is stacked the label is LaTeX, where
+// "^(" raises the bracket alone; y^(1/7) was drawn as y⁽ with 1/7 after it.
+test('a bracketed exponent or subscript becomes a braced group in LaTeX', () => {
+  assert.equal(braceScriptGroups('y^(\\frac{1}{7}) · y^(\\frac{4}{7}) =', 'latex'), 'y^{\\frac{1}{7}} · y^{\\frac{4}{7}} =');
+  assert.equal(braceScriptGroups('x^(−\\frac{2}{3})', 'latex'), 'x^{−\\frac{2}{3}}');
+  assert.equal(braceScriptGroups('\\frac{1}{x^(\\frac{2}{3})}', 'latex'), '\\frac{1}{x^{\\frac{2}{3}}}');
+  assert.equal(braceScriptGroups('(x^(\\frac{1}{3}))^(\\frac{1}{2})', 'latex'), '(x^{\\frac{1}{3}})^{\\frac{1}{2}}');
+  assert.equal(braceScriptGroups('2^((x - 1)(x + 1)) + \\frac{1}{2}', 'latex'), '2^{(x - 1)(x + 1)} + \\frac{1}{2}');
+  assert.equal(braceScriptGroups('a_(n-1) + \\frac{1}{2}', 'latex'), 'a_{n-1} + \\frac{1}{2}');
+  assert.equal(braceScriptGroups('x^ (\\frac{1}{3})', 'latex'), 'x^{\\frac{1}{3}}');
+});
+
+test('only LaTeX is rewritten, and only a group that closes', () => {
+  assert.equal(braceScriptGroups('x^(1/3)', 'ascii-math'), 'x^(1/3)', 'ASCIIMath groups the bracket itself');
+  assert.equal(braceScriptGroups('x^(\\frac{1}{3}', 'latex'), 'x^(\\frac{1}{3}', 'an unclosed bracket is left as written');
+  assert.equal(braceScriptGroups('x^{\\frac{1}{3}} + y^2', 'latex'), 'x^{\\frac{1}{3}} + y^2');
+  assert.equal(braceScriptGroups('\\^(x)', 'latex'), '\\^(x)', 'an escaped caret is not a power');
+});
+
+test('MathDisplay braces the value it typesets, not the words it speaks', () => {
+  const display = readFileSync(new URL('../../src/MathDisplay.jsx', import.meta.url), 'utf8');
+  assert.match(display, /const typesetValue = braceScriptGroups\(unicodeSubscriptsToMathMarkup\(cleanValue, resolvedFormat\), resolvedFormat\);/);
+  assert.match(display, /mathSpeechLabel\(\{ value: cleanValue,/);
 });

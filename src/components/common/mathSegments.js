@@ -172,13 +172,90 @@ export const normalizePlainMathTypography = (value) => String(value ?? '')
   .replace(/!=/g, '≠')
   .replace(/\+\/-/g, '±');
 
-const FRACTION_TOKEN = /\\frac\{[^{}]*\}\{[^{}]*\}/g;
+// The "}" that closes the "{" at `open`, or -1.
+const closingBrace = (text, open) => {
+  let depth = 0;
+  for (let index = open; index < text.length; index += 1) {
+    if (text[index] === '{') depth += 1;
+    else if (text[index] === '}') {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  return -1;
+};
+
+// Every \frac{…}{…} that is not inside another, whole. "2/(y + 1/2)" stacks
+// as \frac{2}{y + \frac{1}{2}}, and a pattern that stopped at the first inner
+// brace typeset only the ½ and showed the student "\frac{2}{y + " as text
+// (Dividing Polynomials).
+const fractionSpans = (text) => {
+  const spans = [];
+  for (let start = text.indexOf('\\frac{'); start !== -1; start = text.indexOf('\\frac{', start + 1)) {
+    if (spans.length && start < spans[spans.length - 1][1]) continue;
+    const numeratorEnd = closingBrace(text, start + 5);
+    const denominatorEnd = numeratorEnd !== -1 && text[numeratorEnd + 1] === '{' ? closingBrace(text, numeratorEnd + 1) : -1;
+    if (denominatorEnd !== -1) spans.push([start, denominatorEnd + 1]);
+  }
+  return spans;
+};
+
+// Where the base of the power whose "^" is at `caret` begins: a number or a
+// name ("27", "x", "2x"), or a bracketed group and what touches it ("(−16)",
+// "f(x)"). -1 when nothing a power could sit on is there.
+const powerBaseStart = (text, caret) => {
+  let index = caret;
+  if (text[index - 1] === ')') {
+    let depth = 0;
+    do {
+      index -= 1;
+      if (text[index] === ')') depth += 1;
+      else if (text[index] === '(') depth -= 1;
+    } while (index > 0 && depth > 0);
+    if (depth !== 0) return -1;
+  }
+  while (index > 0 && /[\p{L}\p{N}]/u.test(text[index - 1])) index -= 1;
+  return index < caret ? index : -1;
+};
+
+// The pieces of stacked prose to typeset: each whole fraction, and each power
+// whose exponent holds one with its base ("x^(\frac{1}{3})", and
+// "x^\frac{\frac{1}{3}}{x}", the reading stackDivisions gives B^(E)/N). Its
+// brackets became braces when MathDisplay typesets it (braceScriptGroups);
+// left in the prose, the student read "x^(" then a stacked ⅓ then ")".
+const mathSpans = (text) => {
+  const fractions = fractionSpans(text);
+  const insideFraction = (index) => fractions.some(([start, end]) => index > start && index < end);
+  const powers = [];
+  for (let caret = text.indexOf('^('); caret !== -1; caret = text.indexOf('^(', caret + 1)) {
+    if (insideFraction(caret) || (powers.length && caret < powers[powers.length - 1][1])) continue;
+    let depth = 0;
+    let close = caret + 1;
+    for (; close < text.length; close += 1) {
+      if (text[close] === '(') depth += 1;
+      else if (text[close] === ')' && --depth === 0) break;
+    }
+    // A stacked fraction can be the base too: "1/(3x^3)^(3/3)" stacks as
+    // \frac{1}{3x^3}^(\frac{3}{3}).
+    let base = fractions.find(([, end]) => end === caret)?.[0] ?? powerBaseStart(text, caret);
+    if (close === text.length || base === -1 || !fractions.some(([start]) => start > caret && start < close)) continue;
+    // A power of a power, "(x^(1/3))^(1/2)" or "x^(1/2)^(1/3)", is one piece.
+    while (powers.length && powers[powers.length - 1][1] > base) base = Math.min(base, powers.pop()[0]);
+    powers.push([base, close + 1]);
+  }
+  const towers = fractions.map(([start, end]) => {
+    const base = text[start - 1] === '^' ? powerBaseStart(text, start - 1) : -1;
+    return [base === -1 ? start : base, end];
+  });
+  const outsidePowers = towers.filter(([start, end]) => !powers.some(([from, to]) => start >= from && end <= to));
+  return [...powers, ...outsidePowers].sort((a, b) => a[0] - b[0]);
+};
 
 // `stackDivisions` reads digits and dots as one number, which is right for an
 // answer ("3/4." is three over four point nought) but not for prose, where a
 // dot no digit follows ends the sentence. Display only: grading never splits
-// prose.
-const SENTENCE_STOP_IN_DENOMINATOR = /^(\\frac\{[^{}]*\}\{[^{}]*\d)(\.+)\}$/;
+// prose. Any piece's last denominator can take it ("Not 2^(x-1)/3.").
+const SENTENCE_STOP_IN_DENOMINATOR = /^([\s\S]*\d)(\.+)\}$/;
 
 // A number or a closing bracket touching the brackets is multiplying:
 // "6(3/2)" without them is "63/2", sixty-three halves, and "(2/3)(3/2)"
@@ -221,15 +298,13 @@ export const splitProseFractionRuns = (proseText) => {
     if (carried || value) chunks.push({ text: `${carried}${value}`, isFraction: false });
     carried = '';
   };
-  FRACTION_TOKEN.lastIndex = 0;
-  let match = FRACTION_TOKEN.exec(stacked);
-  while (match) {
-    if (match.index > cursor || carried) pushProse(stacked.slice(cursor, match.index));
-    const stop = SENTENCE_STOP_IN_DENOMINATOR.exec(match[0]);
-    chunks.push({ text: stop ? `${stop[1]}}` : match[0], isFraction: true });
+  for (const [start, end] of mathSpans(stacked)) {
+    if (start > cursor || carried) pushProse(stacked.slice(cursor, start));
+    const math = stacked.slice(start, end);
+    const stop = SENTENCE_STOP_IN_DENOMINATOR.exec(math);
+    chunks.push({ text: stop ? `${stop[1]}}` : math, isFraction: true });
     carried = stop ? stop[2] : '';
-    cursor = match.index + match[0].length;
-    match = FRACTION_TOKEN.exec(stacked);
+    cursor = end;
   }
   if (cursor < stacked.length || carried) pushProse(stacked.slice(cursor));
   return chunks.length ? chunks : [{ text, isFraction: false }];

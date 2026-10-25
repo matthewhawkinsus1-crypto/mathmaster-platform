@@ -68,4 +68,48 @@ export const unicodeSubscriptsToMathMarkup = (value, format = 'ascii-math') => (
   })
 );
 
+// The ")" that closes the "(" at `open`, or -1.
+const closingBracket = (text, open) => {
+  let depth = 0;
+  for (let index = open; index < text.length; index += 1) {
+    if (text[index] === '(') depth += 1;
+    else if (text[index] === ')') {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  return -1;
+};
+
+/*
+ * A BRACKETED EXPONENT IS A GROUP, AND IN LATEX A GROUP IS BRACES.
+ *
+ * "x^(1/3)" is a power in plain text and in ASCIIMath, where the brackets
+ * group the exponent. Once MathDisplay has stacked a fraction the value is
+ * typeset as LaTeX, and there "^(" raises the bracket alone: y^(1/7) was drawn
+ * as y⁽ with 1/7 on the line after it, in every Rational Exponents lesson. A
+ * bracketed exponent or subscript becomes the braced group it means. Display
+ * only: nothing graded reads this.
+ */
+export const braceScriptGroups = (value, format = 'latex') => {
+  const text = String(value ?? '');
+  if (format !== 'latex' || !/[\^_]\s*\(/.test(text)) return text;
+  let out = '';
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    if ((character === '^' || character === '_') && text[index - 1] !== '\\') {
+      let open = index + 1;
+      while (text[open] === ' ') open += 1;
+      const close = text[open] === '(' ? closingBracket(text, open) : -1;
+      if (close !== -1) {
+        out += `${character}{${braceScriptGroups(text.slice(open + 1, close), format)}}`;
+        index = close;
+        continue;
+      }
+    }
+    out += character;
+  }
+  return out;
+};
+
 export default resolveMathDisplayFormat;
