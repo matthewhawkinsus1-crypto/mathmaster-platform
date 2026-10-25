@@ -74,7 +74,14 @@ const missMessages = [
   ['Right line, wrong form: write it as {1}₁ {2}({3}₁).', 'La recta es correcta, pero la forma no: escríbela como {1}₁ {2}({3}₁).'],
   ['Right line, wrong form: write it as Ax {1} By {2}.', 'La recta es correcta, pero la forma no: escríbela como Ax {1} By {2}.'],
   // Right value, not simplified (operations on polynomials).
-  ['Equal, but not simplified: multiply out every product and combine like terms.', 'Es igual, pero no está simplificado: haz cada multiplicación y combina los términos semejantes.'],
+  ['Equal, but not simplified: multiply out any product, then combine any like terms.', 'Es igual, pero no está simplificado: haz cualquier multiplicación y luego combina los términos semejantes que haya.'],
+  // What is left in the student's own answer (TL31).
+  ['Equal, but not simplified: combine like terms, so each kind of term appears only once.', 'Es igual, pero no está simplificado: combina los términos semejantes, para que cada tipo de término aparezca una sola vez.'],
+  ['Equal, but not simplified: multiply out every product, then combine any like terms.', 'Es igual, pero no está simplificado: haz cada multiplicación y luego combina los términos semejantes que haya.'],
+  ['Equal, but not simplified: remove every set of parentheses, then combine any like terms.', 'Es igual, pero no está simplificado: quita todos los paréntesis y luego combina los términos semejantes que haya.'],
+  ['Equal, but not simplified: write each power simply — no exponent of one, and nothing to the power zero.', 'Es igual, pero no está simplificado: escribe cada potencia de forma simple, sin exponente uno y sin nada elevado a la potencia cero.'],
+  ['Equal, but not simplified: write every coefficient in lowest terms.', 'Es igual, pero no está simplificado: escribe cada coeficiente en su mínima expresión.'],
+  ['Equal, but not simplified: leave out any term with a coefficient of zero.', 'Es igual, pero no está simplificado: quita cualquier término con coeficiente cero.'],
   ['Equal, but not in simplest form: take every perfect power out of the root, combine like terms, and leave no root in a denominator.', 'Es igual, pero no está en su forma más simple: saca de la raíz cada potencia perfecta, combina los términos semejantes y no dejes raíces en el denominador.'],
   // Two sentences: the pack is read one sentence at a time.
   ['That is a decimal approximation.', 'Eso es una aproximación decimal.'],

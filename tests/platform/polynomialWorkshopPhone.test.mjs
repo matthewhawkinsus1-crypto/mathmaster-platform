@@ -22,7 +22,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { executableSource } from './helpers/sourceContract.mjs';
+import { executableSource, region } from './helpers/sourceContract.mjs';
 import { parseCss, declared } from './helpers/cssRules.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
@@ -84,4 +84,21 @@ test('a table that still does not fit (200% text) shows a soft edge on the side 
     assert.equal((layers.match(/\bscroll\b/g) || []).length, 2, `${selector}: two shadows`);
     assert.ok(layers.indexOf('local') < layers.indexOf('scroll'), `${selector}: the covers are drawn over the shadows`);
   }
+});
+
+test('an add & subtract column box shows its whole placeholder on a phone (TL31)', () => {
+  // At 390px a column's box is about 90px beside its √x button: some 60px of
+  // text at 20px, about six letters. "opposite" and "term or 0" showed as
+  // "opposit…" and "term or…" (walkthrough 2026-10-22, Operations, phone).
+  const addSubtract = region(jsx, 'function AddSubtract(', 'function FactorQuadratic(', 'AddSubtract');
+  // Each <MathInput … /> tag (its props hold arrows, so not [^>]*), the compact ones.
+  const columnBoxes = [...addSubtract.matchAll(/<MathInput\b[\s\S]*?\/>/g)].map((match) => match[0]).filter((tag) => /\scompact\s/.test(tag));
+  assert.equal(columnBoxes.length, 2, 'the opposite and the combined box of a column');
+  columnBoxes.forEach((box) => {
+    const placeholder = /\bplaceholder="([^"]*)"/.exec(box)?.[1] ?? '';
+    assert.ok(placeholder.length <= 5, `"${placeholder}" fits a phone column's box`);
+  });
+  // What a box takes is said above it: the 0 for a column that cancels is in
+  // the Combined label, on screen at every width.
+  assert.match(addSubtract, />Combined <span[^>]*>\(0 if they cancel\)<\/span>/);
 });

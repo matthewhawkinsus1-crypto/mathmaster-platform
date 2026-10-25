@@ -32,7 +32,8 @@
  * null, and so does anything that throws.
  */
 import { classifyMisconceptions } from '../../../../functions/shared/misconceptionClassifiers.mjs';
-import { studentMisconceptionMessage } from '../../../../functions/shared/misconceptionStudentMessages.mjs';
+import { polynomialNotSimplifiedMessage, studentMisconceptionMessage } from '../../../../functions/shared/misconceptionStudentMessages.mjs';
+import { simplifiedPolynomialProblem } from '../../../../functions/shared/simplifiedPolynomialForm.mjs';
 import { answerCandidatesForField, orderedPairKey } from '../../../../functions/shared/answerUtils.mjs';
 import { fractionAnswerCandidates } from '../../../../functions/shared/fractionAnswer.mjs';
 import { reproduceFamilyQuestionFromPin } from '../../../../functions/shared/questionFamilyInstance.mjs';
@@ -109,6 +110,24 @@ export const displayFamilyValues = ({ template = null, delivered = null, assignm
   }
 };
 
+/*
+ * A finding's sentence. "Not simplified" says what is left in the answer the
+ * finding cites (TL31: a subtraction answer with only like terms left was told
+ * to multiply out every product): the simplest-form check's own reading of
+ * that answer chooses a fixed sentence (misconceptionStudentMessages.mjs
+ * POLYNOMIAL_NOT_SIMPLIFIED_MESSAGES). Every other code has one message.
+ */
+const NOT_SIMPLIFIED = 'polynomial-not-simplified';
+const findingMessage = (finding, grading) => {
+  if (finding.code === NOT_SIMPLIFIED) {
+    const cited = new Set(list(finding.parts).map(text));
+    const part = list(grading?.parts).find((entry) => cited.has(text(entry?.id)) && typeof entry?.response === 'string');
+    const named = part ? polynomialNotSimplifiedMessage(simplifiedPolynomialProblem(part.response)) : null;
+    if (named) return named;
+  }
+  return studentMisconceptionMessage(finding.code);
+};
+
 export const diagnoseMiss = ({ question = null, grading = null, response = null, familyValues = null, attemptsLeft = true } = {}) => {
   try {
     if (!question || !grading || grading.graded !== true || grading.isCorrect === true) return null;
@@ -123,7 +142,7 @@ export const diagnoseMiss = ({ question = null, grading = null, response = null,
     };
     const classified = classifyMisconceptions({ question, response, grading: copy, familyValues });
     const finding = list(classified?.findings).find((entry) => studentMisconceptionMessage(entry?.code) && !citesOnlyChoices(entry));
-    if (finding) return { source: 'classifier', code: finding.code, message: studentMisconceptionMessage(finding.code) };
+    if (finding) return { source: 'classifier', code: finding.code, message: findingMessage(finding, copy) };
     for (const part of wrong) {
       if (choiceIds.has(text(part.id))) continue;
       const expected = expectedForPart(question, part);

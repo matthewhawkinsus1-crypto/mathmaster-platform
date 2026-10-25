@@ -248,8 +248,13 @@ function AddSubtract({ questionData, feedback, submit, clearFeedback = () => {},
             <strong style={{textAlign:'center'}}>{name === 'constant' ? 'Constants' : <>{name} terms</>}</strong>
             <div style={cardRowStyle}><span>First</span>{firstTerm ? <MathDisplay value={termLatex(firstTerm)} inline /> : <span>none</span>}</div>
             <div style={cardRowStyle}><span>Second</span>{secondTerm ? <MathDisplay value={termLatex(secondTerm)} inline /> : <span>none</span>}</div>
-            {subtracting && secondTerm ? <label style={{display:'grid',gap:4,fontWeight:700}}>Its opposite<MathInput value={entryAt(opposites, index)} onChange={(value) => setOpposite(index, value)} inputStatus={statusOf(wrong, `opposite-${index + 1}`)} toolProfile="expression" extraKeys={keys} hideToolsToggle compact maxWidth={220} placeholder="opposite" ariaLabel={`Opposite of ${termPlainText(secondTerm)}`} /></label> : null}
-            <label style={{display:'grid',gap:4,fontWeight:700}}>Combined<MathInput value={entryAt(sums, index)} onChange={(value) => setSum(index, value)} inputStatus={statusOf(wrong, `sum-${index + 1}`)} toolProfile="expression" extraKeys={keys} hideToolsToggle compact maxWidth={220} placeholder="term or 0" ariaLabel={`Combined ${name} column`} /></label>
+            {/* A placeholder is one short word: on a phone a column's box is
+                about 90px beside its √x button, and "opposite" and "term or 0"
+                showed as "opposit…" and "term or…" (walkthrough 2026-10-22,
+                Operations, phone; TL31). The label above each box says what
+                goes in it, and "or 0" moved into the Combined label. */}
+            {subtracting && secondTerm ? <label style={{display:'grid',gap:4,fontWeight:700}}>Its opposite<MathInput value={entryAt(opposites, index)} onChange={(value) => setOpposite(index, value)} inputStatus={statusOf(wrong, `opposite-${index + 1}`)} toolProfile="expression" extraKeys={keys} hideToolsToggle compact maxWidth={220} placeholder="term" ariaLabel={`Opposite of ${termPlainText(secondTerm)}`} /></label> : null}
+            <label style={{display:'grid',gap:4,fontWeight:700}}><span>Combined <span style={{fontWeight:400}}>(0 if they cancel)</span></span><MathInput value={entryAt(sums, index)} onChange={(value) => setSum(index, value)} inputStatus={statusOf(wrong, `sum-${index + 1}`)} toolProfile="expression" extraKeys={keys} hideToolsToggle compact maxWidth={220} placeholder="term" ariaLabel={`Combined ${name} column`} /></label>
           </div>;
         })}
       </div>
@@ -283,7 +288,11 @@ function FactorQuadratic({ questionData, feedback, submit, onAction }) {
 
 function DivisionMode({ questionData, feedback, submit, onAction }) {
   // This screen asks for coefficient lists ("1, 0, 0, -8"), so a zero term is
-  // shown: x³ + 0x² + 0x − 8, not x³ − 8 (review N7).
+  // shown: x³ + 0x² + 0x − 8, not x³ − 8 (review N7). Confirmed as built in
+  // TL31 (the open question of W5-5 / Math Display decision 6 was whether to
+  // hide them, as the other modes do): every list the student types here
+  // needs a 0 for each missing power, and the dividend is shown the way such
+  // a list is written.
   const polynomialText = (coefficients = []) => polynomialReadoutText(coefficients, { keepZeros: true });
   const dividend = questionData.dividend || DEFAULTS.division.dividend;
   const divisor = questionData.divisor || DEFAULTS.division.divisor;

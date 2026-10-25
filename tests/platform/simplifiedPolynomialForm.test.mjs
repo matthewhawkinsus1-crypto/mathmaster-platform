@@ -22,6 +22,11 @@ import { matchesFieldAnswer } from '../../functions/shared/answerUtils.mjs';
 import { gradeMultiAnswerResponse } from '../../functions/shared/ordinaryResponseGrading.mjs';
 import { gradeServerResponse } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
 import { classifyMisconceptions } from '../../functions/shared/misconceptionClassifiers.mjs';
+import {
+  POLYNOMIAL_NOT_SIMPLIFIED_MESSAGES,
+  polynomialNotSimplifiedMessage,
+  studentMisconceptionMessage,
+} from '../../functions/shared/misconceptionStudentMessages.mjs';
 import { diagnoseMiss } from '../../src/platform/supports/feedback/missDiagnosis.js';
 import { displayGradingSurface } from '../../src/platform/grading/displayGradingSurface.js';
 import { validateQuestionGradingContracts } from '../../src/platform/grading/gradingContract.js';
@@ -114,7 +119,9 @@ test('the right value, not simplified, is told why — and recorded as evidence'
   const grading = { graded: true, isCorrect: graded.isCorrect, parts: graded.parts.map((part) => ({ ...part })), ...displayGradingSurface(QUESTION) };
   const diagnosis = diagnoseMiss({ question: QUESTION, grading, response: null, attemptsLeft: true });
   assert.equal(diagnosis?.code, 'polynomial-not-simplified');
-  assert.equal(diagnosis?.message, 'Equal, but not simplified: multiply out every product and combine like terms.');
+  // Only like terms are left, so that is what it says (TL31): a subtraction
+  // has no product to multiply out.
+  assert.equal(diagnosis?.message, 'Equal, but not simplified: combine like terms, so each kind of term appears only once.');
 
   const server = gradeServerResponse({ question: QUESTION, response: fieldsResponse({ simplified: UNSIMPLIFIED }) });
   const evidence = classifyMisconceptions({ question: QUESTION, response: fieldsResponse({ simplified: UNSIMPLIFIED }), grading: server });
@@ -126,6 +133,64 @@ test('the right value, not simplified, is told why — and recorded as evidence'
     const wrong = gradeMultiAnswerResponse(QUESTION, { simplified: typed });
     assert.equal(diagnoseMiss({ question: QUESTION, grading: { graded: true, isCorrect: false, parts: wrong.parts, ...displayGradingSurface(QUESTION) }, attemptsLeft: true }), null, typed);
   });
+});
+
+/*
+ * TL31 (walkthrough 2026-10-22, Operations CW 5 / PR 1): "multiply out every
+ * product and combine like terms" was said for every unsimplified answer,
+ * including subtraction answers with no product in them. What is left in the
+ * student's own answer now chooses the sentence: a kind of work, never a term
+ * or a value.
+ */
+const notSimplifiedSaid = (key, typed) => {
+  const question = { type: 'multiAnswer', prompt: 'Simplify.', answerFields: [field(key)] };
+  const graded = gradeMultiAnswerResponse(question, { simplified: typed });
+  assert.equal(graded.isCorrect, false, typed);
+  const grading = { graded: true, isCorrect: false, parts: graded.parts.map((part) => ({ ...part })), ...displayGradingSurface(question) };
+  const diagnosis = diagnoseMiss({ question, grading, response: null, attemptsLeft: true });
+  assert.equal(diagnosis?.code, 'polynomial-not-simplified', typed);
+  return diagnosis.message;
+};
+
+test('an unsimplified answer is told what is left in it, and only that (TL31)', () => {
+  const said = {
+    // Subtraction items: like terms or parentheses, never a product.
+    likeTerms: notSimplifiedSaid('a^3+8a-9', '2a^3+5a-7-a^3+3a-2'),
+    likeTermsAgain: notSimplifiedSaid('-x^2+x+2', '3x^2+2x-3-4x^2-x+5'),
+    bracketedTerms: notSimplifiedSaid('x^2+5', '(3x^2)-(2x^2)+5'),
+    grouping: notSimplifiedSaid('x^2+2x', '(x^2)+2x'),
+    // Multiplication items: the product.
+    product: notSimplifiedSaid('8a^5b^2', '(2a^2b)(4a^3b)'),
+    bracketedFactor: notSimplifiedSaid('2x', '2(x)'),
+    power: notSimplifiedSaid('x+2', 'x^1+2'),
+    zero: notSimplifiedSaid('x^2+x', 'x^2+0x+x'),
+  };
+  assert.equal(said.likeTerms, POLYNOMIAL_NOT_SIMPLIFIED_MESSAGES.likeTerms);
+  assert.equal(said.likeTermsAgain, POLYNOMIAL_NOT_SIMPLIFIED_MESSAGES.likeTerms);
+  // Brackets left around single terms: the like terms are the work left.
+  assert.equal(said.bracketedTerms, POLYNOMIAL_NOT_SIMPLIFIED_MESSAGES.likeTerms);
+  assert.equal(said.grouping, POLYNOMIAL_NOT_SIMPLIFIED_MESSAGES.grouping);
+  assert.equal(said.product, POLYNOMIAL_NOT_SIMPLIFIED_MESSAGES.product);
+  assert.equal(said.bracketedFactor, POLYNOMIAL_NOT_SIMPLIFIED_MESSAGES.grouping);
+  assert.equal(said.power, POLYNOMIAL_NOT_SIMPLIFIED_MESSAGES.power);
+  assert.equal(said.zero, POLYNOMIAL_NOT_SIMPLIFIED_MESSAGES.zeroTerm);
+  // An answer with no product in it is never told to multiply one out.
+  [said.likeTerms, said.likeTermsAgain, said.bracketedTerms, said.grouping].forEach((message) => assert.doesNotMatch(message, /product|multiply/i, message));
+  assert.match(said.product, /multiply out every product/);
+
+  // Every sentence is fixed text for a real problem of the check: no number,
+  // no letter of the item, short, and in the Spanish pack (readAloudAndTranslate).
+  const problems = new Set(Object.values(P));
+  Object.entries(POLYNOMIAL_NOT_SIMPLIFIED_MESSAGES).forEach(([problem, message]) => {
+    assert.ok(problems.has(problem), `${problem} is a problem simplifiedPolynomialForm reports`);
+    assert.doesNotMatch(message, /\d|\^|\b[xyz]\b/, message);
+    assert.ok(message.length > 40 && message.length < 160, message);
+  });
+  // A written 1 keeps its own code and sentence, and with no answer to read
+  // (a Test Cycle skill, across items) the code's own message is said.
+  assert.equal(polynomialNotSimplifiedMessage(P.UNIT_COEFFICIENT), null);
+  assert.equal(polynomialNotSimplifiedMessage('constructor'), null);
+  assert.equal(studentMisconceptionMessage('polynomial-not-simplified'), 'Equal, but not simplified: multiply out any product, then combine any like terms.');
 });
 
 test('Pre-Flight: the key must itself be simplified, and only the known form is accepted', () => {

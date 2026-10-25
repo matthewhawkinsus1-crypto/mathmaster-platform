@@ -39,7 +39,7 @@ import {
 import { FALLBACK_HINTS, buildQuestionHints } from '../../src/platform/supports/hints/questionHints.js';
 import { backUpStepFor } from '../../src/platform/supports/feedback/backUpStep.js';
 import { buildSimilarWorkedExample } from '../../src/platform/supports/workedExample/similarProblem.js';
-import { MISCONCEPTION_STUDENT_MESSAGES } from '../../functions/shared/misconceptionStudentMessages.mjs';
+import { MISCONCEPTION_STUDENT_MESSAGES, POLYNOMIAL_NOT_SIMPLIFIED_MESSAGES } from '../../functions/shared/misconceptionStudentMessages.mjs';
 import { GENERIC_MISS_MESSAGES } from '../../src/platform/supports/feedback/genericMissChecks.js';
 import { closedAttemptText } from '../../src/platform/supports/feedback/attemptFeedbackPlan.js';
 import { missOutcomeText } from '../../src/platform/student/submitCost.js';
@@ -314,6 +314,8 @@ test('every miss message, generic hint and outcome sentence MathMaster writes is
   const pack = await loadLanguagePack('es');
   const texts = [
     ...Object.values(MISCONCEPTION_STUDENT_MESSAGES),
+    // What an unsimplified answer is told is left in it (TL31).
+    ...Object.values(POLYNOMIAL_NOT_SIMPLIFIED_MESSAGES),
     ...Object.values(GENERIC_MISS_MESSAGES),
     ...buildQuestionHints({ type: 'multiAnswer', prompt: 'x' }).map((hint) => hint.text),
     // Every fallback, by kind of question (HELP-23).
