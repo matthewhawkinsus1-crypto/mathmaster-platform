@@ -25,10 +25,14 @@
  *       \$; a stacked fraction around π or a root is read since H-13 too).
  *
  *   expression, equation
- *       PLAIN TEXT, deliberately, for a reason the grader still has
- *       (SECURE_TEXT_PROFILE_REASONS; the round-trip test pins each one, so
- *       when the server learns to read the editor's form it fails and says to
- *       move that profile over).
+ *       PLAIN TEXT, deliberately, for the reasons that are left
+ *       (SECURE_TEXT_PROFILE_REASONS). The grader reads what the editor writes
+ *       for every expression and equation key a secure Test can issue (TS05:
+ *       tests/browser/editorKeyRoundTrip.mjs typed each into the real editor,
+ *       editorKeySpellings.test.mjs grades them all). It still reads a product
+ *       over a letter apart from the same characters typed, and a phone's
+ *       keypad for these profiles cannot type every key. The round-trip test
+ *       pins the grader's half, so it fails and says so when that changes.
  *
  *   text, and anything unrecognised
  *       plain text — words are the answer, or the field did not say.
@@ -57,12 +61,17 @@ export const SECURE_ANSWER_EDITORS = Object.freeze({
 /** Profiles whose math-editor output the server field grader accepts. */
 export const SECURE_MATH_EDITOR_PROFILES = Object.freeze(['number', 'set', 'interval', 'orderedPair', 'inequality']);
 
-/** Profiles kept on typed text, with the reason the round-trip test pins. */
+/** Profiles kept on typed text, with the reasons that are left (the round-trip test pins the grader's). */
 export const SECURE_TEXT_PROFILE_REASONS = Object.freeze({
-  expression: 'the grader does not read the editor\'s division binding the way it reads typed text (\\frac{2A}{h}-b_2 vs 2A/h-b_2)',
+  // TS05: the editor's set-builder bar, typed log base, cube root and the
+  // brackets it keeps inside a root or a numerator are read; no key a secure
+  // Test can issue has the division binding below. Reading it as typed would
+  // undo GR35a for a monomial quotient (\frac{3b^2}{a^3} is not 3\frac{b^2}{a^3}),
+  // an owner decision.
+  expression: 'the grader does not read the editor\'s division binding the way it reads typed text (\\frac{2A}{h}-b_2 vs 2A/h-b_2), and a phone\'s expression keypad has no letter, set-notation or ln key',
   // The named-function backslash (\log_2\left(32\right)=5) is read since
-  // GR34; the division binding is the reason that is left.
-  equation: 'the grader does not read the editor\'s division binding the way it reads typed text (h=\\frac{2A}{b} vs h=2A/b)',
+  // GR34, and the editor's typed log base (\log_{_{}2}) since TS05.
+  equation: 'the grader does not read the editor\'s division binding the way it reads typed text (h=\\frac{2A}{b} vs h=2A/b), and a phone\'s equation keypad types no letter but x, y and f',
 });
 
 /*

@@ -259,6 +259,24 @@ const subscriptedName = (text, underscore) => {
   return letter;
 };
 
+/*
+ * Grading: a logarithm's call is ONE operand (TS05). The math editor stacks a
+ * typed ln(3)/ln(2) as ln 3 over ln 2, which is what the key means. This
+ * scanner took the bracket alone and then a single letter, so the key itself
+ * read as ln·(3/l)·n(2), and the editor's \frac{\ln(3)}{\ln(2)} never met it
+ * (mm_A2_5D's exact solutions, typed into the real editor). Only ln and log,
+ * any base (log_2, log_{10}) — the two the grader already reads as words
+ * (GR34) — and never as the tail of a longer word.
+ */
+const CALL_NAME = String.raw`(?:ln|log(?:_(?:\{[^{}]*\}|\d+|[A-Za-z]))?)`;
+const CALL_NAME_BEFORE = new RegExp(`(?<![A-Za-z\\\\])${CALL_NAME}\\s*$`);
+const CALL_NAME_AFTER = new RegExp(`^${CALL_NAME}\\s*(?=(?:\\\\left)?\\()`);
+/** Where the name of the call whose bracket opens at `open` starts, or null. */
+const callNameBefore = (text, open) => {
+  const match = CALL_NAME_BEFORE.exec(text.slice(0, open));
+  return match ? match.index : null;
+};
+
 /**
  * The operand ending at `end` (inclusive), or null when it cannot be read.
  *
@@ -286,7 +304,11 @@ const operandBefore = (text, end, options = {}) => {
   if (text[index] === ')' || text[index] === ']') {
     const open = matchBackwards(text, index);
     if (open < 0) return null;
-    const start = withRadicalBefore(text, withLeftPrefix(text, open), options);
+    const bracket = withLeftPrefix(text, open);
+    // Grading: a call comes with its name, ln(3) and log_2(8) (TS05).
+    const named = options.constantOperands ? callNameBefore(text, bracket) : null;
+    if (named !== null) return { start: named, text: text.slice(named, index + 1) };
+    const start = withRadicalBefore(text, bracket, options);
     return { start, text: text.slice(start, index + 1) };
   }
   // A closing brace is the tail of a `\frac{…}{…}` or a superscript group as
@@ -344,6 +366,17 @@ const operandAfter = (text, start, options = {}) => {
   if (options.constantOperands) {
     const constant = constantAfter(text, index);
     if (constant) return constant;
+    // A call is one operand, its name with it (TS05): `/ln(2)` is over ln 2.
+    // A power on the call (`/ln(2)^2`) is not read: the slash is left.
+    const call = CALL_NAME_AFTER.exec(text.slice(index));
+    if (call) {
+      const callOpen = index + call[0].length;
+      const bracket = text.startsWith('\\left(', callOpen) ? callOpen + 5 : callOpen;
+      const close = matchForwards(text, bracket);
+      if (close < 0) return null;
+      const end = withRightSuffix(text, close);
+      return /[\^_]/.test(text[end] || '') ? null : { end, text: text.slice(index, end) };
+    }
   }
 
   if (options.unicodeMath) {

@@ -126,15 +126,19 @@ test('the browser capture covers every profile on both screen sizes, a phone\'s 
   }
 });
 
-test('an expression and an equation stay typed text for reasons the grader still has', async () => {
-  // If either flips, the server now reads the editor's form: the profile can
-  // move to the math editor once the browser capture shows it.
+test('an expression and an equation stay typed text for the reasons that are left', async () => {
+  // The grader's half: if either flips, the server reads the editor's
+  // division binding too, and what is left is a phone's keypad for these
+  // profiles (SECURE_TEXT_PROFILE_REASONS) and the browser capture.
   assert.equal(await grades('\\frac{2A}{h}-b_2', '2A/h-b_2', { profile: 'expression' }), false, SECURE_TEXT_PROFILE_REASONS.expression);
   assert.equal(await grades('2A/h-b_2', '2A/h-b_2', { profile: 'expression' }), true, 'typed text is read');
   assert.equal(await grades('h=\\frac{2A}{b}', 'h=2A/b', { profile: 'equation' }), false, SECURE_TEXT_PROFILE_REASONS.equation);
   assert.equal(await grades('h=2A/b', 'h=2A/b', { profile: 'equation' }), true, 'typed text is read');
-  // An earlier reason, gone: the grader reads a named function's backslash (GR34).
+  // Earlier reasons, gone: the grader reads a named function's backslash
+  // (GR34), and the editor's spelling of every key a secure Test can issue
+  // (TS05, editorKeySpellings.test.mjs) — its typed log base among them.
   assert.equal(await grades('\\log_2\\left(32\\right)=5', 'log_2(32)=5', { profile: 'equation' }), true, 'the editor\'s \\log is read as log');
+  assert.equal(await grades('\\log_{_{}2}\\left(32\\right)=5', 'log_2(32)=5', { profile: 'equation' }), true, 'the editor\'s typed log base is read');
   assert.deepEqual(Object.keys(SECURE_TEXT_PROFILE_REASONS).sort(), ['equation', 'expression']);
 });
 

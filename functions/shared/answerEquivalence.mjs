@@ -62,7 +62,89 @@ const asEditorSpelling = (value) => String(value ?? '')
   .replace(/[·⋅]/g, '\\cdot ')
   .replace(/×/g, '\\times ');
 
-export const normalizeStructuralMathLive = (value) => expandLatexShorthand(asEditorSpelling(value), { keepNegativeExponentGroups: true })
+/*
+ * WHAT THE EDITOR WRITES THAT THE SAME CHARACTERS TYPED DO NOT (TS05).
+ *
+ * Every expression and equation key the secure runtime can issue (425 and 580
+ * distinct keys, three draws a family) was typed into the real math editor the
+ * way a student builds it. These of its spellings were refused against the
+ * very key they spell — on My Math Path, where these fields already use the
+ * editor, as on a secure Test:
+ *
+ *   \middle{\vert}  the bar typed inside set braces, {x | x ≠ 0}: a delimiter
+ *                   sized to its braces, as \left and \right size theirs;
+ *   _{}             the empty subscript the editor leaves inside a typed
+ *                   log_2 (\log_{_{}2}, shown as log₂): no mathematics.
+ *
+ * Both go before the shorthand is expanded, so `\log_{2}` is unbraced like
+ * every one-character subscript.
+ */
+const withoutEditorBookkeeping = (value) => value
+  .replace(/\\middle\s*(?:\{([^{}]*)\}|(?=\S))/g, (match, delimiter = '') => delimiter)
+  .replace(/_\{\s*\}/g, '');
+
+/** The index of the `}` that closes the brace group opening at `open`, or -1. */
+const braceGroupEnd = (text, open) => {
+  let depth = 0;
+  for (let index = open; index < text.length; index += 1) {
+    if (text[index] === '{') depth += 1;
+    else if (text[index] === '}') { depth -= 1; if (depth === 0) return index; }
+  }
+  return -1;
+};
+
+/** What is inside one pair of brackets that encloses the whole of `part`, or null. */
+const wholeBracketBody = (part) => {
+  const text = part.trim();
+  if (!text.startsWith('(') || !text.endsWith(')')) return null;
+  let depth = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] === '(') depth += 1;
+    else if (text[index] === ')') {
+      depth -= 1;
+      if (depth < 0 || (depth === 0 && index < text.length - 1)) return null;
+    }
+  }
+  return depth === 0 ? text.slice(1, -1) : null;
+};
+
+/*
+ * Brackets round a WHOLE fraction part or radicand are the editor's, not the
+ * student's: the bar or the root already groups it. expandLatexShorthand
+ * removes them when nothing inside is bracketed; the editor keeps the
+ * brackets a student types, so the keys (-(0)-sqrt(20))/2, sqrt(t-(18)) and
+ * cbrt(3x+2) typed into it arrive as \frac{(-(0)-\sqrt{20})}{2},
+ * \sqrt{(t-(18))} and \sqrt[3]{(3x+2)} — brackets inside the brackets, or an
+ * index on the root — which nothing read (TS05). Only a pair that encloses
+ * the whole part goes; `\frac{(a)(b)}{c}` keeps both of its pairs.
+ */
+const PART_OPENING = /\\(?:frac|sqrt(?:\[[^\]{}]*\])?)\{/g;
+const wholeBracketPartsUnwrapped = (value) => {
+  let text = value;
+  for (let guard = 0; guard < 24; guard += 1) {
+    let changed = false;
+    PART_OPENING.lastIndex = 0;
+    for (let match = PART_OPENING.exec(text); match && !changed; match = PART_OPENING.exec(text)) {
+      let open = match.index + match[0].length - 1;
+      for (let part = 0; part < (match[0].startsWith('\\frac') ? 2 : 1) && text[open] === '{'; part += 1) {
+        const close = braceGroupEnd(text, open);
+        if (close < 0) break;
+        const body = wholeBracketBody(text.slice(open + 1, close));
+        if (body !== null) {
+          text = `${text.slice(0, open + 1)}${body}${text.slice(close)}`;
+          changed = true;
+          break;
+        }
+        open = close + 1;
+      }
+    }
+    if (!changed) break;
+  }
+  PART_OPENING.lastIndex = 0;
+  return text;
+};
+
+export const normalizeStructuralMathLive = (value) => expandLatexShorthand(withoutEditorBookkeeping(asEditorSpelling(value)), { keepNegativeExponentGroups: true })
   .trim()
   // Directional marks and zero-width format characters are not visible math.
   // MathLive/IME combinations may insert them between otherwise identical
@@ -74,6 +156,10 @@ export const normalizeStructuralMathLive = (value) => expandLatexShorthand(asEdi
   // log and ln an answer key is written with. \log_4(y) = x + 2 was refused
   // where log_4(y) = x + 2 passed, against the same key.
   .replace(/\\(log|ln)(?![A-Za-z])/g, '$1')
+  // A key typed log_10(x) is log base 10 — the editor's \log_{10}(x), which
+  // its logₐ key writes too. Unbraced, LaTeX would read base 1 then a 0, a
+  // reading nobody means, and the two never met (TS05).
+  .replace(/(?<![A-Za-z\\])log_(\d{2,})(?=\s*\()/g, 'log_{$1}')
   // These commands classify a delimiter; they do not change the delimiter's
   // mathematical endpoint semantics.  Remove only the command (and an
   // optional empty group), never its following delimiter.
@@ -81,6 +167,7 @@ export const normalizeStructuralMathLive = (value) => expandLatexShorthand(asEdi
   .replace(/\\lparen/g, '(')
   .replace(/\\rparen/g, ')')
   .replace(/\\dfrac/g, '\\frac')
+  .replace(/[\s\S]+/, wholeBracketPartsUnwrapped)
   .replace(/[\s\S]+/, unwrapWordGroups)
   // MathLive commonly serializes visible set braces as \{...\}, \lbrace...
   // \rbrace, or the same tokens wrapped in \left/\right. They are the same
@@ -165,6 +252,24 @@ const bracedExponentsAsGroups = (value, { keepCompoundBraced = false } = {}) => 
   return text;
 };
 
+/*
+ * A subscript that is an expression, `_{n-1}`, is the index a key writes
+ * `_(n-1)` (TS05): the editor's box holds P_{n-1} where the keys of the
+ * recursive-sequence families type P_(n-1). Only a subscript with an operation
+ * in it; a name's `_{12}` or `_{n}` keeps its spelling.
+ */
+const bracedSubscriptsAsGroups = (value) => {
+  let text = value;
+  for (let index = text.indexOf('_{'); index >= 0; index = text.indexOf('_{', index + 1)) {
+    const close = braceGroupEnd(text, index + 1);
+    if (close < 0) break;
+    const body = text.slice(index + 2, close);
+    if (!/^[^{}]*[-+*][^{}]*$/.test(body)) continue;
+    text = `${text.slice(0, index + 1)}(${body})${text.slice(close + 1)}`;
+  }
+  return text;
+};
+
 /**
  * One spelling for the same symbol, for the comparisons that read text
  * (Job P). Each rewrite names exactly the same mathematics:
@@ -195,7 +300,7 @@ const canonicalSymbolSpellings = (value, { asciiPi = true, keepCompoundBraced = 
     // ASCII `pi` only while spaces still separate letters: once they are
     // gone, `p i` (p times i) would read as pi.
     .replace(asciiPi ? /(?<![A-Za-z\\])pi(?![A-Za-z])/g : /(?!)/g, 'π'));
-  text = bracedExponentsAsGroups(text, { keepCompoundBraced });
+  text = bracedSubscriptsAsGroups(bracedExponentsAsGroups(text, { keepCompoundBraced }));
   // A negative exponent keeps its brackets: unwrapped, its minus would read as
   // a term's sign to the comparisons that split terms.
   return text.replace(/\^\(((?:\d+(?:\.\d+)?|[A-Za-z]|π))\)/g, '^$1');
@@ -679,6 +784,10 @@ const normalizeFormPreservingSide = (value) => {
   //   x-(-5) -> x+5
   //   x+(-5) -> x-5
   let radicalReady = String(value ?? '')
+    // The editor sizes every bracket a student types, \left( … \right) (TS05).
+    // Read as plain brackets first, or `5\left(4\right)^{n-1}` misses both
+    // rules below and ends as 54^{n-1}, while the typed 5(4)^(n-1) is right.
+    .replace(/\\(?:left|right)(?![A-Za-z])/g, '')
     // A student naturally writes a geometric sequence as 5(4)^(n-1), while
     // generated keys often store 5*(4)^(n-1). Preserve that multiplication
     // BEFORE removing numeric bookkeeping parentheses. Restrict this to a
@@ -1456,7 +1565,11 @@ export const fieldValueOptions = (field = {}) => ({
   ...(field?.lineForm === LINE_FORM_ANY ? { anyLineForm: true } : {}),
 });
 
-const hasInequalitySymbol = (value) => /[<>≤≥≠]|\\(?:le|ge|ne|lt|gt)/.test(String(value ?? ''));
+// A relation command is a whole word: the editor's `\left(` is not `\le`.
+// Read as one, it barred every bracketed equation the editor writes from the
+// swapped-sides reading typed text gets — `5=\sqrt{\left(x+4\right)}` for
+// `sqrt(x+4)=5` (TS05).
+const hasInequalitySymbol = (value) => /[<>≤≥≠]|\\(?:leq?|geq?|neq?|lt|gt)(?![A-Za-z])/.test(String(value ?? ''));
 
 /**
  * A side with its numeric constant terms moved to the end, in their order.

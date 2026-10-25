@@ -28,7 +28,9 @@
  * OUTPUT. Every pair whose verdict differs, as JSON, and a summary. Exit 1 if
  * any verdict went from right to wrong. Wrong-to-right changes are listed for
  * review; `--check-wrong` additionally fails when a response the corpus built
- * as a near miss (or another option) is now accepted.
+ * as a near miss (or another option) is now accepted, or when the math
+ * editor's spelling of an expression or equation key in a bank is refused
+ * (scripts/lib/editorTypedSpelling.mjs, TS05).
  *
  *   git worktree add /tmp/base <base-commit> && ln -s "$PWD/node_modules" /tmp/base/node_modules
  *   node scripts/sweep-equivalence-verdicts.mjs --base /tmp/base [--draws 3] [--out sweep.json] [--check-wrong] [--allow-shallow] [--extra-bank file]...
@@ -49,6 +51,7 @@ import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { extraBankDocuments, extraBankPaths } from './lib/extraPathBanks.mjs';
+import { editorTypedSpellings } from './lib/editorTypedSpelling.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argOf = (name, fallback) => {
@@ -589,6 +592,31 @@ const editorSpellingKeys = new Set();
 // no worse than the base (which accepted x^\frac{\pi}{2} for x^{\pi}/2).
 const stackedWrongSpellings = new Set();
 
+/*
+ * WHAT THE EDITOR HOLDS FOR A TYPED EXPRESSION OR EQUATION (TS05). A secure
+ * expression or equation field may leave its text box for the math editor only
+ * where the grader reads what the editor writes exactly as it reads the same
+ * characters typed. scripts/lib/editorTypedSpelling.mjs models the real editor
+ * (tests/platform/editorKeySpellings.test.mjs holds it to what the real editor
+ * wrote for every such key the secure runtime can issue). For these fields:
+ *
+ *   - the editor's spellings of each right answer are right answers, and of
+ *     each near miss wrong ones, compared with the base like every spelling;
+ *   - the editor's spellings of the KEY must be accepted outright
+ *     (`editorTypedSpellingsRefused` must be 0);
+ *   - and wherever a typed spelling is accepted, the editor's spelling of it
+ *     should be too: `editorParityRefused` lists where it is not, for review
+ *     before a profile moves to the editor. It does not fail the run: a typed
+ *     variant can be read only by a quirk the editor's spelling cannot share
+ *     (`sqrt(7)` for the generator key `1sqrt(7)`, matched as the text sqrt7).
+ *
+ * Synthetic keys are left out of the two outright checks: each is built to
+ * probe one reading, several of them deliberately ambiguous as typed.
+ */
+const TYPED_EDITOR_PROFILES = new Set(['expression', 'equation']);
+const typedEditorField = (field) => TYPED_EDITOR_PROFILES.has(field.inputProfile);
+const bankField = (field) => !String(field.source).startsWith('synthetic:');
+
 const mixedSpellingsOf = (text) => {
   const fraction = /^\s*(-?)(\d+)\s*\/\s*(\d+)\s*$/.exec(text);
   let sign = '';
@@ -785,6 +813,21 @@ for (const field of fields) {
 }
 counts.editorSpellingsRefused = editorRefused.length;
 
+// TS05: the editor's spellings of an expression or equation key, outright —
+// and how many the base refused, for the record.
+const editorTypedRefused = [];
+let editorTypedRefusedOnBase = 0;
+for (const field of fields) {
+  if (!typedEditorField(field) || !bankField(field)) continue;
+  for (const spelling of editorTypedSpellings(field.key)) {
+    if (current.path(spelling, field) !== true) editorTypedRefused.push({ key: field.key, spelling, inputProfile: field.inputProfile, source: field.source });
+    if (base.path(spelling, field) !== true) editorTypedRefusedOnBase += 1;
+  }
+}
+counts.editorTypedSpellingsRefused = editorTypedRefused.length;
+counts.editorTypedSpellingsRefusedOnBase = editorTypedRefusedOnBase;
+const editorParityRefused = [];
+
 // The wave-6 gap shapes, outright (not only no worse than the base).
 const gapRefused = [];
 const gapWrongAccepted = [];
@@ -830,6 +873,19 @@ for (const field of fields) {
   // An old key's spelling is a right answer to today's key (above).
   (oldKeyChecks.get(`${field.inputProfile || null}|${field.key}`) || []).forEach(({ spelling }) => right.add(spelling));
   [...right].forEach((value) => spellingsOf(value).forEach((spelling) => right.add(spelling)));
+  // TS05: what the editor holds for each right answer is right too, and
+  // wherever this tree accepts the typed spelling it accepts the editor's.
+  if (typedEditorField(field)) {
+    // A snapshot: the editor spellings added below are not spelled again.
+    for (const value of Array.from(right)) {
+      const spellings = editorTypedSpellings(value);
+      if (bankField(field) && current.path(value, field) === true) {
+        spellings.filter((spelling) => current.path(spelling, field) !== true)
+          .forEach((spelling) => editorParityRefused.push({ typed: value, spelling, key: field.key, inputProfile: field.inputProfile, source: field.source }));
+      }
+      spellings.forEach((spelling) => right.add(spelling));
+    }
+  }
   // Each wrong response remembers the answer it spells. A spelling of a near
   // miss that the field's own tolerance already accepts (154 vs 155 with a
   // tolerance of 1) is not a wrong answer let through.
@@ -838,6 +894,8 @@ for (const field of fields) {
   nearMissesOf(field.key).forEach((miss) => {
     wrong.set(miss, miss);
     spellingsOf(miss).forEach((spelling) => { if (!wrong.has(spelling)) wrong.set(spelling, miss); });
+    // …and the editor's spelling of a near miss is the same wrong answer (TS05).
+    if (typedEditorField(field)) editorTypedSpellings(miss).forEach((spelling) => { if (!wrong.has(spelling)) wrong.set(spelling, miss); });
   });
   for (const value of right) wrong.delete(value);
   const responses = [...[...right].map((value) => [value, 'right', value]), ...[...wrong].map(([value, root]) => [value, 'wrong', root])];
@@ -871,7 +929,8 @@ for (const field of fields) {
   }
 }
 
-if (OUT) writeFileSync(OUT, `${JSON.stringify({ counts, changes, editorRefused, oldKeysRefused, oldKeyNotes, oldKeyReasked }, null, 2)}\n`);
+counts.editorParityRefused = editorParityRefused.length;
+if (OUT) writeFileSync(OUT, `${JSON.stringify({ counts, changes, editorRefused, editorTypedRefused, editorParityRefused, oldKeysRefused, oldKeyNotes, oldKeyReasked }, null, 2)}\n`);
 console.log(JSON.stringify({ ...counts, stackedPiOrRootSpellings: stackedSpellings.size, editorSpelledKeys: editorSpellingKeys.size }));
 const show = (title, list) => {
   if (!list.length) return;
@@ -892,6 +951,14 @@ show('WRONG → RIGHT, built as a right spelling', changes.filter((change) => ch
 if (editorRefused.length) {
   console.log(`\nTHE EDITOR'S SPELLING OF A KEY, REFUSED (${editorRefused.length}; must be empty)`);
   editorRefused.slice(0, 40).forEach((entry) => console.log(`  ${JSON.stringify(entry.spelling)}  key ${JSON.stringify(entry.key)} [${entry.inputProfile}]`));
+}
+if (editorTypedRefused.length) {
+  console.log(`\nTHE EDITOR'S SPELLING OF AN EXPRESSION OR EQUATION KEY, REFUSED (${editorTypedRefused.length}; must be empty)`);
+  editorTypedRefused.slice(0, 40).forEach((entry) => console.log(`  ${JSON.stringify(entry.spelling)}  key ${JSON.stringify(entry.key)} [${entry.inputProfile}]  ${entry.source}`));
+}
+if (editorParityRefused.length) {
+  console.log(`\nA TYPED SPELLING ACCEPTED, THE EDITOR'S SPELLING OF IT REFUSED (${editorParityRefused.length}; review before a profile moves to the editor)`);
+  editorParityRefused.slice(0, 40).forEach((entry) => console.log(`  ${JSON.stringify(entry.spelling)}  for typed ${JSON.stringify(entry.typed)}  key ${JSON.stringify(entry.key)} [${entry.inputProfile}]  ${entry.source}`));
 }
 if (stackedWrongAccepted.length) {
   console.log(`\nA STACKED SPELLING THAT IS ANOTHER NUMBER, ACCEPTED (${stackedWrongAccepted.length}; must be empty)`);
@@ -917,5 +984,5 @@ if (oldKeyNotes.length) {
   console.log(`\nOLD KEYS NOT ALIGNED WITH TODAY'S DRAW (${oldKeyNotes.length}; review each)`);
   oldKeyNotes.slice(0, 40).forEach((note) => console.log(`  ${note}`));
 }
-if (counts.rightToWrong > 0 || (CHECK_WRONG && (counts.nearMissNowRight > 0 || editorRefused.length > 0 || stackedWrongAccepted.length > 0
+if (counts.rightToWrong > 0 || (CHECK_WRONG && (counts.nearMissNowRight > 0 || editorRefused.length > 0 || editorTypedRefused.length > 0 || stackedWrongAccepted.length > 0
   || gapRefused.length > 0 || gapWrongAccepted.length > 0 || oldKeysRefused.length > 0))) process.exit(1);
