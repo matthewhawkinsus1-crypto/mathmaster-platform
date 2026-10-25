@@ -12,6 +12,7 @@ import {
 } from './classroomApi';
 import { assertPublishable, isLibraryAssignment } from './assignmentDestinations';
 import { SYNC_STATUS, summarizeAssignmentSync } from './classroomSyncState';
+import { takeClassroomSignInReturn } from './platform/classroom/classroomSignInReturn.js';
 
 const card = { background: 'var(--mm-surface)', borderRadius: '12px', padding: '5px' };
 const label = { display: 'block', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 'bold', color: 'var(--mm-text-muted)', marginBottom: '6px' };
@@ -66,9 +67,9 @@ export default function ClassroomSync({ assignments = [] }) {
   );
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('classroomConnected')) setStatusMessage('Google Classroom connected. Load courses to continue.');
-    if (params.get('classroomError')) setError(`Google Classroom connection failed: ${params.get('classroomError')}`);
+    const signIn = takeClassroomSignInReturn();
+    if (signIn.connected) setStatusMessage('Google Classroom connected. Load courses to continue.');
+    if (signIn.error) setError(`Google Classroom connection failed: ${signIn.error}`);
 
     getClassroomConnectionStatus()
       .then((res) => setConnected(res.connected))

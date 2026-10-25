@@ -42,6 +42,7 @@ import {
   readClassroomTopicStyle,
   saveClassroomTopicStyle,
 } from './platform/classroom/classroomTopicNaming.js';
+import { takeClassroomSignInReturn } from './platform/classroom/classroomSignInReturn.js';
 import ClassroomSectionGradeSelector from './components/ClassroomSectionGradeSelector';
 import ClassroomForceRepublishPreview from './components/ClassroomForceRepublishPreview';
 import {
@@ -215,9 +216,10 @@ export default function ClassroomManagerV2({
   };
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('classroomConnected')) setStatus('Google Classroom reconnected successfully.');
-    if (params.get('classroomError')) setError(`Google Classroom connection failed: ${params.get('classroomError')}`);
+    // The sign-in result is shown once and taken out of the address (TT06).
+    const signIn = takeClassroomSignInReturn();
+    if (signIn.connected) setStatus('Google Classroom reconnected successfully.');
+    if (signIn.error) setError(`Google Classroom connection failed: ${signIn.error}`);
     refreshManagerData().catch((err) => setError(err.message));
   }, []);
 
