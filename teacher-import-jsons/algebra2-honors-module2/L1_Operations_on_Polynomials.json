@@ -1526,7 +1526,7 @@
           ],
           "dok": 3,
           "difficultyBand": 3,
-          "prompt": "[College-Readiness — SAT style] Answer each question.",
+          "prompt": "Answer each question.",
           "assessmentContext": {
             "framework": "digitalSAT",
             "examStyle": true,

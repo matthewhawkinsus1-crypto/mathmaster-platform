@@ -1472,7 +1472,7 @@
           ],
           "dok": 3,
           "difficultyBand": 3,
-          "prompt": "[College-Readiness — ACT style] Matrices A and B are shown. Matrix C has dimensions 3 × 2 and matrix D has dimensions 2 × 4.",
+          "prompt": "Matrices A and B are shown. Matrix C has dimensions 3 × 2 and matrix D has dimensions 2 × 4.",
           "assessmentContext": {
             "framework": "act",
             "examStyle": true
