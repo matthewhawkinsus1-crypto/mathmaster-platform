@@ -512,6 +512,14 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/feedbackTeaches.mjs
+      # After a miss, "Show a hint" opens the hint under the miss and the page
+      # keeps Check in view (FB10), at 1366x768 and 390x844.
+      - name: A hint opens where the student asked for it
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/feedbackTeachesHintPlace.mjs
       # Read aloud says the whole question (choices, matrices, parts heard
       # again) and Translate shows Spanish or says why not (student pass 3, batch 6).
       - name: Read aloud and Translate (heard and seen)
