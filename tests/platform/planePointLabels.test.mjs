@@ -52,11 +52,11 @@ const IMAGES = [[-5, -2], [-4, -1], [-3, 0], [-2, 1], [-1, 2]].map(([x, y], inde
 // The numbers on the axes the lab draws: every second unit, x below the axis, y left of it.
 const ticks = [-8, -6, -4, -2, 2, 4, 6, 8];
 const AXIS_NUMBERS = [
-  ...ticks.map((value) => axisNumberBox({ x: ORIGIN.x + value * UNIT.x, y: ORIGIN.y + 24, characters: String(value).length, fontSize: 11 * 2.1 })),
-  ...ticks.map((value) => axisNumberBox({ x: ORIGIN.x - 9, y: ORIGIN.y - value * UNIT.y + 4, anchor: 'end', characters: String(value).length, fontSize: 11 * 2.1 })),
+  ...ticks.map((value) => axisNumberBox({ x: ORIGIN.x + value * UNIT.x, y: ORIGIN.y + 24, characters: String(value).length, textSize: 11 * 2.1 })),
+  ...ticks.map((value) => axisNumberBox({ x: ORIGIN.x - 9, y: ORIGIN.y - value * UNIT.y + 4, anchor: 'end', characters: String(value).length, textSize: 11 * 2.1 })),
 ];
 const BOUNDS = { left: 0, right: 560, top: 0, bottom: 380 };
-const place = (dots, avoid = AXIS_NUMBERS) => placePointLabels({ dots, fontSize: FONT, bounds: BOUNDS, avoid });
+const place = (dots, avoid = AXIS_NUMBERS) => placePointLabels({ dots, textSize: FONT, bounds: BOUNDS, avoid });
 
 test('the old place for every name on the phone lab is crowded: the geometry here is the real one', () => {
   const found = clashes(SOURCES, atDefault(SOURCES), AXIS_NUMBERS);
@@ -93,35 +93,35 @@ test('the source and the plotted points together: ten names, none over a dot, an
 
 test('a name with nothing near it keeps the place it has always had', () => {
   const lone = [{ x: 200, y: 150, radius: 6, label: 'A' }];
-  assert.deepEqual(placePointLabels({ dots: lone, fontSize: 11, bounds: BOUNDS }), [{ x: 210, y: 141, anchor: 'start' }]);
+  assert.deepEqual(placePointLabels({ dots: lone, textSize: 11, bounds: BOUNDS }), [{ x: 210, y: 141, anchor: 'start' }]);
   // Two far apart: both keep it.
   const two = [{ x: 100, y: 100, radius: 6, label: 'A' }, { x: 400, y: 250, radius: 6, label: 'B' }];
-  assert.deepEqual(placePointLabels({ dots: two, fontSize: 11, bounds: BOUNDS }), [{ x: 110, y: 91, anchor: 'start' }, { x: 410, y: 241, anchor: 'start' }]);
+  assert.deepEqual(placePointLabels({ dots: two, textSize: 11, bounds: BOUNDS }), [{ x: 110, y: 91, anchor: 'start' }, { x: 410, y: 241, anchor: 'start' }]);
 });
 
 test('a name at the right edge steps to the left of its dot', () => {
   const dot = { x: 540, y: 150, radius: 6, label: 'S5' };
-  const [spot] = placePointLabels({ dots: [dot], fontSize: 11, bounds: BOUNDS });
+  const [spot] = placePointLabels({ dots: [dot], textSize: 11, bounds: BOUNDS });
   assert.equal(spot.anchor, 'end', 'drawn leftward from the dot');
-  const box = placedLabelBox({ spot, label: 'S5', fontSize: 11 });
+  const box = placedLabelBox({ spot, label: 'S5', textSize: 11 });
   assert.ok(box.right <= BOUNDS.right && box.left >= BOUNDS.left, JSON.stringify(box));
 });
 
 test('a number on an axis keeps names off it, and an unlabelled dot is kept clear too', () => {
   const dot = { x: 200, y: 150, radius: 6, label: 'A' };
-  const number = axisNumberBox({ x: 222, y: 142, characters: 2, fontSize: 11 });
-  const [moved] = placePointLabels({ dots: [dot], fontSize: 11, bounds: BOUNDS, avoid: [number] });
-  assert.ok(!boxesTouch(placedLabelBox({ spot: moved, label: 'A', fontSize: 11 }), number), 'clear of the number');
+  const number = axisNumberBox({ x: 222, y: 142, characters: 2, textSize: 11 });
+  const [moved] = placePointLabels({ dots: [dot], textSize: 11, bounds: BOUNDS, avoid: [number] });
+  assert.ok(!boxesTouch(placedLabelBox({ spot: moved, label: 'A', textSize: 11 }), number), 'clear of the number');
   assert.notDeepEqual(moved, { x: 210, y: 141, anchor: 'start' }, 'it did not stay on the number');
   // An unlabelled neighbour sitting where the name would go.
   const neighbour = { x: 222, y: 141, radius: 6, label: '' };
-  const spots = placePointLabels({ dots: [dot, neighbour], fontSize: 11, bounds: BOUNDS });
+  const spots = placePointLabels({ dots: [dot, neighbour], textSize: 11, bounds: BOUNDS });
   assert.equal(spots[1], null, 'no label, no place');
-  assert.ok(!boxesTouch(placedLabelBox({ spot: spots[0], label: 'A', fontSize: 11 }), { left: 216, right: 228, top: 135, bottom: 147 }), 'clear of the unlabelled dot');
+  assert.ok(!boxesTouch(placedLabelBox({ spot: spots[0], label: 'A', textSize: 11 }), { left: 216, right: 228, top: 135, bottom: 147 }), 'clear of the unlabelled dot');
 });
 
 test('dots with no point (null) and dots with no label have no place; the answer is one per dot, in order', () => {
-  const spots = placePointLabels({ dots: [null, { x: 100, y: 100, radius: 6, label: '' }, { x: 300, y: 100, radius: 6, label: 'B' }], fontSize: 11, bounds: BOUNDS });
+  const spots = placePointLabels({ dots: [null, { x: 100, y: 100, radius: 6, label: '' }, { x: 300, y: 100, radius: 6, label: 'B' }], textSize: 11, bounds: BOUNDS });
   assert.equal(spots.length, 3);
   assert.equal(spots[0], null);
   assert.equal(spots[1], null);

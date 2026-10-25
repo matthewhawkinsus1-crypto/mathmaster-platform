@@ -32,10 +32,10 @@ const COST_AXIS_NUMBER = 1;
 const COST_OUTSIDE = 4;
 
 /** The box the text of `label` fills when its baseline starts at (x, y). */
-const labelBox = ({ x, y, anchor, label, fontSize }) => {
-  const width = String(label).length * GLYPH_WIDTH * fontSize;
+const labelBox = ({ x, y, anchor, label, textSize }) => {
+  const width = String(label).length * GLYPH_WIDTH * textSize;
   const left = anchor === 'end' ? x - width : anchor === 'middle' ? x - width / 2 : x;
-  return { left, right: left + width, top: y - CAP_HEIGHT * fontSize, bottom: y + DESCENT * fontSize };
+  return { left, right: left + width, top: y - CAP_HEIGHT * textSize, bottom: y + DESCENT * textSize };
 };
 
 const overlapArea = (a, b) => {
@@ -58,10 +58,10 @@ const outsideArea = (box, bounds) => {
 };
 
 // Where to try, nearest the old place first. `side`, `above` and `below` keep the text clear of a grown dot.
-const candidatesFor = (dot, fontSize) => {
+const candidatesFor = (dot, textSize) => {
   const side = Math.max(10, dot.radius + 4);
   const above = -Math.max(9, dot.radius + 3);
-  const below = Math.max(16, dot.radius + fontSize * 0.9);
+  const below = Math.max(16, dot.radius + textSize * 0.9);
   // The six places beside the dot, then the same sides a little farther out and
   // straight left and right: a diagonal of dots one unit apart needs the room.
   return [
@@ -84,16 +84,16 @@ const candidatesFor = (dot, fontSize) => {
  * One { x, y, anchor } per dot, in the dots' order (null for a dot with no
  * label, or no dot). `x, y` is where the label's text starts, as SVG text takes it.
  */
-export const placePointLabels = ({ dots = [], fontSize = 11, bounds = null, avoid = [] } = {}) => {
+export const placePointLabels = ({ dots = [], textSize = 11, bounds = null, avoid = [] } = {}) => {
   // Every dot keeps a name off it, labelled or not.
   const every = dots.filter(Boolean).map(dotBox);
   const taken = [];
   return dots.map((dot) => {
     if (!dot || String(dot.label ?? '') === '') return null;
     let best = null;
-    for (const candidate of candidatesFor(dot, fontSize)) {
+    for (const candidate of candidatesFor(dot, textSize)) {
       const spot = { x: dot.x + candidate.dx, y: dot.y + candidate.dy, anchor: candidate.anchor };
-      const box = labelBox({ ...spot, label: dot.label, fontSize });
+      const box = labelBox({ ...spot, label: dot.label, textSize });
       const cost = every.reduce((sum, other) => sum + COST_DOT * overlapArea(box, other), 0)
         + taken.reduce((sum, other) => sum + COST_LABEL * overlapArea(box, other), 0)
         + avoid.reduce((sum, other) => sum + COST_AXIS_NUMBER * overlapArea(box, other), 0)
@@ -107,7 +107,7 @@ export const placePointLabels = ({ dots = [], fontSize = 11, bounds = null, avoi
 };
 
 /** The box a placed label fills: `spot` is what placePointLabels returned for it. */
-export const placedLabelBox = ({ spot, label, fontSize }) => labelBox({ ...spot, label, fontSize });
+export const placedLabelBox = ({ spot, label, textSize }) => labelBox({ ...spot, label, textSize });
 
 /** The box a number drawn on an axis fills, for `avoid`: `characters` wide, baseline at `y`. */
-export const axisNumberBox = ({ x, y, anchor = 'middle', characters, fontSize }) => labelBox({ x, y, anchor, label: 'x'.repeat(Math.max(1, characters)), fontSize: fontSize * 0.9 });
+export const axisNumberBox = ({ x, y, anchor = 'middle', characters, textSize }) => labelBox({ x, y, anchor, label: 'x'.repeat(Math.max(1, characters)), textSize: textSize * 0.9 });

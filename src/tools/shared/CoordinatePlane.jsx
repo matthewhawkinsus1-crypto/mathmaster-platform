@@ -712,18 +712,18 @@ export default function CoordinatePlane({
       if (!Number.isFinite(pointX) || !Number.isFinite(pointY)) return null;
       return { x: sx(pointX), y: sy(pointY), radius: dotRadius(resolvePointRadius(point, 6)), label: point.label || '' };
     }),
-    fontSize: svgFont(11),
+    textSize: svgFont(11),
     bounds: { left: 0, right: width, top: 0, bottom: height },
     avoid: [
-      ...xTicks.filter((x) => x !== 0).map((x) => axisNumberBox({ x: sx(x), y: axisY + baselineBelowAxis(svgFont(11), 17, 6), characters: String(tidy(x)).length, fontSize: svgFont(11) })),
-      ...yTicks.filter((y) => y !== 0).map((y) => axisNumberBox({ x: axisX - 9, y: sy(y) + 4, anchor: 'end', characters: String(tidy(y)).length, fontSize: svgFont(11) })),
-      ...(originVisible && originSpot ? [axisNumberBox({ x: originSpot.x, y: originSpot.y, anchor: originSpot.anchor, characters: 1, fontSize: svgFont(10) })] : []),
+      ...xTicks.filter((x) => x !== 0).map((x) => axisNumberBox({ x: sx(x), y: axisY + baselineBelowAxis(svgFont(11), 17, 6), characters: String(tidy(x)).length, textSize: svgFont(11) })),
+      ...yTicks.filter((y) => y !== 0).map((y) => axisNumberBox({ x: axisX - 9, y: sy(y) + 4, anchor: 'end', characters: String(tidy(y)).length, textSize: svgFont(11) })),
+      ...(originVisible && originSpot ? [axisNumberBox({ x: originSpot.x, y: originSpot.y, anchor: originSpot.anchor, characters: 1, textSize: svgFont(10) })] : []),
     ],
   });
   // A "0" under a point's name is worse than none: the axes and the dot say
   // where zero is (the same rule the origin follows for the numbers beside it).
-  const originBox = originVisible && originSpot ? axisNumberBox({ x: originSpot.x, y: originSpot.y, anchor: originSpot.anchor, characters: 1, fontSize: svgFont(10) }) : null;
-  const originUnderLabel = Boolean(originBox) && labelSpots.some((spot, index) => spot && boxesTouch(placedLabelBox({ spot, label: points[index].label, fontSize: svgFont(11) }), originBox));
+  const originBox = originVisible && originSpot ? axisNumberBox({ x: originSpot.x, y: originSpot.y, anchor: originSpot.anchor, characters: 1, textSize: svgFont(10) }) : null;
+  const originUnderLabel = Boolean(originBox) && labelSpots.some((spot, index) => spot && boxesTouch(placedLabelBox({ spot, label: points[index].label, textSize: svgFont(11) }), originBox));
   const showDataTable = !interactive && dataTable !== false && insideControl === false
     && descriptionDetail === 'features' && !readOut && revealCoordinates !== false && pointHoverEnabled !== false
     && generatedDescription.tables.length > 0;
