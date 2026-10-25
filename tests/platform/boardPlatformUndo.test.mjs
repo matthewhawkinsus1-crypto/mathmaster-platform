@@ -68,7 +68,8 @@ test('an Undo writes back the work it takes back, and never a verdict or the sub
 
 test('an Undo opens the card it changed, says where it was, and brings it into view without taking focus', () => {
   const restore = region(board, 'const restoreBoard = (restored) => {', '\n  };', 'restoreBoard');
-  assert.match(restore, /const changes = boardUndoChanges\(current, restored\);/);
+  // With the board's own part names, so a graph is named as its card is (TL28).
+  assert.match(restore, /const changes = boardUndoChanges\(current, restored, partLabels\);/);
   assert.match(restore, /setExpandedCards\(\(prev\) => \(\{ \.\.\.DEFAULT_EXPANDED, \.\.\.prev, \.\.\.Object\.fromEntries\(closed\.map\(\(key\) => \[key, true\]\)\) \}\)\);/);
   assert.match(restore, /announce\(describeBoardUndo\(changes\)\);/);
   assert.match(restore, /setUndoReveal\(/);

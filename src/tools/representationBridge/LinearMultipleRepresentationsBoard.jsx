@@ -28,7 +28,6 @@ import { lineFromPoints } from '../graphing2/graphingMath.js';
 import { toFraction } from '../shared/linearEquations.js';
 import {
   CARD_PART_KEYS,
-  PART_LABELS,
   cardHasWork,
   cardResponseKey,
   crossRepresentationConsistencyFor,
@@ -41,6 +40,8 @@ import {
   expandGraphBoundsForAnchor,
   fractionLatex,
   graphFeedbackMessage,
+  graphNamesFor,
+  partLabelsFor,
   refineSnapStep,
   resolveExpectedDomain,
   resolveGraph3Anchor,
@@ -206,25 +207,29 @@ const GRAPHS = [
   {
     key: 'graph1',
     cardId: 'graphIntercepts',
-    title: 'Graph 1 · Intercept method',
+    method: 'Intercept method',
     task: 'Plot the x-intercept and the y-intercept — where the line crosses each axis.',
     color: '#1a73e8',
   },
   {
     key: 'graph2',
     cardId: 'graphSlopeIntercept',
-    title: 'Graph 2 · Slope-intercept method',
+    method: 'Slope-intercept method',
     task: 'Plot the y-intercept, then count the slope (rise over run) to a second point.',
     color: '#188038',
   },
   {
     key: 'graph3',
     cardId: 'graphPointSlope',
-    title: 'Graph 3 · Point-slope method',
+    method: 'Point-slope method',
     task: 'Plot the point from point-slope form, then count the slope to a second point.',
     color: '#b25a00',
   },
 ];
+// Each graph is numbered among the graphs this board shows: "Graph 2 ·
+// Slope-intercept method" on a board with one graph sent a student looking
+// for Graph 1 (TL28; graphNamesFor). A full board reads as before.
+const titledGraphs = (names) => GRAPHS.map((graph) => ({ ...graph, title: `${names[graph.key] || 'Graph'} · ${graph.method}` }));
 
 // Process Mode: which established points each graph offers to plot.
 const GRAPH_REUSE = Object.freeze({
@@ -251,13 +256,17 @@ const ONE_FIELD_CARDS = Object.freeze({
   yIntercept: 'featureYIntercept',
 });
 
+// `reason`: what the quantity IS, said under a meaning that is not right yet
+// (TL28; D-55). "Take another look" alone left a student who chose "3 miles
+// farther from home each hour" with nothing to look for. A definition to
+// check the choice against, the same for every situation: never the answer.
 const CONTEXT_FIELDS = [
-  { field: 'contextIndependent', key: 'independentQuantity', label: 'Independent quantity (x)', placeholder: 'e.g. time in hours', prompt: 'Choose the quantity…' },
-  { field: 'contextDependent', key: 'dependentQuantity', label: 'Dependent quantity (y)', placeholder: 'e.g. height in inches', prompt: 'Choose the quantity…' },
-  { field: 'contextSlopeMeaning', key: 'slopeMeaning', label: 'What the slope means', placeholder: 'What does the slope tell you?', prompt: 'Choose a meaning…' },
-  { field: 'contextYInterceptMeaning', key: 'yInterceptMeaning', label: 'What the y-intercept means', placeholder: 'What does the y-intercept tell you?', prompt: 'Choose a meaning…' },
-  { field: 'contextXInterceptMeaning', key: 'xInterceptMeaning', label: 'What the x-intercept means', placeholder: 'What does the x-intercept tell you?', prompt: 'Choose a meaning…' },
-  { field: 'contextDomain', key: 'domain', label: 'Reasonable domain', placeholder: '0 ≤ x ≤ 9', prompt: 'Choose the domain…' },
+  { field: 'contextIndependent', key: 'independentQuantity', label: 'Independent quantity (x)', placeholder: 'e.g. time in hours', prompt: 'Choose the quantity…', reason: 'The independent quantity is the input, x: the one the other quantity depends on.' },
+  { field: 'contextDependent', key: 'dependentQuantity', label: 'Dependent quantity (y)', placeholder: 'e.g. height in inches', prompt: 'Choose the quantity…', reason: 'The dependent quantity is the output, y: it depends on x.' },
+  { field: 'contextSlopeMeaning', key: 'slopeMeaning', label: 'What the slope means', placeholder: 'What does the slope tell you?', prompt: 'Choose a meaning…', reason: 'The slope is how much y changes each time x goes up by 1. Check how much, and whether y goes up or down.' },
+  { field: 'contextYInterceptMeaning', key: 'yInterceptMeaning', label: 'What the y-intercept means', placeholder: 'What does the y-intercept tell you?', prompt: 'Choose a meaning…', reason: 'The y-intercept is the value of y when x is 0.' },
+  { field: 'contextXInterceptMeaning', key: 'xInterceptMeaning', label: 'What the x-intercept means', placeholder: 'What does the x-intercept tell you?', prompt: 'Choose a meaning…', reason: 'The x-intercept is the value of x when y is 0.' },
+  { field: 'contextDomain', key: 'domain', label: 'Reasonable domain', placeholder: '0 ≤ x ≤ 9', prompt: 'Choose the domain…', reason: 'The domain is the x-values that make sense in this situation.' },
 ];
 
 const pointLatex = (point) => {
@@ -585,6 +594,11 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   }), [questionData, canonicalFacts]);
   const required = useMemo(() => resolveRequiredCards(questionData), [questionData]);
   const needs = useCallback((cardId) => required.includes(cardId), [required]);
+  // Every name a student reads for a part, graphs numbered as this board shows them.
+  const partLabels = useMemo(() => partLabelsFor(questionData), [questionData]);
+  const graphNames = useMemo(() => graphNamesFor(questionData), [questionData]);
+  const graphs = useMemo(() => titledGraphs(graphNames), [graphNames]);
+  const meaningIdBase = useId();
   const tolerance = resolveGraphTolerance(questionData);
   const { showImmediateFeedback, questionTerminal } = useToolRuntimeContext();
   const feedbackTiming = questionData.feedbackTiming === 'submitOnly' ? 'submitOnly' : 'guided';
@@ -815,7 +829,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     const response = responseRef.current;
     const verdict = judge(cardId, response);
     setCheckedCards((prev) => ({ ...prev, [cardId]: cardResponseKey(cardId, response) }));
-    const label = PART_LABELS[CARD_PART_KEYS[cardId]] || cardId;
+    const label = partLabels[CARD_PART_KEYS[cardId]] || cardId;
     announce(`${label}: ${verdict.isCorrect ? 'correct.' : verdict.error}`);
   };
   runCheckRef.current = runCheck;
@@ -884,7 +898,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   );
   // The shared grader's own completeness rule: a required card with no work,
   // or a graded meaning left blank. Empty here is exactly isComplete there.
-  const emptyParts = unfinishedLinearMultipleRepresentationsParts(questionData, processBoard || currentResponse).map((partId) => PART_LABELS[partId] || partId);
+  const emptyParts = unfinishedLinearMultipleRepresentationsParts(questionData, processBoard || currentResponse).map((partId) => partLabels[partId] || partId);
 
   const toggle = (key) => setExpandedCards((prev) => {
     const current = { ...DEFAULT_EXPANDED, ...prev };
@@ -960,7 +974,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     });
     // Show what changed: open the card, bring it into view, outline it, and say
     // where it was in the polite live region.
-    const changes = boardUndoChanges(current, restored);
+    const changes = boardUndoChanges(current, restored, partLabels);
     if (!changes.length) return;
     const closed = [...new Set(changes.map((change) => change.expandKey))].filter((key) => !expandedCards[key]);
     if (closed.length) {
@@ -972,7 +986,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     setUndoReveal((previous) => ({ id: (previous?.id || 0) + 1, cardId: changes[0].cardId, field: changes[0].field, fromGraph }));
   };
   const undoHistory = useMathUndoHistory({
-    label: (nextRestore, state) => boardUndoTitle(boardUndoChanges(state, nextRestore)),
+    label: (nextRestore, state) => boardUndoTitle(boardUndoChanges(state, nextRestore, partLabels)),
     state: undoState,
     onRestore: restoreBoard,
     resetKey: questionUndoResetKey(questionData),
@@ -1167,7 +1181,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
         .map((record) => `Point: ${factDisplayText(record)}`),
     ];
     const factText = learned.length ? (canCheck ? `✓ ${learned.join(' · ')}.` : `Saved — ${learned.join(' · ')}.`) : '';
-    const opened = lmrNewlyOpened(before, after, required.filter((cardId) => !PROCESS_FACT_CARDS[cardId])).map(lmrCardLabel);
+    const opened = lmrNewlyOpened(before, after, required.filter((cardId) => !PROCESS_FACT_CARDS[cardId])).map((cardId) => lmrCardLabel(cardId, questionData));
     const openedText = opened.length ? ` Now open: ${opened.join(', ')}.` : '';
     const noticeText = `${factText}${openedText}`.trim();
     if (noticeText) {
@@ -1253,6 +1267,13 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   // Process Mode: a card the student's facts have not opened says what it is
   // waiting for, with a "Find …" for each missing fact; an open card keeps the
   // facts it is built from at hand.
+  //
+  // KEPT AS BUILT (TL28; D-55 "unlock buttons repeated three times"): the same
+  // "Find the rate of change" can sit in What I know, a locked equation and a
+  // locked graph. Each one is where a student working down the page stands,
+  // and "Back to board" returns focus to the card it came from — a keyboard
+  // path the process journeys test. Removing the repeats would send a student
+  // back up the page to act, so they stay.
   const lockedCard = (cardId, title) => (
     <BoardCard key={cardId} cardId={cardId} title={title} hint={null} verdict={null} canCheck={false} onCheck={null} checkLabel="" undone={undoneFor(cardId)}>
       <LockedCardBody question={questionData} process={processState} cardId={cardId} onFind={openProcess} disabled={questionTerminal} />
@@ -1509,7 +1530,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     />
   ) : null);
 
-  const graphCards = GRAPHS.filter((graph) => needs(graph.cardId)).map((graph) => {
+  const graphCards = graphs.filter((graph) => needs(graph.cardId)).map((graph) => {
     if (processLocked(graph.cardId)) return lockedCard(graph.cardId, graph.title);
     const verdict = verdictFor(graph.cardId);
     const open = expandedCards[graph.key];
@@ -1559,58 +1580,68 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     );
   });
 
-  const renderContextField = ({ field, key, label, placeholder, prompt }) => {
+  const renderContextField = ({ field, key, label, placeholder, prompt, reason }) => {
     const value = currentResponse[field] ?? '';
     const setValue = contextSetters[field];
     const choices = contextChoices[key];
     const result = contextVerdict?.results?.[field];
+    // Under a checked meaning that is not right yet: what to look for (TL28).
+    // Outside the label, so the field's name stays its question; the field
+    // is described by it.
+    const reasonId = contextVerdict && !result ? `${meaningIdBase}-${field}` : undefined;
     return (
-      <label key={field} data-lmr-field={field} style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
-        <span style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <strong style={{ fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{label}</strong>
-          {contextVerdict ? (
-            result
-              ? <span style={correctBadge}>✓ Correct</span>
-              : <span style={{ ...correctBadge, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' }}>Take another look</span>
-          ) : null}
-        </span>
-        {choices?.length ? (
-          <select
-            value={value}
-            onChange={(event) => {
-              clearFeedback();
-              setValue(event.target.value);
-            }}
-            style={selectStyle}
-          >
-            <option value="">{prompt}</option>
-            {choices.map((option) => <option key={option} value={option}>{option}</option>)}
-          </select>
-        ) : key === 'domain' ? (
-          <MathInput
-            toolProfile="inequality"
-            placeholder={placeholder}
-            ariaLabel={label}
-            value={value}
-            compact
-            onChange={(next) => {
-              clearFeedback();
-              setValue(next);
-            }}
-          />
-        ) : (
-          <input
-            type="text"
-            value={value}
-            placeholder={placeholder}
-            onChange={(event) => {
-              clearFeedback();
-              setValue(event.target.value);
-            }}
-            style={{ ...selectStyle, fontSize: 'calc(16 * var(--mm-px))' }}
-          />
-        )}
-      </label>
+      <div key={field} data-lmr-field={field} style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+          <span style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <strong style={{ fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{label}</strong>
+            {contextVerdict ? (
+              result
+                ? <span style={correctBadge}>✓ Correct</span>
+                : <span style={{ ...correctBadge, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' }}>Take another look</span>
+            ) : null}
+          </span>
+          {choices?.length ? (
+            <select
+              value={value}
+              aria-describedby={reasonId}
+              onChange={(event) => {
+                clearFeedback();
+                setValue(event.target.value);
+              }}
+              style={selectStyle}
+            >
+              <option value="">{prompt}</option>
+              {choices.map((option) => <option key={option} value={option}>{option}</option>)}
+            </select>
+          ) : key === 'domain' ? (
+            <MathInput
+              toolProfile="inequality"
+              placeholder={placeholder}
+              ariaLabel={label}
+              ariaDescribedBy={reasonId}
+              value={value}
+              compact
+              onChange={(next) => {
+                clearFeedback();
+                setValue(next);
+              }}
+            />
+          ) : (
+            <input
+              type="text"
+              value={value}
+              placeholder={placeholder}
+              aria-describedby={reasonId}
+              onChange={(event) => {
+                clearFeedback();
+                setValue(event.target.value);
+              }}
+              style={{ ...selectStyle, fontSize: 'calc(16 * var(--mm-px))' }}
+            />
+          )}
+        </label>
+        {reasonId ? <p id={reasonId} data-lmr-meaning-reason={field} style={muted}>{reason}</p> : null}
+      </div>
     );
   };
 
@@ -1808,7 +1839,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
               <p style={muted}>
                 Each graph is its own workspace. Tap or press on a grid to place a point; drag a point to move it
                 (keyboard: arrow keys, then Enter). Points land on {describeSnapStep(snapSteps.graph1)}
-                {snapSteps.graph3 !== snapSteps.graph1 && needs('graphPointSlope') ? <> ({needs('graphIntercepts') ? 'Graph 3: ' : ''}{describeSnapStep(snapSteps.graph3)})</> : null}.
+                {snapSteps.graph3 !== snapSteps.graph1 && needs('graphPointSlope') ? <> ({needs('graphIntercepts') ? `${graphNames.graph3}: ` : ''}{describeSnapStep(snapSteps.graph3)})</> : null}.
               </p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))', gap: 12, alignItems: 'start' }}>
                 {graphCards}
@@ -1836,8 +1867,8 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                     />
                   </div>
                   <p style={{ ...muted, display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
-                    {GRAPHS.map((graph) => (
-                      <span key={graph.key}><span aria-hidden="true" style={{ color: graph.color, fontSize: 'calc(18 * var(--mm-px))' }}>●</span> {graph.title.split(' · ')[0]}</span>
+                    {graphs.map((graph) => (
+                      <span key={graph.key}><span aria-hidden="true" style={{ color: graph.color, fontSize: 'calc(18 * var(--mm-px))' }}>●</span> {graphNames[graph.key]}</span>
                     ))}
                   </p>
                 </div>
@@ -1929,7 +1960,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
         </div>
       </div>
 
-      {GRAPHS.filter((graph) => graph.key === enlargedGraph && needs(graph.cardId) && !processLocked(graph.cardId)).map((graph) => {
+      {graphs.filter((graph) => graph.key === enlargedGraph && needs(graph.cardId) && !processLocked(graph.cardId)).map((graph) => {
         const verdict = verdictFor(graph.cardId);
         return (
           <GraphDialog key={graph.key} graph={graph} open onClose={closeDialog} returnFocusRef={enlargeButtonRefs[graph.key]}>

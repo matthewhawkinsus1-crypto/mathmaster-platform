@@ -67,6 +67,40 @@ export const PART_LABELS = Object.freeze({
   crossRepresentationConsistency: 'Every part describes the same line',
 });
 
+/*
+ * A GRAPH IS NUMBERED AMONG THE GRAPHS ITS BOARD SHOWS (TL28; D-55).
+ *
+ * A board that asks for one graph titled it "Graph 2 · Slope-intercept
+ * method", and a student looked for Graph 1. The graphs keep their order —
+ * intercepts, slope-intercept, point-slope — and are numbered among the ones
+ * this question asks for; a board with one graph calls it just "Graph". A
+ * board with all three, or with the first two, reads exactly as before.
+ * Every place a student or a teacher reads a graph's name takes it from here:
+ * the card, Check and Undo, "Now open", the submitted parts. (The part ids
+ * stay graph1/graph2/graph3, so stored attempts read the same.)
+ */
+const GRAPH_PARTS = Object.freeze([
+  Object.freeze({ part: 'graph1', cardId: 'graphIntercepts', method: 'intercepts' }),
+  Object.freeze({ part: 'graph2', cardId: 'graphSlopeIntercept', method: 'slope-intercept' }),
+  Object.freeze({ part: 'graph3', cardId: 'graphPointSlope', method: 'point-slope' }),
+]);
+
+/** `{ graph1: 'Graph 1', … }` for the graphs this question asks for; `'Graph'` when it asks for one. */
+export const graphNamesFor = (question = {}) => {
+  const required = resolveRequiredCards(question);
+  const shown = GRAPH_PARTS.filter(({ cardId }) => required.includes(cardId));
+  return Object.freeze(Object.fromEntries(shown.map(({ part }, index) => [part, shown.length === 1 ? 'Graph' : `Graph ${index + 1}`])));
+};
+
+/** PART_LABELS, with each graph named the way this question's board names it. */
+export const partLabelsFor = (question = {}) => {
+  const names = graphNamesFor(question);
+  return Object.freeze({
+    ...PART_LABELS,
+    ...Object.fromEntries(GRAPH_PARTS.filter(({ part }) => names[part]).map(({ part, method }) => [part, `${names[part]} (${method})`])),
+  });
+};
+
 // The card a source kind hands the student already built. It is GIVEN, so it
 // is never asked for again and never graded.
 const GIVEN_CARD_BY_KIND = Object.freeze({

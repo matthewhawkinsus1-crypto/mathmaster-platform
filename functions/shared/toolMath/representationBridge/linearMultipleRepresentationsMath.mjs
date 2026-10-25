@@ -45,6 +45,8 @@ import {
   BOARD_CARD_IDS,
   CARD_PART_KEYS,
   PART_LABELS,
+  graphNamesFor,
+  partLabelsFor,
   givenCardForQuestion,
   resolveRequiredCards,
   LINE_BEARING_CARD_IDS,
@@ -61,6 +63,8 @@ export {
   BOARD_CARD_IDS,
   CARD_PART_KEYS,
   PART_LABELS,
+  graphNamesFor,
+  partLabelsFor,
   givenCardForQuestion,
   resolveRequiredCards,
   LINE_BEARING_CARD_IDS,
@@ -178,6 +182,13 @@ export const MAX_SNAP_DENOMINATOR = 20;
 // Past MAX_SNAP_DENOMINATOR the exact grid is too fine to aim at. Twentieths
 // put any coordinate within 0.025 of a gridline — well inside the graph
 // tolerance — so the point is still plottable, just not exactly.
+//
+// LEFT AS IT IS (TL28; A2-57, Q-55): drawing such a point exactly needs the
+// shared plane to snap to named points by pointer, by keyboard and in what it
+// announces, for every graphing tool. No authored or family board needs it
+// (2026-10-25 scan: every required point is on a grid of 1/20 or coarser);
+// only a student's own point-slope point finer than 1/20 reaches it, and that
+// point is graded right.
 const FALLBACK_SNAP_STEP = 1 / MAX_SNAP_DENOMINATOR;
 
 const fractionGcd = (left, right) => {
@@ -1464,7 +1475,8 @@ export const evaluateGraph3PointSlope = (points = [], canonicalFacts, studentPoi
 // Cross-Representation Consistency & Full Board Scoring
 // -----------------------------------------------------------------------------
 
-export const checkCrossRepresentationConsistency = (studentRepresentations = {}, canonicalFacts) => {
+// `graphNames`: each graph as its board names it (graphNamesFor; TL28).
+export const checkCrossRepresentationConsistency = (studentRepresentations = {}, canonicalFacts, graphNames = {}) => {
   const completedLines = [];
 
   if (studentRepresentations.standardFormEquation) {
@@ -1518,7 +1530,7 @@ export const checkCrossRepresentationConsistency = (studentRepresentations = {},
       if (Number.isFinite(ptA[0]) && Number.isFinite(ptA[1]) && Number.isFinite(ptB[0]) && Number.isFinite(ptB[1])) {
         if (!(nearlyEqual(ptA[0], ptB[0], 1e-4) && nearlyEqual(ptA[1], ptB[1], 1e-4))) {
           const l = canonicalFromPoints(ptA, ptB);
-          if (l) completedLines.push({ name: `Graph ${idx + 1}`, line: l });
+          if (l) completedLines.push({ name: graphNames[key.replace('Points', '')] || `Graph ${idx + 1}`, line: l });
         }
       }
     }
@@ -1597,6 +1609,7 @@ export const crossRepresentationConsistencyFor = (question = {}, response = {}, 
       graph3Points: shown('graphPointSlope', 'graph3Points'),
     },
     canonicalFacts,
+    graphNamesFor(question),
   );
   const comparable = LINE_BEARING_CARD_IDS.filter((cardId) => required.has(cardId)).length + (givenTwoPoints ? 1 : 0);
   return { comparable, consistency };

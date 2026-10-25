@@ -66,10 +66,11 @@ export const boardUndoState = (response = {}) => Object.fromEntries(
 );
 
 // The name a student reads for the place a field lives: the card's classroom
-// name, and for a meaning the question it answers.
-const placeLabel = (field) => {
+// name, and for a meaning the question it answers. `labels` is the board's
+// own (partLabelsFor), so a graph is named as its card is titled (TL28).
+const placeLabel = (field, labels = PART_LABELS) => {
   const { cardId } = FIELD_PLACES[field];
-  return cardId === 'context' ? PART_LABELS[field] : PART_LABELS[CARD_PART_KEYS[cardId]];
+  return cardId === 'context' ? labels[field] : labels[CARD_PART_KEYS[cardId]];
 };
 
 /** Every board field whose value differs between two states, in board order. */
@@ -82,12 +83,13 @@ export const changedBoardFields = (before, after) => (
 /**
  * The places that differ between two board states, one per card or meaning, in
  * board order: `{ field, cardId, expandKey, label }`. `field` is the first
- * field that changed there (the one to bring into view).
+ * field that changed there (the one to bring into view). `labels`: the
+ * board's part names (partLabelsFor(question)).
  */
-export const boardUndoChanges = (before, after) => {
+export const boardUndoChanges = (before, after, labels = PART_LABELS) => {
   const seen = new Set();
   return changedBoardFields(before, after).flatMap((field) => {
-    const label = placeLabel(field);
+    const label = placeLabel(field, labels);
     if (seen.has(label)) return [];
     seen.add(label);
     return [{ field, ...FIELD_PLACES[field], label }];

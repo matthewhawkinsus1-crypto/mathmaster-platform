@@ -73,7 +73,7 @@ test('a card the student\'s facts have not opened says what it waits for and off
   const equation = region(source, 'const equationCard = (cardId, title, value, setValue, placeholder, hint) => {', 'const verdict = verdictFor(cardId);', 'the equation card');
   assert.match(equation, /if \(processLocked\(cardId\)\) return lockedCard\(cardId, title\);/);
   assert.match(source, /const tableCard = !needs\('table'\) \? null : processLocked\('table'\) \? lockedCard\('table', 'Table of values'\) :/);
-  const graphs = region(source, 'const graphCards = GRAPHS.filter((graph) => needs(graph.cardId)).map((graph) => {', 'const verdict = verdictFor(graph.cardId);', 'the graph cards');
+  const graphs = region(source, 'const graphCards = graphs.filter((graph) => needs(graph.cardId)).map((graph) => {', 'const verdict = verdictFor(graph.cardId);', 'the graph cards');
   assert.match(graphs, /if \(processLocked\(graph\.cardId\)\) return lockedCard\(graph\.cardId, graph\.title\);/);
   const locked = region(source, 'const lockedCard = (cardId, title) => (', '\n  );', 'the locked card');
   assert.match(locked, /<LockedCardBody [^>]*onFind=\{openProcess\}/);

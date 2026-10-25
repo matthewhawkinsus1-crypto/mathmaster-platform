@@ -36,7 +36,7 @@ import {
   CARD_PART_KEYS,
   CARD_RESPONSE_FIELDS,
   LINE_BEARING_CARD_IDS,
-  PART_LABELS,
+  partLabelsFor,
   resolveRequiredCards,
   scoreLinearMultipleRepresentations,
   unfinishedLinearMultipleRepresentationsParts,
@@ -96,14 +96,14 @@ const partResponse = (partId, board) => {
 // How each fact was established, in a teacher's words — the evidence a
 // gradebook keeps beside the verdict. Labels only: no ids, no answer key.
 const FACT_LABELS = Object.freeze({ slope: 'Slope', yIntercept: 'y-intercept', xIntercept: 'x-intercept', siEquation: 'Slope-intercept form from their algebra' });
-const processDetail = (scored) => {
+const processDetail = (scored, labels) => {
   const process = scored?.process;
   if (!process) return null;
   const facts = Object.entries(FACT_LABELS)
     .filter(([fact]) => process.facts?.[fact])
     .map(([fact, label]) => ({ label, response: processPartResponse(scored, fact) || '', method: methodLabelFor(process.facts[fact]), verified: process.facts[fact].correct === true, tries: process.facts[fact].tries || 0 }));
   const points = establishedPoints(process).map((record) => ({ label: 'Point on the line', response: processFactText(record), method: methodLabelFor(record), verified: record.correct === true }));
-  return { interactionMode: 'process', stale: process.stale === true, facts, points, locked: (scored.locked || []).map((cardId) => PART_LABELS[CARD_PART_KEYS[cardId]] || cardId) };
+  return { interactionMode: 'process', stale: process.stale === true, facts, points, locked: (scored.locked || []).map((cardId) => labels[CARD_PART_KEYS[cardId]] || cardId) };
 };
 
 const linearMultipleRepresentations = (question, work) => {
@@ -125,11 +125,13 @@ const linearMultipleRepresentations = (question, work) => {
   const linesUnfinished = LINE_BEARING_CARD_IDS
     .filter((cardId) => required.includes(cardId))
     .some((cardId) => unfinished.has(CARD_PART_KEYS[cardId]));
+  // Each graph by the name its card had on this board (TL28): one graph is "Graph".
+  const labels = partLabelsFor(question);
 
   return gradedResult({
     parts: partIds.map((id) => ({
       id,
-      label: PART_LABELS[id] || id,
+      label: labels[id] || id,
       // Consistency compares the line-bearing cards, so it is complete when
       // every one of them has work.
       isComplete: id === CONSISTENCY_PART ? !linesUnfinished : !unfinished.has(id),
@@ -139,7 +141,7 @@ const linearMultipleRepresentations = (question, work) => {
     isComplete: unfinished.size === 0,
     isCorrect: scored.isCorrect === true,
     score: scored.score,
-    ...(processMode ? { detail: processDetail(scored) } : {}),
+    ...(processMode ? { detail: processDetail(scored, labels) } : {}),
   });
 };
 

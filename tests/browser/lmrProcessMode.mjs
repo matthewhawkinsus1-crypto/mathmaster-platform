@@ -187,6 +187,9 @@ const journeys = {
   async recognition() {
     const { context, page } = await open(LAPTOP, 'pm-slope-intercept');
     check((await lockedCards(page)).includes('graphSlopeIntercept'), 'Graph 2 starts locked');
+    // A board with all three graphs numbers them as before (TL28).
+    const graphTitle = await page.locator('[data-lmr-card="graphSlopeIntercept"] strong').first().innerText().catch(() => '');
+    check(graphTitle.trim() === 'Graph 2 · Slope-intercept method', `a full board keeps Graph 2 ("${graphTitle}")`);
     await find(page, 'slope');
     // One way to find it here, so it opens on it; the GIVEN stays in sight.
     check(await workspace(page).locator('[data-process-method="readSlopeIntercept@given"]').count(), 'reading m and b is the method');
@@ -207,7 +210,7 @@ const journeys = {
     await checkWork(page);
     check(!(await workspace(page).count()), 'established, the workspace returns to the board');
     check(await page.evaluate(() => document.activeElement?.closest?.('[data-process-facts]') !== null), 'focus returns to the facts');
-    check(/Now open: .*Graph 2/.test(await notice(page)), `the cards it opened are named: ${await notice(page)}`);
+    check(/Now open: .*Graph 2 \(slope-intercept\)/.test(await notice(page)), `the cards it opened are named: ${await notice(page)}`);
     check(!(await lockedCards(page)).includes('graphSlopeIntercept'), 'Graph 2 is open');
     const log = (await recordShape(page, 'pm-slope-intercept')).processLog;
     check(log?.entries?.length === 1 && log.entries[0].tries === 4, `one entry, four tries: ${JSON.stringify(log?.entries?.map((entry) => entry.tries))}`);
@@ -393,6 +396,10 @@ const journeys = {
     await type(page, 'start', '24');
     await checkWork(page, touch);
     check(/Rate of change: -3 · Initial value: 24/.test(await notice(page)), `the situation read: ${await notice(page)}`);
+    // This board's only graph is "Graph", never "Graph 2" (TL28), wherever it is named.
+    check(/Now open: .*Graph \(slope-intercept\)/.test(await notice(page)) && !/Graph 2/.test(await notice(page)), `"Now open" names the only graph as the board does: ${await notice(page)}`);
+    const onlyGraph = (await page.locator('[data-lmr-card="graphSlopeIntercept"] strong').first().innerText().catch(() => '')).trim();
+    check(onlyGraph === 'Graph · Slope-intercept method', `the only graph is titled without a number ("${onlyGraph}")`);
     await find(page, 'xIntercept', touch);
     await press(page, workspace(page).locator('[data-process-choice="zero:y"]'), true);
     await settle(page, 1200);

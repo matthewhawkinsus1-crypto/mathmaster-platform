@@ -219,7 +219,21 @@ const CARD_FIELDS = {
   [PART_LABELS.xIntercept]: 'featureXIntercept',
   [PART_LABELS.yIntercept]: 'featureYIntercept',
 };
-const GRAPH_FIELDS = { [PART_LABELS.graph1]: 'graph1Points', [PART_LABELS.graph2]: 'graph2Points', [PART_LABELS.graph3]: 'graph3Points' };
+// A graph is named among the graphs its board shows (TL28): "Graph (point-slope)"
+// alone, "Graph 2 (point-slope)" beside one other. Read by its method.
+const GRAPH_METHODS = { graphIntercepts: 'intercepts', graphSlopeIntercept: 'slope-intercept', graphPointSlope: 'point-slope' };
+const GRAPH_METHOD_FIELDS = { intercepts: 'graph1Points', 'slope-intercept': 'graph2Points', 'point-slope': 'graph3Points' };
+const graphFieldOf = (label) => GRAPH_METHOD_FIELDS[/^Graph(?: [123])? \((intercepts|slope-intercept|point-slope)\)$/.exec(label)?.[1]] || null;
+// What a board's cards are called: graphs numbered 1, 2, … among those it asks for, or none when it asks for one.
+const expectedCardLabels = (required) => {
+  const graphCount = required.filter((cardId) => GRAPH_METHODS[cardId]).length;
+  let graphNumber = 0;
+  return required.map((cardId) => {
+    if (!GRAPH_METHODS[cardId]) return PART_LABELS[cardId];
+    graphNumber += 1;
+    return `Graph${graphCount === 1 ? '' : ` ${graphNumber}`} (${GRAPH_METHODS[cardId]})`;
+  });
+};
 const CONTEXT_FIELDS = Object.fromEntries(['contextIndependent', 'contextDependent', 'contextSlopeMeaning', 'contextYInterceptMeaning', 'contextXInterceptMeaning', 'contextDomain']
   .map((field) => [PART_LABELS[field], field]));
 
@@ -232,7 +246,7 @@ const boardWorkFromReview = (question, model) => {
   const work = {};
   model.items.forEach(({ label, value }) => {
     if (CARD_FIELDS[label]) work[CARD_FIELDS[label]] = value;
-    else if (GRAPH_FIELDS[label]) work[GRAPH_FIELDS[label]] = pointsIn(value);
+    else if (graphFieldOf(label)) work[graphFieldOf(label)] = pointsIn(value);
     else if (CONTEXT_FIELDS[label]) work[CONTEXT_FIELDS[label]] = value;
     else if (label === PART_LABELS.twoPoints) [work.featurePoint1, work.featurePoint2] = pairsIn(value).map(([x, y]) => `(${x}, ${y})`);
     else if (label === PART_LABELS.table) work.tableRows = pairsIn(value).map(([x, y]) => ({ x, y }));
@@ -319,7 +333,7 @@ test('board, Worksheet Mode: every GIVEN — the review is text, and the board i
     const model = buildRepresentationBridgeReview(question);
     assertTextOnly(model, label);
     // One item per card the question asks for, in board order, then the context.
-    const cardLabels = resolveRequiredCards(question).map((cardId) => PART_LABELS[{ graphIntercepts: 'graph1', graphSlopeIntercept: 'graph2', graphPointSlope: 'graph3' }[cardId] || cardId]);
+    const cardLabels = expectedCardLabels(resolveRequiredCards(question));
     assert.deepEqual(model.items.slice(0, cardLabels.length).map((item) => item.label), cardLabels, `${label}: one item per required card`);
     const result = grade(question, boardWorkFromReview(question, model));
     assert.equal(result.graded, true, `${label}: graded`);

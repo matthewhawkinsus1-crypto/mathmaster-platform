@@ -66,6 +66,7 @@ import {
   authoredPointPair,
   deriveLinearMultipleRepresentations,
   fractionLatex,
+  partLabelsFor,
   readSourceTableRows,
   refineSnapStep,
   resolveAuthoredSnapStep,
@@ -545,7 +546,7 @@ const pristineSolved = (question) => {
 export const FORMAT_CODES = Object.freeze(new Set([
   'unreadable-number', 'unreadable-point', 'number-has-variable', 'rewrite-unfinished', 'rewrite-no-steps',
   'sub-unsolved', 'sub-no-steps', 'zero-choice-missing', 'same-point', 'same-x', 'run-zero', 'extend-not-there-yet-x',
-  'extend-not-there-yet-y', 'pick-missing', 'pick-outside', 'row-missing', 'point-missing', 'facts-missing',
+  'extend-not-there-yet-y', 'pick-missing', 'pick-outside', 'row-missing', 'point-missing', 'point-blank', 'facts-missing',
 ]));
 
 const numberField = (raw, labels) => readExactNumber(raw, { labels });
@@ -741,7 +742,7 @@ const substituteZero = (entry, state, env) => {
   const steps = readSteps(ev.steps);
   if (!steps.length && !pristineSolved(question)) return { usable: false, claims: [], fields: {}, problems: ['sub-no-steps'] };
   const point = readExactPoint(ev.point);
-  if (!point.ok) return { usable: false, claims: [], fields: { point: { ok: false, code: point.reason === 'blank' ? 'point-missing' : 'unreadable-point' } }, problems: [] };
+  if (!point.ok) return { usable: false, claims: [], fields: { point: { ok: false, code: point.reason === 'blank' ? 'point-blank' : 'unreadable-point' } }, problems: [] };
   const expectedZero = target === 'xIntercept' ? 'y' : 'x';
   const truth = interceptPointOf(env, target);
   const [px, py] = point.value;
@@ -780,7 +781,7 @@ const graphPoint = (entry, state, env) => {
   const pick = readPick(entry.ev?.pick);
   if (!pick) return { usable: false, claims: [], fields: { pick: { ok: false, code: 'pick-missing' } }, problems: [] };
   const typed = readExactPoint(entry.ev?.point);
-  if (!typed.ok) return { usable: false, claims: [], fields: { point: { ok: false, code: typed.reason === 'blank' ? 'point-missing' : 'unreadable-point' } }, problems: [] };
+  if (!typed.ok) return { usable: false, claims: [], fields: { point: { ok: false, code: typed.reason === 'blank' ? 'point-blank' : 'unreadable-point' } }, problems: [] };
   let code = null;
   if (!onLine(env, pick)) code = 'pick-off-line';
   else if (!(sameFraction(typed.value[0], pick[0]) && sameFraction(typed.value[1], pick[1]))) code = 'typed-not-pick';
@@ -1265,6 +1266,8 @@ const FEEDBACK = Object.freeze({
   'unreadable-point': 'Enter an ordered pair: (x, y).',
   'number-has-variable': 'Enter just the number.',
   'point-missing': 'Choose a point first.',
+  // An empty ordered-pair box is typed into, not chosen (TL28; D-55).
+  'point-blank': 'Type the point first, as an ordered pair: (x, y).',
   'pick-missing': 'Pick a point on the graph first.',
   'pick-outside': 'Pick a point inside the graph.',
   'row-missing': 'Choose a row of the table first.',
@@ -1455,8 +1458,9 @@ export const slopeInterceptLatexOf = (m, b) => {
 export const lmrNewlyOpened = (before, after, cardIds = []) => cardIds
   .filter((cardId) => after?.unlocks?.[cardId]?.unlocked && !before?.unlocks?.[cardId]?.unlocked);
 
-/** The card's name, as the board shows it. */
-export const lmrCardLabel = (cardId) => LMR_PROCESS_MODEL.representations[cardId]?.label || cardId;
+/** The card's name, as the board shows it: with the question, a graph by its number on this board (TL28). */
+export const lmrCardLabel = (cardId, question = null) => (question && typeof question === 'object' ? partLabelsFor(question)[CARD_PART_KEYS[cardId]] : null)
+  || LMR_PROCESS_MODEL.representations[cardId]?.label || cardId;
 
 /** The methods offered for a target now, grouped by strategy (one choice each). */
 export const lmrMethodsFor = (question, process, target) => {
