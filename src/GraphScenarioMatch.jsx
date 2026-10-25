@@ -300,6 +300,7 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
             ref={graphPaneRef}
             tabIndex={0}
             role="region"
+            data-focus-ring="own"
             aria-label="Scrollable graph bank"
             onWheel={handlePaneWheel}
             onKeyDown={handlePaneKeyDown}
@@ -384,6 +385,7 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
             ref={scenarioPaneRef}
             tabIndex={0}
             role="region"
+            data-focus-ring="own"
             aria-label="Scrollable scenario bank"
             onWheel={handlePaneWheel}
             onKeyDown={handlePaneKeyDown}

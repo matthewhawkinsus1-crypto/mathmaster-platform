@@ -13,6 +13,13 @@
 //                  (the core, through Step Algebra 2's rewrite mode)
 // After the press, focus is still on the control, which says it is
 // unavailable (aria-disabled) and does nothing if pressed again.
+//
+// A SCROLL PANE THAT TAKES FOCUS SHOWS ITS RING ON EVERY SIDE (CI09, 2026-10-24).
+// Graph Scenario Match's two panes are Tab stops (the arrow keys scroll them).
+// The page's focus ring sits outside a box, and the bank around a pane clips
+// everything outside it, so a keyboard student saw one line along the top edge
+// and the keyboard sweep read the stop as having no visible focus. After a Tab,
+// the ring is opaque and no ancestor's overflow cuts a side of it off.
 // Exits non-zero on any failure.
 import assert from 'node:assert/strict';
 
@@ -132,6 +139,53 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
     assert.equal(await target.getAttribute('aria-pressed'), 'true', 'the factor was placed');
     await keptFocus(page, target, 'the placed target');
   });
+
+  // Graph Scenario Match: the graph bank and the scenario bank take focus by Tab.
+  await page.goto(`${origin}/tests/browser/keyboardSweep.html?tool=graphScenarioMatch`, { waitUntil: 'networkidle', timeout: 90000 });
+  await page.locator('[role="region"][aria-label="Scrollable scenario bank"]').waitFor({ timeout: 60000 });
+  for (const name of ['Scrollable graph bank', 'Scrollable scenario bank']) {
+    await check(`${at} graphScenarioMatch: "${name}" shows its focus ring on every side`, async () => {
+      await page.evaluate(() => document.querySelector('[data-kb-sentinel="start"]').focus());
+      let focused = false;
+      for (let presses = 0; presses < 40 && !focused; presses += 1) {
+        await page.keyboard.press('Tab');
+        focused = await page.evaluate((label) => document.activeElement?.getAttribute('aria-label') === label, name);
+      }
+      assert.ok(focused, `Tab reaches "${name}"`);
+      const ring = await page.evaluate(() => {
+        const element = document.activeElement;
+        const style = getComputedStyle(element);
+        const width = parseFloat(style.outlineWidth) || 0;
+        const offset = parseFloat(style.outlineOffset) || 0;
+        const channels = (style.outlineColor.match(/[\d.]+/g) || []).map(Number);
+        const box = element.getBoundingClientRect();
+        // The band a ring paints runs from `offset` to `offset + width` outside the border box (negative: inside it).
+        const reach = offset + width;
+        const painted = { left: box.left - reach, top: box.top - reach, right: box.right + reach, bottom: box.bottom + reach };
+        const cut = new Set();
+        for (let ancestor = element.parentElement; ancestor && ancestor !== document.documentElement; ancestor = ancestor.parentElement) {
+          const ancestorStyle = getComputedStyle(ancestor);
+          if (ancestorStyle.overflowX === 'visible' && ancestorStyle.overflowY === 'visible') continue;
+          const around = ancestor.getBoundingClientRect();
+          const visible = {
+            left: around.left + parseFloat(ancestorStyle.borderLeftWidth),
+            top: around.top + parseFloat(ancestorStyle.borderTopWidth),
+            right: around.right - parseFloat(ancestorStyle.borderRightWidth),
+            bottom: around.bottom - parseFloat(ancestorStyle.borderBottomWidth),
+          };
+          // A side is cut when the element's own edge is in view and the ring's outer edge is not. An element that is
+          // itself scrolled partly out of its container (a tall pane on a phone) is not the ring's doing.
+          for (const side of ['left', 'top']) if (box[side] >= visible[side] - 0.5 && painted[side] < visible[side] - 0.5) cut.add(side);
+          for (const side of ['right', 'bottom']) if (box[side] <= visible[side] + 0.5 && painted[side] > visible[side] + 0.5) cut.add(side);
+        }
+        return { drawn: style.outlineStyle !== 'none' && width >= 2, opaque: channels.length < 4 || channels[3] === 1, cut: [...cut], byKeyboard: element.matches(':focus-visible') };
+      });
+      assert.ok(ring.byKeyboard, 'Tab gave it keyboard focus');
+      assert.ok(ring.drawn, 'it draws a ring at least 2px wide');
+      assert.ok(ring.opaque, 'the ring is opaque (a translucent one is about 1.4:1 on the bank)');
+      assert.deepEqual(ring.cut, [], 'no ancestor cuts a side of the ring off');
+    });
+  }
 
   await check(`${at}: no page errors`, async () => assert.deepEqual(errors, []));
   await context.close();
