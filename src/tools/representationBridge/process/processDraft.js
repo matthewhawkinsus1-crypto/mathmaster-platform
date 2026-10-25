@@ -30,7 +30,8 @@ export const EVIDENCE_KEYS = Object.freeze({
   readPointSlope: ['m', 'point'],
   readScenario: ['rate', 'start'],
   solveForY: ['eq', 'steps'],
-  substituteZero: ['zero', 'eq', 'steps', 'point'],
+  // `direct`: the intercept typed straight in, without the solve (TL27).
+  substituteZero: ['zero', 'eq', 'steps', 'point', 'direct'],
   graphCrossing: ['pick'],
   graphPoint: ['pick', 'point'],
   riseRun: ['p1', 'p2', 'run', 'rise', 'm'],

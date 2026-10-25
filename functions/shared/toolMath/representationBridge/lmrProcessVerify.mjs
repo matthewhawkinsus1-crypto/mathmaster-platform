@@ -727,6 +727,37 @@ const solveForY = (entry, state, env) => {
 
 const interceptPointOf = (env, fact) => (fact === 'xIntercept' ? (env.x0 ? [env.x0, ZERO] : null) : [ZERO, env.b]);
 
+/*
+ * THE TYPED INTERCEPT (TL27; F-HEAVY-STEPS in the DOL3 review walkthrough).
+ *
+ * One intercept by substitution took about ten actions: the method, which
+ * variable is 0, divide, cancel, simplify, the pair, Check. Once the student
+ * has said which variable is 0 — the idea this method teaches — practice takes
+ * the intercept typed straight in (`ev.direct`), with no solve. The board
+ * offers that only where Check says right or wrong, and only until a miss: a
+ * wrong intercept closes it, and the substituted equation is then solved step
+ * by step (ProcessWorkspace keeps that rule; the server cannot, since the
+ * number of tries is the device's word). A board that withholds outcomes
+ * (feedbackTiming "submitOnly") never offers it and is not marked by it, so
+ * its evidence is the solve, as before. The fact keeps `direct`, and the
+ * teacher reads "typed the intercept (no solve shown)" as its method.
+ */
+const typedIntercept = (target, zero, ev, env) => {
+  if (env.question?.feedbackTiming === 'submitOnly') return { usable: false, claims: [], fields: {}, problems: ['sub-unsolved'] };
+  // The variable that is 0 is the step this way keeps: a wrong one is named
+  // (as the board already does at once), and no intercept is read with it.
+  if (zero !== (target === 'xIntercept' ? 'y' : 'x')) return { usable: false, claims: [], fields: {}, problems: [target === 'xIntercept' ? 'zero-wrong-x' : 'zero-wrong-y'] };
+  const point = readExactPoint(ev.point);
+  if (!point.ok) return { usable: false, claims: [], fields: { point: { ok: false, code: point.reason === 'blank' ? 'point-blank' : 'unreadable-point' } }, problems: [] };
+  const truth = interceptPointOf(env, target);
+  const [px, py] = point.value;
+  let code = null;
+  if (target === 'xIntercept' && py.n !== 0) code = 'point-not-on-x-axis';
+  else if (target === 'yIntercept' && px.n !== 0) code = 'point-not-on-y-axis';
+  else if (!truth || !(sameFraction(px, truth[0]) && sameFraction(py, truth[1]))) code = 'typed-intercept-wrong';
+  return { usable: true, claims: [{ ...interceptClaim(target, point.value, !code), direct: true }], fields: { point: { ok: !code, code } }, problems: [] };
+};
+
 /** Substitute 0 and solve the one-variable equation with Step Algebra. */
 const substituteZero = (entry, state, env) => {
   const ev = entry.ev || {};
@@ -736,6 +767,8 @@ const substituteZero = (entry, state, env) => {
   if (!zero) return { usable: false, claims: [], fields: {}, problems: ['zero-choice-missing'] };
   const question = lmrSubstitutionQuestion(env, entry.from, zero, state.facts || {});
   if (!question) return { usable: false, claims: [], fields: {}, problems: ['facts-missing'] };
+  // Typed straight in, on practice (TL27, above): no equation to read.
+  if (ev.direct === true) return typedIntercept(target, zero, ev, env);
   const equation = readEquation(ev.eq);
   const solved = equation ? equationSolved(question, equation) : { complete: false, correct: false };
   if (!solved.complete) return { usable: false, claims: [], fields: {}, problems: ['sub-unsolved'] };
@@ -1127,7 +1160,12 @@ export const methodLabelFor = (record) => {
   if (record.base) return 'Given';
   const strategy = LMR_PROCESS_MODEL.strategies[record.strategy];
   const source = strategy?.sources.find((entry) => entry.id === record.source);
-  return text(source?.method || strategy?.method);
+  const method = text(source?.method || strategy?.method);
+  // Typed straight in (TL27): the teacher reads that no solve was shown.
+  if (record.direct === true && record.strategy === 'substituteZero') {
+    return `${method.split(' → ')[0]} → set ${record.fact === 'xIntercept' ? 'y' : 'x'} = 0 and typed the intercept (no solve shown)`;
+  }
+  return method;
 };
 
 /** A fact as plain text: "1/2", "(0, -3)", "y = (1/2)x - 3". */
@@ -1317,6 +1355,8 @@ const FEEDBACK = Object.freeze({
   'point-not-on-x-axis': 'An x-intercept is on the x-axis, so its y-coordinate is 0.',
   'point-not-on-y-axis': 'A y-intercept is on the y-axis, so its x-coordinate is 0.',
   'intercept-value-wrong': 'That point does not match the value you solved for. Recheck it.',
+  // A typed intercept that is not right (TL27): the board then asks for the solve.
+  'typed-intercept-wrong': 'That is not where the line crosses the axis.',
   'pick-on-axis-off-line': 'That point is on the axis, but the line does not pass through it. Find where the line itself crosses.',
   'pick-on-line-off-x-axis': 'That point is on the line, but not on the x-axis. Follow the line to where it crosses the x-axis.',
   'pick-on-line-off-y-axis': 'That point is on the line, but not on the y-axis. Follow the line to where it crosses the y-axis.',

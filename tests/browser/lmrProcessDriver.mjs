@@ -67,7 +67,9 @@ const fraction = (value) => {
  * cancel it, simplify; divide by m, cancel, simplify. Leaves "v = x".
  */
 export const solveZeroEquals = async (page, m, b) => {
-  const host = processWorkspace(page);
+  // The solver itself: on practice a typed-intercept box sits above it (TL27),
+  // so the workspace's first math field is no longer the operand's.
+  const host = processWorkspace(page).locator('[data-process-algebra]').first();
   if (b !== 0) {
     await balancedMove(page, host, b > 0 ? 'Subtract' : 'Add', String(Math.abs(b)));
     await cancelTerm(page, host, b > 0 ? '+ ' + Math.abs(b) : '- ' + Math.abs(b));
