@@ -98,7 +98,7 @@ export const parseEquationInput = (question = {}) => {
 //   A · (group)   →  A(group)          juxtaposition
 //   (group) · B   →  B(group)          the scalar moves in front
 //   2 · x  /  x·y →  2x  /  xy         juxtaposition
-//   anything else →  A(B)              parenthesised, never a dot
+//   anything else →  A(B)              parenthesised, never a dot: 2(3), x(1)
 
 const GROUP_OPEN = '\\left(';
 const GROUP_CLOSE = '\\right)';
@@ -172,8 +172,12 @@ const cleanImplicitMultiplicationLatex = (latex) => {
       }
     }
 
-    // Two simple operands sit side by side, unless both are numbers — `23` is
-    // not two times three, so that one is parenthesised instead.
+    // Two simple operands sit side by side, unless the second is a number:
+    // `23` is not two times three, and `x1` is not x times one (it reads as
+    // "x one", and a factor of 1 left on the board showed as x1 in One
+    // Simplify's "Remove 1" part, GR27). Both are parenthesised instead:
+    // 2(3), x(1). compactStepStateKey keeps a state drawn x1 before this the
+    // same state.
     const leftOperand = before.match(OPERAND_AT_END);
     const rightOperand = after.match(OPERAND_AT_START);
 
@@ -183,9 +187,8 @@ const cleanImplicitMultiplicationLatex = (latex) => {
       text = `${before}${after}`;
       continue;
     }
-    const bothNumeric = leftOperand && rightOperand
-      && /^\d/.test(leftOperand[1]) && /^\d/.test(rightOperand[1]);
-    if (leftOperand && rightOperand && SIMPLE_OPERAND.test(rightOperand[1]) && !bothNumeric) {
+    const numberSecond = rightOperand && /^\d/.test(rightOperand[1]);
+    if (leftOperand && rightOperand && SIMPLE_OPERAND.test(rightOperand[1]) && !numberSecond) {
       text = `${before}${after}`;
       continue;
     }

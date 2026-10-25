@@ -460,6 +460,14 @@ export const writtenTermProblem = (node) => {
   if (written === sorted(canonical) || (d !== 1 && Math.abs(n) === 1 && written === sorted([...canonical, 1]))) return null;
   // A coefficient may be one decimal equal to it: 2.5x and 0.35x are as
   // simple as 5x/2 and 7x/20.
+  //
+  // KEPT ACCEPTED (the owner, GR27): a padded decimal (2.50x for 2x + 0.5x) and
+  // a long one for a fraction that does not end (0.8333333333333334x for
+  // x/2 + x/3). Each is the right value written as one term. mathjs keeps only
+  // a number's value, so 2.50 cannot be told from 2.5 here, and a decimal
+  // that long gets no exact value, so the check falls back to equality.
+  // Refusing either would mark a right answer wrong; that is never traded for
+  // a tidier form. (tests/platform/simplifyEngine.test.mjs pins both.)
   const literals = writtenLiterals(node);
   if (literals.length === 1 && Math.abs(literals[0]) === Math.abs(n) / d) return null;
   return 'notLowestTerms';

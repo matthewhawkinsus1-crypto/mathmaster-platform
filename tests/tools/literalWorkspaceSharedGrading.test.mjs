@@ -257,11 +257,18 @@ test('an old workspace key that cannot be read back exactly keeps the legacy pat
     state = move.simplified;
   }
   assert.equal(parity(FAHRENHEIT, equationWorkspaceWork({ equation: written }), 'as written').isCorrect, true);
-  const key = `${equationToLatex(written)}|{}`;
-  assert.match(key, /C9/);
-  const response = legacyResponse(FAHRENHEIT, key);
-  assert.equal(literalWorkspaceQuestionGrader.accepts(response), false);
-  assert.equal(gradeServerResponse({ question: FAHRENHEIT, response }).reason, 'response-shape-not-accepted');
+  // The key as the workspace drew it before GR27 (\frac{C9}{5}), and as it
+  // draws it now (\frac{C(9)}{5}, which reads back as a call of C): neither
+  // is read back.
+  const drawn = equationToLatex(written);
+  const beforeGr27 = drawn.replace(/(?<=[A-Za-z])\\left\((\d+(?:\.\d+)?)\\right\)/g, '$1');
+  assert.match(beforeGr27, /C9/);
+  assert.match(drawn, /C\\left\(9\\right\)/);
+  for (const key of [`${beforeGr27}|{}`, `${drawn}|{}`]) {
+    const response = legacyResponse(FAHRENHEIT, key);
+    assert.equal(literalWorkspaceQuestionGrader.accepts(response), false, key);
+    assert.equal(gradeServerResponse({ question: FAHRENHEIT, response }).reason, 'response-shape-not-accepted', key);
+  }
   // The simplified state's key reads back exactly, and is marked.
   const simplifiedKey = legacyResponse(FAHRENHEIT, `${equationToLatex(state)}|{}`);
   assert.equal(literalWorkspaceQuestionGrader.accepts(simplifiedKey), true);

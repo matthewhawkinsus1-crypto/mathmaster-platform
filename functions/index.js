@@ -1824,11 +1824,13 @@ function storedAlgebraStepPartialCredit(record) {
   // (getQuestionCredit is synchronous, so the ESM module cannot be awaited
   // here; stepAlgebraStepCredit compares the two over every rule): spaces and
   // the TeX tie of 2~ x (before pass 3 Q-31) are spacing, any dash is a minus,
-  // and a unit coefficient before a group (push Q's 1\left() is dropped.
+  // a unit coefficient before a group (push Q's 1\left() is dropped, and a
+  // number bracketed after a letter (GR27's x(1), drawn x1 before) is x1.
   const stateKey = (value) => String(value || "")
     .replace(/[\s~]+/g, "")
     .replace(/[−–—]/g, "-")
-    .replace(/(^|[=+\-(,{])1\\left\(/g, "$1\\left(");
+    .replace(/(^|[=+\-(,{])1\\left\(/g, "$1\\left(")
+    .replace(/(?<=[A-Za-z])\\left\((\d+(?:\.\d+)?)\\right\)/g, "$1");
   const expectedTotal = currentSteps.reduce(
     (maximum, step) => Math.max(maximum, Math.max(0, Number(step?.expectedTotalPoints) || 0)),
     0

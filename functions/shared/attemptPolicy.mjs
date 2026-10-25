@@ -198,10 +198,14 @@ const clampPercent = (value) =>
 // The same holds for MathJS's TeX tie: since pass 3 (Q-31) an implicit product
 // is written 2 x, not 2~ x. A tie is only spacing, so it goes with the spaces
 // and records from either side of that deploy give one key.
+// And for a number after a letter (GR27): x · 1 was drawn x1 and is now drawn
+// x(1). A letter straight before a bracketed plain number is only ever that
+// product on the board, so both drawings give the key x1.
 export const compactStepStateKey = (value) => String(value || '')
   .replace(/[\s~]+/g, '')
   .replace(/[−–—]/g, '-')
-  .replace(/(^|[=+\-(,{])1\\left\(/g, '$1\\left(');
+  .replace(/(^|[=+\-(,{])1\\left\(/g, '$1\\left(')
+  .replace(/(?<=[A-Za-z])\\left\((\d+(?:\.\d+)?)\\right\)/g, '$1');
 
 export const calculateStepPartialCredit = (stepGrades = [], variantIndex = 0) => {
   const currentSteps = (Array.isArray(stepGrades) ? stepGrades : []).filter(

@@ -257,3 +257,36 @@ test('every committed step reports a kind the server already accepts (Hosting-on
   }
   assert.ok(EQUATION_REWRITE_KINDS.includes('student-rewrite') && RELATION_STEP_KINDS.includes('student-rewrite'));
 });
+
+// GR27: a factor of 1 after a letter, x · 1, was drawn `x1` — on the board
+// and in its "Remove 1" part — which reads as "x one". A number after another
+// factor is now set in brackets, as 2 · 3 already was: x(1), 2x(1).
+test('GR27 — a factor of 1 after a letter is drawn x(1), on the board and in its part', async () => {
+  const { expressionToLatex } = await import('../../functions/shared/algebra/algebraAstEngine.mjs');
+  assert.equal(expressionToLatex('x * 1 + 2').trim(), 'x\\left(1\\right)+2');
+  assert.equal(expressionToLatex('2 * x * 1 - 4').trim(), '2x\\left(1\\right)-4');
+  // Unchanged: a number before a letter, two letters, and a number after a number.
+  assert.equal(expressionToLatex('2 * x').trim(), '2x');
+  assert.equal(expressionToLatex('b * h').trim(), 'bh');
+  assert.equal(expressionToLatex('3 * 1 * x').trim(), '3\\left(1\\right)x');
+  const [unit] = detectSimplifyParts(regionsOf('x * 1 + 2', '5'));
+  assert.equal(unit.kind, SIMPLIFY_PART_KINDS.UNIT);
+  assert.equal(unit.latex.trim(), 'x\\left(1\\right)');
+});
+
+// GR27, kept as built (the owner): a padded decimal and a long decimal for a
+// fraction that does not end are the right value written as one term. Refusing
+// them would mark a right answer wrong, so they stay accepted as simplest
+// (writtenTermProblem's comment says why); a wrong value is still refused.
+test('GR27 — padded and long decimals stay accepted as simplest; a wrong value does not', () => {
+  const like = (left) => detectSimplifyParts(regionsOf(left, '7')).find((part) => part.kind === SIMPLIFY_PART_KINDS.LIKE_TERMS);
+  const half = like('2 * x + 0.5 * x');
+  const sixths = like('x / 2 + x / 3');
+  for (const [part, answer] of [[half, '2.50x'], [half, '2.5x'], [sixths, '0.8333333333333334x'], [sixths, '\\frac{5}{6}x']]) {
+    assert.equal(commitSimplifyPart(regionsOf(part === half ? '2 * x + 0.5 * x' : 'x / 2 + x / 3', '7'), part.id, { answer }).ok, true, answer);
+  }
+  assert.equal(checkRegionRewrite(regionsOf('2 * x + 0.5 * x')[0], '2.50x').ok, true);
+  assert.equal(checkRegionRewrite(regionsOf('x / 2 + x / 3')[0], '0.8333333333333334x').ok, true);
+  assert.equal(commitSimplifyPart(regionsOf('2 * x + 0.5 * x', '7'), half.id, { answer: '2.6x' }).ok, false);
+  assert.equal(commitSimplifyPart(regionsOf('x / 2 + x / 3', '7'), sixths.id, { answer: '0.83x' }).ok, false);
+});

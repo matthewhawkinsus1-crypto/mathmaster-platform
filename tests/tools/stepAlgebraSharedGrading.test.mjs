@@ -980,7 +980,11 @@ test('legacy responses: an old key the server cannot read back exactly keeps the
   const DECIMAL = { type: 'stepAlgebra', prompt: 'Solve.', equation: '0.7t + 1.3 = 2.1', solveFor: 't' };
   const SUBSCRIPT = { type: 'stepAlgebra', prompt: 'Solve for x.', equation: 'y = m*x + b1', solveFor: 'x' };
   const NAMED = { type: 'stepAlgebra', prompt: 'Solve for A.', equation: 'A = Area*2', solveFor: 'A' };
-  const key = (equation) => `${equationToLatex(equation)}|{}`;
+  // As the old workspace drew it: before GR27 a number after a letter was set
+  // against it (t * 7 as t7, Area * 2 as Area2); it is drawn t(7) now, which
+  // the loop below checks too.
+  const beforeGr27 = (latex) => latex.replace(/(?<=[A-Za-z])\\left\((\d+(?:\.\d+)?)\\right\)/g, '$1');
+  const key = (equation) => `${beforeGr27(equationToLatex(equation))}|{}`;
   const lossy = [
     [RATE, key(solveOnBalanceUnsimplified(RATE, [['divide', 'r']]))],
     [DECIMAL, key(solveOnBalanceUnsimplified(DECIMAL, [['subtract', '1.3'], ['divide', '0.7']]))],
@@ -1000,6 +1004,11 @@ test('legacy responses: an old key the server cannot read back exactly keeps the
     assert.equal(result.reason, 'response-shape-not-accepted', value);
     // Ingestion: not blocked, not re-marked — the sanitized path it always took.
     assert.deepEqual(regrade(question, value), { regrade: false, reason: 'legacy-unstructured-response' }, value);
+    // Drawn as the workspace draws it now (t(7) reads back as a call of t):
+    // declined the same way, never re-marked.
+    const drawnNow = `${equationToLatex(state)}|{}`;
+    assert.equal(stepAlgebraQuestionGrader.accepts(opaque(question, drawnNow)), false, drawnNow);
+    assert.deepEqual(regrade(question, drawnNow), { regrade: false, reason: 'legacy-unstructured-response' }, drawnNow);
   }
   // An old inequality key never carried the number line it was asked for
   // (and only that check decides it), so it takes the same legacy path.

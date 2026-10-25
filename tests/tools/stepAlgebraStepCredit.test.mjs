@@ -1063,6 +1063,42 @@ test('a record keyed by the old 2~ x rendering stays continuous and earns once',
   assert.equal(compactStepStateKey('y=2~ x+3'), compactStepStateKey('y=2 x+3'));
 });
 
+// GR27: x · 1 was drawn x1 and is now drawn x(1). A record written before
+// holds the old drawing, so its states keep their keys across the deploy.
+const beforeGr27 = (latex) => String(latex).replace(/(?<=[A-Za-z])\\left\((\d+(?:\.\d+)?)\\right\)/g, '$1');
+
+test('GR27 — a record keyed by the old x1 drawing stays continuous and earns once', () => {
+  const UNIT = { questionId: 'q-unit', type: 'stepAlgebra', prompt: 'Solve.', equation: 'x*1 + 2 = 3 + 4', workspaceDifficulty: 3 };
+  const session = equationSession(UNIT);
+  const afterOne = { ...session.equation, right: '7' };
+  step(session, rewritePayload(session, afterOne, { kind: 'combine-like-terms', label: 'Combined like terms on the right side' }), 'combine the constants');
+  session.equation = afterOne;
+  assert.match(equationToLatex(afterOne), /x\\left\(1\\right\)\+2/, 'drawn x(1)');
+  const afterTwo = { ...afterOne, left: 'x + 2' };
+  step(session, rewritePayload(session, afterTwo, { kind: 'inline-term-rewrite', label: 'Rewrite one term on the left side' }), 'remove the 1');
+  // The record as the old drawing wrote it.
+  const legacy = JSON.parse(JSON.stringify(records(session).server));
+  legacy.stepGrades = legacy.stepGrades.map((entry) => ({ ...entry, equationBefore: beforeGr27(entry.equationBefore), equationAfter: beforeGr27(entry.equationAfter) }));
+  assert.match(legacy.stepGrades[0].equationAfter, /x1\+2/, 'the fixture really holds the old drawing');
+  // Undo back to step 1's state (only its recorded key vouches for it: the
+  // record's latest state is step 2's), then a different step from it.
+  const again = verifyOnServer(UNIT, legacy, equationStepWork({
+    action: STEP_ACTIONS.REWRITE,
+    kind: 'student-rewrite',
+    label: 'Simplified the left side',
+    before: afterOne,
+    after: { ...afterOne, left: '2 + x' },
+    supportLevel: 3,
+  }));
+  assert.equal(again.verified, true, `a state recorded as x1 is the same state: ${again.reason}`);
+  const twin = { ...legacy.stepGrades[0], equationAfter: records(session).server.stepGrades[0].equationAfter };
+  assert.equal(
+    calculateStepPartialCredit([...legacy.stepGrades, twin], legacy.variantIndex),
+    calculateStepPartialCredit(legacy.stepGrades, legacy.variantIndex),
+    'the old and new drawing of one state earn once',
+  );
+});
+
 // Every copy of the step-state key. The shared one is compactStepStateKey;
 // two synchronous CommonJS callers keep their own: functions/index.js and
 // functions/lib/classroomGradeRuntime.js (Test Cycle and section grading).
@@ -1098,6 +1134,7 @@ const assertKeyMatchesShared = (path, indexKey) => {
     'y=2~ x+3', 'y=2 x+3', 'y=2x+3', ' x = -3+2~ y',
     '2x+1\\left(-4x+12\\right)=2', '2x+\\left(-4x+12\\right)=2', '1\\left(x+1\\right)=4', '=-1\\left(x\\right)',
     'y=−2x', 'y=–2x', 'y=—2x', '\\frac{-10}{-2}', '', null,
+    ' x1+2 = 7', ' x\\left(1\\right)+2 = 7', '2x\\left(1.5\\right)=3', 'x\\left(-1\\right)=2', '2\\left(3\\right)=6',
   ];
   for (const input of inputs) assert.equal(indexKey(input), compactStepStateKey(input), `${path}: ${JSON.stringify(input)}`);
   // and the pairs that must be one state are one state in both.
@@ -1105,5 +1142,9 @@ const assertKeyMatchesShared = (path, indexKey) => {
     assert.equal(key('y=2~ x+3'), key('y=2 x+3'), path);
     assert.equal(key('2x+1\\left(-4x+12\\right)=2'), key('2x+\\left(-4x+12\\right)=2'), path);
     assert.equal(key('y=−2x'), key('y=-2x'), path);
+    assert.equal(key(' x1+2 = 7'), key(' x\\left(1\\right)+2 = 7'), path);
+    // A bracketed number after a number, or a negative one, is not that product.
+    assert.notEqual(key('2\\left(3\\right)=6'), key('23=6'), path);
+    assert.notEqual(key('x\\left(-1\\right)=2'), key('x-1=2'), path);
   }
 };
