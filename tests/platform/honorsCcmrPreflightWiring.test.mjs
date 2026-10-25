@@ -68,6 +68,11 @@ test('every destination is written in one atomic commit, and a failure after it 
   // Before the commit the review stays open: nothing closes it on failure.
   const beforeCommit = create.slice(0, create.indexOf('await publishBatch.commit()'));
   assert.doesNotMatch(beforeCommit, /setAssignmentPreflight\(null\)/);
+  // A new folder is added to the list only after the commit (TT12), and a
+  // failure to add it never reports the publish as failed.
+  assert.doesNotMatch(beforeCommit, /saveAssignmentFolderPaths\(/, 'a publish that fails leaves no new folder behind');
+  const folderSave = region(create, 'if (folder && !assignmentFolderPaths.includes(folder)) {', 'autoPublishAssignmentPackageToClassroom(', 'folder save');
+  assert.match(folderSave, /try \{\s*await saveAssignmentFolderPaths\(\[\.\.\.assignmentFolderPaths, folder\]\);\s*\} catch \(folderError\) \{[\s\S]*?toastWarning\(/);
 });
 
 test('the review passes the proven Honors version to Create, only while it is current', () => {

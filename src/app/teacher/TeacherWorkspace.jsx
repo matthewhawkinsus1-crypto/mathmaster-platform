@@ -664,10 +664,6 @@ export default function TeacherWorkspace({
         createdAt: new Date(),
       };
 
-      if (folder && !assignmentFolderPaths.includes(folder)) {
-        await saveAssignmentFolderPaths([...assignmentFolderPaths, folder]);
-      }
-
       const bundleLabs = reviewedV5
         ? (reviewedV5.sections || []).flatMap((section) => (
             (section?.questions || [])
@@ -818,6 +814,19 @@ export default function TeacherWorkspace({
       await publishBatch.commit();
       committed = true;
       const createdAssignments = plannedWrites.map(({ assignmentRef, payload }) => ({ id: assignmentRef.id, ...payload }));
+
+      // A new folder joins the folder list only once the assignment that names
+      // it is saved (TT12): saved before the commit, a publish that failed left
+      // an empty folder behind. A failure here is a missing list entry, not a
+      // failed publish: the assignment keeps its folder either way.
+      if (folder && !assignmentFolderPaths.includes(folder)) {
+        try {
+          await saveAssignmentFolderPaths([...assignmentFolderPaths, folder]);
+        } catch (folderError) {
+          console.error('Published the assignment but could not add its folder to the folder list:', folderError);
+          toastWarning('Published, but the folder was not added to your list', `“${title}” is saved in the folder “${folder}”. If the folder is missing from your list, create it again there.`);
+        }
+      }
 
       // "Publish" in Preflight now means publish the whole authored package:
       // MathMaster assignment + mapped Google Classroom post + optional notes
