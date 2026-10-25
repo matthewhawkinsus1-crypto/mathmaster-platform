@@ -53,7 +53,7 @@ import {
   scorePresentation,
   standingsRows,
 } from '../../platform/liveChallenge/challengeStandingsModel.js';
-import { hostRoster } from '../../platform/liveChallenge/challengePresenceModel.js';
+import { hostRoster, invitedCountFor } from '../../platform/liveChallenge/challengePresenceModel.js';
 import { replayExperienceFromRoom, replayRequestFromRoom, replaySummary } from '../../platform/liveChallenge/challengeReplayModel.js';
 import { useChallengeClock, useLatest, usePreviousRoundSummary, useRoundSolution, useRoundSummary, useStandingsPublisher } from '../../platform/liveChallenge/challengeHooks.js';
 import ChallengeRewardSettings from './ChallengeRewardSettings.jsx';
@@ -1280,7 +1280,7 @@ export default function LiveChallengeTeacher({
         <>
           <section style={{ ...panel, background: 'var(--mm-primary-soft)', borderColor: 'var(--mm-primary-border)', display: 'grid', gap: 14 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 12, color: 'var(--mm-primary-text)' }}>
-              <div><div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>Joined</div><div style={{ fontSize: 'calc(34 * var(--mm-px))', fontWeight: 1000 }}>{joinedCount} / {room.eligibleCount || 0}</div></div>
+              <div><div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>Joined</div><div style={{ fontSize: 'calc(34 * var(--mm-px))', fontWeight: 1000 }}>{joinedCount} / {invitedCountFor({ roster: rosterNames, eligibleCount: room.eligibleCount })}</div></div>
               <div><div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>Rounds</div><div style={{ fontSize: 'calc(34 * var(--mm-px))', fontWeight: 1000 }}>{room.roundCount}</div></div>
               {/* A classic round's time is fitted to its question (a one-step
                   question gets less, a multi-step one more); a rush round is
