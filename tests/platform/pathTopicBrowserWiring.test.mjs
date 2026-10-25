@@ -118,6 +118,27 @@ test('the wheel labels its wedges by topic and lists every topic and skill under
   assert.match(wheel, /showLegend = true,/);
 });
 
+test('the wheel\'s hub names a status with the same word as its wedge, list row and colour key (MP17)', () => {
+  // One function gives the word: the wedge (statusOf) and the hub both read it.
+  assert.match(wheel, /const profileStatus = \(profile\) => profile\?\.mastery\?\.status \|\| NOT_ENOUGH_EVIDENCE;/);
+  assert.match(wheel, /const statusOf = \(entry\) => profileStatus\(entry\.profile\);/);
+  const hub = region(wheel, '<text x={center} y={center + 15}', '</text>', 'the hub status line');
+  assert.match(hub, /\{focusedTeks \? profileStatus\(activeProfile\) : 'Choose a skill'\}/);
+  assert.doesNotMatch(wheel, /Not practised yet/, 'the key says "Not Enough Evidence"; so must the hub');
+});
+
+test('a map card heads its evidence by what it is, and a repair says how it is linked (MP17)', () => {
+  const card = region(learningPath, 'function PathNode(', '\nfunction PathSection(', 'the map card');
+  const evidence = region(card, '{showEvidence ? (', ') : (', 'the evidence block');
+  assert.match(evidence, /\{node\.evidenceHeading\}<\/div>/, 'the heading comes from the node (pathMap.js evidenceHeadingFor)');
+  assert.doesNotMatch(evidence, />Why this is suggested</, 'a mastered card must not read as a suggestion');
+  const leadAt = card.indexOf('{node.strengthen.leadIn}');
+  const buttonAt = card.indexOf('onClick={() => onChoose?.(node.strengthen)}');
+  assert.ok(leadAt > -1 && buttonAt > leadAt, 'the linking line comes before the repair button');
+  // The browser's list is named the same way.
+  assert.match(browser, /aria-label=\{`\$\{skill\.evidenceHeading \|\| 'Why this is suggested'\}: \$\{skill\.title\}`\}/);
+});
+
 test('the colour key is drawn from the wheel\'s own colours, not emoji', () => {
   const key = region(dashboard, '<strong>What the colours mean</strong>', '</ul>', 'the colour key');
   assert.match(key, /Object\.entries\(MASTERY_STATUS_COLORS\)\.map\(\(\[status, color\]\) =>/);

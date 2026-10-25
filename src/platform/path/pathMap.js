@@ -114,6 +114,24 @@ export const explainPacing = (node) => {
     : 'Your class reaches this later in the course. Nothing is wrong — this one is simply not open yet.';
 };
 
+/**
+ * The heading over a card's evidence list. A mastered card is not being
+ * suggested to anyone: its list says what the Mastered rests on, so it was
+ * wrong to head it "Why this is suggested" (MP17, a verifier minor of push D).
+ */
+export const evidenceHeadingFor = (status) => (
+  status === STATUS.MASTERED ? 'What this is based on' : 'Why this is suggested'
+);
+
+// The line over a repair button. The button names a DIFFERENT skill from the
+// card it sits on, and with nothing to link the two it read as a mistake
+// (MP17). A locked card opens once the repair holds; a Strengthen card is
+// already open, and the repair only makes it easier.
+const STRENGTHEN_LEAD_IN = Object.freeze({
+  locked: 'To open this skill, practise this first:',
+  open: 'Practising this first will make this skill easier:',
+});
+
 const toPathNode = (row, extra = {}, { profile = null } = {}) => {
   if (!row) return null;
   const described = describeSkill(row.skillId);
@@ -136,6 +154,7 @@ const toPathNode = (row, extra = {}, { profile = null } = {}) => {
     // behind it, the class unit, what it builds on. A card shows this list in
     // place of `reason` when it has one.
     evidence: explainRecommendationEvidence(row, profile),
+    evidenceHeading: evidenceHeadingFor(row.status),
     // The district unit the class calls it by ("Module 2: Exploring Constant
     // Rate of Change"). The calendar window's own title is "Topic 1", which is
     // why that one was carried but never shown.
@@ -209,6 +228,7 @@ const supportFields = (row) => {
       statusLabel: PATH_MARK[STATUS.REMEDIATION].label,
       tone: PATH_MARK[STATUS.REMEDIATION].tone,
       selectable: true,
+      leadIn: row.status === STATUS.LOCKED ? STRENGTHEN_LEAD_IN.locked : STRENGTHEN_LEAD_IN.open,
     } : null,
   };
 };

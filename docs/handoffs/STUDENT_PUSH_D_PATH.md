@@ -393,6 +393,17 @@ and `skillMastered` events with idempotency keys. Documented in
     skill can show a repair button for a different skill with no sentence
     linking the two, and the topic browser can show a skill as closed while
     offering it as repair practice.
+    **Done (MP17, 2026-10-25), four of five:** the hub uses the wedge's own word
+    (`profileStatus`); a mastered card's list is headed "What this is based on"
+    (`evidenceHeadingFor`); a unit with topics both behind and ahead of the class
+    says "Your class is partway through this unit"; a repair button has a line
+    over it ("To open this skill, practise this first:", or "Practising this
+    first will make this skill easier:" on a Strengthen card). **Not changed, a
+    product call:** a repair can be a skill that is later in the course, shown
+    as closed on its own row. The map offers the same repair and the browser's
+    doors equal the map's, so the choice (make such a skill a door on its own
+    row and card, or hold the repair back until the class gets there) is
+    recorded at `buildSkill` in `topicBrowser.js`.
   - CCMR: a saved test date that has passed shows a validation alert on load;
     the hub's "leans toward this test" promise is false in a class whose
     teacher picked a framework; a cached plan unlocks editing before the

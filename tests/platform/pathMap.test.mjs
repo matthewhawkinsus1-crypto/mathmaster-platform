@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPathMap, explainLock, statusForSkill } from '../../src/platform/path/pathMap.js';
+import { buildPathMap, evidenceHeadingFor, explainLock, statusForSkill } from '../../src/platform/path/pathMap.js';
 import { getStudentPathOptions, STATUS } from '../../src/platform/path/recommendationEngine.js';
 import { curateStudentPanel } from '../../src/platform/path/studentPanel.js';
 import { getSkillGraph, teksSkillId } from '../../src/platform/path/skillGraph.js';
@@ -90,6 +90,42 @@ test('a blocked skill is shown with the repair that opens it, not as a dead end'
   assert.ok(node.strengthen, 'and it must carry its repair');
   assert.equal(node.strengthen.selectable, true, 'the repair is what the student can act on');
   assert.equal(node.selectable, blocked.status !== STATUS.LOCKED);
+});
+
+test('a repair button carries a line that links it to the card it sits on (MP17)', () => {
+  // A.3A is a hard prerequisite of A.2B. Below the severe-gap bar it locks
+  // A.2B; between that bar and the hard edge's minimum (0.7) A.2B stays open
+  // as a Strengthen card. Either way the card offers A.3A, a different skill.
+  const prerequisite = teksSkillId('A.3A');
+  const dependent = teksSkillId('A.2B');
+  assert.ok(skills.find((skill) => skill.skillId === dependent).prerequisites
+    .some((entry) => entry.skillId === prerequisite && entry.strength === 'hard'), 'fixture: a hard edge');
+  const cardFor = (mastery) => {
+    const options = optionsFor({ masteryBySkill: { [prerequisite]: { mastery, attempts: 8, recentAccuracy: mastery } } });
+    return buildPathMap(options, { limits: { needsSupport: 99 } }).needsSupport.find((node) => node.skillId === dependent);
+  };
+  const locked = cardFor(0.1);
+  assert.equal(locked.status, STATUS.LOCKED);
+  assert.equal(locked.strengthen.skillId, prerequisite);
+  assert.equal(locked.strengthen.leadIn, 'To open this skill, practise this first:');
+  const strengthen = cardFor(0.55);
+  assert.equal(strengthen.status, STATUS.REMEDIATION);
+  assert.equal(strengthen.strengthen.skillId, prerequisite);
+  assert.equal(strengthen.strengthen.leadIn, 'Practising this first will make this skill easier:');
+});
+
+test('a mastered card heads its evidence as what the Mastered rests on, not as a suggestion (MP17)', () => {
+  const masteredId = teksSkillId('A.3A');
+  const options = optionsFor({ masteryBySkill: { [masteredId]: { mastery: 0.95, attempts: 8, recentAccuracy: 0.95, mastered: true } } });
+  const map = buildPathMap(options);
+  const card = map.mastered.find((node) => node.skillId === masteredId);
+  assert.ok(card && card.evidence.length, 'fixture: a mastered card with evidence');
+  assert.equal(card.evidenceHeading, 'What this is based on');
+  const suggested = [...map.focus, ...map.branches].filter((node) => node.evidence.length);
+  assert.ok(suggested.length, 'fixture: open cards with evidence');
+  suggested.forEach((node) => assert.equal(node.evidenceHeading, 'Why this is suggested', node.skillId));
+  assert.equal(evidenceHeadingFor(STATUS.MASTERED), 'What this is based on');
+  assert.equal(evidenceHeadingFor(STATUS.EXTENSION), 'Why this is suggested');
 });
 
 test('the lock explanation says what to do, not what the graph thinks', () => {

@@ -138,7 +138,9 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
           and their own "why" disclosure; a retention check keeps its own. */}
       {showEvidence ? (
         <div data-recommendation-evidence style={{ margin: '0 0 10px' }}>
-          <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>Why this is suggested</div>
+          {/* A mastered card is not suggested: its heading says what the
+              list is (pathMap.js evidenceHeadingFor, MP17). */}
+          <div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>{node.evidenceHeading}</div>
           <ul style={{ margin: '4px 0 0', paddingLeft: 18, fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text)', lineHeight: 1.5 }}>
             {node.evidence.map((item) => <li key={`${item.kind}:${item.text}`}>{item.text}</li>)}
           </ul>
@@ -172,6 +174,13 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
         </div>
       )}
 
+      {node.strengthen && (
+        // The repair names another skill, so a line says how the two are
+        // linked (MP17) — "To open this skill, practise this first:".
+        <p data-strengthen-lead-in style={{ margin: '0 0 6px', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text)', fontWeight: 700, lineHeight: 1.5 }}>
+          {node.strengthen.leadIn}
+        </p>
+      )}
       {node.strengthen && (
         // The repair, not the blocked skill: the student cannot work on the
         // blocked one, so offering it would be an invitation to fail.
