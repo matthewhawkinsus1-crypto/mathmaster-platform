@@ -111,10 +111,9 @@ test('the assignment details show Recovery as students have it now, its version,
   assert.match(section, /\{upgradeOpen && \(\s*<RecoveryUpgradeModal\s+assignment=\{assignment\}\s+onClose=\{\(\) => setUpgradeOpen\(false\)\}\s+onUpgraded=\{onRecoveryUpgraded\}/);
   assert.match(section, /normalizeRecoveryContent\(assignment\?\.recoveryContent\)/);
   // The plan is recomputed when a question, the policy or Recovery changes — not on every live refresh.
+  // What moves the key is proved on the key itself (recoveryPlanKey.test.mjs, TT02).
   assert.match(section, /const plan = useMemo\(\(\) => \{[\s\S]*\}, \[planKey\]\);/);
-  ['assignment?.assignmentRevision', 'assignment?.recoveryContent?.version', 'assignment?.recoveryPolicy', 'questionCount', 'excludedCount'].forEach((input) => {
-    assert.ok(region(section, 'const planKey = [', '].join', 'plan key').includes(input), `the plan key includes ${input}`);
-  });
+  assert.match(section, /const planKey = useMemo\(\(\) => recoveryPlanKey\(assignment\), \[assignment\]\);/);
   // Mounted for every ordinary assignment (a Test Cycle has its own retest process).
   assert.match(hub, /const recoverySection = !isTestCycleAssignment\(assignment\) && \(\s*<AssignmentRecoverySection/);
 });
