@@ -91,8 +91,8 @@ test('an ASCII B^-E/N is read as it is drawn, B^(-E/N): a lowered verdict, for t
 
 test('N2 beside the ASCII B^(E)/N rule: e^(-x)/2 is still read as the renderer draws it', async () => {
   // stackDivisions (no options) draws an ASCII `e^(-x)/2` as e^{\frac{-x}{2}}
-  // and W5-6 grades it as drawn; which reading an author means is the owner's
-  // question (handoff, item 4). Until then it is not e^{-x}/2.
+  // and W5-6 grades it as drawn (handoff, item 4). The owner kept that reading
+  // (GR04), so it is not e^{-x}/2; Pre-Flight flags such a key.
   assert.equal(stackDivisions('e^(-x)/2'), 'e^\\frac{-x}{2}');
   await wrong('e^(-x)/2', 'e^{-x}/2');
   await right('e^\\frac{-x}{2}', 'e^(-x)/2');

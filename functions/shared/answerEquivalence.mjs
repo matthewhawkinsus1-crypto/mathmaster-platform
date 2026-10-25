@@ -152,7 +152,8 @@ const bracedExponentsAsGroups = (value, { keepCompoundBraced = false } = {}) => 
     const body = text.slice(index + 2, close);
     // Left braced until the divisions are stacked (normalizeAnswer): a braced
     // exponent is one operand in LaTeX, while the ASCII `^(…)/` a key may be
-    // written with keeps the reading the renderer shows (H-13 review).
+    // written with keeps the reading the renderer shows (H-13 review; the
+    // owner kept it, GR04, and Pre-Flight flags such a key).
     if (keepCompoundBraced && !SIMPLE_EXPONENT.test(body)) continue;
     const group = SIMPLE_EXPONENT.test(body) || NEGATED_TOKEN.test(body) ? body.trim() : `(${body})`;
     text = `${text.slice(0, index + 1)}${group}${text.slice(close + 1)}`;
@@ -753,7 +754,8 @@ const sameFormPreservingSide = (left, right) => {
   const b = form(right);
   if (a === b) return true;
   // A plain-text quotient keeps its old verdict: its extent is ambiguous
-  // (`x-1/x+1`), so its terms are never moved (Job K's 2d rule).
+  // (`x-1/x+1`), so its terms are never moved (Job K's 2d rule). The owner
+  // confirmed it (GR04): no right answer stored against such a key turns wrong.
   if ([left, right].some((value) => /\//.test(String(value ?? '')))) return false;
   return constantTermsLast(a) === constantTermsLast(b);
 };

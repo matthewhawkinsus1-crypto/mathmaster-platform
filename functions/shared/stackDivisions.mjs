@@ -228,7 +228,10 @@ const operandBefore = (text, end, options = {}) => {
   // often as it is an operand. Ambiguous: leave the slash alone — except, in
   // grading, a braced exponent: `x^{n-1}/2` is unambiguous LaTeX for
   // (x^{n-1})/2, so the power and its base come along as one operand. (An
-  // ASCII `x^(n-1)/2` keeps the reading the renderer shows, x^((n-1)/2).)
+  // ASCII `x^(n-1)/2` keeps the reading the renderer shows, x^((n-1)/2): the
+  // owner kept that reading (GR04), and Pre-Flight advises an author who
+  // writes a key that way to add the brackets they mean,
+  // src/platform/preflight/answerKeyPreflight.js.)
   if (text[index] === '}') {
     if (!options.constantOperands) return null;
     const open = matchBackwards(text, index);

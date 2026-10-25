@@ -2052,6 +2052,24 @@ export const LessonPreflightModal = ({
         </div>
       )}
 
+      {/* Advice, not a readiness finding (answerKeyPreflight.js, GR04): a
+          typed key that reads two ways, so students may be graded against
+          the reading the author did not mean. */}
+      {preflightModel.answerKeys?.warnings?.length > 0 && (
+        <div data-answer-key-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-info-border)', borderRadius: 10, background: 'var(--mm-info-bg)', color: 'var(--mm-text)' }}>
+          <strong style={{ color: 'var(--mm-info-text)' }}>Answer keys to check</strong>
+          <p style={{ margin: '5px 0 9px', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
+            These keys may not be graded the way you mean them. Each one says what to change. This does not stop you publishing.
+          </p>
+          <details>
+            <summary style={{ cursor: 'pointer', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.answerKeys.warnings.length === 1 ? '1 key' : `${preflightModel.answerKeys.warnings.length} keys`}</summary>
+            <ul data-answer-key-warnings="true" style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
+              {preflightModel.answerKeys.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+            </ul>
+          </details>
+        </div>
+      )}
+
       {/* Advice, not a readiness finding (hintAnswerPreflight.js, HELP-16):
           teacher-written hints the leak guard drops, so a student never
           sees them, and why. */}

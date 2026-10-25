@@ -220,7 +220,8 @@ test('item 5: \\land / \\lor, and chained against "and" compound inequalities', 
 });
 
 test('plain-text quotients with ambiguous precedence keep their old verdict', async () => {
-  // Job K, 2d: accepted before, accepted now; x - 1/x stays wrong.
+  // Job K, 2d: accepted before, accepted now; x - 1/x stays wrong. The owner
+  // confirmed it (GR04).
   assert.equal(sameValue('x^2-1/x^2+x', 'x^2-1/x^2+x'), true);
   assert.equal(sameValue('x-1/x', '(x-1)/x'), false);
 });

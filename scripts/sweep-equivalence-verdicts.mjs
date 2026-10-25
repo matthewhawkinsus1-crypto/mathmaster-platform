@@ -255,7 +255,7 @@ for (const [denominator, power] of [['2', 'pi'], ['3', 'x'], ['5', '2'], ['4', '
 //   a pair key that is not two constants matches its own text;
 //   (1/2)^x^2 is not (1/2^x)^2;
 //   an ASCII B^-E/N is read as drawn, B^(-E/N): a lowered verdict against a
-//   braced key, kept until the owner decides the B^(E)/N reading.
+//   braced key, kept: the owner kept the drawn B^(E)/N reading (GR04).
 for (const [numerator, base, power] of [['3', 'x', '2'], ['1', 'x', '2'], ['3', '2', 'x'], ['5', 'y', '3']]) {
   gapKeys.push([`${numerator}/${base}^{-${power}}`, 'expression', {
     right: [`${numerator}/${base}^-${power}`, `\\frac{${numerator}}{${base}^{-${power}}}`],
@@ -545,8 +545,9 @@ const EDITOR_STACK = new RegExp(`${EDITOR_NUMERATOR}\\/${EDITOR_DENOMINATOR}(?![
 const editorSpellingsOf = (text) => {
   if (!/\^|(?<![A-Za-z])pi(?![A-Za-z])|π|sqrt|√/.test(text)) return [];
   // An ASCII `B^(E)/N` is drawn as B^(E/N) but reads as (B^E)/N by standard
-  // precedence; which one an author means is the owner's question, so no
-  // editor spelling is claimed for it (H-13 review, round 3).
+  // precedence; an author may mean either, so no editor spelling is claimed
+  // for it (H-13 review, round 3). The owner kept the drawn reading (GR04)
+  // and Pre-Flight asks the author to add brackets.
   if (/\^\([^()]*\)\s*\//.test(text)) return [];
   const flat = text.replace(/\s+/g, '')
     .replace(/sqrt\(([^()]+)\)/g, '\\sqrt{$1}')
