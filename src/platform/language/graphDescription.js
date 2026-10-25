@@ -133,6 +133,37 @@ const rawPointList = (entry) => {
   return (Array.isArray(raw) ? raw : []).map(readGraphPointCoordinates).filter(Boolean);
 };
 
+/**
+ * SEGMENTS DRAWN END TO END ARE ONE CONNECTED PATH (AX27, F-A11Y-64-PATHS).
+ *
+ * A graph that draws a curve as many short pieces (the checked graph of a
+ * relationship model is 64 of them) hands each piece over as its own two-point
+ * line, and the summary said "64 connected paths" with a sentence and a table
+ * block for every one. A piece that starts where the one before it ended
+ * continues that path; a gap starts a new one. Returns polylines (arrays of
+ * the points as given), in drawing order, for the `polylines` of
+ * describeCoordinatePlane. A piece without two readable ends is dropped.
+ */
+export const joinSegmentPaths = (segments = []) => {
+  const paths = [];
+  let open = null;
+  let openEnd = null;
+  (Array.isArray(segments) ? segments : []).forEach((segment) => {
+    const [from, to] = Array.isArray(segment) ? segment : [];
+    const start = readGraphPointCoordinates(from);
+    const end = readGraphPointCoordinates(to);
+    if (!start || !end) return;
+    if (open && Math.abs(openEnd[0] - start[0]) <= EPS && Math.abs(openEnd[1] - start[1]) <= EPS) {
+      open.push(to);
+    } else {
+      open = [from, to];
+      paths.push(open);
+    }
+    openEnd = end;
+  });
+  return paths;
+};
+
 const inWindow = (x, y, w) => x >= w.xMin - EPS && x <= w.xMax + EPS && y >= w.yMin - EPS && y <= w.yMax + EPS;
 
 const arrowDirection = (vector) => {

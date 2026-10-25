@@ -7,7 +7,7 @@ import MathDisplay from './MathDisplay.jsx';
 import { formatGraphEquationLatex } from './functionGraphUtils.js';
 import { majorTicks, niceStep } from './platform/graph/graphScaleService.js';
 import { quadrantLabelPositions } from './platform/graph/quadrantLabels.js';
-import { describeCoordinatePlane } from './platform/language/graphDescription.js';
+import { describeCoordinatePlane, joinSegmentPaths } from './platform/language/graphDescription.js';
 import { useQuestionLifecycle } from './platform/question/QuestionLifecycleContext.jsx';
 import { PublishFigureReading } from './platform/language/figureReadings.js';
 import { graphReadOutApplies, useGraphReadOut, useReportGraphReadOut } from './platform/supports/graphReadOut.js';
@@ -232,9 +232,10 @@ const describeStaticGraph = ({ xMin, xMax, yMin, yMax, xStep, yStep, minorStep, 
     snapStep: minorStep || 1, minorGridDrawn: Boolean(minorStep),
     lines: functions.filter(isLine).map((spec) => ({ m: Number(spec.m ?? spec.slope), b: Number(spec.b ?? spec.intercept ?? 0) })),
     functions: functions.filter((spec) => !isLine(spec)).map((spec) => (x) => evaluateFunction(spec, x)),
-    polylines: segments
+    // Pieces drawn end to end are one path, not one each (AX27).
+    polylines: joinSegmentPaths(segments
       .map((segment) => [segment.from || segment.start, segment.to || segment.end])
-      .filter((pair) => pair.every(Array.isArray)),
+      .filter((pair) => pair.every(Array.isArray))),
     points: [
       ...points,
       ...endpointRequirements

@@ -99,6 +99,8 @@ const buildTicks = (minimum, maximum, step) => majorTicks(minimum, maximum, step
 const pointLabel = ([x, y]) => `(${x}, ${y})`;
 const taskPlacementLabel = (placement) => placement === 'undefined' ? 'Undefined' : Array.isArray(placement) ? pointLabel(placement) : 'Not placed';
 const markerLabels = { arrow: 'Arrow', open: 'Open Circle', closed: 'Closed Circle' };
+// Said for the arrow-key cursor and the typed entry alike, so it names neither.
+const CHOOSE_A_POINT_FIRST = 'Choose which point you are placing first.';
 const markerExplanations = { arrow: 'Function continues', open: 'Endpoint excluded', closed: 'Endpoint included' };
 const markerSymbols = { arrow: '➤', open: '○', closed: '●' };
 const markerValue = (placement) => typeof placement === 'string' ? placement : placement?.marker || '';
@@ -731,6 +733,11 @@ export default function InteractiveGraphWorkspace({
     return taskStatesX(task) ? Number(task.x) : null;
   };
   const placeTypedCoordinate = () => {
+    // Nothing chosen to place: that is what is missing, before any number is.
+    if (!exactTargetLabel()) {
+      setKeyboardAnnouncement(CHOOSE_A_POINT_FIRST);
+      return;
+    }
     const point = typedCoordinate(typedX, typedY, { statedX: typedStatedX() });
     if (!point) {
       setKeyboardAnnouncement('Enter a number for both x and y.');
@@ -755,6 +762,20 @@ export default function InteractiveGraphWorkspace({
   const exactEntryAvailable = (stage === 'construct' && !pointsLocked)
     || (stage === 'analysis' && inverseReflectionEnabled && !inversePointsLocked);
   const typedRouteOffer = (where = '') => (exactEntryAvailable ? `, or type an exact coordinate${where}` : '');
+  // WHAT THE TYPED ENTRY WOULD PLACE RIGHT NOW (AX27, F-PLACE-NEEDS-SELECT):
+  // the selected point card, the selected end marker, or the active analysis
+  // part — the same three targets placeAtCoordinate chooses between. Empty
+  // until one is chosen, which is when "Place at this coordinate" can only say
+  // so; the cue beside it says the same before it is pressed.
+  const exactTargetLabel = () => {
+    if (stage === 'analysis') {
+      const part = analysisParts.find((item) => item.id === activeAnalysisPartId && ['point', 'inversePoint'].includes(item.kind));
+      return part && part.responseMode !== 'input' && !(part.kind === 'inversePoint' && inversePointsLocked) ? toPlainMath(part.label) : '';
+    }
+    if (construction.snapped && activeMarker) return markerLabels[activeMarker] || 'the marker';
+    if (!pointsLocked && activeTaskId) return toPlainMath(tasks.find((item) => item.id === activeTaskId)?.label || '') || 'the point';
+    return '';
+  };
 
   /** Where an arrow-key cursor should start: the middle of the visible plane. */
   const defaultCursor = () => [
@@ -898,7 +919,7 @@ export default function InteractiveGraphWorkspace({
       setKeyboardAnnouncement(`Placed ${task?.label || 'point'} at ${pointLabel(withStatedTaskX(task, target))}.`);
       return true;
     }
-    setKeyboardAnnouncement('Choose which point you are placing first, then press Enter on the grid.');
+    setKeyboardAnnouncement(CHOOSE_A_POINT_FIRST);
     return false;
   };
 
@@ -1618,6 +1639,15 @@ export default function InteractiveGraphWorkspace({
 
         <div style={{ display: 'flex', justifyContent: 'center', gap: '9px', flexWrap: 'wrap', marginTop: '10px' }}>
           {exactEntryAvailable && (
+            // Not a live region: the announcements below already say what a
+            // press did. This is what the button needs, said before it is pressed.
+            <p id={`${workspaceDescriptionId}-exact`} data-graph-exact-cue="" style={{ flexBasis: '100%', margin: 0, textAlign: 'center', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
+              {exactTargetLabel()
+                ? `Placing ${exactTargetLabel()}. Type its x and y, then press Place at this coordinate.`
+                : 'Choose which point you are placing first, then type its x and y.'}
+            </p>
+          )}
+          {exactEntryAvailable && (
             <div style={{ display: 'flex', gap: '7px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
               <label style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>
                 x
@@ -1652,6 +1682,7 @@ export default function InteractiveGraphWorkspace({
               <button
                 id="graph-exact-place"
                 type="button"
+                aria-describedby={`${workspaceDescriptionId}-exact`}
                 onClick={placeTypedCoordinate}
                 style={{ minHeight: '40px', padding: '9px 14px', border: '1px solid var(--mm-tint-border)', borderRadius: '8px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}
               >

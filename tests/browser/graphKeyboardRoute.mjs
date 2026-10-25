@@ -312,6 +312,46 @@ for (const role of ['practice', 'dol']) {
     await page.close();
   }
 
+  // AX27 (F-PLACE-NEEDS-SELECT): "Place at this coordinate" places the point a
+  // student has chosen. With none chosen it can only say so, and used to say it
+  // in a status line at the foot of the tool. The cue beside it says it before
+  // it is pressed, is the button's description, and names the point once one
+  // is chosen; pressing with none chosen says so first, before any number.
+  {
+    const page = await open('construct', 'practice');
+    const cue = page.locator('[data-graph-exact-cue]');
+    const buttonDescription = async () => {
+      const client = await page.context().newCDPSession(page);
+      const { nodes } = await client.send('Accessibility.getFullAXTree');
+      await client.detach();
+      return nodes.find((node) => node.role?.value === 'button' && node.name?.value === 'Place at this coordinate')?.description?.value ?? '';
+    };
+    check(/^Choose which point you are placing first, then type its x and y\.$/.test(await cue.innerText()),
+      'typed entry: with no point chosen, the cue says to choose one first', `"${await cue.innerText()}"`);
+    check((await buttonDescription()) === (await cue.innerText()), 'typed entry: and the Place button is described by it', `"${await buttonDescription()}"`);
+    check(await cue.evaluate((node) => !node.closest('[aria-live], [role="status"], [role="alert"]') && !node.hasAttribute('aria-live')),
+      'typed entry: the cue is plain text, not a second live region (the announcements stay one voice)');
+    await page.getByRole('spinbutton', { name: 'x', exact: true }).fill('0');
+    await page.getByRole('spinbutton', { name: 'y', exact: true }).fill('1');
+    await page.getByRole('button', { name: 'Place at this coordinate' }).click();
+    await page.waitForTimeout(200);
+    check(await announcement(page) === 'Choose which point you are placing first.', 'typed entry: Place with no point chosen says to choose one, and nothing else', `"${await announcement(page)}"`);
+    check(await page.getByRole('spinbutton', { name: 'x', exact: true }).inputValue() === '0', 'typed entry: and keeps the numbers the student typed');
+    await page.getByRole('spinbutton', { name: 'x', exact: true }).fill('');
+    await page.getByRole('spinbutton', { name: 'y', exact: true }).fill('');
+    await page.getByRole('button', { name: 'Place at this coordinate' }).click();
+    await page.waitForTimeout(200);
+    check(await announcement(page) === 'Choose which point you are placing first.', 'typed entry: with the boxes empty too, the missing point is said first', `"${await announcement(page)}"`);
+    await page.getByRole('button', { name: /^Plot the point where x = 0/ }).click();
+    await page.waitForTimeout(150);
+    check(/^Placing Plot the point where x = 0\. Type its x and y, then press Place at this coordinate\.$/.test(await cue.innerText()),
+      'typed entry: once a point is chosen, the cue names it', `"${await cue.innerText()}"`);
+    await page.getByRole('button', { name: 'Place at this coordinate' }).click();
+    await page.waitForTimeout(200);
+    check(await announcement(page) === 'Enter a number for both x and y.', 'typed entry: with a point chosen and no numbers, it asks for the numbers', `"${await announcement(page)}"`);
+    await page.close();
+  }
+
   // Practice, wrong points: the check refuses them and nothing is connected.
   const page = await open('construct', 'practice');
   await typeByKeyboard(page, 'Plot the point where x = 0', 0, 2);

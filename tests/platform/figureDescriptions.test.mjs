@@ -126,7 +126,8 @@ test('the three-plane model is described by its planes; the detail follows the q
 
 test('the static question graph carries the shared plane\'s description, by the same rule', () => {
   const source = executableSource(read('src/GraphDisplay.jsx'));
-  assert.match(source, /^import \{ describeCoordinatePlane \} from '\.\/platform\/language\/graphDescription\.js';$/m);
+  // (The import list also names joinSegmentPaths, AX27: what is asserted is that the description is the shared one.)
+  assert.match(source, /^import \{[^}]*\bdescribeCoordinatePlane\b[^}]*\} from '\.\/platform\/language\/graphDescription\.js';$/m);
   assert.match(source, /^import \{ useQuestionLifecycle \} from '\.\/platform\/question\/QuestionLifecycleContext\.jsx';$/m);
   // Kinds while open, features once closed; authored text wins. For a student
   // whose plan gives the graph read-out (AX03), features while open too, after
