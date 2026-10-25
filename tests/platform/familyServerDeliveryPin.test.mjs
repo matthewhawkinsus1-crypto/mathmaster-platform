@@ -246,7 +246,7 @@ test('App reads the server\'s pins with the draft copy, waits for them before a 
   const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
   const effect = region(app, 'const readServerCopy = () => {', 'readServerCopy();\n', 'readServerCopy');
   // The pins are read with the copy, set for this assignment, and told to the sync.
-  assert.match(effect, /const deliveryPins = readWorkspaceDeliveryPins\(stored\);\s*setServerDeliveryPins\(\{ assignmentId: activeAssignmentId, known: true, pins: deliveryPins \}\);/);
+  assert.match(effect, /const deliveryPins = readWorkspaceDeliveryPins\(stored\);\s*startTransition\(\(\) => setServerDeliveryPins\(\{ assignmentId: activeAssignmentId, known: true, pins: deliveryPins \}\)\);/);
   assert.match(effect, /sync\.noteServerCopy\(entries, \{ deliveryPins \}\);/);
   // A failed read stops the wait.
   assert.match(region(effect, '.catch((error) => {', '.finally(', 'the catch'), /if \(!cancelled\) stopWaitingForPins\(\);/);
@@ -265,7 +265,16 @@ test('App reads the server\'s pins with the draft copy, waits for them before a 
   for (const condition of [/!preview/, /user\?\.role === 'student'/, /!isTeacherPreview/, /activeAssignmentUsesWorkspaceDrafts/, /!serverPinsRead/, /!currentFamilyContext\.pin\b/, /!currentFamilyContext\.pinUnreadable/]) {
     assert.match(pending, condition, `the wait requires ${condition}`);
   }
-  assert.match(app, /\{familyEngineLoading \|\| familyPinPending \? <p role="status"[^>]*>Loading this question…<\/p> : <Suspense fallback=\{<p role="status"[^>]*>Loading this question…<\/p>\}><QuestionEngine/);
+  assert.match(app, /\{familyEngineLoading \|\| familyPinPending \? <p role="status"[^>]*>Loading this question…<\/p> : <QuestionEngine/);
+  // The wait ends in a transition, both ways (pins read, or the wait timed out):
+  // the question it held back mounts while QuestionEngine's code may still be
+  // loading, and an ordinary update would hide the workspace behind the app's
+  // "Loading your MathMaster workspace…" until it came.
+  assert.match(app, /^import \{[^}]*\bstartTransition\b[^}]*\} from 'react';$/m);
+  assert.match(app, /const stopWaitingForPins = \(\) => startTransition\(\(\) => setServerDeliveryPins\(/);
+  assert.match(app, /startTransition\(\(\) => setServerDeliveryPins\(\{ assignmentId: activeAssignmentId, known: true, pins: deliveryPins \}\)\);/);
+  // Every update that ends the wait is one of those two.
+  assert.equal(app.match(/setServerDeliveryPins\(\{ assignmentId: activeAssignmentId, known: true/g)?.length, 1);
 
   // What is shown is pinned on the server too, replacing a pin it had to drop.
   const delivery = region(app, 'const handleFamilyDelivery = useCallback(', '}, [user?.role, user?.id, isTeacherPreview]);', 'handleFamilyDelivery');

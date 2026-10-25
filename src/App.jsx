@@ -1,4 +1,4 @@
-import { Fragment, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, Suspense, startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 // Stylesheets that must link before App.css, in 805b69e2's order
 // (app/shell/leadingStyles.js says why and how).
 import './app/shell/leadingStyles.js';
@@ -4126,10 +4126,15 @@ function App() {
     // A personalized question this device has no pin for waits for the
     // server's pins (RT15, the question view below) — never for long: past
     // FAMILY_PIN_SERVER_WAIT_MS, or a failed read, it is dealt as before.
+    // The wait ends in a transition: the question it held back mounts then,
+    // and QuestionEngine's code may still be on its way (app/lazyScreens.js).
+    // An ordinary update would hide the workspace already on screen behind the
+    // app's "Loading your MathMaster workspace…" until it came (seconds on a
+    // cold Chromebook); a transition keeps "Loading this question…" up instead.
     setServerDeliveryPins({ assignmentId: activeAssignmentId, known: false, pins: null });
-    const stopWaitingForPins = () => setServerDeliveryPins((current) => (
+    const stopWaitingForPins = () => startTransition(() => setServerDeliveryPins((current) => (
       current.assignmentId === activeAssignmentId && !current.known ? { ...current, known: true } : current
-    ));
+    )));
     const pinWait = window.setTimeout(() => { if (!cancelled) stopWaitingForPins(); }, FAMILY_PIN_SERVER_WAIT_MS);
     const sync = createWorkspaceDraftSync({
       studentId: user.id,
@@ -4166,7 +4171,7 @@ function App() {
           // showed before its first Submit (RT15): a question this device has
           // no pin for shows the same numbers (buildStudentFamilyContext).
           const deliveryPins = readWorkspaceDeliveryPins(stored);
-          setServerDeliveryPins({ assignmentId: activeAssignmentId, known: true, pins: deliveryPins });
+          startTransition(() => setServerDeliveryPins({ assignmentId: activeAssignmentId, known: true, pins: deliveryPins }));
           const assignmentGrades = trackerRef.current?.[activeAssignmentId] || {};
           // A deadline auto-submit is dated by when its work was captured,
           // so the backup of that very work is not refused as older than
@@ -5645,8 +5650,10 @@ function App() {
    * question…" rather than render with its pin unchecked.
    */
   const [familyDelivery, setFamilyDelivery] = useState(null);
+  // In a transition for the same reason as the pin wait: a family-backed
+  // question waiting for this module mounts when it lands.
   const loadFamilyDelivery = useCallback(() => import('./platform/generation/familyDelivery.js').then((module) => {
-    setFamilyDelivery((current) => current || module);
+    startTransition(() => setFamilyDelivery((current) => current || module));
     return module;
   }), []);
   // Can this question come back as a different one (a replacement)? The rules
@@ -11151,13 +11158,7 @@ function App() {
             {/* "Ask my teacher" answers, on any question of this assignment —
                 one closed since it was asked keeps its answer here. */}
             {!preview && <TeacherAnswersList questions={askMyTeacher.questions} compact />}
-            {/* The engine's code arrives on its own (app/lazyScreens.js), so it
-                has its own boundary, with the same words as the wait before it.
-                Without one, a question that mounts after the workspace is on
-                screen (one that waited for its pin, RT15) suspended the whole
-                app back to "Loading your MathMaster workspace…" until the code
-                came: the page went blank for seconds on a cold Chromebook. */}
-            {familyEngineLoading || familyPinPending ? <p role="status" style={{ padding: 24, margin: 0 }}>Loading this question…</p> : <Suspense fallback={<p role="status" style={{ padding: 24, margin: 0 }}>Loading this question…</p>}><QuestionEngine
+            {familyEngineLoading || familyPinPending ? <p role="status" style={{ padding: 24, margin: 0 }}>Loading this question…</p> : <QuestionEngine
               key={`${activeAssignmentId}-${currentQuestionIndex}-${currentRecord.variantIndex}-${preview ? `preview-${previewSessionId}` : lifecycle.status}-draft${workspaceDraftGeneration}`}
               draftRestore={draftRestoreFocus?.questionIndex === currentQuestionIndex ? draftRestoreFocus : null}
               question={questions[currentQuestionIndex]}
@@ -11248,7 +11249,7 @@ function App() {
                   })
                   : null,
               }}
-            /></Suspense>}
+            />}
             {/* SAVE HEALTH, IN THE STUDENT'S WORDS.
                 A STUDENT IS NEVER TOLD "SUBMITTED" BEFORE THE SERVER HAS IT.
                 That sentence is the whole point of this line: during the
