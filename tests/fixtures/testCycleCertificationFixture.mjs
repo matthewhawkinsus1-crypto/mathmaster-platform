@@ -82,15 +82,15 @@ export const CERT_WRONG_ANSWER = '-999999';
  * planner treats a family with no generator as unable to mint a fresh variant,
  * and a retest built on those would hand a student the same item back.
  */
-const buildFamily = (target, index) => {
+const buildFamily = (target, index, prefix) => {
   const slug = `${target.targetId}-${index + 1}`;
   return {
-    id: `${CERT_PREFIX}${slug}`,
+    id: `${prefix}${slug}`,
     active: true,
     validated: true,
     courseId: CERT_COURSE_ID,
     alignmentKeys: [target.alignmentKey],
-    familyId: `${CERT_PREFIX}family:${slug}`,
+    familyId: `${prefix}family:${slug}`,
     familyVersion: 1,
     questionType: 'response',
     activityRole: 'practice',
@@ -124,18 +124,29 @@ const buildFamily = (target, index) => {
   };
 };
 
-/** Every family the fixture installs, across every target. */
-export const certFamilies = () => CERT_TARGETS.flatMap((target) => (
-  Array.from({ length: FAMILIES_PER_TARGET }, (unused, index) => buildFamily(target, index))
+/*
+ * Every family the fixture installs, across every target.
+ *
+ * `prefix` is the file's own namespace (CI08). `npm run test:challenge-finish`
+ * runs tests/integration/*.test.mjs side by side against ONE emulator, so two
+ * files that install these documents under the same ids share them: one file's
+ * students joined the other's class (13 students where a test expected 3), and
+ * the first file to finish deleted the families and the assignment from under
+ * the other (32 of 66 tests failed with two files). testCycleCertification owns
+ * the default `cert_` / CERT_CLASS_ID / CERT_ASSIGNMENT_ID; every other file
+ * gives itself a prefix, a class and an assignment of its own.
+ */
+export const certFamilies = ({ prefix = CERT_PREFIX } = {}) => CERT_TARGETS.flatMap((target) => (
+  Array.from({ length: FAMILIES_PER_TARGET }, (unused, index) => buildFamily(target, index, prefix))
 ));
 
-export const certFamilyIdsForTarget = (targetId) => (
-  Array.from({ length: FAMILIES_PER_TARGET }, (unused, index) => `${CERT_PREFIX}${targetId}-${index + 1}`)
+export const certFamilyIdsForTarget = (targetId, prefix = CERT_PREFIX) => (
+  Array.from({ length: FAMILIES_PER_TARGET }, (unused, index) => `${prefix}${targetId}-${index + 1}`)
 );
 
 /** The approved secure test blueprint. */
-export const certBlueprint = () => ({
-  blueprintId: `${CERT_PREFIX}blueprint-unit3`,
+export const certBlueprint = ({ prefix = CERT_PREFIX } = {}) => ({
+  blueprintId: `${prefix}blueprint-unit3`,
   version: 1,
   title: 'Certification Unit 3 Test',
   courseId: CERT_COURSE_ID,
@@ -151,7 +162,7 @@ export const certBlueprint = () => ({
     anchor: target.anchor,
     weight: 1,
     questionCount: target.questionCount,
-    familyIds: certFamilyIdsForTarget(target.targetId),
+    familyIds: certFamilyIdsForTarget(target.targetId, prefix),
   })),
 });
 
@@ -181,8 +192,8 @@ export const certAssessmentPolicy = () => ({
 });
 
 /** The Assignment V5 document a teacher would publish. */
-export const certAssignment = ({ classIds = [CERT_CLASS_ID] } = {}) => ({
-  id: CERT_ASSIGNMENT_ID,
+export const certAssignment = ({ classIds = [CERT_CLASS_ID], prefix = CERT_PREFIX, assignmentId = CERT_ASSIGNMENT_ID } = {}) => ({
+  id: assignmentId,
   schemaVersion: 5,
   title: 'Certification Unit 3 Test Cycle',
   courseId: CERT_COURSE_ID,
@@ -191,7 +202,7 @@ export const certAssignment = ({ classIds = [CERT_CLASS_ID] } = {}) => ({
   lateDueAt: '2099-01-08T00:00:00.000Z',
   assignment: { title: 'Certification Unit 3 Test Cycle', courseId: CERT_COURSE_ID },
   assessmentPolicy: certAssessmentPolicy(),
-  testBlueprint: certBlueprint(),
+  testBlueprint: certBlueprint({ prefix }),
   // Review and Corrections are ordinary instructional V5 content. There is
   // deliberately no `test` or `retest` section: those run in the secure exam
   // runtime, and authoring them here would ship their keys to the browser.
