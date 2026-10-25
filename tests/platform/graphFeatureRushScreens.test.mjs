@@ -236,6 +236,38 @@ test('the rush graph resets its keyboard cursor before a key can reach the new g
   assert.doesNotMatch(graph, /useEffect\(\(\) => \{\s*setCursor\(/, 'no passive effect resets the cursor');
 });
 
+// LC01. A steep curve that hugs an axis ran over the numbers beside it and hid
+// them: a cube root's tangent at the y-axis is vertical, so the curve lies
+// along that axis for up to a fifth of the plot's height (measured over 2,160
+// generated questions, within 6px of the axis on a 560px plot: one in ten for
+// more than a twentieth of the height, 20 for more than 13%, the worst 19.5%),
+// and a cubic's steep branch crossed the x-axis number it stands on. The numbers
+// are drawn AFTER the curve, each with an outline in the plot's colour so it
+// stays readable where they meet, and the curve is clipped to the plot square
+// itself instead of leaving that to whatever the parent crops. The endpoint
+// dots come last: an open or closed dot is the whole question at a domain
+// endpoint, so nothing may cover one.
+test('the rush graph draws its axis numbers over the curve, and clips the curve to the plot', () => {
+  const graph = executableSource(read('../../src/components/liveChallenge/GraphFeatureRushGraph.jsx'));
+  const layer = region(graph, 'const GraphLayer = memo(function GraphLayer', '\n});', 'the graph layer');
+  // The plot square is the clip, and the curve sits inside the clipped group.
+  assert.match(layer, /<clipPath id=\{plotClip\}>\s*<rect width=\{side\} height=\{side\} \/>\s*<\/clipPath>/, 'the plot square is the clip');
+  const clipAt = layer.indexOf('<g clipPath={`url(#${plotClip})`}>');
+  const curveAt = layer.indexOf('drawing.paths.map');
+  const numbersAt = layer.indexOf('labels.x.map');
+  const dotsAt = layer.indexOf('drawing.dots.map');
+  assert.ok(clipAt > -1 && curveAt > clipAt, 'the curve is drawn inside the clipped group');
+  assert.doesNotMatch(layer.slice(clipAt, curveAt), /<\/g>/, 'and the clipped group is still open where the curve starts');
+  assert.ok((layer.slice(curveAt, numbersAt).match(/<\/g>/g) || []).length >= 2, 'the numbers are outside the clipped group');
+  // The order: curve, then the numbers, then the endpoint dots.
+  assert.ok(curveAt > -1 && numbersAt > curveAt, 'the numbers are drawn after the curve');
+  assert.ok(dotsAt > numbersAt, 'and the endpoint dots after the numbers');
+  // Each number keeps its outline in the plot's colour, for where it meets the curve.
+  assert.match(layer, /const halo = \{ paintOrder: 'stroke', stroke: 'var\(--mm-graph-bg\)', strokeWidth: 3,/);
+  const numbers = region(layer, 'labels.x.map', 'drawing.dots.map', 'the numbers');
+  assert.equal((numbers.match(/style=\{halo\}/g) || []).length, 3, 'x numbers, y numbers and the origin zero all carry it');
+});
+
 /* --------------------------- the teacher's screens ------------------------- */
 
 test('the teacher console offers the rush and creates it with its own settings', () => {

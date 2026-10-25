@@ -315,6 +315,13 @@ test('an answer id is never a server receipt key, and progress is not recorded b
     roomId, roundIndex: room.currentRound, roundVersion: room.roundVersion, roundToken: room.roundToken, provisionalPoints: 200,
   }));
   assert.equal(during.recorded, true, 'progress during the round is recorded as before');
+  // LC01: a first-time round shows work for what the room's scoring would pay
+  // for it (its share of the 1000 base), and a claim past the base is held to it.
+  assert.equal(during.provisionalPoints, 200, 'a first-time round shows the work for what it is worth');
+  const inflated = await call('reportLiveChallengeProgress', student(second, {
+    roomId, roundIndex: room.currentRound, roundVersion: room.roundVersion, roundToken: room.roundToken, provisionalPoints: 5000,
+  }));
+  assert.equal(inflated.provisionalPoints, 1000, 'a claim past the 1000 base is held to it');
   await call('cancelLiveChallenge', teacher({ roomId }));
 });
 

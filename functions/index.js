@@ -14522,16 +14522,23 @@ exports.reportLiveChallengeProgress = onCall(async (request) => {
   // authoritative from then on.
   if (Number(player.answeredRound) === roundIndex) return { recorded: false };
 
-  const provisionalPoints = Math.max(
-    0,
-    Math.min(challenge.LIVE_PROVISIONAL_MAX_POINTS, Math.round(Number(request.data?.provisionalPoints) || 0)),
-  );
   const rawProgress = request.data?.responsePayload?.raw;
   let secureMilestone = null;
   const secondChance = Object.prototype.hasOwnProperty.call(privateState.secondChanceOf || {}, String(roundIndex));
   const mode = engine.modes.getChallengeMode(room.challengeMode);
-  const perRoundScoring = engine.scoring.getScoringStrategy(engine.scoring.roomScoringStrategyId(room)).accumulation
+  const scoringStrategyId = engine.scoring.roomScoringStrategyId(room);
+  const perRoundScoring = engine.scoring.getScoringStrategy(scoringStrategyId).accumulation
     === engine.scoring.SCORE_ACCUMULATION.PER_ROUND;
+  // WHAT THE WORK IS WORTH, NOT WHAT THE BROWSER SAYS (LC01). The number is a
+  // share of full credit the student's own device reports; the board gets what
+  // this room's scoring would pay for that work if the answer were graded now,
+  // so a replay round (which pays only a fully correct answer) or a Correct
+  // Count game never shows work in progress as points the round cannot award.
+  const claimedCredit = Math.max(
+    0,
+    Math.min(challenge.LIVE_PROVISIONAL_MAX_POINTS, Math.round(Number(request.data?.provisionalPoints) || 0)),
+  ) / challenge.LIVE_PROVISIONAL_MAX_POINTS;
+  const provisionalPoints = engine.scoring.provisionalWorth({ strategyId: scoringStrategyId, credit: claimedCredit, secondChance });
   let speedInfluencePercent = null;
   // Only a mode that declares productive milestones banks speed mid-round.
   if (rawProgress && mode.capabilities.progressMilestones && !secondChance) {

@@ -1,4 +1,4 @@
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   axisLabels,
   describeCursor,
@@ -42,6 +42,8 @@ const watchModality = () => {
 
 const GraphLayer = memo(function GraphLayer({ drawing, view, side }) {
   const labels = useMemo(() => axisLabels(view, side), [view, side]);
+  // A url(#id) reference, so no punctuation a generated id may carry.
+  const plotClip = `mm-rush-plot-${useId().replace(/[^A-Za-z0-9_-]/g, '')}`;
   const font = Math.max(11, Math.min(15, Math.round(side / 42)));
   const axisX = drawing.grid.axisU * side;
   const axisY = drawing.grid.axisV * side;
@@ -60,6 +62,31 @@ const GraphLayer = memo(function GraphLayer({ drawing, view, side }) {
       ))}
       <line x1={0} x2={side} y1={axisY} y2={axisY} stroke="var(--mm-graph-axis)" strokeWidth={2} />
       <line x1={axisX} x2={axisX} y1={0} y2={side} stroke="var(--mm-graph-axis)" strokeWidth={2} />
+      {drawing.asymptotes.vertical.map((u) => (
+        <line key={`av${u}`} x1={u * side} x2={u * side} y1={0} y2={side} stroke="var(--mm-graph-axis)" strokeWidth={1.5} strokeDasharray="7 6" opacity={0.75} />
+      ))}
+      {drawing.asymptotes.horizontal.map((v) => (
+        <line key={`ah${v}`} x1={0} x2={side} y1={v * side} y2={v * side} stroke="var(--mm-graph-axis)" strokeWidth={1.5} strokeDasharray="7 6" opacity={0.75} />
+      ))}
+      {/* The curve runs on past the plot (the sampler extends it a band above
+          and below), so it is clipped to the plot square itself rather than
+          left to whatever the parent crops (LC01). */}
+      <clipPath id={plotClip}>
+        <rect width={side} height={side} />
+      </clipPath>
+      <g clipPath={`url(#${plotClip})`}>
+        <g transform={`scale(${side})`}>
+          {drawing.paths.map((path, index) => (
+            // eslint-disable-next-line react/no-array-index-key
+            <path key={index} d={path} fill="none" stroke="var(--mm-rush-curve)" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+          ))}
+        </g>
+      </g>
+      {/* The axis numbers are drawn OVER the curve, each with its own outline
+          in the plot's colour: a steep curve hugging an axis used to run over
+          the numbers beside it and hide them (LC01; it lies along the y-axis
+          for up to a fifth of the height, a cube root's vertical tangent being
+          what it is). */}
       <g fill="var(--mm-graph-label)" fontSize={font} fontWeight={700} style={{ fontVariantNumeric: 'tabular-nums' }}>
         {labels.x.map((label) => (
           <text key={`lx${label.value}`} x={label.u * side} y={xLabelY} textAnchor="middle" style={halo}>{formatCoordinate(label.value)}</text>
@@ -76,18 +103,6 @@ const GraphLayer = memo(function GraphLayer({ drawing, view, side }) {
           </text>
         ))}
         <text x={yLabelOnLeft ? axisX - LABEL_GAP : axisX + LABEL_GAP} y={xLabelY} textAnchor={yLabelOnLeft ? 'end' : 'start'} style={halo}>0</text>
-      </g>
-      {drawing.asymptotes.vertical.map((u) => (
-        <line key={`av${u}`} x1={u * side} x2={u * side} y1={0} y2={side} stroke="var(--mm-graph-axis)" strokeWidth={1.5} strokeDasharray="7 6" opacity={0.75} />
-      ))}
-      {drawing.asymptotes.horizontal.map((v) => (
-        <line key={`ah${v}`} x1={0} x2={side} y1={v * side} y2={v * side} stroke="var(--mm-graph-axis)" strokeWidth={1.5} strokeDasharray="7 6" opacity={0.75} />
-      ))}
-      <g transform={`scale(${side})`}>
-        {drawing.paths.map((path, index) => (
-          // eslint-disable-next-line react/no-array-index-key
-          <path key={index} d={path} fill="none" stroke="var(--mm-rush-curve)" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-        ))}
       </g>
       {drawing.dots.map((dot) => (
         <circle

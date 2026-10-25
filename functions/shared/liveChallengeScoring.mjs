@@ -40,7 +40,7 @@
  * wrapper used, so a Standard room pays precisely what it paid before.
  */
 
-import { ACCURACY_FIRST_MATCH_RANKING, scoreChallengeRound } from './liveChallenge.mjs';
+import { ACCURACY_FIRST_MATCH_RANKING, LIVE_PROVISIONAL_MAX_POINTS, scoreChallengeRound } from './liveChallenge.mjs';
 import { LEGACY_SPEED_INFLUENCE_PERCENT, scaleLegacySpeedPoints } from './liveChallengeExperience.mjs';
 import {
   DEFAULT_FIELD_PLACEMENT,
@@ -323,6 +323,51 @@ export const listScoringStrategies = () => [...REGISTRY.values()];
 export const roomScoringStrategyId = (room = {}) => (
   isRegisteredScoringStrategy(room?.scoringStrategyId) ? room.scoringStrategyId : DEFAULT_SCORING_STRATEGY_ID
 );
+
+/*
+ * WHAT A STUDENT'S UNFINISHED WORK IS WORTH ON A LIVE BOARD (LC01).
+ *
+ * While a round is open a student reports how far their working has got (a
+ * share of full credit, from their own device) and the board shows it on top
+ * of their banked score. That number is only ever a claim: the score is the
+ * server's, set when the answer is graded. So the board is held to what the
+ * room's own scoring would pay for that work if the student stopped and
+ * answered now, asked of the strategy itself (isCorrect: false: no speed,
+ * streak or comeback bonus, which are for a correct answer) so it can never
+ * drift from the arithmetic that pays:
+ *
+ *   Accuracy First   a first-time round pays its share of the 1000 base for
+ *                    partial credit, so the work is worth exactly that;
+ *   a Second Chance  a replay pays only a FULLY correct answer (recovery
+ *   round            points), so unfinished work is worth nothing yet. It used
+ *                    to show up to 1000 on the board and fall to 0 when the
+ *                    answer was graded;
+ *   Correct Count    pays one point for a fully correct answer, so partial
+ *                    work is worth none;
+ *   Grand Prix       raw round performance, which the board never shows
+ *                    (leaderboardOptionsFor): the same share of the base.
+ *
+ * The one rule that holds everywhere: the result is never more than the
+ * strategy would pay a CORRECT answer with the same credit, and never more
+ * than LIVE_PROVISIONAL_MAX_POINTS.
+ */
+export const provisionalWorth = ({
+  strategyId = null, credit = 0, secondChance = false, missedOriginally = false,
+} = {}) => {
+  const share = Math.max(0, Math.min(1, Number(credit) || 0));
+  const scored = getScoringStrategy(strategyId).scoreResponse({
+    gradeScore: share,
+    isCorrect: false,
+    remainingMs: 0,
+    totalMs: 1000,
+    elapsedMs: 1000,
+    previousStreak: 0,
+    previousRoundMissed: false,
+    secondChance: secondChance === true,
+    missedOriginally: missedOriginally === true,
+  });
+  return Math.min(LIVE_PROVISIONAL_MAX_POINTS, int(scored.pointsAwarded));
+};
 
 /**
  * How a leaderboard for this strategy is built. Work-in-progress points are

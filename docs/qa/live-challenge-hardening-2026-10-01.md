@@ -307,10 +307,25 @@ server unless it names a probe):
   cooldown is not allowed to punish honest mistakes harder.
 - Self-reported provisional points (classic, before the server's result) can
   show up to 1,000 on the live board for a moment; the stored score is the
-  server's.
+  server's. **Since LC01 (2026-10-25) the board is held to what the room's
+  scoring would pay for that work** (`provisionalWorth`,
+  `liveChallengeScoring.mjs`, applied by `reportLiveChallengeProgress` before it
+  writes the public row, and by the student's own "points banked" line): a
+  Second Chance round, which pays only a fully correct answer, and a Correct
+  Count game show none until the answer is graded (they showed up to 1,000 and
+  fell to 0). A first-time Accuracy First round still shows the work's share of
+  the 1,000 base, which is exactly what it pays, so a scripted client can still
+  claim up to that share for a moment; the server cannot check a device's step
+  credit without re-grading it on every report, which was judged too costly for
+  a board that never touches the score.
 - An unknown `challengeMode` in a create request becomes a Standard game (a
   stale client cannot break creation).
-- Steep curves overlap the y-axis visually (symmetric; §4).
+- Steep curves overlap the y-axis visually (symmetric; §4). **Since LC01
+  (2026-10-25)** the axis numbers are drawn over the curve, each with an outline
+  in the plot's colour, so a curve hugging an axis no longer hides them, and the
+  curve is clipped to the plot square. It still lies along the y-axis for up to
+  a fifth of the height where its tangent is vertical (a cube root's is): that is
+  the mathematics, not a drawing fault.
 
 **Future enhancements (deferred):**
 

@@ -7,6 +7,9 @@ import {
   provisionalPointsFor,
   publicLeaderboard,
 } from '../../functions/shared/liveChallenge.mjs';
+import { SCORE_ACCUMULATION, getScoringStrategy, listScoringStrategies, provisionalWorth, registerScoringStrategy } from '../../functions/shared/liveChallengeScoring.mjs';
+import { ACCURACY_FIRST_MATCH_RANKING } from '../../functions/shared/liveChallenge.mjs';
+import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const student = read('../../src/components/liveChallenge/LiveChallengeStudent.jsx');
@@ -44,6 +47,69 @@ test('nonsense in the field is worth nothing, not NaN', () => {
     assert.ok(Number.isInteger(value), `${String(bad)} produced ${value}`);
     assert.ok(value >= 0 && value <= LIVE_PROVISIONAL_MAX_POINTS);
   }
+});
+
+/* ---------- what unfinished work is worth (LC01) ---------- */
+
+// The board shows a student's unfinished work on top of their banked score.
+// The device reports a share of full credit; what the board gets is what the
+// room's own scoring would pay for that work if the answer were graded now.
+// The numbers below are written out, not read back from the scoring module.
+test('unfinished work in a first-time Accuracy First round is worth its share of the 1000 base', () => {
+  const worth = (credit) => provisionalWorth({ strategyId: 'accuracyFirst', credit });
+  assert.deepEqual([0, 0.25, 0.4, 0.333, 0.5, 0.75, 1].map(worth), [0, 250, 400, 333, 500, 750, 1000]);
+  // The strategy is the room's default when none is named, as for older rooms.
+  assert.equal(provisionalWorth({ credit: 0.4 }), 400);
+  assert.equal(provisionalWorth({ strategyId: 'noSuchStrategy', credit: 0.4 }), 400);
+  // A device's claim past the ends, or nonsense, never leaves 0..1000.
+  assert.deepEqual([-3, 7, 1e9, Number.NaN, Infinity, undefined, 'lots'].map(worth), [0, 1000, 1000, 0, 1000, 0, 0]);
+});
+
+test('a replay round and a Correct Count game pay nothing for work not yet answered, so the board shows none', () => {
+  // A Second Chance round pays only a fully correct answer (recovery points),
+  // whoever missed the question first. It used to show up to 1000 on the board
+  // and fall to 0 when the answer was graded.
+  for (const credit of [0.25, 0.9, 1]) {
+    assert.equal(provisionalWorth({ strategyId: 'accuracyFirst', credit, secondChance: true }), 0, `replay at ${credit}`);
+    assert.equal(provisionalWorth({ strategyId: 'accuracyFirst', credit, secondChance: true, missedOriginally: true }), 0, `missed replay at ${credit}`);
+    // One point for a fully correct answer; partial work is not a point.
+    assert.equal(provisionalWorth({ strategyId: 'correctCount', credit }), 0, `Correct Count at ${credit}`);
+  }
+  // Grand Prix keeps the raw round performance (the board never shows it).
+  assert.equal(provisionalWorth({ strategyId: 'grandPrix', credit: 0.4 }), 400);
+});
+
+test('unfinished work is never worth more than a correct answer with the same credit would pay, in any strategy or round', () => {
+  const strategies = listScoringStrategies();
+  assert.ok(strategies.length >= 3, 'every registered strategy is held to it');
+  for (const strategy of strategies) {
+    for (const secondChance of [false, true]) {
+      for (const missedOriginally of [false, true]) {
+        for (const credit of [0, 0.1, 0.5, 0.99, 1]) {
+          const worth = provisionalWorth({ strategyId: strategy.id, credit, secondChance, missedOriginally });
+          const correct = getScoringStrategy(strategy.id).scoreResponse({
+            gradeScore: credit, isCorrect: true, remainingMs: 0, totalMs: 1000, elapsedMs: 1000, previousStreak: 0, previousRoundMissed: false, secondChance, missedOriginally,
+          }).pointsAwarded;
+          assert.ok(Number.isInteger(worth) && worth >= 0 && worth <= LIVE_PROVISIONAL_MAX_POINTS, `${strategy.id} ${credit}: ${worth}`);
+          assert.ok(worth <= correct, `${strategy.id} secondChance=${secondChance} credit=${credit}: ${worth} shown, ${correct} payable`);
+        }
+      }
+    }
+  }
+});
+
+// Last of its group: it registers a strategy, and a registered id is permanent,
+// so the loop above must already have run.
+test('the cap holds even for a strategy that would pay more than a base round', () => {
+  registerScoringStrategy({
+    id: 'testOversizedPayout',
+    accumulation: SCORE_ACCUMULATION.PER_RESPONSE,
+    normalizeConfig: () => ({}),
+    matchPointsForPlacement: () => 0,
+    matchRanking: ACCURACY_FIRST_MATCH_RANKING,
+    scoreResponse: () => ({ pointsAwarded: 5000 }),
+  });
+  assert.equal(provisionalWorth({ strategyId: 'testOversizedPayout', credit: 1 }), LIVE_PROVISIONAL_MAX_POINTS);
 });
 
 /* ---------- the board ---------- */
@@ -88,6 +154,25 @@ test('progress writes only player documents and milestone score is receipt-deriv
   assert.match(block, /LIVE_PROVISIONAL_MAX_POINTS/, 'must clamp what the browser claims');
 });
 
+// LC01. The device's number is a claim; the board gets what the room's scoring
+// pays for that work. The public row is written with the converted number, and
+// the claim is never stored as it arrived.
+test('the progress callable writes what the work is worth in this room and round, never the raw claim', () => {
+  const start = functionsIndex.indexOf('exports.reportLiveChallengeProgress');
+  const block = executableSource(functionsIndex.slice(start, functionsIndex.indexOf('async function maybeCompressLiveChallengeRoundAfterThreshold', start)));
+  const worth = region(block, 'const claimedCredit = ', 'let speedInfluencePercent', 'the conversion');
+  assert.match(worth, /Math\.min\(challenge\.LIVE_PROVISIONAL_MAX_POINTS, Math\.round\(Number\(request\.data\?\.provisionalPoints\) \|\| 0\)\)/, 'the claim is clamped first');
+  assert.match(worth, /const provisionalPoints = engine\.scoring\.provisionalWorth\(\{ strategyId: scoringStrategyId, credit: claimedCredit, secondChance \}\);/);
+  // The strategy is the room's, and the round's second-chance flag is the one
+  // the milestone path already reads, both known before the conversion.
+  assert.ok(block.indexOf('const scoringStrategyId = engine.scoring.roomScoringStrategyId(room);') < block.indexOf('const claimedCredit'));
+  assert.ok(block.indexOf('const secondChance = Object.prototype.hasOwnProperty.call(privateState.secondChanceOf') < block.indexOf('const claimedCredit'));
+  // The public row is written with the converted number.
+  const publicWrite = region(block, 'transaction.set(publicPlayerRef, {', '}, { merge: true });', 'the public row');
+  assert.match(publicWrite, /\bprovisionalPoints,/);
+  assert.doesNotMatch(block, /provisionalPoints:\s*request\.data/, 'the claim is never written as it arrived');
+});
+
 test('a report for a round that has moved on is ignored, not an error', () => {
   // A debounced report can land after the teacher advances. Throwing there would
   // surface a scary message to a student who did nothing wrong.
@@ -104,6 +189,18 @@ test('the running total reuses the solver step credit, it does not re-derive it'
   assert.match(student, /import \{ calculateStepPartialCredit, emptyQuestionRecord, recordQuestionStep \} from '\.\.\/\.\.\/attemptPolicy\.js'/);
   assert.match(student, /calculateStepPartialCredit\(stepRecord\.stepGrades, stepRecord\.variantIndex\)/);
   assert.match(student, /onStepGrade=\{/);
+});
+
+// LC01. The student's own "points banked this round" line and the number they
+// report are the same worth, so a replay round shows and sends none.
+test('the working points a student sees and reports are what the room pays for that work', () => {
+  const block = executableSource(student.slice(student.indexOf('const scoringStrategyId = room.scoringStrategyId || null;'), student.indexOf('const secureQuestion = useMemo(')));
+  assert.match(block, /const replayRound = room\.secondChanceOf != null;/, 'the replay flag is the room\'s own, as the countdown card reads it');
+  const worth = region(block, 'const workingPoints = useMemo(', '[stepRecord, scoringStrategyId, replayRound],', 'working points');
+  assert.match(worth, /provisionalWorth\(\{/);
+  assert.match(worth, /strategyId: scoringStrategyId,/);
+  assert.match(worth, /credit: clampPercent\(calculateStepPartialCredit\(stepRecord\.stepGrades, stepRecord\.variantIndex\)\) \/ 100,/, 'the step credit is reused, not re-derived');
+  assert.match(worth, /secondChance: replayRound,/);
 });
 
 test('progress reporting is debounced and never fires after an answer', () => {

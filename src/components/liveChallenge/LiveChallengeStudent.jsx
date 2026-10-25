@@ -2,9 +2,9 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { BACK_TO_HOME } from '../../platform/student/studentWords.js';
 import QuestionEngineView from '../../QuestionEngine.jsx';
 import useActionBarFocusReveal from '../common/useActionBarFocusReveal.js';
-import { publicLeaderboard, LIVE_PROVISIONAL_MAX_POINTS } from '../../../functions/shared/liveChallenge.mjs';
+import { publicLeaderboard } from '../../../functions/shared/liveChallenge.mjs';
 import { acceptChallengeSnapshot, calibrateChallengeClock, challengePhaseAt, monotonicRoundOrigin } from '../../../functions/shared/liveChallengeParity.mjs';
-import { getScoringStrategy, leaderboardOptionsFor, SCORE_ACCUMULATION } from '../../../functions/shared/liveChallengeScoring.mjs';
+import { getScoringStrategy, leaderboardOptionsFor, provisionalWorth, SCORE_ACCUMULATION } from '../../../functions/shared/liveChallengeScoring.mjs';
 import { PROJECTION_KIND, standingsFromProjection } from '../../../functions/shared/liveChallengeStandingsProjection.mjs';
 import { summaryFinal, summaryRound, summaryUnansweredRounds } from '../../../functions/shared/liveChallengePlayerSummary.mjs';
 import { calculateStepPartialCredit, emptyQuestionRecord, recordQuestionStep } from '../../attemptPolicy.js';
@@ -239,9 +239,19 @@ export function ChallengeRound({
   const latestRetryRef = useRef(null);
   const [stepRecord, setStepRecord] = useState(() => emptyQuestionRecord());
   const stepRecordRef = useRef(stepRecord);
+  // What this work is worth in THIS round, by the room's own scoring (LC01):
+  // a replay round or a Correct Count game pays nothing for work not yet
+  // answered, so none is shown or reported. The server applies the same rule
+  // to whatever a device reports, and the board only ever shows the server's.
+  const scoringStrategyId = room.scoringStrategyId || null;
+  const replayRound = room.secondChanceOf != null;
   const workingPoints = useMemo(
-    () => Math.round((LIVE_PROVISIONAL_MAX_POINTS * clampPercent(calculateStepPartialCredit(stepRecord.stepGrades, stepRecord.variantIndex))) / 100),
-    [stepRecord],
+    () => provisionalWorth({
+      strategyId: scoringStrategyId,
+      credit: clampPercent(calculateStepPartialCredit(stepRecord.stepGrades, stepRecord.variantIndex)) / 100,
+      secondChance: replayRound,
+    }),
+    [stepRecord, scoringStrategyId, replayRound],
   );
   const secureQuestion = useMemo(
     () => questionFromToolPayload(question),
