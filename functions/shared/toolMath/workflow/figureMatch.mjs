@@ -34,7 +34,19 @@ const list = (value) => (Array.isArray(value) ? value : []);
 const text = (value) => String(value ?? '').trim();
 
 /** What Figure N is called on screen. The author has no say in this. */
-export const figureLabel = (index) => `Figure ${index + 1}`;
+export const figureLabel = (index, noun = 'Figure') => `${noun} ${index + 1}`;
+
+/*
+ * A SORT OF WORDS IS A SORT OF CARDS (FB16). Cards that show only text were
+ * headed "FIGURE 1", "FIGURE 2". The noun is the stage's, never one card's —
+ * every card in a stage is named the same way — so it says nothing about any
+ * card's category: "Card" when every card is text alone, "Figure" otherwise.
+ */
+export const figureNoun = (stage) => {
+  const items = list(stage?.items).filter(isObject);
+  const textOnly = items.length > 0 && items.every((item) => Boolean(text(item.text)) && !isObject(item.graph) && !text(item.math));
+  return textOnly ? 'Card' : 'Figure';
+};
 
 export const matchItems = (stage) => list(stage?.items).filter(isObject);
 export const matchCategories = (stage) => list(stage?.categories).filter(isObject);

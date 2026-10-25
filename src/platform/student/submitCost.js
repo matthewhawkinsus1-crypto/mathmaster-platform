@@ -82,6 +82,27 @@ export const missOutcomeText = (remainingAttempts) => {
   return `Not quite. You have ${left} tries left.`;
 };
 
+/*
+ * "FOCUS ON: …" AFTER A MISS (FB16), from the missed parts' own labels. A
+ * label written as a sentence or a prompt ("Write t(x) in terms of f(x).",
+ * "Simplify: t(x) =") was joined as it stood: "Focus on: Write t(x) in terms
+ * of f(x)., Simplify: t(x) =." Each label loses its own closing punctuation
+ * and a dangling "=" (never inside $…$ math), labels that hold a comma or a
+ * colon are kept apart with semicolons, and one full stop ends the line.
+ */
+const LABEL_END = /[\s.,;:=]+$/;
+const focusLabel = (label) => {
+  const text = String(label ?? '').trim();
+  return text.endsWith('$') ? text : text.replace(LABEL_END, '');
+};
+export const focusOnText = (labels = []) => {
+  const parts = [...new Set((Array.isArray(labels) ? labels : []).map(focusLabel).filter(Boolean))];
+  if (!parts.length) return '';
+  const separator = parts.some((part) => /[,;:]/.test(part)) ? '; ' : ', ';
+  const end = /[?!]$/.test(parts[parts.length - 1]) ? '' : '.';
+  return `Focus on: ${parts.join(separator)}${end}`;
+};
+
 /**
  * The tries strip above the question while it is open: the count, with the
  * last try and a one-try item named as such.

@@ -29,7 +29,7 @@ import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
 import { buildSimilarWorkedExample } from './platform/supports/workedExample/similarProblem.js';
 import PracticeLikeThis from './platform/supports/workedExample/PracticeLikeThis.jsx';
 import { chosenOptionReasons, oneTryNotice } from './platform/supports/feedback/oneTryChoice.js';
-import { SAME_ANSWER_AGAIN, missOutcomeText, submitActionLabel, submitTryCost, triesLeftText } from './platform/student/submitCost.js';
+import { SAME_ANSWER_AGAIN, focusOnText, missOutcomeText, submitActionLabel, submitTryCost, triesLeftText } from './platform/student/submitCost.js';
 import { LANGUAGE_TOOLS, START_OVER, START_QUESTION_OVER, STARTING_OVER } from './platform/student/studentWords.js';
 import './components/student/SubmitCost.css';
 import { closedQuestionEnterAction } from './platform/interaction/closedQuestionEnter.js';
@@ -2039,7 +2039,7 @@ function QuestionEngineBody({
         : missOutcomeText(remainingAttempts)))
     : '';
   const attemptOutcomeFocus = feedback && !feedback.isCorrect && !isComposed && Array.isArray(feedback.incorrectParts) && feedback.incorrectParts.length > 0
-    ? `Focus on: ${feedback.incorrectParts.join(', ')}.`
+    ? focusOnText(feedback.incorrectParts)
     : '';
   const attemptOutcomeSpecific = missDetail?.message || '';
   // THE HELP THE STUDENT HAS SEEN, for the Language tools' Vocabulary (AX43):

@@ -154,3 +154,22 @@ test('an unfinished match is unanswered, not zero out of four', () => {
   assert.equal(partial.parts[0].isComplete, false);
   assert.equal(partial.parts[0].detail, 'Not answered.');
 });
+
+test('FB16: a sort of words is a sort of cards — one noun per stage, never per card', async () => {
+  const { figureLabel, figureNoun } = await import('../../src/platform/workflow/figureMatch.js');
+  const words = { items: [{ id: 'a', text: 'The rate is constant.' }, { id: 'b', text: 'The rate changes.' }] };
+  const graphs = { items: [{ id: 'a', graph: { functions: ['x'] } }, { id: 'b', graph: { functions: ['x^2'] } }] };
+  const mixed = { items: [{ id: 'a', text: 'y grows by 2' }, { id: 'b', math: 'y = 2x' }] };
+  assert.equal(figureNoun(words), 'Card');
+  assert.equal(figureNoun(graphs), 'Figure');
+  assert.equal(figureNoun(mixed), 'Figure', 'a stage that mixes text with mathematics or graphs keeps one noun: Figure');
+  assert.equal(figureNoun({ items: [] }), 'Figure');
+  assert.equal(figureLabel(2, figureNoun(words)), 'Card 3');
+  assert.equal(figureLabel(2), 'Figure 3', 'the author-facing checks still say Figure');
+  const { readFileSync } = await import('node:fs');
+  const stage = readFileSync(new URL('../../src/platform/workflow/FigureMatchStage.jsx', import.meta.url), 'utf8');
+  assert.match(stage, /const noun = figureNoun\(stage\);/);
+  assert.match(stage, /const label = figureLabel\(index, noun\);/);
+  assert.match(stage, /figureList\(\[\.\.\.wrong\]\.sort\(\(a, b\) => a - b\), noun\)/);
+  assert.match(stage, /\{noun === 'Card' \? 'cards' : 'figures'\} matched\./);
+});
