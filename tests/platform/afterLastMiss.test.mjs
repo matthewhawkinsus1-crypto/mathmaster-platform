@@ -325,16 +325,18 @@ test('HELP-11: Pre-Flight warns — never blocks — on answer-only worked solut
   assert.equal(workedSolutionDepth(factorTemplate), 'steps');
   assert.equal(workedSolutionDepth(sumTemplate), 'answerOnly');
   assert.equal(workedSolutionDepth({ ...sumTemplate, solutionReview: { reasoning: ['{{a}} + 1 = {{v}}.'] } }), 'steps');
-  // The real lessons: 884 of 945 practice-like items walk through steps —
+  // The real lessons: 893 of 971 practice-like items walk through steps —
   // 204 of 265 in the lessons before October 22 (199 before family slots
   // were judged by a version), then every one in Operations on Polynomials
   // and Dividing Polynomials (59), the Algebra I DOL #3 Review (13) and its
   // Honors version (16), the Algebra II Honors DOL #2 review (33), Module 3
-  // (144) and its Honors files (146), and the Algebra II Polynomials and
-  // Radicals lessons (132) and their Honors versions (137).
+  // (144) and its Honors files (146), the Algebra II Polynomials and
+  // Radicals lessons (132) and their Honors versions (137), and the Algebra I
+  // Lesson 3 Honors file (26, 9 with steps: the Regular lesson's 8 less the
+  // one it swaps out, and both audited items).
   const practiceLike = itemsByRole().filter((item) => ['warmup', 'classwork', 'practice'].includes(item.role));
-  assert.equal(practiceLike.length, 265 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137);
-  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 204 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137);
+  assert.equal(practiceLike.length, 265 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 26);
+  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 204 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 9);
   // Wired into Pre-Flight as advice the teacher sees in the Check step, and
   // never as a diagnostic: any warning diagnostic makes an assignment "Needs
   // Review", which students never see (isUnpublishedDraft) — and most real

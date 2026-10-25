@@ -5,7 +5,7 @@ import { auditStaticGraphViewport } from '../../graphSpecUtils.js';
 import { validateQuestionInteractionContracts } from '../interaction/interactionContract.js';
 import { validateQuestionGradingContracts } from '../grading/gradingContract.js';
 import { instructionalIntegrityProblems } from './instructionalIntegrity.js';
-import { labelHasDelimitedMath } from '../../labelFormat.js';
+import { labelHasDelimitedMath, resolveLabelFormat } from '../../labelFormat.js';
 import {
   familyResolutionMessage,
   isFamilyBackedQuestion,
@@ -403,6 +403,18 @@ const SUPPORTED_PROMPT_MATH = /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\
 // v2 — a warning the teacher could do nothing about.
 const NON_UI_TEXT_FIELDS = new Set(['solutionKey']);
 
+// A choice option is drawn by MultiAnswerGrader's ChoiceFieldOptions: as typeset
+// mathematics when it holds no ordinary word (resolveLabelFormat), after
+// MathDisplay removes the ONE outer $…$ pair. Every option of an audited bank
+// item is written that way ("$4x-5y=19$"), so reading it as plain UI text warned
+// "raw LaTeX" on each of them, a warning no teacher could act on. An option with
+// a word in it ("$x$ or $y$", "$\frac{1}{2}$") is drawn as plain text, dollar
+// signs and all, and is still warned about.
+const WRAPPED_MATH = /^(?:\$\$[^$]+\$\$|\$[^$\n]+\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\])$/;
+const isTypesetChoiceOption = (option) => typeof option === 'string'
+  && WRAPPED_MATH.test(option.trim())
+  && resolveLabelFormat(option) !== null;
+
 const checkPlainTextMath = (question, label, errors, warnings) => {
   const strings = collectStrings(isObject(question)
     ? Object.fromEntries(Object.entries(question).filter(([key]) => !NON_UI_TEXT_FIELDS.has(key)))
@@ -427,9 +439,14 @@ const checkPlainTextMath = (question, label, errors, warnings) => {
   const mathLabels = new Set(String(question?.type) === 'multiAnswer' && Array.isArray(question.answerFields)
     ? question.answerFields.map((field) => field?.label).filter((text) => typeof text === 'string' && labelHasDelimitedMath(text))
     : []);
+  // The options of a choice field in a multiAnswer question, and so its key,
+  // which is one of them: the same string.
+  const mathOptions = new Set(String(question?.type) === 'multiAnswer' && Array.isArray(question.answerFields)
+    ? question.answerFields.flatMap((field) => (Array.isArray(field?.options) ? field.options : [])).filter(isTypesetChoiceOption)
+    : []);
   const stringsToCheck = strings.map((text) => {
     if (text === prompt) return promptRemainder;
-    return mathLabels.has(text) ? text.replace(SUPPORTED_PROMPT_MATH, '') : text;
+    return mathLabels.has(text) || mathOptions.has(text) ? text.replace(SUPPORTED_PROMPT_MATH, '') : text;
   });
   const latex = stringsToCheck.find((text) => LATEX_COMMAND.test(text) || LATEX_DELIMITER.test(text));
   if (latex) {
