@@ -241,7 +241,7 @@ const rewriteSide = (session, side, typedValue) => {
   const value = latexToExpression(typedValue);
   assert.ok(expressionsEquivalent(value, session.equation[side], session.equation.variable), 'the workspace accepts only an equivalent rewrite');
   const after = { ...session.equation, [side]: value };
-  step(session, rewritePayload(session, after, { kind: 'student-rewrite', label: `Rewrite / simplify ${side}` }), `rewrite ${side} as ${typedValue}`);
+  step(session, rewritePayload(session, after, { kind: 'student-rewrite', label: `Simplified the ${side} side` }), `rewrite ${side} as ${typedValue}`);
   session.equation = after;
 };
 
@@ -347,7 +347,7 @@ test('distribution, combine like terms and the balance finish earn the same reco
   rewriteSide(session, 'left', '6x - 12 + 5x');
   const [group] = findLikeTermGroups(session.equation.left);
   const combined = { ...session.equation, left: replaceSelectedLikeTerms(session.equation.left, group.indices, latexToExpression('11x')) };
-  step(session, rewritePayload(session, combined, { kind: 'combine-like-terms', label: 'Combine like terms on the left side' }), 'combine like terms');
+  step(session, rewritePayload(session, combined, { kind: 'combine-like-terms', label: 'Combined like terms on the left side' }), 'combine like terms');
   session.equation = combined;
   balance(session, { operation: 'add', operand: '12', resolution: 'simplified', answers: { right: '36' } });
   balance(session, { operation: 'divide', operand: '11' });
@@ -700,7 +700,7 @@ test('a rewrite that is not equivalent, changes nothing, or is not one side earn
 
 test('forged credit fields, verdicts and keys in the step work are never read', () => {
   const session = solvedOnce();
-  const honest = rewritePayload(session, { ...session.equation, right: '15' }, { kind: 'student-rewrite', label: 'Rewrite / simplify right' });
+  const honest = rewritePayload(session, { ...session.equation, right: '15' }, { kind: 'student-rewrite', label: 'Simplified the right side' });
   const forged = {
     ...honest.stepWork,
     earned: 99, possible: 1, productive: true, isCorrect: true, score: 1, expectedTotalPoints: 1,
@@ -968,7 +968,7 @@ test('the one Simplify reports kinds the server verifies, and a record keyed by 
   const session = equationSession(SUBSTITUTED);
   // Step 1: the right side, 5 - 3 -> 2 (the group stays on the left).
   const afterOne = { ...session.equation, right: '2' };
-  step(session, rewritePayload(session, afterOne, { kind: 'combine-like-terms', label: 'Combine like terms on the right side' }), 'combine the constants');
+  step(session, rewritePayload(session, afterOne, { kind: 'combine-like-terms', label: 'Combined like terms on the right side' }), 'combine the constants');
   session.equation = afterOne;
   assert.match(equationToLatex(afterOne), /x\+\\left\(-4/, 'drawn as the group, no 1');
   // Step 2: Remove parentheses (inline-term-rewrite), as Simplify reports it.
@@ -986,7 +986,7 @@ test('the one Simplify reports kinds the server verifies, and a record keyed by 
   const again = verifyOnServer(SUBSTITUTED, legacy, equationStepWork({
     action: STEP_ACTIONS.REWRITE,
     kind: 'student-rewrite',
-    label: 'Rewrite / simplify left',
+    label: 'Simplified the left side',
     before: afterOne,
     after: { ...afterOne, left: '-2 * x + 12' },
     supportLevel: 3,
@@ -1002,6 +1002,32 @@ test('the one Simplify reports kinds the server verifies, and a record keyed by 
   );
 });
 
+// GR26: One Simplify tells the student "Simplified the left side" and
+// "Combined like terms on the left side"; the server recorded the retired
+// bar's "Rewrite / simplify left". It now records One Simplify's words, from
+// the step's own sides (never the label the browser claims), and the
+// workspace sends the same text, so the two records stay equal (the `step`
+// helper above asserts that for every rewrite in this file).
+test('GR26 — a rewrite is recorded in One Simplify\'s words, whatever label the browser claims', () => {
+  const equation = parseEquationInput(LINEAR);
+  const label = (kind, after) => {
+    const verdict = verifyOnServer(LINEAR, emptyQuestionRecord(), equationStepWork({
+      action: STEP_ACTIONS.REWRITE, kind, label: 'Rewrite / simplify right', before: equation, after, supportLevel: 3,
+    }));
+    assert.equal(verdict.verified, true, verdict.reason);
+    return verdict.stepGrade.label;
+  };
+  assert.equal(label('student-rewrite', { ...equation, right: '20 + 1' }), 'Simplified the right side');
+  assert.equal(label('student-rewrite', { ...equation, left: '3 x + 4 + 2', right: '20 + 1' }), 'Simplified the left and right sides');
+  assert.equal(label('combine-like-terms', { ...equation, left: '2 x + x + 6' }), 'Combined like terms on the left side');
+  // The workspace (JSX, read as text) builds its label with the same function.
+  const core = readFileSync(new URL('../../src/StepByStepAlgebraCore.jsx', import.meta.url), 'utf8');
+  const commit = core.slice(core.indexOf('const commitSimplifyResult = async'), core.indexOf('const saved = await persistStudentRewrite(beforeEquation, nextEquation, [result.region]'));
+  assert.match(commit, /\? equationRewriteLabel\(result\.step\.kind, \[result\.region\]\)/);
+  assert.match(core, /label = equationRewriteLabel\('student-rewrite', changedSides\),/);
+  assert.doesNotMatch(core, /Rewrite \/ simplify/, 'no second copy of the old wording');
+});
+
 // ---------------------------------------------------------------------------
 // Pass 3 Q-31: an implicit product was written with MathJS's TeX tie, 2~ x,
 // and is now written 2 x (the tie drew as a gap). The tie is spacing, so a
@@ -1013,7 +1039,7 @@ const tieRendering = (latex) => String(latex).replace(/(\d) ([a-z])/g, '$1~ $2')
 test('a record keyed by the old 2~ x rendering stays continuous and earns once', () => {
   const session = equationSession(SUBSTITUTED);
   const afterOne = { ...session.equation, right: '2' };
-  step(session, rewritePayload(session, afterOne, { kind: 'combine-like-terms', label: 'Combine like terms on the right side' }), 'combine the constants');
+  step(session, rewritePayload(session, afterOne, { kind: 'combine-like-terms', label: 'Combined like terms on the right side' }), 'combine the constants');
   session.equation = afterOne;
   assert.doesNotMatch(equationToLatex(afterOne), /~/, 'drawn without the tie');
   const legacy = JSON.parse(JSON.stringify(records(session).server));
@@ -1022,7 +1048,7 @@ test('a record keyed by the old 2~ x rendering stays continuous and earns once',
   const again = verifyOnServer(SUBSTITUTED, legacy, equationStepWork({
     action: STEP_ACTIONS.REWRITE,
     kind: 'student-rewrite',
-    label: 'Rewrite / simplify left',
+    label: 'Simplified the left side',
     before: afterOne,
     after: { ...afterOne, left: '-2 * x + 12' },
     supportLevel: 3,

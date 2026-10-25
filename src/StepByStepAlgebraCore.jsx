@@ -52,6 +52,7 @@ import { equationWorkspaceWork, workGraderForQuestion } from '../functions/share
 import {
   STEP_ACTIONS,
   equationMoveStepGrade,
+  equationRewriteLabel,
   equationRewriteStepGrade,
   equationStatePatch,
   equationStepWork,
@@ -1142,7 +1143,7 @@ export default function StepByStepAlgebra({
 
   const persistStudentRewrite = async (beforeEquation, nextEquation, changedSides, {
     kind = 'student-rewrite',
-    label = `Rewrite / simplify ${changedSides.join(' and ')}`,
+    label = equationRewriteLabel('student-rewrite', changedSides),
   } = {}) => {
     if (!onStepGrade) return null;
     setSavingStep(true);
@@ -1162,13 +1163,11 @@ export default function StepByStepAlgebra({
     const beforeEquation = equation;
     const nextEquation = { ...equation, [result.region]: result.expression };
     if (nextEquation[result.region] === beforeEquation[result.region]) return false;
-    const label = result.step.kind === 'student-rewrite'
-      ? `Rewrite / simplify ${result.region}`
-      : result.step.kind === 'combine-like-terms'
-        ? `Combine like terms on the ${result.region} side`
-        : result.step.kind === 'inline-term-rewrite'
-          ? `Rewrite one term on the ${result.region} side`
-          : result.step.description;
+    // The label the server records for these kinds (its own text, GR26), so
+    // the two records stay equal; any other kind is named by its description.
+    const label = ['student-rewrite', 'combine-like-terms', 'inline-term-rewrite'].includes(result.step.kind)
+      ? equationRewriteLabel(result.step.kind, [result.region])
+      : result.step.description;
     const saved = await persistStudentRewrite(beforeEquation, nextEquation, [result.region], { kind: result.step.kind, label });
     if (holdUnsavedStep(saved, () => commitSimplifyResult(result))) return false;
     pushCommittedEquation(beforeEquation, { ...result.step, after: nextEquation });
