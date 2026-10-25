@@ -44,6 +44,16 @@ stands, so a later audit does not raise it again.
 | TS02 | "Connect my points" on exit tickets. | Offer it on exit tickets, quizzes and tests only to students with a keyboard-access accommodation. | `2e155960`, `85f40b70` |
 | TT15 | The Honors auto-swap replaced blueprint items with off-topic SAT/ACT items. | Match swaps on task type, not only TEKS. | `2110f95d` |
 
+## Built in part
+
+Two decisions are larger than this pass. The first slice of each is built and tested; the rest is listed with
+what it needs.
+
+| Id | Question | Decision | Built, and what remains | Commit |
+| --- | --- | --- | --- | --- |
+| FB19 | "Practise one like this" appeared only where a question family has a sibling (118 of 220 Classwork and Practice items). | Always offer an unscored "practise one like this" after the last miss (D3). | A closed 3×3 system solved by hand now offers one: the same system with new numbers, worked in full, its key confirmed by the Systems Workspace grader. It is never easier and never shares the item's answer. Coverage went from 118 to 129 of the 220 items (234 to 246 of all current lessons). Each next shape needs a decision or its own build: Matrix Lab solves practised by hand; the 3×3 special cases; another instance of a family slot (which may be a classmate's version); radical equations; and static multi-part and conceptual items, which need authored siblings. | `80bd0f64` |
+| SI02 | Answer keys and worked solutions sit in assignment documents students' devices can read. | Serve keys and solutions from the server (D10). | The first slice of Phase 1, in shadow: each assignment's keys are split into a store students cannot read, written by a new trigger. Nothing reads it yet, so nobody sees a change. Remaining: the server readers switch to it, a parity audit runs in production (two weeks with no mismatch), the owner runs a backfill, and then Phase 2 (8–10 days) takes the keys out of what students read. | `d8f4e671`, `7fecacfe`, `2c95c076`, `fd1f5a91` |
+
 ## Confirmed as built
 
 These smaller items asked the owner to confirm a behaviour that was already built. The answer was "Do it", which
@@ -77,4 +87,3 @@ confirms each as it stands. Any of them can still be changed later.
 | Id | What is needed |
 | --- | --- |
 | OP07 | A staging Firebase project: the owner creates the project and sends its config. |
-| FB19, SI02 | Large builds (practice where a family has no sibling; answer keys off students' devices). Scheduled after the items above. |
