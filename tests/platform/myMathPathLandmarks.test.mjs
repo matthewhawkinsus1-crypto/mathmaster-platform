@@ -16,7 +16,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { MAIN_CONTENT_ID, STUDENT_NAVIGATION_LABEL, skipTarget } from '../../src/components/common/skipTarget.js';
-import { PATH_HEADER_H1_STYLE, TABS_WITH_OWN_H1, pathContentIsMain, pathHeaderIsH1 } from '../../src/components/student/myMathPathLandmarks.js';
+import {
+  PATH_HEADER_H1_STYLE, TABS_WITH_OWN_H1, pathContentIsMain, pathHeaderIsH1, pathOwnExitLabel,
+} from '../../src/components/student/myMathPathLandmarks.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
@@ -146,7 +148,11 @@ test('exactly one h1 on every My Math Path view a student sees', () => {
   }
 
   const app = executableSource(read('src/components/student/MyMathPathApp.jsx'));
-  assert.match(app, /import \{ PATH_HEADER_H1_STYLE, pathContentIsMain, pathHeaderIsH1 \} from '\.\/myMathPathLandmarks\.js';/);
+  // The screen takes these decisions from the landmarks module (other names may join them).
+  const imported = app.match(/import \{([^}]*)\} from '\.\/myMathPathLandmarks\.js';/)?.[1] || '';
+  for (const name of ['PATH_HEADER_H1_STYLE', 'pathContentIsMain', 'pathHeaderIsH1']) {
+    assert.match(imported, new RegExp(`\\b${name}\\b`), `${name} comes from myMathPathLandmarks.js`);
+  }
   const header = region(app, "{activeTab !== 'session' && (\n        <header", '</header>', 'the header');
   // The h1 is only structure: inside it is the same <strong> the other tabs
   // draw, so the title does not change look as the student switches tabs.
@@ -205,4 +211,26 @@ test('each weekly session has exactly one Start: its own card', () => {
   assert.match(card, /const highlighted = isNext && !done;/);
   assert.match(cards, /isNext=\{session\.slot === next\?\.slot\}/);
   assert.match(card, /\{highlighted && \([\s\S]{0,300}Do this next/);
+});
+
+// ------------------------------------------------------------ one way Home (MP08)
+test('a student, who has the shared row, gets no second Home in the Path\'s own nav', () => {
+  // The shared student navigation already offers Home; a second control with
+  // the same name beside it made students wonder whether they differed.
+  assert.equal(pathOwnExitLabel({ readOnly: false, hasExit: true, hasGlobalNav: true }), null);
+});
+
+test('where there is no shared row, the Path keeps its own way out', () => {
+  // The Teacher Path Simulator has no shared row: this nav is its only way back.
+  assert.equal(pathOwnExitLabel({ readOnly: false, hasExit: true, hasGlobalNav: false }), 'Home');
+  // A teacher reading a student's Path always gets the way back to the student,
+  // shared row or not (the shared row is never drawn read-only).
+  assert.equal(pathOwnExitLabel({ readOnly: true, hasExit: true, hasGlobalNav: false }), 'Back to student');
+  assert.equal(pathOwnExitLabel({ readOnly: true, hasExit: true, hasGlobalNav: true }), 'Back to student');
+});
+
+test('with nowhere to go there is no button at all', () => {
+  assert.equal(pathOwnExitLabel({ readOnly: false, hasExit: false, hasGlobalNav: false }), null);
+  assert.equal(pathOwnExitLabel({ readOnly: true, hasExit: false, hasGlobalNav: true }), null);
+  assert.equal(pathOwnExitLabel(), null);
 });

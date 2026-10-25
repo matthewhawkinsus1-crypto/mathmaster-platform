@@ -51,7 +51,7 @@ import {
   writeMathPathRouteState,
 } from '../../platform/student/browserHistory.js';
 import { mathPathUrlFor } from '../../app/routes/browserUrl.js';
-import { PATH_HEADER_H1_STYLE, pathContentIsMain, pathHeaderIsH1 } from './myMathPathLandmarks.js';
+import { PATH_HEADER_H1_STYLE, pathContentIsMain, pathHeaderIsH1, pathOwnExitLabel } from './myMathPathLandmarks.js';
 
 // The mastery-status priority list this used to be was a second, competing
 // idea of what to recommend, sitting beside the path engine and able to
@@ -725,6 +725,8 @@ export const MyMathPathExperience = ({
 
   const embeddedInTeacherPage = Boolean(readOnly || sessionProvider);
   const ScreenBody = pathContentIsMain({ activeTab, embedded: embeddedInTeacherPage }) ? 'main' : React.Fragment;
+  // The Path's own way out, only where the shared row above does not carry one.
+  const ownExitLabel = pathOwnExitLabel({ readOnly, hasExit: Boolean(onExit), hasGlobalNav: Boolean(onNavigate) });
 
   return (
     <div style={{ minHeight: '100%', background: 'var(--mm-surface-sunken)' }}>
@@ -757,7 +759,7 @@ export const MyMathPathExperience = ({
             )}
             <nav aria-label="My Math Path navigation" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
               {visibleTabs.map(([tab, label]) => <button key={tab} type="button" onClick={() => setActiveTab(tab)} style={{ minHeight: 44, padding: '12px 8px 10px', border: 0, borderBottom: `3px solid ${activeTab === tab ? '#1a73e8' : 'transparent'}`, background: 'transparent', color: activeTab === tab ? 'var(--mm-primary-text)' : 'var(--mm-text-muted)', fontWeight: 900, cursor: 'pointer' }}>{label}</button>)}
-              {onExit && <button type="button" onClick={onExit} style={{ marginLeft: '6px', minHeight: 44, padding: '8px 11px', border: '1px solid var(--mm-border)', borderRadius: '7px', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, cursor: 'pointer' }}>{readOnly ? 'Back to student' : 'Home'}</button>}
+              {ownExitLabel && <button type="button" onClick={onExit} style={{ marginLeft: '6px', minHeight: 44, padding: '8px 11px', border: '1px solid var(--mm-border)', borderRadius: '7px', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, cursor: 'pointer' }}>{ownExitLabel}</button>}
             </nav>
           </div>
         </header>

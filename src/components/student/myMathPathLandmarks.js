@@ -20,6 +20,19 @@ export const pathContentIsMain = ({ activeTab, embedded = false } = {}) => (
   !embedded && activeTab !== 'session'
 );
 
+// ONE WAY HOME, NOT TWO (MP08). The shared row at the top of the screen
+// (StudentGlobalNav) already has Home, so the Path's own nav must not draw a
+// second "Home" beside it: two controls with one name make a student wonder
+// whether they go to different places. The Path's exit stays only where there
+// is no shared row to carry it: a teacher reading a student's Path ("Back to
+// student") and the Teacher Path Simulator, whose only way back to its own
+// list is this one. Returns the button's words, or null for no button.
+export const pathOwnExitLabel = ({ readOnly = false, hasExit = false, hasGlobalNav = false } = {}) => {
+  if (!hasExit) return null;
+  if (readOnly) return 'Back to student';
+  return hasGlobalNav ? null : 'Home';
+};
+
 // THE h1 LOOKS LIKE THE OLD <strong>. Promoting the header title to an h1
 // must not restyle it: src/index.css gives every h1 a heading font, 56px,
 // margins and letter-spacing -1.68px, which squeezed "My Math Path" ~18%
