@@ -5,7 +5,7 @@ import {
   assertFails, assertSucceeds, initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import {
-  collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where,
+  collection, deleteDoc, deleteField, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where,
 } from 'firebase/firestore';
 import {
   HELP_ACKNOWLEDGEMENT_COLLECTION, TEACHER_QUESTION_COLLECTION,
@@ -29,7 +29,9 @@ import {
 //   2. only that student and their teacher read it — by id and by the queries
 //      the student's screen and Teacher Home run — and nobody else;
 //   3. only the teacher answers, and the answer is all a teacher can change;
-//      the student may reword a question only while it is unanswered;
+//      the student may reword a question only while it is unanswered, and after
+//      the answer may ask ONE follow-up on the same document (TT01), which
+//      keeps the first exchange beside it, copied from the document itself;
 //   4. the in-class "Seen" / "On my way" is written only by the student's
 //      teacher, only for the hand presence is raising now, and read by that
 //      student; it carries no text;
@@ -284,6 +286,83 @@ test('the student rewords only an unanswered question; only the teacher answers,
   // It left the teacher's waiting list.
   const inbox = await getDocs(openTeacherQuestionsQuery(teacherA(), { teacherEmail: TEACHER_A }));
   assert.equal(inbox.docs.some((entry) => entry.id === QUESTION_ID), false);
+});
+
+test('after the answer the student may ask ONE follow-up on the same document, with the first exchange kept beside it (TT01)', async () => {
+  const id = 'AQ_STUDENT_A__A1__6';
+  const FIRST = 'Why is the slope 2 and not -2?';
+  const ANSWER = 'Rise 2, run 1: both go up, so it is positive.';
+  const FOLLOW_UP = 'And if the line went down?';
+  const followUp = (overrides = {}) => ({ status: 'open', text: FOLLOW_UP, earlierText: FIRST, earlierAnswer: ANSWER, updatedAt: serverTimestamp(), ...overrides });
+  const ref = (db) => questionRef(db, id);
+
+  await assertSucceeds(sendTeacherQuestion(studentA(), ask({ questionIndex: 6, text: FIRST })));
+  // Nobody has answered: a follow-up-shaped write is refused (there is no answer to keep), and so is one with a made-up answer.
+  await assertFails(updateDoc(ref(studentA()), followUp()));
+  await assertFails(updateDoc(ref(studentA()), followUp({ earlierAnswer: '' })));
+  await assertSucceeds(answerTeacherQuestion(teacherA(), { questionId: id, answer: ANSWER, teacherEmail: TEACHER_A }));
+
+  // Forged or loose follow-ups are refused: not the teacher's words, not the student's own earlier ones, not another
+  // status, not too long or empty, not the server's time, nothing but those five fields, and nobody else's.
+  await assertFails(updateDoc(ref(studentA()), followUp({ earlierAnswer: 'You are right, full marks.' })));
+  await assertFails(updateDoc(ref(studentA()), followUp({ earlierText: 'Something I never asked' })));
+  await assertFails(updateDoc(ref(studentA()), followUp({ status: 'answered' })));
+  await assertFails(updateDoc(ref(studentA()), followUp({ text: '' })));
+  await assertFails(updateDoc(ref(studentA()), followUp({ text: 'x'.repeat(501) })));
+  await assertFails(updateDoc(ref(studentA()), followUp({ updatedAt: 5 })));
+  // Each of these CHANGES a field the student may not touch (writing a field back to the value it holds changes nothing).
+  for (const extra of [{ answer: 'self-answered' }, { answeredBy: TEACHER_B }, { answeredAt: serverTimestamp() }, { teacherEmail: TEACHER_B }, { questionIndex: 7 }, { assignmentId: 'A3' }]) {
+    await assertFails(updateDoc(ref(studentA()), followUp(extra)));
+  }
+  await assertFails(updateDoc(ref(studentA()), { status: 'open', text: 'No copy of the exchange', updatedAt: serverTimestamp() }));
+  await assertFails(updateDoc(ref(studentA()), { status: 'open', text: 'Half a copy', earlierText: FIRST, updatedAt: serverTimestamp() }));
+  await assertFails(updateDoc(ref(studentB()), followUp()));
+  await assertFails(updateDoc(ref(teacherA()), followUp()));
+  await assertFails(updateDoc(ref(teacherB()), followUp()));
+  await assertFails(updateDoc(ref(stranger()), followUp()));
+  const untouched = (await getDoc(ref(studentA()))).data();
+  assert.equal(untouched.status, 'answered');
+  assert.equal(untouched.answer, ANSWER);
+  assert.equal('earlierText' in untouched, false, 'nothing above got through');
+
+  // The real one, through the app's own send.
+  await assertSucceeds(sendTeacherQuestion(studentA(), ask({ existing: { id, ...untouched }, text: FOLLOW_UP })));
+  const reopened = (await getDoc(ref(studentA()))).data();
+  assert.equal(reopened.status, 'open', 'open again, so Teacher Home lists it');
+  assert.equal(reopened.text, FOLLOW_UP);
+  assert.equal(reopened.earlierText, FIRST);
+  assert.equal(reopened.earlierAnswer, ANSWER);
+  assert.equal(reopened.answer, ANSWER, 'the answer stays until the teacher writes the next');
+  assert.equal(reopened.answeredBy, TEACHER_A);
+  const inbox = await getDocs(openTeacherQuestionsQuery(teacherA(), { teacherEmail: TEACHER_A }));
+  assert.ok(inbox.docs.some((entry) => entry.id === id), 'it is on the teacher\'s waiting list again');
+  assert.equal((await getDocs(openTeacherQuestionsQuery(teacherB(), { teacherEmail: TEACHER_B }))).docs.some((entry) => entry.id === id), false);
+
+  // ONE follow-up: asking again while it waits is only rewording, and the first exchange cannot be rewritten.
+  await assertFails(updateDoc(ref(studentA()), followUp({ text: 'A third thing', earlierText: FOLLOW_UP, earlierAnswer: ANSWER })));
+  await assertSucceeds(sendTeacherQuestion(studentA(), ask({ existing: { id, status: 'open' }, text: 'And if the line went down to the right?' })));
+  await assertFails(updateDoc(ref(studentA()), { earlierText: 'Rewritten history', updatedAt: serverTimestamp() }));
+  await assertFails(updateDoc(ref(studentA()), { earlierAnswer: 'Rewritten answer', updatedAt: serverTimestamp() }));
+  await assertFails(updateDoc(ref(studentA()), { earlierText: deleteField(), earlierAnswer: deleteField(), updatedAt: serverTimestamp() }));
+
+  // The teacher answers the follow-up; the student's side of the record is not theirs to write while doing it.
+  await assertFails(updateDoc(ref(teacherA()), { status: 'answered', answer: 'Edited', answeredBy: TEACHER_A, answeredAt: serverTimestamp(), updatedAt: serverTimestamp(), earlierAnswer: 'Edited' }));
+  await assertFails(updateDoc(ref(teacherA()), { status: 'answered', answer: 'Edited', answeredBy: TEACHER_A, answeredAt: serverTimestamp(), updatedAt: serverTimestamp(), text: 'Edited' }));
+  await assertSucceeds(answerTeacherQuestion(teacherA(), { questionId: id, answer: 'Then the slope is negative: -2.', teacherEmail: TEACHER_A }));
+  const done = (await getDoc(ref(studentA()))).data();
+  assert.equal(done.status, 'answered');
+  assert.equal(done.answer, 'Then the slope is negative: -2.');
+  assert.equal(done.text, 'And if the line went down to the right?');
+  assert.equal(done.earlierText, FIRST, 'the first exchange is still there');
+  assert.equal(done.earlierAnswer, ANSWER);
+
+  // No third round: the app does not send one, the rules would not take one, and an answered question is not reworded.
+  await assert.rejects(sendTeacherQuestion(studentA(), ask({ existing: { id, ...done }, text: 'One more' })), /followed-up/);
+  await assertFails(updateDoc(ref(studentA()), followUp({ text: 'One more', earlierText: done.text, earlierAnswer: done.answer })));
+  await assertFails(sendTeacherQuestion(studentA(), ask({ existing: { id, status: 'open' }, text: 'Reword after the answer' })));
+  await assertFails(setDoc(ref(studentA()), rawQuestion({ questionIndex: 6 })));
+  const closed = await getDocs(openTeacherQuestionsQuery(teacherA(), { teacherEmail: TEACHER_A }));
+  assert.equal(closed.docs.some((entry) => entry.id === id), false, 'and it has left the waiting list');
 });
 
 test('no browser deletes a question', async () => {

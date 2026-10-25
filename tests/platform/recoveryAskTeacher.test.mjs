@@ -104,7 +104,8 @@ test('the question is sent with the Recovery\'s place and its own opening line; 
   const asking = region(runner, 'function RecoveryTeacherQuestion(', '\n}\n', 'the Recovery question');
   assert.match(asking, /questionIndex: place\.questionIndex,\s*questionLabel: entry\.label,/);
   assert.match(asking, /composeHelp: RECOVERY_QUESTION_HELP,/);
-  assert.match(code('src/platform/supports/AskTeacherControl.jsx'), /\{askTeacher\.composeHelp \|\| 'Your teacher is not in class with you right now\./);
+  // The Recovery's line replaces the box's default opening for a question (a follow-up has its own, TT01).
+  assert.match(code('src/platform/supports/AskTeacherControl.jsx'), /askTeacher\.composeHelp \|\| 'Your teacher is not in class with you right now\./);
   // The lazy Recovery screen imports no Firestore store: App reads the
   // questions, and only while a Recovery is open and there is a teacher.
   assert.doesNotMatch(runner, /useAskMyTeacher|askTeacherStore/);

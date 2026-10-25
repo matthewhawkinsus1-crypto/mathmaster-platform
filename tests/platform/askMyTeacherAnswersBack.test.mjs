@@ -338,7 +338,7 @@ test('the student sees the hand and the teacher\'s answer in class, and a questi
     assert.match(answered, /Your teacher answered your question/);
     assert.match(answered, /You asked: Why is b negative\?/);
     assert.match(answered, /The line falls, so the slope is negative\./);
-    assert.doesNotMatch(answered, /Leave a question|Edit my question/, 'an answered question is not reopened');
+    assert.doesNotMatch(answered, /Leave a question|Edit my question/, 'an answered question is not reworded in place (its one follow-up is a separate step, TT01)');
 
     const noTeacher = panel({ mode: ASK_MODE.QUESTION, question: null, onSendQuestion: null });
     assert.doesNotMatch(noTeacher, /Leave a question/);

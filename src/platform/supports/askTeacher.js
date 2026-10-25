@@ -106,8 +106,9 @@ const SEPARABLE_ASSIGNMENT_ID = /^(?!_)(?!.*__)(?!.*_$).+$/;
 /**
  * One question per student per question of an assignment: the id is the
  * student, the assignment and the question position, so asking again edits
- * the open one. The rules also require a real assignment of the student's own
- * class; together with the teacher's capped list (TEACHER_QUESTIONS_SHOWN)
+ * the open one, and after the teacher answers it takes one follow-up
+ * (buildFollowUp). The rules also require a real assignment of the student's
+ * own class; together with the teacher's capped list (TEACHER_QUESTIONS_SHOWN)
  * that keeps one student from burying everyone else's questions.
  */
 export const teacherQuestionId = ({ studentId, assignmentId, questionIndex } = {}) => {
@@ -180,6 +181,43 @@ export const buildTeacherQuestion = ({
 export const buildQuestionEdit = ({ text: words, timestamp } = {}) => {
   const body = cleanQuestionText(words);
   return body ? { text: body, updatedAt: timestamp } : null;
+};
+
+/*
+ * ONE FOLLOW-UP AFTER AN ANSWER (TT01).
+ *
+ * The document stays one per question, so a follow-up is not a second
+ * document or a list: after the teacher answers, the student may reopen the
+ * same one ONCE. The follow-up becomes the document's `text`, the exchange so
+ * far moves to `earlierText` and `earlierAnswer` (copied from the document
+ * itself, and firestore.rules refuses anything else, so a student cannot write
+ * the teacher's words), and `status` is open again, so Teacher Home lists it
+ * and the teacher's answer lands in `answer` as before. One round keeps it a
+ * question and not a chat; past it, the student asks in class. A longer
+ * thread, or a message outside the app, is not built (STUDENT_PASS3_BATCH8.md).
+ */
+/** Has this question been followed up already? */
+export const hasFollowUp = (question) => Boolean(text(question?.earlierText));
+
+/** May the student ask a follow-up now: answered, with their question and the answer on the document, and not followed up yet? */
+export const canAskFollowUp = (question) => (
+  question?.status === QUESTION_STATUS.ANSWERED
+  && Boolean(text(question?.text))
+  && Boolean(text(question?.answer))
+  && !hasFollowUp(question)
+);
+
+/** The student's follow-up, exactly the fields firestore.rules allows them to change after an answer. */
+export const buildFollowUp = ({ existing, text: words, timestamp } = {}) => {
+  const body = cleanQuestionText(words);
+  if (!body || !canAskFollowUp(existing)) return null;
+  return {
+    status: QUESTION_STATUS.OPEN,
+    text: body,
+    earlierText: existing.text,
+    earlierAnswer: existing.answer,
+    updatedAt: timestamp,
+  };
 };
 
 /** The teacher's answer: the only fields a teacher may change. */

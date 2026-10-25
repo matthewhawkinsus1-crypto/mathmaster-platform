@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { db } from '../../firebase.js';
 import MathText from '../common/MathText.jsx';
 import { getStoredAssignmentQuestions } from '../../platform/contract/storedAssignmentV5.js';
-import { ANSWER_TEXT_MAX, TEACHER_QUESTIONS_SHOWN, cleanQuestionText, sortQuestions, teacherQuestionPlace } from '../../platform/supports/askTeacher.js';
+import { ANSWER_TEXT_MAX, TEACHER_QUESTIONS_SHOWN, cleanQuestionText, hasFollowUp, sortQuestions, teacherQuestionPlace } from '../../platform/supports/askTeacher.js';
 import { answerTeacherQuestion, openTeacherQuestionsQuery, watchQuestions } from '../../platform/supports/askTeacherStore.js';
 import { STUDENT_NAME_UNAVAILABLE, resolveRosterStudentName, studentIdLabel, studentIdentityIndexFor } from '../../platform/studentName.js';
 
@@ -29,12 +29,14 @@ const askedAt = (value) => {
     : '';
 };
 
-function QuestionRow({ question, place, studentName, studentIdText, prompt, teacherEmail, onOpenStudent, onAnswered }) {
+// Exported so a test can draw one row (a follow-up's context) without Firestore.
+export function QuestionRow({ question, place, studentName, studentIdText, prompt, teacherEmail, onOpenStudent, onAnswered }) {
   const [answer, setAnswer] = useState('');
   const [sending, setSending] = useState(false);
   const [failed, setFailed] = useState(false);
   const fieldId = `student-question-answer-${question.id}`;
   const words = cleanQuestionText(answer, ANSWER_TEXT_MAX);
+  const followUp = hasFollowUp(question);
 
   const send = async (event) => {
     event.preventDefault();
@@ -68,7 +70,14 @@ function QuestionRow({ question, place, studentName, studentIdText, prompt, teac
           <MathText as="p" style={{ margin: '6px 0 0', overflowWrap: 'anywhere' }}>{prompt}</MathText>
         </details>
       ) : null}
-      <p style={{ ...wrap, color: 'var(--mm-text-strong)' }}>{question.text}</p>
+      {followUp ? (
+        <div data-student-follow-up="" style={{ display: 'grid', gap: 4, padding: '8px 10px', borderRadius: 8, background: 'var(--mm-surface-tint, var(--mm-surface))' }}>
+          <span className="tw-small tw-muted" style={{ fontWeight: 700 }}>Follow-up to an earlier question</span>
+          <p style={{ ...wrap, color: 'var(--mm-text-muted)' }}>Earlier question: {question.earlierText}</p>
+          <p style={{ ...wrap, color: 'var(--mm-text-muted)' }}>Your earlier answer: {question.earlierAnswer}</p>
+        </div>
+      ) : null}
+      <p style={{ ...wrap, color: 'var(--mm-text-strong)' }}>{followUp ? <strong>Follow-up: </strong> : null}{question.text}</p>
       <form onSubmit={send} style={{ display: 'grid', gap: 6 }}>
         <label htmlFor={fieldId} style={{ fontWeight: 800 }}>Your answer</label>
         <textarea

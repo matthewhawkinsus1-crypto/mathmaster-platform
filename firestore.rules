@@ -1126,7 +1126,13 @@ service cloud.firestore {
      *     after the class changed hands);
      *   - only the teacher answers it, and the answer is the only thing a
      *     teacher can change. Nothing deletes one from a browser; account
-     *     deletion removes them with the student's footprint (functions/lib/admin.js).
+     *     deletion removes them with the student's footprint (functions/lib/admin.js);
+     *   - once answered, the student may ask ONE follow-up on the same
+     *     document (TT01): it opens again with the new words in `text` and the
+     *     exchange so far kept in `earlierText` and `earlierAnswer`, which must
+     *     equal what the document already holds, so a student cannot write the
+     *     teacher's words. A second follow-up has no room: `earlierText` is
+     *     there for good.
      */
     function teacherQuestionTextValid(value, maxLength) {
       return value is string && value.size() > 0 && value.size() <= maxLength;
@@ -1215,6 +1221,21 @@ service cloud.firestore {
           && teacherQuestionTextValid(request.resource.data.answer, 1000)
           && request.resource.data.answeredBy == request.auth.token.email
           && request.resource.data.answeredAt == request.time
+          && request.resource.data.updatedAt == request.time)
+        // The student asks one follow-up after the answer: the document opens
+        // again, the new words replace `text`, and the first exchange moves
+        // beside it, copied from the document itself. (The status line is
+        // implied by the copies below, which an unanswered document cannot
+        // match; it stays so the rule reads as it works.)
+        || (ownsStudent(resource.data.studentId)
+          && resource.data.status == 'answered'
+          && !resource.data.keys().hasAny(['earlierText', 'earlierAnswer'])
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'text', 'earlierText', 'earlierAnswer', 'updatedAt'])
+          && request.resource.data.status == 'open'
+          && teacherQuestionTextValid(request.resource.data.text, 500)
+          && request.resource.data.earlierText == resource.data.text
+          && request.resource.data.earlierAnswer == resource.data.answer
           && request.resource.data.updatedAt == request.time);
       allow delete: if false;
     }
