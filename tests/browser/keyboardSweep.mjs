@@ -61,6 +61,13 @@
 //   7. FOCUS AFTER AN ACTION (ACTION_FOCUS_PROBES). Where a tool's button
 //      disables or removes itself (Open Sort's placements), the tool is worked
 //      by keyboard and focus is recorded after each press: `lostAfterAction`.
+//   8. TARGET SIZE (WCAG 2.2 2.5.8). Every pointer target in the tool at load
+//      (controls, ARIA widgets, anything with a pointer handler) is measured:
+//      `targetsMeasured`, `undersizedTargets` (under 24x24 CSS px),
+//      `undersizedBySpacing` (those the spacing exception passes) and
+//      `smallTargets` (the rest, for a reviewer: an equivalent control or an
+//      essential size may still excuse one). Read, never gated. The rules are
+//      in support/targetSize.mjs.
 //
 // A focused control counts as visibly focused only if something changed on
 // screen AND it is not under another element (elementFromPoint), so a ring
@@ -75,6 +82,7 @@ import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'n
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { gateLines, gateVerdict } from './support/keyboardSweepGate.mjs';
+import { collectTargetBoxes, smallTargetsOf } from './support/targetSize.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../..');
@@ -1062,6 +1070,7 @@ for (const scene of scenes) {
     entry.renderFailure = first.renderFailure;
     entry.pageErrors = first.errors;
     entry.pointerAudit = await first.page.evaluate(() => window.__kb.pointerAudit());
+    entry.targets = smallTargetsOf(await first.page.evaluate(collectTargetBoxes, { rootSelector: '[data-kb-root]' }));
     entry.forward = await forwardWalk(first.page, first.cdp);
     entry.reverse = await reverseWalk(first.page);
     entry.popups = await popupProbe(first.page, entry.forward.stops);
@@ -1109,6 +1118,11 @@ for (const scene of scenes) {
     focusLostAfterCheck: (entry.primary?.checks || []).filter((c) => c.focusLostToBody).map((c) => c.name),
     plotted: entry.primary ? entry.primary.plotMarksAfter !== entry.primary.plotMarksBefore : null,
     focusLostAfterAction: entry.actionFocus ? entry.actionFocus.focusLost : null,
+    // WCAG 2.2 2.5.8: pointer targets measured, those under 24x24 CSS px, how many of those pass by spacing, and the rest.
+    targetsMeasured: entry.targets?.measured ?? null,
+    undersizedTargets: entry.targets?.undersized ?? null,
+    undersizedBySpacing: entry.targets?.bySpacing ?? null,
+    smallTargets: entry.targets?.failing || [],
   };
   entry.ms = Date.now() - started;
   tools.push(entry);
@@ -1116,7 +1130,7 @@ for (const scene of scenes) {
   mkdirSync(OUT_DIR, { recursive: true });
   writeFileSync(path.join(OUT_DIR, `tool-${sceneKey.replace(':', '--')}.json`), `${JSON.stringify(entry, null, 2)}\n`);
   const s = entry.summary;
-  console.log(`${sceneKey.padEnd(36)} stops=${String(s.tabStops).padStart(3)} end=${s.reachedEnd ? 'y' : 'N'} rev=${s.reverseReachedStart ? 'y' : 'N'} noFocusRing=${s.noVisibleFocus.length} unnamed=${s.unnamed.length} mouseOnly=${s.pointerNotReachable.length} notActivatable=${s.pointerNotActivatable.length} escFail=${s.escapeFailures.length} hidden=${s.focusHiddenUnderOverlay.length} lateDrop=${s.focusDroppedAfterLoadMs ?? '-'} lostAfterCheck=${s.focusLostAfterCheck.length}${s.focusLostAfterAction === null ? '' : ` lostAfterAction=${s.focusLostAfterAction}/${entry.actionFocus.steps.length}`} checks=${s.checks.map((c) => c.result).join(',') || '-'} grades=${entry.primary?.gradesTotal ?? '-'}${entry.error ? ` ERROR ${entry.error.split('\n')[0]}` : ''}`);
+  console.log(`${sceneKey.padEnd(36)} stops=${String(s.tabStops).padStart(3)} end=${s.reachedEnd ? 'y' : 'N'} rev=${s.reverseReachedStart ? 'y' : 'N'} noFocusRing=${s.noVisibleFocus.length} unnamed=${s.unnamed.length} mouseOnly=${s.pointerNotReachable.length} notActivatable=${s.pointerNotActivatable.length} escFail=${s.escapeFailures.length} hidden=${s.focusHiddenUnderOverlay.length} lateDrop=${s.focusDroppedAfterLoadMs ?? '-'} lostAfterCheck=${s.focusLostAfterCheck.length}${s.focusLostAfterAction === null ? '' : ` lostAfterAction=${s.focusLostAfterAction}/${entry.actionFocus.steps.length}`} targets=${s.targetsMeasured ?? '-'}/under24=${s.undersizedTargets ?? '-'}/small=${s.smallTargets.length} checks=${s.checks.map((c) => c.result).join(',') || '-'} grades=${entry.primary?.gradesTotal ?? '-'}${entry.error ? ` ERROR ${entry.error.split('\n')[0]}` : ''}`);
 }
 
 await browser.close();

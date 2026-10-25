@@ -78,13 +78,13 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/hostAccessibility.mjs
-      - name: Log Out target size and the Live Challenge host by keyboard
+      - name: Log Out target size, every student target's size (WCAG 2.5.8), and the Live Challenge host by keyboard
         if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
           TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
-        run: node tests/browser/studentShellLargeText.mjs --check=targets,s5
+        run: node tests/browser/studentShellLargeText.mjs --check=targets,s5,targetsize
       - name: Contrast over gradients (axe's undecided nodes, measured)
         if: ${{ !cancelled() }}
         env:

@@ -6,7 +6,7 @@
  *
  *   TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs &
  *   npx vite --config tests/browser/emulator/vite.config.mjs --host 127.0.0.1 --port 5199 --strictPort &
- *   node tests/browser/studentShellLargeText.mjs [--check=targets,s5,text,default] [--only=<screen id,…>]
+ *   node tests/browser/studentShellLargeText.mjs [--check=targets,s5,text,default,targetsize] [--only=<screen id,…>]
  *
  * targets  The identity bar's Log Out is at least 44px tall (WCAG 2.5.5).
  * s5       Live Challenge round (1366×768): Tab from the top of the round to
@@ -24,6 +24,11 @@
  *          text, both viewports, screenshotted to --shots=<dir>; with
  *          --compare=<dir> (shots taken before the change) each pair is
  *          diffed pixel by pixel and any difference fails.
+ * targetsize  WCAG 2.2 2.5.8 (Target Size, Minimum): every pointer target on
+ *          every student scene (not the teacher's), at 1366×768 and 390×844,
+ *          is 24×24 CSS px or more, or has the room the spacing exception asks
+ *          for (support/targetSize.mjs). Not in the default set; writes
+ *          artifacts/large-text/target-size.json.
  */
 import path from 'node:path';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -32,6 +37,7 @@ import { createRequire } from 'node:module';
 import { readdirSync, readFileSync } from 'node:fs';
 import { SCREENS, sceneLabel } from './accessibilityCertification.mjs';
 import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
+import { collectTargetBoxes, smallTargetsOf } from './support/targetSize.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const artifacts = path.join(here, 'artifacts/large-text');
@@ -492,6 +498,30 @@ if (CHECKS.has('text')) {
     });
   }
   writeFileSync(path.join(artifacts, 'report.json'), JSON.stringify(report, null, 2));
+}
+
+// WCAG 2.2 2.5.8 (Target Size, Minimum): on every student scene, at both
+// viewports, each pointer target is 24x24 CSS px or more, or has the room the
+// criterion's spacing exception asks for. tests/browser/support/targetSize.mjs
+// says what is read and what is not (an equivalent control elsewhere and an
+// essential size still excuse a target this lists). The teacher's screens are
+// not student-facing and are skipped.
+if (CHECKS.has('targetsize')) {
+  const sizeReport = [];
+  for (const setting of [{ id: 'chromebook', width: 1366, height: 768 }, { id: 'phone', width: 390, height: 844, mobile: true }]) {
+    await runScenes(setting, async (page, label, screen) => {
+      if (screen.id === 'teacher') return;
+      const result = smallTargetsOf(await page.evaluate(collectTargetBoxes, { rootSelector: 'body' }));
+      sizeReport.push({ label, setting: setting.id, ...result });
+      console.log(`${result.failing.length || !result.measured ? 'FAIL' : 'ok  '} targets ${label.padEnd(30)} ${setting.id.padEnd(10)} measured=${result.measured} under24=${result.undersized} bySpacing=${result.bySpacing} crowded=${result.failing.length}`);
+      if (!result.measured) failures.push(`${label} ${setting.id}: no pointer target was measured, so the check is void`);
+      if (result.failing.length) {
+        const named = result.failing.slice(0, 8).map((target) => `${target.tag}${target.roleAttr ? `[${target.roleAttr}]` : ''} "${target.name}" ${target.w}×${target.h} (${target.className.split(' ')[0] || '-'})`);
+        failures.push(`${label} ${setting.id}: ${result.failing.length} pointer target(s) under 24×24 CSS px with no room around them: ${named.join('; ')}`);
+      }
+    });
+  }
+  writeFileSync(path.join(artifacts, 'target-size.json'), JSON.stringify(sizeReport, null, 2));
 }
 
 await browser.close();

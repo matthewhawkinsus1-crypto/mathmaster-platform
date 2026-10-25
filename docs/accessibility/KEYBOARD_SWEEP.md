@@ -252,7 +252,17 @@ Checked both ways on 2026-10-25:
 - With the shell on, Graph Comparison goes red again when both of the engine's focus moves are taken out (the closed-question effect in `QuestionEngine.jsx` and `useFocusReturnAfterLock.js`; either one alone is enough to keep focus on the way on), so the sweep now watches that behaviour.
 - In the real app, `teacherWorkflow/assignmentChromeJourneys.mjs` `tabClear` walks a Number Line question with Tab and Shift+Tab and wants no stop of the question under the task card or the navigator; it goes red when `App.css`'s scroll padding is removed.
 
+### Target size (WCAG 2.2 2.5.8, 2026-10-25)
 
+Each scene's pointer targets are measured once, at load: every native control and ARIA widget in the tool, and anything that carries a pointer handler. The report holds `targetsMeasured`, `undersizedTargets` (under 24×24 CSS px), `undersizedBySpacing` (the spacing exception passes them) and `smallTargets` (the rest). It is read, never gated. What it reads, and what it leaves to a reviewer (an equivalent control elsewhere, a size that is essential), is written at the top of `tests/browser/support/targetSize.mjs`, with tests (`tests/platform/keyboardSweepTargetSize.test.mjs`).
+
+| Where | Scenes | Targets | Under 24px | Without room |
+| --- | --- | --- | --- | --- |
+| The sweep, 1366×768: registry tools and extra modes | 33 | 558 | 0 | **0** |
+| The sweep, 1366×768: legacy question types | 21 | 385 | 0 | **0** |
+| `studentShellLargeText.mjs --check=targetsize`: the student screens, 1366×768 and 390×844 (a phone) | 18 × 2 | 598 | 5 | **0** |
+
+The only target under 24px in any of them is the "Grade weight ×N" disclosure in the phone's navigator, 23.2px tall (0.8px short), with room around it. The screen driver is a step of the accessibility workflow; the sweep is not run by any workflow. Targets that appear after load (the calculator's keys, the Scratchpad, Work View's drawers, dialogs) are not measured.
 
 ---
 
