@@ -546,12 +546,21 @@ const journeyBridgeCorrupt = async () => {
 /* ------------------------------------------------- with the server */
 
 // "Let's back up" after a wrong Check: the student answers and carries on.
+// Since FB01 a sort's step asks about its own cards (two choices, no longer
+// Yes or No). A wrong pick costs nothing and keeps the step open ("Try the
+// other choice"), so the student tries each choice, in order, until the work
+// comes back. The choices are the buttons right under the step's question;
+// Read aloud and Translate below them are not answers.
 const answerScaffold = async (page) => {
   const scaffold = page.locator('[data-scaffold][aria-label="Let\'s back up"]');
-  if (await scaffold.count()) {
-    await scaffold.locator('button', { hasText: 'Yes' }).click();
+  if (!(await scaffold.count())) return;
+  const choices = scaffold.locator('h2 + div > button');
+  const total = await choices.count();
+  for (let index = 0; index < total && (await scaffold.count()); index += 1) {
+    await choices.nth(index).click();
     await page.waitForTimeout(400 * SLOW_FACTOR);
   }
+  check(!(await scaffold.count()), 'the "Let\'s back up" step closes once its right choice is picked', `${total} choice(s)`);
 };
 // Every card into one group (0 = Line A, 1 = Line B), whatever it held before.
 const sortAllInto = async (page, slot) => {

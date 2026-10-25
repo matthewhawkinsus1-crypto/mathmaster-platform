@@ -26,8 +26,9 @@
 //     numbered heading;
 //   - skills come weakest first, and "Practise this skill" hands the app the
 //     right destination, which the app's own launch (practiceSkillLaunch)
-//     sends to My Math Path for a standard and to the CCMR tab for any
-//     practice-test skill — never course practice;
+//     sends to My Math Path for a standard and, for any practice-test skill,
+//     to that exam's practice on the missed standard from the CCMR tab (MP14)
+//     — never course practice;
 //   - a practice test shows an estimated range with its size and the real
 //     benchmark, and says it is not an official score; a course Test shows none;
 //   - a review the server did not release shows nothing but "not ready";
@@ -235,7 +236,7 @@ for (const device of DEVICES) {
     const practised = await page.evaluate(() => window.__practised);
     const launched = await page.evaluate(() => window.__launches);
     check(JSON.stringify(practised[0]) === JSON.stringify({ alignmentKey: 'texas:A.3B', framework: null, domainId: null })
-      && JSON.stringify(launched[0]) === JSON.stringify({ teksCode: 'A.3B', tab: null }), at('practise a course skill → My Math Path on the standard'), `${JSON.stringify(practised[0])} → ${JSON.stringify(launched[0])}`);
+      && JSON.stringify(launched[0]) === JSON.stringify({ teksCode: 'A.3B', framework: null, tab: null }), at('practise a course skill → My Math Path on the standard'), `${JSON.stringify(practised[0])} → ${JSON.stringify(launched[0])}`);
     noErrors(errors, at('course results'));
     await page.close();
   }
@@ -285,7 +286,7 @@ for (const device of DEVICES) {
     const practised = await page.evaluate(() => window.__practised);
     const launched = await page.evaluate(() => window.__launches);
     check(JSON.stringify(practised[0]) === JSON.stringify({ alignmentKey: 'texas:G.9A', framework: 'digitalSAT', domainId: 'geometryTrigonometry' })
-      && JSON.stringify(launched[0]) === JSON.stringify({ teksCode: null, tab: 'ccmr' }), at('practise a domain → the exam\'s practice (CCMR tab), not course practice'), `${JSON.stringify(practised[0])} → ${JSON.stringify(launched[0])}`);
+      && JSON.stringify(launched[0]) === JSON.stringify({ teksCode: 'G.9A', framework: 'digitalSAT', tab: 'ccmr' }), at('practise a domain → the exam\'s practice on the missed standard (CCMR tab), not course practice'), `${JSON.stringify(practised[0])} → ${JSON.stringify(launched[0])}`);
     await layout(page, at('practice results'), REVIEW_SCOPES);
     await shot(page, device, 'review-sat-practice');
     noErrors(errors, at('practice results'));
