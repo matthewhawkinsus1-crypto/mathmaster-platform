@@ -73,7 +73,7 @@ import {
   describePreflightAction, stepIndex, summarizePreflightReadiness,
 } from './preflightSteps';
 import AdaptivePreview from './AdaptivePreview.jsx';
-import { buildPreflightReviewedAssignmentV5 } from './preflightV5Review.js';
+import { ASSIGNMENT_CALCULATOR_SETTINGS, buildPreflightReviewedAssignmentV5, reviewedCalculatorSetting } from './preflightV5Review.js';
 import { buildQuestionRepairRequest, parseQuestionRepairResponse } from '../../platform/contract/questionRepairRequest.js';
 import { CONTRACT_SLICES, buildContractSlice } from '../../platform/contract/authoringContract.js';
 import { parseExternalAiJson } from '../../platform/contract/externalAiJson.js';
@@ -990,6 +990,12 @@ export const LessonPreflightModal = ({
     sectionVariantModes: { ...(current.sectionVariantModes || {}), [role]: value },
   }));
 
+  const calculatorSetting = reviewedCalculatorSetting(workingAssignmentV5, draft);
+  const setCalculatorSetting = (value) => setDraft((current) => ({
+    ...current,
+    toolPolicy: { ...(current.toolPolicy || {}), calculator: value },
+  }));
+
   const sectionAccessDefault = (role) => draft.sectionAccessDefaults?.[role] || 'open';
   const setSectionAccessDefault = (role, value) => setDraft((current) => ({
     ...current,
@@ -1749,6 +1755,19 @@ export const LessonPreflightModal = ({
           </p>
         </fieldset>
       )}
+
+      <fieldset style={fieldsetStyle} data-preflight-calculator>
+        <legend style={legendStyle}>Calculator</legend>
+        <label style={labelStyle}>
+          Calculator for this lesson
+          <select value={calculatorSetting} onChange={(event) => setCalculatorSetting(event.target.value)} style={inputStyle}>
+            {ASSIGNMENT_CALCULATOR_SETTINGS.map((setting) => <option key={setting.value} value={setting.value}>{setting.label}</option>)}
+          </select>
+        </label>
+        <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>
+          Used for questions that set no calculator of their own; a question&apos;s own setting is kept. On an exit ticket, quiz or test it can only make a question&apos;s calculator stricter, never add one, and a skill assessed without a calculator stays without one. A student&apos;s calculator accommodation still applies.
+        </p>
+      </fieldset>
 
       <fieldset style={fieldsetStyle}>
         <legend style={legendStyle}>Warm-Up timing</legend>

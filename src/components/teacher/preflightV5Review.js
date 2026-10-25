@@ -1,5 +1,31 @@
 const clean = (value) => String(value ?? '').trim();
 
+/*
+ * THE LESSON'S CALCULATOR (TT29): the settings Pre-Flight offers for
+ * toolPolicy.calculator, which src/platform/policies/calculatorPolicy.js reads
+ * for every question with no calculator of its own. A question's own setting
+ * wins on ordinary work; on an exit ticket, quiz or test the stricter of the
+ * two applies (the owner, 2026-10-20 and 2026-10-23). "inherit" is the schema
+ * default: no lesson setting.
+ */
+export const ASSIGNMENT_CALCULATOR_SETTINGS = Object.freeze([
+  Object.freeze({ value: 'inherit', label: "Each question's own (default)" }),
+  Object.freeze({ value: 'none', label: 'No calculator' }),
+  Object.freeze({ value: 'basic', label: 'Basic' }),
+  Object.freeze({ value: 'squareRoot', label: 'Basic with square root' }),
+  Object.freeze({ value: 'scientific', label: 'Scientific' }),
+  Object.freeze({ value: 'graphing', label: 'Graphing' }),
+]);
+const CALCULATOR_SETTING_VALUES = new Set(ASSIGNMENT_CALCULATOR_SETTINGS.map((setting) => setting.value));
+
+/** The lesson's calculator as Pre-Flight shows it: the teacher's choice, else the imported one. */
+export const reviewedCalculatorSetting = (assignmentV5 = {}, draft = {}) => {
+  const chosen = clean(draft?.toolPolicy?.calculator) || clean(assignmentV5?.toolPolicy?.calculator) || 'inherit';
+  // A value Pre-Flight does not offer (e.g. "questionSpecific", "teacherChoice")
+  // is shown as the default it means here, and is kept unless the teacher changes it.
+  return CALCULATOR_SETTING_VALUES.has(chosen) ? chosen : 'inherit';
+};
+
 const validMode = (value, fallback = 'personalized') => {
   const mode = clean(value).toLowerCase();
   if (mode === 'variant') return 'personalized';
