@@ -444,6 +444,11 @@ export const functionGraphQuestion = ({ stage, input, content, outcomesWithheld 
  * `effectiveStage`): a functionGraph takes the active workflow's domain
  * restriction, and a stage tied to a continuity choice takes the student's
  * discrete/continuous answer as its graph mode.
+ *
+ * So a graph drawn under the student's own wrong "continuous" is marked
+ * against a connected line, and a right one is credited: the classification
+ * is marked wrong once, where it was made (follow-through credit). The owner
+ * confirmed this (GR11). tests/platform/workflowContinuityFollowThrough.test.mjs.
  */
 export const effectiveWorkflowGraphStage = ({ stage, workflow = [], grading = null, responses = {} }) => {
   const domainRestriction = stage.kind === 'functionGraph'
