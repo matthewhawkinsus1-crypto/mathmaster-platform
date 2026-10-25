@@ -324,6 +324,22 @@ places, from the room's reward summary). Host controls run along the bottom.
   the whole table (`hostRounds/{n}`, the class's player rows).
 - **Worked solution** at the results moment, handed to the projector by the
   console (`useRoundSolution`), never during a countdown or an open round.
+  A ready solution takes the left of the screen and the round's table and the
+  standings share the right-hand column, one above the other, so the class
+  still reads what the round did while the solution is up (LC03; "Hide
+  solution" brings back the two tables side by side). Two tables in one
+  column are drawn in compact rows and each shows fewer of them. How many is
+  MEASURED from the panel, not read off the screen's height (the first
+  version was a table of heights, and was cut off in the font a classroom's
+  machine has): a panel starts at the most its list may show (the top five,
+  or the screen's rows for full standings, which also get 60% of the column)
+  and drops a row at a time while its own content runs past its bottom edge
+  (`useRowsThatFitPanel`, `fitRowsStep`); a new round, a resize or a zoom
+  starts again from the top. `publicStandingsRows` still decides which rows
+  and says what is left unshown. A screen under 900 px wide stacks everything
+  in one scrolling column, the plain two-table results too. A held solution
+  stays a line above the two tables. `liveChallengeProjectorPrivacyQa` fails
+  when either table is cut off at 1366×768, 125% zoom or 1920×1080.
 - **Recognitions** under the podium (`room.recognitions`, aliases only).
 - **Extended time**: after the class deadline, while a round waits for a
   student with extended time, "A few students are still finishing — results in

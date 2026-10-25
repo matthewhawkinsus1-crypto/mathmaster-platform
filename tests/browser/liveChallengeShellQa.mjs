@@ -504,25 +504,13 @@ const toProjector = async (teacher) => {
   await teacher.page.locator('[data-mm-arena-stage]').first().waitFor({ timeout: 10_000 });
 };
 // A ready worked solution takes the left of the projector's results and the
-// round's own table steps aside (LiveChallengeArenaProjector ResultsView); the
-// standings stay. The teacher's "Hide solution" brings the table back for this
-// round only. A check of the round table presses it first, as a teacher would.
-// True once the table is on screen with no solution about to replace it.
+// round's own table stays in view beside it, above the standings
+// (LiveChallengeArenaProjector ResultsView, LC03): no press of "Hide solution"
+// is needed to read it. True once the table is on screen, in either layout.
 const showRoundTable = async (teacher, timeout = 10_000) => {
   const deadline = Date.now() + timeout;
-  let quietSince = null;
   while (Date.now() < deadline) {
-    const hide = teacher.page.locator('[data-mm-solution-toggle="hide"]');
-    if (await hide.count()) await hide.first().click().catch(() => {});
-    const table = await teacher.page.locator('[data-mm-results-layout="tables"] [aria-label="Round results"]').count();
-    const hidden = await teacher.page.locator('[data-mm-solution-toggle="show"]').count();
-    const toggle = await teacher.page.locator('[data-mm-solution-toggle]').count();
-    if (table && hidden) return true;
-    // No solution for this round (yet): wait a moment longer for one to land.
-    if (table && !toggle) {
-      quietSince ??= Date.now();
-      if (Date.now() - quietSince >= 1_500) return true;
-    } else quietSince = null;
+    if (await teacher.page.locator('[data-mm-results-layout] [aria-label="Round results"]').count()) return true;
     await wait(150);
   }
   return false;
@@ -818,7 +806,7 @@ await run('classic', async (S) => {
   check(S, arenaRows.length > 0 && JSON.stringify(arenaRows) === JSON.stringify(serverOrder), `the projector standings are not the server's (${arenaRows.length} rows)`);
   const boardText = await textOf(teacher);
   check(S, !/\b0 0 0 0\b/.test(boardText), 'the projector board reads as a row of zeros');
-  check(S, await showRoundTable(teacher), 'the projector never shows the round table, even with the solution hidden');
+  check(S, await showRoundTable(teacher), 'the projector never shows the round table, with or without a worked solution');
   const roundOrder = await teacher.page.locator('[aria-label="Round results"] [data-mm-round-result]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-mm-round-result')));
   const expectedRoundOrder = roundResultsView({ summary: summary1 }).rows.map((row) => row.playerKey).slice(0, roundOrder.length);
   check(S, roundOrder.length > 0 && JSON.stringify(roundOrder) === JSON.stringify(expectedRoundOrder), 'the projector round table is not in the round\'s order');

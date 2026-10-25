@@ -23,6 +23,7 @@ import {
   STILL_FINISHING_HOST_HINT,
   STILL_FINISHING_MESSAGE,
   finalBoardRows,
+  fitRowsStep,
   podiumRecognitionRows,
   projectorDifficultyLabel,
   projectorFamilyLabel,
@@ -32,6 +33,7 @@ import {
   publicStandingsRows,
   roundStillFinishing,
   rushRaceRanked,
+  stackedResultsPlan,
 } from '../../platform/liveChallenge/liveChallengeProjectorModel.js';
 import { SOLUTION_STATE, answerSummaryLabel, solutionStateMessage } from '../../platform/liveChallenge/challengeSolutionModel.js';
 
@@ -142,6 +144,57 @@ function useViewportRows() {
     return () => window.removeEventListener('resize', changed);
   }, []);
   return rows;
+}
+
+/*
+ * How many rows a results panel can show WHOLE (LC03: two tables share the
+ * column beside a worked solution). It starts at `ceiling`, the most its list
+ * may show, and after every render drops a row while the panel's own content
+ * runs past its bottom edge (fitRowsStep; the panel is overflow:hidden, so
+ * that is what would be cut off, or what would eat its bottom padding). A new
+ * `ceiling` or `resetKey` (another round), or a change in the panel's size (a
+ * resize, a zoom), starts again from the top, so a bigger screen shows more.
+ * Measured, not read off the viewport: the first version of this was a table
+ * of screen heights, right in one font and cut off in another.
+ * `enabled` off (the tables side by side, where the screen's own row budget
+ * is used) returns `ceiling` and measures nothing.
+ */
+function useRowsThatFitPanel(ref, { ceiling, resetKey, enabled }) {
+  const [fitted, setFitted] = useState({ ceiling, resetKey, rows: ceiling });
+  const current = fitted.ceiling === ceiling && fitted.resetKey === resetKey;
+  const rows = current ? Math.min(fitted.rows, ceiling) : ceiling;
+  useLayoutEffect(() => {
+    const panel = ref.current;
+    if (!enabled || !panel) return;
+    const next = fitRowsStep({ rows, overflowPx: panel.scrollHeight - panel.clientHeight });
+    if (next !== rows || !current) setFitted({ ceiling, resetKey, rows: next });
+  });
+  useLayoutEffect(() => {
+    const panel = ref.current;
+    if (!enabled || !panel || typeof ResizeObserver !== 'function') return undefined;
+    // The first callback only reports the size it started with.
+    let seen = false;
+    const observer = new ResizeObserver(() => {
+      if (!seen) { seen = true; return; }
+      setFitted({ ceiling, resetKey, rows: ceiling });
+    });
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, [ref, ceiling, resetKey, enabled]);
+  return enabled ? rows : ceiling;
+}
+
+/** One of the results moment's two tables: its label and heading, and its list drawn for the rows that fit. */
+function ResultsPanel({ kind, label, title, panelStyle, labelLook, headingStyle, ceiling, resetKey, fit, children }) {
+  const ref = useRef(null);
+  const space = useRowsThatFitPanel(ref, { ceiling, resetKey, enabled: fit });
+  return (
+    <section ref={ref} data-mm-results-panel={kind} style={panelStyle}>
+      <div style={labelLook}>{label}</div>
+      <div style={headingStyle}>{title}</div>
+      {children(space)}
+    </section>
+  );
 }
 
 function ArenaBadge({ children, accent = '#7aa8ff' }) {
@@ -729,44 +782,100 @@ function ProjectorSolution({ solution, state }) {
   );
 }
 
-/** A closed round: its own table, and the standings it left (with movement since the round before). */
+/**
+ * A closed round: its own table, and the standings it left (with movement since the round before).
+ *
+ * WITH A WORKED SOLUTION READY (LC03) the solution takes the left of the screen
+ * and the round's table stays in view beside it, above the standings, so the
+ * class sees what the round paid (a championship game's points for the round)
+ * while the teacher talks the solution through, with no press of "Hide
+ * solution". The two tables share the right column in compact rows, each
+ * showing the rows that FIT it (ResultsPanel measures; the public rule,
+ * publicStandingsRows, still decides which); on a narrow screen everything
+ * stacks in one scrolling column.
+ */
 function ResultsView({ room, clock, roundView, presentation, leaderboard, rows, solution = null, solutionState = SOLUTION_STATE.NONE, solutionHidden = false }) {
+  const showSolution = !solutionHidden && projectorShowsSolution({ stage: clock.stage, solutionState });
+  // A ready solution takes the left of the screen; the round's table and the
+  // standings share the right. A held or missing one is a line above both.
+  const solutionFills = showSolution && solutionState === SOLUTION_STATE.READY;
+  // Two tables in the space of one: each starts at the most it may show and
+  // the panel drops rows until it fits (ResultsPanel). Alone, a table has the
+  // whole screen's rows (the viewport budget).
+  const plan = stackedResultsPlan(room, rows);
+  const roundCeiling = solutionFills ? plan.rowCeiling : Math.max(3, rows - 1);
+  const standingsCeiling = solutionFills ? plan.rowCeiling : rows;
+  // A new round starts the fitting again from the top.
+  const resetKey = `${room?.roomId || room?.id || ''}:${room?.currentRound}:${room?.roundVersion || 0}`;
   // The standings arrive with the round's result, written when it closed —
   // never the live board's rows from before it. A round closed before results
   // carried standings shows the live board.
   const standings = roundView ? (roundView.standings || standingsRows(leaderboard)) : null;
-  const standingsBoard = standings ? publicStandingsRows(room, standings, { spaceForRows: rows }) : null;
-  const roundBoard = roundView ? publicStandingsRows(room, roundView.rows, { spaceForRows: Math.max(3, rows - 1) }) : null;
-  const showSolution = !solutionHidden && projectorShowsSolution({ stage: clock.stage, solutionState });
-  // A ready solution takes the left of the screen (the round's table steps
-  // aside; the standings after it stay). A held or missing one is a line.
-  const solutionFills = showSolution && solutionState === SOLUTION_STATE.READY;
+  const panel = {
+    ...glassPanel,
+    padding: solutionFills ? 'clamp(8px, 1.1vw, 14px) clamp(10px, 1.4vw, 18px)' : 'clamp(14px, 2vw, 26px)',
+    overflow: 'hidden',
+  };
+  const labelLook = solutionFills ? { ...labelStyle, lineHeight: 1.2 } : labelStyle;
+  const heading = {
+    margin: solutionFills ? '1px 0 6px' : '4px 0 12px',
+    lineHeight: solutionFills ? 1.2 : undefined,
+    fontSize: solutionFills
+      ? 'clamp(calc(20 * var(--mm-px)), calc(3.2vh * var(--mm-text-scale, 1)), calc(32 * var(--mm-px)))'
+      : 'clamp(calc(26 * var(--mm-px)), calc(4.6vh * var(--mm-text-scale, 1)), calc(42 * var(--mm-px)))',
+    fontWeight: 1000,
+    color: '#fff',
+  };
+  const roundPanel = (
+    <ResultsPanel
+      kind="round"
+      label={clock.isReplay ? `Second Chance round ${clock.replayNumber}` : `Round ${clock.roundNumber} of ${clock.roundCount}`}
+      title={`Round results${presentation.placementPoints ? ' · championship points' : ''}`}
+      panelStyle={panel}
+      labelLook={labelLook}
+      headingStyle={heading}
+      ceiling={roundCeiling}
+      resetKey={resetKey}
+      fit={solutionFills}
+    >
+      {(space) => (
+        <RoundResultsTable view={roundView} board={roundView ? publicStandingsRows(room, roundView.rows, { spaceForRows: space }) : null} presentation={presentation} look="projector" compact={solutionFills} />
+      )}
+    </ResultsPanel>
+  );
   const standingsPanel = (
-    <section style={{ ...glassPanel, padding: 'clamp(14px, 2vw, 26px)', overflow: 'hidden' }}>
-      <div style={labelStyle}>{presentation.placementPoints ? 'Championship' : 'Standings'}</div>
-      <div style={{ margin: '4px 0 12px', fontSize: 'clamp(calc(26 * var(--mm-px)), calc(4.6vh * var(--mm-text-scale, 1)), calc(42 * var(--mm-px)))', fontWeight: 1000, color: '#fff' }}>After round {clock.roundNumber}</div>
-      {standings
-        ? <StandingsBoard board={standingsBoard} presentation={presentation} look="projector" showMovement label="Standings after this round" />
-        : <p style={{ margin: 0, color: 'rgba(236,241,255,.7)', fontSize: 'clamp(calc(16 * var(--mm-px)), calc(1.7vw * var(--mm-text-scale, 1)), calc(24 * var(--mm-px)))' }}>Tallying the round…</p>}
-    </section>
+    <ResultsPanel
+      kind="standings"
+      label={presentation.placementPoints ? 'Championship' : 'Standings'}
+      title={`After round ${clock.roundNumber}`}
+      panelStyle={panel}
+      labelLook={labelLook}
+      headingStyle={heading}
+      ceiling={standingsCeiling}
+      resetKey={resetKey}
+      fit={solutionFills}
+    >
+      {(space) => (standings
+        ? <StandingsBoard board={publicStandingsRows(room, standings, { spaceForRows: space })} presentation={presentation} look="projector" showMovement label="Standings after this round" compact={solutionFills} />
+        : <p style={{ margin: 0, color: 'rgba(236,241,255,.7)', fontSize: 'clamp(calc(16 * var(--mm-px)), calc(1.7vw * var(--mm-text-scale, 1)), calc(24 * var(--mm-px)))' }}>Tallying the round…</p>)}
+    </ResultsPanel>
   );
   if (solutionFills) {
     return (
-      <div className="mm-arena-running-grid" data-mm-results-layout="solution" style={{ height: '100%', minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1.35fr) minmax(0,1fr)', gap: 'clamp(12px, 1.6vw, 20px)' }}>
+      <div className="mm-arena-running-grid mm-arena-solution-grid" data-mm-results-layout="solution" style={{ height: '100%', minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1.35fr) minmax(0,1fr)', gap: 'clamp(12px, 1.6vw, 20px)' }}>
         <ProjectorSolution solution={solution} state={solutionState} />
-        {standingsPanel}
+        <div className="mm-arena-results-tables" data-mm-results-tables="stacked" style={{ minHeight: 0, display: 'grid', gridTemplateRows: plan.panelRows, gap: 'clamp(10px, 1.4vh, 16px)' }}>
+          {roundPanel}
+          {standingsPanel}
+        </div>
       </div>
     );
   }
   return (
     <div style={{ height: '100%', minHeight: 0, display: 'grid', gridTemplateRows: showSolution ? 'auto minmax(0,1fr)' : 'minmax(0,1fr)', gap: 'clamp(10px, 1.4vh, 16px)' }}>
       {showSolution && <ProjectorSolution solution={solution} state={solutionState} />}
-      <div className="mm-arena-running-grid" data-mm-results-layout="tables" style={{ minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 'clamp(12px, 1.6vw, 20px)' }}>
-        <section style={{ ...glassPanel, padding: 'clamp(14px, 2vw, 26px)', overflow: 'hidden' }}>
-          <div style={labelStyle}>{clock.isReplay ? `Second Chance round ${clock.replayNumber}` : `Round ${clock.roundNumber} of ${clock.roundCount}`}</div>
-          <div style={{ margin: '4px 0 12px', fontSize: 'clamp(calc(26 * var(--mm-px)), calc(4.6vh * var(--mm-text-scale, 1)), calc(42 * var(--mm-px)))', fontWeight: 1000, color: '#fff' }}>Round results{presentation.placementPoints ? ' · championship points' : ''}</div>
-          <RoundResultsTable view={roundView} board={roundBoard} presentation={presentation} look="projector" />
-        </section>
+      <div className="mm-arena-running-grid mm-arena-tables-grid" data-mm-results-layout="tables" style={{ minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 'clamp(12px, 1.6vw, 20px)' }}>
+        {roundPanel}
         {standingsPanel}
       </div>
     </div>
@@ -960,6 +1069,13 @@ export default function LiveChallengeArenaProjector({
             grid-template-columns: 1fr !important;
             overflow-y: auto;
           }
+          /* The results moment (the two tables, or those beside a worked
+             solution and the round's table): all in one column, each as tall
+             as its content, and the column scrolls (a row squeezed to the
+             screen's height would cut a table off). */
+          .mm-arena-solution-grid,
+          .mm-arena-tables-grid { grid-auto-rows: max-content; }
+          .mm-arena-results-tables { grid-template-rows: auto auto !important; }
         }
         @media (prefers-reduced-motion: reduce) {
           .mm-arena-pulse,

@@ -43,7 +43,7 @@ test('the worked solution is drawn only on a closed round\'s results', () => {
   assert.match(resultsLine, /^\s*\{!loading && stage === CHALLENGE_STAGE\.ROUND_RESULTS && <ResultsView /);
   assert.match(resultsLine, /solution=\{solution\} solutionState=\{solutionState\} solutionHidden=\{solutionHidden\}/);
   // The solution's math is typeset.
-  const panel = region(projector, 'function ProjectorSolution(', '\n/** A closed round:', 'projector solution');
+  const panel = region(projector, 'function ProjectorSolution(', '\nfunction ResultsView(', 'projector solution');
   assert.match(panel, /<MathText>\{step\}<\/MathText>/);
   // Numbered steps read down a left edge, though the page around them is
   // centred (#root): every list of steps on the projector says so.
@@ -66,6 +66,128 @@ test('the console reads the solution only for a published round at results, and 
   assert.match(consoleParts, /export function HostSolutionPanel\(/);
 });
 
+// LC03 (decided 2026-10-25). Beside a ready worked solution the projector keeps
+// the round's table (a championship game's points for the round) and the
+// standings in view, one above the other, with no press of "Hide solution";
+// on a narrow screen everything stacks in one column.
+test('with a worked solution ready the projector keeps the round table and the standings beside it, and stacks them on a narrow screen', () => {
+  const results = region(projector, 'function ResultsView(', '\n/** Host controls along the bottom', 'results view');
+  // One definition of each panel, used by both layouts.
+  assert.equal((results.match(/const roundPanel = \(/g) || []).length, 1);
+  assert.equal((results.match(/const standingsPanel = \(/g) || []).length, 1);
+  const roundPanel = region(results, 'const roundPanel = (', '</ResultsPanel>', 'round panel');
+  const standingsPanel = region(results, 'const standingsPanel = (', '</ResultsPanel>', 'standings panel');
+  assert.match(roundPanel, /<RoundResultsTable view=\{roundView\} board=\{/);
+  assert.match(standingsPanel, /<StandingsBoard board=\{/);
+  // The solution layout: the solution on the left, both panels in a column on the right.
+  const beside = region(results, 'if (solutionFills) {', '\n  return (\n    <div style={{ height', 'the solution layout');
+  assert.match(beside, /data-mm-results-layout="solution"/);
+  assert.match(beside, /<ProjectorSolution solution=\{solution\} state=\{solutionState\} \/>/);
+  const column = region(beside, 'data-mm-results-tables="stacked"', '</div>\n      </div>', 'the tables column');
+  assert.match(column, /\{roundPanel\}\s*\{standingsPanel\}/, 'the round table above the standings');
+  assert.match(column, /gridTemplateRows: plan\.panelRows/, 'the column is split as the plan says');
+  // Without one (none, held, or hidden), the two sit side by side as before.
+  const alone = region(results, 'data-mm-results-layout="tables"', '\n  );\n}', 'the two-table layout');
+  assert.match(alone, /\{roundPanel\}\s*\{standingsPanel\}/);
+  // The compact rows, and the measuring, are for the shared column only.
+  for (const [name, source] of [['round', roundPanel], ['standings', standingsPanel]]) {
+    assert.match(source, /compact=\{solutionFills\}/, `${name}: compact rows only beside a solution`);
+    assert.match(source, /fit=\{solutionFills\}/, `${name}: measured only beside a solution`);
+    assert.match(source, /resetKey=\{resetKey\}/, `${name}: a new round fits again`);
+  }
+  assert.match(roundPanel, /ceiling=\{roundCeiling\}/);
+  assert.match(standingsPanel, /ceiling=\{standingsCeiling\}/);
+  // A narrow screen: one column, rows as tall as their content, and it scrolls.
+  const css = region(projector, '@media (max-width: 900px) {', '@media (prefers-reduced-motion', 'the narrow-screen rules');
+  assert.match(css, /\.mm-arena-running-grid,\s*\.mm-arena-lobby-grid \{\s*grid-template-columns: 1fr !important;\s*overflow-y: auto;/);
+  assert.match(css, /\.mm-arena-solution-grid,\s*\.mm-arena-tables-grid \{ grid-auto-rows: max-content; \}/);
+  assert.match(css, /\.mm-arena-results-tables \{ grid-template-rows: auto auto !important; \}/);
+  assert.match(beside, /className="mm-arena-running-grid mm-arena-solution-grid"/);
+  assert.match(beside, /className="mm-arena-results-tables"/);
+  assert.match(results, /className="mm-arena-running-grid mm-arena-tables-grid" data-mm-results-layout="tables"/);
+  // "Hide solution" is still the teacher's to press: it brings the two-table layout back for this round.
+  assert.match(results, /const showSolution = !solutionHidden && projectorShowsSolution\(/);
+});
+
+// LC03. How many rows each stacked table shows is what FITS it, measured from
+// the panel itself: a table of screen heights was right in the font it was
+// measured in and cut off in the one a classroom's machine has.
+test('a stacked results panel shows the rows that fit it whole, measured from the panel itself', () => {
+  const results = region(projector, 'function ResultsView(', '\n/** Host controls along the bottom', 'results view');
+  // The most each list may show: the public rule's top few (the screen's rows for full standings) when two
+  // share a column, the screen's rows when a list is alone.
+  assert.match(results, /const plan = stackedResultsPlan\(room, rows\);/);
+  assert.match(results, /const roundCeiling = solutionFills \? plan\.rowCeiling : Math\.max\(3, rows - 1\);/);
+  assert.match(results, /const standingsCeiling = solutionFills \? plan\.rowCeiling : rows;/);
+  assert.match(results, /const resetKey = `\$\{room\?\.roomId \|\| room\?\.id \|\| ''\}:\$\{room\?\.currentRound\}:\$\{room\?\.roundVersion \|\| 0\}`;/);
+  // The panel clips what does not fit, so the panel is what is measured.
+  assert.match(region(results, 'const panel = {', '};', 'the panel style'), /overflow: 'hidden'/);
+  // The decision is the panel's own overflow, one row at a time, through the model's step ...
+  const hook = region(projector, 'function useRowsThatFitPanel(', '\n/** One of the results moment', 'the fitting hook');
+  assert.match(hook, /fitRowsStep\(\{ rows, overflowPx: panel\.scrollHeight - panel\.clientHeight \}\)/);
+  // ... after every render (no dependency list), so the rows just drawn are measured at once ...
+  assert.match(hook, /useLayoutEffect\(\(\) => \{\s*const panel = ref\.current;\s*if \(!enabled \|\| !panel\) return;/);
+  // ... a new ceiling or round starts again from the top ...
+  assert.match(hook, /const current = fitted\.ceiling === ceiling && fitted\.resetKey === resetKey;/);
+  assert.match(hook, /const rows = current \? Math\.min\(fitted\.rows, ceiling\) : ceiling;/);
+  // ... and so does a change in the panel's size (a resize, a zoom): a bigger screen shows more.
+  assert.match(hook, /if \(!enabled \|\| !panel \|\| typeof ResizeObserver !== 'function'\) return undefined;/);
+  assert.match(hook, /new ResizeObserver\(/);
+  // (the first callback only reports the size it started with)
+  assert.match(hook, /if \(!seen\) \{ seen = true; return; \}\s*setFitted\(\{ ceiling, resetKey, rows: ceiling \}\);/);
+  assert.match(hook, /observer\.observe\(panel\);/);
+  assert.match(hook, /observer\.disconnect\(\)/);
+  // Not enabled (the tables side by side): the ceiling, nothing measured.
+  assert.match(hook, /return enabled \? rows : ceiling;/);
+  // The panel draws its list for what fits.
+  const panel = region(projector, 'function ResultsPanel(', '\n/**\n * A closed round', 'the results panel');
+  assert.match(panel, /const space = useRowsThatFitPanel\(ref, \{ ceiling, resetKey, enabled: fit \}\);/);
+  assert.match(panel, /<section ref=\{ref\} data-mm-results-panel=\{kind\} style=\{panelStyle\}>/);
+  assert.match(panel, /\{children\(space\)\}/);
+  // No table of screen heights is left.
+  assert.doesNotMatch(executableSource(projector), /stackedBoardRows|useViewportHeight/);
+});
+
+// LC03. The smaller rows that let two tables share a column belong to the
+// projector's look alone, and only the shared column asks for them: a console
+// or a student's device never gets them, and a table alone keeps its full rows.
+test('compact rows are the projector look\'s, and a table draws them only when asked', () => {
+  const looks = region(shellParts, 'export const SHELL_LOOKS = Object.freeze({', '\n});', 'the shell looks');
+  const lookOf = (name) => region(looks, `  ${name}: Object.freeze({`, '\n  }),', `the ${name} look`);
+  for (const key of ['compactSize', 'compactRowHeight']) {
+    assert.match(lookOf('projector'), new RegExp(`\\n    ${key}: `), `the projector look has ${key}`);
+    assert.doesNotMatch(lookOf('console'), new RegExp(key), `the console look has no ${key}`);
+    assert.doesNotMatch(lookOf('student'), new RegExp(key), `the student look has no ${key}`);
+  }
+  // Both tables: full size unless asked, the look's own compact size when asked,
+  // and the rows and the gaps between them really use what was chosen.
+  const tables = [
+    ['StandingsBoard', region(shellParts, 'export function StandingsBoard({', '\n/** What one player did in a round', 'StandingsBoard')],
+    ['RoundResultsTable', region(shellParts, 'export function RoundResultsTable({', '\n/**\n * A destructive action', 'RoundResultsTable')],
+  ];
+  for (const [name, source] of tables) {
+    assert.match(source, /\bcompact = false\b/, `${name} is full size unless asked`);
+    assert.match(source, /const rowHeight = compact && style\.compactRowHeight \? style\.compactRowHeight : style\.rowHeight;/, `${name}: row height`);
+    assert.match(source, /const rowSize = compact && style\.compactSize \? style\.compactSize : style\.size;/, `${name}: text size`);
+    assert.match(source, /minHeight: rowHeight,/, `${name}: a row is as tall as chosen`);
+    assert.match(source, /fontSize: rowSize,/, `${name}: a row's text is as large as chosen`);
+    assert.match(source, /padding: compact \? '3px 12px' : '6px 12px'/, `${name}: a compact row has less padding`);
+    assert.match(source, /const rowGap = compact \? 4 : 6;/, `${name}: compact rows sit closer together`);
+    assert.ok((source.match(/gap: rowGap/g) || []).length >= 2, `${name}: the gaps between rows follow the choice`);
+    assert.doesNotMatch(source, /minHeight: style\.rowHeight|fontSize: style\.size,/, `${name}: no row ignores the choice`);
+  }
+  // The line under a list that leaves players off is tighter in compact rows, in both tables.
+  const more = region(shellParts, 'const moreLineStyle = (look, style, compact) => ({', '\n});', 'the more-line style');
+  assert.match(more, /lineHeight: compact \? 1\.25 : undefined/);
+  assert.match(more, /fontSize: look !== 'projector'\s*\? 'calc\(13 \* var\(--mm-px\)\)'\s*: compact\s*\? 'clamp\(calc\(13 \* var\(--mm-px\)\), calc\(1\.15vw/);
+  for (const [name, source] of tables) {
+    assert.match(source, /data-mm-board-more=\{unseen\} style=\{moreLineStyle\(look, style, compact\)\}/, `${name}: the more-line follows the choice`);
+  }
+  // Only the results view asks, for the shared column alone: one ask per table.
+  const asks = executableSource(projector).match(/\bcompact=\{[^}]*\}/g) || [];
+  assert.deepEqual(asks, ['compact={solutionFills}', 'compact={solutionFills}']);
+});
+
 test('every class-wide list on the projector goes through the one public rule', () => {
   // Each board hands its rows to publicStandingsRows (never a count limit)
   // and draws what it returns.
@@ -78,10 +200,15 @@ test('every class-wide list on the projector goes through the one public rule', 
   assert.match(rush, /const raceBoard = publicStandingsRows\(room, rushRaceRanked\(rushRaceRows\(players, roundIndex\)\), \{ spaceForRows: rows \}\);\s*const boardLimit = raceBoard\.rows\.length;\s*const racersMore = raceBoard\.moreText;/);
   assert.match(rush, /\{boardLimit > 0 && <RushRaceBoard [^\n]*limit=\{boardLimit\}/);
   const results = region(projector, 'function ResultsView(', '\n/** Host controls along the bottom', 'results view');
-  assert.match(results, /const standingsBoard = standings \? publicStandingsRows\(room, standings, \{ spaceForRows: rows \}\) : null;/);
-  assert.match(results, /const roundBoard = roundView \? publicStandingsRows\(room, roundView\.rows, \{ spaceForRows: Math\.max\(3, rows - 1\) \}\) : null;/);
-  assert.match(results, /<RoundResultsTable view=\{roundView\} board=\{roundBoard\} /);
-  assert.match(results, /<StandingsBoard board=\{standingsBoard\} /);
+  assert.match(results, /board=\{publicStandingsRows\(room, standings, \{ spaceForRows: space \}\)\}/);
+  assert.match(results, /board=\{roundView \? publicStandingsRows\(room, roundView\.rows, \{ spaceForRows: space \}\) : null\}/);
+  // The space is the screen's rows when a list is alone, and what fits the
+  // panel when two share a column beside a worked solution (LC03: the panel
+  // measures, then hands its list the rows that fit).
+  assert.match(results, /const roundCeiling = solutionFills \? plan\.rowCeiling : Math\.max\(3, rows - 1\);/);
+  assert.match(results, /const standingsCeiling = solutionFills \? plan\.rowCeiling : rows;/);
+  assert.match(results, /<RoundResultsTable view=\{roundView\} board=\{/);
+  assert.match(results, /<StandingsBoard board=\{/);
   // Every StandingsBoard / RoundResultsTable on the projector draws a decided board.
   for (const tag of code.match(/<(StandingsBoard|RoundResultsTable)\b[^\n]*/g) || []) {
     if (/rows=\{standingsRows\(shownBelow\)\}/.test(tag)) continue; // under the podium: rows finalBoardRows decided, fitted to the space

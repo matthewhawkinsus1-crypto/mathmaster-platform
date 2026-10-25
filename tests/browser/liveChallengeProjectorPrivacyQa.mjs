@@ -26,8 +26,10 @@
 //                   frozen "Time!", and NOTHING on it (host strip included)
 //                   says "extended" or "accommodation"; the round stays open,
 //                   End Round Now works
-//      results      the worked solution, large; Hide solution shows the
-//                   round's table (five rows); 125% zoom and 1920×1080 too
+//      results      the worked solution, large, with the round's table and
+//                   the standings beside it, none cut off (LC03); Hide
+//                   solution brings back the two tables side by side (five
+//                   rows); 125% zoom and 1920×1080 too
 //      podium       top three, then 4th and 5th only; recognitions by alias
 //   2. Full standings, 1920×1080: the last-placed alias IS on the live board,
 //      the results and under the podium; Play Again keeps the choice.
@@ -379,6 +381,9 @@ const selectInLabel = async (handle, labelStart, value) => {
 // live board may already have become the standings after the round.
 const STANDINGS_ON_SCREEN = '[aria-label="Live standings"] [data-mm-standing], [aria-label="Standings after this round"] [data-mm-standing]';
 const keysIn = (handle, selector) => handle.page.locator(selector).evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-mm-standing') || node.getAttribute('data-mm-round-result')));
+// How far each results panel's content runs past its box, in px: a panel is
+// overflow:hidden, so anything past it is cut off (LC03: two tables share a column).
+const panelsCutOff = (handle) => handle.page.locator('[data-mm-results-panel]').evaluateAll((nodes) => nodes.map((node) => node.scrollHeight - node.clientHeight));
 const overflowX = (handle) => handle.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
 const confirmDialog = async (handle, label) => {
   const dialog = handle.page.getByRole('alertdialog');
@@ -539,8 +544,17 @@ try {
   check(resultsKeys.length <= 5 && resultsKeys.length > 0, `the standings after the round show ${resultsKeys.length} rows`, `the standings after the round show ${resultsKeys.length} rows`);
   text = await textOf(teacher);
   check(!text.includes(silentAlias), 'the results name the last-placed player', 'the results never name the last-placed player');
-  check(!after1.slice(5).some((row) => text.includes(row.alias)), 'the results name someone below 5th', 'nobody below 5th is named on the results');
+  // By RANK, not by index: the results page carries two tables (LC03), and each
+  // orders players who tie (several share 3rd) its own way, so a tied 3rd that
+  // this list sorts sixth may rightly be the one a table shows.
+  check(!after1.filter((row) => row.rank > 5).some((row) => text.includes(row.alias)), 'the results name someone ranked below 5th', 'nobody ranked below 5th is named on the results');
   check(await overflowX(teacher) <= 0, 'the results scroll sideways', 'no sideways scroll on the results');
+  // LC03: with the solution on screen the round's table stays in view beside it
+  // (no press of Hide solution), and nothing in either table is cut off.
+  const besideKeys = await keysIn(teacher, '[data-mm-results-layout="solution"] [aria-label="Round results"] [data-mm-round-result]');
+  check(besideKeys.length > 0 && besideKeys.length <= 5, `the round table beside the solution shows ${besideKeys.length} rows`, `the round's table stays in view beside the worked solution (${besideKeys.length} rows)`);
+  let cutOff = await panelsCutOff(teacher);
+  check(cutOff.length === 2 && cutOff.every((cut) => cut <= 1), `a table beside the solution is cut off at 1366×768 (${cutOff.join(', ')} px)`, 'neither table beside the solution is cut off at 1366×768');
   await shot(teacher, 'P03-results-solution');
 
   await teacher.page.setViewportSize(VIEWPORTS.zoom125);
@@ -548,11 +562,21 @@ try {
   text = await textOf(teacher);
   check(!text.includes(silentAlias), 'the results at 125% name the last-placed player', 'the results at 125% never name the last-placed player');
   check(await overflowX(teacher) <= 0, 'the results scroll sideways at 125%', 'no sideways scroll at 125%');
+  cutOff = await panelsCutOff(teacher);
+  check(cutOff.length === 2 && cutOff.every((cut) => cut <= 1), `a table beside the solution is cut off at 125% (${cutOff.join(', ')} px)`, 'neither table beside the solution is cut off at 125%');
+  const zoomKeys = await keysIn(teacher, '[data-mm-results-layout="solution"] [aria-label="Round results"] [data-mm-round-result]');
+  check(zoomKeys.length >= 1 && zoomKeys.length <= besideKeys.length, `the round table beside the solution shows ${zoomKeys.length} rows at 125%, ${besideKeys.length} at 1366×768`, `a smaller screen shows no more rows (${zoomKeys.length} at 125%)`);
   await shot(teacher, 'P04-results-solution-125');
   await teacher.page.setViewportSize(VIEWPORTS.hd);
   await wait(600);
   text = await textOf(teacher);
   check(!text.includes(silentAlias), 'the results at 1920×1080 name the last-placed player (room for 10 rows, still top 5)', 'a big projector still shows only the top 5');
+  cutOff = await panelsCutOff(teacher);
+  check(cutOff.length === 2 && cutOff.every((cut) => cut <= 1), `a table beside the solution is cut off at 1920×1080 (${cutOff.join(', ')} px)`, 'neither table beside the solution is cut off at 1920×1080');
+  // The fitting starts again when the screen grows: more rows than at 125%, and
+  // never more than the public rule's top five.
+  const bigKeys = await keysIn(teacher, '[data-mm-results-layout="solution"] [aria-label="Round results"] [data-mm-round-result]');
+  check(bigKeys.length > zoomKeys.length && bigKeys.length <= 5, `the round table beside the solution shows ${bigKeys.length} rows at 1920×1080, ${zoomKeys.length} at 125%`, `a bigger screen shows more rows (${zoomKeys.length} at 125%, ${bigKeys.length} at 1920×1080)`);
   await shot(teacher, 'P05-results-solution-1080');
   await teacher.page.setViewportSize(VIEWPORTS.projector);
   await wait(400);
@@ -645,8 +669,15 @@ try {
   await waitForDeadline(fullRoomId, 1_000);
   await waitForRoom(fullRoomId, (room) => room.roundState === 'closed', 20_000);
   await waitForArena(teacher, 'roundResults', 10_000);
+  // The worked solution is published a moment after the close; with it up the
+  // round's table and the standings share the column beside it (LC03).
+  check(await waitForAttr(teacher, '[data-mm-results-layout]', 'data-mm-results-layout', 'solution', 15_000), 'a full-standings game never shows the worked solution at its results', 'a full-standings game shows the worked solution at its results');
   await wait(800);
   check((await textOf(teacher)).includes(fullSilent), 'full standings do not show the last-placed player on the results', 'full standings show the last-placed player on the results');
+  // …with the round's table beside the solution, neither cut off.
+  const fullCut = await panelsCutOff(teacher);
+  check(fullCut.length === 2 && fullCut.every((cut) => cut <= 1), `a full-standings table beside the solution is cut off at 1920×1080 (${fullCut.join(', ')} px)`, 'neither full-standings table beside the solution is cut off at 1920×1080');
+  check((await keysIn(teacher, '[data-mm-results-layout="solution"] [aria-label="Round results"] [data-mm-round-result]')).length > 0, 'the round table is not beside the solution in a full-standings game', 'the round table stays beside the solution in a full-standings game');
   await shot(teacher, 'F02-results-full');
   await teacher.page.getByRole('button', { name: 'End Game' }).click();
   await confirmDialog(teacher, 'End Game');

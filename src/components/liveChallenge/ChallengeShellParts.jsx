@@ -46,6 +46,11 @@ export const SHELL_LOOKS = Object.freeze({
     gold: '#ffd166',
     size: 'clamp(calc(16 * var(--mm-px)), calc(1.7vw * var(--mm-text-scale, 1)), calc(24 * var(--mm-px)))',
     rowHeight: 'clamp(40px, 6vh, 56px)',
+    // Two tables in the space of one (the projector's results beside a worked
+    // solution, LC03): still readable from the back of a classroom, a
+    // fifth smaller, and the same text scale a teacher chose.
+    compactSize: 'clamp(calc(15 * var(--mm-px)), calc(1.45vw * var(--mm-text-scale, 1)), calc(21 * var(--mm-px)))',
+    compactRowHeight: 'clamp(32px, 4.8vh, 44px)',
   }),
   student: Object.freeze({
     text: '#eef1f6',
@@ -65,6 +70,20 @@ export const SHELL_LOOKS = Object.freeze({
 });
 
 const lookOf = (look) => SHELL_LOOKS[look] || SHELL_LOOKS.console;
+
+// The line under a board that leaves players off ("and 3 more players · …"):
+// a little smaller and tighter in compact rows, where it is one of two.
+const moreLineStyle = (look, style, compact) => ({
+  color: style.muted,
+  fontWeight: 800,
+  fontSize: look !== 'projector'
+    ? 'calc(13 * var(--mm-px))'
+    : compact
+      ? 'clamp(calc(13 * var(--mm-px)), calc(1.15vw * var(--mm-text-scale, 1)), calc(17 * var(--mm-px)))'
+      : 'clamp(calc(14 * var(--mm-px)), calc(1.4vw * var(--mm-text-scale, 1)), calc(20 * var(--mm-px)))',
+  lineHeight: compact ? 1.25 : undefined,
+  paddingLeft: 4,
+});
 
 export function ChallengeShellStyles() {
   return <style>{SHELL_CSS}</style>;
@@ -171,8 +190,14 @@ export function StandingsBoard({
   // never a place tied with the last, never one player left unnamed). When
   // given, it is drawn as it is: its rows, the viewer's own row, its note.
   board = null,
+  // Smaller rows, for two lists sharing one column (the projector's results
+  // beside a worked solution). A look with no compact size draws as usual.
+  compact = false,
 }) {
   const style = lookOf(look);
+  const rowHeight = compact && style.compactRowHeight ? style.compactRowHeight : style.rowHeight;
+  const rowSize = compact && style.compactSize ? style.compactSize : style.size;
+  const rowGap = compact ? 4 : 6;
   const visible = board
     ? { top: board.rows, self: board.self, hiddenCount: board.hiddenCount + (board.self ? 1 : 0), total: board.totalCount }
     : standingsWindow(rows, { limit, selfKey, total: totalCount });
@@ -190,14 +215,14 @@ export function StandingsBoard({
           gridTemplateColumns: `${look === 'projector' ? '3.2em' : '42px'} minmax(0,1fr) auto auto`,
           gap: 10,
           alignItems: 'center',
-          minHeight: style.rowHeight,
-          padding: '6px 12px',
+          minHeight: rowHeight,
+          padding: compact ? '3px 12px' : '6px 12px',
           boxSizing: 'border-box',
           borderRadius: 10,
           background: row.isSelf ? style.self : style.row,
           border: `${row.isSelf ? 2 : 1}px solid ${row.isSelf ? style.selfBorder : style.rowBorder}`,
           color: style.text,
-          fontSize: style.size,
+          fontSize: rowSize,
         }}
       >
         <RankCell row={row} style={style} look={look} />
@@ -229,17 +254,17 @@ export function StandingsBoard({
     );
   };
   return (
-    <div style={{ display: 'grid', gap: 6 }}>
-      <ol aria-label={label} style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
+    <div style={{ display: 'grid', gap: rowGap }}>
+      <ol aria-label={label} style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: rowGap }}>
         {visible.top.map(renderRow)}
       </ol>
       {visible.self && (
-        <ol aria-label="Your place" start={visible.self.rank || undefined} style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
+        <ol aria-label="Your place" start={visible.self.rank || undefined} style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: rowGap }}>
           {renderRow(visible.self)}
         </ol>
       )}
       {unseen > 0 && (
-        <div data-mm-board-more={unseen} style={{ color: style.muted, fontWeight: 800, fontSize: look === 'projector' ? 'clamp(calc(14 * var(--mm-px)), calc(1.4vw * var(--mm-text-scale, 1)), calc(20 * var(--mm-px)))' : 'calc(13 * var(--mm-px))', paddingLeft: 4 }}>
+        <div data-mm-board-more={unseen} style={moreLineStyle(look, style, compact)}>
           {typeof describeMore === 'function' ? describeMore(unseen) : board?.moreText || `and ${unseen} more ${unseen === 1 ? 'player' : 'players'}`}
         </div>
       )}
@@ -263,8 +288,11 @@ export const roundPerformanceText = (row, presentation) => {
  * a round's place earns the match points (Grand Prix) — the points it earned.
  */
 // `board`: a public list already decided (publicStandingsRows), drawn as it is.
-export function RoundResultsTable({ view, presentation, look = 'console', limit = 6, selfKey = null, describeMore = null, board = null }) {
+export function RoundResultsTable({ view, presentation, look = 'console', limit = 6, selfKey = null, describeMore = null, board = null, compact = false }) {
   const style = lookOf(look);
+  const rowHeight = compact && style.compactRowHeight ? style.compactRowHeight : style.rowHeight;
+  const rowSize = compact && style.compactSize ? style.compactSize : style.size;
+  const rowGap = compact ? 4 : 6;
   if (!view) return <p style={{ margin: 0, color: style.muted }}>Tallying the round…</p>;
   const rows = view.rows || [];
   if (!rows.length) return <p style={{ margin: 0, color: style.muted }}>Nobody played this round.</p>;
@@ -274,9 +302,9 @@ export function RoundResultsTable({ view, presentation, look = 'console', limit 
   const renderRow = (row) => (
     <li key={row.playerKey || row.alias} data-mm-round-result={row.playerKey || ''} style={{
       display: 'grid', gridTemplateColumns: `${look === 'projector' ? '3.4em' : '52px'} minmax(0,1fr) auto auto`, gap: 10, alignItems: 'center',
-      minHeight: style.rowHeight, padding: '6px 12px', boxSizing: 'border-box', borderRadius: 10,
+      minHeight: rowHeight, padding: compact ? '3px 12px' : '6px 12px', boxSizing: 'border-box', borderRadius: 10,
       background: row.isSelf ? style.self : style.row, border: `${row.isSelf ? 2 : 1}px solid ${row.isSelf ? style.selfBorder : style.rowBorder}`,
-      color: style.text, fontSize: style.size,
+      color: style.text, fontSize: rowSize,
     }}>
       <strong style={{ textAlign: 'center' }}>
         <span aria-hidden="true">{row.place.ordinal}</span>
@@ -290,11 +318,11 @@ export function RoundResultsTable({ view, presentation, look = 'console', limit 
     </li>
   );
   return (
-    <div style={{ display: 'grid', gap: 6 }}>
-      <ol aria-label="Round results" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>{shown.map(renderRow)}</ol>
+    <div style={{ display: 'grid', gap: rowGap }}>
+      <ol aria-label="Round results" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: rowGap }}>{shown.map(renderRow)}</ol>
       {self && <ol aria-label="Your round result" style={{ listStyle: 'none', margin: 0, padding: 0 }}>{renderRow(self)}</ol>}
       {unseen > 0 && (
-        <div data-mm-board-more={unseen} style={{ color: style.muted, fontWeight: 800, fontSize: look === 'projector' ? 'clamp(calc(14 * var(--mm-px)), calc(1.4vw * var(--mm-text-scale, 1)), calc(20 * var(--mm-px)))' : 'calc(13 * var(--mm-px))', paddingLeft: 4 }}>
+        <div data-mm-board-more={unseen} style={moreLineStyle(look, style, compact)}>
           {typeof describeMore === 'function' ? describeMore(unseen) : board?.moreText || `and ${unseen} more`}
         </div>
       )}

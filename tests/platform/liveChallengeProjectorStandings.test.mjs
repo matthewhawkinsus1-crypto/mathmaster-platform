@@ -8,10 +8,12 @@ import assert from 'node:assert/strict';
 import {
   EXTENDED_TIME_MESSAGE,
   FINAL_BOARD_MAX_ROWS,
+  FIT_TOLERANCE_PX,
   PROJECTOR_MORE_NOTE,
   STILL_FINISHING_HOST_HINT,
   STILL_FINISHING_MESSAGE,
   finalBoardRows,
+  fitRowsStep,
   lastRankOf,
   podiumRecognitionRows,
   podiumRows,
@@ -21,7 +23,9 @@ import {
   roundStillFinishing,
   roundWaitingOnExtendedTime,
   rushRaceRanked,
+  stackedResultsPlan,
 } from '../../src/platform/liveChallenge/liveChallengeProjectorModel.js';
+import { PUBLIC_TOP_COUNT } from '../../functions/shared/liveChallengePrivacy.mjs';
 import { CHALLENGE_STAGE } from '../../src/platform/liveChallenge/challengeShellModel.js';
 import { SOLUTION_STATE } from '../../src/platform/liveChallenge/challengeSolutionModel.js';
 import { replayRequestFromRoom } from '../../src/platform/liveChallenge/challengeReplayModel.js';
@@ -343,4 +347,46 @@ test('turning Recognition awards off sends recognitions: false, keeping every ru
   assert.deepEqual(both.rules.map((rule) => rule.ruleId), [...defaults, 'placementPracticePass', 'championBadge']);
   assert.equal(both.recognitions, false);
   assert.ok(describeChallengeRewardChoice({ recognitions: false }).some((line) => /Recognition awards are off/.test(line)));
+});
+
+// LC03. The round's table and the standings share one column beside a worked
+// solution. How many rows each shows is measured by the panel (the projector's
+// ResultsPanel); these are the two pure decisions behind it.
+test('two lists sharing a column start at the public top few, or at the screen\'s rows for full standings, which get the larger share', () => {
+  assert.deepEqual({ ...stackedResultsPlan({}, 10) }, { rowCeiling: 5, panelRows: 'minmax(0,1fr) minmax(0,1fr)' }, 'the default: the top few, in halves');
+  assert.deepEqual({ ...stackedResultsPlan({ standingsDisplay: 'topFew' }, 8) }, { rowCeiling: 5, panelRows: 'minmax(0,1fr) minmax(0,1fr)' });
+  assert.deepEqual({ ...stackedResultsPlan({ standingsDisplay: 'full' }, 10) }, { rowCeiling: 10, panelRows: 'minmax(0,2fr) minmax(0,3fr)' }, 'full standings: as many as the screen has, the standings 60%');
+  assert.deepEqual({ ...stackedResultsPlan({ standingsDisplay: 'full' }, 4) }, { rowCeiling: 4, panelRows: 'minmax(0,2fr) minmax(0,3fr)' });
+  // The default never offers more than the public rule would show, whatever the screen.
+  assert.equal(PUBLIC_TOP_COUNT, 5);
+  assert.equal(stackedResultsPlan({}, 10).rowCeiling, PUBLIC_TOP_COUNT);
+  assert.equal(stackedResultsPlan({}, 3).rowCeiling, PUBLIC_TOP_COUNT);
+  // Something that is not a row count is the top few, never zero or NaN.
+  for (const bad of [undefined, null, 'tall', Number.NaN, Number.POSITIVE_INFINITY, 0, -3]) {
+    assert.equal(stackedResultsPlan({ standingsDisplay: 'full' }, bad).rowCeiling, PUBLIC_TOP_COUNT, `screen rows ${String(bad)}`);
+  }
+});
+
+test('a panel that runs past its edge drops one row at a time, down to one, and a panel that fits keeps its rows', () => {
+  assert.equal(fitRowsStep({ rows: 5, overflowPx: 12 }), 4, 'over: one row fewer');
+  assert.equal(fitRowsStep({ rows: 4, overflowPx: 2 }), 3, 'two pixels past the edge is an overflow');
+  assert.equal(fitRowsStep({ rows: 5, overflowPx: 0 }), 5, 'fits');
+  assert.equal(fitRowsStep({ rows: 5, overflowPx: 1 }), 5, 'a pixel of rounding is not an overflow');
+  assert.equal(FIT_TOLERANCE_PX, 1);
+  assert.equal(fitRowsStep({ rows: 5, overflowPx: -40 }), 5, 'room to spare');
+  assert.equal(fitRowsStep({ rows: 1, overflowPx: 200 }), 1, 'never fewer than one');
+  assert.equal(fitRowsStep({ rows: 0, overflowPx: 200 }), 1, 'a zero is read as one');
+  // Not a measurement: nothing to decide on, so nothing changes.
+  for (const unknown of [undefined, null, Number.NaN, 'wide']) {
+    assert.equal(fitRowsStep({ rows: 5, overflowPx: unknown }), 5, `overflow ${String(unknown)}`);
+  }
+  // Played out: a panel with room for 170px, a 40px heading and 41px rows holds three of five rows, reached in two steps.
+  const overflowAt = (count) => 40 + count * 41 - 170;
+  let rows = 5;
+  let steps = 0;
+  for (let next = fitRowsStep({ rows, overflowPx: overflowAt(rows) }); next !== rows; next = fitRowsStep({ rows, overflowPx: overflowAt(rows) })) {
+    rows = next;
+    steps += 1;
+  }
+  assert.deepEqual({ rows, steps }, { rows: 3, steps: 2 });
 });

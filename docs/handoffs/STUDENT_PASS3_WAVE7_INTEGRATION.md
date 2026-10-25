@@ -335,6 +335,10 @@ Each handoff lists its own, in full. Grouped here:
     workflow when a scheduled run fails, and closes it when one passes.
 24. In a championship game, the projector shows the round table and "championship points" only after Hide solution: a
     ready worked solution takes the table's place, by design (W7-7 2h). Should the table stay in view beside it?
+    **Decided 2026-10-25: yes.** With a ready solution the round table and the standings share the right-hand column,
+    one above the other, each showing the rows that fit it, measured (`LiveChallengeArenaProjector` `ResultsView`,
+    `ResultsPanel`; LC03 in `live-challenge-shell.md` §8). "Hide solution" still brings back the two tables side by
+    side.
 25. The teacher harness's `p3StartMin` stays 0, and the bank count does not see Firestore-only teacher items (W7-7 2
     and 3).
 

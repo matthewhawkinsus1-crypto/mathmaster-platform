@@ -224,3 +224,35 @@ export const roundStillFinishing = (state = {}) => roundWaitingOnExtendedTime(st
 export const projectorShowsSolution = ({ stage = null, solutionState = null } = {}) => (
   stage === CHALLENGE_STAGE.ROUND_RESULTS && Boolean(solutionState) && solutionState !== SOLUTION_STATE.NONE
 );
+
+/*
+ * TWO LISTS IN ONE COLUMN (LC03). With a worked solution on the left, the
+ * round's table and the standings share the right-hand column, one above the
+ * other, in the projector's compact rows. Each panel is half the column (the
+ * standings' 60% when the teacher opted into full standings, which are the
+ * point of that choice), so each shows fewer rows than it would alone.
+ *
+ * How many is MEASURED, never read off the screen's height. The first version
+ * keyed a table to the viewport and was right in the font it was measured in
+ * and cut off in the one a classroom's machine has. Now a panel starts at the
+ * most its list may show (stackedResultsPlan: the public rule's top few, or
+ * the screen's rows for full standings) and drops a row at a time
+ * (fitRowsStep) while its own content runs past its bottom edge; a new round,
+ * a resize or a zoom starts again from the top. publicStandingsRows still
+ * decides which rows those are and says what is left unshown.
+ */
+export const FIT_TOLERANCE_PX = 1;
+
+export const stackedResultsPlan = (room = {}, screenRows = PUBLIC_TOP_COUNT) => {
+  if (!roomShowsFullStandings(room)) {
+    return Object.freeze({ rowCeiling: PUBLIC_TOP_COUNT, panelRows: 'minmax(0,1fr) minmax(0,1fr)' });
+  }
+  const rows = Math.floor(Number(screenRows));
+  return Object.freeze({ rowCeiling: Number.isFinite(rows) && rows >= 1 ? rows : PUBLIC_TOP_COUNT, panelRows: 'minmax(0,2fr) minmax(0,3fr)' });
+};
+
+/** One step of fitting: a row fewer while the panel's content runs past its edge (never fewer than one). */
+export const fitRowsStep = ({ rows, overflowPx } = {}) => {
+  const have = Math.max(1, Math.floor(Number(rows)) || 1);
+  return Number(overflowPx) > FIT_TOLERANCE_PX && have > 1 ? have - 1 : have;
+};
