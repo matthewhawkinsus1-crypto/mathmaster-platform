@@ -28,7 +28,7 @@ import { CLASS_PERIODS, assignmentIsForStudent, getAssignmentLifecycle, localDat
 import { resolveQuestionActivityRole } from '../../platform/policies/activityPolicies';
 import { matchesSmartView, SMART_VIEWS } from '../../assignmentSmartViews';
 import { assignmentFolderMatches, normalizeFolderPath, titleOrFolderMatches } from '../../assignmentFolders';
-import { buildDestinationGroups, destinationAssignmentKey, isLibraryAssignment, resolveAssignmentDates, resolveCreationMode } from '../../assignmentDestinations';
+import { buildDestinationGroups, destinationAssignmentKey, findAssignmentKeyConflict, isLibraryAssignment, resolveAssignmentDates, resolveCreationMode } from '../../assignmentDestinations';
 import { flattenV5Sections, rebuildV5SectionsFromQuestions } from '../../platform/contract/assignmentSchemaV5.js';
 import { canonicalV5PersistencePatch, getStoredAssignmentQuestions, getStoredAssignmentTypeProjection, getStoredAssignmentVariantMode, getStoredSectionVariantModes, storedAssignmentToV5, testCycleContractFields } from '../../platform/contract/storedAssignmentV5.js';
 import { buildAssignmentV5PreflightModel } from '../../platform/preflight/assignmentV5PreflightModel.js';
@@ -581,10 +581,9 @@ export default function TeacherWorkspace({
         : null;
       const sourceAssignmentKey = String(reviewedV5.assignment?.assignmentKey || '').trim() || null;
 
-      if (sourceAssignmentKey && assignments.some((assignment) => (
-        assignment.assignmentKey === sourceAssignmentKey
-        || String(assignment.assignmentKey || '').startsWith(`${sourceAssignmentKey}:`)
-      ))) {
+      // Assignment Review already says so (TT10); this stays as the last check,
+      // for a list that changed while the review was open.
+      if (findAssignmentKeyConflict({ assignments, assignmentKey: sourceAssignmentKey })) {
         throw new Error(`An assignment with assignmentKey "${sourceAssignmentKey}" already exists. Clear or change assignment.assignmentKey if you intend to create a separate copy.`);
       }
 
@@ -1921,6 +1920,8 @@ export default function TeacherWorkspace({
           reviewMode={assignmentPreflight.mode || 'create'}
           allowQuestionRepair={assignmentPreflight.allowQuestionRepair !== false}
           rosterSizesByClassId={preflightRosterSizesByClassId}
+          // So Review can say a reused assignmentKey is taken before Create does (TT10).
+          existingAssignments={assignments}
           // Offers the in-place import of a Test Cycle's missing secure
           // families; seedPathQuestionBank re-checks the root identity.
           canManageSecureBank={rootAdminUiEligible}

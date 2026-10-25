@@ -97,7 +97,9 @@ test('Pre-Flight asks the bank for ranked alternatives and proves them, keyed to
 test('readiness waits for the Honors version and judges the report Create will check', () => {
   const readiness = region(modal, 'const readinessHonorsReport =', 'const showingHonorsPreview', 'readiness');
   assert.match(readiness, /honorsCandidateCurrent \? honorsCandidate\.honorsReport : honorsReport/);
-  assert.match(readiness, /collectReviewBlockers\(\{[^}]*honorsReport: readinessHonorsReport, honorsCcmr: honorsCcmrState \}\)/);
+  // Both the report Create will check and the Honors version's state go in; other
+  // inputs (the reused-key check, TT10) may sit beside them.
+  assert.match(readiness, /collectReviewBlockers\(\{[^}]*honorsReport: readinessHonorsReport,[^}]*honorsCcmr: honorsCcmrState\b[^}]*\}\)/);
   const state = region(modal, 'const honorsCcmrState = useMemo', 'const honorsCcmrChip', 'Honors version state');
   assert.match(state, /if \(!honorsCandidate \|\| !honorsCandidateCurrent\) return \{ status: 'preparing' \}/);
 });

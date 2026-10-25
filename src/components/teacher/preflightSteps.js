@@ -86,6 +86,10 @@ export const collectReviewBlockers = ({
   honorsSelected = false,
   honorsReport = null,
   honorsCcmr = null,
+  // The assignmentKey this review would create under, when another saved
+  // assignment already uses it ('' when it is free). Create refuses a reused
+  // key, so Review says so here instead of at the last button (TT10).
+  duplicateAssignmentKey = '',
 } = {}) => {
   // A `= {}` default only fires for undefined, so an explicit null draft — the
   // shape a half-initialised modal actually passes — would throw on `.title`.
@@ -100,6 +104,10 @@ export const collectReviewBlockers = ({
 
   if (!String(draft.title || '').trim()) {
     blockers.push(blocker('details', 'Give the assignment a title.'));
+  }
+  const reusedKey = String(duplicateAssignmentKey || '').trim();
+  if (reusedKey) {
+    blockers.push(blocker('details', `This file's assignmentKey, "${reusedKey}", is already used by an assignment you have, so Create would be refused. Go back to the Creator, change or clear assignment.assignmentKey in the file, and read it in again to make a separate copy.`));
   }
   // A due date matters only once somebody is going to receive it. Requiring one
   // to save to the library forced teachers to invent a date and then remember

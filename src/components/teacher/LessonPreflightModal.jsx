@@ -8,6 +8,7 @@ import {
 } from '../../platform/authoring/lessonPublishingIntent.js';
 import { defaultAssignmentDateInputs } from '../../platform/assignments/assignmentDateDefaults.js';
 import { buildAssignmentV5PreflightModel } from '../../platform/preflight/assignmentV5PreflightModel.js';
+import { findAssignmentKeyConflict } from '../../assignmentDestinations.js';
 import { applySafeToolContractRepairs } from '../../platform/contract/questionToolContract.js';
 import { formatPlannedTime } from '../../platform/teacher/classworkPacing.js';
 import {
@@ -239,6 +240,9 @@ export const LessonPreflightModal = ({
   busy = false,
   reviewMode = 'create',
   allowQuestionRepair = true,
+  // The saved assignments, so a reused assignmentKey is caught here and not at
+  // Create (findAssignmentKeyConflict; TT10).
+  existingAssignments = [],
   // { classId: number of active students } — lets Pre-Flight compare each
   // question's distinct versions with the class it will actually be given to.
   rosterSizesByClassId = {},
@@ -599,11 +603,18 @@ export const LessonPreflightModal = ({
   // Readiness judges the Honors version Create will publish, once there is
   // one: the same report confirmHonorsCandidateForCreate checks again.
   const readinessHonorsReport = honorsCandidateCurrent ? honorsCandidate.honorsReport : honorsReport;
+  // Create refuses an assignmentKey another saved assignment already uses, so a
+  // new assignment is told so here. Setup edits (update mode) keep their own key.
+  const duplicateAssignmentKey = useMemo(() => {
+    if (reviewMode === 'update') return '';
+    const key = String(effectiveAssignmentV5.assignment?.assignmentKey ?? '').trim();
+    return key && findAssignmentKeyConflict({ assignments: existingAssignments, assignmentKey: key }) ? key : '';
+  }, [reviewMode, existingAssignments, effectiveAssignmentV5]);
   const readiness = useMemo(() => summarizePreflightReadiness({
-    blockers: collectReviewBlockers({ draft, classPeriods, honorsSelected, honorsReport: readinessHonorsReport, honorsCcmr: honorsCcmrState }),
+    blockers: collectReviewBlockers({ draft, classPeriods, honorsSelected, honorsReport: readinessHonorsReport, honorsCcmr: honorsCcmrState, duplicateAssignmentKey }),
     validationErrors,
     bundleIsValid: preflightModel.isValid,
-  }), [draft, classPeriods, honorsSelected, readinessHonorsReport, honorsCcmrState, validationErrors, preflightModel.isValid]);
+  }), [draft, classPeriods, honorsSelected, readinessHonorsReport, honorsCcmrState, duplicateAssignmentKey, validationErrors, preflightModel.isValid]);
 
   // The student preview shows either version, from the same object Create
   // publishes for it: the reviewed assignment, or the final Honors one.
