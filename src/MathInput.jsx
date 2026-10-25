@@ -234,6 +234,11 @@ export default function MathInput({
   toolProfile = 'basic',
   onUndoStateChange = null,
   inputStatus = 'neutral',
+  // A graded entry says so to a screen reader as well as by its border: the
+  // caller that marks it in words passes the mark's id, and whether it is wrong
+  // (GradedEntryMark.jsx, VH-13).
+  ariaInvalid = false,
+  ariaDescribedBy = '',
   focusSignal = 0,
   compact = false,
   maxWidth = 540,
@@ -679,6 +684,8 @@ export default function MathInput({
         // Enter routing (QuestionEngine) never takes the key from it.
         data-mm-enter-owner={onSubmit ? 'field' : undefined}
         aria-label={fieldName}
+        aria-invalid={ariaInvalid ? 'true' : undefined}
+        aria-describedby={ariaDescribedBy || undefined}
         math-virtual-keyboard-policy="manual"
         inputmode={shouldSuppressNativeKeyboard ? 'none' : undefined}
         onFocus={() => {

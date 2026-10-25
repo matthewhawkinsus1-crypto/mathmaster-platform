@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useId, useMemo } from 'react';
 import MathInput from './MathInput';
 import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
@@ -22,6 +22,7 @@ import { choiceAccessibleLabel, choiceFieldAsksDimensions, choiceOptionsForField
 import { normalizePlainMathTypography, toPlainMath } from './components/common/mathSegments.js';
 import { MathText } from './components/common/MathText.jsx';
 import { ChoiceMark, useChoiceGroup } from './platform/interaction/choiceGroup.js';
+import GradedEntryMark, { gradedEntryInputProps } from './components/common/GradedEntryMark.jsx';
 
 const TEXTUAL_MATH_SIGNAL = /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩]/;
 
@@ -49,11 +50,11 @@ const renderChoiceText = (value, { dimensions = false } = {}) => {
 
 // A choice field: one radio group (choiceGroup.js) — one tab stop, arrows
 // move and select, and the chosen option carries a ✓ as well as its colour.
-function ChoiceFieldOptions({ label, options, value, grade, onSelect, dimensions = false }) {
+function ChoiceFieldOptions({ label, options, value, grade, markId, onSelect, dimensions = false }) {
   const raws = options.map((option) => String(option));
   const optionProps = useChoiceGroup({ ids: raws, value, onSelect });
   return (
-    <div role="radiogroup" aria-label={label} style={{ display: 'grid', gap: '8px' }}>
+    <div role="radiogroup" aria-label={label} {...gradedEntryInputProps(grade, markId)} style={{ display: 'grid', gap: '8px' }}>
       {raws.map((raw, index) => {
         const selected = value === raw;
         return (
@@ -137,6 +138,10 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
   );
   const history = useUndoHistory({}, 60, draftKey ? `${draftKey}:multi-answer` : null);
   const answers = history.value;
+  // Each graded field says so in words under it, and its control is described
+  // by that sentence and aria-invalid when wrong (GradedEntryMark.jsx): the
+  // border colour was the only sign (VH-13, WCAG 1.4.1 and 3.3.1).
+  const markBase = useId();
   // Correctness comes from the shared grading contract so every caller of it —
   // this screen, the deadline finalizer, the tests — marks alike. It gets the
   // whole question, as the server does: whether a line field takes any form
@@ -223,6 +228,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
       <div className="mathmaster-multipart-fields" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '20px', marginTop: '24px' }}>
         {safeFields.map((field) => {
           const grade = feedback?.partGrades?.find((part) => part.id === field.id);
+          const markId = `${markBase}-${field.id}-mark`;
           const choiceOptions = choiceOptionsForField(field, choiceSeed(question.questionId || question.prompt, field.id));
           const inferredRequiredSymbols = inferRequiredAnswerSymbols(acceptedAnswersForField(field));
           const requiredSymbols = [
@@ -266,6 +272,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                   options={choiceOptions}
                   value={String(answers[field.id] || '')}
                   grade={grade}
+                  markId={markId}
                   onSelect={(raw) => history.setValue((current) => ({ ...current, [field.id]: raw }))}
                 />
               ) : shouldUsePlainTextInput(field) ? (
@@ -275,6 +282,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                   onChange={(event) => history.setValue((current) => ({ ...current, [field.id]: event.target.value }))}
                   placeholder={answerShape.placeholder}
                   aria-label={accessibleFieldLabel(field)}
+                  {...gradedEntryInputProps(grade, markId)}
                   autoComplete="off"
                   spellCheck={false}
                   style={{
@@ -307,8 +315,11 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                   requiredSymbols={requiredSymbols}
                   showToolsInitially={shouldUseSetInput(field) || shouldUseInequalityInput(field) || inferredRequiredSymbols.length > 0}
                   inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'}
+                  ariaInvalid={grade ? !grade.isCorrect : false}
+                  ariaDescribedBy={grade ? markId : ''}
                 />
               )}
+              <GradedEntryMark grade={grade} id={markId} />
             </div>
           );
         })}
