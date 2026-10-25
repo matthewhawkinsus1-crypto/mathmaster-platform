@@ -123,9 +123,11 @@ test('a past week reads the very grade the Classroom publisher sends', async () 
   assert.equal(week.passing, true);
 });
 
-test('Sunday evening after UTC midnight: last week is still open until its Central-time deadline', () => {
-  // 9pm Sunday in Chicago is already Monday in UTC, so the UTC week has
-  // turned; last week's goal is due at 23:59 Central and is not over yet.
+test('Sunday evening after UTC midnight: the week is still open until its Central-time deadline', () => {
+  // 9pm Sunday in Chicago is already Monday in UTC. The week is read in
+  // Chicago (MP06), so it has not turned: this is still the week, and its goal
+  // is due at 23:59 Central, not over yet. (Before MP06 the UTC week had
+  // already turned here and the same goal read as last week, still open.)
   const sundayEvening = Date.parse('2026-10-05T02:00:00Z');
   const goal = frozenGoal(LAST_WEEK);
   assert.ok(sundayEvening < goal.dueAt);
