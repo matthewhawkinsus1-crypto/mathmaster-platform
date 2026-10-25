@@ -264,6 +264,25 @@ test('the canvas floats its labels and badge where the model places them, and dr
   assert.match(region(css, 'body :is(', '}', 'the global focus ring'), /\):not\(\[data-focus-ring="container"\]\):not\(\[data-focus-ring="own"\]\):focus-visible \{/);
 });
 
+// A new item resets the keyboard cursor, a held point and what was announced.
+// As a passive effect that reset ran a moment AFTER the commit, so an arrow
+// pressed in that moment was moved and announced by its handler and then undone
+// by the late effect: the first key on a new item said nothing and moved
+// nothing. The Rush graph had the same race (CI06, graphFeatureRushScreens
+// .test.mjs). A layout effect has run before the browser can deliver any key.
+test('the canvas resets its cursor, held point and announcement before a key can reach the new item', () => {
+  const canvas = executableSource(read('../../src/components/liveChallenge/LineGraphCanvas.jsx'));
+  const reset = region(canvas, 'useLayoutEffect(() => {', '[resetKey, view]);', 'the new-item reset');
+  assert.match(reset, /pointerRef\.current = null;/, 'a press still held from the last item is let go');
+  assert.match(reset, /setDraft\(emptyDraft\(\)\);/, 'the grid starts empty');
+  assert.match(reset, /setCursor\(initialLineCursor\(view\)\);/, 'the cursor goes back to its start');
+  assert.match(reset, /setAnnouncement\(''\);/, 'what was announced is cleared');
+  assert.match(canvas, /import \{[^}]*\buseLayoutEffect\b[^}]*\} from 'react';/);
+  // That is the only place the cursor goes back to its start: a passive effect
+  // doing it as well would run late and undo a key.
+  assert.equal((canvas.match(/setCursor\(initialLineCursor\(view\)\)/g) || []).length, 1, 'no passive effect resets the cursor');
+});
+
 /* ------------------------------ the teacher ------------------------------ */
 
 // One switch: the modes' own teacherSelectable. Launched, every teacher's

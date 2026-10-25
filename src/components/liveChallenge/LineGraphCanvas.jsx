@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import LineGridLayer from './LineGridLayer.jsx';
 import {
   DRAFT_OUTCOME,
@@ -210,8 +210,12 @@ function LineGraphCanvas({
     setDraftState(next);
   };
 
-  // A new item (or Start over) starts from an empty grid.
-  useEffect(() => {
+  // A new item (or Start over) starts from an empty grid. A LAYOUT effect, so
+  // the reset has happened before the browser can hand this item a key: as a
+  // passive effect it ran a moment after the commit, and an arrow pressed in
+  // that moment was moved and announced by its handler, then undone by the
+  // late reset (the same race the Rush graph had, CI06).
+  useLayoutEffect(() => {
     pointerRef.current = null;
     setDraft(emptyDraft());
     setCursor(initialLineCursor(view));
