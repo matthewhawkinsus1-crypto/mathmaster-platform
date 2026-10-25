@@ -27,6 +27,7 @@ import {
   rushRefusalIsTimeUp,
 } from '../../src/platform/liveChallenge/challengeAnswerRefusal.js';
 import { buildRoundTimer, timerAcceptsArrival } from '../../functions/shared/liveChallengeTimer.mjs';
+import { lockedAnswerLine } from '../../src/platform/liveChallenge/challengeShellModel.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const server = executableSource(await readFile(new URL('../../functions/index.js', import.meta.url), 'utf8'));
@@ -232,8 +233,11 @@ test('the screen keeps an answer refused before GO, says so, and resends the sam
   // The timer resends the same envelope: the retry sends `pending` itself.
   assert.match(round, /latestRetryRef\.current = retryPending;/);
   assert.match(retry, /await submitResponse\(pending\)/);
-  // The student is told plainly while it waits, and the timer dies with the round.
-  assert.match(round, /\{waitingForGo \? 'Your answer is locked in and will send at GO\.' : waitingForResume \? '[^']*paused[^']*' : 'Answer locked in · checking it…'\}/);
+  // The student is told plainly while it waits (the words are the shell
+  // model's, lockedAnswerLine), and the timer dies with the round.
+  assert.match(lockedAnswerLine({ waitingForGo: true }).text, /locked in and will send at GO/);
+  assert.match(lockedAnswerLine({ waitingForResume: true }).text, /paused.*locked in.*resumes/);
+  assert.match(round, /lockedAnswerLine\(\{ waitingForGo, waitingForResume,/, 'the round shows the line for the state it is in');
   assert.match(retry, /setWaitingForGo\(false\);/);
   assert.match(round, /useEffect\(\(\) => \(\) => window\.clearTimeout\(resendTimerRef\.current\), \[\]\);/);
   assert.match(screen, /import \{ REFUSAL_OUTCOME, classifyAnswerRefusal, resendAtGoDelayMs \} from '\.\.\/\.\.\/platform\/liveChallenge\/challengeAnswerRefusal\.js';/);

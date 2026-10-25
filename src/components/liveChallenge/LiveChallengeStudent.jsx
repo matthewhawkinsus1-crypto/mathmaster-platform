@@ -9,7 +9,7 @@ import { PROJECTION_KIND, standingsFromProjection } from '../../../functions/sha
 import { summaryFinal, summaryRound, summaryUnansweredRounds } from '../../../functions/shared/liveChallengePlayerSummary.mjs';
 import { calculateStepPartialCredit, emptyQuestionRecord, recordQuestionStep } from '../../attemptPolicy.js';
 import { hasMeaningfulRawPathResponse, questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
-import { CHALLENGE_STAGE, GO_FLASH_MS, LOCKED_WAIT_NOTICE_MS, QUESTION_SET_GAME, personalRoundClock, questionSetGameOf, roundBannerBackground, studentGuidance } from '../../platform/liveChallenge/challengeShellModel.js';
+import { CHALLENGE_STAGE, GO_FLASH_MS, LOCKED_WAIT_NOTICE_MS, QUESTION_SET_GAME, lockedAnswerLine, personalRoundClock, questionSetGameOf, roundBannerBackground, studentGuidance } from '../../platform/liveChallenge/challengeShellModel.js';
 import { speakAloud, speechAvailable, stopSpeaking } from '../../platform/language/speechText.js';
 import { projectionBoardRows, rewardSummaryLines, roundResultsView, scorePresentation, standingsRows } from '../../platform/liveChallenge/challengeStandingsModel.js';
 import { readLastSeenRound, roundsClosedWhileAway, seenRoundOf, missedRoundsNotice, writeLastSeenRound } from '../../platform/liveChallenge/challengeMissedRounds.js';
@@ -226,6 +226,10 @@ export function ChallengeRound({
   // round (LC06). Kept, and sent again when the round resumes.
   const [waitingForResume, setWaitingForResume] = useState(false);
   const roundPaused = Boolean(timerFromRoom(room || {}).pausedAtMs);
+  // This student pressed Lock In on a field question in this mount, so that
+  // question moved focus to its "Your answer is locked in." note, which a
+  // screen reader reads (AX21). The line under the round must not say it again.
+  const [lockNoteHasFocus, setLockNoteHasFocus] = useState(false);
   const resendTimerRef = useRef(null);
   const resendsAtGoRef = useRef(0);
   const latestRetryRef = useRef(null);
@@ -255,6 +259,7 @@ export function ChallengeRound({
     resultRef.current = stored;
     setAlreadyRecorded(false);
     setSubmitError('');
+    setLockNoteHasFocus(false);
     const fresh = emptyQuestionRecord();
     roundOriginMonoRef.current = monotonicRoundOrigin({
       monotonicNow: performance.now(),
@@ -364,6 +369,8 @@ export function ChallengeRound({
     if (resultRef.current || pendingRef.current || submissionLockRef.current || answeredOnServerRef.current || (!atRoundEnd && expired) || !roundStarted) return null;
     submissionLockRef.current = true;
     setSubmitError('');
+    // Only a field question has that note; an engine question's lock is said by the line below.
+    if (!secureQuestion) setLockNoteHasFocus(true);
     const submissionId = globalThis.crypto?.randomUUID?.() || `submission-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const capture = {
       roomId: room.roomId,
@@ -482,6 +489,9 @@ export function ChallengeRound({
   const answerRecorded = Boolean(result) || answeredOnServer || alreadyRecorded;
   const locked = answerRecorded || Boolean(pending);
   const perRoundScoring = getScoringStrategy(result?.scoringStrategyId || room.scoringStrategyId).accumulation === SCORE_ACCUMULATION.PER_ROUND;
+  const lockedLine = pending && !result
+    ? lockedAnswerLine({ waitingForGo, waitingForResume, noteHasFocus: lockNoteHasFocus })
+    : null;
 
   return (
     <div style={{ display: 'grid', gap: 14 }}>
@@ -622,7 +632,11 @@ export function ChallengeRound({
       )}
       </div>
 
-      {pending && !result && <div aria-live="assertive" style={{ padding: 12, borderRadius: 9, background: '#17365f', color: '#dbeafe', fontWeight: 900 }}>{waitingForGo ? 'Your answer is locked in and will send at GO.' : waitingForResume ? 'The round is paused. Your answer is locked in and will send when it resumes.' : 'Answer locked in · checking it…'}</div>}
+      {lockedLine && (
+        // A new node when it starts to be announced: a live region speaks what
+        // is added to it, not an attribute switched on beside new words.
+        <div key={lockedLine.announce ? 'announced' : 'quiet'} data-mm-lock-line={lockedLine.announce ? 'announced' : 'quiet'} aria-live={lockedLine.announce ? 'assertive' : undefined} style={{ padding: 12, borderRadius: 9, background: '#17365f', color: '#dbeafe', fontWeight: 900 }}>{lockedLine.text}</div>
+      )}
 
       {submitError && <div role="alert" style={{ padding: 11, borderRadius: 9, background: '#4a3708', color: '#ffe9a8', border: '1px solid #f9ab00' }}>{submitError}</div>}
       {pending && !result && <button type="button" onClick={retryPending}>Retry locked answer</button>}

@@ -65,6 +65,12 @@ const snapshot = async (page, pendingKey) => { await page.waitForTimeout(300); r
     activeIsBody: active === document.body || active == null,
     activeIsLockStatus: Boolean(active?.matches?.('[data-mm-lock-status]')),
     activeText: (active?.textContent || '').trim().slice(0, 80),
+    // Every live region that says the answer is locked in (AX21): the note that
+    // took focus says it once, so none of these may say it as well.
+    liveLockVoices: [...document.querySelectorAll('[aria-live="assertive"], [aria-live="polite"], [role="status"], [role="alert"], [role="log"]')]
+      .filter((node) => /locked in/i.test(node.textContent || ''))
+      .map((node) => (node.textContent || '').trim().slice(0, 80)),
+    lockLineText: (document.querySelector('[data-mm-lock-line]')?.textContent || '').trim(),
     lockButtonText: (lockButton?.textContent || '').trim(),
     lockButtonDisabled: lockButton ? lockButton.disabled : null,
     pending,
@@ -142,6 +148,11 @@ for (const viewport of VIEWPORTS) {
     check(vp, 'focus after Lock In is not <body>', !state.activeIsBody, `active ${state.activeTag}`);
     check(vp, 'focus after Lock In is the "locked in" note', state.activeIsLockStatus, `active ${state.activeTag} "${state.activeText}"`);
     check(vp, 'the choices are locked after Lock In, choice 2 still checked', state.allDisabled && state.checked[1] === 'true', JSON.stringify({ disabled: state.allDisabled, checked: state.checked }));
+    // AX21: the note that took focus says the answer is locked in; a screen
+    // reader read it as the focus landed. No live region says it as well, but
+    // the line stays on screen for everyone who can see it.
+    check(vp, 'the lock is said once: no live region repeats the note that has focus', state.liveLockVoices.length === 0, JSON.stringify(state.liveLockVoices));
+    check(vp, 'the "locked in" line under the round is still on screen, as text', /locked in/i.test(state.lockLineText), JSON.stringify(state.lockLineText));
     check(vp, 'no page errors', pageErrors.length === 0, pageErrors.join(' | '));
   } catch (error) {
     check(vp, 'the round could be driven', false, error?.stack || String(error));

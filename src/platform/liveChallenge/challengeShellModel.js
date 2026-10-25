@@ -410,6 +410,33 @@ export const studentGuidance = ({
 };
 
 /*
+ * THE LINE UNDER A ROUND WHILE A LOCKED ANSWER IS ON ITS WAY (AX21).
+ *
+ * It says the answer is locked in — and, when the server refused it for now,
+ * why it has not been sent: GO has not come, or the teacher paused the round.
+ *
+ * `announce` is whether a screen reader is told by a live region. A field
+ * question's Lock In press moves focus to its own "Your answer is locked in."
+ * note (LiveChallengeFieldQuestion), which a screen reader reads. This line
+ * said the same thing from an assertive live region in the same breath, so a
+ * student heard two announcements. The plain lock is now announced here only
+ * where nothing else says it — an engine question, or a screen that opened
+ * with the answer already locked. A lock that has become a wait is news the
+ * note cannot know, so it is always announced.
+ */
+export const LOCKED_ANSWER_WORDS = Object.freeze({
+  checking: 'Answer locked in · checking it…',
+  waitingForGo: 'Your answer is locked in and will send at GO.',
+  waitingForResume: 'The round is paused. Your answer is locked in and will send when it resumes.',
+});
+
+export const lockedAnswerLine = ({ waitingForGo = false, waitingForResume = false, noteHasFocus = false } = {}) => {
+  if (waitingForGo) return Object.freeze({ text: LOCKED_ANSWER_WORDS.waitingForGo, announce: true });
+  if (waitingForResume) return Object.freeze({ text: LOCKED_ANSWER_WORDS.waitingForResume, announce: true });
+  return Object.freeze({ text: LOCKED_ANSWER_WORDS.checking, announce: !noteHasFocus });
+};
+
+/*
  * THE ROUND BANNER'S COLOURS (AX22). The banner over a student's question is
  * white text on a gradient. Its light end was #1a73e8: white on it is 4.51:1,
  * one rounding from failing AA, and the small lines on the banner ("Points
