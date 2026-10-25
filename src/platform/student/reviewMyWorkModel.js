@@ -34,6 +34,21 @@ export const OUTCOME_LABEL = Object.freeze({
   [REVIEW_OUTCOME.EXCUSED]: 'Excused',
 });
 
+// The grader's mark on one part of a multi-part answer (functions/lib/reviewMyWork.js PART_VERDICT).
+export const PART_VERDICT = Object.freeze({
+  CORRECT: 'correct',
+  PARTIAL: 'partial',
+  INCORRECT: 'incorrect',
+  NOT_ANSWERED: 'notAnswered',
+});
+
+export const PART_VERDICT_LABEL = Object.freeze({
+  [PART_VERDICT.CORRECT]: 'Correct',
+  [PART_VERDICT.PARTIAL]: 'Partly correct',
+  [PART_VERDICT.INCORRECT]: 'Not correct',
+  [PART_VERDICT.NOT_ANSWERED]: 'Not answered',
+});
+
 export const NO_ANSWER_TEXT = 'No answer recorded';
 export const RECORDED_WORK_TEXT = 'Your work on this question was a graph or a diagram, so it is not repeated here. It was saved with your answer.';
 export const SOLUTION_UNAVAILABLE_TEXT = 'The worked solution for your version of this question is not available.';
@@ -148,6 +163,27 @@ export const formatSubmittedAnswer = (response, question = null) => {
   return { kind: 'value', ...line };
 };
 
+/**
+ * The grader's mark beside each part the student answered ("You wrote ... /
+ * Correct"): the row's `parts` ({ id, verdict }) matched to the answer's fields
+ * by id. Only a list of fields takes them, and only a verdict this browser
+ * knows; a part with no field to sit beside is left out, and so is a field the
+ * server named no part for.
+ */
+export const withPartVerdicts = (answer, parts = []) => {
+  if (!isObject(answer) || answer.kind !== 'fields') return answer;
+  const byId = new Map(list(parts)
+    .filter((part) => isObject(part) && Object.values(PART_VERDICT).includes(part.verdict))
+    .map((part) => [String(part.id), part.verdict]));
+  if (!byId.size) return answer;
+  return {
+    ...answer,
+    items: answer.items.map((item) => (byId.has(item.id)
+      ? { ...item, verdict: byId.get(item.id), verdictLabel: PART_VERDICT_LABEL[byId.get(item.id)] }
+      : item)),
+  };
+};
+
 export const teacherReasonLine = (row = {}) => {
   if (row?.teacherChanged !== true) return null;
   const reason = String(row.teacherReason || '').trim();
@@ -224,7 +260,7 @@ export const buildReviewMyWorkModel = ({ result = null, assignment = null } = {}
         outcome,
         outcomeLabel: OUTCOME_LABEL[outcome],
         credit: Number.isFinite(Number(row.credit)) && row.credit !== null ? Number(row.credit) : null,
-        answer: formatSubmittedAnswer(row.submittedResponse, solutionQuestion || storedQuestion),
+        answer: withPartVerdicts(formatSubmittedAnswer(row.submittedResponse, solutionQuestion || storedQuestion), row.parts),
         solutionQuestion,
         solutionUnavailable: !solutionQuestion,
         teacherLine: teacherReasonLine(row),

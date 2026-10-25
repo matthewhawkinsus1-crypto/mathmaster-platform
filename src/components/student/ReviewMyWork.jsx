@@ -14,6 +14,7 @@ import MathText from '../common/MathText.jsx';
 import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoundation.js';
 import {
   LOAD_ERROR_TEXT,
+  PART_VERDICT,
   REVIEW_OUTCOME,
   SOLUTION_UNAVAILABLE_TEXT,
   buildReviewMyWorkModel,
@@ -63,15 +64,31 @@ const AnswerText = ({ line }) => (line.math
   ? <MathText>{`$${line.text}$`}</MathText>
   : <span style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{line.text}</span>);
 
-function YourAnswer({ answer }) {
+// The grader's mark beside one part of a multi-part answer (FB21): words as
+// well as a symbol, so no part is told by colour alone.
+const PART_CHIP_STYLE = {
+  [PART_VERDICT.CORRECT]: CHIP_STYLE[REVIEW_OUTCOME.CORRECT],
+  [PART_VERDICT.PARTIAL]: CHIP_STYLE[REVIEW_OUTCOME.PARTIAL],
+  [PART_VERDICT.INCORRECT]: CHIP_STYLE[REVIEW_OUTCOME.INCORRECT],
+  [PART_VERDICT.NOT_ANSWERED]: CHIP_STYLE[REVIEW_OUTCOME.NOT_ANSWERED],
+};
+// (A tilde for "partly": the half-circle glyph drew as a sliver in the app's font.)
+const PART_SYMBOL = { [PART_VERDICT.CORRECT]: '✓', [PART_VERDICT.PARTIAL]: '~', [PART_VERDICT.INCORRECT]: '✗', [PART_VERDICT.NOT_ANSWERED]: '–' };
+
+export function YourAnswer({ answer }) {
   return (
     <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--mm-surface-sunken, var(--mm-surface-control))', border: '1px solid var(--mm-border-soft)', minWidth: 0 }}>
       <div style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)', marginBottom: 4 }}>Your answer</div>
       {answer.kind === 'fields' ? (
-        <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 4 }}>
+        <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6 }}>
           {answer.items.map((item) => (
-            <li key={item.id} style={{ overflowWrap: 'anywhere' }}>
+            <li key={item.id} data-part-row={item.id} style={{ overflowWrap: 'anywhere' }}>
               <strong>{item.label}:</strong> <AnswerText line={item} />
+              {item.verdict ? (
+                <span data-part-verdict={item.verdict} style={{ ...PART_CHIP_STYLE[item.verdict], display: 'inline-block', marginLeft: 8, padding: '1px 9px', borderRadius: 999, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                  <span aria-hidden="true">{PART_SYMBOL[item.verdict]} </span>{item.verdictLabel}
+                </span>
+              ) : null}
             </li>
           ))}
         </ul>
