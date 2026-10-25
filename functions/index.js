@@ -16664,6 +16664,10 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
     }
   }
 
+  // One open session per student, standard, exam and slot: a swapped slot is
+  // another standard, so another lock. Kept as built (MP23): re-keying would
+  // orphan the lock of every session in flight, which its completion deletes
+  // by this same id (below, in the answer transaction).
   const lockId = mathPath.opaqueId("pathlock", studentId, targetAlignmentKey, assessmentFramework || "course", requestedWeeklySlotKey || "open-practice");
   const lockRef = db.collection("activePathLocks").doc(lockId);
   const proposedSessionRef = db.collection("pathSessions").doc();
