@@ -167,3 +167,28 @@ test('Classroom publication planning reads V5 sections directly', () => {
 });
 
 console.log('assignmentV5Preflight.test.mjs: all assertions passed');
+
+test('TT14/TT21: advisory findings are counted for the teacher and never change readiness', async () => {
+  const { ADVISORY_FINDING_GROUPS, summarizeAdvisoryFindings } = await import('../../src/platform/preflight/assignmentV5PreflightModel.js');
+  const model = buildAssignmentV5PreflightModel(assignmentV5);
+  // These Practice questions have no attempt feedback and no worked-solution
+  // "Watch out": advice the model reports in its own panels.
+  // Every advisory panel Pre-Flight shows is counted (an independent list:
+  // the count must not be checked against itself).
+  const PANELS = ['solutionReviews', 'attemptFeedback', 'hintAnswers', 'hiddenHints', 'choiceOptions'];
+  assert.deepEqual(ADVISORY_FINDING_GROUPS.map(({ id }) => id), PANELS);
+  assert.ok(model.attemptFeedback.warnings.length > 0, 'the fixture has Practice questions with no attempt feedback');
+  const expected = PANELS.reduce((sum, id) => sum + (model[id]?.warnings?.length || 0), 0);
+  assert.equal(model.advisory.total, expected);
+  assert.deepEqual(model.advisory.groups.map((group) => group.id), PANELS.filter((id) => model[id]?.warnings?.length));
+  // Advice stays out of what decides readiness.
+  assert.equal(model.isValid, true);
+  const advice = new Set(ADVISORY_FINDING_GROUPS.flatMap(({ id }) => model[id]?.warnings || []));
+  assert.equal(model.warnings.some((warning) => advice.has(warning)), false);
+  assert.equal(model.errors.some((error) => advice.has(error)), false);
+  assert.deepEqual(summarizeAdvisoryFindings({}), { total: 0, groups: [] });
+  // The modal says how many and that they never stop publishing.
+  const { readFileSync } = await import('node:fs');
+  const modal = readFileSync(new URL('../../src/components/teacher/LessonPreflightModal.jsx', import.meta.url), 'utf8');
+  assert.match(modal, /preflightModel\.advisory\?\.total > 0 && \([\s\S]*?data-preflight-advisory=[\s\S]*?Advice only: they never stop the assignment from being ready or published\./);
+});

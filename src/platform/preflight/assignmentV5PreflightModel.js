@@ -279,6 +279,7 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     questionValues,
     processMode,
     // Advisory only (see above): never in errors, warnings or diagnostics.
+    advisory: summarizeAdvisoryFindings({ solutionReviews, attemptFeedback, hintAnswers, hiddenHints, choiceOptions }),
     solutionReviews,
     attemptFeedback,
     hintAnswers,
@@ -294,6 +295,29 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     authoringState,
     isValid: uniqueErrors.length === 0,
   };
+};
+
+/*
+ * THE ADVISORY FINDINGS, COUNTED (TT14, TT21). Worked solutions, attempt
+ * feedback, hints that state the answer, hints the leak guard hides and choice
+ * options worth the key stay advice: a warning in readiness would make the
+ * assignment "Needs Review", which students never see (the owner's call: they
+ * stay advisory). Pre-Flight shows how many there are so they are not missed;
+ * nothing here changes whether the assignment is ready.
+ */
+export const ADVISORY_FINDING_GROUPS = Object.freeze([
+  Object.freeze({ id: 'solutionReviews', label: 'worked solutions' }),
+  Object.freeze({ id: 'attemptFeedback', label: 'attempt feedback' }),
+  Object.freeze({ id: 'hintAnswers', label: 'hints that state the answer' }),
+  Object.freeze({ id: 'hiddenHints', label: 'hints students will not see' }),
+  Object.freeze({ id: 'choiceOptions', label: 'choices worth the same as the key' }),
+]);
+
+export const summarizeAdvisoryFindings = (audits = {}) => {
+  const groups = ADVISORY_FINDING_GROUPS
+    .map(({ id, label }) => ({ id, label, count: Array.isArray(audits?.[id]?.warnings) ? audits[id].warnings.length : 0 }))
+    .filter((group) => group.count > 0);
+  return { total: groups.reduce((sum, group) => sum + group.count, 0), groups };
 };
 
 export const sectionVariantModeV5 = (assignmentV5 = {}, role) => (

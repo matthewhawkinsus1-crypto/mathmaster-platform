@@ -2015,6 +2015,16 @@ export const LessonPreflightModal = ({
 
       {renderRecoveryReadiness()}
 
+      {/* The advice below, counted (TT14, TT21): it never stops the
+          assignment from being ready (assignmentV5PreflightModel.js
+          summarizeAdvisoryFindings). */}
+      {preflightModel.advisory?.total > 0 && (
+        <p data-preflight-advisory={preflightModel.advisory.total} style={{ margin: '0 0 12px', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text)' }}>
+          <strong>{preflightModel.advisory.total === 1 ? '1 suggestion' : `${preflightModel.advisory.total} suggestions`} below</strong>
+          {' '}({preflightModel.advisory.groups.map((group) => `${group.count} ${group.label}`).join(', ')}). Advice only: they never stop the assignment from being ready or published.
+        </p>
+      )}
+
       {/* WORKED SOLUTIONS (student pass 3, HELP-11 / HELP-18): what a student
           reads after the last try. Suggestions only — they never change
           whether the assignment is ready (assignmentV5PreflightModel.js). */}
