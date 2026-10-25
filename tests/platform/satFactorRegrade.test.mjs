@@ -35,6 +35,7 @@ import {
 } from '../../scripts/lib/satFactorRegradePlan.mjs';
 import { SAT_FACTOR_REGRADE_NOTE, SKIP, candidatesFromReports, planUpwardRegrade, upwardRegradeWrites } from '../../scripts/lib/upwardRegrade.mjs';
 import { REPORT_DIR, TOOL, parseReportArgs, reportFilePath, runSatFactorRegradeReport } from '../../scripts/report-sat-factor-regrade.mjs';
+import { runUpwardRegrade } from '../../scripts/apply-upward-regrade.mjs';
 import { storedAttempt } from './helpers/classroomRegradeFixtures.mjs';
 import { readOnlyStore } from './helpers/readOnlyFirestore.mjs';
 import { executableSource } from './helpers/sourceContract.mjs';
@@ -315,6 +316,10 @@ test('the report: Path recaps and classroom attempts, by the factor theorem; rea
   assert.equal(report.counts.classroom.questionsServingDefectiveDraws, 1);
   // What the upward step would take from it.
   assert.deepEqual(candidatesFromReports([report]).candidates, [{ studentId: 'c-right', assignmentId: ASSIGNMENT_ID, questionIndex: 0, from: TOOL }]);
+  // And the operator's dry run plans it as a raise, on the same records, writing nothing.
+  const dryRun = await runUpwardRegrade({ db, FieldPath: class {}, candidates: candidatesFromReports([report]).candidates, mode: 'dry-run', now: () => '2026-10-25T12:00:00.000Z' });
+  assert.deepEqual(dryRun.attempts.map((row) => [row.studentId, row.outcome, row.newScore]), [['c-right', 'raise', 100]]);
+  assert.deepEqual(attempts, []);
   // A window leaves the submissions outside it unread for recaps.
   const windowed = await runSatFactorRegradeReport({ db, since: Date.parse('2026-10-13T00:00:00Z') });
   assert.equal(windowed.counts.path.recapsOfTheseShapes, 0);
