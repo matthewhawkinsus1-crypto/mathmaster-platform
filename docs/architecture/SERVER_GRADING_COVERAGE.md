@@ -1064,9 +1064,16 @@ My Math Path and Live Challenge.
   stored, and a student whose modification is ended between first seeing a
   question and first submitting it has that answer held for review.
   Tests: `tests/platform/familyPinSupportGrant.test.mjs`.
-* **Other content-upgrade regrades.** The content-upgrade migration's own
-  regrades for safe response controls and systems-workspace upgrades keep their
-  existing logic; only the Data Modeling prediction case (§2) was corrected.
+* **Other content-upgrade regrades.** A grading expansion's multi-answer parts
+  are re-marked by the server's own multi-answer grader
+  (`gradeMultiAnswerResponse`) against the upgraded question (GR07,
+  2026-10-25); a question the server does not mark from its stored copy keeps
+  its record. Two regrades keep their own rules by design, recorded at the
+  code: a safe response control credits every complete part of a box that
+  became a choice (as the browser's live correction does: the old free-text
+  box could not be read), and a systems-workspace upgrade re-marks nothing
+  and returns one attempt. The Data Modeling fit regrade still reads the fit
+  itself (§2: a fit with a prediction is not provable and is left alone).
 * **Small, documented edges kept for parity.** A points-only graph with no
   point tasks is vacuously complete; free text past 3,000 characters in one
   scenario textarea is graded on its first 3,000; a hand-authored workflow with

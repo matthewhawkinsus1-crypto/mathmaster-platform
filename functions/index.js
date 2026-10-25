@@ -23224,11 +23224,14 @@ exports.commitAssignmentContentUpgrade = onCall(async (request) => {
       let migratedStudents = 0;
       let gradeReconciliationRequested = false;
 
+      // A regrade is marked by the server's own grader (GR07).
+      const serverGrading = await assignmentContentTrackerMigration.loadServerGrading();
       const migratedRows = trackerDocs.map((gradeRow) => {
         const migration = assignmentContentTrackerMigration.migrateTrackerForContentUpgrade({
           tracker: gradeRow.tracker,
           plan,
           correctedAt,
+          serverGrading,
         });
         if (migration.changed) migratedStudents += 1;
         if (migration.gradeMayChange) gradeReconciliationRequested = true;
@@ -23796,11 +23799,14 @@ exports.commitTeacherQuestionRepair = onCall(async (request) => {
 
       let migratedStudents = 0;
       let gradeReconciliationRequested = false;
+      // A regrade is marked by the server's own grader (GR07).
+      const serverGrading = await assignmentContentTrackerMigration.loadServerGrading();
       const migratedRows = trackerDocs.map((gradeRow) => {
         const migration = assignmentContentTrackerMigration.migrateTrackerForContentUpgrade({
           tracker: gradeRow.tracker,
           plan,
           correctedAt,
+          serverGrading,
         });
         if (migration.changed) migratedStudents += 1;
         if (migration.gradeMayChange) gradeReconciliationRequested = true;
