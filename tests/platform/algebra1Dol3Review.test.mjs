@@ -18,13 +18,17 @@
  * back from the compiled question, so a key that is wrong cannot pass by
  * agreeing with itself.
  */
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import React from 'react';
 import Fraction from 'fraction.js';
 import { compileTeacherImport } from '../../scripts/check-teacher-import.mjs';
+import { closeEngine, loadEngine } from './helpers/actionBarRender.mjs';
+import { render, text, withBrowser } from './helpers/studentToolRender.mjs';
+import { questionAxisLabels } from '../../src/tools/shared/planeAxisTitles.js';
 import { gradeToolWork, serverResponseGradingSupport } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
 import { deliveredQuestionForGrading } from '../../functions/shared/serverGrading/deliveredQuestion.mjs';
 import { gradeComposedWorkflowWork } from '../../functions/shared/serverGrading/questionGraders/composedWorkflow.mjs';
@@ -32,11 +36,18 @@ import { resolveComposedWorkflow } from '../../functions/shared/toolMath/workflo
 import { resolveWorkflowGraphStages, workflowTableArtifact } from '../../functions/shared/toolMath/workflow/workflowGraphStage.mjs';
 import { graphWorkspaceModelFor } from '../../functions/shared/toolMath/graphWorkspace/graphWorkspaceModel.mjs';
 import { keyProcessLog } from '../../functions/shared/toolMath/representationBridge/lmrProcessVerify.mjs';
-import { resolveRequiredCards } from '../../functions/shared/toolMath/representationBridge/linearMultipleRepresentationsMath.mjs';
+import {
+  deriveLinearMultipleRepresentations,
+  resolveGraphSnapSteps,
+  resolveLinearMultipleRepresentationsGraphBounds,
+  resolveRequiredCards,
+} from '../../functions/shared/toolMath/representationBridge/linearMultipleRepresentationsMath.mjs';
 import { backUpStepFor, backUpStepWritten } from '../../src/platform/supports/feedback/backUpStep.js';
 import { openSortSettings } from '../../functions/shared/toolMath/openSortBoard/openSortMath.mjs';
 import { auditAssignmentSolutionReviews, hasAuthoredCommonError, workedSolutionDepth } from '../../src/platform/preflight/solutionReviewPreflight.js';
 import { buildClosedQuestionReview } from '../../src/platform/supports/review/closedQuestionReview.js';
+
+after(closeEngine);
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const FILE = path.resolve(here, '../../teacher-import-jsons/algebra1-dol3/Algebra1_DOL3_Review.json');
@@ -55,6 +66,38 @@ const lineThrough = ([x1, y1], [x2, y2]) => {
   return { m, b: frac(y1).sub(m.mul(x1)) };
 };
 const onLine = ({ m, b }, [x, y]) => m.mul(x).add(b).equals(y);
+
+// What a plane draws, read back from its own markup: where the gridlines are and where
+// each marked point sits. "The intercept is on a line" is then what a student sees, not a
+// property of the window numbers (CT11 / D-56).
+const svgNumber = (attributes, name) => Number(new RegExp(`\\b${name}="([^"]*)"`).exec(attributes)?.[1]);
+const drawnGrid = (svg) => {
+  const lines = [...svg.matchAll(/<line\b([^>]*)>/g)].map((match) => match[1]).filter((attributes) => /--mm-graph-grid/.test(attributes));
+  return {
+    vertical: lines.filter((a) => svgNumber(a, 'x1') === svgNumber(a, 'x2')).map((a) => svgNumber(a, 'x1')),
+    horizontal: lines.filter((a) => svgNumber(a, 'y1') === svgNumber(a, 'y2')).map((a) => svgNumber(a, 'y1')),
+  };
+};
+const markedPoints = (svg) => [...svg.matchAll(/<circle\b([^>]*)>/g)].map(([, a]) => [svgNumber(a, 'cx'), svgNumber(a, 'cy')]);
+/** The marked points (pixels) that lack a vertical or a horizontal gridline through them. */
+const pointsOffTheGrid = (svg) => {
+  const { vertical, horizontal } = drawnGrid(svg);
+  const through = (lines, value) => lines.some((line) => Math.abs(line - value) < 0.6);
+  return markedPoints(svg).filter(([cx, cy]) => !through(vertical, cx) || !through(horizontal, cy));
+};
+const svgOf = (markup, label) => new RegExp(`<svg\\b[^>]*aria-label="${label}"[\\s\\S]*?</svg>`).exec(markup)?.[0] || '';
+const studentPlane = async (props) => {
+  const { server } = await loadEngine();
+  const { default: CoordinatePlane } = await server.ssrLoadModule('/src/tools/shared/CoordinatePlane.jsx');
+  return withBrowser(() => render(React.createElement(CoordinatePlane, { width: 420, height: 525, enlargeable: false, ...props })));
+};
+const studentBoard = async (questionData) => {
+  const { server } = await loadEngine();
+  const registry = await server.ssrLoadModule('/src/tools/toolRegistry.js');
+  const { ToolRuntimeProvider } = await server.ssrLoadModule('/src/tools/shared/ToolRuntimeContext.jsx');
+  const board = registry.getToolDefinition(questionData.type).component;
+  return withBrowser(() => render(React.createElement(ToolRuntimeProvider, { submitCost: null }, React.createElement(board, { questionData, onAction() {}, attemptRecord: null }))));
+};
 
 /* ------------------------------------------------------------ the shape -- */
 
@@ -248,6 +291,36 @@ test('A.2C (verbal): the rideshare situation\'s fee and per-mile charge become y
   }
 });
 
+test('A.2C (verbal): the rideshare graph names its miles and dollars, shows the first quadrant, and has a gridline through the points the key plots', async () => {
+  const question = item('dol3-review-q04');
+  // It used to be the default −8…8 four-quadrant grid with bare numbers: negative miles,
+  // negative dollars, and nothing to say which axis was which (D-56, F-CONTEXT-WINDOW).
+  const labels = questionAxisLabels(question);
+  assert.match(labels?.x ?? '', /miles/);
+  assert.match(labels?.y ?? '', /dollars/);
+  const facts = deriveLinearMultipleRepresentations(question);
+  const bounds = resolveLinearMultipleRepresentationsGraphBounds(question, facts);
+  // Room for the axes and for the line's own x-intercept (−1.5, which the tool insists the
+  // window holds), and no more of the negative quadrants than that.
+  assert.ok(bounds.xMin >= -2 && bounds.yMin >= -1, `${JSON.stringify(bounds)} is a first-quadrant window`);
+  assert.ok(bounds.xMax >= 4 && bounds.yMax >= 11, 'and holds a ride of a few miles and its fare');
+  const [fee, perMile] = [3, 2];
+  const keyPoints = [[0, fee], [1, fee + perMile], [2, fee + 2 * perMile]];
+  const markup = await studentPlane({
+    ...bounds,
+    snapStep: resolveGraphSnapSteps(question, facts).graph2,
+    points: keyPoints.map(([x, y]) => ({ x, y })),
+    onPlot() {},
+    xAxisTitle: labels.x,
+    yAxisTitle: labels.y,
+  });
+  assert.match(text(markup), /x: Length of the ride \(miles\)/);
+  assert.match(text(markup), /y: Total cost of the ride \(dollars\)/);
+  const svg = svgOf(markup, '[^"]*');
+  assert.equal(markedPoints(svg).length, keyPoints.length, 'every plotted point is drawn');
+  assert.deepEqual(pointsOffTheGrid(svg), [], 'the fee and the first fares sit where gridlines cross, so each can be plotted exactly');
+});
+
 /* ------------------------------------------------------------- A.3B ×2 -- */
 
 test('A.3B (table, kayak rental): every pair of rows gives $12 an hour, and the table names its quantities', () => {
@@ -289,6 +362,18 @@ test('A.3B (graph, walking home): rise over run gives −3 miles an hour, and it
       assert.equal(grade({ [field]: choice }).isCorrect, choice === context[field], `${field}: "${choice}"`);
     }
   }
+});
+
+test('A.3B (graph, walking home): every point the given graph marks sits where gridlines cross, so the y-intercept and the others can be read exactly', async () => {
+  const question = item('dol3-review-q06');
+  const markup = await studentBoard(question);
+  const svg = svgOf(markup, 'Given graph of the line');
+  assert.ok(svg, 'the walking graph is drawn');
+  assert.equal(markedPoints(svg).length, question.source.points.length, 'every point the situation gives is drawn');
+  // y gridlines used to be two apart on a −1…5 window, so (0, 9) and (2, 3) sat between
+  // lines while hint 1 told students to use grid crossings (D-56, F-GRID-2).
+  assert.deepEqual(pointsOffTheGrid(svg), [], 'no marked point sits between gridlines');
+  assert.match(question.hints[0], /grid/i, 'hint 1 still sends students to the grid, which now holds all four points');
 });
 
 /* ------------------------------------------------------------- A.3C ×2 -- */

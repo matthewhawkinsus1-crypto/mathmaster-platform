@@ -243,11 +243,19 @@
           "difficultyBand": 3,
           "questionWeight": 1,
           "prompt": "Read the rideshare situation. Decide what x and y stand for, write the equation of the relationship in slope-intercept form, and graph it.",
+          "xAxisLabel": "Length of the ride (miles)",
+          "yAxisLabel": "Total cost of the ride (dollars)",
           "source": {
             "kind": "scenario",
             "prompt": "A rideshare company charges a $3 pickup fee plus $2 for each mile of the ride. Let x be the length of the ride, in miles, and y be the total cost of the ride, in dollars.",
             "rate": 2,
             "initialValue": 3
+          },
+          "graphBounds": {
+            "xMin": -2,
+            "xMax": 8,
+            "yMin": -1,
+            "yMax": 20
           },
           "requiredCards": [
             "slope",
@@ -414,7 +422,7 @@
           },
           "graphBounds": {
             "xMin": -1,
-            "xMax": 5,
+            "xMax": 9,
             "yMin": -1,
             "yMax": 11
           },
