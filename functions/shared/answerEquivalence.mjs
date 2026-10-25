@@ -1138,6 +1138,10 @@ const numericPair = (value) => {
  * pair of plain numbers keeps numericPair's reading, so `(1+2,4)` is still not
  * `(3,4)`. When one coordinate has a root, its partner must too: a decimal or
  * a long fraction is not the exact value an irrational coordinate asks for.
+ * The owner confirmed this (GR08): an item keyed with exact radical pairs asks
+ * for exact pairs (quadratic-formula-exact says so), so a decimal, however
+ * many places, is refused. Taking rounded decimals would be a new rule for
+ * one family, not a reading of this one.
  */
 const exactCoordinate = (part) => {
   const exact = exactConstantValue(part);

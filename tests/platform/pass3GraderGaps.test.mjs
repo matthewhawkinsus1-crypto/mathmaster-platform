@@ -162,7 +162,8 @@ test('quadratic-formula-exact: the simplified exact pair is right, and only the 
     await right(sent, key, 'orderedPair');
   }
   // The other root, the coordinates swapped, a wrong y, and decimals: an exact
-  // pair was asked for, so a decimal (even a long one) is not the answer.
+  // pair was asked for, so a decimal (even a long one) is not the answer. The
+  // owner confirmed the refusal of decimals (GR08).
   for (const sent of ['(1+sqrt(2),5+2sqrt(2))', '(5-2\\sqrt{2},1-\\sqrt{2})', '(1-\\sqrt{2},5-\\sqrt{2})', '(1-\\sqrt{2},3-2\\sqrt{2})',
     '(-0.414,2.172)', '(-0.41421356237,2.17157287525)', '(-41421356237/100000000000,5-2\\sqrt{2})',
     // Near the root but not it: exact means exact, not within a tolerance.
