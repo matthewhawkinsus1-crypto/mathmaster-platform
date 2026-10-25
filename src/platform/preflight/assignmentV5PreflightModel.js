@@ -17,6 +17,7 @@ import { auditAssignmentAttemptFeedback } from './attemptFeedbackPreflight.js';
 import { auditAssignmentHiddenHints, auditAssignmentHintAnswers } from './hintAnswerPreflight.js';
 import { auditAssignmentChoiceOptions } from './choiceOptionPreflight.js';
 import { auditAssignmentAnswerKeys } from './answerKeyPreflight.js';
+import { auditAssignmentImpossibleItems } from './impossibleItemsPreflight.js';
 import { buildPreflightDiagnostics } from './preflightDiagnostics.js';
 import { deriveAssignmentAuthoringState } from './assignmentAuthoringState.js';
 import { analyzeClassworkPlannedTime } from '../teacher/classworkPacing.js';
@@ -180,6 +181,11 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   // (GR04), and "lowest terms" asked of a box that takes any equal value
   // (GR14), from answerKeyPreflight.js: advisory, like hintAnswers.
   const answerKeys = auditAssignmentAnswerKeys(questions, deliveredOnly);
+  // Systems that cannot have exactly one solution as written, and a vertex or
+  // center asked of a function that has none (TT04): advisory like the rest,
+  // because a warning diagnostic would hide a deliberate dependent system's
+  // lesson from its class.
+  const impossibleItems = auditAssignmentImpossibleItems(questions, deliveredOnly);
   // Question ↔ tool contract: judged on the LITERAL record, because it also
   // reports records that only work because a runtime repair rescues them and
   // offers the safe repair that makes the saved assignment match.
@@ -279,6 +285,7 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     hiddenHints,
     choiceOptions,
     answerKeys,
+    impossibleItems,
     // Excluded questions Pre-Flight kept but did not judge for delivery.
     retiredQuestions,
     errors: uniqueErrors,

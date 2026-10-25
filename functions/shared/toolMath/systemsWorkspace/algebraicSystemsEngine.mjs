@@ -961,6 +961,24 @@ export const validateAlgebraicSystemAuthoring = (questionData = {}) => {
   if (questionData.method != null && !['substitution', 'elimination', 'studentChoice'].includes(questionData.method)) {
     errors.push('systemsWorkspace algebraic method must be substitution, elimination, or studentChoice.');
   }
+  // A 2×2 system that is never one solution by the way it is written (TT04):
+  // an equation with no variable in it (`0 = 5`, `3 = 3`) is always or never
+  // true, and a variable in neither equation (`x = 3`, `2x = 6`) is free. Both
+  // are graded correctly and the workflow interprets them with the student, so
+  // this is a note for the author, not an error — saved assignments that work
+  // stay valid. An equation missing SOME variable (`x = 3`) is ordinary.
+  if (dimension === 2 && !errors.length) {
+    const trimmed = variables.map((value) => String(value).trim());
+    const forms = rawEquations.map((equation) => linearEquationForm(equation, trimmed));
+    const hasNoVariable = (form) => trimmed.every((name) => Math.abs(form?.coefficients?.[name] || 0) < 1e-12);
+    const bare = forms.flatMap((form, index) => (hasNoVariable(form) ? [index + 1] : []));
+    const nowhere = trimmed.filter((name) => forms.every((form) => Math.abs(form?.coefficients?.[name] || 0) < 1e-12));
+    if (bare.length) {
+      warnings.push(`systemsWorkspace 2×2 algebraic system: equation${bare.length === 1 ? '' : 's'} ${bare.join(' and ')} ${bare.length === 1 ? 'has' : 'have'} no variable in ${bare.length === 1 ? 'it' : 'them'}, so ${bare.length === 1 ? 'it is' : 'they are'} always true or never true and the system cannot have exactly one solution. Check this is the system you meant.`);
+    } else if (nowhere.length) {
+      warnings.push(`systemsWorkspace 2×2 algebraic system: ${nowhere.join(' and ')} ${nowhere.length === 1 ? 'has' : 'have'} a zero coefficient in both equations, so ${nowhere.length === 1 ? 'it is' : 'they are'} never determined and the system has no solution or infinitely many. Check this is the system you meant.`);
+    }
+  }
   if (dimension === 3) {
     // A variable with a zero coefficient in every equation (absent, or 0z) is
     // free whatever the others are, so the system is never unique. It still
@@ -969,7 +987,8 @@ export const validateAlgebraicSystemAuthoring = (questionData = {}) => {
     // error — an error blocked reusing saved assignments that work (PR-23
     // review). An equation missing SOME variable is fine: elimination brings
     // it down as it is. (A three-plane exploration may draw such planes: its
-    // validation forwards only errors.)
+    // validation forwards only errors.) Pre-Flight shows it to the teacher as
+    // advice (impossibleItemsPreflight.js, TT04).
     if (!errors.length) {
       const trimmed = variables.map((value) => String(value).trim());
       const forms = rawEquations.map((equation) => linearEquationForm(equation, trimmed));

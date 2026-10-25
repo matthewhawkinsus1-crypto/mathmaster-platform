@@ -2081,6 +2081,25 @@ export const LessonPreflightModal = ({
         </div>
       )}
 
+      {/* Advice, not a readiness finding (impossibleItemsPreflight.js, TT04): a
+          system that cannot have exactly one solution as written, and a vertex
+          or center asked of a function that has none. Graded correctly, so it
+          never turns the assignment "Needs Review". */}
+      {preflightModel.impossibleItems?.warnings?.length > 0 && (
+        <div data-impossible-items-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-info-border)', borderRadius: 10, background: 'var(--mm-info-bg)', color: 'var(--mm-text)' }}>
+          <strong style={{ color: 'var(--mm-info-text)' }}>Questions to double-check</strong>
+          <p style={{ margin: '5px 0 9px', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
+            These are written so that the answer may not be the one you expect: a system with no single solution, or a graph feature the function does not have. Each is marked correctly for students; check you meant it. This does not stop you publishing.
+          </p>
+          <details>
+            <summary style={{ cursor: 'pointer', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.impossibleItems.warnings.length === 1 ? '1 note' : `${preflightModel.impossibleItems.warnings.length} notes`}</summary>
+            <ul data-impossible-items-warnings="true" style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
+              {preflightModel.impossibleItems.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+            </ul>
+          </details>
+        </div>
+      )}
+
       {/* Advice, not a readiness finding (hintAnswerPreflight.js, HELP-16):
           teacher-written hints the leak guard drops, so a student never
           sees them, and why. */}
