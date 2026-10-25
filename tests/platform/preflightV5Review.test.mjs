@@ -142,6 +142,9 @@ test('TT29: Pre-Flight sets the lesson calculator, and each setting means what t
   assert.equal(reviewedCalculatorSetting(imported, { toolPolicy: { calculator: 'none' } }), 'none');
   assert.equal(reviewedCalculatorSetting(source(), {}), 'inherit');
   assert.equal(reviewedCalculatorSetting({ toolPolicy: { calculator: 'questionSpecific' } }, {}), 'inherit', 'a value it does not offer reads as the default it means');
+  // Every calculator the policy knows is offered, plus the default (an
+  // independent list: dropping one must fail here).
+  assert.deepEqual(ASSIGNMENT_CALCULATOR_SETTINGS.map(({ value }) => value), ['inherit', 'none', 'basic', 'squareRoot', 'scientific', 'graphing']);
   // Each offered setting is one the calculator policy reads for a question with none of its own.
   const classwork = getEffectiveActivityPolicy('classwork');
   for (const { value } of ASSIGNMENT_CALCULATOR_SETTINGS) {
