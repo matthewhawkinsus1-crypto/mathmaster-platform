@@ -112,7 +112,25 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
     if (!back.toolbar) { await page.keyboard.press('Tab'); back = await active(page); }
     if (width < 768 && back.toolbar === 'Keys needed for this answer') { await page.keyboard.press('Tab'); back = await active(page); }
     assert.equal(back.label, keyNames[insertKey], `${at}: Tab back into the keypad lands on the key last used`);
-    console.log(`ok ${at}: ${expectedToolbars.join(' + ')} one Tab stop each; ${keyNames.length} named keys; arrows/Home/End; Enter types and returns focus`);
+    // TL23: the toggle is a named picture of a keypad (not "√x", which read as
+    // "insert a square root"), and the key that leaves a group says
+    // "move out →" whole, on one line (not "↷ out": ↷ is the redo arrow).
+    const toggleView = await page.locator('.mathmaster-math-tools-toggle').first().evaluate((button) => ({
+      text: button.textContent.trim(),
+      icon: Boolean(button.querySelector('svg[data-math-tools-icon="keypad"][aria-hidden="true"]')),
+      name: button.getAttribute('aria-label'),
+    }));
+    assert.deepEqual(toggleView, { text: '', icon: true, name: 'Hide math tools' }, `${at}: the toggle is a named keypad picture`);
+    const outKey = await page.locator('[role="toolbar"][aria-label="Math tools"] button[aria-label="Move the cursor out of the fraction, exponent or bracket"]').evaluate((button) => {
+      const style = getComputedStyle(button);
+      return {
+        text: button.textContent.trim(),
+        whole: button.scrollWidth <= button.clientWidth + 1,
+        oneLine: button.getBoundingClientRect().height < 2 * Number.parseFloat(style.lineHeight || '0') || button.getBoundingClientRect().height <= 46,
+      };
+    });
+    assert.deepEqual(outKey, { text: 'move out →', whole: true, oneLine: true }, `${at}: the way-out key reads in full on one line`);
+    console.log(`ok ${at}: ${expectedToolbars.join(' + ')} one Tab stop each; ${keyNames.length} named keys; arrows/Home/End; Enter types and returns focus; keypad toggle and way-out key read`);
   } catch (error) {
     failures.push(error);
     console.error(`FAIL ${at}: ${error.message}`);

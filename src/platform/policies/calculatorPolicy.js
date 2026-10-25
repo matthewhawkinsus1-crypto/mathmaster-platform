@@ -37,15 +37,26 @@ export const getCalculatorModeLabel = (mode) => {
 };
 
 /**
- * The calculator drawer's own title. A "graphing" policy allows graphing
- * technology, but graphs are drawn in the question's graph workspace — the
- * drawer only computes. Titled "GRAPHING CALCULATOR", it sent students told to
- * "enter f(x) into the built-in graphing calculator" to a keypad with nowhere
- * to enter a function (live QA, Algebra I DOL #2).
+ * THE DRAWER IS TITLED BY WHAT IT IS: BY THE KEYS IT SHOWS, NOT BY THE SETTING
+ * THAT OPENED IT (TL23, owner decision).
+ *
+ * A "graphing" setting reaches this drawer only where no graphing calculator
+ * is drawn — an assessment item, a Path session, a graphing calculator that
+ * could not load — and there the drawer has the scientific keys and cannot
+ * draw a graph (the line under its title says so: calculatorKeys.js
+ * keypadGraphingNote). So it is a scientific calculator, and its title says
+ * SCIENTIFIC, as a "scientific" setting's drawer does. Titled "GRAPHING
+ * CALCULATOR", it sent students told to "enter f(x) into the built-in graphing
+ * calculator" to a keypad with nowhere to enter a function (live QA, Algebra I
+ * DOL #2). Should a setting's keys ever change, its title follows them.
  */
-export const getCalculatorDrawerLabel = (mode) => (
-  mode === CALCULATOR_MODES.GRAPHING ? 'SCIENTIFIC' : getCalculatorModeLabel(mode)
-);
+const TITLED_KEY_SETS = [CALCULATOR_MODES.BASIC, CALCULATOR_MODES.SQUARE_ROOT, CALCULATOR_MODES.SCIENTIFIC];
+export const getCalculatorDrawerLabel = (mode) => {
+  if (!CONCRETE_MODES.has(mode) || mode === CALCULATOR_MODES.NONE) return getCalculatorModeLabel(mode);
+  const keys = getCalculatorButtonsForMode(mode).join(' ');
+  const sameKeys = TITLED_KEY_SETS.find((named) => getCalculatorButtonsForMode(named).join(' ') === keys);
+  return getCalculatorModeLabel(sameKeys || mode);
+};
 
 /**
  * Mode-level guard used after expression normalization. The Square Root

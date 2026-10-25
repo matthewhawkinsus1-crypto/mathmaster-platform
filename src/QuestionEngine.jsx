@@ -135,6 +135,7 @@ import { seenHelpText } from './platform/language/seenHelpText.js';
 import { useFocusReturnAfterLock } from './components/common/useFocusReturnAfterLock.js';
 import { speakAloud, speechAvailable } from './platform/language/speechText.js';
 import { backUpQuestionText, questionReadingParts, questionReadingText } from './platform/language/questionReading.js';
+import { KeypadConstantsProvider, keypadConstantsFor } from './platform/interaction/keypadConstants.js';
 
 // The graphing calculator (pass 3, PR-26) loads only for a question whose
 // calculator is graphing. If its chunk cannot load, the keypad drawer stands
@@ -1825,6 +1826,14 @@ function QuestionEngineBody({
   // ToolRuntimeContext: their hint panels (and any other hint affordance) are
   // absent where the activity withholds help, not merely recorded.
   const toolHintsAllowed = resolvedActivityPolicy?.hintsAllowed !== false;
+  // Which of π, e and logₐ this item's keypads offer: the ones its math uses
+  // (TL23, keypadConstants.js) — only where help is allowed and outcomes are
+  // shown. An assessment item keeps every key: its keypad says nothing about
+  // the form of the answer.
+  const keypadConstants = useMemo(
+    () => (toolHintsAllowed && showOutcomeFeedback ? keypadConstantsFor(processedQuestion) : null),
+    [toolHintsAllowed, showOutcomeFeedback, processedQuestion],
+  );
   // A hint revealed anywhere — a tool's panel, the Work View Help drawer, the
   // solver's "Need a strategic hint?" — is recorded the same way.
   const recordHintUse = () => setHintUsed(true);
@@ -3179,6 +3188,7 @@ function QuestionEngineBody({
     <QuestionLifecycleProvider terminal={locked} positionsReadable={positionsReadable}>
     <GraphReadOutProvider enabled={graphReadOut} onReadOut={reportGraphReadOut}>
     <WorkViewUndoProvider register={setUndoController} baseController={baseUndoController} resetKey={`${processedQuestion?.questionId ?? processedQuestion?.id ?? processedQuestion?.prompt ?? 'question'}|${questionResetVersion}`}>
+    <KeypadConstantsProvider constants={keypadConstants}>
     <div
       ref={questionEngineRef}
       className={`mathmaster-question-engine mathmaster-question-engine-has-anchor ${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`}
@@ -3586,6 +3596,7 @@ function QuestionEngineBody({
 
       <ScratchpadOverlay open={scratchpadOpen} questionKey={processedQuestion?.questionId ?? processedQuestion?.id ?? null} questionDetails={scratchpadQuestionDetails} initialDataUrl={scratchpadDataUrl} initialPages={scratchpadPages} onSave={saveScratchpad} onClose={() => setScratchpadOpen(false)} readOnly={locked} gridBackground={supportPresentation.graphPaper === true} />
     </div>
+    </KeypadConstantsProvider>
     </WorkViewUndoProvider>
     </GraphReadOutProvider>
     </QuestionLifecycleProvider>

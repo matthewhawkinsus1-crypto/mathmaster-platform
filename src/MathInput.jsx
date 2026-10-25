@@ -3,6 +3,7 @@ import { createFieldEchoGuard } from './platform/interaction/fieldEchoGuard.js';
 import './platform/math/mathliveRuntime.js';
 import { requiredAnswerToolForSymbol, resolveRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
 import { buildMobileMathTools } from './platform/interaction/mobileKeypadPolicy.js';
+import { keysForConstants, useKeypadConstants } from './platform/interaction/keypadConstants.js';
 import { scheduleHorizontalViewportStabilization } from './platform/mobile/mobileFocusViewport.js';
 import { bindMathFieldFocusHandoff, focusMathFieldWithoutScroll } from './platform/interaction/mathFieldFocusHandoff.js';
 import { useDeferredFocusHost } from './platform/interaction/answerFocusPolicy.js';
@@ -21,10 +22,12 @@ import {
 } from './platform/math/typedFractionEntry.js';
 import { mathFieldAccessibleDescription, useMathFieldDescription } from './platform/math/mathFieldDescription.js';
 
+// π, e and logₐ are `constant` keys: inside a question they show only where
+// the item's math uses them (TL23, keypadConstants.js).
 const BASIC_KEYS = [
-  { label: 'π', command: '\\pi', ariaLabel: 'Insert pi' },
-  { label: 'e', command: 'e', ariaLabel: 'Insert e' },
-  { label: 'logₐ', command: '\\log_{#?}\\left(#0\\right)', ariaLabel: 'Insert logarithm with a base' },
+  { label: 'π', command: '\\pi', ariaLabel: 'Insert pi', constant: 'pi' },
+  { label: 'e', command: 'e', ariaLabel: 'Insert e', constant: 'e' },
+  { label: 'logₐ', command: '\\log_{#?}\\left(#0\\right)', ariaLabel: 'Insert logarithm with a base', constant: 'log' },
   { label: '√', command: '\\sqrt{#0}', ariaLabel: 'Insert square root' },
   { label: 'ⁿ√', command: '\\sqrt[#?]{#0}', ariaLabel: 'Insert nth root' },
   { label: 'x²', command: '#@^{2}', ariaLabel: 'Insert square exponent' },
@@ -154,8 +157,12 @@ const INEQUALITY_KEYS = [
 // MathLive's way out is the space bar, which nothing tells a student. This is
 // the same gesture with a name on it, and it is on every keypad because every
 // keypad can open a group.
+//
+// It was labelled "↷ out": ↷ is the redo arrow, and "out" alone said neither
+// what moves nor where to (TL23). The label now says the move in plain words,
+// with the arrow pointing the way the cursor goes.
 const EXIT_GROUP_KEY = {
-  label: '↷ out',
+  label: 'move out →',
   action: 'moveAfterParent',
   ariaLabel: 'Move the cursor out of the fraction, exponent or bracket',
 };
@@ -224,6 +231,18 @@ const withExtraKeys = (keys, extraKeys) => (extraKeys.length
   : keys);
 
 const detectMobileInput = () => typeof window !== 'undefined' && (window.innerWidth <= 768 || window.matchMedia?.('(pointer: coarse)')?.matches === true);
+
+// The keypad toggle's picture: a small keyboard (TL23). Drawn, not a glyph, so
+// every device shows the same shape; decorative, because the button's name
+// ("Show math tools" / "Hide math tools") says what it does.
+const KeypadIcon = () => (
+  <svg data-math-tools-icon="keypad" aria-hidden="true" focusable="false" width="22" height="16" viewBox="0 0 22 16" style={{ display: 'block', margin: '0 auto' }}>
+    <rect x="1" y="1" width="20" height="14" rx="3" fill="none" stroke="currentColor" strokeWidth="1.6" />
+    {[4.5, 9, 13.5, 18].map((x) => <rect key={`top-${x}`} x={x - 1.4} y="4" width="2.8" height="2.4" rx="0.6" fill="currentColor" />)}
+    {[6.75, 11.25, 15.75].map((x) => <rect key={`mid-${x}`} x={x - 1.4} y="7.6" width="2.8" height="2.4" rx="0.6" fill="currentColor" />)}
+    <rect x="6.5" y="11.2" width="9" height="1.8" rx="0.6" fill="currentColor" />
+  </svg>
+);
 
 export default function MathInput({
   value,
@@ -367,9 +386,13 @@ export default function MathInput({
     [requiredAnswerSymbols],
   );
   const shouldSuppressNativeKeyboard = isMobile && toolProfile !== 'function' && unservedRequiredSymbols.length === 0;
+  // π, e and logₐ that the question's math does not use are left off the
+  // profile's keys — before a caller's extra keys and the keys this answer
+  // needs are added, so neither can ever be removed (TL23, keypadConstants.js).
+  const keypadConstants = useKeypadConstants();
   const tools = useMemo(() => {
     if (!isMobile) return mergeToolKeys(
-      withExtraKeys(getToolKeys(toolProfile, { contextSymbols, functionNotationKeys }), extraKeys),
+      withExtraKeys(keysForConstants(getToolKeys(toolProfile, { contextSymbols, functionNotationKeys }), keypadConstants), extraKeys),
       requiredTools,
     );
 
@@ -382,11 +405,11 @@ export default function MathInput({
     return buildMobileMathTools({
       toolProfile,
       entryKeys: MOBILE_ENTRY_KEYS,
-      profileKeys: withExtraKeys(getToolKeys(toolProfile, { isMobile: true, contextSymbols, functionNotationKeys }), extraKeys),
+      profileKeys: withExtraKeys(keysForConstants(getToolKeys(toolProfile, { isMobile: true, contextSymbols, functionNotationKeys }), keypadConstants), extraKeys),
       requiredTools,
       backspaceKey: MOBILE_BACKSPACE_KEY,
     });
-  }, [toolProfile, isMobile, contextSymbols, functionNotationKeys, requiredTools, extraKeys]);
+  }, [toolProfile, isMobile, contextSymbols, functionNotationKeys, requiredTools, extraKeys, keypadConstants]);
 
   useEffect(() => {
     const update = () => setIsMobile(detectMobileInput());
@@ -796,7 +819,9 @@ export default function MathInput({
             cursor: 'pointer',
           }}
         >
-          <span aria-hidden="true">√x</span>
+          {/* A keypad, not "√x": the button opens every key, and √x read
+              as "insert a square root" (TL23). The name stays the words. */}
+          <KeypadIcon />
         </button>
       )}
       </div>
@@ -906,6 +931,13 @@ export default function MathInput({
                   background: 'var(--mm-primary-soft)',
                   borderColor: 'var(--mm-primary-border)',
                   color: 'var(--mm-primary-text)',
+                } : {}),
+                // The one key that is words (TL23): two keys wide, like a
+                // space bar, so "move out →" reads on one line.
+                ...(tool === EXIT_GROUP_KEY ? {
+                  gridColumn: 'span 2',
+                  fontSize: 'calc(15 * var(--mm-px))',
+                  whiteSpace: 'nowrap',
                 } : {}),
               }}
             >
