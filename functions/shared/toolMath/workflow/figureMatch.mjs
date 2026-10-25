@@ -177,7 +177,9 @@ export const figureMatchKeyProblems = (stage, rule) => {
  * sort that only turned red left a student to guess which of eight figures
  * to move. Shown only where the step's verdict is shown (WorkflowRunner reads
  * it from a submission review, which QuestionEngine withholds on an exit
- * ticket, quiz or test before release). Empty without a key.
+ * ticket, quiz or test before release). Empty without a key. Named from the
+ * first miss, kept as built (owner, October 2026, FB17): a retry that knows
+ * which figures to rethink is practice; the tries strip still limits them.
  */
 export const figureMatchWrongItems = (stage, value, key) => {
   if (!isObject(key)) return [];

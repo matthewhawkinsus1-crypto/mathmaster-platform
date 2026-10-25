@@ -124,7 +124,9 @@ const withGraphStageVerdicts = ({ composed, responses, outcomesWithheld = false 
  *     line for any miss.
  *   figureMatch  the count, which the step already turns into named figures
  *     (P2-4, an owner decision).
- * Every other kind ("Not correct yet.") shows nothing.
+ * Every other kind ("Not correct yet.") shows nothing. How much a reason may
+ * say is this list, confirmed as built (owner, October 2026, FB12, W7 decision
+ * 14), as is Data Modeling naming which half of a part held.
  */
 const PASS = (detail) => detail;
 const PLOT_POINTS_OFF = 'Some points are not where the ordered pairs put them.';
