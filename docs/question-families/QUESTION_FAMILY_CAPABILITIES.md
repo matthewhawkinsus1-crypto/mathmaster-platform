@@ -33,10 +33,12 @@ first seat, seats 1–3, 4–6, … each get one of each case); its capacity is 
 | `linear.multipleRepresentations` | v1 · what an unpinned reference means | — | — | `representationBridge` (linearMultipleRepresentations) | yes — shared server grader | yes | 62 — every student unique | reduce-complexity: slope "integer", standardScale 1 |
 | `linear.multiStepEquation` | v1 · what an unpinned reference means | — | — | `stepAlgebra` (equation) default, `multiAnswer` | yes — shared server grader | yes | about 132,851 — every student unique | reduce-complexity: coefficientRange [-6, 6], constantRange [-10, 10], solutionRange [-6, 6] |
 | `linear.multiStepEquation` | v2 · only when pinned (`"version": 2`) | one, none, infinite, mixed | integer, fraction | `stepAlgebra` (equation) | yes — shared server grader | yes | about 3,923,640 — every student unique | reduce-complexity: coefficientRange [-6, 6], constantRange [-10, 10], solutionRange [-6, 6]; keeps solutionCase, distribute, solutionForm, coefficientForm |
+| `linear.multiStepEquation` | v3 · only when pinned (`"version": 3`) | one, none, infinite, mixed | integer, fraction | `stepAlgebra` (equation) | yes — shared server grader | yes | about 3,875,760 — every student unique | reduce-complexity: coefficientRange [-6, 6], constantRange [-10, 10], solutionRange [-6, 6]; keeps solutionCase, distribute, solutionForm, coefficientForm |
 | `linear.representationSort` | v1 · what an unpinned reference means | — | — | `representationMatch` (linearConnections) | yes — shared server grader | yes | 236 — every student unique | — |
 | `linear.slopeFromPoints` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 64,231 — every student unique | — |
 | `linear.twoStepEquation` | v1 · what an unpinned reference means | — | — | `stepAlgebra` (equation) default, `multiAnswer` | yes — shared server grader | yes | about 10,080 — every student unique | reduce-complexity: coefficientRange [2, 6], constantRange [-8, 8], solutionRange [-6, 6] |
 | `linear.twoStepEquation` | v2 · only when pinned (`"version": 2`) | one | integer, fraction | `stepAlgebra` (equation) | yes — shared server grader | yes | about 9,671 — every student unique | reduce-complexity: coefficientRange [2, 6], constantRange [-8, 8], solutionRange [-6, 6]; keeps distribute, solutionForm, coefficientForm |
+| `linear.twoStepEquation` | v3 · only when pinned (`"version": 3`) | one | integer, fraction | `stepAlgebra` (equation) | yes — shared server grader | yes | about 9,622 — every student unique | reduce-complexity: coefficientRange [2, 6], constantRange [-8, 8], solutionRange [-6, 6]; keeps distribute, solutionForm, coefficientForm |
 | `lines.horizontalVertical` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 306 — every student unique | — |
 | `lines.perpendicularFromEquation` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 14,468 — every student unique | — |
 | `lines.perpendicularFromPoints` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 2,656 — every student unique | — |
@@ -399,6 +401,43 @@ Linear equation with variables on both sides (special cases).
 
 - **reduce-complexity:** `coefficientRange` [-6, 6], `constantRange` [-10, 10], `solutionRange` [-6, 6] — about 766,056 distinct questions; never changes `solutionCase`, `distribute`, `solutionForm`, `coefficientForm`.
 
+### `linear.multiStepEquation` v3
+
+Linear equation with variables on both sides (special cases).
+
+- **Pinning:** used only by a slot that says `"version": 3`; an unpinned reference still means v1, so no existing question changes.
+- **Constraint policy:** strict — an unknown constraint, a value it does not list, or a tool it cannot fill stops generation with a message naming what is allowed. Nothing falls back to a default.
+- **Alignments:** A.5A, 8.8C
+- **Answered in:** `stepAlgebra` (equation) — Step Algebra equation and relation workspaces
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+- **Independent verification:** questionFamilyExact.classifyLinearEquation on the displayed equation
+- **Arithmetic:** exact rationals throughout; a fraction is never shown or keyed as a decimal.
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `solutionCase` | choice | `"one"` | `"one"`, `"none"`, `"infinite"`, `"mixed"` | yes |
+| `distribute` | choice | `false` | `false`, `true`, `"mixed"` | yes |
+| `solutionForm` | choice | `"integer"` | `"integer"`, `"fraction"` | yes |
+| `coefficientForm` | choice | `"integer"` | `"integer"`, `"fraction"` | yes |
+| `solutionRange` | range | `[-10, 10]` | whole-number range inside [-30, 30] | — |
+| `coefficientRange` | range | `[-8, 8]` | whole-number range inside [-15, 15] | — |
+| `constantRange` | range | `[-15, 15]` | whole-number range inside [-40, 40] | — |
+| `variable` | choice | `"x"` | `"x"`, `"n"`, `"a"`, `"b"`, `"k"`, `"m"`, `"p"`, `"t"`, `"w"`, `"y"` | — |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 3,875,760 | one · likeTerms: about 1,937,880; one · constants: about 3,902,850 |
+| solutionCase: "none" | about 418,274 | none · likeTerms: about 209,137; none · constants: about 404,156 |
+| solutionCase: "infinite" | about 14,474 | infinite · likeTerms: about 7,237; infinite · constants: about 13,907 |
+| solutionCase: "mixed" | about 43,422 | one · likeTerms: about 1,937,880; one · constants: about 3,902,850; none · likeTerms: about 209,137; none · constants: about 404,156; infinite · likeTerms: about 7,237; infinite · constants: about 13,907 |
+| distribute: true | about 3,222,450 | one · distributeConstant: about 3,246,960; one · distributeLikeTerms: about 1,611,225 |
+| distribute: "mixed" | about 6,444,900 | one · likeTerms: about 1,937,880; one · constants: about 3,902,850; one · distributeConstant: about 3,246,960; one · distributeLikeTerms: about 1,611,225 |
+| solutionForm: "fraction" | about 4,093,200 | one · likeTerms: about 2,046,600; one · constants: about 3,918,375 |
+| coefficientForm: "fraction" | about 8,730,914 | one · likeTerms: about 4,584,726; one · constants: about 4,365,457 |
+
+- **reduce-complexity:** `coefficientRange` [-6, 6], `constantRange` [-10, 10], `solutionRange` [-6, 6] — about 764,302 distinct questions; never changes `solutionCase`, `distribute`, `solutionForm`, `coefficientForm`.
+
 ### `linear.representationSort` v1
 
 Sort the representations of two lines.
@@ -496,6 +535,40 @@ Two-step linear equation (distribution and fractions).
 | distribute: "mixed" | about 14,174 | one · plain: about 9,671; one · distribute: about 7,087 |
 | solutionForm: "fraction" | about 11,003 | one · plain: about 11,003 |
 | coefficientForm: "fraction" | about 4,257 | one · plain: about 4,257 |
+
+- **reduce-complexity:** `coefficientRange` [2, 6], `constantRange` [-8, 8], `solutionRange` [-6, 6] — about 1,020 distinct questions; never changes `distribute`, `solutionForm`, `coefficientForm`.
+
+### `linear.twoStepEquation` v3
+
+Two-step linear equation (distribution and fractions).
+
+- **Pinning:** used only by a slot that says `"version": 3`; an unpinned reference still means v1, so no existing question changes.
+- **Constraint policy:** strict — an unknown constraint, a value it does not list, or a tool it cannot fill stops generation with a message naming what is allowed. Nothing falls back to a default.
+- **Alignments:** A.5A, 7.11A
+- **Answered in:** `stepAlgebra` (equation) — Step Algebra equation workspace
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+- **Independent verification:** questionFamilyExact.classifyLinearEquation on the displayed equation
+- **Arithmetic:** exact rationals throughout; a fraction is never shown or keyed as a decimal.
+- **Note:** a·x + b = c with a ≠ 0 has exactly one solution, so this family has no solutionCase; use linear.multiStepEquation v3 for no-solution and identity equations.
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `distribute` | choice | `false` | `false`, `true`, `"mixed"` | yes |
+| `solutionForm` | choice | `"integer"` | `"integer"`, `"fraction"` | yes |
+| `coefficientForm` | choice | `"integer"` | `"integer"`, `"fraction"` | yes |
+| `solutionRange` | range | `[-10, 10]` | whole-number range inside [-40, 40] | — |
+| `coefficientRange` | range | `[-9, 9]` | whole-number range inside [-20, 20] | — |
+| `constantRange` | range | `[-15, 15]` | whole-number range inside [-50, 50] | — |
+| `variable` | choice | `"x"` | `"x"`, `"n"`, `"a"`, `"b"`, `"k"`, `"m"`, `"p"`, `"t"`, `"w"`, `"y"` | — |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 9,622 | one · plain: about 9,622 |
+| distribute: true | about 7,245 | one · distribute: about 7,245 |
+| distribute: "mixed" | about 14,490 | one · plain: about 9,622; one · distribute: about 7,245 |
+| solutionForm: "fraction" | about 10,856 | one · plain: about 10,856 |
+| coefficientForm: "fraction" | about 4,202 | one · plain: about 4,202 |
 
 - **reduce-complexity:** `coefficientRange` [2, 6], `constantRange` [-8, 8], `solutionRange` [-6, 6] — about 1,020 distinct questions; never changes `distribute`, `solutionForm`, `coefficientForm`.
 

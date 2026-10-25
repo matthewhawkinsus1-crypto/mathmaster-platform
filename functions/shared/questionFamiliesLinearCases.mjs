@@ -5,6 +5,8 @@
  *                                  solution, every real number, or a mix
  *   linear.twoStepEquation    v2   a·x + b = c and a(x + b) = c, with
  *                                  rational coefficients or answers
+ *   linear.multiStepEquation  v3   v2, with a fractional answer kept between
+ *   linear.twoStepEquation    v3   both ends of `solutionRange` (CT15; below)
  *
  * WHY NEW VERSIONS AND NOT NEW KNOBS ON v1. A v1 slot already in front of
  * students resolves its constraints with "fallback": an unknown knob is
@@ -16,6 +18,15 @@
  * snapshot taken before this file existed — and the new mathematics ships as
  * v2, which an assignment opts into with `"version": 2`. An unpinned slot
  * still means v1.
+ *
+ * VERSION 3 (CT15 / A2-98) AGAIN SHIPS AS A NEW VERSION. v2 let a fractional
+ * answer through when it was inside the larger of the two endpoints' absolute
+ * values, so with `solutionRange: [2, 6]` a student could be dealt x = 1/8.
+ * Tightening that rule changes which instances the family has (and so which
+ * instance each seat is dealt, and every pin that names one), so v2 keeps its
+ * rule exactly (tests/platform/questionFamilyHistoricalPins.test.mjs proves
+ * its sequences) and a slot opts in with `"version": 3`. A range that is
+ * symmetric about 0 admits exactly the same instances in both.
  *
  * WHAT v2 GUARANTEES.
  *
@@ -204,10 +215,32 @@ export const linearSolutionKey = (classified) => {
 };
 
 /*
+ * WHERE A ONE-SOLUTION ANSWER MAY LIE (CT15 / A2-98).
+ *
+ * `solutionRange` is the range the author asked the answer to lie in. An
+ * integer answer is drawn from it, so it always does; a fractional answer
+ * comes from a free constant and is checked afterwards.
+ *
+ * Version 2 checked only the larger endpoint: |answer| <= max(|low|, |high|).
+ * That is the same thing for a range that is symmetric about 0 (the default
+ * [-10, 10], and every range an authored lesson or a support sets), and not for
+ * any other: with [2, 6] it let 1/8 through (|1/8| <= 6), and with [-3, 8] it
+ * let -7. Version 2 is frozen, because a delivery pin names an instance by its
+ * family version and a graded attempt refers to one: it keeps this rule, and a
+ * slot opts into the correction by saying `"version": 3`.
+ */
+const withinLargerEndpoint = (solution, [low, high]) => Math.abs(toNumber(solution)) <= Math.max(Math.abs(low), Math.abs(high));
+/** Version 3: the answer lies between both endpoints, the ends included. */
+const withinBothEndpoints = (solution, [low, high]) => {
+  const value = toNumber(solution);
+  return value >= low && value <= high;
+};
+
+/*
  * The checks every candidate passes, shared by both families. `values` holds
  * the displayed trees; `intended` is what the constructor meant.
  */
-const verifyLinearCandidate = ({ values, constraints, intendedSolution = null }) => {
+const verifyLinearCandidate = ({ values, constraints, intendedSolution = null, solutionWithin = withinLargerEndpoint }) => {
   const verified = classifyLinearEquation(values.leftTerms, values.rightTerms);
   if (verified.case !== values.case) return [FAMILY_ISSUE.CASE_MISMATCH];
   if (!equals(verified.simplified.A, values.A) || !equals(verified.simplified.B, values.B)) return [FAMILY_ISSUE.CASE_MISMATCH];
@@ -220,8 +253,7 @@ const verifyLinearCandidate = ({ values, constraints, intendedSolution = null })
       if (isInteger(solution)) issues.push(FAMILY_ISSUE.UNINTENDED_INTEGER);
       if (solution.d > MAX_ANSWER_DENOMINATOR) issues.push(FAMILY_ISSUE.VALUE_OUT_OF_RANGE);
     }
-    const bound = Math.max(Math.abs(constraints.solutionRange[0]), Math.abs(constraints.solutionRange[1]));
-    if (Math.abs(toNumber(solution)) > bound) issues.push(FAMILY_ISSUE.VALUE_OUT_OF_RANGE);
+    if (!solutionWithin(solution, constraints.solutionRange)) issues.push(FAMILY_ISSUE.VALUE_OUT_OF_RANGE);
   }
   const coefficients = [...presentedCoefficients(values.leftTerms), ...presentedCoefficients(values.rightTerms)];
   const constants = [...presentedConstants(values.leftTerms), ...presentedConstants(values.rightTerms)];
@@ -379,11 +411,12 @@ const multiStepDerive = (constructors) => (params, c) => {
  * The family, built from a table of case constructors. The registered family
  * uses MULTI_STEP_CASE_CONSTRUCTORS; the mutation tests build it from a
  * broken table and require the independent verification to refuse every
- * instance the broken constructor makes.
+ * instance the broken constructor makes. `solutionWithin` is the one thing
+ * versions 2 and 3 differ in (see withinLargerEndpoint).
  */
-export const defineMultiStepEquationV2 = ({ constructors = MULTI_STEP_CASE_CONSTRUCTORS } = {}) => defineQuestionFamily({
+const defineMultiStepEquation = ({ version, solutionWithin, constructors = MULTI_STEP_CASE_CONSTRUCTORS }) => defineQuestionFamily({
   id: 'linear.multiStepEquation',
-  version: 2,
+  version,
   title: 'Linear equation with variables on both sides (special cases)',
   skill: {
     objective: 'Solve a linear equation with the variable on both sides, including equations with no solution or infinitely many solutions.',
@@ -418,7 +451,7 @@ export const defineMultiStepEquationV2 = ({ constructors = MULTI_STEP_CASE_CONST
   },
   derive: multiStepDerive(constructors),
   rules: (values, c) => {
-    const issues = verifyLinearCandidate({ values, constraints: c, intendedSolution: values.intendedSolution });
+    const issues = verifyLinearCandidate({ values, constraints: c, intendedSolution: values.intendedSolution, solutionWithin });
     if (issues.includes(FAMILY_ISSUE.CASE_MISMATCH)) return issues;
     // Both sides keep the variable and a constant after simplifying:
     // "variables on both sides", and nothing hidden behind a zero.
@@ -430,7 +463,9 @@ export const defineMultiStepEquationV2 = ({ constructors = MULTI_STEP_CASE_CONST
   },
   // The displayed equation, shape and every number — not the letter, which
   // is presentation. A solution case is a property of the numbers, so
-  // instances of different strata can never share a fingerprint.
+  // instances of different strata can never share a fingerprint. Version 3
+  // keeps version 2's text: an equation is the same question whichever rule
+  // admitted it, and a duplicate check compares the equations.
   fingerprint: (values) => fingerprintOf('linear.multiStepEquation@2', [
     values.shape,
     sideFingerprint(values.leftTerms),
@@ -451,7 +486,12 @@ export const defineMultiStepEquationV2 = ({ constructors = MULTI_STEP_CASE_CONST
   capabilities: linearCapabilities({ solutionCases: [...SOLUTION_CASE_CHOICES], shapes: Object.keys(MULTI_STEP_SHAPES) }),
 });
 
+export const defineMultiStepEquationV2 = ({ constructors } = {}) => defineMultiStepEquation({ version: 2, solutionWithin: withinLargerEndpoint, constructors });
+/** Version 3 (CT15): the same family, with a fractional answer kept between both ends of `solutionRange`. */
+export const defineMultiStepEquationV3 = ({ constructors } = {}) => defineMultiStepEquation({ version: 3, solutionWithin: withinBothEndpoints, constructors });
+
 export const multiStepEquationV2Family = defineMultiStepEquationV2();
+export const multiStepEquationV3Family = defineMultiStepEquationV3();
 
 /* ---------------------------------------------------------------------------
  * linear.twoStepEquation v2
@@ -477,9 +517,12 @@ export const TWO_STEP_SHAPES = Object.freeze({
   }),
 });
 
-export const twoStepEquationV2Family = defineQuestionFamily({
+// Versions 2 and 3 are this one definition: they differ in where a fractional
+// answer may lie (withinLargerEndpoint, withinBothEndpoints) and in the sibling
+// family the note points to.
+const twoStepEquationSpec = ({ version, solutionWithin, multiStepVersion }) => ({
   id: 'linear.twoStepEquation',
-  version: 2,
+  version,
   title: 'Two-step linear equation (distribution and fractions)',
   skill: {
     objective: 'Solve a two-step linear equation in one variable, including one that needs the distributive property or has rational numbers.',
@@ -536,7 +579,7 @@ export const twoStepEquationV2Family = defineQuestionFamily({
     };
   },
   rules: (values, c) => {
-    const issues = verifyLinearCandidate({ values, constraints: c, intendedSolution: values.intendedSolution });
+    const issues = verifyLinearCandidate({ values, constraints: c, intendedSolution: values.intendedSolution, solutionWithin });
     if (issues.includes(FAMILY_ISSUE.CASE_MISMATCH)) return issues;
     if (isZero(values.t)) issues.push(FAMILY_ISSUE.TRIVIAL_INSTANCE);
     // v1's bound on the right side, so a reduced or default slot stays a
@@ -560,11 +603,17 @@ export const twoStepEquationV2Family = defineQuestionFamily({
   capabilities: {
     ...linearCapabilities({ solutionCases: ['one'], shapes: Object.keys(TWO_STEP_SHAPES) }),
     solutionCases: ['one'],
-    notes: 'a·x + b = c with a ≠ 0 has exactly one solution, so this family has no solutionCase; use linear.multiStepEquation v2 for no-solution and identity equations.',
+    notes: `a·x + b = c with a ≠ 0 has exactly one solution, so this family has no solutionCase; use linear.multiStepEquation v${multiStepVersion} for no-solution and identity equations.`,
   },
 });
 
+export const twoStepEquationV2Family = defineQuestionFamily(twoStepEquationSpec({ version: 2, solutionWithin: withinLargerEndpoint, multiStepVersion: 2 }));
+/** Version 3 (CT15): the same family, with a fractional answer kept between both ends of `solutionRange`. */
+export const twoStepEquationV3Family = defineQuestionFamily(twoStepEquationSpec({ version: 3, solutionWithin: withinBothEndpoints, multiStepVersion: 3 }));
+
 export const LINEAR_CASE_FAMILIES = Object.freeze([
   multiStepEquationV2Family,
+  multiStepEquationV3Family,
   twoStepEquationV2Family,
+  twoStepEquationV3Family,
 ]);
