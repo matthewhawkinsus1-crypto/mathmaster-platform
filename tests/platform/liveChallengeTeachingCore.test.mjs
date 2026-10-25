@@ -219,8 +219,13 @@ test('a closing threshold shortens the class\'s deadline, never an accommodated 
 test('a student\'s board lists classmates by the projector\'s rule: never a place tied with the last', async () => {
   const { publicStandingsRows } = await import('../../src/platform/liveChallenge/liveChallengeProjectorModel.js');
   const five = Array.from({ length: 5 }, (_, index) => ({ playerKey: `p${index + 1}`, rank: index + 1 }));
-  // Five players: a classmate's screen lists 1st–3rd (4th and 5th unshown together);
-  // the fifth sees the same three and their own row.
+  // Five players, a screen handed every row: a classmate's list is 1st–3rd (4th
+  // and 5th unshown together, which is two to find for this viewer); the fifth
+  // sees the same three and their own row. A real screen is handed the class's
+  // list, which stops at 1st–2nd (LC22), and adds only its own row to it.
+  const fourth = publicStandingsRows({}, [...five.slice(0, 2), five[3]], { selfKey: 'p4', lastRank: 5, totalCount: 5 });
+  assert.deepEqual(fourth.rows.map((row) => row.playerKey), ['p1', 'p2', 'p4']);
+  assert.equal(fourth.hiddenCount, 2, '3rd and 5th: the fourth cannot say which is last');
   assert.deepEqual(publicStandingsRows({}, five, { selfKey: 'p2' }).rows.map((row) => row.playerKey), ['p1', 'p2', 'p3']);
   const last = publicStandingsRows({}, five, { selfKey: 'p5' });
   assert.equal(last.self?.playerKey, 'p5');

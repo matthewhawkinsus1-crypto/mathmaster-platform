@@ -15,8 +15,9 @@
 // never answers, so they are last on every board.
 //
 // Every list is checked against the one public rule (publicStandingsRows):
-// never a place tied with the class's last, never exactly one player unshown
-// (the lobby listed every alias), the top five at most.
+// never a place tied with the class's last, never one or two players unshown
+// (the lobby listed every alias; two would name each other), the top five at
+// most.
 //
 //   1. Top 5 only (the default), 1366×768:
 //      live board   five rows and "and 3 more players · everyone sees their
@@ -35,7 +36,9 @@
 //      the results and under the podium; Play Again keeps the choice.
 //   3. A table of four, one right: the live board, both results tables and
 //      the podium show the winner only — three tied for last stay off.
-//   4. A game of three: the podium shows 1st only.
+//   4. Small games (LC22): five players, the live board, the results and the
+//      podium show the top two (a third would leave 4th and 5th, and 4th could
+//      name 5th); three players, nobody is named, and the podium has no steps.
 //
 // NOTHING TOUCHES PRODUCTION: firebase.js is swapped for an emulator module,
 // the browser blocks every non-local request, and the project id is
@@ -483,7 +486,7 @@ try {
   check(JSON.stringify(liveKeys) === JSON.stringify(live.slice(0, 5).map((row) => row.playerKey)), 'the live board is not the top five', 'the live board is the server\'s top five');
   const liveRule = publicStandingsRows(created, live, { spaceForRows: 6 });
   check(JSON.stringify(liveKeys) === JSON.stringify(liveRule.rows.map((row) => row.playerKey)), 'the live board is not what the public rule allows', 'the live board is exactly what the public rule allows');
-  check(liveRule.hiddenCount !== 1, 'the live board leaves exactly one player unnamed', 'the live board leaves two or more unnamed');
+  check(liveRule.hiddenCount >= 3, `the live board leaves ${liveRule.hiddenCount} players unnamed`, 'the live board leaves three or more unnamed');
   check(await waitForText(teacher, 'and 3 more players · everyone sees their own place on their device', 3_000), 'the live board does not say "and 3 more players · everyone sees their own place on their device"', 'the live board says "and 3 more players · everyone sees their own place on their device"');
   let text = await textOf(teacher);
   check(!lastAliases.some((alias) => text.includes(alias)), 'the live board names a last-placed player', 'the live board never names the last-placed players');
@@ -769,41 +772,74 @@ try {
   check(!tableFinalLast.some((row) => !tableRecognized.has(row.alias) && text.includes(row.alias)), 'the table\'s podium names a player tied for last', 'the table\'s podium names nobody tied for last (a recognition aside)');
   await shot(teacher, 'T04-table-podium');
 
-  /* ======================= 4. A GAME OF THREE ======================= */
+  /* ================= 4. SMALL GAMES: FIVE, THEN THREE (LC22) ================= */
 
-  log('▶ a game of three (the podium shows 1st only)');
-  await teacher.page.locator('[data-mm-arena-host] button', { hasText: 'New Challenge' }).first().click();
-  const threeId = await createClassic(teacher, { standingsDisplay: 'topFew' });
-  const THREE = IDS.slice(0, 3);
-  for (const id of THREE) await botCall('joinLiveChallenge', id, { roomId: threeId });
-  await toProjector(teacher);
-  await waitForAttr(teacher, '[data-mm-lobby-count]', 'data-mm-lobby-count', '3', 15_000);
-  await startFromProjector(teacher, threeId);
-  // Speed is scored in whole seconds of the server's time, so three places
-  // need answers that arrive seconds apart.
-  for (const id of THREE) {
-    await botAnswer(threeId, id, { correct: true, humanElapsedMs: 0 });
-    await wait(2_100);
-  }
-  const threeLive = await standingsOf(threeId);
-  const threeLiveKeys = await keysIn(teacher, STANDINGS_ON_SCREEN);
-  check(threeLive.length === 3 && new Set(threeLive.map((row) => row.rank)).size === 3, `the three ranks are ${threeLive.map((row) => row.rank).join(',')}`, 'three players, three places');
-  check(JSON.stringify(threeLiveKeys) === JSON.stringify([threeLive[0].playerKey]), `the live board of three shows ${threeLiveKeys.length} rows (expected 1st only)`, 'the live board of three shows 1st only (2nd would name 3rd by elimination)');
-  await shot(teacher, 'G01-three-live');
-  await waitForDeadline(threeId, 1_000);
-  await waitForRoom(threeId, (room) => room.roundState === 'closed', 20_000);
-  await waitForArena(teacher, 'roundResults', 10_000);
-  await teacher.page.getByRole('button', { name: 'End Game' }).click();
-  await confirmDialog(teacher, 'End Game');
-  await waitForRoom(threeId, (room) => room.status === 'finished', 30_000);
-  check(await waitForArena(teacher, 'completed', 15_000), 'the game of three has no podium screen', 'the game of three shows its podium screen');
-  await wait(1_500);
-  const threeFinal = await standingsOf(threeId);
-  const threePodium = await teacher.page.locator('[data-mm-podium]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-mm-podium')));
-  check(JSON.stringify(threePodium) === JSON.stringify(['1']), `the podium of three shows steps ${JSON.stringify(threePodium)}`, 'the podium of three shows 1st only');
-  text = await textOf(teacher);
-  check(!text.includes(threeFinal[2].alias) || new Set(((await roomOf(threeId)).recognitions || []).flatMap((entry) => entry.aliases || [])).has(threeFinal[2].alias), 'the podium of three names 3rd', 'the podium of three never names 3rd');
-  await shot(teacher, 'G02-three-podium');
+  // With 5 players the class used to see the top three. That left 4th and 5th,
+  // and the 4th, finding three aliases on the projector and themselves 4th,
+  // could name the 5th: the one alias that was neither on the board nor theirs.
+  // The class now sees the top two. With three players nobody is named (3rd
+  // and 2nd would each name the other), and with four only the winner.
+  const smallGame = async ({ players, shown, tag }) => {
+    log(`▶ a game of ${players} (the class sees ${shown === 0 ? 'nobody' : `the top ${shown}`})`);
+    await teacher.page.locator('[data-mm-arena-host] button', { hasText: 'New Challenge' }).first().click();
+    const gameId = await createClassic(teacher, { standingsDisplay: 'topFew' });
+    const group = IDS.slice(0, players);
+    for (const id of group) await botCall('joinLiveChallenge', id, { roomId: gameId });
+    await toProjector(teacher);
+    await waitForAttr(teacher, '[data-mm-lobby-count]', 'data-mm-lobby-count', String(players), 15_000);
+    await startFromProjector(teacher, gameId);
+    // Speed is scored in whole seconds of the server's time, so each place
+    // needs an answer that arrives seconds after the one before.
+    for (const id of group) {
+      await botAnswer(gameId, id, { correct: true, humanElapsedMs: 0 });
+      await wait(2_100);
+    }
+    const live = await standingsOf(gameId);
+    const everyAlias = live.map((row) => row.alias);
+    check(live.length === players && new Set(live.map((row) => row.rank)).size === players, `the ranks are ${live.map((row) => row.rank).join(',')}`, `${players} players, ${players} places`);
+    const expectedKeys = live.slice(0, shown).map((row) => row.playerKey);
+    const unlisted = live.slice(shown);
+    const liveKeys = await keysIn(teacher, STANDINGS_ON_SCREEN);
+    check(JSON.stringify(liveKeys) === JSON.stringify(expectedKeys), `the live board of ${players} shows ${liveKeys.length} rows (expected ${shown})`, `the live board of ${players} shows ${shown === 0 ? 'nobody' : `the top ${shown} only`}`);
+    // The public rule, asked of the same standings: the board is what it allows.
+    const rule = publicStandingsRows(created, live, { spaceForRows: 6 });
+    check(JSON.stringify(liveKeys) === JSON.stringify(rule.rows.map((row) => row.playerKey)), `the board of ${players} is not what the public rule allows`, `the board of ${players} is exactly what the public rule allows`);
+    const hidden = players - shown;
+    check(hidden >= 3, `${hidden} players are left unshown`, `${hidden} players are left unshown, so none of them can name another`);
+    const moreWords = shown === 0 ? `${players} players · everyone sees their own place on their device` : `and ${hidden} more players · everyone sees their own place on their device`;
+    check(await waitForText(teacher, moreWords, 3_000), `the live board does not say "${moreWords}"`, `the live board says "${moreWords}"`);
+    let gameText = await textOf(teacher);
+    check(!unlisted.some((row) => gameText.includes(row.alias)), 'the live board names a player it leaves off', `the live board of ${players} names nobody it leaves off`);
+    await shot(teacher, `${tag}01-live`);
+    check(await waitForRoom(gameId, (room) => room.roundState === 'closed', 30_000), `the round of ${players} never closed`, `the round of ${players} closes once everyone has answered`);
+    check(await waitForArena(teacher, 'roundResults', 10_000), `no results for the game of ${players}`, `the results of the game of ${players}`);
+    await wait(1_200);
+    const standingKeys = await keysIn(teacher, '[aria-label="Standings after this round"] [data-mm-standing]');
+    check(JSON.stringify(standingKeys) === JSON.stringify(expectedKeys), `the standings after the round show ${standingKeys.length} rows (expected ${shown})`, `the standings after the round show ${shown === 0 ? 'nobody' : `the top ${shown} only`}`);
+    const hideSolution = teacher.page.getByRole('button', { name: 'Hide solution' });
+    if (await hideSolution.isVisible().catch(() => false)) await hideSolution.click();
+    await wait(600);
+    const roundKeys = await keysIn(teacher, '[aria-label="Round results"] [data-mm-round-result]');
+    check(JSON.stringify(roundKeys) === JSON.stringify(expectedKeys), `the round's table shows ${roundKeys.length} rows (expected ${shown})`, `the round's table shows ${shown === 0 ? 'nobody' : `the top ${shown} only`}`);
+    gameText = await textOf(teacher);
+    check(!unlisted.some((row) => gameText.includes(row.alias)), 'the results name a player they leave off', `the results of ${players} name nobody they leave off`);
+    await shot(teacher, `${tag}02-results`);
+    await teacher.page.getByRole('button', { name: 'End Game' }).click();
+    await confirmDialog(teacher, 'End Game');
+    await waitForRoom(gameId, (room) => room.status === 'finished', 30_000);
+    check(await waitForArena(teacher, 'completed', 15_000), `the game of ${players} has no podium screen`, `the game of ${players} shows its podium screen`);
+    await wait(1_500);
+    const steps = (await teacher.page.locator('[data-mm-podium]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-mm-podium')))).sort();
+    const wanted = ['1', '2', '3'].slice(0, Math.min(shown, 3));
+    check(JSON.stringify(steps) === JSON.stringify(wanted), `the podium of ${players} shows steps ${JSON.stringify(steps)}`, `the podium of ${players} shows ${wanted.length ? `steps ${wanted.join(', ')}` : 'no steps'}`);
+    gameText = await textOf(teacher);
+    const recognizedHere = new Set(((await roomOf(gameId)).recognitions || []).flatMap((entry) => entry.aliases || []));
+    check(!unlisted.some((row) => !recognizedHere.has(row.alias) && gameText.includes(row.alias)), `the podium of ${players} names a player it leaves off`, `the podium of ${players} names nobody it leaves off (a recognition aside)`);
+    check(everyAlias.length === players, 'the standings lost a player', `all ${players} players are in the standings`);
+    await shot(teacher, `${tag}03-podium`);
+  };
+  await smallGame({ players: 5, shown: 2, tag: 'V' });
+  await smallGame({ players: 3, shown: 0, tag: 'G' });
   await teacher.page.getByRole('button', { name: 'Exit Projector View' }).click().catch(() => {});
 
   check(teacher.errors.length === 0, `console errors: ${teacher.errors.slice(0, 3).join(' | ')}`, 'no console errors');

@@ -74,6 +74,14 @@ export const extendedTimeRuleFor = (mode = null) => {
 };
 
 // A game round is short; doubling it is the most a class waits for one player.
+//
+// DECIDED 2026-10-25 (LC22, finding A1-31, the owner's "Do it"): a student whose
+// plan grants more than 2x plays a game round at 2x. That includes a Warm-Up
+// game, whose accuracy is their Warm-Up grade, so a teacher who needs such a
+// plan honoured in full for that assignment runs its standard Warm-Up instead
+// ("Use Standard Warm-Up" in the console). Raising the cap is a decision about
+// how long a whole class waits for one player; tests/platform/
+// liveChallengeRewardDecisions.test.mjs writes the 2 out.
 export const MAX_GAME_TIME_MULTIPLIER = 2;
 
 const roundMultiplier = (value) => {

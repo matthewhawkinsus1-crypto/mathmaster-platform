@@ -126,11 +126,16 @@ const assertObeysTheRule = (published, everyone, label) => {
     // Never a row tied with the class's last place.
     assert.equal(inLastPlace(place.get(row.playerKey), everyone), false, `${label}: ${row.playerKey} (rank ${row.rank}) is tied for last`);
   }
-  // Never exactly one player unshown when anyone is shown.
-  if (published.length > 0) assert.notEqual(everyone.length - published.length, 1, `${label}: exactly one player unshown`);
-  // Two players: no ranking. Three: first place only.
-  if (everyone.length === 2) assert.equal(published.length, 0, `${label}: two players, a ranking`);
-  if (everyone.length === 3) published.forEach((row) => assert.equal(row.rank, 1, `${label}: three players, a row below first`));
+  // Never one or two players unshown when anyone is shown (LC22). One would be
+  // named by elimination from the lobby's list of aliases. Two would be named
+  // by each other: a student among the unshown knows their own place, so on the
+  // class's list they find the other, and one of the two is last. (Judged from
+  // the unshown count alone, written here, not by asking the rule.)
+  if (published.length > 0) {
+    assert.ok(everyone.length - published.length >= 3, `${label}: ${everyone.length - published.length} players unshown`);
+  }
+  // Two and three players: no ranking at all.
+  if (everyone.length <= 3) assert.equal(published.length, 0, `${label}: ${everyone.length} players, a ranking`);
 };
 
 test('1. the class copy of a round names nobody the public rule hides', () => {

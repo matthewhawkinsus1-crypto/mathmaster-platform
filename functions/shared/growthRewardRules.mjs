@@ -102,6 +102,11 @@ export const RETEST_IDENTITY_RULE_ID = 'retestGrowth';
 // tenth. retestPassed is the ledger's single-award ceiling (MAX_AWARD_AMOUNT,
 // 20), stated as what it pays rather than a larger number the cap would cut:
 // raising the ceiling would also raise a teacher's single manual award.
+//
+// DECIDED 2026-10-25 (LC22, finding A1-31, the owner's "Do it"): these amounts
+// stand as built, a passed retest paying the ledger's 20. A different amount is
+// a decision, not a tidy-up: tests/platform/liveChallengeRewardDecisions.test.mjs
+// writes the numbers out so changing one is seen.
 export const GROWTH_REWARD_AMOUNTS = Object.freeze({
   retestImproved: 15,
   retestPassed: 20,

@@ -231,7 +231,15 @@ export const DEFAULT_LIVE_CHALLENGE_REWARD_POLICY = Object.freeze({
   recognitions: true,
 });
 
-/** Whether a (stored) policy lets a match earn recognitions. Absent means on. */
+/**
+ * Whether a (stored) policy lets a match earn recognitions. Absent means on.
+ *
+ * DECIDED 2026-10-25 (LC22, finding A1-31, the owner's "Do it"): turning
+ * recognitions off turns off the recognition awards (and the recognitions the
+ * podium names) and nothing else. A personal best is still rewarded: it is a
+ * student's own record, against nobody, so it is not a recognition of one
+ * student over another (evaluateMatchAwards).
+ */
 export const recognitionsEnabled = (policy) => policy?.recognitions !== false;
 
 /**

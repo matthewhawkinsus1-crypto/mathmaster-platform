@@ -658,9 +658,9 @@ re-ranking the class on a Chromebook. Now one small document,
 `liveChallengeRooms/{roomId}/standings/current`
 (`functions/shared/liveChallengeStandingsProjection.mjs`), carries what a
 student's screen shows of the class: the rows the public rule shows everyone
-(`classStandingsRows`: at most five, never a row tied with the last, never
-exactly one player unshown — so two players project none and three only
-first place), how many play (`count`) and where the last group starts
+(`classStandingsRows`: at most five, never a row tied with the last, never one
+or two players unshown — so two and three players project none, four only
+first place and five the top two; LC22), how many play (`count`) and where the last group starts
 (`lastRank`, which the screen hands back to `publicStandingsRows` with its own
 row). It is replaced whole, never patched, so a screen that missed one loses
 nothing.

@@ -314,7 +314,17 @@ places, from the room's reward summary). Host controls run along the bottom.
   `liveChallengeProjectorModel.projectorBoardLimit`): every class-wide board —
   live, round results, standings after a round, under the podium — shows the
   top five at most and stops before the last player in a small class, then
-  "and N more players · everyone sees their own place on their device". A
+  "and N more players · everyone sees their own place on their device". It
+  also never leaves one or two players unshown (LC22): the lobby listed every
+  alias, so with one left a viewer names them, and with two left each of the
+  two names the other, and one of them is last. (With 5 players the top three
+  used to leave 4th and 5th, and the 4th, finding three aliases on the
+  projector and themselves 4th, could name the 5th.) So two and three players
+  project no ranking, four project 1st only, five the top two and six the
+  podium; seven players on a five-row screen show four, not five. A student's
+  own list is judged for that one viewer (one other player left to find is the
+  leak there), and a game already finished keeps the rows the old rule
+  published; only games played after the change follow the new one. A
   teacher may choose "Full standings" at create (`room.standingsDisplay`,
   kept by Play Again). Students' own cards apply the same limit. The server
   applies it too: every document a student can read (`standings/current`,
@@ -403,7 +413,11 @@ places, from the room's reward summary). Host controls run along the bottom.
   Warm-Up; game points don't."; a standalone game says game points change no
   grade.
 - **Accommodations**: extended time counts down to the student's own deadline
-  (invite `timeMultiplier`, `personalRoundClock`); a student whose plan grants
+  (invite `timeMultiplier`, `personalRoundClock`), at most 2x whatever a plan
+  grants (`MAX_GAME_TIME_MULTIPLIER`, decided 2026-10-25, LC22: a game round is
+  short, and 2x is the most a class waits for one player; a Warm-Up game
+  included, so a teacher who needs such a plan honoured in full for that
+  assignment runs its standard Warm-Up instead); a student whose plan grants
   text-to-speech gets Read aloud on the round prompt. A Warm-Up game receives
   the whole support profile and the rewards card a standalone game has. In a
   Graph the Line Classic or Sprint round the extra time comes after the

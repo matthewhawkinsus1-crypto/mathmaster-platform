@@ -273,6 +273,26 @@ against an in-memory Firestore), `growthRewardRules.test.mjs`,
 `growthRewardMintingGuards.test.mjs`, and against the emulator
 `tests/integration/growthRewards.test.mjs`.
 
+**Decided as built (LC22, finding A1-31, 2026-10-25).** Three conservative calls
+from the student push were put to the owner and kept; each is written beside its
+code and pinned as a literal in `tests/platform/liveChallengeRewardDecisions
+.test.mjs`, so changing one is a decision that test shows.
+
+- *A passed retest pays 20 Class Points*: the ledger's single-award ceiling
+  (`MAX_AWARD_AMOUNT`), stated as what it pays instead of a larger figure the
+  ledger would trim. Raising it would also raise a teacher's single manual
+  award. The other amounts are the table above (15, 10, 10, 15, 5).
+- *Turning recognitions off leaves personal bests on*: the Recognition awards
+  switch (`rewardPolicy.recognitions`) stops the recognition awards and the
+  recognitions the podium names, and nothing else. A personal best is a
+  student's own record against nobody, so it is not a recognition of one student
+  over another, and it is still paid (3 Class Points, once a match).
+- *A game round is extended at most 2x*, whatever a plan grants
+  (`MAX_GAME_TIME_MULTIPLIER`): 2x is the most a class waits for one player. A
+  student whose plan grants more plays at 2x in a game, a Warm-Up game included;
+  a teacher who needs the plan honoured in full for that assignment runs its
+  standard Warm-Up instead ("Use Standard Warm-Up" in the console).
+
 ### Class rewards (`functions/shared/classRewardCatalog.mjs`, `functions/lib/classRewardStore.js`)
 
 The Practice Pass is no longer the only thing to spend points on. A teacher of

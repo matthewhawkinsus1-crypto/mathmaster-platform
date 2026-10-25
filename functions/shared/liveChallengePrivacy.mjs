@@ -77,17 +77,25 @@ export const finalPlaceIsHeadline = (rank, { lastRank = null } = {}) => {
  *      caller passes the class's last rank). A round where 2 of 24 were right
  *      ranks 22 players tied for last: none of them is listed. A player with no
  *      rank (no answer this round) is never listed either;
- *   2. never exactly ONE player unshown when anyone is shown: the lobby listed
- *      every alias, so the one missing name would be the last one. The last
- *      shown group of tied players steps off with them (hide two or more, or
+ *   2. never exactly ONE player unshown to a viewer, and never exactly TWO on a
+ *      list the whole class reads. The lobby listed every alias, so a viewer
+ *      who has found everyone else on the board is left with one name, and it
+ *      is the last one. On the projector that viewer can be one of the
+ *      unshown: each of two unshown players knows their own place, so each
+ *      names the other, and one of the two is last (LC22: with 5 players the
+ *      top 3 left 4th and 5th, and 4th could name 5th). The last shown group of
+ *      tied players steps off until neither happens (hide three or more, or
  *      show nobody);
  *   3. at most the top few (PUBLIC_TOP_COUNT), within the space the screen has.
  *
- * So two players project no ranking, three project 1st only, and a class all
- * tied projects none. A student still always sees their OWN row on their own
- * device (`selfKey`); it never counts as unshown. A teacher who opted the room
- * into full standings (`standingsDisplay: 'full'`) is exempt: as many rows as
- * the screen has room for.
+ * So two and three players project no ranking, four project 1st only, five the
+ * top two and six the podium; a class all tied projects none. A student still
+ * always sees their OWN row on their own device (`selfKey`); it never counts
+ * as unshown, and that list is judged for that one viewer: a single other
+ * player left to find is the leak there (the class list it is drawn from has
+ * already left three unshown). A teacher who opted the room into full
+ * standings (`standingsDisplay: 'full'`) is exempt: as many rows as the
+ * screen has room for.
  */
 export const PROJECTOR_MORE_NOTE = 'everyone sees their own place on their device';
 
@@ -159,10 +167,13 @@ export const publicStandingsRows = (room = {}, rows = [], {
       if (shown.length >= limit || rankOf(row) >= last) break;
       shown.push(row);
     }
-    // Rule 2: one unshown player would be named by elimination.
+    // Rule 2: one player left to find is named by elimination. On a list with
+    // no viewer (the projector; the documents every student can read) two
+    // unshown are named too: whoever is one of the two reads the other.
     const visibleSelf = () => (all.some(isSelf) ? 1 : 0) - (shown.some(isSelf) ? 1 : 0);
     const unshown = () => total - shown.length - visibleSelf();
-    while (unshown() === 1 && shown.some((row) => !isSelf(row))) {
+    const namedByElimination = () => unshown() === 1 || (!selfKey && unshown() === 2);
+    while (namedByElimination() && shown.some((row) => !isSelf(row))) {
       const lastShown = [...shown].reverse().find((row) => !isSelf(row));
       const rank = rankOf(lastShown);
       shown = shown.filter((row) => isSelf(row) || rankOf(row) !== rank);
