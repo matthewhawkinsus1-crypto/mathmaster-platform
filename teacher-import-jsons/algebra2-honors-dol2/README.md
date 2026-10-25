@@ -77,6 +77,7 @@ The builder rewrites the JSON, asserts every static key, and converts the three 
 
 - Practice 17 and DOL 7 use the platform family `matrices.solveSystem3x3`. Version 1 wrote a zero constant as "+ 0" (for example, "2x = 0 − y" or "y = 2x + 0") in 4,612 of its 60,694 valid versions (7.6%). The system was always correct. Both questions now pin **version 2**, which leaves the zero out ("2x = −y", "y = 2x"), and writes every other equation exactly as before. Version 1 is unchanged, so a student who already started keeps the version they were given; only a re-import moves a live assignment to version 2.
 - Practice 13 is the bank's tolerance item. It used to end "differs from {{target}} by at most {{tol}} millimeters", which read "at most 1 millimeters" when the tolerance was 1. The unit is already given in the first clause ("its length L, in millimeters"), so the trailing word is gone from the bank item and from this file.
+- Eight solving cards (Warm-Up 3, Practice 7, 8, 9, 10 and 18, DOL 4 and 5) said only "Solve the equation." or "Solve the inequality." The equation was drawn by the solving workspace alone, and Read aloud says the task, never the workspace, so a student who listens heard no equation. Each card now writes its equation in the task ("Solve -3|2x - 4| + 5 = -1."), as the Classwork cards always did. A class that already has the review needs the file re-imported.
 
 ## Known follow-ups (not changed here)
 
