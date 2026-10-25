@@ -622,6 +622,19 @@ export const twoByTwoVerificationValid = (equationText, values, leftAnswer, righ
   return leftOk && rightOk && equalityHolds;
 };
 
+/**
+ * A 2×2 verification entry with each side the equation already writes as a
+ * number (the 7 in 2x + 3y = 7) filled in as given (TL50). The screen shows
+ * that side instead of asking for it again, as the 3×3 verification does, and
+ * the check and the shared grader read it as typed: the work is what a student
+ * who retyped the number would send, so it grades as it always has.
+ */
+export const twoByTwoVerificationSides = (equationText, entry = {}) => ({
+  ...entry,
+  leftAnswer: constantEquationSide(equationText, 'left') ?? entry.leftAnswer,
+  rightAnswer: constantEquationSide(equationText, 'right') ?? entry.rightAnswer,
+});
+
 
 /* ==========================================================================
  * N-VARIABLE LINEAR SYSTEMS (#341)

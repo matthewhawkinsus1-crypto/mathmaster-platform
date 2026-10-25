@@ -44,6 +44,8 @@ import {
   formatLinearEquation,
   linearEquationCoefficients,
   twoByTwoVerificationValid,
+  twoByTwoVerificationSides,
+  constantEquationSide,
   normalizeEquationForStepAlgebra,
   repairPersistedIsolation,
   equationMentionsVariable,
@@ -499,6 +501,15 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const [backSub, setBackSub] = usePersistentToolState('backSub', { equationIndex: null });
   const [secondSolved, setSecondSolved] = usePersistentToolState('secondSolved', { variable: null, value: null, expression: null });
   const [verification, setVerification] = usePersistentToolState('verification', { 0: emptyVerificationEntry(), 1: emptyVerificationEntry() });
+  // A side already written as a number (the 7 in 2x + 3y = 7) is shown as
+  // given, as the 3×3 verification shows it (TL50): the student evaluates only
+  // what needs evaluating. The check and the shared grader still read it as
+  // that side's value (twoByTwoVerificationSides), as if it had been typed.
+  const givenSides = useMemo(() => equations.map((text) => ({
+    left: constantEquationSide(text, 'left'),
+    right: constantEquationSide(text, 'right'),
+  })), [equations]);
+  const verificationSides = (index) => twoByTwoVerificationSides(equations[index], verification[index] || emptyVerificationEntry());
   const [methodEfficiencyReason, setMethodEfficiencyReason] = usePersistentToolState('methodEfficiencyReason', '');
   // Which slot the student's last substitution attempt landed on. Interaction
   // feedback only — the moment a correct placement is made, the actual
@@ -1191,7 +1202,8 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   // The same rule the shared grader re-judges the typed sides with, so "Both
   // sides check out" and the recorded verdict can never disagree.
   const checkVerification = (index) => {
-    const valid = twoByTwoVerificationValid(equations[index], solution, verification[index].leftAnswer, verification[index].rightAnswer);
+    const sides = verificationSides(index);
+    const valid = twoByTwoVerificationValid(equations[index], solution, sides.leftAnswer, sides.rightAnswer);
     setVerification((current) => ({ ...current, [index]: { ...current[index], checked: true, valid } }));
   };
 
@@ -1229,7 +1241,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
       ...(firstSolvedDone && survivingVariable ? { [survivingVariable]: firstSolved.value } : {}),
       ...(secondSolvedDone && removedVariable ? { [removedVariable]: secondSolved.value } : {}),
     }),
-    verification: verificationSidesWork({ E1: verification[0], E2: verification[1] }),
+    verification: verificationSidesWork({ E1: verificationSides(0), E2: verificationSides(1) }),
     reducedStatement: isDegenerate ? formatLinearEquation(reduceCoefficients, variables) : null,
     specialCase: {
       statementTruth: specialCase?.isTrueAnswer || '',
@@ -1960,26 +1972,29 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
 
                     {bothPlaced(index) ? (
                       <div className="mathmaster-systems-verification-arithmetic">
-                        <Field label="Left side simplifies to">
-                          <MathInput
-                            value={verification[index].leftAnswer}
-                            onChange={(value) => setVerificationAnswer(index, 'leftAnswer', value)}
-                            placeholder="value"
-                            ariaLabel={`Equation ${index + 1} left side value`}
-                            toolProfile="algebra-operation"
-                            compact
-                          />
-                        </Field>
-                        <Field label="Right side simplifies to">
-                          <MathInput
-                            value={verification[index].rightAnswer}
-                            onChange={(value) => setVerificationAnswer(index, 'rightAnswer', value)}
-                            placeholder="value"
-                            ariaLabel={`Equation ${index + 1} right side value`}
-                            toolProfile="algebra-operation"
-                            compact
-                          />
-                        </Field>
+                        {['left', 'right'].map((side) => {
+                          const name = side === 'left' ? 'Left side' : 'Right side';
+                          const given = givenSides[index]?.[side];
+                          return given != null ? (
+                            <div key={side} className="mathmaster-systems-verification-given" data-given-side={side}>
+                              <span>{name}</span>
+                              <div className="mathmaster-systems-verification-given-value">
+                                <MathDisplay value={given} format="ascii-math" inline ariaLabel={`${name}, as written: ${given}`} />
+                              </div>
+                            </div>
+                          ) : (
+                            <Field key={side} label={`${name} simplifies to`}>
+                              <MathInput
+                                value={verification[index][`${side}Answer`]}
+                                onChange={(value) => setVerificationAnswer(index, `${side}Answer`, value)}
+                                placeholder="value"
+                                ariaLabel={`Equation ${index + 1} ${side} side value`}
+                                toolProfile="algebra-operation"
+                                compact
+                              />
+                            </Field>
+                          );
+                        })}
                         <button type="button" onClick={() => checkVerification(index)} style={smallActionStyle}>Check equation {index + 1}</button>
                         {verification[index].checked ? (
                           <p className={`mathmaster-systems-verification-feedback${verification[index].valid ? ' is-valid' : ' is-error'}`}>

@@ -897,8 +897,9 @@ test('each screen writes its work under the field names the grader reads', () =>
   const twoByTwo = region(source('src/tools/systemsWorkspace/AlgebraicSystemMode.jsx'), 'const work = {', 'useReportToolWork(work', '2×2 work');
   // The solved values, keyed by the variable each solve was for.
   assert.match(twoByTwo, /values: solvedValuesWork\(\{[^]*?\[survivingVariable\]: firstSolved\.value[^]*?\[removedVariable\]: secondSolved\.value[^]*?\}\)/);
-  // Each original equation's typed sides, under the grader's E1 / E2 ids.
-  assert.match(twoByTwo, /verification: verificationSidesWork\(\{ E1: verification\[0\], E2: verification\[1\] \}\)/);
+  // Each original equation's sides, under the grader's E1 / E2 ids: typed, or
+  // the number the equation already writes there (TL50, twoByTwoVerificationSides).
+  assert.match(twoByTwo, /verification: verificationSidesWork\(\{ E1: verificationSides\(0\), E2: verificationSides\(1\) \}\)/);
   // The no-variable statement the reduction reached — only once it has.
   assert.match(twoByTwo, /reducedStatement: isDegenerate \? formatLinearEquation\(reduceCoefficients, variables\) : null/);
   // The three special-case selects.

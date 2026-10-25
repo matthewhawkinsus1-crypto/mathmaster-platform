@@ -228,8 +228,12 @@ test('verification requires both original equations to be checked independently,
   assert.match(modeSource, /allVerified = solution && verification\[0\]\.checked && verification\[0\]\.valid && verification\[1\]\.checked && verification\[1\]\.valid/);
   const verifyPanel = region(modeSource, "Verify the ordered pair in both original equations", 'readyToSubmit ? (', 'verification panel');
   assert.match(verifyPanel, /equations\.map/);
-  assert.match(verifyPanel, /Left side simplifies to/);
-  assert.match(verifyPanel, /Right side simplifies to/);
+  // Each side of each equation: typed ("Left side simplifies to"), or shown
+  // as given when the equation already writes it as a number (TL50).
+  assert.match(verifyPanel, /\['left', 'right'\]\.map\(\(side\) =>/);
+  assert.match(verifyPanel, /const name = side === 'left' \? 'Left side' : 'Right side';/);
+  assert.match(verifyPanel, /label=\{`\$\{name\} simplifies to`\}/);
+  assert.match(verifyPanel, /data-given-side=\{side\}/);
 });
 
 // ---------------------------------------------------------------------------
@@ -478,7 +482,8 @@ test('verification arithmetic uses MathInput so exact stacked-fraction entries r
   // one the grader re-judges them with — and that rule reads MathInput's
   // LaTeX, so a stacked fraction is an exact value, not an unreadable entry.
   const checkVerification = region(modeSource, 'const checkVerification = (index) => {', 'const specialCaseAnswered', 'checkVerification');
-  assert.match(checkVerification, /twoByTwoVerificationValid\(equations\[index\], solution, verification\[index\]\.leftAnswer, verification\[index\]\.rightAnswer\)/);
+  // The sides as the student sees them: typed, or given (TL50).
+  assert.match(checkVerification, /const sides = verificationSides\(index\);\s*const valid = twoByTwoVerificationValid\(equations\[index\], solution, sides\.leftAnswer, sides\.rightAnswer\)/);
   assert.equal(twoByTwoVerificationValid('x - y = 5/3', { x: 7 / 3, y: 2 / 3 }, '\\frac{5}{3}', '\\frac{5}{3}'), true);
   assert.equal(twoByTwoVerificationValid('x - y = 5/3', { x: 7 / 3, y: 2 / 3 }, '\\frac{4}{3}', '\\frac{5}{3}'), false);
 });
