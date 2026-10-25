@@ -251,6 +251,21 @@ const entries = [
     label: 'Reduced answer choices', studentLabel: null, evidence: ['documented'], legacy: true,
   },
   {
+    // DECIDED (FB13, audit A3-90): this stays a My Math Path support, and the
+    // label says so to the teacher who ticks it. A case manager may expect
+    // "extra attempts" on classroom work too; it is not wired there on
+    // purpose: an assignment's attempt limit is worked out at fifteen call
+    // sites (two on the server, the rest in the app) that must agree to the
+    // last try (functions/shared/attemptPolicy.mjs), and a client that offers
+    // a try the server refuses loses the student's answer. The classes that
+    // have a single try (DOL, quiz, test) are where a case manager would look
+    // first, and a teacher already gives a student another DOL try on purpose
+    // (the audited "Grant +1 DOL attempt" in StudentDolRecoveryRow, which now
+    // says when the plan lists this support). What building it for the
+    // classroom would take is written at resolveQuestionMaximumAttempts. If
+    // it is ever wired, this label, NOT_RECORDED_IN_ASSIGNMENTS
+    // (supportEvidenceReport.js), toolSupportMatrix.js and
+    // tests/platform/extraAttemptsDecision.test.mjs change with it.
     id: 'extra-attempts', classification: A, category: C.TIMING, automation: AUTO,
     label: 'Extra attempts (My Math Path)', studentLabel: null, evidence: ['provided'], legacy: true,
   },
