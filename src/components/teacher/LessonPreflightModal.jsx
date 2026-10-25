@@ -2147,6 +2147,24 @@ export const LessonPreflightModal = ({
         </div>
       )}
 
+      {/* Advice, not a readiness finding (spanishVersionPreflight.js, TT22): the
+          teacher's own hints and worked solutions can be translated only by the
+          teacher, as translations.es on the question. */}
+      {preflightModel.spanishVersions?.warnings?.length > 0 && (
+        <div data-spanish-version-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-info-border)', borderRadius: 10, background: 'var(--mm-info-bg)', color: 'var(--mm-text)' }}>
+          <strong style={{ color: 'var(--mm-info-text)' }}>Spanish for your hints and worked solutions</strong>
+          <p style={{ margin: '5px 0 9px', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
+            A student who reads in Spanish can press Translate beside a hint or a worked solution. MathMaster translates its own sentences, but only you can translate the ones you wrote: add them to the question as translations.es, with one line for each hint in the same order and a solutionReview with the same fields. A line that changes a number, letter or symbol is not used, and the student sees the English. In Spanish prose a lone y, o, a, e or u reads as a word, so write a variable like that inside $…$ (for example $y$). This does not stop you publishing.
+          </p>
+          <details>
+            <summary style={{ cursor: 'pointer', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.spanishVersions.warnings.length === 1 ? '1 note' : `${preflightModel.spanishVersions.warnings.length} notes`}</summary>
+            <ul data-spanish-version-warnings="true" style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
+              {preflightModel.spanishVersions.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+            </ul>
+          </details>
+        </div>
+      )}
+
       {preflightModel.questionValues?.rows?.length > 0 && (
         <div data-question-value-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-info-border)', borderRadius: 10, background: 'var(--mm-info-bg)', color: 'var(--mm-text)' }}>
           <strong style={{ color: 'var(--mm-info-text)' }}>Question values</strong>

@@ -183,13 +183,25 @@ export const buildClosedQuestionReview = ({ question = null, isToolQuestion = fa
       : (hasSteps
         ? 'Compare each step of your work with the worked solution.'
         : 'Compare your answer with the correct one below.');
-  const speechText = [
-    authored?.headline, ...(authored?.reasoning || []), authored?.answerSummary, authored?.commonError,
-    ...(tool?.steps || []), ...(tool?.items || []).map((item) => `${item.label}: ${item.value}`), tool?.why ? `Why it works: ${tool.why}` : '',
+  // Each sentence the panel reads or translates, in order. A part the TEACHER
+  // wrote carries the `path` of the field it came from (authoredSupportText.js),
+  // so their own Spanish can stand in for exactly that sentence; a tool's
+  // steps, the legacy review and anything a question family wrote have no path.
+  const ownsHeadline = Boolean(ownReview?.headline) && clean(authored?.headline) === clean(ownReview.headline);
+  const ownsSummary = Boolean(ownReview?.answerSummary) && clean(authored?.answerSummary) === clean(ownReview.answerSummary);
+  const speechParts = [
+    { text: authored?.headline, ...(ownsHeadline ? { path: ['headline'] } : {}) },
+    ...(authored?.reasoning || []).map((line, index) => ({ text: line, ...(family ? {} : { path: ['reasoning', index] }) })),
+    { text: authored?.answerSummary, ...(ownsSummary ? { path: ['answerSummary'] } : {}) },
+    { text: authored?.commonError, path: ['commonError'] },
+    ...(tool?.steps || []).map((line) => ({ text: line })),
+    ...(tool?.items || []).map((item) => ({ text: `${item.label}: ${item.value}` })),
+    { text: tool?.why ? `Why it works: ${tool.why}` : '' },
     // The legacy review is read too (HELP-11): it used to be skipped.
-    ...(legacy ? legacyReviewSpeechLines(question, legacyReview) : []),
-  ].map(clean).filter(Boolean).join(' ');
-  return { authored, tool, legacy, fromFamily, hasContent, hasSteps, intro, speechText };
+    ...(legacy ? legacyReviewSpeechLines(question, legacyReview) : []).map((line) => ({ text: line })),
+  ].map((part) => ({ ...part, text: clean(part.text) })).filter((part) => part.text);
+  const speechText = speechParts.map((part) => part.text).join(' ');
+  return { authored, tool, legacy, fromFamily, hasContent, hasSteps, intro, speechText, speechParts };
 };
 
 /** Does this closed question have a worked solution to point at? */

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import MathText from '../../../components/common/MathText.jsx';
 import { SupportedTextActions } from '../SupportedText.jsx';
 import { useAskTeacherControl } from '../AskTeacherControl.jsx';
+import { authoredLineFor } from '../../language/authoredSupportText.js';
 import { hintCostSentence } from './hintCopy.js';
 
 /*
@@ -32,6 +33,12 @@ import { hintCostSentence } from './hintCopy.js';
  * is up (the button below is then "Cancel my help request").
  */
 const summaryStyle = { cursor: 'pointer', fontWeight: 800, color: 'var(--mm-primary-text)', minHeight: 32 };
+
+// The teacher's own words for this hint in the student's language, or null.
+const teachersWords = (hint, translation) => {
+  const line = authoredLineFor(hint?.translations, translation?.language);
+  return line ? { text: line } : null;
+};
 
 const button = {
   minHeight: 40,
@@ -88,7 +95,10 @@ export default function HintPanel({
         return (
           <li key={`hint-${index}`} data-hint-source={hint.source} style={{ lineHeight: 1.55 }}>
             <MathText>{hint.text}</MathText>
-            <SupportedTextActions text={hint.text} readAloud={readAloud} translation={translation} label={`hint ${index + 1}`} onEvidence={onSupportEvidence} />
+            {/* A hint the teacher wrote carries their own words for a language
+                they translated it into (authoredSupportText.js); Translate shows
+                them, if they keep the hint's mathematics. */}
+            <SupportedTextActions text={hint.text} readAloud={readAloud} translation={translation} label={`hint ${index + 1}`} onEvidence={onSupportEvidence} authored={teachersWords(hint, translation)} />
           </li>
         );
       })}

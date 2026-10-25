@@ -529,7 +529,20 @@ A support the profile limits to some activities (`appliesTo`, e.g. quizzes and t
    prompt by `applyStudentSupportToQuestion` and read by Translate through one lookup and one rule
    (`authoredTranslation.js`): used only if it carries the authored prompt's mathematics exactly — numbers, symbols
    and capital-letter names of points, segments and figures (`AB`, `ABC`, `AB′`). An item with no authored prompt
-   keeps its mathematics in its tool, so its translation is shown;
+   keeps its mathematics in its tool, so its translation is shown. The same entry carries the teacher's own hints
+   and worked solution (TT22, `authoredSupportText.js`): `hints[]` (line N is the Nth teacher-written hint the
+   student's ladder offers, in the ladder's order: `supportHints`, `hints`, `hint`) and `solutionReview` (`headline`,
+   `reasoning[]`, `answerSummary`, `commonError`). Translate beside a hint or the worked solution shows them with
+   no language pack, under the same rule: a hint whose mathematics differs stays English and the gap says
+   `math-mismatch`; in a worked solution each sentence is judged on its own, one that fails stays English, and the
+   student is told some sentences are still English. The text is a person's, so a variable may be written `$y$`
+   where the English has `y` (delimiters are how it is written, not what it says): in Spanish prose a lone `y`,
+   `o`, `a`, `e` or `u` is a word, so a bare one loses the variable. Pre-Flight advises, never blocks
+   (`spanishVersionPreflight.js`, a group of `summarizeAdvisoryFindings`): hints and worked-solution parts with no
+   Spanish, a line that changes the mathematics, extra hint lines. Spanish only, and only for what a student can
+   be shown (no hints on a DOL, none for a hint the answer guard hides). A tool's, a family's and the legacy
+   review's sentences have no counterpart and stay as they are. The lessons carry no Spanish yet: supplying it is
+   a person's work (the teacher, or the owner for the shipped lessons);
 2. **curated** — a built-in language pack, loaded on demand (`packs/es.js`: 127 direction sentences and 40 answer
    choices drawn from the most frequent directions in MathMaster's Algebra I/II banks and generators). Mathematics is
    masked into slots by `mathSafeText.js` and restored exactly; any output that does not carry every slot exactly

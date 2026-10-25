@@ -2,6 +2,7 @@ import MathText from './components/common/MathText.jsx';
 import MathDisplay from './MathDisplay';
 import SolutionReview, { legacySolutionReviewContent } from './SolutionReview';
 import { SupportedTextActions } from './platform/supports/SupportedText.jsx';
+import { authoredReviewTranslation } from './platform/language/authoredSupportText.js';
 import { buildClosedQuestionReview, buildPartReviewRows, partReviewSpeech } from './platform/supports/review/closedQuestionReview.js';
 
 /*
@@ -61,6 +62,14 @@ export default function SolutionReviewPanel({
   const { authored, tool, legacy, hasContent } = review;
   const partRows = hasContent && !isToolQuestion ? buildPartReviewRows({ question, parts: yourParts }) : [];
   const speechText = [partReviewSpeech(partRows), review.speechText].filter(Boolean).join(' ');
+  // The teacher's own words for this solution in the student's language, if
+  // they wrote some (TT22): each sentence of theirs that keeps the English's
+  // mathematics replaces that sentence in what Translate shows; the rest stays
+  // English and the student is told so. `leading` is the part-by-part lines that
+  // come first in speechText and have no counterpart.
+  const teachersWords = translation?.language
+    ? authoredReviewTranslation({ question, parts: review.speechParts, language: translation.language, leading: partReviewSpeech(partRows) })
+    : null;
   const Heading = `h${Math.min(6, Math.max(2, Number(headingLevel) || 3))}`;
   return (
     <section aria-label="Worked solution" data-worked-solution={hasContent ? 'present' : 'absent'} style={box}>
@@ -121,7 +130,7 @@ export default function SolutionReviewPanel({
       {legacy && <SolutionReview question={question} incorrectParts={incorrectParts} embedded hideAnswerDetails={partRows.length > 0} />}
 
       {hasContent && (
-        <SupportedTextActions text={speechText} readAloud={readAloud} translation={translation} label="the worked solution" onEvidence={onSupportEvidence} />
+        <SupportedTextActions text={speechText} readAloud={readAloud} translation={translation} label="the worked solution" onEvidence={onSupportEvidence} authored={teachersWords} />
       )}
 
       {allowReplacement && (

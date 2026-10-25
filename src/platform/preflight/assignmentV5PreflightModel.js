@@ -16,6 +16,7 @@ import { auditAssignmentSolutionReviews } from './solutionReviewPreflight.js';
 import { auditAssignmentAttemptFeedback } from './attemptFeedbackPreflight.js';
 import { auditAssignmentHiddenHints, auditAssignmentHintAnswers } from './hintAnswerPreflight.js';
 import { auditAssignmentChoiceOptions } from './choiceOptionPreflight.js';
+import { auditAssignmentSpanishVersions } from './spanishVersionPreflight.js';
 import { auditAssignmentAnswerKeys } from './answerKeyPreflight.js';
 import { auditAssignmentImpossibleItems } from './impossibleItemsPreflight.js';
 import { buildPreflightDiagnostics } from './preflightDiagnostics.js';
@@ -177,6 +178,9 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   const hiddenHints = auditAssignmentHiddenHints(questions, deliveredOnly);
   // Choice options worth the same as the key (GR06): advisory, like hintAnswers.
   const choiceOptions = auditAssignmentChoiceOptions(questions, deliveredOnly);
+  // The teacher's own hints and worked solutions with no Spanish version, or
+  // one that cannot be shown (TT22): advisory, like hintAnswers.
+  const spanishVersions = auditAssignmentSpanishVersions(questions, deliveredOnly);
   // Typed keys that may be graded in another reading than the author's
   // (GR04), and "lowest terms" asked of a box that takes any equal value
   // (GR14), from answerKeyPreflight.js: advisory, like hintAnswers.
@@ -279,12 +283,13 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     questionValues,
     processMode,
     // Advisory only (see above): never in errors, warnings or diagnostics.
-    advisory: summarizeAdvisoryFindings({ solutionReviews, attemptFeedback, hintAnswers, hiddenHints, choiceOptions }),
+    advisory: summarizeAdvisoryFindings({ solutionReviews, attemptFeedback, hintAnswers, hiddenHints, choiceOptions, spanishVersions }),
     solutionReviews,
     attemptFeedback,
     hintAnswers,
     hiddenHints,
     choiceOptions,
+    spanishVersions,
     answerKeys,
     impossibleItems,
     // Excluded questions Pre-Flight kept but did not judge for delivery.
@@ -298,9 +303,10 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
 };
 
 /*
- * THE ADVISORY FINDINGS, COUNTED (TT14, TT21). Worked solutions, attempt
- * feedback, hints that state the answer, hints the leak guard hides and choice
- * options worth the key stay advice: a warning in readiness would make the
+ * THE ADVISORY FINDINGS, COUNTED (TT14, TT21, TT22). Worked solutions, attempt
+ * feedback, hints that state the answer, hints the leak guard hides, choice
+ * options worth the key and the Spanish for a teacher's own hints and worked
+ * solutions stay advice: a warning in readiness would make the
  * assignment "Needs Review", which students never see (the owner's call: they
  * stay advisory). Pre-Flight shows how many there are so they are not missed;
  * nothing here changes whether the assignment is ready.
@@ -311,6 +317,7 @@ export const ADVISORY_FINDING_GROUPS = Object.freeze([
   Object.freeze({ id: 'hintAnswers', label: 'hints that state the answer' }),
   Object.freeze({ id: 'hiddenHints', label: 'hints students will not see' }),
   Object.freeze({ id: 'choiceOptions', label: 'choices worth the same as the key' }),
+  Object.freeze({ id: 'spanishVersions', label: 'notes on Spanish for hints and worked solutions' }),
 ]);
 
 export const summarizeAdvisoryFindings = (audits = {}) => {

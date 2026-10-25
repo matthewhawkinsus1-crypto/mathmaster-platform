@@ -40,6 +40,7 @@
 import { hintRevealsAnswer } from '../../../../functions/shared/pathSolutionSupport.mjs';
 import { answerCandidatesForField } from '../../../../functions/shared/answerUtils.mjs';
 import { familyFor } from '../families/index.js';
+import { authoredHintTranslations } from '../../language/authoredSupportText.js';
 import { hintAnswerLeak } from './hintLeakGuard.js';
 
 const list = (value) => (Array.isArray(value) ? value : value === undefined || value === null ? [] : [value]);
@@ -51,6 +52,15 @@ const hintText = (entry) => {
   if (entry && typeof entry === 'object') return text(entry.text || entry.hint || entry.message || entry.instruction);
   return '';
 };
+
+/**
+ * The teacher-written hints of a question, in the order the ladder reads them
+ * (supportHints, hints, hint), empty ones left out. Hint N here is hint N on
+ * the student's screen and line N of `translations.<language>.hints`, so the
+ * ladder, Pre-Flight and the Spanish a teacher wrote all count the same way.
+ */
+export const authoredHintTexts = (question = {}) => [...list(question.supportHints), ...list(question.hints), ...list(question.hint)]
+  .map(hintText).filter(Boolean);
 
 /** The answers this question could leak, as text — the guard's list. */
 export const questionAnswerValues = (question = {}) => {
@@ -167,8 +177,14 @@ const familyHints = (question) => {
  */
 export const questionHintAudit = (question = {}, { toolHints = [] } = {}) => {
   if (!question || typeof question !== 'object') return [];
-  const authored = [...list(question.supportHints), ...list(question.hints), ...list(question.hint)]
-    .map(hintText).filter(Boolean).map((value) => ({ text: value, source: 'authored' }));
+  // The teacher's own wording in another language rides with the hint it
+  // translates (authoredSupportText.js); a hint with none is exactly as before.
+  const authored = authoredHintTexts(question).map((value, index) => {
+    const translations = authoredHintTranslations(question, index);
+    return Object.keys(translations).length
+      ? { text: value, source: 'authored', translations }
+      : { text: value, source: 'authored' };
+  });
   const family = familyHints(question).filter(Boolean).map((value) => ({ text: value, source: 'family' }));
   const tool = list(toolHints).map((entry) => ({ value: hintText(entry), standing: entry?.standing === true }))
     .filter(({ value }) => value)
@@ -188,7 +204,12 @@ export const questionHintAudit = (question = {}, { toolHints = [] } = {}) => {
 export const buildQuestionHints = (question = {}, { toolHints = [] } = {}) => {
   if (!question || typeof question !== 'object') return [];
   const shown = questionHintAudit(question, { toolHints }).filter((hint) => hint.shown)
-    .map(({ text: value, source, standing }) => (standing ? { text: value, source, standing } : { text: value, source }));
+    .map(({ text: value, source, standing, translations }) => ({
+      text: value,
+      source,
+      ...(standing ? { standing } : {}),
+      ...(translations ? { translations } : {}),
+    }));
   // A standing rung (the step solver's, TOOL-5) comes first and is released
   // from the start without taking another rung's place (hintRelease), so the
   // rungs after it open at the same try they did before it joined the ladder.
