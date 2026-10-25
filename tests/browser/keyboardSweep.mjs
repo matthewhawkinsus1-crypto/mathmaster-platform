@@ -719,6 +719,18 @@ const popupProbe = async (page, stops) => {
       }
       dialogTabbing = { leaked, closeReachable: names.some((n) => /close|done|exit|back|×|✕/i.test(n)), stops: [...new Set(names)].slice(0, 20) };
     }
+    // Escape in a math field leaves the field and keeps the layer around it
+    // open (TL15, owner decision): the way out is the next Escape. Where the
+    // walk ended in a field, take that first step — and record where focus
+    // went — before probing Escape.
+    if (await page.evaluate(() => Boolean(window.__kb.active()?.closest?.('math-field')))) {
+      await page.keyboard.press('Escape');
+      await wait(page, 200);
+      entry.fieldEscape = await page.evaluate(() => {
+        const act = window.__kb.active();
+        return { leftField: !act?.closest?.('math-field'), focusDroppedToBody: act === document.body };
+      });
+    }
     await page.keyboard.press('Escape');
     await wait(page, 400);
     const after = await page.evaluate((id) => {

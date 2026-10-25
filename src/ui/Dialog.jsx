@@ -163,12 +163,13 @@ export function useModalDialog(ref, {
 
     const onKeyDown = (event) => {
       // Bubble phase: a control inside that owns Escape or Tab (a listbox, the
-      // math keyboard) handles it first and marks it handled. One exception: a
-      // math field prevents Escape's default only to keep MathLive out of its
-      // LaTeX mode (MathInput.jsx), not because it used the key — Escape there
-      // still closes the dialog (Work View with focus in "Slope", PR #454).
-      const handledInside = event.defaultPrevented
-        && !(event.key === 'Escape' && event.target?.closest?.('math-field'));
+      // math keyboard) handles it first and marks it handled. A math field is
+      // one of them (TL15, owner decision): its Escape closes its keypad and
+      // moves focus out of the field (MathInput.jsx leaveOnEscape), so Work
+      // View stays open, and the next Escape — focus no longer in a field —
+      // closes it. (Until TL15 an Escape from a math field was treated as not
+      // handled and closed the dialog at once: PR #454.)
+      const handledInside = event.defaultPrevented;
       if (handledInside || !onTop()) return;
       if (event.key === 'Escape') {
         // A layer above that closed itself on this very Escape (a Toast

@@ -299,6 +299,50 @@ export default function MathInput({
   const toolsVisible = !questionTerminal && (isMobile ? showTools && fieldActive : showTools);
   const requiredKeysVisible = !questionTerminal && isMobile && fieldActive;
 
+  /*
+   * ESCAPE IN A MATH FIELD LEAVES THE FIELD, NEVER WORK VIEW (TL15, owner
+   * decision; was PR #454's "Escape there still closes the dialog").
+   *
+   * A student presses Escape in a field mostly to put the keypad away, and it
+   * closed Work View: an easy exit nobody meant (nothing was lost, but the
+   * student was thrown out of the bigger view mid-answer). Now Escape in the
+   * field — or on one of its keys — closes the keypad and moves focus out of
+   * the field, onto the field's own √x button beside it, so a keyboard or
+   * screen-reader student stays exactly where they were (Shift+Tab is back in
+   * the field). Without that button (a desktop row that hides it), the field
+   * simply blurs; from a key, focus goes back into the field. The key is
+   * marked handled, so a dialog around the field stays open (src/ui/Dialog.jsx);
+   * it is not stopped, so the plane's hover readout still hears it.
+   *
+   * The way out of Work View is therefore always two Escapes from a field,
+   * keypad open or closed: the first leaves the field, the second — focus no
+   * longer in a field — closes Work View, as Escape does everywhere else.
+   * One press, one step: the field takes Escape only for what it opened (its
+   * keypad, its own focus). A phone gets its keypad back on the next tap into
+   * the field, which focuses it again.
+   */
+  const toggleRef = useRef(null);
+  const leaveOnEscape = useCallback(({ fromKeys = false } = {}) => {
+    setShowTools(false);
+    const toggle = toggleRef.current;
+    if (toggle?.isConnected) {
+      toggle.focus({ preventScroll: true });
+      return;
+    }
+    const mathField = mfRef.current;
+    if (fromKeys) {
+      if (!focusMathFieldWithoutScroll(mathField)) mathField?.focus?.({ preventScroll: true });
+      return;
+    }
+    mathField?.blur?.();
+  }, []);
+  const escapeFromKeys = (event) => {
+    if (event.key !== 'Escape' || event.isComposing) return false;
+    event.preventDefault();
+    leaveOnEscape({ fromKeys: true });
+    return true;
+  };
+
   const stabilizeMobileViewport = useCallback(() => {
     const root = mfRef.current?.closest?.('.mathmaster-question-container')
       || mfRef.current?.closest?.('.mathmaster-question-stage')
@@ -484,7 +528,13 @@ export default function MathInput({
         stabilizeMobileViewport();
         return;
       }
-      if (event.key === 'Escape') event.preventDefault();
+      if (event.key === 'Escape') {
+        // Never MathLive's LaTeX mode: the student's way out of the field
+        // (TL15, leaveOnEscape above). Handled here, so Work View stays open.
+        event.preventDefault();
+        if (!event.isComposing) leaveOnEscape();
+        return;
+      }
       if (event.key === '\\') {
         event.preventDefault();
         mathField.insert('\\backslash', { selectionMode: 'after' });
@@ -523,7 +573,7 @@ export default function MathInput({
       mathField.removeEventListener('contextmenu', preventContextMenu);
       mathField.removeEventListener('pointerdown', forgetTypedFraction);
     };
-  }, [placeholder, isMobile, toolProfile, onSubmit, shouldSuppressNativeKeyboard, stabilizeMobileViewport, emit]);
+  }, [placeholder, isMobile, toolProfile, onSubmit, shouldSuppressNativeKeyboard, stabilizeMobileViewport, emit, leaveOnEscape]);
 
   // A value the field itself emitted and has since typed past is not written
   // back: that is how fast typing lost characters (see fieldEchoGuard.js).
@@ -712,6 +762,7 @@ export default function MathInput({
       />
       {hideToolsToggle && !isMobile ? null : (
         <button
+          ref={toggleRef}
           type="button"
           className="mathmaster-math-tools-toggle"
           // Keeps focus (and a phone's keypad) in the field while toggling.
@@ -755,7 +806,7 @@ export default function MathInput({
           className="mathmaster-required-answer-keys"
           role="toolbar"
           aria-label="Keys needed for this answer"
-          onKeyDown={requiredKeysToolbar.onKeyDown}
+          onKeyDown={(event) => { if (!escapeFromKeys(event)) requiredKeysToolbar.onKeyDown(event); }}
           style={{
             display: 'grid',
             width: '100%',
@@ -812,7 +863,7 @@ export default function MathInput({
           className={`mathmaster-math-input-tools mathmaster-math-input-tools-${toolProfile}`}
           role="toolbar"
           aria-label="Math tools"
-          onKeyDown={toolsToolbar.onKeyDown}
+          onKeyDown={(event) => { if (!escapeFromKeys(event)) toolsToolbar.onKeyDown(event); }}
           style={{
             display: 'grid',
             width: '100%',

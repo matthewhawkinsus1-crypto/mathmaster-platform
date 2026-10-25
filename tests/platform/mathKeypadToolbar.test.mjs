@@ -43,10 +43,15 @@ test('both keypads are toolbars whose keys take the roving tabindex', () => {
   assert.match(source, /const requiredKeysToolbar = useRovingToolbar\(requiredTools\.length\);/);
   assert.match(source, /const toolsToolbar = useRovingToolbar\(tools\.length\);/);
   const required = region(source, 'className="mathmaster-required-answer-keys"', '</div>\n      )}', 'the needed keys');
-  assert.match(required, /role="toolbar"\s*aria-label="Keys needed for this answer"\s*onKeyDown=\{requiredKeysToolbar\.onKeyDown\}/);
+  // The arrows reach the roving handler: directly, or after Escape has had its
+  // turn (TL15: Escape on a key closes the keypad; accessibleDialog.test.mjs).
+  const reachesRoving = (name) => new RegExp(`onKeyDown=\\{(?:${name}\\.onKeyDown|\\(event\\) => \\{ if \\(!escapeFromKeys\\(event\\)\\) ${name}\\.onKeyDown\\(event\\); \\})\\}`);
+  assert.match(required, /role="toolbar"\s*aria-label="Keys needed for this answer"\s*onKeyDown=/);
+  assert.match(required, reachesRoving('requiredKeysToolbar'));
   assert.match(required, /\{requiredTools\.map\(\(tool, index\) => \(\s*<button[\s\S]*?\{\.\.\.requiredKeysToolbar\.itemProps\(index\)\}\s*aria-label=\{tool\.ariaLabel\}/, 'each key keeps its spoken name');
   const tools = region(source, 'id={toolsId}', '</div>\n      )}', 'the math tools');
-  assert.match(tools, /role="toolbar"\s*aria-label="Math tools"\s*onKeyDown=\{toolsToolbar\.onKeyDown\}/);
+  assert.match(tools, /role="toolbar"\s*aria-label="Math tools"\s*onKeyDown=/);
+  assert.match(tools, reachesRoving('toolsToolbar'));
   assert.match(tools, /\{tools\.map\(\(tool, index\) => \(\s*<button[\s\S]*?\{\.\.\.toolsToolbar\.itemProps\(index\)\}\s*aria-label=\{tool\.ariaLabel\}/);
   // A key still types through insert(), which gives the field its focus back.
   assert.match(tools, /onClick=\{\(\) => insert\(tool\.command, tool\.action\)\}/);

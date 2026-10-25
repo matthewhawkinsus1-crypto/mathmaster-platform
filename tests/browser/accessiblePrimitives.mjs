@@ -8,7 +8,9 @@
  * Dialog (src/ui/Dialog.jsx): opens with focus on the first control that is
  * not Close; Tab and Shift+Tab wrap; a nested confirm traps alone, opens on its
  * [data-autofocus] Cancel, and Escape closes only it; closeOnEscape={false}
- * holds; focus returns to the opener. Focus ring (src/index.css): an
+ * holds; focus returns to the opener; Escape in a math field (or on its
+ * keypad) leaves the field and keeps the dialog, the next one closes it
+ * (TL15). Focus ring (src/index.css): an
  * interactive span with inline outline:none shows the ring on keyboard focus
  * and not on a mouse press. Announcer: a question change puts position and the
  * rendered prompt — math in words, no LaTeX — in a polite status region.
@@ -74,16 +76,60 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   assert.equal(await page.locator('[data-test="dialog"]').count(), 1, `${at}: …and only the confirm`);
   assert.equal(await focused(page), 'delete', `${at}: focus back on the button that opened the confirm`);
 
-  // Escape in a math field still closes the dialog: MathInput prevents its
-  // default only to keep MathLive out of LaTeX mode (PR #454 review S1).
-  await page.locator('[data-test="math"] math-field').first().click();
+  // TL15 (owner decision): Escape in a math field leaves the field — its
+  // keypad closes and focus moves onto the field's √x button — and the dialog
+  // (Work View) stays open; the next Escape, focus no longer in a field,
+  // closes it. Both keypad states (a phone opens the keypad on focus, a
+  // Chromebook only on request), and from a key of the keypad.
+  const field = page.locator('[data-test="math"] math-field').first();
+  const toggle = page.locator('[data-test="math"] .mathmaster-math-tools-toggle');
+  const keypad = page.locator('[data-test="math"] [role="toolbar"][aria-label="Math tools"]');
+  const dialogs = () => page.locator('[data-test="dialog"]').count();
+  const focusOnToggle = () => page.evaluate(() => document.activeElement?.classList?.contains('mathmaster-math-tools-toggle') === true);
+  const focusInField = () => page.evaluate(() => Boolean(document.activeElement?.closest?.('math-field')));
+  const reopen = async () => {
+    await page.locator('[data-test="opener"]').focus();
+    await page.keyboard.press('Enter');
+    await page.locator('[data-test="dialog"]').waitFor();
+  };
+  const leaveThenClose = async (label) => {
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(150);
+    assert.equal(await dialogs(), 1, `${at} ${label}: the first Escape keeps the dialog open`);
+    assert.equal(await keypad.count(), 0, `${at} ${label}: the first Escape closes the keypad`);
+    assert.equal(await focusInField(), false, `${at} ${label}: focus has left the field`);
+    assert.ok(await focusOnToggle(), `${at} ${label}: focus is on the field's own √x button, not lost`);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(150);
+    assert.equal(await dialogs(), 0, `${at} ${label}: the second Escape closes the dialog`);
+    await reopen();
+  };
+  const phone = width < 768;
+  // The keypad as the device first shows it: open on a phone, closed on a Chromebook.
+  await field.click();
   await page.waitForTimeout(150);
+  assert.equal(await keypad.count(), phone ? 1 : 0, `${at}: the keypad starts ${phone ? 'open' : 'closed'}`);
+  await leaveThenClose(phone ? 'keypad open' : 'keypad closed');
+  // The other state, by the √x button (which keeps focus in the field).
+  await field.click();
+  await page.waitForTimeout(150);
+  await toggle.click();
+  await page.waitForTimeout(150);
+  assert.ok(await focusInField(), `${at}: the √x button left focus in the field`);
+  assert.equal(await keypad.count(), phone ? 0 : 1, `${at}: the keypad is now ${phone ? 'closed' : 'open'}`);
+  await leaveThenClose(phone ? 'keypad closed' : 'keypad open');
+  // From a key of the open keypad.
+  await field.click();
+  await page.waitForTimeout(150);
+  if (!(await keypad.count())) await toggle.click();
+  await keypad.locator('button').first().focus();
+  await leaveThenClose('from a keypad key');
+  // Escape elsewhere still closes the dialog at once.
+  await page.locator('[data-test="name"]').focus();
   await page.keyboard.press('Escape');
   await page.waitForTimeout(150);
-  assert.equal(await page.locator('[data-test="dialog"]').count(), 0, `${at}: Escape in a math field closes the dialog`);
-  await page.locator('[data-test="opener"]').focus();
-  await page.keyboard.press('Enter');
-  await page.locator('[data-test="dialog"]').waitFor();
+  assert.equal(await dialogs(), 0, `${at}: Escape outside a field closes the dialog at once`);
+  await reopen();
 
   // closeOnEscape={false} while busy.
   await page.locator('[data-test="busy"]').check();
