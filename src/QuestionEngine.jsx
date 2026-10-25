@@ -280,6 +280,10 @@ function QuestionEngineBody({
   // engine draws no Calculator of its own, so a student sees one calculator,
   // not two (student pass 3, H-19).
   calculatorInToolbar = false,
+  // A speed game (Live Challenge, LC13): no graphing calculator, whose zeros,
+  // minimum and maximum would answer a round faster than the mathematics.
+  // A graphing item there gets the scientific keypad instead.
+  graphingCalculatorAllowed = true,
   assignmentId = null,
   executionScope = 'student',
   showStandardBadge = true,
@@ -1149,7 +1153,8 @@ function QuestionEngineBody({
   const markGraphingCalculatorFailed = useCallback(() => setGraphingCalculatorFailed(true), []);
   const graphingCalculatorOffered = Boolean(calculatorPolicy?.available)
     && calculatorPolicy.mode === CALCULATOR_MODES.GRAPHING
-    && !assessmentContext;
+    && !assessmentContext
+    && graphingCalculatorAllowed !== false;
   const calculatorShowsGraphing = graphingCalculatorOffered && !graphingCalculatorFailed;
   const calculatorName = calculatorShowsGraphing ? 'Graphing calculator' : 'Calculator';
   const calculatorUnavailableReason = calculatorPolicy?.reason || 'No calculator is allowed for this skill.';

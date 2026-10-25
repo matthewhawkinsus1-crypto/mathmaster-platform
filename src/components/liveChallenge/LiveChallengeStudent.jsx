@@ -119,6 +119,10 @@ function QuestionEngine(props) {
       assignmentLocked={assignmentLocked}
       assignmentLockedMessage={assignmentLockedMessage}
       draftKey={draftKey}
+      // A race: a graphing item gets the scientific keypad, never the
+      // graphing calculator's listed zeros (LC13; My Math Path and Recovery
+      // keep it).
+      graphingCalculatorAllowed={false}
       serverGrading={pathToolId === undefined ? undefined : { pathToolId, submit: handlers.submit }}
       onResponseStateChange={handlers.onResponseStateChange}
       onStepGrade={handlers.onStepGrade}

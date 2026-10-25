@@ -457,3 +457,22 @@ test('Recovery passes the assignment\'s calculator setting to every question it 
   assert.equal(mounts.length, 2);
   mounts.forEach((props) => assert.match(props, /assignmentCalculatorMode=\{assignment\?\.toolPolicy\?\.calculator \|\| null\}/));
 });
+
+test('LC13: a Live Challenge round never opens the graphing calculator; Path and Recovery keep it', async () => {
+  const { keypadGraphingNote } = await import('../../src/components/calculatorKeys.js');
+  const engine = executableSource(source('src/QuestionEngine.jsx'));
+  const offer = region(engine, 'const graphingCalculatorOffered =', ';\n', 'graphing offer');
+  assert.match(offer, /&& graphingCalculatorAllowed !== false$/m, 'a host can turn the graphing calculator off');
+  assert.match(engine, /graphingCalculatorAllowed = true,/, 'every other host keeps it by default');
+  // The game passes it off, once, on its one engine mount.
+  const game = executableSource(source('src/components/liveChallenge/LiveChallengeStudent.jsx'));
+  const mounts = [...game.matchAll(/<QuestionEngineView\b[\s\S]*?\/>/g)].map((match) => match[0]);
+  assert.equal(mounts.length, 1);
+  assert.match(mounts[0], /graphingCalculatorAllowed=\{false\}/);
+  // My Math Path and Recovery mount the engine without it.
+  for (const host of ['src/components/student/SectionRecoveryRunner.jsx', 'src/components/student/PathSessionPlayer.jsx']) {
+    assert.doesNotMatch(source(host), /graphingCalculatorAllowed/, host);
+  }
+  // What the keypad says in the game when the item is a graphing one.
+  assert.equal(keypadGraphingNote({ mode: GRAPHING }), 'This calculator does the arithmetic. It cannot draw graphs.');
+});
