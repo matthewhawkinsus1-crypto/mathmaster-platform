@@ -248,7 +248,7 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
   return (
     <ToolShell
       title="Linear Table Workbench"
-      subtitle="Select two rows to build an interval, record what you calculate, and repeat until you can prove whether the rate of change is constant."
+      subtitle="Use a table to decide whether the rate of change is constant, and show how you know."
       badge="Rate-of-change evidence"
     >
       {/* One list, each step marked (student pass 3, W6-4). Control steps

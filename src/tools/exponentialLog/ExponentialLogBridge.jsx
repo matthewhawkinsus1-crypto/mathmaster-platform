@@ -112,7 +112,7 @@ function SolveExponential({ questionData, feedback, submit, onAction }) {
     submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'solveExponential', parts: result.parts });
   };
   const exponentText = `${equation.m}x ${equation.c >= 0 ? '+' : '−'} ${Math.abs(equation.c)}`;
-  return <ToolShell title="Exponential ↔ Log Bridge" subtitle="Use logarithms to expose an exponent containing the unknown." badge="Algebra II · Solve Exponential">
+  return <ToolShell title="Exponential ↔ Log Bridge" subtitle="Solve an equation with the unknown in an exponent." badge="Algebra II · Solve Exponential">
     <TaskCard question={questionData} task={'Solve the exponential equation for x.'} steps={['Get the power by itself on one side.', 'Take a logarithm of both sides to bring the exponent down.', 'Solve the resulting equation for x.']} />
     <ToolGrid min={330}>
       <Panel title="Equation bridge">
@@ -147,7 +147,7 @@ function SolveLogarithmic({ questionData, feedback, submit, onAction }) {
     submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'solveLogarithmic', parts: result.parts });
   };
   const argumentText = `${equation.m}x ${equation.c >= 0 ? '+' : '−'} ${Math.abs(equation.c)}`;
-  return <ToolShell title="Exponential ↔ Log Bridge" subtitle="Rewrite a logarithmic equation exponentially, then enforce the logarithm’s positive-input domain." badge="Algebra II · Solve Logarithmic">
+  return <ToolShell title="Exponential ↔ Log Bridge" subtitle="Solve a logarithmic equation, and decide which answers are allowed." badge="Algebra II · Solve Logarithmic">
     <TaskCard question={questionData} task={'Solve the logarithmic equation for x, and respect the domain.'} steps={['Get a single logarithm by itself.', 'Rewrite the statement in exponential form.', 'Check that the argument of the log is actually positive.']} />
     <ToolGrid min={330}>
       <Panel title="Equation bridge">
@@ -180,7 +180,7 @@ function InverseMode({ questionData, feedback, submit, onAction }) {
     const result = gradeToolCheck(exponentialLogGrader, questionData, work);
     submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'inverse', parts: result.parts });
   };
-  return <ToolShell title="Exponential ↔ Log Bridge" subtitle="Reflect a transformed exponential into its logarithmic inverse, including domain/range and asymptotes." badge="Algebra II · Inverse Functions">
+  return <ToolShell title="Exponential ↔ Log Bridge" subtitle="Connect a transformed exponential function to its logarithmic inverse, including domain, range and asymptotes." badge="Algebra II · Inverse Functions">
     <TaskCard question={questionData} task={'Give the features of the inverse of this exponential function.'} steps={['Swap the roles of input and output.', 'The horizontal asymptote becomes a vertical one.', 'Domain and range swap places too.']} />
     <ToolGrid min={340}>
       <InversePairGraph spec={spec} sampleX={sampleX} />
@@ -211,7 +211,7 @@ function CompositionMode({ questionData, feedback, submit, onAction }) {
     const result = gradeToolCheck(exponentialLogGrader, questionData, work);
     submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'composition', parts: result.parts });
   };
-  return <ToolShell title="Exponential ↔ Log Bridge" subtitle="Use composition to verify that the exponential and logarithmic functions undo one another." badge="Algebra II · Inverse Composition">
+  return <ToolShell title="Exponential ↔ Log Bridge" subtitle="See whether the exponential and logarithmic functions undo one another." badge="Algebra II · Inverse Composition">
     <TaskCard question={questionData} task={'Compose the function with its inverse both ways and give both results.'} steps={['Apply the function first, then its inverse.', 'Then do it in the other order.', 'Enter both results.']} />
     <ToolGrid min={340}>
       <InversePairGraph spec={spec} sampleX={x} />

@@ -497,7 +497,7 @@ function MissingTerm({ questionData, feedback, submit, onAction }) {
     const result = gradeToolCheck(sequenceExplorerGrader, questionData, work);
     submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'missingTerm', missingIndex, parts: result.parts });
   };
-  return <ToolShell title="Find the Missing Term" subtitle="Recover a missing term from the sequence pattern." badge="Sequence pattern">
+  return <ToolShell title="Find the Missing Term" subtitle="Find the missing term of a sequence." badge="Sequence pattern">
     <TaskCard question={questionData} task={'Recover the missing term and say what kind of sequence this is.'} steps={['Look at the terms either side of the gap.', 'Work out the constant difference or ratio from terms you can see.', 'Apply it to fill the gap.']} />
     <EnlargeableFigure label="Missing term workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, tableData: { label: 'Sequence with a gap' }, numericControls: { label: 'Missing term controls', studentState: true }, instruction: { text: 'Recover the missing term and classify the sequence.' }, primaryActions: [{ id: 'check-missing', label: 'Check missing term', onAction: check }] }}>
     <ToolGrid min={320}>

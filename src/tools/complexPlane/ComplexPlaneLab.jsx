@@ -146,7 +146,7 @@ function Division({ questionData, feedback, submit, onAction }) {
     const result = gradeToolCheck(complexPlaneGrader, questionData, work);
     submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'division', parts: result.parts });
   };
-  return <ToolShell title="Complex Plane Lab" subtitle="Use a conjugate to turn a complex denominator into a real number." badge="Algebra II · Division by Conjugates">
+  return <ToolShell title="Complex Plane Lab" subtitle="Divide complex numbers and write the answer in a + bi form." badge="Algebra II · Division by Conjugates">
     <TaskCard question={questionData} task="Rationalize the denominator, then give the quotient's real and imaginary parts." steps={['Write down the conjugate of the denominator.', 'Multiply the top and the bottom by that conjugate.', 'The new denominator is a real number — divide both parts by it.']} />
     <ToolGrid min={330}>
       <ComplexVisual values={[{ value: z, label: 'numerator' }, { value: w, label: 'denominator', color: '#d93025' }, { value: quotient, label: 'quotient', color: '#137333', isAnswer: true }]} title="Division on the complex plane" />
@@ -176,7 +176,7 @@ function Powers({ questionData, feedback, submit, onAction }) {
     const result = gradeToolCheck(complexPlaneGrader, questionData, work);
     submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'powers', exponent, parts: result.parts });
   };
-  return <ToolShell title="Complex Plane Lab" subtitle="Build integer powers through repeated complex multiplication and track magnitude." badge="Algebra II · Powers">
+  return <ToolShell title="Complex Plane Lab" subtitle="Find integer powers of a complex number and watch how the size changes." badge="Algebra II · Powers">
     <TaskCard question={questionData} task='Compute the power and its magnitude.' steps={['Multiply z by itself the required number of times.', 'Replace i² with −1 each time it appears.', 'Then find the distance of the result from the origin.']} />
     <ToolGrid min={330}>
       <ComplexVisual values={[{ value: z, label: 'z' }, { value: expected, label: `z^${exponent}`, color: '#137333', isAnswer: true }]} title="Base and power" />
@@ -208,7 +208,7 @@ function Rotation({ questionData, feedback, submit, onAction }) {
     const result = gradeToolCheck(complexPlaneGrader, questionData, work);
     submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'rotation', quarterTurns, parts: result.parts });
   };
-  return <ToolShell title="Complex Plane Lab" subtitle="See multiplication by powers of i as quarter-turn rotations around the origin." badge="Algebra II · Multiplication as Rotation">
+  return <ToolShell title="Complex Plane Lab" subtitle="Explore what multiplying by powers of i does to a point." badge="Algebra II · Multiplication as Rotation">
     <TaskCard question={questionData} task='Multiply by the power of i, give the result, and name the net rotation.' steps={['Reduce the exponent on i modulo 4.', 'Apply that many 90° counterclockwise quarter-turns to the point.', 'Enter the new coordinates and pick the matching rotation.']} />
     <ToolGrid min={330}>
       <ComplexVisual values={[{ value: z, label: 'z' }, { value: expected, label: `i^${quarterTurns}z`, color: '#8a3ffc', isAnswer: true }]} title="Before and after rotation" />
@@ -239,7 +239,7 @@ function QuadraticRoots({ questionData, feedback, submit, onAction }) {
     submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'quadraticRoots', parts: result.parts });
   };
   const discriminant = quadratic.b ** 2 - 4 * quadratic.a * quadratic.c;
-  return <ToolShell title="Complex Plane Lab" subtitle="Extend the quadratic formula into the complex plane when the discriminant is negative." badge="Algebra II · Complex Quadratic Roots">
+  return <ToolShell title="Complex Plane Lab" subtitle="Find the roots of a quadratic that has no real roots." badge="Algebra II · Complex Quadratic Roots">
     <TaskCard question={questionData} task='Solve the quadratic and give both complex roots.' steps={['Work out the discriminant b² − 4ac.', 'If it is negative, use √(−d) = i√d.', 'Enter both roots; their order does not matter.']} />
     <ToolGrid min={330}>
       <ComplexVisual values={roots.map((value, index) => ({ value, label: `root ${index + 1}`, color: index ? '#d93025' : '#1a73e8', isAnswer: true }))} title="Roots on the complex plane" />

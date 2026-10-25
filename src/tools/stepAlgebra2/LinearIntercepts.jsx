@@ -90,7 +90,7 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
 
   if (!standard || Math.abs(Number(standard.A)) <= 1e-12 || Math.abs(Number(standard.B)) <= 1e-12) {
     return (
-      <ToolShell title="Find Intercepts Algebraically" subtitle="Set one variable to zero, solve, and write the intercept as a point." badge="Linear intercepts">
+      <ToolShell title="Find Intercepts Algebraically" subtitle="Find an intercept of a line and write it as a point." badge="Linear intercepts">
         <Panel title="This question needs repair">
           <p style={{ margin: 0, color: 'var(--mm-error-text)', lineHeight: 1.55 }}>
             This intercept workbench requires a two-variable linear equation with nonzero x- and y-coefficients. Use the vertical/horizontal graphing mode for a one-variable line.
@@ -277,7 +277,7 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
   const activity = (
     <ToolShell
       title="Find Intercepts Algebraically"
-      subtitle="Choose the zero coordinate, make the substitution yourself, solve, and turn the result into a point."
+      subtitle="Find an intercept of a line from its equation and write it as a point."
       badge="Standard form"
     >
       <TaskCard

@@ -72,7 +72,7 @@ function SignChart({ questionData, feedback, submit, mode, onAction }) {
 
   return <ToolShell
     title="Sign & Solution Analyzer"
-    subtitle="Build the solution set from critical points, sign changes, and the endpoint rules that go with them."
+    subtitle="Find the solution set of an inequality, endpoints included."
     badge={mode === 'rational' ? 'Rational inequalities' : 'Polynomial inequalities'}
   >
     <TaskCard
@@ -169,7 +169,7 @@ function RadicalCheck({ questionData, feedback, submit, onAction }) {
 
   return <ToolShell
     title="Sign & Solution Analyzer"
-    subtitle="Check candidate solutions in the original equation to catch the extraneous ones."
+    subtitle="Decide which candidate solutions really solve the original equation."
     badge="Extraneous solutions"
   >
     <TaskCard
@@ -295,7 +295,7 @@ function RadicalSolve({ questionData, feedback, submit, onAction }) {
 
   return <ToolShell
     title="Sign & Solution Analyzer"
-    subtitle="Solve a radical equation step by step, then check every candidate in the original equation."
+    subtitle="Solve a radical equation step by step, then decide which answers belong."
     badge="Radical equations"
   >
     <TaskCard

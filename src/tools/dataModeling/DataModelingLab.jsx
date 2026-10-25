@@ -410,7 +410,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   return (
     <ToolShell
       title="Data Modeling Lab"
-      subtitle="Build a model, inspect residuals, compare functions, and make defensible predictions without confusing association with causation."
+      subtitle="Fit a model to data, judge how well it fits, and make predictions you can defend."
       badge="Algebra I / II · Data Modeling"
       widthProfile={visiblePanelCount >= 3 ? 'wide' : 'standard'}
     >

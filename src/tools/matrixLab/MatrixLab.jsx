@@ -42,9 +42,9 @@ import {
 
 const SHELL = {
   locate: { title: 'Matrix Lab', subtitle: 'Read a matrix: its dimensions, and where each element lives.', badge: 'Algebra II · Matrices' },
-  operate: { title: 'Matrix Lab', subtitle: 'Multiply matrices row by column — and decide when a product exists.', badge: 'Algebra II · Matrix operations' },
-  equation: { title: 'Matrix Lab', subtitle: 'Write a system of equations as one matrix equation, A · X = B.', badge: 'Algebra II · Matrix equations' },
-  solve: { title: 'Matrix Lab', subtitle: 'Solve A · X = B with matrix technology: X = A⁻¹B.', badge: 'Algebra II · Solving with matrices' },
+  operate: { title: 'Matrix Lab', subtitle: 'Multiply matrices, and decide whether the product exists.', badge: 'Algebra II · Matrix operations' },
+  equation: { title: 'Matrix Lab', subtitle: 'Write a system of equations as one matrix equation.', badge: 'Algebra II · Matrix equations' },
+  solve: { title: 'Matrix Lab', subtitle: 'Solve a matrix equation with matrix technology.', badge: 'Algebra II · Solving with matrices' },
   completeSystem: { title: 'Matrix Lab', subtitle: 'Design a system: what makes it have no solution, or infinitely many?', badge: 'Algebra II · Singular systems' },
 };
 

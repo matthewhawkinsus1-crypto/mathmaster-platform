@@ -410,7 +410,7 @@ export default function RelationMapping({ questionData = {}, onAction, coachingR
   return (
     <ToolShell
       title="Build the Mapping Diagram"
-      subtitle="A relation drawn as two sets with arrows between them — the clearest way to see whether it is a function."
+      subtitle="A relation drawn as two sets with arrows between them."
       badge="Relations and functions"
     >
       <TaskCard

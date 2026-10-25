@@ -88,7 +88,7 @@ function FactorZero({ questionData, feedback, submit, onAction }) {
     const result=gradeToolCheck(polynomialWorkshopGrader,questionData,work);
     submit({ isCorrect: result.isCorrect, score: result.score },work,{mode:'factorZero',parts:result.parts});
   };
-  return <ToolShell title="Polynomial Workshop" subtitle="Use the Factor Theorem to connect evaluation, zeros, and factors." badge="Algebra II · Factor Theorem">
+  return <ToolShell title="Polynomial Workshop" subtitle="Connect evaluating a polynomial, its zeros, and its factors." badge="Algebra II · Factor Theorem">
     <TaskCard question={questionData} task={'Evaluate the polynomial at the given value, then say whether that gives a factor.'} steps={['Substitute the test value into P(x).', 'Simplify to a single number.', 'Decide what that number tells you about the factor.']} />
     <ToolGrid min={320}>
       <Panel title="Evaluate"><p style={{fontSize:'calc(20 * var(--mm-px))',fontWeight:800}}>P(x) = {polynomialText(coefficients)}</p><p>Test x = <strong>{candidateRoot}</strong>.</p><label>P({candidateRoot}) = <input value={value} onChange={e=>setValue(e.target.value)} style={{...inputStyle,width:130,marginLeft:8}}/></label></Panel>
@@ -115,7 +115,7 @@ function MultiplyArea({ questionData, feedback, submit, onAction }) {
     const result=gradeToolCheck(polynomialWorkshopGrader,questionData,work);
     submit({ isCorrect: result.isCorrect, score: result.score },work,{mode:'multiplyArea',parts:result.parts});
   };
-  return <ToolShell title="Polynomial Workshop" subtitle="Build multiplication from an area model instead of memorizing FOIL." badge="Algebra II · Area Model">
+  return <ToolShell title="Polynomial Workshop" subtitle="Multiply polynomials and see where every term comes from." badge="Algebra II · Area Model">
     <TaskCard question={questionData} task={'Fill in the area model, then write the expanded polynomial.'} steps={['Multiply each row term by each column term.', 'Each cell already shows the variable part; enter only the signed coefficient for that product.', 'Add the like terms and enter the final coefficients from highest degree down.']} />
     <ToolGrid min={330}>
       <Panel title={`(${left[0]}x ${left[1]>=0?'+':''}${left[1]})(${right[0]}x ${right[1]>=0?'+':''}${right[1]})`}>
@@ -177,7 +177,7 @@ function MultiplyFactors({ questionData, feedback, submit, clearFeedback = () =>
   const wrong = wrongPartIds(feedback);
   if (!model) return <MissingProblem title="Multiply polynomials with an area model." />;
   const factors = `\\left(${polynomialTermsLatex(model.rows)}\\right)\\left(${polynomialTermsLatex(model.columns)}\\right)`;
-  return <ToolShell title="Polynomial Workshop" subtitle="Multiply every term by every term with an area model." badge="Algebra II · Area Model">
+  return <ToolShell title="Polynomial Workshop" subtitle="Multiply two polynomials and keep every product visible." badge="Algebra II · Area Model">
     <TaskCard question={questionData} task={'Fill in every cell of the area model, then write the product in simplest form.'} steps={['Each cell is the term at the start of its row times the term at the top of its column.', 'Type each cell as one term: multiply the numbers and add the exponents of the same letter.', 'Combine the like terms from the cells and type the product in simplest form.']} />
     <ToolGrid min={330}>
       <Panel title="Area model">
@@ -233,7 +233,7 @@ function AddSubtract({ questionData, feedback, submit, clearFeedback = () => {},
   const steps = subtracting
     ? ['Subtracting a polynomial adds its opposite: write the opposite of EVERY term of the second polynomial, not just the first.', 'Each column holds one kind of term. Combine the like terms in each column — type 0 when they cancel.', 'Write the result in simplest form.']
     : ['Each column holds one kind of term, lined up from both polynomials.', 'Combine the like terms in each column — type 0 when they cancel.', 'Write the result in simplest form.'];
-  return <ToolShell title="Polynomial Workshop" subtitle={subtracting ? 'Subtract by adding the opposite of every term, then combine like terms.' : 'Line up like terms, then combine them.'} badge={subtracting ? 'Algebra II · Subtract Polynomials' : 'Algebra II · Add Polynomials'}>
+  return <ToolShell title="Polynomial Workshop" subtitle={subtracting ? 'Subtract polynomials and write the result in simplest form.' : 'Add polynomials and write the result in simplest form.'} badge={subtracting ? 'Algebra II · Subtract Polynomials' : 'Algebra II · Add Polynomials'}>
     <TaskCard question={questionData} task={subtracting ? 'Write the opposite of each term you subtract, combine each column, then write the result.' : 'Combine each column of like terms, then write the result.'} steps={steps} />
     <Panel title="Line up like terms">
       {/* The problem is one line of math that cannot wrap: on a 390px phone it
@@ -283,7 +283,7 @@ function FactorQuadratic({ questionData, feedback, submit, onAction }) {
     const result=gradeToolCheck(polynomialWorkshopGrader,questionData,work);
     submit({ isCorrect: result.isCorrect, score: result.score },work,{mode:'factorQuadratic',parts:result.parts});
   };
-  return <ToolShell title="Polynomial Workshop" subtitle="Factor a monic quadratic by reasoning about sum and product." badge="Algebra II · Factoring">
+  return <ToolShell title="Polynomial Workshop" subtitle="Factor a quadratic into two binomials." badge="Algebra II · Factoring">
     <TaskCard question={questionData} task={'Find the two numbers p and q that factor this quadratic.'} steps={['You need two numbers that multiply to the constant term.', 'The same two numbers must add to the x coefficient.', 'Enter them as p and q in either order.']} />
     <ToolGrid min={320}><Panel title="Target polynomial"><p style={{fontSize:'calc(22 * var(--mm-px))',fontWeight:900}}>P(x) = {polynomialText(coefficients)}</p><p>Find p and q so P(x) = (x + p)(x + q).</p></Panel><Panel title="Factor pair"><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}><label>p<input value={p} onChange={e=>setP(e.target.value)} style={inputStyle}/></label><label>q<input value={q} onChange={e=>setQ(e.target.value)} style={inputStyle}/></label></div><button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check factors</SubmitText></button><Feedback feedback={feedback} success="The factors multiply back to the original quadratic." retry="Your two numbers must add to the x coefficient and multiply to the constant."/><HintPanel hints={['For x² + bx + c, you are looking for two numbers whose product is c and whose sum is b.', 'List the factor pairs of the constant term first, then test which pair adds correctly.', 'If the constant is negative, one number is positive and the other is negative.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel></ToolGrid>
   </ToolShell>;
@@ -307,7 +307,7 @@ function DivisionMode({ questionData, feedback, submit, onAction }) {
     const result=gradeToolCheck(polynomialWorkshopGrader,questionData,work);
     submit({ isCorrect: result.isCorrect, score: result.score },work,{mode:'division',parts:result.parts});
   };
-  return <ToolShell title="Polynomial Workshop" subtitle="Divide polynomials and verify quotient + remainder structure." badge="Algebra II · Division">
+  return <ToolShell title="Polynomial Workshop" subtitle="Divide polynomials and check your result." badge="Algebra II · Division">
     <TaskCard question={questionData} task={'Divide the polynomials and give the quotient and remainder.'} steps={['Divide the leading terms to get the first quotient term.', 'Multiply back, subtract, and bring down the next term.', 'Repeat until the remainder has a lower degree than the divisor.']} /><ToolGrid min={320}><Panel title="Divide"><p style={{fontWeight:800}}>{polynomialText(dividend)}</p><p>÷</p><p style={{fontWeight:800}}>{polynomialText(divisor)}</p><p style={{color:'var(--mm-text-muted)'}}>Enter coefficient lists from highest degree downward.</p></Panel><Panel title="Your result"><label>Quotient coefficients<input value={quotient} onChange={e=>setQuotient(e.target.value)} style={inputStyle} placeholder="1, -2, -11"/></label><label style={{display:'block',marginTop:10}}>Remainder coefficients<input value={remainder} onChange={e=>setRemainder(e.target.value)} style={inputStyle} placeholder="-12"/></label><button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check division</SubmitText></button><Feedback feedback={feedback} success="Quotient and remainder reconstruct the dividend." retry="Use leading terms first, subtract, then bring down the next term."/><HintPanel hints={['Polynomial long division works exactly like numeric long division — leading term first, then subtract.', 'After subtracting, the leading term should cancel. If it does not, the multiplication step was wrong.', 'Stop when what is left has a lower degree than the divisor; that leftover is the remainder.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel></ToolGrid></ToolShell>;
 }
 
@@ -448,7 +448,7 @@ function LongDivision({ questionData, feedback, submit, clearFeedback, onAction 
   const leadLatex = exactTermLatex({ coefficient: key.divisor.coefficients[0], power: key.divisor.degree }, letter);
   const hasGap = key.dividend.coefficients.some((coefficient) => coefficient.n === 0);
   const preview = answerLatex(quotient, remainder, divisorLatex);
-  return <ToolShell title="Polynomial Workshop" subtitle="Long division: divide, multiply back, subtract, bring down — then repeat." badge="Algebra II · Long Division">
+  return <ToolShell title="Polynomial Workshop" subtitle="Divide one polynomial by another, one step at a time." badge="Algebra II · Long Division">
     <TaskCard question={questionData} task={'Divide by long division. Each round: divide the leading terms, multiply back, subtract and bring down the next term. Then write the quotient and the remainder.'} steps={[
       'Write the dividend in descending powers, with a 0 holding the place of any missing power.',
       'Divide the leading term of what is left by the divisor’s leading term. That is the next term of the quotient.',
@@ -532,7 +532,7 @@ function SyntheticDivision({ questionData, feedback, submit, clearFeedback, onAc
     className={`mm-synthetic-input${wrong.has(id) ? ' mm-synthetic-wrong' : ''}`}
     value={value ?? ''} onChange={(event) => onChange(event.target.value)}
     aria-label={label} aria-invalid={wrong.has(id) || undefined} {...extra} />;
-  return <ToolShell title="Polynomial Workshop" subtitle="Synthetic division: bring down, multiply by r, add — column by column." badge="Algebra II · Synthetic Division">
+  return <ToolShell title="Polynomial Workshop" subtitle="Divide a polynomial by x − r, one step at a time." badge="Algebra II · Synthetic Division">
     <TaskCard question={questionData} task={'Divide by synthetic division. Fill in r and every number of the table, then write the quotient.'} steps={[
       scaled ? 'The divisor’s leading coefficient is not 1, so first divide the dividend and the divisor by it. Then the divisor is x − r.' : 'Write the divisor as x − r to find r: x + 3 is x − (−3), so r = −3.',
       'Write the dividend’s coefficients in descending powers, with a 0 for every missing power.',
@@ -605,7 +605,7 @@ function RationalFeatures({ questionData, feedback, submit, onAction }) {
     const result=gradeToolCheck(polynomialWorkshopGrader,questionData,work);
     submit({ isCorrect: result.isCorrect, score: result.score },work,{mode:'rationalFeatures',parts:result.parts});
   };
-  return <ToolShell title="Polynomial Workshop" subtitle="Track common factors to distinguish zeros, holes, and vertical asymptotes." badge="Algebra II · Rational Bridge">
+  return <ToolShell title="Polynomial Workshop" subtitle="Tell zeros, holes, and vertical asymptotes apart." badge="Algebra II · Rational Bridge">
     <TaskCard question={questionData} task={'Decide what happens to the rational function at the given x-value.'} steps={['Check whether the value is a root of the numerator, the denominator, or both.', 'A factor in both cancels.', 'Choose the feature that survives cancellation.']} /><ToolGrid min={320}><Panel title="Factored structure"><p><strong>Numerator roots:</strong> {numeratorRoots.join(', ')}</p><p><strong>Denominator roots:</strong> {denominatorRoots.join(', ')}</p><p style={{color:'var(--mm-text-muted)'}}>A common factor cancels algebraically but remains excluded from the original domain.</p></Panel><Panel title={`What happens at x = ${targetValue}?`}><select aria-label={`What happens at x = ${targetValue}?`} value={choice} onChange={e=>setChoice(e.target.value)} style={inputStyle}><option value={UNANSWERED}>Choose…</option><option value="hole">Hole</option><option value="verticalAsymptote">Vertical asymptote</option><option value="zero">Zero / x-intercept</option><option value="none">None of these</option></select><button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check feature</SubmitText></button><Feedback feedback={feedback} success="You tracked cancellation and domain restrictions correctly." retry="Compare numerator and denominator multiplicities before and after cancellation."/><HintPanel hints={['Every interesting point on a rational function comes from a factor in the numerator, the denominator, or both.', 'A factor in the denominator only gives a vertical asymptote. A factor in the numerator only gives an x-intercept.', 'A factor in both cancels and leaves a hole — but the value is still excluded from the domain.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel></ToolGrid></ToolShell>;
 }
 
@@ -679,7 +679,7 @@ function SyntheticRemainderFactor({ questionData, feedback, submit, onAction }) 
   const leadingText = syntheticRootText(division.leading);
   const columns = `minmax(52px, 64px) repeat(${size}, minmax(44px, 1fr))`;
   const ruled = { borderTop: '2px solid var(--mm-text-strong)', paddingTop: 6 };
-  return <ToolShell title="Polynomial Workshop" subtitle="Divide by x − r with synthetic division, then read what the table tells you." badge="Algebra II · Synthetic Division">
+  return <ToolShell title="Polynomial Workshop" subtitle="Divide by x − r and read what the result tells you." badge="Algebra II · Synthetic Division">
     <TaskCard question={questionData} task={`Divide P(x) by (${divisorText}) with synthetic division, then interpret the bottom row.`} steps={['Write the number that makes the divisor zero in the box.', 'Write every coefficient of P(x) from the highest power down, with a 0 for any missing power.', 'Bring down the first coefficient. Multiply it by the box number, write the product under the next coefficient, and add. Repeat to the end.', 'The last number of the bottom row is the remainder; the others are the coefficients of the quotient, one degree lower than P(x).']} />
     <ToolGrid min={330}>
       <Panel title="Synthetic division">
