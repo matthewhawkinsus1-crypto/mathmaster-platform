@@ -109,3 +109,15 @@ test('the pattern carries no state between callers', () => {
   assert.equal(isMathSegment('$x = 1$'), true);
   assert.equal(isMathSegment('plain'), false);
 });
+
+// x^(1/3) in a prompt's prose was drawn as x¹ over 3: the brackets an
+// exponent owns were stripped as if they only grouped a plain fraction.
+test('a bracketed fraction attached to an exponent, a subscript or a name keeps its brackets', async () => {
+  const { removeRedundantPlainFractionParens: strip, splitProseFractionRuns: split } = await import('../../src/components/common/mathSegments.js');
+  assert.equal(strip('x^(1/3)'), 'x^(1/3)');
+  assert.equal(strip('e^(x/2)'), 'e^(x/2)');
+  assert.equal(strip('x_(1/2)'), 'x_(1/2)');
+  assert.equal(strip('f(1/2)'), 'f(1/2)');
+  assert.equal(strip('Find (1/2) of 8'), 'Find 1/2 of 8', 'a fraction grouped on its own still loses its brackets');
+  assert.deepEqual(split('Write x^(1/3) as a radical.').map((chunk) => chunk.text), ['Write x^(', '\\frac{1}{3}', ') as a radical.']);
+});

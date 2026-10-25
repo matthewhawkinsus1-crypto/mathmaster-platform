@@ -171,8 +171,10 @@ const SENTENCE_STOP_IN_DENOMINATOR = /^(\\frac\{[^{}]*\}\{[^{}]*\d)(\.+)\}$/;
 
 // A number or a closing bracket touching the brackets is multiplying:
 // "6(3/2)" without them is "63/2", sixty-three halves, and "(2/3)(3/2)"
-// without the second pair is "2/33/2". Those brackets stay.
-const SIMPLE_GROUPED_SLASH_FRACTION = /(?<![\d.)])\(\s*([+-]?(?:\d+(?:\.\d+)?|[A-Za-z]))\s*\/\s*((?:\d+(?:\.\d+)?|[A-Za-z]))\s*\)(?![\d.])/g;
+// without the second pair is "2/33/2". An exponent, a subscript or a name
+// touching them owns them: "x^(1/3)" without them was drawn as x¹ over 3 (the
+// Rational Exponents lessons), and "f(1/2)" is f of a half. Those brackets stay.
+const SIMPLE_GROUPED_SLASH_FRACTION = /(?<![\d.)^_A-Za-z])\(\s*([+-]?(?:\d+(?:\.\d+)?|[A-Za-z]))\s*\/\s*((?:\d+(?:\.\d+)?|[A-Za-z]))\s*\)(?![\d.])/g;
 
 // Plain-text authoring often wrapped a slash fraction in parentheses only to
 // keep the old one-line renderer from reading 2/3x as 2/(3x). Once the fraction
