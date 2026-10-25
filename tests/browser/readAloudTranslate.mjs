@@ -24,6 +24,10 @@
 //   translate    a platform hint is shown in Spanish (lang="es") and Read
 //                then speaks the Spanish; a teacher-written hint says plainly
 //                that it has no Spanish translation — no dead button.
+//   figures, es  under an authored Spanish prompt the real DOL graph is read
+//                in its own Spanish words, with the same numbers and still no
+//                position; the 3D model, which has no Spanish yet, is read in
+//                English after a sentence that says so (AX05).
 //
 // Exits non-zero on any failure. Screenshots: tests/browser/artifacts/readAloudTranslate.
 import { mkdirSync } from 'node:fs';
@@ -148,6 +152,33 @@ for (const device of DEVICES) {
     check(!/\(\s*(?:negative )?\d|\bcrosses\b|\bthrough\b|\bbetween\b|\bcorners?\b|\bhigh point\b|\blow point\b/.test(said), `${device.name}: no position is read while the exit ticket is open`, said);
     const description = await page.locator('[data-graph-description]').first().textContent();
     check(said.includes(description.replace(/−/g, 'negative ').split('. ')[1] || '\u0000'), `${device.name}: what is read is the figure's own description`, description);
+    await context.close();
+  }
+
+  /* ------------ the same graph under an authored Spanish prompt: Spanish (AX05) */
+  {
+    const { page, context } = await open(device, 'q=dolgraphes&role=dol&support=translate');
+    await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
+    const heard = await lastSpoken(page);
+    const said = heard?.text || '';
+    check(heard?.lang === 'es' && said.startsWith('La gráfica muestra una función'), `${device.name}: the Spanish question is read in a Spanish voice`, `${heard?.lang}: ${said.slice(0, 60)}`);
+    const figure = said.slice(said.indexOf('Gráfica.'), said.indexOf('Paso 1 de 2'));
+    check(figure === 'Gráfica. El eje x va de negativo 4 a 7 y el eje y, de negativo 6 a 16. 1 curva. 1 círculo abierto y 1 círculo cerrado. Las posiciones no se leen mientras se pueda responder esta pregunta. ', `${device.name}: the DOL's graph is read in its own Spanish words`, figure || said);
+    check(!/x from|Positions are not|inglés/.test(said), `${device.name}: no English description and no "in English" note`, said);
+    check(!/\(\s*(?:negativo )?\d|\bcruza\b|\bpasa por\b|\bentre\b|\besquinas?\b/.test(said), `${device.name}: no position is read in Spanish while the exit ticket is open`, said);
+    // The numbers are the figure's own: the ones its (English) description gives.
+    const description = await page.locator('[data-graph-description]').first().textContent();
+    const numbers = (text) => (text.replace(/−|negativo /g, '-').match(/-?\d+(?:\.\d+)?/g) || []).join(' ');
+    check(numbers(figure) === numbers(description), `${device.name}: the same numbers as the figure's description`, `${numbers(figure)} | ${numbers(description)}`);
+    await context.close();
+  }
+  {
+    // A figure with no Spanish words yet: its English, and the student is told.
+    const { page, context } = await open(device, 'q=planeses&role=classwork&support=translate');
+    await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
+    const heard = await lastSpoken(page);
+    const said = heard?.text || '';
+    check(heard?.lang === 'es' && /Modelo 3D\. La descripción de esta figura está en inglés\. 3D model with the x, y and z axes\./.test(said), `${device.name}: the 3D model is read in English, after a sentence that says so`, said.slice(0, 400));
     await context.close();
   }
 

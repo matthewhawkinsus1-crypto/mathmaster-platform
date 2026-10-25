@@ -16,8 +16,9 @@ import { axisNumberBox, boxesTouch, placePointLabels, placedLabelBox } from './p
 import { equalUnitPlaneHeight } from './planeEqualUnits.js';
 import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
 import { PublishFigureReading } from '../../platform/language/figureReadings.js';
+import { joinFigureSays } from '../../platform/language/figureSay.js';
 import { graphReadOutApplies, useGraphReadOut, useReportGraphReadOut } from '../../platform/supports/graphReadOut.js';
-import { axisTitleSentence, cleanAxisLabel } from './planeAxisTitles.js';
+import { axisTitleSay, axisTitleSentence, cleanAxisLabel } from './planeAxisTitles.js';
 
 const POINT_LABEL_STYLE = Object.freeze({
   fill: 'var(--mm-graph-label)',
@@ -634,6 +635,10 @@ export default function CoordinatePlane({
   const readOutReading = readOut && generatedDescription.detail === 'features' ? generatedDescription.description : '';
   const spokenDescription = [axisTitleSentence(axisTitles), authoredDescription || generatedDescription.description, authoredDescription ? readOutReading : '']
     .filter(Boolean).join(' ');
+  // The same reading as messages, for Read aloud in the reader's language
+  // (AX05). An author's description and the full reading have none yet: they
+  // are read in English, and the reader says so.
+  const spokenSay = authoredDescription ? null : joinFigureSays(axisTitleSay(axisTitles), generatedDescription.say);
   useReportGraphReadOut(Boolean(readOutReading));
   // IDREFs, not url(#…), so useId's own characters are fine here.
   const descriptionUid = useId();
@@ -1045,7 +1050,7 @@ export default function CoordinatePlane({
           show the description as a visible paragraph (it pushed a staged
           question's first step off a phone screen, PR #454). */}
       {/* Read aloud says the same description, under the same rule (figureReadings.js). */}
-      <PublishFigureReading entry={{ kind: 'figure', label: ariaLabel, text: spokenDescription }} />
+      <PublishFigureReading entry={{ kind: 'figure', label: ariaLabel, text: spokenDescription, say: spokenSay }} />
       <p id={descriptionId} className="mm-sr-only" style={SR_ONLY_STYLE} aria-hidden={insideControl ? undefined : 'true'}>{spokenDescription}</p>
 
       {showDataTable ? (

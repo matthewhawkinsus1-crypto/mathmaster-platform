@@ -20,9 +20,12 @@
  *   <FigureReadingScope shown={bool}>           a part kept mounted while hidden
  *   <PublishFigureReading entry={…} />         a figure, inside its render
  *
- * An entry is { kind: 'figure', label, text } or { kind: 'table', label,
+ * An entry is { kind: 'figure', label, text, say } or { kind: 'table', label,
  * table } (displayTable.js; the reader words it in the screen's language).
- * Outside a host (a teacher screen, a review) nothing is published.
+ * `say` is the same reading as messages (figureSay.js), when the figure's
+ * generator gives them: under an authored Spanish translation it is read in
+ * Spanish (AX05). Without it the figure is read in English, and the reader
+ * says so. Outside a host (a teacher screen, a review) nothing is published.
  */
 import React, { createContext, useContext, useEffect, useId } from 'react';
 
@@ -60,7 +63,10 @@ const normalizeEntry = (entry) => {
     return { kind: 'table', label: clean(entry.label), table };
   }
   const text = clean(entry.text);
-  return text ? { kind: 'figure', label: clean(entry.label), text } : null;
+  if (!text) return null;
+  return Array.isArray(entry.say)
+    ? { kind: 'figure', label: clean(entry.label), text, say: entry.say }
+    : { kind: 'figure', label: clean(entry.label), text };
 };
 
 /**

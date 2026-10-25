@@ -7,9 +7,10 @@ import MathDisplay from './MathDisplay.jsx';
 import { formatGraphEquationLatex } from './functionGraphUtils.js';
 import { majorTicks, niceStep } from './platform/graph/graphScaleService.js';
 import { quadrantLabelPositions } from './platform/graph/quadrantLabels.js';
-import { describeCoordinatePlane, joinSegmentPaths } from './platform/language/graphDescription.js';
+import { describeCoordinatePlane, GRAPH_WORDS, joinSegmentPaths } from './platform/language/graphDescription.js';
 import { useQuestionLifecycle } from './platform/question/QuestionLifecycleContext.jsx';
 import { PublishFigureReading } from './platform/language/figureReadings.js';
+import { joinFigureSays, say, sayFigure } from './platform/language/figureSay.js';
 import { graphReadOutApplies, useGraphReadOut, useReportGraphReadOut } from './platform/supports/graphReadOut.js';
 
 const DEFAULT_WIDTH = 620;
@@ -253,7 +254,7 @@ const describeStaticGraph = ({ xMin, xMax, yMin, yMax, xStep, yStep, minorStep, 
     verticalLines: asymptotes.filter((line) => line.axis !== 'horizontal').map((line) => line.value),
     horizontalLines: asymptotes.filter((line) => line.axis === 'horizontal').map((line) => line.value),
     emptyText: 'Nothing is plotted.',
-  }).description;
+  });
 };
 
 export default function GraphDisplay({ graph, title = 'Coordinate graph', enlargeable = true }) {
@@ -364,18 +365,21 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
   });
   // With the read-out, an author's description (written not to give the
   // answer away) is followed by the full reading.
+  const generated = authoredDescription ? null : reading(questionClosed || readOut ? 'features' : 'kinds');
   const spokenDescription = authoredDescription
-    ? [authoredDescription, readOut ? reading('features') : ''].filter(Boolean).join(' ')
-    : reading(questionClosed || readOut ? 'features' : 'kinds');
+    ? [authoredDescription, readOut ? reading('features').description : ''].filter(Boolean).join(' ')
+    : generated.description;
 
   // What the axes count by, said where the student reads it and where a screen
   // reader does (R-9). Only a figure the student can fix has it: for any other
   // figure the ticks are the whole story.
-  const scaleCaption = fixedGraph
-    ? (scaleFixed
-      ? 'Both axes now use the same scale.'
-      : `The x-axis counts by ${scaledGraph.xStep}s and the y-axis counts by ${scaledGraph.yStep}s.`)
-    : '';
+  const scaleSay = fixedGraph
+    ? [scaleFixed ? say('scaleSame') : say('scaleCounts', scaledGraph.xStep, scaledGraph.yStep)]
+    : [];
+  const scaleCaption = sayFigure(scaleSay, GRAPH_WORDS, { english: true });
+  // Read aloud's reading as messages (AX05): said in Spanish under an authored
+  // Spanish translation. An author's description has none: it is read in English.
+  const readingSay = authoredDescription ? null : joinFigureSays(generated.say, graph.caption ? [String(graph.caption)] : [], scaleSay);
 
   const FigureContainer = enlargeable ? EnlargeableFigure : 'div';
   return (
@@ -704,7 +708,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
           not heard twice); inline styles so a host with no UI kit CSS never
           shows it. */}
       {/* Read aloud says the same description, and the caption the screen shows (figureReadings.js). */}
-      <PublishFigureReading entry={{ kind: 'figure', label: title, text: [spokenDescription, graph.caption ? String(graph.caption) : '', scaleCaption].join(' ') }} />
+      <PublishFigureReading entry={{ kind: 'figure', label: title, text: [spokenDescription, graph.caption ? String(graph.caption) : '', scaleCaption].join(' '), say: readingSay }} />
       <p id={descriptionId} data-graph-description="" aria-hidden="true" style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 }}>{spokenDescription}</p>
       {fixedGraph ? (
         <div data-scale-control="" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '8px 6px 2px' }}>

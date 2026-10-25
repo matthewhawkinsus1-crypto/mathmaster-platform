@@ -52,10 +52,18 @@
  * Both are reading the plane, so the description is produced either way. That
  * is also why the resolution rule above matters: the text must not read the
  * plane MORE precisely than the eye can.
+ *
+ * IN THE READER'S LANGUAGE (AX05). The reading while the question can be
+ * answered (`kinds`) is built from messages (./figureSay.js) and returned as
+ * `say` beside its English: the same sentences, with the same numbers, can be
+ * read in Spanish from ./packs/esFigures.js under an authored Spanish
+ * translation. The full reading (`features`) has no messages yet (`say: null`),
+ * so Read aloud reads it in English and says so.
  */
 import { readGraphPointCoordinates } from '../../graphPointUtils.js';
 import { majorTicks, niceStep } from '../graph/graphScaleService.js';
 import { verticalLineDrawings } from '../graph/verticalLineStyle.js';
+import { englishOnly, say, sayFigure } from './figureSay.js';
 
 // Above this many resolution steps across the window the plane cannot draw a
 // minor grid (CoordinatePlane's MAX_MINOR_LINES), so the eye has only the major
@@ -101,6 +109,18 @@ const readPair = (x, y, res) => {
   return rx.exact && ry.exact ? `(${rx.text}, ${ry.text})` : `(x ${rx.text}, y ${ry.text})`;
 };
 
+// The same reading as a message: a value between two gridlines is words
+// ("between 2 and 3"), so it is said in the reader's language.
+const readValueSay = (value, resolution) => {
+  if (isMultiple(value, resolution)) return formatNumber(value);
+  const lower = tidy(Math.floor(value / resolution) * resolution);
+  return say('between', formatNumber(lower), formatNumber(tidy(lower + resolution)));
+};
+const readPairSay = (x, y, res) => {
+  if (isMultiple(x, res.x) && isMultiple(y, res.y)) return readPair(x, y, res);
+  return say('pairApprox', readValueSay(x, res.x), readValueSay(y, res.y));
+};
+
 const plural = (count, one, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
 
 // A window end as the axis lets it be read: exact on a tick, otherwise "about"
@@ -110,14 +130,14 @@ const stepDecimals = (step) => {
   const text = String(tidy(step));
   return text.includes('.') ? text.split('.')[1].length : 0;
 };
-const windowEndText = (value, step) => {
+const windowEndSay = (value, step) => {
   if (!(Number(step) > 0)) return formatNumber(value);
   const places = stepDecimals(step);
   // Already at the step's precision (−5 on a step-2 axis), or an authored end
   // one decimal finer (7.5 on a step-1 axis): said exactly. Only an end
   // computed to fit the screen (−6.374…) is "about" (AX36).
   if (Math.abs(Number(Number(value).toFixed(places + 1)) - value) < 1e-9) return formatNumber(value);
-  return `about ${formatNumber(Number(Number(value).toFixed(places + 1)))}`;
+  return say('about', formatNumber(Number(Number(value).toFixed(places + 1))));
 };
 
 // The finest grid the plane draws: its minor grid where it draws one,
@@ -380,17 +400,81 @@ const vertexList = (vertices, res) => {
   return joinClauses(shown);
 };
 
-const UNDESCRIBED_MARKS = 'It also shows marks drawn by the activity that are not listed here.';
 const toolMarkSentence = (toolMarks, detail) => {
   const pick = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
   return detail === 'features' ? pick(toolMarks?.features) || pick(toolMarks?.kinds) : pick(toolMarks?.kinds);
+};
+
+/* ------------------------------------------------ the platform's sentences */
+
+/*
+ * Every sentence the reading below says, by message id (./figureSay.js), in
+ * English. ./packs/esFigures.js has the same ids in Spanish; a number, a
+ * coordinate or a label is a piece of the message and is said as it is.
+ */
+export const GRAPH_WORDS = Object.freeze({
+  // The window, as the axes print it.
+  window: (x0, x1, y0, y1) => `x from ${x0} to ${x1}, y from ${y0} to ${y1}.`,
+  xRange: (x0, x1) => `x from ${x0} to ${x1}.`,
+  yRange: (y0, y1) => `y from ${y0} to ${y1}.`,
+  about: (value) => `about ${value}`,
+  axisNumbersHidden: () => 'The axis numbers are not shown.',
+  xAxisNumbersHidden: () => 'The x-axis numbers are not shown.',
+  yAxisNumbersHidden: () => 'The y-axis numbers are not shown.',
+  // What is drawn, never where.
+  lineCount: (count) => `${plural(count, 'line')}.`,
+  curveCount: (count) => (count > 1 ? `${plural(count, 'curve')}, the first solid and the others dashed.` : '1 curve.'),
+  dashedVerticalCount: (count) => `${plural(count, 'dashed vertical line')}.`,
+  solidVerticalCount: (count) => `${plural(count, 'solid vertical line')}.`,
+  dashedHorizontalCount: (count) => `${plural(count, 'dashed horizontal line')}.`,
+  pathCount: (count) => `${plural(count, 'connected path')}.`,
+  regionCount: (count) => `${plural(count, 'shaded region')}.`,
+  // Text the plane draws beside a plain dot is on the screen; a position is not said.
+  givenMarks: (dots, labels, open, closed, arrows) => {
+    const parts = [
+      dots ? `${plural(dots, 'point')}${labels.length ? ` labelled ${joinClauses(labels)}` : ''}` : '',
+      open ? plural(open, 'open dot') : '',
+      closed ? plural(closed, 'closed dot') : '',
+      arrows ? plural(arrows, 'arrowhead') : '',
+    ].filter(Boolean);
+    return `${joinClauses(parts).replace(/^./, (c) => c.toUpperCase())}.`;
+  },
+  // The student's own points, always read back.
+  plotted: (pairs) => `${pairs.length === 1 ? 'You plotted 1 point' : `You plotted ${pairs.length} points`}: ${pairs.join('; ')}.`,
+  pairApprox: (x, y) => `(x ${x}, y ${y})`,
+  between: (lower, upper) => `between ${lower} and ${upper}`,
+  nothingPlotted: () => 'Nothing is plotted.',
+  nothingPlottedYet: () => 'Nothing is plotted yet.',
+  undescribedMarks: () => 'It also shows marks drawn by the activity that are not listed here.',
+  positionsWithheld: () => 'Positions are not read out while this question can be answered.',
+  givenPositionsWithheld: () => 'Positions of the given marks are not read out while this question can be answered.',
+  positionsNotReadHere: () => 'Positions are not read out on this question.',
+  // Marks a tool names in its own words (`toolMarks.kinds`): said as one of
+  // these when they are these words, and only in English otherwise.
+  segmentsFromOrigin: () => 'A segment joins the origin to each point.',
+  oneCurve: () => '1 curve.',
+  oneShadedRegion: () => '1 shaded region.',
+  regionWhereAllTrue: () => '1 shaded region, where every inequality is true.',
+  noRegionShadedYet: () => 'No region is shaded yet.',
+  // What a static graph's axes count by, on a figure the student can fix (R-9).
+  scaleSame: () => 'Both axes now use the same scale.',
+  scaleCounts: (x, y) => `The x-axis counts by ${x}s and the y-axis counts by ${y}s.`,
+});
+
+const english = (segment) => sayFigure([segment], GRAPH_WORDS, { english: true });
+
+/** A fixed sentence a caller passes, as its message when it is one of the platform's. */
+const graphSentenceSay = (text) => {
+  const value = String(text ?? '');
+  const found = Object.entries(GRAPH_WORDS).find(([, words]) => words.length === 0 && words() === value);
+  return found ? say(found[0]) : englishOnly(value);
 };
 
 /* ------------------------------------------- kinds only (still answerable) */
 
 // What is drawn, never where: no crossings, extremes, positions or table.
 const describeKinds = ({
-  sentences, res, w, label, hasUndescribedMarks, emptyText, listPlottedPoints, toolMarksText = '',
+  windowSays, res, w, label, hasUndescribedMarks, emptyText, listPlottedPoints, toolMarksText = '',
   points, lines, functions, polylines, regions, verticalLines, horizontalLines,
   positionsWithheldText,
 }) => {
@@ -407,44 +491,38 @@ const describeKinds = ({
   const given = drawn.filter((point) => !isPlotted(point));
   const plotted = drawn.filter(isPlotted);
 
-  if (lineCount) sentences.push(`${plural(lineCount, 'line')}.`);
-  if (curveCount) sentences.push(curveCount > 1 ? `${plural(curveCount, 'curve')}, the first solid and the others dashed.` : '1 curve.');
-  if (verticals) sentences.push(`${plural(verticals, 'dashed vertical line')}.`);
-  if (solidVerticals) sentences.push(`${plural(solidVerticals, 'solid vertical line')}.`);
-  if (horizontals) sentences.push(`${plural(horizontals, 'dashed horizontal line')}.`);
-  if (paths) sentences.push(`${plural(paths, 'connected path')}.`);
-  if (shaded) sentences.push(`${plural(shaded, 'shaded region')}.`);
+  const says = [...windowSays];
+  if (lineCount) says.push(say('lineCount', lineCount));
+  if (curveCount) says.push(say('curveCount', curveCount));
+  if (verticals) says.push(say('dashedVerticalCount', verticals));
+  if (solidVerticals) says.push(say('solidVerticalCount', solidVerticals));
+  if (horizontals) says.push(say('dashedHorizontalCount', horizontals));
+  if (paths) says.push(say('pathCount', paths));
+  if (shaded) says.push(say('regionCount', shaded));
   if (given.length) {
     const arrows = given.filter((point) => point?.marker === 'arrow').length;
     const open = given.filter((point) => point?.marker === 'open').length;
     const closed = given.filter((point) => point?.marker === 'closed').length;
     const dots = given.length - arrows - open - closed;
-    // Text the plane draws beside a plain dot is on the screen; a position is not said.
     const labels = given.filter((point) => !point?.marker && point?.label != null && String(point.label).trim()).map((point) => String(point.label).trim());
-    const parts = [
-      dots ? `${plural(dots, 'point')}${labels.length ? ` labelled ${joinClauses(labels)}` : ''}` : '',
-      open ? plural(open, 'open dot') : '',
-      closed ? plural(closed, 'closed dot') : '',
-      arrows ? plural(arrows, 'arrowhead') : '',
-    ].filter(Boolean);
-    sentences.push(`${joinClauses(parts).replace(/^./, (c) => c.toUpperCase())}.`);
+    says.push(say('givenMarks', dots, labels, open, closed, arrows));
   }
   if (plotted.length) {
-    const at = plotted.map((point) => { const [x, y] = readGraphPointCoordinates(point); return readPair(x, y, res); });
-    sentences.push(`${plotted.length === 1 ? 'You plotted 1 point' : `You plotted ${plotted.length} points`}: ${at.join('; ')}.`);
+    says.push(say('plotted', plotted.map((point) => { const [x, y] = readGraphPointCoordinates(point); return readPairSay(x, y, res); })));
   }
   const described = lineCount + curveCount + verticals + horizontals + paths + shaded + drawn.length;
-  if (!described && !hasUndescribedMarks) sentences.push(emptyText);
-  if (hasUndescribedMarks) sentences.push(toolMarksText || UNDESCRIBED_MARKS);
+  if (!described && !hasUndescribedMarks) says.push(graphSentenceSay(emptyText));
+  if (hasUndescribedMarks) says.push(toolMarksText ? graphSentenceSay(toolMarksText) : say('undescribedMarks'));
   if (lineCount + curveCount + verticals + horizontals + paths + shaded + given.length || (hasUndescribedMarks && toolMarksText)) {
     // The student's own points were just read out: what is withheld is the rest.
-    sentences.push(positionsWithheldText || (plotted.length
-      ? 'Positions of the given marks are not read out while this question can be answered.'
-      : 'Positions are not read out while this question can be answered.'));
+    says.push(positionsWithheldText
+      ? graphSentenceSay(positionsWithheldText)
+      : say(plotted.length ? 'givenPositionsWithheld' : 'positionsWithheld'));
   }
   void w;
+  const sentences = says.map(english);
   const description = sentences.join(' ');
-  return { summary: label ? `${label}, ${description}` : description, description, sentences, tables: [], detail: 'kinds' };
+  return { summary: label ? `${label}, ${description}` : description, description, sentences, tables: [], detail: 'kinds', say: says };
 };
 
 /* ----------------------------------------------------------------- entry */
@@ -491,7 +569,7 @@ export function describeCoordinatePlane({
   // closed question or not (student pass 3, W5-2 review B1).
   axisNumbersHidden = { x: false, y: false },
   // The labelled tick steps, when a window's ends may fall between ticks: the
-  // ends are then read "about" at tick precision (windowEndText).
+  // ends are then read "about" at tick precision (windowEndSay).
   windowSteps = null,
   // The sentence that says positions are withheld, for a host that knows why:
   // a closed question whose review is not shown cannot "be answered".
@@ -506,26 +584,28 @@ export function describeCoordinatePlane({
   };
   const list = (value) => (Array.isArray(value) ? value : []);
 
-  const sentences = [];
   const hideX = axisNumbersHidden?.x === true;
   const hideY = axisNumbersHidden?.y === true;
-  const end = (value, axis) => (windowSteps ? windowEndText(value, windowSteps[axis]) : formatNumber(value));
-  const xRange = `x from ${end(w.xMin, 'x')} to ${end(w.xMax, 'x')}`;
-  const yRange = `y from ${end(w.yMin, 'y')} to ${end(w.yMax, 'y')}`;
-  if (hideX && hideY) sentences.push('The axis numbers are not shown.');
-  else if (hideX) sentences.push(`${yRange}. The x-axis numbers are not shown.`);
-  else if (hideY) sentences.push(`${xRange}. The y-axis numbers are not shown.`);
-  else sentences.push(`${xRange}, ${yRange}.`);
+  const end = (value, axis) => (windowSteps ? windowEndSay(value, windowSteps[axis]) : formatNumber(value));
+  const xEnds = [end(w.xMin, 'x'), end(w.xMax, 'x')];
+  const yEnds = [end(w.yMin, 'y'), end(w.yMax, 'y')];
+  let windowSays;
+  if (hideX && hideY) windowSays = [say('axisNumbersHidden')];
+  else if (hideX) windowSays = [say('yRange', ...yEnds), say('xAxisNumbersHidden')];
+  else if (hideY) windowSays = [say('xRange', ...xEnds), say('yAxisNumbersHidden')];
+  else windowSays = [say('window', ...xEnds, ...yEnds)];
 
   if (detail !== 'features' || hideX || hideY) {
     return describeKinds({
-      sentences, res, w, label, hasUndescribedMarks, emptyText, listPlottedPoints, positionsWithheldText,
+      windowSays, res, w, label, hasUndescribedMarks, emptyText, listPlottedPoints, positionsWithheldText,
       toolMarksText: toolMarkSentence(toolMarks, 'kinds'),
       points: list(points), lines: list(lines), functions: list(functions), polylines: list(polylines),
       regions: list(regions), verticalLines: list(verticalLines), horizontalLines: list(horizontalLines),
     });
   }
 
+  // The full reading is English only for now (say: null below).
+  const sentences = windowSays.map(english);
   const lineEntries = list(lines).map((line, i) => describeLine(line, i, res, w)).filter(Boolean);
   if (lineEntries.length) {
     sentences.push(`${plural(lineEntries.length, 'line')}.`);
@@ -566,7 +646,7 @@ export function describeCoordinatePlane({
   const described = lineEntries.length + curveEntries.length + verticals.length + horizontals.length
     + polyVertices.length + regionVertices.length + pointEntries.length;
   if (!described && !hasUndescribedMarks) sentences.push(emptyText);
-  if (hasUndescribedMarks) sentences.push(toolMarkSentence(toolMarks, 'features') || UNDESCRIBED_MARKS);
+  if (hasUndescribedMarks) sentences.push(toolMarkSentence(toolMarks, 'features') || GRAPH_WORDS.undescribedMarks());
 
   /* Tables: the same reading, laid out as a sighted student would tabulate it. */
   const tables = [];
@@ -621,6 +701,8 @@ export function describeCoordinatePlane({
     sentences,
     tables,
     detail: 'features',
+    // No messages for the full reading yet: Read aloud says it in English (AX05).
+    say: null,
   };
 }
 

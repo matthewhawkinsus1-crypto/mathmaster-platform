@@ -31,6 +31,8 @@ import { normalizeContextualQuestion } from '../../src/platform/context/wordProb
 import { backUpQuestionText, questionReadingParts, questionReadingText, tableReading } from '../../src/platform/language/questionReading.js';
 import { speechTextFor } from '../../src/platform/language/speechText.js';
 import { FigureReadingPortProvider, FigureReadingScope, figureReadingEntries, updateFigureReadings, useFigureReadingPublisher } from '../../src/platform/language/figureReadings.js';
+import { say } from '../../src/platform/language/figureSay.js';
+import esFigures from '../../src/platform/language/packs/esFigures.js';
 import { displayTableFor } from '../../src/platform/question/displayTable.js';
 import { backUpStepFor, backUpStepWritten } from '../../src/platform/supports/feedback/backUpStep.js';
 import { readComposedQuestion } from '../../src/platform/workflow/questionWorkflow.js';
@@ -210,9 +212,11 @@ test('each figure publishes the text it describes itself with, and QuestionEngin
   // authored caption and, on a figure the student can "Fix the scale" of, the line
   // that says what each axis counts by (R-9). The hidden description beside it stays
   // the description alone: the visible captions are read in place, not twice.
-  assert.match(graph, /<PublishFigureReading entry=\{\{ kind: 'figure', label: title, text: \[spokenDescription, graph\.caption \? String\(graph\.caption\) : '', scaleCaption\]\.join\(' '\) \}\} \/>\s*<p id=\{descriptionId\} data-graph-description="" aria-hidden="true"[^>]*>\{spokenDescription\}<\/p>/);
+  // `say` is the same reading as messages, for Read aloud in Spanish (AX05,
+  // figureReadingSpanish.test.mjs).
+  assert.match(graph, /<PublishFigureReading entry=\{\{ kind: 'figure', label: title, text: \[spokenDescription, graph\.caption \? String\(graph\.caption\) : '', scaleCaption\]\.join\(' '\), say: readingSay \}\} \/>\s*<p id=\{descriptionId\} data-graph-description="" aria-hidden="true"[^>]*>\{spokenDescription\}<\/p>/);
   const plane = code('src/tools/shared/CoordinatePlane.jsx');
-  assert.match(plane, /<PublishFigureReading entry=\{\{ kind: 'figure', label: ariaLabel, text: spokenDescription \}\} \/>\s*<p id=\{descriptionId\} className="mm-sr-only"[^>]*>\{spokenDescription\}<\/p>/);
+  assert.match(plane, /<PublishFigureReading entry=\{\{ kind: 'figure', label: ariaLabel, text: spokenDescription, say: spokenSay \}\} \/>\s*<p id=\{descriptionId\} className="mm-sr-only"[^>]*>\{spokenDescription\}<\/p>/);
   const visual = code('src/QuestionVisual.jsx');
   assert.match(visual, /const displayTable = includeTable \? displayTableFor\(question\) : null;/, 'the table drawn is the shared model');
   assert.match(visual, /\{displayTable && <PublishFigureReading entry=\{\{ kind: 'table', label: question\?\.tableCaption \|\| '', table: displayTable \}\} \/>\}/);
@@ -221,8 +225,8 @@ test('each figure publishes the text it describes itself with, and QuestionEngin
 
   // The other figures that already describe themselves, beside that description.
   [
-    ['src/tools/intervalNumberLine/IntervalNumberLine.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Number line', text: lineDescription \}\} \/>\s*<p id=\{lineDescriptionId\} data-number-line-description=""[^>]*>\{lineDescription\}<\/p>/],
-    ['src/NumberLine.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Number line', text: description \}\} \/>\s*<span id=\{descriptionId\}[^>]*>\{description\}<\/span>/],
+    ['src/tools/intervalNumberLine/IntervalNumberLine.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Number line', text: lineDescription, say: lineSay \}\} \/>\s*<p id=\{lineDescriptionId\} data-number-line-description=""[^>]*>\{lineDescription\}<\/p>/],
+    ['src/NumberLine.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Number line', text: description, say: descriptionSay \}\} \/>\s*<span id=\{descriptionId\}[^>]*>\{description\}<\/span>/],
     ['src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: '3D model', text: modelDescription \}\} \/>\s*<span id=\{modelDescriptionId\}[^>]*>\{modelDescription\}<\/span>/],
     ['src/InteractiveGraphWorkspace.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Graph', text: workspaceDescription \}\} \/>\s*<span id=\{workspaceDescriptionId\}[^>]*>\{workspaceDescription\}<\/span>/],
   ].forEach(([path, wiring]) => assert.match(code(path), wiring, path));
@@ -373,8 +377,9 @@ test('S2: " · " between words in a figure\'s name is a pause, not "times" (en a
   const said = speechTextFor(questionReadingText(questionReadingParts(question, { figures })));
   assert.match(said, /Coordinate plane for Graph 1, Intercept method\. 1 line, Your points\./);
   assert.doesNotMatch(said, /times Intercept/);
-  const es = questionReadingParts(question, { figures: [{ kind: 'figure', label: 'Gráfica 1 · Método', text: 'Una recta.' }], language: 'es' }).find((part) => part.kind === 'figure');
-  assert.equal(speechTextFor(es.text, { language: 'es' }), 'Gráfica 1, Método. Una recta.');
+  // In Spanish, a figure says its own Spanish (AX05: its messages and the pack).
+  const es = questionReadingParts(question, { figures: [{ kind: 'figure', label: 'Gráfica 1 · Método', text: '1 line.', say: [say('lineCount', 1)] }], language: 'es', figurePack: esFigures }).find((part) => part.kind === 'figure');
+  assert.equal(speechTextFor(es.text, { language: 'es' }), 'Gráfica 1, Método. 1 recta.');
   // Multiplication stays multiplication.
   assert.match(speechTextFor(questionReadingText(questionReadingParts(question, { figures: [{ kind: 'figure', label: 'Area', text: 'It shows 2 · 3 and 2 · x.' }] }))), /2 times 3 and 2 times x/);
 });

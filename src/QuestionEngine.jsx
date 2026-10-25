@@ -121,6 +121,7 @@ import { WorkViewCapabilityProvider } from './platform/workView/workViewCapabili
 import { WorkViewUndoProvider } from './platform/workView/useMathUndoHistory.js';
 import { QuestionLifecycleProvider } from './platform/question/QuestionLifecycleContext.jsx';
 import { FigureReadingPortProvider, figureReadingEntries, updateFigureReadings } from './platform/language/figureReadings.js';
+import { loadFigureWords } from './platform/language/figureSay.js';
 import UniversalUndoButton from './components/common/UniversalUndoButton.jsx';
 import { toolSubmissionParts } from './tools/shared/toolSubmissionParts.js';
 import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
@@ -1216,6 +1217,20 @@ function QuestionEngineBody({
   const [publishedFigures, setPublishedFigures] = useState([]);
   const publishFigureReading = useCallback((id, entry) => setPublishedFigures((current) => updateFigureReadings(current, id, entry)), []);
   const figureReadings = useMemo(() => figureReadingEntries(publishedFigures), [publishedFigures]);
+  // FIGURES IN THE READER'S LANGUAGE (AX05). Under an authored Spanish
+  // translation a figure is read in Spanish from the language's own figure
+  // words (figureSay.js), loaded only then; until they arrive, or for a
+  // figure they cannot say, it is read in English and the reader says so.
+  const [loadedFigureWords, setLoadedFigureWords] = useState(null);
+  useEffect(() => {
+    if (readAloudLanguage === 'en') return undefined;
+    let current = true;
+    loadFigureWords(readAloudLanguage)
+      .then((pack) => { if (current) setLoadedFigureWords({ language: readAloudLanguage, pack }); })
+      .catch(() => { /* not loaded: the figures are read in English, and say so */ });
+    return () => { current = false; };
+  }, [readAloudLanguage]);
+  const figurePack = loadedFigureWords?.language === readAloudLanguage ? loadedFigureWords.pack : null;
   const readingParts = useMemo(
     () => questionReadingParts(processedQuestion, {
       referenceInfo,
@@ -1223,8 +1238,9 @@ function QuestionEngineBody({
       stage: readingStage,
       language: readAloudLanguage,
       figures: figureReadings,
+      figurePack,
     }),
-    [processedQuestion, referenceInfo, scaffoldRequired, scaffold, readingStage, readAloudLanguage, figureReadings],
+    [processedQuestion, referenceInfo, scaffoldRequired, scaffold, readingStage, readAloudLanguage, figureReadings, figurePack],
   );
   const referenceSpeechText = useMemo(() => questionReadingText(readingParts), [readingParts]);
 
