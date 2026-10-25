@@ -12,6 +12,7 @@ import { readGraphPointCoordinates } from '../../graphPointUtils.js';
 import { SubmitText } from '../shared/ToolRuntimeContext';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import FocusSafeButton from '../../components/common/FocusSafeButton.jsx';
+import MathText from '../../components/common/MathText.jsx';
 import {
   cardName,
   categoryButtonName,
@@ -299,7 +300,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
     const card = cardName(item, id);
     return (
       <div key={id} data-placed-card={id} style={{ flex: '1 1 170px', minWidth: 0, border: '1px solid var(--mm-primary-border)', borderRadius: 10, padding: 8, background: 'var(--mm-primary-subtle)' }}>
-        <strong style={{ display: 'block', marginBottom: 4, color: 'var(--mm-primary-text)' }}>{card}</strong>
+        <strong style={{ display: 'block', marginBottom: 4, color: 'var(--mm-primary-text)' }}><MathText>{card}</MathText></strong>
         {item ? <SortItemPreview item={item} /> : null}
         <button type="button" onClick={() => returnItem(id)} aria-label={placedCardName({ card, group, index: groupIndex, controlled: inFixedCategory })} title="Select to move this card again" style={{ ...button, minHeight: 44, marginTop: 6, padding: '6px 10px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)' }}>
           Move <span aria-hidden="true">↩</span>
@@ -348,7 +349,9 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
                 const card = cardName(item);
                 return (
                   <div key={item.id} style={{ border: '1px solid var(--mm-tint-border)', borderRadius: 12, padding: 10, background: 'var(--mm-surface)' }}>
-                    <strong style={{ display: 'block', marginBottom: 6 }}>{card}</strong>
+                    {/* A card named by its mathematics ("1/x^(1/2)" on a Rational
+                        Exponents card) shows it typeset, not its keystrokes. */}
+                    <strong style={{ display: 'block', marginBottom: 6 }}><MathText>{card}</MathText></strong>
                     <SortItemPreview item={item} />
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(118px, 1fr))', gap: 8, marginTop: 10 }}>
                       {categories.map((category, categoryIndex) => (
@@ -392,7 +395,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
           <div style={{ display: 'grid', gap: 10 }}>
             {unassigned.map((item) => (
               <button key={item.id} type="button" data-sort-card={String(item.id)} onClick={() => setSelectedId(String(item.id))} aria-pressed={selectedId === String(item.id)} style={{ ...button, textAlign: 'left', border: selectedId === String(item.id) ? '3px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: selectedId === String(item.id) ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)' }}>
-                <strong>{cardName(item)}</strong>
+                <strong><MathText>{cardName(item)}</MathText></strong>
                 <SortItemPreview item={item} />
               </button>
             ))}

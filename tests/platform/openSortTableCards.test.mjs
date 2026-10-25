@@ -150,3 +150,34 @@ test('the board draws a table card as inputs over outputs, inside the card, afte
     await server.close();
   }
 });
+
+// Rational Exponents and Radical Expressions name their cards by their
+// mathematics, and the board printed the keystrokes: "1/x^(1/2)", "√3/3".
+test('a card named by its mathematics is typeset; a card named in words stays words', async () => {
+  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent', cacheDir: VITE_CACHE });
+  try {
+    const { default: OpenSortBoard } = await server.ssrLoadModule('/src/tools/openSortBoard/OpenSortBoard.jsx');
+    const items = [{ id: 'power', label: '1/x^(1/2)', text: 'One' }, { id: 'radical', label: '√3/3', text: 'Two' }, { id: 'words', label: 'Card A', text: 'Three' }];
+    const categories = [{ id: 'simplified', label: 'Simplified' }, { id: 'not', label: 'Not yet simplified' }];
+    const board = renderToStaticMarkup(React.createElement(OpenSortBoard, { questionData: { questionId: 'cards', mode: 'controlled', items, categories } }));
+    const heading = (id) => {
+      const at = board.indexOf(`data-sort-card="${id}"`);
+      assert.notEqual(at, -1, `card ${id} is on the board`);
+      const open = board.lastIndexOf('<strong', at);
+      return board.slice(open, board.indexOf('</strong>', open));
+    };
+    assert.match(heading('power'), /<math-span[^>]*>\\frac\{1\}\{x\^\{\\frac\{1\}\{2\}\}\}<\/math-span>/, heading('power'));
+    assert.match(decode(heading('power')), /1 over x to the power 1 over 2/, 'and it is spoken as mathematics');
+    assert.match(heading('radical'), /<math-span[^>]*>\\frac\{√3\}\{3\}<\/math-span>/, heading('radical'));
+    assert.doesNotMatch(heading('words'), /math-span/);
+    assert.equal(decode(heading('words')), '<strong style="display:block;margin-bottom:6px">Card A'.replace(/<[^>]+>/g, ''));
+    // The open sort's card is a button: its typeset name is phrasing content.
+    const open = renderToStaticMarkup(React.createElement(OpenSortBoard, { questionData: { questionId: 'cards', items } }));
+    const card = cardMarkup(open, 'power');
+    const name = card.slice(card.indexOf('<strong'), card.indexOf('</strong>'));
+    assert.match(name, /<math-span/);
+    assert.doesNotMatch(name, /<(div|p|table)\b/);
+  } finally {
+    await server.close();
+  }
+});
