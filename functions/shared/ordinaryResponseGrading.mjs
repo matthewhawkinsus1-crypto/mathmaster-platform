@@ -138,7 +138,10 @@ export const gradeLiteralResponse = (question = {}, rawAnswer) => {
     isCorrect,
     parts: [{
       id: 'literal',
-      label: `Expression for ${question.solveFor}`,
+      // A question compiled from a solveLiteral action without solveFor names
+      // no variable: its part is "Your answer", never "Expression for undefined"
+      // (a miss reads "Focus on: …" with this label).
+      label: text(question.solveFor).trim() ? `Expression for ${text(question.solveFor).trim()}` : 'Your answer',
       isComplete,
       isCorrect,
       response: answer,

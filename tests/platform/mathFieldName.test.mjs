@@ -170,6 +170,8 @@ test('the fraction and literal-equation boxes have their own names', async () =>
   const read = (file) => executableSource(readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8'));
   const box = (source) => source.match(/<MathInput\b[\s\S]*?\/>/)?.[0] || '';
   assert.match(box(read('src/FractionGrader.jsx')), /\bariaLabel="Fraction answer"/);
-  // The visible label is "x =" (the variable solved for): the name says the same.
-  assert.match(box(read('src/LiteralGrader.jsx')), /\bariaLabel=\{`\$\{solveFor\} =`\}/);
+  // The visible label is "x =" (the variable solved for): the name says the
+  // same, and "Your answer" where the question names no variable
+  // (literalWithoutSolveFor.test.mjs renders both).
+  assert.match(box(read('src/LiteralGrader.jsx')), /\bariaLabel=\{variable \? `\$\{variable\} =` : 'Your answer'\}/);
 });
