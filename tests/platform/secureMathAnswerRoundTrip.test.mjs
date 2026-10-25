@@ -131,8 +131,10 @@ test('an expression and an equation stay typed text for reasons the grader still
   // move to the math editor once the browser capture shows it.
   assert.equal(await grades('\\frac{2A}{h}-b_2', '2A/h-b_2', { profile: 'expression' }), false, SECURE_TEXT_PROFILE_REASONS.expression);
   assert.equal(await grades('2A/h-b_2', '2A/h-b_2', { profile: 'expression' }), true, 'typed text is read');
-  assert.equal(await grades('\\log_2\\left(32\\right)=5', 'log_2(32)=5', { profile: 'equation' }), false, SECURE_TEXT_PROFILE_REASONS.equation);
-  assert.equal(await grades('log_2(32)=5', 'log_2(32)=5', { profile: 'equation' }), true, 'typed text is read');
+  assert.equal(await grades('h=\\frac{2A}{b}', 'h=2A/b', { profile: 'equation' }), false, SECURE_TEXT_PROFILE_REASONS.equation);
+  assert.equal(await grades('h=2A/b', 'h=2A/b', { profile: 'equation' }), true, 'typed text is read');
+  // An earlier reason, gone: the grader reads a named function's backslash (GR34).
+  assert.equal(await grades('\\log_2\\left(32\\right)=5', 'log_2(32)=5', { profile: 'equation' }), true, 'the editor\'s \\log is read as log');
   assert.deepEqual(Object.keys(SECURE_TEXT_PROFILE_REASONS).sort(), ['equation', 'expression']);
 });
 

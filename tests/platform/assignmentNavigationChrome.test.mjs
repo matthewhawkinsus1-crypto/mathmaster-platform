@@ -26,7 +26,7 @@ test('Show progress and Focus view keep the work where it was', async () => {
   const keep = region(source, 'useLayoutEffect(() => {\n    const anchor = navigationToggleAnchorRef.current;', '}, [assignmentNavigationCollapsed]);', 'the work anchor');
   assert.match(keep, /const moved = anchor\.element\.getBoundingClientRect\(\)\.top - anchor\.top;/);
   assert.match(keep, /window\.scrollBy\(\{ top: moved/);
-  assert.match(source, /import \{ Fragment, Suspense, useCallback, useEffect, useLayoutEffect,/);
+  assert.match(source, /^import \{[^}]*\buseLayoutEffect\b[^}]*\} from 'react';$/m);
   const nav = region(source, '<nav ref={stickyHeightRef(ASSIGNMENT_NAV_HEIGHT_VAR)}', '</nav>', 'the navigator');
   assert.match(nav, /onClick=\{toggleAssignmentNavigation\}/);
 });

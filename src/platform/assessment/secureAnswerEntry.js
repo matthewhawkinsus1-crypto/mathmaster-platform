@@ -60,7 +60,9 @@ export const SECURE_MATH_EDITOR_PROFILES = Object.freeze(['number', 'set', 'inte
 /** Profiles kept on typed text, with the reason the round-trip test pins. */
 export const SECURE_TEXT_PROFILE_REASONS = Object.freeze({
   expression: 'the grader does not read the editor\'s division binding the way it reads typed text (\\frac{2A}{h}-b_2 vs 2A/h-b_2)',
-  equation: 'the grader keeps the backslash of a named function the editor writes (\\log_2\\left(32\\right)=5 vs log_2(32)=5)',
+  // The named-function backslash (\log_2\left(32\right)=5) is read since
+  // GR34; the division binding is the reason that is left.
+  equation: 'the grader does not read the editor\'s division binding the way it reads typed text (h=\\frac{2A}{b} vs h=2A/b)',
 });
 
 /*
