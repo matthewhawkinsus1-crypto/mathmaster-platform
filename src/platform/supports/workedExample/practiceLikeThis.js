@@ -17,11 +17,13 @@
  * A verdict is given only when it can be trusted. Each part is compared with
  * the platform's own answer matcher (compareMathAnswer, the one that grades
  * multi-answer fields), then, for an expression or an equation, by value at
- * sample points. A part said in words ("rises, then falls", "6 units to the
- * left"), a roster with an ellipsis, a mapping, or a line named by two of its
- * points (any two points would do) is never marked right or wrong: the
- * student compares it with the worked solution. A sibling with no part that
- * can be checked is still offered, as "work it, then compare".
+ * sample points; a line named by two of its points takes any two points of
+ * that line, or its equation (checkLine, #520). A part said in words
+ * ("rises, then falls", "6 units to the left"), a roster with an ellipsis or a
+ * mapping is never marked right or wrong: the student compares it with the
+ * worked solution. A sibling with no part that can be checked is still
+ * offered, as "work it, then compare". Kept as built (the owner, October
+ * 2026, FB07): a verdict on those would be a guess.
  *
  * NOTHING HERE IS RECORDED. This module returns values; the component that
  * shows it (PracticeLikeThis.jsx) keeps the student's boxes in its own state
