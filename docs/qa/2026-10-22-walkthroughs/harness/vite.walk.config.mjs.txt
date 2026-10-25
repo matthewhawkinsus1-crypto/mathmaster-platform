@@ -1,8 +1,16 @@
-// Walkthrough only (untracked): the project's config, plus the symlinked
-// node_modules' real folder on Vite's serve allow-list (MathLive's KaTeX fonts).
+// Walkthrough only (untracked): the project's config, plus the real folder of a
+// symlinked node_modules on Vite's serve allow-list (MathLive's KaTeX fonts).
+// The folder is found from this checkout, so the file runs on any machine (it once
+// named one person's home directory: CI10, D-81).
+import { existsSync, realpathSync } from 'node:fs';
+import path from 'node:path';
 import { mergeConfig } from 'vite';
 import base from './vite.config.js';
+
+const modules = path.join(process.cwd(), 'node_modules');
+const realModules = existsSync(modules) ? realpathSync(modules) : modules;
+
 export default async (env) => {
   const resolved = typeof base === 'function' ? await base(env) : base;
-  return mergeConfig(resolved, { server: { fs: { allow: [process.cwd(), '/home/matthewhawkinsus1/mathmaster-claude-secure-test-20261012/node_modules'] } } });
+  return mergeConfig(resolved, { server: { fs: { allow: [process.cwd(), realModules] } } });
 };
