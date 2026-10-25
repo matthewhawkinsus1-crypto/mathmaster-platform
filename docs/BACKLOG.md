@@ -447,13 +447,19 @@ different assignment still gets the old dashboard banner.
 
 - ~~Whether challenge performance counts as mastery evidence.~~ Decided and
   built: it counts, weighted 0.7, aggregated per standard.
-- Whether a student who never joined should get a 0% or no record. Currently no
-  record — an absence is an attendance question, which the teacher reconciles,
-  and a 0% would make it indistinguishable from a student who sat through the
-  game and answered nothing.
+- ~~Whether a student who never joined should get a 0% or no record.~~ Decided
+  (owner, October 2026, LC25): no record — an absence is an attendance
+  question, which the teacher reconciles, and a 0% would make it
+  indistinguishable from a student who sat through the game and answered
+  nothing.
 
 ### Run a challenge at the DOL phase
-**Status:** open · with a caveat worth taking seriously
+**Status:** decided · not as a graded DOL (owner, October 2026, LC24)
+
+Not built. A graded, timed game puts speed pressure on the exit ticket, and a
+student with extended time cannot be given more time in a race without
+changing the race (the real-time exception stays, LC17). If it is ever built,
+it takes the shape below: diagnostic, nothing in the gradebook.
 
 Mechanically the same idea, and the DOL window and single attempt fit a game
 well. But a DOL is **graded**, and putting speed pressure on a graded exit
