@@ -259,3 +259,24 @@ test('round 2: Complex Plane rotation does not state the rotation rule on a DOL'
     assert.ok(!(await renderTool(load, '/src/tools/complexPlane/ComplexPlaneLab.jsx', question, DOL)).includes(RULE));
   });
 });
+
+// TL21 (owner decision): the free "How to do this" steps of the linear and
+// matrix systems asked for the decision AND named the way to make it ("Compare
+// the two slopes…", "Work out the determinant…"), the strategy rung of the
+// recorded hints. They now ask only for the decision; the method stays in the
+// hint ladders, where using it is recorded.
+test('TL21: the linear and matrix systems steps say what to decide, not how', () => {
+  const source = code('src/tools/systemsWorkspace/SystemsWorkspace.jsx');
+  const steps = region(source, 'const MODE_STEPS = {', '\n};', 'MODE_STEPS');
+  const list = (key) => steps.match(new RegExp(`^\\s*${key}: \\[(.*)\\],$`, 'm'))?.[1] || '';
+  for (const key of ['linear', 'matrix']) {
+    assert.ok(list(key), `${key}: the step list is found`);
+    assert.match(list(key), /'Decide how many solutions the system has: exactly one, none, or infinitely many\.'/, `${key}: the decision is asked for`);
+  }
+  assert.doesNotMatch(list('linear'), /slope/i, 'linear: no step names the slopes');
+  assert.doesNotMatch(list('matrix'), /determinant|a₁₁a₂₂/i, 'matrix: no step names the determinant');
+  // The method is still offered, in each mode's recorded hints.
+  const hintsOf = (mode, next) => region(region(source, `function ${mode}(`, `function ${next}(`, mode), '<HintPanel', 'onHintUsed', `${mode} hints`);
+  assert.match(hintsOf('LinearMode', 'InequalityMode'), /'Compare the slopes\. Different slopes cross exactly once\./);
+  assert.match(hintsOf('MatrixMode', 'SystemsWorkspace'), /'Compute a₁₁a₂₂ − a₁₂a₂₁\. If it is not zero there is one solution/);
+});

@@ -899,8 +899,16 @@ const MODE_TASKS = {
   spatial: 'Explore the three planes for this system: rotate the model, show or hide each plane, and see how they relate.',
 };
 
+// THE STEPS SAY WHAT TO DO, NOT HOW TO DECIDE (TL21, owner decision). They
+// are free — folded under "How to do this", recorded nowhere — so a step that
+// names the way to make the decision the item measures hands over the
+// strategy rung of the recorded hints. "Compare the two slopes to decide how
+// many solutions there can be" (linear) and "Work out the determinant to
+// decide the number of solutions" (matrix) did exactly that; they now ask for
+// the decision, and the method stays in the hints, where using it is recorded.
+// The other steps are process (rewrite the rows, read the crossing, check it).
 const MODE_STEPS = {
-  linear: ['Compare the two slopes to decide how many solutions there can be.', 'If the lines cross, read the crossing point off the graph.', 'Check your point by substituting it into both equations.'],
+  linear: ['Decide how many solutions the system has: exactly one, none, or infinitely many.', 'If the lines cross, read the crossing point off the graph.', 'Check your point by substituting it into both equations.'],
   // The process only: which points lie on each line, and what the two lines
   // show, are the decisions being assessed.
   linearConstruct: ['Use each equation to find two points on its line, and type them or tap them on the graph.', 'Look at your two lines: decide how many solutions the system has.', 'If they cross, read the crossing point and enter it, then check your graph.'],
@@ -909,7 +917,7 @@ const MODE_STEPS = {
   // the decisions being assessed; they stay in the recorded hints.
   inequalitiesConstruct: ['Find two points on each boundary line, and type them or tap them on the graph.', 'Decide whether each boundary is solid or dashed.', 'Decide which side of each boundary to shade, then check your graph.'],
   linearQuadratic: ['Count how many times the two graphs actually meet.', 'Set the expressions equal and solve for each x.', 'Substitute each x back to get its y.'],
-  matrix: ['Rewrite each row as an equation.', 'Work out the determinant to decide the number of solutions.', 'Solve for x and y if there is exactly one.'],
+  matrix: ['Rewrite each row as an equation.', 'Decide how many solutions the system has: exactly one, none, or infinitely many.', 'Solve for x and y if there is exactly one.'],
   matrix3: ['Read the 3×4 augmented matrix.', 'Use the matrix-technology RREF command.', 'Interpret the reduced rows to classify the system and read x, y, and z.'],
   algebraic: ['Choose (or use the assigned) method and decide which variable to work with first.', 'Solve each one-variable equation with the algebra solver, then substitute back.', 'State the ordered pair and verify it in both original equations.'],
   algebraic3: ['Choose substitution or elimination, then choose your first move — nothing is suggested for you.', 'Reduce the system to a 2×2, then solve it.', 'Work back to the third value and verify all three in every original equation.'],
