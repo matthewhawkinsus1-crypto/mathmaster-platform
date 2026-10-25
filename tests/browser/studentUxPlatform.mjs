@@ -53,7 +53,14 @@
 //   keypad-short  390×664 and 375×667: typing in a staged Work View with the
 //                 number keypad up folds the chrome so the step keeps ≥140px
 //                 and the box being typed into is wholly on screen; Done
-//                 unfolds it; at 390×844 the chrome does not fold.
+//                 unfolds it; at 390×844 the chrome does not fold; and on a
+//                 768×1024 tablet the row of actions sits above the keys.
+//   rail          where Graphing 2's seven Work View actions sit (PH08, PH11):
+//                 on a phone on its side, all on screen at 844×390, 740×360
+//                 and 667×375, and with two more the rail scrolls and shows a
+//                 soft edge; on a tablet held upright (744×1133 to 1024×1366)
+//                 a row under the work, which has the whole width; on a tablet
+//                 on its side and a Chromebook the rail beside it.
 //
 // Exit code 1 on any finding. Screenshots: tests/browser/artifacts/studentUxPlatform/.
 
@@ -788,7 +795,9 @@ const JOURNEYS = {
     // it does on a phone held sideways. At 390×664 the regular chrome left the
     // step 28px and the box being typed into 16px on screen (PQ-037). A taller
     // phone keeps the regular chrome with the keypad up.
-    for (const [width, height, folds] of [[390, 664, true], [375, 667, true], [390, 844, false]]) {
+    // A tablet held upright (768×1024, PH11) has its actions in a row under the
+    // work, and with the keypad up that row sits directly above the keys.
+    for (const [width, height, folds] of [[390, 664, true], [375, 667, true], [390, 844, false], [768, 1024, false]]) {
       const where = `${width}×${height}`;
       const context = await browser.newContext({ viewport: { width, height }, hasTouch: true, isMobile: true });
       const page = await context.newPage();
@@ -804,9 +813,12 @@ const JOURNEYS = {
         const keys = document.querySelector('.mathmaster-mobile-numeric-keypad')?.getBoundingClientRect();
         const box = document.activeElement?.matches?.('input') ? document.activeElement.getBoundingClientRect() : null;
         const hit = box ? document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2) : null;
+        const row = host.querySelector('.mathmaster-work-view-actions')?.getBoundingClientRect();
         return {
           height: host.dataset.height,
           body: Math.round(body.height),
+          // The row of actions is not under the keys (a side rail has no row to be under).
+          rowClear: !keys || !row || host.dataset.controls !== 'bottom' || row.bottom <= keys.top + 1,
           box: box ? `${Math.round(box.top)}-${Math.round(box.bottom)}` : null,
           boxShown: Boolean(box && box.top >= body.top - 1 && box.bottom <= body.bottom + 1
             && (!keys || box.bottom <= keys.top + 1) && hit && (hit === document.activeElement || document.activeElement.contains(hit))),
@@ -829,6 +841,7 @@ const JOURNEYS = {
         check(typing.height === 'regular', `${where}: keypad up, the chrome folded although ${height - 274}px are left above the keys`);
       }
       check(typing.boxShown, `${where}: the box being typed into is not wholly on screen (${typing.box}, step ${typing.body}px)`);
+      check(typing.rowClear, `${where}: the row of actions is under the keypad`);
       if (width === 390 && height === 664) await shot(page, 'keypad-short-390x664');
       await page.locator('.mathmaster-keypad-done').tap();
       await settle(page, 500);
@@ -892,6 +905,60 @@ const JOURNEYS = {
       });
       check(reached.bottom <= reached.inner + 1 && reached.top >= 0, `${where}: scrolling the rail does not bring its last action fully on screen (${JSON.stringify(reached)})`);
       await shot(page, `rail-${width}x${height}`);
+      await context.close();
+    }
+
+    // PH11 (A2-50): a tablet held upright has height to spare and no width. At
+    // 820×1180 a 240px rail down the right held seven buttons and was blank under
+    // them, and the plane had 580px. Upright, the actions are a row under the work,
+    // which has the whole width; on its side and on a Chromebook the rail stays.
+    const TABLETS = [
+      [744, 1133, 'bottom'], [768, 1024, 'bottom'], [820, 1180, 'bottom'], [834, 1194, 'bottom'], [1024, 1366, 'bottom'],
+      [1024, 768, 'side'], [1180, 820, 'side'], [1366, 768, 'side'],
+    ];
+    for (const [width, height, want] of TABLETS) {
+      const touch = width < 1366;
+      const context = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch });
+      const page = await context.newPage();
+      await open(page, 'ux-graph2');
+      await page.locator('.mathmaster-work-view-host[data-open="false"] > .mathmaster-work-view-body > .mathmaster-work-view-surface > button', { hasText: /Enlarge|Open Work View/ }).first().click();
+      await settle(page, 1500);
+      const where = `${width}×${height}`;
+      const seen = await page.evaluate(() => {
+        const host = document.querySelector('.mathmaster-work-view-host[data-open="true"]');
+        const rail = host?.querySelector('.mathmaster-work-view-actions');
+        const surface = host?.querySelector('.mathmaster-work-view-surface');
+        if (!host || !rail || !surface) return null;
+        const box = (element) => { const r = element.getBoundingClientRect(); return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height }; };
+        const buttons = [...rail.querySelectorAll('button')].filter((button) => button.getBoundingClientRect().width > 0).map(box);
+        const caption = rail.querySelector('.mathmaster-work-view-capabilities');
+        return {
+          layout: host.dataset.layout,
+          controls: host.dataset.controls,
+          rail: box(rail),
+          surface: box(surface),
+          count: buttons.length,
+          outside: buttons.filter((button) => button.left < -0.5 || button.right > innerWidth + 0.5 || button.bottom > innerHeight + 0.5).length,
+          captionShown: Boolean(caption && getComputedStyle(caption).display !== 'none' && caption.getBoundingClientRect().height > 0),
+          sideways: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          inner: { width: innerWidth, height: innerHeight },
+        };
+      });
+      if (!check(seen, `${where}: Work View did not open`)) { await context.close(); continue; }
+      check(seen.layout === 'desktop', `${where}: a tablet is the full view, not the phone's (${seen.layout})`);
+      check(seen.controls === want, `${where}: the actions are on the ${seen.controls}, want ${want}`);
+      check(seen.count >= 6 && seen.outside === 0, `${where}: ${seen.outside} of Graphing 2's ${seen.count} actions are off the screen`);
+      check(seen.sideways <= 1, `${where}: ${seen.sideways}px of sideways scroll with Work View open`);
+      if (want === 'bottom') {
+        check(seen.rail.width >= seen.inner.width - 1, `${where}: the row is ${Math.round(seen.rail.width)}px of a ${seen.inner.width}px screen`);
+        check(seen.rail.top >= seen.surface.bottom - 1, `${where}: the row (top ${Math.round(seen.rail.top)}) sits over the work (bottom ${Math.round(seen.surface.bottom)})`);
+        check(seen.surface.width >= seen.inner.width - 2, `${where}: the work is ${Math.round(seen.surface.width)}px of a ${seen.inner.width}px screen, want all of it`);
+        check(seen.rail.height <= seen.inner.height * 0.25 + 1, `${where}: the row takes ${Math.round(seen.rail.height)}px of ${seen.inner.height}`);
+        check(seen.captionShown, `${where}: the line saying what the view does is missing from the row`);
+      } else {
+        check(seen.rail.width <= 260 && seen.surface.right <= seen.rail.left + 1, `${where}: the rail (${Math.round(seen.rail.width)}px) is not beside the work`);
+      }
+      await shot(page, `rail-tablet-${width}x${height}`);
       await context.close();
     }
   },

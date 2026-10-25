@@ -169,6 +169,11 @@
 
 [data-open="true"][data-controls="bottom"] .mathmaster-work-view-actions button { flex: 0 0 auto; white-space: nowrap; }
 
+/* On a tablet held upright the row has the room for the caption (a phone's
+   hides it, below): a line of its own under the buttons, not a flex item
+   between them (PH11). */
+[data-open="true"][data-controls="bottom"] .mathmaster-work-view-capabilities { flex: 1 0 100%; margin: 2px 0 0; text-align: center; }
+
 /* The in-page numeric keypad is fixed above the app. Reserve its actual box in
    Work View regardless of whether a touch device happens to cross the 720px
    Work View breakpoint. A 768px tablet is "desktop" to the Work View layout

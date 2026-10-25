@@ -7,6 +7,13 @@ export const WORK_VIEW_MOBILE_MAX = 720;
 // height it would have cost goes to the graph instead.
 export const WORK_VIEW_SHORT_MAX = 460;
 
+// A tablet held upright (an iPad: 744 to 1024 wide, 1133 to 1366 tall) has the
+// opposite problem: height to spare and width in short supply. A 240px side
+// rail took 29% of an 820px screen for seven buttons and left the lower part
+// of the rail and of the screen blank (PH11, A2-50), so the actions run along
+// the bottom as on a phone, with a tablet's full labels.
+export const WORK_VIEW_PORTRAIT_TABLET_MAX = 1100;
+
 // How much of the window the software keyboard has to take before we call it
 // open. A quarter is well clear of the few dozen pixels a collapsing URL bar
 // moves, and well under the third-to-half a keyboard actually takes.
@@ -32,8 +39,10 @@ export function resolveWorkViewLayout({ width, height, visualHeight = height, of
   const landscape = safeWidth > layoutHeight;
   // A short landscape phone keeps a rail — height is the scarce dimension there
   // and buttons must not spend it. Everything else compact gets the bottom row,
-  // and a Chromebook or desktop keeps the side rail it has.
-  const bottomRow = compact && !(landscape && layoutHeight <= WORK_VIEW_SHORT_MAX);
+  // and so does a tablet held upright (PH11). A Chromebook, a desktop and a
+  // tablet on its side keep the side rail they have.
+  const uprightTablet = !landscape && safeWidth <= WORK_VIEW_PORTRAIT_TABLET_MAX;
+  const bottomRow = (compact && !(landscape && layoutHeight <= WORK_VIEW_SHORT_MAX)) || uprightTablet;
   /*
    * SHORT: THE CHROME FOLDS INTO TWO ROWS.
    *
