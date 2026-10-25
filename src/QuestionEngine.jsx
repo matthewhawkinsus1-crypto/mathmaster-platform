@@ -104,6 +104,7 @@ import { questionAssessmentFramework } from './platform/student/questionAlignmen
 import { normalizeQuestionStandards } from './questionMetadata';
 import ReferenceInfoCard from './ReferenceInfoCard';
 import { resolveReferenceInfo } from './referenceInfo';
+import { resolveReferenceSheet } from './platform/assessment/referenceSheets';
 import {
   getAttemptsRemaining,
   normalizeQuestionRecord,
@@ -142,6 +143,10 @@ const GraphingCalculatorUnavailable = ({ fallback = null, onUnavailable = null }
 };
 const AssignmentGraphingCalculator = lazy(() => import('./components/calculator/AssignmentGraphingCalculator.jsx')
   .catch(() => ({ default: GraphingCalculatorUnavailable })));
+// A question's reference sheet (TL07) loads only for a question that names one
+// the platform has, so every other question downloads nothing for it.
+const AssignmentReferenceSheet = lazy(() => import('./components/assessment/AssignmentReferenceSheet.jsx')
+  .catch(() => ({ default: () => null })));
 
 const WorkViewReadySignal = ({ span }) => {
   useEffect(() => {
@@ -453,6 +458,8 @@ function QuestionEngineBody({
   );
   const questionGradeWeight = normalizeQuestionWeight(processedQuestion);
   const referenceInfo = useMemo(() => resolveReferenceInfo(processedQuestion), [processedQuestion]);
+  // The sheet this question offers from the work bar, if any (referenceSheets.js).
+  const referenceSheet = useMemo(() => resolveReferenceSheet(processedQuestion), [processedQuestion]);
   const presentationQuestion = useMemo(
     () => (referenceInfo ? { ...processedQuestion, suppressScenarioDisplay: true } : processedQuestion),
     [processedQuestion, referenceInfo],
@@ -608,6 +615,7 @@ function QuestionEngineBody({
   const [contextScaffoldUsed, setContextScaffoldUsed] = useState(false);
   const [calculatorUsed, setCalculatorUsed] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
+  const [referenceSheetOpen, setReferenceSheetOpen] = useState(false);
   const [hintUsed, setHintUsed] = useState(restoredSupport.hintUsed);
   // The platform Hint control: how many of this question's hints the student
   // has revealed, whether the panel is open, and the worked sibling problem.
@@ -771,6 +779,7 @@ function QuestionEngineBody({
     setContextScaffoldUsed(false);
     setCalculatorUsed(false);
     setCalculatorOpen(false);
+    setReferenceSheetOpen(false);
     setHintUsed(restored.hintUsed);
     setHintsRevealed(restored.hintsRevealed);
     setRevealedHintTexts([]);
@@ -1757,6 +1766,7 @@ function QuestionEngineBody({
       setWorkflowGuidanceState(null);
       setUnchangedConfirmOpen(false);
       setCalculatorOpen(false);
+      setReferenceSheetOpen(false);
 
       // Drop stale Undo owners before remounting the response module. The new
       // tool registers its own fresh controller after it mounts.
@@ -2612,6 +2622,18 @@ function QuestionEngineBody({
           ? <><CalculatorIcon /><span className="mathmaster-action-label"> {calculatorName}</span></>
           : <><CalculatorIcon unavailable /><span className="mathmaster-action-label"> Calculator</span></>}
       </button>}
+      {referenceSheet ? (
+        <button
+          type="button"
+          className="mathmaster-work-bar-tool"
+          aria-haspopup="dialog"
+          aria-expanded={referenceSheetOpen}
+          onClick={() => setReferenceSheetOpen((open) => !open)}
+          style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid var(--mm-tint-border)', background: referenceSheetOpen ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: 'pointer' }}
+        >
+          <span aria-hidden="true">📐</span><span className="mathmaster-action-label"> {referenceSheet.buttonLabel || 'Reference sheet'}</span>
+        </button>
+      ) : null}
       {helpControlAvailable && (
         // A raised hand shows here too, not only inside the closed panel
         // (FB18): a ✋ and a "Hand up" caption that stays even where the work
@@ -3500,6 +3522,12 @@ function QuestionEngineBody({
           </Suspense>
         ) : keypadCalculator;
       })()}
+
+      {referenceSheet ? (
+        <Suspense fallback={null}>
+          <AssignmentReferenceSheet sheet={referenceSheet} open={referenceSheetOpen} onOpenChange={setReferenceSheetOpen} roomRef={questionEngineRef} />
+        </Suspense>
+      ) : null}
 
       {unchangedConfirmOpen && (
         <div role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setUnchangedConfirmOpen(false)} data-unchanged-confirm="" style={{ position: 'fixed', inset: 0, zIndex: UNCHANGED_CONFIRM_Z_INDEX, background: 'rgba(32,33,36,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>

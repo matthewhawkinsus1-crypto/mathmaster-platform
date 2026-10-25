@@ -181,3 +181,14 @@ test('the secure exam results model is not in the first load (only its skill nam
   }
   assert.ok(graph.has(path.join(repo, 'src/platform/assessment/studentSkillName.js')), 'the skill names the card uses are');
 });
+
+// A question's reference sheet (TL07) comes with the question runtime. Its
+// registry holds the sheets' formulas as data, so it grows with each sheet
+// registered: it must stay where QuestionEngine is, and the panel (a lazy chunk
+// of its own) must never be a static import of anything a student loads first.
+test('the reference sheet registry and its panel are not in the first load', () => {
+  for (const file of ['src/platform/assessment/referenceSheets.js', 'src/components/assessment/AssignmentReferenceSheet.jsx']) {
+    const key = path.join(repo, file);
+    assert.ok(!graph.has(key), `${file} is in the first load: ${graph.has(key) ? chainTo(graph, key) : ''}`);
+  }
+});

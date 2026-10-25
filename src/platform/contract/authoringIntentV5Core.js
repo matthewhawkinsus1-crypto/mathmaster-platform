@@ -183,7 +183,9 @@ const copyCommon = (source, target = {}) => {
   // `scaffold` ({ prompt, options: [two], correct }) is the item's own "Let's
   // back up" step for an inclusion student after two misses (backUpStep.js);
   // it was dropped here, so no authored step ever reached a student.
-  ['scaffold','prompt','activityRole','dok','difficultyBand','purpose','evidenceWeight','differentiation','calculator','calculatorPolicy','examCalculatorMode','assessmentContext','context','familyId','familyVersion','assessedConstruct','taskType','representation','ccmrChallengeTier','ccmrFamilyRole','ccmrAuthenticLanguage','assessmentItemFormat','ccmrSource','solutionReview','attemptFeedback','misconceptions','supportHints','hints','hint','guidedNotes','guidedSteps','referenceInfo','representSolution','solutionRepresentations','representationAsk','showEquation'].forEach((key) => {
+  // `referenceSheet` ("staarAlgebra1") names a sheet the work bar offers (TL07,
+  // referenceSheets.js); a compiler that dropped it would leave the button off.
+  ['scaffold','prompt','activityRole','dok','difficultyBand','purpose','evidenceWeight','differentiation','calculator','calculatorPolicy','examCalculatorMode','assessmentContext','context','familyId','familyVersion','assessedConstruct','taskType','representation','ccmrChallengeTier','ccmrFamilyRole','ccmrAuthenticLanguage','assessmentItemFormat','ccmrSource','solutionReview','attemptFeedback','misconceptions','supportHints','hints','hint','guidedNotes','guidedSteps','referenceInfo','referenceSheet','representSolution','solutionRepresentations','representationAsk','showEquation'].forEach((key) => {
     if (source[key] != null) target[key] = source[key];
   });
   // Canonical V5 questions keep the normalized mathematical intent that chose
