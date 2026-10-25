@@ -281,6 +281,66 @@ test('when a missing install is the only failure, there is nothing else to read'
 // A run killed part-way (here, by another job's `pkill -f "node --test …"` on
 // the same machine) printed 9,816 passes, no failures and no summary, and
 // exited 0: `process.exit(null)`.
+// CI15 (A1-70): a test marked todo that fails is "not yet", not a failure. Node
+// prints `not ok N - name # TODO` for it, counts it under `# todo` and exits 0.
+const TODO_TAP = `TAP version 13
+not ok 1 - a todo that fails # TODO
+  ---
+  duration_ms: 1.1
+  type: 'test'
+  location: '/repo/tests/platform/a.test.mjs:3:1'
+  failureType: 'testCodeFailure'
+  error: 'later'
+  code: 'ERR_TEST_FAILURE'
+  ...
+not ok 2 - a todo with a reason that fails # TODO when the key is decided
+  ---
+  error: 'later'
+  ...
+ok 3 - a todo that passes # TODO soon
+ok 4 - a skipped test # SKIP no emulator
+not ok 5 - a real failure
+  ---
+  location: '/repo/tests/platform/a.test.mjs:9:1'
+  failureType: 'testCodeFailure'
+  error: 'now'
+  code: 'ERR_TEST_FAILURE'
+  ...
+not ok 6 - the fix for #612 holds
+  ---
+  error: 'now'
+  ...
+`;
+
+test('a failing todo is not a failure, a failing test beside it still is', () => {
+  assert.deepEqual(parseFailures(TODO_TAP).map((failure) => failure.name), ['a real failure', 'the fix for #612 holds'], 'a # in a title is not a directive');
+  assert.deepEqual(parseFailures('not ok 1 - a todo that fails # TODO\nok 2 - fine\n').map((failure) => failure.name), []);
+});
+
+test('the command agrees with node: a suite whose only red test is a todo exits 0 and explains nothing', { timeout: 120_000 }, () => {
+  const scratch = mkdtempSync(path.join(os.tmpdir(), 'mm-explain-'));
+  try {
+    writeFileSync(path.join(scratch, 'todo.test.mjs'), `import test from 'node:test';
+test('later', { todo: 'when the key is decided' }, () => { throw new Error('not yet'); });
+test('fine', () => {});
+`);
+    const result = runExplainer([path.join(scratch, 'todo.test.mjs')]);
+    const output = `${result.stdout}\n${result.stderr}`;
+    assert.equal(result.status, 0, output);
+    assert.doesNotMatch(output, /HOW TO READ THESE/);
+    writeFileSync(path.join(scratch, 'real.test.mjs'), `import test from 'node:test';
+test('later', { todo: true }, () => { throw new Error('not yet'); });
+test('broken', () => { throw new Error('now'); });
+`);
+    const failing = runExplainer([path.join(scratch, 'real.test.mjs')]);
+    const failingOutput = `${failing.stdout}\n${failing.stderr}`;
+    assert.notEqual(failing.status, 0);
+    assert.match(failingOutput, /HOW TO READ THESE 1 FAILURE\b/, 'only the real failure is counted');
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 test('a run stopped by a signal never exits 0', () => {
   assert.equal(suiteExitCode({ code: 0, signal: null }), 0);
   assert.equal(suiteExitCode({ code: 1, signal: null }), 1);

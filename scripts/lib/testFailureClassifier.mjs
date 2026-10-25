@@ -219,6 +219,11 @@ export const parseFailures = (tap) => {
   lines.forEach((line, index) => {
     const match = /^not ok \d+ - (.*)$/.exec(line.trim());
     if (!match) return;
+    // A test marked todo that fails is the runner's own "not yet": node counts it
+    // under `# todo`, exits 0, and prints `not ok N - name # TODO`. It is no
+    // failure to explain, and counting it made `npm run test:platform` exit 1 on
+    // a suite `node --test` passes (CI15, A1-70).
+    if (/\s#\s*(TODO|SKIP)\b/i.test(match[1])) return;
     /*
      * Each failure's diagnostic block is bounded by the NEXT test result line,
      * not by a fixed window or the YAML terminator. A fixed window misses
