@@ -7,11 +7,13 @@
  *   node scripts/apply-upward-regrade.mjs --project <id> --from <report.json>... --apply --actor <email>
  *
  * First run the read-only count — scripts/report-classroom-regrade-candidates.mjs,
- * or the assignments surface of scripts/report-grader-gaps-2-regrade.mjs — and
+ * or the assignments surface of scripts/report-grader-gaps-2-regrade.mjs, or
+ * the classroom surface of scripts/report-sat-factor-regrade.mjs (GR23) — and
  * read it. This step takes that report's JSON detail and, for each classroom
  * attempt it listed for raising, reads the student's records again and raises
  * the grade only when scripts/lib/upwardRegrade.mjs says so: marked wrong,
- * right now under the platform's own replay, and no teacher decision on it.
+ * right now under the platform's own replay (a GR23 row: the option chosen is
+ * a factor of the polynomial shown), and no teacher decision on it.
  * It never lowers a grade, and it never touches an attempt the report says a
  * teacher must look at. Secure Test Cycle work and My Math Path are not
  * classroom attempts: their rows are left out and counted.
@@ -60,8 +62,9 @@ const USAGE = `Re-grade upward only (decision D8): raise the classroom answers a
 With no --apply this is a DRY RUN: it reads and plans, and writes nothing.
 
   --project <id>    Firebase project (required; there is no default)
-  --from <path>     the JSON detail of report-classroom-regrade-candidates.mjs or
-                    report-grader-gaps-2-regrade.mjs (repeatable; at least one)
+  --from <path>     the JSON detail of report-classroom-regrade-candidates.mjs,
+                    report-grader-gaps-2-regrade.mjs or report-sat-factor-regrade.mjs
+                    (repeatable; at least one)
   --apply           write the plan (asks you to type the project id)
   --actor <email>   who is running it; recorded in the audit (required with --apply)
   --yes             skip the typed project id; refused unless FIRESTORE_EMULATOR_HOST is set

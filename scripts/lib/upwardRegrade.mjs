@@ -3,7 +3,9 @@
  *
  * "Run the read-only count, then re-grade upward only." The counts are
  * scripts/report-classroom-regrade-candidates.mjs and the assignments surface
- * of scripts/report-grader-gaps-2-regrade.mjs. scripts/apply-upward-regrade.mjs
+ * of scripts/report-grader-gaps-2-regrade.mjs, and, for the defective Digital
+ * SAT factor draws (GR23, D22), the classroom surface of
+ * scripts/report-sat-factor-regrade.mjs. scripts/apply-upward-regrade.mjs
  * applies what one of them listed, and this module decides, for one classroom
  * attempt read fresh from Firestore, whether it may be raised and what is
  * written. Pure: no Firestore, no clock (both are passed in).
@@ -13,7 +15,8 @@
  *     below 100, and the verdict its evidence recorded is not right;
  *   - the platform's own replay (responseInspector.replayStoredResponse, the
  *     one "Apply Corrected Grade" uses) marks the same stored response right,
- *     against the question it was graded on;
+ *     against the question it was graded on (for a GR23 row: the option
+ *     chosen is a factor of the polynomial that instance showed);
  *   - the evidence is for that very attempt (trustedEvidence: the check
  *     functions/index.js trustedResponseInspectionEvidence makes);
  *   - no teacher has decided it: no override of this question that applies to
@@ -44,6 +47,7 @@ import {
 import { zonedDateKey } from '../../functions/shared/instructionalCalendar.mjs';
 import { SCHOOL_TIME_ZONE } from '../../functions/shared/sectionDeadline.mjs';
 import { questionWasAttempted, trustedEvidence } from './classroomRegradePlan.mjs';
+import { judgeClassroomFactorAttempt } from './satFactorRegradePlan.mjs';
 
 const functionsRequire = createRequire(new URL('../../functions/package.json', import.meta.url));
 const { runtimeQuestionsFromAssignment, runtimeIncludedQuestionIndicesForSection } = functionsRequire('./lib/assignmentRuntime.js');
@@ -58,6 +62,19 @@ export const UPWARD_REGRADE_REASON = 'Platform/grader issue';
 export const UPWARD_REGRADE_NOTE = 'Re-graded up (decision D8): the current grader marks this same answer right.';
 export const UPWARD_REGRADE_ACTOR_UID = 'operator:regrade-upward';
 export const ASSIGNMENT_OVERRIDE_KEY = '__assignment';
+
+/*
+ * THE DEFECTIVE DIGITAL SAT FACTOR DRAWS (GR23, decision D22). Their stored
+ * key is unchanged, so the replay still marks a true factor wrong; the rows
+ * scripts/report-sat-factor-regrade.mjs lists are judged instead by the factor
+ * theorem on the instance the student was served
+ * (satFactorRegradePlan.mjs judgeClassroomFactorAttempt). Every other rule
+ * below is the same.
+ */
+export const SAT_FACTOR_REPORT_TOOL = 'report-sat-factor-regrade';
+export const SAT_FACTOR_REGRADE_NOTE = 'Re-graded up (GR23, decision D22): the option chosen is a factor; this draw offered a true factor as a wrong option.';
+const JUDGE_BY_REPORT = Object.freeze({ [SAT_FACTOR_REPORT_TOOL]: judgeClassroomFactorAttempt });
+const DECISION_BY_REPORT = Object.freeze({ [SAT_FACTOR_REPORT_TOOL]: { decision: 'D22', note: SAT_FACTOR_REGRADE_NOTE } });
 
 /** Why an attempt was left as it is. */
 export const SKIP = Object.freeze({
@@ -113,6 +130,14 @@ export const candidatesFromReports = (reports = []) => {
         else if (change.direction !== 'up') ignore('direction:down');
         else add(change.studentId, change.assignmentId, change.questionIndex, report.tool);
       });
+    } else if (report?.tool === SAT_FACTOR_REPORT_TOOL) {
+      // Its classroom would-be-correct rows; its My Math Path rows are not
+      // classroom attempts.
+      (report.path?.rows || []).forEach(() => ignore('surface:path'));
+      (report.classroom?.attempts || []).forEach((attempt) => {
+        if (attempt?.classification === 'would-be-correct') add(attempt.studentId, attempt.assignmentId, attempt.questionIndex, report.tool);
+        else ignore(`classification:${attempt?.classification || 'none'}`);
+      });
     } else {
       throw new Error(`not a re-grade report this step reads (${text(report?.tool) || 'no tool named'})`);
     }
@@ -167,6 +192,9 @@ export const planUpwardRegrade = ({
   assignment = null,
   gradeData = null,
   evidenceDocument = null,
+  // The report that listed the attempt: a GR23 row is judged by the factor
+  // theorem (JUDGE_BY_REPORT), every other by the platform's replay.
+  from = null,
 } = {}) => {
   const skip = (outcome, extra = {}) => ({ outcome, studentId, assignmentId, questionIndex, ...extra });
   if (!isObject(gradeData)) return skip(SKIP.STUDENT_MISSING);
@@ -195,7 +223,7 @@ export const planUpwardRegrade = ({
   const evidence = trustedEvidence(evidenceDocument, { assignmentId, questionIndex, record });
   if (!evidence) return skip(SKIP.NO_TRUSTED_EVIDENCE, { oldScore });
   if (evidence.automaticResult?.isCorrect === true) return skip(SKIP.ALREADY_RIGHT, { oldScore });
-  const replay = replayStoredResponse({
+  const replay = (JUDGE_BY_REPORT[from] || replayStoredResponse)({
     question,
     record,
     gradingEvidence: evidence,
@@ -215,6 +243,7 @@ export const planUpwardRegrade = ({
     studentId,
     assignmentId,
     questionIndex,
+    from,
     oldScore,
     newScore,
     automaticScore,
@@ -237,12 +266,13 @@ export const planUpwardRegrade = ({
 export const upwardRegradeWrites = async ({ plan, assignment, gradeData, actor = {}, nowIso, runId = null } = {}) => {
   if (plan?.outcome !== 'raise') throw new Error('only a raise plan has writes');
   const { assignmentId, questionIndex, record, tracker, questions, question } = plan;
+  const { decision, note } = DECISION_BY_REPORT[plan.from] || { decision: 'D8', note: UPWARD_REGRADE_NOTE };
   const correction = buildGradeOverride({
     record,
     previousOverride: plan.previousOverride,
     score: plan.newScore,
     reason: UPWARD_REGRADE_REASON,
-    note: UPWARD_REGRADE_NOTE,
+    note,
     actor: { uid: UPWARD_REGRADE_ACTOR_UID, email: text(actor.email) || null, name: text(actor.name) || 'D8 upward re-grade' },
     at: nowIso,
     source: UPWARD_REGRADE_SOURCE,
@@ -291,7 +321,7 @@ export const upwardRegradeWrites = async ({ plan, assignment, gradeData, actor =
       automaticStatus: record.status || null,
       automaticScore: plan.automaticScore,
       overrideActiveAfter: true,
-      decision: 'D8',
+      decision,
       runId,
       replay: plan.replay,
     },
