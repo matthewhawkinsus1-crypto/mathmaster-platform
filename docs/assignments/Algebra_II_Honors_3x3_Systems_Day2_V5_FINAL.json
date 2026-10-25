@@ -222,9 +222,9 @@
           "difficultyBand": 2,
           "dok": 3,
           "equations": [
-            "x + y - z = -1",
-            "x + y + z = 3",
-            "3x - 2y - z = -4"
+            "x + y + z = 5",
+            "x - y + z = 9",
+            "2x + 3y - z = -4"
           ],
           "variables": [
             "x",
