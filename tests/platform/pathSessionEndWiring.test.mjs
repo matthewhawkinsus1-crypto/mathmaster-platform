@@ -66,7 +66,8 @@ test('the review shows the answer once: the key only where the worked solution h
   const recap = executableSource(read('src/components/student/MyMathPathSessionRecap.jsx'));
   const item = region(recap, 'function RecapItem(', '\n}\n', 'recap item');
   assert.match(item, /const correct = withheld \|\| review\?\.answerSummary \? \[\] : \(item\.correctAnswer \|\| \[\]\);/);
-  assert.match(item, /<PathSolutionReview review=\{review\} wasCorrect=\{false\} \/>/);
+  // An h3 under the recap's h2 (MP14; tests/platform/pathSolutionReviewHeading.test.mjs renders it).
+  assert.match(item, /<PathSolutionReview review=\{review\} wasCorrect=\{false\} headingLevel=\{3\} \/>/);
   // The recap asks nothing, so its graphs are described in full (job H).
   assert.match(item, /<PathQuestionStimulus stimulus=\{item\.question\?\.stimulus \|\| null\}(?: describeFeatures)? \/>/);
 });

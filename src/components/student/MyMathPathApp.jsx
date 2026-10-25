@@ -153,6 +153,9 @@ export const MyMathPathExperience = ({
   onSimulationEvent = null,
   readOnly = false,
   initialTab = 'path',
+  // The exam a practice test's "Practise this skill" starts on launchTeksCode
+  // (MP14), or null for ordinary course practice.
+  launchFramework = null,
   // A reload of a session (app/routes/urlArrival.js): the session this tab's
   // history entry recorded, restored exactly as browser Forward restores it.
   initialSessionConfig = null,
@@ -659,12 +662,16 @@ export const MyMathPathExperience = ({
   // prevented the exact skill the student chose from ever retrying. The result
   // was seventeen different recommendation buttons that all behaved like the
   // same generic "open My Math Path" button.
+  // A practice test's link starts that exam's practice (launchFramework), which
+  // fails closed with its own notice where the exam has none published for the
+  // skill; the same skill in two formats is two launches.
   const launchedRef = useRef(null);
   useEffect(() => {
-    if (!launchTeksCode || launchedRef.current === launchTeksCode || !coverageLoaded) return;
-    launchedRef.current = launchTeksCode;
-    startSession(launchTeksCode);
-  }, [launchTeksCode, coverageLoaded, coverage]);
+    const launchKey = launchTeksCode ? `${launchFramework || 'course'}:${launchTeksCode}` : null;
+    if (!launchKey || launchedRef.current === launchKey || !coverageLoaded) return;
+    launchedRef.current = launchKey;
+    startSession(launchTeksCode, launchFramework ? { framework: launchFramework } : {});
+  }, [launchTeksCode, launchFramework, coverageLoaded, coverage]);
 
   const startWeeklySession = (session) => {
     // Not until this week's sessions are known: before then a card may show

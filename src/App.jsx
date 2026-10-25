@@ -868,6 +868,10 @@ function App() {
   const [pathLaunchTeks, setPathLaunchTeks] = useState(null);
   // Which My Math Path tab a "Practise this skill" link from a test review opens.
   const [pathLaunchTab, setPathLaunchTab] = useState(null);
+  // The exam a practice test's "Practise this skill" starts, with the standard
+  // it was set for (MP14): applied only to that same launch, so a later course
+  // launch of any skill is never run in an exam's format.
+  const [pathLaunchFramework, setPathLaunchFramework] = useState(null);
   const [activeAssignmentId, setActiveAssignmentId] = useState(null);
   const [tracker, setTracker] = useState({});
   const [studentOutboxDepth, setStudentOutboxDepth] = useState(0);
@@ -6382,6 +6386,7 @@ function App() {
     setActiveAssignmentId(null);
     if (mode !== 'mathPath') setPathLaunchTeks(null);
     setPathLaunchTab(null);
+    setPathLaunchFramework(null);
     if (mode !== 'testCycle') setActiveTestCycleAssignmentId(null);
     setStudentDashboardMode(mode);
     setActiveView('dashboard');
@@ -6389,13 +6394,14 @@ function App() {
 
   // "Practise this skill" on a released test review or the Test Cycle card:
   // a course standard opens Path practice on it; a practice test's exam
-  // domain opens the CCMR tab (practiceSkillLaunch).
+  // domain starts that exam's practice on the CCMR tab (practiceSkillLaunch).
   const practiseSkillFromResults = (destination) => {
     const launch = practiceSkillLaunch(destination);
     if (!launch) return;
     openStudentDashboardMode('mathPath');
     setPathLaunchTeks(launch.teksCode);
     setPathLaunchTab(launch.tab);
+    setPathLaunchFramework(launch.framework ? { teksCode: launch.teksCode, framework: launch.framework } : null);
   };
 
   const openStudentGradeCenter = () => openStudentDashboardMode('grades');
@@ -6514,6 +6520,11 @@ function App() {
   useEffect(() => {
     if (mathPathArrival && (studentDashboardMode !== 'mathPath' || activeView !== 'dashboard')) setMathPathArrival(null);
   }, [mathPathArrival, studentDashboardMode, activeView]);
+  // So does an exam a results link started (MP14): leaving My Math Path by
+  // any road, Back included, ends it.
+  useEffect(() => {
+    if (pathLaunchFramework && (studentDashboardMode !== 'mathPath' || activeView !== 'dashboard')) setPathLaunchFramework(null);
+  }, [pathLaunchFramework, studentDashboardMode, activeView]);
 
   // Starting a Recovery is the server's decision: it re-checks eligibility,
   // builds the fresh questions and pins them before anything is shown.
@@ -11956,6 +11967,8 @@ function App() {
           studentProfile={adaptiveStudentProfile || user.profile}
           assignments={studentPathAssignments}
           launchTeksCode={pathLaunchTeks}
+          // The exam a practice test's link starts, only for the standard it was set for.
+          launchFramework={pathLaunchFramework && pathLaunchFramework.teksCode === pathLaunchTeks ? pathLaunchFramework.framework : null}
           // A reload of a My Math Path tab or session (app/routes/urlArrival.js),
           // else the tab a launch asked for (pathLaunchTab, job B).
           initialTab={mathPathArrival?.tab || pathLaunchTab || 'path'}
@@ -11966,7 +11979,7 @@ function App() {
           studentRecord={studentRecord}
           serverMasteryProfiles={studentServerMasteryProfiles}
           onNavigate={navigateStudent}
-          onExit={() => { setPathLaunchTeks(null); setPathLaunchTab(null); setStudentDashboardMode('assignments'); }}
+          onExit={() => { setPathLaunchTeks(null); setPathLaunchTab(null); setPathLaunchFramework(null); setStudentDashboardMode('assignments'); }}
           />
         </>,
       );

@@ -139,7 +139,7 @@ function RecapItem({ item }) {
             </p>
           )
           : review
-            ? <PathSolutionReview review={review} wasCorrect={false} />
+            ? <PathSolutionReview review={review} wasCorrect={false} headingLevel={3} />
             : correct.length === 0 && (
               <p style={{ margin: '12px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(13.5 * var(--mm-px))', lineHeight: 1.55 }}>
                 This question does not have a worked solution yet. Your teacher can go over it with you.

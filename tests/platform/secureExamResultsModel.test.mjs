@@ -277,13 +277,17 @@ test('"Practise this skill" from a practice test opens that exam\'s practice, ne
   };
   const destinations = groupReviewBySkill(sat).map((group) => group.practice).filter(Boolean);
   assert.equal(destinations.length, 3);
-  for (const destination of destinations) {
-    assert.equal(destination.framework, 'digitalSAT', JSON.stringify(destination));
-    assert.deepEqual(practiceSkillLaunch(destination), { teksCode: null, tab: 'ccmr' }, JSON.stringify(destination));
-  }
+  for (const destination of destinations) assert.equal(destination.framework, 'digitalSAT', JSON.stringify(destination));
+  // Each starts SAT practice on the standard the student missed there (MP14),
+  // from the CCMR tab: never course practice on it.
+  assert.deepEqual(destinations.map((destination) => practiceSkillLaunch(destination)), [
+    { teksCode: 'G.9A', framework: 'digitalSAT', tab: 'ccmr' },
+    { teksCode: 'A.2C', framework: 'digitalSAT', tab: 'ccmr' },
+    { teksCode: 'A.6A', framework: 'digitalSAT', tab: 'ccmr' },
+  ]);
   // A course Test's skill is course practice on its standard.
   const course = { session: released('courseTest'), scoreBasis: 'plannedWeighted', items: [item({ alignmentKeys: ['texas:A.5A'] })] };
-  assert.deepEqual(practiceSkillLaunch(groupReviewBySkill(course)[0].practice), { teksCode: 'A.5A', tab: null });
+  assert.deepEqual(practiceSkillLaunch(groupReviewBySkill(course)[0].practice), { teksCode: 'A.5A', framework: null, tab: null });
 });
 
 test('the standard an item is filed under is a Texas standard, canonical', () => {
