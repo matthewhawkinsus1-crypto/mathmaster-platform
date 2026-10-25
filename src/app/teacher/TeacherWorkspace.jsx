@@ -1127,8 +1127,21 @@ export default function TeacherWorkspace({
     }
   };
 
+  // TT24: the editor rebuilds the stored assignment as Assignment V5 while it
+  // renders. A legacy assignment with no course or TEKS on it cannot be
+  // rebuilt, and that throw used to reach the app's error screen and take the
+  // whole workspace with it. Try the same rebuild here first: if it cannot be
+  // done, say why in a toast and leave the teacher where they are. Returns
+  // whether the editor opened (the hub stays open when it did not).
   const openQuestionEditor = (assignment) => {
+    try {
+      storedAssignmentToV5(assignment);
+    } catch (error) {
+      toastError('Could not open the question editor', error.message);
+      return false;
+    }
     setQuestionEditorAssignment(assignment);
+    return true;
   };
 
   const saveQuestionEditor = async ({ title, questions, liveRepairs = [], appendedSections = [] }) => {
@@ -2042,7 +2055,7 @@ export default function TeacherWorkspace({
         onPrint={(assignment) => { setAssignmentHubTarget(null); beginTeacherWorksheetExport(assignment); }}
         onEditDates={(assignment) => { setAssignmentHubTarget(null); setTeacherTab('assignments'); beginEditAssignmentDates(assignment); }}
         onEditSetup={(assignment) => { setAssignmentHubTarget(null); beginEditAssignmentSetup(assignment); }}
-        onEditQuestions={(assignment) => { setAssignmentHubTarget(null); openQuestionEditor(assignment); }}
+        onEditQuestions={(assignment) => { if (openQuestionEditor(assignment)) setAssignmentHubTarget(null); }}
         teacherEmail={user?.email || ''}
         onRecoveryUpgraded={async (result) => {
           await fetchAssignments();
