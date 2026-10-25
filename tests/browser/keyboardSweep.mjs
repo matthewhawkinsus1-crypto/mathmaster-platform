@@ -7,6 +7,7 @@
 //   --extras-only / --no-extras          only / without the EXTRA_SCENES below
 //   --legacy-only / --no-legacy          only / without the LEGACY_SCENES below
 //   --host=bare                          no assignment-screen wrapper (Path, live challenge…)
+//   --no-shell                           the wrapper alone, without the navigator and the way on (see SHELL below)
 //   --out=<name>                         write report-<name>.json, not report.json
 //   --gate                               judge the report (keyboardSweepGate.mjs) and exit 1 if a scene fails
 //
@@ -85,6 +86,11 @@ const ONLY = (process.argv.find((arg) => arg.startsWith('--tool=')) || '').slice
 const HOST = (process.argv.find((arg) => arg.startsWith('--host=')) || '').slice('--host='.length) || 'assignment';
 // Judge the report as well as write it (see the header).
 const GATE = process.argv.includes('--gate');
+// The assignment host carries what the student's screen puts around a question
+// (a navigator above it, a way on after it: keyboardSweepMain.jsx "THE
+// ASSIGNMENT SHELL"). `--no-shell` leaves them out, the host of the 2026-10-07
+// and 2026-10-24 runs, to reproduce those numbers.
+const SHELL = HOST !== 'bare' && !process.argv.includes('--no-shell');
 const MAX_STOPS = 260;
 const VIEWPORT = { width: 1366, height: 768 };
 const OUT_DIR = HOST === 'bare' ? path.join(OUT_DIR_BASE, 'bare') : OUT_DIR_BASE;
@@ -487,7 +493,7 @@ const openTool = async (toolId, { settle = 900, spec = null, variant = null } = 
   page.on('pageerror', (error) => errors.push(String(error?.message || error)));
   const specParam = spec ? `&spec=${encodeURIComponent(JSON.stringify(spec))}` : '';
   const variantParam = variant ? `&variant=${encodeURIComponent(variant)}` : '';
-  await page.goto(`${ORIGIN}/tests/browser/keyboardSweep.html?tool=${encodeURIComponent(toolId)}${specParam}${variantParam}${HOST === 'bare' ? '&host=bare' : ''}&run=${Date.now()}`, { waitUntil: 'networkidle', timeout: 60000 });
+  await page.goto(`${ORIGIN}/tests/browser/keyboardSweep.html?tool=${encodeURIComponent(toolId)}${specParam}${variantParam}${HOST === 'bare' ? '&host=bare' : ''}${SHELL ? '&shell=assignment' : ''}&run=${Date.now()}`, { waitUntil: 'networkidle', timeout: 60000 });
   await page.waitForSelector('[data-kb-sentinel="end"]');
   await wait(page, settle);
   await page.evaluate(PAGE_HELPERS);
@@ -1121,6 +1127,7 @@ const report = {
   viewport: VIEWPORT,
   harness: 'tests/browser/keyboardSweep.html (QuestionEngine + SAMPLE_SPECS, sentinels)',
   host: HOST,
+  shell: SHELL,
   toolsMeasured: toolIds.length,
   scenesMeasured: tools.length,
   static: staticScan(),
