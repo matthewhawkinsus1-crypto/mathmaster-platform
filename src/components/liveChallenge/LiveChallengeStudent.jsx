@@ -9,7 +9,7 @@ import { PROJECTION_KIND, standingsFromProjection } from '../../../functions/sha
 import { summaryFinal, summaryRound, summaryUnansweredRounds } from '../../../functions/shared/liveChallengePlayerSummary.mjs';
 import { calculateStepPartialCredit, emptyQuestionRecord, recordQuestionStep } from '../../attemptPolicy.js';
 import { hasMeaningfulRawPathResponse, questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
-import { CHALLENGE_STAGE, GO_FLASH_MS, LOCKED_WAIT_NOTICE_MS, QUESTION_SET_GAME, personalRoundClock, questionSetGameOf, studentGuidance } from '../../platform/liveChallenge/challengeShellModel.js';
+import { CHALLENGE_STAGE, GO_FLASH_MS, LOCKED_WAIT_NOTICE_MS, QUESTION_SET_GAME, personalRoundClock, questionSetGameOf, roundBannerBackground, studentGuidance } from '../../platform/liveChallenge/challengeShellModel.js';
 import { speakAloud, speechAvailable, stopSpeaking } from '../../platform/language/speechText.js';
 import { projectionBoardRows, rewardSummaryLines, roundResultsView, scorePresentation, standingsRows } from '../../platform/liveChallenge/challengeStandingsModel.js';
 import { readLastSeenRound, roundsClosedWhileAway, seenRoundOf, missedRoundsNotice, writeLastSeenRound } from '../../platform/liveChallenge/challengeMissedRounds.js';
@@ -492,7 +492,7 @@ export function ChallengeRound({
           gap: 10,
           padding: '14px 17px',
           borderRadius: 14,
-          background: urgent ? 'linear-gradient(135deg,#7f1d1d,#a50e0e)' : 'linear-gradient(135deg,#174ea6,#1a73e8)',
+          background: roundBannerBackground(urgent),
           color: '#fff',
           transition: 'background .5s',
           boxShadow: '0 2px 10px rgba(23,78,166,.25)',

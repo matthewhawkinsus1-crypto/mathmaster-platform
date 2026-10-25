@@ -409,6 +409,23 @@ export const studentGuidance = ({
   }
 };
 
+/*
+ * THE ROUND BANNER'S COLOURS (AX22). The banner over a student's question is
+ * white text on a gradient. Its light end was #1a73e8: white on it is 4.51:1,
+ * one rounding from failing AA, and the small lines on the banner ("Points
+ * banked", "Your extra time is on") are drawn at 80-90% white, which was 3.5 to
+ * 4.0:1 there. Both ends now keep 80% white, and the gold points, above 4.5:1
+ * (tests/platform/liveChallengeRoundBanner.test.mjs). The last ten seconds turn
+ * the banner red; those ends were already well above it.
+ */
+export const ROUND_BANNER_COLORS = Object.freeze({
+  calm: Object.freeze(['#174ea6', '#185abc']),
+  urgent: Object.freeze(['#7f1d1d', '#a50e0e']),
+});
+export const roundBannerBackground = (urgent = false) => (
+  `linear-gradient(135deg,${(urgent ? ROUND_BANNER_COLORS.urgent : ROUND_BANNER_COLORS.calm).join(',')})`
+);
+
 /** m:ss, rounding up so 0:00 means time is really up. */
 export const formatChallengeClock = (milliseconds) => {
   const total = Math.max(0, Math.ceil((Number(milliseconds) || 0) / 1000));
