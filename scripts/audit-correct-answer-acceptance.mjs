@@ -25,7 +25,9 @@
  *     spellings confirmed equivalent by mathjs/fraction.js (LaTeX from the
  *     math editor, commuted factors, chained inequalities ...), every tool
  *     item with tool work (scripts/lib/pathBankAnswerSweep.mjs)
- *   - every active production Path/CCMR bank
+ *   - every active production Path/CCMR bank, and with --extra-bank <file>
+ *     a bank from outside the repository (the live bank's drifted and
+ *     live-only families: scripts/report-live-path-bank-drift.mjs)
  *   - repeated generated draws per template
  *   - every non-choice/non-prose response field
  *   - teacher-import JSON response fields where an open answer is declared
@@ -56,6 +58,7 @@ import {
   sweepCourses,
   unexpectedFindings,
 } from './lib/pathBankAnswerSweep.mjs';
+import { extraBankPaths } from './lib/extraPathBanks.mjs';
 
 const require = createRequire(import.meta.url);
 const mathPath = require('../functions/lib/mathPath.js');
@@ -160,12 +163,17 @@ const recordFailure = (failure) => {
   if (failures.length < MAX_FAILURES) failures.push(failure);
 };
 
-const bankFiles = existsSync(seedDir)
-  ? readdirSync(seedDir).filter((name) => name.endsWith('.json')).sort()
-  : [];
+// GR25: `--extra-bank <file>` (repeatable) audits a bank from outside the
+// repository the same way: the live bank's drifted and live-only families, as
+// scripts/report-live-path-bank-drift.mjs writes them (stored documents).
+const bankFiles = [
+  ...(existsSync(seedDir) ? readdirSync(seedDir).filter((name) => name.endsWith('.json')).sort().map((name) => path.join(seedDir, name)) : []),
+  ...extraBankPaths(process.argv),
+];
 
-for (const bankFile of bankFiles) {
-  const parsed = JSON.parse(readFileSync(path.join(seedDir, bankFile), 'utf8'));
+for (const bankPath of bankFiles) {
+  const bankFile = path.basename(bankPath);
+  const parsed = JSON.parse(readFileSync(bankPath, 'utf8'));
   for (const template of documentsIn(parsed)) {
     if (template?.active === false) continue;
     templates += 1;

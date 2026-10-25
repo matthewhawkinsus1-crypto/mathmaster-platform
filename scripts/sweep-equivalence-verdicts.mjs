@@ -31,7 +31,11 @@
  * as a near miss (or another option) is now accepted.
  *
  *   git worktree add /tmp/base <base-commit> && ln -s "$PWD/node_modules" /tmp/base/node_modules
- *   node scripts/sweep-equivalence-verdicts.mjs --base /tmp/base [--draws 3] [--out sweep.json] [--check-wrong] [--allow-shallow]
+ *   node scripts/sweep-equivalence-verdicts.mjs --base /tmp/base [--draws 3] [--out sweep.json] [--check-wrong] [--allow-shallow] [--extra-bank file]...
+ *
+ * `--extra-bank <file>` (repeatable, GR25) adds a bank from outside the
+ * repository to the corpus, drawn like the seeds: the live bank's drifted and
+ * live-only families, as scripts/report-live-path-bank-drift.mjs writes them.
  *
  * It reads every committed version of the seed files (the old keys, below),
  * so it needs the whole history: on a shallow clone it stops (exit 2) unless
@@ -44,6 +48,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { extraBankDocuments, extraBankPaths } from './lib/extraPathBanks.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argOf = (name, fallback) => {
@@ -55,7 +60,7 @@ const DRAWS = Math.max(1, Number(argOf('--draws', '3')) || 3);
 const OUT = argOf('--out', null);
 const CHECK_WRONG = process.argv.includes('--check-wrong');
 if (!BASE) {
-  console.error('usage: node scripts/sweep-equivalence-verdicts.mjs --base <worktree of the base commit> [--draws N] [--out file] [--check-wrong] [--allow-shallow]');
+  console.error('usage: node scripts/sweep-equivalence-verdicts.mjs --base <worktree of the base commit> [--draws N] [--out file] [--check-wrong] [--allow-shallow] [--extra-bank file]...');
   process.exit(2);
 }
 
@@ -149,6 +154,26 @@ for (const [dir, file] of seedFiles) {
       }
     } else {
       visit(document, `${file} ${item.id}`);
+    }
+  }
+}
+
+// GR25: banks from outside the repository (--extra-bank). Their documents are
+// stored ones, already compiled, so they are drawn as they are. They have no
+// history, so the old-key pass below does not see them.
+for (const file of extraBankPaths(process.argv)) {
+  for (const document of extraBankDocuments(file)) {
+    if (document.active === false) continue;
+    const source = `${path.basename(file)} ${document.id}`;
+    if (generation.hasPathGenerator(document) || generation.hasPathVariants(document)) {
+      for (let draw = 0; draw < DRAWS; draw += 1) {
+        try {
+          const question = generation.generatePathInstanceWithRetries(document, `p-sweep-${draw}`, 4)?.question;
+          if (question) { drawn += 1; visit(question, source); } else drawFailures += 1;
+        } catch { drawFailures += 1; }
+      }
+    } else {
+      visit(document, source);
     }
   }
 }
