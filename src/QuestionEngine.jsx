@@ -26,6 +26,7 @@ import { SupportedTextActions } from './platform/supports/SupportedText.jsx';
 import MathText from './components/common/MathText.jsx';
 import { buildQuestionHints, diagnosisHint, hintLadderView, hintRelease } from './platform/supports/hints/questionHints.js';
 import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
+import { requestedHintPanelPlace, revealHintPanel } from './platform/supports/hints/hintPanelReveal.js';
 import { buildSimilarWorkedExample } from './platform/supports/workedExample/similarProblem.js';
 import PracticeLikeThis from './platform/supports/workedExample/PracticeLikeThis.jsx';
 import { chosenOptionReasons, oneTryNotice } from './platform/supports/feedback/oneTryChoice.js';
@@ -622,6 +623,11 @@ function QuestionEngineBody({
   // has revealed, whether the panel is open, and the worked sibling problem.
   const [hintsRevealed, setHintsRevealed] = useState(restoredSupport.hintsRevealed);
   const [hintPanelOpen, setHintPanelOpen] = useState(false);
+  // WHERE THE PANEL IS (FB10): 'top' of the work area, where the 💡 control and
+  // the one-try notice open it, or 'results', directly under the miss a student
+  // pressed "Show a hint" in, so the hint appears where they clicked and the
+  // page stays put.
+  const [hintPanelPlace, setHintPanelPlace] = useState('top');
   // The hints the student read, as read (questionHints.js hintLadderView): a
   // tool's rungs can change with its stage, and a hint already read must not.
   const [revealedHintTexts, setRevealedHintTexts] = useState([]);
@@ -1855,20 +1861,29 @@ function QuestionEngineBody({
     if (locked && helpRequested && typeof onAskTeacher === 'function') onAskTeacher(false);
   }, [locked, helpRequested, onAskTeacher]);
   const hintPanelRef = useRef(null);
-  const revealNextHint = () => {
+  // Where the panel opens (FB10): 'results' from an offer under a miss, 'top'
+  // from the one-try notice. Anything else leaves it where it is — the panel's
+  // own buttons hand their click event over, and must not move the panel.
+  const placeHintPanel = (place) => {
+    const requested = requestedHintPanelPlace(place);
+    if (requested) setHintPanelPlace(requested);
+  };
+  const revealNextHint = (place) => {
     if (!hintState.canRevealNext || !hintLadder.next) return;
     const next = hintLadder.next;
     setRevealedHintTexts(() => [...hintLadder.hints.slice(0, hintLadder.revealed), next]);
     setHintsRevealed((count) => count + 1);
     recordHintUse();
+    placeHintPanel(place);
     setHintPanelOpen(true);
   };
   // Offered from the Hint panel, and after a miss beside "Show a hint" (HELP-9):
   // the example lives in the panel, so the panel opens with it.
-  const openSimilarExample = () => {
+  const openSimilarExample = (place) => {
     if (!similarExample) return;
     setSimilarOpen(true);
     setWorkedExampleUsed(true);
+    placeHintPanel(place);
     setHintPanelOpen(true);
   };
   // The diagnosis rung, read on request: recorded exactly like a hint.
@@ -1880,8 +1895,9 @@ function QuestionEngineBody({
   };
   useEffect(() => {
     if (!hintPanelOpen) return;
-    hintPanelRef.current?.scrollIntoView?.({ block: 'nearest', behavior: scrollMotion() });
-  }, [hintPanelOpen, hintsRevealed, similarOpen]);
+    // Under a miss the page moves only as far as the newest hint needs.
+    revealHintPanel(hintPanelRef.current, { place: hintPanelPlace, similarOpen, behavior: scrollMotion() });
+  }, [hintPanelOpen, hintPanelPlace, hintsRevealed, similarOpen]);
   const supportedTextReadAloud = readAloudOffered || (languageTools.tools.includes('read-aloud') && readAloudReady)
     ? { language: 'en' }
     : null;
@@ -2113,8 +2129,9 @@ function QuestionEngineBody({
     readAloud: supportedTextReadAloud,
     translation: supportedTextTranslation,
     onEvidence: reportSupportedTextUse,
-    onShowHint: attemptHintOffered ? revealNextHint : null,
-    onShowSimilar: attemptSimilarOffered ? openSimilarExample : null,
+    // The hint opens under the tool, where the miss was read (FB10).
+    onShowHint: attemptHintOffered ? () => revealNextHint('results') : null,
+    onShowSimilar: attemptSimilarOffered ? () => openSimilarExample('results') : null,
     // The host's own sentence (Recovery's in a Recovery runner), HELP-17.
     hintCost: hintCostSentence(hintCostNote),
   } : null;
@@ -2647,7 +2664,12 @@ function QuestionEngineBody({
           data-hand-raised={handRaised ? '' : undefined}
           aria-expanded={hintPanelOpen}
           aria-label={`${hintState.allowed ? 'Hint' : 'Ask my teacher'}${handRaised ? ', your hand is raised' : ''}`}
-          onClick={() => setHintPanelOpen((open) => !open)}
+          onClick={() => {
+            // Opened from the bar, the panel opens at the top; closing it
+            // leaves it where it was (FB10).
+            if (!hintPanelOpen) setHintPanelPlace('top');
+            setHintPanelOpen((open) => !open);
+          }}
           style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: `1px solid ${handRaised ? 'var(--mm-warning-border, #f9ab00)' : 'var(--mm-tint-border)'}`, background: hintPanelOpen ? 'var(--mm-primary-subtle)' : handRaised ? 'var(--mm-warning-bg)' : 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: 'pointer' }}
         >
           <span aria-hidden="true">{hintState.allowed ? (handRaised ? '💡✋' : '💡') : '✋'}</span>
@@ -2778,7 +2800,7 @@ function QuestionEngineBody({
           {/* HELP-17: the hint's cost, in the one sentence every offer uses. */}
           {hintState.canRevealNext && <span data-hint-cost-note=""> {hintCostSentence(hintCostNote)}</span>}
           {hintState.canRevealNext && (
-            <button type="button" onClick={revealNextHint} style={{ marginLeft: 8, minHeight: 36, padding: '6px 12px', borderRadius: 999, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer' }}>Show a hint</button>
+            <button type="button" onClick={() => revealNextHint('top')} style={{ marginLeft: 8, minHeight: 36, padding: '6px 12px', borderRadius: 999, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer' }}>Show a hint</button>
           )}
         </p>
       )}
@@ -2893,7 +2915,7 @@ function QuestionEngineBody({
       {firstHintOffered && (
         <p data-first-hint-offer="" style={{ margin: '14px auto 0', maxWidth: '700px', color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))', fontWeight: 600, lineHeight: 1.5 }}>
           <span aria-hidden="true">💡 </span>A hint is ready if you want one. {hintCostSentence(hintCostNote)}{' '}
-          <button type="button" onClick={revealNextHint} style={HINT_OFFER_BUTTON_STYLE}>Show a hint</button>
+          <button type="button" onClick={() => revealNextHint('results')} style={HINT_OFFER_BUTTON_STYLE}>Show a hint</button>
         </p>
       )}
       {sameIncorrectResponse && !isMultipart && !locked && (
@@ -2942,8 +2964,8 @@ function QuestionEngineBody({
           {(attemptHintOffered || attemptSimilarOffered) && (
             <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)', fontWeight: 600 }}>
               {attemptHintOffered ? <>A hint is ready if you want one. {hintCostSentence(hintCostNote)}{' '}
-              <button type="button" onClick={revealNextHint} style={HINT_OFFER_BUTTON_STYLE}>Show a hint</button></> : null}
-              {attemptSimilarOffered ? <button type="button" data-similar-offer="" onClick={openSimilarExample} style={HINT_OFFER_BUTTON_STYLE}>See a similar problem worked</button> : null}
+              <button type="button" onClick={() => revealNextHint('results')} style={HINT_OFFER_BUTTON_STYLE}>Show a hint</button></> : null}
+              {attemptSimilarOffered ? <button type="button" data-similar-offer="" onClick={() => openSimilarExample('results')} style={HINT_OFFER_BUTTON_STYLE}>See a similar problem worked</button> : null}
             </div>
           )}
         </div>
@@ -2963,12 +2985,23 @@ function QuestionEngineBody({
           {(previousMissHintOffered || similarOffered) && (
             <div style={{ marginTop: '8px' }}>
               {previousMissHintOffered ? <>A hint is ready if you want one. {hintCostSentence(hintCostNote)}{' '}
-              <button type="button" onClick={revealNextHint} style={HINT_OFFER_BUTTON_STYLE}>Show a hint</button></> : null}
-              {similarOffered ? <button type="button" data-similar-offer="" onClick={openSimilarExample} style={HINT_OFFER_BUTTON_STYLE}>See a similar problem worked</button> : null}
+              <button type="button" onClick={() => revealNextHint('results')} style={HINT_OFFER_BUTTON_STYLE}>Show a hint</button></> : null}
+              {similarOffered ? <button type="button" data-similar-offer="" onClick={() => openSimilarExample('results')} style={HINT_OFFER_BUTTON_STYLE}>See a similar problem worked</button> : null}
             </div>
           )}
         </div>
       )}
+
+      {/* THE HINT, WHERE THE STUDENT ASKED FOR IT (FB10). "Show a hint" under a
+          miss opens the panel here, beneath the card that offered it, instead
+          of at the top of the work area: the hint arrives where the student is
+          looking, the page does not jump up to it, and Check stays in reach.
+          The same panel, drawn in one place at a time (see hintPanelPlace). */}
+      {hintPanelOpen && hintPanelPlace === 'results' && hintPanel ? (
+        <div ref={hintPanelRef} className="mathmaster-hint-panel" data-hint-panel-place="results" style={{ margin: '16px auto 0', maxWidth: '700px', boxSizing: 'border-box', padding: '14px 16px', borderRadius: 12, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', boxShadow: '0 4px 14px rgba(26,115,232,0.10)', scrollMarginBottom: 12 }}>
+          {hintPanel}
+        </div>
+      ) : null}
 
       {isCorrect && choiceReasonBlock}
 
@@ -3312,7 +3345,7 @@ function QuestionEngineBody({
             it is clipped (see the Next-question note in the action bar). */}
         {/* Each in a row of its own, which keeps the Enlarge button clear when
             it starts the work (WorkViewShell.css, student pass 3 HELP-21). */}
-        {hintPanelOpen && hintPanel ? (
+        {hintPanelOpen && hintPanelPlace === 'top' && hintPanel ? (
           <div className="mathmaster-top-panel-row">
             <div ref={hintPanelRef} className="mathmaster-hint-panel" style={{ padding: '14px 16px', borderRadius: 12, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', boxShadow: '0 4px 14px rgba(26,115,232,0.10)' }}>
               {hintPanel}

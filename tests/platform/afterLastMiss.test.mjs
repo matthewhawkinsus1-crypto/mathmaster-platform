@@ -411,7 +411,8 @@ test('HELP-18: before the single try a choice-only item says so, and that a hint
   assert.match(notice, /immediateFeedback: showOutcomeFeedback && resolvedActivityPolicy\?\.feedback === 'immediate'/);
   const panel = region(engine, '<div className="mathmaster-question-context-panel">', '{!supportPresentation.declutter && (');
   assert.match(panel, /\{oneTryLine && \(/, 'shown before the declutter gate, so an inclusion student sees it');
-  assert.match(panel, /onClick=\{revealNextHint\}/, 'the existing hint reveal, rules unchanged');
+  // The notice sits at the top of the work, so the panel opens there (FB10).
+  assert.match(panel, /onClick=\{\(\) => revealNextHint\('top'\)\}/, 'the existing hint reveal, rules unchanged');
 });
 
 test('HELP-18: after it, the author\'s one-line reason for the chosen option — kept through the compiler, checked in Pre-Flight', () => {

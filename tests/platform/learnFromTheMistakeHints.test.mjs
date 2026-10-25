@@ -239,7 +239,7 @@ test('QuestionEngine feeds the tool\'s rungs into its ladder, and hands every to
   const solver = region(engine, 'const withSolverRuntime = (node) => (', '{node}', 'the solver provider');
   [...providers, solver].forEach((tag) => assert.match(tag, /\spublishHints=\{toolHintPublisher\}/, tag.slice(0, 80)));
   assert.ok(providers.length >= 2, 'the composed and the registry mounts');
-  const reveal = region(engine, 'const revealNextHint = () => {', '};', 'revealing a hint');
+  const reveal = region(engine, 'const revealNextHint = (place) => {', '};', 'revealing a hint');
   assert.match(reveal, /if \(!hintState\.canRevealNext \|\| !hintLadder\.next\) return;/);
   assert.match(reveal, /setRevealedHintTexts\(\(\) => \[\.\.\.hintLadder\.hints\.slice\(0, hintLadder\.revealed\), next\]\);/);
 });
@@ -303,7 +303,8 @@ test('on Classwork and Practice the first hint is offered in words before the fi
   assert.match(rule, /!feedback && !locked && !\(Number\(record\.attemptCount\) > 0\)/);
   const offer = region(engine, '{firstHintOffered && (', '</p>', 'the offer');
   assert.match(offer, /A hint is ready if you want one\. \{hintCostSentence\(hintCostNote\)\}/);
-  assert.match(offer, /<button type="button" onClick=\{revealNextHint\}[^>]*>Show a hint<\/button>/);
+  // The button reveals the hint, under the offer rather than at the top of the work (FB10).
+  assert.match(offer, /<button type="button" onClick=\{\(\) => revealNextHint\('results'\)\}[^>]*>Show a hint<\/button>/);
   // On a short Work View (a phone on its side, or the keypad up) the offer
   // folds into Help, which opens the same panel; under the step it took the
   // step's height (studentUxPlatform "staged" and "keypad-short").

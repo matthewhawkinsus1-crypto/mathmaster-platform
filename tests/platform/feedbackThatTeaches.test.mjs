@@ -471,10 +471,10 @@ test('5. what counts as help: a hint, a worked example, a problem-specific back-
   assert.match(usage, /workedExampleUsed,/);
   // A miss message on screen makes the next attempt feedback-assisted.
   assert.match(engine, /useEffect\(\(\) => \{\s*if \(missDetail\?\.message\) setFeedbackAssisted\(true\);\s*\}, \[missDetail\]\);/);
-  const reveal = region(engine, 'const revealNextHint = () => {', '};', 'revealing a hint');
+  const reveal = region(engine, 'const revealNextHint = (place) => {', '};', 'revealing a hint');
   assert.match(reveal, /recordHintUse\(\);/, 'every hint revealed is recorded');
   assert.match(engine, /const recordHintUse = \(\) => setHintUsed\(true\);/);
-  const similar = region(engine, 'const openSimilarExample = () => {', '};', 'opening a worked example');
+  const similar = region(engine, 'const openSimilarExample = (place) => {', '};', 'opening a worked example');
   assert.match(similar, /setWorkedExampleUsed\(true\);/);
 });
 
