@@ -367,8 +367,16 @@ const commitCounter = () => {
   };
 };
 
+// Every page a scenario opens, until it is closed. A scenario that throws, or
+// fails in its setup before its own cleanup is reached, leaves pages behind
+// (one CPU-throttled, one frozen), and they would run into the next scenario:
+// run() closes whatever is still here when a scenario ends (CI08, A2-138).
+const openContexts = new Set();
+
 const openPage = async ({ device = 'chromebook', url, init = null, reducedMotion = 'no-preference' }) => {
   const context = await browser.newContext({ ...DEVICES[device], reducedMotion });
+  openContexts.add(context);
+  context.on('close', () => openContexts.delete(context));
   await context.route('**/*', (route) => (/^(http|ws)s?:\/\/(localhost|127\.0\.0\.1)[:/]/.test(route.request().url()) ? route.continue() : route.abort()));
   await context.addInitScript(commitCounter);
   if (init) await context.addInitScript(init.fn, init.arg);
@@ -686,7 +694,8 @@ const run = async (name, scenario) => {
   } catch (error) {
     finding(name, `threw: ${error?.stack || error}`);
   }
-  // Leave no game running for the next scenario.
+  // Leave no page and no game running for the next scenario.
+  await Promise.all([...openContexts].map((context) => context.close().catch(() => {})));
   const leftover = await activeRoomId();
   if (leftover) await teacherCall('cancelLiveChallenge', { roomId: leftover }).catch(() => {});
   log(`${findings.length === before ? '✓' : '✗'} ${name}`);
