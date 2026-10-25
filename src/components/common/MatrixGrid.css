@@ -1,0 +1,26 @@
+/*
+ * A 3×3 MATRIX FITS A NARROW PHONE'S BOX (PH09, finding D-61).
+ *
+ * A matrix is one box that scrolls sideways when it is wider than its
+ * container, as a long one must. A 3×3 the student fills in (its name, brackets
+ * and three 64px boxes a row) is 277px: 7px wider than the 270px a 344px phone
+ * leaves it, and 31px wider than a 320px phone's 246px, so the Matrix Lab's
+ * solve items showed a scrollbar for a few pixels (DOL #2 CW 9, CW 11, PR 14,
+ * PR 17, DOL 7: "254/260").
+ *
+ * The cell box takes its width from --mm-matrix-cell-width (matrixLabUi.jsx,
+ * 64px by default). Under 360px it is 56px, and under 340px 52px, still wide
+ * enough for "-12" or "-7/2" at the size it is typed in: a 3×3 is then 253px and
+ * 241px. Wider phones, and larger text (the boxes grow with it), are untouched.
+ */
+@media (max-width: 359.98px) {
+  [data-matrix-grid] {
+    --mm-matrix-cell-width: calc(56 * var(--mm-px));
+  }
+}
+
+@media (max-width: 339.98px) {
+  [data-matrix-grid] {
+    --mm-matrix-cell-width: calc(52 * var(--mm-px));
+  }
+}

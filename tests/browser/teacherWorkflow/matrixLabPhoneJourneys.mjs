@@ -52,10 +52,10 @@ const check = (ok, label, detail = '') => {
   return Boolean(ok);
 };
 
-const openLesson = async () => {
-  const context = await newSchoolContext(browser, { viewport: PHONE.viewport, isMobile: true, hasTouch: true });
+const openLesson = async (device = PHONE) => {
+  const context = await newSchoolContext(browser, { viewport: device.viewport, isMobile: true, hasTouch: true });
   const page = await context.newPage();
-  page.on('pageerror', (error) => failures.push(`${PHONE.name}: page error ${error.message}`));
+  page.on('pageerror', (error) => failures.push(`${device.name}: page error ${error.message}`));
   const search = new URLSearchParams({ reset: '1', as: 'student', studentId: STUDENT, questions: 'matrices', p3StartMin: '40' });
   await page.goto(`${ORIGIN}/tests/browser/teacherWorkflow/index.html?${search}`, { timeout: 180000 });
   await page.getByText('Log Out').first().waitFor({ timeout: 180000 });
@@ -204,6 +204,33 @@ const firstScreen = (page) => page.evaluate(() => {
   check(reach.barTop !== null && reach.bottom <= reach.barTop, `${PHONE.name}, Practice 6: Check is above the work bar, not under it`, `Check ends at ${reach.bottom}, the bar starts at ${reach.barTop}`);
   check(reach.enabled, `${PHONE.name}, Practice 6: Check is ready with every value in`);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/check-reach-practice-6.png` });
+  await context.close();
+}
+
+/* ------------------------------------------------------------ narrowPhones */
+// A matrix is one box that scrolls sideways when it is wider than its
+// container, as a long one must; a 3×3 the student fills in was 7px wider than
+// a 344px phone's box and 31px wider than a 320px phone's, so every solve item
+// showed a scrollbar for a few pixels (PH09, D-61).
+for (const device of [
+  { name: 'foldable 344×882', viewport: { width: 344, height: 882 } },
+  { name: 'phone 320×640', viewport: { width: 320, height: 640 } },
+]) {
+  const { context, page } = await openLesson(device);
+  let questions = 0;
+  let matrices = 0;
+  for (let index = 0; index < 25; index += 1) {
+    const boxes = await page.evaluate(() => [...document.querySelectorAll('[data-matrix-scroll]')].map((box) => ({ needs: box.scrollWidth, has: box.clientWidth })));
+    questions += 1;
+    matrices += boxes.length;
+    const cut = boxes.filter((box) => box.needs > box.has + 1);
+    check(cut.length === 0, `${device.name}, question ${index + 1}: no matrix scrolls sideways (${boxes.length} on screen)`, cut.map((box) => `${box.needs}px in ${box.has}px`).join('; '));
+    const next = page.getByRole('button', { name: /^Next question/ }).first();
+    if (!(await next.count()) || await next.isDisabled()) break;
+    await next.click();
+    await page.waitForTimeout(1200);
+  }
+  check(questions >= 15 && matrices >= 15, `${device.name}: the lesson's questions and its matrices were all looked at`, `${questions} questions, ${matrices} matrices`);
   await context.close();
 }
 
