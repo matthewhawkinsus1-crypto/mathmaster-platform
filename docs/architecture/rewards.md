@@ -38,12 +38,26 @@ to add a reward with a genuinely different effect.
 ```
 available ──use──────► redeemed   (on one assignment; terminal)
 available ──take back► revoked    (teacher, with a reason the student sees; terminal)
-available ──time─────► expired    (read as expired once past expiresAt; terminal)
+available ──time─────► expired    (read as expired once past expiresAt; recorded lazily; terminal)
 ```
 
 Nothing is ever deleted. Every transition appends to `history`. A Challenge
 award that is taken back keeps its document, so a retried delivery (finish
 again, host reconnect, the 15-minute sweep) finds it and never issues it again.
+
+**Expiry is read, and recorded lazily (LC23).** A grant past `expiresAt` reads
+as expired everywhere (`effectiveGrantStatus`), so nothing waits on a write and
+nothing sweeps on a schedule. A server path that already holds the student's
+passes records the ones that are due while it is there (`grantsDueToExpire`):
+a teacher opening the student's rewards (`loadStudentRewardsForTeacher`, via
+`persistExpiredGrants`: one transaction per grant, a second look at the
+document, never failing the read, at most 20 a read) and the use of another
+pass (`redeemPracticePass`, in the same commit). The history says it expired
+when its end date fell (`expiredAt` = `expiresAt`), `updatedAt` says when it was
+written. The student's own wallet reads Firestore directly and writes nothing,
+and a use that is refused writes nothing, so a grant nobody's server path
+touches stays `available` in storage and reads as expired, as before. A
+scheduled sweep would be a new function to deploy and was not built.
 
 Grant ids are deterministic, so a retry lands on the same document:
 
@@ -104,7 +118,7 @@ offer**. A wrong guess there costs nothing.
 | Rule | Code |
 | --- | --- |
 | Assigned to the student's class | `not-assigned-to-class` |
-| Teacher has not turned passes off (`assignment.rewardPolicy.practicePassEligible === false`) | `reward-policy-disabled` |
+| Teacher has not turned passes off (`assignment.rewardPolicy.practicePassEligible === false`; authored by the Practice Passes switch in Assignment Review, below) | `reward-policy-disabled` |
 | Has a current-content Practice section | `no-practice-section` |
 | Not a Test Cycle / quiz / test (absolute; no override) | `test-cycle-assignment`, `quiz-assignment`, `test-assignment` |
 | Open now: not scheduled, not past the final (per-student) deadline | `assignment-scheduled`, `assignment-practice-mode`, `assignment-not-credit-eligible` |
@@ -115,6 +129,30 @@ If an assignment stops being eligible while the confirmation is open (Practice
 answered in another tab, a deadline passing), the dialog says so and the
 button is disabled. If only the server can see the change, its refusal is
 shown with "Nothing was used."
+
+### The teacher's switch (LC23)
+
+Assignment Review's Delivery step has a **Practice Passes** checkbox, "Students
+can use a Practice Pass on this assignment", on every assignment with a Practice
+section that is not a quiz, a test or a Test Cycle (where a pass is never
+possible, so no choice is offered). It writes the field the rule above already
+read, and nothing more (`src/platform/rewards/practicePassPolicy.js`):
+
+- **Only the "no" is stored**, as `rewardPolicy.practicePassEligible: false`.
+  "Allowed" is the default, so a new assignment carries no policy unless passes
+  were turned off, and turning them back on removes the "no" (a stored `true`
+  decides nothing the default does not, and an existing one is left as it is).
+  Anything else in the policy is kept.
+- It is saved with a new assignment (each Standard/Honors destination, or the
+  one library copy), with an edit of an assignment's setup, and it goes with a
+  library item or an added class's new delivery. Student records do not block
+  changing it: the rule is read when a pass is used, so no past evidence moves.
+- Turning it off does **not** undo a pass already used; undoing that use is the
+  teacher's action on the student's rewards (section 7).
+- The wallet's filter and the server read it with the same answer for every
+  value the field could hold (`tests/platform/practicePassAuthoringSwitch.test.mjs`).
+- No Firestore rule changed: a teacher already writes `rewardPolicy` (it is not
+  a server-owned assignment field).
 
 ## 5. Assignment effects — where a waiver is read
 
@@ -194,7 +232,7 @@ Every correction requires a reason the student sees. Each is one transaction, id
 | Student (always) | one listener on `rewardGrants` where student = me, class = mine, status = available. It is small and makes new rewards appear live. |
 | Student (existing) | Class Points account + last 10 transactions; own waivers |
 | My Rewards → History | one `getDocs` of the student's grants in this class, when opened; shown 10 at a time |
-| Teacher student drawer | one `getStudentRewards` call per opening: grants, waivers, last 30 Class Points entries, last 6 matches + their award jobs (`getAll`) |
+| Teacher student drawer | one `getStudentRewards` call per opening: grants, waivers, last 30 Class Points entries, last 6 matches + their award jobs (`getAll`); it also records the student's passes that have expired, one small write each, at most 20 (lazy expiry, section 2) |
 | Gradebook / Assignment Hub | one `listGradeTransferState({ practicePassesOnly })` call per class while open |
 
 New index: `liveChallengeMatchResults (studentIds CONTAINS, finalizedAtMs DESC)` for the diagnostics query. The rest use equality filters only. **Deploy needs `firestore:indexes` and the new callables:** `awardRewardGrant`, `revokeRewardGrant`, `undoPracticePassRedemption`, `getStudentRewards`, plus the updated `redeemPracticePass`, `listGradeTransferState`, the ingestion callable, the Classroom passback trigger and `retryLiveChallengeAchievementJobs`. The safe choice is a full functions deploy.
@@ -207,7 +245,9 @@ New index: `liveChallengeMatchResults (studentIds CONTAINS, finalizedAtMs DESC)`
 | `tests/platform/rewardsDomain.test.mjs` | pass-paid eligibility, live-waiver rule (both sides), refund ledger arithmetic, refund ids, spend order, teacher progress with a waiver |
 | `tests/platform/rewardDiagnosticsAndPolicy.test.mjs` | the teacher's Challenge choice → validated policy, ties, diagnostics, teacher view |
 | `tests/platform/rewardsWiring.test.mjs` | callables delegate to the store; every waiver reader honours undo; grade views pass the waiver; screens reachable |
-| `tests/integration/rewardActions.test.mjs` (emulator) | award once, use atomically, double click / two tabs / one pass for two assignments, expired never spent, refused without spending, another student's pass, points purchase, undo both ways, take back, Challenge award taken back never re-issued, teacher read across three matches |
+| `tests/platform/rewardGrantExpiryPersistence.test.mjs` | lazy expiry's two decisions: which grants are due (only an available grant past its end date, to the millisecond) and when the history says each expired |
+| `tests/platform/practicePassAuthoringSwitch.test.mjs` | the Practice Passes switch: what a new assignment and a saved edit write (only the "no", only what changed), the same answer as the wallet's filter and the server for every stored value, and the review and workspace wiring |
+| `tests/integration/rewardActions.test.mjs` (emulator) | award once, use atomically, double click / two tabs / one pass for two assignments, expired never spent, refused without spending, another student's pass, points purchase, undo both ways, take back, Challenge award taken back never re-issued, teacher read across three matches; lazy expiry (a teacher's read and the use of another pass record expired passes once, as of their end date, leave every other state alone, are bounded, and are refused to the wrong teacher) |
 | `tests/rules/securityRules.test.mjs` | wallet queries scoped to self; no client issues, edits or self-excuses |
 | `tests/browser/rewardsQa.mjs` (`npm run test:rewards-browser`) | the whole flow in Chromium at phone, tablet and Chromebook sizes: 26 checks covering both roles, plus screenshots |
 

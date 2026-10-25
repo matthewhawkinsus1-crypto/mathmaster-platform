@@ -396,10 +396,11 @@ and dark; reduced motion turns the pops and fades off.
   race view, the projector's rush branches, the setup model). Loading the host
   view and the setup model only for a rush would recover ≈17 kB of those
   51 kB.
-- **Known cost**: the legacy `adjustLiveChallengeExperienceScore` trigger
-  (`functions/entry.js`) fires on every private-player write and returns at
-  once for a rush; deleting it in a deployment that removes it explicitly
-  would save one no-op invocation per request.
+- **Known cost**: the legacy `adjustLiveChallengeExperienceScore` trigger is out
+  of the source (LC23), but the deployed copy fires on every private-player
+  write and returns at once for a rush until someone deletes the function
+  explicitly (`live-challenge-engine.md` section 14); that saves one no-op
+  invocation per request.
 
 ---
 

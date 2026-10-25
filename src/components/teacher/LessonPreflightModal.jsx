@@ -74,6 +74,8 @@ import {
 } from './preflightSteps';
 import AdaptivePreview from './AdaptivePreview.jsx';
 import { ASSIGNMENT_CALCULATOR_SETTINGS, buildPreflightReviewedAssignmentV5, reviewedCalculatorSetting } from './preflightV5Review.js';
+import { practicePassSwitchApplies } from '../../platform/rewards/practicePassPolicy.js';
+import { REWARD_DEFINITIONS } from '../../../functions/shared/rewardGrants.mjs';
 import { buildQuestionRepairRequest, parseQuestionRepairResponse } from '../../platform/contract/questionRepairRequest.js';
 import { CONTRACT_SLICES, buildContractSlice } from '../../platform/contract/authoringContract.js';
 import { parseExternalAiJson } from '../../platform/contract/externalAiJson.js';
@@ -157,6 +159,8 @@ const initialReviewDraft = (draft = {}) => {
     sectionAccessDefaults: { classwork: 'open', practice: 'open' },
     // Practice keeps Guided Notes off by default: the owner's decision (FB20, 2026-10-23).
     guidedNotesBySection: { classwork: 'automatic', practice: 'off' },
+    // Students may use a Practice Pass on it unless the teacher turns that off (LC23).
+    allowPracticePasses: true,
     warmupEnabled: true,
     warmupMinutesBeforeStart: 7,
     warmupInstructionDate: '',
@@ -1007,6 +1011,12 @@ export const LessonPreflightModal = ({
     ...current,
     guidedNotesBySection: { ...(current.guidedNotesBySection || {}), [role]: value },
   }));
+  // Whether students may use a Practice Pass on this assignment (LC23). Only the
+  // teacher's "no" is stored (practicePassPolicy.js); a quiz, a test or a Test
+  // Cycle can never take a pass, so the choice is not offered there.
+  const allowPracticePasses = draft.allowPracticePasses !== false;
+  const setAllowPracticePasses = (allow) => setDraft((current) => ({ ...current, allowPracticePasses: allow }));
+  const showPracticePassSwitch = practicePassSwitchApplies(activityRoles, { testCycle: isTestCycleAssignment(effectiveAssignmentV5) });
   const outputProfileEnabled = (key) => (
     draft.outputProfiles?.[key]?.enabled
     ?? assignmentV5?.outputProfiles?.[key]?.enabled
@@ -1753,6 +1763,30 @@ export const LessonPreflightModal = ({
           </div>
           <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>
             These controls affect new graded responses only. After the final cutoff, the assignment enters ungraded Practice Mode and all sections become available for review/practice.
+          </p>
+        </fieldset>
+      )}
+
+      {showPracticePassSwitch && (
+        <fieldset style={fieldsetStyle} data-preflight-practice-passes>
+          <legend style={legendStyle}>Practice Passes</legend>
+          <label style={{
+            display: 'flex', gap: 10, alignItems: 'flex-start', minHeight: 58,
+            padding: 10, border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)',
+          }}>
+            <input
+              type="checkbox"
+              style={{ ...checkboxStyle, marginTop: 2 }}
+              checked={allowPracticePasses}
+              onChange={(event) => setAllowPracticePasses(event.target.checked)}
+            />
+            <span>
+              <strong style={{ display: 'block', color: 'var(--mm-text-strong)' }}>Students can use a Practice Pass on this assignment</strong>
+              <span style={{ display: 'block', marginTop: 2, color: 'var(--mm-text-muted)', fontSize: 'calc(11.5 * var(--mm-px))', lineHeight: 1.4 }}>{REWARD_DEFINITIONS.practicePass.teacherDescription}</span>
+            </span>
+          </label>
+          <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>
+            {REWARD_DEFINITIONS.practicePass.gradeEffect} A pass is never available on a quiz, a test or a Test Cycle, or once a student has started Practice, whatever this says. Turning this off does not undo a pass a student has already used; undo that from the student&apos;s rewards.
           </p>
         </fieldset>
       )}

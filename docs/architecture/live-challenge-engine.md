@@ -35,7 +35,7 @@ durable match result.
 | `liveChallengeResults.mjs` | round results, match results, standings | yes |
 | `liveChallengeRewardRules.mjs` | reward policies, criteria, award identity | yes |
 | `rewardGrants.mjs` | reward definitions; grant documents and their lifecycle transitions | yes |
-| `rewardGrantStore.mjs` | applying a grant transition atomically | server |
+| `rewardGrantStore.mjs` | applying a grant transition atomically; lazy expiry (`persistExpiredGrants`) | server |
 | `liveChallengeClassPoints.mjs` | staging and delivering awards (ledger credits, grants) | server |
 | `liveChallenge.mjs` | the mature per-response scorer, receipts, leaderboard, tallies (pre-engine; still authoritative for Accuracy First arithmetic) | yes |
 | `liveChallengeParity.mjs` | client clock calibration, round phases, snapshot acceptance | yes |
@@ -334,10 +334,11 @@ defineScoringStrategy({
 **Speed influence is native.** The teacher's speed setting (0–50%) is applied by
 the strategy at submit time with the exact arithmetic the retired post-hoc
 wrapper used (`scaleLegacySpeedPoints`), including Solver Race milestone speed —
-so "Off" pays no speed anywhere. The legacy experience trigger in
-`functions/entry.js` stays deployed for the rolling-deploy window; every new
-submission marks its round (`experienceSpeedAdjustedRound`) so the trigger
-returns before touching it.
+so "Off" pays no speed anywhere. The legacy experience trigger
+(`adjustLiveChallengeExperienceScore`) is retired from `functions/entry.js`
+(LC23; the deploy note is in section 14). Every submission still marks its
+round (`experienceSpeedAdjustedRound`), which the trigger, if it is still
+deployed, reads to return before touching it.
 
 A **per-round** strategy changes the match total only when a round closes:
 `playerTotalsAfterRound` records the placement under `roundPlacements[round]`,
@@ -464,10 +465,12 @@ Terminal states never change. A transition never deletes anything: it sets the
 new status, records who/when/why/against-what, and appends to `history`. A
 retried transition with the same intent is `alreadyApplied`, not a second use.
 An available grant past `expiresAt` already reads as expired
-(`effectiveGrantStatus`); persisting that is optional.
+(`effectiveGrantStatus`); recording that is housekeeping the server paths that
+hold a student's grants do lazily (`grantsDueToExpire`,
+`persistExpiredGrants`; `rewards.md` section 2).
 `transitionRewardGrant(db, grantId, transition)` (`rewardGrantStore.mjs`)
-applies a transition atomically — the integration point a wallet, a teacher's
-"take back" or an expiry sweep calls.
+applies a transition atomically; a teacher's "take back" and a student's use
+apply theirs inside their own transactions (`rewardActionStore.mjs`).
 
 ### Rules
 
@@ -759,8 +762,18 @@ support. Rules: the room's audience reads it; no client writes it.
 - **Effects read the match result**, never private state, and stay idempotent.
   Private state is deleted last.
 - **Public documents carry no student id** (players, rounds).
-- **The experience trigger marker** (`experienceSpeedAdjustedRound`) until a
-  deployment explicitly deletes `adjustLiveChallengeExperienceScore`.
+- **The experience trigger marker** (`experienceSpeedAdjustedRound`, written by
+  `submitLiveChallengeResponse`) until `adjustLiveChallengeExperienceScore` is
+  confirmed gone from production. The trigger is out of the source (LC23), but
+  the function stays deployed until someone deletes it: an exact-name release
+  (`scripts/release-firebase.mjs`) never names it, a whole-fleet
+  `firebase deploy --only functions` offers to delete it (and does with
+  `--force`), and `firebase functions:delete adjustLiveChallengeExperienceScore
+  --region us-central1 --project mathmaster-aleks` does it on purpose. While it
+  is deployed it reads the marker, and a player write without one would be
+  rescaled. Once it is gone, the marker write and `experienceScoreAdjustment`
+  (kept as the oracle `tests/platform/liveChallengeEngineScoring.test.mjs`
+  checks the native arithmetic against) can go in a later change.
 - **Accuracy First arithmetic**: existing classes' scores must not shift.
 
 ---
@@ -770,20 +783,20 @@ support. Rules: the room's audience reads it; no client writes it.
 - Host pause/resume controls (the timer model supports them). ~~An automatic
   round close from the host screen for the classic modes~~ — built: every mode
   (`live-challenge-shell.md` §4).
-- Teacher UI for choosing a scoring strategy for the classic modes (the server
-  accepts `scoringStrategyId` and `scoringConfig` at create and validates them;
-  every results screen presents Grand Prix and Correct Count; Graph Feature
-  Rush's setup offers its two strategies). The reward-policy
-  choice now exists as a small preset picker (`ChallengeRewardSettings`, used
-  by every mode); a free-form rule editor is still deferred.
+- ~~Teacher UI for choosing a scoring strategy for the classic modes~~ — built
+  (LC16): Standard Challenge and Solver Race offer the strategies their mode
+  allows (`live-challenge-shell.md` §7); Graph Feature Rush's setup offers its
+  two. The reward-policy choice exists as a small preset picker
+  (`ChallengeRewardSettings`, used by every mode); a free-form rule editor is
+  still deferred.
 - ~~A student rewards wallet and teacher revoke~~ — built: see
   `docs/architecture/rewards.md` (wallet, Practice Pass redemption from a
   held pass, teacher give / take back / undo, Challenge reward choice and
-  diagnostics). An expiry sweep is still deferred: an expired grant already
-  reads as expired everywhere (`effectiveGrantStatus`), so persisting it is
-  housekeeping, not correctness.
-- Deleting the legacy experience trigger in a deployment that removes it
-  explicitly.
+  diagnostics). Expiry is read everywhere (`effectiveGrantStatus`) and
+  recorded lazily by the server paths that already hold a student's grants
+  (LC23, `rewards.md` section 2); a scheduled sweep was not built.
+- ~~Deleting the legacy experience trigger~~ — out of the source (LC23); deleting
+  the deployed function is a separate, explicit step (section 14).
 - Reports written before `studentIds` existed are not reachable by permanent
   student deletion.
 

@@ -75,12 +75,9 @@ test('Live Challenge opts rich tools into a real no-expiration policy only in th
     'ordinary assignment attempt limits remain unchanged');
 });
 
-test('score adjustment reconciles its authoritative receipt and both stored totals', () => {
-  const entry = read('../../functions/entry.js');
-  assert.match(entry, /reconciledReceipt = receipt \? \{[\s\S]*pointsAwarded:[\s\S]*totalScore: nextScore/);
-  assert.match(entry, /submissionReceipts: reconciledReceipts/);
-  assert.match(entry, /transaction\.set\(publicRef, \{ score: nextScore/);
-});
+// (A test here held the retired post-hoc speed adjustment — the trigger in
+// entry.js that rescaled a receipt and both stored totals — to reconciling them.
+// The trigger is gone (LC23); the receipt total below is what remains true.)
 
 test('authoritative total is exactly the sum of accepted receipts and ignores retries', () => {
   const receipts = {

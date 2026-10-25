@@ -53,6 +53,7 @@ import { buildSafeLibraryContentRepair, inspectLibraryContentRepair, prepareStor
 import { confirmHonorsCandidateForCreate, proveImportedCcmrClaims } from '../../platform/assignments/canonicalCcmrHydration.js';
 import { ccmrAuditWarnings } from '../../platform/assignments/ccmrAuditWarnings.js';
 import { shouldAutoPublishClassroomPackage } from '../../platform/classroom/automaticClassroomPublishing.js';
+import { practicePassesAllowed, rewardPolicyAfterEdit, rewardPolicyForNewAssignment } from '../../platform/rewards/practicePassPolicy.js';
 import { resolveStudentCourseContext, studentsInClass } from '../../../functions/shared/classModel.mjs';
 import { SUPPORT_EVENT_KIND, SUPPORT_EVENT_STAGE } from '../../platform/teacher/studentSupportSignals.js';
 import { buildReturnCheckInEvent } from '../../platform/attendance/returnCheckIn.js';
@@ -596,6 +597,10 @@ export default function TeacherWorkspace({
         folder,
       }, []);
 
+      // "Students can use a Practice Pass on this assignment" (LC23): only the
+      // teacher's "no" is stored, as rewardPolicy.practicePassEligible = false.
+      const newRewardPolicy = rewardPolicyForNewAssignment(teacherReview.allowPracticePasses);
+
       const assignmentPayloadBase = {
         schemaVersion: 5,
         title,
@@ -651,6 +656,7 @@ export default function TeacherWorkspace({
         gradingPolicy: reviewedV5.gradingPolicy || null,
         evidencePolicy: reviewedV5.evidencePolicy || null,
         outputProfiles: reviewedV5.outputProfiles || null,
+        ...(newRewardPolicy ? { rewardPolicy: newRewardPolicy } : {}),
         classroomIntegration: reviewedV5.classroomIntegration || null,
         provenance: reviewedV5.provenance || null,
         preflight: reviewedV5.preflight || { required: true },
@@ -1017,6 +1023,11 @@ export default function TeacherWorkspace({
       lessonResources: { notesPdf: model.assignmentV5.outputProfiles?.lessonNotesPdf },
     }, model.assignmentV5.assignment, []);
 
+    // "Students can use a Practice Pass on this assignment" (LC23): written only
+    // when the switch changed (the "no" added, or removed again), beside whatever
+    // else the stored policy holds.
+    const nextRewardPolicy = rewardPolicyAfterEdit(existing.rewardPolicy, draft.allowPracticePasses);
+
     const patch = {
       ...persistence,
       title: model.assignmentV5.assignment.title,
@@ -1042,6 +1053,7 @@ export default function TeacherWorkspace({
         classwork: draft.guidedNotesBySection?.classwork || 'automatic',
         practice: draft.guidedNotesBySection?.practice || 'off',
       },
+      ...(nextRewardPolicy !== undefined ? { rewardPolicy: nextRewardPolicy } : {}),
       warmup: {
         ...(existing.warmup || {}),
         enabled: hasWarmup && draft.warmupEnabled !== false,
@@ -1494,6 +1506,7 @@ export default function TeacherWorkspace({
           classwork: assignment.guidedNotesBySection?.classwork || 'automatic',
           practice: assignment.guidedNotesBySection?.practice || 'off',
         },
+        allowPracticePasses: practicePassesAllowed(assignment),
         assignedClassIds: [...(assignment.assignedClassIds || [])],
         assignedClassPeriods: [...(assignment.assignedClassPeriods || [])],
         warmupEnabled: assignment.warmup?.enabled !== false,
@@ -1668,6 +1681,8 @@ export default function TeacherWorkspace({
           folder: assignment.folder || '',
           dueAt: editingAssignmentDates.dueAt,
           lateDueAt: editingAssignmentDates.lateDueAt || '',
+          // A teacher's "no Practice Passes" goes with the assignment to the classes it is given to.
+          allowPracticePasses: practicePassesAllowed(assignment),
           assignedClassIds: editedClassIds,
           assignedClassPeriods: editedPeriods,
           dolInstructionDate: editingAssignmentDates.dolInstructionDate || '',
@@ -1703,6 +1718,7 @@ export default function TeacherWorkspace({
           folder: assignment.folder || '',
           dueAt: editingAssignmentDates.dueAt,
           lateDueAt: editingAssignmentDates.lateDueAt || '',
+          allowPracticePasses: practicePassesAllowed(assignment),
           assignedClassIds: addedClassIds,
           assignedClassPeriods: addedPeriods,
           dolInstructionDate: editingAssignmentDates.dolInstructionDate || '',

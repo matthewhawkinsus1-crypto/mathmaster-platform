@@ -197,23 +197,32 @@ See `docs/architecture/live-challenge-engine.md`.
 ### Rewards follow-ups
 **Status:** open
 
-- **Expiry sweep** — persist `expired` on grants past `expiresAt` (they already
-  read as expired everywhere). Housekeeping only.
+- ~~**Expiry sweep**~~ — done lazily (LC23): a grant past `expiresAt` already
+  read as expired everywhere, and the server paths that hold a student's grants
+  (a teacher opening the student's rewards; the use of another pass) now record
+  it (`rewards.md` section 2). A scheduled sweep would be a new function to
+  deploy and was not built; a grant no server path touches stays `available` in
+  storage and reads as expired, as before.
 - **Practice Pass in Parent Contact and the support evidence report** —
   `parentContactCenter.js` and `supportEvidenceReport.js` still compute
   assignment grades without the waiver; they need the class's waiver keys
   passed in the way the gradebook now does.
-- **Per-assignment "allow Practice Passes" switch in the editor** — the rule
-  (`assignment.rewardPolicy.practicePassEligible`) is enforced; no authoring
-  control writes it.
+- ~~**Per-assignment "allow Practice Passes" switch in the editor**~~ — built
+  (LC23): Assignment Review's Delivery step writes
+  `assignment.rewardPolicy.practicePassEligible` (only the "no"); see
+  `rewards.md` section 4.
 - **Class-wide rewards overview** — a teacher sees one student's rewards in the
   drawer; a class list of passes held / used is not built.
 - **Host pause/resume and automatic round close** — modelled in the timer and
   the lifecycle, not wired to controls.
 - **Graph Feature Rush** — multi-target, question-set rounds; the mode
   contract, round structure and attempt model are in place.
-- **Retire the legacy speed trigger** (`adjustLiveChallengeExperienceScore`) in
-  a deployment that deletes it explicitly.
+- **Delete the legacy speed trigger from production.** Out of the source
+  (LC23); the deployed `adjustLiveChallengeExperienceScore` stays (harmless)
+  until `firebase functions:delete adjustLiveChallengeExperienceScore --region
+  us-central1 --project mathmaster-aleks` removes it, and the
+  `experienceSpeedAdjustedRound` marker write must stay until then
+  (`live-challenge-engine.md` section 14).
 
 ### ~~Fix how the question bank is sampled~~ — fixed (variety); difficulty still open
 **Status:** variety fixed · difficulty targeting still open

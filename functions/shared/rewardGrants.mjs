@@ -225,6 +225,38 @@ export const effectiveGrantStatus = (grant = {}, nowMs = Date.now()) => {
   return expiresAt !== null && Number(nowMs) >= expiresAt ? REWARD_GRANT_STATUS.EXPIRED : status;
 };
 
+/*
+ * LAZY EXPIRY (LC23).
+ *
+ * An available grant past its end date READS as expired everywhere
+ * (effectiveGrantStatus), so nothing waits on a write to be true. The stored
+ * status still says `available` until something writes it. Nothing sweeps on a
+ * schedule: a server path that already holds a student's grants settles the
+ * ones that are due while it is there (rewardGrantStore.persistExpiredGrants:
+ * a teacher opening the student's rewards; rewardActionStore.redeemPracticePass:
+ * the use of another pass, in the same commit). A grant nobody touches simply
+ * stays `available` in storage and reads as expired, as before.
+ */
+
+/** The grants that are past `expiresAt` yet still stored as `available`: what is due to be settled. */
+export const grantsDueToExpire = (grants = [], nowMs = Date.now()) => (Array.isArray(grants) ? grants : [])
+  .filter((grant) => Boolean(grant?.grantId)
+    && String(grant.status || '') === REWARD_GRANT_STATUS.AVAILABLE
+    && effectiveGrantStatus(grant, nowMs) === REWARD_GRANT_STATUS.EXPIRED);
+
+/**
+ * When a grant's end date fell, as the time its expiry is recorded at: the
+ * history says it expired when it did, not when something next looked.
+ * (`updatedAt` on the document says when it was written.) Null without a
+ * readable end date.
+ */
+export const grantExpiryTime = (grant = {}) => {
+  const millis = toMillis(grant?.expiresAt);
+  if (millis === null) return null;
+  const date = new Date(millis);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+};
+
 /**
  * A new grant document. `identity` is the plain-text award identity the
  * grant id was hashed from, kept so an audit can see exactly what it is.

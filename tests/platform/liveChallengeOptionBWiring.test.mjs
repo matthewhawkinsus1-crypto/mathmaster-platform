@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
+import { listDeployableFunctions } from '../../scripts/lib/functionsInventory.mjs';
+import { executableSource } from './helpers/sourceContract.mjs';
 
 const readRequired = (file) => {
   assert.equal(existsSync(file), true, `${file} must exist for Live Challenge Option B`);
@@ -19,7 +21,6 @@ test('Cloud Functions preserves the additive Live Challenge experience wrapper t
   assert.match(entry, /require\(['"]\.\/index\.js['"]\)/);
   assert.match(entry, /configureLiveChallengeExperience/);
   assert.match(entry, /getLiveChallengeExperience/);
-  assert.match(entry, /adjustLiveChallengeExperienceScore/);
 });
 
 test('the existing backend remains re-exported instead of being replaced', () => {
@@ -74,7 +75,7 @@ test('service exposes experience callables without duplicating score logic in th
   assert.doesNotMatch(service, /speedBonus\s*=|pointsAwarded\s*=/);
 });
 
-test('configured speed is scored at submit, and the legacy trigger cannot pay it again', () => {
+test('configured speed is scored at submit, where the round is marked as adjusted', () => {
   // Speed influence used to be bolted on after the mature scorer returned: a
   // wrapper in entry.js rescaled the speed bonus, and a Firestore trigger
   // retried it. The room's scoring strategy now applies it inside the submit
@@ -86,14 +87,26 @@ test('configured speed is scored at submit, and the legacy trigger cannot pay it
   const start = server.indexOf('exports.submitLiveChallengeResponse');
   const submit = server.slice(start, server.indexOf('// Phase 5D', start));
   assert.match(submit, /finalScore = strategy\.scoreResponse\(\{[^}]*speedInfluencePercent,/);
+  // The marker is not needed by anything in this repository any more. It STAYS
+  // while the retired trigger is still deployed in production: that trigger
+  // reads it, and a write without it would be rescaled (see the note in entry.js).
   assert.match(submit, /experienceSpeedAdjustedRound: submittedRound,\s*experienceSpeedAdjustment: 0,/);
+});
 
-  // The trigger stays deployed for player writes from the earlier code during
-  // a rolling deploy, and it stops at the marker before adjusting anything.
-  const trigger = entry.slice(entry.indexOf('exports.adjustLiveChallengeExperienceScore'));
-  const marker = trigger.indexOf('if (Number(after.experienceSpeedAdjustedRound) === answeredRound) return null;');
-  assert.ok(marker > 0, 'the trigger must honour the adjusted-round marker');
-  assert.ok(marker < trigger.indexOf('applyExperienceSpeedAdjustment('), 'the marker check must come before any adjustment');
+test('the legacy speed trigger is retired: nothing in the deployable surface rescales a player write', () => {
+  // LC23. A Firestore trigger on every private-player write that returned at
+  // once for every write the current code makes (the round's marker, above).
+  const entry = executableSource(readRequired('functions/entry.js'));
+  assert.doesNotMatch(entry, /adjustLiveChallengeExperienceScore|applyExperienceSpeedAdjustment/);
+  assert.doesNotMatch(entry, /onDocumentWritten/, 'entry.js defines no Firestore trigger');
+
+  // What a release deploys is what the real entry point exports.
+  const { functions } = listDeployableFunctions();
+  assert.ok(functions.length > 150, 'the real entry point was loaded');
+  assert.equal(functions.some((fn) => fn.name === 'adjustLiveChallengeExperienceScore'), false);
+  for (const name of ['configureLiveChallengeExperience', 'getLiveChallengeExperience', 'submitLiveChallengeResponse']) {
+    assert.ok(functions.some((fn) => fn.name === name), `${name} is still deployed`);
+  }
 });
 
 test('Warm-Up waiting is a focused overlay, not a contradictory panel above standard work', () => {
