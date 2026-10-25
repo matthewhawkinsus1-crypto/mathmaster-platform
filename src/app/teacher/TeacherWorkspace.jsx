@@ -348,6 +348,11 @@ export default function TeacherWorkspace({
       };
     }
 
+    // What the compiler itself noticed while reading the file (a function base
+    // the bridge cannot grade, say) is the teacher's to see as well. It used to
+    // stop here, so the question shipped with the warning never read (TT08).
+    warnings.push(...(Array.isArray(parsed.warnings) ? parsed.warnings : []));
+
     try {
       validateAssignmentQuestions(parsed.questions, { variantMode: parsed.assignmentV5?.variantPolicy?.mode });
     } catch (error) {
