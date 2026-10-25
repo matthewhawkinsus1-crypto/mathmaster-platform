@@ -1623,51 +1623,49 @@
         },
         {
           "questionId": "reh-p-8",
-          "familyId": "mathmaster:sat:A2.7G:ccmr-challenge-radical-quotient-variable",
-          "familyVersion": 1,
+          "familyId": "mathmaster:sat:A2.7G:ccmr-challenge-radical-exponent-parameter",
+          "familyVersion": 2,
           "standard": "A2.7G",
-          "prompt": "For $x>0$, what is the value of $\\dfrac{\\sqrt{{{a2}}x^5}}{\\sqrt{x}}$ when $x={{xval}}$?",
+          "prompt": "For $x>0$, $\\sqrt{x^n}=x{{k|pow}}\\sqrt{x{{m|pow}}}$, where $n$ is a positive integer. What is the value of $n$?",
           "studentActions": [
             "multipleResponses"
           ],
           "activityRole": "practice",
-          "dok": 2,
-          "difficultyBand": 4,
+          "dok": 3,
+          "difficultyBand": 5,
           "calculatorPolicy": "graphing",
           "assessedConstruct": "A2.7G",
-          "taskType": "evaluateEquivalentForm",
+          "taskType": "parameterReasoning",
           "representation": "symbolic",
           "generator": {
             "parameters": {
-              "a": {
+              "k": {
                 "type": "int",
-                "min": 2,
+                "min": 1,
                 "max": 9
               },
-              "xval": {
+              "j": {
                 "type": "int",
-                "min": 2,
-                "max": 9
+                "min": 0,
+                "max": 4
               }
             },
             "derived": {
-              "a2": "a*a",
-              "answer": "a*xval*xval",
-              "dDroppedCoefficient": "xval*xval",
-              "dRoundedUp": "a*xval*xval*xval",
-              "dSquaredCoefficient": "a*a*xval"
+              "m": "2*j+1",
+              "n": "2*k+2*j+1",
+              "dNoDouble": "k+2*j+1",
+              "dDoubledBoth": "2*k+4*j+2",
+              "dDoubledWrong": "4*j+2+k"
             },
             "constraints": [
-              "a!=xval",
-              "dDroppedCoefficient!=answer",
-              "dRoundedUp!=answer",
-              "dSquaredCoefficient!=answer",
-              "dDroppedCoefficient!=dSquaredCoefficient",
-              "dDroppedCoefficient!=dRoundedUp",
-              "dSquaredCoefficient!=dRoundedUp",
-              "a2!=0",
-              "a2!=1",
-              "a2!=-1"
+              "k!=2*j+1",
+              "dNoDouble!=n",
+              "dDoubledBoth!=n",
+              "dDoubledWrong!=n",
+              "dNoDouble!=dDoubledBoth",
+              "dNoDouble!=dDoubledWrong",
+              "dDoubledBoth!=dDoubledWrong",
+              "m!=0"
             ]
           },
           "answerFields": [
@@ -1677,17 +1675,17 @@
               "type": "choice",
               "inputProfile": "choice",
               "options": [
-                "{{answer}}",
-                "{{dDroppedCoefficient}}",
-                "{{dRoundedUp}}",
-                "{{dSquaredCoefficient}}"
+                "{{n}}",
+                "{{dNoDouble}}",
+                "{{dDoubledBoth}}",
+                "{{dDoubledWrong}}"
               ],
-              "answer": "{{answer}}",
+              "answer": "{{n}}",
               "optionRationales": {
-                "{{answer}}": "{{a}}x^(5/2) ÷ x^(1/2) = {{a}}x², and at x = {{xval}} that is {{answer}}.",
-                "{{dDroppedCoefficient}}": "{{dDroppedCoefficient}} is x² alone; √{{a2}} = {{a}} still multiplies it.",
-                "{{dRoundedUp}}": "{{dRoundedUp}} keeps too high a power of x; subtract the exponents 5/2 − 1/2.",
-                "{{dSquaredCoefficient}}": "{{dSquaredCoefficient}} keeps {{a2}} instead of its square root and uses x to the first power."
+                "{{n}}": "x{{k|pow}} = √(x^(2·{{k}})), so the product is √(x^(2·{{k}} + {{m}})) and n = 2·{{k}} + {{m}} = {{n}}.",
+                "{{dNoDouble}}": "{{dNoDouble}} = {{k}} + {{m}} adds the exponents without squaring x{{k|pow}} first; under a square root its exponent doubles.",
+                "{{dDoubledBoth}}": "{{dDoubledBoth}} doubles both exponents, but the {{m}} is already under the root; only the outside {{k}} doubles.",
+                "{{dDoubledWrong}}": "{{dDoubledWrong}} doubles the {{m}} under the root and leaves the outside {{k}} alone; it is the outside exponent that doubles."
               }
             }
           ],
@@ -1718,17 +1716,17 @@
             "authored": true,
             "authoredChallenge": true,
             "officialSkillFamily": "equivalent expressions",
-            "stemProfile": "radical-quotient-variable",
+            "stemProfile": "radical-exponent-parameter",
             "responseEcologyRevision": "v2.1-75pct-mcq"
           },
           "solutionReview": {
-            "headline": "Write the radicals as powers and subtract exponents.",
+            "headline": "Move the outside factor back under the radical.",
             "reasoning": [
-              "For x > 0: √({{a2}}x⁵)/√x = {{a}}x^(5/2) ÷ x^(1/2) = {{a}}x^(5/2 − 1/2) = {{a}}x².",
-              "At x = {{xval}}: {{a}} · {{xval}}² = {{answer}}."
+              "For x > 0, a factor moves under a square root when it is squared: x{{k|pow}} = √(x^(2·{{k}})).",
+              "So x{{k|pow}}·√(x{{m|pow}}) = √(x^(2·{{k}}) · x{{m|pow}}) = √(x^{{n}}), and n = 2·{{k}} + {{m}} = {{n}}."
             ],
-            "answerSummary": "{{answer}}",
-            "commonError": "Forgetting the coefficient: √{{a2}} = {{a}} still multiplies x²."
+            "answerSummary": "{{n}}",
+            "commonError": "Forgetting to square the outside factor: x{{k|pow}} under a square root becomes x^(2·{{k}}), not x{{k|pow}}."
           },
           "attemptFeedback": [
             "Use the algebraic structure of the expression and preserve equivalence."
@@ -1741,20 +1739,20 @@
             "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
             "framework": "digitalSAT",
             "domainId": "advancedMath",
-            "documentId": "mm_sat_A2_7G_challenge_2_radical-quotient-variable_v21",
-            "familyId": "mathmaster:sat:A2.7G:ccmr-challenge-radical-quotient-variable",
-            "familyVersion": 1
+            "documentId": "mm_sat_A2_7G_challenge_3_radical-exponent-parameter_v21",
+            "familyId": "mathmaster:sat:A2.7G:ccmr-challenge-radical-exponent-parameter",
+            "familyVersion": 2
           },
           "questionFamily": {
             "scope": "assignment"
           },
           "scaffold": {
-            "prompt": "Let’s back up. For x > 0, x^(5/2) ÷ x^(1/2) equals…",
+            "prompt": "Let’s back up. For x > 0, x² = √(…). What goes under the square root?",
             "options": [
-              "x⁵",
-              "x²"
+              "x²",
+              "x⁴"
             ],
-            "correct": "x²"
+            "correct": "x⁴"
           }
         },
         {

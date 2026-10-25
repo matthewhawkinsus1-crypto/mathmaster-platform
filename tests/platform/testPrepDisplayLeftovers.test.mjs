@@ -228,6 +228,12 @@ test('every value of every parameter of the edited templates draws none of those
   assert.ok(issued > 8000, `${issued} draws were checked (${refused} were refused by a constraint)`);
 });
 
+// CT18 widens this template's ranges (21 versions were too few for a class of 32). A wider range moves the draw a
+// seed makes, so "the same seed deals the same question" cannot hold for it; what CT14 promised, that a version reads the
+// same and keeps its key, is held version by version over the base commit's own ranges instead.
+const WIDENED_LATER = new Set(['mm_sat_A2_7G_challenge_3_radical-exponent-parameter_v21']);
+const withValues = (doc, values) => ({ ...doc, generator: { ...doc.generator, parameters: { ...doc.generator.parameters, ...Object.fromEntries(Object.entries(values).map(([name, value]) => [name, { type: 'choice', values: [value] }])) } } });
+
 /** Every value of one parameter, however long the range. */
 const allValuesOf = (spec) => {
   if (spec.type === 'choice') return spec.values;
@@ -342,9 +348,43 @@ test('no stored answer changes meaning: a draw that is not refused is the same q
   const SEEDS = 150;
   let same = 0;
   let moved = 0;
+  let widenedVersions = 0;
   for (const id of ALL_EDITED) {
     const before = mainDoc(id);
     const after = nowDoc(id);
+    if (WIDENED_LATER.has(id)) {
+      // Only the ranges widen: nothing that decides a key or a display moves, and each version of the old ranges is the same question.
+      Object.entries(before.generator.parameters).forEach(([name, was]) => {
+        const now = after.generator.parameters[name];
+        assert.ok(now && now.type === was.type && now.min <= was.min && now.max >= was.max && (now.step || 1) === (was.step || 1) && JSON.stringify(now.exclude || []) === JSON.stringify(was.exclude || []), `${id}: ${name} only widens`);
+      });
+      assert.deepEqual(after.generator.derived, before.generator.derived, `${id}: the same derived values`);
+      assert.deepEqual(after.generator.constraints, before.generator.constraints, `${id}: the same constraints`);
+      assert.equal(JSON.stringify(after.responseFields), JSON.stringify(before.responseFields), `${id}: the same response fields and keys`);
+      assert.equal(JSON.stringify((after.choices || []).map((choice) => choice.id)), JSON.stringify((before.choices || []).map((choice) => choice.id)), `${id}: the same choice ids in the same order`);
+      const names = Object.keys(before.generator.parameters);
+      const lists = names.map((name) => allValuesOf(before.generator.parameters[name]));
+      const counters = names.map(() => 0);
+      const total = lists.reduce((product, list) => product * list.length, 1);
+      for (let index = 0; index < total; index += 1) {
+        const combination = Object.fromEntries(names.map((name, position) => [name, lists[position][counters[position]]]));
+        const key = `ct14-widened|${id}|${index}`;
+        const old = generatePathInstance(withValues(before, combination), key);
+        const fresh = generatePathInstance(withValues(after, combination), key);
+        assert.equal(Boolean(fresh.question), Boolean(old.question), `${id} at ${JSON.stringify(combination)}: dealt or refused as before`);
+        if (old.question) {
+          assert.deepEqual(fresh.question.choices?.map((choice) => choice.id), old.question.choices?.map((choice) => choice.id), `${id} at ${JSON.stringify(combination)}: same choice ids, same order`);
+          assert.equal(JSON.stringify(fresh.question.responseFields), JSON.stringify(old.question.responseFields), `${id} at ${JSON.stringify(combination)}: same keyed response`);
+          widenedVersions += 1;
+        }
+        for (let position = names.length - 1; position >= 0; position -= 1) {
+          counters[position] += 1;
+          if (counters[position] < lists[position].length) break;
+          counters[position] = 0;
+        }
+      }
+      continue;
+    }
     const oldConstraints = before.generator.constraints || [];
     const newConstraints = after.generator.constraints || [];
     assert.deepEqual(newConstraints.slice(0, oldConstraints.length), oldConstraints, `${id}: the base commit's constraints are kept`);
@@ -372,8 +412,10 @@ test('no stored answer changes meaning: a draw that is not refused is the same q
     }
   }
   // Only the six templates edited to refuse a draw move one, and not often.
-  assert.ok(same > ALL_EDITED.length * SEEDS * 0.9, `${same} draws kept, ${moved} refused and redrawn`);
-  assert.ok(moved > 0 && moved < ALL_EDITED.length * SEEDS * 0.1, `${moved} draws redrawn`);
+  const compared = (ALL_EDITED.length - WIDENED_LATER.size) * SEEDS;
+  assert.ok(same > compared * 0.9, `${same} draws kept, ${moved} refused and redrawn`);
+  assert.ok(moved > 0 && moved < compared * 0.1, `${moved} draws redrawn`);
+  assert.equal(widenedVersions, 21, "every version of the widened template's old ranges was compared");
 });
 
 test('the SAT aggregate kept by hand says the same thing as the seed for every edited Digital SAT template', () => {
