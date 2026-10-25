@@ -66,6 +66,9 @@ test('same, drifted and live-only, on real bank items stored the ways production
   assert.deepEqual(classifyLiveDocument(live('imported-elsewhere', asImported(GEOMETRIC)), index.get('imported-elsewhere')), { status: STATUS.LIVE_ONLY, differingFields: [] });
   // A Firestore Timestamp is read as its time.
   assert.deepEqual(plainValue({ at: { toDate: () => new Date(Date.UTC(2026, 9, 1)) }, rows: [{ n: 1 }] }), { at: '2026-10-01T00:00:00.000Z', rows: [{ n: 1 }] });
+  // Any other Firestore class is its path, never its insides (a reference holds the whole client).
+  class DocumentReference { constructor() { this.path = 'pathQuestionBank/x'; this._firestore = { settings: {} }; } }
+  assert.deepEqual(plainValue({ source: new DocumentReference() }), { source: 'pathQuestionBank/x' });
 });
 
 test('every repository bank item is indexed, by id', () => {

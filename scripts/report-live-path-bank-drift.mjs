@@ -77,14 +77,18 @@ const isObject = (value) => Boolean(value) && typeof value === 'object' && !Arra
 const clean = (value) => String(value ?? '').trim();
 const documentsIn = (parsed) => (Array.isArray(parsed) ? parsed : (parsed?.documents || parsed?.items || parsed?.questions || []));
 
-/** Firestore values as plain JSON: a Timestamp becomes its ISO time. */
+/**
+ * Firestore values as plain JSON: a Timestamp becomes its ISO time, any other
+ * class (a document reference) its path or its text, never its insides.
+ */
 export const plainValue = (value) => {
   if (Array.isArray(value)) return value.map(plainValue);
   if (value && typeof value === 'object') {
     if (typeof value.toDate === 'function') {
       try { return value.toDate().toISOString(); } catch { return null; }
     }
-    if (!isObject(value)) return String(value);
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) return typeof value.path === 'string' ? value.path : String(value);
     return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined).map(([key, entry]) => [key, plainValue(entry)]));
   }
   return value;
