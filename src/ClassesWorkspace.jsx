@@ -90,7 +90,7 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
   // "Warm-Ups today" and "DOL today" now count only lessons whose Warm-Up or
   // DOL belongs to TODAY — they used to count every lesson the class ever had.
   const classContext = { classId: selectedClass.classId || null, classPeriod: selectedPeriod };
-  const classLessons = projectClassLessons({ assignments: periodAssignments, classContext, schedule: classSchedule, nowValue });
+  const classLessons = projectClassLessons({ assignments: periodAssignments, classContext, schedule: classSchedule, nowValue, roster: periodStudents });
   const inclusionCount = periodStudents.filter((student) => student.profile?.inclusionStatus).length;
   const scheduleWindow = getPeriodWindow(classSchedule, selectedPeriod, nowValue);
   const nowMs = nowValue instanceof Date ? nowValue.getTime() : Number(nowValue);

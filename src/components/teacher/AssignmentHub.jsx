@@ -364,8 +364,8 @@ export default function AssignmentHub({
   const period = resolveAssignmentGradingPeriod(assignment, gradingPeriodSettings || {});
   const roleCounts = projectCurrentAssignmentContent(assignment).entries.reduce((counts, entry) => ({ ...counts, [entry.logicalRole]: (counts[entry.logicalRole] || 0) + 1 }), {});
   const sections = SECTION_ORDER.filter(([key]) => roleCounts[key]).map(([key, label]) => `${label} ${roleCounts[key]}`);
-  const lesson = classContext ? describeClassLesson({ assignment, classContext, schedule: classSchedule, nowValue }) : null;
   const roster = classContext ? studentsInClass({ students, classes, classId: classContext.classId }) : [];
+  const lesson = classContext ? describeClassLesson({ assignment, classContext, schedule: classSchedule, nowValue, roster }) : null;
   const nameOf = hubStudentName;
   const live = classContext ? classLiveProgress({ assignment, roster, presenceById, nowValue, nameOf }) : null;
   const fetched = classContext ? loadedGrades[classContext.classId] || null : null;

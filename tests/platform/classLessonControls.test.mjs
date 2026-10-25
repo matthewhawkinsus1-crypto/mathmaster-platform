@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import { localDateKey } from '../../src/assignmentLifecycle.js';
 import { buildDolClose, buildDolDateMove, buildDolExtension, buildDolWindowOpening } from '../../src/platform/assessment/assessmentRecovery.js';
 import { describeClassLesson, LESSON_GROUP, nextClassDateKey, projectClassLessons } from '../../src/platform/teacher/classLessonControls.js';
 import { classGradeProgress, classLiveProgress, PROGRESS_STATE } from '../../src/platform/teacher/assignmentProgress.js';
+import { normalizeTeacherRosterSummary } from '../../src/platform/teacher/teacherRosterSummary.js';
 
 /*
  * "Current instruction should dominate the default interface; historical
@@ -85,6 +87,38 @@ test('an open DOL offers Close now and +5 min, with a live countdown', () => {
   assert.deepEqual(dol.actions.map((action) => action.id), ['close', 'extend', 'grant']);
   // No date change once the DOL has opened today: that could strand today's work.
   assert.ok(!dol.actions.some((action) => action.id === 'move' || action.id === 'restore'));
+});
+
+test('TT30: the DOL control says who still has extra time — a count and a time on the row, names behind the fold', () => {
+  // Rows as the teacher's roster holds them: the stored profile as `timingProfile`.
+  const row = (studentId, displayName, stored) => ({ ...normalizeTeacherRosterSummary({ studentId, displayName, profile: stored }), displayName });
+  const roster = [
+    row('S1', 'Ana Ruiz', { inclusionStatus: false, accommodations: ['extra-time'], modifications: [] }),
+    row('S2', 'Ben Ode', { inclusionStatus: false, accommodations: [], modifications: [] }),
+  ];
+  const dolAt = (nowValue, withRoster = roster) => describeClassLesson({ assignment: today, classContext, schedule, nowValue, roster: withRoster }).rows.find((entry) => entry.kind === 'dol');
+  const after = dolAt(at(9, 27));
+  assert.equal(after.status, 'ended', 'the class DOL is over');
+  const line = after.overrides.find((text) => /extra time/.test(text));
+  assert.match(line || '', /^Still open for 1 student with extra time, until /);
+  assert.equal(JSON.stringify(after.overrides).includes('Ana'), false, 'no name on the row itself');
+  assert.deepEqual(after.extraTime.students.map((student) => [student.studentId, student.name]), [['S1', 'Ana Ruiz']]);
+  assert.ok(after.extraTime.endsAt instanceof Date && after.extraTime.endsAt > at(9, 27));
+  // Nothing without a roster, nobody with extra time, or once their time is up.
+  assert.equal(dolAt(at(9, 27), null).extraTime, null);
+  assert.equal(dolAt(at(9, 27), roster.slice(1)).extraTime, null);
+  assert.equal(dolAt(at(9, 59)).extraTime, null);
+  // The class projection passes the roster through.
+  const projected = projectClassLessons({ assignments: [today], classContext, schedule, nowValue: at(9, 27), roster });
+  assert.equal(projected.today[0].rows.find((entry) => entry.kind === 'dol').extraTime.students.length, 1);
+  // Each screen hands over its own class's roster (never every student the
+  // teacher has: another class's accommodation is not this DOL's), and the
+  // names render only inside the fold.
+  const source = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
+  assert.match(source('src/TeacherHome.jsx'), /projectClassLessons\(\{[^}]*roster: supportRoster \}\)/);
+  assert.match(source('src/ClassesWorkspace.jsx'), /projectClassLessons\(\{[^}]*roster: periodStudents \}\)/);
+  assert.match(source('src/components/teacher/AssignmentHub.jsx'), /const roster = classContext \? studentsInClass\([^\n]*\n\s*const lesson = classContext \? describeClassLesson\(\{[^}]*roster \}\)/);
+  assert.match(source('src/components/teacher/ClassLessonControls.jsx'), /<details[^>]*data-dol-extra-time[^>]*>[\s\S]*?row\.extraTime\.students\.map[\s\S]*?<\/details>/);
 });
 
 test('a teacher-closed DOL reads as closed by the teacher and reopens (never silently restarts)', () => {

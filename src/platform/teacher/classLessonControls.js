@@ -33,6 +33,7 @@ import {
   localDateKey,
 } from '../../assignmentLifecycle.js';
 import { scheduledDolDateFor } from '../assessment/assessmentRecovery.js';
+import { dolExtraTimeForClass } from './dolExtraTimeRoster.js';
 
 export const LESSON_GROUP = Object.freeze({ TODAY: 'today', OPEN: 'open', UPCOMING: 'upcoming', EARLIER: 'earlier' });
 
@@ -67,8 +68,10 @@ const dayRelation = (dateKey, todayKey) => {
 /**
  * The DOL for one class, in teacher language.
  * `attemptBonus` is the class-wide teacher-granted extra attempts.
+ * `extraTime` is dolExtraTimeForClass's answer: the students whose own DOL
+ * (decision D7) is still open past the class's (TT30).
  */
-export const describeDolControl = ({ assignment, state, classId, nowValue = Date.now(), attemptBonus = 0 }) => {
+export const describeDolControl = ({ assignment, state, classId, nowValue = Date.now(), attemptBonus = 0, extraTime = null }) => {
   if (!state?.enabled || state.status === 'unavailable') return null;
   const todayKey = localDateKey(nowValue);
   const relation = dayRelation(state.instructionDateKey, todayKey);
@@ -121,6 +124,13 @@ export const describeDolControl = ({ assignment, state, classId, nowValue = Date
   if (state.teacherRecovery && state.status === 'ended' && !state.teacherClosed) overrides.push('Teacher reopen window has ended');
   if (state.teacherClosed) overrides.push('Closed early by teacher');
   if (attemptBonus) overrides.push(`+${attemptBonus} extra attempt${attemptBonus === 1 ? '' : 's'} for the class`);
+  // A count and a time, never names: the controls can be on a shared screen,
+  // and a name here would tell the room who has an accommodation. The names
+  // are behind a fold the teacher opens (ClassLessonControls.jsx).
+  const extraTimeStudents = Array.isArray(extraTime?.students) ? extraTime.students : [];
+  if (extraTimeStudents.length) {
+    overrides.push(`Still open for ${extraTimeStudents.length} student${extraTimeStudents.length === 1 ? '' : 's'} with extra time, until ${clock(extraTime.endsAt)}`);
+  }
 
   const nowMs = nowValue instanceof Date ? nowValue.getTime() : Number(nowValue);
   const classEndMs = state.window?.end?.getTime?.() ?? null;
@@ -156,6 +166,9 @@ export const describeDolControl = ({ assignment, state, classId, nowValue = Date
     override: overrides.length > 0 && !(overrides.length === 1 && attemptBonus),
     countdownEndsAt: state.status === 'active' ? state.endsAt : null,
     minutesLeft: state.status === 'active' ? minutesLeft(state.millisecondsRemaining) : null,
+    extraTime: extraTimeStudents.length
+      ? { endsAt: extraTime.endsAt, students: extraTimeStudents.map(({ studentId, name, endsAt }) => ({ studentId, name, until: clock(endsAt) })) }
+      : null,
     actions,
     state,
   };
@@ -229,8 +242,12 @@ export const describeSectionAccessControl = ({ state, role }) => {
   };
 };
 
-/** One assignment's controls for one class. */
-export const describeClassLesson = ({ assignment, classContext, schedule, nowValue = Date.now() }) => {
+/**
+ * One assignment's controls for one class. `roster` is that class's students
+ * (rows with `timingProfile`, as App.jsx's roster carries it); without one,
+ * no extra time is shown.
+ */
+export const describeClassLesson = ({ assignment, classContext, schedule, nowValue = Date.now(), roster = null }) => {
   const classId = classContext?.classId || null;
   const classPeriod = classContext?.classPeriod || null;
   const lifecycle = getAssignmentLifecycle(assignment, nowValue);
@@ -238,7 +255,10 @@ export const describeClassLesson = ({ assignment, classContext, schedule, nowVal
   const dolState = getDOLState({ assignment, schedule, classId, classPeriod, nowValue });
   const attemptBonus = Number(assignment?.dol?.attemptGrantsByClassId?.[classId]?.extraAttempts || 0);
   const warmup = describeWarmupControl({ state: warmupState, nowValue });
-  const dol = describeDolControl({ assignment, state: dolState, classId, nowValue, attemptBonus });
+  const extraTime = Array.isArray(roster) && roster.length
+    ? dolExtraTimeForClass({ assignment, schedule, classContext, roster, nowValue })
+    : null;
+  const dol = describeDolControl({ assignment, state: dolState, classId, nowValue, attemptBonus, extraTime });
   const classwork = describeSectionAccessControl({ state: getSectionAccessState({ assignment, activityRole: 'classwork', classId, classPeriod, nowValue }), role: 'classwork' });
   const practice = describeSectionAccessControl({ state: getSectionAccessState({ assignment, activityRole: 'practice', classId, classPeriod, nowValue }), role: 'practice' });
   const rows = [warmup, classwork, practice, dol].filter(Boolean);
@@ -276,13 +296,13 @@ export const describeClassLesson = ({ assignment, classContext, schedule, nowVal
  * Earlier lessons are only listed when they still have a Warm-Up or DOL the
  * teacher might open today; fully finished assignments stay out of the way.
  */
-export const projectClassLessons = ({ assignments = [], classContext, schedule, nowValue = Date.now() } = {}) => {
+export const projectClassLessons = ({ assignments = [], classContext, schedule, nowValue = Date.now(), roster = null } = {}) => {
   if (!classContext?.classId && !classContext?.classPeriod) {
     return { today: [], open: [], upcoming: [], earlier: [], counts: { warmupsToday: 0, dolsToday: 0 } };
   }
   const lessons = (assignments || [])
     .filter((assignment) => assignmentIsForStudent(assignment, classContext))
-    .map((assignment) => describeClassLesson({ assignment, classContext, schedule, nowValue }));
+    .map((assignment) => describeClassLesson({ assignment, classContext, schedule, nowValue, roster }));
   const by = (group) => lessons.filter((lesson) => lesson.group === group);
   const liveFirst = (left, right) => Number(right.live) - Number(left.live) || right.sortKey - left.sortKey;
   const today = by(LESSON_GROUP.TODAY).sort(liveFirst);

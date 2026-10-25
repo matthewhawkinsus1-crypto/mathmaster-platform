@@ -159,7 +159,7 @@ export default function TeacherHome({ allStudents = [], studentIdentityIndex = n
   // in session — the same one the class page and the Assignment Hub render —
   // grouped today first, with earlier lessons folded away but still reachable.
   const classLessons = classContextInSession
-    ? projectClassLessons({ assignments, classContext: classContextInSession, schedule: classSchedule, nowValue })
+    ? projectClassLessons({ assignments, classContext: classContextInSession, schedule: classSchedule, nowValue, roster: supportRoster })
     : null;
   const liveRef = useRef(null);
   useEffect(() => {
