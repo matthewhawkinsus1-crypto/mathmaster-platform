@@ -60,6 +60,9 @@ const ZOOM_BUTTON = {
 };
 
 const tidy = (value) => Number(Number(value).toFixed(6));
+// The keyboard route, said before the plane has focus (AX32). The same route
+// Graphing 2's directions give ("focus it and use the arrow keys and Enter").
+const KEYBOARD_ROUTE_SENTENCE = 'From the keyboard, focus the grid and use the arrow keys and Enter.';
 // One shared empty list standing in for every empty data prop, so the
 // description memo below is not invalidated by a fresh `[]` default (or a
 // caller's inline `[]`) on each render.
@@ -214,10 +217,10 @@ export default function CoordinatePlane({
   // above them instead of five lines under every plane. The screen-reader
   // readout of the cursor is separate and always stays.
   //
-  // 'keyboard': only the keyboard sentence, and only while the plane has
-  // keyboard focus. For a tool whose current step already says, beside the
-  // plane, what a tap does — a standing gesture line under the plane would say
-  // it twice, for the whole question.
+  // 'keyboard': only the keyboard route — a short line before the plane has
+  // focus, the fuller sentence from its first keyboard focus. For a tool whose
+  // current step already says, beside the plane, what a tap does — a standing
+  // gesture line under the plane would say it twice, for the whole question.
   showPlotHelp = true,
   // A read-only plane whose points the student must READ (a GIVEN graph)
   // draws the same snap-step minor grid a plotting plane does. Without it,
@@ -1104,24 +1107,34 @@ export default function CoordinatePlane({
               needs is one sentence; keyboard and zoom detail folds away, and
               stays folded once put away. A screen reader already has the
               keyboard instructions in the plane's accessible name. */}
-          {showPlotHelpHere && (showPlotHelp !== 'keyboard' || keyboardHelpVisible) ? (
+          {showPlotHelpHere ? (
             <div className="mathmaster-plot-help" style={{ margin: '6px 0 0', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', textAlign: 'left' }}>
               {showPlotHelp === 'keyboard' ? null : (
                 <p style={{ margin: 0 }}>
                   Press the grid and slide to aim{minorStep === 1 ? ' at a whole-number point' : ''} — the point lands where you
                   let go{canMovePoints ? '; drag a point to move it' : ''}.
+                  {keyboardHelpVisible ? '' : ` ${KEYBOARD_ROUTE_SENTENCE}`}
                 </p>
               )}
-              {/* The keyboard sentence appears when the plane has KEYBOARD
-                  focus — when the student who needs it is using it — instead of
-                  sitting under every plane or in one more folded row (a fold
-                  here put a third 44px row in Sequence Explorer). */}
+              {/* THE KEYBOARD ROUTE IS NAMED BEFORE THE PLANE HAS FOCUS (AX32,
+                  finding C1-98). The gesture line above is a pointer's, and a
+                  keyboard or switch student reading it cannot tell the plane
+                  takes the keys at all until they have reached it. So the line
+                  ends with one short clause (the same route Graphing 2 gives),
+                  and for a tool whose step already says what a tap does — no
+                  gesture line here — the clause is the whole line. When the
+                  plane has KEYBOARD focus the fuller sentence takes the
+                  clause's place, as it did when nothing was there before. Not
+                  a folded row: a fold here put a third 44px row in Sequence
+                  Explorer. */}
               {keyboardHelpVisible ? (
                 <p style={{ margin: '3px 0 0' }}>
                   The arrow keys move the
                   crosshair{minorStep === 1 ? ' one unit' : ` by ${tidy(minorStep)}`} (Shift for five); Enter plots it.
                   {zoomable ? ' The +/− buttons below zoom in when you need a closer view.' : ''}
                 </p>
+              ) : showPlotHelp === 'keyboard' ? (
+                <p style={{ margin: '3px 0 0' }}>{KEYBOARD_ROUTE_SENTENCE}</p>
               ) : null}
             </div>
           ) : null}

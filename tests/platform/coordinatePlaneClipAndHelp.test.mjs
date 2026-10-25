@@ -59,12 +59,14 @@ test('a tool that draws its own curves is handed the clip', () => {
   assert.match(graphLayers, /return \(\s*<>\s*<g clipPath=\{plotClip\}>[\s\S]*?polygon[\s\S]*?<line key=\{`line\$\{index\}`\}[\s\S]*?<\/g>/, 'shading, overlap and boundaries are clipped');
 });
 
-test('plotting directions: one line, keyboard help on keyboard focus, once per tool', () => {
+test('plotting directions: one line, the keyboard route before focus and the fuller sentence on it, once per tool', () => {
   const help = plane.slice(plane.indexOf('<div className="mathmaster-plot-help"'), plane.indexOf(') : null}\n        </>'));
   assert.match(help, /Press the grid and slide to aim/);
   // A tool whose current step says beside the plane what a tap does asks for
-  // 'keyboard' only: no standing gesture line, the keyboard sentence on focus.
-  assert.match(plane, /\{showPlotHelpHere && \(showPlotHelp !== 'keyboard' \|\| keyboardHelpVisible\) \? \(\s*<div className="mathmaster-plot-help"/);
+  // 'keyboard' only: no standing gesture line, just the keyboard route (a short
+  // line before the plane has focus, the fuller sentence on it; AX32). What the
+  // student reads is in toolDirectionsNameKeyboardRoute.test.mjs.
+  assert.match(plane, /\{showPlotHelpHere \? \(\s*<div className="mathmaster-plot-help"/);
   assert.match(help, /\{showPlotHelp === 'keyboard' \? null : \(\s*<p[^>]*>\s*Press the grid and slide to aim/);
   assert.match(read('src/tools/systemsWorkspace/StudentBuildInequalityMode.jsx'), /<CoordinatePlane[\s\S]*?showPlotHelp="keyboard"/);
   // Not a folded row (a third 44px fold under Sequence Explorer's plane failed

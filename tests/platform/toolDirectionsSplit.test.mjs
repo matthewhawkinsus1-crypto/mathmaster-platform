@@ -285,7 +285,7 @@ test('W6-4 / W4-1 round 2: Representation Match keeps how to work the grouping b
       label: 'Representation Match (linearConnections)',
       path: '/src/tools/representationMatch/RepresentationMatch.jsx',
       question: linear,
-      controls: ['Choose a group at the top, then tap every card that belongs to it', 'Choose the next group and repeat.'],
+      controls: ['Choose a group at the top, then select every card that belongs to it', 'Choose the next group and repeat.'],
       method: ['Compare the numbers each card gives you rather than how the card looks.'],
     });
     assert.ok(practice.includes('Representation reasoning'), 'practice keeps the fold');

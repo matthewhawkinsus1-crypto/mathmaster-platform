@@ -213,7 +213,7 @@ export const SHARED_TOOL_TRANSIENT_STATE = Object.freeze({
     dragIndex: 'Which point the current gesture is moving. Gone at pointer-up.',
     keyboardHeldIndex: 'Which point the keyboard has picked up to move. Gone at Enter or Escape.',
     gestureActive: 'Whether a pointer gesture is in progress.',
-    keyboardHelpVisible: 'Whether the keyboard plotting help is shown: from the plane’s first keyboard focus until the question changes.',
+    keyboardHelpVisible: 'Whether the fuller keyboard plotting help is shown (it replaces the short keyboard line that is there before): from the plane’s first keyboard focus until the question changes.',
     renderedWidth: 'How wide the plane is drawn, measured, so its text stays readable on a phone (pass 3, TOOL-11). Layout.',
     dataTableOpen: 'Whether the "Show data table" disclosure under a read-only plane is open. The table restates the drawn graph; it is not an answer.',
     insideControl: 'Whether the plane sits inside a button or link, measured after mount, which leaves out the nested data-table toggle. Layout.',

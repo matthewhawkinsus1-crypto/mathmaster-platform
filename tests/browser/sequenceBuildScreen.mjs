@@ -18,6 +18,10 @@
 // screen, so there it scrolls — and every box must still be reachable:
 // focusing one brings it fully on the screen.
 //
+// AX32 (finding C1-98): the plane under the table says how to plot from the
+// keyboard before it has keyboard focus (a short line ending the gesture line),
+// and the fuller sentence replaces that line once Tab has brought it focus.
+//
 // Driven only through rendered controls, in the real QuestionEngine
 // (sequenceBuildScreenMain.jsx). Exits non-zero on failure.
 
@@ -118,9 +122,39 @@ for (const screen of SCREENS) {
   await context.close();
 }
 
+/* ---------- AX32: the plane names the keyboard route before it has focus */
+
+// The plane under the table (the shared CoordinatePlane) said how to plot from
+// the keyboard only once it HAD keyboard focus, so a keyboard or switch student
+// read the pointer's directions ("Press the grid and slide to aim") all the way
+// to it. The route now ends the gesture line before focus; the fuller sentence
+// takes its place from the plane's first keyboard focus.
+for (const screen of SCREENS) {
+  const context = await browser.newContext({ viewport: screen.viewport, hasTouch: screen.touch, isMobile: screen.touch });
+  for (const role of ['practice', 'dol']) {
+    const label = `the plane's directions (${screen.name}, ${role})`;
+    const page = await open(context, label, role);
+    const help = () => page.locator('.mathmaster-plot-help').first().innerText();
+    const before = await help();
+    check(/Press the grid and slide to aim/.test(before) && /From the keyboard, focus the grid and use the arrow keys and Enter\./.test(before),
+      `${label}: before focus, the gesture line and the keyboard route`, before.replace(/\s+/g, ' '));
+    let focused = false;
+    for (let step = 0; step < 40 && !focused; step += 1) {
+      await page.keyboard.press('Tab');
+      focused = await page.evaluate(() => document.activeElement?.matches?.('svg[role="application"]') === true);
+    }
+    check(focused, `${label}: the plane is reached with Tab`);
+    const after = await help();
+    check(/The arrow keys move the\s+crosshair/.test(after) && !/From the keyboard, focus the grid/.test(after),
+      `${label}: on keyboard focus the fuller sentence takes the short line's place`, after.replace(/\s+/g, ' '));
+    await page.close();
+  }
+  await context.close();
+}
+
 await browser.close();
 if (failures.length) {
   console.log(`\n${failures.length} of ${total} check(s) failed.`);
   process.exit(1);
 }
-console.log(`\nAll ${total} checks passed: every term's box is on the screen of the Build the Sequence Model table.`);
+console.log(`\nAll ${total} checks passed: every term's box is on the screen of the Build the Sequence Model table, and its plane names the keyboard route before it has focus.`);

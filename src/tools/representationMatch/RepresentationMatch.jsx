@@ -98,7 +98,7 @@ const MODE_STEPS = {
   // The first two say how the board works (a group button, then card taps),
   // so an exit ticket, quiz or test keeps them; the third is how to decide
   // which cards belong together, the method (student pass 3, W6-4).
-  linearConnections: [controlStep('Choose a group at the top, then tap every card that belongs to it — a slope, an intercept, an equation in any form, a table or the graph.'), controlStep('Choose the next group and repeat.'), 'Compare the numbers each card gives you rather than how the card looks.'],
+  linearConnections: [controlStep('Choose a group at the top, then select every card that belongs to it (click or tap, or Tab to a card and press Enter) — a slope, an intercept, an equation in any form, a table or the graph.'), controlStep('Choose the next group and repeat.'), 'Compare the numbers each card gives you rather than how the card looks.'],
 };
 
 const MODE_HINTS = {
@@ -527,7 +527,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
         </> : null}
 
         {mode === 'linearConnections' && linearTask === 'group' ? <div className="mathmaster-line-sort" style={{ textAlign: 'left' }}>
-          <p style={{ margin: '0 0 10px', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>Choose a {groupNoun.toLowerCase()}, then tap every card that belongs to it. Tap a card again to take it back out.</p>
+          <p style={{ margin: '0 0 10px', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>Choose a {groupNoun.toLowerCase()}, then select every card that belongs to it (click or tap, or Tab to a card and press Enter or Space). Select a card again to take it back out.</p>
           <fieldset style={{ border: 0, padding: 0, margin: '0 0 12px' }}>
             <legend style={{ fontWeight: 800, marginBottom: 7, color: 'var(--mm-text)' }}>Sorting cards into:</legend>
             <SortSlotChoices
@@ -559,7 +559,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
                         aria-pressed={assignedSlot === activeLineSlot}
                         // Spoken, not program text (A11Y-3): "y equals negative 2 over 3 x
                         // plus 4", which is also what a voice-control student says.
-                        aria-label={`${spokenLinearCard(card, { bounds: linearGraphBounds })}. In ${assignedLabel}. Tap to ${assignedSlot === activeLineSlot ? 'take it out of' : 'put it in'} ${lineLabels[activeLineSlot]}.`}
+                        aria-label={`${spokenLinearCard(card, { bounds: linearGraphBounds })}. In ${assignedLabel}. Select to ${assignedSlot === activeLineSlot ? 'take it out of' : 'put it in'} ${lineLabels[activeLineSlot]}.`}
                         style={{
                           textAlign: 'left', padding: 10, borderRadius: 10, cursor: 'pointer', minHeight: 64,
                           border: assigned ? `2px solid ${groupColor(assignedSlot)}` : '1px solid var(--mm-tint-border)',

@@ -446,7 +446,7 @@ export default function RelationMapping({ questionData = {}, onAction, coachingR
             snapStep={questionData.plotSnapStep || 1}
           />
           <p style={{ margin: '10px 0 8px', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
-            Move across the coordinate plane to see x- and y-guides. Click the intersection to plot or remove a point.
+            The plane shows x- and y-guides as you move across it. Click or tap the intersection to plot or remove a point, or focus the plane and use the arrow keys and Enter.
           </p>
           {allowTypedPlot ? (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'end' }}>

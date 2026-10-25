@@ -273,9 +273,13 @@ const reload = async () => {
 const keyboard = async () => {
   const page = await open('build');
   const graphFocused = () => page.evaluate((selector) => document.activeElement === document.querySelector(selector), GRAPH);
+  // AX32: the step beside the graph says what a tap does, so the graph's own
+  // line is only the keyboard route — and it is there BEFORE the graph has focus.
+  check(/From the keyboard, focus the grid and use the arrow keys and Enter\./.test(await bodyText(page)), 'keyboard: the route is named before the graph has focus');
   for (let guard = 0; guard < 60 && !(await graphFocused()); guard += 1) await page.keyboard.press('Tab');
   check(await graphFocused(), 'keyboard: the graph is reached with Tab');
   check(/The arrow keys move the/.test(await bodyText(page)), 'keyboard: and says how to plot from the keyboard while it has focus');
+  check(!/From the keyboard, focus the grid/.test(await bodyText(page)), 'keyboard: the fuller sentence takes the short line\'s place');
   // The crosshair starts at the origin; each arrow moves it one unit.
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('Enter');
