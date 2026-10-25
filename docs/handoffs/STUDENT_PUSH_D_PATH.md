@@ -388,6 +388,18 @@ and `skillMastered` events with idempotency keys. Documented in
   `mm_A_3G_v2_transport-estimate`,
   `mm_A_9B_v2_growth-factor`,
   `mm_A_9D_v2_context-decay-graph`.
+  **Done (push J for 26; MP20, 2026-10-25, for the 27th):**
+  `mm_A_12A_v2_mapping-nonfunction` now also draws functions whose outputs
+  repeat (with their own solution text) and names the drawn pairs, at
+  familyVersion 4; every draw's verdict is recomputed from the pairs and graded
+  in production (`pathTemplateWidening_a1FunctionsSequences.test.mjs`). Still
+  withheld: `mm_A2_2A_v2_logarithmic-graph-attributes`, by mathematics: its
+  graded answers are the attributes every logarithmic parent shares, so no
+  draw within A2.2A changes them (recorded in `pathRecapWithheld.mjs`). For the
+  owner: the other four A.12A families each give one verdict on every draw
+  (table-function and error-repeated-output: function; ordered-pairs-nonfunction
+  and context-one-input-two-outputs: not a function). They pass the recap's
+  count, so their recap shows that verdict.
 - **Teacher previews before a week freezes** now use the class's weekly
   settings, but not the student's own CCMR plan ("Auto": their test and date),
   which is still read only on the student's side. The drawer and

@@ -8,20 +8,21 @@
  * from — by varying only numbers and context nouns of the kind each template
  * already varied:
  *
- *   A.12A mapping-nonfunction      NOT widened: see below
+ *   A.12A mapping-nonfunction      function draws too (MP20): see below
  *   A.12D geometric-decay formula   first term: any multiple of 8 in 16..200
  *   A.12E solve-area-height         k in 2..12, companion letter b or w
  *   A.2A  discrete-mapping          the drawn pairs are now named in the prompt
  *   A.9B  growth-factor             factor 2..8, time unit of the period
  *   A.9D  context-decay-graph       start 20..56 (step 4), retains 25/50/75%
  *
- * A.12A is left as committed, on purpose. Its only graded answer, "not a
- * function", is the same on every draw, so a recap showing that answer would be
- * the key to every later draw of the family, retention re-checks included.
- * Naming its drawn pairs in the prompt raised its probe count to 30 and would
- * have taken it off the withheld list without removing that key. It stays
- * withheld until it gains draws with a different verdict (a content-design
- * change: function variants with their own solution texts).
+ * A.12A was left as committed by job J, on purpose: its only graded answer,
+ * "not a function", was the same on every draw, so a recap showing it would
+ * have been the key to every later draw, retention re-checks included. MP20
+ * (2026-10-25) made the content-design change J named: a second variant draws
+ * a FUNCTION whose outputs repeat (three different inputs, one output used
+ * twice), with its own solution text, so the verdict differs from draw to
+ * draw, and the prompt names the drawn pairs so the recap shows the relation.
+ * Same skill, DOK 1, Band 2, and the same mapping tool and question.
  *
  * This file proves, against the drafts themselves:
  *   - a template whose correct answer never changes stays below the recap
@@ -106,25 +107,43 @@ const numeric = (value) => Number(value);
 
 const ORACLES = {
   'mm_A_12A_v2_mapping-nonfunction': (q) => {
-    // The prompt names no numbers: the student reads the relation off the mapping.
-    assert.equal(q.prompt, 'Use the mapping to decide whether the relation is a function.');
-    const shown = q.pairs.map((pair) => [numeric(pair.x), numeric(pair.y)]);
-    const outputs = new Map();
-    let isFunction = true;
-    for (const [x, y] of shown) {
-      if (outputs.has(x) && outputs.get(x) !== y) isFunction = false;
-      outputs.set(x, y);
+    // The prompt names the drawn pairs (MP20), so the recap shows the relation
+    // the student judged; they are exactly the pairs the mapping draws.
+    const named = /^The mapping shows the pairs \$\((-?\d+), (-?\d+)\)\$, \$\((-?\d+), (-?\d+)\)\$ and \$\((-?\d+), (-?\d+)\)\$\. Use the mapping to decide whether the relation is a function\.$/.exec(q.prompt);
+    assert.ok(named, q.prompt);
+    const shown = [[+named[1], +named[2]], [+named[3], +named[4]], [+named[5], +named[6]]];
+    assert.deepEqual(q.pairs.map((pair) => [numeric(pair.x), numeric(pair.y)]), shown, 'the mapping draws the named pairs');
+    // A function sends no input to two different outputs.
+    const outputsOf = new Map();
+    shown.forEach(([x, y]) => outputsOf.set(x, new Set([...(outputsOf.get(x) || []), y])));
+    const isFunction = [...outputsOf.values()].every((outputs) => outputs.size === 1);
+    const summary = q.solutionReview.answerSummary;
+    if (isFunction) {
+      assert.equal(summary, 'The relation is a function.');
+      assert.equal(q.solutionReview.headline, 'Each input has exactly one output, so the relation is a function.');
+      const inputs = /^The inputs (-?\d+), (-?\d+) and (-?\d+) are all different, and each is paired with one output\.$/.exec(q.solutionReview.reasoning[0]);
+      assert.ok(inputs, q.solutionReview.reasoning[0]);
+      assert.deepEqual(inputs.slice(1).map(Number).sort((a, b) => a - b), shown.map(([x]) => x).sort((a, b) => a - b));
+      assert.equal(new Set(shown.map(([x]) => x)).size, 3, 'the three inputs really are all different, as the text says');
+      const repeated = /^The output (-?\d+) is used twice\./.exec(q.solutionReview.reasoning[1]);
+      assert.ok(repeated, q.solutionReview.reasoning[1]);
+      assert.equal(shown.filter(([, y]) => y === +repeated[1]).length, 2, 'the text names the output that repeats');
+    } else {
+      assert.equal(summary, 'The relation is not a function.');
+      const reason = /^The input (-?\d+) is paired with both (-?\d+) and (-?\d+)\.$/.exec(q.solutionReview.reasoning[0]);
+      assert.ok(reason, q.solutionReview.reasoning[0]);
+      const reached = shown.filter(([x]) => x === +reason[1]).map(([, y]) => y).sort((a, b) => a - b);
+      assert.deepEqual(reached, [+reason[2], +reason[3]].sort((a, b) => a - b));
+      assert.notEqual(+reason[2], +reason[3]);
     }
-    assert.equal(isFunction, false, 'this family is always a non-function');
-    const reason = /^The input (-?\d+) is paired with both (-?\d+) and (-?\d+)\.$/.exec(q.solutionReview.reasoning[0]);
-    assert.ok(reason, q.solutionReview.reasoning[0]);
-    const reached = shown.filter(([x]) => x === +reason[1]).map(([, y]) => y).sort((a, b) => a - b);
-    assert.deepEqual(reached, [+reason[2], +reason[3]].sort((a, b) => a - b));
-    assert.notEqual(+reason[2], +reason[3]);
+    const key = isFunction ? 'yes-definition' : 'no-input-repeat';
     return {
-      key: 'no-input-repeat',
-      correct: [{ raw: { isFunction: 'no-input-repeat' } }],
-      wrong: [{ raw: { isFunction: 'yes-definition' } }, { raw: { isFunction: 'no-output-repeat' } }],
+      key,
+      correct: [{ raw: { isFunction: key } }],
+      // The other verdict, and the one-to-one misconception's reason for it.
+      wrong: isFunction
+        ? [{ raw: { isFunction: 'no-input-repeat' } }, { raw: { isFunction: 'no-output-repeat' } }, { raw: { isFunction: 'yes-output-rule' } }]
+        : [{ raw: { isFunction: 'yes-definition' } }, { raw: { isFunction: 'no-output-repeat' } }],
     };
   },
 
@@ -288,7 +307,8 @@ const ORACLES = {
 // and context nouns only; nothing below may move.
 
 const COMMITTED = {
-  'A.12A': { id: 'mm_A_12A_v2_mapping-nonfunction', familyId: 'mathmaster:A.12A:v2-mapping-nonfunction', familyVersion: 3, courseId: 'algebra1', alignmentKeys: ['texas:A.12A'], assessedConstruct: 'A.12A', type: 'relationMapping', questionType: 'response', representation: 'orderedPairs', taskType: 'conceptual', difficultyBand: 2, dok: 1, activityRole: 'practice', calculatorPolicy: 'inherit', ask: ['isFunction'], pairCount: 3 },
+  // familyVersion 4: raised with MP20's function draws, as for the widenings below.
+  'A.12A': { id: 'mm_A_12A_v2_mapping-nonfunction', familyId: 'mathmaster:A.12A:v2-mapping-nonfunction', familyVersion: 4, courseId: 'algebra1', alignmentKeys: ['texas:A.12A'], assessedConstruct: 'A.12A', type: 'relationMapping', questionType: 'response', representation: 'orderedPairs', taskType: 'conceptual', difficultyBand: 2, dok: 1, activityRole: 'practice', calculatorPolicy: 'inherit', ask: ['isFunction'], pairCount: 3 },
 // familyVersion 4: raised with the widening so the recap can tell old draws from new (review of #464, m1).
   'A.12D': { id: 'mm_A_12D_v2_geometric-decay-terms-to-formula', familyId: 'mathmaster:A.12D:v2-geometric-decay-terms-to-formula', familyVersion: 4, courseId: 'algebra1', alignmentKeys: ['texas:A.12D'], assessedConstruct: 'A.12D', questionType: 'response', representation: 'verbal', taskType: 'representationTranslation', difficultyBand: 3, dok: 2, activityRole: 'practice', calculatorPolicy: 'inherit', responseFields: [{ id: 'formula', label: '$f(n)=$', inputProfile: 'expression' }] },
   'A.12E': { id: 'mm_A_12E_v2_solve-area-height', familyId: 'mathmaster:A.12E:v2-solve-area-height', familyVersion: 4, courseId: 'algebra1', alignmentKeys: ['texas:A.12E'], assessedConstruct: 'A.12E', questionType: 'response', representation: 'symbolic', taskType: 'errorAnalysis', difficultyBand: 3, dok: 3, activityRole: 'practice', calculatorPolicy: 'inherit', responseFields: [{ id: 'answer', label: 'Answer', inputProfile: 'expression' }] },

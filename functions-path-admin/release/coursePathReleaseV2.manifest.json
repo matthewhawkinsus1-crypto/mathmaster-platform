@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "compilerSchemaVersion": 2,
   "releaseLine": "course",
-  "releaseId": "course-path-v2-94201e81402e7aca",
-  "contentHash": "94201e81402e7acacb6e89289ef0d08681ca733f52eb8938ca056fd30be4cc20",
+  "releaseId": "course-path-v2-b38a3afd85b50fc7",
+  "contentHash": "b38a3afd85b50fc7a90687fc5fe1361cb1f7aa9bce6f76aed431b8433fcfbaec",
   "questionCount": 1161,
   "courses": [
     "grade6",
@@ -42,8 +42,8 @@
     {
       "courseId": "algebra1",
       "file": "algebra1_pathQuestionBank_seed.json",
-      "sha256": "85d6dca6feb559d3b7bd0db27d4a8d93ad682029a3521300f609bb308dcea0ff",
-      "bytes": 939197
+      "sha256": "94e24a1e42eba77a7e4ba76c187e5d54e483164b19342d85377c6756dc56d883",
+      "bytes": 941342
     },
     {
       "courseId": "algebra2",
@@ -2031,7 +2031,7 @@
       "id": "mm_A_12A_v2_mapping-nonfunction",
       "familyId": "mathmaster:A.12A:v2-mapping-nonfunction",
       "courseId": "algebra1",
-      "contentHash": "5d5b2223baca8d3673392271f722fda6e395c429033dc06880deecf8968059a6",
+      "contentHash": "36cc3b449c7876b83cd33d3e611d5e9d6f4b112d295582ecd594e952c654ac8f",
       "samples": 12
     },
     {
@@ -8182,10 +8182,10 @@
     }
   ],
   "build": {
-    "builtAt": "2026-10-24T17:10:29.222Z",
+    "builtAt": "2026-10-25T12:17:54.964Z",
     "builtBy": "scripts/build-course-path-release-v2.mjs",
-    "gitCommit": "85ebe71159a5f9f65a575f9ebfa76577c03380bc",
+    "gitCommit": "54b11b9a65da6461a0fda3964feedcdfd707f119",
     "nodeVersion": "v22.22.0",
-    "certificationMs": 2956
+    "certificationMs": 7621
   }
 }

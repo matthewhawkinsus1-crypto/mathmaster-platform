@@ -83,14 +83,19 @@ test('the withheld list is exactly the seed bank templates that draw fewer than 
   // count alone would release its answers) and is in the bank.
   RECAP_SAME_MATHEMATICS_TEMPLATE_IDS.forEach((id) => assert.ok((counts.get(id) || 0) >= RECAP_MIN_DISTINCT_INSTANCES, `${id} is a real template that reaches the count`));
   assert.deepEqual([...RECAP_WITHHELD_TEMPLATE_IDS], [...new Set([...repeating, ...RECAP_SAME_MATHEMATICS_TEMPLATE_IDS])].sort());
-  // Student push J's two conservative calls, pinned: one answer on every
-  // draw (A.12A), and 24 wordings of 8 sets of points (the A2.2A logarithm).
-  assert.ok(RECAP_WITHHELD_TEMPLATE_IDS.includes('mm_A_12A_v2_mapping-nonfunction'));
+  // Student push J's two conservative calls. The A2.2A logarithm (24 wordings
+  // of 8 sets of points, and answers every logarithmic parent shares) stays
+  // withheld. The A.12A mapping, one verdict on every draw, was widened with
+  // function draws at familyVersion 4 (MP20): only its older draws withhold.
+  assert.equal(counts.get('mm_A_12A_v2_mapping-nonfunction') >= RECAP_MIN_DISTINCT_INSTANCES, true);
+  assert.equal(RECAP_WITHHELD_TEMPLATE_IDS.includes('mm_A_12A_v2_mapping-nonfunction'), false);
+  assert.equal(RECAP_WIDENED_TEMPLATE_VERSIONS['mm_A_12A_v2_mapping-nonfunction'], 4);
   assert.ok(RECAP_WITHHELD_TEMPLATE_IDS.includes('mm_A2_2A_v2_logarithmic-graph-attributes'));
 });
 
-// Withheld for good: its verdict is "not a function" on every draw (student push J).
-const REPEATING = 'mm_A_12A_v2_mapping-nonfunction';
+// Withheld for good: its answers are the attributes every logarithmic parent
+// function shares (MP20 records why it cannot be widened).
+const REPEATING = 'mm_A2_2A_v2_logarithmic-graph-attributes';
 
 const missed = (templateId, overrides = {}) => buildPathRecapEntry({
   sessionId: 'session-1',
@@ -218,7 +223,8 @@ test('a widened template\'s older draws stay withheld until the widened version 
     for (const template of JSON.parse(readFileSync(new URL(file, BANK), 'utf8')).documents) bank.set(template.id, template);
   }
   const widened = Object.entries(RECAP_WIDENED_TEMPLATE_VERSIONS);
-  assert.equal(widened.length, 26);
+  // Student push J's 26, and the A.12A mapping (MP20).
+  assert.equal(widened.length, 27);
   for (const [id, version] of widened) {
     assert.equal(bank.get(id)?.familyVersion, version, `${id} ships at the version the rule names`);
     const generated = generatePathInstance(bank.get(id), 'deploy-window');
