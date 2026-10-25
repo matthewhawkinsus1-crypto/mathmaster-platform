@@ -11,7 +11,7 @@ import { verticalLineDrawings } from '../../platform/graph/verticalLineStyle.js'
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 import { describePlot } from './plotAnnouncement.js';
-import { baselineBelowAxis, originLabelPlacement, planeFontSize } from './planeTextScale.js';
+import { baselineBelowAxis, originLabelPlacement, planeDotGrowth, planeFontSize } from './planeTextScale.js';
 import { equalUnitPlaneHeight } from './planeEqualUnits.js';
 import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
 import { PublishFigureReading } from '../../platform/language/figureReadings.js';
@@ -649,6 +649,11 @@ export default function CoordinatePlane({
     return () => observer.disconnect();
   }, []);
   const svgFont = (size) => planeFontSize(size, width, renderedWidth);
+  // A dot grows the way the text does, so it is not a 7px speck on a phone
+  // (PH09); every dot by the same factor, so a tool's bigger and smaller dots
+  // (Sequence Explorer's two series) stay bigger and smaller.
+  const dotGrowth = planeDotGrowth(width, renderedWidth);
+  const dotRadius = (radius) => radius * dotGrowth;
   // The first labelled number under the x axis on the y axis, and the first
   // along the x axis to the right of the y axis: what the origin's "0" must
   // not touch.
@@ -877,8 +882,8 @@ export default function CoordinatePlane({
           <g pointerEvents="none">
             <line x1={chip.cx} x2={chip.cx} y1={pad} y2={height - pad} stroke="#1a73e8" strokeDasharray="4 4" strokeWidth="1.5" opacity="0.55" />
             <line x1={pad} x2={width - pad} y1={chip.cy} y2={chip.cy} stroke="#1a73e8" strokeDasharray="4 4" strokeWidth="1.5" opacity="0.55" />
-            <circle cx={chip.cx} cy={chip.cy} r="9" fill="#1a73e8" opacity="0.16" />
-            <circle cx={chip.cx} cy={chip.cy} r="5" fill="none" stroke="#1a73e8" strokeWidth="2.5" />
+            <circle cx={chip.cx} cy={chip.cy} r={dotRadius(5) * 1.8} fill="#1a73e8" opacity="0.16" />
+            <circle cx={chip.cx} cy={chip.cy} r={dotRadius(5)} fill="none" stroke="#1a73e8" strokeWidth="2.5" />
             {revealCoordinates ? (
               <>
                 <rect x={chip.left} y={chip.top} width={chip.chipWidth} height={chip.chipHeight} rx="7" fill="#174ea6" />
@@ -891,7 +896,7 @@ export default function CoordinatePlane({
         {points.map((point, index) => {
           const hovered = pointHoverEnabled && hoveredPointIndex === index;
           const pointFill = resolvePointFill(point, '#1a73e8');
-          const pointRadius = resolvePointRadius(point, 6);
+          const pointRadius = dotRadius(resolvePointRadius(point, 6));
           let [pointX, pointY] = pointXY(point);
           // While a point is held, draw it where the finger is. Leaving it at
           // its old coordinates makes the drag look broken until release.

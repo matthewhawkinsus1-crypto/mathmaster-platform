@@ -24,6 +24,26 @@ export const planeFontSize = (authored, viewBoxWidth, renderedWidth, floorPx = M
   return Math.round(Math.min(size * MAX_GROWTH, floorPx / scale) * 10) / 10;
 };
 
+/*
+ * POINT DOTS A STUDENT CAN SEE ON A PHONE (PH09, finding C1-130).
+ *
+ * A dot is drawn in the same 560-unit viewBox, radius 6: 3.5 CSS px in a 390px
+ * phone column, a 7px dot under a fingertip. It grows by the rule the text does
+ * (never smaller, never more than 2.25 times, untouched where the plane is wide)
+ * until the standard dot has a radius of 5 CSS px. Every dot grows by that same
+ * factor, not to the same floor: Sequence Explorer draws its two series as a
+ * radius 8 and a radius 5 dot, and that difference is a cue that does not
+ * depend on colour. How far a press reaches to pick a point up is a separate
+ * rule (a press is snapped to the grid first), and is not changed.
+ */
+export const MIN_PLANE_DOT_RADIUS_PX = 5;
+export const STANDARD_PLANE_DOT_RADIUS = 6;
+
+/** How many times larger a plane draws every dot: 1 where it is wide, up to 2.25. */
+export const planeDotGrowth = (viewBoxWidth, renderedWidth) => (
+  planeFontSize(STANDARD_PLANE_DOT_RADIUS, viewBoxWidth, renderedWidth, MIN_PLANE_DOT_RADIUS_PX) / STANDARD_PLANE_DOT_RADIUS
+);
+
 /** The CSS px a viewBox font size renders at. */
 export const renderedFontPx = (fontSize, viewBoxWidth, renderedWidth) => Number(fontSize) * (Number(renderedWidth) / Number(viewBoxWidth));
 

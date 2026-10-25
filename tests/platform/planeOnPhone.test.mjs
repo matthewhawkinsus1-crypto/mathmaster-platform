@@ -7,7 +7,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MIN_PLANE_TEXT_PX, baselineBelowAxis, originLabelPlacement, planeFontSize, renderedFontPx } from '../../src/tools/shared/planeTextScale.js';
+import { MIN_PLANE_DOT_RADIUS_PX, MIN_PLANE_TEXT_PX, STANDARD_PLANE_DOT_RADIUS, baselineBelowAxis, originLabelPlacement, planeDotGrowth, planeFontSize, renderedFontPx } from '../../src/tools/shared/planeTextScale.js';
 import { placePoint } from '../../src/tools/graphing2/placePoint.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { readFileSync } from 'node:fs';
@@ -122,4 +122,38 @@ test('a point past the last replaces the nearest one instead of restarting the l
   assert.deepEqual(placePoint([[0, 0], [3, 0]], [0, 1]), [[0, 1], [3, 0]], 'beside P1 moves P1');
   assert.deepEqual(placePoint([[0, 0], [2, 0]], [1, 5]), [[0, 0], [1, 5]], 'a tie replaces the later point');
   assert.deepEqual(placePoint([[0, 0], [1, 1], [2, 2]], [2, 3], 3), [[0, 0], [1, 1], [2, 3]]);
+});
+
+/*
+ * PH09 (C1-130): the dots were 3.5px of radius on a 390px phone, 7px across. The
+ * browser half is tests/browser/planePhoneReach.mjs, which reads the plotted
+ * dots' rendered radius off the real plane at 390x844 and 1366x768.
+ */
+test('point dots grow on a narrow plane until the standard dot is 5px of radius, and only there', () => {
+  // A 560-unit plane drawn 322, 276 and 252px wide: the work area of a 390, 344 and 320px phone.
+  for (const rendered of [322, 276, 252]) {
+    const growth = planeDotGrowth(560, rendered);
+    const px = STANDARD_PLANE_DOT_RADIUS * growth * (rendered / 560);
+    assert.ok(px >= MIN_PLANE_DOT_RADIUS_PX - 0.1, `${rendered}px plane: the standard dot renders ${px.toFixed(2)}px of radius`);
+    assert.ok(growth > 1 && growth <= 2.25, `${rendered}px plane: grows by ${growth}`);
+  }
+  // Wide enough already, or not measured yet: the authored size.
+  assert.equal(planeDotGrowth(560, 560), 1, 'a 560px plane: 6px of radius is already enough');
+  assert.equal(planeDotGrowth(560, 700), 1);
+  assert.equal(planeDotGrowth(560, null), 1);
+  // Never more than 2.25 times its size, as the text.
+  assert.equal(planeDotGrowth(560, 100), 2.25);
+});
+
+test('every dot of a plane grows by one factor, so a tool\'s bigger and smaller dots stay so', () => {
+  // Sequence Explorer draws its two series as a radius 8 and a radius 5 dot: a cue that is not colour.
+  const plane = executableSource(readFileSync(new URL('../../src/tools/shared/CoordinatePlane.jsx', import.meta.url), 'utf8'));
+  assert.match(plane, /const dotGrowth = planeDotGrowth\(width, renderedWidth\);\s*const dotRadius = \(radius\) => radius \* dotGrowth;/, 'the same factor for every radius');
+  assert.match(plane, /const pointRadius = dotRadius\(resolvePointRadius\(point, 6\)\);/, 'an authored radius is scaled, not replaced');
+  // A floor shared by every dot (Math.max over the radius) would make the 8 and the 5 the same size on a phone.
+  assert.doesNotMatch(plane, /pointRadius = Math\.max\(/);
+  // The preview ring is a dot too.
+  assert.match(plane, /r=\{dotRadius\(5\)\}/);
+  // How far a press reaches to pick a point up is not part of this.
+  assert.match(plane, /const HIT_RADIUS = 18;/);
 });

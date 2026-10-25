@@ -87,6 +87,19 @@ for (const [device, viewport] of [['phone', { width: 390, height: 844 }], ['chro
   await page.waitForTimeout(200);
   await check(`${device}: two points plotted`, async () => assert.equal(await plotted(page), '(0, 0) and (3, 0)'));
 
+  // PH09 (C1-130): a dot was 3.5 CSS px of radius on a phone, a 7px speck.
+  await check(`${device}: the plotted dots ${device === 'phone' ? 'are at least 5 CSS px of radius' : 'keep their authored 6 units'}`, async () => {
+    const radii = await plane.evaluate((svg) => {
+      const scale = svg.getScreenCTM().a;
+      return [...svg.querySelectorAll('circle[stroke="#fff"]')].map((circle) => Number(circle.getAttribute('r')) * scale);
+    });
+    assert.equal(radii.length, 2, 'two point dots');
+    for (const radius of radii) {
+      if (device === 'phone') assert.ok(radius >= 4.9, `a dot renders ${radius.toFixed(2)} CSS px of radius`);
+      else assert.ok(Math.abs(radius - 6) < 0.6, `a wide plane keeps its authored dot (${radius.toFixed(2)} px)`);
+    }
+  });
+
   if (device === 'phone') {
     await check(`${device}: a missed drag beside P2 keeps the line`, async () => {
       // Centres through the svg's own transform: the dots' boxes include their stroke.
