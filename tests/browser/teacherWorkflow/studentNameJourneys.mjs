@@ -216,13 +216,19 @@ const rowsForId = (page, scope, id) => page.evaluate(({ scope: selector, id: stu
   return [...rows].map((element) => squashed(element.innerText).slice(0, 260));
 }, { scope, id });
 
+// A screen loads its own code on demand (and the Students list its records):
+// on a busy machine that can take longer than the settle after a click. Wait
+// for the student's id label to be drawn before deciding it is not there.
+const idLabelDrawn = (page, id) => page.waitForFunction((studentId) => (document.body.innerText || '').includes(`ID ${studentId}`), id, { timeout: 20_000 }).catch(() => {});
 const expectNamelessRow = async (journey, page, where, scope, id) => {
+  await idLabelDrawn(page, id);
   const rows = await rowsForId(page, scope, id);
   expect(journey, rows.length > 0, `${where}: a row labelled "ID ${id}" is shown for the nameless student`);
   rows.forEach((row) => expect(journey, row.includes(UNAVAILABLE), `${where}: the nameless student ${id} reads "${UNAVAILABLE}" (${row.slice(0, 120)})`));
   return rows;
 };
 const expectNamedRow = async (journey, page, where, scope, id, name) => {
+  await idLabelDrawn(page, id);
   const rows = await rowsForId(page, scope, id);
   expect(journey, rows.length > 0, `${where}: a row labelled "ID ${id}" is shown`);
   rows.forEach((row) => {

@@ -191,6 +191,10 @@ const openTodayWarmup = async (page) => {
   const start = marked ? page.locator('[data-journey-open="today"]') : page.getByRole('button', { name: /^(Continue|Resume Question|Start)/ }).first();
   await start.click({ timeout: 60000 * SLOW_FACTOR });
   await stage(page).waitFor({ timeout: 60000 * SLOW_FACTOR });
+  // The stage can show "Loading this question…" first: a personalized
+  // question waits for its pin (RT15), and the question's code then loads
+  // with the stage still on screen. Wait for the question itself.
+  await page.waitForFunction(() => !/Loading this question/.test(document.querySelector('.mathmaster-question-stage')?.innerText || ''), null, { timeout: 60000 * SLOW_FACTOR });
   await page.waitForFunction(() => !document.body.textContent.includes('Opening Work View…'), null, { timeout: 60000 * SLOW_FACTOR });
   await page.waitForTimeout(600 * SLOW_FACTOR);
 };
