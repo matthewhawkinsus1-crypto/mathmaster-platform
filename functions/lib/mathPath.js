@@ -581,6 +581,9 @@ function privateGradingDefinition(question) {
       ? field.choices
       : (isChoice && Array.isArray(question.choices) ? question.choices : []);
     const sourceKey = hasFieldChoices ? `field:${id}` : 'question';
+    // Only a "choice" field is drawn as choices (PathResponseFields.jsx); any
+    // other field is typed, so its authored key grades the typed value (MP13,
+    // tests/platform/pathFieldChoiceRemap.test.mjs).
     const runtimeIds = isChoice && sourceChoices.length
       ? choiceIdMap(question, sourceKey, sourceChoices)
       : null;
