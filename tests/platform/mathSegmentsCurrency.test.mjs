@@ -76,3 +76,26 @@ test('a list of prices stays prose: "$20, $25, and $50"', () => {
   assert.deepEqual(splitMathSegments('Compute $20, 25$ now.'), ['Compute ', '$20, 25$', ' now.']);
   assert.deepEqual(splitMathSegments('Solve $3 + 2$ and $x$.'), ['Solve ', '$3 + 2$', ' and ', '$x$', '.']);
 });
+
+// AX23: the same list with one short word or sign in it. "or", "to" and "vs"
+// are under the three letters the prose rule needs, so "$20 or $30" was the
+// math span "$20 or $": a choice showed a typeset "20 or" and a screen reader
+// said no dollars. "($105 vs $120)" in a real Honors lesson's feedback did too.
+test('two prices joined by a short word, a dash or a sign stay prose (AX23)', () => {
+  [
+    '$20 or $30', '$20 to $30', '$20 - $30', '$20-$30', '$20–$30', '$20 — $30', '$20 / $30',
+    '$20 → $30', '$20 -> $30', '$20 + $30', '$20 < $30', '$105 vs $120', '$20 vs. $30', '$20.50 or $30',
+    'Pay $20 or $30 now', 'Total = $20 + $30 = $50', 'Gym A is cheaper from 3 months on ($105 vs $120).',
+  ].forEach((text) => {
+    assert.deepEqual(splitMathSegments(text), [text], text);
+    assert.equal(isMathSegment(text), false, text);
+  });
+});
+
+test('arithmetic between dollar signs is still mathematics when no second price follows', () => {
+  assert.deepEqual(splitMathSegments('Compute $20 - 5$ now.'), ['Compute ', '$20 - 5$', ' now.']);
+  assert.deepEqual(splitMathSegments('Solve $20 + 5$ or $x$.'), ['Solve ', '$20 + 5$', ' or ', '$x$', '.']);
+  assert.deepEqual(splitMathSegments('$5$ or $6$'), ['$5$', ' or ', '$6$']);
+  assert.deepEqual(splitMathSegments('$3 + 2$ and $4 + 5$'), ['$3 + 2$', ' and ', '$4 + 5$']);
+  assert.deepEqual(splitMathSegments('Compute $1,000 - 5$.'), ['Compute ', '$1,000 - 5$', '.']);
+});

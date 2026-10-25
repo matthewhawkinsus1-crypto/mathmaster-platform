@@ -60,6 +60,10 @@ const currencyPrefixLength = (text, dollarIndex) => {
   return match[0].length;
 };
 
+// What may sit between two prices: list punctuation, and at most one short
+// connector ("or", "to", "and", "vs", a dash, a slash, an arrow, an operator).
+const PRICE_SEPARATORS = /^[\s,;:]*(?:(?:or|to|and|vs\.?|versus)|->|[-–—/→+×=<>≤≥])?[\s,;:]*$/i;
+
 const isCurrencyProseOpening = (text, start, end) => {
   const prefixLength = currencyPrefixLength(text, start);
   if (!prefixLength) return false;
@@ -97,7 +101,14 @@ const isCurrencyProseOpening = (text, start, end) => {
   // "20," with the next price's dollar sign gone. When the span holds nothing
   // after the amount but list punctuation and its closing `$` itself opens
   // another amount, both are prices.
-  if (/^[\s,;:]*$/.test(withoutLatexCommands) && text[end] === '$' && currencyPrefixLength(text, end) > 0) return true;
+  //
+  // TWO PRICES WITH A SHORT CONNECTOR (AX23). "$20 or $30", "$20 to $30",
+  // "$20 - $30" and "$105 vs $120" are the same list with one word or dash in
+  // it, and the word is under three letters, so the rule below read them as the
+  // math span "$20 or $": the choice showed a typeset "20 or" and a screen
+  // reader said no dollars at all. A connector between two amounts is not LaTeX
+  // (arithmetic between amounts stays mathematics: "$20 + 5$" has no second price).
+  if (PRICE_SEPARATORS.test(withoutLatexCommands) && text[end] === '$' && currencyPrefixLength(text, end) > 0) return true;
   // "$3 + 2$" remains valid legacy inline math because there are no prose
   // words after the numeric prefix. "$15 per month. Solve $..." is currency.
   //
