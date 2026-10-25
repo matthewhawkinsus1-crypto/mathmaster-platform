@@ -33,6 +33,7 @@ import {
 } from '../../platform/teacher/liveAttendance.js';
 import { studentsInClass } from '../../../functions/shared/classModel.mjs';
 import { suggestMovesForClass } from '../../platform/teacher/liveCoaching.js';
+import { seeNextQueue } from '../../platform/teacher/liveSeeNext.js';
 import {
   SPOTLIGHT_FRAME_COLLECTION,
   SPOTLIGHT_REQUEST_COLLECTION,
@@ -934,6 +935,9 @@ export default function LiveClassMonitor({
 
   const absentCount = Math.max(0, roster.length - monitoredRoster.length);
   const visibleRows = mode === 'attention' ? rows.filter((row) => row.severity !== LIVE_SEVERITY.OK) : rows;
+  // TT16: who to see next, from the rows above (no new data). It names
+  // students, so it is a teacher's list and never shown while projecting.
+  const seeNext = useMemo(() => seeNextQueue({ rows, classStats, nowValue }), [rows, classStats, nowValue]);
 
   const timerContext = useMemo(() => {
     if (activeClassId) {
@@ -1204,6 +1208,44 @@ export default function LiveClassMonitor({
               : assignment.title || kind;
             return <span key={`${assignment.id}:${kind}`} data-dol-extra-time={extraTimeStudents ? extraTimeStudents.length : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 9px', borderRadius: 999, background: isDol ? 'var(--mm-accent-soft)' : 'var(--mm-warning-soft)', color: isDol ? 'var(--mm-accent-text)' : 'var(--mm-warning-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, border: `1px solid ${isDol ? 'var(--mm-accent-border)' : '#f9c74f'}` }} title={title}>{label} · <DOLCountdown endsAt={endsAt} /></span>;
           })}
+        </div>
+      )}
+
+      {/* WHO TO SEE NEXT (TT16, liveSeeNext.js): raised hands first, then whoever has gone
+          longest without moving on. Not in Walkthrough (it has its own Visit Next) and never
+          on the projector: it names students. */}
+      {mode !== 'walkthrough' && !projecting && (seeNext.items.length > 0 || seeNext.classwideQuiet) && (
+        <div role="group" aria-label="Who to see next" data-see-next={seeNext.items.length} style={{ margin: '0 0 14px', padding: '10px 12px', borderRadius: 12, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface-tint)', display: 'grid', gap: 8 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '2px 10px' }}>
+            <strong style={{ color: 'var(--mm-primary-text)' }}>See next</strong>
+            <span style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Raised hands first, then whoever has gone longest without answering or moving on.</span>
+          </div>
+          {seeNext.items.length > 0 && (
+            <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {seeNext.items.map((entry) => (
+                <li key={entry.id} data-see-next-kind={entry.kind}>
+                  <button
+                    type="button"
+                    disabled={!onOpenStudent}
+                    onClick={() => onOpenStudent?.(entry.id)}
+                    style={{ ...smallButtonStyle, padding: '7px 10px', textAlign: 'left', borderColor: entry.kind === 'help' ? 'var(--mm-danger)' : 'var(--mm-border-strong)', cursor: onOpenStudent ? 'pointer' : 'default' }}
+                  >
+                    <strong style={{ color: 'var(--mm-text-strong)' }}>{entry.name}</strong>
+                    {entry.nameMissing && entry.idLabel && <span data-student-id-label="true" style={{ marginLeft: 6, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{entry.idLabel}</span>}
+                    <span style={{ display: 'block', fontWeight: 600, fontSize: 'calc(11.5 * var(--mm-px))', color: entry.kind === 'help' ? 'var(--mm-danger)' : 'var(--mm-text-muted)' }}>{entry.reason}</span>
+                  </button>
+                </li>
+              ))}
+            </ol>
+          )}
+          {seeNext.total > seeNext.items.length && (
+            <span style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>and {seeNext.total - seeNext.items.length} more in the room below</span>
+          )}
+          {seeNext.classwideQuiet && (
+            <span role="status" data-see-next-quiet="" style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
+              Most of the room is quiet at once, which is usually you talking or paper work, so quiet time is not used to rank anyone right now.
+            </span>
+          )}
         </div>
       )}
 
