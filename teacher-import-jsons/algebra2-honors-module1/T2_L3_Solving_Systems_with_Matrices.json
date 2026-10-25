@@ -612,16 +612,16 @@
           "guidedNotes": {
             "steps": [
               {
-                "title": "Matrix multiplication",
-                "instruction": "Element (p, q) of A·B is row p of A times column q of B: multiply matching elements and add the products."
+                "title": "What one entry means",
+                "instruction": "Each number in a product is one total: line one sprinter’s finishes up with the points for each place, then add up what they are worth."
               },
               {
-                "title": "When it is defined",
-                "instruction": "A·B is defined only when the number of columns of A equals the number of rows of B."
+                "title": "Why the sizes must match",
+                "instruction": "Every place in A needs a point value in B. If the two matrices counted different numbers of places, some finishes would be worth nothing."
               },
               {
-                "title": "Outer dimensions",
-                "instruction": "(n × m) · (m × p) gives an n × p product: sprinters by medals · medals by points = sprinters by points."
+                "title": "Reading the size of the answer",
+                "instruction": "The places are used up in the adding, so they do not show in the answer’s size. What is left is one row per sprinter and one column per thing scored."
               }
             ]
           }
