@@ -140,6 +140,11 @@ export const choiceFieldAsksDimensions = (...texts) => /dimension|matri|dimensi/
  * MultiAnswerGrader draws these and Read aloud says them
  * (platform/language/questionReading.js), so what a student hears is the
  * order on the screen. Null when the field is not a choice.
+ *
+ * Options the compiler inferred from the label are stored on the field with
+ * `optionsInferred` (GR12). They are MathMaster's, not the author's, so they
+ * get the distractors any inferred pair gets: before the mark they were read
+ * as authored, and a Yes/No field showed two choices instead of four.
  */
 const inferredBinaryOptions = (field) => {
   const label = String(field?.label || field?.prompt || '').toLowerCase();
@@ -155,10 +160,11 @@ const inferredBinaryOptions = (field) => {
 };
 
 export const choiceOptionsForField = (field, seed = '') => {
-  const authored = Array.isArray(field?.options) && field.options.length ? field.options : null;
-  const options = authored || inferredBinaryOptions(field);
+  const listed = Array.isArray(field?.options) && field.options.length ? field.options : null;
+  const options = listed || inferredBinaryOptions(field);
   if (!options) return null;
-  return stableShuffleChoices(prepareFiniteChoiceSet(options, { authored: Boolean(authored) }), seed);
+  const authored = Boolean(listed) && field?.optionsInferred !== true;
+  return stableShuffleChoices(prepareFiniteChoiceSet(options, { authored }), seed);
 };
 
 /** The seed MultiAnswerGrader shuffles one field's choices with. */

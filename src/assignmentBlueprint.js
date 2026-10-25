@@ -611,7 +611,9 @@ const normalizeQuestionStorageShapes = (questions, repairs = []) => (Array.isArr
         const inferredOptions = inferBinaryChoiceOptions(normalizedField);
         if (inferredOptions) {
           promoted += 1;
-          normalizedField = { ...normalizedField, type: 'choice', options: inferredOptions };
+          // Marked as MathMaster's options, so the screen adds its
+          // distractors to them (GR12; choiceOptions.js).
+          normalizedField = { ...normalizedField, type: 'choice', options: inferredOptions, optionsInferred: true };
         }
       }
       if (!normalizedField.type) {

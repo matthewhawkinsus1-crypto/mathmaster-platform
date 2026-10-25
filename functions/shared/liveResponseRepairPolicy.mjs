@@ -34,6 +34,29 @@ const withoutKeys = (value = {}, keys = new Set()) => Object.fromEntries(
   Object.entries(value).filter(([key]) => !keys.has(key)),
 );
 
+/*
+ * WHO WROTE A FIELD'S CHOICES IS NOT PART OF THE QUESTION (GR12). The
+ * compiler marks the choices it inferred from a label ("Yes or no?") with
+ * `optionsInferred`, so the screen adds its distractors to them. The mark is
+ * provenance, like questionWeightBasis: the same question compiled before the
+ * mark existed and after is one question to every comparison here and to the
+ * content-upgrade classifier (assignmentContentUpgradePolicy.mjs), so an
+ * upgrade keeps the live question as it is.
+ */
+const hasChoiceMark = (field) => Boolean(field) && typeof field === 'object' && Object.prototype.hasOwnProperty.call(field, 'optionsInferred');
+export const withoutInferredChoiceMarks = (question) => {
+  const fields = question && typeof question === 'object' ? question.answerFields : null;
+  if (!Array.isArray(fields) || !fields.some(hasChoiceMark)) return question;
+  return {
+    ...question,
+    answerFields: fields.map((field) => {
+      if (!hasChoiceMark(field)) return field;
+      const { optionsInferred: _mark, ...rest } = field;
+      return rest;
+    }),
+  };
+};
+
 const sameOutsideAnswerFields = (before = {}, after = {}) => {
   const strip = (question) => {
     const copy = { ...question };
@@ -429,7 +452,9 @@ const safeFieldConversion = (before = {}, after = {}) => {
   return { safe: true, changed: true };
 };
 
-export const analyzeSafeResponseEntryRepair = (beforeQuestion = {}, afterQuestion = {}) => {
+export const analyzeSafeResponseEntryRepair = (beforeQuestionAsStored = {}, afterQuestionAsStored = {}) => {
+  const beforeQuestion = withoutInferredChoiceMarks(beforeQuestionAsStored) || {};
+  const afterQuestion = withoutInferredChoiceMarks(afterQuestionAsStored) || {};
   if (!beforeQuestion?.questionId || beforeQuestion.questionId !== afterQuestion?.questionId) {
     return { safe: false, affectedFieldIds: [], reason: 'The question ID must stay exactly the same.' };
   }

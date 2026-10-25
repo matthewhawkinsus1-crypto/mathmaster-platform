@@ -471,6 +471,10 @@ const fieldFromIntent = (field, index) => {
     if (inferredOptions) {
       out.type = 'choice';
       out.options = inferredOptions;
+      // MathMaster wrote these options, not the author, so the screen adds
+      // its distractors to them as it does to any inferred pair (GR12;
+      // choiceOptions.js choiceOptionsForField). Authored options stay closed.
+      out.optionsInferred = true;
     }
   }
   if (out.kind === 'text' && !out.type) out.type = 'text';
