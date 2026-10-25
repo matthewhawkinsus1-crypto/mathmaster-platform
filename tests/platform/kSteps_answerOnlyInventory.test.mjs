@@ -37,8 +37,9 @@ const { bankDocumentToV5Intent } = require('../../functions/lib/ccmrAssignmentBa
  * SolutionReviewPanel calls it, and classified:
  *
  *   STEPS        authored reasoning (the item's own solutionReview, or its
- *                family's workedSolution filling that shape) or a tool review
- *                with steps;
+ *                family's workedSolution filling that shape, or — where no
+ *                family covers it — a worked-solution builder's, CT02) or a
+ *                tool review with steps;
  *   ANSWER-ONLY  anything else: the legacy answer list, a tool review that
  *                only reads off values, or nothing at all.
  *
@@ -119,11 +120,12 @@ const kindOf = (question) => (toolIdOf(question) ? `tool:${toolIdOf(question)}` 
 const inventory = { STEPS: 0, ANSWER_ONLY: 0, bySource: {}, groups: new Map(), sampled: {} };
 const record = (source, question, where) => {
   const review = reviewOf(question);
-  const bucket = (inventory.bySource[source] ||= { steps: 0, answerOnly: 0, fromFamily: 0 });
+  const bucket = (inventory.bySource[source] ||= { steps: 0, answerOnly: 0, fromFamily: 0, fromBuilder: 0 });
   if (hasStepsFrom(review)) {
     inventory.STEPS += 1;
     bucket.steps += 1;
     if (review.fromFamily) bucket.fromFamily += 1;
+    if (review.fromBuilder) bucket.fromBuilder += 1;
     return;
   }
   inventory.ANSWER_ONLY += 1;
@@ -242,10 +244,16 @@ const STEPS_FLOOR = Object.freeze({
   'v5:algebra2-honors-module1/L2_Day2_Transformations.json': 10,
   'v5:algebra2-honors-module1/L3_Inverse_Linear_Functions.json': 19,
   'v5:algebra2-honors-module1/L4_Operations_on_Functions_Composition.json': 20,
+  // CT02: all 336 District DOL #2 review variants (7 tasks × 48), from
+  // functions/shared/districtDol2WorkedSolution.mjs; there were none.
+  'v5:district-dol2/assignment.json': 336,
   demo: 26,
 });
-const STEPS_TOTAL_FLOOR = 7999;
+const STEPS_TOTAL_FLOOR = 7999 + 336;
 const FROM_FAMILY_FLOOR = 119;
+// Where a worked-solution builder (not a support family) writes the steps: the
+// DOL #2 review, every variant, and nothing else it might misread (CT02).
+const FROM_BUILDER = Object.freeze({ 'v5:district-dol2/assignment.json': 336 });
 
 test('inventory: every authored item is classified STEPS or ANSWER-ONLY (the answer-only groups are logged)', (t) => {
   t.diagnostic(`sampled: ${JSON.stringify(inventory.sampled)}`);
@@ -268,4 +276,9 @@ test('the STEPS count does not fall, per source and in total', () => {
 test('the support families still write the steps they write today (closed review only)', () => {
   const fromFamily = Object.values(inventory.bySource).reduce((sum, bucket) => sum + bucket.fromFamily, 0);
   assert.ok(fromFamily >= FROM_FAMILY_FLOOR, `family worked solutions ${fromFamily} < ${FROM_FAMILY_FLOOR}`);
+});
+
+test('a worked-solution builder writes steps for the DOL #2 review tasks only, every one of them', () => {
+  const fromBuilder = Object.fromEntries(Object.entries(inventory.bySource).filter(([, bucket]) => bucket.fromBuilder > 0).map(([source, bucket]) => [source, bucket.fromBuilder]));
+  assert.deepEqual(fromBuilder, FROM_BUILDER);
 });
