@@ -182,7 +182,9 @@ deadline display. One `available` record per (assignment, revision) documents wh
 
 ### 4.3 Individualized deadlines (extra time)
 `supportDeadline.mjs` computes, per student and assignment, `supportDueAt` (e.g. end of next school day after
-the class due) and `supportFinalAt = max(classFinal, supportDueAt)`. They are injected **in memory** into the
+the class due) and `supportFinalAt = max(classFinal, supportDueAt)`. A school day is a day the district is open to
+students: weekends, breaks, holidays and staff days are skipped (`schoolYearCalendar.mjs`, read the same by the browser and
+the server; TT17), which can only make a date later than counting weekdays. They are injected **in memory** into the
 student's override entry where the student's assignment and pinned profile meet:
 
 - student client (assignment load) → every existing `getAssignmentLifecycle(..., {studentId})` call honours them;
