@@ -326,3 +326,49 @@ exports.authorHonorsAssignmentWithGemini = onCall({
     throw translated;
   }
 });
+
+// --- Answer keys in shadow (D10 Phase 1, P1-4; SI02) -------------------------
+// Whenever an assignment is written, its answer keys, accepted answers and
+// worked solutions are split out into assignmentKeys/{assignmentId}
+// (functions/lib/assignmentKeyShadow.js, functions/shared/assignmentKeySplit.mjs).
+// In shadow the assignment keeps every key and nothing reads the copy, so no
+// student or teacher sees any change. It writes only when the sections change
+// (or its key document is missing or stale), and re-reads the assignment in a
+// transaction before writing, so events out of order cannot store old keys.
+//
+// DEPLOY ORDER: the firestore:rules release that adds the assignmentKeys rule
+// first, then this one function by name, outside class hours:
+//   node scripts/release-firebase.mjs --execute --only rules
+//   node scripts/release-firebase.mjs --execute --only functions --functions shadowAssignmentKeys
+// (Were the function to ship first, the catch-all `match /{document=**}` rule
+// would still refuse every browser the new collection.)
+// ROLLBACK: delete the trigger; nothing reads what it wrote, and every
+// assignment still carries its own keys.
+//   firebase functions:delete shadowAssignmentKeys --region us-central1 --project mathmaster-aleks
+// then remove this export, or the next whole-fleet release recreates it.
+const { onDocumentWritten } = require('firebase-functions/v2/firestore');
+const logger = require('firebase-functions/logger');
+const assignmentKeyShadow = require('./lib/assignmentKeyShadow');
+
+exports.shadowAssignmentKeys = onDocumentWritten('assignments/{assignmentId}', async (event) => {
+  const assignmentId = String(event.params?.assignmentId || '');
+  if (!assignmentId) return;
+  try {
+    const result = await assignmentKeyShadow.shadowAssignmentKeysOnWrite({
+      db: getFirestore(),
+      assignmentId,
+      after: event.data?.after || null,
+      serverTimestamp: () => FieldValue.serverTimestamp(),
+    });
+    if (result.outcome !== assignmentKeyShadow.SHADOW_OUTCOME.CURRENT) {
+      logger.info('Assignment answer-key shadow copy changed', { assignmentId, ...result });
+    }
+  } catch (error) {
+    // Shadow only: a failure changes nothing anyone reads. It is logged, and
+    // the next write of this assignment (or the backfill) tries again.
+    logger.error('Assignment answer keys could not be stored in shadow', {
+      assignmentId,
+      message: String(error?.message || error).slice(0, 300),
+    });
+  }
+});

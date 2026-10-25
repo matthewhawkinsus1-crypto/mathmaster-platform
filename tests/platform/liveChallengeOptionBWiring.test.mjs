@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { listDeployableFunctions } from '../../scripts/lib/functionsInventory.mjs';
 import { executableSource } from './helpers/sourceContract.mjs';
 
@@ -98,7 +99,6 @@ test('the legacy speed trigger is retired: nothing in the deployable surface res
   // once for every write the current code makes (the round's marker, above).
   const entry = executableSource(readRequired('functions/entry.js'));
   assert.doesNotMatch(entry, /adjustLiveChallengeExperienceScore|applyExperienceSpeedAdjustment/);
-  assert.doesNotMatch(entry, /onDocumentWritten/, 'entry.js defines no Firestore trigger');
 
   // What a release deploys is what the real entry point exports.
   const { functions } = listDeployableFunctions();
@@ -107,6 +107,16 @@ test('the legacy speed trigger is retired: nothing in the deployable surface res
   for (const name of ['configureLiveChallengeExperience', 'getLiveChallengeExperience', 'submitLiveChallengeResponse']) {
     assert.ok(functions.some((fn) => fn.name === name), `${name} is still deployed`);
   }
+  // And no Firestore trigger the entry point exports listens to a Live
+  // Challenge document, whichever file defines it. (This used to be "entry.js
+  // defines no Firestore trigger"; the D10 answer-key shadow on
+  // assignments/{assignmentId} lives there now, and touches no player score.)
+  const documentOf = (fn) => String(fn.__endpoint.eventTrigger.eventFilterPathPatterns?.document
+    || fn.__endpoint.eventTrigger.eventFilters?.document || '');
+  const triggers = Object.entries(createRequire(import.meta.url)('../../functions/platformEntry.js'))
+    .filter(([, fn]) => fn?.__endpoint?.eventTrigger && documentOf(fn));
+  assert.ok(triggers.length >= 5, `${triggers.length} Firestore triggers are deployed`);
+  assert.deepEqual(triggers.filter(([, fn]) => /liveChallenge/i.test(documentOf(fn))).map(([name]) => name), []);
 });
 
 test('Warm-Up waiting is a focused overlay, not a contradictory panel above standard work', () => {
