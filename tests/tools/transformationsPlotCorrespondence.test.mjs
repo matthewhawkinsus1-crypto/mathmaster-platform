@@ -9,8 +9,10 @@
  *   - every point moved UP 3 draws t(x)'s line through the wrong points and
  *     got the same sentence (P1-6).
  *
- * Both now say what they got right and what is left. The grade does not move
- * (the shared grader is unchanged): order is the correspondence being taught.
+ * Both now say what they got right and what is left. Order is the
+ * correspondence being taught, so it still costs; since GR32 an order-only
+ * miss earns half a share for each image under another label (0.2 → 0.6
+ * here), and the up-3 plot, which found no image by order, still scores 0.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -33,11 +35,14 @@ test('the real item: S1–S5 moved left 3, and the five images it expects', () =
   assert.deepEqual(images, [[-5, -2], [-4, -1], [-3, 0], [-2, 1], [-1, 2]]);
 });
 
-test('every image found, plotted in reverse: the score is unchanged, the feedback names the order', () => {
+test('every image found, plotted in reverse: the order still costs, the feedback names the order', () => {
   const reversed = [...images].reverse();
   const graded = grade(reversed);
   assert.equal(graded.isCorrect, false);
-  assert.equal(graded.score, 0.2, 'the grade is the grader\'s, unchanged');
+  // One image in its own place (S3's), four under another label. It scored
+  // 0.2; since GR32 (the owner) an order-only miss earns half a share for
+  // each misplaced image: (1 + 4 × 0.5) / 5.
+  assert.equal(graded.score, 0.6);
   assert.equal(plottedPointCorrespondence({ plotted: reversed, images, spec: resolved.investigationSpec }), 'reordered');
   assert.equal(message(reversed), 'You found every image, but not in order. P1 must be the image of S1, P2 the image of S2, and so on. Check which original each of your points came from.');
   // Two swapped is the same finding.

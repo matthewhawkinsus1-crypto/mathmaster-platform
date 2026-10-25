@@ -131,6 +131,27 @@ const legacyCheck = (question, work) => {
   return { isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / 2 };
 };
 
+// GR32 (the owner), specified apart from the grader: an image in its own
+// place is a full share; when the plot is exactly the images, each once, in
+// another order, an image under another point's label is half a share;
+// anything else nothing.
+const plotScoreSinceGr32 = (plotted, images) => {
+  if (!images.length) return 0;
+  const on = (point, image) => Array.isArray(point) && point.slice(0, 2).every((c) => typeof c === 'number' && Number.isFinite(c))
+    && Math.abs(point[0] - Number(image[0])) <= 0.01 && Math.abs(point[1] - Number(image[1])) <= 0.01;
+  const inPlace = images.map((image, index) => on(plotted[index], image));
+  const free = images.filter((image, index) => !inPlace[index]);
+  let misplaced = 0;
+  images.forEach((image, index) => {
+    if (inPlace[index]) return;
+    const at = free.findIndex((candidate) => on(plotted[index], candidate));
+    if (at >= 0) { free.splice(at, 1); misplaced += 1; }
+  });
+  const placed = inPlace.filter(Boolean).length;
+  const reordering = plotted.length === images.length && placed + misplaced === images.length;
+  return (placed + (reordering ? 0.5 * misplaced : 0)) / images.length;
+};
+
 const assertLegacyParity = (question, work, label = JSON.stringify(work)) => {
   const result = grade(question, work);
   const legacy = legacyCheck(question, work);
@@ -500,14 +521,58 @@ test('plotTransform: every image in plotting order; partial credit per point', (
   const twoRight = assertLegacyParity(PLOT, { plottedPoints: [[0, -3], [2, -1], [4, 2]] });
   assert.equal(twoRight.score, 2 / 3);
   assert.deepEqual(failedIds(twoRight), ['P3']);
-  // Order is the answer's order: the same three points reversed match one.
-  const reversed = assertLegacyParity(PLOT, { plottedPoints: [[4, 1], [2, -1], [0, -3]] });
+  // Order is the answer's order: the same three points reversed are right in
+  // one place only. The old Check gave one in three; since GR32 the two images
+  // under another label earn half their share.
+  const reversedWork = { plottedPoints: [[4, 1], [2, -1], [0, -3]] };
+  const reversed = grade(PLOT, reversedWork);
   assert.equal(reversed.isCorrect, false);
-  assert.equal(reversed.score, 1 / 3);
+  assert.deepEqual(failedIds(reversed), ['P1', 'P3']);
+  assert.equal(legacyCheck(PLOT, reversedWork).score, 1 / 3);
+  assert.equal(reversed.score, (1 + 0.5 + 0.5) / 3);
 
   // Reflections and an inside scale: (2, 1) → (2/−2, −1·1) = (−1, −1).
   const reflected = q({ mode: 'plotTransform', family: 'quadratic', function: { a: -1, b: -2, h: 0, k: 0 }, sourcePoints: [[2, 1], [0, 0]] });
   assert.equal(assertLegacyParity(reflected, { plottedPoints: [[-1, -1], [0, 0]] }).isCorrect, true);
+});
+
+// GR32: five right images plotted in the wrong order scored 20%, as if the
+// student had found one. When the plot is exactly the images in another
+// order, each misplaced image earns half its share. The order still costs,
+// any other plot is scored as before, and no score falls.
+test('GR32 — an order-only miss earns half a share per misplaced image; the order still costs, and no score falls', () => {
+  // y = x + 1 through five source points: S(i, i) → (i, i + 1).
+  const five = q({ mode: 'plotTransform', family: 'linear', function: { type: 'linear', a: 1, h: 0, k: 1 }, sourcePoints: [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4]] });
+  const image = (i) => [i, i + 1];
+  const plot = (...order) => ({ plottedPoints: order.map(image) });
+  const cases = [
+    // [plotting order, old Check, now]
+    [[0, 1, 2, 3, 4], 1, 1],
+    [[0, 2, 3, 4, 1], 0.2, 0.6], // the dossier's case: every image right, one in its place
+    [[1, 2, 3, 4, 0], 0, 0.5], // every image right, none in its place
+    [[0, 1, 2, 4, 3], 0.6, 0.8], // two swapped
+    [[0, 0, 0, 0, 0], 0.2, 0.2], // one image plotted five times counts once
+  ];
+  for (const [order, before, now] of cases) {
+    const work = plot(...order);
+    const result = grade(five, work);
+    assert.equal(legacyCheck(five, work).isCorrect ? 1 : legacyCheck(five, work).score, before, `${order}: the old Check`);
+    assert.ok(Math.abs(result.score - now) < 1e-12, `${order}: ${result.score}`);
+    assert.equal(result.isCorrect, now === 1, `${order}: only the right order is correct`);
+  }
+  // A point that is no image earns nothing, in any place; and a plot that is
+  // not the images reordered keeps its old score, even where some of its
+  // points land on other images (each point slid one image along).
+  const offImage = grade(five, { plottedPoints: [[0, 1], [9, 9], [2, 3], [3, 4], [4, 5]] });
+  assert.equal(offImage.score, 0.8);
+  const slid = grade(five, { plottedPoints: [1, 2, 3, 4, 5].map(image) });
+  assert.equal(slid.score, 0, 'four points are other images, but this is not the images reordered');
+  assert.equal(grade(five, { plottedPoints: [[0, 1], [2, 3], [1, 2], [3, 4], [9, 9]] }).score, 0.4, 'two swapped beside a wrong point: as before');
+  // The parts say what is in place; a misplaced image's half share is its credit.
+  const swapped = grade(five, plot(0, 1, 2, 4, 3));
+  assert.deepEqual(swapped.parts.map((part) => [part.id, part.isCorrect, part.credit]), [
+    ['P1', true, 1], ['P2', true, 1], ['P3', true, 1], ['P4', false, 0.5], ['P5', false, 0.5],
+  ]);
 });
 
 test('plotTransform: completeness is exactly one placed point per image', () => {
@@ -740,7 +805,7 @@ test('a seeded sweep of questions and on-screen states matches the old Check, ex
   const finitePair = (point) => Array.isArray(point) && point.slice(0, 2).every((c) => typeof c === 'number' && Number.isFinite(c));
   const parsed = (entry) => parseNumericAnswer(entry) != null;
 
-  const tally = { total: 0, same: 0, blankBox: 0, correct: 0 };
+  const tally = { total: 0, same: 0, blankBox: 0, correct: 0, raised: 0 };
   for (let i = 0; i < 1500; i += 1) {
     const question = q();
     exact = chance(0.25);
@@ -836,7 +901,13 @@ test('a seeded sweep of questions and on-screen states matches the old Check, ex
       continue;
     }
     assert.equal(result.isCorrect, legacy.isCorrect, `${label}: isCorrect`);
-    assert.equal(result.score, legacyScore, `${label}: score`);
+    if (known === 'plotTransform') {
+      // GR32: never below the old Check, and half a share for each image
+      // plotted under another point's label.
+      assert.ok(result.score >= legacyScore, `${label}: never lowered`);
+      assert.equal(result.score, result.isCorrect ? 1 : plotScoreSinceGr32(work.plottedPoints, images), `${label}: score`);
+      if (result.score > legacyScore) tally.raised += 1;
+    } else assert.equal(result.score, legacyScore, `${label}: score`);
     tally.same += 1;
   }
   // The sweep reaches real verdicts, not only failures and blanks.
