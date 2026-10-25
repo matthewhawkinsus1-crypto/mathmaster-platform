@@ -466,6 +466,8 @@ const verifyInterval = (item, worked) => {
         // The combined statement on its own is the key, and the key is what both given parts allow.
         assertSameSet((x) => statementHolds(both[1], x), key, `${label}: ${step}`);
         assertSameSet((x) => item.given.split(' and ').every((part) => statementHolds(part, x)), key, `precondition ${label}: the key is both conditions`);
+        // And the step quotes the two conditions it combines, as given (CI15, A1-60): not only the combined statement it ends on.
+        assert.equal(step.split(': both conditions')[0], item.given, `${label}: the step quotes what was given`);
       }
     });
     assert.equal(pieces, key.length, `${label}: one step per piece`);
