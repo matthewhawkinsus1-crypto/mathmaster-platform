@@ -126,9 +126,12 @@ for (const lesson of LESSONS) {
     assert.deepEqual(lesson.semantic.errors, []);
     assert.deepEqual(lesson.semantic.warnings, []);
     // No hint is hidden for stating an answer, and every question — the DOL
-    // after it is submitted — closes with worked steps, not the answer alone.
+    // after it is submitted — closes with worked steps, not the answer alone,
+    // and with the one line that names the usual mistake ("Watch out", FB02:
+    // 46 of the 142 questions had none). No warning at all, as in the Honors
+    // versions; tests/platform/algebra2RegularWatchOut.test.mjs reads the lines.
     assert.deepEqual(lesson.model.hiddenHints.warnings, []);
-    assert.deepEqual(lesson.model.solutionReviews.warnings.filter((warning) => /only the answer/.test(warning)), []);
+    assert.deepEqual(lesson.model.solutionReviews.warnings, []);
   });
 
   test(`${lesson.title}: its Warm-Up and DOL are templates, so Recovery can issue fresh versions of both`, () => {

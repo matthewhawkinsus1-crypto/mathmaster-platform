@@ -330,7 +330,10 @@
             "Add 1 to both sides first.",
             "Squaring √(y − 2) leaves y − 2.",
             "Check your candidate in the ORIGINAL equation: the left side should come out to 5."
-          ]
+          ],
+          "solutionReview": {
+            "commonError": "Squaring each term of √(y − 2) − 1 = 5 as it stands, y − 2 − 1 = 25: that gives y = 28, which fails the check. Add 1 first so the radical is alone, then square."
+          }
         },
         {
           "questionId": "sr-cw-2",
@@ -367,6 +370,9 @@
           "hints": [
             "Add 2 to both sides to isolate the radical, then square both sides."
           ],
+          "solutionReview": {
+            "commonError": "Subtracting 2 instead of adding it: undoing −2 means adding 2, so the radical equals 8, not 4, and x = 19 fails the check."
+          },
           "misconceptions": [
             {
               "match": [
@@ -506,7 +512,10 @@
           "hints": [
             "Subtract 5 from both sides to isolate the cube root.",
             "A cube root CAN be negative, so cubing both sides is safe."
-          ]
+          ],
+          "solutionReview": {
+            "commonError": "Calling it impossible because the cube root equals −5: unlike a square root, a cube root can be negative, so cube both sides to get 3y + 1 = −125."
+          }
         },
         {
           "questionId": "sr-cw-5",
@@ -545,7 +554,10 @@
           },
           "hints": [
             "Isolate the cube root, then cube both sides."
-          ]
+          ],
+          "solutionReview": {
+            "commonError": "Squaring instead of cubing: a power of 1/3 is undone by cubing, so 2y + 1 = 3³ = 27, not 3² = 9."
+          }
         },
         {
           "questionId": "sr-cw-6",
@@ -580,7 +592,10 @@
           "hints": [
             "Add 4, then divide by 7 to isolate the sixth root.",
             "Raise both sides to the sixth power."
-          ]
+          ],
+          "solutionReview": {
+            "commonError": "Raising 14 to the sixth power without dividing by 7 first: the sixth root alone equals 2, so 5m + 4 = 2⁶ = 64."
+          }
         },
         {
           "questionId": "sr-cw-7",
@@ -620,7 +635,10 @@
           "hints": [
             "Add 4, then divide by 9 to isolate the cube root.",
             "Cube both sides."
-          ]
+          ],
+          "solutionReview": {
+            "commonError": "Dividing by 9 before adding 4: add 4 to both sides first, 77 + 4 = 81, then divide by 9, so the cube root equals 9."
+          }
         },
         {
           "questionId": "sr-cw-8",
@@ -663,6 +681,9 @@
             "Move every term to one side and factor the quadratic.",
             "Check each candidate in the ORIGINAL equation: a square root is never negative."
           ],
+          "solutionReview": {
+            "commonError": "Keeping x = −7: it makes x + 3 equal to −4, and a square root is never negative, so only x = −2 checks."
+          },
           "questionWeight": 1.25
         },
         {
@@ -798,6 +819,9 @@
           "hints": [
             "Isolate √(x {{b|signed}}) first."
           ],
+          "solutionReview": {
+            "commonError": "Squaring {{k}} instead of {{s}}: undo the {{c|signed}} first, so the radical equals {{s}} and x {{b|signed}} = {{s}}²."
+          },
           "generator": {
             "parameters": {
               "s": {
@@ -867,6 +891,9 @@
           "hints": [
             "Undo {{c|signed}} first, then divide by {{a}}."
           ],
+          "solutionReview": {
+            "commonError": "Squaring before dividing by {{a}}: the {{a}} gets squared too, so undo the {{c|signed}} and divide by {{a}} first, and the radical then equals {{s}}."
+          },
           "generator": {
             "parameters": {
               "a": {
@@ -942,6 +969,9 @@
           "hints": [
             "A cube root may equal a negative number."
           ],
+          "solutionReview": {
+            "commonError": "Cubing {{k}} before the cube root is alone: undo the {{c|signed}} and divide out any coefficient first, so the cube root equals {{s}} (a cube root can be negative) and the radicand equals {{s|paren}}³."
+          },
           "generator": {
             "parameters": {
               "a": {
@@ -1113,7 +1143,10 @@
           },
           "hints": [
             "Square both sides, move every term to one side, and factor."
-          ]
+          ],
+          "solutionReview": {
+            "commonError": "Keeping x = −2: the right side is −2, but √4 = 2, and a square root is never negative, so only x = 3 checks."
+          }
         },
         {
           "questionId": "sr-p-6",
@@ -1148,7 +1181,10 @@
           },
           "hints": [
             "Square both sides; (x + 2)² is a binomial square, not x² + 4."
-          ]
+          ],
+          "solutionReview": {
+            "commonError": "Squaring x + 2 as x² + 4: (x + 2)² = x² + 4x + 4, and dropping the 4x leaves candidates that fail the check."
+          }
         },
         {
           "questionId": "sr-p-7",
@@ -1185,7 +1221,10 @@
           },
           "hints": [
             "Substitute each candidate into the ORIGINAL equation: a genuine solution makes both sides equal."
-          ]
+          ],
+          "solutionReview": {
+            "commonError": "Selecting both candidates because both solve x² − 3x − 4 = 0: at x = −1 the original equation says √1 = −1, which is false, so only 4 is a solution."
+          }
         },
         {
           "questionId": "sr-p-8",
@@ -1218,7 +1257,10 @@
           },
           "hints": [
             "Subtract 1, divide by 2, then raise both sides to the fourth power."
-          ]
+          ],
+          "solutionReview": {
+            "commonError": "Squaring once instead of raising both sides to the fourth power: the fourth root alone equals 3, so x − 3 = 3⁴ = 81, not 3² = 9."
+          }
         },
         {
           "questionId": "sr-p-9",
@@ -1255,7 +1297,10 @@
           },
           "hints": [
             "Isolate the square root first. Can a square root equal a negative number?"
-          ]
+          ],
+          "solutionReview": {
+            "commonError": "Squaring and reporting x = 11: the isolated square root equals −3, which no square root can equal, so there is no solution, and x = 11 gives 3 + 4 = 7, not 1."
+          }
         },
         {
           "questionId": "sr-p-10",
@@ -1291,6 +1336,9 @@
           "hints": [
             "Square both sides, collect every term on one side, and factor."
           ],
+          "solutionReview": {
+            "commonError": "Keeping x = {{q}}: it makes the right side negative, and a square root is never negative, so only x = {{p}} checks."
+          },
           "generator": {
             "parameters": {
               "c": {
@@ -1353,7 +1401,10 @@
           },
           "hints": [
             "45 = √(22.5d). Square both sides."
-          ]
+          ],
+          "solutionReview": {
+            "commonError": "Leaving the 45 unsquared: both sides are squared, so 22.5d = 45² = 2025 and the skid marks are 90 feet long."
+          }
         },
         {
           "questionId": "sr-p-12",
@@ -1455,7 +1506,10 @@
           "hints": [
             "Cube both sides.",
             "Unlike a square root, a cube root can be negative."
-          ]
+          ],
+          "solutionReview": {
+            "commonError": "Cubing −2 as 8: a negative number cubed stays negative, (−2)³ = −8, so x + 3 = −8 and x = −11."
+          }
         }
       ]
     },
@@ -1534,6 +1588,9 @@
           },
           "questionFamily": {
             "scope": "assignment"
+          },
+          "solutionReview": {
+            "commonError": "Dividing {{k}} by {{a}} before undoing the {{c|signed}}: undo it first, then divide, so the radical equals {{s}}."
           }
         },
         {
@@ -1598,6 +1655,9 @@
           },
           "questionFamily": {
             "scope": "assignment"
+          },
+          "solutionReview": {
+            "commonError": "Stopping at the quadratic's two roots, {{p}} and {{q}}: check each in the original equation, because at {{q}} the right side is negative, which a square root never is."
           }
         }
       ]

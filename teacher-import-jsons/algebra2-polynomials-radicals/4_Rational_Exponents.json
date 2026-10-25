@@ -615,7 +615,8 @@
               "146,230 / 3637.6 ≈ 40.2",
               "512 − 40.2 ≈ 471.8"
             ],
-            "answerSummary": "about 472 kg"
+            "answerSummary": "about 472 kg",
+            "commonError": "Typing 168^-8/5 without brackets: the calculator reads 168⁻⁸ ÷ 5, so M comes out as 512, not 472. Write the exponent in brackets, 168^(-8/5)."
           },
           "scaffold": {
             "prompt": "Let’s back up. B^(−8/5) is the same as…",
