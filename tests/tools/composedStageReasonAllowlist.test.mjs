@@ -40,7 +40,7 @@ const shown = (stage, rule, response, extra = {}) => {
   const part = gradeStage({ stage, rule, responses, stages: [stage] });
   assert.equal(part.isCorrect, false, `${stage.kind}: the fixture is a miss (${part.detail})`);
   assert.notEqual(part.graded, false, `${stage.kind}: the fixture is graded`);
-  return failedStageReasons([part], [stage], { [stage.id]: rule })[stage.id] || '';
+  return failedStageReasons([part], [stage], { [stage.id]: rule }, responses)[stage.id] || '';
 };
 
 const FIGURE_STAGE = {
@@ -102,8 +102,16 @@ const BRANCHES = {
   figureMatch: [
     [FIGURE_STAGE, { match: FIGURE_KEY }, buildFigureMatchResponse(FIGURE_STAGE, { ...FIGURE_KEY, k1: 'exponential' })],
   ],
+  // An equation step says its form and nothing else (FB08): a wrong line is red only.
+  equationInput: [
+    [{ id: 'e', kind: 'equationInput' }, 'y=2x+1', 'y=3x'],
+    [{ id: 'e', kind: 'equationInput', prompt: 'Write the equation of the line in slope-intercept form.' }, 'y=-3x+5', 'y=-3x+4'],
+    [{ id: 'e', kind: 'equationInput', prompt: 'Write the equation of the line in slope-intercept form.' }, 'y=-3x+5', 'y-5=-3\\left(x-0\\right)'],
+    [{ id: 'e', kind: 'equationInput', prompt: 'Write the equation of the line.' }, 'y=-3x+5', '3x+y=5'],
+    [{ id: 'e', kind: 'equationInput', prompt: 'Write the equation of the axis of symmetry.', placeholder: 'x = ' }, 'x=2', '2'],
+    [{ id: 'e', kind: 'equationInput', prompt: 'Write the equation of the axis of symmetry.', placeholder: 'x = ' }, 'x=2', 'x=5'],
+  ],
   // Kinds with no reason at all: their miss is "Not correct yet.".
-  equationInput: [[{ id: 'e', kind: 'equationInput' }, 'y=2x+1', 'y=3x']],
   numberLine: [[{ id: 'n', kind: 'numberLine' }, 'x>2', 'x<2']],
   domainInput: [[{ id: 'd', kind: 'domainInput' }, '(-\\infty, \\infty)', '[0, 5]']],
   rangeInput: [[{ id: 'd', kind: 'rangeInput' }, '[0, 5]', '[1, 5]']],
@@ -124,6 +132,7 @@ const EXPECTED = {
   mappingDiagram: ['The arrows do not match the relation — check which value each one is joined to.'],
   valueSet: ['That is not the set of values in this relation — list each one once.'],
   figureMatch: ['3 of 4 figures are in the right category.'],
+  equationInput: ['Right line, wrong form: write it as y = mx + b.', 'Write this step as an equation, with an = sign.'],
 };
 
 test('every failing branch of every stage kind shows only what its kind may say', () => {
@@ -231,4 +240,98 @@ test('the axes sentence names only the fields the student sees and that are grad
   const stage = { id: 'a', kind: 'axisSetup', requireUnits: false };
   const rule = { xLabel: ['Time'], yLabel: ['Volume'], requireUnits: false };
   assert.equal(shown(stage, rule, axes({ xLabel: 'Volume', yLabel: 'Volume' })), 'Check each axis: its quantity.');
+});
+
+/* ------------------------------ an equation step says its form, never its value (FB08) */
+
+const SLOPE_WORDS = 'Write the equation of the line in slope-intercept form.';
+const SLOPE_SAYS = 'Right line, wrong form: write it as y = mx + b.';
+const POINT_SAYS = 'Right line, wrong form: write it as y − y₁ = m(x − x₁).';
+const STANDARD_SAYS = 'Right line, wrong form: write it as Ax + By = C.';
+const EQUATION_SAYS = 'Write this step as an equation, with an = sign.';
+const equationStep = (prompt, extra = {}) => ({ id: 'e', kind: 'equationInput', prompt, ...extra });
+
+test('an equation step names the form its words (else its key) ask for, when the line is the key\'s', () => {
+  [
+    // [the step's words, the key, what the student wrote, what the screen says]
+    [SLOPE_WORDS, 'y=-3x+5', 'y-5=-3\\left(x-0\\right)', SLOPE_SAYS],
+    [SLOPE_WORDS, 'y=-3x+5', '3x+y=5', SLOPE_SAYS],
+    ['Write the equation in point-slope form.', 'y-2=4(x-1)', 'y=4x-2', POINT_SAYS],
+    ['Write the equation in standard form.', '4x-y=2', 'y=4x-2', STANDARD_SAYS],
+    // The words name no form: the form the key is written in.
+    ['Write the equation of the line.', 'y=-3x+5', '3x+y=5', SLOPE_SAYS],
+    ['Write the equation of the line.', '3x+y=5', 'y=-3x+5', STANDARD_SAYS],
+  ].forEach(([words, key, written, says]) => {
+    assert.equal(shown(equationStep(words), key, written), says, `${words} | ${key} | ${written}`);
+  });
+});
+
+test('an equation step says nothing for another line, an inequality or a blank step', () => {
+  const axis = equationStep('Write the equation of the axis of symmetry.', { placeholder: 'x = ' });
+  assert.equal(shown(equationStep(SLOPE_WORDS), 'y=-3x+5', 'y=-3x+4'), '', 'a different line is red only');
+  assert.equal(shown(equationStep(SLOPE_WORDS), 'y=-3x+5', 'y=3x+5'), '', 'a different slope is red only');
+  // Another line written in another form is not "the right line in the wrong form".
+  assert.equal(shown(equationStep(SLOPE_WORDS), 'y=-3x+5', '3x+y=4'), '', 'a different line in standard form is red only');
+  assert.equal(shown(equationStep(SLOPE_WORDS), 'y=-3x+5', 'y-4=-3(x-0)'), '', 'a different line in point-slope form is red only');
+  assert.equal(shown(axis, 'x=2', 'x=5'), '');
+  assert.equal(shown(axis, 'x=2', 'x>2'), '', 'an inequality is not a missing = sign');
+  // A blank step is "Not answered.", not a miss of form.
+  assert.deepEqual(failedStageReasons([{ id: 'e', graded: true, isCorrect: false, detail: 'Not answered.' }], [axis], { e: 'x=2' }, { e: '' }), {});
+});
+
+test('the sentence holds no number, and it is the same for every key written in that form', () => {
+  // [the key, the same line in another form]
+  const pairs = [['y=-3x+5', '3x+y=5'], ['y=7x-2', '7x-y=2'], ['y=0.5x+12', '0.5x-y=-12'], ['y=2x+1', 'y-1=2x'], ['y=\\frac{2}{3}x-4', '2x-3y=12']];
+  const said = pairs.map(([key, written]) => shown(equationStep('Write the equation of the line.'), key, written));
+  assert.deepEqual([...new Set(said)], [SLOPE_SAYS], 'one sentence for the form, whatever the key\'s numbers');
+  said.forEach((sentence) => assert.doesNotMatch(sentence, /\d/, sentence));
+  assert.doesNotMatch(EQUATION_SAYS, /\d/);
+});
+
+test('when the words and the key, or two keys, disagree about the form, no form is named', () => {
+  // Slope-intercept asked, the key written in standard form: which is wanted is
+  // unknown, whichever other form the student used.
+  assert.equal(shown(equationStep(SLOPE_WORDS), '3x+y=5', 'y-5=-3(x-0)'), '');
+  assert.equal(shown(equationStep('Write the equation in point-slope form.'), '3x+y=5', 'y=-3x+5'), '');
+  // Two accepted keys in two forms.
+  assert.equal(shown(equationStep('Write the equation of the line.'), { anyOf: ['y=2x+1', '2x-y=-1'] }, 'y-1=2(x-0)'), '');
+  // A vertical line has no slope: never told to use a form that needs one.
+  assert.equal(shown(equationStep(SLOPE_WORDS), 'x=2', 'x-2=0'), '');
+  assert.equal(shown(equationStep('Write the equation in point-slope form.'), 'x=2', 'x-2=0'), '');
+  assert.equal(shown(equationStep('Write the equation in standard form.'), 'x=2', 'x-2=0'), STANDARD_SAYS);
+});
+
+test('a bare number is told to write an equation, except on a function rule, which takes a bare right side', () => {
+  const axis = equationStep('Write the equation of the axis of symmetry.', { placeholder: 'x = ' });
+  assert.equal(shown(axis, 'x=2', '2'), EQUATION_SAYS);
+  assert.equal(shown(axis, 'x=2', '5'), EQUATION_SAYS, 'whatever number: it says nothing about the value');
+  assert.equal(shown(equationStep('Write the function.'), 'V(t)=40+5t', '5t+41'), EQUATION_SAYS);
+  const rule = equationStep('Write a function that models this situation.', { acceptEquivalentFunctionRule: true });
+  assert.equal(shown(rule, 'V(t)=40+5t', '5t+41'), '');
+  assert.equal(shown(rule, 'y=2x+1', '7'), '');
+  // A key that is not an equation (an expression, an inequality) is never "an equation to write".
+  assert.equal(shown(equationStep('Simplify.'), '2x+3', '2x+4'), '');
+  assert.equal(shown(equationStep('Write the inequality.'), 'x>2', '5'), '');
+});
+
+test('the browser Check and the device marking both carry an equation step\'s reason; the mark is unchanged', () => {
+  const question = {
+    type: 'relationshipModel',
+    prompt: 'A line crosses the y-axis at 5 and falls 3 for each 1 across.',
+    workflow: [{ id: 'line', kind: 'equationInput', prompt: SLOPE_WORDS }],
+    grading: { line: 'y=-3x+5' },
+  };
+  const wrongForm = { line: '3x+y=5' };
+  const check = gradeComposedWorkflowCheck(question, composedWorkflowWork(wrongForm));
+  assert.deepEqual(check.stageReasons, { line: SLOPE_SAYS });
+  assert.deepEqual([check.parts[0].id, check.parts[0].isCorrect], ['line', false], 'the form is still required: a reason is words, not a verdict');
+  assert.deepEqual(runner(question, wrongForm).stageReasons, { line: SLOPE_SAYS });
+  // Right work and a wrong line say nothing.
+  assert.deepEqual(gradeComposedWorkflowCheck(question, composedWorkflowWork({ line: 'y=-3x+5' })).stageReasons, {});
+  assert.deepEqual(gradeComposedWorkflowCheck(question, composedWorkflowWork({ line: 'y=-3x+4' })).stageReasons, {});
+  // A question the device marks (a stage named `solution` is a key the contract would strip).
+  const device = { ...question, workflow: [{ id: 'solution', kind: 'equationInput', prompt: SLOPE_WORDS }], grading: { solution: 'y=-3x+5' } };
+  const deviceWork = { solution: '3x+y=5' };
+  assert.equal(gradeComposedWorkflowCheck(device, composedWorkflowWork(deviceWork)).supported, false, 'declared client-graded');
+  assert.deepEqual(runner(device, deviceWork).stageReasons, { solution: SLOPE_SAYS });
 });
