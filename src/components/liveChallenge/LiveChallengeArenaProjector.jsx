@@ -35,7 +35,7 @@ import {
   rushRaceRanked,
   stackedResultsPlan,
 } from '../../platform/liveChallenge/liveChallengeProjectorModel.js';
-import { SOLUTION_STATE, answerSummaryLabel, solutionStateMessage } from '../../platform/liveChallenge/challengeSolutionModel.js';
+import { SOLUTION_STATE, answerSummaryLabel, projectorStepLimit, solutionStateMessage, solutionTitle } from '../../platform/liveChallenge/challengeSolutionModel.js';
 
 /*
  * THE PROJECTOR: THE GAME AS THE WHOLE CLASS SEES IT.
@@ -731,16 +731,18 @@ const revealGraphSize = () => (typeof window === 'undefined'
  * answer most of the class gave (LineRevealGraph: counts, never names).
  */
 function ProjectorSolution({ solution, state }) {
+  // A Graph Feature Rush round's document is a reading guide to the game's features, not a worked solution.
+  const title = solutionTitle(solution);
   if (state !== SOLUTION_STATE.READY) {
     return (
       <section data-mm-projector-solution={state} style={{ ...glassPanel, padding: 'clamp(12px, 1.6vw, 20px)', display: 'grid', alignContent: 'center' }}>
-        <div style={labelStyle}>Worked solution</div>
+        <div style={labelStyle}>{title}</div>
         <div style={{ marginTop: 6, color: '#dbe6ff', fontWeight: 800, fontSize: 'clamp(calc(17 * var(--mm-px)), calc(2.2vh * var(--mm-text-scale, 1)), calc(24 * var(--mm-px)))', lineHeight: 1.4 }}>{solutionStateMessage(state)}</div>
       </section>
     );
   }
   const review = solution?.solutionReview || {};
-  const steps = (Array.isArray(review.reasoning) ? review.reasoning : []).filter(Boolean).slice(0, 5);
+  const steps = (Array.isArray(review.reasoning) ? review.reasoning : []).filter(Boolean).slice(0, projectorStepLimit(solution));
   if (solution?.lineGraph) {
     return (
       <section data-mm-projector-solution="ready" data-mm-projector-line="1" aria-label="The line" style={{ ...glassPanel, padding: 'clamp(14px, 2vw, 26px)', overflow: 'auto', minHeight: 0, display: 'grid', alignContent: 'start', gap: 'clamp(8px, 1.4vh, 14px)', fontSize: 'clamp(calc(17 * var(--mm-px)), calc(2.4vh * var(--mm-text-scale, 1)), calc(24 * var(--mm-px)))' }}>
@@ -756,8 +758,8 @@ function ProjectorSolution({ solution, state }) {
     );
   }
   return (
-    <section data-mm-projector-solution="ready" aria-label="Worked solution" style={{ ...glassPanel, padding: 'clamp(14px, 2vw, 26px)', overflow: 'auto', minHeight: 0, display: 'grid', alignContent: 'start', gap: 'clamp(8px, 1.4vh, 14px)' }}>
-      <div style={labelStyle}>Worked solution</div>
+    <section data-mm-projector-solution="ready" aria-label={title} style={{ ...glassPanel, padding: 'clamp(14px, 2vw, 26px)', overflow: 'auto', minHeight: 0, display: 'grid', alignContent: 'start', gap: 'clamp(8px, 1.4vh, 14px)' }}>
+      <div style={labelStyle}>{title}</div>
       {solution?.prompt && (
         <MathText as="div" style={{ whiteSpace: 'pre-wrap', color: 'rgba(236,241,255,.82)', fontWeight: 800, fontSize: 'clamp(calc(17 * var(--mm-px)), calc(2.5vh * var(--mm-text-scale, 1)), calc(24 * var(--mm-px)))', lineHeight: 1.35 }}>{solution.prompt}</MathText>
       )}

@@ -269,7 +269,8 @@ test('an answer after the class\'s deadline reaches the public row only when the
 test('the recap withholds worked solutions while another game the student is in can still be answered', () => {
   const recap = readFileSync(new URL('../../functions/lib/liveChallengeRecap.js', import.meta.url), 'utf8');
   assert.match(recap, /solutionsWithheld = liveRoom\.exists && \["lobby", "running"\]\.includes\(liveRoom\.data\(\)\?\.status\)/);
-  assert.match(recap, /const available = !solutionsWithheld && Boolean\(/);
+  // (a Graph Feature Rush reading guide is also left out of the recap: graphFeatureReading.test.mjs)
+  assert.match(recap, /const available = !solutionsWithheld && [^;\n]*Boolean\(/);
 });
 
 test('the class sees only recognitions that name no struggle; a Warm-Up game only team effort', async () => {

@@ -324,7 +324,23 @@ from the round's own result document (never from the paused listener's rows):
 graphs, accuracy, place, the championship points it earned, and their
 championship total and standing — or, if they earned no credit, that they
 earned no championship points (targets found on a graph left unfinished are
-credit, and the card says they count toward the place).
+credit, and the card says they count toward the place). Below how the round
+went, a card **"How to read the features"** (LC07): a rush has no shared
+question and so no worked solution, but every student shares what they were
+asked to find, so the results carry a short reading guide to the features in
+the game: one line each saying what the feature is and where it sits ("x-
+intercepts: the points where the graph meets the x-axis, so the y-value is 0")
+and the slip to watch for. It is the same text for every student and every
+round, a function of the game's features alone (`graphFeatureReading.mjs`),
+and names no graph, target or coordinate of anyone's. It rides the
+worked-solution pipeline: captured with the round when it opens
+(`GRAPH_FEATURE_RUSH_PLANNER.openRound`), published at the round's close
+(`liveChallengeRevealableRounds`; no Second Chance holds it back), read by the
+student, console and projector cards, which title it from `guide: true`
+(`solutionTitle`). The end-of-game recap leaves it out, so a five-round game
+does not say it five times. A game already running when this shipped has no
+guide captured and publishes none. A feature added to the registry needs its
+reading in `graphFeatureReading.mjs`: a test fails until it has one.
 
 **Teacher.** Graph Feature Rush is a game type in the existing Create a
 challenge panel: presets as starting points, then families, features,
@@ -338,7 +354,8 @@ graphs on the student's screen, graded locally, recording nothing.
 
 **Host and projector.** The countdown, the live race (graphs completed this
 round), then the round's results with the points each place earned and the
-championship it left (movement included), then the podium. Never a graph, an
+championship it left (movement included) and the reading guide beside them
+(the shell's results layout, LC03), then the podium. Never a graph, an
 answer or a coordinate. The lobby, results, final standings, confirmations and
 Play Again are the shell's (`live-challenge-shell.md`).
 

@@ -12,12 +12,33 @@ import { roomRunsQuestionSets } from './challengeShellModel.js';
  */
 
 export const SOLUTION_STATE = Object.freeze({
-  NONE: 'none', // no shared question (a Graph Feature Rush round, a Graph the Line Sprint), or not closed yet
+  NONE: 'none', // no solution to show: not closed yet, or no shared question and nothing published (a Graph the Line Sprint)
   HELD: 'held', // closed, but a Second Chance replay of it may still come
   LOADING: 'loading',
   READY: 'ready', // published with an authored review
   UNAVAILABLE: 'unavailable', // published, but the question carries no worked solution
 });
+
+/*
+ * What a screen calls a round's published document. A Graph Feature Rush round
+ * has no question to solve; what it publishes is a reading guide to the
+ * features in the game (graphFeatureReading.mjs, marked `guide: true`), which
+ * is not a worked solution and is not titled as one.
+ */
+export const SOLUTION_TITLE = 'Worked solution';
+export const READING_GUIDE_TITLE = 'How to read the features';
+export const solutionTitle = (solution) => (solution?.guide === true ? READING_GUIDE_TITLE : SOLUTION_TITLE);
+
+/*
+ * How many steps the projector draws. An authored review can run long and the
+ * projector never scrolls, so it takes the first five. A reading guide is
+ * written to fit (a line a feature and one on "Does Not Exist": at most six),
+ * and its last line is the one that says when to choose "Does Not Exist", so
+ * it takes all of them.
+ */
+export const PROJECTOR_SOLUTION_STEPS = 5;
+export const PROJECTOR_GUIDE_STEPS = 6;
+export const projectorStepLimit = (solution) => (solution?.guide === true ? PROJECTOR_GUIDE_STEPS : PROJECTOR_SOLUTION_STEPS);
 
 /** Whether the server has published this round's solution. */
 export const solutionRevealed = (room = {}, roundIndex) => (

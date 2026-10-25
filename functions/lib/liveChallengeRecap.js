@@ -158,7 +158,13 @@ async function buildLiveChallengeMatchRecap(db, { roomId, studentId, fail }) {
     const original = Object.prototype.hasOwnProperty.call(secondChanceOf, String(round))
       ? integerOrNull(secondChanceOf[String(round)])
       : null;
-    const available = !solutionsWithheld && Boolean(solution?.available && solution.solutionReview);
+    // A Graph Feature Rush round publishes a reading guide to the game's
+    // features, the same for every round (graphFeatureReading.mjs): the
+    // results screens show it as the round ends, and a recap of N rounds would
+    // repeat it N times. The recap is for a student's answers and the worked
+    // solutions of shared questions, so it carries no guide.
+    const guide = solution?.guide === true;
+    const available = !solutionsWithheld && !guide && Boolean(solution?.available && solution.solutionReview);
     return {
       roundIndex: round,
       originalRoundIndex: original,
@@ -166,7 +172,7 @@ async function buildLiveChallengeMatchRecap(db, { roomId, studentId, fail }) {
       answered: Boolean(outcome),
       isCorrect: outcome ? outcome.isCorrect === true : null,
       scorePercent: outcome && Number.isFinite(Number(outcome.scorePercent)) ? Number(outcome.scorePercent) : null,
-      prompt: solution?.prompt || null,
+      prompt: guide ? null : solution?.prompt || null,
       teksCode: solution?.teksCode || null,
       solutionAvailable: available,
       solutionReview: available ? solution.solutionReview : null,

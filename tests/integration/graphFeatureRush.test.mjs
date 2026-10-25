@@ -172,6 +172,10 @@ const advance = async (roomId, classKey = 'pair') => {
 // only the public rows: tests/platform/liveChallengeRankPrivacy.test.mjs).
 const roundResult = async (roomId, roundIndex) => (await roomRef(roomId).collection('hostRounds').doc(String(roundIndex)).get()).data();
 
+// What a round publishes once it has closed (LC07): a reading guide to the game's features, never a worked
+// solution to anyone's graph (liveChallengeRooms/{room}/solutions/{n}, read by the room's audience).
+const publishedGuide = async (roomId, roundIndex) => (await roomRef(roomId).collection('solutions').doc(String(roundIndex)).get()).data() || null;
+
 /* ===================== GAME 1: two players, Grand Prix ===================== */
 
 const [A, B] = studentsOf('pair');
@@ -208,6 +212,12 @@ test('nobody gets graphs before the round, and a rush round opens with a card, n
   assert.equal(room.currentQuestion.kind, 'graphFeatureRush');
   assert.ok(!('targets' in room.currentQuestion) && !('graph' in room.currentQuestion), 'the projector never sees a graph or an answer');
   assert.equal(room.activeRoundSeconds, 60);
+  // The round's reading guide is captured with the round and kept private until the round has closed (LC07).
+  const secret = (await privateRef(G1).get()).data();
+  assert.equal(secret.roundSolutions['0'].guide, true);
+  assert.equal(secret.roundSolutions['0'].solutionReview.reasoning.length, 4, 'the algebra1Quick preset asks for three features, and two of them can be absent');
+  assert.deepEqual(room.revealedSolutionRounds || [], [], 'nothing is public while the round can still be played');
+  assert.equal(await publishedGuide(G1, 0), null);
 });
 
 test('two students get different graphs, and a tap before the start is refused', async () => {
@@ -367,6 +377,26 @@ test('round 1 closes into ranked results: placement points for a field of two, a
   const again = await closeRound(G1);
   assert.equal(again.alreadyApplied, true);
   assert.equal((await privatePlayer(G1, A)).matchPoints, aStanding.matchPointsAwarded);
+
+  // LC07: the round that just closed has published its reading guide — and only that round.
+  assert.deepEqual(room.revealedSolutionRounds, [0], 'round 1 is public, rounds 2 and 3 have not been played');
+  const guide = await publishedGuide(G1, 0);
+  assert.equal(guide.guide, true, 'the screens title it "How to read the features"');
+  assert.equal(guide.available, true);
+  assert.equal(guide.prompt, null, 'the lines name the features themselves');
+  assert.equal(guide.solutionReview.reasoning.length, 4, 'a line per feature the game asks for, and one on Does Not Exist');
+  assert.match(guide.solutionReview.reasoning[0], /^x-intercepts/);
+  assert.match(guide.solutionReview.reasoning[1], /^y-intercept/);
+  assert.match(guide.solutionReview.reasoning[2], /^Vertex/);
+  assert.equal(guide.solutionReview.reasoning[3], 'If the graph has no x-intercepts or y-intercept, choose Does Not Exist.');
+  assert.equal(guide.solutionReview.answerSummary, null, 'no answer: there is none to give');
+  assert.equal(await publishedGuide(G1, 1), null);
+  // It names nothing of anyone's graphs: no seed, no coordinates, no student, no player.
+  const seed = (await privateRef(G1).get()).data().graphFeatureRush.seed;
+  const text = JSON.stringify(guide);
+  assert.ok(!text.includes(seed) && !text.includes(A) && !text.includes(B), 'no seed, no student');
+  assert.doesNotMatch(text, /\(\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*\)/, 'no ordered pair');
+  assert.deepEqual(Object.keys(guide).sort(), ['available', 'guide', 'originalRoundIndex', 'prompt', 'revealedAt', 'revealedAtMs', 'roundIndex', 'solutionReview', 'teksCode']);
 });
 
 test('taps after the deadline\'s grace are refused, whatever the device thinks', async () => {
@@ -428,6 +458,15 @@ test('the final round finishes the match: championship standings, report and rew
   const finisher = Object.values(awards?.awards || {}).filter((award) => award.ruleId === 'challengeFinisher');
   assert.equal(finisher.length, 2);
   assert.equal((await privateRef(G1).get()).exists, false);
+  // LC07: all three rounds published their guide, and the student's recap does not repeat it three times.
+  assert.deepEqual((await roomOf(G1)).revealedSolutionRounds, [0, 1, 2]);
+  for (const round of [0, 1, 2]) {
+    // eslint-disable-next-line no-await-in-loop
+    assert.equal((await publishedGuide(G1, round))?.guide, true, `round ${round + 1}`);
+  }
+  const recap = await call('getLiveChallengeMatchRecap', student(A, { roomId: G1 }));
+  assert.equal(recap.rounds.length, 3);
+  assert.ok(recap.rounds.every((row) => row.solutionAvailable === false && row.solutionReview === null && row.prompt === null), 'the recap lists no guide');
 });
 
 test('the class\'s next game starts clean, immediately', async () => {
@@ -448,6 +487,31 @@ test('the class\'s next game starts clean, immediately', async () => {
   assert.equal((await roomOf(G1)).status, 'finished');
   const done = await call('finishLiveChallenge', teacher({ roomId: next.roomId }));
   assert.equal(done.status, 'finished');
+});
+
+test('a game whose rounds hold no guide (one running before it existed) publishes none, and nothing breaks', async () => {
+  // The large class's teacher has no other game on at this point in the file.
+  const roster = studentsOf('large');
+  const asLargeTeacher = teacherAs(CLASSES.large.teacher);
+  const created = await createRush('large', { roundCount: 2 });
+  try {
+    await call('joinLiveChallenge', student(roster[0], { roomId: created.roomId }));
+    await call('startLiveChallenge', asLargeTeacher({ roomId: created.roomId }));
+    assert.equal((await privateRef(created.roomId).get()).data().roundSolutions['0'].guide, true, 'a game started now captures one');
+    // Take it out, as a game opened before this change would not have had it.
+    await privateRef(created.roomId).update({ roundSolutions: admin.firestore.FieldValue.delete() });
+    const identity = await identityOf(created.roomId);
+    await call('closeLiveChallengeRound', asLargeTeacher({
+      roomId: created.roomId, expectedRoundIndex: identity.roundIndex, expectedRoundVersion: identity.roundVersion, force: true,
+    }));
+    const room = await roomOf(created.roomId);
+    assert.equal(room.roundState, 'closed', 'the round closed as it always did');
+    assert.deepEqual(room.revealedSolutionRounds || [], [], 'and published nothing');
+    assert.equal(await publishedGuide(created.roomId, 0), null);
+  } finally {
+    // The teacher's one active game must not outlive a failure here: the large class plays next.
+    await call('cancelLiveChallenge', asLargeTeacher({ roomId: created.roomId })).catch(() => null);
+  }
 });
 
 /* =================== GAME 2: ten students, Correct Count =================== */

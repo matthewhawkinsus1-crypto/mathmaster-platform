@@ -11016,12 +11016,14 @@ async function liveChallengeEvidenceRules() {
 let graphFeatureRushModules = null;
 async function graphFeatureRushRules() {
   if (!graphFeatureRushModules) {
-    const [rush, generator, config] = await Promise.all([
+    const [rush, generator, config, reading] = await Promise.all([
       import("./shared/graphFeatureRush.mjs"),
       import("./shared/graphFeatureGenerator.mjs"),
       import("./shared/graphFeatureRushConfig.mjs"),
+      // The reading guide a round publishes once it has ended (LC07).
+      import("./shared/graphFeatureReading.mjs"),
     ]);
-    graphFeatureRushModules = { rush, generator, config };
+    graphFeatureRushModules = { rush, generator, config, reading };
   }
   return graphFeatureRushModules;
 }
@@ -11341,6 +11343,12 @@ const LIVE_CHALLENGE_QUESTION_PLANNERS = Object.freeze({
  * (getGraphFeatureRushRound) and regenerated to grade a tap. A round is a
  * placeholder id, which recovery and the report read; the round's public
  * question is a card naming what to look for, never a graph.
+ *
+ * There is no shared question to solve, so a round has no worked solution; its
+ * results carry a reading guide to the features the game asks for instead
+ * (graphFeatureReading.mjs): the same text for every student, naming no graph,
+ * captured here like a bank question's solution and published at the round's
+ * close (liveChallengeRevealableRounds).
  */
 const GRAPH_FEATURE_RUSH_PLANNER = Object.freeze({
   async plan({ modeConfig, roundCount }) {
@@ -11367,6 +11375,7 @@ const GRAPH_FEATURE_RUSH_PLANNER = Object.freeze({
     const questionId = privateState.questionIds?.[roundIndex];
     if (!questionId) throw new HttpsError("failed-precondition", "That Live Challenge round has no question.");
     const config = privateState.graphFeatureRush?.config || room.graphFeatureRush?.config || {};
+    const { reading } = await graphFeatureRushRules();
     return {
       roundIndex,
       questionId,
@@ -11380,6 +11389,8 @@ const GRAPH_FEATURE_RUSH_PLANNER = Object.freeze({
         teksCode: null,
       },
       roundSeconds: engine.modes.normalizeModeRoundSeconds(mode, room.roundSeconds),
+      // The round's reading guide, kept privately until the round has closed.
+      solution: reading.rushRoundSolutionRecord({ features: config.features }),
     };
   },
 });
@@ -12921,9 +12932,20 @@ function liveChallengeRevealableRounds({ challenge, engine, room, privateState, 
   // the same line for everyone, published at its close (no Second Chance in
   // these modes), held while a later round asks the same line.
   if (mode.questionIssue === engine.modes.QUESTION_ISSUE.PER_PLAYER) {
+    const reached = Number.isInteger(Number(room.currentRound)) ? Number(room.currentRound) : -1;
+    // A Graph Feature Rush round publishes its reading guide at its close
+    // (LC07): the same for every student and about no graph, so nothing holds
+    // it back, and no Second Chance replays a Rush round. Only a round whose
+    // guide was captured when it opened (a game already running before this
+    // existed has none, and publishes none).
+    if (mode.questionSource === engine.modes.QUESTION_SOURCE.GRAPH_FEATURE_GENERATOR) {
+      const scheduled = Number(privateState.scheduledRoundCount) || (Array.isArray(privateState.questionIds) ? privateState.questionIds.length : 0);
+      return engine.solutionReveal.revealableRounds({
+        closedThrough, scheduledRoundCount: scheduled, secondChancePossible: false, replayOf: {}, finished,
+      }).filter((round) => round <= reached && privateState.roundSolutions?.[String(round)]);
+    }
     const sharedLineKeys = privateState.lineGraph?.sharedLineKeys;
     if (!Array.isArray(sharedLineKeys)) return [];
-    const reached = Number.isInteger(Number(room.currentRound)) ? Number(room.currentRound) : -1;
     return engine.solutionReveal.revealableRounds({
       closedThrough,
       scheduledRoundCount: sharedLineKeys.length,
