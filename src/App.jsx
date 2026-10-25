@@ -7862,31 +7862,6 @@ function App() {
     }
   };
 
-  // #359: "no compatible audited CCMR item" must be a clear, teacher-facing
-  // message distinguishable from a plain "nothing sourced" silence — never a
-  // reason to insert an unrelated question merely to hit the 15% target.
-  const ccmrAuditWarnings = (audit) => {
-    const messages = [];
-    const sourcedCount = Number(audit?.autoSourced || 0) + Number(audit?.replaced || 0);
-    if (sourcedCount > 0) {
-      messages.push(`MathMaster sourced ${sourcedCount} Practice item${sourcedCount === 1 ? '' : 's'} from the audited CCMR Fidelity V2.1 bank.`);
-    }
-    const gaps = Array.isArray(audit?.misses) ? audit.misses : [];
-    const semanticGaps = gaps.filter((miss) => miss?.reason === 'no_semantically_compatible_audited_item'
-      || (Array.isArray(miss?.details) && miss.details.some((detail) => detail?.reason === 'no_semantically_compatible_audited_item')));
-    if (semanticGaps.length) {
-      messages.push('MathMaster kept the teacher-authored Practice question(s) as written: the audited CCMR bank has same-TEKS items, but none that match this question\'s construct (e.g. a sequence rather than function evaluation, a matrix task, or a system\'s dimension), so nothing was substituted.');
-    }
-    // proveImportedCcmrClaims: every audited item offered for an exam-style
-    // question failed MathMaster's checks in its place, so none was used.
-    const failedChecks = gaps.filter((miss) => miss?.reason === 'no_audited_item_passed_checks');
-    if (failedChecks.length) {
-      const which = failedChecks.map((miss) => `Question ${miss.questionNumber}`).join(', ');
-      messages.push(`MathMaster kept ${which} as written: no audited CCMR item offered for ${failedChecks.length === 1 ? 'it' : 'them'} passed MathMaster's assignment checks in place, so nothing was substituted.`);
-    }
-    return messages;
-  };
-
   // Students in the class the teacher is working in.
   //
   // Membership follows `classId`. A student whose record predates the class
@@ -11618,7 +11593,6 @@ function App() {
         bulkBusy={bulkBusy}
         calculateGrade={calculateGrade}
         caseReviewStudentId={caseReviewStudentId}
-        ccmrAuditWarnings={ccmrAuditWarnings}
         classEvidenceByStudentId={classEvidenceByStudentId}
         classEvidenceLoading={classEvidenceLoading}
         classSchedule={classSchedule}

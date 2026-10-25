@@ -589,6 +589,14 @@ export const honorsCcmrRecord = (candidate = null) => {
  * item Review sees. `authoredAssignmentV5` is that JSON compiled as written.
  * Without it (the JSON does not compile) or without a plan (an older server),
  * the server's own answer is kept, as before.
+ *
+ * NO CLAIM IS LEFT UNCHECKED IN SILENCE (TT11). The server offers at most 40
+ * candidates per import (PLAN_CANDIDATE_BUDGET in ccmrAssignmentBank.js), so in
+ * a lesson with many exam-style questions the later claims are offered none.
+ * The server's own first choice for such a place is then its one candidate,
+ * held to the same checks. A claim with nothing to try is recorded as a miss
+ * unless the server already recorded one for that place, and every miss names
+ * its question, so the import warning can say which.
  */
 export const proveImportedCcmrClaims = ({
   rawAssignment,
@@ -610,7 +618,14 @@ export const proveImportedCcmrClaims = ({
   const failed = new Set();
   const replaced = [];
   const skipped = [];
-  const misses = [...asArray(audit?.misses)];
+  const placeKey = (entry) => `${entry?.sectionIndex}:${entry?.questionIndex}`;
+  const validPlace = (entry) => Boolean(questionAt(working, entry?.sectionIndex, entry?.questionIndex));
+  // The server's own misses name a place, not a question number: numbered here
+  // (replacing a question never changes the lesson's shape).
+  const misses = asArray(audit?.misses).map((miss) => (isObject(miss) && miss.questionNumber == null && validPlace(miss)
+    ? { ...miss, questionNumber: flatNumber(working, miss.sectionIndex, miss.questionIndex) }
+    : miss));
+  const missedPlaces = new Set(misses.map(placeKey));
 
   for (const slot of asArray(plan.slots).filter((entry) => isObject(entry) && entry.kind === 'directClaim')) {
     const authored = questionAt(working, slot.sectionIndex, slot.questionIndex);
@@ -619,7 +634,13 @@ export const proveImportedCcmrClaims = ({
     // The plan names the question it was made for, written and compiled alike.
     if (clean(slot.questionId) && (clean(slot.questionId) !== clean(authored.questionId) || clean(slot.questionId) !== clean(rawQuestion.questionId))) continue;
     const questionNumber = flatNumber(working, slot.sectionIndex, slot.questionIndex);
-    const offered = asArray(slot.candidates).filter((intent) => bankDocumentId(intent));
+    const listed = asArray(slot.candidates).filter((intent) => bankDocumentId(intent));
+    // The budget ran out before this claim (TT11): the server's own choice for
+    // the place, if it made one, is the candidate, checked like any other.
+    const serverChoice = listed.length ? null : hydration?.assignment?.sections?.[slot.sectionIndex]?.questions?.[slot.questionIndex];
+    const offered = listed.length
+      ? listed
+      : (isObject(serverChoice) && bankDocumentId(serverChoice) ? [JSON.parse(JSON.stringify(serverChoice))] : []);
     let accepted = null;
     for (const intent of offered) {
       const documentId = bankDocumentId(intent);
@@ -658,7 +679,7 @@ export const proveImportedCcmrClaims = ({
       used.add(accepted.documentId);
       raw.sections[slot.sectionIndex].questions[slot.questionIndex] = accepted.intent;
       replaced.push({ questionNumber, questionId: clean(rawQuestion.questionId) || null, documentId: accepted.documentId, framework: accepted.framework });
-    } else if (offered.length) {
+    } else if (offered.length || !missedPlaces.has(placeKey(slot))) {
       misses.push({
         sectionIndex: slot.sectionIndex,
         questionIndex: slot.questionIndex,
@@ -666,8 +687,10 @@ export const proveImportedCcmrClaims = ({
         framework: clean(slot.framework) || null,
         domainId: clean(slot.domainId) || null,
         teksCodes: asArray(slot.teksCodes),
-        reason: 'no_audited_item_passed_checks',
+        // Nothing offered and nothing the server explained: never checked.
+        reason: offered.length ? 'no_audited_item_passed_checks' : 'no_audited_item_offered',
       });
+      missedPlaces.add(placeKey(slot));
     }
   }
 

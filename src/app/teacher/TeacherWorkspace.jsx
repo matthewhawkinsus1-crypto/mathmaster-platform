@@ -51,6 +51,7 @@ import { TEST_CYCLE_CONTRACT_EDIT, planTestCycleContractEdit } from '../../platf
 import { currentGradingPeriodStamp } from '../../platform/student/gradingPeriods.js';
 import { buildSafeLibraryContentRepair, inspectLibraryContentRepair, prepareStoredAssignmentForReuse } from '../../platform/assignments/libraryAssignmentReuse.js';
 import { confirmHonorsCandidateForCreate, proveImportedCcmrClaims } from '../../platform/assignments/canonicalCcmrHydration.js';
+import { ccmrAuditWarnings } from '../../platform/assignments/ccmrAuditWarnings.js';
 import { shouldAutoPublishClassroomPackage } from '../../platform/classroom/automaticClassroomPublishing.js';
 import { resolveStudentCourseContext, studentsInClass } from '../../../functions/shared/classModel.mjs';
 import { SUPPORT_EVENT_KIND, SUPPORT_EVENT_STAGE } from '../../platform/teacher/studentSupportSignals.js';
@@ -92,7 +93,6 @@ export default function TeacherWorkspace({
   bulkBusy,
   calculateGrade,
   caseReviewStudentId,
-  ccmrAuditWarnings,
   classEvidenceByStudentId,
   classEvidenceLoading,
   classSchedule,
