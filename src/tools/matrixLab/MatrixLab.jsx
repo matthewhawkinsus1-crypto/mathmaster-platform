@@ -18,7 +18,8 @@ import {
   readMatrixLabQuestion,
 } from './matrixLabMath.js';
 import MatrixCalculator from './MatrixCalculator.jsx';
-import { negativeInParentheses } from './matrixCalculatorDisplay.js';
+import { expansionPlan, negativeInParentheses } from './matrixCalculatorDisplay.js';
+import { useMethodWithheld } from '../shared/ToolRuntimeContext';
 import { spokenMathValue } from '../shared/spokenMathValue.js';
 import {
   CellInput, CheckRow, DimensionsInput, MatrixInput, Step, Symbol, SystemDisplay, VariableMatrix, YesNo,
@@ -243,6 +244,36 @@ function LocateMode({ questionData, model, onAction }) {
 
 /* ----------------------------------------------------------------- operate */
 
+/*
+ * THE ROW-BY-COLUMN TERMS OF THE FOCUSED PRODUCT CELL, and, where they fade
+ * (R-7), the button that asks for them. The terms name the products and leave
+ * the adding to the student. The button is a disclosure: it stays on screen
+ * while the terms show, so a keyboard student who asked for them keeps their
+ * place and can hide them again. expansionPlan decides what is drawn.
+ */
+export function ProductExpansion({ authored, focus, requested = null, methodWithheld = false, left, right, onToggle = () => {} }) {
+  const plan = expansionPlan({ authored, focus, requested, methodWithheld });
+  if (!plan.show && !plan.offer) return null;
+  const terms = plan.show ? productEntry(left.values, right.values, focus.i, focus.j).terms : null;
+  return (
+    <>
+      {plan.offer ? (
+        <div style={{ textAlign: 'center', marginTop: 12 }}>
+          <button type="button" aria-expanded={plan.show} onClick={() => onToggle({ i: focus.i, j: focus.j })} style={buttonStyle}>
+            {plan.show ? 'Hide' : 'Show'} the multiplication for this cell
+          </button>
+        </div>
+      ) : null}
+      {terms ? (
+        <p aria-live="polite" style={{ textAlign: 'center', margin: '12px 0 0', fontSize: 'calc(17 * var(--mm-px))' }}>
+          Row {focus.i + 1} of {left.name} · column {focus.j + 1} of {right.name} ={' '}
+          <MathText>{terms.map((term) => `${negativeInParentheses(formatRational(term.left))}(${formatRational(term.right)})`.replace(/-/g, '−')).join(' + ')}</MathText>
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 function OperateMode({ questionData, model, onAction }) {
   const { leftMatrix, rightMatrix } = model;
   const [defined, setDefined] = usePersistentToolState('defined', '');
@@ -250,6 +281,9 @@ function OperateMode({ questionData, model, onAction }) {
   const [entries, setEntries] = usePersistentToolState('entries', []);
   const [inverses, setInverses] = usePersistentToolState('inverses', '');
   const [focus, setFocus] = useState(null);
+  // Which product cell the student asked to see the terms of (a fading expansion, R-7).
+  const [requestedCell, setRequestedCell] = useState(null);
+  const methodWithheld = useMethodWithheld();
   const work = useMemo(() => matrixLabWork(questionData, { defined, dimensions, entries, inverses }), [questionData, defined, dimensions, entries, inverses]);
   const { feedback, check, clearFeedback, fixList, wrongCells } = useLabSubmission(questionData, onAction, work, 'operate');
   useLabUndo(questionData, { defined, dimensions, entries, inverses }, (restored) => {
@@ -275,10 +309,8 @@ function OperateMode({ questionData, model, onAction }) {
     clearFeedback();
     setEntries(setCell(resizeCells(entries, gridDims.rows, gridDims.cols), i, j, value));
   };
-  const focusedTerms = model.showExpansion && focus && model.operation === 'multiply'
-    && focus.i < leftMatrix.dims.rows && focus.j < rightMatrix.dims.cols && leftMatrix.dims.cols === rightMatrix.dims.rows
-    ? productEntry(leftMatrix.values, rightMatrix.values, focus.i, focus.j).terms
-    : null;
+  const focusHasTerms = Boolean(focus) && model.operation === 'multiply'
+    && focus.i < leftMatrix.dims.rows && focus.j < rightMatrix.dims.cols && leftMatrix.dims.cols === rightMatrix.dims.rows;
   const highlightLeft = focus && model.operation === 'multiply' ? focus.i : null;
   const highlightRight = focus && model.operation === 'multiply' ? focus.j : null;
   const showGrid = model.fillResult && gridDims;
@@ -344,12 +376,15 @@ function OperateMode({ questionData, model, onAction }) {
                   invalidCells={wrongCells.entries || null}
                 />
               </div>
-              {focusedTerms ? (
-                <p aria-live="polite" style={{ textAlign: 'center', margin: '12px 0 0', fontSize: 'calc(17 * var(--mm-px))' }}>
-                  Row {focus.i + 1} of {model.left} · column {focus.j + 1} of {model.right} ={' '}
-                  <MathText>{focusedTerms.map((term) => `${negativeInParentheses(formatRational(term.left))}(${formatRational(term.right)})`.replace(/-/g, '−')).join(' + ')}</MathText>
-                </p>
-              ) : null}
+              <ProductExpansion
+                authored={questionData.showExpansion}
+                focus={focusHasTerms ? focus : null}
+                requested={requestedCell}
+                methodWithheld={methodWithheld}
+                left={{ name: model.left, values: leftMatrix.values }}
+                right={{ name: model.right, values: rightMatrix.values }}
+                onToggle={(cell) => setRequestedCell((current) => (current && current.i === cell.i && current.j === cell.j ? null : cell))}
+              />
             </Step>
           </div>
         ) : null}
