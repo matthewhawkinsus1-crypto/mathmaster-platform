@@ -4,7 +4,7 @@ import MathDisplay from './MathDisplay';
 import MathInput from './MathInput';
 import QuestionPrompt from './QuestionPrompt';
 import IntervalNumberLine from './tools/intervalNumberLine/IntervalNumberLine';
-import { useSubmitActionName, useToolRuntimeContext } from './tools/shared/ToolRuntimeContext';
+import { NoTryCostScope, useHostSubmitLabel, useToolRuntimeContext } from './tools/shared/ToolRuntimeContext';
 import { inequalitySolutionRepresentationStages, solutionRepresentationStageStatus } from './platform/curriculum/inequalityRepresentationPolicy.js';
 import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
 import { normalizeQuestionRecord } from './attemptPolicy';
@@ -686,8 +686,10 @@ export default function MultiRelationAlgebra({
   // the student checks it, not passed only once it is right.
   const { showImmediateFeedback, onHintUsed: reportHintUse, hintsAllowed: contextHintsAllowed } = useToolRuntimeContext();
   // What the number line's button says ("Check", or a secure host's
-  // "Record answer"), so the recorded notice names that button (D9).
-  const representationActionName = useSubmitActionName('Check');
+  // "Record answer"), so the recorded notice names that button (D9). Never
+  // "Submit": its press only records the graph, whatever the host's own final
+  // action costs (TL29 — the stage below sits in NoTryCostScope).
+  const representationActionName = useHostSubmitLabel() || 'Check';
   const representationsWithheld = showImmediateFeedback === false;
   const [candidateChecks, setCandidateChecks] = useState(() => initialCandidateChecksFor(draftKey));
 
@@ -2848,37 +2850,41 @@ export default function MultiRelationAlgebra({
 
       {!pendingRelationFlip && summary.solved && summary.kind === 'intervals' && requireRepresentations && (
         <div style={{ marginTop: 16 }}>
-          <IntervalNumberLine
-            questionData={{
-              prompt: requiresIntervalNotation
-                ? 'Graph your solved inequality and write the same solution in interval notation.'
-                : 'Graph your solved inequality on the number line. Use an open or closed endpoint as appropriate.',
-              intervals: summary.intervals,
-              ask: solutionRepresentationAsk,
-              variable: relationState.variable,
-              // The course the solved inequality belongs to decides how
-              // the number line reads the student's graph back to them.
-              alignments: question.alignments,
-              standard: question.standard,
-              min: numberLineConfig.min,
-              max: numberLineConfig.max,
-              step: numberLineConfig.step,
-            }}
-            onAction={(action, payload) => {
-              if (action === 'ATTEMPT_SUBMITTED') {
-                // Its work, not its verdict: the shared grader re-marks it
-                // against the intervals of this solved relation.
-                setRepresentationWork(payload?.response ?? null);
-              }
-              // Changed after its Check: the checked graph is not the one on
-              // screen any more, so the step waits for the next Check rather
-              // than being graded on the old one.
-              if (action === 'ATTEMPT_WITHDRAWN') setRepresentationWork(null);
-              // A hint revealed in the number line is help like any other:
-              // report it to the activity's hint recorder (none outside one).
-              if (action === 'HINT_USED') reportHintUse?.();
-            }}
-          />
+          {/* This number line's button records the graph for the solver to
+              grade at the host's Submit; it is not itself a try (TL29). */}
+          <NoTryCostScope>
+            <IntervalNumberLine
+              questionData={{
+                prompt: requiresIntervalNotation
+                  ? 'Graph your solved inequality and write the same solution in interval notation.'
+                  : 'Graph your solved inequality on the number line. Use an open or closed endpoint as appropriate.',
+                intervals: summary.intervals,
+                ask: solutionRepresentationAsk,
+                variable: relationState.variable,
+                // The course the solved inequality belongs to decides how
+                // the number line reads the student's graph back to them.
+                alignments: question.alignments,
+                standard: question.standard,
+                min: numberLineConfig.min,
+                max: numberLineConfig.max,
+                step: numberLineConfig.step,
+              }}
+              onAction={(action, payload) => {
+                if (action === 'ATTEMPT_SUBMITTED') {
+                  // Its work, not its verdict: the shared grader re-marks it
+                  // against the intervals of this solved relation.
+                  setRepresentationWork(payload?.response ?? null);
+                }
+                // Changed after its Check: the checked graph is not the one on
+                // screen any more, so the step waits for the next Check rather
+                // than being graded on the old one.
+                if (action === 'ATTEMPT_WITHDRAWN') setRepresentationWork(null);
+                // A hint revealed in the number line is help like any other:
+                // report it to the activity's hint recorder (none outside one).
+                if (action === 'HINT_USED') reportHintUse?.();
+              }}
+            />
+          </NoTryCostScope>
           {representationStage.recordedNotice ? (
             // The same line for a right and a wrong graph.
             <p role="status" data-representation-recorded="true" style={{ margin: '10px 0 0', color: 'var(--mm-primary-text)', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700 }}>

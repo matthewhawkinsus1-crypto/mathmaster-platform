@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
 
 const DEFAULT_RUNTIME = {
   showImmediateFeedback: true,
@@ -160,6 +160,26 @@ export const relabelToolPrimaryActions = (capabilities, { submitLabel = null, su
 // The host's label alone (null when the tool keeps its own), for a tool whose
 // wording around that action — a panel title — must not say "Check" either.
 export const useHostSubmitLabel = () => useContext(ToolRuntimeContext).submitLabel || null;
+
+/*
+ * A NESTED TOOL WHOSE PRESS SPENDS NO TRY (TL29, finding C1-88).
+ *
+ * The host tells every tool beneath it what its final action costs — and
+ * reaches a tool the host does not mount itself: the Systems Workspace is one
+ * registry tool, so its rewrite step's relation solver, and the number line
+ * that solver asks for once an inequality is solved, inherit "uses 1 of 3
+ * tries". That number line's button only RECORDS the graph for the solver to
+ * grade at the host's own Submit, so "Submit — uses 1 of 3 tries" on it
+ * frightens a student with a cost they never pay. Under this scope the cost is
+ * gone and the button keeps its own word ("Check"; a secure host's label
+ * still wins). Everything else the host said — hints, verdict policy, the
+ * outcome slots — passes through untouched.
+ */
+export const NoTryCostScope = ({ children }) => {
+  const runtime = useContext(ToolRuntimeContext);
+  const value = useMemo(() => (runtime.submitCost ? { ...runtime, submitCost: null } : runtime), [runtime]);
+  return <ToolRuntimeContext.Provider value={value}>{children}</ToolRuntimeContext.Provider>;
+};
 
 // The activity's hint recorder, or null. Defaults to null outside a provider.
 export const useHintUseReporter = () => useContext(ToolRuntimeContext).onHintUsed || null;
