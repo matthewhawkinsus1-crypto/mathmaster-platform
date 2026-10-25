@@ -3070,6 +3070,7 @@ export default function TeacherWorkspace({
               classes={classes}
               students={allStudents}
               teacherEmail={user.email}
+              teacherUid={user.uid}
               initialAssignmentId={classroomManagerAssignmentId}
             />
           )}

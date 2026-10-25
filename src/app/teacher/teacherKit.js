@@ -39,6 +39,7 @@ export {
   shouldAutoPublishClassroomPackage,
 } from '../../platform/classroom/automaticClassroomPublishing.js';
 export { automaticClassroomTopicName } from '../../platform/classroom/classroomTopicNaming.js';
+export { syncTeacherTopicStyle as teacherClassroomTopicStyle } from '../../platform/classroom/teacherTopicStyle.js';
 export { listTeacherTestCycleRecords } from '../../services/testCycleService.js';
 export {
   fetchAttendanceForClassDateRange,

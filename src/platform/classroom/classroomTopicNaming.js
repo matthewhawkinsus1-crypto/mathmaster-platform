@@ -24,10 +24,13 @@
  * 11 pm release is Sunday to the class, whatever UTC says. Classroom shows the
  * newest topic first, so the current week sits at the top of Classwork.
  *
- * The choice is a per-browser preference (localStorage): it changes only the
- * topic NAME sent with a publish, which the teacher can still edit by hand in
- * Classroom Manager. Nothing about grading, the publication record or
- * duplicate protection reads it.
+ * The choice is the teacher's, kept in teacherPreferences/{uid} so it follows
+ * them from device to device (teacherTopicStyle.js, TT07), with this browser's
+ * copy (localStorage) as what the screen shows first and what a publish falls
+ * back to when the saved one cannot be read. It changes only the topic NAME
+ * sent with a publish, which the teacher can still edit by hand in Classroom
+ * Manager. Nothing about grading, the publication record or duplicate
+ * protection reads it.
  */
 
 export const CLASSROOM_TOPIC_STYLES = Object.freeze(['module', 'week', 'weekModule']);
@@ -105,6 +108,16 @@ export const readClassroomTopicStyle = () => {
     return normalizeClassroomTopicStyle(storage()?.getItem(CLASSROOM_TOPIC_STYLE_STORAGE_KEY));
   } catch {
     return DEFAULT_CLASSROOM_TOPIC_STYLE;
+  }
+};
+
+/** This browser's own choice, or null when none was ever made here (unlike the read above, which falls back to the default). */
+export const storedClassroomTopicStyle = () => {
+  try {
+    const stored = storage()?.getItem(CLASSROOM_TOPIC_STYLE_STORAGE_KEY);
+    return CLASSROOM_TOPIC_STYLES.includes(stored) ? stored : null;
+  } catch {
+    return null;
   }
 };
 

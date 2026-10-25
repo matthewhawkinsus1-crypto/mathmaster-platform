@@ -2036,6 +2036,25 @@ service cloud.firestore {
       allow create, update, delete: if teacher();
     }
 
+    /*
+     * A teacher's own preferences (src/platform/classroom/teacherTopicStyle.js,
+     * TT07): so far the style Classroom topics are named in, which used to be
+     * remembered per browser. One document per teacher, named by their sign-in
+     * id, that only that teacher can read or write, so the choice follows them
+     * from device to device. It holds nothing about a student. It is not under
+     * `settings`, which every signed-in user reads and any teacher writes.
+     * Nothing deletes one from a browser.
+     */
+    match /teacherPreferences/{teacherUid} {
+      allow get: if teacher() && request.auth.uid == teacherUid;
+      allow list: if false;
+      allow create, update: if teacher() && request.auth.uid == teacherUid
+        && request.resource.data.keys().hasOnly(['classroomTopicStyle', 'updatedAt'])
+        && request.resource.data.classroomTopicStyle in ['module', 'week', 'weekModule']
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+
     // Platform transition switches (shared/assignmentPrivacy.mjs). Every
     // signed-in client may read them — the rules above read them too — and
     // only audited root-admin callables (Admin SDK) change them.

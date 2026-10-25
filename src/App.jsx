@@ -2660,7 +2660,7 @@ function App() {
    * publication target, so a Classroom failure never rolls back the assignment.
    */
   const autoPublishAssignmentPackageToClassroom = async (assignment) => {
-    const { automaticClassroomTopicName, classroomPostingMode, mappedCourseIdsForAssignment, shouldAutoPublishClassroomPackage } = requireTeacherKit();
+    const { automaticClassroomTopicName, classroomPostingMode, mappedCourseIdsForAssignment, shouldAutoPublishClassroomPackage, teacherClassroomTopicStyle } = requireTeacherKit();
     if (!shouldAutoPublishClassroomPackage(assignment)) {
       return { status: 'skipped', reason: 'not-auto-publishable', published: 0, failed: 0 };
     }
@@ -2679,8 +2679,11 @@ function App() {
 
     const classroom = assignment.classroomPackage || {};
     // One name for both posts, so the resources and the assignment land in the
-    // same topic — renamed "Week of …" when the teacher chose week topics.
-    const topicName = automaticClassroomTopicName(assignment);
+    // same topic — renamed "Week of …" when the teacher chose week topics. The
+    // style is the teacher's saved choice, so a second device names topics the
+    // same way (TT07); with it unreadable, this browser's own choice stands.
+    const topicStyle = await teacherClassroomTopicStyle({ db, uid: user?.uid });
+    const topicName = automaticClassroomTopicName(assignment, { style: topicStyle });
     const notesPdf = assignment.lessonResources?.notesPdf || null;
     const resourceLinks = Array.isArray(classroom.additionalLinks)
       ? classroom.additionalLinks

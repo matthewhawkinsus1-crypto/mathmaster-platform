@@ -65,6 +65,7 @@ for (const [file, why] of [
   ['src/app/teacher/feedbackReleaseControls.js', 'only a teacher releases assessment feedback (teacher kit)'],
   ['src/platform/attendance/absencePolicy.js', 'only the teacher\'s attendance tools read it (attendanceHistory.js, extensionReconciliation.js)'],
   ['src/platform/classroom/classroomTopicNaming.js', 'only a teacher publishes to Classroom (teacher kit); the Classroom Manager loads its own'],
+  ['src/platform/classroom/teacherTopicStyle.js', 'a teacher\'s saved Classroom topic style is read by the teacher kit and the Classroom Manager only (TT07)'],
   ['src/platform/teacher/studentSupportSignals.js', 'App reads only the event kinds (teacher/supportEventKinds.js) and the live rapid-correct summary (teacher/rapidCorrectness.js)'],
 ]) {
   test(`${path.basename(file)} is not in the first load: ${why}`, () => {
