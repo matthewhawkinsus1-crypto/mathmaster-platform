@@ -366,7 +366,10 @@ test('the student\'s list shows plain statuses, and released results open from t
   assert.match(row, /\{status\.label\}/);
   assert.match(row, /\{canReview \? 'See your results' : done \? 'Waiting for results'/);
   const active = region(dashboard, 'if (active) return (', '  );', 'active test');
-  assert.match(active, /onOpenResults=\{\(finished\) => \{ setActive\(null\); setReviewing\(finished\?\.examSessionId \? finished : active\); \}\}/);
+  // "See your results" leaves the finished test (testFinished: nothing is open
+  // any more, NV14) and opens its released review.
+  assert.match(active, /onOpenResults=\{\(finished\) => \{ testFinished\(\); setReviewing\(finished\?\.examSessionId \? finished : active\); \}\}/);
+  assert.match(region(dashboard, 'const testFinished = () => {', '\n  };', 'testFinished'), /setActive\(null\);/);
   assert.match(active, /sessionPreview=\{active\}/);
 
   const finished = region(container, 'if (terminal.has(session.status)) {', 'const current = Number.isInteger(position)', 'finished screen');

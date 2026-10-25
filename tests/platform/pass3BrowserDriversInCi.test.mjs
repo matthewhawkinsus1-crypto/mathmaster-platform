@@ -43,6 +43,8 @@ const DRIVERS = [
     'teacherWorkflow/draftSaveNoticeReloadJourneys', 'teacherWorkflow/phoneSaveLineJourneys',
   ]],
   ['student-teacher-journeys.yml', 'pass3-student-journeys', 'a11yApp', ['teacherWorkflow/askMyTeacherJourneys']],
+  // NV14: Back and a reload inside Recovery, Corrections and a Test review.
+  ['student-teacher-journeys.yml', 'app-urls', 'teacher', ['teacherWorkflow/innerScreenBackJourneys']],
   ['student-pass3-emulator-journeys.yml', 'pass3-test-cycle-rich-tools', 'self', ['testCycleRichToolQa']],
   ['student-pass3-emulator-journeys.yml', 'pass3-live-challenge-shell', 'self', ['liveChallengeShellQa']],
 ];

@@ -88,7 +88,11 @@ export const useUrlArrival = ({
           else toastInfo(plan.message.title, plan.message.body);
         }
       } else if (plan.action === 'result') {
-        student.openStudentAssignmentResult(plan.assignmentId, { sectionKey: plan.sectionKey, origin: plan.origin });
+        student.openStudentAssignmentResult(plan.assignmentId, {
+          sectionKey: plan.sectionKey,
+          origin: plan.origin,
+          ...(plan.recoverySection ? { recoverySection: plan.recoverySection } : {}),
+        });
       } else if (plan.action === 'testCycle') {
         student.setActiveTestCycleAssignmentId(plan.assignmentId);
         student.openStudentDashboardMode('testCycle');

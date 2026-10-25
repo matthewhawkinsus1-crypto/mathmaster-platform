@@ -299,6 +299,8 @@ export const CI_AREAS = {
     'functions/shared/**',
     'functions/lib/ccmrAssignmentBank.js',
     'tests/browser/teacherWorkflow/**',
+    // The teacher harness swaps two services with it (NV14).
+    'tests/browser/emulator/swapModules.mjs',
     'tests/browser/accessibilityAppHarness*',
     'tests/browser/accessibilityFakeFirestore.js',
     'tests/browser/studentUxPlatform*',

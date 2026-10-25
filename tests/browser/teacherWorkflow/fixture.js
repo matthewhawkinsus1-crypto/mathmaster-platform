@@ -14,6 +14,7 @@
  *   - Period 5 has a student whose account key is not a numeric SIS id.
  */
 import { addRecoveryHoldScenario, addTargetedRecoveryScenario } from './recoveryFixture.js';
+import { addInnerScreensScenario } from './innerScreensFixture.js';
 import { projectGradeTransferUnits } from '../../../src/platform/gradeTransfer/gradeTransferProjection.js';
 import { createExportSnapshot, transferSnapshotId } from '../../../src/platform/gradeTransfer/gradeTransferModel.js';
 import { buildRevisionDocument, buildSupportProjection, normalizeSupportRevisionInput } from '../../../functions/shared/supportProfileModel.mjs';
@@ -483,6 +484,9 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
   if (params?.get?.('recovery') === 'p0') addRecoveryHoldScenario({ fixture, now, teacherEmail: TEACHER_EMAIL });
   // Opt-in (`&recovery=targeted`): Practice targeted at a stored misconception.
   if (params?.get?.('recovery') === 'targeted') addTargetedRecoveryScenario({ fixture, now, teacherEmail: TEACHER_EMAIL });
+  // Opt-in (`&innerScreens=1`): a Test Cycle in Corrections and two practice
+  // tests for Algebra I Period 1 (innerScreenBackJourneys.mjs, NV14).
+  if (params?.get?.('innerScreens') === '1') addInnerScreensScenario({ fixture, now });
   // Opt-in (`&prereq=1`): a lesson and a quiz that open early once their
   // prerequisite is met (prerequisiteEarlyJourneys.mjs).
   if (params?.get?.('prereq') === '1') addPrerequisiteEarlyScenario({ fixture, now, lesson, sectionsFor });

@@ -9,11 +9,17 @@
  * `?reset=1` reseeds the fixture relative to the current time;
  * `?weeklyPath=ok` makes the weekly Path callable succeed (it fails by
  * default, like production did during the audit).
+ *
+ * The Test Cycle and secure-exam services are the real modules behind thin
+ * stand-ins (fake*Service.js) that answer only the `&innerScreens=1`
+ * scenario, which the MOCK_LOCAL sandbox cannot show (NV14,
+ * innerScreensFixture.js). Every other page gets the real service.
  */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { swapModules } from '../emulator/swapModules.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../..');
@@ -25,7 +31,13 @@ export default defineConfig({
   // (the theme certification runs both), each optimizer run can invalidate
   // the other server's deps and reload its pages mid-test.
   cacheDir: path.join(root, 'node_modules/.vite-teacher-harness'),
-  plugins: [react()],
+  plugins: [
+    swapModules('mm-teacher-harness-services', [
+      [path.join(root, 'src/services/testCycleService.js'), path.join(here, 'fakeTestCycleService.js')],
+      [path.join(root, 'src/services/secureExamService.js'), path.join(here, 'fakeSecureExamService.js')],
+    ]),
+    react(),
+  ],
   resolve: {
     alias: [
       { find: /^firebase\/app$/, replacement: path.join(here, 'fakeApp.js') },

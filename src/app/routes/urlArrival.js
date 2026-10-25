@@ -144,6 +144,9 @@ export const planStudentArrival = ({
       assignmentId: assignment.id,
       sectionKey: route.sectionKey || 'whole',
       origin: sameEntry && historyRoute.origin === 'grades' ? 'grades' : 'assignments',
+      // A reload inside a Recovery reopens it — where the page's panel still
+      // offers it, which App decides once the panel can say (NV14).
+      ...(sameEntry && historyRoute.recoverySection ? { recoverySection: historyRoute.recoverySection } : {}),
     };
   }
 

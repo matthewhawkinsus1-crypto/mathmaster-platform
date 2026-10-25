@@ -10,6 +10,15 @@ import { testCycleBringText, testCycleDeliveryText } from '../../platform/studen
 import { opensWhenPhrase } from '../../platform/student/studentWhen.js';
 import { describeStudentError } from '../../platform/student/studentErrorText.js';
 import { LEVEL } from '../../platform/student/navigationModel.js';
+import { isSecureExamActive } from '../../platform/assessment/secureExamPresence.js';
+import {
+  TEST_CYCLE_VIEW,
+  readTestCycleView,
+  testCycleModeFor,
+  testCycleViewFor,
+  testCycleViewOffered,
+  writeTestCycleView,
+} from '../../platform/student/testCycleViewHistory.js';
 import {
   markTestCycleSeen,
   retestPolicyRelevant,
@@ -68,6 +77,13 @@ import {
  * changes — Review progress landing, a teacher releasing results, a retest
  * opening — and the card asks the server again, so a student never has to
  * reload to find their Test unlocked.
+ *
+ * CORRECTIONS AND EACH REVIEW ARE BROWSER ENTRIES (NV14). Browser Back from
+ * them returns to the card (from a review opened in Corrections, to
+ * Corrections), and a reload stays on them — while the card would still open
+ * them (testCycleViewHistory.js). `historyOwner` is the signed-in account
+ * that owns the entries; without one (a teacher's preview) the card writes
+ * no history.
  */
 
 const shell = {
@@ -141,7 +157,7 @@ const TEST_REVIEW_RECHECK_MS = 30000;
 
 // `exitLabel`: the Back control's words, naming where it goes ("← Home");
 // App derives it from where the card was opened (NAV-9).
-export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile = null, dueAt = null, lateDueAt = null, onOpenReview = null, onExit = null, exitLabel = '← Assignments', refreshKey = null, previewCard = null, onPreviewEnter = null, onPracticeSkill = null }) => {
+export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile = null, dueAt = null, lateDueAt = null, onOpenReview = null, onExit = null, exitLabel = '← Assignments', refreshKey = null, previewCard = null, onPreviewEnter = null, onPracticeSkill = null, historyOwner = null }) => {
   /*
    * PREVIEW MODE. A teacher previewing a stage hands the card a locally built
    * payload in exactly the shape the server returns. The card then makes NO
@@ -163,6 +179,22 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
   const failedLoadsRef = useRef(0);
   const modeRef = useRef(mode);
   useEffect(() => { modeRef.current = mode; }, [mode]);
+
+  // This card's own browser entries (NV14, testCycleViewHistory.js): the
+  // signed-in student's card only, never a teacher's preview.
+  const tracksHistory = !previewing && Boolean(historyOwner) && typeof window !== 'undefined';
+  const historyRef = useRef(null);
+  historyRef.current = { assignmentId, owner: historyOwner };
+  // The screen this card's entry named when the card opened on it (Back,
+  // Forward or a reload): opened once the server's card says it still may be.
+  const [recordedView] = useState(() => (tracksHistory ? readTestCycleView(window.history.state, { assignmentId, owner: historyOwner }) : null));
+  const pendingViewRef = useRef(recordedView && recordedView !== TEST_CYCLE_VIEW.CARD ? recordedView : null);
+  const showViewRef = useRef(null);
+  const view = testCycleViewFor({ mode, testReviewReturn });
+  const viewRef = useRef(view);
+  viewRef.current = view;
+  const cardRef = useRef(card);
+  cardRef.current = card;
 
   // Where focus goes when a full-screen review hands the screen back: the
   // card's heading, or the corrections heading the student left.
@@ -192,6 +224,12 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
       setCard(next);
       setError(null);
       failedLoadsRef.current = 0;
+      // The screen the entry named opens with this answer, if it may.
+      const pending = pendingViewRef.current;
+      if (pending) {
+        pendingViewRef.current = null;
+        showViewRef.current?.(pending, next, { focus: false });
+      }
       // Opening the card is seeing it: the list's "New" marker for this cycle
       // clears until its stage changes again.
       if (studentId) markTestCycleSeen(studentId, assignmentId);
@@ -226,6 +264,56 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
     }
   }, [assignmentId, previewing]);
   useEffect(() => { if (previewCard) setCard(previewCard); }, [previewCard]);
+
+  // Opens the screen an entry names, if the card's own button would open it
+  // now (judged on `current`, the server's card); otherwise the card, and the
+  // entry — while it is still this card's — is rewritten to say so. Returns
+  // the screen shown.
+  showViewRef.current = (wanted, current, { focus = true } = {}) => {
+    const shown = testCycleViewOffered(wanted, current) ? wanted : TEST_CYCLE_VIEW.CARD;
+    if (shown !== wanted && readTestCycleView(window.history.state, historyRef.current) !== null) {
+      writeTestCycleView(TEST_CYCLE_VIEW.CARD, { ...historyRef.current, replace: true });
+    }
+    const next = testCycleModeFor(shown);
+    if (next.mode === 'testReview') openTestReviewIdRef.current = testReviewSessionIdFor(current);
+    // Back within the card puts focus where its own Back buttons do.
+    if (focus) returnFocusRef.current = next.mode === 'corrections' || next.mode === 'card' ? next.mode : null;
+    setTestReviewReturn(next.testReviewReturn);
+    setMode(next.mode);
+    return shown;
+  };
+
+  // The screen on show, as this card's entry: a new screen is a new entry, so
+  // Back returns to the one before it. Nothing is written while the entry
+  // still names a screen waiting for the server, or when the entry is not
+  // this card's (App has not written it yet, or the student is leaving).
+  useEffect(() => {
+    if (!tracksHistory || pendingViewRef.current) return;
+    const recorded = readTestCycleView(window.history.state, historyRef.current);
+    if (recorded === null || recorded === view) return;
+    writeTestCycleView(view, historyRef.current);
+  }, [view, tracksHistory]);
+
+  // Back and Forward between the card's entries.
+  useEffect(() => {
+    if (!tracksHistory) return undefined;
+    const restore = (event) => {
+      // Back never leaves a running secure Test: App puts its entry back.
+      if (isSecureExamActive()) return;
+      const recorded = readTestCycleView(event.state, historyRef.current);
+      // Another screen's entry: App changes the screen.
+      if (recorded === null) return;
+      if (!cardRef.current) {
+        pendingViewRef.current = recorded === TEST_CYCLE_VIEW.CARD ? null : recorded;
+        return;
+      }
+      if (recorded === viewRef.current) return;
+      // Back on the card, it asks the server again, as its own Back does.
+      if (showViewRef.current(recorded, cardRef.current) === TEST_CYCLE_VIEW.CARD) load();
+    };
+    window.addEventListener('popstate', restore);
+    return () => window.removeEventListener('popstate', restore);
+  }, [tracksHistory, load]);
 
   // The server's answer can change while the card is open. Ask again when the
   // student's own grade document says something moved, and when they come back

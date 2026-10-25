@@ -24,7 +24,12 @@ export const ROUTE_OWNER_STATE_KEY = '__mathmasterRouteOwner';
 // to its one entry: a push does not copy it into the next entry, so opening
 // Assignments afresh starts clean while Back onto that entry restores it.
 export const ASSIGNMENTS_VIEW_STATE_KEY = '__mathmasterAssignmentsView';
-const ENTRY_ONLY_STATE_KEYS = [ASSIGNMENTS_VIEW_STATE_KEY];
+// The same for the Test Cycle card's own screens (Corrections, the Test
+// review: testCycleViewHistory.js) and the test open in Tests & Exams
+// (openSecureExamMemory.js), NV14.
+export const TEST_CYCLE_VIEW_STATE_KEY = '__mathmasterTestCycleView';
+export const SECURE_EXAMS_VIEW_STATE_KEY = '__mathmasterSecureExamsView';
+const ENTRY_ONLY_STATE_KEYS = [ASSIGNMENTS_VIEW_STATE_KEY, TEST_CYCLE_VIEW_STATE_KEY, SECURE_EXAMS_VIEW_STATE_KEY];
 export const readRouteOwner = (state) => (
   state && typeof state === 'object' ? state[ROUTE_OWNER_STATE_KEY] || null : null
 );
@@ -57,6 +62,26 @@ const STUDENT_SURFACES = new Set(['assignment', 'assignmentResult', 'dashboard']
 
 // The sections a Classroom post can be scoped to (App.jsx startAssignment).
 const SECTION_SCOPES = Object.freeze(['warmup', 'classwork', 'practice', 'dol']);
+// The sections with a Recovery (functions/shared/recoveryPolicy.mjs
+// RECOVERY_SECTIONS; a test keeps the two lists equal).
+export const RECOVERY_ROUTE_SECTIONS = Object.freeze(['warmup', 'dol']);
+
+/*
+ * A RECOVERY RESTORED FROM AN ENTRY OPENS ONLY WHERE ITS BUTTON WOULD (NV14).
+ *
+ * Back, Forward or a reload onto a Recovery's entry opens it again only while
+ * the result page's own panel offers it, and as the panel would: its second
+ * try while that is under way (Continue), its practice while it is locked or
+ * unlocked (Practice for …). The two never overlap
+ * (platform/recovery/studentRecoveryModel.js), so the entry needs no mode. A
+ * Recovery submitted, held or closed since opens nothing: the result page,
+ * whose panel says where it stands.
+ */
+export const recoveryModeToRestore = (entry) => {
+  if (entry?.canContinue === true) return 'assessment';
+  if (entry?.canPractice === true) return 'practice';
+  return null;
+};
 
 export const normalizeStudentRoute = (route = {}) => {
   const requested = cleanString(route?.surface);
@@ -75,6 +100,13 @@ export const normalizeStudentRoute = (route = {}) => {
   }
 
   if (surface === 'assignmentResult') {
+    /*
+     * A RECOVERY IS AN ENTRY OVER ITS RESULT PAGE (NV14). The runner opens on
+     * the result page, so without an entry of its own browser Back from it
+     * left the page altogether and a reload lost it. The section rides in
+     * this tab's entry, never in the address.
+     */
+    const recoverySection = RECOVERY_ROUTE_SECTIONS.includes(cleanString(route.recoverySection)) ? cleanString(route.recoverySection) : '';
     return {
       surface,
       assignmentId: cleanString(route.assignmentId),
@@ -94,6 +126,7 @@ export const normalizeStudentRoute = (route = {}) => {
        * Back out of practice: the restored entry still knows its origin.
        */
       origin: cleanString(route.origin, 'assignments'),
+      ...(recoverySection ? { recoverySection } : {}),
     };
   }
 
@@ -133,10 +166,27 @@ export const studentRouteKey = (route = {}) => {
     // The origin is part of the identity: the same assignment opened from
     // Grades and from Assignments are two different places to press Back from,
     // and collapsing them into one entry would lose that.
-    return `assignmentResult:${normalized.assignmentId}:${normalized.sectionKey}:${normalized.origin}`;
+    // A Recovery is a place of its own over its page (NV14).
+    const recovery = normalized.recoverySection ? `:recovery:${normalized.recoverySection}` : '';
+    return `assignmentResult:${normalized.assignmentId}:${normalized.sectionKey}:${normalized.origin}${recovery}`;
   }
   if (normalized.dashboardMode === 'testCycle') return `dashboard:testCycle:${normalized.testCycleAssignmentId}`;
   return `dashboard:${normalized.dashboardMode}`;
+};
+
+/*
+ * THE PAGE UNDER A RECOVERY (NV14). A Recovery opened from another screen
+ * (Home's Today card, Assignments, the assignment's header) opens over its
+ * result page, so App writes the page's own entry first: Back from the
+ * Recovery lands on the page, as its "Back to your results" does. Null for
+ * every other screen.
+ */
+export const recoveryResultPageRoute = (route = {}) => {
+  const normalized = normalizeStudentRoute(route);
+  if (normalized.surface !== 'assignmentResult' || !normalized.recoverySection) return null;
+  const page = { ...normalized };
+  delete page.recoverySection;
+  return page;
 };
 
 export const mathPathRouteKey = (route = {}) => {
@@ -196,4 +246,9 @@ export const writeStudentRouteState = (route, options = {}) => {
 
 export const writeMathPathRouteState = (route, options = {}) => {
   writeState(MATH_PATH_ROUTE_STATE_KEY, normalizeMathPathRoute(route), options);
+};
+
+// The Test Cycle card's own entries (testCycleViewHistory.js shapes them).
+export const writeTestCycleViewState = (view, options = {}) => {
+  writeState(TEST_CYCLE_VIEW_STATE_KEY, view, options);
 };

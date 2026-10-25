@@ -311,6 +311,8 @@ import { packUpWorkLine } from './platform/student/packUpLine.js';
 import {
   readRouteOwner,
   readStudentRouteState,
+  recoveryModeToRestore,
+  recoveryResultPageRoute,
   studentRouteKey,
   writeStudentRouteState,
 } from './platform/student/browserHistory.js';
@@ -1172,11 +1174,14 @@ function App() {
     // Assignment Result is its own entry so the required Back chain —
     // Practice -> Result -> Grades -> Home — has a browser entry per screen.
     if (activeView === 'assignmentResult') {
+      const resultAssignmentId = assignmentResultRoute?.assignmentId || activeAssignmentId || '';
       return {
         surface: 'assignmentResult',
-        assignmentId: assignmentResultRoute?.assignmentId || activeAssignmentId || '',
+        assignmentId: resultAssignmentId,
         sectionKey: assignmentResultRoute?.sectionKey || '',
         origin: assignmentResultRoute?.origin || 'assignments',
+        // The Recovery open over the page is an entry of its own (NV14).
+        ...(recoverySession?.assignmentId === resultAssignmentId ? { recoverySection: recoverySession.section } : {}),
       };
     }
     return {
@@ -1187,7 +1192,7 @@ function App() {
         ? { testCycleAssignmentId: activeTestCycleAssignmentId || '', origin: activeTestCycleOrigin }
         : {}),
     };
-  }, [user?.role, activeView, activeAssignmentId, currentQuestionIndex, activeClassroomSectionKey, studentDashboardMode, assignmentResultRoute, activeTestCycleAssignmentId, activeTestCycleOrigin]);
+  }, [user?.role, activeView, activeAssignmentId, currentQuestionIndex, activeClassroomSectionKey, studentDashboardMode, assignmentResultRoute, activeTestCycleAssignmentId, activeTestCycleOrigin, recoverySession?.assignmentId, recoverySession?.section]);
 
   useEffect(() => {
     if (!studentBrowserRoute) {
@@ -1230,6 +1235,10 @@ function App() {
     // moved to the matching history entry. Seeing the same key here prevents
     // that restoration from immediately pushing a duplicate entry.
     if (currentKey !== targetKey) {
+      // A Recovery opened from another screen sits on its result page's own
+      // entry, so Back from it lands on the page (NV14).
+      const resultPage = recoveryResultPageRoute(studentBrowserRoute);
+      if (resultPage && studentRouteKey(resultPage) !== currentKey) writeStudentRouteState(resultPage, { url, owner: user?.uid });
       writeStudentRouteState(studentBrowserRoute, { url, owner: user?.uid });
     }
     studentBrowserUrlRef.current = url;
@@ -1314,6 +1323,14 @@ function App() {
               origin: route.origin || 'assignments',
             }
         ));
+        // Back or Forward onto a Recovery's entry opens it again, where the
+        // page's panel still offers it (mode null: the panel decides, below
+        // the summary); onto the page itself, the Recovery closes (NV14).
+        setRecoverySession((current) => {
+          if (!route.recoverySection) return null;
+          if (current?.assignmentId === route.assignmentId && current.section === route.recoverySection) return current;
+          return { assignmentId: route.assignmentId, section: route.recoverySection, mode: null };
+        });
         setActiveView('assignmentResult');
         return;
       }
@@ -1437,9 +1454,33 @@ function App() {
     });
   }, [recoveryAssignmentId, studentRecoveryKit, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, classSchedule]);
 
+  // A Recovery belongs to the result page it opened on: leaving that page
+  // (for another screen, or another assignment's result) closes it.
   useEffect(() => {
-    if (!recoveryAssignmentId) setRecoverySession(null);
+    setRecoverySession((current) => (current && current.assignmentId !== recoveryAssignmentId ? null : current));
   }, [recoveryAssignmentId]);
+
+  /*
+   * A RECOVERY REOPENED BY BACK, FORWARD OR A RELOAD (NV14) has no mode until
+   * the page's panel can say which of its buttons it offers now
+   * (recoveryModeToRestore), so it opens only where a tap could. One the
+   * panel no longer offers (submitted, held, closed) leaves the student on the
+   * result page, and its entry becomes the page's, so Back does not walk into
+   * it again.
+   */
+  useEffect(() => {
+    if (!recoverySession || recoverySession.mode || !studentRecoveryKit || recoverySession.assignmentId !== recoveryAssignmentId) return;
+    const mode = recoveryModeToRestore(studentRecoverySummary.find((entry) => entry.section === recoverySession.section));
+    if (mode) {
+      setRecoverySession({ ...recoverySession, mode });
+      return;
+    }
+    const entry = readStudentRouteState(window.history.state);
+    if (entry?.surface === 'assignmentResult' && entry.assignmentId === recoverySession.assignmentId && entry.recoverySection) {
+      writeStudentRouteState({ ...entry, recoverySection: '' }, { replace: true, owner: user?.uid });
+    }
+    setRecoverySession(null);
+  }, [recoverySession, studentRecoveryKit, recoveryAssignmentId, studentRecoverySummary, user?.uid]);
 
   /*
    * EVERY OPEN RECOVERY, WHERE A STUDENT WILL SEE IT.
@@ -6404,6 +6445,9 @@ function App() {
     });
     setActiveClassroomSectionKey(sectionKey === 'whole' ? null : sectionKey);
     setActiveAssignmentId(id);
+    // A reload of a Recovery's entry (useUrlArrival) opens it again, where
+    // the page's panel still offers it (NV14; mode null: the panel decides).
+    if (options.recoverySection) setRecoverySession({ assignmentId: id, section: options.recoverySection, mode: null });
     setActiveView('assignmentResult');
   };
 
@@ -12044,6 +12088,10 @@ function App() {
                 // Back names and opens the screen the card was opened from (NAV-9).
                 exitLabel={`← ${resolveBack(NAV_LEVEL.TEST_CYCLE, { origin: activeTestCycleOrigin })?.navLabel || 'Assignments'}`}
                 onExit={() => openStudentOriginLevel(activeTestCycleOrigin)}
+                // Corrections and the Test review are this account's own
+                // browser entries (NV14); another test is another card.
+                historyOwner={user.uid}
+                key={activeTestCycleAssignmentId}
               />
             </Suspense>
           </div>
@@ -12061,6 +12109,8 @@ function App() {
           </div>
           <StudentSecureExamDashboard
           studentProfile={user.profile}
+          // The test this list's entry says was open goes first, focused (NV14).
+          studentId={user.id}
           // A course Test/Retest is entered through its assignment card, which
           // is the only thing that knows which stage is open.
           onOpenCourseTest={(assignmentId) => startAssignment(assignmentId, 0, { origin: NAV_LEVEL.SECURE_EXAMS })}
@@ -12183,7 +12233,10 @@ function App() {
     const openRecoveryEntry = recoverySession?.assignmentId === assignmentResultRoute.assignmentId
       ? studentRecoverySummary.find((entry) => entry.section === recoverySession.section) || null
       : null;
-    if (recoveryAssignment && openRecoveryEntry) {
+    // A Recovery reopened from its entry opens as the panel would open it
+    // now, or not at all (NV14, recoveryModeToRestore).
+    const openRecoveryMode = recoverySession?.mode || recoveryModeToRestore(openRecoveryEntry);
+    if (recoveryAssignment && openRecoveryEntry && openRecoveryMode) {
       // Its own boundary (RC09): a Recovery screen error stays on this
       // screen, with the way back to the result page.
       const recoveryBoundary = {
@@ -12196,7 +12249,7 @@ function App() {
         <ScreenErrorBoundary {...recoveryBoundary} onExit={() => setRecoverySession(null)}>
         <Suspense fallback={<p role="status" style={{ padding: 24, margin: 0 }}>Opening Recovery…</p>}>
           <SectionRecoveryRunner
-            mode={recoverySession.mode}
+            mode={openRecoveryMode}
             assignment={recoveryAssignment}
             entry={openRecoveryEntry}
             studentId={user.id}
