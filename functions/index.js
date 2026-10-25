@@ -16800,6 +16800,9 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
       });
       if (openSlotSession) existingSessionId = openSlotSession.id;
     }
+    // An open check a new content release supersedes is replaced below, due
+    // or not: the student already had it open (the due rule is for NEW checks).
+    let replacingOpenCheck = false;
     if (existingSessionId) {
       const existingRef = db.collection("pathSessions").doc(existingSessionId);
       const existing = await transaction.get(existingRef);
@@ -16826,6 +16829,7 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
           existingRef,
           pathContentRelease.supersedeSessionForContentRelease(existing.data(), assessmentReleaseState.release, now),
         );
+        replacingOpenCheck = existing.data()?.sessionKind === "retentionProbe";
       }
     }
 
@@ -16836,7 +16840,7 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
     // A NEW open retention check only when one is due (MP21, decided above).
     // Nothing is written: a stale tab still showing a check the student has
     // since passed is told, in these words, that it is not due.
-    if (sessionKind === "retentionProbe" && !requestedWeeklySlotKey && !openRetentionCheckDue) {
+    if (sessionKind === "retentionProbe" && !requestedWeeklySlotKey && !openRetentionCheckDue && !replacingOpenCheck) {
       throw new HttpsError(
         "failed-precondition",
         "This check is not due yet. It will be back on your Path when it is.",

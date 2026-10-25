@@ -392,3 +392,15 @@ test('a Challenge launch keeps its intent only when earned; otherwise it is ordi
   assert.equal(ownAsked[0].ownProfileEarned, true);
   assert.equal(own.session.coursePracticeIntent, 'challenge');
 });
+
+test('an open check that a new content release supersedes is replaced even when no longer due (MP21 follow-up)', () => {
+  // The due rule is for NEW checks. A test-framework check open when its
+  // content release changes is superseded and replaced in the same
+  // transaction; refusing the replacement as "not due" aborted that
+  // transaction, so the old check was neither resumed nor replaced.
+  const callable = region(SERVER, 'exports.startMyMathPathSession = onCall(', '\n}));\n', 'startMyMathPathSession');
+  const supersede = region(callable, 'pathContentRelease.supersedeSessionForContentRelease(', 'if (assessmentReleaseState.tracked && assessmentReleaseState.available === false)', 'the supersede branch');
+  assert.match(supersede, /replacingOpenCheck = existing\.data\(\)\?\.sessionKind === "retentionProbe";/);
+  assert.match(callable, /&& !openRetentionCheckDue && !replacingOpenCheck\) \{/);
+  assert.equal([...callable.matchAll(/replacingOpenCheck = /g)].length, 2, 'false, then set only where a check is superseded');
+});
