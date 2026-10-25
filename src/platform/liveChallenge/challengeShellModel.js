@@ -190,6 +190,9 @@ export const cueRemainingMs = (room = {}, nowMs = Date.now()) => {
   return reading.remainingMs ?? undefined;
 };
 
+/** The 3-2-1 step every screen shows before a round opens, for the host's countdown sound (LC16); null otherwise. */
+export const cueCountdownStep = (room = {}, nowMs = Date.now()) => challengeClock(room, nowMs).countdownStep;
+
 /**
  * The round whose in-progress ("working…") points may be shown on a board.
  *

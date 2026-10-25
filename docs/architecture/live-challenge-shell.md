@@ -533,5 +533,3 @@ GC) flat across them.
   through account deletion). Adding a student mid-game invites them (§10).
 - **A lobby, or a Pace Race round, nobody comes back to** is not ended by the
   server (§4); it waits for the teacher to finish or cancel it.
-- **Sound for the countdown**: the audio director's cues are tied to the
-  deadline, not to `startsAt`.

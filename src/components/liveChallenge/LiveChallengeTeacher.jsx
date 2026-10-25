@@ -36,6 +36,7 @@ import {
   CHALLENGE_STAGE,
   HOST_COMMAND,
   QUESTION_SET_GAME,
+  cueCountdownStep,
   cueRemainingMs,
   hostEndedNote,
   hostPrimaryAction,
@@ -600,7 +601,7 @@ export default function LiveChallengeTeacher({
       const { room: current, leaderboard: board, clockOffsetMs: offset } = audioInputs.current;
       if (!current) return;
       const serverNow = Date.now() + offset;
-      audioDirectorRef.current?.sync({ room: current, leaderboard: board, remainingMs: cueRemainingMs(current, serverNow), nowMs: serverNow });
+      audioDirectorRef.current?.sync({ room: current, leaderboard: board, remainingMs: cueRemainingMs(current, serverNow), countdownStep: cueCountdownStep(current, serverNow), nowMs: serverNow });
     };
     syncAudio();
     if (room.status !== 'running') return undefined;
@@ -645,7 +646,7 @@ export default function LiveChallengeTeacher({
     setAudioReady(true);
     if (room) {
       const serverNow = Date.now() + clockOffsetMs;
-      audioDirectorRef.current.sync({ room, leaderboard, remainingMs: cueRemainingMs(room, serverNow), nowMs: serverNow });
+      audioDirectorRef.current.sync({ room, leaderboard, remainingMs: cueRemainingMs(room, serverNow), countdownStep: cueCountdownStep(room, serverNow), nowMs: serverNow });
     }
   };
 
