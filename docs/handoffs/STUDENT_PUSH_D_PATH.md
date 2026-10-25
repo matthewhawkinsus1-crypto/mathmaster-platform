@@ -392,6 +392,10 @@ and `skillMastered` events with idempotency keys. Documented in
 - **Swap lock ids** are still per target and slot (changing them would orphan
   in-flight sessions); the client resumes the open session.
 - **My Progress history starts at deploy** (profiles were never time-indexed).
+  **Decided (MP11, 2026-10-23): accepted, nothing retroactive is built.** The
+  screen says so in the student's words ("Your progress starts with your next
+  answer", `describeGrowthForStudent`, pinned by
+  `tests/platform/myMathPathProgress.test.mjs`).
 - Teacher-facing copy in `WeeklyPathAutoPublish.jsx` still says "midnight
   Sunday night" (outside job D's lane; `weeklyDueDayName` is available).
 

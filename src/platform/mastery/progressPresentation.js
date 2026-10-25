@@ -43,6 +43,14 @@ const changeTile = ({ key, label, now, previous, change, unit = '', note = null 
 /**
  * This week against four weeks ago, ready to render.
  *
+ * WHERE THE HISTORY STARTS (MP11; the owner accepted this limit on 2026-10-23).
+ * Mastery profiles were never time-indexed: a profile says where a student is
+ * now, so there is no stored past to read, and nothing retroactive is built.
+ * The history is the weekly snapshots the mastery trigger has written since it
+ * shipped. That is why 'empty' and 'starting' say plainly that it begins with
+ * the student's next answer, rather than showing empty weeks or a past that no
+ * screen ever showed them.
+ *
  * state: 'empty'    — no snapshot yet (nothing has been recorded)
  *        'starting' — only this week on record: current numbers, no comparison
  *        'ready'    — a comparison, with the baseline it was made against
