@@ -25,6 +25,7 @@ import {
   scoreRecoveryEvidence,
 } from '../../../functions/shared/sectionRecoveryEvidence.mjs';
 import {
+  HELD_RECOVERY_ACTION,
   heldRecoveryActionsFor,
   legacyUnavailableItemIds,
   recoveryNeedsLegacyCorrection,
@@ -171,10 +172,13 @@ const recommendedActionFor = ({ record, items, actions, awaitingStudent = false,
   const failing = items.filter((item) => !item.supersededBy && (item.status === RECOVERY_ITEM_STATUS.PLATFORM_UNAVAILABLE || item.status === RECOVERY_ITEM_STATUS.NEEDS_REVIEW));
   const contentProblem = failing.filter((item) => CONTENT_FAILURES.has(item.classification));
   const graded = items.filter((item) => !item.supersededBy && isGradedItemStatus(item.status)).length;
+  const fix = contentProblem.length ? `fix ${contentProblem.map((item) => item.questionLabel).join(', ')} in the assignment` : '';
   const options = [
-    contentProblem.length
-      ? `fix ${contentProblem.map((item) => item.questionLabel).join(', ')} in the assignment and then issue a replacement question`
-      : 'issue a replacement question so the student can answer it',
+    windowEnded
+      ? `${fix ? `${fix}, ` : ''}extend the student's final submission date (it has passed, so they could not answer one) and then issue a replacement question`
+      : fix
+        ? `${fix} and then issue a replacement question`
+        : 'issue a replacement question so the student can answer it',
     ...(actions.includes('finalizeGraded') ? [`finalize from the ${plural(graded, 'question')} MathMaster could grade`] : []),
     'keep the original score',
   ];
@@ -275,7 +279,12 @@ export const buildTeacherRecoveryAudit = ({ student = null, assignment = null, n
     const legacyZeros = record.status === 'completed' ? legacyUnavailableItemIds(record) : [];
     const legacyUncorrected = recoveryNeedsLegacyCorrection(record, section);
     const items = record.plan ? auditItems({ record, assignment, section }) : [];
-    const actions = heldRecoveryActionsFor(record, section);
+    // Past this student's final submission date the server refuses a
+    // replacement (they could not answer it), so it is not offered (TT13).
+    // Their own extension is in the date: the teacher's lessons carry each
+    // student's controls (projectTeacherAssignments), as the server's do.
+    const actions = heldRecoveryActionsFor(record, section)
+      .filter((action) => !(windowEnded && action === HELD_RECOVERY_ACTION.ISSUE_REPLACEMENT));
     const resolution = record.hold?.resolution || (record.holdHistory || []).at(-1)?.resolution || record.legacyCorrection || null;
     const hasUngraded = items.some((item) => item.status === RECOVERY_ITEM_STATUS.PLATFORM_UNAVAILABLE || item.status === RECOVERY_ITEM_STATUS.NEEDS_REVIEW);
     return {
