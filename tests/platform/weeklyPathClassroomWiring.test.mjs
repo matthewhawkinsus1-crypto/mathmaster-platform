@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
+import { executableSource } from './helpers/sourceContract.mjs';
+
 const functionsIndex = fs.readFileSync('functions/index.js', 'utf8');
 const panel = fs.readFileSync('src/components/teacher/WeeklyPathGradePanel.jsx', 'utf8');
 const control = fs.readFileSync('src/components/teacher/WeeklyPathAutoPublish.jsx', 'utf8');
@@ -98,6 +100,16 @@ test('the teacher can preview the real run before agreeing to it', () => {
   assert.match(control, /dryRun: true/);
   assert.match(control, /writes nothing/i);
   assert.match(panel, /<WeeklyPathAutoPublish/);
+});
+
+test('the control names the day the class is due, from the goals the grade panel holds (MP05)', () => {
+  // "Closes at midnight Sunday night" was wrong for a class due on Friday. Which
+  // day to name is behaviour (weeklyPathGradebook.test.mjs); this pins that the
+  // two screens use it, and that no fixed day is left in the control's words.
+  assert.doesNotMatch(executableSource(control), /Sunday night/);
+  assert.match(control, /\{weekClosesClause\(dueDay\)\}/);
+  assert.match(panel, /classDueDayName\(goalsByStudentId\)/);
+  assert.match(panel, /<WeeklyPathAutoPublish\b[^>]*\bdueDay=\{dueDay\}/);
 });
 
 test('the new Classroom functions ship with the focused deploy', () => {

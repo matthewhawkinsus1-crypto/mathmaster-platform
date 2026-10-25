@@ -407,10 +407,11 @@ test('weekly auto-publish preview rows are named from the roster the grade panel
   const list = region(source, 'preview.results.slice(0, 40).map((row) => (', '</li>', 'preview row');
   assert.doesNotMatch(executableSource(list), /\{row\.studentId\}:/);
   assert.match(list, /\{previewStudentLabel\(row\.studentId, identityIndex\)\}:/);
-  assert.match(source, /export default function WeeklyPathAutoPublish\(\{ classId = null, weekKey = null, students = \[\] \}\)/);
+  // The roster is a prop (the control reads no student list of its own); other props may join it.
+  assert.match(source, /export default function WeeklyPathAutoPublish\(\{[^}]*\bstudents = \[\][^}]*\}\)/);
   assert.match(source, /const identityIndex = studentIdentityIndexFor\(students\);/);
   assertImported(source, ['STUDENT_NAME_UNAVAILABLE', 'formatStudentLabel', 'resolveRosterStudentName', 'studentIdentityIndexFor'], STUDENT_NAME_MODULE, file);
-  assert.match(read('src/components/teacher/WeeklyPathGradePanel.jsx'), /<WeeklyPathAutoPublish classId=\{classId\} weekKey=\{weekKey\} students=\{students\} \/>/);
+  assert.match(read('src/components/teacher/WeeklyPathGradePanel.jsx'), /<WeeklyPathAutoPublish\b[^>]*\bstudents=\{students\}/);
 });
 
 test('case review and the support report headers never print the id where the name belongs', () => {

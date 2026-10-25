@@ -1,4 +1,6 @@
-import { GRADING_POLICY, buildTeacherWeeklyView, normalizeGradingPolicy } from './weeklyPathGoal.js';
+import {
+  GRADING_POLICY, buildTeacherWeeklyView, normalizeGradingPolicy, weeklyDueDayName,
+} from './weeklyPathGoal.js';
 import { finiteNumber } from '../utils/numeric.js';
 import { formatStudentName } from '../studentName.js';
 
@@ -31,6 +33,33 @@ import { formatStudentName } from '../studentName.js';
  */
 
 const list = (value) => (Array.isArray(value) ? value : []);
+
+/*
+ * WHEN THE AUTOMATIC GRADE IS POSTED, IN THE TEACHER'S OWN DAY NAMES (MP05).
+ *
+ * The scheduled job posts a week's grade on Monday morning, after that week
+ * has closed. A week closes at the end of its DUE DAY, and each class chooses
+ * that day (Weekly Path, "Due day"). The control used to say "closes at
+ * midnight Sunday night" whatever the class had chosen, so a class due on
+ * Friday was told it had two days it did not have.
+ *
+ * The day is read from the goals the class already holds, by the same
+ * weeklyDueDayName the student's own screen uses (the goal's deadline, named in
+ * the school's time zone), and it is named only when those goals agree. Goals
+ * frozen before a teacher changed the day can disagree for the rest of that
+ * week; then the sentence says "its due day" instead of guessing one.
+ */
+export const classDueDayName = (goalsByStudentId = {}) => {
+  const days = new Set(
+    Object.values(goalsByStudentId && typeof goalsByStudentId === 'object' ? goalsByStudentId : {})
+      .map((goal) => weeklyDueDayName(goal))
+      .filter(Boolean),
+  );
+  return days.size === 1 ? [...days][0] : null;
+};
+
+/** "after the week closes on Friday night", or, with no day to name, "…on its due day". */
+export const weekClosesClause = (dueDay = null) => `after the week closes on ${dueDay ? `${dueDay} night` : 'its due day'}`;
 
 export const SYNC_STATE = Object.freeze({
   NOT_READY: 'notReady',

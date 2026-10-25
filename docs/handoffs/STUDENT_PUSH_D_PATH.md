@@ -398,6 +398,9 @@ and `skillMastered` events with idempotency keys. Documented in
   `tests/platform/myMathPathProgress.test.mjs`).
 - Teacher-facing copy in `WeeklyPathAutoPublish.jsx` still says "midnight
   Sunday night" (outside job D's lane; `weeklyDueDayName` is available).
+  **Done (MP05, 2026-10-25):** it names the class's own due day ("after the week
+  closes on Friday night", from `classDueDayName` over the goals the grade panel
+  holds), and says "on its due day" when those goals disagree.
 
 ## Deploy (owner, Cloud Shell)
 
