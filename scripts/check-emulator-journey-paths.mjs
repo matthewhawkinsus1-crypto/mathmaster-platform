@@ -4,12 +4,12 @@
 //   node scripts/check-emulator-journey-paths.mjs          # report; exit 1 on a miss
 //   node scripts/check-emulator-journey-paths.mjs --list   # also print every file loaded
 //
-// .github/workflows/student-pass3-emulator-journeys.yml runs testCycleRichToolQa
-// and liveChallengeShellQa on a pull request only when its files are in the
-// workflow's area (scripts/lib/ciAreas.mjs, which ci.yml reads), and nightly. A
-// file a driver loads that no pattern reaches is a change that skips both
-// journeys, and its break shows up at the nightly run, after merge (wave 7
-// review, F1).
+// .github/workflows/student-pass3-emulator-journeys.yml runs its drivers
+// (testCycleRichToolQa, testCycleLifecycleQa, liveChallengeShellQa) on a pull
+// request only when their files are in the workflow's area
+// (scripts/lib/ciAreas.mjs, which ci.yml reads), and nightly. A file a driver
+// loads that no pattern reaches is a change that skips the journeys, and its
+// break shows up at the nightly run, after merge (wave 7 review, F1).
 //
 // It rebuilds each driver's client import graph with Vite itself, under the
 // driver's own bridge config, from the harness pages the driver opens; adds what
@@ -36,6 +36,12 @@ export const emulatorJourneyPaths = () => CI_AREAS[AREA];
 const DRIVERS = [
   {
     driver: 'tests/browser/testCycleRichToolQa.mjs',
+    config: 'tests/browser/emulator/vite.testCycleBridge.config.mjs',
+    entries: ['/tests/browser/testCycleLifecycleQaMain.jsx'],
+  },
+  {
+    // CI16: the same page and bridge as the rich-tools driver, a different journey.
+    driver: 'tests/browser/testCycleLifecycleQa.mjs',
     config: 'tests/browser/emulator/vite.testCycleBridge.config.mjs',
     entries: ['/tests/browser/testCycleLifecycleQaMain.jsx'],
   },
@@ -98,7 +104,7 @@ const main = async () => {
     console.log(`\n${missing} file(s) a driver loads would not run the emulator journeys on a pull request.`);
     process.exitCode = 1;
   } else {
-    console.log('\nEvery file the two drivers load is inside the workflow\'s area.');
+    console.log('\nEvery file the drivers load is inside the workflow\'s area.');
   }
 };
 

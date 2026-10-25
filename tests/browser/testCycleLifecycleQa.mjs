@@ -33,10 +33,11 @@
 //
 // NOTHING TOUCHES PRODUCTION: firebase.js is swapped for an emulator module,
 // the browsers block every non-local request, and the project id is throwaway.
-// This is a QA tool, not part of the CI gate: no CI job has the emulator, the
-// functions' dependencies and Chromium together, and the emulator suites
-// (test:challenge-finish, test:test-cycle-certification) already hold its
-// server-side journey on every push.
+// It runs in CI (CI16): .github/workflows/student-pass3-emulator-journeys.yml,
+// job pass3-test-cycle-lifecycle, on a pull request that touches what it loads,
+// nightly and on demand, beside testCycleRichToolQa. The emulator suites
+// (test:challenge-finish, test:test-cycle-certification) hold its server-side
+// journey on every push.
 
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';

@@ -208,6 +208,7 @@ export const CI_AREAS = {
     'tests/browser/graphFeatureRushStudent*',
     'tests/browser/graphFeatureRushTeacher*',
     'tests/fixtures/secureRichToolAnswers.mjs',
+    'tests/fixtures/testCycleCertificationFixture.mjs',
     'scripts/check-emulator-journey-paths.mjs',
     'package.json',
     'package-lock.json',

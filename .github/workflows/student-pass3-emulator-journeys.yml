@@ -1,6 +1,6 @@
 name: Student Pass 3 Emulator Journeys
 
-# Student pass 3's two long browser drivers, which play the real student and
+# Student pass 3's long browser drivers, which play the real student and
 # teacher screens against the real callables (functions/platformEntry.js) on
 # the Firestore emulator. Each starts the emulator, a bridge and Vite itself.
 #
@@ -8,6 +8,11 @@ name: Student Pass 3 Emulator Journeys
 #                                 Tool on a secure Test, Chromebook, iPad and
 #                                 phone, light and dark; a student's session
 #                                 autosaved, reloaded and submitted
+#   pass3-test-cycle-lifecycle    testCycleLifecycleQa (CI16): a whole Test
+#                                 Cycle as a teacher and as students: the
+#                                 Review gate, skip and flag, release,
+#                                 corrections, the retest, the capped grade;
+#                                 Chromebook, iPad and phone, light and dark
 #   pass3-live-challenge-shell    liveChallengeShellQa: the Live Challenge
 #                                 shell played whole (console, projector,
 #                                 students), a class of 40 launching, five
@@ -45,6 +50,27 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/testCycleRichToolQa.mjs
+
+  # A whole Test Cycle, as a teacher and as students, against the real
+  # callables on the Firestore emulator (CI16; it ran by hand until now): the
+  # Review gate on screen and against a direct call, a card that follows the
+  # server without a reload, skip / flag / go back with every answer a saved
+  # draft, release from the results panel, corrections with real tries, the
+  # retest and the capped recorded grade, the teacher preview, and no sideways
+  # scroll or unreadable button at Chromebook, iPad and phone widths, light
+  # and dark. About 3 minutes locally (71 checks).
+  pass3-test-cycle-lifecycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      - run: npm --prefix functions ci
+      - name: A whole Test Cycle, as a teacher and as students
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/testCycleLifecycleQa.mjs
 
   # The Live Challenge shell (host console, projector, student screens) played
   # whole against the real callables on the Firestore emulator: a classic
