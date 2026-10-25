@@ -1785,6 +1785,29 @@ service cloud.firestore {
     }
 
     /*
+     * AN ASSIGNMENT'S ANSWER KEY, KEPT APART FROM THE ASSIGNMENT (D10 Phase 1,
+     * P1-3; docs/handoffs/ANSWER_KEY_SERVER_SIDE_DESIGN.md §3; SI02).
+     *
+     * The answer keys, accepted answers, correct choices and worked solutions
+     * of `assignments/{assignmentId}`, split out by
+     * functions/shared/assignmentKeySplit.mjs and written only by the Admin SDK
+     * (the shadowAssignmentKeys trigger, functions/entry.js). A student never
+     * reads one, by id or by list, whatever class or work they have: keeping
+     * keys off students' devices is what the store is for. A teacher and the
+     * root administrator read them (the design's O5 recommendation: any
+     * teacher, the same accounts that may edit an assignment today). No
+     * browser writes one, the root administrator's included.
+     *
+     * In Phase 1 the assignment itself still carries every key, so this rule
+     * changes nothing anyone can read today. It is deployed before the trigger
+     * so the store is closed before anything is written to it.
+     */
+    match /assignmentKeys/{assignmentId} {
+      allow read: if teacher() || rootAdmin();
+      allow create, update, delete: if false;
+    }
+
+    /*
      * A RESPONSE CHECKPOINT IS A DRAFT A STUDENT WRITES AND A FUNCTION READS.
      *
      * That combination is what makes these rules load-bearing: an Admin SDK
