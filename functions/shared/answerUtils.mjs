@@ -221,6 +221,34 @@ const authoredTolerance = (field = {}) => {
 };
 
 /*
+ * GR05: a field's numbers are compared to 1e-6, the default every other field
+ * grader uses — Path, secure tests and Live Challenge (functions/lib/mathPath.js
+ * and legacyFieldGrading.mjs store `numericTolerance` 1e-6) and the teacher's
+ * Path simulation. This matcher compared to 1e-9, so 0.3333333 for 1/3 was
+ * right on a Path field and wrong on the same assignment field. Only ever
+ * wider than before: no answer that was right here becomes wrong.
+ *
+ * Except for a key that states a number other than 0 smaller than 0.001: there
+ * 1e-6 is a large part of the number, and 0.000003 would be right for
+ * 0.000004 (it is on Path, whose default is the same absolute 1e-6). Such a
+ * key keeps the 1e-9 it had, so none of its verdicts change.
+ */
+const FIELD_TOLERANCE = 1e-6;
+const SMALL_NUMBER = 1e-3;
+const NUMERALS = /\d*\.\d+|\d+/g;
+const isSmallNumber = (value) => typeof value === 'number' && Number.isFinite(value) && value !== 0 && Math.abs(value) < SMALL_NUMBER;
+const statesSmallNumber = (key) => {
+  if (typeof key === 'number') return isSmallNumber(key);
+  if (Array.isArray(key)) return key.some(statesSmallNumber);
+  if (typeof key !== 'string') return false;
+  const written = normalizeMathAnswer(key);
+  // Its value (one number, or an exact constant such as 4\times10^{-6}), and
+  // every number written in it (x = 0.000004, a pair's coordinate).
+  return [asNumber(key) ?? exactConstantValue(written)?.value, ...(written.match(NUMERALS) || []).map(Number)].some(isSmallNumber);
+};
+const fieldToleranceFor = (key) => (statesSmallNumber(key) ? 1e-9 : FIELD_TOLERANCE);
+
+/*
  * FORM-SPECIFIC FIELD GRADING, LOADED WITH THE SURFACES THAT GRADE.
  *
  * `gradingMode: 'factoredForm'` and `'simplestRadicalForm'` compare
@@ -311,7 +339,7 @@ export const matchesFieldAnswer = (studentAnswer, field = {}) => {
   if (isOrderedPairField(field)) {
     return acceptedAnswers.some((acceptedAnswer) => {
       const expectedPair = Array.isArray(acceptedAnswer) ? acceptedAnswer : parseOrderedPair(acceptedAnswer);
-      if (expectedPair) return compareOrderedPair(studentAnswer, expectedPair, tolerance(1e-9));
+      if (expectedPair) return compareOrderedPair(studentAnswer, expectedPair, tolerance(fieldToleranceFor(expectedPair)));
       // A key with a root in a coordinate is not a pair of plain numbers:
       // compared by exact value (sameNumericPair, student pass 3), or, for a
       // pair key that is not two constants (`(\pi,\sqrt{2})`,
@@ -342,7 +370,8 @@ export const matchesFieldAnswer = (studentAnswer, field = {}) => {
     // A mixed number against a number key is read as one here too, never as
     // a product (answerEquivalence.sameMixedNumber).
     return acceptedAnswers.some((acceptedAnswer) => (
-      sameMixedNumber(studentAnswer, acceptedAnswer, tolerance(1e-6)) ?? sameEquivalentExpression(studentAnswer, acceptedAnswer, tolerance(1e-6))));
+      sameMixedNumber(studentAnswer, acceptedAnswer, tolerance(1e-6), { thousandsSeparators: options.thousandsSeparators })
+      ?? sameEquivalentExpression(studentAnswer, acceptedAnswer, tolerance(1e-6))));
   }
 
   // factoredForm: a factoring answer in any factor order, with a sign moved
@@ -359,7 +388,7 @@ export const matchesFieldAnswer = (studentAnswer, field = {}) => {
       || sameWrittenForm(studentAnswer, acceptedAnswer)));
   }
 
-  return acceptedAnswers.some((acceptedAnswer) => compareMathAnswer(studentAnswer, acceptedAnswer, tolerance(1e-9), options));
+  return acceptedAnswers.some((acceptedAnswer) => compareMathAnswer(studentAnswer, acceptedAnswer, tolerance(fieldToleranceFor(acceptedAnswer)), options));
 };
 
 export const parseOrderedPair = (value) => {

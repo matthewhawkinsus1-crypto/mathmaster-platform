@@ -1233,6 +1233,26 @@ const mixedNumberShape = (value) => {
 };
 
 /*
+ * …AND WITH THE SIGNS ONE NUMBER IS WRITTEN WITH (GR05; the wave 7 review's N5
+ * and N6): a dollar sign before it, a percent sign after it, or thousands
+ * separators in its whole part. `\$3\frac12` is $3.50, `3\frac12\%` is 3.5%
+ * and `1,000\frac{1}{2}` is 1000.5; each was refused. Read only for a lone
+ * number (sameMixedNumber), never for a side of a relation, and the grouping
+ * only where a field takes thousands separators: in a list, `1,000\frac{1}{2}`
+ * is two entries. The grouping is the strict one (withoutThousandsSeparators).
+ */
+const SIGNED_MIXED_NUMBER = /^(-?)(\\?\$)?([1-9]\d{0,2}(?:,\d{3})+|\d+)(\\frac\{\d+\}\{\d+\})(\\?%)?$/;
+const mixedNumberWithSigns = (value, { grouped = false } = {}) => {
+  const match = SIGNED_MIXED_NUMBER.exec(normalizeAnswer(value));
+  // Both signs is not one number; neither sign nor grouping is mixedNumberShape's.
+  if (!match || (match[2] && match[5])) return null;
+  const isGrouped = match[3].includes(',');
+  if ((!match[2] && !match[5] && !isGrouped) || (isGrouped && !grouped)) return null;
+  const shape = mixedNumberShape(`${match[1]}${match[3].replace(/,/g, '')}${match[4]}`);
+  return shape && { ...shape, unit: match[2] ? '$' : (match[5] ? '%' : '') };
+};
+
+/*
  * A SIDE OR BOUND THAT IS EXACTLY A MIXED NUMBER (wave 7 review, S2). The
  * product reading survived inside a relation: `x=3\frac{1}{2}` was right for
  * `x=1.5` and wrong for `x=3.5`, and `x<3\frac{1}{2}` right for `x<1.5`. A
@@ -1241,21 +1261,29 @@ const mixedNumberShape = (value) => {
  * `2\frac{1}{2}x`, `x+3\frac{1}{2}`, an improper `3\frac{5}{2}` — keeps
  * today's reading. Text with no relation sign is left alone (sameMixedNumber
  * reads a lone number).
+ *
+ * A bound before "or" or "and" is a bound too (GR05; the wave 7 review):
+ * between two relation signs, `x<3\frac{1}{2} or x>5` holds the piece
+ * `3\frac{1}{2} or x`, so its 3½ was never read and the answer was wrong for
+ * `x<3.5 or x>5`. A piece is split at those words first.
  */
 const RELATION_SPLIT = /(<=|>=|≤|≥|≠|!=|\\(?:leq?|geq?|lt|gt|neq?)(?![A-Za-z])|<|>|=)/;
+const CONNECTIVE_SPLIT = /(\s+(?:or|and)\s+|\\(?:lor|land|vee|wedge)(?![A-Za-z])|∨|∧|\\(?:text|mathrm|operatorname)\{\s*(?:or|and)\s*\})/i;
 const mixedSidesAsFractions = (value) => {
   const text = String(value ?? '');
   // split() takes every match, keeping each relation sign (the group).
   const pieces = text.split(RELATION_SPLIT);
   if (pieces.length < 3) return text;
   let changed = false;
-  const rewritten = pieces.map((piece, index) => {
-    if (index % 2 === 1) return piece;
+  const asFraction = (piece) => {
     const improper = mixedNumberShape(piece)?.improper;
     if (!improper) return piece;
     changed = true;
     return improper;
-  });
+  };
+  const rewritten = pieces.map((piece, index) => (
+    index % 2 === 1 ? piece : piece.split(CONNECTIVE_SPLIT).map((part, partIndex) => (partIndex % 2 === 1 ? part : asFraction(part))).join('')
+  ));
   return changed ? rewritten.join('') : text;
 };
 
@@ -1268,17 +1296,27 @@ export const looksLikeMixedNumber = (value) => mixedNumberShape(value) !== null;
  * 2026-10-23; GR13): on "Write 17/5 as a mixed number" 17/5 or 3.4 copies the
  * prompt, so against a mixed-number key only a mixed number is right (an
  * author who also takes 17/5 lists it). A number key still takes 3½ for 7/2.
+ *
+ * `thousandsSeparators` is the field's (fieldValueOptions): where it is on, a
+ * mixed number's whole part, and the number it is compared with, may be
+ * grouped (mixedNumberWithSigns).
  */
-export const sameMixedNumber = (student, key, tolerance = 1e-6) => {
-  const studentMixed = mixedNumberShape(student);
-  const keyMixed = mixedNumberShape(key);
+export const sameMixedNumber = (student, key, tolerance = 1e-6, { thousandsSeparators = false } = {}) => {
+  const mixedOf = (value) => mixedNumberShape(value) || mixedNumberWithSigns(value, { grouped: thousandsSeparators });
+  const numberOf = (value) => asNumber(value) ?? (thousandsSeparators ? asNumber(withoutThousandsSeparators(value) ?? '') : null);
+  const studentMixed = mixedOf(student);
+  const keyMixed = mixedOf(key);
   if (!studentMixed && !keyMixed) return null;
-  const a = studentMixed ? studentMixed.value : asNumber(student);
-  const b = keyMixed ? keyMixed.value : asNumber(key);
+  const a = studentMixed ? studentMixed.value : numberOf(student);
+  const b = keyMixed ? keyMixed.value : numberOf(key);
   // The other side is not a number (an expression, a pair, text): not ours.
   if ((studentMixed && !keyMixed && b === null) || (keyMixed && !studentMixed && a === null)) return null;
   if (keyMixed && !studentMixed) return false;
   if (a === null || b === null) return false;
+  // A unit sign keeps its meaning, as in sameNumber: 3½% is not $3.50.
+  const studentSign = studentMixed ? studentMixed.unit || '' : unitSignOf(student);
+  const keySign = keyMixed ? keyMixed.unit || '' : unitSignOf(key);
+  if (studentSign && keySign && studentSign !== keySign) return false;
   return Math.abs(a - b) <= Math.max(tolerance, 1e-12 * Math.max(1, Math.abs(b)));
 };
 
@@ -1574,7 +1612,7 @@ export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators =
   if (sameAtomicValue(left, right, tolerance)) return true;
   // A mixed number against a number decides here: no later comparison may
   // read 3½ as 3·½ (sameMixedNumber).
-  const mixed = sameMixedNumber(left, right, tolerance);
+  const mixed = sameMixedNumber(left, right, tolerance, { thousandsSeparators });
   if (mixed !== null) return mixed;
   // …and a side of an equation or inequality that is exactly a mixed number is
   // read as one too: compared again with each such side as one fraction.
