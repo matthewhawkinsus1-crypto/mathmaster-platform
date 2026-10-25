@@ -895,8 +895,9 @@ test('every algebraic Check handler marks through the shared grader and submits 
  */
 test('each screen writes its work under the field names the grader reads', () => {
   const twoByTwo = region(source('src/tools/systemsWorkspace/AlgebraicSystemMode.jsx'), 'const work = {', 'useReportToolWork(work', '2×2 work');
-  // The solved values, keyed by the variable each solve was for.
-  assert.match(twoByTwo, /values: solvedValuesWork\(\{[^]*?\[survivingVariable\]: firstSolved\.value[^]*?\[removedVariable\]: secondSolved\.value[^]*?\}\)/);
+  // The solved values, keyed by the variable each solve was for — on rows
+  // that each hold one variable (TL43), by each row's own variable.
+  assert.match(twoByTwo, /values: solvedValuesWork\(separated\s*\?\s*Object\.fromEntries\(separatedValues\.filter\(\(entry\) => entry\.value !== null\)\.map\(\(entry\) => \[entry\.row\.variable, entry\.value\]\)\)\s*:\s*\{[^]*?\[survivingVariable\]: firstSolved\.value[^]*?\[removedVariable\]: secondSolved\.value[^]*?\}\)/);
   // Each original equation's sides, under the grader's E1 / E2 ids: typed, or
   // the number the equation already writes there (TL50, twoByTwoVerificationSides).
   assert.match(twoByTwo, /verification: verificationSidesWork\(\{ E1: verificationSides\(0\), E2: verificationSides\(1\) \}\)/);

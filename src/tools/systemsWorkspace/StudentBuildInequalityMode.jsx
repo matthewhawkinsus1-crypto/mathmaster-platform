@@ -10,6 +10,7 @@ import {
   INEQUALITY_STEP_COMPLETION_TEXT,
   REASONING_COMPLETION_TEXT,
   resolveInequalityBuildGate,
+  verticesStepComplete,
 } from './inequalityBuildPolicy.js';
 import {
   boundaryWithChosenSide,
@@ -402,7 +403,8 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
   const verticesSignature = reasoningSignature(vertices);
   const teacherPointChecked = Boolean(teacherTestPoint) && reasoningChecks.teacherPoint === teacherPointSignature;
   const studentPointChecked = Boolean(studentTestPoint) && reasoningChecks.studentPoint === studentPointSignature;
-  const verticesChecked = vertices.length > 0 && reasoningChecks.vertices === verticesSignature;
+  // Checked with the marks as they stand — none, too: "There are no corners" (TL43).
+  const verticesChecked = reasoningChecks.vertices === verticesSignature;
   const teacherReport = teacherPointChecked ? pointReport([teacherTestPoint.x, teacherTestPoint.y], teacherPointResponse) : null;
   const studentReport = studentPointChecked ? pointReport(studentTestPoint, studentPointResponse, studentProbeIndex(studentTestPoint)) : null;
   const vertexReports = verticesChecked ? vertices.map(vertexReport) : [];
@@ -410,16 +412,28 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
   // marked, as the final check grades it; each mark's own line cannot say a
   // corner is missing. On a DOL, quiz or test the count is a verdict, so the
   // step is recorded once every mark is answered, as the final check counts it.
-  const verticesStepDone = (reports) => reports.length > 0
-    && reports.every((report) => report.done)
-    && (!buildGate.verdictsShown || vertexCoverage(workingVertices, vertices).complete);
+  // Checked with no marks, the answer is that the region has no corners
+  // (TL43, inequalityBuildPolicy.js verticesStepComplete).
+  const verticesStepDone = (reports, checked = verticesChecked) => verticesStepComplete({
+    checked,
+    reports,
+    verdictsShown: buildGate.verdictsShown,
+    coverageComplete: vertexCoverage(workingVertices, vertices).complete,
+  });
   const vertexCoverageReport = () => {
-    if (!verticesChecked || !buildGate.verdictsShown) return null;
+    if (!verticesChecked) return null;
+    if (!buildGate.verdictsShown) {
+      // A count is a verdict: where outcomes are withheld only "No corners"
+      // is answered here (each mark has its own recorded line).
+      return vertices.length ? null : { tone: 'recorded', text: completionLine(buildGate.reasoningReport({ pressed: true, complete: true }), REASONING_COMPLETION_TEXT) };
+    }
+    const coverage = vertexCoverage(workingVertices, vertices);
+    if (!vertices.length && coverage.complete) return { tone: 'correct', text: 'Correct — this solution region has no corners.' };
     // The letters VertexList shows, for the marks near no corner.
     const offCornerLetters = vertices
       .map((vertex, index) => (vertexIncludedExpected(vertex) == null ? String.fromCharCode(65 + index) : null))
       .filter(Boolean);
-    const text = vertexCoverageMessage(vertexCoverage(workingVertices, vertices), offCornerLetters);
+    const text = vertexCoverageMessage(coverage, offCornerLetters);
     return text ? { tone: 'revise', text } : null;
   };
   const reasoningDone = (phase) => {
@@ -483,7 +497,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
       ? (!buildGate.verdictsShown ? { done: Boolean(regionClassification) } : { done: Boolean(regionClassification) && regionClassification === workingClassification })
       : phase === 'teacherPoint' ? pointReport([teacherTestPoint.x, teacherTestPoint.y], teacherPointResponse)
         : phase === 'studentPoint' ? pointReport(studentTestPoint, studentPointResponse, studentProbeIndex(studentTestPoint))
-          : { done: verticesStepDone(vertices.map(vertexReport)) };
+          : { done: verticesStepDone(vertices.map(vertexReport), true) };
     const next = cursorAfterCheck(flowContext, phase, Boolean(report?.done));
     if (next !== phase) moveCursor(next, { focus: true });
   };
@@ -969,7 +983,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
 
           {combined && plan.reasoningSteps.includes('vertices') ? phaseCard('vertices', STEP_LABELS.vertices, (
             <>
-              <p className="mm-ineq-instruction">Tap each point where two boundary lines meet at a corner of the solution region.</p>
+              <p className="mm-ineq-instruction">Tap each point where two boundary lines meet at a corner of the solution region. If the region has no corners, choose “There are no corners”.</p>
               <VertexList
                 vertices={vertices}
                 reports={vertexReports}
@@ -977,11 +991,15 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
                 onRemove={(index) => setVertices((current) => current.filter((_, i) => i !== index))}
               />
               <div className="mm-ineq-actions">
-                <button type="button" className="mm-ineq-action" onClick={() => checkReasoning('vertices')} disabled={!vertices.length}>Check vertices</button>
+                {/* With no marks the same Check says the region has none
+                    (TL43): it was disabled, so a region with no corners could
+                    never finish this step. Offered on every item, so it gives
+                    nothing away. */}
+                <button type="button" className="mm-ineq-action" onClick={() => checkReasoning('vertices')}>{vertices.length ? 'Check vertices' : 'There are no corners'}</button>
               </div>
               <StepFeedback tone={vertexCoverageReport()?.tone}>{vertexCoverageReport()?.text}</StepFeedback>
             </>
-          ), vertices.length ? `${vertices.length} marked` : '') : null}
+          ), vertices.length ? `${vertices.length} marked` : (verticesChecked ? 'No corners' : '')) : null}
 
           <button type="button" className="mm-ineq-submit" data-ready={flow.complete ? 'true' : 'false'} onClick={finalCheck} data-primary-answer-action="true">{submitActionLabel}</button>
           {feedback ? <div><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill></div> : null}

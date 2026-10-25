@@ -795,6 +795,62 @@ export const noVariableStatementType = (text, variables) => {
   return Math.abs(form.constant) > EPS ? 'none' : 'infinite';
 };
 
+/*
+ * A 2×2 WHOSE ROWS EACH HOLD ONE DIFFERENT VARIABLE (TL43, finding C2-135):
+ * x = 1 and y = 2, or 2x = 6 and y = 4.
+ *
+ * There is nothing to substitute or eliminate between such rows, and the 2×2
+ * workflow could do neither (no x slot in y = 2; no multiplier cancels x
+ * against a row without it), so a standalone 2×2 written this way could not be
+ * finished. (A 3×3 never hands its reduced 2×2 one: eliminationSeparatedReduction.)
+ * Each row is solved on its own. `given` is the value of a row that already
+ * reads `variable = number` — read as written, nothing computed for the
+ * student; null for any other row (2x = 6, x = 3 − 1), which the student
+ * solves.
+ *
+ *   { rows: [{ index, variable, given }] } in equation order, or null when the
+ *   rows are not separated (or either is not linear in `variables`)
+ */
+const WRITTEN_NUMBER = /^[+\-−]?\d+(?:\.\d+)?(?:\s*\/\s*\d+(?:\.\d+)?)?$/;
+export const separatedTwoByTwo = (equations = [], variables = ['x', 'y']) => {
+  const names = Array.isArray(variables) ? variables.map(String) : [];
+  if (!Array.isArray(equations) || equations.length !== 2 || names.length !== 2) return null;
+  const rows = [];
+  for (let index = 0; index < equations.length; index += 1) {
+    const text = String(equations[index] ?? '');
+    const form = linearEquationForm(text, names);
+    if (!form) return null;
+    const present = names.filter((name) => Math.abs(form.coefficients[name] || 0) > EPS);
+    if (present.length !== 1 || rows.some((row) => row.variable === present[0])) return null;
+    const variable = present[0];
+    const written = variableIsIsolated(text, variable) ? String(isolatedExpressionFor(text, variable) ?? '').trim() : '';
+    rows.push({ index, variable, given: WRITTEN_NUMBER.test(written) ? tidy(form.constant / form.coefficients[variable]) : null });
+  }
+  return { rows };
+};
+
+/*
+ * Every equation holds exactly one variable, a different one each (2x = 2,
+ * 3y = 6, 4z = 12): no variable is shared, so a 3×3 has nothing to eliminate or
+ * substitute whichever variable is chosen (TL43, finding C2-138). Two equations
+ * holding the same variable (x = 1, y = 2, x = 3) are not this: eliminating it
+ * reaches a statement the student can classify. False when an equation is not
+ * linear in `variables`.
+ */
+/** What a 3×3 with such a system says, at the start (both methods strand the student). */
+export const NO_SHARED_VARIABLE_TEXT = 'Every equation holds just one variable, so there is nothing to eliminate or substitute, whichever variable you start with. Nothing you did caused this. Let your teacher know so they can fix the question.';
+
+export const eachEquationHoldsOneVariable = (equations = [], variables = []) => {
+  const names = Array.isArray(variables) ? variables.map(String) : [];
+  if (!Array.isArray(equations) || !equations.length) return false;
+  const held = equations.map((text) => {
+    const form = linearEquationForm(String(text ?? ''), names);
+    const present = form ? names.filter((name) => Math.abs(form.coefficients[name] || 0) > EPS) : [];
+    return present.length === 1 ? present[0] : null;
+  });
+  return held.every(Boolean) && new Set(held).size === held.length;
+};
+
 /** The variables a linear equation actually depends on (nonzero coefficient), in list order. */
 export const variablesWithNonzeroCoefficient = (text, variables) => {
   const form = linearEquationForm(text, variables);
@@ -1010,6 +1066,12 @@ export const validateAlgebraicSystemAuthoring = (questionData = {}) => {
       const nowhere = trimmed.filter((name) => forms.every((form) => Math.abs(form?.coefficients?.[name] || 0) < 1e-12));
       if (nowhere.length) {
         warnings.push(`systemsWorkspace 3×3 algebraic system: ${nowhere.join(' and ')} ${nowhere.length === 1 ? 'has' : 'have'} a zero coefficient in all three equations, so ${nowhere.length === 1 ? 'it is' : 'they are'} never determined and the system has no solution or infinitely many. Students can classify it by elimination; check this is the system you meant.`);
+      } else if (eachEquationHoldsOneVariable(rawEquations, trimmed)) {
+        // TL43 (C2-138): x = 1, y = 2, z = 3 or 2x = 2, 3y = 6, 4z = 12. No
+        // variable is shared, so elimination and substitution have nothing
+        // to combine whichever variable is chosen, and back-substitution has
+        // nothing to place: the workspace cannot carry it to an answer.
+        warnings.push('systemsWorkspace 3×3 algebraic system: every equation holds just one variable, so there is nothing to eliminate or substitute between them and a student cannot finish it in the workspace. Write a system whose equations share variables, or ask for each equation to be solved on its own.');
       }
     }
     // A system that is not exactly one solution is NOT refused for a method

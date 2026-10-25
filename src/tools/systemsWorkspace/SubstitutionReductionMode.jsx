@@ -60,7 +60,7 @@ import AlgebraicSystemMode, {
   solvedNumberFor,
   subsystemReportFromDraft,
 } from './AlgebraicSystemMode.jsx';
-import { classroomEquationText, exactNumberText, normalizeAlgebraicSystemConfig } from './algebraicSystemsEngine.js';
+import { NO_SHARED_VARIABLE_TEXT, classroomEquationText, eachEquationHoldsOneVariable, exactNumberText, normalizeAlgebraicSystemConfig } from './algebraicSystemsEngine.js';
 import { verificationTokenNeeded } from './verificationTokenState.js';
 import {
   RELATION_DESTINATION_ID,
@@ -271,6 +271,8 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
   // pointed back (TL11 re-examined missing variables, C2-136).
   const separated = useMemo(() => substitutionSeparatedReduction(reduction, system), [reduction, system]);
   const reducedSolution = separated ? separated.solution : (subsystemState?.solution || null);
+  // Every equation holding one variable: no other choice helps (TL43, C2-138).
+  const noSharedVariable = useMemo(() => eachEquationHoldsOneVariable(system.equations.map((equation) => equation.text), system.variables), [system]);
 
   // The outcome the student earned, from either road: the statement their own
   // simplified sides made, or the one the reduced 2×2 reached (TL11).
@@ -547,6 +549,11 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
               <div className="mathmaster-reduction-unsupported" role="alert">
                 <strong>This system cannot be solved in this workspace yet.</strong>
                 <p>Its equations could not be read as a linear system. Nothing you did caused this. Let your teacher know so they can fix the question.</p>
+              </div>
+            ) : noSharedVariable ? (
+              <div className="mathmaster-reduction-unsupported" role="alert" data-no-shared-variable="">
+                <strong>This system cannot be finished in this workspace.</strong>
+                <p>{NO_SHARED_VARIABLE_TEXT}</p>
               </div>
             ) : (
               <>

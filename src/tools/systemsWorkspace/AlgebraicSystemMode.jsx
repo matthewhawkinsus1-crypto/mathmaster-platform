@@ -53,6 +53,7 @@ import {
   presentableExpression,
   classroomEquationText,
   substitutedEquationLatex,
+  separatedTwoByTwo,
 } from './algebraicSystemsEngine.js';
 import { checkSubstitutedStatement, emptyStatementWork, substitutedStatementSides } from './degenerateSubstitution.js';
 
@@ -500,6 +501,11 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const [storedStatementWork, setStatementWork] = usePersistentToolState('statementWork', emptyStatementWork);
   const [backSub, setBackSub] = usePersistentToolState('backSub', { equationIndex: null });
   const [secondSolved, setSecondSolved] = usePersistentToolState('secondSolved', { variable: null, value: null, expression: null });
+  // A standalone 2×2 whose rows each hold one different variable (x = 1,
+  // y = 2) is solved row by row (TL43, separatedTwoByTwo): the student's own
+  // solve of each row that is not already `variable = number`, by row index.
+  const separated = useMemo(() => (subsystem ? null : separatedTwoByTwo(equations, variables)), [subsystem, equations, variables]);
+  const [separatedSolved, setSeparatedSolved] = usePersistentToolState('separatedSolved', {});
   const [verification, setVerification] = usePersistentToolState('verification', { 0: emptyVerificationEntry(), 1: emptyVerificationEntry() });
   // A side already written as a number (the 7 in 2x + 3y = 7) is shown as
   // given, as the 3×3 verification shows it (TL50): the student evaluates only
@@ -564,7 +570,8 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const mathState = useMemo(() => ({
     method, selection, isolation, substitution, multipliers, appliedMultipliers, multiplierWork, combination,
     firstSolved, specialCase, statementWork: storedStatementWork, backSub, secondSolved, verification, methodEfficiencyReason,
-  }), [method, selection, isolation, substitution, multipliers, appliedMultipliers, multiplierWork, combination, firstSolved, specialCase, storedStatementWork, backSub, secondSolved, verification, methodEfficiencyReason]);
+    separatedSolved,
+  }), [method, selection, isolation, substitution, multipliers, appliedMultipliers, multiplierWork, combination, firstSolved, specialCase, storedStatementWork, backSub, secondSolved, verification, methodEfficiencyReason, separatedSolved]);
   const restore = useCallback((value) => {
     setMethod(value?.method ?? (config.method === 'studentChoice' ? '' : config.method));
     setSelection(value?.selection || { equationIndex: null, variable: null });
@@ -594,6 +601,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setSecondSolved({ variable: null, value: null, expression: null, ...(value?.secondSolved || {}) });
     setVerification(value?.verification || { 0: emptyVerificationEntry(), 1: emptyVerificationEntry() });
     setMethodEfficiencyReason(value?.methodEfficiencyReason || '');
+    setSeparatedSolved(value?.separatedSolved || {});
     setScaleEditors({ 0: false, 1: false });
   }, [config.method]);
   const undoHistory = useMathUndoHistory({
@@ -687,10 +695,23 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     : null;
   const secondSolvedDone = secondSolved.value != null;
   const secondSolvedExpression = secondSolvedDone ? solvedRecordExpression(secondSolved) : '';
-  const solution = secondSolvedDone ? { [survivingVariable]: firstSolved.value, [removedVariable]: secondSolved.value } : null;
-  const solutionExpressions = secondSolvedDone
-    ? { [survivingVariable]: firstSolvedExpression, [removedVariable]: secondSolvedExpression }
-    : null;
+  // Separated rows (TL43): each row's value as written, or the student's own
+  // solve of it; the pair once both are known.
+  const separatedValues = separated ? separated.rows.map((row) => {
+    if (row.given !== null) return { row, value: row.given, expression: exactNumberText(row.given) };
+    const record = separatedSolved?.[row.index];
+    return record?.variable === row.variable && Number.isFinite(Number(record.value))
+      ? { row, value: Number(record.value), expression: solvedRecordExpression(record) }
+      : { row, value: null, expression: '' };
+  }) : [];
+  const separatedPending = separatedValues.find((entry) => entry.value === null)?.row || null;
+  const separatedPair = (field) => Object.fromEntries(separatedValues.map((entry) => [entry.row.variable, entry[field]]));
+  const solution = separated
+    ? (separatedPending ? null : separatedPair('value'))
+    : (secondSolvedDone ? { [survivingVariable]: firstSolved.value, [removedVariable]: secondSolved.value } : null);
+  const solutionExpressions = separated
+    ? (separatedPending ? null : separatedPair('expression'))
+    : (secondSolvedDone ? { [survivingVariable]: firstSolvedExpression, [removedVariable]: secondSolvedExpression } : null);
   const displayedIsolationExpression = presentableExpression(substitutionTokenExpression || isolatedExpr || '');
 
   // Subsystem role: report the solution the moment it exists, and its absence
@@ -1138,6 +1159,13 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     });
   };
 
+  // A separated row the student solved (TL43).
+  const handleSeparatedSolved = useCallback((row, latexResponse) => {
+    const solved = solvedRecordFor(latexResponse, row.variable);
+    if (!solved) return;
+    setSeparatedSolved((current) => ({ ...current, [row.index]: solved }));
+  }, []);
+
   const handleReduceSolved = useCallback((latexResponse) => {
     const solved = solvedRecordFor(latexResponse, survivingVariable);
     if (!solved) return;
@@ -1237,10 +1265,12 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const work = {
     dimension: 2,
     method: effectiveMethod || '',
-    values: solvedValuesWork({
-      ...(firstSolvedDone && survivingVariable ? { [survivingVariable]: firstSolved.value } : {}),
-      ...(secondSolvedDone && removedVariable ? { [removedVariable]: secondSolved.value } : {}),
-    }),
+    values: solvedValuesWork(separated
+      ? Object.fromEntries(separatedValues.filter((entry) => entry.value !== null).map((entry) => [entry.row.variable, entry.value]))
+      : {
+        ...(firstSolvedDone && survivingVariable ? { [survivingVariable]: firstSolved.value } : {}),
+        ...(secondSolvedDone && removedVariable ? { [removedVariable]: secondSolved.value } : {}),
+      }),
     verification: verificationSidesWork({ E1: verificationSides(0), E2: verificationSides(1) }),
     reducedStatement: isDegenerate ? formatLinearEquation(reduceCoefficients, variables) : null,
     specialCase: {
@@ -1422,11 +1452,12 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     );
   })();
 
-  const methodTitle = effectiveMethod === 'elimination' ? 'Elimination' : 'Substitution';
+  const methodTitle = separated ? 'Solving' : effectiveMethod === 'elimination' ? 'Elimination' : 'Substitution';
   const isolationSolverActive = Boolean(selectionMade && !isolationDone && !alreadyIsolated);
   const reducedEquationSolverActive = Boolean(reduceInputText && !isDegenerate && !firstSolvedDone);
   const backSubSolverActive = Boolean(firstSolvedDone && !isDegenerate && backSubChosen && !secondSolvedDone);
-  const embeddedSolverActive = isolationSolverActive || reducedEquationSolverActive || backSubSolverActive;
+  const separatedSolverActive = Boolean(separatedPending);
+  const embeddedSolverActive = isolationSolverActive || reducedEquationSolverActive || backSubSolverActive || separatedSolverActive;
 
   const workTrailStages = useMemo(() => {
     const commonEnd = isDegenerate ? [
@@ -1550,6 +1581,49 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
 
   const workflowBody = (
     <>
+          {/* Rows that each hold one different variable (TL43): nothing to
+              substitute or eliminate, so no method — each row is solved on
+              its own, a row already reading `x = 1` as written. */}
+          {separated ? (
+            <div className="mathmaster-systems-separated" data-separated={separatedPending ? 'solving' : 'solved'} style={{ display: 'grid', gap: 12 }}>
+              <p style={{ margin: 0, color: 'var(--mm-text)' }}>
+                Each equation has only one variable, {separated.rows.map((row) => `${row.variable} in ${equationName(row.index)}`).join(' and ')}, so there is nothing to substitute or eliminate.
+                {' '}{separated.rows.every((row) => row.given !== null)
+                  ? 'Each one already gives its value. Check the pair in both equations.'
+                  : 'Solve each equation for its variable, then check the pair in both equations.'}
+              </p>
+              <ul style={{ margin: 0, paddingLeft: 20, display: 'grid', gap: 4 }}>
+                {separatedValues.map((entry) => (
+                  <li key={entry.row.index}>
+                    {equationName(entry.row.index)}:{' '}
+                    {entry.value === null
+                      ? <span>solve for {entry.row.variable}</span>
+                      : <><MathDisplay value={`${entry.row.variable} = ${entry.expression}`} format="ascii-math" inline />{entry.row.given !== null ? ' (as written)' : ''}</>}
+                  </li>
+                ))}
+              </ul>
+              {separatedPending ? (
+                <EmbeddedStepAlgebra
+                  key={`separated-${separatedPending.index}`}
+                  label={`Solve ${equationName(separatedPending.index)} for ${separatedPending.variable}`}
+                  prompt={`Solve this equation for ${separatedPending.variable}.`}
+                  equationText={equations[separatedPending.index]}
+                  solveFor={separatedPending.variable}
+                  draftKey={draftKey ? `${draftKey}:algebraic:separated:${separatedPending.index}:${separatedPending.variable}` : null}
+                  onSolved={(latexResponse) => handleSeparatedSolved(separatedPending, latexResponse)}
+                  onUndoStateChange={setEmbeddedUndoController}
+                  workspaceDifficulty={questionData.workspaceDifficulty}
+                  requireSimplifiedFinalForm
+                  autoReveal
+                />
+              ) : null}
+            </div>
+          ) : null}
+
+          {/* Every method route — the choice, its trail and stages, the
+              reduced solve and back-substitution — only where there is one
+              (not separated rows, whatever an older draft holds). */}
+          {!separated ? (<>
           {config.method === 'studentChoice' && !method ? (
             <div>
               <p style={{ margin: '0 0 10px', color: 'var(--mm-text)' }}>Choose the method you will use to solve this system.</p>
@@ -1907,6 +1981,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
               ) : null}
             </div>
           ) : null}
+          </>) : null}
 
           {solution && config.requireVerification ? (
             <div className="mathmaster-systems-verification-stage">
@@ -2023,7 +2098,11 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
           ) : null}
 
           {subsystem ? null : <HintPanel
-            hints={effectiveMethod === 'elimination' ? [
+            hints={separated ? [
+              'Each equation has only one variable, so each one is a one-variable equation: solve it on its own.',
+              'Undo what is done to the variable: divide both sides by its coefficient.',
+              'Then put both values into each original equation to check them.',
+            ] : effectiveMethod === 'elimination' ? [
               'Look at the coefficients of the variable you want to eliminate. If they are already opposites, you can add the equations directly.',
               'If the coefficients are the same sign and size, subtracting removes that variable. Otherwise, multiply one or both equations so the coefficients become opposites.',
               'A multiplier must apply to every term on both sides of the equation.',

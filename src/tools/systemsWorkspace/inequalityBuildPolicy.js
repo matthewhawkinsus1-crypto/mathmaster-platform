@@ -132,3 +132,22 @@ export const REASONING_COMPLETION_TEXT = Object.freeze({
   complete: 'Recorded. It is graded when you submit.',
   incomplete: 'Not finished yet — answer every part above.',
 });
+
+/*
+ * IS THE VERTICES STEP DONE? (PR-22; TL43, finding C2-137)
+ *
+ * Only once its Check was pressed for the marks as they stand — with no marks
+ * at all too. A region with no corners has nothing to mark, and the step could
+ * never finish: Check needed a mark, though the grader takes none as the right
+ * answer there. The student now says so ("There are no corners"), which is the
+ * same press with no marks. Then every mark's own line must be done, and where
+ * outcomes are shown every true corner must be marked (the grader's rule,
+ * vertexCoverage). Where they are withheld that count is a verdict, so the
+ * press records the step: with every mark answered, or with none — on every
+ * item, so offering it says nothing about whether the region has corners.
+ */
+export const verticesStepComplete = ({ checked = false, reports = [], verdictsShown = true, coverageComplete = false } = {}) => (
+  Boolean(checked)
+  && (Array.isArray(reports) ? reports : []).every((report) => Boolean(report?.done))
+  && (!verdictsShown || Boolean(coverageComplete))
+);

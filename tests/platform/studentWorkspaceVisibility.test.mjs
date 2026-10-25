@@ -225,7 +225,8 @@ test('a committed step reveals the equation when it is under the sticky chrome',
 test('every embedded systems solver reveals itself when it opens', () => {
   const source = read('src/tools/systemsWorkspace/AlgebraicSystemMode.jsx');
   const solvers = source.split('<EmbeddedStepAlgebra').slice(1).map((chunk) => chunk.slice(0, chunk.indexOf('/>')));
-  assert.equal(solvers.length, 3);
+  // Isolate, reduce, back-substitute, and a separated row's solve (TL43).
+  assert.equal(solvers.length, 4);
   solvers.forEach((solver) => assert.match(solver, /\n\s*autoReveal\n/, solver.slice(0, 80)));
 });
 

@@ -53,9 +53,11 @@ test('the workspace-level engine never reimplements balanced-operation solving, 
   assert.doesNotMatch(engineSource, /applyBalancedOperation|distribut|cancellation|isSolvedEquation/i);
 });
 
-test('there are exactly three Step Algebra embeds: isolate, reduce, and back-substitution solve — one per handoff the spec requires', () => {
+test('there are exactly four Step Algebra embeds: isolate, reduce, and back-substitution solve — one per handoff the spec requires — and a separated row\'s solve (TL43)', () => {
   const embeds = [...modeSource.matchAll(/<EmbeddedStepAlgebra/g)];
-  assert.equal(embeds.length, 3);
+  assert.equal(embeds.length, 4);
+  // The fourth solves one row of a 2×2 whose rows each hold one variable.
+  assert.match(region(modeSource, '{separatedPending ? (', '/>', 'separated row solve'), /<EmbeddedStepAlgebra[^]*solveFor=\{separatedPending\.variable\}/);
 });
 
 
@@ -220,7 +222,10 @@ test('embedded solver reveal is presentation-only and does not solve or choose a
 });
 
 test('the ordered pair is only assembled after both variables are solved, and verification is required before the workspace considers the attempt ready to check', () => {
-  assert.match(modeSource, /const solution = secondSolvedDone \? \{ \[survivingVariable\]: firstSolved\.value, \[removedVariable\]: secondSolved\.value \} : null;/);
+  // Through a method: once both solves are done. Rows that each hold one
+  // variable (TL43): once every row has its value (none pending).
+  assert.match(modeSource, /const solution = separated\s*\?\s*\(separatedPending \? null : separatedPair\('value'\)\)\s*:\s*\(secondSolvedDone \? \{ \[survivingVariable\]: firstSolved\.value, \[removedVariable\]: secondSolved\.value \} : null\);/);
+  assert.match(modeSource, /const separatedPending = separatedValues\.find\(\(entry\) => entry\.value === null\)\?\.row \|\| null;/);
   assert.match(modeSource, /readyToSubmit = isDegenerate \? Boolean\(!subsystem && specialCaseAnswered\) : Boolean\(solution && \(!config\.requireVerification \|\| allVerified\)\)/);
 });
 
