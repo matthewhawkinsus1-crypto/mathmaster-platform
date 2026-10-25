@@ -2666,11 +2666,13 @@ function QuestionEngineBody({
   // final attempt as graded on this device, when each carries its typed
   // response. A tool's work is reviewed by its own panel, so it shows none.
   // A Graphing line reads as the student's readout writes it, y = x, never
-  // the stored record's y = 1x + 0 (GR30, storedLineText.js).
+  // the stored record's y = 1x + 0 (GR30, storedLineText.js). A part the
+  // grader does not mark (`graded: false`: an Open Sort group's names, a line
+  // the points only describe) carries neither ✓ nor ✗ (GR16).
   const closedYourAnswer = isExpired && gradedForDisplay && gradedForDisplay.feedback === feedback
     ? (gradedForDisplay.grading?.parts || [])
       .filter((part) => typeof part?.response === 'string' && part.response.trim())
-      .map((part, index) => ({ key: String(part.id ?? part.label ?? index), label: String(part.label || ''), response: readableStoredResponseLatex(part.response, processedQuestion), isCorrect: typeof part.isCorrect === 'boolean' ? part.isCorrect : null }))
+      .map((part, index) => ({ key: String(part.id ?? part.label ?? index), label: String(part.label || ''), response: readableStoredResponseLatex(part.response, processedQuestion), isCorrect: part.graded !== false && typeof part.isCorrect === 'boolean' ? part.isCorrect : null }))
     : [];
   // HELP-18. Before the single try of a choice-only item, say so (and that a
   // hint is there — the hint control's own release rule decides that); after

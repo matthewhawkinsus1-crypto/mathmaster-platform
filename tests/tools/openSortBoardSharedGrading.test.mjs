@@ -207,6 +207,30 @@ test('open: an exact partition with a missing name or a short explanation is not
   assert.equal(grade(openQuestion(), withSpare).isCorrect, true);
 });
 
+// GR16 (the owner): names and explanations count neither right nor wrong, and
+// say so. Any 12 characters met the explanation's check, and a closed card
+// showed the part with a ✓. Verdict and score are unchanged, so a stored
+// attempt's score is what the same work earns now (nothing is re-graded).
+test('GR16 — group names and explanations are for the teacher: unmarked, labelled so, and never in the score', () => {
+  const right = grade(openQuestion(), board(['A', 'B'], ['C', 'D'], ['E', 'F']));
+  assert.deepEqual(
+    ['names', 'rationale'].map((id) => [part(right, id).label, part(right, id).graded]),
+    [['Group names (for your teacher)', false], ['Group explanations (for your teacher)', false]],
+  );
+  const nonsense = board(['A', 'B'], ['C', 'D'], ['E', 'F']);
+  nonsense.groups.forEach((group) => { group.name = 'zz'; group.rationale = 'aaaaaaaaaaaa'; });
+  assert.equal(grade(openQuestion(), nonsense).score, 1, 'the sort is right, whatever the words say');
+  const wrongSort = board(['A', 'B', 'C'], ['D', 'E', 'F']);
+  const longerWords = { groups: wrongSort.groups.map((group) => ({ ...group, rationale: 'x'.repeat(400) })) };
+  assert.equal(grade(openQuestion(), longerWords).score, grade(openQuestion(), wrongSort).score, 'words never move the score');
+  // A closed card marks only graded parts, and the board's counter stops at the minimum.
+  const engine = executableSource(fs.readFileSync('src/QuestionEngine.jsx', 'utf8'));
+  assert.match(region(engine, 'const closedYourAnswer =', ': [];'), /isCorrect: part\.graded !== false && typeof part\.isCorrect === 'boolean' \? part\.isCorrect : null/);
+  const box = region(code, '<textarea value={group.rationale}', '</label>', 'explanation box');
+  assert.match(box, /group\.rationale\.trim\(\)\.length < rationaleMinLength\s*\?\s*`\$\{group\.rationale\.trim\(\)\.length\}\/\$\{rationaleMinLength\} characters needed before checking`\s*:\s*'Saved for your teacher\. It is not marked right or wrong\.'/);
+  assert.match(code, /Why do these belong together\? <span data-rationale-audience="" [^>]*>For your teacher<\/span>/);
+});
+
 test('open: completeness is the board\'s Check gate, including the authored minimum number of groups', () => {
   const twoGroups = { type: TYPE, items: ITEMS, validSchemes: [{ id: 'halves', groups: [{ itemIds: ['A', 'B', 'C'] }, { itemIds: ['D', 'E', 'F'] }] }] };
   const halves = board(['A', 'B', 'C'], ['D', 'E', 'F']);

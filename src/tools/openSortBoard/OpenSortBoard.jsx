@@ -418,11 +418,16 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
                     {group.itemIds.map((id) => placedCard({ id, group, groupIndex, controlled: false }))}
                     {!group.itemIds.length && <span style={{ color: 'var(--mm-text-subtle)', alignSelf: 'center' }}>No cards in this group yet.</span>}
                   </div>
+                  {/* The explanation is for the teacher, never marked right or
+                      wrong (GR16): the counter is only the length the Check
+                      waits for, and once that is met it says who reads it. */}
                   {requireRationale && (
                     <label style={{ display: 'block', marginTop: 10, fontWeight: 800, color: 'var(--mm-text)' }}>
-                      Why do these belong together?
+                      Why do these belong together? <span data-rationale-audience="" style={{ fontWeight: 600, color: 'var(--mm-text-muted)' }}>For your teacher</span>
                       <textarea value={group.rationale} onChange={(event) => updateGroup(group.id, { rationale: event.target.value })} aria-label={rationaleInputLabel(group, groupIndex)} placeholder="Describe the feature every card in this group shares." rows={2} style={{ ...input, fontFamily: 'inherit', minHeight: 72, resize: 'vertical' }} />
-                      <span style={{ display: 'block', marginTop: 4, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{Math.min(group.rationale.trim().length, rationaleMinLength)}/{rationaleMinLength} characters needed before checking</span>
+                      <span style={{ display: 'block', marginTop: 4, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{group.rationale.trim().length < rationaleMinLength
+                        ? `${group.rationale.trim().length}/${rationaleMinLength} characters needed before checking`
+                        : 'Saved for your teacher. It is not marked right or wrong.'}</span>
                     </label>
                   )}
                 </Panel>
