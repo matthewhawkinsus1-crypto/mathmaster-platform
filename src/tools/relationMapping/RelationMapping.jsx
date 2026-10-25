@@ -468,7 +468,7 @@ export default function RelationMapping({ questionData = {}, onAction, coachingR
         </Panel>
       ) : null}
 
-      <EnlargeableFigure label="Mapping workspace" enlargeLabel="Enlarge workspace" style={{ width: '100%' }} capabilities={{
+      <EnlargeableFigure label="Mapping workspace" style={{ width: '100%' }} capabilities={{
         undo: undoHistory.capability,
         pointEditing: { label: 'Edit mappings and plotted points', studentState: true },
         numericControls: { label: 'Relation controls', studentState: true },

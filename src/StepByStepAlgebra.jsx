@@ -86,7 +86,6 @@ export default function StepByStepAlgebra(props) {
     <EnlargeableFigure
       label="Step-by-step algebra solver"
       taskText={question.prompt || 'Solve the equation by keeping both sides balanced.'}
-      enlargeLabel="Enlarge algebra workspace"
       style={{ width: '100%' }}
       capabilities={{
         equationInput: { label: 'Equation and rewrite controls', studentState: true },

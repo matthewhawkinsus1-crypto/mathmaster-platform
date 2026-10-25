@@ -305,7 +305,6 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
     <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.match} steps={stepsNamingAction(MODE_STEPS[mode] || MODE_STEPS.match, finishActionName)} />
     <EnlargeableFigure
         label="Transformation workspace"
-        enlargeLabel="Enlarge workspace"
         taskText={questionData.prompt || questionData.task || ''}
         style={{ width: '100%' }}
         openEnlarged={shouldOpenFigureEnlarged({ toolId: 'transformations', question: questionData || {}, viewportWidth })}

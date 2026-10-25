@@ -1335,7 +1335,6 @@ export default function InteractiveGraphWorkspace({
           effect of the fixed width was to shrink the graph. */}
       <EnlargeableFigure
         label="Coordinate plane workspace"
-        enlargeLabel="Enlarge graph"
         openEnlarged={openEnlarged}
         dismissKey={figureDismissalKey(question)}
         capabilities={workspaceCapabilities}

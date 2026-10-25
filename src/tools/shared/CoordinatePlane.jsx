@@ -1146,7 +1146,6 @@ export default function CoordinatePlane({
   return (
     <EnlargeableFigure
       label={ariaLabel}
-      enlargeLabel={interactive ? 'Enlarge to plot' : 'Enlarge graph'}
       style={{ width: '100%' }}
       capabilities={{
         fitView: zoomable ? { label:'Fit View', onAction:resetView, disabled:!view, cameraOnly:true } : null,

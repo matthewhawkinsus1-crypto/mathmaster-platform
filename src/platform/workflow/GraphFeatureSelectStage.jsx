@@ -289,7 +289,6 @@ export default function GraphFeatureSelectStage({ stage, sourceGraph, value, onC
   return (
     <EnlargeableFigure
       label={`Graph for marking the ${featureLabel(stage?.feature)}`}
-      enlargeLabel="Enlarge to mark"
       taskText={stage?.prompt || ''}
       style={{ width: '100%' }}
     >

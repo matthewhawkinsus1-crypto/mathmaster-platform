@@ -526,7 +526,6 @@ export default function LinearInterceptsOrchestrator({
     <EnlargeableFigure
       label="Linear intercepts, solved with Step Algebra"
       taskText={targetPrompt(kind)}
-      enlargeLabel="Enlarge intercept workspace"
       style={{ width: '100%' }}
       capabilities={{
         equationInput: { label: 'Zero substitution and intercept point', studentState: true },

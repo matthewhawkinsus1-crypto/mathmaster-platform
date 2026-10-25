@@ -60,7 +60,6 @@ export default function MultiRelationAlgebra(props) {
     <EnlargeableFigure
       label="Equation and inequality solver"
       taskText={relationQuestion.prompt || 'Solve the equation or inequality.'}
-      enlargeLabel="Enlarge relation workspace"
       style={{ width: '100%' }}
       capabilities={{
         equationInput: { label: 'Equation, branch, and rewrite controls', studentState: true },

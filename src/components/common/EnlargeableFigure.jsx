@@ -19,7 +19,7 @@ import { revealWorkViewTarget } from '../../platform/workView/workViewReveal.js'
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 import { useModalDialog } from '../../ui/Dialog.jsx';
 import { relabelToolPrimaryActions, useMethodWithheld, useToolRuntimeContext } from '../../tools/shared/ToolRuntimeContext.jsx';
-import { LANGUAGE_TOOLS, workViewCapabilityWord } from '../../platform/student/studentWords.js';
+import { LANGUAGE_TOOLS, OPEN_WORK_VIEW, workViewCapabilityWord } from '../../platform/student/studentWords.js';
 import { useFocusSafeDisabled } from './useFocusSafeDisabled.js';
 import './WorkViewShell.css';
 
@@ -145,7 +145,6 @@ export default function EnlargeableFigure({
   children,
   label = 'graph',
   style = {},
-  enlargeLabel = 'Enlarge',
   openEnlarged = false,
   dismissKey = null,
   presentationKey = null,
@@ -635,9 +634,13 @@ export default function EnlargeableFigure({
         : { position: 'relative', margin: 0, boxSizing: 'border-box', ...style }}
     >
       {shortHeight ? null : instructionNode}
+      {/* One name for one feature (TL35): the opener always says "Open Work
+          View". It used to take a label per tool ("Enlarge graph", "Enlarge to
+          plot", "Enlarge algebra workspace"…); a caller that still passes one
+          is ignored, so no tool can name it another way. */}
       {!enlarged ? (
         <button ref={openerRef} className="mm-button-neutral mathmaster-work-view-opener" type="button" onClick={openWorkView} disabled={openerBlocked} data-work-view-review={reviewingClosed ? 'true' : undefined} style={CONTROL}>
-          ⤢ {enlargeLabel}
+          ⤢ {OPEN_WORK_VIEW}
         </button>
       ) : null}
       <WorkViewCapabilityPortProvider publish={publish}>

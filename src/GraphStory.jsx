@@ -180,7 +180,7 @@ export default function GraphStory({ question, onStateChange, onUndoStateChange,
       </div>
       {requireSketch && <section style={{ marginTop: '22px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}><h3 style={{ margin: 0 }}>Graph sketch</h3><button type="button" onClick={() => setField('strokes', [])} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #d93025', background: 'var(--mm-surface)', color: 'var(--mm-danger)', fontWeight: 800 }}>Clear graph</button></div>
-        <EnlargeableFigure label="Graph story plane" enlargeLabel="Enlarge plane" style={{ width: '100%' }}>
+        <EnlargeableFigure label="Graph story plane" style={{ width: '100%' }}>
         <svg
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           onPointerDown={startStroke}

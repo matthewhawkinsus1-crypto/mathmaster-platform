@@ -29,9 +29,11 @@ test('a plane a student plots on can be enlarged to plot in', () => {
   assert.match(source, /if \(!enlargeable\) return plane;/);
   assert.doesNotMatch(source, /if \(!enlargeable \|\| interactive\) return plane;/);
   assert.match(source, /const interactive = typeof onPlot === 'function';/);
-  // Named for what it is for, so the control reads as an invitation to work
-  // rather than an invitation to look.
-  assert.match(source, /enlargeLabel=\{interactive \? 'Enlarge to plot' : 'Enlarge graph'\}/);
+  // It used to be named for what it is for ("Enlarge to plot" / "Enlarge graph"),
+  // an invitation to work rather than to look. One feature has one name now:
+  // the opener always says "Open Work View" and the plane hands it no label
+  // (TL35; workViewOpenerWord.test.mjs renders both).
+  assert.doesNotMatch(source, /enlargeLabel/);
 });
 
 test('every tool that opens itself carries its controls into the panel', () => {

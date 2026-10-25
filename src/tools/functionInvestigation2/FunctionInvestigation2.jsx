@@ -259,7 +259,6 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
 
       <EnlargeableFigure
         label="Function investigation workspace"
-        enlargeLabel="Enlarge workspace"
         taskText={questionData.prompt || MODE_TASKS[mode] || MODE_TASKS.features}
         style={{ width: '100%' }}
         capabilities={workspaceCapabilities}

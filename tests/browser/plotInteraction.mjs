@@ -43,14 +43,15 @@ for (const [device, config] of Object.entries(DEVICES)) {
 
   // 1. The enlarge control exists on an interactive plane.
   //
-  //    "Enlarge workspace" joined the list in Stage 3A. The plane no longer
+  //    The control reads "Open Work View" (it was "Enlarge workspace" from
+  //    Stage 3A, "Enlarge to plot" before; TL35). The plane no longer
   //    offers a shell of its own in a migrated tool: the tool wraps its WHOLE
   //    split, so the enlarged view carries the Check button and the construction
   //    summary with the graph instead of leaving them behind a backdrop. What
   //    this step is about is whether an interactive plane can be enlarged at
   //    all, and it can — by a control that does strictly more than the one it
   //    replaced.
-  const ENLARGE_CONTROL = /Enlarge to plot|Enlarge graph|Enlarge workspace|Open Work View/;
+  const ENLARGE_CONTROL = /Open Work View/;
   const workViewOpen = () => page.locator('.mathmaster-work-view-host[data-open="true"]').count();
   const enlarge = await page.locator('button', { hasText: ENLARGE_CONTROL }).count();
   // A plotting tool on a Chromebook-width screen opens Work View for the

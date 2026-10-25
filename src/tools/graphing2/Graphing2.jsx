@@ -411,7 +411,6 @@ export default function Graphing2({ questionData = {}, onAction }) {
 
       <EnlargeableFigure
         label="Graphing workspace"
-        enlargeLabel="Enlarge workspace"
         taskText={targetPrompt(questionData, target)}
         style={{ width: '100%' }}
         openEnlarged={shouldOpenFigureEnlarged({ toolId: 'graphing2', question: questionData || {}, viewportWidth })}

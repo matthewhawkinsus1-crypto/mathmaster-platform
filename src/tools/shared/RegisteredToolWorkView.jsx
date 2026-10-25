@@ -108,7 +108,6 @@ export default function RegisteredToolWorkView({ toolId, questionData = {}, chil
   return (
     <EnlargeableFigure
       label={toolName}
-      enlargeLabel="Open Work View"
       taskText={taskText}
       capabilities={capabilities}
       openEnlarged={Boolean(mobile?.isCompactPhone)}

@@ -491,7 +491,6 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
   return (
     <EnlargeableFigure
       label="Linear intercept algebra workbench"
-      enlargeLabel="Enlarge intercept workspace"
       style={{ width: '100%' }}
       taskText={targetPrompt(kind)}
       capabilities={{

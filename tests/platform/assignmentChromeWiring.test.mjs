@@ -153,9 +153,12 @@ test('RUN-16: no program words in the assignment chrome', () => {
 });
 
 test('D9: the enlarged workspace is called Work View where a student opens it', () => {
+  // The word is the figure's own (studentWords OPEN_WORK_VIEW; workViewOpenerWord.test.mjs
+  // renders the opener), so the question's shell hands it no label (TL35) — and
+  // never the old "Enlarge question".
   const figure = region(engine, '<EnlargeableFigure\n        label="Question Work View"', '>', 'the question Work View');
-  assert.match(figure, /enlargeLabel="Open Work View"/);
-  assert.doesNotMatch(executableSource(engine), /enlargeLabel="Enlarge question"/);
+  assert.doesNotMatch(figure, /enlargeLabel/);
+  assert.doesNotMatch(executableSource(engine), /Enlarge question/);
 });
 
 test('a toast never covers the action bar: it rises above where the bar actually is', () => {

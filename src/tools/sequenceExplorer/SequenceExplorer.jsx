@@ -119,7 +119,7 @@ function AnalyzeSequence({ questionData, feedback, submit, onAction }) {
   };
   return <ToolShell title="Analyze the Sequence" subtitle="Connect the pattern, table, discrete graph, and term structure." badge="Pattern and terms">
     <TaskCard question={questionData} task={'Decide whether this sequence is arithmetic or geometric, then give its change and the requested term.'} steps={['Compare consecutive terms by subtracting, then by dividing.', 'Whichever stays constant tells you the type.', 'Use that constant to reach the requested term.']} />
-    <EnlargeableFigure label="Sequence analysis workspace" enlargeLabel="Enlarge sequence workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, tableData: { label: 'Sequence table' }, equationInput: { label: 'Sequence analysis', studentState: true }, instruction: { text: 'Classify the pattern and find the requested term.' }, primaryActions: [{ id: 'check-analysis', label: 'Check analysis', onAction: check }] }}>
+    <EnlargeableFigure label="Sequence analysis workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, tableData: { label: 'Sequence table' }, equationInput: { label: 'Sequence analysis', studentState: true }, instruction: { text: 'Classify the pattern and find the requested term.' }, primaryActions: [{ id: 'check-analysis', label: 'Check analysis', onAction: check }] }}>
     <ToolGrid min={340}>
       <SequenceVisual spec={spec} count={sequenceEvidenceCount(questionData.displayCount ?? 7, targetN, { revealTarget: questionData.revealTargetTerm === true })} />
       <Panel title="Analyze the pattern">
@@ -246,7 +246,6 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
     />
     <EnlargeableFigure
       label="Sequence workspace"
-      enlargeLabel="Enlarge sequence workspace"
       taskText={questionData.prompt || 'Build the complete sequence model.'}
       style={{ width: '100%' }}
       capabilities={{
@@ -438,7 +437,7 @@ function RuleBridge({ questionData, feedback, submit, onAction }) {
         'Both equations must generate the sequence shown.',
       ]}
     />
-    <EnlargeableFigure label="Sequence rule workspace" enlargeLabel="Enlarge sequence workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, tableData: { label: 'Sequence evidence' }, equationInput: { label: 'Explicit and recursive equations', studentState: true }, instruction: { text: 'Write both rules for the same sequence.' }, primaryActions: [{ id: 'check-rules', label: 'Check both equations', onAction: check }] }}>
+    <EnlargeableFigure label="Sequence rule workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, tableData: { label: 'Sequence evidence' }, equationInput: { label: 'Explicit and recursive equations', studentState: true }, instruction: { text: 'Write both rules for the same sequence.' }, primaryActions: [{ id: 'check-rules', label: 'Check both equations', onAction: check }] }}>
     <ToolGrid min={330}>
       <SequenceVisual spec={spec} count={6} title="Evidence from the sequence" />
       <Panel title="Write both equations">
@@ -500,7 +499,7 @@ function MissingTerm({ questionData, feedback, submit, onAction }) {
   };
   return <ToolShell title="Find the Missing Term" subtitle="Recover a missing term from the sequence pattern." badge="Sequence pattern">
     <TaskCard question={questionData} task={'Recover the missing term and say what kind of sequence this is.'} steps={['Look at the terms either side of the gap.', 'Work out the constant difference or ratio from terms you can see.', 'Apply it to fill the gap.']} />
-    <EnlargeableFigure label="Missing term workspace" enlargeLabel="Enlarge sequence workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, tableData: { label: 'Sequence with a gap' }, numericControls: { label: 'Missing term controls', studentState: true }, instruction: { text: 'Recover the missing term and classify the sequence.' }, primaryActions: [{ id: 'check-missing', label: 'Check missing term', onAction: check }] }}>
+    <EnlargeableFigure label="Missing term workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, tableData: { label: 'Sequence with a gap' }, numericControls: { label: 'Missing term controls', studentState: true }, instruction: { text: 'Recover the missing term and classify the sequence.' }, primaryActions: [{ id: 'check-missing', label: 'Check missing term', onAction: check }] }}>
     <ToolGrid min={320}>
       <Panel title="Sequence with a gap">
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{rows.map((row) => <div key={row.n} style={{ minWidth: 66, padding: '10px 12px', textAlign: 'center', borderRadius: 10, border: '1px solid var(--mm-tint-border)', background: row.n === missingIndex ? 'var(--mm-warning-bg)' : 'var(--mm-surface)' }}><div style={{ fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>a{row.n}</div><strong>{row.n === missingIndex ? '?' : numberText(row.value)}</strong></div>)}</div>
@@ -533,7 +532,7 @@ function PartialSum({ questionData, feedback, submit, onAction }) {
   };
   return <ToolShell title="Find the Finite Sum" subtitle="Connect a sequence of terms to the finite series formed by adding them." badge="Finite series">
     <TaskCard question={questionData} task={'Find the last term of this finite sequence and the sum of all its terms.'} steps={['Extend the sequence to the requested number of terms.', 'Identify the last term.', 'Add all the terms, or use the appropriate sum formula.']} />
-    <EnlargeableFigure label="Finite sequence workspace" enlargeLabel="Enlarge sequence workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, tableData: { label: 'Sequence evidence' }, numericControls: { label: 'Finite sum controls', studentState: true }, instruction: { text: `Find the last term and S${sumN}.` }, primaryActions: [{ id: 'check-sum', label: 'Check finite sum', onAction: check }] }}>
+    <EnlargeableFigure label="Finite sequence workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, tableData: { label: 'Sequence evidence' }, numericControls: { label: 'Finite sum controls', studentState: true }, instruction: { text: `Find the last term and S${sumN}.` }, primaryActions: [{ id: 'check-sum', label: 'Check finite sum', onAction: check }] }}>
     <ToolGrid min={320}>
       <SequenceVisual spec={spec} count={sequenceEvidenceCount(7, sumN, { revealTarget: questionData.revealTargetTerm === true, cap: 7 })} title="Sequence evidence" />
       <Panel title={`Find S${sumN}`}>
@@ -637,7 +636,7 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
       task={requirePlot ? 'Plot both sequences as discrete functions, then compare them at the requested term number.' : 'Compare the two sequences at the given term number.'}
       steps={taskSteps}
     />
-    <EnlargeableFigure label="Sequence comparison workspace" enlargeLabel="Enlarge sequence workspace"
+    <EnlargeableFigure label="Sequence comparison workspace"
       taskText={questionData.prompt || 'Compare both sequences.'} style={{ width: '100%' }}
       capabilities={{
         undo: undoHistory.capability,

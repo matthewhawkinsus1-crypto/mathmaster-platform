@@ -580,7 +580,6 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
 
       <EnlargeableFigure
         label="Number line workspace"
-        enlargeLabel="Enlarge workspace"
         taskText={questionData.prompt || questionData.task || ''}
         style={{ width: '100%' }}
         openEnlarged={shouldOpenFigureEnlarged({ toolId: 'intervalNumberLine', question: questionData || {}, viewportWidth })}

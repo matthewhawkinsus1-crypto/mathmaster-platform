@@ -166,7 +166,6 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
           student watching a graph they cannot change. */}
       <EnlargeableFigure
         label="Function construction workspace"
-        enlargeLabel="Enlarge workspace"
         taskText={questionData.prompt || ''}
         style={{ width: '100%' }}
         capabilities={workspaceCapabilities}

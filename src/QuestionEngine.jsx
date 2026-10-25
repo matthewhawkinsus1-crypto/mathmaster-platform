@@ -3294,7 +3294,6 @@ function QuestionEngineBody({
       }}>
       <EnlargeableFigure
         label="Question Work View"
-        enlargeLabel="Open Work View"
         presentationKey={processedQuestion?.questionId ?? processedQuestion?.id ?? processedQuestion?.prompt ?? null}
         forceClosed={locked}
         // A closed question can be enlarged to look at (TOOL-13): the area

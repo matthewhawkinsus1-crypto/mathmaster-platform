@@ -163,6 +163,19 @@ export const STARTING_OVER = 'Starting over…';
 export const SUPPORT_TOOLS = 'Support tools';
 export const LANGUAGE_TOOLS = 'Language tools';
 
+// --- Work View ---------------------------------------------------------------
+
+/*
+ * ONE NAME FOR THE ENLARGED WORKSPACE (student pass 3, D9; TL35, finding C1-4).
+ *
+ * The question's opener read "Open Work View" (W6-1) while the tools beside it
+ * called the same panel "Enlarge graph", "Enlarge to plot", "Enlarge algebra
+ * workspace", "Enlarge system workspace". EnlargeableFigure says this wherever
+ * it opens one and takes no label of its own, so a tool cannot name the same
+ * feature another way. (The dialog it opens is named "<figure>, Work View".)
+ */
+export const OPEN_WORK_VIEW = 'Open Work View';
+
 // --- Work View's caption -----------------------------------------------------
 
 /*

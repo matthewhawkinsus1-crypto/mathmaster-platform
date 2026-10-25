@@ -42,7 +42,7 @@ export default function SystemGrader({ question, onStateChange, onUndoStateChang
     <div>
       <h2 className="mathmaster-grader-heading" style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>Systems of Equations</h2>
       <QuestionPrompt>{prompt || 'Solve the system and enter the solution as an ordered pair $(x, y)$.'}</QuestionPrompt>
-      <EnlargeableFigure label="System of equations workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{
+      <EnlargeableFigure label="System of equations workspace" style={{ width: '100%' }} capabilities={{
         equationInput: { label: 'Both equations and solution entry', studentState: true },
         instruction: { text: prompt || 'Solve both equations as one system.' },
       }}>
