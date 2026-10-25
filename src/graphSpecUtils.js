@@ -1,4 +1,5 @@
 import { readGraphPointCoordinates, validateGraphPoint } from './graphPointUtils.js';
+import { MAX_MAJOR_TICKS } from './platform/graph/graphScaleService.js';
 const hasOwn = (object, key) => Object.prototype.hasOwnProperty.call(object || {}, key);
 const finite = (value) => Number.isFinite(Number(value));
 
@@ -342,6 +343,27 @@ export const staticGraphUsesEqualUnits = (graph = {}) => {
   return functions.length >= 2 || segments > 0;
 };
 
+/**
+ * AN AUTHORED SCALE FOR EACH AXIS (student pass 3, R-9).
+ *
+ * `axisScale: { x: 2, y: 1 }` draws graph paper with square squares that count
+ * by 2 across and by 1 up: Linh's sketch in "Things Aren't Always What They
+ * Seem", where two lines that are not perpendicular look it because one axis
+ * counts faster than the other. Equal units (R-1) is the true picture of the
+ * same figure, and GraphDisplay gives the student a "Fix the scale" button that
+ * redraws the one as the other (staticGraphScaleViews).
+ *
+ * Both numbers must be positive and finite. Anything else is ignored, and the
+ * figure is framed as if the field were not there.
+ */
+export const resolveAxisScale = (graph = {}) => {
+  const scale = graph && typeof graph === 'object' ? graph.axisScale : null;
+  if (!scale || typeof scale !== 'object' || Array.isArray(scale)) return null;
+  const x = Number(scale.x);
+  const y = Number(scale.y);
+  return Number.isFinite(x) && x > 0 && Number.isFinite(y) && y > 0 ? { x, y } : null;
+};
+
 // The author's window (or one around the landmarks), every landmark kept in
 // frame, then the shorter axis widened until a unit is the same length both
 // ways. A line is not chased off the window: it is infinite. What has to show
@@ -430,6 +452,24 @@ const fitEqualUnitViewport = (graph, landmarks, plotAspect, functions = []) => {
   return { ...graph, xMin: tidy(xMin), xMax: tidy(xMax), yMin: tidy(yMin), yMax: tidy(yMax), equalUnits: true };
 };
 
+// An equal-square window, labelled the way the author's scale counts. The
+// labels are the scale itself — 2 across, 1 up — unless the window holds more
+// squares than an axis can label (graphScaleService's cap), in which case BOTH
+// steps grow by the same whole number, so the squares stay square and the
+// ratio between the axes is the one the author wrote. Gridlines sit on the
+// labels only: graph paper has no half squares.
+const scaledViewport = (framed, { x, y }) => {
+  const squares = Math.max((framed.xMax - framed.xMin) / x, (framed.yMax - framed.yMin) / y);
+  const thinning = Math.max(1, Math.ceil(squares / (MAX_MAJOR_TICKS - 1) - 1e-6));
+  // Nothing thinned: the author's own numbers, exactly (1/3 stays 1/3).
+  const xStep = thinning === 1 ? x : Number((x * thinning).toPrecision(12));
+  const yStep = thinning === 1 ? y : Number((y * thinning).toPrecision(12));
+  const next = { ...framed, xStep, yStep, xMinorStep: xStep, yMinorStep: yStep, axisScale: { x, y }, axisScaleApplied: true };
+  // The window is drawn with unequal units on purpose: it is not the equal-unit figure.
+  delete next.equalUnits;
+  return next;
+};
+
 // Where two lines meet outside the author's x-range.
 const croppedMeetingPoints = (functions, [xMin, xMax]) => {
   const lines = functions
@@ -450,13 +490,29 @@ const croppedMeetingPoints = (functions, [xMin, xMax]) => {
  * mathematics. AI authors should describe the model; the renderer owns the
  * final student-friendly viewport. `lockViewport: true` is the explicit opt-out
  * for rare lessons where cropping itself is instructional.
+ *
+ * `axisScale: true` in the options turns on an authored scale per axis
+ * (resolveAxisScale). It is for the hosts that draw the static plot's own
+ * proportions — GraphDisplay, the printed worksheet and the Pre-Flight audit
+ * that mirrors them. Any other host keeps the ordinary fit, because it draws
+ * the window on a plane of its own shape, where the squares would not be square.
  */
-export const fitStaticGraphViewport = (graph = {}, { sampleCount = 160, paddingRatio = 0.08, plotAspect = STATIC_GRAPH_PLOT_ASPECT, equalUnits = true } = {}) => {
+export const fitStaticGraphViewport = (graph = {}, { sampleCount = 160, paddingRatio = 0.08, plotAspect = STATIC_GRAPH_PLOT_ASPECT, equalUnits = true, axisScale = false } = {}) => {
   if (!graph || typeof graph !== 'object' || Array.isArray(graph)) return graph;
   if (graph.lockViewport === true || graph.autoFit === false) return graph;
 
   const functions = staticViewportFunctions(graph);
   const landmarks = staticGraphViewportLandmarks(graph, functions);
+  // Squares that are square but count differently on each axis: one unit of x
+  // is `y / x` as long as one unit of y, so the window is `x / y` times as wide
+  // (in units) for its height as the plot is. The same rules as equal units
+  // decide when the figure must keep the ordinary fit instead (a crop that
+  // hides an answer must stay hidden).
+  const authoredScale = axisScale === true ? resolveAxisScale(graph) : null;
+  if (authoredScale) {
+    const framed = fitEqualUnitViewport(graph, landmarks, plotAspect * (authoredScale.x / authoredScale.y), functions);
+    if (framed) return scaledViewport(framed, authoredScale);
+  }
   // `equalUnits: false` in the options: a host that draws the window on a plane
   // of its own proportions (an interactive stage) keeps the old fit.
   if (equalUnits !== false && staticGraphUsesEqualUnits(graph)) {
@@ -577,11 +633,45 @@ export const fitStaticGraphViewport = (graph = {}, { sampleCount = 160, paddingR
   return { ...graph, xMin, xMax, yMin: nextMin, yMax: nextMax };
 };
 
+/**
+ * THE TWO WAYS A MISLEADING-SCALE FIGURE IS DRAWN, AND WHETHER THE STUDENT MAY
+ * SWITCH (student pass 3, R-9).
+ *
+ * `scaled` is the figure the author wrote: each axis counting by its own
+ * authored scale. `fixed` is the same figure on one scale for both axes, which
+ * is the true picture, or null when there is nothing to fix:
+ *   - no authored scale, or it could not be applied (a locked window, or a crop
+ *     the scaled window would undo);
+ *   - the scale is the same on both axes;
+ *   - the author turned the button off (`fixScaleToggle: false`), because the
+ *     student is meant to find the distortion unaided;
+ *   - the equal-unit window cannot be drawn without showing what the crop hides.
+ * Only a view that can really be shown is offered, so the button never does nothing.
+ */
+export const staticGraphScaleViews = (graph = {}, options = {}) => {
+  const scaled = fitStaticGraphViewport(graph, { ...options, axisScale: true });
+  const scale = scaled?.axisScaleApplied === true ? resolveAxisScale(scaled) : null;
+  if (!scale || scale.x === scale.y || graph.fixScaleToggle === false) return { scaled, fixed: null };
+  // The equal-unit framer itself, not fitStaticGraphViewport: when the framer
+  // refuses, the ordinary fit hands back the graph it was given, flag and all,
+  // and a figure that was not fixed would look as if it had been.
+  const functions = staticViewportFunctions(graph);
+  const fixed = fitEqualUnitViewport(
+    { ...graph, axisScale: undefined },
+    staticGraphViewportLandmarks(graph, functions),
+    options.plotAspect ?? STATIC_GRAPH_PLOT_ASPECT,
+    functions,
+  );
+  return { scaled, fixed };
+};
+
 export const auditStaticGraphViewport = (graph = {}, { label = 'graph', strictBoundaryVisibility = false } = {}) => {
-  graph = fitStaticGraphViewport(graph);
+  const authored = graph;
+  graph = fitStaticGraphViewport(graph, { axisScale: true });
   // A locked window is the author's frame, held to every rule even when the
-  // author also asked for equal units (re-review R2).
-  const equalUnitLines = graph?.equalUnits === true && graph?.lockViewport !== true
+  // author also asked for equal units (re-review R2). A window framed by an
+  // authored scale per axis crops a steep line the same way, and on purpose.
+  const equalUnitLines = (graph?.equalUnits === true || graph?.axisScaleApplied === true) && graph?.lockViewport !== true
     && staticViewportFunctions(graph).every((spec) => (spec?.type || spec?.kind || 'line') === 'line');
   const slopes = staticViewportFunctions(graph)
     .filter((spec) => (spec?.type || spec?.kind || 'line') === 'line')
@@ -597,6 +687,23 @@ export const auditStaticGraphViewport = (graph = {}, { label = 'graph', strictBo
   if (![xMin, xMax, yMin, yMax].every(Number.isFinite) || xMin >= xMax || yMin >= yMax) {
     errors.push(`${label} has invalid graph bounds; require finite xMin < xMax and yMin < yMax`);
     return { errors, warnings };
+  }
+
+  // A scale per axis (R-9) that the figure cannot show is dropped, never half
+  // applied. Say so, so the author is not left wondering why the sketch looks true.
+  if (authored?.axisScale !== undefined && authored?.axisScale !== null) {
+    const scale = resolveAxisScale(authored);
+    if (!scale) {
+      warnings.push(`${label}.axisScale needs a positive number for both x and y (for example { "x": 2, "y": 1 }); it was ignored`);
+    } else if (authored.lockViewport === true || authored.autoFit === false) {
+      warnings.push(`${label}.axisScale is not used while the viewport is locked; the window is drawn exactly as written`);
+    } else if (graph.axisScaleApplied !== true) {
+      warnings.push(`${label}.axisScale was not applied: the window it needs would show where two lines meet outside xMin to xMax, or leave a line off the plot. Widen the window or remove the crop`);
+    } else if (graph.xStep !== scale.x || graph.yStep !== scale.y) {
+      // The scale is the lesson ("the x-axis counts by 2s"): a prompt that says
+      // so must not be contradicted by the labels.
+      warnings.push(`${label}.axisScale counts by ${scale.x} and ${scale.y}, but the window holds more squares than an axis can label, so the axes are labelled by ${graph.xStep} and ${graph.yStep}. Narrow the window to label every square`);
+    }
   }
 
   const functions = staticViewportFunctions(graph);

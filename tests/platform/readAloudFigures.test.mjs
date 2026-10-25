@@ -206,7 +206,11 @@ test('on a real exit ticket, Read aloud says the graph without a position while 
 
 test('each figure publishes the text it describes itself with, and QuestionEngine reads it', () => {
   const graph = code('src/GraphDisplay.jsx');
-  assert.match(graph, /<PublishFigureReading entry=\{\{ kind: 'figure', label: title, text: \[spokenDescription, graph\.caption \? String\(graph\.caption\) : ''\]\.join\(' '\) \}\} \/>\s*<p id=\{descriptionId\} data-graph-description="" aria-hidden="true"[^>]*>\{spokenDescription\}<\/p>/);
+  // The reading is the figure's own description, then the captions it shows: its
+  // authored caption and, on a figure the student can "Fix the scale" of, the line
+  // that says what each axis counts by (R-9). The hidden description beside it stays
+  // the description alone: the visible captions are read in place, not twice.
+  assert.match(graph, /<PublishFigureReading entry=\{\{ kind: 'figure', label: title, text: \[spokenDescription, graph\.caption \? String\(graph\.caption\) : '', scaleCaption\]\.join\(' '\) \}\} \/>\s*<p id=\{descriptionId\} data-graph-description="" aria-hidden="true"[^>]*>\{spokenDescription\}<\/p>/);
   const plane = code('src/tools/shared/CoordinatePlane.jsx');
   assert.match(plane, /<PublishFigureReading entry=\{\{ kind: 'figure', label: ariaLabel, text: spokenDescription \}\} \/>\s*<p id=\{descriptionId\} className="mm-sr-only"[^>]*>\{spokenDescription\}<\/p>/);
   const visual = code('src/QuestionVisual.jsx');

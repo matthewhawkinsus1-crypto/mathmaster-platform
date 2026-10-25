@@ -1,6 +1,6 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import QuestionPrompt from './QuestionPrompt';
-import { evaluateStaticGraphFunction, fitStaticGraphViewport, graphAsymptoteLines, resolvePointFill, resolvePointRadius, STATIC_GRAPH_ASYMPTOTE_STYLE } from './graphSpecUtils';
+import { evaluateStaticGraphFunction, graphAsymptoteLines, resolvePointFill, resolvePointRadius, STATIC_GRAPH_ASYMPTOTE_STYLE, staticGraphScaleViews } from './graphSpecUtils';
 import { readGraphPointCoordinates } from './graphPointUtils.js';
 import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 import MathDisplay from './MathDisplay.jsx';
@@ -266,10 +266,18 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
   const axesShown = graph?.axisDisplay?.showXTickLabels !== false && graph?.axisDisplay?.showYTickLabels !== false;
   useReportGraphReadOut(Boolean(graph) && readOut && axesShown);
   const plotClipId = `mm-graph-plot-${useId().replace(/[^A-Za-z0-9_-]/g, '')}`;
+  // "Fix the scale" (R-9): which of a misleading-scale figure's two drawings is showing.
+  const [scaleFixed, setScaleFixed] = useState(false);
   if (!graph) return null;
 
   // STATIC_GRAPH_PLOT_ASPECT is this plot area's (620 x 430 less padding).
-  const displayGraph = fitStaticGraphViewport(graph);
+  // An author's scale per axis can be fixed by the student (R-9): the figure as
+  // written, or the same figure with one scale for both axes.
+  const { scaled: scaledGraph, fixed: fixedGraph } = staticGraphScaleViews(graph);
+  const displayGraph = fixedGraph && scaleFixed ? fixedGraph : scaledGraph;
+  // A window framed by the plot's own squares crops a steep line on purpose, so
+  // it is drawn inside the plot area, the same as an equal-unit window.
+  const clipToPlot = displayGraph.equalUnits === true || displayGraph.axisScaleApplied === true;
   let xMin = clampRange(displayGraph.xMin, -10);
   let xMax = clampRange(displayGraph.xMax, 10);
   let yMin = clampRange(displayGraph.yMin, -10);
@@ -314,7 +322,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
     ? authoredEndpointRequirements
     : [
         ...restrictedFunctionEndpoints(functions),
-        ...continuationFunctionEndpoints(functions, xMin, xMax, yMin, yMax, { throughEdges: displayGraph.equalUnits === true }),
+        ...continuationFunctionEndpoints(functions, xMin, xMax, yMin, yMax, { throughEdges: clipToPlot }),
       ];
   const axisDisplay = displayGraph.axisDisplay && typeof displayGraph.axisDisplay === 'object' ? displayGraph.axisDisplay : {};
   const showXTickLabels = axisDisplay.showXTickLabels !== false;
@@ -351,6 +359,15 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
   const spokenDescription = authoredDescription
     ? [authoredDescription, readOut ? reading('features') : ''].filter(Boolean).join(' ')
     : reading(questionClosed || readOut ? 'features' : 'kinds');
+
+  // What the axes count by, said where the student reads it and where a screen
+  // reader does (R-9). Only a figure the student can fix has it: for any other
+  // figure the ticks are the whole story.
+  const scaleCaption = fixedGraph
+    ? (scaleFixed
+      ? 'Both axes now use the same scale.'
+      : `The x-axis counts by ${scaledGraph.xStep}s and the y-axis counts by ${scaledGraph.yStep}s.`)
+    : '';
 
   const FigureContainer = enlargeable ? EnlargeableFigure : 'div';
   return (
@@ -561,7 +578,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
 
         {/* An equal-unit window crops steep lines (R-1): drawn inside the
             plot area only, never over the axis labels around it. */}
-        {displayGraph.equalUnits === true ? (
+        {clipToPlot ? (
           <clipPath id={plotClipId}>
             <rect x={PADDING} y={PADDING} width={innerWidth} height={innerHeight} />
           </clipPath>
@@ -569,7 +586,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
         {functions.map((spec, functionIndex) =>
           buildFunctionPaths(spec, xMin, xMax, yMin, yMax, toScreenX, toScreenY).map((path, pathIndex) => (
             <path
-              clipPath={displayGraph.equalUnits === true ? `url(#${plotClipId})` : undefined}
+              clipPath={clipToPlot ? `url(#${plotClipId})` : undefined}
               key={`function-${functionIndex}-${pathIndex}`}
               d={toPathData(path)}
               fill="none"
@@ -681,8 +698,21 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
           not heard twice); inline styles so a host with no UI kit CSS never
           shows it. */}
       {/* Read aloud says the same description, and the caption the screen shows (figureReadings.js). */}
-      <PublishFigureReading entry={{ kind: 'figure', label: title, text: [spokenDescription, graph.caption ? String(graph.caption) : ''].join(' ') }} />
+      <PublishFigureReading entry={{ kind: 'figure', label: title, text: [spokenDescription, graph.caption ? String(graph.caption) : '', scaleCaption].join(' ') }} />
       <p id={descriptionId} data-graph-description="" aria-hidden="true" style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 }}>{spokenDescription}</p>
+      {fixedGraph ? (
+        <div data-scale-control="" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '8px 6px 2px' }}>
+          {/* The live region: the button's own name changes with the state, so this line is what says the figure changed. */}
+          <span role="status" data-scale-caption="" style={{ color: 'var(--mm-graph-axis)', fontSize: 'calc(14 * var(--mm-px))' }}>{scaleCaption}</span>
+          <button
+            type="button"
+            onClick={() => setScaleFixed((fixed) => !fixed)}
+            style={{ minHeight: 44, padding: '9px 14px', borderRadius: 999, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: 'pointer' }}
+          >
+            {scaleFixed ? 'Put the scale back' : 'Fix the scale'}
+          </button>
+        </div>
+      ) : null}
       {graph.caption && (
         <figcaption style={{ color: 'var(--mm-graph-axis)', fontSize: 'calc(14 * var(--mm-px))', padding: '8px 6px 2px' }}>
           <QuestionPrompt variant="plain" style={{ color: 'var(--mm-graph-axis)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.45, margin: 0 }}>

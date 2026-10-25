@@ -49,6 +49,7 @@ Static graphs now auto-fit at platform/render time:
 - points/segments are included in the fit;
 - `lockViewport: true` / `autoFit: false` is the explicit strict-mode escape hatch when the viewing window is itself instructional;
 - figures where angle or shape is the mathematics (two or more lines and nothing else, or drawn segments, with one unit on both axes) are framed with **equal units** (student pass 3, R-1); `equalUnits: true` asks for it on any figure, and a figure that is deliberately distorted (a stretched scale the lesson discusses) needs `equalUnits: false`;
+- a sketch whose axes count differently (the lesson "Things Aren't Always What They Seem": x counts by 2s, y by 1s) is written `axisScale: { x: 2, y: 1 }`, the units one square counts across and up (student pass 3, R-9). The squares stay square, and the student gets a **Fix the scale** button that redraws the figure on one scale for both axes; `fixScaleToggle: false` leaves the button off. Keep the window to about eleven squares at that scale (for 2s and 1s, `xMin: -6, xMax: 10, yMin: -1, yMax: 5`), or Pre-Flight warns that the labels were thinned. A locked window ignores it. Static figures and the printed worksheet use it; interactive planes do not;
 - validation and actual rendering use the same viewport logic.
 
 Do **not** regress to telling the AI to add `allowClipping: true` merely to satisfy Preflight.
