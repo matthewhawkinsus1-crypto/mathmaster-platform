@@ -9,6 +9,7 @@ import {
 } from '../../src/platform/supportEvidence/supportEvidenceReport.js';
 import { buildSupportProjection } from '../../functions/shared/supportProfileModel.mjs';
 import { epochMinuteOf } from '../../functions/shared/supportEvidenceModel.mjs';
+import { SUPPORT_DEADLINE_TIME_ZONE } from '../../functions/shared/supportDeadline.mjs';
 
 const settings = { periods: [{ id: 'mp1', label: '1st Marking Period', order: 1 }, { id: 'mp2', label: '2nd Marking Period', order: 2 }], currentPeriodId: 'mp2' };
 const lesson = (id, overrides = {}) => ({
@@ -26,7 +27,9 @@ const lesson = (id, overrides = {}) => ({
 });
 const assignments = [
   lesson('a1'),
-  lesson('a2', { dueAt: '2026-10-08' }),
+  // Tuesday: one school day of extra time (R2) ends Wednesday the 7th, so a2
+  // is missing by NOW (Monday the 12th) under the district calendar too (TT17).
+  lesson('a2', { dueAt: '2026-10-06' }),
   { ...lesson('a3'), title: 'Lesson a1', assignedClassIds: [] }, // library copy, same title as a1
   lesson('a4', { assignedClassIds: ['class-b'], dueAt: '2026-09-25' }), // the student's work from a previous class
   lesson('a5', { dueAt: '2026-09-01', gradingPeriod: { id: 'mp1', label: '1st Marking Period', order: 1 } }),
@@ -112,6 +115,20 @@ test('the summary keeps Standard and Modified apart and counts every status', ()
   assert.deepEqual(summary.performance.modified, { average: 67, count: 1 });
   assert.deepEqual(summary.performance.standard, { average: 100, count: 1 });
   assert.match(summary.performance.note, /never averaged together/);
+});
+
+test('an extra-time deadline skips the district\'s closed days, so work is not called missing early (TT17)', () => {
+  // Due Thursday 8 October; one school day of extra time skips Friday's staff
+  // day and fall break (12–16 October), so the student's own deadline is
+  // Monday 19 October and on 12 October nothing is missing yet. The weekday
+  // rule gave Friday 9 October and counted it missing.
+  const fallBreak = assignments.map((entry) => (entry.id === 'a2' ? { ...entry, dueAt: '2026-10-08' } : entry));
+  const built = report({ assignments: fallBreak });
+  const row = built.assignments.find((entry) => entry.assignmentId === 'a2');
+  // The day in the district's time zone (the deadline is that day's end there).
+  const day = new Intl.DateTimeFormat('en-CA', { timeZone: SUPPORT_DEADLINE_TIME_ZONE }).format(row.individualizedDue.dueAtMs);
+  assert.equal(day, '2026-10-19');
+  assert.equal(built.summary.missing, 0);
 });
 
 test('support counts separate configured, available, used and staff-documented — a withdrawn click counts nowhere', () => {
