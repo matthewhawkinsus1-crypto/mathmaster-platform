@@ -25,6 +25,7 @@ import {
 import { FRACTION_ENTRY_PROPS } from '../../platform/interaction/numberEntry.js';
 import { SubmitText } from '../shared/ToolRuntimeContext';
 import { fullBridgeMissMessage } from './fullBridgeFeedback.js';
+import { TABLE_BOX_MIN_WIDTH, TABLE_CELL_SIDE, sequenceTableColumn, sequenceTableWidth } from './sequenceTableLayout.js';
 
 /*
  * Every Check is marked by the shared grader
@@ -258,10 +259,12 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
         primaryActions: [{ id: 'check-sequence', label: 'Check complete model', onAction: check }],
       }}
     >
-    <ToolGrid min={360}>
+    {/* The table beside the analysis only where its column is wide enough for
+        every box (TL40: six boxes were 573px in a 474px column at 1366). */}
+    <ToolGrid min={sequenceTableColumn(count)}>
       <Panel title="1. Build the table and discrete graph">
         <div style={{ overflowX: 'auto', marginBottom: 12 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 360 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: sequenceTableWidth(count) }}>
             <thead>
               <tr>
                 <th style={{ padding: 7, textAlign: 'left' }}>Domain input n</th>
@@ -272,7 +275,7 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
               <tr>
                 <th style={{ padding: 7, textAlign: 'left' }}>Output aₙ</th>
                 {rows.map((row, index) => (
-                  <td key={row.n} style={{ padding: 5 }}>
+                  <td key={row.n} style={{ padding: `5px ${TABLE_CELL_SIDE}px` }}>
                     <input
                       aria-label={`Sequence output a${row.n}`}
                       value={tableValues[index] ?? ''}
@@ -283,7 +286,7 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
                         valueIndex === index ? event.target.value : (current?.[valueIndex] ?? '')
                       )))}
                       {...FRACTION_ENTRY_PROPS}
-                      style={{ ...inputStyle, minWidth: 72, textAlign: 'center' }}
+                      style={{ ...inputStyle, minWidth: TABLE_BOX_MIN_WIDTH, padding: '9px 3px', textAlign: 'center' }}
                       disabled={!requireTable}
                     />
                   </td>
