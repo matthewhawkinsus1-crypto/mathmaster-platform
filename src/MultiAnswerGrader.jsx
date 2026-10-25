@@ -14,7 +14,7 @@ import { gradeMultiAnswerResponse } from '../functions/shared/ordinaryResponseGr
 import '../functions/shared/formSpecificFieldGrading.mjs';
 import { labelHasDelimitedMath, resolveLabelFormat } from './labelFormat';
 import { inferRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
-import { describeAnswerFormat } from './platform/interaction/answerFormatHints.js';
+import { describeAnswerFormat, describeBoxPlaceholder } from './platform/interaction/answerFormatHints.js';
 import { keypadProfileForResponseField } from './platform/interaction/interactionContract.js';
 import { formatProblemForResponse } from './platform/interaction/answerShapeGuard.js';
 import useUndoHistory from './useUndoHistory';
@@ -240,6 +240,11 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
           // so is the whole fix: an x-intercept box and a zero box look
           // identical and reject each other's answers.
           const answerShape = describeAnswerFormat(field);
+          // The box keeps the example alone and the words sit above it, where
+          // they wrap ("for exampl…" was all a 127px box could show).
+          const box = describeBoxPlaceholder(field, {
+            inferredExample: shouldUseSetInput(field) ? '{1, 2, 3}' : shouldUseInequalityInput(field) ? '0 ≤ x ≤ 4' : '',
+          });
           return (
             <div key={field.id} style={{ padding: '16px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : 'var(--mm-border)'}`, borderRadius: '10px', background: grade && !grade.isCorrect ? 'var(--mm-error-subtle)' : 'var(--mm-surface)' }}>
               <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: 'var(--mm-text)' }}>
@@ -255,9 +260,10 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                   return format ? <MathDisplay value={normalizeMathDisplayValue(text)} format={format} inline /> : normalizePlainMathTypography(text);
                 })()}
               </label>
-              {answerShape.hint && !choiceOptions && (
+              {(answerShape.hint || box.example) && !choiceOptions && (
                 <p style={{ margin: '-4px 0 10px', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.4, color: 'var(--mm-text-muted)', fontWeight: 600 }}>
                   {answerShape.hint}
+                  {box.example ? <>{answerShape.hint ? ' ' : ''}For example <strong style={{ color: 'var(--mm-text)' }}>{box.example}</strong>.</> : null}
                 </p>
               )}
               {formatProblems[field.id] ? (
@@ -280,7 +286,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                   type="text"
                   value={answers[field.id] || ''}
                   onChange={(event) => history.setValue((current) => ({ ...current, [field.id]: event.target.value }))}
-                  placeholder={answerShape.placeholder}
+                  placeholder={box.placeholder}
                   aria-label={accessibleFieldLabel(field)}
                   {...gradedEntryInputProps(grade, markId)}
                   autoComplete="off"
@@ -302,13 +308,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                 <MathInput
                   value={answers[field.id] || ''}
                   onChange={(value) => history.setValue((current) => ({ ...current, [field.id]: value }))}
-                  placeholder={answerShape.example || field.placeholder
-                    ? answerShape.placeholder
-                    : shouldUseSetInput(field)
-                      ? 'for example {1, 2, 3}'
-                      : shouldUseInequalityInput(field)
-                        ? 'for example 0 ≤ x ≤ 4'
-                        : 'Type your answer'}
+                  placeholder={box.placeholder}
                   ariaLabel={accessibleFieldLabel(field)}
                   toolProfile={field.toolProfile || (shouldUseSetInput(field) ? 'set' : shouldUseInequalityInput(field) ? 'inequality' : keypadProfileForResponseField(field) || 'basic')}
                   answerFormat={field.answerFormat || field.inputContract?.format || field.notation || field.inputMode || (shouldUseInequalityInput(field) ? 'inequality' : '')}

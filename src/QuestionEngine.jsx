@@ -3451,8 +3451,12 @@ function QuestionEngineBody({
           </section>
         )}
 
-        {isCorrect && showOutcomeFeedback && (
-          // The watermark only: "Correct!" is said once, by the outcome.
+        {isCorrect && showOutcomeFeedback && !isToolQuestion && (
+          // The watermark only: "Correct!" is said once, by the outcome. It is
+          // drawn over a form of answers, never over a math tool: on the
+          // Transformations Lab it covered the whole grid the student had just
+          // plotted (a 340 x 882 px wash at 390 wide, FB16), and the tool says
+          // "Correct" in its own pill beside the grid.
           <div aria-hidden="true" data-correct-watermark="" style={{ position: 'absolute', inset: 0, zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', background: 'rgba(230,244,234,0.10)' }}>
             <div style={{ transform: 'rotate(-8deg)', textAlign: 'center', color: 'rgba(24,128,56,0.16)', textShadow: '0 2px 18px rgba(24,128,56,0.12)' }}>
               <div style={{ fontSize: 'clamp(calc(120 * var(--mm-px)), calc(24vw * var(--mm-text-scale, 1)), calc(250 * var(--mm-px)))', fontWeight: 900, lineHeight: 0.72 }}>✓</div>

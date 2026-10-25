@@ -112,7 +112,8 @@ test('the plane draws the origin\'s 0 where that placement says, and nowhere els
   // The label is drawn from it, so no second, fixed copy is left behind.
   const zeros = plane.match(/>0<\/text>/g) || [];
   assert.equal(zeros.length, 1, 'one origin label');
-  assert.match(region(plane, '{originVisible && originSpot ?', '>0</text>', 'the origin label'), /x=\{originSpot\.x\} y=\{originSpot\.y\} textAnchor=\{originSpot\.anchor\}/);
+  // (It also yields to a point's name drawn over it: planePointLabels.test.mjs.)
+  assert.match(region(plane, '{originVisible && originSpot && !originUnderLabel ?', '>0</text>', 'the origin label'), /x=\{originSpot\.x\} y=\{originSpot\.y\} textAnchor=\{originSpot\.anchor\}/);
 });
 
 test('a point past the last replaces the nearest one instead of restarting the line', () => {

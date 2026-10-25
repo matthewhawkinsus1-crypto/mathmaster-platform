@@ -12,6 +12,7 @@ import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleC
 import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 import { describePlot } from './plotAnnouncement.js';
 import { baselineBelowAxis, originLabelPlacement, planeDotGrowth, planeFontSize } from './planeTextScale.js';
+import { axisNumberBox, boxesTouch, placePointLabels, placedLabelBox } from './planePointLabels.js';
 import { equalUnitPlaneHeight } from './planeEqualUnits.js';
 import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
 import { PublishFigureReading } from '../../platform/language/figureReadings.js';
@@ -669,6 +670,31 @@ export default function CoordinatePlane({
       firstRight: firstXRight === null ? null : { x: sx(firstXRight), text: tidy(firstXRight) },
     })
     : null;
+  // Where each point's name is drawn. It keeps its old place (up and to the
+  // right) unless that would cover another dot, another name, or a number on
+  // an axis (planePointLabels.js: S1 under S2's dot, S2 on the 0).
+  const labelSpots = placePointLabels({
+    // Every dot keeps names off it; only a dot with a label gets a place.
+    dots: points.map((point, index) => {
+      if (!point || point.marker === 'arrow' || point.marker === 'open' || point.marker === 'closed') return null;
+      let [pointX, pointY] = pointXY(point);
+      if (dragIndex === index && pointerPreview) [pointX, pointY] = pointerPreview;
+      else if (keyboardHeldIndex === index && keyboardCursor) [pointX, pointY] = keyboardCursor;
+      if (!Number.isFinite(pointX) || !Number.isFinite(pointY)) return null;
+      return { x: sx(pointX), y: sy(pointY), radius: dotRadius(resolvePointRadius(point, 6)), label: point.label || '' };
+    }),
+    fontSize: svgFont(11),
+    bounds: { left: 0, right: width, top: 0, bottom: height },
+    avoid: [
+      ...xTicks.filter((x) => x !== 0).map((x) => axisNumberBox({ x: sx(x), y: axisY + baselineBelowAxis(svgFont(11), 17, 6), characters: String(tidy(x)).length, fontSize: svgFont(11) })),
+      ...yTicks.filter((y) => y !== 0).map((y) => axisNumberBox({ x: axisX - 9, y: sy(y) + 4, anchor: 'end', characters: String(tidy(y)).length, fontSize: svgFont(11) })),
+      ...(originVisible && originSpot ? [axisNumberBox({ x: originSpot.x, y: originSpot.y, anchor: originSpot.anchor, characters: 1, fontSize: svgFont(10) })] : []),
+    ],
+  });
+  // A "0" under a point's name is worse than none: the axes and the dot say
+  // where zero is (the same rule the origin follows for the numbers beside it).
+  const originBox = originVisible && originSpot ? axisNumberBox({ x: originSpot.x, y: originSpot.y, anchor: originSpot.anchor, characters: 1, fontSize: svgFont(10) }) : null;
+  const originUnderLabel = Boolean(originBox) && labelSpots.some((spot, index) => spot && boxesTouch(placedLabelBox({ spot, label: points[index].label, fontSize: svgFont(11) }), originBox));
   const showDataTable = !interactive && dataTable !== false && insideControl === false
     && descriptionDetail === 'features' && !readOut && revealCoordinates !== false && pointHoverEnabled !== false
     && generatedDescription.tables.length > 0;
@@ -816,7 +842,7 @@ export default function CoordinatePlane({
         {/* Ends left of the y axis and sits below the x axis at any text size (TOOL-11). */}
         {/* Where it goes depends on the numbers beside it: on a phone the "-1"
             under the axis was drawn through it (PH02, planeTextScale.js). */}
-        {originVisible && originSpot ? <text x={originSpot.x} y={originSpot.y} textAnchor={originSpot.anchor} fontSize={svgFont(10)} style={{ fill: 'var(--mm-graph-axis)' }}>0</text> : null}
+        {originVisible && originSpot && !originUnderLabel ? <text x={originSpot.x} y={originSpot.y} textAnchor={originSpot.anchor} fontSize={svgFont(10)} style={{ fill: 'var(--mm-graph-axis)' }}>0</text> : null}
 
         {xTicks.filter((x) => x !== 0).map((x) => (
           <g key={`tx${x}`}>
@@ -960,7 +986,7 @@ export default function CoordinatePlane({
                   plane's own background so a grid or plotted line under them
                   cannot hide them: a fixed #24324a was 1.35:1 on the dark
                   plane (A11Y-4). */}
-              {point?.label ? <text data-point-label="" x={sx(pointX) + 10} y={sy(pointY) - 9} fontSize={svgFont(11)} fontWeight="700" style={POINT_LABEL_STYLE}>{point.label}</text> : null}
+              {point?.label ? <text data-point-label="" x={labelSpots[index]?.x ?? sx(pointX) + 10} y={labelSpots[index]?.y ?? sy(pointY) - 9} textAnchor={labelSpots[index]?.anchor || 'start'} fontSize={svgFont(11)} fontWeight="700" style={POINT_LABEL_STYLE}>{point.label}</text> : null}
               {hovered && revealCoordinates ? <text x={sx(pointX) + 10} y={sy(pointY) + 16} fontSize={svgFont(11)} style={POINT_LABEL_STYLE}>{formatCoordinate(point)}</text> : null}
             </g>
           );
