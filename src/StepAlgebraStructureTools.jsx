@@ -445,7 +445,7 @@ function SplitSide({ tool, equation, side, update, notify, disabled }) {
                     }}
                     disabled={disabled}
                     aria-pressed={tool.armed}
-                    aria-label={`Pick up the denominator ${active.denominatorText}`}
+                    aria-label={`Pick up the denominator ${spokenMathValue(active.denominatorText)}`}
                   >
                     <MathDisplay value={active.denominatorLatex} format="latex" inline />
                   </button>

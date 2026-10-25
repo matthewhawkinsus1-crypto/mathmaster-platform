@@ -56,25 +56,31 @@ test('tidying only removes grouping a reader never sees', () => {
   assert.equal(spokenMathValue('2(3)'), '2 times the quantity 3');
 });
 
-// Every file whose controls name a math value.
+// Every component under src/. The scan began as six folders and files of the
+// algebra tools (A11Y-3); a new component anywhere now has its control names
+// read too, and a file that is known to break the rule is listed below with its
+// reason instead of being left out of the scan (CI01, VH-23).
 const ROOT = new URL('../../', import.meta.url).pathname;
-const filesIn = (dir) => readdirSync(join(ROOT, dir)).filter((name) => name.endsWith('.jsx')).map((name) => join(dir, name));
-const SCOPED_FILES = [
-  ...filesIn('src/tools/systemsWorkspace'),
-  ...filesIn('src/tools/matrixLab'),
-  ...filesIn('src/tools/stepAlgebra2'),
-  'src/StepByStepAlgebraCore.jsx',
-  // Its cancel-factor buttons read raw LaTeX (pass 3, FIGURE_DESCRIPTIONS "Not done").
-  'src/StepAlgebraStructureTools.jsx',
-  'src/MultiRelationAlgebraCore.jsx',
-];
+const jsxUnder = (dir) => readdirSync(join(ROOT, dir), { withFileTypes: true }).flatMap((entry) => {
+  const path = join(dir, entry.name);
+  if (entry.isDirectory()) return jsxUnder(path);
+  return entry.name.endsWith('.jsx') ? [path] : [];
+});
+const SCANNED_FILES = jsxUnder('src').sort();
 
 // Interpolations that are math values: expressions, terms, solved values,
-// equations, matrix operation labels. Names (Equation 1, x, R₁) are words.
-const MATH_VALUE = /expression|Expression|\boperand|\btext\b|\.text\b|factorText|placedValues|exactNumberText|\bdisplay\(|\bvalue\b|formatStandardEquation|formatLinearEquation|result\.label|OPERATION_LABEL|solutionExpressions|[Ll]atex/;
-const SPOKEN = /^\s*spoken(MathValue|MathLabel|Operation)\(/;
+// equations, matrix operation labels, and any name ending in Text or containing
+// Latex (denominatorText, factorText: the scan once missed the first). Names
+// (Equation 1, x, R₁) are words.
+const MATH_VALUE = /expression|Expression|\boperand|\btext\b|\.text\b|\w+Text\b|factorText|placedValues|exactNumberText|\bdisplay\(|\bvalue\b|formatStandardEquation|formatLinearEquation|result\.label|OPERATION_LABEL|solutionExpressions|[Ll]atex/;
+// Already words: a spoken value; a helper that makes plain language
+// (termPlainText, exactPolynomialPlainText); the size of a matrix ("2 by 3");
+// a value that is spoken first and only falls back to text (equation.speech ||
+// equation.text).
+const SPOKEN = /^\s*spoken(MathValue|MathLabel|Operation)\(|PlainText\(|^\s*dimensionsText\s*$|\.speech\s*\|\|/;
 
-// Each `aria-label={…}` / `ariaLabel={…}` expression, braces balanced.
+// Each `aria-label={…}` / `ariaLabel={…}` expression, braces balanced, with the
+// tag it belongs to and the prop it is.
 const labelExpressions = (source) => {
   const found = [];
   const pattern = /(?:aria-label|ariaLabel)=\{/g;
@@ -87,7 +93,12 @@ const labelExpressions = (source) => {
       else if (source[index] === '}') depth -= 1;
       index += 1;
     }
-    found.push(source.slice(match.index + match[0].length, index - 1));
+    const tags = [...source.slice(Math.max(0, match.index - 600), match.index).matchAll(/<([A-Za-z][\w.]*)(?=[\s>/])/g)];
+    found.push({
+      expression: source.slice(match.index + match[0].length, index - 1),
+      tag: tags.length ? tags[tags.length - 1][1] : null,
+      prop: match[0].startsWith('ariaLabel') ? 'ariaLabel' : 'aria-label',
+    });
   }
   return found;
 };
@@ -110,16 +121,44 @@ const interpolations = (expression) => {
   return found;
 };
 
+// MathDisplay's own ariaLabel prop is spoken by MathDisplay (mathSpeechLabel.js:
+// "an authored label still wins, but it is spoken the same way"), so a raw value
+// there is not read raw. Every other aria-label and ariaLabel is the name.
 export const rawMathInLabels = (source) => labelExpressions(executableSource(source))
-  .flatMap(interpolations)
+  .filter(({ tag, prop }) => !(tag === 'MathDisplay' && prop === 'ariaLabel'))
+  .flatMap(({ expression }) => interpolations(expression))
   .filter((inner) => MATH_VALUE.test(inner) && !SPOKEN.test(inner));
 
-test('no control name in the algebra tools interpolates a math value without speaking it', () => {
-  const offenders = [];
-  for (const file of SCOPED_FILES) {
-    for (const inner of rawMathInLabels(readFileSync(join(ROOT, file), 'utf8'))) offenders.push(`${file}: \${${inner}}`);
-  }
+// The control names that still interpolate a math value without speaking it,
+// found by the scan and not fixed yet. Each is a real finding or a plain false
+// alarm, with the reason; none is added without one, and an entry that is no
+// longer an offender must go (the next test says so). The two in
+// RelationStructureTools are matched by their raw text in
+// tests/browser/capabilityCertification.mjs, so the fix carries a driver edit.
+// The tool files are the tools work in flight's to change.
+const KNOWN_RAW_LABELS = [
+  { file: 'src/RelationStructureTools.jsx', inner: 'distribution.factorText', why: 'a button name that capabilityCertification.mjs finds by its raw text ("Pick up the multiplier -3"): change both' },
+  { file: 'src/RelationStructureTools.jsx', inner: "term.text.replace(/^\\+\\s*/, '')", why: 'a button name that capabilityCertification.mjs finds by its raw text ("Place the multiplier on - 4"): change both' },
+  { file: 'src/tools/expressionMeaning/ExpressionMeaning.jsx', inner: 'expr.expression', why: '"Edit the meaning of …" names an expression raw (a tool file)' },
+  { file: 'src/tools/intervalNumberLine/IntervalNumberLine.jsx', inner: 'rationalLabel(pending.value)', why: 'a number such as 3/2 is read "3 slash 2" (a tool file)' },
+  { file: 'src/tools/representationBridge/process/ProcessBoardParts.jsx', inner: "pointLatex(record.point).replace(/\\\\frac\\{(-?\\d+)\\}\\{(\\d+)\\}/g, '$1/$2')", why: 'a point such as (1/2, 3) is read raw (a tool file)' },
+  { file: 'src/components/student/SectionRecoveryPanel.jsx', inner: 'value', why: 'a percentage ("mastery 80%"), not mathematics: a false alarm of the word "value"' },
+];
+const offendersIn = (file) => rawMathInLabels(readFileSync(join(ROOT, file), 'utf8')).map((inner) => ({ file, inner }));
+
+test('no control name in the student app interpolates a math value without speaking it', () => {
+  const known = (offender) => KNOWN_RAW_LABELS.some((entry) => entry.file === offender.file && entry.inner === offender.inner);
+  const offenders = SCANNED_FILES.flatMap(offendersIn).filter((offender) => !known(offender)).map(({ file, inner }) => `${file}: \${${inner}}`);
+  assert.ok(SCANNED_FILES.length > 250, `${SCANNED_FILES.length} files under src/ are read`);
   assert.deepEqual(offenders, [], 'pass math values through spokenMathValue (src/tools/shared/spokenMathValue.js)');
+});
+
+test('KNOWN_RAW_LABELS stays true: every entry is still an offender, and says why in one line', () => {
+  const found = new Set(SCANNED_FILES.flatMap(offendersIn).map(({ file, inner }) => `${file}|${inner}`));
+  for (const { file, inner, why } of KNOWN_RAW_LABELS) {
+    assert.ok(found.has(`${file}|${inner}`), `${file}: \${${inner}} is no longer an offender (fixed, or moved): delete its entry`);
+    assert.match(why, /^[^\n]{12,}$/, `${file}: give the reason in one line`);
+  }
 });
 
 test('the scan sees the shapes it guards (it can fail)', () => {
@@ -130,6 +169,20 @@ test('the scan sees the shapes it guards (it can fail)', () => {
   // Spoken values and plain names pass.
   assert.equal(rawMathInLabels('<b aria-label={`Pick up the factor ${spokenMathValue(state.factorText)}`} />').length, 0);
   assert.equal(rawMathInLabels('<b aria-label={`Isolate ${v} in ${equationName(index)}`} />').length, 0);
+});
+
+test('the scan also sees a name ending in Text, and lets through what is already words (CI01, VH-23)', () => {
+  // denominatorText (StepAlgebraStructureTools) was missed: it is neither "text" nor "expression".
+  assert.equal(rawMathInLabels('<button aria-label={`Pick up the denominator ${active.denominatorText}`} />').length, 1);
+  assert.equal(rawMathInLabels('<button aria-label={`Pick up the denominator ${spokenMathValue(active.denominatorText)}`} />').length, 0);
+  // Plain-language helpers, a matrix size, and a spoken value with a text fallback are words.
+  assert.equal(rawMathInLabels('<b aria-label={`Row ${termPlainText(row)} by ${termPlainText(column)}`} />').length, 0);
+  assert.equal(rawMathInLabels('<b aria-label={`${spokenName}, ${dimensionsText}`} />').length, 0);
+  assert.equal(rawMathInLabels('<b aria-label={`The line ${equation?.speech || equation?.text || \'\'}`} />').length, 0);
+  // MathDisplay speaks its own ariaLabel; the same raw value on a button's name is read raw.
+  assert.equal(rawMathInLabels('<MathDisplay value={latex} ariaLabel={`Given point ${point.latex}`} />').length, 0);
+  assert.equal(rawMathInLabels('<button aria-label={`Given point ${point.latex}`}><MathDisplay value={latex} /></button>').length, 1);
+  assert.equal(rawMathInLabels('<Chip ariaLabel={`Given point ${point.latex}`} />').length, 1, 'another component\'s ariaLabel is a name');
 });
 
 // AX40: Step Algebra's cancellation area was the same "Cancellation
