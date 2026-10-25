@@ -70,6 +70,10 @@ export const normalizeStructuralMathLive = (value) => expandLatexShorthand(asEdi
   .replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '')
   .replace(UNICODE_MINUS, '-')
   .replace(/\\(?:left|right|bigl|bigr|Bigl|Bigr|biggl|biggr|Biggl|Biggr)\b/g, '')
+  // GR34: the editor's \log and \ln (its logₐ key writes \log_{a}(…)) are the
+  // log and ln an answer key is written with. \log_4(y) = x + 2 was refused
+  // where log_4(y) = x + 2 passed, against the same key.
+  .replace(/\\(log|ln)(?![A-Za-z])/g, '$1')
   // These commands classify a delimiter; they do not change the delimiter's
   // mathematical endpoint semantics.  Remove only the command (and an
   // optional empty group), never its following delimiter.

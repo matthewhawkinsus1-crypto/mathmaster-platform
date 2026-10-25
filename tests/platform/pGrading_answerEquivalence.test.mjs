@@ -179,6 +179,24 @@ test('point-slope form through any point of the line (the owner, 2026-10-20)', a
   await rejects('2x-y=-3', 'y-7=2(x-2)');
 });
 
+// GR34: the editor writes log and ln as \log and \ln (its logₐ key inserts
+// \log_{a}(…)). \log_4(y) = x + 2 was refused for the key log_4(y) = x − (−2)
+// while log_4(y) = x + 2 passed. A \log or \ln now grades as the key's own
+// log and ln, and only that: a wrong base, argument or side stays wrong.
+test('GR34 — a typed \\log or \\ln grades the same as the key\'s log and ln', async () => {
+  await accepts('log_4(y)=x-(-2)', 'log_4(y)=x+2');
+  await accepts('log_4(y)=x-(-2)', '\\log_4(y)=x+2');
+  await accepts('log_4(y)=x-(-2)', '\\log_{4}\\left(y\\right)=x+2');
+  await accepts('log_2(8)=3', '\\log_{2}\\left(8\\right)=3');
+  await accepts('ln(5)=t', '\\ln\\left(5\\right)=t');
+  await accepts('ln(5)=t', 't=\\ln(5)');
+  await accepts('ln(3)/ln(2)', '\\ln(3)/\\ln(2)');
+  await rejects('log_4(y)=x-(-2)', '\\log_5(y)=x+2');
+  await rejects('log_4(y)=x-(-2)', '\\log_4(y)=x+3');
+  await rejects('ln(5)=t', '\\ln(6)=t');
+  await rejects('ln(3)/ln(2)', '\\ln(3)/\\ln(5)');
+});
+
 // GR19: the rule guessed the form — any bracket holding x against y and a
 // constant — so a same-line answer in no form passed, y − 0 did not count,
 // and the slope and point were compared to a fixed 1e-6. It now reads the
