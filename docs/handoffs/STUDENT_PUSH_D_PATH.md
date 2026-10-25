@@ -30,7 +30,14 @@ so the served ids matched nothing in the answer key.
   multiple-choice item.
 - **Not done (owner's decision):** Path evidence, mastery and weekly accuracy
   for multiple-choice items answered before the deploy are still recorded as
-  wrong. They could be re-graded from `pathSubmissions`.
+  wrong. They cannot be re-graded: no stored record says which option the
+  student picked. `pathSubmissions` holds the verdict and, since #459, the
+  answer as display text, never the choice; a closed question's issued item is
+  cleared from the session. (This note used to say they "could be re-graded
+  from `pathSubmissions`"; corrected under MP03, 2026-10-25.) The Path report,
+  `scripts/report-path-choice-id-regrade.mjs`, lists the answers whose
+  recorded "wrong" carries no information, and "What's left" below records
+  what was decided about them (MP19).
 
 ---
 
