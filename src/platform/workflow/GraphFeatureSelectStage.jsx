@@ -3,6 +3,7 @@ import CoordinatePlane from '../../tools/shared/CoordinatePlane';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure';
 import { evaluateGraphFunction } from '../../functionGraphUtils.js';
 import { fitStaticGraphViewport } from '../../graphSpecUtils.js';
+import { STUDENT_MARK_COLOR } from '../graph/studentMarkColor.js';
 import { evaluateModelAt } from './modelExpression';
 import { restrictEvaluatorToDomain, workflowEndpointMarkers, workflowHorizontalAsymptotes } from './workflowGraphVisuals.js';
 
@@ -203,7 +204,7 @@ export default function GraphFeatureSelectStage({ stage, sourceGraph, value, onC
   const clear = () => emit({ selections: [], none: false });
   const toggleNone = () => emit({ selections: [], none: !none });
 
-  const marks = none ? [] : selections.map(([x, y]) => ({ x, y, fill: '#d93025', r: 7 }));
+  const marks = none ? [] : selections.map(([x, y]) => ({ x, y, fill: STUDENT_MARK_COLOR, r: 7 }));
 
   /*
    * ENLARGE TAKES THE ANSWERING WITH IT.
@@ -229,7 +230,8 @@ export default function GraphFeatureSelectStage({ stage, sourceGraph, value, onC
         // The window and every marked coordinate are the same either way.
         equalUnits={graph.equalUnits === true}
         // The graph the student is reading is drawn in blue; what they mark is
-        // drawn in red, so a mark never reads as part of the figure. SVG paints
+        // drawn in teal (never red: red says "wrong", and a mark is not graded
+        // yet, TL38), so a mark never reads as part of the figure. SVG paints
         // later points above earlier ones, so fixed authored points go first and
         // the student's marks go last. movePoint translates the combined index
         // back to the selection index so dragging still edits the right mark.

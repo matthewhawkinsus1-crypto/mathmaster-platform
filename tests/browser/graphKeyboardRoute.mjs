@@ -192,6 +192,69 @@ for (const role of ['practice', 'dol']) {
   await page.close();
 }
 
+/* ------------------- TL38: a point the student marked is not drawn red */
+
+// Red says "wrong" everywhere else on the platform, so a point the student
+// selected on the plane — right or wrong, and before anything is graded — has
+// a colour of its own (src/platform/graph/studentMarkColor.js). Marked here by
+// the mouse or finger and by the keyboard, on a Chromebook and a phone, under
+// practice and a DOL, on the intercept and on a point that is NOT the intercept.
+{
+  const RED = '#d93025';
+  const TEAL = '#00838f';
+  const marksOn = (page) => page.evaluate(() => [...document.querySelectorAll('svg circle[r="8"][stroke="#fff"]')]
+    .filter((circle) => circle.getBoundingClientRect().width > 0)
+    .map((circle) => (circle.getAttribute('fill') || '').toLowerCase()));
+  // The crosshair starts at the middle of the plane and each arrow key moves it
+  // one snap step; it announces where it is, so walk until it says (x, y).
+  const walkCursorTo = async (page, x, y) => {
+    await plane(page).focus();
+    for (let guard = 0; guard < 80; guard += 1) {
+      const at = /\((-?[\d.]+), (-?[\d.]+)\)/.exec(await announcement(page));
+      if (!at) return false;
+      const [cx, cy] = [Number(at[1]), Number(at[2])];
+      if (cx === x && cy === y) return true;
+      await page.keyboard.press(cx < x ? 'ArrowRight' : cx > x ? 'ArrowLeft' : cy < y ? 'ArrowUp' : 'ArrowDown');
+    }
+    return false;
+  };
+  for (const [screen, viewport, touch] of [['1366x768', { width: 1366, height: 768 }, false], ['390x844', { width: 390, height: 844 }, true]]) {
+    const screenContext = await browser.newContext({ viewport, hasTouch: touch, isMobile: touch });
+    for (const role of ['practice', 'dol']) {
+      for (const route of ['pointer', 'keyboard']) {
+        for (const [what, x, y] of [['the intercept', 0, 1], ['another point', 2, 5]]) {
+          const label = `mark ${what} by ${route === 'pointer' ? (touch ? 'tap' : 'click') : 'keyboard'} (${screen}, ${role})`;
+          const page = await screenContext.newPage();
+          page.setDefaultTimeout(8000);
+          page.on('pageerror', (error) => check(false, `${label}: page error`, error.message));
+          await page.goto(`${ORIGIN}/tests/browser/graphKeyboardRoute.html?q=pick&role=${role}&run=${stamp}-${(pageCount += 1)}`, { waitUntil: 'networkidle' });
+          await page.locator('[data-graph-keyboard-fixture]').waitFor();
+          await page.waitForTimeout(700);
+          await page.getByRole('button', { name: /intercept/ }).first().click();
+          await page.waitForTimeout(150);
+          check((await marksOn(page)).length === 0, `${label}: nothing is marked yet`);
+          if (route === 'pointer') {
+            await plane(page).scrollIntoViewIfNeeded();
+            const fit = await axisFit(page);
+            const [px, py] = toScreen(fit, x, y);
+            if (touch) await page.touchscreen.tap(px, py);
+            else await page.mouse.click(px, py);
+          } else {
+            check(await walkCursorTo(page, x, y), `${label}: the arrow keys walk the crosshair to (${x}, ${y})`, `"${await announcement(page)}"`);
+            await page.keyboard.press('Enter');
+          }
+          await page.waitForTimeout(300);
+          const marks = await marksOn(page);
+          check(marks.length === 1 && marks[0] === TEAL, `${label}: one mark, in its own colour`, JSON.stringify(marks));
+          check(!marks.includes(RED), `${label}: and it is not red`);
+          await page.close();
+        }
+      }
+    }
+    await screenContext.close();
+  }
+}
+
 /* ------------------------- TOOL-1: the whole question, by keyboard alone */
 
 {

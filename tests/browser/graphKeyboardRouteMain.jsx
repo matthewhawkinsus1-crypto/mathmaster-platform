@@ -5,6 +5,8 @@
 //                      mark both ends, then give the domain and the range
 //   ?q=analysis        a graph to analyse only: a value, the domain, and the
 //                      y-intercept typed as a point
+//   ?q=pick            a graph to read, answered by marking the y-intercept on
+//                      the plane (TL38: a mark is not drawn red before grading)
 //   ?q=construct       graph y = 2x + 1 only: two points, the curve, both ends
 //                      (the keyboard-only route, pass 3 TOOL-1)
 //   ?q=inverse         y = 2x + 1 and its inverse: reflect two points across
@@ -72,6 +74,16 @@ const FIXTURES = {
       { id: 'inverse-reflect-p0', kind: 'inversePoint', label: 'Reflect the point at x = 0', sourceTaskId: 'p0', responseMode: 'click' },
       { id: 'inverse-reflect-p1', kind: 'inversePoint', label: 'Reflect the point at x = 1', sourceTaskId: 'p1', responseMode: 'click' },
       { id: 'inverse-equation', kind: 'value', label: 'The inverse equation', notation: 'equation', responseMode: 'text', expected: ['y=(x-1)/2'] },
+    ],
+  },
+  // A graph to read, answered by marking the point on the plane (TL38).
+  pick: {
+    type: 'graphAnalysis',
+    prompt: 'Mark the y-intercept of y = 2x + 1.',
+    functionSpec: { type: 'linear', m: 2, b: 1 },
+    graph: { xMin: -4, xMax: 4, yMin: -6, yMax: 8 },
+    analysisRequests: [
+      { id: 'y-intercept', kind: 'point', feature: 'yIntercept', label: 'The $y$-intercept', responseMode: 'click' },
     ],
   },
   analysis: {
