@@ -282,6 +282,34 @@
     flex: 0 0 auto;
   }
 
+  /* AN OPEN SUPPORT PANEL GETS THE ROOM IT NEEDS (PH09, finding C2-103).
+     Vocabulary, Translate and "Say it" open inside this card, which is capped at
+     a quarter of the screen (211px at 844) for the task's own text. The open
+     Vocabulary list is 320px: 23px of it showed, the rest behind a scroll in a
+     scroll. While a panel is open the card may take up to 60% of the screen,
+     so the student reads it; the work gets its room back when it is closed. */
+  .mathmaster-question-container.mode-portrait .question-prompt-panel:has(.mathmaster-support-tray [role="region"]) {
+    max-height: 60dvh;
+  }
+
+  /* A CARD THAT SCROLLS SAYS SO (PH09, finding D-63).
+     A long task, or large text, is more than the card's quarter of the screen;
+     the card scrolls, and Vocabulary and Read aloud, the last thing in it, sat
+     below the fold of a box with nothing to say it scrolls. A soft edge on the
+     side that has more: the two `local` layers are covers that scroll with the
+     content and hide the shadow once the end is reached, the two `scroll`
+     layers are the shadows, fixed to the card. A card that fits shows neither.
+     (The compaction of the rows around it, PH03, took the card from scrolling
+     on 11 of 14 matrices questions at 390x844 to 2.) */
+  .mathmaster-question-container.mode-portrait .question-prompt-panel {
+    background:
+      linear-gradient(to bottom, var(--mm-surface-sunken), transparent) top center / 100% 20px no-repeat local,
+      linear-gradient(to top, var(--mm-surface-sunken), transparent) bottom center / 100% 20px no-repeat local,
+      linear-gradient(to bottom, color-mix(in srgb, var(--mm-text-strong) 28%, transparent), transparent) top center / 100% 10px no-repeat scroll,
+      linear-gradient(to top, color-mix(in srgb, var(--mm-text-strong) 28%, transparent), transparent) bottom center / 100% 10px no-repeat scroll,
+      var(--mm-surface-sunken);
+  }
+
   .mathmaster-question-container.mode-portrait .mathmaster-question-context-panel {
     flex: 0 0 auto;
   }

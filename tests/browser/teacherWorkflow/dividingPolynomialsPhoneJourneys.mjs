@@ -1,4 +1,4 @@
-// DIVIDING POLYNOMIALS ON A PHONE, IN THE REAL APP (PH06).
+// DIVIDING POLYNOMIALS ON A PHONE, IN THE REAL APP (PH06, PH09).
 //
 //   npx vite --config tests/browser/teacherWorkflow/vite.config.mjs &
 //   TEACHER_HARNESS_ORIGIN=http://127.0.0.1:5188 node tests/browser/teacherWorkflow/dividingPolynomialsPhoneJourneys.mjs
@@ -20,6 +20,10 @@
 //   large     390×844 at 200% browser text: the five-coefficient table is wider
 //             than its box and scrolls inside it, shows a soft edge on the side
 //             that has more, and the remainder box is reached by scrolling it.
+//   supportPanel  390×844, Classwork 3 (PH09, C2-103): opening Vocabulary in the
+//             task card shows at least 90% of its 320px list (23px of it showed
+//             in a 211px card), the card takes no more than 60% of the screen,
+//             and closing it gives the card its quarter and the work its room.
 //
 // Exit code 1 on any finding. DIVIDING_PHONE_SHOTS=<dir> saves a screenshot of each.
 import { mkdirSync } from 'node:fs';
@@ -205,6 +209,54 @@ for (const phone of PHONES) {
   });
   check(reached, `${where}: scrolling the box brings the remainder box into view`);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/table-390-200pct-practice-15.png` });
+  await context.close();
+}
+
+/* ------------------------------------------------------------ supportPanel */
+// The task card is a quarter of the screen. Opening Vocabulary put a 320px list
+// in a 211px card: 23px of it showed, the rest behind a scroll in a scroll
+// (PH09, C2-103). While a support panel is open the card takes up to 60% of
+// the screen, and is back to its quarter when the panel is closed. A card that
+// scrolls shows a soft edge on the side that has more (D-63).
+{
+  const phone = PHONES[0];
+  const { context, page } = await openLesson(phone);
+  await goTo(page, 'Classwork', 3);
+  const card = () => page.evaluate(() => {
+    const panel = document.querySelector('.question-prompt-panel');
+    const rect = panel.getBoundingClientRect();
+    const region = panel.querySelector('[role="region"]');
+    const regionRect = region ? region.getBoundingClientRect() : null;
+    const visible = regionRect ? Math.max(0, Math.min(regionRect.bottom, rect.bottom) - Math.max(regionRect.top, rect.top)) : 0;
+    return {
+      height: Math.round(rect.height),
+      screen: innerHeight,
+      edges: (getComputedStyle(panel).backgroundImage.match(/linear-gradient/g) || []).length,
+      region: regionRect ? Math.round(regionRect.height) : null,
+      share: regionRect ? Math.round((visible / regionRect.height) * 100) : null,
+      work: Math.round(document.querySelector('.math-tool-workspace').getBoundingClientRect().height),
+    };
+  });
+  const closed = await card();
+  const where = `${phone.name}, Classwork 3`;
+  check(closed.height <= closed.screen * 0.25 + 1, `${where}: the task card is a quarter of the screen`, `${closed.height}px`);
+  check(closed.edges >= 4, `${where}: the task card shows a soft edge where it has more (${closed.edges} gradient layers)`);
+  const chip = page.locator('[data-support-tool="vocabulary"]').first();
+  if (check(await chip.count() === 1, `${where}: the Support tools offer Vocabulary`)) {
+    await chip.tap();
+    await page.waitForTimeout(1200);
+    const open = await card();
+    check(open.region !== null && open.region > 100, `${where}: Vocabulary opens a list`, `${open.region}px`);
+    check(open.share >= 90, `${where}: the open list is on screen, not behind a scroll in the card`, `${open.share}% of ${open.region}px, the card is ${open.height}px`);
+    check(open.height <= open.screen * 0.6 + 1, `${where}: the card takes no more than 60% of the screen`, `${open.height}px`);
+    check(open.work >= 100, `${where}: the work keeps a strip of the screen while the list is open`, `${open.work}px`);
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/vocabulary-open-390.png` });
+    await chip.tap();
+    await page.waitForTimeout(600);
+    const shut = await card();
+    check(shut.height <= shut.screen * 0.25 + 1, `${where}: closing it gives the card back its quarter`, `${shut.height}px`);
+    check(shut.work >= closed.work - 1, `${where}: and the work its room`, `${shut.work}px, was ${closed.work}px`);
+  }
   await context.close();
 }
 
