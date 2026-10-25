@@ -2206,6 +2206,14 @@ exports.loadStudentCaseEvidence = onCall(async (request) => {
   });
   response.truncated.events = eventSnapshots.some((snapshot) => snapshot.size >= Math.ceil(limits.maxEvents / chunks.length));
   response.truncated.receipts = receiptSnapshots.some((snapshot) => snapshot.size >= limits.maxReceiptsPerChunk);
+  // Per chunk, like the two above: each chunk is read with its share of the cap,
+  // so a busy chunk can be cut off while the total is under it (TT05).
+  response.truncated.misconceptionEvidence = response.truncated.misconceptionEvidence
+    || caseEvidence.anyChunkAtItsShare({
+      sizes: misconceptionSnapshots.map((snapshot) => snapshot.size),
+      cap: limits.maxMisconceptionRecords,
+      chunks: chunks.length,
+    });
   return response;
 });
 

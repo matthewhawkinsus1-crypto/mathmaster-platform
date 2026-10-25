@@ -315,3 +315,17 @@ export const chunk = (values = [], size = CASE_EVIDENCE_LIMITS.assignmentChunk) 
   for (let index = 0; index < values.length; index += size) chunks.push(values.slice(index, index + size));
   return chunks;
 };
+
+/**
+ * Did any chunk's query stop at its share of a cap?
+ *
+ * Each chunk of assignments is read with an equal share of the cap
+ * (`ceil(cap / chunks)`), so a busy chunk can be cut off while the total is
+ * still under the cap, and a test on the total alone misses it. `sizes` is how
+ * many records each chunk's query returned. A query that returned its whole
+ * share may have had more.
+ */
+export const anyChunkAtItsShare = ({ sizes = [], cap, chunks = list(sizes).length } = {}) => {
+  const share = Math.ceil(Number(cap) / Math.max(1, Number(chunks) || 1));
+  return list(sizes).some((size) => Number(size) >= share);
+};

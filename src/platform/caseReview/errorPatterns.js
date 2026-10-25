@@ -26,6 +26,10 @@ import { QUESTION_OUTCOME, isRequiredQuestion } from './attemptAnalysis.js';
 
 export const ERROR_PATTERN_NOT_DETERMINABLE = 'Error pattern not determinable from stored evidence.';
 
+// Said wherever the review lists what it does not contain (studentCaseReview.js)
+// and under a recurring-pattern fact built from those records (narrativeFacts.js).
+export const RECOVERY_RECORDS_TRUNCATED = 'More Recovery question records exist than were loaded for this review, so a count of recurring error patterns may be lower than the records hold.';
+
 export const MISCONCEPTION_RECURRENCE = Object.freeze({
   RECURRING: 'recurring',
   ISOLATED: 'isolated',
@@ -84,8 +88,12 @@ export const errorPatternForQuestion = (row) => {
  * — a fresh instance the student answered — so it counts toward recurring
  * like any other question, read through the same trust gate. It is never an
  * attempt on the original question and carries no score.
+ *
+ * `recoveryTruncated` — the server stopped reading those records at its cap
+ * (loadStudentCaseEvidence), so a count here may be short. Carried out with the
+ * result so a fact built from it can say so (TT05).
  */
-export const analyzeErrorPatterns = ({ questions = [], recoveryEvidence = [] } = {}) => {
+export const analyzeErrorPatterns = ({ questions = [], recoveryEvidence = [], recoveryTruncated = false } = {}) => {
   // Scored work only; a question the student's accommodation omitted is
   // neither scored nor unscored — it is not their work.
   const rows = list(questions).filter((row) => isRequiredQuestion(row) && !UNSCORED.has(row.outcome));
@@ -159,6 +167,7 @@ export const analyzeErrorPatterns = ({ questions = [], recoveryEvidence = [] } =
     codes,
     recurring,
     isolated,
+    recoveryTruncated: recoveryTruncated === true,
     notCorrectParts: [...byPart.values()].map(finish).sort((a, b) => b.questions - a.questions || a.label.localeCompare(b.label)),
     partNote: 'Named parts the grader marked not correct on each question\'s latest attempt. These are recorded results, not a diagnosis of why.',
     coverage: {

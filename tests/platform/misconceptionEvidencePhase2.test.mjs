@@ -60,7 +60,8 @@ import { reproduceFamilyQuestionFromPin } from '../../functions/shared/questionF
 import { learnerToken, planSeatAdditions } from '../../functions/shared/questionGenerationIdentity.mjs';
 import { getStoredAssignmentQuestions } from '../../src/platform/contract/storedAssignmentV5.js';
 import { splitGradesBySection } from '../../src/platform/teacher/gradeEvidence.js';
-import { ERROR_PATTERN_NOT_DETERMINABLE, MISCONCEPTION_RECURRENCE, analyzeErrorPatterns } from '../../src/platform/caseReview/errorPatterns.js';
+import { ERROR_PATTERN_NOT_DETERMINABLE, MISCONCEPTION_RECURRENCE, RECOVERY_RECORDS_TRUNCATED, analyzeErrorPatterns } from '../../src/platform/caseReview/errorPatterns.js';
+import { CASE_PROVENANCE } from '../../src/platform/caseReview/caseProvenance.js';
 import { TEMPLATES, buildNarrativeFacts } from '../../src/platform/caseReview/narrativeFacts.js';
 import { narrativeViolations } from '../../src/platform/caseReview/narrativeGuard.js';
 import { MISCONCEPTION_FIXTURES, classifiedCodes, gradeFixture } from './helpers/misconceptionFixtures.mjs';
@@ -875,6 +876,48 @@ test('32. the Case Review narrative fact is built only from trusted findings, an
   // An isolated code is not a narrative.
   const isolated = analyzeErrorPatterns({ questions: [row({ assignmentId: 'A1', storageIndex: 0, codes: ['domain-range-swapped'] })] });
   assert.equal(buildNarrativeFacts(narrativeModel(isolated)).filter((fact) => fact.template === 'recurringErrorPattern').length, 0);
+});
+
+test('32b. a recurring pattern is a derivation, names each store it counted, and says when the Recovery records were cut short (TT05)', () => {
+  const recurring = (analysis) => buildNarrativeFacts(narrativeModel(analysis)).filter((fact) => fact.template === 'recurringErrorPattern');
+  const paths = (fact) => fact.sources.map((source) => source.path);
+  const EVENTS = 'grades/{student}/evidenceEvents';
+  const RECOVERY = 'grades/{student}/misconceptionEvidence';
+
+  // Two assignment questions and one Recovery item: a count across three
+  // records is a derivation, never a direct record, and both stores are named.
+  const mixed = analyzeErrorPatterns({
+    questions: [row({ assignmentId: 'A1', storageIndex: 0, codes: ['domain-range-swapped'] }), row({ assignmentId: 'A2', storageIndex: 0, codes: ['domain-range-swapped'] })],
+    recoveryEvidence: [persisted(recoveryRecord('domain-range-swapped', { assignmentId: 'A2' }))],
+  });
+  const [fact] = recurring(mixed);
+  assert.equal(fact.provenance, CASE_PROVENANCE.DERIVED);
+  assert.equal(fact.provenanceLabel, 'Derived from platform records');
+  assert.deepEqual(paths(fact), [EVENTS, RECOVERY]);
+  assert.deepEqual(fact.sources.map((source) => [...source.ids].sort()), [['A1', 'A2'], ['A1', 'A2']]);
+  assert.equal(fact.limitation, '', 'nothing was cut short');
+
+  // Only the stores the count drew on are named.
+  const questionsOnly = analyzeErrorPatterns({
+    questions: [row({ assignmentId: 'A1', storageIndex: 0, codes: ['domain-range-swapped'] }), row({ assignmentId: 'A2', storageIndex: 0, codes: ['domain-range-swapped'] })],
+  });
+  assert.deepEqual(paths(recurring(questionsOnly)[0]), [EVENTS]);
+  const recoveryOnly = analyzeErrorPatterns({
+    recoveryEvidence: [persisted(recoveryRecord('domain-range-swapped', { itemId: 'r1' })), persisted(recoveryRecord('domain-range-swapped', { itemId: 'r2' }))],
+  });
+  assert.deepEqual(paths(recurring(recoveryOnly)[0]), [RECOVERY]);
+
+  // The server stopped reading the Recovery records at its cap: the count may
+  // be short, and the fact says so.
+  const cut = analyzeErrorPatterns({
+    questions: [row({ assignmentId: 'A1', storageIndex: 0, codes: ['domain-range-swapped'] }), row({ assignmentId: 'A2', storageIndex: 0, codes: ['domain-range-swapped'] })],
+    recoveryEvidence: [persisted(recoveryRecord('domain-range-swapped', { assignmentId: 'A2' }))],
+    recoveryTruncated: true,
+  });
+  assert.equal(cut.recoveryTruncated, true);
+  assert.equal(recurring(cut)[0].limitation, RECOVERY_RECORDS_TRUNCATED);
+  assert.equal(recurring(cut)[0].text, fact.text, 'the sentence itself does not change');
+  assert.equal(analyzeErrorPatterns({ questions: [] }).recoveryTruncated, false);
 });
 
 test('33. another student\'s evidence stays private: never projected into this case, and no response text leaves the server', () => {
