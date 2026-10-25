@@ -494,6 +494,34 @@
   max-height: 460px;
 }
 
+/*
+ * A PLANE THE STUDENT MARKS FITS BETWEEN THE PINNED TASK AND THE PINNED BAR
+ * (PH11, finding A2-54).
+ *
+ * App.css caps a plane at the smaller of 70% of the window and the window less
+ * 240px: a guess at what is around it. On a 1366x640 Chromebook (the usual
+ * school window) the pinned navigator, the task card, the step's heading and the
+ * action bar are 385px, not 240, so "Mark x-intercepts" opened with a 400px plane
+ * of which 252px showed and the x-axis, the thing it asks about, under the bar.
+ *
+ * Here the cap is the chrome as it is measured: the bottom edge of the pinned
+ * stack (--mm-sticky-task-top + --mm-sticky-task-height), the step's own heading
+ * and padding above the plane (72px, it scales with the text), and the action
+ * bar (--mm-action-bar-height) with a little air above it. Where nothing is
+ * measured those pieces add up to the old 240px, so only the desktop layout,
+ * which publishes them, changes. Hide task gives its room back and the plane
+ * takes it. The floor is the inequality stage's: a usable plane on a very short
+ * window, where scrolling is the better failure. Work View is not under the
+ * pinned stack and keeps its own cap.
+ */
+.mathmaster-desktop-question-content .workflow-focus__feature-plane .mathmaster-responsive-canvas {
+  max-height: max(220px, min(70dvh, calc(100dvh - var(--mm-sticky-task-top, 0px) - var(--mm-sticky-task-height, 84px) - 72 * var(--mm-px) - var(--mm-action-bar-height, 72px) - 12 * var(--mm-px))));
+}
+
+.mathmaster-desktop-question-content .mathmaster-enlarged-figure .workflow-focus__feature-plane .mathmaster-responsive-canvas {
+  max-height: 88dvh;
+}
+
 .workflow-focus__workspace-heading {
   display: flex;
   align-items: baseline;

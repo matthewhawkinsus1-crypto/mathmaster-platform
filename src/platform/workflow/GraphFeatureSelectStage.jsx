@@ -219,7 +219,9 @@ export default function GraphFeatureSelectStage({ stage, sourceGraph, value, onC
    * question that sent them there.
    */
   const body = (
-    <div>
+    // workflow-focus__feature-plane: the hook WorkflowFocusMode.css fits the
+    // plane to the room the pinned task and action bar leave (PH11).
+    <div className="workflow-focus__feature-plane">
       <CoordinatePlane
         {...viewWindow}
         // The fit chose equal units for this figure (R-1): the plane's height
