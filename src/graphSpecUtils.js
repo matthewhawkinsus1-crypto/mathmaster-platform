@@ -370,6 +370,13 @@ export const resolveAxisScale = (graph = {}) => {
 // is the marked points, each line's y-intercept and where the lines meet
 // (review S2: the old fit's tall window showed (0, 12) for y = -2x + 12, and
 // this one must too).
+//
+// WHERE LINES MEET STAYS IN FRAME (TL14, owner decision). A figure with only
+// a y-range, or no window at all, therefore shows a nearby meeting point that
+// the old fit (which kept x at -5..5) could leave off the plot. Kept on
+// purpose: a figure of two lines is drawn to be read. An author who must hide
+// the meeting point (a system to be solved algebraically) pins the x-range —
+// R1 below then keeps it out — or locks the window.
 const lineLandmarks = (functions, [xMin, xMax], [yMin, yMax]) => {
   const lines = functions
     .filter((spec) => (spec?.type || spec?.kind || 'line') === 'line')

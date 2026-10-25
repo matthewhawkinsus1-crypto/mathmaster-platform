@@ -154,16 +154,17 @@ const edgeCrossing = (spec, fromX, toX, yMin, yMax) => {
   return null;
 };
 
-const continuationFunctionEndpoints = (functions = [], xMin, xMax, yMin, yMax, { throughEdges = false } = {}) => {
+const continuationFunctionEndpoints = (functions = [], xMin, xMax, yMin, yMax) => {
   const span = Math.max(1, Number(xMax) - Number(xMin));
   const probe = Math.max(span / 60, 0.05);
 
   const visibleArrow = (spec, functionIndex, side, x, innerX) => {
     const y = evaluateFunction(spec, x);
     const innerY = evaluateFunction(spec, innerX);
-    // An equal-unit window lets a steep line leave through the top or the
-    // bottom (R-1): its arrow goes where it leaves, not nowhere.
-    if (throughEdges && Number.isFinite(y) && (y < yMin || y > yMax)) {
+    // A curve that leaves through the top or the bottom (a steep line, an
+    // exponential, any curve in a locked window) gets its arrow where it
+    // leaves, not nowhere (R-1; every static figure since TL14).
+    if (Number.isFinite(y) && (y < yMin || y > yMax)) {
       const crossing = edgeCrossing(spec, x, side === 'left' ? xMax : xMin, yMin, yMax);
       return crossing ? [{ id: `function-${functionIndex}-${side}-continuation`, marker: 'arrow', ...crossing }] : [];
     }
@@ -275,9 +276,16 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
   // written, or the same figure with one scale for both axes.
   const { scaled: scaledGraph, fixed: fixedGraph } = staticGraphScaleViews(graph);
   const displayGraph = fixedGraph && scaleFixed ? fixedGraph : scaledGraph;
-  // A window framed by the plot's own squares crops a steep line on purpose, so
-  // it is drawn inside the plot area, the same as an equal-unit window.
-  const clipToPlot = displayGraph.equalUnits === true || displayGraph.axisScaleApplied === true;
+  // EVERY CURVE STAYS IN THE FRAME (TL14, owner decision). An equal-unit window
+  // (R-1) and one framed by an authored scale (R-9) crop a steep line on
+  // purpose, so they drew it inside the plot area with an arrow where it
+  // leaves; every other figure kept the old drawing, where a line ran on past
+  // the frame, over the axis numbers and out of the card: a locked window, a
+  // curve the fit does not chase (1/x near its asymptote, log x near 0), a
+  // line steeper than the window. Now every static figure draws its curves
+  // inside the plot area and marks where each one leaves through the top or
+  // the bottom with its arrow. The window itself is unchanged: what shows,
+  // and where lines meet, is still decided by the fit (graphSpecUtils.js).
   let xMin = clampRange(displayGraph.xMin, -10);
   let xMax = clampRange(displayGraph.xMax, 10);
   let yMin = clampRange(displayGraph.yMin, -10);
@@ -322,7 +330,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
     ? authoredEndpointRequirements
     : [
         ...restrictedFunctionEndpoints(functions),
-        ...continuationFunctionEndpoints(functions, xMin, xMax, yMin, yMax, { throughEdges: clipToPlot }),
+        ...continuationFunctionEndpoints(functions, xMin, xMax, yMin, yMax),
       ];
   const axisDisplay = displayGraph.axisDisplay && typeof displayGraph.axisDisplay === 'object' ? displayGraph.axisDisplay : {};
   const showXTickLabels = axisDisplay.showXTickLabels !== false;
@@ -576,17 +584,15 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
             </text>
           ))}
 
-        {/* An equal-unit window crops steep lines (R-1): drawn inside the
-            plot area only, never over the axis labels around it. */}
-        {clipToPlot ? (
-          <clipPath id={plotClipId}>
-            <rect x={PADDING} y={PADDING} width={innerWidth} height={innerHeight} />
-          </clipPath>
-        ) : null}
+        {/* Curves are drawn inside the plot area only, never over the axis
+            labels around it (R-1; every static figure since TL14). */}
+        <clipPath id={plotClipId}>
+          <rect x={PADDING} y={PADDING} width={innerWidth} height={innerHeight} />
+        </clipPath>
         {functions.map((spec, functionIndex) =>
           buildFunctionPaths(spec, xMin, xMax, yMin, yMax, toScreenX, toScreenY).map((path, pathIndex) => (
             <path
-              clipPath={clipToPlot ? `url(#${plotClipId})` : undefined}
+              clipPath={`url(#${plotClipId})`}
               key={`function-${functionIndex}-${pathIndex}`}
               d={toPathData(path)}
               fill="none"
