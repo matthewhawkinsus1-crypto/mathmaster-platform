@@ -118,7 +118,11 @@ test('TT30: the DOL control says who still has extra time — a count and a time
   assert.match(source('src/TeacherHome.jsx'), /projectClassLessons\(\{[^}]*roster: supportRoster \}\)/);
   assert.match(source('src/ClassesWorkspace.jsx'), /projectClassLessons\(\{[^}]*roster: periodStudents \}\)/);
   assert.match(source('src/components/teacher/AssignmentHub.jsx'), /const roster = classContext \? studentsInClass\([^\n]*\n\s*const lesson = classContext \? describeClassLesson\(\{[^}]*roster \}\)/);
-  assert.match(source('src/components/teacher/ClassLessonControls.jsx'), /<details[^>]*data-dol-extra-time[^>]*>[\s\S]*?row\.extraTime\.students\.map[\s\S]*?<\/details>/);
+  const controls = source('src/components/teacher/ClassLessonControls.jsx');
+  assert.match(controls, /<details[^>]*data-lesson-extra-time[^>]*>[\s\S]*?row\.extraTime\.students\.map[\s\S]*?<\/details>/);
+  // Its own attribute: data-dol-extra-time is the Live view's timer chip,
+  // which dolExtraTimeJourneys.mjs finds by it.
+  assert.doesNotMatch(controls, /data-dol-extra-time/);
 });
 
 test('TT28: before release, a lesson that opens early by prerequisite shows its sections to the teacher, as early students have them', () => {

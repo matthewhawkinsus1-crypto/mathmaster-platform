@@ -65,7 +65,7 @@ function ControlRow({ row, lesson, classContext, classKey, handlers, busy, sched
         {row.extraTime && (
           // Names only behind the teacher's click: on a shared screen the row
           // itself says a count and a time (classLessonControls.js).
-          <details className="tw-small" data-dol-extra-time={row.extraTime.students.length}>
+          <details className="tw-small" data-lesson-extra-time={row.extraTime.students.length}>
             <summary>Who has extra time</summary>
             <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
               {row.extraTime.students.map((student) => <li key={student.studentId}>{student.name} · until {student.until}</li>)}
