@@ -689,3 +689,65 @@ for Classic, student self-practice outside a live game; a first try's
 misconception code as evidence (§11, LC12). (Per-student accommodations — the
 slope helper from a plan, extended time after the buzzer in Classic and
 Sprint — are built: §7. Mastery evidence is built and switched off: §11.)
+
+### What each needs (LC08, looked at 2026-10-25; none built)
+
+The first three are new KINDS OF ITEM in the three modes that exist; the last
+two are new surfaces. Each is more than a day's work, so none was started. The
+code to read first: `lineGraphRules.mjs` (the modes, their formats and
+capabilities), `lineGraphGenerator.mjs` (items, from the room's private seed),
+`lineGraphAttempts.mjs` (grading, tries, hints, receipts), `lineGraphConfig.mjs`
+(what a teacher chooses), `lineGraphReveal.mjs`, `LineGraphCanvas.jsx` (drawing
+and the keyboard cursor), `LineGraphRound.jsx` and `lineGraphEvidence.mjs`.
+Certification for any of them is `npm run test:line-graph-launch:emulator` with
+the new item in its plans (`tests/platform/lineGraphLaunchPlans.test.mjs` checks
+every plan on every kind of item the generator makes) and a browser run with
+screenshots.
+
+- **Inequalities (boundary and shading).**
+  - *Rules and grading:* an item whose answer is a boundary line, a style
+    (solid for ≤ ≥, dashed for < >) and a side. Partial credit and a
+    misconception code for each wrong part (right line, wrong style; right
+    line, wrong side), with hints that never say which part is wrong before a
+    try. The generator keeps the shaded region on screen and no test point on
+    the boundary.
+  - *Scoring:* the credit feeds the point rules the three formats already
+    use; Rush needs a decision on whether a half-right inequality counts as a
+    completed item.
+  - *UI:* a solid/dashed control and a tap-a-side gesture, each with a keyboard
+    equivalent and a spoken state (the cursor chooses a side); the slope helper
+    accommodation for the line part; the reveal drawing the shading.
+  - *Content and reports:* a standard alignment (linear inequalities in two
+    variables), report rows per part, the first-try evidence codes, and a line
+    in the authoring contract.
+- **Systems (two lines, tap the intersection).**
+  - *Rules and grading:* an answer of two lines and a point, partial credit per
+    part, and a generator that picks a whole-number intersection on the grid
+    and says on purpose when it asks for parallel or coincident lines.
+  - *UI:* a two-stage canvas holding the first line while the second is drawn,
+    then a tap for the point; the reveal draws both lines and the point.
+  - *Reports and certification:* per-part rows, and two lines in every plan.
+- **Real-world contexts.**
+  - *Content:* an authored bank of context prompts (a rate is a slope, a
+    starting amount an intercept, with units and a sensible window), reviewed
+    for reading level and, through the Spanish path, in both languages; the
+    generator picks one per item from the seed.
+  - *Grading* is unchanged (the line is the answer). What is new is the
+    authoring contract, the review loop and an explanation of the slope and
+    intercept in the reveal.
+- **A Warm-Up link for Classic.**
+  - `capabilities.warmupLink` is off for the line modes. It needs a grading
+    policy the owner decides (first-try accuracy is what `lineGraphEvidence.mjs`
+    already counts), the grade written through the path a Warm-Up game uses
+    (`warmupChallengeGrade.mjs`), the teacher's assignment link in the setup
+    panel, report rows, and extended time honoured in the grade
+    (`liveChallengeAccommodations.mjs`).
+- **Student self-practice outside a live game.**
+  - A student route with no room: a practice session store (a seed per student,
+    tries, hints, no clock), graded on the server through `lineGraphAttempts` so
+    a device cannot award itself, rate limits, rules and deletion
+    (`permanentlyDeleteStudent` removes it), a decision on whether practice
+    counts as mastery evidence, and an entry point in the student's dashboard
+    that adds no static import to the first load. `LineGraphPractice.jsx` is the
+    teacher's "Try it yourself first": graded on the device and recording
+    nothing, so it is not a base for this.

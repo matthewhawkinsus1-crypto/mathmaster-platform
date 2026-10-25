@@ -253,6 +253,22 @@ not new content:
 - **CCMR / ASVAB / SAT transfer** — the audited banks already exist.
 - **Hand-picked** — everything else is a shortcut to this.
 
+**Not started (G-33; LC14 took only the authoring slice and the timing
+validator, above).** Each source is a query that must return what
+`loadChallengeCandidates` returns today: bank questions that pass
+`liveChallengeEligible` and the issuability gate, so the create panel, the
+sampling (`challengeSampling.sampleBankWindow`) and the round planner need a
+`roundSource` setting and nothing downstream changes. The work is per source:
+the query, a privacy decision for the sources that read student data (yesterday's
+DOL misses and the class's weakest standards come from what individual students
+got wrong, so a round's origin must not name or hint at a student on a shared
+screen), the "not enough questions for N rounds" case a narrow source hits where a
+standard rarely does, and a line on the create panel saying where the rounds came
+from. Every source's rounds pass `validateChallengeRoundSet`
+(`liveChallengeRoundTiming.mjs`) like any other. A source built from an existing
+assignment needs a rule for which of its question types are playable in 45
+seconds.
+
 ### Competition formats
 **Status:** open
 
@@ -267,6 +283,92 @@ already believe.
 - **Co-op against a target**, with no ranking at all — for reteach days
 - **Handicap scoring** against each student's own baseline, so the student who
   improved most can win
+
+**Looked at for LC15 (G-34, A2-63) on 2026-10-25; none built.** Each of these
+is a new game format, not a setting: it touches the scoring registry, the
+public-board privacy rule, the standings projection, the results screens,
+rewards and the report, and every one of those carries students' real data.
+What each needs, so the work can be sized and chosen one at a time. The code to
+read first: `functions/shared/liveChallengeScoring.mjs`
+(the scoring strategies and `leaderboardOptionsFor`), `liveChallengeModes.mjs`
+(capabilities), `liveChallengePrivacy.mjs` ("nobody is publicly last"),
+`liveChallengeStandingsProjection.mjs`, `liveChallengeResults.mjs`,
+`liveChallengeRewardRules.mjs`, `liveChallengeRecognitions.mjs`
+(`teamEffort` is the only team idea today), `liveChallengeAccommodations.mjs`
+(every format must keep a race fair for extended time), and
+`challengeStandingsModel.js` (`scorePresentation`).
+
+- **Class vs its own record** — the safest frame, and the smallest.
+  - *Rules:* a record is the best earlier match result of the same class, mode
+    and settings that are comparable (same mode, round count, round seconds,
+    scoring strategy), read from `liveChallengeMatchResults`; a game that
+    beats it says so once, at the end.
+  - *Scoring:* none new; a target line over the class's total.
+  - *UI:* a target on the live board and the podium; a setup choice and a
+    results line. *Privacy:* the record is a class total, never a student.
+  - *Certification:* a harness game against a seeded earlier result.
+- **Co-op against a target, with no ranking** — for reteach days.
+  - *Rules:* a target the teacher sets or the class's record supplies; the
+    class wins together or does not.
+  - *Scoring:* a new strategy that pools points (`coop`) and ranks nobody;
+    `scorePresentation` needs a presentation with no places.
+  - *Privacy:* with no ranking there is nobody to be last; the public rule's
+    exemption for a mode with no ranking must be written down and tested, so
+    no board is added later that ranks by accident. The podium becomes a
+    shared result.
+  - *Rewards and recognitions:* placement rewards have no places to read, so
+    the reward policy needs a "target met" trigger; `teamEffort` fits.
+  - *UI:* a progress bar on the projector and the student screen, a results
+    moment without a table, and the Play Again copy. *Certification:* the class
+    of 40 launch run, since every student writes to one total.
+- **Teams, scored on the average, not the sum.**
+  - *Rules:* a team assignment (random, balanced by the class's earlier
+    results, or chosen) stored on the private roster, with team names the
+    teacher picks or the game generates; late joiners join the smallest team;
+    a student removed or absent changes the mean's denominator.
+  - *Scoring:* team score = the mean of its members' scores, with a rule for a
+    team of one and for members who never joined; ties; Grand Prix's field size
+    counts teams.
+  - *Privacy:* "nobody is publicly last" extends to teams (the top teams only,
+    never the bottom team by name), and a student's own contribution is never on
+    a board; a student reads their team's standing and their own part from
+    their own summary document.
+  - *Data and rules:* a team projection beside the standings projection, a
+    `teamId` on player rows and summaries, match-result rows per team, rewards
+    for a team's place, a report with team rows. New fields on documents that
+    students read need rules tests.
+  - *UI:* setup (team count or size, assignment), lobby chips by team, results
+    (team table and own team), podium, the student card.
+  - *Certification:* the launch run with teams, the standings profile
+    (`npm run profile:live-challenge-standings`) with a team projection,
+    extended time in a team's mean.
+- **Handicap against each student's own baseline** — the riskiest.
+  - *Rules:* a baseline per student and mode, from their earlier match results
+    (a minimum number of games; none means no handicap), recomputed after each
+    game; the handicapped score is the improvement over it.
+  - *Privacy:* a baseline is private by nature (it says who is weaker), so it
+    is stored server-side only (a new collection with a rules test that no
+    client reads it, removed by `permanentlyDeleteStudent`), never appears on
+    a projector or a classmate's screen, and no public number may let a viewer
+    work one back out; the format must not be announced as "handicap" on a
+    shared screen.
+  - *Fairness:* deliberately losing games to lower a baseline (sandbagging)
+    needs a floor or a trimmed history; a student with extended time must not
+    have the time counted twice.
+  - *Scoring:* a new strategy; ties and a student with no baseline (a new
+    student plays at par).
+  - *Certification:* an emulator suite over baselines, and the privacy suites
+    over every document a student or the projector can read.
+- **Class vs class** — the largest.
+  - A game belongs to one teacher and one class (one active game per teacher,
+    `liveChallengeTeacherActive`); two classes means a second teacher's
+    authority over the same game or a result joined across two rooms. It needs
+    an ownership and invitation model across teachers, aggregated scoring with
+    reads across rooms, privacy across classes (aliases are per room, and one
+    class must not see another's students), an asynchronous variant (the
+    backlog says "settled asynchronously between periods") with its own
+    storage and a closing rule, and rewards for a class. Decide whether this is
+    a game or a standing ladder before designing anything.
 
 ### ~~Live Challenge: question style, live board, game surface~~ — shipped
 
