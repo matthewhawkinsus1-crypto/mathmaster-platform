@@ -81,6 +81,8 @@ test('literal and table answers are single numbers too', () => {
 // #496 (wave 6 review, B1: the server re-grades every queued answer, so a box
 // that refused it would turn a "Correct!" a student saw into a wrong record
 // during a release). The SAT's own decimal rule and the strict grouping stay.
+// The owner confirmed it (GR09): a no-comma rule, if ever wanted, is an entry
+// rule, never a right value graded wrong.
 test('a Digital SAT number box accepts a correctly grouped number, as live does', () => {
   const sat = { numberRules: 'digitalSAT' };
   assert.equal(gradeField('8050', '8,050', sat).isCorrect, true);

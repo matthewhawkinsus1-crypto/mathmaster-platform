@@ -376,7 +376,8 @@ const COMMA_SEPARATED_FORMATS = new Set([
  * partial credit (a roster). A Digital SAT number box accepts a correctly
  * grouped number, as it has since #496: `1,280` is right by value, and if the
  * SAT's own no-comma entry rule is wanted it belongs at entry (the box
- * declining the keystroke), never as a right value graded wrong. The
+ * declining the keystroke), never as a right value graded wrong. The owner
+ * confirmed this (GR09); there is no entry-time comma rule today. The
  * assignment matcher (answerUtils), the Path grader (functions/lib/mathPath.js)
  * and the teacher's Path simulation all ask it, and pass its answer to
  * sameValue.
