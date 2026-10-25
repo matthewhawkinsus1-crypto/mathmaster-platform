@@ -385,6 +385,17 @@ and `skillMastered` events with idempotency keys. Documented in
   StudentsRoster's Learning Profile stay previews; the roster needs a
   weekly-settings prop that lives outside this lane. Once the student opens
   Path, the frozen snapshot is the truth and the teacher table matches it.
+  **Recorded (MP24, 2026-10-25), nothing changed:** the plan only picks the
+  format of transfer slots under "Auto", never adds one. The one teacher
+  screen with the plan already loaded uses it: the roster's read-only My Math
+  Path is the student's own container, which reads it. Every other preview
+  (Weekly Path table, profile drawer, Learning Profile tab, Weekly Path
+  explainer) would need one more read per student, so each keeps the format
+  "Auto" picks without a plan until the freeze. For the teacher lane: the
+  read-only roster view still gets no class weekly settings (pass
+  `weeklyGoalConfig` from the `weeklyGoalsByClass` that `TeacherWorkspace.jsx`
+  already holds, through `StudentsRoster`), so it previews the default count
+  and "Auto". Written beside `weeklyPlanClassInputs` (`weeklyPathGoal.js`).
 - **Verifier minors not fixed** (low risk, listed for a follow-up):
   - topics: the wheel's hub still says "Not practised yet" where the colour key
     says "Not Enough Evidence"; mastered map cards carry the heading "Why this
