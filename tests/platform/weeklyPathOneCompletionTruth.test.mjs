@@ -21,6 +21,7 @@ import {
 } from '../../functions/shared/weeklyPathCompletion.mjs';
 import { evaluateWeeklyGoalProgress, describeWeeklyGradeForStudent, gradeWeeklyGoal } from '../../functions/shared/weeklyPathGrade.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { weeklyStartLabel } from '../../src/platform/path/pathSessionLaunch.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const WEEK = '2026-10-05';
@@ -133,5 +134,11 @@ test('a half-done weekly session keeps Resume and cannot be swapped mid-session'
   // Done and opened slots render no swap control. (Further conditions may
   // also hide it, e.g. while the week's sessions are still loading.)
   assert.match(panel, /\{!done && !active &&[^<{}]*<SlotChoice/);
-  assert.match(panel, /`Resume session \$\{session\.slot\}/);
+  // The card's button words come from the one tested function (MP17 moved it
+  // to pathSessionLaunch.js): an opened session reads Resume, never Start.
+  assert.match(panel, /import \{ weeklyStartLabel \} from '\.\.\/\.\.\/platform\/path\/pathSessionLaunch\.js';/);
+  assert.match(region(panel, 'function SessionCard(', '\n}\n', 'a session card'), /weeklyStartLabel\(session, active, total\)/);
+  const card = { slot: 3, purpose: 'current_learning' };
+  assert.equal(weeklyStartLabel(card, { answeredQuestions: 2, requiredQuestions: 5 }, 4), 'Resume session 3 · 2 of 5 answered');
+  assert.equal(weeklyStartLabel(card, null, 4), 'Start session 3 of 4');
 });

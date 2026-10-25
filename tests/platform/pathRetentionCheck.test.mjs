@@ -165,8 +165,15 @@ test('every finished retention check, weekly or not, completes and writes the sh
     'the schedule is read for every finished check — a weekly slot key must not exclude it');
 
   const write = region(submit, 'if (retentionSnapshot) {', 'if (questionFinalized && currentQuestion.assessmentContext', 'the retention write');
-  assert.match(write, /const \{ retentionCheckOutcome \} = await import\("\.\/shared\/pathRetentionCheck\.mjs"\);/);
-  assert.match(write, /retentionCheckOutcome\(\{\s*teksCode: displayCode,\s*summary: nextSummary,\s*currentSchedule: schedules\[displayCode\] \|\| \{\},\s*now,\s*\}\)/);
+  // The shared module is loaded BEFORE the transaction opens (MP17): a cold
+  // dynamic import inside it was paid on the answer that finishes a check, and
+  // again on every retry. Nothing is imported inside the transaction.
+  const loadAt = submit.indexOf('const retentionCheck = await import("./shared/pathRetentionCheck.mjs");');
+  const transactionAt = submit.indexOf('const transactionResult = await db.runTransaction(');
+  assert.ok(loadAt > -1 && transactionAt > loadAt, 'the verdict\'s module is loaded before the transaction opens');
+  const transaction = region(submit, 'const transactionResult = await db.runTransaction(', 'return transactionResult.result;', 'the answer transaction');
+  assert.doesNotMatch(transaction, /await import\(/, 'no module is imported inside the answer transaction');
+  assert.match(write, /retentionCheck\.retentionCheckOutcome\(\{\s*teksCode: displayCode,\s*summary: nextSummary,\s*currentSchedule: schedules\[displayCode\] \|\| \{\},\s*now,\s*\}\)/);
   assert.match(write, /transaction\.set\(retentionRef, \{ schedules: \{ \.\.\.schedules, \[displayCode\]: verdict\.schedule \}, updatedAt: now \}, \{ merge: true \}\);/);
   assert.match(write, /nextSession\.retentionOutcome = verdict\.outcome;/);
   assert.doesNotMatch(write, /independentSuccesses >= 2/, 'the pass rule has one home, the shared module');

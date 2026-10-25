@@ -424,6 +424,12 @@ and `skillMastered` events with idempotency keys. Documented in
     questions" start label has no test; in the Teacher Path Simulator a passed
     weekly check can un-tick its slot when the unfrozen simulated week
     re-plans.
+    **Done (MP17, 2026-10-25), all three:** `submitPathResponse` loads the
+    module before its transaction; the start label is `weeklyStartLabel` in
+    `pathSessionLaunch.js`, tested (the panel re-exports it); the simulator
+    freezes a week once, as the server does, so a passed check stays ticked
+    (forced changes such as Make Retention Due then show on the map at once
+    and in the weekly plan from the next simulated week, as for a student).
 - **Open retention checks share the open-practice lock** with practice on the
   same TEKS (pre-existing), and the server does not check that an open check
   is actually due (pre-existing; weekly slots are protected).

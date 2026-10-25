@@ -22,9 +22,11 @@ import {
   overviewFocus,
   pathCardLaunchOptions,
   weeklySessionLaunchOptions,
+  weeklyStartLabel,
 } from '../../src/platform/path/pathSessionLaunch.js';
 import {
   RETENTION_PROBE,
+  RETENTION_PROBE_QUESTIONS,
   resolveWeeklySlotSessionKind,
   retentionCheckOutcome,
 } from '../../functions/shared/pathRetentionCheck.mjs';
@@ -75,6 +77,26 @@ test('a weekly Retention card launches the two-question check, even after a swap
   assert.equal(swappedOptions.sessionKind, RETENTION_PROBE, 'a swapped Retention slot is still a retention check');
   assert.equal(swappedOptions.weeklySlotKey, retention.weeklySlotKey);
   assert.equal(swappedOptions.chosenSkillId, 'teks:A.2E');
+});
+
+test('a Retention card\'s button says it is a two-question check before it starts (MP17)', () => {
+  // The words come from the shared count, so a check that grew to three
+  // questions would say three.
+  assert.equal(weeklyStartLabel(slot(2, 'A.2D', PURPOSE.RETENTION), null, 4), `Start session 2 of 4 · ${RETENTION_PROBE_QUESTIONS} questions`);
+  assert.equal(RETENTION_PROBE_QUESTIONS, 2);
+  assert.equal(weeklyStartLabel(slot(2, 'A.2D', PURPOSE.RETENTION), null, null), 'Start weekly session · 2 questions');
+  // Every other purpose starts an ordinary round, with no count in its words.
+  Object.values(PURPOSE).filter((purpose) => purpose !== PURPOSE.RETENTION).forEach((purpose) => {
+    assert.equal(weeklyStartLabel(slot(1, 'A.5A', purpose), null, 4), 'Start session 1 of 4', purpose);
+  });
+  // A half-done check is resumed with its own count, never restarted.
+  assert.equal(weeklyStartLabel(slot(2, 'A.2D', PURPOSE.RETENTION), { answeredQuestions: 1, requiredQuestions: 2 }, 4), 'Resume session 2 · 1 of 2 answered');
+  assert.equal(weeklyStartLabel(slot(2, 'A.2D', PURPOSE.RETENTION), { answeredQuestions: 1 }, 4), 'Resume session 2');
+  // The panel and the session end screen both read this one function.
+  const panel = executableSource(read('src/components/student/WeeklyPathGoalPanel.jsx'));
+  assert.match(panel, /import \{ weeklyStartLabel \} from '\.\.\/\.\.\/platform\/path\/pathSessionLaunch\.js';/);
+  assert.match(panel, /export \{ weeklyStartLabel \};/);
+  assert.doesNotMatch(panel, /const weeklyStartLabel =/, 'one definition of the words');
 });
 
 test('every other weekly card stays ordinary practice, and the server never refuses what the client asks for', () => {

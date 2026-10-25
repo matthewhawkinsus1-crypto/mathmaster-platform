@@ -17315,6 +17315,9 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
     pathRouting.skillGraph(),
   ]);
   const recapRules = await pathSessionRecap.pathSessionRecapRules();
+  // The retention verdict's module too: it was imported inside the
+  // transaction, a cold-start cost paid on a finished check (MP17).
+  const retentionCheck = await import("./shared/pathRetentionCheck.mjs");
 
   // The authorization context this evidence will carry, resolved from the
   // student's class before the transaction so the read is not inside it.
@@ -17603,8 +17606,7 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
       // Path Simulator (functions/shared/pathRetentionCheck.mjs): both answers
       // right on the student's own moves the next check out (14/30/60 days);
       // anything less marks a concern and keeps the check due.
-      const { retentionCheckOutcome } = await import("./shared/pathRetentionCheck.mjs");
-      const verdict = retentionCheckOutcome({
+      const verdict = retentionCheck.retentionCheckOutcome({
         teksCode: displayCode,
         summary: nextSummary,
         currentSchedule: schedules[displayCode] || {},

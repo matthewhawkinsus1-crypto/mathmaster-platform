@@ -511,6 +511,15 @@ export const createTeacherPathRuntime = ({
    * way the server checks them. Synchronous: the runtime is local.
    */
   const freezeWeeklyPathGoal = (goal) => {
+    // ONCE A WEEK, as the server freezes it: a week already frozen is returned
+    // as it is (resolveWeeklyPathGoalSnapshot). The container hands a new
+    // proposal after every answer, and re-freezing it re-planned the week: a
+    // passed weekly retention check moved the schedule, the next plan had no
+    // Retention slot, and the finished check un-ticked (MP17, a verifier minor
+    // of push D). A new simulated student (Reset) is a new runtime, and so a
+    // new week.
+    const existing = weeklyGoals.get(String(goal?.weekKey || '')) || null;
+    if (existing) return existing;
     const frozen = freezeWeeklyPathGoalProposal(goal, {
       studentId: learner?.id || 'simulated',
       classId: SIMULATED_CLASS_ID,

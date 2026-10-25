@@ -93,6 +93,31 @@ test('the simulator runs a weekly Retention slot as the two-question check, neve
   assert.deepEqual(matchWeeklyGoalCompletions({ goal, completions }).matched.map((entry) => entry.matchedSlot), [2]);
 });
 
+test('the simulated week is frozen once, so a passed weekly check stays ticked when the next plan drops it (MP17)', async () => {
+  const due = { [ORIGIN]: { teksCode: ORIGIN, status: 'due', nextCheckDueAt: NOW - DAY, successfulCheckCount: 0 } };
+  const { runtime } = runtimeFor(due);
+  const dueAt = Date.parse(`${WEEK}T00:00:00Z`) + 6 * DAY;
+  const proposal = (sessions) => ({ weekKey: WEEK, courseId: 'algebra1', goalSessions: sessions.length, dueAt, sessions });
+  // The week the container proposes first: practice, then the due check.
+  const frozen = runtime.freezeWeeklyPathGoal(proposal([slot(1, 'A.5A', PURPOSE.CURRENT_LEARNING), slot(2, ORIGIN, PURPOSE.RETENTION)]));
+  assert.deepEqual(frozen.sessions.map((entry) => entry.purpose), [PURPOSE.CURRENT_LEARNING, PURPOSE.RETENTION]);
+  const retentionSlot = frozen.sessions[1];
+
+  const { session } = await runtime.startOrResumePathSession({
+    targetAlignmentKey: ORIGIN, weekKey: WEEK, weeklySlotKey: retentionSlot.weeklySlotKey, weeklySlot: 2, weeklyPurpose: PURPOSE.RETENTION,
+  });
+  await answer(runtime, session.sessionId, true);
+  const done = await answer(runtime, session.sessionId, true);
+  assert.equal(done.result.session.retentionOutcome, 'passed');
+
+  // The schedule moved, so the container's next proposal has no check in it.
+  const next = runtime.freezeWeeklyPathGoal(proposal([slot(1, 'A.5A', PURPOSE.CURRENT_LEARNING), slot(2, 'A.2A', PURPOSE.CURRENT_LEARNING)]));
+  assert.equal(next, frozen, 'a week already frozen is returned as it is, as the server returns it');
+  const { completions } = collectWeeklyPathSessions({ sessions: runtime.listPathSessions(), weekKey: WEEK });
+  assert.deepEqual(matchWeeklyGoalCompletions({ goal: next, completions }).matched.map((entry) => entry.matchedSlot), [2],
+    'the finished check still fills its slot');
+});
+
 test('a passed simulated check moves the schedule exactly as the server would', async () => {
   const { runtime, changes } = runtimeFor({});
   const { session } = await runtime.startOrResumePathSession({ targetAlignmentKey: ORIGIN, sessionKind: RETENTION_PROBE, requiredQuestions: 5 });

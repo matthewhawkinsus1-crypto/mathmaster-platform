@@ -17,6 +17,7 @@ import {
   RETENTION_CHECK_LAUNCH,
   RETENTION_PROBE,
   RETENTION_PROBE_QUESTIONS,
+  isRetentionPurpose,
   resolveWeeklySlotSessionKind,
 } from '../../../functions/shared/pathRetentionCheck.mjs';
 
@@ -32,6 +33,24 @@ export const RETENTION_CHECK_ACTION_LABEL = `Verify now · ${RETENTION_PROBE_QUE
 export const QUICK_PRACTICE_LAUNCH = Object.freeze({ sessionKind: PRACTICE_SESSION, requiredQuestions: 5 });
 
 export const retentionCheckLaunchOptions = () => ({ ...RETENTION_CHECK_LAUNCH });
+
+/**
+ * A weekly card's start button: a half-done session is resumed, never
+ * restarted. A Retention slot starts a two-question check rather than a
+ * practice round, and its button says so before the student commits to it
+ * ("Start session 2 of 4 · 2 questions"). Here rather than in
+ * WeeklyPathGoalPanel.jsx, which still exports it, so the words are tested
+ * (MP17: the "· 2 questions" label had no test).
+ */
+export const weeklyStartLabel = (session, active, required) => {
+  if (active) {
+    const answered = Number(active.answeredQuestions) || 0;
+    const of = Number(active.requiredQuestions) || null;
+    return of ? `Resume session ${session.slot} · ${answered} of ${of} answered` : `Resume session ${session.slot}`;
+  }
+  const start = required ? `Start session ${session.slot} of ${required}` : 'Start weekly session';
+  return isRetentionPurpose(session?.purpose) ? `${start} · ${RETENTION_PROBE_QUESTIONS} questions` : start;
+};
 
 /**
  * The options a weekly card hands to `startSession`.
