@@ -218,6 +218,7 @@ export const SHARED_TOOL_TRANSIENT_STATE = Object.freeze({
     dataTableOpen: 'Whether the "Show data table" disclosure under a read-only plane is open. The table restates the drawn graph; it is not an answer.',
     insideControl: 'Whether the plane sits inside a button or link, measured after mount, which leaves out the nested data-table toggle. Layout.',
     plotAnnouncement: 'What the last plot did, said once in the live region ("Plotted (3, -2).", student pass 3 A11Y-1). Gone when the crosshair moves; the points themselves are the tool\'s.',
+    readoutDismissed: 'Whether Escape has put away the hover crosshair and a hovered point\'s coordinates (WCAG 1.4.13). Back on the next press, arrow key or re-entry; nothing a student answers with.',
   }),
   'shared/ToolShell.jsx': Object.freeze({
     revealed: 'Whether the hint list is open.',
