@@ -500,6 +500,13 @@ function choiceAnswerField(field = {}, choices = []) {
   };
 }
 
+// The one response profile the contract spells in camel case. A bank field is read
+// without regard to case, but is handed on as the contract writes it: "orderedpair"
+// is no profile, so the one bank item with an ordered-pair answer (the system
+// "What is the solution (x,y)...") failed every check at selection and could never
+// be placed (CT01).
+const CONTRACT_PROFILE_SPELLING = Object.freeze({ orderedpair: "orderedPair" });
+
 function responseFieldToIntent(field = {}, document = {}) {
   const inputProfile = clean(field.inputProfile).toLowerCase();
   if (inputProfile === "choice") return choiceAnswerField(field, document.choices);
@@ -509,7 +516,7 @@ function responseFieldToIntent(field = {}, document = {}) {
   const out = {
     id: clean(field.id) || "answer",
     label: clean(field.label) || "Answer",
-    inputProfile: inputProfile || undefined,
+    inputProfile: CONTRACT_PROFILE_SPELLING[inputProfile] || inputProfile || undefined,
     answer: field.expected ?? field.answer,
   };
   // Job P: a Digital SAT number box also takes the decimal the SAT accepts

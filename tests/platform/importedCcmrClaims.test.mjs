@@ -19,6 +19,7 @@ import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/as
 import { proveImportedCcmrClaims } from '../../src/platform/assignments/canonicalCcmrHydration.js';
 import { ccmrAuditWarnings } from '../../src/platform/assignments/ccmrAuditWarnings.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { promisingAGraph } from './helpers/ccmrGraphPromiseFixtures.mjs';
 
 const require = createRequire(import.meta.url);
 const bank = require('../../functions/lib/ccmrAssignmentBank.js');
@@ -26,6 +27,13 @@ const bank = require('../../functions/lib/ccmrAssignmentBank.js');
 const read = (relPath) => readFileSync(new URL(`../../${relPath}`, import.meta.url), 'utf8');
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const PRODUCTION_ITEM = 'mm_sat_A_3E_5_intercept-change_v21';
+// CT01 repaired this bank item; the tests are about an item that promises a graph
+// it lacks, so it is the item as the bank worded it when it failed in production.
+const productionIntent = () => {
+  const seed = JSON.parse(read('functions/seeds/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json'));
+  const document = (seed.items || seed.documents).find((entry) => entry.id === PRODUCTION_ITEM);
+  return promisingAGraph(bank.bankDocumentToV5Intent(document, { activityRole: 'practice' }));
+};
 
 // Algebra I M2 T2 Lesson 2, with its eleventh Practice question written as
 // direct Digital SAT practice, the way an outside AI marks one.
@@ -49,9 +57,7 @@ test('the item the server would have chosen first fails in place, so the claim g
   const slot = hydration.audit.plan.slots.find((entry) => entry.kind === 'directClaim' && entry.questionId === claimId);
   assert.ok(slot && slot.candidates.length > 1, 'the server offers audited items for the claim');
   // As the server might rank it: the item from the production failure first.
-  const seed = JSON.parse(read('functions/seeds/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json'));
-  const production = bank.bankDocumentToV5Intent((seed.items || seed.documents).find((document) => document.id === PRODUCTION_ITEM), { activityRole: 'practice' });
-  slot.candidates = [production, ...slot.candidates.filter((intent) => intent.ccmrSource.documentId !== PRODUCTION_ITEM)];
+  slot.candidates = [productionIntent(), ...slot.candidates.filter((intent) => intent.ccmrSource.documentId !== PRODUCTION_ITEM)];
 
   const proven = proveImportedCcmrClaims({ rawAssignment: raw, authoredAssignmentV5: compiled(raw), hydration });
   assert.equal(proven.proven, true);
@@ -155,9 +161,7 @@ test('TT11: with the budget spent the claim is offered nothing, and the server\'
 test('TT11: a server choice that fails in place is a named miss, never kept unchecked', () => {
   const { raw, claimId, ...place } = lessonWithClaim();
   const hydration = exhausted(raw);
-  const seed = JSON.parse(read('functions/seeds/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json'));
-  const production = bank.bankDocumentToV5Intent((seed.items || seed.documents).find((document) => document.id === PRODUCTION_ITEM), { activityRole: 'practice' });
-  hydration.assignment.sections[place.sectionIndex].questions[place.questionIndex] = production;
+  hydration.assignment.sections[place.sectionIndex].questions[place.questionIndex] = productionIntent();
 
   const proven = proveImportedCcmrClaims({ rawAssignment: raw, authoredAssignmentV5: compiled(raw), hydration });
   assert.equal(proven.audit.replaced, 0);

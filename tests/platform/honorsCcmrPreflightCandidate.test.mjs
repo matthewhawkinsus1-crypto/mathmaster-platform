@@ -30,6 +30,7 @@ import { assertFirestoreSafeAssignmentPayload, validateAssignmentQuestions } fro
 import { normalizeAssignmentQuestions } from '../../src/app/student/assignmentRuntimeHelpers.js';
 import { buildDeterministicHonorsExtension } from '../../src/platform/rigor/honorsExtensionRecipes.js';
 import { generatePathInstanceWithRetries, hasPathGenerator } from '../../functions/shared/pathQuestionGeneration.mjs';
+import { promisingAGraph } from './helpers/ccmrGraphPromiseFixtures.mjs';
 import {
   HONORS_CCMR_STATUS,
   applyCcmrHydrationToCanonicalAssignment,
@@ -65,6 +66,10 @@ const auditedIntent = (id) => {
   assert.ok(document, `audited bank document ${id} exists`);
   return bank.bankDocumentToV5Intent(document);
 };
+// CT01 repaired the bank items that promised a graph they lack, so the items these
+// tests need to fail are the ones as the bank worded them in production
+// (helpers/ccmrGraphPromiseFixtures.mjs). The first is the one that failed Create.
+const failingIntent = (id) => promisingAGraph(auditedIntent(id));
 
 /** A lesson as Assignment Review holds it: imported, reviewed, Pre-Flight valid. */
 const reviewedLesson = (relPath) => {
@@ -125,7 +130,7 @@ test('the production failure, reproduced: the audited item that reached Create f
   const place = placeOf(base, 24);
   assert.equal(base.sections[place.sectionIndex].role, 'practice', 'Question 24 is Practice, where the Honors target is sourced');
   const hydrated = clone(base);
-  hydrated.sections[place.sectionIndex].questions[place.questionIndex] = auditedIntent(PRODUCTION_ITEM);
+  hydrated.sections[place.sectionIndex].questions[place.questionIndex] = failingIntent(PRODUCTION_ITEM);
   // Exactly the call Create used to make with the server's in-place choice.
   assert.throws(
     () => applyCcmrHydrationToCanonicalAssignment({ baseAssignmentV5: base, hydratedAssignment: hydrated }),
@@ -140,8 +145,10 @@ test('Pre-Flight catches it: the Honors version skips that item, keeps a validat
   const place = placeOf(base, 24);
   const slot = hydration.audit.plan.slots.find((entry) => entry.sectionIndex === place.sectionIndex && entry.questionIndex === place.questionIndex);
   assert.ok(slot, 'the server offers candidates for Question 24');
-  const offered = hydration.audit.plan.slots.flatMap((entry) => entry.candidates).find((intent) => intent.ccmrSource.documentId === PRODUCTION_ITEM);
-  assert.ok(offered, 'the production item is among the candidates the server offers');
+  const offeredNow = hydration.audit.plan.slots.flatMap((entry) => entry.candidates).find((intent) => intent.ccmrSource.documentId === PRODUCTION_ITEM);
+  assert.ok(offeredNow, 'the production item is among the candidates the server offers');
+  // The bank item is repaired; as it was worded in production it is the one that fails.
+  const offered = promisingAGraph(offeredNow);
   // As in production, where the server chose it for Question 24: the
   // server's own conversion of that item first there, at the first place the
   // target uses.
@@ -191,7 +198,7 @@ test('alternatives: a place keeps the first candidate that passes, every failure
     // Two that fail MathMaster's checks (a graph promised, a malformed item),
     // then one that passes.
     candidates: [
-      auditedIntent(PRODUCTION_ITEM),
+      failingIntent(PRODUCTION_ITEM),
       { ...auditedIntent('mm_sat_A_3E_1_vertical-shift-intercept_v21'), studentActions: ['noSuchAction'], answerFields: [] },
       auditedIntent(valid),
     ],
@@ -239,7 +246,7 @@ test('an exhausted pool returns the failed questions to Pre-Flight, blocks Creat
   const hydration = serverHydration(base);
   // Every audited candidate on these TEKS is one MathMaster refuses.
   const failing = ['mm_sat_A_3E_5_intercept-change_v21', 'mm_sat_A_3E_1_vertical-shift-intercept_v21', 'mm_sat_A_3E_4_scale-output-slope_v21'];
-  hydration.audit.plan.slots = hydration.audit.plan.slots.map((slot) => ({ ...slot, candidates: failing.map(auditedIntent) }));
+  hydration.audit.plan.slots = hydration.audit.plan.slots.map((slot) => ({ ...slot, candidates: failing.map(failingIntent) }));
 
   const needsDecision = buildHonorsCcmrCandidate({ baseAssignmentV5: base, hydration, honorsEnrichmentQuestion: extension });
   assert.equal(needsDecision.status, HONORS_CCMR_STATUS.NEEDS_DECISION);
@@ -478,7 +485,7 @@ test('a server that predates the plan still has its choices proven in Pre-Flight
   const base = reviewedLesson(PRODUCTION_LESSON);
   const place = placeOf(base, 24);
   const legacy = { assignment: clone(base), audit: { targetCount: 2, replaced: 0, autoSourced: 1, misses: [] } };
-  legacy.assignment.sections[place.sectionIndex].questions[place.questionIndex] = auditedIntent(PRODUCTION_ITEM);
+  legacy.assignment.sections[place.sectionIndex].questions[place.questionIndex] = failingIntent(PRODUCTION_ITEM);
   const candidate = buildHonorsCcmrCandidate({ baseAssignmentV5: base, hydration: legacy });
   assert.equal(candidate.status, HONORS_CCMR_STATUS.NEEDS_DECISION, 'its one guess failed, so the teacher is told now');
   assert.equal(candidate.skipped[0].documentId, PRODUCTION_ITEM);

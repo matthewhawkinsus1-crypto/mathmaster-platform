@@ -25,6 +25,7 @@ import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/as
 import { validateQuestionSemantics } from '../../src/platform/contract/semanticValidation.js';
 import { generateQuestion } from '../../src/problemGenerator.js';
 import { generatePathInstance } from '../../functions/shared/pathQuestionGeneration.mjs';
+import { WORDED_AS_IN_PRODUCTION } from './helpers/ccmrGraphPromiseFixtures.mjs';
 
 const require = createRequire(import.meta.url);
 const bank = require('../../functions/lib/ccmrAssignmentBank.js');
@@ -108,14 +109,26 @@ test('a table an item names and lists becomes that table; a word that only sound
   assert.deepEqual(values.table.columns.map((column) => column.label), ['x', 'f(x)']);
   assert.deepEqual(values.table.rows, [{ x: '0', fx: '{{A}}' }, { x: '1', fx: '{{v1}}' }, { x: '2', fx: '{{v2}}' }]);
 
-  // "Each table requires {{woodT}} units of wood" is furniture.
-  const furniture = bank.bankDocumentToV5Intent(documentOf('mm_sat_A2_3E_2_production-resources_v21'));
+  // "Each table requires {{woodT}} units of wood" is furniture. (CT01 reworded the
+  // bank item to "A table requires …"; the sentence is kept here as it was, because
+  // it is the converter's reading of it that this is about.)
+  const furnitureWording = 'A workshop makes tables and shelves. Each table requires {{woodT}} units of wood and {{laborT}} hours of labor. Each shelf requires {{woodS}} units of wood and {{laborS}} hours of labor. At most {{woodMax}} units of wood and {{laborMax}} labor hours are available. Which system represents the possible nonnegative numbers $x$ of tables and $y$ of shelves?';
+  const furniture = bank.bankDocumentToV5Intent({ ...documentOf('mm_sat_A2_3E_2_production-resources_v21'), prompt: furnitureWording });
   assert.equal(furniture.table, undefined);
-  // A graph described in words is not drawn: the student works it out.
-  const described = bank.bankDocumentToV5Intent(documentOf('mm_sat_A_3E_5_intercept-change_v21'));
+  assert.equal(furniture.prompt, furnitureWording);
+  // A graph described in words is not drawn: the student works it out. (The same,
+  // for the item as it was worded when it promised "the graph of …".)
+  const describedDocument = documentOf('mm_sat_A_3E_5_intercept-change_v21');
+  const describedWording = WORDED_AS_IN_PRODUCTION[describedDocument.id];
+  const described = bank.bankDocumentToV5Intent({ ...describedDocument, prompt: describedWording });
   assert.equal(described.graph, undefined);
   assert.equal(described.functionSpec, undefined);
-  assert.equal(described.prompt, documentOf('mm_sat_A_3E_5_intercept-change_v21').prompt);
+  assert.equal(described.prompt, describedWording);
+  // The repaired bank items are not drawn either: the line is named by its equation, nothing is plotted.
+  const repaired = bank.bankDocumentToV5Intent(describedDocument);
+  assert.equal(repaired.graph, undefined);
+  assert.equal(repaired.functionSpec, undefined);
+  assert.equal(repaired.prompt, describedDocument.prompt);
 });
 
 test('across the whole audited bank, conversion never loses an item MathMaster accepted before, and recovers every table item it can', () => {

@@ -31,7 +31,7 @@
       "ccmrAuthenticLanguage": {"version":"2.1","authored":true,"nativeSkillId":"simpleGraphsTables","officialSkillFamily":"simple-graphs-and-tables","stemProfile":"read-specific-table-cell","answerChoiceCount":4},
       "supportHints": ["Find the requested row, then read the value in that row."],
       "solutionReview": {"headline":"Read the requested table entry.","reasoning":["The Tuesday row shows {{target}} visitors."],"answerSummary":"The table entry is {{target}}."},
-      "prompt": "A table shows the number of visitors to a center on three days: Monday {{monday}}, Tuesday {{target}}, and Wednesday {{wednesday}}. According to the table, how many visitors came on Tuesday?",
+      "prompt": "A table shows the number of visitors to a center on three days: Monday {{monday}}, Tuesday {{target}}, and Wednesday {{wednesday}}. According to these counts, how many visitors came on Tuesday?",
       "generator": {"parameters":{"target":{"type":"int","min":6,"max":30},"tableStep":{"type":"int","min":2,"max":5}},"derived":{"monday":"target-tableStep","wednesday":"target+tableStep","d1":"target-2","d2":"target+3","d3":"target+7"}},
       "choices": [{"id":"tsia2-correct","label":"{{target}}"},{"id":"tsia2-d1","label":"{{d1}}"},{"id":"tsia2-d2","label":"{{d2}}"},{"id":"tsia2-d3","label":"{{d3}}"}]
     },
@@ -193,7 +193,7 @@
       "ccmrAuthenticLanguage": {"version":"2.1","authored":true,"authoredChallenge":true,"nativeSkillId":"simpleGraphsTables","officialSkillFamily":"simple-graphs-and-tables","stemProfile":"read-middle-line-graph-point","answerChoiceCount":4},
       "supportHints": ["Locate the requested time on the horizontal axis and read the corresponding vertical value."],
       "solutionReview": {"headline":"Read the point at the requested time.","reasoning":["The middle point of the line graph is at {{pointValue}}."],"answerSummary":"The requested point has value {{pointValue}}."},
-      "prompt": "A line graph gives values {{previousValue}}, {{pointValue}}, and {{nextValue}} at 1 p.m., 2 p.m., and 3 p.m., respectively. What value does the graph show at 2 p.m.?",
+      "prompt": "A line graph gives values {{previousValue}}, {{pointValue}}, and {{nextValue}} at 1 p.m., 2 p.m., and 3 p.m., respectively. What value does it show at 2 p.m.?",
       "generator": {"parameters":{"pointValue":{"type":"int","min":10,"max":40},"lineStep":{"type":"int","min":2,"max":7}},"derived":{"previousValue":"pointValue-lineStep","nextValue":"pointValue+lineStep","d1":"pointValue-2","d2":"pointValue+2","d3":"pointValue+10"}},
       "choices": [{"id":"tsia2-correct","label":"{{pointValue}}"},{"id":"tsia2-d1","label":"{{d1}}"},{"id":"tsia2-d2","label":"{{d2}}"},{"id":"tsia2-d3","label":"{{d3}}"}]
     },

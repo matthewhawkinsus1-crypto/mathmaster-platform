@@ -1,0 +1,364 @@
+{
+  "description": "CT01: the 38 audited bank items that promised a graph, a table or an ordered pair they did not show. Read from the seed as it stood before the repair: keyShape is the sha256 (sorted-key JSON) of {familyVersion, assessmentItemFormat, generator.parameters, responseFields, choice ids in order}, so a stored answer keeps its meaning; derived holds every derived expression the item had, which a later edit may add to but not change. The wording (prompt, choice labels, worked solution) is free to improve.",
+  "items": {
+    "mm_sat_A_12E_adv_challenge_1_solve-shift-parameter_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "acb6de5f6e16548008fc89ee30a98a6d9799512d6d5ddcb13e2195c6c676729f",
+      "derived": {
+        "x": "h+r",
+        "y": "a*r*r+k",
+        "ar2": "a*r*r",
+        "r2": "r*r",
+        "hw": "h+2*r"
+      }
+    },
+    "mm_sat_A_2B_6_fractional_slope_two_points_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "e50625be784275a03c00c0268cd563701c8ea4d82602d9126c1fca07196834e4",
+      "derived": {
+        "dy": "sgn*p",
+        "x2": "x1+q",
+        "y2": "y1+dy",
+        "ndy": "-dy"
+      }
+    },
+    "mm_sat_A_2B_7_standard_form_slope_parameter_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "b6220e0b83874862ef13c1e0591deec47627e29164c2de67e759cbba172546c2",
+      "derived": {
+        "p": "-m*q",
+        "dSignError": "m*q",
+        "dDroppedCoefficient": "-m",
+        "dSubstitutedSlopeForY": "r-m*q"
+      }
+    },
+    "mm_sat_A_2C_3_intercepts_to_equation_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "2d52ea03a28e4ebd1681d844f398b9929dd7c091a8bc0ed20f6f87870c547bc3",
+      "derived": {
+        "ab": "a*b",
+        "apb": "a+b"
+      }
+    },
+    "mm_sat_A_2D_2_find_k_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "d4400e07de37b54417d5cfaaf37c3881dd53b5cb37589e292e4dc82f2ca052e5",
+      "derived": {
+        "y": "k*x"
+      }
+    },
+    "mm_sat_A_2D_7_parameterized_direct_variation_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "276839d522ce0915138fafb540b87f434de20c61af0539fa13fac0a4ed20ab8d",
+      "derived": {
+        "k": "a-c",
+        "y": "k*x",
+        "dSlopeOnly": "a-c",
+        "dReversedSubtraction": "2*c-a",
+        "dAddedConstant": "a+c"
+      }
+    },
+    "mm_sat_A_2E_7_parallel_intercept_shift_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "990e82c13cc71f22b2002dcbc43b3b36ce75e27e423a800ee54009968e10e611",
+      "derived": {
+        "x2": "x1+dx",
+        "y1": "m*x1+bf",
+        "y2": "m*x2+bf",
+        "gt": "m*xt+bg",
+        "satDistractor1": "m*xt-bg",
+        "satDistractor2": "m*xt",
+        "satDistractor3": "m+xt+bg"
+      }
+    },
+    "mm_sat_A_3A_2_slope-table_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "80d8526b03b4f2b8630a6f604c8caa6ddcb03d20b0faf8e97c8dcc2f189e1c88",
+      "derived": {
+        "x2": "x1+dx",
+        "y2": "y1+m*dx",
+        "d1": "m+1",
+        "d2": "-m",
+        "d3": "m-1",
+        "dy": "m*dx"
+      }
+    },
+    "mm_sat_A_3C_1_y-intercept-equation_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "f3e9418a68b3b9db55123567e983b84a09039e9c89f2dc0aefd7ec3e22406f64",
+      "derived": {
+        "answer": "b"
+      }
+    },
+    "mm_sat_A_3C_2_x-intercept-equation_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "b5f6b992ce708c0ee0fae4edd7baf4050b3677e44b508cbb3b537a3b8010063e",
+      "derived": {
+        "b": "-m*x0",
+        "d1": "-x0",
+        "d2": "x0+1",
+        "d3": "x0-1",
+        "negb": "-b"
+      }
+    },
+    "mm_sat_A_3C_5_feature-from-context-model_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "fc3337358aa957dea440278f0fde213de622259f7b5967a1897da04e6cbe6ba0",
+      "derived": {
+        "d1": "-b",
+        "d2": "b+m",
+        "d3": "m"
+      }
+    },
+    "mm_sat_A_3D_5_strict-boundary-inclusion_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "4e14f7bf0d19192a79850974fd7c2bda9a1514a62368e30bec033db4039333e6",
+      "derived": {}
+    },
+    "mm_sat_A_3E_1_vertical-shift-intercept_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "fef386f4a4927f90f4bf0f3eee88905495fdd127136ac147ffa2604cead2f21a",
+      "derived": {
+        "answer": "b+k"
+      }
+    },
+    "mm_sat_A_3E_4_scale-output-slope_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "c143109dfa25a85401612bcd4c8d40ec7dfcda6efc0b87881bd970520cb9a471",
+      "derived": {
+        "answer": "a*m",
+        "ab": "a*b"
+      }
+    },
+    "mm_sat_A_3E_5_intercept-change_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "880527c7d40727e367eaf5df80a039cdfa29804c664ecc5c55adcb4a9f14daf3",
+      "derived": {
+        "newb": "b+k",
+        "dReversed": "-k",
+        "dNewIntercept": "b+k",
+        "dOldIntercept": "b"
+      }
+    },
+    "mm_sat_A_3E_challenge_1_combined-shifts-intercept_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "be111a794db715a0fa919d4ace18f91be82b6a627d0255d7739b3512babfcc2f",
+      "derived": {
+        "answer": "b-m*h+k",
+        "satDistractor1": "b+m*h+k",
+        "satDistractor2": "b-m*h",
+        "satDistractor3": "b-m+h+k",
+        "nh": "-h",
+        "fnh": "b-m*h"
+      }
+    },
+    "mm_sat_A_3E_challenge_2_parameter-pass-through-point_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "80559ffe4a4ce15ed7782101c5f70712c9409004d0d1759d48af98aeae4aafe5",
+      "derived": {
+        "y": "m*x+b+k",
+        "answer": "k",
+        "fx": "m*x+b"
+      }
+    },
+    "mm_sat_A_5C_2_elimination_pair_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "cd5d484eb4934933d427751de672efd4577d91450fa8662e5c4b69ee68c63f7c",
+      "derived": {
+        "r1": "a*x+b*y",
+        "r2": "c*x+d*y"
+      }
+    },
+    "mm_sat_A_6B_vertex-form-leading-parameter_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "40e78d3bb1b57a17ab41e1c5631033a93b30c59dfc8e232d0684b1d1b97ed842",
+      "derived": {
+        "x1": "h+dx",
+        "y1": "a0*dx*dx+k",
+        "nh": "-h",
+        "dx2": "dx*dx",
+        "ady": "y1-k"
+      }
+    },
+    "mm_sat_A_6C_graph-intercepts-to-equation_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "3edfeb7e45113dfad3f2474ff8922e0dd799c5ca26d7eaff8c08b0c7dd012e0b",
+      "derived": {
+        "r1p": "r1+1",
+        "r2p": "r2+1",
+        "f1": "-r1",
+        "f2": "-r2",
+        "nr1p": "-(r1+1)",
+        "nr2p": "-(r2+1)"
+      }
+    },
+    "mm_sat_A_7A_challenge_challenge-max-value_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "ff1e052c81e88e18cb8dea3226e6c98f0c16ca56fd00a5c17374bae41947ea34",
+      "derived": {
+        "aneg": "-a",
+        "nh": "-h"
+      }
+    },
+    "mm_sat_A_7A_y-intercept-standard_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "5577931dc89e4762bf5789a90e9ff38820e06eb35b4b071a13cd426e9fa23d01",
+      "derived": {
+        "cn": "-c",
+        "c1": "c+1",
+        "b1": "b+1"
+      }
+    },
+    "mm_sat_A_7A_zeros-from-factored_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "82d1de4721a805aa4e21fcde9f3a8feeaba1da087d15a1af72d738108b8be062",
+      "derived": {
+        "nr1": "-r1",
+        "nr2": "-r2",
+        "r1p": "r1+1",
+        "f1": "-r1",
+        "f2": "-r2"
+      }
+    },
+    "mm_sat_A_7C_challenge_challenge-parameter-for-vertex_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "9e9f3f434b531577e89a0b6a2a51b2322c438b58ee998bb85b4398b54f233391",
+      "derived": {
+        "x1": "h-d",
+        "x2": "h+d",
+        "y1": "d*d+k"
+      }
+    },
+    "mm_sat_A_9D_point-from-equation_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "87361f1b3a53ab3a6de9c0745f1cf222a1ea2bc5bd58806b7dca5a937b43ce08",
+      "derived": {
+        "y2": "A*b^2",
+        "b2": "b*b",
+        "Ab": "A*b"
+      }
+    },
+    "mm_sat_A_9D_point-translation_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "c874de8e120800eadc30908aa0cc10a848bb11cd65f0f23fb8b7b303b31ba4a9",
+      "derived": {
+        "yk": "1+k",
+        "hn": "-h",
+        "ykn": "1-k",
+        "hp": "h+1"
+      }
+    },
+    "mm_sat_A_9D_unshifted-asymptote_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "a897eea0c4074f2e8fac1a66757acd466a0dd1993dee69dc6e046946b70a7a69",
+      "derived": {}
+    },
+    "mm_sat_A_9D_y-intercept-exponential_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "9849fa8c5c2b4c2cd01982c1bad881306a3e6861c28d1e1d29ec815629e2c2ab",
+      "derived": {
+        "An": "-A",
+        "Ap": "A+1"
+      }
+    },
+    "mm_sat_A2_3E_2_production-resources_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "c3328a492aff9ef7009b7322b455c6c39a0ab1e206639c7d64ba89ad6ec419cc",
+      "derived": {}
+    },
+    "mm_sat_A2_4D_vertex-from-completed-square_v21": {
+      "exam": "digitalSAT",
+      "keyShape": "84a72525080e5d89d130f6cee74f17e5ff0f03b1a24e8ca61bf185903ad592d1",
+      "derived": {
+        "B": "-2*a*h",
+        "C": "a*h*h+k",
+        "hn": "-h",
+        "kn": "-k",
+        "hp1": "h+1"
+      }
+    },
+    "mm_act_fn_4_translated-point_v21": {
+      "exam": "act",
+      "keyShape": "be04c83e4b0a6488c8d5c6ce149678463d9e3c19f7ceac356fa3dc6aa36c9572",
+      "derived": {
+        "x1": "p+h",
+        "y1": "q+k",
+        "x2": "p-h",
+        "y2": "q+k",
+        "x3": "p+h",
+        "y3": "q-k",
+        "x4": "p-h",
+        "y4": "q-k"
+      }
+    },
+    "mm_act_ies_coordinateplane_1_quadrant-identification_v21": {
+      "exam": "act",
+      "keyShape": "5d475353e5d8f32048c5f0c3d02459c3c678c99a44b64bfe21a2ed00fbb5d068",
+      "derived": {}
+    },
+    "mm_tsia2_ar_lf_2_v21": {
+      "exam": "tsia2",
+      "keyShape": "a70c0bd3db37f110bbb240e2038ceb71a0ac1f0bda41b1d3c44c859af487ac26",
+      "derived": {
+        "x2": "x1+delta",
+        "y1": "m*x1+b",
+        "y2": "m*x2+b",
+        "answer": "m",
+        "d1": "m+1",
+        "d2": "m-1",
+        "d3": "-m",
+        "dy": "m*delta"
+      }
+    },
+    "mm_tsia2_psr_analysis_1_v21": {
+      "exam": "tsia2",
+      "keyShape": "2890b1e3badfe0db9d7c25003f045a4d28819514abe3884ef58ef5b1c1a3419b",
+      "derived": {
+        "countC": "base",
+        "countB": "base+gap",
+        "countA": "base+2*gap"
+      }
+    },
+    "mm_tsia2_psr_analysis_5_v21": {
+      "exam": "tsia2",
+      "keyShape": "6bed07d58777b784901a73e4c0a626701957c20a934ec7358b0c9da9a4c169c6",
+      "derived": {
+        "commonScale": "10",
+        "rateA": "successA*commonScale",
+        "rateB": "successB*commonScale"
+      }
+    },
+    "mm_tsia2_psr_graph_1_v21": {
+      "exam": "tsia2",
+      "keyShape": "f4a2b3e8b617c08830b52210227526d76dac4d48d522e9812f09dc2a6bb03444",
+      "derived": {
+        "monday": "target-tableStep",
+        "wednesday": "target+tableStep",
+        "d1": "target-2",
+        "d2": "target+3",
+        "d3": "target+7"
+      }
+    },
+    "mm_tsia2_psr_graph_7_v21": {
+      "exam": "tsia2",
+      "keyShape": "a738224f0608b4c54cd5fc20e0166217527e1d58e4f671c3dc50117dfb666185",
+      "derived": {
+        "previousValue": "pointValue-lineStep",
+        "nextValue": "pointValue+lineStep",
+        "d1": "pointValue-2",
+        "d2": "pointValue+2",
+        "d3": "pointValue+10"
+      }
+    },
+    "mm_tsia2_psr_sort_3_v21": {
+      "exam": "tsia2",
+      "keyShape": "5a03cc0899577f3a095357fccfdcca196471c4e8a900e9e360b3965d78f48806",
+      "derived": {
+        "answer": "f1+f2+f3",
+        "d1": "answer-1",
+        "d2": "answer+1",
+        "d3": "answer+10"
+      }
+    }
+  }
+}

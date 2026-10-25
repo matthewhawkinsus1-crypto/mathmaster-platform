@@ -2478,7 +2478,7 @@
         "commonError": "Subtracting the coordinates in opposite orders, which flips the sign.",
         "answerSummary": "${{answer}}$"
       },
-      "prompt": "The graph of a linear function contains the points $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. What is the function's slope?",
+      "prompt": "A linear function has a graph that contains the points $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. What is the function's slope?",
       "generator": {
         "parameters": {
           "m": {
@@ -24174,7 +24174,7 @@
         ],
         "answerSummary": "Category A has the greatest frequency."
       },
-      "prompt": "A frequency table shows {{countA}} observations in Category A, {{countB}} in Category B, and {{countC}} in Category C. Which conclusion is supported by the table?",
+      "prompt": "A frequency table shows {{countA}} observations in Category A, {{countB}} in Category B, and {{countC}} in Category C. Which conclusion is supported by these counts?",
       "generator": {
         "parameters": {
           "base": {
@@ -25352,7 +25352,7 @@
         ],
         "answerSummary": "Success was more common in Group A."
       },
-      "prompt": "A two-way table summarizes two groups of 10 people each. Group A has {{successA}} successes and Group B has {{successB}} successes. Which conclusion is supported by the table?",
+      "prompt": "A two-way table summarizes two groups of 10 people each. Group A has {{successA}} successes and Group B has {{successB}} successes. Which conclusion is supported by these results?",
       "generator": {
         "parameters": {
           "successA": {
@@ -27490,7 +27490,7 @@
         ],
         "answerSummary": "The table entry is {{target}}."
       },
-      "prompt": "A table shows the number of visitors to a center on three days: Monday {{monday}}, Tuesday {{target}}, and Wednesday {{wednesday}}. According to the table, how many visitors came on Tuesday?",
+      "prompt": "A table shows the number of visitors to a center on three days: Monday {{monday}}, Tuesday {{target}}, and Wednesday {{wednesday}}. According to these counts, how many visitors came on Tuesday?",
       "generator": {
         "parameters": {
           "target": {
@@ -28315,7 +28315,7 @@
         ],
         "answerSummary": "The requested point has value {{pointValue}}."
       },
-      "prompt": "A line graph gives values {{previousValue}}, {{pointValue}}, and {{nextValue}} at 1 p.m., 2 p.m., and 3 p.m., respectively. What value does the graph show at 2 p.m.?",
+      "prompt": "A line graph gives values {{previousValue}}, {{pointValue}}, and {{nextValue}} at 1 p.m., 2 p.m., and 3 p.m., respectively. What value does it show at 2 p.m.?",
       "generator": {
         "parameters": {
           "pointValue": {
@@ -31472,7 +31472,7 @@
         ],
         "answerSummary": "There are {{answer}} observations in all."
       },
-      "prompt": "A frequency table has counts {{f1}}, {{f2}}, and {{f3}} for its three categories. How many observations are represented in the table?",
+      "prompt": "A frequency table has counts {{f1}}, {{f2}}, and {{f3}} for its three categories. How many observations does the frequency table represent?",
       "generator": {
         "parameters": {
           "f1": {

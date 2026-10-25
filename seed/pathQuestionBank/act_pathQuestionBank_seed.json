@@ -13739,7 +13739,7 @@
         "stemProfile": "translated-point",
         "answerChoiceCount": 4
       },
-      "prompt": "The point $({{p}},{{q}})$ lies on the graph of $y=f(x)$. Which point lies on the graph of $y=f(x-{{h}})+{{k}}$?",
+      "prompt": "The point $({{p}},{{q}})$ lies on the curve $y=f(x)$. Which point lies on the curve $y=f(x-{{h}})+{{k}}$?",
       "generator": {
         "parameters": {
           "p": {
@@ -21416,7 +21416,7 @@
         "commonError": "Numbering the quadrants clockwise.",
         "answerSummary": "Quadrant II"
       },
-      "prompt": "The point $(-{{a}},{{b}})$ is plotted in the coordinate plane, where {{a}} and {{b}} are positive. In which quadrant is the point?",
+      "prompt": "The point $(-{{a}},{{b}})$ is plotted in a coordinate plane, where {{a}} and {{b}} are positive. In which quadrant is the point?",
       "generator": {
         "parameters": {
           "a": {
