@@ -245,10 +245,17 @@ const matches = (data, { field, op, value }) => {
   }
 };
 
+// What the real SDK puts on every snapshot (CI15, A1-68). Live Challenge's room
+// watcher reads `snapshot.metadata.fromCache` for its "Reconnecting…" pill, so a
+// student's Live Challenge screen met "Cannot read properties of undefined
+// (reading 'fromCache')" here until the accessibility harness kept a second
+// fake just to add this. Online and settled; a scene that wants the cache says
+// so (leakForeignControls below).
+const ONLINE_METADATA = Object.freeze({ fromCache: false, hasPendingWrites: false });
 const docSnapshot = (path) => {
   const data = store.get(path);
   const ref = new DocumentReference(path);
-  return { id: ref.id, ref, exists: () => data !== undefined, data: () => (data === undefined ? undefined : clone(data)), get: (field) => getField(data, field) };
+  return { id: ref.id, ref, exists: () => data !== undefined, data: () => (data === undefined ? undefined : clone(data)), get: (field) => getField(data, field), metadata: ONLINE_METADATA };
 };
 const childrenOf = (collectionPath) => [...store.keys()].filter((path) => {
   if (!path.startsWith(`${collectionPath}/`)) return false;
@@ -280,7 +287,7 @@ const queryPaths = (target) => {
 const querySnapshot = (paths, changes = null) => {
   const docs = paths.map(docSnapshot);
   const docChanges = changes || docs.map((entry, newIndex) => ({ type: 'added', doc: entry, oldIndex: -1, newIndex }));
-  return { docs, empty: docs.length === 0, size: docs.length, forEach: (fn) => docs.forEach(fn), docChanges: () => docChanges };
+  return { docs, empty: docs.length === 0, size: docs.length, forEach: (fn) => docs.forEach(fn), docChanges: () => docChanges, metadata: ONLINE_METADATA };
 };
 const runQuery = (target) => querySnapshot(queryPaths(target));
 const resultSignature = (paths) => paths.map((path) => `${path}@${versionOf(path)}`).join('|');

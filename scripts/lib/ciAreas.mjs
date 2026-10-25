@@ -304,7 +304,6 @@ export const CI_AREAS = {
     // The teacher harness swaps two services with it (NV14).
     'tests/browser/emulator/swapModules.mjs',
     'tests/browser/accessibilityAppHarness*',
-    'tests/browser/accessibilityFakeFirestore.js',
     'tests/browser/studentUxPlatform*',
     'tests/browser/linearMultipleRepresentations*',
     'tests/browser/lmrProcess*',

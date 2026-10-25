@@ -113,7 +113,7 @@ test('a pull request that changes one of these drivers, or a page it opens, runs
   assert.ok(runsOnPullRequest(gates, 'tests/browser/keyboardSweep.html'));
   const journeys = 'student-teacher-journeys.yml';
   ['tests/browser/teacherWorkflow/askMyTeacherJourneys.mjs', 'tests/browser/teacherWorkflow/fixtures/school.js',
-    'tests/browser/accessibilityAppHarness.vite.config.mjs', 'tests/browser/accessibilityFakeFirestore.js'].forEach((file) => {
+    'tests/browser/accessibilityAppHarness.vite.config.mjs', 'tests/browser/teacherWorkflow/fakeFirestore.js'].forEach((file) => {
     assert.ok(runsOnPullRequest(journeys, file), `a change to ${file} runs the journeys`);
   });
   const emulator = 'student-pass3-emulator-journeys.yml';
