@@ -142,10 +142,11 @@ test('on a phone the example in an answer box fits it, even on the narrowest sup
   const ROOM_ON_A_344_PHONE = 176;
   const css = executableSource(read('src/index.css'));
   const phone = region(css, '@media (max-width: 600px) {\n  math-field::part(placeholder) {', '\n}\n', 'the placeholder on a phone');
-  const size = phone.match(/font-size:\s*max\(([\d.]+)em, ([\d]+)px\);/);
+  // The floor is in --mm-px, which follows the text-size setting (pxFontSizeRatchet).
+  const size = phone.match(/font-size:\s*max\(([\d.]+)em, calc\((\d+) \* var\(--mm-px\)\)\);/);
   assert.ok(size, 'the placeholder is a fraction of the box\'s own size, with a floor');
   assert.ok(EXAMPLE_PX_AT_24 * Number(size[1]) <= ROOM_ON_A_344_PHONE, `at ${size[1]}em the example is ${Math.round(EXAMPLE_PX_AT_24 * Number(size[1]))}px, the room is ${ROOM_ON_A_344_PHONE}px`);
-  assert.ok(Number(size[2]) >= 16, 'never under 16px');
+  assert.ok(Number(size[2]) >= 16, 'never under 16px at the default text size');
   // The typed answer is untouched: only the placeholder part is scaled.
   assert.doesNotMatch(phone, /math-field\s*\{/);
 });

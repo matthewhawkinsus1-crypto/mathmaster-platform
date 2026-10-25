@@ -210,10 +210,11 @@ math-field::part(placeholder) {
    text; "for example 0 ≤ x ≤ 4" is 243px at the box's own 24px, so the last
    character was cut ("for example 0 ≤ x ≤"). The hint is a little smaller than
    what is typed over it (170px, which fits a 216px box on a 344px phone too),
-   and never under 16px. Nothing typed changes size. */
+   and never under 16px at the default text size (the floor follows the
+   student's text-size setting). Nothing typed changes size. */
 @media (max-width: 600px) {
   math-field::part(placeholder) {
-    font-size: max(0.7em, 16px);
+    font-size: max(0.7em, calc(16 * var(--mm-px)));
   }
 }
 
