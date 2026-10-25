@@ -340,7 +340,7 @@ test('every due date a real client computes is accepted, for every due day and a
         for (let dueDayOfWeek = 0; dueDayOfWeek < 7; dueDayOfWeek += 1) {
           const weekKey = weekKeyFor(now, weekStartsOn);
           const dueAt = dueAtFor(now, { weekStartsOn, dueDayOfWeek });
-          const frozen = freezeWeeklyPathGoalProposal({ ...proposal(sessions), weekKey, dueAt }, CONTEXT);
+          const frozen = freezeWeeklyPathGoalProposal({ ...proposal(sessions), weekKey, dueAt }, { ...CONTEXT, weekStartsOn });
           assert.equal(frozen.dueAt, dueAt);
           checked += 1;
         }
@@ -422,4 +422,26 @@ test('a standard is offered by one slot at most, at freeze and at launch', () =>
   const launch = (slot) => authorizeWeeklySlotLaunch({ goal, weeklySlotKey: slot.weeklySlotKey, targetAlignmentKey: 'texas:A.7C', ...SERVER });
   assert.equal(launch(second).reason, 'target-mismatch');
   assert.equal(launch(first).ok, true);
+});
+
+// A week is named by the day its class's week starts. Any other date inside
+// the clock window froze a second "week" in the same calendar week: its own
+// snapshot and grade, and its own count toward the weeks-hit streak.
+test('a week is frozen only under the key its class\'s week starts on', () => {
+  const sessions = [slotProposal('A.5A'), slotProposal('A.2C'), slotProposal('A.3B')];
+  const freeze = (weekKey, weekStartsOn) => freezeWeeklyPathGoalProposal({ ...proposal(sessions), weekKey }, { ...CONTEXT, now: MON, weekStartsOn });
+  const refused = (weekKey, weekStartsOn) => assert.throws(() => freeze(weekKey, weekStartsOn), (error) => error.code === 'invalid-argument', `${weekKey} for a week starting on day ${weekStartsOn}`);
+  assert.equal(freeze(WEEK, 1).weekKey, WEEK, 'Monday, for a class whose week starts on Monday');
+  refused('2026-10-06', 1);
+  refused('2026-10-07', 1);
+  assert.equal(freeze('2026-10-04', 0).weekKey, '2026-10-04', 'Sunday, for a class whose week starts on Sunday');
+  refused(WEEK, 0);
+  // The simulator runs its own synthetic weeks and passes no week start.
+  assert.equal(freezeWeeklyPathGoalProposal({ ...proposal(sessions), weekKey: '2026-10-06' }, CONTEXT).weekKey, '2026-10-06');
+  // The callable hands the class's own week start to the freeze.
+  const inputs = readFileSync(new URL('../../functions/lib/weeklyPathFreezeInputs.js', import.meta.url), 'utf8');
+  assert.match(inputs, /const weekStartsOn = Number\.isFinite\(Number\(config\?\.weekStartsOn\)\)/);
+  assert.match(inputs, /plannedSessions,\n\s*weekStartsOn,/);
+  const index = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  assert.match(index, /slotAuthority\.freezeWeeklyPathGoalProposal\(goal, \{[\s\S]{0,400}\.\.\.freezeInputs,/);
 });

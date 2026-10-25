@@ -237,11 +237,21 @@ export const freezeWeeklyPathGoalProposal = (goal = {}, {
   // (functions/lib/weeklyPathServerPlan.js), computed only for a short
   // proposal; null when the server did not or could not plan.
   plannedSessions = null,
+  // The day the class's week starts (0 = Sunday), from its stored settings.
+  // The simulator passes none.
+  weekStartsOn = null,
   ...toolOptions
 } = {}) => {
   const tools = toolsFrom(toolOptions);
   const weekKey = text(goal?.weekKey);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(weekKey) || !Number.isFinite(Date.parse(`${weekKey}T00:00:00Z`))) {
+    throw new WeeklyPathGoalError('invalid-argument', 'A valid weekly Path weekKey is required.');
+  }
+  // A week is named by the day it starts (weekKeyFor). Any other date inside
+  // the clock window below would freeze a second "week" within the same
+  // calendar week, with its own snapshot, its own grade and its own count
+  // toward the weeks-hit streak and its rewards.
+  if (Number.isInteger(weekStartsOn) && new Date(`${weekKey}T00:00:00Z`).getUTCDay() !== weekStartsOn) {
     throw new WeeklyPathGoalError('invalid-argument', 'A valid weekly Path weekKey is required.');
   }
   // The due date decides when the week's grade freezes and whether the

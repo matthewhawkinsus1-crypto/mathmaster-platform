@@ -63,10 +63,16 @@ async function loadWeeklyFreezeInputs({ db, studentId, studentData = null, class
       serverProfiles: profiles, retentionSchedules: schedules, now, plannerOptions,
     })
     : null;
+  // The day the class's week starts, read as the student's screen reads it
+  // (weeklyPathGoal.js): a week's key must be that day.
+  const weekStartsOn = Number.isFinite(Number(config?.weekStartsOn))
+    ? Math.min(6, Math.max(0, Math.round(Number(config.weekStartsOn))))
+    : 1;
   return {
     requestedSessions,
     shortWeekReason,
     plannedSessions,
+    weekStartsOn,
     retentionDue: (displayCode) => retentionCheck.retentionCheckIsDue({
       profile: byCode(profiles, displayCode),
       schedule: byCode(schedules, displayCode),
