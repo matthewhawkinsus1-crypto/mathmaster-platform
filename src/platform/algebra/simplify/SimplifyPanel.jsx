@@ -31,6 +31,7 @@ import {
   partPromptLatex,
   regionRewriteSlip,
   simplifyMessage,
+  simplifyReasonShown,
 } from './simplifyEngine.js';
 import {
   chooseSimplifyPart,
@@ -42,6 +43,7 @@ import {
   setSimplifySign,
 } from './simplifyState.js';
 import { spokenMathLabel } from '../../language/mathSpeechLabel.js';
+import { useToolRuntimeContext } from '../../../tools/shared/ToolRuntimeContext';
 import './SimplifyPanel.css';
 
 const chipStyle = (active) => ({
@@ -107,6 +109,8 @@ export default function SimplifyPanel({
   // asks: an equation whose verdicts are shown. Never with a host's own reader.
   nameSlips = false,
 }) {
+  // An exit ticket, quiz or test: a refused part never says which way it is off (simplifyReasonShown).
+  const verdictsWithheld = useToolRuntimeContext()?.verdictsWithheld === true;
   const chipRefs = useRef(new Map());
   const typedRef = useRef(null);
   const regionTypedRef = useRef(null);
@@ -185,7 +189,7 @@ export default function SimplifyPanel({
     };
     const result = commitSimplifyPart(regions, part.id, work, { host });
     if (!result.ok) {
-      notify?.({ tone: 'growth', text: simplifyMessage(result.reason) });
+      notify?.({ tone: 'growth', text: simplifyMessage(simplifyReasonShown(result.reason, { verdictsWithheld })) });
       if (partNeedsAnswer(part) && !partNeedsSigns(part)) setAnswerFocus((signal) => signal + 1);
       return;
     }

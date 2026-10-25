@@ -939,6 +939,17 @@ export const SIMPLIFY_MESSAGES = Object.freeze({
 
 export const simplifyMessage = (reason) => SIMPLIFY_MESSAGES[reason] || SIMPLIFY_MESSAGES.notEqual;
 
+/**
+ * The reason a refused part is told as. Where the activity withholds verdicts
+ * (an exit ticket, a quiz, a test), "Check the sign" would tell the student
+ * the value is right but for its sign, and on a last step (x = (−2)(3) typed
+ * as 6) that is the answer: there a part is only "not equal". Where verdicts
+ * are shown it keeps its coaching.
+ */
+export const simplifyReasonShown = (reason, { verdictsWithheld = false } = {}) => (
+  verdictsWithheld && reason === 'sign' ? 'notEqual' : reason
+);
+
 /** The part as one line for the box: "(1)(−4x) =". */
 export const partPromptLatex = (part) => {
   if (!part) return '';
