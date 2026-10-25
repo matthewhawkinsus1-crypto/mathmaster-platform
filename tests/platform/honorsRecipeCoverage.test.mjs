@@ -147,6 +147,8 @@ test('the committed report is generated from the live registry and audit, never 
   // The nine Module 3 families are Algebra I content (NOT APPROPRIATE in
   // Algebra II); in Algebra I three are CAPABLE (inequalities.solveLinear,
   // inequalities.contextModel, systems.contextModel) and six BLOCKED.
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 50 \| 4 \| 8 \| 28 \| 10 \|/);
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 50 \| 0 \| 1 \| 23 \| 26 \|/);
+  // The interval Recovery family (RC01, intervals.graphAndWrite) is Algebra II
+  // content (A2.7I): NOT APPROPRIATE in Algebra I, BLOCKED in Algebra II.
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 51 \| 4 \| 8 \| 28 \| 11 \|/);
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 51 \| 0 \| 1 \| 24 \| 26 \|/);
 });

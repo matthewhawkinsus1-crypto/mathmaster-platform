@@ -121,6 +121,26 @@ and again for the Honors copy if you have one), press **Prepare Recovery…**,
 read the preview, and press **Approve and Add Recovery**. Nothing changes for
 any student until you do.
 
+### The Algebra II Honors interval lessons
+
+"**Algebra II Honors — Lesson 1 Day 1: Interval Notation, Domain, and Range**"
+and "**Algebra II Honors — Lesson 1 Day 2: Function Attributes and Relations**"
+(Module 1) ask students to graph an inequality on the number line and write it
+in interval notation. Those number-line questions can now be recovered:
+
+| Question | Recovery versions |
+| --- | --- |
+| Day 1 Warm-Up Q1 — graph −4 ≤ x < 3 | graph a bounded interval and write it in interval notation |
+| Day 1 Warm-Up Q2 — graph x > 2 | graph a ray and write it in interval notation |
+| Day 1 Warm-Up Q3 — graph x ≤ −5 or x > 1 | graph two rays and write the union |
+| Day 1 DOL Q1 — graph x < −1 or 2 ≤ x ≤ 5 | graph a ray and a bounded interval and write the union |
+| Day 2 Warm-Up Q2 — graph −2 ≤ x < 4 | graph a bounded interval and write it in interval notation |
+
+Each version states a new inequality with whole-number ends, in the same tool,
+at the same DOK and difficulty. Prepare Recovery makes both Warm-Ups ready. The
+DOLs stay "not ready": Day 1's DOL Q2 and Q3 and Day 2's DOL have questions no
+Recovery family writes yet.
+
 ## Seeing who can recover
 
 In the assignment details, **Show who can recover in (class)** lists, for the

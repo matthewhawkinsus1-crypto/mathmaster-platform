@@ -40,7 +40,7 @@ import { gradeServerResponse, gradeToolWork } from '../../functions/shared/serve
 import { buildLinearConnectionCards, linearConnectionsCardKinds, representationSetsFor } from '../../functions/shared/toolMath/representationMatch/representationMath.mjs';
 import { correctLinearBoardResponse, oneWrongLinearBoardResponse } from './helpers/linearMultipleRepresentationsResponses.mjs';
 import { correctAlgebraicSystemWork, wrongAlgebraicSystemWork } from './helpers/algebraicSystemWork.mjs';
-import { matrixLabKeyWork, polynomialWorkshopKeyWork } from '../../functions/shared/recoveryCertificationGrading.mjs';
+import { intervalNumberLineKeyWork, matrixLabKeyWork, polynomialWorkshopKeyWork } from '../../functions/shared/recoveryCertificationGrading.mjs';
 
 const SAMPLE = 160;
 
@@ -121,6 +121,10 @@ const REGISTRY_TOOL_WORK = {
   // answer as the workshop's Check sends them, and the same work with the
   // answer wrong.
   polynomialWorkshop: (question, instance) => polynomialWorkshopKeyWork(instance.answer),
+  // The Interval Number Line (intervals.*, RC01): the graph and the interval
+  // notation as the tool's Check sends them, and the same work with one
+  // endpoint's open or closed dot flipped.
+  intervalNumberLine: (question, instance) => intervalNumberLineKeyWork(instance.answer),
   representationMatch: (question) => {
     const sets = representationSetsFor(question);
     const slotOf = Object.fromEntries(sets.map((set, index) => [set.id, index]));

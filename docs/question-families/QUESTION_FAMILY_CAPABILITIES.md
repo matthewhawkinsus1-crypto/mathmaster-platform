@@ -27,6 +27,7 @@ first seat, seats 1–3, 4–6, … each get one of each case); its capacity is 
 | `inequalities.contextModel` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 290 — every student unique | — |
 | `inequalities.solveLinear` | v1 · what an unpinned reference means | — | — | `stepAlgebra` (relation) | yes — shared server grader | yes | about 66,120 — every student unique | — |
 | `inequalities.translatePhrase` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 2,160 — every student unique | — |
+| `intervals.graphAndWrite` | v1 · what an unpinned reference means | — | — | `intervalNumberLine` (numberLine) | yes — shared server grader | yes | 612 — every student unique | — |
 | `linear.contextFunction` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 132 — every student unique | — |
 | `linear.graphFromSlopeIntercept` | v1 · what an unpinned reference means | — | — | `graphing2` (slopeIntercept) | yes — shared server grader | yes | 150 — every student unique | reduce-complexity: slopeRange [1, 3]; keeps slope |
 | `linear.keyCharacteristics` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 180 — every student unique | reduce-complexity: slopeRange [1, 3]; keeps slope, xIntercept |
@@ -228,6 +229,28 @@ Write an inequality from words.
 | Setting | Distinct questions | Per case / shape |
 | --- | --- | --- |
 | default | about 2,160 | — |
+
+### `intervals.graphAndWrite` v1
+
+Graph an inequality on a number line and write it in interval notation.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** strict — an unknown constraint, a value it does not list, or a tool it cannot fill stops generation with a message naming what is allowed. Nothing falls back to a default.
+- **Alignments:** A2.7I
+- **Answered in:** `intervalNumberLine` (numberLine)
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `shape` | choice | `"segment"` | `"segment"`, `"ray"`, `"twoRays"`, `"rayAndSegment"` | yes |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | 612 | — |
+| shape: "ray" | 76 | — |
+| shape: "twoRays" | 612 | — |
+| shape: "rayAndSegment" | 1,584 | — |
 
 ### `linear.contextFunction` v1
 

@@ -485,6 +485,8 @@ it, and the Recovery is generated from that family.
 | `recoveryContentPlan.mjs` | The one planner every surface runs (Pre-Flight, creation, the assignment details, the upgrade callables, the operator script): per Warm-Up/DOL question `family`, `kept`, `add`, `replace` or `unavailable` (with the reason and the fix), the legitimate exceptions (`off`, `liveChallenge`, `secure`, `notPresent`), and `fullyReady` only when both sections are ready or excepted. `liveRecoverySections` counts only stored bindings — what students have now. `recoveryPreparationAvailable` is the cheap, recognition-only check behind an assignment card's badge. |
 | `recoveryContentUpgrade.mjs` | The live upgrade: the dry-run report (what changes; what does not, with every question's signature and student-record counts — never an id), the plan hash an approval is bound to (the questions and the bindings to write; never student data, so work in progress never invalidates an approval), and `applyRecoveryUpgrade` (the new `recoveryContent` and one `assignmentVersionEvents` row). |
 | `recoveryMigrations.mjs` | Prepared, reviewed bindings for a known live lesson (`recovery-v2-algebra1-m2t2-l2`), certified like any other. |
+| `questionFamiliesIntervals.mjs` | RC01: `intervals.graphAndWrite`, the Interval Number Line asking for the graph and the interval notation of an inequality the prompt states — a bounded interval, a ray, two rays, or a ray and a bounded interval (`shape`, a strict concept, each at the rigor the lesson teaches it). It recognizes the five static number-line Warm-Up and DOL questions of Algebra II Honors Module 1, Lesson 1 Days 1 and 2, the most common static shape no family recognized. |
+| `scripts/recovery-coverage-report.mjs` | RC01: the planner over every lesson file in `teacher-import-jsons/` and `docs/assignments/` — per lesson, the Warm-Up and DOL questions with Recovery now and once prepared, and every question still without it, by shape. `tests/platform/recoveryCoverageReport.test.mjs` pins the counts. |
 | `assignmentPracticeEvidence.mjs` | The assignment's own Practice as mastery evidence, only where trustworthy (below). |
 
 **Readiness and generation.** `sectionRecoveryReadiness.mjs` treats a static
@@ -552,7 +554,10 @@ and the "NEW" marks stay in `studentRecoveryNotices.js`
 
 **Tests.** `recoveryV2Families`, `recoveryV2Certification`,
 `recoveryV2LiveUpgrade` (dry run, plan hash, one-field write, idempotence, the
-operator script against an in-memory Firestore), `recoveryV2StudentJourney`
+operator script against an in-memory Firestore), `recoveryIntervalFamilies`
+(every interval version, the five live questions, both lessons' Prepare
+Recovery and a missed Warm-Up end to end), `recoveryCoverageReport` (the
+lesson-by-lesson counts), `recoveryV2StudentJourney`
 (the real lesson end to end: a part-way class, the upgrade, the original
 finished, Practice, the Recovery, the grade on every surface) and
 `recoveryV2Visibility`; `tests/browser/recoveryReadiness.mjs` and
@@ -580,3 +585,6 @@ finished, Practice, the Recovery, the grade on every surface) and
   with a certified Recovery family where one recognizes it (§6a); the rest
   stays without Recovery until it is migrated question by question, and
   Pre-Flight and the assignment details show which questions block it.
+  `node scripts/recovery-coverage-report.mjs` counts it lesson by lesson and
+  lists what is left by shape, most common first, so the next family is
+  chosen by count.

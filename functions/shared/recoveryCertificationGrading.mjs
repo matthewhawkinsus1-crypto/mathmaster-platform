@@ -91,6 +91,39 @@ export const polynomialWorkshopKeyWork = (answer = {}) => {
   return { right, wrong: { ...right, [finalField]: '999' } };
 };
 
+/**
+ * The Interval Number Line work a student who solved an intervals.* version
+ * would send (serverGrading/declarations/intervalNumberLine.mjs: the pieces
+ * the tool built, an unbounded end as ±Infinity, and the notation typed), and
+ * the same work with the first finite end's open or closed dot flipped on the
+ * graph and in the notation — the mistake the question exists to catch. The
+ * notation is written here from the pieces, never copied from the family's
+ * own display. Null for an answer that is not a list of intervals.
+ */
+export const intervalNumberLineKeyWork = (answer = {}) => {
+  if (answer.kind !== 'intervals' || !Array.isArray(answer.value) || !answer.value.length) return null;
+  const pieces = answer.value.map((entry) => ({
+    min: entry?.min === null || entry?.min === undefined ? -Infinity : Number(entry.min),
+    max: entry?.max === null || entry?.max === undefined ? Infinity : Number(entry.max),
+    minClosed: entry?.minClosed === true,
+    maxClosed: entry?.maxClosed === true,
+  }));
+  if (pieces.some(({ min, max }) => Number.isNaN(min) || Number.isNaN(max))) return null;
+  const notation = (list) => list.map(({ min, max, minClosed, maxClosed }) => (
+    `${Number.isFinite(min) && minClosed ? '[' : '('}${Number.isFinite(min) ? min : '-∞'}, ${Number.isFinite(max) ? max : '∞'}${Number.isFinite(max) && maxClosed ? ']' : ')'}`
+  )).join(' ∪ ');
+  const flipped = pieces.map((entry) => ({ ...entry }));
+  const target = flipped.find(({ min, max }) => Number.isFinite(min) || Number.isFinite(max));
+  if (target) {
+    if (Number.isFinite(target.min)) target.minClosed = !target.minClosed;
+    else target.maxClosed = !target.maxClosed;
+  }
+  return {
+    right: { intervals: pieces, notation: notation(pieces) },
+    wrong: { intervals: flipped, notation: notation(flipped) },
+  };
+};
+
 /** The response a student who solved this version would send, and one wrong one. */
 export const recoveryKeyResponses = (question = {}, instance = {}) => {
   const answer = instance?.answer || {};
@@ -137,6 +170,14 @@ export const recoveryKeyResponses = (question = {}, instance = {}) => {
     return {
       right: buildToolResponse({ question, toolId: 'polynomialWorkshop', work: workshopWork.right }),
       wrong: buildToolResponse({ question, toolId: 'polynomialWorkshop', work: workshopWork.wrong }),
+    };
+  }
+  // Interval Number Line (intervals.*, RC01): the graph and the notation.
+  const intervalWork = question.type === 'intervalNumberLine' ? intervalNumberLineKeyWork(answer) : null;
+  if (intervalWork) {
+    return {
+      right: buildToolResponse({ question, toolId: 'intervalNumberLine', work: intervalWork.right }),
+      wrong: buildToolResponse({ question, toolId: 'intervalNumberLine', work: intervalWork.wrong }),
     };
   }
   return null;

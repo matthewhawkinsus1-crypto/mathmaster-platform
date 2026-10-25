@@ -526,6 +526,18 @@ export const HONORS_FAMILY_AUDIT = Object.freeze({
       teacherReason: 'MathMaster\'s profit generator only evaluates the profit at one number of sales, so it cannot yet build the maximize-the-profit work a built-in Honors extension needs.',
     }),
   }),
+  // The Recovery V2 family for the static number-line Warm-Up and DOL
+  // questions of Algebra II Honors Module 1, Lesson 1 (questionFamiliesIntervals.mjs,
+  // RC01). It asks exactly its originals' skill at their rigor, aligned to A2.7I.
+  'intervals.graphAndWrite': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Writing an inequality in interval notation', 'A2.7I')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version states one inequality with whole-number ends (an interval, a ray, two rays, or a ray and an interval) and asks for its graph and its interval notation; the remaining levers are other ends, which are not rigor.',
+      missingCapability: 'A `represent` knob that gives the set as a graph or as a function\'s domain or range and asks for the inequality and set-builder notation too (the number line\'s `inequality` stage), so the student moves between all three notations A2.7I names.',
+      teacherReason: 'MathMaster\'s interval generator only writes a stated inequality in interval notation, so it cannot yet build the move-between-notations work a built-in Honors extension needs.',
+    }),
+  }),
 });
 
 /**

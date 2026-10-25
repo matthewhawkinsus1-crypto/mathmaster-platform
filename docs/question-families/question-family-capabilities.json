@@ -900,6 +900,87 @@
       "declared": {}
     },
     {
+      "id": "intervals.graphAndWrite",
+      "version": 1,
+      "title": "Graph an inequality on a number line and write it in interval notation",
+      "alignments": [
+        "A2.7I"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "strict",
+      "constraints": [
+        {
+          "name": "shape",
+          "label": "Shape of the inequality",
+          "kind": "choice",
+          "default": "segment",
+          "concept": true,
+          "values": [
+            "segment",
+            "ray",
+            "twoRays",
+            "rayAndSegment"
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "shape"
+      ],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "intervalNumberLine",
+          "default": true,
+          "mode": "numberLine",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 612,
+          "exact": true
+        },
+        {
+          "label": "shape: \"ray\"",
+          "constraints": {
+            "shape": "ray"
+          },
+          "capacity": 76,
+          "exact": true
+        },
+        {
+          "label": "shape: \"twoRays\"",
+          "constraints": {
+            "shape": "twoRays"
+          },
+          "capacity": 612,
+          "exact": true
+        },
+        {
+          "label": "shape: \"rayAndSegment\"",
+          "constraints": {
+            "shape": "rayAndSegment"
+          },
+          "capacity": 1584,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
       "id": "linear.contextFunction",
       "version": 1,
       "title": "Write and interpret a linear function from a situation",
