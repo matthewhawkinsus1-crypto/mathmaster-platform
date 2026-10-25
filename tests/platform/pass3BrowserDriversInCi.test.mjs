@@ -39,8 +39,8 @@ const DRIVERS = [
   ['student-runtime-browser-gates.yml', 'pass3-secure-screens', 'self', ['secureResults', 'secureExamNavigation']],
   // CI10: the M2 T2 lessons' every question, laptop and phone, and their tries.
   ['student-runtime-browser-gates.yml', 'student-runtime-2', 'plain', ['algebra1Module2Topic2']],
-  // WCAG 1.4.13: the plane's hover readout closes on Escape.
-  ['student-runtime-browser-gates.yml', 'student-runtime-3', 'plain', ['planeReadoutEscape']],
+  // WCAG 1.4.13: the plane's hover readout and the wheels' detail close on Escape.
+  ['student-runtime-browser-gates.yml', 'student-runtime-3', 'plain', ['planeReadoutEscape', 'wheelEscape']],
   // FB10: after a miss, the hint opens under it and Check stays in view.
   ['student-teacher-journeys.yml', 'student', 'plain', ['feedbackTeachesHintPlace']],
   ['student-runtime-browser-gates.yml', 'pass3-secure-screens', 'stubbed', ['secureAccessParity']],

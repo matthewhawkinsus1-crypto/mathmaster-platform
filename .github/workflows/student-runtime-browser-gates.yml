@@ -77,6 +77,8 @@ name: Student Runtime Browser Gates
 #   planeReadoutEscape  the plane's hover crosshair and a hovered point's
 #                       coordinates close on Escape without the pointer or focus
 #                       moving, and Escape still closes Work View (WCAG 1.4.13)
+#   wheelEscape         the two progress wheels' hover and focus detail closes
+#                       on Escape, the pointer and focus staying (WCAG 1.4.13)
 #   focusSafeToolControls  Start over, Reset view and Step Algebra's distribution
 #                       targets keep keyboard focus when they disable themselves
 #                       (pass 3, A11Y-2)
@@ -331,6 +333,12 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/planeReadoutEscape.mjs
+      - name: The progress wheels' detail closes on Escape
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/wheelEscape.mjs
       - name: Self-disabling tool controls keep keyboard focus
         if: ${{ !cancelled() }}
         env:

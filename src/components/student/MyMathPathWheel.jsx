@@ -1,4 +1,5 @@
-import React, { useId, useState } from 'react';
+import React, { useCallback, useId, useState } from 'react';
+import useEscapeToDismiss from '../../ui/useEscapeToDismiss.js';
 import {
   DEFAULT_MASTERY_COURSE_ID, MASTERY_STATUS_COLORS, getMasteryStrands, masteryCourseLabel,
 } from '../../platform/mastery/strandConfig.js';
@@ -46,6 +47,11 @@ export const MyMathPathWheel = ({
   showLegend = true,
 }) => {
   const [focusedTeks, setFocusedTeks] = useState(null);
+  // A hovered or focused skill's name and status replace "My Math Path" in the
+  // hub: Escape puts it back, the pointer and focus staying where they are
+  // (WCAG 1.4.13). It comes back when the pointer or focus reaches a skill.
+  const clearFocusedTeks = useCallback(() => setFocusedTeks(null), []);
+  useEscapeToDismiss(focusedTeks != null, clearFocusedTeks);
   const [openStrands, setOpenStrands] = useState({});
   const legendId = useId();
   const center = size / 2;
