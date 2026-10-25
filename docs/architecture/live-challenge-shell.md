@@ -289,6 +289,28 @@ A finished game has no pointer, so the tab remembers the room it last hosted
 refresh. A remembered or pointed-to room the server no longer has is dropped
 once and never reopened.
 
+**Scoring at create (LC16).** A Standard Challenge or Solver Race is created
+under Accuracy First, Grand Prix or Correct Count (Solver Race has no Correct
+Count: its mode does not allow it), chosen in the create panel beside the other
+classic settings; Graph Feature Rush and Graph the Line keep their own Scoring
+choice in their setup panels. The choices offered are the mode's own list
+(`classicScoringModel.js` reads the registry), Accuracy First sends nothing so a
+teacher who ignores the choice sends the request they always did, and Play Again
+keeps the choice (`replayRequestFromRoom`). Speed influence belongs to Accuracy
+First: Grand Prix ranks a round by how right each answer was and then by speed,
+and Correct Count pays no speed, so the control is shown only for Accuracy First
+and the other two send the platform default (20%), never a number a hidden
+control left behind. The card under the panel says what a round pays in each
+strategy, built from the engine's own placement table, and the dry run, which
+checks the questions and shows Accuracy First's points, says so when the game
+will be scored another way. **Second Chance is Accuracy First's**: it replays
+the questions the class missed and pays the students who missed them recovery
+points, which only Accuracy First pays, and no test has ever played Grand Prix
+or Correct Count with replays (they would be one more ordinary round for
+everyone). The console switches the control off for the other two and says why;
+the server still accepts the combination from another client, which is a
+reason to certify it before it is ever offered.
+
 **Audio** is optional and mutable. Nothing is created until the teacher's
 first click (Start on the projector, or Enable Audio), nothing while muted
 (muting releases every sound; unmuting brings back the moment's music), and at
@@ -569,9 +591,6 @@ GC) flat across them.
 - **A pause control.** The timer models pause/resume and the stage exists, but
   no control sends it: a pause that only some devices honoured would be worse
   than none.
-- **Choosing a scoring strategy for the classic modes** in the console (the
-  server and every results screen already support Grand Prix and Correct
-  Count; only the setup control is missing).
 - **Teacher removal of a student** from a running game (removal happens
   through account deletion). Adding a student mid-game invites them (§10).
   Looked at for LC02 (VH-55) and not built, because it is not small and safe;

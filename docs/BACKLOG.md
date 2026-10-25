@@ -150,10 +150,14 @@ See `docs/architecture/live-challenge-shell.md`.
   can honour it).
 - A **server-side close** for a round whose deadline passed with no host screen
   open (students wait on "Time's up" until one is).
-- **Choosing a scoring strategy for the classic modes** in the console (every
-  results screen already presents Grand Prix and Correct Count).
-- **Removing a student** from a running game, and re-inviting a student added
-  to the class mid-game.
+- ~~**Choosing a scoring strategy for the classic modes** in the console~~ —
+  built (LC16): Standard Challenge and Solver Race offer the strategies their
+  mode allows; see `live-challenge-shell.md` §7.
+- **Removing a student** from a running game. A student added to the class
+  mid-game is invited already (`live-challenge-shell.md` §10). Removal was
+  looked at (LC02, VH-55) and is not small and safe: §14 lists what it needs (a
+  callable, a tombstone against re-invitation, seat bookkeeping, the engine
+  effects, the student's screen, the console, certification).
 - **Countdown sound** tied to `startsAt` (cues are tied to the deadline today).
 
 ### ~~Live Challenge engine and rewards foundation~~ — shipped
@@ -175,9 +179,9 @@ See `docs/architecture/live-challenge-engine.md`.
 
 **Open follow-ups, each built on what shipped:**
 
-- **Teacher choice of scoring** — the server accepts `scoringStrategyId`
-  (Accuracy First, Grand Prix, Correct Count); the create panel does not offer
-  it yet, and Grand Prix needs its round-results screen on the projector.
+- ~~**Teacher choice of scoring**~~ — built (LC16): the create panel offers the
+  strategies each classic mode allows (Rush and Graph the Line had their own);
+  Grand Prix's round-results screen is on the projector.
 - ~~**Reward policy editor**~~ — teachers now choose Practice Passes for
   1st / top 2 / top 3 and a Champion badge when creating a Challenge; a
   free-form rule editor remains open.

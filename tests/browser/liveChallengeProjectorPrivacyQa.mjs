@@ -39,6 +39,11 @@
 //   4. Small games (LC22): five players, the live board, the results and the
 //      podium show the top two (a third would leave 4th and 5th, and 4th could
 //      name 5th); three players, nobody is named, and the podium has no steps.
+//   5. A classic game scored by Grand Prix, chosen in the console (LC16): the
+//      Scoring choice per game type (no Correct Count for Solver Race), Speed
+//      influence hidden outside Accuracy First, Second Chance switched off with
+//      its reason, the room created as Grand Prix at the default speed, first
+//      place paid the engine's 15, and Play Again keeping the choice.
 //
 // NOTHING TOUCHES PRODUCTION: firebase.js is swapped for an emulator module,
 // the browser blocks every non-local request, and the project id is
@@ -394,7 +399,7 @@ const confirmDialog = async (handle, label) => {
   await dialog.getByRole('button', { name: label, exact: true }).click();
 };
 
-const createClassic = async (teacher, { standingsDisplay = null, seconds = 20 } = {}) => {
+const createClassic = async (teacher, { standingsDisplay = null, seconds = 20, scoring = null } = {}) => {
   // A console reopened on an ended room (a reload after Play Again was
   // cancelled) offers New Challenge first, as a teacher would see it.
   // The console may switch to it a moment after the create form showed, so
@@ -408,6 +413,7 @@ const createClassic = async (teacher, { standingsDisplay = null, seconds = 20 } 
   }
   await selectInLabel(teacher, 'Class', CLASS_ID);
   await selectInLabel(teacher, 'Game type', 'standard');
+  if (scoring) await selectInLabel(teacher, 'Scoring', scoring);
   await selectInLabel(teacher, 'Rounds', 5);
   await selectInLabel(teacher, 'Time per round', seconds);
   // Off: a closing threshold would cut the class's deadline short once most
@@ -840,6 +846,85 @@ try {
   };
   await smallGame({ players: 5, shown: 2, tag: 'V' });
   await smallGame({ players: 3, shown: 0, tag: 'G' });
+  await teacher.page.getByRole('button', { name: 'Exit Projector View' }).click().catch(() => {});
+
+  /* ============ 5. A CLASSIC GAME SCORED BY GRAND PRIX, FROM THE CONSOLE (LC16) ============ */
+
+  log('▶ a classic game scored by Grand Prix, chosen in the console');
+  const optionsOf = (label) => teacher.page.locator('label').filter({ hasText: new RegExp(`^${label}`) }).locator('select').first().locator('option').evaluateAll((nodes) => nodes.map((node) => node.value));
+  const fresh = teacher.page.getByRole('button', { name: 'New Challenge', exact: true });
+  if (await fresh.isVisible().catch(() => false)) await fresh.click();
+  await teacher.page.locator('text=Create a challenge').first().waitFor({ timeout: 30_000 });
+  check(JSON.stringify(await optionsOf('Scoring')) === JSON.stringify(['accuracyFirst', 'grandPrix', 'correctCount']), `a Standard Challenge offers ${JSON.stringify(await optionsOf('Scoring'))}`, 'a Standard Challenge offers Accuracy First, Grand Prix and Correct Count');
+  check(await teacher.page.locator('label').filter({ hasText: /^Speed influence/ }).count() === 1, 'Accuracy First does not show Speed influence', 'Accuracy First shows Speed influence');
+  check(await teacher.page.locator('[data-mm-classic-scoring-help]').count() === 0, 'Accuracy First shows the scoring help', 'Accuracy First keeps its own points preview');
+  await selectInLabel(teacher, 'Game type', 'solverRace');
+  check(JSON.stringify(await optionsOf('Scoring')) === JSON.stringify(['accuracyFirst', 'grandPrix']), `a Solver Race offers ${JSON.stringify(await optionsOf('Scoring'))}`, 'a Solver Race offers Accuracy First and Grand Prix (no Correct Count)');
+  await selectInLabel(teacher, 'Scoring', 'grandPrix');
+  await selectInLabel(teacher, 'Game type', 'standard');
+  // The choice was Grand Prix when the game type changed: Standard still has it.
+  check(await teacher.page.locator('label').filter({ hasText: /^Scoring/ }).locator('select').first().inputValue() === 'grandPrix', 'the choice was lost when the game type changed', 'the Grand Prix choice holds across a change of game type');
+  // Second Chance is Accuracy First's: turned on there, it is switched off (and
+  // says why) under Correct Count, and is still off when the room is created
+  // under Grand Prix although the setting was left on.
+  await selectInLabel(teacher, 'Scoring', 'accuracyFirst');
+  await selectInLabel(teacher, 'Second Chance', 'automatic');
+  await selectInLabel(teacher, 'Scoring', 'correctCount');
+  const secondChanceSelect = teacher.page.locator('label').filter({ hasText: /^Second Chance/ }).locator('select').first();
+  check(await secondChanceSelect.isDisabled(), 'Second Chance is still offered under Correct Count', 'Second Chance is switched off under Correct Count');
+  check(await secondChanceSelect.inputValue() === 'off', 'the Second Chance control shows Automatic under Correct Count', 'and shows Off, not a hidden Automatic');
+  check((await textOf(teacher)).includes('Second Chance gives back points a student missed'), 'the control does not say why Second Chance is off', 'the control says why Second Chance is off');
+  await selectInLabel(teacher, 'Scoring', 'grandPrix');
+  check(await teacher.page.locator('label').filter({ hasText: /^Speed influence/ }).count() === 0, 'Grand Prix still shows Speed influence', 'Grand Prix hides Speed influence');
+  const help = await teacher.page.locator('[data-mm-classic-scoring-help="grandPrix"]').first().innerText().catch(() => '');
+  check(/How scoring works/.test(help) && /championship points/.test(help) && /1st 15, 2nd 12, 3rd 10/.test(help), `the Grand Prix help reads "${help.slice(0, 120)}"`, 'the Grand Prix help says what a round pays');
+  await teacher.page.locator('[data-mm-classic-scoring-help]').first().scrollIntoViewIfNeeded().catch(() => {});
+  await shot(teacher, 'S00-grand-prix-create');
+  const gpId = await createClassic(teacher, { standingsDisplay: 'topFew', scoring: 'grandPrix' });
+  const gpRoom = await roomOf(gpId);
+  check(gpRoom.scoringStrategyId === 'grandPrix' && gpRoom.scoringMode === 'grandPrix', `the room is scored by ${gpRoom.scoringStrategyId}`, 'the room is created with scoringStrategyId grandPrix');
+  check(gpRoom.speedInfluencePercent === 20, `the room's speed influence is ${gpRoom.speedInfluencePercent}`, 'the room carries the default speed influence (20), not a hidden control\'s');
+  check(gpRoom.secondChanceMode === 'off', `the room's Second Chance is ${gpRoom.secondChanceMode}`, 'the room has Second Chance off');
+  for (const id of IDS) await botCall('joinLiveChallenge', id, { roomId: gpId });
+  check(await waitForText(teacher, 'Grand Prix', 10_000), 'the console never says Grand Prix', 'the console says the game is scored by Grand Prix');
+  await toProjector(teacher);
+  await waitForAttr(teacher, '[data-mm-lobby-count]', 'data-mm-lobby-count', '8', 15_000);
+  await startFromProjector(teacher, gpId);
+  await playRound(gpId);
+  check(await waitForRoom(gpId, (room) => room.roundState === 'closed', 40_000), 'the Grand Prix round never closed', 'the Grand Prix round closes');
+  check(await waitForArena(teacher, 'roundResults', 10_000), 'no results for the Grand Prix game', 'the Grand Prix results show');
+  await wait(1_200);
+  const gpHide = teacher.page.getByRole('button', { name: 'Hide solution' });
+  if (await gpHide.isVisible().catch(() => false)) await gpHide.click();
+  await wait(600);
+  text = await textOf(teacher);
+  check(/\+15\b/.test(text), 'the round results do not show first place its 15 championship points', 'the round results show first place +15 (championship points)');
+  const gpRound = (await roomRef(gpId).collection('hostRounds').doc('0').get()).data();
+  check(gpRound?.standings?.some((row) => row.rank === 1 && row.matchPointsAwarded === 15), 'the round did not award 15 to first place', 'first place earned 15 championship points (the engine\'s table)');
+  await shot(teacher, 'S01-grand-prix-results');
+  await teacher.page.getByRole('button', { name: 'End Game' }).click();
+  await confirmDialog(teacher, 'End Game');
+  await waitForRoom(gpId, (room) => room.status === 'finished', 30_000);
+  await waitForArena(teacher, 'completed', 15_000);
+  const gpResult = (await db.collection('liveChallengeMatchResults').doc(gpId).get()).data();
+  check(gpResult?.scoringStrategyId === 'grandPrix', `the match result is scored by ${gpResult?.scoringStrategyId}`, 'the match result records Grand Prix');
+  // PLAY AGAIN keeps the choice (as it keeps the projector choice above).
+  await teacher.page.locator('[data-mm-primary-action="playAgain"]').first().click();
+  const gpReplay = await (async () => {
+    const until = Date.now() + 30_000;
+    while (Date.now() < until) {
+      const id = await activeRoomId();
+      if (id && id !== gpId) return id;
+      await wait(300);
+    }
+    return null;
+  })();
+  check(gpReplay, 'Play Again did not create a new room', 'Play Again creates a new room');
+  if (gpReplay) {
+    const replayRoom = await roomOf(gpReplay);
+    check(replayRoom.scoringStrategyId === 'grandPrix' && replayRoom.speedInfluencePercent === 20, `Play Again scored by ${replayRoom.scoringStrategyId}, speed ${replayRoom.speedInfluencePercent}`, 'Play Again keeps Grand Prix (and the default speed)');
+    await teacherCall('cancelLiveChallenge', { roomId: gpReplay }).catch(() => {});
+  }
   await teacher.page.getByRole('button', { name: 'Exit Projector View' }).click().catch(() => {});
 
   check(teacher.errors.length === 0, `console errors: ${teacher.errors.slice(0, 3).join(' | ')}`, 'no console errors');
