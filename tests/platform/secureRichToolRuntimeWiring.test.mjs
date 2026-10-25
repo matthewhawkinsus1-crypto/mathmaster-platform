@@ -415,7 +415,10 @@ test('Step Algebra: cue toggle and a draft-borne support level both follow the h
   assert.match(algebra, /\(\) => hintsAllowed && getSupportPolicy\(/);
   assert.match(algebra, /\{hintsAllowed \? \(\s*<label[\s\S]{0,400}Cancellation hints/);
   const relation = read('src/MultiRelationAlgebraCore.jsx');
-  assert.match(relation, /\{contextHintsAllowed !== false \? \(\s*<label[\s\S]{0,900}Cancellation hints/);
+  // (TL34: a host that does not teach cancelling drops it as well —
+  // relationSolverCancellationCues.test.mjs renders both.)
+  assert.match(relation, /const cancellationHintsOffered = showCancellationCues && contextHintsAllowed !== false;/);
+  assert.match(relation, /\{cancellationHintsOffered \? \(\s*<label[\s\S]{0,900}Cancellation hints/);
   assert.match(relation, /\{stepCreditPercent > 0 && showImmediateFeedback && \(/);
 });
 

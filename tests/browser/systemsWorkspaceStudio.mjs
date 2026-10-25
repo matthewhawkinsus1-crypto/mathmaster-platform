@@ -21,7 +21,9 @@
 //   keyboard   the graph plots from the arrow keys and Enter, and a passing
 //              Check hands focus to the step it opens
 //   rewrite    the rewrite runs in the relation solver inside its step, the
-//              graph does nothing until y is alone, then the boundary opens
+//              graph does nothing until y is alone, then the boundary opens;
+//              the solver teaches no cancelling there (TL34), at 1366x768 and
+//              on a 390x844 touch screen (rewritePhone)
 //   workview   the enlarged Work View says what the graph is waiting for, and a
 //              tap there is the same work as a tap on the page
 //   contrast   every line of the steps is readable, light and dark
@@ -290,23 +292,51 @@ const keyboard = async () => {
 
 /* --------------------------------------------------------------- rewrite */
 
-const rewrite = async () => {
-  const page = await open('rewrite');
-  check(await cursor(page) === 'c0:rewrite', 'rewrite: the question opens on rewriting constraint 1');
+// TL34 (finding A2-55): the relation solver is the absolute-value lessons'
+// workspace, where cancelling is taught; inside this step it is extra reading
+// (a "Cancellation hints" toggle, a sentence about clicking two items, a
+// tooltip on a cancellable term). The terms still take the click: the journey
+// below cancels a pair by hand.
+const noCancellationTeaching = async (page, where) => {
+  const text = await page.locator('.mm-ineq-rewrite').innerText();
+  check(!/Cancellation/i.test(text), `${where}: the solver teaches no cancelling (no hints toggle, no sentence)`, text.match(/[^.\n]*Cancellation[^.\n]*/i)?.[0] || '');
+  check(!(await page.locator('.mm-ineq-rewrite [title*="cancelled"]').count()), `${where}: and no term says it can be cancelled`);
+  check(await page.locator('.mm-ineq-rewrite button:visible').filter({ hasText: /^Simplify$/ }).count() === 1, `${where}: Simplify is still there`);
+};
+// Nothing sticks out sideways: every control of the step is inside the screen.
+const rewriteFits = async (page, where) => {
+  const overflow = await page.evaluate(() => {
+    const edge = document.documentElement.clientWidth;
+    return [...document.querySelectorAll('.mm-ineq-rewrite button')]
+      .filter((el) => el.getClientRects().length)
+      .map((el) => el.getBoundingClientRect())
+      .filter((rect) => rect.right > edge + 1 || rect.left < -1).length;
+  });
+  check(overflow === 0, `${where}: every control of the rewrite is inside the screen`, `${overflow} outside`);
+};
+
+const rewrite = async ({ viewport = CHROMEBOOK, touch = false } = {}) => {
+  const where = touch ? 'rewrite (phone)' : 'rewrite';
+  const page = await open('rewrite', { viewport, touch });
+  check(await cursor(page) === 'c0:rewrite', `${where}: the question opens on rewriting constraint 1`);
   const label = () => page.locator(GRAPH).getAttribute('aria-label');
-  check(!/Click to plot/.test(await label()), 'rewrite: the graph takes no taps while y is not alone', await label());
-  check(!(await page.locator('button:visible').filter({ hasText: /^No solution$/ }).count()), 'rewrite: the solver\'s other operations start folded away');
+  check(!/Click to plot/.test(await label()), `${where}: the graph takes no taps while y is not alone`, await label());
+  check(!(await page.locator('button:visible').filter({ hasText: /^No solution$/ }).count()), `${where}: the solver's other operations start folded away`);
+  await noCancellationTeaching(page, where);
+  await rewriteFits(page, where);
   await balanced(page, 'subtract', 'x');
+  // The pair to cancel is on the board now: this is where the tooltip would be.
+  await noCancellationTeaching(page, `${where}, with a pair to cancel`);
   await cancelPair(page, 'left', 0, 2);
   await balanced(page, 'divide', '-1');
-  check(await cursor(page) === 'c0:rewrite', 'rewrite: dividing by −1 is not finished until the student updates the relation');
+  check(await cursor(page) === 'c0:rewrite', `${where}: dividing by −1 is not finished until the student updates the relation`);
   await page.getByRole('button', { name: 'Choose relation symbol' }).click();
   await settle(page, 300);
   await page.locator('.mm-ineq-rewrite button:visible').filter({ hasText: /^≤$/ }).last().click();
   await settle(page, 800);
-  check(await cursor(page) === 'c0:boundary', 'rewrite: y alone opens the boundary step by itself');
-  check((await page.locator('[data-constraint-index="0"] .mm-ineq-math').innerText()).trim() === 'y ≤ x + 1', 'rewrite: the constraint is now written in the form the student reached');
-  check(/Plot boundary point 1 for constraint 1/.test(await label()), 'rewrite: and the graph takes the first boundary point', await label());
+  check(await cursor(page) === 'c0:boundary', `${where}: y alone opens the boundary step by itself`);
+  check((await page.locator('[data-constraint-index="0"] .mm-ineq-math').innerText()).trim() === 'y ≤ x + 1', `${where}: the constraint is now written in the form the student reached`);
+  check(/Plot boundary point 1 for constraint 1/.test(await label()), `${where}: and the graph takes the first boundary point`, await label());
 };
 
 /* -------------------------------------------------------------- workview */
@@ -376,7 +406,8 @@ const SCENARIOS = {
   phone: () => scenario('phone', () => fullJourney('phone', { viewport: PHONE, touch: true })),
   reload: () => scenario('reload', reload),
   keyboard: () => scenario('keyboard', keyboard),
-  rewrite: () => scenario('rewrite', rewrite),
+  rewrite: () => scenario('rewrite', () => rewrite()),
+  rewritePhone: () => scenario('rewritePhone', () => rewrite({ viewport: PHONE, touch: true })),
   workview: () => scenario('workview', workview),
   contrast: async () => {
     await scenario('contrast light', () => contrast('light'));

@@ -259,6 +259,9 @@ function AdditiveExpressionRegion({
   selectedCancellationIndex,
   onCancellationToken,
   onCancellationDragStart,
+  // Whether a cancellable term says so on hover (TL34: not in a host that
+  // does not teach cancelling; see showCancellationCues on the solver).
+  cancellationCues = true,
   simplifyMode = false,
   simplifyTerms = [],
   simplifyChosenTerms = [],
@@ -389,7 +392,7 @@ function AdditiveExpressionRegion({
                 }}
                 title={placementMode
                   ? 'Click this term to choose Before, Under, or After'
-                  : canCancel
+                  : canCancel && cancellationCues
                     ? 'Matching opposite terms can be cancelled directly'
                     : 'Term'}
                 style={{
@@ -598,6 +601,15 @@ export default function MultiRelationAlgebra({
   // taking a third of the panel. Never a hint either way: the same tools are
   // offered.
   otherOperationsOpenByDefault = true,
+  // Whether the solver teaches its direct cancelling: the "Cancellation hints"
+  // toggle, the "can be cancelled directly" tooltip on a term, and the sentence
+  // under the work about clicking two items. The absolute-value lessons it was
+  // built for keep them. The Systems Workspace's rewrite to y = mx + b starts
+  // "Other operations" closed because it only needs + − × ÷, and there those
+  // cues were extra reading: its students cancel through Simplify (TL34, finding
+  // A2-55). So it follows that flag unless a host says otherwise. Cancelling by
+  // clicking two matching items still works everywhere; only the teaching goes.
+  showCancellationCues = otherOperationsOpenByDefault,
   // Classroom LaTeX of every committed relation, for the Work View history.
   // Kept off the grading payload on purpose: `relation-work` still sends the
   // raw mathematics graders and checkpoints already read.
@@ -691,6 +703,9 @@ export default function MultiRelationAlgebra({
   // action costs (TL29 — the stage below sits in NoTryCostScope).
   const representationActionName = useHostSubmitLabel() || 'Check';
   const representationsWithheld = showImmediateFeedback === false;
+  // Cues are help: absent where the activity withholds hints, and where the
+  // host does not teach cancelling at all (TL34).
+  const cancellationHintsOffered = showCancellationCues && contextHintsAllowed !== false;
   const [candidateChecks, setCandidateChecks] = useState(() => initialCandidateChecksFor(draftKey));
 
   // The problem the reset below sets up: this draft and the relation the
@@ -1965,8 +1980,7 @@ export default function MultiRelationAlgebra({
             Other operations {otherOpen ? '▴' : '▾'}
           </button>
 
-          {/* Cues are help: absent where the activity withholds hints. */}
-          {contextHintsAllowed !== false ? (
+          {cancellationHintsOffered ? (
             <label
               style={{
                 display: 'inline-flex',
@@ -2392,7 +2406,8 @@ export default function MultiRelationAlgebra({
                           branchIndex={branchIndex}
                           expressionIndex={expressionIndex}
                           activeBranch={activeBranch === branchIndex}
-                          cancellationHints={cancellationHintsEnabled}
+                          cancellationHints={cancellationHintsEnabled && cancellationHintsOffered}
+                          cancellationCues={showCancellationCues}
                           selectedCancellationIndex={cancellationSelection[key]}
                           onCancellationToken={(tokenIndex) => cancellationTokenPressed(branchIndex, expressionIndex, tokenIndex)}
                           onCancellationDragStart={(tokenIndex, event) => cancellationDragStart(branchIndex, expressionIndex, tokenIndex, event)}
@@ -2608,10 +2623,12 @@ export default function MultiRelationAlgebra({
 
       {relationState.branches.length === 1 && operationDock}
 
-      <div style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))', lineHeight: 1.35 }}>
-        Cancellation works directly on visible matching opposite terms and common numerator/denominator factors.
-        Click two items, or press and drag from one item into its matching partner. Turn on Cancellation hints only when you want visual cues.
-      </div>
+      {showCancellationCues && (
+        <div style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))', lineHeight: 1.35 }}>
+          Cancellation works directly on visible matching opposite terms and common numerator/denominator factors.
+          Click two items, or press and drag from one item into its matching partner. Turn on Cancellation hints only when you want visual cues.
+        </div>
+      )}
 
       {message && (
         <div
