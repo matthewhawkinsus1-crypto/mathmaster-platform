@@ -9,6 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MIN_PLANE_DOT_RADIUS_PX, MIN_PLANE_TEXT_PX, STANDARD_PLANE_DOT_RADIUS, baselineBelowAxis, originLabelPlacement, planeDotGrowth, planeFontSize, renderedFontPx } from '../../src/tools/shared/planeTextScale.js';
 import { placePoint } from '../../src/tools/graphing2/placePoint.js';
+import { describePlot } from '../../src/tools/shared/plotAnnouncement.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { readFileSync } from 'node:fs';
 
@@ -123,6 +124,16 @@ test('a point past the last replaces the nearest one instead of restarting the l
   assert.deepEqual(placePoint([[0, 0], [3, 0]], [0, 1]), [[0, 1], [3, 0]], 'beside P1 moves P1');
   assert.deepEqual(placePoint([[0, 0], [2, 0]], [1, 5]), [[0, 0], [1, 5]], 'a tie replaces the later point');
   assert.deepEqual(placePoint([[0, 0], [1, 1], [2, 2]], [2, 3], 3), [[0, 0], [1, 1], [2, 3]]);
+});
+
+// TL19 (owner decision: keep the replacement, no dialog): it is said, naming
+// the point it took. The Undo that puts the point back is proved in the
+// browser (planePhoneReach.mjs), on the real tool.
+test('TL19: a replacement is announced with the point it replaced', () => {
+  const before = [[0, 0], [4, 0]];
+  const after = placePoint(before, [3, 4]);
+  assert.deepEqual(after, [[0, 0], [3, 4]]);
+  assert.equal(describePlot({ point: [3, 4], before, after, progress: '2 of 2 points plotted.' }), 'Plotted (3, 4). It replaced (4, 0). 2 of 2 points plotted.');
 });
 
 /*

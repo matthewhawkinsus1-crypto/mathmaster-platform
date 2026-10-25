@@ -16,7 +16,9 @@
 //           new point, not a pick-up: the Systems tool plots boundary points
 //           one cell apart — systemsWorkspaceStudio.)
 //   third   a deliberate third point far from both replaces the nearest point,
-//           so the line is never silently erased.
+//           so the line is never silently erased; the plane says which point
+//           it replaced, and one platform Undo puts that point back (TL19,
+//           owner decision: keep the replacement, no dialog). Both devices.
 // Exits non-zero on any failure.
 import assert from 'node:assert/strict';
 
@@ -121,16 +123,36 @@ for (const [device, viewport] of [['phone', { width: 390, height: 844 }], ['chro
       await page.waitForTimeout(250);
       assert.equal(await plotted(page), '(0, 0) and (4, 0)');
     });
-    await check(`${device}: a third point far from both replaces the nearest, the line stays`, async () => {
-      await plane.focus();
-      for (let step = 0; step < 4; step += 1) await page.keyboard.press('ArrowUp');
-      await page.keyboard.press('Enter');
-      await page.waitForTimeout(200);
-      // The crosshair was left at (3, 0); now (3, 4). Nearest of (0, 0) and
-      // (4, 0) is (4, 0), which it replaces; (0, 0) stays.
-      assert.equal(await plotted(page), '(0, 0) and (3, 4)');
-    });
   }
+  // On the phone the missed drag above moved P2 to (4, 0).
+  const before = device === 'phone' ? ['(0, 0) and (4, 0)', '(4, 0)'] : ['(0, 0) and (3, 0)', '(3, 0)'];
+  await check(`${device}: a third point far from both replaces the nearest, the line stays`, async () => {
+    await plane.focus();
+    for (let step = 0; step < 4; step += 1) await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(200);
+    // The crosshair was left at (3, 0); now (3, 4). The nearest point is
+    // replaced; (0, 0) stays.
+    assert.equal(await plotted(page), '(0, 0) and (3, 4)');
+  });
+  // TL19 (owner decision): the replacement stays (no dialog), and it is said
+  // and undoable. The plane's live region says which point it replaced, and
+  // the platform Undo puts that point back.
+  await check(`${device}: the replacement is announced, naming the point it replaced`, async () => {
+    const said = await plane.evaluate((svg) => {
+      for (let node = svg.parentElement; node; node = node.parentElement) {
+        const region = node.querySelector('p.mm-sr-only[aria-live="polite"]');
+        if (region) return region.textContent;
+      }
+      return null;
+    });
+    assert.equal(said, `Plotted (3, 4). It replaced ${before[1]}. 2 of 2 points plotted.`);
+  });
+  await check(`${device}: one Undo puts the replaced point back`, async () => {
+    await page.locator('.mathmaster-work-bar-tool.mathmaster-universal-undo:visible').first().click();
+    await page.waitForTimeout(250);
+    assert.equal(await plotted(page), before[0]);
+  });
   await check(`${device}: no page errors`, async () => assert.deepEqual(errors, []));
   await context.close();
 }
