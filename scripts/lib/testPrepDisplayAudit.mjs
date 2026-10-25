@@ -107,19 +107,24 @@ export const findCollapsedFactors = (text) => {
 
 /* -------------------------------------------------------------------- the classes */
 
+// "5 = 5^{ 1 }": a number written as a power of itself, the step that makes two powers of one base
+// comparable (A2.5D's worked solutions). The exponent is the point of that step, so it is not a leftover.
+const NUMBER_AS_ITS_OWN_FIRST_POWER = /(?<![\w.])(\d+(?:\.\d+)?)\s*=\s*\1\s*\^\s*(?:\{\s*1\s*\}|1(?![\d./]))/g;
+
 /*
- * Each class: where it looks ('math' = inside $…$ only, 'any' = math and prose),
- * and `find(text)` → the snippets that show it in one piece. `certain: false`
- * marks a form that may be on purpose ("simplify 6/8").
+ * Each class: where it looks ('math' = inside $…$ only, 'prose' = outside it,
+ * 'any' = each piece of either, 'whole' = the string as written, for a clause that
+ * runs from prose into math), and `find(text)` → the snippets that show it.
+ * `certain: false` marks a form that may be on purpose ("simplify 6/8").
  */
 export const DISPLAY_CLASSES = Object.freeze([
   {
     id: 'exponentOne',
-    label: 'an exponent of 1 ("x^{ 1 }")',
+    label: 'an exponent of 1 ("x^{ 1 }"), except the step "5 = 5^1" that rewrites a number as a power of itself',
     source: 'CT14 G-16, A1-64, A2-109',
     certain: true,
     scope: 'any',
-    find: (text) => all(/\^\s*(?:\{\s*1\s*\}|1(?![\d./]))/g, text),
+    find: (text) => all(/\^\s*(?:\{\s*1\s*\}|1(?![\d./]))/g, String(text).replace(NUMBER_AS_ITS_OWN_FIRST_POWER, ' ')),
   },
   {
     id: 'denominatorOne',
@@ -140,6 +145,18 @@ export const DISPLAY_CLASSES = Object.freeze([
     certain: true,
     scope: 'math',
     find: findCollapsedFactors,
+  },
+  {
+    id: 'constantCondition',
+    label: 'a "where" clause that compares the generator\'s constants instead of the letters it meant ("where 14>0 and 2>1", "where 3 and 5 are positive")',
+    source: 'CT14 (found with A_9D_unshifted-asymptote and ACT coordinate-plane 1)',
+    certain: true,
+    // The clause spans prose and math ("where $0<68<100$"), so it is read in the whole string, $ and all.
+    scope: 'whole',
+    find: (text) => [
+      ...all(/\bwhere\s+\$?\s*-?\d+(?:\.\d+)?\s*(?:<|>|\\le(?:q)?\b|\\ge(?:q)?\b|≤|≥)/g, text),
+      ...all(/\bwhere\s+\$?-?\d+(?:\.\d+)?\$?\s+(?:and|or)\s+\$?-?\d+(?:\.\d+)?\$?\s+are\s+(?:both\s+)?(?:positive|negative|nonzero|nonnegative)/g, text),
+    ],
   },
   // The O2 classes, which O2's own test holds to zero in prompts and choices; here in every other surface too.
   {
@@ -222,6 +239,11 @@ export const findDisplayProblems = (value) => {
   const out = {};
   const pieces = piecesOf(value);
   for (const displayClass of DISPLAY_CLASSES) {
+    if (displayClass.scope === 'whole') {
+      const found = displayClass.find(String(value ?? ''));
+      if (found.length) out[displayClass.id] = found;
+      continue;
+    }
     const hits = pieces.flatMap((piece) => {
       if (displayClass.scope === 'math' && !piece.math) return [];
       if (displayClass.scope === 'prose' && piece.math) return [];

@@ -31,7 +31,7 @@ const read = (relPath) => readFileSync(new URL(`../../${relPath}`, import.meta.u
 
 test('the audit knows the classes it counts, and which are judgement calls', () => {
   assert.deepEqual(DISPLAY_CLASSES.map((entry) => entry.id), [
-    'exponentOne', 'denominatorOne', 'collapsedFactor',
+    'exponentOne', 'denominatorOne', 'collapsedFactor', 'constantCondition',
     'coefficientOne', 'zeroTerm', 'doubledSign', 'floatArtefact', 'dollarsAfterDollar', 'pluralOne',
     'reducibleFraction', 'unsimplifiedRadical',
   ]);
@@ -39,12 +39,35 @@ test('the audit knows the classes it counts, and which are judgement calls', () 
 });
 
 test('an exponent of 1 is read in math and prose, and a 10, a 1.5 and a ^{12} are not it', () => {
-  ['For $x\\ne0$, $\\dfrac{(x^{ -5 })^{ 6 }}{x^k}=x^{ 1 }$.', 'The equation $3^{x+k}=3^{ 1 }$ has', '$5=5^1$', '$x^{1}$', 'x^1 in prose'].forEach((text) => {
+  ['For $x\\ne0$, $\\dfrac{(x^{ -5 })^{ 6 }}{x^k}=x^{ 1 }$.', 'The equation $3^{x+k}=3^{ 1 }$ has', '$x^{1}$', 'x^1 in prose', '$y=5^1$', '$7=5^1$'].forEach((text) => {
     assert.ok(classesIn(text).includes('exponentOne'), text);
   });
   ['$x^{ 10 }$', '$x^{1.5}$', '$x^{12}$', '$x^2$', '$x^{ -1 }$', '$x^{1/2}$', '$x_1$'].forEach((text) => {
     assert.ok(!classesIn(text).includes('exponentOne'), text);
   });
+  // "5 = 5^{ 1 }" is the step that writes a number as a power of itself so two powers of one base can be
+  // compared (A2.5D's worked solutions), CT14: the exponent is its point. A different number on the left is not that step.
+  ['$5=5^{ 1 }$, so $x-3=1$.', '$5 = 5^1$', '$2.5=2.5^{1}$'].forEach((text) => assert.ok(!classesIn(text).includes('exponentOne'), text));
+  assert.ok(classesIn('$5=5^{ 1 }$ and $x^{ 1 }$').includes('exponentOne'), 'the step is exempt, a second exponent of 1 beside it is not');
+});
+
+test('a "where" clause over the generator\'s constants is read, in prose and in math, and a clause over letters is not', () => {
+  [
+    'The curve $y=14(2)^x$, where 14>0 and 2>1, approaches which line?',
+    'For $f(x)=26\\left(\\dfrac{68}{100}\\right)^x$, where $0<68<100$?',
+    'Then $f(t)=4t^2$ and $g(t)=9t^2$, where 9>4>0.',
+    'with $f(x)=90(2)^x$, where 90>63>0 and 4>2>1',
+    'Plotted in a coordinate plane, where 3 and 5 are positive.',
+    'Given $f(-4)<g(-4)$, where $-4\\le 1$.',
+  ].forEach((text) => assert.ok(classesIn(text).includes('constantCondition'), text));
+  [
+    'The curve $y=A(b)^x$, where $A>0$ and $b>1$, approaches which line?',
+    'where $a$ and $b$ are positive',
+    'where 3 students are in the room',
+    'Solve $x>3$ where $x$ is an integer.',
+    'a grid where 5 rows are shaded',
+    'Find the sum, where the first term is 3.',
+  ].forEach((text) => assert.ok(!classesIn(text).includes('constantCondition'), text));
 });
 
 test('a denominator of 1 is read in a \\frac with any numerator, and as a gradient written over 1', () => {

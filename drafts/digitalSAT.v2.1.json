@@ -7550,7 +7550,7 @@
         "stemProfile": "missing-exponent-parameter",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "For $x\\ne0$, $\\dfrac{(x^{ {{p}} })^{ {{q}} }}{x^k}=x^{ {{r}} }$. What is the value of $k$?",
+      "prompt": "For $x\\ne0$, $\\dfrac{(x^{ {{p}} })^{ {{q}} }}{x^k}=x{{r|pow}}$. What is the value of $k$?",
       "generator": {
         "parameters": {
           "p": {
@@ -13782,7 +13782,7 @@
         "officialSkillFamily": "nonlinear functions",
         "stemProfile": "challenge-compare-values"
       },
-      "prompt": "For a nonzero number $t$, $f(t)={{a}}t^2$ and $g(t)={{b}}t^2$, where {{b}}>{{a}}>0. Which quantity is equal to $g(t)-f(t)$?",
+      "prompt": "For a nonzero number $t$, $f(t)={{a}}t^2$ and $g(t)={{b}}t^2$. Which quantity is equal to $g(t)-f(t)$?",
       "generator": {
         "parameters": {
           "a": {
@@ -15335,7 +15335,7 @@
         ],
         "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
       },
-      "prompt": "Functions $f$ and $g$ are defined by $f(x)={{A}}({{b}})^x$ and $g(x)={{C}}({{d}})^x$, where {{A}}>{{C}}>0 and {{d}}>{{b}}>1. Which statement must be true?",
+      "prompt": "Functions $f$ and $g$ are defined by $f(x)={{A}}({{b}})^x$ and $g(x)={{C}}({{d}})^x$. Which statement must be true?",
       "generator": {
         "parameters": {
           "C": {
@@ -16039,7 +16039,7 @@
         ],
         "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
       },
-      "prompt": "An exponential function satisfies $f(0)={{A}}$ and $f(2)={{v2}}$, where {{b}}>1. Which equation defines $f$?",
+      "prompt": "An exponential function with a positive growth factor satisfies $f(0)={{A}}$ and $f(2)={{v2}}$. Which equation defines $f$?",
       "generator": {
         "parameters": {
           "A": {
@@ -16445,7 +16445,7 @@
         ],
         "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
       },
-      "prompt": "Which statement is true about $f(x)={{A}}\\left(\\dfrac{{{r}}}{100}\\right)^x$, where $0<{{r}}<100$?",
+      "prompt": "Which statement is true about $f(x)={{A}}\\left(\\dfrac{{{r}}}{100}\\right)^x$?",
       "generator": {
         "parameters": {
           "A": {
@@ -16630,7 +16630,7 @@
         ],
         "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
       },
-      "prompt": "The curve $y={{A}}({{b}})^x$, where {{A}}>0 and {{b}}>1, approaches which line as $x$ decreases without bound?",
+      "prompt": "The curve $y={{A}}({{b}})^x$ approaches which line as $x$ decreases without bound?",
       "generator": {
         "parameters": {
           "A": {
@@ -26103,7 +26103,7 @@
         ],
         "answerSummary": "$k={{k}}$"
       },
-      "prompt": "The equation ${{b}}^{x+k}={{b}}^{ {{n}} }$ has solution $x={{p}}$. What is the value of $k$?",
+      "prompt": "The equation ${{b}}^{x+k}={{b}}{{n|pow}}$ has solution $x={{p}}$. What is the value of $k$?",
       "generator": {
         "parameters": {
           "b": {
@@ -37131,7 +37131,7 @@
         "stemProfile": "radical-exponent-parameter",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "For $x>0$, $\\sqrt{x^n}=x^{ {{k}} }\\sqrt{x^{ {{m}} }}$, where $n$ and $m$ are positive integers. What is the value of $n$?",
+      "prompt": "For $x>0$, $\\sqrt{x^n}=x{{k|pow}}\\sqrt{x{{m|pow}}}$, where $n$ is a positive integer. What is the value of $n$?",
       "generator": {
         "parameters": {
           "k": {
@@ -40399,7 +40399,8 @@
           "ndy": "-dy"
         },
         "constraints": [
-          "p!=q"
+          "p!=q",
+          "p!=1"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -41430,7 +41431,7 @@
         "officialSkillFamily": "linear functions",
         "stemProfile": "context-two-observations"
       },
-      "prompt": "A laboratory sample cools at a constant rate. After {{t1}} minutes, its temperature is {{T1}} degrees Celsius, and after {{t2}} minutes, its temperature is {{T2}} degrees Celsius. Which equation gives the temperature $T$ after $t$ minutes?",
+      "prompt": "A laboratory sample cools at a constant rate. After {{t1}} minutes, its temperature is {{T1}} degree{{T1|plural}} Celsius, and after {{t2}} minutes, its temperature is {{T2}} degree{{T2|plural}} Celsius. Which equation gives the temperature $T$ after $t$ minutes?",
       "solutionReview": {
         "headline": "Recover the linear model from two observations.",
         "reasoning": [
@@ -47812,7 +47813,8 @@
           "m!=y1",
           "-m!=x1",
           "-m!=y1",
-          "x1!=y1"
+          "x1!=y1",
+          "x1!=0"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -48360,7 +48362,7 @@
         "stemProfile": "water-level-rate",
         "secondarySkillFamily": "ratios, rates, proportional relationships, and units"
       },
-      "prompt": "The water level in a reservoir was {{h1}} feet at {{t1}} hours and {{h2}} feet at {{t2}} hours. The level changed at a constant rate. What was the rate of change, in feet per hour?",
+      "prompt": "The water level in a reservoir was {{h1}} feet at {{t1}} hour{{t1|plural}} and {{h2}} feet at {{t2}} hours. The level changed at a constant rate. What was the rate of change, in feet per hour?",
       "generator": {
         "parameters": {
           "t1": {
@@ -48393,7 +48395,8 @@
           "answer": "rate"
         },
         "constraints": [
-          "h1+rate*dt>0"
+          "h1+rate*dt>0",
+          "h2!=1"
         ]
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -51046,7 +51049,7 @@
         "officialSkillFamily": "linear functions",
         "stemProfile": "vertical-shift-intercept"
       },
-      "prompt": "The function $f(x)={{m}}x {{b|signed}}$. The function $g$ is found by shifting $f$ upward {{k}} units. What is the $y$-intercept of $g$?",
+      "prompt": "The function $f(x)={{m}}x {{b|signed}}$. The function $g$ is found by shifting $f$ upward {{k}} unit{{k|plural}}. What is the $y$-intercept of $g$?",
       "generator": {
         "parameters": {
           "m": {
@@ -51190,7 +51193,7 @@
       "choices": [
         {
           "id": "choice-a",
-          "label": "The lines are parallel, and the graph of $g$ has a $y$-intercept {{delta}} units greater than that of $f$."
+          "label": "The lines are parallel, and the graph of $g$ has a $y$-intercept {{delta}} unit{{delta|plural}} greater than that of $f$."
         },
         {
           "id": "choice-b",
@@ -51198,7 +51201,7 @@
         },
         {
           "id": "choice-c",
-          "label": "The graph of $g$ has a slope {{delta}} units greater than that of $f$."
+          "label": "The graph of $g$ has a slope {{delta}} unit{{delta|plural}} greater than that of $f$."
         },
         {
           "id": "choice-d",
@@ -53112,11 +53115,11 @@
       "choices": [
         {
           "id": "choice-c",
-          "label": "After {{t}} hours, both vehicles have traveled {{d}} miles."
+          "label": "After {{t}} hour{{t|plural}}, both vehicles have traveled {{d}} miles."
         },
         {
           "id": "choice-d",
-          "label": "The vehicles travel {{t}} miles each hour."
+          "label": "The vehicles travel {{t}} mile{{t|plural}} each hour."
         },
         {
           "id": "choice-a",
@@ -53124,7 +53127,7 @@
         },
         {
           "id": "choice-b",
-          "label": "After {{d}} hours, both vehicles have traveled {{t}} miles."
+          "label": "After {{d}} hours, both vehicles have traveled {{t}} mile{{t|plural}}."
         }
       ],
       "attemptFeedback": [
@@ -53185,7 +53188,7 @@
         "officialSkillFamily": "systems of two linear equations in two variables",
         "stemProfile": "estimate-crossing-from-values"
       },
-      "prompt": "For two linear functions $f$ and $g$, $f({{a}})<g({{a}})$ and $f({{b}})>g({{b}})$, where {{a}}<{{b}}. The graphs of $f$ and $g$ intersect once. Which interval must contain the $x$-coordinate of the intersection?",
+      "prompt": "For two linear functions $f$ and $g$, $f({{a}})<g({{a}})$ and $f({{b}})>g({{b}})$. The graphs of $f$ and $g$ intersect once. Which interval must contain the $x$-coordinate of the intersection?",
       "generator": {
         "parameters": {
           "a": {

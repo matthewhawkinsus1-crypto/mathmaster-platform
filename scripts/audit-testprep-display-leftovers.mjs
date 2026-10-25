@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 /*
  * THE TEST-PREP DISPLAY AUDIT (CT12): count the display leftovers of CT14 and
- * A2-109 (an exponent of 1, a denominator of 1, "-7/1", a collapsed "(x)") and the
- * O2 classes, over every draw of every Digital SAT, ACT and TSIA2 template.
+ * A2-109 (an exponent of 1, a denominator of 1, "-7/1", a collapsed "(x)", a "where"
+ * clause over the generator's constants) and the O2 classes, over every draw of every
+ * Digital SAT, ACT and TSIA2 template. Draws are a sample: a form that needs two or
+ * three parameters to line up (a run of 1 only when t = 1 and k - h = 1) can miss it,
+ * and tests/platform/testPrepDisplayLeftovers.test.mjs walks every value instead.
  *
  *   node scripts/audit-testprep-display-leftovers.mjs                 counts per class, framework and surface
  *   node scripts/audit-testprep-display-leftovers.mjs --items         and every template, with an example
