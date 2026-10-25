@@ -258,8 +258,16 @@ const fieldToleranceFor = (key) => (statesSmallNumber(key) ? 1e-9 : FIELD_TOLERA
  * need to, so they register themselves here from formSpecificFieldGrading.mjs,
  * which the multi-answer screen, the server's grading dispatch and Pre-Flight
  * import (tests/platform/formSpecificFieldGrading.test.mjs pins each import).
+ *
+ * `gradingMode: 'sidesAsKeyed'` (GR17) is the opt-out from "sides swapped is
+ * right": the ordinary comparison, except that an equation's sides must stand
+ * as the key's do, so `2x + 1 = y` is not `y = 2x + 1` on a field that asks
+ * for the equation written as y = …. It needs nothing heavy and no
+ * comparator: matchesFieldAnswer grades it with the field's own options and
+ * tolerance. No field uses it until an author opts in.
  */
-export const FORM_SPECIFIC_GRADING_MODES = Object.freeze(['factoredForm', 'simplestRadicalForm']);
+export const SIDES_AS_KEYED = 'sidesAsKeyed';
+export const FORM_SPECIFIC_GRADING_MODES = Object.freeze(['factoredForm', 'simplestRadicalForm', SIDES_AS_KEYED]);
 const FORM_SPECIFIC_COMPARATORS = new Map();
 export const registerFormSpecificComparator = (mode, comparator) => {
   if (!FORM_SPECIFIC_GRADING_MODES.includes(mode) || typeof comparator !== 'function') {
@@ -372,6 +380,12 @@ export const matchesFieldAnswer = (studentAnswer, field = {}) => {
     return acceptedAnswers.some((acceptedAnswer) => (
       sameMixedNumber(studentAnswer, acceptedAnswer, tolerance(1e-6), { thousandsSeparators: options.thousandsSeparators })
       ?? sameEquivalentExpression(studentAnswer, acceptedAnswer, tolerance(1e-6))));
+  }
+
+  // sidesAsKeyed (GR17): the field's own options and tolerance, as for any
+  // field, with the key's sides kept and no any-form reading.
+  if (field?.gradingMode === SIDES_AS_KEYED) {
+    return acceptedAnswers.some((acceptedAnswer) => compareMathAnswer(studentAnswer, acceptedAnswer, tolerance(fieldToleranceFor(acceptedAnswer)), { ...options, anyLineForm: false, sidesAsKeyed: true }));
   }
 
   // factoredForm: a factoring answer in any factor order, with a sign moved

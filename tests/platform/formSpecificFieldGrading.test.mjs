@@ -142,3 +142,36 @@ test('a key spelled with cbrt( ), ∛, ∜ or root(n)( ) gives the student the n
   assert.deepEqual(keys('root(7)(a)').filter((symbol) => /^[a-z]$/.test(symbol)), ['a']);
   assert.ok(keys('8sqrt(3)').includes('√'), 'a root written straight after its coefficient');
 });
+
+// GR17: sides-swapped equations are right everywhere (Job P), so a "write it
+// as y = …" question could not refuse 2x + 1 = y. gradingMode 'sidesAsKeyed'
+// is the field-level opt-out. No authored field uses it.
+test('GR17 — gradingMode sidesAsKeyed refuses swapped sides only on a field that opts in', () => {
+  const keyed = (answer) => ({ id: 'e', label: 'Equation', answer, inputProfile: 'equation', gradingMode: 'sidesAsKeyed' });
+  const plain = (answer) => ({ id: 'e', label: 'Equation', answer, inputProfile: 'equation' });
+  // Every way the sides can swap: right by default, refused on the field.
+  for (const [answer, key] of [['2x+1=y', 'y=2x+1'], ['5=x', 'x=5'], ['2(x-2)=y-7', 'y-5=2(x-1)'], ['3=2x+y', '2x+y=3'], ['6=4x+2y', '2x+y=3']]) {
+    assert.equal(matchesFieldAnswer(answer, plain(key)), true, `${answer} by default`);
+    assert.equal(matchesFieldAnswer(answer, keyed(key)), false, `${answer} with sidesAsKeyed`);
+  }
+  // Everything else is graded as on any field: the key's own spellings, terms
+  // reordered, another point-slope point, a standard-form multiple.
+  for (const [answer, key] of [['y=2x+1', 'y=2x+1'], ['y = 2x + 1', 'y=2x+1'], ['y=1+2x', 'y=2x+1'], ['y=\\frac{1}{2}x+3', 'y=0.5x+3'], ['y-7=2(x-2)', 'y-5=2(x-1)'], ['4x+2y=6', '2x+y=3']]) {
+    assert.equal(matchesFieldAnswer(answer, keyed(key)), true, `${answer} for ${key}`);
+  }
+  assert.equal(matchesFieldAnswer('y=2x+2', keyed('y=2x+1')), false, 'a wrong answer stays wrong');
+  // The field's own numericTolerance, as on any field; the sides still as keyed.
+  assert.equal(matchesFieldAnswer('y=2x+1.005', { ...keyed('y=2x+1'), numericTolerance: 0.01 }), true);
+  assert.equal(matchesFieldAnswer('y=2x+1.005', keyed('y=2x+1')), false);
+  assert.equal(matchesFieldAnswer('2x+1.005=y', { ...keyed('y=2x+1'), numericTolerance: 0.01 }), false);
+  // The server grades the field through the same matcher.
+  const question = { type: 'multiAnswer', prompt: 'Write the equation as y = mx + b.', answerFields: [keyed('y=2x+1')] };
+  const grade = (value) => gradeServerResponse({ question, response: fieldsResponse({ e: value }) }).isCorrect;
+  assert.equal(grade('y=2x+1'), true);
+  assert.equal(grade('2x+1=y'), false);
+  // Pre-Flight allows the mode on an equation key, and refuses it on one that is not.
+  const contract = (field) => validateQuestionGradingContracts({ type: 'multiAnswer', prompt: 'Write it as y = mx + b.', answerFields: [field] });
+  assert.deepEqual(contract(keyed('y=2x+1')).errors, []);
+  assert.match(contract(keyed('2x+1')).errors.join(' '), /sidesAsKeyed.*not one equation/);
+  assert.match(contract({ ...keyed('y=2x+1'), gradingMode: 'sidesAsKey' }).errors.join(' '), /unsupported gradingMode "sidesAsKey".*sidesAsKeyed/);
+});

@@ -25,7 +25,7 @@ const isPresent = (value) => value !== undefined && value !== null && clean(valu
 
 // The opt-in field grading modes (functions/shared/answerUtils.mjs
 // matchesFieldAnswer), as lower-case tokens.
-const SUPPORTED_GRADING_MODES = Object.freeze(['equivalentexpression', 'factoredform', 'simplestradicalform']);
+const SUPPORTED_GRADING_MODES = Object.freeze(['equivalentexpression', 'factoredform', 'simplestradicalform', 'sidesaskeyed']);
 
 const gradingMode = (field = {}) => clean(field.gradingMode || field.grading?.mode);
 
@@ -62,6 +62,9 @@ const comparatorForField = (field = {}) => {
   }
   if (modeToken === 'simplestradicalform') {
     return (left, right) => sameSimplestRadicalForm(left, right) || sameValue(left, right);
+  }
+  if (modeToken === 'sidesaskeyed') {
+    return (left, right) => sameValue(left, right, 1e-6, { sidesAsKeyed: true });
   }
   return (left, right) => sameValue(left, right);
 };
@@ -188,7 +191,7 @@ const validateField = (field, {
 
   if (mode && !SUPPORTED_GRADING_MODES.includes(modeToken)) {
     errors.push(
-      `${display} uses unsupported gradingMode "${mode}". Generic answer fields support the default mathematical grader, "equivalentExpression" for expression fields, "factoredForm" for factoring answers and "simplestRadicalForm" for simplified radical or rational-exponent answers. Teacher-reviewed writing must use a teacher-review/composed interaction instead of an auto-graded field.`,
+      `${display} uses unsupported gradingMode "${mode}". Generic answer fields support the default mathematical grader, "equivalentExpression" for expression fields, "factoredForm" for factoring answers, "simplestRadicalForm" for simplified radical or rational-exponent answers and "sidesAsKeyed" for an equation that must be written with its sides as the key has them (y = …). Teacher-reviewed writing must use a teacher-review/composed interaction instead of an auto-graded field.`,
     );
   }
 
@@ -228,6 +231,17 @@ const validateField = (field, {
     if (unsimplified.length) {
       errors.push(
         `${display} uses gradingMode "simplestRadicalForm" but its key "${clean(unsimplified[0])}" is not in simplest form (a perfect-power factor under a root, two roots in one term, a root in a denominator, a negative exponent, like terms not combined, or an expression MathMaster cannot read). Simplify the key, or remove the grading mode.`,
+      );
+    }
+  }
+
+  // sidesAsKeyed keeps an equation's sides as keyed (GR17): a key that is not
+  // one equation has no sides to keep, and the mode would only refuse more.
+  if (modeToken === 'sidesaskeyed') {
+    const notEquations = [primary, ...accepted].filter(isPresent).filter((value) => clean(value).split('=').length !== 2);
+    if (notEquations.length) {
+      errors.push(
+        `${display} uses gradingMode "sidesAsKeyed" but its key "${clean(notEquations[0])}" is not one equation. The mode keeps an equation's sides as keyed (y = …); remove it, or key the equation.`,
       );
     }
   }

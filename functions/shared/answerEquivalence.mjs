@@ -1577,10 +1577,12 @@ export const sameCompoundInequality = (left, right, tolerance = 1e-6) => {
  * numericTolerance; 0 on an exact Path field, with a floor for floating
  * point only), never a fixed one.
  */
-const samePointSlopeLine = (student, key, tolerance = 1e-6) => {
+const samePointSlopeLine = (student, key, tolerance = 1e-6, { sidesAsKeyed = false } = {}) => {
   const answer = pointSlopeParts(normalizeAnswer(student));
   const keyed = answer && pointSlopeParts(normalizeAnswer(key));
   if (!answer || !keyed) return false;
+  // A field that keeps the key's sides (GR17) takes y − y₁ only where the key has it.
+  if (sidesAsKeyed && answer.ySide !== keyed.ySide) return false;
   const allowed = Number.isFinite(Number(tolerance)) && Number(tolerance) > 0 ? Number(tolerance) : 0;
   const near = (a, b) => Math.abs(a - b) <= Math.max(allowed, 1e-9 * Math.max(1, Math.abs(a), Math.abs(b)));
   // The same slope, and the answer's point on the key's line.
@@ -1599,11 +1601,22 @@ const samePointSlopeLine = (student, key, tolerance = 1e-6) => {
  * factor; no grading surface carries a note with a right answer yet, so the
  * multiple is accepted without one until there is a place for it.
  */
-const sameStandardFormMultiple = (student, key) => {
+// Which side of an equation holds its letters: 'left', 'right', or null.
+const lettersSide = (value) => {
+  const sides = splitEquationSides(value);
+  if (!sides) return null;
+  const hasLetter = (side) => /[a-z]/i.test(String(side).replace(/\\[a-z]+/gi, ''));
+  const [left, right] = [hasLetter(sides.left), hasLetter(sides.right)];
+  return left === right ? null : left ? 'left' : 'right';
+};
+
+const sameStandardFormMultiple = (student, key, { sidesAsKeyed = false } = {}) => {
   const studentText = normalizeAnswer(student);
   const keyText = normalizeAnswer(key);
   return writtenLineForm(keyText) === LINE_FORMS.STANDARD
     && writtenLineForm(studentText) === LINE_FORMS.STANDARD
+    // A field that keeps the key's sides (GR17): 3 = 2x + y is not 2x + y = 3.
+    && (!sidesAsKeyed || lettersSide(studentText) === lettersSide(keyText))
     && wholeMultipleOfLine(studentText, keyText) !== null;
 };
 
@@ -1615,7 +1628,15 @@ const sameEquationSideBySide = (left, right, tolerance) => (
   || sameLinearEquation(left, right, tolerance)
 );
 
-export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators = true, exactNumber = false, arithmetic = true, anyLineForm = false } = {}) => {
+/*
+ * `sidesAsKeyed` (GR17): an equation's sides must stand as the key's do. Off
+ * by default: everywhere else `2x + 1 = y` is right for `y = 2x + 1` (Job P).
+ * A field opts in with gradingMode 'sidesAsKeyed' (answerUtils.mjs), for a
+ * question that asks for the equation written as y = …; then the swapped
+ * equation, a point-slope answer or standard-form multiple written the other
+ * way round, and the any-form reading (GR03) are not taken.
+ */
+export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators = true, exactNumber = false, arithmetic = true, anyLineForm = false, sidesAsKeyed = false } = {}) => {
   // A number box that takes no calculation refuses one before any comparison
   // below can work it out (GR01; fieldValueOptions `arithmetic`).
   if (!arithmetic && looksLikeArithmetic(left)) return false;
@@ -1634,7 +1655,7 @@ export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators =
   const leftSides = mixedSidesAsFractions(left);
   const rightSides = mixedSidesAsFractions(right);
   if (leftSides !== String(left ?? '') || rightSides !== String(right ?? '')) {
-    return sameValue(leftSides, rightSides, tolerance, { thousandsSeparators, exactNumber, arithmetic, anyLineForm });
+    return sameValue(leftSides, rightSides, tolerance, { thousandsSeparators, exactNumber, arithmetic, anyLineForm, sidesAsKeyed });
   }
   if (exactNumber && sameExactNumber(left, right, tolerance)) return true;
   if (thousandsSeparators && sameThousandsGroupedNumber(left, right, tolerance)) return true;
@@ -1664,9 +1685,11 @@ export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators =
   // same line, and it refuses above degree one so it cannot silently grade a
   // "simplify" or "vertex form" question. See functions/shared/algebraicForm.mjs.
   if (sameLinearEquation(left, right, tolerance)) return true;
-  if (samePointSlopeLine(left, right, tolerance)) return true;
-  if (sameStandardFormMultiple(left, right)) return true;
+  if (samePointSlopeLine(left, right, tolerance, { sidesAsKeyed })) return true;
+  if (sameStandardFormMultiple(left, right, { sidesAsKeyed })) return true;
   if (sameCompoundInequality(left, right, tolerance)) return true;
+  // A field that keeps the key's sides (GR17) stops here.
+  if (sidesAsKeyed) return false;
   // The same equation with its sides swapped, `5 = x` for `x = 5` and
   // `2x + 1 = y` for `y = 2x + 1` (Job P). Each side is still compared with
   // the comparisons above, so the form a question asks for is kept.
