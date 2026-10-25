@@ -228,31 +228,51 @@ export const projectorShowsSolution = ({ stage = null, solutionState = null } = 
 /*
  * TWO LISTS IN ONE COLUMN (LC03). With a worked solution on the left, the
  * round's table and the standings share the right-hand column, one above the
- * other, in the projector's compact rows. Each panel is half the column (the
- * standings' 60% when the teacher opted into full standings, which are the
- * point of that choice), so each shows fewer rows than it would alone.
+ * other, in the projector's compact rows, so each shows fewer rows than it
+ * would alone.
  *
  * How many is MEASURED, never read off the screen's height. The first version
  * keyed a table to the viewport and was right in the font it was measured in
- * and cut off in the one a classroom's machine has. Now a panel starts at the
- * most its list may show (stackedResultsPlan: the public rule's top few, or
- * the screen's rows for full standings) and drops a row at a time
- * (fitRowsStep) while its own content runs past its bottom edge; a new round,
- * a resize or a zoom starts again from the top. publicStandingsRows still
- * decides which rows those are and says what is left unshown.
+ * and cut off in the one a classroom's machine has. Both lists start at the
+ * most they may show (stackedResultsPlan: the public rule's top few, or the
+ * screen's rows for full standings) and, while either panel's content runs
+ * past its bottom edge, one of them gives up a row (fitStackedStep); a new
+ * round, a resize or a zoom starts again from the top. publicStandingsRows
+ * still decides which rows those are and says what is left unshown.
+ *
+ * WHICH LIST GIVES UP THE ROW. The standings keep their top three
+ * (STACKED_STANDINGS_FLOOR) for as long as the round's table has a row to
+ * give: in halves, as LC03 first drew them, a 1366x768 projector at 125% zoom
+ * showed two standings rows and at 150% one, where the shell QA's big class
+ * wants three. Above three the two take turns, the round's table first; with
+ * full standings, the point of that choice, the round's table gives all its
+ * rows but one before the standings give any. When even three standings rows
+ * and one round row do not fit (150% zoom on 1366x768), the round's table
+ * steps aside and the standings have the column: it waits behind "Hide
+ * solution", as it did before LC03.
  */
 export const FIT_TOLERANCE_PX = 1;
+export const STACKED_STANDINGS_FLOOR = 3;
 
 export const stackedResultsPlan = (room = {}, screenRows = PUBLIC_TOP_COUNT) => {
-  if (!roomShowsFullStandings(room)) {
-    return Object.freeze({ rowCeiling: PUBLIC_TOP_COUNT, panelRows: 'minmax(0,1fr) minmax(0,1fr)' });
-  }
+  if (!roomShowsFullStandings(room)) return Object.freeze({ rowCeiling: PUBLIC_TOP_COUNT, standingsFirst: false });
   const rows = Math.floor(Number(screenRows));
-  return Object.freeze({ rowCeiling: Number.isFinite(rows) && rows >= 1 ? rows : PUBLIC_TOP_COUNT, panelRows: 'minmax(0,2fr) minmax(0,3fr)' });
+  return Object.freeze({ rowCeiling: Number.isFinite(rows) && rows >= 1 ? rows : PUBLIC_TOP_COUNT, standingsFirst: true });
 };
 
-/** One step of fitting: a row fewer while the panel's content runs past its edge (never fewer than one). */
-export const fitRowsStep = ({ rows, overflowPx } = {}) => {
-  const have = Math.max(1, Math.floor(Number(rows)) || 1);
-  return Number(overflowPx) > FIT_TOLERANCE_PX && have > 1 ? have - 1 : have;
+/**
+ * One step of fitting the two lists. Both panels fit: nothing changes.
+ * Otherwise one row fewer for the list whose turn it is (never fewer than
+ * one), and once the round's table is down to one row and the standings to
+ * their floor, the round's table steps aside and the standings start again
+ * from `standingsCeiling`, alone in the column.
+ */
+export const fitStackedStep = ({ round, standings, roundShown = true, overflowPx, standingsCeiling = PUBLIC_TOP_COUNT, standingsFirst = false } = {}) => {
+  const rowsOf = (value) => Math.max(1, Math.floor(Number(value)) || 1);
+  const have = { round: rowsOf(round), standings: rowsOf(standings), roundShown: roundShown !== false };
+  if (!(Number(overflowPx) > FIT_TOLERANCE_PX)) return have;
+  if (!have.roundShown) return { ...have, standings: Math.max(1, have.standings - 1) };
+  if (have.round > 1 && (standingsFirst || have.standings <= STACKED_STANDINGS_FLOOR || have.round >= have.standings)) return { ...have, round: have.round - 1 };
+  if (have.standings > STACKED_STANDINGS_FLOOR) return { ...have, standings: have.standings - 1 };
+  return { round: 1, standings: rowsOf(standingsCeiling), roundShown: false };
 };

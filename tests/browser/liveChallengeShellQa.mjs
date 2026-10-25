@@ -1280,6 +1280,12 @@ await run('big-class', async (S) => {
     });
     note(S, `standings rows fully visible at ${device}`, visible);
     check(S, visible >= 3, `only ${visible} standings rows are visible at ${device}`);
+    // LC03: beside a worked solution the round's table stays in view while the
+    // column has room for it and the top three standings (a projector at 100%
+    // and 125%); on a shorter screen it steps aside, behind "Hide solution".
+    const roundTable = await teacher.page.locator('[data-mm-results-tables="stacked"]').first().getAttribute('data-mm-round-table', { timeout: 1_000 }).catch(() => null);
+    note(S, `the round table at ${device}`, roundTable || 'beside the standings (no worked solution)');
+    if (roundTable && ['projector', 'zoom125'].includes(device)) check(S, roundTable === 'beside', `the round table is not beside the worked solution at ${device}`);
     await shot(teacher, `E02-projector-results-${device}`);
   }
   await teacher.page.setViewportSize(DEVICES.projector.viewport);

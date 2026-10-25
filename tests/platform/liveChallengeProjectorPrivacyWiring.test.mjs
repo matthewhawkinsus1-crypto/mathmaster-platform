@@ -84,19 +84,21 @@ test('with a worked solution ready the projector keeps the round table and the s
   assert.match(beside, /data-mm-results-layout="solution"/);
   assert.match(beside, /<ProjectorSolution solution=\{solution\} state=\{solutionState\} \/>/);
   const column = region(beside, 'data-mm-results-tables="stacked"', '</div>\n      </div>', 'the tables column');
-  assert.match(column, /\{roundPanel\}\s*\{standingsPanel\}/, 'the round table above the standings');
-  assert.match(column, /gridTemplateRows: plan\.panelRows/, 'the column is split as the plan says');
+  assert.match(column, /\{fit\.roundShown && roundPanel\}\s*\{standingsPanel\}/, 'the round table above the standings, unless it stepped aside');
+  assert.match(column, /gridTemplateRows: fit\.roundShown \? 'minmax\(0,auto\) minmax\(0,1fr\)' : 'minmax\(0,1fr\)'/, 'the round table as tall as its rows, the standings the rest');
+  assert.match(column, /data-mm-round-table=\{fit\.roundShown \? 'beside' : 'aside'\}/, 'the column says where the round table is');
+  assert.match(beside, /<div\s*ref=\{columnRef\}\s*className="mm-arena-results-tables"\s*data-mm-results-tables="stacked"/, 'the column is what a resize or a zoom is watched on');
   // Without one (none, held, or hidden), the two sit side by side as before.
   const alone = region(results, 'data-mm-results-layout="tables"', '\n  );\n}', 'the two-table layout');
   assert.match(alone, /\{roundPanel\}\s*\{standingsPanel\}/);
   // The compact rows, and the measuring, are for the shared column only.
   for (const [name, source] of [['round', roundPanel], ['standings', standingsPanel]]) {
     assert.match(source, /compact=\{solutionFills\}/, `${name}: compact rows only beside a solution`);
-    assert.match(source, /fit=\{solutionFills\}/, `${name}: measured only beside a solution`);
-    assert.match(source, /resetKey=\{resetKey\}/, `${name}: a new round fits again`);
   }
-  assert.match(roundPanel, /ceiling=\{roundCeiling\}/);
-  assert.match(standingsPanel, /ceiling=\{standingsCeiling\}/);
+  assert.match(results, /\{ roundCeiling, standingsCeiling, standingsFirst: plan\.standingsFirst, resetKey, enabled: solutionFills \}/, 'measured only beside a solution, again for a new round');
+  // Each list is drawn for the rows the fitting gave it, and is measured through its own panel.
+  assert.match(roundPanel, /panelRef=\{roundRef\}\s*space=\{fit\.round\}/);
+  assert.match(standingsPanel, /panelRef=\{standingsRef\}\s*space=\{fit\.standings\}/);
   // A narrow screen: one column, rows as tall as their content, and it scrolls.
   const css = region(projector, '@media (max-width: 900px) {', '@media (prefers-reduced-motion', 'the narrow-screen rules');
   assert.match(css, /\.mm-arena-running-grid,\s*\.mm-arena-lobby-grid \{\s*grid-template-columns: 1fr !important;\s*overflow-y: auto;/);
@@ -123,29 +125,33 @@ test('a stacked results panel shows the rows that fit it whole, measured from th
   // The panel clips what does not fit, so the panel is what is measured.
   assert.match(region(results, 'const panel = {', '};', 'the panel style'), /overflow: 'hidden'/);
   // The decision is the panel's own overflow, one row at a time, through the model's step ...
-  const hook = region(projector, 'function useRowsThatFitPanel(', '\n/** One of the results moment', 'the fitting hook');
-  assert.match(hook, /fitRowsStep\(\{ rows, overflowPx: panel\.scrollHeight - panel\.clientHeight \}\)/);
+  const hook = region(projector, 'function useStackedRowsThatFit(', '\n/** One of the results moment', 'the fitting hook');
+  // Both panels are measured, and the model's step decides which list gives up a row
+  // (the standings keep their top three longest: fitStackedStep) ...
+  assert.match(hook, /const overflowOf = \(panel\) => \(panel \? panel\.scrollHeight - panel\.clientHeight : 0\);/);
+  assert.match(hook, /fitStackedStep\(\{\s*\.\.\.have,\s*overflowPx: Math\.max\(overflowOf\(roundRef\.current\), overflowOf\(standingsRef\.current\)\),\s*standingsCeiling,\s*standingsFirst,\s*\}\)/);
   // ... after every render (no dependency list), so the rows just drawn are measured at once ...
-  assert.match(hook, /useLayoutEffect\(\(\) => \{\s*const panel = ref\.current;\s*if \(!enabled \|\| !panel\) return;/);
-  // ... a new ceiling or round starts again from the top ...
-  assert.match(hook, /const current = fitted\.ceiling === ceiling && fitted\.resetKey === resetKey;/);
-  assert.match(hook, /const rows = current \? Math\.min\(fitted\.rows, ceiling\) : ceiling;/);
-  // ... and so does a change in the panel's size (a resize, a zoom): a bigger screen shows more.
-  assert.match(hook, /if \(!enabled \|\| !panel \|\| typeof ResizeObserver !== 'function'\) return undefined;/);
+  assert.match(hook, /useLayoutEffect\(\(\) => \{\s*if \(!enabled \|\| !columnRef\.current\) return;/);
+  // ... a new ceiling or round, or the stacking switched on again, starts again from the top ...
+  assert.match(hook, /const current = fitted\.roundCeiling === roundCeiling && fitted\.standingsCeiling === standingsCeiling\s*&& fitted\.resetKey === resetKey && fitted\.enabled === enabled;/);
+  assert.match(hook, /\? \{ round: Math\.min\(fitted\.round, roundCeiling\), standings: Math\.min\(fitted\.standings, standingsCeiling\), roundShown: fitted\.roundShown \}\s*: top;/);
+  assert.match(hook, /const top = \{ round: roundCeiling, standings: standingsCeiling, roundShown: true \};/);
+  // ... and so does a change in the column's size (a resize, a zoom): a bigger screen shows more.
+  assert.match(hook, /const column = columnRef\.current;\s*if \(!enabled \|\| !column \|\| typeof ResizeObserver !== 'function'\) return undefined;/);
   assert.match(hook, /new ResizeObserver\(/);
   // (the first callback only reports the size it started with)
-  assert.match(hook, /if \(!seen\) \{ seen = true; return; \}\s*setFitted\(\{ ceiling, resetKey, rows: ceiling \}\);/);
-  assert.match(hook, /observer\.observe\(panel\);/);
+  assert.match(hook, /if \(!seen\) \{ seen = true; return; \}\s*setFitted\(\{ roundCeiling, standingsCeiling, resetKey, enabled, round: roundCeiling, standings: standingsCeiling, roundShown: true \}\);/);
+  assert.match(hook, /observer\.observe\(column\);/);
   assert.match(hook, /observer\.disconnect\(\)/);
-  // Not enabled (the tables side by side): the ceiling, nothing measured.
-  assert.match(hook, /return enabled \? rows : ceiling;/);
-  // The panel draws its list for what fits.
+  // Not enabled (the tables side by side): the ceilings, nothing measured.
+  assert.match(hook, /return enabled \? have : top;/);
+  // The view fits the two together; each panel draws its list for what it was given.
+  assert.match(results, /const fit = useStackedRowsThatFit\(\s*\{ columnRef, roundRef, standingsRef \},/);
   const panel = region(projector, 'function ResultsPanel(', '\n/**\n * A closed round', 'the results panel');
-  assert.match(panel, /const space = useRowsThatFitPanel\(ref, \{ ceiling, resetKey, enabled: fit \}\);/);
-  assert.match(panel, /<section ref=\{ref\} data-mm-results-panel=\{kind\} style=\{panelStyle\}>/);
+  assert.match(panel, /<section ref=\{panelRef\} data-mm-results-panel=\{kind\} style=\{panelStyle\}>/);
   assert.match(panel, /\{children\(space\)\}/);
-  // No table of screen heights is left.
-  assert.doesNotMatch(executableSource(projector), /stackedBoardRows|useViewportHeight/);
+  // No table of screen heights is left, and no panel fits itself alone.
+  assert.doesNotMatch(executableSource(projector), /stackedBoardRows|useViewportHeight|useRowsThatFitPanel|fitRowsStep/);
 });
 
 // LC03. The smaller rows that let two tables share a column belong to the

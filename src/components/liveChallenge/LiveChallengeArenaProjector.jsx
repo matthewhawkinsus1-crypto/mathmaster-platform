@@ -23,7 +23,7 @@ import {
   STILL_FINISHING_HOST_HINT,
   STILL_FINISHING_MESSAGE,
   finalBoardRows,
-  fitRowsStep,
+  fitStackedStep,
   podiumRecognitionRows,
   projectorDifficultyLabel,
   projectorFamilyLabel,
@@ -147,49 +147,60 @@ function useViewportRows() {
 }
 
 /*
- * How many rows a results panel can show WHOLE (LC03: two tables share the
- * column beside a worked solution). It starts at `ceiling`, the most its list
- * may show, and after every render drops a row while the panel's own content
- * runs past its bottom edge (fitRowsStep; the panel is overflow:hidden, so
- * that is what would be cut off, or what would eat its bottom padding). A new
- * `ceiling` or `resetKey` (another round), or a change in the panel's size (a
- * resize, a zoom), starts again from the top, so a bigger screen shows more.
- * Measured, not read off the viewport: the first version of this was a table
- * of screen heights, right in one font and cut off in another.
- * `enabled` off (the tables side by side, where the screen's own row budget
- * is used) returns `ceiling` and measures nothing.
+ * How many rows each of the two stacked results lists can show WHOLE (LC03:
+ * they share the column beside a worked solution), and whether the round's
+ * table is there at all. Both start at their ceilings, the most each list may
+ * show, and after every render, while either panel's own content runs past
+ * its bottom edge (a panel is overflow:hidden, so that is what would be cut
+ * off, or what would eat its bottom padding), one list gives up a row:
+ * fitStackedStep decides which, and the standings keep their top three
+ * longest. A new ceiling or `resetKey` (another round), the stacking switched
+ * on again, or a change in the column's size (a resize, a zoom) starts again
+ * from the top, so a bigger screen shows more. Measured, not read off the
+ * viewport: the first version of this was a table of screen heights, right in
+ * one font and cut off in another. `enabled` off (the tables side by side,
+ * where the screen's own row budget is used) returns the ceilings and
+ * measures nothing.
  */
-function useRowsThatFitPanel(ref, { ceiling, resetKey, enabled }) {
-  const [fitted, setFitted] = useState({ ceiling, resetKey, rows: ceiling });
-  const current = fitted.ceiling === ceiling && fitted.resetKey === resetKey;
-  const rows = current ? Math.min(fitted.rows, ceiling) : ceiling;
+function useStackedRowsThatFit({ columnRef, roundRef, standingsRef }, { roundCeiling, standingsCeiling, standingsFirst, resetKey, enabled }) {
+  const top = { round: roundCeiling, standings: standingsCeiling, roundShown: true };
+  const [fitted, setFitted] = useState({ roundCeiling, standingsCeiling, resetKey, enabled, ...top });
+  const current = fitted.roundCeiling === roundCeiling && fitted.standingsCeiling === standingsCeiling
+    && fitted.resetKey === resetKey && fitted.enabled === enabled;
+  const have = current
+    ? { round: Math.min(fitted.round, roundCeiling), standings: Math.min(fitted.standings, standingsCeiling), roundShown: fitted.roundShown }
+    : top;
   useLayoutEffect(() => {
-    const panel = ref.current;
-    if (!enabled || !panel) return;
-    const next = fitRowsStep({ rows, overflowPx: panel.scrollHeight - panel.clientHeight });
-    if (next !== rows || !current) setFitted({ ceiling, resetKey, rows: next });
+    if (!enabled || !columnRef.current) return;
+    const overflowOf = (panel) => (panel ? panel.scrollHeight - panel.clientHeight : 0);
+    const next = fitStackedStep({
+      ...have,
+      overflowPx: Math.max(overflowOf(roundRef.current), overflowOf(standingsRef.current)),
+      standingsCeiling,
+      standingsFirst,
+    });
+    const moved = next.round !== have.round || next.standings !== have.standings || next.roundShown !== have.roundShown;
+    if (moved || !current) setFitted({ roundCeiling, standingsCeiling, resetKey, enabled, ...next });
   });
   useLayoutEffect(() => {
-    const panel = ref.current;
-    if (!enabled || !panel || typeof ResizeObserver !== 'function') return undefined;
+    const column = columnRef.current;
+    if (!enabled || !column || typeof ResizeObserver !== 'function') return undefined;
     // The first callback only reports the size it started with.
     let seen = false;
     const observer = new ResizeObserver(() => {
       if (!seen) { seen = true; return; }
-      setFitted({ ceiling, resetKey, rows: ceiling });
+      setFitted({ roundCeiling, standingsCeiling, resetKey, enabled, round: roundCeiling, standings: standingsCeiling, roundShown: true });
     });
-    observer.observe(panel);
+    observer.observe(column);
     return () => observer.disconnect();
-  }, [ref, ceiling, resetKey, enabled]);
-  return enabled ? rows : ceiling;
+  }, [columnRef, roundCeiling, standingsCeiling, resetKey, enabled]);
+  return enabled ? have : top;
 }
 
-/** One of the results moment's two tables: its label and heading, and its list drawn for the rows that fit. */
-function ResultsPanel({ kind, label, title, panelStyle, labelLook, headingStyle, ceiling, resetKey, fit, children }) {
-  const ref = useRef(null);
-  const space = useRowsThatFitPanel(ref, { ceiling, resetKey, enabled: fit });
+/** One of the results moment's two tables: its label and heading, and its list drawn for the rows it has room for (`space`). */
+function ResultsPanel({ kind, label, title, panelStyle, labelLook, headingStyle, panelRef, space, children }) {
   return (
-    <section ref={ref} data-mm-results-panel={kind} style={panelStyle}>
+    <section ref={panelRef} data-mm-results-panel={kind} style={panelStyle}>
       <div style={labelLook}>{label}</div>
       <div style={headingStyle}>{title}</div>
       {children(space)}
@@ -792,9 +803,11 @@ function ProjectorSolution({ solution, state }) {
  * class sees what the round paid (a championship game's points for the round)
  * while the teacher talks the solution through, with no press of "Hide
  * solution". The two tables share the right column in compact rows, each
- * showing the rows that FIT it (ResultsPanel measures; the public rule,
- * publicStandingsRows, still decides which); on a narrow screen everything
- * stacks in one scrolling column.
+ * showing the rows that FIT (useStackedRowsThatFit measures; the standings
+ * keep their top three longest, and on a screen too short for those and one
+ * round row the round's table steps aside, back behind "Hide solution"; the
+ * public rule, publicStandingsRows, still decides which rows); on a narrow
+ * screen everything stacks in one scrolling column.
  */
 function ResultsView({ room, clock, roundView, presentation, leaderboard, rows, solution = null, solutionState = SOLUTION_STATE.NONE, solutionHidden = false }) {
   const showSolution = !solutionHidden && projectorShowsSolution({ stage: clock.stage, solutionState });
@@ -802,13 +815,20 @@ function ResultsView({ room, clock, roundView, presentation, leaderboard, rows, 
   // standings share the right. A held or missing one is a line above both.
   const solutionFills = showSolution && solutionState === SOLUTION_STATE.READY;
   // Two tables in the space of one: each starts at the most it may show and
-  // the panel drops rows until it fits (ResultsPanel). Alone, a table has the
-  // whole screen's rows (the viewport budget).
+  // they give up rows until both fit (useStackedRowsThatFit). Alone, a table
+  // has the whole screen's rows (the viewport budget).
   const plan = stackedResultsPlan(room, rows);
   const roundCeiling = solutionFills ? plan.rowCeiling : Math.max(3, rows - 1);
   const standingsCeiling = solutionFills ? plan.rowCeiling : rows;
   // A new round starts the fitting again from the top.
   const resetKey = `${room?.roomId || room?.id || ''}:${room?.currentRound}:${room?.roundVersion || 0}`;
+  const columnRef = useRef(null);
+  const roundRef = useRef(null);
+  const standingsRef = useRef(null);
+  const fit = useStackedRowsThatFit(
+    { columnRef, roundRef, standingsRef },
+    { roundCeiling, standingsCeiling, standingsFirst: plan.standingsFirst, resetKey, enabled: solutionFills },
+  );
   // The standings arrive with the round's result, written when it closed —
   // never the live board's rows from before it. A round closed before results
   // carried standings shows the live board.
@@ -836,9 +856,8 @@ function ResultsView({ room, clock, roundView, presentation, leaderboard, rows, 
       panelStyle={panel}
       labelLook={labelLook}
       headingStyle={heading}
-      ceiling={roundCeiling}
-      resetKey={resetKey}
-      fit={solutionFills}
+      panelRef={roundRef}
+      space={fit.round}
     >
       {(space) => (
         <RoundResultsTable view={roundView} board={roundView ? publicStandingsRows(room, roundView.rows, { spaceForRows: space }) : null} presentation={presentation} look="projector" compact={solutionFills} />
@@ -853,9 +872,8 @@ function ResultsView({ room, clock, roundView, presentation, leaderboard, rows, 
       panelStyle={panel}
       labelLook={labelLook}
       headingStyle={heading}
-      ceiling={standingsCeiling}
-      resetKey={resetKey}
-      fit={solutionFills}
+      panelRef={standingsRef}
+      space={fit.standings}
     >
       {(space) => (standings
         ? <StandingsBoard board={publicStandingsRows(room, standings, { spaceForRows: space })} presentation={presentation} look="projector" showMovement label="Standings after this round" compact={solutionFills} />
@@ -866,8 +884,15 @@ function ResultsView({ room, clock, roundView, presentation, leaderboard, rows, 
     return (
       <div className="mm-arena-running-grid mm-arena-solution-grid" data-mm-results-layout="solution" style={{ height: '100%', minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1.35fr) minmax(0,1fr)', gap: 'clamp(12px, 1.6vw, 20px)' }}>
         <ProjectorSolution solution={solution} state={solutionState} />
-        <div className="mm-arena-results-tables" data-mm-results-tables="stacked" style={{ minHeight: 0, display: 'grid', gridTemplateRows: plan.panelRows, gap: 'clamp(10px, 1.4vh, 16px)' }}>
-          {roundPanel}
+        {/* The round's table as tall as its rows, the standings the rest; the round's table alone steps aside. */}
+        <div
+          ref={columnRef}
+          className="mm-arena-results-tables"
+          data-mm-results-tables="stacked"
+          data-mm-round-table={fit.roundShown ? 'beside' : 'aside'}
+          style={{ minHeight: 0, display: 'grid', gridTemplateRows: fit.roundShown ? 'minmax(0,auto) minmax(0,1fr)' : 'minmax(0,1fr)', gap: 'clamp(10px, 1.4vh, 16px)' }}
+        >
+          {fit.roundShown && roundPanel}
           {standingsPanel}
         </div>
       </div>

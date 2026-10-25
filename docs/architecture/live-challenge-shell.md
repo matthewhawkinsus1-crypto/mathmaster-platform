@@ -362,13 +362,19 @@ places, from the room's reward summary). Host controls run along the bottom.
   still reads what the round did while the solution is up (LC03; "Hide
   solution" brings back the two tables side by side). Two tables in one
   column are drawn in compact rows and each shows fewer of them. How many is
-  MEASURED from the panel, not read off the screen's height (the first
+  MEASURED from the panels, not read off the screen's height (the first
   version was a table of heights, and was cut off in the font a classroom's
-  machine has): a panel starts at the most its list may show (the top five,
-  or the screen's rows for full standings, which also get 60% of the column)
-  and drops a row at a time while its own content runs past its bottom edge
-  (`useRowsThatFitPanel`, `fitRowsStep`); a new round, a resize or a zoom
-  starts again from the top. `publicStandingsRows` still decides which rows
+  machine has): both lists start at the most they may show (the top five, or
+  the screen's rows for full standings) and, while either panel's content
+  runs past its bottom edge, one of them gives up a row
+  (`useStackedRowsThatFit`, `fitStackedStep`). The standings keep their top
+  three longest: above three the two take turns, the round's table first
+  (with full standings it gives all its rows but one first), and when three
+  standings rows and one round row still do not fit (150% zoom on a 1366×768
+  projector) the round's table steps aside, behind "Hide solution", and the
+  standings have the column. In halves, as first built, 125% zoom showed two
+  standings rows and 150% one, where the shell QA's big class wants three. A
+  new round, a resize or a zoom starts again from the top. `publicStandingsRows` still decides which rows
   and says what is left unshown. A screen under 900 px wide stacks everything
   in one scrolling column, the plain two-table results too. A held solution
   stays a line above the two tables. `liveChallengeProjectorPrivacyQa` fails

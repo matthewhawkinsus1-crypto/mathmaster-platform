@@ -10,10 +10,11 @@ import {
   FINAL_BOARD_MAX_ROWS,
   FIT_TOLERANCE_PX,
   PROJECTOR_MORE_NOTE,
+  STACKED_STANDINGS_FLOOR,
   STILL_FINISHING_HOST_HINT,
   STILL_FINISHING_MESSAGE,
   finalBoardRows,
-  fitRowsStep,
+  fitStackedStep,
   lastRankOf,
   podiumRecognitionRows,
   podiumRows,
@@ -381,13 +382,13 @@ test('turning Recognition awards off sends recognitions: false, keeping every ru
 });
 
 // LC03. The round's table and the standings share one column beside a worked
-// solution. How many rows each shows is measured by the panel (the projector's
-// ResultsPanel); these are the two pure decisions behind it.
-test('two lists sharing a column start at the public top few, or at the screen\'s rows for full standings, which get the larger share', () => {
-  assert.deepEqual({ ...stackedResultsPlan({}, 10) }, { rowCeiling: 5, panelRows: 'minmax(0,1fr) minmax(0,1fr)' }, 'the default: the top few, in halves');
-  assert.deepEqual({ ...stackedResultsPlan({ standingsDisplay: 'topFew' }, 8) }, { rowCeiling: 5, panelRows: 'minmax(0,1fr) minmax(0,1fr)' });
-  assert.deepEqual({ ...stackedResultsPlan({ standingsDisplay: 'full' }, 10) }, { rowCeiling: 10, panelRows: 'minmax(0,2fr) minmax(0,3fr)' }, 'full standings: as many as the screen has, the standings 60%');
-  assert.deepEqual({ ...stackedResultsPlan({ standingsDisplay: 'full' }, 4) }, { rowCeiling: 4, panelRows: 'minmax(0,2fr) minmax(0,3fr)' });
+// solution. How many rows each shows is measured on the projector
+// (useStackedRowsThatFit); these are the two pure decisions behind it.
+test('two lists sharing a column start at the public top few, or at the screen\'s rows for full standings, which come first', () => {
+  assert.deepEqual({ ...stackedResultsPlan({}, 10) }, { rowCeiling: 5, standingsFirst: false }, 'the default: the top few, taking turns');
+  assert.deepEqual({ ...stackedResultsPlan({ standingsDisplay: 'topFew' }, 8) }, { rowCeiling: 5, standingsFirst: false });
+  assert.deepEqual({ ...stackedResultsPlan({ standingsDisplay: 'full' }, 10) }, { rowCeiling: 10, standingsFirst: true }, 'full standings: as many as the screen has, the standings first');
+  assert.deepEqual({ ...stackedResultsPlan({ standingsDisplay: 'full' }, 4) }, { rowCeiling: 4, standingsFirst: true });
   // The default never offers more than the public rule would show, whatever the screen.
   assert.equal(PUBLIC_TOP_COUNT, 5);
   assert.equal(stackedResultsPlan({}, 10).rowCeiling, PUBLIC_TOP_COUNT);
@@ -398,26 +399,64 @@ test('two lists sharing a column start at the public top few, or at the screen\'
   }
 });
 
-test('a panel that runs past its edge drops one row at a time, down to one, and a panel that fits keeps its rows', () => {
-  assert.equal(fitRowsStep({ rows: 5, overflowPx: 12 }), 4, 'over: one row fewer');
-  assert.equal(fitRowsStep({ rows: 4, overflowPx: 2 }), 3, 'two pixels past the edge is an overflow');
-  assert.equal(fitRowsStep({ rows: 5, overflowPx: 0 }), 5, 'fits');
-  assert.equal(fitRowsStep({ rows: 5, overflowPx: 1 }), 5, 'a pixel of rounding is not an overflow');
+test('two stacked lists that run past the column give up one row at a time, the standings keeping their top three longest', () => {
+  const at = (round, standings, extra = {}) => fitStackedStep({ round, standings, overflowPx: 12, ...extra });
   assert.equal(FIT_TOLERANCE_PX, 1);
-  assert.equal(fitRowsStep({ rows: 5, overflowPx: -40 }), 5, 'room to spare');
-  assert.equal(fitRowsStep({ rows: 1, overflowPx: 200 }), 1, 'never fewer than one');
-  assert.equal(fitRowsStep({ rows: 0, overflowPx: 200 }), 1, 'a zero is read as one');
-  // Not a measurement: nothing to decide on, so nothing changes.
-  for (const unknown of [undefined, null, Number.NaN, 'wide']) {
-    assert.equal(fitRowsStep({ rows: 5, overflowPx: unknown }), 5, `overflow ${String(unknown)}`);
+  assert.equal(STACKED_STANDINGS_FLOOR, 3);
+  // Both fit, or a pixel of rounding, or no measurement: nothing changes.
+  for (const overflowPx of [0, 1, -40, undefined, null, Number.NaN, 'wide']) {
+    assert.deepEqual(fitStackedStep({ round: 5, standings: 4, overflowPx }), { round: 5, standings: 4, roundShown: true }, `overflow ${String(overflowPx)}`);
   }
-  // Played out: a panel with room for 170px, a 40px heading and 41px rows holds three of five rows, reached in two steps.
-  const overflowAt = (count) => 40 + count * 41 - 170;
-  let rows = 5;
-  let steps = 0;
-  for (let next = fitRowsStep({ rows, overflowPx: overflowAt(rows) }); next !== rows; next = fitRowsStep({ rows, overflowPx: overflowAt(rows) })) {
-    rows = next;
-    steps += 1;
-  }
-  assert.deepEqual({ rows, steps }, { rows: 3, steps: 2 });
+  assert.deepEqual(fitStackedStep({ round: 5, standings: 4, overflowPx: 2 }), { round: 4, standings: 4, roundShown: true }, 'two pixels past the edge is an overflow');
+  // Above the floor the two take turns, the round's table first.
+  assert.deepEqual(at(5, 5), { round: 4, standings: 5, roundShown: true });
+  assert.deepEqual(at(4, 5), { round: 4, standings: 4, roundShown: true });
+  assert.deepEqual(at(4, 4), { round: 3, standings: 4, roundShown: true });
+  // At the floor the standings keep their three; the round's table gives what it has left ...
+  assert.deepEqual(at(3, 3), { round: 2, standings: 3, roundShown: true });
+  assert.deepEqual(at(2, 3), { round: 1, standings: 3, roundShown: true });
+  // ... and a round table already down to one row leaves the standings to give theirs down to the floor.
+  assert.deepEqual(at(1, 5), { round: 1, standings: 4, roundShown: true });
+  // With one round row and three standings rows still too many, the round's table steps aside
+  // and the standings start again from their ceiling, alone in the column.
+  assert.deepEqual(at(1, 3), { round: 1, standings: 5, roundShown: false });
+  assert.deepEqual(at(1, 3, { standingsCeiling: 8 }), { round: 1, standings: 8, roundShown: false });
+  // Alone, the standings give a row at a time, never fewer than one.
+  assert.deepEqual(at(1, 5, { roundShown: false }), { round: 1, standings: 4, roundShown: false });
+  assert.deepEqual(at(1, 1, { roundShown: false }), { round: 1, standings: 1, roundShown: false });
+  // A list that may show fewer than three keeps all it has while the round's table has a row to give.
+  assert.deepEqual(at(1, 2, { standingsCeiling: 2 }), { round: 1, standings: 2, roundShown: false });
+  // Full standings come first: the round's table gives all its rows but one before the standings give any.
+  assert.deepEqual(at(3, 10, { standingsCeiling: 10, standingsFirst: true }), { round: 2, standings: 10, roundShown: true });
+  assert.deepEqual(at(1, 10, { standingsCeiling: 10, standingsFirst: true }), { round: 1, standings: 9, roundShown: true });
+  // A zero or a non-number is read as one row.
+  assert.deepEqual(at(0, 4), { round: 1, standings: 3, roundShown: true });
+  assert.deepEqual(at('many', 1, { roundShown: false }), { round: 1, standings: 1, roundShown: false });
+});
+
+test('played out on the screens the shell QA drives: three standings rows at every size, the round table beside them while it fits', () => {
+  // A panel is its chrome plus its rows; the column is what the projector measured (1366x768 at 100%, 125%, 150%).
+  const screens = {
+    projector: { column: 526, chrome: 121, row: 41 },
+    zoom125: { column: 397, chrome: 106, row: 38 },
+    zoom150: { column: 276, chrome: 98, row: 36 },
+  };
+  const play = ({ column, chrome, row }, { standingsFirst = false, ceiling = PUBLIC_TOP_COUNT } = {}) => {
+    const height = (rows) => chrome + rows * row;
+    let state = { round: ceiling, standings: ceiling, roundShown: true };
+    for (let steps = 0; steps < 40; steps += 1) {
+      // The round's table takes its own height; the standings the rest.
+      const roundHeight = state.roundShown ? height(state.round) : 0;
+      const overflowPx = Math.max(roundHeight - column, height(state.standings) - (column - roundHeight));
+      const next = fitStackedStep({ ...state, overflowPx, standingsCeiling: ceiling, standingsFirst });
+      if (JSON.stringify(next) === JSON.stringify(state)) return state;
+      state = next;
+    }
+    throw new Error('the fitting never settled');
+  };
+  assert.deepEqual(play(screens.projector), { round: 3, standings: 3, roundShown: true }, 'a projector at 100%: three and three, as LC03 drew them');
+  assert.deepEqual(play(screens.zoom125), { round: 1, standings: 3, roundShown: true }, '125%: the top three, and the round\'s winner beside them');
+  assert.deepEqual(play(screens.zoom150), { round: 1, standings: 4, roundShown: false }, '150%: the standings alone');
+  // Full standings on a 1366x768 projector: the standings take what they need first.
+  assert.deepEqual(play(screens.projector, { standingsFirst: true, ceiling: 8 }), { round: 1, standings: 5, roundShown: true });
 });
