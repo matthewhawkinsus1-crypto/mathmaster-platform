@@ -547,8 +547,11 @@ function QuestionEngineBody({
   const enterFreshRef = useRef(null);
   const [questionResetVersion, setQuestionResetVersion] = useState(0);
   // How many times this question's module has been restarted from a fresh
-  // workspace after it failed to render (QuestionModuleBoundary). Once.
-  const [moduleRecoveries, setModuleRecoveries] = useState(0);
+  // workspace after it failed to render (QuestionModuleBoundary). Once per
+  // question, held with the draft it was spent on: an engine reused for the
+  // next question (My Math Path, MP12) gives that one its own fresh start.
+  const [moduleRecovery, setModuleRecovery] = useState({ draftKey: null, count: 0 });
+  const moduleRecoveries = moduleRecovery.draftKey === draftKey ? moduleRecovery.count : 0;
   // Which module failed to render (QuestionModuleBoundary): the boundary key
   // and question it failed under. See `moduleFailed` below.
   const [failedModule, setFailedModule] = useState(null);
@@ -1719,7 +1722,7 @@ function QuestionEngineBody({
     setWorkflowSubmissionReview(null);
     setBaseUndoController(null);
     setUndoController(null);
-    setModuleRecoveries((current) => current + 1);
+    setModuleRecovery((current) => ({ draftKey, count: (current.draftKey === draftKey ? current.count : 0) + 1 }));
     setFailedModule(null);
     setQuestionResetVersion((current) => current + 1);
   };
