@@ -47,6 +47,8 @@ const DRIVERS = [
   ['student-teacher-journeys.yml', 'pass3-student-journeys', 'teacher', [
     'teacherWorkflow/assignmentChromeJourneys', 'teacherWorkflow/studentNameJourneys',
     'teacherWorkflow/draftSaveNoticeReloadJourneys', 'teacherWorkflow/phoneSaveLineJourneys',
+    // LC23: the Practice Passes switch in the real Review, desktop and phone.
+    'teacherWorkflow/practicePassSwitchJourneys',
   ]],
   ['student-teacher-journeys.yml', 'pass3-student-journeys', 'a11yApp', ['teacherWorkflow/askMyTeacherJourneys']],
   // NV14: Back and a reload inside Recovery, Corrections and a Test review.

@@ -127,7 +127,11 @@ name: Student and Teacher Journeys
 #                          phoneSaveLineJourneys.mjs (W7-8: on every phone
 #                          layout the save line and the problem notice are
 #                          seen), askMyTeacherJourneys.mjs
-#                          (Ask my teacher answers back). Ask my teacher and the
+#                          (Ask my teacher answers back),
+#                          practicePassSwitchJourneys.mjs (LC23: Review's
+#                          Practice Passes switch saved, reopened and changed,
+#                          desktop and phone; the review never scrolls
+#                          sideways). Ask my teacher and the
 #                          lobby's way into the game run on the accessibility
 #                          App harness, on port 5189
 #
@@ -568,7 +572,7 @@ jobs:
         run: node tests/browser/lmrProcessMode.mjs
 
   # Student pass 3's journeys in the real App. Their own job: the teacher job
-  # is near its limit. About 6 minutes locally.
+  # is near its limit. About 7 minutes locally.
   pass3-student-journeys:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -615,3 +619,8 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5189"
         run: node tests/browser/teacherWorkflow/askMyTeacherJourneys.mjs
+      - name: Review's Practice Passes switch, saved and reopened, on a desktop and a phone
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/practicePassSwitchJourneys.mjs

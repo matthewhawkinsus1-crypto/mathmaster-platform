@@ -130,7 +130,11 @@ const inputStyle = {
 // inside a 44px label.
 const checkboxStyle = { width: 20, height: 20, flexShrink: 0 };
 
-const fieldsetStyle = { marginTop: 18, padding: 15, border: '1px solid var(--mm-border)', borderRadius: 10 };
+// minWidth 0: a fieldset is never narrower than its widest content unless told
+// so. The Delivery step's Adaptive preview holds a table that scrolls inside its
+// own box, and without this the fieldset around it took the table's width (654px
+// on a 390px phone) and the whole review scrolled sideways.
+const fieldsetStyle = { marginTop: 18, padding: 15, border: '1px solid var(--mm-border)', borderRadius: 10, minWidth: 0 };
 const legendStyle = { fontWeight: 900 };
 const labelStyle = { fontWeight: 800, display: 'block' };
 

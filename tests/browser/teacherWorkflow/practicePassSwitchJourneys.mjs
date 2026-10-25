@@ -20,12 +20,12 @@
 //   - saving without touching the box leaves the stored policy exactly as it is.
 //
 // Every device checks the box is a real tap target (at least 44px), that the
-// switch fits the review's width and that the page does not scroll sideways.
-// (At phone width the Delivery step's "Question versions by section" fieldset
-// is wider than the screen, and was before the switch existed: the review
-// scrolls sideways there, so the switch is measured by itself.) The page is the
-// app with `firebase/*` replaced by in-memory fakes: nothing can reach a
-// Firebase project.
+// switch fits the review's width, and that neither the review nor the page
+// scrolls sideways. (At phone width the Delivery step's "Question versions by
+// section" fieldset took the width of the Adaptive preview's table, 654px on a
+// 390px phone, from before the switch existed, and the review scrolled sideways
+// there.) The page is the app with `firebase/*` replaced by in-memory fakes:
+// nothing can reach a Firebase project.
 //
 // Exit code 1 on any finding. Screenshots in
 // tests/browser/artifacts/practicePassSwitch/ (git-ignored).
@@ -98,13 +98,13 @@ const openSwitch = async (page, label) => {
     return {
       rowHeight: row ? Math.round(row.getBoundingClientRect().height) : 0,
       cutOff,
+      reviewOverflow: scroller.scrollWidth - scroller.clientWidth,
       pageOverflow: document.scrollingElement.scrollWidth - document.scrollingElement.clientWidth,
     };
   });
   expect(label, seen.rowHeight >= MIN_TAP, `the box's row is a tap target (${seen.rowHeight}px)`);
-  // The Delivery step's "Question versions by section" fieldset is wider than a
-  // phone (pre-existing, not this switch's), so the switch is measured by itself.
   expect(label, seen.cutOff === 0, `the switch fits inside the review's width (${seen.cutOff} of its parts reach past the right edge)`);
+  expect(label, seen.reviewOverflow <= 1, `the Delivery step does not scroll sideways (${seen.reviewOverflow}px)`);
   expect(label, seen.pageOverflow <= 1, `no sideways scrolling on the page (${seen.pageOverflow}px)`);
 };
 
