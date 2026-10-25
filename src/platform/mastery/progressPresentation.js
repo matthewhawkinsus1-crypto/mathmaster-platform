@@ -167,9 +167,11 @@ export const describeWeeklyHistoryForStudent = (history = null) => {
 
   const streak = history?.streak || { weeks: 0, includesOpenWeek: false, atLeast: false };
   const count = Number(streak.weeks) || 0;
-  // The open week the streak counted may be LAST week: on Sunday evening the
-  // new week has begun while last week runs to its due day. Then "this week"
-  // would name a week the rows show as not set yet.
+  // The open week the streak counted may be LAST week, not this one. That was
+  // every Sunday evening while week keys turned over at 7pm Central, with last
+  // week still running to its due day (MP06 moved the turnover to midnight, so
+  // it no longer happens in practice; the wording stays as a defence). Then
+  // "this week" would name a week the rows show as not set yet.
   const currentHit = weeks.some((week) => week?.current && week?.hit);
   return {
     rows,

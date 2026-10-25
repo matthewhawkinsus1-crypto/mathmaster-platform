@@ -321,6 +321,16 @@ and `skillMastered` events with idempotency keys. Documented in
   `weekKeyFor` starts a week at Sunday 00:00 UTC, so from 7pm CDT (6pm CST) on
   Sunday a student already sees next week. Changing week keys needs a
   migration of frozen snapshots, completions and Classroom syncs.
+  **Decided and built (MP06, 2026-10-25): the week turns over at midnight Monday
+  in the school's time zone, and no migration was needed.** A week key is still a
+  Monday's date, so every stored key stays valid and is read as it was; only the
+  moment that changes weeks moved, so a few hours on Sunday evening (5, or 6 in
+  standard time) now belong to the week still running. Work stored in that window
+  before the change keeps the next week's key and is still found (the completion
+  window was left as it was) and graded there. Stepping from one key to another
+  is now `shiftWeekKey` (date arithmetic), not a clock. Deploy outside Sunday
+  6pm to midnight Central, Functions and Hosting together. Tests:
+  `tests/platform/weeklyPathSchoolWeek.test.mjs`.
 - **Short weeks are refused** (the cost of the server-decided count). In a
   sweep of 360 legitimate class configurations the planner produced a short
   week 4 times, all six-session classes in August, when too few skills are
@@ -330,6 +340,14 @@ and `skillMastered` events with idempotency keys. Documented in
   that week, as for any freeze that fails. Fix later by having the server plan
   the week itself, or accept a short week when the server's own planner, on
   the same inputs, cannot fill it.
+  **Built after this handoff was written (21538adb, 2f8fb41a, 889527c1;
+  confirmed on 70ecf1bb under MP06, 2026-10-25):** the freeze runs the browser's
+  own planner on the server's records and accepts a short week when that plan is
+  at least as short (`functions/lib/weeklyPathServerPlan.js`), and
+  `tests/platform/weeklyPathShortWeek.test.mjs` reproduces this sweep (the 4 short
+  weeks freeze and grade). Still refused, as before: a Grade 6–8 course with no
+  saved pacing (the server does not plan it), and a week that is short only
+  because of practice cooldowns (push I, §3 item 5).
 - **Content follow-up: 27 templates repeat their questions** (fewer than 8
   distinct in 30 draws). Their recap now withholds the answer and steps; the
   real fix is to widen these generators, after which the regeneration test

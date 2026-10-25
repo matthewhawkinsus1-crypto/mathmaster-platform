@@ -349,7 +349,7 @@ test('the callable is student-only and passes nothing from the request into the 
 
 test('the shared builder grades with the publisher\'s functions, not its own rule', () => {
   const shared = executableSource(read('functions/shared/weeklyPathHistory.mjs'));
-  assert.match(shared, /import \{ gradeWeeklyGoal, weekKeyFor \} from '\.\/weeklyPathGrade\.mjs';/);
+  assert.match(shared, /import \{[^}]*\bgradeWeeklyGoal\b[^}]*\} from '\.\/weeklyPathGrade\.mjs';/);
   assert.match(shared, /import \{ collectWeeklyPathSessions, weeklyCompletionWindow \} from '\.\/weeklyPathCompletion\.mjs';/);
   assert.doesNotMatch(shared, /status\s*===\s*'completed'/, 'what counts as finished is weeklyPathCompletion.mjs\'s call');
   const loader = executableSource(read('functions/lib/weeklyPathHistory.js'));

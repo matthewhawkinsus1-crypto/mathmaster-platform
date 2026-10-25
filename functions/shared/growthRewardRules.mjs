@@ -4,7 +4,7 @@ import { MAX_AWARD_AMOUNT } from './classPoints.mjs';
 import { BADGE_CATALOG } from './rewardGrants.mjs';
 import { normalizeTestCycleRecord, SESSION_STATE } from './testCycleRecord.mjs';
 import { normalizeTestCyclePolicy } from './testCyclePolicy.mjs';
-import { evaluateWeeklyGoalProgress, weekKeyFor } from './weeklyPathGrade.mjs';
+import { evaluateWeeklyGoalProgress, shiftWeekKey, weekKeyFor } from './weeklyPathGrade.mjs';
 import { MASTERY_RULE } from './masteryRule.mjs';
 import { masteryHistoryWeekKeys, masteryStatusFromCode } from './masteryHistory.mjs';
 import { skillMasteredEvents, skillMasteredEventsFromHistory } from './pathGrowthEvents.mjs';
@@ -483,7 +483,7 @@ export const evaluateWeeklyPathGrowth = ({
   // the window), no week is ever paid into a second block.
   const claimed = new Set();
   paid.forEach((end) => {
-    for (let back = 0; back < PATH_STREAK_WEEKS; back += 1) claimed.add(weekKeyFor(weekStartMs(end) - back * WEEK));
+    for (let back = 0; back < PATH_STREAK_WEEKS; back += 1) claimed.add(shiftWeekKey(end, -back));
   });
   const streakAwards = (lastWeek) => eventAwards({
     studentId,
@@ -499,7 +499,7 @@ export const evaluateWeeklyPathGrowth = ({
   const closeRun = () => {
     if (!run.length) return;
     const first = run[0];
-    const previous = weekKeyFor(weekStartMs(first) - WEEK);
+    const previous = shiftWeekKey(first, -1);
     const firstIsWindowEdge = windowStartWeekKey && first <= windowStartWeekKey;
     const previousCouldQualify = previous >= startWeekKey;
     // A run whose start is out of sight counts only after a block already

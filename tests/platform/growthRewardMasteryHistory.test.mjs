@@ -451,3 +451,27 @@ test('the sync hands the history to the mastery rule, read in one transaction wi
   const call = region(source, 'modules.rules.evaluateGrowthRewards({', '});');
   assert.match(call, /masteryHistory: mastery\.masteryHistory,/);
 });
+
+// MP06: the weekly Path goals the sync reads are chosen by stepping week keys.
+// That is date arithmetic; a key's own midnight handed back to weekKeyFor as a
+// moment is Sunday evening in the school's zone and lands a week early. Run
+// here, where the in-memory Firestore lives, on the evening that shows it.
+test('the weekly Path goals it reads are the last 52 Mondays, in order, on a Sunday evening too', async () => {
+  const db = freshStudent();
+  const asked = [];
+  const getAll = db.getAll.bind(db);
+  db.getAll = async (...refs) => {
+    refs.filter((ref) => ref.collection === 'weeklyPathGoalSnapshots').forEach((ref) => asked.push(ref.id));
+    return getAll(...refs);
+  };
+  // Sunday 2027-12-12, 8pm Central: by the UTC clock it is already Monday the 13th.
+  await sync(db, Date.parse('2027-12-13T02:00:00Z'));
+  const weeks = asked.map((id) => id.split('__')[1]);
+  assert.equal(weeks.length, 52, 'a year of weeks');
+  assert.equal(weeks.at(-1), '2027-12-06', 'ending with the week still running, not the next one');
+  assert.equal(weeks[0], '2026-12-14');
+  weeks.forEach((key, index) => {
+    assert.equal(new Date(`${key}T00:00:00Z`).getUTCDay(), 1, `${key} is a Monday`);
+    if (index) assert.equal(Date.parse(`${key}T00:00:00Z`) - Date.parse(`${weeks[index - 1]}T00:00:00Z`), 7 * DAY, `${key} follows ${weeks[index - 1]}`);
+  });
+});

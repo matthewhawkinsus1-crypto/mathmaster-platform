@@ -39,7 +39,7 @@
  * reader that needs "grew since four weeks ago".
  */
 
-import { weekKeyFor } from './weeklyPathGrade.mjs';
+import { shiftWeekKey, weekKeyFor } from './weeklyPathGrade.mjs';
 import { MASTERY_STATUS, classifyMasteryStatus, masteryFactsFromProfile } from './masteryRule.mjs';
 
 export const MASTERY_HISTORY_COLLECTION = 'studentMasteryHistory';
@@ -78,10 +78,9 @@ export const isWeekKey = (value) => {
   return WEEK_KEY.test(text) && Number.isFinite(Date.parse(`${text}T00:00:00Z`));
 };
 
-/** The week key `weeks` whole weeks after (negative: before) `weekKey`. */
-export const shiftWeekKey = (weekKey, weeks) => (
-  weekKeyFor(Date.parse(`${weekKey}T00:00:00Z`) + Math.round(Number(weeks) || 0) * WEEK_MS)
-);
+// The week key `weeks` whole weeks after (negative: before) `weekKey`. One definition,
+// beside weekKeyFor in weeklyPathGrade.mjs; exported from here as it always was.
+export { shiftWeekKey };
 
 const toMillis = (value) => {
   if (value === null || value === undefined || value === '') return null;
