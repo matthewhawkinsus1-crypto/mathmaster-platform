@@ -230,6 +230,45 @@ function planWeeklySessions(planner, {
 }
 
 /**
+ * The class's assignments, by the student client's own class query
+ * (studentAssignmentScope.js); App.jsx keeps exactly these for the Path
+ * (assignmentIsForStudent).
+ */
+async function loadClassAssignments(db, classRecord = null) {
+  const classId = text(classRecord?.classId);
+  if (!classId) return [];
+  const snapshot = await db.collection("assignments").where("assignedClassIds", "array-contains", classId).get();
+  return (snapshot?.docs || []).map((entry) => ({ id: entry.id, ...entry.data() }));
+}
+
+/**
+ * Everything the student's Path options are built from that the server
+ * reads, as the student client reads it: the class's saved pacing, its skill
+ * overrides plus the student's live teacher recommendation, and the class's
+ * assignments. Shared by the short-week plan and the one-rule decisions
+ * (favourableMastery.js). Throws on a failed read; callers decide.
+ */
+async function loadServerPathInputs({ db, studentId, classRecord = null, planner, now = Date.now() } = {}) {
+  const [pacingSnapshot, overridesSnapshot, interventionSnapshot, assignments] = await Promise.all([
+    db.collection("settings").doc(PACING_DOC).get(),
+    db.collection("settings").doc(OVERRIDES_DOC).get(),
+    db.collection(STUDENT_PATH_INTERVENTION_COLLECTION).doc(studentId).get(),
+    loadClassAssignments(db, classRecord),
+  ]);
+  const pacing = storedPacingForClassContext(planner, pacingSnapshot.exists ? pacingSnapshot.data()?.byClass : null, classRecord);
+  const classOverrides = overridesForClassContext(
+    overridesSnapshot.exists ? overridesSnapshot.data()?.overrides : [],
+    { classId: classRecord?.classId || "", classPeriod: classRecord?.period || "" },
+  );
+  const personal = interventionAsOverride(interventionSnapshot.exists ? interventionSnapshot.data() : null, now);
+  return {
+    pacing,
+    teacherOverrides: personal ? [...classOverrides, personal] : classOverrides,
+    assignments,
+  };
+}
+
+/**
  * Read what the server's plan needs and plan the week. Never throws: a week
  * the server cannot plan returns null, and the freeze then refuses a short
  * proposal as it always did.
@@ -253,22 +292,7 @@ async function loadServerPlannedSessions({
       console.warn("weeklyPathServerPlan: the weekly planner is not deployed; a short week is refused.");
       return null;
     }
-    const classId = text(classRecord?.classId);
-    const [pacingSnapshot, overridesSnapshot, interventionSnapshot, assignmentsSnapshot] = await Promise.all([
-      db.collection("settings").doc(PACING_DOC).get(),
-      db.collection("settings").doc(OVERRIDES_DOC).get(),
-      db.collection(STUDENT_PATH_INTERVENTION_COLLECTION).doc(studentId).get(),
-      // The student client's own class query (studentAssignmentScope.js), and
-      // App.jsx keeps exactly these for the Path (assignmentIsForStudent).
-      classId ? db.collection("assignments").where("assignedClassIds", "array-contains", classId).get() : null,
-    ]);
-    const pacing = storedPacingForClassContext(planner, pacingSnapshot.exists ? pacingSnapshot.data()?.byClass : null, classRecord);
-    const assignments = (assignmentsSnapshot?.docs || []).map((entry) => ({ id: entry.id, ...entry.data() }));
-    const classOverrides = overridesForClassContext(
-      overridesSnapshot.exists ? overridesSnapshot.data()?.overrides : [],
-      { classId: classRecord?.classId || "", classPeriod: classRecord?.period || "" },
-    );
-    const personal = interventionAsOverride(interventionSnapshot.exists ? interventionSnapshot.data() : null, now);
+    const { pacing, teacherOverrides, assignments } = await loadServerPathInputs({ db, studentId, classRecord, planner, now });
     return planWeeklySessions(planner, {
       studentId,
       courseId: classRecord?.course,
@@ -276,7 +300,7 @@ async function loadServerPlannedSessions({
       requestedSessions,
       weeklyConfig,
       pacing,
-      teacherOverrides: personal ? [...classOverrides, personal] : classOverrides,
+      teacherOverrides,
       studentRecord: studentData,
       assignments,
       serverProfiles,
@@ -296,6 +320,8 @@ module.exports = {
   plannerRoot,
   loadWeeklyPlanner,
   planWeeklySessions,
+  loadClassAssignments,
+  loadServerPathInputs,
   loadServerPlannedSessions,
   normalizeOverride,
   overridesForClassContext,

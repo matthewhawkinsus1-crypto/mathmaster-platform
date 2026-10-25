@@ -12,7 +12,10 @@
  *     and whether the teacher selects every session (the one setting that
  *     explains a week with fewer sessions than the count);
  *   - studentMasteryProfiles/{studentId} and studentRetentionSchedules/
- *     {studentId} — which skills the server says are due a retention check;
+ *     {studentId} — which skills are due a retention check, by the one rule:
+ *     the student's assignment record (grades/{studentId}) and the class's
+ *     assignments are read too, but only for a proposed Retention slot the
+ *     server's profile alone does not explain (favourableMastery.js, MP22);
  *   - for a proposal shorter than the count (and only then), the server's own
  *     plan for the week (weeklyPathServerPlan.js): how many sessions the same
  *     planner the browser runs can fill on these records, the student's
@@ -24,6 +27,8 @@
  */
 
 const { loadServerPlannedSessions } = require("./weeklyPathServerPlan");
+const { retentionDueByOneRule } = require("./favourableMastery");
+const mathPath = require("./mathPath");
 
 const WEEKLY_GOAL_SETTINGS_DOC = "weeklyPathGoals";
 
@@ -68,16 +73,33 @@ async function loadWeeklyFreezeInputs({ db, studentId, studentData = null, class
   const weekStartsOn = Number.isFinite(Number(config?.weekStartsOn))
     ? Math.min(6, Math.max(0, Math.round(Number(config.weekStartsOn))))
     : 1;
+  // A Retention slot stays a two-question check for a skill due one by the
+  // ONE rule (MP22): Mastered by the server's record or by the assignment
+  // record, as the student's screen planned it. It used to read the server's
+  // profile alone, so a skill Mastered in assignment work froze as a Review.
+  // Decided here, once, for the proposal's own Retention slots, keyed as the
+  // freeze keys a slot (displayTeks of canonicalTeks).
+  const retentionCodes = (Array.isArray(goal?.sessions) ? goal.sessions : [])
+    .filter((session) => retentionCheck.isRetentionPurpose(session?.purpose))
+    .map((session) => mathPath.displayAlignmentKey(mathPath.canonicalAlignmentKey(session?.teksCode || session?.skillId)))
+    .filter(Boolean);
+  const dueByOneRule = retentionCodes.length
+    ? await retentionDueByOneRule({
+      db, studentId, studentData, classRecord, serverProfiles: profiles, schedules, displayCodes: retentionCodes, now, plannerOptions,
+    })
+    : new Map();
   return {
     requestedSessions,
     shortWeekReason,
     plannedSessions,
     weekStartsOn,
-    retentionDue: (displayCode) => retentionCheck.retentionCheckIsDue({
-      profile: byCode(profiles, displayCode),
-      schedule: byCode(schedules, displayCode),
-      now,
-    }),
+    retentionDue: (displayCode) => (dueByOneRule.has(displayCode)
+      ? dueByOneRule.get(displayCode)
+      : retentionCheck.retentionCheckIsDue({
+        profile: byCode(profiles, displayCode),
+        schedule: byCode(schedules, displayCode),
+        now,
+      })),
   };
 }
 

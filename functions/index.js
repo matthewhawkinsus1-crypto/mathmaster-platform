@@ -96,6 +96,11 @@ const pathContentRelease = require("./lib/pathContentRelease");
 // The end-of-session recap: recorded per closed question by submitPathResponse,
 // released by getMyPathSessionRecap only for a completed session.
 const pathSessionRecap = require("./lib/pathSessionRecap");
+// Which lock a Path session holds (an open retention check has its own, MP21),
+// and the one mastery rule for the server's retention and Challenge decisions
+// (the more favourable of the server profile and the assignment record, MP22).
+const pathSessionLock = require("./lib/pathSessionLock");
+const favourableMastery = require("./lib/favourableMastery");
 const assignmentAi = require("./lib/assignmentAi");
 const weeklyPathSync = require("./lib/weeklyPathSync");
 const ccmrAssignmentBank = require("./lib/ccmrAssignmentBank");
@@ -16601,10 +16606,69 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
     if (ccmrChallengeTier >= 2 && sessionKind !== "retentionProbe") requiredQuestions = 3;
   }
 
+  // AN OPEN RETENTION CHECK MUST BE DUE (MP21). A weekly Retention slot was
+  // checked when its week froze; a check started from the map, the banner or
+  // the Overview is checked here, by the ONE rule the student's screen offered
+  // it by (favourableMastery.js, MP22): Mastered by the server's record or the
+  // assignment record, and due by the stored schedule or the time since it was
+  // last shown. Decided before the transaction, and enforced there only for a
+  // NEW check: an open one is always resumed.
+  let openRetentionCheckDue = true;
+  if (sessionKind === "retentionProbe" && !requestedWeeklySlotKey) {
+    const [profilesSnapshot, schedulesSnapshot] = await Promise.all([
+      db.collection("studentMasteryProfiles").doc(studentId).get(),
+      db.collection("studentRetentionSchedules").doc(studentId).get(),
+    ]);
+    const checkCode = mathPath.displayAlignmentKey(targetAlignmentKey);
+    const due = await favourableMastery.retentionDueByOneRule({
+      db,
+      studentId,
+      studentData,
+      classRecord: studentClass,
+      serverProfiles: profilesSnapshot.data()?.profiles || {},
+      schedules: schedulesSnapshot.data()?.schedules || {},
+      displayCodes: [checkCode],
+      now: Date.now(),
+    });
+    openRetentionCheckDue = due.get(checkCode) === true;
+  }
+
+  // A CHALLENGE IS EARNED BY THE ONE RULE (MP22). The student's screen offers
+  // a Challenge card for a skill ahead of the class whose prerequisites are
+  // strong, by the more favourable record. The server used to ask whether the
+  // TARGET skill itself was Mastered on its own profile, which a Challenge
+  // skill never is: every such launch was refused on its first question and
+  // left an open session that blocked the skill. Now the server asks the
+  // student's own Path; the old answer still counts. Not earned, the launch is
+  // ordinary practice on the skill: harder questions are never granted without
+  // the server's evidence.
+  const challengeAsked = requestedCoursePracticeIntent === "challenge"
+    && !assessmentFramework
+    && sessionKind !== "retentionProbe"
+    && !requestedWeeklySlotKey;
+  let challengeEarned = false;
+  if (challengeAsked) {
+    const masterySnapshot = await db.collection("studentMasteryProfiles").doc(studentId).get();
+    const serverProfiles = masterySnapshot.data()?.profiles || {};
+    const challengeCode = mathPath.displayAlignmentKey(targetAlignmentKey);
+    challengeEarned = await favourableMastery.courseChallengeEarnedByOneRule({
+      db,
+      studentId,
+      studentData,
+      classRecord: studentClass,
+      courseId,
+      targetDisplayCode: challengeCode,
+      serverProfiles,
+      ownProfileEarned: courseChallengeEarned(serverProfiles[challengeCode] || {}),
+      now: Date.now(),
+    });
+  }
+
   const coursePracticeIntent = requestedCoursePracticeIntent
     && !assessmentFramework
     && sessionKind !== "retentionProbe"
     && !requestedWeeklySlotKey
+    && challengeEarned
     ? requestedCoursePracticeIntent
     : null;
 
@@ -16694,15 +16758,30 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
   // One open session per student, standard, exam and slot: a swapped slot is
   // another standard, so another lock. Kept as built (MP23): re-keying would
   // orphan the lock of every session in flight, which its completion deletes
-  // by this same id (below, in the answer transaction).
-  const lockId = mathPath.opaqueId("pathlock", studentId, targetAlignmentKey, assessmentFramework || "course", requestedWeeklySlotKey || "open-practice");
+  // by this same id (below, in the answer transaction). The one change (MP21):
+  // an open retention check has a place of its own beside open practice, so
+  // neither blocks the other. The session records the lock it took, and a
+  // session in flight from before is released by the id it took then
+  // (lib/pathSessionLock.js).
+  const lockId = pathSessionLock.pathSessionLockId({
+    studentId, targetAlignmentKey, assessmentFramework, weeklySlotKey: requestedWeeklySlotKey, sessionKind,
+  });
   const lockRef = db.collection("activePathLocks").doc(lockId);
+  // A check opened before MP21 holds the open-practice lock: found there, it
+  // is resumed rather than doubled.
+  const earlierCheckLockRef = sessionKind === "retentionProbe" && !requestedWeeklySlotKey
+    ? db.collection("activePathLocks").doc(pathSessionLock.openPracticeLockId({ studentId, targetAlignmentKey, assessmentFramework }))
+    : null;
   const proposedSessionRef = db.collection("pathSessions").doc();
 
   const session = await db.runTransaction(async (transaction) => {
     const now = Date.now();
     const lock = await transaction.get(lockRef);
     let existingSessionId = lock.exists ? (lock.data()?.sessionId || null) : null;
+    if (!existingSessionId && earlierCheckLockRef) {
+      const earlier = await transaction.get(earlierCheckLockRef);
+      if (earlier.exists && earlier.data()?.sessionKind === "retentionProbe") existingSessionId = earlier.data()?.sessionId || null;
+    }
     // One open session per weekly slot. The lock is keyed by target, and a slot
     // frozen with "Swap a skill" alternatives can be launched on more than one
     // standard, so a launch for a slot that already has an open session on
@@ -16754,6 +16833,17 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
       throw assessmentReleaseUpdateError(assessmentFramework);
     }
 
+    // A NEW open retention check only when one is due (MP21, decided above).
+    // Nothing is written: a stale tab still showing a check the student has
+    // since passed is told, in these words, that it is not due.
+    if (sessionKind === "retentionProbe" && !requestedWeeklySlotKey && !openRetentionCheckDue) {
+      throw new HttpsError(
+        "failed-precondition",
+        "This check is not due yet. It will be back on your Path when it is.",
+        { reason: "retention-check-not-due" },
+      );
+    }
+
     const targetDisplay = mathPath.displayAlignmentKey(targetAlignmentKey);
     const next = {
       sessionId: proposedSessionRef.id,
@@ -16762,6 +16852,12 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
       sessionKind,
       assessmentFramework,
       coursePracticeIntent,
+      // Challenge rigor was earned at the start by the student's own Path
+      // (MP22); issueNextQuestion reads this instead of the target's profile.
+      challengeEarned: coursePracticeIntent === "challenge" ? true : null,
+      // The lock this session holds, so its completion releases exactly this
+      // one (MP21: an open retention check has its own).
+      lockId,
       assessmentContentRelease: assessmentReleaseState.tracked ? assessmentReleaseState.release : null,
       ccmrChallengeTier: assessmentFramework ? ccmrChallengeTier : null,
       coursePassLevel: assessmentFramework || sessionKind === "retentionProbe" ? null : coursePassLevel,
@@ -17054,6 +17150,14 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
   // names a DOK or difficulty. The only accepted course intent is a one-way
   // escalation to the certified authored ceiling. It applies only on the
   // session target, never to a remediation/diagnostic excursion.
+  //
+  // EARNED is decided once, when the session starts, by the student's own
+  // Path (startMyMathPathSession records `challengeEarned`; MP22). A session
+  // opened before that check falls back to the target's own server profile,
+  // the old rule. NEVER STRANDED: without either, the question is served at
+  // ordinary rigor instead of refusing it. Refusing left an open session that
+  // could never issue a question and held the skill's lock for good.
+  let challengeServed = false;
   if (
     session.coursePracticeIntent === "challenge"
     && !session.assessmentFramework
@@ -17061,15 +17165,11 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     && activeDisplayCode === targetDisplayCode
     && !session.diagnosing
   ) {
-    if (!courseChallengeEarned(masteryProfile)) {
-      throw new HttpsError(
-        "failed-precondition",
-        "Challenge is not unlocked for this skill yet.",
-        { reason: "course-challenge-not-earned" },
-      );
+    if (session.challengeEarned === true || courseChallengeEarned(masteryProfile)) {
+      challengeServed = true;
+      preferredDifficultyBand = 4;
+      preferredDok = 3;
     }
-    preferredDifficultyBand = 4;
-    preferredDok = 3;
   }
 
   // Routing can recognize mastery from fresh in-session evidence before the
@@ -17222,7 +17322,8 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     coursePassLevel: session.assessmentFramework || session.weeklySlotKey || session.coursePracticeIntent === "challenge"
       ? null
       : Math.max(1, Math.min(COURSE_PATH_MAX_LEVEL, Number(session.coursePassLevel || 1))),
-    coursePracticeIntent: session.coursePracticeIntent || null,
+    // Labelled Challenge only when it was served as one (MP22).
+    coursePracticeIntent: challengeServed ? "challenge" : null,
     assessmentBridgeFramework: usingCourseBridge ? session.assessmentFramework : null,
     ccmrChallengeTier: session.assessmentFramework ? Math.max(1, Math.min(3, Number(session.ccmrChallengeTier || 1))) : null,
     ccmrFamilyRole: authored.ccmrFamilyRole || (Number(authored.ccmrChallengeTier || 1) >= 2 ? "challenge" : "direct"),
@@ -17650,7 +17751,9 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
     transaction.set(evidenceRef, event);
     transaction.set(sessionRef, nextSession);
     if (nextStatus === "completed") {
-      const lockRef = db.collection("activePathLocks").doc(mathPath.opaqueId("pathlock", studentId, session.target.alignmentKey, session.assessmentFramework || "course", session.weeklySlotKey || "open-practice"));
+      // The lock the session recorded, or (a session started before locks
+      // were recorded) the one its launch took then (lib/pathSessionLock.js).
+      const lockRef = db.collection("activePathLocks").doc(pathSessionLock.lockIdForSession(session, { studentId }));
       transaction.delete(lockRef);
     }
 

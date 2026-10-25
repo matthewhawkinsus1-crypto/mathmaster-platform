@@ -32,7 +32,9 @@ import {
   snapshotMasteryAtSessionStart,
 } from '../../src/platform/mastery/sessionSkillMovement.js';
 import { MASTERY_STATUS } from '../../functions/shared/masteryRule.mjs';
+import { buildUnifiedMasteryProfiles } from '../../src/platform/mastery/unifiedMastery.js';
 import { createTeacherPathRuntime } from '../../src/platform/simulation/teacherPathRuntime.js';
+import { studentWithAssignmentWork } from './helpers/assignmentWork.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
@@ -270,6 +272,33 @@ test('only skills that changed are listed, and Mastered is the rule\'s verdict, 
   assert.equal(ready.moves.find((move) => move.code === 'A.5A').statusAfter, MASTERY_STATUS.SECURE);
   assert.equal(formatSkillMove({ label: 'Rate of change', estimateBefore: null, estimateAfter: 55, statusBefore: MASTERY_STATUS.NOT_ENOUGH_EVIDENCE, statusAfter: MASTERY_STATUS.DEVELOPING }),
     'Rate of change new → 55% · Not Enough Evidence → Developing');
+});
+
+test('a skill moves here exactly when it moves on the Path: by the one rule, assignment record included (MP22)', () => {
+  // A.5A Mastered in assignment work (three questions right first time) and
+  // Developing on the server's own evidence; 8.8C only on the server.
+  const work = studentWithAssignmentWork({ 'A.5A': [1, 1, 1] });
+  const serverAtStart = {
+    'A.5A': serverProfile({ estimate: 62, events: 4, updatedAt: START }),
+    '8.8C': serverProfile({ estimate: 62, events: 4, updatedAt: START }),
+  };
+  const path = buildUnifiedMasteryProfiles({ student: work.student, assignments: work.assignments, serverProfiles: serverAtStart });
+  assert.equal(path['A.5A'].mastery.status, MASTERY_STATUS.MASTERED, 'fixture: the Path shows A.5A Mastered');
+  const recordStart = snapshotMasteryAtSessionStart({ masteryProfilesByTEKS: path, serverProfiles: serverAtStart });
+  // The starting point is what the Path showed, not the server's side alone.
+  assert.equal(recordStart.profiles['A.5A'].mastery.status, path['A.5A'].mastery.status);
+  assert.equal(recordStart.profiles['A.5A'].mastery.estimate, path['A.5A'].mastery.estimate);
+  // The session lifts both server numbers to 71 (Secure).
+  const landed = {
+    'A.5A': serverProfile({ estimate: 71, events: 8, updatedAt: DONE + 400 }),
+    '8.8C': serverProfile({ estimate: 71, events: 8, updatedAt: DONE + 400 }),
+  };
+  const ready = describeSessionSkillsMoved({ session: liveSession(), start: recordStart, liveServerProfiles: landed });
+  assert.equal(ready.state, SKILLS_MOVED_STATE.READY);
+  // A.5A is Mastered on the Path before and after: nothing moved there, so it
+  // is not listed (it used to read "62% → 71% · Developing → Secure").
+  assert.deepEqual(ready.moves.map((move) => move.code), ['8.8C']);
+  assert.deepEqual(ready.moves.map((move) => [move.statusBefore, move.statusAfter]), [[MASTERY_STATUS.DEVELOPING, MASTERY_STATUS.SECURE]]);
 });
 
 test('the simulator diffs its own masteryData, with no trigger to wait for; an unfinished session has no section', () => {

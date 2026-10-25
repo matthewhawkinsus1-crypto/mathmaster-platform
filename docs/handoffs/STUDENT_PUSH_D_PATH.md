@@ -433,6 +433,40 @@ and `skillMastered` events with idempotency keys. Documented in
 - **Open retention checks share the open-practice lock** with practice on the
   same TEKS (pre-existing), and the server does not check that an open check
   is actually due (pre-existing; weekly slots are protected).
+  **Done (MP21, 2026-10-25), both:** `startMyMathPathSession` refuses a NEW open
+  check that is not due ("This check is not due yet…", reason
+  `retention-check-not-due`, nothing written), by the rule the student's screen
+  offered it by (the one mastery rule, MP22); an open check is always resumed.
+  An open check now takes a lock of its own (`lib/pathSessionLock.js`), so it
+  and practice on the same standard no longer block each other; a weekly slot
+  keeps one lock whatever its kind. In flight on deploy day: each session now
+  records the lock it took (`lockId`) and is released by it; one started before
+  is released by the id it took then (recomputed exactly), and a check opened
+  before holds the open-practice lock, where a new launch finds and resumes it.
+- **Screens that bypass the one mastery rule (MP22, 2026-10-25).** Moved to the
+  more favourable of the server profile and the assignment record:
+  - whether a Challenge is earned. The server asked whether the TARGET skill
+    was Mastered on its own profile, which a Challenge skill (ahead of the
+    class, strong prerequisites) never is: every Challenge card was refused at
+    its first question, and the open session then blocked ordinary practice on
+    the skill. Now `startMyMathPathSession` asks the student's own Path
+    (`lib/favourableMastery.js`, the browser's engine over records the browser
+    cannot write) and records `challengeEarned`; the old answer still counts.
+    Not earned, the launch is ordinary practice. A Challenge session opened
+    before the deploy and never earned now gets ordinary questions (still
+    labelled Challenge) instead of being stuck.
+  - whether a retention check is due: the weekly freeze (a skill Mastered in
+    assignment work froze its Retention slot as a Review) and an open check.
+  - "Skills that moved" at a session's end (it listed a skill the Path showed
+    as Mastered as "Developing → Secure").
+  Kept on the server's profile, on purpose: in-session routing and adaptive
+  rigor (`functions/lib/pathRouting.js`: every answer, and it must react to
+  today's answers), and the mastery history behind My Progress and the growth
+  rewards (`functions/shared/masteryHistory.mjs`: weeks compare like with like,
+  and the assignment record keeps no past). So "Skills mastered" on My Progress
+  can be lower than the Path's count. Outside this lane: the teacher screens
+  (roster Learning Profile, profile drawer, Weekly Path explainer) read the
+  assignment record alone; they load no server profile.
 - **Swap lock ids** are still per target and slot (changing them would orphan
   in-flight sessions); the client resumes the open session.
 - **My Progress history starts at deploy** (profiles were never time-indexed).

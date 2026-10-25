@@ -22,6 +22,16 @@
  * re-derived from the profile's facts with the one Mastered rule
  * (masteryRule.mjs), so the history can only say "Mastered" when the rule does.
  *
+ * THE SERVER'S SIDE ONLY, ON PURPOSE (MP22). Every other screen reads a skill
+ * as the more favourable of this profile and the assignment record. The
+ * history, the My Progress tiles built from it and the growth rewards
+ * (pathGrowthEvents.mjs) compare one week with another, and the assignment
+ * record keeps no past to compare: mixed in, a graded assignment would show
+ * as Path growth the week it was graded, and growth four weeks back would
+ * compare a favourable "now" with a server-only "then". So "Skills mastered"
+ * here can be lower than the Path's count for a student whose Mastered skills
+ * come from assignment work.
+ *
  * WHICH WEEK. weekKeyFor(occurredAt) — Monday-start, the key the weekly Path
  * goal and its grade use — except that a snapshot never moves BACKWARD. The
  * profile it copies already includes every newer answer, so filing it under an

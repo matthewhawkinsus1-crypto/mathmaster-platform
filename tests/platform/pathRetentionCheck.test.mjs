@@ -35,6 +35,7 @@ import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const require = createRequire(import.meta.url);
 const mathPath = require('../../functions/lib/mathPath.js');
+const pathSessionLock = require('../../functions/lib/pathSessionLock.js');
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const DAY = 24 * 60 * 60 * 1000;
@@ -138,7 +139,7 @@ test('startMyMathPathSession settles the kind from the frozen slot purpose befor
   const slotFound = start.indexOf('weeklySlot = authorization.slot;');
   const decided = start.indexOf('retentionCheck.resolveWeeklySlotSessionKind(');
   assert.ok(slotFound > 0 && decided > slotFound, 'the kind is decided from the slot the server resolved');
-  for (const reader of ['const coursePracticeIntent = requestedCoursePracticeIntent', 'const lockId = mathPath.opaqueId("pathlock"', 'const next = {']) {
+  for (const reader of ['const coursePracticeIntent = requestedCoursePracticeIntent', 'const lockId = pathSessionLock.pathSessionLockId(', 'const next = {']) {
     const at = start.indexOf(reader);
     assert.ok(at > decided, `${reader} must read the settled kind`);
   }
@@ -153,9 +154,16 @@ test('a weekly slot\'s open session is resumed whatever kind it was opened as', 
   );
   assert.doesNotMatch(resume, /existing\.data\(\)\?\.sessionKind !== sessionKind/,
     'a bare kind comparison strands practice opened on a Retention slot before it became a check');
-  // The resume rule leans on the slot key being in the lock, at both ends.
-  assert.match(start, /const lockId = mathPath\.opaqueId\("pathlock", studentId, targetAlignmentKey, assessmentFramework \|\| "course", requestedWeeklySlotKey \|\| "open-practice"\);/);
-  assert.match(submit, /mathPath\.opaqueId\("pathlock", studentId, session\.target\.alignmentKey, session\.assessmentFramework \|\| "course", session\.weeklySlotKey \|\| "open-practice"\)/);
+  // The resume rule leans on the slot key being in the lock, at both ends:
+  // the launch takes its lock by the shared helper (lib/pathSessionLock.js,
+  // behaviour-tested in pathServerOneRule.test.mjs), records it, and the
+  // completion releases the one the session recorded.
+  assert.match(start, /const lockId = pathSessionLock\.pathSessionLockId\(\{\s*studentId, targetAlignmentKey, assessmentFramework, weeklySlotKey: requestedWeeklySlotKey, sessionKind,\s*\}\);/);
+  assert.match(start, /const next = \{[\s\S]*?\n\s+lockId,\n/);
+  assert.match(submit, /pathSessionLock\.lockIdForSession\(session, \{ studentId \}\)/);
+  const weekly = { studentId: 'S1', targetAlignmentKey: 'texas:A.2D', weeklySlotKey: 'k2' };
+  assert.equal(pathSessionLock.pathSessionLockId({ ...weekly, sessionKind: 'practice' }), pathSessionLock.pathSessionLockId({ ...weekly, sessionKind: RETENTION_PROBE }),
+    'a weekly slot has one lock whatever kind its session is, so its open session is the one resumed');
 });
 
 test('every finished retention check, weekly or not, completes and writes the shared verdict', () => {

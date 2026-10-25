@@ -363,13 +363,21 @@ test('earned free-choice Challenge is a one-way DOK3 Band4 intent and not a numb
 
 
 test('server requires earned mastery before honoring free-choice Challenge intent', () => {
-  const server = readFileSync('functions/index.js', 'utf8');
+  const server = executableSource(readFileSync('functions/index.js', 'utf8'));
   assert.match(server, /function courseChallengeEarned\(profile = \{\}\)/);
   assert.match(server, /\["mastered", "masters"\]\.includes\(status\)/);
   assert.match(server, /estimate >= 90/);
-  assert.match(
-    server,
-    /if \(!courseChallengeEarned\(masteryProfile\)\) \{[\s\S]*?course-challenge-not-earned/,
-    'a forged Challenge intent must not unlock Challenge without server mastery evidence',
-  );
+  // A forged Challenge intent must not unlock Challenge without server
+  // evidence. Since MP22 the evidence is decided when the session starts, by
+  // the student's own Path on records the browser cannot write, with the
+  // target's own profile still counting: the intent is kept only when earned
+  // (behaviour-tested, with the real start callable, in
+  // pathServerOneRule.test.mjs).
+  // Issuing escalates only on that server-written verdict or the old rule,
+  // and never strands a session it cannot honour: it serves ordinary rigor.
+  const issue = region(server, 'exports.issueNextQuestion', 'exports.submitPathResponse', 'issueNextQuestion');
+  const block = region(issue, 'let challengeServed = false;', 'session.lastDecision?.action === "enrichment"', 'the Challenge rigor block');
+  assert.match(block, /if \(session\.challengeEarned === true \|\| courseChallengeEarned\(masteryProfile\)\) \{\s*challengeServed = true;\s*preferredDifficultyBand = 4;\s*preferredDok = 3;/);
+  assert.doesNotMatch(block, /throw new HttpsError/, 'a Challenge it cannot honour must not strand the session');
+  assert.match(issue, /coursePracticeIntent: challengeServed \? "challenge" : null,/, 'labelled Challenge only when served as one');
 });
