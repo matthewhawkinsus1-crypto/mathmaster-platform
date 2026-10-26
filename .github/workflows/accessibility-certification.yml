@@ -85,6 +85,13 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
         run: node tests/browser/accessibilityTeacherMenus.mjs
+      # Live Class's Room / Walkthrough / Attention: one Tab stop, the arrow keys, and a panel.
+      - name: Live Class's tabs by keyboard (TT27)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/accessibilityTeacherLiveClassTabs.mjs
       - name: The calculator by keyboard (Escape, focus return, Move)
         if: ${{ !cancelled() }}
         env:

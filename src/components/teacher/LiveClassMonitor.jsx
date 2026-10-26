@@ -23,6 +23,7 @@ import {
 import { buildWalkthroughMonitor, WALKTHROUGH_STATUS } from '../../platform/teacher/walkthroughMonitor.js';
 import { resolveWalkthroughSelection, walkthroughAssignmentsForClass } from '../../platform/assignments/assignmentAvailability.js';
 import { classworkModel, describeClassworkPace } from '../../platform/teacher/classworkModel.js';
+import { tabKeyTarget } from '../../platform/interaction/tabListKeys.js';
 import {
   LIVE_ATTENDANCE_MARK,
   attendanceByStudentForDay,
@@ -562,6 +563,12 @@ function ReturnCheckInPanel({ candidates, onCheckIn, onCheckInAll, onOpenStudent
   );
 }
 
+// Room, Walkthrough and Attention are the tabs of one panel (TT27): the ids that
+// tie each tab to the panel and the panel back to the selected tab.
+const LIVE_CLASS_MODES = ['room', 'walkthrough', 'attention'];
+const LIVE_CLASS_PANEL_ID = 'live-class-panel';
+const liveClassTabId = (mode) => `live-class-tab-${mode}`;
+
 export default function LiveClassMonitor({
   students = [],
   assignments = [],
@@ -1100,6 +1107,22 @@ export default function LiveClassMonitor({
     }
   };
 
+  // The tab list's keys (platform/interaction/tabListKeys.js): the arrow keys,
+  // Home and End move focus between the tabs and select nothing, because
+  // Walkthrough picks an assignment on the way in and a click on Attention does
+  // not. Enter or Space on a tab is its click, which selects it.
+  const tabRefs = useRef({});
+  const moveBetweenModes = (event) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    const from = LIVE_CLASS_MODES.findIndex((id) => tabRefs.current[id] === event.target);
+    if (from < 0) return;
+    const to = tabKeyTarget(event.key, from, LIVE_CLASS_MODES.length);
+    if (to === null) return;
+    event.preventDefault();
+    const next = LIVE_CLASS_MODES[to];
+    tabRefs.current[next]?.focus();
+  };
+
   const changeAssignment = (nextId) => {
     setAssignmentId(nextId);
     setTeacherQuestionIndex(0);
@@ -1131,16 +1154,20 @@ export default function LiveClassMonitor({
         </span>
       </div>
 
-      <div role="tablist" aria-label="Live monitoring mode" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 12 }}>
+      {/* One Tab stop, the selected tab; the panel below is what the tabs control. */}
+      <div role="tablist" aria-label="Live monitoring mode" onKeyDown={moveBetweenModes} style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 12 }}>
         {[
           ['room', 'Room'],
           ['walkthrough', `Walkthrough${walkthrough.counts.needsCheck ? ` · ${walkthrough.counts.needsCheck}` : ''}`],
           ['attention', `Attention${counts.needsAttention ? ` · ${counts.needsAttention}` : ''}`],
         ].map(([id, label]) => (
-          <button key={id} type="button" role="tab" aria-selected={mode === id} onClick={() => switchMode(id)} style={{ ...controlStyle, cursor: 'pointer', fontWeight: 900, background: mode === id ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', borderColor: mode === id ? '#1a73e8' : 'var(--mm-border)', color: mode === id ? 'var(--mm-primary-text)' : 'var(--mm-text)' }}>{label}</button>
+          <button key={id} ref={(node) => { tabRefs.current[id] = node; }} id={liveClassTabId(id)} type="button" role="tab" aria-selected={mode === id} aria-controls={LIVE_CLASS_PANEL_ID} tabIndex={mode === id ? 0 : -1} onClick={() => switchMode(id)} style={{ ...controlStyle, cursor: 'pointer', fontWeight: 900, background: mode === id ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', borderColor: mode === id ? '#1a73e8' : 'var(--mm-border)', color: mode === id ? 'var(--mm-primary-text)' : 'var(--mm-text)' }}>{label}</button>
         ))}
       </div>
 
+      {/* The panel is everything the mode changes: the controls, who to see next and the room or the
+          walkthrough. It is not re-indented, so as to leave the lines under it as they were. */}
+      <div id={LIVE_CLASS_PANEL_ID} role="tabpanel" aria-labelledby={liveClassTabId(mode)}>
       {liveTeachingStale && (
         <div role="status" data-walkthrough-stale-session style={{ margin: '-4px 0 10px', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-warning-border)', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 700 }}>
           The saved Live Teaching lesson is no longer available to this class, so it was not restored.
@@ -1377,6 +1404,8 @@ export default function LiveClassMonitor({
           ))}
         </div>
       )}
+
+      </div>
 
       {awardDialogStudent && activeClassId && (
         <ClassPointsAwardDialog
