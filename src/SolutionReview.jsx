@@ -13,6 +13,7 @@ import { formatGraphEquationLatex, getSuggestedGraphPoints } from './functionGra
 import { normalizeInterpretationConfig } from './contextInterpretationUtils';
 import { getStage } from './platform/workflow/interactionStages';
 import { readComposedQuestion } from './platform/workflow/questionWorkflow';
+import { choiceAnswerLine, figureMatchAnswerLines, stageReviewLabel } from './platform/workflow/workflowSolutionLines.js';
 import { buildExpressionFunctionSpec, evaluateModelAt, parseIntervalDomainRestriction } from './platform/workflow/modelExpression';
 import { fractionSolutionRepresentations } from './fractionQuestionDisplay.js';
 import { orderedPairKey } from '../functions/shared/answerUtils.mjs';
@@ -294,7 +295,7 @@ const buildWorkflowSolution = (question) => {
 
   const entries = composed.workflow.map((stage, index) => {
     const definition = getStage(stage.kind);
-    const title = `Step ${index + 1} — ${definition?.label || stage.kind}`;
+    const title = `Step ${index + 1} — ${stageReviewLabel(stage, definition?.label) || stage.kind}`;
     const base = { id: stage.id, title, prompt: stage.prompt || '', kind: stage.kind };
     const rule = grading[stage.id];
 
@@ -335,10 +336,17 @@ const buildWorkflowSolution = (question) => {
     if (stage.kind === 'domainInput' || stage.kind === 'rangeInput' || stage.kind === 'intervalInput') {
       return { ...base, math: firstRuleValue(rule) };
     }
+    // A choice is named by its words, never its id; a sort by figure and
+    // category, never "[object Object]" (workflowSolutionLines.js).
     if (stage.kind === 'classification' || stage.kind === 'multipleChoice') {
-      return { ...base, lines: [String(firstRuleValue(rule) ?? 'Not provided')] };
+      return { ...base, lines: [choiceAnswerLine(stage, firstRuleValue(rule)) || 'Not provided'] };
     }
-    if (rule !== undefined) return { ...base, lines: [String(firstRuleValue(rule) ?? '')].filter(Boolean) };
+    if (stage.kind === 'figureMatch') {
+      const lines = figureMatchAnswerLines(stage, rule);
+      return { ...base, lines: lines.length ? lines : ['This part is reviewed from the completed mathematical work.'] };
+    }
+    const value = firstRuleValue(rule);
+    if (rule !== undefined && (value === null || typeof value !== 'object')) return { ...base, lines: [String(value ?? '')].filter(Boolean) };
     return { ...base, lines: ['This part is reviewed from the completed mathematical work.'] };
   });
 
