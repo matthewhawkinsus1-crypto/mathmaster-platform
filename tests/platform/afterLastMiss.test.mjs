@@ -343,7 +343,7 @@ test('HELP-11: Pre-Flight warns — never blocks — on answer-only worked solut
   assert.equal(workedSolutionDepth(factorTemplate), 'steps');
   assert.equal(workedSolutionDepth(sumTemplate), 'answerOnly');
   assert.equal(workedSolutionDepth({ ...sumTemplate, solutionReview: { reasoning: ['{{a}} + 1 = {{v}}.'] } }), 'steps');
-  // The real lessons: 957 of 971 practice-like items walk through steps —
+  // The real lessons: 959 of 971 practice-like items walk through steps —
   // 204 of 265 in the lessons before October 22 (199 before family slots
   // were judged by a version), then every one in Operations on Polynomials
   // and Dividing Polynomials (59), the Algebra I DOL #3 Review (13) and its
@@ -369,10 +369,12 @@ test('HELP-11: Pre-Flight warns — never blocks — on answer-only worked solut
   // and the Algebra I DOL #1 review's arithmetic and geometric sequences (CT02
   // slice 4; the other items given steps there were already counted); and the
   // Algebra II Honors matrices lesson's two warm-ups and its CCMR practice item
-  // (CT02 slice 4; its sort of products was already counted).
+  // (CT02 slice 4; its sort of products was already counted); and the parent
+  // function |x| in the ALEKS bridge's practice and the Lesson 2 Day 2 warm-up
+  // (CT02 slice 4).
   const practiceLike = itemsByRole().filter((item) => ['warmup', 'classwork', 'practice'].includes(item.role));
   assert.equal(practiceLike.length, 265 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 26);
-  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 204 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 9 + 12 + 17 + 16 + 2 + 1 + 11 + 2 + 3);
+  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 204 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 9 + 12 + 17 + 16 + 2 + 1 + 11 + 2 + 3 + 2);
   // Wired into Pre-Flight as advice the teacher sees in the Check step, and
   // never as a diagnostic: any warning diagnostic makes an assignment "Needs
   // Review", which students never see (isUnpublishedDraft) — and most real

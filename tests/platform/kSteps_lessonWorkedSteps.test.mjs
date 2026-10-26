@@ -33,6 +33,11 @@
  *             each example's result is checked for what the step says it is.
  *             Its DOL (opp-dol-3; dp-dol-1 in Dividing Polynomials) is an exit
  *             ticket its lessons give no worked solution, and is left as it is.
+ *   |x|       Algebra II Honors Module 1: the parent function |x| in the ALEKS
+ *             bridge (vertex, domain, range) and in the Lesson 2 Day 2 warm-up
+ *             (family, vertex), which the functionFeatures family leaves (it
+ *             claims no vertex item), written in that family's voice: each
+ *             attribute read from |x| itself, then "So:" and every answer.
  *
  * Checked here with this file's own reading (mathjs fractions), never a
  * family's helpers:
@@ -77,7 +82,10 @@
  *     denominator, a card misquoted, a verdict changed, an example's product
  *     changed, a term count or a degree misread, a "sometimes" with one
  *     example, a common error written with ";", one removed, one with an "=" →
- *     each the matching check.
+ *     each the matching check;
+ *   - |x|: an absolute value worked wrong ("|−3| = 3" to "|−3| = −3"), a step
+ *     naming another choice, a part's step not led by its label, the "So:"
+ *     line disagreeing with a part → each the matching check.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -166,6 +174,18 @@ const termsOf = (expression) => {
     if (character === ')') depth -= 1;
     return terms + (depth === 0 && /[+−]/.test(character) && expression[index - 1] === ' ' && expression[index + 1] === ' ' ? 1 : 0);
   }, 1);
+};
+const ALEKS = 'teacher-import-jsons/algebra2-honors-module1/L1_Absolute_Value_ALEKS_Bridge_20260828.json';
+const L2_DAY2 = 'teacher-import-jsons/algebra2-honors-module1/L2_Day2_Transformations.json';
+// As the functionFeatures family writes an attribute review: each part's step
+// led by its label, then "So:" and every answer. The function is the parent
+// |x| the prompt names, unshifted.
+const checkAttributeReview = ({ question, review }) => {
+  const fields = question.answerFields;
+  fields.forEach((field, index) => assert.ok(review.reasoning[index].startsWith(`${field.label}: `), review.reasoning[index]));
+  assert.equal(review.reasoning.at(-1), `So: ${fields.map((field) => `${field.label}: ${field.answer}`).join('; ')}.`);
+  assert.equal(review.reasoning.length, fields.length + 1);
+  assert.match(question.prompt, /f\(x\)=\|x\|/, 'the parent function, unshifted');
 };
 // A polynomial's degree as printed: the greatest total exponent of a term.
 const degreeOf = (expression) => Math.max(...expression.split(/ [+−] /)
@@ -769,6 +789,24 @@ const ITEMS = Object.freeze([
       });
     },
   },
+  {
+    files: [ALEKS],
+    questionId: 'q_practice-absolute-value-focus_3_3',
+    raw: { sectionId: 'practice-absolute-value-focus', prompt: 'For the absolute value parent function f(x)=|x|, identify its vertex, domain, and range.' },
+    parts: { vertex: [0, '(0, 0)'], domain: [1, '(−∞, ∞)'], range: [2, '[0, ∞)'] },
+    claims: [[0, '|0| = 0'], [1, '|−3| = 3'], [2, '|0| = 0'], [2, '|5| = 5']],
+    summary: [['Vertex: (0, 0)', ['vertex']], ['Domain: (−∞, ∞)', ['domain']], ['Range: [0, ∞)', ['range']]],
+    check: checkAttributeReview,
+  },
+  {
+    files: [L2_DAY2],
+    questionId: 'q_warmup-1_1_1',
+    raw: { sectionId: 'warmup-1', prompt: 'Review the parent function f(x)=|x|.' },
+    parts: { family: [0, 'absolute value'], vertex: [1, '(0, 0)'] },
+    claims: [[1, '|0| = 0']],
+    summary: [['Family: absolute value', ['family']], ['Vertex: (0, 0)', ['vertex']]],
+    check: checkAttributeReview,
+  },
 ]);
 
 const everyCopy = ITEMS.flatMap((item) => item.files.flatMap((path) => [['inventory', asInventory(path)], ['device', asDevice(path)]]
@@ -794,6 +832,7 @@ test('the closed review shows each item\'s own worked steps, in every copy, whol
   assert.equal(ITEMS.filter((item) => item.files.includes(DOL1)).length, 7, 'seven of the DOL #1 review');
   assert.equal(ITEMS.filter((item) => item.files.includes(MATRICES)).length, 4, 'four of the matrices lesson');
   assert.equal(ITEMS.filter((item) => item.files.includes(POLY_OPS)).length, 2, 'the two sorts of Operations on Polynomials');
+  assert.equal(ITEMS.filter((item) => item.files.includes(ALEKS) || item.files.includes(L2_DAY2)).length, 2, 'the two |x| items');
   for (const { item, path, source, question } of everyCopy) {
     assert.ok(question, `${source}: found`);
     const authored = authoredIn(path, item).solutionReview;

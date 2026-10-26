@@ -63,6 +63,15 @@
               "A U"
             ],
             "correct": "A V"
+          },
+          "solutionReview": {
+            "headline": "Read each attribute from the function itself: the rule it applies to x, and where its graph turns.",
+            "reasoning": [
+              "Family: |x| takes the absolute value of x, and its graph is a V made of two straight rays, so its family is absolute value.",
+              "Vertex: |x| is never negative, and |0| = 0, so its lowest point, where the V turns, is (0, 0).",
+              "So: Family: absolute value; Vertex: (0, 0)."
+            ],
+            "answerSummary": "Family: absolute value; Vertex: (0, 0)"
           }
         },
         {

@@ -312,13 +312,15 @@ const STEPS_FLOOR = Object.freeze({
   'v5:algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines.json': 29,
   'v5:algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines_Honors.json': 29,
   // CT02: the transformations family's worked solution of a description (6 here, 8 in L2_Day2).
-  'v5:algebra2-honors-module1/L1_Absolute_Value_ALEKS_Bridge_20260828.json': 19,
+  // Slice 4: one more here and one in L2_Day2, the parent function |x|'s own
+  // review (vertex, domain, range; family, vertex) (kSteps_lessonWorkedSteps).
+  'v5:algebra2-honors-module1/L1_Absolute_Value_ALEKS_Bridge_20260828.json': 20,
   'v5:algebra2-honors-module1/L1_Day1_Interval_Domain_Range.json': 17,
   'v5:algebra2-honors-module1/L1_Day2_Function_Attributes_Relations.json': 16,
   'v5:algebra2-honors-module1/L2_Day1_Parent_Functions_Key_Attributes.json': 19,
   // L2_Day2, CT02 slice 4: one more, its Transformations Lab description of an
   // exponential, which the lab's own review now works at the question's reading.
-  'v5:algebra2-honors-module1/L2_Day2_Transformations.json': 19,
+  'v5:algebra2-honors-module1/L2_Day2_Transformations.json': 20,
   'v5:algebra2-honors-module1/L3_Inverse_Linear_Functions.json': 19,
   'v5:algebra2-honors-module1/L4_Operations_on_Functions_Composition.json': 20,
   // CT02 slice 4: four more carry their own worked solutions: the two warm-ups,
@@ -340,7 +342,7 @@ const STEPS_FLOOR = Object.freeze({
   // their own worked solution (kSteps_demoWorkedSteps); 26 have the family's.
   demo: 70,
 });
-const STEPS_TOTAL_FLOOR = 7999 + 336 + 832 + 14 + 48 + 44 + 2 + 832 + 1 + 14 + 7 + 4 + 2;
+const STEPS_TOTAL_FLOOR = 7999 + 336 + 832 + 14 + 48 + 44 + 2 + 832 + 1 + 14 + 7 + 4 + 2 + 2;
 const FROM_FAMILY_FLOOR = 119 + 14 + 48;
 // Where a worked-solution builder (not a support family) writes the steps: the
 // DOL #2 review, retest and corrections, every variant, and nothing else it

@@ -712,6 +712,16 @@
               "No"
             ],
             "correct": "No"
+          },
+          "solutionReview": {
+            "headline": "Read each attribute from the function itself: where its V turns, which inputs it accepts, and which outputs it reaches.",
+            "reasoning": [
+              "Vertex: an absolute value is never negative, and |0| = 0, so |x| is smallest when x is 0. The V turns there, so the vertex is (0, 0).",
+              "Domain: every real number has an absolute value, for example |−3| = 3, so the domain is (−∞, ∞).",
+              "Range: the outputs are never negative, and every number from 0 up is reached, for example |0| = 0 and |5| = 5, so the range is [0, ∞).",
+              "So: Vertex: (0, 0); Domain: (−∞, ∞); Range: [0, ∞)."
+            ],
+            "answerSummary": "Vertex: (0, 0); Domain: (−∞, ∞); Range: [0, ∞)"
           }
         },
         {
