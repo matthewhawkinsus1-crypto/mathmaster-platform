@@ -35,6 +35,15 @@
  *             each example's result is checked for what the step says it is.
  *             Its DOL (opp-dol-3; dp-dol-1 in Dividing Polynomials) is an exit
  *             ticket its lessons give no worked solution, and is left as it is.
+ *   Models    The seven-step relationship models (input and output, function,
+ *             table, discrete or continuous, graph, domain, range) of Algebra II
+ *             Honors Module 1 Lesson 1 Day 2 (chocolate bars, a shower head) and
+ *             the Algebra I DOL #3 review's popcorn item, Regular and Honors (the
+ *             Honors file rebuilt by scripts/content/build-algebra1-dol3-honors.mjs),
+ *             which keeps the common error it had. Every step, the graph
+ *             included, is marked by the composed grader as the server marks a
+ *             student's work: the table as its rows, the graph as its points
+ *             placed and, where continuous, one line drawn along the function.
  *   |x|       Algebra II Honors Module 1: the parent function |x| in the ALEKS
  *             bridge (vertex, domain, range) and in the Lesson 2 Day 2 warm-up
  *             (family, vertex), which the functionFeatures family leaves (it
@@ -90,7 +99,11 @@
  *     line disagreeing with a part → each the matching check;
  *   - the DOL #1 models: a domain's end changed, a model called the other
  *     continuity, a step naming it, a weight worked wrong, the claim left
- *     unanswered → each the matching check.
+ *     unanswered → each the matching check;
+ *   - the seven-step models: the roles swapped, a table row worked wrong, a
+ *     graph point off its row, a discrete graph connected, a domain naming
+ *     another choice, the kept common error changed, the Honors copy not
+ *     rebuilt → each the matching check.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -114,6 +127,9 @@ import { buildFigureMatchResponse, figureLabel, figureNoun } from '../../functio
 import { readComposedQuestion } from '../../functions/shared/toolMath/workflow/questionWorkflow.mjs';
 import { isMathSegment, splitMathSegments } from '../../src/components/common/mathSegments.js';
 import { commonErrorMiss } from '../../src/platform/supports/feedback/attemptFeedbackPlan.js';
+import { resolveComposedWorkflow } from '../../functions/shared/toolMath/workflow/composedWorkflowContract.mjs';
+import { resolveWorkflowGraphStages, workflowTableArtifact } from '../../functions/shared/toolMath/workflow/workflowGraphStage.mjs';
+import { GRAPH_WORKSPACE_VIEWBOX, graphWorkspaceModelFor } from '../../functions/shared/toolMath/graphWorkspace/graphWorkspaceModel.mjs';
 
 const ROOT = new URL('../../', import.meta.url);
 const read = (relative) => readFileSync(new URL(relative, ROOT), 'utf8');
@@ -132,8 +148,8 @@ const count = (haystack, needle) => haystack.split(needle).length - 1;
  * single-letter variable before "(" is a product (m(x − n) is m·(x − n)), and
  * letters written together are a product (mn, mx).
  */
-const VARIABLES = ['x', 'y', 'm', 'n', 'b'];
-const SAMPLES = Object.freeze({ x: ['-3', '0', '1/2', '2', '7'], y: ['-2', '1/3', '4'], m: ['-2', '1/3', '3'], n: ['-1', '2', '5/2'], b: ['-4', '0', '3/5'] });
+const VARIABLES = ['x', 'y', 'm', 'n', 'b', 't'];
+const SAMPLES = Object.freeze({ x: ['-3', '0', '1/2', '2', '7'], y: ['-2', '1/3', '4'], m: ['-2', '1/3', '3'], n: ['-1', '2', '5/2'], b: ['-4', '0', '3/5'], t: ['0', '1/2', '5/2', '4'] });
 // x² is x^2: a run of superscript digits is a power.
 const SUPERSCRIPTS = '⁰¹²³⁴⁵⁶⁷⁸⁹';
 const powerOf = (run) => [...run].map((digit) => SUPERSCRIPTS.indexOf(digit)).join('');
@@ -179,6 +195,36 @@ const termsOf = (expression) => {
     if (character === ')') depth -= 1;
     return terms + (depth === 0 && /[+−]/.test(character) && expression[index - 1] === ' ' && expression[index + 1] === ' ' ? 1 : 0);
   }, 1);
+};
+const L1_DAY2 = 'teacher-import-jsons/algebra2-honors-module1/L1_Day2_Function_Attributes_Relations.json';
+const DOL3 = 'teacher-import-jsons/algebra1-dol3/Algebra1_DOL3_Review.json';
+const DOL3_HONORS = 'teacher-import-jsons/algebra1-dol3/Algebra1_DOL3_Review_Honors.json';
+const lowerFirst = (value) => (value ? `${value[0].toLowerCase()}${value.slice(1)}` : value);
+const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const numeric = create(all);
+// A stated function rule, "V(t) = 1.8t", as a function of its variable.
+const ruleOf = (equation) => {
+  const [, variable, rhs] = /^[A-Za-z]\(([a-z])\) = (.+)$/.exec(equation);
+  return (value) => numeric.evaluate(rhs, { [variable]: value });
+};
+// A freehand stroke along y = rule(x), from x0 to the window's right edge, in the workspace's viewBox units.
+const sketchAlong = (view, rule, x0, samples = 60) => Array.from({ length: samples + 1 }, (_, i) => x0 + ((view.xMax - x0) * i) / samples)
+  .map((x) => [x, rule(x)])
+  .filter(([, y]) => y >= view.yMin && y <= view.yMax)
+  .map(([x, y]) => [
+    GRAPH_WORKSPACE_VIEWBOX.padding + ((x - view.xMin) / (view.xMax - view.xMin)) * (GRAPH_WORKSPACE_VIEWBOX.width - 2 * GRAPH_WORKSPACE_VIEWBOX.padding),
+    GRAPH_WORKSPACE_VIEWBOX.padding + ((view.yMax - y) / (view.yMax - view.yMin)) * (GRAPH_WORKSPACE_VIEWBOX.height - 2 * GRAPH_WORKSPACE_VIEWBOX.padding),
+  ]);
+// A model's numbers are the scenario's: the rate its function multiplies by,
+// each table row worked at the stage's own inputs, and the graph plots exactly the table.
+const checkModel = (rate) => ({ item, question }) => {
+  assert.ok(question.scenario.includes(rate), `"${rate}" is the scenario's`);
+  const coefficient = /(\d+(?:\.\d+)?)/.exec(rate)[1];
+  assert.match(item.parts.equation[1], new RegExp(`= ${escapeRegExp(coefficient)}[a-z]$`), `the function multiplies by ${coefficient}`);
+  const tableStage = readComposedQuestion(question).workflow.find((stage) => stage.kind === 'tableInput');
+  const rule = ruleOf(item.parts.equation[1]);
+  assert.deepEqual(item.parts.table[1].map(Number), tableStage.xValues.map((x) => Number(numeric.format(rule(x), { precision: 12 }))), 'each row is the function at its input');
+  assert.deepEqual(item.parts.graph[1], tableStage.xValues.map((x, row) => [x, Number(item.parts.table[1][row])]), 'the graph plots the table');
 };
 const ALEKS = 'teacher-import-jsons/algebra2-honors-module1/L1_Absolute_Value_ALEKS_Bridge_20260828.json';
 const L2_DAY2 = 'teacher-import-jsons/algebra2-honors-module1/L2_Day2_Transformations.json';
@@ -858,6 +904,58 @@ const ITEMS = Object.freeze([
     summary: [['Family: absolute value', ['family']], ['Vertex: (0, 0)', ['vertex']]],
     check: checkAttributeReview,
   },
+  {
+    files: [L1_DAY2],
+    questionId: 'q_classwork-2_2_6',
+    raw: { sectionId: 'classwork-2', prompt: 'Build a model for the money collected from selling chocolate bars.' },
+    kind: 'model',
+    parts: {
+      quantities: [0, { independent: 'bars', dependent: 'money' }], equation: [1, 'M(x) = 2x'], table: [2, ['0', '2', '4', '6']],
+      continuity: [3, 'discrete'], graph: [4, [[0, 0], [1, 2], [2, 4], [3, 6]]], domainDiscrete: [5, '{0, 1, 2, 3, ...}'], rangeDiscrete: [6, '{0, 2, 4, 6, ...}'],
+    },
+    define: ['M(x) = 2x'],
+    claims: [[1, 'M(x) = 2x'], [2, 'M(0) = 2 · 0 = 0'], [2, 'M(1) = 2 · 1 = 2'], [2, 'M(2) = 2 · 2 = 4'], [2, 'M(3) = 2 · 3 = 6'], ['summary', 'M(x) = 2x']],
+    summary: [['M(x) = 2x', ['equation']], ['is discrete', ['continuity']], ['domain {0, 1, 2, 3, ...}', ['domainDiscrete']], ['range {0, 2, 4, 6, ...}', ['rangeDiscrete']]],
+    check: checkModel('$2 each'),
+  },
+  {
+    files: [L1_DAY2],
+    questionId: 'q_classwork-2_2_7',
+    raw: { sectionId: 'classwork-2', prompt: 'Build a model for the water released by the shower head.' },
+    kind: 'model',
+    parts: {
+      quantities: [0, { independent: 'time', dependent: 'volume' }], equation: [1, 'V(t) = 1.8t'], table: [2, ['0', '0.9', '4.5', '9']],
+      continuity: [3, 'continuous'], graph: [4, [[0, 0], [0.5, 0.9], [2.5, 4.5], [5, 9]]], domainContinuous: [5, '[0, ∞)'], rangeContinuous: [6, '[0, ∞)'],
+    },
+    define: ['V(t) = 1.8t'],
+    claims: [[1, 'V(t) = 1.8t'], [2, 'V(0) = 1.8 · 0 = 0'], [2, 'V(0.5) = 1.8 · 0.5 = 0.9'], [2, 'V(2.5) = 1.8 · 2.5 = 4.5'], [2, 'V(5) = 1.8 · 5 = 9'], ['summary', 'V(t) = 1.8t']],
+    summary: [['V(t) = 1.8t', ['equation']], ['is continuous', ['continuity']], ['domain [0, ∞)', ['domainContinuous']], ['range [0, ∞)', ['rangeContinuous']]],
+    check: checkModel('1.8 gallons of water per minute'),
+  },
+  {
+    files: [DOL3, DOL3_HONORS],
+    questionId: 'dol3-review-q02',
+    kind: 'model',
+    // The review as it was: its common error only, which it keeps.
+    before: { commonError: 'Leaving 0 out of the domain or connecting the points; the friends may buy no buckets, and they can buy only whole buckets, so the domain is {0, 1, 2, 3, 4, 5} and the graph is separate points.' },
+    parts: {
+      quantities: [0, { independent: 'buckets', dependent: 'cost' }], equation: [1, 'f(x) = 6x'], table: [2, ['0', '6', '12', '18', '24', '30']],
+      continuity: [3, 'discrete'], graph: [4, [[0, 0], [1, 6], [2, 12], [3, 18], [4, 24], [5, 30]]],
+      domainDiscrete: [5, '{0, 1, 2, 3, 4, 5}'], rangeDiscrete: [6, '{0, 6, 12, 18, 24, 30}'],
+    },
+    define: ['f(x) = 6x'],
+    claims: [
+      [1, 'f(x) = 6x'], [2, 'f(0) = 6 · 0 = 0'], [2, 'f(1) = 6 · 1 = 6'], [2, 'f(2) = 6 · 2 = 12'], [2, 'f(3) = 6 · 3 = 18'],
+      [2, 'f(4) = 6 · 4 = 24'], [2, 'f(5) = 6 · 5 = 30'], [5, '30 ÷ 6 = 5'], ['summary', 'f(x) = 6x'],
+    ],
+    summary: [['f(x) = 6x', ['equation']], ['is discrete', ['continuity']], ['domain {0, 1, 2, 3, 4, 5}', ['domainDiscrete']], ['range {0, 6, 12, 18, 24, 30}', ['rangeDiscrete']]],
+    // And the most buckets is what $30 buys at $6 each.
+    check: (entry) => {
+      checkModel('$6 each')(entry);
+      assert.match(entry.question.scenario, /has \$30 to spend/);
+      assert.equal(Math.max(...entry.item.parts.domainDiscrete[1].replace(/[{}]/g, '').split(', ').map(Number)), Math.floor(30 / 6));
+    },
+  },
 ]);
 
 const everyCopy = ITEMS.flatMap((item) => item.files.flatMap((path) => [['inventory', asInventory(path)], ['device', asDevice(path)]]
@@ -884,6 +982,7 @@ test('the closed review shows each item\'s own worked steps, in every copy, whol
   assert.equal(ITEMS.filter((item) => item.files.includes(MATRICES)).length, 4, 'four of the matrices lesson');
   assert.equal(ITEMS.filter((item) => item.files.includes(POLY_OPS)).length, 2, 'the two sorts of Operations on Polynomials');
   assert.equal(ITEMS.filter((item) => item.files.includes(ALEKS) || item.files.includes(L2_DAY2)).length, 2, 'the two |x| items');
+  assert.equal(ITEMS.filter((item) => item.kind === 'model').length, 6, 'six relationship models: three of DOL #1, two of L1 Day 2, DOL #3\'s in both files');
   for (const { item, path, source, question } of everyCopy) {
     assert.ok(question, `${source}: found`);
     const authored = authoredIn(path, item).solutionReview;
@@ -914,11 +1013,18 @@ const partsOf = (item, question) => {
     return [{ id: stage.id, options: stage.choices.map((choice) => text(choice.label)) }];
   }
   // A relationship model: each step its key marks (the domain and range shown
-  // for the right continuity), labelled as the screen labels it.
+  // for the right continuity), labelled as the screen labels it; the input and
+  // output by their quantities, a table by its inputs, a graph by its continuity.
   if (item.kind === 'model') {
     const { workflow, grading } = readComposedQuestion(question);
-    return Object.keys(grading).map((id) => workflow.find((stage) => stage.id === id))
-      .map((stage) => ({ id: stage.id, label: text(stage.stepLabel || stage.prompt), options: (stage.choices || []).map(text) }));
+    return Object.keys(grading).map((id) => workflow.find((stage) => stage.id === id)).map((stage) => ({
+      id: stage.id,
+      label: text(stage.stepLabel || stage.prompt),
+      options: (stage.choices || []).map(text),
+      ...(stage.kind === 'quantityRoles' ? { roles: stage.quantities } : {}),
+      ...(stage.kind === 'tableInput' ? { rows: stage.xValues } : {}),
+      ...(stage.kind === 'functionGraph' ? { connected: grading[stage.continuityStageId] === 'continuous' } : {}),
+    }));
   }
   return question.answerFields.map((field) => ({ id: field.id, label: text(field.label), options: (field.options || []).map(text) }));
 };
@@ -933,8 +1039,33 @@ const gradeStated = (item, question, stated) => {
     const [stage] = readComposedQuestion(question).workflow;
     return gradeComposedWorkflowWork(question, { responses: { [stage.id]: stage.choices.find((choice) => text(choice.label) === stated[stage.id])?.id } });
   }
-  // A model's steps, each answered as stated: the continuity by its word, a domain or range as typed.
-  if (item.kind === 'model') return gradeComposedWorkflowWork(question, { responses: stated });
+  // A model's steps, each answered as stated: the roles, the function and a
+  // domain or range as typed, the continuity by its word; the table as its
+  // rows, and the graph as its points placed (and, where it is continuous, one
+  // line drawn along the stated function from the first point), each marked by
+  // the composed grader as the server marks a student's work.
+  if (item.kind === 'model') {
+    const { composed } = resolveComposedWorkflow(question);
+    const kindOf = new Map(composed.workflow.map((stage) => [stage.id, stage.kind]));
+    const responses = Object.fromEntries(Object.entries(stated).filter(([id]) => !['tableInput', 'functionGraph'].includes(kindOf.get(id))));
+    const equationId = composed.workflow.find((stage) => stage.kind === 'equationInput')?.id;
+    composed.workflow.filter((stage) => stage.kind === 'tableInput' && stated[stage.id]).forEach((stage) => {
+      const cells = Object.fromEntries(stated[stage.id].map((value, row) => [`${row}:y`, value]));
+      responses[stage.id] = workflowTableArtifact({ stage, cells, isComplete: true, sourceModel: responses[equationId], content: composed.content });
+    });
+    resolveWorkflowGraphStages({ workflow: composed.workflow, content: composed.content, grading: composed.grading, responses }).forEach((resolution, stageId) => {
+      const points = stated[stageId];
+      if (!points || resolution.status !== 'ready') return;
+      const model = graphWorkspaceModelFor(resolution.question, {});
+      const at = new Map(points.map(([x, y]) => [x, y]));
+      const construction = { placements: Object.fromEntries(model.tasks.map((task) => [task.id, [Number(task.x), at.get(Number(task.x))]])), pointsLocked: true };
+      if (!resolution.question.pointOnly) {
+        Object.assign(construction, { strokes: [sketchAlong(model.viewWindow, ruleOf(responses[equationId]), points[0][0])], sketchView: { ...model.viewWindow }, sketchLocked: true });
+      }
+      responses[stageId] = { __mathmasterWorkflowArtifact: 'graph', isComplete: true, analysis: {}, construction };
+    });
+    return gradeComposedWorkflowWork(question, { responses });
+  }
   // A typed part as the student types it (x² is x^2); a choice by its own words.
   const choices = new Set(question.answerFields.filter((field) => (field.options || []).length).map((field) => field.id));
   return gradeMultiAnswerResponse(question, Object.fromEntries(Object.entries(stated).map(([id, words]) => [id, choices.has(id) ? words : typed(words)])));
@@ -968,7 +1099,18 @@ test('each part\'s answer is stated in its own step, naming no other choice, and
     for (const part of parts) {
       const [stepIndex, words] = item.parts[part.id];
       const step = review.reasoning[stepIndex];
-      if (part.options.length) {
+      if (part.roles) {
+        // The input and the output, by the names the screen gives the quantities.
+        const name = (id) => lowerFirst(text(part.roles.find((quantity) => quantity.id === id)?.label));
+        assert.ok(step.includes(`the input is the ${name(words.independent)} and the output is the ${name(words.dependent)}`), `${source}: step ${stepIndex + 1} names the input and the output`);
+      } else if (part.rows) {
+        // Each row worked at its own input, ending in the value stated for it: "M(2) = 2 · 2 = 4".
+        part.rows.forEach((x, row) => assert.match(step, new RegExp(`\\b[A-Za-z]\\(${escapeRegExp(x)}\\) = [^,]*?= ${escapeRegExp(words[row])}(,| and|\\.)`), `${source}: row ${row + 1} of the table`));
+      } else if ('connected' in part) {
+        // Every point it plots, then separate points or one connected line, as the continuity says.
+        words.forEach(([x, y]) => assert.ok(step.includes(`(${x}, ${y})`), `${source}: (${x}, ${y}) is plotted`));
+        assert.ok(step.includes(part.connected ? 'then draw one connected line through them' : 'as separate points, without connecting them'), `${source}: ${step}`);
+      } else if (part.options.length) {
         assert.ok(part.options.includes(words), `${source}: "${words}" is one of ${part.id}'s choices`);
         assert.ok(lower(step).includes(lower(words)), `${source}: step ${stepIndex + 1} states "${words}" for ${part.id}`);
         // A short choice ("Up", "n") is part of too many words to look for, and
@@ -1044,7 +1186,7 @@ test('every "=" the review writes is a checked claim or a given the item shows, 
 test('the words are plain and short, and nothing changes while the item is open', () => {
   for (const { item, path, source, question } of everyCopy) {
     const authored = authoredIn(path, item).solutionReview;
-    for (const line of [authored.headline, ...authored.reasoning, authored.answerSummary, ...(item.commonError ? [authored.commonError] : [])]) {
+    for (const line of [authored.headline, ...authored.reasoning, authored.answerSummary, ...(authored.commonError ? [authored.commonError] : [])]) {
       assert.doesNotMatch(line, /NaN|undefined|\bnull\b|Infinity|\[object|\{\{/, `${source}: ${line}`);
       // A dollar sign is money ("$25 grocery cards"), never the start of
       // mathematics: the screen shows the whole line as words.
@@ -1054,18 +1196,24 @@ test('the words are plain and short, and nothing changes while the item is open'
     // (FB04, attemptFeedbackPlan.js). Most of these reviews name none; the
     // Operations on Polynomials sorts name one, as every review of that lesson
     // does, with no ";", so FB04 says nothing whatever the student sends: each
-    // card, each category. An open item's feedback is what it was.
+    // card, each category; and the DOL #3 model keeps the one it had. An open
+    // item's feedback is what it was.
     if (item.commonError) {
       assert.ok(text(authored.commonError) && !authored.commonError.includes(';'), `${source}: a common error FB04 never says`);
       const stage = figureStage(question);
       [...stage.items.map((card) => card.text), ...stage.categories.flatMap((category) => [category.id, category.label])].forEach((response) => {
         assert.equal(commonErrorMiss({ question, parts: [{ id: stage.id, isCorrect: false, response }] }), null, `${source}: nothing said for ${response}`);
       });
+    } else if (item.before) {
+      // A review written around a common error the item already had keeps it, word for word.
+      assert.equal(authored.commonError, item.before.commonError, `${source}: its own common error, unchanged`);
     } else {
       assert.equal(authored.commonError, undefined, `${source}: no common error`);
     }
+    // Against the item as it was: no review, or the one it had.
     const without = { ...question };
-    delete without.solutionReview;
+    if (item.before) without.solutionReview = item.before;
+    else delete without.solutionReview;
     assert.deepEqual(buildQuestionHints(question), buildQuestionHints(without), `${source}: the same hints`);
     assert.deepEqual(backUpStepFor(question), backUpStepFor(without), `${source}: the same back-up step`);
   }

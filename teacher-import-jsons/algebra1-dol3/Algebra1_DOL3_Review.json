@@ -151,7 +151,18 @@
             "List every number of buckets that makes sense in this situation. Then find the total cost for each one."
           ],
           "solutionReview": {
-            "commonError": "Leaving 0 out of the domain or connecting the points; the friends may buy no buckets, and they can buy only whole buckets, so the domain is {0, 1, 2, 3, 4, 5} and the graph is separate points."
+            "headline": "The cost depends on how many buckets are bought, $6 each, and $30 pays for at most 5 whole buckets.",
+            "reasoning": [
+              "Input and output: the total cost depends on how many buckets the friends buy, so the input is the number of popcorn buckets bought and the output is the total cost of the popcorn (dollars); the price of one bucket stays the same.",
+              "Function: each bucket costs $6, so x buckets cost 6 times x dollars: f(x) = 6x.",
+              "Table: f(0) = 6 · 0 = 0, f(1) = 6 · 1 = 6, f(2) = 6 · 2 = 12, f(3) = 6 · 3 = 18, f(4) = 6 · 4 = 24 and f(5) = 6 · 5 = 30.",
+              "Discrete or continuous: the friends can buy only whole buckets, never part of one, so the relationship is discrete.",
+              "Graph: plot the table’s points (0, 0), (1, 6), (2, 12), (3, 18), (4, 24) and (5, 30) as separate points, without connecting them.",
+              "Domain: they may buy none, and 30 ÷ 6 = 5, so $30 pays for at most 5 buckets: the domain is {0, 1, 2, 3, 4, 5}.",
+              "Range: each number of buckets costs 6 times as many dollars, so the range is {0, 6, 12, 18, 24, 30}."
+            ],
+            "commonError": "Leaving 0 out of the domain or connecting the points; the friends may buy no buckets, and they can buy only whole buckets, so the domain is {0, 1, 2, 3, 4, 5} and the graph is separate points.",
+            "answerSummary": "f(x) = 6x; the relationship is discrete, with domain {0, 1, 2, 3, 4, 5} and range {0, 6, 12, 18, 24, 30}."
           }
         },
         {

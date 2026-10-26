@@ -299,6 +299,10 @@ const STEPS_FLOOR = Object.freeze({
   'path:act': 136, 'path:asvab': 1176, 'path:digitalSAT': 648, 'path:tsia2': 200,
   'ccmr-v5:act': 136, 'ccmr-v5:digitalSAT': 648, 'ccmr-v5:tsia2': 200,
   drafts: 3295,
+  // CT02 slice 4: the popcorn model's worked solution, written around the common
+  // error it had, in the review and in its Honors copy (kSteps_lessonWorkedSteps).
+  'v5:algebra1-dol3/Algebra1_DOL3_Review.json': 13,
+  'v5:algebra1-dol3/Algebra1_DOL3_Review_Honors.json': 16,
   // CT02 slice 4: ten more carry their own worked solutions: three sorts, the
   // vertex choice, three sequences and the three relationship models that ask
   // only continuity, domain and range (kSteps_lessonWorkedSteps).
@@ -317,7 +321,9 @@ const STEPS_FLOOR = Object.freeze({
   // review (vertex, domain, range; family, vertex) (kSteps_lessonWorkedSteps).
   'v5:algebra2-honors-module1/L1_Absolute_Value_ALEKS_Bridge_20260828.json': 20,
   'v5:algebra2-honors-module1/L1_Day1_Interval_Domain_Range.json': 17,
-  'v5:algebra2-honors-module1/L1_Day2_Function_Attributes_Relations.json': 16,
+  // CT02 slice 4: its two relationship models (chocolate bars, a shower head)
+  // carry their own worked solutions, every step marked (kSteps_lessonWorkedSteps).
+  'v5:algebra2-honors-module1/L1_Day2_Function_Attributes_Relations.json': 18,
   'v5:algebra2-honors-module1/L2_Day1_Parent_Functions_Key_Attributes.json': 19,
   // L2_Day2, CT02 slice 4: one more, its Transformations Lab description of an
   // exponential, which the lab's own review now works at the question's reading.
@@ -343,7 +349,7 @@ const STEPS_FLOOR = Object.freeze({
   // their own worked solution (kSteps_demoWorkedSteps); 26 have the family's.
   demo: 70,
 });
-const STEPS_TOTAL_FLOOR = 7999 + 336 + 832 + 14 + 48 + 44 + 2 + 832 + 1 + 14 + 7 + 4 + 2 + 2 + 3;
+const STEPS_TOTAL_FLOOR = 7999 + 336 + 832 + 14 + 48 + 44 + 2 + 832 + 1 + 14 + 7 + 4 + 2 + 2 + 3 + 4;
 const FROM_FAMILY_FLOOR = 119 + 14 + 48;
 // Where a worked-solution builder (not a support family) writes the steps: the
 // DOL #2 review, retest and corrections, every variant, and nothing else it
