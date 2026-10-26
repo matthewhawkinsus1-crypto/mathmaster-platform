@@ -98,7 +98,8 @@ const CASES = [
   {
     name: 'match',
     act: async (page) => {
-      await page.getByRole('button', { name: /^Point-slope equation/ }).first().click();
+      // The mismatched line's cards are one radio group (VH-12).
+      await page.getByRole('radiogroup', { name: 'Which card does not describe the same line?' }).getByRole('radio', { name: /^Point-slope equation/ }).first().click();
       await page.locator('.mathmaster-tool-shell select').first().selectOption('plus');
       await toolSubmit(page);
     },
