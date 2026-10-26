@@ -457,7 +457,10 @@ test('W6-4 review S2: the slope-intercept build sentence states what its grader 
   assert.equal(studentBoundaryLineFromEntry(plotted(1, 3, 2, 5, slopeIntercept)), null, 'two other points on the same line: no line');
   assert.ok(studentBoundaryLineFromEntry(plotted(1, 3, 2, 5, { method: 'points' })), 'the points method takes any two');
   assert.match(boundaryInstruction('slopeIntercept'), /plot the y-intercept and use the slope to plot a second point/);
-  assert.equal(boundaryInstruction('points'), 'Tap the grid to plot two points on the boundary line.');
+  // The points method asks for two points and nothing more. (How a point is plotted, by pointer and by keys, is in
+  // toolDirectionsNameKeyboardRoute.test.mjs.)
+  assert.match(boundaryInstruction('points'), /plot two points on the boundary line/);
+  assert.doesNotMatch(boundaryInstruction('points'), /slope|intercept/);
 });
 
 // Review N3: Data Modeling's teaching notes followed hints alone, so where

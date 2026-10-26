@@ -18,8 +18,15 @@
 //   phone      the same journey on a 390×844 touch screen
 //   reload     work, the open step and what was checked survive a reload; a
 //              changed answer counts only once it is checked again
-//   keyboard   the graph plots from the arrow keys and Enter, and a passing
-//              Check hands focus to the step it opens
+//   keyboard   the graph plots from the arrow keys and Enter, a plotted point is
+//              moved and a side is shaded the same way, the lines say so before
+//              a key is pressed, and a passing Check hands focus to the step it
+//              opens (AX32)
+//   keyboardReasoning  a whole system worked on the graph by keys alone: three
+//              boundaries, their sides, a test point of the student's own and
+//              every corner, with each step's line naming the tap and the keys
+//   keyboardConstruct  the two construct forms, whose points are typed or
+//              plotted, take the same keys
 //   rewrite    the rewrite runs in the relation solver inside its step, the
 //              graph does nothing until y is alone, then the boundary opens;
 //              the solver teaches no cancelling there (TL34), at 1366x768 and
@@ -270,28 +277,164 @@ const reload = async () => {
 
 /* -------------------------------------------------------------- keyboard */
 
+// A graph worked from the keyboard: Tab brings it into focus, each arrow key moves
+// its crosshair one unit, and Enter plots there (or picks up the point under the
+// crosshair, and puts it down). The crosshair stays where it was left while the
+// steps change beside it, so `at` follows it.
+const keyboardPlane = (page, selector = GRAPH) => {
+  const at = [0, 0];
+  const focused = () => page.evaluate((query) => document.activeElement === document.querySelector(query), selector);
+  const focus = async () => {
+    // From the top of the page the graph is ahead; after a click on a step's control it is behind (it sits above the steps).
+    const atTop = await page.evaluate(() => document.activeElement === document.body);
+    for (const key of atTop ? ['Tab', 'Shift+Tab'] : ['Shift+Tab', 'Tab']) {
+      for (let guard = 0; guard < 80 && !(await focused()); guard += 1) await page.keyboard.press(key);
+    }
+    return focused();
+  };
+  const move = async ([x, y]) => {
+    for (const [axis, target, less, more] of [[0, x, 'ArrowLeft', 'ArrowRight'], [1, y, 'ArrowDown', 'ArrowUp']]) {
+      while (at[axis] !== target) {
+        await page.keyboard.press(at[axis] < target ? more : less);
+        at[axis] += at[axis] < target ? 1 : -1;
+      }
+    }
+  };
+  const plot = async (point) => {
+    if (!(await focus())) throw new Error('the graph cannot be reached with Tab');
+    await move(point);
+    await page.keyboard.press('Enter');
+    await settle(page, 250);
+  };
+  return { focus, move, plot, focused };
+};
+
 const keyboard = async () => {
   const page = await open('build');
-  const graphFocused = () => page.evaluate((selector) => document.activeElement === document.querySelector(selector), GRAPH);
-  // AX32: the step beside the graph says what a tap does, so the graph's own
-  // line is only the keyboard route — and it is there BEFORE the graph has focus.
-  check(/From the keyboard, focus the grid and use the arrow keys and Enter\./.test(await bodyText(page)), 'keyboard: the route is named before the graph has focus');
-  for (let guard = 0; guard < 60 && !(await graphFocused()); guard += 1) await page.keyboard.press('Tab');
-  check(await graphFocused(), 'keyboard: the graph is reached with Tab');
+  const plane = keyboardPlane(page);
+  const first = await bodyText(page);
+  // AX32: the step beside the graph says what a tap does, so the graph's own line is
+  // only the keyboard route — and it is there BEFORE the graph has focus. The step's
+  // line gives both routes, and the point still to plot says what to do, not how.
+  check(/From the keyboard, focus the grid and use the arrow keys and Enter\./.test(first), 'keyboard: the route is named before the graph has focus');
+  check(/Click or tap the grid to plot two points on the boundary line, or focus the grid and use the arrow keys and Enter\./.test(first), 'keyboard: and the step beside it names the tap and the keys in one line');
+  check((await chips(page)).join(' | ') === 'Point 1: plot it on the graph | Point 2: next', 'keyboard: the point still to plot says what to do, not how', (await chips(page)).join(' | '));
+  check(await plane.focus(), 'keyboard: the graph is reached with Tab');
   check(/The arrow keys move the/.test(await bodyText(page)), 'keyboard: and says how to plot from the keyboard while it has focus');
   check(!/From the keyboard, focus the grid/.test(await bodyText(page)), 'keyboard: the fuller sentence takes the short line\'s place');
   // The crosshair starts at the origin; each arrow moves it one unit.
-  await page.keyboard.press('ArrowUp');
-  await page.keyboard.press('Enter');
-  for (const key of ['ArrowRight', 'ArrowRight', 'ArrowUp', 'ArrowUp']) await page.keyboard.press(key);
+  await plane.plot([0, 1]);
+  await plane.plot([2, 3]);
+  check((await chips(page)).join(' | ') === 'Point 1 (0, 1) | Point 2 (2, 3)', 'keyboard: arrows and Enter plot both points', (await chips(page)).join(' | '));
+  // A third Enter, on empty ground, plots nothing and says how a plotted point is moved: by a drag, and by keys.
+  await plane.plot([4, 3]);
+  const notice = await page.locator('p.mm-ineq-note[role="status"]').innerText();
+  check(notice === 'Both points are on the graph. Drag a point to move it, or remove one with × and plot it again. From the keyboard, move the crosshair onto a point and press Enter to pick it up, use the arrow keys to move it, then press Enter to put it down.', 'keyboard: a third Enter moves nothing, and says how to move a point from the keyboard', notice);
+  check((await chips(page)).length === 2, 'keyboard: and the two points stay as they were');
+  // …and the keys it names do it. (3, 4) is on y = x + 1, so the boundary is still right.
+  await plane.plot([2, 3]);
+  await plane.move([3, 4]);
   await page.keyboard.press('Enter');
   await settle(page, 300);
-  check((await chips(page)).join(' | ') === 'Point 1 (0, 1) | Point 2 (2, 3)', 'keyboard: arrows and Enter plot both points', (await chips(page)).join(' | '));
+  check((await chips(page)).join(' | ') === 'Point 1 (0, 1) | Point 2 (3, 4)', 'keyboard: Enter on a point picks it up, the arrows move it and Enter puts it down', (await chips(page)).join(' | '));
+  check(!/Both points are on the graph/.test(await bodyText(page)), 'keyboard: and the notice goes with the move');
   await button(page, 'Check boundary').focus();
   await page.keyboard.press('Enter');
   await settle(page, 400);
   const focused = await page.evaluate(() => ({ heading: document.activeElement?.dataset?.stepHeading || '', text: document.activeElement?.textContent || '' }));
   check(focused.heading === 'current' && /Solid or dashed/.test(focused.text), 'keyboard: a passing Check hands focus to the step it opens', JSON.stringify(focused));
+  // The shading step: its line names the tap and the keys, and a key shades a side.
+  await choose(page, 'solid');
+  await press(page, 'Check line style');
+  check(await cursor(page) === 'c0:shading', 'keyboard: the right style opens the shading');
+  check(/Click or tap the graph on the side of your boundary line that should be shaded, or focus the grid and use the arrow keys and Enter\./.test(await bodyText(page)), 'keyboard: its line names the tap and the keys');
+  await plane.plot([2, 3]);
+  check(/That point is on the boundary line\. Choose a point on the side you want to shade\./.test(await bodyText(page)), 'keyboard: a key on the boundary line itself is explained, not taken');
+  await plane.plot([1, 6]);
+  check(/Shaded the side with \(1, 6\)\. Choose a point on the other side to change it\./.test(await bodyText(page)), 'keyboard: a key above the line shades that side');
+  await press(page, 'Check shading');
+  check(await cursor(page) === 'c1:boundary' && await status(page, 0) === '✓ Done', 'keyboard: and a finished constraint closes and the next one opens');
+};
+
+/** The line the enlarged Work View gives the step the student is on, opened and shut again. */
+const workViewLine = async (page) => {
+  await page.getByRole('button', { name: /Open Work View/ }).first().click();
+  await settle(page, 800);
+  const dialog = page.getByRole('dialog').first();
+  const said = await dialog.innerText();
+  await dialog.getByRole('button', { name: /^Close/ }).first().click();
+  await settle(page, 500);
+  return said;
+};
+
+// The whole system, on the graph, by keys: every boundary from two grid points, its
+// side, a test point of the student's own, then every corner of the region.
+const keyboardReasoning = async () => {
+  const page = await open('reasoning');
+  const plane = keyboardPlane(page);
+  for (const [index, { points, side }] of [
+    { points: [[0, 0], [2, 1]], side: [2, 3] }, // y ≥ 0.5x, above
+    { points: [[2, 4], [4, 2]], side: [2, 2] }, // y ≤ −x + 6, below
+    { points: [[0, 0], [1, 2]], side: [3, 2] }, // y ≤ 2x, below
+  ].entries()) {
+    for (const point of points) await plane.plot(point);
+    check((await chips(page)).length === 2, `keyboard: constraint ${index + 1}'s two boundary points are plotted`, (await chips(page)).join(' | '));
+    await press(page, 'Check boundary');
+    await choose(page, 'solid');
+    await press(page, 'Check line style');
+    await plane.plot(side);
+    await press(page, 'Check shading');
+  }
+  check(await cursor(page) === 'combine', 'keyboard: three boundaries and their sides, plotted by keys, finish the constraints', await cursor(page));
+  await press(page, 'Find overlap / Combine regions');
+  await choose(page, 'bounded');
+  await press(page, 'Check classification');
+  check(await cursor(page) === 'studentPoint', 'keyboard: the region is classified, and the student\'s own test point is next', await cursor(page));
+
+  // The test point: the line names the tap and the keys, and the same line says how to move it.
+  check((await bodyText(page)).includes('Pick your own test point: click or tap anywhere on the graph, or focus the grid and use the arrow keys and Enter.'), 'keyboard: the test point step names the tap and the keys');
+  check((await workViewLine(page)).includes('Click or tap the graph to place a test point of your own (or focus the grid and use the arrow keys and Enter), then test it.'), 'keyboard: and so does the enlarged view\'s header');
+  await plane.plot([2, 2]);
+  check((await bodyText(page)).includes('Your point: (2, 2). Click or tap the graph again to move it, or focus the grid and use the arrow keys and Enter.'), 'keyboard: Enter places the point, and the line says how to move it');
+  await plane.plot([3, 2]);
+  check((await bodyText(page)).includes('Your point: (3, 2). Click or tap the graph again to move it'), 'keyboard: the same keys move it');
+  for (const question of ['inequality-1', 'inequality-2', 'inequality-3', 'system']) await page.locator(`[data-question="${question}"] button[data-choice="yes"]`).click();
+  await press(page, 'Check this point');
+  check(await cursor(page) === 'vertices', 'keyboard: the point is judged right, and the corners are next', await cursor(page));
+
+  // The corners.
+  check((await bodyText(page)).includes('Click or tap each point where two boundary lines meet at a corner of the solution region, or focus the grid and use the arrow keys and Enter. If the region has no corners'), 'keyboard: the corners step names the tap and the keys');
+  check((await workViewLine(page)).includes('Click or tap each corner of the solution region (or focus the grid and use the arrow keys and Enter) and say whether it is included.'), 'keyboard: and so does the enlarged view\'s header');
+  for (const corner of [[0, 0], [4, 2], [2, 4]]) await plane.plot(corner);
+  check(await page.locator('[data-vertex]').count() === 3, 'keyboard: Enter on each corner marks it', `${await page.locator('[data-vertex]').count()} marked`);
+  for (const index of [0, 1, 2]) await page.locator(`[data-question="vertex-${index}"] button[data-choice="yes"]`).click();
+  await press(page, 'Check vertices');
+  check(await page.locator('.mm-ineq-submit').getAttribute('data-ready') === 'true', 'keyboard: three corners marked and judged finish the work');
+};
+
+// The two construct forms plot into typed boxes: the same keys fill them.
+const keyboardConstruct = async () => {
+  for (const [label, fixture, graph, instruction, boxes] of [
+    ['the inequality construct', 'construct', 'svg[aria-label^="Student-constructed graph of the inequality solution region"]',
+      'Type two points on each boundary line, or plot them on the graph: click or tap it, or focus the grid and use the arrow keys and Enter. Then choose its style and the side to shade.',
+      ['Boundary point 1: x', 'Boundary point 1: y', 'Boundary point 2: x', 'Boundary point 2: y']],
+    ['the linear construct', 'linearConstruct', 'svg[aria-label^="Your graph of both equations in the system"]',
+      'Type two points on each line, or plot them on the graph: click or tap it, or focus the grid and use the arrow keys and Enter. Use each equation to find its points.',
+      ['Equation 1, point 1: x', 'Equation 1, point 1: y', 'Equation 1, point 2: x', 'Equation 1, point 2: y']],
+  ]) {
+    const page = await open(fixture);
+    const plane = keyboardPlane(page, graph);
+    const said = await bodyText(page);
+    check(said.includes(instruction), `${label}: the line over the points names the tap and the keys`);
+    check(said.includes('or plot it on the graph') && !/or tap the graph/.test(said), `${label}: the point still to plot says what to do, not how`);
+    // Two points on the first line: (0, −3) and (2, 1) for y = 2x − 3; (0, −1) and (1, 1) for y = 2x − 1.
+    const points = fixture === 'construct' ? [[0, -3], [2, 1]] : [[0, -1], [1, 1]];
+    for (const point of points) await plane.plot(point);
+    // (The first inequality's boxes: each card repeats the same labels.)
+    const typed = [];
+    for (const name of boxes) typed.push(await page.getByLabel(name, { exact: true }).first().inputValue());
+    check(typed.join(' | ') === points.flat().join(' | '), `${label}: Tab, the arrow keys and Enter fill the boxes`, typed.join(' | '));
+  }
 };
 
 /* --------------------------------------------------------------- rewrite */
@@ -350,7 +493,7 @@ const workview = async () => {
   await page.getByRole('button', { name: /Open Work View/ }).first().click();
   await settle(page, 1000);
   const dialog = page.getByRole('dialog').first();
-  check((await dialog.innerText()).includes('Constraint 1: tap the grid to plot two points on the boundary line.'), 'workview: the enlarged view says what the graph is waiting for');
+  check((await dialog.innerText()).includes('Constraint 1: click or tap the grid to plot two points on the boundary line, or focus the grid and use the arrow keys and Enter.'), 'workview: the enlarged view says what the graph is waiting for, with the keys');
   const scope = '[role="dialog"] ';
   await tapAt(page, [0, 1], BUILD, { scope });
   await tapAt(page, [2, 3], BUILD, { scope });
@@ -410,6 +553,8 @@ const SCENARIOS = {
   phone: () => scenario('phone', () => fullJourney('phone', { viewport: PHONE, touch: true })),
   reload: () => scenario('reload', reload),
   keyboard: () => scenario('keyboard', keyboard),
+  keyboardReasoning: () => scenario('keyboardReasoning', keyboardReasoning),
+  keyboardConstruct: () => scenario('keyboardConstruct', keyboardConstruct),
   rewrite: () => scenario('rewrite', () => rewrite()),
   rewritePhone: () => scenario('rewritePhone', () => rewrite({ viewport: PHONE, touch: true })),
   workview: () => scenario('workview', workview),

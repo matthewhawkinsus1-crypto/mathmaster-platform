@@ -1033,7 +1033,7 @@ const studentBuildReview = (question) => {
         const side = parts.kind === 'y'
           ? (parts.relation.includes('>') ? 'above' : 'below')
           : (parts.relation.includes('>') ? 'to the right of' : 'to the left of');
-        sentence.push(`shade ${side} the line — tap a point there such as ${pointText(tap)}, since ${pointCheckText(constraint, names, tap, true)}.`);
+        sentence.push(`shade ${side} the line — choose a point there such as ${pointText(tap)}, since ${pointCheckText(constraint, names, tap, true)}.`);
         items.push({ label: `Constraint ${index + 1}: shading`, value: `${side[0].toUpperCase()}${side.slice(1)} the line, the side containing ${pointText(tap)}` });
       }
       // The grader's own per-constraint rule must call this work right.

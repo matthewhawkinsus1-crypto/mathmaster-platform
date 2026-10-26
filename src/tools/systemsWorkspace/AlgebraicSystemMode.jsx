@@ -98,6 +98,11 @@ const equationIdentity = (value) => {
 
 const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+// The line beside a token to drag: an expression or a solved value (AX32). The
+// token and each variable are buttons, so Enter on the token picks it up and
+// Enter on a variable puts it there, the same two steps as a tap.
+export const dragOrSelectDirection = (what) => `Drag ${what}, or select it and then select a variable (click or tap, or Tab to each one and press Enter).`;
+
 export function MathDragToken({
   payloadPrefix,
   payloadValue,
@@ -1736,7 +1741,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                     <>
                       <p className="mathmaster-systems-substitution-direction">
                         Use the prepared expression to create a one-variable equation. Decide which equation and which variable should receive it.
-                        <span> Drag the expression, or select it and then select a variable.</span>
+                        <span> {dragOrSelectDirection('the expression')}</span>
                       </p>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                         <SubstitutionToken
@@ -1928,7 +1933,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                     {subsystem
                       ? 'Back-substitute the solved value into one reduced equation. Decide which equation and which variable should receive it.'
                       : 'Back-substitute the solved value into one original equation. Decide which equation and which variable should receive it.'}
-                    <span> Drag the value, or select it and then select a variable.</span>
+                    <span> {dragOrSelectDirection('the value')}</span>
                   </p>
                   <SubstitutionToken
                     variable={survivingVariable}

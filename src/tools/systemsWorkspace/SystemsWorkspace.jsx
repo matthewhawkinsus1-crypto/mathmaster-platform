@@ -24,7 +24,7 @@ import AlgebraicSystemMode from './AlgebraicSystemMode.jsx';
 import Algebraic3SystemMode from './Algebraic3SystemMode.jsx';
 import ThreePlaneWorkspace from './ThreePlaneWorkspace.jsx';
 import StudentBuildInequalityMode from './StudentBuildInequalityMode.jsx';
-import { ChoiceGroup, InequalityLayout, LineStyleIcon, StepFeedback, YesNoQuestion } from './InequalityControls.jsx';
+import { ChoiceGroup, InequalityLayout, LineStyleIcon, PLANE_KEYS, StepFeedback, YesNoQuestion } from './InequalityControls.jsx';
 import { POINT_COLORS, constraintColor } from './constraintPalette.js';
 import { regionCornersText } from './inequalityGraphMarks.js';
 import { formatInequality, formatLine, formatPoint, formatQuadratic } from './inequalityFormat.js';
@@ -386,7 +386,7 @@ function ClassicInequalityMode({ questionData, onAction }) {
     >
       {requiresConstruction ? (
         <>
-          <p className="mm-ineq-instruction">Type two points on each boundary line — or tap the graph to plot them — then choose its style and the side to shade.</p>
+          <p className="mm-ineq-instruction">{`Type two points on each boundary line, or plot them on the graph: click or tap it, or ${PLANE_KEYS}.`} Then choose its style and the side to shade.</p>
           {inequalities.map((ineq, index) => {
             const entry = construction[index] || {};
             return (
@@ -409,7 +409,7 @@ function ClassicInequalityMode({ questionData, onAction }) {
                         <label className="mm-ineq-inline-field">y<input className="mm-ineq-input" data-size="narrow" type="number" inputMode="decimal" aria-label={`Boundary point ${which}: y`} value={entry[`y${which}`]} onChange={(e)=>updateConstruction(index,`y${which}`,e.target.value)} /></label>
                         {entered ? (
                           <button type="button" className="mm-ineq-chip-remove" aria-label={`Clear boundary point ${which} of inequality ${index + 1}`} onClick={() => clearPoint(index, which)}>×</button>
-                        ) : waiting ? <span className="mm-ineq-note">or tap the graph</span> : null}
+                        ) : waiting ? <span className="mm-ineq-note">or plot it on the graph</span> : null}
                       </div>
                     );
                   })}
@@ -602,7 +602,7 @@ function LinearConstructMode({ questionData, onAction }) {
         </>
       )}
     >
-      <p className="mm-ineq-instruction">Type two points on each line — or tap the graph to plot them. Use each equation to find its points.</p>
+      <p className="mm-ineq-instruction">{`Type two points on each line, or plot them on the graph: click or tap it, or ${PLANE_KEYS}.`} Use each equation to find its points.</p>
       {linePoints.map((entry, index) => (
         <section key={index} className="mm-ineq-card" data-constraint-index={index}>
           <div className="mm-ineq-card-row">
@@ -623,7 +623,7 @@ function LinearConstructMode({ questionData, onAction }) {
                   <label className="mm-ineq-inline-field">{names.y}<input className="mm-ineq-input" data-size="narrow" type="number" inputMode="decimal" aria-label={`Equation ${index + 1}, point ${which}: ${names.y}`} value={entry[`y${which}`]} onChange={(e)=>updateCoordinate(index,`y${which}`,e.target.value)} /></label>
                   {entered ? (
                     <button type="button" className="mm-ineq-chip-remove" aria-label={`Clear point ${which} of equation ${index + 1}`} onClick={() => setPoint(index, which, '', '')}>×</button>
-                  ) : waiting ? <span className="mm-ineq-note">or tap the graph</span> : null}
+                  ) : waiting ? <span className="mm-ineq-note">or plot it on the graph</span> : null}
                 </div>
               );
             })}
@@ -911,11 +911,11 @@ const MODE_STEPS = {
   linear: ['Decide how many solutions the system has: exactly one, none, or infinitely many.', 'If the lines cross, read the crossing point off the graph.', 'Check your point by substituting it into both equations.'],
   // The process only: which points lie on each line, and what the two lines
   // show, are the decisions being assessed.
-  linearConstruct: ['Use each equation to find two points on its line, and type them or tap them on the graph.', 'Look at your two lines: decide how many solutions the system has.', 'If they cross, read the crossing point and enter it, then check your graph.'],
+  linearConstruct: [`Use each equation to find two points on its line, and type them or plot them on the graph (click or tap it, or ${PLANE_KEYS}).`, 'Look at your two lines: decide how many solutions the system has.', 'If they cross, read the crossing point and enter it, then check your graph.'],
   inequalities: ['Substitute the purple point into every inequality.', 'Pick your own point from well inside the green overlap.', 'Enter both answers, then check.'],
   // The process only. Which style a symbol needs and which side to shade are
   // the decisions being assessed; they stay in the recorded hints.
-  inequalitiesConstruct: ['Find two points on each boundary line, and type them or tap them on the graph.', 'Decide whether each boundary is solid or dashed.', 'Decide which side of each boundary to shade, then check your graph.'],
+  inequalitiesConstruct: [`Find two points on each boundary line, and type them or plot them on the graph (click or tap it, or ${PLANE_KEYS}).`, 'Decide whether each boundary is solid or dashed.', 'Decide which side of each boundary to shade, then check your graph.'],
   linearQuadratic: ['Count how many times the two graphs actually meet.', 'Set the expressions equal and solve for each x.', 'Substitute each x back to get its y.'],
   matrix: ['Rewrite each row as an equation.', 'Decide how many solutions the system has: exactly one, none, or infinitely many.', 'Solve for x and y if there is exactly one.'],
   matrix3: ['Read the 3×4 augmented matrix.', 'Use the matrix-technology RREF command.', 'Interpret the reduced rows to classify the system and read x, y, and z.'],

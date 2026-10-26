@@ -41,6 +41,7 @@ import AlgebraicSystemMode, {
   MathDragToken,
   VariableDropEquation,
   SystemsWorkTrail,
+  dragOrSelectDirection,
   solvedExpressionFor,
   solvedNumberFor,
   subsystemReportFromDraft,
@@ -958,7 +959,7 @@ function EliminationBackSubstitution({ elimination, system, reducedSolution, bac
     <div className="mathmaster-systems-substitution-stage mathmaster-reduction-back-stage">
       <p className="mathmaster-systems-substitution-direction">
         Use the values you found to solve for {variable}. Choose any original equation, then place each value where it belongs.
-        <span> Drag a value, or select it and then select a variable.</span>
+        <span> {dragOrSelectDirection('a value')}</span>
       </p>
       {!solved ? (
         <div className="mathmaster-reduction-button-row">

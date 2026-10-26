@@ -11,7 +11,9 @@
  * plane before being told it takes the keys. Slice 2 did the same for the seven
  * tools the VPAT (3.3.2) still listed: Linear Intercepts, the Linear Table
  * Workbench, Matrix Lab, Expression Meaning, the Interval Number Line, the
- * Representation Bridge and the Sign & Solution Analyzer.
+ * Representation Bridge and the Sign & Solution Analyzer. Slice 3 is the Systems
+ * Workspace: the inequality build's steps, the two construct forms, the 3D
+ * model's cue and the lines beside a token to drag.
  *
  * Each tool is rendered whole (Vite SSR), practice and a DOL, in each of its
  * views, and every line a student reads — a paragraph, a list item, a button's
@@ -39,6 +41,7 @@ import React from 'react';
 
 import { closeEngine, loadEngine } from './helpers/actionBarRender.mjs';
 import { buttonsOf, render, text, withBrowser } from './helpers/studentToolRender.mjs';
+import { buildSystemsWorkspaceReview } from '../../src/tools/shared/reviews/systemsWorkspaceReview.js';
 
 after(closeEngine);
 
@@ -60,7 +63,9 @@ const linesOf = (markup) => [
   ...markup.replace(/<!--[\s\S]*?-->/g, '').replace(/\n/g, ' ').replace(BLOCK_TAG, '\n').split('\n').map((chunk) => tidy(text(chunk))),
   ...[...markup.matchAll(/\baria-label="([^"]*)"/g)].map((match) => tidy(entities(match[1]))),
 ].filter(Boolean);
-const pointerOnly = (lines) => lines.filter((line) => POINTER_VERB.test(line) && !KEYBOARD_ROUTE.test(line));
+// A verb inside a template's ${…} (a class name such as "is-drag-over") is code, not a line a student reads.
+const prose = (line) => line.replace(/\$\{[^}]*\}/g, ' ');
+const pointerOnly = (lines) => lines.filter((line) => POINTER_VERB.test(prose(line)) && !KEYBOARD_ROUTE.test(line));
 const namesBoth = (lines) => lines.filter((line) => /\b(?:click|tap)\b/i.test(line) && KEYBOARD_ROUTE.test(line));
 
 const GROUPING = {
@@ -115,6 +120,25 @@ test('AX32: the detector flags the directions as they were, and passes the way t
     'Tap the grid to move your second point, or drag either point.',
     'Now tap the second point.',
     'Tap where the line crosses the x-axis.',
+    // Slice 3: the Systems Workspace.
+    'Tap the grid to plot two points on the boundary line.',
+    'Tap the graph on the side of your boundary line that should be shaded.',
+    'Point 2: tap the graph',
+    'Both points are on the graph. Drag a point to move it, or remove one with × and tap to plot it again.',
+    'That point is on the boundary line. Tap a point on the side you want to shade.',
+    'Shaded the side with (0, 6). Tap the other side to change it.',
+    'Pick your own test point: tap anywhere on the graph.',
+    'Your point: (1, 1). Tap the graph again to move it.',
+    'Tap each point where two boundary lines meet at a corner of the solution region. If the region has no corners, choose “There are no corners”.',
+    'That point does not look like a corner of this system yet. Try tapping exactly where two boundary lines cross.',
+    'Tap the place where two boundary lines meet at the corner you have not marked yet.',
+    'Not finished yet — tap the side of your boundary to shade.',
+    'Type two points on each boundary line — or tap the graph to plot them — then choose its style and the side to shade.',
+    'or tap the graph',
+    'Find two points on each boundary line, and type them or tap them on the graph.',
+    'Auto-rotating to show depth — drag the model to take control.',
+    'Drag the expression, or select it and then select a variable.',
+    'shade above the line — tap a point there such as (0, 3), since 3 ≥ 0 + 1 = 1 is true.',
   ]) assert.equal(pointerOnly([old]).length, 1, `not flagged: ${old}`);
   for (const fixed of [
     'Choose a group, then select every card that belongs to it (click or tap, or Tab to a card and press Enter or Space).',
@@ -128,6 +152,16 @@ test('AX32: the detector flags the directions as they were, and passes the way t
     'Click or tap a cell, or Tab to it: its row of the first matrix and its column of the second light up.',
     'Place a point where the line crosses the x-axis.',
     'One row breaks the pattern. Find it in the table above, choose it in the Offending row list, then enter its corrected y-value.',
+    'Click or tap the grid to plot two points on the boundary line, or focus the grid and use the arrow keys and Enter.',
+    'Both points are on the graph. Drag a point to move it, or remove one with × and plot it again. From the keyboard, move the crosshair onto a point and press Enter to pick it up, use the arrow keys to move it, then press Enter to put it down.',
+    'Point 2: plot it on the graph',
+    'That point is on the boundary line. Choose a point on the side you want to shade.',
+    'Find two points on each boundary line, and type them or plot them on the graph (click or tap it, or focus the grid and use the arrow keys and Enter).',
+    'Auto-rotating to show depth — drag the model, or focus it and press an arrow key, to take control.',
+    'Drag the expression, or select it and then select a variable (click or tap, or Tab to each one and press Enter).',
+    'shade above the line — choose a point there such as (0, 3), since 3 ≥ 0 + 1 = 1 is true.',
+    // A verb inside a template's ${…} is code, not a line a student reads.
+    'mathmaster-systems-variable-drop${tokenArmed ? " is-armed": ""}${dragOverVariable === part ? " is-drag-over": ""}',
   ]) assert.equal(pointerOnly([fixed]).length, 0, `flagged: ${fixed}`);
 });
 
@@ -343,6 +377,106 @@ for (const [role, runtime] of ROLES) {
   });
 }
 
+/* ------------------------------------ slice 3: the Systems Workspace */
+
+const SYSTEMS = 'systemsWorkspace';
+const sw = (fields) => ({ type: SYSTEMS, prompt: 'A system of equations.', ...fields });
+// The student-build inequality workflow: boundary, line style and shading for each constraint, then the reasoning.
+const INEQUALITY_BUILD = sw({
+  questionId: 'ax32-build', mode: 'inequalities', prompt: 'Graph the system y ≥ x + 1 and y < −0.5x + 6. Then classify the solution region.',
+  inequalities: [{ m: 1, b: 1, relation: '>=' }, { m: -0.5, b: 6, relation: '<' }],
+  studentBuild: { boundary: true, lineStyle: true, shading: true },
+  reasoning: { classifyRegion: true },
+  graph: { xMin: -6, xMax: 8, yMin: -4, yMax: 10 },
+});
+// My Math Path's construct forms, where the points are typed or plotted on the plane.
+const INEQUALITY_CONSTRUCT = sw({
+  questionId: 'ax32-construct', mode: 'inequalities', interaction: 'construct', ask: ['construction'],
+  inequalities: [{ m: 2, b: -3, relation: '>=' }, { m: -1, b: 6, relation: '<=' }],
+  graph: { xMin: -6, xMax: 6, yMin: -10, yMax: 12 },
+});
+const LINEAR_CONSTRUCT = sw({ questionId: 'ax32-linear', mode: 'linear', interaction: 'construct', system: { m1: 2, b1: -1, m2: -1, b2: 5 } });
+const THREE_PLANES = sw({ questionId: 'ax32-planes', mode: 'spatial', equations: ['x + y + z = 6', 'x - y + z = 2', '2x + y - z = 1'], variables: ['x', 'y', 'z'] });
+const ALGEBRAIC_2X2 = sw({ questionId: 'ax32-algebraic', studentActions: ['solveSystem'], equations: ['2x + y = 7', 'x - y = -1'], variables: ['x', 'y'], requireVerification: true });
+const APPLICATION_SVG = /<svg\b(?=[^>]*\brole="application")(?=[^>]*\btabindex="0")/;
+
+for (const [role, runtime] of ROLES) {
+  test(`AX32: the Systems Workspace's inequality build (${role}) says click or tap with the keys beside it, and its plane is a tab stop`, async () => {
+    const markup = await toolMarkup(SYSTEMS, INEQUALITY_BUILD, runtime);
+    const lines = linesOf(markup);
+    assert.deepEqual(pointerOnly(lines), []);
+    // The plane under the graph keeps only its keyboard sentence (what a tap does is said here),
+    // so the step's own line has to give both routes. The point still to plot says what to do, not how.
+    both(lines, /^Click or tap the grid to plot two points on the boundary line, or focus the grid and use the arrow keys and Enter\.$/);
+    assert.ok(lines.some((line) => /^Point 1: plot it on the graph\b/.test(line)), 'the point still to plot');
+    assert.match(markup, APPLICATION_SVG, 'the plane takes Tab');
+    assert.match(markup, /aria-label="Student-constructed graph of the inequality system\. Plot boundary point 1 for constraint 1\. Click to plot, or use the arrow keys to move the crosshair and Enter to plot\. Enter on a plotted point picks it up to move it\./, 'and its name says the keys, including how a plotted point is moved');
+  });
+
+  test(`AX32: the Systems Workspace's construct forms (${role}) name the keys where they name the tap`, async () => {
+    for (const [view, question, step, instruction] of [
+      ['the inequality construct', INEQUALITY_CONSTRUCT,
+        /^Find two points on each boundary line, and type them or plot them on the graph \(click or tap it, or focus the grid and use the arrow keys and Enter\)\.$/,
+        /^Type two points on each boundary line, or plot them on the graph: click or tap it, or focus the grid and use the arrow keys and Enter\. Then choose its style and the side to shade\.$/],
+      ['the linear construct', LINEAR_CONSTRUCT,
+        /^Use each equation to find two points on its line, and type them or plot them on the graph \(click or tap it, or focus the grid and use the arrow keys and Enter\)\.$/,
+        /^Type two points on each line, or plot them on the graph: click or tap it, or focus the grid and use the arrow keys and Enter\. Use each equation to find its points\.$/],
+    ]) {
+      const markup = await toolMarkup(SYSTEMS, question, runtime);
+      const lines = linesOf(markup);
+      assert.deepEqual(pointerOnly(lines), [], view);
+      // The first step is a control step, so a DOL keeps it.
+      both(lines, step);
+      both(lines, instruction);
+      assert.ok(lines.includes('or plot it on the graph'), `${view}: the point still to plot says what to do, not how`);
+      assert.match(markup, APPLICATION_SVG, `${view}: the plane takes Tab`);
+    }
+  });
+
+  test(`AX32: the 3D model's cue (${role}) names the arrow key beside the drag, and the model takes Tab`, async () => {
+    const markup = await toolMarkup(SYSTEMS, THREE_PLANES, runtime);
+    const lines = linesOf(markup);
+    assert.deepEqual(pointerOnly(lines), []);
+    // An arrow key takes over from the idle orbit as a drag does (tests/browser/toolKeyboardThreePlane.mjs).
+    assert.ok(lines.includes('Auto-rotating to show depth — drag the model, or focus it and press an arrow key, to take control.'), 'the cue while it turns');
+    assert.match(markup, /<svg\b(?=[^>]*\brole="application")(?=[^>]*\btabindex="0")(?=[^>]*\baria-label="Three planes in 3D")/);
+  });
+
+  test(`AX32: the 2x2 algebraic form (${role}) has no pointer-only line on its first screen`, async () => {
+    assert.deepEqual(pointerOnly(await toolLines(SYSTEMS, ALGEBRAIC_2X2, runtime)), []);
+  });
+}
+
+test('AX32: the Systems Workspace names the plane\'s own keys, and says the same sentence under the graph', async () => {
+  const { server } = await loadEngine();
+  const { PLANE_KEYS } = await server.ssrLoadModule('/src/tools/systemsWorkspace/InequalityControls.jsx');
+  assert.deepEqual(await planeHelp({ showPlotHelp: 'keyboard' }), [`From the keyboard, ${PLANE_KEYS}.`]);
+});
+
+test('AX32: the lines beside a token to drag name the keys, and the token and each variable are buttons Tab reaches', async () => {
+  const { server } = await loadEngine();
+  const { MathDragToken, VariableDropEquation, dragOrSelectDirection } = await server.ssrLoadModule('/src/tools/systemsWorkspace/AlgebraicSystemMode.jsx');
+  for (const what of ['the expression', 'the value', 'a value']) {
+    const line = dragOrSelectDirection(what);
+    assert.deepEqual(pointerOnly([line]), [], line);
+    assert.equal(line, `Drag ${what}, or select it and then select a variable (click or tap, or Tab to each one and press Enter).`);
+  }
+  // Enter picks the token up and puts it on a variable because both are buttons whose press is the tap.
+  const markup = await withBrowser(() => render(React.createElement('div', null,
+    React.createElement(MathDragToken, { payloadPrefix: 'mathmaster-substitution:', payloadValue: 'x', expression: '2y - 3', onArm() {} }),
+    React.createElement(VariableDropEquation, { equationText: '3x + 5y = 24', variables: ['x', 'y'], onVariableAttempt() {}, tokenArmed: true, armedPayloadValue: 'x' }))));
+  allReachable(buttonsNamed(markup, /^Pick up /), 1, 'the token');
+  allReachable(buttonsNamed(markup, /^Variable [xy]\b/), 2, 'the variables');
+});
+
+test('AX32: the worked solution of a student build says to choose a point to shade, not to tap one', () => {
+  const steps = buildSystemsWorkspaceReview(INEQUALITY_BUILD).steps;
+  assert.deepEqual(pointerOnly(steps), []);
+  const shading = steps.filter((step) => /shade (?:above|below) the line/.test(step));
+  assert.equal(shading.length, 2, 'one for each constraint');
+  shading.forEach((step) => assert.match(step, /shade (?:above|below) the line — choose a point there such as \(/));
+});
+
 /* ------------------- what a server render cannot reach: the strings the files carry */
 
 const REPO = new URL('../../', import.meta.url);
@@ -350,19 +484,57 @@ const filesUnder = (path) => (statSync(new URL(path, REPO)).isDirectory()
   ? readdirSync(new URL(`${path}/`, REPO), { recursive: true }).map((name) => `${path}/${String(name).replace(/\\/g, '/')}`).filter((file) => /\.jsx?$/.test(file))
   : [path]);
 
+// Vite keeps the comments of a plain .js module and a file's opening comment, so a
+// phrase in quotation marks inside one ("Tap the side of the graph to shade", said
+// of an older screen) would read as a string a student sees. Taken out first.
+const withoutComments = (code) => {
+  let out = '';
+  let at = 0;
+  while (at < code.length) {
+    const char = code[at];
+    if (char === '/' && code[at + 1] === '/') {
+      const end = code.indexOf('\n', at);
+      at = end < 0 ? code.length : end;
+    } else if (char === '/' && code[at + 1] === '*') {
+      const end = code.indexOf('*/', at + 2);
+      at = end < 0 ? code.length : end + 2;
+      out += ' ';
+    } else if (char === '"' || char === "'" || char === '`') {
+      let end = at + 1;
+      while (end < code.length && code[end] !== char) end += code[end] === '\\' ? 2 : 1;
+      out += code.slice(at, end + 1);
+      at = end + 1;
+    } else {
+      out += char;
+      at += 1;
+    }
+  }
+  return out;
+};
+
 // The strings one module carries, as Vite compiles it: comments gone, JSX text
 // joined into the sentence a student reads, a template literal read with the
-// constants it names filled in (the endpoint labels end in `${endpointKeyHelp}`).
-// Only strings of more than one word, so an id such as 'tap-select' is not text.
+// constants it names filled in (the endpoint labels end in `${endpointKeyHelp}`,
+// the Systems Workspace's lines end in `${PLANE_KEYS}`, which another module
+// holds). Only strings of more than one word, so an id such as 'tap-select' is
+// not text.
 const LITERAL = /"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)'|`((?:[^`\\]|\\.)*)`/g;
 const carried = async (paths) => {
   const { server } = await loadEngine();
   const strings = [];
   for (const path of paths) {
-    const code = (await server.transformRequest(`/${path}`, { ssr: true }))?.code ?? '';
+    const code = withoutComments((await server.transformRequest(`/${path}`, { ssr: true }))?.code ?? '');
     const constants = Object.fromEntries([...code.matchAll(/\bconst (\w+) = "((?:[^"\\\n]|\\.)*)";/g)].map((match) => [match[1], match[2]]));
+    // `${__vite_ssr_import_4__.NAME}` is a constant NAME another module exports.
+    const sources = Object.fromEntries([...code.matchAll(/\bconst (__vite_ssr_import_\d+__) = await __vite_ssr_import__\("([^"]+)"/g)].map((match) => [match[1], match[2]]));
+    const modules = {};
+    for (const [, binding] of code.matchAll(/\$\{(__vite_ssr_import_\d+__)\.\w+\}/g)) {
+      modules[binding] ??= sources[binding] ? await server.ssrLoadModule(sources[binding]) : {};
+    }
     for (const match of code.matchAll(LITERAL)) {
-      const literal = tidy((match[1] ?? match[2] ?? match[3]).replace(/\$\{(\w+)\}/g, (whole, name) => constants[name] ?? whole));
+      const literal = tidy((match[1] ?? match[2] ?? match[3])
+        .replace(/\$\{(\w+)\}/g, (whole, name) => constants[name] ?? whole)
+        .replace(/\$\{(__vite_ssr_import_\d+__)\.(\w+)\}/g, (whole, binding, name) => (typeof modules[binding]?.[name] === 'string' ? modules[binding][name] : whole)));
       if (/\s/.test(literal)) strings.push({ path, text: literal });
     }
   }
@@ -377,9 +549,11 @@ const CARRIED = {
   'Matrix Lab': ['src/tools/matrixLab', 'src/components/common/MatrixGrid.jsx', 'src/tools/shared/reviews/matrixLabReview.js'],
   'the Representation Bridge': ['src/tools/representationBridge', 'src/tools/shared/reviews/representationBridgeReview.js'],
   'Linear Intercepts': ['src/tools/stepAlgebra2/LinearIntercepts.jsx', 'src/tools/stepAlgebra2/linearInterceptsConceptualUi.jsx', 'src/LinearInterceptsOrchestrator.jsx', 'src/tools/shared/reviews/stepAlgebra2Review.js'],
+  // Every mode: the inequality build and construct forms, the algebraic forms, the 3D model.
+  'the Systems Workspace': ['src/tools/systemsWorkspace', 'src/tools/shared/reviews/systemsWorkspaceReview.js'],
 };
 
-test('AX32: nothing the seven tools carry tells a student to click, tap or drag without naming a key, on any screen they draw', async () => {
+test('AX32: nothing the eight tools carry tells a student to click, tap or drag without naming a key, on any screen they draw', async () => {
   for (const [tool, paths] of Object.entries(CARRIED)) {
     const strings = await carried(paths.flatMap(filesUnder));
     assert.ok(strings.length > 20, `${tool}: the scan reads the tool's strings (${strings.length})`);
@@ -415,6 +589,31 @@ test('AX32: the lines only a later screen draws are there, and each names both r
   const labels = await lines('src/tools/intervalNumberLine/IntervalNumberLine.jsx', /endpoint at .*Click to switch/);
   bothRoutes(labels);
   assert.ok(labels.length >= 3 && labels.every((label) => /Press Enter or Space to switch open or closed\. Use the left and right arrow keys/.test(label)), 'a placed low end, a placed high end and a pending endpoint');
+  // The Systems Workspace's inequality build, after its first step (the render above reads the first).
+  // The shading step's line sits beside the first step's, in the same panels file.
+  bothRoutes(await lines('src/tools/systemsWorkspace/InequalityBuildPanels.jsx', /^Click or tap the graph on the side of your boundary line that should be shaded, or focus the grid and use the arrow keys and Enter\.$/));
+  // The reasoning steps: the test point of the student's own, and the corners.
+  const build = 'src/tools/systemsWorkspace/StudentBuildInequalityMode.jsx';
+  bothRoutes(await lines(build, /^Pick your own test point: click or tap anywhere on the graph, or focus the grid and use the arrow keys and Enter\.$/));
+  bothRoutes(await lines(build, /Click or tap the graph again to move it, or focus the grid and use the arrow keys and Enter\.$/));
+  bothRoutes(await lines(build, /^Click or tap each point where two boundary lines meet at a corner of the solution region, or focus the grid and use the arrow keys and Enter\.$/));
+  // …and the line the enlarged view's header gives each of those two steps.
+  bothRoutes(await lines(build, /^Click or tap the graph to place a test point of your own \(or focus the grid and use the arrow keys and Enter\), then test it\.$/));
+  bothRoutes(await lines(build, /^Click or tap each corner of the solution region \(or focus the grid and use the arrow keys and Enter\) and say whether it is included\.$/));
+  // Moving a plotted point is a drag, and from the keyboard Enter on it, the arrow keys and Enter again.
+  const moving = await lines(build, /^Both points are on the graph\./);
+  assert.ok(moving.length === 1 && /\bDrag a point to move it\b/.test(moving[0]) && /\bpress Enter to pick it up, use the arrow keys to move it, then press Enter to put it down\b/.test(moving[0]), moving.join('\n'));
+  // What the notices and verdict lines say is what to do, not how (the line above each says how).
+  for (const [path, pattern] of [
+    [build, /^That point is on the boundary line\. Choose a point on the side you want to shade\.$/],
+    [build, /Choose a point on the other side to change it\.$/],
+    [build, /^That point does not look like a corner of this system yet\. Try placing it exactly where two boundary lines cross\.$/],
+    ['src/tools/systemsWorkspace/inequalityFormat.js', /^Mark each place where two boundary lines meet at a corner you have not marked yet\.$/],
+    ['src/tools/systemsWorkspace/inequalityBuildPolicy.js', /^Not finished yet — shade a side of your boundary\.$/],
+  ]) {
+    const said = await lines(path, pattern);
+    assert.deepEqual(pointerOnly(said), [], pattern.source);
+  }
 });
 
 test('AX32: the shared sentence beside the 0 names both routes', async () => {

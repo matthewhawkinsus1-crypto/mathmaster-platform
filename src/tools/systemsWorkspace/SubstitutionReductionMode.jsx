@@ -56,6 +56,7 @@ import AlgebraicSystemMode, {
   SubstitutionToken,
   SystemsWorkTrail,
   VariableDropEquation,
+  dragOrSelectDirection,
   solvedExpressionFor,
   solvedNumberFor,
   subsystemReportFromDraft,
@@ -641,7 +642,7 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
                   <div className="mathmaster-systems-substitution-stage mathmaster-reduction-reduce-stage">
                     <p className="mathmaster-systems-substitution-direction">
                       Substitute the isolated expression into each of the other equations. You choose each equation and where the expression goes, in any order.
-                      <span> Drag the expression, or select it and then select a variable.</span>
+                      <span> {dragOrSelectDirection('the expression')}</span>
                     </p>
                     <div className="mathmaster-reduction-progress" aria-live="polite">Reduced equations {reducedCount} of {targets.length}</div>
                     {targets.some((equation) => !reduction.targets[equation.id]) ? (
@@ -889,7 +890,7 @@ function BackSubstitution({ reduction, system, reducedSolution, backEquation, ar
     <div className="mathmaster-systems-substitution-stage mathmaster-reduction-back-stage">
       <p className="mathmaster-systems-substitution-direction">
         Use the values you found to solve for {variable}. Choose the isolated relationship or any original equation, then place each value where it belongs.
-        <span> Drag a value, or select it and then select a variable.</span>
+        <span> {dragOrSelectDirection('a value')}</span>
       </p>
       {!solved ? (
         <div className="mathmaster-reduction-button-row">

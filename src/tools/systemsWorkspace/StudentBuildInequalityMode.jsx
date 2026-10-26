@@ -51,7 +51,7 @@ import {
   stepCheckedAsItStands,
   stepPosition,
 } from './inequalityBuildFlow.js';
-import { ChoiceGroup, InequalityLayout, StepFeedback, revealStep } from './InequalityControls.jsx';
+import { ChoiceGroup, InequalityLayout, PLANE_KEYS, StepFeedback, revealStep } from './InequalityControls.jsx';
 import { POINT_COLORS, constraintColor } from './constraintPalette.js';
 import { inequalityGraphMarksText } from './inequalityGraphMarks.js';
 import {
@@ -115,6 +115,10 @@ const emptyTestPointResponse = (count) => ({
 // follow-up. Matches the platform's staged-feedback philosophy: wrong answers
 // do not immediately morph into the right one.
 const staged = (attempts, first, later) => (attempts <= 1 ? first : later);
+
+// A step's sentence after "Constraint 1: " in the enlarged view's header. Only
+// its first letter drops: the keys it names (Enter, Tab) keep theirs (AX32).
+const lowerFirst = (sentence) => `${sentence.charAt(0).toLowerCase()}${sentence.slice(1)}`;
 
 export default function StudentBuildInequalityMode({ questionData, onAction, draftKey = null }) {
   // What the question asks — build steps, reasoning, modeling, the hidden
@@ -374,7 +378,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
       return { done: complete, tone: 'recorded', text: completionLine(buildGate.reasoningReport({ pressed: true, complete }), REASONING_COMPLETION_TEXT) };
     }
     const expected = vertexIncludedExpected(vertex);
-    if (expected == null) return { done: false, tone: 'revise', text: 'That point does not look like a corner of this system yet. Try tapping exactly where two boundary lines cross.' };
+    if (expected == null) return { done: false, tone: 'revise', text: 'That point does not look like a corner of this system yet. Try placing it exactly where two boundary lines cross.' };
     const correct = explicitBooleanAnswerMatches(vertex.includedAnswer, expected);
     return correct
       ? { done: true, tone: 'correct', text: 'Correct — you identified whether this corner is actually part of the solution set.' }
@@ -533,7 +537,9 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
       }));
       setTapNotice(null);
     } else if (tapAction.kind === 'boundaryFull') {
-      setTapNotice('Both points are on the graph. Drag a point to move it, or remove one with × and tap to plot it again.');
+      // Moving a point is a drag, and from the keyboard Enter on it (AX32): the plane
+      // picks a point up where its crosshair is and drops it where the arrow keys leave it.
+      setTapNotice('Both points are on the graph. Drag a point to move it, or remove one with × and plot it again. From the keyboard, move the crosshair onto a point and press Enter to pick it up, use the arrow keys to move it, then press Enter to put it down.');
     } else if (tapAction.kind === 'shade') {
       const { index } = tapAction;
       const line = effectiveLines[index];
@@ -542,7 +548,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
         return;
       }
       if (sideOfBoundaryLine(line, px, py) === 0) {
-        setTapNotice('That point is on the boundary line. Tap a point on the side you want to shade.');
+        setTapNotice('That point is on the boundary line. Choose a point on the side you want to shade.');
         return;
       }
       updateBuildEntry(index, { shadePoint: [px, py] });
@@ -723,7 +729,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
         {step === 'shading' ? (
           <>
             <p className="mm-ineq-instruction">{STEP_INSTRUCTIONS.shading}</p>
-            {entry.shadePoint ? <p className="mm-ineq-note">Shaded the side with {formatPoint(entry.shadePoint[0], entry.shadePoint[1])}. Tap the other side to change it.</p> : null}
+            {entry.shadePoint ? <p className="mm-ineq-note">Shaded the side with {formatPoint(entry.shadePoint[0], entry.shadePoint[1])}. Choose a point on the other side to change it.</p> : null}
           </>
         ) : null}
         {tapNotice ? <p className="mm-ineq-note" role="status">{tapNotice}</p> : null}
@@ -812,15 +818,15 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
     if (parsedCursor.kind === 'step') {
       const prefix = `Constraint ${parsedCursor.index + 1}: `;
       if (parsedCursor.step === 'rewrite') return `${prefix}rewrite the inequality so y is alone on the left.`;
-      if (parsedCursor.step === 'boundary') return `${prefix}${boundaryInstruction(build[parsedCursor.index]?.method).toLowerCase()}`;
-      return `${prefix}${STEP_INSTRUCTIONS[parsedCursor.step].toLowerCase()}`;
+      if (parsedCursor.step === 'boundary') return `${prefix}${lowerFirst(boundaryInstruction(build[parsedCursor.index]?.method))}`;
+      return `${prefix}${lowerFirst(STEP_INSTRUCTIONS[parsedCursor.step])}`;
     }
     if (cursor === 'model') return 'Write each constraint, then graph them.';
     if (cursor === 'combine') return 'Show where the shaded regions overlap.';
     if (cursor === 'classify') return 'Classify the combined solution region.';
     if (cursor === 'teacherPoint') return 'Test the marked point against each inequality.';
-    if (cursor === 'studentPoint') return 'Tap the graph to place a test point of your own, then test it.';
-    if (cursor === 'vertices') return 'Tap each corner of the solution region and say whether it is included.';
+    if (cursor === 'studentPoint') return `Click or tap the graph to place a test point of your own (or ${PLANE_KEYS}), then test it.`;
+    if (cursor === 'vertices') return `Click or tap each corner of the solution region (or ${PLANE_KEYS}) and say whether it is included.`;
     return hasBuildSteps
       ? 'Build each constraint, combine them, and reason about the result.'
       : 'Use the provided system to combine regions and complete the requested reasoning.';
@@ -961,7 +967,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
 
           {combined && plan.reasoningSteps.includes('studentPoint') ? phaseCard('studentPoint', STEP_LABELS.studentPoint, (
             <>
-              <p className="mm-ineq-instruction">{studentTestPoint ? `Your point: ${formatPoint(studentTestPoint[0], studentTestPoint[1])}. Tap the graph again to move it.` : 'Pick your own test point: tap anywhere on the graph.'}</p>
+              <p className="mm-ineq-instruction">{studentTestPoint ? `Your point: ${formatPoint(studentTestPoint[0], studentTestPoint[1])}. Click or tap the graph again to move it, or ${PLANE_KEYS}.` : `Pick your own test point: click or tap anywhere on the graph, or ${PLANE_KEYS}.`}</p>
               {studentTestPoint ? (
                 <>
                   <TestPointQuestions
@@ -983,7 +989,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
 
           {combined && plan.reasoningSteps.includes('vertices') ? phaseCard('vertices', STEP_LABELS.vertices, (
             <>
-              <p className="mm-ineq-instruction">Tap each point where two boundary lines meet at a corner of the solution region. If the region has no corners, choose “There are no corners”.</p>
+              <p className="mm-ineq-instruction">{`Click or tap each point where two boundary lines meet at a corner of the solution region, or ${PLANE_KEYS}.`} If the region has no corners, choose “There are no corners”.</p>
               <VertexList
                 vertices={vertices}
                 reports={vertexReports}

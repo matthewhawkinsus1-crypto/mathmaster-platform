@@ -65,6 +65,18 @@ export const FIXTURES = {
     reasoning: { classifyRegion: true },
     graph: { xMin: -6, xMax: 8, yMin: -4, yMax: 10 },
   }),
+  // Three sloped boundaries, every one plotted from two grid points, around a
+  // triangle whose corners are grid points too: the whole journey, test point
+  // and corners included, can be worked from the keyboard (AX32).
+  reasoning: () => sw({
+    questionId: 'studio-reasoning',
+    mode: 'inequalities',
+    prompt: 'Graph the system y ≥ 0.5x, y ≤ −x + 6 and y ≤ 2x. Then find a point of your own in the region and every vertex.',
+    inequalities: [{ m: 0.5, b: 0, relation: '>=' }, { m: -1, b: 6, relation: '<=' }, { m: 2, b: 0, relation: '<=' }],
+    studentBuild: { boundary: true, lineStyle: true, shading: true },
+    reasoning: { classifyRegion: true, vertices: true, testPoint: true },
+    graph: { xMin: -2, xMax: 8, yMin: -2, yMax: 8 },
+  }),
   // A vertical and a horizontal boundary (the assessment-integrity fixture).
   axis: () => sw({
     questionId: 'studio-axis',
@@ -124,6 +136,14 @@ export const FIXTURES = {
     questionId: 'studio-linear',
     mode: 'linear',
     prompt: 'Solve the system y = 2x − 1 and y = −x + 5 by graphing.',
+    system: { m1: 2, b1: -1, m2: -1, b2: 5 },
+  }),
+  // The same system with the lines graphed from points the student finds.
+  linearConstruct: () => sw({
+    questionId: 'studio-linear-construct',
+    mode: 'linear',
+    interaction: 'construct',
+    prompt: 'Solve the system y = 2x − 1 and y = −x + 5 by graphing both lines.',
     system: { m1: 2, b1: -1, m2: -1, b2: 5 },
   }),
   linearQuadratic: () => sw({

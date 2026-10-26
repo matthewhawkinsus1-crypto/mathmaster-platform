@@ -100,8 +100,9 @@ test('the coverage line says what is actually wrong', () => {
   // Three marks on one corner: the repeats are counted, not called "two".
   assert.equal(say([...all, { ...all[0], x: all[0].x + 0.05 }, { ...all[0], y: all[0].y + 0.05 }]), '2 of your marks repeat corners you already marked. Remove the extra marks.');
   // One corner left: "the place", not "each other place".
-  assert.match(say(all.slice(0, 2)), /Tap the place where two boundary lines meet at the corner you have not marked yet\.$/);
-  assert.match(say(all.slice(0, 1)), /Tap each place where two boundary lines meet at a corner you have not marked yet\.$/);
+  // (It says what to do, not how: the step's own line says how to mark one, by pointer and by keys, AX32.)
+  assert.match(say(all.slice(0, 2)), /Mark the place where two boundary lines meet at the corner you have not marked yet\.$/);
+  assert.match(say(all.slice(0, 1)), /Mark each place where two boundary lines meet at a corner you have not marked yet\.$/);
   // One corner: singular. No corner at all: nothing to mark.
   assert.match(vertexCoverageMessage(vertexCoverage([corners[0]], [])), /of the 1 corner of/);
   assert.equal(vertexCoverageMessage(vertexCoverage([], [{ x: 1, y: 1 }]), ['A']), 'This solution region has no corners, so there is nothing to mark. Remove your mark.');

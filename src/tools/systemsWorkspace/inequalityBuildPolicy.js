@@ -124,7 +124,8 @@ export const INEQUALITY_STEP_COMPLETION_TEXT = Object.freeze({
   },
   shading: {
     complete: 'Shading recorded. It is graded when you submit.',
-    incomplete: 'Not finished yet — tap the side of your boundary to shade.',
+    // What to do, not how: the step's own line says how, with the keys (AX32).
+    incomplete: 'Not finished yet — shade a side of your boundary.',
   },
 });
 
