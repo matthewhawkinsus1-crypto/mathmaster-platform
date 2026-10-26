@@ -1,6 +1,6 @@
 /*
- * ACCESSIBILITY CERTIFICATION — WCAG 2.1 AA (axe-core), student screens,
- * Chromebook 1366×768 and phone 390×844, light theme, with a ratchet.
+ * ACCESSIBILITY CERTIFICATION — WCAG 2.1 AA (axe-core), student screens and
+ * the teacher's, Chromebook 1366×768 and phone 390×844, light theme, with a ratchet.
  *
  *   TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs &   # the real app, in memory
  *   npx vite --config tests/browser/emulator/vite.config.mjs --host 127.0.0.1 --port 5199 --strictPort &   # standalone harnesses
@@ -47,6 +47,13 @@
  *       then the REAL SecureExamContainer's start screen and a secure question
  *       (stubbed callables).
  *
+ * THE TEACHER'S SCREENS (accessibilityTeacherScreens.mjs, TEACHER_SCREENS, TT27;
+ * CERTIFIED_SCREENS is the two lists together) go through the same loop: the
+ * real app signed in as the synthetic teacher, opened on the school's clock, audited
+ * by axe and also walked by Tab (accessibilityKeyboardReach.mjs). What the walk
+ * finds (rules named mm-*) counts into the same keys, so one baseline and one
+ * --write-baseline hold both. ONLY=teacher-home (or any screen id) runs one.
+ *
  * THE RATCHET (scripts/lib/accessibilityRatchet.mjs): failing-node counts per
  * `${screen}|${viewport}|${ruleId}` against scripts/accessibility-baseline.json.
  * A new key or a higher count fails and names the rule, axe's help URL and the
@@ -66,6 +73,9 @@ import {
   buildBaseline, compare, describeFailures, mergeNormalized, ratchetFailed, readBaselineCounts, WCAG_TAGS,
 } from '../../scripts/lib/accessibilityRatchet.mjs';
 import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
+import { newSchoolContext } from './teacherWorkflow/schoolClock.mjs';
+import { TEACHER_SCREENS } from './accessibilityTeacherScreens.mjs';
+import { auditKeyboardReach } from './accessibilityKeyboardReach.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../..');
@@ -254,7 +264,17 @@ export const SCREENS = [
   },
 ];
 
+// The student screens above and the teacher's (accessibilityTeacherScreens.mjs):
+// what the run audits, and what the contrast review decides. SCREENS stays the
+// student list, which the other drivers import for their own checks.
+export const CERTIFIED_SCREENS = [...SCREENS, ...TEACHER_SCREENS];
+
 export const sceneLabel = (screen, scene) => (scene.id ? `${screen.id}/${scene.id}` : screen.id);
+
+// A browser context for one screen. A teacher screen reads the clock (the bell
+// schedule, the DOL window), so it opens on the school's, as the dark-mode
+// certification does; the contrast review opens its screens the same way.
+export const newScreenContext = (browser, screen, options) => (screen.schoolClock ? newSchoolContext(browser, options) : browser.newContext(options));
 
 // ------------------------------------------------------- the audit server
 // The emulator config swaps src/services/testCycleService.js for its stub
@@ -305,9 +325,9 @@ const readBaseline = () => { try { return JSON.parse(readFileSync(BASELINE_PATH,
 const main = async () => {
   const WRITE = process.argv.includes('--write-baseline');
   const ONLY = new Set(String(process.env.ONLY || '').split(',').map((entry) => entry.trim()).filter(Boolean));
-  const unknown = [...ONLY].filter((id) => !SCREENS.some((screen) => screen.id === id));
-  if (unknown.length) throw new Error(`ONLY names unknown screen(s): ${unknown.join(', ')} (known: ${SCREENS.map((screen) => screen.id).join(', ')})`);
-  const screens = SCREENS.filter((screen) => !ONLY.size || ONLY.has(screen.id));
+  const unknown = [...ONLY].filter((id) => !CERTIFIED_SCREENS.some((screen) => screen.id === id));
+  if (unknown.length) throw new Error(`ONLY names unknown screen(s): ${unknown.join(', ')} (known: ${CERTIFIED_SCREENS.map((screen) => screen.id).join(', ')})`);
+  const screens = CERTIFIED_SCREENS.filter((screen) => !ONLY.size || ONLY.has(screen.id));
   const origins = {
     app: process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188',
     audit: process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199',
@@ -340,7 +360,7 @@ const main = async () => {
 
   for (const viewport of VIEWPORTS) {
     for (const screen of screens) {
-      const context = await browser.newContext({
+      const context = await newScreenContext(browser, screen, {
         viewport: { width: viewport.width, height: viewport.height },
         isMobile: Boolean(viewport.isMobile),
         hasTouch: Boolean(viewport.hasTouch),
@@ -377,11 +397,25 @@ const main = async () => {
           await screenshotKeepingTouch(page, { path: shot, fullPage: true }).catch(() => {});
           break;
         }
-        const audit = await auditAccessibility(page, { name: label, viewport: viewport.id, include: screen.include, exclude: screen.exclude });
+        const axe = await auditAccessibility(page, { name: label, viewport: viewport.id, include: screen.include, exclude: screen.exclude });
+        // The picture is of the scene as it opened: the Tab walk below moves focus and scroll.
+        await page.screenshot({ path: path.join(artifacts, `${label.replace(/\//g, '--')}-${viewport.id}.png`) }).catch(() => {});
+        // A teacher screen is also walked by Tab, and what the walk finds counts into the
+        // same keys as axe's (accessibilityKeyboardReach.mjs, rules named mm-*).
+        let keyboard = null;
+        if (screen.keyboard) {
+          try {
+            keyboard = await auditKeyboardReach(page, { name: label, viewport: viewport.id, include: [].concat(screen.include || [])[0] || null });
+          } catch (error) {
+            // A walk that measured nothing is not a pass: the scene counts as not reached.
+            unreachable.push(`${label}|${viewport.id}: the Tab walk failed — ${error.message.split('\n')[0]}`);
+            break;
+          }
+        }
+        const audit = keyboard ? { ...axe, ...mergeNormalized(axe, keyboard) } : axe;
         const verdict = compare(baselineCounts, audit.counts, { scope: (key) => key.screen === label && key.viewport === viewport.id });
         if (!WRITE && ratchetFailed(verdict)) await screenshotKeepingTouch(page, { path: shot, fullPage: true }).catch(() => {});
-        else await page.screenshot({ path: path.join(artifacts, `${label.replace(/\//g, '--')}-${viewport.id}.png`) }).catch(() => {});
-        results.push({ screen: screen.id, scene: scene.id, label, viewport: viewport.id, counts: audit.counts, details: audit.details, needsReview: audit.needsReview });
+        results.push({ screen: screen.id, scene: scene.id, label, viewport: viewport.id, counts: audit.counts, details: audit.details, needsReview: audit.needsReview, keyboard: keyboard?.summary || null });
         // WCAG 2.4.2 beyond axe's "a <title> exists": every app screen used to
         // be titled "Vite + React". The real app must name itself and the screen.
         if (screen.harness === 'app') {
@@ -406,11 +440,13 @@ const main = async () => {
     axeVersion: AXE_VERSION,
     tags: WCAG_TAGS,
     viewports: VIEWPORTS,
-    screens: SCREENS.map((screen) => ({ id: screen.id, scenes: screen.scenes.map((scene) => sceneLabel(screen, scene)) })),
+    screens: CERTIFIED_SCREENS.map((screen) => ({ id: screen.id, scenes: screen.scenes.map((scene) => sceneLabel(screen, scene)) })),
     unreachable,
     comparison,
     totals: current.counts,
     details: current.details,
+    // What the Tab walk did on each screen that has one (stops, how it ended, the controls it names).
+    keyboard: results.filter((result) => result.keyboard).map((result) => ({ label: result.label, viewport: result.viewport, ...result.keyboard })),
     // axe "incomplete": not decidable automatically; reported, not ratcheted.
     needsReview: results.filter((result) => result.needsReview.length).map((result) => ({ label: result.label, viewport: result.viewport, rules: result.needsReview })),
     blockedNonLocalRequests: blocked,
@@ -437,7 +473,7 @@ const main = async () => {
 
   const failed = ratchetFailed(comparison);
   if (failed) {
-    console.error('\nNew WCAG 2.1 AA violations (axe-core). Fix them, or — only for a deliberate, reviewed exception — run with --write-baseline:');
+    console.error('\nNew WCAG 2.1 AA violations (axe-core, and for the teacher screens the Tab walk: rules named mm-*). Fix them, or — only for a deliberate, reviewed exception — run with --write-baseline:');
     describeFailures(comparison, { details: current.details, baselineTargets: baseline.targets || {} }).forEach((line) => console.error(`  ${line}`));
   }
   if (unreachable.length) {

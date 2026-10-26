@@ -122,7 +122,10 @@ per-tool sweep (job A's files).
   typed into. Results are quoted per tool below.
 * **Not measured:** screen-reader output, contrast of focus rings (2.4.11/2.4.13
   appearance), touch, other viewports, tools' other modes beyond the scenes
-  listed, teacher surfaces.
+  listed. Teacher surfaces are not swept either; seven of them have a smaller
+  Tab walk of their own (`tests/browser/accessibilityKeyboardReach.mjs`, TT27: no
+  reverse walk, no popup probes, no keyed answers), counted into the
+  accessibility ratchet. The VPAT's Notes row says which.
 
 ## Counts
 

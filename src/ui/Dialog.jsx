@@ -32,6 +32,11 @@ import { MATHLIVE_VIRTUAL_KEYBOARD_SELECTOR } from '../platform/math/mathLiveCom
 
 const isRendered = (element) => {
   if (!element || typeof element.getClientRects !== 'function') return true;
+  // What a closed <details> holds keeps its boxes (Chromium reports a size for
+  // it) yet is never drawn or focused, so it is not a stop: left in, the last
+  // "item" could be one Tab can never land on, and Shift+Tab from the first
+  // control would wrap onto it and go nowhere.
+  if (typeof element.checkVisibility === 'function' && !element.checkVisibility()) return element === element.ownerDocument?.activeElement;
   if (element.getClientRects().length > 0) return true;
   return element === element.ownerDocument?.activeElement;
 };

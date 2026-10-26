@@ -55,10 +55,21 @@ function Harness() {
             <button type="button" aria-label="Close" data-test="close" onClick={() => setOpen(false)}>×</button>
             <h2 id="settings-title">Settings</h2>
             <input aria-label="Name" data-test="name" />
+            {/* A disclosure in the middle of a dialog (TT27): its summary is a Tab stop, and what it hides is not one until it opens. */}
+            <details data-test="more">
+              <summary data-test="more-summary">More settings</summary>
+              <button type="button" data-test="more-inner">Inside the disclosure</button>
+            </details>
+            <input aria-label="Nickname" data-test="nickname" />
             <div data-test="math"><MathInput value="" onChange={() => {}} ariaLabel="Slope" /></div>
             <label><input type="checkbox" data-test="busy" checked={busy} onChange={(event) => setBusy(event.target.checked)} /> Saving</label>
             <button type="button" data-test="delete" onClick={() => setConfirm(true)}>Delete</button>
             <button type="button" data-test="open-foreign" onClick={() => setForeign(true)}>Ask</button>
+            {/* A closed disclosure LAST: what it holds has boxes, so it was counted as the dialog's last stop. */}
+            <details data-test="advanced">
+              <summary data-test="advanced-summary">Advanced</summary>
+              <button type="button" data-test="advanced-inner">Hidden at the end</button>
+            </details>
             {confirm && (
               <Dialog role="alertdialog" aria-label="Confirm delete" onClose={() => setConfirm(false)} data-test="confirm" style={{ background: 'var(--mm-surface)', padding: 12 }}>
                 <button type="button" data-test="confirm-yes" onClick={() => setConfirm(false)}>Yes, delete</button>

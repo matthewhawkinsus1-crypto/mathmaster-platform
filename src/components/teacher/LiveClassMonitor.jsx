@@ -187,26 +187,45 @@ function StudentTile({
   const live = row.live;
   const glyph = REPRESENTATION_GLYPH[live?.representation] || REPRESENTATION_GLYPH.text;
 
+  // The tile is a group, and its name row is the button that opens the student.
+  // The whole tile used to be role="button" around the buttons below it, which a
+  // screen reader cannot offer apart (axe nested-interactive, TT27), and Enter on
+  // any of them also opened the student. A click anywhere on the tile still does.
+  const nameRow = (
+    <>
+      <span style={{ fontWeight: 700, color: 'var(--mm-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.name}</span>
+      <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 700, color: style.chip, whiteSpace: 'nowrap' }}>{row.headline}</span>
+    </>
+  );
+  const nameRowStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 };
+
   return (
     <div
-      role={onOpenStudent ? 'button' : undefined}
-      tabIndex={onOpenStudent ? 0 : undefined}
+      role="group"
+      aria-label={tileLabel}
+      data-live-tile={row.id}
       onClick={() => onOpenStudent?.(row.id)}
-      onKeyDown={(event) => {
-        if (onOpenStudent && (event.key === 'Enter' || event.key === ' ')) onOpenStudent(row.id);
-      }}
       style={{
         textAlign: 'left', padding: roomMode ? '18px 20px' : '12px 14px',
         fontSize: roomMode ? 'calc(17 * var(--mm-px))' : 'inherit', border: `${roomMode ? 3 : 2}px solid ${style.border}`,
         borderRadius: 12, background: style.background, cursor: onOpenStudent ? 'pointer' : 'default',
         display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0,
       }}
-      aria-label={`${tileLabel}: ${row.headline}`}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-        <span style={{ fontWeight: 700, color: 'var(--mm-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.name}</span>
-        <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 700, color: style.chip, whiteSpace: 'nowrap' }}>{row.headline}</span>
-      </div>
+      {onOpenStudent ? (
+        <button
+          type="button"
+          onClick={(event) => { event.stopPropagation(); onOpenStudent(row.id); }}
+          aria-label={`${tileLabel}: ${row.headline}`}
+          // A button does not inherit the page's letter spacing or text rendering, so they are
+          // named: the row reads exactly as it did before it was a button.
+          style={{ ...nameRowStyle, width: '100%', margin: 0, padding: 0, border: 0, background: 'none', font: 'inherit', letterSpacing: 'inherit', textRendering: 'inherit', color: 'inherit', textAlign: 'left', cursor: 'pointer' }}
+        >
+          {nameRow}
+        </button>
+      ) : (
+        <div style={nameRowStyle}>{nameRow}</div>
+      )}
       {/* No name on file: the teacher sees which student this is, labelled as
           an id. The room view may be projected to the class, so it never
           shows a student id — only "Name unavailable". */}

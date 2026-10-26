@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  initialFocusChoice, isTabbableFacts, isTopDialog, looksLikeCloseControl, nextFocusIndex, openDialogCount, pushDialog,
+  TABBABLE_SELECTOR, initialFocusChoice, isTabbableFacts, isTopDialog, looksLikeCloseControl, nextFocusIndex, openDialogCount, pushDialog,
 } from '../../src/ui/dialogFocus.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
@@ -26,6 +26,24 @@ test('what can take Tab focus', () => {
   assert.equal(isTabbableFacts({ hidden: true }), false);
   assert.equal(isTabbableFacts({ inert: true }), false);
   assert.equal(isTabbableFacts({ rendered: false }), false);
+});
+
+// TT27. The first <summary> of a <details> takes Tab, but it was not in the list
+// of what a dialog's trap counts as tabbable. Focus on it was "on none of the
+// items", and nextFocusIndex sends that focus to the FIRST item: Tab on a
+// disclosure threw the teacher back to the top, and nothing after the first
+// disclosure in the Assignment Hub or the Pre-Flight review could be reached by
+// Tab. Browser proof: tests/browser/accessiblePrimitives.mjs (a disclosure in
+// the middle of a dialog) and the teacher scenes of the accessibility ratchet.
+test('a disclosure\'s summary is a Tab stop in a dialog, and what a closed one holds is not', () => {
+  const parts = TABBABLE_SELECTOR.split(',').map((part) => part.trim());
+  assert.ok(parts.includes('details > summary:first-of-type'), 'the first summary of a <details> is in the list of what Tab may land on');
+  // Why it matters: focus on an element the list does not hold goes to the first item.
+  assert.equal(nextFocusIndex({ count: 4, activeIndex: -1 }), 0, 'focus on a stop the dialog does not know about is sent back to the start');
+  assert.equal(nextFocusIndex({ count: 4, activeIndex: 1 }), null, 'a summary the dialog knows lets the browser move on');
+  // What a closed <details> holds keeps its boxes, so "has a box" is not "can take focus".
+  const rendered = region(executableSource(read('src/ui/Dialog.jsx')), 'const isRendered = (element) => {', '\n};', 'isRendered');
+  assert.match(rendered, /typeof element\.checkVisibility === 'function' && !element\.checkVisibility\(\)\) return element === element\.ownerDocument\?\.activeElement;/);
 });
 
 test('initial focus: explicit, then [data-autofocus], then the first control that is not Close', () => {

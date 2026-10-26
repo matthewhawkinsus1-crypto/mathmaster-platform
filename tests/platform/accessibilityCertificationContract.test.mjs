@@ -6,7 +6,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { region, executableSource } from './helpers/sourceContract.mjs';
-import { SCREENS, STUBBED_PROBE, VIEWPORTS, sceneLabel, servesStubbedServices } from '../browser/accessibilityCertification.mjs';
+import {
+  CERTIFIED_SCREENS, SCREENS, STUBBED_PROBE, VIEWPORTS, newScreenContext, sceneLabel, servesStubbedServices,
+} from '../browser/accessibilityCertification.mjs';
+import { TEACHER_SCREENS } from '../browser/accessibilityTeacherScreens.mjs';
 
 const REQUIRED_SCREENS = [
   'student-home',
@@ -44,6 +47,74 @@ test('an empty math box with its placeholder showing is among the audited scenes
   const scene = region(source, 'const openMathBoxPlaceholder', '\n};', 'the placeholder scene');
   assert.match(scene, /uxQuestion\('ux-simple'/, 'a question whose answer box is empty');
   assert.match(scene, /\[part="placeholder"\]/, 'and waits until the placeholder is drawn, so it audits what it names');
+});
+
+// TT27: the teacher's screens, written out. The ratchet counts per screen id, so a
+// screen dropped from the list stops being counted without any count changing:
+// the ids are named here, and not read back from the list they check.
+const REQUIRED_TEACHER_SCREENS = {
+  'teacher-home': [null],
+  'teacher-live-class': ['walkthrough', 'attention'],
+  'teacher-assignments': [null],
+  'teacher-assignment-hub': ['drawer', 'progress'],
+  'teacher-gradebook': ['table'],
+  'teacher-preflight': ['details', 'delivery', 'check'],
+  'teacher-live-challenge': ['setup', 'lobby'],
+};
+
+test('the teacher screens are audited next to the student ones, each scene driven, under one set of unique ratchet keys', () => {
+  const ids = CERTIFIED_SCREENS.map((screen) => screen.id);
+  assert.equal(new Set(ids).size, ids.length, 'screen ids are the ratchet keys: they cannot repeat across the student and teacher lists');
+  for (const [id, scenes] of Object.entries(REQUIRED_TEACHER_SCREENS)) {
+    const screen = TEACHER_SCREENS.find((entry) => entry.id === id);
+    assert.ok(screen, `the accessibility certification no longer audits the teacher screen "${id}"`);
+    assert.ok(CERTIFIED_SCREENS.includes(screen), `${id} is in the list the run audits`);
+    assert.deepEqual(screen.scenes.map((scene) => scene.id), scenes, `${id}: its scenes`);
+    for (const scene of screen.scenes) assert.equal(typeof scene.run, 'function', `${sceneLabel(screen, scene)} has no driver`);
+    assert.equal(screen.harness, 'app', `${id} is the real app in memory`);
+  }
+  assert.deepEqual(TEACHER_SCREENS.map((screen) => screen.id).sort(), Object.keys(REQUIRED_TEACHER_SCREENS).sort(), 'no teacher screen is audited without being named here');
+  // The student list is what the other drivers (large text, names, landmarks) import: it stays the student's.
+  assert.ok(SCREENS.every((screen) => !screen.id.startsWith('teacher-')), 'SCREENS is the student list');
+  assert.ok(CERTIFIED_SCREENS.length === SCREENS.length + TEACHER_SCREENS.length);
+});
+
+test('every teacher screen opens on the school clock and is walked by Tab; a modal is audited as the dialog, not the page behind its scrim', () => {
+  for (const screen of TEACHER_SCREENS) {
+    assert.equal(screen.schoolClock, true, `${screen.id}: its bell schedule reads the clock, so it opens on the school's`);
+    assert.equal(screen.keyboard, true, `${screen.id}: it is walked by Tab as well as by axe`);
+  }
+  // The two modal screens: axe and the contrast review read the page behind a scrim as covered, undecided text.
+  assert.equal(TEACHER_SCREENS.find((screen) => screen.id === 'teacher-preflight').include, '[aria-label="Lesson pre-flight review"]');
+  assert.equal(TEACHER_SCREENS.find((screen) => screen.id === 'teacher-assignment-hub').include, '[data-assignment-hub]');
+  assert.equal(SCREENS.some((screen) => screen.schoolClock || screen.keyboard), false, 'the student screens are unchanged');
+});
+
+test('a screen on the school clock gets the school\'s browser context, and any other the plain one', async () => {
+  const made = [];
+  const browser = { newContext: async (options) => { made.push(['plain', options]); return { plain: true }; } };
+  assert.deepEqual(await newScreenContext(browser, { schoolClock: false }, { viewport: { width: 1 } }), { plain: true });
+  assert.deepEqual(made, [['plain', { viewport: { width: 1 } }]]);
+  // The school's context is the plain one in the school's zone, with Date on the school's clock.
+  const added = [];
+  const schoolBrowser = { newContext: async (options) => ({ options, addInitScript: async (...args) => { added.push(args.length); } }) };
+  const context = await newScreenContext(schoolBrowser, { schoolClock: true }, { viewport: { width: 2 } });
+  assert.equal(context.options.timezoneId, 'America/Chicago');
+  assert.deepEqual(context.options.viewport, { width: 2 });
+  assert.equal(added.length, 1, 'the school clock is installed on the context');
+});
+
+test('the run walks a screen that asks for it by Tab, counts what it finds into the same keys as axe, and cannot pass without a walk', () => {
+  const source = executableSource(readFileSync(new URL('../browser/accessibilityCertification.mjs', import.meta.url), 'utf8'));
+  const scene = region(source, 'const axe = await auditAccessibility(', 'results.push({', 'the scene audit');
+  assert.match(scene, /screen\.keyboard/, 'only a screen that asks is walked');
+  assert.match(scene, /await auditKeyboardReach\(page,/);
+  assert.match(scene, /mergeNormalized\(axe, keyboard\)/, 'the findings join axe\'s counts');
+  assert.match(scene, /compare\(baselineCounts, audit\.counts,/, 'the verdict is of the merged counts');
+  assert.match(scene, /unreachable\.push\([^)]*the Tab walk failed/, 'a walk that failed leaves the scene unreached, which fails the run');
+  const walker = executableSource(readFileSync(new URL('../browser/accessibilityKeyboardReach.mjs', import.meta.url), 'utf8'));
+  const finish = region(walker, 'if (!stops.length) throw new Error(', 'if (!completed && !trap)', 'the end of the walk');
+  assert.match(finish, /^if \(!stops\.length\) throw new Error\(`the Tab walk found no stop/, 'no stop at all is an error, not a clean screen');
 });
 
 test('both viewports: Chromebook 1366×768 and phone 390×844', () => {

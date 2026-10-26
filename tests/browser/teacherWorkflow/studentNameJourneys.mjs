@@ -245,8 +245,11 @@ const chooseLab = async (page) => {
   await page.getByRole('group', { name: 'Classes in session' }).getByRole('button', { name: /Lab/ }).click();
   await settle(page, 1500);
 };
-const liveTiles = (page) => page.locator('#home-live-class [role="button"][aria-label]').evaluateAll((elements) => elements.map((element) => ({
-  label: element.getAttribute('aria-label') || '',
+// A tile is a group (data-live-tile) whose name row is the button that opens the student; its
+// aria-label is the one line assistive technology reads (TT27: the tile itself was a
+// role="button" around the buttons inside it).
+const liveTiles = (page) => page.locator('#home-live-class [data-live-tile]').evaluateAll((elements) => elements.map((element) => ({
+  label: element.querySelector('button[aria-label]')?.getAttribute('aria-label') || '',
   name: (element.querySelector('span')?.textContent || '').trim(),
   idLine: (element.querySelector('[data-student-id-label]')?.textContent || '').trim(),
 })));
@@ -352,7 +355,7 @@ const journeys = {
     await shot(page, 'N1-live-attention');
 
     // A support action from a nameless tile stores the studentId and no name.
-    const tile = live.locator(`[role="button"][aria-label^="${UNAVAILABLE} · ID ${NO_NAME}:"]`).first();
+    const tile = live.locator('[data-live-tile]').filter({ has: page.locator(`button[aria-label^="${UNAVAILABLE} · ID ${NO_NAME}:"]`) }).first();
     const watch = tile.getByRole('button', { name: 'Watch Practice' });
     if (expect(J, await watch.count() > 0, `Attention: the nameless tile offers its support actions (${await text(tile)})`)) {
       const before = (await supportEventsFor(page, NO_NAME)).length;

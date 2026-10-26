@@ -55,6 +55,7 @@ export const CI_AREAS = {
     'tests/platform/accessibility*',
     'scripts/accessibility-baseline.json',
     'scripts/lib/accessibilityRatchet.mjs',
+    'scripts/lib/keyboardReach.mjs',
     'package.json',
     'package-lock.json',
   ],

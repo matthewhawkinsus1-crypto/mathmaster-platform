@@ -1,10 +1,13 @@
 name: Accessibility Certification (WCAG 2.1 AA)
 
 # axe-core over the student screens (Home, Assignments, Grades, an assignment
-# with rich tools open, My Math Path, a secure exam, Live Challenge) at
-# Chromebook and phone sizes, ratcheted against scripts/accessibility-baseline.json:
-# a new or increased violation fails; a reduction passes. Read-only: nothing is
-# written back to the repository and nothing reaches Firebase.
+# with rich tools open, My Math Path, a secure exam, Live Challenge) and the
+# teacher's (Home, Live Class, Assignments, the Assignment Hub, the Gradebook, the
+# Pre-Flight review, the Live Challenge console, which are also walked by Tab:
+# TT27) at Chromebook and phone sizes, ratcheted against
+# scripts/accessibility-baseline.json: a new or increased violation fails; a
+# reduction passes. Read-only: nothing is written back to the repository and
+# nothing reaches Firebase.
 #
 # ci.yml calls this when a pull request changes a file in its area
 # (scripts/lib/ciAreas.mjs), and on every push to main. The large-text sweep,
@@ -34,7 +37,7 @@ jobs:
           for i in {1..90}; do curl -fsS http://127.0.0.1:5199/tests/browser/accessibilitySecureExam.html >/dev/null && exit 0; sleep 1; done
           cat /tmp/accessibility-vite.log; exit 1
       # The real app in memory (firebase/* faked, synthetic school), signed in
-      # as a student.
+      # as a student, and as the synthetic teacher for the teacher screens.
       - name: Start the in-memory app harness
         run: |
           TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs >/tmp/accessibility-app-harness.log 2>&1 &
@@ -66,6 +69,14 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/accessiblePrimitives.mjs
+      # The Tab walk of the teacher screens counts nothing unless it can be seen
+      # finding something: eleven pages, each wrong in one way, or right.
+      - name: The Tab walk finds each planted keyboard defect (TT27)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/accessibilityKeyboardReachSelfTest.mjs
       - name: The calculator by keyboard (Escape, focus return, Move)
         if: ${{ !cancelled() }}
         env:

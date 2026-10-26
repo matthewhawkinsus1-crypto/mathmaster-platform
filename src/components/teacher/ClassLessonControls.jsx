@@ -77,8 +77,10 @@ function ControlRow({ row, lesson, classContext, classKey, handlers, busy, sched
         {row.actions.map((action) => (
           action.timer ? (
             <span key={action.id} className="tw-row" style={{ gap: 4 }}>
-              <label className="tw-sr-only" htmlFor={`timer-${warmupKey}`}>Warm-Up timer minutes</label>
-              <select id={`timer-${warmupKey}`} className="tw-select" value={timerMinutes} disabled={isBusy} onChange={(event) => setTimerMinutes(Number(event.target.value))}>
+              {/* Named on the select itself. A hidden <label for=id> shared this id with the same
+                  control on the class page behind the Assignment Hub, so the hub's select was
+                  read as "Warm-Up timer minutes Warm-Up timer minutes" (TT27). */}
+              <select aria-label="Warm-Up timer minutes" className="tw-select" value={timerMinutes} disabled={isBusy} onChange={(event) => setTimerMinutes(Number(event.target.value))}>
                 {TIMER_CHOICES.map((minutes) => <option key={minutes} value={minutes}>{minutes} min</option>)}
               </select>
               <button type="button" className="tw-btn tw-btn--sm" disabled={isBusy} onClick={() => run(action)}>{action.label.replace('…', '')} {timerMinutes} min</button>

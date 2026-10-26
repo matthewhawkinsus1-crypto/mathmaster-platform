@@ -15,7 +15,8 @@
  * one-glyph icons. The certification reports those and moves on; this script
  * decides them.
  *
- * HOW, for every incomplete color-contrast node of every SCREENS scene, at both
+ * HOW, for every incomplete color-contrast node of every scene (the student screens and the
+ * teacher's, CERTIFIED_SCREENS), at both
  * viewports (the certification's own drivers and contexts):
  *
  *   1. STOPS. Walk the element and its ancestors to the root, collecting every
@@ -44,7 +45,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { AXE_PATH, settleForAudit } from './accessibilityAudit.mjs';
-import { SCREENS, VIEWPORTS, sceneLabel } from './accessibilityCertification.mjs';
+import { CERTIFIED_SCREENS, VIEWPORTS, newScreenContext, sceneLabel } from './accessibilityCertification.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../..');
@@ -329,7 +330,7 @@ const hex = (c) => (c ? `#${c.slice(0, 3).map((v) => Math.round(v).toString(16).
 // ------------------------------------------------------------------ main
 const main = async () => {
   const ONLY = new Set(String(process.env.ONLY || '').split(',').map((s) => s.trim()).filter(Boolean));
-  const screens = SCREENS.filter((screen) => !ONLY.size || ONLY.has(screen.id));
+  const screens = CERTIFIED_SCREENS.filter((screen) => !ONLY.size || ONLY.has(screen.id));
   const origins = {
     app: process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188',
     audit: process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199',
@@ -346,7 +347,7 @@ const main = async () => {
   const unreachable = [];
   for (const viewport of VIEWPORTS) {
     for (const screen of screens) {
-      const context = await browser.newContext({
+      const context = await newScreenContext(browser, screen, {
         viewport: { width: viewport.width, height: viewport.height },
         isMobile: Boolean(viewport.isMobile), hasTouch: Boolean(viewport.hasTouch),
         colorScheme: 'light', reducedMotion: 'reduce',

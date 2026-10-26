@@ -2495,7 +2495,8 @@ export const LessonPreflightModal = ({
         <header style={{ padding: isNarrow ? '12px 14px' : '15px 20px', background: '#1a73e8', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14 }}>
           <div style={{ textAlign: 'left', minWidth: 0 }}>
             <h3 style={{ margin: 0, fontSize: isNarrow ? 'calc(17 * var(--mm-px))' : 'calc(20 * var(--mm-px))' }}>{isUpdateMode ? 'Review assignment setup' : 'Review assignment'}</h3>
-            <span style={{ fontSize: 'calc(12 * var(--mm-px))', opacity: 0.92, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {/* Full white, not 92%: white at 92% on this blue is 4.06:1 (small text needs 4.5:1, white is 4.51:1) — TT27. */}
+            <span style={{ fontSize: 'calc(12 * var(--mm-px))', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {draft.title || 'Untitled assignment'}{sourceLabel ? ` · ${sourceLabel}` : ''}
             </span>
           </div>

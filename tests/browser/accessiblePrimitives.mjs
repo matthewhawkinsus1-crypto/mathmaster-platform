@@ -38,13 +38,35 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   await page.keyboard.press('Enter');
   await page.locator('[data-test="dialog"]').waitFor();
   assert.equal(await focused(page), 'name', `${at}: opens on the first control that is not Close`);
+  // A disclosure inside a dialog (TT27). Its summary is a stop, and Tab goes on from it to
+  // the next control — not back to the dialog's first, which is where a summary the trap did
+  // not know about sent focus, so that nothing after the first disclosure of the Assignment
+  // Hub or the Pre-Flight review could be reached by Tab. A closed one hides its button.
+  await page.locator('[data-test="name"]').focus();
+  await page.keyboard.press('Tab');
+  assert.equal(await focused(page), 'more-summary', `${at}: Tab reaches a disclosure's summary`);
+  await page.keyboard.press('Tab');
+  assert.equal(await focused(page), 'nickname', `${at}: Tab goes on from a closed disclosure, past the button it hides`);
+  await page.keyboard.press('Shift+Tab');
+  assert.equal(await focused(page), 'more-summary', `${at}: and Shift+Tab comes back to the summary`);
+  await page.keyboard.press('Enter');
+  assert.equal(await page.locator('[data-test="more"]').evaluate((details) => details.open), true, `${at}: Enter opens the disclosure`);
+  await page.keyboard.press('Tab');
+  assert.equal(await focused(page), 'more-inner', `${at}: once it is open, the button inside is the next stop`);
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('Enter'); // closed again: the rest of the run sees the dialog as it opened
+
   await page.locator('[data-test="delete"]').focus();
   assert.equal(await focused(page), 'delete');
   await page.keyboard.press('Tab'); // ask
+  await page.keyboard.press('Tab'); // the closed disclosure at the end: a stop of its own
+  assert.equal(await focused(page), 'advanced-summary', `${at}: the last stop is the summary of the closed disclosure at the end`);
   await page.keyboard.press('Tab');
   assert.equal(await focused(page), 'close', `${at}: Tab on the last wraps to the first`);
   await page.keyboard.press('Shift+Tab');
-  assert.equal(await focused(page), 'open-foreign', `${at}: Shift+Tab on the first wraps to the last`);
+  assert.equal(await focused(page), 'advanced-summary', `${at}: Shift+Tab on the first wraps to the last stop, not to the button a closed disclosure hides`);
+  await page.keyboard.press('Shift+Tab');
+  assert.equal(await focused(page), 'open-foreign');
 
   // A modal that is not a Dialog opened on top (the Toast confirm): the Dialog
   // stands down — it neither pulls focus back nor answers Escape.
