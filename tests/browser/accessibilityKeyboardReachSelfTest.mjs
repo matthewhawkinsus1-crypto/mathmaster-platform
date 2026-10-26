@@ -13,9 +13,11 @@
  * click handler with no key, a button that answers a click and not Enter, a
  * control under a sticky bar, a control Tab will not leave, a control Tab skips,
  * and a modal that lets focus out. Each must give exactly its own finding, and
- * `clean` and the real Dialog (a disclosure inside it, a closed one at its end)
- * must give none. `scrolling`, a page and a box in it that Tab has to scroll,
- * must give none too, and be left scrolled where the walk found it.
+ * `clean` and the real Dialog (a disclosure inside it, a closed one at its end, or
+ * a single control that Tab has nowhere to leave) must give none; a dialog with
+ * more than one control, one of which Tab will not leave, is still a trap.
+ * `scrolling`, a page and a box in it that Tab has to scroll, must give none too,
+ * and be left scrolled where the walk found it.
  */
 import assert from 'node:assert/strict';
 import { auditKeyboardReach } from './accessibilityKeyboardReach.mjs';
@@ -55,6 +57,8 @@ const EXPECTED = {
   skipped: { 'mm-tabbable-unreached': 1 },
   scrolling: {},
   dialog: {},
+  singleControlDialog: {},
+  dialogSwallowsTab: { 'mm-keyboard-trap': 1 },
   leakyDialog: { 'mm-keyboard-trap': 1 },
 };
 
@@ -91,6 +95,17 @@ for (const [plant, expected] of Object.entries(EXPECTED)) {
     // Tab goes on from a disclosure's summary instead of back to the first control, and skips what a closed one holds.
     assert.deepEqual(summary.stopNames.map((entry) => entry.replace(/^[^:]*: /, '')), ['First control', 'More', 'After the disclosure', 'Advanced'], 'dialog: every control that can take Tab, in order');
     assert.equal(summary.unreached, 0);
+  }
+  if (plant === 'singleControlDialog') {
+    // The dialog's one control keeps focus: that is the walk's end, and not a control Tab will not leave.
+    assert.equal(result.summary.mode, 'modal');
+    assert.equal(result.summary.completed, true);
+    assert.equal(result.summary.stops, 1, 'singleControlDialog: the one control, once');
+    assert.equal(result.summary.trap, null);
+  }
+  if (plant === 'dialogSwallowsTab') {
+    assert.equal(result.summary.mode, 'modal');
+    assert.equal(result.summary.trap.kind, 'tab-does-not-leave', 'dialogSwallowsTab: with another control in the dialog, a stop Tab will not leave is still a trap');
   }
   if (plant === 'trap') assert.equal(result.summary.trap.kind, 'tab-does-not-leave');
   if (plant === 'leakyDialog') assert.equal(result.summary.trap.kind, 'left-the-dialog');

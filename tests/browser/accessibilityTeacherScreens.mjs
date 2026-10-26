@@ -36,6 +36,38 @@
  *                          step.
  *   teacher-live-challenge the Live Challenge console: the form that creates a
  *                          game, and a game in its lobby with three players.
+ *
+ * THE THIRD SLICE (TT27) added every other destination of the navigation, each opened from the
+ * sidebar and read once its heading is on screen (tests/platform/accessibilityCertificationContract
+ * .test.mjs reads the navigation and fails for a destination no scene opens):
+ *
+ *   teacher-classes        the class list, and one class's page.
+ *   teacher-students       the roster, and a student's drawer (a modal: audited as the drawer).
+ *   teacher-library, -weekly-path (the harness's `weeklyPath=ok` school, where the callable
+ *   answers), -action-center, -grade-export, -secure-exams (the `innerScreens=1` school, which
+ *   has a Test Cycle to list), -pacing, -attendance, -parent-contacts, -analytics, -math-tools,
+ *   -demo, -schedule (Class & Bell Schedule), -classroom (Google Classroom), -access (Student
+ *   Access): the screen as a teacher meets it. Google Classroom (a teacher who has not connected
+ *   it) and three of the administrator's sections (Accounts & sign-in, Path content coverage,
+ *   Pre-production reset) read callables the harness answers from teacherWorkflow/
+ *   fakeAdminScreens.js; without them each drew the harness's "no fake for the callable" banner
+ *   in place of what it holds, and a scene of that audits an error. -math-tools closes the
+ *   full-screen Work View the Lab opens on a wide screen (a modal over the page, the student's own),
+ *   and leaves the text of its coordinate plane out of axe and the contrast review: see its scene.
+ *   teacher-teks           TEKS & Mastery: the student matrix and its five other views.
+ *   teacher-simulator      the Path Simulator: its start screen, Weekly Path mode and Question
+ *                          bench. Not a running session, which is a student's screen in the walk. axe
+ *                          finds nothing in it; Tab finds, at 1366x768, the Language tools stopping
+ *                          under the Path's own sticky "Check my answer" (the focus reveal, platform/
+ *                          layout/actionBarFocusReveal.js, knows only the QuestionEngine's action bar),
+ *                          at both sizes a MathLive field whose name the walk cannot read, and on the
+ *                          phone a loop at that field. They belong to the student's screen, which a
+ *                          teacher's page only hosts, and a fix changes what a student's page does,
+ *                          so it needs a product decision first (the landmarks driver opens the
+ *                          state, and openSimulatorSession is kept for it).
+ *   teacher-find           the Find palette, empty and with results (a modal: audited as the dialog).
+ *   teacher-admin          the administrator's workspace (the harness's `rootAdmin=1` teacher), each
+ *                          of its five sections.
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -81,12 +113,17 @@ const liveClassMode = (name) => async (page) => {
   await page.waitForTimeout(800);
 };
 
-// Classes -> the class in session -> today's lesson -> Details: the drawer.
-const openAssignmentHub = async (page) => {
+// Classes -> the class in session: its page.
+const openClassPage = async (page) => {
   await goTo(page, 'Classes');
   await page.getByRole('button', { name: /Algebra II — Period 3/ }).first().evaluate((button) => button.click());
   await page.getByText("Today's lessons").first().waitFor({ timeout: 30_000 });
   await page.waitForTimeout(600);
+};
+
+// ...today's lesson -> Details: the drawer.
+const openAssignmentHub = async (page) => {
+  await openClassPage(page);
   await page.locator('[data-lesson-group="today"]').first().getByRole('button', { name: 'Details' }).evaluate((button) => button.click());
   await page.locator('[data-assignment-hub]').waitFor({ timeout: 30_000 });
   await page.waitForTimeout(900);
@@ -299,12 +336,97 @@ export const loadPathBank = async (page) => {
 export const openSimulatorSession = async (page) => {
   await loadPathBank(page);
   await goTo(page, 'Path Simulator');
+  // The mode a visit opens in, whatever the page was left in.
+  await page.getByRole('button', { name: 'Student experience', exact: true }).evaluate((button) => button.click());
   await page.getByRole('button', { name: 'Start as fresh student' }).click();
   await page.getByRole('button', { name: 'My Math Path' }).first().click();
   // Programmatic, like the sidebar: the page is busy drawing the week while it is pressed.
   await page.getByRole('button', { name: 'Start session 1 of 4' }).evaluate((button) => button.click());
   await page.getByText(/Question 1 of \d+/).waitFor({ timeout: 60_000 });
   await page.waitForTimeout(1200);
+};
+
+// ----------------------------------------------------------------------------------------------
+// THE OTHER DESTINATIONS (TT27, third slice): each opened from the sidebar, and read once its own
+// heading is on screen. Their first scene is the screen as a teacher meets it; the states some of
+// them have (a class's page, one student, one student's drawer) are scenes of their own.
+// ----------------------------------------------------------------------------------------------
+const openDestination = (title, heading) => async (page) => {
+  await goTo(page, title);
+  await page.getByRole('heading', { name: heading }).first().waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(900);
+};
+
+// The Math Tools Lab, on a wide screen, opens its first tool in the full-screen Work View: a modal dialog over the
+// page, the student's own, which the student scenes audit (assignment-tools/*). A teacher closes it to reach the
+// tool list, and this scene audits the page under it. On a phone the Work View is not open, and nothing is closed.
+const openMathToolsLab = async (page) => {
+  await openDestination('Math Tools Lab', /^Math Tools Lab$/)(page);
+  const close = page.getByRole('button', { name: /Close full screen/ });
+  if (await close.count()) {
+    await close.first().evaluate((button) => button.click());
+    await page.waitForTimeout(900);
+  }
+};
+
+// The administrator's workspace is a view of the same page (the header's "Administration" button), with
+// five sections in a tab list. Each is read once its tab is the selected one and the section has drawn.
+const ADMIN_SECTIONS = [
+  ['classes', 'Classes & rosters'],
+  ['accounts', 'Accounts & sign-in'],
+  ['coverage', 'Path content coverage'],
+  ['ai', 'Assignment AI health'],
+  ['reset', 'Pre-production reset'],
+];
+const openAdministration = (label) => async (page) => {
+  const heading = page.getByRole('heading', { name: 'MathMaster Administration' });
+  if (!(await heading.count())) {
+    await page.getByRole('button', { name: 'Administration', exact: true }).first().evaluate((button) => button.click());
+    await heading.waitFor({ timeout: 60_000 });
+  }
+  await page.getByRole('tab', { name: label, exact: true }).evaluate((tab) => tab.click());
+  await page.getByRole('tab', { name: label, exact: true, selected: true }).waitFor({ timeout: 10_000 });
+  await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+  await page.waitForTimeout(1500);
+};
+
+// A student's drawer, opened as a teacher opens it: the student's name on the Students screen.
+const openStudentDrawer = async (page) => {
+  await goTo(page, 'Students');
+  await page.getByRole('heading', { name: /^Students$/ }).first().waitFor({ timeout: 30_000 });
+  await page.locator('table tbody tr').first().getByRole('button').first().evaluate((button) => button.click());
+  await page.locator('[data-student-profile-drawer]').waitFor({ timeout: 30_000 });
+  await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+  await page.waitForTimeout(1500);
+};
+
+// The Find palette (Find…, which Ctrl+K also opens), from Home.
+const FIND_DIALOG = '[aria-label="Find a student, class, assignment or standard"]';
+const openFindPalette = async (page) => {
+  await goHome(page);
+  await page.getByRole('button', { name: /Find/ }).first().evaluate((button) => button.click());
+  await page.locator(FIND_DIALOG).waitFor({ timeout: 15_000 });
+  await page.waitForTimeout(900);
+};
+
+// ...and with something typed, so that it lists what it found.
+const findWithResults = async (page) => {
+  await page.locator(FIND_DIALOG).getByRole('searchbox', { name: 'Search' }).fill('Algebra');
+  await page.locator(`${FIND_DIALOG} [role="option"]`).first().waitFor({ timeout: 15_000 });
+  await page.waitForTimeout(900);
+};
+
+// One of the TEKS & Mastery screen's six views, from its row of buttons.
+const openTeksView = (label) => async (page) => {
+  await openDestination('TEKS & Mastery', /^Texas Math TEKS/)(page);
+  await page.getByRole('button', { name: label, exact: true }).evaluate((button) => button.click());
+  await page.waitForTimeout(1200);
+};
+
+// One of the Path Simulator's three modes, from its row of buttons (the screen's first scene has opened it).
+const openSimulatorMode = (label) => async (page) => {
+  await page.getByRole('group', { name: 'Simulator mode' }).getByRole('button', { name: label, exact: true }).evaluate((button) => button.click());
+  await page.waitForTimeout(1500);
 };
 
 const teacherScreen = (id, scenes, extra = {}) => ({
@@ -349,4 +471,51 @@ export const TEACHER_SCREENS = [
     { id: 'setup', run: openLiveChallenge },
     { id: 'lobby', run: openLiveChallengeLobby },
   ]),
+  teacherScreen('teacher-classes', [
+    { id: null, run: openDestination('Classes', /^Classes$/) },
+    { id: 'class', run: openClassPage },
+  ]),
+  teacherScreen('teacher-students', [
+    { id: null, run: openDestination('Students', /^Students$/) },
+    // A modal drawer: audited as the drawer, as the Assignment Hub is, and not the page behind its scrim.
+    { id: 'drawer', run: openStudentDrawer, include: '[data-student-profile-drawer]' },
+  ]),
+  teacherScreen('teacher-library', [{ id: null, run: openDestination('Library', /Library/) }]),
+  teacherScreen('teacher-weekly-path', [{ id: null, run: openDestination('Weekly Path', /^Weekly Path/) }], { open: (page, origins) => openTeacherApp(page, origins, '&weeklyPath=ok') }),
+  teacherScreen('teacher-action-center', [{ id: null, run: openDestination('Action Center', /^Action Center$/) }]),
+  teacherScreen('teacher-grade-export', [{ id: null, run: openDestination('Grade Export', /^Grade Export$/) }]),
+  teacherScreen('teacher-secure-exams', [{ id: null, run: openDestination('Secure Exams', /^My Course Tests$/) }], { open: openTeacherAppWithTestCycle }),
+  teacherScreen('teacher-pacing', [{ id: null, run: openDestination('Curriculum Pacing', /^Curriculum pacing/i) }]),
+  teacherScreen('teacher-attendance', [{ id: null, run: openDestination('Attendance History', /^Attendance History$/) }]),
+  teacherScreen('teacher-parent-contacts', [{ id: null, run: openDestination('Parent Contacts', /^Parent Contact Center$/) }]),
+  teacherScreen('teacher-teks', [
+    { id: null, run: openDestination('TEKS & Mastery', /^Texas Math TEKS/) },
+    { id: 'demand', run: openTeksView('Demand & Complexity') },
+    { id: 'ccmr', run: openTeksView('CCMR Readiness') },
+    { id: 'items', run: openTeksView('Item Analysis') },
+    { id: 'registry', run: openTeksView('TEKS Registry') },
+    { id: 'pathway', run: openTeksView('TEKS Pathway') },
+  ]),
+  teacherScreen('teacher-analytics', [{ id: null, run: openDestination('Analytics', /Suggested instructional groups/) }]),
+  // The Lab's first tool, the Transformations Lab, draws the source segment through the tick and point labels of the
+  // shared coordinate plane (its sample is the diagonal y = x): "0", "-2", "S1" and "S2" measure 1.1:1 to 4.5:1 in the contrast
+  // review. The plane's label text is left out here, and listed in the third slice's report; the plane is audited on its own
+  // in assignment-tools/graphing, where no line crosses a label.
+  teacherScreen('teacher-math-tools', [{ id: null, run: openMathToolsLab }], { exclude: ['svg[role="application"] text'] }),
+  teacherScreen('teacher-simulator', [
+    { id: null, run: openDestination('Path Simulator', /^Teacher controls$/) },
+    { id: 'week', run: openSimulatorMode('Weekly Path') },
+    { id: 'bench', run: openSimulatorMode('Question bench') },
+  ]),
+  // The Find palette is a dialog over any screen: audited as the dialog.
+  teacherScreen('teacher-find', [
+    { id: null, run: openFindPalette },
+    { id: 'results', run: findWithResults },
+  ], { include: FIND_DIALOG }),
+  teacherScreen('teacher-demo', [{ id: null, run: openDestination('Demo Experience', /^Avery Daniels$/) }]),
+  teacherScreen('teacher-schedule', [{ id: null, run: openDestination('Class & Bell Schedule', /A\/B Bell Schedule/) }]),
+  teacherScreen('teacher-classroom', [{ id: null, run: openDestination('Google Classroom', /^Google Classroom Manager$/) }]),
+  teacherScreen('teacher-access', [{ id: null, run: openDestination('Student Access', /^Student Access$/) }]),
+  // The administrator's workspace: the harness's root-admin teacher, its Administration view, and each of its five sections.
+  teacherScreen('teacher-admin', ADMIN_SECTIONS.map(([id, label]) => ({ id, run: openAdministration(label) })), { open: (page, origins) => openTeacherApp(page, origins, '&rootAdmin=1') }),
 ];

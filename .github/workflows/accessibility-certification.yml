@@ -2,9 +2,10 @@ name: Accessibility Certification (WCAG 2.1 AA)
 
 # axe-core over the student screens (Home, Assignments, Grades, an assignment
 # with rich tools open, My Math Path, a secure exam, Live Challenge) and the
-# teacher's (Home, Live Class, Assignments, the Assignment Hub, the Gradebook, the
-# Pre-Flight review, the Live Challenge console, which are also walked by Tab:
-# TT27) at Chromebook and phone sizes, ratcheted against
+# teacher's (every destination of the navigation, a class's page, a student's
+# drawer, the Find palette, the Assignment Hub, the Pre-Flight review and the
+# administrator's workspace, which are also walked by Tab: TT27) at Chromebook and
+# phone sizes, ratcheted against
 # scripts/accessibility-baseline.json: a new or increased violation fails; a
 # reduction passes. Read-only: nothing is written back to the repository and
 # nothing reaches Firebase.
@@ -23,7 +24,10 @@ permissions:
 jobs:
   browser-accessibility:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    # 61 scenes at two sizes, 48 of them the teacher's and walked by Tab as well as audited (TT27), and the
+    # contrast review replays the same scenes: each took about twenty minutes on a busy two-core machine, and
+    # the job runs both and the drivers after them. A hung run is still stopped, later than it was at 35.
+    timeout-minutes: 70
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
@@ -70,7 +74,7 @@ jobs:
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/accessiblePrimitives.mjs
       # The Tab walk of the teacher screens counts nothing unless it can be seen
-      # finding something: eleven pages, each wrong in one way, or right.
+      # finding something: thirteen pages, each wrong in one way, or right.
       - name: The Tab walk finds each planted keyboard defect (TT27)
         if: ${{ !cancelled() }}
         env:

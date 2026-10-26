@@ -302,7 +302,8 @@ test('Texas Standards renders the student name with the id as a secondary line, 
   const source = read(file);
   const row = region(source, '{students.map((student) => {', '</tr>', 'standards student row');
   assert.doesNotMatch(executableSource(row), /fontWeight: 800 \}\}>\{student\.id\}/, 'the name cell must not render the bare id');
-  assert.match(row, /\{formatStudentName\(student\)\}<div[^>]*>\{studentIdLabel\(student\)\}/);
+  // The name is a button (the keyboard's way to the row's click, TT27), so it may close before the id's line begins.
+  assert.match(row, /\{formatStudentName\(student\)\}(?:<\/button>)?<div[^>]*>\{studentIdLabel\(student\)\}/);
   const aside = region(source, '{selectedStudent ? (', ') : <p', 'selected student panel');
   assert.doesNotMatch(executableSource(aside), /<h3[^>]*>\{selectedStudent\.id\}<\/h3>/);
   assert.match(aside, /<h3[^>]*>\{formatStudentName\(selectedStudent\)\}<\/h3>/);

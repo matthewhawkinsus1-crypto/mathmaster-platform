@@ -18,7 +18,8 @@
  * IN A MODAL DIALOG (aria-modal, which the teacher's Assignment Hub and
  * Pre-Flight review are, both through src/ui/Dialog.jsx), focus must stay inside
  * and come round to where it began; Tab runs from the dialog itself until a stop
- * repeats. A stop outside it means the dialog did not hold focus.
+ * repeats. A stop outside it means the dialog did not hold focus. A dialog with
+ * a single control (the Find palette) holds focus on it, which is where it began.
  *
  * AT EVERY STOP: Chromium's own role and name for it (the accessibility tree,
  * through CDP, as the sweep reads it); what focusing it changes on screen (its
@@ -396,7 +397,14 @@ export const auditKeyboardReach = async (page, { name, viewport = 'default', inc
         // A date or time box is several stops inside one element (month, day,
         // year, the picker): Tab moves between them without leaving it.
         const patience = SEGMENTED_INPUT.test(stop.type || '') ? 8 : 3;
-        if (sameCount >= patience) { trap = { kind: 'tab-does-not-leave', target: stop.target, summary: 'Tab did not move focus off this control' }; break; }
+        if (sameCount >= patience) {
+          // A modal with one control in its tab order (the Find palette: one box, and the arrow keys
+          // for what it lists) holds focus on it: Tab has nowhere else to go, which is the dialog
+          // working. With any other control in it, a stop Tab will not leave is still a trap.
+          if (modal && setup.tabbables === 1) { completed = !trap; break; }
+          trap = { kind: 'tab-does-not-leave', target: stop.target, summary: 'Tab did not move focus off this control' };
+          break;
+        }
         continue;
       }
       sameCount = 0;

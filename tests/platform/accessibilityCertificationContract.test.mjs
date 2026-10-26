@@ -62,6 +62,30 @@ const REQUIRED_TEACHER_SCREENS = {
   'teacher-gradebook': ['table'],
   'teacher-preflight': ['details', 'delivery', 'check'],
   'teacher-live-challenge': ['setup', 'lobby'],
+  // The third slice: the rest of the navigation's destinations, a class's page, a student's drawer, the Find palette,
+  // the TEKS screen's views, the Path Simulator's modes, and the administrator's five sections.
+  'teacher-classes': [null, 'class'],
+  'teacher-students': [null, 'drawer'],
+  'teacher-library': [null],
+  'teacher-weekly-path': [null],
+  'teacher-action-center': [null],
+  'teacher-grade-export': [null],
+  'teacher-secure-exams': [null],
+  'teacher-pacing': [null],
+  'teacher-attendance': [null],
+  'teacher-parent-contacts': [null],
+  'teacher-teks': [null, 'demand', 'ccmr', 'items', 'registry', 'pathway'],
+  'teacher-analytics': [null],
+  'teacher-math-tools': [null],
+  // Not 'session' (a running simulated session): the Tab walk reads a student's tool in it and the Path's own sticky
+  // button; see accessibilityTeacherScreens.mjs. The landmarks driver opens it.
+  'teacher-simulator': [null, 'week', 'bench'],
+  'teacher-find': [null, 'results'],
+  'teacher-demo': [null],
+  'teacher-schedule': [null],
+  'teacher-classroom': [null],
+  'teacher-access': [null],
+  'teacher-admin': ['classes', 'accounts', 'coverage', 'ai', 'reset'],
 };
 
 test('the teacher screens are audited next to the student ones, each scene driven, under one set of unique ratchet keys', () => {
@@ -79,6 +103,29 @@ test('the teacher screens are audited next to the student ones, each scene drive
   // The student list is what the other drivers (large text, names, landmarks) import: it stays the student's.
   assert.ok(SCREENS.every((screen) => !screen.id.startsWith('teacher-')), 'SCREENS is the student list');
   assert.ok(CERTIFIED_SCREENS.length === SCREENS.length + TEACHER_SCREENS.length);
+});
+
+// Every destination of the teacher's navigation has a scene (TT27, third slice). The list is read from the navigation itself, so a
+// destination added to it without a scene fails here and is audited from the day it lands, not found by hand later.
+test('each of the teacher navigation\'s destinations is opened by a scene', () => {
+  const sidebar = read('src/TeacherSidebar.jsx');
+  const labels = [...region(sidebar, 'const TAB_LABELS = {', '};', 'the navigation\'s labels').matchAll(/^\s*\w+: '([^']+)',$/gm)].map((match) => match[1]);
+  assert.equal(labels.length, 22, 'the navigation has 22 destinations');
+  const scenes = executableSource(readFileSync(new URL('../browser/accessibilityTeacherScreens.mjs', import.meta.url), 'utf8'));
+  // The administrator's workspace is the "Student Access" destination for the root administrator, and is audited through its own sections.
+  for (const label of labels) {
+    const opened = new RegExp(`(?:goTo\\(page, |openDestination\\()'${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`).test(scenes);
+    assert.ok(opened, `"${label}" is opened by a scene (goTo / openDestination in accessibilityTeacherScreens.mjs)`);
+  }
+});
+
+test('the teacher\'s modals are audited as the dialog, and the Find palette is a screen of its own', () => {
+  const students = TEACHER_SCREENS.find((screen) => screen.id === 'teacher-students');
+  assert.equal(students.scenes.find((scene) => scene.id === 'drawer').include, '[data-student-profile-drawer]');
+  assert.equal(students.scenes.find((scene) => scene.id === null).include, undefined, 'and the page itself is audited whole');
+  assert.equal(TEACHER_SCREENS.find((screen) => screen.id === 'teacher-find').include, '[aria-label="Find a student, class, assignment or standard"]');
+  assert.match(read('src/components/teacher/StudentProfileDrawer.jsx'), /data-student-profile-drawer=/, 'the drawer carries the hook');
+  assert.match(read('src/components/teacher/TeacherQuickSearch.jsx'), /aria-label="Find a student, class, assignment or standard"/, 'the palette carries the name');
 });
 
 test('every teacher screen opens on the school clock and is walked by Tab; a modal is audited as the dialog, not the page behind its scrim', () => {
@@ -215,3 +262,39 @@ test('under CI the certification fails on a plain audit server instead of workin
   assert.ok(probe > 0 && ciGuard > probe && start > ciGuard, 'the CI check sits between the probe and the server start');
   assert.match(source.slice(ciGuard, start), /throw new Error\(/);
 });
+
+// TT27, third slice. A screen whose callable the harness does not fake draws the harness's own banner where its content
+// goes; four of the third slice's scenes did, and passed axe on an error. The run now fails a scene that shows the banner,
+// and the words it looks for are the words the harness writes.
+test('the run fails a teacher or student app scene that shows the harness\'s "no fake for the callable" banner', () => {
+  const run = executableSource(readFileSync(new URL('../browser/accessibilityCertification.mjs', import.meta.url), 'utf8'));
+  const check = region(run, "if (screen.harness === 'app') {", "const total = Object.values(audit.counts)", 'the app screens\' checks');
+  assert.match(check, /\/has no fake for the callable\/\.test\(document\.body\?\.innerText \|\| ''\)/, 'it reads the page\'s text for the banner');
+  assert.match(check, /harnessBanners\.push\(/);
+  assert.match(run, /titleFailures\.length \|\| harnessBanners\.length\) \{\s*console\.error\(`\\nAccessibility certification FAILED/, 'and a banner fails the run');
+  const fakes = readFileSync(new URL('../browser/teacherWorkflow/fakeFunctions.js', import.meta.url), 'utf8');
+  assert.match(fakes, /The teacher harness has no fake for the callable "\$\{name\}"/, 'the harness still says it in those words');
+});
+
+// The Math Tools Lab opens its first tool in the full-screen Work View on a wide screen: a modal over the page, the student's
+// own. The scene audits the page, so it closes it (nothing to close on a phone), and leaves out only the label text of the
+// shared coordinate plane, where the Lab's sample draws a line through the labels.
+test('the Math Tools Lab scene closes the Work View and leaves out only the plane\'s label text', () => {
+  const lab = TEACHER_SCREENS.find((screen) => screen.id === 'teacher-math-tools');
+  assert.deepEqual(lab.exclude, ['svg[role="application"] text']);
+  assert.deepEqual(lab.scenes.map((scene) => scene.include ?? null), [null], 'the page itself is audited');
+  const scenes = executableSource(readFileSync(new URL('../browser/accessibilityTeacherScreens.mjs', import.meta.url), 'utf8'));
+  const open = region(scenes, 'const openMathToolsLab = async (page) => {', '\n};', 'the Lab\'s opener');
+  assert.match(open, /openDestination\('Math Tools Lab', \/\^Math Tools Lab\$\/\)\(page\)/);
+  assert.match(open, /getByRole\('button', \{ name: \/Close full screen\/ \}\)/);
+  assert.match(open, /if \(await close\.count\(\)\)/, 'only when it is open: a phone has none');
+});
+
+// The four scenes whose callables the harness now answers (fakeAdminScreens.js) are registered without replacing a callable
+// fakeFunctions.js implements itself.
+test('the Classroom and administrator callables are registered after the harness\'s own, and never over them', () => {
+  const fakes = readFileSync(new URL('../browser/teacherWorkflow/fakeFunctions.js', import.meta.url), 'utf8');
+  assert.match(fakes, /import \{ adminScreenHandlers \} from '\.\/fakeAdminScreens\.js';/);
+  assert.match(fakes, /Object\.entries\(adminScreenHandlers\)\.forEach\(\(\[name, handler\]\) => \{ if \(!handlers\[name\]\) handlers\[name\] = handler; \}\);/);
+});
+

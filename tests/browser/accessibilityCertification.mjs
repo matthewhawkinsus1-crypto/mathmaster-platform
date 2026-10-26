@@ -365,6 +365,7 @@ const main = async () => {
   const results = [];
   const unreachable = [];
   const titleFailures = [];
+  const harnessBanners = [];
   let blocked = 0;
 
   for (const viewport of VIEWPORTS) {
@@ -431,6 +432,11 @@ const main = async () => {
         if (screen.harness === 'app') {
           const title = await page.title();
           if (!/ – MathMaster$/.test(title) || /vite|react/i.test(title)) titleFailures.push(`${label}|${viewport.id}: page title "${title}" does not name the screen`);
+          // The harness fails a callable it has no fake for, and the screen says so in its own banner. A scene
+          // that audits that banner audits an error and not the screen: give the harness the fake (TT27).
+          if (await page.evaluate(() => /has no fake for the callable/.test(document.body?.innerText || '')).catch(() => false)) {
+            harnessBanners.push(`${label}|${viewport.id}: the screen shows the harness's "no fake for the callable" banner`);
+          }
         }
         const total = Object.values(audit.counts).reduce((sum, count) => sum + count, 0);
         console.log(`${ratchetFailed(verdict) && !WRITE ? 'FAIL' : 'ok  '} ${label.padEnd(32)} ${viewport.id.padEnd(8)} ${Object.keys(audit.counts).length} rule(s), ${total} node(s)`);
@@ -498,7 +504,11 @@ const main = async () => {
     console.error(`\n${titleFailures.length} screen(s) without a page title naming them (WCAG 2.4.2):`);
     titleFailures.forEach((line) => console.error(`  - ${line}`));
   }
-  if (failed || unreachable.length || titleFailures.length) {
+  if (harnessBanners.length) {
+    console.error(`\n${harnessBanners.length} scene(s) audit the harness's error banner and not the screen (add the callable to tests/browser/teacherWorkflow/fakeAdminScreens.js or fakeFunctions.js):`);
+    harnessBanners.forEach((line) => console.error(`  - ${line}`));
+  }
+  if (failed || unreachable.length || titleFailures.length || harnessBanners.length) {
     console.error(`\nAccessibility certification FAILED. Report: ${path.relative(repo, path.join(artifacts, 'report.json'))}`);
     process.exitCode = 1;
   } else {

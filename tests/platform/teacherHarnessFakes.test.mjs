@@ -222,6 +222,52 @@ test('the callables the journeys reach answer as their real functions do — sha
   }
 });
 
+// TT27: Google Classroom and three of the administrator's sections used to draw this harness's "no fake for the callable"
+// banner where their content goes, so the accessibility scenes that open them audited an error. fakeAdminScreens.js answers
+// what they read, over invented data, in the deployed callables' shapes; the one destructive callable only previews.
+test('the Classroom and administrator screens read callables the harness answers, and the reset only previews', async () => {
+  const functions = await loadFake('fakeFunctions.js', '?reset=1', 'adminScreens');
+  const store = (await import('../browser/teacherWorkflow/fakeFirestore.js')).harnessStore;
+  const { default: PATH_WEB_RELEASE } = await import('../../src/platform/path/pathRelease.js');
+  const call = (name, data) => functions.httpsCallable(functions.getFunctions(), name)(data).then((result) => result.data);
+
+  // The audit log: functions/index.js listAdminAuditLog's events, newest first, no more than the limit.
+  const audit = await call('listAdminAuditLog', { limit: 2 });
+  assert.equal(audit.events.length, 2);
+  assert.deepEqual(Object.keys(audit.events[0]).sort(), ['action', 'actorEmail', 'createdAt', 'id', 'target']);
+  assert.ok(Date.parse(audit.events[0].createdAt) > Date.parse(audit.events[1].createdAt), 'newest first');
+  assert.ok((await call('listAdminAuditLog', {})).events.length > 2, 'and more than two when it is not limited');
+
+  // The reset: a preview of what the harness holds; asked to delete, it refuses and the roster is still there.
+  const roster = store.paths('grades/').filter((path) => path.split('/').length === 2 && path !== 'grades/test_connection').length;
+  assert.ok(roster > 0, 'the fixture has a roster');
+  const preview = await call('resetPreproductionTestData', { dryRun: true });
+  assert.equal(preview.dryRun, true);
+  assert.equal(preview.studentRosterRecords, roster);
+  assert.equal(preview.confirmationRequired, 'RESET TEST DATA');
+  assert.equal(preview.lockConfirmationRequired, 'LOCK FOR PRODUCTION');
+  assert.equal(preview.resetLocked, false);
+  assert.ok(preview.preservedCollections.length > 0 && preview.collections.assignments === preview.assignments);
+  await assert.rejects(
+    call('resetPreproductionTestData', { dryRun: false, confirmation: 'RESET TEST DATA' }),
+    (error) => error.code === 'functions/failed-precondition',
+  );
+  assert.equal(store.paths('grades/').filter((path) => path.split('/').length === 2 && path !== 'grades/test_connection').length, roster, 'nothing was deleted');
+
+  // The Path screens compare the server's release with this browser bundle's: the same, so no mismatch is shown.
+  const runtime = await call('getPathRuntimeStatus', {});
+  assert.equal(runtime.release, PATH_WEB_RELEASE);
+  assert.ok(runtime.bankCount > 0 && runtime.starterAvailable === true);
+  const release = await call('getCoursePathReleaseStatusV2', {});
+  assert.equal(release.status, 'current');
+  assert.equal(release.activeReleaseId, release.deployed.releaseId);
+
+  // A teacher who has not connected Google Classroom, with nothing published and no grade passback yet.
+  assert.deepEqual(await call('getClassroomConnectionStatus', {}), { connected: false, needsReconnect: false, missingScopes: [] });
+  assert.deepEqual(await call('listPublishedAssignments', {}), { links: [] });
+  assert.deepEqual(await call('listClassroomGradeSyncs', {}), { syncs: [], pushQueue: { waiting: 0 } });
+});
+
 // Every name the app imports from a Firebase module, from every file under src/.
 const appImports = (moduleName) => {
   const names = new Set();

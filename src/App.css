@@ -450,6 +450,13 @@
   .mm-dashboard-content {
     padding: 18px 14px !important;
   }
+
+  /* The Math Tools Lab's tool list sticks beside the tool on a wide screen. Stacked above the
+     tool, as it is here, it stuck over the tool as the page scrolled and covered the control
+     Tab had just reached (TT27). */
+  .mm-dashboard-content .mm-tools-lab-list {
+    position: static !important;
+  }
 }
 
 @media (max-width: 560px) {

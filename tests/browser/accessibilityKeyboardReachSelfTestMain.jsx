@@ -119,6 +119,26 @@ const PLANTS = {
       <button type="button">Also behind</button>
     </>
   ),
+  // A modal with one control, as the Find palette is: Tab has nowhere to go, and the dialog holds it there.
+  singleControlDialog: () => (
+    <>
+      <button type="button">Behind the dialog</button>
+      <Dialog aria-label="Find" onClose={noop}>
+        <input aria-label="Search" type="search" />
+        <ul role="listbox" aria-label="Results"><li role="option" aria-selected="false">One result</li></ul>
+      </Dialog>
+    </>
+  ),
+  // A modal with two controls, the last of which Tab will not leave: still a trap, however few controls the walk saw.
+  dialogSwallowsTab: () => (
+    <>
+      <button type="button">Behind the dialog</button>
+      <Dialog aria-label="Stuck" onClose={noop}>
+        <button type="button">Before</button>
+        <input aria-label="Stuck" onKeyDown={(event) => { if (event.key === 'Tab') event.preventDefault(); }} />
+      </Dialog>
+    </>
+  ),
   // A modal that does not: aria-modal, and Tab walks out of it into the page.
   leakyDialog: () => (
     <>
