@@ -300,6 +300,9 @@ const STEPS_FLOOR = Object.freeze({
   'ccmr-v5:act': 136, 'ccmr-v5:digitalSAT': 648, 'ccmr-v5:tsia2': 200,
   drafts: 3295,
   'v5:algebra1-dol1/District_DOL1_Technology_Graph_Analysis_Review.json': 25,
+  // CT02 slice 4: Lesson 2's 14 answer-only items (12 multi-answer, a table and
+  // a sort) carry their own worked solutions (kSteps_lessonWorkedSteps).
+  'v5:algebra1-module2-topic2/L2_Vertical_and_Horizontal_Transformations_of_Linear_Functions.json': 29,
   // CT02 slice 3: the perpendicularLines family's worked solutions of Lesson 3
   // (25 here and 23 in Honors, beside the three graphing2 tool reviews and the
   // two audited Honors items). Slice 4: l3-wu-2, whose points are in the item
@@ -329,7 +332,7 @@ const STEPS_FLOOR = Object.freeze({
   // their own worked solution (kSteps_demoWorkedSteps); 26 have the family's.
   demo: 70,
 });
-const STEPS_TOTAL_FLOOR = 7999 + 336 + 832 + 14 + 48 + 44 + 2 + 832 + 1;
+const STEPS_TOTAL_FLOOR = 7999 + 336 + 832 + 14 + 48 + 44 + 2 + 832 + 1 + 14;
 const FROM_FAMILY_FLOOR = 119 + 14 + 48;
 // Where a worked-solution builder (not a support family) writes the steps: the
 // DOL #2 review, retest and corrections, every variant, and nothing else it

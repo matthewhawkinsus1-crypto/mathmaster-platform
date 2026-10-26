@@ -1,8 +1,7 @@
 /*
  * JOB K (CT02, slice 4) — WORKED STEPS WRITTEN INTO THE LESSON FILES.
  *
- * A closed question that no support family can work, because what it asks
- * rests on something the item itself does not show, carries its own
+ * A closed question that no support family can work carries its own
  * solutionReview in its lesson file. Once the question closes the review panel
  * shows it as the item's steps (closedQuestionReview.js: authored steps win,
  * and no family or builder is asked). The items:
@@ -14,6 +13,12 @@
  *             The Honors file is rebuilt from the Regular one by
  *             scripts/content/build-algebra1-l3-honors.mjs
  *             (algebra1L3HonorsFile.test.mjs checks the bytes).
+ *   Lesson 2  Algebra I M2 T2 Lesson 2 (vertical and horizontal transformations
+ *             of linear functions): its 12 multi-answer items, its table
+ *             (l2-cw-9) and its sort of graphs (l2-pr-8). Each asks why a move
+ *             or a stretch is written where it is, in words no family reads; the
+ *             steps work each part from the functions and points the student
+ *             was shown, or plotted in the item before.
  *
  * Checked here with this file's own reading (mathjs fractions), never a
  * family's helpers:
@@ -22,12 +27,15 @@
  *     QuestionEngine), and nothing in it is cut short by the support bundle's
  *     limits (8 steps of at most 400 characters, a 160-character headline, a
  *     240-character summary: pathSolutionSupport.buildPrivateSupport);
- *   - each part's answer is stated in its own step, a choice in its own words,
- *     and the part's grader (gradeMultiAnswerResponse) marks every stated answer
- *     right; the summary states the same answers;
- *   - every "=" a step writes is a claim checked here as exact arithmetic, and
- *     each step's numbers are the points it names: the givens the student was
- *     shown, and the images the turn rules give;
+ *   - each part's answer is stated in its own step, a choice in its own words
+ *     and naming no other choice, and the part's own grader marks every stated
+ *     answer right (gradeMultiAnswerResponse; gradeTableResponse for a table;
+ *     the composed-workflow grader for a sort); the summary states the same;
+ *   - every "=" the headline, a step or the summary writes is either a claim
+ *     checked here — exact arithmetic, an identity in x (and m, n, b) at many
+ *     values with the item's own functions, or an equation at its solution — or
+ *     a given quoted from what the item shows (its prompt, labels and choices);
+ *     and the numbers are the student's: the points they plotted or were shown;
  *   - nothing changes while the item is open: the review names no common error
  *     (FB04 says a common error's mistake half on a miss), and the hints and the
  *     back-up step are the same with or without it.
@@ -38,7 +46,11 @@
  *   - the pattern step stating "the reciprocal only" → the part check;
  *   - a common error added → the whole-review and open-item checks;
  *   - the review removed from the Regular file only → algebra1L3HonorsFile and every check here;
- *     from both files → the inventory's floors and afterLastMiss's Pre-Flight count.
+ *     from both files → the inventory's floors and afterLastMiss's Pre-Flight count;
+ *   - Lesson 2: a simplification's last line changed ("2x + 7" to "2x + 8"), a
+ *     solved equation's value changed ("x = 15/2" to "x = 15/4"), a step naming
+ *     a second choice, a sort step sending a graph to the wrong equation, a
+ *     table cell changed, an unchecked "=" added → each the matching check.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -56,26 +68,56 @@ import { normalizeContextualQuestion } from '../../src/platform/context/wordProb
 import { buildQuestionHints } from '../../src/platform/supports/hints/questionHints.js';
 import { backUpStepFor } from '../../src/platform/supports/feedback/backUpStep.js';
 import { buildPrivateSupport } from '../../functions/shared/pathSolutionSupport.mjs';
-import { gradeMultiAnswerResponse } from '../../functions/shared/ordinaryResponseGrading.mjs';
+import { gradeMultiAnswerResponse, gradeTableResponse, tableEditableKeys } from '../../functions/shared/ordinaryResponseGrading.mjs';
+import { gradeComposedWorkflowWork } from '../../functions/shared/serverGrading/questionGraders/composedWorkflow.mjs';
+import { buildFigureMatchResponse, figureLabel, figureNoun } from '../../functions/shared/toolMath/workflow/figureMatch.mjs';
+import { readComposedQuestion } from '../../functions/shared/toolMath/workflow/questionWorkflow.mjs';
 
 const ROOT = new URL('../../', import.meta.url);
 const read = (relative) => readFileSync(new URL(relative, ROOT), 'utf8');
 const math = create(all, { number: 'Fraction' });
 const ascii = (value) => String(value ?? '').replace(/[−–]/g, '-');
 const text = (value) => String(value ?? '').trim();
+const lower = (value) => text(value).toLowerCase();
 const F = (value) => math.fraction(ascii(value).replace(/[()\s]/g, ''));
-/** An arithmetic expression as a step writes it: −, ÷, × and fractions. */
-const evaluate = (expression) => math.evaluate(ascii(expression).replace(/÷/g, '/').replace(/[×·]/g, '*'));
-/** Every side of "a = b = c" is the same exact number. */
-const holds = (claim) => {
-  const values = claim.split('=').map(evaluate);
-  return values.every((value) => math.equal(value, values[0]));
+const count = (haystack, needle) => haystack.split(needle).length - 1;
+
+/* ------------------------------------------------------------ reading a claim */
+
+/*
+ * A claim as a step writes it ("j(x + 4) = 2(x + 4) − 1 = 2x + 7", "0 = 3x − 8",
+ * "(5/8) × (−8/5) = −1"), read by mathjs with the item's own functions. A
+ * single-letter variable before "(" is a product (m(x − n) is m·(x − n)), and
+ * letters written together are a product (mn, mx).
+ */
+const VARIABLES = ['x', 'm', 'n', 'b'];
+const SAMPLES = Object.freeze({ x: ['-3', '0', '1/2', '2', '7'], m: ['-2', '1/3', '3'], n: ['-1', '2', '5/2'], b: ['-4', '0', '3/5'] });
+const prepare = (expression, functions) => {
+  let out = ascii(expression).replace(/÷/g, '/').replace(/[×·]/g, '*');
+  out = out.replace(/\b([a-z]{2,})\b/g, (word) => ([...word].every((letter) => VARIABLES.includes(letter)) ? [...word].join('*') : word));
+  out = out.replace(/\b([a-z])\s*\(/g, (match, letter) => (functions.includes(letter) ? match : `${letter}*(`));
+  return out;
+};
+const scopesFor = (variables) => variables.reduce((scopes, name) => scopes.flatMap((scope) => SAMPLES[name].map((value) => ({ ...scope, [name]: value }))), [{}]);
+/** Every side of the claim is the same value at every scope: given ones, or every sampled value of its letters. */
+const claimHolds = (claim, { define = [], at = null } = {}) => {
+  const functions = define.map((definition) => /^([a-z])\(/.exec(definition)[1]);
+  const sides = claim.split('=').map((side) => prepare(side, functions));
+  const used = VARIABLES.filter((name) => sides.some((side) => new RegExp(`(^|[^a-z])${name}([^a-z(]|$)`).test(side)));
+  return (at || scopesFor(used)).every((values) => {
+    const scope = new Map();
+    define.forEach((definition) => math.evaluate(definition, scope));
+    Object.entries(values).forEach(([name, value]) => scope.set(name, F(value)));
+    const results = sides.map((side) => math.evaluate(side, scope));
+    return results.every((value) => math.equal(value, results[0]));
+  });
 };
 
 /* ------------------------------------------------------------ the items, as a student meets them */
 
 const L3 = 'teacher-import-jsons/algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines.json';
 const L3_HONORS = 'teacher-import-jsons/algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines_Honors.json';
+const L2 = 'teacher-import-jsons/algebra1-module2-topic2/L2_Vertical_and_Horizontal_Transformations_of_Linear_Functions.json';
 
 // As the inventory resolves them: the import compiler's questions.
 const asInventory = (path) => parseAssignmentBlueprintText(read(path)).questions;
@@ -90,31 +132,32 @@ const authoredIn = (path, questionId) => JSON.parse(read(path)).sections
   .flatMap((section) => section.questions)
   .find((question) => question.questionId === questionId);
 
-/*
- * Each item: the step that states each part's answer, and the words it states
- * them in; every "=" its steps write, as the claim this file checks; what its
- * summary states; and anything else to check that only this item says.
- */
 const TURNS = Object.freeze({
   '90° counterclockwise': { rule: '(−y, x)', turn: ([x, y]) => [-y, x], key: 'b90' },
   '180°': { rule: '(−x, −y)', turn: ([x, y]) => [-x, -y], key: 'b180' },
   '270° counterclockwise': { rule: '(y, −x)', turn: ([x, y]) => [y, -x], key: 'b270' },
 });
-const pointText = ([x, y]) => `(${String(x).replace('-', '−')}, ${String(y).replace('-', '−')})`;
+const shownNumber = (value) => {
+  const fraction = math.fraction(value);
+  return math.format(fraction, { fraction: 'ratio' }).replace(/\/1$/, '').replace('-', '−');
+};
+const pointText = ([x, y]) => `(${shownNumber(x)}, ${shownNumber(y)})`;
+const stepOf = (review, at) => (at === 'headline' ? review.headline : at === 'summary' ? review.answerSummary : review.reasoning[at]);
 
+/*
+ * Each item: the step that states each part's answer, and the words it states
+ * it in (a sort: each figure's category; a table: each cell); its own
+ * functions, as its prompt defines them; every "=" its review writes, as a
+ * claim checked here (at given values, or at every sampled value) or as a
+ * given it quotes; what its summary states; and anything else to check that
+ * only this item says.
+ */
 const ITEMS = Object.freeze([
   {
     files: [L3, L3_HONORS],
     questionId: 'l3-wu-2',
-    parts: {
-      ab: [0, '5/8'],
-      ab90: [1, '−8/5'],
-      ab180: [2, '5/8'],
-      ab270: [3, '−8/5'],
-      pattern90: [4, 'the negative reciprocal'],
-      pattern180: [5, 'the same'],
-    },
-    arithmetic: [
+    parts: { ab: [0, '5/8'], ab90: [1, '−8/5'], ab180: [2, '5/8'], ab270: [3, '−8/5'], pattern90: [4, 'the negative reciprocal'], pattern180: [5, 'the same'] },
+    claims: [
       [0, '(5 − 0) ÷ (8 − 0) = 5/8'],
       [1, '(8 − 0) ÷ (−5 − 0) = −8/5'],
       [2, '(−5 − 0) ÷ (−8 − 0) = 5/8'],
@@ -137,7 +180,7 @@ const ITEMS = Object.freeze([
       assert.match(warmUp.prompt, /A\(0, 0\) and B\(8, 5\)/, 'the warm-up before it shows A and B');
       const B = [8, 5];
       assert.ok(review.reasoning[0].includes(`A(0, 0) to B${pointText(B)}`), 'AB is the warm-up\'s segment');
-      const slopeFrom = (point) => `(${pointText([point[1], 0]).slice(1, -1).replace(', ', ' − ')}) ÷ (${pointText([point[0], 0]).slice(1, -1).replace(', ', ' − ')})`;
+      const slopeFrom = ([x, y]) => `(${shownNumber(y)} − 0) ÷ (${shownNumber(x)} − 0)`;
       assert.ok(review.reasoning[0].includes(slopeFrom(B)), 'AB\'s slope is rise over run to B');
       Object.entries(TURNS).forEach(([name, { rule, turn, key }], index) => {
         const step = review.reasoning[index + 1];
@@ -156,6 +199,223 @@ const ITEMS = Object.freeze([
       assert.ok(math.equal(F(flip[1]), F('5/8')) && math.equal(F(flip[3].replace(/,$/, '')), F('-8/5')), 'from AB\'s slope to A′B′\'s');
     },
   },
+  {
+    files: [L2],
+    questionId: 'l2-wu-2',
+    parts: { domain: [0, 'All real numbers'], range: [1, 'All real numbers'], xint: [2, '(8/3, 0)'], yint: [3, '(0, −8)'], slope: [4, '3'], behavior: [5, 'Increasing'] },
+    define: ['g(x) = 3x - 8'],
+    givens: [['headline', 'g(x) = 3x − 8'], [0, 'g(x) = 3x − 8'], [4, 'g(x) = 3x − 8']],
+    claims: [[2, '0 = 3x − 8', [{ x: '8/3' }]], [2, '3x = 8', [{ x: '8/3' }]], [2, 'x = 8/3', [{ x: '8/3' }]], [3, 'g(0) = 3(0) − 8 = −8']],
+    summary: [['x-intercept (8/3, 0)', ['xint']], ['y-intercept (0, −8)', ['yint']], ['slope 3', ['slope']]],
+  },
+  {
+    files: [L2],
+    questionId: 'l2-wu-3',
+    parts: { domain: [0, 'All real numbers'], range: [1, 'All real numbers'], xint: [2, '(15/2, 0)'], yint: [3, '(0, 5)'], slope: [4, '−2/3'], behavior: [5, 'Decreasing'] },
+    define: ['h(x) = -(2/3)x + 5'],
+    givens: [['headline', 'h(x) = −(2/3)x + 5'], [0, 'h(x) = −(2/3)x + 5'], [4, 'h(x) = −(2/3)x + 5']],
+    claims: [
+      [2, '0 = −(2/3)x + 5', [{ x: '15/2' }]], [2, '0 = −2x + 15', [{ x: '15/2' }]], [2, '2x = 15', [{ x: '15/2' }]], [2, 'x = 15/2', [{ x: '15/2' }]],
+      [3, 'h(0) = −(2/3)(0) + 5 = 5'],
+    ],
+    summary: [['x-intercept (15/2, 0)', ['xint']], ['y-intercept (0, 5)', ['yint']], ['slope −2/3', ['slope']]],
+  },
+  {
+    files: [L2],
+    questionId: 'l2-cw-3',
+    parts: { hInputs: [0, 'Input values (x)'], vOutputs: [1, 'Output values (y)'], tTerms: [2, 'f(x + 3)'], wTerms: [3, 'f(x) + 3'], tSimplified: [4, 'x + 3'], compare: [5, 'They are the same line.'] },
+    define: ['f(x) = x', 't(x) = f(x + 3)', 'w(x) = f(x) + 3'],
+    givens: [[4, 'f(x) = x'], ['summary', 'f(x) = x']],
+    claims: [[4, 'f(x + 3) = x + 3'], [4, 't(x) = x + 3'], [5, 'w(x) = f(x) + 3 = x + 3']],
+    // The point the student plotted from (0, 0) in each of the two graphs before (l2-cw-1, l2-cw-2).
+    check: ({ path, review }) => {
+      const questions = asInventory(path);
+      const plotted = (id) => questions.find((question) => question.questionId === id);
+      // A translation by h and k sends (0, 0) to (h, k).
+      const imageOfOrigin = (id) => { const { h = 0, k = 0 } = plotted(id).function; return [h, k]; };
+      assert.ok(plotted('l2-cw-1').sourcePoints.some((point) => point.x === 0 && point.y === 0), '(0, 0) is one of the points the student moved');
+      assert.match(plotted('l2-cw-1').prompt, /LEFT 3 units/);
+      assert.ok(review.reasoning[0].includes(`the point (0, 0) to ${pointText(imageOfOrigin('l2-cw-1'))}`), review.reasoning[0]);
+      assert.match(plotted('l2-cw-2').prompt, /UP 3 units/);
+      assert.ok(review.reasoning[1].includes(`(0, 0) to ${pointText(imageOfOrigin('l2-cw-2'))}`), review.reasoning[1]);
+    },
+  },
+  {
+    files: [L2],
+    questionId: 'l2-cw-5',
+    parts: { qTerms: [0, 'j(x) + 4'], rTerms: [1, 'j(x + 4)'], qSimplified: [2, '2x + 3'], rSimplified: [3, '2x + 7'], same: [4, 'No, they are parallel lines.'], upEquivalent: [5, '8'] },
+    define: ['j(x) = 2x - 1', 'q(x) = j(x) + 4', 'r(x) = j(x + 4)'],
+    givens: [['headline', 'j(x) = 2x − 1']],
+    claims: [
+      [2, 'j(x) + 4 = (2x − 1) + 4 = 2x + 3'], [3, 'j(x + 4) = 2(x + 4) − 1 = 2x + 8 − 1 = 2x + 7'],
+      [4, 'q(x) = 2x + 3'], [4, 'r(x) = 2x + 7'], [5, 'r(x) = 2x + 7 = (2x − 1) + 8 = j(x) + 8'],
+      ['summary', 'q(x) = j(x) + 4 = 2x + 3'], ['summary', 'r(x) = j(x + 4) = 2x + 7'],
+    ],
+  },
+  {
+    files: [L2],
+    questionId: 'l2-cw-6',
+    parts: { uSimplified: [0, '2x − 5'], vSimplified: [1, '2x − 3'], same: [2, 'No — they are parallel lines 2 units apart.'], rule: [3, 'Only when the slope is 1'] },
+    define: ['j(x) = 2x - 1', 'u(x) = j(x - 2)', 'v(x) = j(x) - 2'],
+    claims: [
+      [0, 'j(x − 2) = 2(x − 2) − 1 = 2x − 4 − 1 = 2x − 5'], [1, 'j(x) − 2 = (2x − 1) − 2 = 2x − 3'], [2, '−3 − (−5) = 2'],
+      [3, 'm(x − n) + b = mx + b − mn'], ['summary', 'u(x) = 2x − 5'], ['summary', 'v(x) = 2x − 3'],
+    ],
+    // The intercepts the comparison reads are u(0) and v(0).
+    check: ({ review }) => {
+      assert.ok(review.reasoning[2].includes('u(x) crosses the y-axis at −5 and v(x) at −3'), review.reasoning[2]);
+      assert.ok(claimHolds('u(0) = −5', { define: ['j(x) = 2x - 1', 'u(x) = j(x - 2)'] }) && claimHolds('v(0) = −3', { define: ['j(x) = 2x - 1', 'v(x) = j(x) - 2'] }));
+    },
+  },
+  {
+    files: [L2],
+    questionId: 'l2-cw-9',
+    kind: 'table',
+    parts: {
+      '0:cx': [0, '−8/5'], '1:cx': [1, '−4/5'], '2:cx': [1, '0'], '3:cx': [1, '4/5'], '4:cx': [1, '8/5'],
+      '0:dx': [2, '−5/2'], '1:dx': [3, '−5/4'], '2:dx': [3, '0'], '3:dx': [3, '5/4'], '4:dx': [3, '5/2'],
+    },
+    claims: [
+      [0, '(4/5)(−2) = −8/5'], [1, '(4/5)(−1) = −4/5'], [1, '(4/5)(0) = 0'], [1, '(4/5)(1) = 4/5'], [1, '(4/5)(2) = 8/5'],
+      [2, '(5/4)(−2) = −5/2'], [3, '(5/4)(−1) = −5/4'], [3, '(5/4)(0) = 0'], [3, '(5/4)(1) = 5/4'], [3, '(5/4)(2) = 5/2'],
+    ],
+    // Each cell's work starts from its own row of the table, by the factor the prompt gives.
+    check: ({ question, review }) => {
+      assert.match(question.prompt, /OUTPUT values of f\(x\) = x by a factor of 4\/5\. d\(x\) changes the INPUT values of f\(x\) = x by a factor of 5\/4\./);
+      question.table.rows.forEach((row, index) => {
+        const where = (column) => review.reasoning[ITEMS.find((item) => item.questionId === 'l2-cw-9').parts[`${index}:${column}`][0]];
+        assert.ok(where('cx').includes(`(4/5)(${shownNumber(row.fx)}) = `), `row ${index}: c from f(x) = ${row.fx}`);
+        assert.ok(where('dx').includes(`(5/4)(${shownNumber(row.x)}) = `), `row ${index}: d from x = ${row.x}`);
+        assert.equal(row.dy, row.fx, `row ${index}: d(x) keeps the output`);
+      });
+    },
+  },
+  {
+    files: [L2],
+    questionId: 'l2-cw-10',
+    parts: {
+      abSame: [0, 'They are the same line, y = 2x.'], cdSame: [1, 'They are the same line, y = (4/5)x.'], factor: [2, '1/n'],
+      twoJ: [3, '4x − 2'], jTwoX: [4, '4x − 1'], holds: [5, 'linear functions whose graphs pass through the origin'],
+    },
+    define: ['f(x) = x', 'a(x) = 2f(x)', 'c(x) = (4/5)f(x)', 'j(x) = 2x - 1'],
+    givens: [['headline', 'f(x) = x'], ['headline', 'j(x) = 2x − 1'], [0, 'y = 2x'], [1, 'y = (4/5)x'], ['summary', 'y = 2x'], ['summary', 'y = (4/5)x']],
+    claims: [
+      [0, 'a(x) = 2f(x) = 2x'], [0, '2 ÷ 1 = 2'], [1, 'c(x) = (4/5)f(x) = (4/5)x'], [1, '2 ÷ (5/2) = 4/5'], [2, 'n·f(x) = nx'],
+      [3, '2·j(x) = 2(2x − 1) = 4x − 2'], [4, 'j(2x) = 2(2x) − 1 = 4x − 1'], [5, '2 × (−1) = −2'],
+      ['summary', '2·j(x) = 4x − 2'], ['summary', 'j(2x) = 4x − 1'],
+    ],
+    // b(x) and d(x) are the graphs the student made: inputs × 1/2 (l2-cw-8) and the table's last row (l2-cw-9).
+    check: ({ path, review }) => {
+      const questions = asInventory(path);
+      const b = questions.find((question) => question.questionId === 'l2-cw-8');
+      assert.match(b.prompt, /INPUT values of f\(x\) = x by a factor of 1\/2 to create b\(x\)/);
+      assert.equal(b.function.b, 2, 'b(x) = f(2x): (x, y) lands at (x/2, y)');
+      assert.ok(review.reasoning[0].includes('(2, 2) lands at (1, 2)'), review.reasoning[0]);
+      const table = questions.find((question) => question.questionId === 'l2-cw-9').table;
+      assert.equal(table.answers['4:dx'], '5/2');
+      assert.equal(table.rows[4].dy, 2);
+      assert.ok(review.reasoning[1].includes('d moved (2, 2) to (5/2, 2)'), review.reasoning[1]);
+    },
+  },
+  {
+    files: [L2],
+    questionId: 'l2-pr-7',
+    parts: {
+      p1kind: [0, 'Right'], p1amt: [0, '7'], p2kind: [1, 'Vertical stretch'], p2amt: [1, '3'],
+      p4kind: [2, 'Horizontal stretch'], p4amt: [2, '2'], p6kind: [3, 'Left'], p6amt: [3, '5'],
+    },
+    givens: [[0, 'g(x) = f(x − 7)'], [1, 'g(x) = 3f(x)'], [2, 'g(x) = f((1/2)x)'], [3, 'g(x) = f(x + 5)']],
+    claims: [
+      [0, 'x − 7 = 0', [{ x: '7' }]], [0, 'x = 7', [{ x: '7' }]], [2, '(1/2)x = 1', [{ x: '2' }]], [2, 'x = 2', [{ x: '2' }]],
+      [3, 'x + 5 = 0', [{ x: '-5' }]], [3, 'x = −5', [{ x: '-5' }]],
+    ],
+    // Where each move takes a point of f(x) = x, by the function the student graphed before.
+    check: ({ path, review }) => {
+      const graphed = (expression) => asInventory(path).find((question) => question.prompt?.includes(`Graph g(x) = ${expression} by plotting`)).function;
+      const image = (fn, [x, y]) => [x / (fn.b ?? 1) + (fn.h ?? 0), (fn.a ?? 1) * y + (fn.k ?? 0)];
+      assert.ok(review.reasoning[0].includes(`moves to ${pointText(image(graphed('f(x − 7)'), [0, 0]))}`));
+      assert.ok(review.reasoning[2].includes(`the point (1, 1) moves to ${pointText(image(graphed('f((1/2)x)'), [1, 1]))}`));
+      assert.ok(review.reasoning[3].includes(`moves to ${pointText(image(graphed('f(x + 5)'), [0, 0]))}`));
+      assert.equal(graphed('3f(x)').a, 3, 'the vertical factor is 3');
+    },
+  },
+  {
+    files: [L2],
+    questionId: 'l2-pr-8',
+    kind: 'figureMatch',
+    parts: { k: [0, 'f(x) + 8'], h: [1, '2f(x)'], g: [2, '(1/2)f(x)'], j: [3, 'f(x − 7)'] },
+    givens: [['headline', 'f(x) = x']],
+    // Each figure's step reads its slope and an intercept off the graph drawn, and the line it names is that graph.
+    check: ({ question, review }) => {
+      const [stage] = readComposedQuestion(question).workflow;
+      stage.items.forEach((item, index) => {
+        const step = review.reasoning[index];
+        const name = figureLabel(index, figureNoun(stage));
+        assert.ok(step.startsWith(`${name} `), `${name}: ${step}`);
+        const line = (x) => math.evaluate(item.graph.model.replace(/\*x/g, '*x'), { x: F(x) });
+        const slope = math.subtract(line(1), line(0));
+        const intercept = line(0);
+        const said = /slope (\S+?)(?: and|:)/.exec(step);
+        assert.ok(said && math.equal(F(said[1]), slope), `${name}: slope ${shownNumber(slope)}`);
+        if (math.equal(intercept, 0)) assert.match(step, /passes through the origin/, name);
+        else if (step.includes('crosses the y-axis at')) assert.ok(math.equal(F(/crosses the y-axis at (\S+?):/.exec(step)[1]), intercept), name);
+        else assert.ok(math.equal(F(/crosses the x-axis at (\S+?):/.exec(step)[1]), math.divide(math.unaryMinus(intercept), slope)), name);
+        const named = /it is (.+?), /.exec(step)[1];
+        assert.ok(['-3', '0', '2', '5'].every((x) => math.equal(math.evaluate(prepare(named, []), { x: F(x) }), line(x))), `${name} is ${named}`);
+      });
+    },
+  },
+  {
+    files: [L2],
+    questionId: 'l2-pr-11',
+    parts: { correct: [0, 'No — +3 inside the parentheses moves the line left 3.'], vertical: [1, 'Up 3'], simplified: [2, 'x + 3'] },
+    define: ['f(x) = x', 'g(x) = f(x + 3)'],
+    givens: [['summary', 'f(x) = x']],
+    claims: [
+      [0, 'x + 3 = 0', [{ x: '-3' }]], [0, 'x = −3', [{ x: '-3' }]], [1, 'f(x + 3) = x + 3 = f(x) + 3'],
+      [2, 'g(x) = f(x + 3) = x + 3'], ['summary', 'g(x) = x + 3'],
+    ],
+  },
+  {
+    files: [L2],
+    questionId: 'l2-pr-12',
+    parts: { gTerms: [0, 'f(x − 4) + 1'], gSimplified: [1, 'x − 3'], hTerms: [2, '3f(x) − 2'], hSimplified: [3, '3x − 2'] },
+    define: ['f(x) = x', 'g(x) = f(x - 4) + 1', 'h(x) = 3f(x) - 2'],
+    claims: [
+      [1, 'g(x) = f(x − 4) + 1 = (x − 4) + 1 = x − 3'], [3, 'h(x) = 3f(x) − 2 = 3x − 2'],
+      ['summary', 'g(x) = f(x − 4) + 1 = x − 3'], ['summary', 'h(x) = 3f(x) − 2 = 3x − 2'],
+    ],
+  },
+  {
+    files: [L2],
+    questionId: 'l2-pr-13',
+    parts: { pSimplified: [0, '−x + 4'], sSimplified: [1, '−x + 4'], same: [2, 'They are the same line.'], general: [3, 'A vertical shift of m·n units (up if m·n > 0, down if m·n < 0)'] },
+    define: ['j(x) = -x + 6', 'p(x) = j(x + 2)', 's(x) = j(x) - 2'],
+    givens: [['headline', 'j(x) = −x + 6']],
+    claims: [
+      [0, 'p(x) = j(x + 2) = −(x + 2) + 6 = −x − 2 + 6 = −x + 4'], [1, 's(x) = j(x) − 2 = (−x + 6) − 2 = −x + 4'],
+      [3, 'm(x + n) + b = mx + b + mn'],
+    ],
+  },
+  {
+    files: [L2],
+    questionId: 'l2-dol-2',
+    parts: { describe: [0, 'Right 2'], simplified: [1, '3x − 5'], vertical: [2, 'Down 6'] },
+    define: ['j(x) = 3x + 1', 'r(x) = j(x - 2)'],
+    givens: [['headline', 'j(x) = 3x + 1']],
+    claims: [
+      [0, 'x − 2 = 0', [{ x: '2' }]], [0, 'x = 2', [{ x: '2' }]], [1, 'r(x) = j(x − 2) = 3(x − 2) + 1 = 3x − 6 + 1 = 3x − 5'],
+      [2, '3x − 5 = (3x + 1) − 6 = j(x) − 6'], ['summary', 'r(x) = 3x − 5'],
+    ],
+  },
+  {
+    files: [L2],
+    questionId: 'l2-dol-3',
+    parts: { changes: [0, 'input values (x-coordinates)'], sameAs4f: [1, 'f(4x)'], leftN: [2, 'moving it up n units'] },
+    define: ['f(x) = x'],
+    givens: [['headline', 'f(x) = x'], [1, 'f(x) = x']],
+    claims: [[1, '4f(x) = 4x'], [1, 'f(4x) = 4x'], [2, 'f(x + n) = x + n = f(x) + n']],
+  },
 ]);
 
 const everyCopy = ITEMS.flatMap((item) => item.files.flatMap((path) => [['inventory', asInventory(path)], ['device', asDevice(path)]]
@@ -163,10 +423,21 @@ const everyCopy = ITEMS.flatMap((item) => item.files.flatMap((path) => [['invent
 
 const reviewOf = (question) => buildClosedQuestionReview({ question, isToolQuestion: false, wasCorrect: false, legacyContent: () => ({ hasContent: true }) });
 
+/** Everything the item shows: its prompt, every label, every choice, every category. */
+const visibleText = (question) => {
+  const composed = readComposedQuestion(question);
+  return [
+    question.prompt,
+    ...(question.answerFields || []).flatMap((field) => [field.label, ...(field.options || [])]),
+    ...(composed?.workflow || []).flatMap((stage) => [stage.prompt, ...(stage.categories || []).map((category) => category.label)]),
+  ].map(text).join('\n');
+};
+
 /* ------------------------------------------------------------ the tests */
 
 test('the closed review shows each item\'s own worked steps, in every copy, whole', () => {
   assert.equal(everyCopy.length, ITEMS.reduce((sum, item) => sum + item.files.length * 2, 0));
+  assert.equal(ITEMS.filter((item) => item.files.includes(L2)).length, 14, 'the 14 Lesson 2 items');
   for (const { item, path, source, question } of everyCopy) {
     assert.ok(question, `${source}: found`);
     const authored = authoredIn(path, item.questionId).solutionReview;
@@ -185,53 +456,94 @@ test('the closed review shows each item\'s own worked steps, in every copy, whol
   }
 });
 
-test('each part\'s answer is stated in its own step, and the part\'s grader marks every one right', () => {
+/** Each part, its stated words, and the choices it must not also name. */
+const partsOf = (item, question) => {
+  if (item.kind === 'table') return tableEditableKeys(question).map((id) => ({ id, options: [] }));
+  if (item.kind === 'figureMatch') {
+    const [stage] = readComposedQuestion(question).workflow;
+    return stage.items.map((figure) => ({ id: figure.id, options: stage.categories.map((category) => category.label) }));
+  }
+  return question.answerFields.map((field) => ({ id: field.id, label: text(field.label), options: (field.options || []).map(text) }));
+};
+const gradeStated = (item, question, stated) => {
+  if (item.kind === 'table') return gradeTableResponse(question, stated);
+  if (item.kind === 'figureMatch') {
+    const [stage] = readComposedQuestion(question).workflow;
+    const placements = Object.fromEntries(Object.entries(stated).map(([id, label]) => [id, stage.categories.find((category) => category.label === label)?.id]));
+    return gradeComposedWorkflowWork(question, { responses: { [stage.id]: buildFigureMatchResponse(stage, placements) } });
+  }
+  return gradeMultiAnswerResponse(question, stated);
+};
+
+test('each part\'s answer is stated in its own step, naming no other choice, and the part\'s own grader marks every one right', () => {
   for (const { item, source, question } of everyCopy) {
     const review = reviewOf(question).authored;
-    const fields = question.answerFields;
-    assert.deepEqual(Object.keys(item.parts).sort(), fields.map((field) => field.id).sort(), `${source}: every part, and only those`);
-    const responses = {};
-    for (const field of fields) {
-      const [stepIndex, stated] = item.parts[field.id];
-      assert.ok(review.reasoning[stepIndex].includes(stated), `${source}: step ${stepIndex + 1} states "${stated}" for ${field.id}`);
-      const options = (field.options || []).map(text);
-      if (options.length) assert.ok(options.includes(stated), `${source}: "${stated}" is one of ${field.id}'s choices`);
-      responses[field.id] = stated;
+    const parts = partsOf(item, question);
+    assert.deepEqual(Object.keys(item.parts).sort(), parts.map((part) => part.id).sort(), `${source}: every part, and only those`);
+    const stated = {};
+    for (const part of parts) {
+      const [stepIndex, words] = item.parts[part.id];
+      const step = review.reasoning[stepIndex];
+      if (part.options.length) {
+        assert.ok(part.options.includes(words), `${source}: "${words}" is one of ${part.id}'s choices`);
+        assert.ok(lower(step).includes(lower(words)), `${source}: step ${stepIndex + 1} states "${words}" for ${part.id}`);
+        // A short choice ("Up", "n") is part of too many words to look for, and
+        // a step's lead that is its part's own label ("Increasing or decreasing:") names none.
+        const lead = step.split(': ')[0];
+        const body = part.label && lower(part.label).replace(/[?…\s]+$/, '').startsWith(lower(lead)) ? step.slice(lead.length) : step;
+        part.options.filter((option) => option !== words && option.length > 3 && !lower(words).includes(lower(option)))
+          .forEach((option) => assert.ok(!lower(body).includes(lower(option)), `${source}: step ${stepIndex + 1} also names "${option}"`));
+      } else {
+        assert.ok(step.includes(words), `${source}: step ${stepIndex + 1} states "${words}" for ${part.id}`);
+      }
+      stated[part.id] = words;
     }
-    const grade = gradeMultiAnswerResponse(question, responses);
-    assert.equal(grade.isCorrect, true, `${source}: ${JSON.stringify(grade.parts.filter((part) => !part.isCorrect))}`);
+    const grade = gradeStated(item, question, stated);
+    assert.equal(grade.isCorrect, true, `${source}: ${JSON.stringify(grade.parts?.filter((part) => !part.isCorrect) ?? grade)}`);
     // The summary states the same answers.
-    for (const [phrase, ids] of item.summary) {
+    for (const [phrase, ids] of item.summary || []) {
       assert.ok(review.answerSummary.includes(phrase), `${source}: the summary says "${phrase}"`);
       ids.forEach((id) => {
-        const stated = responses[id];
         const number = /(−?\d+\/\d+|−?\d+)$/.exec(phrase);
-        if (number) assert.ok(math.equal(F(number[1]), F(stated)), `${source}: "${phrase}" is ${id}'s ${stated}`);
-        else assert.ok(phrase.includes(stated), `${source}: "${phrase}" is ${id}'s "${stated}"`);
+        if (number && !/[a-z]\)?$/i.test(stated[id])) assert.ok(math.equal(F(number[1]), F(stated[id])), `${source}: "${phrase}" is ${id}'s ${stated[id]}`);
+        else assert.ok(phrase.includes(stated[id]), `${source}: "${phrase}" is ${id}'s "${stated[id]}"`);
       });
+    }
+    // A sort's summary pairs each figure with its own category.
+    if (item.kind === 'figureMatch') {
+      const [stage] = readComposedQuestion(question).workflow;
+      stage.items.forEach((figure, index) => assert.ok(review.answerSummary.includes(`${figureLabel(index, figureNoun(stage))}: ${stated[figure.id]}`), `${source}: the summary pairs ${figure.id}`));
     }
   }
 });
 
-test('every "=" a step writes is checked arithmetic, and the numbers are the points the student was shown', () => {
+test('every "=" the review writes is a checked claim or a given the item shows, and the numbers are the student\'s', () => {
   let checked = 0;
   for (const entry of everyCopy) {
     const { item, source, question } = entry;
     const review = reviewOf(question).authored;
-    review.reasoning.forEach((step, index) => {
-      const claims = item.arithmetic.filter(([at]) => at === index).map(([, claim]) => claim);
-      claims.forEach((claim) => {
-        assert.ok(step.includes(claim), `${source}: step ${index + 1} writes ${claim}`);
-        assert.ok(holds(claim), `${source}: ${claim}`);
+    const shown = visibleText(question);
+    const locations = ['headline', ...review.reasoning.map((_, index) => index), 'summary'];
+    for (const at of locations) {
+      const line = stepOf(review, at);
+      const claims = (item.claims || []).filter(([where]) => where === at);
+      const givens = (item.givens || []).filter(([where]) => where === at);
+      claims.forEach(([, claim, values]) => {
+        assert.ok(line.includes(claim), `${source}: ${at} writes ${claim}`);
+        assert.ok(claimHolds(claim, { define: item.define || [], at: values || null }), `${source}: ${claim}`);
         checked += 1;
       });
-      const equalsWritten = (step.match(/=/g) || []).length;
-      const equalsChecked = claims.reduce((sum, claim) => sum + (claim.match(/=/g) || []).length, 0);
-      assert.equal(equalsWritten, equalsChecked, `${source}: every "=" in step ${index + 1} is checked: ${step}`);
-    });
+      givens.forEach(([, given]) => {
+        assert.ok(line.includes(given), `${source}: ${at} quotes ${given}`);
+        assert.ok(shown.includes(given), `${source}: "${given}" is what the item shows`);
+      });
+      const written = count(line, '=');
+      const accounted = [...claims, ...givens].reduce((sum, [, piece]) => sum + count(piece, '='), 0);
+      assert.equal(written, accounted, `${source}: every "=" in ${at} is checked: ${line}`);
+    }
     item.check?.({ ...entry, review });
   }
-  assert.ok(checked >= 20, `${checked} claims checked`);
+  assert.ok(checked >= 150, `${checked} claims checked`);
 });
 
 test('the words are plain and short, and nothing changes while the item is open', () => {

@@ -170,6 +170,18 @@
               "The output, g(x)"
             ],
             "correct": "The output, g(x)"
+          },
+          "solutionReview": {
+            "headline": "Read the slope and the y-intercept from g(x) = 3x − 8; the x-intercept is where the output is 0.",
+            "reasoning": [
+              "Domain: g(x) = 3x − 8 is a line, and any number can be put in for x, so the domain is All real numbers.",
+              "Range: the slope is not 0, so the line goes up without end on one side and down without end on the other, and it reaches every output: the range is All real numbers.",
+              "x-intercept: the output is 0 there. 0 = 3x − 8 gives 3x = 8, so x = 8/3: the x-intercept is (8/3, 0).",
+              "y-intercept: the input is 0 there. g(0) = 3(0) − 8 = −8, so the y-intercept is (0, −8).",
+              "Slope: g(x) = 3x − 8 is in the form mx + b, and the number multiplying x is 3, so the slope is 3.",
+              "Increasing or decreasing: the slope 3 is positive, so the line rises from left to right: Increasing."
+            ],
+            "answerSummary": "Domain and range: all real numbers; x-intercept (8/3, 0); y-intercept (0, −8); slope 3; increasing."
           }
         },
         {
@@ -283,6 +295,18 @@
               "h(x) = 0"
             ],
             "correct": "x = 0"
+          },
+          "solutionReview": {
+            "headline": "Read the slope and the y-intercept from h(x) = −(2/3)x + 5; the x-intercept is where the output is 0.",
+            "reasoning": [
+              "Domain: h(x) = −(2/3)x + 5 is a line, and any number can be put in for x, so the domain is All real numbers.",
+              "Range: the slope is not 0, so the line goes up without end on one side and down without end on the other, and it reaches every output: the range is All real numbers.",
+              "x-intercept: the output is 0 there. 0 = −(2/3)x + 5; multiply both sides by 3: 0 = −2x + 15, so 2x = 15 and x = 15/2: the x-intercept is (15/2, 0).",
+              "y-intercept: the input is 0 there. h(0) = −(2/3)(0) + 5 = 5, so the y-intercept is (0, 5).",
+              "Slope: h(x) = −(2/3)x + 5 is in the form mx + b, and the number multiplying x is −2/3, so the slope is −2/3.",
+              "Increasing or decreasing: the slope −2/3 is negative, so the line falls from left to right: Decreasing."
+            ],
+            "answerSummary": "Domain and range: all real numbers; x-intercept (15/2, 0); y-intercept (0, 5); slope −2/3; decreasing."
           }
         }
       ]
@@ -548,6 +572,18 @@
               "Only the equation f(x) = x"
             ],
             "correct": "A table of points for each graph"
+          },
+          "solutionReview": {
+            "headline": "A move left or right changes the inputs and is written inside, with x; a move up or down changes the outputs and is written outside.",
+            "reasoning": [
+              "Moving left or right: left 3 sent the point (0, 0) to (−3, 0). The x-coordinate changed and the y-coordinate stayed, so it changes the Input values (x).",
+              "Moving up or down: up 3 sent (0, 0) to (0, 3). Only the y-coordinate changed, so it changes the Output values (y).",
+              "t(x) in terms of f(x): a move left or right is written inside, with x, and goes the opposite way to its sign, so left 3 is f(x + 3).",
+              "w(x) in terms of f(x): a move up or down is written outside and goes the way its sign says, so up 3 is f(x) + 3.",
+              "Simplify t(x): put x + 3 in for x in f(x) = x: f(x + 3) = x + 3, so t(x) = x + 3.",
+              "Compare: w(x) = f(x) + 3 = x + 3 as well, so t(x) and w(x) have the same graph. They are the same line."
+            ],
+            "answerSummary": "Left 3 is f(x + 3) and up 3 is f(x) + 3; for f(x) = x both are x + 3, the same line."
           }
         },
         {
@@ -698,6 +734,18 @@
               "The outputs"
             ],
             "correct": "The outputs"
+          },
+          "solutionReview": {
+            "headline": "Up 4 adds 4 to the outputs, outside j; left 4 changes the inputs, inside j. Simplify each by putting it into j(x) = 2x − 1.",
+            "reasoning": [
+              "q(x) in terms of j(x): up 4 changes the outputs, so the 4 is added outside: j(x) + 4.",
+              "r(x) in terms of j(x): left 4 changes the inputs, so it is written inside, with the opposite sign: j(x + 4).",
+              "Simplify q(x): j(x) + 4 = (2x − 1) + 4 = 2x + 3.",
+              "Simplify r(x): j(x + 4) = 2(x + 4) − 1 = 2x + 8 − 1 = 2x + 7.",
+              "Same line? q(x) = 2x + 3 and r(x) = 2x + 7 have the same slope, 2, but different y-intercepts, 3 and 7. No, they are parallel lines.",
+              "Up how many units: r(x) = 2x + 7 = (2x − 1) + 8 = j(x) + 8, so moving j(x) left 4 units gives the same graph as moving it up 8 units."
+            ],
+            "answerSummary": "q(x) = j(x) + 4 = 2x + 3 and r(x) = j(x + 4) = 2x + 7 are parallel lines, and left 4 is the same as up 8."
           }
         },
         {
@@ -771,6 +819,16 @@
               "−2"
             ],
             "correct": "x − 2"
+          },
+          "solutionReview": {
+            "headline": "Right 2 changes the inputs, so it is written inside: j(x − 2). Down 2 changes the outputs: j(x) − 2.",
+            "reasoning": [
+              "Simplify u(x): j(x − 2) = 2(x − 2) − 1 = 2x − 4 − 1 = 2x − 5.",
+              "Simplify v(x): j(x) − 2 = (2x − 1) − 2 = 2x − 3.",
+              "Same graph? u(x) and v(x) have the same slope, 2, but u(x) crosses the y-axis at −5 and v(x) at −3, and −3 − (−5) = 2. No — they are parallel lines 2 units apart.",
+              "Any linear function: a shift right n units turns mx + b into m(x − n) + b = mx + b − mn, the line moved down mn units. That is down n units only for a slope of 1, so the answer is Only when the slope is 1."
+            ],
+            "answerSummary": "u(x) = 2x − 5 and v(x) = 2x − 3 are parallel lines 2 units apart: right n is down n only when the slope is 1."
           }
         },
         {
@@ -1019,7 +1077,17 @@
             "For c(x), multiply each output f(x) by the factor the question gives for c(x).",
             "For d(x), the outputs stay the same as for f(x). Multiply each input by the factor the question gives for d(x).",
             "Fill in the row for x = −2 first. Check: a factor less than 1 makes a value smaller in size, and a factor greater than 1 makes it larger."
-          ]
+          ],
+          "solutionReview": {
+            "headline": "c(x) multiplies each output by 4/5 and keeps the input; d(x) multiplies each input by 5/4 and keeps the output.",
+            "reasoning": [
+              "c(x): keep each input and multiply its output f(x) by 4/5. For −2: (4/5)(−2) = −8/5.",
+              "The other c(x) values: (4/5)(−1) = −4/5, (4/5)(0) = 0, (4/5)(1) = 4/5 and (4/5)(2) = 8/5.",
+              "New input for d: keep each output and multiply the input x by 5/4. For −2: (5/4)(−2) = −5/2, and d(x) stays −2.",
+              "The other new inputs: (5/4)(−1) = −5/4, (5/4)(0) = 0, (5/4)(1) = 5/4 and (5/4)(2) = 5/2."
+            ],
+            "answerSummary": "c(x): −8/5, −4/5, 0, 4/5, 8/5. New inputs for d: −5/2, −5/4, 0, 5/4, 5/2, each with d(x) the same as f(x)."
+          }
         },
         {
           "questionId": "l2-cw-10",
@@ -1115,6 +1183,18 @@
               "2x"
             ],
             "correct": "2x"
+          },
+          "solutionReview": {
+            "headline": "For f(x) = x, multiplying the outputs by n and the inputs by 1/n give the same line. Then check whether that holds for j(x) = 2x − 1.",
+            "reasoning": [
+              "Compare a(x) and b(x): a(x) = 2f(x) = 2x. b(x) multiplies each input by 1/2, so (2, 2) lands at (1, 2): a line through the origin with slope 2 ÷ 1 = 2. They are the same line, y = 2x.",
+              "Compare c(x) and d(x): c(x) = (4/5)f(x) = (4/5)x. In the table, d moved (2, 2) to (5/2, 2): a line through the origin with slope 2 ÷ (5/2) = 4/5. They are the same line, y = (4/5)x.",
+              "Factor: multiplying the outputs by n gives n·f(x) = nx. Multiplying the inputs by k moves (1, 1) to (k, 1), a slope of 1 ÷ k, which is n when k is 1/n. So the inputs change by a factor of 1/n.",
+              "Simplify: 2·j(x) = 2(2x − 1) = 4x − 2.",
+              "Simplify: j(2x) = 2(2x) − 1 = 4x − 1.",
+              "So the pattern holds for …: 4x − 2 and 4x − 1 are different lines. The vertical dilation doubles the y-intercept too, 2 × (−1) = −2, while j(2x) keeps it at −1. They agree only when the y-intercept is 0: linear functions whose graphs pass through the origin."
+            ],
+            "answerSummary": "a(x) and b(x) are y = 2x, c(x) and d(x) are y = (4/5)x: outputs × n is inputs × 1/n. But 2·j(x) = 4x − 2 and j(2x) = 4x − 1."
           }
         }
       ]
@@ -1573,6 +1653,16 @@
               "Vertically"
             ],
             "correct": "Horizontally"
+          },
+          "solutionReview": {
+            "headline": "A change inside the parentheses is horizontal and goes the opposite way to how it looks; a change outside is vertical and acts as written.",
+            "reasoning": [
+              "g(x) = f(x − 7): the 7 is inside, with x, so the move is horizontal, and x − 7 = 0 when x = 7, so the point at the origin moves to (7, 0): Right, 7 units.",
+              "g(x) = 3f(x): the 3 is outside, so it multiplies every output by 3: a Vertical stretch by a factor of 3.",
+              "g(x) = f((1/2)x): the 1/2 is inside, so the change is horizontal, and (1/2)x = 1 when x = 2, so the point (1, 1) moves to (2, 1), twice as far from the y-axis: a Horizontal stretch by a factor of 2.",
+              "g(x) = f(x + 5): the 5 is inside, so the move is horizontal, and x + 5 = 0 when x = −5, so the point at the origin moves to (−5, 0): Left, 5 units."
+            ],
+            "answerSummary": "f(x − 7): right 7. 3f(x): vertical stretch by 3. f((1/2)x): horizontal stretch by 2. f(x + 5): left 5."
           }
         },
         {
@@ -1662,7 +1752,17 @@
             "Read the slope and the y-intercept of each graph.",
             "2f(x) is steeper than f(x); (1/2)f(x) is less steep; both pass through the origin.",
             "f(x) + 8 crosses the y-axis at 8; f(x − 7) crosses the x-axis at 7."
-          ]
+          ],
+          "solutionReview": {
+            "headline": "Read each graph’s slope and where it crosses an axis, then match it to the change of f(x) = x that makes it.",
+            "reasoning": [
+              "Figure 1 has slope 1 and crosses the y-axis at 8: it is x + 8, f(x) moved up 8. It goes with f(x) + 8.",
+              "Figure 2 passes through the origin with slope 2: it is 2x, every output of f(x) doubled. It goes with 2f(x).",
+              "Figure 3 passes through the origin with slope 1/2: it is (1/2)x, every output of f(x) halved. It goes with (1/2)f(x).",
+              "Figure 4 has slope 1 and crosses the x-axis at 7: it is x − 7, f(x) moved right 7. It goes with f(x − 7)."
+            ],
+            "answerSummary": "Figure 1: f(x) + 8; Figure 2: 2f(x); Figure 3: (1/2)f(x); Figure 4: f(x − 7)."
+          }
         },
         {
           "questionId": "l2-pr-9",
@@ -1838,6 +1938,15 @@
               "x = −3"
             ],
             "correct": "x = −3"
+          },
+          "solutionReview": {
+            "headline": "A number added inside the parentheses moves the graph the opposite way: x + 3 moves it left 3.",
+            "reasoning": [
+              "Is Marcus correct: x + 3 = 0 when x = −3, so the point at the origin moves to (−3, 0), 3 units left. No — +3 inside the parentheses moves the line left 3.",
+              "Which vertical shift: f(x + 3) = x + 3 = f(x) + 3, so the line moved left 3 is the line moved Up 3.",
+              "Simplify: g(x) = f(x + 3) = x + 3."
+            ],
+            "answerSummary": "No: +3 inside moves the line left 3, which for f(x) = x is the same as up 3, and g(x) = x + 3."
           }
         },
         {
@@ -1913,6 +2022,16 @@
               "Outside, added to f(x)"
             ],
             "correct": "Inside the parentheses, with x"
+          },
+          "solutionReview": {
+            "headline": "A move right or left is written inside the parentheses with the opposite sign; a stretch and a move up or down are written outside, as they are.",
+            "reasoning": [
+              "g(x) in terms of f(x): right 4 is written inside as x − 4, and up 1 outside as + 1: f(x − 4) + 1.",
+              "Simplify: g(x) = f(x − 4) + 1 = (x − 4) + 1 = x − 3.",
+              "h(x) in terms of f(x): the stretch by 3 multiplies the outputs, so the 3 is written outside, and then down 2 subtracts 2: 3f(x) − 2.",
+              "Simplify: h(x) = 3f(x) − 2 = 3x − 2."
+            ],
+            "answerSummary": "g(x) = f(x − 4) + 1 = x − 3 and h(x) = 3f(x) − 2 = 3x − 2."
           }
         },
         {
@@ -1985,6 +2104,16 @@
               "x + 2"
             ],
             "correct": "x + 2"
+          },
+          "solutionReview": {
+            "headline": "Put each change into j(x) = −x + 6 and simplify, then compare the two lines.",
+            "reasoning": [
+              "Simplify p(x): p(x) = j(x + 2) = −(x + 2) + 6 = −x − 2 + 6 = −x + 4.",
+              "Simplify s(x): s(x) = j(x) − 2 = (−x + 6) − 2 = −x + 4.",
+              "Compare: p(x) and s(x) are both −x + 4. They are the same line.",
+              "For slope m: a shift left n units turns mx + b into m(x + n) + b = mx + b + mn, the line moved mn units up when mn is positive and down when it is negative. So it is A vertical shift of m·n units (up if m·n > 0, down if m·n < 0)."
+            ],
+            "answerSummary": "p(x) and s(x) both simplify to −x + 4, the same line: a shift left n is a vertical shift of m·n units."
           }
         }
       ]
@@ -2103,7 +2232,16 @@
               ],
               "answer": "Down 6"
             }
-          ]
+          ],
+          "solutionReview": {
+            "headline": "A number subtracted inside the parentheses moves the graph right; put x − 2 into j(x) = 3x + 1 to simplify.",
+            "reasoning": [
+              "How the graph moves: the 2 is inside, with x, and x − 2 = 0 when x = 2, so the graph moves Right 2.",
+              "Simplify: r(x) = j(x − 2) = 3(x − 2) + 1 = 3x − 6 + 1 = 3x − 5.",
+              "Vertical shift: 3x − 5 = (3x + 1) − 6 = j(x) − 6, so r(x) is j(x) moved Down 6."
+            ],
+            "answerSummary": "r(x) = 3x − 5: j(x) moved right 2, which is the same graph as j(x) moved down 6."
+          }
         },
         {
           "questionId": "l2-dol-3",
@@ -2181,7 +2319,16 @@
                 "stretching it vertically by n": "A stretch changes the slope of y = x, but moving the line left keeps its slope at 1."
               }
             }
-          ]
+          ],
+          "solutionReview": {
+            "headline": "A change inside the parentheses acts on x before f does, so it changes the inputs; for f(x) = x, inside and outside changes can give the same line.",
+            "reasoning": [
+              "A horizontal change: in f(x − c) and f(bx) the change happens to x before f acts, so it acts on the input values (x-coordinates).",
+              "Same graph as 4f(x): for f(x) = x, 4f(x) = 4x and f(4x) = 4x, so f(4x).",
+              "Left n units: f(x + n) = x + n = f(x) + n, so it is the same as moving it up n units."
+            ],
+            "answerSummary": "Input values (x-coordinates); f(4x); moving it up n units."
+          }
         }
       ]
     }
