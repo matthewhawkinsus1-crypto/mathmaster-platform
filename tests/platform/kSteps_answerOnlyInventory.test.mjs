@@ -26,6 +26,10 @@ import { resolveFamilyQuestionInstance } from '../../functions/shared/questionFa
 const require = createRequire(import.meta.url);
 const compiler = require('../../functions/lib/pathContentCompiler.js');
 const { bankDocumentToV5Intent } = require('../../functions/lib/ccmrAssignmentBank.js');
+const mathPath = require('../../functions/lib/mathPath.js');
+const secureExam = require('../../functions/lib/secureExam.js');
+const secureExamItems = require('../../functions/lib/secureExamItems.js');
+const { storableItem } = require('../../functions/lib/secureItemStorage.js');
 
 /*
  * JOB K COMPLETENESS SWEEP — WHICH CLOSED QUESTIONS STILL SHOW ONLY THE ANSWER.
@@ -59,7 +63,12 @@ const { bankDocumentToV5Intent } = require('../../functions/lib/ccmrAssignmentBa
  *   v5        teacher-import-jsons/** through parseAssignmentBlueprintText
  *             (compileAuthoringIntentV5), each item resolved as seat 0 sees
  *             it; drafts/district-dol2, stored already compiled, every variant;
- *   secure    functions/seeds/secureAssessments/** variants;
+ *   secure    functions/seeds/secureAssessments/** variants, each issued as
+ *             the server issues it and classified by what its RELEASED review
+ *             carries — the only place a secure item's worked solution reaches
+ *             a student (getStudentSecureExamReview: secureExam.publicReview,
+ *             then secureExamItems.withReleasedWorkedSteps; the results page
+ *             hands it to SolutionReviewPanel as { solutionReview });
  *   demo      src/demo/demoAssignmentBank.json through generateQuestion.
  *
  * Generated templates are SAMPLED: one seeded draw per variant row (logged).
@@ -118,14 +127,16 @@ const whyAnswerOnly = (question, review) => {
 const kindOf = (question) => (toolIdOf(question) ? `tool:${toolIdOf(question)}` : `${question?.questionType || question?.type || 'unknown'}${question?.responseFields?.length ? `/${[...new Set(question.responseFields.map((field) => field.inputProfile || field.type || 'text'))].join('+')}` : ''}`);
 
 const inventory = { STEPS: 0, ANSWER_ONLY: 0, bySource: {}, groups: new Map(), sampled: {} };
-const record = (source, question, where) => {
+// `builtOnServer`: the steps were written by the server's worked-solution
+// builder when the released review was served (a secure item, CT02).
+const record = (source, question, where, { builtOnServer = false } = {}) => {
   const review = reviewOf(question);
   const bucket = (inventory.bySource[source] ||= { steps: 0, answerOnly: 0, fromFamily: 0, fromBuilder: 0 });
   if (hasStepsFrom(review)) {
     inventory.STEPS += 1;
     bucket.steps += 1;
     if (review.fromFamily) bucket.fromFamily += 1;
-    if (review.fromBuilder) bucket.fromBuilder += 1;
+    if (review.fromBuilder || builtOnServer) bucket.fromBuilder += 1;
     return;
   }
   inventory.ANSWER_ONLY += 1;
@@ -213,12 +224,32 @@ for (const task of readJson('drafts/district-dol2/assignment.json').sections.fla
 }
 
 /* ------------------------------------------------------------- secure -- */
+// Issued (mathPath.buildIssuePlan), recorded as finalize records it (left
+// blank: its released solution does not depend on the answer), released, and
+// served through the same two calls the review callable makes. An item whose
+// release carries steps is classified by them, as the results page shows them;
+// any other keeps its own fields (the answer list).
+const releasedSecureReview = async (template, questionInstanceId) => {
+  const plan = await mathPath.buildIssuePlan(template);
+  if (!plan.issuable) return null;
+  const item = storableItem({ ...template, questionInstanceId, attemptsAllowed: 1, attemptsUsed: 0, privateGrading: plan.privateGrading, ...plan.toolPayload });
+  const response = await secureExamItems.buildResponseRecord(item, { session: {}, responsePayload: { responses: {} }, now: 1, unanswered: true });
+  const session = { status: 'submitted', feedbackReleased: true, responses: { [questionInstanceId]: response } };
+  const served = await secureExamItems.withReleasedWorkedSteps(secureExam.publicReview(session), { session, readItems: async () => new Map([[questionInstanceId, { item }]]) });
+  const review = served?.items?.[0]?.solution?.review || null;
+  return review?.reasoning?.length ? { review, builtOnServer: !response.releasedSolution?.review?.reasoning?.length } : null;
+};
+const secureStarted = Date.now();
 for (const path of jsonFilesUnder('functions/seeds/secureAssessments')) {
   for (const family of readJson(path).documents || []) {
-    const variants = Array.isArray(family.variants) && family.variants.length ? family.variants : [{}];
-    variants.forEach((variant, index) => record(`secure:${path.split('/').pop()}`, { ...family, ...variant }, `${family.id}#${index}`));
+    for (const row of effectivePathVariants(family)) {
+      const where = `${family.id}#${row.variantIndex ?? 0}`;
+      const released = await releasedSecureReview(row.template, `inventory_${where}`);
+      record(`secure:${path.split('/').pop()}`, released ? { solutionReview: released.review } : row.template, where, { builtOnServer: Boolean(released?.builtOnServer) });
+    }
   }
 }
+inventory.sampled.secureMs = Date.now() - secureStarted;
 
 /* --------------------------------------------------------------- demo -- */
 for (const assignment of readJson('src/demo/demoAssignmentBank.json')) {
@@ -247,13 +278,16 @@ const STEPS_FLOOR = Object.freeze({
   // CT02: all 336 District DOL #2 review variants (7 tasks × 48), from
   // functions/shared/districtDol2WorkedSolution.mjs; there were none.
   'v5:district-dol2/assignment.json': 336,
+  // CT02 slice 2: all 832 District DOL #2 retest variants (13 families × 64),
+  // in the released review, from the same builder on the server; there were none.
+  'secure:algebra1_district_dol2.json': 832,
   demo: 26,
 });
-const STEPS_TOTAL_FLOOR = 7999 + 336;
+const STEPS_TOTAL_FLOOR = 7999 + 336 + 832;
 const FROM_FAMILY_FLOOR = 119;
 // Where a worked-solution builder (not a support family) writes the steps: the
-// DOL #2 review, every variant, and nothing else it might misread (CT02).
-const FROM_BUILDER = Object.freeze({ 'v5:district-dol2/assignment.json': 336 });
+// DOL #2 review and retest, every variant, and nothing else it might misread (CT02).
+const FROM_BUILDER = Object.freeze({ 'v5:district-dol2/assignment.json': 336, 'secure:algebra1_district_dol2.json': 832 });
 
 test('inventory: every authored item is classified STEPS or ANSWER-ONLY (the answer-only groups are logged)', (t) => {
   t.diagnostic(`sampled: ${JSON.stringify(inventory.sampled)}`);
@@ -278,7 +312,7 @@ test('the support families still write the steps they write today (closed review
   assert.ok(fromFamily >= FROM_FAMILY_FLOOR, `family worked solutions ${fromFamily} < ${FROM_FAMILY_FLOOR}`);
 });
 
-test('a worked-solution builder writes steps for the DOL #2 review tasks only, every one of them', () => {
+test('a worked-solution builder writes steps for the DOL #2 review tasks and retest items only, every one of them', () => {
   const fromBuilder = Object.fromEntries(Object.entries(inventory.bySource).filter(([, bucket]) => bucket.fromBuilder > 0).map(([source, bucket]) => [source, bucket.fromBuilder]));
   assert.deepEqual(fromBuilder, FROM_BUILDER);
 });

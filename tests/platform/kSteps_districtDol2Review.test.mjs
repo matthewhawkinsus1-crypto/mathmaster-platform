@@ -22,7 +22,9 @@
  *      else; it never states an answer the item does not already hold as its
  *      key, so a secure item's device copy (no keys) gets nothing;
  *   4. the closed review uses it only when the item has no steps of its own;
- *      only the closed review reads it, and it is not on the first load;
+ *      only the closed review and the released secure review (slice 2,
+ *      kSteps_districtDol2Secure.test.mjs) read it, and it is not on the
+ *      first load;
  *   5. rendered, the student's worked-solution panel shows the steps; Pre-Flight
  *      no longer names the seven tasks as answer-only.
  *
@@ -68,7 +70,7 @@ import { normalizeContextualQuestion } from '../../src/platform/context/wordProb
 import { prepareQuestionForRuntimeRouting } from '../../src/platform/algebra/algebraWorkspaceRoute.js';
 import { isMathSegment, splitMathSegments } from '../../src/components/common/mathSegments.js';
 import { chainTo, firstLoadGraph, repo } from './helpers/firstLoadGraph.mjs';
-import { executableSource } from './helpers/sourceContract.mjs';
+import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const ROOT = new URL('../../', import.meta.url);
 const read = (relative) => readFileSync(new URL(relative, ROOT), 'utf8');
@@ -494,11 +496,13 @@ test('a missing, extra or misplaced part, or any other item, is not claimed', ()
   assert.equal(districtDol2ReviewWorkedSolution(hostile), null, 'never throws');
 });
 
-test('it never states an answer the item does not hold as its key: a secure retest item gets nothing, on the server or the device', async () => {
+test('it never states an answer the item does not hold as its key: a secure retest item is no review task, and its device copy gets nothing', async () => {
   for (const family of secureBank.documents) {
     for (const [index, variant] of family.variants.entries()) {
       const stored = { ...family, ...variant };
-      // The server's copy (keys in responseFields[].expected) is not a review task.
+      // The server's copy (keys in responseFields[].expected) is not a review
+      // task; it is worked only in its released review, by the secure entry
+      // point (kSteps_districtDol2Secure.test.mjs).
       assert.equal(districtDol2ReviewWorkedSolution(stored), null, `${family.id}#${index} stored`);
       // What a student's device receives while testing: no keys, and no worked solution.
       const delivered = mathPath.buildSanitizedQuestion(stored);
@@ -540,7 +544,7 @@ test('closed review: authored steps win; the builder fills only an item with non
   assert.equal(familyReview.fromBuilder, false);
 });
 
-test('only the closed review reads it (it states the answer), and it is not on the student\'s first load', () => {
+test('only the closed review and the released secure review read it (it states the answer), and it is not on the student\'s first load', () => {
   const files = [];
   const walk = (directory) => readdirSync(new URL(directory, ROOT)).forEach((name) => {
     const child = `${directory}/${name}`;
@@ -548,9 +552,14 @@ test('only the closed review reads it (it states the answer), and it is not on t
     else if (/\.(m?js|jsx|cjs)$/.test(name)) files.push(child);
   });
   ['src', 'functions/lib', 'functions/shared'].forEach(walk);
-  // No hint, back-up step, sibling, practice or server path: only the closed review.
+  // No hint, back-up step, sibling or practice path: the closed review on the
+  // device, and on the server only the released Test review (CT02 slice 2,
+  // kSteps_districtDol2Secure.test.mjs holds it to the release).
   const readers = files.filter((file) => /districtDol2WorkedSolution/.test(executableSource(read(file))));
-  assert.deepEqual(readers, ['src/platform/supports/review/closedQuestionReview.js']);
+  assert.deepEqual(readers, ['src/platform/supports/review/closedQuestionReview.js', 'functions/lib/secureExamItems.js']);
+  const server = executableSource(read('functions/lib/secureExamItems.js'));
+  assert.equal((server.match(/districtDol2WorkedSolution/g) || []).length, 1, 'one lazy import on the server');
+  assert.match(region(server, 'async function releasedWorkedStepsFor(', '\n}\n', 'released steps'), /const builder = await loadWorkedSteps\(\);/);
   const graph = firstLoadGraph();
   const builder = path.join(repo, 'functions/shared/districtDol2WorkedSolution.mjs');
   assert.ok(!graph.has(builder), `on the first load: ${chainTo(graph, builder)}`);

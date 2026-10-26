@@ -24,21 +24,33 @@
  * scripts/content/build_district_dol2.py writes it. Never by an id or a title
  * of the task.
  *
- * WHERE IT IS READ. Only by closedQuestionReview.js, for a closed question
- * (right, or out of tries) that has no authored steps, no tool steps and no
- * support family's steps: the place a family's workedSolution is read. It
- * states the answer, so nothing shown while the item is open (hints, the
- * back-up step, a sibling) calls it. It is in functions/shared because the
- * secure retest asks the same thirteen skills and a released Test review is
- * built on the server (secureExamItems.js, releasedSolutionFor); today only
- * the closed review reads it, and it reads answer boxes (`answerFields`),
- * which a secure item does not have.
+ * WHERE IT IS READ. Twice, and both times only once the question can no
+ * longer be answered, because it states the answer:
  *
- *   districtDol2ReviewWorkedSolution(question)
+ *   - closedQuestionReview.js, for a closed review task (right, or out of
+ *     tries) that has no authored steps, no tool steps and no support family's
+ *     steps: the place a family's workedSolution is read. Nothing shown while
+ *     the item is open (hints, the back-up step, a sibling) calls it.
+ *   - secureExamItems.js (withReleasedWorkedSteps), for the secure retest's
+ *     thirteen items (functions/seeds/secureAssessments/
+ *     algebra1_district_dol2.json, 64 variants each): only while the released
+ *     review is served, from the student's own issued item with its key
+ *     (CT02, slice 2). A student's device never runs it on a secure item, and
+ *     the copy it holds while testing has no keys, so it would get nothing.
+ *
+ * A secure item is ONE part of a review task, as build_district_dol2.py
+ * writes both (secure_native, review_native): its stimulus is the part's
+ * panel, its prompt the panel's words, its response fields (keyed in
+ * `expected`) the part's boxes. The retest asks the review's line task as three
+ * items (both intercepts; the y-intercept's value; the zero), so those three
+ * have skills of their own, worded and worked as the review's.
+ *
+ *   districtDol2ReviewWorkedSolution(question)   a review task (`answerFields`)
+ *   districtDol2SecureWorkedSolution(item)       a secure item (`responseFields`)
  *     -> { headline, steps: [text], answerSummary, answers: { fieldId: text } } | null
  *
- * `answers` is what the steps state for each box, as a student would type it.
- * Pure: no React, no I/O.
+ * `answers` is what the steps state for each box, as a student would type it
+ * (a choice by its words). Pure: no React, no I/O.
  */
 import { matchesFieldAnswer } from './answerUtils.mjs';
 
@@ -179,8 +191,8 @@ const lineThrough = (graph) => {
 };
 const insideWindow = (graph, x, y) => [graph?.xMin, graph?.xMax, graph?.yMin, graph?.yMax].every((edge) => finite(edge) !== null)
   && x >= graph.xMin && x <= graph.xMax && y >= graph.yMin && y <= graph.yMax;
-const linearFeatures = (part) => {
-  const { panel } = part;
+/** Where the line drawn crosses each axis, read on the grid: { xIntercept, yIntercept }, or null. */
+const lineCrossings = (panel) => {
   if (panel.kind !== 'graph') return null;
   const line = lineThrough(panel.graph);
   if (!line || near(line.slope, 0)) return null;
@@ -189,14 +201,51 @@ const linearFeatures = (part) => {
   const xIntercept = wholeNumber(-line.intercept / line.slope);
   if (yIntercept === null || xIntercept === null) return null;
   if (!insideWindow(panel.graph, 0, yIntercept) || !insideWindow(panel.graph, xIntercept, 0)) return null;
+  return { xIntercept, yIntercept };
+};
+const yInterceptStep = (y) => `The y-intercept is where the line crosses the y-axis, where x = 0. The line crosses it at y = ${dec(y)}, so the y-intercept is (0, ${dec(y)}).`;
+const xInterceptStep = (x) => `The x-intercept is where the line crosses the x-axis, where y = 0. The line crosses it at x = ${dec(x)}, so the x-intercept is (${dec(x)}, 0).`;
+const zeroStep = (x) => `A zero is an input that makes the output 0: the x-value of the x-intercept. The zero is x = ${dec(x)}.`;
+const linearFeatures = (part) => {
+  const crossings = lineCrossings(part.panel);
+  if (!crossings) return null;
+  const { xIntercept, yIntercept } = crossings;
   return {
-    steps: [
-      `The y-intercept is where the line crosses the y-axis, where x = 0. The line crosses it at y = ${dec(yIntercept)}, so the y-intercept is (0, ${dec(yIntercept)}).`,
-      `The x-intercept is where the line crosses the x-axis, where y = 0. The line crosses it at x = ${dec(xIntercept)}, so the x-intercept is (${dec(xIntercept)}, 0).`,
-      `A zero is an input that makes the output 0: the x-value of the x-intercept. The zero is x = ${dec(xIntercept)}.`,
-    ],
+    steps: [yInterceptStep(yIntercept), xInterceptStep(xIntercept), zeroStep(xIntercept)],
     answers: [['xIntercept', `(${dec(xIntercept)}, 0)`], ['yIntercept', `(0, ${dec(yIntercept)})`], ['zero', dec(xIntercept)]],
     summary: `x-intercept (${dec(xIntercept)}, 0), y-intercept (0, ${dec(yIntercept)}), zero x = ${dec(xIntercept)}`,
+  };
+};
+
+/* The secure retest's original questions 3, 4 and 8: the same line, one question each. */
+const linearIntercepts = (part) => {
+  const crossings = /Identify the x-intercept and y-intercept\./i.test(part.note) ? lineCrossings(part.panel) : null;
+  if (!crossings) return null;
+  const { xIntercept, yIntercept } = crossings;
+  return {
+    steps: [yInterceptStep(yIntercept), xInterceptStep(xIntercept)],
+    answers: [['xIntercept', `(${dec(xIntercept)}, 0)`], ['yIntercept', `(0, ${dec(yIntercept)})`]],
+    summary: `x-intercept (${dec(xIntercept)}, 0), y-intercept (0, ${dec(yIntercept)})`,
+  };
+};
+const yInterceptValue = (part) => {
+  const crossings = /What is the y-intercept value of this function\? Enter the y-value\./i.test(part.note) ? lineCrossings(part.panel) : null;
+  if (!crossings) return null;
+  const { yIntercept } = crossings;
+  return {
+    steps: [yInterceptStep(yIntercept), `The question asks for the y-value of that point, so the y-intercept value is ${dec(yIntercept)}.`],
+    answers: [['yIntercept', dec(yIntercept)]],
+    summary: `y-intercept value ${dec(yIntercept)}`,
+  };
+};
+const lineZero = (part) => {
+  const crossings = /Determine the zero of the function\. Enter its x-value\./i.test(part.note) ? lineCrossings(part.panel) : null;
+  if (!crossings) return null;
+  const { xIntercept } = crossings;
+  return {
+    steps: [xInterceptStep(xIntercept), zeroStep(xIntercept)],
+    answers: [['zero', dec(xIntercept)]],
+    summary: `Zero x = ${dec(xIntercept)}`,
   };
 };
 
@@ -436,6 +485,10 @@ const SKILLS = Object.freeze([
   { boxes: ['coefficient', 'constant'], topic: 'sequence', work: explicitRule },
   { boxes: ['a2', 'a3', 'a4'], topic: 'sequence', work: recursiveTerms },
   { boxes: ['xIntercept', 'yIntercept', 'zero'], topic: 'line', work: linearFeatures },
+  // The secure retest asks that line's three questions one at a time.
+  { boxes: ['xIntercept', 'yIntercept'], topic: 'line', work: linearIntercepts },
+  { boxes: ['yIntercept'], topic: 'line', work: yInterceptValue },
+  { boxes: ['zero'], topic: 'line', work: lineZero },
   { boxes: ['range'], topic: 'domainRange', work: discreteRange },
   { boxes: ['lower', 'leftComparison', 'variable', 'rightComparison', 'upper'], topic: 'domainRange', work: continuousRange },
   { boxes: ['domain', 'range'], topic: 'domainRange', work: contextDomainRange },
@@ -479,34 +532,67 @@ const graded = (field, answer) => {
   }
 };
 
+/** Every part worked, or null: each recognised, worked exactly, and its every box graded right by its own key. */
+const workedParts = ({ multi, parts }) => {
+  const steps = [];
+  const summaries = [];
+  const topics = [];
+  const answers = {};
+  for (const [index, part] of parts.entries()) {
+    const signature = [...part.fields.keys()].sort().join('|');
+    const skill = SKILLS.find((entry) => entry.signature === signature);
+    const worked = skill ? skill.work(part) : null;
+    if (!worked || worked.answers.length !== part.fields.size) return null;
+    // Every box is stated once, and the item's own key accepts what is stated.
+    for (const [id, answer] of worked.answers) {
+      const field = part.fields.get(id);
+      if (!field || Object.hasOwn(answers, field.id) || !graded(field, answer)) return null;
+      answers[field.id] = answer;
+    }
+    const label = multi ? `Part ${index + 1}: ` : '';
+    worked.steps.forEach((step, position) => steps.push(position === 0 ? `${label}${step}` : step));
+    summaries.push(`${label}${worked.summary}`);
+    if (!topics.includes(skill.topic)) topics.push(skill.topic);
+  }
+  const answerSummary = `${summaries.join('. ')}.`;
+  if ([...steps, answerSummary].some((entry) => SLOPPY.test(entry))) return null;
+  return { headline: topics.map((topic) => HEADLINES[topic]).join(' '), steps, answerSummary, answers };
+};
+
 export const districtDol2ReviewWorkedSolution = (question) => {
   try {
     if (text(question?.type) !== 'multiAnswer') return null;
     const shape = partsOf(question);
-    if (!shape) return null;
-    const steps = [];
-    const summaries = [];
-    const topics = [];
-    const answers = {};
-    for (const [index, part] of shape.parts.entries()) {
-      const signature = [...part.fields.keys()].sort().join('|');
-      const skill = SKILLS.find((entry) => entry.signature === signature);
-      const worked = skill ? skill.work(part) : null;
-      if (!worked || worked.answers.length !== part.fields.size) return null;
-      // Every box is stated once, and the item's own key accepts what is stated.
-      for (const [id, answer] of worked.answers) {
-        const field = part.fields.get(id);
-        if (!field || Object.hasOwn(answers, field.id) || !graded(field, answer)) return null;
-        answers[field.id] = answer;
-      }
-      const label = shape.multi ? `Part ${index + 1}: ` : '';
-      worked.steps.forEach((step, position) => steps.push(position === 0 ? `${label}${step}` : step));
-      summaries.push(`${label}${worked.summary}`);
-      if (!topics.includes(skill.topic)) topics.push(skill.topic);
-    }
-    const answerSummary = `${summaries.join('. ')}.`;
-    if ([...steps, answerSummary].some((entry) => SLOPPY.test(entry))) return null;
-    return { headline: topics.map((topic) => HEADLINES[topic]).join(' '), steps, answerSummary, answers };
+    return shape ? workedParts(shape) : null;
+  } catch {
+    return null;
+  }
+};
+
+/*
+ * A SECURE RETEST ITEM, AS THE ONE PART IT IS. Its stimulus is the part's
+ * panel and its prompt the panel's words (secure_native writes the review's
+ * `note` from this same prompt); its response fields are the boxes, each keyed
+ * in `expected`, a choice field with its `choices`. A review task (answer
+ * boxes) or a Rich Tool item is not one. An item with no keys — the copy a
+ * device holds while testing — has nothing to hold a step to: no steps.
+ */
+const securePartOf = (item) => {
+  if (!isObject(item) || text(item.type) === 'multiAnswer' || list(item.answerFields).length || item.pathToolId) return null;
+  const fields = list(item.responseFields);
+  if (!fields.length || !fields.every((field) => isObject(field) && text(field.id))) return null;
+  const part = { panel: isObject(item.stimulus) ? item.stimulus : {}, note: text(item.prompt), fields: new Map() };
+  for (const field of fields) {
+    if (part.fields.has(text(field.id))) return null;
+    part.fields.set(text(field.id), field);
+  }
+  return part;
+};
+
+export const districtDol2SecureWorkedSolution = (item) => {
+  try {
+    const part = securePartOf(item);
+    return part ? workedParts({ multi: false, parts: [part] }) : null;
   } catch {
     return null;
   }

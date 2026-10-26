@@ -22,9 +22,13 @@
  * worked solution — which `secureExam.publicReview` hands out only after the
  * results are released. An item the student left blank is recorded as
  * `unanswered`, worth zero, so Corrections plans from it like any other miss.
+ * An item with no worked solution of its own may be given steps when the
+ * released review is served (`withReleasedWorkedSteps`, CT02); those are
+ * stored nowhere.
  */
 
 const mathPath = require('./mathPath');
+const secureExam = require('./secureExam');
 const secureItems = require('./secureItems');
 const navigationRules = require('./secureExamNavigation');
 
@@ -132,6 +136,139 @@ async function releasedSolutionFor(item, snapshot) {
   const answers = correctAnswerDisplay(item, snapshot);
   if (!answers.length && !review) return null;
   return { answers, review };
+}
+
+/*
+ * WORKED STEPS FOR A RELEASED ITEM THAT HAS NONE OF ITS OWN (CT02, slice 2).
+ *
+ * The thirteen District DOL #2 retest families (functions/seeds/
+ * secureAssessments/algebra1_district_dol2.json, 64 variants each) carry no
+ * worked solution, so their released review showed only the answer. They ask
+ * the skills of the DOL #2 review tasks, and the same builder works them
+ * (functions/shared/districtDol2WorkedSolution.mjs) from the student's OWN
+ * issued item: the item document finalize graded, with its key. Every answer
+ * the steps state is held to that key twice — by the shared field grader
+ * inside the builder, and here by the grader that scored the student
+ * (gradeItem on the item's private grading, a choice named by its runtime id).
+ * Either one disagreeing means no steps, and the review keeps its answer list.
+ *
+ * ONLY ONCE THE RESULTS ARE RELEASED, AND STORED NOWHERE. It runs while the
+ * released review is served (getStudentSecureExamReview, after every gate
+ * there) and adds steps only beside a released solution the review already
+ * carries: a finished session, results released, answers not held. It checks
+ * that release itself as well, so a caller that skipped the gates still hands
+ * out nothing. It writes nothing — no session, item or response document
+ * gains a field — so nothing a student's device can reach before release
+ * changes. It never throws: a failure is a review without these steps.
+ */
+let workedStepsModule = null;
+function loadWorkedSteps() {
+  if (!workedStepsModule) {
+    workedStepsModule = import('../shared/districtDol2WorkedSolution.mjs').catch(() => {
+      workedStepsModule = null;
+      return null;
+    });
+  }
+  return workedStepsModule;
+}
+
+/** What the steps state, as the item's grader reads a response: a choice by its runtime id. */
+function statedResponses(item, answers) {
+  const publicFields = list(mathPath.buildSanitizedQuestion(item, {}).responseFields);
+  const responses = {};
+  for (const [fieldId, stated] of Object.entries(isObject(answers) ? answers : {})) {
+    const choices = list(publicFields.find((field) => clean(field?.id) === fieldId)?.choices);
+    if (choices.length) {
+      const named = choices.filter((choice) => clean(choice?.label) === clean(stated));
+      if (named.length !== 1) return null;
+      responses[fieldId] = named[0].id;
+    } else {
+      responses[fieldId] = clean(stated);
+    }
+  }
+  return responses;
+}
+
+/** The released review's shape for an issued item's built steps, or null. */
+async function releasedWorkedStepsFor(storedItem) {
+  try {
+    const item = secureItems.readStoredItem(storedItem);
+    const grading = isObject(item?.privateGrading) ? item.privateGrading : null;
+    if (!grading || grading.pathToolId || !list(grading.fields).length) return null;
+    const builder = await loadWorkedSteps();
+    const worked = builder ? builder.districtDol2SecureWorkedSolution(item) : null;
+    if (!worked) return null;
+    const responses = statedResponses(item, worked.answers);
+    if (!responses) return null;
+    const verdict = await secureItems.gradeItem(grading, { responses });
+    if (verdict?.isCorrect !== true || verdict.rejected === true) return null;
+    const review = {
+      headline: clean(worked.headline) || null,
+      reasoning: list(worked.steps).map(clean),
+      commonError: null,
+      connection: null,
+      answerSummary: clean(worked.answerSummary) || null,
+    };
+    // Released whole or not at all: a step the release would cut short is no step.
+    const bounded = secureExam.releasedSolutionOf({ releasedSolution: { answers: [], review } })?.review;
+    return JSON.stringify(bounded) === JSON.stringify(review) ? review : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The steps beside the item's own released solution: its authored words win, as in the closed review. */
+const withBuiltSteps = (released, built) => ({
+  headline: clean(released?.headline) || built.headline,
+  reasoning: built.reasoning,
+  commonError: clean(released?.commonError) || null,
+  connection: clean(released?.connection) || null,
+  answerSummary: clean(released?.answerSummary) || built.answerSummary,
+});
+
+/**
+ * The released review, with steps for each item whose released solution has
+ * none. `readItems(ids)` resolves the session's issued item documents by id
+ * (`readIssuedItems`).
+ */
+async function withReleasedWorkedSteps(review, { session, readItems } = {}) {
+  try {
+    if (!isObject(review) || !isObject(session) || typeof readItems !== 'function') return review;
+    const released = secureExam.TERMINAL_STATES.has(session.status) && session.feedbackReleased === true && review.solutionsHeld !== true;
+    if (!released) return review;
+    const wanting = list(review.items).filter((entry) => (
+      isObject(entry?.solution) && !list(entry.solution.review?.reasoning).length && !entry.pathToolId && clean(entry.questionInstanceId)
+    ));
+    if (!wanting.length) return review;
+    const stored = await readItems(wanting.map((entry) => clean(entry.questionInstanceId)));
+    const built = new Map();
+    for (const entry of wanting) {
+      const steps = await releasedWorkedStepsFor(stored?.get?.(clean(entry.questionInstanceId))?.item);
+      if (steps) built.set(entry, steps);
+    }
+    if (!built.size) return review;
+    return {
+      ...review,
+      items: review.items.map((entry) => (built.has(entry)
+        ? { ...entry, solution: { ...entry.solution, review: withBuiltSteps(entry.solution.review, built.get(entry)) } }
+        : entry)),
+    };
+  } catch (error) {
+    console.error('secure_review_steps_unavailable', error?.message || error);
+    return review;
+  }
+}
+
+/** A session's issued item documents by id (Admin SDK); one that is missing is left out. */
+async function readIssuedItems(sessionRef, ids) {
+  const unique = [...new Set(list(ids).map(clean).filter(Boolean))];
+  if (!unique.length) return new Map();
+  const snapshots = await sessionRef.firestore.getAll(...unique.map((id) => itemRef(sessionRef, id)));
+  const byId = new Map();
+  snapshots.forEach((snapshot, index) => {
+    if (snapshot.exists) byId.set(unique[index], snapshot.data() || {});
+  });
+  return byId;
 }
 
 /** The supportUsage fields a secure response may carry. */
@@ -351,11 +488,14 @@ module.exports = {
   finalizeOpenItems,
   itemRef,
   navigationEntryFor,
+  readIssuedItems,
   readOpenItems,
   recordedPayloadOf,
   releasedSolutionFor,
+  releasedWorkedStepsFor,
   reviewSnapshotOf,
   safeSupportUsage,
   staleDraftWrite,
   upgradeSession,
+  withReleasedWorkedSteps,
 };

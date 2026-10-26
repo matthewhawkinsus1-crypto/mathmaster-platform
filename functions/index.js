@@ -18348,7 +18348,17 @@ exports.getStudentSecureExamReview = onCall(async (request) => {
     }
   }
   const review = secureExam.publicReview(session, { withSolutions });
-  return { success: true, review };
+  /*
+   * Worked steps for a released item with none of its own (CT02: the District
+   * DOL #2 retest), built here from the student's own issued items and stored
+   * nowhere — so only this released review, past every gate above, carries
+   * them (secureExamItems.withReleasedWorkedSteps).
+   */
+  const reviewWithSteps = await secureExamItems.withReleasedWorkedSteps(review, {
+    session,
+    readItems: (ids) => secureExamItems.readIssuedItems(snapshot.ref, ids),
+  });
+  return { success: true, review: reviewWithSteps };
 });
 
 /*
