@@ -6,8 +6,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { region, executableSource } from './helpers/sourceContract.mjs';
+
+const read = (file) => executableSource(readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8'));
 import {
-  CERTIFIED_SCREENS, SCREENS, STUBBED_PROBE, VIEWPORTS, newScreenContext, sceneLabel, servesStubbedServices,
+  CERTIFIED_SCREENS, SCREENS, STUBBED_PROBE, VIEWPORTS, newScreenContext, sceneLabel, sceneScope, servesStubbedServices,
 } from '../browser/accessibilityCertification.mjs';
 import { TEACHER_SCREENS } from '../browser/accessibilityTeacherScreens.mjs';
 
@@ -55,7 +57,7 @@ test('an empty math box with its placeholder showing is among the audited scenes
 const REQUIRED_TEACHER_SCREENS = {
   'teacher-home': [null],
   'teacher-live-class': ['walkthrough', 'attention'],
-  'teacher-assignments': [null],
+  'teacher-assignments': [null, 'class-list', 'card-menu'],
   'teacher-assignment-hub': ['drawer', 'progress'],
   'teacher-gradebook': ['table'],
   'teacher-preflight': ['details', 'delivery', 'check'],
@@ -90,6 +92,49 @@ test('every teacher screen opens on the school clock and is walked by Tab; a mod
   assert.equal(SCREENS.some((screen) => screen.schoolClock || screen.keyboard), false, 'the student screens are unchanged');
 });
 
+test('a scene audits and is walked as it says, and otherwise as its screen does', () => {
+  const screen = { include: '[data-modal]', exclude: '.stand-in', keyboard: true };
+  assert.deepEqual(sceneScope(screen, {}), { include: '[data-modal]', exclude: '.stand-in', keyboard: true }, 'a scene with nothing to say is its screen\'s');
+  assert.deepEqual(sceneScope(screen, { include: '.menu', keyboard: false }), { include: '.menu', exclude: '.stand-in', keyboard: false }, 'a scene can name its own region and decline the walk');
+  assert.deepEqual(sceneScope({}, { keyboard: false }), { include: undefined, exclude: undefined, keyboard: false });
+  assert.deepEqual(sceneScope({ keyboard: false }, { keyboard: true }), { include: undefined, exclude: undefined, keyboard: true });
+  // The contrast review reads the same scope as axe: a region axe does not audit is not one it decides.
+  const review = executableSource(readFileSync(new URL('../browser/contrastReview.mjs', import.meta.url), 'utf8'));
+  assert.match(review, /const scope = sceneScope\(screen, scene\);/);
+  assert.match(review, /collectInPage, \{ include: asList\(scope\.include\), exclude: asList\(scope\.exclude\) \}/);
+});
+
+// TT27 slice 2: the class selector's list and a card's ⋮ menu are scenes of the Assignments screen, each
+// opened as a keyboard teacher opens it. The scene is not reached unless focus lands inside the pop-up, so
+// the audit fails if those keys stop working. Each audits the pop-up itself (the page behind it is read as
+// covered, undecided text, as the page behind a modal is), and is not walked by Tab, because Tab closes a
+// pop-up: the walk would read the page behind one that a keyboard teacher cannot be on.
+test('the two pop-up scenes are opened by keyboard, wait for focus to land inside, audit the pop-up and are not walked', () => {
+  const assignments = TEACHER_SCREENS.find((screen) => screen.id === 'teacher-assignments');
+  const popups = assignments.scenes.filter((scene) => ['class-list', 'card-menu'].includes(scene.id));
+  assert.equal(popups.length, 2);
+  for (const scene of popups) assert.equal(scene.keyboard, false, `${scene.id}: not walked by Tab`);
+  for (const scene of assignments.scenes.filter((entry) => !popups.includes(entry))) assert.deepEqual(sceneScope(assignments, scene), { include: undefined, exclude: undefined, keyboard: true }, 'the page itself is audited whole and walked');
+  assert.equal(popups.find((scene) => scene.id === 'class-list').include, '[role="listbox"][aria-label="Class"]');
+  const hook = popups.find((scene) => scene.id === 'card-menu').include.match(/^\[(data-[a-z-]+)\]$/)?.[1];
+  assert.ok(hook, 'the card menu is found by a data hook');
+  assert.match(read('src/AssignmentCardMenu.jsx'), new RegExp(`${hook}=""`), 'which the menu carries');
+  const source = executableSource(readFileSync(new URL('../browser/accessibilityTeacherScreens.mjs', import.meta.url), 'utf8'));
+  const classList = region(source, 'const openClassList = async', '\n};', 'the class list scene');
+  assert.match(classList, /locator\('button\[aria-haspopup="listbox"\]'\)\.first\(\)\.focus\(\)/);
+  assert.match(classList, /keyboard\.press\('ArrowDown'\)/, 'a key, not a click');
+  assert.match(classList, /focusIsOnItem\(page, 'listbox', 'option'\)/, 'and focus must have gone in');
+  const cardMenu = region(source, 'const openCardMenu = async', '\n};', 'the card menu scene');
+  assert.match(cardMenu, /getByRole\('button', \{ name: \/\^More actions for\/ \}\)\.first\(\)\.focus\(\)/);
+  assert.match(cardMenu, /keyboard\.press\('Enter'\)/, 'a key, not a click');
+  assert.match(cardMenu, /focusIsOnItem\(page, 'menu', 'menuitem'\)/, 'and focus must have gone in');
+  const wait = region(source, 'const focusIsOnItem', '], { timeout: 10_000 });', 'the focus wait');
+  assert.match(wait, /active\?\.getAttribute\('role'\) === item && Boolean\(active\.closest\(/, 'on an item of that pop-up, not merely somewhere');
+  // A pop-up one scene leaves open is closed the way a teacher closes it, so the next scene starts from the page.
+  const closer = region(source, 'const closePopups = async', '\n};', 'closing a pop-up');
+  assert.match(closer, /keyboard\.press\('Escape'\)/);
+});
+
 test('a screen on the school clock gets the school\'s browser context, and any other the plain one', async () => {
   const made = [];
   const browser = { newContext: async (options) => { made.push(['plain', options]); return { plain: true }; } };
@@ -106,8 +151,10 @@ test('a screen on the school clock gets the school\'s browser context, and any o
 
 test('the run walks a screen that asks for it by Tab, counts what it finds into the same keys as axe, and cannot pass without a walk', () => {
   const source = executableSource(readFileSync(new URL('../browser/accessibilityCertification.mjs', import.meta.url), 'utf8'));
-  const scene = region(source, 'const axe = await auditAccessibility(', 'results.push({', 'the scene audit');
-  assert.match(scene, /screen\.keyboard/, 'only a screen that asks is walked');
+  const scene = region(source, 'const scope = sceneScope(screen, scene);', 'results.push({', 'the scene audit');
+  assert.match(scene, /const scope = sceneScope\(screen, scene\);/, 'what a scene audits and walks is its own, else its screen\'s');
+  assert.match(scene, /auditAccessibility\(page, \{ name: label, viewport: viewport\.id, include: scope\.include, exclude: scope\.exclude \}\)/);
+  assert.match(scene, /if \(scope\.keyboard\) \{/, 'only what asks is walked');
   assert.match(scene, /await auditKeyboardReach\(page,/);
   assert.match(scene, /mergeNormalized\(axe, keyboard\)/, 'the findings join axe\'s counts');
   assert.match(scene, /compare\(baselineCounts, audit\.counts,/, 'the verdict is of the merged counts');

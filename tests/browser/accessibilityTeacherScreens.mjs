@@ -26,7 +26,9 @@
  *   teacher-live-class     Live Class's other two views, Walkthrough and
  *                          Attention (Room is Home's).
  *   teacher-assignments    the Assignments list: where the Pre-Flight review
- *                          starts, and what lies behind it.
+ *                          starts, and what lies behind it; and the two pop-ups
+ *                          on it, the class selector's list and a card's ⋮
+ *                          menu, each opened by keyboard.
  *   teacher-assignment-hub one assignment's drawer, opened from the class page,
  *                          and with its progress shown.
  *   teacher-gradebook      Grades, with one assignment's table open.
@@ -93,6 +95,43 @@ const openAssignments = async (page) => {
   await goTo(page, 'Assignments');
   await page.locator('summary', { hasText: 'Create and Assign' }).first().waitFor({ timeout: 30_000 });
   await page.getByRole('heading', { name: /^Assignments/ }).first().waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(600);
+};
+
+// The two pop-ups of the Assignments screen, opened as a keyboard teacher opens
+// them: the button focused and a key pressed (not clicked). Focus has to land on
+// an item of the pop-up (platform/interaction/popupMenu.js), or the scene is not
+// reached and the run fails; so these scenes show the audit an open pop-up, and
+// fail if the keys that open it stop working. A pop-up a scene left open is
+// closed the same way a teacher closes one: Escape from its button.
+const OPEN_POPUP = '[aria-haspopup][aria-expanded="true"]';
+const closePopups = async (page) => {
+  const open = page.locator(OPEN_POPUP);
+  if (!(await open.count())) return;
+  await open.first().focus();
+  await page.keyboard.press('Escape');
+  await open.first().waitFor({ state: 'detached', timeout: 10_000 });
+};
+const focusIsOnItem = (page, popupRole, itemRole) => page.waitForFunction(([popup, item]) => {
+  const active = document.activeElement;
+  return active?.getAttribute('role') === item && Boolean(active.closest(`[role="${popup}"]`));
+}, [popupRole, itemRole], { timeout: 10_000 });
+
+const openClassList = async (page) => {
+  await closePopups(page);
+  await page.locator('button[aria-haspopup="listbox"]').first().focus();
+  await page.keyboard.press('ArrowDown');
+  await page.getByRole('listbox', { name: 'Class' }).waitFor({ timeout: 10_000 });
+  await focusIsOnItem(page, 'listbox', 'option');
+  await page.waitForTimeout(600);
+};
+
+const openCardMenu = async (page) => {
+  await closePopups(page);
+  await page.getByRole('button', { name: /^More actions for/ }).first().focus();
+  await page.keyboard.press('Enter');
+  await page.getByRole('menu').waitFor({ timeout: 10_000 });
+  await focusIsOnItem(page, 'menu', 'menuitem');
   await page.waitForTimeout(600);
 };
 
@@ -179,7 +218,16 @@ export const TEACHER_SCREENS = [
     { id: 'walkthrough', run: liveClassMode(/^Walkthrough/) },
     { id: 'attention', run: liveClassMode(/^Attention/) },
   ]),
-  teacherScreen('teacher-assignments', [{ id: null, run: openAssignments }]),
+  teacherScreen('teacher-assignments', [
+    { id: null, run: openAssignments },
+    // A pop-up is audited as itself, as a modal screen audits its dialog: axe and the contrast
+    // review read the page behind it as covered, undecided text. And it is not walked by Tab: Tab
+    // closes a pop-up, so the walk would read the page behind one that a keyboard teacher cannot
+    // be on (its stops are "under" it). The page is audited and walked above; the keys of the
+    // pop-ups are driven by accessibilityTeacherMenus.mjs.
+    { id: 'class-list', run: openClassList, include: '[role="listbox"][aria-label="Class"]', keyboard: false },
+    { id: 'card-menu', run: openCardMenu, include: '[data-assignment-menu]', keyboard: false },
+  ]),
   // A modal drawer: the page behind its scrim is not what a person is reading,
   // so the audit is of the drawer (the page is teacher-assignments, above).
   teacherScreen('teacher-assignment-hub', [

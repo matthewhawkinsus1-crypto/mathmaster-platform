@@ -1,5 +1,6 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { courseLabel, courseLevelLabel, studentsInClass, unplaceableStudents } from '../../../functions/shared/classModel.mjs';
+import { usePopupMenu } from '../../platform/interaction/popupMenu.js';
 
 /*
  * THE CLASS THE TEACHER IS WORKING IN, STATED ONCE.
@@ -19,6 +20,11 @@ import { courseLabel, courseLevelLabel, studentsInClass, unplaceableStudents } f
  * It addresses classes by `classId`. Period is shown because it is what a
  * teacher says out loud — "third period" — but it is display and schedule
  * information, and two classes are allowed to share one. The identity is the id.
+ *
+ * The list is a collapsible-dropdown listbox (platform/interaction/popupMenu.js):
+ * it opens on the chosen class, the arrow keys, Home and End move between the
+ * options (moving does not choose: choosing a class changes every screen),
+ * Enter or Space choose, and Escape or choosing put focus back on the button.
  */
 
 const surface = {
@@ -60,7 +66,7 @@ export default function ClassContextBar({
   allowAllClasses = true,
 }) {
   const [open, setOpen] = useState(false);
-  const buttonRef = useRef(null);
+  const menu = usePopupMenu({ kind: 'listbox', open, onOpenChange: setOpen });
 
   const active = useMemo(
     () => (Array.isArray(classes) ? classes : []).filter((entry) => entry?.status !== 'archived'),
@@ -91,9 +97,8 @@ export default function ClassContextBar({
 
   const choose = (classId) => {
     const record = active.find((entry) => entry.classId === classId) || null;
-    onSelectClass?.({ classId: record?.classId || null, classPeriod: record?.period || null });
-    setOpen(false);
-    buttonRef.current?.focus();
+    // Focus is back on the button and the list closed before the class changes.
+    menu.choose(() => onSelectClass?.({ classId: record?.classId || null, classPeriod: record?.period || null }));
   };
 
   if (!active.length) {
@@ -114,10 +119,8 @@ export default function ClassContextBar({
       <div>
         <button
           type="button"
-          ref={buttonRef}
-          onClick={() => (switchable ? setOpen((current) => !current) : undefined)}
-          aria-haspopup={switchable ? 'listbox' : undefined}
-          aria-expanded={switchable ? open : undefined}
+          ref={menu.triggerRef}
+          {...(switchable ? menu.triggerProps : null)}
           disabled={!switchable}
           style={{
             display: 'flex',
@@ -140,7 +143,9 @@ export default function ClassContextBar({
 
         {open && (
           <ul
+            {...menu.popupProps}
             role="listbox"
+            aria-label="Class"
             style={{
               position: 'absolute',
               zIndex: 30,
@@ -158,10 +163,10 @@ export default function ClassContextBar({
             }}
           >
             {allowAllClasses && (
-              <li>
+              <li role="presentation">
                 <button
                   type="button"
-                  role="option"
+                  {...menu.itemProps}
                   aria-selected={!selected}
                   onClick={() => choose(null)}
                   style={{
@@ -175,10 +180,10 @@ export default function ClassContextBar({
               </li>
             )}
             {active.map((entry) => (
-              <li key={entry.classId}>
+              <li key={entry.classId} role="presentation">
                 <button
                   type="button"
-                  role="option"
+                  {...menu.itemProps}
                   aria-selected={entry.classId === activeClassId}
                   onClick={() => choose(entry.classId)}
                   style={{

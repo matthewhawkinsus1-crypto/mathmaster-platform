@@ -271,6 +271,15 @@ export const CERTIFIED_SCREENS = [...SCREENS, ...TEACHER_SCREENS];
 
 export const sceneLabel = (screen, scene) => (scene.id ? `${screen.id}/${scene.id}` : screen.id);
 
+// What a scene audits and how: its own `include`, `exclude` and `keyboard` when it says, else its
+// screen's. A scene that opens a pop-up audits the pop-up (the page behind it is read as covered,
+// undecided text), as the two modal screens audit their dialog; and one a Tab walk cannot read.
+export const sceneScope = (screen, scene) => ({
+  include: scene.include ?? screen.include,
+  exclude: scene.exclude ?? screen.exclude,
+  keyboard: scene.keyboard ?? screen.keyboard,
+});
+
 // A browser context for one screen. A teacher screen reads the clock (the bell
 // schedule, the DOL window), so it opens on the school's, as the dark-mode
 // certification does; the contrast review opens its screens the same way.
@@ -397,15 +406,16 @@ const main = async () => {
           await screenshotKeepingTouch(page, { path: shot, fullPage: true }).catch(() => {});
           break;
         }
-        const axe = await auditAccessibility(page, { name: label, viewport: viewport.id, include: screen.include, exclude: screen.exclude });
+        const scope = sceneScope(screen, scene);
+        const axe = await auditAccessibility(page, { name: label, viewport: viewport.id, include: scope.include, exclude: scope.exclude });
         // The picture is of the scene as it opened: the Tab walk below moves focus and scroll.
         await page.screenshot({ path: path.join(artifacts, `${label.replace(/\//g, '--')}-${viewport.id}.png`) }).catch(() => {});
         // A teacher screen is also walked by Tab, and what the walk finds counts into the
         // same keys as axe's (accessibilityKeyboardReach.mjs, rules named mm-*).
         let keyboard = null;
-        if (screen.keyboard) {
+        if (scope.keyboard) {
           try {
-            keyboard = await auditKeyboardReach(page, { name: label, viewport: viewport.id, include: [].concat(screen.include || [])[0] || null });
+            keyboard = await auditKeyboardReach(page, { name: label, viewport: viewport.id, include: [].concat(scope.include || [])[0] || null });
           } catch (error) {
             // A walk that measured nothing is not a pass: the scene counts as not reached.
             unreachable.push(`${label}|${viewport.id}: the Tab walk failed — ${error.message.split('\n')[0]}`);

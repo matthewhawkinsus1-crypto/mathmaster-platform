@@ -125,7 +125,9 @@ per-tool sweep (job A's files).
   listed. Teacher surfaces are not swept either; seven of them have a smaller
   Tab walk of their own (`tests/browser/accessibilityKeyboardReach.mjs`, TT27: no
   reverse walk, no popup probes, no keyed answers), counted into the
-  accessibility ratchet. The VPAT's Notes row says which.
+  accessibility ratchet; two of their pop-ups (the ⋮ menu on an assignment card
+  and the class selector's list) are driven with real key presses by
+  `tests/browser/accessibilityTeacherMenus.mjs`. The VPAT's Notes row says which.
 
 ## Counts
 

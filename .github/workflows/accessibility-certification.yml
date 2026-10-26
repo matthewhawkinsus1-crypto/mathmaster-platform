@@ -77,6 +77,14 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/accessibilityKeyboardReachSelfTest.mjs
+      # The two pop-ups of the teacher's Assignments screen, driven with the keys a keyboard
+      # teacher presses (the ratchet's scenes open them; this presses what is in them).
+      - name: The card menu and the class list by keyboard (TT27)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/accessibilityTeacherMenus.mjs
       - name: The calculator by keyboard (Escape, focus return, Move)
         if: ${{ !cancelled() }}
         env:

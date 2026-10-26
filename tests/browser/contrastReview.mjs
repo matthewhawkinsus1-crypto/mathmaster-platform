@@ -45,7 +45,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { AXE_PATH, settleForAudit } from './accessibilityAudit.mjs';
-import { CERTIFIED_SCREENS, VIEWPORTS, newScreenContext, sceneLabel } from './accessibilityCertification.mjs';
+import { CERTIFIED_SCREENS, VIEWPORTS, newScreenContext, sceneLabel, sceneScope } from './accessibilityCertification.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../..');
@@ -378,7 +378,8 @@ const main = async () => {
         }
         if (!(await page.evaluate(() => typeof window.axe?.run === 'function'))) await page.addScriptTag({ path: AXE_PATH });
         const asList = (v) => (v == null ? [] : (Array.isArray(v) ? v : [v]));
-        const described = await page.evaluate(collectInPage, { include: asList(screen.include), exclude: asList(screen.exclude) });
+        const scope = sceneScope(screen, scene);
+        const described = await page.evaluate(collectInPage, { include: asList(scope.include), exclude: asList(scope.exclude) });
         for (const info of described) {
           // eslint-disable-next-line no-await-in-loop
           const pixels = await measurePixels(page, info.index);
