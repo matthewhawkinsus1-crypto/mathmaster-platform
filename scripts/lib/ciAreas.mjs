@@ -69,6 +69,7 @@ export const CI_AREAS = {
     'scripts/audit-algebra1-path-tool-readiness-v2.mjs',
     'functions/lib/mathPath.js',
     'functions/shared/pathToolContracts.mjs',
+    'functions/shared/pathToolIds.mjs',
     'functions/shared/pathDataModelingGrading.mjs',
     'functions/shared/pathSystemsInequalityGrading.mjs',
     'tests/platform/algebra1FidelityV2*.test.mjs',
@@ -120,6 +121,7 @@ export const CI_AREAS = {
   ],
   'path-tool-browser-contract': [
     'functions/shared/pathToolContracts.mjs',
+    'functions/shared/pathToolIds.mjs',
     'functions/shared/pathDataModelingGrading.mjs',
     'functions/shared/pathRegressionCalculatorGrading.mjs',
     'src/QuestionEngine.jsx',

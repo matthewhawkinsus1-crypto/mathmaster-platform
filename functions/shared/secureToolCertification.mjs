@@ -44,7 +44,9 @@
  */
 
 import { declaredToolId } from './legacyFieldGrading.mjs';
-import { resolvePathToolId } from './pathToolContracts.mjs';
+// From the names alone, not pathToolContracts.mjs: a student's Home resolves a
+// Test Cycle target's tool and must not load every Path grader to do it (PF01).
+import { resolvePathToolId } from './pathToolIds.mjs';
 import { QUESTION_RUNTIME_MODES, isSecureRuntimeMode } from './questionRuntimePolicy.mjs';
 
 const clean = (value) => String(value ?? '').trim();
