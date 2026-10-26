@@ -70,6 +70,13 @@ const { storableItem } = require('../../functions/lib/secureItemStorage.js');
  *             a student (getStudentSecureExamReview: secureExam.publicReview,
  *             then secureExamItems.withReleasedWorkedSteps; the results page
  *             hands it to SolutionReviewPanel as { solutionReview });
+ *   corrections the same secure families as a correction issues them (a Test
+ *             Cycle whose blueprint names them: issueTestCycleCorrectionQuestion),
+ *             each classified by the review its CLOSED item's response carries
+ *             (submitTestCycleCorrectionResponse: its own released review,
+ *             through secureExamItems.reviewWithWorkedSteps) — all the
+ *             Corrections screen shows (RichQuestionRuntime hands
+ *             SolutionReviewPanel { solutionReview }; none is nothing at all);
  *   demo      src/demo/demoAssignmentBank.json through generateQuestion.
  *
  * Generated templates are SAMPLED: one seeded draw per variant row (logged).
@@ -252,6 +259,30 @@ for (const path of jsonFilesUnder('functions/seeds/secureAssessments')) {
 }
 inventory.sampled.secureMs = Date.now() - secureStarted;
 
+/* -------------------------------------------------------- corrections -- */
+// Issued as a correction (certified for Corrections, three tries) and closed:
+// the response carries the item's own released review, given steps by the
+// server's builder where it has none. Nothing else reaches the screen.
+const closedCorrectionReview = async (template, questionInstanceId) => {
+  const plan = await mathPath.buildIssuePlan(template);
+  if (!plan.issuable) return null;
+  const item = storableItem({ ...template, questionInstanceId, correctionId: 'inventory', attemptsAllowed: 3, attemptsUsed: 0, privateGrading: plan.privateGrading, ...plan.toolPayload });
+  const own = (await mathPath.buildPrivateSupport(item)).solutionReview || null;
+  const review = await secureExamItems.reviewWithWorkedSteps(own, item);
+  return { review, builtOnServer: Boolean(review?.reasoning?.length) && !own?.reasoning?.length };
+};
+const correctionsStarted = Date.now();
+for (const path of jsonFilesUnder('functions/seeds/secureAssessments')) {
+  for (const family of readJson(path).documents || []) {
+    for (const row of effectivePathVariants(family)) {
+      const where = `${family.id}#${row.variantIndex ?? 0}`;
+      const closed = await closedCorrectionReview(row.template, `inventory_correction_${where}`);
+      record(`corrections:${path.split('/').pop()}`, { solutionReview: closed?.review || null }, where, { builtOnServer: Boolean(closed?.builtOnServer) });
+    }
+  }
+}
+inventory.sampled.correctionsMs = Date.now() - correctionsStarted;
+
 /* --------------------------------------------------------------- demo -- */
 for (const assignment of readJson('src/demo/demoAssignmentBank.json')) {
   for (const authored of assignment.questions) record('demo', generateQuestion(authored, `${SEED}|${authored.questionId}`), authored.questionId);
@@ -289,15 +320,23 @@ const STEPS_FLOOR = Object.freeze({
   // CT02 slice 2: all 832 District DOL #2 retest variants (13 families × 64),
   // in the released review, from the same builder on the server; there were none.
   'secure:algebra1_district_dol2.json': 832,
+  // CT02 slice 4: the same 832 issued as corrections, once closed, from the same
+  // builder on the server (kSteps_districtDol2Corrections); there were none.
+  'corrections:algebra1_district_dol2.json': 832,
   // CT02 slice 3: every demo item. The 44 literal items no family covers carry
   // their own worked solution (kSteps_demoWorkedSteps); 26 have the family's.
   demo: 70,
 });
-const STEPS_TOTAL_FLOOR = 7999 + 336 + 832 + 14 + 48 + 44 + 2;
+const STEPS_TOTAL_FLOOR = 7999 + 336 + 832 + 14 + 48 + 44 + 2 + 832;
 const FROM_FAMILY_FLOOR = 119 + 14 + 48;
 // Where a worked-solution builder (not a support family) writes the steps: the
-// DOL #2 review and retest, every variant, and nothing else it might misread (CT02).
-const FROM_BUILDER = Object.freeze({ 'v5:district-dol2/assignment.json': 336, 'secure:algebra1_district_dol2.json': 832 });
+// DOL #2 review, retest and corrections, every variant, and nothing else it
+// might misread (CT02).
+const FROM_BUILDER = Object.freeze({
+  'v5:district-dol2/assignment.json': 336,
+  'secure:algebra1_district_dol2.json': 832,
+  'corrections:algebra1_district_dol2.json': 832,
+});
 
 test('inventory: every authored item is classified STEPS or ANSWER-ONLY (the answer-only groups are logged)', (t) => {
   t.diagnostic(`sampled: ${JSON.stringify(inventory.sampled)}`);
@@ -322,7 +361,7 @@ test('the support families still write the steps they write today (closed review
   assert.ok(fromFamily >= FROM_FAMILY_FLOOR, `family worked solutions ${fromFamily} < ${FROM_FAMILY_FLOOR}`);
 });
 
-test('a worked-solution builder writes steps for the DOL #2 review tasks and retest items only, every one of them', () => {
+test('a worked-solution builder writes steps for the DOL #2 review tasks, retest items and corrections only, every one of them', () => {
   const fromBuilder = Object.fromEntries(Object.entries(inventory.bySource).filter(([, bucket]) => bucket.fromBuilder > 0).map(([source, bucket]) => [source, bucket.fromBuilder]));
   assert.deepEqual(fromBuilder, FROM_BUILDER);
 });

@@ -23,8 +23,9 @@
  * results are released. An item the student left blank is recorded as
  * `unanswered`, worth zero, so Corrections plans from it like any other miss.
  * An item with no worked solution of its own may be given steps when the
- * released review is served (`withReleasedWorkedSteps`, CT02); those are
- * stored nowhere.
+ * released review is served (`withReleasedWorkedSteps`, CT02), and a closed
+ * Corrections item the same way (`reviewWithWorkedSteps`); those are stored
+ * nowhere.
  */
 
 const mathPath = require('./mathPath');
@@ -226,6 +227,25 @@ const withBuiltSteps = (released, built) => ({
   answerSummary: clean(released?.answerSummary) || built.answerSummary,
 });
 
+/*
+ * ONE RELEASED ITEM: its own released review (or null), with the built steps
+ * when it has none of its own. The review comes back unchanged when it already
+ * has steps or the item gives none. This is the one way an issued item gains
+ * steps: the released Test review below asks it for each item, and so does a
+ * closed Corrections question (submitTestCycleCorrectionResponse), each only
+ * past its own release rule — results released, or the correction item closed.
+ * Never throws.
+ */
+async function reviewWithWorkedSteps(review, storedItem) {
+  try {
+    if (list(review?.reasoning).length) return review;
+    const built = await releasedWorkedStepsFor(storedItem);
+    return built ? withBuiltSteps(review, built) : review;
+  } catch {
+    return review;
+  }
+}
+
 /**
  * The released review, with steps for each item whose released solution has
  * none. `readItems(ids)` resolves the session's issued item documents by id
@@ -243,14 +263,14 @@ async function withReleasedWorkedSteps(review, { session, readItems } = {}) {
     const stored = await readItems(wanting.map((entry) => clean(entry.questionInstanceId)));
     const built = new Map();
     for (const entry of wanting) {
-      const steps = await releasedWorkedStepsFor(stored?.get?.(clean(entry.questionInstanceId))?.item);
-      if (steps) built.set(entry, steps);
+      const withSteps = await reviewWithWorkedSteps(entry.solution.review, stored?.get?.(clean(entry.questionInstanceId))?.item);
+      if (withSteps !== entry.solution.review) built.set(entry, withSteps);
     }
     if (!built.size) return review;
     return {
       ...review,
       items: review.items.map((entry) => (built.has(entry)
-        ? { ...entry, solution: { ...entry.solution, review: withBuiltSteps(entry.solution.review, built.get(entry)) } }
+        ? { ...entry, solution: { ...entry.solution, review: built.get(entry) } }
         : entry)),
     };
   } catch (error) {
@@ -494,6 +514,7 @@ module.exports = {
   releasedSolutionFor,
   releasedWorkedStepsFor,
   reviewSnapshotOf,
+  reviewWithWorkedSteps,
   safeSupportUsage,
   staleDraftWrite,
   upgradeSession,

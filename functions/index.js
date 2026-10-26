@@ -21184,6 +21184,18 @@ exports.submitTestCycleCorrectionResponse = onCall(async (request) => {
     responsePayload: request.data?.responsePayload || null,
     diagnosis,
   });
+  /*
+   * Worked steps for a closed item with none of its own (CT02): a District
+   * DOL #2 family, which Corrections draws on when a Test Cycle's blueprint is
+   * the DOL #2 one, carries no worked solution, so its closed item showed
+   * nothing. The released Test review's own per-item builder works THIS issued
+   * item, with every stated answer held to its key by the grader that just
+   * scored it (secureExamItems.reviewWithWorkedSteps). Only once the item is
+   * closed, exactly where its own review would be released; stored nowhere.
+   */
+  const solutionReview = applied.questionClosed
+    ? await secureExamItems.reviewWithWorkedSteps(support?.solutionReview || null, openForGrading)
+    : null;
 
   return {
     success: true,
@@ -21194,7 +21206,7 @@ exports.submitTestCycleCorrectionResponse = onCall(async (request) => {
     parts: grading.parts,
     feedbackMessage: support?.feedback?.message || null,
     hint: support?.support?.hint || null,
-    solutionReview: applied.questionClosed ? (support?.solutionReview || null) : null,
+    solutionReview,
     attemptsUsed: applied.attemptsUsed,
     attemptsRemaining: applied.attemptsRemaining,
     questionClosed: applied.questionClosed,
