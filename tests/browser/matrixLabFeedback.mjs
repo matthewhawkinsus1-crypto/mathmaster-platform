@@ -151,15 +151,17 @@ const session = async (viewport, { appScrollPadding = false, touch = false } = {
 
   journey = 'CW 4 figure sort (P2-4)';
   await s.go('l3m-cw-4');
+  // Its cards show only text (products like "(2 × 3) · (3 × 4)"), so the
+  // stage calls them cards, not figures (FB16).
   const chosen = ['2 × 4', '2 × 4', '2 × 4', 'Not defined', 'Not defined', '4 × 4', '4 × 4', '4 × 4'];
   for (let i = 0; i < chosen.length; i += 1) {
-    const group = page.getByRole('radiogroup', { name: `Category for Figure ${i + 1}` });
+    const group = page.getByRole('radiogroup', { name: `Category for Card ${i + 1}` });
     await group.getByRole('radio', { name: chosen[i] === 'Not defined' ? 'Not defined' : `Defined — the product is ${chosen[i]}` }).click();
   }
   await page.getByRole('button', { name: /^(Check|Submit)/ }).last().click();
   await page.waitForTimeout(1000);
   const named = await page.evaluate(() => document.querySelector('[data-figure-match-wrong]')?.textContent || '');
-  check(named === 'Figures 3 and 8 are not in the right category yet.', `the wrong figures are named: "${named}"`);
+  check(named === 'Cards 3 and 8 are not in the right category yet.', `the wrong cards are named: "${named}"`);
   check((await page.locator('[data-figure-wrong]').count()) === 2, 'and their cards are marked');
   await s.shot('laptop-cw4-figures-named');
 

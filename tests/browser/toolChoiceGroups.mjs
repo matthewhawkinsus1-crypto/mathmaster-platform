@@ -164,7 +164,8 @@ const runFigureMatch = async (page) => {
   const label = 'figureMatch';
   console.log(`\n${label}`);
   await page.goto(`${ORIGIN}/tests/browser/toolChoiceGroups.html`, { timeout: 180_000 });
-  const group = page.locator('[data-fm-stage="three"]').getByRole('radiogroup', { name: 'Category for Figure 1', exact: true });
+  // The harness's cards are text alone, so the stage calls them cards (FB16).
+  const group = page.locator('[data-fm-stage="three"]').getByRole('radiogroup', { name: 'Category for Card 1', exact: true });
   await group.waitFor({ timeout: 60_000 });
   const answer = () => page.evaluate(() => {
     const changes = window.__fm.changes;
@@ -189,7 +190,7 @@ const runFigureMatch = async (page) => {
   check(state.f1 === 'linear', `${label}: ArrowRight wraps to Linear (${state.f1})`);
   await holds('Home', 'linear', 'on the checked first chip, again');
   state = await answer();
-  check(state.cleared === 0, `${label}: no key ever reported Figure 1 unanswered (${state.cleared} cleared value(s))`);
+  check(state.cleared === 0, `${label}: no key ever reported Card 1 unanswered (${state.cleared} cleared value(s))`);
   // The middle chip checked: Space, Space writes nothing and focus stays there.
   await group.locator('[role="radio"]').nth(1).click();
   state = await answer();
@@ -207,7 +208,7 @@ const runFigureMatch = async (page) => {
   check(state.f1 === null, `${label}: Enter (a click) on the chosen chip still clears it, as a pointer does (${state.f1})`);
   // One category: every key lands on the one chip. Space answers once, and
   // nothing after it writes or clears.
-  const one = page.locator('[data-fm-stage="one"]').getByRole('radiogroup', { name: 'Category for Figure 1', exact: true });
+  const one = page.locator('[data-fm-stage="one"]').getByRole('radiogroup', { name: 'Category for Card 1', exact: true });
   await one.locator('[role="radio"]').first().focus();
   for (const key of ['Space', 'ArrowRight', 'ArrowDown', 'Home', 'End', 'Space']) {
     await page.keyboard.press(key);
