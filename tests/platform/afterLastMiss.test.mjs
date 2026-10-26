@@ -343,7 +343,7 @@ test('HELP-11: Pre-Flight warns — never blocks — on answer-only worked solut
   assert.equal(workedSolutionDepth(factorTemplate), 'steps');
   assert.equal(workedSolutionDepth(sumTemplate), 'answerOnly');
   assert.equal(workedSolutionDepth({ ...sumTemplate, solutionReview: { reasoning: ['{{a}} + 1 = {{v}}.'] } }), 'steps');
-  // The real lessons: 905 of 971 practice-like items walk through steps —
+  // The real lessons: 938 of 971 practice-like items walk through steps —
   // 204 of 265 in the lessons before October 22 (199 before family slots
   // were judged by a version), then every one in Operations on Polynomials
   // and Dividing Polynomials (59), the Algebra I DOL #3 Review (13) and its
@@ -354,10 +354,15 @@ test('HELP-11: Pre-Flight warns — never blocks — on answer-only worked solut
   // one it swaps out, and both audited items); and the 12 warm-up, classwork
   // and practice transformation descriptions of Algebra II Honors Module 1
   // (L1 absolute value, L2 day 2), which the transformations family now
-  // works (CT02; its two DOL items are not practice-like).
+  // works (CT02; its two DOL items are not practice-like); and the Algebra I
+  // Lesson 3 multi-answer items the perpendicularLines family now works
+  // (CT02): 17 in the Regular file and 16 in the Honors file, every warm-up,
+  // classwork and practice one but l3-wu-2, whose points are in the warm-up
+  // before it (its sorts and line choices were already counted, as composed
+  // workflows; its three DOL items are not practice-like).
   const practiceLike = itemsByRole().filter((item) => ['warmup', 'classwork', 'practice'].includes(item.role));
   assert.equal(practiceLike.length, 265 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 26);
-  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 204 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 9 + 12);
+  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 204 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 9 + 12 + 17 + 16);
   // Wired into Pre-Flight as advice the teacher sees in the Check step, and
   // never as a diagnostic: any warning diagnostic makes an assignment "Needs
   // Review", which students never see (isUnpublishedDraft) — and most real

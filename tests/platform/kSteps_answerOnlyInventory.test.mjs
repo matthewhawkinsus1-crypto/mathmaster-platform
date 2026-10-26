@@ -17,6 +17,7 @@ import * as inverseComposition from '../../src/platform/supports/families/invers
 import * as transformations from '../../src/platform/supports/families/transformations.js';
 import * as quadraticsAbsoluteValue from '../../src/platform/supports/families/quadraticsAbsoluteValue.js';
 import * as dataAndModels from '../../src/platform/supports/families/dataAndModels.js';
+import * as perpendicularLines from '../../src/platform/supports/families/perpendicularLines.js';
 import { effectivePathVariants, generatePathInstanceWithRetries, hasPathGenerator } from '../../functions/shared/pathQuestionGeneration.mjs';
 import { parseAssignmentBlueprintText } from '../../src/assignmentBlueprint.js';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
@@ -77,7 +78,7 @@ const { storableItem } = require('../../functions/lib/secureItemStorage.js');
  */
 
 const FAMILY_NAMES = new Map(Object.entries({
-  linearEquations, systems, linesAndSlope, fractions, pointsAndIntervals, functionFeatures, inverseComposition, transformations, quadraticsAbsoluteValue, dataAndModels,
+  linearEquations, systems, linesAndSlope, fractions, pointsAndIntervals, functionFeatures, inverseComposition, transformations, quadraticsAbsoluteValue, dataAndModels, perpendicularLines,
 }).map(([name, module]) => [module, name]));
 
 const ROOT = new URL('../../', import.meta.url);
@@ -268,6 +269,11 @@ const STEPS_FLOOR = Object.freeze({
   'ccmr-v5:act': 136, 'ccmr-v5:digitalSAT': 648, 'ccmr-v5:tsia2': 200,
   drafts: 3295,
   'v5:algebra1-dol1/District_DOL1_Technology_Graph_Analysis_Review.json': 25,
+  // CT02 slice 3: the perpendicularLines family's worked solutions of Lesson 3
+  // (25 here and 23 in Honors, beside the three graphing2 tool reviews and the
+  // two audited Honors items); l3-wu-2 is left: its points are in the item before it.
+  'v5:algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines.json': 28,
+  'v5:algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines_Honors.json': 28,
   // CT02: the transformations family's worked solution of a description (6 here, 8 in L2_Day2).
   'v5:algebra2-honors-module1/L1_Absolute_Value_ALEKS_Bridge_20260828.json': 19,
   'v5:algebra2-honors-module1/L1_Day1_Interval_Domain_Range.json': 17,
@@ -284,8 +290,8 @@ const STEPS_FLOOR = Object.freeze({
   'secure:algebra1_district_dol2.json': 832,
   demo: 26,
 });
-const STEPS_TOTAL_FLOOR = 7999 + 336 + 832 + 14;
-const FROM_FAMILY_FLOOR = 119 + 14;
+const STEPS_TOTAL_FLOOR = 7999 + 336 + 832 + 14 + 48;
+const FROM_FAMILY_FLOOR = 119 + 14 + 48;
 // Where a worked-solution builder (not a support family) writes the steps: the
 // DOL #2 review and retest, every variant, and nothing else it might misread (CT02).
 const FROM_BUILDER = Object.freeze({ 'v5:district-dol2/assignment.json': 336, 'secure:algebra1_district_dol2.json': 832 });

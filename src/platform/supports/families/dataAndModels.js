@@ -15,8 +15,9 @@
 //                                  answer); null keeps the platform's generic one
 // `implemented` stays false until the family is real: the index skips it.
 //
-// WHAT THIS FAMILY OWNS (last in the index order; none of the nine families
-// before it claims these tool types). Every answer is computed from the SAME
+// WHAT THIS FAMILY OWNS (tenth in the index order; none of the nine families
+// before it claims these tool types, and perpendicularLines, after it, takes
+// only what no family claims). Every answer is computed from the SAME
 // authored fields, defaults and mathematics the tool's shared grader reads
 // (functions/shared/serverGrading/tools/<tool>.mjs and its toolMath):
 //

@@ -11,8 +11,11 @@ import * as inverseComposition from './inverseComposition.js';
 import * as transformations from './transformations.js';
 import * as quadraticsAbsoluteValue from './quadraticsAbsoluteValue.js';
 import * as dataAndModels from './dataAndModels.js';
+import * as perpendicularLines from './perpendicularLines.js';
 
-const FAMILIES = [linearEquations, systems, linesAndSlope, fractions, pointsAndIntervals, functionFeatures, inverseComposition, transformations, quadraticsAbsoluteValue, dataAndModels];
+// perpendicularLines is last: it speaks only in the closed-question review
+// (CT02), so it may take only an item that no family above claims.
+const FAMILIES = [linearEquations, systems, linesAndSlope, fractions, pointsAndIntervals, functionFeatures, inverseComposition, transformations, quadraticsAbsoluteValue, dataAndModels, perpendicularLines];
 
 export const implementedFamilies = () => FAMILIES.filter((module) => module.implemented === true);
 
