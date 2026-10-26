@@ -60,6 +60,12 @@ import { SUBMIT_VERB, submitActionLabel, submitTryCost } from '../../platform/st
  * raw construction plus those drafts go up with every autosave through
  * `onDraftChange`, so the item reopens on another device as it was left.
  *
+ * ITS LANDMARK (`mainLandmark`, TT27). The item is the page's <main>. A teacher's
+ * page already has one, and draws this inside it (the Test Cycle preview): there
+ * it passes `mainLandmark={false}` and the item is a plain <div>, so the page has
+ * one main and not a main inside a main. Every student surface leaves it at its
+ * default, which draws the <main> it always drew.
+ *
  * NAVIGATION MODE (`navigationMode`). A secure test the student moves around
  * in — Previous, Next, a question list, change any answer until Submit — has
  * no per-question "record" step: every answer is a draft the server grades
@@ -144,7 +150,8 @@ const InstructionalSupport = ({ policy, feedback, isToolItem, supportProfile = n
  * given the raw profile, because the flattened assessment profile loses the
  * plan's per-activity limits). Nothing here reads or computes correctness.
  */
-const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, rawStudentSupportProfile = null, graphReadOut = false, initialResponsePayload, busy, closed, feedback, attempt = null, navigationMode = false, calculatorInToolbar = false, examType = null, onSubmit, onDraftChange }) => {
+const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, rawStudentSupportProfile = null, graphReadOut = false, initialResponsePayload, busy, closed, feedback, attempt = null, navigationMode = false, calculatorInToolbar = false, examType = null, mainLandmark = true, onSubmit, onDraftChange }) => {
+  const Landmark = mainLandmark ? 'main' : 'div';
   const [responses, setResponses] = useState(() => initialResponsePayload?.responses || {});
   const [calculatorUsed, setCalculatorUsed] = useState(false);
   const [regressionState, setRegressionState] = useState(() => {
@@ -187,7 +194,7 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
   const enabled = complete && !locked;
 
   return (
-    <main style={{ width: 'min(820px, 100%)', margin: '0 auto', padding: '28px 18px 64px', boxSizing: 'border-box' }}>
+    <Landmark style={{ width: 'min(820px, 100%)', margin: '0 auto', padding: '28px 18px 64px', boxSizing: 'border-box' }}>
       <section style={card}>
         {policy.secure && <div style={sectionLabelStyle}>Secure exam question</div>}
         {/* Secure mode deliberately hides TEKS/domain labels while answering,
@@ -253,7 +260,7 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
       {/* One calculator (H-19): where the exam toolbar has the graphing
           calculator, the item draws no second, scientific one. */}
       {!calculatorInToolbar && <CalculatorPanel policy={calculatorPolicy} onCalculatorOpened={() => setCalculatorUsed(true)} />}
-    </main>
+    </Landmark>
   );
 };
 
@@ -280,7 +287,8 @@ const secureToolTrayEntitlement = (rawStudentSupportProfile) => {
   return { tools: entitlement.tools, language: entitlement.language, showExamples: false, promptTermsOnly: true };
 };
 
-const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStudentSupportProfile = null, graphReadOut = false, draftKey, initialResponsePayload, busy, closed, closedMessage, feedback, attempt, executionScope, navigationMode = false, calculatorInToolbar = false, onSubmit, onDraftChange }) => {
+const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStudentSupportProfile = null, graphReadOut = false, draftKey, initialResponsePayload, busy, closed, closedMessage, feedback, attempt, executionScope, navigationMode = false, calculatorInToolbar = false, mainLandmark = true, onSubmit, onDraftChange }) => {
+  const Landmark = mainLandmark ? 'main' : 'div';
   const latestRawRef = useRef(initialResponsePayload?.raw || null);
   const onSubmitRef = useRef(onSubmit);
   onSubmitRef.current = onSubmit;
@@ -407,7 +415,7 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStude
   }), [calculatorPolicy?.available, calculatorPolicy?.mode, calculatorPolicy?.source]);
 
   return (
-    <main ref={hostRef} data-rich-question-runtime={policy.mode} data-path-tool={question.pathToolId} style={{ width: 'min(1180px, 100%)', margin: '0 auto', padding: '18px 14px 64px', boxSizing: 'border-box', minWidth: 0, overflowX: 'clip' }}>
+    <Landmark ref={hostRef} data-rich-question-runtime={policy.mode} data-path-tool={question.pathToolId} style={{ width: 'min(1180px, 100%)', margin: '0 auto', padding: '18px 14px 64px', boxSizing: 'border-box', minWidth: 0, overflowX: 'clip' }}>
       {policy.secure && <div style={{ ...sectionLabelStyle, margin: '0 4px 8px' }}>Secure exam question</div>}
       <Suspense fallback={<p role="status" style={{ padding: 30, textAlign: 'center', color: 'var(--mm-text-muted)' }}>Opening the math workspace…</p>}>
         <QuestionEngine
@@ -442,7 +450,7 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStude
         />
       </Suspense>
       <InstructionalSupport policy={policy} feedback={feedback} isToolItem supportProfile={rawStudentSupportProfile || supportProfile} />
-    </main>
+    </Landmark>
   );
 };
 
@@ -470,6 +478,9 @@ export default function RichQuestionRuntime({
   navigationMode = false,
   // The host's toolbar has the item's calculator (SecureExamContainer).
   calculatorInToolbar = false,
+  // The item is the page's <main>, as every student surface has it. A teacher's page has one
+  // already and passes false: the item is then a plain <div> (see ITS LANDMARK, above).
+  mainLandmark = true,
   onSubmit,
   onDraftChange,
 }) {
@@ -529,6 +540,7 @@ export default function RichQuestionRuntime({
         executionScope={executionScope}
         navigationMode={navigationMode}
         calculatorInToolbar={calculatorInToolbar}
+        mainLandmark={mainLandmark}
         onSubmit={onSubmit}
         onDraftChange={onDraftChange}
       />
@@ -550,6 +562,7 @@ export default function RichQuestionRuntime({
       navigationMode={navigationMode}
       calculatorInToolbar={calculatorInToolbar}
       examType={examType}
+      mainLandmark={mainLandmark}
       onSubmit={onSubmit}
       onDraftChange={onDraftChange}
     />

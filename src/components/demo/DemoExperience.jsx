@@ -168,6 +168,8 @@ function DemoMathPathSession({ student, onBack, onUpdate }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}><button type="button" onClick={onBack} style={{ ...button, border: 0, color: 'var(--mm-primary)' }}>← Back to My Math Path</button><span style={pill('var(--mm-accent-soft)', 'var(--mm-accent-text)')}>LIVE · CLIENT ONLY · NO SERVER DATA</span></div>
       <PathSessionPlayer
         key={current.questionInstanceId}
+        // The teacher's page has its main; the student's session inside it is not a second (TT27).
+        mainLandmark={false}
         session={session}
         questionInstance={{ ...current, attemptsUsed: attempts }}
         lastGradingResult={grading}

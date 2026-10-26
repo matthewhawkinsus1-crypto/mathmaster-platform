@@ -1914,20 +1914,6 @@ export default function TeacherWorkspace({
           header's Find and Log Out, to the screen. The dialogs below are siblings of the shell. */}
       <SkipToContent />
       {renderDeleteAssignmentDialog()}
-      {testCyclePreviewAssignment && (
-        <Suspense fallback={<p role="status" style={{ position: 'fixed', top: 12, left: 12, zIndex: 11000 }}>Opening the student preview…</p>}>
-          <TestCyclePreview
-            assignment={testCyclePreviewAssignment}
-            onClose={() => setTestCyclePreviewAssignment(null)}
-            // Review is ordinary content: play it in the existing in-memory
-            // teacher preview, which writes nothing either.
-            onPreviewReview={(assignment) => {
-              setTestCyclePreviewAssignment(null);
-              startTeacherPreview(assignment.id, { lessonRuntime: true });
-            }}
-          />
-        </Suspense>
-      )}
       {renderExportJsonDialog()}
       {renderTeacherScratchpadDialog()}
       {teacherWorksheetDialog && (() => {
@@ -2236,6 +2222,24 @@ export default function TeacherWorkspace({
             // families; seedPathQuestionBank re-checks the root identity.
             canManageSecureBank={rootAdminUiEligible}
           />
+        )}
+        {/* The student preview of a Test Cycle is a dialog over the screen, drawn inside the main for
+            the Pre-Flight review's reason: the work area of a tool item in it draws itself as the
+            page's main wherever no main is around it, and a second main is what the preview was
+            drawing (its items are plain elements here, TestCyclePreview). */}
+        {testCyclePreviewAssignment && (
+          <Suspense fallback={<p role="status" style={{ position: 'fixed', top: 12, left: 12, zIndex: 11000 }}>Opening the student preview…</p>}>
+            <TestCyclePreview
+              assignment={testCyclePreviewAssignment}
+              onClose={() => setTestCyclePreviewAssignment(null)}
+              // Review is ordinary content: play it in the existing in-memory
+              // teacher preview, which writes nothing either.
+              onPreviewReview={(assignment) => {
+                setTestCyclePreviewAssignment(null);
+                startTeacherPreview(assignment.id, { lessonRuntime: true });
+              }}
+            />
+          </Suspense>
         )}
         <div className="mm-dashboard-content" style={{ padding: '30px' }}>
           {/*

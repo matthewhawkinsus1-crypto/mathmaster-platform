@@ -24,6 +24,13 @@
  *       Administration view) has one main, the link as its first Tab stop, and the
  *       link goes to the main.
  *
+ *   L6  the three states in which a student's own screen runs inside the workspace leave it at
+ *       one main: the Test Cycle's student preview (a field item and a tool item, in the Test and
+ *       in Corrections: the shared RichQuestionRuntime), a running Demo Experience session (a
+ *       typed answer, and a tool) and a running Path Simulator session (PathSessionPlayer). Each
+ *       drew a <main> of its own, a second one inside the workspace's; they are plain elements
+ *       there now (the student's screens keep theirs: tests/platform/teacherMainLandmark.test.mjs).
+ *
  * It also prints how many Tab stops stand between the top of a screen and its
  * content without the link (the number the link saves a keyboard teacher on every
  * screen), which is a measurement, not a verdict.
@@ -34,12 +41,14 @@
  *   TEACHER_HARNESS_ORIGIN (default http://127.0.0.1:5188), PLAYWRIGHT_MODULE /
  *   CHROMIUM_PATH as for the certification. Nothing leaves localhost.
  *
- * For working on it: ONLY_VIEWPORT=desktop (or phone) runs one size, DEBUG_DRIVER=1
+ * For working on it: ONLY_VIEWPORT=desktop (or phone) runs one size, ONLY_STATES=1 runs L6 alone, DEBUG_DRIVER=1
  * prints the first lines of the error when a step cannot be driven, and DEBUG_SHOT=<file>
  * saves the page as it was then. None of them changes what is checked.
  */
 import { VIEWPORTS } from './accessibilityCertification.mjs';
-import { TEACHER_SCREENS } from './accessibilityTeacherScreens.mjs';
+import {
+  TEACHER_SCREENS, enterTestCycleStage, openDemoSession, openSimulatorSession, openTeacherAppWithTestCycle, openTestCyclePreview, showTestCycleItem,
+} from './accessibilityTeacherScreens.mjs';
 import { newSchoolContext } from './teacherWorkflow/schoolClock.mjs';
 
 const origins = { app: process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188' };
@@ -101,6 +110,48 @@ const landmarks = (page) => page.evaluate((navSelector) => {
   };
 }, NAV);
 
+// L6: a student's screen inside the teacher's page. Each state is opened from a fresh page (they
+// start from their own screens), and read once it is plainly there: a check of a state the run never
+// reached would pass for the wrong reason, so each names what must be on screen before it counts.
+const dialogsOpen = (page) => page.evaluate(() => [...document.querySelectorAll('[role="dialog"]')].filter((element) => element.getClientRects().length > 0).length);
+const studentScreensInTeacherPages = async (page, tag, origins) => {
+  const one = async (label, { dialog = false, reached = null } = {}) => {
+    const seen = await landmarks(page);
+    const opened = reached ? await reached() : true;
+    check(tag, opened, `L6 ${label}: the state is on screen`);
+    check(tag, seen.mainCount === 1 && seen.isWorkspaceMain && (!dialog || (await dialogsOpen(page)) >= 1), `L6 ${label}: one main, the workspace's (${seen.mains.join(', ') || 'none'})`);
+  };
+  const inPreview = (selector) => async () => (await page.getByRole('dialog', { name: /Student preview of/ }).locator(selector).count()) >= 1;
+  const toolItemIsOn = async () => (await page.locator('[data-rich-question-runtime]').count()) === 1;
+
+  // The Test Cycle's student preview: the Test, then Corrections, each with its field item and its tool item.
+  await openTeacherAppWithTestCycle(page, origins);
+  await openTestCyclePreview(page);
+  await enterTestCycleStage('test')(page);
+  await one("the Test Cycle preview, a field item of the Test", { dialog: true, reached: inPreview('form') });
+  await showTestCycleItem(2)(page);
+  await one("the Test Cycle preview, a tool item of the Test", { dialog: true, reached: toolItemIsOn });
+  await page.getByRole('dialog', { name: /Student preview of/ }).getByRole('button', { name: /Back to the card/ }).click();
+  await enterTestCycleStage('corrections')(page);
+  await one("the Test Cycle preview, a field item of Corrections", { dialog: true, reached: inPreview('form') });
+  await showTestCycleItem(2)(page);
+  await one("the Test Cycle preview, a tool item of Corrections", { dialog: true, reached: toolItemIsOn });
+
+  // A running Demo Experience session: a typed answer, then a tool.
+  const home = screenNamed('teacher-home');
+  await home.open(page, origins);
+  await openDemoSession()(page);
+  await one('a running Demo Experience session, a typed answer', { reached: async () => (await page.getByText(/Question 1 of 5/).count()) >= 1 });
+  await home.open(page, origins);
+  await openDemoSession({ tool: true })(page);
+  await one('a running Demo Experience session, a tool', { reached: async () => (await page.getByText('Number Line and Intervals').count()) >= 1 });
+
+  // A running Path Simulator session.
+  await home.open(page, origins);
+  await openSimulatorSession(page);
+  await one('a running Path Simulator session', { reached: async () => (await page.getByText(/Question 1 of \d+/).count()) >= 1 });
+};
+
 try {
   for (const viewport of VIEWPORTS.filter((entry) => !process.env.ONLY_VIEWPORT || entry.id === process.env.ONLY_VIEWPORT)) {
     const tag = viewport.id;
@@ -122,6 +173,11 @@ try {
     page.on('pageerror', (error) => pageErrors.push(error.message));
     try {
       const home = screenNamed('teacher-home');
+      if (process.env.ONLY_STATES) {
+        await studentScreensInTeacherPages(page, tag, origins);
+        check(tag, pageErrors.length === 0, `no page errors${pageErrors.length ? `: ${pageErrors.join(' | ')}` : ''}`);
+        continue;
+      }
       await home.open(page, origins);
       await home.scenes[0].run(page, origins);
 
@@ -239,6 +295,9 @@ try {
       await page.keyboard.press('Enter');
       await page.waitForTimeout(200);
       check(tag, await page.evaluate(() => document.activeElement?.id === 'mm-main-content' && document.activeElement.localName === 'main'), 'L5 and it puts focus on the main');
+
+      // ----------------------------------------------- L6, a student's screen inside the page
+      await studentScreensInTeacherPages(page, tag, origins);
 
       check(tag, pageErrors.length === 0, `no page errors${pageErrors.length ? `: ${pageErrors.join(' | ')}` : ''}`);
     } catch (error) {

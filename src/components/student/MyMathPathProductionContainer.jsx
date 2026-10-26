@@ -93,6 +93,9 @@ export const MyMathPathProductionContainer = ({
   onSessionComplete,
   onSimulationController = null,
   onSimulationEvent = null,
+  // The running session is the page's <main>; false where a teacher's page has its own (the
+  // Path Simulator: pathSessionIsMain in myMathPathLandmarks.js decides). Handed to the player.
+  mainLandmark = true,
 }) => {
   const provider = sessionProvider || liveSessionService;
   const {
@@ -826,6 +829,7 @@ export const MyMathPathProductionContainer = ({
         </div>
       )}
       <PathSessionPlayer
+        mainLandmark={mainLandmark}
         onExit={onReturnToDashboard}
         session={session}
         questionInstance={currentQuestion}

@@ -34,6 +34,9 @@ export const SecureExamQuestionPlayer = ({
   // The exam toolbar has this item's calculator (secureExamTools.js
   // graphingCalculator): the item draws none of its own (H-19).
   calculatorInToolbar = false,
+  // The item is the page's <main>. A teacher's page has one already (the Test Cycle preview) and
+  // passes false: RichQuestionRuntime then draws a plain <div> (TT27, "ITS LANDMARK" there).
+  mainLandmark = true,
   onSubmit,
   onDraftChange,
 }) => (
@@ -52,6 +55,7 @@ export const SecureExamQuestionPlayer = ({
     executionScope={executionScope}
     navigationMode={navigationMode}
     calculatorInToolbar={calculatorInToolbar}
+    mainLandmark={mainLandmark}
     onSubmit={onSubmit}
     onDraftChange={onDraftChange}
   />

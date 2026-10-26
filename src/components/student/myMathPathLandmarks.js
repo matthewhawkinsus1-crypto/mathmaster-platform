@@ -19,6 +19,10 @@ export const pathHeaderIsH1 = ({ activeTab, embedded = false } = {}) => (
 export const pathContentIsMain = ({ activeTab, embedded = false } = {}) => (
   !embedded && activeTab !== 'session'
 );
+// ...and in a running session, in a student's page the session IS the main. In a
+// teacher's (the Path Simulator), the page has its own, and a session that drew
+// another would put a main inside it: there it is a plain element (TT27).
+export const pathSessionIsMain = ({ embedded = false } = {}) => !embedded;
 
 // ONE WAY HOME, NOT TWO (MP08). The shared row at the top of the screen
 // (StudentGlobalNav) already has Home, so the Path's own nav must not draw a

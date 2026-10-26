@@ -92,7 +92,9 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
         run: node tests/browser/accessibilityTeacherLiveClassTabs.mjs
-      # The teacher workspace's one main landmark and its skip link, over every screen and the dialogs on top.
+      # The teacher workspace's one main landmark and its skip link, over every screen and the dialogs on top,
+      # and the three states where a student's own screen runs inside it (the Test Cycle preview, a Demo
+      # Experience session, a Path Simulator session), which used to draw a second main.
       - name: The teacher workspace's main landmark and skip link (TT27)
         if: ${{ !cancelled() }}
         env:

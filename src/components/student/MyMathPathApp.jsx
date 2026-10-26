@@ -52,7 +52,7 @@ import {
   writeMathPathRouteState,
 } from '../../platform/student/browserHistory.js';
 import { mathPathUrlFor } from '../../app/routes/browserUrl.js';
-import { PATH_HEADER_H1_STYLE, pathContentIsMain, pathHeaderIsH1, pathOwnExitLabel } from './myMathPathLandmarks.js';
+import { PATH_HEADER_H1_STYLE, pathContentIsMain, pathHeaderIsH1, pathOwnExitLabel, pathSessionIsMain } from './myMathPathLandmarks.js';
 
 // The mastery-status priority list this used to be was a second, competing
 // idea of what to recommend, sitting beside the path engine and able to
@@ -873,6 +873,7 @@ export const MyMathPathExperience = ({
       {activeTab === 'session' && sessionConfig && <MyMathPathProductionContainer
         key={sessionLaunchKey(sessionConfig)}
         {...sessionConfig} studentProfile={studentProfile} sessionProvider={sessionProvider} onSimulationController={onSimulationController} onSimulationEvent={onSimulationEvent} onReturnToDashboard={returnToDashboard}
+        mainLandmark={pathSessionIsMain({ embedded: embeddedInTeacherPage })}
         masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS}
         liveServerMasteryProfiles={sessionProvider ? null : serverMasteryProfiles}
         weeklySessionEnd={weeklySessionEnd}

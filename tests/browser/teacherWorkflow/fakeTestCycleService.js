@@ -8,15 +8,18 @@
 import {
   getStudentTestCycle as realGetStudentTestCycle,
   issueTestCycleCorrectionQuestion as realIssueTestCycleCorrectionQuestion,
+  previewTestCycleSecureItems as realPreviewTestCycleSecureItems,
   submitTestCycleCorrectionResponse as realSubmitTestCycleCorrectionResponse,
 } from '../../../src/services/testCycleService.js';
 import { harnessStore } from './fakeFirestore.js';
 import {
   INNER_SCREENS_TEST_CYCLE_ID,
+  INNER_SCREENS_TEST_CYCLE_TITLE,
   innerScreensCard,
   innerScreensCorrectionQuestion,
   innerScreensSeeded,
 } from './innerScreensFixture.js';
+import { previewTestCycleItems } from './testCyclePreviewFixture.js';
 
 export * from '../../../src/services/testCycleService.js';
 
@@ -36,3 +39,9 @@ export const issueTestCycleCorrectionQuestion = (args = {}) => (scenarioCycle(ar
 export const submitTestCycleCorrectionResponse = (args = {}) => (scenarioCycle(args.assignmentId)
   ? answer({ success: true, isCorrect: false, attemptsUsed: 1, progress: { total: 2, complete: 0 }, correctionsComplete: false })
   : realSubmitTestCycleCorrectionResponse(args));
+
+// The teacher's preview of that Test Cycle (TestCyclePreview): two items, a field item and a tool
+// item, where the real callable needs the school's approved question families (testCyclePreviewFixture.js).
+export const previewTestCycleSecureItems = (args = {}) => (scenarioCycle(args.assignmentId)
+  ? answer(previewTestCycleItems({ stage: args.stage, draw: args.draw, title: INNER_SCREENS_TEST_CYCLE_TITLE }))
+  : realPreviewTestCycleSecureItems(args));

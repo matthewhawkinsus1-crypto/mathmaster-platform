@@ -223,6 +223,8 @@ const SecureItemsPreview = ({ assignment, candidate = null, stage, accommodation
               feedback={itemCorrection}
               attempt={{ used: itemCorrection?.attemptsUsed || 0, allowed: 3 }}
               executionScope="teacherPreview"
+              // The teacher's page has its main; the student's item inside this dialog is not a second (TT27).
+              mainLandmark={false}
               onSubmit={correctionAttempt}
             />
           )}
@@ -237,6 +239,7 @@ const SecureItemsPreview = ({ assignment, candidate = null, stage, accommodation
               accommodationConfirmed
               busy={checking}
               executionScope="teacherPreview"
+              mainLandmark={false}
               onSubmit={(responsePayload) => check(responsePayload)}
               onDraftChange={() => {}}
             />

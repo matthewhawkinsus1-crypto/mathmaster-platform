@@ -71,6 +71,22 @@ test('the Pre-Flight review is drawn inside the main, so the work area of its st
   assert.match(host, /role=\{hostHasMain \? undefined : 'main'\}/);
 });
 
+// The Test Cycle's student preview is the same case, for a tool item (slice 3). Its items are plain
+// elements now (studentScreensInTeacherPages.test.mjs), so a tool item's work area is what looks for a
+// main around it; the preview, a dialog drawn at the workspace's root, had none around it, and the work
+// area drew a main of its own: at both layouts, a second one.
+test('the Test Cycle preview is drawn inside the main too, so the work area of its tool item finds a main around it', () => {
+  const mainStart = workspace.indexOf('<main id={MAIN_CONTENT_ID} tabIndex={-1}>');
+  const content = workspace.indexOf('<div className="mm-dashboard-content"');
+  const preview = workspace.indexOf('<TestCyclePreview');
+  assert.ok(mainStart > 0 && preview > mainStart && preview < content, 'in the main, ahead of the content area');
+  assert.equal(workspace.split('<TestCyclePreview').length - 1, 1, 'drawn once');
+  assert.match(workspace.slice(mainStart, preview), /\{testCyclePreviewAssignment && \(\s*<Suspense fallback=\{[^\n]*\}>\s*$/, 'under the condition that opens it, not left at the root beside the dialogs');
+  assert.equal((workspace.match(/testCyclePreviewAssignment && \(/g) || []).length, 1, 'and not drawn a second time at the root');
+  const host = read('src/components/student/MobileViewportContainer.jsx');
+  assert.match(host, /closest\('main, \[role="main"\]'\)/, 'the work area looks for a main around it (student code, unchanged)');
+});
+
 test('the administrator\'s workspace has the link and the target on its own main', () => {
   const admin = region(workspace, "if (teacherWorkspaceMode === 'administration' && rootAdminUiEligible) {", '<header style={{', 'the administrator workspace');
   assert.match(admin, /<SkipToContent \/>/, 'its link');

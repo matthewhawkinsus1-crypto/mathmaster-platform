@@ -52,11 +52,12 @@ const repo = path.resolve(here, '../..');
 const LESSON_NAME = 'L1_Day1_Interval_Domain_Range.json';
 const LESSON_PATH = path.join(repo, 'teacher-import-jsons/algebra2-honors-module1', LESSON_NAME);
 
-const teacherUrl = (origins) => `${origins.app}/tests/browser/teacherWorkflow/index.html?reset=1`;
+// `query` opts into one of the harness's other schools (`&innerScreens=1`: a Test Cycle).
+const teacherUrl = (origins, query = '') => `${origins.app}/tests/browser/teacherWorkflow/index.html?reset=1${query}`;
 const liveClassHeading = (page) => page.getByRole('heading', { name: 'Live Class', exact: true });
 
-export const openTeacherApp = async (page, origins) => {
-  await page.goto(teacherUrl(origins), { timeout: 180_000 });
+export const openTeacherApp = async (page, origins, query = '') => {
+  await page.goto(teacherUrl(origins, query), { timeout: 180_000 });
   await liveClassHeading(page).waitFor({ timeout: 180_000 });
   await page.waitForTimeout(900);
 };
@@ -205,6 +206,104 @@ const openLiveChallengeLobby = async (page) => {
   await page.locator('[data-mm-host-console="lobby"]').waitFor({ timeout: 30_000 });
   await page.getByRole('button', { name: 'Start Challenge' }).waitFor({ timeout: 30_000 });
   await page.getByText('Players in lobby').waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(1200);
+};
+
+// ----------------------------------------------------------------------------------------------
+// A STUDENT'S SCREEN INSIDE THE TEACHER'S PAGE (TT27, third slice).
+//
+// Three states of the teacher's workspace run one of the student's own components, which drew
+// a <main> of its own inside the workspace's: the Test Cycle's student preview (the shared
+// RichQuestionRuntime, in the student's secure question player), and a running Demo Experience
+// session and a running Path Simulator session (PathSessionPlayer). They are not scenes of the
+// audit: the landmarks driver (accessibilityTeacherLandmarks.mjs) opens them with these.
+// ----------------------------------------------------------------------------------------------
+
+// The harness's `&innerScreens=1` school has a Test Cycle, which Secure Exams lists.
+export const openTeacherAppWithTestCycle = (page, origins) => openTeacherApp(page, origins, '&innerScreens=1');
+
+const testCyclePreview = (page) => page.getByRole('dialog', { name: /Student preview of/ });
+
+// Secure Exams -> "Preview as student" on the Test Cycle.
+export const openTestCyclePreview = async (page) => {
+  await goTo(page, 'Secure Exams');
+  await page.getByRole('button', { name: 'Preview as student' }).first().evaluate((button) => button.click());
+  await testCyclePreview(page).waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(900);
+};
+
+// An item of the preview as a student meets it. `stage` is 'test' (the secure Test) or
+// 'corrections'; the preview offers two items (testCyclePreviewFixture.js): the first is a field
+// item (a typed answer), the second a tool item (the interval number line). Each stage opens from
+// its card, so a stage is entered once and its items read by `ordinal`.
+export const enterTestCycleStage = (stage) => async (page) => {
+  const preview = testCyclePreview(page);
+  const card = preview.locator('[data-preview-device] button').first();
+  if (stage === 'corrections') {
+    await preview.getByRole('button', { name: 'Corrections', exact: true }).click();
+    await card.click();
+    await preview.getByRole('button', { name: 'Try correction items as a student' }).click();
+  } else {
+    await preview.getByRole('button', { name: 'Test unlocked', exact: true }).click();
+    await card.click();
+  }
+  await preview.getByText('Item 1 of 2').waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(900);
+};
+export const showTestCycleItem = (ordinal) => async (page) => {
+  const preview = testCyclePreview(page);
+  await preview.getByRole('button', { name: ordinal === 1 ? 'Previous item' : 'Next item' }).click();
+  await preview.getByText(`Item ${ordinal} of 2`).waitFor({ timeout: 30_000 });
+  // The tool item's code loads on demand, and the field item's form is there at once.
+  if (ordinal === 2) await preview.locator('[data-rich-question-runtime]').waitFor({ timeout: 60_000 });
+  else await preview.locator('form').first().waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(1200);
+};
+
+// Demo Experience -> Student Paths -> a student's Path -> "Start live path". The demo's questions
+// are typed answers; `tool` gives the first student's first question the interval number line
+// instead (a Path question that carries a tool), which PathSessionPlayer draws in its other wrapper.
+const seedDemoWithToolQuestion = async (page) => {
+  const { createDemoSeed, DEMO_STORAGE_KEY } = await import('../../src/demo/demoExperienceData.js');
+  const { PATH_TOOL_QUESTIONS } = await import('../platform/fixtures/pathToolQuestions.mjs');
+  const seed = createDemoSeed();
+  const authored = PATH_TOOL_QUESTIONS.intervalNumberLine;
+  const [first, ...rest] = seed.students[0].mathPath.questions;
+  seed.students[0].mathPath.questions = [
+    { ...first, prompt: authored.prompt, canonicalQuestion: { id: first.questionInstanceId, questionId: first.questionInstanceId, ...authored } },
+    ...rest,
+  ];
+  await page.evaluate(([key, value]) => window.localStorage.setItem(key, value), [DEMO_STORAGE_KEY, JSON.stringify(seed)]);
+};
+export const openDemoSession = ({ tool = false } = {}) => async (page) => {
+  // The demo reads its state from the device when it opens.
+  if (tool) await seedDemoWithToolQuestion(page);
+  await goTo(page, 'Demo Experience');
+  await page.getByRole('button', { name: 'Student Paths' }).click();
+  await page.getByRole('button', { name: 'Open Path' }).first().click();
+  await page.getByRole('button', { name: /Start live path|Continue live path/ }).first().click();
+  await page.getByText(/Question 1 of 5/).waitFor({ timeout: 30_000 });
+  if (tool) await page.locator('[data-question-id], .mathmaster-question-engine').first().waitFor({ timeout: 60_000 });
+  await page.waitForTimeout(1200);
+};
+
+// The Path Simulator reads the secure Path bank from Firestore, which the harness's school does not
+// hold: the course's seed (the documents a deployed bank starts from) goes into the in-memory store.
+export const loadPathBank = async (page) => {
+  const seed = JSON.parse(readFileSync(path.join(repo, 'functions/seeds/pathQuestionBank/algebra1_pathQuestionBank_seed.json'), 'utf8'));
+  const documents = (seed.documents || []).filter((document) => document.active !== false);
+  await page.evaluate((records) => { for (const record of records) window.__mmHarnessStore.set(`pathQuestionBank/${record.id}`, record); }, documents);
+};
+
+// Path Simulator -> a fresh simulated student -> My Math Path -> the first weekly session.
+export const openSimulatorSession = async (page) => {
+  await loadPathBank(page);
+  await goTo(page, 'Path Simulator');
+  await page.getByRole('button', { name: 'Start as fresh student' }).click();
+  await page.getByRole('button', { name: 'My Math Path' }).first().click();
+  // Programmatic, like the sidebar: the page is busy drawing the week while it is pressed.
+  await page.getByRole('button', { name: 'Start session 1 of 4' }).evaluate((button) => button.click());
+  await page.getByText(/Question 1 of \d+/).waitFor({ timeout: 60_000 });
   await page.waitForTimeout(1200);
 };
 

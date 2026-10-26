@@ -48,7 +48,8 @@ test('My Math Path and Section Recovery bind it; the assignment screen keeps its
   const path = read('src/components/student/PathSessionPlayer.jsx');
   assert.match(path, /^import useActionBarFocusReveal from '\.\.\/common\/useActionBarFocusReveal\.js';$/m);
   assert.match(path, /useActionBarFocusReveal\(workspaceRef\);/);
-  assert.equal((path.match(/<main ref=\{workspaceRef\}/g) || []).length >= 2, true, 'both Path renderers carry the host ref');
+  // The wrapper is the page's <main>, or a plain <div> in a teacher's page (studentScreensInTeacherPages.test.mjs): the host ref is on it either way.
+  assert.equal((path.match(/<Landmark ref=\{workspaceRef\}/g) || []).length >= 2, true, 'both Path renderers carry the host ref');
   const recovery = read('src/components/student/SectionRecoveryRunner.jsx');
   assert.match(recovery, /^import useActionBarFocusReveal from '\.\.\/common\/useActionBarFocusReveal\.js';$/m);
   assert.match(recovery, /useActionBarFocusReveal\(hostRef\);\s*if \(!assignment\?\.id \|\| !entry\) return null;/, 'before the early return (rules of hooks)');
@@ -63,10 +64,10 @@ test('Live Challenge binds it around its stable engine (job I\'s file: one small
   assert.match(wrapper, /return <div ref=\{hostRef\} data-live-challenge-engine="" style=\{\{ display: 'contents' \}\}>\{engine\}<\/div>;/, 'the memoised engine element is unchanged inside it');
 });
 
-test('the rich runtime (secure exam, Test Cycle) binds it on its <main>', () => {
+test('the rich runtime (secure exam, Test Cycle) binds it on its landmark (its <main>, or a plain <div> in a teacher\'s page)', () => {
   const rich = executableSource(readFileSync(new URL('../../src/components/question/RichQuestionRuntime.jsx', import.meta.url), 'utf8'));
   assert.match(rich, /^import useActionBarFocusReveal from '\.\.\/common\/useActionBarFocusReveal\.js';$/m);
   assert.match(rich, /const hostRef = useRef\(null\);\s*useActionBarFocusReveal\(hostRef\);/);
-  assert.match(rich, /<main ref=\{hostRef\} data-rich-question-runtime=/);
+  assert.match(rich, /<Landmark ref=\{hostRef\} data-rich-question-runtime=/);
 });
 
