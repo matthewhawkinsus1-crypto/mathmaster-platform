@@ -27,6 +27,12 @@
  *             inverses (l3m-wu-3), the sort of products by size (l3m-cw-4) and
  *             the entry and sizes of AB, CD and DC (l3m-pr-12-ccmr). Each count
  *             is read from the arrays shown, each size from its card or prompt.
+ *   Polynomials  Algebra II Honors Module 2, Operations on Polynomials: its two
+ *             sorts, by number of terms (opp-cw-1) and always, sometimes or
+ *             never (opp-pr-15). Each card is read from its own expression, and
+ *             each example's result is checked for what the step says it is.
+ *             Its DOL (opp-dol-3; dp-dol-1 in Dividing Polynomials) is an exit
+ *             ticket its lessons give no worked solution, and is left as it is.
  *
  * Checked here with this file's own reading (mathjs fractions), never a
  * family's helpers:
@@ -45,8 +51,10 @@
  *     a given quoted from what the item shows (its prompt, labels and choices);
  *     and the numbers are the student's: the points they plotted or were shown;
  *   - nothing changes while the item is open: the review names no common error
- *     (FB04 says a common error's mistake half on a miss), and the hints and the
- *     back-up step are the same with or without it;
+ *     (FB04 says a common error's mistake half on a miss), or, in Operations on
+ *     Polynomials, whose every review names one, a common error with no ";"
+ *     that FB04 never says, whatever the student sends; and the hints and the
+ *     back-up step are the same with or without the review;
  *   - every line is shown as words: a dollar sign is money ("$25 grocery
  *     cards"), never the start of mathematics (MathText's own split).
  *
@@ -64,7 +72,12 @@
  *   - Matrices: a total's sum changed ("= 322" to "= 323"), a fewest-cards
  *     group read from the wrong month, a card sent to the wrong size, the
  *     inner sizes misread, "$20 cards, 230" written "$20 is 230" (which the
- *     screen reads as mathematics) → each the matching check.
+ *     screen reads as mathematics) → each the matching check;
+ *   - Polynomials: a card under the wrong count, a radical called a
+ *     denominator, a card misquoted, a verdict changed, an example's product
+ *     changed, a term count or a degree misread, a "sometimes" with one
+ *     example, a common error written with ";", one removed, one with an "=" →
+ *     each the matching check.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -87,6 +100,7 @@ import { gradeComposedWorkflowWork } from '../../functions/shared/serverGrading/
 import { buildFigureMatchResponse, figureLabel, figureNoun } from '../../functions/shared/toolMath/workflow/figureMatch.mjs';
 import { readComposedQuestion } from '../../functions/shared/toolMath/workflow/questionWorkflow.mjs';
 import { isMathSegment, splitMathSegments } from '../../src/components/common/mathSegments.js';
+import { commonErrorMiss } from '../../src/platform/supports/feedback/attemptFeedbackPlan.js';
 
 const ROOT = new URL('../../', import.meta.url);
 const read = (relative) => readFileSync(new URL(relative, ROOT), 'utf8');
@@ -143,6 +157,19 @@ const DOL1 = 'teacher-import-jsons/algebra1-dol1/District_DOL1_Technology_Graph_
 const MATRICES = 'teacher-import-jsons/algebra2-honors-module1/T2_L3_Solving_Systems_with_Matrices.json';
 // A matrix's rows as numbers. (A stored copy holds each row as { cells }: Firestore holds no array of arrays.)
 const matrixRows = (matrix) => matrix.rows.map((row) => (Array.isArray(row) ? row : row.cells));
+const POLY_OPS = 'teacher-import-jsons/algebra2-honors-module2/L1_Operations_on_Polynomials.json';
+// An expression's terms as printed: the parts joined by " + " or " − " outside parentheses.
+const termsOf = (expression) => {
+  let depth = 0;
+  return [...expression].reduce((terms, character, index) => {
+    if (character === '(') depth += 1;
+    if (character === ')') depth -= 1;
+    return terms + (depth === 0 && /[+−]/.test(character) && expression[index - 1] === ' ' && expression[index + 1] === ' ' ? 1 : 0);
+  }, 1);
+};
+// A polynomial's degree as printed: the greatest total exponent of a term.
+const degreeOf = (expression) => Math.max(...expression.split(/ [+−] /)
+  .map((term) => [...term.matchAll(/[a-z]([⁰¹²³⁴⁵⁶⁷⁸⁹]*)/g)].reduce((sum, [, power]) => sum + (power ? Number(powerOf(power)) : 1), 0)));
 
 /*
  * What a figure's step reads off its graph, held to the graph drawn: every
@@ -673,6 +700,75 @@ const ITEMS = Object.freeze([
       assert.ok(review.reasoning[2].endsWith(`D is ${dRows} × ${dCols} and C is ${cRows} × ${cCols}. The inner numbers, ${dCols} and ${cRows}, do not match, so DC is not defined.`), review.reasoning[2]);
     },
   },
+  {
+    files: [POLY_OPS],
+    questionId: 'opp-cw-1',
+    kind: 'figureMatch',
+    quote: 'parens',
+    // Every review of this lesson names the usual mistake (algebra2OperationsOnPolynomialsLesson).
+    commonError: true,
+    parts: {
+      e1: [0, 'Monomial'], e2: [0, 'Monomial'], e3: [0, 'Monomial'], e4: [1, 'Binomial'], e5: [1, 'Binomial'], e6: [1, 'Binomial'],
+      e7: [2, 'Trinomial'], e8: [2, 'Trinomial'], e9: [3, 'Not a polynomial'], e10: [3, 'Not a polynomial'], e11: [3, 'Not a polynomial'],
+    },
+    // Each card is read from its own expression, not from the key: a variable
+    // under a radical or in a denominator, or else its terms counted.
+    check: ({ item, question, review }) => {
+      const COUNTS = ['Monomial', 'Binomial', 'Trinomial'];
+      figureStage(question).items.forEach((card, index) => {
+        const step = review.reasoning[item.parts[card.id][0]];
+        const radical = /√\(?[^)]*[a-z]/.test(card.text);
+        if (radical || /\/\(?[^)]*[a-z]/.test(card.text)) {
+          assert.ok(step.startsWith('Not a polynomial: '), `${card.text}: ${step}`);
+          const at = step.indexOf(`Card ${index + 1} (`);
+          const reasons = ['under a radical', 'in a denominator'].map((reason) => [reason, step.indexOf(reason, at)]).filter(([, place]) => place > at);
+          assert.equal(reasons.sort((a, b) => a[1] - b[1])[0]?.[0], radical ? 'under a radical' : 'in a denominator', `${card.text}: ${step}`);
+        } else {
+          assert.ok(step.startsWith(`${COUNTS[termsOf(card.text) - 1]}: `), `${card.text} has ${termsOf(card.text)} terms: ${step}`);
+        }
+      });
+    },
+  },
+  {
+    files: [POLY_OPS],
+    questionId: 'opp-pr-15',
+    kind: 'figureMatch',
+    commonError: true,
+    parts: {
+      s1: [0, 'Always true'], s2: [1, 'Always true'], s3: [2, 'Always true'], s4: [3, 'Sometimes true'],
+      s5: [4, 'Sometimes true'], s6: [5, 'Sometimes true'], s7: [6, 'Never true'], s8: [7, 'Never true'],
+    },
+    claims: [
+      [0, '(3x²)(4x³) = 12x⁵'], [1, '(x² + 1) − (3x − 4) = x² − 3x + 5'], [2, '(x² + 2x) − (x² + 2x) = 0'],
+      [3, '(x + 1) + (x + 2) = 2x + 3'], [3, '(x + 1) + (y + 2) = x + y + 3'],
+      [4, '(x + y)(x² + y² + 1) = x³ + xy² + x + x²y + y³ + y'], [4, '(x + 1)(x² − x + 1) = x³ + 1'],
+      [5, '(x³ + x) + (x³ − 1) = 2x³ + x − 1'], [5, 'x³ + (−x³ + x) = x'],
+      [7, 'x · x = x²'], [7, '1 + 1 = 2'], [7, '(x + 1)(x + 2) = x² + 3x + 2'],
+    ],
+    // What a step says an example's result is, read from the result itself;
+    // and a "sometimes" is shown both ways, an example that holds and one that fails.
+    check: ({ item, review }) => {
+      const said = [
+        [0, '12x⁵.', (result) => termsOf(result) === 1 && review.reasoning[0].includes('leaves one term')],
+        [3, '2x + 3 is a binomial', (result) => termsOf(result) === 2],
+        [3, 'x + y + 3 has three terms', (result) => termsOf(result) === 3],
+        [4, 'x³ + xy² + x + x²y + y³ + y has 6 terms', (result) => termsOf(result) === 6],
+        [4, 'x³ + 1 has only 2 once like terms are combined', (result) => termsOf(result) === 2],
+        [5, '2x³ + x − 1 has degree 3', (result) => degreeOf(result) === 3],
+        [5, 'x has degree 1', (result) => degreeOf(result) === 1],
+        [7, 'x² + 3x + 2.', (result) => degreeOf(result) === 2 && review.reasoning[7].includes('its degree is 1 + 1 = 2')],
+      ];
+      said.forEach(([at, words, holds]) => {
+        assert.ok(review.reasoning[at].includes(`= ${words}`), `${review.reasoning[at]} says "= ${words}"`);
+        assert.ok(holds(words.replace(/ (is|has) .*$|\.$/, '')), `${words}`);
+      });
+      review.reasoning.forEach((step, index) => {
+        if (!step.includes(': Sometimes true. ')) return;
+        assert.match(step, /, but /, step);
+        assert.ok(item.claims.filter(([at]) => at === index).length >= 2, `${step}: an example each way`);
+      });
+    },
+  },
 ]);
 
 const everyCopy = ITEMS.flatMap((item) => item.files.flatMap((path) => [['inventory', asInventory(path)], ['device', asDevice(path)]]
@@ -697,6 +793,7 @@ test('the closed review shows each item\'s own worked steps, in every copy, whol
   assert.equal(ITEMS.filter((item) => item.files.includes(L2)).length, 14, 'the 14 Lesson 2 items');
   assert.equal(ITEMS.filter((item) => item.files.includes(DOL1)).length, 7, 'seven of the DOL #1 review');
   assert.equal(ITEMS.filter((item) => item.files.includes(MATRICES)).length, 4, 'four of the matrices lesson');
+  assert.equal(ITEMS.filter((item) => item.files.includes(POLY_OPS)).length, 2, 'the two sorts of Operations on Polynomials');
   for (const { item, path, source, question } of everyCopy) {
     assert.ok(question, `${source}: found`);
     const authored = authoredIn(path, item).solutionReview;
@@ -710,7 +807,7 @@ test('the closed review shows each item\'s own worked steps, in every copy, whol
     assert.equal(review.authored.answerSummary, authored.answerSummary, source);
     // Nothing is cut short: the support bundle keeps every word.
     assert.deepEqual(buildPrivateSupport(question).solutionReview, {
-      headline: authored.headline, reasoning: authored.reasoning, commonError: null, connection: null, answerSummary: authored.answerSummary,
+      headline: authored.headline, reasoning: authored.reasoning, commonError: authored.commonError ?? null, connection: null, answerSummary: authored.answerSummary,
     }, `${source}: within the support bundle's limits`);
   }
 });
@@ -839,6 +936,7 @@ test('every "=" the review writes is a checked claim or a given the item shows, 
       const accounted = [...claims, ...givens].reduce((sum, [, piece]) => sum + count(piece, '='), 0);
       assert.equal(written, accounted, `${source}: every "=" in ${at} is checked: ${line}`);
     }
+    assert.equal(count(text(review.commonError), '='), 0, `${source}: a common error writes no equation`);
     item.check?.({ ...entry, review });
   }
   assert.ok(checked >= 150, `${checked} claims checked`);
@@ -847,15 +945,26 @@ test('every "=" the review writes is a checked claim or a given the item shows, 
 test('the words are plain and short, and nothing changes while the item is open', () => {
   for (const { item, path, source, question } of everyCopy) {
     const authored = authoredIn(path, item).solutionReview;
-    for (const line of [authored.headline, ...authored.reasoning, authored.answerSummary]) {
+    for (const line of [authored.headline, ...authored.reasoning, authored.answerSummary, ...(item.commonError ? [authored.commonError] : [])]) {
       assert.doesNotMatch(line, /NaN|undefined|\bnull\b|Infinity|\[object|\{\{/, `${source}: ${line}`);
       // A dollar sign is money ("$25 grocery cards"), never the start of
       // mathematics: the screen shows the whole line as words.
       assert.ok(!splitMathSegments(line).some(isMathSegment), `${source}: shown as words: ${line}`);
     }
-    // A common error's mistake half is said on a miss (FB04, attemptFeedbackPlan.js):
-    // these reviews name none, so an open item's feedback is what it was.
-    assert.equal(authored.commonError, undefined, `${source}: no common error`);
+    // A common error's mistake half, the part before a ";", is said on a miss
+    // (FB04, attemptFeedbackPlan.js). Most of these reviews name none; the
+    // Operations on Polynomials sorts name one, as every review of that lesson
+    // does, with no ";", so FB04 says nothing whatever the student sends: each
+    // card, each category. An open item's feedback is what it was.
+    if (item.commonError) {
+      assert.ok(text(authored.commonError) && !authored.commonError.includes(';'), `${source}: a common error FB04 never says`);
+      const stage = figureStage(question);
+      [...stage.items.map((card) => card.text), ...stage.categories.flatMap((category) => [category.id, category.label])].forEach((response) => {
+        assert.equal(commonErrorMiss({ question, parts: [{ id: stage.id, isCorrect: false, response }] }), null, `${source}: nothing said for ${response}`);
+      });
+    } else {
+      assert.equal(authored.commonError, undefined, `${source}: no common error`);
+    }
     const without = { ...question };
     delete without.solutionReview;
     assert.deepEqual(buildQuestionHints(question), buildQuestionHints(without), `${source}: the same hints`);

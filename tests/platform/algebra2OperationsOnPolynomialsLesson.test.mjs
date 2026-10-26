@@ -313,8 +313,9 @@ test('every practice-like item walks through steps after the last try, and every
     if (!review) continue;
     assert.ok(review.headline && review.commonError && review.reasoning.length >= 2, `${raw.questionId} has a headline, steps and the mistake it catches`);
     const chains = review.reasoning.flatMap(stepChains);
-    // Like terms or not is read, not computed: its steps are reasons.
-    if (raw.questionId === 'opp-wu-3') assert.equal(chains.length, 0);
+    // Like terms or not, and a sort by the number of terms, are read, not
+    // computed: their steps are reasons.
+    if (['opp-wu-3', 'opp-cw-1'].includes(raw.questionId)) assert.equal(chains.length, 0);
     else assert.ok(chains.length >= 1, `${raw.questionId}: its steps are checked (${chains.length} equations read)`);
     chains.forEach((chain) => assert.ok(holdsEverywhere(chain), `${raw.questionId}: ${chain.sides.join(' = ')} holds`));
     checked += chains.length;
