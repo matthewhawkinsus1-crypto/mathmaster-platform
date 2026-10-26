@@ -330,6 +330,9 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
     await step(at, `three-plane model (${role}): planes by equation; the reveal only where allowed`, async () => {
       await open(page, 'threePlane', { role });
       const MODEL = 'svg[role="application"][aria-label="Three planes in 3D"]';
+      // The Systems Workspace arrives as its own chunk after the fixture: on a
+      // busy machine the model was not there yet 400 ms in.
+      await page.locator(MODEL).waitFor();
       const before = await axNode(page, MODEL);
       assert.match(before.description, /^3D model with the x, y and z axes\. Plane 1, blue: x plus y plus z equals 6\. Plane 2, red: x minus y plus z equals 2\. Plane 3, green: 2x plus y minus z equals 1\. Dashed lines mark where shown planes cross\. Arrow keys rotate the model/, before.description);
       const drawing = await axNode(page, 'g[role="img"][aria-label="3D view of the three planes"]');
