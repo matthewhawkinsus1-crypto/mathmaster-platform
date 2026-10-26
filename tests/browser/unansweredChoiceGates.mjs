@@ -130,10 +130,13 @@ const FIXTURES = {
     await startsUnanswered(page, 'Direction');
     await startsUnanswered(page, 'Strength');
     await fill(page, 'spinbutton', 'Correlation coefficient r', 1);
-    await press(page, 'Check data model');
-    const blank = await lastGrade(page);
-    check(partOf(blank, 'correlationInterpretation')?.isCorrect === false && partOf(blank, 'correlation')?.isCorrect === true,
-      `${fixture}: r alone, direction and strength unanswered: the interpretation earns nothing`, brief(blank));
+    // The lab's final action waits for every part the question asks (TL08):
+    // r alone, with direction and strength unanswered, cannot be sent at all,
+    // so no try is spent on a judgment the student has not made.
+    const sentBefore = (await grades(page)).length;
+    check(await button(page, 'Check data model').isDisabled() && (await grades(page)).length === sentBefore,
+      `${fixture}: r alone, direction and strength unanswered: Submit waits and nothing is graded`);
+    check(/Still to do:/.test(await page.locator('.mathmaster-tool-shell').innerText()), `${fixture}: the lab says what is still to do`);
     await choose(page, 'Direction', 'Positive');
     await choose(page, 'Strength', 'Strong');
     await press(page, 'Check data model');
@@ -156,10 +159,11 @@ const FIXTURES = {
     check(checked === 0, `${fixture}: no model family is chosen for the student`, `${checked} checked`);
     // The exact linear prediction at x = 3.5 (least squares on the fixture's points).
     await fill(page, 'spinbutton', 'Predicted y', '7.015');
-    await press(page, 'Check data model');
-    const blank = await lastGrade(page);
-    check(['association', 'modelChoice', 'prediction'].every((id) => partOf(blank, id)?.isCorrect === false),
-      `${fixture}: unanswered association, model family and prediction type earn nothing (the prediction value alone is not enough)`, brief(blank));
+    // TL08: with the association, the model family and the prediction type
+    // unanswered, the prediction value alone cannot be sent.
+    const sentBefore = (await grades(page)).length;
+    check(await button(page, 'Check data model').isDisabled() && (await grades(page)).length === sentBefore,
+      `${fixture}: the prediction value alone, with the association, model family and prediction type unanswered: Submit waits and nothing is graded`);
     await choose(page, 'Direction', 'Positive');
     await choose(page, 'Strength', 'Strong');
     await choose(page, 'What can this observational data justify?', 'An association / relationship');
