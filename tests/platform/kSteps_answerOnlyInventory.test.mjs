@@ -271,9 +271,10 @@ const STEPS_FLOOR = Object.freeze({
   'v5:algebra1-dol1/District_DOL1_Technology_Graph_Analysis_Review.json': 25,
   // CT02 slice 3: the perpendicularLines family's worked solutions of Lesson 3
   // (25 here and 23 in Honors, beside the three graphing2 tool reviews and the
-  // two audited Honors items); l3-wu-2 is left: its points are in the item before it.
-  'v5:algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines.json': 28,
-  'v5:algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines_Honors.json': 28,
+  // two audited Honors items). Slice 4: l3-wu-2, whose points are in the item
+  // before it, carries its own review in each file (kSteps_lessonWorkedSteps).
+  'v5:algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines.json': 29,
+  'v5:algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines_Honors.json': 29,
   // CT02: the transformations family's worked solution of a description (6 here, 8 in L2_Day2).
   'v5:algebra2-honors-module1/L1_Absolute_Value_ALEKS_Bridge_20260828.json': 19,
   'v5:algebra2-honors-module1/L1_Day1_Interval_Domain_Range.json': 17,
@@ -292,7 +293,7 @@ const STEPS_FLOOR = Object.freeze({
   // their own worked solution (kSteps_demoWorkedSteps); 26 have the family's.
   demo: 70,
 });
-const STEPS_TOTAL_FLOOR = 7999 + 336 + 832 + 14 + 48 + 44;
+const STEPS_TOTAL_FLOOR = 7999 + 336 + 832 + 14 + 48 + 44 + 2;
 const FROM_FAMILY_FLOOR = 119 + 14 + 48;
 // Where a worked-solution builder (not a support family) writes the steps: the
 // DOL #2 review and retest, every variant, and nothing else it might misread (CT02).

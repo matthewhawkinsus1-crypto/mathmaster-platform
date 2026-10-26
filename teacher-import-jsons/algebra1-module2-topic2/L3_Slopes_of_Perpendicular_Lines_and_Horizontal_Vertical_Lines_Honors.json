@@ -190,6 +190,18 @@
               "change in y ÷ change in x"
             ],
             "correct": "change in y ÷ change in x"
+          },
+          "solutionReview": {
+            "headline": "Every segment runs from A, which stays at the origin, to B or its image, so its slope is rise ÷ run from (0, 0).",
+            "reasoning": [
+              "Slope of AB: AB runs from A(0, 0) to B(8, 5) (the warm-up before this one), so its slope is (5 − 0) ÷ (8 − 0) = 5/8.",
+              "Slope of A′B′ (90°): a 90° counterclockwise turn about the origin sends (x, y) to (−y, x), so B(8, 5) goes to B′(−5, 8). The slope is (8 − 0) ÷ (−5 − 0) = −8/5.",
+              "Slope of A″B″ (180°): a 180° turn about the origin sends (x, y) to (−x, −y), so B(8, 5) goes to B″(−8, −5). The slope is (−5 − 0) ÷ (−8 − 0) = 5/8.",
+              "Slope of A‴B‴ (270°): a 270° counterclockwise turn about the origin sends (x, y) to (y, −x), so B(8, 5) goes to B‴(5, −8). The slope is (−8 − 0) ÷ (5 − 0) = −8/5.",
+              "After a 90° or 270° rotation: flip 5/8 to 8/5 and change its sign, and you get −8/5, the slope of A′B′ and of A‴B‴. So the slope is the negative reciprocal. Check: (5/8) × (−8/5) = −1.",
+              "After a 180° rotation: A″B″ has slope 5/8, just as AB does, so the slope is the same."
+            ],
+            "answerSummary": "AB and A″B″ have slope 5/8; A′B′ and A‴B‴ have slope −8/5. A 90° or 270° rotation gives the negative reciprocal, and a 180° rotation keeps the same slope."
           }
         },
         {
