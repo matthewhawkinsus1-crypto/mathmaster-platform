@@ -135,8 +135,8 @@ test('a power whose exponent is a fraction is typeset whole, with its base', () 
   // A power of a power is one piece, written either way.
   assert.equal(pieces('√(∛x) = (x^(1/3))^(1/2) = x^(1/6).'), '√(∛x) = [(x^(\\frac{1}{3}))^(\\frac{1}{2})] = [x^(\\frac{1}{6})].');
   assert.equal(pieces('x^(1/2)^(1/3)'), '[x^(\\frac{1}{2})^(\\frac{1}{3})]');
-  // A stacked fraction can be the base.
-  assert.equal(pieces('It is 1/(3x^3)^(3/3).'), 'It is [\\frac{1}{3x^3}^(\\frac{3}{3})].');
+  // A power after a bracketed denominator is the denominator's: one over the power.
+  assert.equal(pieces('It is 1/(3x^3)^(3/3).'), 'It is [\\frac{1}{(3x^3)^(\\frac{3}{3})}].');
   // What is not a power keeps its brackets in the prose.
   assert.equal(pieces('Find f(1/2).'), 'Find f([\\frac{1}{2}]).');
   assert.equal(pieces('Then 2^(x-1) doubles.'), 'Then 2^(x-1) doubles.');
@@ -162,7 +162,7 @@ test('the pieces always put the sentence back together', () => {
     // The stacked sentence, split and not changed: only a sentence's full stop
     // moves, out of a denominator.
     const joined = splitProseFractionRuns(text).map((piece) => piece.text).join('');
-    assert.equal(joined.replace(/\./g, ''), stackDivisions(removeRedundantPlainFractionParens(text)).replace(/\./g, ''), text);
+    assert.equal(joined.replace(/\./g, ''), stackDivisions(removeRedundantPlainFractionParens(text), { unicodeMath: true }).replace(/\./g, ''), text);
   }
 });
 

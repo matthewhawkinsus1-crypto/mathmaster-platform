@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { braceScriptGroups, resolveMathDisplayFormat } from '../../src/mathDisplayFormat.js';
+import { braceScriptGroups, latexFunctionNames, resolveMathDisplayFormat } from '../../src/mathDisplayFormat.js';
 import { readFileSync } from 'node:fs';
 
 test('forces LaTeX after a display rewrite introduces a LaTeX fraction', () => {
@@ -86,8 +86,22 @@ test('only LaTeX is rewritten, and only a group that closes', () => {
 
 test('MathDisplay braces the value it typesets, not the words it speaks', () => {
   const display = readFileSync(new URL('../../src/MathDisplay.jsx', import.meta.url), 'utf8');
-  assert.match(display, /const typesetValue = braceScriptGroups\(unicodeSubscriptsToMathMarkup\(cleanValue, resolvedFormat\), resolvedFormat\);/);
+  assert.match(display, /const typesetValue = latexFunctionNames\(braceScriptGroups\(unicodeSubscriptsToMathMarkup\(cleanValue, resolvedFormat\), resolvedFormat\), resolvedFormat\);/);
   assert.match(display, /mathSpeechLabel\(\{ value: cleanValue,/);
   // √3/3 is √3 over 3 on screen (stackDivisions.mjs unicodeMath).
   assert.match(display, /stackDivisions\(repairLegacyMathLiveRelations\(stripMathDelimiters\(value\)\), \{ unicodeMath: true \}\)/);
+});
+
+// Once a fraction is stacked the value is LaTeX, where a bare ln(3) is the
+// italic letters l and n: a product of two variables.
+test('a function\'s name is drawn upright in LaTeX, and only there', () => {
+  assert.equal(latexFunctionNames('\\frac{ln(3)}{ln(2)}'), '\\frac{\\ln(3)}{\\ln(2)}');
+  assert.equal(latexFunctionNames('\\frac{log_2(8)}{3}'), '\\frac{\\log_2(8)}{3}');
+  assert.equal(latexFunctionNames('\\frac{sin(x)}{cos(x)} = tan(x)'), '\\frac{\\sin(x)}{\\cos(x)} = \\tan(x)');
+  assert.equal(latexFunctionNames('sin^2(x) + cos\\left(x\\right)'), '\\sin^2(x) + \\cos\\left(x\\right)');
+  assert.equal(latexFunctionNames('\\frac{\\ln(3)}{2}'), '\\frac{\\ln(3)}{2}', 'a command stays one command');
+  // A name inside a word, or a word in \text{…}, is not a function.
+  assert.equal(latexFunctionNames('kiln(3) + cosine(x) + login'), 'kiln(3) + cosine(x) + login');
+  assert.equal(latexFunctionNames('\\text{log in (2)} + ln(2)'), '\\text{log in (2)} + \\ln(2)');
+  assert.equal(latexFunctionNames('ln(2)', 'ascii-math'), 'ln(2)', 'ASCIIMath is left to MathLive');
 });

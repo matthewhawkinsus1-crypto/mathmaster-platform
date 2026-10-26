@@ -112,4 +112,39 @@ export const braceScriptGroups = (value, format = 'latex') => {
   return out;
 };
 
+// Verbatim groups: words, not math (`\text{log in}`).
+const VERBATIM_GROUP = /\\(?:text|mathrm|operatorname|textrm|mbox)\s*\{/g;
+const FUNCTION_NAME = /(?<![A-Za-z\\])(ln|log|sin|cos|tan|sec|csc|cot)(?=\s*(?:\(|\\left\(|_|\^))/g;
+
+/*
+ * A FUNCTION'S NAME IS UPRIGHT. Once a value is typeset as LaTeX — a stacked
+ * fraction makes it so — a bare ln(3) is the letters l and n in italics, the
+ * product of two variables. ln, log, sin, cos, tan, sec, csc and cot written
+ * just before their bracket or base become the commands that draw the name.
+ * Words in \text{…} stay words. Display only.
+ */
+export const latexFunctionNames = (value, format = 'latex') => {
+  const text = String(value ?? '');
+  if (format !== 'latex' || !/(?:ln|log|sin|cos|tan|sec|csc|cot)/.test(text)) return text;
+  let out = '';
+  let from = 0;
+  for (const match of text.matchAll(VERBATIM_GROUP)) {
+    if (match.index < from) continue;
+    const open = match.index + match[0].length - 1;
+    let depth = 0;
+    let close = -1;
+    for (let index = open; index < text.length; index += 1) {
+      if (text[index] === '{') depth += 1;
+      else if (text[index] === '}') {
+        depth -= 1;
+        if (depth === 0) { close = index; break; }
+      }
+    }
+    if (close < 0) break;
+    out += text.slice(from, match.index).replace(FUNCTION_NAME, '\\$1') + text.slice(match.index, close + 1);
+    from = close + 1;
+  }
+  return out + text.slice(from).replace(FUNCTION_NAME, '\\$1');
+};
+
 export default resolveMathDisplayFormat;

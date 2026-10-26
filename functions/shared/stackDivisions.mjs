@@ -271,10 +271,38 @@ const subscriptedName = (text, underscore) => {
 const CALL_NAME = String.raw`(?:ln|log(?:_(?:\{[^{}]*\}|\d+|[A-Za-z]))?)`;
 const CALL_NAME_BEFORE = new RegExp(`(?<![A-Za-z\\\\])${CALL_NAME}\\s*$`);
 const CALL_NAME_AFTER = new RegExp(`^${CALL_NAME}\\s*(?=(?:\\\\left)?\\()`);
+/*
+ * Display: the same rule, for the names a student reads as functions — ln,
+ * log, and sin, cos, tan and their reciprocals — written bare or as the LaTeX
+ * command. MathDisplay drew an authored ln(3)/ln(2) (A2.5D's exact answer) as
+ * ln·(3/l)·n(2), and log_2(8)/3 as log base 2 of 8/3, a different number.
+ * Grading keeps its own two names: it reads these as words (GR34).
+ */
+const DISPLAY_CALL_NAME = String.raw`\\?(?:ln|log(?:_(?:\{[^{}]*\}|\d+|[A-Za-z]))?|sin|cos|tan|sec|csc|cot)`;
+const DISPLAY_CALL_NAME_BEFORE = new RegExp(`(?<![A-Za-z\\\\])${DISPLAY_CALL_NAME}\\s*$`);
+const DISPLAY_CALL_NAME_AFTER = new RegExp(`^${DISPLAY_CALL_NAME}\\s*(?=(?:\\\\left)?\\()`);
 /** Where the name of the call whose bracket opens at `open` starts, or null. */
-const callNameBefore = (text, open) => {
-  const match = CALL_NAME_BEFORE.exec(text.slice(0, open));
+const callNameBefore = (text, open, options = {}) => {
+  const pattern = options.constantOperands ? CALL_NAME_BEFORE : DISPLAY_CALL_NAME_BEFORE;
+  const match = pattern.exec(text.slice(0, open));
   return match ? match.index : null;
+};
+
+// Display: where a one-letter function's name (the f of f(x)) starts, for the
+// bracket opening at `open`, or null.
+const oneLetterNameBefore = (text, open) => {
+  const letter = open - 1;
+  if (letter < 0 || !/[A-Za-z]/.test(text[letter])) return null;
+  return letter > 0 && /[A-Za-z\\_^]/.test(text[letter - 1]) ? null : letter;
+};
+
+// Display: where a power written right after `end` ends (`(x - 2)^2`,
+// `ln(2)²`), `end` when there is none, or -1 when a caret's exponent cannot be
+// read. A bracketed denominator takes its power: a/(x - h)^2 is a over the
+// square, never the whole fraction squared.
+const pastDisplayPower = (text, end, options) => {
+  if (text[end] !== '^') return pastSuperscripts(text, end, options);
+  return exponentEnd(text, end + 1);
 };
 
 /**
@@ -305,9 +333,14 @@ const operandBefore = (text, end, options = {}) => {
     const open = matchBackwards(text, index);
     if (open < 0) return null;
     const bracket = withLeftPrefix(text, open);
-    // Grading: a call comes with its name, ln(3) and log_2(8) (TS05).
-    const named = options.constantOperands ? callNameBefore(text, bracket) : null;
+    // A call comes with its name, ln(3) and log_2(8): in grading (TS05) and
+    // on screen.
+    const named = options.constantOperands || options.unicodeMath ? callNameBefore(text, bracket, options) : null;
     if (named !== null) return { start: named, text: text.slice(named, index + 1) };
+    // Display: so does a one-letter function, f(x)/2 and y(4)/y(1). As a
+    // product the letter changes nothing on this side: a(b)/2 is a·b/2.
+    const letter = options.unicodeMath ? oneLetterNameBefore(text, bracket) : null;
+    if (letter !== null) return { start: letter, text: text.slice(letter, index + 1) };
     const start = withRadicalBefore(text, bracket, options);
     return { start, text: text.slice(start, index + 1) };
   }
@@ -385,13 +418,25 @@ const operandAfter = (text, start, options = {}) => {
       const end = pastSuperscripts(text, radicalEnd, options);
       return { end, text: text.slice(index, end) };
     }
+    // Display: `/ln(2)` is over ln 2, and `/sin(x)^2` over its square.
+    const call = DISPLAY_CALL_NAME_AFTER.exec(text.slice(index));
+    if (call) {
+      const callOpen = index + call[0].length;
+      const bracket = text.startsWith('\\left(', callOpen) ? callOpen + 5 : callOpen;
+      const close = matchForwards(text, bracket);
+      if (close < 0) return null;
+      const end = pastDisplayPower(text, withRightSuffix(text, close), options);
+      return end < 0 ? null : { end, text: text.slice(index, end) };
+    }
   }
 
   const openIndex = text.startsWith('\\left(', index) ? index + 5 : index;
   if (text[openIndex] === '(' || text[openIndex] === '[') {
     const close = matchForwards(text, openIndex);
     if (close < 0) return null;
-    const end = pastSuperscripts(text, withRightSuffix(text, close), options);
+    const closed = withRightSuffix(text, close);
+    const end = options.unicodeMath ? pastDisplayPower(text, closed, options) : closed;
+    if (end < 0) return null;
     return { end, text: text.slice(index, end) };
   }
   // A command after the slash (`3/\sqrt{2}`, `3/\frac{1}{2}`) needs a parser
@@ -431,6 +476,14 @@ const operandAfter = (text, start, options = {}) => {
   }
   if (/[A-Za-z]/.test(text[index])) {
     if (text[index + 1] === '_') return null;
+    // Display: 1/f(x) is over f(x), the reciprocal of the function.
+    if (options.unicodeMath && (text[index + 1] === '(' || text.startsWith('\\left(', index + 1))) {
+      const bracket = text[index + 1] === '(' ? index + 1 : index + 6;
+      const close = matchForwards(text, bracket);
+      if (close < 0) return null;
+      const end = pastDisplayPower(text, withRightSuffix(text, close), options);
+      return end < 0 ? null : { end, text: text.slice(index, end) };
+    }
     return withTrailingPower(index + 1);
   }
   return null;
