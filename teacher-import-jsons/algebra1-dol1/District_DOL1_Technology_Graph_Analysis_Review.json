@@ -114,7 +114,17 @@
               "id": "exponential",
               "label": "Exponential"
             }
-          ]
+          ],
+          "solutionReview": {
+            "headline": "A straight line is linear, a U-shaped curve is quadratic, and a curve whose height multiplies by the same number with each step is exponential.",
+            "reasoning": [
+              "Figure 1 is a straight line, rising 2 for each 1 across: Linear.",
+              "Figure 2 stays above the x-axis and goes through (0, 1) and (1, 2): its height doubles with each step to the right. Exponential.",
+              "Figure 3 is a U-shaped curve that turns at its lowest point, (0, −4): Quadratic.",
+              "Figure 4 is a straight line, falling 1 for each 1 across: Linear."
+            ],
+            "answerSummary": "Linear: figures 1 and 4. Quadratic: figure 3. Exponential: figure 2."
+          }
         },
         {
           "standard": "A.7A",
@@ -155,7 +165,16 @@
               "label": "(4, 0)"
             }
           ],
-          "answer": "w3a"
+          "answer": "w3a",
+          "solutionReview": {
+            "headline": "The vertex of a parabola is the point where it turns: here its lowest point.",
+            "reasoning": [
+              "The graph is a U-shaped parabola that opens upward, so its vertex is its lowest point.",
+              "It crosses the x-axis at (0, 0) and (4, 0). It is lowest halfway between them, at x-coordinate (0 + 4) ÷ 2 = 2, where it is 4 units below the x-axis.",
+              "So the vertex is (2, -4)."
+            ],
+            "answerSummary": "The vertex is (2, -4)."
+          }
         },
         {
           "standard": "A.9D",
@@ -236,7 +255,19 @@
               "id": "decay",
               "label": "Exponential decay"
             }
-          ]
+          ],
+          "solutionReview": {
+            "headline": "Read two points one step apart: if the height is multiplied by more than 1 the graph rises (growth); by less than 1, it falls (decay).",
+            "reasoning": [
+              "Figure 1 goes through (0, 1) and (1, 2): its height doubles with each step to the right, so it rises. Exponential growth.",
+              "Figure 2 goes through (0, 8) and (1, 4): its height halves with each step to the right, so it falls. Exponential decay.",
+              "Figure 3 goes through (0, 1) and (1, 3): its height triples with each step to the right, so it rises. Exponential growth.",
+              "Figure 4 goes through (0, 12) and (1, 3): its height is divided by 4 with each step to the right, so it falls. Exponential decay.",
+              "Figure 5 goes through (0, 3) and (1, 6): its height doubles with each step to the right, so it rises. Exponential growth.",
+              "Figure 6 goes through (0, 15) and (1, 7.5): its height halves with each step to the right, so it falls. Exponential decay."
+            ],
+            "answerSummary": "Exponential growth: figures 1, 3 and 5. Exponential decay: figures 2, 4 and 6."
+          }
         }
       ]
     },
@@ -678,6 +709,15 @@
               "Multiply by 4"
             ],
             "correct": "Add 4"
+          },
+          "solutionReview": {
+            "headline": "Each term is the one before it plus 4: start at 7 and add 4 until you reach the term you need.",
+            "reasoning": [
+              "a(2): add 4 to the first term: 7 + 4 = 11.",
+              "a(3): add 4 again: 11 + 4 = 15.",
+              "a(5): two more steps of 4: a(4) = 15 + 4 = 19, so a(5) = 19 + 4 = 23."
+            ],
+            "answerSummary": "a(2) = 11, a(3) = 15 and a(5) = 23."
           }
         },
         {
@@ -1041,7 +1081,17 @@
               "id": "notFunction",
               "label": "Not a function"
             }
-          ]
+          ],
+          "solutionReview": {
+            "headline": "A relation is a function when no input is paired with two different outputs. Two inputs may share an output.",
+            "reasoning": [
+              "Figure 1 has the inputs −3, −1, 1 and 4, all different, so each input has only one output: Is a function.",
+              "Figure 2 has the input 2 twice, with the outputs 4 and −1: Not a function.",
+              "Figure 3 has the inputs −4, −2, 0 and 3, all different; −4 and −2 share the output −3, which is allowed: Is a function.",
+              "Figure 4 has the input 3 twice, with the outputs 0 and 4: Not a function."
+            ],
+            "answerSummary": "Is a function: figures 1 and 3. Not a function: figures 2 and 4."
+          }
         },
         {
           "standard": "A.12C",
@@ -1080,6 +1130,15 @@
               "Multiply by 2"
             ],
             "correct": "Multiply by 2"
+          },
+          "solutionReview": {
+            "headline": "Each term is twice the one before it: start at 3 and multiply by 2 until you reach the term you need.",
+            "reasoning": [
+              "g(2): multiply the first term by 2: 3 × 2 = 6.",
+              "g(3): multiply by 2 again: 6 × 2 = 12.",
+              "g(5): two more steps of × 2: g(4) = 12 × 2 = 24, so g(5) = 24 × 2 = 48."
+            ],
+            "answerSummary": "g(2) = 6, g(3) = 12 and g(5) = 48."
           }
         },
         {
@@ -1399,7 +1458,14 @@
               "label": "a(4)",
               "answer": "11"
             }
-          ]
+          ],
+          "solutionReview": {
+            "headline": "Each term is 3 less than the one before it: start at 20 and subtract 3 until you reach the fourth term.",
+            "reasoning": [
+              "a(4): subtract 3 three times from the first term: a(2) = 20 − 3 = 17, a(3) = 17 − 3 = 14, so a(4) = 14 − 3 = 11."
+            ],
+            "answerSummary": "a(4) = 11."
+          }
         }
       ]
     }
