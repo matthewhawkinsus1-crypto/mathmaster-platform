@@ -144,6 +144,7 @@ export const CI_AREAS = {
   'question-family-cases-browser': [
     'functions/shared/questionFamil*.mjs',
     'functions/shared/questionGenerationIdentity.mjs',
+    'functions/shared/hashString32.mjs',
     'functions/shared/toolMath/algebra-relations/**',
     'functions/shared/toolMath/systemsWorkspace/**',
     'functions/shared/serverGrading/stepAlgebra*.mjs',

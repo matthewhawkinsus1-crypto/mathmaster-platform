@@ -50,7 +50,7 @@
  * Pure: no Firestore, no clock.
  */
 
-import { hashString32 } from './questionFamilyEngine.mjs';
+import { hashString32 } from './hashString32.mjs';
 
 export const GENERATION_STRIDE = 64;
 export const PROVISIONAL_SEAT_SPREAD = 16;

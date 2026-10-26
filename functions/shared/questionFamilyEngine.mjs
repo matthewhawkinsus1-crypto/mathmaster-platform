@@ -31,6 +31,9 @@
  */
 
 import { FAMILY_ISSUE, choiceDomain, domainValues, isQuestionFamily } from './questionFamilyContract.mjs';
+// The hash is defined on its own so that a student's Home can name a seat without
+// loading this engine (questionGenerationIdentity.mjs); it is re-exported below.
+import { hashString32 } from './hashString32.mjs';
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
@@ -40,15 +43,7 @@ const isObject = (value) => Boolean(value) && typeof value === 'object' && !Arra
  * permutation's round function.
  * ------------------------------------------------------------------------- */
 
-export const hashString32 = (value, seed = 0x811c9dc5) => {
-  let hash = seed >>> 0;
-  const text = String(value ?? '');
-  for (let index = 0; index < text.length; index += 1) {
-    hash ^= text.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193) >>> 0;
-  }
-  return hash >>> 0;
-};
+export { hashString32 };
 
 const mix32 = (value) => {
   let hash = value >>> 0;
