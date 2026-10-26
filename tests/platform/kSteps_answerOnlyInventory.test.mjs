@@ -321,6 +321,9 @@ const STEPS_FLOOR = Object.freeze({
   'v5:algebra2-honors-module1/L2_Day2_Transformations.json': 19,
   'v5:algebra2-honors-module1/L3_Inverse_Linear_Functions.json': 19,
   'v5:algebra2-honors-module1/L4_Operations_on_Functions_Composition.json': 20,
+  // CT02 slice 4: four more carry their own worked solutions: the two warm-ups,
+  // the sort of products by size and the CCMR item (kSteps_lessonWorkedSteps).
+  'v5:algebra2-honors-module1/T2_L3_Solving_Systems_with_Matrices.json': 28,
   // CT02: all 336 District DOL #2 review variants (7 tasks × 48), from
   // functions/shared/districtDol2WorkedSolution.mjs; there were none.
   'v5:district-dol2/assignment.json': 336,
@@ -334,7 +337,7 @@ const STEPS_FLOOR = Object.freeze({
   // their own worked solution (kSteps_demoWorkedSteps); 26 have the family's.
   demo: 70,
 });
-const STEPS_TOTAL_FLOOR = 7999 + 336 + 832 + 14 + 48 + 44 + 2 + 832 + 1 + 14 + 7;
+const STEPS_TOTAL_FLOOR = 7999 + 336 + 832 + 14 + 48 + 44 + 2 + 832 + 1 + 14 + 7 + 4;
 const FROM_FAMILY_FLOOR = 119 + 14 + 48;
 // Where a worked-solution builder (not a support family) writes the steps: the
 // DOL #2 review, retest and corrections, every variant, and nothing else it

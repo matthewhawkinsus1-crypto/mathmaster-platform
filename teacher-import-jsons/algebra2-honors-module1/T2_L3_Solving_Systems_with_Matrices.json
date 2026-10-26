@@ -148,6 +148,16 @@
               "Add the two months’ counts for that card"
             ],
             "correct": "Add the two months’ counts for that card"
+          },
+          "solutionReview": {
+            "headline": "Each number in an array is one count: its row is the card value and its column is the card type. Add a card’s two months, then multiply by its value.",
+            "reasoning": [
+              "Same information: his 230 gas cards for $20 are the November array’s $20 row, Gas column, and his 110 and 550 sit below it in the $25 and $50 rows. The arrays hold the grocery counts too, for both months: Yes — the same numbers, organized in rows and columns.",
+              "$25 grocery cards: 89 in November and 233 in December, so 89 + 233 = 322 cards, and 322 × 25 = 8050 dollars.",
+              "$50 gas cards: 550 in November and 348 in December, so 550 + 348 = 898 cards, and 898 × 50 = 44900 dollars.",
+              "Fewest cards: add each type’s two months. Gas: $20 cards, 230 + 496 = 726; $25 cards, 110 + 850 = 960; $50 cards, 550 + 348 = 898. Grocery: $20 cards, 112 + 129 = 241; $25 cards, 89 + 233 = 322; $50 cards, 95 + 308 = 403. The fewest, 241, are the $20 grocery cards."
+            ],
+            "answerSummary": "Yes — the same numbers, organized in rows and columns; the $25 grocery cards brought in 8050 dollars and the $50 gas cards 44900 dollars; the $20 grocery cards sold the fewest, 241."
           }
         },
         {
@@ -286,6 +296,16 @@
               "−a/b"
             ],
             "correct": "b/a"
+          },
+          "solutionReview": {
+            "headline": "A number times its multiplicative inverse is 1, the multiplicative identity: to find the inverse of a fraction, flip it and keep its sign.",
+            "reasoning": [
+              "The multiplicative inverse of 5: it is 1/5, because 5 · (1/5) = 1.",
+              "The multiplicative inverse of −2/3: flip the fraction and keep its sign: −3/2.",
+              "(−2/3) · (its inverse): (−2/3) · (−3/2) = 1, the multiplicative identity.",
+              "No multiplicative inverse: 0 times any number is 0, never 1, so the real number with no multiplicative inverse is 0."
+            ],
+            "answerSummary": "The inverse of 5 is 1/5, the inverse of −2/3 is −3/2, and (−2/3) · (−3/2) = 1; 0 has no multiplicative inverse."
           }
         }
       ]
@@ -702,7 +722,21 @@
             "Compare the INNER numbers: columns of the first, rows of the second.",
             "If they match, the product has the OUTER numbers.",
             "For example, (3 × 1) · (1 × 5): the inner 1s match, so the product is 3 × 5."
-          ]
+          ],
+          "solutionReview": {
+            "headline": "Joey’s idea: a product is defined only when the inner numbers match (columns of the first, rows of the second), and it has the outer numbers.",
+            "reasoning": [
+              "Card 1, (2 × 3) · (3 × 4): the inner 3 and 3 match, and the outer numbers are 2 and 4: Defined — the product is 2 × 4.",
+              "Card 2, (2 × 4) · (4 × 4): the inner 4 and 4 match, and the outer numbers are 2 and 4: Defined — the product is 2 × 4.",
+              "Card 3, (3 × 2) · (3 × 2): the inner 2 and 3 do not match: Not defined.",
+              "Card 4, (4 × 2) · (4 × 2): the inner 2 and 4 do not match: Not defined.",
+              "Card 5, (2 × 2) · (4 × 4): the inner 2 and 4 do not match: Not defined.",
+              "Card 6, (4 × 1) · (1 × 4): the inner 1 and 1 match, and the outer numbers are 4 and 4: Defined — the product is 4 × 4.",
+              "Card 7, (4 × 3) · (3 × 4): the inner 3 and 3 match, and the outer numbers are 4 and 4: Defined — the product is 4 × 4.",
+              "Card 8, (2 × 5) · (5 × 4): the inner 5 and 5 match, and the outer numbers are 2 and 4: Defined — the product is 2 × 4."
+            ],
+            "answerSummary": "Defined — the product is 2 × 4: cards 1, 2 and 8. Defined — the product is 4 × 4: cards 6 and 7. Not defined: cards 3, 4 and 5."
+          }
         },
         {
           "questionId": "l3m-cw-5",
@@ -1574,6 +1608,15 @@
               "m × p"
             ],
             "correct": "m × p"
+          },
+          "solutionReview": {
+            "headline": "An entry of AB pairs a row of A with a column of B; a product is defined only when the inner dimensions match, and it has the outer ones.",
+            "reasoning": [
+              "The entry in row 2, column 1 of AB: row 2 of A is (0, 3) and column 1 of B is (4, −2), so it is 0 · 4 + 3 · (−2) = −6.",
+              "The dimensions of CD: C is 3 × 2 and D is 2 × 4. The inner numbers, 2 and 2, match, and the outer ones are 3 and 4: 3 × 4.",
+              "The dimensions of DC: D is 2 × 4 and C is 3 × 2. The inner numbers, 4 and 3, do not match, so DC is not defined."
+            ],
+            "answerSummary": "The entry is −6; CD is 3 × 4; DC is not defined."
           }
         }
       ]

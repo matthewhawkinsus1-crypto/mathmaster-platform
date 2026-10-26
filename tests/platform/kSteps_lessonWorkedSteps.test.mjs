@@ -19,6 +19,14 @@
  *             or a stretch is written where it is, in words no family reads; the
  *             steps work each part from the functions and points the student
  *             was shown, or plotted in the item before.
+ *   DOL #1    The Algebra I DOL #1 technology review's three sorts of graphs and
+ *             relations, its vertex choice and its three sequences: each figure
+ *             read off the graph or points drawn, each term from the one before.
+ *   Matrices  Algebra II Honors Module 1, Topic 2 Lesson 3 (solving systems with
+ *             matrices): the Getting Started arrays (l3m-wu-1), multiplicative
+ *             inverses (l3m-wu-3), the sort of products by size (l3m-cw-4) and
+ *             the entry and sizes of AB, CD and DC (l3m-pr-12-ccmr). Each count
+ *             is read from the arrays shown, each size from its card or prompt.
  *
  * Checked here with this file's own reading (mathjs fractions), never a
  * family's helpers:
@@ -38,7 +46,9 @@
  *     and the numbers are the student's: the points they plotted or were shown;
  *   - nothing changes while the item is open: the review names no common error
  *     (FB04 says a common error's mistake half on a miss), and the hints and the
- *     back-up step are the same with or without it.
+ *     back-up step are the same with or without it;
+ *   - every line is shown as words: a dollar sign is money ("$25 grocery
+ *     cards"), never the start of mathematics (MathText's own split).
  *
  * Mutation-checked (each made in the lesson files, seen red, undone):
  *   - a slope's arithmetic changed ("= 5/8" to "= 8/5" in A″B″'s step) → the part and arithmetic checks;
@@ -50,7 +60,11 @@
  *   - Lesson 2: a simplification's last line changed ("2x + 7" to "2x + 8"), a
  *     solved equation's value changed ("x = 15/2" to "x = 15/4"), a step naming
  *     a second choice, a sort step sending a graph to the wrong equation, a
- *     table cell changed, an unchecked "=" added → each the matching check.
+ *     table cell changed, an unchecked "=" added → each the matching check;
+ *   - Matrices: a total's sum changed ("= 322" to "= 323"), a fewest-cards
+ *     group read from the wrong month, a card sent to the wrong size, the
+ *     inner sizes misread, "$20 cards, 230" written "$20 is 230" (which the
+ *     screen reads as mathematics) → each the matching check.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -72,6 +86,7 @@ import { gradeMultiAnswerResponse, gradeTableResponse, tableEditableKeys } from 
 import { gradeComposedWorkflowWork } from '../../functions/shared/serverGrading/questionGraders/composedWorkflow.mjs';
 import { buildFigureMatchResponse, figureLabel, figureNoun } from '../../functions/shared/toolMath/workflow/figureMatch.mjs';
 import { readComposedQuestion } from '../../functions/shared/toolMath/workflow/questionWorkflow.mjs';
+import { isMathSegment, splitMathSegments } from '../../src/components/common/mathSegments.js';
 
 const ROOT = new URL('../../', import.meta.url);
 const read = (relative) => readFileSync(new URL(relative, ROOT), 'utf8');
@@ -125,6 +140,9 @@ const L3 = 'teacher-import-jsons/algebra1-module2-topic2/L3_Slopes_of_Perpendicu
 const L3_HONORS = 'teacher-import-jsons/algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines_Honors.json';
 const L2 = 'teacher-import-jsons/algebra1-module2-topic2/L2_Vertical_and_Horizontal_Transformations_of_Linear_Functions.json';
 const DOL1 = 'teacher-import-jsons/algebra1-dol1/District_DOL1_Technology_Graph_Analysis_Review.json';
+const MATRICES = 'teacher-import-jsons/algebra2-honors-module1/T2_L3_Solving_Systems_with_Matrices.json';
+// A matrix's rows as numbers. (A stored copy holds each row as { cells }: Firestore holds no array of arrays.)
+const matrixRows = (matrix) => matrix.rows.map((row) => (Array.isArray(row) ? row : row.cells));
 
 /*
  * What a figure's step reads off its graph, held to the graph drawn: every
@@ -556,6 +574,105 @@ const ITEMS = Object.freeze([
     claims: [[0, 'a(2) = 20 − 3 = 17'], [0, 'a(3) = 17 − 3 = 14'], [0, 'a(4) = 14 − 3 = 11'], ['summary', 'a(4) = 11']],
     check: ({ question }) => assert.deepEqual(question.sequence, { kind: 'arithmetic', first: 20, commonDifference: -3 }),
   },
+  {
+    files: [MATRICES],
+    questionId: 'l3m-wu-1',
+    parts: { same: [0, 'Yes — the same numbers, organized in rows and columns'], grocery25: [1, '8050'], gas50: [2, '44900'], least: [3, '$20 grocery cards'] },
+    claims: [
+      [1, '89 + 233 = 322'], [1, '322 × 25 = 8050'], [2, '550 + 348 = 898'], [2, '898 × 50 = 44900'],
+      [3, '230 + 496 = 726'], [3, '110 + 850 = 960'], [3, '550 + 348 = 898'], [3, '112 + 129 = 241'], [3, '89 + 233 = 322'], [3, '95 + 308 = 403'],
+    ],
+    summary: [
+      ['Yes — the same numbers, organized in rows and columns', ['same']], ['the $25 grocery cards brought in 8050 dollars', ['grocery25']],
+      ['the $50 gas cards 44900 dollars', ['gas50']], ['the $20 grocery cards sold the fewest', ['least']],
+    ],
+    // Every count is the arrays': a card's row is its value and its column its
+    // type, his sentence is November's Gas column, and a total adds the two months.
+    check: ({ item, question, review }) => {
+      const { Nov, Dec } = question.matrices;
+      assert.deepEqual([Dec.rowLabels, Dec.colLabels], [Nov.rowLabels, Nov.colLabels], 'the two arrays have the same rows and columns');
+      const values = Nov.rowLabels.map((label) => Number(/^\$(\d+) cards$/.exec(label)[1]));
+      const types = Nov.colLabels.map(lower);
+      const [nov, dec] = [matrixRows(Nov), matrixRows(Dec)];
+      const gas = types.indexOf('gas');
+      const sentence = values.map((value, row) => `${nov[row][gas]} gas cards for $${value}`);
+      assert.ok(question.answerFields.find((field) => field.id === 'same').label.includes(`${sentence[0]}, ${sentence[1]}, and ${sentence[2]}`), 'his sentence is November\'s Gas column');
+      assert.ok(review.reasoning[0].includes(`his ${sentence[0]} are the November array’s $${values[0]} row, Gas column, and his ${nov[1][gas]} and ${nov[2][gas]} sit below it in the $${values[1]} and $${values[2]} rows`), review.reasoning[0]);
+      const total = (row, col) => `${nov[row][col]} + ${dec[row][col]} = ${nov[row][col] + dec[row][col]}`;
+      ['grocery25', 'gas50'].forEach((id) => {
+        const [, value, type] = /selling \$(\d+) (\w+) cards/.exec(question.answerFields.find((field) => field.id === id).label);
+        const [row, col] = [values.indexOf(Number(value)), types.indexOf(type)];
+        const cards = nov[row][col] + dec[row][col];
+        const step = review.reasoning[item.parts[id][0]];
+        assert.equal(step, `$${value} ${type} cards: ${nov[row][col]} in November and ${dec[row][col]} in December, so ${total(row, col)} cards, and ${cards} × ${value} = ${cards * value} dollars.`);
+      });
+      // The fewest: every type's two months added, under its own column, and the smallest of the six.
+      const fewestStep = review.reasoning[item.parts.least[0]];
+      Nov.colLabels.forEach((label, col) => {
+        assert.equal(new RegExp(`${label}: (.+?)\\.`).exec(fewestStep)?.[1], values.map((value, row) => `$${value} cards, ${total(row, col)}`).join('; '), `${label}: ${fewestStep}`);
+      });
+      const sums = values.flatMap((value, row) => types.map((type, col) => ({ value, type, sum: nov[row][col] + dec[row][col] })));
+      const fewest = sums.reduce((low, entry) => (entry.sum < low.sum ? entry : low));
+      assert.equal(sums.filter((entry) => entry.sum === fewest.sum).length, 1, 'one type sold the fewest');
+      assert.ok(fewestStep.endsWith(`The fewest, ${fewest.sum}, are the $${fewest.value} ${fewest.type} cards.`), fewestStep);
+    },
+  },
+  {
+    files: [MATRICES],
+    questionId: 'l3m-wu-3',
+    parts: { inv5: [0, '1/5'], invFrac: [1, '−3/2'], product: [2, '1'], none: [3, '0'] },
+    claims: [[0, '5 · (1/5) = 1'], [2, '(−2/3) · (−3/2) = 1'], ['summary', '(−2/3) · (−3/2) = 1']],
+    summary: [['inverse of 5 is 1/5', ['inv5']], ['inverse of −2/3 is −3/2', ['invFrac']], ['(−2/3) · (−3/2) = 1', ['product']], ['0 has no multiplicative inverse', ['none']]],
+    // Each inverse is of the number its own label names, and its step leads with that label.
+    check: ({ item, question, review }) => {
+      ['inv5', 'invFrac'].forEach((id) => {
+        const { label } = question.answerFields.find((field) => field.id === id);
+        const step = review.reasoning[item.parts[id][0]];
+        assert.ok(step.startsWith(`${label}: `), step);
+        assert.ok(math.equal(math.multiply(F(/inverse of (\S+)$/.exec(label)[1]), F(item.parts[id][1])), 1), `${label}: ${item.parts[id][1]}`);
+      });
+      assert.match(question.prompt, /n · \(1\/n\) = 1/, 'the prompt gives the rule the first step uses');
+    },
+  },
+  {
+    files: [MATRICES],
+    questionId: 'l3m-cw-4',
+    kind: 'figureMatch',
+    quote: 'comma',
+    parts: {
+      p1: [0, 'Defined — the product is 2 × 4'], p2: [1, 'Defined — the product is 2 × 4'], p3: [2, 'Not defined'], p4: [3, 'Not defined'],
+      p5: [4, 'Not defined'], p6: [5, 'Defined — the product is 4 × 4'], p7: [6, 'Defined — the product is 4 × 4'], p8: [7, 'Defined — the product is 2 × 4'],
+    },
+    // Each card is read from its own sizes, not from the key: the inner numbers
+    // match or not, and a defined product has the outer ones.
+    check: ({ question, review }) => {
+      figureStage(question).items.forEach((card, index) => {
+        const [, m, n, p, q] = /^\((\d+) × (\d+)\) · \((\d+) × (\d+)\)$/.exec(card.text);
+        const reading = n === p
+          ? `the inner ${n} and ${p} match, and the outer numbers are ${m} and ${q}: Defined — the product is ${m} × ${q}.`
+          : `the inner ${n} and ${p} do not match: Not defined.`;
+        assert.ok(review.reasoning[index].endsWith(reading), `${card.text}: ${review.reasoning[index]}`);
+      });
+    },
+  },
+  {
+    files: [MATRICES],
+    questionId: 'l3m-pr-12-ccmr',
+    parts: { entry21: [0, '−6'], dimsCD: [1, '3 × 4'], dimsDC: [2, 'DC is not defined'] },
+    claims: [[0, '0 · 4 + 3 · (−2) = −6']],
+    summary: [['The entry is −6', ['entry21']], ['CD is 3 × 4', ['dimsCD']], ['DC is not defined', ['dimsDC']]],
+    // Row 2 of A and column 1 of B are the matrices shown; C and D are the sizes the prompt gives.
+    check: ({ question, review }) => {
+      const row = matrixRows(question.matrices.A)[1];
+      const column = matrixRows(question.matrices.B).map((cells) => cells[0]);
+      const term = (value) => (value < 0 ? `(${shownNumber(value)})` : shownNumber(value));
+      assert.ok(review.reasoning[0].includes(`row 2 of A is (${row.map(shownNumber).join(', ')}) and column 1 of B is (${column.map(shownNumber).join(', ')}), so it is ${row.map((value, index) => `${term(value)} · ${term(column[index])}`).join(' + ')} = `), review.reasoning[0]);
+      const [, cRows, cCols, dRows, dCols] = /C has dimensions (\d+) × (\d+) and matrix D has dimensions (\d+) × (\d+)/.exec(question.prompt);
+      assert.ok(cCols === dRows && dCols !== cRows, 'CD is defined and DC is not');
+      assert.ok(review.reasoning[1].endsWith(`C is ${cRows} × ${cCols} and D is ${dRows} × ${dCols}. The inner numbers, ${cCols} and ${dRows}, match, and the outer ones are ${cRows} and ${dCols}: ${cRows} × ${dCols}.`), review.reasoning[1]);
+      assert.ok(review.reasoning[2].endsWith(`D is ${dRows} × ${dCols} and C is ${cRows} × ${cCols}. The inner numbers, ${dCols} and ${cRows}, do not match, so DC is not defined.`), review.reasoning[2]);
+    },
+  },
 ]);
 
 const everyCopy = ITEMS.flatMap((item) => item.files.flatMap((path) => [['inventory', asInventory(path)], ['device', asDevice(path)]]
@@ -579,6 +696,7 @@ test('the closed review shows each item\'s own worked steps, in every copy, whol
   assert.equal(everyCopy.length, ITEMS.reduce((sum, item) => sum + item.files.length * 2, 0));
   assert.equal(ITEMS.filter((item) => item.files.includes(L2)).length, 14, 'the 14 Lesson 2 items');
   assert.equal(ITEMS.filter((item) => item.files.includes(DOL1)).length, 7, 'seven of the DOL #1 review');
+  assert.equal(ITEMS.filter((item) => item.files.includes(MATRICES)).length, 4, 'four of the matrices lesson');
   for (const { item, path, source, question } of everyCopy) {
     assert.ok(question, `${source}: found`);
     const authored = authoredIn(path, item).solutionReview;
@@ -670,12 +788,12 @@ test('each part\'s answer is stated in its own step, naming no other choice, and
     }
     const grade = gradeStated(item, question, stated);
     assert.equal(grade.isCorrect, true, `${source}: ${JSON.stringify(grade.parts?.filter((part) => !part.isCorrect) ?? grade)}`);
-    // The summary states the same answers.
+    // The summary states the same answers: a number as a number, anything else in its own words.
     for (const [phrase, ids] of item.summary || []) {
       assert.ok(review.answerSummary.includes(phrase), `${source}: the summary says "${phrase}"`);
       ids.forEach((id) => {
         const number = /(−?\d+\/\d+|−?\d+)$/.exec(phrase);
-        if (number && !/[a-z]\)?$/i.test(stated[id])) assert.ok(math.equal(F(number[1]), F(stated[id])), `${source}: "${phrase}" is ${id}'s ${stated[id]}`);
+        if (number && /^−?\d+(\/\d+)?$/.test(stated[id])) assert.ok(math.equal(F(number[1]), F(stated[id])), `${source}: "${phrase}" is ${id}'s ${stated[id]}`);
         else assert.ok(phrase.includes(stated[id]), `${source}: "${phrase}" is ${id}'s "${stated[id]}"`);
       });
     }
@@ -730,7 +848,10 @@ test('the words are plain and short, and nothing changes while the item is open'
   for (const { item, path, source, question } of everyCopy) {
     const authored = authoredIn(path, item).solutionReview;
     for (const line of [authored.headline, ...authored.reasoning, authored.answerSummary]) {
-      assert.doesNotMatch(line, /NaN|undefined|\bnull\b|Infinity|\[object|\{\{|\$/, `${source}: ${line}`);
+      assert.doesNotMatch(line, /NaN|undefined|\bnull\b|Infinity|\[object|\{\{/, `${source}: ${line}`);
+      // A dollar sign is money ("$25 grocery cards"), never the start of
+      // mathematics: the screen shows the whole line as words.
+      assert.ok(!splitMathSegments(line).some(isMathSegment), `${source}: shown as words: ${line}`);
     }
     // A common error's mistake half is said on a miss (FB04, attemptFeedbackPlan.js):
     // these reviews name none, so an open item's feedback is what it was.
