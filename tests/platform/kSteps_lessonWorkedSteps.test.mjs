@@ -21,7 +21,9 @@
  *             was shown, or plotted in the item before.
  *   DOL #1    The Algebra I DOL #1 technology review's three sorts of graphs and
  *             relations, its vertex choice and its three sequences: each figure
- *             read off the graph or points drawn, each term from the one before.
+ *             read off the graph or points drawn, each term from the one before;
+ *             and its three relationship models that ask only discrete or
+ *             continuous, the domain and the range: each read from the scenario.
  *   Matrices  Algebra II Honors Module 1, Topic 2 Lesson 3 (solving systems with
  *             matrices): the Getting Started arrays (l3m-wu-1), multiplicative
  *             inverses (l3m-wu-3), the sort of products by size (l3m-cw-4) and
@@ -85,7 +87,10 @@
  *     each the matching check;
  *   - |x|: an absolute value worked wrong ("|−3| = 3" to "|−3| = −3"), a step
  *     naming another choice, a part's step not led by its label, the "So:"
- *     line disagreeing with a part → each the matching check.
+ *     line disagreeing with a part → each the matching check;
+ *   - the DOL #1 models: a domain's end changed, a model called the other
+ *     continuity, a step naming it, a weight worked wrong, the claim left
+ *     unanswered → each the matching check.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -622,6 +627,52 @@ const ITEMS = Object.freeze([
     check: ({ question }) => assert.deepEqual(question.sequence, { kind: 'arithmetic', first: 20, commonDifference: -3 }),
   },
   {
+    files: [DOL1],
+    questionId: 'q_section-2_2_2',
+    raw: { sectionId: 'section-2', prompt: 'A school bus can carry at most 48 students. Let x be the number of students riding the bus.' },
+    kind: 'model',
+    parts: { continuity: [0, 'discrete'], domainDiscrete: [1, '{0, 1, 2, ..., 48}'] },
+    summary: [['is discrete', ['continuity']], ['domain {0, 1, 2, ..., 48}', ['domainDiscrete']]],
+    // The bound is the scenario's: from none up to at most 48 students.
+    check: ({ question, review }) => {
+      assert.match(question.scenario, /at most 48 students/);
+      assert.ok(review.reasoning[1].includes('from 0 students up to at most 48'), review.reasoning[1]);
+    },
+  },
+  {
+    files: [DOL1],
+    questionId: 'q_section-2_2_13',
+    raw: { sectionId: 'section-2', prompt: 'Honors extension: a delivery van holds at most 30 boxes and each box weighs 4 pounds. A student claims the reasonable domain is every real number from 0 to 30. Decide whether the claim is correct and give the reasonable domain and range.' },
+    kind: 'model',
+    parts: { continuity: [0, 'discrete'], domainDiscrete: [1, '{0, 1, 2, ..., 30}'], rangeDiscrete: [2, '{0, 4, 8, ..., 120}'] },
+    claims: [[2, '4 · 0 = 0'], [2, '4 · 1 = 4'], [2, '4 · 2 = 8'], [2, '4 · 30 = 120']],
+    summary: [['The claim is not correct', []], ['is discrete', ['continuity']], ['domain {0, 1, 2, ..., 30}', ['domainDiscrete']], ['range {0, 4, 8, ..., 120}', ['rangeDiscrete']]],
+    // The claim the step answers is the prompt's, and each weight in the range
+    // is 4 pounds times a count in the domain, up to the van's 30 boxes.
+    check: ({ item, question, review }) => {
+      assert.ok(question.prompt.includes('every real number from 0 to 30') && review.reasoning[0].includes('The student’s claim, every real number from 0 to 30,'), review.reasoning[0]);
+      assert.match(question.prompt, /at most 30 boxes and each box weighs 4 pounds/);
+      const listed = (set) => set.replace(/[{}]/g, '').split(', ').filter((entry) => entry !== '...').map(Number);
+      const [domain, range] = [listed(item.parts.domainDiscrete[1]), listed(item.parts.rangeDiscrete[1])];
+      assert.deepEqual(range, domain.map((boxes) => 4 * boxes), 'each weight is 4 pounds a box');
+      assert.equal(domain.at(-1), 30, 'up to the van\'s 30 boxes');
+    },
+  },
+  {
+    files: [DOL1],
+    questionId: 'q_section-3_3_10',
+    raw: { sectionId: 'section-3', prompt: 'A tank fills steadily for 10 minutes, going from 0 gallons to 60 gallons.' },
+    kind: 'model',
+    parts: { continuity: [0, 'continuous'], domainContinuous: [1, '0 ≤ x ≤ 10'], rangeContinuous: [2, '0 ≤ y ≤ 60'] },
+    summary: [['is continuous', ['continuity']], ['domain 0 ≤ x ≤ 10', ['domainContinuous']], ['range 0 ≤ y ≤ 60', ['rangeContinuous']]],
+    // The ends are the scenario's: 10 minutes, from 0 gallons to 60.
+    check: ({ question, review }) => {
+      assert.match(question.scenario, /for 10 minutes, going from 0 gallons to 60 gallons/);
+      assert.ok(review.reasoning[1].includes('from minute 0 to minute 10'), review.reasoning[1]);
+      assert.ok(review.reasoning[2].includes('from 0 gallons to 60 gallons'), review.reasoning[2]);
+    },
+  },
+  {
     files: [MATRICES],
     questionId: 'l3m-wu-1',
     parts: { same: [0, 'Yes — the same numbers, organized in rows and columns'], grocery25: [1, '8050'], gas50: [2, '44900'], least: [3, '$20 grocery cards'] },
@@ -829,7 +880,7 @@ const visibleText = (question) => {
 test('the closed review shows each item\'s own worked steps, in every copy, whole', () => {
   assert.equal(everyCopy.length, ITEMS.reduce((sum, item) => sum + item.files.length * 2, 0));
   assert.equal(ITEMS.filter((item) => item.files.includes(L2)).length, 14, 'the 14 Lesson 2 items');
-  assert.equal(ITEMS.filter((item) => item.files.includes(DOL1)).length, 7, 'seven of the DOL #1 review');
+  assert.equal(ITEMS.filter((item) => item.files.includes(DOL1)).length, 10, 'ten of the DOL #1 review');
   assert.equal(ITEMS.filter((item) => item.files.includes(MATRICES)).length, 4, 'four of the matrices lesson');
   assert.equal(ITEMS.filter((item) => item.files.includes(POLY_OPS)).length, 2, 'the two sorts of Operations on Polynomials');
   assert.equal(ITEMS.filter((item) => item.files.includes(ALEKS) || item.files.includes(L2_DAY2)).length, 2, 'the two |x| items');
@@ -862,6 +913,13 @@ const partsOf = (item, question) => {
     const [stage] = readComposedQuestion(question).workflow;
     return [{ id: stage.id, options: stage.choices.map((choice) => text(choice.label)) }];
   }
+  // A relationship model: each step its key marks (the domain and range shown
+  // for the right continuity), labelled as the screen labels it.
+  if (item.kind === 'model') {
+    const { workflow, grading } = readComposedQuestion(question);
+    return Object.keys(grading).map((id) => workflow.find((stage) => stage.id === id))
+      .map((stage) => ({ id: stage.id, label: text(stage.stepLabel || stage.prompt), options: (stage.choices || []).map(text) }));
+  }
   return question.answerFields.map((field) => ({ id: field.id, label: text(field.label), options: (field.options || []).map(text) }));
 };
 const gradeStated = (item, question, stated) => {
@@ -875,6 +933,8 @@ const gradeStated = (item, question, stated) => {
     const [stage] = readComposedQuestion(question).workflow;
     return gradeComposedWorkflowWork(question, { responses: { [stage.id]: stage.choices.find((choice) => text(choice.label) === stated[stage.id])?.id } });
   }
+  // A model's steps, each answered as stated: the continuity by its word, a domain or range as typed.
+  if (item.kind === 'model') return gradeComposedWorkflowWork(question, { responses: stated });
   // A typed part as the student types it (x² is x^2); a choice by its own words.
   const choices = new Set(question.answerFields.filter((field) => (field.options || []).length).map((field) => field.id));
   return gradeMultiAnswerResponse(question, Object.fromEntries(Object.entries(stated).map(([id, words]) => [id, choices.has(id) ? words : typed(words)])));

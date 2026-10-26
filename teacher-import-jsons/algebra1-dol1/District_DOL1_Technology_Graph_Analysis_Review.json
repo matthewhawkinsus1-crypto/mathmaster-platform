@@ -344,6 +344,14 @@
           "answerModel": {
             "domain": "{0, 1, 2, ..., 48}",
             "continuity": "discrete"
+          },
+          "solutionReview": {
+            "headline": "Students are counted in whole numbers, so the relationship is separate points, from 0 students up to the 48 the bus can carry.",
+            "reasoning": [
+              "Discrete or continuous: x counts students, and there is no half of a student, so the relationship is discrete: separate points, not a connected graph.",
+              "Domain: the bus can carry from 0 students up to at most 48, and only whole numbers of them, so the domain is {0, 1, 2, ..., 48}."
+            ],
+            "answerSummary": "The relationship is discrete, with domain {0, 1, 2, ..., 48}."
           }
         },
         {
@@ -748,6 +756,15 @@
             "domain": "{0, 1, 2, ..., 30}",
             "range": "{0, 4, 8, ..., 120}",
             "continuity": "discrete"
+          },
+          "solutionReview": {
+            "headline": "Boxes come only in whole numbers, so the student’s claim is not correct: the domain and the range are lists of separate values.",
+            "reasoning": [
+              "Discrete or continuous: x counts boxes, and the van cannot carry part of a box, so the relationship is discrete. The student’s claim, every real number from 0 to 30, would include 2.5 boxes, so it is not correct.",
+              "Domain: from 0 boxes up to at most 30, in whole numbers, so the domain is {0, 1, 2, ..., 30}.",
+              "Range: each box adds 4 pounds, so the weight is 4 times the number of boxes: 4 · 0 = 0, 4 · 1 = 4, 4 · 2 = 8, and so on up to 4 · 30 = 120, so the range is {0, 4, 8, ..., 120}."
+            ],
+            "answerSummary": "The claim is not correct: the relationship is discrete, with domain {0, 1, 2, ..., 30} and range {0, 4, 8, ..., 120}."
           }
         }
       ]
@@ -1197,6 +1214,15 @@
             "domain": "0 <= x <= 10",
             "range": "0 <= y <= 60",
             "continuity": "continuous"
+          },
+          "solutionReview": {
+            "headline": "The tank fills steadily, so time and water pass through every value in between: one connected graph.",
+            "reasoning": [
+              "Discrete or continuous: time does not jump from one minute to the next, and the water rises steadily through every amount in between, so the relationship is continuous.",
+              "Domain: the tank fills from minute 0 to minute 10, and every time in between counts, so the domain is 0 ≤ x ≤ 10.",
+              "Range: the water goes from 0 gallons to 60 gallons, through every amount in between, so the range is 0 ≤ y ≤ 60."
+            ],
+            "answerSummary": "The relationship is continuous, with domain 0 ≤ x ≤ 10 and range 0 ≤ y ≤ 60."
           }
         }
       ]

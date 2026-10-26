@@ -299,9 +299,10 @@ const STEPS_FLOOR = Object.freeze({
   'path:act': 136, 'path:asvab': 1176, 'path:digitalSAT': 648, 'path:tsia2': 200,
   'ccmr-v5:act': 136, 'ccmr-v5:digitalSAT': 648, 'ccmr-v5:tsia2': 200,
   drafts: 3295,
-  // CT02 slice 4: seven more carry their own worked solutions: three sorts, the
-  // vertex choice and three sequences (kSteps_lessonWorkedSteps).
-  'v5:algebra1-dol1/District_DOL1_Technology_Graph_Analysis_Review.json': 32,
+  // CT02 slice 4: ten more carry their own worked solutions: three sorts, the
+  // vertex choice, three sequences and the three relationship models that ask
+  // only continuity, domain and range (kSteps_lessonWorkedSteps).
+  'v5:algebra1-dol1/District_DOL1_Technology_Graph_Analysis_Review.json': 35,
   // CT02 slice 4: Lesson 2's 14 answer-only items (12 multi-answer, a table and
   // a sort) carry their own worked solutions (kSteps_lessonWorkedSteps).
   'v5:algebra1-module2-topic2/L2_Vertical_and_Horizontal_Transformations_of_Linear_Functions.json': 29,
@@ -342,7 +343,7 @@ const STEPS_FLOOR = Object.freeze({
   // their own worked solution (kSteps_demoWorkedSteps); 26 have the family's.
   demo: 70,
 });
-const STEPS_TOTAL_FLOOR = 7999 + 336 + 832 + 14 + 48 + 44 + 2 + 832 + 1 + 14 + 7 + 4 + 2 + 2;
+const STEPS_TOTAL_FLOOR = 7999 + 336 + 832 + 14 + 48 + 44 + 2 + 832 + 1 + 14 + 7 + 4 + 2 + 2 + 3;
 const FROM_FAMILY_FLOOR = 119 + 14 + 48;
 // Where a worked-solution builder (not a support family) writes the steps: the
 // DOL #2 review, retest and corrections, every variant, and nothing else it
