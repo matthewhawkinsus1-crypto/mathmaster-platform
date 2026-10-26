@@ -1108,7 +1108,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     if (!points.length) return 'No points yet.';
     const listed = <PointList points={points} />;
     return points.length >= 2
-      ? <>Your points: {listed}. Tap the grid to move your second point, or drag either point.</>
+      ? <>Your points: {listed}. Tap the grid to move your second point, or drag either point (keyboard: arrow keys, then Enter).</>
       : <>Your point: {listed}. Plot one more.</>;
   };
 
@@ -1985,7 +1985,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                   <span><strong>Your task:</strong> {graph.task}</span>
                   {graph.key === 'graph3' ? <span>{graph3Guide}</span> : null}
                   <span style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
-                    Tap or press to place a point; drag a point to move it. Points land on {describeSnapStep(snapFor(graph.key))}.
+                    Tap or press to place a point; drag a point to move it (keyboard: arrow keys, then Enter). Points land on {describeSnapStep(snapFor(graph.key))}.
                   </span>
                 </div>
                 <p style={muted}>{graphStatus(graph)}</p>

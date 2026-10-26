@@ -540,7 +540,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
     const parts = Array.isArray(feedback.metadata?.parts) ? feedback.metadata.parts : [];
     const stageMissed = (id) => parts.some((part) => part.id === id && part.isCorrect !== true);
     if (stageMissed('graph') && built.length === 0) {
-      return 'Nothing is graphed yet. Click the line or type an exact endpoint, then place the other endpoint or choose a ray.';
+      return 'Nothing is graphed yet. Click or tap the line (or Tab to it and use the arrow keys and Enter) or type an exact endpoint, then place the other endpoint or choose a ray.';
     }
     if (stageMissed('graph')) {
       return intervalGraphMissMessage({ built: feedback.response?.intervals ?? built, expected, methodWithheld });
@@ -574,7 +574,9 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
         task={questionData.prompt || `Graph the solution on the number line${asksInterval ? ' and write it in interval notation' : asksInequality ? ' and write the matching inequality' : ''}.`}
         stepsAreControls
         steps={[
-          'Place an endpoint by clicking the line or typing its exact value. Fractions such as -13/8 are accepted.',
+          // The line is a tab stop: a marker moves with the arrow keys and Enter
+          // places an endpoint there, or the exact value is typed (AX32).
+          'Place an endpoint: click or tap the line, or Tab to it and use the arrow keys and Enter, or type its exact value. Fractions such as -13/8 are accepted.',
           'For a bounded interval, place a second endpoint. For a ray, choose shade left or shade right.',
           'Choose open or closed for each endpoint. Drag a plotted endpoint if you want to move it, or Tab to it and use the arrow keys.',
         ]}
@@ -686,7 +688,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
             </div>
 
             <div id={endpointHelpId} data-endpoint-help={endpointError ? 'error' : 'hint'} style={{ color: endpointError ? 'var(--mm-error-text)' : 'var(--mm-text-muted)', fontSize: 'calc(11.5 * var(--mm-px))' }}>
-              {endpointError || `A click or drag moves in steps of ${snapLabel}. Type an exact value for anything in between.`}
+              {endpointError || `A click, a drag or an arrow key moves in steps of ${snapLabel}. Type an exact value for anything in between.`}
             </div>
             {/* Said when it appears: the typed value could not be placed. */}
             <span role="alert" data-endpoint-error-announcement="" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>{endpointError}</span>
@@ -970,7 +972,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                   : readsGraphAsNotation
                     ? `Your graph: ${intervalsToNotation(drawn)}`
                     : `Your graph: ${drawn.map(describeNumberLinePiece).join(' ')}`
-                : 'Click the line for a quick placement, or type an exact endpoint above.'}
+                : 'Click or tap the line for a quick placement, or Tab to it and use the arrow keys and Enter, or type an exact endpoint above.'}
           </p>
         </Panel>
 

@@ -263,10 +263,10 @@ const showHint = (page) => helpDrawer(page).getByRole('button', { name: /^Show a
 // phone's way to the steps): the control steps on both, the method steps only
 // on practice; the Work View banner never states the method on a DOL.
 const SPLIT = [
-  { tool: 'table', control: 'Tap two rows to form an interval.', method: 'Work out each value yourself from the two rows' },
+  { tool: 'table', control: 'Select two rows to form an interval', method: 'Work out each value yourself from the two rows' },
   { tool: 'constraint', control: 'Choose a family, then adjust the coefficients/parameters', method: 'Read the characteristics first' },
   { tool: 'regression', control: 'Enter the slope and intercept of your model in the Slope m and Intercept b boxes.', method: 'Run a linear regression on the data.', dolOnly: true },
-  { tool: 'bridge', control: 'Table: tap two rows to form an interval', method: 'Factored form: rewrite your equation as y = a(x − c).' },
+  { tool: 'bridge', control: 'Table: select two rows to form an interval', method: 'Factored form: rewrite your equation as y = a(x − c).' },
   { tool: 'match', control: 'Choose the next group and repeat.', method: 'Compare the numbers each card gives you' },
   // A server-graded host (My Math Path, Corrections) reaches the registry
   // forms; an assignment opens the mature engine (its own banner below).

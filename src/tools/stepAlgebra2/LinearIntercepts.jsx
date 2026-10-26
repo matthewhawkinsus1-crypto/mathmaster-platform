@@ -5,7 +5,7 @@ import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workVie
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { HintPanel, Panel, ResultPill, TaskCard, ToolGrid, controlStep } from '../shared/ToolShell.jsx';
 import useToolSubmission from '../shared/useToolSubmission.js';
-import { InteractiveStandardEquation, ZeroVariableChoice } from './linearInterceptsConceptualUi.jsx';
+import { InteractiveStandardEquation, ZERO_TOKEN_DIRECTIONS, ZeroVariableChoice } from './linearInterceptsConceptualUi.jsx';
 import {
   INTERCEPT_FEEDBACK_TIMINGS,
   applyInterceptOperation,
@@ -291,7 +291,7 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
         // uses a try) and stay there.
         steps={[
           `Decide which coordinate is always 0 at the ${stageLabel(kind)}.`,
-          controlStep('Place the 0 on a variable (drag it, or tap the 0 and then the variable), then press Substitute and solve.'),
+          controlStep('Place the 0 on a variable (drag it, or select the 0 and then the variable: click or tap, or Tab to each and press Enter), then press Substitute and solve.'),
           controlStep('Solve the one-variable equation with the operation buttons. Return to substitution starts the substitution again.'),
           controlStep(`Write the ${stageLabel(kind)} as an ordered pair and press Check ${stageLabel(kind)}.`),
         ]}
@@ -347,7 +347,7 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
                   0
                 </button>
                 <span style={{ color: 'var(--mm-text-muted)', lineHeight: 1.45, flex: '1 1 220px' }}>
-                  Drag the 0 onto x or y. On a touch screen, tap the 0 and then tap the variable.
+                  {ZERO_TOKEN_DIRECTIONS}
                 </span>
               </div>
 

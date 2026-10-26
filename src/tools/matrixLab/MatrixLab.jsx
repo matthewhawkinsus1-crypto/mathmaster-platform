@@ -29,7 +29,7 @@ import {
 /*
  * MATRIX LAB — Algebra II, solving systems with matrices (A2.3B).
  *
- *   locate          dimensions, and the element a_ij: tap it, or write its notation
+ *   locate          dimensions, and the element a_ij: select its cell, or write its notation
  *   operate         is A·B defined, what size is it, fill it in row × column,
  *                   and are the two matrices inverses
  *   equation        write a system as A·X = B (standard form first)
@@ -178,7 +178,7 @@ function LocateMode({ questionData, model, onAction }) {
             colLabels={matrix.colLabels}
             rowTitle={matrix.rowTitle}
             colTitle={matrix.colTitle}
-            ariaLabel={`Matrix ${letter}. ${activeId ? 'Tap the cell for the element you are placing.' : ''}`}
+            ariaLabel={`Matrix ${letter}. ${activeId ? 'Select the cell for the element you are placing.' : ''}`}
             renderCell={(i, j, value) => {
               const chips = tappedBy(i, j);
               const active = tapTargets.find((target) => target.id === activeId);
@@ -214,10 +214,14 @@ function LocateMode({ questionData, model, onAction }) {
                 return (
                   <li key={target.id}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                      {/* The cells are buttons (enabled for the element in hand), so the
+                          line names the keyboard as well as the tap (AX32). The element's
+                          own button says "Find", not "Tap": it only chooses which
+                          element the next cell is for. */}
                       <button type="button" aria-pressed={activeId === target.id} onClick={() => setActiveId(target.id)} style={choiceStyle(activeId === target.id)}>
-                        Tap {name}
+                        Find {name}
                       </button>
-                      <span style={{ color: 'var(--mm-text-muted)' }}>{chosen ? `You chose ${describe(chosen.row, chosen.col)}.` : activeId === target.id ? 'Now tap its cell in the matrix.' : 'Select, then tap its cell.'}</span>
+                      <span style={{ color: 'var(--mm-text-muted)' }}>{chosen ? `You chose ${describe(chosen.row, chosen.col)}.` : activeId === target.id ? 'Now select its cell in the matrix (click or tap, or Tab to it and press Enter).' : 'Choose it, then select its cell.'}</span>
                     </div>
                   </li>
                 );
@@ -362,7 +366,7 @@ function OperateMode({ questionData, model, onAction }) {
       <div data-matrix-grid-and-calculator="" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: 12 }}>
         {showGrid ? (
           <div style={{ flex: '1 1 360px', minWidth: 0 }}>
-            <Step number={nextStep()} title={model.resultName === model.operationLabel || model.resultName === `${model.left}${model.right}` ? `Fill in ${model.operationLabel}` : `Fill in ${model.operationLabel} (${model.resultName})`} note={model.operation === 'multiply' ? 'Tap a cell: its row of the first matrix and its column of the second light up.' : null}>
+            <Step number={nextStep()} title={model.resultName === model.operationLabel || model.resultName === `${model.left}${model.right}` ? `Fill in ${model.operationLabel}` : `Fill in ${model.operationLabel} (${model.resultName})`} note={model.operation === 'multiply' ? 'Click or tap a cell, or Tab to it: its row of the first matrix and its column of the second light up.' : null}>
               <div style={{ display: 'flex', justifyContent: 'safe center' }}>
                 <MatrixInput
                   name={model.resultName}

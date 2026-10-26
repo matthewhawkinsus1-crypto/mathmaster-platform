@@ -147,7 +147,7 @@ test('W6-4: Linear Table Workbench, Rewrite Linear Form, Linear Intercepts and t
       label: 'Linear Table Workbench',
       path: '/src/tools/linearTableWorkbench/LinearTableWorkbench.jsx',
       question: { type: 'linearTableWorkbench', mode: 'deriveEquation', rows: [[1, 5], [2, 8], [3, 11], [4, 14]], requiredComparisons: 3, prompt: 'Is the rate constant?' },
-      controls: ['Tap two rows to form an interval.', 'Enter Δx, Δy and Δy/Δx for that interval in the boxes below, then record it.', 'Record 3 different intervals; the questions below the table open after that.'],
+      controls: ['Select two rows to form an interval (click or tap, or Tab to a row and press Enter).', 'Enter Δx, Δy and Δy/Δx for that interval in the boxes below, then record it.', 'Record 3 different intervals; the questions below the table open after that.'],
       method: ['Work out each value yourself from the two rows, then repeat with a different pair of rows.', 'If the rate is constant, determine m and b and write the equation.'],
       directions: 'Select pairs of rows, compute Δx, Δy, and the rate',
     });
@@ -167,7 +167,7 @@ test('W6-4: Linear Table Workbench, Rewrite Linear Form, Linear Intercepts and t
       label: 'Linear Intercepts',
       path: '/src/tools/stepAlgebra2/LinearIntercepts.jsx',
       question: { type: 'stepAlgebra2', mode: 'linearIntercepts', standard: { A: 2, B: 3, C: 12 }, prompt: 'Find the intercepts of 2x + 3y = 12.' },
-      controls: ['Place the 0 on a variable (drag it, or tap the 0 and then the variable), then press Substitute and solve.', 'Solve the one-variable equation with the operation buttons. Return to substitution starts the substitution again.', 'Write the x-intercept as an ordered pair and press Check x-intercept.'],
+      controls: ['Place the 0 on a variable (drag it, or select the 0 and then the variable: click or tap, or Tab to each and press Enter), then press Substitute and solve.', 'Solve the one-variable equation with the operation buttons. Return to substitution starts the substitution again.', 'Write the x-intercept as an ordered pair and press Check x-intercept.'],
       method: ['Decide which coordinate is always 0 at the x-intercept.'],
       // The same sentence is this tool's Work View `task`, drawn in the header
       // of a figure with no question around it: withheld there too on a DOL
@@ -240,7 +240,7 @@ test('W6-4 / W4-1 round 2: the Representation Bridge withholds "a is the rate", 
       label: 'Representation Bridge',
       path: '/src/tools/representationBridge/RepresentationBridge.jsx',
       question,
-      controls: ['Table: tap two rows to form an interval, enter Δx, Δy and the rate, and record it. Record more than one.', 'Then fill in each panel below in order: the equations, the graph, and what the parts mean.'],
+      controls: ['Table: select two rows to form an interval (click or tap, or Tab to a row and press Enter), enter Δx, Δy and the rate, and record it. Record more than one.', 'Then fill in each panel below in order: the equations, the graph, and what the parts mean.'],
       method: ['Work out each value yourself, then conclude whether the rate is constant and state m.', 'General form: write y = mx + b using the b you determine yourself.', 'Factored form: rewrite your equation as y = a(x − c).', 'Graph: plot the x-intercept from your factored form, then a second point using the slope.', 'Meaning: connect m, b, and c to their units, contextual meanings, and mathematical roles.'],
       directions: 'Build the same linear relationship across every representation',
     });

@@ -285,7 +285,7 @@ const buildBridgeReview = (question) => {
     }));
     items.push({ label: 'Rate conclusion', value: 'The rate is constant' }, { label: 'm (your slope)', value: typed(m) });
     const sentences = intervals.map((interval) => `${rowName(interval.i)} ${pointSay([interval.x1, interval.y1])} → ${rowName(interval.j)} ${pointSay([interval.x2, interval.y2])}: Δx = ${say(interval.x2)} − ${factor(interval.x1)} = ${say(interval.dx)}, Δy = ${say(interval.y2)} − ${factor(interval.y1)} = ${say(interval.dy)}, rate = ${say(interval.dy)} ÷ ${factor(interval.dx)} = ${say(interval.rate)}.`);
-    steps.push(`${STAGE_TITLES.rateEvidence}: tap two rows to make an interval, then go from the row with the smaller x to the row with the larger x — Δx = x₂ − x₁, Δy = y₂ − y₁ and the rate is Δy ÷ Δx. Record ${need === 1 ? 'one interval' : `${need} different intervals`}.`);
+    steps.push(`${STAGE_TITLES.rateEvidence}: select two rows to make an interval, then go from the row with the smaller x to the row with the larger x — Δx = x₂ − x₁, Δy = y₂ − y₁ and the rate is Δy ÷ Δx. Record ${need === 1 ? 'one interval' : `${need} different intervals`}.`);
     if (sentences.length <= 3) steps.push(...sentences); else steps.push(sentences.join(' '));
     steps.push(`Every recorded rate is ${say(m)}, so the rate is constant (choose "The rate is constant") and the slope is m = ${say(m)}.`);
     choices.push(need === 1 ? 'any pair of rows counts as the interval' : `any ${need} different pairs of rows count as the intervals`);

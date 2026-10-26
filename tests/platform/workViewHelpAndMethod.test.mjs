@@ -228,7 +228,8 @@ test('round 2: Linear Table Workbench keeps how to work the table on a DOL, not 
   // Since W6-4 one list, each control step marked; which steps a DOL keeps is
   // asserted by text in toolDirectionsSplit.test.mjs.
   const source = code('src/tools/linearTableWorkbench/LinearTableWorkbench.jsx');
-  assert.match(source, /steps=\{\[\s*controlStep\('Tap two rows to form an interval\.'\)/);
+  // The list opens with the step that says rows are picked in pairs (how, in toolDirectionsNameKeyboardRoute.test.mjs).
+  assert.match(source, /steps=\{\[\s*controlStep\('Select two rows to form an interval/);
 });
 
 test('round 2: the Representation Bridge keeps how to work its panels on a DOL', async () => {
@@ -238,7 +239,7 @@ test('round 2: the Representation Bridge keeps how to work its panels on a DOL',
     assert.match(await renderTool(load, '/src/tools/representationBridge/RepresentationBridge.jsx', question, PRACTICE), /How to do this \(7 steps\)/);
     assert.match(await renderTool(load, '/src/tools/representationBridge/RepresentationBridge.jsx', question, DOL), /How to do this \(2 steps\)/);
   });
-  assert.match(code('src/tools/representationBridge/RepresentationBridge.jsx'), /steps=\{\[\s*controlStep\('Table: tap two rows to form an interval/);
+  assert.match(code('src/tools/representationBridge/RepresentationBridge.jsx'), /steps=\{\[\s*controlStep\('Table: select two rows to form an interval/);
 });
 
 test('round 2: the Regression Calculator says how to work it, on every activity', async () => {

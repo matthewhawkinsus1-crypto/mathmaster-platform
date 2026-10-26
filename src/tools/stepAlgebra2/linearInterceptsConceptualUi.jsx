@@ -9,6 +9,11 @@ import { ChoiceMark, useChoiceGroup } from '../../platform/interaction/choiceGro
 // variable is zero, then drag/tap the 0 onto that variable" behaves and looks
 // identical everywhere it appears, per issue #297.
 
+// What is said beside the 0 token, in both shells (AX32). The token is a button
+// and so is each variable: Enter on the 0 picks it up, and Enter on a variable
+// puts it there (VariableDropTarget below), the same two steps as a tap.
+export const ZERO_TOKEN_DIRECTIONS = 'Drag the 0 onto x or y. Or select the 0 and then the variable (click or tap, or Tab to each one and press Enter).';
+
 export function VariableDropTarget({ variable, coefficient, placed, armed, disabled, onPlace }) {
   const magnitude = Math.abs(Number(coefficient));
   if (!Number.isFinite(magnitude) || magnitude <= 1e-12) return null;

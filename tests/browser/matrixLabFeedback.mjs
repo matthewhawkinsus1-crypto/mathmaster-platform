@@ -27,6 +27,9 @@
 //          try", the tool's own button mirrored, toolCheckMirror.js) is off
 //          until the work is filled; pressing it spends the one try and the
 //          verdict stays withheld, in Work View and on the page.
+//   AX32   the product grid says "Click or tap a cell, or Tab to it: its row of
+//          the first matrix and its column of the second light up", and Shift+Tab
+//          from one product cell to the next does light them.
 //
 // Exit code 1 on any finding. Screenshots: tests/browser/artifacts/matrixLabFeedback/.
 
@@ -242,6 +245,15 @@ const session = async (viewport, { appScrollPadding = false, touch = false } = {
   await s.fill('Dimensions of P · Q: number of columns', 2);
   const product = [['2', '7'], ['2', '-5']];
   for (let i = 0; i < 2; i += 1) for (let j = 0; j < 2; j += 1) await s.fill(`Matrix PQ, row ${i + 1}, column ${j + 1}`, product[i][j]);
+  // AX32: the line over the grid names the keyboard beside the tap, and the key does it. Focus is
+  // on row 2, column 2 (the last box filled); Shift+Tab moves it to row 2, column 1.
+  check(/Click or tap a cell, or Tab to it: its row of the first matrix and its column of the second light up\./.test(await page.evaluate(() => document.querySelector('[data-question-id]').innerText)), 'DOL 1: the product grid names the tap and the key');
+  const lit = (grid) => page.evaluate((name) => [...document.querySelectorAll(`[data-matrix-grid="${name}"] [data-matrix-cell]`)].filter((cell) => /primary-subtle/.test(cell.getAttribute('style') || '')).map((cell) => cell.getAttribute('data-matrix-cell')), grid);
+  const beforeKey = { first: await lit('P'), second: await lit('Q') };
+  await page.keyboard.press('Shift+Tab');
+  const afterKey = { first: await lit('P'), second: await lit('Q') };
+  check(afterKey.first.length > 0 && afterKey.first.every((cell) => cell.startsWith('2,')), `DOL 1: Shift+Tab to a product cell lights its row of the first matrix (${afterKey.first})`);
+  check(afterKey.second.length > 0 && afterKey.second.every((cell) => cell.endsWith(',1')) && !beforeKey.second.every((cell) => cell.endsWith(',1')), `DOL 1: and the column of the second, which moved with it (${beforeKey.second} then ${afterKey.second})`);
   await s.press();
   const dol1 = await page.evaluate(() => document.querySelector('[data-question-id]').innerText);
   check((await s.fixList()).length === 0, 'DOL 1: no list of what to fix');
