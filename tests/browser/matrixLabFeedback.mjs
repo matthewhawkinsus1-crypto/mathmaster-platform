@@ -29,7 +29,9 @@
 //          verdict stays withheld, in Work View and on the page.
 //   AX32   the product grid says "Click or tap a cell, or Tab to it: its row of
 //          the first matrix and its column of the second light up", and Shift+Tab
-//          from one product cell to the next does light them.
+//          from one product cell to the next does light them. The two lesson
+//          prompts that told a student to tap (the shoe store's named elements,
+//          the sprinters' product) name Tab and Enter, and the keys do it.
 //
 // Exit code 1 on any finding. Screenshots: tests/browser/artifacts/matrixLabFeedback/.
 
@@ -237,6 +239,37 @@ const session = async (viewport, { appScrollPadding = false, touch = false } = {
   });
   check(Boolean(beside) && beside.calcLeft >= beside.gridRight - 1 && beside.calcTop < beside.gridTop + 200, `the calculator is beside the grid: ${JSON.stringify(beside)}`);
   await s.shot('laptop-cw6-calculator-beside-grid');
+
+  journey = 'CW 1 and CW 3 prompts name the keys (AX32)';
+  const tabUntil = async (matches, limit = 160) => {
+    for (let step = 0; step < limit; step += 1) {
+      if (await page.evaluate(matches)) return step;
+      await page.keyboard.press('Tab');
+    }
+    return -1;
+  };
+  const lessonText = () => page.evaluate(() => document.querySelector('[data-question-id]').innerText);
+  await s.go('l3m-cw-1');
+  const shoes = await lessonText();
+  check(/then select the cell of each named element \(click or tap it, or Tab to it and press Enter\)\. After you select one, the lab tells you which width and size that element counts\./.test(shoes), 'CW 1: the prompt names the click, the tap and the keys');
+  check(!/tap each named element|After a tap/.test(shoes), 'CW 1: and no longer says tap alone');
+  // The cell for a₃₄ (row 3, size 12) is reached with Tab, and Enter selects it: the lab names the width and size.
+  await page.evaluate(() => document.activeElement?.blur?.());
+  check(await tabUntil(() => document.activeElement?.getAttribute('aria-label')?.startsWith('Row 3, column 4:')) >= 0, 'CW 1: the cell for the named element is reached with Tab');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(300);
+  check(/You chose row 3 \(E\), column 4 \(12\): the value there is \d+\./.test(await lessonText()), 'CW 1: Enter selects it, and the lab says which width and size it counts');
+  await s.go('l3m-cw-3');
+  check(/Click or tap a cell of the product, or Tab to it, to see which row and column it pairs\./.test(await lessonText()), 'CW 3: the prompt names the click, the tap and Tab');
+  await page.getByRole('radio', { name: 'Yes' }).first().click();
+  await s.fill('Dimensions of A · B: number of rows', 4);
+  await s.fill('Dimensions of A · B: number of columns', 1);
+  await page.evaluate(() => document.activeElement?.blur?.());
+  const litCells = (grid) => page.evaluate((name) => [...document.querySelectorAll(`[data-matrix-grid="${name}"] [data-matrix-cell]`)].filter((cell) => /primary-subtle/.test(cell.getAttribute('style') || '')).map((cell) => cell.getAttribute('data-matrix-cell')), grid);
+  check(await tabUntil(() => document.activeElement?.getAttribute('aria-label') === 'Matrix Results, row 3, column 1') >= 0, 'CW 3: a product cell is reached with Tab');
+  const first = await litCells('A');
+  const second = await litCells('B');
+  check(first.length > 0 && first.every((cell) => cell.startsWith('3,')) && second.length > 0 && second.every((cell) => cell.endsWith(',1')), `CW 3: and its row of A (${first}) and column of B (${second}) light up`);
 
   journey = 'exit tickets (DOL)';
   await s.go('l3m-dol-1');

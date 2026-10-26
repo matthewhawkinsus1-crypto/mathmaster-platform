@@ -314,7 +314,7 @@
           ],
           "dok": 1,
           "difficultyBand": 1,
-          "prompt": "Activity 3.1 — A shoe store tracks its running-shoe inventory in matrix A: each row is a width (C, D, E, EE) and each column is a size (9 through 13). Give the dimensions of A, then tap each named element. After a tap, the lab tells you which width and size that element counts.",
+          "prompt": "Activity 3.1 — A shoe store tracks its running-shoe inventory in matrix A: each row is a width (C, D, E, EE) and each column is a size (9 through 13). Give the dimensions of A, then select the cell of each named element (click or tap it, or Tab to it and press Enter). After you select one, the lab tells you which width and size that element counts.",
           "matrices": {
             "A": {
               "rows": [
@@ -521,7 +521,7 @@
           ],
           "dok": 2,
           "difficultyBand": 2,
-          "prompt": "Coach Flores' sprinters: matrix A shows how many times each sprinter finished in each place, and matrix B is the scoring (10 points for 1st, 8 for 2nd, 6 for 3rd, 4 for 4th, 2 for 5th). Multiply A · B to find every sprinter's score. Tap a cell of the product to see which row and column it pairs.",
+          "prompt": "Coach Flores' sprinters: matrix A shows how many times each sprinter finished in each place, and matrix B is the scoring (10 points for 1st, 8 for 2nd, 6 for 3rd, 4 for 4th, 2 for 5th). Multiply A · B to find every sprinter's score. Click or tap a cell of the product, or Tab to it, to see which row and column it pairs.",
           "matrices": {
             "A": {
               "rows": [
