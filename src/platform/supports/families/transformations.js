@@ -13,6 +13,10 @@
 //                                  the inclusion "Let's back up" check: one quick
 //                                  question about THIS problem's first move (never its
 //                                  answer); null keeps the platform's generic one
+//   workedSolution(question)     → { headline, steps: [text], answerSummary } | null
+//                                  THIS multiAnswer description, worked field by field,
+//                                  for the closed-question review only (it states the
+//                                  answers); a lab item's steps are its tool review's
 // `implemented` stays false until the family is real: the index skips it.
 //
 // WHAT THIS FAMILY OWNS (eighth in the index order; none of the seven before
@@ -89,7 +93,7 @@
 //
 // Pure: no React, no I/O. Exact rational arithmetic (questionFamilyExact).
 import { hintRevealsAnswer } from '../../../../functions/shared/pathSolutionSupport.mjs';
-import { answerCandidatesForField } from '../../../../functions/shared/answerUtils.mjs';
+import { answerCandidatesForField, matchesFieldAnswer } from '../../../../functions/shared/answerUtils.mjs';
 import {
   ONE,
   ZERO,
@@ -1512,6 +1516,128 @@ export const similarProblem = (question, { seed = 0 } = {}) => {
         // describe: a worked description states verdicts, and every verdict is an option here.
         return null;
     }
+  } catch {
+    return null;
+  }
+};
+
+/* ---------------------------------------------------------------------------
+ * workedSolution: THIS multiAnswer description, worked field by field, for the
+ * review panel once the question is closed (closedQuestionReview.js). It
+ * states the answers, so nothing shown while the item is open (hints, the
+ * back-up step, a sibling) calls it. The first step reads the written equation
+ * as y = a·f(b(x − h)) + k, the form the hints compare it with; then each field
+ * gets the reason for its verdict, in the hints' own rule: what is outside acts
+ * on y the way it looks, what is inside, with x, acts on x the opposite way.
+ * The verdict stated is the option the family reads from the equation (which
+ * describeModel has already found to be the authored key), and the field's own
+ * grader (matchesFieldAnswer) must accept it. A lab item gets null: its steps
+ * are its tool review's. null whenever a field cannot be explained — never a
+ * wrong step.
+ * ------------------------------------------------------------------------- */
+
+/** A number as the steps write it: an exact fraction, with the minus sign the items print. */
+const signedText = (value) => show(value).replace(/-/g, '−');
+
+const insideShift = (h) => `x ${isNegative(h) ? '+' : '−'} ${signedText(absolute(h))}`;
+const comparedToOne = (value) => (toNumber(value) > 1 ? 'more than 1' : 'less than 1');
+
+/** Why the field's verdict holds, as a clause; null when this role cannot be explained here. */
+const reasonFor = (role, model) => {
+  const { A, B, h, k } = model;
+  const horizontalFactor = divide(ONE, absolute(B));
+  const flipsSides = `x is multiplied by a negative number (b = ${signedText(B)}), which flips the graph from side to side`;
+  const upsideDown = `the factor in front is negative (a = ${signedText(A)}), which turns the graph upside down`;
+  switch (role) {
+    case 'H':
+      return isZero(h)
+        ? 'nothing is added to or subtracted from x inside (h = 0)'
+        : `inside, ${insideShift(h)} gives h = ${signedText(h)}, and a shift inside goes against the sign it shows`;
+    case 'V':
+      return isZero(k)
+        ? 'no number is added at the end (k = 0)'
+        : `the number added at the end is k = ${signedText(k)}, and a shift outside goes the way its sign says`;
+    case 'T':
+      return isZero(h) && isZero(k) ? 'nothing is added to x inside and nothing is added at the end (h = 0 and k = 0)' : null;
+    case 'VS':
+      if (equals(A, ONE)) return 'there is no number in front (a = 1), so the height does not change';
+      if (equals(absolute(A), ONE)) return `the factor in front is ${signedText(A)}, of size 1, so the height does not change`;
+      return `the factor in front is a = ${signedText(A)}, so the graph is scaled vertically by its size, ${signedText(absolute(A))}, ${comparedToOne(absolute(A))}`;
+    case 'HS':
+      if (equals(B, ONE)) return 'nothing multiplies x inside (b = 1), so the width does not change';
+      if (equals(absolute(B), ONE)) return `x is multiplied by ${signedText(B)}, of size 1, so the width does not change`;
+      return `x is multiplied by b = ${signedText(B)}, so the graph is scaled horizontally by 1 divided by ${signedText(absolute(B))}, which is ${signedText(horizontalFactor)}, ${comparedToOne(horizontalFactor)}`;
+    case 'HR':
+      return isNegative(B) ? flipsSides : 'x is not multiplied by a negative number, so the graph is not flipped from side to side';
+    case 'VR':
+      return isNegative(A) ? upsideDown : 'the factor in front is not negative, so the graph is not turned upside down';
+    case 'R':
+      if (isNegative(A) && isNegative(B)) return null;
+      if (isNegative(A)) return upsideDown;
+      if (isNegative(B)) return flipsSides;
+      return 'neither the factor in front nor the number multiplying x is negative, so the graph is not flipped';
+    case 'KIND':
+    case 'FACTOR': {
+      const horizontal = equals(A, ONE) && !isNegative(B) && !equals(B, ONE) && isZero(h) && isZero(k);
+      const vertical = !isNegative(A) && !equals(A, ONE) && equals(B, ONE) && isZero(h) && isZero(k);
+      if (horizontal) {
+        return role === 'KIND'
+          ? `the only change is x multiplied by b = ${signedText(B)} inside, which scales the graph horizontally by 1 divided by ${signedText(B)}, which is ${signedText(horizontalFactor)}, ${comparedToOne(horizontalFactor)}`
+          : `x is multiplied by ${signedText(B)}, so the horizontal scale factor is 1 divided by ${signedText(B)}`;
+      }
+      if (vertical) {
+        return role === 'KIND'
+          ? `the only change is the factor a = ${signedText(A)} in front, which scales the graph vertically by ${signedText(A)}, ${comparedToOne(A)}`
+          : `the vertical scale factor is the factor in front, a = ${signedText(A)}`;
+      }
+      return null;
+    }
+    case 'VERTEX':
+      return model.abs ? '|x| has its vertex at (0, 0); reflections and stretches leave it there, and the shifts move it to (h, k)' : null;
+    case 'RANGE':
+      if (!model.abs) return null;
+      return isNegative(A)
+        ? `the factor in front is negative, so the graph opens down and the vertex is its highest point, at y = ${signedText(k)}`
+        : `the factor in front is positive, so the graph opens up and the vertex is its lowest point, at y = ${signedText(k)}`;
+    default:
+      return null;
+  }
+};
+
+const fieldAccepts = (field, answer) => {
+  try {
+    return Boolean(text(answer)) && matchesFieldAnswer(text(answer), field);
+  } catch {
+    return false;
+  }
+};
+
+// What a step must never print: a JS leak or a doubled sign.
+const WORKED_SLOPPY = /NaN|undefined|Infinity|\bnull\b|\[object|[+−-]\s*[+−-]\s*\d/;
+
+export const workedSolution = (question) => {
+  const model = modelFor(question);
+  if (!model || model.kind !== 'describeEquation') return null;
+  try {
+    const { display, abs, A, B, h, k } = model;
+    const holder = abs ? 'the absolute value bars' : 'f( )';
+    const form = abs ? 'y = a|b(x − h)| + k' : 'y = a·f(b(x − h)) + k';
+    const fields = new Map(list(question.answerFields).map((field) => [text(field?.id), field]));
+    const steps = [`Compare ${display} with ${form}: a = ${signedText(A)}, b = ${signedText(B)}, h = ${signedText(h)} and k = ${signedText(k)}.`];
+    const summary = [];
+    for (const entry of model.fields) {
+      const field = fields.get(entry.id);
+      const reason = reasonFor(entry.role, model);
+      // The verdict stated is the one the field's own grader accepts.
+      if (!field || !reason || !fieldAccepts(field, entry.answer)) return null;
+      const label = text(field.label);
+      steps.push(`${label}: ${reason}: ${entry.answer}.`);
+      summary.push(`${label}: ${entry.answer}`);
+    }
+    const headline = `What is outside ${holder} acts on y the way it looks; what is inside, with x, acts on x the opposite way.`;
+    const answerSummary = `${summary.join('; ')}.`;
+    if ([headline, ...steps, answerSummary].some((line) => WORKED_SLOPPY.test(line))) return null;
+    return { headline, steps, answerSummary };
   } catch {
     return null;
   }

@@ -268,11 +268,12 @@ const STEPS_FLOOR = Object.freeze({
   'ccmr-v5:act': 136, 'ccmr-v5:digitalSAT': 648, 'ccmr-v5:tsia2': 200,
   drafts: 3295,
   'v5:algebra1-dol1/District_DOL1_Technology_Graph_Analysis_Review.json': 25,
-  'v5:algebra2-honors-module1/L1_Absolute_Value_ALEKS_Bridge_20260828.json': 13,
+  // CT02: the transformations family's worked solution of a description (6 here, 8 in L2_Day2).
+  'v5:algebra2-honors-module1/L1_Absolute_Value_ALEKS_Bridge_20260828.json': 19,
   'v5:algebra2-honors-module1/L1_Day1_Interval_Domain_Range.json': 17,
   'v5:algebra2-honors-module1/L1_Day2_Function_Attributes_Relations.json': 16,
   'v5:algebra2-honors-module1/L2_Day1_Parent_Functions_Key_Attributes.json': 19,
-  'v5:algebra2-honors-module1/L2_Day2_Transformations.json': 10,
+  'v5:algebra2-honors-module1/L2_Day2_Transformations.json': 18,
   'v5:algebra2-honors-module1/L3_Inverse_Linear_Functions.json': 19,
   'v5:algebra2-honors-module1/L4_Operations_on_Functions_Composition.json': 20,
   // CT02: all 336 District DOL #2 review variants (7 tasks × 48), from
@@ -283,8 +284,8 @@ const STEPS_FLOOR = Object.freeze({
   'secure:algebra1_district_dol2.json': 832,
   demo: 26,
 });
-const STEPS_TOTAL_FLOOR = 7999 + 336 + 832;
-const FROM_FAMILY_FLOOR = 119;
+const STEPS_TOTAL_FLOOR = 7999 + 336 + 832 + 14;
+const FROM_FAMILY_FLOOR = 119 + 14;
 // Where a worked-solution builder (not a support family) writes the steps: the
 // DOL #2 review and retest, every variant, and nothing else it might misread (CT02).
 const FROM_BUILDER = Object.freeze({ 'v5:district-dol2/assignment.json': 336, 'secure:algebra1_district_dol2.json': 832 });
