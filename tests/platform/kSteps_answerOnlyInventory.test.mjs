@@ -288,9 +288,11 @@ const STEPS_FLOOR = Object.freeze({
   // CT02 slice 2: all 832 District DOL #2 retest variants (13 families × 64),
   // in the released review, from the same builder on the server; there were none.
   'secure:algebra1_district_dol2.json': 832,
-  demo: 26,
+  // CT02 slice 3: every demo item. The 44 literal items no family covers carry
+  // their own worked solution (kSteps_demoWorkedSteps); 26 have the family's.
+  demo: 70,
 });
-const STEPS_TOTAL_FLOOR = 7999 + 336 + 832 + 14 + 48;
+const STEPS_TOTAL_FLOOR = 7999 + 336 + 832 + 14 + 48 + 44;
 const FROM_FAMILY_FLOOR = 119 + 14 + 48;
 // Where a worked-solution builder (not a support family) writes the steps: the
 // DOL #2 review and retest, every variant, and nothing else it might misread (CT02).
