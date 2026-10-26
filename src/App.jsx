@@ -183,7 +183,11 @@ import {
   scheduleSpotlightExpiry,
 } from './platform/liveSpotlight.js';
 import { activeStudentSpotlightQuery } from './platform/liveSpotlightQueries.js';
-import { getQuestionRepresentation } from './platform/contract/questionTypeCatalog';
+// What a question shows a student, for the live-presence tile, is the one thing
+// App needs of the question type catalog. The catalog is authoring metadata
+// (about 13 KB gzip with the validators under it): it loads where questions are
+// authored and checked, never with Home.
+import { getQuestionRepresentation } from '../functions/shared/questionRepresentation.mjs';
 import { getQuestionPrimaryTeksCodes } from './questionMetadata.js';
 import {
   buildSupportUsage,

@@ -4,6 +4,9 @@ import { orderedPairKey } from '../../../functions/shared/answerUtils.mjs';
 // keeping its own copy of the rules. A second copy would drift, and the drift
 // would surface as a question that passed Preflight and then graded nobody.
 import { extremeRule, xInterceptRule, yInterceptRule } from '../workflow/questionRecipes.js';
+// What a student's Home asks of this catalog (the representation of a question)
+// lives in a module of its own, so the catalog stays out of the first load (PF01).
+import { REPRESENTATIONS, REPRESENTATION_BY_TYPE, getQuestionRepresentation } from '../../../functions/shared/questionRepresentation.mjs';
 
 // One description of every question type, used for two things at once: the
 // authoring contract an AI reads, and the semantic validation that rejects a
@@ -18,23 +21,18 @@ import { extremeRule, xInterceptRule, yInterceptRule } from '../workflow/questio
 // of rendering one.
 //
 // `representation` is what the student actually sees, and drives both the
-// source-fidelity guidance and the Preflight representation audit.
+// source-fidelity guidance and the Preflight representation audit. It is read
+// from REPRESENTATION_BY_TYPE (functions/shared/questionRepresentation.mjs),
+// where a student's Home can reach it without this file: a new type needs its
+// line there too, and tests/platform/questionRepresentation.test.mjs says so.
 
 const has = (value) => value !== undefined && value !== null && value !== '';
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
 const nonEmptyArray = (value) => Array.isArray(value) && value.length > 0;
-const get = (question, path) => path.split('.').reduce((node, key) => (node == null ? undefined : node[key]), question);
 
-export const REPRESENTATIONS = Object.freeze({
-  GRAPH: 'graph',
-  NUMBER_LINE: 'numberLine',
-  TABLE: 'table',
-  MAPPING: 'mapping',
-  ORDERED_PAIRS: 'orderedPairs',
-  SYMBOLIC: 'symbolic',
-  TEXT: 'text',
-  INTERACTIVE: 'interactive',
-});
+// Both are defined with the rules for what a question shows, in the module a
+// student's Home loads, and re-exported here so no caller changes.
+export { REPRESENTATIONS, getQuestionRepresentation };
 
 const requires = (path, message) => ({ path, message });
 
@@ -42,7 +40,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
   algebra: {
     label: 'Equation solving',
     studentAction: "Types an answer, or works the equation step by step.",
-    representation: REPRESENTATIONS.SYMBOLIC,
+    representation: REPRESENTATION_BY_TYPE.algebra,
     purpose: 'Solve a one- or multi-step equation for a single value.',
     useWhen: ['The student computes a numeric answer to an equation.'],
     doNotUseWhen: ['The task is to read something off a graph, table or number line.'],
@@ -57,7 +55,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
   fraction: {
     label: 'Fraction answer',
     studentAction: "Types a fraction answer.",
-    representation: REPRESENTATIONS.SYMBOLIC,
+    representation: REPRESENTATION_BY_TYPE.fraction,
     purpose: 'Answer with a fraction in lowest terms.',
     useWhen: ['The expected answer is a fraction rather than a decimal.'],
     doNotUseWhen: ['A decimal or whole number is acceptable — use algebra instead.'],
@@ -69,7 +67,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
   numberLine: {
     label: 'Number line selection',
     studentAction: "Chooses among number-line pictures.",
-    representation: REPRESENTATIONS.NUMBER_LINE,
+    representation: REPRESENTATION_BY_TYPE.numberLine,
     purpose: 'Choose the number line that matches a statement, or read a value off one.',
     useWhen: ['The student picks between number-line pictures.'],
     doNotUseWhen: [
@@ -87,7 +85,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
   intervalNumberLine: {
     label: 'Interval number line',
     studentAction: "CONSTRUCTS the shading — places endpoints and rays on the line, and writes the notation.",
-    representation: REPRESENTATIONS.NUMBER_LINE,
+    representation: REPRESENTATION_BY_TYPE.intervalNumberLine,
     purpose: 'Move between an inequality, its interval notation and its number-line picture.',
     useWhen: [
       'The lesson teaches inequality notation, interval notation, or graphing on a number line.',
@@ -155,7 +153,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
   graphing: {
     label: 'Read a displayed graph',
     studentAction: "Reads a graph that is already drawn and answers about it.",
-    representation: REPRESENTATIONS.GRAPH,
+    representation: REPRESENTATION_BY_TYPE.graphing,
     purpose: 'Show a rendered graph and ask a question about it.',
     useWhen: ['The source material shows a graph the student must read.'],
     doNotUseWhen: ['You would have to describe the graph in words — that means you have no graph.'],
@@ -177,7 +175,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
   functionGraph: {
     label: 'Construct a graph',
     studentAction: "CONSTRUCTS a graph — plots points, places endpoint markers, draws the shape.",
-    representation: REPRESENTATIONS.GRAPH,
+    representation: REPRESENTATION_BY_TYPE.functionGraph,
     purpose: 'The student plots points and draws the curve of a given function.',
     useWhen: ['The task is to graph a function, including on a restricted domain.'],
     doNotUseWhen: ['The graph is given and the student only reads it — use `graphing` or `graphAnalysis`.'],
@@ -193,7 +191,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
   functionInvestigation: {
     label: 'Investigate a function graph',
     studentAction: "Manipulates parameters and reports what changes.",
-    representation: REPRESENTATIONS.GRAPH,
+    representation: REPRESENTATION_BY_TYPE.functionInvestigation,
     purpose: 'Construct or examine a graph and report several of its features at once.',
     useWhen: ['One graph should yield domain, range, intercepts and behaviour together.'],
     doNotUseWhen: ['You only need one feature — use graphAnalysis with a single request.'],
@@ -212,7 +210,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
   graphAnalysis: {
     label: 'Analyse a displayed graph',
     studentAction: "Reads a graph that is already drawn and states intervals, features or domain and range. Does NOT draw it.",
-    representation: REPRESENTATIONS.GRAPH,
+    representation: REPRESENTATION_BY_TYPE.graphAnalysis,
     purpose: 'Render a real graph and ask for domain, range, increasing/decreasing/constant intervals, where the function is positive or negative, or named features.',
     useWhen: [
       'The source shows a graph and asks for domain and range.',
@@ -255,7 +253,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
   functionCharacteristics: {
     label: 'Build a graph from a table, then describe it',
     studentAction: 'Plots a table, names the function family, marks the intercepts and any extreme value, writes them as ordered pairs, and states domain and range — as one question, marked step by step.',
-    representation: REPRESENTATIONS.GRAPH,
+    representation: REPRESENTATION_BY_TYPE.functionCharacteristics,
     purpose: 'Walk a student through a whole function analysis on a graph they built themselves, with each step marked on its own.',
     useWhen: [
       'The source gives a table and asks what kind of function it is and where its features are.',
@@ -352,7 +350,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
   stepAlgebra: {
     label: 'Step-by-step solving',
     studentAction: "Performs balanced operations on an equation, one step at a time.",
-    representation: REPRESENTATIONS.SYMBOLIC,
+    representation: REPRESENTATION_BY_TYPE.stepAlgebra,
     purpose: 'The student performs each solving step and the platform records the work.',
     useWhen: ['The process matters as much as the answer.'],
     doNotUseWhen: ['You only need the final value — use algebra.'],
@@ -368,7 +366,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
   literal: {
     label: 'Literal equation',
     studentAction: "Rearranges a formula for a named variable.",
-    representation: REPRESENTATIONS.SYMBOLIC,
+    representation: REPRESENTATION_BY_TYPE.literal,
     purpose: 'Rearrange a formula to isolate a named variable.',
     useWhen: ['The answer is an expression, not a number.'],
     doNotUseWhen: ['The answer is numeric.'],
@@ -380,7 +378,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
   system: {
     label: 'System of equations',
     studentAction: "Solves a system and types the solution.",
-    representation: REPRESENTATIONS.SYMBOLIC,
+    representation: REPRESENTATION_BY_TYPE.system,
     purpose: 'Solve a system and give the solution pair.',
     useWhen: ['Two equations must be solved together.'],
     doNotUseWhen: ['The system should be solved graphically — use the systemsWorkspace tool.'],
@@ -398,7 +396,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
   table: {
     label: 'Table completion',
     studentAction: "EDITS table cells — fills in the missing values.",
-    representation: REPRESENTATIONS.TABLE,
+    representation: REPRESENTATION_BY_TYPE.table,
     purpose: 'The student fills blank cells in a table of values.',
     useWhen: ['The source shows a table the student completes or reads.'],
     doNotUseWhen: ['You would describe the table in prose instead of supplying it.'],
@@ -442,7 +440,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
   orderedPair: {
     label: 'Ordered pair',
     studentAction: "Types coordinates.",
-    representation: REPRESENTATIONS.ORDERED_PAIRS,
+    representation: REPRESENTATION_BY_TYPE.orderedPair,
     purpose: 'Answer with a coordinate pair.',
     useWhen: ['The expected answer is a point.'],
     doNotUseWhen: ['The student should plot the point — use graphing or functionGraph.'],
@@ -463,7 +461,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
   multiAnswer: {
     label: 'Several answers in one question',
     studentAction: "Types several short answers. It is a response form, NOT a construction workspace. Use `type: \"choice\"` plus `options` for categorical fields. Finite roster-form sets use `type: \"set\"`; MathMaster also infers set mode from an authored answer such as {-4, -3, -2}.",
-    representation: REPRESENTATIONS.SYMBOLIC,
+    representation: REPRESENTATION_BY_TYPE.multiAnswer,
     purpose: 'Collect several labelled responses to one stimulus.',
     useWhen: ['One graph, table or scenario should produce several answers.', 'Use choice fields for finite categories such as linear/quadratic/exponential, finite/infinite, or discrete/continuous.', 'Use set fields for finite roster-form set notation; element order is graded mathematically, not as a string.'],
     doNotUseWhen: ['There is only one thing to answer.'],
@@ -500,7 +498,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
   relationshipModel: {
     label: 'Model a relationship',
     studentAction: "Works from a context toward the mathematics: names the quantities, and — where the stages are configured — writes the equation, fills the table, builds the graph, and states reasonable domain and range.",
-    representation: REPRESENTATIONS.INTERACTIVE,
+    representation: REPRESENTATION_BY_TYPE.relationshipModel,
     purpose: 'From a scenario, decide which quantity is independent and which is dependent, and how they are related.',
     useWhen: ['The lesson is about identifying variables and relationship type in a real context.'],
     doNotUseWhen: ['You just want a text answer about a context — that is not what this renders.'],
@@ -551,7 +549,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
   graphScenarioMatch: {
     label: 'Match graphs to scenarios',
     studentAction: "Matches scenarios to graphs by dragging.",
-    representation: REPRESENTATIONS.GRAPH,
+    representation: REPRESENTATION_BY_TYPE.graphScenarioMatch,
     purpose: 'Drag each scenario onto the graph that tells its story.',
     useWhen: ['Several situations must be matched to several graphs.'],
     doNotUseWhen: ['There is only one graph.'],
@@ -600,7 +598,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
   graphComparison: {
     label: 'Compare graphs',
     studentAction: "Compares two graphs and answers about the difference.",
-    representation: REPRESENTATIONS.GRAPH,
+    representation: REPRESENTATION_BY_TYPE.graphComparison,
     purpose: 'Show two or more graphs side by side and ask what differs.',
     useWhen: ['The point is the comparison between graphs.'],
     doNotUseWhen: ['One graph is enough.'],
@@ -631,7 +629,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
   graphStory: {
     label: 'Write a graph story',
     studentAction: "If a `graph` is supplied, reads that graph and writes a matching scenario; otherwise creates a scenario and sketches its graph. In both modes the student names the independent/dependent quantities, supplies axis labels/units, and explains the graph.",
-    representation: REPRESENTATIONS.GRAPH,
+    representation: REPRESENTATION_BY_TYPE.graphStory,
     purpose: 'The student connects a real-world story, its quantities, axis meaning, and a graph.',
     useWhen: ['The skill is explaining a graph in words.'],
     doNotUseWhen: ['You want a computed answer.'],
@@ -646,7 +644,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
   contextInterpretation: {
     label: 'Interpret a point in context',
     studentAction: "Interprets a value or feature in context.",
-    representation: REPRESENTATIONS.GRAPH,
+    representation: REPRESENTATION_BY_TYPE.contextInterpretation,
     purpose: 'Given a scenario and its graph, say what one specific point means in the situation.',
     useWhen: ['The student must explain the meaning of a coordinate in a real context.'],
     doNotUseWhen: [
@@ -678,7 +676,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
   relationMapping: {
     label: 'Mapping diagram',
     studentAction: "Works with a relation that is already given: builds the mapping arrows, and — where asked — plots the pairs, states domain and range, and decides whether it is a function.",
-    representation: REPRESENTATIONS.MAPPING,
+    representation: REPRESENTATION_BY_TYPE.relationMapping,
     purpose: 'Represent a relation as a mapping diagram: domain values on the left, range values on the right, arrows between them.',
     useWhen: [
       'The lesson asks students to represent a relation with a mapping diagram.',
@@ -710,7 +708,7 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
   modelingLab: {
     label: 'Modeling lab',
     studentAction: "Works through a multi-stage modelling investigation.",
-    representation: REPRESENTATIONS.INTERACTIVE,
+    representation: REPRESENTATION_BY_TYPE.modelingLab,
     purpose: 'An open modelling task where the student manipulates parameters and predicts outcomes.',
     useWhen: ['The task is DOK 3 or 4 open modelling.'],
     doNotUseWhen: ['The task has one right answer — use a simpler type.'],
@@ -735,44 +733,3 @@ export const QUESTION_TYPE_CATALOG = Object.freeze({
 export const CATALOGUED_TYPES = Object.freeze(Object.keys(QUESTION_TYPE_CATALOG));
 
 export const getTypeEntry = (type) => QUESTION_TYPE_CATALOG[type] || null;
-
-// The representation a question actually puts in front of a student. Used by
-// the Preflight audit to notice that a graph-heavy source produced no graphs.
-const nativeStimulusRepresentation = (stimulus, depth = 0) => {
-  if (!isObject(stimulus) || depth > 2) return null;
-  const supplied = [
-    isObject(stimulus.graph) ? REPRESENTATIONS.GRAPH : null,
-    nonEmptyArray(stimulus.table?.rows) ? REPRESENTATIONS.TABLE : null,
-    nonEmptyArray(stimulus.orderedPairs) ? REPRESENTATIONS.ORDERED_PAIRS : null,
-    ...(Array.isArray(stimulus.panels) ? stimulus.panels : [])
-      .map((panel) => nativeStimulusRepresentation(panel, depth + 1)),
-  ];
-  // A multipart task may ask students to read both a table and a graph. Count
-  // it once, with graph taking priority, including nested relation panels.
-  return [REPRESENTATIONS.GRAPH, REPRESENTATIONS.TABLE, REPRESENTATIONS.ORDERED_PAIRS]
-    .find((representation) => supplied.includes(representation)) || null;
-};
-
-export const getQuestionRepresentation = (question = {}) => {
-  const stimulusRepresentation = nativeStimulusRepresentation(question?.stimulus);
-  if (stimulusRepresentation) return stimulusRepresentation;
-  const type = question?.toolId || question?.type;
-  const entry = getTypeEntry(type);
-  if (entry) {
-    // A type that can carry a graph but was not given one is not a graph question.
-    if (entry.representation === REPRESENTATIONS.GRAPH) {
-      const hasGraph = isObject(question.graph) || isObject(question.visual)
-        || has(get(question, 'functionSpec.type')) || nonEmptyArray(question.graphs);
-      if (!hasGraph) return REPRESENTATIONS.TEXT;
-    }
-    if (entry.representation === REPRESENTATIONS.SYMBOLIC && isObject(question.graph)) {
-      return REPRESENTATIONS.GRAPH;
-    }
-    if (entry.representation === REPRESENTATIONS.SYMBOLIC && isObject(question.table)) {
-      return REPRESENTATIONS.TABLE;
-    }
-    return entry.representation;
-  }
-  // Interactive tools all render their own workspace.
-  return type ? REPRESENTATIONS.INTERACTIVE : REPRESENTATIONS.TEXT;
-};
