@@ -38,9 +38,12 @@ import { buildFamilyQuestion, cachedFamilyInstanceSequence } from '../../functio
  * order) and graded by the shared grader the server records with: it must
  * come back correct. Where the graph a student reads does not fix the value
  * the grader marks (an exponential's a and h, any a·b trade off), the review
- * is null rather than a guess dressed as a deduction. A line's h and k are the
- * one exception (TL20): its identify and describe reviews read the question's
- * own point, say it is a choice, and name a second one the grader accepts.
+ * is null rather than a guess dressed as a deduction. A line's h and k are an
+ * exception (TL20): its identify and describe reviews read the question's own
+ * point, say it is a choice, and name a second one the grader accepts. So is
+ * an exponential's describe review (CT02): it reads a and h together at the
+ * question's own point, says it chooses it, and names the same curve described
+ * another way, which the grader accepts.
  */
 
 const TOOL_ID = 'transformationsLab';
@@ -412,13 +415,52 @@ test('describe: the ten descriptions, for every family whose graph fixes them', 
 });
 
 test('describe: no review where the graph does not fix the graded descriptions', () => {
-  // The teacher's exponential: −2·2^(x−2) + 1 is the same curve as −2^(x−1) + 1,
-  // which describes as "unchanged, right 1" where the grader wants "stretch 2, right 2".
-  const exponential = q({ mode: 'describe', family: 'exponential', function: { family: 'exponential', a: -2, base: 2, h: 2, k: 1, type: 'exponential' } });
-  assert.equal(build(exponential), null);
   // An inside multiplier trades off with a: |2x| is 2|x| — and 2x is 2·x.
   assert.equal(build(q({ mode: 'describe', family: 'absolute', function: { a: 1, b: 2, h: 0, k: 0 } })), null);
   assert.equal(build(q({ mode: 'describe', family: 'linear', function: { a: 1, b: 2, h: 0, k: 0 } })), null);
+  // An exponential with an inside multiplier is not reviewed (its b is read only when it is 1).
+  assert.equal(build(q({ mode: 'describe', family: 'exponential', function: { family: 'exponential', a: 1, b: 2, base: 2, h: 0, k: 0, type: 'exponential' } })), null);
+});
+
+test('describe: an exponential is described at the question\'s own reading, and the same curve with no stretch is named (CT02)', () => {
+  // The teacher's exponential (Algebra II Honors M1 L2 day 2, practice):
+  // −2·2^(x−2) + 1 is the same curve as −2^(x−1) + 1, and the grader accepts either description.
+  const exponential = q({ mode: 'describe', family: 'exponential', function: { family: 'exponential', a: -2, base: 2, h: 2, k: 1, type: 'exponential' } });
+  const { model, work } = assertReviewGradesCorrect(exponential, 'describe exponential −2·2^(x−2) + 1');
+  assert.deepEqual(model.items.map((item) => item.value), ['Yes', 'Stretch', '2', 'No', 'Unchanged', '1', 'Right', '2', 'Up', '1']);
+  // What the graph fixes is read off it: the asymptote, and b from the distance to it.
+  assert.ok(model.steps.includes('The parent $y = 2^{x}$ has the horizontal asymptote $y = 0$. On the graph it is $y = 1$, so $k = 1$.'));
+  assert.ok(model.steps.includes('Each unit to the right, the graph\'s distance from its asymptote is multiplied by $2$, as the parent\'s is: at $x = 2$ it is $2$ below $y = 1$, and at $x = 3$ it is $4$. So $b = 1$.'));
+  // a and h are read together at a point the review says it chooses.
+  assert.match(model.steps.join(' '), /An exponential has no point that fixes h: multiplying it by \$2\$ draws the same curve as moving it 1 unit left \(\$2 \\cdot 2\^\{x\} = 2\^\{x \+ 1\}\$\)\. So any point of the graph can be where the parent's \$\(0, 1\)\$ lands/);
+  assert.match(model.steps.join(' '), /The graph passes through \$\(2, -1\)\$; use it: \$h = 2\$, and \$a = -1 - 1 = -2\$\./);
+  assert.doesNotMatch(model.steps.join(' '), /simplest form|does not fix b/, 'the graph does fix b for an exponential');
+  // The same curve with no vertical stretch: the note names it, and the grader agrees.
+  assert.match(model.note, /no vertical stretch, a shift right 1 unit and a shift up 1 unit gives \$y = -2\^\{x - 1\} \+ 1\$, the same graph, and is also accepted\./);
+  const noStretch = { ...work, scaleKind: 'unchanged', scaleFactor: '1', horizontalDistance: '1' };
+  assert.equal(grade(exponential, noStretch).isCorrect, true, 'the note\'s description is graded right');
+  assert.equal(grade(exponential, { ...work, horizontalScaleKind: 'stretch', horizontalScaleFactor: '2' }).isCorrect, false, 'a horizontal stretch draws another curve');
+  assert.equal(grade(exponential, { ...work, verticalDistance: '2' }).isCorrect, false, 'a different curve is still wrong');
+
+  // Other bases and readings: every review grades right, every point it reads is on the graph,
+  // and the note's description draws the same curve and is graded right.
+  const cases = [
+    [{ a: 3, base: 2, h: -1, k: -2 }, /a vertical stretch by 6, no horizontal shift and a shift down 2 units gives \$y = 6 \\cdot 2\^\{x\} - 2\$/, { scaleFactor: '6', horizontalDirection: 'none', horizontalDistance: '0' }],
+    [{ a: 0.5, base: 2, h: 1, k: 0 }, /no vertical stretch, a shift right 2 units and no vertical shift gives \$y = 2\^\{x - 2\}\$/, { scaleKind: 'unchanged', scaleFactor: '1', horizontalDistance: '2' }],
+    [{ a: 2, base: 0.5, h: 1, k: 1 }, /no vertical stretch, a shift right 2 units and a shift up 1 unit gives \$y = 0\.5\^\{x - 2\} \+ 1\$/, { scaleKind: 'unchanged', scaleFactor: '1', horizontalDistance: '2' }],
+    [{ a: -1, base: 3, h: 0, k: 4 }, /a vertical stretch by 3, a shift right 1 unit and a shift up 4 units gives \$y = -3 \\cdot 3\^\{x - 1\} \+ 4\$/, { scaleKind: 'stretch', scaleFactor: '3', horizontalDirection: 'right', horizontalDistance: '1' }],
+  ];
+  for (const [fn, noteText, change] of cases) {
+    const question = q({ mode: 'describe', family: 'exponential', function: { family: 'exponential', type: 'exponential', ...fn } });
+    const label = `describe exponential ${JSON.stringify(fn)}`;
+    const reviewed = assertReviewGradesCorrect(question, label);
+    assert.match(reviewed.model.note, noteText, label);
+    assert.equal(grade(question, { ...reviewed.work, ...change }).isCorrect, true, `${label}: the note's description`);
+    for (const [x, y] of [[fn.h, fn.a + fn.k], [fn.h + 1, fn.a * fn.base + fn.k]]) {
+      assert.ok(reviewed.model.steps.join(' ').includes(`$x = ${x}$`), `${label}: reads the graph at x = ${x}`);
+      assert.ok(Math.abs(fn.a * fn.base ** (x - fn.h) + fn.k - y) < 1e-9, `${label}: (${x}, ${y}) is on the graph`);
+    }
+  }
 });
 
 test('describe: a line is described at the question\'s own point, and "up 3" is shown to be "left 3" (TL20)', () => {
@@ -541,8 +583,9 @@ test('every compiled teacher question gets a review the grader accepts, or none 
     }
   }
   assert.deepEqual([...reviewedModes].sort(), ['describe', 'identify', 'match', 'plotTransform', 'pointMap'].sort(), 'every authored mode except anchor (none authored) is reviewed');
-  // The exponential description (its a and h trade off) and the DOL #2
-  // review's g(x) = |½(x − 4)| − 1 (an inside multiplier: a and b trade off)
-  // are the descriptions whose graph does not fix the graded answer.
-  assert.deepEqual(unreviewed.sort(), ['describe:absolute', 'describe:exponential'], 'only descriptions whose graph does not fix the graded answer have no review');
+  // The DOL #2 review's g(x) = |½(x − 4)| − 1 (an inside multiplier: a and b
+  // trade off) is the one description whose graph does not fix the graded
+  // answer. The exponential one (its a and h trade off) is described at the
+  // question's own reading, which it says is a choice (CT02).
+  assert.deepEqual(unreviewed.sort(), ['describe:absolute'], 'only a description whose graph does not fix the graded answer has no review');
 });

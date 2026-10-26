@@ -35,8 +35,12 @@
 //         except as a choice: identify and describe review a line at the
 //         question's own point, say so, and name a second point the grader
 //         also accepts (CHOSEN_POINT_FAMILIES); anchor still has no review;
-//       · an exponential's a and h trade off (2·2^(x−1) is 2^x), so its a, h,
-//         reference point and descriptions are not readable;
+//       · an exponential's a and h trade off (2·2^(x−1) is 2^x), so its a, h
+//         and reference point are not readable — except as a choice: describe
+//         reads them together at the question's own point, says so, and names
+//         the same curve described another way, which the grader also accepts
+//         (CHOSEN_READING_FAMILIES; its b, asymptote and reflections the graph
+//         does fix);
 //       · with an inside multiplier b ≠ 1 (or a b box), a and b trade off
 //         (|2x| is 2|x|), so identify and describe are not readable, and a
 //         logarithm's reference point moves with that choice.
@@ -47,7 +51,9 @@
 //     describe always asks for a horizontal scale and reflection, which no
 //     graph fixes either (4x² is (2x)², x² is (−x)²). Its review states the
 //     description with b = 1 and says that it chose that form; it never
-//     claims the graph shows b = 1.
+//     claims the graph shows b = 1. An exponential is the exception: each
+//     unit along multiplies its distance from the asymptote by the base to
+//     the power b, so its review reads b = 1 off the graph.
 //   - a plotTransform source point is not a finite coordinate pair, or a
 //     pointMap parent point is not the [x, y] pair the lab prints.
 //
@@ -89,6 +95,20 @@ const READABLE_FAMILIES = new Set(['quadratic', 'absolute', 'cubic', 'cubeRoot',
  * stated. Never a guess dressed as a deduction.
  */
 const CHOSEN_POINT_FAMILIES = new Set(['linear']);
+/*
+ * AN EXPONENTIAL IS DESCRIBED AT A READING OF ITS OWN CHOOSING (CT02).
+ *
+ * Its graph fixes k (the asymptote), the reflections and b (each unit to the
+ * right multiplies the distance from the asymptote by the base to the power
+ * b), but not a and h apart: multiplying by the base draws the same curve as
+ * a shift 1 unit left (2·2^x is 2^(x+1)), and the describe grader accepts
+ * every description of the same curve (descriptionDrawsSameFunction). So
+ * describe reviews an exponential with b = 1 at the question's own a and h,
+ * says that this is a choice, and names a second description of the same
+ * curve, graded before it is stated, as for a line. identify, match and
+ * anchor are unchanged.
+ */
+const CHOSEN_READING_FAMILIES = new Set(['exponential']);
 // The defining feature at the parent's origin — a shape of the graph, so it
 // lands at (h, k) whatever a and b are.
 const ORIGIN_FEATURES = Object.freeze({
@@ -333,6 +353,63 @@ const readingSteps = (w, spec, subject) => {
   return null;
 };
 
+/*
+ * An exponential's describe reading (CHOSEN_READING_FAMILIES), b = 1: the
+ * asymptote gives k; the distance from it, multiplied by the base each unit
+ * to the right as the parent's is, gives b = 1; and a and h are read together
+ * at a point the review chooses and says it chooses: the question's own
+ * (h, a + k), where the parent's (0, 1) lands.
+ */
+const exponentialReading = (w, spec) => {
+  const { a, h, k, base } = spec;
+  const B = w.tex(base);
+  const powerBase = baseTex(w, base);
+  const here = mapExact([0, 1], spec);
+  const next = mapExact([1, base], spec);
+  const side = a < 0 ? 'below' : 'above';
+  return {
+    steps: [
+      `The parent $y = ${parentTex(w, spec)}$ has the horizontal asymptote $y = 0$. On the graph it is $y = ${w.tex(k)}$, so $k = ${w.tex(k)}$.`,
+      `Each unit to the right, the graph's distance from its asymptote is multiplied by $${B}$, as the parent's is: at $x = ${w.tex(here[0])}$ it is $${w.tex(Math.abs(here[1] - k))}$ ${side} $y = ${w.tex(k)}$, and at $x = ${w.tex(next[0])}$ it is $${w.tex(Math.abs(next[1] - k))}$. So $b = 1$.`,
+      `An exponential has no point that fixes h: multiplying it by $${B}$ draws the same curve as moving it 1 unit left ($${B} \\cdot ${powerBase}^{x} = ${powerBase}^{x + 1}$). So any point of the graph can be where the parent's $(0, 1)$ lands, 1 unit from its asymptote. The graph passes through $${pointTex(w, here)}$; use it: $h = ${w.tex(h)}$, and $a = ${w.tex(here[1])} - ${w.paren(k)} = ${w.tex(a)}$.`,
+    ],
+    points: [here, next],
+  };
+};
+
+/*
+ * A second description of an exponential (CHOSEN_READING_FAMILIES): the same
+ * curve with no vertical stretch (|a| = 1), else with no horizontal shift,
+ * else one unit further right — the first whose a and h a student types
+ * exactly and whose ten descriptions (`workFor`) the grader accepts. Probed
+ * with a writer of its own. Null when none qualifies.
+ */
+const otherExponentialReading = (question, spec, digits, workFor) => {
+  const { a, h, base } = spec;
+  const candidates = [
+    { a: Math.sign(a), h: h - Math.log(Math.abs(a)) / Math.log(base) },
+    { a: a * base ** -h, h: 0 },
+    { a: a * base, h: h + 1 },
+  ].filter((candidate) => !(same(candidate.a, a) && same(candidate.h, h)));
+  for (const candidate of candidates) {
+    const probe = makeWriter();
+    const other = { ...spec, a: candidate.a, h: candidate.h };
+    const typedExactly = [Math.abs(other.a), Math.abs(other.h)].every((value) => {
+      const entry = probe.entry(value, digits);
+      return entry.typed === entry.shown;
+    });
+    if (typedExactly && probe.exact() && acceptedByGrader(question, workFor(probe, other))) return other;
+  }
+  return null;
+};
+
+// "no vertical stretch", "a vertical stretch by 4", "a vertical compression by 1/2"
+const verticalScaleText = (w, spec) => {
+  const factor = Math.abs(spec.a);
+  if (same(factor, 1)) return 'no vertical stretch';
+  return `a vertical ${factor > 1 ? 'stretch' : 'compression'} by ${w.plain(factor)}`;
+};
+
 // Every point the review reads must lie on the function's own graph.
 const pointsOnGraph = (spec, points) => points.length > 0
   && points.every(([x, y]) => same(evaluateTransformedFunction(spec, x), y));
@@ -479,18 +556,25 @@ const describeEntries = (w, spec, digits) => {
 const buildDescribe = (w, question, resolved, digits) => {
   const spec = resolved.investigationSpec;
   const chosenPoint = CHOSEN_POINT_FAMILIES.has(spec.type);
-  if ((!READABLE_FAMILIES.has(spec.type) && !chosenPoint) || spec.b !== 1) return null;
-  const reading = readingSteps(w, spec, 'the graph');
+  const chosenReading = CHOSEN_READING_FAMILIES.has(spec.type);
+  if ((!READABLE_FAMILIES.has(spec.type) && !chosenPoint && !chosenReading) || spec.b !== 1) return null;
+  const reading = chosenReading ? exponentialReading(w, spec) : readingSteps(w, spec, 'the graph');
   if (!reading || !pointsOnGraph(spec, reading.points)) return null;
   const equation = rightSideTex(w, spec);
   const { descriptor, verticalFactor, horizontalFactor, horizontalDistance, verticalDistance, work } = describeEntries(w, spec, digits);
-  // A line slides along itself: the description at another of its points is
-  // as right as this one, and the review names one the grader accepts.
-  const other = chosenPoint ? otherLineReading(question, spec, digits, (probe, line) => describeEntries(probe, line, digits).work) : null;
-  const note = !chosenPoint ? null
-    : other
-      ? `A line slides along itself, so this is not the only right description: with the same vertical scale, ${shiftsText(w, other)} gives $y = ${rightSideTex(w, other)}$, the same line, and is also accepted.`
-      : 'A line slides along itself, so this is not the only right description: shifts that carry it onto itself, with the same vertical scale, draw the same line and are also accepted.';
+  // A line slides along itself, and an exponential's stretch trades with its
+  // shift: the description at another reading is as right as this one, and
+  // the review names one the grader accepts.
+  const workFor = (probe, other) => describeEntries(probe, other, digits).work;
+  const other = chosenPoint ? otherLineReading(question, spec, digits, workFor)
+    : chosenReading ? otherExponentialReading(question, spec, digits, workFor) : null;
+  const lineNote = () => (other
+    ? `A line slides along itself, so this is not the only right description: with the same vertical scale, ${shiftsText(w, other)} gives $y = ${rightSideTex(w, other)}$, the same line, and is also accepted.`
+    : 'A line slides along itself, so this is not the only right description: shifts that carry it onto itself, with the same vertical scale, draw the same line and are also accepted.');
+  const exponentialNote = () => (other
+    ? `An exponential's vertical stretch can be traded for a horizontal shift, so this is not the only right description: ${verticalScaleText(w, other)}, ${shiftsText(w, other)} gives $y = ${rightSideTex(w, other)}$, the same graph, and is also accepted.`
+    : 'An exponential\'s vertical stretch can be traded for a horizontal shift, so this is not the only right description: any description that draws the same curve is also accepted.');
+  const note = chosenPoint ? lineNote() : chosenReading ? exponentialNote() : null;
   const A = w.tex(spec.a);
   const hStep = descriptor.horizontalDirection === 'none'
     ? '$h = 0$: there is no horizontal translation (None, 0 units).'
@@ -519,7 +603,11 @@ const buildDescribe = (w, question, resolved, digits) => {
       { label: 'Vertical shift (units)', value: verticalDistance.shown },
     ],
     steps: [
-      `Write the graph as $y = a \\cdot f(b(x - h)) + k$ with $f(x) = ${parentTex(w, spec)}$. The graph alone does not fix b — for this family a horizontal stretch or compression can always be traded for a change outside — so describe it in its simplest form, with $b = 1$, and read a, h and k from the graph.`,
+      // An exponential's graph does fix b (the steps read it); every other
+      // family's trades b for a change outside.
+      chosenReading
+        ? `Write the graph as $y = a \\cdot f(b(x - h)) + k$ with $f(x) = ${parentTex(w, spec)}$, and read from the graph what it fixes.`
+        : `Write the graph as $y = a \\cdot f(b(x - h)) + k$ with $f(x) = ${parentTex(w, spec)}$. The graph alone does not fix b — for this family a horizontal stretch or compression can always be traded for a change outside — so describe it in its simplest form, with $b = 1$, and read a, h and k from the graph.`,
       ...reading.steps,
       `So the graph is $y = ${equation}$: ${parametersTex(w, spec, ['a', 'h', 'k'])}, with no number multiplying x inside ($b = 1$).`,
       `Outside, y's tell the truth: $a = ${A}$ is ${spec.a < 0 ? 'negative, so the graph is reflected across the x-axis' : 'positive, so there is no reflection across the x-axis'}, and $|a| = ${w.tex(descriptor.verticalScale)}$ ${scaleSentence(w, descriptor.verticalScaleKind, descriptor.verticalScale, 'vertical')}.`,
