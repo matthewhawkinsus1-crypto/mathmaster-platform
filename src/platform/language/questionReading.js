@@ -122,17 +122,21 @@ export const matrixReading = (matrix, { language = 'en' } = {}) => {
  * A table the question shows (displayTable.js), row by row with its headers:
  * "Row 1: x, 0; y, 3." A cell the student fills in is said as what they wrote
  * ("y, you wrote 7") or "blank" — never its key, and never a verdict: the
- * table carries no ✓ or ✗ to read.
+ * table carries no ✓ or ✗ to read. A column's `name` (the quantity a tool's
+ * column holds, AX10) is said once, with the headers: "Columns: x, Rental time
+ * (hours); y, Total cost (dollars)."
  */
 export const tableReading = (table, { label = '', language = 'en' } = {}) => {
   const w = wordsFor(language);
   if (!table || !Array.isArray(table.columns) || !table.columns.length || !Array.isArray(table.rows) || !table.rows.length) return '';
   // A column headed "c(x)" is the function's output, never "c times x".
-  const headers = table.columns.map((column) => clean(column.label ?? column.key)
+  const spoken = (text) => clean(text)
     .replace(/^\$?([A-Za-z])\(([A-Za-z])\)\$?$/, (match, name, input) => `${name} ${w.of} ${input}`)
     // A unit "($)" is a word: two of them would pair as a formula's delimiters.
-    .replace(/\(\s*\\?\$\s*\)/g, `(${w.dollars})`));
-  const lines = [w.table(clean(label).replace(/[.:]$/, ''), table.rows.length), `${w.columns}: ${headers.join('; ')}.`];
+    .replace(/\(\s*\\?\$\s*\)/g, `(${w.dollars})`);
+  const headers = table.columns.map((column) => spoken(column.label ?? column.key));
+  const named = headers.map((header, index) => (clean(table.columns[index]?.name) ? `${header}, ${spoken(table.columns[index].name)}` : header));
+  const lines = [w.table(clean(label).replace(/[.:]$/, ''), table.rows.length), `${w.columns}: ${named.join('; ')}.`];
   table.rows.forEach((row, rowIndex) => {
     const cells = headers.map((header, columnIndex) => {
       const cell = Array.isArray(row) ? row[columnIndex] : null;

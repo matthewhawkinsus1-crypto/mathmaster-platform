@@ -3,6 +3,8 @@ import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ResultPill, ToolGrid, TaskCard, HintPanel, controlStep } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { questionAxisLabels } from '../shared/planeAxisTitles.js';
+import { residualTable } from '../shared/toolTableReading.js';
+import { PublishFigureReading } from '../../platform/language/figureReadings.js';
 import { correlation, linearRegression, parseNumericAnswer, round } from '../shared/toolMath';
 import {
   buildCandidateModels,
@@ -592,6 +594,9 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
           {studentModelReady ? (
             <div>
               <ResidualPlot rows={studentResiduals} xMin={xMin} xMax={xMax} xAxisTitle={axisLabels?.x} />
+              {/* Read aloud reads the residual table below, only while it is
+                  drawn: once the student's own model is complete (AX10). */}
+              <PublishFigureReading entry={{ kind: 'table', label: 'Residual table', table: residualTable(studentResiduals, axisLabels) }} />
               {/* A scrolling box is a tab stop in Chrome whether or not it says
                   so; this one is named, so a keyboard or screen-reader student
                   lands on "Residual table" and scrolls it with the arrow keys

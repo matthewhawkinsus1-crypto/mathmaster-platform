@@ -26,6 +26,11 @@
  * generator gives them: under an authored Spanish translation it is read in
  * Spanish (AX05). Without it the figure is read in English, and the reader
  * says so. Outside a host (a teacher screen, a review) nothing is published.
+ *
+ * A TABLE A TOOL DRAWS ITSELF (AX10) is published the same way, from the rows
+ * the tool draws and only while it draws them: a cell the student fills in is
+ * what they typed ({ entered }) or blank, never its answer, and a table that
+ * would state an answer is not drawn — or published — before it may be shown.
  */
 import React, { createContext, useContext, useEffect, useId } from 'react';
 

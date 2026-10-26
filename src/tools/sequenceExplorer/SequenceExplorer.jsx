@@ -27,6 +27,8 @@ import { SubmitText } from '../shared/ToolRuntimeContext';
 import { fullBridgeMissMessage } from './fullBridgeFeedback.js';
 import { TABLE_BOX_MIN_WIDTH, TABLE_CELL_SIDE, sequenceTableColumn, sequenceTableWidth } from './sequenceTableLayout.js';
 import { A_N_WORDS, sequenceWords } from './sequenceNotation.js';
+import { sequenceTable } from '../shared/toolTableReading.js';
+import { PublishFigureReading } from '../../platform/language/figureReadings.js';
 
 /*
  * Every Check is marked by the shared grader
@@ -88,6 +90,9 @@ function SequenceVisual({ spec, count = 7, title = 'Table + discrete graph', wor
       points={rows.map((row) => ({ x: row.n, y: row.value, label: words.term(row.n) }))}
       enlargeable={false}
     />
+    {/* Read aloud reads the terms the table draws: only these, so a term the
+        item keeps back (sequenceEvidenceCount) is not read either (AX10). */}
+    <PublishFigureReading entry={{ kind: 'table', label: 'Sequence table', table: sequenceTable(rows, { termHeader: words.general, termCell: (row) => numberText(row.value) }) }} />
     <div style={{ overflowX: 'auto', marginTop: 12 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 280 }}>
         <thead><tr><th style={{ padding: 6 }}>n</th>{rows.map((row) => <th key={row.n} style={{ padding: 6 }}>{row.n}</th>)}</tr></thead>
@@ -274,6 +279,9 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
         every box (TL40: six boxes were 573px in a 474px column at 1366). */}
     <ToolGrid min={sequenceTableColumn(count)}>
       <Panel title="1. Build the table and discrete graph">
+        {/* Read aloud reads each term number and what the student typed for
+            it, or blank — never the term itself (AX10). */}
+        <PublishFigureReading entry={{ kind: 'table', label: 'Sequence table', table: sequenceTable(rows, { termHeader: words.general, names: { input: 'domain input', term: 'output' }, termCell: (row, index) => ({ entered: String(tableValues[index] ?? '') }) }) }} />
         <div style={{ overflowX: 'auto', marginBottom: 12 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: sequenceTableWidth(count) }}>
             <thead>
@@ -517,6 +525,8 @@ function MissingTerm({ questionData, feedback, submit, onAction }) {
     <EnlargeableFigure label="Missing term workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, tableData: { label: 'Sequence with a gap' }, numericControls: { label: 'Missing term controls', studentState: true }, instruction: { text: 'Recover the missing term and classify the sequence.' }, primaryActions: [{ id: 'check-missing', label: 'Check missing term', onAction: check }] }}>
     <ToolGrid min={320}>
       <Panel title="Sequence with a gap">
+        {/* Read aloud reads the terms as drawn; the gap ("?") is blank (AX10). */}
+        <PublishFigureReading entry={{ kind: 'table', label: 'Sequence table', table: sequenceTable(rows, { termHeader: words.general, termCell: (row) => (row.n === missingIndex ? null : numberText(row.value)) }) }} />
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{rows.map((row) => <div key={row.n} style={{ minWidth: 66, padding: '10px 12px', textAlign: 'center', borderRadius: 10, border: '1px solid var(--mm-tint-border)', background: row.n === missingIndex ? 'var(--mm-warning-bg)' : 'var(--mm-surface)' }}><div style={{ fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{words.term(row.n)}</div><strong>{row.n === missingIndex ? '?' : numberText(row.value)}</strong></div>)}</div>
         <p style={{ color: 'var(--mm-text-muted)' }}>Use the terms on both sides of the gap. A valid common change must work across the entire sequence.</p>
       </Panel>

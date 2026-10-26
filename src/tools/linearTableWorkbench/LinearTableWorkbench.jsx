@@ -18,6 +18,8 @@ import { resolveLinearTableWorkbenchMode } from '../../../functions/shared/serve
 import { FRACTION_ENTRY_PROPS } from '../../platform/interaction/numberEntry.js';
 import { SubmitText } from '../shared/ToolRuntimeContext';
 import { questionAxisLabels } from '../shared/planeAxisTitles.js';
+import { givenXyTable } from '../shared/toolTableReading.js';
+import { PublishFigureReading } from '../../platform/language/figureReadings.js';
 import { intervalMissMessage } from './intervalFeedback.js';
 
 const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
@@ -280,6 +282,9 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
       />
 
       <Panel title={`Table (${rows.length} rows)`}>
+        {/* Read aloud reads the rows as they are drawn below (AX10; the
+            walkthrough's DOL #3 review PR 3 heard none of them). */}
+        <PublishFigureReading entry={{ kind: 'table', label: '', table: givenXyTable(rows.map((row) => [formatCoord(row.x), formatCoord(row.y)]), columnLabels) }} />
         {columnLabels ? (
           <p data-table-quantities="true" style={{ margin: '0 0 10px', color: 'var(--mm-text)', lineHeight: 1.5 }}>
             Each row is (x, y).

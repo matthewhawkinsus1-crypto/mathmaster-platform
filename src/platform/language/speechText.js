@@ -32,7 +32,7 @@ const WORDS = {
     degrees: 'degrees', repeating: 'repeating', segment: 'segment', ray: 'ray', sub: 'sub', endSub: '',
     approx: 'is approximately equal to', cong: 'is congruent to', sim: 'is similar to', parallel: 'is parallel to',
     perp: 'is perpendicular to', angle: 'angle', triangle: 'triangle', in: 'is in', theta: 'theta',
-    setOpen: 'the set', setClose: 'end set', squareRootFn: 'the square root of', not: 'not',
+    setOpen: 'the set', setClose: 'end set', squareRootFn: 'the square root of', not: 'not', hat: 'hat',
   },
   es: {
     over: 'sobre', cubeRoot: 'la raíz cúbica de', squareRoot: 'la raíz cuadrada de', logBase: 'logaritmo en base', of: 'de',
@@ -47,7 +47,7 @@ const WORDS = {
     degrees: 'grados', repeating: 'periódico', segment: 'segmento', ray: 'rayo', sub: 'sub', endSub: '',
     approx: 'es aproximadamente igual a', cong: 'es congruente con', sim: 'es semejante a', parallel: 'es paralela a',
     perp: 'es perpendicular a', angle: 'ángulo', triangle: 'triángulo', in: 'pertenece a', theta: 'theta',
-    setOpen: 'el conjunto', setClose: 'fin de conjunto', squareRootFn: 'la raíz cuadrada de', not: 'no',
+    setOpen: 'el conjunto', setClose: 'fin de conjunto', squareRootFn: 'la raíz cuadrada de', not: 'no', hat: 'gorro',
   },
 };
 
@@ -461,6 +461,10 @@ const SUBSCRIPT_SPOKEN = {
 };
 const SUBSCRIPT_SOURCE = Object.keys(SUBSCRIPT_SPOKEN).join('');
 const spokenLineForms = (text, w) => text
+  // ŷ, the predicted y (the Data Modeling Lab's residual table and worked
+  // solutions), is said "y hat": the engine was handed the bare character, so
+  // the table's y and ŷ columns could sound alike (AX10).
+  .replace(/ŷ/g, `y ${w.hat}`)
   .replace(/\by\s*[-−]\s*y₁\s*=\s*m\s*\(\s*x\s*[-−]\s*x₁\s*\)/g,
     `y ${w.minus} y ${w.sub} 1 ${w.eq} m ${w.times} ${w.quantity} x ${w.minus} x ${w.sub} 1`)
   .replace(/\by\s*=\s*mx\s*\+\s*b\b/g, 'y = m x + b')

@@ -28,6 +28,10 @@
 //                in its own Spanish words, with the same numbers and still no
 //                position; the 3D model, which has no Spanish yet, is read in
 //                English after a sentence that says so (AX05).
+//   tool tables  the DOL #3 review's tools read the tables they draw: the
+//                workbench's rows, the residual table (and again once the
+//                model changes), the sequence table (what the student typed,
+//                never a term), and the board's given table (AX10).
 //
 // Exits non-zero on any failure. Screenshots: tests/browser/artifacts/readAloudTranslate.
 import { mkdirSync } from 'node:fs';
@@ -92,6 +96,8 @@ const drawnChoices = (page) => page.locator('[role="radio"]').evaluateAll((butto
 // What the drawn choice says aloud: "−6" is "negative 6", and in a question
 // about dimensions "3 × 4" is "3 by 4".
 const spokenChoice = (choice) => choice.replace(/−/g, 'negative ').replace(/ × /g, ' by ');
+// A value a tool draws, as Read aloud says it: "-0.5" is "negative 0.5".
+const spokenValue = (value) => String(value).replace(/^[-−]/, 'negative ');
 
 for (const device of DEVICES) {
   /* ------------------------------------- a plan's Read aloud, work bar + parts */
@@ -238,6 +244,67 @@ for (const device of DEVICES) {
     await read.click();
     const after = (await lastSpoken(page))?.text || '';
     check(/c of x, you wrote 1/.test(after) && !/correct|incorrect|check this|wrong|✓|✗/i.test(after), `${device.name}: after a DOL submit, the entries — and no verdict`, after.slice(0, 320));
+    await context.close();
+  }
+
+  /* -------------- tables a tool draws itself (AX10; the DOL #3 review's tools) */
+  {
+    // PR 3, the Linear Table Workbench: the 2026-10-22 walkthrough heard none of its rows.
+    const { page, context } = await open(device, 'q=ltw&role=practice&support=read');
+    await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
+    const said = (await lastSpoken(page))?.text || '';
+    // Every row the workbench draws, as its row button names it ("Row 1: x equals -2, y equals -4").
+    const rows = await page.locator('button[aria-pressed][aria-label^="Row "]').evaluateAll((buttons) => buttons.map((button) => button.getAttribute('aria-label')));
+    const expected = rows.map((label) => label.replace(/^Row (\d+): x equals (\S+), y equals (\S+)$/, (match, n, x, y) => `Row ${n}: x, ${spokenValue(x)}; y, ${spokenValue(y)}.`));
+    const at = said.indexOf('A table');
+    check(rows.length === 4 && said.includes(`A table, 4 rows. Columns: x; y. ${expected.join(' ')}`), `${device.name}: the workbench's rows are read, as drawn`, at >= 0 ? said.slice(at, at + 220) : said.slice(0, 200));
+    await context.close();
+  }
+  {
+    // PR 11, the Data Modeling Lab: its residual table, as drawn, and again after the model changes.
+    const { page, context } = await open(device, 'q=dml&role=practice&support=read');
+    const read = page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]');
+    const drawnResiduals = () => page.locator('[data-residual-table-scroller] tbody tr').evaluateAll((trs) => trs.map((tr) => [...tr.querySelectorAll('td')].map((td) => td.textContent.trim())));
+    const residualReading = (cells) => `Residual table, ${cells.length} rows. Columns: x, Hours studied; y, Quiz score (points); y hat; residual. ${cells.map(([x, y, fitted, residual], index) => `Row ${index + 1}: x, ${spokenValue(x)}; y, ${spokenValue(y)}; y hat, ${spokenValue(fitted)}; residual, ${spokenValue(residual)}.`).join(' ')}`;
+    const excerpt = (text) => text.slice(Math.max(0, text.indexOf('Residual table')), Math.max(0, text.indexOf('Residual table')) + 200);
+    await read.click();
+    const before = await drawnResiduals();
+    const said = (await lastSpoken(page))?.text || '';
+    check(before.length === 10 && said.includes(residualReading(before)), `${device.name}: the residual table is read, as drawn, ŷ as "y hat"`, excerpt(said));
+    await page.getByRole('button', { name: 'Increase Slope m' }).click();
+    await page.waitForTimeout(400);
+    await read.click();
+    const after = await drawnResiduals();
+    const again = (await lastSpoken(page))?.text || '';
+    check(JSON.stringify(after) !== JSON.stringify(before) && again.includes(residualReading(after)), `${device.name}: after the slope changes, the residuals read are the new ones`, excerpt(again));
+    await context.close();
+  }
+  {
+    // PR 13, the Sequence Explorer: what the student typed, or blank — never a term.
+    const { page, context } = await open(device, 'q=sequence&role=practice&support=read');
+    const read = page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]');
+    const excerpt = (text) => text.slice(Math.max(0, text.indexOf('Sequence table')), Math.max(0, text.indexOf('Sequence table')) + 240);
+    await read.click();
+    const said = (await lastSpoken(page))?.text || '';
+    check(said.includes('Sequence table, 6 rows. Columns: n, domain input; f of n, output. Row 1: n, 1; f of n, blank. Row 2: n, 2; f of n, blank. Row 3: n, 3; f of n, blank. Row 4: n, 4; f of n, blank. Row 5: n, 5; f of n, blank. Row 6: n, 6; f of n, blank.'), `${device.name}: the sequence table is read, every box blank before the student types`, excerpt(said));
+    const box = page.locator('input[aria-label="Sequence output f(1)"]');
+    await box.fill('-7');
+    // On a phone the number keypad holds the bar's place until "Done".
+    const done = page.locator('button:visible', { hasText: /^Done$/ });
+    if (await done.count()) await done.first().click();
+    else await box.evaluate((element) => element.blur());
+    await page.waitForTimeout(300);
+    await read.click();
+    const typed = (await lastSpoken(page))?.text || '';
+    check(typed.includes('Row 1: n, 1; f of n, you wrote negative 7. Row 2: n, 2; f of n, blank.'), `${device.name}: the student's own entry is read as theirs`, excerpt(typed));
+    await context.close();
+  }
+  {
+    // The Linear Multiple Representations board's GIVEN table (lmr-pr-1).
+    const { page, context } = await open(device, 'q=lmrtable&role=practice&support=read');
+    await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
+    const said = (await lastSpoken(page))?.text || '';
+    check(said.includes('Given table of values, 4 rows. Columns: x; y. Row 1: x, negative 1; y, 9. Row 2: x, 1; y, 7. Row 3: x, 3; y, 5. Row 4: x, 5; y, 3.'), `${device.name}: the board's given table is read`, said.slice(0, 300));
     await context.close();
   }
 

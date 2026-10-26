@@ -8,6 +8,8 @@ import { useToolRuntimeContext, SubmitText } from '../shared/ToolRuntimeContext'
 import representationBridgeGrader from '../../../functions/shared/serverGrading/tools/representationBridge.mjs';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { questionAxisLabels } from '../shared/planeAxisTitles.js';
+import { enteredXyTable, givenXyTable } from '../shared/toolTableReading.js';
+import { PublishFigureReading } from '../../platform/language/figureReadings.js';
 import MathInput from '../../MathInput.jsx';
 import MathDisplay from '../../MathDisplay.jsx';
 import MathText from '../../components/common/MathText.jsx';
@@ -446,6 +448,9 @@ function GivenRepresentation({ description, graphBounds }) {
     );
   } else if (description.kind === 'table') {
     body = (
+      <>
+      {/* Read aloud reads the given rows as drawn (AX10). */}
+      <PublishFigureReading entry={{ kind: 'table', label: 'Given table of values', table: givenXyTable(description.rows.map((row) => [row.xLatex, row.yLatex]), description.axisLabels) }} />
       <table
         aria-label="Given table of values"
         style={{ borderCollapse: 'collapse', width: '100%', maxWidth: 280, fontSize: 'calc(18 * var(--mm-px))', background: 'var(--mm-surface)', borderRadius: 8, overflow: 'hidden' }}
@@ -466,6 +471,7 @@ function GivenRepresentation({ description, graphBounds }) {
           ))}
         </tbody>
       </table>
+      </>
     );
   } else if (description.kind === 'graph') {
     const size = planeSize(graphBounds, 420);
@@ -1453,6 +1459,9 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
       )}
     >
       {factsAtHand('table')}
+      {/* Read aloud reads the student's rows as they typed them, or blank —
+          never a verdict (AX10). A locked card draws, and reads, no table. */}
+      <PublishFigureReading entry={{ kind: 'table', label: 'Table of values', table: enteredXyTable(tableRows) }} />
       <table data-lmr-field="tableRows" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <thead>
           <tr>

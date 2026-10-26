@@ -119,6 +119,11 @@ const LABELS = Object.freeze({
   'Residual plot': 'Gráfica de residuos',
   'Discrete sequence graph': 'Gráfica discreta de la sucesión',
   'Given graph of the line': 'Gráfica dada de la recta',
+  // Tables a tool draws itself (AX10).
+  'Given table of values': 'Tabla de valores dada',
+  'Table of values': 'Tabla de valores',
+  'Residual table': 'Tabla de residuos',
+  'Sequence table': 'Tabla de la sucesión',
 });
 
 /** The Spanish for a platform name, or null for a name the pack does not know. */
