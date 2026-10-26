@@ -92,6 +92,13 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
         run: node tests/browser/accessibilityTeacherLiveClassTabs.mjs
+      # The teacher workspace's one main landmark and its skip link, over every screen and the dialogs on top.
+      - name: The teacher workspace's main landmark and skip link (TT27)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/accessibilityTeacherLandmarks.mjs
       - name: The calculator by keyboard (Escape, focus return, Move)
         if: ${{ !cancelled() }}
         env:

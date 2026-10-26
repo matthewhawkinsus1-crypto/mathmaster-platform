@@ -32,7 +32,7 @@ export default function StudentResponseInspector({ studentId, assignmentId, ques
     historicalName: model?.student?.name, lastFirst: false,
   });
   return <Dialog closeOnEscape={false} onClose={onClose} aria-label="Student Response Inspector" style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(32,33,36,.62)', overflowY: 'auto', padding: 24 }}>
-    <main style={{ maxWidth: 1180, margin: '0 auto', background: 'var(--mm-surface)', borderRadius: 14, padding: 24, color: 'var(--mm-text-strong)' }}>
+    <div style={{ maxWidth: 1180, margin: '0 auto', background: 'var(--mm-surface)', borderRadius: 14, padding: 24, color: 'var(--mm-text-strong)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><h2 style={{ margin: 0 }}>Student Response Inspector &amp; Grade Override</h2><button onClick={onClose}>Close</button></div>
       {error && <p role="alert" style={{ color: 'var(--mm-error-text)', fontWeight: 700 }}>{error}</p>}
       {busy && !model ? <p>Loading response evidence…</p> : model && <>
@@ -46,6 +46,6 @@ export default function StudentResponseInspector({ studentId, assignmentId, ques
         <section><h3>Grading Actions</h3><label>Required reason <select value={reason} onChange={(event) => setReason(event.target.value)}>{reasons.map((item) => <option key={item}>{item}</option>)}</select></label><label style={{ marginLeft: 12 }}>Optional note <input value={note} onChange={(event) => setNote(event.target.value)} /></label><div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}><button disabled={busy} onClick={() => act('grantFullCredit')}>Grant Full Credit</button>{parts.filter((part) => part.graded !== false).map((part) => <button key={part.id} disabled={busy} onClick={() => act('grantPartCredit', { fieldId: part.id, score: 100 })}>Grant Credit for {part.label || part.id}</button>)}<input aria-label="Manual score" type="number" min="0" max="100" value={manualScore} onChange={(event) => setManualScore(event.target.value)} /><button disabled={busy || manualScore === '' || !Number.isFinite(Number(manualScore)) || Number(manualScore) < 0 || Number(manualScore) > 100} onClick={() => act('setScore', { score: Number(manualScore) })}>Set Score</button><button disabled={busy || !model.override} onClick={() => act('restoreAutomatic')}>Restore Automatic Score</button></div></section>
         <section><h3>Audit History</h3>{model.auditHistory.length ? <ol>{model.auditHistory.map((event, index) => <li key={`${event.at}-${index}`}>{show(event.at)} · {event.actor?.name || event.actor?.email || event.actor?.uid || 'Unavailable'} · {event.previousScore}% → {event.newScore}% · {event.reason}{event.note ? ` — ${event.note}` : ''}</li>)}</ol> : <p>Unavailable</p>}</section>
       </>}
-    </main>
+    </div>
   </Dialog>;
 }

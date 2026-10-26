@@ -71,6 +71,7 @@ import { completedRecoverySections, heldRecoverySections, warmupChallengeCounts 
 import { creationRecoveryContent } from '../../platform/recovery/recoveryContentAuthoring.js';
 import { recoveryPreparationAvailable } from '../../../functions/shared/recoveryContentPlan.mjs';
 import StudentPerformanceBadge from '../../components/common/StudentPerformanceBadge.jsx';
+import { MAIN_CONTENT_ID, SkipToContent } from '../../components/common/pageChrome.jsx';
 
 export default function TeacherWorkspace({
   SCHOOL_NON_INSTRUCTIONAL_KEYS,
@@ -1854,6 +1855,7 @@ export default function TeacherWorkspace({
   if (teacherWorkspaceMode === 'administration' && rootAdminUiEligible) {
     return (
       <div style={{ fontFamily: '"Segoe UI", sans-serif', backgroundColor: 'var(--mm-surface-control)', minHeight: '100vh', padding: '20px' }}>
+        <SkipToContent />
         <div style={{ maxWidth: 1260, margin: '0 auto', background: 'var(--mm-surface)', borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,.06)', overflow: 'hidden' }}>
           <header style={{ padding: '22px 28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap', borderBottom: '1px solid var(--mm-border-soft)', background: '#202124', color: '#fff' }}>
             <div><div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '.08em', color: '#c6dafc' }}>ROOT ADMINISTRATOR</div><h1 style={{ margin: '4px 0 0', fontSize: 'calc(25 * var(--mm-px))', color: 'inherit' }}>MathMaster Administration</h1><p style={{ margin: '4px 0 0', color: '#dadce0', fontSize: 'calc(13 * var(--mm-px))' }}>{user.email}</p></div>
@@ -1873,7 +1875,7 @@ export default function TeacherWorkspace({
               </button>
             ))}
           </div>
-          <main style={{ padding: 28 }}>
+          <main id={MAIN_CONTENT_ID} tabIndex={-1} style={{ padding: 28 }}>
             {adminTab === 'classes' && <ClassesAdmin />}
             {adminTab === 'accounts' && <SignInAccess signedInEmail={user.email} mode="admin" onStudentIdentityChanged={refreshTeacherRosterAfterNameChange} />}
             {adminTab === 'coverage' && <PathCoverageAudit />}
@@ -1908,6 +1910,9 @@ export default function TeacherWorkspace({
 
   return (
     <div style={{ fontFamily: '"Segoe UI", sans-serif', backgroundColor: 'var(--mm-surface-sunken)', minHeight: '100vh', padding: '20px' }}>
+      {/* The first Tab stop: past the navigation (the collapse button and 22 destinations) and the
+          header's Find and Log Out, to the screen. The dialogs below are siblings of the shell. */}
+      <SkipToContent />
       {renderDeleteAssignmentDialog()}
       {testCyclePreviewAssignment && (
         <Suspense fallback={<p role="status" style={{ position: 'fixed', top: 12, left: 12, zIndex: 11000 }}>Opening the student preview…</p>}>
@@ -1941,30 +1946,6 @@ export default function TeacherWorkspace({
           />
         );
       })()}
-      {assignmentPreflight && (
-        <LessonPreflightModal
-          key={`${assignmentPreflight.assignmentV5.assignment?.title || 'assignment-v5'}-${assignmentPreflight.sourceLabel}`}
-          assignmentV5={assignmentPreflight.assignmentV5}
-          initialDraft={assignmentPreflight.initialDraft}
-          classPeriods={CLASS_PERIODS}
-          classes={classes}
-          courseProfiles={courseProfiles}
-          sourceLabel={assignmentPreflight.sourceLabel}
-          sourceQuestions={assignmentPreflight.questions}
-          authoringWarnings={assignmentPreflight.authoringWarnings}
-          onClose={() => setAssignmentPreflight(null)}
-          onConfirmPublish={confirmAssignmentPreflight}
-          busy={assignmentPreflightBusy}
-          reviewMode={assignmentPreflight.mode || 'create'}
-          allowQuestionRepair={assignmentPreflight.allowQuestionRepair !== false}
-          rosterSizesByClassId={preflightRosterSizesByClassId}
-          // So Review can say a reused assignmentKey is taken before Create does (TT10).
-          existingAssignments={assignments}
-          // Offers the in-place import of a Test Cycle's missing secure
-          // families; seedPathQuestionBank re-checks the root identity.
-          canManageSecureBank={rootAdminUiEligible}
-        />
-      )}
       {contentUpgradeRequest && (
         <AssignmentContentUpgradeModal
           assignment={contentUpgradeRequest.assignment}
@@ -2225,6 +2206,37 @@ export default function TeacherWorkspace({
           </div>
         </header>
 
+        {/* The screen is the page's main landmark, which the skip link goes to. The navigation and
+            the header are outside it. It is a wrapper of the content area, not the area itself, so
+            that the Pre-Flight review can sit in it: the student preview inside the review draws its
+            work area as the page's main wherever no main is around it, and the review, a dialog
+            drawn over the screen, was not inside this one. (The area's class carries the rules for
+            tables and headings, which the review does not take.) */}
+        <main id={MAIN_CONTENT_ID} tabIndex={-1}>
+        {assignmentPreflight && (
+          <LessonPreflightModal
+            key={`${assignmentPreflight.assignmentV5.assignment?.title || 'assignment-v5'}-${assignmentPreflight.sourceLabel}`}
+            assignmentV5={assignmentPreflight.assignmentV5}
+            initialDraft={assignmentPreflight.initialDraft}
+            classPeriods={CLASS_PERIODS}
+            classes={classes}
+            courseProfiles={courseProfiles}
+            sourceLabel={assignmentPreflight.sourceLabel}
+            sourceQuestions={assignmentPreflight.questions}
+            authoringWarnings={assignmentPreflight.authoringWarnings}
+            onClose={() => setAssignmentPreflight(null)}
+            onConfirmPublish={confirmAssignmentPreflight}
+            busy={assignmentPreflightBusy}
+            reviewMode={assignmentPreflight.mode || 'create'}
+            allowQuestionRepair={assignmentPreflight.allowQuestionRepair !== false}
+            rosterSizesByClassId={preflightRosterSizesByClassId}
+            // So Review can say a reused assignmentKey is taken before Create does (TT10).
+            existingAssignments={assignments}
+            // Offers the in-place import of a Test Cycle's missing secure
+            // families; seedPathQuestionBank re-checks the root identity.
+            canManageSecureBank={rootAdminUiEligible}
+          />
+        )}
         <div className="mm-dashboard-content" style={{ padding: '30px' }}>
           {/*
             CLASS FIRST, THEN FEATURE.
@@ -3115,6 +3127,7 @@ export default function TeacherWorkspace({
 
           {teacherTab === 'access' && <SignInAccess signedInEmail={user.email} mode="teacher" onStudentIdentityChanged={refreshTeacherRosterAfterNameChange} />}
         </div>
+        </main>
         </div>
       </div>
     </div>

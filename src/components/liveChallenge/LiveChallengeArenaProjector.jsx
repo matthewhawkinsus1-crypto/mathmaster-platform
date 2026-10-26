@@ -1140,7 +1140,7 @@ export default function LiveChallengeArenaProjector({
         {showProgress && <RoundProgress currentRound={clock.roundNumber} roundCount={clock.roundCount} accent={accent} />}
       </header>
 
-      <main style={{ minHeight: 0, display: 'grid', gridTemplateRows: error ? 'auto minmax(0,1fr)' : 'minmax(0,1fr)', gap: 10 }}>
+      <div style={{ minHeight: 0, display: 'grid', gridTemplateRows: error ? 'auto minmax(0,1fr)' : 'minmax(0,1fr)', gap: 10 }}>
         {error && <div role="alert" style={{ padding: '10px 16px', borderRadius: 12, background: 'rgba(255,87,120,.16)', border: '1px solid rgba(255,105,135,.5)', color: '#ffd9e1', fontWeight: 800 }}>{error}</div>}
         <div style={{ minHeight: 0 }}>
           {loading && <section style={{ ...glassPanel, height: '100%', display: 'grid', placeItems: 'center', fontSize: 'clamp(calc(24 * var(--mm-px)), calc(4vh * var(--mm-text-scale, 1)), calc(40 * var(--mm-px)))', fontWeight: 900 }} aria-busy="true">Opening the new lobby…</section>}
@@ -1157,7 +1157,7 @@ export default function LiveChallengeArenaProjector({
             </>
           )}
         </div>
-      </main>
+      </div>
 
       {!loading && room && (
         <HostStrip

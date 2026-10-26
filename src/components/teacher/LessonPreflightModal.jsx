@@ -2456,7 +2456,7 @@ export const LessonPreflightModal = ({
         ) : (
           <div style={{ display: 'flex', minHeight: 0 }}>
             <aside style={{ width: 'min(280px, 34vw)', minWidth: 210, borderRight: '1px solid var(--mm-border)', padding: 14, background: 'var(--mm-surface-sunken)', textAlign: 'left' }}>{demoControls}</aside>
-            <main style={{ flex: 1, padding: 16, background: 'var(--mm-surface)', minWidth: 0 }}>{studentPreview}</main>
+            <div style={{ flex: 1, padding: 16, background: 'var(--mm-surface)', minWidth: 0 }}>{studentPreview}</div>
           </div>
         ))}
       </fieldset>

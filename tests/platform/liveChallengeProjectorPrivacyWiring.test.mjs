@@ -37,7 +37,9 @@ test('the worked solution is drawn only on a closed round\'s results', () => {
   assert.match(results, /const solutionFills = showSolution && solutionState === SOLUTION_STATE\.READY;/);
   assert.match(results, /\{showSolution && <ProjectorSolution /);
   // … and ResultsView is mounted only at the results stage.
-  const main = region(projector, '<main style=', '</main>', 'projector stage switch');
+  // The stage switch: the element under the header, up to the host strip below it (a <main> until the teacher
+  // workspace had one of its own: the projector is drawn inside it now, and one page has one main).
+  const main = region(projector, "<div style={{ minHeight: 0, display: 'grid', gridTemplateRows: error", '{!loading && room && (\n        <HostStrip', 'projector stage switch');
   const resultsLine = main.split('\n').find((line) => line.includes('<ResultsView'));
   assert.ok(resultsLine, 'ResultsView is on the projector');
   assert.match(resultsLine, /^\s*\{!loading && stage === CHALLENGE_STAGE\.ROUND_RESULTS && <ResultsView /);
