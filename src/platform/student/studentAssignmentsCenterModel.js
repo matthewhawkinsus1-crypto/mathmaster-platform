@@ -216,6 +216,7 @@ export const buildAssignmentRow = ({ entry, gradeEntry, recovery = [] }) => {
   const testCycle = isTestCycleAssignment(assignment);
   return {
     assignmentId: assignment.id,
+    workloadReceipt: gradeEntry?.workloadReceipt || entry.workloadReceipt || null,
     isTestCycle: testCycle,
     title: assignment.title || 'MathMaster assignment',
     // Read off the dashboard's lifecycle for this student, never the class

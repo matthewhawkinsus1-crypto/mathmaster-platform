@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import WorkloadReceipt from './WorkloadReceipt.jsx';
 import { EmptyState, ProgressBar } from '../../ui/primitives';
 import RecommendedSkills from './RecommendedSkills.jsx';
 import AssignmentGroup from './AssignmentGroup.jsx';
@@ -355,6 +356,7 @@ export default function StudentDashboardView({
             <h3 style={{ margin: 0, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{assignment.title}</h3>
             <span data-status-chip style={{ ...CHIP, textTransform: 'uppercase', background: status.bg, color: status.color }}>{status.label}</span>
           </div>
+          <WorkloadReceipt receipt={entry.workloadReceipt} showGrade={showGrade && !feedbackHeld} />
           {sections.length > 0 && (
             <>
               <div data-section-makeup style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>

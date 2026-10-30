@@ -1,3 +1,4 @@
+import { workloadReceiptForStudent } from './platform/student/workloadReceipt.js';
 import {
   getStoredAssignmentQuestions,
 } from './platform/contract/storedAssignmentV5.js';
@@ -555,6 +556,7 @@ export const buildStudentDashboardModel = ({
 
       return {
         started,
+        workloadReceipt: workloadReceiptForStudent({ student: { profile: supportProfile, gradesByAssignment: tracker }, assignment, hasPracticePass: hasPracticePassFor(assignment.id), nowValue }),
         dueTodayInProgress,
         assignment, assignmentTracker, isAttempted, lifecycle, access, recordedGrade,
         activity, classwork, dol,

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import WorkloadReceipt from './WorkloadReceipt.jsx';
 import { EmptyState, ProgressBar } from '../../ui/primitives';
 import StudentGlobalNav, { STUDENT_DESTINATION } from './StudentGlobalNav.jsx';
 import BuildStamp from './BuildStamp.jsx';
@@ -111,6 +112,7 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice, studentId, o
           />
         </div>
       )}
+      <WorkloadReceipt receipt={row.workloadReceipt} showGrade={row.displayGrade !== null} />
 
       {/* An open Warm-Up/DOL Recovery, with its own button: the row's Practice
           button is the assignment's practice, which never unlocks one. */}

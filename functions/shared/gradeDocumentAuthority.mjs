@@ -29,6 +29,11 @@
  */
 export const STUDENT_CLIENT_OWNED_GRADE_FIELDS = Object.freeze(['assignmentActivity']);
 
+// Ordinary support fields remain teacher-editable. This one nested projection
+// is only written by the audited correction callable; no client may replace it.
+export const MIXED_AUTHORITY_GRADE_FIELDS = Object.freeze(['profile']);
+export const SERVER_ONLY_PROFILE_FIELDS = Object.freeze(['workloadCorrections']);
+
 /*
  * AUTHORITATIVE GRADE STATE, AND ITS ONLY WRITERS.
  *

@@ -151,6 +151,21 @@ permissions:
   contents: read
 
 jobs:
+  accommodation-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      - run: npm --prefix functions ci
+      - name: Historical workload correction and privacy journeys
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: >-
+          npx firebase emulators:exec --only firestore --project demo-accommodation-523
+          "node --test tests/platform/retroactiveAccommodationEmulator.test.mjs && node tests/browser/accommodationReviewQa.mjs"
+
   # The teacher journeys, in three jobs of about ten minutes each: one runner
   # took 29 minutes for them all (PR #513), against a 40-minute limit.
   teacher:

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import WorkloadReceipt from './WorkloadReceipt.jsx';
 import { EmptyState } from '../../ui/primitives';
 import GradeSectionBreakdown from './GradeSectionBreakdown.jsx';
 import TestCycleGradeBreakdown from './TestCycleGradeBreakdown.jsx';
@@ -313,6 +314,7 @@ function GradeRow({ entry, hidden, onOpenResult, onPractice, onStart, today = nu
         <p style={{ margin: '10px 0 0', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text-muted)' }}>{entry.exclusionText}</p>
       )}
 
+      <WorkloadReceipt receipt={entry.workloadReceipt} showGrade={!hidden && entry.displayGrade !== null} />
       <GradeSectionBreakdown sections={entry.sections} shares={entry.sectionShares} hidden={hidden} compact spellExitTicket={spellExitTicket} />
       <TestCycleGradeBreakdown entry={entry} hidden={hidden} compact />
 

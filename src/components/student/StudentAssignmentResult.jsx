@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import WorkloadReceipt from './WorkloadReceipt.jsx';
 import GradeSectionBreakdown from './GradeSectionBreakdown.jsx';
 import TestCycleGradeBreakdown from './TestCycleGradeBreakdown.jsx';
 import { GRADE_STATUS } from '../../platform/student/studentGradeCenterModel.js';
@@ -244,6 +245,7 @@ export default function StudentAssignmentResult({
             {gradeHeadline}
           </div>
           <div style={{ marginTop: 4, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-primary-text)' }}>{entry.statusLabel}</div>
+          <WorkloadReceipt receipt={entry.workloadReceipt} showGrade={!entry.feedbackHeld && entry.displayGrade !== null} />
           {entry.exclusionText && (
             <p style={{ margin: '8px 0 0', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text)' }}>{entry.exclusionText}</p>
           )}

@@ -150,6 +150,30 @@ setGlobalOptions({ invoker: "public", memory: FUNCTION_MEMORY_FLOOR, labels: dep
 
 initializeApp();
 
+// Explicit, audited correction workflow. Ordinary support-profile saves never call it.
+exports.reviewRetroactiveAccommodation = onCall(async (request) => {
+  const { createRetroactiveAccommodationService } = require("./lib/retroactiveAccommodation");
+  return createRetroactiveAccommodationService({
+    db: getFirestore(), FieldPath, FieldValue, HttpsError,
+    gradeFor: async ({ assignment, gradeData, practiceWaived }) => {
+      const originalTracker = gradeData.gradesByAssignment?.[assignment.id];
+      const omitted = await studentOmittedFor({ assignment, gradeData, assignmentId: assignment.id });
+      const questions = runtimeQuestionsFromAssignment(assignment);
+      const indices = runtimeIncludedQuestionIndices(assignment).filter((index) => !practiceWaived.includes(index) && !omitted.has(index));
+      if (!indices.length) return null;
+      const inputs = await sectionRecoveryGrades.projectRecoveredGradeInputs({
+        assignment, tracker: originalTracker || {}, questions,
+        overrides: gradeData.teacherGradeOverridesByAssignment?.[assignment.id] || {},
+        recoveryForAssignment: gradeData.sectionRecoveryByAssignment?.[assignment.id] || null,
+        challengeCredit: gradeData.warmupChallengeByAssignment?.[assignment.id] || null,
+        gradeProgress: assignmentGradeProgress, omittedIndices: omitted,
+      });
+      if (!originalTracker && !Object.keys(inputs.tracker).length) return null;
+      return calculateAssignmentGrade(inputs.tracker, indices, questions, inputs.overrides);
+    },
+  })(request);
+});
+
 // WHICH COMMIT IS LIVE (F-REL-3). Read-only and deliberately unauthenticated:
 // it returns this deployment's provenance and nothing else — no request data,
 // no Firestore, no secret. mathmaster-build.json already publishes the Hosting
@@ -10093,6 +10117,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
       if (!assignmentSnap.exists) continue;
       const assignment = assignmentSnap.data() || {};
       if (assignmentFeedbackIsHeld(assignment)) continue;
+      if (!await require("./lib/retroactiveAccommodation").correctionSyncAllowed({ db, studentId: event.params.studentId, gradeData: afterData, assignment: { ...assignment, id: assignmentId } })) continue;
 
       /*
        * A TEST CYCLE IS ONE CLASSROOM GRADE ITEM.
@@ -10344,6 +10369,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
           if (publication.gradePassbackEnabled === false || !String(publication.courseId || "")) continue;
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
             assignmentId,
             courseId: String(publication.courseId || ""),
             courseworkId: publication.courseworkId || null,
@@ -10366,6 +10392,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
           const publication = publicationDoc.data() || {};
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
             assignmentId,
             courseId: String(publication.courseId || ""),
             courseworkId: publication.courseworkId || null,
@@ -10423,7 +10450,8 @@ exports.syncGradeToClassroom = onDocumentWritten(
         const priorReturnConfirmed = priorAudit.returnedToStudent === true
           || String(priorAudit.submissionState || "").toUpperCase() === "RETURNED";
         if (
-          !forceRetry
+          (!forceRetry || (afterData.profile?.workloadCorrections?.[assignmentId]?.eventId
+            && priorAudit.correctionEventId === afterData.profile.workloadCorrections[assignmentId].eventId))
           && priorAudit.status === "synced"
           && String(priorAudit.stage || "") === stage
           && Number(priorAudit.maxPoints || 100) === maxPoints
@@ -10457,6 +10485,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
           if (passback.refusedLowering) {
             // eslint-disable-next-line no-await-in-loop
             await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
               assignmentId,
               courseId,
               courseworkId: publication.courseworkId,
@@ -10488,6 +10517,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
           } catch (err) {
             // eslint-disable-next-line no-await-in-loop
             await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
               assignmentId,
               courseId,
               courseworkId: publication.courseworkId,
@@ -10529,6 +10559,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
         if (!googleUserId) {
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
             assignmentId,
             courseId,
             courseworkId: publication.courseworkId,
@@ -10549,6 +10580,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
         if (teachersAtClassroomLimit.has(classroomKey)) {
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
             assignmentId,
             courseId,
             courseworkId: publication.courseworkId,
@@ -10578,6 +10610,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
           if (!submission) {
             // eslint-disable-next-line no-await-in-loop
             await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
               assignmentId,
               courseId,
               courseworkId: publication.courseworkId,
@@ -10597,6 +10630,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
           }
 
           // eslint-disable-next-line no-await-in-loop
+          if (!await require("./lib/retroactiveAccommodation").correctionSyncAllowed({ db, studentId: event.params.studentId, gradeData: afterData, assignment: { ...assignment, id: assignmentId } })) continue;
           const patched = await classroomLib().patchGrade(classroom, {
             courseId,
             courseWorkId: publication.courseworkId,
@@ -10623,6 +10657,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
 
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
             ...clearedClassroomErrorFields(),
             assignmentId,
             courseId,
@@ -10664,6 +10699,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
           );
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
             assignmentId,
             courseId,
             courseworkId: publication.courseworkId,

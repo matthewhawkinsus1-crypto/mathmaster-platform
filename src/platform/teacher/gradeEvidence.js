@@ -163,18 +163,19 @@ const requiredIndicesFor = ({ projection, assignment, tracker, practicePassRedee
     practiceWaived: waivedList,
   });
   const omitted = workload.omitted.length ? new Set(workload.omitted) : null;
-  return { indices: omitted ? base.filter((index) => !omitted.has(index)) : base, omitted, base };
+  return { indices: omitted ? base.filter((index) => !omitted.has(index)) : base, omitted, base, reviewNeeded: workload.reviewNeeded === true };
 };
 
 export const splitGrade = ({
   tracker = null, assignment = null, practicePassRedeemed = false, supportProfile = null,
 } = {}) => {
   const projection = projectCurrentAssignmentContent(assignment);
-  const { indices: included, omitted, base } = requiredIndicesFor({
+  const { indices: included, omitted, base, reviewNeeded } = requiredIndicesFor({
     projection, assignment, tracker, practicePassRedeemed, supportProfile,
   });
   const questions = getStoredAssignmentQuestions(assignment);
   const split = splitGradeForIndices({ tracker, questions, indices: included });
+  if (reviewNeeded) return { ...split, score: null, reviewNeeded: true };
   // Only when the accommodation removed something, so a screen can say "15 of
   // 20" — and every existing split keeps its exact shape.
   return omitted ? { ...split, reducedFrom: base.length } : split;
@@ -199,9 +200,10 @@ export const gradeWeightTotals = ({
   tracker = null, assignment = null, practicePassRedeemed = false, supportProfile = null,
 } = {}) => {
   const projection = projectCurrentAssignmentContent(assignment);
-  const { indices } = requiredIndicesFor({
+  const { indices, reviewNeeded } = requiredIndicesFor({
     projection, assignment, tracker, practicePassRedeemed, supportProfile,
   });
+  if (reviewNeeded) return { possibleWeight: 0, earnedWeight: 0, score: null, reviewNeeded: true };
   const weighted = gradeWeightsForIndices({
     tracker,
     questions: getStoredAssignmentQuestions(assignment),
@@ -232,7 +234,7 @@ export const splitGradesBySection = ({
   const questions = getStoredAssignmentQuestions(assignment);
   // The reduction is resolved once, over the whole required set, so each
   // section's total is that section's share of the student's own items.
-  const { omitted } = requiredIndicesFor({
+  const { omitted, reviewNeeded } = requiredIndicesFor({
     projection, assignment, tracker, practicePassRedeemed, supportProfile,
   });
 
@@ -245,6 +247,7 @@ export const splitGradesBySection = ({
     }
     const required = omitted ? indices.filter((index) => !omitted.has(index)) : indices;
     const split = splitGradeForIndices({ tracker, questions, indices: required });
+    if (reviewNeeded) return [sectionKey, { ...split, score: null, reviewNeeded: true }];
     return [sectionKey, required.length < indices.length ? { ...split, reducedFrom: indices.length } : split];
   }));
 };

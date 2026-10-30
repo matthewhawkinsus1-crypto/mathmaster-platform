@@ -100,6 +100,7 @@ const reducedWorkloadRecord = ({ workload, plan }) => {
   }
   const summary = workload.workload;
   if (!summary) return null;
+  if (summary.kind === 'retroactive-grade-correction') return null;
   if (workload.status === WORKLOAD_STATUS.APPLIED) {
     return {
       supportId: REDUCED_WORKLOAD_SUPPORT_ID,
