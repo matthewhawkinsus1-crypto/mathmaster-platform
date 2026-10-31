@@ -320,7 +320,8 @@ const TEACHER_STEPS = [
   }, after: closeOverlay },
   { id: 'assignments', run: (page) => openTab(page, 'Assignments') },
   { id: 'assignment-menu-open', required: '[role="menu"]', run: async (page) => {
-    await page.locator('.mm-dashboard-content [aria-haspopup="true"]').first().click();
+    // The card's ⋮ is a Menu Button since TT27 (popupMenu.js: aria-haspopup="menu").
+    await page.locator('.mm-dashboard-content [aria-haspopup="menu"]').first().click();
     await page.waitForTimeout(300);
   }, after: closeOverlay },
   { id: 'library', run: (page) => openTab(page, 'Library') },

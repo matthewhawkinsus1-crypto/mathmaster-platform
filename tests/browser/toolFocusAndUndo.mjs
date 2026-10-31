@@ -13,7 +13,7 @@
 //           the draft is back and Undo still takes back the last edit; a Check
 //           followed by Undo makes no new attempt.
 //   A11Y-2  Buttons that disable or unmount themselves (Open Sort's placements,
-//           Transformations' Clear, the derivation lab's Apply, the work-bar
+//           Transformations' Start over, the derivation lab's Apply, the work-bar
 //           Undo after its last step): after the press focus is never on <body>.
 //   TOOL-1  Function-graph questions by keyboard: see graphKeyboardRoute.mjs.
 //
@@ -300,14 +300,16 @@ for (const tool of ['dataModelingLab', 'polynomialWorkshop', 'openSortBoard']) {
  */
 const FOCUS_SCENES = [
   {
-    key: 'transformationsLab Clear',
+    key: 'transformationsLab Start over',
     tool: 'transformationsLab',
     run: async (page) => {
       const plane = page.locator('.mathmaster-tool-shell [role="application"], .mathmaster-tool-shell svg[tabindex="0"]').first();
       await plane.focus();
       await page.keyboard.press('Enter');
       await page.waitForTimeout(300);
-      const clear = page.getByRole('button', { name: 'Clear' });
+      // "Start over" since TL04 (studentWords START_OVER); the work bar's own
+      // is "Start question over", so the tool's is matched exactly, inside it.
+      const clear = page.locator('.mathmaster-tool-shell').getByRole('button', { name: 'Start over', exact: true });
       await clear.focus();
       await page.keyboard.press('Enter');
       await page.waitForTimeout(300);

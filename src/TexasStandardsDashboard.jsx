@@ -501,7 +501,11 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
             </div>
           </section>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1fr)', gap: '11px' }}>
+          {/* Prior, current, next: side by side where each column has room, stacked
+              on a phone. Three fixed columns left about 100px each at 390px, and the
+              bold headings ran over the next column's card border (contrast review,
+              teacher-teks/pathway, phone). */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '11px' }}>
             <section>
               <div style={{ fontWeight: 900, marginBottom: '7px', color: 'var(--mm-text-muted)' }}>PRIOR-COURSE SUPPORT</div>
               <div style={{ display: 'grid', gap: '8px' }}>
