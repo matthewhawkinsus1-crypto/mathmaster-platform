@@ -155,6 +155,8 @@ test('the trigger refuses to lower a posted grade', () => {
 });
 
 test('a re-released Test Cycle score is not swallowed by stage-only deduplication', () => {
-  const dedupe = region(syncTrigger, 'if (\n          !forceRetry', 'continue;', 'dedupe');
+  // Bind to the delivery comparison, regardless of how manual retries are
+  // gated. Correction-event replay must also deduplicate a forced retry.
+  const dedupe = region(syncTrigger, 'const priorReturnConfirmed =', 'continue;', 'dedupe');
   assert.match(dedupe, /priorAudit\.grade\) === Number\(grade\)/);
 });

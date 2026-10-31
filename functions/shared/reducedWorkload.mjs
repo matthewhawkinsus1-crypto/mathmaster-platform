@@ -59,6 +59,7 @@
 // one-question DOL stays one question.
 
 import { isTestCycleAssignment } from './testCyclePolicy.mjs';
+import { correctionContentIsCurrent, workloadCorrectionFor } from './workloadCorrection.mjs';
 
 export const REDUCED_WORKLOAD_SUPPORT_ID = 'reduced-item-count-same-rigor';
 export const REDUCED_WORKLOAD_ALGORITHM_VERSION = 1;
@@ -798,14 +799,16 @@ export const resolveStudentWorkload = ({
     ? orderedUnique(baseIndices)
     : workloadItemsFromAssignment(assignment || {}).map((item) => item.storageIndex);
   const policy = resolveItemReductionPolicy({ profile, assignment, nowValue });
+  const correction = workloadCorrectionFor(profile, assignment);
   const unchanged = (status) => ({
     status,
     indices: base,
     omitted: [],
     policy,
     plan: null,
-    summary: status === WORKLOAD_STATUS.NONE ? null : {
+    summary: status === WORKLOAD_STATUS.NONE && !correction?.eventId ? null : {
       status,
+      ...(correction?.eventId ? { kind: 'retroactive-grade-correction', correctionEventId: correction.eventId, correctedAt: correction.approvedAt, previousGrade: correction.previousGrade ?? null, appliedGrade: correction.appliedGrade ?? null } : {}),
       targetPercent: policy.percent || 0,
       originalCount: base.length,
       assignedCount: base.length,
@@ -814,6 +817,22 @@ export const resolveStudentWorkload = ({
       revisionId: policy.revisionId || null,
     },
   });
+  if (correction?.active === true) {
+    if (!correctionContentIsCurrent(correction, assignment) || assignment?.secure === true || isTestCycleAssignment(assignment)) {
+      const result = unchanged(WORKLOAD_STATUS.NOT_APPLICABLE);
+      result.reviewNeeded = true;
+      result.summary.variance = ['correction-content-changed'];
+      return result;
+    }
+    const answered = answeredOf(tracker);
+    const omitted = base.filter((index) => correction.omittedIndices?.includes(index) && !answered.has(index));
+    const omittedSet = new Set(omitted);
+    const indices = base.filter((index) => !omittedSet.has(index));
+    return { status: omitted.length ? WORKLOAD_STATUS.APPLIED : WORKLOAD_STATUS.NOT_APPLICABLE, indices, omitted, policy, plan: null,
+      summary: { status: WORKLOAD_STATUS.APPLIED, kind: 'retroactive-grade-correction', correctionEventId: correction.eventId, correctedAt: correction.approvedAt, previousGrade: correction.previousGrade ?? null, appliedGrade: correction.appliedGrade ?? null,
+        targetPercent: correction.percent, originalCount: base.length, assignedCount: indices.length,
+        actualPercentTenths: tenthsOfPercent(omitted.length, base.length), variance: correction.variance || [], revisionId: null } };
+  }
   if (policy.status === 'none') return unchanged(WORKLOAD_STATUS.NONE);
   if (policy.status === 'manual') return unchanged(WORKLOAD_STATUS.MANUAL);
   // A secure Test Cycle has its own server-authoritative delivery and grade

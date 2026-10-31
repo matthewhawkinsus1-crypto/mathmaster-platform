@@ -13,7 +13,7 @@ import {
 import { normalizeSupportRevisionInput } from '../../functions/shared/supportProfileModel.mjs';
 import { normalizeStudentProfile } from '../../src/studentSupport.js';
 import { buildSupportProjection } from '../../functions/shared/supportProfileModel.mjs';
-import { executableSource } from './helpers/sourceContract.mjs';
+import { executableSource, region } from './helpers/sourceContract.mjs';
 
 test('a first draft from a pre-versioning profile carries its supports forward, with no source yet', () => {
   const draft = draftFromCurrent({ profile: { inclusionStatus: true, accommodations: ['text-to-speech', 'extra-time'], modifications: ['reduce-complexity'] }, todayKey: '2026-09-30' });
@@ -88,7 +88,12 @@ test('the only client writer of grades.profile is the revision store', () => {
   assert.doesNotMatch(app, /\{\s*profile:\s*nextProfile\s*\}/, 'no flat profile patch is written from App.jsx');
   assert.doesNotMatch(app, /handleUpdateStudentProfile|toggleStudentSupport/);
   const store = readFileSync(new URL('../../src/platform/supportEvidence/supportEvidenceStore.js', import.meta.url), 'utf8');
-  assert.match(store, /batch\.update\(doc\(db, 'grades', studentId\), \{ profile: projection \}\);/);
+  // The revision and projection are still atomic. Update ordinary nested keys
+  // so a concurrently approved server correction is not replaced by this save.
+  const save = region(store, 'const projection = buildSupportProjection(', 'await batch.commit();');
+  assert.match(save, /batch\.update\(doc\(db, 'grades', studentId\), Object\.fromEntries\(/);
+  assert.match(save, /Object\.entries\(projection\)\.map\(\(\[key, value\]\) => \[`profile\.\$\{key\}`, value\]\)/);
+  assert.doesNotMatch(executableSource(save), /\{\s*profile:\s*projection\s*\}/);
   assert.match(store, /batch\.set\(revisionRef, \{ \.\.\.document, createdAt: serverTimestamp\(\) \}\);/);
   const roster = readFileSync(new URL('../../src/components/teacher/StudentsRoster.jsx', import.meta.url), 'utf8');
   assert.match(roster, /<SupportProfileEditor student=\{selected\} teacherEmail=\{teacherEmail\} onSaved=\{onSupportProfileSaved\} \/>/);

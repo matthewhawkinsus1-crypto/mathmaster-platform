@@ -20,6 +20,7 @@ import Dialog from '../../ui/Dialog.jsx';
 import SupportQuickActions from './SupportQuickActions.jsx';
 import ServiceLogDialog from './ServiceLogDialog.jsx';
 import SupportProfileEditor, { SupportClassificationTag } from './SupportProfileEditor.jsx';
+import RetroactiveAccommodationReview from './RetroactiveAccommodationReview.jsx';
 import './teacherWorkspace.css';
 import './supportEvidence.css';
 
@@ -132,6 +133,7 @@ export default function StudentSupportEvidencePanel({
           <button type="button" className="tw-btn tw-btn--sm" onClick={() => setEditorOpen(true)}>{hasProfile ? 'Edit support profile' : 'Add support profile'}</button>
         </div>
       </div>
+      <RetroactiveAccommodationReview key={studentId} student={student} assignments={studentAssignments} onChanged={() => { setReloadKey((key) => key + 1); onSupportProfileSaved?.(); }} />
 
       {warnings.filter((warning) => warning.code !== 'unversioned').map((warning) => (
         <div key={warning.code} className="tw-notice" data-tone="warning">{warning.message}</div>

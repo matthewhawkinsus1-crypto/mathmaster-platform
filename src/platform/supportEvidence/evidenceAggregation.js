@@ -245,7 +245,9 @@ export const workloadFactFor = ({ assignment, student, events = [], nowValue = D
   const tracker = student?.gradesByAssignment?.[assignment?.id] || null;
   let current = null;
   try {
-    current = resolveStudentWorkload({ assignment, profile: student?.profile || null, tracker, nowValue });
+    // Historical delivery evidence never borrows a later grade correction.
+    const { workloadCorrections: _corrections, ...deliveredProfile } = student?.profile || {};
+    current = resolveStudentWorkload({ assignment, profile: deliveredProfile, tracker, nowValue });
   } catch {
     current = null;
   }

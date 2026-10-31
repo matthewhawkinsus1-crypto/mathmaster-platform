@@ -648,6 +648,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
       if (!assignmentSnapshot.exists) continue;
       const assignment = assignmentSnapshot.data() || {};
       if (assignmentFeedbackIsHeld(assignment)) continue;
+      if (!await require("./lib/retroactiveAccommodation").correctionSyncAllowed({ db, studentId: event.params.studentId, gradeData: afterData, assignment: { ...assignment, id: assignmentId } })) continue;
       const questions = runtimeQuestionsFromAssignment(assignment);
       // A reduced-item-count accommodation omits items from this student's
       // work; every section column (and the Recovery original inside it) is
@@ -664,13 +665,21 @@ const syncSectionGradeToClassroom = onDocumentWritten(
           assignmentId, studentId: event.params.studentId, message: String(error?.message || error),
         }),
       });
+      let correctionTracker = afterByAssignment[assignmentId] || {};
+      let correctionPracticeWaived = [];
+      if (afterData.profile?.workloadCorrections?.[assignmentId]) {
+        const corrections = require("./lib/retroactiveAccommodation");
+        correctionTracker = await corrections.projectCorrectionTracker(correctionTracker, afterData.teacherGradeOverridesByAssignment?.[assignmentId] || {});
+        correctionPracticeWaived = await corrections.readPracticeWaiver({ db, studentId: event.params.studentId, gradeData: afterData, assignment: { ...assignment, id: assignmentId } });
+        correctionPracticeWaived.forEach((index) => studentOmitted.add(index));
+      }
       // A completed Recovery credits its section at the recorded score in the
       // same section grade (functions/lib/sectionRecoveryGrades.js). This path
       // grades without teacher overrides, so the original is read the same way.
       // eslint-disable-next-line no-await-in-loop
       const { tracker } = await sectionRecoveryGrades.projectRecoveredGradeInputs({
         assignment,
-        tracker: afterByAssignment[assignmentId] || {},
+        tracker: correctionTracker,
         questions,
         overrides: {},
         recoveryForAssignment: afterData.sectionRecoveryByAssignment?.[assignmentId] || null,
@@ -711,6 +720,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
       for (const publicationDoc of publications) {
         const publication = publicationDoc.data() || {};
         if (!sectionPublicationReleased(publication, Date.now())) continue;
+        if (publication.sectionKey === 'practice' && correctionPracticeWaived.length) continue;
 
         let gradeResult;
         try {
@@ -725,6 +735,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
         } catch (error) {
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
             assignmentId,
             courseId: publication.courseId || null,
             courseworkId: publication.courseworkId || null,
@@ -748,6 +759,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
         if (recoveryHold.held) {
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
             assignmentId,
             courseId: publication.courseId || null,
             courseworkId: publication.courseworkId || null,
@@ -842,7 +854,8 @@ const syncSectionGradeToClassroom = onDocumentWritten(
           studentVisible: releasePolicy.studentVisible,
         });
         if (
-          !forceRetry
+          (!forceRetry || (afterData.profile?.workloadCorrections?.[assignmentId]?.eventId
+            && prior.correctionEventId === afterData.profile.workloadCorrections[assignmentId].eventId))
           && sectionGradeSyncIsCurrent({
             prior,
             evidenceFingerprint,
@@ -864,6 +877,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
           } catch (error) {
             // eslint-disable-next-line no-await-in-loop
             await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
               assignmentId,
               courseId,
               courseworkId: publication.courseworkId,
@@ -895,6 +909,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
         if (!googleUserId) {
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
             assignmentId,
             courseId,
             courseworkId: publication.courseworkId,
@@ -919,6 +934,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
         if (teachersAtClassroomLimit.has(teacherUid)) {
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
             assignmentId,
             courseId,
             courseworkId: publication.courseworkId,
@@ -950,6 +966,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
           if (!submission) {
             // eslint-disable-next-line no-await-in-loop
             await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
               assignmentId,
               courseId,
               courseworkId: publication.courseworkId,
@@ -971,6 +988,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
           }
 
           // eslint-disable-next-line no-await-in-loop
+          if (!await require("./lib/retroactiveAccommodation").correctionSyncAllowed({ db, studentId: event.params.studentId, gradeData: afterData, assignment: { ...assignment, id: assignmentId } })) continue;
           const patched = await classroomLib.patchGrade(classroom, {
             courseId,
             courseWorkId: publication.courseworkId,
@@ -993,6 +1011,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
 
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
             ...clearedClassroomErrorFields(),
             assignmentId,
             courseId,
@@ -1051,6 +1070,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
           });
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
             assignmentId,
             courseId,
             courseworkId: publication.courseworkId,

@@ -210,6 +210,11 @@ service cloud.firestore {
         == resource.data.get('teacherGradeOverridesByAssignment', {});
     }
 
+    function workloadCorrectionsUnchanged() {
+      return request.resource.data.get('profile', {}).get('workloadCorrections', {})
+        == resource.data.get('profile', {}).get('workloadCorrections', {});
+    }
+
     function teacherGradeOverridesAbsentOnCreate() {
       return request.resource.data.get('teacherGradeOverridesByAssignment', {}) == {};
     }
@@ -721,6 +726,7 @@ service cloud.firestore {
         && studentIdentityUnchanged()
         && testCycleGradesUnchanged()
         && teacherGradeOverridesUnchanged()
+        && workloadCorrectionsUnchanged()
         && serverRecoveryFieldsUnchanged();
       // Creation stays open to any teacher: a roster row may be written before
       // the student has been placed in a class, and it carries no work yet.
@@ -733,6 +739,7 @@ service cloud.firestore {
         && studentIdentityAbsentOnClientCreate()
         && testCycleGradesAbsentOnCreate()
         && teacherGradeOverridesAbsentOnCreate()
+        && request.resource.data.get('profile', {}).get('workloadCorrections', {}) == {}
         && serverRecoveryFieldsAbsentOnCreate();
       allow delete: if false;
 
@@ -745,6 +752,12 @@ service cloud.firestore {
         allow read: if rootAdmin() || teachesPresenceStudent(studentId) || authorizedTeacher();
         allow create: if staffForStudent(studentId) && supportRevisionValid(studentId);
         allow update, delete: if false;
+      }
+
+      // Corrections are audited Admin SDK actions, never client support evidence.
+      match /accommodationAdjustments/{eventId} {
+        allow read: if staffForStudent(studentId);
+        allow write: if false;
       }
 
       // Support evidence events: staff documentation and the student's own

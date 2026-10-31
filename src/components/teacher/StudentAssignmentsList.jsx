@@ -1,4 +1,6 @@
 import { formatDateTime, getAssignmentLifecycle } from '../../assignmentLifecycle.js';
+import WorkloadReceipt from '../student/WorkloadReceipt.jsx';
+import { workloadReceiptForStudent } from '../../platform/student/workloadReceipt.js';
 import { groupAssignmentsByGradingPeriod } from '../../platform/student/gradingPeriods.js';
 import { PROGRESS_STATE, studentAssignmentProgress } from '../../platform/teacher/assignmentProgress.js';
 import { groupAssignmentList } from '../../platform/teacher/assignmentListGroups.js';
@@ -58,14 +60,15 @@ export default function StudentAssignmentsList({
               const lifecycle = getAssignmentLifecycle(assignment, nowValue);
               return (
                 <li key={assignment.id} className="tw-row" style={{ justifyContent: 'space-between', padding: '8px 10px', border: '1px solid var(--mm-border)', borderRadius: 9 }}>
-                  <span style={{ minWidth: 0 }}>
+                  <div style={{ minWidth: 0 }}>
                     {onOpenAssignment
                       ? <button type="button" className="tw-link" onClick={() => onOpenAssignment(assignment.id, classId)}>{assignment.title}</button>
                       : <strong>{assignment.title}</strong>}
                     <span className="tw-small tw-muted" style={{ display: 'block' }}>
                       {lifecycle.isScheduled ? 'Opens' : lifecycle.isClosed ? 'Closed · was due' : 'Due'} {formatDateTime(assignment.dueAt || assignment.dueDate)}
                     </span>
-                  </span>
+                    {gradesKnown && <WorkloadReceipt receipt={workloadReceiptForStudent({ student, assignment, hasPracticePass: Boolean(excusedAssignmentIds?.has(assignment.id)), nowValue })} assignment={assignment} family />}
+                  </div>
                   <span className="tw-row" style={{ gap: 6 }}>
                     <span className="tw-pill" data-tone={status.tone}>{status.label}</span>
                     {progress?.practicePassExcused && <span className="tw-pill" data-tone="neutral" title="The student used a Practice Pass. Practice is excused: not scored, not required.">Practice excused · Pass</span>}

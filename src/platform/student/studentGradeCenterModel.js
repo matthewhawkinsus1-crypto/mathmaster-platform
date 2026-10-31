@@ -1,3 +1,4 @@
+import { workloadReceiptForStudent } from './workloadReceipt.js';
 import {
   assignmentIsForStudent,
   getAssignmentLifecycle,
@@ -458,6 +459,11 @@ const sectionWeightShares = ({ assignment, tracker, practicePassRedeemed, suppor
   const possible = Number(weights?.possibleWeight) || 0;
   if (!(possible > 0)) return null;
   const entries = projectCurrentAssignmentContent(assignment).entries;
+  // Validate the real full content once. A section-only copy changes its
+  // content key; its weights must use the already approved required set.
+  const corrected = supportProfile?.workloadCorrections?.[assignment.id]?.active === true
+    ? new Set(workloadReceiptForStudent({ student: { profile: supportProfile, gradesByAssignment: { [assignment.id]: tracker } }, assignment, hasPracticePass: practicePassRedeemed }).requiredIndices)
+    : null;
   const shares = {};
   let possibleSum = 0;
   let earnedSum = 0;
@@ -465,7 +471,7 @@ const sectionWeightShares = ({ assignment, tracker, practicePassRedeemed, suppor
     const keep = new Set(entries.filter((entry) => entry.logicalRole === key).map((entry) => entry.storageIndex));
     if (!keep.size) return;
     const part = gradeWeightTotals({
-      tracker, assignment: sectionOnlyAssignment(assignment, keep), practicePassRedeemed, supportProfile,
+      tracker, assignment: sectionOnlyAssignment(assignment, corrected ? new Set([...keep].filter((i) => corrected.has(i))) : keep), practicePassRedeemed, supportProfile: corrected ? null : supportProfile,
     });
     possibleSum += part.possibleWeight;
     earnedSum += part.earnedWeight;
@@ -722,6 +728,7 @@ export const buildStudentGradeCenter = ({
     return {
       assignment,
       assignmentId: assignment.id,
+      workloadReceipt: workloadReceiptForStudent({ student: { profile: supportProfile, gradesByAssignment: tracker }, assignment, hasPracticePass: practicePassRedeemed, nowValue }),
       title: assignment.title || 'MathMaster assignment',
       // This student's dates, read off the same lifecycle that decided the
       // status: an individualized due date or an attendance extension moves

@@ -32,12 +32,14 @@ export const normalizeStudentProfile = (profile = {}, { nowValue = Date.now() } 
       modifications: unique(flat.modifications),
       translationLanguage: flat.translationLanguage,
       supportPlan: safeProfile.supportPlan,
+      ...(safeProfile.workloadCorrections ? { workloadCorrections: safeProfile.workloadCorrections } : {}),
       supportRevisionId: flat.supportRevisionId,
     };
   }
 
   return {
     inclusionStatus: flat.inclusionStatus,
+    ...(safeProfile.workloadCorrections ? { workloadCorrections: safeProfile.workloadCorrections } : {}),
     accommodations: unique(flat.accommodations),
     modifications: unique(flat.modifications),
     translationLanguage: flat.translationLanguage,
@@ -78,6 +80,7 @@ export const assessmentSupportProfile = (profile = {}) => {
  */
 export const sameStudentProfile = (a, b) => {
   const key = (profile) => JSON.stringify([
+    profile?.workloadCorrections || null,
     profile?.supportPlan || null,
     profile?.supportRevisionId || null,
     Boolean(profile?.inclusionStatus),

@@ -20,6 +20,8 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import {
   GRADE_FIELDS_EMPTY_ON_STUDENT_CREATE,
+  MIXED_AUTHORITY_GRADE_FIELDS,
+  SERVER_ONLY_PROFILE_FIELDS,
   SERVER_ONLY_GRADE_FIELDS,
   SERVER_OWNED_GRADE_FIELDS,
   STUDENT_CLIENT_OWNED_GRADE_FIELDS,
@@ -115,7 +117,7 @@ test('the authority lists do not overlap and name every grade field the server w
     'functions/index.js', 'functions/classroomSectionEntry.js', 'functions/classroomSectionForceEntry.js',
     ...readdirSync(new URL('../../functions/lib/', import.meta.url)).filter((name) => name.endsWith('.js')).map((name) => `functions/lib/${name}`),
   ];
-  const classified = new Set([...SERVER_OWNED_GRADE_FIELDS, ...SERVER_ONLY_GRADE_FIELDS, ...STUDENT_CLIENT_OWNED_GRADE_FIELDS]);
+  const classified = new Set([...SERVER_OWNED_GRADE_FIELDS, ...SERVER_ONLY_GRADE_FIELDS, ...STUDENT_CLIENT_OWNED_GRADE_FIELDS, ...MIXED_AUTHORITY_GRADE_FIELDS]);
   const unclassified = new Set();
   for (const path of functionsSources) {
     for (const match of executableSource(read(path)).matchAll(/new FieldPath\(\s*"([A-Za-z]+)"/g)) {
@@ -125,6 +127,14 @@ test('the authority lists do not overlap and name every grade field the server w
     }
   }
   assert.deepEqual([...unclassified], [], 'classify every grade-document field in functions/shared/gradeDocumentAuthority.mjs');
+});
+
+test('mixed-authority profile fields remain pinned against every browser write', () => {
+  assert.deepEqual(MIXED_AUTHORITY_GRADE_FIELDS, ['profile']);
+  const helper = rulesFunctionBody('workloadCorrectionsUnchanged');
+  for (const field of SERVER_ONLY_PROFILE_FIELDS) assert.match(helper, new RegExp(`get\\('${field}', \\{\\}\\)`));
+  assert.match(executableSource(allowStatement('update')), /&&\s*workloadCorrectionsUnchanged\(\)/);
+  assert.match(executableSource(allowStatement('create')), /get\('workloadCorrections', \{\}\)\s*==\s*\{\}/);
 });
 
 /* ==========================================================================
