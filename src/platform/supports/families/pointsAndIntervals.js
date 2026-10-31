@@ -1688,7 +1688,7 @@ const signChartSibling = (model, rng) => {
       `Critical points: ${criticalPoints.map((point) => `x = ${fmt(point.value)}${point.isExcluded ? ' (denominator 0)' : ''}`).join(', ')}. They split the number line into ${countWord(intervals.length)} intervals.`,
       ...tests,
       model.inclusive
-        ? `${R} also accepts 0, so ${zeros.length ? `x = ${zeros.join(' and x = ')} ${zeros.length === 1 ? 'is' : 'are'} included` : 'no zero is added'}${poles.length ? `; x = ${poles.join(' and x = ')} never ${poles.length === 1 ? 'is' : 'are'}, because the denominator is 0 there` : ''}.`
+        ? `${R} also accepts 0, so ${zeros.length ? `x = ${zeros.join(' and x = ')} ${zeros.length === 1 ? 'is' : 'are'} included` : 'no zero is added'}${poles.length ? `; x = ${poles.join(' and x = ')} ${poles.length === 1 ? 'is' : 'are'} never included, because the denominator is 0 there` : ''}.`
         : `${R} is strict, so the critical points themselves are left out.`,
       `Solution set: ${answer}.`,
     ],
@@ -2209,7 +2209,7 @@ const workedSignChart = (model) => {
       `Critical points: ${model.criticalPoints.map((point, index) => `x = ${ends[index]}${point.isExcluded ? ' (denominator 0)' : ''}`).join(', ')}. They split the number line into ${countWord(model.intervals.length)} intervals.`,
       ...tests,
       model.inclusive
-        ? `${R} also accepts 0, so ${zeros.length ? `x = ${zeros.join(' and x = ')} ${zeros.length === 1 ? 'is' : 'are'} included` : 'no zero is added'}${poles.length ? `; x = ${poles.join(' and x = ')} never ${poles.length === 1 ? 'is' : 'are'}, because the denominator is 0 there` : ''}.`
+        ? `${R} also accepts 0, so ${zeros.length ? `x = ${zeros.join(' and x = ')} ${zeros.length === 1 ? 'is' : 'are'} included` : 'no zero is added'}${poles.length ? `; x = ${poles.join(' and x = ')} ${poles.length === 1 ? 'is' : 'are'} never included, because the denominator is 0 there` : ''}.`
         : `${R} is strict, so the critical points themselves are left out.`,
       `So ${answer}.`,
     ],

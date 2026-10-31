@@ -4,7 +4,7 @@ import { MAX_AWARD_AMOUNT } from './classPoints.mjs';
 import { BADGE_CATALOG } from './rewardGrants.mjs';
 import { normalizeTestCycleRecord, SESSION_STATE } from './testCycleRecord.mjs';
 import { normalizeTestCyclePolicy } from './testCyclePolicy.mjs';
-import { evaluateWeeklyGoalProgress, weekKeyFor } from './weeklyPathGrade.mjs';
+import { evaluateWeeklyGoalProgress, shiftWeekKey, weekKeyFor } from './weeklyPathGrade.mjs';
 import { MASTERY_RULE } from './masteryRule.mjs';
 import { masteryHistoryWeekKeys, masteryStatusFromCode } from './masteryHistory.mjs';
 import { skillMasteredEvents, skillMasteredEventsFromHistory } from './pathGrowthEvents.mjs';
@@ -102,6 +102,11 @@ export const RETEST_IDENTITY_RULE_ID = 'retestGrowth';
 // tenth. retestPassed is the ledger's single-award ceiling (MAX_AWARD_AMOUNT,
 // 20), stated as what it pays rather than a larger number the cap would cut:
 // raising the ceiling would also raise a teacher's single manual award.
+//
+// DECIDED 2026-10-25 (LC22, finding A1-31, the owner's "Do it"): these amounts
+// stand as built, a passed retest paying the ledger's 20. A different amount is
+// a decision, not a tidy-up: tests/platform/liveChallengeRewardDecisions.test.mjs
+// writes the numbers out so changing one is seen.
 export const GROWTH_REWARD_AMOUNTS = Object.freeze({
   retestImproved: 15,
   retestPassed: 20,
@@ -483,7 +488,7 @@ export const evaluateWeeklyPathGrowth = ({
   // the window), no week is ever paid into a second block.
   const claimed = new Set();
   paid.forEach((end) => {
-    for (let back = 0; back < PATH_STREAK_WEEKS; back += 1) claimed.add(weekKeyFor(weekStartMs(end) - back * WEEK));
+    for (let back = 0; back < PATH_STREAK_WEEKS; back += 1) claimed.add(shiftWeekKey(end, -back));
   });
   const streakAwards = (lastWeek) => eventAwards({
     studentId,
@@ -499,7 +504,7 @@ export const evaluateWeeklyPathGrowth = ({
   const closeRun = () => {
     if (!run.length) return;
     const first = run[0];
-    const previous = weekKeyFor(weekStartMs(first) - WEEK);
+    const previous = shiftWeekKey(first, -1);
     const firstIsWindowEdge = windowStartWeekKey && first <= windowStartWeekKey;
     const previousCouldQualify = previous >= startWeekKey;
     // A run whose start is out of sight counts only after a block already

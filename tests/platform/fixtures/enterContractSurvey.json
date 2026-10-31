@@ -43,7 +43,7 @@
       "declared": [
         {
           "kind": "submit",
-          "text": "Submit my regression"
+          "text": "Check my regression"
         }
       ],
       "enters": [
@@ -490,7 +490,7 @@
       "declared": [
         {
           "kind": "submit",
-          "text": "Submit this model"
+          "text": "Check this model"
         }
       ],
       "enters": [
@@ -501,7 +501,7 @@
           "focus": {
             "kind": "button",
             "declared": "submit",
-            "text": "Submit this model"
+            "text": "Check this model"
           }
         },
         {
@@ -511,7 +511,7 @@
           "focus": {
             "kind": "button",
             "declared": "submit",
-            "text": "Submit this model"
+            "text": "Check this model"
           }
         },
         {
@@ -521,7 +521,7 @@
           "focus": {
             "kind": "button",
             "declared": "submit",
-            "text": "Submit this model"
+            "text": "Check this model"
           }
         }
       ]
@@ -575,7 +575,7 @@
       "declared": [
         {
           "kind": "submit",
-          "text": "Submit meaning map"
+          "text": "Check meaning map"
         }
       ],
       "enters": []
@@ -608,7 +608,7 @@
         },
         {
           "kind": "submit",
-          "text": "Submit the bridge"
+          "text": "Check the bridge"
         }
       ],
       "enters": [

@@ -69,7 +69,7 @@ export const USAGE = `Recovery V2 prepared migration
   --yes                   skip the typed project-id confirmation (CI against an emulator only)
 `;
 
-export const parseRecoveryV2Args = (argv = []) => {
+export const parseRecoveryV2Args = (argv = [], env = process.env) => {
   const options = { migration: ALGEBRA1_TRANSFORMATIONS_RECOVERY_V2.id, expect: {}, execute: false, yes: false };
   for (let index = 0; index < argv.length; index += 1) {
     const [flag, inline] = String(argv[index]).split(/=(.*)/s);
@@ -100,6 +100,12 @@ export const parseRecoveryV2Args = (argv = []) => {
     if (!options.project) throw new Error('--execute needs --project: there is nothing to write offline.');
     if (!clean(options.actor) || !clean(options.approvedBy)) throw new Error('--execute needs --actor and --approved-by.');
     if (!Object.keys(options.expect).length) throw new Error('--execute needs at least one --expect <assignmentId>=<planHash> from an approved dry run.');
+  }
+  // --yes skips the typed project id, which is the last check before a live
+  // write: it is for CI against the Firestore emulator only (SI10, Codex on
+  // #510). Against a real project, type the id.
+  if (options.yes && !env?.FIRESTORE_EMULATOR_HOST) {
+    throw new Error('refusing --yes: it skips the typed project id, which is allowed only against the Firestore emulator (FIRESTORE_EMULATOR_HOST). Against a real project, type the id.');
   }
   return options;
 };

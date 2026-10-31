@@ -29,7 +29,7 @@ import {
   serverResponseGradingSupport,
 } from './serverGrading/serverResponseGrading.mjs';
 import { attemptInputsFromGrading } from './serverGrading/gradingResult.mjs';
-import { resolveServerGradingQuestion } from './questionFamilyGrading.mjs';
+import { familySupportsGranted, resolveServerGradingQuestion } from './questionFamilyGrading.mjs';
 import { normalizeDeliveryPin } from './questionGenerationIdentity.mjs';
 import { getEffectiveActivityPolicy } from './activityPolicies.mjs';
 import { normalizeQuestionRecord, recordQuestionAttempt, resolveQuestionMaximumAttempts, resolveTeacherGrantedExtraAttempts } from './attemptPolicy.mjs';
@@ -89,6 +89,7 @@ export const verifyCheckpointAuthorization = ({
   gradeDocumentId,
   question,
   isSecureAssignment = false,
+  now = Date.now(),
 } = {}) => {
   if (!checkpoint || typeof checkpoint !== 'object') return { ok: false, reason: 'missing-checkpoint' };
   if (Number(checkpoint.schemaVersion) !== RESPONSE_CHECKPOINT_SCHEMA_VERSION) {
@@ -171,6 +172,9 @@ export const verifyCheckpointAuthorization = ({
     claimedDelivery: checkpoint.familyDelivery || null,
     studentId,
     classId: authoritativeClassId,
+    // A pin's support must be one this student's profile grants (SI03): when
+    // the server last heard of this draft, or now.
+    grantedSupports: familySupportsGranted(gradeDocument, { at: [asMillis(checkpoint.serverAcknowledgedAt), now] }),
   });
   if (!resolved.question) {
     return { ok: false, reason: `unsupported-question:${resolved.reason || 'family-delivery-missing'}`, unsupported: true };
@@ -229,7 +233,7 @@ export const decideCheckpointFinalization = ({
   }
 
   const authorization = verifyCheckpointAuthorization({
-    checkpoint, assignment, gradeDocument, gradeDocumentId, question, isSecureAssignment,
+    checkpoint, assignment, gradeDocument, gradeDocumentId, question, isSecureAssignment, now,
   });
   if (!authorization.ok) {
     return {

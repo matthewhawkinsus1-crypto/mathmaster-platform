@@ -450,6 +450,13 @@
   .mm-dashboard-content {
     padding: 18px 14px !important;
   }
+
+  /* The Math Tools Lab's tool list sticks beside the tool on a wide screen. Stacked above the
+     tool, as it is here, it stuck over the tool as the page scrolled and covered the control
+     Tab had just reached (TT27). */
+  .mm-dashboard-content .mm-tools-lab-list {
+    position: static !important;
+  }
 }
 
 @media (max-width: 560px) {
@@ -488,6 +495,35 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+}
+
+/* A LINE THAT CHANGES ITS WORDS MUST NOT MOVE WHAT IS UNDER IT.
+   Graphing 2's "what to do next" line sits above the plane, and its first
+   wording is two lines long (three on a phone) where the next is one: the
+   plane jumped up 18px between a student's first click and their second. The
+   wordings the line can change to ride in data-steady-a and data-steady-b and
+   are laid in the same grid cell, hidden, so the cell is as tall and as wide
+   as the longest at whatever width the row has. Generated content is not in
+   the page's text, and hidden it is not in the accessibility tree either. */
+.mathmaster-steady-text {
+  display: grid;
+}
+
+.mathmaster-steady-text > *,
+.mathmaster-steady-text::before,
+.mathmaster-steady-text::after {
+  grid-area: 1 / 1;
+  align-self: center;
+}
+
+.mathmaster-steady-text::before {
+  content: attr(data-steady-a);
+  visibility: hidden;
+}
+
+.mathmaster-steady-text::after {
+  content: attr(data-steady-b);
+  visibility: hidden;
 }
 
 /* The interactive plane is a click target, so it needs a visible focus ring of
@@ -1349,9 +1385,10 @@
 }
 
 /* Full strength: at 0.9 opacity a tab's count ("0/2") fell below 4.5:1 on its
-   own tab (Practice: 4.33:1; pass 3, A11Y-7). */
+   own tab (Practice: 4.33:1; pass 3, A11Y-7). 12px, as the Complete badge:
+   10px on a laptop was too small to read (AX38). */
 .mathmaster-section-tab small {
-  font-size: calc(10 * var(--mm-px));
+  font-size: calc(12 * var(--mm-px));
   font-weight: 900;
   white-space: nowrap;
   opacity: 1;
@@ -1584,7 +1621,7 @@
   }
 
   .mathmaster-assignment-screen .mathmaster-section-tab small {
-    font-size: calc(8 * var(--mm-px));
+    font-size: calc(12 * var(--mm-px));
   }
 
   .mathmaster-assignment-screen .mathmaster-overview-button {
@@ -2453,6 +2490,43 @@
   opacity: 0.85;
 }
 
+/* THE ROWS BETWEEN THE TASK AND THE WORK ARE FEWER (PH03).
+   At 1366x768 the tool started 432-481px down a 768px screen: the task, then
+   "Learning goal" on a row, "Support tools" on the next, a full-width tries
+   pill, "Grade weight" under it. Each of those is a short phrase or a chip, so
+   the two chip rows share one row and the tries and the weight share another
+   (about 90px of the screen back). The phone's panel does the same
+   (MathToolMobileLayout.css). Anything else the context panel holds keeps its
+   own full row. */
+.mathmaster-desktop-task-extras {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+}
+
+.mathmaster-desktop-task-extras > * {
+  min-width: 0;
+}
+
+.mathmaster-desktop-question-content .mathmaster-question-context-panel:has(> *) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 10px;
+}
+
+.mathmaster-desktop-question-content .mathmaster-question-context-panel > * {
+  flex: 1 1 100%;
+}
+
+.mathmaster-desktop-question-content .mathmaster-question-context-panel > .mathmaster-question-attempt-strip,
+.mathmaster-desktop-question-content .mathmaster-question-context-panel > [data-grade-weight] {
+  flex: 0 1 auto;
+  margin: 0 0 12px !important;
+}
+
 /* Live Challenge — the last ten seconds of a round.
    Guarded so a viewer who has asked for less motion gets a still clock rather
    than a pulsing one; the colour shift already carries the urgency. */
@@ -2521,14 +2595,18 @@
 
 /* ONE FOLD FOR THE TOOL'S HELP (PQ-023). When the tool's TaskCard opens with
    the one-line description, the header's own "About this tool" would be a
-   second fold saying the same thing, so it goes. Work View hides the task
-   card (WorkViewShell.css), so there the header keeps it. */
+   second fold saying the same thing, so it goes. */
 .mathmaster-tool-shell-about[data-merged="true"] {
   display: none !important;
 }
 
-html[data-work-view-open="true"] .mathmaster-tool-shell-about[data-merged="true"] {
-  display: contents !important;
+/* AND ONE IN WORK VIEW (TL13). Work View hides the task card, and its Help
+   drawer carries what the card held, the description first: in "How to do
+   this", or in "About this tool" for a tool with no task card (TOOL-3). A
+   phone's Work View hides the whole tool header; a desktop's kept the
+   header's fold, a second copy of the same sentence. Help holds it on both. */
+.mathmaster-work-view-host[data-open="true"] .mathmaster-tool-shell-about {
+  display: none !important;
 }
 
 /* TOOL DIRECTIONS ARE ORDINARY CONTENT, NOT A SECOND STICKY TASK.

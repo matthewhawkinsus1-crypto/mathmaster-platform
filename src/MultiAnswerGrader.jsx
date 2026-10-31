@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useId, useMemo } from 'react';
 import MathInput from './MathInput';
 import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
@@ -7,21 +7,22 @@ import './MultiAnswerGrader.css';
 import GraphDisplay from './GraphDisplay';
 import PathQuestionStimulus from './components/student/PathQuestionStimulus.jsx';
 import LinearRegressionPanel from './components/assessment/LinearRegressionPanel.jsx';
-import { answerCandidatesForField, looksLikeFiniteSetNotation } from './answerUtils';
+import { answerCandidatesForField, looksLikeFiniteSetNotation, withoutStaleSetStamp } from './answerUtils';
 import { gradeMultiAnswerResponse } from '../functions/shared/ordinaryResponseGrading.mjs';
 // Registers the factoredForm / simplestRadicalForm comparators the shared
 // field grader reads (kept out of the first load: answerUtils.mjs).
 import '../functions/shared/formSpecificFieldGrading.mjs';
 import { labelHasDelimitedMath, resolveLabelFormat } from './labelFormat';
 import { inferRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
-import { describeAnswerFormat } from './platform/interaction/answerFormatHints.js';
+import { describeAnswerFormat, describeBoxPlaceholder } from './platform/interaction/answerFormatHints.js';
 import { keypadProfileForResponseField } from './platform/interaction/interactionContract.js';
 import { formatProblemForResponse } from './platform/interaction/answerShapeGuard.js';
 import useUndoHistory from './useUndoHistory';
-import { choiceAccessibleLabel, choiceOptionsForField, choiceSeed, stableShuffleChoices } from './platform/interaction/choiceOptions.js';
+import { choiceAccessibleLabel, choiceFieldAsksDimensions, choiceOptionsForField, choiceSeed, stableShuffleChoices } from './platform/interaction/choiceOptions.js';
 import { normalizePlainMathTypography, toPlainMath } from './components/common/mathSegments.js';
 import { MathText } from './components/common/MathText.jsx';
 import { ChoiceMark, useChoiceGroup } from './platform/interaction/choiceGroup.js';
+import GradedEntryMark, { gradedEntryInputProps } from './components/common/GradedEntryMark.jsx';
 
 const TEXTUAL_MATH_SIGNAL = /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩]/;
 
@@ -37,23 +38,23 @@ const accessibleFieldLabel = (field) => {
   return labelHasDelimitedMath(text) ? toPlainMath(text) : text;
 };
 
-const renderChoiceText = (value) => {
+const renderChoiceText = (value, { dimensions = false } = {}) => {
   const text = String(value ?? '');
   const format = resolveLabelFormat(text);
   return format
     // Named by its own text: every choice was announced "Mathematical
     // expression", so a screen reader could not tell 11 from 5.
-    ? <MathDisplay value={normalizeMathDisplayValue(text)} format={format} inline ariaLabel={choiceAccessibleLabel(text)} />
+    ? <MathDisplay value={normalizeMathDisplayValue(text)} format={format} inline ariaLabel={choiceAccessibleLabel(text, { dimensions })} />
     : normalizePlainMathTypography(text);
 };
 
 // A choice field: one radio group (choiceGroup.js) — one tab stop, arrows
 // move and select, and the chosen option carries a ✓ as well as its colour.
-function ChoiceFieldOptions({ label, options, value, grade, onSelect }) {
+function ChoiceFieldOptions({ label, options, value, grade, markId, onSelect, dimensions = false }) {
   const raws = options.map((option) => String(option));
   const optionProps = useChoiceGroup({ ids: raws, value, onSelect });
   return (
-    <div role="radiogroup" aria-label={label} style={{ display: 'grid', gap: '8px' }}>
+    <div role="radiogroup" aria-label={label} {...gradedEntryInputProps(grade, markId)} style={{ display: 'grid', gap: '8px' }}>
       {raws.map((raw, index) => {
         const selected = value === raw;
         return (
@@ -61,7 +62,7 @@ function ChoiceFieldOptions({ label, options, value, grade, onSelect }) {
             type="button"
             key={raw}
             {...optionProps(index)}
-            aria-label={choiceAccessibleLabel(raw)}
+            aria-label={choiceAccessibleLabel(raw, { dimensions })}
             onClick={() => onSelect(raw)}
             style={{
               display: 'flex',
@@ -78,7 +79,7 @@ function ChoiceFieldOptions({ label, options, value, grade, onSelect }) {
             }}
           >
             <ChoiceMark selected={selected} />
-            {renderChoiceText(raw)}
+            {renderChoiceText(raw, { dimensions })}
           </button>
         );
       })}
@@ -123,7 +124,11 @@ const NO_FIELDS = Object.freeze([]);
 
 export default function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
   const { prompt, answerFields = NO_FIELDS } = question;
-  const safeFields = useMemo(() => (Array.isArray(answerFields) ? answerFields.filter((field) => field?.id) : []), [answerFields]);
+  // Read as the box its key says it is: an older import stamped some number
+  // boxes as set boxes (RT02), and the grader reads them the same way.
+  const safeFields = useMemo(() => (
+    Array.isArray(answerFields) ? answerFields.filter((field) => field?.id).map(withoutStaleSetStamp) : []
+  ), [answerFields]);
   const candidateGraphs = useMemo(
     () => stableShuffleChoices(
       Array.isArray(question.candidateGraphs) ? question.candidateGraphs : [],
@@ -133,9 +138,15 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
   );
   const history = useUndoHistory({}, 60, draftKey ? `${draftKey}:multi-answer` : null);
   const answers = history.value;
+  // Each graded field says so in words under it, and its control is described
+  // by that sentence and aria-invalid when wrong (GradedEntryMark.jsx): the
+  // border colour was the only sign (VH-13, WCAG 1.4.1 and 3.3.1).
+  const markBase = useId();
   // Correctness comes from the shared grading contract so every caller of it —
-  // this screen, the deadline finalizer, the tests — marks alike.
-  const graded = gradeMultiAnswerResponse({ answerFields: safeFields }, answers);
+  // this screen, the deadline finalizer, the tests — marks alike. It gets the
+  // whole question, as the server does: whether a line field takes any form
+  // of its line is read from the question's words (GR03, lineFormPolicy.mjs).
+  const graded = gradeMultiAnswerResponse({ ...question, answerFields: safeFields }, answers);
   const { parts, isCorrect } = graded;
   // A response that breaks its field's stated shape is not ready to submit:
   // the student is told why beside the field instead of losing a try to it.
@@ -181,6 +192,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
       {question.permittedTools?.includes('linearRegression') && <LinearRegressionPanel />}
       {candidateGraphs.length > 0 && (
         <div
+          role="group"
           aria-label="Candidate graphs"
           style={{
             display: 'grid',
@@ -216,6 +228,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
       <div className="mathmaster-multipart-fields" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '20px', marginTop: '24px' }}>
         {safeFields.map((field) => {
           const grade = feedback?.partGrades?.find((part) => part.id === field.id);
+          const markId = `${markBase}-${field.id}-mark`;
           const choiceOptions = choiceOptionsForField(field, choiceSeed(question.questionId || question.prompt, field.id));
           const inferredRequiredSymbols = inferRequiredAnswerSymbols(acceptedAnswersForField(field));
           const requiredSymbols = [
@@ -227,6 +240,11 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
           // so is the whole fix: an x-intercept box and a zero box look
           // identical and reject each other's answers.
           const answerShape = describeAnswerFormat(field);
+          // The box keeps the example alone and the words sit above it, where
+          // they wrap ("for exampl…" was all a 127px box could show).
+          const box = describeBoxPlaceholder(field, {
+            inferredExample: shouldUseSetInput(field) ? '{1, 2, 3}' : shouldUseInequalityInput(field) ? '0 ≤ x ≤ 4' : '',
+          });
           return (
             <div key={field.id} style={{ padding: '16px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : 'var(--mm-border)'}`, borderRadius: '10px', background: grade && !grade.isCorrect ? 'var(--mm-error-subtle)' : 'var(--mm-surface)' }}>
               <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: 'var(--mm-text)' }}>
@@ -242,9 +260,10 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                   return format ? <MathDisplay value={normalizeMathDisplayValue(text)} format={format} inline /> : normalizePlainMathTypography(text);
                 })()}
               </label>
-              {answerShape.hint && !choiceOptions && (
+              {(answerShape.hint || box.example) && !choiceOptions && (
                 <p style={{ margin: '-4px 0 10px', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.4, color: 'var(--mm-text-muted)', fontWeight: 600 }}>
                   {answerShape.hint}
+                  {box.example ? <>{answerShape.hint ? ' ' : ''}For example <strong style={{ color: 'var(--mm-text)' }}>{box.example}</strong>.</> : null}
                 </p>
               )}
               {formatProblems[field.id] ? (
@@ -255,9 +274,11 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
               {choiceOptions ? (
                 <ChoiceFieldOptions
                   label={accessibleFieldLabel(field)}
+                  dimensions={choiceFieldAsksDimensions(field.label, question.prompt)}
                   options={choiceOptions}
                   value={String(answers[field.id] || '')}
                   grade={grade}
+                  markId={markId}
                   onSelect={(raw) => history.setValue((current) => ({ ...current, [field.id]: raw }))}
                 />
               ) : shouldUsePlainTextInput(field) ? (
@@ -265,8 +286,9 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                   type="text"
                   value={answers[field.id] || ''}
                   onChange={(event) => history.setValue((current) => ({ ...current, [field.id]: event.target.value }))}
-                  placeholder={answerShape.placeholder}
+                  placeholder={box.placeholder}
                   aria-label={accessibleFieldLabel(field)}
+                  {...gradedEntryInputProps(grade, markId)}
                   autoComplete="off"
                   spellCheck={false}
                   style={{
@@ -286,21 +308,18 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                 <MathInput
                   value={answers[field.id] || ''}
                   onChange={(value) => history.setValue((current) => ({ ...current, [field.id]: value }))}
-                  placeholder={answerShape.example || field.placeholder
-                    ? answerShape.placeholder
-                    : shouldUseSetInput(field)
-                      ? 'for example {1, 2, 3}'
-                      : shouldUseInequalityInput(field)
-                        ? 'for example 0 ≤ x ≤ 4'
-                        : 'Type your answer'}
+                  placeholder={box.placeholder}
                   ariaLabel={accessibleFieldLabel(field)}
                   toolProfile={field.toolProfile || (shouldUseSetInput(field) ? 'set' : shouldUseInequalityInput(field) ? 'inequality' : keypadProfileForResponseField(field) || 'basic')}
                   answerFormat={field.answerFormat || field.inputContract?.format || field.notation || field.inputMode || (shouldUseInequalityInput(field) ? 'inequality' : '')}
                   requiredSymbols={requiredSymbols}
                   showToolsInitially={shouldUseSetInput(field) || shouldUseInequalityInput(field) || inferredRequiredSymbols.length > 0}
                   inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'}
+                  ariaInvalid={grade ? !grade.isCorrect : false}
+                  ariaDescribedBy={grade ? markId : ''}
                 />
               )}
+              <GradedEntryMark grade={grade} id={markId} />
             </div>
           );
         })}

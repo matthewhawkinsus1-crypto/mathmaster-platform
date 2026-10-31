@@ -57,11 +57,10 @@ test('resolveGradeRowActions: each rule, one at a time', () => {
   const none = { attempted: 0, total: 3 };
   const some = { attempted: 1, total: 3 };
 
-  assert.deepEqual(resolveGradeRowActions({ status: GRADE_STATUS.REOPENED, overall: some, lifecycle: late }).start, { label: 'Continue' });
-  assert.deepEqual(resolveGradeRowActions({ status: GRADE_STATUS.REOPENED, overall: none, lifecycle: open }).start, { label: 'Start' });
-  // Reopened with no evidence still has somewhere to look (the spec's rule
-  // hides View Results only on not-started/missing work).
-  assert.equal(resolveGradeRowActions({ status: GRADE_STATUS.REOPENED, overall: none, lifecycle: open }).viewResults, true);
+  // Started work in its late window continues; open work not begun starts.
+  // (A teacher's "reopened" flag is not a status of its own: NV08.)
+  assert.deepEqual(resolveGradeRowActions({ status: GRADE_STATUS.LATE, overall: some, lifecycle: late }).start, { label: 'Continue' });
+  assert.deepEqual(resolveGradeRowActions({ status: GRADE_STATUS.NOT_STARTED, overall: none, lifecycle: open }).start, { label: 'Start' });
   // Locked by a prerequisite, even while the window is open: no Start.
   assert.equal(resolveGradeRowActions({ status: GRADE_STATUS.IN_PROGRESS, overall: some, lifecycle: open, locked: true }).start, null);
   // Not open yet.

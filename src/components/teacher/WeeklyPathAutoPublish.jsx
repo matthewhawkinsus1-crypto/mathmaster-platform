@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 
 import { functions } from '../../firebase.js';
+import { weekClosesClause } from '../../platform/path/weeklyPathGradebook.js';
 import { STUDENT_NAME_UNAVAILABLE, formatStudentLabel, resolveRosterStudentName, studentIdentityIndexFor } from '../../platform/studentName.js';
 
 /*
@@ -37,6 +38,7 @@ const REASON_TEXT = Object.freeze({
   no_weekly_score_was_computed: 'no weekly score yet',
   a_teacher_already_changed_this_grade_in_classroom: 'you changed this grade in Classroom, so it was left alone',
   this_score_is_already_published: 'already published',
+  student_was_marked_absent_this_week: 'marked absent this week, so this grade is yours to enter in Classroom',
   no_weekly_goal_for_this_student: 'no weekly Path was assigned',
   no_classroom_submission_for_this_student: 'no Classroom submission to grade',
   classroom_rejected_the_grade_write: 'Google Classroom rejected the write',
@@ -56,7 +58,11 @@ const previewStudentLabel = (studentId, index) => {
   return name === STUDENT_NAME_UNAVAILABLE ? formatStudentLabel(String(studentId ?? '')) : name;
 };
 
-export default function WeeklyPathAutoPublish({ classId = null, weekKey = null, students = [] }) {
+// `dueDay` is the day this class's weeks close ("Friday"), read by the grade
+// panel from the goals it holds; null names no day (weekClosesClause).
+export default function WeeklyPathAutoPublish({
+  classId = null, weekKey = null, students = [], dueDay = null,
+}) {
   const [state, setState] = useState(null);
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState(null);
@@ -110,9 +116,9 @@ export default function WeeklyPathAutoPublish({ classId = null, weekKey = null, 
       <h3 style={{ margin: 0, fontSize: 'calc(16 * var(--mm-px))' }}>Publish weekly Path grades to Google Classroom</h3>
       <p style={{ ...MUTED, margin: '6px 0 12px' }}>
         When this is on, MathMaster posts one Math Path assignment per week to this class&apos;s
-        Google Classroom course and grades it automatically on Monday morning, after the week
-        closes at midnight Sunday night. It never overwrites a grade you changed yourself, and it
-        never publishes a grade for a student it could not actually score.
+        Google Classroom course and grades it automatically on Monday morning, {weekClosesClause(dueDay)}.
+        It never overwrites a grade you changed yourself, and it never publishes a grade for a
+        student it could not actually score.
       </p>
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>

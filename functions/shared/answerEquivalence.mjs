@@ -17,8 +17,9 @@ import {
 import { stackDivisions } from './stackDivisions.mjs';
 import { exactConstantValue } from './exactConstantValue.mjs';
 import { sameExpandedPolynomialExpression } from './expandedPolynomialExpressionEquivalence.mjs';
+import { sameMonomialQuotient } from './monomialQuotientEquivalence.mjs';
 import { sameLinearInequality } from './linearInequalityEquivalence.mjs';
-import { LINE_FORMS, sameLine, writtenLineForm } from './linearEquationForm.mjs';
+import { LINE_FORMS, LINE_FORM_ANY, pointSlopeParts, sameLine, wholeMultipleOfLine, writtenLineForm } from './linearEquationForm.mjs';
 export { sameNonnegativeRadicalExpression } from './nonnegativeRadicalExpressionEquivalence.mjs';
 export { sameRationalExpression } from './rationalExpressionEquivalence.mjs';
 
@@ -41,7 +42,109 @@ const unwrapWordGroups = (value) => {
   return text;
 };
 
-export const normalizeStructuralMathLive = (value) => expandLatexShorthand(value, { keepNegativeExponentGroups: true })
+/*
+ * GR35c: a key written as plain text, `x²`, `x⁻¹`, `2·x` or `3 × 10⁵`, is the
+ * editor's `x^{2}`, `x^{-1}`, `2\cdot x` and `3\times 10^{5}`. The editor never
+ * sends those characters, so such a key matched nothing a student typed.
+ *
+ * Here, for the comparisons of what is written (normalizeAnswer, the
+ * form-preserving comparison), and NOT for the polynomial reader
+ * (algebraicForm.expandLatexShorthand), deliberately: a choice is graded by
+ * its option's text against the key, and value-equal options are wrong ones.
+ * "24x² + 4x − 26x + 3" and the key "24x² − 4x − 18x + 3" (factoring, "split
+ * the middle term") are one polynomial, and "4 × 3" is 12 like "3 × 4" (a
+ * matrix size). So such a key takes the editor's spelling of the same
+ * expression, not every expression of the same value.
+ */
+const SUPERSCRIPT_DIGITS = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+const asEditorSpelling = (value) => String(value ?? '')
+  .replace(/⁻?[⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, (power) => `^{${[...power].map((character) => (character === '⁻' ? '-' : SUPERSCRIPT_DIGITS.indexOf(character))).join('')}}`)
+  .replace(/[·⋅]/g, '\\cdot ')
+  .replace(/×/g, '\\times ');
+
+/*
+ * WHAT THE EDITOR WRITES THAT THE SAME CHARACTERS TYPED DO NOT (TS05).
+ *
+ * Every expression and equation key the secure runtime can issue (425 and 580
+ * distinct keys, three draws a family) was typed into the real math editor the
+ * way a student builds it. These of its spellings were refused against the
+ * very key they spell — on My Math Path, where these fields already use the
+ * editor, as on a secure Test:
+ *
+ *   \middle{\vert}  the bar typed inside set braces, {x | x ≠ 0}: a delimiter
+ *                   sized to its braces, as \left and \right size theirs;
+ *   _{}             the empty subscript the editor leaves inside a typed
+ *                   log_2 (\log_{_{}2}, shown as log₂): no mathematics.
+ *
+ * Both go before the shorthand is expanded, so `\log_{2}` is unbraced like
+ * every one-character subscript.
+ */
+const withoutEditorBookkeeping = (value) => value
+  .replace(/\\middle\s*(?:\{([^{}]*)\}|(?=\S))/g, (match, delimiter = '') => delimiter)
+  .replace(/_\{\s*\}/g, '');
+
+/** The index of the `}` that closes the brace group opening at `open`, or -1. */
+const braceGroupEnd = (text, open) => {
+  let depth = 0;
+  for (let index = open; index < text.length; index += 1) {
+    if (text[index] === '{') depth += 1;
+    else if (text[index] === '}') { depth -= 1; if (depth === 0) return index; }
+  }
+  return -1;
+};
+
+/** What is inside one pair of brackets that encloses the whole of `part`, or null. */
+const wholeBracketBody = (part) => {
+  const text = part.trim();
+  if (!text.startsWith('(') || !text.endsWith(')')) return null;
+  let depth = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] === '(') depth += 1;
+    else if (text[index] === ')') {
+      depth -= 1;
+      if (depth < 0 || (depth === 0 && index < text.length - 1)) return null;
+    }
+  }
+  return depth === 0 ? text.slice(1, -1) : null;
+};
+
+/*
+ * Brackets round a WHOLE fraction part or radicand are the editor's, not the
+ * student's: the bar or the root already groups it. expandLatexShorthand
+ * removes them when nothing inside is bracketed; the editor keeps the
+ * brackets a student types, so the keys (-(0)-sqrt(20))/2, sqrt(t-(18)) and
+ * cbrt(3x+2) typed into it arrive as \frac{(-(0)-\sqrt{20})}{2},
+ * \sqrt{(t-(18))} and \sqrt[3]{(3x+2)} — brackets inside the brackets, or an
+ * index on the root — which nothing read (TS05). Only a pair that encloses
+ * the whole part goes; `\frac{(a)(b)}{c}` keeps both of its pairs.
+ */
+const PART_OPENING = /\\(?:frac|sqrt(?:\[[^\]{}]*\])?)\{/g;
+const wholeBracketPartsUnwrapped = (value) => {
+  let text = value;
+  for (let guard = 0; guard < 24; guard += 1) {
+    let changed = false;
+    PART_OPENING.lastIndex = 0;
+    for (let match = PART_OPENING.exec(text); match && !changed; match = PART_OPENING.exec(text)) {
+      let open = match.index + match[0].length - 1;
+      for (let part = 0; part < (match[0].startsWith('\\frac') ? 2 : 1) && text[open] === '{'; part += 1) {
+        const close = braceGroupEnd(text, open);
+        if (close < 0) break;
+        const body = wholeBracketBody(text.slice(open + 1, close));
+        if (body !== null) {
+          text = `${text.slice(0, open + 1)}${body}${text.slice(close)}`;
+          changed = true;
+          break;
+        }
+        open = close + 1;
+      }
+    }
+    if (!changed) break;
+  }
+  PART_OPENING.lastIndex = 0;
+  return text;
+};
+
+export const normalizeStructuralMathLive = (value) => expandLatexShorthand(withoutEditorBookkeeping(asEditorSpelling(value)), { keepNegativeExponentGroups: true })
   .trim()
   // Directional marks and zero-width format characters are not visible math.
   // MathLive/IME combinations may insert them between otherwise identical
@@ -49,6 +152,14 @@ export const normalizeStructuralMathLive = (value) => expandLatexShorthand(value
   .replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '')
   .replace(UNICODE_MINUS, '-')
   .replace(/\\(?:left|right|bigl|bigr|Bigl|Bigr|biggl|biggr|Biggl|Biggr)\b/g, '')
+  // GR34: the editor's \log and \ln (its logₐ key writes \log_{a}(…)) are the
+  // log and ln an answer key is written with. \log_4(y) = x + 2 was refused
+  // where log_4(y) = x + 2 passed, against the same key.
+  .replace(/\\(log|ln)(?![A-Za-z])/g, '$1')
+  // A key typed log_10(x) is log base 10 — the editor's \log_{10}(x), which
+  // its logₐ key writes too. Unbraced, LaTeX would read base 1 then a 0, a
+  // reading nobody means, and the two never met (TS05).
+  .replace(/(?<![A-Za-z\\])log_(\d{2,})(?=\s*\()/g, 'log_{$1}')
   // These commands classify a delimiter; they do not change the delimiter's
   // mathematical endpoint semantics.  Remove only the command (and an
   // optional empty group), never its following delimiter.
@@ -56,6 +167,7 @@ export const normalizeStructuralMathLive = (value) => expandLatexShorthand(value
   .replace(/\\lparen/g, '(')
   .replace(/\\rparen/g, ')')
   .replace(/\\dfrac/g, '\\frac')
+  .replace(/[\s\S]+/, wholeBracketPartsUnwrapped)
   .replace(/[\s\S]+/, unwrapWordGroups)
   // MathLive commonly serializes visible set braces as \{...\}, \lbrace...
   // \rbrace, or the same tokens wrapped in \left/\right. They are the same
@@ -131,10 +243,29 @@ const bracedExponentsAsGroups = (value, { keepCompoundBraced = false } = {}) => 
     const body = text.slice(index + 2, close);
     // Left braced until the divisions are stacked (normalizeAnswer): a braced
     // exponent is one operand in LaTeX, while the ASCII `^(…)/` a key may be
-    // written with keeps the reading the renderer shows (H-13 review).
+    // written with keeps the reading the renderer shows (H-13 review; the
+    // owner kept it, GR04, and Pre-Flight flags such a key).
     if (keepCompoundBraced && !SIMPLE_EXPONENT.test(body)) continue;
     const group = SIMPLE_EXPONENT.test(body) || NEGATED_TOKEN.test(body) ? body.trim() : `(${body})`;
     text = `${text.slice(0, index + 1)}${group}${text.slice(close + 1)}`;
+  }
+  return text;
+};
+
+/*
+ * A subscript that is an expression, `_{n-1}`, is the index a key writes
+ * `_(n-1)` (TS05): the editor's box holds P_{n-1} where the keys of the
+ * recursive-sequence families type P_(n-1). Only a subscript with an operation
+ * in it; a name's `_{12}` or `_{n}` keeps its spelling.
+ */
+const bracedSubscriptsAsGroups = (value) => {
+  let text = value;
+  for (let index = text.indexOf('_{'); index >= 0; index = text.indexOf('_{', index + 1)) {
+    const close = braceGroupEnd(text, index + 1);
+    if (close < 0) break;
+    const body = text.slice(index + 2, close);
+    if (!/^[^{}]*[-+*][^{}]*$/.test(body)) continue;
+    text = `${text.slice(0, index + 1)}(${body})${text.slice(close + 1)}`;
   }
   return text;
 };
@@ -169,7 +300,7 @@ const canonicalSymbolSpellings = (value, { asciiPi = true, keepCompoundBraced = 
     // ASCII `pi` only while spaces still separate letters: once they are
     // gone, `p i` (p times i) would read as pi.
     .replace(asciiPi ? /(?<![A-Za-z\\])pi(?![A-Za-z])/g : /(?!)/g, 'π'));
-  text = bracedExponentsAsGroups(text, { keepCompoundBraced });
+  text = bracedSubscriptsAsGroups(bracedExponentsAsGroups(text, { keepCompoundBraced }));
   // A negative exponent keeps its brackets: unwrapped, its minus would read as
   // a term's sign to the comparisons that split terms.
   return text.replace(/\^\(((?:\d+(?:\.\d+)?|[A-Za-z]|π))\)/g, '^$1');
@@ -285,7 +416,9 @@ export const sameText = (left, right) => normalizeAnswer(left) === normalizeAnsw
  */
 const GROUPED_NUMBER = /^-?(?:\\?\$)?[1-9]\d{0,2}(?:,\d{3})+(?:\.\d+)?(?:\\?%)?$/;
 export const withoutThousandsSeparators = (value) => {
-  // `1, 250` is a list of two numbers, whatever the normaliser does to the space.
+  // `1, 250` is a list of two numbers, whatever the normaliser does to the
+  // space, so it is never 1250 in any field. The owner confirmed this (GR02):
+  // it is what live has done since #496, and a separator has no space.
   if (/,\s/.test(String(value ?? ''))) return null;
   const text = normalizeAnswer(value);
   return GROUPED_NUMBER.test(text) ? text.replace(/,/g, '') : null;
@@ -304,6 +437,39 @@ export const sameNumberWithThousandsSeparators = (left, right, tolerance = 1e-6)
   return sameNumber(a ?? left, b ?? right, tolerance);
 };
 
+/*
+ * A NUMBER BOX AN OLDER TEACHER IMPORT STAMPED AS A SET BOX (RT02).
+ *
+ * Before the teacher import learned that a Question Family key such as {{k}}
+ * is a value (f0b49bcb), its own copy of the set rule read the placeholder's
+ * braces as roster notation and stamped the field `type: 'set'` (and
+ * `toolProfile: 'set'` when none was authored). Assignments imported then
+ * still gave students the set keypad for one number, and the grader read the
+ * box as a list, so 1,280 was refused. A key with no brace, comma, semicolon
+ * or empty-set sign once its {{name}} placeholders are read as values (the
+ * import's own token, authoringIntentV5Core.js) is one value, never a set.
+ *
+ * So the field is READ without the stamp, by the keypad and by every grader;
+ * the stored question is never rewritten (a Question Family pin fingerprints
+ * its template, and a rewrite would strand every pin already delivered). The
+ * only verdict this changes is a grouped number's, which it makes right.
+ */
+const FAMILY_TOKEN = /\{\{\s*[A-Za-z_][A-Za-z0-9_]*\s*(?:\|\s*[A-Za-z]+\s*)?\}\}/g;
+const SET_SIGNS = /[{},;∅]|\\(?:emptyset|varnothing)/;
+const isOneValueKey = (value) => {
+  const text = String(value ?? '').trim().replace(FAMILY_TOKEN, '0');
+  return Boolean(text) && !SET_SIGNS.test(text);
+};
+export const withoutStaleSetStamp = (field) => {
+  if (!field || typeof field !== 'object' || String(field.type ?? '').trim().toLowerCase() !== 'set') return field;
+  const keys = [field.answer, ...(Array.isArray(field.acceptedAnswers) ? field.acceptedAnswers : [])]
+    .filter((value) => String(value ?? '').trim() !== '');
+  if (!keys.length || !keys.every(isOneValueKey)) return field;
+  const { type: _stamp, ...unstamped } = field;
+  if (String(unstamped.toolProfile ?? '').trim().toLowerCase() === 'set') delete unstamped.toolProfile;
+  return unstamped;
+};
+
 // Field declarations whose answer is several values separated by commas. In
 // these, `1,234` is two entries, never one thousand two hundred thirty-four.
 const COMMA_SEPARATED_FORMATS = new Set([
@@ -320,12 +486,14 @@ const COMMA_SEPARATED_FORMATS = new Set([
  * partial credit (a roster). A Digital SAT number box accepts a correctly
  * grouped number, as it has since #496: `1,280` is right by value, and if the
  * SAT's own no-comma entry rule is wanted it belongs at entry (the box
- * declining the keystroke), never as a right value graded wrong. The
+ * declining the keystroke), never as a right value graded wrong. The owner
+ * confirmed this (GR09); there is no entry-time comma rule today. The
  * assignment matcher (answerUtils), the Path grader (functions/lib/mathPath.js)
  * and the teacher's Path simulation all ask it, and pass its answer to
  * sameValue.
  */
-export const fieldAcceptsThousandsSeparators = (field = {}) => {
+export const fieldAcceptsThousandsSeparators = (stored = {}) => {
+  const field = withoutStaleSetStamp(stored);
   if (field?.partialCredit === 'matchedElements') return false;
   return ![
     field?.equivalence,
@@ -616,6 +784,10 @@ const normalizeFormPreservingSide = (value) => {
   //   x-(-5) -> x+5
   //   x+(-5) -> x-5
   let radicalReady = String(value ?? '')
+    // The editor sizes every bracket a student types, \left( … \right) (TS05).
+    // Read as plain brackets first, or `5\left(4\right)^{n-1}` misses both
+    // rules below and ends as 54^{n-1}, while the typed 5(4)^(n-1) is right.
+    .replace(/\\(?:left|right)(?![A-Za-z])/g, '')
     // A student naturally writes a geometric sequence as 5(4)^(n-1), while
     // generated keys often store 5*(4)^(n-1). Preserve that multiplication
     // BEFORE removing numeric bookkeeping parentheses. Restrict this to a
@@ -695,7 +867,8 @@ const sameFormPreservingSide = (left, right) => {
   const b = form(right);
   if (a === b) return true;
   // A plain-text quotient keeps its old verdict: its extent is ambiguous
-  // (`x-1/x+1`), so its terms are never moved (Job K's 2d rule).
+  // (`x-1/x+1`), so its terms are never moved (Job K's 2d rule). The owner
+  // confirmed it (GR04): no right answer stored against such a key turns wrong.
   if ([left, right].some((value) => /\//.test(String(value ?? '')))) return false;
   return constantTermsLast(a) === constantTermsLast(b);
 };
@@ -1081,6 +1254,10 @@ const numericPair = (value) => {
  * pair of plain numbers keeps numericPair's reading, so `(1+2,4)` is still not
  * `(3,4)`. When one coordinate has a root, its partner must too: a decimal or
  * a long fraction is not the exact value an irrational coordinate asks for.
+ * The owner confirmed this (GR08): an item keyed with exact radical pairs asks
+ * for exact pairs (quadratic-formula-exact says so), so a decimal, however
+ * many places, is refused. Taking rounded decimals would be a new rule for
+ * one family, not a reading of this one.
  */
 const exactCoordinate = (part) => {
   const exact = exactConstantValue(part);
@@ -1171,6 +1348,26 @@ const mixedNumberShape = (value) => {
 };
 
 /*
+ * …AND WITH THE SIGNS ONE NUMBER IS WRITTEN WITH (GR05; the wave 7 review's N5
+ * and N6): a dollar sign before it, a percent sign after it, or thousands
+ * separators in its whole part. `\$3\frac12` is $3.50, `3\frac12\%` is 3.5%
+ * and `1,000\frac{1}{2}` is 1000.5; each was refused. Read only for a lone
+ * number (sameMixedNumber), never for a side of a relation, and the grouping
+ * only where a field takes thousands separators: in a list, `1,000\frac{1}{2}`
+ * is two entries. The grouping is the strict one (withoutThousandsSeparators).
+ */
+const SIGNED_MIXED_NUMBER = /^(-?)(\\?\$)?([1-9]\d{0,2}(?:,\d{3})+|\d+)(\\frac\{\d+\}\{\d+\})(\\?%)?$/;
+const mixedNumberWithSigns = (value, { grouped = false } = {}) => {
+  const match = SIGNED_MIXED_NUMBER.exec(normalizeAnswer(value));
+  // Both signs is not one number; neither sign nor grouping is mixedNumberShape's.
+  if (!match || (match[2] && match[5])) return null;
+  const isGrouped = match[3].includes(',');
+  if ((!match[2] && !match[5] && !isGrouped) || (isGrouped && !grouped)) return null;
+  const shape = mixedNumberShape(`${match[1]}${match[3].replace(/,/g, '')}${match[4]}`);
+  return shape && { ...shape, unit: match[2] ? '$' : (match[5] ? '%' : '') };
+};
+
+/*
  * A SIDE OR BOUND THAT IS EXACTLY A MIXED NUMBER (wave 7 review, S2). The
  * product reading survived inside a relation: `x=3\frac{1}{2}` was right for
  * `x=1.5` and wrong for `x=3.5`, and `x<3\frac{1}{2}` right for `x<1.5`. A
@@ -1179,37 +1376,62 @@ const mixedNumberShape = (value) => {
  * `2\frac{1}{2}x`, `x+3\frac{1}{2}`, an improper `3\frac{5}{2}` — keeps
  * today's reading. Text with no relation sign is left alone (sameMixedNumber
  * reads a lone number).
+ *
+ * A bound before "or" or "and" is a bound too (GR05; the wave 7 review):
+ * between two relation signs, `x<3\frac{1}{2} or x>5` holds the piece
+ * `3\frac{1}{2} or x`, so its 3½ was never read and the answer was wrong for
+ * `x<3.5 or x>5`. A piece is split at those words first.
  */
 const RELATION_SPLIT = /(<=|>=|≤|≥|≠|!=|\\(?:leq?|geq?|lt|gt|neq?)(?![A-Za-z])|<|>|=)/;
+const CONNECTIVE_SPLIT = /(\s+(?:or|and)\s+|\\(?:lor|land|vee|wedge)(?![A-Za-z])|∨|∧|\\(?:text|mathrm|operatorname)\{\s*(?:or|and)\s*\})/i;
 const mixedSidesAsFractions = (value) => {
   const text = String(value ?? '');
   // split() takes every match, keeping each relation sign (the group).
   const pieces = text.split(RELATION_SPLIT);
   if (pieces.length < 3) return text;
   let changed = false;
-  const rewritten = pieces.map((piece, index) => {
-    if (index % 2 === 1) return piece;
+  const asFraction = (piece) => {
     const improper = mixedNumberShape(piece)?.improper;
     if (!improper) return piece;
     changed = true;
     return improper;
-  });
+  };
+  const rewritten = pieces.map((piece, index) => (
+    index % 2 === 1 ? piece : piece.split(CONNECTIVE_SPLIT).map((part, partIndex) => (partIndex % 2 === 1 ? part : asFraction(part))).join('')
+  ));
   return changed ? rewritten.join('') : text;
 };
 
 /** Is this written as a whole number followed by a number fraction (`3\frac{1}{2}`, `3 1/2`)? */
 export const looksLikeMixedNumber = (value) => mixedNumberShape(value) !== null;
 
-/** true or false when a mixed number meets a number; null when the rule does not apply. */
-export const sameMixedNumber = (student, key, tolerance = 1e-6) => {
-  const studentMixed = mixedNumberShape(student);
-  const keyMixed = mixedNumberShape(key);
+/**
+ * true or false when a mixed number meets a number; null when the rule does
+ * not apply. A KEY WRITTEN AS A MIXED NUMBER ASKS FOR ONE (the owner,
+ * 2026-10-23; GR13): on "Write 17/5 as a mixed number" 17/5 or 3.4 copies the
+ * prompt, so against a mixed-number key only a mixed number is right (an
+ * author who also takes 17/5 lists it). A number key still takes 3½ for 7/2.
+ *
+ * `thousandsSeparators` is the field's (fieldValueOptions): where it is on, a
+ * mixed number's whole part, and the number it is compared with, may be
+ * grouped (mixedNumberWithSigns).
+ */
+export const sameMixedNumber = (student, key, tolerance = 1e-6, { thousandsSeparators = false } = {}) => {
+  const mixedOf = (value) => mixedNumberShape(value) || mixedNumberWithSigns(value, { grouped: thousandsSeparators });
+  const numberOf = (value) => asNumber(value) ?? (thousandsSeparators ? asNumber(withoutThousandsSeparators(value) ?? '') : null);
+  const studentMixed = mixedOf(student);
+  const keyMixed = mixedOf(key);
   if (!studentMixed && !keyMixed) return null;
-  const a = studentMixed ? studentMixed.value : asNumber(student);
-  const b = keyMixed ? keyMixed.value : asNumber(key);
+  const a = studentMixed ? studentMixed.value : numberOf(student);
+  const b = keyMixed ? keyMixed.value : numberOf(key);
   // The other side is not a number (an expression, a pair, text): not ours.
   if ((studentMixed && !keyMixed && b === null) || (keyMixed && !studentMixed && a === null)) return null;
+  if (keyMixed && !studentMixed) return false;
   if (a === null || b === null) return false;
+  // A unit sign keeps its meaning, as in sameNumber: 3½% is not $3.50.
+  const studentSign = studentMixed ? studentMixed.unit || '' : unitSignOf(student);
+  const keySign = keyMixed ? keyMixed.unit || '' : unitSignOf(key);
+  if (studentSign && keySign && studentSign !== keySign) return false;
   return Math.abs(a - b) <= Math.max(tolerance, 1e-12 * Math.max(1, Math.abs(b)));
 };
 
@@ -1270,6 +1492,63 @@ export const fieldIsNumberBox = (field = {}) => {
   return NUMBER_FIELD_KINDS.has(String(declared ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ''));
 };
 
+/*
+ * A CALCULATION IN A NUMBER BOX (the owner, 2026-10-23; GR01). A number box
+ * asks for a value. `64 − 6` was right for 58 and `1+2` for 3, because the
+ * expanded-polynomial comparison works a calculation out, so a student could
+ * copy the computation instead of doing it. A number box now refuses a
+ * calculation unless its field says `allowArithmetic: true` (an item whose
+ * answer is the calculation itself).
+ *
+ * Read narrowly: two or more numerals joined by an operation (+ − × ÷, a
+ * power, a number against a bracket, a fraction bar over or under more than
+ * one number). The ways ONE number is written are not a calculation and keep
+ * every verdict they had: a fraction (3/4, \frac{6}{8}, 12/4), a sign or
+ * brackets (−5, +5, (−5)), a decimal, a percent or dollar sign, a mixed
+ * number (3½, 3 1/2), thousands separators (8,050) and scientific notation
+ * (1.2 × 10³, 10³, 1e3). Text with a root, π, a letter, a relation or a list
+ * is not one either: its own rules decide (an exact constant's form, W6-6;
+ * `x = 5`, Job P).
+ */
+const NUMERALS = /\d+(?:\.\d*)?|\.\d+/g;
+const SCIENTIFIC_NOTATION = /^(?:(?:\d+(?:\.\d+)?|\.\d+)\*)?10\^\(?-?\d+\)?$/;
+// Brackets around the whole text as one pair: `(-5)`, never `(2)(29)`.
+const wrappedInOnePair = (text) => {
+  if (!text.startsWith('(') || !text.endsWith(')')) return false;
+  let depth = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] === '(') depth += 1;
+    else if (text[index] === ')') {
+      depth -= 1;
+      if (depth === 0 && index < text.length - 1) return false;
+    }
+  }
+  return depth === 0;
+};
+const writtenAsOneNumber = (normalized) => {
+  let text = normalized;
+  // Signs and whole-text brackets around one number: +5, -(5), (-5).
+  for (let guard = 0; guard < 8; guard += 1) {
+    const next = /^[+-]/.test(text) ? text.slice(1) : (wrappedInOnePair(text) ? text.slice(1, -1) : text);
+    if (next === text) break;
+    text = next;
+  }
+  return asNumber(text) !== null
+    || mixedNumberShape(text) !== null
+    || withoutThousandsSeparators(text) !== null
+    || SCIENTIFIC_NOTATION.test(text);
+};
+/** Is this a calculation with numbers (`64-6`, `2(29)`, `\frac{1}{2}+\frac{1}{4}`), not one number however written? */
+export const looksLikeArithmetic = (value) => {
+  const text = normalizeAnswer(value).replace(/[×·]/g, '*');
+  if (!text || writtenAsOneNumber(text)) return false;
+  const operations = text.replace(/\\(?:frac|div)(?![a-z])|÷/g, ' ');
+  return /^[\d.+\-*/^(){}\s]+$/.test(operations) && (operations.match(NUMERALS) || []).length >= 2;
+};
+
+/** Does this field take a calculation as an answer? Every field but a number box, and a number box that opts in (GR01). */
+export const fieldAllowsArithmetic = (field = {}) => !fieldIsNumberBox(field) || field?.allowArithmetic === true;
+
 /**
  * The sameValue options one response field asks for. Every field grader — the
  * Path, secure and Live Challenge one (functions/lib/mathPath.js), the
@@ -1279,9 +1558,18 @@ export const fieldIsNumberBox = (field = {}) => {
 export const fieldValueOptions = (field = {}) => ({
   thousandsSeparators: fieldAcceptsThousandsSeparators(field),
   exactNumber: fieldIsNumberBox(field),
+  arithmetic: fieldAllowsArithmetic(field),
+  // GR03: a line field that asks for no form takes any equation of its line.
+  // lineFormPolicy.mjs sets `lineForm` from the question's words (on Path, in
+  // the private grading at issue), so the decision travels with the field.
+  ...(field?.lineForm === LINE_FORM_ANY ? { anyLineForm: true } : {}),
 });
 
-const hasInequalitySymbol = (value) => /[<>≤≥≠]|\\(?:le|ge|ne|lt|gt)/.test(String(value ?? ''));
+// A relation command is a whole word: the editor's `\left(` is not `\le`.
+// Read as one, it barred every bracketed equation the editor writes from the
+// swapped-sides reading typed text gets — `5=\sqrt{\left(x+4\right)}` for
+// `sqrt(x+4)=5` (TS05).
+const hasInequalitySymbol = (value) => /[<>≤≥≠]|\\(?:leq?|geq?|neq?|lt|gt)(?![A-Za-z])/.test(String(value ?? ''));
 
 /**
  * A side with its numeric constant terms moved to the end, in their order.
@@ -1392,15 +1680,57 @@ export const sameCompoundInequality = (left, right, tolerance = 1e-6) => {
  * the line written through one of its points. `y - 7 = 2(x - 2)` is the same
  * line through another of its points, in the same form, and is right. It stays
  * a form comparison: the answer must itself be written y − y₁ = m(x − x₁)
- * (writtenLineForm), so `y = 2x + 3` is still another form for a point-slope
+ * (pointSlopeParts), so `y = 2x + 3` is still another form for a point-slope
  * question, and the rule never reads a key written in another form.
+ *
+ * GR19: the form is read from its structure, not guessed from a bracketed x:
+ * `y − 7 = x + (x − 4)` is the key's line in no form and is not this rule's,
+ * while `y − 0 = 2(x + 1.5)` is the form through (−1.5, 0) and is. The slope
+ * and the point are compared within the caller's tolerance (a field's own
+ * numericTolerance; 0 on an exact Path field, with a floor for floating
+ * point only), never a fixed one.
  */
-const samePointSlopeLine = (student, key) => {
+const samePointSlopeLine = (student, key, tolerance = 1e-6, { sidesAsKeyed = false } = {}) => {
+  const answer = pointSlopeParts(normalizeAnswer(student));
+  const keyed = answer && pointSlopeParts(normalizeAnswer(key));
+  if (!answer || !keyed) return false;
+  // A field that keeps the key's sides (GR17) takes y − y₁ only where the key has it.
+  if (sidesAsKeyed && answer.ySide !== keyed.ySide) return false;
+  const allowed = Number.isFinite(Number(tolerance)) && Number(tolerance) > 0 ? Number(tolerance) : 0;
+  const near = (a, b) => Math.abs(a - b) <= Math.max(allowed, 1e-9 * Math.max(1, Math.abs(a), Math.abs(b)));
+  // The same slope, and the answer's point on the key's line.
+  return near(answer.slope, keyed.slope) && near(answer.y1, keyed.y1 + keyed.slope * (answer.x1 - keyed.x1));
+};
+
+/*
+ * A WHOLE-NUMBER MULTIPLE OF A STANDARD-FORM KEY (the owner, 2026-10-23;
+ * GR29). For a key written Ax + By = C, the same equation with every term
+ * multiplied by one nonzero whole number — 4x + 2y = 6, or −2x − y = −3, for
+ * 2x + y = 3 — is the same line in the same form, and is right. It stays a
+ * form comparison: the answer must itself be written in standard form
+ * (writtenLineForm), so `y = −2x + 3` and `4x + 2y − 6 = 0` are still other
+ * forms, and a multiple by a fraction (x + 0.5y = 1.5) is still not the key's.
+ * The owner also asked that the student be told to divide out the common
+ * factor; no grading surface carries a note with a right answer yet, so the
+ * multiple is accepted without one until there is a place for it.
+ */
+// Which side of an equation holds its letters: 'left', 'right', or null.
+const lettersSide = (value) => {
+  const sides = splitEquationSides(value);
+  if (!sides) return null;
+  const hasLetter = (side) => /[a-z]/i.test(String(side).replace(/\\[a-z]+/gi, ''));
+  const [left, right] = [hasLetter(sides.left), hasLetter(sides.right)];
+  return left === right ? null : left ? 'left' : 'right';
+};
+
+const sameStandardFormMultiple = (student, key, { sidesAsKeyed = false } = {}) => {
   const studentText = normalizeAnswer(student);
   const keyText = normalizeAnswer(key);
-  return writtenLineForm(keyText) === LINE_FORMS.POINT_SLOPE
-    && writtenLineForm(studentText) === LINE_FORMS.POINT_SLOPE
-    && sameLine(studentText, keyText);
+  return writtenLineForm(keyText) === LINE_FORMS.STANDARD
+    && writtenLineForm(studentText) === LINE_FORMS.STANDARD
+    // A field that keeps the key's sides (GR17): 3 = 2x + y is not 2x + y = 3.
+    && (!sidesAsKeyed || lettersSide(studentText) === lettersSide(keyText))
+    && wholeMultipleOfLine(studentText, keyText) !== null;
 };
 
 /** The equation comparisons that read one side against the matching side. */
@@ -1411,7 +1741,18 @@ const sameEquationSideBySide = (left, right, tolerance) => (
   || sameLinearEquation(left, right, tolerance)
 );
 
-export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators = true, exactNumber = false } = {}) => {
+/*
+ * `sidesAsKeyed` (GR17): an equation's sides must stand as the key's do. Off
+ * by default: everywhere else `2x + 1 = y` is right for `y = 2x + 1` (Job P).
+ * A field opts in with gradingMode 'sidesAsKeyed' (answerUtils.mjs), for a
+ * question that asks for the equation written as y = …; then the swapped
+ * equation, a point-slope answer or standard-form multiple written the other
+ * way round, and the any-form reading (GR03) are not taken.
+ */
+export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators = true, exactNumber = false, arithmetic = true, anyLineForm = false, sidesAsKeyed = false } = {}) => {
+  // A number box that takes no calculation refuses one before any comparison
+  // below can work it out (GR01; fieldValueOptions `arithmetic`).
+  if (!arithmetic && looksLikeArithmetic(left)) return false;
   const leftSet = parseFiniteSetNotation(left);
   const rightSet = parseFiniteSetNotation(right);
   if (leftSet !== null || rightSet !== null) {
@@ -1420,14 +1761,14 @@ export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators =
   if (sameAtomicValue(left, right, tolerance)) return true;
   // A mixed number against a number decides here: no later comparison may
   // read 3½ as 3·½ (sameMixedNumber).
-  const mixed = sameMixedNumber(left, right, tolerance);
+  const mixed = sameMixedNumber(left, right, tolerance, { thousandsSeparators });
   if (mixed !== null) return mixed;
   // …and a side of an equation or inequality that is exactly a mixed number is
   // read as one too: compared again with each such side as one fraction.
   const leftSides = mixedSidesAsFractions(left);
   const rightSides = mixedSidesAsFractions(right);
   if (leftSides !== String(left ?? '') || rightSides !== String(right ?? '')) {
-    return sameValue(leftSides, rightSides, tolerance, { thousandsSeparators, exactNumber });
+    return sameValue(leftSides, rightSides, tolerance, { thousandsSeparators, exactNumber, arithmetic, anyLineForm, sidesAsKeyed });
   }
   if (exactNumber && sameExactNumber(left, right, tolerance)) return true;
   if (thousandsSeparators && sameThousandsGroupedNumber(left, right, tolerance)) return true;
@@ -1443,6 +1784,11 @@ export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators =
   // side contains a grouped variable expression such as (x+2)(x+3), it
   // refuses rather than silently turning a factoring task into expansion.
   if (sameExpandedPolynomialExpression(left, right, tolerance)) return true;
+  // GR35a: a monomial quotient or negative-exponent answer, which the
+  // polynomial reader refuses, compared factor for factor with the key, so
+  // any order of the key's own factors is right and nothing unsimplified is
+  // (monomialQuotientEquivalence.mjs).
+  if (sameMonomialQuotient(left, right)) return true;
   if (sameInverseFunctionEquation(left, right, tolerance)) return true;
   if (sameExpandedPolynomialEquation(left, right, tolerance)) return true;
   // LAST RESORT, and only for equations. Text equality already handled every
@@ -1452,13 +1798,21 @@ export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators =
   // same line, and it refuses above degree one so it cannot silently grade a
   // "simplify" or "vertex form" question. See functions/shared/algebraicForm.mjs.
   if (sameLinearEquation(left, right, tolerance)) return true;
-  if (samePointSlopeLine(left, right)) return true;
+  if (samePointSlopeLine(left, right, tolerance, { sidesAsKeyed })) return true;
+  if (sameStandardFormMultiple(left, right, { sidesAsKeyed })) return true;
   if (sameCompoundInequality(left, right, tolerance)) return true;
+  // A field that keeps the key's sides (GR17) stops here.
+  if (sidesAsKeyed) return false;
   // The same equation with its sides swapped, `5 = x` for `x = 5` and
   // `2x + 1 = y` for `y = 2x + 1` (Job P). Each side is still compared with
   // the comparisons above, so the form a question asks for is kept.
   const swapped = !hasInequalitySymbol(left) && !hasInequalitySymbol(right) && splitEquationSides(left);
-  return Boolean(swapped) && sameEquationSideBySide(`${swapped.right}=${swapped.left}`, right, tolerance);
+  if (swapped && sameEquationSideBySide(`${swapped.right}=${swapped.left}`, right, tolerance)) return true;
+  // GR03: a field that asks for no form (fieldValueOptions' `anyLineForm`)
+  // also takes any equation of the key's line: `y - 5 = -3(x - 0)` or
+  // `3x + y = 5` for `y = -3x + 5`. Never without the option: by default a
+  // line keeps the form it is keyed in.
+  return anyLineForm && sameLine(left, right);
 };
 
 /**

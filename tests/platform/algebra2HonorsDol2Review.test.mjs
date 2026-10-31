@@ -56,6 +56,8 @@ import { sameIntervalNotation } from '../../functions/shared/answerEquivalence.m
 import { inequalitySolutionRepresentationStages } from '../../functions/shared/toolMath/algebra-relations/inequalityRepresentationPolicy.mjs';
 import transformationsLab from '../../functions/shared/serverGrading/tools/transformationsLab.mjs';
 import matrixLab from '../../functions/shared/serverGrading/tools/matrixLab.mjs';
+import { questionReadingParts, questionReadingText } from '../../src/platform/language/questionReading.js';
+import { speechTextFor } from '../../src/platform/language/speechText.js';
 
 const require = createRequire(import.meta.url);
 const bank = require('../../functions/lib/ccmrAssignmentBank.js');
@@ -580,6 +582,45 @@ test('versions: sampled versions of every item are mathematically right, and rea
   });
   assert.deepEqual(problems, []);
   assert.equal(familyIds.size, Object.keys(CHECKS).length, 'every family item was sampled and checked');
+});
+
+/*
+ * READ ALOUD HEARS THE EQUATION (CT21 / D-60). Read aloud says the prompt, the
+ * choices and the field labels (questionReading.js); it never says the
+ * equation a solving workspace draws for itself. Eight cards used to say only
+ * "Solve the equation." or "Solve the inequality." (Practice 18, "Honors
+ * challenge: solve the equation.", was found by this sweep; the audit had
+ * listed seven) and left the equation to the workspace, so a student who
+ * listens heard no equation. A card now writes it in the task, as the
+ * Classwork cards always did ("Solve $-3|2x-5|+4=-11$.").
+ *
+ * The eight are listed by hand, and each must be among the cards found by
+ * the sweep: the sweep reads every question that opens the solving workspace,
+ * so a card added later is held to the same rule, while a card dropped from
+ * the sweep (or renamed) cannot pass by never being looked at.
+ */
+const SOLVING_CARDS_THAT_NAME_THEIR_EQUATION = ['dol2r-wu-3', 'dol2r-pr-7', 'dol2r-pr-8', 'dol2r-pr-9', 'dol2r-pr-10', 'dol2r-pr-18', 'dol2r-dol-4', 'dol2r-dol-5'];
+const opensSolvingWorkspace = (question) => (question.studentActions || []).some((action) => action === 'solveStepByStep' || action === 'solveInequality');
+// What the workspace draws, written as the prompt's own math, then said the way Read aloud says it.
+const saidAsMath = (relation) => speechTextFor(`$${String(relation).replace(/>=/g, '\\ge ').replace(/<=/g, '\\le ')}$`);
+const heardWholeCard = (question) => speechTextFor(questionReadingText(questionReadingParts(question)));
+
+test('Read aloud: every card that opens the solving workspace says its equation or inequality, in every version', () => {
+  const cards = dealt().filter(({ question }) => opensSolvingWorkspace(question));
+  const ids = new Set(cards.map(({ id }) => id));
+  SOLVING_CARDS_THAT_NAME_THEIR_EQUATION.forEach((id) => assert.ok(ids.has(id), `${id} is among the cards that open the solving workspace`));
+  assert.ok(cards.length >= SOLVING_CARDS_THAT_NAME_THEIR_EQUATION.length * 12, `${cards.length} versions of ${ids.size} cards were read`);
+  const silent = [];
+  cards.forEach(({ id, values, question }) => {
+    // The same fields the sampled-version checks read (a built version may keep the workspace's text under either name).
+    const relation = question.inequalityText || question.inequality || question.equationLatex || question.equation;
+    if (!relation) return silent.push(`${id}: no equation or inequality field to compare with`);
+    const heard = heardWholeCard(question);
+    if (!heard.includes(saidAsMath(relation))) silent.push(`${id} ${JSON.stringify(values)}: the workspace draws ${relation}, Read aloud says "${heard.slice(0, 120)}"`);
+    return undefined;
+  });
+  const silentCards = [...new Set(silent.map((line) => line.split(/[ :]/)[0]))];
+  assert.deepEqual(silentCards, [], `${silent.length} version(s) of these cards do not say their equation: ${silent.slice(0, 2).join(' | ')}`);
 });
 
 test('Classwork: the matrix error-analysis item grades the fixed equation right and finds both of Marcus\'s rows', () => {

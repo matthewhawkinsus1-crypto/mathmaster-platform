@@ -18,6 +18,15 @@
 //   ?q=planes               the real three-planes Systems Workspace item 3x3-d1-cw-1:
 //                           no family reads it, so its "Let's back up" step is
 //                           built from the tool's structure (readAloudTranslate.mjs)
+//   ?q=dolgraphes           q_section-4_4_1 with an authored Spanish prompt, as a
+//   ?q=planeses             teacher writes one (translations.es), and 3x3-d1-cw-1
+//                           the same way: with ?support=translate Read aloud reads
+//                           in Spanish, a figure in its own Spanish words or in
+//                           English with a sentence saying so (AX05)
+//   ?q=ltw|dml|sequence     the real DOL #3 review's tools that draw their own
+//                           tables (dol3-review-q03, q11, q13), and the Linear
+//   ?q=lmrtable             Multiple Representations board's given table (lmr-pr-1):
+//                           Read aloud reads each table as drawn (AX10)
 //   ?run=<id>               a fresh draft namespace
 //   ?secure=1               mount it the way a secure Test item is mounted:
 //                           server-graded (RichQuestionRuntime), and still
@@ -39,6 +48,8 @@ import matricesLesson from '../../teacher-import-jsons/algebra2-honors-module1/T
 import dolGraphLesson from '../../teacher-import-jsons/algebra1-dol1/District_DOL1_Technology_Graph_Analysis_Review.json';
 import transformationsLesson from '../../teacher-import-jsons/algebra1-module2-topic2/L2_Vertical_and_Horizontal_Transformations_of_Linear_Functions.json';
 import threeByThreeDay1 from '../../docs/assignments/Algebra_II_Honors_3x3_Systems_Day1_V5_FINAL.json';
+import dol3Review from '../../teacher-import-jsons/algebra1-dol3/Algebra1_DOL3_Review.json';
+import linearRepresentationsLesson from '../../docs/assignments/Algebra1_Linear_Multiple_Representations_V5_FAMILY_UPDATED.json';
 import '../../src/index.css';
 import '../../src/App.css';
 
@@ -52,6 +63,12 @@ const run = params.get('run') || 'manual';
 const policy = getEffectiveActivityPolicy(role);
 const maximumAttempts = policy.attempts;
 const assignmentId = `feedback-teaches-${which}`;
+const lessonItem = (lesson, questionId) => compileAuthoringIntentV5(lesson).package.sections
+  .flatMap((section) => section.questions)
+  .find((entry) => entry.questionId === questionId);
+// An authored Spanish prompt, the way a teacher writes one with the item: the
+// screen shows it, and Read aloud reads the question in Spanish (AX05).
+const withSpanishPrompt = (question, prompt) => ({ ...question, translations: { es: { prompt } } });
 
 const QUESTIONS = {
   multi: {
@@ -107,6 +124,12 @@ const QUESTIONS = {
   planes: compileAuthoringIntentV5(threeByThreeDay1).package.sections
     .flatMap((section) => section.questions)
     .find((entry) => entry.questionId === '3x3-d1-cw-1'),
+  dolgraphes: withSpanishPrompt(lessonItem(dolGraphLesson, 'q_section-4_4_1'), 'La gráfica muestra una función con un conjunto restringido de entradas. Determina su dominio y su rango con desigualdades.'),
+  planeses: withSpanishPrompt(lessonItem(threeByThreeDay1, '3x3-d1-cw-1'), 'Con tu maestro, gira el modelo 3D y muestra u oculta los tres planos. Antes de que se revelen las coordenadas, decide qué debe representar una solución de las tres ecuaciones.'),
+  ltw: lessonItem(dol3Review, 'dol3-review-q03'),
+  dml: lessonItem(dol3Review, 'dol3-review-q11'),
+  sequence: lessonItem(dol3Review, 'dol3-review-q13'),
+  lmrtable: lessonItem(linearRepresentationsLesson, 'lmr-pr-1'),
   // No question family claims it and it has no authored scaffold: no step is
   // written for it (HELP-19, readAloudTranslate.mjs).
   plain: {

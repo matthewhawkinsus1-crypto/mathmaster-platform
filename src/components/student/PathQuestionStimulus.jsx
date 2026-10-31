@@ -1,7 +1,7 @@
 import React from 'react';
 import MathText from '../common/MathText.jsx';
 import CoordinatePlane from '../../tools/shared/CoordinatePlane.jsx';
-import { feasibleRegionPolygon } from '../../tools/systemsWorkspace/systemsMath.js';
+import { stimulusShadingRegions } from '../../platform/graph/stimulusShading.js';
 import { boundaryDash } from '../../platform/graph/verticalLineStyle.js';
 
 // The material a Path question gives the student to work FROM.
@@ -134,17 +134,8 @@ function StimulusGraph({ graph, describeFeatures = null }) {
     }))
     .filter((curve) => curve.points.length >= 2);
 
-  const regions = (Array.isArray(graph.shading) ? graph.shading : [])
-    .map((shade) => {
-      const line = resolvedLines[Number(shade?.lineIndex)];
-      if (!line || line.vertical || !['above', 'below'].includes(String(shade?.side || ''))) return null;
-      const relation = shade.side === 'above' ? '>=' : '<=';
-      return {
-        points:feasibleRegionPolygon([{ m:line.m, b:line.b, relation }], bounds),
-        opacity:0.34,
-      };
-    })
-    .filter(Boolean);
+  // Above or below a line; left or right of a vertical boundary (MP16).
+  const regions = stimulusShadingRegions({ shading:graph.shading, lines:resolvedLines, bounds });
 
   if (!lines.length && !verticalLines.length && !points.length && !curves.length && !regions.length) return null;
 

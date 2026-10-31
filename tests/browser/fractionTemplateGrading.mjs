@@ -163,19 +163,24 @@ for (const device of DEVICES) {
     check(result.graded?.isCorrect === expected, `${device.name} authored "Simplify 4/8." (key 2/4): ${answer} is ${expected ? 'right' : 'wrong'}`, `graded ${JSON.stringify(result.graded?.isCorrect)}, typed ${JSON.stringify(result.typed)}`);
   }
   // A mixed number, typed as a student types 3½ with the fraction template
-  // (student pass 3, wave 7). "Simplify 14/4." asks for one fraction in lowest
-  // terms: the screen says so and no try is spent. An authored sum takes 3½.
-  const REASON = 'Write your answer as one fraction in lowest terms, not as a whole number and a fraction.';
-  // Typed `3 1/2` is not a mixed number in the editor: the space goes and the
-  // slash takes 31 as its numerator, so the student sees 31/2 stacked.
+  // (student pass 3, wave 7). "Simplify 14/4." asks for lowest terms, and a
+  // mixed number whose fraction part is reduced and less than one is in lowest
+  // terms (GR13, the owner's wave-7 decisions): 3½ is right and nothing holds
+  // it. Only a mixed number that is not in lowest terms (3 2/4) is held, with
+  // the reason, before a try is spent. An authored sum takes 3½.
+  const REASON = 'In a mixed number, the fraction part must be in lowest terms and less than one.';
+  // Typed `3 1/2` is the mixed number 3½ in the editor (GR33): the space after
+  // the whole number is remembered, so the slash takes 1 alone as its numerator.
   const spaced = await answerOnce(context, device, { kind: 'sum', seat: 0 }, '3 1/2');
-  check(spaced.typed === '\\frac{31}{2}' && spaced.graded?.isCorrect === false, `${device.name} 3/2 + 2: "3 1/2" typed with a space is 31/2 on screen, and wrong`, `typed ${JSON.stringify(spaced.typed)}, graded ${JSON.stringify(spaced.graded?.isCorrect)}`);
+  check(/^3\\frac\{?1\}?\{?2\}?$/.test(spaced.typed) && spaced.graded?.isCorrect === true, `${device.name} 3/2 + 2: "3 1/2" typed with a space is the mixed number 3½, and right`, `typed ${JSON.stringify(spaced.typed)}, graded ${JSON.stringify(spaced.graded?.isCorrect)}`);
   const THREE_AND_A_HALF = { whole: '3', numerator: '1', denominator: '2' };
-  const mixed = await answerOnce(context, device, { kind: 'lowest', seat: 0 }, THREE_AND_A_HALF, { screenshot: `mixed-number-reason-${device.name.toLowerCase()}.png` });
+  const mixed = await answerOnce(context, device, { kind: 'lowest', seat: 0 }, THREE_AND_A_HALF, { screenshot: `mixed-number-lowest-${device.name.toLowerCase()}.png` });
   check(/^3\\frac\{?1\}?\{?2\}?$/.test(mixed.typed), `${device.name} "Simplify 14/4.": the editor holds 3½ as a whole number and a fraction`, JSON.stringify(mixed.typed));
-  check(mixed.notice.includes(REASON), `${device.name} "Simplify 14/4.": 3½ shows why before a try is spent`, JSON.stringify(mixed.notice));
-  check(mixed.submitDisabled && mixed.graded === null, `${device.name} "Simplify 14/4.": Submit is held, so no try is spent on 3½`, `disabled ${mixed.submitDisabled}, graded ${JSON.stringify(mixed.graded)}`);
+  check(!mixed.notice.includes(REASON) && !mixed.submitDisabled && mixed.graded?.isCorrect === true, `${device.name} "Simplify 14/4.": 3½ is in lowest terms, and right`, `notice ${JSON.stringify(mixed.notice)}, disabled ${mixed.submitDisabled}, graded ${JSON.stringify(mixed.graded?.isCorrect)}`);
   check(!mixed.errors.length, `${device.name} "Simplify 14/4.": no page errors`, mixed.errors.slice(0, 2).join(' | '));
+  const unreduced = await answerOnce(context, device, { kind: 'lowest', seat: 0 }, { whole: '3', numerator: '2', denominator: '4' }, { screenshot: `mixed-number-reason-${device.name.toLowerCase()}.png` });
+  check(unreduced.notice.includes(REASON), `${device.name} "Simplify 14/4.": 3 2/4 shows why before a try is spent`, JSON.stringify(unreduced.notice));
+  check(unreduced.submitDisabled && unreduced.graded === null, `${device.name} "Simplify 14/4.": Submit is held, so no try is spent on 3 2/4`, `disabled ${unreduced.submitDisabled}, graded ${JSON.stringify(unreduced.graded)}`);
   const improper = await answerOnce(context, device, { kind: 'lowest', seat: 0 }, '7/2');
   check(improper.graded?.isCorrect === true && !improper.notice.includes(REASON), `${device.name} "Simplify 14/4.": 7/2 is right, with no reason shown`, `graded ${JSON.stringify(improper.graded?.isCorrect)}`);
   const sum = await answerOnce(context, device, { kind: 'sum', seat: 0 }, THREE_AND_A_HALF);

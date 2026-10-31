@@ -37,6 +37,7 @@ import {
 } from './secureToolCertification.mjs';
 import { declaresTestCycle, defaultTestCyclePolicy, normalizeTestCyclePolicy } from './testCyclePolicy.mjs';
 import { resolveRetestQuestionCount } from './testCycleRetest.mjs';
+import { GRAPH_READING_REMEDIES, familyGraphReadingWithoutDescription } from './graphReadingAccessibility.mjs';
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const clean = (value) => String(value ?? '').trim();
@@ -370,6 +371,23 @@ export const preflightTestCycle = ({
       );
     }
   });
+  // 7. Graph-reading questions a screen reader cannot answer from (AX03). A
+  // warning, never a block, like the lesson Pre-Flight's: the teacher decides
+  // between a description and the Graph read-out support for the students who
+  // need it (graphReadingAccessibility.mjs). Only families the Test can draw.
+  const familiesById = new Map(list(families).map((family) => [clean(family?.id || family?.questionId || family?.familyId), family]));
+  const graphReading = normalizedBlueprint.targets
+    .map((target) => ({
+      targetId: target.targetId,
+      familyIds: target.familyIds.filter((familyId) => approvedFamilies.has(familyId)
+        && familyGraphReadingWithoutDescription(familiesById.get(familyId))),
+    }))
+    .filter((entry) => entry.familyIds.length > 0);
+  if (graphReading.length) {
+    const named = graphReading.map((entry) => `${entry.targetId} (${entry.familyIds.join(', ')})`).join('; ');
+    warnings.push(`${graphReading.length} target${graphReading.length === 1 ? '' : 's'} draw${graphReading.length === 1 ? 's' : ''} graph-reading questions with no screen-reader description (graph.accessibleDescription): ${named}. ${GRAPH_READING_REMEDIES}`);
+  }
+
   const secureQuestionCount = normalizedBlueprint.totalQuestions;
   const secureRenderingPassed = secureRendering.every((entry) => entry.families.length > 0
     && deliveredModes.every((mode) => entry.modes[mode] === true)

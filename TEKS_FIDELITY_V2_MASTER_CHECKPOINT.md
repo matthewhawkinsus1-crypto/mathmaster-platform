@@ -71,6 +71,35 @@ Then move to remaining CCMR banks.
 
 Then redesign the Path student experience/navigation/access model.
 
+## Grade 6, 7 and 8: where it stands (2026-10-25, MP04)
+
+The owner chose to rebuild the Grade 6–8 Path banks to the Fidelity V2 standard. Nothing has been rebuilt yet. This is
+the measured starting point, so the next session does not count it again.
+
+- **What the seeds hold** (`seed/pathQuestionBank/grade{6,7,8}_pathQuestionBank_seed.json`, with copies in
+  `functions/seeds/`, `drafts/` and the release manifest): Grade 6 has 45 standards in 237 documents, Grade 7 40 in 212,
+  Grade 8 43 in 227. Every one still says it comes from "MathMaster generative Path authoring +
+  scripts/verify-path-drafts.mjs" (Algebra I and II say "certified Fidelity V2 source"). All are generator-backed practice
+  items; 12 a grade are multiple choice and the rest are answer boxes, mostly number and choice fields.
+- **The 29 standards named above** (Grade 8: 23, Grade 7: 4, Grade 6: 2) are exactly the middle-school standards the
+  Algebra I and II prerequisite graphs name (`getSkillGraph('algebra1' | 'algebra2')`). Grade 6: 6.7A, 6.7D. Grade 7:
+  7.3A, 7.3B, 7.7, 7.11A. Grade 8: 8.2B, 8.2C, 8.4A–C, 8.5A–I, 8.7C, 8.8A, 8.8C, 8.9, 8.10A, 8.10C, 8.11A, 8.12C, 8.12D.
+  They hold 158 of the 676 documents, 13 of them at DOK 3 (8%; 58 at DOK 1). They feed the Foundation Bridge slots and
+  Strengthen doors a struggling Algebra student meets. The other 99 standards serve students whose own course is
+  Grade 6, 7 or 8.
+- **What a mechanical audit says.** The Algebra I audit's checks (`scripts/audit-algebra1-teks-fidelity-v2.mjs`, pointed
+  at each seed) find no structural gap: five or six generator-backed families a standard, three or more task types, four
+  difficulty bands. Its "answer-leakage-marker" flag fires on 35, 36 and 43 standards, but that is a false alarm: it
+  matches the field label "Choose the correct answer", which the student reads, not a key. Do not read it as a REBUILD
+  verdict. A mechanical pass is not Fidelity V2 (the rubric says so).
+- **What remains, and who.** Every verdict in the rubric. A person who knows the TEKS reads each standard's families
+  against its verb and classifies it KEEP, ENHANCE or REBUILD (`TEKS_FIDELITY_V2_ALGEBRA1_REVIEW_RUBRIC.md`); a content
+  author rebuilds the ENHANCE and REBUILD ones, with a secure Path adapter and its server-grading proof wherever the verb
+  needs a graph, table or model rather than an answer box. Start with the 29, Grade 8 first. After the content, keep every
+  copy in step (`functions/seeds`, `seed/`, `drafts/`, `drafts/fidelity-v2`), run `npm run release:path:build`, and
+  commit the manifest and `src/platform/path/pathReleaseManifest.generated.js`. None of it was started here: it needs a
+  content review, not code.
+
 ## Continuation rule
 
 When chat space runs out:

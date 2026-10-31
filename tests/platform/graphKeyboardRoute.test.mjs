@@ -27,10 +27,11 @@ const mathInputs = (source) => [...source.matchAll(/<MathInput\b[\s\S]*?\/>/g)].
 
 test('a math field is called by the name it is given before its placeholder', () => {
   // The host's name may be held in a variable (MathInput gives the same name to
-  // MathLive's keyboard sink); whatever holds it puts ariaLabel first.
+  // MathLive's keyboard sink); whatever holds it puts ariaLabel first — also
+  // when a closed question's box adds its answer to it (AX01).
   const host = mathInput.match(/<math-field[\s\S]*?aria-label=\{\s*(\w+)\s*(\|\|)?/);
   assert.ok(host, 'the math-field host is named');
-  const named = host[2] ? host[1] === 'ariaLabel' : new RegExp(`const ${host[1]} = ariaLabel \\|\\|`).test(mathInput);
+  const named = host[2] ? host[1] === 'ariaLabel' : new RegExp(`const ${host[1]} = (?:ariaLabel \\|\\||mathFieldAccessibleName\\(\\{ name: ariaLabel \\|\\|)`).test(mathInput);
   assert.ok(named, 'MathInput must name its field by the ariaLabel it is given, falling back to the placeholder only without one');
 });
 

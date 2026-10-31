@@ -1,6 +1,6 @@
 import { answerFormatOf } from './answerFormatHints.js';
-import { looksLikeMixedNumber } from '../../../functions/shared/answerEquivalence.mjs';
-import { fractionAnswerCandidates, fractionAnswerRequiresLowestTerms } from '../../../functions/shared/fractionAnswer.mjs';
+import { fieldAllowsArithmetic, looksLikeArithmetic, looksLikeMixedNumber, normalizeAnswer } from '../../../functions/shared/answerEquivalence.mjs';
+import { fractionAnswerCandidates, fractionAnswerRequiresLowestTerms, isWrittenInLowestTerms } from '../../../functions/shared/fractionAnswer.mjs';
 
 /*
  * CATCH A SHAPE MISTAKE BEFORE IT COSTS A TRY.
@@ -43,6 +43,13 @@ export const formatProblemForResponse = (field = {}, value = '') => {
   if (format === 'equation' && !hasEqualsSign(value) && keys.length && keys.every(hasEqualsSign)) {
     return 'Write the full equation, including the equals sign.';
   }
+  // A number box takes the value, never the calculation (GR01). The grader
+  // refuses `64 − 6` for every key unless the field allows a calculation, so
+  // this asks the grader's own question (fieldAllowsArithmetic) and holds back
+  // nothing it would accept.
+  if (!fieldAllowsArithmetic(field) && looksLikeArithmetic(value)) {
+    return 'Write the value, not the calculation. Work it out, then enter the number.';
+  }
   // A Digital SAT number box (numberRules, set by the CCMR hydration): the
   // grader reads 3½ as 7/2, but the SAT itself does not take a mixed number,
   // so the box says so at entry, for any mixed number (wave 7 review, S7).
@@ -53,17 +60,18 @@ export const formatProblemForResponse = (field = {}, value = '') => {
 };
 
 /*
- * A MIXED NUMBER WHERE THE QUESTION ASKS FOR ONE FRACTION (student pass 3,
- * wave 7). A number box reads 3½ as 7/2 now; a `fraction` question that asks
- * for lowest terms keeps its rule that the answer is one fraction
- * (ordinaryResponseGrading matchesAuthoredFractionAnswer), so a mixed number
- * there was a silent wrong. This says why before a try is spent. It fires for
- * any mixed number, right or wrong, so it says nothing about the key, and it
- * steps aside when the author listed a mixed number among the answers.
+ * A MIXED NUMBER NOT IN LOWEST TERMS WHERE THE QUESTION ASKS FOR LOWEST TERMS
+ * (student pass 3, wave 7; the owner, 2026-10-23, GR13). A mixed number whose
+ * fraction part is reduced and less than one is in lowest terms
+ * (fractionAnswer isWrittenInLowestTerms), so 3½ is graded like 7/2. One that
+ * is not (3 2/4, 3 5/2) is refused there (ordinaryResponseGrading
+ * matchesAuthoredFractionAnswer), and this says why before a try is spent. It
+ * fires for any such mixed number, right or wrong, so it says nothing about
+ * the key, and it steps aside when the author listed that very form.
  */
 export const fractionFormProblemForResponse = (question = {}, value = '') => {
   if (!String(value ?? '').trim() || !looksLikeMixedNumber(value)) return '';
-  if (!fractionAnswerRequiresLowestTerms(question)) return '';
-  if (fractionAnswerCandidates(question).some(looksLikeMixedNumber)) return '';
-  return 'Write your answer as one fraction in lowest terms, not as a whole number and a fraction.';
+  if (!fractionAnswerRequiresLowestTerms(question) || isWrittenInLowestTerms(value)) return '';
+  if (fractionAnswerCandidates(question).some((candidate) => normalizeAnswer(candidate) === normalizeAnswer(value))) return '';
+  return 'In a mixed number, the fraction part must be in lowest terms and less than one.';
 };

@@ -153,7 +153,7 @@ export default function InverseDerivationLab({ questionData = {}, onAction }) {
   return (
     <ToolShell
       title="Inverse & Composition Lab"
-      subtitle="Derive a linear inverse by swapping x and y, then keeping every algebra move balanced."
+      subtitle="Find the inverse of a linear function, keeping every algebra move balanced."
       badge="Algebra II · Functions"
     >
       <TaskCard

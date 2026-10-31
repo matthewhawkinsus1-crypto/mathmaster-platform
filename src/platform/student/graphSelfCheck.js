@@ -30,7 +30,8 @@
  *   charged only when that check finds a point off (the direction is the
  *   help); where outcomes are withheld it is its own "Check my points". A check that
  *   cost nothing would make the independent solve and the assisted one
- *   indistinguishable in the evidence.
+ *   indistinguishable in the evidence. This shape (W5-4) is kept as built
+ *   (owner, October 2026, FB09).
  */
 
 const TOLERANCE = 1e-6;

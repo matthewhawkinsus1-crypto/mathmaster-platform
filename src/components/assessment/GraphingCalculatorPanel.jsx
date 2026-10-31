@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  ANGLE_MODES, DEFAULT_VIEWPORT, ENTRY_KINDS, GRAPHING_LIMITS, evaluateAt, findGraphFeatures, formatNumber,
-  panViewport, parseGraphEntries, readNumberEntry, tableOfValues, zoomViewport,
+  ANGLE_MODES, DEFAULT_VIEWPORT, ENTRY_KINDS, GRAPHING_LIMITS, evaluateAt, findGraphFeatures, findIntersections, formatNumber,
+  panViewport, parseGraphEntries, readNumberEntry, tableOfValues, tapTraceText, zoomViewport,
 } from '../../platform/assessment/graphingCalculatorModel.js';
 import {
   EXAM_TOOL_DRAWERS, EXAM_TOOL_IDS, EXAM_TOOL_LAYERS, EXAM_TOOL_OPEN_EVENT, examToolYieldsTo,
 } from '../../platform/assessment/examToolLayout.js';
 import { useExamToolbarOffset, useNarrowScreen } from './examToolDrawerHooks.js';
+import { readGraphingLines, writeGraphingLines } from '../calculator/graphingLineMemory.js';
 
 /*
  * A GRAPHING CALCULATOR FOR SECURE PRACTICE TESTS — OFFLINE, AND THE STUDENT'S
@@ -53,8 +54,14 @@ import { useExamToolbarOffset, useNarrowScreen } from './examToolDrawerHooks.js'
  * its own Calculator control, loaded lazily (src/components/calculator/
  * AssignmentGraphingCalculator.jsx). That host passes `open` and
  * `showLauncher={false}`, and `keyPoints` for the zeros, minimum and maximum
- * of a line in the view. The secure exam passes none of the three, so its
- * panel is exactly as it was.
+ * of a line in the view, and where two lines meet (TL18). The secure exam
+ * passes none of the three, so its panel lists no key points.
+ *
+ * TRACE BY TAPPING (TL18), in every host. A tap on the graph (a press that
+ * does not move the view) puts its x into the trace box, rounded to what a
+ * tap can mean, and the traced points are marked on their lines. It tells a
+ * student nothing the typed trace does not; the box stays the way to type an
+ * exact x, and the way a keyboard reaches the trace.
  */
 
 const TOOL = EXAM_TOOL_IDS.GRAPHING_CALCULATOR;
@@ -199,14 +206,26 @@ export default function GraphingCalculatorPanel({
   // a boolean makes the open state the host's; false hides the launcher.
   open: openProp = undefined,
   showLauncher = true,
-  // Optional: list the zeros, minimum and maximum of a line in the view.
+  // Optional: list the zeros, minimum and maximum of a line in the view, and
+  // where two lines meet.
   keyPoints = false,
+  // Optional: keep the typed lines under this key for the rest of the
+  // assignment (graphingLineMemory.js; an ordinary assignment's panel is
+  // mounted per question).
+  keepLinesKey = null,
 }) {
   const baseId = `mm-graphing-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const narrow = useNarrowScreen();
   const [open, setOpenState] = useState(Boolean(typeof openProp === 'boolean' ? openProp : defaultOpen));
   const [featureLine, setFeatureLine] = useState(null);
-  const [lines, setLines] = useState(() => [newLine('')]);
+  const [meetLines, setMeetLines] = useState([null, null]);
+  const [lines, setLines] = useState(() => {
+    const kept = readGraphingLines(keepLinesKey);
+    return kept.length ? kept.map((text) => newLine(text)) : [newLine('')];
+  });
+  useEffect(() => {
+    writeGraphingLines(keepLinesKey, lines.map((line) => line.text));
+  }, [keepLinesKey, lines]);
   const [angleMode, setAngleMode] = useState(ANGLE_MODES.RADIANS);
   const [view, setView] = useState(() => [...DEFAULT_VIEWPORT]);
   const [graphState, setGraphState] = useState('idle');
@@ -224,6 +243,7 @@ export default function GraphingCalculatorPanel({
   const boardBoxRef = useRef(null);
   const boardRef = useRef(null);
   const drawnRef = useRef([]);
+  const tracedRef = useRef([]);
   const viewRef = useRef(view);
   viewRef.current = view;
   const inputRefs = useRef(new Map());
@@ -352,6 +372,22 @@ export default function GraphingCalculatorPanel({
         const next = board.getBoundingBox();
         if (Array.isArray(next) && next.every(Number.isFinite)) setView([...next]);
       });
+      // Trace by tapping (TL18): a press that lets go where it began, with the
+      // view unmoved (not a pan or a pinch), puts its x into the trace box.
+      let press = null;
+      board.on('down', (event) => {
+        const [x] = board.getUsrCoordsOfMouse(event);
+        press = { x, clientX: event?.clientX, clientY: event?.clientY, view: board.getBoundingBox().join() };
+      });
+      board.on('up', (event) => {
+        const start = press;
+        press = null;
+        if (!start || !Number.isFinite(start.x) || !Number.isFinite(start.clientX)) return;
+        const moved = Math.hypot((event?.clientX ?? start.clientX) - start.clientX, (event?.clientY ?? start.clientY) - start.clientY);
+        if (moved > 6 || board.getBoundingBox().join() !== start.view) return;
+        const [left, , right] = board.getBoundingBox();
+        setTraceX(tapTraceText(start.x, (right - left) / Math.max(1, box.clientWidth)));
+      });
       boardRef.current = board;
       setGraphState('ready');
     }).catch(() => {
@@ -360,6 +396,7 @@ export default function GraphingCalculatorPanel({
     return () => {
       cancelled = true;
       drawnRef.current = [];
+      tracedRef.current = [];
       boardRef.current = null;
       if (board && library) {
         try { library.JSXGraph.freeBoard(board); } catch { /* already gone */ }
@@ -392,6 +429,30 @@ export default function GraphingCalculatorPanel({
     });
     board.unsuspendUpdate();
   }, [parsed, graphState, dark]);
+
+  // The traced x, marked on each line it reaches, in that line's colour.
+  useEffect(() => {
+    const board = boardRef.current;
+    if (!board || graphState !== 'ready') return;
+    board.suspendUpdate();
+    tracedRef.current.forEach((element) => {
+      try { board.removeObject(element); } catch { /* already removed */ }
+    });
+    tracedRef.current = [];
+    const x = String(traceX).trim() === '' ? null : readNumberEntry(traceX, { angleMode });
+    if (x !== null) {
+      graphable.forEach(({ index, entry }) => {
+        const y = evaluateAt(entry, x);
+        if (y === null) return;
+        const style = LINE_STYLES[index % LINE_STYLES.length];
+        const color = dark ? style.dark : style.light;
+        tracedRef.current.push(board.create('point', [x, y], {
+          name: '', withLabel: false, fixed: true, highlight: false, showInfobox: false, size: 4, strokeColor: color, fillColor: color,
+        }));
+      });
+    }
+    board.unsuspendUpdate();
+  }, [traceX, angleMode, graphable, graphState, dark]);
 
   const applyView = (next) => {
     setView(next);
@@ -465,6 +526,24 @@ export default function GraphingCalculatorPanel({
   const featureEntry = graphable.find(({ line }) => line.id === featureLine) || graphable[0] || null;
   const features = keyPoints && featureEntry ? findGraphFeatures(featureEntry.entry, { xMin: view[0], xMax: view[2] }) : null;
   const point = ({ x, y }) => `(${formatNumber(x)}, ${formatNumber(y)})`;
+  // Where two lines meet: any two lines, vertical ones too.
+  const meetable = parsed
+    .map((entry, index) => ({ line: lines[index], index, entry }))
+    .filter(({ line, entry }) => line && (entry.kind === ENTRY_KINDS.FUNCTION || entry.kind === ENTRY_KINDS.VERTICAL));
+  const meetFirst = meetable.find(({ line }) => line.id === meetLines[0]) || meetable[0] || null;
+  const meetSecond = meetable.find(({ line }) => line.id === meetLines[1]) || meetable.find((candidate) => candidate !== meetFirst) || null;
+  const meetText = (() => {
+    if (!keyPoints || !meetFirst || !meetSecond) return '';
+    if (meetFirst === meetSecond) return 'Choose two different lines.';
+    const meeting = findIntersections(meetFirst.entry, meetSecond.entry, { xMin: view[0], xMax: view[2], yMin: view[3], yMax: view[1] });
+    if (!meeting) return '';
+    const names = `Lines ${meetFirst.index + 1} and ${meetSecond.index + 1}`;
+    if (meeting.together === 'all') return `${names} are the same line on screen.`;
+    const crossings = meeting.points.length ? `${meeting.points.map(point).join('; ')}${meeting.more ? '; and more' : ''}` : '';
+    const overlap = meeting.together === 'part' ? `${names} lie on top of each other on part of the screen.` : '';
+    if (!crossings) return overlap || `${names} don't meet on screen.`;
+    return overlap ? `${crossings}. ${overlap}` : crossings;
+  })();
   const traceTyped = String(traceX).trim() !== '';
   const traceNumber = traceTyped ? readNumberEntry(traceX, { angleMode }) : null;
   const traceValue = traceTyped ? (traceNumber ?? NaN) : null;
@@ -741,6 +820,34 @@ export default function GraphingCalculatorPanel({
                     )}
                   </div>
                 ) : <p style={{ margin: '4px 0 0', fontSize: 'calc(13.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Graph a line first.</p>}
+              </div>
+            )}
+
+            {meetText && (
+              <div data-graphing-intersections="">
+                <div style={SECTION_LABEL}>Where two lines meet</div>
+                <div style={{ marginTop: 4, display: 'grid', gap: 6 }}>
+                  {meetable.length > 2 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {[meetFirst, meetSecond].map((chosen, slot) => (
+                        <label key={slot === 0 ? 'first' : 'second'} style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, maxWidth: 200 }}>
+                          {slot === 0 ? 'First line' : 'Second line'}
+                          <select
+                            value={chosen.line.id}
+                            onChange={(event) => {
+                              const id = Number(event.target.value);
+                              setMeetLines(slot === 0 ? [id, meetSecond.line.id] : [meetFirst.line.id, id]);
+                            }}
+                            style={{ ...INPUT, marginTop: 4 }}
+                          >
+                            {meetable.map(({ line, index }) => <option key={line.id} value={line.id}>Line {index + 1}</option>)}
+                          </select>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  <p data-graphing-meet="" style={{ margin: 0, fontSize: 'calc(14.5 * var(--mm-px))' }}>{meetText}</p>
+                </div>
               </div>
             )}
 

@@ -29,6 +29,7 @@ import { timerElapsedMs, timerFromRoom } from '../../../functions/shared/liveCha
 import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { LINE_GRAPH_MODE_ID, LINE_GRAPH_MODE_IDS } from '../../../functions/shared/lineGraphRules.mjs';
 import { personalRoundTimer, storedTimeMultiplier } from '../../../functions/shared/liveChallengeAccommodations.mjs';
+import { HOST_AWAY_ENDED_BY, HOST_AWAY_FINISH_MS } from '../../../functions/shared/liveChallengeServerSweep.mjs';
 
 export const CHALLENGE_STAGE = MATCH_STATE;
 
@@ -44,6 +45,14 @@ export const GO_FLASH_MS = 800;
 // everyone has finished early it waits a moment, so the last student sees
 // their own answer's feedback before the results replace it.
 export const ROUND_CLOSE_AFTER_DEADLINE_MS = 1_500;
+/*
+ * A LONG WAIT FOR RESULTS SAYS SO (LC20). With a teacher screen open a round
+ * closes a moment after its deadline. With none, the server's sweep closes it,
+ * which can take up to about 70 seconds, and "The results are coming." read as
+ * a frozen game. After this long locked, the words say it can take a minute.
+ */
+export const LOCKED_WAIT_NOTICE_MS = 10_000;
+export const LOCKED_LONG_DETAIL = 'Your work is locked in. Still counting everyone’s answers — this can take up to a minute. Keep this screen open.';
 export const ROUND_CLOSE_AFTER_ALL_DONE_MS = 1_200;
 
 // Modes whose rounds hold many questions per player. Read from the room's mode
@@ -180,6 +189,9 @@ export const cueRemainingMs = (room = {}, nowMs = Date.now()) => {
   if (reading.stage === MATCH_STATE.ROUND_RESULTS) return 0;
   return reading.remainingMs ?? undefined;
 };
+
+/** The 3-2-1 step every screen shows before a round opens, for the host's countdown sound (LC16); null otherwise. */
+export const cueCountdownStep = (room = {}, nowMs = Date.now()) => challengeClock(room, nowMs).countdownStep;
 
 /**
  * The round whose in-progress ("working…") points may be shown on a board.
@@ -322,6 +334,21 @@ export const hostPrimaryAction = ({
 };
 
 /*
+ * WHY A FINISHED GAME ENDED, FOR THE TEACHER WHO COMES BACK TO IT (LC05).
+ *
+ * The server ends a game whose results stood HOST_AWAY_FINISH_MS with no
+ * teacher screen open (liveChallengeServerSweep.mjs; never a Warm-Up, whose
+ * result is a grade). The console reopens the last game it hosted, so the
+ * teacher reads why it is over instead of finding it finished with no reason.
+ * Null for a game the teacher ended.
+ */
+export const hostEndedNote = (room = {}) => (
+  room?.endedBy === HOST_AWAY_ENDED_BY
+    ? `MathMaster ended this game because no teacher screen was open for ${Math.round(HOST_AWAY_FINISH_MS / 60_000)} minutes after the last results. Answers students gave still count.`
+    : null
+);
+
+/*
  * WHAT A STUDENT SHOULD DO NOW. Every stage answers it in words — never a
  * blank screen or a bare spinner.
  */
@@ -331,6 +358,8 @@ export const studentGuidance = ({
   answered = false,
   finishedEarly = false,
   joinedAtRound = null,
+  // How long the round has sat locked waiting for its results (LC20).
+  lockedForMs = 0,
 } = {}) => {
   const counts = roundCounts(room);
   // `joinedAtRound` is set only for a student who joined after the game began:
@@ -357,7 +386,11 @@ export const studentGuidance = ({
     case MATCH_STATE.ROUND_PAUSED:
       return Object.freeze({ tone: 'waiting', headline: 'Paused', detail: 'Your teacher paused the round. The clock is stopped.' });
     case MATCH_STATE.ROUND_LOCKED:
-      return Object.freeze({ tone: 'done', headline: 'Time’s up!', detail: 'Your work is locked in. The results are coming.' });
+      return Object.freeze({
+        tone: 'done',
+        headline: 'Time’s up!',
+        detail: Number(lockedForMs) >= LOCKED_WAIT_NOTICE_MS ? LOCKED_LONG_DETAIL : 'Your work is locked in. The results are coming.',
+      });
     case MATCH_STATE.ROUND_RESULTS:
       return Object.freeze({
         tone: 'results',
@@ -378,6 +411,50 @@ export const studentGuidance = ({
       return Object.freeze({ tone: 'waiting', headline: 'Loading…', detail: '' });
   }
 };
+
+/*
+ * THE LINE UNDER A ROUND WHILE A LOCKED ANSWER IS ON ITS WAY (AX21).
+ *
+ * It says the answer is locked in — and, when the server refused it for now,
+ * why it has not been sent: GO has not come, or the teacher paused the round.
+ *
+ * `announce` is whether a screen reader is told by a live region. A field
+ * question's Lock In press moves focus to its own "Your answer is locked in."
+ * note (LiveChallengeFieldQuestion), which a screen reader reads. This line
+ * said the same thing from an assertive live region in the same breath, so a
+ * student heard two announcements. The plain lock is now announced here only
+ * where nothing else says it — an engine question, or a screen that opened
+ * with the answer already locked. A lock that has become a wait is news the
+ * note cannot know, so it is always announced.
+ */
+export const LOCKED_ANSWER_WORDS = Object.freeze({
+  checking: 'Answer locked in · checking it…',
+  waitingForGo: 'Your answer is locked in and will send at GO.',
+  waitingForResume: 'The round is paused. Your answer is locked in and will send when it resumes.',
+});
+
+export const lockedAnswerLine = ({ waitingForGo = false, waitingForResume = false, noteHasFocus = false } = {}) => {
+  if (waitingForGo) return Object.freeze({ text: LOCKED_ANSWER_WORDS.waitingForGo, announce: true });
+  if (waitingForResume) return Object.freeze({ text: LOCKED_ANSWER_WORDS.waitingForResume, announce: true });
+  return Object.freeze({ text: LOCKED_ANSWER_WORDS.checking, announce: !noteHasFocus });
+};
+
+/*
+ * THE ROUND BANNER'S COLOURS (AX22). The banner over a student's question is
+ * white text on a gradient. Its light end was #1a73e8: white on it is 4.51:1,
+ * one rounding from failing AA, and the small lines on the banner ("Points
+ * banked", "Your extra time is on") are drawn at 80-90% white, which was 3.5 to
+ * 4.0:1 there. Both ends now keep 80% white, and the gold points, above 4.5:1
+ * (tests/platform/liveChallengeRoundBanner.test.mjs). The last ten seconds turn
+ * the banner red; those ends were already well above it.
+ */
+export const ROUND_BANNER_COLORS = Object.freeze({
+  calm: Object.freeze(['#174ea6', '#185abc']),
+  urgent: Object.freeze(['#7f1d1d', '#a50e0e']),
+});
+export const roundBannerBackground = (urgent = false) => (
+  `linear-gradient(135deg,${(urgent ? ROUND_BANNER_COLORS.urgent : ROUND_BANNER_COLORS.calm).join(',')})`
+);
 
 /** m:ss, rounding up so 0:00 means time is really up. */
 export const formatChallengeClock = (milliseconds) => {

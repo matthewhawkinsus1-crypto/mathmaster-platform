@@ -273,7 +273,6 @@ function BalanceSolver({ questionData = {}, onAction }) {
   return (
     <EnlargeableFigure
       label="Step Algebra working activity"
-      enlargeLabel="Enlarge algebra workspace"
       style={{ width: '100%' }}
       taskText={`Solve ${formatEquation(original)} for x.`}
       capabilities={{

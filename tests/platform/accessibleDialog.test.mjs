@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  initialFocusChoice, isTabbableFacts, isTopDialog, looksLikeCloseControl, nextFocusIndex, openDialogCount, pushDialog,
+  TABBABLE_SELECTOR, initialFocusChoice, isTabbableFacts, isTopDialog, looksLikeCloseControl, nextFocusIndex, openDialogCount, pushDialog,
 } from '../../src/ui/dialogFocus.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
@@ -26,6 +26,24 @@ test('what can take Tab focus', () => {
   assert.equal(isTabbableFacts({ hidden: true }), false);
   assert.equal(isTabbableFacts({ inert: true }), false);
   assert.equal(isTabbableFacts({ rendered: false }), false);
+});
+
+// TT27. The first <summary> of a <details> takes Tab, but it was not in the list
+// of what a dialog's trap counts as tabbable. Focus on it was "on none of the
+// items", and nextFocusIndex sends that focus to the FIRST item: Tab on a
+// disclosure threw the teacher back to the top, and nothing after the first
+// disclosure in the Assignment Hub or the Pre-Flight review could be reached by
+// Tab. Browser proof: tests/browser/accessiblePrimitives.mjs (a disclosure in
+// the middle of a dialog) and the teacher scenes of the accessibility ratchet.
+test('a disclosure\'s summary is a Tab stop in a dialog, and what a closed one holds is not', () => {
+  const parts = TABBABLE_SELECTOR.split(',').map((part) => part.trim());
+  assert.ok(parts.includes('details > summary:first-of-type'), 'the first summary of a <details> is in the list of what Tab may land on');
+  // Why it matters: focus on an element the list does not hold goes to the first item.
+  assert.equal(nextFocusIndex({ count: 4, activeIndex: -1 }), 0, 'focus on a stop the dialog does not know about is sent back to the start');
+  assert.equal(nextFocusIndex({ count: 4, activeIndex: 1 }), null, 'a summary the dialog knows lets the browser move on');
+  // What a closed <details> holds keeps its boxes, so "has a box" is not "can take focus".
+  const rendered = region(executableSource(read('src/ui/Dialog.jsx')), 'const isRendered = (element) => {', '\n};', 'isRendered');
+  assert.match(rendered, /typeof element\.checkVisibility === 'function' && !element\.checkVisibility\(\)\) return element === element\.ownerDocument\?\.activeElement;/);
 });
 
 test('initial focus: explicit, then [data-autofocus], then the first control that is not Close', () => {
@@ -153,12 +171,36 @@ test('a dialog holding a typed draft does not close on Escape', () => {
   }
 });
 
-// PR #454 review S1: Escape with focus in a math field stopped closing Work
-// View, because MathInput prevents Escape's default (LaTeX mode) and the
-// Dialog took that as handled. Browser proof: accessiblePrimitives.mjs.
-test('Escape from a math field still reaches the dialog', () => {
-  const source = executableSource(read('src/ui/Dialog.jsx'));
-  assert.match(source, /const handledInside = event\.defaultPrevented\s*&& !\(event\.key === 'Escape' && event\.target\?\.closest\?\.\('math-field'\)\);\s*if \(handledInside \|\| !onTop\(\)\) return;/);
+// TL15 (owner decision; reverses PR #454 review S1 for math fields only):
+// Escape in a math field, or on one of its keys, closes the keypad and moves
+// focus out of the field — onto its √x button, else the field blurs — and is
+// marked handled, so Work View stays open. The next Escape, focus no longer
+// in a field, closes Work View as Escape does everywhere else. Browser proof,
+// both orders, keypad open and closed: accessiblePrimitives.mjs (the Dialog
+// with a real MathInput) and unchangedConfirmWorkView.mjs (real Work View).
+test('TL15: a math field takes its own Escape; the dialog closes on the next one', () => {
+  const dialog = executableSource(read('src/ui/Dialog.jsx'));
+  const handler = region(dialog, 'const onKeyDown = (event) => {', "if (event.key === 'Escape') {", 'the dialog key handler');
+  assert.match(handler, /const handledInside = event\.defaultPrevented;\s*if \(handledInside \|\| !onTop\(\)\) return;/, 'an Escape a control inside used stays its own');
+  assert.doesNotMatch(handler, /math-field/, 'no exception that lets a math field\'s Escape close the dialog');
+
+  const input = executableSource(read('src/MathInput.jsx'));
+  const leave = region(input, 'const leaveOnEscape = useCallback(', 'const escapeFromKeys', 'leaveOnEscape');
+  assert.match(leave, /setShowTools\(false\);/, 'the keypad closes');
+  assert.match(leave, /const toggle = toggleRef\.current;\s*if \(toggle\?\.isConnected\) \{\s*toggle\.focus\(\{ preventScroll: true \}\);/, 'focus moves onto the field\'s own √x button');
+  assert.match(leave, /mathField\?\.blur\?\.\(\);/, 'without the button the field blurs');
+  assert.match(input, /<button\s+ref=\{toggleRef\}[^>]*className="mathmaster-math-tools-toggle"/, 'the ref is the √x button');
+
+  const fieldEscape = region(input, "if (event.key === 'Escape') {", "if (event.key === '\\\\') {", 'the field\'s Escape');
+  assert.match(fieldEscape, /event\.preventDefault\(\);\s*if \(!event\.isComposing\) leaveOnEscape\(\);\s*return;/, 'marked handled, and the field is left');
+  assert.doesNotMatch(fieldEscape, /stopPropagation/, 'not stopped: the plane\'s hover readout still hears Escape');
+
+  const keys = region(input, 'const escapeFromKeys = (event) => {', '};', 'a key\'s Escape');
+  assert.match(keys, /event\.preventDefault\(\);\s*leaveOnEscape\(\{ fromKeys: true \}\);/);
+  for (const name of ['Keys needed for this answer', 'Math tools']) {
+    const toolbar = region(input, `aria-label="${name}"`, 'style={{', `the ${name} toolbar`);
+    assert.match(toolbar, /onKeyDown=\{\(event\) => \{ if \(!escapeFromKeys\(event\)\) \w+\.onKeyDown\(event\); \}\}/, `${name}: Escape closes the keypad before the arrows are read`);
+  }
 });
 
 // PR #454 functional review (S3): the rewritten Work View / LMR / badge /
@@ -208,10 +250,13 @@ test('QuestionEngine: the unchanged-values confirm is a Dialog; the scaffold a f
   // ("Let's back up"), not the program's "Productive struggle scaffold".
   assert.match(code, /<section ref=\{scaffoldRef\} role="region" aria-label="Let's back up" data-scaffold=""/);
   assert.match(code, /if \(!scaffoldRequired\) return undefined;\s*const frame = window\.requestAnimationFrame\(\(\) => scaffoldRef\.current\?\.querySelector\('button'\)\?\.focus\(/, 'focus moves to its first choice');
-  // The work area's inert gate is one value since student pass 3 (RUN-13):
-  // it includes the scaffold, and lifts only for a module that failed.
-  assert.match(code, /inert=\{workAreaClosed \? true : undefined\}/, 'the work beneath it is inert while it shows');
-  assert.match(code, /const workAreaClosed = !moduleFailed && Boolean\([^)]*\bscaffoldRequired\b[^)]*\);/, 'the scaffold is part of that gate');
+  // The work area's gates lift only for a module that failed (RUN-13). Since
+  // AX01 a FINISHED question's work is read-only rather than inert, and the
+  // inert gate is the waiting one: it includes the scaffold, so the work
+  // beneath it stays disabled and inert.
+  assert.match(code, /inert=\{workAreaInert \? true : undefined\}/, 'the work beneath it is inert while it shows');
+  assert.match(code, /const workAreaInert = !moduleFailed && Boolean\([^)]*\bscaffoldRequired\b[^)]*\);/, 'the scaffold is part of that gate');
+  assert.match(code, /const workAreaClosed = !moduleFailed && Boolean\([^)]*\bscaffoldRequired\b[^)]*\);/, 'and of the disabled one');
   // Review of #463: it opens from Work View's own Submit too, so it is drawn
   // above Work View (2147483000) and its calculator (2147483400).
   const z = Number(code.match(/const UNCHANGED_CONFIRM_Z_INDEX = (\d+);/)?.[1]);

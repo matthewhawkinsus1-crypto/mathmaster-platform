@@ -46,3 +46,35 @@ test('Graphing shows the readout, typeset, wherever it shows the student\'s line
   const readout = region(graphing, 'data-line-readout=', '</dd>');
   assert.match(readout, /<MathDisplay value=\{lineReadoutLatex\(studentLine\)\} format="latex" inline \/>/);
 });
+
+// GR30: the stored response text stays formatLine's — every record, old or
+// new, holds that shape, so no record reads differently from another — and
+// where a record is read (the Response Inspector, Spotlight, the student's
+// closed-question card) it is shown the way the readout writes a line.
+test('GR30 — a stored Graphing line reads as the readout writes it wherever a record is read; the stored text is unchanged', async () => {
+  const { readableStoredResponse, readableStoredResponseLatex, storedGraphingLine } = await import('../../src/tools/graphing2/storedLineText.js');
+  const graphing = { type: 'graphing2' };
+  for (const [a, b, text, latex] of [
+    [[0, 0], [1, 1], 'y = x', 'y = x'],
+    [[0, 2], [3, 4], 'y = (2/3)x + 2', 'y = \\frac{2}{3}x + 2'],
+    [[0, -4], [1, -5], 'y = −x − 4', 'y = -x - 4'],
+    [[0, 3], [2, 3], 'y = 3', 'y = 3'],
+    [[-3, 0], [-3, 4], 'x = −3', 'x = -3'],
+  ]) {
+    const stored = formatLine(through(a, b));
+    assert.equal(readableStoredResponse(stored, graphing), text, stored);
+    assert.equal(readableStoredResponseLatex(stored, graphing), latex, stored);
+  }
+  assert.equal(formatLine(through([0, 0], [1, 1])), 'y = 1x + 0', 'the record itself is unchanged');
+  // Only formatLine's own shape, and only on a Graphing question.
+  assert.equal(readableStoredResponse('y = 1x + 0', { type: 'multiAnswer' }), 'y = 1x + 0', 'a typed answer is shown as typed');
+  assert.equal(readableStoredResponse('y=1x+0', graphing), 'y=1x+0');
+  assert.equal(readableStoredResponse('(0, 0)', graphing), '(0, 0)');
+  assert.equal(readableStoredResponse('invalid line', graphing), 'invalid line');
+  assert.equal(storedGraphingLine('y = 2x + 3 and more'), null);
+  // The three places a record is read use it.
+  const read = (file) => executableSource(readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8'));
+  assert.match(read('src/components/teacher/StudentResponseInspector.jsx'), /show\(readableStoredResponse\(legacy\?\.\[part\.id\] \?\? legacy, model\.question\)\)/);
+  assert.match(read('src/components/teacher/StudentSpotlightView.jsx'), /value=\{readableStoredResponse\(part\?\.value \?\? part\?\.response \?\? part, frame\.question\)\}/);
+  assert.match(region(read('src/QuestionEngine.jsx'), 'const closedYourAnswer =', ': [];'), /response: readableStoredResponseLatex\(part\.response, processedQuestion\)/);
+});

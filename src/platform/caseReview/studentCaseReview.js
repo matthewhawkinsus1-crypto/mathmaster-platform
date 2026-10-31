@@ -34,7 +34,7 @@ import {
 } from './attemptAnalysis.js';
 import { analyzeSkills } from './skillAnalysis.js';
 import { compareSections, describeSectionComparison } from './sectionComparison.js';
-import { analyzeErrorPatterns } from './errorPatterns.js';
+import { RECOVERY_RECORDS_TRUNCATED, analyzeErrorPatterns } from './errorPatterns.js';
 import { analyzeAssignmentCompletion, summarizeCompletion } from './completionAnalysis.js';
 import { buildCaseTimeline } from './caseTimeline.js';
 import { analyzeOfficialContribution, reconcileGradebook } from './sisReconciliation.js';
@@ -196,7 +196,7 @@ export const buildStudentCaseReview = ({
   const now = Number(nowValue);
   const classId = clean(student?.classId) || null;
   const support = buildSupportEvidenceReport({
-    student, studentName, classRecord, assignments, gradingPeriodSettings, selection, revisions, evidence, serviceLog, engagement, supportSignals, exportSnapshots, nowValue: now, generatedByEmail,
+    student, studentName, classRecord, assignments, gradingPeriodSettings, selection, revisions, evidence, serviceLog, engagement, supportSignals, exportSnapshots, practicePassKeys, nowValue: now, generatedByEmail,
   });
   const assignmentById = new Map(list(assignments).map((assignment) => [assignment.id, assignment]));
   const passes = practicePassKeySet(practicePassKeys);
@@ -321,6 +321,9 @@ export const buildStudentCaseReview = ({
     assignmentRows: entries.map((entry) => ({ assignmentId: entry.assignmentId, title: entry.title, condition: entry.condition, isAssessment: entry.isTestCycle || ['quiz', 'test'].includes(entry.typeKey), score: entry.score, status: entry.status })),
   });
   const caseAssignmentIds = new Set(entries.map((entry) => entry.assignmentId));
+  // The server read those records up to a cap, per group of assignments; when it
+  // stopped there, a count built from them may be short (TT05).
+  const recoveryTruncated = evidenceLoaded && caseEvidence.truncated?.misconceptionEvidence === true;
   const errorPatterns = analyzeErrorPatterns({
     questions: allQuestions,
     // Recovery and Recovery Practice items graded by the server, for the
@@ -328,6 +331,7 @@ export const buildStudentCaseReview = ({
     recoveryEvidence: evidenceLoaded
       ? list(caseEvidence.misconceptionEvidence).filter((record) => caseAssignmentIds.has(record?.source?.assignmentId))
       : [],
+    recoveryTruncated,
   });
   const completionRows = entries.map((entry) => entry.completion);
   const completionSummary = summarizeCompletion(completionRows);
@@ -423,6 +427,7 @@ export const buildStudentCaseReview = ({
   if (sessionSummaries === undefined) gaps.push('Class-session summaries could not be loaded.');
   if (exportSnapshots === null) gaps.push('Grade export history could not be loaded, so export status reads "not loaded" rather than "not exported".');
   if (!errorPatterns.determinable && attemptSummary.scored > 0) gaps.push(errorPatterns.statement);
+  if (recoveryTruncated) gaps.push(RECOVERY_RECORDS_TRUNCATED);
   if (skills.untagged.attempted > 0) gaps.push(skills.untagged.note);
   if (skills.platformInferred.attempted > 0) gaps.push(skills.platformInferred.note);
   if (!sis) gaps.push('No official gradebook snapshot is imported. MathMaster grade contributions are not the official average.');
@@ -431,6 +436,7 @@ export const buildStudentCaseReview = ({
   const dataSources = {
     gradeRecord: sourceStatus({ label: 'Question records and grade projections', path: 'grades/{student}', loaded: true, provenance: CASE_PROVENANCE.DIRECT, note: 'Rolling question state; older records were written by the student\'s browser.' }),
     supportRecords: sourceStatus({ label: 'Support profile, evidence, service log, active-minute ledger (PR #401)', path: 'grades/{student}/support*, engagementMinutes', loaded: true, count: list(evidence).length, provenance: CASE_PROVENANCE.DIRECT }),
+    misconceptionEvidence: sourceStatus({ label: 'Recovery and Recovery Practice question records', path: 'grades/{student}/misconceptionEvidence (via loadStudentCaseEvidence)', loaded: evidenceLoaded, count: evidenceLoaded ? list(caseEvidence.misconceptionEvidence).length : null, provenance: CASE_PROVENANCE.DIRECT, error: caseEvidenceError, note: recoveryTruncated ? RECOVERY_RECORDS_TRUNCATED : '' }),
     attemptEvents: sourceStatus({ label: 'Per-attempt events', path: 'grades/{student}/evidenceEvents (via loadStudentCaseEvidence)', loaded: evidenceLoaded, count: evidenceLoaded ? list(caseEvidence.attemptEvents).length : null, provenance: CASE_PROVENANCE.DIRECT, error: caseEvidenceError, note: evidenceLoaded && caseEvidence.truncated?.events ? 'More events exist than were loaded.' : '' }),
     practice: sourceStatus({ label: 'Practice Mode records', path: 'studentWorkspaceDrafts (practice only, via loadStudentCaseEvidence)', loaded: evidenceLoaded, count: evidenceLoaded ? Object.keys(caseEvidence.practice || {}).length : null, provenance: CASE_PROVENANCE.LEGACY }),
     receipts: sourceStatus({ label: 'Submission receipts', path: 'studentSubmissionReceipts (via loadStudentCaseEvidence)', loaded: evidenceLoaded, provenance: CASE_PROVENANCE.DIRECT }),

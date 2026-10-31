@@ -222,9 +222,9 @@
           "difficultyBand": 2,
           "dok": 3,
           "equations": [
-            "x + y - z = -1",
-            "x + y + z = 3",
-            "3x - 2y - z = -4"
+            "x + y + z = 5",
+            "x - y + z = 9",
+            "2x + 3y - z = -4"
           ],
           "variables": [
             "x",
@@ -454,7 +454,7 @@
           ],
           "difficultyBand": 4,
           "dok": 3,
-          "prompt": "[College-Readiness / Honors Transfer] A student is analyzing a 3×3 linear system with a variable parameter c:\n(1) 2x + y - 3z = 5\n(2) x + 2y - 4z = 7\n(3) 6x + 3y - 9z = c\nThe first two equations intersect in a line in three-dimensional space.",
+          "prompt": "A student is analyzing a 3×3 linear system with a variable parameter c:\n(1) 2x + y - 3z = 5\n(2) x + 2y - 4z = 7\n(3) 6x + 3y - 9z = c\nThe first two equations intersect in a line in three-dimensional space.",
           "answerFields": [
             {
               "id": "param_infinite",

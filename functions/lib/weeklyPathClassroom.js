@@ -127,6 +127,7 @@ function weeklyPathPublishDecision({
   score = null,
   alreadyPublishedScore = null,
   teacherEdited = false,
+  absentThisWeek = false,
 } = {}) {
   if (!enabled) {
     return { publish: false, reason: "automatic_publishing_not_enabled_for_this_class" };
@@ -151,6 +152,13 @@ function weeklyPathPublishDecision({
   const published = realNumber(alreadyPublishedScore);
   if (published !== null && published === realNumber(score)) {
     return { publish: false, reason: "this_score_is_already_published" };
+  }
+  // A student their teacher marked absent this week (excused or not) had less
+  // of the week to do it in. A low weekly grade must not reach their family
+  // from a machine before the teacher has looked (TT03); a full score cannot
+  // mislead anyone, so only a lower one is left for the teacher.
+  if (absentThisWeek && realNumber(score) < 100) {
+    return { publish: false, reason: "student_was_marked_absent_this_week" };
   }
   return { publish: true, reason: null };
 }

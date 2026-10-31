@@ -56,14 +56,11 @@ const runViewport = async (viewport) => {
   const open = async () => {
     const page = await context.newPage();
     page.on('pageerror', (error) => {
-      // Pre-existing and outside this check: MathLive's own blur handler reads
-      // a model whose math field "Continue here" has just unmounted
-      // (atomToString -> options). Reported, not counted; any other error fails.
+      // Any page error fails, MathLive's included: "Continue here" used to
+      // leave the unmounted field as MathLive's focused one, and the next tap
+      // on a field threw reading its model (atomToString -> options). MathInput
+      // now blurs a field MathLive counts as focused before it leaves (RT06).
       const stack = String(error.stack || '');
-      if (/reading 'options'/.test(error.message) && /mathlive/i.test(stack) && /onBlur/.test(stack)) {
-        console.log(`note [${tag}] known MathLive blur-after-unmount error (not counted)`);
-        return;
-      }
       check(false, `[${tag}] no page error`, `${error.message} ${stack.slice(0, 600)}`);
     });
     await page.goto(url, { waitUntil: 'networkidle' });

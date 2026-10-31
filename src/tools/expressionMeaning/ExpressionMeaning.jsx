@@ -99,7 +99,9 @@ export default function ExpressionMeaning({ questionData = {}, onAction }) {
         task="For every listed expression, decide what unit it is measured in, what it means in context, and what mathematical role it plays."
         stepsAreControls
         steps={[
-          'Tap an expression in the matrix to open it.',
+          // The expressions are buttons, so Tab reaches them and Enter opens one
+          // (AX32: a step that names a tap names the keyboard in the same line).
+          'Select an expression in the matrix to open it (click or tap, or Tab to it and press Enter).',
           'Choose its Unit, its Contextual Meaning, and its Mathematical Role.',
           'Move through every expression in the matrix.',
           'Submit the completed meaning map when every row is filled in.',
@@ -185,7 +187,7 @@ export default function ExpressionMeaning({ questionData = {}, onAction }) {
           disabled={!allComplete}
           style={{ ...button, background: allComplete ? '#1a73e8' : '#dadce0', color: allComplete ? '#fff' : 'var(--mm-text-muted)', border: 0 }}
         >
-          <SubmitText>Submit meaning map</SubmitText>
+          <SubmitText>Check meaning map</SubmitText>
         </button>
         {feedback ? <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Every connection is correct' : 'Some connections need another look'}</ResultPill> : null}
       </div>

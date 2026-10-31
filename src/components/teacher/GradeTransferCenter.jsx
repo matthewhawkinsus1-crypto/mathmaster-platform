@@ -460,7 +460,7 @@ export default function GradeTransferCenter({
       </p>
     </div>
 
-    <div className="tw-card tw-stack" style={{ gap: 10 }} aria-label="Export scope">
+    <div className="tw-card tw-stack" style={{ gap: 10 }} role="group" aria-label="Export scope">
       <div className="tw-row" role="group" aria-label="Classes">
         <span className="tw-small tw-strong">Classes</span>
         <button type="button" className="tw-chip" aria-pressed={classFilter.size === 0} onClick={() => { setSelected(new Set()); setClassFilter(new Set()); }}>All classes</button>

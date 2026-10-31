@@ -123,6 +123,25 @@ export const receiptKindOf = (receipt) => {
 export const isAttemptReceipt = (receipt) => receipt?.serverConfirmed === true
   && receiptKindOf(receipt) !== RECEIPT_KIND.MILESTONE;
 
+/*
+ * WORK DONE IN EXTRA TIME, AFTER THE CLASS'S BUZZER. In a race whose round is
+ * a set to finish (a mode with `extraTimeAfterBuzzer`: Graph the Line's
+ * Classic and Sprint), a student with extended time on their plan keeps
+ * working after the buzzer. Those attempts are theirs — what they finished,
+ * the teacher's report, their evidence — but the race was decided at the
+ * buzzer, so they are kept in their own map on the private player record,
+ * apart from `submissionReceipts`. Everything that ranks, scores or rewards
+ * reads `submissionReceipts` only and so can never count them; whatever
+ * describes the student's own work reads both (`playerWorkReceipts`).
+ */
+export const EXTRA_TIME_RECEIPTS_FIELD = 'extraTimeReceipts';
+
+/** Every attempt a player made: the race's receipts and those made in extra time. */
+export const playerWorkReceipts = (player = {}) => ({
+  ...(player?.submissionReceipts || {}),
+  ...(player?.[EXTRA_TIME_RECEIPTS_FIELD] || {}),
+});
+
 const receiptList = (receipts) => {
   if (!receipts) return [];
   if (Array.isArray(receipts)) return receipts.filter(Boolean).map((receipt, index) => [receipt?.submissionId || String(index), receipt]);

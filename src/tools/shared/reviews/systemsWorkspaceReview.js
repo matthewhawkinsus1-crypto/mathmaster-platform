@@ -41,7 +41,8 @@
 // where the grader needs it exact, for a shape the screen cannot build (a 3×3
 // elimination with no variable in all three equations, a boundary with no two
 // grid points to tap), for a nonunique 3×3 outside the elimination workflow
-// (the grader does not grade it), and for any malformed input.
+// (the grader grades it since TL11, but this write-up only follows elimination
+// and a substitution one is not written yet), and for any malformed input.
 import declaration from '../../../../functions/shared/serverGrading/declarations/systemsWorkspace.mjs';
 import { toolModeSupport } from '../../../../functions/shared/serverGrading/toolGraderDefinition.mjs';
 import { solveTwoLines } from '../../../../functions/shared/toolMath/shared/toolMath.mjs';
@@ -1032,7 +1033,7 @@ const studentBuildReview = (question) => {
         const side = parts.kind === 'y'
           ? (parts.relation.includes('>') ? 'above' : 'below')
           : (parts.relation.includes('>') ? 'to the right of' : 'to the left of');
-        sentence.push(`shade ${side} the line — tap a point there such as ${pointText(tap)}, since ${pointCheckText(constraint, names, tap, true)}.`);
+        sentence.push(`shade ${side} the line — choose a point there such as ${pointText(tap)}, since ${pointCheckText(constraint, names, tap, true)}.`);
         items.push({ label: `Constraint ${index + 1}: shading`, value: `${side[0].toUpperCase()}${side.slice(1)} the line, the side containing ${pointText(tap)}` });
       }
       // The grader's own per-constraint rule must call this work right.
@@ -1396,7 +1397,8 @@ const algebraicThreeReview = (question) => {
     };
   }
 
-  // Dependent or inconsistent: only the elimination workflow classifies it.
+  // Dependent or inconsistent: the write-up below is the elimination one (TL11: the grader
+  // grades a substitution attempt the same way, but its worked review is not built yet).
   if (config.method !== 'elimination') return null;
   const outcome = eliminationOutcome(forms, vars, texts, key.type);
   if (!outcome) return null;

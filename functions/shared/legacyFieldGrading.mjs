@@ -55,6 +55,9 @@ export const buildFieldGradingDefinition = (question = {}) => {
       ? String(field.equivalence)
       : [field?.inputProfile, field?.toolProfile, field?.answerFormat, field?.notation]
         .some((value) => String(value || '').toLowerCase() === 'interval') ? 'interval' : null,
+    // A number box that takes a calculation, as functions/lib/mathPath.js
+    // stores it (GR01).
+    ...(field?.allowArithmetic === true ? { allowArithmetic: true } : {}),
     // The field's answer kind, as functions/lib/mathPath.js stores it, so a
     // list or a pair is never read as one grouped number.
     ...Object.fromEntries(['inputProfile', 'answerFormat', 'notation', 'toolProfile']

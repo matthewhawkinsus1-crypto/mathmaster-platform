@@ -189,10 +189,11 @@ test('the rush round: refs for the tap handler, one clock anchor, a persisted qu
   const failure = region(round, '} catch (error) {\n      if (!mountedRef.current) return;\n      const code', '} finally {', 'send failure');
   assert.match(failure, /if \(isFinalRefusal\(error\) \|\| timeIsUp\) \{[\s\S]*dropQueue\(/);
   assert.match(failure, /flushTimerRef\.current = window\.setTimeout\(\(\) => flushRef\.current\(\), retryDelayRef\.current\)/, 'anything else is retried');
-  // "Time is up" is the shared rule (challengeAnswerRefusal.js), read on this
-  // device's clock: a deadline-exceeded mid-round (a batch that reached the
-  // server before its GO, or a timeout) is retried, not dropped.
-  const timeIsUp = /rushRefusalIsTimeUp\((?:code|error\?\.code), timing\.endMono - performance\.now\(\)\)/;
+  // "Time is up" is the shared rule (challengeAnswerRefusal.js): the server's
+  // reason when it gave one (LC06), else this device's clock. A
+  // deadline-exceeded mid-round (a batch that reached the server before its
+  // GO, a pause, or a timeout) is retried, not dropped.
+  const timeIsUp = /rushRefusalIsTimeUp\((?:code|error\?\.code), timing\.endMono - performance\.now\(\), error\?\.details\?\.reason\)/;
   assert.match(failure, timeIsUp);
   // The same rule when a reopened round resends what this device stored: the
   // stored taps are dropped only on a final refusal or when time is up.
@@ -215,6 +216,56 @@ test('the rush graph draws its own keyboard ring, and a tap takes it away', () =
   assert.match(region(graph, 'const handlePointerDown = (event) => {', '\n  };', 'pointer down'), /setCursorVisible\(false\);/);
   const css = read('../../src/index.css');
   assert.match(region(css, 'body :is(', '}', 'the global focus ring'), /:not\(\[data-focus-ring="own"\]\):focus-visible \{/);
+});
+
+// CI06. A new graph resets the keyboard cursor and clears what was announced.
+// As a passive effect that reset ran a moment AFTER the commit, so an arrow
+// pressed in that moment was moved and announced by its handler and then reset
+// by the late effect: the first key on a new graph said nothing and moved
+// nothing (reproduced by dispatching the key in the commit's own microtask:
+// 1 of 6 announced; it failed the game driver once on a loaded machine). A
+// layout effect has run before the browser can deliver any key. Browser proof:
+// tests/browser/graphFeatureRushGame.mjs, "the keyboard cursor is not announced".
+test('the rush graph resets its keyboard cursor before a key can reach the new graph', () => {
+  const graph = executableSource(read('../../src/components/liveChallenge/GraphFeatureRushGraph.jsx'));
+  const reset = region(graph, 'useLayoutEffect(() => {', '[question.questionIndex, view]);', 'the new-graph reset');
+  assert.match(reset, /setCursor\(initialCursor\(view\)\);/, 'the cursor goes back to the origin');
+  assert.match(reset, /setAnnouncement\(''\);/, 'what was announced is cleared');
+  assert.match(graph, /import \{[^}]*\buseLayoutEffect\b[^}]*\} from 'react';/);
+  // The same two resets must not also sit in a passive effect (it would run late and undo a key).
+  assert.doesNotMatch(graph, /useEffect\(\(\) => \{\s*setCursor\(/, 'no passive effect resets the cursor');
+});
+
+// LC01. A steep curve that hugs an axis ran over the numbers beside it and hid
+// them: a cube root's tangent at the y-axis is vertical, so the curve lies
+// along that axis for up to a fifth of the plot's height (measured over 2,160
+// generated questions, within 6px of the axis on a 560px plot: one in ten for
+// more than a twentieth of the height, 20 for more than 13%, the worst 19.5%),
+// and a cubic's steep branch crossed the x-axis number it stands on. The numbers
+// are drawn AFTER the curve, each with an outline in the plot's colour so it
+// stays readable where they meet, and the curve is clipped to the plot square
+// itself instead of leaving that to whatever the parent crops. The endpoint
+// dots come last: an open or closed dot is the whole question at a domain
+// endpoint, so nothing may cover one.
+test('the rush graph draws its axis numbers over the curve, and clips the curve to the plot', () => {
+  const graph = executableSource(read('../../src/components/liveChallenge/GraphFeatureRushGraph.jsx'));
+  const layer = region(graph, 'const GraphLayer = memo(function GraphLayer', '\n});', 'the graph layer');
+  // The plot square is the clip, and the curve sits inside the clipped group.
+  assert.match(layer, /<clipPath id=\{plotClip\}>\s*<rect width=\{side\} height=\{side\} \/>\s*<\/clipPath>/, 'the plot square is the clip');
+  const clipAt = layer.indexOf('<g clipPath={`url(#${plotClip})`}>');
+  const curveAt = layer.indexOf('drawing.paths.map');
+  const numbersAt = layer.indexOf('labels.x.map');
+  const dotsAt = layer.indexOf('drawing.dots.map');
+  assert.ok(clipAt > -1 && curveAt > clipAt, 'the curve is drawn inside the clipped group');
+  assert.doesNotMatch(layer.slice(clipAt, curveAt), /<\/g>/, 'and the clipped group is still open where the curve starts');
+  assert.ok((layer.slice(curveAt, numbersAt).match(/<\/g>/g) || []).length >= 2, 'the numbers are outside the clipped group');
+  // The order: curve, then the numbers, then the endpoint dots.
+  assert.ok(curveAt > -1 && numbersAt > curveAt, 'the numbers are drawn after the curve');
+  assert.ok(dotsAt > numbersAt, 'and the endpoint dots after the numbers');
+  // Each number keeps its outline in the plot's colour, for where it meets the curve.
+  assert.match(layer, /const halo = \{ paintOrder: 'stroke', stroke: 'var\(--mm-graph-bg\)', strokeWidth: 3,/);
+  const numbers = region(layer, 'labels.x.map', 'drawing.dots.map', 'the numbers');
+  assert.equal((numbers.match(/style=\{halo\}/g) || []).length, 3, 'x numbers, y numbers and the origin zero all carry it');
 });
 
 /* --------------------------- the teacher's screens ------------------------- */

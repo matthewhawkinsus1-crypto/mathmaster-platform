@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
+import useEscapeToDismiss from '../../ui/useEscapeToDismiss.js';
 import { buildDomainReadiness, explainDomain } from '../../platform/ccmr/domainReadiness.js';
 
 // One assessment's readiness, as a wheel.
@@ -41,6 +42,11 @@ export const CCMRReadinessWheel = ({
 }) => {
   const [focused, setFocused] = useState(null);
   const domains = useMemo(() => buildDomainReadiness(recommendations), [recommendations]);
+  // A hovered or focused slice's detail replaces the selected one: Escape puts
+  // the selected one back, the pointer and focus staying where they are
+  // (WCAG 1.4.13). It comes back when the pointer or focus reaches a slice.
+  const clearFocused = useCallback(() => setFocused(null), []);
+  useEscapeToDismiss(focused != null, clearFocused);
 
   if (!domains.length) return null;
 

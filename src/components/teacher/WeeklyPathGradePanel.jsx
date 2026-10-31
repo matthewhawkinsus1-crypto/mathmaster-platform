@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import {
-  SYNC_STATE, prepareClassroomSync, syncReadiness, weeklyPathGradebookRows,
+  SYNC_STATE, classDueDayName, prepareClassroomSync, syncReadiness, weeklyPathGradebookRows,
 } from '../../platform/path/weeklyPathGradebook.js';
 import StudentNameLink from '../common/StudentNameLink.jsx';
 import WeeklyPathAutoPublish from './WeeklyPathAutoPublish.jsx';
@@ -54,6 +54,8 @@ export default function WeeklyPathGradePanel({
     students, goalsByStudentId, completionsByStudentId, learningProfilesByStudentId, now,
   }), [students, goalsByStudentId, completionsByStudentId, learningProfilesByStudentId, now]);
   const progressKnown = progressState === 'loaded';
+  // The day this class's weeks close, for the automatic-publishing sentence.
+  const dueDay = useMemo(() => classDueDayName(goalsByStudentId), [goalsByStudentId]);
 
   const readiness = useMemo(
     () => (progressKnown
@@ -155,7 +157,7 @@ export default function WeeklyPathGradePanel({
         >
           Review before publishing
         </button>
-      <WeeklyPathAutoPublish classId={classId} weekKey={weekKey} students={students} />
+      <WeeklyPathAutoPublish classId={classId} weekKey={weekKey} students={students} dueDay={dueDay} />
       </div>
     </section>
   );

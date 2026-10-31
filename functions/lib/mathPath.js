@@ -86,6 +86,15 @@ async function answerEquivalence() {
   return answerEquivalenceModule;
 }
 
+// GR03: whether a line field takes any equation of its line is read from the
+// question's words at issue and stored in the private grading, which keeps no
+// prompt or label (lineFormPolicy.mjs).
+let lineFormPolicyModule = null;
+async function lineFormPolicy() {
+  if (!lineFormPolicyModule) lineFormPolicyModule = await import('../shared/lineFormPolicy.mjs');
+  return lineFormPolicyModule;
+}
+
 // Feedback, hints and the solution review. Loaded the same lazy way, and shared
 // with the Teacher Path Simulator so a teacher previewing a question sees the
 // student's actual sequence rather than a teacher-only summary.
@@ -572,6 +581,9 @@ function privateGradingDefinition(question) {
       ? field.choices
       : (isChoice && Array.isArray(question.choices) ? question.choices : []);
     const sourceKey = hasFieldChoices ? `field:${id}` : 'question';
+    // Only a "choice" field is drawn as choices (PathResponseFields.jsx); any
+    // other field is typed, so its authored key grades the typed value (MP13,
+    // tests/platform/pathFieldChoiceRemap.test.mjs).
     const runtimeIds = isChoice && sourceChoices.length
       ? choiceIdMap(question, sourceKey, sourceChoices)
       : null;
@@ -596,6 +608,9 @@ function privateGradingDefinition(question) {
         : [field?.inputProfile, field?.toolProfile, field?.answerFormat, field?.notation]
           .some((value) => String(value || '').toLowerCase() === 'interval') ? 'interval' : null,
       ...(digitalSatNumberField(question, field) ? { numberRules: 'digitalSAT' } : {}),
+      // A number box whose answer is a calculation (GR01: answerEquivalence
+      // fieldAllowsArithmetic). Stored on new issues only, like the kind below.
+      ...(field?.allowArithmetic === true ? { allowArithmetic: true } : {}),
       // What kind of answer the field takes, so the grader can tell a list
       // or a pair (where `1,250` is two values) from one number
       // (answerEquivalence fieldAcceptsThousandsSeparators). Stored on new
@@ -661,7 +676,10 @@ async function buildIssuePlan(question) {
   if (!legacy.hasFieldGradableDefinition(question)) {
     return { issuable: false, reason: 'no_gradable_definition', toolPayload: null, privateGrading: null };
   }
-  return { issuable: true, reason: null, toolPayload: null, privateGrading: privateGradingDefinition(question) };
+  // A line field that asks for no form is stored as taking any equation of
+  // its line (GR03); an item issued before this keeps what it was issued with.
+  const policy = await lineFormPolicy();
+  return { issuable: true, reason: null, toolPayload: null, privateGrading: policy.withLineFormGrading(question, privateGradingDefinition(question)) };
 }
 
 async function valuesEquivalent(actual, field) {

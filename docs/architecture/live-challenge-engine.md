@@ -35,7 +35,7 @@ durable match result.
 | `liveChallengeResults.mjs` | round results, match results, standings | yes |
 | `liveChallengeRewardRules.mjs` | reward policies, criteria, award identity | yes |
 | `rewardGrants.mjs` | reward definitions; grant documents and their lifecycle transitions | yes |
-| `rewardGrantStore.mjs` | applying a grant transition atomically | server |
+| `rewardGrantStore.mjs` | applying a grant transition atomically; lazy expiry (`persistExpiredGrants`) | server |
 | `liveChallengeClassPoints.mjs` | staging and delivering awards (ledger credits, grants) | server |
 | `liveChallenge.mjs` | the mature per-response scorer, receipts, leaderboard, tallies (pre-engine; still authoritative for Accuracy First arithmetic) | yes |
 | `liveChallengeParity.mjs` | client clock calibration, round phases, snapshot acceptance | yes |
@@ -188,7 +188,7 @@ defineChallengeMode({
 | `questionSource` | which question planner draws the round's questions (`LIVE_CHALLENGE_QUESTION_PLANNERS` in `functions/index.js`: `plan` for a room or dry run, `swap` for a dry-run swap) |
 | `questionSpec` | completion rule and target count per question (section 5) |
 | `scoringStrategies` | the strategies a room of this mode may use; anything else resolves to the default |
-| `capabilities` | engine features the mode opts into, read where they apply (e.g. `progressMilestones` gates the Solver Race progress callable; `warmupLink` whether a room may be an assignment's Warm-Up) |
+| `capabilities` | engine features the mode opts into, read where they apply (e.g. `progressMilestones` gates the Solver Race progress callable; `warmupLink` whether a room may be an assignment's Warm-Up; `extraTimeAfterBuzzer` whether a question-set race gives a student with extended time their extra time after the buzzer, §16) |
 | `normalizeConfig` | validates the mode's own create settings |
 | `questionIssue` | `shared` (everyone answers the round's question) or `perPlayer` (each player's questions are their own; a round's question specs are read from that player's receipts, `questionSpecsFromReceipts`) |
 | `roundLimits` | the round count and seconds a room of the mode may be created with (`normalizeModeRoundCount/Seconds`); the classic defaults otherwise |
@@ -334,10 +334,11 @@ defineScoringStrategy({
 **Speed influence is native.** The teacher's speed setting (0–50%) is applied by
 the strategy at submit time with the exact arithmetic the retired post-hoc
 wrapper used (`scaleLegacySpeedPoints`), including Solver Race milestone speed —
-so "Off" pays no speed anywhere. The legacy experience trigger in
-`functions/entry.js` stays deployed for the rolling-deploy window; every new
-submission marks its round (`experienceSpeedAdjustedRound`) so the trigger
-returns before touching it.
+so "Off" pays no speed anywhere. The legacy experience trigger
+(`adjustLiveChallengeExperienceScore`) is retired from `functions/entry.js`
+(LC23; the deploy note is in section 14). Every submission still marks its
+round (`experienceSpeedAdjustedRound`), which the trigger, if it is still
+deployed, reads to return before touching it.
 
 A **per-round** strategy changes the match total only when a round closes:
 `playerTotalsAfterRound` records the placement under `roundPlacements[round]`,
@@ -428,7 +429,7 @@ runs each effect **from the match result**, never from private game state:
 | `report` | `liveChallengeReports/{roomId}` |
 | `invites` | invite status — only invites that still point at this room |
 | `warmupCredit` | the assignment's participation/accuracy credit, measured against rounds actually played |
-| `evidence` | mastery evidence (weight 0.7, replays excluded) |
+| `evidence` | mastery evidence (weight 0.7, replays excluded); a line game's by its own rules — each line's first try, per item type, from each standing's `lineGraphEvidence` (`lineGraphEvidence.mjs`, `graph-the-line.md` §11) — only while the owner's switch `platformFlags/liveChallengeEvidence` has `lineGraph: true` (off) |
 | `rewards` | reward delivery (section 9); finished matches only |
 | `privateCleanup` | deletes `liveChallengePrivate/{roomId}` — last, once every other effect has settled, or on the last attempt |
 
@@ -464,10 +465,12 @@ Terminal states never change. A transition never deletes anything: it sets the
 new status, records who/when/why/against-what, and appends to `history`. A
 retried transition with the same intent is `alreadyApplied`, not a second use.
 An available grant past `expiresAt` already reads as expired
-(`effectiveGrantStatus`); persisting that is optional.
+(`effectiveGrantStatus`); recording that is housekeeping the server paths that
+hold a student's grants do lazily (`grantsDueToExpire`,
+`persistExpiredGrants`; `rewards.md` section 2).
 `transitionRewardGrant(db, grantId, transition)` (`rewardGrantStore.mjs`)
-applies a transition atomically — the integration point a wallet, a teacher's
-"take back" or an expiry sweep calls.
+applies a transition atomically; a teacher's "take back" and a student's use
+apply theirs inside their own transactions (`rewardActionStore.mjs`).
 
 ### Rules
 
@@ -627,10 +630,27 @@ writes them again: no summary, no place in the final result or report, no
 reward. It then removes their grants and award-job references, deletes their
 own summary in every match they played (found through the match results that
 list them), and scrubs their rows from match results and reports (by the
-`studentIds` key both carry). Known gaps: reports written before that key
-existed are not reachable by query, and a room retired without finishing keeps
-its private round results until the pre-production reset, which clears every
-collection above.
+`studentIds` key both carry). It also takes their rows out of the private
+round results (`liveChallengePrivate/{roomId}/rounds/{round}`) of the room
+their invite names, which a room retired without finishing keeps, and of each
+match they played whose private cleanup has not run (SI13). A report's
+question-set rows (`lineGraph.players`, `graphFeatureRush.players`) go too
+(`reportRowsWithout`, SI07).
+
+A match that finishes while the deletion runs never pays or reports the
+student (SI07). The deletion's first write marks their roster row
+(`permanentDeletionStartedAt`, `functions/shared/studentDeletionMark.mjs`),
+and every finalization effect that writes about a student reads the roster
+rows in the transaction that writes: the report, Warm-Up credit and evidence
+leave out a student whose row is marked or gone, reward staging does not
+stage them, and award delivery's roster re-check skips them
+(`student_being_deleted`). A transaction that read a row just before the mark
+runs again and sees it; whatever committed before the mark is erased by the
+deletion's later steps. Known gaps: reports written before the `studentIds`
+key existed are not reachable by query, and a retired room the invite no
+longer names (the teacher has started another match since) keeps its private
+round results until the pre-production reset, which clears every collection
+above.
 
 ### 12a. The standings snapshot
 
@@ -641,9 +661,9 @@ re-ranking the class on a Chromebook. Now one small document,
 `liveChallengeRooms/{roomId}/standings/current`
 (`functions/shared/liveChallengeStandingsProjection.mjs`), carries what a
 student's screen shows of the class: the rows the public rule shows everyone
-(`classStandingsRows`: at most five, never a row tied with the last, never
-exactly one player unshown — so two players project none and three only
-first place), how many play (`count`) and where the last group starts
+(`classStandingsRows`: at most five, never a row tied with the last, never one
+or two players unshown — so two and three players project none, four only
+first place and five the top two; LC22), how many play (`count`) and where the last group starts
 (`lastRank`, which the screen hands back to `publicStandingsRows` with its own
 row). It is replaced whole, never patched, so a screen that missed one loses
 nothing.
@@ -742,8 +762,18 @@ support. Rules: the room's audience reads it; no client writes it.
 - **Effects read the match result**, never private state, and stay idempotent.
   Private state is deleted last.
 - **Public documents carry no student id** (players, rounds).
-- **The experience trigger marker** (`experienceSpeedAdjustedRound`) until a
-  deployment explicitly deletes `adjustLiveChallengeExperienceScore`.
+- **The experience trigger marker** (`experienceSpeedAdjustedRound`, written by
+  `submitLiveChallengeResponse`) until `adjustLiveChallengeExperienceScore` is
+  confirmed gone from production. The trigger is out of the source (LC23), but
+  the function stays deployed until someone deletes it: an exact-name release
+  (`scripts/release-firebase.mjs`) never names it, a whole-fleet
+  `firebase deploy --only functions` offers to delete it (and does with
+  `--force`), and `firebase functions:delete adjustLiveChallengeExperienceScore
+  --region us-central1 --project mathmaster-aleks` does it on purpose. While it
+  is deployed it reads the marker, and a player write without one would be
+  rescaled. Once it is gone, the marker write and `experienceScoreAdjustment`
+  (kept as the oracle `tests/platform/liveChallengeEngineScoring.test.mjs`
+  checks the native arithmetic against) can go in a later change.
 - **Accuracy First arithmetic**: existing classes' scores must not shift.
 
 ---
@@ -753,20 +783,20 @@ support. Rules: the room's audience reads it; no client writes it.
 - Host pause/resume controls (the timer model supports them). ~~An automatic
   round close from the host screen for the classic modes~~ — built: every mode
   (`live-challenge-shell.md` §4).
-- Teacher UI for choosing a scoring strategy for the classic modes (the server
-  accepts `scoringStrategyId` and `scoringConfig` at create and validates them;
-  every results screen presents Grand Prix and Correct Count; Graph Feature
-  Rush's setup offers its two strategies). The reward-policy
-  choice now exists as a small preset picker (`ChallengeRewardSettings`, used
-  by every mode); a free-form rule editor is still deferred.
+- ~~Teacher UI for choosing a scoring strategy for the classic modes~~ — built
+  (LC16): Standard Challenge and Solver Race offer the strategies their mode
+  allows (`live-challenge-shell.md` §7); Graph Feature Rush's setup offers its
+  two. The reward-policy choice exists as a small preset picker
+  (`ChallengeRewardSettings`, used by every mode); a free-form rule editor is
+  still deferred.
 - ~~A student rewards wallet and teacher revoke~~ — built: see
   `docs/architecture/rewards.md` (wallet, Practice Pass redemption from a
   held pass, teacher give / take back / undo, Challenge reward choice and
-  diagnostics). An expiry sweep is still deferred: an expired grant already
-  reads as expired everywhere (`effectiveGrantStatus`), so persisting it is
-  housekeeping, not correctness.
-- Deleting the legacy experience trigger in a deployment that removes it
-  explicitly.
+  diagnostics). Expiry is read everywhere (`effectiveGrantStatus`) and
+  recorded lazily by the server paths that already hold a student's grants
+  (LC23, `rewards.md` section 2); a scheduled sweep was not built.
+- ~~Deleting the legacy experience trigger~~ — out of the source (LC23); deleting
+  the deployed function is a separate, explicit step (section 14).
 - Reports written before `studentIds` existed are not reachable by permanent
   student deletion.
 
@@ -776,8 +806,8 @@ support. Rules: the room's audience reads it; no client writes it.
 
 | Piece | Module | Rule |
 | --- | --- | --- |
-| Worked solution between rounds | `liveChallengeSolutionReveal.mjs` | Captured privately when a round opens (`liveChallengePrivate.roundSolutions`), published to `liveChallengeRooms/{room}/solutions/{round}` only after the round closes; while Second Chance may replay a question its solution is held until the replay plan is known and, for a replayed question, until the replay closes. A finished match publishes everything; a cancelled one nothing. `room.revealedSolutionRounds` lists what is public. |
-| Extended time | `liveChallengeAccommodations.mjs` | `joinLiveChallenge` reads the student's support profile; the multiplier (≤ 2) is private (player record, own invite); the room carries only `maxTimeMultiplier`. Submissions are judged against the student's own deadline, stretched from the round's full length (`activeRoundSeconds`) so a closing threshold never takes it away; a round past the class deadline is not ready to close while an unfinished student is inside theirs (`extendedPendingCount`, readiness `extended_time`). Synchronized question rounds only. |
+| Worked solution between rounds | `liveChallengeSolutionReveal.mjs` | Captured privately when a round opens (`liveChallengePrivate.roundSolutions`), published to `liveChallengeRooms/{room}/solutions/{round}` only after the round closes; while Second Chance may replay a question its solution is held until the replay plan is known and, for a replayed question, until the replay closes. A finished match publishes everything; a cancelled one nothing. `room.revealedSolutionRounds` lists what is public. A Graph Feature Rush round (no shared question) publishes a reading guide to the game's features instead (`graphFeatureReading.mjs`, `guide: true`, LC07), at the round's close with nothing to hold it back; the recap leaves it out. |
+| Extended time | `liveChallengeAccommodations.mjs` | `joinLiveChallenge` reads the student's support profile; the multiplier (≤ 2) is private (player record, own invite); the room carries only `maxTimeMultiplier`. Submissions are judged against the student's own deadline, stretched from the round's full length (`activeRoundSeconds`) so a closing threshold never takes it away; a round past the class deadline is not ready to close while an unfinished student is inside theirs (`extendedPendingCount`, readiness `extended_time`). By mode (`extendedTimeRuleFor`): a synchronized question round counts their answer like anyone's; a question-set race with a set to finish (capability `extraTimeAfterBuzzer`: Graph the Line's Classic and Sprint) is decided at the class's buzzer and the extra time comes after it — attempts then are kept in `extraTimeReceipts`, apart from the race's `submissionReceipts`, so nothing that ranks, scores or rewards reads them, and the public row never moves (`graph-the-line.md` §7); an "as many as you can" race (Graph Feature Rush, Graph the Line's Rush) is not extended. |
 | Difficulty targeting | `liveChallengeDifficulty.mjs` | No DOK 3 under 90 s, no DOK 4 in a timed round; Pace Race takes anything. A pool it empties is refused at create with the reason. |
 | Public top few | `liveChallengePrivacy.mjs` | `room.standingsDisplay` (`topFew` default, `full` opt-in). |
 | Recognitions | `liveChallengeRecognitions.mjs` | Most improved, steadiest, best comeback, first to answer, team effort — from the match result, written to `room.recognitions` (aliases and player keys only) in the finishing transaction; rewarded under reserved rule ids `recognition.*` (3 Class Points + badge; team effort 2). Policy flag `recognitions: false` turns them off. |

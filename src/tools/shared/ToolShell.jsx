@@ -597,6 +597,17 @@ export const TaskCardDirections = ({ support }) => (support?.hasSupport ? (
   </details>
 ) : null);
 
+// THE FOLD STAYS WHERE IT IS, ABOVE THE FIRST PANEL (TL21, owner decision on
+// evidence). Measured on every registry tool through the keyboard-sweep
+// harness, at 390x844 and 1366x768 (2026-10-25): closed, "How to do this" is
+// one 44px row, 52px with its margin — about 6% of a phone screen. Moved below
+// the first panel it would raise the first control by those 52px and nothing
+// more (on the phone, 2 of 24 tools' first controls would cross into the first
+// screen), and it would put the method after the work it explains: on a phone
+// the first panel is often a whole plane or table, to be scrolled past to find
+// help meant for before starting. Behind a "?" it would take the same 44px
+// target and say less than "How to do this (3 steps)". Work View already moves
+// it into Help (TaskCardDirections), and an assessment withholds the method.
 export const TaskCard = ({ task, steps = [], note = null, question = null, stepsKey = null, stepsAreControls = false }) => {
   const methodWithheld = useMethodWithheld();
   // PQ-023: the tool's one-line description opens the fold, and the shell's

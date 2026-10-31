@@ -3,6 +3,8 @@ import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ResultPill, ToolGrid, TaskCard, HintPanel, controlStep } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { questionAxisLabels } from '../shared/planeAxisTitles.js';
+import { residualTable } from '../shared/toolTableReading.js';
+import { PublishFigureReading } from '../../platform/language/figureReadings.js';
 import { correlation, linearRegression, parseNumericAnswer, round } from '../shared/toolMath';
 import {
   buildCandidateModels,
@@ -363,10 +365,25 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   };
   useReportToolWork(work);
 
+  // Every part the question asks for, before the final action (TL08): a lab
+  // sent half done spent its try on parts never answered. The shared grader
+  // says which parts are still empty, and that the untouched lab is no answer.
+  const workKey = JSON.stringify(work);
+  const completeness = useMemo(() => {
+    const result = gradeToolCheck(dataModelingGrader, questionData, work);
+    return {
+      ready: result.graded && result.isComplete,
+      pending: result.parts.filter((part) => !part.isComplete).map((part) => part.label),
+    };
+    // `work` is rebuilt every render; its contents are what decide.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questionData, workKey]);
+
   // The shared grader marks exactly the parts this mode asks for, under the
   // names the gradebook shows, so the record carries nothing the question did
   // not ask (B-25).
   const check = () => {
+    if (!completeness.ready) return;
     const result = gradeToolCheck(dataModelingGrader, questionData, work);
     submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode, parts: result.parts, missReasons: dataModelingMissReasons(questionData, work) });
   };
@@ -395,7 +412,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   return (
     <ToolShell
       title="Data Modeling Lab"
-      subtitle="Build a model, inspect residuals, compare functions, and make defensible predictions without confusing association with causation."
+      subtitle="Fit a model to data, judge how well it fits, and make predictions you can defend."
       badge="Algebra I / II · Data Modeling"
       widthProfile={visiblePanelCount >= 3 ? 'wide' : 'standard'}
     >
@@ -577,6 +594,9 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
           {studentModelReady ? (
             <div>
               <ResidualPlot rows={studentResiduals} xMin={xMin} xMax={xMax} xAxisTitle={axisLabels?.x} />
+              {/* Read aloud reads the residual table below, only while it is
+                  drawn: once the student's own model is complete (AX10). */}
+              <PublishFigureReading entry={{ kind: 'table', label: 'Residual table', table: residualTable(studentResiduals, axisLabels) }} />
               {/* A scrolling box is a tab stop in Chrome whether or not it says
                   so; this one is named, so a keyboard or screen-reader student
                   lands on "Residual table" and scrolls it with the arrow keys
@@ -619,7 +639,12 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
 
         <Panel title="Submit model reasoning">
           <p style={{ marginTop:0, color:'var(--mm-text-muted)' }}>Each part of your reasoning is graded separately, so getting some of it right still earns credit.</p>
-          <button data-mm-enter-action="submit" type="button" onClick={check} style={{ padding:'11px 18px', border:0, borderRadius:9, background:'#1a73e8', color:'#fff', fontWeight:800, cursor:'pointer' }}>{submitActionLabel}</button>
+          <button data-mm-enter-action="submit" type="button" onClick={check} disabled={!completeness.ready} style={{ padding:'11px 18px', border:0, borderRadius:9, background:'#1a73e8', color:'#fff', fontWeight:800, cursor:completeness.ready ? 'pointer' : 'not-allowed', opacity:completeness.ready ? 1 : 0.5 }}>{submitActionLabel}</button>
+          {!completeness.ready ? (
+            <p style={{ margin:'8px 0 0', color:'var(--mm-text-muted)', fontSize:'calc(13 * var(--mm-px))' }}>
+              {completeness.pending.length ? `Still to do: ${completeness.pending.join(', ')}.` : 'Work the lab first: its starting values are not your answer yet.'}
+            </p>
+          ) : null}
           <HintPanel hints={HINTS[mode] || HINTS.full} onHintUsed={() => onAction?.('HINT_USED')} />
           {feedback ? (
             <div style={{ marginTop:14 }}>

@@ -9,8 +9,10 @@
  *   - every point moved UP 3 draws t(x)'s line through the wrong points and
  *     got the same sentence (P1-6).
  *
- * Both now say what they got right and what is left. The grade does not move
- * (the shared grader is unchanged): order is the correspondence being taught.
+ * Both now say what they got right and what is left. Order is the
+ * correspondence being taught, so it still costs; since GR32 an order-only
+ * miss earns half a share for each image under another label (0.2 → 0.6
+ * here), and the up-3 plot, which found no image by order, still scores 0.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -18,6 +20,7 @@ import fs from 'node:fs';
 import { compileTeacherImport } from '../../scripts/check-teacher-import.mjs';
 import { gradeToolWork } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
 import { plottedPointCorrespondence, resolveTransformationsQuestion, transformedSourcePoints } from '../../functions/shared/toolMath/transformations/transformationsMath.mjs';
+import { labGuidanceFor } from '../../src/tools/transformations/transformationsGuidance.js';
 import { correspondenceList, plotTransformMissMessage } from '../../src/tools/transformations/plotTransformFeedback.js';
 
 const lesson = compileTeacherImport(fs.readFileSync(new URL('../../teacher-import-jsons/algebra1-module2-topic2/L2_Vertical_and_Horizontal_Transformations_of_Linear_Functions.json', import.meta.url), 'utf8'));
@@ -32,11 +35,14 @@ test('the real item: S1–S5 moved left 3, and the five images it expects', () =
   assert.deepEqual(images, [[-5, -2], [-4, -1], [-3, 0], [-2, 1], [-1, 2]]);
 });
 
-test('every image found, plotted in reverse: the score is unchanged, the feedback names the order', () => {
+test('every image found, plotted in reverse: the order still costs, the feedback names the order', () => {
   const reversed = [...images].reverse();
   const graded = grade(reversed);
   assert.equal(graded.isCorrect, false);
-  assert.equal(graded.score, 0.2, 'the grade is the grader\'s, unchanged');
+  // One image in its own place (S3's), four under another label. It scored
+  // 0.2; since GR32 (the owner) an order-only miss earns half a share for
+  // each misplaced image: (1 + 4 × 0.5) / 5.
+  assert.equal(graded.score, 0.6);
   assert.equal(plottedPointCorrespondence({ plotted: reversed, images, spec: resolved.investigationSpec }), 'reordered');
   assert.equal(message(reversed), 'You found every image, but not in order. P1 must be the image of S1, P2 the image of S2, and so on. Check which original each of your points came from.');
   // Two swapped is the same finding.
@@ -71,7 +77,10 @@ test('the lab uses it on a plot miss, and its order hint says P1 is S1\'s image'
   const plotBranch = source.slice(source.indexOf("if (mode === 'plotTransform') {", source.indexOf('const feedbackMessage')), source.indexOf("if (mode === 'anchor')", source.indexOf('const feedbackMessage')));
   assert.match(plotBranch, /const correspondence = plotTransformMissMessage\(\{ plotted: feedback\.response\?\.plottedPoints, images: expectedTransformedPoints/);
   assert.match(plotBranch, /if \(correspondence\) return correspondence;/);
-  assert.match(source, /'plotTransform': \[[^\]]*Order matters: P1 is the image of S1/);
+  // The hints the lab shows for this lesson's line (transformationsGuidance.js,
+  // which the lab reads for the family it draws).
+  assert.match(labGuidanceFor('linear').hints.plotTransform.join(' '), /Order matters: P1 is the image of S1/);
+  assert.match(source, /const \{ steps: MODE_STEPS, hints: HINTS \} = labGuidanceFor\(family\);/);
 });
 
 test('some images already in place: the lab keeps its count sentence, never "not the images of their own points" (review S2)', () => {
@@ -94,4 +103,17 @@ test('"the right line" is only said of the graph the student was shown: images o
   const offImages = transformedSourcePoints(offSource, resolved.investigationSpec);
   const alongT = [[0, 3], [1, 4]];
   assert.equal(plottedPointCorrespondence({ plotted: alongT, images: offImages, spec: resolved.investigationSpec }), null);
+});
+
+// FB22: the fallback names no letter the plotTransform screen never defines.
+test('any other wrong plot counts the right images and says the rule in the lab\'s words', async () => {
+  const { plotTransformFallbackMessage } = await import('../../src/tools/transformations/plotTransformFeedback.js');
+  const text = plotTransformFallbackMessage(1, 5);
+  assert.match(text, /^1 of 5 defining points are in the right place\./);
+  assert.doesNotMatch(text, /x\/b|ay \+ k|\b[abhk]\b/, text);
+  assert.match(text, /inside the parentheses/);
+  assert.match(text, /outside exactly as written/);
+  const lab = fs.readFileSync(new URL('../../src/tools/transformations/TransformationsLab.jsx', import.meta.url), 'utf8');
+  assert.match(lab, /return plotTransformFallbackMessage\(feedbackPartsCorrect, expectedCount\);/);
+  assert.doesNotMatch(lab, /Use x\/b \+ h for x and ay \+ k for y/);
 });

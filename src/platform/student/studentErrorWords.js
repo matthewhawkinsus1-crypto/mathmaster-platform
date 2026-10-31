@@ -48,6 +48,13 @@ const fromCallable = (error) => String(error?.code || '').startsWith('functions/
  */
 const CALLABLE_SDK_SENTENCE = /^(?:Response is not valid JSON object|Response is missing data field|Request was cancelled|Firebase Functions instance was deleted)\.?$/i;
 const sdkSentence = (error, message) => fromCallable(error) && CALLABLE_SDK_SENTENCE.test(String(message || '').trim());
+/*
+ * Its serializer throws plain Errors with no code at all (OT05): "Data cannot
+ * be decoded from JSON: …" when an answer holds a value it cannot read, and
+ * "Data cannot be encoded in JSON: …" for a request. They read like sentences
+ * and would pass the word filter.
+ */
+const SDK_SERIALIZER_SENTENCE = /^Data cannot be (?:decoded from|encoded in) JSON\b/i;
 const machineWords = (error) => {
   if (!error || typeof error !== 'object') return false;
   if (PROGRAM_ERRORS.has(error.name)) return true;
@@ -61,13 +68,18 @@ export const studentSafeSentence = (message) => {
   if (!text || text.length > 300) return '';
   // A bare code ("internal", "failed-precondition") is not a sentence.
   if (!/\s/.test(text)) return '';
-  if (DEVELOPER_WORDS.test(text)) return '';
+  if (DEVELOPER_WORDS.test(text) || SDK_SERIALIZER_SENTENCE.test(text)) return '';
   return text;
 };
 
 /*
  * `fallback` is the screen's own sentence for what did not work ("Could not
  * load the Live Challenge."), used where no safe sentence comes with the error.
+ *
+ * `noAnswer` is true when the words are "Can't reach MathMaster": the request
+ * got no answer at all (the Wi-Fi dropped, it timed out). That is a connection
+ * that comes and goes, not an answer that keeps being the same, so a screen
+ * with a limit on Try again does not apply it to this (TC17).
  */
 export const describeStudentErrorWords = (error, { fallback = null } = {}) => {
   const code = codeOf(error);
@@ -76,7 +88,7 @@ export const describeStudentErrorWords = (error, { fallback = null } = {}) => {
   const fetchFailed = /failed to fetch|networkerror|load failed|network request failed/i.test(String(message || ''));
   const ownWords = machineWords(error) ? '' : studentSafeSentence(message);
   const otherwise = studentSafeSentence(fallback) || STUDENT_ERROR_TEXT.generic;
-  if (offline || fetchFailed) return { text: STUDENT_ERROR_TEXT.offline, retry: true };
+  if (offline || fetchFailed) return { text: STUDENT_ERROR_TEXT.offline, retry: true, noAnswer: true };
   /*
    * OUR SERVER ANSWERED, WHATEVER THE CODE (review B1). A callable refusal
    * may carry an "unreachable" code with a sentence written for the student:
@@ -88,7 +100,7 @@ export const describeStudentErrorWords = (error, { fallback = null } = {}) => {
   if (UNREACHABLE.has(code) && fromCallable(error) && ownWords) return { text: ownWords, retry: error?.details?.retry === true };
   // No answer: the SDK's own bare code or timeout. A sentence the SDK made
   // (a malformed response, a cancelled request) is not a Wi-Fi problem either.
-  if (UNREACHABLE.has(code)) return sdkSentence(error, message) ? { text: otherwise, retry: true } : { text: STUDENT_ERROR_TEXT.offline, retry: true };
+  if (UNREACHABLE.has(code)) return sdkSentence(error, message) ? { text: otherwise, retry: true } : { text: STUDENT_ERROR_TEXT.offline, retry: true, noAnswer: true };
   // A refusal the server marks as retryable (details.retry) keeps the button.
   if (REFUSALS.has(code)) return { text: ownWords || otherwise, retry: error?.details?.retry === true };
   return { text: ownWords || otherwise, retry: true };

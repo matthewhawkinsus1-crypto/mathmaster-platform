@@ -2,7 +2,7 @@ import React from 'react';
 import { UNANSWERED } from '../shared/judgmentChoices.js';
 import { boundaryWithChosenSide, feasibleRegionPolygon, lineSegmentForBounds, sideOfBoundaryLine } from './inequalityBuilderAdapter';
 import { formatPoint } from './inequalityFormat.js';
-import { EyeIcon, LineStyleIcon, StepFeedback, YesNoQuestion } from './InequalityControls.jsx';
+import { EyeIcon, LineStyleIcon, PLANE_KEYS, StepFeedback, YesNoQuestion } from './InequalityControls.jsx';
 import { constraintColor } from './constraintPalette.js';
 
 /*
@@ -30,15 +30,18 @@ export const LINE_STYLE_OPTIONS = [
 
 // What the student is asked to do at each step, in one sentence. The boundary
 // sentence depends on the method they chose; none of them names the line.
+// The plane beside the steps keeps only its keyboard sentence (what a tap does
+// is said here), so a line that names the tap names the keys in the same line
+// (AX32).
 export const boundaryInstruction = (method) => ({
   slopeIntercept: 'Enter the slope and y-intercept you found, then plot the y-intercept and use the slope to plot a second point.',
   vertical: 'Enter the constant c for the boundary line x = c.',
   horizontal: 'Enter the constant c for the boundary line y = c.',
-}[method] || 'Tap the grid to plot two points on the boundary line.');
+}[method] || `Click or tap the grid to plot two points on the boundary line, or ${PLANE_KEYS}.`);
 
 export const STEP_INSTRUCTIONS = {
   lineStyle: 'Is the boundary line solid or dashed?',
-  shading: 'Tap the graph on the side of your boundary line that should be shaded.',
+  shading: `Click or tap the graph on the side of your boundary line that should be shaded, or ${PLANE_KEYS}.`,
 };
 
 /** The heading of the step being worked on; focused when a Check opens it. */
@@ -49,7 +52,7 @@ export const StepHeading = ({ label, count = null }) => (
   </h3>
 );
 
-/** The boundary points a constraint's step shows, as chips: plotted, or waiting for a tap. */
+/** The boundary points a constraint's step shows, as chips: plotted, or waiting to be plotted. */
 export function BoundaryPointChips({ entry, color, method, onRemove }) {
   const slots = [1, 2].map((which) => {
     const plotted = Boolean(entry[`point${which}Plotted`]);
@@ -67,7 +70,8 @@ export function BoundaryPointChips({ entry, color, method, onRemove }) {
         </span>
       ) : (
         <span key={slot.which} role="listitem" className="mm-ineq-chip" data-empty="true" data-next={nextSlot === slot.which ? 'true' : undefined} data-boundary-point={slot.which}>
-          {slot.name}: {nextSlot === slot.which ? 'tap the graph' : 'next'}
+          {/* "Plot it", not "tap the graph": the step above says how, with the keys (AX32). */}
+          {slot.name}: {nextSlot === slot.which ? 'plot it on the graph' : 'next'}
         </span>
       )))}
     </div>

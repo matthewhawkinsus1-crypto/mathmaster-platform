@@ -13,6 +13,12 @@
  * method. So the step is built from that structure, about THIS problem's first
  * move.
  *
+ * The same for the four tools #509 left without one (FB01; the owner,
+ * 2026-10-20, W7 decision 15): Transformations Lab items whose prompt gives
+ * the transformation in words, figure-match sorts (by what their categories
+ * sort), graph-choice previews (by the form of their choices) and
+ * Representation Match's linear connections.
+ *
  * IN WORDS THE SPANISH PACK CAN CARRY. Translate must cover every step the
  * platform writes (readAloudAndTranslate.test.mjs). Its templates hold
  * mathematics in slots, but a matrix's name is not reliably mathematics to
@@ -142,9 +148,130 @@ const systemsWorkspaceStep = (question) => {
   return null;
 };
 
+/* ---------------------------------------------------- Transformations Lab */
+
+/*
+ * The plot and point-map modes move points by a transformation the prompt
+ * gives in words ("translate LEFT 3", "change the OUTPUT values by a factor
+ * of 2"); the transformations family reads only a stated equation, so these
+ * had no step (FB01; the owner, 2026-10-20, W7 decision 15). The lab's own
+ * spec says which parts move: the step asks which coordinate that changes, or
+ * the order a y-coordinate goes through. Describe asks what to compare. None
+ * names an image point, a parameter's value or a describe verdict.
+ */
+const numberOr = (value, fallback) => (value === undefined || value === null || value === '' ? fallback : Number(value));
+
+const transformationsLabStep = (question) => {
+  const mode = text(question.mode);
+  if (mode === 'describe') {
+    return step('To find how far the graph moved up or down, which coordinates do you compare?', 'The y-coordinates of a point and its image', 'The x-coordinates of a point and its image');
+  }
+  if (mode !== 'plotTransform' && mode !== 'pointMap') return null;
+  const spec = isObject(question.function) ? question.function : isObject(question.target) ? question.target : null;
+  if (!spec) return null;
+  const [a, b, h, k] = [numberOr(spec.a, 1), numberOr(spec.b, 1), numberOr(spec.h, 0), numberOr(spec.k, 0)];
+  if (![a, b, h, k].every(Number.isFinite) || a === 0 || b === 0) return null;
+  if (a !== 1 && k !== 0) {
+    return step('The outputs are multiplied by a factor and shifted. What do you do to a point’s y-coordinate first?', 'Multiply it by the factor', 'Add the shift');
+  }
+  if (h !== 0) return step('Moving a graph left or right changes which coordinate of each point?', 'The x-coordinate', 'The y-coordinate');
+  if (k !== 0) return step('Moving a graph up or down changes which coordinate of each point?', 'The y-coordinate', 'The x-coordinate');
+  if (a !== 1) return step('Changing the outputs by a factor changes which coordinate of each point?', 'The y-coordinate', 'The x-coordinate');
+  if (b !== 1) return step('Changing the inputs by a factor changes which coordinate of each point?', 'The x-coordinate', 'The y-coordinate');
+  return null;
+};
+
+/* ------------------------------------------------------------ Figure match */
+
+/*
+ * A sort's categories say what it sorts by, and the step is the rule a
+ * student needs before placing the first card. Each rule is true of every
+ * card: none names a card or the category it belongs in. A sort whose
+ * categories are none of these gets no step.
+ */
+const sortRule = (labels, ids) => {
+  const has = (word) => labels.some((label) => label.includes(word));
+  const named = (word) => labels.includes(word) || ids.includes(word);
+  if (['monomial', 'binomial', 'trinomial'].some(named)) {
+    return step('Monomial, binomial and trinomial name a polynomial by its number of…', 'terms', 'variables');
+  }
+  if (['always', 'sometimes', 'never'].every((word) => labels.some((label) => label.startsWith(word)))) {
+    return step('To sort a statement as sometimes true, what do you need?', 'An example where it is true and one where it is false', 'One example where it is true');
+  }
+  if (has('defined') && has('×')) {
+    return step('To decide whether a product of two matrices can be found, which two numbers do you compare?', 'The columns of the first and the rows of the second', 'The rows of the first and the rows of the second');
+  }
+  if (has('perpendicular') && has('parallel')) return step('Perpendicular lines have slopes that are…', 'negative reciprocals', 'equal');
+  if (has('not a function')) return step('A relation is not a function when…', 'one input has two different outputs', 'two inputs have the same output');
+  if (has('growth') && has('decay')) return step('Read from left to right, an exponential growth graph…', 'rises', 'falls');
+  if (['linear', 'quadratic', 'exponential'].filter(named).length >= 2) {
+    return step('What tells a linear graph apart from the others?', 'It is a straight line', 'It crosses the y-axis');
+  }
+  if (has('no solution') && has('infinite')) {
+    return step('After you simplify both sides, what do you compare first?', 'The variable terms on the two sides', 'The constant terms on the two sides');
+  }
+  // Transformations of f. Not "which change moves the graph up?": for f(x) = x
+  // a shift inside f is also a vertical shift, and the lesson teaches it.
+  if (labels.length >= 2 && labels.every((label) => label.includes('f('))) {
+    return step('What does a number added outside the function change?', 'The outputs', 'The inputs');
+  }
+  return null;
+};
+
+const figureMatchStep = (question) => {
+  const sort = list(question.workflow).find((stage) => text(stage?.kind) === 'figureMatch');
+  const categories = list(sort?.categories).filter(isObject);
+  if (categories.length < 2) return null;
+  return sortRule(categories.map((category) => text(category.label).toLowerCase()), categories.map((category) => text(category.id).toLowerCase()));
+};
+
+/* ---------------------------------------------------- Graph-choice preview */
+
+/*
+ * One choice among a few, each drawn on the graph when picked. The choices'
+ * own form says what is being chosen: a horizontal or vertical line, a
+ * vertex, a line perpendicular or parallel to another.
+ */
+const LINE_THROUGH_AXIS = /^[xy]\s*=\s*[−-]?\d+(?:\.\d+)?$/;
+const ORDERED_PAIR = /^\(\s*[−-]?\d+(?:\.\d+)?\s*,\s*[−-]?\d+(?:\.\d+)?\s*\)$/;
+
+const graphChoicePreviewStep = (question) => {
+  const choice = list(question.workflow).find((stage) => text(stage?.kind) === 'multipleChoice' && isObject(stage?.previewOnGraph));
+  const labels = list(choice?.choices).map((entry) => text(isObject(entry) ? entry.label : entry));
+  if (labels.length < 2 || labels.some((label) => !label)) return null;
+  const asked = `${text(choice.prompt)} ${text(question.prompt)}`.toLowerCase();
+  if (labels.every((label) => LINE_THROUGH_AXIS.test(label))) {
+    return step('On a horizontal line, which coordinate is the same at every point?', 'The y-coordinate', 'The x-coordinate');
+  }
+  if (labels.every((label) => ORDERED_PAIR.test(label)) && asked.includes('vertex')) {
+    return step('On a parabola, where is the vertex?', 'Where the graph turns around', 'Where the graph crosses the y-axis');
+  }
+  if (labels.every((label) => /^y\s*=/.test(label))) {
+    if (asked.includes('perpendicular')) return step('Perpendicular lines have slopes that are…', 'negative reciprocals', 'equal');
+    if (asked.includes('parallel')) return step('Parallel lines have slopes that are…', 'equal', 'negative reciprocals');
+  }
+  return null;
+};
+
+/* ------------------------------------------------------ Representation Match */
+
+/* Linear connections: sort cards by the line they describe, or find the one card that disagrees. */
+const representationMatchStep = (question) => {
+  if (text(question.mode) !== 'linearConnections') return null;
+  if (text(question.task) === 'findMismatch') {
+    return step('To find the card that does not belong, what do you find first?', 'The line most of the cards describe', 'The card with the largest numbers');
+  }
+  if (list(question.sets).length < 2) return null;
+  return step('When do two cards show the same line?', 'When they have the same slope and the same y-intercept', 'When they have the same slope');
+};
+
 const BY_TYPE = Object.freeze({
   matrixLab: matrixLabStep,
   systemsWorkspace: systemsWorkspaceStep,
+  transformationsLab: transformationsLabStep,
+  figureMatch: figureMatchStep,
+  graphChoicePreview: graphChoicePreviewStep,
+  representationMatch: representationMatchStep,
 });
 
 export const toolBackUpStep = (question) => {

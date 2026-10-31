@@ -32,13 +32,16 @@
  *               Screenshots: tests/browser/artifacts/figureDescriptions/
  *               (FIGURE_SHOTS to put them elsewhere).
  *
- * At 390x844 it also checks A11Y-10: beside Submit, Undo and Reset keep a
- * word under their icons.
+ * At 390x844 it also checks A11Y-10: beside Submit, Undo and Start over keep
+ * a word under their icons, and (PH02) that the Path stimulus scene has nothing
+ * under the "Open Work View" button, its example whole in the answer box and
+ * no two numbers on its plane drawn through each other.
  */
 import assert from 'node:assert/strict';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readOpenerCover } from './support/openerCover.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 const origin = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
@@ -62,8 +65,8 @@ const axNode = async (page, selector) => {
   }
 };
 
-const open = async (page, q, { role = 'practice', closed = false, locked = false, released = false } = {}) => {
-  await page.goto(`${origin}/tests/browser/figureDescriptions.html?q=${q}&role=${role}${closed ? '&closed=1' : ''}${locked ? '&locked=1' : ''}${released ? '&released=1' : ''}`, { waitUntil: 'networkidle' });
+const open = async (page, q, { role = 'practice', closed = false, locked = false, released = false, readOut = false } = {}) => {
+  await page.goto(`${origin}/tests/browser/figureDescriptions.html?q=${q}&role=${role}${closed ? '&closed=1' : ''}${locked ? '&locked=1' : ''}${released ? '&released=1' : ''}${readOut ? '&readOut=1' : ''}`, { waitUntil: 'networkidle' });
   await page.locator(`[data-figure-fixture="${q}"]`).waitFor();
   await page.waitForTimeout(400);
 };
@@ -143,6 +146,54 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
     await page.screenshot({ path: path.join(SHOTS, `path-vertical-boundary-${at}.png`) });
   });
 
+  // PH02: the three faults seen in the phone screenshot of this scene. The
+  // "Open Work View" button covered the stimulus title ("Graph of the
+  // boundaries"), the example in the answer box was cut off ("for example 0 ≤
+  // x ≤ 4" ended at the second ≤), and the "0" at the origin was drawn through
+  // the "-1" under it.
+  if (phone) {
+    await step(at, 'Path stimulus on a phone: the title is clear of the button, the example fits, no two numbers touch', async () => {
+      await open(page, 'pathBoundary');
+      const PLANE = 'svg[role="img"][aria-label="Question graph"]';
+      await page.locator(PLANE).waitFor();
+      await page.locator('math-field').first().waitFor();
+      await page.waitForTimeout(400);
+      const cover = await readOpenerCover(page);
+      assert.ok(cover.opener, 'the Work View button is on the page');
+      assert.deepEqual(cover.covered, [], `the button covers ${cover.covered.join(', ')}`);
+      // The title is drawn, and below the button: the row under the heading
+      // starts where the button ends.
+      const title = await page.evaluate(() => {
+        const span = [...document.querySelectorAll('span, div, h3, p')].find((element) => /^graph of the boundaries$/i.test((element.textContent || '').trim()) && element.children.length === 0);
+        const box = span?.getBoundingClientRect();
+        return box ? { top: box.top, bottom: box.bottom } : null;
+      });
+      assert.ok(title, 'the stimulus title is on the page');
+      assert.ok(title.top >= cover.opener.bottom - 1, `the title starts at ${Math.round(title.top)}, under the button that ends at ${Math.round(cover.opener.bottom)}`);
+      // The example, whole: MathLive draws it in a part of the box that clips.
+      const example = await page.locator('math-field').first().evaluate((field) => {
+        const content = field.shadowRoot.querySelector('.ML__content');
+        const placeholder = field.shadowRoot.querySelector('.ML__content-placeholder');
+        return { text: placeholder.textContent.trim(), needs: placeholder.getBoundingClientRect().width, has: content.getBoundingClientRect().width };
+      });
+      assert.ok(example.needs <= example.has + 0.5, `"${example.text}" needs ${Math.round(example.needs)}px and the box has ${Math.round(example.has)}px`);
+      // Every number on the plane is whole: no two labels' boxes cross.
+      const crossing = await page.evaluate((selector) => {
+        const boxes = [...document.querySelector(selector).querySelectorAll('text')].map((text) => ({ text: text.textContent, box: text.getBoundingClientRect() }));
+        const crossed = [];
+        for (let i = 0; i < boxes.length; i += 1) {
+          for (let j = i + 1; j < boxes.length; j += 1) {
+            const a = boxes[i].box;
+            const b = boxes[j].box;
+            if (Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1) crossed.push(`${boxes[i].text} / ${boxes[j].text}`);
+          }
+        }
+        return crossed;
+      }, PLANE);
+      assert.deepEqual(crossing, [], `numbers drawn through each other: ${crossing.join(', ')}`);
+    });
+  }
+
   await step(at, 'legacy number line: the marks and the student\'s choice', async () => {
     await open(page, 'numberLine');
     // No source comment leaks onto the page as text (W5-2 review B2: a "//"
@@ -163,17 +214,19 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   });
 
   // A11Y-10: on a phone the work bar drops its words beside Submit, and Undo
-  // (↶) and Reset (↺) were two near-identical arrows. Each keeps its word as a
-  // caption under the icon; the other tools stay icon-only.
-  if (phone) await step(at, 'work bar: Undo and Reset keep a caption beside Submit', async () => {
+  // (↶) and Start over (↺) were two near-identical arrows. Each keeps its word
+  // as a caption under the icon; the other tools stay icon-only.
+  if (phone) await step(at, 'work bar: Undo and Start over keep a caption beside Submit', async () => {
     await open(page, 'numberLine');
     const captions = await page.evaluate(() => [...document.querySelectorAll('.portrait-action-bar[data-has-primary="true"] .mathmaster-action-label')].map((label) => {
       const box = label.getBoundingClientRect();
       return { text: label.textContent.trim(), shown: box.width > 8 && box.height > 6 };
     }));
-    const shown = captions.filter((caption) => caption.shown).map((caption) => caption.text.replace(/ Question$/, ''));
-    assert.deepEqual(shown, ['Undo', 'Reset'], `only Undo and Reset show their word: ${JSON.stringify(captions)}`);
-    for (const name of ['Undo', 'Reset Question']) {
+    // textContent still holds the " question" a phone hides: the visible
+    // caption is "Start over", the accessible name "Start question over".
+    const shown = captions.filter((caption) => caption.shown).map((caption) => caption.text.replace(/ question /, ' '));
+    assert.deepEqual(shown, ['Undo', 'Start over'], `only Undo and Start over show their word: ${JSON.stringify(captions)}`);
+    for (const name of ['Undo', 'Start question over']) {
       assert.equal(await page.locator('.portrait-action-bar').getByRole('button', { name, exact: true }).count(), 1, `"${name}" keeps its accessible name`);
     }
   });
@@ -185,14 +238,10 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
     assert.equal(live.role, 'image');
     assert.match(live.description, /^x from −5 to 5, y from .+\. 1 line\. 1 point labelled A.*Positions are not read out while this question can be answered\.$/, live.description);
     assert.doesNotMatch(live.description, /\(2, 3\)|crosses|passes through/, 'no position while it can be answered');
-    // A closed question's work area is `inert` (Q-97), which takes it out of
-    // the accessibility tree altogether, so the closed reading is checked on
-    // the element the graph's aria-describedby points to.
+    // A closed question's work is read-only, no longer `inert` (AX01, Q-97):
+    // the graph stays in the accessibility tree, with its closed reading.
     await open(page, 'numberLine', { closed: true });
-    const review = await page.evaluate((selector) => {
-      const svg = document.querySelector(selector);
-      return document.getElementById(svg.getAttribute('aria-describedby'))?.textContent || '';
-    }, GRAPH);
+    const review = (await axNode(page, GRAPH)).description;
     assert.match(review, /A at \(2, 3\)/, `the closed question reads the point at the drawn grid: ${review}`);
     assert.doesNotMatch(review, /Positions are not read out/);
     // An ended DOL is locked but shows no solution, and a teacher can reopen
@@ -220,10 +269,70 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
     assert.match(releasedText, /A at \(2, 3\)/, `after release the positions are read: ${releasedText}`);
   });
 
+  // AX01 (Q-97): a closed question's work is read-only, not inert. It stays in
+  // the accessibility tree, named as work that can be read and not changed, and
+  // nothing in it changes: not a key, not a screen reader's click.
+  await step(at, 'closed work: a screen reader reads it, nothing changes it', async () => {
+    await open(page, 'construct', { closed: true });
+    const AREA = '[data-work-view-area="true"]';
+    const group = await axNode(page, AREA);
+    assert.equal(group.role, 'group');
+    assert.equal(group.name, 'Your work. You can read it but not change it.');
+    const PLANE = `${AREA} svg[role="application"]`;
+    const before = await axNode(page, PLANE);
+    assert.match(before.description, /^x from /, `the plane is read: ${before.description}`);
+    await page.locator(PLANE).focus();
+    for (const key of ['ArrowRight', 'ArrowUp', 'Enter', ' ']) await page.keyboard.press(key);
+    await page.locator(PLANE).dispatchEvent('click');
+    await page.waitForTimeout(250);
+    assert.equal((await axNode(page, PLANE)).description, before.description, 'keys and a click place nothing');
+    // A closed math box says its answer, and Tab leaves it: MathLive's own Tab
+    // cannot see the disabled fieldset, and trapped focus in the box.
+    await open(page, 'interval', { closed: true });
+    const box = page.locator(`${AREA} math-field`).first();
+    assert.match(await box.getAttribute('aria-label'), /^Interval notation: /, 'a closed box says its answer');
+    await box.focus();
+    await page.keyboard.press('Tab');
+    await page.waitForTimeout(150);
+    assert.ok(await page.evaluate(() => !document.activeElement?.closest?.('math-field')), 'Tab moves on from a closed math box');
+  });
+
+  // AX03: the Graph read-out. A student whose plan gives it hears the full
+  // reading while the question is open — the static question graph and a Path
+  // stimulus graph alike — with no data table, and it is recorded as provided.
+  await step(at, 'graph read-out: the full reading while open, for a plan that gives it', async () => {
+    const GRAPH = 'svg[aria-label="Question graph"]';
+    await open(page, 'numberLine', { readOut: true });
+    const read = await axNode(page, GRAPH);
+    assert.match(read.description, /A at \(2, 3\)/, read.description);
+    assert.doesNotMatch(read.description, /Positions are not read out/);
+    const evidence = await page.evaluate(() => window.__mmSupportEvidence);
+    assert.ok(evidence.some((entry) => entry.supportId === 'graph-read-out' && entry.eventType === 'provided'), JSON.stringify(evidence));
+    await open(page, 'pathBoundary', { readOut: true });
+    const plane = await axNode(page, 'svg[role="img"][aria-label="Question graph"]');
+    // Read at the grid it draws (every 2 here): x = 5 is between 4 and 6.
+    assert.match(plane.description, /Solid vertical line between 4 and 6 on the x-axis\./, plane.description);
+    // Words, not a table: a graph with a table (a finished question shows it)
+    // gets none from the read-out while the question is open.
+    await open(page, 'pathTable', { closed: true });
+    assert.equal(await page.getByRole('button', { name: 'Show data table' }).count(), 1, 'a finished question offers its data table');
+    await open(page, 'pathTable', { readOut: true });
+    const line = await axNode(page, 'svg[role="img"][aria-label="Question graph"]');
+    assert.match(line.description, /crosses the y-axis at −1/, line.description);
+    assert.equal(await page.getByRole('button', { name: 'Show data table' }).count(), 0, 'the data table stays the closed question\'s');
+    // Without the support: kinds only, and nothing recorded.
+    await open(page, 'numberLine');
+    assert.match((await axNode(page, GRAPH)).description, /Positions are not read out while this question can be answered\./);
+    assert.deepEqual((await page.evaluate(() => window.__mmSupportEvidence)).filter((entry) => entry.supportId === 'graph-read-out'), []);
+  });
+
   for (const role of ['practice', 'dol']) {
     await step(at, `three-plane model (${role}): planes by equation; the reveal only where allowed`, async () => {
       await open(page, 'threePlane', { role });
       const MODEL = 'svg[role="application"][aria-label="Three planes in 3D"]';
+      // The Systems Workspace arrives as its own chunk after the fixture: on a
+      // busy machine the model was not there yet 400 ms in.
+      await page.locator(MODEL).waitFor();
       const before = await axNode(page, MODEL);
       assert.match(before.description, /^3D model with the x, y and z axes\. Plane 1, blue: x plus y plus z equals 6\. Plane 2, red: x minus y plus z equals 2\. Plane 3, green: 2x plus y minus z equals 1\. Dashed lines mark where shown planes cross\. Arrow keys rotate the model/, before.description);
       const drawing = await axNode(page, 'g[role="img"][aria-label="3D view of the three planes"]');
@@ -271,7 +380,9 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
     await open(page, 'story');
     const SKETCH = 'svg[aria-label="Graph story sketch"]';
     const before = await axNode(page, SKETCH);
-    assert.equal(before.description, 'x-axis: x. y-axis: y. Nothing is drawn yet.');
+    // What is drawn, then the keyboard route (AX14).
+    assert.equal(before.role, 'application');
+    assert.match(before.description, /^x-axis: x\. y-axis: y\. Nothing is drawn yet\. Arrow keys move the crosshair one square/, before.description);
     const box = await page.locator(SKETCH).boundingBox();
     await page.locator(SKETCH).scrollIntoViewIfNeeded();
     const fresh = await page.locator(SKETCH).boundingBox();
@@ -283,7 +394,42 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
     await page.mouse.up();
     await page.waitForTimeout(200);
     const after = await axNode(page, SKETCH);
-    assert.equal(after.description, 'x-axis: x. y-axis: y. You drew 1 stroke.');
+    assert.match(after.description, /^x-axis: x\. y-axis: y\. You drew 1 stroke\. /, after.description);
+  });
+
+  // AX14: the sketch has a keyboard route. Reached with Tab, arrow keys move a
+  // crosshair over the grid, Enter places points that join in order into one
+  // line, Escape finishes it.
+  await step(at, 'graph story sketch by keyboard: points joined in order', async () => {
+    await open(page, 'story');
+    const SKETCH = 'svg[aria-label="Graph story sketch"]';
+    await page.getByRole('button', { name: 'Clear graph' }).focus();
+    await page.keyboard.press('Tab');
+    assert.ok(await page.evaluate((selector) => document.activeElement === document.querySelector(selector), SKETCH), 'Tab reaches the sketch');
+    assert.equal(await page.locator('[data-graph-story-keys]').count(), 1, 'the keyboard route is on screen once the sketch has keyboard focus');
+    const said = () => page.evaluate(() => document.querySelector('[data-graph-story-description] ~ p[aria-live="polite"]')?.textContent || '');
+    await page.keyboard.press('Enter');
+    assert.equal(await said(), 'Point 1 placed at 0 right, 0 up. The line has 1 point.');
+    for (const arrow of ['ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowUp', 'ArrowUp']) await page.keyboard.press(arrow);
+    assert.equal(await said(), '3 right, 2 up');
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Shift+ArrowRight');
+    await page.keyboard.press(' ');
+    assert.equal(await said(), 'Point 3 placed at 8 right, 2 up. The line has 3 points.');
+    const lines = await page.locator(`${SKETCH} polyline`).evaluateAll((nodes) => nodes.map((node) => node.getAttribute('points')));
+    assert.deepEqual(lines, ['44,376 170,292 380,292'], 'one line through the three points, in order');
+    assert.match((await axNode(page, SKETCH)).description, /You drew 1 stroke\./);
+    await page.keyboard.press('Escape');
+    assert.equal(await said(), 'Line finished with 3 points. The next point starts a new line.');
+    await page.keyboard.press('Enter');
+    assert.match((await axNode(page, SKETCH)).description, /You drew 2 strokes\./, 'Escape finished the line: a new one starts');
+    // Finished, the sketch is the student's work to read (AX01): an image,
+    // out of the Tab order, with no keyboard route offered.
+    await open(page, 'story', { closed: true });
+    const closedSketch = await axNode(page, SKETCH);
+    assert.equal(closedSketch.role, 'image');
+    assert.doesNotMatch(closedSketch.description, /Arrow keys/);
+    assert.equal(await page.locator(SKETCH).getAttribute('tabindex'), null);
   });
 
   await context.close();

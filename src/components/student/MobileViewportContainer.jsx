@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import QuestionPrompt from '../../QuestionPrompt';
 import './MathToolMobileLayout.css';
 import '../../platform/mobile/MobileInteractionFoundation.css';
 import {
+  revealFocusedControlAfterResize,
   scheduleHorizontalViewportStabilization,
   scrollFocusedControlVertically,
   stabilizeHorizontalViewport,
@@ -54,7 +55,7 @@ export const MobileViewportContainer = ({
   taskMeta = null,
   taskContextPanel = null,
   contextPanel = null,
-  // The student's language Support tools for this item (StudentSupportTray):
+  // The student's Language tools for this item (StudentSupportTray):
   // inline under the task, never over the answer fields or the tool.
   supportTray = null,
   // Universal-design tools only (no plan support): on a laptop the tray goes
@@ -73,6 +74,16 @@ export const MobileViewportContainer = ({
   const rootRef = useRef(null);
   const keypadRef = useRef(null);
   const focusedScrollerLockRef = useRef({ element: null, left: 0 });
+  // ONE MAIN LANDMARK (AX45). The work area was a <main> inside the
+  // assignment screen's own <main>, and the same inside a secure test or Live
+  // Challenge: two main landmarks, one nested. It is the page's main only
+  // where no host gave one (a harness, a host without a landmark); read
+  // before paint, so nothing announces two.
+  const workspaceRef = useRef(null);
+  const [hostHasMain, setHostHasMain] = useState(false);
+  useLayoutEffect(() => {
+    setHostHasMain(Boolean(workspaceRef.current?.parentElement?.closest('main, [role="main"]')));
+  }, []);
   // What the last pointer press landed on; cleared by the next key press.
   const pointerPressRef = useRef(null);
   const [isPromptCollapsed, setIsPromptCollapsed] = useState(false);
@@ -98,6 +109,7 @@ export const MobileViewportContainer = ({
   }, [questionTerminal]);
 
   useEffect(() => {
+    let lastVisibleHeight = readStableViewportBox(window).height;
     const updateViewportMode = () => {
       const mobile = detectMobile();
       setIsMobile(mobile);
@@ -112,6 +124,16 @@ export const MobileViewportContainer = ({
           ? current
           : nextViewport
       ));
+      // THE SCREEN KEYBOARD OPENS AFTER THE FIELD HAS FOCUS (PH05). Focus
+      // revealed the field while the screen was whole; when the keyboard takes
+      // its half the visible height changes and the field it was typing into is
+      // left under it (11 of 70px showing at 390x480). Reveal it again, two
+      // frames on so the container has its new height; only when the height
+      // changed, so panning or zooming the view never scrolls the work.
+      if (mobile && Math.abs(nextViewport.height - lastVisibleHeight) > 1 && !nextViewport.pinchZoomed) {
+        window.requestAnimationFrame(() => window.requestAnimationFrame(() => revealFocusedControlAfterResize({ root: rootRef.current })));
+      }
+      lastVisibleHeight = nextViewport.height;
     };
     updateViewportMode();
     window.addEventListener('resize', updateViewportMode);
@@ -432,6 +454,11 @@ export const MobileViewportContainer = ({
             <section className="question-prompt-panel" aria-label="Question prompt and response controls">
               <div className="question-prompt-heading">
                 <span>YOUR TASK</span>
+                {/* "Learning goal" shares the heading's row on a phone held upright:
+                    on its own row under the task it was 44px of a screen the
+                    work is already short of (PH03). Whole width on its side,
+                    where the panel is a narrow column and the row has no room. */}
+                {!isLandscape && !isPromptCollapsed && taskMeta && <div className="mathmaster-question-task-meta mathmaster-heading-meta">{taskMeta}</div>}
                 {!isLandscape && (
                   <button className="mm-button-neutral" type="button" onClick={() => setIsPromptCollapsed((current) => !current)}>
                     {isPromptCollapsed ? 'Show Prompt ▼' : 'Minimize ▲'}
@@ -449,7 +476,7 @@ export const MobileViewportContainer = ({
                       <QuestionPrompt variant="plain">{currentStagePrompt}</QuestionPrompt>
                     </div>
                   )}
-                  {taskMeta && <div className="mathmaster-question-task-meta">{taskMeta}</div>}
+                  {taskMeta && isLandscape && <div className="mathmaster-question-task-meta">{taskMeta}</div>}
                   {taskContextPanel && <div className="mathmaster-question-task-context">{taskContextPanel}</div>}
                 </div>
               )}
@@ -498,21 +525,30 @@ export const MobileViewportContainer = ({
           {/* Standards and CCMR links are reference, not the task: they scroll
               with the page instead of riding in the sticky anchor, where they
               floated over the tool's own buttons (live QA). */}
-          {!workspaceActive && !isPromptCollapsed && taskMeta && <div className="mathmaster-question-task-meta mathmaster-desktop-task-meta">{taskMeta}</div>}
-          {!workspaceActive && supportTray && !supportTrayAfterWork && <div className="mathmaster-question-support-tray">{supportTray}</div>}
+          {/* "Learning goal" and the Support tools are two short rows of chips;
+              side by side they are one (PH03: at 1366x768 the work started 432
+              to 481px down a 768px screen). One wrapper that stays while
+              either shows, so the tray is never remounted — and its open panel
+              lost — when the task is hidden and shown. */}
+          {!workspaceActive && ((!isPromptCollapsed && taskMeta) || (supportTray && !supportTrayAfterWork)) && (
+            <div className="mathmaster-desktop-task-extras">
+              {!isPromptCollapsed && taskMeta ? <div className="mathmaster-question-task-meta mathmaster-desktop-task-meta">{taskMeta}</div> : null}
+              {supportTray && !supportTrayAfterWork ? <div className="mathmaster-question-support-tray">{supportTray}</div> : null}
+            </div>
+          )}
           {!workspaceActive && contextPanel}
           {responseFields}
         </>
       )}
 
-      {/* A focused solver workspace hides the task panel; the Support tools
+      {/* A focused solver workspace hides the task panel; the Language tools
           stay reachable above the work. */}
       {workspaceActive && supportTray && !(supportTrayAfterWork && !isMobile) && <div className="mathmaster-question-support-tray">{supportTray}</div>}
-      <main className="math-tool-workspace">
+      <div ref={workspaceRef} className="math-tool-workspace" role={hostHasMain ? undefined : 'main'}>
         <React.Fragment key="math-tool-workspace">
           {toolWorkspace}
         </React.Fragment>
-      </main>
+      </div>
       {supportTray && supportTrayAfterWork && !isMobile && <div className="mathmaster-question-support-tray mathmaster-question-support-tray--after">{supportTray}</div>}
 
       {/* THE BAR PUBLISHES ITS HEIGHT. It is sticky over the bottom of the

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import './platform/math/mathliveRuntime.js';
 import { ensureMathElementRenders } from './platform/math/ensureMathElementRenders.js';
 import { stackDivisions } from '../functions/shared/stackDivisions.mjs';
-import { resolveMathDisplayFormat, unicodeSubscriptsToMathMarkup } from './mathDisplayFormat.js';
+import { braceScriptGroups, latexFunctionNames, resolveMathDisplayFormat, unicodeSubscriptsToMathMarkup } from './mathDisplayFormat.js';
 import { mathSpeechLabel } from './platform/language/mathSpeechLabel.js';
 import { SR_ONLY_STYLE } from './ui/srOnly.js';
 
@@ -64,6 +64,11 @@ export default function MathDisplay({
   // ("y equals negative 2 over 3 x plus 4"); a label in program syntax or
   // LaTeX is spoken in words too (../platform/language/mathSpeechLabel.js).
   ariaLabel = null,
+  // The language of the words this math sits in. Inside a translation shown in
+  // Spanish the hidden spoken copy is Spanish too ("x al cuadrado"), not an
+  // English formula in the middle of a Spanish sentence (AX06). Callers that
+  // show a translation pass it; everything else is English.
+  language = 'en',
   style = {},
   className = '',
 }) {
@@ -75,11 +80,12 @@ export default function MathDisplay({
   // stacks in both modes, so writing it out settles the question before format
   // detection runs. Anything ambiguous is left exactly as authored — see
   // ../functions/shared/stackDivisions.mjs.
+  // `unicodeMath`: √3/3 is √3 over 3, and y⁴ keeps its power (stackDivisions.mjs).
   const cleanValue = stripRedundantStackedFractionParens(
-    stackDivisions(repairLegacyMathLiveRelations(stripMathDelimiters(value))),
+    stackDivisions(repairLegacyMathLiveRelations(stripMathDelimiters(value)), { unicodeMath: true }),
   );
   // ONE SPOKEN COPY (below). Memoised: a screen of math re-renders often.
-  const spoken = useMemo(() => mathSpeechLabel({ value: cleanValue, ariaLabel }), [cleanValue, ariaLabel]);
+  const spoken = useMemo(() => mathSpeechLabel({ value: cleanValue, ariaLabel, language }), [cleanValue, ariaLabel, language]);
   const elementRef = useRef(null);
   useEffect(() => ensureMathElementRenders(elementRef.current), [cleanValue, format]);
   if (!cleanValue) return null;
@@ -89,7 +95,9 @@ export default function MathDisplay({
   // from the rewritten value so MathLive typesets the fraction instead of
   // displaying \frac / \left / \right as visible command text.
   const resolvedFormat = resolveMathDisplayFormat(cleanValue, format);
-  const typesetValue = unicodeSubscriptsToMathMarkup(cleanValue, resolvedFormat);
+  // In LaTeX a bracketed exponent raises the bracket alone, and a bare ln is
+  // two italic letters (mathDisplayFormat.js).
+  const typesetValue = latexFunctionNames(braceScriptGroups(unicodeSubscriptsToMathMarkup(cleanValue, resolvedFormat), resolvedFormat), resolvedFormat);
   const Element = inline ? 'math-span' : 'math-div';
   // ONE SPOKEN COPY. MathLive exposes the LaTeX source and its own MathML
   // under whatever label it is given, so a screen reader announced every
@@ -114,7 +122,11 @@ export default function MathDisplay({
         // than the line (the solved value 20/9 in a substitution token) was
         // clipped and grew a horizontal scrollbar under it.
         overflowY: inline ? 'visible' : 'hidden',
-        verticalAlign: inline ? '-0.16em' : 'middle',
+        // Inline math sits on the line's baseline, as typeset mathematics
+        // does. It was pushed 0.16em below it, so the text's own full stop
+        // after "$g$." stood level with the middle of the mathematics and read
+        // as a multiplication dot ("graph of g·", "= d·", RT14).
+        verticalAlign: inline ? 'baseline' : 'middle',
         lineHeight: 1.35,
         // Block math clips vertically at its padding box, and a stacked
         // fraction hangs ~0.4em below the line: denominators on the systems

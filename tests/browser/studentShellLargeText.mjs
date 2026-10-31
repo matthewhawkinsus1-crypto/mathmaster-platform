@@ -6,7 +6,7 @@
  *
  *   TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs &
  *   npx vite --config tests/browser/emulator/vite.config.mjs --host 127.0.0.1 --port 5199 --strictPort &
- *   node tests/browser/studentShellLargeText.mjs [--check=targets,s5,text,default] [--only=<screen id,…>]
+ *   node tests/browser/studentShellLargeText.mjs [--check=targets,s5,text,default,targetsize] [--only=<screen id,…>]
  *
  * targets  The identity bar's Log Out is at least 44px tall (WCAG 2.5.5).
  * s5       Live Challenge round (1366×768): Tab from the top of the round to
@@ -19,11 +19,18 @@
  *          graphs, tables and canvases excepted, as 1.4.10 exempts them.
  *          Scenes: the certification's student screens, plus (job N, the
  *          px→rem sweep) more assignment tools, Recovery on Home and in the
- *          Assignments Center, and the teacher workspace (Home, a class).
+ *          Assignments Center, and the teacher workspace (Home, a class), plus
+ *          (CI01, VH-29) the registry-tools screen: eight registry tools in CI,
+ *          every one with LARGE_TEXT_REGISTRY_TOOLS=all (or a list of ids).
  * default  The sweep must not change the default size: every scene at 100%
  *          text, both viewports, screenshotted to --shots=<dir>; with
  *          --compare=<dir> (shots taken before the change) each pair is
  *          diffed pixel by pixel and any difference fails.
+ * targetsize  WCAG 2.2 2.5.8 (Target Size, Minimum): every pointer target on
+ *          every student scene (not the teacher's), at 1366×768 and 390×844,
+ *          is 24×24 CSS px or more, or has the room the spacing exception asks
+ *          for (support/targetSize.mjs). Not in the default set; writes
+ *          artifacts/large-text/target-size.json.
  */
 import path from 'node:path';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -31,6 +38,8 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { readdirSync, readFileSync } from 'node:fs';
 import { SCREENS, sceneLabel } from './accessibilityCertification.mjs';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
+import { collectTargetBoxes, smallTargetsOf } from './support/targetSize.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const artifacts = path.join(here, 'artifacts/large-text');
@@ -95,6 +104,11 @@ const MEASURE = (rootSelector) => {
   const srOnly = (element) => {
     for (let node = element; node && node !== document.body; node = node.parentElement) {
       const style = getComputedStyle(node);
+      // A `display: contents` wrapper has no box of its own, so it reads 0×0
+      // without hiding anything. Work View's body is one when a tool sits in the
+      // page: until this skip, every text box of a tool read as visually hidden
+      // and was never measured (CI01, VH-29).
+      if (style.display === 'contents') continue;
       const rect = node.getBoundingClientRect();
       if ((style.clip && style.clip !== 'auto') || style.clipPath === 'inset(50%)' || (rect.width <= 1 && rect.height <= 1)) return true;
     }
@@ -179,9 +193,9 @@ const MEASURE = (rootSelector) => {
 
 // Job N: the surfaces the px→rem sweep reached that the certification's
 // screens do not show.
-const toolQuestion = (questionId) => async (page, origins, { first }) => {
+const toolQuestion = (questionId, extraQuery = '') => async (page, origins, { first }) => {
   if (first) {
-    await page.goto(`${origins.audit}/tests/browser/studentUxPlatform.html?q=${questionId}&run=a11y`, { timeout: 180_000 });
+    await page.goto(`${origins.audit}/tests/browser/studentUxPlatform.html?q=${questionId}&run=a11y${extraQuery}`, { timeout: 180_000 });
     await page.waitForFunction((qid) => window.__ux && document.querySelector(`[data-question-id="${qid}"]`), questionId, { timeout: 180_000 });
   } else {
     await page.evaluate((qid) => window.__ux.go(qid), questionId);
@@ -237,6 +251,33 @@ const rushRound = async (page, origins, context) => {
   if (covered.length) throw new Error(`the Rush round's top row is covered: ${covered.join('; ')}`);
 };
 
+// CI01 (VH-29): registry tools the scenes above never showed, each its own
+// sample spec in the real QuestionEngine (the UX harness' ?tools=1 section, as
+// the Work View certification mounts them). All 21 below pass 200% text, 320 px,
+// text spacing and target size (measured 2026-10-25 with the sr-only fix above:
+// 12.6 minutes for the 21 on a loaded machine, so about 0.6 per tool). CI
+// carries the eight with the most layout to lose (a table and plot, a plane, a
+// grid, cards, a number line, a mapping, a multi-representation board).
+// LARGE_TEXT_REGISTRY_TOOLS=all, or a comma list of ids, measures others by hand.
+const ALL_REGISTRY_TOOLS = [
+  'dataModelingLab', 'regressionCalculator', 'inverseCompositionLab', 'functionOperationsLab', 'systemsWorkspace',
+  'parabolaGeometryLab', 'polynomialWorkshop', 'signSolutionAnalyzer', 'sequenceExplorer', 'complexPlaneLab',
+  'exponentialLogBridge', 'transformationsLab', 'functionInvestigation2', 'solutionReview2', 'intervalNumberLine',
+  'relationMapping', 'openSortBoard', 'constraintFunctionBuilder', 'expressionMeaning', 'representationBridge', 'matrixLab',
+];
+const CI_REGISTRY_TOOLS = [
+  'dataModelingLab', 'regressionCalculator', 'systemsWorkspace', 'intervalNumberLine',
+  'relationMapping', 'openSortBoard', 'representationBridge', 'matrixLab',
+];
+const REGISTRY_TOOLS = (() => {
+  const asked = process.env.LARGE_TEXT_REGISTRY_TOOLS;
+  if (asked === 'all') return ALL_REGISTRY_TOOLS;
+  return asked ? asked.split(',').filter(Boolean) : CI_REGISTRY_TOOLS;
+})();
+
+// A tool whose sample spec names its own question id keeps it in the harness' list.
+const REGISTRY_QUESTION_IDS = { expressionMeaning: 'preview-expression-meaning', matrixLab: 'preview-matrix-lab' };
+
 export const LARGE_TEXT_SCREENS = [
   ...SCREENS,
   { id: 'graph-feature-rush', open: liveChallenge.open, scenes: [{ id: 'round', run: rushRound }] },
@@ -247,6 +288,11 @@ export const LARGE_TEXT_SCREENS = [
       { id: 'multiple-responses', run: toolQuestion('ux-multi') },
       { id: 'representation-match', run: toolQuestion('ux-rm-table') },
     ],
+  },
+  {
+    id: 'registry-tools',
+    include: '.mathmaster-question-stage',
+    scenes: REGISTRY_TOOLS.map((toolId) => ({ id: toolId, run: toolQuestion(REGISTRY_QUESTION_IDS[toolId] || `tool-${toolId}`, '&tools=1') })),
   },
   {
     id: 'recovery',
@@ -422,7 +468,7 @@ if (CHECKS.has('default')) {
       await page.addStyleTag({ content: '*, *::before, *::after { caret-color: transparent !important; animation: none !important; transition: none !important; }' });
       await page.evaluate(() => document.activeElement?.blur?.());
       await page.waitForTimeout(300);
-      await page.screenshot({ path: path.join(SHOTS, `${label.replace(/\//g, '--')}-${setting.id}.png`), fullPage: true, animations: 'disabled' });
+      await screenshotKeepingTouch(page, { path: path.join(SHOTS, `${label.replace(/\//g, '--')}-${setting.id}.png`), fullPage: true, animations: 'disabled' });
       console.log(`shot ${label} ${setting.id}`);
     });
   }
@@ -487,10 +533,34 @@ if (CHECKS.has('text')) {
       if (result.clippedCount) failures.push(`${label} ${setting.id}: ${result.clippedCount} clipped text box(es): ${result.clipped.join('; ')}`);
       if (result.offscreenCount) failures.push(`${label} ${setting.id}: ${result.offscreenCount} text box(es) past the viewport edge: ${result.offscreen.join('; ')}`);
       if (grow.list.length) failures.push(`${label} ${setting.id}: ${grow.list.length} text box(es) did not grow at 200%: ${[...new Set(grow.list)].slice(0, 10).join('; ')}`);
-      await page.screenshot({ path: path.join(artifacts, `${label.replace(/\//g, '--')}-${setting.id}.png`), fullPage: true }).catch(() => {});
+      await screenshotKeepingTouch(page, { path: path.join(artifacts, `${label.replace(/\//g, '--')}-${setting.id}.png`), fullPage: true }).catch(() => {});
     });
   }
   writeFileSync(path.join(artifacts, 'report.json'), JSON.stringify(report, null, 2));
+}
+
+// WCAG 2.2 2.5.8 (Target Size, Minimum): on every student scene, at both
+// viewports, each pointer target is 24x24 CSS px or more, or has the room the
+// criterion's spacing exception asks for. tests/browser/support/targetSize.mjs
+// says what is read and what is not (an equivalent control elsewhere and an
+// essential size still excuse a target this lists). The teacher's screens are
+// not student-facing and are skipped.
+if (CHECKS.has('targetsize')) {
+  const sizeReport = [];
+  for (const setting of [{ id: 'chromebook', width: 1366, height: 768 }, { id: 'phone', width: 390, height: 844, mobile: true }]) {
+    await runScenes(setting, async (page, label, screen) => {
+      if (screen.id === 'teacher') return;
+      const result = smallTargetsOf(await page.evaluate(collectTargetBoxes, { rootSelector: 'body' }));
+      sizeReport.push({ label, setting: setting.id, ...result });
+      console.log(`${result.failing.length || !result.measured ? 'FAIL' : 'ok  '} targets ${label.padEnd(30)} ${setting.id.padEnd(10)} measured=${result.measured} under24=${result.undersized} bySpacing=${result.bySpacing} crowded=${result.failing.length}`);
+      if (!result.measured) failures.push(`${label} ${setting.id}: no pointer target was measured, so the check is void`);
+      if (result.failing.length) {
+        const named = result.failing.slice(0, 8).map((target) => `${target.tag}${target.roleAttr ? `[${target.roleAttr}]` : ''} "${target.name}" ${target.w}×${target.h} (${target.className.split(' ')[0] || '-'})`);
+        failures.push(`${label} ${setting.id}: ${result.failing.length} pointer target(s) under 24×24 CSS px with no room around them: ${named.join('; ')}`);
+      }
+    });
+  }
+  writeFileSync(path.join(artifacts, 'target-size.json'), JSON.stringify(sizeReport, null, 2));
 }
 
 await browser.close();

@@ -154,7 +154,11 @@ export const saveSupportProfileRevision = async ({
     todayKey: zonedDateKey(nowValue, SCHOOL_TIME_ZONE),
     updatedAt: new Date(nowValue).toISOString(),
   });
-  batch.update(doc(db, 'grades', studentId), { profile: projection });
+  // Set the ordinary profile fields individually: a concurrent server-approved
+  // correction is not part of a support revision and must never be overwritten.
+  batch.update(doc(db, 'grades', studentId), Object.fromEntries(
+    Object.entries(projection).map(([key, value]) => [`profile.${key}`, value]),
+  ));
   await batch.commit();
   return { revisionId: revisionRef.id, projection, revisions: timeline };
 };

@@ -4,6 +4,7 @@ import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '..
 import useToolSubmission from '../shared/useToolSubmission';
 import MathDisplay from '../../MathDisplay';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../../platform/interaction/choiceOptions.js';
+import { ChoiceMark, useChoiceGroup } from '../../platform/interaction/choiceGroup.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import { clientPointToViewBox } from '../../utils/responsiveCoordinates.js';
@@ -141,19 +142,23 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
           try { keyboard = event.currentTarget.matches(':focus-visible'); } catch { keyboard = false; }
           if (keyboard) setKeyboardHelpVisible(true);
         }}
-        onBlur={() => { setKeyboardHelpVisible(false); setKeyboardCursor(null); }}
+        // The keyboard sentence STAYS once shown, as on the shared plane:
+        // hiding it on blur moved the page under the pointer (AX34).
+        onBlur={() => { setKeyboardCursor(null); }}
         tabIndex={0}
         role="application"
         aria-label="Coordinate plane for plotting the relation"
         aria-describedby={helpId}
         style={{ width: '100%', maxWidth: 520, display: 'block', margin: '0 auto', background: 'var(--mm-surface)', border: '1px solid var(--mm-tint-border)', borderRadius: 12, cursor: 'crosshair' }}
       >
-        {xTicks.map((x) => <line key={`gx${x}`} x1={xToPx(x)} x2={xToPx(x)} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} stroke="#e5e9f0" strokeWidth="1" />)}
-        {yTicks.map((y) => <line key={`gy${y}`} x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(y)} y2={yToPx(y)} stroke="#e5e9f0" strokeWidth="1" />)}
-        {xMin <= 0 && xMax >= 0 ? <line x1={xToPx(0)} x2={xToPx(0)} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} stroke="#445" strokeWidth="2" /> : null}
-        {yMin <= 0 && yMax >= 0 ? <line x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(0)} y2={yToPx(0)} stroke="#445" strokeWidth="2" /> : null}
-        {xTicks.map((x) => (x === 0 ? null : <text key={`tx${x}`} x={xToPx(x)} y={yToPx(0) + 17} textAnchor="middle" fontSize="10" fill="#5f6b7a">{x}</text>))}
-        {yTicks.map((y) => (y === 0 ? null : <text key={`ty${y}`} x={xToPx(0) - 9} y={yToPx(y) + 4} textAnchor="end" fontSize="10" fill="#5f6b7a">{y}</text>))}
+        {/* The shared graph tokens (src/theme/tokens.css), as the coordinate
+            plane uses: fixed colours failed dark-mode contrast (TL33, VH-27). */}
+        {xTicks.map((x) => <line key={`gx${x}`} x1={xToPx(x)} x2={xToPx(x)} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} style={{ stroke: 'var(--mm-graph-grid)' }} strokeWidth="1" />)}
+        {yTicks.map((y) => <line key={`gy${y}`} x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(y)} y2={yToPx(y)} style={{ stroke: 'var(--mm-graph-grid)' }} strokeWidth="1" />)}
+        {xMin <= 0 && xMax >= 0 ? <line x1={xToPx(0)} x2={xToPx(0)} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="2" /> : null}
+        {yMin <= 0 && yMax >= 0 ? <line x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(0)} y2={yToPx(0)} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="2" /> : null}
+        {xTicks.map((x) => (x === 0 ? null : <text key={`tx${x}`} x={xToPx(x)} y={yToPx(0) + 17} textAnchor="middle" fontSize="10" style={{ fill: 'var(--mm-graph-label)' }}>{x}</text>))}
+        {yTicks.map((y) => (y === 0 ? null : <text key={`ty${y}`} x={xToPx(0) - 9} y={yToPx(y) + 4} textAnchor="end" fontSize="10" style={{ fill: 'var(--mm-graph-label)' }}>{y}</text>))}
 
         {guidePoint ? (
           <g pointerEvents="none" data-relation-crosshair={keyboardCursor && !hoverPoint ? 'keyboard' : 'pointer'}>
@@ -188,7 +193,55 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
   );
 }
 
-export default function RelationMapping({ questionData = {}, onAction }) {
+/*
+ * A "choose one" question about the relation — "Is this relation a function?"
+ * and each analysis question that has choices — as one radio group
+ * (choiceGroup.js): one Tab stop, the arrow keys move and select, and the
+ * chosen option carries a ✓ as well as its colour. They were plain role="radio"
+ * buttons: every option a Tab stop, no arrow keys, no radiogroup around them, and
+ * the choice shown by a border and a fill alone (AX37). The fieldset is the
+ * group, named by its legend, so the question is heard once. Choosing is not
+ * checking: nothing here grades.
+ */
+function RelationChoiceGroup({ legend, options, value, onSelect }) {
+  const optionProps = useChoiceGroup({ ids: options.map((option) => option.value), value, onSelect });
+  return (
+    <fieldset role="radiogroup" style={{ border: 0, padding: 0, margin: '0 0 14px' }}>
+      <legend style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)', marginBottom: 8 }}>
+        {legend}
+      </legend>
+      <div style={{ display: 'grid', gap: 8 }}>
+        {options.map((option, index) => {
+          const selected = value === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              {...optionProps(index)}
+              onClick={() => onSelect(option.value)}
+              style={{
+                ...secondaryButton,
+                width: '100%',
+                textAlign: 'left',
+                border: `2px solid ${selected ? '#1a73e8' : 'var(--mm-tint-border)'}`,
+                background: selected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+                color: 'var(--mm-text-strong)',
+              }}
+            >
+              <ChoiceMark selected={selected} />
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
+// `coachingReplaced`: a composed question has marked this step wrong and the
+// step shows the grader's reason (WorkflowRunner, FB06), so the step's own
+// verdict and coaching from its Check stay out of the way: one message, not two.
+export default function RelationMapping({ questionData = {}, onAction, coachingReplaced = false }) {
   const pairs = useMemo(() => relationPairsOf(questionData.pairs), [questionData.pairs]);
 
   const domainValues = useMemo(() => uniqueSorted(pairs.map(([x]) => x)), [pairs]);
@@ -357,7 +410,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
   return (
     <ToolShell
       title="Build the Mapping Diagram"
-      subtitle="A relation drawn as two sets with arrows between them — the clearest way to see whether it is a function."
+      subtitle="A relation drawn as two sets with arrows between them."
       badge="Relations and functions"
     >
       <TaskCard
@@ -374,7 +427,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
       {questionData.showGivenRelation !== false ? (
         <Panel title="Given relation">
           <p style={{ margin: '0 0 8px', color: 'var(--mm-text-muted)' }}>{givenRelationInstruction(ask)}</p>
-          <div aria-label="Given ordered pairs" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <div role="group" aria-label="Given ordered pairs" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {pairs.map(([x, y]) => (
               <span key={`${x}|${y}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '7px 10px', borderRadius: 999, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface-tint)', fontWeight: 700 }}>
                 <MathDisplay value={`(${x}, ${y})`} format="ascii-math" inline ariaLabel={`Ordered pair ${x}, ${y}`} />
@@ -393,7 +446,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
             snapStep={questionData.plotSnapStep || 1}
           />
           <p style={{ margin: '10px 0 8px', fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
-            Move across the coordinate plane to see x- and y-guides. Click the intersection to plot or remove a point.
+            The plane shows x- and y-guides as you move across it. Click or tap the intersection to plot or remove a point, or focus the plane and use the arrow keys and Enter.
           </p>
           {allowTypedPlot ? (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'end' }}>
@@ -415,7 +468,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
         </Panel>
       ) : null}
 
-      <EnlargeableFigure label="Mapping workspace" enlargeLabel="Enlarge workspace" style={{ width: '100%' }} capabilities={{
+      <EnlargeableFigure label="Mapping workspace" style={{ width: '100%' }} capabilities={{
         undo: undoHistory.capability,
         pointEditing: { label: 'Edit mappings and plotted points', studentState: true },
         numericControls: { label: 'Relation controls', studentState: true },
@@ -430,8 +483,10 @@ export default function RelationMapping({ questionData = {}, onAction }) {
             <text x={LEFT_X} y={18} textAnchor="middle" fontSize="13" fontWeight="700" style={{ fill: 'var(--mm-text-muted)' }}>{questionData.domainLabel || 'Domain (x)'}</text>
             <text x={RIGHT_X} y={18} textAnchor="middle" fontSize="13" fontWeight="700" style={{ fill: 'var(--mm-text-muted)' }}>{questionData.rangeLabel || 'Range (y)'}</text>
 
-            <ellipse cx={LEFT_X} cy={height / 2} rx="58" ry={domainValues.length * ROW / 2 + 18} style={{ fill: 'var(--mm-primary-subtle)', stroke: 'var(--mm-primary-border)' }} strokeWidth="2" />
-            <ellipse cx={RIGHT_X} cy={height / 2} rx="58" ry={rangeValues.length * ROW / 2 + 18} style={{ fill: 'var(--mm-accent-subtle)', stroke: 'var(--mm-accent-border)' }} strokeWidth="2" />
+            {/* The domain and range groupings, outlined at 3:1 or more in both
+                themes (AX29: the border tokens were 1.65:1 and 2.0:1 in light). */}
+            <ellipse cx={LEFT_X} cy={height / 2} rx="58" ry={domainValues.length * ROW / 2 + 18} style={{ fill: 'var(--mm-primary-subtle)', stroke: 'var(--mm-primary)' }} strokeWidth="2" />
+            <ellipse cx={RIGHT_X} cy={height / 2} rx="58" ry={rangeValues.length * ROW / 2 + 18} style={{ fill: 'var(--mm-accent-subtle)', stroke: 'var(--mm-accent)' }} strokeWidth="2" />
 
             {arrows.map(([x, y], index) => {
               const from = domainValues.indexOf(x);
@@ -527,85 +582,45 @@ export default function RelationMapping({ questionData = {}, onAction }) {
             </label>
           )}
           {ask.includes('isFunction') && (
-            <fieldset style={{ border: 0, padding: 0, margin: '0 0 14px' }}>
-              <legend style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)', marginBottom: 8 }}>
-                Is this relation a function?
-              </legend>
-              <div style={{ display: 'grid', gap: 8 }}>
-                {functionChoiceOptions.map((choice) => {
-                  const selected = functionAnswer === choice.value;
-                  return (
-                    <button
-                      key={choice.value}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      onClick={() => { setFunctionAnswer(choice.value); clearFeedback(); }}
-                      style={{
-                        ...secondaryButton,
-                        width: '100%',
-                        textAlign: 'left',
-                        border: `2px solid ${selected ? '#1a73e8' : 'var(--mm-tint-border)'}`,
-                        background: selected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
-                        color: 'var(--mm-text-strong)',
-                      }}
-                    >
-                      {choice.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </fieldset>
+            <RelationChoiceGroup
+              legend="Is this relation a function?"
+              options={functionChoiceOptions}
+              value={functionAnswer}
+              onSelect={(value) => { setFunctionAnswer(value); clearFeedback(); }}
+            />
           )}
 
           {analysisFields.map((field) => {
             const options = optionsForField(field);
             const current = String(fieldAnswers[field.id] ?? '');
+            if (options.length) {
+              return (
+                <RelationChoiceGroup
+                  key={field.id}
+                  legend={field.label || field.id}
+                  options={options.map((option) => ({ value: String(option), label: String(option) }))}
+                  value={current}
+                  onSelect={(value) => { setFieldAnswers((answers) => ({ ...answers, [field.id]: value })); clearFeedback(); }}
+                />
+              );
+            }
             return (
               <fieldset key={field.id} style={{ border: 0, padding: 0, margin: '0 0 14px' }}>
                 <legend style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)', marginBottom: 8 }}>
                   {field.label || field.id}
                 </legend>
-                {options.length ? (
-                  <div style={{ display: 'grid', gap: 8 }}>
-                    {options.map((option) => {
-                      const raw = String(option);
-                      const selected = current === raw;
-                      return (
-                        <button
-                          key={raw}
-                          type="button"
-                          role="radio"
-                          aria-checked={selected}
-                          onClick={() => { setFieldAnswers((answers) => ({ ...answers, [field.id]: raw })); clearFeedback(); }}
-                          style={{
-                            ...secondaryButton,
-                            width: '100%',
-                            textAlign: 'left',
-                            border: `2px solid ${selected ? '#1a73e8' : 'var(--mm-tint-border)'}`,
-                            background: selected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
-                            color: 'var(--mm-text-strong)',
-                          }}
-                        >
-                          {raw}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <input
-                    value={current}
-                    onChange={(event) => { setFieldAnswers((answers) => ({ ...answers, [field.id]: event.target.value })); clearFeedback(); }}
-                    style={inputStyle}
-                  />
-                )}
+                <input
+                  value={current}
+                  onChange={(event) => { setFieldAnswers((answers) => ({ ...answers, [field.id]: event.target.value })); clearFeedback(); }}
+                  style={inputStyle}
+                />
               </fieldset>
             );
           })}
 
           <button data-mm-enter-action="submit" type="button" onClick={check} style={{ ...primaryButton, width: '100%' }}>{submitActionLabel}</button>
 
-          {feedback ? (
+          {feedback && !coachingReplaced ? (
             <div style={{ marginTop: 14 }}>
               <ResultPill ok={feedback.isCorrect} message={message()}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
             </div>

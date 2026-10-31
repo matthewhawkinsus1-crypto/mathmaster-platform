@@ -43,14 +43,37 @@ test('both keypads are toolbars whose keys take the roving tabindex', () => {
   assert.match(source, /const requiredKeysToolbar = useRovingToolbar\(requiredTools\.length\);/);
   assert.match(source, /const toolsToolbar = useRovingToolbar\(tools\.length\);/);
   const required = region(source, 'className="mathmaster-required-answer-keys"', '</div>\n      )}', 'the needed keys');
-  assert.match(required, /role="toolbar"\s*aria-label="Keys needed for this answer"\s*onKeyDown=\{requiredKeysToolbar\.onKeyDown\}/);
+  // The arrows reach the roving handler: directly, or after Escape has had its
+  // turn (TL15: Escape on a key closes the keypad; accessibleDialog.test.mjs).
+  const reachesRoving = (name) => new RegExp(`onKeyDown=\\{(?:${name}\\.onKeyDown|\\(event\\) => \\{ if \\(!escapeFromKeys\\(event\\)\\) ${name}\\.onKeyDown\\(event\\); \\})\\}`);
+  assert.match(required, /role="toolbar"\s*aria-label="Keys needed for this answer"\s*onKeyDown=/);
+  assert.match(required, reachesRoving('requiredKeysToolbar'));
   assert.match(required, /\{requiredTools\.map\(\(tool, index\) => \(\s*<button[\s\S]*?\{\.\.\.requiredKeysToolbar\.itemProps\(index\)\}\s*aria-label=\{tool\.ariaLabel\}/, 'each key keeps its spoken name');
   const tools = region(source, 'id={toolsId}', '</div>\n      )}', 'the math tools');
-  assert.match(tools, /role="toolbar"\s*aria-label="Math tools"\s*onKeyDown=\{toolsToolbar\.onKeyDown\}/);
+  assert.match(tools, /role="toolbar"\s*aria-label="Math tools"\s*onKeyDown=/);
+  assert.match(tools, reachesRoving('toolsToolbar'));
   assert.match(tools, /\{tools\.map\(\(tool, index\) => \(\s*<button[\s\S]*?\{\.\.\.toolsToolbar\.itemProps\(index\)\}\s*aria-label=\{tool\.ariaLabel\}/);
   // A key still types through insert(), which gives the field its focus back.
   assert.match(tools, /onClick=\{\(\) => insert\(tool\.command, tool\.action\)\}/);
   assert.match(region(source, 'const insert = useCallback(', '}, [', 'insert'), /mathField\.focus\(\{ preventScroll: true \}\);/);
+});
+
+// TL23: the keypad toggle shows a keypad, not "√x" (read as "insert a square
+// root"); the key that leaves a group says "move out →" (not "↷ out": ↷ is the
+// redo arrow) and is two keys wide so the words fit. Browser proof, both
+// sizes: tests/browser/mathKeypadToolbar.mjs.
+test('TL23: the keypad toggle and the way-out key say what they do', () => {
+  const source = executableSource(read('src/MathInput.jsx'));
+  const toggle = region(source, 'className="mathmaster-math-tools-toggle"', '</button>', 'the keypad toggle');
+  assert.match(toggle, /<KeypadIcon \/>/, 'a picture of a keypad');
+  assert.doesNotMatch(toggle, /√/, 'no root symbol');
+  assert.match(toggle, /aria-label=\{toolsVisible \? 'Hide math tools' : 'Show math tools'\}/, 'named in words');
+  assert.match(region(source, 'const KeypadIcon = () => (', '\n);', 'the icon'), /<svg [^>]*aria-hidden="true"/, 'the picture is decorative');
+  const exit = region(source, 'const EXIT_GROUP_KEY = {', '};', 'the way-out key');
+  assert.match(exit, /label: 'move out →',/);
+  assert.doesNotMatch(exit, /↷/);
+  assert.match(exit, /ariaLabel: 'Move the cursor out of the fraction, exponent or bracket',/);
+  assert.match(region(source, '...(tool === EXIT_GROUP_KEY ? {', '} : {}),', 'the way-out key\'s place'), /gridColumn: 'span 2',/);
 });
 
 test('only the key last used is in the Tab order', () => {

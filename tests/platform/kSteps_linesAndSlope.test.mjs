@@ -613,7 +613,14 @@ test('Graphing Lines (graphing): slope and intercept read from the equation or t
       const slopeChain = /= (-?[\d/]+) ÷ \(?(-?[\d/]+)\)? = (-?[\d/]+)\.$/.exec(worked.steps[2]);
       assert.ok(slopeChain && eq(slopeChain[1], motion[3]) && eq(slopeChain[2], motion[1]) && eq(slopeChain[3], keyLine.m), `${label}: slope = rise ÷ run: ${worked.steps[2]}`);
     } else {
-      // From the equation: the slope step names m, the intercept step names b.
+      // From the equation: the first step writes the line, the slope step names m, the intercept step names b.
+      // The line the first step writes IS the key (CI15, A1-60: only the last values of the next two were read).
+      const written = /the line is y = (.+)\.$/.exec(worked.steps[0]);
+      assert.ok(written, `${label}: the first step writes the line: ${worked.steps[0]}`);
+      [-3, 0, 2, 5].forEach((x) => assert.ok(
+        eq(F(math.evaluate(written[1].replace(/−/g, '-'), { x: F(x) })), math.add(math.multiply(keyLine.m, F(x)), keyLine.b)),
+        `${label}: the line written is the key at x = ${x}: ${worked.steps[0]}`,
+      ));
       assert.ok(finalValue(worked.steps[1]) !== null && eq(finalValue(worked.steps[1]), keyLine.m), `${label}: ${worked.steps[1]}`);
       assert.ok(finalValue(worked.steps[2]) !== null && eq(finalValue(worked.steps[2]), keyLine.b), `${label}: ${worked.steps[2]}`);
     }

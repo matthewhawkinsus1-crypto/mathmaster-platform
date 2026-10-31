@@ -47,7 +47,7 @@ const {
 } = require("./lib/classroomPushErrors");
 const classroomPushQueue = require("./lib/classroomPushQueue");
 const classroomStudentCheckpoints = require("./lib/classroomStudentCheckpoints");
-const { deferredClassCheckpoint } = require("./lib/classroomGradeRuntime");
+const { deferredClassCheckpoint, extendedTimeReturnHeldUntil } = require("./lib/classroomGradeRuntime");
 const {
   GOOGLE_API_SECRETS,
   GOOGLE_AND_LINK_SECRETS,
@@ -96,6 +96,11 @@ const pathContentRelease = require("./lib/pathContentRelease");
 // The end-of-session recap: recorded per closed question by submitPathResponse,
 // released by getMyPathSessionRecap only for a completed session.
 const pathSessionRecap = require("./lib/pathSessionRecap");
+// Which lock a Path session holds (an open retention check has its own, MP21),
+// and the one mastery rule for the server's retention and Challenge decisions
+// (the more favourable of the server profile and the assignment record, MP22).
+const pathSessionLock = require("./lib/pathSessionLock");
+const favourableMastery = require("./lib/favourableMastery");
 const assignmentAi = require("./lib/assignmentAi");
 const weeklyPathSync = require("./lib/weeklyPathSync");
 const ccmrAssignmentBank = require("./lib/ccmrAssignmentBank");
@@ -144,6 +149,30 @@ const FUNCTION_MEMORY_FLOOR = "512MiB";
 setGlobalOptions({ invoker: "public", memory: FUNCTION_MEMORY_FLOOR, labels: deployProvenanceLabels });
 
 initializeApp();
+
+// Explicit, audited correction workflow. Ordinary support-profile saves never call it.
+exports.reviewRetroactiveAccommodation = onCall(async (request) => {
+  const { createRetroactiveAccommodationService } = require("./lib/retroactiveAccommodation");
+  return createRetroactiveAccommodationService({
+    db: getFirestore(), FieldPath, FieldValue, HttpsError,
+    gradeFor: async ({ assignment, gradeData, practiceWaived }) => {
+      const originalTracker = gradeData.gradesByAssignment?.[assignment.id];
+      const omitted = await studentOmittedFor({ assignment, gradeData, assignmentId: assignment.id });
+      const questions = runtimeQuestionsFromAssignment(assignment);
+      const indices = runtimeIncludedQuestionIndices(assignment).filter((index) => !practiceWaived.includes(index) && !omitted.has(index));
+      if (!indices.length) return null;
+      const inputs = await sectionRecoveryGrades.projectRecoveredGradeInputs({
+        assignment, tracker: originalTracker || {}, questions,
+        overrides: gradeData.teacherGradeOverridesByAssignment?.[assignment.id] || {},
+        recoveryForAssignment: gradeData.sectionRecoveryByAssignment?.[assignment.id] || null,
+        challengeCredit: gradeData.warmupChallengeByAssignment?.[assignment.id] || null,
+        gradeProgress: assignmentGradeProgress, omittedIndices: omitted,
+      });
+      if (!originalTracker && !Object.keys(inputs.tracker).length) return null;
+      return calculateAssignmentGrade(inputs.tracker, indices, questions, inputs.overrides);
+    },
+  })(request);
+});
 
 // WHICH COMMIT IS LIVE (F-REL-3). Read-only and deliberately unauthenticated:
 // it returns this deployment's provenance and nothing else — no request data,
@@ -1824,11 +1853,13 @@ function storedAlgebraStepPartialCredit(record) {
   // (getQuestionCredit is synchronous, so the ESM module cannot be awaited
   // here; stepAlgebraStepCredit compares the two over every rule): spaces and
   // the TeX tie of 2~ x (before pass 3 Q-31) are spacing, any dash is a minus,
-  // and a unit coefficient before a group (push Q's 1\left() is dropped.
+  // a unit coefficient before a group (push Q's 1\left() is dropped, and a
+  // number bracketed after a letter (GR27's x(1), drawn x1 before) is x1.
   const stateKey = (value) => String(value || "")
     .replace(/[\s~]+/g, "")
     .replace(/[−–—]/g, "-")
-    .replace(/(^|[=+\-(,{])1\\left\(/g, "$1\\left(");
+    .replace(/(^|[=+\-(,{])1\\left\(/g, "$1\\left(")
+    .replace(/(?<=[A-Za-z])\\left\((\d+(?:\.\d+)?)\\right\)/g, "$1");
   const expectedTotal = currentSteps.reduce(
     (maximum, step) => Math.max(maximum, Math.max(0, Number(step?.expectedTotalPoints) || 0)),
     0
@@ -2206,6 +2237,14 @@ exports.loadStudentCaseEvidence = onCall(async (request) => {
   });
   response.truncated.events = eventSnapshots.some((snapshot) => snapshot.size >= Math.ceil(limits.maxEvents / chunks.length));
   response.truncated.receipts = receiptSnapshots.some((snapshot) => snapshot.size >= limits.maxReceiptsPerChunk);
+  // Per chunk, like the two above: each chunk is read with its share of the cap,
+  // so a busy chunk can be cut off while the total is under it (TT05).
+  response.truncated.misconceptionEvidence = response.truncated.misconceptionEvidence
+    || caseEvidence.anyChunkAtItsShare({
+      sizes: misconceptionSnapshots.map((snapshot) => snapshot.size),
+      cap: limits.maxMisconceptionRecords,
+      chunks: chunks.length,
+    });
   return response;
 });
 
@@ -3419,7 +3458,7 @@ function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowVa
   return progressCheckpointStage(progress);
 }
 
-function classroomGradeReleasePolicy({ stage, assignment, nowValue = Date.now(), studentDueAt = null }) {
+function classroomGradeReleasePolicy({ stage, assignment, nowValue = Date.now(), studentDueAt = null, studentFinalCutoff = null }) {
   const now = Number(nowValue) || Date.now();
   const dueAt = studentDueDate(assignment, studentDueAt);
   const explicitlyStudentVisible = [
@@ -3428,14 +3467,21 @@ function classroomGradeReleasePolicy({ stage, assignment, nowValue = Date.now(),
     "final-deadline",
     "assessment-release",
   ].includes(stage);
-  const studentVisible = explicitlyStudentVisible
-    || String(stage || "").startsWith("late-progress")
+  // A partial grade after the due date is returned — unless the student is
+  // still on their own extended time: then it is a draft until their own close
+  // (NV02, the owner 2026-10-23; the lib's extendedTimeReturnHeldUntil).
+  const partialAfterDue = String(stage || "").startsWith("late-progress")
     || (stage === "manual-retry" && Boolean(dueAt && now >= dueAt.getTime()));
+  const heldUntilMs = !explicitlyStudentVisible && partialAfterDue
+    ? extendedTimeReturnHeldUntil({ assignment, nowValue: now, studentFinalCutoff })
+    : null;
+  const studentVisible = explicitlyStudentVisible || (partialAfterDue && heldUntilMs === null);
 
   return {
     studentVisible,
     assignToStudent: studentVisible,
     shouldReturn: studentVisible,
+    ...(heldUntilMs !== null ? { heldUntilMs } : {}),
   };
 }
 
@@ -3618,6 +3664,15 @@ async function loadStudentClass(db, studentData) {
  * of shared/authorizationContext.mjs: the access list moves, the origin fields
  * never do.
  */
+async function handOverOpenTeacherQuestions(db, studentId, classRecord, apply) {
+  const lifecycle = await import("./shared/askTeacherLifecycle.mjs");
+  const waiting = await db.collection(lifecycle.ASK_TEACHER_COLLECTION)
+    .where("studentId", "==", studentId)
+    .where("status", "==", "open")
+    .get();
+  return apply(waiting.docs, (entry) => lifecycle.openQuestionHandover(entry.data() || {}, classRecord));
+}
+
 async function reauthorizeStudentRecords(db, studentId, classRecord) {
   const auth = await authorizationContext();
   const points = await classPoints();
@@ -3678,6 +3733,10 @@ async function reauthorizeStudentRecords(db, studentId, classRecord) {
       } : null;
     });
   }
+
+  // "Ask my teacher": a question still waiting goes to the new teacher of
+  // record, so it reaches a list someone reads (TT26).
+  counts.askTeacherQuestions = await handOverOpenTeacherQuestions(db, studentId, classRecord, apply);
 
   // Class Points accounts and transactions are scoped to studentId + classId
   // and must never migrate between classes -- a wallet the student earned in
@@ -4609,6 +4668,22 @@ exports.assignStudentToTeacher = onCall(async (request) => {
   }
   const classPeriod = String(request.data?.classPeriod || studentSnapshot.data()?.classPeriod || "Unassigned").trim().slice(0, 80) || "Unassigned";
   await studentRef.set({ assignedTeacherEmail, classPeriod, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  // A question still waiting follows the student to this teacher (TT26).
+  if (assignedTeacherEmail) {
+    await handOverOpenTeacherQuestions(db, studentId, {
+      teacherOfRecord: assignedTeacherEmail,
+      classId: studentSnapshot.data()?.classId ?? null,
+    }, async (docs, change) => {
+      const batch = db.batch();
+      let queued = 0;
+      docs.forEach((entry) => {
+        const patch = change(entry);
+        if (patch) { batch.set(entry.ref, patch, { merge: true }); queued += 1; }
+      });
+      if (queued) await batch.commit();
+      return queued;
+    });
+  }
   await writeAdminAudit(db, actor, "student_teacher_assignment_changed", studentId, { assignedTeacherEmail, classPeriod });
   if (assignedTeacherEmail) await inviteStudentToClassLiveChallengeSafely(db, studentId);
   return { studentId, assignedTeacherEmail, classPeriod };
@@ -4669,10 +4744,15 @@ exports.saveClass = onCall(async (request) => {
   // here has to reach them in the same operation or the two disagree — which is
   // exactly the "admin says one thing, teacher sees another" failure.
   let rostersUpdated = 0;
+  // The students' stored teachers as they are BEFORE the restamp: what says
+  // which of them it newly puts under the class's teacher, and so who is
+  // invited into that teacher's game below, if one is on (LC02).
+  let storedTeachers = [];
   const periodChanged = !isNew && existing?.period !== record.period;
   const teacherChanged = !isNew && (existing?.teacherOfRecord || null) !== record.teacherOfRecord;
   if (periodChanged || teacherChanged) {
     const members = await db.collection("grades").where("classId", "==", ref.id).get();
+    storedTeachers = members.docs.map((member) => ({ studentId: member.id, assignedTeacherEmail: member.data()?.assignedTeacherEmail ?? null }));
     const batch = db.batch();
     members.docs.forEach((member) => {
       batch.set(member.ref, {
@@ -4696,6 +4776,9 @@ exports.saveClass = onCall(async (request) => {
   }
 
   await writeAdminAudit(db, actor, isNew ? "class_created" : "class_updated", ref.id, { ...record, rostersUpdated });
+  // The roster change is whole, and audited, before any game is asked; a game
+  // that cannot be reached never fails it.
+  await inviteStudentsToClassLiveChallengeSafely(db, (bulk) => bulk.movedByClassRestamp({ members: storedTeachers, teacherEmail: record.teacherOfRecord }));
   return { classId: ref.id, ...record, rostersUpdated };
 });
 
@@ -4800,6 +4883,10 @@ exports.migrateClassesFromPeriods = onCall(async (request) => {
     }
 
     await writeAdminAudit(db, actor, "classes_migrated_from_periods", "classes", plan.report);
+
+    // A student the migration attached to a class whose teacher has a game on
+    // is invited into it, as setStudentClass would (LC02).
+    await inviteStudentsToClassLiveChallengeSafely(db, (bulk) => bulk.movedFromMigrationUpdates(plan.studentUpdates));
   }
 
   return { dryRun, ...plan.report };
@@ -7151,7 +7238,7 @@ async function deleteStudentLiveChallengeFootprint(db, studentId, deleted) {
       rosterRowRemoved = rosterSnapshot.exists;
     }
     transaction.delete(inviteRef);
-    return { rosterRowRemoved };
+    return { rosterRowRemoved, roomId: invitedRoomId };
   });
   if (membership) {
     if (membership.rosterRowRemoved) deleted.liveChallengeRoomMemberships = 1;
@@ -7177,24 +7264,44 @@ async function deleteStudentLiveChallengeFootprint(db, studentId, deleted) {
   }
   if (summariesDeleted) deleted.liveChallengePlayerSummaries = summariesDeleted;
 
-  const scrub = async (collectionName, rowFields) => {
+  // Their rows in the private round results (liveChallengePrivate/{room}/
+  // rounds/{n}: named standings, SI13). A finished match's private state is
+  // removed by its finalization, but a room retired before it finished keeps
+  // it, and no sweep removes it. The invite names that room; a played match
+  // whose private cleanup has not run yet is listed by its result. Read after
+  // the transaction above: no round closed later can name them again.
+  const roomIds = new Set([membership?.roomId, ...playedSnapshot.docs.map((resultDoc) => resultDoc.id)].filter(Boolean));
+  let roundsScrubbed = 0;
+  for (const roomId of roomIds) {
+    // eslint-disable-next-line no-await-in-loop
+    const rounds = await db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId).collection("rounds").get();
+    for (const roundDoc of rounds.docs) {
+      const standings = Array.isArray(roundDoc.data()?.standings) ? roundDoc.data().standings : [];
+      if (!standings.some((row) => row?.studentId === studentId)) continue;
+      // eslint-disable-next-line no-await-in-loop
+      await roundDoc.ref.set({ standings: standings.filter((row) => row?.studentId !== studentId) }, { merge: true });
+      roundsScrubbed += 1;
+    }
+  }
+  if (roundsScrubbed) deleted.liveChallengePrivateRoundsScrubbed = roundsScrubbed;
+
+  const scrub = async (collectionName, patchOf) => {
     const snapshot = await db.collection(collectionName).where("studentIds", "array-contains", studentId).get();
     for (const recordDoc of snapshot.docs) {
-      const data = recordDoc.data() || {};
-      const patch = {
-        studentIds: (Array.isArray(data.studentIds) ? data.studentIds : []).filter((id) => id !== studentId),
-      };
-      rowFields.forEach((field) => {
-        if (Array.isArray(data[field])) patch[field] = data[field].filter((row) => row?.studentId !== studentId);
-      });
       // eslint-disable-next-line no-await-in-loop
-      await recordDoc.ref.set(patch, { merge: true });
+      await recordDoc.ref.set(patchOf(recordDoc.data() || {}), { merge: true });
     }
     return snapshot.size;
   };
-  const resultsScrubbed = await scrub(LIVE_CHALLENGE_MATCH_RESULTS, ["standings"]);
+  const resultsScrubbed = await scrub(LIVE_CHALLENGE_MATCH_RESULTS, (data) => ({
+    studentIds: (Array.isArray(data.studentIds) ? data.studentIds : []).filter((id) => id !== studentId),
+    ...(Array.isArray(data.standings) ? { standings: data.standings.filter((row) => row?.studentId !== studentId) } : {}),
+  }));
   if (resultsScrubbed) deleted.liveChallengeMatchResultsScrubbed = resultsScrubbed;
-  const reportsScrubbed = await scrub(LIVE_CHALLENGE_REPORTS, ["players", "neverJoined"]);
+  // Every row a report names them in, a question-set mode's own player rows
+  // included (lineGraph / graphFeatureRush; SI07) — the class's totals stay.
+  const reportRules = await liveChallengeReportRules();
+  const reportsScrubbed = await scrub(LIVE_CHALLENGE_REPORTS, (data) => reportRules.reportRowsWithout(data, (id) => id === studentId));
   if (reportsScrubbed) deleted.liveChallengeReportsScrubbed = reportsScrubbed;
 }
 
@@ -7236,6 +7343,15 @@ exports.permanentlyDeleteStudent = onCall(async (request) => {
   ]);
   if (!rosterSnapshot.exists && directorySnapshot.empty && aliasSnapshot.empty) {
     throw new HttpsError("not-found", "That student account is not present in MathMaster.");
+  }
+
+  // The FIRST write marks the roster row (SI07): a Live Challenge finishing
+  // while this runs reads the row in each effect's transaction and pays,
+  // credits and reports this student no more (studentDeletionMark.mjs). The
+  // row, mark and all, is deleted below; a retry finds it marked and goes on.
+  if (rosterSnapshot.exists) {
+    const { STUDENT_DELETION_MARK } = await studentDeletionMark();
+    await rosterRef.update({ [STUDENT_DELETION_MARK]: FieldValue.serverTimestamp() });
   }
 
   // Class Points must be erased while the student's ordinary identity records
@@ -9965,6 +10081,28 @@ exports.syncGradeToClassroom = onDocumentWritten(
       ...releaseSignaledAssignmentIds,
       ...recoveryChangedIds,
     ])];
+    /*
+     * A SUPPORT-PROFILE CHANGE THAT MOVES WHICH ITEMS THE STUDENT OWES (TT23).
+     *
+     * Saving a support profile writes only `grades/{id}.profile`, so a
+     * reduced-item-count accommodation changed on open work changed the grade
+     * MathMaster shows and left Classroom on the old one until the next answer.
+     * The assignments the change moved get the push an answer would give them,
+     * with one rule of their own below: it only corrects a grade Classroom
+     * already holds, and only when the grade really differs. (Parts inside one
+     * question are not reduced: design 11.9.)
+     */
+    const profileMovedIds = await studentWorkloadIndices.profileMovedAssignmentIds({
+      db: getFirestore(),
+      beforeData,
+      afterData,
+      onError: (error) => logger.warn("Support-profile change: could not tell which assignments it moved", {
+        studentId: event.params.studentId,
+        message: String(error?.message || error),
+      }),
+    });
+    const profileOnlyIds = new Set(profileMovedIds.filter((id) => !changedAssignmentIds.includes(id)));
+    changedAssignmentIds.push(...profileOnlyIds);
     if (changedAssignmentIds.length === 0) return;
 
     const db = getFirestore();
@@ -9979,6 +10117,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
       if (!assignmentSnap.exists) continue;
       const assignment = assignmentSnap.data() || {};
       if (assignmentFeedbackIsHeld(assignment)) continue;
+      if (!await require("./lib/retroactiveAccommodation").correctionSyncAllowed({ db, studentId: event.params.studentId, gradeData: afterData, assignment: { ...assignment, id: assignmentId } })) continue;
 
       /*
        * A TEST CYCLE IS ONE CLASSROOM GRADE ITEM.
@@ -10177,7 +10316,21 @@ exports.syncGradeToClassroom = onDocumentWritten(
         assignment,
         nowValue: stageNow,
         studentDueAt,
+        studentFinalCutoff,
       });
+      // NV02: a partial grade held for the student's own extended time is
+      // returned at their own cutoff, so the scheduler must wake them then —
+      // also when no class-wide wake-up reached them first (an extension
+      // granted after the class's final cutoff).
+      if (releasePolicy.heldUntilMs) {
+        // eslint-disable-next-line no-await-in-loop
+        await classroomStudentCheckpoints.recordDeferredStudentCheckpoint({
+          stateRef: db.collection(CLASSROOM_GRADE_CHECKPOINT_COLLECTION).doc(assignmentId),
+          assignmentId,
+          studentId: event.params.studentId,
+          deferred: { kind: "final", atMs: releasePolicy.heldUntilMs },
+        });
+      }
       // A push queued again after Google's per-minute limit sends only the
       // columns that did not go through; the rest are already current.
       const quotaRetry = Math.max(0, Number(releaseSignal?.quotaRetry) || 0);
@@ -10216,6 +10369,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
           if (publication.gradePassbackEnabled === false || !String(publication.courseId || "")) continue;
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
             assignmentId,
             courseId: String(publication.courseId || ""),
             courseworkId: publication.courseworkId || null,
@@ -10238,6 +10392,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
           const publication = publicationDoc.data() || {};
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
             assignmentId,
             courseId: String(publication.courseId || ""),
             courseworkId: publication.courseworkId || null,
@@ -10289,10 +10444,14 @@ exports.syncGradeToClassroom = onDocumentWritten(
         // eslint-disable-next-line no-await-in-loop
         const priorAuditSnap = await db.doc(`classroomGradeSyncs/${syncId}`).get();
         const priorAudit = priorAuditSnap.exists ? priorAuditSnap.data() || {} : {};
+        // TT23: woken by a profile change alone, this column is corrected only
+        // if Classroom already holds a pushed grade and the grade now differs.
+        if (profileOnlyIds.has(assignmentId) && !studentWorkloadIndices.profileChangeNeedsPush(priorAudit, grade)) continue;
         const priorReturnConfirmed = priorAudit.returnedToStudent === true
           || String(priorAudit.submissionState || "").toUpperCase() === "RETURNED";
         if (
-          !forceRetry
+          (!forceRetry || (afterData.profile?.workloadCorrections?.[assignmentId]?.eventId
+            && priorAudit.correctionEventId === afterData.profile.workloadCorrections[assignmentId].eventId))
           && priorAudit.status === "synced"
           && String(priorAudit.stage || "") === stage
           && Number(priorAudit.maxPoints || 100) === maxPoints
@@ -10321,10 +10480,12 @@ exports.syncGradeToClassroom = onDocumentWritten(
           const passback = (await testCycleLib.shared()).grade.testCycleClassroomPassback({
             recordedGrade: grade,
             previouslyPostedGrade: priorAudit.grade,
+            teacherAdjusted: testCycleProjection?.recordedGradeSource === "teacherAdjustment",
           });
           if (passback.refusedLowering) {
             // eslint-disable-next-line no-await-in-loop
             await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
               assignmentId,
               courseId,
               courseworkId: publication.courseworkId,
@@ -10356,6 +10517,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
           } catch (err) {
             // eslint-disable-next-line no-await-in-loop
             await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
               assignmentId,
               courseId,
               courseworkId: publication.courseworkId,
@@ -10397,6 +10559,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
         if (!googleUserId) {
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
             assignmentId,
             courseId,
             courseworkId: publication.courseworkId,
@@ -10417,6 +10580,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
         if (teachersAtClassroomLimit.has(classroomKey)) {
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
             assignmentId,
             courseId,
             courseworkId: publication.courseworkId,
@@ -10446,6 +10610,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
           if (!submission) {
             // eslint-disable-next-line no-await-in-loop
             await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
               assignmentId,
               courseId,
               courseworkId: publication.courseworkId,
@@ -10465,6 +10630,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
           }
 
           // eslint-disable-next-line no-await-in-loop
+          if (!await require("./lib/retroactiveAccommodation").correctionSyncAllowed({ db, studentId: event.params.studentId, gradeData: afterData, assignment: { ...assignment, id: assignmentId } })) continue;
           const patched = await classroomLib().patchGrade(classroom, {
             courseId,
             courseWorkId: publication.courseworkId,
@@ -10491,6 +10657,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
 
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
             ...clearedClassroomErrorFields(),
             assignmentId,
             courseId,
@@ -10532,6 +10699,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
           );
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
             assignmentId,
             courseId,
             courseworkId: publication.courseworkId,
@@ -10867,6 +11035,13 @@ async function warmupChallengeRules() {
   return warmupChallengeModule;
 }
 
+// The roster-row mark permanent deletion writes first (SI07).
+let studentDeletionMarkModule = null;
+async function studentDeletionMark() {
+  if (!studentDeletionMarkModule) studentDeletionMarkModule = await import("./shared/studentDeletionMark.mjs");
+  return studentDeletionMarkModule;
+}
+
 let liveChallengeEvidenceModule = null;
 async function liveChallengeEvidenceRules() {
   if (!liveChallengeEvidenceModule) liveChallengeEvidenceModule = await import("./shared/liveChallengeEvidence.mjs");
@@ -10877,12 +11052,14 @@ async function liveChallengeEvidenceRules() {
 let graphFeatureRushModules = null;
 async function graphFeatureRushRules() {
   if (!graphFeatureRushModules) {
-    const [rush, generator, config] = await Promise.all([
+    const [rush, generator, config, reading] = await Promise.all([
       import("./shared/graphFeatureRush.mjs"),
       import("./shared/graphFeatureGenerator.mjs"),
       import("./shared/graphFeatureRushConfig.mjs"),
+      // The reading guide a round publishes once it has ended (LC07).
+      import("./shared/graphFeatureReading.mjs"),
     ]);
-    graphFeatureRushModules = { rush, generator, config };
+    graphFeatureRushModules = { rush, generator, config, reading };
   }
   return graphFeatureRushModules;
 }
@@ -10908,7 +11085,7 @@ async function lineGraphModules() {
 let liveChallengeEngineModules = null;
 async function liveChallengeEngine() {
   if (!liveChallengeEngineModules) {
-    const [lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary, lineReveal, serverSweep] = await Promise.all([
+    const [lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary, lineReveal, serverSweep, lineEvidence] = await Promise.all([
       import("./shared/liveChallengeLifecycle.mjs"),
       import("./shared/liveChallengeTimer.mjs"),
       import("./shared/liveChallengeModes.mjs"),
@@ -10928,9 +11105,12 @@ async function liveChallengeEngine() {
       // same reveal as a shared question, with the class's own mistake added.
       import("./shared/lineGraphReveal.mjs"),
       import("./shared/liveChallengeServerSweep.mjs"),
+      // A Graph the Line game's first tries, counted onto each standing at the
+      // finish, and its own mastery evidence (behind the owner's switch).
+      import("./shared/lineGraphEvidence.mjs"),
     ]);
     liveChallengeEngineModules = {
-      lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary, lineReveal, serverSweep,
+      lifecycle, timer, modes, scoring, responses, results, rewardRules, experience, standings, solutionReveal, accommodations, difficulty, privacy, recognitions, playerSummary, lineReveal, serverSweep, lineEvidence,
     };
   }
   return liveChallengeEngineModules;
@@ -11199,6 +11379,12 @@ const LIVE_CHALLENGE_QUESTION_PLANNERS = Object.freeze({
  * (getGraphFeatureRushRound) and regenerated to grade a tap. A round is a
  * placeholder id, which recovery and the report read; the round's public
  * question is a card naming what to look for, never a graph.
+ *
+ * There is no shared question to solve, so a round has no worked solution; its
+ * results carry a reading guide to the features the game asks for instead
+ * (graphFeatureReading.mjs): the same text for every student, naming no graph,
+ * captured here like a bank question's solution and published at the round's
+ * close (liveChallengeRevealableRounds).
  */
 const GRAPH_FEATURE_RUSH_PLANNER = Object.freeze({
   async plan({ modeConfig, roundCount }) {
@@ -11225,6 +11411,7 @@ const GRAPH_FEATURE_RUSH_PLANNER = Object.freeze({
     const questionId = privateState.questionIds?.[roundIndex];
     if (!questionId) throw new HttpsError("failed-precondition", "That Live Challenge round has no question.");
     const config = privateState.graphFeatureRush?.config || room.graphFeatureRush?.config || {};
+    const { reading } = await graphFeatureRushRules();
     return {
       roundIndex,
       questionId,
@@ -11238,6 +11425,8 @@ const GRAPH_FEATURE_RUSH_PLANNER = Object.freeze({
         teksCode: null,
       },
       roundSeconds: engine.modes.normalizeModeRoundSeconds(mode, room.roundSeconds),
+      // The round's reading guide, kept privately until the round has closed.
+      solution: reading.rushRoundSolutionRecord({ features: config.features }),
     };
   },
 });
@@ -11416,6 +11605,20 @@ async function updateLiveChallengeInvitesByRoom(db, { roomId, teacherEmail, fiel
  * Never takes a student out of another game: an invite to a different room
  * that is still live is left alone. Only a game active in the last 12 hours.
  * Never fails the roster change.
+ *
+ * A STUDENT MOVED BETWEEN TWO CLASSES THAT BOTH HAVE A GAME STAYS IN THE FIRST
+ * (decided 2026-10-25, LC02 / C2-44; pinned by the integration test "a student
+ * already in another live game is not pulled out of it"). Leaving a game is a
+ * removal — their seat, their points so far, a graded Warm-Up's grade — and
+ * the game has no teacher-side removal yet (live-challenge-shell.md §14), so
+ * nothing here ever takes a student out of a room. The new class's game
+ * invites them once the first one ends or is cancelled and the roster is
+ * touched again, or in its next game.
+ *
+ * The callers: one student at a time (setStudentClass,
+ * assignStudentToTeacher, createStudentAccount) and, for a bulk roster change,
+ * saveClass and migrateClassesFromPeriods through
+ * inviteStudentsToClassLiveChallengeSafely (liveChallengeBulkInvite.mjs).
  */
 // A game idle longer than this is not "on" for a newly enrolled student.
 const LIVE_CHALLENGE_LATE_INVITE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
@@ -11514,6 +11717,41 @@ async function inviteStudentToClassLiveChallengeSafely(db, studentId) {
   } catch (error) {
     logger.error("liveChallenge.lateInvite.failed", { message: error?.message || String(error) });
     return { invited: false, reason: "failed" };
+  }
+}
+
+// A BULK roster change's invites (saveClass, migrateClassesFromPeriods): the
+// rules are pure and live beside the single invite's, in
+// shared/liveChallengeBulkInvite.mjs.
+let liveChallengeBulkInviteModule = null;
+async function liveChallengeBulkInvite() {
+  if (!liveChallengeBulkInviteModule) liveChallengeBulkInviteModule = await import("./shared/liveChallengeBulkInvite.mjs");
+  return liveChallengeBulkInviteModule;
+}
+
+/**
+ * After a BULK roster change: invite the students it moved into their
+ * teacher's game, if one is on — each through the safe single invite, so the
+ * same rules apply (never out of another game, only a game active in the last
+ * 12 hours). One small read per teacher; only a teacher with a game is asked
+ * about their students, one at a time, within a time budget. Never throws:
+ * the roster change is already made. `moved` is the list of moves, or a
+ * function of the rules module that makes it, so nothing about who moved is
+ * worked out outside this guard.
+ */
+async function inviteStudentsToClassLiveChallengeSafely(db, moved) {
+  try {
+    const bulk = await liveChallengeBulkInvite();
+    const summary = await bulk.inviteMovedStudents({
+      moved: typeof moved === "function" ? await moved(bulk) : moved,
+      hasGame: async (teacherEmail) => Boolean(String((await db.collection(LIVE_CHALLENGE_TEACHER_ACTIVE).doc(teacherEmail).get()).data()?.roomId || "").trim()),
+      invite: (studentId) => inviteStudentToClassLiveChallengeSafely(db, studentId),
+    });
+    if (summary.invited || summary.notReached) logger.info("liveChallenge.bulkLateInvite", summary);
+    return summary;
+  } catch (error) {
+    logger.error("liveChallenge.bulkLateInvite.failed", { message: error?.message || String(error) });
+    return { considered: 0, invited: 0, notReached: 0, failed: true };
   }
 }
 
@@ -12342,10 +12580,13 @@ function liveChallengeRoundCompletion(engine, room, players, nowMs = Date.now())
     if (player.joined !== true) return;
     joinedCount += 1;
     // Per-player modes read each player's own question specs from their log;
-    // a rush player "finishes" only by working through the whole pool.
-    const questionSpecs = engine.modes.roundQuestionSpecsFor(mode, { receipts: player.submissionReceipts, roundIndex });
+    // a rush player "finishes" only by working through the whole pool. All
+    // of their work: a student who finishes their set in extra time, after
+    // the class's buzzer, is finished, and the round need not wait longer.
+    const receipts = engine.responses.playerWorkReceipts(player);
+    const questionSpecs = engine.modes.roundQuestionSpecsFor(mode, { receipts, roundIndex });
     const finished = Number(player.answeredRound) === roundIndex
-      || engine.responses.summarizeRoundProgress({ receipts: player.submissionReceipts, roundIndex, questionSpecs }).finished;
+      || engine.responses.summarizeRoundProgress({ receipts, roundIndex, questionSpecs }).finished;
     if (finished) completedCount += 1;
     progress.push({ joined: true, finished, timeMultiplier: player.timeMultiplier });
   });
@@ -12391,7 +12632,7 @@ async function prepareLiveChallengeRoundOpening(db, { roomId, room, privateState
 /** Whether any joined player has extended time in a mode that allows it. */
 function liveChallengeExtendedTimeInPlay(engine, room, players = []) {
   const mode = engine.modes.getChallengeMode(room.challengeMode);
-  if (engine.modes.roundStructureFor(mode).id !== engine.modes.ROUND_STRUCTURE.SYNCHRONIZED_QUESTION) return false;
+  if (engine.accommodations.extendedTimeRuleFor(mode) === engine.accommodations.EXTENDED_TIME_RULE.NONE) return false;
   return (Array.isArray(players) ? players : [])
     .some((player) => player?.joined === true && engine.accommodations.storedTimeMultiplier(player.timeMultiplier) > 1);
 }
@@ -12727,9 +12968,20 @@ function liveChallengeRevealableRounds({ challenge, engine, room, privateState, 
   // the same line for everyone, published at its close (no Second Chance in
   // these modes), held while a later round asks the same line.
   if (mode.questionIssue === engine.modes.QUESTION_ISSUE.PER_PLAYER) {
+    const reached = Number.isInteger(Number(room.currentRound)) ? Number(room.currentRound) : -1;
+    // A Graph Feature Rush round publishes its reading guide at its close
+    // (LC07): the same for every student and about no graph, so nothing holds
+    // it back, and no Second Chance replays a Rush round. Only a round whose
+    // guide was captured when it opened (a game already running before this
+    // existed has none, and publishes none).
+    if (mode.questionSource === engine.modes.QUESTION_SOURCE.GRAPH_FEATURE_GENERATOR) {
+      const scheduled = Number(privateState.scheduledRoundCount) || (Array.isArray(privateState.questionIds) ? privateState.questionIds.length : 0);
+      return engine.solutionReveal.revealableRounds({
+        closedThrough, scheduledRoundCount: scheduled, secondChancePossible: false, replayOf: {}, finished,
+      }).filter((round) => round <= reached && privateState.roundSolutions?.[String(round)]);
+    }
     const sharedLineKeys = privateState.lineGraph?.sharedLineKeys;
     if (!Array.isArray(sharedLineKeys)) return [];
-    const reached = Number.isInteger(Number(room.currentRound)) ? Number(room.currentRound) : -1;
     return engine.solutionReveal.revealableRounds({
       closedThrough,
       scheduledRoundCount: sharedLineKeys.length,
@@ -12876,6 +13128,20 @@ function applyLiveChallengeMatchFinalization(transaction, {
   const matchResult = engine.results.buildMatchResult({
     roomId: roomRef.id, room, privateState, players, status, finalizedAtMs: nowMs, finalizationId,
   });
+  // GRAPH THE LINE'S FIRST TRIES (lineGraphEvidence.mjs), counted from each
+  // student's receipts in this commit and kept on their own standing: the
+  // evidence effect reads the result, never private state, and permanent
+  // deletion, which removes the standing, removes them with it.
+  const resultMode = engine.modes.getChallengeMode(room.challengeMode);
+  const lineRoom = resultMode.questionSource === engine.modes.QUESTION_SOURCE.LINE_GRAPH_GENERATOR;
+  const roomSlopeHelper = (privateState.lineGraph?.config || room.lineGraph?.config || {}).slopeHelper === true;
+  const playerById = new Map((Array.isArray(players) ? players : []).map((player) => [String(player?.studentId || ""), player]));
+  const resultStandings = lineRoom
+    ? matchResult.standings.map((standing) => ({
+      ...standing,
+      lineGraphEvidence: engine.lineEvidence.lineEvidenceFacts({ player: playerById.get(standing.studentId) || {}, roomSlopeHelper }),
+    }))
+    : matchResult.standings;
   // RECOGNITION BEYOND THE PODIUM (liveChallengeRecognitions.mjs), decided
   // from this result in this commit, so the podium screen and the rewards
   // effect read the same list. Aliases and player keys only. A finished match
@@ -12888,6 +13154,7 @@ function applyLiveChallengeMatchFinalization(transaction, {
     : [];
   transaction.set(db.collection(LIVE_CHALLENGE_MATCH_RESULTS).doc(roomRef.id), {
     ...matchResult,
+    standings: resultStandings,
     ...(finished ? { recognitions } : {}),
     // Lets permanent student deletion find this document.
     studentIds: matchResult.standings.map((standing) => standing.studentId),
@@ -12991,6 +13258,26 @@ async function questionSetModeReport(mode, result) {
   return { key: "graphFeatureRush", report: (await graphFeatureRushRules()).rush.buildRushReport(result) };
 }
 
+/*
+ * WHO A FINISHED MATCH MAY STILL WRITE ABOUT (SI07).
+ *
+ * The effects below run from the match result, which may have been read just
+ * before a permanent deletion scrubbed it. Each reads the roster rows of the
+ * students it is about to write about, in the transaction that writes: a row
+ * that is gone, or that permanentlyDeleteStudent has marked (its first write;
+ * functions/shared/studentDeletionMark.mjs), gets no report row, Warm-Up
+ * credit or evidence. A deletion that marks a row meanwhile makes the
+ * transaction run again, and the rerun sees the mark. Rewards make the same
+ * check in their own delivery transaction (liveChallengeClassPoints.mjs).
+ */
+async function liveChallengeEffectRecipients(transaction, db, studentIds = []) {
+  const { rosterRowAcceptsEffects } = await studentDeletionMark();
+  const ids = [...new Set(studentIds.map((id) => String(id || "").trim()).filter(Boolean))];
+  if (!ids.length) return new Set();
+  const rows = await transaction.getAll(...ids.map((id) => db.collection("grades").doc(id)));
+  return new Set(rows.filter((row) => rosterRowAcceptsEffects(row)).map((row) => row.id));
+}
+
 async function writeLiveChallengeReportFromResult(db, result) {
   const reportRules = await liveChallengeReportRules();
   const challengeRules = await liveChallengeRules();
@@ -13023,7 +13310,7 @@ async function writeLiveChallengeReportFromResult(db, result) {
   const resultMode = modes.getChallengeMode(result.modeId);
   const questionSet = modes.roundStructureFor(resultMode).id === modes.ROUND_STRUCTURE.QUESTION_SET;
   const modeReport = questionSet ? await questionSetModeReport(resultMode, result) : null;
-  await db.collection(LIVE_CHALLENGE_REPORTS).doc(result.roomId).set({
+  const document = {
     ...report,
     ...(modeReport ? {
       [modeReport.key]: modeReport.report,
@@ -13042,6 +13329,16 @@ async function writeLiveChallengeReportFromResult(db, result) {
     studentIds: players.map((player) => player.studentId).filter(Boolean),
     finishedAt,
     createdAt: finishedAt,
+  };
+  // A student deleted while the match finished is not reported (SI07): their
+  // rows leave the report as permanent deletion's scrub would take them out.
+  const reportRef = db.collection(LIVE_CHALLENGE_REPORTS).doc(result.roomId);
+  await db.runTransaction(async (transaction) => {
+    const recipients = await liveChallengeEffectRecipients(transaction, db, reportRules.reportStudentIds(document));
+    transaction.set(reportRef, {
+      ...document,
+      ...reportRules.reportRowsWithout(document, (studentId) => !recipients.has(studentId)),
+    });
   });
 }
 
@@ -13058,33 +13355,58 @@ async function writeWarmupCreditFromResult(db, result) {
   // would make an absence indistinguishable from a student who sat through
   // the game and answered nothing.
   const joinedPlayers = (result.standings || []).filter((player) => player.joined === true && player.studentId);
-  for (let start = 0; start < joinedPlayers.length; start += 450) {
-    const batch = db.batch();
-    joinedPlayers.slice(start, start + 450).forEach((player) => {
-      const credit = warmup.warmupChallengeCredit({
-        roundsAnswered: player.roundsAnswered,
-        correctCount: player.correctCount,
-        roundsAvailable: warmup.roundsAvailableToStudent({
-          totalRounds,
-          joinedAtRound: player.joinedAtRound,
-        }),
-      });
-      batch.set(db.collection("grades").doc(player.studentId), {
-        warmupChallengeByAssignment: {
-          [result.assignmentId]: {
-            ...credit,
-            roomId: result.roomId,
-            status: result.status,
-            roundCount: scheduledRounds,
-            roundsPlayed: totalRounds,
-            recordedAt: FieldValue.serverTimestamp(),
-          },
-        },
-      }, { merge: true });
-    });
+  for (let start = 0; start < joinedPlayers.length; start += 200) {
+    const chunk = joinedPlayers.slice(start, start + 200);
     // eslint-disable-next-line no-await-in-loop
-    await batch.commit();
+    await db.runTransaction(async (transaction) => {
+      // A student deleted while the match finished is credited nothing, and
+      // their grade row is never written again (SI07). The merge below would
+      // otherwise re-create a deleted row — and wake Classroom passback.
+      const recipients = await liveChallengeEffectRecipients(transaction, db, chunk.map((player) => player.studentId));
+      chunk.filter((player) => recipients.has(String(player.studentId).trim())).forEach((player) => {
+        const credit = warmup.warmupChallengeCredit({
+          roundsAnswered: player.roundsAnswered,
+          correctCount: player.correctCount,
+          roundsAvailable: warmup.roundsAvailableToStudent({
+            totalRounds,
+            joinedAtRound: player.joinedAtRound,
+          }),
+        });
+        transaction.set(db.collection("grades").doc(player.studentId), {
+          warmupChallengeByAssignment: {
+            [result.assignmentId]: {
+              ...credit,
+              roomId: result.roomId,
+              status: result.status,
+              roundCount: scheduledRounds,
+              roundsPlayed: totalRounds,
+              recordedAt: FieldValue.serverTimestamp(),
+            },
+          },
+        }, { merge: true });
+      });
+    });
   }
+}
+
+/*
+ * GRAPH THE LINE'S OWN MASTERY EVIDENCE (lineGraphEvidence.mjs): first tries,
+ * per kind of item, from each student's facts on the match result — and only
+ * while the owner's switch is on (platformFlags/liveChallengeEvidence,
+ * `lineGraph: true`). A game whose effect ran while it was off is not written
+ * later. Any other game: none from here.
+ */
+async function lineGraphEvidenceEventsFor(db, result) {
+  const { modes, lineEvidence } = await liveChallengeEngine();
+  if (modes.getChallengeMode(result.modeId).questionSource !== modes.QUESTION_SOURCE.LINE_GRAPH_GENERATOR) return [];
+  const switchSnapshot = await db.collection(lineEvidence.LINE_EVIDENCE_SWITCH_COLLECTION).doc(lineEvidence.LINE_EVIDENCE_SWITCH).get();
+  if (!lineEvidence.lineEvidenceSwitchedOn(switchSnapshot.exists ? switchSnapshot.data() : null)) return [];
+  return lineEvidence.buildLineGraphEvidenceEvents({
+    roomId: result.roomId,
+    modeId: result.modeId,
+    standings: result.standings || [],
+    occurredAt: Number(result.finalizedAtMs) || Date.now(),
+  });
 }
 
 async function writeChallengeEvidenceFromResult(db, result) {
@@ -13092,22 +13414,50 @@ async function writeChallengeEvidenceFromResult(db, result) {
   // question is close to a coin flip and a proportion is what the estimate can
   // use. Replays are excluded so one question cannot enter a record twice.
   const evidenceRules = await liveChallengeEvidenceRules();
-  const events = evidenceRules.buildChallengeEvidenceEvents({
-    roomId: result.roomId,
-    players: result.standings || [],
-    roundStandards: result.roundStandards || {},
-    secondChanceOf: result.secondChanceOf || {},
-    occurredAt: Number(result.finalizedAtMs) || Date.now(),
+  const events = [
+    ...evidenceRules.buildChallengeEvidenceEvents({
+      roomId: result.roomId,
+      players: result.standings || [],
+      roundStandards: result.roundStandards || {},
+      secondChanceOf: result.secondChanceOf || {},
+      occurredAt: Number(result.finalizedAtMs) || Date.now(),
+    }),
+    // A line game has no standard per round, so the builder above writes
+    // nothing for it; its own rules do (behind the owner's switch).
+    ...await lineGraphEvidenceEventsFor(db, result),
+  ];
+  // One student's events stay in one transaction, at most about 450 writes
+  // each, and each transaction reads its students' roster rows first: a
+  // student deleted while the match finished gets no evidence (SI07), which
+  // would otherwise land under a grade row the deletion has erased.
+  const byStudent = new Map();
+  events.forEach((evidenceEvent) => {
+    const studentId = String(evidenceEvent.studentId || "").trim();
+    if (!studentId) return;
+    if (!byStudent.has(studentId)) byStudent.set(studentId, []);
+    byStudent.get(studentId).push(evidenceEvent);
   });
-  for (let start = 0; start < events.length; start += 450) {
-    const batch = db.batch();
-    events.slice(start, start + 450).forEach((evidenceEvent) => {
-      const ref = db.collection("grades").doc(evidenceEvent.studentId)
-        .collection("evidenceEvents").doc(mathPath.opaqueId("challengeEvidence", evidenceEvent.eventKey));
-      batch.set(ref, evidenceEvent);
-    });
+  const chunks = [];
+  byStudent.forEach((studentEvents, studentId) => {
+    const last = chunks.at(-1);
+    if (!last || last.count + studentEvents.length > 450) chunks.push({ studentIds: [studentId], count: studentEvents.length });
+    else {
+      last.studentIds.push(studentId);
+      last.count += studentEvents.length;
+    }
+  });
+  for (const chunk of chunks) {
     // eslint-disable-next-line no-await-in-loop
-    await batch.commit();
+    await db.runTransaction(async (transaction) => {
+      const recipients = await liveChallengeEffectRecipients(transaction, db, chunk.studentIds);
+      chunk.studentIds.filter((studentId) => recipients.has(studentId)).forEach((studentId) => {
+        byStudent.get(studentId).forEach((evidenceEvent) => {
+          const ref = db.collection("grades").doc(evidenceEvent.studentId)
+            .collection("evidenceEvents").doc(mathPath.opaqueId("challengeEvidence", evidenceEvent.eventKey));
+          transaction.set(ref, evidenceEvent);
+        });
+      });
+    });
   }
 }
 
@@ -13360,16 +13710,29 @@ exports.joinLiveChallenge = onCall(async (request) => {
     // already closed is not one they could play, so it is not counted either.
     const joinedAtRound = lifecycle.joinRoundFor({ room, recordedJoinRound: player.joinedAtRound });
     // EXTENDED TIME, from the student's own support profile, where the mode
-    // allows it: a synchronized question round. Read at every join, so a plan
-    // changed since the last game applies to this one. Private: the student's
-    // record and their own invite. The room learns only the largest multiplier
-    // in play, never whose (liveChallengeAccommodations.mjs).
-    const extendedTimeAllowed = modes.roundStructureFor(modes.getChallengeMode(room.challengeMode)).id
-      === modes.ROUND_STRUCTURE.SYNCHRONIZED_QUESTION;
-    const timeMultiplier = extendedTimeAllowed
-      ? accommodations.gameTimeMultiplierFor(gradeSnapshot.exists ? (gradeSnapshot.data()?.profile || null) : null)
-      : 1;
-    const joinedPlayer = { ...player, joined: true, joinedAtRound, timeMultiplier, updatedAt: FieldValue.serverTimestamp() };
+    // allows it: a synchronized question round (their own deadline), or a
+    // race with a set to finish — Graph the Line's Classic and Sprint — where
+    // it comes after the class's buzzer and never counts in the race. Read at
+    // every join, so a plan changed since the last game applies to this one.
+    // Private: the student's record and their own invite. The room learns
+    // only that someone has more time, never who
+    // (liveChallengeAccommodations.mjs).
+    const roomMode = modes.getChallengeMode(room.challengeMode);
+    const supportProfile = gradeSnapshot.exists ? (gradeSnapshot.data()?.profile || null) : null;
+    const extendedTimeAllowed = accommodations.extendedTimeRuleFor(roomMode) !== accommodations.EXTENDED_TIME_RULE.NONE;
+    const timeMultiplier = extendedTimeAllowed ? accommodations.gameTimeMultiplierFor(supportProfile) : 1;
+    // GRAPH THE LINE'S SLOPE HELPER, from the plan (a graphing aid turns it on
+    // for this student alone). Private too: their record, handed only to
+    // their own device with their items (getLineGraphRound).
+    const lineRoom = roomMode.questionSource === modes.QUESTION_SOURCE.LINE_GRAPH_GENERATOR;
+    const joinedPlayer = {
+      ...player,
+      joined: true,
+      joinedAtRound,
+      timeMultiplier,
+      ...(lineRoom ? { lineSlopeHelper: accommodations.planTurnsOnSlopeHelper(supportProfile) } : {}),
+      updatedAt: FieldValue.serverTimestamp(),
+    };
     // Nothing about it reaches the room here: a room field that changed in
     // the same commit as this student's public row would name them. The room
     // learns only, when a round opens, whether anyone in it has extended time
@@ -13776,7 +14139,7 @@ async function sweepLiveChallengeRoom(db, privateDoc, nowMs, settings) {
           settings: serverSweep.sweepSettingsFrom(latestSwitch.exists ? latestSwitch.data() : null),
         });
       },
-      endedBy: "hostAway",
+      endedBy: serverSweep.HOST_AWAY_ENDED_BY,
     });
     if (finished.skipped) {
       // The teacher came back (or moved on): look again after the window.
@@ -14278,16 +14641,23 @@ exports.reportLiveChallengeProgress = onCall(async (request) => {
   // authoritative from then on.
   if (Number(player.answeredRound) === roundIndex) return { recorded: false };
 
-  const provisionalPoints = Math.max(
-    0,
-    Math.min(challenge.LIVE_PROVISIONAL_MAX_POINTS, Math.round(Number(request.data?.provisionalPoints) || 0)),
-  );
   const rawProgress = request.data?.responsePayload?.raw;
   let secureMilestone = null;
   const secondChance = Object.prototype.hasOwnProperty.call(privateState.secondChanceOf || {}, String(roundIndex));
   const mode = engine.modes.getChallengeMode(room.challengeMode);
-  const perRoundScoring = engine.scoring.getScoringStrategy(engine.scoring.roomScoringStrategyId(room)).accumulation
+  const scoringStrategyId = engine.scoring.roomScoringStrategyId(room);
+  const perRoundScoring = engine.scoring.getScoringStrategy(scoringStrategyId).accumulation
     === engine.scoring.SCORE_ACCUMULATION.PER_ROUND;
+  // WHAT THE WORK IS WORTH, NOT WHAT THE BROWSER SAYS (LC01). The number is a
+  // share of full credit the student's own device reports; the board gets what
+  // this room's scoring would pay for that work if the answer were graded now,
+  // so a replay round (which pays only a fully correct answer) or a Correct
+  // Count game never shows work in progress as points the round cannot award.
+  const claimedCredit = Math.max(
+    0,
+    Math.min(challenge.LIVE_PROVISIONAL_MAX_POINTS, Math.round(Number(request.data?.provisionalPoints) || 0)),
+  ) / challenge.LIVE_PROVISIONAL_MAX_POINTS;
+  const provisionalPoints = engine.scoring.provisionalWorth({ strategyId: scoringStrategyId, credit: claimedCredit, secondChance });
   let speedInfluencePercent = null;
   // Only a mode that declares productive milestones banks speed mid-round.
   if (rawProgress && mode.capabilities.progressMilestones && !secondChance) {
@@ -14489,10 +14859,19 @@ exports.updateLiveChallengePacing = onCall(async (request) => {
 const LIVE_CHALLENGE_SUBMISSION_ID = /^[A-Za-z0-9_-]{1,100}$/;
 
 // What a student reads when an answer arrives outside its round's window: an
-// answer sent before GO is told to wait for GO, a late one that time was up.
-const liveChallengeArrivalRefusal = (arrival) => new HttpsError("deadline-exceeded", arrival?.reason === "round_not_started"
-  ? "This round has not started yet. Wait for GO, then answer."
-  : "Time was up before your answer arrived, so it was not counted.", { reason: arrival?.reason || null });
+// answer sent before GO is told to wait for GO, one sent while the teacher had
+// the round paused that it is kept until the round resumes (LC06: it read
+// "Time was up"), a late one that time was up. The reason rides in the
+// details, so the device can tell these from its own request timing out.
+const LIVE_CHALLENGE_ARRIVAL_WORDS = Object.freeze({
+  round_not_started: "This round has not started yet. Wait for GO, then answer.",
+  round_paused: "Your teacher paused the round. Your locked answer is kept and goes when the round resumes.",
+});
+const liveChallengeArrivalRefusal = (arrival) => new HttpsError(
+  "deadline-exceeded",
+  LIVE_CHALLENGE_ARRIVAL_WORDS[arrival?.reason] || "Time was up before your answer arrived, so it was not counted.",
+  { reason: arrival?.reason || null },
+);
 
 // A round whose question can no longer be rebuilt cannot check answers. Rare
 // (the question was deleted mid-game); the student is told what happens next.
@@ -14962,9 +15341,9 @@ exports.submitGraphFeatureRushAttempts = onCall(async (request) => {
   if (precheck.outcome !== lifecycle.LIFECYCLE_OUTCOME.APPLY) {
     throw new HttpsError("failed-precondition", precheck.message, { lifecycle: precheck.code });
   }
-  if (!roundTimer.timerAcceptsArrival(roundTimer.timerFromRoom(room), requestArrivedAt).accepted) {
-    throw new HttpsError("deadline-exceeded", "Time is up for this round.");
-  }
+  // A tap before GO, or during a pause, is told so, not "time is up" (LC06).
+  const arrivalCheck = roundTimer.timerAcceptsArrival(roundTimer.timerFromRoom(room), requestArrivedAt);
+  if (!arrivalCheck.accepted) throw liveChallengeArrivalRefusal(arrivalCheck);
   const poolSize = mode.questionSpecs.length;
   const issue = graphFeatureRushIssuer({ rules, rushState, studentId, roundIndex });
 
@@ -14983,7 +15362,7 @@ exports.submitGraphFeatureRushAttempts = onCall(async (request) => {
     }
     const latestTimer = roundTimer.timerFromRoom(latestRoom);
     const arrival = roundTimer.timerAcceptsArrival(latestTimer, requestArrivedAt);
-    if (!arrival.accepted) throw new HttpsError("deadline-exceeded", "Time is up for this round.");
+    if (!arrival.accepted) throw liveChallengeArrivalRefusal(arrival);
     if (player.joined !== true || !player.playerKey) throw new HttpsError("failed-precondition", "Join the Live Challenge before playing.");
     const strategy = engine.scoring.getScoringStrategy(engine.scoring.roomScoringStrategyId(latestRoom));
     const applied = rules.rush.applyRushAttempts({
@@ -15035,9 +15414,14 @@ exports.submitGraphFeatureRushAttempts = onCall(async (request) => {
       recorded: applied.recorded,
       score: applied.totals.score,
       correctCount: applied.totals.correctCount,
+      paceRefused: applied.paceRefused,
     };
   });
-  return { roomId, roundIndex, ...outcome };
+  // Attempts sooner than the student's own device could make them (SI08;
+  // graphFeatureRushRules.mjs RUSH_PACING): counted for support, no student id.
+  const { paceRefused, ...reply } = outcome;
+  if (paceRefused > 0) logger.warn("liveChallenge.rush.paceRefused", { roomId, roundIndex, refused: paceRefused });
+  return { roomId, roundIndex, ...reply };
 });
 
 exports.previewGraphFeatureRush = onCall(async (request) => {
@@ -15122,6 +15506,39 @@ async function loadLineGraphContext(db, { studentId, roomId }) {
   };
 }
 
+/*
+ * WHETHER AN ATTEMPT BELONGS TO THE ROUND, AND TO WHICH PART OF IT
+ * (liveChallengeAccommodations.mjs). Everyone races on the class's clock: an
+ * attempt that arrives by the class's deadline (and its arrival grace) is the
+ * race's. A student with extended time in a Classic or Sprint room keeps
+ * working after the buzzer, to their own deadline: what arrives then is their
+ * extra time — recorded, but never the race's. `extraTimeFromMs` is the
+ * class's round length, for such a student only: an attempt their device
+ * made after the buzzer is extra time even inside the grace.
+ */
+function lineGraphArrival(engine, { mode, room, player, arrivedAtMs }) {
+  const { timer: roundTimer, accommodations } = engine;
+  const classTimer = roundTimer.timerFromRoom(room);
+  const classArrival = roundTimer.timerAcceptsArrival(classTimer, arrivedAtMs);
+  const afterBuzzer = accommodations.extendedTimeRuleFor(mode) === accommodations.EXTENDED_TIME_RULE.AFTER_BUZZER
+    && accommodations.storedTimeMultiplier(player?.timeMultiplier) > 1;
+  const classLengthMs = classTimer.startsAtMs && classTimer.endsAtMs ? classTimer.endsAtMs - classTimer.startsAtMs : null;
+  const extraTimeFromMs = afterBuzzer ? classLengthMs : null;
+  if (classArrival.accepted || !afterBuzzer) {
+    return { ...classArrival, extraTime: false, roundDurationMs: classTimer.durationMs, extraTimeFromMs };
+  }
+  const personal = accommodations.personalRoundTimer(classTimer, player.timeMultiplier, {
+    fullDurationMs: accommodations.roomFullRoundMs(room),
+  });
+  const personalArrival = roundTimer.timerAcceptsArrival(personal, arrivedAtMs);
+  return {
+    ...personalArrival,
+    extraTime: personalArrival.accepted,
+    roundDurationMs: personal.endsAtMs && personal.startsAtMs ? personal.endsAtMs - personal.startsAtMs : classTimer.durationMs,
+    extraTimeFromMs,
+  };
+}
+
 /** Item k of one student's round: deterministic, generated once per call. */
 function lineGraphIssuer({ modules, lineState, config, studentId, roundIndex }) {
   const issued = new Map();
@@ -15147,7 +15564,9 @@ exports.getLineGraphRound = onCall(async (request) => {
   }
   const { engine, modules, room, player, lineState, config, poolSize } = await loadLineGraphContext(db, { studentId, roomId });
   const { lifecycle } = engine;
-  const state = modules.attempts.lineRoundState({ receipts: player.submissionReceipts || {}, roundIndex, poolSize });
+  // Where the student is, from all their work (extra time after the buzzer
+  // included): what their device resumes from.
+  const state = modules.attempts.lineRoundState({ receipts: engine.responses.playerWorkReceipts(player), roundIndex, poolSize });
   const roundOpen = lifecycle.planLifecycleCommand({
     command: lifecycle.LIFECYCLE_COMMAND.SUBMIT,
     room,
@@ -15166,8 +15585,11 @@ exports.getLineGraphRound = onCall(async (request) => {
     ? Array.from({ length: Math.max(0, Math.min(count, poolSize - fromIndex)) }, (_, offset) => modules.generator.publicLineQuestion(issue(fromIndex + offset)))
     : [];
   // `poolSize` is where the round's items end (a Sprint's length); `joined`
-  // tells a device whose join is still on its way to ask again.
-  return { roomId, roundIndex, roundOpen, joined, poolSize, state, questions };
+  // tells a device whose join is still on its way to ask again. `slopeHelper`:
+  // the room's setting, or this student's own from their plan — said only to
+  // them, here (liveChallengeAccommodations.planTurnsOnSlopeHelper).
+  const slopeHelper = config.slopeHelper === true || player.lineSlopeHelper === true;
+  return { roomId, roundIndex, roundOpen, joined, poolSize, state, questions, slopeHelper };
 });
 
 exports.submitLineGraphAttempts = onCall(async (request) => {
@@ -15182,18 +15604,22 @@ exports.submitLineGraphAttempts = onCall(async (request) => {
   if (!roomId || !Number.isInteger(roundIndex) || roundIndex < 0 || !Number.isInteger(roundVersion) || !attempts.length) {
     throw new HttpsError("invalid-argument", "roomId, roundIndex, roundVersion and attempts are required.");
   }
-  const { engine, modules, mode, room, roomRef, privatePlayerRef, lineState, config, poolSize } = await loadLineGraphContext(db, { studentId, roomId });
-  const { lifecycle, timer: roundTimer } = engine;
+  const {
+    engine, modules, mode, room, roomRef, privatePlayerRef, player: playerAtStart, lineState, config, poolSize,
+  } = await loadLineGraphContext(db, { studentId, roomId });
+  const { lifecycle } = engine;
   const expected = { roundIndex, roundVersion, roundToken };
   // Cheap refusals before the transaction: a stale round, a closed one, or a
-  // request that arrived after the deadline's bounded grace.
+  // request that arrived after the deadline's bounded grace (the student's
+  // own deadline, for extra time after the buzzer).
   const precheck = lifecycle.planLifecycleCommand({ command: lifecycle.LIFECYCLE_COMMAND.SUBMIT, room, expected });
   if (precheck.outcome !== lifecycle.LIFECYCLE_OUTCOME.APPLY) {
     throw new HttpsError("failed-precondition", precheck.message, { lifecycle: precheck.code });
   }
-  if (!roundTimer.timerAcceptsArrival(roundTimer.timerFromRoom(room), requestArrivedAt).accepted) {
-    throw new HttpsError("deadline-exceeded", "Time is up for this round.");
-  }
+  // A tap before GO, or during a pause, is told so, not "time is up" (LC06);
+  // a student on extra time is checked against their own deadline (LC09).
+  const arrivalCheck = lineGraphArrival(engine, { mode, room, player: playerAtStart, arrivedAtMs: requestArrivedAt });
+  if (!arrivalCheck.accepted) throw liveChallengeArrivalRefusal(arrivalCheck);
   const issue = lineGraphIssuer({ modules, lineState, config, studentId, roundIndex });
 
   const outcome = await db.runTransaction(async (transaction) => {
@@ -15209,9 +15635,8 @@ exports.submitLineGraphAttempts = onCall(async (request) => {
     if (plan.outcome !== lifecycle.LIFECYCLE_OUTCOME.APPLY) {
       throw new HttpsError("failed-precondition", plan.message, { lifecycle: plan.code });
     }
-    const latestTimer = roundTimer.timerFromRoom(latestRoom);
-    const arrival = roundTimer.timerAcceptsArrival(latestTimer, requestArrivedAt);
-    if (!arrival.accepted) throw new HttpsError("deadline-exceeded", "Time is up for this round.");
+    const arrival = lineGraphArrival(engine, { mode, room: latestRoom, player, arrivedAtMs: requestArrivedAt });
+    if (!arrival.accepted) throw liveChallengeArrivalRefusal(arrival);
     if (player.joined !== true || !player.playerKey) throw new HttpsError("failed-precondition", "Join the Live Challenge before playing.");
     const strategy = engine.scoring.getScoringStrategy(engine.scoring.roomScoringStrategyId(latestRoom));
     const applied = modules.attempts.applyLineGraphAttempts({
@@ -15223,26 +15648,34 @@ exports.submitLineGraphAttempts = onCall(async (request) => {
       config,
       arrivedAtMs: requestArrivedAt,
       arrivalElapsedMs: arrival.elapsedMs,
-      roundDurationMs: latestTimer.durationMs || mode.roundLimits.maxSeconds * 1000,
+      roundDurationMs: arrival.roundDurationMs || mode.roundLimits.maxSeconds * 1000,
       strategy,
       poolSize,
+      extraTime: arrival.extraTime === true,
+      extraTimeFromMs: arrival.extraTimeFromMs,
     });
     // Replays, repeated answers and resolved items record nothing, so a batch
     // of only those writes nothing either. Never `answeredRound`: it would
     // mark the player finished with the round (liveChallengeRoundCompletion).
+    const raceRecorded = applied.recorded - applied.extraTimeRecorded;
     if (applied.recorded > 0) {
       const { totals } = applied;
       transaction.set(privatePlayerRef, {
-        submissionReceipts: applied.receipts,
         attemptSequence: applied.attemptSequence,
-        score: totals.score,
-        rawScore: totals.rawScore,
-        correctCount: totals.correctCount,
-        roundsAnswered: totals.roundsAnswered,
-        answeredRounds: totals.answeredRounds,
-        targetAttempts: totals.targetAttempts,
-        targetHits: totals.targetHits,
-        matchAccuracy: totals.matchAccuracy,
+        ...(raceRecorded > 0 ? {
+          submissionReceipts: applied.receipts,
+          score: totals.score,
+          rawScore: totals.rawScore,
+          correctCount: totals.correctCount,
+          roundsAnswered: totals.roundsAnswered,
+          answeredRounds: totals.answeredRounds,
+          targetAttempts: totals.targetAttempts,
+          targetHits: totals.targetHits,
+          matchAccuracy: totals.matchAccuracy,
+        } : {}),
+        // Extra time after the buzzer: the student's own work, apart from
+        // the race's receipts, which alone are ranked.
+        ...(applied.extraTimeRecorded > 0 ? { [engine.responses.EXTRA_TIME_RECEIPTS_FIELD]: applied.extraTimeReceipts } : {}),
         updatedAt: FieldValue.serverTimestamp(),
       }, { merge: true });
       // The player's own public row: the board's numbers and the host's
@@ -15250,19 +15683,22 @@ exports.submitLineGraphAttempts = onCall(async (request) => {
       // reads — and whether they have worked through the whole round, which
       // the host's early close of a Classic or Sprint round counts (the
       // server's close guard reads the same receipts). No student id, no
-      // answers.
-      transaction.set(roomRef.collection("players").doc(String(player.playerKey)), {
-        score: totals.score,
-        rawScore: totals.rawScore,
-        correctCount: totals.correctCount,
-        roundsAnswered: totals.roundsAnswered,
-        matchAccuracy: totals.matchAccuracy,
-        rushRound: roundIndex,
-        rushRoundCompleted: applied.state.questionsCorrect,
-        rushRoundFinished: applied.state.finished === true,
-        rushActiveAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      }, { merge: true });
+      // answers. The race only: work in extra time after the buzzer never
+      // moves it — a row that changed then would name the student.
+      if (raceRecorded > 0) {
+        transaction.set(roomRef.collection("players").doc(String(player.playerKey)), {
+          score: totals.score,
+          rawScore: totals.rawScore,
+          correctCount: totals.correctCount,
+          roundsAnswered: totals.roundsAnswered,
+          matchAccuracy: totals.matchAccuracy,
+          rushRound: roundIndex,
+          rushRoundCompleted: applied.raceState.questionsCorrect,
+          rushRoundFinished: applied.raceState.finished === true,
+          rushActiveAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
     }
     return {
       verdicts: applied.verdicts,
@@ -15867,7 +16303,7 @@ async function loadWeeklyPathClassWeek(db, { classId, weekKey }) {
   const students = roster.docs
     .filter((doc) => doc.data()?.status !== "disabled")
     .map((doc) => ({ studentId: doc.id, googleUserId: String(doc.data()?.googleUserId || "").trim() || null }));
-  if (!students.length) return { students: [], goalsByStudentId: {}, completionsByStudentId: {}, truncated: false };
+  if (!students.length) return { students: [], goalsByStudentId: {}, completionsByStudentId: {}, absentStudentIds: [], truncated: false };
 
   const goalsByStudentId = {};
   const goalDocs = await Promise.all(students.map(async ({ studentId }) => {
@@ -15904,7 +16340,22 @@ async function loadWeeklyPathClassWeek(db, { classId, weekKey }) {
     if (page === MAX_PAGES - 1) truncated = true;
   }
 
-  return { students, goalsByStudentId, completionsByStudentId, truncated };
+  // Who the teacher marked absent this week (TT03): one read per day, by class
+  // and date (the shape Recovery reads attendance in), resolved by the one rule
+  // the attendance screens use.
+  const { studentsMarkedAbsent } = await import("./shared/attendanceDay.mjs");
+  const weekDays = weeklyCompletion.weekDateKeys(weekKey);
+  const attendanceDays = await Promise.all(weekDays.map((dateKey) => db.collection("studentSupportEvents")
+    .where("classId", "==", classId)
+    .where("dateKey", "==", dateKey)
+    .get()));
+  const absentStudentIds = [...studentsMarkedAbsent({
+    supportEvents: attendanceDays.flatMap((snapshot) => snapshot.docs.map((doc) => doc.data() || {})),
+    classId,
+    dateKeys: weekDays,
+  })];
+
+  return { students, goalsByStudentId, completionsByStudentId, absentStudentIds, truncated };
 }
 
 /**
@@ -15948,6 +16399,7 @@ async function runWeeklyPathClassroomSync({ classId, weekKey, dryRun = false, no
     goalsByStudentId: data.goalsByStudentId,
     completionsByStudentId: data.completionsByStudentId,
     publishedByStudentId,
+    absentStudentIds: data.absentStudentIds,
     truncated: data.truncated,
     now,
     dryRun,
@@ -16004,6 +16456,37 @@ exports.runWeeklyPathClassroomSyncNow = onCall({
     weekKey,
     dryRun: request.data?.dryRun === true,
   });
+});
+
+/**
+ * Students' questions to their teachers, and the answers, are kept one school
+ * year after their last change, then removed (TT26; the period lives in
+ * functions/shared/askTeacherLifecycle.mjs). Nightly, bounded per run; a
+ * backlog finishes over the following nights.
+ */
+exports.expireAskTeacherQuestions = onSchedule({
+  schedule: "17 3 * * *",
+  timeZone: "America/Chicago",
+  timeoutSeconds: 300,
+  memory: "512MiB",
+  invoker: "private",
+}, async () => {
+  const db = getFirestore();
+  const lifecycle = await import("./shared/askTeacherLifecycle.mjs");
+  const cutoff = new Date(Date.now() - lifecycle.ASK_TEACHER_RETENTION_MS);
+  let removed = 0;
+  for (let round = 0; round < 10; round += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    const expired = await db.collection(lifecycle.ASK_TEACHER_COLLECTION).where("updatedAt", "<", cutoff).limit(400).get();
+    if (expired.empty) break;
+    const batch = db.batch();
+    expired.docs.forEach((entry) => batch.delete(entry.ref));
+    // eslint-disable-next-line no-await-in-loop
+    await batch.commit();
+    removed += expired.size;
+    if (expired.size < 400) break;
+  }
+  logger.info("Ask my teacher questions past their retention removed", { removed });
 });
 
 /**
@@ -16249,10 +16732,69 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
     if (ccmrChallengeTier >= 2 && sessionKind !== "retentionProbe") requiredQuestions = 3;
   }
 
+  // AN OPEN RETENTION CHECK MUST BE DUE (MP21). A weekly Retention slot was
+  // checked when its week froze; a check started from the map, the banner or
+  // the Overview is checked here, by the ONE rule the student's screen offered
+  // it by (favourableMastery.js, MP22): Mastered by the server's record or the
+  // assignment record, and due by the stored schedule or the time since it was
+  // last shown. Decided before the transaction, and enforced there only for a
+  // NEW check: an open one is always resumed.
+  let openRetentionCheckDue = true;
+  if (sessionKind === "retentionProbe" && !requestedWeeklySlotKey) {
+    const [profilesSnapshot, schedulesSnapshot] = await Promise.all([
+      db.collection("studentMasteryProfiles").doc(studentId).get(),
+      db.collection("studentRetentionSchedules").doc(studentId).get(),
+    ]);
+    const checkCode = mathPath.displayAlignmentKey(targetAlignmentKey);
+    const due = await favourableMastery.retentionDueByOneRule({
+      db,
+      studentId,
+      studentData,
+      classRecord: studentClass,
+      serverProfiles: profilesSnapshot.data()?.profiles || {},
+      schedules: schedulesSnapshot.data()?.schedules || {},
+      displayCodes: [checkCode],
+      now: Date.now(),
+    });
+    openRetentionCheckDue = due.get(checkCode) === true;
+  }
+
+  // A CHALLENGE IS EARNED BY THE ONE RULE (MP22). The student's screen offers
+  // a Challenge card for a skill ahead of the class whose prerequisites are
+  // strong, by the more favourable record. The server used to ask whether the
+  // TARGET skill itself was Mastered on its own profile, which a Challenge
+  // skill never is: every such launch was refused on its first question and
+  // left an open session that blocked the skill. Now the server asks the
+  // student's own Path; the old answer still counts. Not earned, the launch is
+  // ordinary practice on the skill: harder questions are never granted without
+  // the server's evidence.
+  const challengeAsked = requestedCoursePracticeIntent === "challenge"
+    && !assessmentFramework
+    && sessionKind !== "retentionProbe"
+    && !requestedWeeklySlotKey;
+  let challengeEarned = false;
+  if (challengeAsked) {
+    const masterySnapshot = await db.collection("studentMasteryProfiles").doc(studentId).get();
+    const serverProfiles = masterySnapshot.data()?.profiles || {};
+    const challengeCode = mathPath.displayAlignmentKey(targetAlignmentKey);
+    challengeEarned = await favourableMastery.courseChallengeEarnedByOneRule({
+      db,
+      studentId,
+      studentData,
+      classRecord: studentClass,
+      courseId,
+      targetDisplayCode: challengeCode,
+      serverProfiles,
+      ownProfileEarned: courseChallengeEarned(serverProfiles[challengeCode] || {}),
+      now: Date.now(),
+    });
+  }
+
   const coursePracticeIntent = requestedCoursePracticeIntent
     && !assessmentFramework
     && sessionKind !== "retentionProbe"
     && !requestedWeeklySlotKey
+    && challengeEarned
     ? requestedCoursePracticeIntent
     : null;
 
@@ -16339,14 +16881,33 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
     }
   }
 
-  const lockId = mathPath.opaqueId("pathlock", studentId, targetAlignmentKey, assessmentFramework || "course", requestedWeeklySlotKey || "open-practice");
+  // One open session per student, standard, exam and slot: a swapped slot is
+  // another standard, so another lock. Kept as built (MP23): re-keying would
+  // orphan the lock of every session in flight, which its completion deletes
+  // by this same id (below, in the answer transaction). The one change (MP21):
+  // an open retention check has a place of its own beside open practice, so
+  // neither blocks the other. The session records the lock it took, and a
+  // session in flight from before is released by the id it took then
+  // (lib/pathSessionLock.js).
+  const lockId = pathSessionLock.pathSessionLockId({
+    studentId, targetAlignmentKey, assessmentFramework, weeklySlotKey: requestedWeeklySlotKey, sessionKind,
+  });
   const lockRef = db.collection("activePathLocks").doc(lockId);
+  // A check opened before MP21 holds the open-practice lock: found there, it
+  // is resumed rather than doubled.
+  const earlierCheckLockRef = sessionKind === "retentionProbe" && !requestedWeeklySlotKey
+    ? db.collection("activePathLocks").doc(pathSessionLock.openPracticeLockId({ studentId, targetAlignmentKey, assessmentFramework }))
+    : null;
   const proposedSessionRef = db.collection("pathSessions").doc();
 
   const session = await db.runTransaction(async (transaction) => {
     const now = Date.now();
     const lock = await transaction.get(lockRef);
     let existingSessionId = lock.exists ? (lock.data()?.sessionId || null) : null;
+    if (!existingSessionId && earlierCheckLockRef) {
+      const earlier = await transaction.get(earlierCheckLockRef);
+      if (earlier.exists && earlier.data()?.sessionKind === "retentionProbe") existingSessionId = earlier.data()?.sessionId || null;
+    }
     // One open session per weekly slot. The lock is keyed by target, and a slot
     // frozen with "Swap a skill" alternatives can be launched on more than one
     // standard, so a launch for a slot that already has an open session on
@@ -16365,6 +16926,9 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
       });
       if (openSlotSession) existingSessionId = openSlotSession.id;
     }
+    // An open check a new content release supersedes is replaced below, due
+    // or not: the student already had it open (the due rule is for NEW checks).
+    let replacingOpenCheck = false;
     if (existingSessionId) {
       const existingRef = db.collection("pathSessions").doc(existingSessionId);
       const existing = await transaction.get(existingRef);
@@ -16391,11 +16955,23 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
           existingRef,
           pathContentRelease.supersedeSessionForContentRelease(existing.data(), assessmentReleaseState.release, now),
         );
+        replacingOpenCheck = existing.data()?.sessionKind === "retentionProbe";
       }
     }
 
     if (assessmentReleaseState.tracked && assessmentReleaseState.available === false) {
       throw assessmentReleaseUpdateError(assessmentFramework);
+    }
+
+    // A NEW open retention check only when one is due (MP21, decided above).
+    // Nothing is written: a stale tab still showing a check the student has
+    // since passed is told, in these words, that it is not due.
+    if (sessionKind === "retentionProbe" && !requestedWeeklySlotKey && !openRetentionCheckDue && !replacingOpenCheck) {
+      throw new HttpsError(
+        "failed-precondition",
+        "This check is not due yet. It will be back on your Path when it is.",
+        { reason: "retention-check-not-due" },
+      );
     }
 
     const targetDisplay = mathPath.displayAlignmentKey(targetAlignmentKey);
@@ -16406,6 +16982,12 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
       sessionKind,
       assessmentFramework,
       coursePracticeIntent,
+      // Challenge rigor was earned at the start by the student's own Path
+      // (MP22); issueNextQuestion reads this instead of the target's profile.
+      challengeEarned: coursePracticeIntent === "challenge" ? true : null,
+      // The lock this session holds, so its completion releases exactly this
+      // one (MP21: an open retention check has its own).
+      lockId,
       assessmentContentRelease: assessmentReleaseState.tracked ? assessmentReleaseState.release : null,
       ccmrChallengeTier: assessmentFramework ? ccmrChallengeTier : null,
       coursePassLevel: assessmentFramework || sessionKind === "retentionProbe" ? null : coursePassLevel,
@@ -16698,6 +17280,14 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
   // names a DOK or difficulty. The only accepted course intent is a one-way
   // escalation to the certified authored ceiling. It applies only on the
   // session target, never to a remediation/diagnostic excursion.
+  //
+  // EARNED is decided once, when the session starts, by the student's own
+  // Path (startMyMathPathSession records `challengeEarned`; MP22). A session
+  // opened before that check falls back to the target's own server profile,
+  // the old rule. NEVER STRANDED: without either, the question is served at
+  // ordinary rigor instead of refusing it. Refusing left an open session that
+  // could never issue a question and held the skill's lock for good.
+  let challengeServed = false;
   if (
     session.coursePracticeIntent === "challenge"
     && !session.assessmentFramework
@@ -16705,15 +17295,11 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     && activeDisplayCode === targetDisplayCode
     && !session.diagnosing
   ) {
-    if (!courseChallengeEarned(masteryProfile)) {
-      throw new HttpsError(
-        "failed-precondition",
-        "Challenge is not unlocked for this skill yet.",
-        { reason: "course-challenge-not-earned" },
-      );
+    if (session.challengeEarned === true || courseChallengeEarned(masteryProfile)) {
+      challengeServed = true;
+      preferredDifficultyBand = 4;
+      preferredDok = 3;
     }
-    preferredDifficultyBand = 4;
-    preferredDok = 3;
   }
 
   // Routing can recognize mastery from fresh in-session evidence before the
@@ -16866,7 +17452,8 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     coursePassLevel: session.assessmentFramework || session.weeklySlotKey || session.coursePracticeIntent === "challenge"
       ? null
       : Math.max(1, Math.min(COURSE_PATH_MAX_LEVEL, Number(session.coursePassLevel || 1))),
-    coursePracticeIntent: session.coursePracticeIntent || null,
+    // Labelled Challenge only when it was served as one (MP22).
+    coursePracticeIntent: challengeServed ? "challenge" : null,
     assessmentBridgeFramework: usingCourseBridge ? session.assessmentFramework : null,
     ccmrChallengeTier: session.assessmentFramework ? Math.max(1, Math.min(3, Number(session.ccmrChallengeTier || 1))) : null,
     ccmrFamilyRole: authored.ccmrFamilyRole || (Number(authored.ccmrChallengeTier || 1) >= 2 ? "challenge" : "direct"),
@@ -16959,6 +17546,9 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
     pathRouting.skillGraph(),
   ]);
   const recapRules = await pathSessionRecap.pathSessionRecapRules();
+  // The retention verdict's module too: it was imported inside the
+  // transaction, a cold-start cost paid on a finished check (MP17).
+  const retentionCheck = await import("./shared/pathRetentionCheck.mjs");
 
   // The authorization context this evidence will carry, resolved from the
   // student's class before the transaction so the read is not inside it.
@@ -17247,8 +17837,7 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
       // Path Simulator (functions/shared/pathRetentionCheck.mjs): both answers
       // right on the student's own moves the next check out (14/30/60 days);
       // anything less marks a concern and keeps the check due.
-      const { retentionCheckOutcome } = await import("./shared/pathRetentionCheck.mjs");
-      const verdict = retentionCheckOutcome({
+      const verdict = retentionCheck.retentionCheckOutcome({
         teksCode: displayCode,
         summary: nextSummary,
         currentSchedule: schedules[displayCode] || {},
@@ -17292,7 +17881,9 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
     transaction.set(evidenceRef, event);
     transaction.set(sessionRef, nextSession);
     if (nextStatus === "completed") {
-      const lockRef = db.collection("activePathLocks").doc(mathPath.opaqueId("pathlock", studentId, session.target.alignmentKey, session.assessmentFramework || "course", session.weeklySlotKey || "open-practice"));
+      // The lock the session recorded, or (a session started before locks
+      // were recorded) the one its launch took then (lib/pathSessionLock.js).
+      const lockRef = db.collection("activePathLocks").doc(pathSessionLock.lockIdForSession(session, { studentId }));
       transaction.delete(lockRef);
     }
 
@@ -17762,7 +18353,7 @@ exports.getStudentSecureExamReview = onCall(async (request) => {
     if (blocked) throw new HttpsError("failed-precondition", blocked.message, { reason: blocked.reason });
     const stage = String(session.courseTest.cycleStage || "") === "retest" ? "retest" : "test";
     try {
-      withSolutions = (await courseAnswersRelease(getFirestore(), shared, session.courseTest.assignmentId, stage, { cacheRoster: true })).released;
+      withSolutions = !(await courseAnswersHeld(getFirestore(), shared, session.courseTest.assignmentId, stage));
     } catch (error) {
       // Fail closed: the review shows, and the answers wait.
       console.error("course_answers_release_failed", { examSessionId, message: error?.message || String(error) });
@@ -17793,7 +18384,17 @@ exports.getStudentSecureExamReview = onCall(async (request) => {
     }
   }
   const review = secureExam.publicReview(session, { withSolutions });
-  return { success: true, review };
+  /*
+   * Worked steps for a released item with none of its own (CT02: the District
+   * DOL #2 retest), built here from the student's own issued items and stored
+   * nowhere — so only this released review, past every gate above, carries
+   * them (secureExamItems.withReleasedWorkedSteps).
+   */
+  const reviewWithSteps = await secureExamItems.withReleasedWorkedSteps(review, {
+    session,
+    readItems: (ids) => secureExamItems.readIssuedItems(snapshot.ref, ids),
+  });
+  return { success: true, review: reviewWithSteps };
 });
 
 /*
@@ -17833,38 +18434,11 @@ const TEST_CYCLE_SWEEP_OPTIONS = Object.freeze({ memory: "512MiB", timeoutSecond
 
 const TEST_CYCLE_ANSWER_RELEASES = "testCycleAnswerReleases";
 
-/*
- * A student at their current attempts: the unit an explicit release covers.
- * A reset gives the stage a new attempt, so the key changes and no release
- * that did not confirm the new attempt can cover it — however the release
- * and the reset interleave. A Test reset changes the key for both stages.
- */
-function answerCoverageKey(record) {
-  return `${record.studentId}#${record.test.attempt}.${record.retest.attempt}`;
-}
-
-/*
- * Who can still sit a stage. The Test: anyone whose Test is not submitted,
- * except where the stage machine says they never will (an external original
- * that passed, a retest a teacher closed). The Retest: anyone who has not
- * submitted one and is not done without one (passed, retest closed or
- * released): before or in the Test, awaiting its release, in Corrections,
- * waiting for or sitting the Retest.
- */
-function stillToSitStage(shared, policy, stage, raw) {
-  const record = shared.record.normalizeTestCycleRecord(raw);
-  const finished = [shared.record.SESSION_STATE.SUBMITTED, shared.record.SESSION_STATE.RELEASED];
-  const STAGE = shared.stages.TEST_CYCLE_STAGE;
-  const state = shared.stages.resolveTestCycleStage({ policy, record });
-  if (stage === "test") {
-    if (finished.includes(record.test.state)) return false;
-    return !(state?.stage === STAGE.RETEST_CLOSED && (state.grade.originalTestGrade !== null || state.teacherControls.retestDisabled));
-  }
-  // An external original's one secure session lives in the Test slot.
-  if (policy?.externalAssessment) return false;
-  if (finished.includes(record.retest.state)) return false;
-  return ![STAGE.PASSED, STAGE.COMPLETE, STAGE.RETEST_CLOSED, STAGE.RETEST_SUBMITTED].includes(state?.stage);
-}
+// Who can still sit a stage, what an explicit release covers (a student at
+// their current attempts), and the rule over both: lib/testCycleAnswersHold.js,
+// where the 30-second re-check (courseAnswersHeld, below) asks it about one
+// student at a time.
+const testCycleAnswersHold = require("./lib/testCycleAnswersHold");
 
 /** Every active student in the assignment's classes, by id. */
 async function testCycleRosterIds(db, assignment) {
@@ -17921,22 +18495,56 @@ async function courseAnswersRelease(db, shared, assignmentId, stage, known = {})
     rosterFromCache = roster.cached;
   }
   if (!rosterIds) rosterIds = await testCycleRosterIds(db, assignment);
-  const everyone = [...new Set([...rosterIds, ...records.keys()])].filter(Boolean);
-  const stillTestingRecords = everyone
-    .map((studentId) => shared.record.normalizeTestCycleRecord(records.get(studentId) || { assignmentId: id, studentId }))
-    .filter((record) => stillToSitStage(shared, policy, stage, record));
-  const stillTesting = stillTestingRecords.map((record) => record.studentId);
-  const stillTestingKeys = stillTestingRecords.map(answerCoverageKey);
-  const explicit = Boolean(release?.releasedAt);
-  // An earlier release's student-only list covers nobody: it named no attempts.
-  const covered = new Set(explicit && Array.isArray(release.coveredKeys) ? release.coveredKeys.map(String) : []);
-  const heldFor = stillTestingRecords.filter((record) => !covered.has(answerCoverageKey(record))).map((record) => record.studentId);
-  if (rosterFromCache && heldFor.length === 0) {
+  // Everyone on the roster and every record holder (answersReleaseVerdict).
+  const verdict = testCycleAnswersHold.answersReleaseVerdict({ shared, policy, stage, assignmentId: id, release, records, rosterIds });
+  if (rosterFromCache && verdict.released) {
     // A cached roster only holds: a released verdict is checked against a fresh one.
     const fresh = await cachedTestCycleRosterIds(db, assignment, id, { fresh: true });
     return courseAnswersRelease(db, shared, assignmentId, stage, { assignment, records, rosterIds: fresh.ids });
   }
-  return { released: heldFor.length === 0, explicit, releasedAt: release?.releasedAt || null, stillTesting, stillTestingKeys, heldFor };
+  return verdict;
+}
+
+/*
+ * ARE THE ANSWERS STILL HELD? — the question a review and Corrections ask
+ * (PF03).
+ *
+ * The full check above reads every record of the cycle. A student in
+ * Corrections with "Review my Test" open asks every 30 seconds, so the student
+ * the last full check found holding the answers is asked about first: their
+ * record, the release, and their grades document when they have no record —
+ * the same rule, about one student (testCycleAnswersHold.holderStillHolds).
+ * While they hold them, the full check could only say "held" too. When they do
+ * not, the full check runs exactly as before. Released is never remembered.
+ */
+const courseAnswersHold = testCycleAnswersHold.createCourseAnswersHold();
+async function courseAnswersHeld(db, shared, assignmentId, stage, known = {}) {
+  const id = String(assignmentId);
+  const assignment = known.assignment || (await db.collection("assignments").doc(id).get()).data() || {};
+  const policy = shared.policy.normalizeTestCyclePolicy(assignment.assessmentPolicy) || shared.policy.defaultTestCyclePolicy();
+  return courseAnswersHold.held({
+    assignmentId: id,
+    stage,
+    shared,
+    policy,
+    readHolder: async (studentId) => {
+      const [releaseSnapshot, recordSnapshot] = await Promise.all([
+        db.collection(TEST_CYCLE_ANSWER_RELEASES).doc(id).get(),
+        db.collection(TEST_CYCLE_RECORDS).doc(testCycleRecordKey(id, studentId)).get(),
+      ]);
+      const recordData = recordSnapshot.exists ? recordSnapshot.data() : null;
+      return {
+        release: releaseSnapshot.data()?.[stage] || null,
+        recordData,
+        // A record holder counts whether or not they are on the roster.
+        onRoster: recordData ? false : testCycleAnswersHold.onTestCycleRoster(
+          await db.collection("grades").doc(studentId).get(),
+          assignmentAudience(assignment).classIds,
+        ),
+      };
+    },
+    fullCheck: () => courseAnswersRelease(db, shared, id, stage, { assignment, cacheRoster: true }),
+  });
 }
 
 /*
@@ -18930,9 +19538,13 @@ async function readBellSchedule(db) {
  * Returns null for an external-original cycle, whose one secure session keeps
  * the rules it always had. Reads nothing when nothing has been set: a cycle
  * with no windows costs no bell-schedule read on any student's entry.
+ *
+ * Their home window closes no earlier than their own final close (TC07,
+ * testCycleStudentFinalCloseAt); `privateOverride` is their private record
+ * when the caller already read it.
  */
 async function studentTestCycleSchedule(db, shared, {
-  assignment, policy, gradeData = null, record = null, bell = undefined, periodCache = new Map(), now = Date.now(),
+  assignment, policy, gradeData = null, record = null, bell = undefined, periodCache = new Map(), now = Date.now(), privateOverride = undefined,
 }) {
   if (policy?.externalAssessment) return null;
   const availability = shared.schedule.normalizeTestAvailability(assignment?.testAvailability);
@@ -18950,13 +19562,64 @@ async function studentTestCycleSchedule(db, shared, {
   const classPeriod = followsBell
     ? await resolveCheckpointClassPeriod(db, classId, classId === ownClassId ? gradeData : {}, periodCache)
     : null;
+  const studentFinalCloseAt = await testCycleStudentFinalCloseAt(db, { assignment, record, gradeData, privateOverride, timeZone });
   return {
     ...shared.schedule.resolveStudentTestCycleSchedule({
-      assignment, classId, classPeriod, schedule, studentAvailability, now, timeZone,
+      assignment, classId, classPeriod, schedule, studentAvailability, studentFinalCloseAt, now, timeZone,
     }),
     // The class whose windows this student follows: a Test start records its sitting.
     classId: classId || null,
   };
+}
+
+/*
+ * ONE STUDENT'S OWN FINAL CLOSE, FOR THEIR HOME WINDOW (the owner, 2026-10-23,
+ * TC07). Corrections and the Retest close at the latest of the class's close, a
+ * teacher's close for this student, and this: the assignment's final cutoff
+ * for them, moved later by their attendance extension or extra-time date —
+ * read exactly as ingestion reads it (assignmentFinalCloseAt with their private
+ * record and their pinned `profile`), in the school's zone like the class's
+ * own close (resolveFollowUpWindow).
+ *
+ * `privateOverride`: their studentAssignmentOverrides record when the caller
+ * already read it (null = read, none); undefined, it is read here. A caller
+ * without their grade document (the Corrections gate) reads only its profile.
+ */
+async function testCycleStudentFinalCloseAt(db, { assignment, record, gradeData = null, privateOverride = undefined, timeZone = null }) {
+  const studentId = String(record?.studentId || "").trim();
+  const assignmentId = String(record?.assignmentId || "").trim();
+  if (!assignment || !studentId || !assignmentId) return null;
+  const readOverride = async () => {
+    const ref = await studentOverrideRef(db, studentId, assignmentId);
+    return privateOverrideFrom(ref ? await ref.get() : null);
+  };
+  const readProfile = async () => {
+    const [snapshot] = await db.getAll(db.collection("grades").doc(studentId), { fieldMask: ["profile"] });
+    return snapshot?.exists ? snapshot.data()?.profile || null : null;
+  };
+  const [own, profile, { assignmentFinalCloseAt }] = await Promise.all([
+    privateOverride !== undefined ? privateOverride : readOverride(),
+    gradeData ? gradeData.profile || null : readProfile(),
+    import("./shared/sectionDeadline.mjs"),
+  ]);
+  return assignmentFinalCloseAt(assignment, timeZone, studentId, profile, { privateOverride: own });
+}
+
+/** Each student's private override record on one assignment (null: none), read in batches. */
+async function privateOverridesFor(db, assignmentId, studentIds) {
+  const overrides = await studentOverrides();
+  const byStudent = new Map(studentIds.map((studentId) => [studentId, null]));
+  const refs = studentIds
+    .map((studentId) => [studentId, overrides.studentAssignmentOverrideId(studentId, assignmentId)])
+    .filter(([, id]) => Boolean(id))
+    .map(([studentId, id]) => [studentId, db.collection(overrides.STUDENT_ASSIGNMENT_OVERRIDES_COLLECTION).doc(id)]);
+  for (let index = 0; index < refs.length; index += 100) {
+    const slice = refs.slice(index, index + 100);
+    // eslint-disable-next-line no-await-in-loop
+    const snapshots = await db.getAll(...slice.map(([, ref]) => ref));
+    snapshots.forEach((snapshot, position) => byStudent.set(slice[position][0], privateOverrideFrom(snapshot)));
+  }
+  return byStudent;
 }
 
 /*
@@ -18988,6 +19651,21 @@ async function recordClassTestSitting(db, shared, { assignmentId, schedule, now 
     console.error("test_cycle_class_sitting_not_recorded", { assignmentId, message: error?.message || String(error) });
     return null;
   }
+}
+
+/*
+ * THE CLASS SITTINGS RECORDED FOR ONE ASSIGNMENT, AS REFERENCES ONLY (TC04).
+ *
+ * For deleting them with the assignment (manageAssignmentLifecycle), which is
+ * the only reason to find them this way. `select()` reads no field, and nothing
+ * decides anything from this: the teacher's panel and `countClassSitting` read
+ * one sitting by its id.
+ */
+async function classSittingRefsOf(db, assignmentId) {
+  const shared = await testCycleLib.shared();
+  const snapshot = await db.collection(shared.schedule.TEST_CYCLE_CLASS_SITTINGS)
+    .where("assignmentId", "==", String(assignmentId)).select().get();
+  return snapshot.docs.map((sittingSnapshot) => sittingSnapshot.ref);
 }
 
 /** A schedule as a student's or teacher's screen receives it: instants and the sentences. */
@@ -19615,13 +20293,20 @@ async function openTestSessionForStudent(db, {
       ].includes(record.retest.state)) {
         return { value: { reused: false, notEligible: true, examSessionId: null } };
       }
+      // TC15: the questions this student's teacher excused for a fewer-items
+      // plan are left out of THEIR plan, read from their record in this same
+      // transaction. Everyone else's plan is the full one, as before.
+      const studentPlan = shared.reducedItems.applyExcusedQuestionsToPlan(plan, shared.reducedItems.applicableExcusedSlotIds(record, blueprint));
+      if (shared.issuance.planRequiresLiveGeneration(studentPlan)) {
+        throw new HttpsError("failed-precondition", `The secure Test plan for ${studentId} could not be completed from approved families.`);
+      }
       const { ref, session } = buildCourseTestSession(db, {
         assignmentId,
         assignment,
         studentId,
         studentData,
         blueprint,
-        plan,
+        plan: studentPlan,
         cycleStage: shared.issuance.CYCLE_STAGE.TEST,
         teacherUid,
         title: assignment?.title,
@@ -19643,12 +20328,12 @@ async function openTestSessionForStudent(db, {
           review: { ...record.review, required: policy.review.required },
           test: {
             examSessionId: session.examSessionId,
-            planId: plan.planId,
-            blueprintId: plan.blueprintId,
-            blueprintVersion: plan.blueprintVersion,
-            attempt: plan.attempt,
+            planId: studentPlan.planId,
+            blueprintId: studentPlan.blueprintId,
+            blueprintVersion: studentPlan.blueprintVersion,
+            attempt: studentPlan.attempt,
             state: shared.record.SESSION_STATE.ASSIGNED,
-            totalQuestions: plan.totalQuestions,
+            totalQuestions: studentPlan.totalQuestions,
           },
         },
       };
@@ -19697,14 +20382,16 @@ async function ensureMissedTestRetestSession(db, {
         || !shared.stages.studentMissedOriginalTest({ record: current, schedule })) {
         return { value: null };
       }
-      const plan = shared.issuance.buildSecureIssuancePlan({
+      // The whole Test at the retest stage — less any questions this student's
+      // teacher excused for a fewer-items plan (TC15): the same subset rule.
+      const plan = shared.reducedItems.applyExcusedQuestionsToPlan(shared.issuance.buildSecureIssuancePlan({
         blueprint,
         families,
         studentId,
         assignmentId,
         stage: shared.issuance.CYCLE_STAGE.RETEST,
         attempt: Number(current.retest.attempt || 1),
-      });
+      }), shared.reducedItems.applicableExcusedSlotIds(current, blueprint));
       if (shared.issuance.planRequiresLiveGeneration(plan)) return { value: null };
       const { ref, session } = buildCourseTestSession(db, {
         assignmentId,
@@ -20054,18 +20741,25 @@ exports.getStudentTestCycle = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) 
     corrections = plan ? studentVisibleCorrectionPlan(plan) : null;
   }
   // Whether the Test review offered beside Corrections would hold its answers
-  // and worked solutions (courseAnswersRelease), so Corrections says what it
-  // opens. Asked only there, where it is shown: it reads the cycle's records.
+  // and worked solutions (courseAnswersHeld), so Corrections says what it
+  // opens. Asked only there, where it is shown: a full check reads the
+  // cycle's records; the open review's 30-second re-check reads only the
+  // student the last one found holding them, while they still do (PF03).
   const testReviewOffered = record.test.state === shared.record.SESSION_STATE.RELEASED
     && !secureExam.courseReviewBlockedBy(record, { examSessionId: record.test.examSessionId, cycleStage: "test" });
   let testAnswersHeld = null;
   if (testReviewOffered && inCorrections) {
     try {
-      testAnswersHeld = !(await courseAnswersRelease(db, shared, assignmentId, "test", { assignment, cacheRoster: true })).released;
+      testAnswersHeld = await courseAnswersHeld(db, shared, assignmentId, "test", { assignment });
     } catch {
       testAnswersHeld = true;
     }
   }
+  // The Test as this student sits it. A student whose teacher excused
+  // questions for a fewer-items plan (TC15) is told how many questions THEIR
+  // Test has, skill by skill — and nothing else: no note, no name for it.
+  const excusedSlotIds = shared.reducedItems.applicableExcusedSlotIds(record, blueprint);
+  const ownBlueprint = excusedSlotIds.length ? shared.reducedItems.studentTestBlueprint(blueprint, excusedSlotIds) : blueprint;
 
   return {
     success: true,
@@ -20129,14 +20823,14 @@ exports.getStudentTestCycle = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) 
       summary: state.policySummary,
       external: Boolean(policy.externalAssessment),
     },
-    delivery: testCycleDeliveryFacts(blueprint, {
+    delivery: testCycleDeliveryFacts(ownBlueprint, {
       timeMultiplier: await secureExamTimeMultiplierFromProfile(gradeSnapshot.data()?.profile || null, studentId),
     }),
     // "What's on this test": the skills the blueprint covers and how many
     // questions each gets — what a real test's study guide says. Never which
     // question is which (not even by the list's order), and nothing about
     // families, seeds or answers.
-    testSkills: await testCycleSkillList(blueprint),
+    testSkills: await testCycleSkillList(ownBlueprint),
     // The Review, skill by skill: answered and correct so far, from the same
     // tracker the gate reads. Instruction only — nothing from the secure Test,
     // and it does not change what unlocks it (reviewProgress does that).
@@ -20162,6 +20856,19 @@ function testCycleSkillList(blueprint) {
  * for a correction question by correctionId and the server decides what to
  * instantiate. What IS kept is the standard and the reason, because a student
  * doing corrections is entitled to know what they are working on.
+ *
+ * THE NAMED MISTAKE IS SHOWN WHILE THE CLASS STILL TESTS (TC12; kept as built).
+ * Corrections open when this student's own Test is released, whether or not the
+ * class has finished (`testAnswersHeld`). Beside their own released answer, "the
+ * mistake to watch for" lets that student undo it and read their own correct
+ * answer. What the hold keeps back is the class's correct answers and worked
+ * solutions, and those stay held; this names one error on one student's own,
+ * already-submitted work, and Test instances are seeded per student, so it never
+ * hands a classmate theirs. To withhold it until the class has finished
+ * instead, drop `diagnosis`, `misconception` and `diagnosisDetail` here while
+ * getStudentTestCycle's `testAnswersHeld` is true, and say on the screen that
+ * the named mistakes open with the answers. That costs an early finisher the
+ * most useful line Corrections has.
  */
 function studentVisibleCorrectionPlan(plan) {
   return {
@@ -20232,8 +20939,9 @@ function assertCorrectionsOpenFor(shared, record) {
 /**
  * Is the home window (Corrections and the Retest) open for this student?
  *
- * Read from their record's class, so it needs no second read of their grade
- * document. Nothing is enforced until a teacher has set a Test day or a close.
+ * Read from their record's class, so it needs no full read of their grade
+ * document: only its `profile`, for their own final close (TC07). Nothing is
+ * enforced until a teacher has set a Test day or a close.
  */
 async function assertFollowUpWindowOpen(db, shared, { assignment, policy, record, what, plural = false }) {
   const schedule = await studentTestCycleSchedule(db, shared, { assignment, policy, record });
@@ -20417,6 +21125,9 @@ exports.submitTestCycleCorrectionResponse = onCall(async (request) => {
     throw new HttpsError("invalid-argument", grading.detail || "Finish your work in the tool, then check it.");
   }
   const now = Date.now();
+  // The student's reflection on this skill rides along (TC11), loaded here and
+  // never inside the transaction. It is kept only if it passes the normalizer.
+  const { withCorrectionReflection } = await import("./shared/testCycleReflection.mjs");
 
   const applied = await db.runTransaction(async (transaction) => {
     const [planSnapshot, recordSnapshot] = await Promise.all([transaction.get(planRef), transaction.get(recordRef)]);
@@ -20436,7 +21147,13 @@ exports.submitTestCycleCorrectionResponse = onCall(async (request) => {
     const activeQuestions = { ...(stored.activeQuestions || {}) };
     if (questionClosed) delete activeQuestions[correctionId];
     else activeQuestions[correctionId] = { ...open, attemptsUsed };
-    transaction.set(planRef, { ...stored, plan: nextPlan, activeQuestions, updatedAt: now });
+    // TC11: what the student said went wrong and how they will fix it, kept
+    // beside the plan, server-only, for the teacher's view. Not part of the plan
+    // the algorithm builds, and it moves no grade.
+    const reflections = withCorrectionReflection(stored.reflections, correctionId, request.data?.reflection, now);
+    transaction.set(planRef, {
+      ...stored, plan: nextPlan, activeQuestions, ...(Object.keys(reflections).length ? { reflections } : {}), updatedAt: now,
+    });
     return {
       nextPlan,
       questionClosed,
@@ -20503,6 +21220,18 @@ exports.submitTestCycleCorrectionResponse = onCall(async (request) => {
     responsePayload: request.data?.responsePayload || null,
     diagnosis,
   });
+  /*
+   * Worked steps for a closed item with none of its own (CT02): a District
+   * DOL #2 family, which Corrections draws on when a Test Cycle's blueprint is
+   * the DOL #2 one, carries no worked solution, so its closed item showed
+   * nothing. The released Test review's own per-item builder works THIS issued
+   * item, with every stated answer held to its key by the grader that just
+   * scored it (secureExamItems.reviewWithWorkedSteps). Only once the item is
+   * closed, exactly where its own review would be released; stored nowhere.
+   */
+  const solutionReview = applied.questionClosed
+    ? await secureExamItems.reviewWithWorkedSteps(support?.solutionReview || null, openForGrading)
+    : null;
 
   return {
     success: true,
@@ -20513,7 +21242,7 @@ exports.submitTestCycleCorrectionResponse = onCall(async (request) => {
     parts: grading.parts,
     feedbackMessage: support?.feedback?.message || null,
     hint: support?.support?.hint || null,
-    solutionReview: applied.questionClosed ? (support?.solutionReview || null) : null,
+    solutionReview,
     attemptsUsed: applied.attemptsUsed,
     attemptsRemaining: applied.attemptsRemaining,
     questionClosed: applied.questionClosed,
@@ -20549,11 +21278,27 @@ async function ensureRetestSession(db, { assignmentId, assignment, policy, bluep
   if (!testSessionSnapshot?.exists) return null;
   const testSession = testSessionSnapshot.data() || {};
 
+  /*
+   * TC15: A STUDENT WHOSE TEACHER EXCUSED QUESTIONS (a fewer-items plan) has
+   * a Retest built from the Test they actually sat — its skills, read from
+   * their answers — and shorter by the same share. The choice is locked once
+   * the Test started, so the record read above is the one that applied.
+   * Anyone else: exactly the call it always was.
+   */
+  const excused = shared.reducedItems.applicableExcusedSlotIds(record, blueprint);
+  const ownBlueprint = excused.length ? shared.reducedItems.studentTestBlueprint(blueprint, excused) : blueprint;
   const profile = shared.corrections.buildPerformanceProfile({
-    blueprint,
+    blueprint: ownBlueprint,
     responses: testCycleLib.responsesForProfile(testSession),
   });
-  const generated = shared.retest.buildRetestBlueprint({ blueprint, profile, policy });
+  const generated = excused.length
+    ? shared.retest.buildRetestBlueprint({
+      blueprint: ownBlueprint,
+      profile,
+      policy,
+      questionCount: shared.reducedItems.studentRetestQuestionCount({ blueprint, excusedSlotIds: excused, policy }),
+    })
+    : shared.retest.buildRetestBlueprint({ blueprint, profile, policy });
   if (!generated) return null;
 
   const families = await resolveBlueprintFamilies(db, blueprintFamilyIds(generated.blueprint));
@@ -20695,9 +21440,11 @@ exports.teacherTestCycleAction = onCall(TEST_CYCLE_ACTION_OPTIONS, async (reques
         }
         const attempt = Number(current.attempt || 1) + 1;
         if (stage === "test") {
-          const plan = shared.issuance.buildSecureIssuancePlan({
+          // A new attempt keeps the questions this student's teacher excused
+          // for a fewer-items plan (TC15); it draws new items for the rest.
+          const plan = shared.reducedItems.applyExcusedQuestionsToPlan(shared.issuance.buildSecureIssuancePlan({
             blueprint, families, studentId, assignmentId, stage: shared.issuance.CYCLE_STAGE.TEST, attempt,
-          });
+          }), shared.reducedItems.applicableExcusedSlotIds(record, blueprint));
           const { ref, session } = buildCourseTestSession(db, {
             assignmentId, assignment, studentId, studentData: gradeData,
             blueprint, plan, cycleStage: shared.issuance.CYCLE_STAGE.TEST, teacherUid, title: assignment?.title,
@@ -21006,7 +21753,10 @@ async function teacherTestCycleSchedule(db, shared, { assignmentId = null, assig
           ? shared.schedule.formatSchoolRange(window.opensAt, window.closesAt, timeZone)
           : window.reason === "endedBeforeSet"
             ? `${shared.schedule.formatSchoolDate(window.dateKey, timeZone)} (that day's class had ended when it was set: choose a new day)`
-            : `${shared.schedule.formatSchoolDate(window.dateKey, timeZone)} (times not on the bell schedule yet)`,
+            : window.reason === "dayTypeSetAfterEnd"
+              // TC01: the day's A/B day was set only after this class had met.
+              ? `${shared.schedule.formatSchoolDate(window.dateKey, timeZone)} (its A/B day was set after this class had met: choose a new day)`
+              : `${shared.schedule.formatSchoolDate(window.dateKey, timeZone)} (times not on the bell schedule yet)`,
       })),
       // The next days this class sits, straight from the bell schedule.
       upcomingDays: upcoming.days.map((day) => ({
@@ -21070,6 +21820,12 @@ exports.listTeacherTestCycleRecords = onCall(TEST_CYCLE_PANEL_OPTIONS, async (re
   const hasWindows = !policy.externalAssessment;
   const bell = hasWindows ? await readBellSchedule(db) : null;
   const periodCache = new Map();
+  // Each student's own final close (TC07) reads their private record: one
+  // batched read for the table, not one per row. Nothing is needed while no
+  // window or close is set (a student's own window reads theirs on its own).
+  const privateOverrides = hasWindows && shared.schedule.normalizeTestAvailability(assignment?.testAvailability).configured
+    ? await privateOverridesFor(db, assignmentId, [...gradeDataByStudent.keys()])
+    : new Map();
 
   // Only the sessions of students mid-Test can be locked; read exactly those.
   const liveSessionIds = [];
@@ -21093,6 +21849,7 @@ exports.listTeacherTestCycleRecords = onCall(TEST_CYCLE_PANEL_OPTIONS, async (re
   }
 
   const stages = shared.stages.TEST_CYCLE_STAGE;
+  const testQuestionCount = shared.blueprint.normalizeTestBlueprint(blueprint).totalQuestions;
   const rows = [];
   for (const [studentId, gradeData] of gradeDataByStudent.entries()) {
     const record = shared.record.normalizeTestCycleRecord(recordsByStudent.get(studentId) || { assignmentId, studentId });
@@ -21106,7 +21863,9 @@ exports.listTeacherTestCycleRecords = onCall(TEST_CYCLE_PANEL_OPTIONS, async (re
     // reopened for them), so the stage here is the stage their card shows.
     // eslint-disable-next-line no-await-in-loop
     const schedule = hasWindows
-      ? await studentTestCycleSchedule(db, shared, { assignment, policy, gradeData, record, bell, periodCache, now })
+      ? await studentTestCycleSchedule(db, shared, {
+        assignment, policy, gradeData, record, bell, periodCache, now, privateOverride: privateOverrides.get(studentId),
+      })
       : null;
     const state = shared.stages.resolveTestCycleStage({ policy, record, reviewProgress, schedule });
     const attention = testCycleRowAttention(record, lockedSessions);
@@ -21176,6 +21935,9 @@ exports.listTeacherTestCycleRecords = onCall(TEST_CYCLE_PANEL_OPTIONS, async (re
       retestWithoutOriginal: grade.retestWithoutOriginal === true || record.retest.withoutOriginal === true,
       gradeAdjustment: grade.gradeAdjustment || null,
       ruleRecordedGrade: grade.gradeAdjustment ? grade.ruleRecordedGrade : grade.recordedGrade,
+      // TC15: fewer Test questions, for a student whose plan lists them (null
+      // for everyone else): what their teacher chose and whether it can change.
+      reducedItems: teacherReducedItemsRow(shared, { record, gradeData, assignment, policy, blueprint, testQuestionCount, now }),
       corrections: record.corrections,
       teacherControls: record.teacherControls,
       history: record.history,
@@ -21208,6 +21970,9 @@ exports.listTeacherTestCycleRecords = onCall(TEST_CYCLE_PANEL_OPTIONS, async (re
       locks: testCyclePolicyLocks(shared, [...recordsByStudent.values()], { external: Boolean(policy.externalAssessment) }),
     },
     delivery: testCycleDeliveryFacts(blueprint),
+    // The Test's questions by number and skill, for choosing fewer for one
+    // student (TC15). Sent only when a row can use it; no families, no seeds.
+    testQuestions: rows.some((row) => row.reducedItems) ? shared.reducedItems.testCycleQuestionList(blueprint) : [],
     availability: shared.availability.resolveAssessmentAvailability({ assignment, now: Date.now() }),
     // When the Test and the home window are open for each class, in exact
     // school-zone times. Null for an external-original cycle.
@@ -21250,6 +22015,40 @@ exports.listTeacherTestCycleRecords = onCall(TEST_CYCLE_PANEL_OPTIONS, async (re
 });
 
 /*
+ * ONE ROW'S FEWER-QUESTIONS FACTS (TC15), for the teacher of record only.
+ *
+ * Null for a student whose plan does not list fewer items and who has no
+ * choice on record — every other row is exactly what it was. Otherwise:
+ * whether the plan lists it (and its percentage, as a guide), the questions
+ * the teacher excused, how many the student answers, who chose and when, and
+ * whether it is locked because the student has started. The lock here is read
+ * from the record; the callable re-reads the sessions themselves.
+ */
+function teacherReducedItemsRow(shared, { record, gradeData, assignment, policy, blueprint, testQuestionCount, now = Date.now() }) {
+  const rules = shared.reducedItems;
+  const chosen = record.reducedItems || null;
+  const plan = rules.planFewerItems({ profile: gradeData?.profile || null, assignment, nowValue: now });
+  if (!chosen && !plan.listed) return null;
+  const lock = rules.reducedItemsLock({ record, noun: policy?.externalAssessment ? "Retest" : "Test" });
+  // A choice made for a Test since replaced does not apply (the whole Test
+  // does) and says so, so the teacher can choose again.
+  const state = rules.reducedItemsState(record, blueprint);
+  const applies = Boolean(chosen) && !state.stale;
+  return {
+    planListsFewerItems: plan.listed,
+    planPercent: plan.percent,
+    excusedSlotIds: state.excusedSlotIds,
+    stale: state.stale,
+    questions: applies ? chosen.questions : testQuestionCount,
+    testQuestions: testQuestionCount,
+    setBy: chosen?.setBy || null,
+    setAt: chosen?.setAt ?? null,
+    locked: lock.locked,
+    lockReason: lock.reason,
+  };
+}
+
+/*
  * WHICH POLICY FIELDS CAN STILL CHANGE.
  *
  * The passing score decides who owes corrections; once any Test result is
@@ -21289,12 +22088,50 @@ function testCyclePolicyLocks(shared, records, { external = false } = {}) {
   };
 }
 
+/*
+ * THE MISTAKES RECORDED ON A STUDENT'S RETEST, FOR THEIR TEACHER (TC02).
+ *
+ * A Retest records a mistake where it grades a miss, as a Test does, and the
+ * cycle has no Corrections after it, so nothing read it. The teacher's
+ * per-student view reads it here, once the student has turned the Retest in:
+ * the skills it missed, and the mistake each one's work proved
+ * (shared/testCycleRetestMistakes.mjs, through the registry's trust gate). It
+ * goes to the teacher of record only, never to a student, and moves no grade.
+ *
+ * Null when there is nothing to read: no Retest yet, one still under way, or a
+ * session that is not this student's for this assignment. Never fails the panel:
+ * the plans beside it are worth showing without it.
+ */
+async function retestMistakesFor(db, { studentId, assignmentId, policy, blueprint, record, retestPlan }) {
+  try {
+    // An external-original cycle's one secure session IS the retest.
+    const sitting = policy.externalAssessment ? record?.test : record?.retest;
+    const examSessionId = String(sitting?.examSessionId || "");
+    const retestBlueprint = policy.externalAssessment ? blueprint : retestPlan?.blueprint;
+    if (!examSessionId || !retestBlueprint) return null;
+    const sessionSnapshot = await db.collection("examSessions").doc(examSessionId).get();
+    const session = sessionSnapshot.exists ? sessionSnapshot.data() || {} : null;
+    if (!session
+      || String(session.studentId || "") !== studentId
+      || String(session.courseTest?.assignmentId || "") !== assignmentId
+      || !secureExam.TERMINAL_STATES.has(session.status)) return null;
+    const { retestMistakesForTeacher } = await import("./shared/testCycleRetestMistakes.mjs");
+    return {
+      examSessionId,
+      skills: retestMistakesForTeacher({ blueprint: retestBlueprint, responses: testCycleLib.responsesForProfile(session) }),
+    };
+  } catch (error) {
+    console.error("test_cycle_retest_mistakes_not_read", { assignmentId, message: error?.message || String(error) });
+    return null;
+  }
+}
+
 /** Teacher inspection of a generated correction or retest plan. */
 exports.getTeacherTestCyclePlans = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) => {
   const db = getFirestore();
   const assignmentSnapshot = await assignmentForTeacherCall(request, db);
   await assertTeacherMayManageAssignment(request, assignmentSnapshot);
-  const { assignmentId, shared } = await loadTestCycleAssignment(db, assignmentSnapshot.id);
+  const { assignmentId, policy, blueprint, shared } = await loadTestCycleAssignment(db, assignmentSnapshot.id);
   const studentId = String(request.data?.studentId || "").trim();
   if (!studentId) throw new HttpsError("invalid-argument", "A studentId is required.");
   const recordId = testCycleRecordKey(assignmentId, studentId);
@@ -21306,19 +22143,30 @@ exports.getTeacherTestCyclePlans = onCall(TEST_CYCLE_ACTION_OPTIONS, async (requ
   ]);
   const correctionPlan = correctionSnapshot.exists ? correctionSnapshot.data()?.plan || null : null;
   const retestPlan = retestSnapshot.exists ? retestSnapshot.data() : null;
+  const record = recordSnapshot.exists ? shared.record.normalizeTestCycleRecord(recordSnapshot.data()) : null;
 
   return {
     success: true,
     studentId,
-    record: recordSnapshot.exists ? shared.record.normalizeTestCycleRecord(recordSnapshot.data()) : null,
+    record,
     // The correction plan keeps its evidence mapping: a teacher opening this
-    // sees exactly which failed Test items sent the student where.
+    // sees exactly which failed Test items sent the student where. Each skill
+    // also carries what the student said went wrong and how they will fix it
+    // (TC11), null when they have not said.
     corrections: correctionPlan
-      ? { ...correctionPlan, targets: (correctionPlan.targets || []).map(({ practiceFamilyIds: _practiceFamilyIds, ...target }) => target) }
+      ? {
+        ...correctionPlan,
+        targets: (correctionPlan.targets || []).map(({ practiceFamilyIds: _practiceFamilyIds, ...target }) => ({
+          ...target,
+          reflection: correctionSnapshot.data()?.reflections?.[target.correctionId] || null,
+        })),
+      }
       : null,
     retest: retestPlan
       ? { audit: retestPlan.audit, blueprint: retestPlan.blueprint, plan: testCycleLib.teacherVisiblePlan(retestPlan.plan) }
       : null,
+    // What the Retest showed, once it is turned in (TC02).
+    retestMistakes: await retestMistakesFor(db, { studentId, assignmentId, policy, blueprint, record, retestPlan }),
   };
 });
 
@@ -21389,13 +22237,17 @@ async function applyTestCycleFeedbackRelease(db, session) {
   }
 
   // A failed Test builds this student's corrections automatically, from their
-  // own evidence, at the moment the score becomes real to them.
+  // own evidence, at the moment the score becomes real to them — read against
+  // the Test they sat: a question their teacher excused (TC15) was never
+  // asked, so it is never "missed" and never corrected.
+  const excused = shared.reducedItems.applicableExcusedSlotIds(released.record, blueprint);
+  const ownBlueprint = excused.length ? shared.reducedItems.studentTestBlueprint(blueprint, excused) : blueprint;
   const profile = shared.corrections.buildPerformanceProfile({
-    blueprint,
+    blueprint: ownBlueprint,
     responses: testCycleLib.responsesForProfile(session),
   });
   const plan = shared.corrections.buildCorrectionPlan({
-    blueprint,
+    blueprint: ownBlueprint,
     profile,
     policy,
     releasedTestGrade: rawScore,
@@ -21914,7 +22766,13 @@ async function archiveStudentPresenceSnapshot({
 
   const db = getFirestore();
   const grade = await db.collection("grades").doc(studentId).get();
-  const gradeData = grade.exists ? (grade.data() || {}) : {};
+  // No roster row, no summary (SI06). A student permanently deleted while
+  // their tab was open leaves a presence document behind (and an ID token
+  // that worked for up to an hour); when it is swept or deleted, archiving it
+  // would write a durable record of a student the deletion just erased. A
+  // student with no row cannot sign in, so nothing real is lost.
+  if (!grade.exists) return false;
+  const gradeData = grade.data() || {};
   const ref = db.collection(STUDENT_SESSION_SUMMARY_COLLECTION).doc(summaryId);
   const endedAt = Number(observedAt) || Number(live.updatedAt) || Date.now();
   // The shared name resolver: the summary keeps a real name or null, never the id.
@@ -22662,11 +23520,14 @@ exports.commitAssignmentContentUpgrade = onCall(async (request) => {
       let migratedStudents = 0;
       let gradeReconciliationRequested = false;
 
+      // A regrade is marked by the server's own grader (GR07).
+      const serverGrading = await assignmentContentTrackerMigration.loadServerGrading();
       const migratedRows = trackerDocs.map((gradeRow) => {
         const migration = assignmentContentTrackerMigration.migrateTrackerForContentUpgrade({
           tracker: gradeRow.tracker,
           plan,
           correctedAt,
+          serverGrading,
         });
         if (migration.changed) migratedStudents += 1;
         if (migration.gradeMayChange) gradeReconciliationRequested = true;
@@ -23234,11 +24095,14 @@ exports.commitTeacherQuestionRepair = onCall(async (request) => {
 
       let migratedStudents = 0;
       let gradeReconciliationRequested = false;
+      // A regrade is marked by the server's own grader (GR07).
+      const serverGrading = await assignmentContentTrackerMigration.loadServerGrading();
       const migratedRows = trackerDocs.map((gradeRow) => {
         const migration = assignmentContentTrackerMigration.migrateTrackerForContentUpgrade({
           tracker: gradeRow.tracker,
           plan,
           correctedAt,
+          serverGrading,
         });
         if (migration.changed) migratedStudents += 1;
         if (migration.gradeMayChange) gradeReconciliationRequested = true;
@@ -25906,7 +26770,10 @@ async function assignmentEvidenceSummary(db, assignmentId, assignment) {
   startedSessions.forEach((doc) => studentsWithWork.add(String(doc.data()?.studentId || "")));
   records.docs.forEach((doc) => {
     const record = doc.data() || {};
-    if (record.review?.complete === true || record.test?.state && !["none", "assigned"].includes(record.test.state)) {
+    // A grade a teacher set by hand is recorded work too: deleting the cycle
+    // would erase it and its audit (TT33, A2-133).
+    if (record.review?.complete === true || record.test?.state && !["none", "assigned"].includes(record.test.state)
+      || (record.gradeAdjustment && typeof record.gradeAdjustment === "object")) {
       studentsWithWork.add(String(record.studentId || ""));
     }
   });
@@ -26047,8 +26914,8 @@ exports.manageAssignmentLifecycle = onCall(TEST_CYCLE_PANEL_OPTIONS, async (requ
    * No student has worked on it, so the only things to remove are the
    * assignment and the untouched secure scaffolding opened for it: unstarted
    * sessions, score-less records and their plans, the projection each record
-   * wrote on its student's grade document, any answer release, and the
-   * class-wide operation logs.
+   * wrote on its student's grade document, any answer release, the class-wide
+   * operation logs, and the class sittings recorded for its Test days.
    *
    * ORDER, AND WHY IT IS NOT ONE BATCH. A batch holds 500 writes and a class
    * set can need more, which used to fail the whole delete with a bare server
@@ -26078,6 +26945,10 @@ exports.manageAssignmentLifecycle = onCall(TEST_CYCLE_PANEL_OPTIONS, async (requ
   });
   summary.operationIds.forEach((id) => writes.push((batch) => batch.delete(db.collection(TEST_CYCLE_OPERATIONS).doc(id))));
   writes.push((batch) => batch.delete(db.collection(TEST_CYCLE_ANSWER_RELEASES).doc(ref.id)));
+  // The class sittings recorded for its Test days (TC04): one small server-only
+  // document per class and day, which nothing else would ever remove.
+  const sittingRefs = await classSittingRefsOf(db, ref.id);
+  sittingRefs.forEach((sittingRef) => writes.push((batch) => batch.delete(sittingRef)));
   for (let index = 0; index < writes.length; index += 400) {
     const batch = db.batch();
     writes.slice(index, index + 400).forEach((write) => write(batch));
@@ -26092,6 +26963,7 @@ exports.manageAssignmentLifecycle = onCall(TEST_CYCLE_PANEL_OPTIONS, async (requ
     deletedBy: actor,
     removedSecureSessions: summary.unstartedSessionIds.length,
     removedTestCycleRecords: summary.recordIds.length,
+    removedClassSittings: sittingRefs.length,
   });
   return { success: true, assignmentId: ref.id, action, deleted: true };
 });
@@ -26519,19 +27391,45 @@ exports.updateTestCycleAvailability = onCall(TEST_CYCLE_ACTION_OPTIONS, async (r
     if (!sched.isDateKey(fromDateKey)) throw new HttpsError("invalid-argument", "Choose the first Test day.");
     if (fromDateKey < todayKey) throw new HttpsError("invalid-argument", "That day has already passed.");
     const chosen = [];
+    // Who has started the Test, or a Retest in its place, by the class whose
+    // windows they follow (as the teacher's table counts it, classSittingsOf).
+    // Read once, when a class's window has opened; a started record naming
+    // no class counts for every class.
+    let started = null;
+    const startedIn = async (classId) => {
+      if (!started) {
+        const notStarted = [shared.record.SESSION_STATE.NONE, shared.record.SESSION_STATE.ASSIGNED];
+        const begun = (stage) => !notStarted.includes(stage?.state || shared.record.SESSION_STATE.NONE);
+        const records = await db.collection(TEST_CYCLE_RECORDS).where("assignmentId", "==", assignmentId).get();
+        started = { byClass: new Map(), unplaced: 0 };
+        records.docs.forEach((recordDoc) => {
+          const record = shared.record.normalizeTestCycleRecord(recordDoc.data() || {});
+          if (!begun(record.test) && !begun(record.retest)) return;
+          const sitsWith = record.audience?.withClassId || record.classId;
+          if (!sitsWith) started.unplaced += 1;
+          else started.byClass.set(sitsWith, (started.byClass.get(sitsWith) || 0) + 1);
+        });
+      }
+      return (started.byClass.get(classId) || 0) + started.unplaced;
+    };
     for (const classId of audienceClassIds) {
       // eslint-disable-next-line no-await-in-loop
       const classPeriod = await classPeriodOf(classId);
-      // A class whose window has already opened (it sat the Test, or is
-      // sitting it) is kept: moving it would put its Corrections back behind a
-      // new window and un-miss its absent students. Its own row moves it.
+      // A class whose window has already opened and where someone started
+      // the Test (it sat it, or is sitting it) is kept: moving it would put
+      // its Corrections back behind a new window and un-miss its absent
+      // students. Its own row moves it. A day that passed with nobody
+      // starting (a snow day the bell schedule never heard of) moves with
+      // the rest (TC03).
       const ran = sched.resolveClassWindows({ availability: assignment?.testAvailability, classId, classPeriod, schedule: bell, timeZone })
         .filter((window) => window.resolved && window.opensAt <= now)
         .sort((left, right) => right.opensAt - left.opensAt)[0];
-      if (ran) {
+      // eslint-disable-next-line no-await-in-loop
+      if (ran && await startedIn(classId) > 0) {
         notes.push(`${classPeriod || classId}: kept — its Test window already opened (${sched.formatSchoolRange(ran.opensAt, ran.closesAt, timeZone)}). Change its day on its own row if it should move.`);
         continue;
       }
+      if (ran) notes.push(`${classPeriod || classId}: its Test day (${sched.formatSchoolRange(ran.opensAt, ran.closesAt, timeZone)}) passed with nobody starting, so it moves too.`);
       const first = classPeriod
         ? sched.upcomingClassPeriodDays({ schedule: bell, classPeriod, fromDateKey, count: 1, timeZone, now }).days[0]
         : null;
@@ -26719,6 +27617,156 @@ exports.adjustTestCycleGrade = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request)
     ruleRecordedGrade: state.ruleRecordedGrade ?? null,
     source,
     reason: state.reason,
+  };
+});
+
+/*
+ * FEWER TEST QUESTIONS FOR ONE STUDENT — THE TEACHER CHOOSES (TC15).
+ *
+ * For a student whose support plan lists "Reduced number of items — same TEKS
+ * and rigor", the teacher of record chooses which of the secure Test's
+ * questions that student does not answer. MathMaster never picks them, and a
+ * student whose plan does not list it cannot be given a shorter Test. The
+ * rules are in functions/shared/testCycleReducedItems.mjs: every skill keeps a
+ * question, at most half the Test, the grade is over the questions asked.
+ *
+ * Kept on the student's own server-only record, with who chose and when, plus
+ * an audit row; never on the shared assignment. Only before the student
+ * starts: the lock is read from the record AND from the sessions themselves
+ * inside this transaction, so a start racing this call either lands first
+ * (and this is refused) or starts the re-planned Test. A session that exists
+ * and has not been started is re-planned here, in the same transaction: the
+ * plan it would have had, minus the excused questions — every other question
+ * exactly as it was.
+ */
+exports.setTestCycleReducedItems = onCall(TEST_CYCLE_ACTION_OPTIONS, async (request) => {
+  const db = getFirestore();
+  const assignmentSnapshot = await assignmentForTeacherCall(request, db);
+  const { teacherUid, teacherEmail } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
+  const { assignmentId, assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, assignmentSnapshot.id);
+  const { studentId, gradeData } = await assertStudentInTestCycleAudience(db, {
+    assignment, assignmentId, studentId: request.data?.studentId,
+  });
+  const rules = shared.reducedItems;
+  if (!Array.isArray(request.data?.excusedSlotIds)) {
+    throw new HttpsError("invalid-argument", "Choose the questions this student does not answer, or none to give back the whole Test.");
+  }
+  const choice = rules.validateExcusedQuestions({
+    questions: rules.testCycleQuestionList(blueprint),
+    excusedSlotIds: request.data.excusedSlotIds,
+  });
+  if (!choice.ok) throw new HttpsError("invalid-argument", choice.errors.join(" "));
+  const now = Date.now();
+  // Giving back the whole Test is always allowed, whatever the plan says now.
+  if (choice.excusedSlotIds.length && !rules.planFewerItems({ profile: gradeData?.profile || null, assignment, nowValue: now }).listed) {
+    throw new HttpsError("failed-precondition", "This student's support plan does not list fewer items, so their Test stays whole.");
+  }
+  const actor = teacherEmail || teacherUid;
+  const families = await resolveBlueprintFamilies(db, blueprintFamilyIds(blueprint));
+
+  const written = await mutateTestCycleRecord(db, {
+    assignmentId,
+    studentId,
+    shared,
+    policy,
+    mutate: async (record, { transaction }) => {
+      const sessionRef = (id) => (id ? db.collection("examSessions").doc(String(id)) : null);
+      const testRef = sessionRef(record.test.examSessionId);
+      const retestRef = sessionRef(record.retest.examSessionId);
+      // A Retest opened in place of a missed Test IS the Test's whole form, so
+      // the same questions are left out of it. A targeted Retest only exists
+      // after a released Test, which the lock below has already refused.
+      const standIn = record.retest.withoutOriginal === true && Boolean(retestRef);
+      const retestPlanRef = standIn ? db.collection(TEST_CYCLE_RETEST_PLANS).doc(record.recordId) : null;
+      const [testSnapshot, retestSnapshot, retestPlanSnapshot] = await Promise.all([
+        testRef ? transaction.get(testRef) : null,
+        retestRef ? transaction.get(retestRef) : null,
+        retestPlanRef ? transaction.get(retestPlanRef) : null,
+      ]);
+      const testSession = testSnapshot?.exists ? testSnapshot.data() || {} : null;
+      const retestSession = retestSnapshot?.exists ? retestSnapshot.data() || {} : null;
+      const lock = rules.reducedItemsLock({
+        record,
+        testSessionStatus: testSession?.status ?? null,
+        retestSessionStatus: retestSession?.status ?? null,
+        noun: policy.externalAssessment ? "Retest" : "Test",
+      });
+      if (lock.locked) throw new HttpsError("failed-precondition", lock.reason, { reason: "started" });
+      // Unchanged only when the choice on record applies to this Test: one made
+      // for a Test since replaced is saved again, for this one.
+      const current = rules.reducedItemsState(record, blueprint);
+      const before = new Set(current.excusedSlotIds);
+      if (!current.stale && before.size === choice.excusedSlotIds.length && choice.excusedSlotIds.every((slotId) => before.has(slotId))) {
+        return { value: { changed: false } };
+      }
+
+      // The plan the session would have had (same stage, same attempt, so the
+      // same seeds), minus the excused questions.
+      const replan = (session, stage) => {
+        const plan = rules.applyExcusedQuestionsToPlan(shared.issuance.buildSecureIssuancePlan({
+          blueprint,
+          families,
+          studentId,
+          assignmentId,
+          stage,
+          attempt: Number(session?.issuancePlan?.attempt || session?.courseTest?.attempt || 1),
+        }), choice.excusedSlotIds);
+        if (shared.issuance.planRequiresLiveGeneration(plan)) {
+          throw new HttpsError("failed-precondition", "This student's Test could not be planned from the approved question families. Check the secure preflight, then try again.");
+        }
+        return plan;
+      };
+      let next = record;
+      if (testSession?.status === "not_started") {
+        const plan = replan(testSession, shared.issuance.CYCLE_STAGE.TEST);
+        // update(), not a merge: the whole stored plan is replaced, so nothing
+        // of an earlier choice survives inside it.
+        transaction.update(testRef, { issuancePlan: plan, requiredQuestions: plan.totalQuestions, updatedAt: now });
+        next = { ...next, test: { ...next.test, totalQuestions: plan.totalQuestions } };
+      }
+      if (standIn && retestSession?.status === "not_started") {
+        const plan = replan(retestSession, shared.issuance.CYCLE_STAGE.RETEST);
+        transaction.update(retestRef, { issuancePlan: plan, requiredQuestions: plan.totalQuestions, updatedAt: now });
+        if (retestPlanSnapshot?.exists) {
+          transaction.update(retestPlanRef, {
+            plan,
+            "audit.questionCount": plan.totalQuestions,
+            "audit.anchorQuestionCount": plan.totalQuestions,
+            "audit.originalQuestionCount": plan.totalQuestions,
+          });
+        }
+        next = { ...next, retest: { ...next.retest, totalQuestions: plan.totalQuestions } };
+      }
+      const grade = shared.record.recordGradeState(next, policy);
+      return {
+        value: { changed: true },
+        record: {
+          ...next,
+          // Null removes it: the whole Test again.
+          reducedItems: rules.reducedItemsForRecord({ choice, blueprint, by: actor, at: now }),
+          history: shared.grade.appendTestCycleGradeHistory(next.history, {
+            at: now,
+            reason: shared.grade.GRADE_HISTORY_REASON.REDUCED_ITEMS,
+            recordedGrade: grade.recordedGrade,
+            originalTestGrade: grade.originalTestGrade,
+            rawRetestGrade: grade.rawRetestGrade,
+            retestCappedContribution: grade.retestCappedContribution,
+            detail: rules.describeReducedItemsChoice(choice),
+            by: actor,
+          }),
+        },
+      };
+    },
+  });
+  return {
+    success: true,
+    assignmentId,
+    studentId,
+    changed: written.value?.changed === true,
+    reducedItems: written.record.reducedItems || null,
+    questions: choice.questions,
+    testQuestions: choice.testQuestions,
+    label: rules.describeReducedItemsChoice(choice),
   };
 });
 

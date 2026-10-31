@@ -1,6 +1,7 @@
 import React from 'react';
 import { SECTION_GRADE_KEYS } from '../../platform/teacher/gradeEvidence.js';
 import { EXIT_TICKET, EXIT_TICKET_SPELLED_OUT } from '../../platform/student/studentWords.js';
+import HiddenGradeMask from './HiddenGradeMask.jsx';
 
 // The four lesson-section grades, wrapped so they stack on a phone.
 //
@@ -65,7 +66,7 @@ export default function GradeSectionBreakdown({ sections = {}, shares = null, hi
               {key === 'dol' && spellExitTicket ? EXIT_TICKET_SPELLED_OUT : SECTION_LABEL[key]}
             </div>
             <div style={{ marginTop: 2, fontSize: excused || noEvidence || hidden ? 'calc(13 * var(--mm-px))' : 'calc(18 * var(--mm-px))', fontWeight: 900, color: excused ? 'var(--mm-accent-text)' : noEvidence ? 'var(--mm-text-muted)' : 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
-              {hidden ? '••' : excused ? '✓ Excused (Practice Pass)' : noEvidence ? 'Not attempted' : `${split.score}%`}
+              {hidden ? <HiddenGradeMask /> : excused ? '✓ Excused (Practice Pass)' : noEvidence ? 'Not attempted' : `${split.score}%`}
             </div>
             {!excused && Number.isFinite(Number(shares?.[key]?.sharePercent)) && Number(shares?.[key]?.possibleWeight) > 0 && (
               <div data-section-share={key} style={{ marginTop: 2, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)', overflowWrap: 'anywhere' }}>

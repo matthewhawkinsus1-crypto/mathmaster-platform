@@ -26,6 +26,22 @@ service cloud.firestore {
         && request.auth.token.get('studentId', '') == studentId;
     }
 
+    // SI06: a student's own writes need their roster row. Permanent deletion
+    // (permanentlyDeleteStudent) revokes the student's refresh tokens and then
+    // deletes the row, but an ID token already issued stays valid for up to an
+    // hour and rules cannot see a revocation. Without this, a deleted
+    // student's open tab could re-create what the deletion just erased: a
+    // presence heartbeat, engagement minutes, a scratchpad, a draft, a
+    // checkpoint. Writes whose rule already reads the row (support evidence,
+    // Ask my teacher, Spotlight frames) were closed already. No legitimate
+    // student is without a row: the app does not sign one in ("Your student
+    // record is not available"). Known limit: a hand-built client can first
+    // create its own bare row (the student's create on grades/{studentId});
+    // docs/handoffs/STUDENT_PASS3_D10_PHASE0.md §6.6.
+    function studentRowExists(studentId) {
+      return exists(/databases/$(database)/documents/grades/$(studentId));
+    }
+
     // A teacher's roster is the students in the classes they are teacher of
     // record for. `assignedTeacherEmail` is written onto the student by the
     // admin callables whenever their class or its teacher changes, and is read
@@ -192,6 +208,11 @@ service cloud.firestore {
     function teacherGradeOverridesUnchanged() {
       return request.resource.data.get('teacherGradeOverridesByAssignment', {})
         == resource.data.get('teacherGradeOverridesByAssignment', {});
+    }
+
+    function workloadCorrectionsUnchanged() {
+      return request.resource.data.get('profile', {}).get('workloadCorrections', {})
+        == resource.data.get('profile', {}).get('workloadCorrections', {});
     }
 
     function teacherGradeOverridesAbsentOnCreate() {
@@ -705,6 +726,7 @@ service cloud.firestore {
         && studentIdentityUnchanged()
         && testCycleGradesUnchanged()
         && teacherGradeOverridesUnchanged()
+        && workloadCorrectionsUnchanged()
         && serverRecoveryFieldsUnchanged();
       // Creation stays open to any teacher: a roster row may be written before
       // the student has been placed in a class, and it carries no work yet.
@@ -717,6 +739,7 @@ service cloud.firestore {
         && studentIdentityAbsentOnClientCreate()
         && testCycleGradesAbsentOnCreate()
         && teacherGradeOverridesAbsentOnCreate()
+        && request.resource.data.get('profile', {}).get('workloadCorrections', {}) == {}
         && serverRecoveryFieldsAbsentOnCreate();
       allow delete: if false;
 
@@ -729,6 +752,12 @@ service cloud.firestore {
         allow read: if rootAdmin() || teachesPresenceStudent(studentId) || authorizedTeacher();
         allow create: if staffForStudent(studentId) && supportRevisionValid(studentId);
         allow update, delete: if false;
+      }
+
+      // Corrections are audited Admin SDK actions, never client support evidence.
+      match /accommodationAdjustments/{eventId} {
+        allow read: if staffForStudent(studentId);
+        allow write: if false;
       }
 
       // Support evidence events: staff documentation and the student's own
@@ -785,8 +814,8 @@ service cloud.firestore {
       // UTC day. Written only by the student's own client, only ever growing.
       match /engagementMinutes/{ledgerId} {
         allow read: if rootAdmin() || teachesPresenceStudent(studentId);
-        allow create: if ownsStudent(studentId) && engagementCreateValid(studentId, ledgerId);
-        allow update: if ownsStudent(studentId) && engagementUpdateValid();
+        allow create: if ownsStudent(studentId) && studentRowExists(studentId) && engagementCreateValid(studentId, ledgerId);
+        allow update: if ownsStudent(studentId) && studentRowExists(studentId) && engagementUpdateValid();
         allow delete: if false;
       }
 
@@ -808,7 +837,7 @@ service cloud.firestore {
 
       match /scratchpads/{scratchpadId} {
         allow read: if rootAdmin() || ownsStudent(studentId) || authorizedTeacher();
-        allow create, update: if rootAdmin() || ownsStudent(studentId) || authorizedTeacher();
+        allow create, update: if rootAdmin() || (ownsStudent(studentId) && studentRowExists(studentId)) || authorizedTeacher();
         allow delete: if rootAdmin() || authorizedTeacher();
       }
 
@@ -1061,6 +1090,7 @@ service cloud.firestore {
       // prevents one teacher client from fabricating or clearing another
       // student's live telemetry.
       allow create, update: if ownsStudent(studentId)
+        && studentRowExists(studentId)
         && presenceCarriesNoResponse(request.resource.data)
         && presenceKeysKnown(request.resource.data)
         && presenceHelpRequestValid(request.resource.data);
@@ -1109,7 +1139,13 @@ service cloud.firestore {
      *     after the class changed hands);
      *   - only the teacher answers it, and the answer is the only thing a
      *     teacher can change. Nothing deletes one from a browser; account
-     *     deletion removes them with the student's footprint (functions/lib/admin.js).
+     *     deletion removes them with the student's footprint (functions/lib/admin.js);
+     *   - once answered, the student may ask ONE follow-up on the same
+     *     document (TT01): it opens again with the new words in `text` and the
+     *     exchange so far kept in `earlierText` and `earlierAnswer`, which must
+     *     equal what the document already holds, so a student cannot write the
+     *     teacher's words. A second follow-up has no room: `earlierText` is
+     *     there for good.
      */
     function teacherQuestionTextValid(value, maxLength) {
       return value is string && value.size() > 0 && value.size() <= maxLength;
@@ -1148,6 +1184,10 @@ service cloud.firestore {
         ])
         && data.schemaVersion == 1
         && data.assignmentId is string && data.assignmentId.size() > 0 && data.assignmentId.size() <= 200
+        // SI04: the question id below names one student and one assignment only
+        // if the assignment id has no "_" at either end and no "__" (askTeacher.js
+        // teacherQuestionId). Auto-ids have no "_" at all.
+        && !data.assignmentId.matches('_.*|.*_|.*__.*')
         && exists(/databases/$(database)/documents/assignments/$(data.assignmentId))
         && get(/databases/$(database)/documents/assignments/$(data.assignmentId)).data
           .get('assignedClassIds', []).hasAny([roster.get('classId', '')])
@@ -1194,6 +1234,21 @@ service cloud.firestore {
           && teacherQuestionTextValid(request.resource.data.answer, 1000)
           && request.resource.data.answeredBy == request.auth.token.email
           && request.resource.data.answeredAt == request.time
+          && request.resource.data.updatedAt == request.time)
+        // The student asks one follow-up after the answer: the document opens
+        // again, the new words replace `text`, and the first exchange moves
+        // beside it, copied from the document itself. (The status line is
+        // implied by the copies below, which an unanswered document cannot
+        // match; it stays so the rule reads as it works.)
+        || (ownsStudent(resource.data.studentId)
+          && resource.data.status == 'answered'
+          && !resource.data.keys().hasAny(['earlierText', 'earlierAnswer'])
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'text', 'earlierText', 'earlierAnswer', 'updatedAt'])
+          && request.resource.data.status == 'open'
+          && teacherQuestionTextValid(request.resource.data.text, 500)
+          && request.resource.data.earlierText == resource.data.text
+          && request.resource.data.earlierAnswer == resource.data.answer
           && request.resource.data.updatedAt == request.time);
       allow delete: if false;
     }
@@ -1502,7 +1557,7 @@ service cloud.firestore {
     // could forge routing history could talk themselves out of remediation.
     match /pathHistory/{studentId} {
       allow read: if teacher() || ownsStudent(studentId);
-      allow create, update: if teacher() || ownsStudent(studentId);
+      allow create, update: if teacher() || (ownsStudent(studentId) && studentRowExists(studentId));
       allow delete: if teacher();
     }
 
@@ -1743,6 +1798,29 @@ service cloud.firestore {
     }
 
     /*
+     * AN ASSIGNMENT'S ANSWER KEY, KEPT APART FROM THE ASSIGNMENT (D10 Phase 1,
+     * P1-3; docs/handoffs/ANSWER_KEY_SERVER_SIDE_DESIGN.md §3; SI02).
+     *
+     * The answer keys, accepted answers, correct choices and worked solutions
+     * of `assignments/{assignmentId}`, split out by
+     * functions/shared/assignmentKeySplit.mjs and written only by the Admin SDK
+     * (the shadowAssignmentKeys trigger, functions/entry.js). A student never
+     * reads one, by id or by list, whatever class or work they have: keeping
+     * keys off students' devices is what the store is for. A teacher and the
+     * root administrator read them (the design's O5 recommendation: any
+     * teacher, the same accounts that may edit an assignment today). No
+     * browser writes one, the root administrator's included.
+     *
+     * In Phase 1 the assignment itself still carries every key, so this rule
+     * changes nothing anyone can read today. It is deployed before the trigger
+     * so the store is closed before anything is written to it.
+     */
+    match /assignmentKeys/{assignmentId} {
+      allow read: if teacher() || rootAdmin();
+      allow create, update, delete: if false;
+    }
+
+    /*
      * A RESPONSE CHECKPOINT IS A DRAFT A STUDENT WRITES AND A FUNCTION READS.
      *
      * That combination is what makes these rules load-bearing: an Admin SDK
@@ -1780,6 +1858,7 @@ service cloud.firestore {
     match /studentResponseCheckpoints/{checkpointId} {
       allow read: if rootAdmin() || ownsStudent(resource.data.studentId);
       allow create: if ownsStudent(request.resource.data.studentId)
+        && studentRowExists(request.resource.data.studentId)
         && request.resource.data.documentId == checkpointId
         && request.resource.data.secure == false
         && request.resource.data.schemaVersion == 2
@@ -1797,6 +1876,7 @@ service cloud.firestore {
       // also retire their own checkpoint when they submit explicitly, which
       // takes it out of the scheduler's active query.
       allow update: if ownsStudent(resource.data.studentId)
+        && studentRowExists(resource.data.studentId)
         && checkpointIdentityUnchanged(request.resource.data, resource.data, checkpointId)
         && request.resource.data.secure == false
         && request.resource.data.revision >= resource.data.revision
@@ -1853,6 +1933,7 @@ service cloud.firestore {
           ? ownsStudent(draftId.split('__')[0])
           : ownsStudent(resource.data.studentId));
       allow create: if ownsStudent(request.resource.data.studentId)
+        && studentRowExists(request.resource.data.studentId)
         && request.resource.data.documentId == draftId
         // The id names its owner (see read): nobody creates a draft under
         // another student's id, which would lock that student out of it.
@@ -1862,6 +1943,7 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time
         && workspaceDraftCarriesNoGrade(request.resource.data);
       allow update: if ownsStudent(resource.data.studentId)
+        && studentRowExists(resource.data.studentId)
         && request.resource.data.studentId == resource.data.studentId
         && request.resource.data.assignmentId == resource.data.assignmentId
         && request.resource.data.documentId == draftId
@@ -2009,6 +2091,25 @@ service cloud.firestore {
     match /settings/{docId} {
       allow read: if signedIn();
       allow create, update, delete: if teacher();
+    }
+
+    /*
+     * A teacher's own preferences (src/platform/classroom/teacherTopicStyle.js,
+     * TT07): so far the style Classroom topics are named in, which used to be
+     * remembered per browser. One document per teacher, named by their sign-in
+     * id, that only that teacher can read or write, so the choice follows them
+     * from device to device. It holds nothing about a student. It is not under
+     * `settings`, which every signed-in user reads and any teacher writes.
+     * Nothing deletes one from a browser.
+     */
+    match /teacherPreferences/{teacherUid} {
+      allow get: if teacher() && request.auth.uid == teacherUid;
+      allow list: if false;
+      allow create, update: if teacher() && request.auth.uid == teacherUid
+        && request.resource.data.keys().hasOnly(['classroomTopicStyle', 'updatedAt'])
+        && request.resource.data.classroomTopicStyle in ['module', 'week', 'weekModule']
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
     }
 
     // Platform transition switches (shared/assignmentPrivacy.mjs). Every

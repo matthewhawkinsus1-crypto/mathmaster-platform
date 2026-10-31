@@ -11,6 +11,10 @@
  * centre is Go Back), hold focus on Go Back, and Escape must close only it,
  * returning focus inside Work View. At z-index 12000 it opened behind Work
  * View (2147483000) and took focus there, invisible.
+ *
+ * Then the keyboard way out of Work View from a math field (TL15): the first
+ * Escape leaves the field (keypad closed, focus on its √x button) and Work
+ * View stays; the second closes it — with the keypad open and closed.
  */
 import assert from 'node:assert/strict';
 
@@ -57,6 +61,47 @@ for (const [width, height, mobile] of [[1366, 768, false], [390, 844, true]]) {
   await page.waitForFunction(() => !document.querySelector('[data-unchanged-confirm]'));
   assert.equal(await page.evaluate(() => document.documentElement.getAttribute('data-work-view-open')), 'true', `${at}: Work View stays open`);
   assert.ok(await page.evaluate(() => Boolean(document.activeElement?.closest('[aria-modal="true"]'))), `${at}: focus is back inside Work View`);
+
+  // TL15 (owner decision): in Work View, Escape in a math field leaves the
+  // field — its keypad closes, focus moves onto the field's √x button — and
+  // Work View stays; the next Escape closes Work View. Keypad open and closed
+  // (a phone opens it on focus, a Chromebook only on request).
+  const workViewOpen = () => page.evaluate(() => document.documentElement.getAttribute('data-work-view-open') === 'true');
+  const wvInput = page.locator('[aria-modal="true"] .mathmaster-question-tool-workspace .mathmaster-math-input').first();
+  const wvField = wvInput.locator('math-field');
+  const wvKeypad = wvInput.locator('[role="toolbar"][aria-label="Math tools"]');
+  const twoEscapes = async (label) => {
+    assert.ok(await page.evaluate(() => Boolean(document.activeElement?.closest?.('math-field'))), `${at} ${label}: focus starts in the field`);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(200);
+    assert.ok(await workViewOpen(), `${at} ${label}: the first Escape keeps Work View open`);
+    assert.equal(await wvKeypad.count(), 0, `${at} ${label}: the keypad is closed`);
+    assert.ok(await page.evaluate(() => document.activeElement?.classList?.contains('mathmaster-math-tools-toggle') === true
+      && Boolean(document.activeElement.closest('[aria-modal="true"]'))), `${at} ${label}: focus is on the field's √x button, inside Work View`);
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => document.documentElement.getAttribute('data-work-view-open') !== 'true');
+  };
+  const openWorkView = async () => {
+    await page.locator('button:visible', { hasText: /Open Work View/ }).first().click();
+    await page.waitForFunction(() => document.documentElement.getAttribute('data-work-view-open') === 'true');
+    await wvField.waitFor();
+  };
+  assert.equal(await wvField.count(), 1, `${at}: the answer box is in Work View`);
+  await wvField.click();
+  await page.waitForTimeout(200);
+  // Whichever state the item opens the keypad in, then the other one.
+  const startsOpen = (await wvKeypad.count()) === 1;
+  await twoEscapes(startsOpen ? 'keypad open' : 'keypad closed');
+  await openWorkView();
+  await wvField.click();
+  await page.waitForTimeout(200);
+  // The √x button (which keeps focus in the field) gives the other state.
+  if (((await wvKeypad.count()) === 1) === startsOpen) {
+    await wvInput.locator('.mathmaster-math-tools-toggle').click();
+    await page.waitForTimeout(200);
+  }
+  assert.equal(await wvKeypad.count(), startsOpen ? 0 : 1, `${at}: the keypad is now ${startsOpen ? 'closed' : 'open'}`);
+  await twoEscapes(startsOpen ? 'keypad closed' : 'keypad open');
   assert.deepEqual(errors, [], `${at}: no page errors`);
   console.log(`unchanged confirm over Work View ${at}: ok`);
   await context.close();

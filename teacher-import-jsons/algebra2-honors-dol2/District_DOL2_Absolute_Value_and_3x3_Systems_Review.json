@@ -359,7 +359,7 @@
           "standard": "A2.6E",
           "dok": 1,
           "difficultyBand": 2,
-          "prompt": "Solve the equation. Isolate the absolute value first, then split it into two equations.",
+          "prompt": "Solve $|x {{mh|signed}}| {{k|signed}} = {{r}}$. Isolate the absolute value first, then split it into two equations.",
           "studentActions": [
             "solveStepByStep"
           ],
@@ -1948,7 +1948,7 @@
           "standard": "A2.6E",
           "dok": 2,
           "difficultyBand": 3,
-          "prompt": "Solve the equation. Isolate the absolute value before you split it, then check each solution.",
+          "prompt": "Solve ${{a}}|{{m}}x {{n|signed}}| {{k|signed}} = {{r}}$. Isolate the absolute value before you split it, then check each solution.",
           "studentActions": [
             "solveStepByStep"
           ],
@@ -2040,7 +2040,7 @@
           "standard": "A2.6E",
           "dok": 2,
           "difficultyBand": 3,
-          "prompt": "Solve the equation. Decide whether it has two solutions, one solution, or no solution.",
+          "prompt": "Solve ${{a}}|x {{mh|signed}}| {{k|signed}} = {{r}}$. Decide whether it has two solutions, one solution, or no solution.",
           "studentActions": [
             "solveStepByStep"
           ],
@@ -2120,7 +2120,7 @@
           "standard": "A2.6F",
           "dok": 2,
           "difficultyBand": 3,
-          "prompt": "Solve the inequality. Then graph the solution set and write it in interval notation.",
+          "prompt": "Solve $-{{a}}|x {{mh|signed}}| {{k|signed}} \\ge {{r}}$. Then graph the solution set and write it in interval notation.",
           "studentActions": [
             "solveInequality"
           ],
@@ -2200,7 +2200,7 @@
           "standard": "A2.6F",
           "dok": 2,
           "difficultyBand": 3,
-          "prompt": "Solve the inequality. Then graph the solution set and write it in interval notation.",
+          "prompt": "Solve $|{{m}}x {{n|signed}}| {{k|signed}} > {{r}}$. Then graph the solution set and write it in interval notation.",
           "studentActions": [
             "solveInequality"
           ],
@@ -2450,7 +2450,13 @@
                 "{{dLesserSolution}}",
                 "{{dCentre}}"
               ],
-              "answer": "{{sum}}"
+              "answer": "{{sum}}",
+              "optionRationales": {
+                "{{sum}}": "The solutions are {{h}} + {{r}} and {{h}} − {{r}}; the ±{{r}} cancels, so they add to 2({{h}}) = {{sum}}.",
+                "{{dGreaterSolution}}": "{{dGreaterSolution}} is only one of the two solutions; the question asks for the sum of both.",
+                "{{dLesserSolution}}": "{{dLesserSolution}} is only one of the two solutions; the question asks for the sum of both.",
+                "{{dCentre}}": "{{dCentre}} is the center the two solutions sit around, not the sum of the solutions."
+              }
             }
           ],
           "alignments": [
@@ -2524,7 +2530,7 @@
           "familyId": "mathmaster:sat:A2.6F:tolerance-context",
           "familyVersion": 2,
           "standard": "A2.6F",
-          "prompt": "A machine part is acceptable when its length $L$, in millimeters, differs from {{target}} by at most {{tol}} millimeters. What is the greatest acceptable length, in millimeters?",
+          "prompt": "A machine part is acceptable when its length $L$, in millimeters, differs from {{target}} by at most {{tol}}. What is the greatest acceptable length, in millimeters?",
           "studentActions": [
             "multipleResponses"
           ],
@@ -2989,7 +2995,7 @@
           },
           "questionFamily": {
             "id": "matrices.solveSystem3x3",
-            "version": 1
+            "version": 2
           }
         },
         {
@@ -2997,7 +3003,7 @@
           "standard": "A2.6E",
           "dok": 3,
           "difficultyBand": 4,
-          "prompt": "Honors challenge: solve the equation. The variable appears outside the absolute value too, so check every candidate in the ORIGINAL equation and mark any extraneous solution.",
+          "prompt": "Honors challenge: solve $|x {{p|signed}}| = {{m}}x {{q|signed}}$. The variable appears outside the absolute value too, so check every candidate in the ORIGINAL equation and mark any extraneous solution.",
           "studentActions": [
             "solveStepByStep"
           ],
@@ -3338,7 +3344,7 @@
           "dok": 2,
           "difficultyBand": 3,
           "questionWeight": 1,
-          "prompt": "Solve the equation.",
+          "prompt": "Solve ${{a}}|{{m}}x {{n|signed}}| {{k|signed}} = {{r}}$.",
           "studentActions": [
             "solveStepByStep"
           ],
@@ -3416,7 +3422,7 @@
           "dok": 2,
           "difficultyBand": 3,
           "questionWeight": 1,
-          "prompt": "Solve the inequality, graph the solution set, and write it in interval notation.",
+          "prompt": "Solve ${{a}}|x {{mh|signed}}| {{k|signed}} \\ge {{r}}$, graph the solution set, and write it in interval notation.",
           "studentActions": [
             "solveInequality"
           ],
@@ -3582,7 +3588,7 @@
           },
           "questionFamily": {
             "id": "matrices.solveSystem3x3",
-            "version": 1
+            "version": 2
           }
         }
       ]

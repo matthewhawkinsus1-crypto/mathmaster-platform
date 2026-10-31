@@ -22,6 +22,7 @@
 
 import path from 'node:path';
 import { mkdirSync } from 'node:fs';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
@@ -218,7 +219,7 @@ for (const viewport of VIEWPORTS) {
   if (SHOTS) {
     await toggle.scrollIntoViewIfNeeded();
     await page.screenshot({ path: path.join(SHOTS, `grades-${viewport.name}-math.png`) });
-    await page.screenshot({ path: path.join(SHOTS, `grades-${viewport.name}-full.png`), fullPage: true });
+    await screenshotKeepingTouch(page, { path: path.join(SHOTS, `grades-${viewport.name}-full.png`), fullPage: true });
   }
 
   /* SCENE: nothing to raise — a kind line, not an empty box. */

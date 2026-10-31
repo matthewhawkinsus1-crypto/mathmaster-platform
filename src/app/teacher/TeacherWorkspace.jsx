@@ -28,7 +28,7 @@ import { CLASS_PERIODS, assignmentIsForStudent, getAssignmentLifecycle, localDat
 import { resolveQuestionActivityRole } from '../../platform/policies/activityPolicies';
 import { matchesSmartView, SMART_VIEWS } from '../../assignmentSmartViews';
 import { assignmentFolderMatches, normalizeFolderPath, titleOrFolderMatches } from '../../assignmentFolders';
-import { buildDestinationGroups, destinationAssignmentKey, isLibraryAssignment, resolveAssignmentDates, resolveCreationMode } from '../../assignmentDestinations';
+import { buildDestinationGroups, destinationAssignmentKey, findAssignmentKeyConflict, isLibraryAssignment, resolveAssignmentDates, resolveCreationMode } from '../../assignmentDestinations';
 import { flattenV5Sections, rebuildV5SectionsFromQuestions } from '../../platform/contract/assignmentSchemaV5.js';
 import { canonicalV5PersistencePatch, getStoredAssignmentQuestions, getStoredAssignmentTypeProjection, getStoredAssignmentVariantMode, getStoredSectionVariantModes, storedAssignmentToV5, testCycleContractFields } from '../../platform/contract/storedAssignmentV5.js';
 import { buildAssignmentV5PreflightModel } from '../../platform/preflight/assignmentV5PreflightModel.js';
@@ -51,7 +51,9 @@ import { TEST_CYCLE_CONTRACT_EDIT, planTestCycleContractEdit } from '../../platf
 import { currentGradingPeriodStamp } from '../../platform/student/gradingPeriods.js';
 import { buildSafeLibraryContentRepair, inspectLibraryContentRepair, prepareStoredAssignmentForReuse } from '../../platform/assignments/libraryAssignmentReuse.js';
 import { confirmHonorsCandidateForCreate, proveImportedCcmrClaims } from '../../platform/assignments/canonicalCcmrHydration.js';
+import { ccmrAuditWarnings } from '../../platform/assignments/ccmrAuditWarnings.js';
 import { shouldAutoPublishClassroomPackage } from '../../platform/classroom/automaticClassroomPublishing.js';
+import { practicePassesAllowed, rewardPolicyAfterEdit, rewardPolicyForNewAssignment } from '../../platform/rewards/practicePassPolicy.js';
 import { resolveStudentCourseContext, studentsInClass } from '../../../functions/shared/classModel.mjs';
 import { SUPPORT_EVENT_KIND, SUPPORT_EVENT_STAGE } from '../../platform/teacher/studentSupportSignals.js';
 import { buildReturnCheckInEvent } from '../../platform/attendance/returnCheckIn.js';
@@ -69,6 +71,7 @@ import { completedRecoverySections, heldRecoverySections, warmupChallengeCounts 
 import { creationRecoveryContent } from '../../platform/recovery/recoveryContentAuthoring.js';
 import { recoveryPreparationAvailable } from '../../../functions/shared/recoveryContentPlan.mjs';
 import StudentPerformanceBadge from '../../components/common/StudentPerformanceBadge.jsx';
+import { MAIN_CONTENT_ID, SkipToContent } from '../../components/common/pageChrome.jsx';
 
 export default function TeacherWorkspace({
   SCHOOL_NON_INSTRUCTIONAL_KEYS,
@@ -92,7 +95,6 @@ export default function TeacherWorkspace({
   bulkBusy,
   calculateGrade,
   caseReviewStudentId,
-  ccmrAuditWarnings,
   classEvidenceByStudentId,
   classEvidenceLoading,
   classSchedule,
@@ -348,6 +350,11 @@ export default function TeacherWorkspace({
       };
     }
 
+    // What the compiler itself noticed while reading the file (a function base
+    // the bridge cannot grade, say) is the teacher's to see as well. It used to
+    // stop here, so the question shipped with the warning never read (TT08).
+    warnings.push(...(Array.isArray(parsed.warnings) ? parsed.warnings : []));
+
     try {
       validateAssignmentQuestions(parsed.questions, { variantMode: parsed.assignmentV5?.variantPolicy?.mode });
     } catch (error) {
@@ -576,10 +583,9 @@ export default function TeacherWorkspace({
         : null;
       const sourceAssignmentKey = String(reviewedV5.assignment?.assignmentKey || '').trim() || null;
 
-      if (sourceAssignmentKey && assignments.some((assignment) => (
-        assignment.assignmentKey === sourceAssignmentKey
-        || String(assignment.assignmentKey || '').startsWith(`${sourceAssignmentKey}:`)
-      ))) {
+      // Assignment Review already says so (TT10); this stays as the last check,
+      // for a list that changed while the review was open.
+      if (findAssignmentKeyConflict({ assignments, assignmentKey: sourceAssignmentKey })) {
         throw new Error(`An assignment with assignmentKey "${sourceAssignmentKey}" already exists. Clear or change assignment.assignmentKey if you intend to create a separate copy.`);
       }
 
@@ -591,6 +597,10 @@ export default function TeacherWorkspace({
         title,
         folder,
       }, []);
+
+      // "Students can use a Practice Pass on this assignment" (LC23): only the
+      // teacher's "no" is stored, as rewardPolicy.practicePassEligible = false.
+      const newRewardPolicy = rewardPolicyForNewAssignment(teacherReview.allowPracticePasses);
 
       const assignmentPayloadBase = {
         schemaVersion: 5,
@@ -647,6 +657,7 @@ export default function TeacherWorkspace({
         gradingPolicy: reviewedV5.gradingPolicy || null,
         evidencePolicy: reviewedV5.evidencePolicy || null,
         outputProfiles: reviewedV5.outputProfiles || null,
+        ...(newRewardPolicy ? { rewardPolicy: newRewardPolicy } : {}),
         classroomIntegration: reviewedV5.classroomIntegration || null,
         provenance: reviewedV5.provenance || null,
         preflight: reviewedV5.preflight || { required: true },
@@ -659,10 +670,6 @@ export default function TeacherWorkspace({
         } : {}),
         createdAt: new Date(),
       };
-
-      if (folder && !assignmentFolderPaths.includes(folder)) {
-        await saveAssignmentFolderPaths([...assignmentFolderPaths, folder]);
-      }
 
       const bundleLabs = reviewedV5
         ? (reviewedV5.sections || []).flatMap((section) => (
@@ -814,6 +821,19 @@ export default function TeacherWorkspace({
       await publishBatch.commit();
       committed = true;
       const createdAssignments = plannedWrites.map(({ assignmentRef, payload }) => ({ id: assignmentRef.id, ...payload }));
+
+      // A new folder joins the folder list only once the assignment that names
+      // it is saved (TT12): saved before the commit, a publish that failed left
+      // an empty folder behind. A failure here is a missing list entry, not a
+      // failed publish: the assignment keeps its folder either way.
+      if (folder && !assignmentFolderPaths.includes(folder)) {
+        try {
+          await saveAssignmentFolderPaths([...assignmentFolderPaths, folder]);
+        } catch (folderError) {
+          console.error('Published the assignment but could not add its folder to the folder list:', folderError);
+          toastWarning('Published, but the folder was not added to your list', `“${title}” is saved in the folder “${folder}”. If the folder is missing from your list, create it again there.`);
+        }
+      }
 
       // "Publish" in Preflight now means publish the whole authored package:
       // MathMaster assignment + mapped Google Classroom post + optional notes
@@ -1004,6 +1024,11 @@ export default function TeacherWorkspace({
       lessonResources: { notesPdf: model.assignmentV5.outputProfiles?.lessonNotesPdf },
     }, model.assignmentV5.assignment, []);
 
+    // "Students can use a Practice Pass on this assignment" (LC23): written only
+    // when the switch changed (the "no" added, or removed again), beside whatever
+    // else the stored policy holds.
+    const nextRewardPolicy = rewardPolicyAfterEdit(existing.rewardPolicy, draft.allowPracticePasses);
+
     const patch = {
       ...persistence,
       title: model.assignmentV5.assignment.title,
@@ -1029,6 +1054,7 @@ export default function TeacherWorkspace({
         classwork: draft.guidedNotesBySection?.classwork || 'automatic',
         practice: draft.guidedNotesBySection?.practice || 'off',
       },
+      ...(nextRewardPolicy !== undefined ? { rewardPolicy: nextRewardPolicy } : {}),
       warmup: {
         ...(existing.warmup || {}),
         enabled: hasWarmup && draft.warmupEnabled !== false,
@@ -1114,8 +1140,21 @@ export default function TeacherWorkspace({
     }
   };
 
+  // TT24: the editor rebuilds the stored assignment as Assignment V5 while it
+  // renders. A legacy assignment with no course or TEKS on it cannot be
+  // rebuilt, and that throw used to reach the app's error screen and take the
+  // whole workspace with it. Try the same rebuild here first: if it cannot be
+  // done, say why in a toast and leave the teacher where they are. Returns
+  // whether the editor opened (the hub stays open when it did not).
   const openQuestionEditor = (assignment) => {
+    try {
+      storedAssignmentToV5(assignment);
+    } catch (error) {
+      toastError('Could not open the question editor', error.message);
+      return false;
+    }
     setQuestionEditorAssignment(assignment);
+    return true;
   };
 
   const saveQuestionEditor = async ({ title, questions, liveRepairs = [], appendedSections = [] }) => {
@@ -1468,6 +1507,7 @@ export default function TeacherWorkspace({
           classwork: assignment.guidedNotesBySection?.classwork || 'automatic',
           practice: assignment.guidedNotesBySection?.practice || 'off',
         },
+        allowPracticePasses: practicePassesAllowed(assignment),
         assignedClassIds: [...(assignment.assignedClassIds || [])],
         assignedClassPeriods: [...(assignment.assignedClassPeriods || [])],
         warmupEnabled: assignment.warmup?.enabled !== false,
@@ -1642,6 +1682,8 @@ export default function TeacherWorkspace({
           folder: assignment.folder || '',
           dueAt: editingAssignmentDates.dueAt,
           lateDueAt: editingAssignmentDates.lateDueAt || '',
+          // A teacher's "no Practice Passes" goes with the assignment to the classes it is given to.
+          allowPracticePasses: practicePassesAllowed(assignment),
           assignedClassIds: editedClassIds,
           assignedClassPeriods: editedPeriods,
           dolInstructionDate: editingAssignmentDates.dolInstructionDate || '',
@@ -1677,6 +1719,7 @@ export default function TeacherWorkspace({
           folder: assignment.folder || '',
           dueAt: editingAssignmentDates.dueAt,
           lateDueAt: editingAssignmentDates.lateDueAt || '',
+          allowPracticePasses: practicePassesAllowed(assignment),
           assignedClassIds: addedClassIds,
           assignedClassPeriods: addedPeriods,
           dolInstructionDate: editingAssignmentDates.dolInstructionDate || '',
@@ -1812,6 +1855,7 @@ export default function TeacherWorkspace({
   if (teacherWorkspaceMode === 'administration' && rootAdminUiEligible) {
     return (
       <div style={{ fontFamily: '"Segoe UI", sans-serif', backgroundColor: 'var(--mm-surface-control)', minHeight: '100vh', padding: '20px' }}>
+        <SkipToContent />
         <div style={{ maxWidth: 1260, margin: '0 auto', background: 'var(--mm-surface)', borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,.06)', overflow: 'hidden' }}>
           <header style={{ padding: '22px 28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap', borderBottom: '1px solid var(--mm-border-soft)', background: '#202124', color: '#fff' }}>
             <div><div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '.08em', color: '#c6dafc' }}>ROOT ADMINISTRATOR</div><h1 style={{ margin: '4px 0 0', fontSize: 'calc(25 * var(--mm-px))', color: 'inherit' }}>MathMaster Administration</h1><p style={{ margin: '4px 0 0', color: '#dadce0', fontSize: 'calc(13 * var(--mm-px))' }}>{user.email}</p></div>
@@ -1831,7 +1875,7 @@ export default function TeacherWorkspace({
               </button>
             ))}
           </div>
-          <main style={{ padding: 28 }}>
+          <main id={MAIN_CONTENT_ID} tabIndex={-1} style={{ padding: 28 }}>
             {adminTab === 'classes' && <ClassesAdmin />}
             {adminTab === 'accounts' && <SignInAccess signedInEmail={user.email} mode="admin" onStudentIdentityChanged={refreshTeacherRosterAfterNameChange} />}
             {adminTab === 'coverage' && <PathCoverageAudit />}
@@ -1866,21 +1910,10 @@ export default function TeacherWorkspace({
 
   return (
     <div style={{ fontFamily: '"Segoe UI", sans-serif', backgroundColor: 'var(--mm-surface-sunken)', minHeight: '100vh', padding: '20px' }}>
+      {/* The first Tab stop: past the navigation (the collapse button and 22 destinations) and the
+          header's Find and Log Out, to the screen. The dialogs below are siblings of the shell. */}
+      <SkipToContent />
       {renderDeleteAssignmentDialog()}
-      {testCyclePreviewAssignment && (
-        <Suspense fallback={<p role="status" style={{ position: 'fixed', top: 12, left: 12, zIndex: 11000 }}>Opening the student preview…</p>}>
-          <TestCyclePreview
-            assignment={testCyclePreviewAssignment}
-            onClose={() => setTestCyclePreviewAssignment(null)}
-            // Review is ordinary content: play it in the existing in-memory
-            // teacher preview, which writes nothing either.
-            onPreviewReview={(assignment) => {
-              setTestCyclePreviewAssignment(null);
-              startTeacherPreview(assignment.id, { lessonRuntime: true });
-            }}
-          />
-        </Suspense>
-      )}
       {renderExportJsonDialog()}
       {renderTeacherScratchpadDialog()}
       {teacherWorksheetDialog && (() => {
@@ -1899,28 +1932,6 @@ export default function TeacherWorkspace({
           />
         );
       })()}
-      {assignmentPreflight && (
-        <LessonPreflightModal
-          key={`${assignmentPreflight.assignmentV5.assignment?.title || 'assignment-v5'}-${assignmentPreflight.sourceLabel}`}
-          assignmentV5={assignmentPreflight.assignmentV5}
-          initialDraft={assignmentPreflight.initialDraft}
-          classPeriods={CLASS_PERIODS}
-          classes={classes}
-          courseProfiles={courseProfiles}
-          sourceLabel={assignmentPreflight.sourceLabel}
-          sourceQuestions={assignmentPreflight.questions}
-          authoringWarnings={assignmentPreflight.authoringWarnings}
-          onClose={() => setAssignmentPreflight(null)}
-          onConfirmPublish={confirmAssignmentPreflight}
-          busy={assignmentPreflightBusy}
-          reviewMode={assignmentPreflight.mode || 'create'}
-          allowQuestionRepair={assignmentPreflight.allowQuestionRepair !== false}
-          rosterSizesByClassId={preflightRosterSizesByClassId}
-          // Offers the in-place import of a Test Cycle's missing secure
-          // families; seedPathQuestionBank re-checks the root identity.
-          canManageSecureBank={rootAdminUiEligible}
-        />
-      )}
       {contentUpgradeRequest && (
         <AssignmentContentUpgradeModal
           assignment={contentUpgradeRequest.assignment}
@@ -2027,7 +2038,7 @@ export default function TeacherWorkspace({
         onPrint={(assignment) => { setAssignmentHubTarget(null); beginTeacherWorksheetExport(assignment); }}
         onEditDates={(assignment) => { setAssignmentHubTarget(null); setTeacherTab('assignments'); beginEditAssignmentDates(assignment); }}
         onEditSetup={(assignment) => { setAssignmentHubTarget(null); beginEditAssignmentSetup(assignment); }}
-        onEditQuestions={(assignment) => { setAssignmentHubTarget(null); openQuestionEditor(assignment); }}
+        onEditQuestions={(assignment) => { if (openQuestionEditor(assignment)) setAssignmentHubTarget(null); }}
         teacherEmail={user?.email || ''}
         onRecoveryUpgraded={async (result) => {
           await fetchAssignments();
@@ -2181,6 +2192,55 @@ export default function TeacherWorkspace({
           </div>
         </header>
 
+        {/* The screen is the page's main landmark, which the skip link goes to. The navigation and
+            the header are outside it. It is a wrapper of the content area, not the area itself, so
+            that the Pre-Flight review can sit in it: the student preview inside the review draws its
+            work area as the page's main wherever no main is around it, and the review, a dialog
+            drawn over the screen, was not inside this one. (The area's class carries the rules for
+            tables and headings, which the review does not take.) */}
+        <main id={MAIN_CONTENT_ID} tabIndex={-1}>
+        {assignmentPreflight && (
+          <LessonPreflightModal
+            key={`${assignmentPreflight.assignmentV5.assignment?.title || 'assignment-v5'}-${assignmentPreflight.sourceLabel}`}
+            assignmentV5={assignmentPreflight.assignmentV5}
+            initialDraft={assignmentPreflight.initialDraft}
+            classPeriods={CLASS_PERIODS}
+            classes={classes}
+            courseProfiles={courseProfiles}
+            sourceLabel={assignmentPreflight.sourceLabel}
+            sourceQuestions={assignmentPreflight.questions}
+            authoringWarnings={assignmentPreflight.authoringWarnings}
+            onClose={() => setAssignmentPreflight(null)}
+            onConfirmPublish={confirmAssignmentPreflight}
+            busy={assignmentPreflightBusy}
+            reviewMode={assignmentPreflight.mode || 'create'}
+            allowQuestionRepair={assignmentPreflight.allowQuestionRepair !== false}
+            rosterSizesByClassId={preflightRosterSizesByClassId}
+            // So Review can say a reused assignmentKey is taken before Create does (TT10).
+            existingAssignments={assignments}
+            // Offers the in-place import of a Test Cycle's missing secure
+            // families; seedPathQuestionBank re-checks the root identity.
+            canManageSecureBank={rootAdminUiEligible}
+          />
+        )}
+        {/* The student preview of a Test Cycle is a dialog over the screen, drawn inside the main for
+            the Pre-Flight review's reason: the work area of a tool item in it draws itself as the
+            page's main wherever no main is around it, and a second main is what the preview was
+            drawing (its items are plain elements here, TestCyclePreview). */}
+        {testCyclePreviewAssignment && (
+          <Suspense fallback={<p role="status" style={{ position: 'fixed', top: 12, left: 12, zIndex: 11000 }}>Opening the student preview…</p>}>
+            <TestCyclePreview
+              assignment={testCyclePreviewAssignment}
+              onClose={() => setTestCyclePreviewAssignment(null)}
+              // Review is ordinary content: play it in the existing in-memory
+              // teacher preview, which writes nothing either.
+              onPreviewReview={(assignment) => {
+                setTestCyclePreviewAssignment(null);
+                startTeacherPreview(assignment.id, { lessonRuntime: true });
+              }}
+            />
+          </Suspense>
+        )}
         <div className="mm-dashboard-content" style={{ padding: '30px' }}>
           {/*
             CLASS FIRST, THEN FEATURE.
@@ -3064,12 +3124,14 @@ export default function TeacherWorkspace({
               classes={classes}
               students={allStudents}
               teacherEmail={user.email}
+              teacherUid={user.uid}
               initialAssignmentId={classroomManagerAssignmentId}
             />
           )}
 
           {teacherTab === 'access' && <SignInAccess signedInEmail={user.email} mode="teacher" onStudentIdentityChanged={refreshTeacherRosterAfterNameChange} />}
         </div>
+        </main>
         </div>
       </div>
     </div>

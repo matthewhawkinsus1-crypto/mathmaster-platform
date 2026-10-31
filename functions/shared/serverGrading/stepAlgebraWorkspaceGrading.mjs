@@ -561,6 +561,11 @@ export const legacyKeyReadsFaithfully = (value, { literal = false } = {}) => {
     return false;
   }
   if (literal) expression = expandImplicitProducts(expression);
+  // A variable straight before a bracket is a product on the board — x(x + 1)
+  // is x times a group, and since GR27 x(1) is x · 1, drawn x1 before — but
+  // read back it is a CALL of a function named x, which no workspace state
+  // holds, so a correct solve would be re-marked. Declined the same way.
+  if ((expression.match(/[A-Za-z_][A-Za-z0-9_]*(?=\s*\()/g) || []).some((name) => !LEGACY_KEY_NAMES.has(name))) return false;
   return (expression.match(/[A-Za-z_][A-Za-z0-9_]*/g) || []).every((name) => name.length === 1 || LEGACY_KEY_NAMES.has(name));
 };
 

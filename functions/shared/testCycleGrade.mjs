@@ -262,6 +262,9 @@ export const GRADE_HISTORY_REASON = Object.freeze({
   // A teacher set, changed or removed the recorded grade by hand.
   TEACHER_ADJUSTMENT: 'teacherAdjustment',
   TEACHER_ADJUSTMENT_CLEARED: 'teacherAdjustmentCleared',
+  // A teacher chose, changed or removed the Test questions a student with a
+  // fewer-items plan does not answer (TC15, testCycleReducedItems.mjs).
+  REDUCED_ITEMS: 'reducedItems',
 });
 
 /**
@@ -295,9 +298,10 @@ export const appendTestCycleGradeHistory = (history, entry) => {
     && previous.rawRetestGrade === next.rawRetestGrade
     && previous.originalTestGrade === next.originalTestGrade
     // Two adjustments to the same number are still two decisions if the
-    // source or the note changed. (Release and reset rows keep the rule they
-    // always had.)
-    && (next.reason !== GRADE_HISTORY_REASON.TEACHER_ADJUSTMENT
+    // source or the note changed, and so are two different choices of fewer
+    // questions, which never move a grade at all. (Release and reset rows keep
+    // the rule they always had.)
+    && ((next.reason !== GRADE_HISTORY_REASON.TEACHER_ADJUSTMENT && next.reason !== GRADE_HISTORY_REASON.REDUCED_ITEMS)
       || ((previous.source || null) === (next.source || null) && (previous.detail || null) === (next.detail || null)))
   ) {
     return rows;
@@ -318,10 +322,17 @@ export const appendTestCycleGradeHistory = (history, entry) => {
  * should never fire — which is exactly why it is here. If it ever does fire,
  * something upstream regressed and a student's posted grade is the thing that
  * would have paid for it.
+ *
+ * A TEACHER'S ADJUSTMENT IS NOT A REGRESSION. A grade the teacher set by hand
+ * (recordedGradeSource `teacherAdjustment`, audited on the record) is a
+ * decision, like an assignment grade override, so it is posted even when it
+ * is lower; without this MathMaster and Classroom showed different grades
+ * (TT33, A2-134).
  */
 export const testCycleClassroomPassback = ({
   recordedGrade = null,
   previouslyPostedGrade = null,
+  teacherAdjusted = false,
 } = {}) => {
   const next = optionalPercent(recordedGrade);
   const posted = optionalPercent(previouslyPostedGrade);
@@ -334,6 +345,9 @@ export const testCycleClassroomPassback = ({
   }
   if (next > posted) {
     return { shouldPost: true, grade: next, reason: `Updating the same Classroom grade item from ${posted}% to ${next}%.` };
+  }
+  if (next < posted && teacherAdjusted === true) {
+    return { shouldPost: true, grade: next, reason: `Posting the teacher's adjusted grade: ${posted}% to ${next}%.` };
   }
   if (next < posted) {
     return {

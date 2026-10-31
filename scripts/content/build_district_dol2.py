@@ -36,6 +36,9 @@ def field_native(field, secure=True, prefix='', scale=1):
         if not secure: result['type'] = 'set'
         result['placeholder'] = '{value, value, …}'
     if profile == 'orderedPair': result['placeholder'] = '(x, y)'
+    # The review's intercepts compare as ordered pairs, so (-3.0, 0) and -3, 0 are right (d18fc0eb).
+    # The secure retest grades them on the server, which reads the pair itself.
+    if profile == 'orderedPair' and not secure: result['answerFormat'] = 'orderedPair'
     return result
 
 def stimulus_native(source):

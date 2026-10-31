@@ -106,7 +106,17 @@ export default function ProcessWorkspace({
   const check = () => {
     if (!option || disabled) return;
     const tries = Number(draft.tries?.[workKey]) || 0;
-    const decision = decideProcessCheck({ question, process, option, target, ev, live: liveEvidence, reveal: canCheck, tries });
+    // THE TYPED INTERCEPT (TL27): on practice, before the equation is solved
+    // and until a miss, an intercept typed straight in is the work. A miss —
+    // an intercept that was read and is not right, never an empty or
+    // unreadable box — closes that way for this method, and the substituted
+    // equation is solved step by step (kept in the draft, so a reload agrees).
+    const direct = option.strategy === 'substituteZero' && canCheck && !ev.solveOnly && !live?.solved;
+    const checkedEv = direct ? { ...ev, direct: true } : ev;
+    const checkedLive = direct ? {} : liveEvidence;
+    const decision = decideProcessCheck({ question, process, option, target, ev: checkedEv, live: checkedLive, reveal: canCheck, tries });
+    const missed = direct && decision.evaluated?.usable === true && !decision.record;
+    if (missed) setEv((previous) => ({ ...previous, solveOnly: true }));
     let outcome = null;
     // Part of the work was right and part was not: the right part is recorded
     // and the workspace stays open on the rest.
@@ -135,7 +145,9 @@ export default function ProcessWorkspace({
     setLastCheck({
       workJson,
       evaluated: decision.evaluated,
-      message: decision.message || (decision.record && !outcome?.established ? (canCheck ? 'Recorded.' : 'Saved.') : ''),
+      message: missed
+        ? `${decision.message} Now solve the equation step by step, then write the point.`
+        : decision.message || (decision.record && !outcome?.established ? (canCheck ? 'Recorded.' : 'Saved.') : ''),
       tone: decision.tone,
     });
   };

@@ -94,6 +94,20 @@ const waitUntil = async (label, predicate, timeoutMs = 30_000, pollMs = 150) => 
   }
 };
 const at = (whenMs, fn) => sleep(whenMs - Date.now()).then(fn);
+// Close what a scenario opened: the host console, every device's listeners (and
+// prove they all closed), then the worker farm. The farm is closed WHATEVER
+// failed before it. Its workers are threads, and a thread left running keeps
+// the process alive, so a failing assertion above used to leave the whole
+// certification hanging instead of reporting (CI08, A2-138).
+const closeScenario = async ({ host = null, farm, label }) => {
+  try {
+    await host?.close();
+    await farm.shutdown();
+    assert.equal((await farm.listeners()).total, 0, `${label}: every listener a device opened was closed`);
+  } finally {
+    await farm.close();
+  }
+};
 
 /* ------------------------- classes, roster, bank ------------------------- */
 
@@ -447,10 +461,14 @@ for (const size of SIZES) {
       ...(studentId === clockAhead ? { clockSkewMs: 200, answerJitterMs: 0, tickMs: 25, rttMs: 0 } : {}),
     });
     const farm = await createDeviceFarm({ workers: WORKERS });
-    // The teacher's console: every row, and the pacer for the students' live standings.
-    const host = await openHost(entry, roomId);
-    const gameStartedAt = Date.now();
+    // Opened inside the try: the farm's threads are already running, and a host
+    // that fails to open must not leave them (closeScenario).
+    let host = null;
+    let gameStartedAt = null;
     try {
+      // The teacher's console: every row, and the pacer for the students' live standings.
+      host = await openHost(entry, roomId);
+      gameStartedAt = Date.now();
       await Promise.all(entry.students.map((studentId, index) => farm.add(studentId, profileOf(studentId, index))));
       const device = (studentId) => farm.device(studentId);
 
@@ -577,10 +595,7 @@ for (const size of SIZES) {
         },
       };
     } finally {
-      await host.close();
-      await farm.shutdown();
-      assert.equal((await farm.listeners()).total, 0, `${label}: every listener a device opened was closed`);
-      await farm.close();
+      await closeScenario({ host, farm, label });
     }
   });
 }
@@ -593,8 +608,9 @@ test('the host console stops publishing mid-game (asleep, offline, closed): ever
   const label = 'a quiet host';
   const roomId = await createGame(entry);
   const farm = await createDeviceFarm({ workers: WORKERS });
-  const host = await openHost(entry, roomId);
+  let host = null;
   try {
+    host = await openHost(entry, roomId);
     await Promise.all(entry.students.map((studentId, index) => farm.add(studentId, { deliveryJitterMs: 150, rttMs: Math.round(random() * 40), answer: index % 3 === 2 ? 'wrong' : 'correct', answerJitterMs: 1_200 })));
     await Promise.all(entry.students.map(async (studentId) => farm.device(studentId).open(await inviteOf(studentId))));
     await waitUntil(`${label}: lobby`, async () => (await publicPlayers(roomId)).filter((row) => row.joined).length === size
@@ -621,10 +637,7 @@ test('the host console stops publishing mid-game (asleep, offline, closed): ever
     assert.ok(host.replies.some((reply) => reply.published === true && reply.sentAt < pausedAt), `${label}: the console published while it was awake (its replies: ${hostReplies(host)})`);
     assert.equal(host.requests.filter((at) => at > pausedAt).length, 0, `${label}: a quiet console still asked for live standings`);
   } finally {
-    await host.close();
-    await farm.shutdown();
-    assert.equal((await farm.listeners()).total, 0, `${label}: every listener a device opened was closed`);
-    await farm.close();
+    await closeScenario({ host, farm, label });
   }
 });
 
@@ -636,8 +649,9 @@ test(`Graph Feature Rush, ${RUSH_CLASS} students: every device gets its own grap
   const lobby = entry.students.slice(0, -1);
   const lateListener = entry.students.at(-1);
   const farm = await createDeviceFarm({ workers: WORKERS });
-  const host = await openHost(entry, roomId);
+  let host = null;
   try {
+    host = await openHost(entry, roomId);
     await Promise.all(entry.students.map((studentId) => farm.add(studentId, { deliveryJitterMs: 300, rttMs: Math.round(random() * 40) })));
     await Promise.all(lobby.map(async (studentId) => farm.device(studentId).open(await inviteOf(studentId))));
     await waitUntil('rush lobby', async () => (await publicPlayers(roomId)).filter((row) => row.joined).length === lobby.length
@@ -681,10 +695,7 @@ test(`Graph Feature Rush, ${RUSH_CLASS} students: every device gets its own grap
     for (const view of finished.values()) assert.equal(view.standings.self?.rank, ranks.get(view.invite.playerKey), `rush: ${view.studentId}'s final place is the match result's`);
     await assertDiagnosticsBounded(roomId, 'rush');
   } finally {
-    await host.close();
-    await farm.shutdown();
-    assert.equal((await farm.listeners()).total, 0, 'every rush listener was closed');
-    await farm.close();
+    await closeScenario({ host, farm, label: 'rush' });
   }
 });
 
@@ -773,11 +784,12 @@ test(`endurance: ${ENDURANCE_MATCHES} matches in a row for ${ENDURANCE_CLASS} st
     report.endurance = { matches: ENDURANCE_MATCHES, students: ENDURANCE_CLASS, workers: farm.workers, heapMbAfterEachMatch: heap, heapGrowthMbAfterWarmup: Math.round(growth * 10) / 10, listenersAfterEachMatch: listenerSamples, answerRoundTripMs: percentiles(answerMs) };
     assert.ok(growth < 48, `heap grew ${growth} MB from match 2 to match ${ENDURANCE_MATCHES}: ${heap.join(' → ')}`);
   } finally {
-    await farm.shutdown();
-    assert.equal((await farm.listeners()).total, 0, 'every endurance listener was closed');
-    await farm.close();
-    const active = (await db.collection('liveChallengeTeacherActive').doc(entry.teacher).get()).data()?.roomId;
-    if (active) await teacherCall(entry, 'cancelLiveChallenge', { roomId: active }).catch(() => {});
+    try {
+      await closeScenario({ farm, label: 'endurance' });
+    } finally {
+      const active = (await db.collection('liveChallengeTeacherActive').doc(entry.teacher).get()).data()?.roomId;
+      if (active) await teacherCall(entry, 'cancelLiveChallenge', { roomId: active }).catch(() => {});
+    }
   }
 });
 

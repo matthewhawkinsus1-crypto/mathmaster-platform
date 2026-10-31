@@ -1,21 +1,33 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createFieldEchoGuard } from './platform/interaction/fieldEchoGuard.js';
 import './platform/math/mathliveRuntime.js';
 import { requiredAnswerToolForSymbol, resolveRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
 import { buildMobileMathTools } from './platform/interaction/mobileKeypadPolicy.js';
+import { keysForConstants, useKeypadConstants } from './platform/interaction/keypadConstants.js';
 import { scheduleHorizontalViewportStabilization } from './platform/mobile/mobileFocusViewport.js';
 import { bindMathFieldFocusHandoff, focusMathFieldWithoutScroll } from './platform/interaction/mathFieldFocusHandoff.js';
 import { useDeferredFocusHost } from './platform/interaction/answerFocusPolicy.js';
 import { revealMathFieldHost, revealUnlessVisibleWhileZoomed } from './platform/layout/pinchZoomReveal.js';
 import { useQuestionLifecycle } from './platform/question/QuestionLifecycleContext.jsx';
 import { useRovingToolbar } from './platform/interaction/rovingToolbar.js';
-import { useMathFieldName } from './platform/math/mathFieldName.js';
-import { typedFractionCommandStep, typedFractionKeyStep, typedFractionValueStep } from './platform/math/typedFractionEntry.js';
+import { mathFieldAccessibleName, useMathFieldName } from './platform/math/mathFieldName.js';
+import { settleMathFieldBlur } from './platform/math/mathLiveCompat.js';
+import {
+  TYPED_FRACTION_OPENING,
+  mixedNumberKeyStep,
+  mixedNumberSpaceStep,
+  typedFractionCommandStep,
+  typedFractionKeyStep,
+  typedFractionValueStep,
+} from './platform/math/typedFractionEntry.js';
+import { mathFieldAccessibleDescription, useMathFieldDescription } from './platform/math/mathFieldDescription.js';
 
+// π, e and logₐ are `constant` keys: inside a question they show only where
+// the item's math uses them (TL23, keypadConstants.js).
 const BASIC_KEYS = [
-  { label: 'π', command: '\\pi', ariaLabel: 'Insert pi' },
-  { label: 'e', command: 'e', ariaLabel: 'Insert e' },
-  { label: 'logₐ', command: '\\log_{#?}\\left(#0\\right)', ariaLabel: 'Insert logarithm with a base' },
+  { label: 'π', command: '\\pi', ariaLabel: 'Insert pi', constant: 'pi' },
+  { label: 'e', command: 'e', ariaLabel: 'Insert e', constant: 'e' },
+  { label: 'logₐ', command: '\\log_{#?}\\left(#0\\right)', ariaLabel: 'Insert logarithm with a base', constant: 'log' },
   { label: '√', command: '\\sqrt{#0}', ariaLabel: 'Insert square root' },
   { label: 'ⁿ√', command: '\\sqrt[#?]{#0}', ariaLabel: 'Insert nth root' },
   { label: 'x²', command: '#@^{2}', ariaLabel: 'Insert square exponent' },
@@ -145,8 +157,12 @@ const INEQUALITY_KEYS = [
 // MathLive's way out is the space bar, which nothing tells a student. This is
 // the same gesture with a name on it, and it is on every keypad because every
 // keypad can open a group.
+//
+// It was labelled "↷ out": ↷ is the redo arrow, and "out" alone said neither
+// what moves nor where to (TL23). The label now says the move in plain words,
+// with the arrow pointing the way the cursor goes.
 const EXIT_GROUP_KEY = {
-  label: '↷ out',
+  label: 'move out →',
   action: 'moveAfterParent',
   ariaLabel: 'Move the cursor out of the fraction, exponent or bracket',
 };
@@ -216,6 +232,18 @@ const withExtraKeys = (keys, extraKeys) => (extraKeys.length
 
 const detectMobileInput = () => typeof window !== 'undefined' && (window.innerWidth <= 768 || window.matchMedia?.('(pointer: coarse)')?.matches === true);
 
+// The keypad toggle's picture: a small keyboard (TL23). Drawn, not a glyph, so
+// every device shows the same shape; decorative, because the button's name
+// ("Show math tools" / "Hide math tools") says what it does.
+const KeypadIcon = () => (
+  <svg data-math-tools-icon="keypad" aria-hidden="true" focusable="false" width="22" height="16" viewBox="0 0 22 16" style={{ display: 'block', margin: '0 auto' }}>
+    <rect x="1" y="1" width="20" height="14" rx="3" fill="none" stroke="currentColor" strokeWidth="1.6" />
+    {[4.5, 9, 13.5, 18].map((x) => <rect key={`top-${x}`} x={x - 1.4} y="4" width="2.8" height="2.4" rx="0.6" fill="currentColor" />)}
+    {[6.75, 11.25, 15.75].map((x) => <rect key={`mid-${x}`} x={x - 1.4} y="7.6" width="2.8" height="2.4" rx="0.6" fill="currentColor" />)}
+    <rect x="6.5" y="11.2" width="9" height="1.8" rx="0.6" fill="currentColor" />
+  </svg>
+);
+
 export default function MathInput({
   value,
   onChange,
@@ -225,6 +253,11 @@ export default function MathInput({
   toolProfile = 'basic',
   onUndoStateChange = null,
   inputStatus = 'neutral',
+  // A graded entry says so to a screen reader as well as by its border: the
+  // caller that marks it in words passes the mark's id, and whether it is wrong
+  // (GradedEntryMark.jsx, VH-13).
+  ariaInvalid = false,
+  ariaDescribedBy = '',
   focusSignal = 0,
   compact = false,
   maxWidth = 540,
@@ -257,6 +290,9 @@ export default function MathInput({
   // Whether the cursor sits in the denominator of a fraction the student opened
   // by typing `/`, and what they have typed there (typedFractionEntry.js).
   const typedFractionRef = useRef(null);
+  // A space typed after a whole number, waiting to see whether a mixed number
+  // follows (GR33, typedFractionEntry.js mixedNumberKeyStep).
+  const mixedNumberRef = useRef(null);
   const emit = useCallback((next) => {
     echoGuardRef.current.emitted(next);
     onChangeRef.current(next);
@@ -282,6 +318,50 @@ export default function MathInput({
   const toolsVisible = !questionTerminal && (isMobile ? showTools && fieldActive : showTools);
   const requiredKeysVisible = !questionTerminal && isMobile && fieldActive;
 
+  /*
+   * ESCAPE IN A MATH FIELD LEAVES THE FIELD, NEVER WORK VIEW (TL15, owner
+   * decision; was PR #454's "Escape there still closes the dialog").
+   *
+   * A student presses Escape in a field mostly to put the keypad away, and it
+   * closed Work View: an easy exit nobody meant (nothing was lost, but the
+   * student was thrown out of the bigger view mid-answer). Now Escape in the
+   * field — or on one of its keys — closes the keypad and moves focus out of
+   * the field, onto the field's own √x button beside it, so a keyboard or
+   * screen-reader student stays exactly where they were (Shift+Tab is back in
+   * the field). Without that button (a desktop row that hides it), the field
+   * simply blurs; from a key, focus goes back into the field. The key is
+   * marked handled, so a dialog around the field stays open (src/ui/Dialog.jsx);
+   * it is not stopped, so the plane's hover readout still hears it.
+   *
+   * The way out of Work View is therefore always two Escapes from a field,
+   * keypad open or closed: the first leaves the field, the second — focus no
+   * longer in a field — closes Work View, as Escape does everywhere else.
+   * One press, one step: the field takes Escape only for what it opened (its
+   * keypad, its own focus). A phone gets its keypad back on the next tap into
+   * the field, which focuses it again.
+   */
+  const toggleRef = useRef(null);
+  const leaveOnEscape = useCallback(({ fromKeys = false } = {}) => {
+    setShowTools(false);
+    const toggle = toggleRef.current;
+    if (toggle?.isConnected) {
+      toggle.focus({ preventScroll: true });
+      return;
+    }
+    const mathField = mfRef.current;
+    if (fromKeys) {
+      if (!focusMathFieldWithoutScroll(mathField)) mathField?.focus?.({ preventScroll: true });
+      return;
+    }
+    mathField?.blur?.();
+  }, []);
+  const escapeFromKeys = (event) => {
+    if (event.key !== 'Escape' || event.isComposing) return false;
+    event.preventDefault();
+    leaveOnEscape({ fromKeys: true });
+    return true;
+  };
+
   const stabilizeMobileViewport = useCallback(() => {
     const root = mfRef.current?.closest?.('.mathmaster-question-container')
       || mfRef.current?.closest?.('.mathmaster-question-stage')
@@ -306,9 +386,13 @@ export default function MathInput({
     [requiredAnswerSymbols],
   );
   const shouldSuppressNativeKeyboard = isMobile && toolProfile !== 'function' && unservedRequiredSymbols.length === 0;
+  // π, e and logₐ that the question's math does not use are left off the
+  // profile's keys — before a caller's extra keys and the keys this answer
+  // needs are added, so neither can ever be removed (TL23, keypadConstants.js).
+  const keypadConstants = useKeypadConstants();
   const tools = useMemo(() => {
     if (!isMobile) return mergeToolKeys(
-      withExtraKeys(getToolKeys(toolProfile, { contextSymbols, functionNotationKeys }), extraKeys),
+      withExtraKeys(keysForConstants(getToolKeys(toolProfile, { contextSymbols, functionNotationKeys }), keypadConstants), extraKeys),
       requiredTools,
     );
 
@@ -321,11 +405,11 @@ export default function MathInput({
     return buildMobileMathTools({
       toolProfile,
       entryKeys: MOBILE_ENTRY_KEYS,
-      profileKeys: withExtraKeys(getToolKeys(toolProfile, { isMobile: true, contextSymbols, functionNotationKeys }), extraKeys),
+      profileKeys: withExtraKeys(keysForConstants(getToolKeys(toolProfile, { isMobile: true, contextSymbols, functionNotationKeys }), keypadConstants), extraKeys),
       requiredTools,
       backspaceKey: MOBILE_BACKSPACE_KEY,
     });
-  }, [toolProfile, isMobile, contextSymbols, functionNotationKeys, requiredTools, extraKeys]);
+  }, [toolProfile, isMobile, contextSymbols, functionNotationKeys, requiredTools, extraKeys, keypadConstants]);
 
   useEffect(() => {
     const update = () => setIsMobile(detectMobileInput());
@@ -349,10 +433,34 @@ export default function MathInput({
   // edit the field the student had just left.
   useEffect(() => bindMathFieldFocusHandoff(mfRef.current), []);
 
+  // A math field MathLive still counts as focused when it leaves the page
+  // stays MathLive's "focused" field after it is gone, and the next field a
+  // student taps tries to blur it: MathLive threw reading the removed field's
+  // model (atomToString -> options), e.g. after "Continue here" remounted a
+  // question focused while its tab was in the background, where no real blur
+  // ever reached it (RT06). A layout cleanup runs before React removes the
+  // element: tell its model there, while it is whole (settleMathFieldBlur:
+  // MathLive's own flag, not the page's focus).
+  useLayoutEffect(() => {
+    const mathField = mfRef.current;
+    return () => { settleMathFieldBlur(mathField); };
+  }, []);
+
   // A screen reader lands in MathLive's keyboard sink, which MathLive leaves
   // unnamed: the sink gets the host's name too (mathFieldName.js, A11Y-3).
-  const fieldName = ariaLabel || placeholder || 'Math answer';
+  // On a closed question the name says the answer as well (AX01).
+  const fieldName = mathFieldAccessibleName({ name: ariaLabel || placeholder, value, closed: questionTerminal });
   useMathFieldName(mfRef, fieldName);
+
+  // And what is in it, said once focus lands: the name took over the label
+  // MathLive's own account of the content used to sit in, so a filled box was
+  // heard by its name alone (mathFieldDescription.js, AX11). It follows every
+  // key, so it is worked out once per value.
+  const fieldDescription = useMemo(
+    () => mathFieldAccessibleDescription({ value, closed: questionTerminal }),
+    [value, questionTerminal],
+  );
+  useMathFieldDescription(mfRef, fieldDescription);
 
   useEffect(() => {
     const mathField = mfRef.current;
@@ -399,6 +507,22 @@ export default function MathInput({
     };
 
     const preventUnusedModes = (event) => {
+      // "3 1/2" is 3½: the digits after a space that followed a whole number
+      // become the numerator, not part of the whole number (GR33).
+      if (event.key !== ' ' && event.code !== 'Space') {
+        const mixed = mixedNumberKeyStep(mixedNumberRef.current, event);
+        mixedNumberRef.current = mixed.state;
+        if (mixed.numerator) {
+          event.preventDefault();
+          event.stopPropagation();
+          for (let typed = 0; typed < mixed.numerator.length; typed += 1) mathField.executeCommand('deleteBackward');
+          mathField.insert(`\\frac{${mixed.numerator}}{#?}`, { selectionMode: 'placeholder' });
+          typedFractionRef.current = TYPED_FRACTION_OPENING;
+          emit(mathField.value);
+          stabilizeMobileViewport();
+          return;
+        }
+      }
       // A typed `/` builds the fraction the same characters mean as text:
       // once the denominator is a plain number, a letter, operator, relation,
       // comma or bracket starts after it — y=-2/3x+4 is −(2/3)x + 4,
@@ -416,12 +540,24 @@ export default function MathInput({
       if (event.key === ' ' || event.code === 'Space') {
         event.preventDefault();
         event.stopPropagation();
+        const before = mathField.position;
         mathField.executeCommand?.('moveAfterParent');
+        // Only a space at the top level can start a mixed number: one inside
+        // a power or a fraction leaves it, as it always has.
+        mixedNumberRef.current = mathField.position === before
+          ? mixedNumberSpaceStep(mathField.getValue?.(0, mathField.position, 'latex'))
+          : null;
         emit(mathField.value);
         stabilizeMobileViewport();
         return;
       }
-      if (event.key === 'Escape') event.preventDefault();
+      if (event.key === 'Escape') {
+        // Never MathLive's LaTeX mode: the student's way out of the field
+        // (TL15, leaveOnEscape above). Handled here, so Work View stays open.
+        event.preventDefault();
+        if (!event.isComposing) leaveOnEscape();
+        return;
+      }
       if (event.key === '\\') {
         event.preventDefault();
         mathField.insert('\\backslash', { selectionMode: 'after' });
@@ -438,7 +574,10 @@ export default function MathInput({
     };
     const preventContextMenu = (event) => event.preventDefault();
     // A click or tap can put the caret anywhere: stop watching the fraction.
-    const forgetTypedFraction = () => { typedFractionRef.current = null; };
+    const forgetTypedFraction = () => {
+      typedFractionRef.current = null;
+      mixedNumberRef.current = null;
+    };
     const handleFocus = () => {
       forgetTypedFraction();
       stabilizeMobileViewport();
@@ -457,7 +596,7 @@ export default function MathInput({
       mathField.removeEventListener('contextmenu', preventContextMenu);
       mathField.removeEventListener('pointerdown', forgetTypedFraction);
     };
-  }, [placeholder, isMobile, toolProfile, onSubmit, shouldSuppressNativeKeyboard, stabilizeMobileViewport, emit]);
+  }, [placeholder, isMobile, toolProfile, onSubmit, shouldSuppressNativeKeyboard, stabilizeMobileViewport, emit, leaveOnEscape]);
 
   // A value the field itself emitted and has since typed past is not written
   // back: that is how fast typing lost characters (see fieldEchoGuard.js).
@@ -467,6 +606,7 @@ export default function MathInput({
       mathField.value = value || '';
       // Written from outside: whatever the student was typing into is gone.
       typedFractionRef.current = null;
+      mixedNumberRef.current = null;
       // And so is the field's own undo history. MathLive keeps one per field,
       // and after a platform Undo cleared "[-3,5)" a Ctrl+Z in the field put
       // it straight back (tests/browser/undoTyping.mjs). The field's history
@@ -547,6 +687,7 @@ export default function MathInput({
     mathField.focus({ preventScroll: true });
     if (action) {
       typedFractionRef.current = null;
+      mixedNumberRef.current = null;
       mathField.executeCommand?.(action);
       emit(mathField.value);
       stabilizeMobileViewport();
@@ -556,6 +697,7 @@ export default function MathInput({
     // physical key; a template key (a/b, xʸ, √) ends the watch.
     const fractionStep = typedFractionCommandStep(typedFractionRef.current, command, mathField.value);
     typedFractionRef.current = fractionStep.state;
+    mixedNumberRef.current = null;
     if (fractionStep.leaveFraction) mathField.executeCommand?.('moveAfterParent');
     mathField.insert(command, {
       insertionMode: 'replaceSelection',
@@ -615,6 +757,8 @@ export default function MathInput({
         // Enter routing (QuestionEngine) never takes the key from it.
         data-mm-enter-owner={onSubmit ? 'field' : undefined}
         aria-label={fieldName}
+        aria-invalid={ariaInvalid ? 'true' : undefined}
+        aria-describedby={ariaDescribedBy || undefined}
         math-virtual-keyboard-policy="manual"
         inputmode={shouldSuppressNativeKeyboard ? 'none' : undefined}
         onFocus={() => {
@@ -641,6 +785,7 @@ export default function MathInput({
       />
       {hideToolsToggle && !isMobile ? null : (
         <button
+          ref={toggleRef}
           type="button"
           className="mathmaster-math-tools-toggle"
           // Keeps focus (and a phone's keypad) in the field while toggling.
@@ -674,7 +819,9 @@ export default function MathInput({
             cursor: 'pointer',
           }}
         >
-          <span aria-hidden="true">√x</span>
+          {/* A keypad, not "√x": the button opens every key, and √x read
+              as "insert a square root" (TL23). The name stays the words. */}
+          <KeypadIcon />
         </button>
       )}
       </div>
@@ -684,7 +831,7 @@ export default function MathInput({
           className="mathmaster-required-answer-keys"
           role="toolbar"
           aria-label="Keys needed for this answer"
-          onKeyDown={requiredKeysToolbar.onKeyDown}
+          onKeyDown={(event) => { if (!escapeFromKeys(event)) requiredKeysToolbar.onKeyDown(event); }}
           style={{
             display: 'grid',
             width: '100%',
@@ -741,7 +888,7 @@ export default function MathInput({
           className={`mathmaster-math-input-tools mathmaster-math-input-tools-${toolProfile}`}
           role="toolbar"
           aria-label="Math tools"
-          onKeyDown={toolsToolbar.onKeyDown}
+          onKeyDown={(event) => { if (!escapeFromKeys(event)) toolsToolbar.onKeyDown(event); }}
           style={{
             display: 'grid',
             width: '100%',
@@ -784,6 +931,13 @@ export default function MathInput({
                   background: 'var(--mm-primary-soft)',
                   borderColor: 'var(--mm-primary-border)',
                   color: 'var(--mm-primary-text)',
+                } : {}),
+                // The one key that is words (TL23): two keys wide, like a
+                // space bar, so "move out →" reads on one line.
+                ...(tool === EXIT_GROUP_KEY ? {
+                  gridColumn: 'span 2',
+                  fontSize: 'calc(15 * var(--mm-px))',
+                  whiteSpace: 'nowrap',
                 } : {}),
               }}
             >

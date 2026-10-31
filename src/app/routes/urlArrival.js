@@ -72,6 +72,26 @@ export const readUrlArrival = ({ pathname = '/', search = '' } = {}) => {
 
 const home = (message = null) => ({ action: 'home', message });
 
+/*
+ * STILL WANTED WHEN IT CAN OPEN? (NV09)
+ *
+ * An address waits for the account (sign-in, then its data settling, up to
+ * ARRIVAL_SETTLE_TIMEOUT_MS). Two things since it was read mean nobody wants
+ * it any more:
+ *
+ *   - It waited on a signed-out page longer than a sign-in takes: a link left
+ *     on a shared Chromebook is not the next student's to land on.
+ *   - The account's first screen changed while it waited: the student tapped
+ *     somewhere, and their tap wins over an address they may not have meant.
+ */
+export const ARRIVAL_SIGN_IN_WINDOW_MS = 10 * 60 * 1000;
+
+export const arrivalStillWanted = ({ arrivedAt = null, now = Date.now(), firstRouteKey = null, routeKey = null } = {}) => {
+  if (Number.isFinite(arrivedAt) && now - arrivedAt > ARRIVAL_SIGN_IN_WINDOW_MS) return false;
+  if (firstRouteKey !== null && routeKey !== null && routeKey !== firstRouteKey) return false;
+  return true;
+};
+
 /**
  * What a student's arrival opens.
  *
@@ -100,12 +120,17 @@ export const planStudentArrival = ({
   if (route.surface === 'assignment') {
     const assignment = findAssignment(route.assignmentId);
     if (!assignment) return home(ARRIVAL_MESSAGES.studentStale);
-    if (!extras.question) return { action: 'assignment', assignmentId: assignment.id, storageIndex: null, exact: false };
+    // A reload of a section-scoped Classroom launch keeps the section (NV03):
+    // the scope is in this tab's entry, never in the address.
+    const scope = historyRoute?.surface === 'assignment' && historyRoute.assignmentId === assignment.id && historyRoute.sectionScope
+      ? { sectionKey: historyRoute.sectionScope }
+      : {};
+    if (!extras.question) return { action: 'assignment', assignmentId: assignment.id, storageIndex: null, exact: false, ...scope };
     const storageIndex = storageIndexForAddress(questionEntriesFor(assignment), extras.question);
     if (storageIndex === null) {
-      return { action: 'assignment', assignmentId: assignment.id, storageIndex: null, exact: false, message: ARRIVAL_MESSAGES.questionGone };
+      return { action: 'assignment', assignmentId: assignment.id, storageIndex: null, exact: false, message: ARRIVAL_MESSAGES.questionGone, ...scope };
     }
-    return { action: 'assignment', assignmentId: assignment.id, storageIndex, exact: true };
+    return { action: 'assignment', assignmentId: assignment.id, storageIndex, exact: true, ...scope };
   }
 
   if (route.surface === 'assignmentResult') {
@@ -119,6 +144,9 @@ export const planStudentArrival = ({
       assignmentId: assignment.id,
       sectionKey: route.sectionKey || 'whole',
       origin: sameEntry && historyRoute.origin === 'grades' ? 'grades' : 'assignments',
+      // A reload inside a Recovery reopens it — where the page's panel still
+      // offers it, which App decides once the panel can say (NV14).
+      ...(sameEntry && historyRoute.recoverySection ? { recoverySection: historyRoute.recoverySection } : {}),
     };
   }
 

@@ -12,6 +12,13 @@ import './InequalityWorkspace.css';
  * is constraintPalette.js.)
  */
 
+// How the graph is worked without a pointer, for the end of a line that says
+// what a click or tap does (AX32): "…, or focus the grid and use the arrow keys
+// and Enter." It is the tail of the plane's own sentence under the graph ("From
+// the keyboard, focus the grid and use the arrow keys and Enter."), so a
+// student reads one route in both places; a test holds the two together.
+export const PLANE_KEYS = 'focus the grid and use the arrow keys and Enter';
+
 /*
  * WHETHER THE GRAPH CAN PIN, MEASURED.
  *

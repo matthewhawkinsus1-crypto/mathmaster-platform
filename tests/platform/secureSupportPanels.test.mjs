@@ -20,7 +20,7 @@ import { MATH_GLOSSARY } from '../../src/platform/language/glossary/mathGlossary
 import { VOCABULARY_IDS, vocabularyForContext } from '../../src/platform/language/mathVocabulary.js';
 import { TRANSLATION_PROVIDER, resolveTranslation } from '../../src/platform/language/translationProviders.js';
 import { securePromptOnly } from '../../src/platform/assessment/secureItemAccess.js';
-import { secureLanguageName, secureTranslationView, secureVocabularyEntries } from '../../src/platform/assessment/secureSupportPanels.js';
+import { secureLanguageName, secureTranslationView, secureVocabularyEntries, secureVocabularyLabels } from '../../src/platform/assessment/secureSupportPanels.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const TRAY = readFileSync(new URL('../../src/components/assessment/SecureSupportToolsTray.jsx', import.meta.url), 'utf8');
@@ -40,6 +40,29 @@ test('vocabulary on a secure item is the word and its definition — no glossary
       assert.equal(entry.definition, source.definition);
     }
   }
+});
+
+test('a secure tool item\'s own words are labels: the word and its Spanish word, never a definition or an example (TS07)', () => {
+  const ids = [...VOCABULARY_IDS];
+  for (const language of [null, 'en', 'es', 'es-MX', 'vi']) {
+    const labels = secureVocabularyLabels(MATH_GLOSSARY, ids, { language });
+    assert.equal(labels.length, ids.length, `every term has a label (${language})`);
+    for (const label of labels) {
+      assert.deepEqual(Object.keys(label).sort(), ['id', 'term', 'translation'], `${label.id}: the word only`);
+      const source = MATH_GLOSSARY[label.id];
+      const shown = JSON.stringify(label);
+      for (const meaning of [source.definition, source.example, source.es?.definition].filter(Boolean)) {
+        assert.ok(!shown.includes(meaning), `${label.id}: "${meaning}" is not a label`);
+      }
+      assert.equal(label.term, source.term);
+    }
+  }
+  // The tool words a test must not define: distribute, elimination, shade.
+  const [distribute] = secureVocabularyLabels(MATH_GLOSSARY, ['distribute'], { language: 'es-MX' });
+  assert.deepEqual(distribute, { id: 'distribute', term: 'distribute', translation: { language: 'es', term: 'distribuir' } });
+  assert.equal(secureVocabularyLabels(MATH_GLOSSARY, ['shade'], { language: 'vi' })[0].translation, null);
+  assert.deepEqual(secureVocabularyLabels(MATH_GLOSSARY, ['not-a-term', 'toString', 42, 'elimination']).map((label) => label.id), ['elimination'], 'only real terms');
+  assert.deepEqual(secureVocabularyLabels(MATH_GLOSSARY, undefined), []);
 });
 
 test('the verifier\'s examples — slope, y-intercept, residual, vertex, common difference, distribute — are not on the secure panel', () => {

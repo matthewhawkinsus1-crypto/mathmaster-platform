@@ -22,7 +22,7 @@
 import * as Q from './graphFeatureRational.mjs';
 import { DIAGNOSIS_LABELS, LINE_DIAGNOSIS } from './lineGraphFeedback.mjs';
 import { isHorizontal, isVertical, lineKey, slopeOf, xInterceptOf, yInterceptOf } from './lineGraphMath.mjs';
-import { RECEIPT_KIND, isAttemptReceipt, receiptKindOf } from './liveChallengeResponses.mjs';
+import { RECEIPT_KIND, isAttemptReceipt, playerWorkReceipts, receiptKindOf } from './liveChallengeResponses.mjs';
 import { POINT_SLOPE_LAYOUT, presentEquation, slopeInterceptTokens, specialTokens, standardTokens } from './lineGraphForms.mjs';
 import { LINE_ATTEMPT_KIND, LINE_FORM, LINE_ITEM_TYPE, SPECIAL_FORM } from './lineGraphRules.mjs';
 
@@ -249,6 +249,9 @@ const wrongLineOf = (answerKey, record) => {
  * The class's round with this line, from every joined player's receipts:
  * how many answered, how many got it (and on the first try), and the wrong
  * answer most students gave (when at least CLASS_MISTAKE_MIN_STUDENTS did).
+ * All of each student's work, what one with extended time did after the
+ * buzzer included: the facts are published only once nobody can answer, and
+ * are counts, never who.
  */
 export const classLineFacts = ({ record, players = [], roundIndex }) => {
   const round = integerOr(roundIndex, -1);
@@ -258,7 +261,7 @@ export const classLineFacts = ({ record, players = [], roundIndex }) => {
   const wrong = new Map();
   (Array.isArray(players) ? players : []).forEach((player, position) => {
     if (player?.joined !== true) return;
-    const receipts = Object.values(player.submissionReceipts || {})
+    const receipts = Object.values(playerWorkReceipts(player))
       .filter((receipt) => isAttemptReceipt(receipt) && receiptKindOf(receipt) === RECEIPT_KIND.TARGET && integerOr(receipt.roundIndex, null) === round)
       .sort((left, right) => integerOr(left.sequence, 0) - integerOr(right.sequence, 0));
     if (!receipts.length) return;

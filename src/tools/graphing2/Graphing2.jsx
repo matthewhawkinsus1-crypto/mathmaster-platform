@@ -11,9 +11,13 @@ import { useHintsAllowed, useHostSubmitLabel, useMethodWithheld, useOwnHintLadde
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import graphing2Grader, { readConstructionFeedback } from '../../../functions/shared/serverGrading/tools/graphing2.mjs';
-import { lineFromPoints, targetLineFromQuestion, withDefaultTargetLine } from './graphingMath';
+import { lineFromPoints, referenceLineOf, targetLineFromQuestion, withDefaultTargetLine } from './graphingMath';
 import { lineReadoutLatex, lineReadoutText, standardFormReadoutText } from './lineReadout.js';
 import { placePoint } from './placePoint.js';
+// What the form-aware policy will check, said before any point is checked;
+// on an assessment, only what is checked (anchorInstruction.js).
+import { anchorInstruction } from './anchorInstruction.js';
+import { orientationMissMessage } from './orientationMiss.js';
 import MathDisplay from '../../MathDisplay';
 import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
 import { constructionReadyToCheck, requiredConstructionPointCount, resolveConstructionPolicy } from './constructionPolicy';
@@ -54,6 +58,8 @@ const MODE_LABELS = {
   standardForm: 'Standard form',
   verticalHorizontal: 'Vertical or horizontal line',
 };
+// A point-slope question with a reference line (graphingMath referenceLineOf).
+const REFERENCE_LABELS = { perpendicular: 'Perpendicular line', parallel: 'Parallel line' };
 
 const formatPoint = (point) => `(${point[0]}, ${point[1]})`;
 
@@ -73,22 +79,13 @@ const nextInstruction = (plottedCount, requiredCount = 2, finalLabel = null) => 
         : `All ${requiredCount} points plotted — check your construction.`
 );
 
-// What the form-aware policy needs to see, before any point is checked, so
-// the student is told what to demonstrate rather than left to guess from a
-// wrong-answer message after the fact. Never reveals the actual coordinate —
-// that stays hidden until the student supplies it and Check confirms it.
-const anchorInstruction = (mode, policy) => {
-  if (policy.strategy !== 'formAware') return null;
-  if (mode === 'slopeIntercept') return 'This question requires you to plot the y-intercept as one of your points.';
-  if (mode === 'factoredLinear') return 'This question requires you to plot the x-intercept yourself, then use the slope for another point.';
-  if (mode === 'pointSlope') return 'This question requires you to plot the given point yourself — it is not already on the graph.';
-  if (mode === 'standardForm') return 'This question requires you to plot the line’s intercept(s) as your evidence, not just any two points on the line.';
-  return null;
-};
-
 const targetPrompt = (questionData, target) => {
   const mode = questionData.mode || 'slopeIntercept';
   if (mode === 'throughPoints') return `Graph the line that passes through ${(questionData.givenPoints || []).map(formatPoint).join(' and ')}.`;
+  // A reference-line question names the given line, never the slope it
+  // assesses (TL20): finding that slope is the question.
+  const reference = mode === 'pointSlope' ? referenceLineOf(questionData) : null;
+  if (reference) return `Graph the line through ${formatPoint(questionData.point)} that is ${reference.relation} to ${lineReadoutText(reference)}.`;
   if (mode === 'pointSlope') return `Graph the line through ${formatPoint(questionData.point || [0, 0])} with slope ${questionData.slope}.`;
   if (mode === 'factoredLinear') return `Graph y = ${questionData.factored?.a}(x − ${questionData.factored?.c}).`;
   if (mode === 'standardForm') return `Graph ${standardFormReadoutText(questionData.standard)}.`;
@@ -139,6 +136,25 @@ export const hintsForMode = (mode, target, questionData) => {
       'Plot your point exactly on top of each purple point, then check that the two readings match.',
     ];
   }
+  // A reference-line question assesses the slope itself, so no rung states it
+  // (or quotes a number it could be read from): the first names the rule.
+  // The words are the platform family's own (linesAndSlope.js), so inside a
+  // question the two ladders merge instead of saying everything twice.
+  const reference = mode === 'pointSlope' ? referenceLineOf(questionData) : null;
+  if (reference) {
+    const plot = 'Start at the given point: use your slope as rise over run to step to a second point.';
+    return reference.relation === 'perpendicular'
+      ? [
+        'Perpendicular lines have slopes that are negative reciprocals: flip the given line’s slope over and change its sign.',
+        'Read the given line’s slope: the number multiplied by x. Then use the rule to find the slope of your line.',
+        plot,
+      ]
+      : [
+        'Parallel lines have the same slope.',
+        'Read the given line’s slope: the number multiplied by x. Your line uses that same slope.',
+        plot,
+      ];
+  }
   if (mode === 'pointSlope') {
     const point = questionData.point || [0, 0];
     const step = slopeStepForHint(questionData.slope);
@@ -185,6 +201,9 @@ export default function Graphing2({ questionData = {}, onAction }) {
   // the shared grader reads the target through the same helper.
   const normalizedQuestion = withDefaultTargetLine(questionData);
   const target = targetLineFromQuestion(normalizedQuestion);
+  // The given line a perpendicular or parallel question is about, drawn on
+  // the plane; null for every other question (TL20).
+  const reference = mode === 'pointSlope' ? referenceLineOf(questionData) : null;
   const policy = resolveConstructionPolicy(questionData);
   const requiredPointCount = requiredConstructionPointCount(questionData);
   const [points, setPoints] = usePersistentToolState('points', []);
@@ -216,12 +235,12 @@ export default function Graphing2({ questionData = {}, onAction }) {
   const givenPoints = mode === 'throughPoints' ? (questionData.givenPoints || []) : [];
   const snapStep = resolveSnapStep(questionData, target);
   const hints = hintsForMode(mode, target, questionData);
-  const anchorNote = anchorInstruction(mode, policy);
   // The snap step is worked out from the answer line, so "the nearest 0.5"
   // tells a student the slope or intercept is not whole. Said plainly where
   // the activity withholds the method (R-10); the anchor note is a grading
-  // requirement and stays.
+  // requirement and stays, worded there as only what is checked.
   const methodWithheld = useMethodWithheld();
+  const anchorNote = anchorInstruction(mode, policy, { methodWithheld });
 
   const plot = (point) => {
     clearFeedback();
@@ -298,6 +317,9 @@ export default function Graphing2({ questionData = {}, onAction }) {
     ...points.map((point, index) => ({ x: point[0], y: point[1], label: `P${index + 1}`, fill: '#1a73e8' })),
   ];
   const studentLines = studentLine?.kind === 'slopeIntercept' ? [{ m: studentLine.m, b: studentLine.b, stroke: '#1a73e8' }] : [];
+  // The given line under the student's: grey and dashed, and named in the
+  // legend, so "given" never rests on colour alone (A11Y-4).
+  const referenceLines = reference ? [{ m: reference.m, b: reference.b, stroke: '#5f6b7a', dash: '9 6' }] : [];
   const verticalStudentLine = studentLine?.kind === 'vertical'
     ? ({ sx, pad, height }) => <line x1={sx(studentLine.x)} x2={sx(studentLine.x)} y1={pad} y2={height - pad} stroke="#1a73e8" strokeWidth="3" />
     : null;
@@ -323,6 +345,8 @@ export default function Graphing2({ questionData = {}, onAction }) {
     if (feedback.metadata?.strategy === 'formAware' && category) return formAwareFeedback(category);
     const onLine = checks.filter(Boolean).length;
     if (!studentLine) return 'Those two clicks landed on the same spot. Two different points are needed to determine a line.';
+    const turned = orientationMissMessage(target, studentLine);
+    if (turned) return turned;
     if (onLine === 0) return 'Neither point is on the target line yet. Find one point you are certain about — the y-intercept is usually easiest — and start there.';
     if (onLine === 1) return `Point ${checks[0] ? 'P1' : 'P2'} is on the line, but the other one is not. Keep the good point and move the other.`;
     return 'Both points are close, but the line through them does not match the target. Re-read each coordinate carefully.';
@@ -360,7 +384,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
     <ToolShell
       title="Graphing"
       subtitle="Build a line from the conditions you are given, and keep your plotted points as evidence of how you got there."
-      badge={MODE_LABELS[mode] || 'Linear graphing'}
+      badge={reference ? REFERENCE_LABELS[reference.relation] : MODE_LABELS[mode] || 'Linear graphing'}
     >
       <TaskCard
         question={questionData}
@@ -374,7 +398,9 @@ export default function Graphing2({ questionData = {}, onAction }) {
           `Press ${checkLabel} when all ${requiredPointCount} points are where you want them.`,
         ]}
         note={[
-          methodWithheld
+          // A reference-line question assesses the slope: "the nearest 0.5"
+          // would say it is not a whole number (TL20).
+          methodWithheld || reference
             ? 'Points snap to the grid as you place them.'
             : snapStep === 1
               ? 'Points snap to whole numbers, so you cannot land between the gridlines.'
@@ -385,7 +411,6 @@ export default function Graphing2({ questionData = {}, onAction }) {
 
       <EnlargeableFigure
         label="Graphing workspace"
-        enlargeLabel="Enlarge workspace"
         taskText={targetPrompt(questionData, target)}
         style={{ width: '100%' }}
         openEnlarged={shouldOpenFigureEnlarged({ toolId: 'graphing2', question: questionData || {}, viewportWidth })}
@@ -400,8 +425,14 @@ export default function Graphing2({ questionData = {}, onAction }) {
             borderRadius: 999, background: points.length >= requiredPointCount ? 'var(--mm-success-bg)' : 'var(--mm-primary-soft)',
             color: points.length >= requiredPointCount ? 'var(--mm-success-text)' : 'var(--mm-primary-text)', fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))',
           }}>
-            <span>{points.length >= requiredPointCount ? '✓' : `${points.length}/${requiredPointCount}`}</span>
-            <span>{nextInstruction(points.length, requiredPointCount, hostSubmitLabel)}</span>
+            {/* Each holds room for the longest thing it will say, so the plane
+                below never moves when a point is placed (App.css). */}
+            <span className="mathmaster-steady-text" data-steady-a={`${requiredPointCount}/${requiredPointCount}`} data-steady-b="✓">
+              <span>{points.length >= requiredPointCount ? '✓' : `${points.length}/${requiredPointCount}`}</span>
+            </span>
+            <span className="mathmaster-steady-text" data-steady-a={nextInstruction(0, requiredPointCount, hostSubmitLabel)} data-steady-b={nextInstruction(requiredPointCount, requiredPointCount, hostSubmitLabel)}>
+              <span>{nextInstruction(points.length, requiredPointCount, hostSubmitLabel)}</span>
+            </span>
           </div>
           <CoordinatePlane
             {...bounds}
@@ -414,7 +445,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
             viewResetKey={questionData?.id ?? questionData?.prompt ?? null}
             snapStep={snapStep}
             points={plottedPoints}
-            lines={studentLines}
+            lines={[...referenceLines, ...studentLines]}
             cursorLabel="Plot"
             ariaLabel="Coordinate plane for constructing your line"
             // This tool wraps its whole split in Work View, so a second enlarge
@@ -429,6 +460,12 @@ export default function Graphing2({ questionData = {}, onAction }) {
             <p data-graphing-legend="" style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginBottom: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 14px' }}>
               <span><span aria-hidden="true" style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#8a3ffc', marginRight: 6, verticalAlign: 'middle' }} />Purple squares labelled “given” are given to you.</span>
               <span><span aria-hidden="true" style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 999, background: '#1a73e8', marginRight: 6, verticalAlign: 'middle' }} />Blue dots labelled P1, P2 are yours.</span>
+            </p>
+          ) : null}
+          {reference ? (
+            <p data-graphing-reference-legend="" style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginBottom: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 14px' }}>
+              <span><svg width="26" height="8" style={{ verticalAlign: 'middle', marginRight: 6 }} aria-hidden="true"><line x1="0" y1="4" x2="26" y2="4" stroke="#5f6b7a" strokeWidth="3" strokeDasharray="9 6" /></svg>The dashed grey line is the given line, {lineReadoutText(reference)}.</span>
+              <span><span aria-hidden="true" style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 999, background: '#1a73e8', marginRight: 6, verticalAlign: 'middle' }} />Your line goes through your blue points.</span>
             </p>
           ) : null}
         </Panel>

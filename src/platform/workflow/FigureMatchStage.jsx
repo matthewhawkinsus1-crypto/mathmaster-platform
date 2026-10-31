@@ -8,6 +8,7 @@ import {
   buildFigureMatchResponse,
   figureEquationLines,
   figureLabel,
+  figureNoun,
   matchCategories,
   matchItems,
   readFigureMatch,
@@ -141,11 +142,11 @@ function FigureGraph({ graph, label }) {
   );
 }
 
-// "Figure 3", "Figures 3 and 5", "Figures 1, 3 and 5".
-const figureList = (indexes) => {
+// "Figure 3", "Figures 3 and 5", "Figures 1, 3 and 5" (or "Card 3", … in a sort of words).
+const figureList = (indexes, noun = 'Figure') => {
   const numbers = indexes.map((index) => String(index + 1));
   const joined = numbers.length <= 1 ? numbers.join('') : `${numbers.slice(0, -1).join(', ')} and ${numbers[numbers.length - 1]}`;
-  return `${numbers.length === 1 ? 'Figure' : 'Figures'} ${joined}`;
+  return `${numbers.length === 1 ? noun : `${noun}s`} ${joined}`;
 };
 
 // `wrongItems`: positions of the figures the checked step placed wrongly, from
@@ -155,6 +156,7 @@ export default function FigureMatchStage({ stage, value, onChange, disabled = fa
   const categories = matchCategories(stage);
   const assignments = readFigureMatch(value);
   const wrong = new Set(wrongItems);
+  const noun = figureNoun(stage);
 
   const assign = (itemId, categoryId) => {
     const next = { ...assignments };
@@ -171,7 +173,7 @@ export default function FigureMatchStage({ stage, value, onChange, disabled = fa
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {wrong.size ? (
         <p data-figure-match-wrong="" style={{ margin: 0, fontWeight: 700, color: 'var(--mm-danger)' }}>
-          {`${figureList([...wrong].sort((a, b) => a - b))} ${wrong.size === 1 ? 'is' : 'are'} not in the right category yet.`}
+          {`${figureList([...wrong].sort((a, b) => a - b), noun)} ${wrong.size === 1 ? 'is' : 'are'} not in the right category yet.`}
         </p>
       ) : null}
       <div
@@ -185,7 +187,7 @@ export default function FigureMatchStage({ stage, value, onChange, disabled = fa
       >
         {items.map((item, index) => {
           const itemId = String(item.id ?? '').trim();
-          const label = figureLabel(index);
+          const label = figureLabel(index, noun);
           const chosen = assignments[itemId] || '';
           return (
             <div key={itemId || index} style={wrong.has(index) ? { ...card, border: '2px solid var(--mm-error-border)' } : card} data-figure-wrong={wrong.has(index) ? '' : undefined}>
@@ -209,7 +211,7 @@ export default function FigureMatchStage({ stage, value, onChange, disabled = fa
         })}
       </div>
       <p style={{ margin: 0, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
-        {answered} of {items.length} figures matched.
+        {answered} of {items.length} {noun === 'Card' ? 'cards' : 'figures'} matched.
       </p>
     </div>
   );

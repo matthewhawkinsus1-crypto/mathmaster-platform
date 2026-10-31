@@ -9,19 +9,40 @@
  *
  * The sibling is the question family's own worked sibling
  * (similarProblem.js: different numbers, never this question in disguise,
- * steps that never state this question's answer). Its answer is one line of
- * text — "domain [-1, 4]; range [-4, 6]", "(7, -6), (3, 5), (-6, 8), in that
- * order", "f⁻¹(x) = (x − 5)/7" — so it is read here into labelled parts the
- * student can answer one box at a time.
+ * steps that never state this question's answer) — or, for an item whose
+ * family has no sibling, the item itself with new numbers where they can
+ * change without changing the method (numericVariant.js, FB19). Its answer
+ * is one line of text — "domain [-1, 4]; range [-4, 6]", "(7, -6), (3, 5),
+ * (-6, 8), in that order", "f⁻¹(x) = (x − 5)/7", "x = 2, y = -1, z = 3" — so
+ * it is read here into labelled parts the student can answer one box at a
+ * time.
  *
  * A verdict is given only when it can be trusted. Each part is compared with
  * the platform's own answer matcher (compareMathAnswer, the one that grades
  * multi-answer fields), then, for an expression or an equation, by value at
- * sample points. A part said in words ("rises, then falls", "6 units to the
- * left"), a roster with an ellipsis, a mapping, or a line named by two of its
- * points (any two points would do) is never marked right or wrong: the
- * student compares it with the worked solution. A sibling with no part that
- * can be checked is still offered, as "work it, then compare".
+ * sample points; a line named by two of its points takes any two points of
+ * that line, or its equation (checkLine, #520).
+ *
+ * Four more answers have a fixed shape and are checked in it (CT13), only when
+ * BOTH the key and what the student typed read completely in that shape:
+ *   a mapping       "-5 → 7, 2 → -6"                   the same set of arrows (or of ordered pairs)
+ *   solutions       "x = -5 or x = -3"                 the same set of numbers, in any order
+ *   asymptotes      "g: asymptotes vertical x = -3, horizontal y = 2"   the same set of lines
+ *   a shift         "4 units to the right"             the same distance and the same direction
+ * and the graph of a linear function, named by collinear points ("The graph
+ * through (0, -12), (1, -8), (2, -4)"), is checked as that line. Whatever the
+ * reader cannot take apart completely (a word it does not know, a sign in
+ * front of a distance, two directions, a bracket left open) is COMPARE, never
+ * INCORRECT: it says the student wrote something it cannot judge, not that it is
+ * wrong. INCORRECT needs a complete reading that differs from the key.
+ *
+ * A part said in words ("rises, then falls", "fails the function test"), or a
+ * roster with an ellipsis, is never marked right or wrong: the student compares
+ * it with the worked solution. A sibling with no part that can be checked is
+ * still offered, as "work it, then compare". Kept as built (the owner, October
+ * 2026, FB07): a verdict on a free sentence would be a guess. It is the shape
+ * that makes the four answers above different: each is a closed list of numbers
+ * and directions, so a complete reading is a certain one.
  *
  * NOTHING HERE IS RECORDED. This module returns values; the component that
  * shows it (PracticeLikeThis.jsx) keeps the student's boxes in its own state
@@ -38,6 +59,7 @@ import { sameNumberWithThousandsSeparators } from '../../../../functions/shared/
 import { sameEquivalentExpression } from '../../../../functions/shared/equivalentExpression.mjs';
 import { latexToExpression } from '../../../../functions/shared/algebra/latexToExpression.mjs';
 import { parse } from '../../math/mathjs.js';
+import { NUMERIC_VARIANT_SOURCE, buildNumericVariant } from './numericVariant.js';
 import { buildSimilarWorkedExample } from './similarProblem.js';
 
 export const PRACTICE_LIKE_THIS_ROLES = Object.freeze(['classwork', 'practice']);
@@ -173,6 +195,14 @@ const readPart = (chunk, position, { ordered = false } = {}) => {
   const prose = { id, label: null, expected: raw, kind: 'words', checkable: false };
   if (!raw) return null;
 
+  // Several solutions, "x = -5 or x = -3": one box, and the set of numbers is the answer (CT13).
+  const solutions = orSolutions(raw);
+  if (solutions) return { id, label: 'Solutions', expected: raw, kind: 'solutions', variable: solutions.variable, values: solutions.values, checkable: true };
+
+  // "g: asymptotes vertical x = -3, horizontal y = 2": one statement about g, and the set of its lines is the answer (CT13).
+  const asymptotes = asymptoteStatement(raw);
+  if (asymptotes) return { id, label: `Asymptotes of ${asymptotes.name}, as equations`, expected: raw, kind: 'asymptotes', lines: asymptotes.lines, checkable: true };
+
   const equals = equalsIndex(raw);
   if (equals > 0 && !/[<>≤≥]/.test(raw)) {
     const lhs = text(raw.slice(0, equals));
@@ -193,6 +223,10 @@ const readPart = (chunk, position, { ordered = false } = {}) => {
 
   if (VALUE_START.test(raw) || /^[A-Za-z]\s*[\^²³]/.test(raw)) {
     const label = ordered ? 'In this order' : null;
+    const arrows = relationPairs(raw, { arrowsOnly: true });
+    if (arrows) return { id, label: label || 'Arrows, input → output', expected: raw, kind: 'mapping', pairs: arrows, checkable: true };
+    const shift = shiftOf(raw);
+    if (shift) return { id, label: label || 'Shift', expected: raw, kind: 'shift', shift, checkable: true };
     const kind = pointList(raw) ? 'points' : 'value';
     return { id, label, expected: raw, kind, ordered, checkable: kind === 'points' || valueCheckable(raw) || expressionKind(raw) };
   }
@@ -208,15 +242,23 @@ const readPart = (chunk, position, { ordered = false } = {}) => {
   // "The line through (0, -1) and (1, -7)": any two points of the line would
   // do, so two particular ones are not the answer — the line is. It is checked
   // as a line: an equation of it, or any two different points on it.
+  // "The graph through (0, -12), (1, -8), (2, -4)" is a line too, when every point listed is on one line (CT13):
+  // a sibling "Graph f(x) = 4x - 12" names its graph by five of its points.
   if (labelled && /\bthrough\b/i.test(labelled[1])) {
-    const through = /\bline\b/i.test(labelled[1]) ? pointList(text(labelled[2]).replace(/\s+and\s+(?=[[({\-−\d])/g, ', ')) : null;
-    const distinct = through?.length === 2 && through[0].map(numberOf).join() !== through[1].map(numberOf).join();
-    return distinct
-      ? { id, label: 'The line: two of its points, or its equation', expected: through.map((point) => `(${point.join(', ')})`).join(', '), kind: 'line', through, checkable: true }
+    const named = /\bline\b/i.test(labelled[1]);
+    const listed = named || /\bgraph\b/i.test(labelled[1]) ? pointList(text(labelled[2]).replace(/\s+and\s+(?=[[({\-−\d])/g, ', ')) : null;
+    const distinct = listed?.length === 2 && listed[0].map(numberOf).join() !== listed[1].map(numberOf).join();
+    const through = named ? (distinct ? listed : null) : lineThrough(listed);
+    return through
+      ? { id, label: 'The line: two of its points, or its equation', expected: (named ? through : listed).map((point) => `(${point.join(', ')})`).join(', '), kind: 'line', through, checkable: true }
       : prose;
   }
   if (labelled && VALUE_START.test(labelled[2])) {
     const value = text(labelled[2]).replace(/\s+and\s+(?=[[({\-−\d])/g, ', ');
+    const arrows = relationPairs(value, { arrowsOnly: true });
+    if (arrows) return { id, label: `${capitalise(labelled[1])}, input → output`, expected: value, kind: 'mapping', pairs: arrows, checkable: true };
+    const shift = shiftOf(value);
+    if (shift) return { id, label: capitalise(labelled[1]), expected: value, kind: 'shift', shift, checkable: true };
     const kind = pointList(value) ? 'points' : 'value';
     const checkable = kind === 'points' || valueCheckable(value) || expressionKind(value);
     return { id, label: capitalise(labelled[1]), expected: value, kind, checkable };
@@ -255,17 +297,238 @@ function pointList(value) {
   return points.every(Boolean) ? points : null;
 }
 
+/* ------------------------------------- answers with a fixed shape (CT13) */
+
+/*
+ * MathLive's LaTeX as plain text. A student who types words into a math box
+ * gets what MathLive makes of them, which is not the words: spaces are dropped
+ * ("4unitsup"), "or" and "and" become the logic symbols (x=-5\lor x=-3), and
+ * letter runs that spell a function become one ("the" is \operatorname{\mathrm{th}}e,
+ * "horizontal" is h\lor izontal). Read back here: \text{ or } is " or ", the
+ * logic symbols are "or" and "and" again, font commands and grouping braces are
+ * gone (set braces, written \{ \}, stay), \left and \right are gone, and
+ * \frac{a}{b} is a/b.
+ */
+const typedPlain = (value) => text(value)
+  .replace(/\\(?:lbrace|\{)/g, '‹')
+  .replace(/\\(?:rbrace|\})/g, '›')
+  .replace(/\\[dt]?frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g, '$1/$2')
+  .replace(/\\(?:lor|vee)(?![A-Za-z])/g, 'or')
+  .replace(/\\(?:land|wedge)(?![A-Za-z])/g, 'and')
+  .replace(/\\(?:textrm|textbf|textit|text|mathrm|mathit|mathbf|operatorname)(?![A-Za-z])\s*/g, '')
+  .replace(/\\(?:left|right)(?![A-Za-z])/g, '')
+  .replace(/\\(?:[,;:! ]|quad|qquad)|~/g, ' ')
+  .replace(/[{}]/g, '')
+  .replace(/‹/g, '{')
+  .replace(/›/g, '}')
+  .replace(/[−–]/g, '-')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+/** One number as a student or a family writes it ("-3", "1/2", "{-5}"), or null. */
+const numberValue = (token) => {
+  const raw = text(token).replace(/^\{(.*)\}$/, '$1').replace(/^\+/, '').trim();
+  return NUMBER.test(raw) ? numberOf(raw) : null;
+};
+
+/** Both lists hold the same numbers, in any order and however often each is repeated. */
+const sameNumbers = (left, right) => {
+  const key = (value) => String(Math.round(value * 1e9) / 1e9 + 0);
+  const a = new Set(left.map(key));
+  const b = new Set(right.map(key));
+  return a.size === b.size && [...a].every((entry) => b.has(entry));
+};
+
+/* A mapping: every arrow is one input to one output. */
+const ARROWS = /\\(?:longrightarrow|rightarrow|Rightarrow|longmapsto|mapsto|to)(?![A-Za-z])|-->|->|=>|⟶|→|↦|⇒/g;
+
+/**
+ * "-5 → 7, 2 → -6" — or the same relation as ordered pairs, "(-5, 7), (2, -6)"
+ * — as [[-5, 7], [2, -6]] in numbers. Null unless every piece is exactly one
+ * number to one number. A key is read with `arrowsOnly`: only arrows make it a
+ * mapping (ordered pairs are the "points" parts).
+ */
+const relationPairs = (value, { arrowsOnly = false } = {}) => {
+  const plain = typedPlain(value).replace(ARROWS, '→');
+  if (plain.includes('→')) {
+    const pairs = splitTopLevel(plain, /^[,;]/).map((piece) => {
+      const sides = piece.split('→');
+      if (sides.length !== 2) return null;
+      const [from, to] = sides.map(numberValue);
+      return from === null || to === null ? null : [from, to];
+    });
+    return pairs.length && pairs.every(Boolean) ? pairs : null;
+  }
+  if (arrowsOnly) return null;
+  const points = pointList(plain);
+  return points && points.every((point) => point.length === 2) ? points.map((point) => point.map(numberOf)) : null;
+};
+
+/** The same arrows, in any order and however often each is drawn. */
+const sameRelation = (want, got) => {
+  const key = ([from, to]) => `${from + 0}|${to + 0}`;
+  const a = new Set(want.map(key));
+  const b = new Set(got.map(key));
+  return a.size === b.size && [...a].every((entry) => b.has(entry));
+};
+
+/** "x = -5 or x = -3" → { variable: 'x', values: [-5, -3] }; null for anything else (one solution is an ordinary value). */
+const orSolutions = (raw) => {
+  const pieces = text(raw).split(/\s+or\s+/i);
+  if (pieces.length < 2) return null;
+  let variable = null;
+  const values = [];
+  for (const piece of pieces) {
+    const match = /^(?:([A-Za-z])\s*=\s*)?(.+)$/.exec(text(piece));
+    const value = match ? numberValue(match[2]) : null;
+    if (value === null) return null;
+    if (match[1]) {
+      if (variable && variable !== match[1]) return null;
+      variable = match[1];
+    }
+    values.push(value);
+  }
+  return { variable, values };
+};
+
+/**
+ * Several solutions as a student types them: "x=-5\text{ or }x=-3", "-5, -3",
+ * "\{-5,-3\}", or "x=-5orx=-3" (MathLive drops the spaces of a math box). Null
+ * unless every piece is one number, with the key's variable in front or none.
+ */
+const typedSolutions = (typed, variable) => {
+  const plain = typedPlain(typed).replace(/^\{(.*)\}$/, '$1');
+  const pieces = plain.split(/\s*(?:,|;|(?<=[\d)}\s])(?:or|and)(?=[\s\-a-z\d(]))\s*/i).map(text).filter(Boolean);
+  if (!pieces.length) return null;
+  const values = [];
+  for (const piece of pieces) {
+    const match = /^(?:([A-Za-z])\s*=\s*)?(.+)$/.exec(piece);
+    const value = match ? numberValue(match[2]) : null;
+    if (value === null || (match[1] && variable && match[1].toLowerCase() !== variable.toLowerCase())) return null;
+    values.push(value);
+  }
+  return values;
+};
+
+/* Asymptotes: a vertical one is x = a number, a horizontal one y = a number. */
+const AXIS_OF = Object.freeze({ vertical: 'x', horizontal: 'y' });
+
+/** "g: asymptotes vertical x = -3, horizontal y = 2" → { name: 'g', lines: [{ axis: 'x', value: -3 }, { axis: 'y', value: 2 }] }, or null. */
+const asymptoteStatement = (raw) => {
+  const head = /^([A-Za-z](?:\([A-Za-z]\))?)\s*:\s*asymptotes?\s+(.+)$/i.exec(text(raw));
+  if (!head) return null;
+  const lines = [];
+  for (const piece of splitTopLevel(head[2], /^,/)) {
+    const match = /^(vertical|horizontal)\s+([xy])\s*=\s*(.+)$/i.exec(piece);
+    const value = match ? numberValue(match[3]) : null;
+    if (value === null || AXIS_OF[match[1].toLowerCase()] !== match[2].toLowerCase()) return null;
+    lines.push({ axis: match[2].toLowerCase(), value });
+  }
+  return lines.length ? { name: head[1], lines } : null;
+};
+
+const ASYMPTOTE_EQUATION = /(vertical|horizontal)?\s*(?:asymptotes?)?\s*(?:at|is|are)?\s*([xy])\s*=\s*(-?(?:\d+(?:\.\d+)?|\.\d+)(?:\/\d+)?)/g;
+const ASYMPTOTE_FILLER = /vertical|horizontal|asymptotes?|and|at|is|are|the|lines?|equations?|[\s,;:.]/g;
+
+/**
+ * The lines a student typed, as [{ axis, value }]. Null unless the whole answer
+ * is equations x = a number / y = a number (with "vertical", "horizontal",
+ * "and" and the like around them), and no word contradicts its equation
+ * ("horizontal x = 3").
+ */
+const typedAsymptotes = (typed) => {
+  const lines = [];
+  let contradicts = false;
+  // Read with the spaces run together, as a math box sends the words. A leading
+  // "g:" or "g(x):" names the function the answer is about.
+  const squashed = typedPlain(typed).toLowerCase().replace(/\s+/g, '');
+  const leftover = squashed.replace(/^[a-z](?:\([a-z]\))?:/, ' ').replace(ASYMPTOTE_EQUATION, (match, kind, axis, number) => {
+    if (kind && AXIS_OF[kind] !== axis) contradicts = true;
+    lines.push({ axis, value: numberValue(number) });
+    return ' ';
+  });
+  return contradicts || !lines.length || leftover.replace(ASYMPTOTE_FILLER, '') ? null : lines;
+};
+
+const sameLines = (want, got) => {
+  const key = ({ axis, value }) => `${axis}:${Math.round(value * 1e9) / 1e9 + 0}`;
+  const a = new Set(want.map(key));
+  const b = new Set(got.map(key));
+  return a.size === b.size && [...a].every((entry) => b.has(entry));
+};
+
+/* A shift: a distance and one of four directions. */
+const SHIFT_NUMBER_WORDS = Object.freeze({ one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12 });
+const SHIFT_NUMBER = `(\\d+(?:\\.\\d+)?(?:\\/\\d+)?|${Object.keys(SHIFT_NUMBER_WORDS).join('|')})`;
+const SHIFT_DIRECTION = '(left|right|up|down)(?:wards?)?';
+// "horizontal:", "the graph shifts", "moved", "by" — read with the spaces run together, as a math box sends them.
+const SHIFT_LEAD = '(?:(?:horizontal|vertical)(?:ly)?:?)?(?:(?:it|thegraph|graph)?(?:shift|move|translate|slide)(?:s|d|ed)?(?:thegraph)?)?(?:by)?';
+const SHIFT_DISTANCE_FIRST = new RegExp(`^${SHIFT_LEAD}${SHIFT_NUMBER}(?:units?)?(?:to(?:the)?)?${SHIFT_DIRECTION}$`);
+const SHIFT_DIRECTION_FIRST = new RegExp(`^${SHIFT_LEAD}(?:to(?:the)?)?${SHIFT_DIRECTION}(?:by)?${SHIFT_NUMBER}(?:units?)?$`);
+
+/** "4 units to the right" → { amount: 4, direction: 'right' }; null unless that is all it says. */
+const shiftOf = (raw) => {
+  const match = /^(\d+(?:\.\d+)?(?:\/\d+)?)\s+units?\s+(?:to\s+the\s+)?(left|right|up|down)$/i.exec(text(raw));
+  return match ? { amount: numberOf(match[1]), direction: match[2].toLowerCase() } : null;
+};
+
+/**
+ * "4 units to the right", "right 4", "shifts 4 units left", "four units up",
+ * "4unitstotheright" → { amount, direction }. Null unless the answer is one
+ * distance and one direction and nothing else: a sign in front, two
+ * directions, no distance or a word it does not know is left to the student to compare.
+ */
+const typedShift = (typed) => {
+  const squashed = typedPlain(typed).toLowerCase().replace(/\s+/g, '').replace(/\.$/, '');
+  const distanceFirst = SHIFT_DISTANCE_FIRST.exec(squashed);
+  const directionFirst = distanceFirst ? null : SHIFT_DIRECTION_FIRST.exec(squashed);
+  const [amount, direction] = distanceFirst ? [distanceFirst[1], distanceFirst[2]] : directionFirst ? [directionFirst[2], directionFirst[1]] : [];
+  if (!direction) return null;
+  const value = SHIFT_NUMBER_WORDS[amount] ?? numberOf(amount);
+  return Number.isFinite(value) ? { amount: value, direction } : null;
+};
+
+/**
+ * Three or more points on one line (the first two different): those two, as
+ * written; otherwise null. "The graph through …" of a linear function names a
+ * line this way; a curve's points are not collinear.
+ */
+const lineThrough = (points) => {
+  if (!points || points.length < 3) return null;
+  const numbers = points.map((point) => point.map(numberOf));
+  if (numbers.some((point) => point.length !== 2 || point.some((entry) => !Number.isFinite(entry)))) return null;
+  const [[x1, y1], [x2, y2]] = numbers;
+  if (x1 === x2 && y1 === y2) return null;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const scale = Math.max(1, Math.abs(dx) + Math.abs(dy));
+  return numbers.every(([x, y]) => Math.abs(dx * (y - y1) - dy * (x - x1)) <= 1e-6 * scale * scale) ? points.slice(0, 2) : null;
+};
+
+/** Where a practice came from: the item's question family, or the item itself with new numbers (FB19). */
+export const PRACTICE_SOURCE = Object.freeze({ FAMILY: 'family', NUMERIC_VARIANT: NUMERIC_VARIANT_SOURCE });
+
 /**
  * The family's worked sibling, read into parts. `avoidPrompts` keeps "another
  * one" from repeating the one just done, and keeps the sibling the Hint panel
  * showed while the item was open from coming back as "practice".
+ *
+ * An item whose family has no sibling gets a numeric variant of itself where
+ * its numbers can change without changing the method (FB19,
+ * numericVariant.js: never easier, never a give-away, its key confirmed by the
+ * item's own grader). A family sibling always comes first.
  */
 export const buildPracticeLikeThis = (question, { seed = 0, avoidPrompts = [] } = {}) => {
   const avoid = new Set(list(avoidPrompts).map(text).filter(Boolean));
   for (let offset = 1; offset <= 12; offset += 1) {
     const example = buildSimilarWorkedExample(question, { seed: Number(seed) + 97 * offset });
     if (!example || avoid.has(example.prompt)) continue;
-    return { ...example, ...readPracticeAnswer(example.answer) };
+    return { ...example, source: PRACTICE_SOURCE.FAMILY, ...readPracticeAnswer(example.answer) };
+  }
+  for (let offset = 1; offset <= 12; offset += 1) {
+    const variant = buildNumericVariant(question, { seed: Number(seed) + 97 * offset });
+    if (!variant || avoid.has(variant.prompt)) continue;
+    return { ...variant, ...readPracticeAnswer(variant.answer) };
   }
   return null;
 };
@@ -397,10 +660,12 @@ const safely = (check) => {
 };
 
 /*
- * A line, given by two of its points. Right: two different points on it, or an
- * equation of it in x and y (y = 1/2x + 2, x − 2y = −4, x = 2) — checked at five
- * points of the line and one point off it, so a curve through the two given
- * points is not mistaken for the line.
+ * A line, given by two of its points (or by the points a graph runs through,
+ * once all of them are on one line). Right: two different points on it (more
+ * are fine, if each is on it), or an equation of it in x and y (y = 1/2x + 2,
+ * x − 2y = −4, x = 2, f(x) = 4x − 12) — checked at five points of the line and
+ * one point off it, so a curve through the two given points is not mistaken for
+ * the line.
  */
 const checkLine = (through, typed) => {
   const [[x1, y1], [x2, y2]] = through.map((point) => point.map(numberOf));
@@ -410,13 +675,18 @@ const checkLine = (through, typed) => {
   const onLine = (x, y) => Math.abs(dx * (y - y1) - dy * (x - x1)) <= 1e-6 * scale * scale;
   const points = pointList(typed.replace(/\\left|\\right/g, '').replace(/\\?\s*,\s*/g, ', '));
   if (points) {
-    if (points.length !== 2) return PRACTICE_VERDICT.INCORRECT;
-    const [[a, b], [c, d]] = points.map((point) => point.map(numberOf));
-    if (a === c && b === d) return PRACTICE_VERDICT.INCORRECT;
-    return onLine(a, b) && onLine(c, d) ? PRACTICE_VERDICT.CORRECT : PRACTICE_VERDICT.INCORRECT;
+    // Any two different points of the line; more are fine, if every one is on it
+    // (a sibling "Graph f(x) = …" names its graph by five points, and a student
+    // may type all five).
+    const listed = points.map((point) => point.map(numberOf));
+    if (listed.some((point) => point.length !== 2)) return PRACTICE_VERDICT.INCORRECT;
+    if (new Set(listed.map((point) => point.join('|'))).size < 2) return PRACTICE_VERDICT.INCORRECT;
+    return listed.every(([x, y]) => onLine(x, y)) ? PRACTICE_VERDICT.CORRECT : PRACTICE_VERDICT.INCORRECT;
   }
   const typedSides = sides(typed);
   if (!typedSides) return PRACTICE_VERDICT.INCORRECT;
+  // "f(x) = 4x - 12" is the line y = 4x - 12 (a sibling "Graph f(x) = …" is answered that way).
+  if (/^[A-Za-z]\s*\(\s*x\s*\)$/.test(text(typedSides[0]).replace(/\\left|\\right/g, ''))) typedSides[0] = 'y';
   const relation = compileExpression(`(${toExpression(typedSides[0])})-(${toExpression(typedSides[1])})`);
   if (!relation || relation.names.some((name) => !['x', 'y'].includes(name))) return PRACTICE_VERDICT.COMPARE;
   const at = (x, y) => {
@@ -448,6 +718,26 @@ export const checkPracticePart = (part, response) => {
   }
 
   if (part.kind === 'line') return checkLine(part.through, typed);
+
+  // The four answers with a fixed shape (CT13): a complete reading that differs
+  // is INCORRECT; anything the reader cannot take apart completely is COMPARE.
+  if (part.kind === 'mapping') {
+    const got = relationPairs(typed);
+    return got ? (sameRelation(part.pairs, got) ? PRACTICE_VERDICT.CORRECT : PRACTICE_VERDICT.INCORRECT) : PRACTICE_VERDICT.COMPARE;
+  }
+  if (part.kind === 'solutions') {
+    const got = typedSolutions(typed, part.variable);
+    return got ? (sameNumbers(part.values, got) ? PRACTICE_VERDICT.CORRECT : PRACTICE_VERDICT.INCORRECT) : PRACTICE_VERDICT.COMPARE;
+  }
+  if (part.kind === 'asymptotes') {
+    const got = typedAsymptotes(typed);
+    return got ? (sameLines(part.lines, got) ? PRACTICE_VERDICT.CORRECT : PRACTICE_VERDICT.INCORRECT) : PRACTICE_VERDICT.COMPARE;
+  }
+  if (part.kind === 'shift') {
+    const got = typedShift(typed);
+    if (!got) return PRACTICE_VERDICT.COMPARE;
+    return got.direction === part.shift.direction && Math.abs(got.amount - part.shift.amount) < 1e-9 ? PRACTICE_VERDICT.CORRECT : PRACTICE_VERDICT.INCORRECT;
+  }
 
   if (part.kind === 'points') {
     const want = pointList(expected);

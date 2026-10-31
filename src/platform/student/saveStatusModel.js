@@ -36,6 +36,39 @@ export const SAVE_STATUS_TEXT = Object.freeze({
 
 const count = (value) => (Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : 0);
 
+/*
+ * WHICH WORK, AND WHAT TO DO (NV10). "Some work needs attention" named no
+ * assignment and no next step. It now says which assignment, where that is
+ * known, and the one thing to do for each kind of trouble. The opening words
+ * stay, so a student who has seen the line before still knows it.
+ */
+const titleList = (titles) => {
+  const names = [...new Set((Array.isArray(titles) ? titles : []).map((title) => String(title || '').trim()).filter(Boolean))];
+  if (!names.length) return '';
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names[0]} and ${names.length - 1} more assignments`;
+};
+
+export const attentionText = ({ status, draftsUnsaved = false, needsReviewTitles = [], unsavedDraftTitles = [] } = {}) => {
+  if (status === 'volatile') {
+    return 'Some work needs attention: an answer is only on this screen. Keep this tab open until it saves, and tell your teacher if this stays.';
+  }
+  if (status === 'needs-review') {
+    const where = titleList(needsReviewTitles);
+    return where
+      ? `Some work needs attention: answers on ${where} have not been recorded yet. Keep this tab open while MathMaster sends them.`
+      : 'Some work needs attention: some answers have not been recorded yet. Keep this tab open while MathMaster sends them.';
+  }
+  if (draftsUnsaved) {
+    const where = titleList(unsavedDraftTitles);
+    return where
+      ? `Some work needs attention: unfinished work on ${where} is not backed up. Open it, finish it on this device, and tell your teacher.`
+      : 'Some work needs attention: some unfinished work is not backed up. Finish it on this device, and tell your teacher.';
+  }
+  return SAVE_STATUS_TEXT.attention;
+};
+
 export const describeSaveStatus = ({
   persistenceStatus = 'idle',
   outboxDepth = 0,
@@ -44,6 +77,9 @@ export const describeSaveStatus = ({
   // Unfinished work that is not being saved (Batch 3, draftSaveHealth.js):
   // never "All work saved" while the assignment screen says it is not.
   draftsUnsaved = false,
+  // The assignments that work is on, where known (NV10).
+  needsReviewTitles = [],
+  unsavedDraftTitles = [],
 } = {}) => {
   const status = String(persistenceStatus || 'idle');
   const owed = count(outboxDepth) + count(pendingGradeCount);
@@ -51,13 +87,13 @@ export const describeSaveStatus = ({
   // The device could not hold the work, or the server has not recorded what
   // it was sent: both need the tab to stay open.
   if (status === 'volatile' || status === 'needs-review') {
-    return { tone: SAVE_TONE.ATTENTION, text: SAVE_STATUS_TEXT.attention };
+    return { tone: SAVE_TONE.ATTENTION, text: attentionText({ status, needsReviewTitles }) };
   }
   if (status === 'rejected') {
     return { tone: SAVE_TONE.ATTENTION, text: SAVE_STATUS_TEXT.rejected };
   }
   if (draftsUnsaved) {
-    return { tone: SAVE_TONE.ATTENTION, text: SAVE_STATUS_TEXT.attention };
+    return { tone: SAVE_TONE.ATTENTION, text: attentionText({ draftsUnsaved, unsavedDraftTitles }) };
   }
   if (status === 'offline' || (online === false && (owed > 0 || ['capturing', 'queued', 'syncing'].includes(status)))) {
     return { tone: SAVE_TONE.OFFLINE, text: SAVE_STATUS_TEXT.offline };

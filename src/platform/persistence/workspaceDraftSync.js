@@ -13,11 +13,13 @@
  */
 import {
   buildWorkspaceDraftPatch,
+  deliveryPinKey,
   explainWorkspaceDraftRejection,
   fieldRecordDraftKind,
   isSyncableDraftKey,
   sanitizeWorkspaceDraftValue,
 } from '../../../functions/shared/workspaceDraftSchema.mjs';
+import { normalizeDeliveryPin } from '../../../functions/shared/questionGenerationIdentity.mjs';
 import { parseQuestionDraftKey } from '../../questionDraftStorage.js';
 import { reportDraftSyncRejection } from './draftSyncDiagnostics.js';
 import { DRAFT_SAVE_PROBLEM, clearDraftSaveProblem, clearDraftSaveProblems, reportDraftSaveProblem } from './draftSaveHealth.js';
@@ -32,6 +34,15 @@ export const WORKSPACE_DRAFT_DEBOUNCE_MS = 2500;
  * closed between periods. A quick tab switch to look something up costs no read.
  */
 export const WORKSPACE_DRAFT_REREAD_AFTER_HIDDEN_MS = 15_000;
+
+/*
+ * The longest a personalized question this device has no pin for waits for
+ * the server's copy of its pins (RT15, App.jsx). Unlike drafts (PQ-044), its
+ * NUMBERS cannot be swapped in later without changing them under a student who
+ * has started: so it waits, briefly. The read is already on its way when the
+ * assignment opens; past this, or on a failed read, it is dealt as before.
+ */
+export const FAMILY_PIN_SERVER_WAIT_MS = 2500;
 
 /**
  * @param flush  async ({ document }) => void — the only network call.
@@ -90,6 +101,18 @@ export const createWorkspaceDraftSync = ({
     if (key && at > (serverSavedAt.get(key) || 0)) serverSavedAt.set(key, at);
   };
 
+  /*
+   * DELIVERY PINS (RT15, workspaceDraftSchema.mjs). Which version of each
+   * personalized question this device showed. The server keeps the first one
+   * saved, so a pin is sent only where the server holds none for that slot
+   * and variant — or to replace one this device was offered and had to drop.
+   * Like an unedited draft, it waits for the server's copy to be known first,
+   * so opening a question never costs a write the server does not need.
+   */
+  const serverPins = new Map(); // deliveryPinKey -> fingerprint the server holds
+  const heldPins = new Map();
+  const pendingPins = new Map(); // deliveryPinKey -> { pin, replace? }
+
   const withCanonical = (entry) => {
     if (!fieldRecordDraftKind(entry.key)) return entry;
     let canonicalAt = 0;
@@ -106,6 +129,7 @@ export const createWorkspaceDraftSync = ({
     practice: practicePatch,
     hasPractice: practiceDirty,
     practiceUpdatedAt,
+    deliveryPins: [...pendingPins.values()],
   });
 
   const failed = (error) => {
@@ -131,6 +155,7 @@ export const createWorkspaceDraftSync = ({
     const flushedAt = new Map([...pending.entries()].map(([key, entry]) => [key, entry.savedAt]));
     const flushedResume = resumeDirty ? resumePatch?.updatedAt ?? 0 : null;
     const flushedPractice = practiceDirty ? practiceUpdatedAt : null;
+    const flushedPins = new Map(pendingPins);
     stats.flushes += 1;
     // Started synchronously — the point of the debounce is to delay the write,
     // not to add another turn of the event loop once it is due — and never
@@ -158,6 +183,11 @@ export const createWorkspaceDraftSync = ({
         });
         if (flushedResume !== null && (resumePatch?.updatedAt ?? 0) === flushedResume) resumeDirty = false;
         if (flushedPractice !== null && practiceUpdatedAt === flushedPractice) practiceDirty = false;
+        // The server holds a pin for these now (this one, or an earlier device's).
+        flushedPins.forEach((sent, key) => {
+          if (!serverPins.has(key) || sent.replace) serverPins.set(key, sent.pin.fingerprint);
+          if (pendingPins.get(key) === sent) pendingPins.delete(key);
+        });
       })
       .catch(failed)
       .finally(() => {
@@ -248,21 +278,53 @@ export const createWorkspaceDraftSync = ({
     return runFlush();
   }
 
+  /**
+   * The delivery pin of a question this device showed (App.jsx, as it pins
+   * it here). `replace`: the pin it was offered had to be dropped, so the
+   * server's copy should give way to what was shown instead. Must stay cheap.
+   */
+  function recordDeliveryPin(delivery, { replace = false } = {}) {
+    if (stopped) return false;
+    const pin = normalizeDeliveryPin(delivery);
+    if (!pin?.slot) return false;
+    const key = deliveryPinKey(pin);
+    const entry = replace === true ? { pin, replace: true } : { pin };
+    if (!serverKnown) {
+      heldPins.set(key, entry);
+      return false;
+    }
+    const known = serverPins.get(key);
+    if (known === pin.fingerprint) return false;
+    // First saved wins: another device's pin stays unless this one replaces it.
+    if (known !== undefined && replace !== true) return false;
+    pendingPins.set(key, entry);
+    dirtySinceFlush = true;
+    schedule();
+    return true;
+  }
+
   return {
     record,
+    recordDeliveryPin,
     /**
      * The assignment's server copy has been read (its entries, as
-     * readWorkspaceDraftEntries decodes them; none when there is no document).
-     * From now on this device knows what the server holds, and the drafts that
-     * were waiting to learn it are sent if — and only if — the server lacks them.
+     * readWorkspaceDraftEntries decodes them; none when there is no document,
+     * and its delivery pins, as readWorkspaceDeliveryPins does).
+     * From now on this device knows what the server holds, and the drafts and
+     * pins that were waiting to learn it are sent if — and only if — the
+     * server lacks them.
      */
-    noteServerCopy(entries = []) {
+    noteServerCopy(entries = [], { deliveryPins = null } = {}) {
       if (stopped) return;
       (Array.isArray(entries) ? entries : []).forEach((entry) => noteServerSavedAt(String(entry?.key || ''), entry?.savedAt));
+      if (deliveryPins instanceof Map) deliveryPins.forEach((pin, key) => serverPins.set(key, pin?.fingerprint));
       serverKnown = true;
       const waiting = [...held.values()];
       held.clear();
       waiting.forEach((entry) => record({ ...entry, edit: false }));
+      const waitingPins = [...heldPins.values()];
+      heldPins.clear();
+      waitingPins.forEach(({ pin, replace }) => recordDeliveryPin(pin, { replace }));
     },
     /*
      * Resume position and Practice Mode ride the same document and debounce.

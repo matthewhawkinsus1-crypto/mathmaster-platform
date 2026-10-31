@@ -127,6 +127,33 @@ test('a question is short, about one question of one assignment, and has exactly
   assert.equal(teacherQuestionId({ studentId: 'S1', assignmentId: 'A1', questionIndex: -1 }), null);
   assert.equal(cleanQuestionText('  why does b move?  '), 'why does b move?');
 
+  // SI04: student ids may hold "_" and "__", so an assignment id with "_" at
+  // an end or "__" inside could make two questions share an id: student "a__"
+  // on assignment "X" and student "a_" on assignment "_X" are both
+  // "a____X__0". Those assignment ids get no id (auto-ids have no "_").
+  assert.equal(teacherQuestionId({ studentId: 'a__', assignmentId: 'X', questionIndex: 0 }), 'a____X__0');
+  assert.equal(teacherQuestionId({ studentId: 'a_', assignmentId: '_X', questionIndex: 0 }), null);
+  assert.equal(teacherQuestionId({ studentId: 'a', assignmentId: 'X_', questionIndex: 0 }), null);
+  assert.equal(teacherQuestionId({ studentId: 'a', assignmentId: 'P__Q', questionIndex: 0 }), null);
+  assert.equal(teacherQuestionId({ studentId: 'a', assignmentId: 'A_1', questionIndex: 0 }), 'a__A_1__0', 'one "_" inside is fine');
+  // Every student id and assignment id up to four characters of "a" and "_",
+  // two positions: no two questions share an id.
+  const words = (length) => (length === 0 ? [''] : words(length - 1).flatMap((word) => [`${word}a`, `${word}_`]));
+  const upTo = (max) => Array.from({ length: max }, (_, index) => words(index + 1)).flat();
+  const seen = new Map();
+  for (const studentId of upTo(4)) {
+    for (const assignmentId of upTo(4)) {
+      for (const questionIndex of [0, 10]) {
+        const id = teacherQuestionId({ studentId, assignmentId, questionIndex });
+        if (id === null) continue;
+        const who = `${studentId} | ${assignmentId} | ${questionIndex}`;
+        assert.equal(seen.get(id) ?? who, who, `"${id}" names two questions`);
+        seen.set(id, who);
+      }
+    }
+  }
+  assert.ok(seen.size > 300, 'the check covered the cases it means to');
+
   // Cross-check with firestore.rules: every field the browser writes is one
   // the rule allows, and every field it requires is written.
   const create = region(rulesSource, 'function teacherQuestionCreateValid(questionId) {', '\n    }', 'the create rule');
@@ -243,7 +270,7 @@ test('the hook owns the hand: restored on entering an assignment, forgotten on l
   assert.match(hook, /acknowledgement: acknowledgementFor\(helpRequest, acknowledgement\),/);
 
   const app = code('src/App.jsx');
-  assert.match(app, /^import \{ useAskMyTeacher \} from '\.\/platform\/supports\/useAskMyTeacher\.js';$/m);
+  assert.match(app, /^import \{ useAskMyTeacher, useTeacherQuestionsOn \} from '\.\/platform\/supports\/useAskMyTeacher\.js';$/m);
   assert.match(app, /^import \{ questionFor \} from '\.\/platform\/supports\/askTeacher\.js';$/m);
   assert.match(app, /^import \{ TeacherAnswersList \} from '\.\/components\/student\/TeacherAnswersList\.jsx';$/m);
   const wiring = region(app, 'const askMyTeacher = useAskMyTeacher({', 'const { helpRequest, setHelpRequest } = askMyTeacher;', 'the hook call');
@@ -311,7 +338,7 @@ test('the student sees the hand and the teacher\'s answer in class, and a questi
     assert.match(answered, /Your teacher answered your question/);
     assert.match(answered, /You asked: Why is b negative\?/);
     assert.match(answered, /The line falls, so the slope is negative\./);
-    assert.doesNotMatch(answered, /Leave a question|Edit my question/, 'an answered question is not reopened');
+    assert.doesNotMatch(answered, /Leave a question|Edit my question/, 'an answered question is not reworded in place (its one follow-up is a separate step, TT01)');
 
     const noTeacher = panel({ mode: ASK_MODE.QUESTION, question: null, onSendQuestion: null });
     assert.doesNotMatch(noTeacher, /Leave a question/);
@@ -376,7 +403,9 @@ test('the teacher answers a raised hand on the live monitor — never on the pro
 test('the teacher reads and answers questions on Teacher Home, folded until opened', () => {
   const home = code('src/TeacherHome.jsx');
   assert.match(home, /^import StudentQuestionsPanel from '\.\/components\/teacher\/StudentQuestionsPanel\.jsx';$/m);
-  assert.match(home, /<StudentQuestionsPanel\s+teacherEmail=\{teacherEmail\}\s+students=\{allStudents\}\s+assignments=\{assignments\}\s+onOpenStudent=\{onOpenStudent\}\s+\/>/);
+  // `withheld` keeps it to a count while a class is in session or projected
+  // (TT26, tests/platform/askTeacherLifecycle.test.mjs).
+  assert.match(home, /<StudentQuestionsPanel\s+(?:withheld=\{[^}]+\}\s+)?teacherEmail=\{teacherEmail\}\s+students=\{allStudents\}\s+assignments=\{assignments\}\s+onOpenStudent=\{onOpenStudent\}\s+\/>/);
   const panel = code('src/components/teacher/StudentQuestionsPanel.jsx');
   assert.match(panel, /watchQuestions\(openTeacherQuestionsQuery\(db, \{ teacherEmail \}\), setQuestions, \(\) => setUnavailable\(true\)\)/);
   assert.match(panel, /await answerTeacherQuestion\(db, \{ questionId: question\.id, answer: words, teacherEmail \}\);/);

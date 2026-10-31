@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "compilerSchemaVersion": 2,
   "releaseLine": "course",
-  "releaseId": "course-path-v2-01d45bb15d913284",
-  "contentHash": "01d45bb15d91328427503f0bc91b3bc0bfc6dc2188674fdda4314d3b1c563fdd",
+  "releaseId": "course-path-v2-b38a3afd85b50fc7",
+  "contentHash": "b38a3afd85b50fc7a90687fc5fe1361cb1f7aa9bce6f76aed431b8433fcfbaec",
   "questionCount": 1161,
   "courses": [
     "grade6",
@@ -42,14 +42,14 @@
     {
       "courseId": "algebra1",
       "file": "algebra1_pathQuestionBank_seed.json",
-      "sha256": "ee7df1011e5e714ef5f6918ae348a1a87679b824521257975cddffb490a0ee0c",
-      "bytes": 938798
+      "sha256": "94e24a1e42eba77a7e4ba76c187e5d54e483164b19342d85377c6756dc56d883",
+      "bytes": 941342
     },
     {
       "courseId": "algebra2",
       "file": "algebra2_pathQuestionBank_seed.json",
-      "sha256": "d457294eeb90ba89ee71b4ed37540ee3dbd60542dc49d192dd6e59b5e7d11eca",
-      "bytes": 1133503
+      "sha256": "95c0e2818ff26723d3d41bdd30f650339e0ae3204d8785f4b71eeee66f3a1ba2",
+      "bytes": 1133966
     }
   ],
   "documents": [
@@ -197,7 +197,7 @@
       "id": "mm_A2_3A_v2_graph-linear-quadratic-system",
       "familyId": "mathmaster:A2.3A:v2-graph-linear-quadratic-system",
       "courseId": "algebra2",
-      "contentHash": "fb89c16a116d325d725da7c763a4eaa67344e20f78a376fe906d8ae57a621c43",
+      "contentHash": "0da76a7d1773ff2a1677df78186213f2eb31b60656558746f6dccb452b912c40",
       "samples": 12
     },
     {
@@ -295,7 +295,7 @@
       "id": "mm_A2_3C_v2_tangent-repeated-root",
       "familyId": "mathmaster:A2.3C:v2-tangent-repeated-root",
       "courseId": "algebra2",
-      "contentHash": "3e9feede8ab9bcb64dbaa20fdedf2d4790fc331b1c64eab28b6b5ad6557de278",
+      "contentHash": "f27188ae3538d889d7d618a2dcd3fcaa4ab5b7792baed1247d94f5355ee9d433",
       "samples": 12
     },
     {
@@ -1534,7 +1534,7 @@
       "id": "mm_A2_7G_v2_cube-root-variable-power",
       "familyId": "mathmaster:A2.7G:v2-cube-root-variable-power",
       "courseId": "algebra2",
-      "contentHash": "b44fcc925e5c588dc9f6299f6340a5d56dfdd3276748bf20ae9641a662cd73a1",
+      "contentHash": "350d6b159e2cb0770cd6ac3e3d945b4aa74003fc643ce2cdf66c7b1086d4e0d5",
       "samples": 12
     },
     {
@@ -1555,7 +1555,7 @@
       "id": "mm_A2_7G_v2_square-root-variable-power",
       "familyId": "mathmaster:A2.7G:v2-square-root-variable-power",
       "courseId": "algebra2",
-      "contentHash": "0e8ba0d51a50ffe639c1acce73536644e53ca62ad1425774e626f0129d7e8227",
+      "contentHash": "cb9657e0088949fe923c39469abf0e450283a39048e8105418df644676632557",
       "samples": 12
     },
     {
@@ -1870,7 +1870,7 @@
       "id": "mm_A_10D_v2_reverse-factor-from-expanded",
       "familyId": "mathmaster:A.10D:v2-reverse-factor-from-expanded",
       "courseId": "algebra1",
-      "contentHash": "7394cd68d149a916aa5cf6f99783ebaae687d9dc9aa8c31864329ffb87b0dfad",
+      "contentHash": "5709aefda4d67f4d58fc1d7d23fc8e49155b4362bd5aed2b23a8b10725e8b000",
       "samples": 12
     },
     {
@@ -2031,7 +2031,7 @@
       "id": "mm_A_12A_v2_mapping-nonfunction",
       "familyId": "mathmaster:A.12A:v2-mapping-nonfunction",
       "courseId": "algebra1",
-      "contentHash": "5d5b2223baca8d3673392271f722fda6e395c429033dc06880deecf8968059a6",
+      "contentHash": "36cc3b449c7876b83cd33d3e611d5e9d6f4b112d295582ecd594e952c654ac8f",
       "samples": 12
     },
     {
@@ -2192,21 +2192,21 @@
       "id": "mm_A_2A_v2_bounded-range",
       "familyId": "mathmaster:A.2A:v2-bounded-range",
       "courseId": "algebra1",
-      "contentHash": "e647c3d5b0e632b4e0e4edd23fbbf79314d5caf37ac7dc549ea329397bca4689",
+      "contentHash": "a564cddbfe2841d65ea6292ad687c23002e8e0a2030356bf9d54dd7b40711aa3",
       "samples": 12
     },
     {
       "id": "mm_A_2A_v2_context-domain-range",
       "familyId": "mathmaster:A.2A:v2-context-domain-range",
       "courseId": "algebra1",
-      "contentHash": "7ea933bbc6bfd0d28b2480331231283f68e3d5ac9eccfe3ec71505e72ae2ecb7",
+      "contentHash": "53accb2a2395177830d5d2fea5129ad56014250a5414e9f32dcf4c5d39a62783",
       "samples": 12
     },
     {
       "id": "mm_A_2A_v2_decreasing-range-error",
       "familyId": "mathmaster:A.2A:v2-decreasing-range-error",
       "courseId": "algebra1",
-      "contentHash": "89c917d257bda00cce239a046640b0bdd31675d0f5ad7a53bacc208c72814261",
+      "contentHash": "739a85af8a4e228f5ffed6ab411a88c120c31fbe893715bca0eecb4ceca34f27",
       "samples": 12
     },
     {
@@ -2997,7 +2997,7 @@
       "id": "mm_A_6A_v2_downward-range-error",
       "familyId": "mathmaster:A.6A:v2-downward-range-error",
       "courseId": "algebra1",
-      "contentHash": "92bfeab92ffe4ca561bcee72bd2d032f3539f9aec577b2e21d2811bc1a6efb67",
+      "contentHash": "aea62f6595d0a2ce4724a53b5fac32b54f964e4c49af489c3f69d59719a7effe",
       "samples": 12
     },
     {
@@ -3011,14 +3011,14 @@
       "id": "mm_A_6A_v2_projectile-context-domain-range",
       "familyId": "mathmaster:A.6A:v2-projectile-context-domain-range",
       "courseId": "algebra1",
-      "contentHash": "3ca368c731d704e2178906deaa531a6a0bff4244c28e3cee769c0ad8f095c453",
+      "contentHash": "36e613ede51d0bbb4a30618de0c03209279b65782fd9f0969904875f884f5846",
       "samples": 12
     },
     {
       "id": "mm_A_6A_v2_restricted-domain-range",
       "familyId": "mathmaster:A.6A:v2-restricted-domain-range",
       "courseId": "algebra1",
-      "contentHash": "e92e28455bfb419de4b0b9c7f72dbf942b9aea8cc2cc73c14f5ce7f7929dd876",
+      "contentHash": "123d970c1e53ff5bf6ae405e847316cb8cfc499df464b3fedfe00c0035f522aa",
       "samples": 12
     },
     {
@@ -3277,7 +3277,7 @@
       "id": "mm_A_9A_v2_context-restricted-domain",
       "familyId": "mathmaster:A.9A:v2-context-restricted-domain",
       "courseId": "algebra1",
-      "contentHash": "46fe2b7642094b888a703a0e445116a2feaaa7d70e96088f0030a19583c0a592",
+      "contentHash": "5f9cf39c4198a7185176f2752ad007276b6dc051b556ef4b5fa8801e9cfad519",
       "samples": 12
     },
     {
@@ -8182,10 +8182,10 @@
     }
   ],
   "build": {
-    "builtAt": "2026-10-18T12:18:51.186Z",
+    "builtAt": "2026-10-25T12:17:54.964Z",
     "builtBy": "scripts/build-course-path-release-v2.mjs",
-    "gitCommit": "94a27828d0f92aae34d7ef0f9b95bef0ff8dd239",
+    "gitCommit": "54b11b9a65da6461a0fda3964feedcdfd707f119",
     "nodeVersion": "v22.22.0",
-    "certificationMs": 896
+    "certificationMs": 7621
   }
 }

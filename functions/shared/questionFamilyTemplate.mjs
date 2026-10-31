@@ -118,6 +118,29 @@ const hash64Hex = (text) => {
   return `${first}${second}`;
 };
 
+/*
+ * A REASON PER OPTION, FILLED LIKE THE OPTIONS (FB05).
+ *
+ * A choice field's `optionRationales` is keyed by option text, and a
+ * template's options are templates ("{{t}}"). substitutePlaceholders fills
+ * values, never keys, so without this no reason would ever match the option a
+ * student chose. A key fills exactly as its option does; a whole placeholder
+ * becomes a number there, and an object key is its text.
+ */
+const fillOptionRationaleKeys = (filled, values) => {
+  ['answerFields', 'responses'].forEach((name) => {
+    if (!Array.isArray(filled[name])) return;
+    filled[name] = filled[name].map((field) => (isObject(field) && isObject(field.optionRationales)
+      ? {
+        ...field,
+        optionRationales: Object.fromEntries(Object.entries(field.optionRationales)
+          .map(([option, reason]) => [String(substitutePlaceholders(option, values)), reason])),
+      }
+      : field));
+  });
+  return filled;
+};
+
 /** Deterministic shuffle keyed by the instance itself, never by a student. */
 const shuffleChoices = (choices, seedKey) => {
   const ordered = [...choices];
@@ -279,7 +302,7 @@ export const buildTemplateFamily = (question, { slotKey = '' } = {}) => {
     },
     tools: {
       [toolType]: (values) => {
-        const filled = substitutePlaceholders(document, values);
+        const filled = fillOptionRationaleKeys(substitutePlaceholders(document, values), values);
         if (Array.isArray(filled.choices) && filled.choices.length > 1) {
           filled.choices = shuffleChoices(filled.choices, `${familyId}|${stableStringify(values)}`);
         }

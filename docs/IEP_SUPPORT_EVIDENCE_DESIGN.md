@@ -182,7 +182,9 @@ deadline display. One `available` record per (assignment, revision) documents wh
 
 ### 4.3 Individualized deadlines (extra time)
 `supportDeadline.mjs` computes, per student and assignment, `supportDueAt` (e.g. end of next school day after
-the class due) and `supportFinalAt = max(classFinal, supportDueAt)`. They are injected **in memory** into the
+the class due) and `supportFinalAt = max(classFinal, supportDueAt)`. A school day is a day the district is open to
+students: weekends, breaks, holidays and staff days are skipped (`schoolYearCalendar.mjs`, read the same by the browser and
+the server; TT17), which can only make a date later than counting weekdays. They are injected **in memory** into the
 student's override entry where the student's assignment and pinned profile meet:
 
 - student client (assignment load) → every existing `getAssignmentLifecycle(..., {studentId})` call honours them;
@@ -274,16 +276,35 @@ helpers pass the profile), `src/platform/gradeTransfer/studentDeadlineResolver.j
 - `firestore.indexes.json` is unchanged, because every new query is single-field within one student's subcollection;
 - the assignment header is hidden on phones and portrait tablets, so Support tools also render in the expanded assignment navigator there (`App.css` / `MathToolMobileLayout.css`, `.mathmaster-narrow-support-tools`).
 
-The four decisions below were implemented as proposed. They are listed in the PR for confirmation.
+The four decisions below were implemented as proposed, and the product owner has since confirmed all four (§10).
 
-## 10. Decisions to confirm with the product owner
+## 10. Decisions (confirmed by the product owner)
+
+**Decided** — all four, product owner, "Do it", recorded 2026-10-25 (tracked as TT09, audit finding A1-79). Each one
+was checked against the code on that date: the build does what the decision says, and a test pins it. Change one only
+by a new decision, recorded here.
 
 1. `algebra-auto-apply` stays an **accommodation** (as the current UI classifies it) but is flagged "affects
    independence evidence"; reclassifying it would retroactively flip students to Modified.
+   **Decided.** `supportCatalog.mjs` classifies it `A` with `affectsIndependence: true`; the teacher's editor and the
+   evidence report print "affects independence evidence" beside it (`tests/platform/supportCatalog.test.mjs`).
 2. An expired profile keeps applying (flagged) rather than silently removing supports.
+   **Decided.** An expired plan stays `active` and carries `expired: true` plus the `expired` warning, "Supports are
+   still applied until you renew or end the profile" (`tests/platform/supportProfileModel.test.mjs`); the exit ticket's
+   extra time reads the same plan (`tests/platform/dolExtraTime.test.mjs`, H-120).
 3. Legacy `extra-time` does not start moving deadlines until a teacher sets the extension.
+   **Decided.** A student with only the legacy box, or inclusion status, keeps the class due date and final cutoff
+   until a teacher sets a due-date extension (school days or hours) in the support profile; the box still turns off the
+   idle prompt (`supportDeadline.mjs`; `tests/platform/supportDeadline.test.mjs`, "a legacy extra-time box moves no
+   deadline"). The same box does stretch a timed exit ticket (DOL) 1.5x, as a secure exam does for that student: D7,
+   decision 1 in `docs/handoffs/STUDENT_PASS3_D7_EXTRA_TIME.md`, confirmed with this one.
 4. Providers without a MathMaster teacher-of-record account are recorded by the teacher of record with a
    provider role/label (no new provider role in this build).
+   **Decided.** A provider entry and a service-log minute are written by the student's own teacher (the rules let only
+   that teacher or the root administrator write them), carrying a provider role from the fixed list and an optional
+   label of up to 80 characters; there is no provider sign-in and no extra role
+   (`supportEvidenceModel.mjs` `PROVIDER_ROLES`, `buildStaffEvidenceEvent`, `buildServiceLogEntry`;
+   `tests/platform/supportEvidenceModel.test.mjs`).
 
 ## 11. Automatic reduced number of items (same TEKS, same rigor)
 
@@ -442,12 +463,21 @@ due date) is reported as a count.
 
 ### 11.9 Known limits
 
-- A profile change does not by itself re-send Classroom grades; the next grade write on that assignment does.
-  MathMaster's gradebook and TEAMS export reflect it immediately.
+- A profile change that moves which items a student owes on open work now re-sends the Classroom grades it moved
+  (TT23): both Classroom triggers (`syncGradeToClassroom`, `syncSectionGradeToClassroom`) ask
+  `studentWorkloadIndices.profileMovedAssignmentIds` which assignments the change moved, then give them the push an
+  answer would. It corrects only a grade Classroom already holds (`profileChangeNeedsPush`: last push `synced`, grade
+  now different): it never starts a column, retries a failed one, or sends the same number twice, and a change that
+  leaves a student's omitted items as they were (an unrelated edit, answered work, a reduction that rounds to nothing)
+  wakes nothing. Taking a reduction off sends the lower grade the gradebook already shows. Work already due is not
+  touched (11.6: a revision governs work due from the day it was saved). A future-dated revision that switches on
+  by itself is not a profile write, so it still reaches Classroom with the next grade write or the due-date checkpoint.
+  MathMaster's gradebook and TEAMS export reflect every change immediately.
 - Secure Test Cycles are not reduced.
-- Parts inside one question record are not reduced (see 11.4).
+- Parts inside one question record are not reduced (see 11.4). A multi-part question counts as one item, so a
+  reduction can never lighten the parts inside it; this stays a design limit, not a gap in the Classroom push.
 
-## 12. Language access through Support tools (Translate, Vocabulary, Read aloud, Break it down, Help me say it)
+## 12. Language access through Language tools (Translate, Vocabulary, Read aloud, Break it down, Help me say it)
 
 Language access is never easier mathematics. Every tool here changes the words around a task — never its numbers,
 expressions, coordinates, answer expressions, or what is asked. There is no "EB mode", no EB-only profile and no
@@ -499,7 +529,20 @@ A support the profile limits to some activities (`appliesTo`, e.g. quizzes and t
    prompt by `applyStudentSupportToQuestion` and read by Translate through one lookup and one rule
    (`authoredTranslation.js`): used only if it carries the authored prompt's mathematics exactly — numbers, symbols
    and capital-letter names of points, segments and figures (`AB`, `ABC`, `AB′`). An item with no authored prompt
-   keeps its mathematics in its tool, so its translation is shown;
+   keeps its mathematics in its tool, so its translation is shown. The same entry carries the teacher's own hints
+   and worked solution (TT22, `authoredSupportText.js`): `hints[]` (line N is the Nth teacher-written hint the
+   student's ladder offers, in the ladder's order: `supportHints`, `hints`, `hint`) and `solutionReview` (`headline`,
+   `reasoning[]`, `answerSummary`, `commonError`). Translate beside a hint or the worked solution shows them with
+   no language pack, under the same rule: a hint whose mathematics differs stays English and the gap says
+   `math-mismatch`; in a worked solution each sentence is judged on its own, one that fails stays English, and the
+   student is told some sentences are still English. The text is a person's, so a variable may be written `$y$`
+   where the English has `y` (delimiters are how it is written, not what it says): in Spanish prose a lone `y`,
+   `o`, `a`, `e` or `u` is a word, so a bare one loses the variable. Pre-Flight advises, never blocks
+   (`spanishVersionPreflight.js`, a group of `summarizeAdvisoryFindings`): hints and worked-solution parts with no
+   Spanish, a line that changes the mathematics, extra hint lines. Spanish only, and only for what a student can
+   be shown (no hints on a DOL, none for a hint the answer guard hides). A tool's, a family's and the legacy
+   review's sentences have no counterpart and stay as they are. The lessons carry no Spanish yet: supplying it is
+   a person's work (the teacher, or the owner for the shipped lessons);
 2. **curated** — a built-in language pack, loaded on demand (`packs/es.js`: 127 direction sentences and 40 answer
    choices drawn from the most frequent directions in MathMaster's Algebra I/II banks and generators). Mathematics is
    masked into slots by `mathSafeText.js` and restored exactly; any output that does not carry every slot exactly
@@ -544,7 +587,7 @@ mathematics.
   under the task — inside the task panel on a phone (which scrolls within its own capped height), under the task on
   tablets and Chromebooks, and above the work when a focused solver workspace hides the task. Never over the answer
   fields, graphs, Step Algebra or the calculator. Read aloud stays the work-bar "Read" button.
-- **Work View** (enlarged rich tools): a header **Support tools** drawer (capability `supports`, rendered only while
+- **Work View** (enlarged rich tools): a header **Language tools** drawer (capability `supports`, rendered only while
   open) with the same tools, Read aloud included.
 - **My Math Path**: `PathSupportBar` renders the same tray from the server's applicable list. A tool question renders
   `QuestionEngine` instead, which is handed the same server list (`supportEntitlement`) and folds its tray facts into
@@ -552,7 +595,8 @@ mathematics.
   the student opened travel with the attempt (`supportsPresented` / `supportsUsed`), which the server intersects with
   what it authorized (`reconcileSupportDelivery`).
 
-Labels are neutral ("Support tools"); nothing names a program or a classification.
+Labels are neutral ("Support tools" for the header's list of a student's supports and materials, "Language tools" for
+the tray and its Work View drawer; student pass 3, A3-53); nothing names a program or a classification.
 
 ### 12.9 Evidence and reporting
 

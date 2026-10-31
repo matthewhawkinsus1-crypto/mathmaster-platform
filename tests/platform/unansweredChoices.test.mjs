@@ -262,7 +262,10 @@ test('the systems workspace sends no classification-less response, as its grader
   const matrix = region(systems, 'function MatrixMode', 'export default function SystemsWorkspace', 'MatrixMode');
   const classic = region(systems, 'function ClassicInequalityMode', 'function LinearQuadraticMode', 'ClassicInequalityMode');
   for (const [label, mode] of [['linear', linear], ['matrix', matrix]]) {
-    assert.match(region(mode, 'const check = () => {', 'gradeToolCheck(', `${label} check`), /if \(!classified\b/, `${label}: Check returns before an unclassified response is sent`);
+    // Check waits for `ready`, and ready means classified first (then, for
+    // "exactly one", the typed point: systemsSolutionTyped.js, TL46).
+    assert.match(region(mode, 'const check = () => {', 'gradeToolCheck(', `${label} check`), /if \(!ready\) return;/, `${label}: Check returns before an unready response is sent`);
+    assert.match(mode, /const ready = classified && /, `${label}: an unclassified response is never ready`);
     assert.match(mode, /usePersistentToolState\('classification', UNANSWERED\)/, `${label}: the classification opens unanswered`);
     // Undo back to the start restores "unanswered", not "Exactly one solution".
     assert.match(mode, /setClassification\(value\?\.classification \|\| UNANSWERED\)/, `${label}: Undo restores unanswered`);

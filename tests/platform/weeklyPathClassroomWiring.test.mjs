@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
+import { executableSource } from './helpers/sourceContract.mjs';
+
 const functionsIndex = fs.readFileSync('functions/index.js', 'utf8');
 const panel = fs.readFileSync('src/components/teacher/WeeklyPathGradePanel.jsx', 'utf8');
 const control = fs.readFileSync('src/components/teacher/WeeklyPathAutoPublish.jsx', 'utf8');
@@ -51,6 +53,16 @@ test('the completion query reaches past the UTC week boundary to catch Sunday ni
   assert.equal(window.end - window.start, 8 * 24 * 60 * 60 * 1000);
 });
 
+test('the publisher reads the week\'s attendance and hands it to the decision (TT03)', () => {
+  const loader = blockAfter(functionsIndex, 'async function loadWeeklyPathClassWeek', 4600);
+  assert.match(loader, /const weekDays = weeklyCompletion\.weekDateKeys\(weekKey\)/);
+  assert.match(loader, /collection\("studentSupportEvents"\)\s*\.where\("classId", "==", classId\)\s*\.where\("dateKey", "==", dateKey\)/);
+  assert.match(loader, /studentsMarkedAbsent\(\{[\s\S]*?classId,\s*dateKeys: weekDays,/);
+  const run = blockAfter(functionsIndex, 'async function runWeeklyPathClassroomSync', 3200);
+  assert.match(run, /absentStudentIds: data\.absentStudentIds,/);
+  assert.match(control, /student_was_marked_absent_this_week: '/);
+});
+
 test('the job grades the week that ended, using the same weekKeyFor students got', () => {
   // A second definition of the week boundary here would let the job grade a week
   // nobody was ever assigned.
@@ -88,6 +100,16 @@ test('the teacher can preview the real run before agreeing to it', () => {
   assert.match(control, /dryRun: true/);
   assert.match(control, /writes nothing/i);
   assert.match(panel, /<WeeklyPathAutoPublish/);
+});
+
+test('the control names the day the class is due, from the goals the grade panel holds (MP05)', () => {
+  // "Closes at midnight Sunday night" was wrong for a class due on Friday. Which
+  // day to name is behaviour (weeklyPathGradebook.test.mjs); this pins that the
+  // two screens use it, and that no fixed day is left in the control's words.
+  assert.doesNotMatch(executableSource(control), /Sunday night/);
+  assert.match(control, /\{weekClosesClause\(dueDay\)\}/);
+  assert.match(panel, /classDueDayName\(goalsByStudentId\)/);
+  assert.match(panel, /<WeeklyPathAutoPublish\b[^>]*\bdueDay=\{dueDay\}/);
 });
 
 test('the new Classroom functions ship with the focused deploy', () => {

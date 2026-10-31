@@ -103,7 +103,8 @@ function timeLimitSecondsOf(session) {
  * while the clock runs) and `pausedSeconds` is the paused time already over.
  * The deadline is the time limit, plus added time, plus every paused second:
  * while a hold is on, the deadline moves with the clock, and on resume it
- * stands extended by exactly the time paused. An integrity lock is not a
+ * stands extended by the time paused, plus the few seconds a paused screen
+ * takes to see the resume (RESUME_GRACE_SECONDS). An integrity lock is not a
  * teacher's pause, and the clock runs through it as before.
  */
 const PAUSE_HOLDS = new Set(['assignment', 'proctor']);
@@ -130,6 +131,16 @@ function withPauseHold(session, hold, now = Date.now()) {
   return { teacherPause: { since: clockPausedSince(session) || now, holds: [...holds, hold] } };
 }
 
+/*
+ * THE SCREEN'S WAIT IS NOT THE STUDENT'S TIME (TS09). A paused screen learns
+ * of the resume by asking every RESUME_GRACE_SECONDS (the paused poll in
+ * SecureExamContainer.jsx), and the clock restarts the moment the teacher
+ * resumes, so up to that much of the student's time ran before they saw a
+ * question. The last hold off banks it back. Only for a pause that stopped a
+ * clock with time left: one that began after the deadline gives nothing back.
+ */
+const RESUME_GRACE_SECONDS = 5;
+
 /** The fields that lift a hold; the last one off banks the paused time. */
 function withoutPauseHold(session, hold, now = Date.now()) {
   const holds = pauseHoldsOf(session);
@@ -137,9 +148,11 @@ function withoutPauseHold(session, hold, now = Date.now()) {
   const rest = holds.filter((item) => item !== hold);
   const since = clockPausedSince(session);
   if (rest.length) return { teacherPause: { since, holds: rest } };
+  const deadline = deadlineBeforePause(session);
+  const grace = since && deadline !== null && since < deadline ? RESUME_GRACE_SECONDS : 0;
   return {
     teacherPause: { since: null, holds: [] },
-    pausedSeconds: pausedSecondsOf(session) + (since ? Math.max(0, now - since) / 1000 : 0),
+    pausedSeconds: pausedSecondsOf(session) + (since ? Math.max(0, now - since) / 1000 + grace : 0),
   };
 }
 
@@ -481,4 +494,4 @@ function courseReviewBlockedBy(record, { examSessionId, cycleStage } = {}) {
   return { reason: "attempt_open", message: "This review opens again when you finish the test you are taking now." };
 }
 
-module.exports = { AUTO_FINALIZE_GRACE_MS, autoFinalizeAtFor, autoFinalizeDue, COURSE_TEST_EXAM_TYPE, courseReviewBlockedBy, EXAM_POLICIES, INTEGRITY_LOCK_THRESHOLD, releasedSolutionOf, scorePoints, LOCKED_STATES, TERMINAL_STATES, clockPausedSince, deadlineFor, isCourseTestSession, isExpired, nextDomainId, pauseHoldsOf, policyFor, publicQuestion, publicReview, publicSession, secureSessionScorePercent, sessionScorePercent, supportsExamType, timeLimitSecondsOf, weightedSessionScorePercent, withPauseHold, withoutPauseHold };
+module.exports = { AUTO_FINALIZE_GRACE_MS, RESUME_GRACE_SECONDS, autoFinalizeAtFor, autoFinalizeDue, COURSE_TEST_EXAM_TYPE, courseReviewBlockedBy, EXAM_POLICIES, INTEGRITY_LOCK_THRESHOLD, releasedSolutionOf, scorePoints, LOCKED_STATES, TERMINAL_STATES, clockPausedSince, deadlineFor, isCourseTestSession, isExpired, nextDomainId, pauseHoldsOf, policyFor, publicQuestion, publicReview, publicSession, secureSessionScorePercent, sessionScorePercent, supportsExamType, timeLimitSecondsOf, weightedSessionScorePercent, withPauseHold, withoutPauseHold };

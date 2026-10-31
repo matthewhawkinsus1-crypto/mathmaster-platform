@@ -118,3 +118,11 @@ test('rewriteLinearForm hosts the same core with the target form as its objectiv
   assert.match(objective, /requireSimplifiedFinalForm: targetForm === 'slopeIntercept'/);
   assert.doesNotMatch(rewrite, /checkSideRewrite\(/, 'the generic "type the equivalent side" box is no longer the primary path');
 });
+
+test('a cancel-factor button used up by its pairing keeps keyboard focus (AX47)', () => {
+  const tools = executableSource(read('src/StepAlgebraStructureTools.jsx'));
+  assert.match(tools, /^import FocusSafeButton from '\.\/components\/common\/FocusSafeButton\.jsx';$/m);
+  const row = region(tools, 'function ReductionTokenRow(', '\n}', 'ReductionTokenRow');
+  assert.match(row, /<FocusSafeButton\b[\s\S]*?enabled=\{!\(disabled \|\| paired\)\}[\s\S]*?<\/FocusSafeButton>/);
+  assert.doesNotMatch(row, /disabled=\{disabled \|\| paired\}/, 'never natively disabled by its own pairing');
+});

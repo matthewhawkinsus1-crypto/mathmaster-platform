@@ -137,6 +137,17 @@ export const STUDENT_DESTINATION = Object.freeze({
   SECURE_EXAMS: LEVEL.SECURE_EXAMS,
 });
 
+// The dashboard screen each destination opens (App.jsx navigateStudent), and
+// so its address (app/routes/appUrl.js): the nav draws each as a link (AX41).
+export const STUDENT_DESTINATION_DASHBOARD_MODE = Object.freeze({
+  [STUDENT_DESTINATION.HOME]: 'assignments',
+  [STUDENT_DESTINATION.ASSIGNMENTS]: 'assignmentsCenter',
+  [STUDENT_DESTINATION.GRADES]: 'grades',
+  [STUDENT_DESTINATION.REWARDS]: 'rewards',
+  [STUDENT_DESTINATION.MATH_PATH]: 'mathPath',
+  [STUDENT_DESTINATION.SECURE_EXAMS]: 'secureExams',
+});
+
 export const STUDENT_DESTINATION_ORDER = Object.freeze([
   STUDENT_DESTINATION.HOME,
   STUDENT_DESTINATION.ASSIGNMENTS,

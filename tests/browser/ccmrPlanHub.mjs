@@ -21,6 +21,8 @@
 //
 // NO PRODUCTION CONTACT: every non-localhost request is aborted at the browser.
 
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
+
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5216';
@@ -138,7 +140,7 @@ for (const device of VIEWPORTS) {
     if (consoleErrors.length) extra.push(`console errors: ${consoleErrors.join(' | ').slice(0, 300)}`);
     if (pageErrors.length) extra.push(`page errors: ${pageErrors.join(' | ').slice(0, 300)}`);
     check(`${device.name}/${scene.name}`, seen, scene, extra);
-    await page.screenshot({ path: `${process.env.SCREENSHOT_DIR || '/tmp'}/ccmr-${device.name}-${scene.name}.png`, fullPage: true });
+    await screenshotKeepingTouch(page, { path: `${process.env.SCREENSHOT_DIR || '/tmp'}/ccmr-${device.name}-${scene.name}.png`, fullPage: true });
   }
 
   // INTERACTION: save a new date, then drop a goal, as a student.
@@ -189,7 +191,7 @@ for (const device of VIEWPORTS) {
   seen = await measure(page);
   if (!/Math/.test(seen.text) || !/Back to course path/.test(seen.text)) opened.push('the pathway detail did not open');
   check(`${device.name}/student-pathway-open`, seen, {}, opened);
-  await page.screenshot({ path: `${process.env.SCREENSHOT_DIR || '/tmp'}/ccmr-${device.name}-pathway.png`, fullPage: true });
+  await screenshotKeepingTouch(page, { path: `${process.env.SCREENSHOT_DIR || '/tmp'}/ccmr-${device.name}-pathway.png`, fullPage: true });
 
   await context.close();
 }

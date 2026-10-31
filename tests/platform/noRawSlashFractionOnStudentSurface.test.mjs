@@ -70,6 +70,12 @@ test('the printable student worksheet / teacher copy / answer-key PDF stacks pla
     source.indexOf('const graphWorkspace'),
   );
   assert.match(appendRichTextRegion, /splitProseFractionRuns/);
+  // A power piece ("x^(\\frac{1}{3})") prints with its exponent braced and a
+  // function's name upright, as on screen; every LaTeX the PDF typesets goes
+  // through braceScriptGroups and latexFunctionNames.
+  const typeset = appendRichTextRegion.match(/convertLatexToMarkup\([^\n]*\)/g) || [];
+  assert.equal(typeset.length, 2, typeset.join(' | '));
+  typeset.forEach((call) => assert.match(call, /^convertLatexToMarkup\(latexFunctionNames\(braceScriptGroups\(/, call));
 });
 
 test('lesson-notes PDF (teacher equations) stacks a plain-typed fraction instead of relying on authored \\\\frac syntax', () => {

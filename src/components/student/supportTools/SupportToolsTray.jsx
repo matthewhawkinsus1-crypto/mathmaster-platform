@@ -7,14 +7,18 @@ import { LANGUAGE_NAMES, resolveTranslation } from '../../../platform/language/t
 import { loadMathGlossary } from '../../../platform/language/mathVocabulary.js';
 import { speakAloud, speechAvailable, stopSpeaking } from '../../../platform/language/speechText.js';
 import { questionReadingText } from '../../../platform/language/questionReading.js';
-import { secureVocabularyEntries } from '../../../platform/assessment/secureSupportPanels.js';
+import { secureVocabularyEntries, secureVocabularyLabels } from '../../../platform/assessment/secureSupportPanels.js';
+import { LANGUAGE_TOOLS } from '../../../platform/student/studentWords.js';
 
 /*
- * THE SUPPORT TOOLS TRAY — loaded only for a student entitled to a language
+ * THE LANGUAGE TOOLS TRAY — loaded only for a student entitled to a language
  * tool (StudentSupportTools.jsx StudentSupportTray). It sits INLINE under the
  * task, never over it: the answer fields, the graph, the Step Algebra
  * workspace and the calculator stay where they are, and a panel scrolls inside
- * itself on a phone. Labels are neutral ("Support tools"), never a program.
+ * itself on a phone. Labels are neutral ("Language tools"), never a program.
+ * It is "Language tools", not "Support tools": the header's list of a
+ * student's supports and teacher materials already has that name, and two
+ * different sets of tools must not share one (studentWords.js, RUN-22).
  *
  * Evidence (onEvidence) is the support evidence system's: each tool's state
  * once per item (available / provided / not applicable / unavailable — see
@@ -44,7 +48,7 @@ const READ_PARTS = 'read-parts';
 const languageName = (code) => LANGUAGE_NAMES[String(code || '').split('-')[0]] || String(code || '').toUpperCase();
 const isSpanish = (code) => String(code || '').toLowerCase().startsWith('es');
 
-function TranslatePanel({ tool }) {
+export function TranslatePanel({ tool }) {
   const translation = tool.translation;
   if (!translation) return null;
   if (translation.provider === 'authored') {
@@ -63,12 +67,18 @@ function TranslatePanel({ tool }) {
         {languageName(translation.language)}{tool.coverage === 'partial' ? ' · some sentences are in English' : ''}
       </div>
       <div style={{ display: 'grid', gap: 4, marginTop: 4 }}>
-        {(translation.sentences || []).filter((sentence) => !sentence.mathOnly || translation.sentences.length === 1).map((sentence, index) => (
-          <div key={index} data-translated={sentence.translated ? 'true' : 'false'}>
-            <MathText>{sentence.text}</MathText>
-            {!sentence.translated && !sentence.mathOnly && <span style={{ marginLeft: 6, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>(English)</span>}
-          </div>
-        ))}
+        {(translation.sentences || []).filter((sentence) => !sentence.mathOnly || translation.sentences.length === 1).map((sentence, index) => {
+          // A sentence the pack could not translate is English, and its
+          // mathematics is said in English; every other formula is said in the
+          // panel's language (AX06).
+          const english = !sentence.translated && !sentence.mathOnly;
+          return (
+            <div key={index} lang={english ? 'en' : undefined} data-translated={sentence.translated ? 'true' : 'false'}>
+              <MathText language={english ? 'en' : translation.language}>{sentence.text}</MathText>
+              {english && <span style={{ marginLeft: 6, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>(English)</span>}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -79,7 +89,9 @@ function TranslatePanel({ tool }) {
  * glossary's worked example. On a secure test item it is false (RichQuestion-
  * Runtime's tray entitlement): an example applies the word, and can apply it
  * to exactly what the item asks, so the terms come through the same
- * example-free helper the secure field item's tray uses.
+ * example-free helper the secure field item's tray uses. There the tool's own
+ * words (`labelTermIds`) follow as labels: each word, and its Spanish word,
+ * with no definition, which would walk through the tool's method (TS07).
  */
 function VocabularyPanel({ tool, language, onFailed, showExamples = true }) {
   const [glossary, setGlossary] = useState(null);
@@ -96,21 +108,41 @@ function VocabularyPanel({ tool, language, onFailed, showExamples = true }) {
   if (failed) return <div role="status" data-support-panel="vocabulary">Vocabulary could not load. Your teacher can see this.</div>;
   if (!glossary) return <div role="status" data-support-panel="vocabulary">Loading vocabulary…</div>;
   if (!showExamples) {
+    const entries = secureVocabularyEntries(glossary, tool.termIds, { language });
+    // A secure tool item's own words, as labels with no definition (TS07).
+    const labels = secureVocabularyLabels(glossary, tool.labelTermIds, { language });
     return (
-      <dl data-support-panel="vocabulary" data-vocabulary-examples="none" style={{ margin: 0, display: 'grid', gap: 8 }}>
-        {secureVocabularyEntries(glossary, tool.termIds, { language }).map((entry) => (
-          <div key={entry.id} data-vocabulary-term={entry.id}>
-            <dt style={{ fontWeight: 900 }}>
-              {entry.term}
-              {entry.translation && <span lang={entry.translation.language} style={{ fontWeight: 700, color: 'var(--mm-text-muted)' }}> · {entry.translation.term}</span>}
-            </dt>
-            <dd style={{ margin: '2px 0 0' }}>
-              <div>{entry.definition}</div>
-              {entry.translation && <div lang={entry.translation.language} style={{ color: 'var(--mm-text)' }}>{entry.translation.definition}</div>}
-            </dd>
+      <div data-support-panel="vocabulary" data-vocabulary-examples="none" style={{ display: 'grid', gap: 10 }}>
+        {entries.length ? (
+          <dl style={{ margin: 0, display: 'grid', gap: 8 }}>
+            {entries.map((entry) => (
+              <div key={entry.id} data-vocabulary-term={entry.id}>
+                <dt style={{ fontWeight: 900 }}>
+                  {entry.term}
+                  {entry.translation && <span lang={entry.translation.language} style={{ fontWeight: 700, color: 'var(--mm-text-muted)' }}> · {entry.translation.term}</span>}
+                </dt>
+                <dd style={{ margin: '2px 0 0' }}>
+                  <div>{entry.definition}</div>
+                  {entry.translation && <div lang={entry.translation.language} style={{ color: 'var(--mm-text)' }}>{entry.translation.definition}</div>}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+        {labels.length ? (
+          <div data-vocabulary-labels="">
+            <p style={{ margin: 0, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)' }}>Words this tool uses</p>
+            <ul style={{ margin: '4px 0 0', paddingLeft: 18, display: 'grid', gap: 2 }}>
+              {labels.map((entry) => (
+                <li key={entry.id} data-vocabulary-label={entry.id} style={{ fontWeight: 700 }}>
+                  {entry.term}
+                  {entry.translation && <span lang={entry.translation.language} style={{ color: 'var(--mm-text-muted)' }}> · {entry.translation.term}</span>}
+                </li>
+              ))}
+            </ul>
           </div>
-        ))}
-      </dl>
+        ) : null}
+      </div>
     );
   }
   const spanish = isSpanish(language);
@@ -196,6 +228,9 @@ function StepsBox({ tool, open, onToggle }) {
 export default function SupportToolsTray({
   entitlement,
   prompt = '',
+  // The hints and feedback on the student's screen, as text (seenHelpText.js,
+  // AX43): Vocabulary explains their words too. Empty where none is shown.
+  seenText = '',
   readingParts = null,
   readingLanguage = null,
   question = null,
@@ -245,7 +280,7 @@ export default function SupportToolsTray({
   const translation = resolved?.key === translationKey ? resolved.result : null;
 
   const model = useMemo(() => {
-    const base = supportToolsForItem({ entitlement, prompt, question, toolType, speech: speech && !speechFailed });
+    const base = supportToolsForItem({ entitlement, prompt, question, toolType, speech: speech && !speechFailed, seenText });
     const withLanguage = withTranslation(base, translation);
     const tools = withLanguage.tools
       .filter((tool) => includeReadAloud || tool.tool !== SUPPORT_TOOL.READ_ALOUD)
@@ -253,7 +288,7 @@ export default function SupportToolsTray({
         ? { ...tool, state: TOOL_STATE.UNAVAILABLE, reason: 'glossary-load-failed' }
         : tool));
     return { ...withLanguage, tools };
-  }, [entitlement, prompt, question, toolType, speech, speechFailed, translation, includeReadAloud, glossaryFailed]);
+  }, [entitlement, prompt, seenText, question, toolType, speech, speechFailed, translation, includeReadAloud, glossaryFailed]);
 
   // What this item actually offered — once per item and fact.
   useEffect(() => {
@@ -319,10 +354,10 @@ export default function SupportToolsTray({
   const partsOpen = partsOffered && (openTool === READ_PARTS || openTool === SUPPORT_TOOL.READ_ALOUD);
 
   return (
-    <div className={`mathmaster-support-tray${className ? ` ${className}` : ''}`} data-student-support-tray={surface} role="group" aria-label="Support tools">
+    <div className={`mathmaster-support-tray${className ? ` ${className}` : ''}`} data-student-support-tray={surface} role="group" aria-label={LANGUAGE_TOOLS}>
       {allButtons.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-          <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Support tools</span>
+          <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{LANGUAGE_TOOLS}</span>
           {allButtons.map((tool) => (
             <button
               key={tool.tool}

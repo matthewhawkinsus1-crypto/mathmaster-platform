@@ -119,7 +119,8 @@ test('the engine hands a tool what its own box offers, under the same rule', () 
   assert.match(handOver, /readAloud: supportedTextReadAloud,/);
   assert.match(handOver, /translation: supportedTextTranslation,/);
   assert.match(handOver, /onEvidence: reportSupportedTextUse,/);
-  assert.match(handOver, /onShowHint: attemptHintOffered \? revealNextHint : null,/);
+  // The hint opens under the tool, where the miss was read (FB10).
+  assert.match(handOver, /onShowHint: attemptHintOffered \? \(\) => revealNextHint\('results'\) : null,/);
   // One rule for the offer, wherever the outcome is shown: a miss, on an open
   // question, once hints are ready (attemptFeedbackPlan.hintOfferedAfterMiss).
   const rule = region(engine, 'const attemptHintOffered = ', ';', 'the hint offer rule');
@@ -128,7 +129,7 @@ test('the engine hands a tool what its own box offers, under the same rule', () 
   const box = region(engine, '{feedback && !feedback.blocked && showOutcomeFeedback', '</div>\n      )}', 'the engine outcome box');
   // The box offers the hint under the same rule (beside, since HELP-9, the
   // worked sibling): the button that reveals a hint renders only under it.
-  assert.match(box, /\{attemptHintOffered \? <>A hint is ready if you want one\. \{hintCostSentence\(hintCostNote\)\}\{' '\}\s*<button type="button" onClick=\{revealNextHint\}/, 'the box offers the hint under the same rule');
+  assert.match(box, /\{attemptHintOffered \? <>A hint is ready if you want one\. \{hintCostSentence\(hintCostNote\)\}\{' '\}\s*<button type="button" onClick=\{\(\) => revealNextHint\('results'\)\}/, 'the box offers the hint under the same rule');
 });
 
 test('after a miss, the box and the tool offer the worked sibling beside the hint (HELP-9)', async () => {
@@ -140,15 +141,15 @@ test('after a miss, the box and the tool offer the worked sibling beside the hin
   const rule = region(engine, 'const attemptSimilarOffered = ', ';', 'the after-a-miss rule');
   assert.match(rule, /similarOffered && feedback && feedback\.isCorrect === false && !feedback\.blocked/);
   const handOver = region(engine, 'const toolAttemptOutcome = outcomeInTool ? {', '} : null;', 'the tool hand-over');
-  assert.match(handOver, /onShowSimilar: attemptSimilarOffered \? openSimilarExample : null,/);
+  assert.match(handOver, /onShowSimilar: attemptSimilarOffered \? \(\) => openSimilarExample\('results'\) : null,/);
   const box = region(engine, '{feedback && !feedback.blocked && showOutcomeFeedback', '</div>\n      )}', 'the engine outcome box');
-  assert.match(box, /\{attemptSimilarOffered \? <button type="button" data-similar-offer="" onClick=\{openSimilarExample\}[^>]*>See a similar problem worked<\/button> : null\}/);
+  assert.match(box, /\{attemptSimilarOffered \? <button type="button" data-similar-offer="" onClick=\{\(\) => openSimilarExample\('results'\)\}[^>]*>See a similar problem worked<\/button> : null\}/);
   // "Your last try" keeps both offers while the student edits.
   const previous = region(engine, '{!feedback && previousMiss && !locked && showOutcomeFeedback && (', '</div>\n      )}', 'your last try');
-  assert.match(previous, /\{similarOffered \? <button type="button" data-similar-offer="" onClick=\{openSimilarExample\}/);
+  assert.match(previous, /\{similarOffered \? <button type="button" data-similar-offer="" onClick=\{\(\) => openSimilarExample\('results'\)\}/);
   // The example lives in the Hint panel, so opening it opens the panel, and
   // it is recorded as a worked example.
-  const opener = region(engine, 'const openSimilarExample = () => {', '};', 'opening the example');
+  const opener = region(engine, 'const openSimilarExample = (place) => {', '};', 'opening the example');
   assert.match(opener, /setWorkedExampleUsed\(true\);/);
   assert.match(opener, /setHintPanelOpen\(true\);/);
 

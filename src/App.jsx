@@ -1,4 +1,4 @@
-import { Fragment, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, Suspense, startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 // Stylesheets that must link before App.css, in 805b69e2's order
 // (app/shell/leadingStyles.js says why and how).
 import './app/shell/leadingStyles.js';
@@ -22,17 +22,19 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import {
+  buildResponseCheckpointAction,
   checkpointDocumentId,
   checkpointEligibility,
   enqueueResponseCheckpoint,
   normalizeCheckpointResponse,
   responseFingerprint,
 } from './platform/performance/responseCheckpoint.js';
-import { WORKSPACE_DRAFT_REREAD_AFTER_HIDDEN_MS, createWorkspaceDraftSync } from './platform/persistence/workspaceDraftSync.js';
-import { accountChangeClearsDraftProblems, clearDraftSaveProblems, describeDraftSaveProblems, draftSaveProblemsFor, draftSaveProblemsForStudent, subscribeDraftSaveHealth } from './platform/persistence/draftSaveHealth.js';
+import { FAMILY_PIN_SERVER_WAIT_MS, WORKSPACE_DRAFT_REREAD_AFTER_HIDDEN_MS, createWorkspaceDraftSync } from './platform/persistence/workspaceDraftSync.js';
+import { accountChangeClearsDraftProblems, clearDraftSaveProblems, describeDraftSaveProblems, draftSaveProblemAssignmentIds, draftSaveProblemsFor, draftSaveProblemsForStudent, subscribeDraftSaveHealth } from './platform/persistence/draftSaveHealth.js';
 import { REPLACEMENT_NOT_QUEUED, STEP_NOT_QUEUED, SUBMISSION_NOT_QUEUED } from './platform/student/submissionNotQueued.js';
+import { scrollMotion } from './motionPreference.js';
 import { readLatestWorkspaceResume, readWorkspaceDraft, writeWorkspaceDraft } from './platform/persistence/workspaceDraftStore.js';
-import { readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
+import { readWorkspaceDeliveryPins, readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
 import { canonicalResponseSavedAt } from './platform/persistence/canonicalResponseTime.js';
 import { adoptCanonicalAdvances } from './platform/persistence/canonicalTrackerReconciliation.js';
 import { applyWarmupTeacherControl, resolveAuthoritativeClose, resolveWarmupInstructionDateKey } from '../functions/shared/sectionDeadline.mjs';
@@ -45,7 +47,8 @@ import { launchSupportRecords, studentMayRecordSupport, usedRecordKey } from './
 // kit (app/teacher/teacherKit.js). A student's screen reads only the summary.
 import { summarizeStudentRecovery } from './platform/assessment/studentRecoverySummary.js';
 import { practiceSkillLaunch } from './platform/assessment/practiceSkillLaunch.js';
-import { describeDolClose } from './platform/assessment/dolCloseCopy.js';
+import { describeDolClose, DOL_OPEN_NOTICE } from './platform/assessment/dolCloseCopy.js';
+import { receiptRereadsAfter } from './platform/assessment/dolReceiptRefresh.js';
 import { extraTimeFrom } from './platform/assessment/extraTimeWords.js';
 // The DOL grant helpers (platform/assessment/dolAttemptGrantClient.js) are
 // teacher-only: they come from the teacher kit (app/teacher/teacherKit.js).
@@ -137,6 +140,7 @@ import {
   CLASS_PERIODS,
   DEFAULT_CLASS_SCHEDULE,
   assignmentIsForStudent,
+  earlySectionAccessState,
   formatDateTime,
   formatRemainingTime,
   getAssignmentLifecycle,
@@ -149,6 +153,7 @@ import {
   getSectionVariantMode,
   localDateKey,
   normalizeSchedule,
+  opensEarlyByPrerequisite,
   prerequisiteAccess,
   recordAssignmentActivity,
   sectionAccessForStudent,
@@ -159,10 +164,11 @@ import {
   studentDueDateLines,
   studentExtraTimeDolOpen,
   studentRequiredQuestions,
+  withDayTypeSetAt,
 } from './assignmentLifecycle';
 import { HEARTBEAT_INTERVAL_MS, buildLiveStatus, encodeQuestionStates } from './livePresence';
 import { helpRequestAfterClose, helpRequestFields, nextHelpRequest } from './platform/supports/helpRequest.js';
-import { useAskMyTeacher } from './platform/supports/useAskMyTeacher.js';
+import { useAskMyTeacher, useTeacherQuestionsOn } from './platform/supports/useAskMyTeacher.js';
 import { questionFor } from './platform/supports/askTeacher.js';
 import TeacherAnswers from './components/student/TeacherAnswers.jsx';
 import { TeacherAnswersList } from './components/student/TeacherAnswersList.jsx';
@@ -177,7 +183,11 @@ import {
   scheduleSpotlightExpiry,
 } from './platform/liveSpotlight.js';
 import { activeStudentSpotlightQuery } from './platform/liveSpotlightQueries.js';
-import { getQuestionRepresentation } from './platform/contract/questionTypeCatalog';
+// What a question shows a student, for the live-presence tile, is the one thing
+// App needs of the question type catalog. The catalog is authoring metadata
+// (about 13 KB gzip with the validators under it): it loads where questions are
+// authored and checked, never with Home.
+import { getQuestionRepresentation } from '../functions/shared/questionRepresentation.mjs';
 import { getQuestionPrimaryTeksCodes } from './questionMetadata.js';
 import {
   buildSupportUsage,
@@ -188,6 +198,7 @@ import {
 
 import { TEXAS_MATH_ACTIVE_COURSES, getTexasStandardsForCourse } from './texasStandards.js';
 import QuestionAnnouncer from './components/common/QuestionAnnouncer.jsx';
+import ScreenErrorBoundary from './components/common/ScreenErrorBoundary.jsx';
 import Dialog from './ui/Dialog.jsx';
 import { MAIN_CONTENT_ID, SkipToContent, pageTitleFor, useDocumentTitle } from './components/common/pageChrome.jsx';
 import { subscribeToReadingActivity } from './components/common/readingActivity.js';
@@ -305,6 +316,8 @@ import { packUpWorkLine } from './platform/student/packUpLine.js';
 import {
   readRouteOwner,
   readStudentRouteState,
+  recoveryModeToRestore,
+  recoveryResultPageRoute,
   studentRouteKey,
   writeStudentRouteState,
 } from './platform/student/browserHistory.js';
@@ -653,6 +666,9 @@ function App() {
       ? null
       : readUrlArrival({ pathname: window.location.pathname, search: window.location.search })
   ));
+  // When it was read: an address left waiting on a signed-out page too long
+  // is not the next account's (useUrlArrival, NV09).
+  const urlArrivalAtRef = useRef(Date.now());
   // My Math Path's tab or session from an arrival, handed to MyMathPathApp
   // when it mounts; cleared once the student leaves My Math Path.
   const [mathPathArrival, setMathPathArrival] = useState(null);
@@ -857,6 +873,10 @@ function App() {
   const [pathLaunchTeks, setPathLaunchTeks] = useState(null);
   // Which My Math Path tab a "Practise this skill" link from a test review opens.
   const [pathLaunchTab, setPathLaunchTab] = useState(null);
+  // The exam a practice test's "Practise this skill" starts, with the standard
+  // it was set for (MP14): applied only to that same launch, so a later course
+  // launch of any skill is never run in an exam's format.
+  const [pathLaunchFramework, setPathLaunchFramework] = useState(null);
   const [activeAssignmentId, setActiveAssignmentId] = useState(null);
   const [tracker, setTracker] = useState({});
   const [studentOutboxDepth, setStudentOutboxDepth] = useState(0);
@@ -864,6 +884,8 @@ function App() {
   // reason to worry a student, and a pending Submit is.
   const [studentPendingGradeCount, setStudentPendingGradeCount] = useState(0);
   const [studentNeedsReviewCount, setStudentNeedsReviewCount] = useState(0);
+  // The assignments those answers are on, for Home to name (NV10).
+  const [studentNeedsReviewAssignmentIds, setStudentNeedsReviewAssignmentIds] = useState([]);
   const [studentPersistenceStatus, setStudentPersistenceStatus] = useState('idle');
   // Unfinished work this device could not save, or the backup could not take
   // (draftSaveHealth.js). Bumped on every change; the line below reads it.
@@ -893,6 +915,11 @@ function App() {
   const [draftRestoreFocus, setDraftRestoreFocus] = useState(null);
   const currentQuestionIndexRef = useRef(0);
   const workspaceDraftSyncRef = useRef(null);
+  // The open assignment's server copy of its delivery pins (RT15): which
+  // version of each personalized question another of this student's devices
+  // showed before the first Submit. `known` once that copy has been read, or
+  // could not be (FAMILY_PIN_SERVER_WAIT_MS).
+  const [serverDeliveryPins, setServerDeliveryPins] = useState({ assignmentId: null, known: false, pins: null });
   const trackerRef = useRef({});
   const [practiceTracker, setPracticeTracker] = useState({});
   // Practice Mode and "View as Student" scratchpads never reach Firestore, so
@@ -1047,7 +1074,7 @@ function App() {
   useEffect(() => {
     if (teacherTab !== 'assignments' || !editingAssignmentId) return undefined;
     const frame = window.requestAnimationFrame(() => {
-      document.querySelector(`[data-assignment-card="${CSS.escape(editingAssignmentId)}"]`)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+      document.querySelector(`[data-assignment-card="${CSS.escape(editingAssignmentId)}"]`)?.scrollIntoView?.({ behavior: scrollMotion(), block: 'start' });
     });
     return () => window.cancelAnimationFrame(frame);
   }, [teacherTab, editingAssignmentId]);
@@ -1149,16 +1176,21 @@ function App() {
         surface: 'assignment',
         assignmentId: activeAssignmentId || '',
         questionIndex: currentQuestionIndex,
+        // A section-scoped Classroom launch, kept in this tab's entry (NV03).
+        ...(activeClassroomSectionKey ? { sectionScope: activeClassroomSectionKey } : {}),
       };
     }
     // Assignment Result is its own entry so the required Back chain —
     // Practice -> Result -> Grades -> Home — has a browser entry per screen.
     if (activeView === 'assignmentResult') {
+      const resultAssignmentId = assignmentResultRoute?.assignmentId || activeAssignmentId || '';
       return {
         surface: 'assignmentResult',
-        assignmentId: assignmentResultRoute?.assignmentId || activeAssignmentId || '',
+        assignmentId: resultAssignmentId,
         sectionKey: assignmentResultRoute?.sectionKey || '',
         origin: assignmentResultRoute?.origin || 'assignments',
+        // The Recovery open over the page is an entry of its own (NV14).
+        ...(recoverySession?.assignmentId === resultAssignmentId ? { recoverySection: recoverySession.section } : {}),
       };
     }
     return {
@@ -1169,7 +1201,7 @@ function App() {
         ? { testCycleAssignmentId: activeTestCycleAssignmentId || '', origin: activeTestCycleOrigin }
         : {}),
     };
-  }, [user?.role, activeView, activeAssignmentId, currentQuestionIndex, studentDashboardMode, assignmentResultRoute, activeTestCycleAssignmentId, activeTestCycleOrigin]);
+  }, [user?.role, activeView, activeAssignmentId, currentQuestionIndex, activeClassroomSectionKey, studentDashboardMode, assignmentResultRoute, activeTestCycleAssignmentId, activeTestCycleOrigin, recoverySession?.assignmentId, recoverySession?.section]);
 
   useEffect(() => {
     if (!studentBrowserRoute) {
@@ -1212,6 +1244,10 @@ function App() {
     // moved to the matching history entry. Seeing the same key here prevents
     // that restoration from immediately pushing a duplicate entry.
     if (currentKey !== targetKey) {
+      // A Recovery opened from another screen sits on its result page's own
+      // entry, so Back from it lands on the page (NV14).
+      const resultPage = recoveryResultPageRoute(studentBrowserRoute);
+      if (resultPage && studentRouteKey(resultPage) !== currentKey) writeStudentRouteState(resultPage, { url, owner: user?.uid });
       writeStudentRouteState(studentBrowserRoute, { url, owner: user?.uid });
     }
     studentBrowserUrlRef.current = url;
@@ -1272,6 +1308,8 @@ function App() {
         setStudentDashboardMode('assignments');
         setPathLaunchTeks(null);
         setActiveAssignmentId(route.assignmentId || null);
+        // Back onto a section-scoped launch shows that section again (NV03).
+        setActiveClassroomSectionKey(route.sectionScope || null);
         setCurrentQuestionIndex(route.questionIndex || 0);
         setActiveView('assignment');
         return;
@@ -1294,6 +1332,14 @@ function App() {
               origin: route.origin || 'assignments',
             }
         ));
+        // Back or Forward onto a Recovery's entry opens it again, where the
+        // page's panel still offers it (mode null: the panel decides, below
+        // the summary); onto the page itself, the Recovery closes (NV14).
+        setRecoverySession((current) => {
+          if (!route.recoverySection) return null;
+          if (current?.assignmentId === route.assignmentId && current.section === route.recoverySection) return current;
+          return { assignmentId: route.assignmentId, section: route.recoverySection, mode: null };
+        });
         setActiveView('assignmentResult');
         return;
       }
@@ -1417,9 +1463,33 @@ function App() {
     });
   }, [recoveryAssignmentId, studentRecoveryKit, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, classSchedule]);
 
+  // A Recovery belongs to the result page it opened on: leaving that page
+  // (for another screen, or another assignment's result) closes it.
   useEffect(() => {
-    if (!recoveryAssignmentId) setRecoverySession(null);
+    setRecoverySession((current) => (current && current.assignmentId !== recoveryAssignmentId ? null : current));
   }, [recoveryAssignmentId]);
+
+  /*
+   * A RECOVERY REOPENED BY BACK, FORWARD OR A RELOAD (NV14) has no mode until
+   * the page's panel can say which of its buttons it offers now
+   * (recoveryModeToRestore), so it opens only where a tap could. One the
+   * panel no longer offers (submitted, held, closed) leaves the student on the
+   * result page, and its entry becomes the page's, so Back does not walk into
+   * it again.
+   */
+  useEffect(() => {
+    if (!recoverySession || recoverySession.mode || !studentRecoveryKit || recoverySession.assignmentId !== recoveryAssignmentId) return;
+    const mode = recoveryModeToRestore(studentRecoverySummary.find((entry) => entry.section === recoverySession.section));
+    if (mode) {
+      setRecoverySession({ ...recoverySession, mode });
+      return;
+    }
+    const entry = readStudentRouteState(window.history.state);
+    if (entry?.surface === 'assignmentResult' && entry.assignmentId === recoverySession.assignmentId && entry.recoverySection) {
+      writeStudentRouteState({ ...entry, recoverySection: '' }, { replace: true, owner: user?.uid });
+    }
+    setRecoverySession(null);
+  }, [recoverySession, studentRecoveryKit, recoveryAssignmentId, studentRecoverySummary, user?.uid]);
 
   /*
    * EVERY OPEN RECOVERY, WHERE A STUDENT WILL SEE IT.
@@ -1494,11 +1564,13 @@ function App() {
     if (activeView !== 'dashboard' || !RECOVERY_ANNOUNCEMENT_MODES.has(studentDashboardMode)) return;
     if (isSecureExamActive()) return;
     const fresh = studentRecoveryDiscovery.filter((opportunity) => opportunity.notify
-      && !recoveryAnnouncedRef.current.has(opportunity.noticeKey)
+      && !recoveryAnnouncedRef.current.has(`${user.id}:${opportunity.noticeKey}`)
       && !recoveryWasNotified(user.id, opportunity));
     if (!fresh.length) return;
     fresh.forEach((opportunity) => {
-      recoveryAnnouncedRef.current.add(opportunity.noticeKey);
+      // Keyed by student (RC09): the next student signing in on a shared
+      // Chromebook still hears about their own Recovery.
+      recoveryAnnouncedRef.current.add(`${user.id}:${opportunity.noticeKey}`);
       markRecoveryNotified(user.id, opportunity);
     });
     const notice = recoveryNotice(fresh);
@@ -1949,6 +2021,15 @@ function App() {
     assignmentId: activeAssignmentId,
   });
   const { helpRequest, setHelpRequest } = askMyTeacher;
+  // The open Recovery's questions for the teacher, for its "out of practice
+  // questions" screen (RC10, SectionRecoveryRunner). Read only while a
+  // Recovery is open and the student has a teacher to send to.
+  const recoveryTeacherQuestions = useTeacherQuestionsOn({
+    studentId: askingStudentId && user?.assignedTeacherEmail ? askingStudentId : null,
+    classId: user?.classId || null,
+    teacherEmail: askingStudentId ? user.assignedTeacherEmail || null : null,
+    assignmentId: recoverySession?.assignmentId || null,
+  });
   const publishPresenceNowRef = useRef(null);
   const spotlightPublisherRef = useRef(null);
   const [studentSpotlightRequest, setStudentSpotlightRequest] = useState(null);
@@ -2631,7 +2712,7 @@ function App() {
    * publication target, so a Classroom failure never rolls back the assignment.
    */
   const autoPublishAssignmentPackageToClassroom = async (assignment) => {
-    const { automaticClassroomTopicName, classroomPostingMode, mappedCourseIdsForAssignment, shouldAutoPublishClassroomPackage } = requireTeacherKit();
+    const { automaticClassroomTopicName, classroomPostingMode, mappedCourseIdsForAssignment, shouldAutoPublishClassroomPackage, teacherClassroomTopicStyle } = requireTeacherKit();
     if (!shouldAutoPublishClassroomPackage(assignment)) {
       return { status: 'skipped', reason: 'not-auto-publishable', published: 0, failed: 0 };
     }
@@ -2650,8 +2731,11 @@ function App() {
 
     const classroom = assignment.classroomPackage || {};
     // One name for both posts, so the resources and the assignment land in the
-    // same topic — renamed "Week of …" when the teacher chose week topics.
-    const topicName = automaticClassroomTopicName(assignment);
+    // same topic — renamed "Week of …" when the teacher chose week topics. The
+    // style is the teacher's saved choice, so a second device names topics the
+    // same way (TT07); with it unreadable, this browser's own choice stands.
+    const topicStyle = await teacherClassroomTopicStyle({ db, uid: user?.uid });
+    const topicName = automaticClassroomTopicName(assignment, { style: topicStyle });
     const notesPdf = assignment.lessonResources?.notesPdf || null;
     const resourceLinks = Array.isArray(classroom.additionalLinks)
       ? classroom.additionalLinks
@@ -3271,6 +3355,9 @@ function App() {
     setStudentOutboxDepth(result.remaining);
     setStudentPendingGradeCount(result.remainingGrade);
     setStudentNeedsReviewCount(result.tally.needsReview);
+    setStudentNeedsReviewAssignmentIds([...new Set((result.retained || [])
+      .filter((entry) => entry.disposition === SUBMISSION_DISPOSITION.NEEDS_REVIEW && entry.assignmentId)
+      .map((entry) => entry.assignmentId))]);
     setStudentPersistenceStatus(
       result.remaining
         ? (result.tally.needsReview ? 'needs-review' : (navigator.onLine ? 'syncing' : 'offline'))
@@ -3952,6 +4039,25 @@ function App() {
     }).catch((error) => console.error('Could not synchronize Walkthrough:', error));
   }, [user?.role, liveTeachingSession]);
 
+  // The receipts are read again after the open exit ticket closes (RT08,
+  // dolReceiptRefresh.js): a few reads, not a listener.
+  const activeDolOpen = useMemo(() => {
+    if (user?.role !== 'student' || !activeAssignmentId) return null;
+    const assignment = assignments.find((item) => item.id === activeAssignmentId);
+    if (!assignment) return null;
+    const state = getDOLState({ assignment, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: now });
+    return state.enabled ? state.status === 'active' : null;
+  }, [user, activeAssignmentId, assignments, classSchedule, now]);
+  const [checkpointReadRound, setCheckpointReadRound] = useState(0);
+  const dolReceiptWindowRef = useRef(null);
+  useEffect(() => {
+    const previous = dolReceiptWindowRef.current;
+    const next = activeAssignmentId && activeDolOpen !== null ? { assignmentId: activeAssignmentId, open: activeDolOpen } : null;
+    dolReceiptWindowRef.current = next;
+    const timers = receiptRereadsAfter(previous, next).map((delay) => window.setTimeout(() => setCheckpointReadRound((round) => round + 1), delay));
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [activeAssignmentId, activeDolOpen]);
+
   useEffect(() => {
     if (user?.role !== 'student' || !user.id || !activeAssignmentId) {
       setCheckpointOutcomes({});
@@ -3973,7 +4079,7 @@ function App() {
       console.warn('Could not read response checkpoint receipts:', error);
     });
     return () => { cancelled = true; };
-  }, [user?.role, user?.id, activeAssignmentId]);
+  }, [user?.role, user?.id, activeAssignmentId, checkpointReadRound]);
 
   /*
    * SERVER-BACKED WORKING DRAFTS.
@@ -4022,6 +4128,19 @@ function App() {
     if (!activeAssignmentUsesWorkspaceDrafts) return undefined;
 
     let cancelled = false;
+    // A personalized question this device has no pin for waits for the
+    // server's pins (RT15, the question view below) — never for long: past
+    // FAMILY_PIN_SERVER_WAIT_MS, or a failed read, it is dealt as before.
+    // The wait ends in a transition: the question it held back mounts then,
+    // and QuestionEngine's code may still be on its way (app/lazyScreens.js).
+    // An ordinary update would hide the workspace already on screen behind the
+    // app's "Loading your MathMaster workspace…" until it came (seconds on a
+    // cold Chromebook); a transition keeps "Loading this question…" up instead.
+    setServerDeliveryPins({ assignmentId: activeAssignmentId, known: false, pins: null });
+    const stopWaitingForPins = () => startTransition(() => setServerDeliveryPins((current) => (
+      current.assignmentId === activeAssignmentId && !current.known ? { ...current, known: true } : current
+    )));
+    const pinWait = window.setTimeout(() => { if (!cancelled) stopWaitingForPins(); }, FAMILY_PIN_SERVER_WAIT_MS);
     const sync = createWorkspaceDraftSync({
       studentId: user.id,
       assignmentId: activeAssignmentId,
@@ -4053,6 +4172,11 @@ function App() {
           if (cancelled) return;
           serverCopyRead = true;
           const entries = readWorkspaceDraftEntries(stored);
+          // Which version of each personalized question another Chromebook
+          // showed before its first Submit (RT15): a question this device has
+          // no pin for shows the same numbers (buildStudentFamilyContext).
+          const deliveryPins = readWorkspaceDeliveryPins(stored);
+          startTransition(() => setServerDeliveryPins({ assignmentId: activeAssignmentId, known: true, pins: deliveryPins }));
           const assignmentGrades = trackerRef.current?.[activeAssignmentId] || {};
           // A deadline auto-submit is dated by when its work was captured,
           // so the backup of that very work is not refused as older than
@@ -4084,8 +4208,8 @@ function App() {
             setWorkspaceDraftGeneration((value) => value + 1);
           }
           // Only now is it known what the server holds — and so whether this
-          // device has an edit it never received (see workspaceDraftSync).
-          sync.noteServerCopy(entries);
+          // device has an edit (or a pin) it never received (see workspaceDraftSync).
+          sync.noteServerCopy(entries, { deliveryPins });
           if (stored?.practice && typeof stored.practice === 'object') {
             // Per question, the record with more practice progress wins. The
             // session's tracker is usually a fresh seed with a row for every
@@ -4101,6 +4225,7 @@ function App() {
           // The device's own drafts are still there. Recovery is best-effort,
           // and is tried again when the device is back (below).
           console.warn('Could not restore saved workspace drafts:', error);
+          if (!cancelled) stopWaitingForPins();
         })
         .finally(() => { reading = false; });
     };
@@ -4126,6 +4251,7 @@ function App() {
     document.addEventListener('visibilitychange', flushWhenHidden);
     return () => {
       cancelled = true;
+      window.clearTimeout(pinWait);
       unsubscribe();
       window.removeEventListener('pagehide', flush);
       window.removeEventListener('online', readServerCopy);
@@ -5529,8 +5655,10 @@ function App() {
    * question…" rather than render with its pin unchecked.
    */
   const [familyDelivery, setFamilyDelivery] = useState(null);
+  // In a transition for the same reason as the pin wait: a family-backed
+  // question waiting for this module mounts when it lands.
   const loadFamilyDelivery = useCallback(() => import('./platform/generation/familyDelivery.js').then((module) => {
-    setFamilyDelivery((current) => current || module);
+    startTransition(() => setFamilyDelivery((current) => current || module));
     return module;
   }), []);
   // Can this question come back as a different one (a replacement)? The rules
@@ -5852,7 +5980,8 @@ function App() {
         adaptiveStudentProfile || user?.profile,
         adaptation,
         // The printed copy of a family-backed question is the student's own
-        // pinned instance — the same numbers as on screen.
+        // pinned instance — the same numbers as on screen (with another
+        // Chromebook's pin, where the assignment's server copy has been read).
         buildStudentFamilyContext({
           assignment: assignmentData,
           question,
@@ -5861,6 +5990,7 @@ function App() {
           classId: user.classId || null,
           sectionMode: sectionVariantMode,
           record: tracker?.[assignmentData.id]?.[index],
+          serverPins: serverDeliveryPins.assignmentId === assignmentData.id && serverDeliveryPins.known ? serverDeliveryPins.pins : null,
         }),
       ));
       printableEntries.push({
@@ -6010,7 +6140,9 @@ function App() {
       return;
     }
     const access = prerequisiteAccess({ assignment: assignmentData, classworkGradesByAssignment, nowValue: Date.now() });
-    if (user?.role === 'student' && !access.open) {
+    // Waiting on the prerequisite says so; a quiz waiting only for its date
+    // (RT17) is told when it opens, below, like any scheduled work.
+    if (user?.role === 'student' && !access.open && access.reason === 'prerequisiteRequired') {
       landOnResult(describeOpenNotice({
         kind: OPEN_NOTICE.PREREQUISITE,
         prerequisiteTitle: assignments.find((assignment) => assignment.id === access.prerequisiteId)?.title || '',
@@ -6266,6 +6398,7 @@ function App() {
     setActiveAssignmentId(null);
     if (mode !== 'mathPath') setPathLaunchTeks(null);
     setPathLaunchTab(null);
+    setPathLaunchFramework(null);
     if (mode !== 'testCycle') setActiveTestCycleAssignmentId(null);
     setStudentDashboardMode(mode);
     setActiveView('dashboard');
@@ -6273,13 +6406,14 @@ function App() {
 
   // "Practise this skill" on a released test review or the Test Cycle card:
   // a course standard opens Path practice on it; a practice test's exam
-  // domain opens the CCMR tab (practiceSkillLaunch).
+  // domain starts that exam's practice on the CCMR tab (practiceSkillLaunch).
   const practiseSkillFromResults = (destination) => {
     const launch = practiceSkillLaunch(destination);
     if (!launch) return;
     openStudentDashboardMode('mathPath');
     setPathLaunchTeks(launch.teksCode);
     setPathLaunchTab(launch.tab);
+    setPathLaunchFramework(launch.framework ? { teksCode: launch.teksCode, framework: launch.framework } : null);
   };
 
   const openStudentGradeCenter = () => openStudentDashboardMode('grades');
@@ -6329,6 +6463,9 @@ function App() {
     });
     setActiveClassroomSectionKey(sectionKey === 'whole' ? null : sectionKey);
     setActiveAssignmentId(id);
+    // A reload of a Recovery's entry (useUrlArrival) opens it again, where
+    // the page's panel still offers it (NV14; mode null: the panel decides).
+    if (options.recoverySection) setRecoverySession({ assignmentId: id, section: options.recoverySection, mode: null });
     setActiveView('assignmentResult');
   };
 
@@ -6395,6 +6532,11 @@ function App() {
   useEffect(() => {
     if (mathPathArrival && (studentDashboardMode !== 'mathPath' || activeView !== 'dashboard')) setMathPathArrival(null);
   }, [mathPathArrival, studentDashboardMode, activeView]);
+  // So does an exam a results link started (MP14): leaving My Math Path by
+  // any road, Back included, ends it.
+  useEffect(() => {
+    if (pathLaunchFramework && (studentDashboardMode !== 'mathPath' || activeView !== 'dashboard')) setPathLaunchFramework(null);
+  }, [pathLaunchFramework, studentDashboardMode, activeView]);
 
   // Starting a Recovery is the server's decision: it re-checks eligibility,
   // builds the fresh questions and pins them before anything is shown.
@@ -7051,6 +7193,10 @@ function App() {
     // A device pin the question dropped (`familyPinNotice`) is replaced by
     // what was shown instead, so the next render cannot swap it again.
     writeLocalDeliveryPin({ studentId: user.id, delivery, devicePinDropped: Boolean(renderedQuestion?.familyPinNotice) });
+    // And it rides the workspace draft, so another Chromebook shows the same
+    // numbers before the first Submit (RT15). The server keeps the first pin
+    // saved; one this device was offered and had to drop gives way.
+    workspaceDraftSyncRef.current?.recordDeliveryPin(delivery, { replace: Boolean(renderedQuestion?.familyPinNotice) });
     familyDeliveriesRef.current.set(`${delivery.slot}|v${delivery.variant}`, { delivery, question: renderedQuestion || null });
   }, [user?.role, user?.id, isTeacherPreview]);
 
@@ -7115,23 +7261,28 @@ function App() {
       // The grade document's own `profile` field, as the finalizer reads it (D7).
       studentProfile: user.timingProfile || null,
     });
+    const checkpoint = {
+      identity,
+      question: gradingQuestion,
+      familyDelivery: familyDelivery?.pin || null,
+      activityRole: activeQuestionRole,
+      answerState,
+      revision: now,
+      finalizeAt: close.closesAtMs ? new Date(close.closesAtMs).toISOString() : null,
+      finalizationReason: close.reason,
+      finalizationContext: { classId: user.classId || null, classPeriod: user.classPeriod || null },
+      previousTotalAttempts: currentRecord.totalAttempts,
+      supportUsage: buildSupportUsage(user?.profile, storedQuestion),
+      timeSpentSeconds: activeTimeRef.current,
+      capturedAt: now,
+    };
+    // Nothing to queue (no close the scheduler could finalize at): the save
+    // line stays as it is. Setting "capturing" first left it reading
+    // "Saving…" for a save that was not happening (RT18).
+    if (!buildResponseCheckpointAction(checkpoint)) return;
     try {
       setStudentPersistenceStatus('capturing');
-      const queued = await enqueueResponseCheckpoint({
-        identity,
-        question: gradingQuestion,
-        familyDelivery: familyDelivery?.pin || null,
-        activityRole: activeQuestionRole,
-        answerState,
-        revision: now,
-        finalizeAt: close.closesAtMs ? new Date(close.closesAtMs).toISOString() : null,
-        finalizationReason: close.reason,
-        finalizationContext: { classId: user.classId || null, classPeriod: user.classPeriod || null },
-        previousTotalAttempts: currentRecord.totalAttempts,
-        supportUsage: buildSupportUsage(user?.profile, storedQuestion),
-        timeSpentSeconds: activeTimeRef.current,
-        capturedAt: now,
-      });
+      const queued = await enqueueResponseCheckpoint(checkpoint);
       if (!queued) return;
       checkpointFingerprintRef.current.set(documentId, fingerprint);
       setStudentOutboxDepth((depth) => depth + 1);
@@ -7669,6 +7820,7 @@ function App() {
         releaseAt: '',
         sectionVariantModes: getStoredSectionVariantModes(assignmentV5),
         sectionAccessDefaults: { classwork: 'open', practice: 'open' },
+        // Practice keeps Guided Notes off by default: the owner's decision (FB20, 2026-10-23).
         guidedNotesBySection: { classwork: 'automatic', practice: 'off' },
         assignedClassPeriods: [],
         assignedClassIds: [],
@@ -7720,31 +7872,6 @@ function App() {
     } catch (error) {
       return { error: error.message };
     }
-  };
-
-  // #359: "no compatible audited CCMR item" must be a clear, teacher-facing
-  // message distinguishable from a plain "nothing sourced" silence — never a
-  // reason to insert an unrelated question merely to hit the 15% target.
-  const ccmrAuditWarnings = (audit) => {
-    const messages = [];
-    const sourcedCount = Number(audit?.autoSourced || 0) + Number(audit?.replaced || 0);
-    if (sourcedCount > 0) {
-      messages.push(`MathMaster sourced ${sourcedCount} Practice item${sourcedCount === 1 ? '' : 's'} from the audited CCMR Fidelity V2.1 bank.`);
-    }
-    const gaps = Array.isArray(audit?.misses) ? audit.misses : [];
-    const semanticGaps = gaps.filter((miss) => miss?.reason === 'no_semantically_compatible_audited_item'
-      || (Array.isArray(miss?.details) && miss.details.some((detail) => detail?.reason === 'no_semantically_compatible_audited_item')));
-    if (semanticGaps.length) {
-      messages.push('MathMaster kept the teacher-authored Practice question(s) as written: the audited CCMR bank has same-TEKS items, but none that match this question\'s construct (e.g. system dimension, or linear vs. linear–quadratic), so nothing was substituted.');
-    }
-    // proveImportedCcmrClaims: every audited item offered for an exam-style
-    // question failed MathMaster's checks in its place, so none was used.
-    const failedChecks = gaps.filter((miss) => miss?.reason === 'no_audited_item_passed_checks');
-    if (failedChecks.length) {
-      const which = failedChecks.map((miss) => `Question ${miss.questionNumber}`).join(', ');
-      messages.push(`MathMaster kept ${which} as written: no audited CCMR item offered for ${failedChecks.length === 1 ? 'it' : 'them'} passed MathMaster's assignment checks in place, so nothing was substituted.`);
-    }
-    return messages;
   };
 
   // Students in the class the teacher is working in.
@@ -7847,11 +7974,14 @@ function App() {
       weeklyProgressTruncated: weeklyPathTruncated,
       classCount: classes.filter((entry) => entry?.status !== 'archived').length,
       weekFraction,
+      supportEvents: studentSupportEvents,
+      now: queueDayStart,
     });
   }, [
     activeClass.classId, studentsInActiveClass, allStudents, classes,
     teacherLearningProfiles, teacherWeeklyRoster, teacherWeeklyGoalsByStudent,
-    weeklyPathCompletionsByStudent, weeklyPathTruncated, weeklyPathProgressLoadedFor, queueDayStart, teacherTab, teacherKit,
+    weeklyPathCompletionsByStudent, weeklyPathTruncated, weeklyPathProgressLoadedFor, queueDayStart, studentSupportEvents,
+    teacherTab, teacherKit,
   ]);
 
   const profileDrawerRosterStudent = useMemo(
@@ -8358,9 +8488,12 @@ function App() {
         toastInfo('The DOL is not open', `${assignment.title} is not open for ${classLabel} right now.`);
         return;
       }
+      // RT05 (the owner, 2026-10-23): the close ends the class's window; a
+      // student on extra time keeps their own remaining time (sectionDeadline.mjs
+      // resolveDolWindow), and the teacher is told so before pressing it.
       confirmation = {
         title: `Close the DOL now for ${classLabel}?`,
-        message: `Students in ${classLabel} stop working on the DOL now, exactly as if its timer had run out: answers so far are kept and graded. Other classes are unaffected, and you can reopen it afterwards.`,
+        message: `Students in ${classLabel} stop working on the DOL now, exactly as if its timer had run out: answers so far are kept and graded. A student on extra time keeps their own remaining time. Other classes are unaffected, and you can reopen it afterwards.`,
         confirmLabel: 'Close DOL',
       };
       build = () => requireTeacherKit().buildDolClose({ assignment, classId, dateKey: todayKey, teacherId, now: Date.now() });
@@ -8644,22 +8777,30 @@ function App() {
       toastInfo('Assignment is in Practice Mode', 'After the final cutoff, all sections stay available for ungraded review and practice.');
       return;
     }
-    if (state.status === 'scheduled') {
+    // Before release, a lesson that opens early by prerequisite already has
+    // students in it (TT28): its sections are the teacher's to open or close
+    // for them, read as they read them. Any other unreleased lesson waits.
+    const beforeRelease = state.status === 'scheduled' && opensEarlyByPrerequisite(assignment);
+    if (state.status === 'scheduled' && !beforeRelease) {
       toastWarning('Assignment has not opened yet', 'Section controls become active when the assignment is released.');
       return;
     }
-    if (!state.lifecycle?.isOpen) {
+    if (!state.lifecycle?.isOpen && !beforeRelease) {
       toastWarning('Assignment is not open', 'This section cannot be changed while the graded assignment is closed.');
       return;
     }
+    const current = beforeRelease
+      ? earlySectionAccessState({ assignment, activityRole, classId, classPeriod, nowValue: Date.now() })
+      : state;
 
-    const nextState = state.isOpen ? 'closed' : 'open';
+    const nextState = current.isOpen ? 'closed' : 'open';
     const label = activityRole === 'classwork' ? 'Classwork' : 'Practice';
+    const who = beforeRelease ? `Students in ${classLabel} who opened this lesson early (their prerequisite met)` : `Students in ${classLabel}`;
     const proceed = await confirmAction({
       title: `${nextState === 'open' ? 'Open' : 'Close'} ${label} for ${classLabel}?`,
       message: nextState === 'open'
-        ? `Students in ${classLabel} will be able to work in the ${label} section. Other classes are unaffected.`
-        : `Students in ${classLabel} will keep saved ${label} work for review, but new graded responses in that section will be locked until you reopen it. Other classes are unaffected.`,
+        ? `${who} will be able to work in the ${label} section.${beforeRelease ? ' Everyone else in the class gets it open when the lesson is released.' : ''} Other classes are unaffected.`
+        : `${who} will keep saved ${label} work for review, but new graded responses in that section will be locked until you reopen it. Other classes are unaffected.`,
       confirmLabel: `${nextState === 'open' ? 'Open' : 'Close'} ${label}`,
     });
     if (!proceed) return;
@@ -8745,8 +8886,13 @@ function App() {
   };
 
   const handleSaveClassSchedule = async () => {
-    const normalized = normalizeSchedule(classSchedule);
-    await setDoc(doc(db, 'settings', 'classSchedule'), normalized);
+    const scheduleRef = doc(db, 'settings', 'classSchedule');
+    // TC01 (the owner, 2026-10-23): each date whose A/B day this save changes
+    // is stamped with the server's clock, so a Test day whose A/B day is set
+    // only after its class met is never read as missed.
+    const saved = await getDoc(scheduleRef);
+    const normalized = withDayTypeSetAt(saved.exists() ? saved.data() : null, normalizeSchedule(classSchedule), serverTimestamp());
+    await setDoc(scheduleRef, normalized);
     setClassSchedule(normalized);
     toastSuccess('A/B schedule saved', 'DOL windows now use the selected A/B day and any date-specific bell schedule.');
   };
@@ -9154,12 +9300,18 @@ function App() {
   // The student's save status, as Home's status line shows it (Batch 3: drafts
   // that are not being saved count). The pack-up line reads the same one, so
   // the two never disagree (NAV-24 review B2).
+  // Which assignments the work is on, by the titles the student sees (NV10).
+  const studentAssignmentTitles = (ids) => ids
+    .map((id) => assignments.find((assignment) => assignment.id === id)?.title)
+    .filter(Boolean);
   const studentSaveStatusNow = () => describeSaveStatus({
     persistenceStatus: studentPersistenceStatus,
     outboxDepth: studentOutboxDepth,
     pendingGradeCount: studentPendingGradeCount,
     online: typeof navigator === 'undefined' ? true : navigator.onLine !== false,
     draftsUnsaved: draftSaveHealthVersion >= 0 && Boolean(describeDraftSaveProblems(draftSaveProblemsForStudent(user?.id))),
+    needsReviewTitles: studentAssignmentTitles(studentNeedsReviewAssignmentIds),
+    unsavedDraftTitles: studentAssignmentTitles(draftSaveHealthVersion >= 0 ? draftSaveProblemAssignmentIds(user?.id) : []),
   });
 
   const renderStudentPackUpNotice = () => {
@@ -10006,6 +10158,8 @@ function App() {
     // whether a replacement is offered is decided with it. It shares
     // QuestionEngine's own lazy chunk, so in practice it is already here.
     const familyEngineLoading = !familyDelivery;
+    // The server's pins, once read, for this assignment only (RT15).
+    const serverPinsRead = serverDeliveryPins.assignmentId === assignment.id && serverDeliveryPins.known;
     const currentFamilyContext = !familyDelivery ? null : familyDelivery.buildStudentFamilyContext({
       assignment,
       question: questions[currentQuestionIndex],
@@ -10015,7 +10169,23 @@ function App() {
       sectionMode: currentSectionVariantMode,
       record: workingTracker?.[currentQuestionIndex],
       preview,
+      serverPins: serverPinsRead ? serverDeliveryPins.pins : null,
     });
+    // A FRESH ALLOCATION WAITS FOR THE SERVER'S PINS (RT15). A personalized
+    // question with no pin on this device — none from its record, none of its
+    // own — would be dealt numbers here that another Chromebook may already
+    // have shown the student. Its server copy is read as the assignment opens;
+    // the question waits for it (FAMILY_PIN_SERVER_WAIT_MS at most) instead of
+    // swapping numbers under the student a moment later. Only where that read
+    // happens: a student's own assignment, never a preview or a Test Cycle.
+    const familyPinPending = Boolean(currentFamilyContext)
+      && !preview
+      && user?.role === 'student'
+      && !isTeacherPreview
+      && activeAssignmentUsesWorkspaceDrafts
+      && !serverPinsRead
+      && !currentFamilyContext.pin
+      && !currentFamilyContext.pinUnreadable;
 
     // ADAPTATION, RESOLVED ONCE.
     //
@@ -10104,6 +10274,7 @@ function App() {
       label: String(activeQuestionRole || 'Activity').replace(/(^|\s)\S/g, (letter) => letter.toUpperCase()),
       background: 'var(--mm-surface-control)', color: 'var(--mm-text)', border: 'var(--mm-border-strong)',
     };
+    // Practice keeps Guided Notes off by default: the owner's decision (FB20, 2026-10-23).
     const currentGuidedNotesMode = assignment?.guidedNotesBySection?.[activeQuestionRole]
       || (activeQuestionRole === 'classwork' ? 'automatic' : 'off');
 
@@ -10532,10 +10703,12 @@ function App() {
               </strong>
               {Number(liveTeachingSession?.timer?.durationSeconds || 0) > Number(questions[currentQuestionIndex]?.suggestedWorkSeconds || 0) && (
                 <strong
-                  aria-label="Live timer has been extended beyond the authored plan"
                   style={{ padding: '3px 7px', borderRadius: 999, background: '#fdd663', color: 'var(--mm-warning-text)', fontSize: 'calc(11 * var(--mm-px))' }}
                 >
-                  EXTENDED +{Math.floor((Number(liveTeachingSession.timer.durationSeconds) - Number(questions[currentQuestionIndex]?.suggestedWorkSeconds || 0)) / 60)}:{String((Number(liveTeachingSession.timer.durationSeconds) - Number(questions[currentQuestionIndex]?.suggestedWorkSeconds || 0)) % 60).padStart(2, '0')}
+                  {/* A label on a bare <strong> is not read (AX18): the words
+                      a screen reader gets are a hidden span's. */}
+                  <span aria-hidden="true">EXTENDED +{Math.floor((Number(liveTeachingSession.timer.durationSeconds) - Number(questions[currentQuestionIndex]?.suggestedWorkSeconds || 0)) / 60)}:{String((Number(liveTeachingSession.timer.durationSeconds) - Number(questions[currentQuestionIndex]?.suggestedWorkSeconds || 0)) % 60).padStart(2, '0')}</span>
+                  <span style={SR_ONLY_STYLE}>Live timer has been extended beyond the authored plan</span>
                 </strong>
               )}
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -10914,7 +11087,7 @@ function App() {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '10px', color: sectionMeta.color, flexWrap: 'wrap' }}>
                     <strong style={{ fontSize: 'calc(15 * var(--mm-px))', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{sectionName}</strong>
                     {section.allCorrect ? (
-                      <span aria-label={`${sectionName} section complete`} style={{ padding: '7px 11px', borderRadius: 999, background: '#188038', color: '#fff', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 950, letterSpacing: '0.02em', boxShadow: '0 2px 6px rgba(24,128,56,0.28)' }}>✓ {sectionName.toUpperCase()} COMPLETE</span>
+                      <span style={{ padding: '7px 11px', borderRadius: 999, background: '#188038', color: '#fff', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 950, letterSpacing: '0.02em', boxShadow: '0 2px 6px rgba(24,128,56,0.28)' }}><span aria-hidden="true">✓ {sectionName.toUpperCase()} COMPLETE</span><span style={SR_ONLY_STYLE}>{`${sectionName} section complete`}</span></span>
                     ) : (
                       <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{section.progress.label === 'All submitted' ? 'All submitted' : `${section.progress.done} of ${section.progress.total} done`}</span>
                     )}
@@ -10948,7 +11121,7 @@ function App() {
                           key={index}
                           onClick={() => !sectionUnavailable && changeQuestion(index)}
                           disabled={sectionUnavailable}
-                          aria-label={`${sectionName} question ${sectionPosition + 1}: ${shown.label}`}
+                          aria-label={`${sectionName} question ${sectionPosition + 1}: ${shown.label}${cardAssessmentLabel ? `, ${cardAssessmentLabel}` : ''}`}
                           style={{
                             padding: '14px',
                             cursor: sectionUnavailable ? 'not-allowed' : 'pointer',
@@ -10965,7 +11138,8 @@ function App() {
                         >
                           <div style={{ fontSize: 'calc(14 * var(--mm-px))', fontWeight: 'bold' }}>Question {sectionPosition + 1}</div>
                           <div style={{ marginTop: '5px', padding: '3px 7px', borderRadius: '999px', background: sectionMeta.background, color: sectionMeta.color, border: `1px solid ${sectionMeta.border}`, fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900 }}>{sectionName}</div>
-                          {cardAssessmentLabel && <div aria-label={`${cardAssessmentLabel} question`} style={{ marginTop: '5px', padding: '3px 7px', borderRadius: 999, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', border: '1px solid var(--mm-accent-border)', fontSize: 'calc(10 * var(--mm-px))', fontWeight: 950 }}>{cardAssessmentLabel}</div>}
+                          {/* Named in the button's own label above: a label on this div, inside a button that has one, was never read (AX18). */}
+                          {cardAssessmentLabel && <div style={{ marginTop: '5px', padding: '3px 7px', borderRadius: 999, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', border: '1px solid var(--mm-accent-border)', fontSize: 'calc(10 * var(--mm-px))', fontWeight: 950 }}>{cardAssessmentLabel}</div>}
                           <div style={{ fontSize: 'calc(12 * var(--mm-px))', marginTop: '7px', fontWeight: 'bold' }}>{shown.label}</div>
                           {record.totalAttempts > 0 && <div style={{ fontSize: 'calc(11 * var(--mm-px))', marginTop: '3px', opacity: 0.85 }}>{record.totalAttempts} {record.totalAttempts === 1 ? 'try' : 'tries'} used</div>}
                         </button>
@@ -10985,11 +11159,11 @@ function App() {
           <main ref={assignmentQuestionStageRef} className="mathmaster-question-stage" style={{ background: 'var(--mm-surface)', borderRadius: '12px', padding: '10px', minHeight: '500px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
             {questions[currentQuestionIndex]?.instructionalPhase
               && (preview || assignment.showInstructionalPhaseLabelsToStudents === true)
-              && <div aria-label="Instructional phase" style={{ display: 'inline-block', margin: '6px 8px', padding: '5px 10px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 950, letterSpacing: '0.08em' }}>{({ iDo: 'I DO', weDo: 'WE DO', youDo: 'YOU DO' })[questions[currentQuestionIndex].instructionalPhase]}</div>}
+              && <div style={{ display: 'inline-block', margin: '6px 8px', padding: '5px 10px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 950, letterSpacing: '0.08em' }}><span style={SR_ONLY_STYLE}>Instructional phase: </span>{({ iDo: 'I DO', weDo: 'WE DO', youDo: 'YOU DO' })[questions[currentQuestionIndex].instructionalPhase]}</div>}
             {/* "Ask my teacher" answers, on any question of this assignment —
                 one closed since it was asked keeps its answer here. */}
             {!preview && <TeacherAnswersList questions={askMyTeacher.questions} compact />}
-            {familyEngineLoading ? <p role="status" style={{ padding: 24, margin: 0 }}>Loading this question…</p> : <QuestionEngine
+            {familyEngineLoading || familyPinPending ? <p role="status" style={{ padding: 24, margin: 0 }}>Loading this question…</p> : <QuestionEngine
               key={`${activeAssignmentId}-${currentQuestionIndex}-${currentRecord.variantIndex}-${preview ? `preview-${previewSessionId}` : lifecycle.status}-draft${workspaceDraftGeneration}`}
               draftRestore={draftRestoreFocus?.questionIndex === currentQuestionIndex ? draftRestoreFocus : null}
               question={questions[currentQuestionIndex]}
@@ -11141,7 +11315,7 @@ function App() {
                 <p style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{currentDolCopy.openNotice}</p>
               )}
               {!preview && runtimeActivityRole === 'warmup' && warmupState.status === 'active' && (
-                <p style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>Your latest completed response will be submitted automatically when time ends.</p>
+                <p style={{ margin: '8px 4px 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{DOL_OPEN_NOTICE}</p>
               )}
               {/* AFTER THE CLOSE, SAY WHAT ACTUALLY HAPPENED.
                   Never "submitted" for a response that was not complete — the
@@ -11344,6 +11518,8 @@ function App() {
     urlArrival,
     setUrlArrival,
     user,
+    arrivedAt: urlArrivalAtRef.current,
+    routeKey: user?.role === 'student' && studentBrowserRoute ? studentRouteKey(studentBrowserRoute) : null,
     // A student's lessons carry their own controls (an extension, an
     // excusal, a reopen): the address opens once the lessons on screen were
     // projected with the controls the listener answered, not before.
@@ -11429,7 +11605,6 @@ function App() {
         bulkBusy={bulkBusy}
         calculateGrade={calculateGrade}
         caseReviewStudentId={caseReviewStudentId}
-        ccmrAuditWarnings={ccmrAuditWarnings}
         classEvidenceByStudentId={classEvidenceByStudentId}
         classEvidenceLoading={classEvidenceLoading}
         classSchedule={classSchedule}
@@ -11778,6 +11953,8 @@ function App() {
           studentProfile={adaptiveStudentProfile || user.profile}
           assignments={studentPathAssignments}
           launchTeksCode={pathLaunchTeks}
+          // The exam a practice test's link starts, only for the standard it was set for.
+          launchFramework={pathLaunchFramework && pathLaunchFramework.teksCode === pathLaunchTeks ? pathLaunchFramework.framework : null}
           // A reload of a My Math Path tab or session (app/routes/urlArrival.js),
           // else the tab a launch asked for (pathLaunchTab, job B).
           initialTab={mathPathArrival?.tab || pathLaunchTab || 'path'}
@@ -11788,7 +11965,7 @@ function App() {
           studentRecord={studentRecord}
           serverMasteryProfiles={studentServerMasteryProfiles}
           onNavigate={navigateStudent}
-          onExit={() => { setPathLaunchTeks(null); setPathLaunchTab(null); setStudentDashboardMode('assignments'); }}
+          onExit={() => { setPathLaunchTeks(null); setPathLaunchTab(null); setPathLaunchFramework(null); setStudentDashboardMode('assignments'); }}
           />
         </>,
       );
@@ -11894,11 +12071,10 @@ function App() {
                 // The student's own due and final late dates, so a card opened
                 // after the regular due date says the work is still open and
                 // until when — for an extended student, until their date.
+                // Corrections and the Retest close at it too (TC07), unless the
+                // server's home window says otherwise.
                 dueAt={activeTestCycleDates?.dueAt || null}
                 lateDueAt={activeTestCycleDates?.lateDueAt || null}
-                // Corrections and the Retest close at the class's date unless
-                // the server's home window says otherwise.
-                classLateDueAt={activeTestCycleAssignment?.lateDueAt || activeTestCycleAssignment?.lateDueDate || null}
                 // The grade document is already live (onSnapshot). Its Test
                 // Cycle projection changes when results are released or a
                 // retest opens, and its tracker when Review answers land; the
@@ -11911,6 +12087,10 @@ function App() {
                 // Back names and opens the screen the card was opened from (NAV-9).
                 exitLabel={`← ${resolveBack(NAV_LEVEL.TEST_CYCLE, { origin: activeTestCycleOrigin })?.navLabel || 'Assignments'}`}
                 onExit={() => openStudentOriginLevel(activeTestCycleOrigin)}
+                // Corrections and the Test review are this account's own
+                // browser entries (NV14); another test is another card.
+                historyOwner={user.uid}
+                key={activeTestCycleAssignmentId}
               />
             </Suspense>
           </div>
@@ -11928,6 +12108,8 @@ function App() {
           </div>
           <StudentSecureExamDashboard
           studentProfile={user.profile}
+          // The test this list's entry says was open goes first, focused (NV14).
+          studentId={user.id}
           // A course Test/Retest is entered through its assignment card, which
           // is the only thing that knows which stage is open.
           onOpenCourseTest={(assignmentId) => startAssignment(assignmentId, 0, { origin: NAV_LEVEL.SECURE_EXAMS })}
@@ -12050,20 +12232,35 @@ function App() {
     const openRecoveryEntry = recoverySession?.assignmentId === assignmentResultRoute.assignmentId
       ? studentRecoverySummary.find((entry) => entry.section === recoverySession.section) || null
       : null;
-    if (recoveryAssignment && openRecoveryEntry) {
+    // A Recovery reopened from its entry opens as the panel would open it
+    // now, or not at all (NV14, recoveryModeToRestore).
+    const openRecoveryMode = recoverySession?.mode || recoveryModeToRestore(openRecoveryEntry);
+    if (recoveryAssignment && openRecoveryEntry && openRecoveryMode) {
+      // Its own boundary (RC09): a Recovery screen error stays on this
+      // screen, with the way back to the result page.
+      const recoveryBoundary = {
+        source: 'section-recovery',
+        title: 'Recovery could not open',
+        message: 'Something went wrong on this screen. Answers you already submitted are kept. Go back to your results and open Recovery again.',
+        exitLabel: 'Back to your results',
+      };
       return renderStudentScreen(
+        <ScreenErrorBoundary {...recoveryBoundary} onExit={() => setRecoverySession(null)}>
         <Suspense fallback={<p role="status" style={{ padding: 24, margin: 0 }}>Opening Recovery…</p>}>
           <SectionRecoveryRunner
-            mode={recoverySession.mode}
+            mode={openRecoveryMode}
             assignment={recoveryAssignment}
             entry={openRecoveryEntry}
             studentId={user.id}
             studentProfile={user.profile}
+            teacherQuestions={recoveryTeacherQuestions.questions}
+            sendTeacherQuestion={recoveryTeacherQuestions.canLeaveQuestion ? recoveryTeacherQuestions.sendQuestion : null}
             onExit={() => setRecoverySession(null)}
             onRecord={(section, record) => mergeSectionRecoveryRecord(recoveryAssignment.id, section, record)}
             onStartAssessment={(section) => startStudentRecovery(recoveryAssignment.id, section)}
           />
-        </Suspense>,
+        </Suspense>
+        </ScreenErrorBoundary>,
       );
     }
     return renderStudentIdentityShell(

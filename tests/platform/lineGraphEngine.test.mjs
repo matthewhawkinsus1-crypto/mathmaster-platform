@@ -48,7 +48,12 @@ test('the three formats are registered under their permanent ids, offered to tea
     assert.deepEqual(mode.scoringStrategies, ['grandPrix', 'correctCount']);
     assert.equal(mode.defaultScoringStrategy, 'grandPrix');
     assert.equal(modeScoringConfig(mode, 'grandPrix').placementCurve, 'field', 'Grand Prix scales to the class');
-    assert.ok(Object.values(mode.capabilities).every((enabled) => enabled === false), `${mode.id} opts into nothing yet`);
+    // No Second Chance, milestones, pace, closing threshold, dry run or
+    // Warm-Up link. The one engine feature a line game opts into: extended
+    // time after the class's buzzer, for the two formats whose round is a
+    // set to finish (liveChallengeAccommodations.mjs) — never a Rush.
+    const enabled = Object.entries(mode.capabilities).filter(([, on]) => on).map(([key]) => key);
+    assert.deepEqual(enabled, lineGraphFormatOfMode(mode.id) === LINE_GRAPH_FORMAT.RUSH ? [] : ['extraTimeAfterBuzzer'], mode.id);
   }
 });
 

@@ -3,9 +3,10 @@ import SecureExamContainer from './SecureExamContainer.jsx';
 import SecureExamReview from './SecureExamReview.jsx';
 import { listStudentSecureExamSessions } from '../../services/secureExamService.js';
 import { getStudentTestCycle } from '../../services/testCycleService.js';
-import { assignedTestCycleRow, testCycleRowsKey, testCyclesWithoutSession } from '../../platform/student/assignedTestCyclesModel.js';
+import { assignedTestCycleRow, sessionBringText, testCycleRowsKey, testCyclesWithoutSession } from '../../platform/student/assignedTestCyclesModel.js';
 import { formatDateTime } from '../../assignmentLifecycle.js';
 import { resultsTimingText, sessionWasReplaced, studentSessionStatus, timeAllowance, timeAllowanceText } from '../../platform/assessment/secureExamNavigationModel.js';
+import { readOpenSecureExam, withOpenTestFirst, writeOpenSecureExam } from '../../platform/student/openSecureExamMemory.js';
 
 const terminalStatuses = new Set(['submitted', 'force_submitted', 'time_expired']);
 
@@ -44,14 +45,32 @@ const STATUS_TONE = {
  * Tests" list a Test whose secure session the teacher has not opened yet
  * (assignedTestCyclesModel.js). Each is described from a read-only look at its
  * card; nothing is opened from here.
+ *
+ * `studentId` keys the test this list's history entry says was open (NV14):
+ * after a reload mid-test, or Back onto the list, that test is first in its
+ * group and its button has focus. It is never resumed by itself.
  */
-export const StudentSecureExamDashboard = ({ studentProfile, onOpenCourseTest = null, onPracticeSkill = null, testCycles = [] }) => {
+export const StudentSecureExamDashboard = ({ studentProfile, studentId = null, onOpenCourseTest = null, onPracticeSkill = null, testCycles = [] }) => {
   const [sessions, setSessions] = useState([]);
   const [assignedTests, setAssignedTests] = useState([]);
   const [active, setActive] = useState(null);
   const [reviewing, setReviewing] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  // The test this list's entry says was open (openSecureExamMemory.js).
+  const [reopenId, setReopenId] = useState(() => readOpenSecureExam(studentId));
+  const reopenButtonRef = useRef(null);
+  const reopenFocusedRef = useRef(false);
+  const openTest = (session) => {
+    writeOpenSecureExam(studentId, session.examSessionId);
+    setActive(session);
+  };
+  // Finished: nothing is open any more, so nothing is put first.
+  const testFinished = () => {
+    writeOpenSecureExam(studentId, null);
+    setReopenId(null);
+    setActive(null);
+  };
 
   // Only the latest look writes the screen. Two can overlap: the screen opens
   // before the Test Cycles arrive, then looks again when they do, and an older
@@ -79,7 +98,6 @@ export const StudentSecureExamDashboard = ({ studentProfile, onOpenCourseTest = 
         const own = (testCycles || []).find((entry) => entry.assignment?.id === assignment.id) || {};
         return assignedTestCycleRow({
           card: looks[index].value, assignment, dueAt: own.dueAt || null, lateDueAt: own.lateDueAt || null,
-          classLateDueAt: assignment.lateDueAt || assignment.lateDueDate || null,
         });
       }).filter(Boolean));
     } catch (loadError) { if (current()) setError(loadError.message || 'Could not load your tests.'); }
@@ -90,6 +108,18 @@ export const StudentSecureExamDashboard = ({ studentProfile, onOpenCourseTest = 
   const testCycleKey = testCycleRowsKey(testCycles);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [testCycleKey]);
+
+  // The test that was open, while it can still be resumed from this list: a
+  // practice test not yet finished (a course Test resumes from its card).
+  const reopenSession = reopenId
+    ? sessions.find((session) => session.examSessionId === reopenId && !terminalStatuses.has(session.status) && !isCourseTest(session)) || null
+    : null;
+  // Focused once the list is drawn, so one key press resumes it.
+  useEffect(() => {
+    if (loading || active || reviewing || !reopenSession || reopenFocusedRef.current) return;
+    reopenFocusedRef.current = true;
+    reopenButtonRef.current?.focus();
+  }, [loading, active, reviewing, reopenSession?.examSessionId]);
 
   if (reviewing) return <SecureExamReview examSessionId={reviewing.examSessionId} onBack={() => { setReviewing(null); load(); }} studentSupportProfile={studentProfile} onPracticeSkill={onPracticeSkill} />;
 
@@ -105,8 +135,8 @@ export const StudentSecureExamDashboard = ({ studentProfile, onOpenCourseTest = 
       studentSupportProfile={studentProfile}
       sessionPreview={active}
       onFinished={() => {}}
-      onOpenResults={(finished) => { setActive(null); setReviewing(finished?.examSessionId ? finished : active); }}
-      onExitAfterFinished={() => { setActive(null); load(); }}
+      onOpenResults={(finished) => { testFinished(); setReviewing(finished?.examSessionId ? finished : active); }}
+      onExitAfterFinished={() => { testFinished(); load(); }}
     />
   );
 
@@ -122,7 +152,7 @@ export const StudentSecureExamDashboard = ({ studentProfile, onOpenCourseTest = 
           <div style={{ display: 'grid', gap: 26 }}>
             {[
               { id: 'courseTests', title: 'My Course Tests', hint: 'Secure Tests and Retests your teacher assigned. These count toward your grade.', rows: sessions.filter(isCourseTest), assigned: assignedTests },
-              { id: 'simulations', title: 'College & Career Practice Tests', hint: 'SAT, ACT, TSIA2 and ASVAB practice under real test conditions.', rows: sessions.filter((session) => !isCourseTest(session)), assigned: [] },
+              { id: 'simulations', title: 'College & Career Practice Tests', hint: 'SAT, ACT, TSIA2 and ASVAB practice under real test conditions.', rows: withOpenTestFirst(sessions.filter((session) => !isCourseTest(session)), reopenSession?.examSessionId), assigned: [] },
             ].map((group) => (
               <section key={group.id} aria-labelledby={`exam-group-${group.id}`} style={{ display: 'grid', gap: 12 }}>
                 <div>
@@ -141,6 +171,7 @@ export const StudentSecureExamDashboard = ({ studentProfile, onOpenCourseTest = 
                         <span data-secure-status-label="" style={{ padding: '3px 9px', borderRadius: 999, fontWeight: 800, ...STATUS_TONE.neutral }}>{row.statusLabel}</span>
                         {row.delivery && <span>{row.delivery}</span>}
                       </div>
+                      {row.bring && <div data-test-cycle-bring="" style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{row.bring}</div>}
                       {row.when && (
                         <div data-assigned-test-window="" style={{ color: 'var(--mm-text)', fontSize: 'calc(13 * var(--mm-px))' }}>
                           <strong>{row.when.headline}</strong>{row.when.detail ? ` ${row.when.detail}` : ''}{row.when.home ? ` ${row.when.home}` : ''}
@@ -169,6 +200,8 @@ export const StudentSecureExamDashboard = ({ studentProfile, onOpenCourseTest = 
                   const canReview = done && session.feedbackReleased === true && !sessionWasReplaced(session);
                   const status = studentSessionStatus(session);
                   const timing = resultsTimingText(session);
+                  // What to have for a course Test still ahead, as on its card (TC16).
+                  const bring = isCourseTest(session) && !done ? sessionBringText(session) : null;
                   return (
                     <article key={session.examSessionId} data-secure-session-status={session.status} style={{ background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', borderRadius: 12, padding: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 15, flexWrap: 'wrap' }}>
                       <div style={{ minWidth: 0, textAlign: 'left' }}>
@@ -177,6 +210,7 @@ export const StudentSecureExamDashboard = ({ studentProfile, onOpenCourseTest = 
                           <span data-secure-status-label="" style={{ padding: '3px 9px', borderRadius: 999, fontWeight: 800, ...(STATUS_TONE[status.tone] || STATUS_TONE.neutral) }}>{status.label}</span>
                           <span>{session.requiredQuestions} questions · {timeAllowanceText(timeAllowance(session))}</span>
                         </div>
+                        {bring && <div data-test-cycle-bring="" style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{bring}</div>}
                         {timing && <div style={{ marginTop: 6, color: done ? 'var(--mm-warning-text)' : 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{timing}</div>}
                       </div>
                       {/*
@@ -202,8 +236,9 @@ export const StudentSecureExamDashboard = ({ studentProfile, onOpenCourseTest = 
                       ) : (
                         <button
                           type="button"
+                          ref={session.examSessionId === reopenSession?.examSessionId ? reopenButtonRef : undefined}
                           disabled={done && !canReview}
-                          onClick={() => canReview ? setReviewing(session) : setActive(session)}
+                          onClick={() => canReview ? setReviewing(session) : openTest(session)}
                           style={{ minHeight: 44, padding: '9px 15px', border: 0, borderRadius: 8, background: done && !canReview ? 'var(--mm-surface-control-strong)' : canReview ? 'var(--mm-accent)' : 'var(--mm-primary)', color: done && !canReview ? 'var(--mm-disabled-text)' : 'var(--mm-on-primary)', fontWeight: 900, cursor: done && !canReview ? 'not-allowed' : 'pointer' }}
                         >
                           {canReview ? 'See your results' : done ? 'Waiting for results' : session.status === 'not_started' ? 'Start' : 'Resume'}

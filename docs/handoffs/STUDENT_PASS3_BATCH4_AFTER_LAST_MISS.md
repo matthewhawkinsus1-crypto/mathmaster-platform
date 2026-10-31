@@ -31,6 +31,14 @@ AI authoring prompt does not mention the field yet.
    ("rises, then falls", "6 units to the left"), for a roster with "…", for a mapping, or for a line named by two of its
    points. The student compares those with the worked solution. On the real lessons, typing a sibling's own answer is
    never marked wrong.
+   *Since then:* a line named by two points is checked (#520), and so, as CT13 (owner: "Do it"), are the answers that
+   are closed lists of numbers and directions — a mapping, several solutions ("x = −5 or x = −3"), a function's
+   asymptotes and a shift ("4 units to the right") — and the graph of a linear function named by collinear points. They
+   are read in `practiceLikeThis.js` from what a math box really holds (MathLive turns "or" into `\lor` and "the" into
+   `\operatorname{\mathrm{th}}e`), and a verdict needs a complete reading: whatever cannot be read is "compare", never
+   "wrong". On the lessons as they are, every offered sibling now has a box that can be checked; what stays in words is
+   the "passes / fails the function test" sentence of DOL #1's mapping item, and free sentences such as "rises, then
+   falls", because a verdict on a sentence would be a guess.
 2. **Pre-Flight "warning", not a diagnostic.** Any warning diagnostic makes an assignment "Needs Review", and a Needs
    Review assignment is an unpublished draft students never see (`isUnpublishedDraft`). No real lesson authors a
    `commonError`, so a diagnostic would have hidden every new import. The findings are advice in the Check step and

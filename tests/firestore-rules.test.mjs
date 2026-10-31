@@ -610,6 +610,26 @@ await check('student saves it again through a read-then-write transaction', asse
 })));
 await check('student CANNOT smuggle a grade beside per-answer edit times', assertFails(setDoc(workspaceDoc(student, 'S1042__A1'), { ...fieldRecordDocument, updatedAt: serverTimestamp(), score: 100 })));
 await check('student CANNOT save per-answer edit times into another student workspace', assertFails(setDoc(workspaceDoc(student, 'S2000__A1'), { ...fieldRecordDocument, documentId: 'S2000__A1', studentId: 'S2000', updatedAt: serverTimestamp() })));
+// RT15: the document also carries which version of each personalized question
+// was shown (`deliveryPins`), so another Chromebook shows the same numbers
+// before the first Submit. Built by the client's own merge; no rule changed,
+// and the grade guard still holds beside it.
+const pinnedWorkspace = mergeWorkspaceDraftDocument({
+  existing: fieldRecordDocument,
+  patch: buildWorkspaceDraftPatch({ studentId: 'S1042', assignmentId: 'A1', classId: 'class-a', deliveryPins: [{ pin: {
+    familyId: 'linear.twoStepEquation', familyVersion: 1, slot: 'A1|q1-two-step', variant: 0, index: 3, resolvedIndex: 3,
+    seat: 3, stride: 64, basis: 'provisional', fingerprint: 'linear.twoStepEquation:2|5|11',
+  } }] }),
+});
+await check('the merged document carries the delivery pin and every entry', pinnedWorkspace.deliveryPins?.length === 1 && pinnedWorkspace.entries.length === fieldRecordDocument.entries.length
+  ? Promise.resolve() : Promise.reject(new Error('the merge did not keep the pin and the entries')));
+await check('student saves a workspace that carries a delivery pin', assertSucceeds(runTransaction(student, async (transaction) => {
+  const reference = workspaceDoc(student, 'S1042__A1');
+  await transaction.get(reference);
+  transaction.set(reference, { ...pinnedWorkspace, updatedAt: serverTimestamp() });
+})));
+await check('student CANNOT smuggle a grade beside a delivery pin', assertFails(setDoc(workspaceDoc(student, 'S1042__A1'), { ...pinnedWorkspace, updatedAt: serverTimestamp(), gradesByAssignment: { A1: { 0: { status: 'correct' } } } })));
+await check('student CANNOT save a delivery pin into another student workspace', assertFails(setDoc(workspaceDoc(student, 'S2000__A1'), { ...pinnedWorkspace, documentId: 'S2000__A1', studentId: 'S2000', updatedAt: serverTimestamp() })));
 // The real save path (writeWorkspaceDraft) is a transaction that reads first.
 // Before the first save there is no document, so the read must not depend on
 // resource.data — otherwise no student can ever create a draft.

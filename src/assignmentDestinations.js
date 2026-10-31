@@ -96,6 +96,22 @@ export const destinationAssignmentKey = ({ assignmentKey, destination, destinati
 };
 
 /**
+ * The saved assignment that already uses `assignmentKey`, or null. A key is
+ * taken too when a split of it is saved (destinationAssignmentKey qualifies it
+ * as "key:course:level"). Create refuses a reused key; Assignment Review asks
+ * the same question first (TT10), from this one function, so the teacher
+ * learns before the last step instead of at it and the two cannot disagree.
+ */
+export const findAssignmentKeyConflict = ({ assignments, assignmentKey } = {}) => {
+  const key = String(assignmentKey ?? '').trim();
+  if (!key) return null;
+  return (Array.isArray(assignments) ? assignments : []).find((assignment) => {
+    const taken = assignment?.assignmentKey;
+    return taken === key || String(taken || '').startsWith(`${key}:`);
+  }) || null;
+};
+
+/**
  * The date fields for a creation, given the mode.
  *
  * A library assignment carries null dates rather than invented ones. This is

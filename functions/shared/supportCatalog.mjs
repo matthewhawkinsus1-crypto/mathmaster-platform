@@ -194,8 +194,29 @@ const entries = [
     label: 'Larger text', studentLabel: null, evidence: ['provided'], legacy: true,
   },
   {
+    // For a blind student on graph-READING items (AX03). While a question can
+    // be answered a graph's screen-reader description names only the kinds of
+    // marks it draws; with this support it is read in full — where lines
+    // cross, where points are — as a sighted student reads it off the grid or
+    // a human reader would (src/platform/supports/graphReadOut.js). Applied by
+    // itself where a graph is on screen, so it is `provided` there, per item.
+    id: 'graph-read-out', classification: A, category: C.PRESENTATION, automation: AUTO,
+    label: 'Graph read-out (a screen reader hears the full graph description)', studentLabel: null, evidence: ['provided'],
+  },
+  {
     id: 'word-processor-response', classification: A, category: C.RESPONSE, automation: AUTO,
     label: 'Chromebook / word-processor response', studentLabel: null, evidence: ['provided'],
+  },
+  {
+    // A student who cannot draw with a mouse or a finger. Every tool keeps its
+    // keyboard routes for everyone; this adds "Connect my points" on an exit
+    // ticket, quiz or test, where it is otherwise withheld because right points
+    // connected make a right curve (owner, 2026-10-23, C1-120;
+    // src/platform/graph/connectPointsPolicy.js). Provided = that button was on
+    // screen there because of this support.
+    id: 'keyboard-access', classification: A, category: C.RESPONSE, automation: AUTO,
+    label: 'Keyboard access — graphs can be finished without drawing by mouse or touch', studentLabel: null,
+    evidence: ['provided'],
   },
   {
     // Kept an ACCOMMODATION because that is how the teacher UI has always
@@ -230,6 +251,21 @@ const entries = [
     label: 'Reduced answer choices', studentLabel: null, evidence: ['documented'], legacy: true,
   },
   {
+    // DECIDED (FB13, audit A3-90): this stays a My Math Path support, and the
+    // label says so to the teacher who ticks it. A case manager may expect
+    // "extra attempts" on classroom work too; it is not wired there on
+    // purpose: an assignment's attempt limit is worked out at fifteen call
+    // sites (two on the server, the rest in the app) that must agree to the
+    // last try (functions/shared/attemptPolicy.mjs), and a client that offers
+    // a try the server refuses loses the student's answer. The classes that
+    // have a single try (DOL, quiz, test) are where a case manager would look
+    // first, and a teacher already gives a student another DOL try on purpose
+    // (the audited "Grant +1 DOL attempt" in StudentDolRecoveryRow, which now
+    // says when the plan lists this support). What building it for the
+    // classroom would take is written at resolveQuestionMaximumAttempts. If
+    // it is ever wired, this label, NOT_RECORDED_IN_ASSIGNMENTS
+    // (supportEvidenceReport.js), toolSupportMatrix.js and
+    // tests/platform/extraAttemptsDecision.test.mjs change with it.
     id: 'extra-attempts', classification: A, category: C.TIMING, automation: AUTO,
     label: 'Extra attempts (My Math Path)', studentLabel: null, evidence: ['provided'], legacy: true,
   },
@@ -453,7 +489,9 @@ const SHORT_LABELS = Object.freeze({
   'declutter-ui': 'Decluttered screen',
   'no-countdown': 'Countdown hidden',
   'disable-idle-timer': 'No idle prompt',
+  'graph-read-out': 'Graph read-out',
   'word-processor-response': 'Word-processor response',
+  'keyboard-access': 'Keyboard access',
   'algebra-auto-apply': 'Algebra Apply shortcut',
   'reduced-item-count-same-rigor': 'Fewer items, same rigor',
   'check-for-understanding': 'Check for understanding',

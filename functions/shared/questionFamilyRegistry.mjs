@@ -31,6 +31,7 @@ import { INEQUALITY_SOLVING_FAMILIES } from './questionFamiliesInequalitySolving
 import { SYSTEMS_GRAPHING_FAMILIES } from './questionFamiliesSystemsGraphing.mjs';
 import { SUBSTITUTION_FAMILIES } from './questionFamiliesSubstitution.mjs';
 import { SYSTEMS_CONTEXT_FAMILIES } from './questionFamiliesSystemsContext.mjs';
+import { INTERVAL_FAMILIES } from './questionFamiliesIntervals.mjs';
 
 // Order matters only for listing. A family's later versions follow its first
 // (linear.multiStepEquation v2, linear.twoStepEquation v2 — special cases,
@@ -41,6 +42,8 @@ import { SYSTEMS_CONTEXT_FAMILIES } from './questionFamiliesSystemsContext.mjs';
 // The Module 3 families (solving equations, inequalities, systems by graphing
 // and by substitution) back the Warm-Up and DOL slots of those lessons
 // directly: each lesson question references its family.
+// The interval family (RC01) recovers the static number-line Warm-Up and DOL
+// questions no other family recognized: it is a Recovery V2 family too.
 const REGISTERED = Object.freeze([
   ...LINEAR_FAMILIES,
   ...LINEAR_CASE_FAMILIES,
@@ -60,6 +63,7 @@ const REGISTERED = Object.freeze([
   ...SYSTEMS_GRAPHING_FAMILIES,
   ...SUBSTITUTION_FAMILIES,
   ...SYSTEMS_CONTEXT_FAMILIES,
+  ...INTERVAL_FAMILIES,
 ]);
 
 const byKey = new Map();

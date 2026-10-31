@@ -175,6 +175,29 @@ test('the windows are enforced where every route into a secure session passes', 
   assert.match(listed, /\.filter\(\(docSnapshot\) => !stale\.has\(docSnapshot\.id\)\)/);
 });
 
+/*
+ * TC07 (the owner, 2026-10-23): every gate, the card and the teacher's table
+ * close a student's Corrections and Retest at the latest of the class's close,
+ * a teacher's close for them and their own final close — read as ingestion
+ * reads it. They all reach the home window through studentTestCycleSchedule.
+ */
+test('the home window reads each student\'s own final close, the way ingestion reads it', () => {
+  const schedule = region(functionsIndex, 'async function studentTestCycleSchedule(', '\n}\n', 'student schedule');
+  assert.match(schedule, /const studentFinalCloseAt = await testCycleStudentFinalCloseAt\(db, \{ assignment, record, gradeData, privateOverride, timeZone \}\);/);
+  assert.match(schedule, /resolveStudentTestCycleSchedule\(\{\s*assignment, classId, classPeriod, schedule, studentAvailability, studentFinalCloseAt, now, timeZone,\s*\}\)/);
+  const own = region(functionsIndex, 'async function testCycleStudentFinalCloseAt(', '\n}\n', 'own final close');
+  // Their private record (unless the caller read it) and their pinned profile.
+  assert.match(own, /privateOverride !== undefined \? privateOverride : readOverride\(\)/);
+  assert.match(own, /const ref = await studentOverrideRef\(db, studentId, assignmentId\);/);
+  assert.match(own, /gradeData \? gradeData\.profile \|\| null : readProfile\(\)/);
+  assert.match(own, /db\.getAll\(db\.collection\("grades"\)\.doc\(studentId\), \{ fieldMask: \["profile"\] \}\)/);
+  assert.match(own, /return assignmentFinalCloseAt\(assignment, timeZone, studentId, profile, \{ privateOverride: own \}\);/);
+  // The teacher's table reads every row's private record in one batch and hands it on.
+  const table = region(functionsIndex, 'exports.listTeacherTestCycleRecords = onCall(', '\n});\n', 'teacher table');
+  assert.match(table, /await privateOverridesFor\(db, assignmentId, \[\.\.\.gradeDataByStudent\.keys\(\)\]\)/);
+  assert.match(table, /studentTestCycleSchedule\(db, shared, \{[^}]*privateOverride: privateOverrides\.get\(studentId\),\s*\}\)/);
+});
+
 test('a class-wide action is one server operation, never one browser request per student', () => {
   const bulkRun = region(controls, 'const runBulk = (', 'const continueOperation = ', 'runBulk');
   assert.match(bulkRun, /await driveBulkOperation\(\{\s*step: \(\) => runTestCycleBulkAction\(\{ assignmentId, action, operationId, scope \}\),\s*onProgress: setOperation,/);

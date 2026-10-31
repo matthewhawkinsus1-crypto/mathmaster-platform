@@ -1,3 +1,4 @@
+import { workloadReceiptForStudent } from './workloadReceipt.js';
 import {
   assignmentIsForStudent,
   getAssignmentLifecycle,
@@ -104,7 +105,6 @@ export const GRADE_STATUS = Object.freeze({
   MISSING: 'missing',
   LATE: 'late',
   EXCUSED: 'excused',
-  REOPENED: 'reopened',
   PRACTICE_ONLY: 'practiceOnly',
   LOCKED: 'locked',
 });
@@ -118,7 +118,6 @@ export const GRADE_STATUS_LABEL = Object.freeze({
   [GRADE_STATUS.MISSING]: 'Missing',
   [GRADE_STATUS.LATE]: 'Late',
   [GRADE_STATUS.EXCUSED]: 'Excused',
-  [GRADE_STATUS.REOPENED]: 'Reopened',
   // Closed with nothing recorded: left out of the average, and says so.
   [GRADE_STATUS.PRACTICE_ONLY]: CLOSED_WORK.notCountedLabel,
   [GRADE_STATUS.LOCKED]: 'Not Open Yet',
@@ -209,14 +208,21 @@ const overriddenSections = (sections, score) => Object.fromEntries(
 /*
  * EXCUSED AND REOPENED ARE READ, NEVER INFERRED.
  *
- * "Excused" changes what a grade means and "reopened" changes what a student is
- * allowed to do. Guessing either from dates or from an empty tracker would put
- * words in a teacher's mouth, so both are read only from explicit per-student
- * platform data — the student's own controls as the one override resolver
+ * "Excused" changes what a grade means. Guessing it (or "reopened") from dates
+ * or from an empty tracker would put words in a teacher's mouth, so both are
+ * read only from explicit per-student platform data — the student's own
+ * controls as the one override resolver
  * (functions/shared/studentAssignmentOverrides.mjs) answers them, from their
  * private record and any copy still on the shared document, in every form a
  * teacher's flag has been stored. No such data means neither state, which is
  * the truthful answer until a teacher records one.
+ *
+ * "REOPENED" IS NOT A STUDENT'S STATUS (NV08, the owner's decision 2026-10-23).
+ * The flag opens nothing and moves no date (it holds a Grade Transfer export),
+ * so a student is never told an assignment was "Reopened": they see what they
+ * can do with it now — its own status and dates while it is open, Graded or
+ * Closed once it has closed. The flag stays on the entry as data; teacher
+ * screens keep their own word for it.
  */
 const studentControlsFor = (assignment, studentId, privateOverride) => (
   clean(studentId) ? resolveStudentOverride({ assignment, studentId: clean(studentId), privateOverride }) : null
@@ -241,7 +247,6 @@ export const resolveGradeStatus = ({
   lifecycle,
   feedbackHeld = false,
   excused = false,
-  reopened = false,
   locked = false,
 } = {}) => {
   if (excused) return GRADE_STATUS.EXCUSED;
@@ -260,7 +265,6 @@ export const resolveGradeStatus = ({
   if (feedbackHeld && attempted > 0) return GRADE_STATUS.PENDING_GRADE;
 
   if (lifecycle?.isPracticeOnly) return GRADE_STATUS.GRADED;
-  if (reopened) return GRADE_STATUS.REOPENED;
   if (locked && attempted === 0) return GRADE_STATUS.LOCKED;
   if (terminal) return GRADE_STATUS.GRADED;
   if (attempted > 0) return lifecycle?.isLate ? GRADE_STATUS.LATE : GRADE_STATUS.IN_PROGRESS;
@@ -352,7 +356,7 @@ export const summarizeGradeEntries = (entries = []) => {
 };
 
 // Started, open and not finished: counted at the score it holds now.
-const IN_PROGRESS_STATUSES = new Set([GRADE_STATUS.IN_PROGRESS, GRADE_STATUS.LATE, GRADE_STATUS.REOPENED]);
+const IN_PROGRESS_STATUSES = new Set([GRADE_STATUS.IN_PROGRESS, GRADE_STATUS.LATE]);
 
 const formatPoints = (value) => {
   const rounded = Math.round((Number(value) || 0) * 10) / 10;
@@ -455,6 +459,11 @@ const sectionWeightShares = ({ assignment, tracker, practicePassRedeemed, suppor
   const possible = Number(weights?.possibleWeight) || 0;
   if (!(possible > 0)) return null;
   const entries = projectCurrentAssignmentContent(assignment).entries;
+  // Validate the real full content once. A section-only copy changes its
+  // content key; its weights must use the already approved required set.
+  const corrected = supportProfile?.workloadCorrections?.[assignment.id]?.active === true
+    ? new Set(workloadReceiptForStudent({ student: { profile: supportProfile, gradesByAssignment: { [assignment.id]: tracker } }, assignment, hasPracticePass: practicePassRedeemed }).requiredIndices)
+    : null;
   const shares = {};
   let possibleSum = 0;
   let earnedSum = 0;
@@ -462,7 +471,7 @@ const sectionWeightShares = ({ assignment, tracker, practicePassRedeemed, suppor
     const keep = new Set(entries.filter((entry) => entry.logicalRole === key).map((entry) => entry.storageIndex));
     if (!keep.size) return;
     const part = gradeWeightTotals({
-      tracker, assignment: sectionOnlyAssignment(assignment, keep), practicePassRedeemed, supportProfile,
+      tracker, assignment: sectionOnlyAssignment(assignment, corrected ? new Set([...keep].filter((i) => corrected.has(i))) : keep), practicePassRedeemed, supportProfile: corrected ? null : supportProfile,
     });
     possibleSum += part.possibleWeight;
     earnedSum += part.earnedWeight;
@@ -489,7 +498,7 @@ const sectionWeightShares = ({ assignment, tracker, practicePassRedeemed, suppor
  */
 const START_STATUSES = new Set([
   GRADE_STATUS.MISSING, GRADE_STATUS.NOT_STARTED, GRADE_STATUS.IN_PROGRESS,
-  GRADE_STATUS.LATE, GRADE_STATUS.REOPENED,
+  GRADE_STATUS.LATE,
 ]);
 
 export const resolveGradeRowActions = ({ status, overall, lifecycle, locked = false, excused = false } = {}) => {
@@ -708,9 +717,6 @@ export const buildStudentGradeCenter = ({
       // A held Recovery is a grade waiting on the teacher, like held feedback.
       feedbackHeld: feedbackHeld || cycleFeedbackHeld || recoveryHeld,
       excused,
-      // Reopening lets a student work again; it cannot move a grade the
-      // teacher has set for the whole assignment.
-      reopened: reopened && !gradeOverride,
       locked,
     });
     const counted = gradeCountsTowardPeriod({ status, overall: effectiveOverall, weights: effectiveWeights });
@@ -722,6 +728,7 @@ export const buildStudentGradeCenter = ({
     return {
       assignment,
       assignmentId: assignment.id,
+      workloadReceipt: workloadReceiptForStudent({ student: { profile: supportProfile, gradesByAssignment: tracker }, assignment, hasPracticePass: practicePassRedeemed, nowValue }),
       title: assignment.title || 'MathMaster assignment',
       // This student's dates, read off the same lifecycle that decided the
       // status: an individualized due date or an attendance extension moves

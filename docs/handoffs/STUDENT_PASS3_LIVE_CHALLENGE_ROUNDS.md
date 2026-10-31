@@ -41,8 +41,9 @@ teacher came back. If the teacher never came back, the game never finished.
     run logs `liveChallenge.serverSweep.disabled`. This is a rollback's first
     step. The Firebase console's Add-field dialog defaults to a string, and a
     string still takes.
-  - `finishAbandonedGames` (default **false**; only a real `true` turns it on).
-    Ending abandoned games is the owner's decision (decision 1). It is read at
+  - `finishAbandonedGames` (default **true** since the owner's decision 1,
+    LC05, 2026-10-23; it fails closed like `enabled`: any value but the
+    boolean `true` turns it off). It is read at
     the start of each run **and again inside each finish's transaction**, so
     a flip during a run (up to 300 s) is honoured by the very next finish.
 - **Closing an overdue round** (on by default; this is the student-facing
@@ -52,7 +53,7 @@ teacher came back. If the teacher never came back, the game never finished.
   and the sweep both call it. The sweep never forces the close, so a student
   with extended time is still waited for: the close is refused and the round
   is re-checked 30 s later.
-- **Ending abandoned results** (only with `finishAbandonedGames: true`).
+- **Ending abandoned results** (unless `finishAbandonedGames` turns it off).
   Results that have stood 30 minutes (`HOST_AWAY_FINISH_MS`) with no host
   screen heard for as long are ended by **the console's own Finish**
   (`finalizeLiveChallengeMatch`, End Game semantics). Never, whatever the
@@ -94,7 +95,7 @@ teacher came back. If the teacher never came back, the game never finished.
     time an opening just set is never overwritten; the run reports that room
     as `backedOff`.
 - **What a student sees.** Results arrive within about 70 s at worst instead
-  of whenever the teacher returns. With the finish off (the default), the
+  of whenever the teacher returns. With the finish switched off, the
   results then wait for the teacher, as today. With a console open nothing
   changes: it closes at 1.5 s.
 - Rooms already running at deploy carry no due time and are never swept until
@@ -235,10 +236,11 @@ the previous one has shipped:**
 a failed group, so do not hand it the whole list as one call. Run the steps
 above as separate releases, stopping if one fails.
 
-Ending abandoned games stays off after the deploy. The owner turns it on by
-writing `platformFlags/liveChallengeServerSweep`
-`{ enabled: true, finishAbandonedGames: true }` with the Admin SDK or the
-Firebase console.
+Ending abandoned games is on after the deploy that carries LC05 (the code's
+default), unless `platformFlags/liveChallengeServerSweep` already holds a
+`finishAbandonedGames` that is not the boolean `true`: check the document
+before that deploy, and delete such a field (or set it to `true`). Writing
+`finishAbandonedGames: false` turns it off again.
 
 **Rollback**, in this order:
 
@@ -271,14 +273,24 @@ Firebase console.
    discarded tab. A heartbeat from the whole teacher workspace, sent while the
    active pointer names the room, would narrow this. It is not built (a client
    change).
+   **Decided 2026-10-23 (LC05): (b).** The code's default is now on; graded
+   (Warm-Up) games are still never ended by the server. Lobbies and Pace Race
+   rounds with no deadline still wait for the teacher (not built).
 2. **The windows.** 10 s close grace, 30 min host-away window, 1-minute
    schedule.
 3. **Teacher wording** for `endedBy: "hostAway"` (a client change), if (b) or
-   (c) is chosen.
+   (c) is chosen. **Built with LC05:** the console's finished panel says the
+   game ended because no teacher screen was open for 30 minutes
+   (`hostEndedNote`, challengeShellModel.js).
 4. **A student moved between two classes with live games** stays in the first
    game.
+   **Decided 2026-10-25 (LC02): stays.** Leaving a game is a removal, which is
+   not built (`live-challenge-shell.md` §14); the single invite never takes a
+   student out of a room, and an integration test pins it.
 5. **Bulk roster paths** (`migrateClassesFromPeriods`, `saveClass`) do not
    late-invite.
+   **Built 2026-10-25 (LC02):** both invite the students they move, through the
+   same safe wrapper (`functions/shared/liveChallengeBulkInvite.mjs`).
 
 ## Not done, and known limits
 

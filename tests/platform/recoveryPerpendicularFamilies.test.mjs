@@ -386,3 +386,25 @@ test('Prepare Recovery on the live lesson: both sections become ready from the s
   assert.deepEqual(report.recoveryContent, { versionBefore: 0, versionAfter: 1, bindingsBefore: 0, bindingsAfter: 6 });
   assert.deepEqual(report.untouched.questions.map((entry) => entry.signature), flattenAssignmentQuestions(assignment).map(recoverySourceSignature));
 });
+
+// RC07 (Codex on #513): an author's own prompt with no {{tokens}} used to
+// replace the generated givens, leaving a question nobody could answer. The
+// givens now follow the author's words.
+test('an authored prompt without tokens keeps each family\'s givens', () => {
+  const givens = {
+    'lines.rotationSlopes': (question) => /Segment AB has endpoints A\(0, 0\) and B\([−-]?\d+, [−-]?\d+\)\./.test(question.prompt),
+    'lines.perpendicularFromEquation': (question) => /The given line is y = .+x.*, and the point is \([−-]?\d+, [−-]?\d+\)\./.test(question.prompt),
+    'lines.perpendicularFromPoints': (question) => /The line passes through \([−-]?\d+, [−-]?\d+\) and \([−-]?\d+, [−-]?\d+\); the perpendicular line passes through \([−-]?\d+, [−-]?\d+\)\./.test(question.prompt),
+  };
+  for (const [familyId, readsGivens] of Object.entries(givens)) {
+    const family = getPlatformQuestionFamily(familyId);
+    const [instance] = instancesOf(family, 1);
+    const authored = { questionId: 'rc07', prompt: 'Use what you know about perpendicular lines.' };
+    const question = buildFamilyQuestion({ family, instance, constraintValues: resolveFamilyConstraints(family, {}).values, authored });
+    assert.ok(question.prompt.startsWith('Use what you know about perpendicular lines. '), `${familyId}: the author's words lead`);
+    assert.ok(readsGivens(question), `${familyId}: ${question.prompt}`);
+    // The family's own wording, with no author prompt, is unchanged.
+    const plain = buildFamilyQuestion({ family, instance, constraintValues: resolveFamilyConstraints(family, {}).values, authored: { questionId: 'rc07' } });
+    assert.ok(!plain.prompt.startsWith('Use what you know'), familyId);
+  }
+});

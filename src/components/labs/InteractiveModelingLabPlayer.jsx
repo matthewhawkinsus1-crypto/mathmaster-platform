@@ -3,6 +3,7 @@ import usePersistentToolState, { TOOL_DRAFT_COALESCE_MS } from '../../tools/shar
 import { normalizeLabDefinition } from '../../platform/labs/labDefinitionSchema.js';
 import { submitModelingLab } from '../../services/modelingLabService.js';
 import { modelingLabResultView } from './modelingLabResultView.js';
+import { studentErrorSentence } from '../../platform/student/studentErrorWords.js';
 
 const wordCount = (value) => String(value || '').trim().split(/\s+/).filter(Boolean).length;
 
@@ -66,7 +67,8 @@ export const InteractiveModelingLabPlayer = ({
       setEvaluation(result.evaluation);
       await onServerGraded?.(result.evaluation, result);
     } catch (caught) {
-      setError(`Lab submission was not confirmed. Retry will reuse the same submission ID. ${caught.message || ''}`.trim());
+      console.error('Modeling lab submission was not confirmed', caught);
+      setError(`${studentErrorSentence(caught, 'Your lab was not confirmed.')} Trying again cannot count it twice.`);
     } finally {
       setBusy(false);
     }

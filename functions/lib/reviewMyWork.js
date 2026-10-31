@@ -302,6 +302,40 @@ const correctionReason = ({ audits, questionIndex, override, deps }) => {
 
 const outcomeFromScore = (score) => (score >= 100 ? OUTCOME.CORRECT : score > 0 ? OUTCOME.PARTIAL : OUTCOME.INCORRECT);
 
+const PART_VERDICT = Object.freeze({
+  CORRECT: "correct",
+  PARTIAL: "partial",
+  INCORRECT: "incorrect",
+  NOT_ANSWERED: "notAnswered",
+});
+
+/**
+ * THE GRADER'S MARK ON EACH PART of a multi-part answer (FB21), read from the
+ * record the server wrote when the last attempt was graded (attemptPolicy.mjs
+ * recordQuestionAttempt keeps `partGrades`). It is what the student already
+ * learns from the row (which answers were right), part by part, and it leaves
+ * only the part's id, its label and the verdict: never the expected answer,
+ * the part's weight, its credit number or what was written (that is the row's
+ * submitted answer). Fewer than two graded parts is a single answer: the
+ * row's outcome already says it.
+ */
+const partVerdicts = (record) => {
+  const parts = list(record?.partGrades).filter((part) => isObject(part) && part.graded !== false && clean(part.id, 80));
+  if (parts.length < 2) return [];
+  return parts.slice(0, 40).map((part) => {
+    const credit = Number(part.credit);
+    return {
+      id: clean(part.id, 80),
+      label: clean(part.label, 120),
+      verdict: part.isCorrect === true
+        ? PART_VERDICT.CORRECT
+        : part.isComplete !== true
+          ? PART_VERDICT.NOT_ANSWERED
+          : credit > 0 && credit < 1 ? PART_VERDICT.PARTIAL : PART_VERDICT.INCORRECT,
+    };
+  });
+};
+
 const promptSummary = (question = {}) => {
   const text = typeof question?.prompt === "string" ? question.prompt
     : typeof question?.question === "string" ? question.question
@@ -412,6 +446,10 @@ function projectReviewMyWork({
       responseSource: submitted.source,
       outcome,
       credit,
+      // Which parts were right. Not when a teacher changed the grade (the
+      // grader's marks would sit beside a different grade) or work was
+      // excused, never attempted, or zeroed for integrity.
+      parts: attempted && !excused && !teacherChanged ? partVerdicts(record) : [],
       teacherChanged,
       teacherReason,
     });
@@ -595,6 +633,7 @@ async function loadMyReviewWorkHandler({ db, auth, data, now = Date.now() } = {}
 module.exports = {
   INTEGRITY_REASON_LABELS,
   OUTCOME,
+  PART_VERDICT,
   SOLUTION_SOURCE,
   reviewMyWorkDeps,
   assignmentAudience,

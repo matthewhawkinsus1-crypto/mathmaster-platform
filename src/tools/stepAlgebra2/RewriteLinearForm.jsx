@@ -249,7 +249,6 @@ export default function RewriteLinearForm({ questionData = {}, onAction, draftKe
   return (
     <EnlargeableFigure
       label="Rewrite linear form working activity"
-      enlargeLabel="Enlarge algebra workspace"
       style={{ width: '100%' }}
       taskText={`Rewrite the given equation in ${formName} form.`}
       capabilities={{

@@ -18,16 +18,70 @@
  * are still finishing", never who. An answer given after the class's
  * deadline reaches the student's public row only when the round closes.
  *
- * Where a mode allows it: a synchronized question round (Standard, Solver
- * Race). A question-set race (Graph Feature Rush) ranks how much each player
- * completes against one clock; stretching one player's clock would change the
- * race rather than its access, so it is not extended there.
+ * Where a mode allows it (extendedTimeRuleFor):
+ *
+ *   a synchronized question round (Standard, Solver Race) — the student's
+ *   answer is judged against their own deadline and counts like anyone's;
+ *
+ *   a question-set race whose round is a SET TO FINISH (Graph the Line's
+ *   Classic and Sprint; the mode's `extraTimeAfterBuzzer`) — the extra time
+ *   comes AFTER the class's buzzer. A question-set race ranks how much each
+ *   player completes against one clock; stretching one player's clock would
+ *   change the race rather than its access. So the race is decided at the
+ *   buzzer, for everyone, exactly as if nobody had extra time, and the
+ *   student then keeps working to their own deadline to finish their set.
+ *   What they do after the buzzer is their own work — what they finished,
+ *   the teacher's report, their evidence — kept in its own map
+ *   (liveChallengeResponses.EXTRA_TIME_RECEIPTS_FIELD), never the race's
+ *   score, place, accuracy or rewards, and never on their public row (a row
+ *   that moved after the buzzer would name them). Nobody's place changes
+ *   because a classmate had extra time, and the student is never placed
+ *   below where the class's clock alone would put them;
+ *
+ *   never an "as many as you can" race (Graph Feature Rush, Graph the Line's
+ *   Rush): the clock IS the task, there is no set to finish, and more time
+ *   would only be more race.
  */
 
 import { resolveSupportEntitlements } from './supportEntitlements.mjs';
+import { effectiveFlatSupportProfile } from './supportProfileModel.mjs';
 import { SUBMISSION_ARRIVAL_GRACE_MS } from './liveChallengeParity.mjs';
 
+/** How a mode gives a student with extended time their extra time. */
+export const EXTENDED_TIME_RULE = Object.freeze({
+  // Not extended: everyone plays on the class's clock.
+  NONE: 'none',
+  // Their own deadline, and their answer counts like anyone's.
+  PERSONAL_DEADLINE: 'personalDeadline',
+  // The race ends at the class's buzzer; their extra time after it is theirs.
+  AFTER_BUZZER: 'afterBuzzer',
+});
+
+// liveChallengeModes.ROUND_STRUCTURE's two ids, named here so this light
+// module (every Live Challenge screen loads it) never carries the mode
+// registry; tests/platform/lineGraphAccommodations.test.mjs holds the rule
+// to every registered mode.
+const SYNCHRONIZED_ROUND = 'synchronizedQuestion';
+const QUESTION_SET_ROUND = 'questionSet';
+
+/** Which rule a game mode (liveChallengeModes.getChallengeMode) plays extended time by. */
+export const extendedTimeRuleFor = (mode = null) => {
+  if (mode?.roundStructure === SYNCHRONIZED_ROUND) return EXTENDED_TIME_RULE.PERSONAL_DEADLINE;
+  if (mode?.roundStructure === QUESTION_SET_ROUND && mode?.capabilities?.extraTimeAfterBuzzer === true) {
+    return EXTENDED_TIME_RULE.AFTER_BUZZER;
+  }
+  return EXTENDED_TIME_RULE.NONE;
+};
+
 // A game round is short; doubling it is the most a class waits for one player.
+//
+// DECIDED 2026-10-25 (LC22, finding A1-31, the owner's "Do it"): a student whose
+// plan grants more than 2x plays a game round at 2x. That includes a Warm-Up
+// game, whose accuracy is their Warm-Up grade, so a teacher who needs such a
+// plan honoured in full for that assignment runs its standard Warm-Up instead
+// ("Use Standard Warm-Up" in the console). Raising the cap is a decision about
+// how long a whole class waits for one player; tests/platform/
+// liveChallengeRewardDecisions.test.mjs writes the 2 out.
 export const MAX_GAME_TIME_MULTIPLIER = 2;
 
 const roundMultiplier = (value) => {
@@ -45,6 +99,32 @@ export const gameTimeMultiplierFor = (supportProfile = null, { nowValue = Date.n
 
 /** A stored multiplier, read defensively (1 when absent or malformed). */
 export const storedTimeMultiplier = (value) => roundMultiplier(value);
+
+/*
+ * GRAPH THE LINE'S SLOPE HELPER, FROM A STUDENT'S PLAN. While a student
+ * places a line's second point, the helper draws the rise and run of THEIR
+ * OWN line ("up 2, right 3"). It counts grid squares; it never says which
+ * line is right, so it changes how a student works, not what they must know
+ * or how many lines they can finish — a race stays a race. A teacher may
+ * turn it on for the whole room (the game's settings); a plan that gives a
+ * student a graphing aid turns it on for that student alone, in every line
+ * game: graph paper (the supplemental aid for multi-step math) or a graphic
+ * organizer. Like extended time it is private: decided at the join, kept on
+ * the student's private player record, and handed only to their own device
+ * with their items — never on the room, a public row or the projector.
+ */
+export const SLOPE_HELPER_PLAN_SUPPORTS = Object.freeze(['graph-paper', 'graphic-organizer']);
+
+/** Whether the student's support plan in effect turns the slope helper on for them. */
+export const planTurnsOnSlopeHelper = (supportProfile = null, { nowValue = Date.now() } = {}) => {
+  // A graphic organizer in either stored shape (the structured SIS record
+  // names it too), through the one entitlement resolver.
+  if (resolveSupportEntitlements(supportProfile, { nowValue }).granted?.graphicOrganizer === true) return true;
+  // Graph paper is not a canonical entitlement (only the scratchpad reads
+  // it); the plan in effect today lists it.
+  const flat = effectiveFlatSupportProfile(supportProfile, { nowValue });
+  return (Array.isArray(flat?.accommodations) ? flat.accommodations : []).some((id) => SLOPE_HELPER_PLAN_SUPPORTS.includes(String(id)));
+};
 
 /**
  * The round's full length as it was opened (`activeRoundSeconds`), before any

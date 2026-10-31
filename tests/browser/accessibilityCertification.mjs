@@ -1,6 +1,6 @@
 /*
- * ACCESSIBILITY CERTIFICATION — WCAG 2.1 AA (axe-core), student screens,
- * Chromebook 1366×768 and phone 390×844, light theme, with a ratchet.
+ * ACCESSIBILITY CERTIFICATION — WCAG 2.1 AA (axe-core), student screens and
+ * the teacher's, Chromebook 1366×768 and phone 390×844, light theme, with a ratchet.
  *
  *   TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs &   # the real app, in memory
  *   npx vite --config tests/browser/emulator/vite.config.mjs --host 127.0.0.1 --port 5199 --strictPort &   # standalone harnesses
@@ -39,12 +39,20 @@
  *   assignment-tools
  *       studentUxPlatform.html: one assignment compiled through the teacher
  *       import chain, in App.jsx's assignment wrappers — Step Algebra,
- *       Graphing 2 and the Linear Table Workbench open. The harness's own
- *       stand-in navigator is excluded; the question stage is audited.
+ *       Graphing 2 and the Linear Table Workbench open, and an empty math box
+ *       showing its placeholder. The harness's own stand-in navigator is
+ *       excluded; the question stage is audited.
  *   secure-exam
  *       accessibilitySecureExam.html: the Test Cycle card at its Test stage,
  *       then the REAL SecureExamContainer's start screen and a secure question
  *       (stubbed callables).
+ *
+ * THE TEACHER'S SCREENS (accessibilityTeacherScreens.mjs, TEACHER_SCREENS, TT27;
+ * CERTIFIED_SCREENS is the two lists together) go through the same loop: the
+ * real app signed in as the synthetic teacher, opened on the school's clock, audited
+ * by axe and also walked by Tab (accessibilityKeyboardReach.mjs). What the walk
+ * finds (rules named mm-*) counts into the same keys, so one baseline and one
+ * --write-baseline hold both. ONLY=teacher-home (or any screen id) runs one.
  *
  * THE RATCHET (scripts/lib/accessibilityRatchet.mjs): failing-node counts per
  * `${screen}|${viewport}|${ruleId}` against scripts/accessibility-baseline.json.
@@ -64,6 +72,10 @@ import { auditAccessibility, AXE_VERSION, settleForAudit } from './accessibility
 import {
   buildBaseline, compare, describeFailures, mergeNormalized, ratchetFailed, readBaselineCounts, WCAG_TAGS,
 } from '../../scripts/lib/accessibilityRatchet.mjs';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
+import { newSchoolContext } from './teacherWorkflow/schoolClock.mjs';
+import { TEACHER_SCREENS } from './accessibilityTeacherScreens.mjs';
+import { auditKeyboardReach } from './accessibilityKeyboardReach.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../..');
@@ -89,7 +101,7 @@ const openStudentApp = async (page, origins) => {
 // The student nav, clicked programmatically as darkModeCertification does
 // (on a phone the nav can sit under a sticky bar).
 const studentTab = (name, ready) => async (page) => {
-  await page.locator('nav[aria-label="Student navigation"] button').filter({ hasText: name }).first().evaluate((button) => button.click());
+  await page.locator('nav[aria-label="Student navigation"] a').filter({ hasText: name }).first().evaluate((link) => link.click());
   await page.getByText(ready).first().waitFor({ timeout: 30_000 });
   await page.waitForTimeout(900);
 };
@@ -142,6 +154,19 @@ const uxQuestion = (questionId, ready) => async (page, origins, { first }) => {
   await page.waitForTimeout(2500);
 };
 
+// An empty math box with its placeholder showing ("for example -4"). MathLive
+// paints that hint #bdbdbd, which axe measured at 1.66:1 (pass 3, A11Y-7) while
+// no scene rendered one, so nothing could fail (AX17). The scene waits for the
+// placeholder itself: a box that stopped drawing it cannot pass by being absent.
+const openMathBoxPlaceholder = async (page, origins, state) => {
+  await uxQuestion('ux-simple', '.mathmaster-question-engine')(page, origins, state);
+  await page.waitForFunction(
+    () => document.querySelector('[data-question-id="ux-simple"] math-field')?.shadowRoot?.querySelector('[part="placeholder"]'),
+    null,
+    { timeout: 30_000 },
+  );
+};
+
 // A section the student has finished, as its tab shows it: the fixture's
 // student has last week's Warm-Up right, and the active lesson opens with that
 // tab marked "Complete" (pass 3, A11Y-7: its badge was 9px white on #a66b00,
@@ -174,6 +199,7 @@ export const SCREENS = [
       { id: 'step-algebra', run: uxQuestion('ux-step', '.mathmaster-question-engine') },
       { id: 'graphing', run: uxQuestion('ux-graph2', 'svg.mathmaster-responsive-canvas') },
       { id: 'table-workbench', run: uxQuestion('ux-ltw', '.mathmaster-question-engine') },
+      { id: 'math-box-placeholder', run: openMathBoxPlaceholder },
     ],
   },
   studentAppScreen('my-math-path', 'My Math Path', 'Your Weekly Math Path'),
@@ -238,7 +264,26 @@ export const SCREENS = [
   },
 ];
 
+// The student screens above and the teacher's (accessibilityTeacherScreens.mjs):
+// what the run audits, and what the contrast review decides. SCREENS stays the
+// student list, which the other drivers import for their own checks.
+export const CERTIFIED_SCREENS = [...SCREENS, ...TEACHER_SCREENS];
+
 export const sceneLabel = (screen, scene) => (scene.id ? `${screen.id}/${scene.id}` : screen.id);
+
+// What a scene audits and how: its own `include`, `exclude` and `keyboard` when it says, else its
+// screen's. A scene that opens a pop-up audits the pop-up (the page behind it is read as covered,
+// undecided text), as the two modal screens audit their dialog; and one a Tab walk cannot read.
+export const sceneScope = (screen, scene) => ({
+  include: scene.include ?? screen.include,
+  exclude: scene.exclude ?? screen.exclude,
+  keyboard: scene.keyboard ?? screen.keyboard,
+});
+
+// A browser context for one screen. A teacher screen reads the clock (the bell
+// schedule, the DOL window), so it opens on the school's, as the dark-mode
+// certification does; the contrast review opens its screens the same way.
+export const newScreenContext = (browser, screen, options) => (screen.schoolClock ? newSchoolContext(browser, options) : browser.newContext(options));
 
 // ------------------------------------------------------- the audit server
 // The emulator config swaps src/services/testCycleService.js for its stub
@@ -289,9 +334,9 @@ const readBaseline = () => { try { return JSON.parse(readFileSync(BASELINE_PATH,
 const main = async () => {
   const WRITE = process.argv.includes('--write-baseline');
   const ONLY = new Set(String(process.env.ONLY || '').split(',').map((entry) => entry.trim()).filter(Boolean));
-  const unknown = [...ONLY].filter((id) => !SCREENS.some((screen) => screen.id === id));
-  if (unknown.length) throw new Error(`ONLY names unknown screen(s): ${unknown.join(', ')} (known: ${SCREENS.map((screen) => screen.id).join(', ')})`);
-  const screens = SCREENS.filter((screen) => !ONLY.size || ONLY.has(screen.id));
+  const unknown = [...ONLY].filter((id) => !CERTIFIED_SCREENS.some((screen) => screen.id === id));
+  if (unknown.length) throw new Error(`ONLY names unknown screen(s): ${unknown.join(', ')} (known: ${CERTIFIED_SCREENS.map((screen) => screen.id).join(', ')})`);
+  const screens = CERTIFIED_SCREENS.filter((screen) => !ONLY.size || ONLY.has(screen.id));
   const origins = {
     app: process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188',
     audit: process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199',
@@ -320,11 +365,12 @@ const main = async () => {
   const results = [];
   const unreachable = [];
   const titleFailures = [];
+  const harnessBanners = [];
   let blocked = 0;
 
   for (const viewport of VIEWPORTS) {
     for (const screen of screens) {
-      const context = await browser.newContext({
+      const context = await newScreenContext(browser, screen, {
         viewport: { width: viewport.width, height: viewport.height },
         isMobile: Boolean(viewport.isMobile),
         hasTouch: Boolean(viewport.hasTouch),
@@ -345,7 +391,7 @@ const main = async () => {
         if (screen.open) await screen.open(page, origins);
       } catch (error) {
         unreachable.push(`${screen.id}|${viewport.id}: could not open — ${error.message.split('\n')[0]}`);
-        await page.screenshot({ path: path.join(artifacts, `FAIL-${screen.id}-${viewport.id}-open.png`), fullPage: true }).catch(() => {});
+        await screenshotKeepingTouch(page, { path: path.join(artifacts, `FAIL-${screen.id}-${viewport.id}-open.png`), fullPage: true }).catch(() => {});
         await context.close();
         continue;
       }
@@ -358,19 +404,39 @@ const main = async () => {
           await settleForAudit(page);
         } catch (error) {
           unreachable.push(`${label}|${viewport.id}: could not reach the screen — ${error.message.split('\n')[0]}`);
-          await page.screenshot({ path: shot, fullPage: true }).catch(() => {});
+          await screenshotKeepingTouch(page, { path: shot, fullPage: true }).catch(() => {});
           break;
         }
-        const audit = await auditAccessibility(page, { name: label, viewport: viewport.id, include: screen.include, exclude: screen.exclude });
+        const scope = sceneScope(screen, scene);
+        const axe = await auditAccessibility(page, { name: label, viewport: viewport.id, include: scope.include, exclude: scope.exclude });
+        // The picture is of the scene as it opened: the Tab walk below moves focus and scroll.
+        await page.screenshot({ path: path.join(artifacts, `${label.replace(/\//g, '--')}-${viewport.id}.png`) }).catch(() => {});
+        // A teacher screen is also walked by Tab, and what the walk finds counts into the
+        // same keys as axe's (accessibilityKeyboardReach.mjs, rules named mm-*).
+        let keyboard = null;
+        if (scope.keyboard) {
+          try {
+            keyboard = await auditKeyboardReach(page, { name: label, viewport: viewport.id, include: [].concat(scope.include || [])[0] || null });
+          } catch (error) {
+            // A walk that measured nothing is not a pass: the scene counts as not reached.
+            unreachable.push(`${label}|${viewport.id}: the Tab walk failed — ${error.message.split('\n')[0]}`);
+            break;
+          }
+        }
+        const audit = keyboard ? { ...axe, ...mergeNormalized(axe, keyboard) } : axe;
         const verdict = compare(baselineCounts, audit.counts, { scope: (key) => key.screen === label && key.viewport === viewport.id });
-        if (!WRITE && ratchetFailed(verdict)) await page.screenshot({ path: shot, fullPage: true }).catch(() => {});
-        else await page.screenshot({ path: path.join(artifacts, `${label.replace(/\//g, '--')}-${viewport.id}.png`) }).catch(() => {});
-        results.push({ screen: screen.id, scene: scene.id, label, viewport: viewport.id, counts: audit.counts, details: audit.details, needsReview: audit.needsReview });
+        if (!WRITE && ratchetFailed(verdict)) await screenshotKeepingTouch(page, { path: shot, fullPage: true }).catch(() => {});
+        results.push({ screen: screen.id, scene: scene.id, label, viewport: viewport.id, counts: audit.counts, details: audit.details, needsReview: audit.needsReview, keyboard: keyboard?.summary || null });
         // WCAG 2.4.2 beyond axe's "a <title> exists": every app screen used to
         // be titled "Vite + React". The real app must name itself and the screen.
         if (screen.harness === 'app') {
           const title = await page.title();
           if (!/ – MathMaster$/.test(title) || /vite|react/i.test(title)) titleFailures.push(`${label}|${viewport.id}: page title "${title}" does not name the screen`);
+          // The harness fails a callable it has no fake for, and the screen says so in its own banner. A scene
+          // that audits that banner audits an error and not the screen: give the harness the fake (TT27).
+          if (await page.evaluate(() => /has no fake for the callable/.test(document.body?.innerText || '')).catch(() => false)) {
+            harnessBanners.push(`${label}|${viewport.id}: the screen shows the harness's "no fake for the callable" banner`);
+          }
         }
         const total = Object.values(audit.counts).reduce((sum, count) => sum + count, 0);
         console.log(`${ratchetFailed(verdict) && !WRITE ? 'FAIL' : 'ok  '} ${label.padEnd(32)} ${viewport.id.padEnd(8)} ${Object.keys(audit.counts).length} rule(s), ${total} node(s)`);
@@ -390,11 +456,13 @@ const main = async () => {
     axeVersion: AXE_VERSION,
     tags: WCAG_TAGS,
     viewports: VIEWPORTS,
-    screens: SCREENS.map((screen) => ({ id: screen.id, scenes: screen.scenes.map((scene) => sceneLabel(screen, scene)) })),
+    screens: CERTIFIED_SCREENS.map((screen) => ({ id: screen.id, scenes: screen.scenes.map((scene) => sceneLabel(screen, scene)) })),
     unreachable,
     comparison,
     totals: current.counts,
     details: current.details,
+    // What the Tab walk did on each screen that has one (stops, how it ended, the controls it names).
+    keyboard: results.filter((result) => result.keyboard).map((result) => ({ label: result.label, viewport: result.viewport, ...result.keyboard })),
     // axe "incomplete": not decidable automatically; reported, not ratcheted.
     needsReview: results.filter((result) => result.needsReview.length).map((result) => ({ label: result.label, viewport: result.viewport, rules: result.needsReview })),
     blockedNonLocalRequests: blocked,
@@ -421,7 +489,7 @@ const main = async () => {
 
   const failed = ratchetFailed(comparison);
   if (failed) {
-    console.error('\nNew WCAG 2.1 AA violations (axe-core). Fix them, or — only for a deliberate, reviewed exception — run with --write-baseline:');
+    console.error('\nNew WCAG 2.1 AA violations (axe-core, and for the teacher screens the Tab walk: rules named mm-*). Fix them, or — only for a deliberate, reviewed exception — run with --write-baseline:');
     describeFailures(comparison, { details: current.details, baselineTargets: baseline.targets || {} }).forEach((line) => console.error(`  ${line}`));
   }
   if (unreachable.length) {
@@ -436,7 +504,11 @@ const main = async () => {
     console.error(`\n${titleFailures.length} screen(s) without a page title naming them (WCAG 2.4.2):`);
     titleFailures.forEach((line) => console.error(`  - ${line}`));
   }
-  if (failed || unreachable.length || titleFailures.length) {
+  if (harnessBanners.length) {
+    console.error(`\n${harnessBanners.length} scene(s) audit the harness's error banner and not the screen (add the callable to tests/browser/teacherWorkflow/fakeAdminScreens.js or fakeFunctions.js):`);
+    harnessBanners.forEach((line) => console.error(`  - ${line}`));
+  }
+  if (failed || unreachable.length || titleFailures.length || harnessBanners.length) {
     console.error(`\nAccessibility certification FAILED. Report: ${path.relative(repo, path.join(artifacts, 'report.json'))}`);
     process.exitCode = 1;
   } else {

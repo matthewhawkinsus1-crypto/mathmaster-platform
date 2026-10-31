@@ -15,6 +15,7 @@
  */
 
 import { mergePracticeTrackers, samePracticeProgress } from './practiceTrackerMerge.mjs';
+import { normalizeDeliveryPin } from './questionGenerationIdentity.mjs';
 
 export const WORKSPACE_DRAFT_SCHEMA_VERSION = 1;
 
@@ -309,7 +310,8 @@ const mergeToolWorkspaceEntries = (current, incoming) => {
  *   `…:workflow-responses`  one response per step of a composed question, by
  *                           step id (several steps, often on two devices);
  *   `…:step-algebra`        the equation and the steps that produced it, which
- *                           belong together, and the typed prompt answers.
+ *                           belong together, and the typed prompt answers,
+ *                           each on its own.
  *
  * Merged whole by edit time, a Chromebook that had not yet received the work
  * (the question opens before the server copy is read, PQ-044) saved its
@@ -319,7 +321,8 @@ const mergeToolWorkspaceEntries = (current, incoming) => {
  *
  * So each copy of such a draft says when each of its answers was last edited:
  * `fieldEditedAt`, by answer (a "group": a field, a step, or — for Step
- * Algebra — the whole equation-and-steps work, which can only be taken whole),
+ * Algebra — one prompt answer, or the whole equation-and-steps work, which can
+ * only be taken whole),
  * in the device's envelope and in the server entry beside `savedAt`. A copy a
  * device started from nothing — no copy of any kind there, not even a reset's
  * tombstone — also says `fieldsFresh` until it has been settled against the
@@ -353,17 +356,20 @@ export const fieldRecordDraftKind = (key) => {
   return match && FIELD_RECORD_DRAFT_KINDS.includes(match[1]) ? match[1] : null;
 };
 
-// Step Algebra: the typed prompt answers stand alone; everything else is the
+// Step Algebra: each typed prompt answer stands alone — group
+// `promptAnswers/<id>` (RT22: as one group, a later edit to one prompt on a
+// second device replaced the other prompts' answers); everything else is the
 // work on the equation, taken whole. Only a change to what the student
 // committed — the equation, its steps, the answers typed into a step — dates
 // that work: arming a tile or typing an operand they have not applied does not.
 const STEP_ALGEBRA_WORK = 'work';
-const STEP_ALGEBRA_STANDALONE = Object.freeze(['promptAnswers']);
+const STEP_ALGEBRA_PROMPTS = 'promptAnswers';
+const PROMPT_GROUP = `${STEP_ALGEBRA_PROMPTS}/`;
 const STEP_ALGEBRA_COMMITTED = Object.freeze(['equation', 'workSteps', 'simplificationAnswers', 'distributionState', 'crossedSides', 'cancelledPairIds']);
 
 /** The group a top-level field of a field-record draft belongs to. */
 const groupOfField = (kind, field) => (
-  kind === 'step-algebra' && !STEP_ALGEBRA_STANDALONE.includes(field) ? STEP_ALGEBRA_WORK : field
+  kind === 'step-algebra' && field !== STEP_ALGEBRA_PROMPTS ? STEP_ALGEBRA_WORK : field
 );
 
 /** Groups that can only be taken whole from one copy, and yield to saved work when begun on a fresh device. */
@@ -381,20 +387,50 @@ const stableJson = (value) => {
  * Each group of a field-record value, with the signature that says whether
  * it changed: Map(group -> { fields, signature }). Not a record: no groups.
  */
-export const fieldRecordGroups = (kind, value) => {
+export const fieldRecordGroups = (kind, value, { wholePrompts = false } = {}) => {
   const groups = new Map();
   if (!kind || !isFieldRecord(value)) return groups;
   Object.keys(value).forEach((field) => {
+    const answers = own(value, field);
+    // `wholePrompts`: the prompt answers as one group, as builds before RT22 keep them.
+    if (!wholePrompts && kind === 'step-algebra' && field === STEP_ALGEBRA_PROMPTS && isFieldRecord(answers)) {
+      // A prompt answer is one key of the field: `within` says which.
+      Object.keys(answers).forEach((id) => groups.set(PROMPT_GROUP + id, { fields: [], within: [field, id], signature: null }));
+      return;
+    }
     const group = groupOfField(kind, field);
     if (!groups.has(group)) groups.set(group, { fields: [], signature: null });
     groups.get(group).fields.push(field);
   });
   groups.forEach((entry, group) => {
+    if (entry.within) {
+      const [field, id] = entry.within;
+      entry.signature = stableJson(Object.fromEntries([[id, own(own(value, field), id)]]));
+      return;
+    }
     entry.signature = isCoupledGroup(kind, group)
       ? stableJson(Object.fromEntries(STEP_ALGEBRA_COMMITTED.map((field) => [field, value[field] ?? null])))
       : stableJson(Object.fromEntries(entry.fields.map((field) => [field, value[field]])));
   });
   return groups;
+};
+
+/**
+ * Copies one group's answers from `source` into `target`, an object the
+ * caller owns. A prompt answer goes into a copy of the target's map, never
+ * into a map the target shares with someone else.
+ */
+export const copyFieldRecordGroup = (target, source, entry) => {
+  if (entry.within) {
+    const [field, id] = entry.within;
+    const held = own(target, field);
+    const answers = isFieldRecord(held) ? { ...held } : {};
+    setOwn(answers, id, own(own(source, field), id));
+    setOwn(target, field, answers);
+    return target;
+  }
+  entry.fields.forEach((field) => setOwn(target, field, own(source, field)));
+  return target;
 };
 
 const EMPTY_SIGNATURES = new Set(['null', '""', '[]', '{}']);
@@ -430,6 +466,58 @@ const rawTimeOf = (times, group) => {
   return Number.isFinite(time) && time !== 0 ? time : 0;
 };
 const timeOf = (times, group) => Math.abs(rawTimeOf(times, group));
+
+/*
+ * A DRAFT AN OLDER BUILD TOUCHED KEEPS THE OLD RULE (RT22).
+ *
+ * Builds before RT22 — and a server not yet deployed — date Step Algebra's
+ * prompt answers as one set, `promptAnswers`, and keep every other time they
+ * are given as it was: in a copy one of them changed, the per-answer times are
+ * out of date, and an answer it holds may have none. Nothing in such a copy
+ * says which answers that build changed, so no per-answer reading of it is
+ * safe. This build dates every answer it holds and keeps `promptAnswers` at
+ * exactly the latest of them (`withPromptGroupTime`), so a copy an older build
+ * touched shows it (`olderBuildPrompts`): an answer held with no time of its
+ * own, or a set dated later than every one of its answers.
+ *
+ * Such a draft keeps the old rule for good: when either copy shows it, the
+ * prompt answers are merged whole by the set's time, the merged copy carries no
+ * per-answer times (so it goes on showing it), and this build's edits to it
+ * date the set as an older build does (`promptsAsOneSet`). Only drafts this
+ * build alone wrote are merged answer by answer. A mix of builds therefore
+ * behaves exactly as before; the new rule starts with drafts begun after it.
+ */
+const olderBuildPrompts = (kind, value, times) => {
+  if (kind !== 'step-algebra') return false;
+  const answers = own(value, STEP_ALGEBRA_PROMPTS);
+  const held = isFieldRecord(answers) ? Object.keys(answers).filter((id) => !EMPTY_SIGNATURES.has(stableJson(own(answers, id)))) : [];
+  if (!times) return held.length > 0;
+  if (held.some((id) => !rawTimeOf(times, PROMPT_GROUP + id))) return true;
+  const setTime = timeOf(times, STEP_ALGEBRA_PROMPTS);
+  return Boolean(setTime) && Object.keys(times).every((group) => !group.startsWith(PROMPT_GROUP) || timeOf(times, group) < setTime);
+};
+/** The times a draft that keeps the old rule carries: no per-answer ones. */
+const promptsAsOneSet = (times) => {
+  if (!times) return times;
+  const out = {};
+  Object.keys(times).forEach((group) => {
+    if (!group.startsWith(PROMPT_GROUP)) setOwn(out, group, rawTimeOf(times, group));
+  });
+  return out;
+};
+/** How a copy's prompt answers are grouped: whole once an older build touched them. */
+export const fieldRecordGroupsFor = (kind, value, times) => fieldRecordGroups(kind, value, { wholePrompts: olderBuildPrompts(kind, value, normalizeFieldEditedAt(times)) });
+const withPromptGroupTime = (kind, times) => {
+  if (kind !== 'step-algebra' || !times) return times;
+  let latest = 0;
+  Object.keys(times).forEach((group) => {
+    const time = group.startsWith(PROMPT_GROUP) ? rawTimeOf(times, group) : 0;
+    if (Math.abs(time) > Math.abs(latest)) latest = time;
+  });
+  // With no answer dated, a set time an older build gave is kept as it was.
+  if (latest) setOwn(times, STEP_ALGEBRA_PROMPTS, latest);
+  return times;
+};
 
 /** A plain `{ group: editTime }` map (a negative time is an upper bound), dropping anything else. */
 export const normalizeFieldEditedAt = (value) => {
@@ -477,7 +565,8 @@ export const adoptedFieldEditedAt = (kind, copy) => {
   const at = copy?.savedAtIsEdit === true ? Math.max(0, Number(copy?.savedAt) || 0) : 0;
   if (!at) return null;
   const out = {};
-  fieldRecordGroups(kind, copy.value).forEach((entry, group) => {
+  // Such a copy is an older build's: its prompt answers are dated as one set.
+  fieldRecordGroups(kind, copy.value, { wholePrompts: true }).forEach((entry, group) => {
     if (!emptyGroupSignature(kind, group, entry.signature)) setOwn(out, group, -at);
   });
   return out;
@@ -492,8 +581,10 @@ export const adoptedFieldEditedAt = (kind, copy) => {
 export const stampFieldRecordEdits = ({ kind, previous, previousEditedAt, next, edit, now }) => {
   const times = normalizeFieldEditedAt(previousEditedAt) || {};
   if (!kind || !edit || !isFieldRecord(next)) return times;
-  const before = fieldRecordGroups(kind, previous);
-  const after = fieldRecordGroups(kind, next);
+  // A draft an older build touched is dated as that build dates it: the set whole.
+  const wholePrompts = isFieldRecord(previous) && olderBuildPrompts(kind, previous, normalizeFieldEditedAt(previousEditedAt));
+  const before = fieldRecordGroups(kind, previous, { wholePrompts });
+  const after = fieldRecordGroups(kind, next, { wholePrompts });
   new Set([...before.keys(), ...after.keys()]).forEach((group) => {
     const was = before.get(group)?.signature;
     const is = after.get(group)?.signature;
@@ -501,7 +592,7 @@ export const stampFieldRecordEdits = ({ kind, previous, previousEditedAt, next, 
     if (was === undefined && emptyGroupSignature(kind, group, is)) return;
     setOwn(times, group, now);
   });
-  return times;
+  return wholePrompts ? promptsAsOneSet(times) : withPromptGroupTime(kind, times);
 };
 
 /**
@@ -532,16 +623,17 @@ export const mergeFieldRecordCopies = ({ kind, a, b, prefer = 'b', canonicalAt =
   if (submittedAt > 0 && (aAt <= submittedAt) !== (bAt <= submittedAt)) {
     const later = aAt > bAt ? a : b;
     const laterTimes = normalizeFieldEditedAt(later.fieldEditedAt);
+    const wholePrompts = olderBuildPrompts(kind, later.value, laterTimes);
     const cut = resetTimeOf(later) >= resetAt ? 0 : resetAt;
     let value = later.value;
     let fieldEditedAt = laterTimes;
     if (cut && isFieldRecord(later.value) && laterTimes) {
       value = {};
       fieldEditedAt = {};
-      fieldRecordGroups(kind, later.value).forEach((entry, group) => {
+      fieldRecordGroups(kind, later.value, { wholePrompts }).forEach((entry, group) => {
         const time = rawTimeOf(laterTimes, group);
         if (Math.abs(time) <= cut) return;
-        entry.fields.forEach((field) => setOwn(value, field, own(later.value, field)));
+        copyFieldRecordGroup(value, later.value, entry);
         setOwn(fieldEditedAt, group, time);
       });
     }
@@ -549,7 +641,7 @@ export const mergeFieldRecordCopies = ({ kind, a, b, prefer = 'b', canonicalAt =
       value,
       savedAt: Math.max(aAt, bAt),
       savedAtIsEdit: later.savedAtIsEdit === true,
-      fieldEditedAt,
+      fieldEditedAt: wholePrompts ? promptsAsOneSet(fieldEditedAt) : withPromptGroupTime(kind, fieldEditedAt),
       fieldsFresh: false,
       ...resetMarker,
     };
@@ -564,20 +656,21 @@ export const mergeFieldRecordCopies = ({ kind, a, b, prefer = 'b', canonicalAt =
     if (bRecord && a.value === null && a.savedAtIsEdit === true && bAt > aAt) record = b;
     const recordTimes = record ? normalizeFieldEditedAt(record.fieldEditedAt) : null;
     if (!record || !recordTimes) return null;
+    const wholePrompts = olderBuildPrompts(kind, record.value, recordTimes);
     const cut = resetTimeOf(record) >= resetAt ? 0 : resetAt;
     const kept = {};
     const keptTimes = {};
-    fieldRecordGroups(kind, record.value).forEach((entry, group) => {
+    fieldRecordGroups(kind, record.value, { wholePrompts }).forEach((entry, group) => {
       const time = rawTimeOf(recordTimes, group);
       if (cut && Math.abs(time) <= cut) return;
-      entry.fields.forEach((field) => setOwn(kept, field, own(record.value, field)));
+      copyFieldRecordGroup(kept, record.value, entry);
       if (time) setOwn(keptTimes, group, time);
     });
     return {
       value: kept,
       savedAt: Math.max(aAt, bAt),
       savedAtIsEdit: true,
-      fieldEditedAt: keptTimes,
+      fieldEditedAt: wholePrompts ? promptsAsOneSet(keptTimes) : withPromptGroupTime(kind, keptTimes),
       fieldsFresh: false,
       ...resetMarker,
     };
@@ -585,13 +678,16 @@ export const mergeFieldRecordCopies = ({ kind, a, b, prefer = 'b', canonicalAt =
 
   // Both copies must say when their answers were edited — or one must be a
   // fresh copy, which then counts the other's answers as edited at its time.
-  const legacyTimes = (copy, at) => {
-    const times = {};
-    fieldRecordGroups(kind, copy.value).forEach((_, group) => setOwn(times, group, at));
-    return times;
-  };
   let aGroupTimes = normalizeFieldEditedAt(a.fieldEditedAt);
   let bGroupTimes = normalizeFieldEditedAt(b.fieldEditedAt);
+  // Answer by answer only when this build dated both copies' prompt answers.
+  const wholePrompts = olderBuildPrompts(kind, a.value, aGroupTimes) || olderBuildPrompts(kind, b.value, bGroupTimes);
+  const groupsOf = (value) => fieldRecordGroups(kind, value, { wholePrompts });
+  const legacyTimes = (copy, at) => {
+    const times = {};
+    groupsOf(copy.value).forEach((_, group) => setOwn(times, group, at));
+    return times;
+  };
   if (!aGroupTimes && bGroupTimes && b.fieldsFresh === true) aGroupTimes = legacyTimes(a, aAt);
   if (!bGroupTimes && aGroupTimes && a.fieldsFresh === true) bGroupTimes = legacyTimes(b, bAt);
   if (!aGroupTimes || !bGroupTimes) return null;
@@ -599,8 +695,8 @@ export const mergeFieldRecordCopies = ({ kind, a, b, prefer = 'b', canonicalAt =
   // A copy that did not see the latest reset keeps nothing dated at or before it.
   const aCut = resetTimeOf(a) < resetAt ? resetAt : 0;
   const bCut = resetTimeOf(b) < resetAt ? resetAt : 0;
-  const aGroups = fieldRecordGroups(kind, a.value);
-  const bGroups = fieldRecordGroups(kind, b.value);
+  const aGroups = groupsOf(a.value);
+  const bGroups = groupsOf(b.value);
   const aFresh = a.fieldsFresh === true;
   const bFresh = b.fieldsFresh === true;
   const value = {};
@@ -642,7 +738,7 @@ export const mergeFieldRecordCopies = ({ kind, a, b, prefer = 'b', canonicalAt =
     if (winnerHolds) {
       const source = winner === 'a' ? a.value : b.value;
       const groups = winner === 'a' ? aGroups : bGroups;
-      groups.get(group).fields.forEach((field) => setOwn(value, field, own(source, field)));
+      copyFieldRecordGroup(value, source, groups.get(group));
     }
     // The winner's time, an upper bound staying one; with no bound, the later.
     const time = aBounded || bBounded ? ((winner === 'a' ? rawA : rawB) || (winner === 'a' ? rawB : rawA)) : Math.max(ta, tb);
@@ -653,7 +749,7 @@ export const mergeFieldRecordCopies = ({ kind, a, b, prefer = 'b', canonicalAt =
     value,
     savedAt: Math.max(aAt, bAt),
     savedAtIsEdit: newer.savedAtIsEdit === true || a.savedAtIsEdit === true || b.savedAtIsEdit === true,
-    fieldEditedAt,
+    fieldEditedAt: wholePrompts ? promptsAsOneSet(fieldEditedAt) : withPromptGroupTime(kind, fieldEditedAt),
     fieldsFresh: false,
     ...resetMarker,
   };
@@ -763,6 +859,67 @@ const fieldRecordMarkers = (key, entry) => {
   return markers;
 };
 
+/*
+ * WHICH VERSION OF A PERSONALIZED QUESTION THE STUDENT WAS SHOWN (RT15).
+ *
+ * A Question Family slot is pinned on the device the moment it renders
+ * (familyDeliveryPins.js) and on the question record at the first Submit. In
+ * between, another Chromebook had only a fresh allocation to go on, and that
+ * differs whenever the seats moved — a provisional seat, then the teacher's
+ * app seating the class — so the student could open their work and find
+ * different numbers. The pin now rides this document too: one per slot and
+ * variant, the FIRST a device saved (it is what was shown, and the first
+ * showing is the one the student may be working on). It is replaced only when
+ * this build cannot read it, or by a device that was offered it and had to
+ * drop it (`replace`: refused, or no longer replays).
+ *
+ * It holds no answer — it is the same pin the device keeps and the record
+ * will carry — and it is never trusted: a device checks it exactly as it
+ * checks its own (familyDelivery.js buildStudentFamilyContext), so a pin the
+ * server would refuse is dropped there. A document with no pins carries no
+ * `deliveryPins` field, so it is stored exactly as before.
+ */
+export const MAX_WORKSPACE_DELIVERY_PINS = 120;
+
+/** One pin per slot and variant. */
+export const deliveryPinKey = (pin) => `${pin?.slot || ''}|v${Number(pin?.variant) || 0}`;
+
+const storableDeliveryPin = (raw) => {
+  const pin = normalizeDeliveryPin(raw);
+  return pin?.slot ? pin : null;
+};
+
+/** The pins a stored document holds, by deliveryPinKey (malformed ones dropped). */
+export const readWorkspaceDeliveryPins = (document) => {
+  const pins = new Map();
+  (Array.isArray(document?.deliveryPins) ? document.deliveryPins : []).forEach((raw) => {
+    const pin = storableDeliveryPin(raw);
+    if (pin && !pins.has(deliveryPinKey(pin))) pins.set(deliveryPinKey(pin), pin);
+  });
+  return pins;
+};
+
+const patchDeliveryPins = (deliveryPins) => (Array.isArray(deliveryPins) ? deliveryPins : [])
+  .map((entry) => {
+    const pin = storableDeliveryPin(entry?.pin);
+    return pin ? { pin, ...(entry?.replace === true ? { replace: true } : {}) } : null;
+  })
+  .filter(Boolean);
+
+// First saved wins; an unreadable stored pin, or one a device had to drop
+// (`replace`), gives way. Bounded like the entries; a pin past the cap stays
+// on the device that showed it.
+const mergeDeliveryPins = (existing, incoming) => {
+  const pins = readWorkspaceDeliveryPins(existing);
+  incoming.forEach(({ pin, replace }) => {
+    const key = deliveryPinKey(pin);
+    if (pins.has(key) && replace !== true) return;
+    if (!pins.has(key) && pins.size >= MAX_WORKSPACE_DELIVERY_PINS) return;
+    pins.set(key, pin);
+  });
+  return [...pins.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([, pin]) => pin);
+};
+
 const normalizeResume = (resume) => (resume
   ? {
     questionIndex: Number(resume.questionIndex) || 0,
@@ -793,19 +950,25 @@ export const buildWorkspaceDraftPatch = ({
   practice = null,
   hasPractice = false,
   practiceUpdatedAt = 0,
-} = {}) => ({
-  schemaVersion: WORKSPACE_DRAFT_SCHEMA_VERSION,
-  documentId: workspaceDraftDocumentId({ studentId, assignmentId }),
-  studentId: String(studentId ?? ''),
-  assignmentId: String(assignmentId ?? ''),
-  classId: classId ? String(classId) : null,
-  entries: (Array.isArray(entries) ? entries : []).map(storableEntry).filter(Boolean),
-  resume: normalizeResume(resume),
-  hasResume: Boolean(hasResume),
-  practice: practice && typeof practice === 'object' ? practice : null,
-  hasPractice: Boolean(hasPractice),
-  practiceUpdatedAt: Math.max(0, Number(practiceUpdatedAt) || 0),
-});
+  // [{ pin, replace? }]: the delivery pins this device has to add (RT15).
+  deliveryPins = [],
+} = {}) => {
+  const pins = patchDeliveryPins(deliveryPins);
+  return {
+    schemaVersion: WORKSPACE_DRAFT_SCHEMA_VERSION,
+    documentId: workspaceDraftDocumentId({ studentId, assignmentId }),
+    studentId: String(studentId ?? ''),
+    assignmentId: String(assignmentId ?? ''),
+    classId: classId ? String(classId) : null,
+    entries: (Array.isArray(entries) ? entries : []).map(storableEntry).filter(Boolean),
+    resume: normalizeResume(resume),
+    hasResume: Boolean(hasResume),
+    practice: practice && typeof practice === 'object' ? practice : null,
+    hasPractice: Boolean(hasPractice),
+    practiceUpdatedAt: Math.max(0, Number(practiceUpdatedAt) || 0),
+    ...(pins.length ? { deliveryPins: pins } : {}),
+  };
+};
 
 /**
  * MERGE, NEVER REPLACE.
@@ -901,6 +1064,8 @@ export const mergeWorkspaceDraftDocumentReport = ({ existing = null, patch } = {
   const incomingPractice = patch.hasPractice && patch.practice && typeof patch.practice === 'object' ? patch.practice : null;
   const practice = incomingPractice ? mergePracticeTrackers(existingPractice || {}, incomingPractice) : existingPractice;
   const practiceChanged = incomingPractice !== null && !samePracticeProgress(existingPractice || {}, practice);
+  // Every pin already stored is kept (a patch that adds none keeps them all).
+  const deliveryPins = mergeDeliveryPins(existing, patchDeliveryPins(patch.deliveryPins));
 
   return { droppedKeys, document: {
     schemaVersion: WORKSPACE_DRAFT_SCHEMA_VERSION,
@@ -919,6 +1084,8 @@ export const mergeWorkspaceDraftDocumentReport = ({ existing = null, patch } = {
     practiceUpdatedAt: practiceChanged
       ? Math.max(existingPracticeUpdatedAt, Math.max(0, Number(patch.practiceUpdatedAt) || 0))
       : existingPracticeUpdatedAt,
+    // Which version of each personalized question was shown (RT15, above).
+    ...(deliveryPins.length ? { deliveryPins } : {}),
   } };
 };
 

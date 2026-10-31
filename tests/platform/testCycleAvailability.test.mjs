@@ -44,6 +44,8 @@ import {
 } from '../../functions/shared/testCycleAvailability.mjs';
 import { zonedInstant } from '../../functions/shared/instructionalCalendar.mjs';
 import { studentMissedOriginalTest } from '../../functions/shared/testCycleStages.mjs';
+import { assignmentFinalCloseAt } from '../../functions/shared/sectionDeadline.mjs';
+import { buildSupportProjection } from '../../functions/shared/supportProfileModel.mjs';
 
 const TZ = 'America/Chicago';
 const at = (year, month, day, hour = 0, minute = 0) => zonedInstant({ year, month, day, hour, minute }, TZ);
@@ -241,6 +243,72 @@ test('a meeting that has already ended is never offered or scheduled as the Test
 });
 
 /*
+ * A DAY WHOSE A/B DAY IS SET ONLY AFTER ITS CLASS MET (the owner, 2026-10-23,
+ * TC01). The Test day was set in good time on an undesignated Friday, and the
+ * Friday was set to A only in the afternoon: Period 3's 10:15–11:05 never had
+ * times while it met, so nobody could start the Test in it. It waits for a new
+ * Test day instead of marking the class missed. The bell schedule records when
+ * each date's A/B day was set (`dayTypeSetAt`, stamped by the save).
+ */
+test('a Test day whose A/B day is set only after its class met is never read as missed', () => {
+  const FRI = FRI_UNSET;
+  const friday = assignment(withClassTestDay(null, { classId: 'c3', dateKey: FRI, at: at(2026, 10, 14, 9) }));
+  const setTo = (dayType, setAt, extra = {}) => ({ ...bell, dayTypeOverrides: { ...bell.dayTypeOverrides, [FRI]: dayType }, dayTypeSetAt: { [FRI]: setAt }, ...extra });
+  const statusOn = (schedule, now, { config = friday, classId = 'c3', classPeriod = 'Period 3' } = {}) => resolveStudentTestCycleSchedule({ assignment: config, classId, classPeriod, schedule, now, timeZone: TZ });
+  const absent = { assignmentId: 'a1', studentId: 's-absent', test: { state: 'assigned' } };
+
+  // Set that morning, before the bell: a real chance, and missed as before.
+  const morning = statusOn(setTo('A', at(2026, 10, 16, 9)), at(2026, 10, 16, 13));
+  assert.equal(morning.test.state, WINDOW_STATE.CLOSED);
+  assert.equal(studentMissedOriginalTest({ record: absent, schedule: morning }), true);
+  // Set during the period: open for the rest of it, then closed.
+  const midPeriod = setTo('A', at(2026, 10, 16, 10, 30));
+  assert.equal(statusOn(midPeriod, at(2026, 10, 16, 10, 40)).test.state, WINDOW_STATE.OPEN);
+  assert.equal(statusOn(midPeriod, at(2026, 10, 16, 11, 5)).test.state, WINDOW_STATE.CLOSED);
+
+  // Set after the bell: it never opened, so nobody missed it.
+  const afternoon = setTo('A', at(2026, 10, 16, 13));
+  const [window] = resolveClassWindows({ availability: friday.testAvailability, classId: 'c3', classPeriod: 'Period 3', schedule: afternoon, timeZone: TZ });
+  assert.deepEqual([window.resolved, window.pending, window.reason, window.closesAt], [false, false, 'dayTypeSetAfterEnd', at(2026, 10, 16, 11, 5)]);
+  const late = statusOn(afternoon, at(2026, 10, 16, 13, 5));
+  assert.deepEqual([late.test.state, late.test.enforced, late.test.stranded, late.test.pendingReason], [WINDOW_STATE.UPCOMING, true, true, 'dayPassedWithoutTimes']);
+  assert.equal(studentMissedOriginalTest({ record: absent, schedule: late }), false, 'not moved to a Retest');
+  assert.equal(studentMissedOriginalTest({ record: absent, schedule: statusOn(afternoon, at(2026, 11, 30, 9)) }), false, 'weeks later, still not');
+  assert.equal(testWindowRefusal(late.test, { timeZone: TZ }), 'This Test is waiting for a new Test day. Your teacher will set one.');
+  assert.equal(describeTestWindow(late.test, { timeZone: TZ }).detail, 'Fri, Oct 16 passed before the bell schedule gave this class\'s times for it. Your teacher will set a new Test day.');
+  assert.equal(classNeedsNewTestDay(late.test, { started: 0, waiting: 24 }), true, 'the panel flags the class');
+  // A make-up the teacher arranged still runs, and whoever sat goes on.
+  assert.equal(late.followUp.state, WINDOW_STATE.OPEN);
+
+  // Exactly at the bell is after it; a moment before is a real (closing) window.
+  assert.equal(statusOn(setTo('A', at(2026, 10, 16, 11, 5)), at(2026, 10, 16, 12)).test.stranded, true);
+  assert.equal(statusOn(setTo('A', at(2026, 10, 16, 11, 5) - 1), at(2026, 10, 16, 12)).test.state, WINDOW_STATE.CLOSED);
+  // An extension past the bell that runs past the late setting: open until it ends.
+  const extended = assignment(withClassWindowExtended(friday.testAvailability, { classId: 'c3', windowId: `day-${FRI}`, closesAt: at(2026, 10, 16, 15), at: at(2026, 10, 15, 9) }));
+  assert.equal(statusOn(afternoon, at(2026, 10, 16, 13, 5), { config: extended }).test.state, WINDOW_STATE.OPEN);
+  assert.equal(studentMissedOriginalTest({ record: absent, schedule: statusOn(afternoon, at(2026, 10, 16, 15), { config: extended }) }), true);
+
+  // Switched to B at 2 pm: Period 4 (12:30–13:20) never met as a B period;
+  // set at noon instead, it opens as usual.
+  const fridayB = assignment(withClassTestDay(null, { classId: 'c4', dateKey: FRI, at: at(2026, 10, 14, 9) }));
+  assert.equal(statusOn(setTo('B', at(2026, 10, 16, 14)), at(2026, 10, 16, 14, 5), { config: fridayB, classId: 'c4', classPeriod: 'Period 4' }).test.stranded, true);
+  assert.equal(statusOn(setTo('B', at(2026, 10, 16, 12)), at(2026, 10, 16, 12, 45), { config: fridayB, classId: 'c4', classPeriod: 'Period 4' }).test.state, WINDOW_STATE.OPEN);
+
+  // Where nothing records when the day was set — older saves, the weekly
+  // pattern — a resolving day reads exactly as before.
+  const unstamped = { ...bell, dayTypeOverrides: { ...bell.dayTypeOverrides, [FRI]: 'A' } };
+  assert.equal(statusOn(unstamped, at(2026, 10, 16, 13)).test.state, WINDOW_STATE.CLOSED);
+  // A day with its own special times is timed by them, not by its A/B day.
+  const special = setTo('A', at(2026, 10, 16, 13), { modifiedSchedules: { [FRI]: { periods: { 'Period 3': { enabled: true, start: '10:15', end: '11:05' } } } } });
+  assert.equal(statusOn(special, at(2026, 10, 16, 13, 5)).test.state, WINDOW_STATE.CLOSED);
+  // The teacher counting the class's sitting on it is the teacher's word.
+  const counted = assignment(withClassSittingHeld(friday.testAvailability, { classId: 'c3', windowId: `day-${FRI}`, opensAt: at(2026, 10, 16, 10, 15), closesAt: at(2026, 10, 16, 11, 5), at: at(2026, 10, 16, 14) }));
+  const heldDay = statusOn(afternoon, at(2026, 10, 16, 14, 5), { config: counted });
+  assert.deepEqual([heldDay.test.state, heldDay.test.closesAt], [WINDOW_STATE.CLOSED, at(2026, 10, 16, 11, 5)]);
+  assert.equal(studentMissedOriginalTest({ record: absent, schedule: heldDay }), true);
+});
+
+/*
  * A STRANDED DAY NEVER HIDES A WINDOW THAT RAN. When a real window has opened
  * and closed — the teacher's reopen of a stranded day, another day that did
  * resolve, one student's make-up — the Test is closed as it would be without
@@ -383,6 +451,37 @@ test('the teacher counts the sitting: the day ran at its times, the Test closed,
   assert.deepEqual([live.resolved, live.heldFromSitting, live.period], [true, undefined, 'Period 3']);
 });
 
+test('a sitting counted while the teacher\'s extension runs closes with the extension, not at the bell', () => {
+  const sat = assignment(withClassTestDay(null, { classId: 'c3', dateKey: MON, at: at(2026, 10, 9, 9) }));
+  const extended = withClassWindowExtended(sat.testAvailability, { classId: 'c3', windowId: `day-${MON}`, closesAt: at(2026, 10, 12, 15), at: at(2026, 10, 12, 10) });
+  const recorded = classSittingToRecord({ assignmentId: 'a1', classId: 'c3', classWindows: scheduleFor(assignment(extended), at(2026, 10, 12, 10, 30)).test.windows, now: at(2026, 10, 12, 10, 30) });
+  assert.equal(recorded.data.closesAt, at(2026, 10, 12, 11, 5), 'the sitting keeps the bell\'s close');
+  // The day stops resolving (periods renamed) and the teacher counts the
+  // sitting at 1 pm, inside the extension.
+  const renamed = { ...bell, daySchedules: { ...bell.daySchedules, A: { periods: { '3rd Period': { enabled: true, start: '10:15', end: '11:05' } } } } };
+  const counted = assignment(withClassSittingHeld(extended, {
+    classId: 'c3', windowId: `day-${MON}`, opensAt: recorded.data.opensAt, closesAt: recorded.data.closesAt, by: 'teacher@school.org', at: at(2026, 10, 12, 13),
+  }));
+  const [window] = resolveClassWindows({ availability: counted.testAvailability, classId: 'c3', classPeriod: 'Period 3', schedule: renamed, timeZone: TZ });
+  assert.deepEqual(
+    [window.heldFromSitting, window.closesAt, window.scheduledClosesAt, window.extended],
+    [true, at(2026, 10, 12, 15), at(2026, 10, 12, 11, 5), true],
+  );
+  const waiting = { assignmentId: 'a1', studentId: 's-late', test: { state: 'assigned' } };
+  const during = resolveStudentTestCycleSchedule({ assignment: counted, classId: 'c3', classPeriod: 'Period 3', schedule: renamed, now: at(2026, 10, 12, 13), timeZone: TZ });
+  assert.equal(during.test.state, WINDOW_STATE.OPEN, 'still open inside the extension');
+  assert.equal(studentMissedOriginalTest({ record: waiting, schedule: during }), false, 'a student who has not started yet is not missed');
+  const after = resolveStudentTestCycleSchedule({ assignment: counted, classId: 'c3', classPeriod: 'Period 3', schedule: renamed, now: at(2026, 10, 12, 15, 1), timeZone: TZ });
+  assert.equal(after.test.state, WINDOW_STATE.CLOSED);
+  assert.equal(studentMissedOriginalTest({ record: waiting, schedule: after }), true, 'after the extension, they have');
+  // An extension that ended before the bell's close changes nothing.
+  const short = assignment(withClassSittingHeld(withClassWindowExtended(sat.testAvailability, { classId: 'c3', windowId: `day-${MON}`, closesAt: at(2026, 10, 12, 11), at: at(2026, 10, 12, 10) }), {
+    classId: 'c3', windowId: `day-${MON}`, opensAt: recorded.data.opensAt, closesAt: recorded.data.closesAt, at: at(2026, 10, 14, 9),
+  }));
+  const [plain] = resolveClassWindows({ availability: short.testAvailability, classId: 'c3', classPeriod: 'Period 3', schedule: renamed, timeZone: TZ });
+  assert.deepEqual([plain.closesAt, plain.extended], [at(2026, 10, 12, 11, 5), false]);
+});
+
 test('only a class-period day takes a counted sitting, with real times; a new Test day replaces it', () => {
   const sat = withClassTestDay(null, { classId: 'c3', dateKey: MON, at: at(2026, 10, 9, 9) });
   const sitting = { opensAt: at(2026, 10, 12, 10, 15), closesAt: at(2026, 10, 12, 11, 5) };
@@ -513,6 +612,89 @@ test('a teacher can extend, reopen or remove the home window\'s close, for the c
   // With no Test window at all, a close set by hand is still honoured.
   const handSet = scheduleFor(assignment(withFollowUpClose(null, { mode: FOLLOW_UP_CLOSE.CUSTOM, closesAt: later })), later + 1).followUp;
   assert.deepEqual([handSet.enforced, handSet.state], [true, WINDOW_STATE.CLOSED]);
+});
+
+/*
+ * THE STUDENT'S OWN FINAL CLOSE (the owner, 2026-10-23, TC07). Corrections and
+ * the Retest close at the latest of the class's close, the student's own final
+ * close (their attendance extension or extra-time date — the cutoff
+ * assignmentFinalCloseAt already holds them to) and a teacher's close for them.
+ */
+test('Corrections and the Retest close at the latest of the class\'s close, the student\'s own final close and a teacher\'s close for them', () => {
+  const base = withClassTestDay(null, { classId: 'c3', dateKey: WED });
+  const config = assignment(base);
+  const lateDue = defaultFollowUpClose(config, TZ);
+  // What the server passes: assignmentFinalCloseAt for the student, with their
+  // private record (an attendance extension to Friday, Oct 23).
+  const ownClose = at(2026, 10, 23, 23, 59) + 59999;
+  const finalCloseOf = (assignmentValue, privateOverride = null, profile = null) => assignmentFinalCloseAt(assignmentValue, TZ, 'S1', profile, { privateOverride });
+  const extended = finalCloseOf(config, { lateDueAt: '2026-10-23' });
+  assert.equal(extended, ownClose);
+  const homeFor = (assignmentValue, now, { studentFinalCloseAt = null, studentAvailability = null } = {}) => resolveStudentTestCycleSchedule({
+    assignment: assignmentValue, classId: 'c3', classPeriod: 'Period 3', schedule: bell, studentAvailability, studentFinalCloseAt, now, timeZone: TZ,
+  }).followUp;
+
+  // After the class's late due date: their window is still open, to their own close.
+  const after = homeFor(config, lateDue + 1000, { studentFinalCloseAt: extended });
+  assert.deepEqual([after.state, after.closesAt, after.closeSource], [WINDOW_STATE.OPEN, ownClose, 'studentFinal']);
+  assert.equal(followUpRefusal(after, { timeZone: TZ, what: 'The Retest' }), null);
+  // Exactly at their close it is over; a moment before, it is open.
+  assert.equal(homeFor(config, ownClose - 1, { studentFinalCloseAt: extended }).state, WINDOW_STATE.OPEN);
+  const atClose = homeFor(config, ownClose, { studentFinalCloseAt: extended });
+  assert.equal(atClose.state, WINDOW_STATE.CLOSED);
+  assert.equal(followUpRefusal(atClose, { timeZone: TZ, what: 'Corrections', plural: true }), 'Corrections closed Fri, Oct 23, 11:59 PM CDT. Ask your teacher if you need them reopened.');
+  // Both screens name it as theirs.
+  assert.equal(describeFollowUpWindow(after, { timeZone: TZ }).detail, 'Closes Fri, Oct 23, 11:59 PM CDT (your final due date). A Retest started before then can be finished.');
+  assert.match(describeFollowUpWindow(after, { timeZone: TZ, audience: 'teacher' }).detail, /\(this student's own final due date\)/);
+
+  // No extension, or one shorter than the class's close: the class's close, as before.
+  for (const [label, studentFinalCloseAt] of [['no extension', finalCloseOf(config)], ['nothing passed', null], ['an extension shorter than the class\'s close', finalCloseOf(config, { lateDueAt: '2026-10-18' })]]) {
+    const home = homeFor(config, at(2026, 10, 19, 9), { studentFinalCloseAt });
+    assert.deepEqual([home.closesAt, home.closeSource], [lateDue, FOLLOW_UP_CLOSE.LATE_DUE], label);
+    assert.equal(homeFor(config, lateDue, { studentFinalCloseAt }).state, WINDOW_STATE.CLOSED, label);
+  }
+
+  // An extra-time date counts the same way: their pinned profile's 72 hours
+  // run past a class whose late window is one day.
+  const extraTime = buildSupportProjection({
+    revisions: [{ id: 'r1', revisionId: 'r1', revision: 1, status: 'active', effectiveStart: '2026-08-17', effectiveEnd: null, inclusionStatus: false, accommodations: [{ id: 'extra-time', params: { dueDateExtension: { mode: 'hours', value: 72 } }, appliesTo: [] }], modifications: [] }],
+    todayKey: '2026-10-01',
+  });
+  const shortLate = assignment(base, { lateDueAt: '2026-10-17' });
+  const supported = finalCloseOf(shortLate, null, extraTime);
+  assert.equal(supported, at(2026, 10, 19, 23, 59), 'the class due plus 72 hours');
+  const supportedHome = homeFor(shortLate, defaultFollowUpClose(shortLate, TZ) + 1000, { studentFinalCloseAt: supported });
+  assert.deepEqual([supportedHome.state, supportedHome.closesAt, supportedHome.closeSource], [WINDOW_STATE.OPEN, supported, 'studentFinal']);
+
+  // A teacher's close for the student wins when it is later still, and never shortens theirs.
+  const later = at(2026, 10, 27, 17);
+  const teacherLater = homeFor(config, lateDue + 1000, { studentFinalCloseAt: extended, studentAvailability: withStudentFollowUpClose(null, { closesAt: later }) });
+  assert.deepEqual([teacherLater.closesAt, teacherLater.closeSource], [later, 'studentOverride']);
+  const teacherEarlier = homeFor(config, lateDue + 1000, { studentFinalCloseAt: extended, studentAvailability: withStudentFollowUpClose(null, { closesAt: at(2026, 10, 21, 17) }) });
+  assert.deepEqual([teacherEarlier.closesAt, teacherEarlier.closeSource], [ownClose, 'studentFinal']);
+
+  // The class's close set by hand: their own close only ever gives more time.
+  const classLater = assignment(withFollowUpClose(base, { mode: FOLLOW_UP_CLOSE.CUSTOM, closesAt: later }));
+  assert.deepEqual((({ closesAt, closeSource }) => [closesAt, closeSource])(homeFor(classLater, lateDue + 1000, { studentFinalCloseAt: finalCloseOf(classLater, { lateDueAt: '2026-10-23' }) })), [later, FOLLOW_UP_CLOSE.CUSTOM]);
+  // A teacher who closed the class early keeps that close for everyone
+  // without an extension — the class's own final date is not theirs to extend...
+  const early = at(2026, 10, 19, 17);
+  const classEarly = assignment(withFollowUpClose(base, { mode: FOLLOW_UP_CLOSE.CUSTOM, closesAt: early }));
+  const classmate = homeFor(classEarly, early, { studentFinalCloseAt: finalCloseOf(classEarly) });
+  assert.deepEqual([classmate.state, classmate.closesAt, classmate.closeSource], [WINDOW_STATE.CLOSED, early, FOLLOW_UP_CLOSE.CUSTOM]);
+  // ...while a student's own extension still carries them past it.
+  const extendedPastEarly = homeFor(classEarly, early, { studentFinalCloseAt: finalCloseOf(classEarly, { lateDueAt: '2026-10-23' }) });
+  assert.deepEqual([extendedPastEarly.state, extendedPastEarly.closesAt], [WINDOW_STATE.OPEN, ownClose]);
+
+  // No closing time at all stays no closing time.
+  const never = homeFor(assignment(withFollowUpClose(base, { mode: FOLLOW_UP_CLOSE.NONE })), at(2027, 6, 1), { studentFinalCloseAt: extended });
+  assert.deepEqual([never.state, never.closesAt, never.closeSource], [WINDOW_STATE.OPEN, null, FOLLOW_UP_CLOSE.NONE]);
+  // Nothing set by the teacher: still nothing enforced.
+  const unset = resolveStudentTestCycleSchedule({ assignment: assignment(), classId: 'c3', classPeriod: 'Period 3', schedule: bell, studentFinalCloseAt: extended, now: at(2026, 10, 30), timeZone: TZ }).followUp;
+  assert.deepEqual([unset.state, unset.enforced], [WINDOW_STATE.UNSET, false]);
+  // While the Test is still ahead, the home window waits for it as before, then runs to their close.
+  const waiting = homeFor(config, at(2026, 10, 14, 10, 30), { studentFinalCloseAt: extended });
+  assert.deepEqual([waiting.state, waiting.closesAt], [WINDOW_STATE.UPCOMING, ownClose]);
 });
 
 test('both screens are told the exact times, in the school\'s zone, and whether work may be done from home', () => {

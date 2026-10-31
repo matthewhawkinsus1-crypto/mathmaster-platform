@@ -186,7 +186,7 @@ warmup = [
         'questionId': 'dol2r-wu-3',
         'standard': 'A2.6E',
         'dok': 1, 'difficultyBand': 2,
-        'prompt': 'Solve the equation. Isolate the absolute value first, then split it into two equations.',
+        'prompt': 'Solve $|x {{mh|signed}}| {{k|signed}} = {{r}}$. Isolate the absolute value first, then split it into two equations.',
         'studentActions': ['solveStepByStep'],
         'equation': '|x {{mh|signed}}| {{k|signed}} = {{r}}',
         'solveFor': 'x',
@@ -911,7 +911,7 @@ practice = [
         'questionId': 'dol2r-pr-7',
         'standard': 'A2.6E',
         'dok': 2, 'difficultyBand': 3,
-        'prompt': 'Solve the equation. Isolate the absolute value before you split it, then check each solution.',
+        'prompt': 'Solve ${{a}}|{{m}}x {{n|signed}}| {{k|signed}} = {{r}}$. Isolate the absolute value before you split it, then check each solution.',
         'studentActions': ['solveStepByStep'],
         'equation': '{{a}}|{{m}}x {{n|signed}}| {{k|signed}} = {{r}}',
         'solveFor': 'x',
@@ -942,7 +942,7 @@ practice = [
         'questionId': 'dol2r-pr-8',
         'standard': 'A2.6E',
         'dok': 2, 'difficultyBand': 3,
-        'prompt': 'Solve the equation. Decide whether it has two solutions, one solution, or no solution.',
+        'prompt': 'Solve ${{a}}|x {{mh|signed}}| {{k|signed}} = {{r}}$. Decide whether it has two solutions, one solution, or no solution.',
         'studentActions': ['solveStepByStep'],
         'equation': '{{a}}|x {{mh|signed}}| {{k|signed}} = {{r}}',
         'solveFor': 'x',
@@ -972,7 +972,7 @@ practice = [
         'questionId': 'dol2r-pr-9',
         'standard': 'A2.6F',
         'dok': 2, 'difficultyBand': 3,
-        'prompt': 'Solve the inequality. Then graph the solution set and write it in interval notation.',
+        'prompt': 'Solve $-{{a}}|x {{mh|signed}}| {{k|signed}} \\ge {{r}}$. Then graph the solution set and write it in interval notation.',
         'studentActions': ['solveInequality'],
         'inequality': '-{{a}}|x {{mh|signed}}| {{k|signed}} >= {{r}}',
         'hints': [
@@ -1002,7 +1002,7 @@ practice = [
         'questionId': 'dol2r-pr-10',
         'standard': 'A2.6F',
         'dok': 2, 'difficultyBand': 3,
-        'prompt': 'Solve the inequality. Then graph the solution set and write it in interval notation.',
+        'prompt': 'Solve $|{{m}}x {{n|signed}}| {{k|signed}} > {{r}}$. Then graph the solution set and write it in interval notation.',
         'studentActions': ['solveInequality'],
         'inequality': '|{{m}}x {{n|signed}}| {{k|signed}} > {{r}}',
         'hints': [
@@ -1160,13 +1160,13 @@ practice = [
             'The ordered triple (x, y, z) read from A⁻¹ · B.',
             'Copying coefficients from an equation that is not yet in standard form, so a term moved across the equal sign keeps the wrong sign.',
         ),
-        'questionFamily': {'id': 'matrices.solveSystem3x3', 'version': 1},
+        'questionFamily': {'id': 'matrices.solveSystem3x3', 'version': 2},
     },
     {
         'questionId': 'dol2r-pr-18',
         'standard': 'A2.6E',
         'dok': 3, 'difficultyBand': 4,
-        'prompt': 'Honors challenge: solve the equation. The variable appears outside the absolute value too, so check every candidate in the ORIGINAL equation and mark any extraneous solution.',
+        'prompt': 'Honors challenge: solve $|x {{p|signed}}| = {{m}}x {{q|signed}}$. The variable appears outside the absolute value too, so check every candidate in the ORIGINAL equation and mark any extraneous solution.',
         'studentActions': ['solveStepByStep'],
         'equation': '|x {{p|signed}}| = {{m}}x {{q|signed}}',
         'solveFor': 'x',
@@ -1308,7 +1308,7 @@ dol = [
         'standard': 'A2.6E',
         'dok': 2, 'difficultyBand': 3,
         'questionWeight': 1,
-        'prompt': 'Solve the equation.',
+        'prompt': 'Solve ${{a}}|{{m}}x {{n|signed}}| {{k|signed}} = {{r}}$.',
         'studentActions': ['solveStepByStep'],
         'equation': '{{a}}|{{m}}x {{n|signed}}| {{k|signed}} = {{r}}',
         'solveFor': 'x',
@@ -1334,7 +1334,7 @@ dol = [
         'standard': 'A2.6F',
         'dok': 2, 'difficultyBand': 3,
         'questionWeight': 1,
-        'prompt': 'Solve the inequality, graph the solution set, and write it in interval notation.',
+        'prompt': 'Solve ${{a}}|x {{mh|signed}}| {{k|signed}} \\ge {{r}}$, graph the solution set, and write it in interval notation.',
         'studentActions': ['solveInequality'],
         'inequality': '{{a}}|x {{mh|signed}}| {{k|signed}} >= {{r}}',
         'solutionReview': review(
@@ -1406,7 +1406,7 @@ dol = [
             'The ordered triple (x, y, z) read from A⁻¹ · B.',
             'Copying coefficients from an equation that is not yet in standard form, so a term moved across the equal sign keeps the wrong sign.',
         ),
-        'questionFamily': {'id': 'matrices.solveSystem3x3', 'version': 1},
+        'questionFamily': {'id': 'matrices.solveSystem3x3', 'version': 2},
     },
 ]
 
@@ -1466,6 +1466,33 @@ CCMR_COMMON_ERRORS = {
         'Giving one solution, or the center {{h}}, instead of the sum: the solutions are {{h}} + {{r}} and {{h}} − {{r}}, so they add to 2({{h}}) = {{sum}}.',
 }
 
+# A choice-only item has one try, so it gets a reason for each option, shown
+# after that try (FB05, the owner, 2026-10-16). Keyed by the bank's own option
+# text; a wrong option's reason names the mistake without stating the answer.
+CCMR_OPTION_RATIONALES = {
+    'mm_sat_A2_6E_challenge_sum_of_solutions_scaled_v21': {
+        'answer': {
+            '{{sum}}': 'The solutions are {{h}} + {{r}} and {{h}} − {{r}}; the ±{{r}} cancels, so they add to 2({{h}}) = {{sum}}.',
+            '{{dGreaterSolution}}': '{{dGreaterSolution}} is only one of the two solutions; the question asks for the sum of both.',
+            '{{dLesserSolution}}': '{{dLesserSolution}} is only one of the two solutions; the question asks for the sum of both.',
+            '{{dCentre}}': '{{dCentre}} is the center the two solutions sit around, not the sum of the solutions.',
+        },
+    },
+}
+
+
+def with_option_rationales(field, reasons):
+    """The field with a reason for each of its options, right after its answer."""
+    options = [str(option) for option in field.get('options', [])]
+    assert sorted(options) == sorted(reasons), (field.get('id'), options, list(reasons))
+    out = {}
+    for key, value in field.items():
+        out[key] = value
+        if key == 'answer':
+            out['optionRationales'] = {option: reasons[option] for option in options}
+    return out
+
+
 for item in CCMR_ITEMS:
     item['questionFamily'] = fam()
     review_text = item.get('solutionReview', {})
@@ -1474,6 +1501,10 @@ for item in CCMR_ITEMS:
     if not review_text.get('commonError'):
         review_text['commonError'] = CCMR_COMMON_ERRORS[item['ccmrSource']['documentId']]
     item.setdefault('scaffold', CCMR_SCAFFOLDS[item['ccmrSource']['documentId']])
+    rationales = CCMR_OPTION_RATIONALES.get(item['ccmrSource']['documentId'])
+    if rationales:
+        item['answerFields'] = [with_option_rationales(field, rationales[field['id']]) if field.get('id') in rationales else field
+                                for field in item['answerFields']]
 practice[10:10] = CCMR_ITEMS
 
 STUDY_GUIDE = {

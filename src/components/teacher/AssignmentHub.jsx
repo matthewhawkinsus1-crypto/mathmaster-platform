@@ -14,6 +14,7 @@ import { liveRecoverySections, planAssignmentRecoveryContent } from '../../../fu
 import { normalizeRecoveryContent } from '../../../functions/shared/recoveryContent.mjs';
 import { lightRecoveryKeyCheck } from '../../../functions/shared/recoveryLightKeyCheck.mjs';
 import { recoveryReadinessSummary } from '../../platform/recovery/recoveryReadinessCopy.js';
+import { recoveryPlanKey } from '../../platform/recovery/recoveryPlanKey.js';
 import {
   RECOVERY_ROSTER_GROUP,
   RECOVERY_ROSTER_GROUP_LABEL,
@@ -139,23 +140,9 @@ function AssignmentRecoverySection({
   const [rosterError, setRosterError] = useState('');
   const [openKey, setOpenKey] = useState(null);
   // What the plan depends on, in a key that survives live refreshes (which
-  // hand this drawer a new assignment object every few seconds): question
-  // edits move the revision or content version; Recovery changes its version.
-  const questionCount = (Array.isArray(assignment?.sections) ? assignment.sections : [])
-    .reduce((count, section) => count + (Array.isArray(section?.questions) ? section.questions.length : 0), 0);
-  const excludedCount = (Array.isArray(assignment?.sections) ? assignment.sections : [])
-    .reduce((count, section) => count + (Array.isArray(section?.questions) ? section.questions.filter((question) => question?.teacherExcluded === true).length : 0), 0);
-  const planKey = [
-    assignment?.id,
-    assignment?.assignmentRevision || 1,
-    assignment?.contentLineage?.version || 1,
-    assignment?.recoveryContent?.version || 0,
-    questionCount,
-    excludedCount,
-    JSON.stringify(assignment?.recoveryPolicy || null),
-    JSON.stringify(assignment?.warmup || null),
-    JSON.stringify(assignment?.assessmentPolicy || null),
-  ].join('|');
+  // hand this drawer a new assignment object every few seconds) and moves when
+  // a question is edited (recoveryPlanKey.js, TT02).
+  const planKey = useMemo(() => recoveryPlanKey(assignment), [assignment]);
   const plan = useMemo(() => {
     try {
       return planAssignmentRecoveryContent({ assignment, gradeSample: lightRecoveryKeyCheck });
@@ -377,8 +364,8 @@ export default function AssignmentHub({
   const period = resolveAssignmentGradingPeriod(assignment, gradingPeriodSettings || {});
   const roleCounts = projectCurrentAssignmentContent(assignment).entries.reduce((counts, entry) => ({ ...counts, [entry.logicalRole]: (counts[entry.logicalRole] || 0) + 1 }), {});
   const sections = SECTION_ORDER.filter(([key]) => roleCounts[key]).map(([key, label]) => `${label} ${roleCounts[key]}`);
-  const lesson = classContext ? describeClassLesson({ assignment, classContext, schedule: classSchedule, nowValue }) : null;
   const roster = classContext ? studentsInClass({ students, classes, classId: classContext.classId }) : [];
+  const lesson = classContext ? describeClassLesson({ assignment, classContext, schedule: classSchedule, nowValue, roster }) : null;
   const nameOf = hubStudentName;
   const live = classContext ? classLiveProgress({ assignment, roster, presenceById, nowValue, nameOf }) : null;
   const fetched = classContext ? loadedGrades[classContext.classId] || null : null;

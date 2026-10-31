@@ -12,7 +12,14 @@
 // the trigger has applied this session's evidence. Until then the screen says
 // "Updating your skills…" rather than showing a stale "no change". Every
 // status comes from the one Mastered rule (functions/shared/masteryRule.mjs),
-// re-derived by mergeMasteryProfile, never from a stored label.
+// re-derived by mergeMasteryProfile, never from a stored label — and by the
+// ONE rule every screen reads (MP22): the more favourable of the server
+// profile and the assignment record. The record (`favourableRecord`, from the
+// loaded unified profile) is carried through both merges; it used to be
+// dropped, so a skill the Path showed as Mastered in assignment work was
+// listed here as "Developing → Secure". A Path session never changes the
+// assignment record, so before and after carry the same one: a skill moves
+// here exactly when it moves on the Path.
 //
 // The Teacher Path Simulator has no server profile and no trigger: its mastery
 // moves synchronously with each simulated answer, so its before/after is the
@@ -55,7 +62,7 @@ export const snapshotMasteryAtSessionStart = ({ masteryProfilesByTEKS = {}, serv
   codes.forEach((code) => {
     const loaded = base[code] || null;
     const live = serverProfileFor(server, code);
-    profiles[code] = live ? mergeMasteryProfile(loaded || {}, live) : loaded;
+    profiles[code] = live ? mergeMasteryProfile(loaded || {}, live, {}, loaded?.favourableRecord || null) : loaded;
   });
   return { profiles };
 };
@@ -167,7 +174,8 @@ export const describeSessionSkillsMoved = ({
   const after = {};
   codes.forEach((code) => {
     const live = serverProfileFor(liveServerProfiles, code);
-    after[code] = live ? mergeMasteryProfile(start.profiles[code] || {}, live) : start.profiles[code];
+    const before = start.profiles[code] || null;
+    after[code] = live ? mergeMasteryProfile(before || {}, live, {}, before?.favourableRecord || null) : before;
   });
   return { state: SKILLS_MOVED_STATE.READY, moves: describeSkillMoves({ before: start.profiles, after, codes }) };
 };

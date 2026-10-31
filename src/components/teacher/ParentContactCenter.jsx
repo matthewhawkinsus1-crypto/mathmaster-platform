@@ -8,6 +8,7 @@ import {
   CONTACT_CATEGORIES, CONTACT_METHODS, buildStudentProgressBrief, contactsCsv, groupContactsByStudent, progressBriefText, projectProgressBriefGrades, validateContactDraft,
 } from '../../platform/teacher/parentContactCenter.js';
 import { resolveReturnCheckIns } from '../../platform/attendance/returnCheckIn.js';
+import { loadClassPracticePassKeys } from '../../platform/rewards/rewardsClient.js';
 import { localDateKeyOf } from '../../platform/attendance/classMeetings.js';
 
 const labels = { missingWork: 'Missing work', academicIntegrity: 'Academic integrity', positiveContact: 'Positive contact', cellphone: 'Cellphone' };
@@ -58,10 +59,20 @@ export default function ParentContactCenter({ students = [], classes = [], assig
     try { await onRecordContact(payload); setDraft((current) => ({ ...current, notes: '', outcome: '', followUpDate: '' })); } catch (reason) { setError(reason.message); }
   };
 
-  const buildBrief = () => {
+  const buildBrief = async () => {
     if (!student) return setError('Choose a student first.');
+    // The grades sent home are the gradebook's, Practice Pass waivers
+    // included (TT20): without them a brief could show a lower grade.
+    let practicePassKeys = null;
+    try {
+      practicePassKeys = student.classId ? await loadClassPracticePassKeys(student.classId) : null;
+    } catch (reason) {
+      console.error('Practice Pass waivers could not be loaded for the progress brief', reason);
+      return setError('Practice Pass waivers could not be loaded, so the brief was not made. Try again.');
+    }
+    setError('');
     const gradeMap = student.gradesByAssignment || {};
-    const gradeEntries = projectProgressBriefGrades({ student, assignments });
+    const gradeEntries = projectProgressBriefGrades({ student, assignments, practicePassKeys });
     const mine = (rows) => rows.filter((entry) => String(entry.studentId) === studentId);
     const brief = buildStudentProgressBrief({
       student, gradeEntries, attendance: mine(supportEvents).filter((event) => /Attendance/i.test(event.kind)),

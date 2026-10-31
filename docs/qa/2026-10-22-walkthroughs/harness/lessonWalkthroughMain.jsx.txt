@@ -11,12 +11,13 @@
 // Guided Notes (Classwork automatic), the assignment's calculator setting,
 // "Practise one like this" on Classwork/Practice, dolMode on the DOL, and
 // next-question navigation. Drafts live in localStorage; verdicts come from the
-// shared graders in the browser. window.__walk is a READ-ONLY bridge.
+// shared graders in the browser. A Step Algebra step is recorded too
+// (recordQuestionStep, as handleStepGrade does). window.__walk is a READ-ONLY bridge.
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import QuestionEngine from '../../src/QuestionEngine.jsx';
 import { buildQuestionDraftKey } from '../../src/questionDraftStorage.js';
-import { recordQuestionAttempt, resolveQuestionMaximumAttempts } from '../../src/attemptPolicy.js';
+import { recordQuestionAttempt, recordQuestionStep, resolveQuestionMaximumAttempts } from '../../src/attemptPolicy.js';
 import { parseAssignmentBlueprintText, validateAssignmentQuestions } from '../../src/assignmentBlueprint.js';
 import { buildPreflightReviewedAssignmentV5 } from '../../src/components/teacher/preflightV5Review.js';
 import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/assignmentV5PreflightModel.js';
@@ -110,7 +111,17 @@ async function start() {
             setRecordVersion((version) => version + 1);
             return outcome.result;
           }}
-          onStepGrade={() => {}}
+          // A Step Algebra step reaches the record as App.jsx's handleStepGrade sends
+          // it (CI10, D-81), so its tries and partial credit are seen here too.
+          onStepGrade={({ stepGrade, countsAttempt, statePatch, supportUsage = null } = {}) => {
+            const outcome = recordQuestionStep({
+              record: records[question.questionId], stepGrade, countsAttempt, statePatch, supportUsage, maximumAttempts,
+            });
+            records[question.questionId] = outcome.record;
+            try { window.localStorage.setItem(RECORDS_KEY, JSON.stringify(records)); } catch { /* page only */ }
+            setRecordVersion((version) => version + 1);
+            return outcome.result;
+          }}
           studentProfile={{}}
           guidedMode={['classwork', 'practice'].includes(section.role) && guidedNotesMode !== 'off'}
           guidedNotesMode={guidedNotesMode}

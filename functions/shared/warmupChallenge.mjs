@@ -199,7 +199,11 @@ export const warmupChallengeCredit = ({
  * How many rounds a student could have played, given when they arrived.
  *
  * A late arrival is not a partial participant in a game they were absent for;
- * they are a full participant in the part they were present for.
+ * they are a full participant in the part they were present for. A student
+ * who never joined is not a participant at all: no record, never 0% (the
+ * owner, October 2026, LC25). An absence is attendance, which the teacher
+ * reconciles; a 0% would read like a student who sat through the game and
+ * answered nothing.
  */
 export const roundsAvailableToStudent = ({ totalRounds = 0, joinedAtRound = 0 } = {}) => {
   const total = int(totalRounds);

@@ -16,6 +16,7 @@
  * feedback null when the activity withholds outcomes).
  */
 import { parseNumericAnswer } from '../../../functions/shared/toolMath/shared/toolMath.mjs';
+import { A_N_WORDS } from './sequenceNotation.js';
 
 const close = (left, right) => Math.abs(left - right) <= 0.01;
 
@@ -40,7 +41,9 @@ export const plotMatchesTable = (plottedPoints = [], tableValues = []) => {
   return rows.every((row) => points.some((point) => Number(point?.[0]) === row.n && close(Number(point?.[1]), row.value)));
 };
 
-export const fullBridgeMissMessage = ({ parts = [], work = {}, spec = {}, targetN = 0 } = {}) => {
+// `words` is how the question writes its terms (aₙ, or f(n); TL39): the screen's own, passed in.
+export const fullBridgeMissMessage = ({ parts = [], work = {}, spec = {}, targetN = 0, words = A_N_WORDS } = {}) => {
+  const graded = new Set((Array.isArray(parts) ? parts : []).map((part) => part?.id));
   const wrong = new Set((Array.isArray(parts) ? parts : []).filter((part) => part?.isCorrect !== true).map((part) => part?.id));
   const geometric = spec.kind === 'geometric';
   const change = geometric ? 'multiply the previous term by the common ratio' : 'add the common difference to the previous term';
@@ -49,27 +52,28 @@ export const fullBridgeMissMessage = ({ parts = [], work = {}, spec = {}, target
   if (wrong.has('table')) {
     sentences.push(tableChangesPosition(work.tableValues, spec)
       ? `Each term comes from the term before it: ${change}, not ${geometric ? 'the term number n' : 'to the term number n'}.`
-      : `Check your table: start from a₁, then ${change} to get each next term.`);
+      : `Check your table: start from ${words.first}, then ${change} to get each next term.`);
     if (wrong.has('plot') && plotMatchesTable(work.plottedPoints, work.tableValues)) {
       sentences.push('Your graph matches your table, so once the table is right, re-plot those points.');
     } else if (wrong.has('plot')) {
-      sentences.push('Then plot each pair (n, aₙ) from the table as its own point.');
+      sentences.push(`Then plot each pair (n, ${words.general}) from the table as its own point.`);
     }
   } else if (wrong.has('plot')) {
-    sentences.push('Your table is right. Plot each pair (n, aₙ) from it as its own point, with n across and aₙ up.');
+    // Only a table the grader marked right is "right"; an item with no table
+    // part has nothing to praise (FB22, Codex on #517).
+    sentences.push(graded.has('table')
+      ? `Your table is right. Plot each pair (n, ${words.general}) from it as its own point, with n across and ${words.general} up.`
+      : `Plot each pair (n, ${words.general}) as its own point, with n across and ${words.general} up.`);
   }
   if (wrong.has('kind') || wrong.has('change')) {
     sentences.push('Classify from the table: equal differences make a sequence arithmetic; equal ratios make it geometric.');
   }
   const explicitWrong = wrong.has('explicit-rule');
   const recursiveWrong = wrong.has('recursive-first') || wrong.has('recursive-rule');
-  if (explicitWrong && recursiveWrong) sentences.push('Check that both of your rules give the terms in your table, starting with a₁.');
+  if (explicitWrong && recursiveWrong) sentences.push(`Check that both of your rules give the terms in your table, starting with ${words.first}.`);
   else if (explicitWrong) sentences.push('Check that your explicit rule gives the terms in your table: try n = 1 and n = 2.');
-  else if (recursiveWrong) sentences.push('Check your recursive rule: it starts at a₁ and builds each term from the one before it.');
-  if (wrong.has('term') && Number(targetN) > 0) sentences.push(`Find a${subscript(targetN)} by putting n = ${targetN} into your explicit rule.`);
+  else if (recursiveWrong) sentences.push(`Check your recursive rule: it starts at ${words.first} and builds each term from the one before it.`);
+  if (wrong.has('term') && Number(targetN) > 0) sentences.push(`Find ${words.subscripted(targetN)} by putting n = ${targetN} into your explicit rule.`);
 
   return sentences.length ? sentences.join(' ') : 'Not quite yet. Check each part against the sequence.';
 };
-
-const SUBSCRIPT_DIGITS = '₀₁₂₃₄₅₆₇₈₉';
-const subscript = (n) => String(n).split('').map((digit) => SUBSCRIPT_DIGITS[Number(digit)] ?? digit).join('');

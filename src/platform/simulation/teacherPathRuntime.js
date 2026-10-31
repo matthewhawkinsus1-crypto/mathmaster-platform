@@ -29,9 +29,11 @@ import {
   buildPrivateToolGrading, buildPublicToolPayload, gradePathResponse,
 } from '../../../functions/shared/pathToolContracts.mjs';
 import { buildFieldGradingDefinition, hasFieldGradableDefinition } from '../../../functions/shared/legacyFieldGrading.mjs';
+import { withLineFormGrading } from '../../../functions/shared/lineFormPolicy.mjs';
 import { buildAttemptSupportPayload, buildPrivateSupport } from '../../../functions/shared/pathSolutionSupport.mjs';
 import { buildPathRecapEntry, buildPathSessionRecap } from '../../../functions/shared/pathSessionRecap.mjs';
 import * as answerEquivalence from '../../../functions/shared/answerEquivalence.mjs';
+import { numericSetCredit } from '../../../functions/shared/numericSetCredit.mjs';
 import { selectNextFamily, recordFamilyUse } from '../../../functions/shared/pathQuestionSelection.mjs';
 import { generatePathInstanceWithRetries, hasPathGenerator } from '../../../functions/shared/pathQuestionGeneration.mjs';
 import { getQuestionPrimaryTeksCodes } from '../../questionMetadata.js';
@@ -174,6 +176,12 @@ const fieldValuesEquivalent = (actual, field) => {
       return actualText === expectedText;
     }
     const tolerance = Math.max(0, Number(field.numericTolerance) || 0);
+    // As production (Job P): a Digital SAT student-produced response also
+    // takes the decimal the SAT itself accepts (truncated or rounded to fill
+    // the space). TT32: without this a teacher's preview marked it wrong.
+    if (field.numberRules === 'digitalSAT' && answerEquivalence.sameDigitalSatStudentProducedResponse(actual, expected)) {
+      return true;
+    }
     if (field.equivalence === 'interval') {
       return answerEquivalence.sameIntervalNotation(actual, expected, tolerance);
     }
@@ -206,15 +214,44 @@ const fieldValuesEquivalent = (actual, field) => {
 // in Node crypto and cannot be bundled into the browser. The grading definition
 // itself is shared from legacyFieldGrading.mjs, so the private answer contract
 // cannot drift.
-const gradeFieldResponse = (privateGrading, responsePayload = {}) => {
+export const gradeFieldResponse = (privateGrading, responsePayload = {}) => {
   const responses = responsePayload?.responses && typeof responsePayload.responses === 'object'
     ? responsePayload.responses
     : {};
   const fields = list(privateGrading?.fields);
   if (!fields.length) return { isCorrect: false, score: 0, parts: [] };
-  const parts = fields.map((field) => ({ id: field.id, isCorrect: fieldValuesEquivalent(responses[field.id], field) }));
-  const correctCount = parts.filter((part) => part.isCorrect).length;
-  return { isCorrect: correctCount === fields.length, score: correctCount / fields.length, parts };
+  // Each field's weight and a numeric set's matched-elements credit count in
+  // the score, as production's gradeResponse counts them.
+  const results = fields.map((field) => {
+    const isCorrect = fieldValuesEquivalent(responses[field.id], field);
+    const credit = field.equivalence === 'numericSet' && field.partialCredit === 'matchedElements'
+      ? numericSetCredit(responses[field.id], field.expected, field.numericTolerance)
+      : (isCorrect ? 1 : 0);
+    return { id: field.id, isCorrect, credit, weight: Number(field.weight) > 0 ? Number(field.weight) : 1 };
+  });
+  const possible = results.reduce((sum, field) => sum + field.weight, 0);
+  return {
+    isCorrect: results.every((field) => field.isCorrect),
+    score: results.reduce((sum, field) => sum + field.credit * field.weight, 0) / possible,
+    parts: results.map(({ id, isCorrect }) => ({ id, isCorrect })),
+  };
+};
+
+// As functions/lib/mathPath.js privateGradingDefinition (digitalSatNumberField):
+// a number box on a Digital SAT item is graded by the SAT's own decimal rules.
+// That module is CommonJS with Node crypto and cannot be bundled here, so the
+// rule is repeated; tests/platform/teacherPathSimulationParity.test.mjs pins
+// the two together.
+export const withDigitalSatNumberRules = (question, grading) => {
+  if (String(question?.assessmentContext?.framework || '').trim() !== 'digitalSAT' || !Array.isArray(grading?.fields)) return grading;
+  const profiles = new Map(list(question.responseFields).map((field, index) => [
+    String(field?.id || `response-${index + 1}`),
+    String(field?.inputProfile || '').trim().toLowerCase(),
+  ]));
+  return {
+    ...grading,
+    fields: grading.fields.map((field) => (['number', 'numeric'].includes(profiles.get(field.id)) ? { ...field, numberRules: 'digitalSAT' } : field)),
+  };
 };
 
 /**
@@ -430,9 +467,11 @@ export const createTeacherPathRuntime = ({
     // The grading definition stays here, alongside the session, exactly as the
     // server keeps it in `session.currentQuestion`. It is never part of the
     // instance handed to the renderer.
+    // As production's buildIssuePlan: a line field that asks for no form is
+    // stored as taking any equation of its line (GR03, lineFormPolicy.mjs).
     session.privateGrading = toolPayload
       ? buildPrivateToolGrading(issuedQuestion)
-      : (fieldGraded ? buildFieldGradingDefinition(issuedQuestion) : null);
+      : (fieldGraded ? withLineFormGrading(issuedQuestion, withDigitalSatNumberRules(issuedQuestion, buildFieldGradingDefinition(issuedQuestion))) : null);
     session.privateGradingMode = toolPayload ? 'tool' : (fieldGraded ? 'fields' : 'canonical');
     // Same rule as production: feedback, hints and the review are held beside
     // the grading definition and released by attempt, never issued with the
@@ -472,6 +511,15 @@ export const createTeacherPathRuntime = ({
    * way the server checks them. Synchronous: the runtime is local.
    */
   const freezeWeeklyPathGoal = (goal) => {
+    // ONCE A WEEK, as the server freezes it: a week already frozen is returned
+    // as it is (resolveWeeklyPathGoalSnapshot). The container hands a new
+    // proposal after every answer, and re-freezing it re-planned the week: a
+    // passed weekly retention check moved the schedule, the next plan had no
+    // Retention slot, and the finished check un-ticked (MP17, a verifier minor
+    // of push D). A new simulated student (Reset) is a new runtime, and so a
+    // new week.
+    const existing = weeklyGoals.get(String(goal?.weekKey || '')) || null;
+    if (existing) return existing;
     const frozen = freezeWeeklyPathGoalProposal(goal, {
       studentId: learner?.id || 'simulated',
       classId: SIMULATED_CLASS_ID,

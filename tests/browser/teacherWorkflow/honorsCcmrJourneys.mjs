@@ -44,6 +44,7 @@ import { parseAssignmentBlueprintText } from '../../../src/assignmentBlueprint.j
 import { buildPreflightReviewedAssignmentV5 } from '../../../src/components/teacher/preflightV5Review.js';
 import { buildAssignmentV5PreflightModel } from '../../../src/platform/preflight/assignmentV5PreflightModel.js';
 import { buildDeterministicHonorsExtension } from '../../../src/platform/rigor/honorsExtensionRecipes.js';
+import { promisingAGraph } from '../../platform/helpers/ccmrGraphPromiseFixtures.mjs';
 import { watchUnimplementedCallables } from './journeyChecks.mjs';
 import { newSchoolContext } from './schoolClock.mjs';
 
@@ -123,6 +124,12 @@ const auditedServer = (scenario) => {
       excludeDocumentIds,
     }));
     const slots = result.audit?.plan?.slots || [];
+    // CT01 repaired the production item. These journeys are about an item that
+    // promises a graph it lacks, so the server stub offers it as the bank worded
+    // it when it failed Create (tests/platform/helpers/ccmrGraphPromiseFixtures.mjs).
+    slots.forEach((slot) => {
+      slot.candidates = slot.candidates.map((intent) => (documentIdOf(intent) === PRODUCTION_ITEM ? promisingAGraph(intent) : intent));
+    });
     const production = slots.find((slot) => slot.candidates.some((intent) => documentIdOf(intent) === PRODUCTION_ITEM));
     if (scenario === 'exhausted') {
       slots.forEach((slot) => { slot.candidates = slot === production ? slot.candidates.filter((intent) => documentIdOf(intent) === PRODUCTION_ITEM) : []; });

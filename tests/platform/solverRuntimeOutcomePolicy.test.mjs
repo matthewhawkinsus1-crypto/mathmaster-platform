@@ -87,8 +87,9 @@ const relation = executableSource(componentSource('src/MultiRelationAlgebraCore.
 const engine = executableSource(componentSource('src/QuestionEngine.jsx'));
 
 test('the relation solver decides completion and correctness of the stage through the status, fed by the runtime policy', () => {
-  // (Wave 7 imports useSubmitActionName beside it, for the recorded notice.)
-  assert.match(relation, /import \{ (?:useSubmitActionName, )?useToolRuntimeContext \} from '\.\/tools\/shared\/ToolRuntimeContext';/);
+  // (It imports the words for the recorded notice and the nested number line's
+  // scope beside it — toolWordsMatchButton.test.mjs holds those.)
+  assert.match(relation, /import \{[^}]*\buseToolRuntimeContext\b[^}]*\} from '\.\/tools\/shared\/ToolRuntimeContext';/);
   // The solver reads the activity's outcome permission (and, since secure
   // Rich Tool delivery, its hint permission) from the runtime context.
   assert.match(relation, /\n\s*const \{ showImmediateFeedback, onHintUsed: reportHintUse(?:, [^}]*)? \} = useToolRuntimeContext\(\);/);
@@ -172,7 +173,7 @@ test('the builder renders the checklist from the view, fed by the runtime policy
   const builder = executableSource(componentSource('src/tools/constraintFunctionBuilder/ConstraintFunctionBuilder.jsx'));
   assert.match(builder, /\n\s*const \{ showImmediateFeedback \} = useToolRuntimeContext\(\);/);
   assert.match(builder, /\n\s*const checklist = constraintChecklistView\(\{ parts: liveScore\.parts, showImmediateFeedback \}\);/);
-  const list = region(builder, 'Constraint checklist</strong>', 'Submit this model', 'checklist');
+  const list = region(builder, 'Constraint checklist</strong>', 'Check this model', 'checklist');
   assert.match(list, /\{checklist\.map\(\(item\) => <div key=\{item\.id\}/);
   // Satisfied reads as the success container (a themed token since Dark Mode 2.0).
   assert.match(list, /background: item\.satisfied \? 'var\(--mm-success-bg\)'/);

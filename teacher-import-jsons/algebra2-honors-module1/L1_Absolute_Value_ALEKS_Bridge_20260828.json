@@ -44,7 +44,12 @@
                 "left 4",
                 "none"
               ],
-              "answer": "right 4"
+              "answer": "right 4",
+              "optionRationales": {
+                "right 4": "Inside f, x's lie: x − 4 moves every point 4 units right.",
+                "left 4": "This reads the sign inside f at face value; x's lie, so a change inside f works opposite to its sign.",
+                "none": "The −4 sits inside f with x, so it does move the graph sideways."
+              }
             },
             {
               "id": "vertical",
@@ -55,7 +60,12 @@
                 "down 3",
                 "none"
               ],
-              "answer": "up 3"
+              "answer": "up 3",
+              "optionRationales": {
+                "up 3": "The +3 is outside f, and y's tell the truth: every point moves up 3.",
+                "down 3": "This reverses a change made outside f; y's tell the truth, so only changes inside f work in reverse.",
+                "none": "The +3 is added to the output f(x), so it does move the graph vertically."
+              }
             }
           ],
           "purpose": "prerequisite",
@@ -83,7 +93,12 @@
                 "across the x-axis",
                 "none"
               ],
-              "answer": "across the y-axis"
+              "answer": "across the y-axis",
+              "optionRationales": {
+                "across the y-axis": "The negative is inside f, with x, so every point flips left to right across the y-axis.",
+                "across the x-axis": "An x-axis reflection needs a negative outside f, like −f(x); this negative is inside, with x.",
+                "none": "The −2 inside f carries a negative sign, and a negative with x is a reflection."
+              }
             },
             {
               "id": "scale",
@@ -94,7 +109,12 @@
                 "stretch by 2",
                 "unchanged"
               ],
-              "answer": "compression by 1/2"
+              "answer": "compression by 1/2",
+              "optionRationales": {
+                "compression by 1/2": "x's lie: the 2 inside f squeezes the graph toward the y-axis, to 1/2 its width.",
+                "stretch by 2": "This reads the factor inside f at face value; x's lie, so a factor with x works in reverse.",
+                "unchanged": "The 2 multiplies x inside f, so the width does change."
+              }
             }
           ],
           "purpose": "prerequisite",
@@ -122,7 +142,12 @@
                 "across the y-axis",
                 "none"
               ],
-              "answer": "across the x-axis"
+              "answer": "across the x-axis",
+              "optionRationales": {
+                "across the x-axis": "The negative is outside f, so it flips every output: a reflection across the x-axis.",
+                "across the y-axis": "A y-axis reflection needs the negative inside f, with x, as in f(−x); this one multiplies the output.",
+                "none": "The −1/2 in front of f carries a negative sign, and a negative output is a reflection."
+              }
             },
             {
               "id": "scale",
@@ -133,7 +158,12 @@
                 "stretch by 2",
                 "unchanged"
               ],
-              "answer": "compression by 1/2"
+              "answer": "compression by 1/2",
+              "optionRationales": {
+                "compression by 1/2": "y's tell the truth: multiplying every output by 1/2 squeezes the graph to half its height.",
+                "stretch by 2": "This treats a factor outside f like one inside; y's tell the truth, so only a factor with x works in reverse.",
+                "unchanged": "The 1/2 multiplies every output, so the height does change."
+              }
             },
             {
               "id": "shift",
@@ -144,7 +174,12 @@
                 "down 2",
                 "none"
               ],
-              "answer": "up 2"
+              "answer": "up 2",
+              "optionRationales": {
+                "up 2": "The +2 is outside f, and y's tell the truth: every point moves up 2.",
+                "down 2": "This reverses a change made outside f; y's tell the truth, so only changes inside f work in reverse.",
+                "none": "The +2 is added after f, so it does move the graph vertically."
+              }
             }
           ],
           "purpose": "prerequisite",
@@ -390,7 +425,12 @@
                 "across the x-axis",
                 "none"
               ],
-              "answer": "across the y-axis"
+              "answer": "across the y-axis",
+              "optionRationales": {
+                "across the y-axis": "The negative in −(1/2) is inside f, with x, so the graph flips across the y-axis.",
+                "across the x-axis": "The negative is inside f, with x; an x-axis reflection would need a negative in front of f.",
+                "none": "The factor inside f is −1/2, and its negative sign is a reflection."
+              }
             },
             {
               "id": "xscale",
@@ -401,7 +441,12 @@
                 "compression by 1/2",
                 "unchanged"
               ],
-              "answer": "stretch by 2"
+              "answer": "stretch by 2",
+              "optionRationales": {
+                "stretch by 2": "x's lie: a factor of 1/2 inside f widens the graph, a horizontal stretch by 2.",
+                "compression by 1/2": "This reads the factor inside f at face value; x's lie, so a factor with x works in reverse.",
+                "unchanged": "The 1/2 multiplies the input inside f, so the width does change."
+              }
             },
             {
               "id": "hshift",
@@ -412,7 +457,12 @@
                 "left 3",
                 "none"
               ],
-              "answer": "right 3"
+              "answer": "right 3",
+              "optionRationales": {
+                "right 3": "Inside f, x − 3 moves every point 3 units right.",
+                "left 3": "This reads the sign inside f at face value; x's lie, so a change inside f works opposite to its sign.",
+                "none": "The −3 sits inside f with x, so the graph does move sideways."
+              }
             },
             {
               "id": "yscale",
@@ -423,7 +473,12 @@
                 "compression by 1/2",
                 "unchanged"
               ],
-              "answer": "stretch by 2"
+              "answer": "stretch by 2",
+              "optionRationales": {
+                "stretch by 2": "The 2 in front of f multiplies every output, so the graph stretches vertically by 2.",
+                "compression by 1/2": "This treats a factor outside f like one inside; y's tell the truth, so only a factor with x works in reverse.",
+                "unchanged": "The 2 in front of f multiplies every output, so the height does change."
+              }
             },
             {
               "id": "yreflect",
@@ -434,7 +489,12 @@
                 "across the x-axis",
                 "across the y-axis"
               ],
-              "answer": "none"
+              "answer": "none",
+              "optionRationales": {
+                "none": "The factor in front of f is a positive 2, so the outputs keep their signs: no vertical reflection.",
+                "across the x-axis": "The only negative here is inside f, with x; a vertical reflection needs a negative in front of f.",
+                "across the y-axis": "A flip across the y-axis is horizontal; a vertical reflection comes only from a negative in front of f."
+              }
             },
             {
               "id": "vshift",
@@ -445,7 +505,12 @@
                 "down 4",
                 "none"
               ],
-              "answer": "up 4"
+              "answer": "up 4",
+              "optionRationales": {
+                "up 4": "The +4 is outside f, and y's tell the truth: every point moves up 4.",
+                "down 4": "This reverses a change made outside f; y's tell the truth, so only changes inside f work in reverse.",
+                "none": "The +4 is added after f, so the graph does move vertically."
+              }
             }
           ],
           "purpose": "guidedPractice",
@@ -596,7 +661,12 @@
                 "(1, 0)",
                 "(0, 1)"
               ],
-              "answer": "(0, 0)"
+              "answer": "(0, 0)",
+              "optionRationales": {
+                "(0, 0)": "|x| is smallest at x = 0, where |0| = 0, so the V turns at the origin.",
+                "(1, 0)": "(1, 0) would be the vertex of |x − 1|; the parent function is not shifted.",
+                "(0, 1)": "(0, 1) would be the vertex of |x| + 1; the parent function is not shifted."
+              }
             },
             {
               "id": "domain",
@@ -607,7 +677,12 @@
                 "[0, ∞)",
                 "(0, ∞)"
               ],
-              "answer": "(−∞, ∞)"
+              "answer": "(−∞, ∞)",
+              "optionRationales": {
+                "(−∞, ∞)": "Any real number has an absolute value, so every x is allowed.",
+                "[0, ∞)": "This is the set of outputs; negative inputs are allowed too, since |−3| = 3.",
+                "(0, ∞)": "Every x can go into |x|, including 0 and negative numbers."
+              }
             },
             {
               "id": "range",
@@ -618,7 +693,12 @@
                 "(−∞, ∞)",
                 "(0, ∞)"
               ],
-              "answer": "[0, ∞)"
+              "answer": "[0, ∞)",
+              "optionRationales": {
+                "[0, ∞)": "An absolute value is never negative, and |0| = 0, so the outputs start at 0 and go up.",
+                "(−∞, ∞)": "This is the domain; the outputs of |x| are never negative.",
+                "(0, ∞)": "The output 0 does occur, at x = 0, so the range includes 0."
+              }
             }
           ],
           "purpose": "independentPractice",
@@ -632,6 +712,16 @@
               "No"
             ],
             "correct": "No"
+          },
+          "solutionReview": {
+            "headline": "Read each attribute from the function itself: where its V turns, which inputs it accepts, and which outputs it reaches.",
+            "reasoning": [
+              "Vertex: an absolute value is never negative, and |0| = 0, so |x| is smallest when x is 0. The V turns there, so the vertex is (0, 0).",
+              "Domain: every real number has an absolute value, for example |−3| = 3, so the domain is (−∞, ∞).",
+              "Range: the outputs are never negative, and every number from 0 up is reached, for example |0| = 0 and |5| = 5, so the range is [0, ∞).",
+              "So: Vertex: (0, 0); Domain: (−∞, ∞); Range: [0, ∞)."
+            ],
+            "answerSummary": "Vertex: (0, 0); Domain: (−∞, ∞); Range: [0, ∞)"
           }
         },
         {
@@ -732,7 +822,12 @@
                 "stretch by 2",
                 "unchanged"
               ],
-              "answer": "compression by 1/2"
+              "answer": "compression by 1/2",
+              "optionRationales": {
+                "compression by 1/2": "x's lie: the 2 multiplying x inside the bars makes the V narrower, a compression by 1/2.",
+                "stretch by 2": "This reads the 2 inside the bars at face value; x's lie, so a factor with x works in reverse.",
+                "unchanged": "The 2 multiplies x inside the bars, so the width does change."
+              }
             },
             {
               "id": "vshift",
@@ -743,7 +838,12 @@
                 "up 4",
                 "none"
               ],
-              "answer": "down 4"
+              "answer": "down 4",
+              "optionRationales": {
+                "down 4": "The −4 is outside the bars, and y's tell the truth: every point moves down 4.",
+                "up 4": "This reverses a change made outside the bars; y's tell the truth, so only changes with x work in reverse.",
+                "none": "The −4 is subtracted after the absolute value, so the graph does move vertically."
+              }
             },
             {
               "id": "vertex",
@@ -754,7 +854,12 @@
                 "(−4, 0)",
                 "(0, 4)"
               ],
-              "answer": "(0, −4)"
+              "answer": "(0, −4)",
+              "optionRationales": {
+                "(0, −4)": "|2x| is 0 at x = 0, and the −4 outside the bars moves that point down to (0, −4).",
+                "(−4, 0)": "The −4 is outside the bars, so it changes y, not x.",
+                "(0, 4)": "This reverses the −4; a change outside the bars keeps its sign."
+              }
             }
           ],
           "purpose": "independentPractice",
@@ -922,7 +1027,12 @@
                 "(3, 1)",
                 "(−3, −1)"
               ],
-              "answer": "(−3, 1)"
+              "answer": "(−3, 1)",
+              "optionRationales": {
+                "(−3, 1)": "|x + 3| is 0 at x = −3, and the +1 outside the bars puts that point at y = 1.",
+                "(3, 1)": "This reads the +3 inside the bars at face value; x's lie, so x + 3 moves the vertex the other way.",
+                "(−3, −1)": "This changes the sign of the +1, which is outside the bars; the −2 flips the V but does not move its vertex."
+              }
             },
             {
               "id": "reflection",
@@ -933,7 +1043,12 @@
                 "across the y-axis",
                 "none"
               ],
-              "answer": "across the x-axis"
+              "answer": "across the x-axis",
+              "optionRationales": {
+                "across the x-axis": "The negative in −2 is in front of the bars, so it flips the outputs: the V opens down.",
+                "across the y-axis": "A y-axis reflection needs a negative inside the bars, with x; this negative multiplies the output.",
+                "none": "The factor in front of the bars is −2, and its negative sign is a reflection."
+              }
             },
             {
               "id": "scale",
@@ -944,7 +1059,12 @@
                 "compression by 1/2",
                 "unchanged"
               ],
-              "answer": "stretch by 2"
+              "answer": "stretch by 2",
+              "optionRationales": {
+                "stretch by 2": "The 2 in −2 multiplies every output, so the V is twice as steep: a vertical stretch by 2.",
+                "compression by 1/2": "This treats a factor outside f like one inside; y's tell the truth, so only a factor with x works in reverse.",
+                "unchanged": "The −2 multiplies every output, so the steepness does change; its sign adds a reflection."
+              }
             },
             {
               "id": "horizontal",
@@ -955,7 +1075,12 @@
                 "right 3",
                 "none"
               ],
-              "answer": "left 3"
+              "answer": "left 3",
+              "optionRationales": {
+                "left 3": "Inside the bars, x + 3 moves every point 3 units left.",
+                "right 3": "This reads the +3 inside the bars at face value; x's lie, so the shift goes opposite to its sign.",
+                "none": "The +3 sits inside the bars with x, so the graph does move sideways."
+              }
             },
             {
               "id": "vertical",
@@ -966,7 +1091,12 @@
                 "down 1",
                 "none"
               ],
-              "answer": "up 1"
+              "answer": "up 1",
+              "optionRationales": {
+                "up 1": "The +1 is outside the bars, and y's tell the truth: every point moves up 1.",
+                "down 1": "This reverses a change made outside the bars; y's tell the truth, so only changes with x work in reverse.",
+                "none": "The +1 is added after the absolute value, so the graph does move vertically."
+              }
             },
             {
               "id": "range",
@@ -977,7 +1107,12 @@
                 "[1, ∞)",
                 "(−∞, −1]"
               ],
-              "answer": "(−∞, 1]"
+              "answer": "(−∞, 1]",
+              "optionRationales": {
+                "(−∞, 1]": "The V opens down from its vertex at y = 1, so the outputs are 1 and everything below it.",
+                "[1, ∞)": "This is the range of a V that opens up; the negative in front of the bars makes this one open down.",
+                "(−∞, −1]": "This changes the sign of the +1, which is outside the bars and keeps its sign."
+              }
             }
           ],
           "purpose": "dol",

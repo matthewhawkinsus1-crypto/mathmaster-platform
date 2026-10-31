@@ -80,6 +80,37 @@ test('a teacher is not nagged about the weekly path on Monday', () => {
   assert.ok(late.some((finding) => finding.rule === 'weeklyPathBehind'));
 });
 
+test('a student the teacher marked absent this week is not reported behind on it (TT03)', () => {
+  // Thursday 2026-10-22; the week began Monday 2026-10-19.
+  const now = new Date(2026, 9, 22, 9, 0).getTime();
+  const mark = (studentId, dateKey, attendanceMark, at, classId = 'c-1') => ({
+    kind: 'liveAttendance', studentId, classId, dateKey, evidence: { dateKey, attendanceMark, markedAt: at },
+  });
+  const behind = { goal: 4, complete: 0 };
+  const queueFor = (supportEvents) => buildNeedsAttentionQueue({
+    students: [
+      { id: 's1', firstName: 'Ana', lastName: 'Rivera', classId: 'c-1' },
+      { id: 's2', firstName: 'Ben', lastName: 'Cole', classId: 'c-1' },
+    ],
+    profilesByStudentId: { s1: profile(), s2: profile() },
+    weeklyByStudentId: { s1: behind, s2: behind },
+    classSizes: { 'c-1': 30 },
+    classCount: 1,
+    weekFraction: 0.8,
+    supportEvents,
+    now,
+  }).filter((finding) => finding.rule === 'weeklyPathBehind').map((finding) => finding.studentId);
+
+  assert.deepEqual(queueFor([]).sort(), ['s1', 's2'], 'unmarked days are not absences');
+  // Ana was out Tuesday: the gap is the absence, and her teacher knows why.
+  assert.deepEqual(queueFor([mark('s1', '2026-10-20', 'absent', 1)]), ['s2']);
+  // A mistaken "absent" corrected to "present" is present again.
+  assert.deepEqual(queueFor([mark('s1', '2026-10-20', 'absent', 1), mark('s1', '2026-10-20', 'present', 2)]).sort(), ['s1', 's2']);
+  // Last week's absence, or one in another class, is not this week's in this class.
+  assert.deepEqual(queueFor([mark('s1', '2026-10-16', 'absent', 1)]).sort(), ['s1', 's2']);
+  assert.deepEqual(queueFor([mark('s1', '2026-10-20', 'absent', 1, 'c-2')]).sort(), ['s1', 's2']);
+});
+
 // --- the findings that ARE worth an interruption -------------------------------
 
 test('a confirmed prerequisite gap outranks a below-level label and replaces it', () => {

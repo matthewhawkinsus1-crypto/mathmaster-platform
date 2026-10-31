@@ -1,5 +1,7 @@
 import { ENGAGEMENT, INSTRUCTIONAL_BAND } from '../profile/studentLearningProfile.js';
 import { acceptStudentName, formatStudentLabel, formatStudentName } from '../studentName.js';
+import { localDateKeyOf, shiftDateKey } from '../attendance/classMeetings.js';
+import { studentsMarkedAbsent } from '../../../functions/shared/attendanceDay.mjs';
 
 /*
  * ONE QUEUE, AND A HIGH BAR FOR ENTERING IT.
@@ -199,9 +201,12 @@ export const academicFindingsFor = ({ studentId, studentName, profile, classId =
  * These are deliberately a separate kind with separate wording. Unanswered work
  * is MISSING evidence, not wrong evidence, and the moment a queue lets the two
  * blur, a strong student who was absent starts reading as a struggling one.
+ * So a student their teacher marked absent this week is not reported behind on
+ * it (TT03): the teacher already knows why, and the absence policy, not this
+ * queue, decides what they owe.
  */
 export const completionFindingsFor = ({
-  studentId, studentName, profile, classId = null, weekly = null, weekFraction = 1,
+  studentId, studentName, profile, classId = null, weekly = null, weekFraction = 1, absentThisWeek = false,
 }) => {
   const findings = [];
   const push = (rule, urgency, headline, detail) => findings.push({
@@ -216,7 +221,7 @@ export const completionFindingsFor = ({
     detail,
   });
 
-  if (weekly && Number(weekly.goal) > 0 && weekFraction >= THRESHOLDS.weekFractionBeforeNagging) {
+  if (weekly && Number(weekly.goal) > 0 && weekFraction >= THRESHOLDS.weekFractionBeforeNagging && !absentThisWeek) {
     const share = Number(weekly.complete || 0) / Number(weekly.goal);
     if (share < THRESHOLDS.weeklyShortfall) {
       push(
@@ -350,7 +355,21 @@ export const buildNeedsAttentionQueue = ({
   weeklyProgressTruncated = false,
   classCount = 0,
   weekFraction = 1,
+  // The teacher's attendance marks, and when "this week" is: Monday to today.
+  supportEvents = [],
+  now = Date.now(),
 } = {}) => {
+  const today = localDateKeyOf(now);
+  const weekSoFar = today
+    ? Array.from({ length: ((new Date(now).getDay() + 6) % 7) + 1 }, (_, back) => shiftDateKey(today, -back))
+    : [];
+  const absentByClass = new Map();
+  const markedAbsent = (classId) => {
+    if (!absentByClass.has(classId)) {
+      absentByClass.set(classId, studentsMarkedAbsent({ supportEvents, classId, dateKeys: weekSoFar }));
+    }
+    return absentByClass.get(classId);
+  };
   const perStudent = [];
   list(students).forEach((student) => {
     const shared = {
@@ -364,6 +383,7 @@ export const buildNeedsAttentionQueue = ({
       ...shared,
       weekly: weeklyByStudentId[student.id] || null,
       weekFraction,
+      absentThisWeek: markedAbsent(shared.classId).has(String(student.id)),
     }));
   });
 

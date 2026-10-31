@@ -72,7 +72,7 @@ function SignChart({ questionData, feedback, submit, mode, onAction }) {
 
   return <ToolShell
     title="Sign & Solution Analyzer"
-    subtitle="Build the solution set from critical points, sign changes, and the endpoint rules that go with them."
+    subtitle="Find the solution set of an inequality, endpoints included."
     badge={mode === 'rational' ? 'Rational inequalities' : 'Polynomial inequalities'}
   >
     <TaskCard
@@ -102,9 +102,11 @@ function SignChart({ questionData, feedback, submit, mode, onAction }) {
               <button type="button" key={label} onClick={() => toggle(index)} aria-pressed={isSelected} style={{padding:14,borderRadius:10,border:isSelected?'2px solid #1a73e8':'1px solid var(--mm-tint-border)',background:isSelected?'var(--mm-primary-subtle)':'var(--mm-surface)',cursor:'pointer',minHeight:44,textAlign:'left'}}>
                 <div style={{fontWeight:800}}>{label}</div>
                 {/* The tested sign of each interval is the work the student is
-                    being asked to do, so it is a teacher-bench readout only. */}
+                    being asked to do, so it is a teacher-bench readout only.
+                    The card is a button, so the caption names the key as well
+                    as the tap (AX32); it is part of the button's name. */}
                 <div style={{marginTop:6,fontSize:'calc(13 * var(--mm-px))',color:revealAnswers ? (interval.sign>0?'var(--mm-success-text)':'var(--mm-danger)') : 'var(--mm-text-muted)'}}>
-                  {revealAnswers ? `test sign ${interval.sign>0?'+':'−'}` : isSelected ? 'selected' : 'tap to select'}
+                  {revealAnswers ? `test sign ${interval.sign>0?'+':'−'}` : isSelected ? 'selected' : 'tap or press Enter to select'}
                 </div>
               </button>
             );
@@ -169,7 +171,7 @@ function RadicalCheck({ questionData, feedback, submit, onAction }) {
 
   return <ToolShell
     title="Sign & Solution Analyzer"
-    subtitle="Check candidate solutions in the original equation to catch the extraneous ones."
+    subtitle="Decide which candidate solutions really solve the original equation."
     badge="Extraneous solutions"
   >
     <TaskCard
@@ -295,7 +297,7 @@ function RadicalSolve({ questionData, feedback, submit, onAction }) {
 
   return <ToolShell
     title="Sign & Solution Analyzer"
-    subtitle="Solve a radical equation step by step, then check every candidate in the original equation."
+    subtitle="Solve a radical equation step by step, then decide which answers belong."
     badge="Radical equations"
   >
     <TaskCard

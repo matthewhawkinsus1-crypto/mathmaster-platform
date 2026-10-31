@@ -20,8 +20,9 @@ const DAY = 24 * 60 * 60 * 1000;
 /*
  * The week closes at midnight where the students are, not at midnight UTC
  * (dueAtFor in src/platform/path/weeklyPathGoal.js builds the deadline in this
- * zone). It lives here, beside the grade, so the sentence that names the due
- * day reads the same zone the deadline was built in.
+ * zone), and since MP06 it also BEGINS there: weekKeyFor reads the week in this
+ * zone. It lives here, beside the grade, so the sentence that names the due
+ * day reads the same zone the deadline and the week were built in.
  */
 export const WEEK_TIME_ZONE = 'America/Chicago';
 
@@ -35,6 +36,76 @@ const slotFramework = (value) => {
   return text && text !== 'course' && text !== 'auto' ? text : null;
 };
 
+/*
+ * WHICH WEEK A MOMENT BELONGS TO, IN THE SCHOOL'S TIME ZONE (MP06).
+ *
+ * A week key is the date of the week's first day (Monday) as YYYY-MM-DD, and a
+ * week runs from Monday 00:00 to Sunday 24:00 WHERE THE STUDENTS ARE
+ * (WEEK_TIME_ZONE), the same zone the deadline is built in (dueAtFor). It used
+ * to be read in UTC, which turns over at 7pm Central on Sunday (6pm in standard
+ * time): from then on a student was shown next week's goal while this week still
+ * had hours to run, and what they did was filed under next week.
+ *
+ * ONLY THE MOMENT THAT CHANGES WEEKS MOVED. The key has the same form, a Monday's
+ * date, so every key already stored (goals, sessions, completions, Classroom
+ * syncs, history) is still a valid key and is read as it always was; nothing is
+ * migrated. A moment gets the same key as before except in that one window on
+ * Sunday evening, where it now gets the week that is still running. Work done in
+ * that window before this change keeps the next week's key it was stored with,
+ * and the completion window (weeklyPathCompletion.mjs) already reaches across
+ * the boundary, so it is still found and graded where it was.
+ *
+ * `weekKeyFor` takes an INSTANT. To step from one key to another (the week
+ * before, the week after) use `shiftWeekKey`, which is date arithmetic: handing a
+ * key's own midnight (Date.parse(`${key}T00:00:00Z`)) back to `weekKeyFor`
+ * would read it as Sunday evening in Texas and land a week early.
+ */
+const dateFormatters = new Map();
+const dateFormatterFor = (timeZone) => {
+  if (!dateFormatters.has(timeZone)) {
+    dateFormatters.set(timeZone, new Intl.DateTimeFormat('en-US', {
+      timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
+    }));
+  }
+  return dateFormatters.get(timeZone);
+};
+
+// The calendar date it is on a wall clock in `timeZone` at instant `ms`, as
+// that date's midnight in UTC (so the rest is plain date arithmetic).
+const calendarDateAsUtc = (ms, timeZone) => {
+  try {
+    const parts = {};
+    for (const part of dateFormatterFor(timeZone).formatToParts(new Date(ms))) parts[part.type] = part.value;
+    const local = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day));
+    if (Number.isFinite(local)) return local;
+  } catch {
+    // No time-zone data in this runtime (or an instant that is not a time).
+    // The UTC date is what every caller got before the zone was read, and
+    // dueAtFor falls back the same way.
+  }
+  const date = new Date(ms);
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+};
+
+// The week key of a calendar DATE (its midnight in UTC): no clock, no zone.
+const weekKeyOfDate = (utcMidnight, weekStartsOn = 1) => {
+  const day = new Date(utcMidnight).getUTCDay();
+  const back = (day - weekStartsOn + 7) % 7;
+  const start = new Date(utcMidnight - back * DAY);
+  const month = String(start.getUTCMonth() + 1).padStart(2, '0');
+  const dayOfMonth = String(start.getUTCDate()).padStart(2, '0');
+  return `${start.getUTCFullYear()}-${month}-${dayOfMonth}`;
+};
+
+export const weekKeyFor = (now = Date.now(), weekStartsOn = 1, { timeZone = WEEK_TIME_ZONE } = {}) => (
+  weekKeyOfDate(calendarDateAsUtc(now, timeZone), weekStartsOn)
+);
+
+/** The week key `weeks` whole weeks after (negative: before) `weekKey`. Date arithmetic, not a clock. */
+export const shiftWeekKey = (weekKey, weeks = 0, weekStartsOn = 1) => (
+  weekKeyOfDate(Date.parse(`${weekKey}T00:00:00Z`) + Math.round(Number(weeks) || 0) * 7 * DAY, weekStartsOn)
+);
+
 /**
  * The grading policy.
  *
@@ -44,17 +115,6 @@ const slotFramework = (value) => {
  * recommendation — which destroys the evidence the whole system runs on. So
  * completion carries the grade and quality adjusts it.
  */
-export const weekKeyFor = (now = Date.now(), weekStartsOn = 1) => {
-  const date = new Date(now);
-  const utc = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
-  const day = new Date(utc).getUTCDay();
-  const back = (day - weekStartsOn + 7) % 7;
-  const start = new Date(utc - back * DAY);
-  const month = String(start.getUTCMonth() + 1).padStart(2, '0');
-  const dayOfMonth = String(start.getUTCDate()).padStart(2, '0');
-  return `${start.getUTCFullYear()}-${month}-${dayOfMonth}`;
-};
-
 export const GRADING_POLICY = Object.freeze({
   completionWeight: 0.8,
   qualityWeight: 0.2,

@@ -59,6 +59,7 @@
 // one-question DOL stays one question.
 
 import { isTestCycleAssignment } from './testCyclePolicy.mjs';
+import { correctionContentIsCurrent, workloadCorrectionFor } from './workloadCorrection.mjs';
 
 export const REDUCED_WORKLOAD_SUPPORT_ID = 'reduced-item-count-same-rigor';
 export const REDUCED_WORKLOAD_ALGORITHM_VERSION = 1;
@@ -97,7 +98,9 @@ export const WORKLOAD_VARIANCE_LABEL = Object.freeze({
   'answered-before-reduction': 'Work the student had already answered is always kept.',
   'practice-pass': 'A Practice Pass waived Practice, where part of the reduction was planned.',
   'limited-to-activities': 'The support applies only to some activities in this assignment.',
-  'secure-assessment': 'Secure Test Cycle assessments are delivered as published; MathMaster does not reduce them.',
+  // TC15: a secure Test is never reduced by this plan. Its teacher chooses the
+  // questions a student skips (functions/shared/testCycleReducedItems.mjs).
+  'secure-assessment': 'MathMaster does not reduce a secure Test Cycle by itself. The teacher chooses which Test questions this student skips, from the Test Cycle results.',
 });
 
 /** What happened when the platform tried to apply the support to one assignment. */
@@ -292,6 +295,37 @@ export const resolveItemReductionPolicy = ({ profile = null, assignment = null, 
     anchorDateKey,
   };
 };
+
+/**
+ * EVERYTHING IN A PROFILE THAT DECIDES A STUDENT'S REDUCTION, as one string
+ * (TT23). Two profiles with the same key resolve to the same reduction on every
+ * assignment, so a profile change that leaves the key alone cannot move any
+ * student's required items, and so cannot move a grade. The server uses that
+ * to leave the (very common) profile edit that has nothing to do with item
+ * reduction alone, and to look further only when this changes.
+ *
+ * It reads the three sources `resolveItemReductionPolicy` reads, in the same
+ * order — the compact history, else the plan's windows, else the legacy flat
+ * list — so a change to one must be made to the other. A key that differs when
+ * the policy does not is harmless (the caller compares what each assignment
+ * resolves to next); a key that is the same when the policy differs would hide
+ * a grade change, which is what the tests hold it to.
+ */
+export const profileItemReductionKey = (profile = null) => {
+  if (!isObject(profile)) return 'none';
+  const plan = isObject(profile.supportPlan) ? profile.supportPlan : null;
+  const history = list(plan?.itemReductionHistory);
+  if (history.length) return `history:${JSON.stringify(history)}`;
+  const windows = list(plan?.windows);
+  if (windows.length) return `windows:${JSON.stringify(windows.map(itemReductionHistoryRow))}`;
+  const ids = list(profile.accommodations).map((id) => (typeof id === 'string' ? id : id?.id));
+  return ids.includes(REDUCED_WORKLOAD_SUPPORT_ID) ? 'manual' : 'none';
+};
+
+/** What a resolved policy asks of the student, without which revision said so. */
+export const itemReductionPolicySummary = (policy = null) => (
+  `${policy?.status || 'none'}|${Number(policy?.percent) || 0}|${list(policy?.appliesTo).map(clean).sort().join(',')}`
+);
 
 // --- The content, as items ------------------------------------------------------------
 
@@ -765,14 +799,16 @@ export const resolveStudentWorkload = ({
     ? orderedUnique(baseIndices)
     : workloadItemsFromAssignment(assignment || {}).map((item) => item.storageIndex);
   const policy = resolveItemReductionPolicy({ profile, assignment, nowValue });
+  const correction = workloadCorrectionFor(profile, assignment);
   const unchanged = (status) => ({
     status,
     indices: base,
     omitted: [],
     policy,
     plan: null,
-    summary: status === WORKLOAD_STATUS.NONE ? null : {
+    summary: status === WORKLOAD_STATUS.NONE && !correction?.eventId ? null : {
       status,
+      ...(correction?.eventId ? { kind: 'retroactive-grade-correction', correctionEventId: correction.eventId, correctedAt: correction.approvedAt, previousGrade: correction.previousGrade ?? null, appliedGrade: correction.appliedGrade ?? null } : {}),
       targetPercent: policy.percent || 0,
       originalCount: base.length,
       assignedCount: base.length,
@@ -781,11 +817,28 @@ export const resolveStudentWorkload = ({
       revisionId: policy.revisionId || null,
     },
   });
+  if (correction?.active === true) {
+    if (!correctionContentIsCurrent(correction, assignment) || assignment?.secure === true || isTestCycleAssignment(assignment)) {
+      const result = unchanged(WORKLOAD_STATUS.NOT_APPLICABLE);
+      result.reviewNeeded = true;
+      result.summary.variance = ['correction-content-changed'];
+      return result;
+    }
+    const answered = answeredOf(tracker);
+    const omitted = base.filter((index) => correction.omittedIndices?.includes(index) && !answered.has(index));
+    const omittedSet = new Set(omitted);
+    const indices = base.filter((index) => !omittedSet.has(index));
+    return { status: omitted.length ? WORKLOAD_STATUS.APPLIED : WORKLOAD_STATUS.NOT_APPLICABLE, indices, omitted, policy, plan: null,
+      summary: { status: WORKLOAD_STATUS.APPLIED, kind: 'retroactive-grade-correction', correctionEventId: correction.eventId, correctedAt: correction.approvedAt, previousGrade: correction.previousGrade ?? null, appliedGrade: correction.appliedGrade ?? null,
+        targetPercent: correction.percent, originalCount: base.length, assignedCount: indices.length,
+        actualPercentTenths: tenthsOfPercent(omitted.length, base.length), variance: correction.variance || [], revisionId: null } };
+  }
   if (policy.status === 'none') return unchanged(WORKLOAD_STATUS.NONE);
   if (policy.status === 'manual') return unchanged(WORKLOAD_STATUS.MANUAL);
   // A secure Test Cycle has its own server-authoritative delivery and grade
   // (testCycleGrades); it is never reshaped per student here. Said plainly,
-  // not silently skipped.
+  // not silently skipped. Fewer items on its secure Test are a teacher's
+  // choice, applied by the Test Cycle itself (testCycleReducedItems.mjs, TC15).
   if (assignment?.secure === true || isTestCycleAssignment(assignment)) {
     const result = unchanged(WORKLOAD_STATUS.NOT_APPLICABLE);
     result.summary.variance = [WORKLOAD_VARIANCE.SECURE_ASSESSMENT];

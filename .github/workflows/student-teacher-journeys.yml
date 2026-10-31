@@ -32,6 +32,11 @@ name: Student and Teacher Journeys
 #   cross-device drafts    tests/browser/teacherWorkflow/draftCrossDeviceJourneys.mjs
 #                          (a fresh, slow or offline Chromebook gets the work
 #                          and never overwrites it; the newest edit wins)
+#   personalized numbers   tests/browser/teacherWorkflow/familyPinCrossDeviceJourneys.mjs
+#   across Chromebooks     (RT15: a Question Family question opened before
+#                          the class was seated shows the same numbers on the
+#                          next Chromebook, before any Submit; a slow read
+#                          waits, a stalled one does not hold the question)
 #   restored-draft focus   tests/browser/teacherWorkflow/restoredDraftFocusRaceJourneys.mjs
 #                          (its own job: once the student clicks, taps or keys
 #                          after a cross-device restore, no late focus — the
@@ -43,8 +48,8 @@ name: Student and Teacher Journeys
 #                          resume, submit; malformed drafts; a second board;
 #                          and with the harness server — Checks ingested, the
 #                          deadline auto-submit closing Q1, the reopen, a
-#                          refresh, another Chromebook; throttled nightly) and,
-#                          on QuestionEngine alone,
+#                          refresh, another Chromebook; throttled nightly, in
+#                          four jobs of its own) and, on QuestionEngine alone,
 #                          tests/browser/warmupReopenDraft.mjs
 #   held Recovery         tests/browser/teacherWorkflow/recoveryHoldJourneys.mjs
 #                          (a Recovery question MathMaster could not grade:
@@ -107,6 +112,11 @@ name: Student and Teacher Journeys
 #                          (same job: focus and the spoken name on a screen
 #                          change, one main per screen, Back by origin, the
 #                          one-row phone nav, Assignments' filters kept)
+#   inner screens          tests/browser/teacherWorkflow/innerScreenBackJourneys.mjs
+#                          (same job, NV14: Back, Forward and a reload inside a
+#                          Recovery, Corrections and a Test review stay on the
+#                          result page or the card; a reload mid-test puts that
+#                          test first in Tests & Exams, focused, never resumed)
 #   pass 3 student journeys (job pass3-student-journeys; they ran by hand
 #                          only until wave 7):
 #                          tests/browser/teacherWorkflow/assignmentChromeJourneys.mjs
@@ -117,7 +127,11 @@ name: Student and Teacher Journeys
 #                          phoneSaveLineJourneys.mjs (W7-8: on every phone
 #                          layout the save line and the problem notice are
 #                          seen), askMyTeacherJourneys.mjs
-#                          (Ask my teacher answers back). Ask my teacher and the
+#                          (Ask my teacher answers back),
+#                          practicePassSwitchJourneys.mjs (LC23: Review's
+#                          Practice Passes switch saved, reopened and changed,
+#                          desktop and phone; the review never scrolls
+#                          sideways). Ask my teacher and the
 #                          lobby's way into the game run on the accessibility
 #                          App harness, on port 5189
 #
@@ -137,13 +151,28 @@ permissions:
   contents: read
 
 jobs:
+  accommodation-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      - run: npm --prefix functions ci
+      - name: Historical workload correction and privacy journeys
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: >-
+          npx firebase emulators:exec --only firestore --project demo-accommodation-523
+          "node --test tests/platform/retroactiveAccommodationEmulator.test.mjs && node tests/browser/accommodationReviewQa.mjs"
+
   # The teacher journeys, in three jobs of about ten minutes each: one runner
   # took 29 minutes for them all (PR #513), against a 40-minute limit.
   teacher:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with: { browser: "true" }
       - name: Start the teacher harness
@@ -186,7 +215,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with: { browser: "true" }
       - name: Start the teacher harness
@@ -209,7 +238,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with: { browser: "true" }
       - name: Start the teacher harness
@@ -221,6 +250,11 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/draftCrossDeviceJourneys.mjs
+      - name: Personalized numbers across Chromebooks
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/familyPinCrossDeviceJourneys.mjs
       - name: Warm-Up close and reopen under unfinished work
         if: ${{ !cancelled() }}
         env:
@@ -231,12 +265,33 @@ jobs:
   # of its own. In the teacher job they ran past its 40-minute limit every
   # night from at least Oct 13 to Oct 22: the run was cancelled before
   # Endurance began, and a cancelled nightly was never reported.
+  #
+  # The throttled Warm-Up close and reopen is ten journeys, and alone on a
+  # runner it still ran past 45 minutes (issue #522: Oct 23 and Oct 24). On the
+  # Chromebook every reload costs about four minutes (the dev server's modules
+  # come over the slowed network) and the journeys reload fifteen times. Run
+  # 39954965481 (Oct 23), in minutes: inprogress 6, submitted 1, pristine 0.3,
+  # corrupt 21 (five reloads), cycles 0.6, bridge 6, and bridge-corrupt (five
+  # reloads, 4.4 each) was cancelled in its third. So they run as four jobs
+  # with 45 minutes each, about 14, 21, 22 and 22 of work (the last was timed
+  # on a development machine: no CI run has got as far as the server journeys).
+  # `only` is the driver's ONLY list, and tests/platform/nightlyWarmupShards.test.mjs
+  # keeps every journey in exactly one job.
   teacher-nightly-warmup:
+    name: teacher-nightly-warmup (${{ matrix.shard.name }})
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard:
+          - { name: reopen, only: "inprogress,submitted,pristine,cycles,bridge" }
+          - { name: bad-drafts, only: "corrupt" }
+          - { name: bad-board-drafts, only: "bridge-corrupt" }
+          - { name: server, only: "server-expired,server-attempted,server-correct" }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with: { browser: "true" }
       - name: Start the teacher harness
@@ -247,6 +302,7 @@ jobs:
       - name: Warm-Up close and reopen, throttled Chromebook (nightly and on demand)
         env:
           PLAYWRIGHT_MODULE: playwright
+          ONLY: ${{ matrix.shard.only }}
         run: node tests/browser/teacherWorkflow/warmupReopenJourneys.mjs --slow
 
   teacher-nightly-held-recovery:
@@ -254,7 +310,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with: { browser: "true" }
       - name: Start the teacher harness
@@ -272,7 +328,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with: { browser: "true" }
       - name: Start the teacher harness
@@ -291,7 +347,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with: { browser: "true" }
       - name: Start the teacher harness
@@ -311,7 +367,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with: { browser: "true" }
       - name: Start the teacher harness
@@ -334,7 +390,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with: { browser: "true" }
       - name: Start the teacher harness
@@ -353,7 +409,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with: { browser: "true" }
       - name: Start the teacher harness
@@ -375,7 +431,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with: { browser: "true" }
       - name: Start the teacher harness
@@ -403,7 +459,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with: { browser: "true" }
       - name: Start the teacher harness
@@ -425,6 +481,14 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           VIEWPORTS: "1366x768,390x844"
         run: node tests/browser/teacherWorkflow/studentScreenChange.mjs
+      # NV14: a Recovery, Corrections, a Test review and a practice test each
+      # keep the student's place through Back, Forward and a reload.
+      - name: Back and a reload inside Recovery, Corrections, a Test review and Tests & Exams
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          VIEWPORTS: "1366x768,390x844"
+        run: node tests/browser/teacherWorkflow/innerScreenBackJourneys.mjs
 
   # The student journeys on the plain dev server, in two jobs (one runner took
   # 17 minutes for them all).
@@ -432,7 +496,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with: { browser: "true" }
       - name: Start the student harness server
@@ -467,6 +531,14 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/feedbackTeaches.mjs
+      # After a miss, "Show a hint" opens the hint under the miss and the page
+      # keeps Check in view (FB10), at 1366x768 and 390x844.
+      - name: A hint opens where the student asked for it
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/feedbackTeachesHintPlace.mjs
       # Read aloud says the whole question (choices, matrices, parts heard
       # again) and Translate shows Spanish or says why not (student pass 3, batch 6).
       - name: Read aloud and Translate (heard and seen)
@@ -494,7 +566,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with: { browser: "true" }
       - name: Start the student harness server
@@ -515,12 +587,12 @@ jobs:
         run: node tests/browser/lmrProcessMode.mjs
 
   # Student pass 3's journeys in the real App. Their own job: the teacher job
-  # is near its limit. About 6 minutes locally.
+  # is near its limit. About 7 minutes locally.
   pass3-student-journeys:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with: { browser: "true" }
       - name: Start the teacher harness
@@ -562,3 +634,8 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5189"
         run: node tests/browser/teacherWorkflow/askMyTeacherJourneys.mjs
+      - name: Review's Practice Passes switch, saved and reopened, on a desktop and a phone
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/practicePassSwitchJourneys.mjs

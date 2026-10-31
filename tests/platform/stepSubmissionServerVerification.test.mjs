@@ -186,7 +186,7 @@ const rejectedPayload = (s, move) => ({
   stepWork: equationStepWork({ action: STEP_ACTIONS.REJECTED_MOVE, before: s.equation, move, supportLevel: 3 }),
 });
 
-const rewritePayload = (s, after, kind = 'student-rewrite', label = 'Rewrite / simplify right') => ({
+const rewritePayload = (s, after, kind = 'student-rewrite', label = 'Simplified the right side') => ({
   stepGrade: equationRewriteStepGrade({ kind, label, supportLevel: 3, before: s.equation, after, question: s.workspaceQuestion }),
   countsAttempt: false,
   statePatch: equationStatePatch({ equation: after, supportLevel: 3, stepNumber: Number(s.browser.algebraState?.stepNumber || 0) + 1 }),
@@ -457,10 +457,10 @@ test('an honest solve that outgrows the server\'s budget keeps the browser\'s re
   s.equation = ninth.after;
   const simplified = { ...s.equation, left: '3 x + 5', right: '20' };
   const rewrite = {
-    stepGrade: equationRewriteStepGrade({ kind: 'student-rewrite', label: 'Rewrite / simplify left and right', supportLevel: LEVEL, before: s.equation, after: simplified, question: LINEAR }),
+    stepGrade: equationRewriteStepGrade({ kind: 'student-rewrite', label: 'Simplified the left and right sides', supportLevel: LEVEL, before: s.equation, after: simplified, question: LINEAR }),
     countsAttempt: false,
     statePatch: equationStatePatch({ equation: simplified, supportLevel: LEVEL, stepNumber: Number(s.browser.algebraState?.stepNumber || 0) + 1 }),
-    stepWork: equationStepWork({ action: STEP_ACTIONS.REWRITE, kind: 'student-rewrite', label: 'Rewrite / simplify left and right', before: s.equation, after: simplified, supportLevel: LEVEL }),
+    stepWork: equationStepWork({ action: STEP_ACTIONS.REWRITE, kind: 'student-rewrite', label: 'Simplified the left and right sides', before: s.equation, after: simplified, supportLevel: LEVEL }),
   };
   sanitizedStep(rewrite, 'simplifying the long state');
   s.equation = simplified;

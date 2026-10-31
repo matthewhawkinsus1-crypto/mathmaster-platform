@@ -78,6 +78,22 @@
   font-weight: 800;
 }
 
+/* "Learning goal" in the heading's row on an upright phone (PH03): between the
+   label and Minimize, with no top margin of its own (the chip is drawn with
+   `margin: 8px 0 0` for the row under the task). A row too short for all three
+   wraps the chip below, as it sat before. */
+.mathmaster-question-container.mode-portrait .question-prompt-heading {
+  flex-wrap: wrap;
+}
+
+.mathmaster-question-container.mode-portrait .question-prompt-heading .mathmaster-heading-meta {
+  min-width: 0;
+}
+
+.mathmaster-question-container.mode-portrait .question-prompt-heading .mathmaster-heading-meta > * {
+  margin: 0 !important;
+}
+
 .mathmaster-question-container .prompt-body {
   margin-top: 6px;
   font-size: clamp(0.8rem, calc(2.5vw * var(--mm-text-scale, 1)), 1rem);
@@ -266,8 +282,66 @@
     flex: 0 0 auto;
   }
 
+  /* AN OPEN SUPPORT PANEL GETS THE ROOM IT NEEDS (PH09, finding C2-103).
+     Vocabulary, Translate and "Say it" open inside this card, which is capped at
+     a quarter of the screen (211px at 844) for the task's own text. The open
+     Vocabulary list is 320px: 23px of it showed, the rest behind a scroll in a
+     scroll. While a panel is open the card may take up to 60% of the screen,
+     so the student reads it; the work gets its room back when it is closed. */
+  .mathmaster-question-container.mode-portrait .question-prompt-panel:has(.mathmaster-support-tray [role="region"]) {
+    max-height: 60dvh;
+  }
+
+  /* A CARD THAT SCROLLS SAYS SO (PH09, finding D-63).
+     A long task, or large text, is more than the card's quarter of the screen;
+     the card scrolls, and Vocabulary and Read aloud, the last thing in it, sat
+     below the fold of a box with nothing to say it scrolls. A soft edge on the
+     side that has more: the two `local` layers are covers that scroll with the
+     content and hide the shadow once the end is reached, the two `scroll`
+     layers are the shadows, fixed to the card. A card that fits shows neither.
+     (The compaction of the rows around it, PH03, took the card from scrolling
+     on 11 of 14 matrices questions at 390x844 to 2.) */
+  .mathmaster-question-container.mode-portrait .question-prompt-panel {
+    background:
+      linear-gradient(to bottom, var(--mm-surface-sunken), transparent) top center / 100% 20px no-repeat local,
+      linear-gradient(to top, var(--mm-surface-sunken), transparent) bottom center / 100% 20px no-repeat local,
+      linear-gradient(to bottom, color-mix(in srgb, var(--mm-text-strong) 28%, transparent), transparent) top center / 100% 10px no-repeat scroll,
+      linear-gradient(to top, color-mix(in srgb, var(--mm-text-strong) 28%, transparent), transparent) bottom center / 100% 10px no-repeat scroll,
+      var(--mm-surface-sunken);
+  }
+
   .mathmaster-question-container.mode-portrait .mathmaster-question-context-panel {
     flex: 0 0 auto;
+  }
+
+  /* THE TRIES AND THE GRADE WEIGHT SHARE A ROW (PH03).
+     "3 of 3 tries left" was a full-width pill (41px) and "Grade weight ×1.5"
+     a row under it (34px), each with 12px under it: 99px of an 844px screen
+     before the work, on most weighted items. Each is a short phrase; side by
+     side they are one row of 34px. Anything else the panel holds (the one-try
+     line, the exit ticket line, a formula anchor, the scaffold) keeps its own
+     full row. */
+  .mathmaster-question-container.mode-portrait .mathmaster-question-context-panel:has(> *) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 6px 8px;
+    padding: 6px 8px 4px;
+  }
+
+  .mathmaster-question-container.mode-portrait .mathmaster-question-context-panel > * {
+    flex: 1 1 100%;
+  }
+
+  .mathmaster-question-container.mode-portrait .mathmaster-question-context-panel > .mathmaster-question-attempt-strip,
+  .mathmaster-question-container.mode-portrait .mathmaster-question-context-panel > [data-grade-weight] {
+    flex: 0 1 auto;
+    margin: 0 !important;
+  }
+
+  .mathmaster-question-container.mode-portrait .mathmaster-question-context-panel > .mathmaster-question-attempt-strip {
+    padding: 6px 14px;
   }
 
   .mathmaster-question-container.mode-portrait .math-tool-workspace {
@@ -450,6 +524,57 @@
     }
 
     .mathmaster-question-container.mode-portrait .portrait-action-bar .mathmaster-action-label.mathmaster-action-label--kept {
+      position: static;
+      width: auto;
+      height: auto;
+      overflow: visible;
+      clip: auto;
+      font-size: calc(10 * var(--mm-px));
+      line-height: 1;
+    }
+  }
+
+  /* FIVE TOOLS OR MORE: ONE ROW TOO (PH03).
+     A tool question has no Submit in the bar (its own Check is in the work),
+     so the six tools a student with Hint and Read aloud has — Undo, Reset,
+     Scratchpad, Calculator, Hint, Read — kept their words and wrapped to two
+     rows: 111px of an 844px screen, 50px of them the work's. Counting the
+     tools is the only way to know the words will not fit, so a bar of five or
+     more shows the icons alone on a phone, as it does beside Submit and below
+     385px; each keeps its name as its accessible label, and Undo and Reset
+     their caption (A11Y-10). A bar of four keeps its words. A bar WITH Submit
+     or Next is left to its own rules above: its tools narrow to 36px so the
+     primary action keeps its words, and a 44px floor here would take that
+     back. */
+  @media (max-width: 600px) {
+    .mathmaster-question-container.mode-portrait .portrait-action-bar:not([data-has-primary="true"]):has(> .mathmaster-work-bar-tool:nth-child(5)) {
+      flex-wrap: nowrap;
+    }
+
+    .mathmaster-question-container.mode-portrait .portrait-action-bar:not([data-has-primary="true"]):has(> .mathmaster-work-bar-tool:nth-child(5)) > .mathmaster-work-bar-tool {
+      min-width: 44px;
+    }
+
+    .mathmaster-question-container.mode-portrait .portrait-action-bar:not([data-has-primary="true"]):has(> .mathmaster-work-bar-tool:nth-child(5)) .mathmaster-action-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+
+    .mathmaster-question-container.mode-portrait .portrait-action-bar:not([data-has-primary="true"]):has(> .mathmaster-work-bar-tool:nth-child(5)) .mathmaster-work-bar-tool:has(> .mathmaster-action-label--kept),
+    .mathmaster-question-container.mode-portrait .portrait-action-bar:not([data-has-primary="true"]):has(> .mathmaster-work-bar-tool:nth-child(5)) .mathmaster-universal-undo {
+      display: flex;
+      align-items: center;
+      flex-direction: column;
+      justify-content: center;
+      gap: 1px;
+      line-height: 1;
+    }
+
+    .mathmaster-question-container.mode-portrait .portrait-action-bar:not([data-has-primary="true"]):has(> .mathmaster-work-bar-tool:nth-child(5)) .mathmaster-action-label.mathmaster-action-label--kept {
       position: static;
       width: auto;
       height: auto;

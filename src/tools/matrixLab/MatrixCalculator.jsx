@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import MatrixGrid from '../../components/common/MatrixGrid.jsx';
+import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { nextCalculatorHistory } from './matrixCalculatorDisplay.js';
 import { CALCULATOR_ERROR_TEXT, dimensionsOf, formatDecimal, formatRational, parseMatrix, runCalculator } from './matrixLabMath.js';
 import { buttonStyle, choiceStyle } from './matrixLabUi.jsx';
 import { spokenMathValue } from '../shared/spokenMathValue.js';
@@ -47,14 +49,23 @@ const dimsText = (cells) => {
   return `${rows} × ${cols}`;
 };
 
-export default function MatrixCalculator({ left, right, operations = [], onRun, title = 'Matrix calculator' }) {
-  const [result, setResult] = useState(null);
+export default function MatrixCalculator({ left, right, operations = [], onRun, title = 'Matrix calculator', historyKey = 'calculatorHistory' }) {
+  // The commands the student ran, newest first (TL26). Their results stay on
+  // screen side by side, so A⁻¹ is still there beside X, and they come back
+  // after a reload. Only the commands are kept: each result is worked out
+  // again from the matrices as they are now, so none outlives its matrix.
+  const [history, setHistory] = usePersistentToolState(historyKey, []);
   const [view, setView] = useState('fraction');
   if (!operations.length || !left) return null;
+  const available = (operation) => Boolean(OPERATION_LABEL[operation]) && operations.includes(operation) && (operation === 'inverse' || Boolean(right));
+  const [result, ...earlier] = (Array.isArray(history) ? history : []).filter(available).map((operation) => ({
+    operation,
+    label: OPERATION_LABEL[operation](left.name, right?.name),
+    ...runCalculator(operation, left.cells, right?.cells),
+  }));
   const run = (operation) => {
     const outcome = runCalculator(operation, left.cells, right?.cells);
-    const label = OPERATION_LABEL[operation](left.name, right?.name);
-    setResult({ label, operation, ...outcome });
+    setHistory((current) => nextCalculatorHistory(current, operation));
     onRun?.(operation, outcome);
   };
   const format = view === 'decimal' ? (value) => formatDecimal(value, 4) : formatRational;
@@ -72,8 +83,10 @@ export default function MatrixCalculator({ left, right, operations = [], onRun, 
         ))}
       </div>
       <div aria-live="polite" style={{ marginTop: 12, minHeight: 48 }}>
+        {/* One live region: the error inside it was also role="status", a
+            second region, so it was read twice (TL26). */}
         {result?.error ? (
-          <div role="status" style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontWeight: 800, color: 'var(--mm-error-text)', fontSize: 'calc(16 * var(--mm-px))' }}>
+          <div style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontWeight: 800, color: 'var(--mm-error-text)', fontSize: 'calc(16 * var(--mm-px))' }}>
             <span aria-hidden="true">{result.label}</span><span style={SR_ONLY_STYLE}>{spokenOperation(result.label)}</span>: {CALCULATOR_ERROR_TEXT[result.error]}
             <div style={{ fontFamily: 'inherit', fontWeight: 600, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginTop: 4 }}>{ERROR_EXPLANATION[result.error]}</div>
           </div>
@@ -89,6 +102,26 @@ export default function MatrixCalculator({ left, right, operations = [], onRun, 
           </div>
         ) : null}
       </div>
+      {/* Earlier results, outside the live region: shown, not read again. */}
+      {earlier.length ? (
+        <div data-matrix-calculator-history="true" style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--mm-border)' }}>
+          <p style={{ margin: '0 0 6px', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text-muted)' }}>Earlier results</p>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            {earlier.map((entry) => (
+              <div key={entry.operation} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontWeight: 700 }}>
+                  <span aria-hidden="true">{entry.label} =</span><span style={SR_ONLY_STYLE}>{spokenOperation(entry.label)} equals</span>
+                </span>
+                {entry.value ? (
+                  <MatrixGrid showName={false} rows={entry.value.map((row) => row.map(format))} ariaLabel={`Earlier result ${spokenOperation(entry.label)}`} fontSize={15} />
+                ) : (
+                  <span style={{ fontFamily: 'ui-monospace, Menlo, monospace', color: 'var(--mm-error-text)' }}>{CALCULATOR_ERROR_TEXT[entry.error]}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

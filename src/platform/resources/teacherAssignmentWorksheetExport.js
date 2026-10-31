@@ -11,16 +11,19 @@ import { projectCurrentAssignmentContent } from '../assignments/currentContentPr
 import { buildAssignmentWorksheetModel, PRINT_OUTPUT_MODES } from './assignmentWorksheetPdfModel.js';
 import { buildStudentFamilyContext } from '../generation/familyDelivery.js';
 import { formatStudentLabel } from '../studentName.js';
+import { EXIT_TICKET_SPELLED_OUT } from '../student/studentWords.js';
 import { studentOmittedIndices } from '../../../functions/shared/reducedWorkload.mjs';
 
 import { assignmentNeedsStudentForWorksheet, eligibleStudentsForTeacherWorksheet } from './teacherWorksheetEligibility.js';
 
 export { assignmentNeedsStudentForWorksheet, eligibleStudentsForTeacherWorksheet };
 
+// The student's section names (D9, studentWords.js): a printed worksheet goes
+// to students, so its exit ticket is spelled out as everywhere else (NV13).
 const activityTitleForRole = (role) => ({
   warmup: 'Warm-Up',
   classwork: 'Classwork',
-  dol: 'DOL',
+  dol: EXIT_TICKET_SPELLED_OUT,
   practice: 'Practice',
   quiz: 'Quiz',
   test: 'Unit Test',

@@ -77,12 +77,18 @@ unbound name.
 
 **Placeholders** — `{{name}}` anywhere in any string, at any depth. Filters:
 
-| Written | With `b = -4` | Use it for |
+| Written | With `b = -4` (or the value named) | Use it for |
 |---|---|---|
 | `{{b}}` | `-4` | plain substitution |
 | `{{b\|signed}}` | `- 4` | `y = 3x {{b\|signed}}` → `y = 3x - 4`, never `+ -4` |
 | `{{b\|abs}}` | `4` | when the sign is written separately |
 | `{{b\|paren}}` | `(-4)` | `3 \times {{b\|paren}}` → `3 × (-4)` |
+| `{{m\|coef}}` | `-` (`m = -1`), nothing (`m = 1`) | `{{m\|coef}}x` → `-x`, `x`, never `1x` |
+| `{{b\|term}}` | `- 4` (nothing when `b = 0`) | `x {{b\|term}}` → `x - 4`, never `x + 0` |
+| `{{b\|xterm}}` | `- 4x` (nothing when `b = 0`) | a signed x-term that vanishes at 0 |
+| `{{n\|pow}}` | `^{-4}` (nothing when `n = 1`) | `x{{n\|pow}}` → `x^3`, `x`, never `x^{1}` |
+| `{{h\|xshift}}`, `{{k\|yshift}}` | `(x - 3)`, bare `x` / `y` at 0 | `{{h\|xshift}}^2` → `(x - 3)^2`, `x^2`, never `(x )^2` |
+| `{{n\|plural}}` | `s` (nothing when `n` is 1 or -1) | `{{n}} unit{{n\|plural}}` → `1 unit`, `3 units`, never `1 units` |
 
 A string that is **only** a placeholder keeps the value's type, so
 `"expected": "{{rate}}"` is the number `7`, not the string `"7"`.

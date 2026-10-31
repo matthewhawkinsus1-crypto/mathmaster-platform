@@ -13,7 +13,9 @@
  *               first move (src/platform/supports/families)
  *   tool        built from the tool's own structure where no family reads it:
  *               Matrix Lab and the three-variable Systems Workspace
- *               (toolBackUpSteps.js; the owner, 2026-10-20, W7-5 decision 1)
+ *               (toolBackUpSteps.js; the owner, 2026-10-20, W7-5 decision 1),
+ *               then Transformations Lab, figure match, graph-choice preview
+ *               and Representation Match (W7 decision 15)
  *   platform    a generic re-orientation question for the type
  *
  * ONLY A STEP WRITTEN FOR THIS PROBLEM IS SHOWN (pass 3, HELP-19). The

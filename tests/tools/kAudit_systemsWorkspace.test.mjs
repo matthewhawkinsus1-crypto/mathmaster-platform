@@ -751,7 +751,8 @@ const auditAlgebraic = (question, vars, label) => {
   const augmentedRank = rank(rows);
   const truth = augmentedRank > coefficientRank ? 'none' : coefficientRank < vars.length ? 'infinite' : 'one';
   if (truth !== 'one' && vars.length === 3 && question.method !== 'elimination') {
-    assert.equal(model, null, `${label}: a nonunique 3×3 outside elimination is not graded`);
+    // Graded since TL11, but the worked review follows elimination only: no review, never a guess.
+    assert.equal(model, null, `${label}: a nonunique 3×3 outside elimination has no worked review`);
     return truth;
   }
   assert.ok(model, `${label}: a review`);

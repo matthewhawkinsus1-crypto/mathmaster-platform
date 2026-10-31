@@ -12,6 +12,7 @@
  * column headings. Pure, so the tool validator, the tools and their tests read
  * one rule.
  */
+import { say, sayFigure } from '../../platform/language/figureSay.js';
 
 export const AXIS_LABEL_MAX_LENGTH = 60;
 
@@ -31,15 +32,27 @@ export const questionAxisLabels = (question = {}) => {
   return x || y ? { x, y } : null;
 };
 
+/** The axis sentences by message id, in English (../../platform/language/packs/esFigures.js: Spanish). */
+export const AXIS_TITLE_WORDS = Object.freeze({
+  xAxisShows: (quantity) => `The horizontal x-axis shows ${quantity}.`,
+  yAxisShows: (quantity) => `The vertical y-axis shows ${quantity}.`,
+});
+
+/**
+ * The same sentences as messages (AX05): Read aloud says them in the reader's
+ * language. The quantity is the item's own words, said as the axis shows it.
+ */
+export const axisTitleSay = ({ x = '', y = '' } = {}) => [
+  x ? say('xAxisShows', x) : null,
+  y ? say('yAxisShows', y) : null,
+].filter(Boolean);
+
 /**
  * What a screen reader and Read Aloud hear about the axes, ahead of the
  * plane's own description. The visible captions are hidden from assistive
  * technology so the axes are not read twice.
  */
-export const axisTitleSentence = ({ x = '', y = '' } = {}) => [
-  x ? `The horizontal x-axis shows ${x}.` : '',
-  y ? `The vertical y-axis shows ${y}.` : '',
-].filter(Boolean).join(' ');
+export const axisTitleSentence = (titles = {}) => sayFigure(axisTitleSay(titles), AXIS_TITLE_WORDS, { english: true });
 
 /**
  * Problems with a question's authored axis labels, worded for the teacher. A

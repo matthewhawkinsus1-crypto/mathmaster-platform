@@ -123,6 +123,18 @@ test('claimed elapsed and wall clock cannot improve the server-observed tier', (
   assert.ok(honest - manipulated <= MAX_CAPTURE_TRANSPORT_MS);
 });
 
+test('a claim from before GO is not a claim: the server-observed arrival decides (LC06)', () => {
+  // Nobody answers before the question is shown. Read as "0 ms", such a claim
+  // took the whole transport allowance on every answer.
+  const timing = { arrivedAtMs: 100_400, startsAtMs: 100_000, totalMs: 45_000 };
+  assert.equal(authoritativeElapsed({ ...timing, humanElapsedMs: -1 }), 400);
+  assert.equal(authoritativeElapsed({ ...timing, humanElapsedMs: -5_000 }), 400);
+  // A claim at or after GO keeps the certified allowance, as before.
+  assert.equal(authoritativeElapsed({ ...timing, humanElapsedMs: 0 }), 0);
+  assert.equal(authoritativeElapsed({ ...timing, humanElapsedMs: 150 }), 150);
+  assert.equal(authoritativeElapsed({ arrivedAtMs: 118_000, startsAtMs: 100_000, totalMs: 45_000, humanElapsedMs: -1 }), 18_000);
+});
+
 test('authoritative lifecycle has only real phases and permits forward transitions', () => {
   assert.equal(challengePhaseAt({ status: 'lobby' }, 100), 'lobby');
   assert.equal(challengePhaseAt({ status: 'running', startsAtMs: 150, roundEndsAtMs: 200 }, 100), 'countdown');

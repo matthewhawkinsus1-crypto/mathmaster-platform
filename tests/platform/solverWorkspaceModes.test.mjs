@@ -86,7 +86,7 @@ test('MobileViewport hides task and normal action bars during enlarged or focus 
   assert.match(source, /!workspaceActive && \(\s*<div (?:ref=\{[^}]*\}\s*)?className=\{`mathmaster-desktop-question-anchor/);
   assert.match(source, /!workspaceActive && !isMobile && \(workBar \|\| actionButtons\)/);
   assert.match(source, /!workspaceActive && isMobile && !isLandscape && \(actionButtons \|\| workBar\)/);
-  assert.match(source, /<main className="math-tool-workspace">[\s\S]*key="math-tool-workspace"/,
+  assert.match(source, /<div ref=\{workspaceRef\} className="math-tool-workspace" role=\{hostHasMain \? undefined : 'main'\}>[\s\S]*key="math-tool-workspace"/,
     'the mathematical workspace remains one stable child while responsive chrome changes');
   assert.match(source, /!workspaceActive && \(\s*<section className="question-prompt-panel"/);
   assert.match(source, /solver-workspace-active/);

@@ -1,13 +1,22 @@
 # Keyboard sweep — student tools (WCAG 2.1.1 Keyboard, 2.4.7 Focus Visible)
 
-Audit date: 2026-10-07. Re-runnable: `tests/browser/keyboardSweep.mjs` (an audit,
-not a gate; always exits 0). Nothing in application source was changed.
+Audit date: 2026-10-07 (the legacy question types were added 2026-10-24, and the
+whole sweep was re-run on 2026-10-25 on a host that carries the assignment
+screen's navigator and a way on: see
+[Legacy question types](#legacy-question-types-ci09-2026-10-24) and
+[The assignment-shell host](#the-assignment-shell-host-2026-10-25)). Re-runnable:
+`tests/browser/keyboardSweep.mjs` (an audit that always exits 0, unless run with
+`--gate`, which no workflow does). Nothing in application source was changed for
+the 2026-10-07 audit.
 
 ```
 npx vite --host 127.0.0.1 --port 5499 --strictPort &
-AUDIT_ORIGIN=http://127.0.0.1:5499 node tests/browser/keyboardSweep.mjs              # 24 tools + extra modes
+AUDIT_ORIGIN=http://127.0.0.1:5499 node tests/browser/keyboardSweep.mjs              # 24 tools + extra modes + 21 legacy question types
 AUDIT_ORIGIN=http://127.0.0.1:5499 node tests/browser/keyboardSweep.mjs --host=bare  # without the assignment-screen wrapper
+AUDIT_ORIGIN=http://127.0.0.1:5499 node tests/browser/keyboardSweep.mjs --no-shell   # the wrapper alone, as the 2026-10-07 and 2026-10-24 runs had it
 #   --tool=<id> | --tool=<id>:<variant>   one scene      --extras-only / --no-extras
+#   --legacy-only / --no-legacy           only / without the 21 legacy question-type scenes
+#   --gate                                judge the report, exit 1 if a scene breaks a criterion
 #   --out=<name>                          write report-<name>.json instead of report.json
 ```
 
@@ -62,9 +71,12 @@ per-tool sweep (job A's files).
   plus 7 extra scenes for tools whose modes are different interfaces
   (Systems Workspace inequality builder / algebraic board / augmented matrix /
   3D three-plane view, Transformations Lab parameter matching, Sequence Explorer
-  full bridge, Mapping Diagram coordinate plot). 31 scenes in all.
+  full bridge, Mapping Diagram coordinate plot). 31 scenes in all (the 2026-10-07
+  run; the sweep has since gained scenes, and 33 ran on 2026-10-24).
   Legacy question types outside the registry (StepByStepAlgebra, GraphAxisEditor,
-  the graders in `src/*.jsx`) are **not** covered.
+  the graders in `src/*.jsx`) were **not** covered then; 21 scenes cover them since
+  2026-10-24, reported in their own section below. Every number in this section and
+  in Counts is the 2026-10-07 run, registry tools only.
 * **Surface.** `tests/browser/keyboardSweep.html` mounts the tool through
   `QuestionEngine` exactly as `workViewCertificationMain.jsx` does, inside the
   same `mathmaster-assignment-screen` wrapper App.jsx uses, with both
@@ -110,7 +122,13 @@ per-tool sweep (job A's files).
   typed into. Results are quoted per tool below.
 * **Not measured:** screen-reader output, contrast of focus rings (2.4.11/2.4.13
   appearance), touch, other viewports, tools' other modes beyond the scenes
-  listed, teacher surfaces.
+  listed. Teacher surfaces are not swept either; 46 of their scenes (every
+  destination of the navigation, and the dialogs over them) have a smaller
+  Tab walk of their own (`tests/browser/accessibilityKeyboardReach.mjs`, TT27: no
+  reverse walk, no popup probes, no keyed answers), counted into the
+  accessibility ratchet; two of their pop-ups (the ⋮ menu on an assignment card
+  and the class selector's list) are driven with real key presses by
+  `tests/browser/accessibilityTeacherMenus.mjs`. The VPAT's Notes row says which.
 
 ## Counts
 
@@ -154,6 +172,103 @@ in S9. S1–S4 and S7 hit every tool; S5 hits every tool on hosts other than the
 assignment screen; S6 hits the 9 call sites that let a student move a point;
 S8 and S9 are latent. **7 tool-specific gaps** (T1–T7: 2 block a mode, 1
 partial, 4 minor) plus a 6-site CSS watch list (T8).
+
+---
+
+## Legacy question types (CI09, 2026-10-24)
+
+QuestionEngine's type switch still mounts graders from `src/*.jsx` that are not
+in the tool registry. The sweep now mounts each of them with the authoring
+catalog's example of the type (`QUESTION_TYPE_CATALOG[type].example`) and puts it
+through the same seven steps as a registry tool: 21 scenes. StepByStepAlgebra's
+equation, relation and intercepts workspaces; the literal grader typed and on the
+balance; fraction, number line, system, table, ordered pair, multi-answer;
+graphing, function graph, function investigation, graph analysis; the
+relationship model typed and with the drag-the-cards axis editor
+(`GraphAxisEditor`); graph scenario match, graph comparison, graph story,
+context interpretation. A test (`tests/platform/keyboardSweepGate.test.mjs`)
+fails if a type the switch mounts has no scene.
+
+```
+AUDIT_ORIGIN=http://127.0.0.1:5499 node tests/browser/keyboardSweep.mjs --legacy-only --out=legacy         # about 18 minutes
+AUDIT_ORIGIN=http://127.0.0.1:5499 node tests/browser/keyboardSweep.mjs --legacy-only --out=legacy --gate  # and exit 1 if a scene fails
+```
+
+`--gate` judges every scene against hard criteria, each a failure of a success
+criterion the sweep measures directly: a trap forward or back (2.1.2), a control
+the keyboard cannot reach or operate, or a draggable one with no key route
+(2.1.1), a Tab stop with no visible focus (2.4.7) or one under a sticky bar
+(2.4.11), no accessible name (4.1.2), a dialog or panel that will not close, a
+modal that lets Tab out, focus thrown to `<body>` (2.4.3), a scene that did not
+run, mount or stay free of page errors, and an empty run. What stays a number to
+read: a plain disclosure that does not close (Read aloud's panel), a Check the
+generic probe could not satisfy, stops off screen. The criteria are in
+`tests/browser/support/keyboardSweepGate.mjs`.
+
+**It is not a CI gate, because it is not green.** When it was added (2026-10-24, on the assignment wrapper alone: no navigator, no way on from a closed question):
+
+| Run | Scenes | Tab stops | Scenes that break a criterion |
+| --- | --- | --- | --- |
+| Registry tools and their extra modes | 33 | 539 | **0** |
+| Legacy question types | 21 | 326 | **6** |
+
+Re-run on 2026-10-25 on the assignment-shell host ([below](#the-assignment-shell-host-2026-10-25)), with the one real gap of the four fixed:
+
+| Run | Scenes | Tab stops | Scenes that break a criterion |
+| --- | --- | --- | --- |
+| Registry tools and their extra modes | 33 | 535 | **0** |
+| Legacy question types | 21 | 326 | **2** |
+
+A job that runs the whole sweep would still be red from its first run, so no workflow runs it: what is left is the two scenes in the first row below, which read a resting state. The six legacy scenes of 2026-10-24, and what each was:
+
+| Scene | Breaks | What the sweep saw | Reading |
+| --- | --- | --- | --- |
+| `stepAlgebra:equation`, `literal:balance` | mouseOnly ×2 each | The LEFT SIDE and RIGHT SIDE boxes (`algebra-equation-box`, `StepByStepAlgebraCore.jsx`) have `onClick` and are not Tab stops | **Not a gap.** A side is a click target only while an operation tile is in hand (`tapPlacementOnSide` returns at once otherwise) and is `role="button"` with `tabIndex={0}` exactly then. The sweep reads the resting state. Still red on 2026-10-25, for the same reason. |
+| `numberLine:legacy` | noVisibleFocus ×1, focusHidden ×1 | The second Tab stop, "Show a hint" (`mathmaster-question-context-panel`), is entirely under the sticky task card when focused | **Not a gap in the app: the sweep's host had no navigator.** App.css starts the card where the navigator ends, so with none the card sat 86px below its place at scroll 0, over the question's first rows. In the real assignment screen nothing is covered: `assignmentChromeJourneys.mjs` `tabClear` walks this question with Tab and Shift+Tab, and goes red, with "Show a hint" and "Read a part" fully covered, when the scroll padding is taken out of `App.css`. The host now carries a navigator. Gate: passes. |
+| `functionInvestigation:legacy` | noVisibleFocus ×1, focusHidden ×1 | The "1. Construct Graph" stage tab is partly under the sticky task anchor (3 of 5 sampled points) | The same cause, the same fix. Gate: passes. |
+| `graphScenarioMatch:legacy` | noVisibleFocus ×1 | The "Scrollable scenario bank" region takes focus (`tabIndex={0}`, an outline is computed) and not one pixel changes | **A real gap, fixed.** The page's focus ring sits 2px outside a box and the bank around each pane is `overflow: hidden`, so the left, right and bottom of the ring were cut off. In the real screen a student saw one 3px line along the top edge; the sweep's host had that edge under the task card. The panes now draw the focus colour just inside their own edge (`data-focus-ring="own"`, `GraphScenarioMatch.css`), and `focusSafeToolControls.mjs` checks both panes at 1366×768 and 390×844 (CI09). Gate: passes. |
+| `graphComparison:legacy` | focusLost ×1 | After a keyboard Submit that completes the question ("Correct! This question is complete.") focus ends on `<body>` | **Not a gap in the app: the host gave the engine no way on.** When a Submit closes a question the engine moves focus to the work bar's Next or Continue (`QuestionEngine.jsx`, `useFocusReturnAfterLock.js`), and a student's assignment screen always hands it one (a teacher's preview of the last question has none): in the real screen focus lands on "Next question →", then on "Continue to Practice →". The host now hands it one too. Gate: passes. |
+
+So of the four gaps, **one was real (the pane ring) and is fixed; three were the sweep's host**, from two causes (no navigator, no way on). Graph Scenario Match's draggable graph cards are flagged by the sweep's `dragOnly` list; each holds a "Select this graph" button that does the same by key, so the gate judges the card by what is inside it, as it does a clickable wrapper. When the two state-dependent scenes are read properly, run the whole sweep with `--gate` and, if it is green, add it to `accessibility-certification.yml`.
+
+How far to trust the legacy scenes: the generic keyboard-only attempt (step 4)
+graded in 9 of the 21 (literal typed, fraction, number line, table, multi-answer,
+graphing, graph analysis, graph comparison, context interpretation). In the other
+12 (the three StepByStepAlgebra workspaces, literal on the balance, system,
+ordered pair, function graph, function investigation, the relationship model
+twice, graph scenario match, graph story) the probe pressed no Check: it cannot
+build those answers, so "a student can finish this by keyboard" is not shown for
+them. The walks, the popups, the handler audit, the focus rings and the names
+ran in all 21. Thirteen scenes also show a disclosure that stays open with no
+control to close it (Read aloud's panel, as in the registry run: 21 there); the
+gate does not count them.
+
+### The assignment-shell host (2026-10-25)
+
+The sweep mounts a tool through `QuestionEngine` inside the assignment screen's wrapper (`mathmaster-assignment-screen`), but the student's screen has two more things around a question, and the wrapper alone had neither:
+
+- **The navigator above the question.** App.css starts the sticky task card where the navigator ends (`--mm-assignment-nav-height`, published from the navigator's measured height, and 112px when nothing publishes it). With no navigator on the page the card sat 86px below its natural place at scroll 0 and covered the first rows of the question.
+- **A way on from a closed question:** Next, Continue to the next section or to the results, or back to a skipped question. The engine moves focus to it when a Submit closes the question; with none, focus fell to `<body>`.
+
+`?shell=assignment` (`tests/browser/keyboardSweepMain.jsx`) adds a stand-in for each: the navigator's own markup and classes, collapsed as it opens, with nothing focusable in it, publishing its height the way `App.jsx` does; and a way on that does nothing when pressed. The sweep passes it by default. `--no-shell` leaves it off and reproduces the 2026-10-24 numbers; `--host=bare` has neither the wrapper nor the shell. The other drivers that mount this page do not pass it and run as they did.
+
+Checked both ways on 2026-10-25:
+
+- Number Line and Graph Comparison fail the gate with `--no-shell` and pass without it; Function Investigation and Graph Scenario Match pass with the shell and the ring fix.
+- With the shell on, Graph Comparison goes red again when both of the engine's focus moves are taken out (the closed-question effect in `QuestionEngine.jsx` and `useFocusReturnAfterLock.js`; either one alone is enough to keep focus on the way on), so the sweep now watches that behaviour.
+- In the real app, `teacherWorkflow/assignmentChromeJourneys.mjs` `tabClear` walks a Number Line question with Tab and Shift+Tab and wants no stop of the question under the task card or the navigator; it goes red when `App.css`'s scroll padding is removed.
+
+### Target size (WCAG 2.2 2.5.8, 2026-10-25)
+
+Each scene's pointer targets are measured once, at load: every native control and ARIA widget in the tool, and anything that carries a pointer handler. The report holds `targetsMeasured`, `undersizedTargets` (under 24×24 CSS px), `undersizedBySpacing` (the spacing exception passes them) and `smallTargets` (the rest). It is read, never gated. What it reads, and what it leaves to a reviewer (an equivalent control elsewhere, a size that is essential), is written at the top of `tests/browser/support/targetSize.mjs`, with tests (`tests/platform/keyboardSweepTargetSize.test.mjs`).
+
+| Where | Scenes | Targets | Under 24px | Without room |
+| --- | --- | --- | --- | --- |
+| The sweep, 1366×768: registry tools and extra modes | 33 | 558 | 0 | **0** |
+| The sweep, 1366×768: legacy question types | 21 | 385 | 0 | **0** |
+| `studentShellLargeText.mjs --check=targetsize`: the student screens, 1366×768 and 390×844 (a phone) | 18 × 2 | 598 | 5 | **0** |
+
+The only target under 24px in any of them is the "Grade weight ×N" disclosure in the phone's navigator, 23.2px tall (0.8px short), with room around it. The screen driver is a step of the accessibility workflow; the sweep is not run by any workflow. Targets that appear after load (the calculator's keys, the Scratchpad, Work View's drawers, dialogs) are not measured.
 
 ---
 

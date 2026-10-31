@@ -28708,6 +28708,9 @@
             "min": 0,
             "max": 5
           }
+        },
+        "derived": {
+          "count": "cap - x + 1"
         }
       },
       "responseFields": [
@@ -28715,7 +28718,7 @@
           "id": "answer",
           "label": "Answer",
           "inputProfile": "number",
-          "expected": "{{cap}}-{{x}}+1"
+          "expected": "{{count}}"
         }
       ],
       "assessmentItemFormat": "studentProducedResponse"
@@ -39667,6 +39670,9 @@
             "min": 1,
             "max": 10
           }
+        },
+        "derived": {
+          "solution": "h + d"
         }
       },
       "responseFields": [
@@ -39674,7 +39680,7 @@
           "id": "answer",
           "label": "Answer",
           "inputProfile": "number",
-          "expected": "{{h}}+{{d}}"
+          "expected": "{{solution}}"
         }
       ],
       "assessmentItemFormat": "studentProducedResponse"

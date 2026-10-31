@@ -90,7 +90,7 @@ test('the final value is the student’s own simplified number — the workspace
 });
 
 test('substitution targets are the shared neutral drop targets: nothing is pre-highlighted, only the hovered variable responds', () => {
-  const reduce = region(reduction, "{phase === 'reduce' ? (", '{reduced ? (', 'reduce stage');
+  const reduce = region(reduction, "{phase === 'reduce' ? (", '{separated ? (', 'reduce stage');
   assert.match(reduce, /<VariableDropEquation/);
   assert.match(reduce, /tokenArmed=\{armedToken\?\.kind === 'substitution'\}/);
   assert.match(reduce, /attemptTargetSubstitution\(reduction, system, equation\.id, variable\)/);
@@ -102,7 +102,7 @@ test('substitution targets are the shared neutral drop targets: nothing is pre-h
 });
 
 test('the token stays available until every target has it, and progress names the count, not the move', () => {
-  const reduce = region(reduction, "{phase === 'reduce' ? (", '{reduced ? (', 'reduce stage');
+  const reduce = region(reduction, "{phase === 'reduce' ? (", '{separated ? (', 'reduce stage');
   assert.match(reduce, /targets\.some\(\(equation\) => !reduction\.targets\[equation\.id\]\) \? \(/);
   assert.match(reduce, /Reduced equations \{reducedCount\} of \{targets\.length\}/);
 });
@@ -144,22 +144,27 @@ test('in its subsystem role the 2×2 submits nothing, verifies nothing, and repo
 });
 
 test('a solved subsystem is known on the first render after a reload, from its own draft', () => {
-  assert.match(reduction, /return subsystemReportFromDraft\(readToolDraftRecord\(scopeContext\.draftKey, subsystemScope\)\);/);
+  // The reduced variables go with it: a statement the 2×2 earned by substitution is
+  // re-judged from what the student typed, which needs them (TL11).
+  assert.match(reduction, /return subsystemReportFromDraft\(readToolDraftRecord\(scopeContext\.draftKey, subsystemScope\), reduced\?\.variables\);/);
   assert.match(reduction, /if \(subsystemReport\?\.identity === reducedIdentity\) return subsystemReport\.report;/);
-  // Kept mounted once solved, so Undo can walk back into it.
-  assert.match(reduction, /<div className="mathmaster-reduction-subsystem" hidden=\{phase !== 'subsystem'\}>/);
+  // Kept mounted once solved (hidden, never removed), so Undo can walk back into it;
+  // and open while it holds the statement with no variable the interpretation is about.
+  assert.match(reduction, /<div className="mathmaster-reduction-subsystem" hidden=\{phase !== 'subsystem' && !subsystemState\?\.outcome\}>/);
 });
 
 /* ------------------------------------------------------------- Undo */
 
 test('Undo is most local first: open Step Algebra, then the subsystem while it is the frontier, then this round', () => {
   const undo = region(reduction, 'const compositeUndo = useMemo(() => {', '}, [', 'compositeUndo');
+  // The subsystem is the frontier while it is being solved, and — TL11 — while it holds a
+  // statement the student has not yet classified: after that the interpretation is undone first.
   const order = [
-    'if (embeddedUndoController?.canUndo) return embeddedUndoController;',
-    "if (phase === 'subsystem' && subsystemUndoController?.canUndo) return subsystemUndoController;",
-    'if (reducedSolution && !hasPostSubsystemWork && subsystemUndoController?.canUndo) return subsystemUndoController;',
-    'return historyController;',
-  ].map((line) => undo.indexOf(line));
+    /if \(embeddedUndoController\?\.canUndo\) return embeddedUndoController;/,
+    /if \(\(phase === 'subsystem' \|\| \(subsystemState\?\.outcome && !classified\)\) && subsystemUndoController\?\.canUndo\) return subsystemUndoController;/,
+    /if \(reducedSolution && !hasPostSubsystemWork && subsystemUndoController\?\.canUndo\) return subsystemUndoController;/,
+    /return historyController;/,
+  ].map((rule) => undo.search(rule));
   assert.ok(order.every((index) => index >= 0), `missing an Undo rule: ${JSON.stringify(order)}`);
   assert.deepEqual([...order].sort((a, b) => a - b), order, 'Undo rules out of order');
   assert.match(reduction, /useActiveUndoOwner\(\{ id: 'algebraic-reduction-composite', active: true, priority: 60, controller: compositeUndo \}\)/);
@@ -173,7 +178,9 @@ test('Undo is most local first: open Step Algebra, then the subsystem while it i
 
 test('the whole round is one draft-backed, repaired field; every useState is declared presentation', () => {
   const persistent = [...reduction.matchAll(/usePersistentToolState\(\s*'([^']+)'/g)].map((match) => match[1]);
-  assert.deepEqual(persistent, ['reduction']);
+  // The round, and — TL11 — the student's reading of a statement with no variable and how they
+  // say the planes meet. All draft-backed, none in useState.
+  assert.deepEqual(persistent, ['reduction', 'substitutionClassification', 'substitutionPlanes']);
   assert.match(reduction, /const reduction = useMemo\(\(\) => repairReductionState\(storedReduction, system\), \[storedReduction, system\]\);/);
   const contract = TOOL_STATE_PERSISTENCE.systemsWorkspace;
   assert.ok(contract.sources.includes('systemsWorkspace/SubstitutionReductionMode.jsx'));
@@ -201,7 +208,11 @@ test('verification is in all three ORIGINAL equations with the student’s own a
   assert.match(card, /system\.equations\.map\(\(equation\) =>/);
   assert.match(card, /simplifies to\s*<MathInput/);
   assert.match(card, /checkVerification\(state, system, solution, equation\.id\)/);
-  assert.match(reduction, /const readyToSubmit = phase === 'complete';/);
+  // Submit: a unique solution once it is verified; a statement with no variable once it is
+  // classified and the planes are stated (TL11). Never earlier, in either case.
+  const ready = reduction.match(/const readyToSubmit = ([^;]+);/)?.[1] || '';
+  assert.match(ready, /phase === 'complete'/);
+  assert.match(ready, /phase === 'classified' && planesEarned/);
 });
 
 test('one Work View host, originals always visible, and SubstitutionReductionMode itself never offers a method choice', () => {
@@ -211,6 +222,19 @@ test('one Work View host, originals always visible, and SubstitutionReductionMod
   assert.equal([...reduction.matchAll(/<EnlargeableFigure/g)].length, 1);
   assert.match(reduction, /<aside className="mathmaster-reduction-reference"[\s\S]*?system\.equations\.map/);
   assert.doesNotMatch(reduction, />Elimination</);
-  // An unsupported system reaches the student as an explanation, never a crash or a wrong grade.
-  assert.match(reduction, /const unsupported = answerKey\.type !== 'unique';/);
+  // A system the workspace cannot read reaches the student as an explanation, never a crash or a
+  // wrong grade. One that is dependent or inconsistent is worked and interpreted, not refused (TL11).
+  assert.match(reduction, /const unsupported = answerKey\.type === 'invalid';/);
+});
+
+// TL11 (re-examining "3×3 substitution with missing variables", C2-136): reduced rows that each hold one
+// different variable (y = 4, z = 3) leave the embedded 2×2 nothing to do and stranded the student there.
+test('rows that each hold one variable skip the 2×2 workflow: they are its solution, or the student is pointed back', () => {
+  assert.match(reduction, /const separated = useMemo\(\(\) => substitutionSeparatedReduction\(reduction, system\), \[reduction, system\]\);/);
+  // Their own values are what back-substitution then uses.
+  assert.match(reduction, /const reducedSolution = separated \? separated\.solution : \(subsystemState\?\.solution \|\| null\);/);
+  // The 2×2 that cannot run is not mounted, and what stands in for it says which of the two cases this is.
+  assert.match(reduction, /\{reduced && !separated \? \(/);
+  assert.match(reduction, /data-separated=\{separated\.solution \? 'solved' : 'stuck'\}/);
+  assert.match(reduction, /Use Undo to go back and isolate a different equation or variable/);
 });

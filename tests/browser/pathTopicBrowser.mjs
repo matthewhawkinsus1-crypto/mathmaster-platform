@@ -13,6 +13,8 @@
 // name their evidence. Every scene: no sideways scroll, tap targets >= 44px, no
 // console errors. Every non-localhost request is aborted, so nothing here can
 // reach Firestore or a real student.
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
+
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5215';
@@ -185,7 +187,7 @@ for (const view of VIEWPORTS) {
     if (scene.verify) (await page.evaluate(scene.verify)).forEach((problem) => problems.push(problem));
     console.log(`${problems.length ? 'FAIL' : 'ok  '} ${view.name.padEnd(7)} ${scene.as}${problems.length ? `\n     ${problems.join('\n     ')}` : ''}`);
     if (problems.length) failures.push({ view: view.name, scene: scene.as, problems });
-    await page.screenshot({ path: `${process.env.SHOT_DIR || '/tmp'}/pathTopicBrowser-${view.name}-${scene.as}.png`, fullPage: true });
+    await screenshotKeepingTouch(page, { path: `${process.env.SHOT_DIR || '/tmp'}/pathTopicBrowser-${view.name}-${scene.as}.png`, fullPage: true });
   }
   await context.close();
 }

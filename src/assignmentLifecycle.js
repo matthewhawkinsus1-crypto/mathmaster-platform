@@ -12,9 +12,13 @@ import { projectCurrentAssignmentContent } from './platform/assignments/currentC
 import {
   CLASS_PERIODS as SHARED_CLASS_PERIODS,
   DEFAULT_CLASS_SCHEDULE as SHARED_DEFAULT_CLASS_SCHEDULE,
+  dayTypeOnDate,
+  dayTypeSetAtOf,
   normalizeSchedule as normalizeSharedSchedule,
+  periodsEndedBy,
   resolvePeriodWindow as resolveSharedPeriodWindow,
   resolveScheduleDayType as resolveSharedScheduleDayType,
+  withDayTypeSetAt,
 } from '../functions/shared/classSchedule.mjs';
 import {
   MANUALLY_CONTROLLABLE_SECTION_ROLES as SHARED_MANUAL_SECTION_ROLES,
@@ -455,14 +459,57 @@ export const getWarmupInstructionDateKey = (assignment, classPeriod = null, clas
 
 export const getScheduleDayType = (scheduleValue, nowValue = Date.now()) => resolveSharedScheduleDayType(scheduleValue, nowValue);
 
-export const setScheduleDayTypeOverride = (scheduleValue, dateValue, dayType) => {
+export const setScheduleDayTypeOverride = (scheduleValue, dateValue, dayType, { at = Date.now() } = {}) => {
   const schedule = normalizeSchedule(scheduleValue);
   const dateKey = localDateKey(dateValue);
   const nextOverrides = { ...schedule.dayTypeOverrides };
   const normalized = String(dayType || '').toUpperCase();
   if (normalized === 'A' || normalized === 'B') nextOverrides[dateKey] = normalized;
   else delete nextOverrides[dateKey];
-  return { ...schedule, dayTypeOverrides: nextOverrides };
+  const next = { ...schedule, dayTypeOverrides: nextOverrides };
+  // When the date's A/B day changed, for the picker's notice before the save;
+  // the save stamps it again with the server's clock (withDayTypeSetAt, TC01).
+  return dayTypeOnDate(schedule, dateKey) === dayTypeOnDate(next, dateKey)
+    ? next
+    : { ...next, dayTypeSetAt: { ...schedule.dayTypeSetAt, [dateKey]: at } };
+};
+
+// The saved schedule's stamps, for the save (functions/shared/classSchedule.mjs).
+export { withDayTypeSetAt };
+
+const periodList = (periods) => (periods.length <= 2
+  ? periods.join(' and ')
+  : `${periods.slice(0, -1).join(', ')} and ${periods[periods.length - 1]}`);
+
+/**
+ * What the A/B day picker says when today's A/B day is chosen after some of
+ * its periods have ended (the owner, 2026-10-23, TC01). A Test set for today
+ * in such a period was never open, so it waits for a new Test day instead of
+ * marking the class missed (testCycleAvailability.mjs resolveClassWindows) —
+ * the teacher is told here, before saving. Null when nothing has ended, or the
+ * day's A/B day was set before its periods ended, or today has special times.
+ */
+export const lateDayTypeNotice = ({ schedule: scheduleValue, nowValue = Date.now(), classPeriods = CLASS_PERIODS } = {}) => {
+  const schedule = normalizeSchedule(scheduleValue);
+  const now = nowValue instanceof Date ? nowValue.getTime() : Number(nowValue);
+  const dayType = getScheduleDayType(schedule, now).dayType;
+  const shown = (periods) => periods.filter((period) => classPeriods.includes(period));
+  if (!dayType) {
+    const endedA = periodsEndedBy({ schedule, dayType: 'A', nowValue: now });
+    const endedB = periodsEndedBy({ schedule, dayType: 'B', nowValue: now });
+    const ended = shown(CLASS_PERIODS.filter((period) => endedA.includes(period) || endedB.includes(period)));
+    if (!ended.length) return null;
+    return ended.length === 1
+      ? `${ended[0]} has already ended today. If you set today's A/B day now, a Test set for today in that period was never open and will need a new Test day.`
+      : `${periodList(ended)} have already ended today. If you set today's A/B day now, a Test set for today in those periods was never open and will need a new Test day.`;
+  }
+  const setAt = dayTypeSetAtOf(schedule, localDateKey(now));
+  if (setAt === null) return null;
+  const ended = shown(periodsEndedBy({ schedule, dayType, nowValue: now, at: setAt }));
+  if (!ended.length) return null;
+  return ended.length === 1
+    ? `${ended[0]} had already ended when today was set to ${dayType} Day. A Test set for today in that period was never open, so it needs a new Test day.`
+    : `${periodList(ended)} had already ended when today was set to ${dayType} Day. A Test set for today in those periods was never open, so it needs a new Test day.`;
 };
 
 export const getPeriodWindow = (scheduleValue, classPeriod, nowValue = Date.now()) => {
@@ -843,13 +890,50 @@ export const evaluateClassworkCompletion = ({ assignment, assignmentTracker, act
   });
 };
 
+// A quiz or a test opens at its release date for the whole class (RT17): a
+// met prerequisite opens a lesson early, never an assessment. (Legacy data
+// only: no writer sets prerequisiteAssignmentId today.)
+const ASSESSMENT_KINDS = new Set(['quiz', 'test']);
+const opensAtReleaseForEveryone = (assignment) => (
+  ASSESSMENT_KINDS.has(String(assignment?.assignmentType || '').trim().toLowerCase())
+  || assignment?.assessmentPolicy?.mode === 'testCycle'
+  || projectCurrentAssignmentContent(assignment).entries.some((entry) => ASSESSMENT_KINDS.has(entry.logicalRole))
+);
+
+/**
+ * Whether some students can be in this lesson before its release (TT28): a
+ * lesson with a prerequisite opens early for each student who met it
+ * (prerequisiteAccess below), except an assessment, which opens at release
+ * for everyone.
+ */
+export const opensEarlyByPrerequisite = (assignment) => (
+  Boolean(assignment?.prerequisiteAssignmentId) && !opensAtReleaseForEveryone(assignment)
+);
+
+/**
+ * Before release, the Classwork/Practice state the students who opened the
+ * lesson early work under, for the teacher's own control (TT28): the same
+ * rule, read as a student whose prerequisite is met. The class's override is
+ * what those students get now and the whole class gets at release, and the
+ * server reads the same override (submissionEnvelope.mjs resolveLiveSectionAccess).
+ */
+export const earlySectionAccessState = ({ assignment, activityRole, classId = null, classPeriod = null, nowValue = Date.now() }) => getSectionAccessState({
+  assignment,
+  activityRole,
+  classId,
+  classPeriod,
+  nowValue,
+  classworkGradesByAssignment: { [assignment?.prerequisiteAssignmentId]: { score: 100 } },
+});
+
 export const prerequisiteAccess = ({ assignment, classworkGradesByAssignment = {}, nowValue = Date.now() }) => {
   const prerequisiteId = assignment?.prerequisiteAssignmentId;
   const releaseAt = getAssignmentDate(assignment, 'release');
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
   if (!prerequisiteId) return { open: !releaseAt || now >= releaseAt, reason: releaseAt && now < releaseAt ? 'scheduled' : 'open' };
   const met = Number(classworkGradesByAssignment?.[prerequisiteId]?.score) === 100;
-  if (met) return { open: true, reason: 'prerequisiteMet' };
+  if (met && !opensAtReleaseForEveryone(assignment)) return { open: true, reason: 'prerequisiteMet' };
+  if (met) return { open: !releaseAt || now >= releaseAt, reason: releaseAt && now < releaseAt ? 'scheduled' : 'open' };
   if (releaseAt && now >= releaseAt) return { open: true, reason: 'automaticRelease' };
   return { open: false, reason: 'prerequisiteRequired', prerequisiteId, releaseAt };
 };

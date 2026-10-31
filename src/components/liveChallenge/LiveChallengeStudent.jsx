@@ -1,19 +1,20 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BACK_TO_HOME } from '../../platform/student/studentWords.js';
 import QuestionEngineView from '../../QuestionEngine.jsx';
 import useActionBarFocusReveal from '../common/useActionBarFocusReveal.js';
-import { publicLeaderboard, LIVE_PROVISIONAL_MAX_POINTS } from '../../../functions/shared/liveChallenge.mjs';
+import { publicLeaderboard } from '../../../functions/shared/liveChallenge.mjs';
 import { acceptChallengeSnapshot, calibrateChallengeClock, challengePhaseAt, monotonicRoundOrigin } from '../../../functions/shared/liveChallengeParity.mjs';
-import { getScoringStrategy, leaderboardOptionsFor, SCORE_ACCUMULATION } from '../../../functions/shared/liveChallengeScoring.mjs';
+import { getScoringStrategy, leaderboardOptionsFor, provisionalWorth, SCORE_ACCUMULATION } from '../../../functions/shared/liveChallengeScoring.mjs';
 import { PROJECTION_KIND, standingsFromProjection } from '../../../functions/shared/liveChallengeStandingsProjection.mjs';
 import { summaryFinal, summaryRound, summaryUnansweredRounds } from '../../../functions/shared/liveChallengePlayerSummary.mjs';
 import { calculateStepPartialCredit, emptyQuestionRecord, recordQuestionStep } from '../../attemptPolicy.js';
 import { hasMeaningfulRawPathResponse, questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
-import { CHALLENGE_STAGE, GO_FLASH_MS, QUESTION_SET_GAME, personalRoundClock, questionSetGameOf, studentGuidance } from '../../platform/liveChallenge/challengeShellModel.js';
+import { CHALLENGE_STAGE, GO_FLASH_MS, LOCKED_WAIT_NOTICE_MS, QUESTION_SET_GAME, lockedAnswerLine, personalRoundClock, questionSetGameOf, roundBannerBackground, studentGuidance } from '../../platform/liveChallenge/challengeShellModel.js';
 import { speakAloud, speechAvailable, stopSpeaking } from '../../platform/language/speechText.js';
 import { projectionBoardRows, rewardSummaryLines, roundResultsView, scorePresentation, standingsRows } from '../../platform/liveChallenge/challengeStandingsModel.js';
 import { readLastSeenRound, roundsClosedWhileAway, seenRoundOf, missedRoundsNotice, writeLastSeenRound } from '../../platform/liveChallenge/challengeMissedRounds.js';
-import { normalizeMatchRecap, recapHighlights } from '../../platform/liveChallenge/challengeRecapModel.js';
+import { normalizeMatchRecap, recapHighlights, withOwnAnswers } from '../../platform/liveChallenge/challengeRecapModel.js';
+import { keepOwnAnswer, recallOwnAnswers } from '../../platform/liveChallenge/challengeOwnAnswers.js';
 import { roomShowsFullStandings } from '../../../functions/shared/liveChallengePrivacy.mjs';
 import { roomFullRoundMs, storedTimeMultiplier } from '../../../functions/shared/liveChallengeAccommodations.mjs';
 import { resolveSupportEntitlements } from '../../../functions/shared/supportEntitlements.mjs';
@@ -21,6 +22,7 @@ import { useChallengeClock, usePreviousRoundSummary, useRoundSolution, useRoundS
 import { SOLUTION_STATE, roundSolutionState, solutionRevealed } from '../../platform/liveChallenge/challengeSolutionModel.js';
 import { studentConnectionState } from '../../platform/liveChallenge/challengePresenceModel.js';
 import { REFUSAL_OUTCOME, classifyAnswerRefusal, resendAtGoDelayMs } from '../../platform/liveChallenge/challengeAnswerRefusal.js';
+import { timerFromRoom } from '../../../functions/shared/liveChallengeTimer.mjs';
 import LiveChallengeFieldQuestion from './LiveChallengeFieldQuestion.jsx';
 import { ChallengeCountdown, ChallengeShellStyles, Confetti, ConnectionPill } from './ChallengeShellParts.jsx';
 import { StudentFinalCard, StudentGuidance, StudentLobbyCard, StudentMatchRecap, StudentRoundResultsCard } from './ChallengeStudentShell.jsx';
@@ -71,6 +73,11 @@ const formatClock = (milliseconds) => {
 // The server's answer to this device's locked response, kept for the round so
 // a refresh shows the result instead of reopening a question already answered.
 const challengeResultKey = (roomId, roundIndex, roundVersion) => `live-challenge-result-${roomId}-${roundIndex}-${roundVersion || 0}`;
+// The device's storage for a student's own answers in the recap (LC19). A
+// browser that refuses it (a private window) shows a recap without answers.
+const ownAnswerStorage = () => {
+  try { return window.localStorage; } catch { return null; }
+};
 const readStoredJson = (key) => {
   if (!key) return null;
   try { return JSON.parse(window.localStorage.getItem(key) || 'null'); } catch { return null; }
@@ -118,6 +125,10 @@ function QuestionEngine(props) {
       assignmentLocked={assignmentLocked}
       assignmentLockedMessage={assignmentLockedMessage}
       draftKey={draftKey}
+      // A race: a graphing item gets the scientific keypad, never the
+      // graphing calculator's listed zeros (LC13; My Math Path and Recovery
+      // keep it).
+      graphingCalculatorAllowed={false}
       serverGrading={pathToolId === undefined ? undefined : { pathToolId, submit: handlers.submit }}
       onResponseStateChange={handlers.onResponseStateChange}
       onStepGrade={handlers.onStepGrade}
@@ -160,6 +171,10 @@ export function ChallengeRound({
   persistResult = false,
   // What a live round says comes next (its results); a rehearsal keeps its own words.
   liveShell = false,
+  // Told, once the server has confirmed an answer THIS device sent, what was
+  // asked and what was sent, so the screen can keep the answer for the recap
+  // (LC19). A rehearsal passes none and keeps nothing.
+  onOwnAnswer = null,
 }) {
   const question = room.currentQuestion;
   const roundIndex = Number(room.currentRound) || 0;
@@ -192,6 +207,9 @@ export function ChallengeRound({
   // accepts nothing more for it.
   const roundClosed = room.roundState === 'closed';
   const expired = roundClosed || (endsAtMs > 0 && remainingMs <= 0);
+  // Still waiting on the round's results well past this student's deadline:
+  // the server's sweep is closing it (LC20, challengeShellModel.js).
+  const lockedLong = !roundClosed && endsAtMs > 0 && elapsedMs - personalClock.durationMs >= LOCKED_WAIT_NOTICE_MS;
   const urgent = !expired && remainingMs <= 10000;
   const resultKey = persistResult ? challengeResultKey(room.roomId, roundIndex, room.roundVersion) : null;
   const [result, setResult] = useState(() => readStoredJson(resultKey));
@@ -218,14 +236,32 @@ export function ChallengeRound({
   // A locked answer the server refused because it arrived before GO, waiting
   // to be sent again at GO (holdForGo, below).
   const [waitingForGo, setWaitingForGo] = useState(false);
+  // A locked answer the server refused because the teacher had paused the
+  // round (LC06). Kept, and sent again when the round resumes.
+  const [waitingForResume, setWaitingForResume] = useState(false);
+  const roundPaused = Boolean(timerFromRoom(room || {}).pausedAtMs);
+  // This student pressed Lock In on a field question in this mount, so that
+  // question moved focus to its "Your answer is locked in." note, which a
+  // screen reader reads (AX21). The line under the round must not say it again.
+  const [lockNoteHasFocus, setLockNoteHasFocus] = useState(false);
   const resendTimerRef = useRef(null);
   const resendsAtGoRef = useRef(0);
   const latestRetryRef = useRef(null);
   const [stepRecord, setStepRecord] = useState(() => emptyQuestionRecord());
   const stepRecordRef = useRef(stepRecord);
+  // What this work is worth in THIS round, by the room's own scoring (LC01):
+  // a replay round or a Correct Count game pays nothing for work not yet
+  // answered, so none is shown or reported. The server applies the same rule
+  // to whatever a device reports, and the board only ever shows the server's.
+  const scoringStrategyId = room.scoringStrategyId || null;
+  const replayRound = room.secondChanceOf != null;
   const workingPoints = useMemo(
-    () => Math.round((LIVE_PROVISIONAL_MAX_POINTS * clampPercent(calculateStepPartialCredit(stepRecord.stepGrades, stepRecord.variantIndex))) / 100),
-    [stepRecord],
+    () => provisionalWorth({
+      strategyId: scoringStrategyId,
+      credit: clampPercent(calculateStepPartialCredit(stepRecord.stepGrades, stepRecord.variantIndex)) / 100,
+      secondChance: replayRound,
+    }),
+    [stepRecord, scoringStrategyId, replayRound],
   );
   const secureQuestion = useMemo(
     () => questionFromToolPayload(question),
@@ -247,6 +283,7 @@ export function ChallengeRound({
     resultRef.current = stored;
     setAlreadyRecorded(false);
     setSubmitError('');
+    setLockNoteHasFocus(false);
     const fresh = emptyQuestionRecord();
     roundOriginMonoRef.current = monotonicRoundOrigin({
       monotonicNow: performance.now(),
@@ -280,6 +317,10 @@ export function ChallengeRound({
   // The same lock and messages for each way a round can already be over for
   // this student.
   const settle = (grading) => {
+    // The envelope this device sent: its payload is what the server graded.
+    // Read before it is cleared, and only here — an answer the server already
+    // held from another device (settleAsAlreadyRecorded) is not this payload.
+    const sent = pendingRef.current;
     setResult(grading);
     resultRef.current = grading;
     writeStoredJson(resultKey, grading);
@@ -287,6 +328,7 @@ export function ChallengeRound({
     pendingRef.current = null;
     window.localStorage.removeItem(pendingKey);
     onResult?.(grading);
+    if (sent?.responsePayload) onOwnAnswer?.({ roundIndex: sent.roundIndex, question, responsePayload: sent.responsePayload });
   };
   const settleAsAlreadyRecorded = () => {
     // The server refused a second answer for this round: the first one is
@@ -323,6 +365,16 @@ export function ChallengeRound({
   };
   useEffect(() => () => window.clearTimeout(resendTimerRef.current), []);
 
+  const holdForResume = () => {
+    setSubmitError('');
+    setWaitingForResume(true);
+  };
+  useEffect(() => {
+    if (!waitingForResume || roundPaused || !pending || result) return;
+    setWaitingForResume(false);
+    latestRetryRef.current?.();
+  }, [waitingForResume, roundPaused, pending, result]);
+
   const reportedRef = useRef('');
   useEffect(() => {
     if (result || answeredOnServer || expired || !room?.roomId) return undefined;
@@ -346,6 +398,8 @@ export function ChallengeRound({
     if (resultRef.current || pendingRef.current || submissionLockRef.current || answeredOnServerRef.current || (!atRoundEnd && expired) || !roundStarted) return null;
     submissionLockRef.current = true;
     setSubmitError('');
+    // Only a field question has that note; an engine question's lock is said by the line below.
+    if (!secureQuestion) setLockNoteHasFocus(true);
     const submissionId = globalThis.crypto?.randomUUID?.() || `submission-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const capture = {
       roomId: room.roomId,
@@ -384,6 +438,7 @@ export function ChallengeRound({
       const outcome = classifyAnswerRefusal(error);
       if (outcome === REFUSAL_OUTCOME.ALREADY_RECORDED) settleAsAlreadyRecorded();
       else if (outcome === REFUSAL_OUTCOME.RETRY_AT_GO) holdForGo();
+      else if (outcome === REFUSAL_OUTCOME.PAUSED) holdForResume();
       else {
         console.error('Live Challenge answer was not submitted:', error);
         setSubmitError(studentErrorSentence(error, 'Your answer could not be submitted.'));
@@ -426,6 +481,7 @@ export function ChallengeRound({
       const outcome = classifyAnswerRefusal(error);
       if (outcome === REFUSAL_OUTCOME.ALREADY_RECORDED) settleAsAlreadyRecorded();
       else if (outcome === REFUSAL_OUTCOME.RETRY_AT_GO) holdForGo();
+      else if (outcome === REFUSAL_OUTCOME.PAUSED) holdForResume();
       else if (outcome === REFUSAL_OUTCOME.CLOSED) {
         setPending(null);
         pendingRef.current = null;
@@ -462,6 +518,9 @@ export function ChallengeRound({
   const answerRecorded = Boolean(result) || answeredOnServer || alreadyRecorded;
   const locked = answerRecorded || Boolean(pending);
   const perRoundScoring = getScoringStrategy(result?.scoringStrategyId || room.scoringStrategyId).accumulation === SCORE_ACCUMULATION.PER_ROUND;
+  const lockedLine = pending && !result
+    ? lockedAnswerLine({ waitingForGo, waitingForResume, noteHasFocus: lockNoteHasFocus })
+    : null;
 
   return (
     <div style={{ display: 'grid', gap: 14 }}>
@@ -472,7 +531,7 @@ export function ChallengeRound({
           gap: 10,
           padding: '14px 17px',
           borderRadius: 14,
-          background: urgent ? 'linear-gradient(135deg,#7f1d1d,#a50e0e)' : 'linear-gradient(135deg,#174ea6,#1a73e8)',
+          background: roundBannerBackground(urgent),
           color: '#fff',
           transition: 'background .5s',
           boxShadow: '0 2px 10px rgba(23,78,166,.25)',
@@ -541,8 +600,10 @@ export function ChallengeRound({
 
       <div style={{ position: 'relative' }}>
       {/* 3 · 2 · 1 off the round's authoritative start (this device's
-          monotonic anchor of it). The question stays mounted — so GO shows
-          it at once — but unseen until then; GO never blocks a tap. */}
+          monotonic anchor of it). The question is mounted only at GO (SI08):
+          until then it is not in the page at all, so neither the inspector
+          nor a screen reader can read it during the countdown. An empty box
+          keeps the countdown's size; GO never blocks a tap. */}
       {(!roundStarted || elapsedMs < GO_FLASH_MS) && (
         <div data-mm-round-countdown={roundStarted ? 'go' : 'counting'} style={{ position: 'absolute', inset: 0, zIndex: 2, display: 'grid', placeItems: 'center', borderRadius: 14, pointerEvents: roundStarted ? 'none' : 'auto', background: roundStarted ? 'transparent' : 'radial-gradient(120% 90% at 50% 0%, #22325a 0%, #141a2b 100%)', minHeight: 220 }}>
           <ChallengeCountdown
@@ -552,7 +613,8 @@ export function ChallengeRound({
           />
         </div>
       )}
-      <div style={{ visibility: roundStarted ? 'visible' : 'hidden' }}>
+      {!roundStarted ? <div aria-hidden="true" data-mm-question-at-go="1" style={{ minHeight: 220 }} /> : (
+      <div>
       {secureQuestion ? (
         <section style={{ background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', borderRadius: 14, border: '1px solid var(--mm-border)', overflow: 'hidden' }}>
           <QuestionEngine
@@ -596,14 +658,21 @@ export function ChallengeRound({
         <LiveChallengeFieldQuestion question={question} disabled={locked || expired || !roundStarted} onSubmit={submit} />
       )}
       </div>
+      )}
       </div>
 
-      {pending && !result && <div aria-live="assertive" style={{ padding: 12, borderRadius: 9, background: '#17365f', color: '#dbeafe', fontWeight: 900 }}>{waitingForGo ? 'Your answer is locked in and will send at GO.' : 'Answer locked in · checking it…'}</div>}
+      {lockedLine && (
+        // A new node when it starts to be announced: a live region speaks what
+        // is added to it, not an attribute switched on beside new words.
+        <div key={lockedLine.announce ? 'announced' : 'quiet'} data-mm-lock-line={lockedLine.announce ? 'announced' : 'quiet'} aria-live={lockedLine.announce ? 'assertive' : undefined} style={{ padding: 12, borderRadius: 9, background: '#17365f', color: '#dbeafe', fontWeight: 900 }}>{lockedLine.text}</div>
+      )}
 
       {submitError && <div role="alert" style={{ padding: 11, borderRadius: 9, background: '#4a3708', color: '#ffe9a8', border: '1px solid #f9ab00' }}>{submitError}</div>}
       {pending && !result && <button type="button" onClick={retryPending}>Retry locked answer</button>}
       {!result && !pending && (answeredOnServer || alreadyRecorded) && <div aria-live="polite" style={{ padding: 12, borderRadius: 9, background: '#17365f', color: '#dbeafe', fontWeight: 900 }}>{liveShell ? 'Your answer for this round is recorded. The results show when the round ends.' : 'Your answer for this round is recorded. Wait for your teacher to start the next round.'}</div>}
-      {expired && !answerRecorded && <div aria-live="polite" style={{ padding: 15, borderRadius: 11, background: 'rgba(255,255,255,.08)', color: '#eef1f6', border: '1px solid rgba(255,255,255,.16)', fontWeight: 900 }}>{liveShell ? 'Time is up! The results are coming.' : 'Time is up. Wait for your teacher to start the next round.'}</div>}
+      {expired && !answerRecorded && <div aria-live="polite" style={{ padding: 15, borderRadius: 11, background: 'rgba(255,255,255,.08)', color: '#eef1f6', border: '1px solid rgba(255,255,255,.16)', fontWeight: 900 }}>{liveShell
+        ? (lockedLong ? 'Time is up. Still counting everyone’s answers — this can take up to a minute. Keep this screen open.' : 'Time is up! The results are coming.')
+        : 'Time is up. Wait for your teacher to start the next round.'}</div>}
       {liveShell && result && !expired && <div aria-live="polite" data-mm-finished-early="1" style={{ padding: 12, borderRadius: 9, background: '#17365f', color: '#dbeafe', fontWeight: 900 }}>Round complete for you — waiting for the others. The results show when the round ends.</div>}
       {result && (
         <section aria-live="polite" style={{ padding: 16, borderRadius: 12, background: result.isCorrect ? 'var(--mm-success-bg)' : 'var(--mm-warning-soft)', color: result.isCorrect ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', textAlign: 'left' }}>
@@ -994,6 +1063,18 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   // each boundary (a countdown step, the start, the deadline) — not on a timer.
   const stageClock = useChallengeClock(room, clock.offsetMs);
   const stage = stageClock.stage;
+  // LC20: a round left locked LOCKED_WAIT_NOTICE_MS past its deadline is
+  // waiting on the server's sweep; the guidance then says it can take a
+  // minute. One timer from the deadline, since the stage itself does not tick.
+  const [lockedLongAtStage, setLockedLongAtStage] = useState(false);
+  const lockedRoundEndsAtMs = stage === CHALLENGE_STAGE.ROUND_LOCKED ? timestampMillis(room?.roundEndsAt) : 0;
+  useEffect(() => {
+    setLockedLongAtStage(false);
+    if (!lockedRoundEndsAtMs) return undefined;
+    const wait = Math.max(0, lockedRoundEndsAtMs + LOCKED_WAIT_NOTICE_MS - (Date.now() + clock.offsetMs));
+    const timer = window.setTimeout(() => setLockedLongAtStage(true), wait);
+    return () => window.clearTimeout(timer);
+  }, [lockedRoundEndsAtMs, clock.offsetMs]);
   useEffect(() => {
     if (room?.status !== 'running' || stage !== CHALLENGE_STAGE.ROUND_ACTIVE) return undefined;
     collectLaunchEvent('game_mounted', room);
@@ -1133,6 +1214,23 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
     return () => { cancelled = true; };
   }, [roomId, room?.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // THEIR OWN ANSWERS (LC19). The server keeps a verdict, not what was typed,
+  // so this device keeps the answers it sent (challengeOwnAnswers.js) and the
+  // recap shows them beside the rounds they belong to — this student's only.
+  // Counted when an answer is kept, so a last answer confirmed after the recap
+  // arrived (the room can finish a moment before this device's own reply) still
+  // reaches it.
+  const [ownAnswersKept, setOwnAnswersKept] = useState(0);
+  const keepAnswerHere = useCallback(({ roundIndex, question, responsePayload }) => {
+    const kept = keepOwnAnswer({ storage: ownAnswerStorage(), studentId, roomId, roundIndex, question, responsePayload });
+    if (kept && mountedRef.current) setOwnAnswersKept((count) => count + 1);
+  }, [studentId, roomId]);
+  const recapWithAnswers = useMemo(
+    () => withOwnAnswers(recap, recallOwnAnswers({ storage: ownAnswerStorage(), studentId, roomId })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [recap, studentId, roomId, ownAnswersKept],
+  );
+
   // READ ALOUD, for a student whose support plan grants text-to-speech, on a
   // browser that can speak.
   const readAloud = useMemo(
@@ -1165,7 +1263,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   const clockReady = clock.sampleCount > 0 || clock.quality === 'degraded';
   const roundOpen = room.status === 'running' && room.roundState !== 'closed';
   const roundIndex = Number(room.currentRound) || 0;
-  const guidance = studentGuidance({ room, stage, joinedAtRound });
+  const guidance = studentGuidance({ room, stage, joinedAtRound, lockedForMs: lockedLongAtStage ? LOCKED_WAIT_NOTICE_MS : 0 });
   const connection = studentConnectionState({ online, fromCache: roomFromCache, everInSync });
   // The header: the student's own score from their own row (it moves the
   // moment their answer lands). Never their place: a rank in the corner of
@@ -1265,6 +1363,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
               alias={invite.alias}
               onExit={onExit}
               exitLabel="Exit"
+              timeMultiplier={timeMultiplier}
             />
           </Suspense>
         )}
@@ -1278,6 +1377,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
             studentProfile={studentProfile}
             persistResult
             liveShell
+            onOwnAnswer={keepAnswerHere}
             timeMultiplier={timeMultiplier}
             readAloud={readAloud}
             beforeQuestion={(
@@ -1315,7 +1415,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
               room={room}
               lastRank={finalLastRank}
             />
-            <StudentMatchRecap recap={recap} />
+            <StudentMatchRecap recap={recapWithAnswers} />
             <button type="button" onClick={onExit} style={{ ...exitButton, justifySelf: 'center' }}>{exitLabel}</button>
           </div>
         )}

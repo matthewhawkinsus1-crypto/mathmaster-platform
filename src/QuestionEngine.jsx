@@ -26,18 +26,23 @@ import { SupportedTextActions } from './platform/supports/SupportedText.jsx';
 import MathText from './components/common/MathText.jsx';
 import { buildQuestionHints, diagnosisHint, hintLadderView, hintRelease } from './platform/supports/hints/questionHints.js';
 import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
+import { requestedHintPanelPlace, revealHintPanel } from './platform/supports/hints/hintPanelReveal.js';
 import { buildSimilarWorkedExample } from './platform/supports/workedExample/similarProblem.js';
 import PracticeLikeThis from './platform/supports/workedExample/PracticeLikeThis.jsx';
 import { chosenOptionReasons, oneTryNotice } from './platform/supports/feedback/oneTryChoice.js';
-import { SAME_ANSWER_AGAIN, missOutcomeText, submitActionLabel, submitTryCost, triesLeftText } from './platform/student/submitCost.js';
+import { SAME_ANSWER_AGAIN, focusOnText, missOutcomeText, submitActionLabel, submitTryCost, triesLeftText } from './platform/student/submitCost.js';
+import { LANGUAGE_TOOLS, START_OVER, START_QUESTION_OVER, STARTING_OVER } from './platform/student/studentWords.js';
 import './components/student/SubmitCost.css';
 import { closedQuestionEnterAction } from './platform/interaction/closedQuestionEnter.js';
+import { READ_ONLY_WORK_AREA_LABEL, READ_ONLY_WORK_AREA_SELECTOR, bindReadOnlyWorkArea } from './platform/interaction/readOnlyWorkArea.js';
+import { GRAPH_READ_OUT_SUPPORT_ID, GraphReadOutProvider, graphReadOutEntitled } from './platform/supports/graphReadOut.js';
 import { questionModuleFailureKey } from './platform/runtime/questionModuleFailureKey.js';
 import { practiceLikeThisOffered } from './platform/supports/workedExample/practiceLikeThis.js';
 import { buildPartReviewRows, closedQuestionHasReview } from './platform/supports/review/closedQuestionReview.js';
 import { closedAttemptText, feedbackOpenForItem, hintOfferedAfterMiss, missFeedback } from './platform/supports/feedback/attemptFeedbackPlan.js';
 import { attemptSupportUsageFrom, rememberSupportUse, restoredSupportUse } from './platform/supports/supportUseMemory.js';
 import { diagnoseMiss, displayFamilyValues } from './platform/supports/feedback/missDiagnosis.js';
+import { standardFormMultipleNote } from './platform/supports/feedback/standardFormMultipleNote.js';
 import { backUpStepFor, backUpStepWritten } from './platform/supports/feedback/backUpStep.js';
 import { partialCreditBreakdown } from './platform/supports/feedback/partialCreditBreakdown.js';
 import { displayGradingSurface } from './platform/grading/displayGradingSurface.js';
@@ -60,6 +65,7 @@ import MathDisplay from './MathDisplay';
 import { generateQuestion } from './problemGenerator';
 import { buildSupportUsage, getStudentSupportPresentation } from './studentSupport';
 import { quarantineQuestionDraftFamily, removeQuestionDraftFamily, resetQuestionDraftFamily } from './questionDraftStorage';
+import { graphingLinesKeyFor } from './components/calculator/graphingLineMemory.js';
 import CalculatorPanel from './components/CalculatorPanel';
 import ProblemUnderstandingPanel from './components/ProblemUnderstandingPanel';
 import MobileViewportContainer, { isMobileQuestionViewport } from './components/student/MobileViewportContainer';
@@ -71,6 +77,7 @@ import { buildRawPathResponse } from './platform/path/pathToolResponses';
 import { ToolRuntimeProvider } from './tools/shared/ToolRuntimeContext';
 import { createAttemptOutcomeSlots } from './tools/shared/attemptOutcomeSlots.js';
 import { createToolHintChannel } from './tools/shared/toolHintChannel.js';
+import { readableStoredResponseLatex } from './tools/graphing2/storedLineText.js';
 import { gradeRegistryToolWork, sharedVerdictWithholdsAttempt } from './platform/grading/registryToolGrading.js';
 import { attemptInputsFromGrading } from '../functions/shared/serverGrading/gradingResult.mjs';
 import { buildModelingLabResponse, gradeModelingLabEvaluation } from '../functions/shared/serverGrading/modelingLabGrading.mjs';
@@ -99,6 +106,7 @@ import { questionAssessmentFramework } from './platform/student/questionAlignmen
 import { normalizeQuestionStandards } from './questionMetadata';
 import ReferenceInfoCard from './ReferenceInfoCard';
 import { resolveReferenceInfo } from './referenceInfo';
+import { resolveReferenceSheet } from './platform/assessment/referenceSheets';
 import {
   getAttemptsRemaining,
   normalizeQuestionRecord,
@@ -113,6 +121,7 @@ import { WorkViewCapabilityProvider } from './platform/workView/workViewCapabili
 import { WorkViewUndoProvider } from './platform/workView/useMathUndoHistory.js';
 import { QuestionLifecycleProvider } from './platform/question/QuestionLifecycleContext.jsx';
 import { FigureReadingPortProvider, figureReadingEntries, updateFigureReadings } from './platform/language/figureReadings.js';
+import { loadFigureWords } from './platform/language/figureSay.js';
 import UniversalUndoButton from './components/common/UniversalUndoButton.jsx';
 import { toolSubmissionParts } from './tools/shared/toolSubmissionParts.js';
 import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
@@ -123,9 +132,11 @@ import { useActiveWorkTab } from './platform/persistence/activeWorkTab.js';
 import { pausedWorkNeedsRefresh, recordAttemptRevision } from './platform/persistence/pausedWorkRefresh.js';
 import { StudentSupportTray } from './components/student/StudentSupportTools.jsx';
 import { toolsEntitlementFromProfile } from './platform/language/supportToolsEntitlement.js';
+import { seenHelpText } from './platform/language/seenHelpText.js';
 import { useFocusReturnAfterLock } from './components/common/useFocusReturnAfterLock.js';
 import { speakAloud, speechAvailable } from './platform/language/speechText.js';
 import { backUpQuestionText, questionReadingParts, questionReadingText } from './platform/language/questionReading.js';
+import { KeypadConstantsProvider, keypadConstantsFor } from './platform/interaction/keypadConstants.js';
 
 // The graphing calculator (pass 3, PR-26) loads only for a question whose
 // calculator is graphing. If its chunk cannot load, the keypad drawer stands
@@ -136,6 +147,10 @@ const GraphingCalculatorUnavailable = ({ fallback = null, onUnavailable = null }
 };
 const AssignmentGraphingCalculator = lazy(() => import('./components/calculator/AssignmentGraphingCalculator.jsx')
   .catch(() => ({ default: GraphingCalculatorUnavailable })));
+// A question's reference sheet (TL07) loads only for a question that names one
+// the platform has, so every other question downloads nothing for it.
+const AssignmentReferenceSheet = lazy(() => import('./components/assessment/AssignmentReferenceSheet.jsx')
+  .catch(() => ({ default: () => null })));
 
 const WorkViewReadySignal = ({ span }) => {
   useEffect(() => {
@@ -274,6 +289,10 @@ function QuestionEngineBody({
   // engine draws no Calculator of its own, so a student sees one calculator,
   // not two (student pass 3, H-19).
   calculatorInToolbar = false,
+  // A speed game (Live Challenge, LC13): no graphing calculator, whose zeros,
+  // minimum and maximum would answer a round faster than the mathematics.
+  // A graphing item there gets the scientific keypad instead.
+  graphingCalculatorAllowed = true,
   assignmentId = null,
   executionScope = 'student',
   showStandardBadge = true,
@@ -319,9 +338,13 @@ function QuestionEngineBody({
   // caller filters to supports the student is entitled to and de-duplicates.
   // Student assignment work only; previews pass nothing.
   onSupportEvidence = null,
-  // Which language Support tools to offer, when the caller already knows
+  // Which Language tools to offer, when the caller already knows
   // (supportToolsEntitlement.js toolsEntitlementFromPath on My Math Path).
   supportEntitlement = null,
+  // The graph read-out (AX03), when the caller already knows (a secure item
+  // decides it from the student's own plan for a test). Null: from
+  // `studentProfile` for this activity.
+  graphReadOut: graphReadOutChoice = null,
   // Supplied by the QuestionEngine wrapper: prepare this question again from
   // scratch (a remount). Offered only for a failure a retry can clear.
   onResolutionRetry = null,
@@ -439,6 +462,8 @@ function QuestionEngineBody({
   );
   const questionGradeWeight = normalizeQuestionWeight(processedQuestion);
   const referenceInfo = useMemo(() => resolveReferenceInfo(processedQuestion), [processedQuestion]);
+  // The sheet this question offers from the work bar, if any (referenceSheets.js).
+  const referenceSheet = useMemo(() => resolveReferenceSheet(processedQuestion), [processedQuestion]);
   const presentationQuestion = useMemo(
     () => (referenceInfo ? { ...processedQuestion, suppressScenarioDisplay: true } : processedQuestion),
     [processedQuestion, referenceInfo],
@@ -533,8 +558,11 @@ function QuestionEngineBody({
   const enterFreshRef = useRef(null);
   const [questionResetVersion, setQuestionResetVersion] = useState(0);
   // How many times this question's module has been restarted from a fresh
-  // workspace after it failed to render (QuestionModuleBoundary). Once.
-  const [moduleRecoveries, setModuleRecoveries] = useState(0);
+  // workspace after it failed to render (QuestionModuleBoundary). Once per
+  // question, held with the draft it was spent on: an engine reused for the
+  // next question (My Math Path, MP12) gives that one its own fresh start.
+  const [moduleRecovery, setModuleRecovery] = useState({ draftKey: null, count: 0 });
+  const moduleRecoveries = moduleRecovery.draftKey === draftKey ? moduleRecovery.count : 0;
   // Which module failed to render (QuestionModuleBoundary): the boundary key
   // and question it failed under. See `moduleFailed` below.
   const [failedModule, setFailedModule] = useState(null);
@@ -591,11 +619,17 @@ function QuestionEngineBody({
   const [contextScaffoldUsed, setContextScaffoldUsed] = useState(false);
   const [calculatorUsed, setCalculatorUsed] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
+  const [referenceSheetOpen, setReferenceSheetOpen] = useState(false);
   const [hintUsed, setHintUsed] = useState(restoredSupport.hintUsed);
   // The platform Hint control: how many of this question's hints the student
   // has revealed, whether the panel is open, and the worked sibling problem.
   const [hintsRevealed, setHintsRevealed] = useState(restoredSupport.hintsRevealed);
   const [hintPanelOpen, setHintPanelOpen] = useState(false);
+  // WHERE THE PANEL IS (FB10): 'top' of the work area, where the 💡 control and
+  // the one-try notice open it, or 'results', directly under the miss a student
+  // pressed "Show a hint" in, so the hint appears where they clicked and the
+  // page stays put.
+  const [hintPanelPlace, setHintPanelPlace] = useState('top');
   // The hints the student read, as read (questionHints.js hintLadderView): a
   // tool's rungs can change with its stage, and a hint already read must not.
   const [revealedHintTexts, setRevealedHintTexts] = useState([]);
@@ -679,10 +713,26 @@ function QuestionEngineBody({
   );
   const supportItemKey = `${processedQuestion?.questionId ?? processedQuestion?.id ?? ''}|${record.variantIndex ?? 0}`;
   const reportToolEvidence = useCallback((evidence) => onSupportEvidenceRef.current?.(evidence), []);
+  // GRAPH READ-OUT (AX03): the full graph description while the question is
+  // open, from the student's own plan for this activity (graphReadOut.js). My
+  // Math Path decides supports on its server, whose list does not carry it:
+  // not there, rather than given without a record.
+  const graphReadOut = useMemo(
+    () => graphReadOutChoice ?? (supportEntitlement ? false : graphReadOutEntitled(stableStudentProfile, { activityRole })),
+    [graphReadOutChoice, supportEntitlement, stableStudentProfile, activityRole],
+  );
+  // Provided once per item, when a graph on it was read out in full.
+  const graphReadOutReportedRef = useRef('');
+  const reportGraphReadOut = useCallback(() => {
+    if (graphReadOutReportedRef.current === supportItemKey) return;
+    graphReadOutReportedRef.current = supportItemKey;
+    onSupportEvidenceRef.current?.({ supportId: GRAPH_READ_OUT_SUPPORT_ID, eventType: 'provided' });
+  }, [supportItemKey]);
   const supportTrayFor = (surface) => (languageTools.tools.length ? (
     <StudentSupportTray
       entitlement={languageTools}
       prompt={processedQuestion?.prompt || ''}
+      seenText={seenHelp}
       readingParts={readingParts}
       readingLanguage={readAloudLanguage}
       question={processedQuestion}
@@ -738,6 +788,7 @@ function QuestionEngineBody({
     setContextScaffoldUsed(false);
     setCalculatorUsed(false);
     setCalculatorOpen(false);
+    setReferenceSheetOpen(false);
     setHintUsed(restored.hintUsed);
     setHintsRevealed(restored.hintsRevealed);
     setRevealedHintTexts([]);
@@ -973,9 +1024,19 @@ function QuestionEngineBody({
   // cleared in the new-question effect: a module that throws as it first mounts
   // reports during the commit, before that effect, and would lose its panel.)
   const moduleFailed = failedModule !== null && failedModule.key === moduleFailureKey && failedModule.question === processedQuestion;
-  // The work area is read-only while the question is closed or waiting —
+  // The work area cannot be changed while the question is closed or waiting —
   // except when its module failed: then it holds only the failure panel.
   const workAreaClosed = !moduleFailed && Boolean(locked || scaffoldRequired || contextScaffoldRequired || submitting || pausedByAnotherTab);
+  // WAITING work is `inert`: a submit in flight, the "Let's back up" step over
+  // it, the question open in another tab. The student is meant to be
+  // elsewhere for a moment.
+  const workAreaInert = !moduleFailed && Boolean(scaffoldRequired || contextScaffoldRequired || submitting || pausedByAnotherTab);
+  // FINISHED work is read-only, not inert (AX01, Q-97): it stays in the
+  // accessibility tree, so a screen-reader student can review the graph and
+  // their own answers, and it stays locked — the disabled fieldset, and a
+  // guard that stops every key, press, paste and drop that could change it
+  // (readOnlyWorkArea.js).
+  const workAreaReadOnly = workAreaClosed && !workAreaInert;
   // The attempt strip at the top of the question states the lock reason where
   // the student lands. When it does, the notice below the tool would repeat the
   // same sentence (two copies of "This assignment is closed.").
@@ -1069,6 +1130,9 @@ function QuestionEngineBody({
   // verdict, then the worked solution, are next in reading order); otherwise
   // on the bar's Next / Continue. Only on the change: opening a question that
   // was already closed moves nothing, and a press or key in between wins.
+  // Focus a close left on the finished work (read-only now, not inert, so it
+  // is not dropped to <body>) is stranded there too: Enter there would belong
+  // to a box that can no longer be changed, not to the way on.
   useEffect(() => {
     const was = wasLockedRef.current;
     wasLockedRef.current = locked;
@@ -1083,7 +1147,8 @@ function QuestionEngineBody({
         frame = null;
         if (focusAuthority.generation !== ticket.generation || focusAuthority.interactions !== ticket.interactions) return;
         const active = document.activeElement;
-        const ours = !active || active === document.body || active === continueButtonRef.current || active === submitButtonRef.current;
+        const stranded = Boolean(active?.closest?.(READ_ONLY_WORK_AREA_SELECTOR) && questionEngineRef.current?.contains?.(active));
+        const ours = !active || active === document.body || active === continueButtonRef.current || active === submitButtonRef.current || stranded;
         if (!ours) return;
         const target = isExpired && showOutcomeFeedback && closedCardRef.current
           ? closedCardRef.current
@@ -1109,7 +1174,8 @@ function QuestionEngineBody({
   const markGraphingCalculatorFailed = useCallback(() => setGraphingCalculatorFailed(true), []);
   const graphingCalculatorOffered = Boolean(calculatorPolicy?.available)
     && calculatorPolicy.mode === CALCULATOR_MODES.GRAPHING
-    && !assessmentContext;
+    && !assessmentContext
+    && graphingCalculatorAllowed !== false;
   const calculatorShowsGraphing = graphingCalculatorOffered && !graphingCalculatorFailed;
   const calculatorName = calculatorShowsGraphing ? 'Graphing calculator' : 'Calculator';
   const calculatorUnavailableReason = calculatorPolicy?.reason || 'No calculator is allowed for this skill.';
@@ -1151,6 +1217,20 @@ function QuestionEngineBody({
   const [publishedFigures, setPublishedFigures] = useState([]);
   const publishFigureReading = useCallback((id, entry) => setPublishedFigures((current) => updateFigureReadings(current, id, entry)), []);
   const figureReadings = useMemo(() => figureReadingEntries(publishedFigures), [publishedFigures]);
+  // FIGURES IN THE READER'S LANGUAGE (AX05). Under an authored Spanish
+  // translation a figure is read in Spanish from the language's own figure
+  // words (figureSay.js), loaded only then; until they arrive, or for a
+  // figure they cannot say, it is read in English and the reader says so.
+  const [loadedFigureWords, setLoadedFigureWords] = useState(null);
+  useEffect(() => {
+    if (readAloudLanguage === 'en') return undefined;
+    let current = true;
+    loadFigureWords(readAloudLanguage)
+      .then((pack) => { if (current) setLoadedFigureWords({ language: readAloudLanguage, pack }); })
+      .catch(() => { /* not loaded: the figures are read in English, and say so */ });
+    return () => { current = false; };
+  }, [readAloudLanguage]);
+  const figurePack = loadedFigureWords?.language === readAloudLanguage ? loadedFigureWords.pack : null;
   const readingParts = useMemo(
     () => questionReadingParts(processedQuestion, {
       referenceInfo,
@@ -1158,8 +1238,9 @@ function QuestionEngineBody({
       stage: readingStage,
       language: readAloudLanguage,
       figures: figureReadings,
+      figurePack,
     }),
-    [processedQuestion, referenceInfo, scaffoldRequired, scaffold, readingStage, readAloudLanguage, figureReadings],
+    [processedQuestion, referenceInfo, scaffoldRequired, scaffold, readingStage, readAloudLanguage, figureReadings, figurePack],
   );
   const referenceSpeechText = useMemo(() => questionReadingText(readingParts), [readingParts]);
 
@@ -1674,7 +1755,7 @@ function QuestionEngineBody({
     setWorkflowSubmissionReview(null);
     setBaseUndoController(null);
     setUndoController(null);
-    setModuleRecoveries((current) => current + 1);
+    setModuleRecovery((current) => ({ draftKey, count: (current.draftKey === draftKey ? current.count : 0) + 1 }));
     setFailedModule(null);
     setQuestionResetVersion((current) => current + 1);
   };
@@ -1683,9 +1764,9 @@ function QuestionEngineBody({
     if (locked || resettingQuestion || submitting || requesting) return;
 
     const proceed = await confirmAction({
-      title: 'Reset this question?',
+      title: 'Start this question over?',
       message: 'This clears all work on this question and returns every tool to its starting state. Your tries and your grade stay as they are.',
-      confirmLabel: 'Reset question',
+      confirmLabel: START_OVER,
     });
     if (!proceed) return;
 
@@ -1709,6 +1790,7 @@ function QuestionEngineBody({
       setWorkflowGuidanceState(null);
       setUnchangedConfirmOpen(false);
       setCalculatorOpen(false);
+      setReferenceSheetOpen(false);
 
       // Drop stale Undo owners before remounting the response module. The new
       // tool registers its own fresh controller after it mounts.
@@ -1760,6 +1842,14 @@ function QuestionEngineBody({
   // ToolRuntimeContext: their hint panels (and any other hint affordance) are
   // absent where the activity withholds help, not merely recorded.
   const toolHintsAllowed = resolvedActivityPolicy?.hintsAllowed !== false;
+  // Which of π, e and logₐ this item's keypads offer: the ones its math uses
+  // (TL23, keypadConstants.js) — only where help is allowed and outcomes are
+  // shown. An assessment item keeps every key: its keypad says nothing about
+  // the form of the answer.
+  const keypadConstants = useMemo(
+    () => (toolHintsAllowed && showOutcomeFeedback ? keypadConstantsFor(processedQuestion) : null),
+    [toolHintsAllowed, showOutcomeFeedback, processedQuestion],
+  );
   // A hint revealed anywhere — a tool's panel, the Work View Help drawer, the
   // solver's "Need a strategic hint?" — is recorded the same way.
   const recordHintUse = () => setHintUsed(true);
@@ -1788,6 +1878,7 @@ function QuestionEngineBody({
     ? { ...askTeacherContext, requested: Boolean(helpRequested), onToggle: () => onAskTeacher(!helpRequested) }
     : null;
   const helpControlAvailable = Boolean((hintState.allowed || askTeacher) && !locked);
+  const handRaised = Boolean(askTeacher?.requested);
   // A raised hand comes down when this question can no longer be worked on —
   // closed, or locked by the DOL timer, a section the teacher closed or the
   // Warm-Up window — because Ask and Cancel go with it (PR #462 review M4).
@@ -1795,20 +1886,29 @@ function QuestionEngineBody({
     if (locked && helpRequested && typeof onAskTeacher === 'function') onAskTeacher(false);
   }, [locked, helpRequested, onAskTeacher]);
   const hintPanelRef = useRef(null);
-  const revealNextHint = () => {
+  // Where the panel opens (FB10): 'results' from an offer under a miss, 'top'
+  // from the one-try notice. Anything else leaves it where it is — the panel's
+  // own buttons hand their click event over, and must not move the panel.
+  const placeHintPanel = (place) => {
+    const requested = requestedHintPanelPlace(place);
+    if (requested) setHintPanelPlace(requested);
+  };
+  const revealNextHint = (place) => {
     if (!hintState.canRevealNext || !hintLadder.next) return;
     const next = hintLadder.next;
     setRevealedHintTexts(() => [...hintLadder.hints.slice(0, hintLadder.revealed), next]);
     setHintsRevealed((count) => count + 1);
     recordHintUse();
+    placeHintPanel(place);
     setHintPanelOpen(true);
   };
   // Offered from the Hint panel, and after a miss beside "Show a hint" (HELP-9):
   // the example lives in the panel, so the panel opens with it.
-  const openSimilarExample = () => {
+  const openSimilarExample = (place) => {
     if (!similarExample) return;
     setSimilarOpen(true);
     setWorkedExampleUsed(true);
+    placeHintPanel(place);
     setHintPanelOpen(true);
   };
   // The diagnosis rung, read on request: recorded exactly like a hint.
@@ -1820,8 +1920,9 @@ function QuestionEngineBody({
   };
   useEffect(() => {
     if (!hintPanelOpen) return;
-    hintPanelRef.current?.scrollIntoView?.({ block: 'nearest', behavior: scrollMotion() });
-  }, [hintPanelOpen, hintsRevealed, similarOpen]);
+    // Under a miss the page moves only as far as the newest hint needs.
+    revealHintPanel(hintPanelRef.current, { place: hintPanelPlace, similarOpen, behavior: scrollMotion() });
+  }, [hintPanelOpen, hintPanelPlace, hintsRevealed, similarOpen]);
   const supportedTextReadAloud = readAloudOffered || (languageTools.tools.includes('read-aloud') && readAloudReady)
     ? { language: 'en' }
     : null;
@@ -1887,6 +1988,11 @@ function QuestionEngineBody({
     // The point check may name wrong points only where outcomes are shown at
     // once; on a DOL, quiz or test the submission is the check.
     revealPointCorrectness: showOutcomeFeedback,
+    // ...and there "Connect my points" is offered only with the keyboard-access
+    // support, which the workspace reports as provided when it shows
+    // (platform/graph/connectPointsPolicy.js).
+    keyboardAccess: supportPresentation.keyboardAccess === true,
+    onSupportEvidence: reportToolEvidence,
   };
 
   const commonModuleProps = {
@@ -1939,6 +2045,13 @@ function QuestionEngineBody({
     const diagnosis = diagnoseMiss({ question: processedQuestion, grading: gradedForDisplay.grading, response: gradedForDisplay.response, familyValues, attemptsLeft: !isExpired });
     return missFeedback({ question: processedQuestion, attemptNumber: Number(feedback.attemptCount) || record.attemptCount, diagnosis, parts: gradedForDisplay.grading?.parts });
   }, [feedback, feedbackOpen, gradedForDisplay, runtimeQuestion, processedQuestion, familyAssignmentId, familyStorageIndex, record.attemptCount, isExpired]);
+  // A right line that still carries a common factor (GR29): said under
+  // "Correct!", where outcome feedback is open.
+  const correctNote = useMemo(() => {
+    if (!feedback?.isCorrect || feedback.blocked || !feedbackOpen) return '';
+    if (!gradedForDisplay || gradedForDisplay.feedback !== feedback) return '';
+    return standardFormMultipleNote({ question: processedQuestion, parts: gradedForDisplay.grading?.parts });
+  }, [feedback, feedbackOpen, gradedForDisplay, processedQuestion]);
   // An attempt made after a specific miss message was shown is feedback-
   // assisted, not independent (PR #462 review M6c).
   useEffect(() => {
@@ -1986,9 +2099,22 @@ function QuestionEngineBody({
         : missOutcomeText(remainingAttempts)))
     : '';
   const attemptOutcomeFocus = feedback && !feedback.isCorrect && !isComposed && Array.isArray(feedback.incorrectParts) && feedback.incorrectParts.length > 0
-    ? `Focus on: ${feedback.incorrectParts.join(', ')}.`
+    ? focusOnText(feedback.incorrectParts)
     : '';
   const attemptOutcomeSpecific = missDetail?.message || '';
+  // THE HELP THE STUDENT HAS SEEN, for the Language tools' Vocabulary (AX43):
+  // the hints they opened (never the rungs still waiting), "What might have
+  // gone wrong" once asked for, and the outcome words where the screen shows
+  // them — the box below the question, or "Your last try" once they edit.
+  // Where hints or feedback are withheld (a DOL, quiz or test) there is nothing.
+  const seenHelp = seenHelpText({
+    hints: hintLadder.hints,
+    revealed: hintLadder.revealed,
+    diagnosis: missRung?.shown ? missRung.hint : '',
+    feedback: feedback && !feedback.blocked && showOutcomeFeedback
+      ? [attemptOutcomeText, attemptOutcomeSpecific]
+      : (!feedback && previousMiss && !locked && showOutcomeFeedback ? [previousMiss.text, previousMiss.specific] : []),
+  });
   // WHERE A TOOL'S ATTEMPT OUTCOME IS SHOWN (PQ-022). In the tool's result
   // area, beside its own verdict, when the tool showed one for this attempt and
   // the box below would have shown the outcome at all: outcome feedback
@@ -2028,8 +2154,9 @@ function QuestionEngineBody({
     readAloud: supportedTextReadAloud,
     translation: supportedTextTranslation,
     onEvidence: reportSupportedTextUse,
-    onShowHint: attemptHintOffered ? revealNextHint : null,
-    onShowSimilar: attemptSimilarOffered ? openSimilarExample : null,
+    // The hint opens under the tool, where the miss was read (FB10).
+    onShowHint: attemptHintOffered ? () => revealNextHint('results') : null,
+    onShowSimilar: attemptSimilarOffered ? () => openSimilarExample('results') : null,
     // The host's own sentence (Recovery's in a Recovery runner), HELP-17.
     hintCost: hintCostSentence(hintCostNote),
   } : null;
@@ -2097,6 +2224,8 @@ function QuestionEngineBody({
             showStagePrompt={false}
             submissionReview={showOutcomeFeedback ? workflowSubmissionReview : null}
             revealCorrectness={showOutcomeFeedback}
+            keyboardAccess={graphModuleProps.keyboardAccess}
+            onSupportEvidence={graphModuleProps.onSupportEvidence}
           />
         </ToolRuntimeProvider>
       );
@@ -2147,7 +2276,10 @@ function QuestionEngineBody({
             {/* A restore mount puts the cursor back itself (above), or nowhere:
                 a tool must not focus its one box instead. */}
             <AnswerFocusPolicyProvider allowed={answerAutoFocusAllowed && !draftRestore}>
-              <Suspense fallback={<p role="status">Opening Work View…</p>}>
+              {/* Named, so the phone's room under the Work View button does not
+                  open for this line and close again when the tool loads
+                  (WorkViewShell.css). */}
+              <Suspense fallback={<p role="status" className="mathmaster-work-view-loading">Opening Work View…</p>}>
                 <WorkViewReadySignal span={workViewSpan} />
                 <Tool questionData={presentationQuestion} onAction={handleMissingToolAction} draftKey={draftKey} />
               </Suspense>
@@ -2415,9 +2547,12 @@ function QuestionEngineBody({
       disabled: !undoController?.canUndo || undoUnavailable,
       title: undoController?.label || 'Undo the most recent response change',
     },
+    // ONE WORD FOR BEGINNING AGAIN (studentWords.js): the tools' own button
+    // says "Start over" too. This one restarts the whole question, so on a
+    // wide screen it says so; a phone's rail shows the short form.
     reset: {
-      label: resettingQuestion ? 'Resetting…' : '↺ Reset Question',
-      shortLabel: resettingQuestion ? 'Resetting…' : '↺ Reset',
+      label: resettingQuestion ? STARTING_OVER : `↺ ${START_QUESTION_OVER}`,
+      shortLabel: resettingQuestion ? STARTING_OVER : `↺ ${START_OVER}`,
       onClick: handleResetQuestion,
       disabled: locked || resettingQuestion || submitting || requesting,
       title: 'Clear this question\'s work and return every tool to its starting state',
@@ -2495,12 +2630,12 @@ function QuestionEngineBody({
           onClick={handleResetQuestion}
           disabled={workspaceActions.reset.disabled}
           title={workspaceActions.reset.title}
-          aria-label={resettingQuestion ? 'Resetting…' : 'Reset Question'}
+          aria-label={resettingQuestion ? STARTING_OVER : START_QUESTION_OVER}
           style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: workspaceActions.reset.disabled ? 'not-allowed' : 'pointer', opacity: workspaceActions.reset.disabled ? 0.45 : 1 }}
         >
-          {/* "Question" drops on a phone so the work bar fits one row; "Reset"
-              stays as a caption under ↺ there, beside Undo's ↶ (A11Y-10). */}
-          {resettingQuestion ? 'Resetting…' : <><span aria-hidden="true">↺</span><span className="mathmaster-action-label mathmaster-action-label--kept"> Reset<span className="mathmaster-action-label-long"> Question</span></span></>}
+          {/* "question" drops on a phone so the work bar fits one row; "Start
+              over" stays as a caption under ↺ there, beside Undo's ↶ (A11Y-10). */}
+          {resettingQuestion ? STARTING_OVER : <><span aria-hidden="true">↺</span><span className="mathmaster-action-label mathmaster-action-label--kept"> Start<span className="mathmaster-action-label-long"> question</span> over</span></>}
         </button>
       ) : null}
       <button className="mm-button-neutral mathmaster-work-bar-tool" type="button" onClick={openScratchpad} disabled={scratchpadLoading} aria-label={scratchpadLoading ? 'Opening scratchpad…' : 'Scratchpad'} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: 'pointer' }}>
@@ -2530,17 +2665,42 @@ function QuestionEngineBody({
           ? <><CalculatorIcon /><span className="mathmaster-action-label"> {calculatorName}</span></>
           : <><CalculatorIcon unavailable /><span className="mathmaster-action-label"> Calculator</span></>}
       </button>}
+      {referenceSheet ? (
+        <button
+          type="button"
+          className="mathmaster-work-bar-tool"
+          aria-haspopup="dialog"
+          aria-expanded={referenceSheetOpen}
+          onClick={() => setReferenceSheetOpen((open) => !open)}
+          style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid var(--mm-tint-border)', background: referenceSheetOpen ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: 'pointer' }}
+        >
+          <span aria-hidden="true">📐</span><span className="mathmaster-action-label"> {referenceSheet.buttonLabel || 'Reference sheet'}</span>
+        </button>
+      ) : null}
       {helpControlAvailable && (
+        // A raised hand shows here too, not only inside the closed panel
+        // (FB18): a ✋ and a "Hand up" caption that stays even where the work
+        // bar hides its words (MathToolMobileLayout.css, --kept), and the
+        // button's name says so.
         <button
           type="button"
           className="mathmaster-work-bar-tool"
           data-hint-control=""
+          data-hand-raised={handRaised ? '' : undefined}
           aria-expanded={hintPanelOpen}
-          aria-label={hintState.allowed ? 'Hint' : 'Ask my teacher'}
-          onClick={() => setHintPanelOpen((open) => !open)}
-          style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid var(--mm-tint-border)', background: hintPanelOpen ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: 'pointer' }}
+          aria-label={`${hintState.allowed ? 'Hint' : 'Ask my teacher'}${handRaised ? ', your hand is raised' : ''}`}
+          onClick={() => {
+            // Opened from the bar, the panel opens at the top; closing it
+            // leaves it where it was (FB10).
+            if (!hintPanelOpen) setHintPanelPlace('top');
+            setHintPanelOpen((open) => !open);
+          }}
+          style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: `1px solid ${handRaised ? 'var(--mm-warning-border, #f9ab00)' : 'var(--mm-tint-border)'}`, background: hintPanelOpen ? 'var(--mm-primary-subtle)' : handRaised ? 'var(--mm-warning-bg)' : 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: 'pointer' }}
         >
-          <span aria-hidden="true">{hintState.allowed ? '💡' : '✋'}</span><span className="mathmaster-action-label">{hintState.allowed ? ' Hint' : ' Ask'}</span>
+          <span aria-hidden="true">{hintState.allowed ? (handRaised ? '💡✋' : '💡') : '✋'}</span>
+          {handRaised
+            ? <span className="mathmaster-action-label mathmaster-action-label--kept"> Hand up</span>
+            : <span className="mathmaster-action-label">{hintState.allowed ? ' Hint' : ' Ask'}</span>}
         </button>
       )}
       {readAloudOffered && (
@@ -2552,10 +2712,14 @@ function QuestionEngineBody({
   // What the student wrote, for the closed card (RUN-6): the parts of the
   // final attempt as graded on this device, when each carries its typed
   // response. A tool's work is reviewed by its own panel, so it shows none.
+  // A Graphing line reads as the student's readout writes it, y = x, never
+  // the stored record's y = 1x + 0 (GR30, storedLineText.js). A part the
+  // grader does not mark (`graded: false`: an Open Sort group's names, a line
+  // the points only describe) carries neither ✓ nor ✗ (GR16).
   const closedYourAnswer = isExpired && gradedForDisplay && gradedForDisplay.feedback === feedback
     ? (gradedForDisplay.grading?.parts || [])
       .filter((part) => typeof part?.response === 'string' && part.response.trim())
-      .map((part, index) => ({ key: String(part.id ?? part.label ?? index), label: String(part.label || ''), response: part.response, isCorrect: typeof part.isCorrect === 'boolean' ? part.isCorrect : null }))
+      .map((part, index) => ({ key: String(part.id ?? part.label ?? index), label: String(part.label || ''), response: readableStoredResponseLatex(part.response, processedQuestion), isCorrect: part.graded !== false && typeof part.isCorrect === 'boolean' ? part.isCorrect : null }))
     : [];
   // HELP-18. Before the single try of a choice-only item, say so (and that a
   // hint is there — the hint control's own release rule decides that); after
@@ -2661,7 +2825,7 @@ function QuestionEngineBody({
           {/* HELP-17: the hint's cost, in the one sentence every offer uses. */}
           {hintState.canRevealNext && <span data-hint-cost-note=""> {hintCostSentence(hintCostNote)}</span>}
           {hintState.canRevealNext && (
-            <button type="button" onClick={revealNextHint} style={{ marginLeft: 8, minHeight: 36, padding: '6px 12px', borderRadius: 999, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer' }}>Show a hint</button>
+            <button type="button" onClick={() => revealNextHint('top')} style={{ marginLeft: 8, minHeight: 36, padding: '6px 12px', borderRadius: 999, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer' }}>Show a hint</button>
           )}
         </p>
       )}
@@ -2776,7 +2940,7 @@ function QuestionEngineBody({
       {firstHintOffered && (
         <p data-first-hint-offer="" style={{ margin: '14px auto 0', maxWidth: '700px', color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))', fontWeight: 600, lineHeight: 1.5 }}>
           <span aria-hidden="true">💡 </span>A hint is ready if you want one. {hintCostSentence(hintCostNote)}{' '}
-          <button type="button" onClick={revealNextHint} style={HINT_OFFER_BUTTON_STYLE}>Show a hint</button>
+          <button type="button" onClick={() => revealNextHint('results')} style={HINT_OFFER_BUTTON_STYLE}>Show a hint</button>
         </p>
       )}
       {sameIncorrectResponse && !isMultipart && !locked && (
@@ -2816,11 +2980,17 @@ function QuestionEngineBody({
           {attemptOutcomeFocus && (
             <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)' }}>{attemptOutcomeFocus}</div>
           )}
+          {correctNote && (
+            <div data-correct-note="common-factor" style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(24,128,56,0.24)', fontWeight: 600 }}>
+              {correctNote}
+              <SupportedTextActions text={correctNote} readAloud={supportedTextReadAloud} translation={supportedTextTranslation} label="the note" onEvidence={reportSupportedTextUse} />
+            </div>
+          )}
           {(attemptHintOffered || attemptSimilarOffered) && (
             <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)', fontWeight: 600 }}>
               {attemptHintOffered ? <>A hint is ready if you want one. {hintCostSentence(hintCostNote)}{' '}
-              <button type="button" onClick={revealNextHint} style={HINT_OFFER_BUTTON_STYLE}>Show a hint</button></> : null}
-              {attemptSimilarOffered ? <button type="button" data-similar-offer="" onClick={openSimilarExample} style={HINT_OFFER_BUTTON_STYLE}>See a similar problem worked</button> : null}
+              <button type="button" onClick={() => revealNextHint('results')} style={HINT_OFFER_BUTTON_STYLE}>Show a hint</button></> : null}
+              {attemptSimilarOffered ? <button type="button" data-similar-offer="" onClick={() => openSimilarExample('results')} style={HINT_OFFER_BUTTON_STYLE}>See a similar problem worked</button> : null}
             </div>
           )}
         </div>
@@ -2840,12 +3010,23 @@ function QuestionEngineBody({
           {(previousMissHintOffered || similarOffered) && (
             <div style={{ marginTop: '8px' }}>
               {previousMissHintOffered ? <>A hint is ready if you want one. {hintCostSentence(hintCostNote)}{' '}
-              <button type="button" onClick={revealNextHint} style={HINT_OFFER_BUTTON_STYLE}>Show a hint</button></> : null}
-              {similarOffered ? <button type="button" data-similar-offer="" onClick={openSimilarExample} style={HINT_OFFER_BUTTON_STYLE}>See a similar problem worked</button> : null}
+              <button type="button" onClick={() => revealNextHint('results')} style={HINT_OFFER_BUTTON_STYLE}>Show a hint</button></> : null}
+              {similarOffered ? <button type="button" data-similar-offer="" onClick={() => openSimilarExample('results')} style={HINT_OFFER_BUTTON_STYLE}>See a similar problem worked</button> : null}
             </div>
           )}
         </div>
       )}
+
+      {/* THE HINT, WHERE THE STUDENT ASKED FOR IT (FB10). "Show a hint" under a
+          miss opens the panel here, beneath the card that offered it, instead
+          of at the top of the work area: the hint arrives where the student is
+          looking, the page does not jump up to it, and Check stays in reach.
+          The same panel, drawn in one place at a time (see hintPanelPlace). */}
+      {hintPanelOpen && hintPanelPlace === 'results' && hintPanel ? (
+        <div ref={hintPanelRef} className="mathmaster-hint-panel" data-hint-panel-place="results" style={{ margin: '16px auto 0', maxWidth: '700px', boxSizing: 'border-box', padding: '14px 16px', borderRadius: 12, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', boxShadow: '0 4px 14px rgba(26,115,232,0.10)', scrollMarginBottom: 12 }}>
+          {hintPanel}
+        </div>
+      ) : null}
 
       {isCorrect && choiceReasonBlock}
 
@@ -3021,7 +3202,9 @@ function QuestionEngineBody({
   return (
     <DeferredFocusProvider authority={focusAuthority}>
     <QuestionLifecycleProvider terminal={locked} positionsReadable={positionsReadable}>
+    <GraphReadOutProvider enabled={graphReadOut} onReadOut={reportGraphReadOut}>
     <WorkViewUndoProvider register={setUndoController} baseController={baseUndoController} resetKey={`${processedQuestion?.questionId ?? processedQuestion?.id ?? processedQuestion?.prompt ?? 'question'}|${questionResetVersion}`}>
+    <KeypadConstantsProvider constants={keypadConstants}>
     <div
       ref={questionEngineRef}
       className={`mathmaster-question-engine mathmaster-question-engine-has-anchor ${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`}
@@ -3112,9 +3295,9 @@ function QuestionEngineBody({
         task: { text:processedQuestion?.prompt || processedQuestion?.scenario || 'Complete the math task.', authoritative:true },
         help: workViewPlatformHelp,
         instruction: taskContextPresentation.currentStagePrompt ? { text:taskContextPresentation.currentStagePrompt, authoritative:true } : null,
-        // The same Support tools inside Work View, so an enlarged tool never
+        // The same Language tools inside Work View, so an enlarged tool never
         // loses them (rendered only while that drawer is open).
-        supports: languageTools.tools.length ? { label: 'Support tools', render: () => supportTrayFor('enlarged') } : null,
+        supports: languageTools.tools.length ? { label: LANGUAGE_TOOLS, render: () => supportTrayFor('enlarged') } : null,
         // "Information you need" in Work View too (TOOL-12): the question's own
         // content, so it stays on every activity, assessments included.
         reference: referenceInfo ? { content: <ReferenceInfoCard referenceInfo={referenceInfo} />, authoritative: true } : null,
@@ -3127,7 +3310,6 @@ function QuestionEngineBody({
       }}>
       <EnlargeableFigure
         label="Question Work View"
-        enlargeLabel="Open Work View"
         presentationKey={processedQuestion?.questionId ?? processedQuestion?.id ?? processedQuestion?.prompt ?? null}
         forceClosed={locked}
         // A closed question can be enlarged to look at (TOOL-13): the area
@@ -3188,7 +3370,7 @@ function QuestionEngineBody({
             it is clipped (see the Next-question note in the action bar). */}
         {/* Each in a row of its own, which keeps the Enlarge button clear when
             it starts the work (WorkViewShell.css, student pass 3 HELP-21). */}
-        {hintPanelOpen && hintPanel ? (
+        {hintPanelOpen && hintPanelPlace === 'top' && hintPanel ? (
           <div className="mathmaster-top-panel-row">
             <div ref={hintPanelRef} className="mathmaster-hint-panel" style={{ padding: '14px 16px', borderRadius: 12, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', boxShadow: '0 4px 14px rgba(26,115,232,0.10)' }}>
               {hintPanel}
@@ -3228,12 +3410,16 @@ function QuestionEngineBody({
         // the case it was built for (RUN-13): the area is not disabled then.
         // data-work-view-area: what Work View opens on when the tool marks
         // nothing more precise (TOOL-13, workViewReveal.js).
-        <fieldset disabled={workAreaClosed} data-work-view-area="true" style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
-          {/* `inert` must be a boolean: React 19 reads inert="" as false, which
-              left a completed answer's math field focused and editable (and
-              swallowing the Enter that should continue). pointer-events alone
-              only stops the mouse. */}
-          <div aria-disabled={workAreaClosed ? 'true' : undefined} inert={workAreaClosed ? true : undefined} style={{ pointerEvents: workAreaClosed ? 'none' : 'auto', opacity: moduleFailed ? 1 : locked ? 0.72 : scaffoldRequired || contextScaffoldRequired || pausedByAnotherTab ? 0.5 : 1 }}>
+        // A finished question's work is named as read-only for a screen
+        // reader, which does not see the dimming (AX01).
+        <fieldset disabled={workAreaClosed} data-work-view-area="true" aria-label={workAreaReadOnly ? READ_ONLY_WORK_AREA_LABEL : undefined} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+          {/* Waiting work is `inert`, and it must be a boolean: React 19 reads
+              inert="" as false, which left a completed answer's math field
+              focused and editable (and swallowing the Enter that should
+              continue). Finished work is read-only instead (AX01): the guard
+              bound here stops the keys, a screen reader's click and the
+              pastes that pointer-events, which only stops the mouse, cannot. */}
+          <div aria-disabled={workAreaClosed ? 'true' : undefined} inert={workAreaInert ? true : undefined} data-work-read-only={workAreaReadOnly ? 'true' : undefined} ref={bindReadOnlyWorkArea} style={{ pointerEvents: workAreaClosed ? 'none' : 'auto', opacity: moduleFailed ? 1 : locked ? 0.72 : scaffoldRequired || contextScaffoldRequired || pausedByAnotherTab ? 0.5 : 1 }}>
             <QuestionModuleBoundary
               key={moduleBoundaryKey}
               questionType={processedQuestion?.type}
@@ -3270,7 +3456,10 @@ function QuestionEngineBody({
           // on. Focus moves to its first choice when it appears; it closes
           // only by choosing the right step (no attempt spent).
           <section ref={scaffoldRef} role="region" aria-label="Let's back up" data-scaffold="" style={{ position: 'absolute', inset: 0, zIndex: 35, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', background: 'rgba(232,240,254,0.78)' }}>
-            <div style={{ width: 'min(560px, 94%)', padding: '24px', borderRadius: '16px', background: 'var(--mm-surface)', border: '3px solid #1a73e8', boxShadow: '0 20px 55px rgba(26,115,232,0.25)', textAlign: 'left' }}>
+            {/* The auto margin centres the card only while it fits the work area;
+                a taller card starts at the top instead of rising out of it
+                (WorkViewShell.css, "Let's back up" on a phone). */}
+            <div style={{ width: 'min(560px, 94%)', margin: 'auto', padding: '24px', borderRadius: '16px', background: 'var(--mm-surface)', border: '3px solid #1a73e8', boxShadow: '0 20px 55px rgba(26,115,232,0.25)', textAlign: 'left' }}>
               <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-primary-text)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Let&apos;s back up</div>
               {/* A family's step writes its mathematics as $…$ (linearEquations):
                   drawn as mathematics, never as "$x$". */}
@@ -3287,8 +3476,12 @@ function QuestionEngineBody({
           </section>
         )}
 
-        {isCorrect && showOutcomeFeedback && (
-          // The watermark only: "Correct!" is said once, by the outcome.
+        {isCorrect && showOutcomeFeedback && !isToolQuestion && (
+          // The watermark only: "Correct!" is said once, by the outcome. It is
+          // drawn over a form of answers, never over a math tool: on the
+          // Transformations Lab it covered the whole grid the student had just
+          // plotted (a 340 x 882 px wash at 390 wide, FB16), and the tool says
+          // "Correct" in its own pill beside the grid.
           <div aria-hidden="true" data-correct-watermark="" style={{ position: 'absolute', inset: 0, zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', background: 'rgba(230,244,234,0.10)' }}>
             <div style={{ transform: 'rotate(-8deg)', textAlign: 'center', color: 'rgba(24,128,56,0.16)', textShadow: '0 2px 18px rgba(24,128,56,0.12)' }}>
               <div style={{ fontSize: 'clamp(calc(120 * var(--mm-px)), calc(24vw * var(--mm-text-scale, 1)), calc(250 * var(--mm-px)))', fontWeight: 900, lineHeight: 0.72 }}>✓</div>
@@ -3388,12 +3581,20 @@ function QuestionEngineBody({
               // Zeros, minimum and maximum: not where they would state the
               // answer before the assessment is released (calculatorPolicy.js).
               keyPoints={calculatorKeyPointsShown({ policy: calculatorPolicy, assessmentReviewReleased })}
+              // The student's lines stay for the whole assignment (TL18).
+              keepLinesKey={graphingLinesKeyFor(draftKey)}
               fallback={keypadCalculator}
               onUnavailable={markGraphingCalculatorFailed}
             />
           </Suspense>
         ) : keypadCalculator;
       })()}
+
+      {referenceSheet ? (
+        <Suspense fallback={null}>
+          <AssignmentReferenceSheet sheet={referenceSheet} open={referenceSheetOpen} onOpenChange={setReferenceSheetOpen} roomRef={questionEngineRef} />
+        </Suspense>
+      ) : null}
 
       {unchangedConfirmOpen && (
         <div role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setUnchangedConfirmOpen(false)} data-unchanged-confirm="" style={{ position: 'fixed', inset: 0, zIndex: UNCHANGED_CONFIRM_Z_INDEX, background: 'rgba(32,33,36,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
@@ -3410,7 +3611,9 @@ function QuestionEngineBody({
 
       <ScratchpadOverlay open={scratchpadOpen} questionKey={processedQuestion?.questionId ?? processedQuestion?.id ?? null} questionDetails={scratchpadQuestionDetails} initialDataUrl={scratchpadDataUrl} initialPages={scratchpadPages} onSave={saveScratchpad} onClose={() => setScratchpadOpen(false)} readOnly={locked} gridBackground={supportPresentation.graphPaper === true} />
     </div>
+    </KeypadConstantsProvider>
     </WorkViewUndoProvider>
+    </GraphReadOutProvider>
     </QuestionLifecycleProvider>
     </DeferredFocusProvider>
   );

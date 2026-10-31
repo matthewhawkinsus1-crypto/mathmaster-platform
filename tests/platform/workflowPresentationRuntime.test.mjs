@@ -114,7 +114,13 @@ test('static and interactive graph-analysis surfaces share the assessment-safe v
   const display = await readFile(new URL('../../src/GraphDisplay.jsx', import.meta.url), 'utf8');
   const featureStage = await readFile(new URL('../../src/platform/workflow/GraphFeatureSelectStage.jsx', import.meta.url), 'utf8');
 
-  assert.match(display, /const displayGraph = fitStaticGraphViewport\(graph\)/);
+  // GraphDisplay takes its window from the shared fitter, through the function that
+  // also offers a misleading-scale figure's "Fix the scale" view (R-9), and fits
+  // nothing of its own. tests/platform/axisScaleToggle.test.mjs draws the figure and
+  // checks the window it draws is the one the fitter frames.
+  assert.match(display, /import \{[^}]*\bstaticGraphScaleViews\b[^}]*\} from '\.\/graphSpecUtils'/);
+  assert.match(display, /\{ scaled: scaledGraph, fixed: fixedGraph \} = staticGraphScaleViews\(graph\)/);
+  assert.doesNotMatch(display, /fitStaticGraphViewport/, 'no second fit inside GraphDisplay');
   assert.match(display, /xMinorTicks[\s\S]*yMinorTicks/,
     'static evidence keeps countable minor landmarks when major labels are sparse');
   assert.match(featureStage, /fitStaticGraphViewport\(rawGraph\)/,

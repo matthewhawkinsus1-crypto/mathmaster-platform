@@ -204,6 +204,8 @@ const nameWithHint = (label, hint, fromServer) => {
  *                  in the math editor; a text box inside a form submits it)
  * @param prompt    the item's public prompt: an inequality's keypad gets the
  *                  letters its mathematics uses
+ * @param examType  the session's exam type, when there is one: a practice
+ *                  exam's number line keeps its test's own rule (TS04)
  */
 export default function SecureMathAnswerField({
   field,
@@ -214,8 +216,9 @@ export default function SecureMathAnswerField({
   ariaLabel = '',
   onEnter = null,
   prompt = '',
+  examType = null,
 }) {
-  const entry = useMemo(() => secureAnswerEntryFor(field, { prompt }), [field, prompt]);
+  const entry = useMemo(() => secureAnswerEntryFor(field, { prompt, examType }), [field, prompt, examType]);
   const hintId = `secure-answer-hint-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const label = String(ariaLabel || field?.label || 'Answer');
   const onChangeRef = useRef(onChange);

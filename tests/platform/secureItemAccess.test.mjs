@@ -9,7 +9,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { SECURE_ACCESS_TOOLS, SECURE_ACTIVITY_ROLE, secureAccessEntitlement, securePromptOnly } from '../../src/platform/assessment/secureItemAccess.js';
+import { SECURE_ACCESS_TOOLS, SECURE_ACTIVITY_ROLE, releasedReviewAccessEntitlement, secureAccessEntitlement, securePromptOnly } from '../../src/platform/assessment/secureItemAccess.js';
 import { SUPPORT_TOOL } from '../../src/platform/language/supportToolsEntitlement.js';
 import { assessmentSupportProfile } from '../../src/studentSupport.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
@@ -88,4 +88,20 @@ test('the component gives the tray only the prompt, only for an entitled student
   assert.doesNotMatch(code, /(?<![A-Za-z])(?:StudentSupportTray|SupportToolsTray)\b/, 'not the assignment tray, which shows glossary examples');
   assert.doesNotMatch(code, /question\??\.(choices|responseFields|stimulus|context|solution|hint|explanation|feedback|answer)/, 'the component reads no other part of the item');
   assert.doesNotMatch(code, /isCorrect|grade|verdict/i);
+});
+
+// AX42: on a released Test's results the test is over. A plan that gives Read
+// aloud for practice gave nothing there; the results follow the plan for a
+// test or for practice, whichever gives more, and still only the three secure
+// access tools.
+test('a released Test\'s results follow the plan for a test or for practice', () => {
+  const practiceReadAloud = plan([{ id: 'text-to-speech', appliesTo: ['practice'] }, { id: 'glossary-lookup', appliesTo: [] }]);
+  assert.deepEqual(secureAccessEntitlement(practiceReadAloud).tools, [SUPPORT_TOOL.VOCABULARY], 'during the test: not offered');
+  assert.deepEqual(releasedReviewAccessEntitlement(practiceReadAloud).tools, [SUPPORT_TOOL.VOCABULARY, SUPPORT_TOOL.READ_ALOUD], 'on the results: offered');
+  const testsOnly = plan([{ id: 'text-to-speech', appliesTo: ['quiz', 'test'] }]);
+  assert.deepEqual(releasedReviewAccessEntitlement(testsOnly).tools, [SUPPORT_TOOL.READ_ALOUD]);
+  const translated = releasedReviewAccessEntitlement(plan([{ id: 'text-to-speech', appliesTo: ['practice'] }], 'es'));
+  assert.deepEqual([translated.tools, translated.language], [[SUPPORT_TOOL.TRANSLATE, SUPPORT_TOOL.READ_ALOUD], 'es']);
+  assert.deepEqual(releasedReviewAccessEntitlement(plan([{ id: 'chunked-directions', appliesTo: [] }, { id: 'sentence-frames', appliesTo: [] }])).tools, [], 'scaffolds give nothing');
+  assert.deepEqual(releasedReviewAccessEntitlement(null).tools, []);
 });

@@ -136,7 +136,8 @@ const regradeSeed = () => {
   docs.set('grades/S1/responseInspectionEvidence/A1__q3', evidenceDoc(fieldsResponse({ v: '4' }), true));
   docs.set('grades/S1/responseInspectionEvidence/A1__q4', evidenceDoc(fieldsResponse({ v: '4' }), false));
   docs.set('grades/S1/responseInspectionEvidence/A1__q5', evidenceDoc({ kind: 'scalar', type: 'fraction', value: '1/2', fields: [] }, false));
-  // Lowest terms keeps its rule: a mixed number stays wrong here.
+  // A mixed number with a reduced fraction part is in lowest terms since GR13
+  // (the owner, 2026-10-23): recorded wrong, it moves up, by the mixed-number rule.
   docs.set('grades/S1/responseInspectionEvidence/A1__q6', evidenceDoc({ kind: 'scalar', type: 'fraction', value: '3\\frac{1}{2}', fields: [] }, false));
   const grading = mathPath.privateGradingDefinition({ responseFields: [{ id: 'answer', inputProfile: 'number', expected: 'sqrt(8)/2' }] });
   docs.set('examSessions/E1', {
@@ -163,15 +164,15 @@ test('the regrade count: per surface, up and down by the wave-7 rule that explai
   const report = await runGraderGaps2RegradeReport({ db, pageSize: 2, now: () => Date.UTC(2026, 9, 19) });
   assert.equal(report.readOnly, true);
   const { assignments, secure, path: pathCounts } = report.totals;
-  assert.deepEqual([assignments.read, assignments.regraded, assignments.notRegradable, assignments.unchanged], [7, 5, 2, 2]);
-  assert.equal(assignments.up.mixedNumber, 1, '3½ for 7/2, recorded wrong');
+  assert.deepEqual([assignments.read, assignments.regraded, assignments.notRegradable, assignments.unchanged], [7, 5, 2, 1]);
+  assert.equal(assignments.up.mixedNumber, 2, '3½ for 7/2, recorded wrong, in a number box and on a lowest-terms fraction question (GR13)');
   assert.equal(assignments.down.mixedNumber, 1, '3½ for 1.5, recorded right: listed, never applied (D8)');
   assert.equal(assignments.up.textPairKey, 1, '(2,3) for the text key (2,3)');
   assert.deepEqual([secure.read, secure.regraded, secure.up.exactNumber, secure.unchanged], [2, 2, 1, 1]);
   assert.deepEqual([pathCounts.read, pathCounts.regraded, pathCounts.notRegradable, pathCounts.up.halfPi, pathCounts.unchanged], [3, 2, 1, 1, 1]);
   assert.match(report.notCountable.liveChallenge, /no response is stored/);
   assert.deepEqual(report.changes.map(({ surface, direction, rule }) => `${surface} ${direction} ${rule}`).sort(), [
-    'assignments down mixedNumber', 'assignments up mixedNumber', 'assignments up textPairKey', 'path up halfPi', 'secure up exactNumber',
+    'assignments down mixedNumber', 'assignments up mixedNumber', 'assignments up mixedNumber', 'assignments up textPairKey', 'path up halfPi', 'secure up exactNumber',
   ]);
   assert.deepEqual(attempts, []);
   assert.ok(reads.every((name) => ['group:responseInspectionEvidence', 'examSessions', 'pathSubmissions', 'getAll'].includes(name)), reads.join());

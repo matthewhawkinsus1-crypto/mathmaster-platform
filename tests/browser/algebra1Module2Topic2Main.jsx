@@ -14,13 +14,19 @@
 // linearMultipleRepresentationsMain.jsx.
 //
 // The page has no Firebase: drafts live in localStorage, verdicts come from the
-// shared graders in the browser. window.__m2t2 is a READ-ONLY bridge for a
-// driver (navigate, read the saved draft, read the verdicts) — it never writes
-// student state.
+// shared graders in the browser, and each question's record (attempts used,
+// status) is kept by the same recordQuestionAttempt / recordQuestionStep the
+// server and the in-app demo run, so tries count down, hints 2-3 open after a
+// miss, a Step Algebra step counts toward partial credit and a DOL takes one
+// submission — as a signed-in student sees it (CI10; the matrices harness got
+// records in #495). window.__m2t2 is a READ-ONLY bridge for a driver (navigate,
+// read the saved draft, the records, the verdicts) — it never writes student
+// state.
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import QuestionEngine from '../../src/QuestionEngine.jsx';
 import { buildQuestionDraftKey } from '../../src/questionDraftStorage.js';
+import { recordQuestionAttempt, recordQuestionStep, resolveQuestionMaximumAttempts } from '../../src/attemptPolicy.js';
 import { parseAssignmentBlueprintText, validateAssignmentQuestions } from '../../src/assignmentBlueprint.js';
 import { buildPreflightReviewedAssignmentV5 } from '../../src/components/teacher/preflightV5Review.js';
 import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/assignmentV5PreflightModel.js';
@@ -66,6 +72,17 @@ const draftKeyFor = (flatIndex) => buildQuestionDraftKey({
 });
 
 const grades = [];
+// The server's question records for this run, kept across a reload like the
+// server keeps them.
+const RECORDS_KEY = `m2t2-harness-records:${STUDENT}`;
+const readRecords = () => {
+  try { return JSON.parse(window.localStorage.getItem(RECORDS_KEY)) || {}; } catch { return {}; }
+};
+const records = readRecords();
+const keepRecord = (questionId, record) => {
+  records[questionId] = record;
+  try { window.localStorage.setItem(RECORDS_KEY, JSON.stringify(records)); } catch { /* a private window keeps them for this page only */ }
+};
 const tag = (role) => ({ warmup: 'WU', classwork: 'CW', practice: 'PR', dol: 'DOL' }[role] || 'Q');
 
 function Harness() {
@@ -73,7 +90,11 @@ function Harness() {
   useEffect(() => { listeners.add(setPosition); return () => listeners.delete(setPosition); }, []);
   const { section, question } = allQuestions[position];
   const draftKey = useMemo(() => draftKeyFor(position), [position]);
+  const [, setRecordVersion] = useState(0);
+  const record = records[question.questionId] || null;
   const dol = section.role === 'dol';
+  // As App.jsx resolves it: a choice-only item gets one try.
+  const maximumAttempts = resolveQuestionMaximumAttempts({ question, maximumAttempts: section.attemptsAllowed || 3 });
   return (
     <div style={{ maxWidth: 1180, margin: '0 auto', padding: '12px 16px' }} data-section={section.id} data-question-id={question.questionId}>
       <h1 style={{ fontSize: 16, margin: '0 0 8px' }}>{compiled.title}</h1>
@@ -95,17 +116,38 @@ function Harness() {
       <QuestionEngine
         key={`${ASSIGNMENT}-${question.questionId}-draft0`}
         question={question}
-        questionRecord={null}
+        questionRecord={record}
         generationKey={generationKeyFor(question)}
-        onGrade={(isCorrect, details, parts, _support, _responseKey, meta) => {
+        onGrade={(isCorrect, details, parts, supportUsage, responseKey, meta) => {
           grades.push({ questionId: question.questionId, isCorrect, details, parts, partialCreditPercent: meta?.partialCreditPercent ?? null });
-          return null;
+          const outcome = recordQuestionAttempt({
+            record: records[question.questionId],
+            isCorrect,
+            questionDetails: details,
+            parts,
+            supportUsage,
+            responseKey,
+            partialCreditPercent: meta?.partialCreditPercent,
+            maximumAttempts,
+          });
+          keepRecord(question.questionId, outcome.record);
+          setRecordVersion((version) => version + 1);
+          return outcome.result;
         }}
-        onStepGrade={() => {}}
+        // A Step Algebra step reaches the record as App.jsx's handleStepGrade
+        // sends it, so a step's tries and partial credit are seen here too.
+        onStepGrade={({ stepGrade, countsAttempt, statePatch, supportUsage = null } = {}) => {
+          const outcome = recordQuestionStep({
+            record: records[question.questionId], stepGrade, countsAttempt, statePatch, supportUsage, maximumAttempts,
+          });
+          keepRecord(question.questionId, outcome.record);
+          setRecordVersion((version) => version + 1);
+          return outcome.result;
+        }}
         studentProfile={{}}
         activityRole={section.role}
         dolMode={dol}
-        maximumAttempts={section.attemptsAllowed || 3}
+        maximumAttempts={maximumAttempts}
         draftKey={draftKey}
         assignmentId={ASSIGNMENT}
         executionScope="student"
@@ -137,6 +179,7 @@ window.__m2t2 = {
   },
   drafts: () => readDrafts(`${STUDENT}:${ASSIGNMENT}`),
   grades: () => [...grades],
+  records: () => JSON.parse(JSON.stringify(records)),
   question: (questionId) => allQuestions.find((entry) => entry.question.questionId === questionId)?.question || null,
   preflight: () => ({ isValid: compiled.preflight.isValid, errors: compiled.preflight.errors, warnings: compiled.preflight.warnings }),
 };

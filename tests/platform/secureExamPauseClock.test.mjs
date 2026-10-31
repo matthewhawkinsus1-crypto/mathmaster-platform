@@ -10,8 +10,8 @@ import { classifySecureExamError, pauseKind } from '../../src/platform/assessmen
  *
  * A Test the teacher has paused or archived, or any test a proctor has paused,
  * does not spend the student's time: the deadline moves with the clock while
- * the pause is on, and on resume it stands extended by exactly the time
- * paused. An integrity lock is not a teacher's pause; the clock runs through
+ * the pause is on, and on resume it stands extended by the time paused and
+ * the seconds the paused screen takes to see it (TS09). An integrity lock is not a teacher's pause; the clock runs through
  * it as before. The emulator suite drives the real callables
  * (tests/integration/secureExamNavigation.test.mjs).
  */
@@ -34,12 +34,13 @@ test('a pause that spans the deadline extends it by exactly the time paused', ()
     assert.equal(secureExam.deadlineFor(paused, now) - now, 2 * MINUTE, `two minutes left at minute ${minute}`);
     assert.equal(secureExam.isExpired(paused, now), false);
   }
-  // Resumed at minute 38: thirty minutes paused, banked; the deadline is minute 40.
+  // Resumed at minute 38: thirty minutes paused, banked, with the seconds the
+  // paused screen may take to see the resume (TS09); the deadline is minute 40.
   const resumed = { ...paused, ...secureExam.withoutPauseHold(paused, 'proctor', started + 38 * MINUTE) };
-  assert.equal(resumed.pausedSeconds, 30 * 60);
+  assert.equal(resumed.pausedSeconds, 30 * 60 + secureExam.RESUME_GRACE_SECONDS);
   assert.equal(secureExam.clockPausedSince(resumed), null);
-  assert.equal(secureExam.deadlineFor(resumed, started + 39 * MINUTE), started + 40 * MINUTE);
-  assert.equal(secureExam.isExpired(resumed, started + 40 * MINUTE), true, 'and the clock runs again');
+  assert.equal(secureExam.deadlineFor(resumed, started + 39 * MINUTE), started + 40 * MINUTE + secureExam.RESUME_GRACE_SECONDS * 1000);
+  assert.equal(secureExam.isExpired(resumed, started + 40 * MINUTE + secureExam.RESUME_GRACE_SECONDS * 1000), true, 'and the clock runs again');
 });
 
 test('two holds stop the clock once; it runs again only when both are lifted', () => {
@@ -51,7 +52,7 @@ test('two holds stop the clock once; it runs again only when both are lifted', (
   assert.equal(secureExam.clockPausedSince(one), started + MINUTE, 'still stopped');
   assert.equal(one.pausedSeconds, undefined, 'nothing banked yet');
   const none = { ...one, ...secureExam.withoutPauseHold(one, 'assignment', started + 5 * MINUTE) };
-  assert.equal(none.pausedSeconds, 4 * 60, 'four minutes paused in all');
+  assert.equal(none.pausedSeconds, 4 * 60 + secureExam.RESUME_GRACE_SECONDS, 'four minutes paused in all, and the screen\'s wait once');
   // Holds already on, or never on, change nothing; an unknown hold is not a pause.
   assert.deepEqual(secureExam.withPauseHold(proctor, 'proctor', started + 9 * MINUTE), {});
   assert.deepEqual(secureExam.withoutPauseHold(session, 'proctor', started + 9 * MINUTE), {});
@@ -62,6 +63,21 @@ test('a pause that begins after the deadline does not bring the test back', () =
   const late = { ...session, ...secureExam.withPauseHold(session, 'assignment', started + 11 * MINUTE) };
   assert.equal(secureExam.isExpired(late, started + 12 * MINUTE), true);
   assert.equal(secureExam.isExpired(late, started + 60 * MINUTE), true);
+  // Nor does the resume: no seconds for the screen's wait come back (TS09).
+  // Paused a second after the deadline, resumed at once.
+  const justLate = { ...session, ...secureExam.withPauseHold(session, 'proctor', started + 10 * MINUTE + 1000) };
+  const resumedLate = { ...justLate, ...secureExam.withoutPauseHold(justLate, 'proctor', started + 10 * MINUTE + 2000) };
+  assert.equal(resumedLate.pausedSeconds, 1);
+  assert.equal(secureExam.isExpired(resumedLate, started + 10 * MINUTE + 2000), true);
+});
+
+test('the paused screen asks at least as often as the seconds the resume gives back (TS09)', () => {
+  const container = componentSource('src/components/assessment/SecureExamContainer.jsx');
+  const poll = container.match(/const PAUSED_POLL_MS = (\d+) \* 1000;/);
+  assert.ok(poll, 'the paused poll interval is named');
+  assert.ok(Number(poll[1]) <= secureExam.RESUME_GRACE_SECONDS, `asks every ${poll[1]} s; ${secureExam.RESUME_GRACE_SECONDS} s come back`);
+  assert.match(container, /window\.setInterval\(\(\) => \{ refreshSession\(\); \}, PAUSED_POLL_MS\);/);
+  assert.equal(secureExam.RESUME_GRACE_SECONDS, 5, 'a few seconds, not a reward for being paused');
 });
 
 test('the student is told the clock is stopped, at how much time left; the hold itself stays on the server', () => {
@@ -90,7 +106,9 @@ test('the screen shows a teacher pause for a Test whose assessment is paused, an
   const paused = region(container, "if (problem.kind === 'paused') {", 'return true;', 'paused');
   assert.match(paused, /refreshSession\(\);/);
   assert.match(container, /if \(!session\?\.examSessionId \|\| !\(locked\.has\(session\.status\) \|\| session\.clockPaused === true\)\) return undefined;/);
-  assert.match(container, /clockPaused=\{session\.clockPaused === true\}\s+pausedRemainingSeconds=\{session\.pausedRemainingSeconds\}/);
+  // The header stops at the server's time left: the test's, or a module's own
+  // share of it (moduleClock reads session.pausedRemainingSeconds, TS03).
+  assert.match(container, /clockPaused=\{session\.clockPaused === true\}\s+pausedRemainingSeconds=\{moduleTime \? moduleTime\.pausedRemainingSeconds : session\.pausedRemainingSeconds\}/);
 });
 
 test('the header clock stops at the server\'s time left and ends nothing while stopped', () => {

@@ -357,7 +357,7 @@ test("a constructed graph's hints name its equations as the student reads them",
 
 /* ------------------------------ an equation a student writes, in any form */
 
-test('a field that asks for a relation takes it in any form, on the browser and the server; without the opt-in the form is kept', () => {
+test('a field that asks for a relation takes it in any form, on the browser and the server; a field that names its form keeps it', () => {
   const field = { id: 'people', label: 'An equation for the number of people', answer: 'x + y = 449', inputProfile: 'equation' };
   const question = (entry) => ({ type: 'multiAnswer', prompt: 'Write a system.', answerFields: [entry] });
   const graded = (entry, typed) => {
@@ -371,7 +371,13 @@ test('a field that asks for a relation takes it in any form, on the browser and 
   ['x + y = 450', 'x - y = 449', 'a + c = 449'].forEach((typed) => assert.equal(graded(relation, typed), false, typed));
   // The keypad's LaTeX is the same relation.
   assert.equal(graded({ ...relation, answer: 'y = (1/2)x + 5' }, 'y=\\frac{1}{2}x+5'), true);
-  assert.equal(graded(field, 'y = 449 − x'), false, 'a form-preserving field is unchanged');
+  // GR03 (the owner, 2026-10-24): without the opt-in, a line field whose
+  // question names no form takes any equation of its line too; one that
+  // names its form keeps it.
+  assert.equal(graded(field, 'y = 449 − x'), true, 'no form is named, so any equation of the line');
+  const standardForm = { ...field, label: 'An equation for the number of people, in standard form' };
+  assert.equal(graded(standardForm, 'y = 449 − x'), false, 'a field that names its form keeps it');
+  assert.equal(graded(standardForm, 'x + y = 449'), true);
 });
 
 /* ------------------------------------- a sibling inequality, checked */

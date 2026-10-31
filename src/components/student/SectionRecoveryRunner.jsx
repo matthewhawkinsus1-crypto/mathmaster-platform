@@ -59,6 +59,9 @@ import useRecoveryAnswerDrafts from './useRecoveryAnswerDrafts.js';
 import { RECOVERY_PRACTICE_ANSWERS, RECOVERY_PRACTICE_ONE_ANSWER } from '../../platform/recovery/recoveryPracticeAttempts.js';
 import { recoveryMeterRule, recoveryPracticeOutcomeMessage } from '../../platform/recovery/recoveryPracticeCopy.js';
 import { RECOVERY_HINT_COST_SENTENCE } from '../../platform/supports/hints/hintCopy.js';
+import { ASK_MODE } from '../../platform/supports/askTeacher.js';
+import { recoveryQuestionPlace } from '../../platform/supports/recoveryTeacherQuestion.js';
+import { useAskTeacherControl } from '../../platform/supports/AskTeacherControl.jsx';
 
 // Practice's own attempt policy for step tools; the final answer is still one
 // server-graded submission per item.
@@ -177,6 +180,10 @@ function PinnedQuestion({
   onUnavailable = null,
   // Practice: what a hint costs here (HELP-4). The assessment withholds hints.
   hintCostNote = null,
+  // The assignment's calculator setting (RC08): Recovery runs inside the
+  // assignment, so its questions follow the same setting, by the same rules
+  // (an assessment's setting only narrows; QuestionEngine resolves it).
+  assignmentCalculatorMode = null,
 }) {
   // A stored plan item whose pin did not survive normalizeRecoveryRecord (a
   // pin from another build, a damaged record) is null here. Reading
@@ -238,6 +245,7 @@ function PinnedQuestion({
       assignmentId={assignmentId}
       showStandardBadge={false}
       hintCostNote={hintCostNote}
+      assignmentCalculatorMode={assignmentCalculatorMode}
     />
   );
 }
@@ -248,7 +256,45 @@ export const SERVER_DEAL_TIMEOUT_MS = 4000;
 
 const dealtItem = (value) => (value && typeof value === 'object' && value.pin?.fingerprint ? value : null);
 
-function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, onRecord, onStartAssessment }) {
+// RC10: the empty Practice sends the student to their teacher, so it offers
+// the way to reach them from here: a question left for the teacher, filed
+// under one of this section's questions with the Recovery's name
+// (recoveryTeacherQuestion.js). The teacher answers it from Teacher Home; the
+// answer shows here and in Review My Work. App reads the student's questions
+// and hands in the sender (useTeacherQuestionsOn); with no teacher on the
+// student's roster there is no sender, and nothing to offer.
+const RECOVERY_QUESTION_HELP = 'Say what you have tried and where you are stuck. Your teacher sees this with your Recovery, and their answer will show here and in Review My Work.';
+
+function RecoveryTeacherQuestion({ assignment, entry, questions = [], sendQuestion = null }) {
+  const place = recoveryQuestionPlace({
+    questions,
+    assignmentId: assignment.id,
+    questionIndexes: Object.keys(entry.questionsByIndex || {}),
+    label: entry.label,
+  });
+  const askTeacher = sendQuestion && place ? {
+    mode: ASK_MODE.QUESTION,
+    question: place.question,
+    composeHelp: RECOVERY_QUESTION_HELP,
+    onSendQuestion: ({ existing, text }) => sendQuestion({
+      existing,
+      text,
+      questionIndex: place.questionIndex,
+      questionLabel: entry.label,
+      assignmentTitle: assignment.title || '',
+    }),
+  } : null;
+  const { button, status } = useAskTeacherControl(askTeacher, actionButton(false));
+  if (!button && !status) return null;
+  return (
+    <div data-recovery-ask-teacher="" style={{ display: 'grid', gap: 8, justifyItems: 'start' }}>
+      {button}
+      {status}
+    </div>
+  );
+}
+
+function PracticeRunner({ assignment, entry, studentId, studentProfile, teacherQuestions = [], sendTeacherQuestion = null, onExit, onRecord, onStartAssessment }) {
   const [item, setItem] = useState(null);
   // The item the SERVER dealt (targeted Recovery). While one is in play the
   // record's own next item does not replace it.
@@ -442,6 +488,7 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
           item={item}
           question={question}
           assignmentId={assignment.id}
+          assignmentCalculatorMode={assignment?.toolPolicy?.calculator || null}
           section={entry.section}
           studentId={studentId}
           studentProfile={studentProfile}
@@ -461,9 +508,12 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
         // means they have seen them all (or the question cannot be made right
         // now). Either way the next step is a person, not a retry: a teacher
         // can review the practice and, for a DOL, grant another attempt.
-        <p data-recovery-practice-empty="true" style={{ ...panelStyle, margin: 0 }}>
-          There are no new practice questions left for this Recovery. Let your teacher know — they can help you with what comes next.
-        </p>
+        <>
+          <p data-recovery-practice-empty="true" style={{ ...panelStyle, margin: 0 }}>
+            There are no new practice questions left for this Recovery. Let your teacher know — they can help you with what comes next.
+          </p>
+          <RecoveryTeacherQuestion assignment={assignment} entry={entry} questions={teacherQuestions} sendQuestion={sendTeacherQuestion} />
+        </>
       )}
       {triesUsedUp && (
         <div role="status" style={{ ...panelStyle, display: 'grid', gap: 8 }}>
@@ -807,6 +857,7 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
           item={current}
           question={currentQuestion}
           assignmentId={assignment.id}
+          assignmentCalculatorMode={assignment?.toolPolicy?.calculator || null}
           section={entry.section}
           studentId={studentId}
           studentProfile={studentProfile}
@@ -853,6 +904,10 @@ export default function SectionRecoveryRunner({
   entry,
   studentId,
   studentProfile = null,
+  // The student's questions on this assignment and the way to send one
+  // (App.jsx useTeacherQuestionsOn); no sender without a teacher (RC10).
+  teacherQuestions = [],
+  sendTeacherQuestion = null,
   onExit,
   onRecord,
   onStartAssessment,
@@ -883,6 +938,8 @@ export default function SectionRecoveryRunner({
       entry={entry}
       studentId={studentId}
       studentProfile={studentProfile}
+      teacherQuestions={teacherQuestions}
+      sendTeacherQuestion={sendTeacherQuestion}
       onExit={onExit}
       onRecord={onRecord}
       onStartAssessment={onStartAssessment}

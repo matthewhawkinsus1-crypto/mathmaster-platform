@@ -32,8 +32,27 @@ import { MATHLIVE_VIRTUAL_KEYBOARD_SELECTOR } from '../platform/math/mathLiveCom
 
 const isRendered = (element) => {
   if (!element || typeof element.getClientRects !== 'function') return true;
+  // What a closed <details> holds keeps its boxes (Chromium reports a size for
+  // it) yet is never drawn or focused, so it is not a stop: left in, the last
+  // "item" could be one Tab can never land on, and Shift+Tab from the first
+  // control would wrap onto it and go nowhere.
+  if (typeof element.checkVisibility === 'function' && !element.checkVisibility()) return element === element.ownerDocument?.activeElement;
   if (element.getClientRects().length > 0) return true;
   return element === element.ownerDocument?.activeElement;
+};
+
+// Disabled for real: its own `disabled`, or a <fieldset disabled> around it,
+// which `element.disabled` does not read. A finished question's work is
+// read-only rather than inert (AX01), so in Work View its buttons are in the
+// dialog, disabled by that fieldset, and cannot take focus: counted as stops,
+// Tab wrapped onto one and went nowhere.
+const actuallyDisabled = (element) => {
+  if (element.disabled === true) return true;
+  try {
+    return element.matches(':disabled');
+  } catch {
+    return false;
+  }
 };
 
 const tabbableWithin = (root) => {
@@ -44,7 +63,7 @@ const tabbableWithin = (root) => {
   };
   return [...root.querySelectorAll(TABBABLE_SELECTOR)].filter((element) => isTabbableFacts({
     tabIndex: element.hasAttribute('tabindex') ? Number(element.getAttribute('tabindex')) : 0,
-    disabled: element.disabled === true,
+    disabled: actuallyDisabled(element),
     hidden: hiddenInside(element),
     inert: element.closest('[inert]') !== null,
     rendered: isRendered(element),
@@ -149,12 +168,13 @@ export function useModalDialog(ref, {
 
     const onKeyDown = (event) => {
       // Bubble phase: a control inside that owns Escape or Tab (a listbox, the
-      // math keyboard) handles it first and marks it handled. One exception: a
-      // math field prevents Escape's default only to keep MathLive out of its
-      // LaTeX mode (MathInput.jsx), not because it used the key — Escape there
-      // still closes the dialog (Work View with focus in "Slope", PR #454).
-      const handledInside = event.defaultPrevented
-        && !(event.key === 'Escape' && event.target?.closest?.('math-field'));
+      // math keyboard) handles it first and marks it handled. A math field is
+      // one of them (TL15, owner decision): its Escape closes its keypad and
+      // moves focus out of the field (MathInput.jsx leaveOnEscape), so Work
+      // View stays open, and the next Escape — focus no longer in a field —
+      // closes it. (Until TL15 an Escape from a math field was treated as not
+      // handled and closed the dialog at once: PR #454.)
+      const handledInside = event.defaultPrevented;
       if (handledInside || !onTop()) return;
       if (event.key === 'Escape') {
         // A layer above that closed itself on this very Escape (a Toast

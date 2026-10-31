@@ -17,6 +17,7 @@ import {
 import { normalizeQuestionFamilyReference } from '../../../functions/shared/questionFamilyInstance.mjs';
 import { hasLocalFamilyTemplate, lostTemplatePlaceholders } from '../../../functions/shared/questionFamilyTemplate.mjs';
 import { isValidLogBase } from '../../../functions/shared/toolMath/exponentialLog/exponentialLogMath.mjs';
+import { asksSingularReasonByDefault } from '../../../functions/shared/toolMath/matrixLab/matrixLabModel.mjs';
 
 const asArray = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
@@ -182,7 +183,13 @@ const copyCommon = (source, target = {}) => {
   // `scaffold` ({ prompt, options: [two], correct }) is the item's own "Let's
   // back up" step for an inclusion student after two misses (backUpStep.js);
   // it was dropped here, so no authored step ever reached a student.
-  ['scaffold','prompt','activityRole','dok','difficultyBand','purpose','evidenceWeight','differentiation','calculator','calculatorPolicy','examCalculatorMode','assessmentContext','context','familyId','familyVersion','assessedConstruct','taskType','representation','ccmrChallengeTier','ccmrFamilyRole','ccmrAuthenticLanguage','assessmentItemFormat','ccmrSource','solutionReview','attemptFeedback','misconceptions','supportHints','hints','hint','guidedNotes','guidedSteps','referenceInfo','representSolution','solutionRepresentations','representationAsk','showEquation'].forEach((key) => {
+  // `referenceSheet` ("staarAlgebra1") names a sheet the work bar offers (TL07,
+  // referenceSheets.js); a compiler that dropped it would leave the button off.
+  // `translations` ({ es: { prompt, hints[], solutionReview } }) is the
+  // teacher's own version of the item's words for a student whose profile names
+  // that language (TT22; authoredTranslation.js). It was dropped here, so no
+  // authored translation, of the prompt or anything else, ever reached a student.
+  ['scaffold','prompt','activityRole','dok','difficultyBand','purpose','evidenceWeight','differentiation','calculator','calculatorPolicy','examCalculatorMode','assessmentContext','context','familyId','familyVersion','assessedConstruct','taskType','representation','ccmrChallengeTier','ccmrFamilyRole','ccmrAuthenticLanguage','assessmentItemFormat','ccmrSource','solutionReview','attemptFeedback','misconceptions','supportHints','hints','hint','translations','guidedNotes','guidedSteps','referenceInfo','referenceSheet','representSolution','solutionRepresentations','representationAsk','showEquation'].forEach((key) => {
     if (source[key] != null) target[key] = source[key];
   });
   // Canonical V5 questions keep the normalized mathematical intent that chose
@@ -470,6 +477,10 @@ const fieldFromIntent = (field, index) => {
     if (inferredOptions) {
       out.type = 'choice';
       out.options = inferredOptions;
+      // MathMaster wrote these options, not the author, so the screen adds
+      // its distractors to them as it does to any inferred pair (GR12;
+      // choiceOptions.js choiceOptionsForField). Authored options stay closed.
+      out.optionsInferred = true;
     }
   }
   if (out.kind === 'text' && !out.type) out.type = 'text';
@@ -1956,6 +1967,13 @@ const compileOne = (q, index, repairs) => {
       const data = q.data || {};
       out = copyCommon(q, { type, mode: q.mode || (actions.includes('fitDataModel') ? 'lineFit' : actions.includes('predictFromModel') ? 'prediction' : 'full'), points: q.points || data.points, predictionX: q.predictionX ?? data.predictionX, predictionTolerance: q.predictionTolerance ?? data.predictionTolerance });
       copyAxisLabels(q, out);
+      // Whether the study supports a causal claim: both graders key the
+      // association question on it, and an import dropped it, so an imported
+      // item could never accept "causation" (TL09). Copied only when authored,
+      // as a real boolean: the browser reads it as truthy and Path as === true,
+      // so an authored "true" string would otherwise grade two ways.
+      const causationSupported = q.causationSupported ?? data.causationSupported;
+      if (causationSupported !== undefined) out.causationSupported = causationSupported === true || String(causationSupported).trim().toLowerCase() === 'true';
       break;
     }
     case 'regressionCalculator': {
@@ -2128,6 +2146,9 @@ const compileOne = (q, index, repairs) => {
         leftLabel: q.leftLabel,
         rightLabel: q.rightLabel,
         plotSnapStep: q.plotSnapStep,
+        // How the terms are written on the screen: "a_n" (the default) or
+        // "f(n)", as the district's DOL writes them. A label only (TL39).
+        notation: q.notation,
       });
       break;
     }
@@ -2220,7 +2241,13 @@ const compileOne = (q, index, repairs) => {
         showEquations: q.showEquations,
         technology: q.technology,
         justifySingular: q.justifySingular,
+        decisionWeight: q.decisionWeight,
       });
+      // A singular system asks why it has no solution or infinitely many
+      // unless its author turned that off (the owner, 2026-10-23, C2-61).
+      // Decided here, where the question is created, so a published question
+      // keeps the grading it was published with (matrixLabModel.mjs).
+      if (out.justifySingular == null && asksSingularReasonByDefault(out)) out.justifySingular = true;
       break;
     }
     case 'expressionMeaning': {
@@ -2273,7 +2300,7 @@ const compileOne = (q, index, repairs) => {
       const l = q.lineIntent || q.line || {};
       let mode = q.mode || l.mode;
       if (!mode) mode = q.givenPoints || l.givenPoints ? 'throughPoints' : q.point || l.point ? 'pointSlope' : q.standardForm || l.standard ? 'standardForm' : q.orientation || l.orientation ? 'verticalHorizontal' : 'slopeIntercept';
-      out = copyCommon(q, { type, mode, line: q.line || (mode === 'slopeIntercept' ? { m: q.m ?? l.m, b: q.b ?? l.b } : undefined), factored: q.factored || l.factored, givenPoints: q.givenPoints || l.givenPoints, point: q.point || l.point, slope: q.slope ?? l.slope, standard: q.standardForm || l.standard, orientation: q.orientation || l.orientation, value: q.value ?? l.value, constructionPolicy: q.constructionPolicy || l.constructionPolicy, graphBounds: q.graphBounds || l.graphBounds, snapStep: q.snapStep ?? l.snapStep, tolerance: q.tolerance ?? l.tolerance });
+      out = copyCommon(q, { type, mode, line: q.line || (mode === 'slopeIntercept' ? { m: q.m ?? l.m, b: q.b ?? l.b } : undefined), factored: q.factored || l.factored, givenPoints: q.givenPoints || l.givenPoints, point: q.point || l.point, slope: q.slope ?? l.slope, standard: q.standardForm || l.standard, orientation: q.orientation || l.orientation, value: q.value ?? l.value, constructionPolicy: q.constructionPolicy || l.constructionPolicy, graphBounds: q.graphBounds || l.graphBounds, snapStep: q.snapStep ?? l.snapStep, tolerance: q.tolerance ?? l.tolerance, referenceLine: q.referenceLine || l.referenceLine });
       break;
     }
     case 'stepAlgebra2':

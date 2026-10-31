@@ -328,9 +328,10 @@ export const focusFirstAnswerControl = (root) => focusAnswerControlAt(root, 0);
  * The box is looked up when the focus runs, a frame or more after it was
  * asked for, and by then the question may have locked (correct, closed, a
  * submission in flight), or Work View may have opened over it. A locked
- * question keeps its boxes in the page, inside a disabled fieldset and an
- * inert wrapper — counted, so the position still matches, but not a place to
- * put a cursor. Nor is a box behind an open modal dialog.
+ * question keeps its boxes in the page, inside a disabled fieldset and a
+ * read-only (or, while waiting, inert) wrapper — counted, so the position
+ * still matches, but not a place to put a cursor. Nor is a box behind an open
+ * modal dialog.
  */
 export const answerControlAcceptsFocus = (target, documentObject = typeof document !== 'undefined' ? document : null) => {
   if (!target || target.isConnected === false) return false;

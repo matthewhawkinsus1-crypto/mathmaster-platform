@@ -191,3 +191,33 @@ test('the music stays down through a round\'s results, and returns with the next
   assert.equal(director.musicKey, 'round', 'back with the next round');
   director.dispose();
 });
+
+test('LC16: the host hears 3, 2, 1 and GO off the round\'s startsAt — and nothing at the deadline but the lock-in', async () => {
+  const { cueCountdownStep, cueRemainingMs } = await import(`${pathToFileURL(path.resolve('src/platform/liveChallenge/challengeShellModel.js')).href}?test=${Date.now()}`);
+  class FakeAudio { constructor(src) { this.src = src; } addEventListener() {} play() { return Promise.resolve(); } pause() {} }
+  const { LiveChallengeAudioDirector } = await loadAudio();
+  const director = new LiveChallengeAudioDirector({ AudioClass: FakeAudio, fetchImpl: async () => ({ ok: false }) });
+  await director.prime();
+  const heard = [];
+  const playSfx = director.playSfx.bind(director);
+  director.playSfx = (name) => { heard.push(name); return playSfx(name); };
+  const room = { roomId: 'r3', status: 'running', currentRound: 0, roundCount: 3, startsAt: 10_000, endsAt: 40_000 };
+  // The screens' countdown: 3.5 s of lead, then the round.
+  assert.equal(cueCountdownStep(room, 6_500), 3);
+  assert.equal(cueCountdownStep(room, 8_500), 2);
+  assert.equal(cueCountdownStep(room, 9_500), 1);
+  assert.equal(cueCountdownStep(room, 10_200), null);
+  for (let now = 6_500; now <= 41_000; now += 250) {
+    director.sync({ room, remainingMs: cueRemainingMs(room, now), countdownStep: cueCountdownStep(room, now), nowMs: now });
+  }
+  const cues = heard.filter((name) => name === 'countdownTick' || name === 'countdownGo');
+  assert.deepEqual(cues, ['countdownTick', 'countdownTick', 'countdownTick', 'countdownGo'], 'three ticks and one GO, before the round, never at its end');
+  assert.ok(heard.indexOf('countdownGo') < heard.indexOf('questionLockIn'), 'the buzzer is the lock-in');
+  // A countdown cut short at 3 or 2 (paused, still running) says no GO.
+  heard.length = 0;
+  const next = { ...room, currentRound: 1, startsAt: 60_000, endsAt: 90_000 };
+  director.sync({ room: next, remainingMs: cueRemainingMs(next, 56_600), countdownStep: cueCountdownStep(next, 56_600), nowMs: 56_600 });
+  director.sync({ room: next, remainingMs: 30_000, countdownStep: null, nowMs: 57_000 });
+  assert.deepEqual(heard.filter((name) => name.startsWith('countdown')), ['countdownTick']);
+  director.dispose();
+});

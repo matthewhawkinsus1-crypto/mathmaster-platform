@@ -159,7 +159,10 @@ test('multi-answer fields show the format they enforce', () => {
   const source = readFileSync('src/MultiAnswerGrader.jsx', 'utf8');
   assert.match(source, /describeAnswerFormat/);
   assert.match(source, /answerShape\.hint/);
-  assert.match(source, /answerShape\.placeholder/);
+  // The box's placeholder comes from the same declared format (describeBoxPlaceholder:
+  // the example alone, FB16), and an inferred set / inequality box has its own.
+  assert.match(source, /describeBoxPlaceholder\(field/);
+  assert.match(source, /placeholder=\{box\.placeholder\}/);
   // The bare word "answer" as a placeholder told a student nothing about shape.
   assert.doesNotMatch(source, /placeholder=\{[^}]*'answer'\}/);
 });

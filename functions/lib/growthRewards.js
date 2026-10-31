@@ -58,7 +58,6 @@ const TEST_CYCLE_PAGE_SIZE = 200;
 // A year of weekly goals. Older weeks are settled: anything they earned was
 // paid by an earlier sync (see the streak's run-start check for the edge).
 const WEEK_LOOKBACK = 52;
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_SESSIONS_PER_QUERY = 300;
 const FIRESTORE_IN_LIMIT = 30;
 // A student opening MathMaster in three tabs at once should cost one sync.
@@ -266,14 +265,18 @@ async function loadTestCycles(db, studentId, { pageSize = TEST_CYCLE_PAGE_SIZE }
 
 /** This student's weekly goals since the rewards began (at most a year), and the Path sessions of those weeks. */
 async function loadWeeklyPath(db, modules, studentId, nowMs) {
-  const { weekKeyFor } = modules.weeklyPath;
+  const { shiftWeekKey, weekKeyFor } = modules.weeklyPath;
   const startWeekKey = weekKeyFor(modules.rules.GROWTH_REWARDS_START_MS);
-  const lookbackWeekKey = weekKeyFor(nowMs - (WEEK_LOOKBACK - 1) * WEEK_MS);
-  const windowStartWeekKey = lookbackWeekKey > startWeekKey ? lookbackWeekKey : startWeekKey;
   const currentWeekKey = weekKeyFor(nowMs);
+  // Stepped by date, not by clock: a week key's own midnight read back as a
+  // moment is Sunday evening in the school's zone (weeklyPathGrade.mjs).
+  const lookbackWeekKey = shiftWeekKey(currentWeekKey, -(WEEK_LOOKBACK - 1));
+  const windowStartWeekKey = lookbackWeekKey > startWeekKey ? lookbackWeekKey : startWeekKey;
   const weekKeys = [];
-  for (let at = Date.parse(`${windowStartWeekKey}T00:00:00Z`); weekKeyFor(at) <= currentWeekKey; at += WEEK_MS) {
-    weekKeys.push(weekKeyFor(at));
+  // The window is at most WEEK_LOOKBACK weeks, so the count is a guard that a
+  // mis-stepped key can never turn into a loop that does not end.
+  for (let weekKey = windowStartWeekKey; weekKey <= currentWeekKey && weekKeys.length < WEEK_LOOKBACK; weekKey = shiftWeekKey(weekKey, 1)) {
+    weekKeys.push(weekKey);
   }
   if (!weekKeys.length) return { goals: [], completions: [], windowStartWeekKey, paidStreakWeeks: [] };
 

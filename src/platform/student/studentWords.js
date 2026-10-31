@@ -99,7 +99,8 @@ export const CLOSED_WORK = Object.freeze({
   tabLabel: 'Closed — try again',
   // The workspace banner's heading (the work in front of the student now) and sentence.
   bannerTitle: 'Closed — practice here earns no credit',
-  bannerText: 'Your grade stays as it is. You can keep practicing with feedback; nothing here changes your grade. Your practice is saved, and your teacher can see it.',
+  // The copy opens empty, so it says the graded answers are kept (NV13).
+  bannerText: 'Your grade stays as it is, and your graded answers are kept: this is a fresh copy to practice on. Nothing here changes your grade. Your practice is saved, and your teacher can see it.',
   // The button that opens it again.
   tryAgain: 'Try it again — no credit',
   // Beside the grade it keeps.
@@ -122,6 +123,95 @@ export const triesCount = (count) => {
   const n = Math.max(0, Math.floor(Number(count) || 0));
   return `${n} ${n === 1 ? 'try' : 'tries'}`;
 };
+
+// --- Starting again ----------------------------------------------------------
+
+/*
+ * ONE WORD FOR BEGINNING AGAIN (student pass 3, TOOL-4 / TOOL-6, A3-105).
+ *
+ * A control that throws a tool's work away so the student can begin again was
+ * "Start over" in ten tools, and "Reset Question", "Reset work", "Reset Graph",
+ * "Reset Inverse", "Delete All", "Clear" and "Clear all" in the rest. It is
+ * "Start over" wherever it is: a tool's own toolbar, Work View's rail, the
+ * work bar. A control that takes away one kind of mark and leaves the rest
+ * ("Clear plot", "Clear arrows", "Clear Sketch") keeps its own name: it does
+ * not begin again, and "Start over" would say more than it does. "Reset view"
+ * moves the camera and never touches the work, so it keeps its word.
+ *
+ * The work bar's button restarts the whole question while a tool's restarts
+ * only itself (one step, inside a composed question), and both can be on the
+ * screen at once, so the work bar's says what it restarts: "Start question
+ * over". A phone's one-row bar shows its short form, "Start over".
+ */
+export const START_OVER = 'Start over';
+/** The work bar's, where it must be told from a tool's own. */
+export const START_QUESTION_OVER = 'Start question over';
+/** While a start over is under way. */
+export const STARTING_OVER = 'Starting over…';
+
+// --- Two sets of tools -------------------------------------------------------
+
+/*
+ * Two different sets of tools were both called "Support tools" (student pass
+ * 3, RUN-22 / A3-53): the header's list of what a student can use and the
+ * materials their teacher attached, and the tray under a question that reads
+ * it aloud, translates it and explains its words. A student, and a screen
+ * reader, could not tell them apart. The header's list keeps the neutral
+ * "Support tools" (nothing names a program or a plan); the tray, and the
+ * Work View drawer that holds it, are "Language tools".
+ */
+export const SUPPORT_TOOLS = 'Support tools';
+export const LANGUAGE_TOOLS = 'Language tools';
+
+// --- Work View ---------------------------------------------------------------
+
+/*
+ * ONE NAME FOR THE ENLARGED WORKSPACE (student pass 3, D9; TL35, finding C1-4).
+ *
+ * The question's opener read "Open Work View" (W6-1) while the tools beside it
+ * called the same panel "Enlarge graph", "Enlarge to plot", "Enlarge algebra
+ * workspace", "Enlarge system workspace". EnlargeableFigure says this wherever
+ * it opens one and takes no label of its own, so a tool cannot name the same
+ * feature another way. (The dialog it opens is named "<figure>, Work View".)
+ */
+export const OPEN_WORK_VIEW = 'Open Work View';
+
+// --- Work View's caption -----------------------------------------------------
+
+/*
+ * WHAT THE ENLARGED VIEW CARRIES, IN A STUDENT'S WORDS (student pass 3, TOOL-6
+ * / A3-105; VH-32).
+ *
+ * The caption under Work View's controls ("In this view: …") was built from
+ * the platform's capability keys by splitting them, so a student read
+ * "Numeric controls · Equation input · Table data · Edit mathematical objects".
+ * These are the same things in the words a student uses for them. A tool that
+ * has better words for what it holds ("Sequence table", "Your line: y = 2x + 3")
+ * says them itself and they win; this is the fallback, so a key is never
+ * printed. The map covers every capability, shown in the caption or not, and a
+ * test holds it to the platform's list.
+ */
+export const WORK_VIEW_CAPABILITY_WORDS = Object.freeze({
+  undo: 'Undo',
+  redo: 'Redo',
+  fitView: 'Fit View',
+  panZoom: 'Pan and zoom',
+  pointEditing: 'Things you can move or change',
+  numericControls: 'Number boxes',
+  equationInput: 'Equation boxes',
+  tableData: 'Tables',
+  instruction: 'What to do next',
+  task: 'Your task',
+  help: 'Help',
+  primaryActions: 'Main buttons',
+  secondaryActions: 'Other buttons',
+  supports: LANGUAGE_TOOLS,
+  directions: 'How to do this',
+  toolHelp: 'Help with this tool',
+  reference: 'Information you need',
+});
+/** A capability's student word; nothing at all for a key the list does not know. */
+export const workViewCapabilityWord = (key) => WORK_VIEW_CAPABILITY_WORDS[key] || '';
 
 // --- Hints -------------------------------------------------------------------
 

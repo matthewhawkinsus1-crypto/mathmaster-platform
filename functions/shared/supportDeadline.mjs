@@ -17,6 +17,10 @@
 // RULES THIS MODULE GUARANTEES
 //   * never earlier: the individualized due is later than the class due, and
 //     the individualized final cutoff is max(class final, individualized due);
+//   * school days are the days the district is open to students: weekends,
+//     breaks, holidays and staff days are skipped (schoolYearCalendar.mjs,
+//     read the same by the browser and the server), which can only move a
+//     date later than counting weekdays alone would;
 //   * attendance extensions keep their own field (`lateDueAt`) and the
 //     resolvers take the max of everything, so neither can shorten the other;
 //   * a legacy `extra-time` box with no configured extension changes nothing
@@ -24,6 +28,7 @@
 //   * the governing profile is the one in effect on the CLASS DUE DATE, so a
 //     later profile change does not rewrite past work.
 import { parseInstant, zonedDateKey, zonedInstant } from './instructionalCalendar.mjs';
+import { schoolYearClosedDateKeys } from './schoolYearCalendar.mjs';
 
 /** The school's wall clock (same value as sectionDeadline.mjs SCHOOL_TIME_ZONE). */
 export const SUPPORT_DEADLINE_TIME_ZONE = 'America/Chicago';
@@ -67,8 +72,27 @@ export const describeDueDateExtension = (raw) => {
   return 'no due-date change';
 };
 
-/** `YYYY-MM-DD` plus N weekdays. Weekends are skipped; holidays are not known here. */
-export const addSchoolDays = (dateKey, count) => {
+// The days the district is closed to students: breaks, holidays and staff days
+// (schoolYearCalendar.mjs). Read once; the browser and the server read the same
+// list because both import this module (TT17).
+const DISTRICT_CLOSED_DATE_KEYS = schoolYearClosedDateKeys();
+
+/**
+ * `YYYY-MM-DD` plus N school days: the weekdays the district is open to
+ * students. Weekends are skipped, and so are the district's breaks, holidays
+ * and staff days (TT17) — a due date used to be able to land on a holiday.
+ *
+ * NEVER EARLIER THAN THE WEEKDAY RULE. Skipping a closed day can only move the
+ * answer later, so a student who had a date under the old weekday-only rule has
+ * that date or a later one. A date the district calendar does not cover (another
+ * school year) has no closures, so it is counted by weekdays alone, as before.
+ *
+ * "School day" means a day school is open, for every student alike; it is not
+ * "a day this class meets". An A/B rotation does not change which days those
+ * are, and the bell schedule is not known here (see the status note under
+ * Known limitations in docs/handoffs/IEP_SUPPORT_EVIDENCE_STATUS.md).
+ */
+export const addSchoolDays = (dateKey, count, { closedDateKeys = DISTRICT_CLOSED_DATE_KEYS } = {}) => {
   const match = String(dateKey || '').match(DATE_KEY);
   if (!match) return null;
   let cursor = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
@@ -76,7 +100,9 @@ export const addSchoolDays = (dateKey, count) => {
   while (remaining > 0) {
     cursor += 86400000;
     const weekday = new Date(cursor).getUTCDay();
-    if (weekday !== 0 && weekday !== 6) remaining -= 1;
+    if (weekday === 0 || weekday === 6) continue;
+    if (closedDateKeys.has(new Date(cursor).toISOString().slice(0, 10))) continue;
+    remaining -= 1;
   }
   const moved = new Date(cursor);
   return `${moved.getUTCFullYear()}-${String(moved.getUTCMonth() + 1).padStart(2, '0')}-${String(moved.getUTCDate()).padStart(2, '0')}`;

@@ -192,10 +192,13 @@ test('question 14 is MathMaster\'s vetted DOK 3 extension in a story the review 
     assert.ok(blueprintTeks.has(reference.teks), 'a TEKS the review teaches');
 
     // The bank's mathematics, untouched: prompt, answer, generator, alignments, provenance.
+    // A choice field also carries this review's reason for each option
+    // (FB05), a support like the back-up step; the rest of it is the bank's.
     const converted = JSON.parse(JSON.stringify(bank.bankDocumentToV5Intent(bankDocument(reference), { activityRole: 'practice' })));
     const written = RAW.sections[0].questions[14 + index];
+    const bankPart = (key, value) => (key === 'answerFields' ? value.map(({ optionRationales: _reasons, ...field }) => field) : value);
     Object.keys(converted).filter((key) => !['activityRole', 'questionId', 'solutionReview'].includes(key)).forEach((key) => (
-      assert.deepEqual(written[key], converted[key], `${label}: ${key} is the bank's`)
+      assert.deepEqual(bankPart(key, written[key]), converted[key], `${label}: ${key} is the bank's`)
     ));
     // Its worked solution is the bank's, with the $…$ markup unwrapped, and the
     // usual mistake named whether or not the bank names one.

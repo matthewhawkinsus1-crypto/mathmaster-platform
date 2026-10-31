@@ -17,7 +17,9 @@
 // points typed, Check Point Placements, "Connect my points" (focus goes there
 // when the check passes), the end markers by arrow keys and Enter, Submit —
 // graded correct for the right points and wrong for wrong ones, under practice
-// and under a DOL.
+// and under a DOL. On a DOL "Connect my points" is offered only with the
+// keyboard-access support, and is then recorded as that support provided;
+// without it the DOL offers no Connect (the owner, 2026-10-23, C1-120).
 //
 // Driven only through rendered controls, in the real QuestionEngine
 // (graphKeyboardRouteMain.jsx), under practice and under a DOL (whose points
@@ -41,11 +43,11 @@ const check = (ok, label, detail = '') => {
 
 const stamp = Date.now();
 let pageCount = 0;
-const open = async (q, role = 'practice') => {
+const open = async (q, role = 'practice', extra = '') => {
   const page = await context.newPage();
   page.setDefaultTimeout(8000);
   page.on('pageerror', (error) => check(false, `${q} (${role}): page error`, error.message));
-  await page.goto(`${ORIGIN}/tests/browser/graphKeyboardRoute.html?q=${q}&role=${role}&run=${stamp}-${(pageCount += 1)}`, { waitUntil: 'networkidle' });
+  await page.goto(`${ORIGIN}/tests/browser/graphKeyboardRoute.html?q=${q}&role=${role}${extra}&run=${stamp}-${(pageCount += 1)}`, { waitUntil: 'networkidle' });
   await page.locator('[data-graph-keyboard-fixture]').waitFor();
   await page.waitForTimeout(700);
   return page;
@@ -190,6 +192,69 @@ for (const role of ['practice', 'dol']) {
   await page.close();
 }
 
+/* ------------------- TL38: a point the student marked is not drawn red */
+
+// Red says "wrong" everywhere else on the platform, so a point the student
+// selected on the plane — right or wrong, and before anything is graded — has
+// a colour of its own (src/platform/graph/studentMarkColor.js). Marked here by
+// the mouse or finger and by the keyboard, on a Chromebook and a phone, under
+// practice and a DOL, on the intercept and on a point that is NOT the intercept.
+{
+  const RED = '#d93025';
+  const TEAL = '#00838f';
+  const marksOn = (page) => page.evaluate(() => [...document.querySelectorAll('svg circle[r="8"][stroke="#fff"]')]
+    .filter((circle) => circle.getBoundingClientRect().width > 0)
+    .map((circle) => (circle.getAttribute('fill') || '').toLowerCase()));
+  // The crosshair starts at the middle of the plane and each arrow key moves it
+  // one snap step; it announces where it is, so walk until it says (x, y).
+  const walkCursorTo = async (page, x, y) => {
+    await plane(page).focus();
+    for (let guard = 0; guard < 80; guard += 1) {
+      const at = /\((-?[\d.]+), (-?[\d.]+)\)/.exec(await announcement(page));
+      if (!at) return false;
+      const [cx, cy] = [Number(at[1]), Number(at[2])];
+      if (cx === x && cy === y) return true;
+      await page.keyboard.press(cx < x ? 'ArrowRight' : cx > x ? 'ArrowLeft' : cy < y ? 'ArrowUp' : 'ArrowDown');
+    }
+    return false;
+  };
+  for (const [screen, viewport, touch] of [['1366x768', { width: 1366, height: 768 }, false], ['390x844', { width: 390, height: 844 }, true]]) {
+    const screenContext = await browser.newContext({ viewport, hasTouch: touch, isMobile: touch });
+    for (const role of ['practice', 'dol']) {
+      for (const route of ['pointer', 'keyboard']) {
+        for (const [what, x, y] of [['the intercept', 0, 1], ['another point', 2, 5]]) {
+          const label = `mark ${what} by ${route === 'pointer' ? (touch ? 'tap' : 'click') : 'keyboard'} (${screen}, ${role})`;
+          const page = await screenContext.newPage();
+          page.setDefaultTimeout(8000);
+          page.on('pageerror', (error) => check(false, `${label}: page error`, error.message));
+          await page.goto(`${ORIGIN}/tests/browser/graphKeyboardRoute.html?q=pick&role=${role}&run=${stamp}-${(pageCount += 1)}`, { waitUntil: 'networkidle' });
+          await page.locator('[data-graph-keyboard-fixture]').waitFor();
+          await page.waitForTimeout(700);
+          await page.getByRole('button', { name: /intercept/ }).first().click();
+          await page.waitForTimeout(150);
+          check((await marksOn(page)).length === 0, `${label}: nothing is marked yet`);
+          if (route === 'pointer') {
+            await plane(page).scrollIntoViewIfNeeded();
+            const fit = await axisFit(page);
+            const [px, py] = toScreen(fit, x, y);
+            if (touch) await page.touchscreen.tap(px, py);
+            else await page.mouse.click(px, py);
+          } else {
+            check(await walkCursorTo(page, x, y), `${label}: the arrow keys walk the crosshair to (${x}, ${y})`, `"${await announcement(page)}"`);
+            await page.keyboard.press('Enter');
+          }
+          await page.waitForTimeout(300);
+          const marks = await marksOn(page);
+          check(marks.length === 1 && marks[0] === TEAL, `${label}: one mark, in its own colour`, JSON.stringify(marks));
+          check(!marks.includes(RED), `${label}: and it is not red`);
+          await page.close();
+        }
+      }
+    }
+    await screenContext.close();
+  }
+}
+
 /* ------------------------- TOOL-1: the whole question, by keyboard alone */
 
 {
@@ -226,10 +291,13 @@ for (const role of ['practice', 'dol']) {
   };
   const connect = (page) => page.locator('[data-graph-connect-points="construction"]');
   const curvePart = (page) => page.evaluate(() => (window.__mmGraded.at(-1)?.parts || []).find((part) => part.id === 'graph-curve') || null);
+  const keyboardAccessRecords = (page) => page.evaluate(() => window.__mmEvidence.filter((record) => record.supportId === 'keyboard-access').map((record) => record.eventType));
 
+  // On a DOL the keyboard-only route is the keyboard-access support's: the plan
+  // offers Connect there. Practice offers it to everyone.
   for (const [role, points, right] of [['practice', [1, 5], true], ['dol', [1, 5], true], ['dol', [2, 6], false]]) {
     const label = `keyboard only, ${role}, ${right ? 'right' : 'wrong'} points`;
-    const page = await open('construct', role);
+    const page = await open('construct', role, role === 'dol' ? '&plan=keyboard' : '');
     await typeByKeyboard(page, 'Plot the point where x = 0', 0, points[0]);
     check(/^Placed Plot the point where x = 0 at /.test(await announcement(page)), `${label}: Enter in the y box places the point`, `"${await announcement(page)}"`);
     await typeByKeyboard(page, 'Plot the point where x = 2', 2, points[1]);
@@ -237,7 +305,8 @@ for (const role of ['practice', 'dol']) {
       await enterOn(page, page.getByRole('button', { name: 'Check Point Placements' }));
       check(await focusName(page) === 'Connect my points', `${label}: a passed check sends focus to Connect my points, not the page`, await focusName(page));
     } else {
-      check(await connect(page).count() === 1, `${label}: Connect my points is offered once every point is down`);
+      check(await connect(page).count() === 1, `${label}: with the keyboard-access support, Connect my points is offered once every point is down`);
+      check((await keyboardAccessRecords(page)).includes('provided'), `${label}: and that is recorded as the support provided`, JSON.stringify(await keyboardAccessRecords(page)));
       await connect(page).focus();
     }
     await page.keyboard.press('Enter');
@@ -255,6 +324,29 @@ for (const role of ['practice', 'dol']) {
     check(curve?.isComplete === true && curve?.isCorrect === right && graded?.isCorrect === right,
       `${label}: graded ${right ? 'correct' : 'wrong'}, the curve with it`, JSON.stringify({ isCorrect: graded?.isCorrect, curve }));
     await page.close();
+  }
+
+  // A DOL without the keyboard-access support: no Connect, and nothing names
+  // it — the curve is the student's to draw. Practice offers it to everyone
+  // and records no support for it.
+  {
+    const page = await open('construct', 'dol');
+    await typeByKeyboard(page, 'Plot the point where x = 0', 0, 1);
+    await typeByKeyboard(page, 'Plot the point where x = 2', 2, 5);
+    await page.waitForTimeout(300);
+    check(await connect(page).count() === 0, 'DOL without the keyboard-access support: no Connect my points');
+    check(/Draw your curve through all of your points/.test(await page.locator('body').innerText()), 'DOL without the support: it still says to draw the curve');
+    check(!/Connect my points/.test(await page.locator('body').innerText()), 'DOL without the support: nothing names Connect my points');
+    check((await keyboardAccessRecords(page)).length === 0, 'DOL without the support: no support recorded');
+    await page.close();
+
+    const practice = await open('construct', 'practice', '&plan=keyboard');
+    await typeByKeyboard(practice, 'Plot the point where x = 0', 0, 1);
+    await typeByKeyboard(practice, 'Plot the point where x = 2', 2, 5);
+    await enterOn(practice, practice.getByRole('button', { name: 'Check Point Placements' }));
+    check(await connect(practice).count() === 1, 'practice: Connect my points is offered, plan or not');
+    check((await keyboardAccessRecords(practice)).length === 0, 'practice: everyone has it, so it is not the support provided');
+    await practice.close();
   }
 
   // Enter in the x box with y still empty moves on to y; it places nothing
@@ -280,6 +372,46 @@ for (const role of ['practice', 'dol']) {
     await page.keyboard.press('Enter');
     await page.waitForTimeout(200);
     check(/^Placed Plot the point where x = 2 at \(2, 5\)\.$/.test(await announcement(page)), 'typed entry: a card that states its x is placed from y alone', `"${await announcement(page)}"`);
+    await page.close();
+  }
+
+  // AX27 (F-PLACE-NEEDS-SELECT): "Place at this coordinate" places the point a
+  // student has chosen. With none chosen it can only say so, and used to say it
+  // in a status line at the foot of the tool. The cue beside it says it before
+  // it is pressed, is the button's description, and names the point once one
+  // is chosen; pressing with none chosen says so first, before any number.
+  {
+    const page = await open('construct', 'practice');
+    const cue = page.locator('[data-graph-exact-cue]');
+    const buttonDescription = async () => {
+      const client = await page.context().newCDPSession(page);
+      const { nodes } = await client.send('Accessibility.getFullAXTree');
+      await client.detach();
+      return nodes.find((node) => node.role?.value === 'button' && node.name?.value === 'Place at this coordinate')?.description?.value ?? '';
+    };
+    check(/^Choose which point you are placing first, then type its x and y\.$/.test(await cue.innerText()),
+      'typed entry: with no point chosen, the cue says to choose one first', `"${await cue.innerText()}"`);
+    check((await buttonDescription()) === (await cue.innerText()), 'typed entry: and the Place button is described by it', `"${await buttonDescription()}"`);
+    check(await cue.evaluate((node) => !node.closest('[aria-live], [role="status"], [role="alert"]') && !node.hasAttribute('aria-live')),
+      'typed entry: the cue is plain text, not a second live region (the announcements stay one voice)');
+    await page.getByRole('spinbutton', { name: 'x', exact: true }).fill('0');
+    await page.getByRole('spinbutton', { name: 'y', exact: true }).fill('1');
+    await page.getByRole('button', { name: 'Place at this coordinate' }).click();
+    await page.waitForTimeout(200);
+    check(await announcement(page) === 'Choose which point you are placing first.', 'typed entry: Place with no point chosen says to choose one, and nothing else', `"${await announcement(page)}"`);
+    check(await page.getByRole('spinbutton', { name: 'x', exact: true }).inputValue() === '0', 'typed entry: and keeps the numbers the student typed');
+    await page.getByRole('spinbutton', { name: 'x', exact: true }).fill('');
+    await page.getByRole('spinbutton', { name: 'y', exact: true }).fill('');
+    await page.getByRole('button', { name: 'Place at this coordinate' }).click();
+    await page.waitForTimeout(200);
+    check(await announcement(page) === 'Choose which point you are placing first.', 'typed entry: with the boxes empty too, the missing point is said first', `"${await announcement(page)}"`);
+    await page.getByRole('button', { name: /^Plot the point where x = 0/ }).click();
+    await page.waitForTimeout(150);
+    check(/^Placing Plot the point where x = 0\. Type its x and y, then press Place at this coordinate\.$/.test(await cue.innerText()),
+      'typed entry: once a point is chosen, the cue names it', `"${await cue.innerText()}"`);
+    await page.getByRole('button', { name: 'Place at this coordinate' }).click();
+    await page.waitForTimeout(200);
+    check(await announcement(page) === 'Enter a number for both x and y.', 'typed entry: with a point chosen and no numbers, it asks for the numbers', `"${await announcement(page)}"`);
     await page.close();
   }
 

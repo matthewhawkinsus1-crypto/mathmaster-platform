@@ -53,7 +53,10 @@ import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
 import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
 import { typedCoordinate, typedEntryEnterAction } from './graphTypedCoordinate.js';
 import { connectPointsStrokes, constructionBranchSplitX, constructionPointsToConnect, inversePointsToConnect } from './graphConnectPoints.js';
+import { KEYBOARD_ACCESS_SUPPORT_ID, connectPointsOffered, connectPointsProvidedByPlan } from './platform/graph/connectPointsPolicy.js';
+import { STUDENT_MARK_COLOR } from './platform/graph/studentMarkColor.js';
 import FocusSafeButton from './components/common/FocusSafeButton.jsx';
+import { START_OVER } from './platform/student/studentWords.js';
 
 // Matched to CoordinatePlane's zoom buttons so the two planes a student meets
 // in one assignment do not have different-looking controls for the same act.
@@ -97,6 +100,8 @@ const buildTicks = (minimum, maximum, step) => majorTicks(minimum, maximum, step
 const pointLabel = ([x, y]) => `(${x}, ${y})`;
 const taskPlacementLabel = (placement) => placement === 'undefined' ? 'Undefined' : Array.isArray(placement) ? pointLabel(placement) : 'Not placed';
 const markerLabels = { arrow: 'Arrow', open: 'Open Circle', closed: 'Closed Circle' };
+// Said for the arrow-key cursor and the typed entry alike, so it names neither.
+const CHOOSE_A_POINT_FIRST = 'Choose which point you are placing first.';
 const markerExplanations = { arrow: 'Function continues', open: 'Endpoint excluded', closed: 'Endpoint included' };
 const markerSymbols = { arrow: '➤', open: '○', closed: '●' };
 const markerValue = (placement) => typeof placement === 'string' ? placement : placement?.marker || '';
@@ -236,6 +241,12 @@ export default function InteractiveGraphWorkspace({
   // once. Workflow stages leave it on — they check the plot against the
   // student's own table, not against an answer key.
   revealPointCorrectness = true,
+  // The student's support plan has the keyboard-access accommodation
+  // (supportPresentation.keyboardAccess). Where outcomes are withheld it is
+  // what offers "Connect my points" (connectPointsPolicy.js), and that is
+  // reported once through onSupportEvidence as the support provided.
+  keyboardAccess = false,
+  onSupportEvidence = null,
 }) {
   const mobileInteraction = useMobileInteractionMode();
   const svgRef = useRef(null);
@@ -475,6 +486,11 @@ export default function InteractiveGraphWorkspace({
    * Practice, Warm-Up and Classwork keep the checks exactly as before.
    */
   const outcomesWithheld = !revealPointCorrectness;
+  // "Connect my points" and "Connect my reflected points": for every student
+  // where outcomes are shown; on an exit ticket, quiz or test only with the
+  // keyboard-access support, because there right points connected make a right
+  // curve (owner, 2026-10-23, C1-120).
+  const connectOffered = connectPointsOffered({ outcomesWithheld, keyboardAccess });
   // Accepted through the student's own points rather than snapped to the
   // function: the student's strokes stay on screen and the exact curve is not
   // drawn. Read from the construction, not from the policy, so a teacher's
@@ -587,6 +603,16 @@ export default function InteractiveGraphWorkspace({
   const inversePointsCommitted = analysis.inversePointsValidated
     || ((outcomesWithheld || inverseOwnPointsSketch) && inversePointsComplete);
   const inversePointsLocked = analysis.inversePointsValidated || inverseOwnPointsSketch;
+
+  // Where the button is on screen only because of the support plan, that is
+  // the keyboard-access support provided: reported once it shows (the host
+  // records one per assignment), never merely because the plan lists it.
+  const connectShownByPlan = connectPointsProvidedByPlan({ outcomesWithheld, keyboardAccess })
+    && ((stage === 'construct' && !pointOnly && pointsCommitted)
+      || (stage === 'analysis' && inverseReflectionEnabled && inversePointsCommitted));
+  useEffect(() => {
+    if (connectShownByPlan) onSupportEvidence?.({ supportId: KEYBOARD_ACCESS_SUPPORT_ID, eventType: 'provided' });
+  }, [connectShownByPlan, onSupportEvidence]);
 
   const checkInversePoints = () => {
     if (!inversePointsComplete) {
@@ -708,6 +734,11 @@ export default function InteractiveGraphWorkspace({
     return taskStatesX(task) ? Number(task.x) : null;
   };
   const placeTypedCoordinate = () => {
+    // Nothing chosen to place: that is what is missing, before any number is.
+    if (!exactTargetLabel()) {
+      setKeyboardAnnouncement(CHOOSE_A_POINT_FIRST);
+      return;
+    }
     const point = typedCoordinate(typedX, typedY, { statedX: typedStatedX() });
     if (!point) {
       setKeyboardAnnouncement('Enter a number for both x and y.');
@@ -732,6 +763,20 @@ export default function InteractiveGraphWorkspace({
   const exactEntryAvailable = (stage === 'construct' && !pointsLocked)
     || (stage === 'analysis' && inverseReflectionEnabled && !inversePointsLocked);
   const typedRouteOffer = (where = '') => (exactEntryAvailable ? `, or type an exact coordinate${where}` : '');
+  // WHAT THE TYPED ENTRY WOULD PLACE RIGHT NOW (AX27, F-PLACE-NEEDS-SELECT):
+  // the selected point card, the selected end marker, or the active analysis
+  // part — the same three targets placeAtCoordinate chooses between. Empty
+  // until one is chosen, which is when "Place at this coordinate" can only say
+  // so; the cue beside it says the same before it is pressed.
+  const exactTargetLabel = () => {
+    if (stage === 'analysis') {
+      const part = analysisParts.find((item) => item.id === activeAnalysisPartId && ['point', 'inversePoint'].includes(item.kind));
+      return part && part.responseMode !== 'input' && !(part.kind === 'inversePoint' && inversePointsLocked) ? toPlainMath(part.label) : '';
+    }
+    if (construction.snapped && activeMarker) return markerLabels[activeMarker] || 'the marker';
+    if (!pointsLocked && activeTaskId) return toPlainMath(tasks.find((item) => item.id === activeTaskId)?.label || '') || 'the point';
+    return '';
+  };
 
   /** Where an arrow-key cursor should start: the middle of the visible plane. */
   const defaultCursor = () => [
@@ -875,7 +920,7 @@ export default function InteractiveGraphWorkspace({
       setKeyboardAnnouncement(`Placed ${task?.label || 'point'} at ${pointLabel(withStatedTaskX(task, target))}.`);
       return true;
     }
-    setKeyboardAnnouncement('Choose which point you are placing first, then press Enter on the grid.');
+    setKeyboardAnnouncement(CHOOSE_A_POINT_FIRST);
     return false;
   };
 
@@ -1101,6 +1146,7 @@ export default function InteractiveGraphWorkspace({
    * markers are placed as before: choose one, arrow keys on the plane, Enter.
    */
   const connectMyPoints = () => {
+    if (!connectOffered) return;
     const sketchCamera = currentSketchCamera();
     let message;
     if (stage === 'analysis' && inverseReflectionEnabled) {
@@ -1290,7 +1336,6 @@ export default function InteractiveGraphWorkspace({
           effect of the fixed width was to shrink the graph. */}
       <EnlargeableFigure
         label="Coordinate plane workspace"
-        enlargeLabel="Enlarge graph"
         openEnlarged={openEnlarged}
         dismissKey={figureDismissalKey(question)}
         capabilities={workspaceCapabilities}
@@ -1556,7 +1601,7 @@ export default function InteractiveGraphWorkspace({
 
             {constructionEnabled && tasks.filter((task) => Array.isArray(construction.placements[task.id])).map((task) => { const point = construction.placements[task.id]; const isCenter = task.role === 'center'; const x = toScreenX(point[0]); const y = toScreenY(point[1]); return <g key={task.id}><circle cx={x} cy={y} r={isCenter ? 10 : 8} fill={isCenter ? '#fff' : POINT_GUIDE_COLOR} stroke={isCenter ? '#9334e6' : '#fff'} strokeWidth="3" />{isCenter && <text x={x - 4} y={y + 5} fontSize="17" fontWeight="bold" fill="#9334e6">×</text>}<rect x={x + 8} y={y - 29} width={Math.max(36, toPlainMath(task.label).length * 7 + 12)} height="21" rx="6" fill="rgba(255,255,255,0.58)" /><text x={x + 14} y={y - 14} fontSize="12" fontWeight="bold" fill="#174ea6">{toPlainMath(task.label)}</text></g>; })}
             {dragGuideActive && <g pointerEvents="none"><line x1={toScreenX(dropCandidate[0])} y1={PADDING} x2={toScreenX(dropCandidate[0])} y2={HEIGHT - PADDING} stroke={POINT_GUIDE_COLOR} strokeWidth={dropMagneticTarget ? 4 : 3} strokeDasharray="8 5" opacity="0.84" /><line x1={PADDING} y1={toScreenY(dropCandidate[1])} x2={WIDTH - PADDING} y2={toScreenY(dropCandidate[1])} stroke={POINT_GUIDE_COLOR} strokeWidth={dropMagneticTarget ? 4 : 3} strokeDasharray="8 5" opacity="0.84" />{dropMagneticTarget && <circle cx={toScreenX(dropCandidate[0])} cy={toScreenY(dropCandidate[1])} r="24" fill="rgba(19,115,51,0.10)" stroke="#137333" strokeWidth="3" strokeDasharray="5 4" />}<circle cx={toScreenX(dropCandidate[0])} cy={toScreenY(dropCandidate[1])} r="15" fill="rgba(0,166,166,0.22)" stroke={dropMagneticTarget ? '#137333' : POINT_GUIDE_COLOR} strokeWidth="4" /><circle cx={toScreenX(dropCandidate[0])} cy={toScreenY(dropCandidate[1])} r="6" fill={dropMagneticTarget ? '#137333' : POINT_GUIDE_COLOR} />{dropMagneticTarget && <text x={toScreenX(dropCandidate[0])} y={toScreenY(dropCandidate[1]) - 31} textAnchor="middle" fontSize="12" fontWeight="bold" fill="#137333">Snap</text>}</g>}
-            {stage === 'analysis' && analysisParts.filter((part) => ['point', 'inversePoint'].includes(part.kind)).flatMap((part) => (analysis.selections[part.id] || []).map((point, index) => <g key={`analysis-${part.id}-${index}`}><circle cx={toScreenX(point[0])} cy={toScreenY(point[1])} r="8" fill={part.kind === 'inversePoint' ? '#9334e6' : '#d93025'} stroke="#fff" strokeWidth="3" /><rect x={toScreenX(point[0]) + 8} y={toScreenY(point[1]) - 29} width="82" height="22" rx="6" fill="rgba(255,255,255,0.72)" /><text x={toScreenX(point[0]) + 13} y={toScreenY(point[1]) - 14} fontSize="12" fontWeight="bold" fill="#3c4043">{pointLabel(point)}</text></g>))}
+            {stage === 'analysis' && analysisParts.filter((part) => ['point', 'inversePoint'].includes(part.kind)).flatMap((part) => (analysis.selections[part.id] || []).map((point, index) => <g key={`analysis-${part.id}-${index}`}><circle cx={toScreenX(point[0])} cy={toScreenY(point[1])} r="8" fill={part.kind === 'inversePoint' ? '#9334e6' : STUDENT_MARK_COLOR} stroke="#fff" strokeWidth="3" /><rect x={toScreenX(point[0]) + 8} y={toScreenY(point[1]) - 29} width="82" height="22" rx="6" fill="rgba(255,255,255,0.72)" /><text x={toScreenX(point[0]) + 13} y={toScreenY(point[1]) - 14} fontSize="12" fontWeight="bold" fill="#3c4043">{pointLabel(point)}</text></g>))}
 
             {construction.snapped && endpointRequirements.map((requirement) => { const placement = construction.markerPlacements[requirement.id]; const displayPoint = markerPoint(placement) || requirement.point; const x = toScreenX(displayPoint[0]); const y = toScreenY(displayPoint[1]); const correctX = toScreenX(requirement.point[0]); const correctY = toScreenY(requirement.point[1]); const angle = (Math.atan2(toScreenY(requirement.point[1] + requirement.vector[1]) - correctY, toScreenX(requirement.point[0] + requirement.vector[0]) - correctX) * 180) / Math.PI; return <g key={requirement.id}>{!placement && !outcomesWithheld && <><circle cx={correctX} cy={correctY} r="25" fill="rgba(251,188,4,0.10)" stroke="#f9ab00" strokeWidth="2" strokeDasharray="6 6" className="mathmaster-endpoint-pulse" /><text x={correctX} y={correctY - 31} textAnchor="middle" fontSize="11" fontWeight="bold" fill="#8a5a00">Graph end {endpointRequirements.indexOf(requirement) + 1}</text></>}{placement && <EndpointMarker type={markerValue(placement)} x={x} y={y} angle={angle} />}</g>; })}
             {markerGhostActive && <EndpointMarker type={draggingMarkerType || activeMarker} x={toScreenX(dropCandidate[0])} y={toScreenY(dropCandidate[1])} opacity={0.55} scale={1.15} />}
@@ -1576,7 +1621,7 @@ export default function InteractiveGraphWorkspace({
         {stage === 'construct' ? (
           <>
             {pointFeedback && <p style={{ margin: '8px 0', color: construction.pointsValidated ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', fontWeight: 'bold' }}>{pointFeedback}</p>}
-            {!pointOnly && pointsCommitted && !construction.snapped && <p style={{ margin: '8px 0', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>{construction.pointsValidated ? 'Draw through all validated points.' : 'Draw your curve through all of your points.'} {requiredStrokeCount === 2 ? 'Draw both rational branches as separate strokes.' : ''} Or press Connect my points.</p>}
+            {!pointOnly && pointsCommitted && !construction.snapped && <p style={{ margin: '8px 0', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>{construction.pointsValidated ? 'Draw through all validated points.' : 'Draw your curve through all of your points.'} {requiredStrokeCount === 2 ? 'Draw both rational branches as separate strokes.' : ''} {connectOffered ? 'Or press Connect my points.' : ''}</p>}
             {drawFeedback && <p style={{ margin: '8px 0', color: curveAcceptedOwnPoints ? 'var(--mm-primary-text)' : construction.snapped ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', fontWeight: 'bold' }}>{drawFeedback}</p>}
           </>
         ) : (
@@ -1593,6 +1638,15 @@ export default function InteractiveGraphWorkspace({
         )}
 
         <div style={{ display: 'flex', justifyContent: 'center', gap: '9px', flexWrap: 'wrap', marginTop: '10px' }}>
+          {exactEntryAvailable && (
+            // Not a live region: the announcements below already say what a
+            // press did. This is what the button needs, said before it is pressed.
+            <p id={`${workspaceDescriptionId}-exact`} data-graph-exact-cue="" style={{ flexBasis: '100%', margin: 0, textAlign: 'center', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
+              {exactTargetLabel()
+                ? `Placing ${exactTargetLabel()}. Type its x and y, then press Place at this coordinate.`
+                : 'Choose which point you are placing first, then type its x and y.'}
+            </p>
+          )}
           {exactEntryAvailable && (
             <div style={{ display: 'flex', gap: '7px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
               <label style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>
@@ -1628,6 +1682,7 @@ export default function InteractiveGraphWorkspace({
               <button
                 id="graph-exact-place"
                 type="button"
+                aria-describedby={`${workspaceDescriptionId}-exact`}
                 onClick={placeTypedCoordinate}
                 style={{ minHeight: '40px', padding: '9px 14px', border: '1px solid var(--mm-tint-border)', borderRadius: '8px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}
               >
@@ -1639,11 +1694,12 @@ export default function InteractiveGraphWorkspace({
           {/* The curve by keyboard (TOOL-1): through the student's own points,
               checked like a drawn one. It stays, done, once the curve is in, so
               the press that completes it does not throw focus to the page; the
-              end markers come next. */}
-          {stage === 'construct' && !pointOnly && pointsCommitted && (
+              end markers come next. Offered by connectOffered: on an exit
+              ticket, quiz or test only with the keyboard-access support. */}
+          {connectOffered && stage === 'construct' && !pointOnly && pointsCommitted && (
             <FocusSafeButton ref={connectButtonRef} data-graph-connect-points="construction" enabled={!construction.snapped} onClick={connectMyPoints} style={{ padding: '9px 14px', border: '1px solid var(--mm-tint-border)', borderRadius: '8px', background: construction.snapped ? 'var(--mm-surface)' : 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>{construction.snapped ? '✓ Curve drawn' : 'Connect my points'}</FocusSafeButton>
           )}
-          {stage === 'analysis' && inverseReflectionEnabled && inversePointsCommitted && (
+          {connectOffered && stage === 'analysis' && inverseReflectionEnabled && inversePointsCommitted && (
             <FocusSafeButton ref={connectButtonRef} data-graph-connect-points="inverse" enabled={!analysis.inverseSnapped} onClick={connectMyPoints} style={{ padding: '9px 14px', border: '1px solid var(--mm-tint-border)', borderRadius: '8px', background: analysis.inverseSnapped ? 'var(--mm-surface)' : 'var(--mm-primary-subtle)', color: 'var(--mm-accent-text)', fontWeight: 'bold' }}>{analysis.inverseSnapped ? '✓ Inverse drawn' : 'Connect my reflected points'}</FocusSafeButton>
           )}
           {stage === 'construct' && !pointOnly && construction.pointsValidated && !construction.snapped && (
@@ -1694,7 +1750,9 @@ export default function InteractiveGraphWorkspace({
             }}
             style={{ padding: '9px 14px', border: '1px solid var(--mm-error-border-soft)', borderRadius: '8px', background: 'var(--mm-surface)', color: 'var(--mm-error-text)', fontWeight: 'bold' }}
           >
-            {stage === 'analysis' && inverseReflectionEnabled ? 'Reset Inverse' : 'Reset Graph'}
+            {/* Begins this stage again: the inverse sketch's analysis, or the
+                construction. One word for it everywhere (studentWords.js). */}
+            {START_OVER}
           </button>
 
           {/* Zoom, as buttons. A student who cannot pinch — one hand, a

@@ -13,6 +13,10 @@
  * Plain multi-answer items have no structure to read, so each carries an
  * authored `scaffold` in its lesson. The V5 compiler used to drop it (no
  * authored step ever reached a student); it now keeps it.
+ *
+ * W7 decision 15 (FB01): the same for Transformations Lab, figure match,
+ * graph-choice preview and Representation Match, the 23 items #509 left
+ * without a step (28 with the lessons added since).
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -27,6 +31,7 @@ import { generateQuestion } from '../../src/problemGenerator.js';
 import { normalizeContextualQuestion } from '../../src/platform/context/wordProblemLayer.js';
 import { backUpStepFor, backUpStepWritten } from '../../src/platform/supports/feedback/backUpStep.js';
 import { toolBackUpStep } from '../../src/platform/supports/feedback/toolBackUpSteps.js';
+import { DESCRIBE_VERDICTS } from '../../src/platform/supports/families/transformations.js';
 import { TRANSLATION_COVERAGE, loadLanguagePack, translateWithPack } from '../../src/platform/language/translationProviders.js';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
@@ -73,6 +78,42 @@ const answersOf = (question) => {
   visit(question);
   return found.map((value) => value.trim().toLowerCase().replace(/[.\s]+$/, ''));
 };
+
+/*
+ * W7 decision 15 (FB01): the four tools #509 left without a step. Their
+ * answers are picks rather than keys: a choice, a sort category, a describe
+ * verdict. A step may offer none of them either.
+ */
+const NEW_TOOL_TYPES = new Set(['transformationsLab', 'figureMatch', 'graphChoicePreview', 'representationMatch']);
+const isNewToolItem = ({ question }) => NEW_TOOL_TYPES.has(question.type);
+const picksOf = (question) => [
+  ...(question.workflow || []).flatMap((stage) => [...(stage?.choices || []), ...(stage?.categories || [])])
+    .map((entry) => (entry && typeof entry === 'object' ? entry.label ?? entry.id : entry)),
+  ...(question.type === 'transformationsLab' ? DESCRIBE_VERDICTS : []),
+].map((value) => String(value ?? '').trim().toLowerCase().replace(/[.\s]+$/, '')).filter(Boolean);
+
+const lab = (mode, change) => ({ type: 'transformationsLab', mode, function: { family: 'linear', a: 1, h: 0, k: 0, ...change } });
+const sort = (...labels) => ({ type: 'figureMatch', workflow: [{ id: 'sort', kind: 'figureMatch', items: [], categories: labels.map((label, index) => ({ id: `c${index}`, label })) }] });
+const preview = (prompt, ...labels) => ({ type: 'graphChoicePreview', workflow: [{ id: 'choice', kind: 'multipleChoice', prompt, choices: labels.map((label, index) => ({ id: `c${index}`, label })), previewOnGraph: { graph: {} } }] });
+/** [the categories of a sort, the right choice of its step] */
+const SORTS = [
+  [['Monomial', 'Binomial', 'Trinomial', 'Not a polynomial'], 'terms'],
+  [['Always true', 'Sometimes true', 'Never true'], 'An example where it is true and one where it is false'],
+  [['Defined — the product is 2 × 4', 'Defined — the product is 4 × 4', 'Not defined'], 'The columns of the first and the rows of the second'],
+  [['Perpendicular', 'Parallel', 'Neither'], 'negative reciprocals'],
+  [['Is a function', 'Not a function'], 'one input has two different outputs'],
+  [['Exponential growth', 'Exponential decay'], 'rises'],
+  [['Linear', 'Quadratic', 'Exponential'], 'It is a straight line'],
+  [['Exactly one solution', 'No solution', 'Infinitely many solutions'], 'The variable terms on the two sides'],
+  [['f(x) + 8', '2f(x)', '(1/2)f(x)', 'f(x − 7)'], 'The outputs'],
+];
+/** [a preview's question, its choices, the right choice of its step] */
+const PREVIEWS = [
+  ['Line q passes through G(4, 4) and H(14, 4). Which equation describes line q?', ['y = 4', 'x = 4', 'y = 14', 'x = 14'], 'The y-coordinate'],
+  ['Which ordered pair is the vertex of the graph shown?', ['(2, -4)', '(-2, 4)', '(0, 0)'], 'Where the graph turns around'],
+  ['Which line is perpendicular to y = −(1/2)x + 4 AND passes through (1, −1)?', ['y = 2x − 3', 'y = −2x + 1', 'y = 0.5x − 1.5'], 'negative reciprocals'],
+  ['Which line is parallel to y = 3x and passes through (0, 2)?', ['y = 3x + 2', 'y = −3x + 2', 'y = (1/3)x + 2'], 'equal'],
+];
 
 test('every real Matrix Lab and three-variable Systems Workspace item has a step written for it', () => {
   const tools = realItems().filter(isToolItem);
@@ -155,6 +196,13 @@ test('every step a tool can write is in Spanish, its mathematics untouched (Tran
     { type: 'systemsWorkspace', mode: 'spatial', variables: ['x', 'y', 'z'], equations: ['x + y + z = 3', 'x - y = 1', 'z = 2'] },
     { type: 'systemsWorkspace', mode: 'algebraic', variables: ['s', 'm', 'l'], equations: ['s + m = 8', 'm + l = 4', 's + l = 7'] },
     { type: 'systemsWorkspace', mode: 'algebraic', method: 'substitution', variables: ['x', 'y', 'z'], equations: ['x = 2y', 'y + z = 3', 'x + z = 4'] },
+    // W7 decision 15: Transformations Lab, figure match, graph-choice preview, Representation Match.
+    ...[{ h: -3 }, { k: 3 }, { a: 2 }, { b: 2 }, { a: 2, h: 1, k: 3 }].map((change) => lab('plotTransform', change)),
+    lab('describe', { a: -2, h: 2, k: 1 }),
+    ...SORTS.map(([labels]) => sort(...labels)),
+    ...PREVIEWS.map(([prompt, labels]) => preview(prompt, ...labels)),
+    { type: 'representationMatch', mode: 'linearConnections', task: 'group', sets: [{ id: 'a' }, { id: 'b' }] },
+    { type: 'representationMatch', mode: 'linearConnections', task: 'findMismatch', sets: [{ id: 'a' }] },
   ];
   cases.forEach((question, index) => {
     const step = toolBackUpStep({ ...question, questionId: `case-${index}` });
@@ -226,4 +274,67 @@ test('every real Matrix Lab, Systems Workspace and multi-answer item in a Warm-U
   const without = inScope.filter(({ question }) => !backUpStepWritten(backUpStepFor(question))).map(({ stored }) => stored.questionId);
   assert.deepEqual(without, []);
   assert.ok(inScope.length >= 100, `${inScope.length} items`);
+});
+
+/* ----------------------------------------------- W7 decision 15 (FB01) -- */
+
+test('every real Transformations Lab, figure match, graph-choice preview and Representation Match item has a step written for it', () => {
+  const items = realItems().filter(isNewToolItem);
+  const missing = items.filter(({ question }) => !backUpStepWritten(backUpStepFor(question)));
+  assert.deepEqual(missing.map(({ stored }) => stored.questionId), [], 'no item of the four tools is left without a step');
+  // #509 counted 23 such items with none; lessons added since bring 28.
+  const fromTool = items.filter(({ question }) => backUpStepFor(question).source === 'tool');
+  assert.ok(fromTool.length >= 28, `built from the tool's structure: ${fromTool.length} of ${items.length}`);
+  assert.deepEqual([...new Set(fromTool.map(({ question }) => question.type))].sort(), [...NEW_TOOL_TYPES].sort(), 'each of the four tools builds steps');
+});
+
+test('a step from the four tools never offers the item\'s own answer, choice or category, and its right choice is not always first', () => {
+  const steps = realItems().filter(isNewToolItem).map(({ stored, question }) => ({ stored, question, step: backUpStepFor(question) }))
+    .filter(({ step }) => step.source === 'tool');
+  steps.forEach(({ stored, question, step }) => {
+    assert.match(step.prompt, /^Let’s back up\. \S/, stored.questionId);
+    assert.equal(step.options.length, 2, stored.questionId);
+    assert.ok(step.options.includes(step.correct), stored.questionId);
+    assert.notEqual(step.options[0], step.options[1], stored.questionId);
+    const taken = new Set([...answersOf(question), ...picksOf(question)]);
+    step.options.forEach((option) => {
+      assert.ok(!taken.has(option.trim().toLowerCase().replace(/[.\s]+$/, '')), `${stored.questionId}: "${option}" is one of the item's own answers or picks`);
+    });
+    assert.deepEqual(backUpStepFor(question).options, step.options, `${stored.questionId}: the same order every time`);
+  });
+  const firstIsRight = steps.filter(({ step }) => step.options[0] === step.correct).length;
+  assert.ok(firstIsRight > 0 && firstIsRight < steps.length, `the right choice is first on ${firstIsRight} of ${steps.length}`);
+});
+
+test('Transformations Lab: the step follows what the lab\'s spec moves; describe compares a point with its image', () => {
+  const right = (question) => { const step = toolBackUpStep(question); return step && [step.prompt, step.correct]; };
+  assert.deepEqual(right(lab('plotTransform', { h: -3 })), ['Let’s back up. Moving a graph left or right changes which coordinate of each point?', 'The x-coordinate']);
+  assert.deepEqual(right(lab('plotTransform', { k: 3 })), ['Let’s back up. Moving a graph up or down changes which coordinate of each point?', 'The y-coordinate']);
+  assert.deepEqual(right(lab('plotTransform', { a: 2 })), ['Let’s back up. Changing the outputs by a factor changes which coordinate of each point?', 'The y-coordinate']);
+  assert.deepEqual(right(lab('plotTransform', { b: 2 })), ['Let’s back up. Changing the inputs by a factor changes which coordinate of each point?', 'The x-coordinate']);
+  assert.deepEqual(right(lab('pointMap', { a: 2, h: 1, k: 3 })), ['Let’s back up. The outputs are multiplied by a factor and shifted. What do you do to a point’s y-coordinate first?', 'Multiply it by the factor']);
+  assert.deepEqual(right(lab('describe', { a: -0.5, h: -2, k: 3 })), ['Let’s back up. To find how far the graph moved up or down, which coordinates do you compare?', 'The y-coordinates of a point and its image']);
+  assert.equal(toolBackUpStep(lab('plotTransform', {})), null, 'nothing moves: nothing to ask');
+  assert.equal(toolBackUpStep({ type: 'transformationsLab', mode: 'pointMap' }), null, 'no spec: no step');
+  assert.equal(toolBackUpStep(lab('match', { h: 2 })), null, 'match, identify and anchor are the transformations family\'s');
+});
+
+test('figure match: the rule follows what the sort\'s categories sort by; a sort the platform cannot read gets none', () => {
+  SORTS.forEach(([labels, correct]) => assert.equal(toolBackUpStep(sort(...labels))?.correct, correct, labels.join(' | ')));
+  assert.equal(toolBackUpStep(sort('Red', 'Blue')), null);
+  assert.equal(toolBackUpStep({ type: 'figureMatch' }), null);
+});
+
+test('graph-choice preview: the form of the choices says what is chosen', () => {
+  PREVIEWS.forEach(([prompt, labels, correct]) => assert.equal(toolBackUpStep(preview(prompt, ...labels))?.correct, correct, prompt));
+  assert.equal(toolBackUpStep(preview('Which point is on the line?', '(1, 2)', '(3, 4)')), null, 'ordered pairs, but not a vertex');
+  assert.equal(toolBackUpStep(preview('Which line is steeper?', 'y = 2x', 'y = 3x')), null);
+});
+
+test('Representation Match: linear connections sort cards by their line, or find the card that disagrees', () => {
+  const group = toolBackUpStep({ type: 'representationMatch', mode: 'linearConnections', task: 'group', sets: [{ id: 'a' }, { id: 'b' }] });
+  assert.equal(group.correct, 'When they have the same slope and the same y-intercept');
+  const mismatch = toolBackUpStep({ type: 'representationMatch', mode: 'linearConnections', task: 'findMismatch', sets: [{ id: 'a' }] });
+  assert.equal(mismatch.correct, 'The line most of the cards describe');
+  assert.equal(toolBackUpStep({ type: 'representationMatch', mode: 'completeSet', sets: [{ id: 'a' }, { id: 'b' }] }), null);
 });

@@ -5,14 +5,20 @@
 //                      mark both ends, then give the domain and the range
 //   ?q=analysis        a graph to analyse only: a value, the domain, and the
 //                      y-intercept typed as a point
+//   ?q=pick            a graph to read, answered by marking the y-intercept on
+//                      the plane (TL38: a mark is not drawn red before grading)
 //   ?q=construct       graph y = 2x + 1 only: two points, the curve, both ends
 //                      (the keyboard-only route, pass 3 TOOL-1)
 //   ?q=inverse         y = 2x + 1 and its inverse: reflect two points across
 //                      y = x and connect them (TOOL-1, the inverse sketch)
 //   ?role=practice|dol the activity policy (default practice)
+//   ?plan=keyboard     the student's support plan has the keyboard-access
+//                      accommodation (on a DOL it is what offers "Connect my
+//                      points": src/platform/graph/connectPointsPolicy.js)
 //   ?run=<id>          the draft namespace (a new run starts blank)
 //
-// Every graded attempt lands in window.__mmGraded. All data is synthetic.
+// Every graded attempt lands in window.__mmGraded, and every support record the
+// question reports in window.__mmEvidence. All data is synthetic.
 import React from 'react';
 import { MathfieldElement } from 'mathlive';
 import { createRoot } from 'react-dom/client';
@@ -27,6 +33,7 @@ const params = new URLSearchParams(window.location.search);
 const role = params.get('role') || 'practice';
 const which = params.get('q') || 'investigation';
 const run = params.get('run') || 'manual';
+const studentProfile = params.get('plan') === 'keyboard' ? { accommodations: ['keyboard-access'] } : null;
 
 const FIXTURES = {
   investigation: {
@@ -69,6 +76,16 @@ const FIXTURES = {
       { id: 'inverse-equation', kind: 'value', label: 'The inverse equation', notation: 'equation', responseMode: 'text', expected: ['y=(x-1)/2'] },
     ],
   },
+  // A graph to read, answered by marking the point on the plane (TL38).
+  pick: {
+    type: 'graphAnalysis',
+    prompt: 'Mark the y-intercept of y = 2x + 1.',
+    functionSpec: { type: 'linear', m: 2, b: 1 },
+    graph: { xMin: -4, xMax: 4, yMin: -6, yMax: 8 },
+    analysisRequests: [
+      { id: 'y-intercept', kind: 'point', feature: 'yIntercept', label: 'The $y$-intercept', responseMode: 'click' },
+    ],
+  },
   analysis: {
     type: 'graphAnalysis',
     prompt: 'Read the graph of y = 2x + 1.',
@@ -84,6 +101,7 @@ const FIXTURES = {
 
 const question = FIXTURES[which] ? { questionId: `graph-keyboard-${which}`, ...FIXTURES[which] } : null;
 window.__mmGraded = [];
+window.__mmEvidence = [];
 
 function Harness() {
   if (!question) return <p role="alert">Unknown fixture {which}.</p>;
@@ -96,6 +114,8 @@ function Harness() {
         activityRole={role}
         maximumAttempts={3}
         draftKey={`graph-keyboard-${which}-${role}-${run}`}
+        studentProfile={studentProfile}
+        onSupportEvidence={(evidence) => window.__mmEvidence.push(evidence)}
         onGrade={async (isCorrect, details, parts) => {
           window.__mmGraded.push({ isCorrect, parts });
           return { isCorrect, status: isCorrect ? 'correct' : 'attempted', attemptCount: 1, remainingAttempts: 2 };

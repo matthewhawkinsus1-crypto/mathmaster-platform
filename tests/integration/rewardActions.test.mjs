@@ -29,6 +29,8 @@ const delivery = await import(path.join(repo, 'functions/shared/liveChallengeCla
 const { buildMatchResult } = await import(path.join(repo, 'functions/shared/liveChallengeResults.mjs'));
 const { accountId } = await import(path.join(repo, 'functions/shared/classPoints.mjs'));
 const { practicePassRedemptionId, isActivePracticePassRedemption } = await import(path.join(repo, 'functions/shared/classPointRewards.mjs'));
+const { buildRewardGrant } = await import(path.join(repo, 'functions/shared/rewardGrants.mjs'));
+const { persistExpiredGrants } = await import(path.join(repo, 'functions/shared/rewardGrantStore.mjs'));
 
 const TEACHER = 'ra-teacher@example.com';
 const OTHER_TEACHER = 'ra-other@example.com';
@@ -199,11 +201,155 @@ test('the pass that expires soonest is spent; an expired pass is never spent', a
   assert.equal(result.grantId, soon.grantId);
   const byId = Object.fromEntries((await grantsOf(studentId)).map((grant) => [grant.id, grant.status]));
   assert.equal(byId[longLived.grantId], 'available');
-  assert.equal(byId[expired.grantId], 'available', 'stored status untouched; it reads as expired');
+  assert.equal(byId[expired.grantId], 'expired', 'the use that skipped it records that it has expired (lazy expiry, below)');
 
   const onlyExpired = await seedStudent();
   await givePass(onlyExpired, { expiresInDays: 1, nowMs: NOW - 3 * DAY });
   await rejects(redeem(onlyExpired, await seedAssignment()), 'failed-precondition', /do not have a Practice Pass/);
+});
+
+/*
+ * LAZY EXPIRY (LC23). A pass past its end date reads as expired everywhere
+ * without a write. The server paths that already hold a student's passes
+ * record it while they are there: a teacher opening the student's rewards, and
+ * the use of another pass (in the same commit). Nothing sweeps on a schedule.
+ */
+const iso = (millis) => new Date(millis).toISOString();
+const seedGrant = async (studentId, { status = 'available', expiresAt = null } = {}) => {
+  const grantId = uniqueId('ra-grant');
+  await db.collection('rewardGrants').doc(grantId).set({
+    ...buildRewardGrant({
+      grantId,
+      rewardCode: 'practicePass',
+      studentId,
+      classId: CLASS_ID,
+      source: { type: 'teacher', id: TEACHER },
+      awardedAt: iso(NOW - 30 * DAY),
+      expiresAt,
+      originTeacherEmail: TEACHER,
+      authorizedTeacherEmails: [TEACHER],
+    }),
+    status,
+  });
+  return grantId;
+};
+const grantOf = async (grantId) => (await db.collection('rewardGrants').doc(grantId).get()).data();
+
+test("a teacher opening a student's rewards records the passes that have expired, and nothing else", async () => {
+  const studentId = await seedStudent();
+  const endedLongAgo = iso(NOW - 9 * DAY);
+  const endedYesterday = iso(NOW - DAY);
+  const stale = await seedGrant(studentId, { expiresAt: endedLongAgo });
+  const alsoStale = await seedGrant(studentId, { expiresAt: endedYesterday });
+  const live = await seedGrant(studentId, { expiresAt: iso(NOW + 5 * DAY) });
+  const forever = await seedGrant(studentId);
+  const used = await seedGrant(studentId, { status: 'redeemed', expiresAt: endedLongAgo });
+  const takenBack = await seedGrant(studentId, { status: 'revoked', expiresAt: endedLongAgo });
+  const untouched = [live, forever, used, takenBack];
+  const before = Object.fromEntries(await Promise.all(untouched.map(async (id) => [id, await grantOf(id)])));
+
+  const read = await store.loadStudentRewardsForTeacher(db, { studentId, classId: CLASS_ID, teacher, nowMs: NOW });
+
+  // Recorded: the two that ended, each as of its own end date.
+  for (const [id, ended] of [[stale, endedLongAgo], [alsoStale, endedYesterday]]) {
+    const grant = await grantOf(id);
+    assert.equal(grant.status, 'expired', id);
+    assert.equal(grant.expiredAt, ended, 'it expired when its end date fell');
+    assert.deepEqual(grant.history.map((entry) => [entry.status, entry.at, entry.actorType]), [
+      ['available', iso(NOW - 30 * DAY), 'system'],
+      ['expired', ended, 'system'],
+    ]);
+    assert.equal(grant.expiresAt, ended, 'its end date is kept');
+    assert.equal(grant.studentId, studentId);
+  }
+  // Left as they were: not yet ended, never ending, used, taken back.
+  for (const id of untouched) {
+    const grant = await grantOf(id);
+    assert.deepEqual(
+      { status: grant.status, history: grant.history, expiredAt: grant.expiredAt },
+      { status: before[id].status, history: before[id].history, expiredAt: before[id].expiredAt },
+      id,
+    );
+  }
+  // The read says the same on its first view as every view after.
+  const shown = Object.fromEntries(read.grants.map((grant) => [grant.id, grant]));
+  assert.equal(read.grants.length, 6);
+  assert.equal(shown[stale].status, 'expired');
+  assert.equal(shown[stale].expiredAt, endedLongAgo);
+  assert.equal(shown[stale].history.at(-1).status, 'expired');
+  assert.deepEqual([shown[live].status, shown[forever].status, shown[used].status, shown[takenBack].status], ['available', 'available', 'redeemed', 'revoked']);
+
+  // Reading again records nothing a second time.
+  const stamp = (await grantOf(stale)).updatedAt.toMillis();
+  await store.loadStudentRewardsForTeacher(db, { studentId, classId: CLASS_ID, teacher, nowMs: NOW });
+  const again = await grantOf(stale);
+  assert.equal(again.updatedAt.toMillis(), stamp, 'not written again');
+  assert.equal(again.history.length, 2);
+});
+
+test('one read settles a bounded number of passes, and the next one carries on', async () => {
+  const studentId = await seedStudent();
+  const stale = await Promise.all([1, 2, 3].map((days) => seedGrant(studentId, { expiresAt: iso(NOW - days * DAY) })));
+  const grants = async () => (await grantsOf(studentId));
+  const first = await persistExpiredGrants(db, await grants(), { nowMs: NOW, limit: 2 });
+  assert.equal(first.length, 2);
+  assert.equal((await grants()).filter((grant) => grant.status === 'expired').length, 2);
+  const second = await persistExpiredGrants(db, await grants(), { nowMs: NOW, limit: 2 });
+  assert.deepEqual(second.map((grant) => grant.grantId), stale.filter((id) => !first.some((grant) => grant.grantId === id)));
+  assert.deepEqual((await grants()).map((grant) => grant.status), ['expired', 'expired', 'expired']);
+  assert.deepEqual(await persistExpiredGrants(db, await grants(), { nowMs: NOW }), [], 'nothing left to settle');
+});
+
+test('a pass used between the read and the write is not expired over', async () => {
+  // persistExpiredGrants is handed what a path read a moment ago; each grant is
+  // looked at again inside its own transaction, so a pass that has changed since
+  // is left as it is. Here the document the caller read is stale: the grant is
+  // already taken back.
+  const studentId = await seedStudent();
+  const grantId = await seedGrant(studentId, { expiresAt: iso(NOW - DAY) });
+  const readEarlier = { ...(await grantOf(grantId)), grantId };
+  await db.collection('rewardGrants').doc(grantId).set({ ...readEarlier, status: 'revoked' });
+  assert.deepEqual(await persistExpiredGrants(db, [readEarlier], { nowMs: NOW }), []);
+  assert.equal((await grantOf(grantId)).status, 'revoked');
+});
+
+test('a read refused to the wrong teacher records nothing', async () => {
+  const studentId = await seedStudent();
+  const stale = await seedGrant(studentId, { expiresAt: iso(NOW - DAY) });
+  await rejects(store.loadStudentRewardsForTeacher(db, { studentId, classId: CLASS_ID, teacher: { email: OTHER_TEACHER }, nowMs: NOW }), 'permission-denied');
+  assert.equal((await grantOf(stale)).status, 'available', 'authorization comes before anything is written');
+});
+
+test("using a pass records the student's other expired passes in the same commit", async () => {
+  const studentId = await seedStudent();
+  const assignmentId = await seedAssignment();
+  const soon = await givePass(studentId, { expiresInDays: 5 });
+  const stale = await seedGrant(studentId, { expiresAt: iso(NOW - 2 * DAY) });
+  const alsoStale = await seedGrant(studentId, { expiresAt: iso(NOW - 9 * DAY) });
+  const live = await seedGrant(studentId, { expiresAt: iso(NOW + 40 * DAY) });
+
+  const result = await redeem(studentId, assignmentId);
+  assert.equal(result.grantId, soon.grantId, 'the pass that ends soonest is still the one spent');
+  const byId = Object.fromEntries((await grantsOf(studentId)).map((grant) => [grant.id, grant]));
+  assert.equal(byId[soon.grantId].status, 'redeemed');
+  assert.deepEqual([byId[stale].status, byId[stale].expiredAt], ['expired', iso(NOW - 2 * DAY)]);
+  assert.deepEqual([byId[alsoStale].status, byId[alsoStale].expiredAt], ['expired', iso(NOW - 9 * DAY)]);
+  assert.equal(byId[live].status, 'available', 'a pass that has not ended is not touched');
+});
+
+test('two tabs using passes at once record an expired pass once', async () => {
+  const studentId = await seedStudent();
+  const first = await seedAssignment();
+  const second = await seedAssignment();
+  await givePass(studentId, { expiresInDays: 5 });
+  await givePass(studentId, { expiresInDays: 9 });
+  const stale = await seedGrant(studentId, { expiresAt: iso(NOW - DAY) });
+
+  const results = await Promise.all([redeem(studentId, first), redeem(studentId, second)]);
+  assert.notEqual(results[0].grantId, results[1].grantId, 'each assignment spent its own pass');
+  const grant = await grantOf(stale);
+  assert.equal(grant.status, 'expired');
+  assert.equal(grant.history.filter((entry) => entry.status === 'expired').length, 1, 'recorded once');
 });
 
 test('an ineligible assignment is refused and nothing is consumed', async () => {

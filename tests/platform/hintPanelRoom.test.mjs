@@ -40,7 +40,9 @@ test('a panel that starts the work stops short of the Enlarge button, or on a ph
   // Each panel is a row of its own, directly in the work area, with no
   // inline size for the rules to fight.
   const engine = executableSource(read('src/QuestionEngine.jsx'));
-  const hint = region(engine, '{hintPanelOpen && hintPanel ? (', ') : null}', 'the hint panel');
+  // The top placement of the panel (FB10: under a miss it is drawn in the
+  // results area instead, never both; hintPanelPlace decides).
+  const hint = region(engine, "{hintPanelOpen && hintPanelPlace === 'top' && hintPanel ? (", ') : null}', 'the hint panel');
   assert.match(hint, /<div className="mathmaster-top-panel-row">\s*<div ref=\{hintPanelRef\} className="mathmaster-hint-panel" style=\{\{([^}]*)\}\}>/);
   const paused = region(engine, '{pausedByAnotherTab ? (', 'Continue here', 'the paused notice');
   assert.match(paused, /<div className="mathmaster-top-panel-row">\s*<div\s+role="status"\s+data-active-work-paused="true"\s+className="mathmaster-paused-panel"/);
@@ -49,7 +51,7 @@ test('a panel that starts the work stops short of the Enlarge button, or on a ph
     assert.doesNotMatch(style, /maxWidth|margin:/, `the ${label} panel carries no inline width or margin`);
   }
   const workspace = region(engine, 'className="mathmaster-question-tool-workspace"', '{resolutionFailurePanel ||', 'the start of the work area');
-  assert.ok(workspace.includes('{hintPanelOpen && hintPanel ? ('), 'the help panel is a direct child of the work area');
+  assert.ok(workspace.includes("{hintPanelOpen && hintPanelPlace === 'top' && hintPanel ? ("), 'the help panel is a direct child of the work area');
 });
 
 const withHintPanel = async (run) => {

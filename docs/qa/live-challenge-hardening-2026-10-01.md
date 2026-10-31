@@ -282,28 +282,57 @@ server unless it names a probe):
 **Non-blocking, accepted with reasons:**
 
 - A scripted client can read a rush question's targets from its own response
-  and skip the cooldown (the server still applies the miss penalty and the
-  eighth-miss skip). Targets travel with the graph for instant feedback; the
-  graph shows where its features are. A cheater can win placement rewards; a
-  per-student pacing plausibility check is the deferred remedy.
-- The classic round's question is in the room document 3.5 s before GO (hidden
-  on screen); an inspector could read it during the countdown. Answers and
-  progress are refused until GO.
+  (the server still applies the miss penalty and the eighth-miss skip).
+  Targets travel with the graph for instant feedback; the graph shows where its
+  features are. **Since SI08 (2026-10-24) it can no longer skip the device's
+  pauses:** the server requires the pauses a student's recorded attempts imply
+  — the 420 ms completion flash, the 1.2 s skip pause, the 1–4 s cooldown from
+  the second miss in a row, and 100 ms to see each new graph — to fit in the
+  round's elapsed time on its own clock when the request arrives, with 5 s of
+  slack (a refresh or resync clears a pause still running on the device, a
+  round pause can hold one). An attempt that does not fit is answered
+  `tooFast` and not recorded (`graphFeatureRush.mjs rushRoundPace`,
+  `RUSH_PACING`; `tests/platform/graphFeatureRushPacing.test.mjs` drives an
+  honest device at the fastest pace it allows and is never refused). A script
+  that never misses is still held only to the flash and the 100 ms look, about
+  one single-target graph per 0.52 s; a teacher-visible "unusual pace" flag is
+  still deferred.
+- The classic round's question is in the room document 3.5 s before GO; an
+  inspector reading the room's snapshot could read it during the countdown.
+  **Since SI08 the student's screen mounts the question only at GO** (it was
+  rendered and hidden), so it is not in the page before GO. Answers and
+  progress are refused until GO. Keeping it out of the room document until GO
+  needs a server write at GO and is not done.
 - A student who reads very slowly can be outscored by a sweep (§3); the
   cooldown is not allowed to punish honest mistakes harder.
 - Self-reported provisional points (classic, before the server's result) can
   show up to 1,000 on the live board for a moment; the stored score is the
-  server's.
+  server's. **Since LC01 (2026-10-25) the board is held to what the room's
+  scoring would pay for that work** (`provisionalWorth`,
+  `liveChallengeScoring.mjs`, applied by `reportLiveChallengeProgress` before it
+  writes the public row, and by the student's own "points banked" line): a
+  Second Chance round, which pays only a fully correct answer, and a Correct
+  Count game show none until the answer is graded (they showed up to 1,000 and
+  fell to 0). A first-time Accuracy First round still shows the work's share of
+  the 1,000 base, which is exactly what it pays, so a scripted client can still
+  claim up to that share for a moment; the server cannot check a device's step
+  credit without re-grading it on every report, which was judged too costly for
+  a board that never touches the score.
 - An unknown `challengeMode` in a create request becomes a Standard game (a
   stale client cannot break creation).
-- Steep curves overlap the y-axis visually (symmetric; §4).
+- Steep curves overlap the y-axis visually (symmetric; §4). **Since LC01
+  (2026-10-25)** the axis numbers are drawn over the curve, each with an outline
+  in the plot's colour, so a curve hugging an axis no longer hides them, and the
+  curve is clipped to the plot square. It still lies along the y-axis for up to
+  a fifth of the height where its tangent is vertical (a cube root's is): that is
+  the mathematics, not a drawing fault.
 
 **Future enhancements (deferred):**
 
-- Server-side pacing plausibility for rush attempts; a teacher-visible
-  "unusual pace" flag.
-- Mount the classic question at GO rather than hiding it during the
-  countdown.
+- ~~Server-side pacing plausibility for rush attempts~~ (SI08, built; see §9);
+  a teacher-visible "unusual pace" flag is still deferred.
+- ~~Mount the classic question at GO rather than hiding it during the
+  countdown~~ (SI08, built).
 - A generic per-player question-set pipeline (§10) before a second
   question-set mode.
 - Teacher-tunable cooldown/auto-skip.

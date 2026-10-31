@@ -27,12 +27,23 @@ import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  CERT_ASSIGNMENT_ID, CERT_CLASS_ID, CERT_TOTAL_QUESTIONS, CERT_WRONG_ANSWER,
+  CERT_TOTAL_QUESTIONS, CERT_WRONG_ANSWER,
   certAnswerFromPrompt, certAssignment, certFamilies,
 } from '../fixtures/testCycleCertificationFixture.mjs';
 import {
   db, fns, readRecord, readCorrectionPlan, readSession, refusal, studentRequest, teacherRequest, TEACHER_EMAIL, OTHER_TEACHER_EMAIL,
 } from './testCycleCertificationHarness.mjs';
+
+// This file's own copy of the certification fixture (CI08). `npm run
+// test:challenge-finish` runs it beside testCycleCertification, which owns the
+// default cert_ families, class and assignment: sharing them put this file's
+// ten students in that file's class and let whichever finished first delete the
+// documents the other was still using.
+const NAV_PREFIX = 'nav_';
+const NAV_CLASS_ID = 'nav-class-alg1';
+const NAV_ASSIGNMENT_ID = 'nav-test-cycle-assignment';
+const navFamilies = () => certFamilies({ prefix: NAV_PREFIX });
+const navAssignment = (options = {}) => certAssignment({ prefix: NAV_PREFIX, classIds: [NAV_CLASS_ID], assignmentId: NAV_ASSIGNMENT_ID, ...options });
 
 const SIM_STUDENT = 'NAV_STUDENT_SIM';
 const EXTRA_TIME_STUDENT = 'NAV_STUDENT_EXTRA_TIME';
@@ -112,33 +123,33 @@ const createSimulation = async (studentId, examType, questionCount, extra = {}) 
 };
 
 before(async () => {
-  await Promise.all(certFamilies().map((family) => {
+  await Promise.all(navFamilies().map((family) => {
     const { id, ...fields } = family;
     return db.collection('pathQuestionBank').doc(id).set(fields);
   }));
-  await db.collection('classes').doc(CERT_CLASS_ID).set({
+  await db.collection('classes').doc(NAV_CLASS_ID).set({
     name: 'Navigation Algebra I', course: 'algebra1', courseLevel: 'standard',
     period: 'Period 1', teacherOfRecord: TEACHER_EMAIL, status: 'active',
   });
   await Promise.all(ALL.map((studentId) => db.collection('grades').doc(studentId).set({
-    displayName: studentId, classId: CERT_CLASS_ID, classPeriod: 'Period 1',
+    displayName: studentId, classId: NAV_CLASS_ID, classPeriod: 'Period 1',
     assignedTeacherEmail: TEACHER_EMAIL, status: 'active', gradesByAssignment: {},
     ...(studentId === EXTRA_TIME_STUDENT
       ? { profile: { programEligibility: { section504: true }, accommodations: { extendedTimeMultiplier: 1.5 } } }
       : {}),
   })));
-  await db.collection('assignments').doc(CERT_ASSIGNMENT_ID).set(certAssignment());
+  await db.collection('assignments').doc(NAV_ASSIGNMENT_ID).set(navAssignment());
 });
 
 after(async () => {
   const deletions = [
-    ...certFamilies().map((family) => db.collection('pathQuestionBank').doc(family.id).delete()),
-    db.collection('assignments').doc(CERT_ASSIGNMENT_ID).delete(),
-    db.collection('classes').doc(CERT_CLASS_ID).delete(),
+    ...navFamilies().map((family) => db.collection('pathQuestionBank').doc(family.id).delete()),
+    db.collection('assignments').doc(NAV_ASSIGNMENT_ID).delete(),
+    db.collection('classes').doc(NAV_CLASS_ID).delete(),
     ...ALL.map((studentId) => db.collection('grades').doc(studentId).delete()),
-    ...ALL.map((studentId) => db.collection('testCycleRecords').doc(`${CERT_ASSIGNMENT_ID}__${studentId}`).delete()),
-    ...ALL.map((studentId) => db.collection('testCycleCorrectionPlans').doc(`${CERT_ASSIGNMENT_ID}__${studentId}`).delete()),
-    db.collection('testCycleAnswerReleases').doc(CERT_ASSIGNMENT_ID).delete(),
+    ...ALL.map((studentId) => db.collection('testCycleRecords').doc(`${NAV_ASSIGNMENT_ID}__${studentId}`).delete()),
+    ...ALL.map((studentId) => db.collection('testCycleCorrectionPlans').doc(`${NAV_ASSIGNMENT_ID}__${studentId}`).delete()),
+    db.collection('testCycleAnswerReleases').doc(NAV_ASSIGNMENT_ID).delete(),
     ...created.map((id) => db.collection('examSessions').doc(id).delete()),
     db.collection('assignments').doc(ROSTER_ASSIGNMENT_ID).delete(),
     db.collection('testCycleAnswerReleases').doc(ROSTER_ASSIGNMENT_ID).delete(),
@@ -433,11 +444,11 @@ test('a Digital SAT practice test moves within a module, and closing module 1 is
 });
 
 test('a course Test: skipped questions are zero over the PLAN, held until release, and feed Corrections', async () => {
-  await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, classId: CERT_CLASS_ID }));
+  await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: NAV_ASSIGNMENT_ID, classId: NAV_CLASS_ID }));
   await db.collection('grades').doc(COURSE_STUDENT).set({
-    gradesByAssignment: { [CERT_ASSIGNMENT_ID]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
+    gradesByAssignment: { [NAV_ASSIGNMENT_ID]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
   }, { merge: true });
-  const record = await readRecord(CERT_ASSIGNMENT_ID, COURSE_STUDENT);
+  const record = await readRecord(NAV_ASSIGNMENT_ID, COURSE_STUDENT);
   const examSessionId = record.test.examSessionId;
   created.push(examSessionId);
   await fns.startSecureExamSession.run(student(COURSE_STUDENT, { examSessionId }));
@@ -461,17 +472,17 @@ test('a course Test: skipped questions are zero over the PLAN, held until releas
 
   // The card tells a student with extended time what they will get; the
   // blueprint's 45 minutes for everyone else.
-  const extraCard = await fns.getStudentTestCycle.run(student(EXTRA_TIME_STUDENT, { assignmentId: CERT_ASSIGNMENT_ID }));
+  const extraCard = await fns.getStudentTestCycle.run(student(EXTRA_TIME_STUDENT, { assignmentId: NAV_ASSIGNMENT_ID }));
   assert.equal(extraCard.delivery.timeLimitMinutes, 68, '45 × 1.5 = 67.5, rounded up to the minute');
   assert.equal(extraCard.delivery.baseTimeLimitMinutes, 45);
-  const plainCard = await fns.getStudentTestCycle.run(student(COURSE_STUDENT, { assignmentId: CERT_ASSIGNMENT_ID }));
+  const plainCard = await fns.getStudentTestCycle.run(student(COURSE_STUDENT, { assignmentId: NAV_ASSIGNMENT_ID }));
   assert.equal(plainCard.delivery.timeLimitMinutes, 45);
   assert.equal('extendedTimeMultiplier' in plainCard.delivery, false);
   assert.ok(plainCard.testSkills.length > 0 && plainCard.testSkills.every((skill) => skill.questionCount > 0), "the card lists what's on the test");
-  assert.doesNotMatch(JSON.stringify(plainCard.testSkills), /familyIds|seedKey|cert_family/, 'skills only — no families or seeds');
+  assert.doesNotMatch(JSON.stringify(plainCard.testSkills), /familyIds|seedKey|nav_family/, 'skills only — no families or seeds');
 
   // The teacher's table reads the answered count while the test is open.
-  assert.equal((await readRecord(CERT_ASSIGNMENT_ID, COURSE_STUDENT)).test.answeredQuestions, 3);
+  assert.equal((await readRecord(NAV_ASSIGNMENT_ID, COURSE_STUDENT)).test.answeredQuestions, 3);
   const midSession = await readSession(examSessionId);
   const issuedSlots = midSession.issuancePlan.entries.filter((entry) => entry.questionInstanceId).length;
   assert.equal(issuedSlots, 4, 'each issued question is joined to its blueprint slot');
@@ -484,7 +495,7 @@ test('a course Test: skipped questions are zero over the PLAN, held until releas
   assert.equal(Object.values(stored.responses).filter((response) => response.grading.isCorrect).length, 3);
 
   await fns.proctorExamAction.run(teacherRequest({ examSessionId, action: 'releaseFeedback' }));
-  const released = await readRecord(CERT_ASSIGNMENT_ID, COURSE_STUDENT);
+  const released = await readRecord(NAV_ASSIGNMENT_ID, COURSE_STUDENT);
   assert.equal(released.test.state, 'released');
   // 3 correct of 25 planned, equally weighted.
   assert.equal(released.test.rawScore, Math.round((3 / CERT_TOTAL_QUESTIONS) * 100));
@@ -496,19 +507,19 @@ test('a course Test: skipped questions are zero over the PLAN, held until releas
   // answers release, the correct answers and worked solutions wait.
   assert.equal(review.solutionsHeld, true, 'answers and worked solutions wait while classmates can still sit the Test');
   assert.equal(review.items.some((item) => item.solution), false);
-  const listing = await fns.listTeacherTestCycleRecords.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID }));
+  const listing = await fns.listTeacherTestCycleRecords.run(teacherRequest({ assignmentId: NAV_ASSIGNMENT_ID }));
   assert.equal(listing.answersRelease.test.released, false);
   assert.ok(listing.answersRelease.test.stillTesting > 0, 'the teacher is told how many are still testing');
   // The teacher releases them explicitly, for the students the confirm named; the review now carries them.
-  await fns.releaseTestCycleAnswers.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, stage: 'test', confirmed: listing.answersRelease.test.confirmKeys }));
+  await fns.releaseTestCycleAnswers.run(teacherRequest({ assignmentId: NAV_ASSIGNMENT_ID, stage: 'test', confirmed: listing.answersRelease.test.confirmKeys }));
   const withAnswers = await fns.getStudentSecureExamReview.run(student(COURSE_STUDENT, { examSessionId }));
   assert.equal(withAnswers.review.solutionsHeld, undefined);
   assert.ok(withAnswers.review.items[0].solution?.answers?.[0]?.display, 'the worked answer is released with the teacher\'s release');
-  const plan = await readCorrectionPlan(CERT_ASSIGNMENT_ID, COURSE_STUDENT);
+  const plan = await readCorrectionPlan(NAV_ASSIGNMENT_ID, COURSE_STUDENT);
   assert.ok(plan?.plan?.targets?.length > 0, 'Corrections are planned from the per-question results');
 
   // While a Retest is open the Test's worked solutions are not an open book.
-  const recordRef = db.collection('testCycleRecords').doc(`${CERT_ASSIGNMENT_ID}__${COURSE_STUDENT}`);
+  const recordRef = db.collection('testCycleRecords').doc(`${NAV_ASSIGNMENT_ID}__${COURSE_STUDENT}`);
   const stored2 = (await recordRef.get()).data();
   for (const state of ['assigned', 'inProgress']) {
     // eslint-disable-next-line no-await-in-loop
@@ -536,7 +547,7 @@ test('the answers wait for everyone the Test is assigned to: a period with no se
     gradesByAssignment: { [ROSTER_ASSIGNMENT_ID]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
   });
   await Promise.all([enroll(ROSTER_A1, ROSTER_P1), enroll(ROSTER_A2, ROSTER_P1), enroll(ROSTER_B3, ROSTER_P3)]);
-  await db.collection('assignments').doc(ROSTER_ASSIGNMENT_ID).set({ ...certAssignment({ classIds: [ROSTER_P1, ROSTER_P3] }), id: ROSTER_ASSIGNMENT_ID });
+  await db.collection('assignments').doc(ROSTER_ASSIGNMENT_ID).set({ ...navAssignment({ classIds: [ROSTER_P1, ROSTER_P3] }), id: ROSTER_ASSIGNMENT_ID });
 
   // Only period 1's sessions are open. Both period-1 students sit the Test and get their results.
   await fns.assignTestCycleSessions.run(roster({ classId: ROSTER_P1 }));
@@ -689,11 +700,11 @@ test("a teacher's reset of the Test closes the old Corrections plan until the ne
 });
 
 test("a teacher's reset closes the earlier attempt's answers until the new attempt is submitted", async () => {
-  await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, classId: CERT_CLASS_ID }));
+  await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: NAV_ASSIGNMENT_ID, classId: NAV_CLASS_ID }));
   await db.collection('grades').doc(RESET_STUDENT).set({
-    gradesByAssignment: { [CERT_ASSIGNMENT_ID]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
+    gradesByAssignment: { [NAV_ASSIGNMENT_ID]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
   }, { merge: true });
-  const first = (await readRecord(CERT_ASSIGNMENT_ID, RESET_STUDENT)).test.examSessionId;
+  const first = (await readRecord(NAV_ASSIGNMENT_ID, RESET_STUDENT)).test.examSessionId;
   created.push(first);
   await fns.startSecureExamSession.run(student(RESET_STUDENT, { examSessionId: first }));
   const opened = await issue(RESET_STUDENT, first, { position: 0 });
@@ -704,8 +715,8 @@ test("a teacher's reset closes the earlier attempt's answers until the new attem
   assert.ok(released.review.items.length > 0, 'the released Test opens');
 
   // The teacher resets the Test: the old session keeps its release, a new attempt is assigned.
-  await fns.teacherTestCycleAction.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, studentId: RESET_STUDENT, action: 'resetSecureSession', stage: 'test' }));
-  const second = (await readRecord(CERT_ASSIGNMENT_ID, RESET_STUDENT)).test.examSessionId;
+  await fns.teacherTestCycleAction.run(teacherRequest({ assignmentId: NAV_ASSIGNMENT_ID, studentId: RESET_STUDENT, action: 'resetSecureSession', stage: 'test' }));
+  const second = (await readRecord(NAV_ASSIGNMENT_ID, RESET_STUDENT)).test.examSessionId;
   created.push(second);
   assert.ok(second && second !== first, 'a new attempt is assigned');
   const whileAssigned = await refusal(fns.getStudentSecureExamReview.run(student(RESET_STUDENT, { examSessionId: first })));
@@ -721,11 +732,11 @@ test("a teacher's reset closes the earlier attempt's answers until the new attem
 });
 
 test('a course Test the teacher paused or archived takes no edits, no recorded answers and no Submit; time running out grades what was saved while open', async () => {
-  await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, classId: CERT_CLASS_ID }));
+  await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: NAV_ASSIGNMENT_ID, classId: NAV_CLASS_ID }));
   await db.collection('grades').doc(PAUSE_STUDENT).set({
-    gradesByAssignment: { [CERT_ASSIGNMENT_ID]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
+    gradesByAssignment: { [NAV_ASSIGNMENT_ID]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
   }, { merge: true });
-  const examSessionId = (await readRecord(CERT_ASSIGNMENT_ID, PAUSE_STUDENT)).test.examSessionId;
+  const examSessionId = (await readRecord(NAV_ASSIGNMENT_ID, PAUSE_STUDENT)).test.examSessionId;
   created.push(examSessionId);
   await fns.startSecureExamSession.run(student(PAUSE_STUDENT, { examSessionId }));
   // Questions 1 and 2 are open; question 1 has a wrong draft when the teacher pauses the Test.
@@ -733,7 +744,7 @@ test('a course Test the teacher paused or archived takes no edits, no recorded a
   const second = (await issue(PAUSE_STUDENT, examSessionId, { position: 1 })).questionInstance;
   await save(PAUSE_STUDENT, { examSessionId, questionInstanceId: first.questionInstanceId, responsePayload: { responses: { answer: CERT_WRONG_ANSWER } } });
 
-  const assignmentRef = db.collection('assignments').doc(CERT_ASSIGNMENT_ID);
+  const assignmentRef = db.collection('assignments').doc(NAV_ASSIGNMENT_ID);
   const record = (question, index) => fns.submitSecureExamResponse.run(student(PAUSE_STUDENT, {
     examSessionId,
     questionInstanceId: question.questionInstanceId,
@@ -776,11 +787,11 @@ test('a course Test the teacher paused or archived takes no edits, no recorded a
 });
 
 test("a teacher's pause stops the clock: a pause spanning the original deadline extends it by the time paused", async () => {
-  await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, classId: CERT_CLASS_ID }));
+  await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: NAV_ASSIGNMENT_ID, classId: NAV_CLASS_ID }));
   await db.collection('grades').doc(CLOCK_STUDENT).set({
-    gradesByAssignment: { [CERT_ASSIGNMENT_ID]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
+    gradesByAssignment: { [NAV_ASSIGNMENT_ID]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
   }, { merge: true });
-  const examSessionId = (await readRecord(CERT_ASSIGNMENT_ID, CLOCK_STUDENT)).test.examSessionId;
+  const examSessionId = (await readRecord(NAV_ASSIGNMENT_ID, CLOCK_STUDENT)).test.examSessionId;
   created.push(examSessionId);
   await fns.startSecureExamSession.run(student(CLOCK_STUDENT, { examSessionId }));
   const opened = (await issue(CLOCK_STUDENT, examSessionId, { position: 0 })).questionInstance;
@@ -791,7 +802,7 @@ test("a teacher's pause stops the clock: a pause spanning the original deadline 
   const sessionRef = db.collection('examSessions').doc(examSessionId);
   const limitSeconds = Number((await readSession(examSessionId)).timeLimitSeconds);
   assert.ok(limitSeconds > 0, 'the course Test is timed');
-  const lifecycle = (action) => fns.manageAssignmentLifecycle.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, action }));
+  const lifecycle = (action) => fns.manageAssignmentLifecycle.run(teacherRequest({ assignmentId: NAV_ASSIGNMENT_ID, action }));
 
   // The Test began so long ago that its original deadline passed ten minutes
   // ago, but the teacher paused the Test Cycle eleven minutes ago, a minute
@@ -811,15 +822,16 @@ test("a teacher's pause stops the clock: a pause spanning the original deadline 
     assert.ok(Math.abs(paused.pausedRemainingSeconds - 60) <= 5, `a minute left, stopped (${paused.pausedRemainingSeconds})`);
     assert.equal((await refusal(draft(CERT_WRONG_ANSWER)))?.code, 'failed-precondition', 'no edits while paused');
 
-    // Resumed: eleven minutes paused are banked, and the student has their minute.
+    // Resumed: eleven minutes paused are banked, with the paused screen's
+    // wait (TS09: RESUME_GRACE_SECONDS), and the student has their minute.
     await lifecycle('publish');
     const resumed = await readSession(examSessionId);
     assert.deepEqual(resumed.teacherPause.holds, []);
-    assert.ok(Math.abs(resumed.pausedSeconds - 11 * 60) <= 5, `eleven minutes banked (${resumed.pausedSeconds})`);
+    assert.ok(Math.abs(resumed.pausedSeconds - (11 * 60 + 5)) <= 5, `eleven minutes banked (${resumed.pausedSeconds})`);
     const running = await where();
     assert.equal(running.clockPaused, false);
     const left = running.expiresAt - Date.now();
-    assert.ok(left > 50 * 1000 && left <= 65 * 1000, `the deadline moved by the time paused (${left} ms left)`);
+    assert.ok(left > 50 * 1000 && left <= 70 * 1000, `the deadline moved by the time paused (${left} ms left)`);
     await draft(CERT_WRONG_ANSWER);
     assert.equal((await refusal(timeUp()))?.code, 'failed-precondition', 'and time is not up yet');
 
@@ -829,7 +841,7 @@ test("a teacher's pause stops the clock: a pause spanning the original deadline 
     await sessionRef.set({ teacherPause: { since: Date.now() - 5 * 60 * 1000, holds: ['proctor'] } }, { merge: true });
     await fns.proctorExamAction.run(teacherRequest({ examSessionId, action: 'unlock' }));
     const unlocked = await readSession(examSessionId);
-    assert.ok(Math.abs(unlocked.pausedSeconds - 16 * 60) <= 5, `five more minutes banked (${unlocked.pausedSeconds})`);
+    assert.ok(Math.abs(unlocked.pausedSeconds - (16 * 60 + 10)) <= 5, `five more minutes banked (${unlocked.pausedSeconds})`);
 
     // An integrity lock is not a teacher's pause: the clock keeps running through it.
     for (const eventId of ['clock-e1', 'clock-e2', 'clock-e3']) {
@@ -850,7 +862,7 @@ test("a teacher's pause stops the clock: a pause spanning the original deadline 
     assert.equal(stored.status, 'time_expired');
     assert.equal(stored.responses[opened.questionInstanceId].grading.isCorrect, false, 'the draft saved after the resume is the one graded');
   } finally {
-    await db.collection('assignments').doc(CERT_ASSIGNMENT_ID).set({ unpublished: false }, { merge: true });
+    await db.collection('assignments').doc(NAV_ASSIGNMENT_ID).set({ unpublished: false }, { merge: true });
   }
 });
 
@@ -873,7 +885,7 @@ test('a draft sent after time is up is refused, and the test is graded on the la
 test('a record holder past the 400 the teacher\'s table reads is still on the list a release confirms', async () => {
   // Assigned to the roster P1 class; 400 records of students who finished,
   // and one more, out of the roster (they moved class), still testing.
-  await db.collection('assignments').doc(CAP_ASSIGNMENT_ID).set({ ...certAssignment({ classIds: [ROSTER_P1] }), id: CAP_ASSIGNMENT_ID });
+  await db.collection('assignments').doc(CAP_ASSIGNMENT_ID).set({ ...navAssignment({ classIds: [ROSTER_P1] }), id: CAP_ASSIGNMENT_ID });
   const batch = db.batch();
   CAP_FILLERS.forEach((studentId) => batch.set(db.collection('testCycleRecords').doc(`${CAP_ASSIGNMENT_ID}__${studentId}`), {
     assignmentId: CAP_ASSIGNMENT_ID, studentId, test: { state: 'released', attempt: 1, rawScore: 90 },
@@ -899,7 +911,7 @@ test('the roster the review re-check caches only ever holds the answers: a stude
     gradesByAssignment: { [CACHE_ASSIGNMENT_ID]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
   });
   await enroll(CACHE_FIRST);
-  await db.collection('assignments').doc(CACHE_ASSIGNMENT_ID).set({ ...certAssignment({ classIds: [CACHE_CLASS] }), id: CACHE_ASSIGNMENT_ID });
+  await db.collection('assignments').doc(CACHE_ASSIGNMENT_ID).set({ ...navAssignment({ classIds: [CACHE_CLASS] }), id: CACHE_ASSIGNMENT_ID });
   await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: CACHE_ASSIGNMENT_ID, classId: CACHE_CLASS }));
   const examSessionId = (await readRecord(CACHE_ASSIGNMENT_ID, CACHE_FIRST)).test.examSessionId;
   created.push(examSessionId);
@@ -948,7 +960,7 @@ const raceSetup = () => {
       displayName: studentId, classId: RACE_CLASS, classPeriod: 'Period 6', assignedTeacherEmail: TEACHER_EMAIL, status: 'active',
       gradesByAssignment: { [RACE_ASSIGNMENT_ID]: { 0: { status: 'correct' }, 1: { status: 'correct' } } },
     })));
-    await db.collection('assignments').doc(RACE_ASSIGNMENT_ID).set({ ...certAssignment({ classIds: [RACE_CLASS] }), id: RACE_ASSIGNMENT_ID });
+    await db.collection('assignments').doc(RACE_ASSIGNMENT_ID).set({ ...navAssignment({ classIds: [RACE_CLASS] }), id: RACE_ASSIGNMENT_ID });
     await fns.assignTestCycleSessions.run(teacherRequest({ assignmentId: RACE_ASSIGNMENT_ID, classId: RACE_CLASS }));
     const sessions = {};
     for (const studentId of [RACE_STARTER, RACE_TAKER]) {

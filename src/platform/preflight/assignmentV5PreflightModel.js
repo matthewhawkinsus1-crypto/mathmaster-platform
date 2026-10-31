@@ -15,6 +15,10 @@ import { auditAssignmentGraphAccessibility } from './graphAccessibilityPreflight
 import { auditAssignmentSolutionReviews } from './solutionReviewPreflight.js';
 import { auditAssignmentAttemptFeedback } from './attemptFeedbackPreflight.js';
 import { auditAssignmentHiddenHints, auditAssignmentHintAnswers } from './hintAnswerPreflight.js';
+import { auditAssignmentChoiceOptions } from './choiceOptionPreflight.js';
+import { auditAssignmentSpanishVersions } from './spanishVersionPreflight.js';
+import { auditAssignmentAnswerKeys } from './answerKeyPreflight.js';
+import { auditAssignmentImpossibleItems } from './impossibleItemsPreflight.js';
 import { buildPreflightDiagnostics } from './preflightDiagnostics.js';
 import { deriveAssignmentAuthoringState } from './assignmentAuthoringState.js';
 import { analyzeClassworkPlannedTime } from '../teacher/classworkPacing.js';
@@ -172,6 +176,20 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   // Teacher-written hints the runtime guard drops, with the reason (HELP-16):
   // advisory, like hintAnswers.
   const hiddenHints = auditAssignmentHiddenHints(questions, deliveredOnly);
+  // Choice options worth the same as the key (GR06): advisory, like hintAnswers.
+  const choiceOptions = auditAssignmentChoiceOptions(questions, deliveredOnly);
+  // The teacher's own hints and worked solutions with no Spanish version, or
+  // one that cannot be shown (TT22): advisory, like hintAnswers.
+  const spanishVersions = auditAssignmentSpanishVersions(questions, deliveredOnly);
+  // Typed keys that may be graded in another reading than the author's
+  // (GR04), and "lowest terms" asked of a box that takes any equal value
+  // (GR14), from answerKeyPreflight.js: advisory, like hintAnswers.
+  const answerKeys = auditAssignmentAnswerKeys(questions, deliveredOnly);
+  // Systems that cannot have exactly one solution as written, and a vertex or
+  // center asked of a function that has none (TT04): advisory like the rest,
+  // because a warning diagnostic would hide a deliberate dependent system's
+  // lesson from its class.
+  const impossibleItems = auditAssignmentImpossibleItems(questions, deliveredOnly);
   // Question ↔ tool contract: judged on the LITERAL record, because it also
   // reports records that only work because a runtime repair rescues them and
   // offers the safe repair that makes the saved assignment match.
@@ -265,10 +283,15 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     questionValues,
     processMode,
     // Advisory only (see above): never in errors, warnings or diagnostics.
+    advisory: summarizeAdvisoryFindings({ solutionReviews, attemptFeedback, hintAnswers, hiddenHints, choiceOptions, spanishVersions }),
     solutionReviews,
     attemptFeedback,
     hintAnswers,
     hiddenHints,
+    choiceOptions,
+    spanishVersions,
+    answerKeys,
+    impossibleItems,
     // Excluded questions Pre-Flight kept but did not judge for delivery.
     retiredQuestions,
     errors: uniqueErrors,
@@ -277,6 +300,31 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     authoringState,
     isValid: uniqueErrors.length === 0,
   };
+};
+
+/*
+ * THE ADVISORY FINDINGS, COUNTED (TT14, TT21, TT22). Worked solutions, attempt
+ * feedback, hints that state the answer, hints the leak guard hides, choice
+ * options worth the key and the Spanish for a teacher's own hints and worked
+ * solutions stay advice: a warning in readiness would make the
+ * assignment "Needs Review", which students never see (the owner's call: they
+ * stay advisory). Pre-Flight shows how many there are so they are not missed;
+ * nothing here changes whether the assignment is ready.
+ */
+export const ADVISORY_FINDING_GROUPS = Object.freeze([
+  Object.freeze({ id: 'solutionReviews', label: 'worked solutions' }),
+  Object.freeze({ id: 'attemptFeedback', label: 'attempt feedback' }),
+  Object.freeze({ id: 'hintAnswers', label: 'hints that state the answer' }),
+  Object.freeze({ id: 'hiddenHints', label: 'hints students will not see' }),
+  Object.freeze({ id: 'choiceOptions', label: 'choices worth the same as the key' }),
+  Object.freeze({ id: 'spanishVersions', label: 'notes on Spanish for hints and worked solutions' }),
+]);
+
+export const summarizeAdvisoryFindings = (audits = {}) => {
+  const groups = ADVISORY_FINDING_GROUPS
+    .map(({ id, label }) => ({ id, label, count: Array.isArray(audits?.[id]?.warnings) ? audits[id].warnings.length : 0 }))
+    .filter((group) => group.count > 0);
+  return { total: groups.reduce((sum, group) => sum + group.count, 0), groups };
 };
 
 export const sectionVariantModeV5 = (assignmentV5 = {}, role) => (

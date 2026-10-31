@@ -40,7 +40,6 @@ export const WHAT_CHANGED_KIND = Object.freeze({
   RELEASED: 'released',
   GRADE_CHANGED: 'gradeChanged',
   EXCUSED: 'excused',
-  REOPENED: 'reopened',
   EXTENDED: 'extended',
   MORE_ATTEMPTS: 'moreAttempts',
   NEW: 'new',
@@ -122,6 +121,35 @@ export const STUDENT_VISIBLE_REASONS = Object.freeze([
 ]);
 const fixedReason = (value) => (STUDENT_VISIBLE_REASONS.includes(clean(value)) ? clean(value) : null);
 
+/*
+ * WHY A TEACHER CHANGED ONE QUESTION'S GRADE (NV15).
+ *
+ * A per-question correction carries the fixed reason the teacher picked
+ * (responseInspector.mjs OVERRIDE_REASONS) — the label only, never the
+ * teacher's note. "Other" tells a student nothing, so it is not shown;
+ * corrections saved before the label was kept show none.
+ */
+export const CORRECTION_REASONS = Object.freeze([
+  'Correct response was incorrectly graded',
+  'Equivalent answer accepted by teacher',
+  'Partial credit awarded',
+  'Platform/grader issue',
+]);
+const correctionReason = (value) => (CORRECTION_REASONS.includes(clean(value)) ? clean(value) : null);
+
+// One reason for every changed question, or each reason with its questions.
+const correctionReasonText = (reasonByNumber) => {
+  const byReason = new Map();
+  reasonByNumber.forEach(([number, reason]) => {
+    if (!reason) return;
+    byReason.set(reason, [...(byReason.get(reason) || []), number]);
+  });
+  if (!byReason.size) return null;
+  const allShareOne = byReason.size === 1 && reasonByNumber.every(([, reason]) => reason);
+  if (allShareOne) return [...byReason.keys()][0];
+  return [...byReason.entries()].map(([reason, numbers]) => `${reason} (${questionList(numbers)})`).join('; ');
+};
+
 /* ---- one assignment's events -------------------------------------------- */
 
 const releasedAndRetest = ({ assignment, projection, nowValue }) => {
@@ -174,6 +202,7 @@ const gradeChanges = ({ assignment, overrides, tracker }) => {
   const title = titleOf(assignment);
   const items = [];
   const questions = [];
+  const questionReasons = [];
   let questionsAt = null;
   const incidents = new Map();
   let includedIndices = null;
@@ -214,6 +243,7 @@ const gradeChanges = ({ assignment, overrides, tracker }) => {
     const position = includedIndices.indexOf(Number(key));
     if (position < 0) return;
     questions.push(position + 1);
+    questionReasons.push([position + 1, correctionReason(record.reason)]);
     if (at && (!questionsAt || at > questionsAt)) questionsAt = at;
   });
 
@@ -223,7 +253,7 @@ const gradeChanges = ({ assignment, overrides, tracker }) => {
       keySuffix: 'questions',
       at: questionsAt,
       text: `Your teacher updated your grade on ${title} (${questionList(questions)})`,
-      reasonText: null,
+      reasonText: correctionReasonText(questionReasons),
     });
   }
   incidents.forEach((incident, incidentKey) => {
@@ -256,11 +286,10 @@ const controlChanges = ({ assignment, control, studentId, nowValue = Date.now() 
    * was reopened" led to a result page saying the grade "can no longer
    * change"; NAV-14 then listed it only while the lesson was open, as "open
    * for you until <the class's own date>" — which is true of every student,
-   * so nothing had changed for this one. Until the owner decides what
-   * "reopened" means (wave 3's decision list, C), only a real change is
-   * listed: an extension, in its own line below ("You have more time on …"),
-   * whose date the lifecycle applies to this student. The REOPENED kind stays
-   * for a later decision; nothing emits it.
+   * so nothing had changed for this one. The owner decided (NV08,
+   * 2026-10-23) that students are not told "reopened" at all: only a real
+   * change is listed, an extension, in its own line below ("You have more
+   * time on …"), whose date the lifecycle applies to this student.
    */
   // An extension whose date has passed is no longer more time: "now due
   // <yesterday>" was not true any more (pass 3, wave 6 "Found here").
@@ -443,5 +472,5 @@ export const whatChangedUpdatesLabel = (count) => {
 
 /** Keys of the untimed (state) items, for rememberWhatChangedFirstSeen. */
 export const untimedWhatChangedKeys = (items = []) => (Array.isArray(items) ? items : [])
-  .filter((item) => item && (item.kind === WHAT_CHANGED_KIND.EXCUSED || item.kind === WHAT_CHANGED_KIND.REOPENED))
+  .filter((item) => item && item.kind === WHAT_CHANGED_KIND.EXCUSED)
   .map((item) => item.key);

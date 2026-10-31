@@ -8,6 +8,7 @@ import {
 } from '../../platform/authoring/lessonPublishingIntent.js';
 import { defaultAssignmentDateInputs } from '../../platform/assignments/assignmentDateDefaults.js';
 import { buildAssignmentV5PreflightModel } from '../../platform/preflight/assignmentV5PreflightModel.js';
+import { findAssignmentKeyConflict } from '../../assignmentDestinations.js';
 import { applySafeToolContractRepairs } from '../../platform/contract/questionToolContract.js';
 import { formatPlannedTime } from '../../platform/teacher/classworkPacing.js';
 import {
@@ -62,6 +63,7 @@ import {
   unavailableTestCycleFamilies,
 } from '../../platform/teacher/testCycleFamilyRegistration.js';
 import Dialog from '../../ui/Dialog.jsx';
+import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 import RepresentationAudit from './RepresentationAudit';
 import RecoveryReadinessPanel from './RecoveryReadinessPanel.jsx';
 import { RECOVERY_REPAIR_INSTRUCTION } from '../../platform/recovery/recoveryReadinessCopy.js';
@@ -71,7 +73,9 @@ import {
   describePreflightAction, stepIndex, summarizePreflightReadiness,
 } from './preflightSteps';
 import AdaptivePreview from './AdaptivePreview.jsx';
-import { buildPreflightReviewedAssignmentV5 } from './preflightV5Review.js';
+import { ASSIGNMENT_CALCULATOR_SETTINGS, buildPreflightReviewedAssignmentV5, reviewedCalculatorSetting } from './preflightV5Review.js';
+import { practicePassSwitchApplies } from '../../platform/rewards/practicePassPolicy.js';
+import { REWARD_DEFINITIONS } from '../../../functions/shared/rewardGrants.mjs';
 import { buildQuestionRepairRequest, parseQuestionRepairResponse } from '../../platform/contract/questionRepairRequest.js';
 import { CONTRACT_SLICES, buildContractSlice } from '../../platform/contract/authoringContract.js';
 import { parseExternalAiJson } from '../../platform/contract/externalAiJson.js';
@@ -80,6 +84,7 @@ import {
   newlyIntroducedPreflightErrors,
   replaceQuestionAtFlatIndex,
 } from '../../platform/preflight/preflightQuestionRepair.js';
+import { scrollMotion } from '../../motionPreference.js';
 
 // The full student preview of a Test Cycle mounts the secure question player
 // and every Rich Tool, so it loads only when a teacher opens it.
@@ -125,7 +130,11 @@ const inputStyle = {
 // inside a 44px label.
 const checkboxStyle = { width: 20, height: 20, flexShrink: 0 };
 
-const fieldsetStyle = { marginTop: 18, padding: 15, border: '1px solid var(--mm-border)', borderRadius: 10 };
+// minWidth 0: a fieldset is never narrower than its widest content unless told
+// so. The Delivery step's Adaptive preview holds a table that scrolls inside its
+// own box, and without this the fieldset around it took the table's width (654px
+// on a 390px phone) and the whole review scrolled sideways.
+const fieldsetStyle = { marginTop: 18, padding: 15, border: '1px solid var(--mm-border)', borderRadius: 10, minWidth: 0 };
 const legendStyle = { fontWeight: 900 };
 const labelStyle = { fontWeight: 800, display: 'block' };
 
@@ -152,7 +161,10 @@ const initialReviewDraft = (draft = {}) => {
     releaseAt: '',
     sectionVariantModes: {},
     sectionAccessDefaults: { classwork: 'open', practice: 'open' },
+    // Practice keeps Guided Notes off by default: the owner's decision (FB20, 2026-10-23).
     guidedNotesBySection: { classwork: 'automatic', practice: 'off' },
+    // Students may use a Practice Pass on it unless the teacher turns that off (LC23).
+    allowPracticePasses: true,
     warmupEnabled: true,
     warmupMinutesBeforeStart: 7,
     warmupInstructionDate: '',
@@ -237,6 +249,9 @@ export const LessonPreflightModal = ({
   busy = false,
   reviewMode = 'create',
   allowQuestionRepair = true,
+  // The saved assignments, so a reused assignmentKey is caught here and not at
+  // Create (findAssignmentKeyConflict; TT10).
+  existingAssignments = [],
   // { classId: number of active students } — lets Pre-Flight compare each
   // question's distinct versions with the class it will actually be given to.
   rosterSizesByClassId = {},
@@ -597,11 +612,18 @@ export const LessonPreflightModal = ({
   // Readiness judges the Honors version Create will publish, once there is
   // one: the same report confirmHonorsCandidateForCreate checks again.
   const readinessHonorsReport = honorsCandidateCurrent ? honorsCandidate.honorsReport : honorsReport;
+  // Create refuses an assignmentKey another saved assignment already uses, so a
+  // new assignment is told so here. Setup edits (update mode) keep their own key.
+  const duplicateAssignmentKey = useMemo(() => {
+    if (reviewMode === 'update') return '';
+    const key = String(effectiveAssignmentV5.assignment?.assignmentKey ?? '').trim();
+    return key && findAssignmentKeyConflict({ assignments: existingAssignments, assignmentKey: key }) ? key : '';
+  }, [reviewMode, existingAssignments, effectiveAssignmentV5]);
   const readiness = useMemo(() => summarizePreflightReadiness({
-    blockers: collectReviewBlockers({ draft, classPeriods, honorsSelected, honorsReport: readinessHonorsReport, honorsCcmr: honorsCcmrState }),
+    blockers: collectReviewBlockers({ draft, classPeriods, honorsSelected, honorsReport: readinessHonorsReport, honorsCcmr: honorsCcmrState, duplicateAssignmentKey }),
     validationErrors,
     bundleIsValid: preflightModel.isValid,
-  }), [draft, classPeriods, honorsSelected, readinessHonorsReport, honorsCcmrState, validationErrors, preflightModel.isValid]);
+  }), [draft, classPeriods, honorsSelected, readinessHonorsReport, honorsCcmrState, duplicateAssignmentKey, validationErrors, preflightModel.isValid]);
 
   // The student preview shows either version, from the same object Create
   // publishes for it: the reviewed assignment, or the final Honors one.
@@ -943,7 +965,7 @@ export const LessonPreflightModal = ({
     setDemoQuestionIndex(questionIndex);
     if (isNarrow) setActiveStep('check');
     window.requestAnimationFrame?.(() => {
-      document.getElementById('preflight-student-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.getElementById('preflight-student-preview')?.scrollIntoView({ behavior: scrollMotion(), block: 'start' });
     });
   };
   // "Use a different audited item": the server is asked again without it, and
@@ -977,6 +999,12 @@ export const LessonPreflightModal = ({
     sectionVariantModes: { ...(current.sectionVariantModes || {}), [role]: value },
   }));
 
+  const calculatorSetting = reviewedCalculatorSetting(workingAssignmentV5, draft);
+  const setCalculatorSetting = (value) => setDraft((current) => ({
+    ...current,
+    toolPolicy: { ...(current.toolPolicy || {}), calculator: value },
+  }));
+
   const sectionAccessDefault = (role) => draft.sectionAccessDefaults?.[role] || 'open';
   const setSectionAccessDefault = (role, value) => setDraft((current) => ({
     ...current,
@@ -987,6 +1015,12 @@ export const LessonPreflightModal = ({
     ...current,
     guidedNotesBySection: { ...(current.guidedNotesBySection || {}), [role]: value },
   }));
+  // Whether students may use a Practice Pass on this assignment (LC23). Only the
+  // teacher's "no" is stored (practicePassPolicy.js); a quiz, a test or a Test
+  // Cycle can never take a pass, so the choice is not offered there.
+  const allowPracticePasses = draft.allowPracticePasses !== false;
+  const setAllowPracticePasses = (allow) => setDraft((current) => ({ ...current, allowPracticePasses: allow }));
+  const showPracticePassSwitch = practicePassSwitchApplies(activityRoles, { testCycle: isTestCycleAssignment(effectiveAssignmentV5) });
   const outputProfileEnabled = (key) => (
     draft.outputProfiles?.[key]?.enabled
     ?? assignmentV5?.outputProfiles?.[key]?.enabled
@@ -1076,7 +1110,7 @@ export const LessonPreflightModal = ({
     if (isNarrow) {
       document.querySelector('[data-preflight-scroll]')?.scrollTo({ top: 0 });
     } else {
-      document.getElementById(`preflight-step-${stepId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.getElementById(`preflight-step-${stepId}`)?.scrollIntoView({ behavior: scrollMotion(), block: 'start' });
     }
   };
 
@@ -1737,6 +1771,43 @@ export const LessonPreflightModal = ({
         </fieldset>
       )}
 
+      {showPracticePassSwitch && (
+        <fieldset style={fieldsetStyle} data-preflight-practice-passes>
+          <legend style={legendStyle}>Practice Passes</legend>
+          <label style={{
+            display: 'flex', gap: 10, alignItems: 'flex-start', minHeight: 58,
+            padding: 10, border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)',
+          }}>
+            <input
+              type="checkbox"
+              style={{ ...checkboxStyle, marginTop: 2 }}
+              checked={allowPracticePasses}
+              onChange={(event) => setAllowPracticePasses(event.target.checked)}
+            />
+            <span>
+              <strong style={{ display: 'block', color: 'var(--mm-text-strong)' }}>Students can use a Practice Pass on this assignment</strong>
+              <span style={{ display: 'block', marginTop: 2, color: 'var(--mm-text-muted)', fontSize: 'calc(11.5 * var(--mm-px))', lineHeight: 1.4 }}>{REWARD_DEFINITIONS.practicePass.teacherDescription}</span>
+            </span>
+          </label>
+          <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>
+            {REWARD_DEFINITIONS.practicePass.gradeEffect} A pass is never available on a quiz, a test or a Test Cycle, or once a student has started Practice, whatever this says. Turning this off does not undo a pass a student has already used; undo that from the student&apos;s rewards.
+          </p>
+        </fieldset>
+      )}
+
+      <fieldset style={fieldsetStyle} data-preflight-calculator>
+        <legend style={legendStyle}>Calculator</legend>
+        <label style={labelStyle}>
+          Calculator for this lesson
+          <select value={calculatorSetting} onChange={(event) => setCalculatorSetting(event.target.value)} style={inputStyle}>
+            {ASSIGNMENT_CALCULATOR_SETTINGS.map((setting) => <option key={setting.value} value={setting.value}>{setting.label}</option>)}
+          </select>
+        </label>
+        <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>
+          Used for questions that set no calculator of their own; a question&apos;s own setting is kept. On an exit ticket, quiz or test it can only make a question&apos;s calculator stricter, never add one, and a skill assessed without a calculator stays without one. A student&apos;s calculator accommodation still applies.
+        </p>
+      </fieldset>
+
       <fieldset style={fieldsetStyle}>
         <legend style={legendStyle}>Warm-Up timing</legend>
         {hasAuthoredWarmup ? (
@@ -1983,6 +2054,16 @@ export const LessonPreflightModal = ({
 
       {renderRecoveryReadiness()}
 
+      {/* The advice below, counted (TT14, TT21): it never stops the
+          assignment from being ready (assignmentV5PreflightModel.js
+          summarizeAdvisoryFindings). */}
+      {preflightModel.advisory?.total > 0 && (
+        <p data-preflight-advisory={preflightModel.advisory.total} style={{ margin: '0 0 12px', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text)' }}>
+          <strong>{preflightModel.advisory.total === 1 ? '1 suggestion' : `${preflightModel.advisory.total} suggestions`} below</strong>
+          {' '}({preflightModel.advisory.groups.map((group) => `${group.count} ${group.label}`).join(', ')}). Advice only: they never stop the assignment from being ready or published.
+        </p>
+      )}
+
       {/* WORKED SOLUTIONS (student pass 3, HELP-11 / HELP-18): what a student
           reads after the last try. Suggestions only — they never change
           whether the assignment is ready (assignmentV5PreflightModel.js). */}
@@ -2032,6 +2113,61 @@ export const LessonPreflightModal = ({
         </div>
       )}
 
+      {/* Advice, not a readiness finding (choiceOptionPreflight.js, GR06): a
+          choice option worth the same as the key is marked wrong, which suits
+          a question about form and not one about equivalence. */}
+      {preflightModel.choiceOptions?.warnings?.length > 0 && (
+        <div data-choice-option-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-info-border)', borderRadius: 10, background: 'var(--mm-info-bg)', color: 'var(--mm-text)' }}>
+          <strong style={{ color: 'var(--mm-info-text)' }}>Choices worth the same as the key</strong>
+          <p style={{ margin: '5px 0 9px', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
+            These options have the key's value. A student who picks one is marked wrong: check each question asks for a form, not just an equal value. This does not stop you publishing.
+          </p>
+          <details>
+            <summary style={{ cursor: 'pointer', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.choiceOptions.warnings.length === 1 ? '1 question' : `${preflightModel.choiceOptions.warnings.length} questions`}</summary>
+            <ul data-choice-option-warnings="true" style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
+              {preflightModel.choiceOptions.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+            </ul>
+          </details>
+        </div>
+      )}
+
+      {/* Advice, not a readiness finding (answerKeyPreflight.js): a typed key
+          that reads two ways (GR04), or "lowest terms" asked of a box that
+          takes any equal value (GR14). */}
+      {preflightModel.answerKeys?.warnings?.length > 0 && (
+        <div data-answer-key-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-info-border)', borderRadius: 10, background: 'var(--mm-info-bg)', color: 'var(--mm-text)' }}>
+          <strong style={{ color: 'var(--mm-info-text)' }}>Answer keys to check</strong>
+          <p style={{ margin: '5px 0 9px', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
+            These keys may not be graded the way you mean them. Each one says what to change. This does not stop you publishing.
+          </p>
+          <details>
+            <summary style={{ cursor: 'pointer', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.answerKeys.warnings.length === 1 ? '1 key' : `${preflightModel.answerKeys.warnings.length} keys`}</summary>
+            <ul data-answer-key-warnings="true" style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
+              {preflightModel.answerKeys.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+            </ul>
+          </details>
+        </div>
+      )}
+
+      {/* Advice, not a readiness finding (impossibleItemsPreflight.js, TT04): a
+          system that cannot have exactly one solution as written, and a vertex
+          or center asked of a function that has none. Graded correctly, so it
+          never turns the assignment "Needs Review". */}
+      {preflightModel.impossibleItems?.warnings?.length > 0 && (
+        <div data-impossible-items-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-info-border)', borderRadius: 10, background: 'var(--mm-info-bg)', color: 'var(--mm-text)' }}>
+          <strong style={{ color: 'var(--mm-info-text)' }}>Questions to double-check</strong>
+          <p style={{ margin: '5px 0 9px', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
+            These are written so that the answer may not be the one you expect: a system with no single solution, or a graph feature the function does not have. Each is marked correctly for students; check you meant it. This does not stop you publishing.
+          </p>
+          <details>
+            <summary style={{ cursor: 'pointer', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.impossibleItems.warnings.length === 1 ? '1 note' : `${preflightModel.impossibleItems.warnings.length} notes`}</summary>
+            <ul data-impossible-items-warnings="true" style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
+              {preflightModel.impossibleItems.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+            </ul>
+          </details>
+        </div>
+      )}
+
       {/* Advice, not a readiness finding (hintAnswerPreflight.js, HELP-16):
           teacher-written hints the leak guard drops, so a student never
           sees them, and why. */}
@@ -2045,6 +2181,24 @@ export const LessonPreflightModal = ({
             <summary style={{ cursor: 'pointer', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.hiddenHints.warnings.length === 1 ? '1 hint' : `${preflightModel.hiddenHints.warnings.length} hints`}</summary>
             <ul data-hidden-hint-warnings="true" style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
               {preflightModel.hiddenHints.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+            </ul>
+          </details>
+        </div>
+      )}
+
+      {/* Advice, not a readiness finding (spanishVersionPreflight.js, TT22): the
+          teacher's own hints and worked solutions can be translated only by the
+          teacher, as translations.es on the question. */}
+      {preflightModel.spanishVersions?.warnings?.length > 0 && (
+        <div data-spanish-version-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-info-border)', borderRadius: 10, background: 'var(--mm-info-bg)', color: 'var(--mm-text)' }}>
+          <strong style={{ color: 'var(--mm-info-text)' }}>Spanish for your hints and worked solutions</strong>
+          <p style={{ margin: '5px 0 9px', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
+            A student who reads in Spanish can press Translate beside a hint or a worked solution. MathMaster translates its own sentences, but only you can translate the ones you wrote: add them to the question as translations.es, with one line for each hint in the same order and a solutionReview with the same fields. A line that changes a number, letter or symbol is not used, and the student sees the English. In Spanish prose a lone y, o, a, e or u reads as a word, so write a variable like that inside $…$ (for example $y$). This does not stop you publishing.
+          </p>
+          <details>
+            <summary style={{ cursor: 'pointer', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.spanishVersions.warnings.length === 1 ? '1 note' : `${preflightModel.spanishVersions.warnings.length} notes`}</summary>
+            <ul data-spanish-version-warnings="true" style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
+              {preflightModel.spanishVersions.warnings.map((warning) => <li key={warning}>{warning}</li>)}
             </ul>
           </details>
         </div>
@@ -2302,7 +2456,7 @@ export const LessonPreflightModal = ({
         ) : (
           <div style={{ display: 'flex', minHeight: 0 }}>
             <aside style={{ width: 'min(280px, 34vw)', minWidth: 210, borderRight: '1px solid var(--mm-border)', padding: 14, background: 'var(--mm-surface-sunken)', textAlign: 'left' }}>{demoControls}</aside>
-            <main style={{ flex: 1, padding: 16, background: 'var(--mm-surface)', minWidth: 0 }}>{studentPreview}</main>
+            <div style={{ flex: 1, padding: 16, background: 'var(--mm-surface)', minWidth: 0 }}>{studentPreview}</div>
           </div>
         ))}
       </fieldset>
@@ -2341,7 +2495,8 @@ export const LessonPreflightModal = ({
         <header style={{ padding: isNarrow ? '12px 14px' : '15px 20px', background: '#1a73e8', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14 }}>
           <div style={{ textAlign: 'left', minWidth: 0 }}>
             <h3 style={{ margin: 0, fontSize: isNarrow ? 'calc(17 * var(--mm-px))' : 'calc(20 * var(--mm-px))' }}>{isUpdateMode ? 'Review assignment setup' : 'Review assignment'}</h3>
-            <span style={{ fontSize: 'calc(12 * var(--mm-px))', opacity: 0.92, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {/* Full white, not 92%: white at 92% on this blue is 4.06:1 (small text needs 4.5:1, white is 4.51:1) — TT27. */}
+            <span style={{ fontSize: 'calc(12 * var(--mm-px))', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {draft.title || 'Untitled assignment'}{sourceLabel ? ` · ${sourceLabel}` : ''}
             </span>
           </div>
@@ -2379,8 +2534,9 @@ export const LessonPreflightModal = ({
                 <span style={{ display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
                   {isNarrow ? step.label : `${index + 1}. ${step.label}`}
                   {problems > 0 && (
-                    <span aria-label={`${problems} to fix`} style={{ minWidth: 18, height: 18, padding: '0 5px', borderRadius: 999, background: '#d93025', color: '#fff', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, display: 'grid', placeItems: 'center' }}>
-                      {problems}
+                    <span style={{ minWidth: 18, height: 18, padding: '0 5px', borderRadius: 999, background: '#d93025', color: '#fff', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, display: 'grid', placeItems: 'center' }}>
+                      <span aria-hidden="true">{problems}</span>
+                      <span style={SR_ONLY_STYLE}>{`${problems} to fix`}</span>
                     </span>
                   )}
                 </span>

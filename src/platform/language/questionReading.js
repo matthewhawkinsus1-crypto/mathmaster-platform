@@ -13,7 +13,7 @@
  *   questionReadingText(parts)              → the whole question, one text
  *
  * Each part is one thing on the screen, so a student can hear just that part
- * again (the Support tools tray lists them). `text` is what the screen shows,
+ * again (the Language tools tray lists them). `text` is what the screen shows,
  * mathematics included; speakAloud (./speechText.js) turns the mathematics
  * into words, so a part says "c of x" and "4 dollars and 50 cents" like the
  * rest of Read aloud. `functionNames` (the one-letter functions the question
@@ -28,6 +28,7 @@
  */
 import { choiceOptionsForField, choiceSeed, multiAnswerChoiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../interaction/choiceOptions.js';
 import { readDisplayMatrices } from '../math/displayMatrices.js';
+import { sayFigure } from './figureSay.js';
 import { definedFunctionNames } from './speechText.js';
 
 const WORDS = {
@@ -67,6 +68,8 @@ const WORDS = {
     of: 'de',
     dollars: 'dólares',
     figure: 'Una figura',
+    // A figure whose reading has no Spanish (AX05): its English follows.
+    figureInEnglish: 'La descripción de esta figura está en inglés.',
     labels: { table: 'La tabla', figure: (index) => `Figura ${index}`, question: 'La pregunta', backUp: 'Retrocedamos', information: 'Información que necesitas', step: 'Este paso', system: 'El sistema', matrix: (name) => (name ? `Matriz ${name}` : 'La matriz'), part: (index) => `Parte ${index}` },
   },
 };
@@ -119,17 +122,21 @@ export const matrixReading = (matrix, { language = 'en' } = {}) => {
  * A table the question shows (displayTable.js), row by row with its headers:
  * "Row 1: x, 0; y, 3." A cell the student fills in is said as what they wrote
  * ("y, you wrote 7") or "blank" — never its key, and never a verdict: the
- * table carries no ✓ or ✗ to read.
+ * table carries no ✓ or ✗ to read. A column's `name` (the quantity a tool's
+ * column holds, AX10) is said once, with the headers: "Columns: x, Rental time
+ * (hours); y, Total cost (dollars)."
  */
 export const tableReading = (table, { label = '', language = 'en' } = {}) => {
   const w = wordsFor(language);
   if (!table || !Array.isArray(table.columns) || !table.columns.length || !Array.isArray(table.rows) || !table.rows.length) return '';
   // A column headed "c(x)" is the function's output, never "c times x".
-  const headers = table.columns.map((column) => clean(column.label ?? column.key)
+  const spoken = (text) => clean(text)
     .replace(/^\$?([A-Za-z])\(([A-Za-z])\)\$?$/, (match, name, input) => `${name} ${w.of} ${input}`)
     // A unit "($)" is a word: two of them would pair as a formula's delimiters.
-    .replace(/\(\s*\\?\$\s*\)/g, `(${w.dollars})`));
-  const lines = [w.table(clean(label).replace(/[.:]$/, ''), table.rows.length), `${w.columns}: ${headers.join('; ')}.`];
+    .replace(/\(\s*\\?\$\s*\)/g, `(${w.dollars})`);
+  const headers = table.columns.map((column) => spoken(column.label ?? column.key));
+  const named = headers.map((header, index) => (clean(table.columns[index]?.name) ? `${header}, ${spoken(table.columns[index].name)}` : header));
+  const lines = [w.table(clean(label).replace(/[.:]$/, ''), table.rows.length), `${w.columns}: ${named.join('; ')}.`];
   table.rows.forEach((row, rowIndex) => {
     const cells = headers.map((header, columnIndex) => {
       const cell = Array.isArray(row) ? row[columnIndex] : null;
@@ -167,13 +174,25 @@ const stageChoices = (stage, workflow = []) => {
  *                  authored translation is shown)
  *   figures        what the tables, graphs and tool drawings on the screen
  *                  already say (figureReadings.js: { kind: 'table', label, table }
- *                  or { kind: 'figure', label, text }), in screen order. A
+ *                  or { kind: 'figure', label, text, say }), in screen order. A
  *                  figure's text is its own description, under its own rule:
  *                  while the question can be answered, no positions.
+ *   figurePack     the reading language's figure words ({ words, label },
+ *                  figureSay.js loadFigureWords), when it is not English
+ *                  (AX05). A figure is read from its messages (`say`) in that
+ *                  language; one with none, or with a sentence the pack has no
+ *                  words for, is read in English after a sentence that says so.
+ *                  A name the platform gave a figure or a table is said in the
+ *                  pack's words; a name the author wrote, as written.
  */
-export const questionReadingParts = (question, { referenceInfo = null, backUp = null, stage = null, language = 'en', figures = [] } = {}) => {
+export const questionReadingParts = (question, { referenceInfo = null, backUp = null, stage = null, language = 'en', figures = [], figurePack = null } = {}) => {
   if (!question || typeof question !== 'object') return [];
   const w = wordsFor(language);
+  const englishFrame = w === WORDS.en;
+  const figureName = (label) => {
+    const own = clean(label);
+    return englishFrame ? own : clean(figurePack?.label?.(own)) || own;
+  };
   const parts = [];
   const add = (id, kind, label, text) => {
     const value = clean(text);
@@ -208,11 +227,20 @@ export const questionReadingParts = (question, { referenceInfo = null, backUp = 
   (Array.isArray(figures) ? figures : []).forEach((entry) => {
     if (entry?.kind === 'table') {
       tableCount += 1;
-      add(`table-${tableCount}`, 'table', clean(entry.label) || w.labels.table, tableReading(entry.table, { label: figureWords(entry.label), language }));
+      const name = figureName(entry.label);
+      add(`table-${tableCount}`, 'table', name || w.labels.table, tableReading(entry.table, { label: figureWords(name), language }));
     } else if (entry?.kind === 'figure' && clean(entry.text)) {
       figureCount += 1;
-      const name = clean(entry.label);
-      add(`figure-${figureCount}`, 'figure', name || w.labels.figure(figureCount), [sentence(figureWords(name) || w.figure), sentence(figureWords(entry.text))].join(' '));
+      const name = figureName(entry.label);
+      // In the reading's language when the figure can say it; else its
+      // English, and the student is told so (never translated here).
+      const translated = englishFrame ? null : clean(sayFigure(entry.say, figurePack?.words));
+      const inEnglish = !englishFrame && !translated;
+      add(`figure-${figureCount}`, 'figure', name || w.labels.figure(figureCount), [
+        sentence(figureWords(name) || w.figure),
+        inEnglish ? w.figureInEnglish : '',
+        sentence(figureWords(translated || entry.text)),
+      ].filter(Boolean).join(' '));
     }
   });
 

@@ -12,7 +12,7 @@ import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import intervalNumberLineGrader from '../../../functions/shared/serverGrading/tools/intervalNumberLine.mjs';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import { clientPointToViewBox } from '../../utils/responsiveCoordinates.js';
-import { describeNumberLine, describeNumberLinePiece } from '../../platform/language/numberLineDescription.js';
+import { describeNumberLinePiece, numberLineReading } from '../../platform/language/numberLineDescription.js';
 import { isAlgebraOneQuestion } from '../../platform/curriculum/inequalityRepresentationPolicy.js';
 import { PublishFigureReading } from '../../platform/language/figureReadings.js';
 import { intervalTickSteps, niceTickStep } from './intervalTicks.js';
@@ -540,7 +540,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
     const parts = Array.isArray(feedback.metadata?.parts) ? feedback.metadata.parts : [];
     const stageMissed = (id) => parts.some((part) => part.id === id && part.isCorrect !== true);
     if (stageMissed('graph') && built.length === 0) {
-      return 'Nothing is graphed yet. Click the line or type an exact endpoint, then place the other endpoint or choose a ray.';
+      return 'Nothing is graphed yet. Click or tap the line (or Tab to it and use the arrow keys and Enter) or type an exact endpoint, then place the other endpoint or choose a ray.';
     }
     if (stageMissed('graph')) {
       return intervalGraphMissMessage({ built: feedback.response?.intervals ?? built, expected, methodWithheld });
@@ -559,7 +559,9 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
   // WHAT IS DRAWN, NOT HOW TO DRAW (student pass 3, Q-8). The line's name is
   // short; its description reads the student's dots and shading first, then
   // the operating instructions. Never notation (numberLineDescription.js).
-  const lineDescription = describeNumberLine({ min, max, labelStep: majorStep, pieces: drawn, pending });
+  // `lineSay` is the same reading as messages: Read aloud says it in Spanish
+  // under an authored Spanish translation (AX05).
+  const { text: lineDescription, say: lineSay } = numberLineReading({ min, max, labelStep: majorStep, pieces: drawn, pending });
 
   return (
     <ToolShell
@@ -572,7 +574,9 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
         task={questionData.prompt || `Graph the solution on the number line${asksInterval ? ' and write it in interval notation' : asksInequality ? ' and write the matching inequality' : ''}.`}
         stepsAreControls
         steps={[
-          'Place an endpoint by clicking the line or typing its exact value. Fractions such as -13/8 are accepted.',
+          // The line is a tab stop: a marker moves with the arrow keys and Enter
+          // places an endpoint there, or the exact value is typed (AX32).
+          'Place an endpoint: click or tap the line, or Tab to it and use the arrow keys and Enter, or type its exact value. Fractions such as -13/8 are accepted.',
           'For a bounded interval, place a second endpoint. For a ray, choose shade left or shade right.',
           'Choose open or closed for each endpoint. Drag a plotted endpoint if you want to move it, or Tab to it and use the arrow keys.',
         ]}
@@ -580,7 +584,6 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
 
       <EnlargeableFigure
         label="Number line workspace"
-        enlargeLabel="Enlarge workspace"
         taskText={questionData.prompt || questionData.task || ''}
         style={{ width: '100%' }}
         openEnlarged={shouldOpenFigureEnlarged({ toolId: 'intervalNumberLine', question: questionData || {}, viewportWidth })}
@@ -685,7 +688,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
             </div>
 
             <div id={endpointHelpId} data-endpoint-help={endpointError ? 'error' : 'hint'} style={{ color: endpointError ? 'var(--mm-error-text)' : 'var(--mm-text-muted)', fontSize: 'calc(11.5 * var(--mm-px))' }}>
-              {endpointError || `A click or drag moves in steps of ${snapLabel}. Type an exact value for anything in between.`}
+              {endpointError || `A click, a drag or an arrow key moves in steps of ${snapLabel}. Type an exact value for anything in between.`}
             </div>
             {/* Said when it appears: the typed value could not be placed. */}
             <span role="alert" data-endpoint-error-announcement="" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>{endpointError}</span>
@@ -951,7 +954,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
 
           {/* Read through the line's aria-describedby, and hidden from browse
               mode so it is not heard a second time as a loose paragraph. */}
-          <PublishFigureReading entry={{ kind: 'figure', label: 'Number line', text: lineDescription }} />
+          <PublishFigureReading entry={{ kind: 'figure', label: 'Number line', text: lineDescription, say: lineSay }} />
           <p id={lineDescriptionId} data-number-line-description="" aria-hidden="true" style={srOnly}>{lineDescription}</p>
           <p id={lineInstructionsId} aria-hidden="true" style={srOnly}>
             {`Click anywhere on the line to place an endpoint, or drag an existing endpoint. From the keyboard, use the left and right arrow keys to move the marker by ${snapLabel}, Shift for bigger steps, and press Enter or Space to place an endpoint at the marker. You can also type an exact endpoint above.`}
@@ -969,7 +972,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                   : readsGraphAsNotation
                     ? `Your graph: ${intervalsToNotation(drawn)}`
                     : `Your graph: ${drawn.map(describeNumberLinePiece).join(' ')}`
-                : 'Click the line for a quick placement, or type an exact endpoint above.'}
+                : 'Click or tap the line for a quick placement, or Tab to it and use the arrow keys and Enter, or type an exact endpoint above.'}
           </p>
         </Panel>
 

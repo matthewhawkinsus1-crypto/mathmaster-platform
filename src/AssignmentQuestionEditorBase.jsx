@@ -44,6 +44,7 @@ import {
   parseAssignmentWeightReviewPack,
   prepareAssignmentWeightReviewPack,
 } from './platform/grading/weightReviewPack.js';
+import { scrollMotion } from './motionPreference.js';
 
 const newQuestionId = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -232,7 +233,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
   // A refused Include is explained in full where it was pressed: on a phone
   // the explanation would otherwise start under the dialog's footer.
   useEffect(() => {
-    if (inclusionNotice) inclusionAlertRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+    if (inclusionNotice) inclusionAlertRef.current?.scrollIntoView?.({ block: 'nearest', behavior: scrollMotion() });
   }, [inclusionNotice]);
 
   // Bring another card into view (the active version of a replaced question,
@@ -240,7 +241,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
   const showQuestion = (index) => {
     const card = cardRefs.current.get(index);
     if (!card) return;
-    card.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    card.scrollIntoView?.({ behavior: scrollMotion(), block: 'center' });
     card.focus?.({ preventScroll: true });
   };
 

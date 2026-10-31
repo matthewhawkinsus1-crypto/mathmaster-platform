@@ -163,6 +163,90 @@ test('the class\'s due wake-up waits for an individualized due date; an attendan
   assert.equal(runtime.resolveClassroomGradeStage({ assignment, progress, releaseSignal: { reason: 'due-checkpoint' }, nowValue: atClassDue, studentFinalCutoff: extension.finalAtMs, studentDueAt: extension.dueAtMs }), 'due-checkpoint');
 });
 
+/*
+ * NV02 (the owner, 2026-10-23): HOLD THE CLASSROOM RETURN UNTIL THE STUDENT'S
+ * OWN CLOSE. A student on an attendance extension was returned a partial
+ * "late-progress" grade in the class's late window — and at the class's
+ * cutoff — while MathMaster still accepted their work. Now a partial grade
+ * goes to Classroom as a draft while their own extended time runs, and their
+ * grade is returned at their own close.
+ */
+test('NV02: a partial grade is a draft, not returned, while the student is still on their own extended time', () => {
+  const extension = studentClassroomDeadlines({ assignment, studentId: 'S1', privateOverride: { lateDueAt: '2026-10-08T23:00:00.000Z' } });
+  const OWN = extension.finalAtMs;
+  const stageAt = (nowValue, releaseSignal = null, cutoff = OWN) => runtime.resolveClassroomGradeStage({
+    assignment, progress, releaseSignal, nowValue, studentFinalCutoff: cutoff, studentDueAt: extension.dueAtMs,
+  });
+  const policyAt = (stage, nowValue, cutoff = OWN) => runtime.classroomGradeReleasePolicy({
+    stage, assignment, nowValue, studentDueAt: extension.dueAtMs, studentFinalCutoff: cutoff,
+  });
+  const held = { studentVisible: false, assignToStudent: false, shouldReturn: false, heldUntilMs: OWN };
+  // The class's late window, the class's own final wake-up, and up to the
+  // last moment before their own close: a draft, held until their own close.
+  for (const [nowValue, signal] of [[CLASS_DUE + HOUR, null], [CLASS_FINAL - HOUR, null], [CLASS_FINAL + 5 * 60_000, { reason: 'final-deadline' }], [CLASS_FINAL + HOUR, null], [OWN - 1, null]]) {
+    const stage = stageAt(nowValue, signal);
+    assert.equal(stage, 'late-progress-50', new Date(nowValue).toISOString());
+    assert.deepEqual(policyAt(stage, nowValue), held, new Date(nowValue).toISOString());
+  }
+  // A classmate in the class's late window is returned their late progress, as before.
+  assert.deepEqual(runtime.classroomGradeReleasePolicy({ stage: 'late-progress-50', assignment, nowValue: CLASS_DUE + HOUR }), { studentVisible: true, assignToStudent: true, shouldReturn: true });
+  // A teacher's retry after the due date is held the same way.
+  assert.deepEqual(policyAt('manual-retry', CLASS_FINAL + HOUR), held);
+  // Exactly at their own close the hold is over: their grade is final and returned.
+  assert.equal(stageAt(OWN, { reason: 'final-deadline' }), 'final-deadline');
+  assert.equal(policyAt('final-deadline', OWN).shouldReturn, true);
+  assert.deepEqual(policyAt('late-progress-50', OWN), { studentVisible: true, assignToStudent: true, shouldReturn: true });
+  // Never held: the due checkpoint (an attendance extension keeps the class's
+  // due), a finished grade, an assessment the teacher released, a final.
+  for (const stage of ['due-checkpoint', 'final-complete', 'assessment-release', 'final-deadline']) {
+    assert.deepEqual(policyAt(stage, CLASS_FINAL + HOUR), { studentVisible: true, assignToStudent: true, shouldReturn: true }, stage);
+  }
+  // Before the due date nothing partial is returned anyway, and nothing is held.
+  assert.deepEqual(policyAt('progress-50', CLASS_DUE - HOUR), { studentVisible: false, assignToStudent: false, shouldReturn: false });
+});
+
+test('NV02: only an own close later than the class\'s holds anything', () => {
+  const policyAt = (stage, nowValue, cutoff) => runtime.classroomGradeReleasePolicy({ stage, assignment, nowValue, studentFinalCutoff: cutoff });
+  const returned = { studentVisible: true, assignToStudent: true, shouldReturn: true };
+  // An extension shorter than the class's close, or equal to it, moves nothing.
+  const shorter = studentClassroomDeadlines({ assignment, studentId: 'S1', privateOverride: { lateDueAt: '2026-10-02T23:00:00.000Z' } }).finalAtMs;
+  assert.deepEqual(policyAt('late-progress-50', CLASS_DUE + HOUR, shorter), returned);
+  assert.deepEqual(policyAt('late-progress-50', CLASS_DUE + HOUR, CLASS_FINAL), returned);
+  // No individual cutoff: exactly as before.
+  assert.deepEqual(policyAt('late-progress-50', CLASS_DUE + HOUR, null), returned);
+  assert.equal(runtime.extendedTimeReturnHeldUntil({ assignment, nowValue: CLASS_DUE + HOUR, studentFinalCutoff: null }), null);
+  // Extra time alone: their final is never later than max(class final, their
+  // own due), so there is no late window of their own to hold.
+  const extraTime = studentClassroomDeadlines({ assignment, studentId: 'S2', studentProfile: extraTimeProfile(), privateOverride: null });
+  assert.equal(extraTime.finalAtMs, extraTime.dueAtMs);
+  assert.equal(runtime.resolveClassroomGradeStage({ assignment, progress, nowValue: extraTime.dueAtMs - 1, studentFinalCutoff: extraTime.finalAtMs, studentDueAt: extraTime.dueAtMs }), 'progress-50');
+  // Extra time AND an attendance extension: after their own due, late progress
+  // waits for the later of the two closes.
+  const both = studentClassroomDeadlines({ assignment, studentId: 'S3', studentProfile: extraTimeProfile({ mode: 'hours', value: 24 }), privateOverride: { lateDueAt: '2026-10-08T23:00:00.000Z' } });
+  assert.equal(both.dueAtMs, CLASS_DUE + 24 * HOUR);
+  const afterOwnDue = both.dueAtMs + HOUR;
+  const stage = runtime.resolveClassroomGradeStage({ assignment, progress, nowValue: afterOwnDue, studentFinalCutoff: both.finalAtMs, studentDueAt: both.dueAtMs });
+  assert.equal(stage, 'late-progress-50');
+  assert.equal(runtime.classroomGradeReleasePolicy({ stage, assignment, nowValue: afterOwnDue, studentDueAt: both.dueAtMs, studentFinalCutoff: both.finalAtMs }).heldUntilMs, Date.parse('2026-10-08T23:00:00.000Z'));
+});
+
+test('NV02: both triggers hold the return and record the student\'s own close for the scheduler', () => {
+  const index = executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));
+  const section = executableSource(readFileSync(new URL('../../functions/classroomSectionEntry.js', import.meta.url), 'utf8'));
+  // index.js's own release policy holds by the lib's one rule.
+  assert.match(index, /const \{ deferredClassCheckpoint, extendedTimeReturnHeldUntil \} = require\("\.\/lib\/classroomGradeRuntime"\);/);
+  const releaseHelper = region(index, 'function classroomGradeReleasePolicy(', '\n}\n', 'index.js release policy');
+  assert.match(releaseHelper, /extendedTimeReturnHeldUntil\(\{ assignment, nowValue: now, studentFinalCutoff \}\)/);
+  assert.match(releaseHelper, /const studentVisible = explicitlyStudentVisible \|\| \(partialAfterDue && heldUntilMs === null\);/);
+  // A held return is recorded as the student's own final wake-up, in both triggers.
+  const sync = region(index, 'exports.syncGradeToClassroom = onDocumentWritten(', 'exports.queueReleasedAssessmentGrades', 'syncGradeToClassroom');
+  assert.match(sync, /if \(releasePolicy\.heldUntilMs\) \{\s*await classroomStudentCheckpoints\.recordDeferredStudentCheckpoint\(\{\s*stateRef: db\.collection\(CLASSROOM_GRADE_CHECKPOINT_COLLECTION\)\.doc\(assignmentId\),\s*assignmentId,\s*studentId: event\.params\.studentId,\s*deferred: \{ kind: "final", atMs: releasePolicy\.heldUntilMs \},/);
+  const sectionSync = region(section, 'const syncSectionGradeToClassroom = onDocumentWritten(', 'const queueClassroomSectionGradeCheckpoints', 'syncSectionGradeToClassroom');
+  assert.match(sectionSync, /if \(releasePolicy\.heldUntilMs && !heldReturnRecorded\) \{\s*heldReturnRecorded = true;\s*await classroomStudentCheckpoints\.recordDeferredStudentCheckpoint\(\{\s*stateRef: db\.collection\(SECTION_CHECKPOINT_COLLECTION\)\.doc\(assignmentId\),\s*assignmentId,\s*studentId: event\.params\.studentId,\s*deferred: \{ kind: "final", atMs: releasePolicy\.heldUntilMs \},/);
+  // The recorded close is woken like any other: the scheduler sends their final then.
+  assert.deepEqual(arrivedStudentCheckpoints({ pendingFinal: { S1: '2026-10-08T23:00:00.000Z' }, nowMs: Date.parse('2026-10-08T23:00:00.000Z') }).final, ['S1']);
+});
+
 test('the scheduler wakes each recorded student at their own time; a final retires their pending due', () => {
   const now = Date.parse('2026-10-05T12:00:00.000Z');
   const arrived = arrivedStudentCheckpoints({
@@ -211,8 +295,10 @@ test('both Classroom paths record a deferred student and both schedulers wake th
   assert.match(sync, /const stageNow = Date\.now\(\);/);
   assert.match(sync, /resolveClassroomGradeStage\(\{[^}]*nowValue: stageNow,\s*studentFinalCutoff,\s*studentDueAt,\s*\}\)/);
   assert.match(sync, /deferredClassCheckpoint\(\{ assignment, releaseSignal, nowValue: stageNow, studentFinalCutoff, studentDueAt \}\)/);
-  // The release policy reads the student's own due (a manual retry before it is not returned).
-  assert.match(sync, /classroomGradeReleasePolicy\(\{\s*stage,\s*assignment,\s*nowValue: stageNow,\s*studentDueAt,\s*\}\)/);
+  // The release policy reads the student's own due (a manual retry before it
+  // is not returned) and their own final cutoff (NV02: nothing partial is
+  // returned while their extended time runs).
+  assert.match(sync, /classroomGradeReleasePolicy\(\{\s*stage,\s*assignment,\s*nowValue: stageNow,\s*studentDueAt,\s*studentFinalCutoff,\s*\}\)/);
   // index.js's own stage helper defers BOTH class-wide wake-ups, and its
   // release policy reads the student's own due — the same rules as the lib.
   const stageHelper = region(index, 'function resolveClassroomGradeStage(', 'if (progress.complete)', 'index.js stage helper');
@@ -221,14 +307,15 @@ test('both Classroom paths record a deferred student and both schedulers wake th
   const releaseHelper = region(index, 'function classroomGradeReleasePolicy(', 'const explicitlyStudentVisible', 'index.js release policy');
   assert.match(releaseHelper, /const dueAt = studentDueDate\(assignment, studentDueAt\);/);
   assert.match(sync, /recordDeferredStudentCheckpoint\(\{\s*stateRef: db\.collection\(CLASSROOM_GRADE_CHECKPOINT_COLLECTION\)\.doc\(assignmentId\),/);
-  assert.match(index, /const \{ deferredClassCheckpoint \} = require\("\.\/lib\/classroomGradeRuntime"\);/);
+  // index.js takes the deferral rule from the lib (beside NV02's hold rule).
+  assert.match(index, /const \{[^}]*\bdeferredClassCheckpoint\b[^}]*\} = require\("\.\/lib\/classroomGradeRuntime"\);/);
   const scheduler = region(index, 'exports.queueClassroomGradeCheckpoints = onSchedule', 'let liveChallengeModule = null;', 'queueClassroomGradeCheckpoints');
   assert.match(scheduler, /classroomStudentCheckpoints\.wakeArrivedStudentCheckpoints\(\{\s*stateRef,\s*state,\s*now,/);
 
   const sectionSync = region(section, 'const syncSectionGradeToClassroom = onDocumentWritten(', 'const queueClassroomSectionGradeCheckpoints', 'syncSectionGradeToClassroom');
   assert.match(sectionSync, /studentClassroomDeadlinesFor\(\{\s*db, assignmentId, assignment, studentId: event\.params\.studentId, studentProfile: afterData\.profile \|\| null,/);
   assert.match(sectionSync, /resolveClassroomGradeStage\(\{[^}]*studentFinalCutoff: ownDeadlines\.studentFinalCutoff,\s*studentDueAt: ownDeadlines\.studentDueAt,\s*\}\)/);
-  assert.match(sectionSync, /classroomGradeReleasePolicy\(\{ stage, assignment, nowValue: stageNow, studentDueAt: ownDeadlines\.studentDueAt \}\)/);
+  assert.match(sectionSync, /classroomGradeReleasePolicy\(\{\s*stage, assignment, nowValue: stageNow, studentDueAt: ownDeadlines\.studentDueAt, studentFinalCutoff: ownDeadlines\.studentFinalCutoff,\s*\}\)/);
   assert.match(sectionSync, /recordDeferredStudentCheckpoint\(\{\s*stateRef: db\.collection\(SECTION_CHECKPOINT_COLLECTION\)\.doc\(assignmentId\),/);
   const sectionScheduler = region(section, 'const queueClassroomSectionGradeCheckpoints', 'const drainClassroomPushQueue', 'section scheduler');
   assert.match(sectionScheduler, /classroomStudentCheckpoints\.wakeArrivedStudentCheckpoints\(\{\s*stateRef,\s*state,\s*now,/);

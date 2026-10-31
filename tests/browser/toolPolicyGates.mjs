@@ -148,7 +148,7 @@ const submitBridge = (page) => page.getByRole('button', { name: /^Submit — / }
   // What it keeps is how to work the panels (stepsAreControls on an
   // assessment, integrator round 2): not the tool's description and not a
   // method step.
-  check(/tap two rows to form an interval/.test(await helpDrawers(page)), 'DOL bridge: the drawer says how to work the table', await helpDrawers(page));
+  check(/select two rows to form an interval \(click or tap, or Tab to a row and press Enter\)/.test(await helpDrawers(page)), 'DOL bridge: the drawer says how to work the table, by pointer and by key', await helpDrawers(page));
   check(!/five connected views|using the b you determine|plot the x-intercept from your factored form/.test(await helpDrawers(page)), 'DOL bridge: the drawer holds neither the tool\'s description nor a method step', await helpDrawers(page));
   check(!(await helpDrawers(page)).includes(AUTHORED_BRIDGE_HINT), 'DOL bridge: the authored hint is NOT in the Work View Help drawer', await helpDrawers(page));
   const fieldNames = await page.locator('input[aria-label]').evaluateAll((inputs) => inputs.map((input) => input.getAttribute('aria-label')).join(' | '));

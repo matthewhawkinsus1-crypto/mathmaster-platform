@@ -222,7 +222,7 @@ const symbolNode = (name, target) => {
   // (I = Prt for t), so the letter can be isolated.
   const split = /^[a-z]{2,3}$/.test(letters) || (letters.length <= 3 && target && letters.includes(target));
   if (split) {
-    return { type: 'product', factors: letters.split('').map((letter) => ({ node: { type: 'sym', name: letter }, inverse: false })) };
+    return { type: 'product', run: true, factors: letters.split('').map((letter) => ({ node: { type: 'sym', name: letter }, inverse: false })) };
   }
   if (/^[a-z]+$/.test(letters)) throw new SyntaxError('a word, not a variable');
   return { type: 'sym', name: letters };
@@ -257,7 +257,16 @@ const parseExpression = (source, target = '') => {
     const base = primary();
     if (peek()?.kind === '^') {
       take();
-      return { type: 'power', base, exponent: unary() };
+      const exponent = unary();
+      // A run of letters is a product (mc = m·c), and a power on it belongs to
+      // the last letter alone: mc² is m·c², as the platform's literal workspace
+      // reads it (expandImplicitProducts), never (mc)².
+      if (base.run) {
+        const factors = base.factors.slice(0, -1);
+        const final = base.factors[base.factors.length - 1];
+        return { type: 'product', factors: [...factors, { node: { type: 'power', base: final.node, exponent }, inverse: false }] };
+      }
+      return { type: 'power', base, exponent };
     }
     return base;
   };
@@ -309,7 +318,10 @@ const addInto = (map, symbols, coef) => {
   const previous = map.get(key);
   const next = previous ? add(previous.coef, coef) : toRational(coef);
   if (isZero(next)) map.delete(key);
-  else map.set(key, { symbols: [...symbols].sort(), coef: next });
+  // The letters stay in the order the formula wrote them (lwh, 2πrh); the key
+  // above is what makes lh and hl one monomial. polyLatex sorts them unless
+  // asked to print them as written.
+  else map.set(key, { symbols: previous ? previous.symbols : [...symbols], coef: next });
 };
 const polyOf = (entries) => {
   const map = new Map();
@@ -447,13 +459,19 @@ const termsLatex = (terms, variable, style) => {
 const equationLatexOf = (left, right, variable, style) => `${termsLatex(left, variable, style)} = ${termsLatex(right, variable, style)}`;
 
 /** "9w", "\frac{1}{2}bh", "c": one side of a formula, the solved-for letter last in each term. */
-const polyLatex = (poly, { style = 'fraction', last = '' } = {}) => {
+const polyLatex = (poly, { style = 'fraction', last = '', authored = false } = {}) => {
   // Higher degree first; then code-point order, so a formula's capital letter
-  // leads (P + d, not d + P); constants last.
+  // leads (P + d, not d + P); constants last. `authored` prints the terms in
+  // the order the poly holds them (the formula's own, a moved term after the
+  // ones already there) and each term's letters as the formula wrote them.
   const order = (key) => (key === '' ? '\uffff' : key);
-  const monomials = [...poly.values()].sort((one, two) => (two.symbols.length - one.symbols.length)
+  const monomials = authored ? [...poly.values()] : [...poly.values()].sort((one, two) => (two.symbols.length - one.symbols.length)
     || (order(monomialKey(one.symbols)) < order(monomialKey(two.symbols)) ? -1 : 1));
-  const lettersLatex = (symbols) => {
+  const lettersLatex = (written) => {
+    // Equal letters stand together (r\u00b2, never rhr); the sorted order is the default.
+    const symbols = authored
+      ? [...new Set(written)].flatMap((symbol) => written.filter((other) => other === symbol))
+      : [...written].sort();
     const ordered = [...symbols.filter((symbol) => symbol !== last), ...symbols.filter((symbol) => symbol === last)];
     const counts = [];
     ordered.forEach((symbol) => {
@@ -1897,22 +1915,30 @@ const appliedWorked = (question, model) => {
   return null;
 };
 
-/** A poly as LaTeX with its positive terms first: "11 - T", never "-T + 11". */
-const positiveFirstLatex = (poly, options) => {
+/**
+ * A side as a student writes it. Its terms keep the order the formula has them
+ * in, and a term moved across the equals sign goes after the ones already
+ * there (p + 2b = 3a, never 2b + p); each term's letters stay as the formula
+ * wrote them (wh, 2\pi rh). A side that would open with a minus sign opens
+ * with its first positive term instead: 11 - T, never -T + 11.
+ */
+const writtenLatex = (poly, options) => {
   const entries = [...poly.entries()];
-  const positive = new Map(entries.filter(([, monomial]) => monomial.coef.n > 0));
-  const negative = new Map(entries.filter(([, monomial]) => monomial.coef.n < 0));
-  if (!positive.size || !negative.size) return polyLatex(poly, options);
-  return `${polyLatex(positive, options)} ${polyLatex(negative, options).replace(/^-/, '- ')}`;
+  const lead = entries.findIndex(([, monomial]) => monomial.coef.n > 0);
+  const opensNegative = entries.length > 0 && entries[0][1].coef.n < 0 && lead > 0;
+  const ordered = opensNegative ? [entries[lead], ...entries.slice(0, lead), ...entries.slice(lead + 1)] : entries;
+  return polyLatex(new Map(ordered), { ...options, authored: true });
 };
 
 const literalWorked = (question, model) => {
   if (model.applied) return appliedWorked(question, model);
   const t = model.target;
   const style = model.style;
-  // Written as a student writes it: letters in order (mx, Bh), positive terms
-  // first (y - b); a line keeps its x-term first (y = -\frac{2}{3}x + 4).
-  const latex = (poly) => (model.lineForm ? polyLatex(poly, { style }) : positiveFirstLatex(poly, { style }));
+  // Written as a student writes it: the formula's own order for terms and for
+  // the letters in each (mx, Bh, 2\pi rh), a moved term after the ones already
+  // there (p + 2b), a side opening with a plus (y - b); a line keeps its x-term
+  // first (y = -\frac{2}{3}x + 4).
+  const latex = (poly) => (model.lineForm ? polyLatex(poly, { style }) : writtenLatex(poly, { style }));
   const tPoly = polyOf([[[t], ONE]]);
   let left = model.leftPoly;
   let right = model.rightPoly;
@@ -1944,7 +1970,9 @@ const literalWorked = (question, model) => {
   const { coefficient, rest } = splitByTarget(onLeft ? left : right, t);
   let other = onLeft ? right : left;
   if (!coefficient.size || splitByTarget(other, t).coefficient.size) return null;
-  const tTerms = polyMul(coefficient, tPoly);
+  // The terms that hold the letter, as they stand (mx, 2\pi rh), not rebuilt
+  // from their coefficient with the letter put last.
+  const tTerms = new Map([...(onLeft ? left : right).entries()].filter(([, monomial]) => monomial.symbols.includes(t)));
   const place = (tSide, otherSide) => (onLeft ? `${tSide} = ${otherSide}` : `${otherSide} = ${tSide}`);
   if (rest.size) {
     other = polyAdd(other, rest, MINUS_ONE);
@@ -1961,7 +1989,7 @@ const literalWorked = (question, model) => {
     const allNegative = [...other.values()].every((monomial) => monomial.coef.n < 0);
     answer = allNegative
       ? `-\\frac{${latex(polyScale(other, MINUS_ONE))}}{${latex(coefficient)}}`
-      : `\\frac{${positiveFirstLatex(other, { style, last: t })}}{${latex(coefficient)}}`;
+      : `\\frac{${writtenLatex(other, { style, last: t })}}{${latex(coefficient)}}`;
     steps.push(`Divide both sides by $${by}$: $${t} = ${answer}$.`);
   } else if (model.lineForm) {
     answer = latex(polyScale(other, divide(ONE, constant)));
@@ -1973,9 +2001,9 @@ const literalWorked = (question, model) => {
     const bottomNumber = Math.abs(single.coef.n);
     const bottom = latex(polyOf([[single.symbols, rational(bottomNumber)]]));
     const allNegative = [...top.values()].every((monomial) => monomial.coef.n < 0);
-    if (!single.symbols.length && bottomNumber === 1) answer = positiveFirstLatex(top, { style, last: t });
+    if (!single.symbols.length && bottomNumber === 1) answer = writtenLatex(top, { style, last: t });
     else if (allNegative) answer = `-\\frac{${latex(polyScale(top, MINUS_ONE))}}{${bottom}}`;
-    else answer = `\\frac{${positiveFirstLatex(top, { style, last: t })}}{${bottom}}`;
+    else answer = `\\frac{${writtenLatex(top, { style, last: t })}}{${bottom}}`;
     const by = coefficient.size === 1 && single.symbols.length === 0 ? numberLatex(single.coef, style) : latex(coefficient);
     steps.push(`Divide both sides by $${by}$: $${t} = ${answer}$.`);
   }

@@ -48,6 +48,8 @@ test('the report loads through the rules-guarded readers and degrades rather tha
   // fails, export status reads "not loaded" instead of "not exported".
   assert.match(generate, /loadTeacherGradeTransferState\(\{ classIds: \[fullStudent\.classId\] \}\)\.catch\(\(\) => null\)/);
   assert.match(generate, /exportSnapshots: exportState \? exportState\.snapshots : null,/);
+  // The same load carries the class's Practice Pass waivers (TT20).
+  assert.match(generate, /practicePassKeys: exportState \? exportState\.practicePasses : null,/);
   assert.match(generate, /buildSupportEvidenceReport\(\{/);
 });
 
@@ -63,4 +65,9 @@ test('printing expands every section and prints only the report', () => {
 test('downloads use the model\'s own serialisers', () => {
   assert.match(view, /download\(supportReportCsv\(report\), supportReportFileName\(report, 'csv'\), 'text\/csv'\)/);
   assert.match(view, /download\(supportReportJson\(report\), supportReportFileName\(report, 'json'\), 'application\/json'\)/);
+});
+
+test('the case review hands its Practice Pass keys to the support report it builds on (TT20)', () => {
+  const review = executableSource(read('src/platform/caseReview/studentCaseReview.js'));
+  assert.match(review, /buildSupportEvidenceReport\(\{[^}]*\bpracticePassKeys\b[^}]*\}\)/);
 });

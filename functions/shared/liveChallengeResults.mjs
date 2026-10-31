@@ -31,6 +31,7 @@ import {
   COMPLETION_RULE,
   RECEIPT_KIND,
   isAttemptReceipt,
+  playerWorkReceipts,
   questionProgress,
   receiptKindOf,
   roundOutcome,
@@ -358,9 +359,14 @@ const reportTagsOf = (receipt) => Object.entries(receipt?.reportTags && typeof r
  * report tags of the mode's own, `byTag`). `mistakes` counts the diagnosis a
  * wrong attempt recorded, when the mode records one. Built from the receipt
  * log alone; a mode without report tags or diagnoses gets them empty.
+ *
+ * It describes the student's WORK, so it reads all of it: what a student with
+ * extended time did after the class's buzzer counts here
+ * (`extraTimeCompleted` says how many items they finished then), while the
+ * race — places, points, accuracy, rewards — reads only the race's receipts.
  */
 export const questionSetMatchSummary = (player = {}) => {
-  const receipts = player?.submissionReceipts || {};
+  const receipts = playerWorkReceipts(player);
   const attempts = Object.entries(receipts)
     .filter(([, receipt]) => isAttemptReceipt(receipt) && receiptKindOf(receipt) === RECEIPT_KIND.TARGET);
   const questions = new Map();
@@ -378,7 +384,7 @@ export const questionSetMatchSummary = (player = {}) => {
       });
     }
   });
-  const totals = { questions: 0, completed: 0, skipped: 0, attempts: 0, hits: 0, dnePresses: 0, dneCorrect: 0 };
+  const totals = { questions: 0, completed: 0, skipped: 0, attempts: 0, hits: 0, dnePresses: 0, dneCorrect: 0, extraTimeCompleted: 0 };
   const byFeature = {};
   const byFamily = {};
   const byTier = {};
@@ -419,6 +425,7 @@ export const questionSetMatchSummary = (player = {}) => {
     if (receipt.isCorrect !== true && typeof receipt.diagnosis === 'string' && REPORT_TAG_NAME.test(receipt.diagnosis)) {
       mistakes[receipt.diagnosis] = (mistakes[receipt.diagnosis] || 0) + 1;
     }
+    if (receipt.extraTime === true && receipt.isCorrect === true && receipt.completesQuestion === true) totals.extraTimeCompleted += 1;
     if (receipt.attemptKind !== 'dne') return;
     totals.dnePresses += 1;
     if (receipt.isCorrect === true) totals.dneCorrect += 1;

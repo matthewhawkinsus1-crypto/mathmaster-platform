@@ -5,6 +5,8 @@ import { executableSource, region } from './helpers/sourceContract.mjs';
 import {
   NO_ANSWER_TEXT,
   OUTCOME_LABEL,
+  PART_VERDICT,
+  PART_VERDICT_LABEL,
   REVIEW_OUTCOME,
   LOAD_ERROR_TEXT,
   buildReviewMyWorkModel,
@@ -12,6 +14,7 @@ import {
   formatSubmittedAnswer,
   looksLikeMath,
   teacherReasonLine,
+  withPartVerdicts,
 } from '../../src/platform/student/reviewMyWorkModel.js';
 
 /*
@@ -231,4 +234,89 @@ test('a withheld Warm-Up is explained, never silently missing', async () => {
   assert.equal(buildReviewMyWorkModel({ result: { questions: [] } }).warmupWithheld, false);
   const component = readFileSync(new URL('../../src/components/student/ReviewMyWork.jsx', import.meta.url), 'utf8');
   assert.match(component, /\{model\.warmupWithheld && <p[^>]*>Your Warm-Up review will appear here after your teacher closes the Warm-Up again\.<\/p>\}/);
+});
+
+/*
+ * FB21: WHICH PART WAS RIGHT. A multi-part row names each part's mark
+ * (functions/lib/reviewMyWork.js partVerdicts); the answer lists the student's
+ * own words, and this puts the mark beside the part it belongs to. The screen
+ * is tests/platform/reviewMyWorkParts.test.mjs.
+ */
+
+const partsFields = () => formatSubmittedAnswer(
+  { kind: 'fields', type: 'multiAnswer', value: '', fields: [
+    { id: 'a', value: '\\frac{1}{2}', isComplete: true },
+    { id: 'b', value: '5', isComplete: true },
+    { id: 'c', value: '', isComplete: false },
+  ] },
+  { answerFields: [{ id: 'a', label: 'Slope' }, { id: 'b', label: 'Intercept' }, { id: 'c', label: 'Form' }] },
+);
+const MARKS = [
+  { id: 'a', label: 'Slope', verdict: 'correct' },
+  { id: 'b', label: 'Intercept', verdict: 'incorrect' },
+  { id: 'c', label: 'Form', verdict: 'notAnswered' },
+];
+
+test('FB21: each part\'s mark sits beside the field it names, and the student\'s words stay', () => {
+  const marked = withPartVerdicts(partsFields(), MARKS);
+  assert.equal(marked.kind, 'fields');
+  assert.deepEqual(marked.items.map((item) => [item.id, item.verdict, item.verdictLabel]), [
+    ['a', 'correct', 'Correct'],
+    ['b', 'incorrect', 'Not correct'],
+    ['c', 'notAnswered', 'Not answered'],
+  ]);
+  assert.deepEqual(marked.items.map((item) => item.text), ['\\frac{1}{2}', '5', NO_ANSWER_TEXT]);
+  assert.deepEqual(marked.items.map((item) => item.label), ['Slope', 'Intercept', 'Form']);
+  // A partly right part has its own words.
+  const partly = withPartVerdicts(partsFields(), [{ id: 'b', verdict: 'partial' }]);
+  assert.equal(partly.items[1].verdictLabel, 'Partly correct');
+});
+
+test('FB21: the part words are the whole-row words, and the server\'s four marks are the screen\'s four', () => {
+  assert.deepEqual(PART_VERDICT, { CORRECT: 'correct', PARTIAL: 'partial', INCORRECT: 'incorrect', NOT_ANSWERED: 'notAnswered' });
+  assert.equal(PART_VERDICT_LABEL[PART_VERDICT.CORRECT], OUTCOME_LABEL[REVIEW_OUTCOME.CORRECT]);
+  assert.equal(PART_VERDICT_LABEL[PART_VERDICT.PARTIAL], OUTCOME_LABEL[REVIEW_OUTCOME.PARTIAL]);
+  assert.equal(PART_VERDICT_LABEL[PART_VERDICT.INCORRECT], OUTCOME_LABEL[REVIEW_OUTCOME.INCORRECT]);
+  assert.equal(PART_VERDICT_LABEL[PART_VERDICT.NOT_ANSWERED], OUTCOME_LABEL[REVIEW_OUTCOME.NOT_ANSWERED]);
+  assert.deepEqual(Object.values(PART_VERDICT_LABEL), ['Correct', 'Partly correct', 'Not correct', 'Not answered']);
+});
+
+test('FB21: a mark this browser does not know, a part with no field, and a field with no part are left alone', () => {
+  const odd = withPartVerdicts(partsFields(), [
+    { id: 'a', verdict: 'brilliant' }, // not a mark
+    { id: 'zzz', verdict: 'correct' }, // no such field
+    { id: 'b', verdict: 'incorrect' },
+    null, 'b', 7, [],
+  ]);
+  assert.deepEqual(odd.items.map((item) => item.verdict), [undefined, 'incorrect', undefined]);
+  assert.equal(odd.items.length, 3, 'a part with no field adds no row');
+  // Numbers and strings name the same field.
+  const numbered = withPartVerdicts(formatSubmittedAnswer({ kind: 'fields', fields: [{ id: 1, value: '2' }, { id: 2, value: '3' }] }), [{ id: '1', verdict: 'correct' }, { id: 2, verdict: 'incorrect' }]);
+  assert.deepEqual(numbered.items.map((item) => item.verdict), ['correct', 'incorrect']);
+});
+
+test('FB21: no marks, no verdict on any field; and only a list of fields takes marks', () => {
+  for (const parts of [undefined, [], 'nope', null, [{ id: 'a' }]]) {
+    assert.ok(withPartVerdicts(partsFields(), parts).items.every((item) => item.verdict === undefined && item.verdictLabel === undefined), `parts: ${JSON.stringify(parts)}`);
+  }
+  const single = formatSubmittedAnswer({ kind: 'value', type: 'literal', value: '4', fields: [] });
+  assert.deepEqual(withPartVerdicts(single, MARKS), single);
+  const none = formatSubmittedAnswer(null);
+  assert.deepEqual(withPartVerdicts(none, MARKS), none);
+  assert.equal(withPartVerdicts(null, MARKS), null);
+});
+
+test('FB21: the model gives a row\'s marks to that row\'s answer, and a server that sends none shows none', () => {
+  const marked = structuredClone(result);
+  marked.questions[1].teacherChanged = false;
+  marked.questions[1].submittedResponse.fields[1] = { id: 'b', value: '5', isComplete: true };
+  marked.questions[1].parts = MARKS.slice(0, 2);
+  const model = buildReviewMyWorkModel({ result: marked, assignment });
+  assert.deepEqual(model.items[1].answer.items.map((item) => [item.id, item.verdict]), [['a', 'correct'], ['b', 'incorrect']]);
+  // The other rows are not touched by it.
+  assert.equal(model.items[0].answer.kind, 'value');
+  assert.equal(model.items[2].answer.kind, 'none');
+  // An older server's rows have no `parts` at all.
+  const old = buildReviewMyWorkModel({ result, assignment });
+  assert.ok(old.items[1].answer.items.every((item) => item.verdict === undefined));
 });

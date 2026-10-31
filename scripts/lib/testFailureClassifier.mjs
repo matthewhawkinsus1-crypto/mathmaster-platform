@@ -14,6 +14,16 @@ import { fileURLToPath } from 'node:url';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
+/**
+ * The exit code a run of the suite ends with. A runner stopped by a signal (a
+ * kill by pattern from another job on the machine, or memory running out)
+ * closes with no code and no failures in its output: it did not pass, and
+ * `process.exit(null)` would have said it did.
+ */
+export const suiteExitCode = ({ code = null, signal = null } = {}) => (
+  signal || typeof code !== 'number' ? 1 : code
+);
+
 export const FUNCTIONS_DEPENDENCIES_NOTE = 'functions/ dependencies are not installed — run `npm --prefix functions ci`; this is not a regression.';
 
 export const GUIDANCE = {
@@ -209,6 +219,11 @@ export const parseFailures = (tap) => {
   lines.forEach((line, index) => {
     const match = /^not ok \d+ - (.*)$/.exec(line.trim());
     if (!match) return;
+    // A test marked todo that fails is the runner's own "not yet": node counts it
+    // under `# todo`, exits 0, and prints `not ok N - name # TODO`. It is no
+    // failure to explain, and counting it made `npm run test:platform` exit 1 on
+    // a suite `node --test` passes (CI15, A1-70).
+    if (/\s#\s*(TODO|SKIP)\b/i.test(match[1])) return;
     /*
      * Each failure's diagnostic block is bounded by the NEXT test result line,
      * not by a fixed window or the YAML terminator. A fixed window misses

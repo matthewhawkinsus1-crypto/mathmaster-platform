@@ -72,7 +72,7 @@ import {
   rationalFeatureTypeAt,
   syntheticAsks,
   syntheticDivision,
-  syntheticDivisionRoot,
+  syntheticRemainderDivisor,
   trimLeadingZeros,
   addSubtractKey,
   areaModelKey,
@@ -962,9 +962,13 @@ const buildRationalFeatures = (question) => {
 const buildSynthetic = (question) => {
   const dividend = question.dividend || DEFAULTS.synthetic.dividend;
   if (!numericList(dividend)) return null;
-  const authoredRoot = syntheticDivisionRoot(question);
-  const root = question.dividend ? authoredRoot : (authoredRoot ?? DEFAULTS.synthetic.candidateRoot);
-  if (root === null || !Number.isFinite(root)) return null;
+  // r may be a fraction, and the divisor ax + b (TL49): the table divides by
+  // x − r, and the quotient for ax + b = a(x − r) is the table's divided by a.
+  const division = question.dividend
+    ? syntheticRemainderDivisor(question)
+    : (syntheticRemainderDivisor(question) ?? { root: DEFAULTS.synthetic.candidateRoot, leading: 1, divisor: null });
+  if (!division || !Number.isFinite(division.root)) return null;
+  const { root, leading } = division;
   const table = syntheticDivision(dividend.map(Number), root);
   if (table.top.length < 2 || table.top.length - 1 > MAX_DEGREE) return null;
   const asks = syntheticAsks(question);
@@ -973,10 +977,15 @@ const buildSynthetic = (question) => {
   const r = w.num(root);
   const P = w.poly(table.top);
   const divisor = w.factorPower(root, 1);
+  // The divisor the question names: x − r, or ax + b with its quotient.
+  const named = division.divisor ? `(${w.poly(division.divisor)})` : divisor;
+  const quotientFor = division.divisor ? table.quotient.map((value) => value / leading) : table.quotient;
   const missing = table.top.some(isZero);
   const columns = table.middle.map((product, index) => `$${w.num(table.bottom[index])} \\cdot ${w.operand(root)} = ${w.num(product)}$, then $${w.num(table.top[index + 1])} + ${w.operand(product)} = ${w.num(table.bottom[index + 1])}$`);
   const steps = [
-    `Divide $${P}$ by $${divisor}$. The divisor is 0 at $x = ${r}$, so $${r}$ goes in the box.`,
+    division.divisor
+      ? `Divide $${P}$ by $${named}$. Synthetic division divides by $x - r$: $${named}$ is 0 at $x = ${r}$, so $${r}$ goes in the box, and $${named} = ${w.num(leading)}${divisor}$.`
+      : `Divide $${P}$ by $${divisor}$. The divisor is 0 at $x = ${r}$, so $${r}$ goes in the box.`,
     `Write every coefficient from the highest power down${missing ? ', with a 0 holding each missing power' : ''}: ${w.list(table.top)}.`,
     `Bring down the first coefficient, $${w.num(table.bottom[0])}$.`,
   ];
@@ -986,15 +995,17 @@ const buildSynthetic = (question) => {
   const remainder = table.remainder;
   const isFactor = isZero(remainder);
   const quotientDegree = table.quotient.length - 1;
-  const Q = w.poly(table.quotient);
+  const Q = w.poly(quotientFor);
   steps.push(`The last number, $${w.num(remainder)}$, is the remainder. By the Remainder Theorem the remainder of dividing by $(x - r)$ is $P(r)$, so $P(${r}) = ${w.num(remainder)}$.`);
   if (asks.includes('quotient')) {
-    steps.push(`The other numbers, ${w.list(table.quotient)}, are the coefficients of the quotient${quotientDegree > 0 ? `, one degree lower than $P(x)$` : ''}: $Q(x) = ${Q}$.`);
+    steps.push(division.divisor
+      ? `The other numbers, ${w.list(table.quotient)}, are the quotient for $${divisor}$. Since $${named} = ${w.num(leading)}${divisor}$, the quotient for $${named}$ is that divided by $${w.num(leading)}$: $Q(x) = ${Q}$.`
+      : `The other numbers, ${w.list(table.quotient)}, are the coefficients of the quotient${quotientDegree > 0 ? `, one degree lower than $P(x)$` : ''}: $Q(x) = ${Q}$.`);
   }
   if (asks.includes('factor')) {
     steps.push(isFactor
-      ? `The remainder is 0, so by the Factor Theorem $${divisor}$ is a factor: $${P} = ${divisor}(${Q})$.`
-      : `The remainder is not 0, so by the Factor Theorem $${divisor}$ is not a factor of $P(x)$.`);
+      ? `The remainder is 0, so by the Factor Theorem $${named}$ is a factor: $${P} = ${named}(${Q})$.`
+      : `The remainder is not 0, so by the Factor Theorem $${named}$ is not a factor of $P(x)$.`);
   }
   const items = [
     { label: 'Number in the box', value: r },
@@ -1009,7 +1020,7 @@ const buildSynthetic = (question) => {
   const note = missing ? 'A missing power still needs its column: without the 0 every later coefficient lands under the wrong power.' : null;
   if (!w.exact()) return null;
 
-  const quotientText = w.poly(table.quotient).replace(/\{(\d+)\}/g, '$1');
+  const quotientText = w.poly(quotientFor).replace(/\{(\d+)\}/g, '$1');
   const work = {
     root: r,
     top: table.top.map(w.num),

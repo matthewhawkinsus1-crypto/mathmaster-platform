@@ -56,6 +56,23 @@ All of the following are listed for the owner and were not changed:
 - **`(x)`:** a fixed factor that collapses to `(x)` when its shift is 0, as in ACT `fn_3`, `geo_3` and `geo_ch2`.
   It reads correctly but is not the simplest form.
 
+**Done later (CT14).** Each form above is gone, with the others the CT12 audit
+(`scripts/audit-testprep-display-leftovers.mjs`) and a walk over every combination of every template found: 60
+templates in all, listed in `tests/platform/testPrepDisplayLeftovers.test.mjs`. An exponent of 1 uses `pow`; a
+shift of 0 in a conic uses the new `xshift`/`yshift` words; a plural unit after 1 uses the new `plural` filter; a
+worked step that divided by something that can be 1 says the coefficient in words instead of `\frac{n}{1}`; a
+"where 14>0 and 2>1" clause over the generator's constants is gone. A draw that would still print one of them
+(a rise of 1 in a choice, a point at 0) is refused by a constraint added at the end of the list, so every other
+seed deals the same question, choice ids and key as before. ACT `fn_3` was already clean: its constraints never
+deal a zero root. Left as they are, because they are the problem's own numbers and may be on purpose: fractions
+that reduce (the audit's `reducibleFraction`, 214 templates) and radicals not in simplest form
+(`unsimplifiedRadical`, 55).
+
+**Deploy order.** The new words `plural` and `yshift` are in `functions/shared/pathQuestionGeneration.mjs`. A
+generator without them prints an unknown filter as the bare number (a translated point reads "2 unit2 to the
+right"), so the functions (and the path-admin runtime sync) must be deployed before the coordinated bank refresh
+that writes these documents.
+
 ## Assessment safety and stored work
 
 - **Release id: no change.** Every document keeps `ccmrContentRelease: ccmr-fidelity-v2.1-authentic-language`. The

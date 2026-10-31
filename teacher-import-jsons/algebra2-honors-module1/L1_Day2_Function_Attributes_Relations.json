@@ -258,7 +258,20 @@
           "dok": 3,
           "difficultyBand": 3,
           "domainPrompt": "Choose the reasonable domain for the number of chocolate bars sold.",
-          "rangePrompt": "Choose the corresponding range for the money collected."
+          "rangePrompt": "Choose the corresponding range for the money collected.",
+          "solutionReview": {
+            "headline": "The money collected depends on how many bars are sold, $2 for each, and only whole bars are sold.",
+            "reasoning": [
+              "Input and output: the money collected depends on how many bars are sold, so the input is the number of chocolate bars sold and the output is the money collected in dollars.",
+              "Function: each bar brings in $2, so x bars bring in 2 times x dollars: M(x) = 2x.",
+              "Table: M(0) = 2 · 0 = 0, M(1) = 2 · 1 = 2, M(2) = 2 · 2 = 4 and M(3) = 2 · 3 = 6.",
+              "Discrete or continuous: the group sells whole bars, never part of one, so the relationship is discrete.",
+              "Graph: plot the table’s points (0, 0), (1, 2), (2, 4) and (3, 6) as separate points, without connecting them.",
+              "Domain: the group can sell 0 bars, or 1, 2, 3 and so on, so the domain is {0, 1, 2, 3, ...}.",
+              "Range: each number of bars brings in twice as many dollars, 0, 2, 4, 6 and so on, so the range is {0, 2, 4, 6, ...}."
+            ],
+            "answerSummary": "M(x) = 2x; the relationship is discrete, with domain {0, 1, 2, 3, ...} and range {0, 2, 4, 6, ...}."
+          }
         },
         {
           "standard": "A2.7I",
@@ -307,7 +320,20 @@
             "yMax": 12
           },
           "domainPrompt": "State the reasonable domain for time in interval notation.",
-          "rangePrompt": "State the reasonable range for water volume in interval notation."
+          "rangePrompt": "State the reasonable range for water volume in interval notation.",
+          "solutionReview": {
+            "headline": "The water released depends on the time, 1.8 gallons each minute, and time and water flow without jumps.",
+            "reasoning": [
+              "Input and output: the water released depends on how long the shower runs, so the input is the time in minutes and the output is the water released in gallons.",
+              "Function: each minute releases 1.8 gallons, so t minutes release 1.8 times t gallons: V(t) = 1.8t.",
+              "Table: V(0) = 1.8 · 0 = 0, V(0.5) = 1.8 · 0.5 = 0.9, V(2.5) = 1.8 · 2.5 = 4.5 and V(5) = 1.8 · 5 = 9.",
+              "Discrete or continuous: time passes through every value, not only whole minutes, and the water flows the whole time, so the relationship is continuous.",
+              "Graph: plot the table’s points (0, 0), (0.5, 0.9), (2.5, 4.5) and (5, 9), then draw one connected line through them, starting at (0, 0).",
+              "Domain: the time can be 0 minutes or any amount more, so the domain is [0, ∞).",
+              "Range: the water released starts at 0 gallons and keeps growing while the shower runs, so the range is [0, ∞)."
+            ],
+            "answerSummary": "V(t) = 1.8t; the relationship is continuous, with domain [0, ∞) and range [0, ∞)."
+          }
         }
       ],
       "id": "classwork-2"
@@ -442,7 +468,11 @@
                 "discrete",
                 "continuous"
               ],
-              "answer": "continuous"
+              "answer": "continuous",
+              "optionRationales": {
+                "discrete": "Discrete fits separate counts, like whole trips; here t can be any real time, such as 2.5 minutes.",
+                "continuous": "Travel time can be any real number from 0 to 20, so the graph is one unbroken segment."
+              }
             },
             {
               "id": "domain",
@@ -453,7 +483,12 @@
                 "{0, 1, 2, …, 20}",
                 "(−∞, ∞)"
               ],
-              "answer": "[0, 20]"
+              "answer": "[0, 20]",
+              "optionRationales": {
+                "[0, 20]": "t can be any real time from 0 to 20 minutes, with both endpoints included.",
+                "{0, 1, 2, …, 20}": "This lists whole minutes only, but the time can be any real number, like 7.5.",
+                "(−∞, ∞)": "The formula works for any t, but the situation only allows times from 0 to 20 minutes."
+              }
             },
             {
               "id": "range",
@@ -464,7 +499,12 @@
                 "[0, 60]",
                 "{5, 8, 11, …, 65}"
               ],
-              "answer": "[5, 65]"
+              "answer": "[5, 65]",
+              "optionRationales": {
+                "[5, 65]": "The fare starts at C(0) = 5 and rises to C(20) = 65, taking every value between.",
+                "[0, 60]": "This leaves out the + 5 in the fare: 3t alone runs from 0 to 60.",
+                "{5, 8, 11, …, 65}": "This lists fares for whole minutes only, but t can be any real time, so the fares fill in between."
+              }
             }
           ],
           "dok": 2,
@@ -540,7 +580,11 @@
                 "discrete",
                 "continuous"
               ],
-              "answer": "continuous"
+              "answer": "continuous",
+              "optionRationales": {
+                "discrete": "Discrete fits separate counts; here time runs through every value, including parts of a minute.",
+                "continuous": "Water flows in at every moment, so t takes every real value from 0 to 12 and the graph is unbroken."
+              }
             },
             {
               "id": "domain",
@@ -551,7 +595,12 @@
                 "{0, 1, 2, …, 12}",
                 "(−∞, ∞)"
               ],
-              "answer": "[0, 12]"
+              "answer": "[0, 12]",
+              "optionRationales": {
+                "[0, 12]": "The rule holds for 0 ≤ t ≤ 12: every real time, with both endpoints included.",
+                "{0, 1, 2, …, 12}": "This keeps whole minutes only, but t can be any real time, like 3.5 minutes.",
+                "(−∞, ∞)": "The formula works for any t, but the filling only lasts from 0 to 12 minutes."
+              }
             },
             {
               "id": "range",
@@ -562,7 +611,12 @@
                 "[4, 48]",
                 "{0, 4, 8, …, 48}"
               ],
-              "answer": "[0, 48]"
+              "answer": "[0, 48]",
+              "optionRationales": {
+                "[0, 48]": "The volume starts at V(0) = 0 and reaches V(12) = 48, taking every value between.",
+                "[4, 48]": "This starts the volume at the rate, 4 gallons, instead of at the volume when t = 0.",
+                "{0, 4, 8, …, 48}": "This lists volumes at whole minutes only, but time runs continuously, so the volume fills in between."
+              }
             }
           ],
           "dok": 2,

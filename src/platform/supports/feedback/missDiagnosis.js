@@ -16,7 +16,9 @@
  *      (`attemptsLeft`, the default) they say nothing: each relates the
  *      student's answer to the key by one move, so any wording that differs by
  *      check — or by whether one fired — hands over the move (QA M1). The miss
- *      then reads exactly like one no check explains.
+ *      then reads exactly like one no check explains. Only "not in lowest
+ *      terms" is said while open (FB23): the value is right, and naming its
+ *      form names no move toward another answer.
  *
  * A CHOICE FIELD GETS NO DIAGNOSIS. With options {5, 0, −5}, "the opposite
  * sign" after −5 leaves one option: any message about how a picked option
@@ -30,7 +32,8 @@
  * null, and so does anything that throws.
  */
 import { classifyMisconceptions } from '../../../../functions/shared/misconceptionClassifiers.mjs';
-import { studentMisconceptionMessage } from '../../../../functions/shared/misconceptionStudentMessages.mjs';
+import { polynomialNotSimplifiedMessage, studentMisconceptionMessage } from '../../../../functions/shared/misconceptionStudentMessages.mjs';
+import { simplifiedPolynomialProblem } from '../../../../functions/shared/simplifiedPolynomialForm.mjs';
 import { answerCandidatesForField, orderedPairKey } from '../../../../functions/shared/answerUtils.mjs';
 import { fractionAnswerCandidates } from '../../../../functions/shared/fractionAnswer.mjs';
 import { reproduceFamilyQuestionFromPin } from '../../../../functions/shared/questionFamilyInstance.mjs';
@@ -93,7 +96,10 @@ export const displayFamilyValues = ({ template = null, delivered = null, assignm
   try {
     const pin = delivered?.familyDelivery;
     if (!template || !pin) return null;
-    const replay = reproduceFamilyQuestionFromPin({ question: template, assignmentId, storageIndex, pin });
+    // The pin of the question on screen: a canonical pin the student kept
+    // after a content upgrade replays at its own version (RT03), as the
+    // server's classifier reads it.
+    const replay = reproduceFamilyQuestionFromPin({ question: template, assignmentId, storageIndex, pin, keepPinnedVersion: true });
     if (replay?.error || !replay?.instance?.values) return null;
     if (getPlatformQuestionFamily(replay.family?.id, replay.family?.version) !== replay.family) return null;
     // The instance on screen, not another one the same pin could describe.
@@ -102,6 +108,24 @@ export const displayFamilyValues = ({ template = null, delivered = null, assignm
   } catch {
     return null;
   }
+};
+
+/*
+ * A finding's sentence. "Not simplified" says what is left in the answer the
+ * finding cites (TL31: a subtraction answer with only like terms left was told
+ * to multiply out every product): the simplest-form check's own reading of
+ * that answer chooses a fixed sentence (misconceptionStudentMessages.mjs
+ * POLYNOMIAL_NOT_SIMPLIFIED_MESSAGES). Every other code has one message.
+ */
+const NOT_SIMPLIFIED = 'polynomial-not-simplified';
+const findingMessage = (finding, grading) => {
+  if (finding.code === NOT_SIMPLIFIED) {
+    const cited = new Set(list(finding.parts).map(text));
+    const part = list(grading?.parts).find((entry) => cited.has(text(entry?.id)) && typeof entry?.response === 'string');
+    const named = part ? polynomialNotSimplifiedMessage(simplifiedPolynomialProblem(part.response)) : null;
+    if (named) return named;
+  }
+  return studentMisconceptionMessage(finding.code);
 };
 
 export const diagnoseMiss = ({ question = null, grading = null, response = null, familyValues = null, attemptsLeft = true } = {}) => {
@@ -118,7 +142,7 @@ export const diagnoseMiss = ({ question = null, grading = null, response = null,
     };
     const classified = classifyMisconceptions({ question, response, grading: copy, familyValues });
     const finding = list(classified?.findings).find((entry) => studentMisconceptionMessage(entry?.code) && !citesOnlyChoices(entry));
-    if (finding) return { source: 'classifier', code: finding.code, message: studentMisconceptionMessage(finding.code) };
+    if (finding) return { source: 'classifier', code: finding.code, message: findingMessage(finding, copy) };
     for (const part of wrong) {
       if (choiceIds.has(text(part.id))) continue;
       const expected = expectedForPart(question, part);

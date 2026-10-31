@@ -23,6 +23,7 @@ import {
 import { buildWalkthroughMonitor, WALKTHROUGH_STATUS } from '../../platform/teacher/walkthroughMonitor.js';
 import { resolveWalkthroughSelection, walkthroughAssignmentsForClass } from '../../platform/assignments/assignmentAvailability.js';
 import { classworkModel, describeClassworkPace } from '../../platform/teacher/classworkModel.js';
+import { tabKeyTarget } from '../../platform/interaction/tabListKeys.js';
 import {
   LIVE_ATTENDANCE_MARK,
   attendanceByStudentForDay,
@@ -33,6 +34,7 @@ import {
 } from '../../platform/teacher/liveAttendance.js';
 import { studentsInClass } from '../../../functions/shared/classModel.mjs';
 import { suggestMovesForClass } from '../../platform/teacher/liveCoaching.js';
+import { seeNextQueue } from '../../platform/teacher/liveSeeNext.js';
 import {
   SPOTLIGHT_FRAME_COLLECTION,
   SPOTLIGHT_REQUEST_COLLECTION,
@@ -186,26 +188,45 @@ function StudentTile({
   const live = row.live;
   const glyph = REPRESENTATION_GLYPH[live?.representation] || REPRESENTATION_GLYPH.text;
 
+  // The tile is a group, and its name row is the button that opens the student.
+  // The whole tile used to be role="button" around the buttons below it, which a
+  // screen reader cannot offer apart (axe nested-interactive, TT27), and Enter on
+  // any of them also opened the student. A click anywhere on the tile still does.
+  const nameRow = (
+    <>
+      <span style={{ fontWeight: 700, color: 'var(--mm-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.name}</span>
+      <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 700, color: style.chip, whiteSpace: 'nowrap' }}>{row.headline}</span>
+    </>
+  );
+  const nameRowStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 };
+
   return (
     <div
-      role={onOpenStudent ? 'button' : undefined}
-      tabIndex={onOpenStudent ? 0 : undefined}
+      role="group"
+      aria-label={tileLabel}
+      data-live-tile={row.id}
       onClick={() => onOpenStudent?.(row.id)}
-      onKeyDown={(event) => {
-        if (onOpenStudent && (event.key === 'Enter' || event.key === ' ')) onOpenStudent(row.id);
-      }}
       style={{
         textAlign: 'left', padding: roomMode ? '18px 20px' : '12px 14px',
         fontSize: roomMode ? 'calc(17 * var(--mm-px))' : 'inherit', border: `${roomMode ? 3 : 2}px solid ${style.border}`,
         borderRadius: 12, background: style.background, cursor: onOpenStudent ? 'pointer' : 'default',
         display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0,
       }}
-      aria-label={`${tileLabel}: ${row.headline}`}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-        <span style={{ fontWeight: 700, color: 'var(--mm-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.name}</span>
-        <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 700, color: style.chip, whiteSpace: 'nowrap' }}>{row.headline}</span>
-      </div>
+      {onOpenStudent ? (
+        <button
+          type="button"
+          onClick={(event) => { event.stopPropagation(); onOpenStudent(row.id); }}
+          aria-label={`${tileLabel}: ${row.headline}`}
+          // A button does not inherit the page's letter spacing or text rendering, so they are
+          // named: the row reads exactly as it did before it was a button.
+          style={{ ...nameRowStyle, width: '100%', margin: 0, padding: 0, border: 0, background: 'none', font: 'inherit', letterSpacing: 'inherit', textRendering: 'inherit', color: 'inherit', textAlign: 'left', cursor: 'pointer' }}
+        >
+          {nameRow}
+        </button>
+      ) : (
+        <div style={nameRowStyle}>{nameRow}</div>
+      )}
       {/* No name on file: the teacher sees which student this is, labelled as
           an id. The room view may be projected to the class, so it never
           shows a student id — only "Name unavailable". */}
@@ -542,6 +563,12 @@ function ReturnCheckInPanel({ candidates, onCheckIn, onCheckInAll, onOpenStudent
   );
 }
 
+// Room, Walkthrough and Attention are the tabs of one panel (TT27): the ids that
+// tie each tab to the panel and the panel back to the selected tab.
+const LIVE_CLASS_MODES = ['room', 'walkthrough', 'attention'];
+const LIVE_CLASS_PANEL_ID = 'live-class-panel';
+const liveClassTabId = (mode) => `live-class-tab-${mode}`;
+
 export default function LiveClassMonitor({
   students = [],
   assignments = [],
@@ -575,6 +602,9 @@ export default function LiveClassMonitor({
   // (assignmentAvailability.js). Missing settings resolve to the single
   // default "current" bucket, exactly as the Grade Center reads them.
   gradingPeriodSettings = null,
+  // Told whether the Large room tiles are on (the view a teacher projects),
+  // so Teacher Home can keep students' private questions off it (TT26).
+  onProjectingChange = null,
 }) {
   const [classPeriod, setClassPeriod] = useState(initialClassPeriod || 'all');
   const [assignmentId, setAssignmentId] = useState(() => focusAssignmentId || 'all');
@@ -584,6 +614,10 @@ export default function LiveClassMonitor({
   // is shown there. The ordinary Room view is the teacher's own screen, so a
   // nameless student keeps the labelled 'ID x' line that tells them apart.
   const projecting = mode === 'room' && roomMode;
+  useEffect(() => {
+    onProjectingChange?.(projecting);
+  }, [projecting, onProjectingChange]);
+  useEffect(() => () => onProjectingChange?.(false), [onProjectingChange]);
   const [teacherQuestionIndex, setTeacherQuestionIndex] = useState(0);
   const [walkthroughFilter, setWalkthroughFilter] = useState('needsCheck');
   const [checkedStudentIds, setCheckedStudentIds] = useState([]);
@@ -927,6 +961,9 @@ export default function LiveClassMonitor({
 
   const absentCount = Math.max(0, roster.length - monitoredRoster.length);
   const visibleRows = mode === 'attention' ? rows.filter((row) => row.severity !== LIVE_SEVERITY.OK) : rows;
+  // TT16: who to see next, from the rows above (no new data). It names
+  // students, so it is a teacher's list and never shown while projecting.
+  const seeNext = useMemo(() => seeNextQueue({ rows, classStats, nowValue }), [rows, classStats, nowValue]);
 
   const timerContext = useMemo(() => {
     if (activeClassId) {
@@ -1070,6 +1107,22 @@ export default function LiveClassMonitor({
     }
   };
 
+  // The tab list's keys (platform/interaction/tabListKeys.js): the arrow keys,
+  // Home and End move focus between the tabs and select nothing, because
+  // Walkthrough picks an assignment on the way in and a click on Attention does
+  // not. Enter or Space on a tab is its click, which selects it.
+  const tabRefs = useRef({});
+  const moveBetweenModes = (event) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    const from = LIVE_CLASS_MODES.findIndex((id) => tabRefs.current[id] === event.target);
+    if (from < 0) return;
+    const to = tabKeyTarget(event.key, from, LIVE_CLASS_MODES.length);
+    if (to === null) return;
+    event.preventDefault();
+    const next = LIVE_CLASS_MODES[to];
+    tabRefs.current[next]?.focus();
+  };
+
   const changeAssignment = (nextId) => {
     setAssignmentId(nextId);
     setTeacherQuestionIndex(0);
@@ -1101,16 +1154,20 @@ export default function LiveClassMonitor({
         </span>
       </div>
 
-      <div role="tablist" aria-label="Live monitoring mode" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 12 }}>
+      {/* One Tab stop, the selected tab; the panel below is what the tabs control. */}
+      <div role="tablist" aria-label="Live monitoring mode" onKeyDown={moveBetweenModes} style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 12 }}>
         {[
           ['room', 'Room'],
           ['walkthrough', `Walkthrough${walkthrough.counts.needsCheck ? ` · ${walkthrough.counts.needsCheck}` : ''}`],
           ['attention', `Attention${counts.needsAttention ? ` · ${counts.needsAttention}` : ''}`],
         ].map(([id, label]) => (
-          <button key={id} type="button" role="tab" aria-selected={mode === id} onClick={() => switchMode(id)} style={{ ...controlStyle, cursor: 'pointer', fontWeight: 900, background: mode === id ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', borderColor: mode === id ? '#1a73e8' : 'var(--mm-border)', color: mode === id ? 'var(--mm-primary-text)' : 'var(--mm-text)' }}>{label}</button>
+          <button key={id} ref={(node) => { tabRefs.current[id] = node; }} id={liveClassTabId(id)} type="button" role="tab" aria-selected={mode === id} aria-controls={LIVE_CLASS_PANEL_ID} tabIndex={mode === id ? 0 : -1} onClick={() => switchMode(id)} style={{ ...controlStyle, cursor: 'pointer', fontWeight: 900, background: mode === id ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', borderColor: mode === id ? '#1a73e8' : 'var(--mm-border)', color: mode === id ? 'var(--mm-primary-text)' : 'var(--mm-text)' }}>{label}</button>
         ))}
       </div>
 
+      {/* The panel is everything the mode changes: the controls, who to see next and the room or the
+          walkthrough. It is not re-indented, so as to leave the lines under it as they were. */}
+      <div id={LIVE_CLASS_PANEL_ID} role="tabpanel" aria-labelledby={liveClassTabId(mode)}>
       {liveTeachingStale && (
         <div role="status" data-walkthrough-stale-session style={{ margin: '-4px 0 10px', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-warning-border)', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 700 }}>
           The saved Live Teaching lesson is no longer available to this class, so it was not restored.
@@ -1185,7 +1242,7 @@ export default function LiveClassMonitor({
       )}
 
       {activeSectionTimers.length > 0 && (
-        <div aria-label="Active class timers" style={{ margin: '-2px 0 14px', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-border)', background: 'var(--mm-surface-tint)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <div role="group" aria-label="Active class timers" style={{ margin: '-2px 0 14px', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-border)', background: 'var(--mm-surface-tint)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <strong style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text)', marginRight: 2 }}>ACTIVE TIMERS</strong>
           {activeSectionTimers.map(({ kind, assignment, endsAt, students: extraTimeStudents }) => {
             const isDol = kind !== 'Warm-Up';
@@ -1197,6 +1254,44 @@ export default function LiveClassMonitor({
               : assignment.title || kind;
             return <span key={`${assignment.id}:${kind}`} data-dol-extra-time={extraTimeStudents ? extraTimeStudents.length : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 9px', borderRadius: 999, background: isDol ? 'var(--mm-accent-soft)' : 'var(--mm-warning-soft)', color: isDol ? 'var(--mm-accent-text)' : 'var(--mm-warning-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, border: `1px solid ${isDol ? 'var(--mm-accent-border)' : '#f9c74f'}` }} title={title}>{label} · <DOLCountdown endsAt={endsAt} /></span>;
           })}
+        </div>
+      )}
+
+      {/* WHO TO SEE NEXT (TT16, liveSeeNext.js): raised hands first, then whoever has gone
+          longest without moving on. Not in Walkthrough (it has its own Visit Next) and never
+          on the projector: it names students. */}
+      {mode !== 'walkthrough' && !projecting && (seeNext.items.length > 0 || seeNext.classwideQuiet) && (
+        <div role="group" aria-label="Who to see next" data-see-next={seeNext.items.length} style={{ margin: '0 0 14px', padding: '10px 12px', borderRadius: 12, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface-tint)', display: 'grid', gap: 8 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '2px 10px' }}>
+            <strong style={{ color: 'var(--mm-primary-text)' }}>See next</strong>
+            <span style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Raised hands first, then whoever has gone longest without answering or moving on.</span>
+          </div>
+          {seeNext.items.length > 0 && (
+            <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {seeNext.items.map((entry) => (
+                <li key={entry.id} data-see-next-kind={entry.kind}>
+                  <button
+                    type="button"
+                    disabled={!onOpenStudent}
+                    onClick={() => onOpenStudent?.(entry.id)}
+                    style={{ ...smallButtonStyle, padding: '7px 10px', textAlign: 'left', borderColor: entry.kind === 'help' ? 'var(--mm-danger)' : 'var(--mm-border-strong)', cursor: onOpenStudent ? 'pointer' : 'default' }}
+                  >
+                    <strong style={{ color: 'var(--mm-text-strong)' }}>{entry.name}</strong>
+                    {entry.nameMissing && entry.idLabel && <span data-student-id-label="true" style={{ marginLeft: 6, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{entry.idLabel}</span>}
+                    <span style={{ display: 'block', fontWeight: 600, fontSize: 'calc(11.5 * var(--mm-px))', color: entry.kind === 'help' ? 'var(--mm-danger)' : 'var(--mm-text-muted)' }}>{entry.reason}</span>
+                  </button>
+                </li>
+              ))}
+            </ol>
+          )}
+          {seeNext.total > seeNext.items.length && (
+            <span style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>and {seeNext.total - seeNext.items.length} more in the room below</span>
+          )}
+          {seeNext.classwideQuiet && (
+            <span role="status" data-see-next-quiet="" style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
+              Most of the room is quiet at once, which is usually you talking or paper work, so quiet time is not used to rank anyone right now.
+            </span>
+          )}
         </div>
       )}
 
@@ -1309,6 +1404,8 @@ export default function LiveClassMonitor({
           ))}
         </div>
       )}
+
+      </div>
 
       {awardDialogStudent && activeClassId && (
         <ClassPointsAwardDialog

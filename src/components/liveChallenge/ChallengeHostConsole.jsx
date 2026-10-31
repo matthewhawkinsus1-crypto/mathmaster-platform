@@ -1,6 +1,6 @@
 import { HOST_COMMAND } from '../../platform/liveChallenge/challengeShellModel.js';
 import { PRESENCE } from '../../platform/liveChallenge/challengePresenceModel.js';
-import { SOLUTION_STATE, answerSummaryLabel, solutionStateMessage } from '../../platform/liveChallenge/challengeSolutionModel.js';
+import { SOLUTION_STATE, answerSummaryLabel, solutionStateMessage, solutionTitle } from '../../platform/liveChallenge/challengeSolutionModel.js';
 import MathText from '../common/MathText.jsx';
 import { RoundResultsTable, StandingsBoard } from './ChallengeShellParts.jsx';
 import RevealedLine from './RevealedLine.jsx';
@@ -205,9 +205,11 @@ export function HostSolutionPanel({ solution = null, state = SOLUTION_STATE.NONE
   if (!state || state === SOLUTION_STATE.NONE) return null;
   const review = state === SOLUTION_STATE.READY ? solution?.solutionReview || {} : null;
   const steps = review && Array.isArray(review.reasoning) ? review.reasoning.filter(Boolean) : [];
+  // A Graph Feature Rush round's document is a reading guide to the game's features, not a worked solution.
+  const title = solutionTitle(solution);
   return (
-    <section aria-label="Worked solution" data-mm-host-solution={state} style={card}>
-      <div style={{ fontSize: 'calc(18 * var(--mm-px))', fontWeight: 900, marginBottom: 8 }}>Worked solution</div>
+    <section aria-label={title} data-mm-host-solution={state} style={card}>
+      <div style={{ fontSize: 'calc(18 * var(--mm-px))', fontWeight: 900, marginBottom: 8 }}>{title}</div>
       {!review && <p style={{ margin: 0, color: 'var(--mm-text-muted)' }}>{solutionStateMessage(state)}</p>}
       {review && (
         <div style={{ display: 'grid', gap: 8, lineHeight: 1.5 }}>

@@ -1,12 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
+  ASSIGNMENT_FIELDS,
+  bankFiles,
+  bankItems,
   cornerlessVerticesRegion,
+  itemId,
   runAudit,
+  runFirestoreAudit,
   scanBank,
   separatedTwoByTwo,
+  shippedItemIds,
 } from '../../scripts/audit-systems-shapes.mjs';
+import { readOnlyStore } from '../platform/helpers/readOnlyFirestore.mjs';
 import { eliminationSeparatedReduction } from '../../functions/shared/toolMath/systemsWorkspace/eliminationReduction.mjs';
 import {
   applyEquationMultiplier,
@@ -14,6 +24,8 @@ import {
   eliminatesVariable,
   equationMentionsVariable,
 } from '../../functions/shared/toolMath/systemsWorkspace/algebraicSystemsEngine.mjs';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
 /*
  * scripts/audit-systems-shapes.mjs counts two shapes the Systems Workspace
@@ -178,4 +190,54 @@ test('the real banks scan without throwing', () => {
   for (const list of Object.values(report.totals)) {
     for (const match of list) assert.ok(match.id && match.file);
   }
+});
+
+// CI17 (B-51): the items teachers authored straight into Firestore are not in
+// any tracked bank, so the bank count never saw them. `--project <id>` reads
+// the assignments (read-only, field-masked) and runs the same detectors.
+const assignmentOf = (questions, extra = {}) => ({
+  title: 'A teacher lesson',
+  sections: [{ id: 's0', role: 'classwork', questions }],
+  // Per-student fields an assignment can still carry: never read.
+  studentOverrides: { S1: { note: 'must never be read' } },
+  ...extra,
+});
+
+test('the Firestore audit counts the teachers\' own assignments: read-only, field-masked, paged, and marking what a bank also ships', async () => {
+  const documents = new Map([
+    ['assignments/a1', assignmentOf([algebraic(['x = 3', 'y = -2'], { id: 'fs-stuck' }), algebraic(['x + y = 3', 'x - y = 1'], { id: 'fs-fine' })])],
+    ['assignments/a2', assignmentOf([
+      region([{ m: 2, b: 1, relation: '>=' }, { m: 2, b: -3, relation: '>=' }], { id: 'fs-region' }),
+      algebraic(['x = 1', 'y = 5'], { id: 'shipped-lesson-q' }),
+    ])],
+    ['assignments/a3', assignmentOf([algebraic(['2x = 4', '3y = 9'], { id: 'fs-stuck-3' })])],
+    ['classes/c1', { name: 'not an assignment' }],
+  ]);
+  const { db, attempts, masks } = readOnlyStore(documents);
+  const report = await runFirestoreAudit({ db, draws: 2, pageSize: 2, shipped: new Set(['shipped-lesson-q']) });
+  assert.equal(report.banks.length, 3, 'three assignments, read two at a time');
+  assert.deepEqual(report.banks.map((bank) => bank.file), ['assignments/a1', 'assignments/a2', 'assignments/a3']);
+  assert.deepEqual(report.totals.separated2x2.map((match) => match.id).sort(), ['fs-stuck', 'fs-stuck-3', 'shipped-lesson-q']);
+  assert.deepEqual(report.totals.separated2x2.filter((match) => match.alsoInBank).map((match) => match.id), ['shipped-lesson-q'], 'only the one a tracked bank also ships is marked');
+  assert.deepEqual(report.totals.cornerlessVertices.map((match) => match.id), ['fs-region']);
+  assert.equal(report.totals.cornerlessVertices[0].alsoInBank, false);
+  assert.deepEqual(attempts, [], 'nothing was written');
+  // The mask is written out here, not read back from the script: only the
+  // questions' own fields, never a per-student one an assignment can carry.
+  assert.deepEqual([...ASSIGNMENT_FIELDS], ['title', 'sections', 'questions']);
+  assert.ok(masks.length >= 2 && masks.every(([, fields]) => JSON.stringify(fields) === JSON.stringify(['title', 'sections', 'questions'])), 'every page is read through the field mask');
+  for (const perStudent of ['studentOverrides', 'excusedStudentIds', 'dol', 'audienceHistory']) {
+    assert.ok(!ASSIGNMENT_FIELDS.some((field) => field === perStudent || field.startsWith(`${perStudent}.`)), `${perStudent} is never read`);
+  }
+  assert.ok(!JSON.stringify(report).includes('must never be read'), 'no per-student field reaches the report');
+});
+
+test('the Firestore audit tells an item a tracked bank ships from one only a teacher wrote', () => {
+  // The first item of the first teacher-import lesson: its id is one a bank ships.
+  const lesson = bankFiles().find((file) => file.startsWith('teacher-import-jsons/'));
+  const [first] = bankItems(JSON.parse(readFileSync(path.join(ROOT, lesson), 'utf8')));
+  const id = itemId(first, `${lesson}#0`);
+  const shipped = shippedItemIds();
+  assert.ok(id && shipped.has(id), `${id} (${lesson}) is a shipped item id`);
+  assert.equal(shipped.has('an-item-only-a-teacher-wrote'), false);
 });

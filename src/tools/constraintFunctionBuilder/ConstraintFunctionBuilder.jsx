@@ -139,7 +139,7 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
         <HintPanel hints={questionData.hints || DEFAULT_HINTS} onHintUsed={() => onAction?.('HINT_USED')} />
       ),
     } : null,
-    primaryActions: [{ id: 'submit-model', label: 'Submit this model', onAction: check, disabled: !hasEdited }],
+    primaryActions: [{ id: 'submit-model', label: 'Check this model', onAction: check, disabled: !hasEdited }],
   };
 
   return (
@@ -166,7 +166,6 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
           student watching a graph they cannot change. */}
       <EnlargeableFigure
         label="Function construction workspace"
-        enlargeLabel="Enlarge workspace"
         taskText={questionData.prompt || ''}
         style={{ width: '100%' }}
         capabilities={workspaceCapabilities}
@@ -217,7 +216,7 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
               cursor: hasEdited ? 'pointer' : 'not-allowed',
             }}
           >
-            <SubmitText>Submit this model</SubmitText>
+            <SubmitText>Check this model</SubmitText>
           </button>
           {!hasEdited && (
             <div style={{ marginTop: 8, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', textAlign: 'center' }}>

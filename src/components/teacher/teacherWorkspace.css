@@ -67,6 +67,8 @@
 .tw-chip[aria-pressed='true'] { background: var(--mm-info-bg); color: var(--mm-info-text); border-color: var(--mm-info-border); }
 .tw-chip:focus-visible { outline: 3px solid var(--mm-focus); outline-offset: 2px; }
 .tw-chip__count { font-weight: 900; opacity: 0.8; }
+/* Dimmed, a pressed chip's count (the info colour on its tint) measured 4.41:1; undimmed it reads as the label does (TT27). */
+.tw-chip[aria-pressed='true'] .tw-chip__count { opacity: 1; }
 
 /* ------------------------------------------------------------ Cards */
 .tw-card {

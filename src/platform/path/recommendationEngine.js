@@ -77,6 +77,36 @@ export const LOW_ACCURACY_THRESHOLD = 0.6;
 // Enough attempts before mastery is treated as trustworthy for acceleration.
 export const CONFIDENT_ATTEMPTS = 6;
 
+/*
+ * HOW STRONG THE EVIDENCE ON A SKILL'S PREREQUISITES MUST BE FOR A CHALLENGE CARD.
+ *
+ * A Challenge (status EXTENSION) card needs the prerequisites to be mastered
+ * (policy.extensionThreshold) AND the evidence behind that to be at least this
+ * strong (evidenceStrengthFor: the questions counted for each prerequisite out
+ * of CONFIDENT_ATTEMPTS, weighted like readiness), so high mastery from two
+ * questions never unlocks acceleration the way thirty questions do.
+ *
+ * KEPT AT 0.5 (MP02, owner decision 2026-10-23: keep it, watch it for a few
+ * weeks, and accept the label drift below). Per-question scoring
+ * (functions/shared/masteryScoring.mjs) counts each question once, by its final
+ * attempt, so the evidence behind a prerequisite builds more slowly than when
+ * every attempt counted. Two consequences were measured before the deploy
+ * (the reviewer's sweep in docs/handoffs/STUDENT_PUSH_I_SERVER_TRUTH.md, §3):
+ *   - Challenge cards appear later: 88 of 1,793 simulated students after 10
+ *     answers, without the backfill (25 to 35 per 600 in the other sweep). The
+ *     backfill refuses anyone who would have lost a card on deploy day.
+ *   - Many labels settle at "Not Enough Evidence" instead of "Needs Attention"
+ *     (about 210 per 600 after 10 ordinary answers) or "Developing" (about 19),
+ *     because fewer events are counted. No Mastered, unlock or number is lost
+ *     (the favourable rule, masteryAdapter.js).
+ * Lowering this to bring the old timing back would give Challenge cards to
+ * students whose prerequisite evidence is thinner, so it stays. To recalibrate
+ * it, change this one number: tests/platform/recommendationEngine.test.mjs pins
+ * the boundary and the decision. Watching it is a person's job (do strong
+ * students still see Challenge cards a few weeks in?); nothing here counts them.
+ */
+export const EXTENSION_PREREQUISITE_EVIDENCE = 0.5;
+
 const clamp01 = (value) => Math.max(0, Math.min(1, Number(value) || 0));
 
 // Weighted evidence strength across a skill's prerequisites: high mastery from
@@ -114,6 +144,10 @@ const masteryFor = (masteryBySkill, skillId) => {
     // False for evidence main's engine never saw (Path only, not Mastered):
     // it may credit a skill but never lock one (masteryAdapter.js).
     gate: entry.gate !== false,
+    // False for evidence too thin for the one rule to judge on either record
+    // (MP25): it counts in readiness as main counted it, but never locks a
+    // skill or sends one to remediation (masteryAdapter.js).
+    lock: entry.lock !== false,
   };
 };
 
@@ -156,6 +190,9 @@ export const evaluatePrerequisites = (skill, masteryBySkill) => {
     // prerequisite is unproven, not deficient, and locking on that would stop
     // every new student from starting anything.
     if (!state) return;
+    // Nor is evidence too thin to judge (MP25): one question missed must not
+    // close every skill built on it.
+    if (!state.lock) return;
     if (mastery < SEVERE_GAP_MASTERY) severe.push(entry.skillId);
     else if (mastery < entry.minimumMastery) unmet.push(entry.skillId);
   });
@@ -323,7 +360,7 @@ export const getStudentPathOptions = ({
     // brand-new student is never handed ahead-of-pace content on a default.
     const extensionReady = prereq.hasEvidence
       && prereq.readiness >= policy.extensionThreshold
-      && evidenceStrengthFor(masteryBySkill, skill.prerequisites) >= 0.5;
+      && evidenceStrengthFor(masteryBySkill, skill.prerequisites) >= EXTENSION_PREREQUISITE_EVIDENCE;
     if (extensionReady) reasons.push(REASON.STRONG_MASTERY);
 
     const isMastered = isMasteredState(state);

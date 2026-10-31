@@ -186,9 +186,36 @@ math-div {
 math-field {
   --caret-color: var(--mm-focus);
   --selection-background-color: rgba(26, 115, 232, 0.16);
+  /* While a field has focus MathLive tints its text-mode content, and a
+     placeholder is text mode: pale blue behind it in light, a heavy blue in an
+     OS dark scheme. The light and dark schemes read different names, so both
+     are set. The placeholder is then read against the box itself (below). */
+  --highlight-text: transparent;
+  --text-highlight-background-color: transparent;
   color: var(--mm-input-text);
   background: var(--mm-input-bg);
   border-color: var(--mm-border);
+}
+
+/* A MATH BOX'S PLACEHOLDER ("Type your answer", an example) IS READABLE (AX17).
+   MathLive paints it #bdbdbd, which axe measured at 1.66:1 on the focused box
+   (pass 3, A11Y-7). It is the same hint a text box shows, so it takes the same
+   token: 4.8:1 on a light box and 6.7:1 on a dark one, and clear of the correct
+   and incorrect tints too (tests/platform/mathFieldPlaceholderContrast.test.mjs). */
+math-field::part(placeholder) {
+  color: var(--mm-input-placeholder);
+}
+
+/* ON A PHONE THE EXAMPLE FITS THE BOX (PH02). A 262px answer box has 222px for
+   text; "for example 0 ≤ x ≤ 4" is 243px at the box's own 24px, so the last
+   character was cut ("for example 0 ≤ x ≤"). The hint is a little smaller than
+   what is typed over it (170px, which fits a 216px box on a 344px phone too),
+   and never under 16px at the default text size (the floor follows the
+   student's text-size setting). Nothing typed changes size. */
+@media (max-width: 600px) {
+  math-field::part(placeholder) {
+    font-size: max(0.7em, calc(16 * var(--mm-px)));
+  }
 }
 
 /* MathMaster uses its own focused math toolbar. Hide MathLive's broad menu and keyboard controls. */
@@ -485,6 +512,7 @@ body :is(
 /* The student navigation on a phone (StudentGlobalNav.jsx, NAV-13): Home,
    Assignments and Grades (and the current screen) in the row; the rest fold
    behind "More". Wider screens keep all six and never draw "More". */
+.mm-student-nav > a { display: inline-flex; align-items: center; }
 .mm-student-nav__more { display: none; }
 .mm-assignments-filters__toggle { display: none !important; }
 @media (max-width: 640px) {
@@ -494,7 +522,7 @@ body :is(
   /* Assignments: the search and the marking period fold behind one button. */
   .mm-assignments-filters__toggle { display: flex !important; }
   .mm-assignments-filters[data-open="false"] { display: none !important; }
-  .mm-student-nav > button { padding-left: 9px !important; padding-right: 9px !important; }
+  .mm-student-nav > a, .mm-student-nav > button { padding-left: 9px !important; padding-right: 9px !important; }
 }
 /* Read by screen readers, never drawn (the screen-change announcement, NAV-3). */
 .mm-visually-hidden {

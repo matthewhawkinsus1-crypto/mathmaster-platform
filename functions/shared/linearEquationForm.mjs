@@ -18,11 +18,15 @@
 //
 // The misconception classifier (misconceptionClassifiers.mjs,
 // `ordinary:multiAnswer`) uses it to name the reason for a miss the grader
-// already made. One grading rule reads it too: a point-slope answer through
+// already made. Two grading rules read it too: a point-slope answer through
 // another point of the key's line is right (answerEquivalence.mjs,
-// samePointSlopeLine; the owner, 2026-10-20). Nothing else here grades.
+// samePointSlopeLine; the owner, 2026-10-20), so is a whole-number multiple
+// of a standard-form key (sameStandardFormMultiple, wholeMultipleOfLine; the
+// owner, 2026-10-23), and a field that asks for no form takes any equation of
+// its line (GR03, below: asksForAForm, equationsInText, isObliqueLine;
+// lineFormPolicy.mjs decides the field). Nothing else here grades.
 
-import { parsePolynomial, splitEquationSides, polynomialDegree } from './algebraicForm.mjs';
+import { normalizeAlgebraicText, parsePolynomial, splitEquationSides, polynomialDegree } from './algebraicForm.mjs';
 
 const EPSILON = 1e-9;
 const text = (value) => String(value ?? '');
@@ -81,23 +85,166 @@ export const sameLine = (first, second) => {
   return true;
 };
 
+/*
+ * HOW MANY TIMES ONE EQUATION OF A LINE IS ANOTHER (GR29). The whole number n
+ * with first = n × second term by term — 4x + 2y = 6 is 2 × (2x + y = 3), and
+ * −2x − y = −3 is −1 × it — or null when they are not the same line or no
+ * whole number scales one onto the other (x + 0.5y = 1.5 is ½ × it).
+ */
+export const wholeMultipleOfLine = (first, second) => {
+  const p = lineCoefficients(first);
+  const q = lineCoefficients(second);
+  if (!p || !q || !sameLine(first, second)) return null;
+  const index = q.findIndex((value) => Math.abs(value) > EPSILON);
+  const ratio = p[index] / q[index];
+  const whole = Math.round(ratio);
+  return whole !== 0 && Math.abs(ratio - whole) <= 1e-9 * Math.max(1, Math.abs(ratio)) ? whole : null;
+};
+
 /** A vertical line (x = c): it has no y term, so it has no y = mx + b form. */
 export const isVerticalLine = (value) => {
   const coefficients = lineCoefficients(value);
   return Boolean(coefficients) && Math.abs(coefficients[1]) < EPSILON;
 };
 
+/** Linear in x and y with at least one of them: what sameLine can compare. */
+export const isLine = (value) => lineCoefficients(value) !== null;
+
+/*
+ * A line in BOTH x and y: neither horizontal nor vertical. GR03 reads only
+ * these. An equation in one letter (`x = 4`, `y = 3`, `2x + 9 = 25`) is a
+ * line to sameLine, but it is also every step of solving an equation ("the
+ * equation after squaring", "the condition after adding 21"), where the
+ * question's own equation is that same "line" and must not be an answer.
+ */
+export const isObliqueLine = (value) => {
+  const coefficients = lineCoefficients(value);
+  return Boolean(coefficients) && Math.abs(coefficients[0]) > EPSILON && Math.abs(coefficients[1]) > EPSILON;
+};
+
 const bareY = (side) => /^\s*y\s*$/i.test(text(side).replace(/\\left|\\right|[{}]/g, ''));
 const has = (poly, key) => Math.abs(coefficient(poly, key)) > EPSILON;
 const onlyConstant = (poly) => !has(poly, 'x') && !has(poly, 'y');
-// A bracket that holds x — what makes m(x − x₁) point-slope rather than mx + b
-// (a fraction's brackets, `\frac{1}{3}x`, hold numbers only).
+// A bracket that holds x: y = 2(x + 1.5) is not slope-intercept form.
 const bracketsAroundX = (side) => /\([^()]*x[^()]*\)/i.test(text(side).replace(/\\left|\\right/g, ''));
+
+/*
+ * POINT-SLOPE FORM, READ FROM ITS STRUCTURE (GR19). `y − y₁ = m(x − x₁)`: one
+ * side is y and a written number (y − 5, y + 3, y − (−3), y − 0), the other a
+ * number — or nothing, or a lone minus — times ONE bracket that holds x and a
+ * written number: 2(x − 1), −(x + 4), \frac{2}{3}(x − 1), or that product over
+ * a number (\frac{2(x − 1)}{3}). A letter and its number may come in either
+ * order (−1 + x), and so may the two sides. It used to be
+ * any y-side with a constant against any side with a bracketed x, so
+ * y − 7 = x + (x − 4) counted (it is the right line, not this form), and
+ * y − 0 = 2(x + 1.5) did not. A bare y, y = 2(x + 1.5), is not read as this
+ * form: it never was, and the y − y₁ is what the form writes.
+ *
+ * Returns the written slope and point, { slope, x1, y1, ySide }, or null.
+ */
+const constantOf = (value) => {
+  if (!value || /[A-Za-z]/.test(value)) return null;
+  const poly = parsePolynomial(value);
+  if (!poly || [...poly.keys()].some((key) => key !== '')) return null;
+  const constant = coefficient(poly, '');
+  return Number.isFinite(constant) ? constant : null;
+};
+
+// The whole text inside one pair of brackets that wraps all of it, else itself.
+const unwrapped = (value) => {
+  let current = value;
+  for (let guard = 0; guard < 8 && current.startsWith('(') && current.endsWith(')'); guard += 1) {
+    let depth = 0;
+    let wraps = true;
+    for (let index = 0; index < current.length - 1; index += 1) {
+      if (current[index] === '(') depth += 1;
+      else if (current[index] === ')') depth -= 1;
+      if (depth === 0) { wraps = false; break; }
+    }
+    if (!wraps) break;
+    current = current.slice(1, -1);
+  }
+  return current;
+};
+
+// The letter and a written number, either order (y − 5, −5 + y): the number
+// subtracted from it, y₁ or x₁. Null for anything else.
+const shiftOf = (written, letter) => {
+  const after = new RegExp(`^${letter}([+-])(.+)$`).exec(written);
+  if (after) {
+    const number = constantOf(after[2]);
+    if (number === null) return null;
+    return after[1] === '-' ? number : -number;
+  }
+  if (written.endsWith(`+${letter}`)) {
+    const number = constantOf(written.slice(0, -2));
+    return number === null ? null : -number;
+  }
+  return null;
+};
+
+// `y`, a sign and a number: the y₁ it names.
+const pointSlopeY = (side) => shiftOf(side, 'y');
+
+// `x`, or `x`, a sign and a number: the x₁ it names.
+const pointSlopeX = (inner) => (inner === 'x' ? 0 : shiftOf(inner, 'x'));
+
+// [number][*](x ± number), or that over a number: { slope, x1 }.
+const pointSlopeProduct = (side) => {
+  const sign = side.startsWith('-') ? -1 : 1;
+  const body = /^[+-]/.test(side) ? side.slice(1) : side;
+  if (body.endsWith(')')) {
+    let depth = 0;
+    let open = -1;
+    for (let index = body.length - 1; index >= 0; index -= 1) {
+      if (body[index] === ')') depth += 1;
+      else if (body[index] === '(') {
+        depth -= 1;
+        if (depth === 0) { open = index; break; }
+      }
+    }
+    const x1 = open >= 0 ? pointSlopeX(body.slice(open + 1, -1)) : null;
+    if (x1 !== null) {
+      const factor = body.slice(0, open).replace(/\*$/, '');
+      const slope = factor === '' ? 1 : constantOf(factor);
+      if (slope !== null) return { slope: sign * slope, x1 };
+    }
+  }
+  // \frac{2(x − 1)}{3}: the product over a number.
+  const whole = unwrapped(body);
+  let depth = 0;
+  for (let index = 0; index < whole.length; index += 1) {
+    if (whole[index] === '(') depth += 1;
+    else if (whole[index] === ')') depth -= 1;
+    else if (whole[index] === '/' && depth === 0) {
+      const over = constantOf(whole.slice(index + 1));
+      const product = over ? pointSlopeProduct(unwrapped(whole.slice(0, index))) : null;
+      return product && whole.slice(0, index) !== '' ? { slope: (sign * product.slope) / over, x1: product.x1 } : null;
+    }
+  }
+  return null;
+};
+
+export const pointSlopeParts = (value) => {
+  if (/[<>≤≥≠]|\\(?:leq?|geq?|neq?|ne)(?![A-Za-z])/.test(text(value))) return null;
+  let written;
+  try {
+    written = normalizeAlgebraicText(value).replace(/\s+/g, '');
+  } catch {
+    return null;
+  }
+  const sides = written.split('=');
+  if (sides.length !== 2) return null;
+  for (const [ySide, yText, xText] of [['left', sides[0], sides[1]], ['right', sides[1], sides[0]]]) {
+    const y1 = pointSlopeY(yText);
+    const product = y1 === null ? null : pointSlopeProduct(xText);
+    if (product) return { slope: product.slope, x1: product.x1, y1, ySide };
+  }
+  return null;
+};
 
 const formOfSides = (sideText, sidePoly, otherText, otherPoly) => {
   if (bareY(sideText) && !has(otherPoly, 'y') && has(otherPoly, 'x') && !bracketsAroundX(otherText)) return LINE_FORMS.SLOPE_INTERCEPT;
-  if (Math.abs(coefficient(sidePoly, 'y') - 1) < EPSILON && !has(sidePoly, 'x') && has(sidePoly, '')
-    && !has(otherPoly, 'y') && has(otherPoly, 'x') && bracketsAroundX(otherText)) return LINE_FORMS.POINT_SLOPE;
   if (has(sidePoly, 'x') && has(sidePoly, 'y') && !has(sidePoly, '') && onlyConstant(otherPoly)) return LINE_FORMS.STANDARD;
   return null;
 };
@@ -106,6 +253,7 @@ const formOfSides = (sideText, sidePoly, otherText, otherPoly) => {
 export const writtenLineForm = (value) => {
   const equation = readLinearEquation(value);
   if (!equation) return null;
+  if (pointSlopeParts(value)) return LINE_FORMS.POINT_SLOPE;
   const { sides, left, right } = equation;
   return formOfSides(sides.left, left, sides.right, right) || formOfSides(sides.right, right, sides.left, left);
 };
@@ -135,3 +283,118 @@ export const requestedLineForm = (texts = []) => {
   }
   return null;
 };
+
+/*
+ * GR03 (the owner, 2026-10-24): "Yes for any question that names no form."
+ * A field whose key is a line takes any equation of that line unless the
+ * question asks for a form. These read the question's words for that; the
+ * field-level decision is lineFormPolicy.mjs, and the comparison is
+ * answerEquivalence.mjs (sameValue's `anyLineForm`).
+ */
+
+/** A field's `lineForm` when it takes any equation of its line. */
+export const LINE_FORM_ANY = 'any';
+
+/*
+ * Words that ask for a written form, or for rewriting a given equation into
+ * one. Deliberately wide: a wrongly read request only keeps today's
+ * form-for-form grading, while a missed one would accept a form the question
+ * asked the student to change. Any "form" ("slope-intercept form", "in the
+ * form y = kx", "simplest form"), a form's name or template, a direct
+ * variation (y = kx), and solving, isolating, rewriting or converting.
+ */
+const FORM_REQUESTS = [
+  /\bforms?\b/i,
+  /\bslope[-\s]?intercept\b/i,
+  /\bpoint[-\s]?slope\b/i,
+  /\bstandard\b/i,
+  /\bdirect[-\s]?variation\b/i,
+  /\by\s*=\s*m\s*x\s*\+\s*b\b/i,
+  /\by\s*=\s*k\s*x\b/i,
+  /\ba\s*x\s*\+\s*b\s*y\s*(?:\+\s*c\s*)?=\s*(?:c|0)\b/i,
+  /\by\s*[-−]\s*y\s*(?:_\s*\{?\s*1\s*\}?|₁)/i,
+  /\bsolved?\b[^.;:?!]*\bfor\b/i,
+  /\bin\s+terms\s+of\b/i,
+  /\bisolat/i,
+  /\brewrit/i,
+  /\bconvert/i,
+  /\btransform/i,
+  /\bsimplif/i,
+  /\bexpand/i,
+  /\bfactor/i,
+  /\bas\s+a\s+function\b/i,
+  /\bfunction\s+notation\b/i,
+  // "Write a system with equations y= for Plan A": a blank y = to fill in.
+  /(?:^|[^A-Za-z\\])y\s*=\s*(?=$|\$|[,.;:)?!]|\s+[A-Za-z]{2,})/i,
+];
+
+/** The words in these texts that ask for a form (or a rewrite), or null. */
+export const formRequestIn = (texts = []) => {
+  for (const value of (Array.isArray(texts) ? texts : [texts])) {
+    for (const pattern of FORM_REQUESTS) {
+      const match = pattern.exec(text(value));
+      if (match) return match[0].trim() || 'y =';
+    }
+  }
+  return null;
+};
+
+/** Does any of these texts ask for a form (or a rewrite) of an equation? */
+export const asksForAForm = (texts = []) => formRequestIn(texts) !== null;
+
+// The characters a written equation is made of. A word (two letters or more,
+// not a LaTeX command) ends it, and so do sentence punctuation and another
+// relation sign: "Line B is y = (1/3)x + 5." is `y=(1/3)x+5`.
+const EQUATION_CHARACTER = /[0-9A-Za-z+\-*/^(){}\\\s_·⋅×²³⁰¹⁴⁵⁶⁷⁸⁹⁻√]/;
+const isLetter = (character) => /[A-Za-z]/.test(character || '');
+
+const equationSide = (source, start, step) => {
+  let index = start;
+  let side = '';
+  while (index >= 0 && index < source.length) {
+    const character = source[index];
+    if (character === '.') {
+      // A decimal point, never a full stop: a digit follows it.
+      if (!/\d/.test(source[index + 1] || '')) break;
+      side = step < 0 ? character + side : side + character;
+      index += step;
+      continue;
+    }
+    if (!EQUATION_CHARACTER.test(character)) break;
+    if (isLetter(character)) {
+      let first = index;
+      let last = index;
+      while (isLetter(source[first - 1])) first -= 1;
+      while (isLetter(source[last + 1])) last += 1;
+      const word = source.slice(first, last + 1);
+      if (word.length > 1 && source[first - 1] !== '\\') break;
+      side = step < 0 ? word + side : side + word;
+      index = step < 0 ? first - 1 : last + 1;
+      continue;
+    }
+    side = step < 0 ? character + side : side + character;
+    index += step;
+  }
+  return side.trim();
+};
+
+/** The equations written in a sentence, each as `left=right`. */
+export const equationsInText = (value) => {
+  const source = text(value).replace(/\$+/g, ' ').replace(/[−–—]/g, '-');
+  const found = [];
+  for (let index = source.indexOf('='); index >= 0; index = source.indexOf('=', index + 1)) {
+    if (/[<>!≤≥≠=]/.test(source[index - 1] || '') || source[index + 1] === '=') continue;
+    const left = equationSide(source, index - 1, -1);
+    const right = equationSide(source, index + 1, 1);
+    if (left && right) found.push(`${left}=${right}`);
+  }
+  return found;
+};
+
+/*
+ * Does a text show one of these keys' lines? Then a student could copy the
+ * question's own equation ("For 3x + y = 7 …, write that equation solved for
+ * it", key y = 7 − 3x): that field keeps form-for-form grading.
+ */
+export const showsLine = (texts = [], keys = []) => (Array.isArray(texts) ? texts : [texts])
+  .some((value) => equationsInText(value).some((equation) => keys.some((key) => sameLine(equation, key))));

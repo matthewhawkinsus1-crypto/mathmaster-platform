@@ -128,8 +128,10 @@ test('the streak in words: none yet, including this week, and "at least" past th
   const open = describeWeeklyHistoryForStudent({ weeks: thisWeekHit, streak: { weeks: 3, includesOpenWeek: true } }).streak;
   assert.deepEqual([open.value, open.label], ['3', 'weeks in a row']);
   assert.match(open.detail, /Including this week/);
-  // Sunday evening: the new week has begun (not set yet) while last week,
-  // already hit, runs to its due day. The open week counted is LAST week.
+  // A week other than this one can still be open: the new week has begun (not
+  // set yet) while last week, already hit, runs to its due day. That was every
+  // Sunday evening until MP06 moved the week's turnover from 7pm to midnight, and
+  // the wording stays as a defence. The open week counted is LAST week.
   const sundayEvening = describeWeeklyHistoryForStudent({
     weeks: [
       week('2026-10-12', { current: true, hasGoal: false, required: 0, closed: false }),

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ACADEMIC_REFUSAL,
+  CLASS_REWARD_ITEM_FIELDS,
   CLASS_REWARD_REQUEST_STATUS,
   MAX_CATALOG_ITEMS,
   STARTER_CLASS_REWARDS,
@@ -29,11 +30,33 @@ const item = (overrides = {}) => ({
   itemId: 'starter-seat', label: 'Choose your seat for a day', description: 'Sit anywhere for one period.', cost: 50, active: true, weeklyLimitPerStudent: 1, ...overrides,
 });
 
-test('a valid item keeps only its allow-listed fields', () => {
-  const cleaned = validateCatalogItem({ ...item(), note: 'kept out', createdBy: 'x' });
-  assert.deepEqual(Object.keys(cleaned).sort(), ['active', 'cost', 'description', 'itemId', 'label', 'weeklyLimitPerStudent']);
+// LC04. An item is these six fields and no others, however a payload is
+// built: the server rebuilds it from them (so nothing grade-like is ever
+// stored), and a payload that names any other field is refused rather than
+// quietly trimmed, so whoever sent it hears that it was not accepted.
+test('an item is exactly its six fields, and a payload with any other field is refused, not trimmed', () => {
+  // Written out here, not read back from the module: a field added to or
+  // dropped from the module's list has to be a deliberate edit to this test.
+  const SIX = ['active', 'cost', 'description', 'itemId', 'label', 'weeklyLimitPerStudent'];
+  assert.deepEqual([...CLASS_REWARD_ITEM_FIELDS].sort(), SIX);
+  const cleaned = validateCatalogItem(item());
+  assert.deepEqual(Object.keys(cleaned).sort(), SIX);
   assert.equal(cleaned.cost, 50);
   assert.equal(cleaned.active, true);
+  // Not only the names on the grade-like list: any field at all.
+  for (const field of ['note', 'createdBy', 'bumpMyMark', 'effect', 'countsAs', 'xp']) {
+    assert.throws(() => validateCatalogItem({ ...item(), [field]: 'anything' }), (error) => {
+      assert.equal(error.name, 'ClassRewardInputError');
+      assert.equal(error.field, field, 'the refusal names the field');
+      assert.notEqual(error.message, ACADEMIC_REFUSAL, 'it is not mistaken for a wording refusal');
+      assert.ok(error.message.includes(field), 'and says which field it was');
+      return true;
+    }, field);
+  }
+  // Through the whole-list door the server uses, too.
+  assert.throws(() => validateCatalogInput({ classId: 'c', items: [item(), { ...item({ itemId: 'two', label: 'Other' }), effect: 'x' }] }), /not part of it/);
+  // A grade-like name keeps its own, plainer sentence.
+  assert.throws(() => validateCatalogItem({ ...item(), gradeEffect: 5 }), (error) => error.message === ACADEMIC_REFUSAL);
 });
 
 test('an item carrying any academic field is refused, not trimmed', () => {
@@ -75,6 +98,88 @@ test('wording that promises an academic effect is refused with the reason', () =
   // In the description too.
   assert.throws(() => validateCatalogItem(item({ description: 'Counts as a homework grade.' })), /mentions/);
   assert.equal(academicWordingIn('Homework-free Friday'), 'homework');
+});
+
+// LC04. The same promises, written the way a person reads them but a regular
+// expression does not: full-width or accented letters, a zero-width character
+// in the middle of a word, digits and symbols standing in for letters, and the
+// same effects in Spanish. (What the screen still cannot catch is written at
+// the top of classRewardCatalog.mjs; it is deliberately not pinned here, so a
+// better screen never turns a test red.)
+test('the same words written differently are still refused, and so are the Spanish ones', () => {
+  // [label, what the refusal says it mentions]. Every alternative of every
+  // Spanish rule appears at least once, so dropping one is a red test.
+  const refused = [
+    // Width, case, accents, invisible characters.
+    ['\uFF28\uFF2F\uFF2D\uFF25\uFF37\uFF2F\uFF32\uFF2B pass', 'homework'],
+    ['Home\u200Bwork pass', 'homework'],
+    ['HÖMEWORK pass', 'homework'],
+    ['ExTrA   CrEdIt', 'extra credit'],
+    ['Home\u00ADwork-free night', 'homework'],
+    // Look-alike digits and symbols.
+    ['H0mew0rk pass', 'homework'],
+    ['Qu1z skip', 'a quiz or test'],
+    ['Gr@de boost', 'a grade'],
+    ['3xtra cr3dit', 'extra credit'],
+    ['T3st day off', 'a quiz or test'],
+    // Spanish: homework.
+    ['Noche sin tarea', 'homework'],
+    ['Sin tareas el fin de semana', 'homework'],
+    ['Sin deberes esta noche', 'homework'],
+    // Extra credit.
+    ['Crédito extra', 'extra credit'],
+    ['Un punto extra', 'extra credit'],
+    ['Cinco puntos adicionales', 'extra credit'],
+    // A grade.
+    ['Calificación perfecta', 'a grade'],
+    ['Mejores calificaciones', 'a grade'],
+    ['Calificar tu propio trabajo', 'a grade'],
+    // A test.
+    ['Sin examen hoy', 'a quiz or test'],
+    ['Cero exámenes', 'a quiz or test'],
+    ['Un cuestionario sorpresa', 'a quiz or test'],
+    ['Una prueba menos', 'a quiz or test'],
+    ['Dos pruebas menos', 'a quiz or test'],
+    // A deadline.
+    ['Fecha límite extendida', 'a deadline'],
+    ['Cambiar la fecha de entrega', 'a deadline'],
+    ['Entrega tardía permitida', 'a deadline'],
+    ['Puedes entregar tarde', 'a deadline'],
+    // Answers or hints.
+    ['Ver la respuesta', 'answers or hints'],
+    ['Ver las respuestas', 'answers or hints'],
+    ['Una pista gratis', 'answers or hints'],
+    ['Tres pistas', 'answers or hints'],
+    // Another go.
+    ['Otro intento', 'another attempt'],
+    ['Un segundo intento', 'another attempt'],
+    ['Un reintento', 'another attempt'],
+    ['Dos reintentos', 'another attempt'],
+  ];
+  refused.forEach(([label, mentions]) => {
+    assert.equal(academicWordingIn(label), mentions, label);
+    assert.throws(() => validateCatalogItem(item({ label })), /can't change grades or required work/, label);
+  });
+  // The description is read the same way.
+  assert.throws(() => validateCatalogItem(item({ description: 'Cuenta como crédito extra.' })), /mentions/);
+});
+
+test('ordinary privileges stay allowed in both languages, and digits and accents alone are not suspicious', () => {
+  [
+    'Elige tu asiento por un día',
+    'Música con audífonos durante el trabajo independiente',
+    'Sé el DJ de la clase durante el calentamiento',
+    'Almuerzo con el maestro',
+    'Escribe una nota en la pizarra',
+    'Ayudante del maestro por un día',
+    'Pick 3 friends to sit with',
+    'Wear a hat for 5 minutes',
+    'Choose the class song #1',
+    'Café con leche con la maestra',
+  ].forEach((label) => {
+    assert.equal(academicWordingIn(label), null, label);
+    assert.doesNotThrow(() => validateCatalogItem(item({ label })), label);
+  });
 });
 
 test('ordinary classroom privileges are allowed — including ones that merely mention the warm-up', () => {

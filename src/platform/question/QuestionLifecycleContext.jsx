@@ -9,7 +9,7 @@ const QuestionLifecycleContext = createContext(DEFAULT_LIFECYCLE);
 // presentation infrastructure can react consistently without every legacy,
 // registry, and nested tool having to accept and forward another prop.
 //
-// `terminal` is "no more edits" (the keypad closes, inputs are inert). It is
+// `terminal` is "no more edits" (the keypad closes, the work is read-only). It is
 // NOT "the answer may be read out": a DOL the window closed on, a waiting
 // Warm-Up or a section a teacher locked is terminal and shows no solution, and
 // a teacher can reopen it. `positionsReadable` is that second fact — the

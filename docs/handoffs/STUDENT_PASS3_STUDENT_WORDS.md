@@ -349,6 +349,9 @@ still reach the bar.
 2. **What "reopened" means** (wave 3's list, C). What changed no longer mentions the flag; Grades still shows the
    status "Reopened" while the lesson is open. If "reopened" should open closed work, that is a server change
    (`studentAssignmentOverrides.mjs`), and What changed can then say it.
+   **Decided 2026-10-23 (NV08): students never see the word.** Grades and Assignments show the status the work
+   has without the flag (In Progress, Missing, Graded, Closed, with the row's dates and Start/Continue); the
+   unused `REOPENED` kinds are gone from both models. Teacher screens keep "Reopened".
 3. **Closed work's words**: "Closed" for the state; "no credit" only on trying it again. If the owner wants other
    words, they are one constant (`CLOSED_WORK`).
 4. **Spanish**: no new sentence of mine is on a Read aloud or Translate path. The closed-attempt sentence Translate

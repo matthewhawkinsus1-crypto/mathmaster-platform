@@ -234,7 +234,10 @@ export const MISCONCEPTION_FIXTURES = Object.freeze([
   lineFormCase('line form: standard for slope-intercept, asked by y = mx + b', 'Write the line as y = mx + b', 'y=-3x+5', '3x+y=5', ['line-wrong-form-slope-intercept']),
   lineFormCase('line form: slope-intercept for point-slope', 'Equation in point-slope form', 'y-2=4(x-1)', 'y=4x-2', ['line-wrong-form-point-slope']),
   lineFormCase('line form: slope-intercept for standard', 'Equation in standard form', '4x-y=2', 'y=4x-2', ['line-wrong-form-standard']),
-  lineFormCase('line form: no form named, the key\'s form decides', 'Equation of the line', 'y=-3x+5', 'y-5=-3(x-0)', ['line-wrong-form-slope-intercept']),
+  // GR03: when nothing names a form, any equation of the line is right, so
+  // there is no miss to name (the key's form still decides below, where the
+  // prompt names a form for another field).
+  lineFormCase('line form: no form named, any equation of the line is right', 'Equation of the line', 'y=-3x+5', 'y-5=-3(x-0)', []),
   lineFormCase('line form: a different line is not named', 'Equation of line B′ in slope-intercept form', 'y=-3x+5', 'y-5=-3(x-1)', []),
   lineFormCase('line form: the asked form, wrong line, is not named', 'Equation of line B′ in slope-intercept form', 'y=-3x+5', 'y=-3x+4', []),
   lineFormCase('line form: label and key disagree, so the form is not named', 'Equation in standard form', 'y=-3x+5', 'y-5=-3(x-0)', []),

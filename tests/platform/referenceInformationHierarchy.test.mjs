@@ -88,7 +88,7 @@ test('QuestionEngine keeps reference facts with Your Task and Guided Notes insid
   assert.match(engine, /taskContextPanel=\{questionReferencePanel\}/);
   assert.match(viewport, /mathmaster-desktop-question-anchor[\s\S]*mathmaster-question-task-context[\s\S]*taskContextPanel/);
   assert.match(viewport, /prompt-body[\s\S]*taskContextPanel/);
-  assert.match(viewport, /\{!workspaceActive && contextPanel\}[\s\S]*<main className="math-tool-workspace">/, 'attempt/tools context remains outside the task anchor in normal mode and is suppressed in solver workspace mode');
+  assert.match(viewport, /\{!workspaceActive && contextPanel\}[\s\S]*<div ref=\{workspaceRef\} className="math-tool-workspace"/, 'attempt/tools context remains outside the task anchor in normal mode and is suppressed in solver workspace mode');
   assert.match(engine, /suppressScenarioDisplay/);
 });
 

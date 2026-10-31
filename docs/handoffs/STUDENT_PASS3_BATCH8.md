@@ -13,7 +13,7 @@ D6, as built:
 | Where | Student | Teacher |
 | --- | --- | --- |
 | **In class** (their class is meeting now) | ✋ Ask my teacher raises the hand, as before. A reload keeps it raised. Beside it: "Your teacher has seen your hand." or "Your teacher is on the way." | Each tile with "Hand raised" (Room view and Walkthrough) has **Seen** and **On my way**. Never on the projector's Large room tiles. |
-| **Out of class** | ✉ Leave a question for my teacher: a short box (500 characters), sent with the assignment and the question's place ("Classwork · Question 3"). While unanswered it can be reworded; once answered the answer shows on that question, in a folded "Your teacher answered your question" at the top of the assignment, and in Review My Work. | Teacher Home: a folded **Questions from students (N)** panel. Opened, each question shows the student, the assignment and question (the prompt one click away), the student's words, an answer box and Open student. |
+| **Out of class** | ✉ Leave a question for my teacher: a short box (500 characters), sent with the assignment and the question's place ("Classwork · Question 3"). While unanswered it can be reworded; once answered the answer shows on that question (and the student can ask one follow-up there, TT01), in a folded "Your teacher answered your question" at the top of the assignment, and in Review My Work. | Teacher Home: a folded **Questions from students (N)** panel. Opened, each question shows the student, the assignment and question (the prompt one click away), the student's words, an answer box and Open student. |
 
 **The in-class test** (`studentClassInSession`, `src/platform/supports/askTeacher.js`): the student's own class period
 has a window now in the bell schedule — today's A/B day or a date-specific modified schedule, with that period switched
@@ -41,6 +41,7 @@ pins it, unchanged); presence still carries only a time and a question position.
 schemaVersion 1, studentId, classId, teacherEmail, assignmentId, assignmentTitle (≤200), questionIndex,
 questionLabel (≤120), text (1–500), status 'open' | 'answered', createdAt, updatedAt,
 answer (1–1000), answeredBy, answeredAt            ← written only by the teacher
+earlierText (1–500), earlierAnswer (1–1000)        ← the one follow-up (TT01): the first exchange, copied from the document
 ```
 
 `helpAcknowledgements/{studentId}` — `{ studentId, assignmentId, helpRequestedAt, status: 'seen' | 'onMyWay',
@@ -54,7 +55,10 @@ request the old acknowledgement does not answer).
   class in `assignedClassIds` (added at integration, below), with the deterministic id, exactly the fields above,
   `status: 'open'`, server timestamps. Read: that student; the teacher it was sent to (the Teacher Home query
   `teacherEmail == me && status == 'open'` is provable); the student's current teacher of record by id (after a class
-  changes hands); the root administrator. Update: the student rewords `text` only while open; the teacher (sent-to or
+  changes hands); the root administrator. Update: the student rewords `text` only while open, and once answered may ask ONE follow-up
+  (TT01: `status` back to `open`, the new words in `text`, the exchange so far in `earlierText` and `earlierAnswer`,
+  which must equal what the document holds, so a student cannot write the teacher's words; `earlierText` is then there
+  for good, so a second follow-up has no room); the teacher (sent-to or
   current) writes only `status: 'answered'`, `answer`, `answeredBy == their email`, `answeredAt`, `updatedAt`.
   Delete: never from a browser.
 - **Acknowledgements.** Written only by a teacher who teaches the student (`teachesPresenceStudent`), only for the hand
@@ -87,7 +91,8 @@ untouched), `LiveClassMonitor.jsx`, `TeacherHome.jsx`, `firestore.rules`, `funct
 | Test | What it proves |
 | --- | --- |
 | `tests/platform/askMyTeacherAnswersBack.test.mjs` (11) | the in-class test (period window, B day, weekend, holiday, make-up day, no period); question/answer/acknowledgement documents match the rules' field lists; reload memory; the hook restores during render, forgets on leaving, publishes only in class; the engine gate; the panel rendered through Vite SSR in every state; the answers list; no logging; teacher wiring; deletion lists |
-| `tests/rules/askTeacherRules.test.mjs` (8, emulator) | the rules above, through the app's own queries and writes |
+| `tests/platform/askTeacherFollowUp.test.mjs` (8, TT01) | a follow-up is possible once, after the answer, and stops there; what it writes is exactly what the rules allow; the store writes the same document, never a second; what the student and the teacher read at each step (Vite SSR); a waiting follow-up moves with the class and keeps the year running |
+| `tests/rules/askTeacherRules.test.mjs` (8, emulator) | the rules above (the TT01 follow-up included), through the app's own queries and writes |
 | `tests/browser/teacherWorkflow/askMyTeacherJourneys.mjs` (not in CI; 58 checks, 1366×768 and 390×844) | Q1–Q3: a Period 5 student leaves a question, the teacher answers on Teacher Home, the student reads it; H1–H3: a Period 3 student raises a hand, a reload keeps it, the teacher sends "On my way" (not shown on Large room tiles), the student reads it, lowering clears it |
 
 Rewritten contracts (behaviour intact, text moved — SOURCE_CONTRACT_PLAYBOOK): `feedbackThatTeaches` (the raised-hand
@@ -168,10 +173,13 @@ Found by the full-app gate after the merge (fixed, 4f0496b):
 
 ## Open
 
-- One question per question of an assignment: once answered it cannot be followed up in the app (asking again in class
-  still works). A follow-up thread would need a list per document or a subcollection — a product call.
+- One question per question of an assignment, and ONE follow-up after the answer (TT01): the document opens again with
+  the first exchange kept beside the new words. After the second answer the student asks in class. A longer thread
+  would need a list per document or a subcollection — a product call, not built.
 - A question sent to a teacher who then loses the class stays on that teacher's list until answered. The rules let the
   new teacher of record read and answer it, but no screen lists it for them yet.
 - No notification outside the app: a teacher sees questions when they open Teacher Home; a student sees the answer when
-  they open the assignment or its Review My Work.
+  they open the assignment or its Review My Work. Email or push would carry a student's question, or the fact that they
+  asked, outside the app and costs money to run, so it waits for the owner's decision on privacy and cost (TT01); it is
+  not built, and no code reaches for a delivery service.
 - Questions are kept until the account is deleted; no retention window is set.

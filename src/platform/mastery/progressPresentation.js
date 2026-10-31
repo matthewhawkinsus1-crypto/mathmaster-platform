@@ -43,6 +43,14 @@ const changeTile = ({ key, label, now, previous, change, unit = '', note = null 
 /**
  * This week against four weeks ago, ready to render.
  *
+ * WHERE THE HISTORY STARTS (MP11; the owner accepted this limit on 2026-10-23).
+ * Mastery profiles were never time-indexed: a profile says where a student is
+ * now, so there is no stored past to read, and nothing retroactive is built.
+ * The history is the weekly snapshots the mastery trigger has written since it
+ * shipped. That is why 'empty' and 'starting' say plainly that it begins with
+ * the student's next answer, rather than showing empty weeks or a past that no
+ * screen ever showed them.
+ *
  * state: 'empty'    — no snapshot yet (nothing has been recorded)
  *        'starting' — only this week on record: current numbers, no comparison
  *        'ready'    — a comparison, with the baseline it was made against
@@ -159,9 +167,11 @@ export const describeWeeklyHistoryForStudent = (history = null) => {
 
   const streak = history?.streak || { weeks: 0, includesOpenWeek: false, atLeast: false };
   const count = Number(streak.weeks) || 0;
-  // The open week the streak counted may be LAST week: on Sunday evening the
-  // new week has begun while last week runs to its due day. Then "this week"
-  // would name a week the rows show as not set yet.
+  // The open week the streak counted may be LAST week, not this one. That was
+  // every Sunday evening while week keys turned over at 7pm Central, with last
+  // week still running to its due day (MP06 moved the turnover to midnight, so
+  // it no longer happens in practice; the wording stays as a defence). Then
+  // "this week" would name a week the rows show as not set yet.
   const currentHit = weeks.some((week) => week?.current && week?.hit);
   return {
     rows,

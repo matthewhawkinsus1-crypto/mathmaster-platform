@@ -1168,3 +1168,22 @@ test('the verdict never shapes the help: items differing only in their verdict g
     assert.deepEqual(family.backUpQuestion(flipped), family.backUpQuestion(kept), item.name);
   }
 });
+
+// TL09: the V5 compile dropped the Data Modeling Lab's causationSupported, so
+// an imported item could never key "causation" and a student who rightly
+// claimed it was marked wrong. It is copied when authored, and absent when not.
+test('the V5 compile keeps a Data Modeling Lab item\'s causationSupported', async () => {
+  const { compileAuthoringIntentV5 } = await import('../../src/platform/contract/authoringIntentV5Core.js');
+  const compileOne = (question) => compileAuthoringIntentV5({
+    schemaVersion: 5,
+    assignment: { title: 'Data and models', courseId: 'algebra1' },
+    sections: [{ role: 'classwork', questions: [{ standard: 'A.4A', ...question }] }],
+  }).package.sections[0].questions[0];
+  const base = { prompt: 'Describe the relationship.', studentActions: ['analyzeData'], points: [[1, 2], [2, 3], [3, 5], [4, 6]] };
+  assert.equal(compileOne({ ...base, causationSupported: true }).causationSupported, true);
+  assert.equal(compileOne({ ...base, causationSupported: false }).causationSupported, false);
+  assert.equal(compileOne({ ...base, data: { causationSupported: true } }).causationSupported, true, 'from the data block too');
+  assert.equal(compileOne({ ...base, causationSupported: 'true' }).causationSupported, true, 'a "true" string is true for every grader');
+  assert.equal(compileOne({ ...base, causationSupported: 'false' }).causationSupported, false, 'a "false" string is not truthy');
+  assert.equal('causationSupported' in compileOne(base), false, 'not authored: not added');
+});

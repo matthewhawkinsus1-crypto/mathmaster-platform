@@ -126,6 +126,24 @@ export const placeholderForField = (field = {}) => {
 };
 
 /**
+ * What an empty answer box says, and what the line above it says about it.
+ *
+ * "for example (2, -5)" used to be the box's placeholder, so a box 127px wide
+ * (four to a row at 1366) read "for exampl…" and the example, the only
+ * informative part, was cut off. The words now live above the box, where they
+ * wrap, and the box keeps the example alone. An author's own placeholder still
+ * wins, word for word, and then there is no example to state above it.
+ * `inferredExample` is the shape the field's input kind implies when it
+ * declares no format (a set box, an inequality box).
+ */
+export const describeBoxPlaceholder = (field = {}, { inferredExample = '' } = {}) => {
+  const authored = String(field?.placeholder ?? '').trim();
+  if (authored) return { placeholder: authored, example: '' };
+  const example = exampleFor(answerFormatOf(field)) || inferredExample;
+  return { placeholder: example || 'Type your answer', example };
+};
+
+/**
  * The one-line format statement shown under the label.
  *
  * Returns '' for choice and free-text fields, which have no format to state,

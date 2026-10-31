@@ -24,11 +24,13 @@ import AlgebraicSystemMode from './AlgebraicSystemMode.jsx';
 import Algebraic3SystemMode from './Algebraic3SystemMode.jsx';
 import ThreePlaneWorkspace from './ThreePlaneWorkspace.jsx';
 import StudentBuildInequalityMode from './StudentBuildInequalityMode.jsx';
-import { ChoiceGroup, InequalityLayout, LineStyleIcon, StepFeedback, YesNoQuestion } from './InequalityControls.jsx';
+import { ChoiceGroup, InequalityLayout, LineStyleIcon, PLANE_KEYS, StepFeedback, YesNoQuestion } from './InequalityControls.jsx';
 import { POINT_COLORS, constraintColor } from './constraintPalette.js';
+import { regionCornersText } from './inequalityGraphMarks.js';
 import { formatInequality, formatLine, formatPoint, formatQuadratic } from './inequalityFormat.js';
 import { resolveSystemsWorkspaceMode } from './systemsWorkspaceMode.js';
 import { systemAxisNames } from './systemAxisNames.js';
+import { solutionTyped } from './systemsSolutionTyped.js';
 import { algebraicSystemDimension } from './algebraicSystemsEngine.js';
 
 // The defaults the shared grader also reads, so an unauthored field shows and
@@ -80,6 +82,7 @@ function LinearMode({ questionData, onAction }) {
   const restore = useCallback((value) => { setX(value?.x || ''); setY(value?.y || ''); setClassification(value?.classification || UNANSWERED); }, []);
   const undoHistory = useMathUndoHistory({ label: 'Undo the last system answer edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
   const classified = isAnswered(classification);
+  const ready = classified && solutionTyped(classification, x, y);
 
   // The student's work — what Check grades and what a deadline would submit.
   const work = { x, y, classification };
@@ -87,10 +90,10 @@ function LinearMode({ questionData, onAction }) {
 
   const check = () => {
     // Not an answer yet: the classification decides what else is asked (x and
-    // y only for exactly one solution). The shared grader marks a response
-    // without one unanswered and My Math Path's contract refuses it, so
-    // nothing is sent until it is chosen.
-    if (!classified) return;
+    // y only for exactly one solution, and then both typed). The shared grader
+    // marks a response without them unanswered and My Math Path's contract
+    // refuses it, so nothing is sent until they are there.
+    if (!ready) return;
     const result = gradeToolCheck(systemsWorkspaceGrader, questionData, work);
     submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode:'linear', parts: result.parts });
   };
@@ -103,12 +106,12 @@ function LinearMode({ questionData, onAction }) {
     return 'The classification is right, but the coordinates are not. Read the crossing point off the graph, then substitute it into both equations to confirm.';
   };
 
-  return <EnlargeableFigure label="Linear system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{
+  return <EnlargeableFigure label="Linear system workspace" style={{ width: '100%' }} capabilities={{
     undo: undoHistory.capability,
     equationInput: { label: 'Both equations', studentState: true },
     numericControls: { label: 'Solution and classification', studentState: true },
     instruction: { text: 'Classify the system, then solve where the equations meet.' },
-    primaryActions: [{ id: 'check-system', label: checkSystemLabel, onAction: check, disabled: !classified }],
+    primaryActions: [{ id: 'check-system', label: checkSystemLabel, onAction: check, disabled: !ready }],
   }}><ToolSplit>
     <Panel title="Both equations on one grid">
       <CoordinatePlane xMin={questionData.graph?.xMin ?? -6} xMax={questionData.graph?.xMax ?? 8} yMin={questionData.graph?.yMin ?? -6} yMax={questionData.graph?.yMax ?? 12}
@@ -125,8 +128,8 @@ function LinearMode({ questionData, onAction }) {
     <Panel title="Classify and solve">
       <Field label="How many solutions does this system have?"><select value={classification} onChange={(e)=>setClassification(e.target.value)} style={inputStyle}><option value={UNANSWERED}>Choose…</option><option value="one">Exactly one solution</option><option value="none">No solution</option><option value="infinite">Infinitely many solutions</option></select></Field>
       {classification === 'one' ? <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:12}}><Field label="x"><input type="number" inputMode="decimal" value={x} onChange={(e)=>setX(e.target.value)} style={inputStyle}/></Field><Field label="y"><input type="number" inputMode="decimal" value={y} onChange={(e)=>setY(e.target.value)} style={inputStyle}/></Field></div> : null}
-      <button data-mm-enter-action="submit" type="button" onClick={check} disabled={!classified} style={{...actionStyle,opacity:classified?1:0.5}}>{checkSystemLabel}</button>
-      {!classified ? <p style={{margin:'8px 0 0',color:'var(--mm-text-muted)',fontSize:'calc(13 * var(--mm-px))'}}>Choose how many solutions the system has first.</p> : null}
+      <button data-mm-enter-action="submit" type="button" onClick={check} disabled={!ready} style={{...actionStyle,opacity:ready?1:0.5}}>{checkSystemLabel}</button>
+      {!ready ? <p style={{margin:'8px 0 0',color:'var(--mm-text-muted)',fontSize:'calc(13 * var(--mm-px))'}}>{classified ? 'Type x and y for the point where the lines cross.' : 'Choose how many solutions the system has first.'}</p> : null}
       {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect} message={message()}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill></div> : null}
       <HintPanel
         hints={[
@@ -328,9 +331,10 @@ function ClassicInequalityMode({ questionData, onAction }) {
   };
 
   const shownPolygon = requiresConstruction ? studentPolygon : correctPolygon;
+  const regionIntro = `1 shaded region${requiresConstruction ? '' : ', where every inequality is true'}`;
   const checkLabel = useSubmitLabel(requiresConstruction ? 'Check inequality graph' : 'Check feasible region');
 
-  return <EnlargeableFigure label="Inequality system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{
+  return <EnlargeableFigure label="Inequality system workspace" style={{ width: '100%' }} capabilities={{
     undo: undoHistory.capability,
     equationInput: { label: 'Both inequalities', studentState: true },
     numericControls: { label: requiresConstruction ? 'Boundary and shading controls' : 'Solution controls', studentState: true },
@@ -351,8 +355,13 @@ function ClassicInequalityMode({ questionData, onAction }) {
             showPlotHelp="keyboard"
             cursorLabel={nextPoint ? `Inequality ${nextPoint.index + 1}, point ${nextPoint.which}` : 'Point'}
             ariaLabel={requiresConstruction ? 'Student-constructed graph of the inequality solution region' : 'Graph of the system of inequalities with its shaded feasible region'}
-            // The region it shades below, said by the plane (no corners: they are positions).
-            toolMarks={{ kinds: shownPolygon.length >= 3 ? `1 shaded region${requiresConstruction ? '' : ', where every inequality is true'}.` : 'No region is shaded yet.' }}
+            // The region it shades below, said by the plane: its kind while the
+            // question is open (no corners: they are positions), its corners
+            // once positions may be said (AX12).
+            toolMarks={{
+              kinds: shownPolygon.length >= 3 ? `${regionIntro}.` : 'No region is shaded yet.',
+              features: regionCornersText({ polygon: shownPolygon, lines: requiresConstruction ? studentInequalities : inequalities, intro: regionIntro }) || undefined,
+            }}
             viewResetKey={questionData?.questionId ?? null}
             enlargeable={false}
           >
@@ -377,7 +386,7 @@ function ClassicInequalityMode({ questionData, onAction }) {
     >
       {requiresConstruction ? (
         <>
-          <p className="mm-ineq-instruction">Type two points on each boundary line — or tap the graph to plot them — then choose its style and the side to shade.</p>
+          <p className="mm-ineq-instruction">{`Type two points on each boundary line, or plot them on the graph: click or tap it, or ${PLANE_KEYS}.`} Then choose its style and the side to shade.</p>
           {inequalities.map((ineq, index) => {
             const entry = construction[index] || {};
             return (
@@ -400,7 +409,7 @@ function ClassicInequalityMode({ questionData, onAction }) {
                         <label className="mm-ineq-inline-field">y<input className="mm-ineq-input" data-size="narrow" type="number" inputMode="decimal" aria-label={`Boundary point ${which}: y`} value={entry[`y${which}`]} onChange={(e)=>updateConstruction(index,`y${which}`,e.target.value)} /></label>
                         {entered ? (
                           <button type="button" className="mm-ineq-chip-remove" aria-label={`Clear boundary point ${which} of inequality ${index + 1}`} onClick={() => clearPoint(index, which)}>×</button>
-                        ) : waiting ? <span className="mm-ineq-note">or tap the graph</span> : null}
+                        ) : waiting ? <span className="mm-ineq-note">or plot it on the graph</span> : null}
                       </div>
                     );
                   })}
@@ -532,7 +541,8 @@ function LinearConstructMode({ questionData, onAction }) {
     .filter((point) => point.x != null && point.y != null)
     .map((point) => ({ x:point.x, y:point.y, fill:LINE_COLORS[index] })));
   const pointsTyped = parsed.every((ends) => ends.every((point) => point.x != null && point.y != null));
-  const ready = classified && pointsTyped;
+  const crossingTyped = solutionTyped(classification, x, y);
+  const ready = classified && pointsTyped && crossingTyped;
 
   // The student's work — what Check grades and what a deadline would submit:
   // the analyze form's answers plus each line's two points, already parsed.
@@ -558,7 +568,7 @@ function LinearConstructMode({ questionData, onAction }) {
     return 'Your lines and classification are right, but the coordinates are not. Read where your lines cross, then substitute that point into both equations to confirm.';
   };
 
-  return <EnlargeableFigure label="Linear system graphing workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{
+  return <EnlargeableFigure label="Linear system graphing workspace" style={{ width: '100%' }} capabilities={{
     undo: undoHistory.capability,
     equationInput: { label: 'Both equations', studentState: true },
     numericControls: { label: 'Line points, solution and classification', studentState: true },
@@ -592,7 +602,7 @@ function LinearConstructMode({ questionData, onAction }) {
         </>
       )}
     >
-      <p className="mm-ineq-instruction">Type two points on each line — or tap the graph to plot them. Use each equation to find its points.</p>
+      <p className="mm-ineq-instruction">{`Type two points on each line, or plot them on the graph: click or tap it, or ${PLANE_KEYS}.`} Use each equation to find its points.</p>
       {linePoints.map((entry, index) => (
         <section key={index} className="mm-ineq-card" data-constraint-index={index}>
           <div className="mm-ineq-card-row">
@@ -613,7 +623,7 @@ function LinearConstructMode({ questionData, onAction }) {
                   <label className="mm-ineq-inline-field">{names.y}<input className="mm-ineq-input" data-size="narrow" type="number" inputMode="decimal" aria-label={`Equation ${index + 1}, point ${which}: ${names.y}`} value={entry[`y${which}`]} onChange={(e)=>updateCoordinate(index,`y${which}`,e.target.value)} /></label>
                   {entered ? (
                     <button type="button" className="mm-ineq-chip-remove" aria-label={`Clear point ${which} of equation ${index + 1}`} onClick={() => setPoint(index, which, '', '')}>×</button>
-                  ) : waiting ? <span className="mm-ineq-note">or tap the graph</span> : null}
+                  ) : waiting ? <span className="mm-ineq-note">or plot it on the graph</span> : null}
                 </div>
               );
             })}
@@ -629,6 +639,7 @@ function LinearConstructMode({ questionData, onAction }) {
       {!ready ? <p className="mm-ineq-note">{[
         pointsTyped ? null : 'Plot two points on each line.',
         classified ? null : 'Choose how many solutions the system has.',
+        !classified || crossingTyped ? null : `Type ${names.x} and ${names.y} for the point where your lines cross.`,
       ].filter(Boolean).join(' ')}</p> : null}
       {feedback ? <div><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><StepFeedback>{message()}</StepFeedback></div> : null}
       <HintPanel
@@ -676,7 +687,7 @@ function LinearQuadraticMode({ questionData, onAction }) {
     return 'The count is right but at least one coordinate is off. Substitute each point into both the line and the parabola: a real intersection satisfies both.';
   };
 
-  return <EnlargeableFigure label="Linear-quadratic system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, equationInput: { label: 'Line and quadratic equations' }, numericControls: { label: 'Intersection controls', studentState: true }, instruction: { text: 'Find every point satisfying both equations.' }, primaryActions: [{ id: 'check-intersections', label: checkIntersectionsLabel, onAction: check, disabled: count === '' }] }}><ToolSplit>
+  return <EnlargeableFigure label="Linear-quadratic system workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, equationInput: { label: 'Line and quadratic equations' }, numericControls: { label: 'Intersection controls', studentState: true }, instruction: { text: 'Find every point satisfying both equations.' }, primaryActions: [{ id: 'check-intersections', label: checkIntersectionsLabel, onAction: check, disabled: count === '' }] }}><ToolSplit>
     <Panel title="Line and parabola">
       <CoordinatePlane xMin={questionData.graph?.xMin ?? -6} xMax={questionData.graph?.xMax ?? 6} yMin={questionData.graph?.yMin ?? -8} yMax={questionData.graph?.yMax ?? 12}
         lines={[{ ...config.line, stroke:'#d93025', dash:'10 6' }]}
@@ -725,6 +736,8 @@ function MatrixMode({ questionData, onAction }) {
   const mathState = useMemo(() => ({ classification, x, y, z, technologyUsed }), [classification, x, y, z, technologyUsed]);
   const restore = useCallback((value) => { setClassification(value?.classification || UNANSWERED); setX(value?.x || ''); setY(value?.y || ''); setZ(value?.z || ''); setTechnologyUsed(Boolean(value?.technologyUsed)); }, []);
   const classified = isAnswered(classification);
+  const needsTechnology = isMatrix3 && !technologyUsed;
+  const ready = classified && !needsTechnology && solutionTyped(classification, x, y, ...(isMatrix3 ? [z] : []));
   const undoHistory = useMathUndoHistory({ label: 'Undo the last matrix-system edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
 
   const matrixRows = isMatrix3 ? (matrix3x4Rows(matrix) || []) : [
@@ -737,10 +750,11 @@ function MatrixMode({ questionData, onAction }) {
   useReportToolWork(work);
 
   const check = () => {
-    // A matrix response with no classification, or (3×3) without the RREF
-    // technology, is not an answer: the shared grader marks it unfinished and
-    // My Math Path's contract refuses it, so neither is sent.
-    if (!classified || (isMatrix3 && !technologyUsed)) return;
+    // A matrix response with no classification, with "exactly one" but a
+    // coordinate left blank, or (3×3) without the RREF technology, is not an
+    // answer: the shared grader marks it unfinished and My Math Path's
+    // contract refuses it, so none is sent.
+    if (!ready) return;
     const result = gradeToolCheck(systemsWorkspaceGrader, questionData, work);
     submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode:isMatrix3?'matrix3':'matrix', parts: result.parts });
   };
@@ -764,7 +778,7 @@ function MatrixMode({ questionData, onAction }) {
 
   const showRref = isMatrix3 && (technologyUsed || revealAnswers);
 
-  return <EnlargeableFigure label="Matrix system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, equationInput: { label: isMatrix3 ? 'Three equations and RREF' : 'Both equations and augmented matrix' }, numericControls: { label: 'Row reduction and solution controls', studentState: true }, instruction: { text: isMatrix3 ? 'Compute and interpret the RREF.' : 'Classify and solve the augmented system.' }, primaryActions: [{ id: 'check-matrix', label: checkMatrixLabel, onAction: check, disabled: !classified || (isMatrix3 && !technologyUsed) }] }}><ToolSplit>
+  return <EnlargeableFigure label="Matrix system workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, equationInput: { label: isMatrix3 ? 'Three equations and RREF' : 'Both equations and augmented matrix' }, numericControls: { label: 'Row reduction and solution controls', studentState: true }, instruction: { text: isMatrix3 ? 'Compute and interpret the RREF.' : 'Classify and solve the augmented system.' }, primaryActions: [{ id: 'check-matrix', label: checkMatrixLabel, onAction: check, disabled: !ready }] }}><ToolSplit>
     <Panel title={isMatrix3 ? "3×3 augmented matrix" : "Augmented matrix"}>
       <div style={{
         display:'grid',
@@ -841,12 +855,12 @@ function MatrixMode({ questionData, onAction }) {
       <button
         type="button"
         onClick={check}
-        disabled={!classified || (isMatrix3 && !technologyUsed)}
-        style={{...actionStyle,opacity:!classified || (isMatrix3&&!technologyUsed)?0.5:1}}
+        disabled={!ready}
+        style={{...actionStyle,opacity:ready?1:0.5}}
       >
-        {isMatrix3 && !technologyUsed ? 'Use RREF technology first' : checkMatrixLabel}
+        {needsTechnology ? 'Use RREF technology first' : checkMatrixLabel}
       </button>
-      {!classified && !(isMatrix3 && !technologyUsed) ? <p style={{margin:'8px 0 0',color:'var(--mm-text-muted)',fontSize:'calc(13 * var(--mm-px))'}}>Choose how many solutions the system has first.</p> : null}
+      {!ready && !needsTechnology ? <p style={{margin:'8px 0 0',color:'var(--mm-text-muted)',fontSize:'calc(13 * var(--mm-px))'}}>{classified ? `Type ${isMatrix3 ? 'x, y and z' : 'x and y'} for the solution.` : 'Choose how many solutions the system has first.'}</p> : null}
       {feedback?<div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect} message={message()}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill></div>:null}
       <HintPanel
         hints={isMatrix3 ? [
@@ -885,17 +899,25 @@ const MODE_TASKS = {
   spatial: 'Explore the three planes for this system: rotate the model, show or hide each plane, and see how they relate.',
 };
 
+// THE STEPS SAY WHAT TO DO, NOT HOW TO DECIDE (TL21, owner decision). They
+// are free — folded under "How to do this", recorded nowhere — so a step that
+// names the way to make the decision the item measures hands over the
+// strategy rung of the recorded hints. "Compare the two slopes to decide how
+// many solutions there can be" (linear) and "Work out the determinant to
+// decide the number of solutions" (matrix) did exactly that; they now ask for
+// the decision, and the method stays in the hints, where using it is recorded.
+// The other steps are process (rewrite the rows, read the crossing, check it).
 const MODE_STEPS = {
-  linear: ['Compare the two slopes to decide how many solutions there can be.', 'If the lines cross, read the crossing point off the graph.', 'Check your point by substituting it into both equations.'],
+  linear: ['Decide how many solutions the system has: exactly one, none, or infinitely many.', 'If the lines cross, read the crossing point off the graph.', 'Check your point by substituting it into both equations.'],
   // The process only: which points lie on each line, and what the two lines
   // show, are the decisions being assessed.
-  linearConstruct: ['Use each equation to find two points on its line, and type them or tap them on the graph.', 'Look at your two lines: decide how many solutions the system has.', 'If they cross, read the crossing point and enter it, then check your graph.'],
+  linearConstruct: [`Use each equation to find two points on its line, and type them or plot them on the graph (click or tap it, or ${PLANE_KEYS}).`, 'Look at your two lines: decide how many solutions the system has.', 'If they cross, read the crossing point and enter it, then check your graph.'],
   inequalities: ['Substitute the purple point into every inequality.', 'Pick your own point from well inside the green overlap.', 'Enter both answers, then check.'],
   // The process only. Which style a symbol needs and which side to shade are
   // the decisions being assessed; they stay in the recorded hints.
-  inequalitiesConstruct: ['Find two points on each boundary line, and type them or tap them on the graph.', 'Decide whether each boundary is solid or dashed.', 'Decide which side of each boundary to shade, then check your graph.'],
+  inequalitiesConstruct: [`Find two points on each boundary line, and type them or plot them on the graph (click or tap it, or ${PLANE_KEYS}).`, 'Decide whether each boundary is solid or dashed.', 'Decide which side of each boundary to shade, then check your graph.'],
   linearQuadratic: ['Count how many times the two graphs actually meet.', 'Set the expressions equal and solve for each x.', 'Substitute each x back to get its y.'],
-  matrix: ['Rewrite each row as an equation.', 'Work out the determinant to decide the number of solutions.', 'Solve for x and y if there is exactly one.'],
+  matrix: ['Rewrite each row as an equation.', 'Decide how many solutions the system has: exactly one, none, or infinitely many.', 'Solve for x and y if there is exactly one.'],
   matrix3: ['Read the 3×4 augmented matrix.', 'Use the matrix-technology RREF command.', 'Interpret the reduced rows to classify the system and read x, y, and z.'],
   algebraic: ['Choose (or use the assigned) method and decide which variable to work with first.', 'Solve each one-variable equation with the algebra solver, then substitute back.', 'State the ordered pair and verify it in both original equations.'],
   algebraic3: ['Choose substitution or elimination, then choose your first move — nothing is suggested for you.', 'Reduce the system to a 2×2, then solve it.', 'Work back to the third value and verify all three in every original equation.'],

@@ -105,6 +105,17 @@
   contain: inline-size;
   overflow-x: auto;
   padding-bottom: 4px;
+  /* A SOFT EDGE ON THE SIDE THAT HAS MORE (PH06, finding D-50). A table that
+     does not fit — at 200% text — scrolls inside its box, and the remainder
+     box at its far end was off screen with nothing to say so. The two
+     `local` layers are covers that scroll with the content and hide the
+     shadow once the edge is reached; the two `scroll` layers are the shadows,
+     fixed to the box. With nothing to scroll to, neither shows. */
+  background:
+    linear-gradient(to right, var(--mm-surface), transparent) left center / 20px 100% no-repeat local,
+    linear-gradient(to left, var(--mm-surface), transparent) right center / 20px 100% no-repeat local,
+    linear-gradient(to right, color-mix(in srgb, var(--mm-text-strong) 28%, transparent), transparent) left center / 10px 100% no-repeat scroll,
+    linear-gradient(to left, color-mix(in srgb, var(--mm-text-strong) 28%, transparent), transparent) right center / 10px 100% no-repeat scroll;
 }
 
 .mm-long-division {
@@ -120,6 +131,17 @@
   padding: 2px 6px;
   text-align: right;
   white-space: nowrap;
+}
+
+/* NO CELL IS SQUEEZED BELOW ITS MATH (PH06, finding D-51).
+   A phone's question container gives every element `min-width: 0`
+   (MathToolMobileLayout.css), which let the bracket's `auto` tracks shrink
+   under a divisor like y² + y − 5: its 75px of math sat in a 42-58px cell and
+   drew over the dividend beside it. Grid items keep their content-based
+   minimum here, so a division wider than its box scrolls inside the box
+   (above) and every term stays whole and in its column. */
+.mm-long-division-scroll .mm-long-division > * {
+  min-width: auto;
 }
 
 .mm-ld-quotient {
@@ -223,6 +245,7 @@
 
 @media (max-width: 560px) {
   .mm-long-division {
+    --mm-ld-column: 2.3em;
     font-size: calc(16 * var(--mm-px));
   }
 
@@ -230,8 +253,18 @@
     padding: 2px 3px;
   }
 
+  /* THE SYNTHETIC TABLE FITS ITS BOX, AND THE REMAINDER IS ON SCREEN (PH06,
+     finding D-50). The first column was `auto`, which took the room of the
+     widest box it could (90 to 136px of a 322px box), and every other column
+     held at 2.9em: five coefficients scrolled sideways inside the box from a
+     344px phone down, with the remainder, the last column, off the right edge.
+     Every column now shares the box equally, each at least 2.2em; the boxes
+     fill their column down to 35px (the table typed in at 320px is 38px wide
+     per box, 42px at 344px). A table that still does not fit — 200% text —
+     scrolls inside its box, as before. */
   .mm-synthetic {
-    --mm-synthetic-column: 2.9em;
+    --mm-synthetic-column: 2.2em;
+    --mm-synthetic-r-width: 1fr;
   }
 
   .mm-synthetic-r,
@@ -242,7 +275,7 @@
   }
 
   .mm-synthetic-input {
-    min-width: 2.6em;
+    min-width: min(2.6em, 100%);
     padding: 8px 2px;
     font-size: calc(16 * var(--mm-px));
   }

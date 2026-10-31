@@ -48,11 +48,12 @@
 //            requirement the whole slice exists for, and it is the one thing a
 //            payload test cannot see.
 //   COVER    when the question opens, nothing pinned sits on its top edge.
+//   ROOM     a plane the student marks is wholly on screen when its step
+//            opens: under the pinned task card and above the action bar there
+//            is room for all of it. A 1366×640 Chromebook showed 252px of a
+//            400px plane, its x-axis under the bar, until the plane was fitted
+//            to the measured chrome (PH11, A2-54).
 //   ERRORS   no uncaught page error.
-//
-// Noted, not failed: how much of a marking plane is on screen when its step
-// opens. The plane honours its cap, but under the pinned task card and above
-// the action bar a 1366×640 Chromebook shows 254px of its 400px.
 //
 // Exit code 1 on any finding. `--write` records them into
 // tests/platform/fixtures/stagedQuestionFindings.json, which
@@ -142,7 +143,6 @@ const PLANE_KINDS = new Set(['coordinatePlot', 'graphFeatureSelect']);
 const controlKind = (kind) => (PLANE_KINDS.has(kind) ? 'plane' : kind === 'classification' ? 'choice' : 'field');
 
 const findings = [];
-const notes = [];
 const launch = { args: ['--no-sandbox'] };
 if (process.env.CHROMIUM_PATH) launch.executablePath = process.env.CHROMIUM_PATH;
 const browser = await chromium.launch(launch);
@@ -324,11 +324,11 @@ for (const device of DEVICES) {
       note(`the plane is ${measured.planeHeight}px tall, over its ${measured.capHeight}px cap`);
     }
     if (MUST_OFFER_ZOOM.has(stage.id) && !measured.zoomControls) note('a plane the student marks, with no zoom buttons');
-    // Reported, not failed: how much of a marking plane is on screen when the
-    // step opens. Below the pinned task card and above the action bar, a 640px
-    // Chromebook shows 254 of a 400px plane (its x-axis below the fold).
+    // The whole plane is on screen when the step opens. Below the pinned task
+    // card and above the action bar, a 640px Chromebook showed 254 of a 400px
+    // plane (its x-axis below the fold) until it was fitted to the chrome (PH11).
     if (index > 0 && PLANE_KINDS.has(stage.kind) && measured.controlBox.seen < measured.controlBox.height - 2) {
-      notes.push(`[${device.id}] ${stage.id}: ${measured.controlBox.seen} of the plane's ${measured.controlBox.height}px on screen on arriving`);
+      note(`only ${measured.controlBox.seen} of the plane's ${measured.controlBox.height}px is on screen on arriving`);
     }
     if (MUST_NOT_LEAK.has(stage.id) && measured.svgPairs.length) note(`plane printed coordinates: ${measured.svgPairs.join(' ')}`);
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${device.id}-${String(index + 1).padStart(2, '0')}-${stage.id}.png`) });
@@ -351,10 +351,6 @@ for (const device of DEVICES) {
 
 await browser.close();
 
-if (notes.length) {
-  console.log(`Plane not wholly on screen on arriving (noted, not failed): ${notes.length}`);
-  notes.forEach((line) => console.log(`  ${line}`));
-}
 console.log(findings.length ? `FINDINGS (${findings.length}):` : 'No findings.');
 findings.forEach((f) => console.log(`  [${f.device}] ${f.stage}: ${f.issue}`));
 if (WRITE) {

@@ -24,6 +24,24 @@
  * Nothing here is 3-specific. The 3×3 workspace is the first caller; a 4×4
  * system would run one more round of the same state.
  *
+ * A DEPENDENT OR INCONSISTENT SYSTEM (TL11). The round above ends in a unique
+ * solution. When the system is not unique it ends earlier, in a statement with
+ * no variable, by one of two roads, and both reach the SAME outcome the
+ * elimination workflow reaches ({ type, statement }, interpreted by
+ * algebraicOutcomeModel.mjs and graded by gradeInterpretation):
+ *
+ *   - a substitution cancels every variable (2(3 − y − z) + 2y + 2z = 6). Step
+ *     Algebra cannot finish such an equation, so the student simplifies each
+ *     side that is not already a number and the statement THEY wrote is the
+ *     result (degenerateSubstitution.mjs): `targetStatementSides`,
+ *     `checkTargetStatement`, `substitutionOutcome`;
+ *   - the reduced 2×2 is itself dependent or inconsistent, and the embedded
+ *     2×2 workflow earns the statement (the screen reads it from there).
+ *
+ * The round is an equivalence: the original equations and "the isolated
+ * variable, plus the reduced equations" have the same solutions, so the
+ * reduced system's outcome IS the original system's.
+ *
  * Every transition is a pure function `(state, system, ...) -> { state, feedback }`.
  * `feedback` is transient interaction text for the student (a neutral
  * rejection), never mathematics, and never persisted.
@@ -44,6 +62,7 @@ import {
   substituteIntoEquation,
   variableIsIsolated,
 } from './algebraicSystemsEngine.mjs';
+import { checkSubstitutedStatement, substitutedStatementSides } from './degenerateSubstitution.mjs';
 
 export const REDUCTION_STATE_VERSION = 1;
 
@@ -202,7 +221,9 @@ export const changeSubstitutionToken = (state) => {
 
 /* --------------------------------------------------------------- reduce */
 
-export const targetIsReduced = (target) => Boolean(target?.standardText);
+// Reduced: a standard form in the remaining variables, or — when every variable
+// cancelled — the statement the student wrote and had checked (TL11).
+export const targetIsReduced = (target) => Boolean(target?.standardText || target?.statement);
 
 /**
  * Drop the token on a variable of a target equation. The student chooses the
@@ -315,6 +336,93 @@ export const recordTargetStandardForm = (state, system, targetId, standardText) 
   return result(next);
 };
 
+/* ----------------------------------------- a substitution that leaves no variable */
+
+/**
+ * The two sides of a target equation in which every variable cancelled (the
+ * substitution of 3 − y − z into 2x + 2y + 2z = 6 is 2(3 − y − z) + 2y + 2z =
+ * 6), as degenerateSubstitution.mjs reads them; null while a variable
+ * survives, which is the ordinary case Step Algebra owns. Also reads a carried
+ * equation that never had a variable.
+ */
+export const targetStatementSides = (state, system, targetId) => {
+  const target = state.targets?.[targetId];
+  if (!target || typeof target.rawText !== 'string') return null;
+  return substitutedStatementSides(target.rawText, system.variables);
+};
+
+const statementEntries = (target) => ({
+  left: typeof target?.statementWork?.left === 'string' ? target.statementWork.left : '',
+  right: typeof target?.statementWork?.right === 'string' ? target.statementWork.right : '',
+});
+
+/** One side typed by the student. Editing re-opens the check; nothing is judged until they press it. */
+export const setTargetStatementAnswer = (state, targetId, side, value) => {
+  const target = state.targets?.[targetId];
+  if (!target || !['left', 'right'].includes(side) || target.statement) return result(state);
+  const next = clone(state);
+  next.targets[targetId].statementWork = { ...statementEntries(target), [side]: String(value ?? ''), checked: false };
+  return result(next);
+};
+
+/**
+ * The student's simplified sides, judged against the true value of each side
+ * (the sides they typed, never one computed for them). Only a statement whose
+ * sides are both right is recorded, as the student's own numbers ("6 = 6"),
+ * with what it is — an identity or a contradiction — and the equation counts
+ * as reduced. A wrong side records nothing but the fact that they checked;
+ * which side to recheck is read from `targetStatementResult`, never stored.
+ */
+export const checkTargetStatement = (state, system, targetId) => {
+  const target = state.targets?.[targetId];
+  const sides = targetStatementSides(state, system, targetId);
+  if (!target || !sides || target.statement) return result(state);
+  const entries = statementEntries(target);
+  const checked = checkSubstitutedStatement(sides, entries);
+  const next = clone(state);
+  next.targets[targetId].statementWork = { ...entries, checked: true };
+  if (checked.valid) {
+    next.targets[targetId].statement = { text: checked.statement, type: checked.type };
+    if (next.activeTargetId === targetId) {
+      const open = reductionTargets(next, system).filter((equation) => next.targets[equation.id] && !targetIsReduced(next.targets[equation.id]));
+      next.activeTargetId = open.length === 1 ? open[0].id : null;
+    }
+  }
+  return result(next);
+};
+
+/** What the student's checked entries say about each side, for the message under the box. Null before they press Check. */
+export const targetStatementResult = (state, system, targetId) => {
+  const target = state.targets?.[targetId];
+  const sides = targetStatementSides(state, system, targetId);
+  if (!target?.statementWork?.checked || !sides) return null;
+  return checkSubstitutedStatement(sides, statementEntries(target));
+};
+
+/**
+ * The terminal branch the student's own reduction has opened, or null: the
+ * same reading eliminationOutcome gives its checked rows.
+ *
+ *   - A CONTRADICTION in either reduced equation decides it: no solution.
+ *   - An IDENTITY decides nothing alone — the other equation could still
+ *     contradict it, or leave the system pinned — so it counts once both
+ *     equations are reduced: infinitely many solutions.
+ *
+ * Only statements the student wrote and had checked count (`statement` is set
+ * by checkTargetStatement alone), so this never classifies a system the
+ * student has not worked through.
+ */
+export const substitutionOutcome = (state, system) => {
+  const statements = reductionTargets(state, system)
+    .map((equation) => state.targets?.[equation.id]?.statement)
+    .filter(Boolean);
+  const contradiction = statements.find(({ type }) => type === 'none');
+  if (contradiction) return { type: 'none', statement: contradiction.text };
+  const identity = statements.find(({ type }) => type === 'infinite');
+  if (identity && allTargetsReduced(state, system)) return { type: 'infinite', statement: identity.text };
+  return null;
+};
+
 export const allTargetsReduced = (state, system) => {
   const targets = reductionTargets(state, system);
   return targets.length > 0 && targets.every((equation) => targetIsReduced(state.targets?.[equation.id]));
@@ -327,6 +435,9 @@ export const allTargetsReduced = (state, system) => {
  */
 export const reducedSystem = (state, system) => {
   if (!allTargetsReduced(state, system)) return null;
+  // An equation that reduced to a statement has no variable to be a row of a
+  // smaller system: the round ended in an outcome instead (substitutionOutcome).
+  if (reductionTargets(state, system).some((equation) => state.targets[equation.id]?.statement)) return null;
   return {
     variables: remainingVariables(state, system),
     equations: reductionTargets(state, system).map((equation, index) => ({
@@ -337,6 +448,38 @@ export const reducedSystem = (state, system) => {
       mode: state.targets[equation.id].mode,
     })),
   };
+};
+
+/**
+ * A reduced 2×2 whose rows each hold ONE variable, a different one (y = 4 and
+ * z = 3, after carrying over or simplifying two such equations): there is
+ * nothing to substitute or eliminate between them, so the 2×2 workflow cannot
+ * run on it, and a student who isolated an equation that leaves this was
+ * stranded. This is eliminationSeparatedReduction's reading of the same rows
+ * (eliminationReduction.mjs), for the substitution round (TL11 re-examined
+ * "3×3 substitution with missing variables", C2-136).
+ *
+ * When both rows already read `variable = value` they ARE the 2×2's solution —
+ * nothing is computed for the student — and the work goes straight to
+ * back-substitution. Otherwise (2y = 4) `solution` is null: the screen says so
+ * and points the student back to choose a different equation or variable. Null
+ * when the rows are not separated, and for a round that ended in a statement.
+ */
+export const substitutionSeparatedReduction = (state, system) => {
+  const reduced = reducedSystem(state, system);
+  if (!reduced) return null;
+  const solution = {};
+  let solved = true;
+  for (const equation of reduced.equations) {
+    const form = linearEquationForm(equation.text, reduced.variables);
+    if (!form) return null;
+    const present = reduced.variables.filter((name) => Math.abs(form.coefficients[name] || 0) > 1e-7);
+    if (present.length !== 1 || Object.prototype.hasOwnProperty.call(solution, present[0])) return null;
+    const coefficient = form.coefficients[present[0]];
+    if (Math.abs(coefficient - 1) > 1e-7) solved = false;
+    solution[present[0]] = form.constant / coefficient;
+  }
+  return { solution: solved ? solution : null };
 };
 
 /* ------------------------------------------------------ back-substitute */
@@ -499,6 +642,9 @@ export const reductionPhase = (state, system, { reducedSolution = null, requireV
   if (!state.source) return 'choose-source';
   if (!isolatedExpression(state, system)) return 'isolate';
   if (!substitutionToken(state) && !anyTargetSubstituted(state)) return 'prepare-token';
+  // The student's statement settled the system: nothing is left to solve, only
+  // to interpret (the screen shows the same for an outcome the reduced 2×2 earned).
+  if (substitutionOutcome(state, system)) return 'outcome';
   if (!allTargetsReduced(state, system)) return 'reduce';
   if (!reducedSolution) return 'subsystem';
   if (!state.back?.solved) return 'back-substitute';
@@ -588,11 +734,24 @@ export const repairReductionState = (stored, system) => {
       && linearFormsEquivalent(rawForm, standardForm, system.variables)
       && equationIsStandardIn(target.standardText, remaining);
     state.targets[equation.id] = { mode: target.mode, rawText: target.rawText, standardText: standardValid ? target.standardText : null };
+    // A statement is kept only for an equation in which every variable still
+    // cancels, and only as far as the sides the student TYPED still check: the
+    // recorded statement and its kind are re-derived, never trusted.
+    const statementSides = substitutedStatementSides(target.rawText, system.variables);
+    if (statementSides && target.statementWork && typeof target.statementWork === 'object') {
+      const entries = statementEntries(target);
+      const checked = Boolean(target.statementWork.checked);
+      state.targets[equation.id].statementWork = { ...entries, checked };
+      const judged = checked ? checkSubstitutedStatement(statementSides, entries) : null;
+      if (judged?.valid) state.targets[equation.id].statement = { text: judged.statement, type: judged.type };
+    }
   });
   const active = stored.activeTargetId;
   state.activeTargetId = active && state.targets[active] && !targetIsReduced(state.targets[active]) ? active : null;
 
-  if (allTargetsReduced(state, system)) {
+  // Back-substitution and verification belong to a reduced system that was
+  // solved; a round that ended in a statement has neither.
+  if (reducedSystem(state, system)) {
     const destinations = backSubstitutionDestinations(state, system);
     const destination = destinations.find((entry) => entry.id === stored.back?.destinationId);
     if (destination && equationMentionsVariable(destination.text, source.variable)) {

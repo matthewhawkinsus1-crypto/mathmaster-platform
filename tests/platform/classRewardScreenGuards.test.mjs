@@ -88,6 +88,11 @@ test('extended time never reaches the public player row, however the row is buil
   // The public row is an inline literal, so nothing built elsewhere can carry a field into it…
   const row = region(join, 'transaction.set(publicPlayerRef, {', '}, { merge: true });', 'the public row');
   assert.doesNotMatch(row, /timeMultiplier/);
+  // …nor Graph the Line's slope helper from the plan, which goes to the
+  // private record only (and not even to the student's own invite).
+  assert.doesNotMatch(row, /SlopeHelper/);
+  assert.doesNotMatch(region(join, 'transaction.set(inviteRef, {', '}, { merge: true });', 'the invite'), /SlopeHelper/);
+  assert.match(region(join, 'const joinedPlayer = {', '};', 'the private record'), /lineSlopeHelper: accommodations\.planTurnsOnSlopeHelper\(supportProfile\)/);
   // Its only spread is the seat; no other object can be spread into it.
   assert.equal((row.match(/\.\.\./g) || []).length, (row.match(/\.\.\.\(Number\.isInteger\(player\.slot\) \? \{ slot: player\.slot \} : \{\}\)/g) || []).length);
   // …and the only public-row write in the join is that one.

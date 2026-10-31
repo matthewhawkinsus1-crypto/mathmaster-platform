@@ -14,7 +14,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bindMathFieldName, nameMathFieldSink } from '../../src/platform/math/mathFieldName.js';
+import { bindMathFieldName, mathFieldAccessibleName, nameMathFieldSink } from '../../src/platform/math/mathFieldName.js';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 
 const fakeElement = () => {
@@ -121,11 +121,26 @@ test('naming never loops: writing the same name again is not a mutation', () => 
 
 const MATH_INPUT = executableSource(componentSource('src/MathInput.jsx'));
 
+// AX01: finished work is read-only, no longer inert, and a screen reader
+// reviewing it hears the box. MathLive hides its typeset math, so a closed
+// question's box says the answer in its name, in MathDisplay's words.
+test('a closed question\'s math box is named with the answer it holds; an open one by its label', () => {
+  assert.equal(mathFieldAccessibleName({ name: 'Slope', value: '\\frac{2}{3}' }), 'Slope', 'open: the label only');
+  assert.equal(mathFieldAccessibleName({ name: 'Slope', value: '\\frac{2}{3}', closed: true }), 'Slope: 2 over 3');
+  assert.equal(mathFieldAccessibleName({ name: 'Equation', value: 'y=-\\frac{2}{3}x+4', closed: true }), 'Equation: y equals negative 2 over 3 x plus 4');
+  assert.equal(mathFieldAccessibleName({ name: 'Slope', value: '', closed: true }), 'Slope: nothing entered');
+  assert.equal(mathFieldAccessibleName({ name: '', value: '7', closed: true }), 'Math answer: 7', 'the fallback name still leads');
+  assert.equal(mathFieldAccessibleName({ name: '  ', value: '7' }), 'Math answer');
+});
+
 test('MathInput names its sink with the same name as the field host', () => {
-  assert.match(MATH_INPUT, /^import \{ useMathFieldName \} from '\.\/platform\/math\/mathFieldName\.js';$/m);
+  assert.match(MATH_INPUT, /^import \{ mathFieldAccessibleName, useMathFieldName \} from '\.\/platform\/math\/mathFieldName\.js';$/m);
   const body = region(MATH_INPUT, 'export default function MathInput(', '\n  return (', 'MathInput hooks');
-  const name = body.match(/const (\w+) = ariaLabel \|\| placeholder \|\| 'Math answer';/);
+  // The label (ariaLabel, else the placeholder), with the answer once the
+  // question is closed (the lifecycle's terminal), for host and sink alike.
+  const name = body.match(/const (\w+) = mathFieldAccessibleName\(\{ name: ariaLabel \|\| placeholder, value, closed: questionTerminal \}\);/);
   assert.ok(name, 'one name for the field');
+  assert.match(body, /const \{ terminal: questionTerminal \} = useQuestionLifecycle\(\);/);
   assert.match(body, new RegExp(`useMathFieldName\\(mfRef, ${name[1]}\\);`), 'the sink of THIS field gets it');
   const host = region(MATH_INPUT, '<math-field', '/>', 'the math-field host');
   assert.match(host, new RegExp(`aria-label=\\{${name[1]}\\}`), 'the host keeps the same name');
@@ -155,6 +170,8 @@ test('the fraction and literal-equation boxes have their own names', async () =>
   const read = (file) => executableSource(readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8'));
   const box = (source) => source.match(/<MathInput\b[\s\S]*?\/>/)?.[0] || '';
   assert.match(box(read('src/FractionGrader.jsx')), /\bariaLabel="Fraction answer"/);
-  // The visible label is "x =" (the variable solved for): the name says the same.
-  assert.match(box(read('src/LiteralGrader.jsx')), /\bariaLabel=\{`\$\{solveFor\} =`\}/);
+  // The visible label is "x =" (the variable solved for): the name says the
+  // same, and "Your answer" where the question names no variable
+  // (literalWithoutSolveFor.test.mjs renders both).
+  assert.match(box(read('src/LiteralGrader.jsx')), /\bariaLabel=\{variable \? `\$\{variable\} =` : 'Your answer'\}/);
 });

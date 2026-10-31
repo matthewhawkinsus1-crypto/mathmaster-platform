@@ -20,7 +20,7 @@ import {
   interceptStepWork,
   interceptSubEquationQuestion,
 } from '../functions/shared/serverGrading/stepAlgebraStepVerification.mjs';
-import { InteractiveStandardEquation, ZeroVariableChoice } from './tools/stepAlgebra2/linearInterceptsConceptualUi.jsx';
+import { InteractiveStandardEquation, ZERO_TOKEN_DIRECTIONS, ZeroVariableChoice } from './tools/stepAlgebra2/linearInterceptsConceptualUi.jsx';
 import {
   INTERCEPT_FEEDBACK_TIMINGS,
   conceptualRedirect,
@@ -432,7 +432,7 @@ export default function LinearInterceptsOrchestrator({
           0
         </button>
         <span style={{ color: 'var(--mm-text-muted)', lineHeight: 1.45, flex: '1 1 220px' }}>
-          Drag the 0 onto x or y. On a touch screen or keyboard, tap/select the 0, then tap/select the variable.
+          {ZERO_TOKEN_DIRECTIONS}
         </span>
       </div>
 
@@ -526,7 +526,6 @@ export default function LinearInterceptsOrchestrator({
     <EnlargeableFigure
       label="Linear intercepts, solved with Step Algebra"
       taskText={targetPrompt(kind)}
-      enlargeLabel="Enlarge intercept workspace"
       style={{ width: '100%' }}
       capabilities={{
         equationInput: { label: 'Zero substitution and intercept point', studentState: true },

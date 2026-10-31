@@ -16,7 +16,7 @@
 //             board: the outcome is inside the
 //             tool, on screen, close below Check, in exactly one live region,
 //             and the count goes down attempt by attempt; the final attempt
-//             still gets QuestionEngine's closing box (the tool is inert then).
+//             still gets QuestionEngine's closing box (the tool is read-only then).
 //   revisited a question with an earlier attempt on its record keeps the
 //             outcome on screen (it used to be cleared the instant it arrived).
 //   server    a server-graded tool shows no verdict of its own, so the engine's
@@ -31,6 +31,8 @@
 //             and which point a third plot replaced (since pass 3, TOOL-11, the
 //             nearest one — the line is no longer restarted); Check's coaching
 //             ("…other one is not…") is said with the outcome.
+//   keypad    (TL23) a typed question's keypad offers π, e and logₐ only where
+//             the item's math uses them, on practice; on a DOL every key stays.
 // Exits non-zero on any failure.
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5199';
@@ -58,7 +60,7 @@ const open = async (device, role, tool, prior = 0) => {
   const page = await context.newPage();
   page.on('pageerror', (error) => failures.push(`${device}/${role}/${tool}: page error ${error.message}`));
   await page.goto(`${ORIGIN}/tests/browser/toolAttemptOutcome.html?role=${role}&tool=${tool}&prior=${prior}&run=${run}-${device}-${role}-${tool}-${prior}`, { waitUntil: 'networkidle' });
-  await page.locator(tool === 'literal' ? '.mathmaster-question-tool-workspace' : '.mathmaster-tool-shell').first().waitFor({ timeout: 60000 });
+  await page.locator(tool.startsWith('literal') ? '.mathmaster-question-tool-workspace' : '.mathmaster-tool-shell').first().waitFor({ timeout: 60000 });
   await page.waitForTimeout(600);
   return { context, page };
 };
@@ -252,7 +254,7 @@ for (const device of ['chromebook', 'phone']) {
 // ------------------------------------------------------------ a right answer
 {
   // The sample is f(x) = (x − 2)² − 1 restricted to its right branch, at x = 5:
-  // f⁻¹(8) = 5. A correct attempt locks the tool (inert), so the engine's
+  // f⁻¹(8) = 5. A correct attempt locks the tool (read-only), so the engine's
   // "Correct!" box announces it, exactly as before.
   const { context, page } = await open('chromebook', 'practice', 'inverse');
   await page.evaluate(() => {
@@ -322,6 +324,32 @@ for (const role of ['dol', 'quiz', 'test']) {
   check(state.count === 0 && !/Not quite|attempts? remaining|Correct!/.test(state.pageText),
     'chromebook dol board: no attempt outcome, in the board or below it', state.count ? state.text : '');
   await context.close();
+}
+
+// ------------------------------------------------- π, e and logₐ (TL23)
+// A keypad offers π, e and logₐ only where the item's math uses them — on
+// practice. An assessment item keeps every key: its keypad says nothing about
+// the form of the answer.
+const keypadKeys = async (page) => {
+  await page.locator('.mathmaster-question-tool-workspace math-field').first().click();
+  await page.waitForTimeout(250);
+  const keypad = page.locator('[role="toolbar"][aria-label="Math tools"]').first();
+  if (!(await keypad.count())) {
+    await page.locator('.mathmaster-math-tools-toggle').first().click();
+    await keypad.waitFor({ timeout: 5000 });
+  }
+  return keypad.locator('button').evaluateAll((buttons) => buttons.map((button) => button.textContent.trim()));
+};
+const CONSTANT_KEYS = ['π', 'e', 'logₐ'];
+for (const device of ['chromebook', 'phone']) {
+  for (const [role, tool, expected] of [['practice', 'literal', []], ['practice', 'literalPi', ['π']], ['dol', 'literal', CONSTANT_KEYS]]) {
+    const { context, page } = await open(device, role, tool);
+    const keys = await keypadKeys(page);
+    const shown = CONSTANT_KEYS.filter((key) => keys.includes(key));
+    check(JSON.stringify(shown) === JSON.stringify(expected) && keys.includes('√') && keys.includes('a⁄b'),
+      `${device} ${role} ${tool}: the keypad offers ${expected.length ? expected.join(', ') : 'none of π, e, logₐ'} (and keeps √ and a⁄b)`, keys.join(' '));
+    await context.close();
+  }
 }
 
 await browser.close();

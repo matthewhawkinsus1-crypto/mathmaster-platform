@@ -34,6 +34,15 @@
  * past the key points when the method is required (`method`), and boxes that
  * do not yet spell an equation (`form`).
  *
+ * EXTRA TIME AFTER THE BUZZER (liveChallengeAccommodations.mjs). In a Classic
+ * or Sprint round a student whose plan gives them extended time keeps working
+ * after the class's buzzer to finish their set. Those attempts follow every
+ * rule above — one item at a time, tries, `repeated` — against ALL the
+ * student's work, but they are recorded in their own map
+ * (`extraTimeReceipts`, marked `extraTime`, no points), never in
+ * `submissionReceipts`: the race was decided at the buzzer, and everything
+ * that ranks reads only the race's receipts.
+ *
  * Pure: Cloud Functions, the student device and tests.
  */
 
@@ -41,6 +50,7 @@ import { authoritativeReceiptTotal } from './liveChallenge.mjs';
 import {
   ATTEMPT_DECISION,
   COMPLETION_RULE,
+  EXTRA_TIME_RECEIPTS_FIELD,
   RECEIPT_KIND,
   isAttemptReceipt,
   planAttempt,
@@ -51,6 +61,7 @@ import {
 import { SCORE_ACCUMULATION } from './liveChallengeScoring.mjs';
 import { DIAGNOSIS_LABELS } from './lineGraphFeedback.mjs';
 import { checkChoiceAnswer, checkEquationAnswer, checkLineAnswer, normalizeEquationFields } from './lineGraphGrading.mjs';
+import { lineKey } from './lineGraphMath.mjs';
 import {
   LINE_ANSWER_STYLE,
   LINE_ATTEMPT_KIND,
@@ -96,7 +107,10 @@ const itemProgress = (receipts, roundIndex, questionIndex) => questionProgress({
 /**
  * Where a student stands in a round. `cursor` is the item they are on: the
  * first neither completed nor ended. `cursorMisses` is how many of its tries
- * are used — what a device restores after a refresh.
+ * are used, and `cursorLastMissKey` the answer of the last of them — what a
+ * device restores after a refresh, so the same wrong answer again is
+ * `repeated` there as it is here, not a final miss that shows the answer
+ * (LC10, Codex on #500). It is the student's own answer, never the key.
  */
 export const lineRoundState = ({ receipts = {}, roundIndex, poolSize } = {}) => {
   const round = integerOr(roundIndex, -1);
@@ -122,6 +136,7 @@ export const lineRoundState = ({ receipts = {}, roundIndex, poolSize } = {}) => 
     finished: cursor >= pool,
     cursorAttempts: open ? current.attempts : 0,
     cursorMisses: open ? current.incorrectAttempts : 0,
+    cursorLastMissKey: open && current.incorrectAttempts > 0 ? lastAnswerKey(receipts, round, cursor) : null,
     questionsCorrect: summary.questionsCorrect,
     ended: summary.questions.filter((question) => question.completed && !question.completedCorrectly).length,
     attempts: summary.attempts,
@@ -242,6 +257,13 @@ const lastAnswerKey = (receipts, roundIndex, questionIndex) => {
  * @param {number}   input.roundDurationMs
  * @param {object}   input.strategy          the room's scoring strategy
  * @param {number}   input.poolSize          the round's items (lineRoundQuestionCount)
+ * @param {boolean}  [input.extraTime]       the request arrived after the class's
+ *                                           window, inside the student's own
+ * @param {number}   [input.extraTimeFromMs] for a student with time after the
+ *                                           buzzer: the class's round length. An
+ *                                           attempt their device made after it is
+ *                                           extra time even if it arrives inside the
+ *                                           grace a classmate's last answer gets.
  */
 export const applyLineGraphAttempts = ({
   player = {},
@@ -255,10 +277,19 @@ export const applyLineGraphAttempts = ({
   roundDurationMs = 60_000,
   strategy,
   poolSize = 1,
+  extraTime = false,
+  extraTimeFromMs = null,
 } = {}) => {
   const round = integerOr(roundIndex, -1);
   const pool = clampPool(poolSize);
-  const receipts = { ...player.submissionReceipts };
+  // The race's receipts, the extra time's, and all of the student's work —
+  // which the item rules (where they are, tries, repeats) read.
+  const race = { ...player.submissionReceipts };
+  const extra = { ...player[EXTRA_TIME_RECEIPTS_FIELD] };
+  const receipts = { ...race, ...extra };
+  const buzzerMs = extraTimeFromMs === null || extraTimeFromMs === undefined ? null : finiteOr(extraTimeFromMs, null);
+  let afterBuzzer = extraTime === true;
+  let extraRecorded = 0;
   let sequence = Math.max(0, integerOr(player.attemptSequence, 0));
   let elapsedFloor = roundReceiptsOf(receipts, round)
     .reduce((latest, [, receipt]) => Math.max(latest, finiteOr(receipt.elapsedMs, 0)), 0);
@@ -356,15 +387,22 @@ export const applyLineGraphAttempts = ({
     const allowed = missesAllowed({ triesPerItem: config?.triesPerItem, answerStyle: question.answerStyle });
     const revealed = !isCorrect && !skip && missesSoFar + 1 >= allowed;
     const claimed = finiteOr(attempt.clientElapsedMs, ceiling);
+    // Made after the class's buzzer: the student's extra time, from here on
+    // in this batch (their attempts are in the order made).
+    if (buzzerMs !== null && claimed >= buzzerMs) afterBuzzer = true;
     // Server-observed bounds: never after arrival, never before the previous
     // attempt, never earlier than the claim window allows.
     const elapsedMs = Math.round(Math.min(ceiling, Math.max(elapsedFloor, ceiling - LINE_LIMITS.claimWindowMs, claimed)));
     elapsedFloor = elapsedMs;
-    const score = strategy?.scoreTargetAttempt
-      ? strategy.scoreTargetAttempt({ completesQuestion: isCorrect, isCorrect })
-      : { pointsAwarded: isCorrect ? 1 : 0 };
+    // Extra time earns nothing in the race: no points, and its receipt lives
+    // apart from the race's.
+    const score = afterBuzzer
+      ? { pointsAwarded: 0 }
+      : (strategy?.scoreTargetAttempt
+        ? strategy.scoreTargetAttempt({ completesQuestion: isCorrect, isCorrect })
+        : { pointsAwarded: isCorrect ? 1 : 0 });
     sequence += 1;
-    receipts[attempt.attemptId] = {
+    const receipt = {
       receiptKind: RECEIPT_KIND.TARGET,
       submissionId: attempt.attemptId,
       roundIndex: round,
@@ -377,6 +415,9 @@ export const applyLineGraphAttempts = ({
       // What was asked, for the teacher's report.
       tier: question.tier,
       reportTags: { form: question.form, itemType: question.itemType, variant: question.variant },
+      // Which line it asked (lineGraphMath.lineKey): the evidence counts a
+      // line met again only once (lineGraphEvidence.mjs).
+      itemKey: lineKey(question.line),
       attemptKind: attempt.kind,
       targetId,
       isCorrect,
@@ -392,8 +433,16 @@ export const applyLineGraphAttempts = ({
       sequence,
       arrivedAtMs: finiteOr(arrivedAtMs, 0),
       elapsedMs,
+      ...(afterBuzzer ? { extraTime: true } : {}),
       serverConfirmed: true,
     };
+    receipts[attempt.attemptId] = receipt;
+    if (afterBuzzer) {
+      extra[attempt.attemptId] = receipt;
+      extraRecorded += 1;
+    } else {
+      race[attempt.attemptId] = receipt;
+    }
     recorded += 1;
     roundRecorded += 1;
     matchRecorded += 1;
@@ -409,13 +458,23 @@ export const applyLineGraphAttempts = ({
   });
 
   return Object.freeze({
-    receipts,
+    // The race's receipts (with this batch's race attempts) and the extra
+    // time's: the two maps the private player record keeps.
+    receipts: race,
+    extraTimeReceipts: extra,
     verdicts: Object.freeze(verdicts),
     recorded,
+    // How many of `recorded` were made in extra time, after the buzzer.
+    extraTimeRecorded: extraRecorded,
     completed,
     attemptSequence: sequence,
+    // Where the student stands, from all their work: what their device resumes.
     state: lineRoundState({ receipts, roundIndex: round, poolSize: pool }),
-    totals: lineGraphPlayerTotals({ player, receipts, strategy }),
+    // Where they stand in the race, from the race's receipts only: what their
+    // public row (the race board, the host's early close) may show.
+    raceState: lineRoundState({ receipts: race, roundIndex: round, poolSize: pool }),
+    // The race's numbers.
+    totals: lineGraphPlayerTotals({ player, receipts: race, strategy }),
   });
 };
 
@@ -486,7 +545,11 @@ const mistakeRows = (counts) => Object.entries(counts || {})
  * The teacher's after-game breakdown, from the match result's standings
  * (each carries its questionSetSummary). Counts and percentages only, and
  * mistakes as the hints named them: a specific one only where the line could
- * have come from nothing else.
+ * have come from nothing else. It is every student's whole work: lines a
+ * student with extended time finished after the buzzer count here, and their
+ * row says how many (`itemsCompletedInExtraTime`) — the race's place and
+ * score beside it never counted them. The report is the room's teacher's
+ * alone.
  */
 export const buildLineGraphReport = (matchResult = {}) => {
   const standings = Array.isArray(matchResult.standings) ? matchResult.standings : [];
@@ -510,6 +573,7 @@ export const buildLineGraphReport = (matchResult = {}) => {
       rank: standing.rank ?? null,
       score: Number(standing.score) || 0,
       itemsCompleted: Number(summary.completed) || 0,
+      itemsCompletedInExtraTime: Number(summary.extraTimeCompleted) || 0,
       itemsEnded: Number(summary.skipped) || 0,
       attempts: Number(summary.attempts) || 0,
       accuracyPercent: percent(Number(summary.hits) || 0, Number(summary.attempts) || 0),

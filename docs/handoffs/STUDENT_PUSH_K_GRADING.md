@@ -311,6 +311,8 @@ The coordinator's usage stop (2026-10-10) ended new work. Everything below was f
   served runtime ids, but its expected value is not remapped (`functions/lib/mathPath.js`). This is job I's.
 - **D's handoff needs a correction.** `docs/handoffs/STUDENT_PUSH_D_PATH.md` says pre-#456 grades "could be re-graded
   from pathSubmissions". They cannot; that doc should point to the Path report.
+  **Done (MP03, 2026-10-25):** that doc now says they cannot be re-graded and points to
+  `scripts/report-path-choice-id-regrade.mjs`.
 - **Test wrapper.** `scripts/explain-test-failures.mjs` counts a failing `todo` as a failure, so this branch uses
   `skip`.
 

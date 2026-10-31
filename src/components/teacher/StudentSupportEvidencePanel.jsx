@@ -20,6 +20,7 @@ import Dialog from '../../ui/Dialog.jsx';
 import SupportQuickActions from './SupportQuickActions.jsx';
 import ServiceLogDialog from './ServiceLogDialog.jsx';
 import SupportProfileEditor, { SupportClassificationTag } from './SupportProfileEditor.jsx';
+import RetroactiveAccommodationReview from './RetroactiveAccommodationReview.jsx';
 import './teacherWorkspace.css';
 import './supportEvidence.css';
 
@@ -132,6 +133,7 @@ export default function StudentSupportEvidencePanel({
           <button type="button" className="tw-btn tw-btn--sm" onClick={() => setEditorOpen(true)}>{hasProfile ? 'Edit support profile' : 'Add support profile'}</button>
         </div>
       </div>
+      <RetroactiveAccommodationReview key={studentId} student={student} assignments={studentAssignments} onChanged={() => { setReloadKey((key) => key + 1); onSupportProfileSaved?.(); }} />
 
       {warnings.filter((warning) => warning.code !== 'unversioned').map((warning) => (
         <div key={warning.code} className="tw-notice" data-tone="warning">{warning.message}</div>
@@ -145,7 +147,7 @@ export default function StudentSupportEvidencePanel({
               : `Revision ${plan.revision} · effective ${plan.effectiveStart}${plan.effectiveEnd ? ` to ${plan.effectiveEnd}` : ''}`}
             {plan.inclusionStatus ? ' · inclusion' : ''}
           </div>
-          <div className="se-chips" aria-label="Accommodations in effect">
+          <div className="se-chips" role="group" aria-label="Accommodations in effect">
             {plan.accommodations.map((entry) => (
               <span key={entry.id} className="tw-pill" data-tone="primary">{supportShortLabel(entry.id)}{supportParamSuffix(entry)}</span>
             ))}
@@ -158,7 +160,7 @@ export default function StudentSupportEvidencePanel({
             {!plan.accommodations.length && !plan.inclusionStatus && <span className="tw-small tw-muted">No accommodations.</span>}
           </div>
           {plan.modifications.length > 0 && (
-            <div className="se-chips" aria-label="Modifications in effect">
+            <div className="se-chips" role="group" aria-label="Modifications in effect">
               {plan.modifications.map((entry) => <span key={entry.id} className="se-tag" data-kind="modification">MOD · {supportShortLabel(entry.id)}</span>)}
             </div>
           )}

@@ -110,6 +110,19 @@ test('teacher draft: a new item is valid once named; starters already added are 
   assert.match(draftProblem('c', [...catalog.items, { ...catalog.items[0], itemId: 'seat-2' }]), /two rewards called/);
 });
 
+// LC04. The editor shows a problem for exactly what Save would send. A draft
+// that carries a stray property (a UI flag, say) is not refused for it on a
+// screen where the teacher cannot see or remove it.
+test('teacher draft: a stray property is neither sent nor held against the item', () => {
+  const item = { ...emptyCatalogItem([]), label: 'Lunch with the teacher', uiOnlyFlag: true };
+  assert.equal(draftItemProblem(item), null);
+  assert.equal(draftProblem('c', [item]), null);
+  assert.deepEqual(Object.keys(catalogPayload([item])[0]).sort(), ['active', 'cost', 'description', 'itemId', 'label', 'weeklyLimitPerStudent']);
+  // A problem with a real field is still found on the item.
+  assert.equal(draftItemProblem({ ...item, label: 'Homework pass' }).field, 'label');
+  assert.equal(draftItemProblem({ ...item, cost: 5 }).field, 'cost');
+});
+
 test('teacher pending list: oldest first; a full name when the roster has one, else the stored label', () => {
   const sorted = sortPendingRequests([
     { requestDocId: 'new', status: 'pending', requestedAt: NOW },

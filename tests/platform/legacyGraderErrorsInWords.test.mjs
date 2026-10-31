@@ -80,6 +80,57 @@ test('GraphLine names its boxes and marks a wrong slope in words', async () => {
   });
 });
 
+// VH-13: the multi-answer grader drew each field's verdict as a border and
+// fill colour with no sign at the field for a screen reader or a colour-blind
+// student; the engine's "still to fix: …" line names the parts elsewhere. Each
+// field now carries the same mark, and its control is described by it and is
+// aria-invalid when wrong — a choice group, a plain box and a math field alike.
+test('MultiAnswerGrader marks each graded field in words and as invalid (VH-13)', async () => {
+  const { findAll, parseMarkup, readableText } = await import('./helpers/accessibleNames.mjs');
+  await withModules(['/src/MultiAnswerGrader.jsx'], async ([{ default: MultiAnswerGrader }]) => {
+    const question = {
+      type: 'multiAnswer',
+      questionId: 'vh13',
+      prompt: 'Answer each part.',
+      answerFields: [
+        { id: 'pick', label: 'Pick one', answer: 'yes', options: ['yes', 'no'] },
+        { id: 'word', label: 'Word', type: 'text', answer: 'cat' },
+        { id: 'value', label: 'Value', answer: '5' },
+        { id: 'other', label: 'Other value', answer: '7' },
+      ],
+    };
+    const controls = (root) => [
+      ...findAll(root, (node) => node.attrs.role === 'radiogroup'),
+      ...findAll(root, (node) => node.tag === 'input' && node.attrs.type === 'text'),
+      ...findAll(root, (node) => node.tag === 'math-field'),
+    ];
+    const markOf = (root, control) => {
+      const id = control.attrs['aria-describedby'];
+      const [mark] = id ? findAll(root, (node) => node.attrs.id === id) : [];
+      return mark ? { kind: mark.attrs['data-graded-entry-mark'], text: readableText(mark) } : null;
+    };
+
+    const before = parseMarkup(renderToStaticMarkup(React.createElement(MultiAnswerGrader, { question, onStateChange: noop })));
+    assert.equal(controls(before).length, 4, 'a choice group, a text box and two math fields');
+    assert.ok(controls(before).every((control) => control.attrs['aria-invalid'] === undefined && markOf(before, control) === null), 'nothing is said before a grade');
+    assert.equal(findAll(before, (node) => 'data-graded-entry-mark' in node.attrs).length, 0);
+
+    const feedback = { partGrades: [
+      { id: 'pick', isCorrect: false },
+      { id: 'word', isCorrect: true },
+      { id: 'value', isCorrect: false },
+      { id: 'other', isCorrect: true },
+    ] };
+    const root = parseMarkup(renderToStaticMarkup(React.createElement(MultiAnswerGrader, { question, onStateChange: noop, feedback })));
+    const [pick, word, value, other] = controls(root);
+    assert.deepEqual([pick.attrs['aria-invalid'], markOf(root, pick)], ['true', { kind: 'wrong', text: 'Check this' }], 'the choice group');
+    assert.deepEqual([word.attrs['aria-invalid'], markOf(root, word)], [undefined, { kind: 'right', text: 'Correct' }], 'the text box, right');
+    assert.deepEqual([value.attrs['aria-invalid'], markOf(root, value)], ['true', { kind: 'wrong', text: 'Check this' }], 'the math field');
+    assert.deepEqual([other.attrs['aria-invalid'], markOf(root, other)], [undefined, { kind: 'right', text: 'Correct' }], 'the math field, right');
+    assert.equal(new Set(controls(root).map((control) => control.attrs['aria-describedby'])).size, 4, 'each field has a mark of its own');
+  });
+});
+
 // The marks say right or wrong in words and set aria-invalid, so they must
 // reach the graders only where outcomes are shown: never on a DOL, quiz or
 // test before release (pass 3 review). QuestionEngine is their only host that
@@ -94,6 +145,8 @@ test('the marks reach the legacy graders only where outcome feedback is shown', 
   assert.match(engine, /const showOutcomeFeedback = resolvedActivityPolicy\?\.feedback === 'immediate' \|\| feedbackReleased === true;/);
   assert.match(engine, /return <GraphLine \{\.\.\.commonModuleProps\} \/>;/);
   assert.match(engine, /return <TableGrader \{\.\.\.commonModuleProps\} \/>;/);
+  // The multi-answer grader (VH-13) is handed the same held-or-shown feedback.
+  assert.match(engine, /return <MultiAnswerGrader \{\.\.\.commonModuleProps\} \/>;/);
   const workflow = executableSource(readFileSync(new URL('../../src/platform/workflow/WorkflowRunner.jsx', import.meta.url), 'utf8'));
   const table = region(workflow, '<TableGrader', '/>', 'workflow table');
   assert.doesNotMatch(table, /\bfeedback=/, 'a workflow table shows no marks');

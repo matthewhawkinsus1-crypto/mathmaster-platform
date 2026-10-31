@@ -12,6 +12,8 @@ import {
   planStudentArrival,
   planTeacherArrival,
   readUrlArrival,
+  ARRIVAL_SIGN_IN_WINDOW_MS,
+  arrivalStillWanted,
 } from '../../src/app/routes/urlArrival.js';
 import { studentQuestionEntries } from '../../src/app/routes/questionAddress.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
@@ -141,7 +143,7 @@ test('an arrival opens once, with the calls a click makes (app/routes/useUrlArri
   assert.match(hook, /setTimeout\(\(\) => setWaitedOut\(true\), ARRIVAL_SETTLE_TIMEOUT_MS\)/);
   assert.match(effect, /setUrlArrival\(null\);/, 'an arrival opens once');
   assert.match(effect, /if \(openedRef\.current === arrival\) return;\s*openedRef\.current = arrival;/, 'once, even when the effect runs twice');
-  assert.match(effect, /student\.startAssignment\(plan\.assignmentId, plan\.storageIndex \?\? 0, plan\.exact \? \{ keepRequestedQuestion: true \} : \{\}\)/);
+  assert.match(effect, /student\.startAssignment\(plan\.assignmentId, plan\.storageIndex \?\? 0, \{\s*\.\.\.\(plan\.exact \? \{ keepRequestedQuestion: true \} : \{\}\),\s*\.\.\.\(plan\.sectionKey \? \{ sectionKey: plan\.sectionKey \} : \{\}\),\s*\}\)/);
   assert.match(effect, /student\.openStudentAssignmentResult\(plan\.assignmentId/);
   assert.match(effect, /student\.setActiveTestCycleAssignmentId\(plan\.assignmentId\);\s*student\.openStudentDashboardMode\('testCycle'\)/);
   assert.match(effect, /student\.setPathLaunchTeks\(plan\.launchTeks\)/);
@@ -153,7 +155,7 @@ test('an arrival opens once, with the calls a click makes (app/routes/useUrlArri
   assert.match(effect, /if \(plan\.message && plan\.action !== 'assignment'\) toastInfo\(plan\.message\.title, plan\.message\.body\);/);
   assert.match(effect, /const opening = student\.startAssignment\(/);
   assert.match(effect, /if \(plan\.message\) \{\s*if \(opening === true && student\.showWhenWorkspaceOpens\) student\.showWhenWorkspaceOpens\(plan\.message\);\s*else toastInfo\(plan\.message\.title, plan\.message\.body\);\s*\}/);
-  assert.match(hook, /^import \{ planStudentArrival, planTeacherArrival \} from '\.\/urlArrival\.js';$/m);
+  assert.match(hook, /^import \{ arrivalStillWanted, planStudentArrival, planTeacherArrival \} from '\.\/urlArrival\.js';$/m);
   assert.match(hook, /^import \{ readMathPathRouteState, readRouteOwner, readStudentRouteState \} from '\.\.\/\.\.\/platform\/student\/browserHistory\.js';$/m);
   assert.match(hook, /^import \{ readTeacherRouteState \} from '\.\.\/\.\.\/platform\/teacher\/teacherBrowserHistory\.js';$/m);
 });
@@ -244,4 +246,53 @@ test('excused work opens its result page, never the graded workspace, whatever d
   assert.match(start.slice(gate, gate + 400), /landOnResult\(describeOpenNotice\(\{ kind: OPEN_NOTICE\.EXCUSED \}\)\);\s*return;/);
   assert.match(start, /const landOnResult = \(notice\) => openStudentAssignmentResult\(assignmentId, \{ origin: resultOrigin, notice \}\);/);
   assert.match(app, /^import \{ resolveStudentOverride \} from '\.\.\/functions\/shared\/studentAssignmentOverrides\.mjs';$/m);
+});
+
+// NV09: an address that waited on a signed-out page longer than a sign-in
+// takes is not the next account's (a shared Chromebook), and a student who
+// went somewhere while it waited keeps the screen they chose.
+test('an arrival nobody wants any more does not open', () => {
+  const at = 1_000_000;
+  assert.equal(arrivalStillWanted({ arrivedAt: at, now: at + 90_000 }), true, 'signed in a minute and a half later');
+  assert.equal(arrivalStillWanted({ arrivedAt: at, now: at + ARRIVAL_SIGN_IN_WINDOW_MS }), true, 'the window is inclusive');
+  assert.equal(arrivalStillWanted({ arrivedAt: at, now: at + ARRIVAL_SIGN_IN_WINDOW_MS + 1 }), false, 'left on a signed-out page');
+  assert.equal(arrivalStillWanted({ arrivedAt: null, now: at }), true, 'no time read: nothing to judge');
+  const home = 'dashboard:home';
+  assert.equal(arrivalStillWanted({ arrivedAt: at, now: at + 5_000, firstRouteKey: home, routeKey: home }), true, 'still on the first screen');
+  assert.equal(arrivalStillWanted({ arrivedAt: at, now: at + 5_000, firstRouteKey: home, routeKey: 'dashboard:grades' }), false, 'the student tapped Grades');
+  assert.equal(arrivalStillWanted({ arrivedAt: at, now: at + 5_000, firstRouteKey: null, routeKey: home }), true, 'no first screen seen yet');
+  assert.equal(ARRIVAL_SIGN_IN_WINDOW_MS, 10 * 60 * 1000);
+});
+
+test('the hook asks before opening, and App hands it the time and the student\'s screen', () => {
+  const hook = executableSource(readFileSync(new URL('../../src/app/routes/useUrlArrival.js', import.meta.url), 'utf8'));
+  const effect = region(hook, 'useEffect(() => {\n    if (!urlArrival || !user?.id || !(ready || waitedOut)) return;', '}, [urlArrival, user?.id, user?.role, ready, waitedOut]);', 'arrival effect');
+  assert.match(effect, /openedRef\.current = arrival;\s*if \(!arrivalStillWanted\(\{ arrivedAt, firstRouteKey: firstRouteRef\.current, routeKey \}\)\) return;/);
+  assert.match(hook, /if \(urlArrival && user\?\.id && routeKey && firstRouteRef\.current === null\) firstRouteRef\.current = routeKey;/);
+  const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
+  const call = region(app, 'useUrlArrival({', '\n  });', 'useUrlArrival call');
+  assert.match(call, /arrivedAt: urlArrivalAtRef\.current,/);
+  assert.match(call, /routeKey: user\?\.role === 'student' && studentBrowserRoute \? studentRouteKey\(studentBrowserRoute\) : null,/);
+});
+
+// NV03: a section-scoped Classroom launch keeps its section on a reload or
+// Back: the scope rides in this tab's history entry, never in the address.
+test('a reload of a section-scoped launch keeps the section; a fresh link opens the whole assignment', async () => {
+  const { normalizeStudentRoute, studentRouteKey } = await import('../../src/platform/student/browserHistory.js');
+  assert.deepEqual(normalizeStudentRoute({ surface: 'assignment', assignmentId: 'A1', questionIndex: 3, sectionScope: 'dol' }),
+    { surface: 'assignment', assignmentId: 'A1', questionIndex: 3, sectionScope: 'dol' });
+  assert.equal('sectionScope' in normalizeStudentRoute({ surface: 'assignment', assignmentId: 'A1', sectionScope: 'everything' }), false, 'only a real section');
+  assert.notEqual(studentRouteKey({ surface: 'assignment', assignmentId: 'A1', questionIndex: 3, sectionScope: 'dol' }),
+    studentRouteKey({ surface: 'assignment', assignmentId: 'A1', questionIndex: 3 }), 'the scope is part of the entry');
+  const assignments = [{ id: 'A1', title: 'Lesson 1' }];
+  const arrival = readUrlArrival({ pathname: '/assignments/A1' });
+  const reload = planStudentArrival({ arrival, assignments, historyRoute: { surface: 'assignment', assignmentId: 'A1', questionIndex: 0, sectionScope: 'dol' } });
+  assert.equal(reload.action, 'assignment');
+  assert.equal(reload.sectionKey, 'dol');
+  assert.equal('sectionKey' in planStudentArrival({ arrival, assignments }), false, 'a fresh link: the whole assignment');
+  assert.equal('sectionKey' in planStudentArrival({ arrival, assignments, historyRoute: { surface: 'assignment', assignmentId: 'B2', sectionScope: 'dol' } }), false, 'another assignment\'s scope is not this one\'s');
+  const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
+  const route = region(app, 'const studentBrowserRoute = useMemo(() => {', '}, [user?.role, activeView', 'the student route');
+  assert.match(route, /\.\.\.\(activeClassroomSectionKey \? \{ sectionScope: activeClassroomSectionKey \} : \{\}\),/);
+  assert.match(app, /setActiveClassroomSectionKey\(route\.sectionScope \|\| null\);/, 'Back onto the entry restores the scope');
 });

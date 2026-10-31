@@ -149,9 +149,10 @@ export const vertexCoverageMessage = (coverage, offCornerLetters = []) => {
   }
   if (coverage.missing > 0) {
     const found = coverage.total - coverage.missing;
+    // "Mark", not "tap": the step above says how to mark one, with the keys (AX32).
     const next = coverage.missing === 1
-      ? 'Tap the place where two boundary lines meet at the corner you have not marked yet.'
-      : 'Tap each place where two boundary lines meet at a corner you have not marked yet.';
+      ? 'Mark the place where two boundary lines meet at the corner you have not marked yet.'
+      : 'Mark each place where two boundary lines meet at a corner you have not marked yet.';
     return `You have found ${found} of the ${coverage.total} ${coverage.total === 1 ? 'corner' : 'corners'} of the solution region. ${next}`;
   }
   // Every corner is marked and something else is too: a mark that is no

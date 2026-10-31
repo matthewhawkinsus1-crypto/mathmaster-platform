@@ -28,6 +28,7 @@ lobby ──Start──► countdown ──startsAt──► round ──deadlin
 | `…/challengeStandingsModel.js` | labels for engine ranks (T-2, competition ranking), what a board's numbers mean per strategy, movement between two engine standings, large-class windows, one round's results view (and its order), placement rewards as delivered | yes |
 | `…/challengePresenceModel.js` | presence from what the server last heard, the console roster by name, a student's own connection state | yes |
 | `…/challengeReplayModel.js` | Play Again: the create request that replays a room as a fresh match | yes |
+| `…/challengeRecapModel.js`, `…/challengeOwnAnswers.js` | the end-of-game recap as the server sent it, and the copy of the student's own answers their device keeps and sets beside its rounds (LC19) | yes (storage is passed in) |
 | `…/challengeHooks.js` | the boundary-timed clock hook, a ticker for digits, round result watchers | React |
 | `functions/shared/liveChallengePresence.mjs` | the heartbeat a game screen's calibration writes (sessions, reconnects) | yes |
 | `src/components/liveChallenge/ChallengeShellParts.jsx` | shared pieces: countdown, self-ticking clock, standings board, round results table, confirmation dialog, confetti, connection pill | — |
@@ -125,8 +126,9 @@ every minute (`functions/shared/liveChallengeServerSweep.mjs`):
   console always closes first (1.5 s); if both arrive, one closes it and the
   other is told it is already closed. A student waits at most about 70 s on
   "Time is up! The results are coming." instead of until the teacher returns;
-- **only when the owner switches it on** (`platformFlags/liveChallengeServerSweep`,
-  `finishAbandonedGames`, default off): results that have stood
+- **on by default since the owner's decision (LC05, 2026-10-23)**; the switch
+  (`platformFlags/liveChallengeServerSweep`, `finishAbandonedGames`) turns it
+  off: results that have stood
   `HOST_AWAY_FINISH_MS` (30 min) with no host screen heard for as long are
   ended by the console's own Finish (End Game: answers given count; one match
   result, its standings and rewards). Never a game that writes a grade (a
@@ -135,8 +137,10 @@ every minute (`functions/shared/liveChallengeServerSweep.mjs`):
   private state, written at most once a minute), so a teacher talking the
   round through is never ended; the finish re-checks the round, the heartbeat
   and the switch inside its transaction, so a Next Round that lands first is
-  played. The room records `endedBy: "hostAway"` (readable by the class).
-  Otherwise results wait for the teacher, as before.
+  played. The room records `endedBy: "hostAway"` (readable by the class), and
+  the teacher's console, reopening that game, says why it ended
+  (`hostEndedNote`). With the switch off, results wait for the teacher, as
+  before.
 
 On the same switch, `enabled` set to anything but the boolean `true` (`false`,
 `"false"`, `0`, …) turns the whole sweep off — it fails closed — and each run
@@ -286,6 +290,28 @@ A finished game has no pointer, so the tab remembers the room it last hosted
 refresh. A remembered or pointed-to room the server no longer has is dropped
 once and never reopened.
 
+**Scoring at create (LC16).** A Standard Challenge or Solver Race is created
+under Accuracy First, Grand Prix or Correct Count (Solver Race has no Correct
+Count: its mode does not allow it), chosen in the create panel beside the other
+classic settings; Graph Feature Rush and Graph the Line keep their own Scoring
+choice in their setup panels. The choices offered are the mode's own list
+(`classicScoringModel.js` reads the registry), Accuracy First sends nothing so a
+teacher who ignores the choice sends the request they always did, and Play Again
+keeps the choice (`replayRequestFromRoom`). Speed influence belongs to Accuracy
+First: Grand Prix ranks a round by how right each answer was and then by speed,
+and Correct Count pays no speed, so the control is shown only for Accuracy First
+and the other two send the platform default (20%), never a number a hidden
+control left behind. The card under the panel says what a round pays in each
+strategy, built from the engine's own placement table, and the dry run, which
+checks the questions and shows Accuracy First's points, says so when the game
+will be scored another way. **Second Chance is Accuracy First's**: it replays
+the questions the class missed and pays the students who missed them recovery
+points, which only Accuracy First pays, and no test has ever played Grand Prix
+or Correct Count with replays (they would be one more ordinary round for
+everyone). The console switches the control off for the other two and says why;
+the server still accepts the combination from another client, which is a
+reason to certify it before it is ever offered.
+
 **Audio** is optional and mutable. Nothing is created until the teacher's
 first click (Start on the projector, or Enable Audio), nothing while muted
 (muting releases every sound; unmuting brings back the moment's music), and at
@@ -311,7 +337,17 @@ places, from the room's reward summary). Host controls run along the bottom.
   `liveChallengeProjectorModel.projectorBoardLimit`): every class-wide board —
   live, round results, standings after a round, under the podium — shows the
   top five at most and stops before the last player in a small class, then
-  "and N more players · everyone sees their own place on their device". A
+  "and N more players · everyone sees their own place on their device". It
+  also never leaves one or two players unshown (LC22): the lobby listed every
+  alias, so with one left a viewer names them, and with two left each of the
+  two names the other, and one of them is last. (With 5 players the top three
+  used to leave 4th and 5th, and the 4th, finding three aliases on the
+  projector and themselves 4th, could name the 5th.) So two and three players
+  project no ranking, four project 1st only, five the top two and six the
+  podium; seven players on a five-row screen show four, not five. A student's
+  own list is judged for that one viewer (one other player left to find is the
+  leak there), and a game already finished keeps the rows the old rule
+  published; only games played after the change follow the new one. A
   teacher may choose "Full standings" at create (`room.standingsDisplay`,
   kept by Play Again). Students' own cards apply the same limit. The server
   applies it too: every document a student can read (`standings/current`,
@@ -321,10 +357,33 @@ places, from the room's reward summary). Host controls run along the bottom.
   the whole table (`hostRounds/{n}`, the class's player rows).
 - **Worked solution** at the results moment, handed to the projector by the
   console (`useRoundSolution`), never during a countdown or an open round.
+  A ready solution takes the left of the screen and the round's table and the
+  standings share the right-hand column, one above the other, so the class
+  still reads what the round did while the solution is up (LC03; "Hide
+  solution" brings back the two tables side by side). Two tables in one
+  column are drawn in compact rows and each shows fewer of them. How many is
+  MEASURED from the panels, not read off the screen's height (the first
+  version was a table of heights, and was cut off in the font a classroom's
+  machine has): both lists start at the most they may show (the top five, or
+  the screen's rows for full standings) and, while either panel's content
+  runs past its bottom edge, one of them gives up a row
+  (`useStackedRowsThatFit`, `fitStackedStep`). The standings keep their top
+  three longest: above three the two take turns, the round's table first
+  (with full standings it gives all its rows but one first), and when three
+  standings rows and one round row still do not fit (150% zoom on a 1366×768
+  projector) the round's table steps aside, behind "Hide solution", and the
+  standings have the column. In halves, as first built, 125% zoom showed two
+  standings rows and 150% one, where the shell QA's big class wants three. A
+  new round, a resize or a zoom starts again from the top. `publicStandingsRows` still decides which rows
+  and says what is left unshown. A screen under 900 px wide stacks everything
+  in one scrolling column, the plain two-table results too. A held solution
+  stays a line above the two tables. `liveChallengeProjectorPrivacyQa` fails
+  when either table is cut off at 1366×768, 125% zoom or 1920×1080.
 - **Recognitions** under the podium (`room.recognitions`, aliases only).
 - **Extended time**: after the class deadline, while a round waits for a
   student with extended time, "A few students are still finishing — results in
-  a moment" (never who).
+  a moment" (never who) — a synchronized round, or a Graph the Line Classic or
+  Sprint round, whose race board does not move meanwhile.
 - **Large classes**: the top of the board, then "and N more players" — never
   the bottom of the class singled out. The lobby lists every alias that fits
   (chips shrink before anyone is hidden). Under the final podium the standings
@@ -376,16 +435,33 @@ places, from the room's reward summary). Host controls run along the bottom.
 - **Missed rounds**: back from a reconnect, a reload or a sleep, rounds that
   closed meanwhile without their answer get one notice
   (`challengeMissedRounds.js`).
-- **Recap**: a finished game lists the student's own rounds — result and worked
-  solution — with private personal bests and their recognitions
-  (`getLiveChallengeMatchRecap`, `challengeRecapModel.js`).
+- **Recap**: a finished game lists the student's own rounds — result, what they
+  answered and the worked solution — with private personal bests and their
+  recognitions (`getLiveChallengeMatchRecap`, `challengeRecapModel.js`). The
+  answer is theirs alone: the server keeps a verdict and its points, not what
+  was typed, and no document a classmate can read carries an answer. So the
+  device that sent an answer keeps a short readable copy of each one the
+  server confirmed (`challengeOwnAnswers.js`: a typed answer, the choice in its
+  own words, or what a tool says they built, as a released test reads it back),
+  keyed by student, game and round, for the last eight games and a month, and
+  the recap sets it beside the rounds the server says they answered. A round
+  they did not answer shows none. A second device, or a browser that keeps no
+  storage, shows the recap without answers (§14).
 - **Honest about grades**: a Warm-Up game says "Your accuracy counts as your
   Warm-Up; game points don't."; a standalone game says game points change no
   grade.
 - **Accommodations**: extended time counts down to the student's own deadline
-  (invite `timeMultiplier`, `personalRoundClock`); a student whose plan grants
+  (invite `timeMultiplier`, `personalRoundClock`), at most 2x whatever a plan
+  grants (`MAX_GAME_TIME_MULTIPLIER`, decided 2026-10-25, LC22: a game round is
+  short, and 2x is the most a class waits for one player; a Warm-Up game
+  included, so a teacher who needs such a plan honoured in full for that
+  assignment runs its standard Warm-Up instead); a student whose plan grants
   text-to-speech gets Read aloud on the round prompt. A Warm-Up game receives
-  the whole support profile and the rewards card a standalone game has.
+  the whole support profile and the rewards card a standalone game has. In a
+  Graph the Line Classic or Sprint round the extra time comes after the
+  class's buzzer, to finish the set, and the race is decided at the buzzer
+  ("Your extra time…", on their screen only); a Rush has none; a plan's
+  graphing aid turns on their own slope helper (`graph-the-line.md` §7).
 
 **Plain words.** What a student reads never carries the server's vocabulary:
 an answer sent before GO is told "This round has not started yet. Wait for
@@ -423,9 +499,22 @@ game stops calibrating.
   (`setStudentClass`, `createStudentAccount`, `assignStudentToTeacher` call
   `inviteStudentToClassLiveChallenge`): the next seat and code name, an invite
   their screen follows at once, and the late-join rule below. A student whose
-  invite is for another class's game that is still live is left in it. Game names are handed
+  invite is for another class's game that is still live is left in it: **a
+  student moved between two classes that both have a game stays in the first**
+  (decided 2026-10-25, LC02; nothing invites a student out of a room, because
+  leaving a game is a removal, which is not built, §14). Game names are handed
   out in a shuffled order, so a name's number says nothing about who holds
   it, and a Warm-Up link must be one of the class's own assignments.
+- **A bulk roster change invites too** (LC02, `liveChallengeBulkInvite.mjs`):
+  `saveClass` (an administrator editing a class restamps its students' teacher
+  and period, which also repairs a student whose stored teacher had drifted
+  off the class, so a game created earlier did not invite them) and
+  `migrateClassesFromPeriods` hand the students they moved to the same safe
+  single invite, after the change is made and audited. A teacher with no
+  active game costs one read however many students moved; one with a game has
+  each moved student invited in turn, within 15 seconds (the rest sit out this
+  game, and the log says how many); a failure is logged and never fails the
+  roster change.
 - **Late join**: a rostered student who arrives after the start joins at once
   and plays from the round that is open now — the server records
   `joinedAtRound`, a round that already closed is not counted against them,
@@ -518,12 +607,62 @@ GC) flat across them.
 - **A pause control.** The timer models pause/resume and the stage exists, but
   no control sends it: a pause that only some devices honoured would be worse
   than none.
-- **Choosing a scoring strategy for the classic modes** in the console (the
-  server and every results screen already support Grand Prix and Correct
-  Count; only the setup control is missing).
 - **Teacher removal of a student** from a running game (removal happens
   through account deletion). Adding a student mid-game invites them (§10).
+  Looked at for LC02 (VH-55) and not built, because it is not small and safe;
+  what it needs, so the next person does not start from a grep:
+  - *A callable* (`removeLiveChallengePlayer`, room owner only, lobby or
+    running) doing in ONE transaction what `deleteStudentLiveChallengeFootprint`
+    does for the room a deleted student is in: the private roster row, the
+    public player row, diagnostics, their summary, and their invite when it
+    names this room.
+  - *A tombstone* (`privateState.removedStudentIds`) that `joinLiveChallenge`
+    and the late invite honour, or the next roster change invites them straight
+    back (with a new seat and a new code name).
+  - *Seat bookkeeping.* `eligibleCount` is both the console's "N invited" and
+    the next seat a late invite allocates (the code name's seed): it cannot be
+    decremented. The console needs a `removedCount` to subtract.
+  - *Engine effects to decide and test:* a round that closes when every joined
+    player has answered (the denominator shrinks mid-round); Grand Prix's field
+    size for later rounds; the public tables already published for earlier
+    rounds, which keep a row for a player the final result will not have;
+    reports, recognitions, class points and rewards (none for a removed
+    student); a graded Warm-Up game, where a removed student has no grade for
+    it, which the teacher must be told before they press the button.
+  - *The student's screen:* the room listener fails once their invite is
+    gone, and shows a generic error; it needs "Your teacher removed you from
+    this game".
+  - *The console:* a Remove control on a roster row with `ConfirmDialog`, a
+    service wrapper, and the bridge and stub the browser harness swaps in
+    (`tests/browser/emulator/liveChallengeBridgeService.js`,
+    `liveChallengeServiceStub.js`).
+  - *Certification:* emulator tests for each stage (lobby, between rounds,
+    mid-round, after the student answered, a graded Warm-Up) and a browser run
+    with a removed student's screen open.
+  A moved student leaving the first game (C2-44) is this removal plus a late
+  invite, and should wait for it; skip graded Warm-Up games and students who
+  already answered.
+- **A student's own answers in the recap on every device (LC19).** Built for
+  the device that played: the recap shows what the student answered from the
+  copy that device kept (§9). A student who played on a Chromebook and opens
+  the recap on a phone sees their rounds and the worked solutions without their
+  answers, and so does one whose browser keeps no storage. Showing them
+  everywhere means the server keeping what each student typed, which is a
+  retention decision before it is a change:
+  - *Where.* Not the match result: one document that the report, Warm-Up
+    credit, mastery evidence and rewards are built from, and that outlives the
+    game. The student's own summary (`playerSummaries/{studentId}`, written at
+    each round's close, readable by the student, the room's teacher and a root
+    admin) is the document to look at.
+  - *What.* The rows `challengeOwnAnswers.js` builds, and nothing else (never
+    the question, never a verdict). The submit path would have to write them:
+    it records only the verdict and its points today.
+  - *Who sees them, and for how long.* The room's teacher could then read what
+    each student typed, and the answers would outlive the private state a game
+    deletes when it finishes. Decide both, and keep them inside the
+    account-deletion footprint (`deleteStudentLiveChallengeFootprint` already
+    removes the summaries).
+  - *Then* `getLiveChallengeMatchRecap` returns them with the rounds, and the
+    device copy becomes a fallback or goes.
 - **A lobby, or a Pace Race round, nobody comes back to** is not ended by the
   server (§4); it waits for the teacher to finish or cancel it.
-- **Sound for the countdown**: the audio director's cues are tied to the
-  deadline, not to `startsAt`.

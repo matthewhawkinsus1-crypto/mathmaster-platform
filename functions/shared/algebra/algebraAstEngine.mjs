@@ -52,6 +52,70 @@ const symbolsIn = (expression) => {
 // other target form keeps the historical default of isolating x.
 const LINE_TARGET_FORMS = ['slopeIntercept', 'factoredLinear'];
 
+/*
+ * A GROUP THE TEACHER WROTE BEHIND A MINUS SIGN STAYS ONE TERM (TL22; H-107).
+ *
+ * The term splitter (splitAdditiveTerms) reads through every bracket in a sum,
+ * and must: the engine writes its own operands in brackets — subtracting 3
+ * from 2x + 5 stores (2x + 5) - (3) — and the board has to show 2x + 5 - 3.
+ * It cannot tell those brackets from one a teacher wrote, so 5 − (x + 2)
+ * reached the board as 5 − x − 2: the sign step the item teaches was done
+ * for the student. So where an authored equation is read, a sum in brackets
+ * behind a minus — 5 − (x + 2), or a leading −(x + 2) — is stored as the unit
+ * product the systems engine already writes for a substituted group,
+ * 5 − 1 * (x + 2), which every splitter keeps whole (student push Q). It is
+ * drawn exactly as written, 5 − (x + 2), and the student removes the brackets
+ * with Simplify's sign step.
+ *
+ * Nothing else changes: the side's value, its LaTeX and its step key
+ * (compactStepStateKey) are the authored side's, so a device and the server
+ * on either side of a deploy agree on where the work started. A side with no
+ * such group is returned exactly as authored. A group behind a plus,
+ * 5 + (x + 2), is left alone: removing it changes no sign, and the board
+ * already draws it without the brackets.
+ */
+const isSumNode = (node) => node?.type === 'OperatorNode' && ['add', 'subtract'].includes(node.fn) && node.args?.length === 2;
+const authoredGroupedSum = (node) => {
+  let current = node;
+  while (current?.type === 'ParenthesisNode' && current.content?.type === 'ParenthesisNode') current = current.content;
+  return current?.type === 'ParenthesisNode' && isSumNode(current.content) ? current : null;
+};
+const unitTimes = (unit, group) => new OperatorNode('*', 'multiply', [parse(String(unit)), group]);
+
+export const keepAuthoredGroups = (expression) => {
+  const text = String(expression ?? '');
+  let root;
+  try {
+    root = parse(text);
+  } catch {
+    return text;
+  }
+  let changed = false;
+  // The side's additive chain, as the splitter walks it. `leading`: nothing
+  // stands before this term, so a minus here is the side's own first sign.
+  const walk = (node, leading) => {
+    if (node?.type === 'OperatorNode' && node.fn === 'add' && node.args?.length === 2) {
+      return new OperatorNode(node.op, node.fn, [walk(node.args[0], leading), walk(node.args[1], false)], node.implicit);
+    }
+    if (node?.type === 'OperatorNode' && node.fn === 'subtract' && node.args?.length === 2) {
+      const group = authoredGroupedSum(node.args[1]);
+      if (group) changed = true;
+      return new OperatorNode(node.op, node.fn, [walk(node.args[0], leading), group ? unitTimes(1, group) : walk(node.args[1], false)], node.implicit);
+    }
+    if (leading && node?.type === 'OperatorNode' && node.fn === 'unaryMinus' && node.args?.length === 1) {
+      const group = authoredGroupedSum(node.args[0]);
+      if (group) {
+        changed = true;
+        return unitTimes(-1, group);
+      }
+    }
+    if (node?.type === 'ParenthesisNode' && isSumNode(node.content)) return new ParenthesisNode(walk(node.content, true));
+    return node;
+  };
+  const rewritten = walk(root, true);
+  return changed ? rewritten.toString({ parenthesis: 'keep', implicit: 'hide' }) : text;
+};
+
 export const parseEquationInput = (question = {}) => {
   const lineTarget = LINE_TARGET_FORMS.includes(question.targetForm) ? question.targetForm : null;
   const objective = {
@@ -70,8 +134,9 @@ export const parseEquationInput = (question = {}) => {
     // Added only when authored so every other objective keeps its exact shape.
     ...(Array.isArray(question.objective?.variables) ? { variables: question.objective.variables.map(String) } : {}),
   };
+  // A sum the teacher bracketed behind a minus stays one term (TL22, above).
   if (question.leftExpression && question.rightExpression) {
-    return { left: String(question.leftExpression), right: String(question.rightExpression), variable: objective.variable, objective };
+    return { left: keepAuthoredGroups(question.leftExpression), right: keepAuthoredGroups(question.rightExpression), variable: objective.variable, objective };
   }
   // `equationLatex` is read too, and it has to be. The platform's own authoring
   // catalogue lists it as a stepAlgebra field and its worked example uses it —
@@ -83,7 +148,7 @@ export const parseEquationInput = (question = {}) => {
     || latexToExpression(question.equationLatex);
   const parts = equation.split('=');
   if (parts.length !== 2) throw new Error('Step-by-step algebra questions require one equation with one equals sign.');
-  return { left: parts[0].trim(), right: parts[1].trim(), variable: objective.variable, objective };
+  return { left: keepAuthoredGroups(parts[0].trim()), right: keepAuthoredGroups(parts[1].trim()), variable: objective.variable, objective };
 };
 
 // --- Traditional multiplication notation -------------------------------------
@@ -98,7 +163,7 @@ export const parseEquationInput = (question = {}) => {
 //   A · (group)   →  A(group)          juxtaposition
 //   (group) · B   →  B(group)          the scalar moves in front
 //   2 · x  /  x·y →  2x  /  xy         juxtaposition
-//   anything else →  A(B)              parenthesised, never a dot
+//   anything else →  A(B)              parenthesised, never a dot: 2(3), x(1)
 
 const GROUP_OPEN = '\\left(';
 const GROUP_CLOSE = '\\right)';
@@ -172,8 +237,12 @@ const cleanImplicitMultiplicationLatex = (latex) => {
       }
     }
 
-    // Two simple operands sit side by side, unless both are numbers — `23` is
-    // not two times three, so that one is parenthesised instead.
+    // Two simple operands sit side by side, unless the second is a number:
+    // `23` is not two times three, and `x1` is not x times one (it reads as
+    // "x one", and a factor of 1 left on the board showed as x1 in One
+    // Simplify's "Remove 1" part, GR27). Both are parenthesised instead:
+    // 2(3), x(1). compactStepStateKey keeps a state drawn x1 before this the
+    // same state.
     const leftOperand = before.match(OPERAND_AT_END);
     const rightOperand = after.match(OPERAND_AT_START);
 
@@ -183,9 +252,8 @@ const cleanImplicitMultiplicationLatex = (latex) => {
       text = `${before}${after}`;
       continue;
     }
-    const bothNumeric = leftOperand && rightOperand
-      && /^\d/.test(leftOperand[1]) && /^\d/.test(rightOperand[1]);
-    if (leftOperand && rightOperand && SIMPLE_OPERAND.test(rightOperand[1]) && !bothNumeric) {
+    const numberSecond = rightOperand && /^\d/.test(rightOperand[1]);
+    if (leftOperand && rightOperand && SIMPLE_OPERAND.test(rightOperand[1]) && !numberSecond) {
       text = `${before}${after}`;
       continue;
     }

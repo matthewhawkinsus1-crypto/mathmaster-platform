@@ -98,6 +98,9 @@ test('NAV-17: Home, Grades, Assignments and the workspace take the closed-work a
   const banner = region(app, '{lifecycle.isPracticeOnly && !preview && (', '</section>', 'closed-work banner');
   assert.match(banner, /\{CLOSED_WORK\.bannerTitle\}/);
   assert.match(banner, /\{CLOSED_WORK\.bannerText\}/);
+  // The closed copy opens empty: the banner says the graded answers are kept,
+  // so a blank page does not read as lost work (NV13).
+  assert.match(CLOSED_WORK.bannerText, /your graded answers are kept: this is a fresh copy to practice on/);
 });
 
 /* ---- old words are gone from student screens ------------------------------ */
@@ -375,4 +378,22 @@ test('HELP-17: every "A hint is ready" offer is followed by the one cost sentenc
 
 test('HELP-25: the dead multilingual overlay (its own 10-term glossary) is gone', () => {
   assert.throws(() => read('src/components/supports/MultilingualSupportOverlay.jsx'), /ENOENT/);
+});
+
+test('FB16: "Focus on:" reads as one sentence whatever the part labels end with', async () => {
+  const { focusOnText } = await import('../../src/platform/student/submitCost.js');
+  // The walkthrough's line: two labels written as a sentence and a prompt.
+  assert.equal(focusOnText(['Write t(x) in terms of f(x).', 'Simplify: t(x) =']), 'Focus on: Write t(x) in terms of f(x); Simplify: t(x).');
+  assert.equal(focusOnText(['Slope', 'y-intercept']), 'Focus on: Slope, y-intercept.');
+  assert.equal(focusOnText(['Slope']), 'Focus on: Slope.');
+  assert.equal(focusOnText(['Slope', 'Slope']), 'Focus on: Slope.', 'a part named twice is named once');
+  assert.equal(focusOnText(['Is it a function?']), 'Focus on: Is it a function?');
+  assert.equal(focusOnText(['Write $t(x) =$']), 'Focus on: Write $t(x) =$.', 'mathematics keeps its own symbols');
+  assert.equal(focusOnText(['', '  ']), '');
+  assert.equal(focusOnText([]), '');
+  // The engine says it with this builder, never by joining labels itself.
+  const { readFileSync } = await import('node:fs');
+  const engine = readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8');
+  assert.match(engine, /\? focusOnText\(feedback\.incorrectParts\)/);
+  assert.doesNotMatch(engine, /`Focus on: \$\{/);
 });

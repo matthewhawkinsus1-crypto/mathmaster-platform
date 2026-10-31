@@ -39,6 +39,7 @@ import { toDisplayCode } from '../../src/utils/teksUtils.js';
 import { masteryStatusRank } from '../../functions/shared/masteryRule.mjs';
 import { MASTERY_SCORING_VERSION, masteredEvidenceSnapshot, rescoreProfilesFromEvidence } from '../../functions/shared/masteryScoring.mjs';
 import { reclassifyPathReviewEvidence } from '../../functions/shared/pathReviewReclassification.mjs';
+import { voidedEventKeys } from './pathChoiceMasteryRemoval.mjs';
 
 const num = (value) => (Number.isFinite(Number(value)) ? Number(value) : 0);
 const rank = (status) => masteryStatusRank(status);
@@ -158,7 +159,11 @@ export const planStudentMasteryBackfill = ({ studentId, stored = null, events = 
   // The baseline is what MAIN serves today, from the stored document — not
   // this branch's screens on the same document (review BLOCKER 1).
   const before = studentView({ student, assignments, serverProfiles: storedProfiles, main: true });
-  const pathReview = reclassifyPathReviewEvidence(events, helpers);
+  // Answers removed from mastery as not attempted stay removed: the
+  // pre-#456 Path choice misses (MP19, scripts/remove-path-choice-misses-from-mastery.mjs).
+  const voided = voidedEventKeys(stored);
+  const counted = voided.size ? events.filter(({ id, evidence }) => !voided.has(String(evidence?.eventKey || id))) : events;
+  const pathReview = reclassifyPathReviewEvidence(counted, helpers);
   const rescored = rescoreProfilesFromEvidence(pathReview.events, helpers, { now });
 
   const profiles = {};

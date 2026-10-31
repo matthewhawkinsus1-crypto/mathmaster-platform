@@ -34,12 +34,12 @@ import { definedFunctionNames, mathToSpeech, speechTextFor } from '../../src/pla
 import { spokenMathLabel } from '../../src/platform/language/mathSpeechLabel.js';
 import { maskMath } from '../../src/platform/language/mathSafeText.js';
 import {
-  loadLanguagePack, resolveTranslation, resolveTranslationNow, translateWithPack, TRANSLATION_COVERAGE, TRANSLATION_GAP,
+  compileTemplates, loadLanguagePack, resolveTranslation, resolveTranslationNow, translateWithPack, TRANSLATION_COVERAGE, TRANSLATION_GAP,
 } from '../../src/platform/language/translationProviders.js';
 import { FALLBACK_HINTS, buildQuestionHints } from '../../src/platform/supports/hints/questionHints.js';
 import { backUpStepFor } from '../../src/platform/supports/feedback/backUpStep.js';
 import { buildSimilarWorkedExample } from '../../src/platform/supports/workedExample/similarProblem.js';
-import { MISCONCEPTION_STUDENT_MESSAGES } from '../../functions/shared/misconceptionStudentMessages.mjs';
+import { MISCONCEPTION_STUDENT_MESSAGES, POLYNOMIAL_NOT_SIMPLIFIED_MESSAGES } from '../../functions/shared/misconceptionStudentMessages.mjs';
 import { GENERIC_MISS_MESSAGES } from '../../src/platform/supports/feedback/genericMissChecks.js';
 import { closedAttemptText } from '../../src/platform/supports/feedback/attemptFeedbackPlan.js';
 import { missOutcomeText } from '../../src/platform/student/submitCost.js';
@@ -314,6 +314,8 @@ test('every miss message, generic hint and outcome sentence MathMaster writes is
   const pack = await loadLanguagePack('es');
   const texts = [
     ...Object.values(MISCONCEPTION_STUDENT_MESSAGES),
+    // What an unsimplified answer is told is left in it (TL31).
+    ...Object.values(POLYNOMIAL_NOT_SIMPLIFIED_MESSAGES),
     ...Object.values(GENERIC_MISS_MESSAGES),
     ...buildQuestionHints({ type: 'multiAnswer', prompt: 'x' }).map((hint) => hint.text),
     // Every fallback, by kind of question (HELP-23).
@@ -364,9 +366,64 @@ test('the hints, back-up steps and worked examples of the real lessons translate
   assert.ok(rate('hint-authored') < 0.1, JSON.stringify(tally['hint-authored']));
 });
 
+/*
+ * DECISION (CI14, C2-85): THIS TEST STAYS STRICT.
+ *
+ * It fails on any sentence a platform question family writes (a hint, a
+ * back-up step or its choices, a worked example) that has no Spanish. The
+ * owner asked whether that is too strict for family authors, and chose to keep
+ * it: a student who needs Spanish gets every hint, back-up step and worked
+ * example in it, and a coverage threshold would let the next family quietly
+ * ship without. What was wrong was the friction, not the rule: the failure
+ * used to print the sentence as one student saw it, with that problem's
+ * numbers, and nothing else, so the author had to work out which family it
+ * was, which file held it, and where the pack wanted the Spanish. Now it says
+ * so (spanishGapReport): the family, the file that defines it, the English
+ * sentence as a template with its {1} {2} slots ready to paste, one example
+ * of it as a student sees it, and the pack (and the list in it) that takes the
+ * Spanish. The lesson-wide test above stays a rate, because teacher-written
+ * hints honestly have no Spanish.
+ */
+const FAMILY_FILES = readdirSync(new URL('functions/shared/', ROOT)).filter((name) => /^questionFamilies.+\.mjs$/.test(name)).sort();
+const familyFileOf = (id) => {
+  const file = FAMILY_FILES.find((name) => readFileSync(new URL(`functions/shared/${name}`, ROOT), 'utf8').includes(`id: '${id}'`));
+  return file ? `functions/shared/${file}` : 'functions/shared/questionFamilies*.mjs';
+};
+// The sentence the way the pack writes it: each piece of mathematics, in order, as {1}, {2}, ...
+const asPackTemplate = (sentence) => {
+  let slot = 0;
+  return maskMath(sentence).masked.replace(/⟦\d+⟧/g, () => `{${++slot}}`);
+};
+const SPANISH_SUPPORT_PACK = 'src/platform/language/packs/esSupport.js';
+const lineOf = (relativePath, needle) => {
+  const at = readFileSync(new URL(relativePath, ROOT), 'utf8').split('\n').findIndex((line) => line.startsWith(needle));
+  return at < 0 ? '' : ` (line ${at + 1})`;
+};
+
+/** gaps: [{ id, tool, kind, template, seen }] -> the message the author reads. */
+const spanishGapReport = (gaps) => {
+  const byFamily = new Map();
+  gaps.forEach((gap) => byFamily.set(gap.id, [...(byFamily.get(gap.id) || []), gap]));
+  return [
+    `${gaps.length} sentence${gaps.length === 1 ? '' : 's'} a platform question family writes ${gaps.length === 1 ? 'has' : 'have'} no Spanish yet.`,
+    'This stays strict on purpose (CI14): a student who needs Spanish gets every hint, back-up step and worked example in it.',
+    `Put each pair in ${SPANISH_SUPPORT_PACK}: a hint, a back-up question or a worked example in platformFamilySentences${lineOf(SPANISH_SUPPORT_PACK, 'const platformFamilySentences')},`,
+    `a back-up choice in platformFamilyChoices${lineOf(SPANISH_SUPPORT_PACK, 'const platformFamilyChoices')}. The Spanish carries the same {1} {2} ..., each once, where that mathematics goes.`,
+    ...[...byFamily].flatMap(([id, list]) => [
+      '',
+      `${id}  (${familyFileOf(id)})`,
+      ...list.flatMap((gap) => [
+        `  ${gap.kind} (tool ${gap.tool}):`,
+        `    ['${gap.template.replace(/'/g, "\\'")}', ''],`,
+        `    as a student sees it: ${gap.seen}`,
+      ]),
+    ]),
+  ].join('\n');
+};
+
 test('every platform question family\'s hints, back-up steps and worked examples translate, for every tool it serves', async () => {
   const pack = await loadLanguagePack('es');
-  const missing = new Set();
+  const gaps = new Map();
   let texts = 0;
   PLATFORM_FAMILY_IDS.forEach((id) => {
     const family = getPlatformQuestionFamily(id);
@@ -377,20 +434,52 @@ test('every platform question family\'s hints, back-up steps and worked examples
         const backUp = backUpStepFor(question);
         const similar = buildSimilarWorkedExample(question);
         [
-          ...buildQuestionHints(question).filter((hint) => hint.source !== 'authored').map((hint) => hint.text),
-          ...(backUp.source === 'authored' ? [] : [backUp.prompt, ...backUp.options.map((option) => `${option}.`)]),
-          ...(similar ? [similar.prompt, ...similar.steps, `Answer: ${similar.answer}`] : []),
-        ].forEach((text) => {
+          ...buildQuestionHints(question).filter((hint) => hint.source !== 'authored').map((hint) => ({ kind: 'hint', text: hint.text })),
+          ...(backUp.source === 'authored' ? [] : [
+            { kind: 'back-up question', text: backUp.prompt },
+            ...backUp.options.map((option) => ({ kind: 'back-up choice', text: `${option}.` })),
+          ]),
+          ...(similar ? [
+            { kind: 'worked example', text: similar.prompt },
+            ...similar.steps.map((step) => ({ kind: 'worked example', text: step })),
+            { kind: 'worked example', text: `Answer: ${similar.answer}` },
+          ] : []),
+        ].forEach(({ kind, text }) => {
           texts += 1;
           const result = translateWithPack(text, pack);
-          result.sentences.filter((sentence) => !sentence.translated && !sentence.mathOnly).forEach((sentence) => missing.add(`${id}: ${sentence.source}`));
+          result.sentences.filter((sentence) => !sentence.translated && !sentence.mathOnly).forEach((sentence) => {
+            // One line per sentence shape, however many numbers it was drawn with.
+            const template = asPackTemplate(kind === 'back-up choice' ? sentence.source.replace(/\.$/, '') : sentence.source);
+            const key = [id, kind, template].join('\n');
+            if (!gaps.has(key)) gaps.set(key, { id, tool, kind, template, seen: sentence.source });
+          });
           assert.ok(mathSurvives(text, result.text), `${text}\n→ ${result.text}`);
         });
       }
     });
   });
   assert.ok(PLATFORM_FAMILY_IDS.length >= 12 && texts > 500, `${texts} texts`);
-  assert.deepEqual([...missing], [], 'a sentence a family generates has no Spanish yet');
+  if (gaps.size) assert.fail(spanishGapReport([...gaps.values()]));
+});
+
+test('a family\'s missing Spanish is reported with its family, its file, the sentence to paste and where it goes', async () => {
+  // Every family names the file that defines it (not the wildcard fallback).
+  PLATFORM_FAMILY_IDS.forEach((id) => assert.match(familyFileOf(id), /^functions\/shared\/questionFamilies[A-Za-z]+\.mjs$/, id));
+  assert.equal(familyFileOf('linear.twoStepEquation'), 'functions/shared/questionFamiliesLinear.mjs');
+  // The sentence comes back as the pack writes it, and pasted as it is, the pack matches the sentence it came from.
+  const seen = 'Get x alone first: in 2x + 3 = 11, subtract 3 from both sides, then divide both sides by 2.';
+  const template = asPackTemplate(seen);
+  assert.equal(template, 'Get {1} alone first: in {2}, subtract {3} from both sides, then divide both sides by {4}.');
+  const pasted = { language: 'es', sentences: compileTemplates([[template, 'Despeja {1}: {2}, {3}, {4}.']]), choices: [] };
+  assert.equal(translateWithPack(seen, pasted).text, 'Despeja x: 2x + 3 = 11, 3, 2.');
+  const report = spanishGapReport([{ id: 'linear.twoStepEquation', tool: 'algebra', kind: 'hint', template, seen }]);
+  for (const part of ['linear.twoStepEquation', 'functions/shared/questionFamiliesLinear.mjs', `['${template}', '']`, seen,
+    'src/platform/language/packs/esSupport.js', 'platformFamilySentences (line ', 'platformFamilyChoices (line ']) {
+    assert.ok(report.includes(part), `the report says ${part}`);
+  }
+  const pack = readFileSync(new URL(SPANISH_SUPPORT_PACK, ROOT), 'utf8');
+  assert.match(pack, /^const platformFamilySentences = \[/m, 'the list the report names exists');
+  assert.match(pack, /^const platformFamilyChoices = \[/m, 'the list the report names exists');
 });
 
 test('when a text cannot be translated, the student is told why — never a dead button', async () => {

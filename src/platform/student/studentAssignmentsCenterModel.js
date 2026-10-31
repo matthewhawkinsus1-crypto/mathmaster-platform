@@ -65,8 +65,11 @@ export const ASSIGNMENT_CATEGORY_LABEL = Object.freeze({
   [ASSIGNMENT_CATEGORY.PRACTICE]: CLOSED_WORK.tabLabel,
 });
 
+// Each hint shows under the tab row, so the Active one names its tab: on a
+// phone "…all still open" sat right under the "Closed — try again" tab and
+// read as if it described closed work (PH12, LIVE-16).
 export const ASSIGNMENT_CATEGORY_HINT = Object.freeze({
-  [ASSIGNMENT_CATEGORY.ACTIVE]: 'Started, due today, past due, or with a Recovery open — all still open and still counting.',
+  [ASSIGNMENT_CATEGORY.ACTIVE]: 'Active work: started, due today, past due, or with a Recovery open. All of it is still open and still counts.',
   [ASSIGNMENT_CATEGORY.UPCOMING]: 'Assigned and due later, or not open to you yet.',
   [ASSIGNMENT_CATEGORY.COMPLETED]: 'Work you finished, and closed work with a recorded result.',
   [ASSIGNMENT_CATEGORY.PRACTICE]: 'Past the final deadline. You can try these again; they no longer change your grade.',
@@ -213,6 +216,7 @@ export const buildAssignmentRow = ({ entry, gradeEntry, recovery = [] }) => {
   const testCycle = isTestCycleAssignment(assignment);
   return {
     assignmentId: assignment.id,
+    workloadReceipt: gradeEntry?.workloadReceipt || entry.workloadReceipt || null,
     isTestCycle: testCycle,
     title: assignment.title || 'MathMaster assignment',
     // Read off the dashboard's lifecycle for this student, never the class

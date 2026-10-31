@@ -91,8 +91,8 @@ test('an ASCII B^-E/N is read as it is drawn, B^(-E/N): a lowered verdict, for t
 
 test('N2 beside the ASCII B^(E)/N rule: e^(-x)/2 is still read as the renderer draws it', async () => {
   // stackDivisions (no options) draws an ASCII `e^(-x)/2` as e^{\frac{-x}{2}}
-  // and W5-6 grades it as drawn; which reading an author means is the owner's
-  // question (handoff, item 4). Until then it is not e^{-x}/2.
+  // and W5-6 grades it as drawn (handoff, item 4). The owner kept that reading
+  // (GR04), so it is not e^{-x}/2; Pre-Flight flags such a key.
   assert.equal(stackDivisions('e^(-x)/2'), 'e^\\frac{-x}{2}');
   await wrong('e^(-x)/2', 'e^{-x}/2');
   await right('e^\\frac{-x}{2}', 'e^(-x)/2');
@@ -162,7 +162,8 @@ test('quadratic-formula-exact: the simplified exact pair is right, and only the 
     await right(sent, key, 'orderedPair');
   }
   // The other root, the coordinates swapped, a wrong y, and decimals: an exact
-  // pair was asked for, so a decimal (even a long one) is not the answer.
+  // pair was asked for, so a decimal (even a long one) is not the answer. The
+  // owner confirmed the refusal of decimals (GR08).
   for (const sent of ['(1+sqrt(2),5+2sqrt(2))', '(5-2\\sqrt{2},1-\\sqrt{2})', '(1-\\sqrt{2},5-\\sqrt{2})', '(1-\\sqrt{2},3-2\\sqrt{2})',
     '(-0.414,2.172)', '(-0.41421356237,2.17157287525)', '(-41421356237/100000000000,5-2\\sqrt{2})',
     // Near the root but not it: exact means exact, not within a tolerance.

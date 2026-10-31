@@ -81,7 +81,7 @@ import {
   captureAutomaticGradingEvidence,
   responseInspectionEvidenceDocumentId,
 } from './responseInspector.mjs';
-import { resolveServerGradingQuestion } from './questionFamilyGrading.mjs';
+import { familySupportsGranted, resolveServerGradingQuestion } from './questionFamilyGrading.mjs';
 import { deliveredQuestionForGrading } from './serverGrading/deliveredQuestion.mjs';
 import { normalizeDeliveryPin } from './questionGenerationIdentity.mjs';
 import { classifyMisconceptions } from './misconceptionClassifiers.mjs';
@@ -594,10 +594,14 @@ export const buildIngestedAttempt = ({
       claimedDelivery: envelope.familyDelivery,
       studentId: envelope?.studentId || null,
       classId: gradeDocument?.classId || null,
+      // A pin's support must be one this student's profile grants (SI03):
+      // when they did the work, or when it reached the server.
+      grantedSupports: familySupportsGranted(gradeDocument, { at: [academicAt, ingestedAt] }),
     });
   // A delivery pin was offered but cannot be trusted — it does not reproduce,
   // or it names an instance this student was never allocated (a classmate's
-  // pin). The server cannot verify what was shown, so the work is held for a
+  // pin, or a support their profile does not grant). The server cannot
+  // verify what was shown, so the work is held for a
   // teacher (needs-review: kept, never retired) rather than credited on the
   // browser's word or graded against someone else's question.
   if (family.refused) return { blocked: true, reason: family.reason };

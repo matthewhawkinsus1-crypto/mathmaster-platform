@@ -1,4 +1,5 @@
-import React, { useId, useState } from 'react';
+import React, { useCallback, useId, useState } from 'react';
+import useEscapeToDismiss from '../../ui/useEscapeToDismiss.js';
 import {
   DEFAULT_MASTERY_COURSE_ID, MASTERY_STATUS_COLORS, getMasteryStrands, masteryCourseLabel,
 } from '../../platform/mastery/strandConfig.js';
@@ -46,6 +47,11 @@ export const MyMathPathWheel = ({
   showLegend = true,
 }) => {
   const [focusedTeks, setFocusedTeks] = useState(null);
+  // A hovered or focused skill's name and status replace "My Math Path" in the
+  // hub: Escape puts it back, the pointer and focus staying where they are
+  // (WCAG 1.4.13). It comes back when the pointer or focus reaches a skill.
+  const clearFocusedTeks = useCallback(() => setFocusedTeks(null), []);
+  useEscapeToDismiss(focusedTeks != null, clearFocusedTeks);
   const [openStrands, setOpenStrands] = useState({});
   const legendId = useId();
   const center = size / 2;
@@ -69,7 +75,11 @@ export const MyMathPathWheel = ({
   const activePass = focusedTeks ? normalizeCoursePathPassProgress(skillProgressByTEKS[focusedTeks] || {}) : null;
   // Wrapped so a long skill name does not run off the hub of the wheel.
   const focusedLabel = focusedTeks ? studentLabelForTeks(focusedTeks) : 'My Math Path';
-  const statusOf = (entry) => entry.profile.mastery?.status || NOT_ENOUGH_EVIDENCE;
+  // ONE word per status for the wedge, its list row, the colour key and the
+  // hub. The hub used to say "Not practised yet" for a skill whose wedge and
+  // key say "Not Enough Evidence" (MP17, a verifier minor of push D).
+  const profileStatus = (profile) => profile?.mastery?.status || NOT_ENOUGH_EVIDENCE;
+  const statusOf = (entry) => profileStatus(entry.profile);
 
   // One numbered arc per topic, around the wedges it holds, so a wedge can be
   // read as "topic 3" and found again in the list below.
@@ -144,7 +154,7 @@ export const MyMathPathWheel = ({
           <text x={center} y={center - 6} textAnchor="middle" style={{ fontSize: '13px', fontWeight: 800, fill: 'var(--mm-text-strong)' }}>
             {focusedLabel}
           </text>
-          <text x={center} y={center + 15} textAnchor="middle" style={{ fontSize: '12px', fill: 'var(--mm-text-muted)' }}>{focusedTeks ? (activeProfile?.mastery?.status || 'Not practised yet') : 'Choose a skill'}</text>
+          <text x={center} y={center + 15} textAnchor="middle" style={{ fontSize: '12px', fill: 'var(--mm-text-muted)' }}>{focusedTeks ? profileStatus(activeProfile) : 'Choose a skill'}</text>
           {focusedTeks && activePass?.passesCompleted > 0 && (
             <text x={center} y={center + 32} textAnchor="middle" style={{ fontSize: '10.5px', fontWeight: 800, fill: activePass.passesCompleted >= 3 ? 'var(--mm-accent-text)' : 'var(--mm-success-text)' }}>
               Level {Math.min(activePass.passesCompleted, 3)} round done

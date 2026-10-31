@@ -218,6 +218,7 @@ export default function SupportEvidenceReportView({
         engagement: records.engagement,
         supportSignals: history.events || [],
         exportSnapshots: exportState ? exportState.snapshots : null,
+        practicePassKeys: exportState ? exportState.practicePasses : null,
         generatedByEmail: teacherEmail,
       });
       setState({ loading: false, error: '', report });

@@ -19,6 +19,11 @@
  *                       so a confirm opened from a drawer closes alone
  */
 
+// The first <summary> of a <details> is a control (it takes Tab and opens the
+// disclosure). It was missing here, so Tab on one sent focus back to the dialog's
+// first control — "focus is on none of the tabbable items" — and every control
+// after the first disclosure in a dialog was out of Tab's reach (TT27: the
+// Assignment Hub, and the Pre-Flight review, which carries a dozen).
 export const TABBABLE_SELECTOR = [
   'a[href]',
   'area[href]',
@@ -26,6 +31,7 @@ export const TABBABLE_SELECTOR = [
   'input:not([disabled]):not([type="hidden"])',
   'select:not([disabled])',
   'textarea:not([disabled])',
+  'details > summary:first-of-type',
   'math-field',
   'iframe',
   'audio[controls]',

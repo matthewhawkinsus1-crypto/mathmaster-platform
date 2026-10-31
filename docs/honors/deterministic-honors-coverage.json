@@ -6,7 +6,7 @@
     "honors.functions.identifyIntercepts.interceptsInContext@1",
     "honors.linear.representationSort.buildFromReading@1"
   ],
-  "familyCount": 50,
+  "familyCount": 51,
   "courses": {
     "algebra1": {
       "courseId": "algebra1",
@@ -141,6 +141,20 @@
           "reason": "Each version asks for four single phrases (exceeds, under, at least, cannot be more than) as choices among the four symbols, so the reasoning is fixed recognition.",
           "missingCapability": "Compound statements (between, at least … and less than …) answered as a typed compound inequality, graded by its solution set.",
           "teacherReason": "MathMaster's phrase-to-inequality generator only asks single phrases as choices, so it cannot yet build a built-in Honors extension."
+        },
+        {
+          "familyId": "intervals.graphAndWrite",
+          "familyTitle": "Graph an inequality on a number line and write it in interval notation",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Writing an inequality in interval notation is Algebra II content (A2.7I); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.7I is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Writing an inequality in interval notation is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
         },
         {
           "familyId": "linear.contextFunction",
@@ -952,7 +966,7 @@
         "READY": 4,
         "CAPABLE": 8,
         "BLOCKED": 28,
-        "NOT APPROPRIATE": 10
+        "NOT APPROPRIATE": 11
       }
     },
     "algebra2": {
@@ -1056,6 +1070,20 @@
           "reason": "Writing an inequality from words is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
           "missingCapability": null,
           "teacherReason": "Writing an inequality from words is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
+        },
+        {
+          "familyId": "intervals.graphAndWrite",
+          "familyTitle": "Graph an inequality on a number line and write it in interval notation",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version states one inequality with whole-number ends (an interval, a ray, two rays, or a ray and an interval) and asks for its graph and its interval notation; the remaining levers are other ends, which are not rigor.",
+          "missingCapability": "A `represent` knob that gives the set as a graph or as a function's domain or range and asks for the inequality and set-builder notation too (the number line's `inequality` stage), so the student moves between all three notations A2.7I names.",
+          "teacherReason": "MathMaster's interval generator only writes a stated inequality in interval notation, so it cannot yet build the move-between-notations work a built-in Honors extension needs."
         },
         {
           "familyId": "linear.contextFunction",
@@ -1861,7 +1889,7 @@
       "familySummary": {
         "READY": 0,
         "CAPABLE": 1,
-        "BLOCKED": 23,
+        "BLOCKED": 24,
         "NOT APPROPRIATE": 26
       }
     }

@@ -147,6 +147,9 @@
           "hints": [
             "Two numbers multiply to {{p}} and add to {{s}}."
           ],
+          "solutionReview": {
+            "commonError": "Choosing two numbers that add to {{s}} without checking their product: they must also multiply to {{p}}."
+          },
           "generator": {
             "parameters": {
               "m": {
@@ -320,7 +323,10 @@
           "hints": [
             "The box holds 4, because x − 4 is 0 when x = 4.",
             "Bring down the 1. Then 1 · 4 = 4 and 6 + 4 = 10. Then 10 · 4 = 40 and 2 + 40 = 42."
-          ]
+          ],
+          "solutionReview": {
+            "commonError": "Reading 42 as part of the quotient: the last number in the bottom row is the remainder, so the quotient is x + 10 and x² + 6x + 2 = (x − 4)(x + 10) + 42."
+          }
         },
         {
           "questionId": "rf-cw-2",
@@ -355,6 +361,9 @@
             "The coefficients are 2, 0, −5, 8, −7 — five numbers for a fourth-degree polynomial.",
             "By the Remainder Theorem, f(6) is the last number in the bottom row."
           ],
+          "solutionReview": {
+            "commonError": "Leaving out the 0 for the missing x³ term: with only 2, −5, 8, −7 in the top row, the last number is 293, not f(6) = 2453."
+          },
           "scaffold": {
             "prompt": "Let’s back up. In 2x⁴ − 5x² + 8x − 7, the coefficient of x³ is…",
             "options": [
@@ -408,7 +417,10 @@
           "hints": [
             "A remainder of 0 means x − 3 is a factor.",
             "The quotient has degree 2: read its coefficients from the bottom row."
-          ]
+          ],
+          "solutionReview": {
+            "commonError": "Putting −3 in the box for x − 3: that tests x + 3, leaves a remainder of 36, and wrongly says x − 3 is not a factor."
+          }
         },
         {
           "questionId": "rf-cw-4",
@@ -505,6 +517,9 @@
             "x + 2 = x − (−2), so −2 goes in the box.",
             "Multiply by −2 each time, then add."
           ],
+          "solutionReview": {
+            "commonError": "Putting 2 in the box for x + 2: the box takes −2, the number that makes x + 2 zero, and with 2 the remainder is 84, so x + 2 wrongly looks like a non-factor."
+          },
           "scaffold": {
             "prompt": "Let’s back up. Dividing by x + 2, the number in the box is…",
             "options": [
@@ -720,7 +735,8 @@
               "1 | 1 −2 −5 6 gives 1 −1 −6 | 0: the quotient is x² − x − 6.",
               "x² − x − 6 = (x − 3)(x + 2)."
             ],
-            "answerSummary": "(x − 1)(x − 3)(x + 2)"
+            "answerSummary": "(x − 1)(x − 3)(x + 2)",
+            "commonError": "Stopping at (x − 1)(x² − x − 6): the quadratic still factors, as (x − 3)(x + 2)."
           },
           "questionWeight": 1.5,
           "scaffold": {
@@ -765,7 +781,10 @@
           "hints": [
             "A middle-row 0 is fine: 2 · 0 = 0.",
             "The quotient is a cubic. Its x² coefficient is 0."
-          ]
+          ],
+          "solutionReview": {
+            "commonError": "Dropping the 0 from the bottom row and reading the quotient as x² − 7x − 6: the row 1, 0, −7, −6 has four numbers, so the quotient is the cubic x³ − 7x − 6."
+          }
         },
         {
           "questionId": "rf-cw-10",
@@ -800,6 +819,9 @@
             "The coefficients are 1, 0, −7, −6.",
             "If the remainder is 0, x − 3 is a factor and the quotient is a quadratic."
           ],
+          "solutionReview": {
+            "commonError": "Skipping the 0 for the missing x² term: with 1, −7, −6 in the top row the remainder comes out −18, and x − 3 wrongly looks like a non-factor."
+          },
           "scaffold": {
             "prompt": "Let’s back up. The coefficients of x³ − 7x − 6 are…",
             "options": [
@@ -923,6 +945,9 @@
           "hints": [
             "A 0 holds the place of the missing x² term."
           ],
+          "solutionReview": {
+            "commonError": "Leaving out the 0 for the missing x² term: the top row needs five numbers, and without the 0 every number after it shifts, so the last number is not P({{r}})."
+          },
           "generator": {
             "parameters": {
               "a": {
@@ -1003,7 +1028,10 @@
           },
           "hints": [
             "There is no x term: a 0 holds its place in the top row."
-          ]
+          ],
+          "solutionReview": {
+            "commonError": "Leaving out the 0 for the missing x term: with 2, −3, 7 in the top row the last number is 16, not f(3) = 34."
+          }
         },
         {
           "questionId": "rf-p-3",
@@ -1034,6 +1062,9 @@
           "hints": [
             "x − r is a factor exactly when P(r) = 0."
           ],
+          "solutionReview": {
+            "commonError": "Testing P({{nr}}) for the factor x {{nr|signed}}: that factor is zero at x = {{r}}, so it is P({{r}}) that must be 0."
+          },
           "generator": {
             "parameters": {
               "r": {
@@ -1109,6 +1140,9 @@
           "hints": [
             "x − r is a factor exactly when the remainder is 0; the rest of the bottom row is the depressed polynomial, one degree lower."
           ],
+          "solutionReview": {
+            "commonError": "Counting the last number in the bottom row as a coefficient of the quotient: it is the remainder, 0, and the quotient is one degree lower than P(x)."
+          },
           "generator": {
             "parameters": {
               "r": {
@@ -1621,7 +1655,10 @@
           },
           "hints": [
             "The coefficients are 1, 0, 0, 0, −16."
-          ]
+          ],
+          "solutionReview": {
+            "commonError": "Using fewer than three 0s: x⁴ − 16 has no x³, x² or x term, so the top row is 1, 0, 0, 0, −16 and the quotient x³ + 2x² + 4x + 8 has four terms."
+          }
         },
         {
           "questionId": "rf-p-13",
@@ -1757,6 +1794,9 @@
           },
           "questionFamily": {
             "scope": "assignment"
+          },
+          "solutionReview": {
+            "commonError": "Putting {{nr}} in the box because the divisor reads x {{nr|signed}}: the box takes the number that makes the divisor zero, {{r}}."
           }
         },
         {

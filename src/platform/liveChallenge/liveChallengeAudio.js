@@ -306,7 +306,7 @@ export class LiveChallengeAudioDirector {
     this.#play(audio);
   }
 
-  sync({ room = null, leaderboard = [], remainingMs = null, nowMs = this.now() } = {}) {
+  sync({ room = null, leaderboard = [], remainingMs = null, countdownStep = null, nowMs = this.now() } = {}) {
     if (!room) return;
     const roomKey = room.roomId || room.id || null;
     if (roomKey !== this.roomKey) this.#enterRoom(roomKey);
@@ -358,14 +358,21 @@ export class LiveChallengeAudioDirector {
       if (leaderboard.length > 1 && Number(leaderboard[0]?.liveScore ?? leaderboard[0]?.score) === Number(leaderboard[1]?.liveScore ?? leaderboard[1]?.score)) this.playSfx('tie');
     }
 
-    if (room.status === 'running' && Number.isFinite(Number(remainingMs))) {
-      const second = Math.max(0, Math.ceil(Number(remainingMs) / 1000));
-      if (second !== this.lastCountdownSecond) {
-        if (second > 0 && second <= 3) this.playSfx('countdownTick');
-        if (second === 0 && this.lastCountdownSecond === 1) this.playSfx('countdownGo');
-        this.lastCountdownSecond = second;
-      }
-    } else this.lastCountdownSecond = null;
+    // THE 3-2-1 BEFORE A ROUND OPENS (LC16): a tick on each step of the
+    // countdown every screen shows off the round's startsAt
+    // (challengeShellModel.js cueCountdownStep), and GO as the round opens.
+    // These cues used to follow the deadline instead: three ticks before time
+    // ran out, and GO at the buzzer.
+    const step = Number(countdownStep);
+    if (room.status === 'running' && Number.isInteger(step) && step > 0) {
+      if (step !== this.lastCountdownSecond) this.playSfx('countdownTick');
+      this.lastCountdownSecond = step;
+    } else {
+      // GO only out of the last step: a countdown cut short (a pause, a
+      // cancelled game) says nothing.
+      if (room.status === 'running' && this.lastCountdownSecond === 1) this.playSfx('countdownGo');
+      this.lastCountdownSecond = null;
+    }
 
     this.previous = { room: { status: room.status, currentRound: room.currentRound }, leaderboard: leaderboard.map((row) => ({ ...row })) };
   }

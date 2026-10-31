@@ -159,10 +159,13 @@ test('the tool description opens the steps fold, and the header offers it only w
   assert.ok(about > 0 && about < support.indexOf('mathmaster-tool-task-directions') && about < support.indexOf('steps.map'), 'the description is the fold\'s first line');
   // The header's own fold is marked merged once a TaskCard took the description...
   assert.match(shell, /<div className="mathmaster-tool-shell-about" data-merged=\{taskCards > 0 \? 'true' : undefined\}/);
-  // ...and is then hidden, except in Work View, which hides the task card.
+  // ...and is then hidden. In an open Work View the header's fold is hidden for
+  // every tool: Help carries the description there, on a phone and a desktop
+  // alike (TL13; tests/browser/workViewHelpReach.mjs checks both).
   const css = codeOf('src/App.css');
   assert.match(css, /\.mathmaster-tool-shell-about\[data-merged="true"\]\s*\{\s*display:\s*none !important;/);
-  assert.match(css, /html\[data-work-view-open="true"\] \.mathmaster-tool-shell-about\[data-merged="true"\]\s*\{\s*display:\s*contents !important;/);
+  assert.match(css, /\.mathmaster-work-view-host\[data-open="true"\] \.mathmaster-tool-shell-about\s*\{\s*display:\s*none !important;/);
+  assert.doesNotMatch(css, /\.mathmaster-tool-shell-about\[data-merged="true"\]\s*\{\s*display:\s*contents/, 'nothing brings the header copy back in Work View');
 });
 
 test('on a phone the tool name is a label on the Enlarge row, and the steps fold takes its row', () => {

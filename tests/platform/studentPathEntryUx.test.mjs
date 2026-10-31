@@ -43,8 +43,9 @@ test('recommended skill launch waits for secure coverage and then opens the sele
   assert.notEqual(effectStart, -1);
   const effectSource = pathSource.slice(effectStart, effectStart + 1200);
   assert.match(effectSource, /!coverageLoaded/);
-  assert.match(effectSource, /launchedRef\.current = launchTeksCode;\s*startSession\(launchTeksCode\);/s);
-  assert.match(effectSource, /\[launchTeksCode, coverageLoaded, coverage\]/);
+  // Keyed by the skill and its format (MP14: a practice test's link starts that exam's practice).
+  assert.match(effectSource, /launchedRef\.current = launchKey;\s*startSession\(launchTeksCode, launchFramework \? \{ framework: launchFramework \} : \{\}\);/s);
+  assert.match(effectSource, /\[launchTeksCode, launchFramework, coverageLoaded, coverage\]/);
   assert.match(recommendationsSource, /onClick=\{\(\) => onChoose\?\.\(card\)\}/);
   assert.match(appSource, /setPathLaunchTeks\(code\);\s*setStudentDashboardMode\('mathPath'\);/s);
 });

@@ -1,6 +1,6 @@
 # Answer keys off the student's device — design (D10)
 
-*Decision D10 in [`docs/qa/student-experience-pass-3.md`](../qa/student-experience-pass-3.md), adopted 2026-10-16: "Treat it as a separate integrity project: serve keys and solutions for graded sections from the server." This document is the plan for that project. Nothing in it has been built yet. It changes no code, rules or functions.*
+*Decision D10 in [`docs/qa/student-experience-pass-3.md`](../qa/student-experience-pass-3.md), adopted 2026-10-16: "Treat it as a separate integrity project: serve keys and solutions for graded sections from the server." This document is the plan for that project; it changes no code, rules or functions itself. What has been built since: Phase 0 ([`STUDENT_PASS3_D10_PHASE0.md`](STUDENT_PASS3_D10_PHASE0.md)) and, in shadow, Phase 1's P1-1, P1-3 and P1-4 (§3, "Built so far").*
 
 Related: open item **PR-39** in [`07-open-items-prs.md`](../qa/student-experience-pass-3/07-open-items-prs.md), PR #486's unresolved review finding **F-PRIV-1**, and `functions/lib/ccmrAssignmentBank.js:312-339`.
 
@@ -245,6 +245,13 @@ Keys are **written twice and read from the new place**. Nothing is removed from 
 - Emulator: `test:grade-authority`, `test:canonical-persistence`, `test:warmup-reopen:emulator`, `test:classroom-regrade-report:emulator`, run unchanged.
 - Rules: student `get` on `assignmentKeys` refused; teacher allowed.
 - Two weeks of zero `assignmentKeyParityAudit` mismatches before Phase 2.
+
+**Built so far (SI02, 2026-10-25; shadow only, nothing deployed).**
+- P1-1: `functions/shared/assignmentKeySplit.mjs`. The declared list is `KEY_FIELDS` (names that are a key anywhere, four name families, generic names on a question/variant/band profile, and named paths at any depth). Two choices differ from the table above: `questionFamily` and `generator.parameters`/`constraints` stay public, because the device builds each student's version from them (R10; `generator.derived` and the answer templates move); and a key document is filed by `questionId`, so a question with keys and no id, or a shared id, makes the assignment `unsplittable`. Not built: the public shape fields (`expectedCount`, server-filtered hints, `reviewAvailable`), which only Phase 2's client reads.
+- P1-3: `assignmentKeys/{assignmentId}` in `firestore.rules` (teacher and root administrator read; no student read; no client write).
+- P1-4: the `shadowAssignmentKeys` trigger (`functions/entry.js`, `functions/lib/assignmentKeyShadow.js`). A key document is `{ schemaVersion, status: 'split' | 'unsplittable', reason?, splitVersion, sourceContentHash, keysByQuestionId?, updatedAt }`; `sourceContentHash` is the sha256 of `stableStringify(sections)`.
+- Proofs: `tests/platform/assignmentKeySplit.test.mjs` (every object in every fixture round-trips exactly; public questions keep nothing this table, the assistance keys, `stripReviewSecrets`, the P0-4 report or the printed answer key finds), `tests/platform/assignmentKeySplitCoverageGate.test.mjs` (every field a grader, the composed-workflow check, the printed answer key or a tool's solution review reads is moved or declared public with a reason), `tests/rules/assignmentKeysRules.test.mjs`, `tests/platform/assignmentKeyShadow.test.mjs`, `tests/integration/assignmentKeyShadow.test.mjs`.
+- Still to build: P1-2, P1-5, P1-6, then Phase 2. While documents still carry their keys, P1-2 must merge a key document into the SPLIT public form of the stored sections (or use the stored sections as they are when `sourceContentHash` matches them): merging it into the unsplit document is refused, because every field is already there.
 
 ### Phase 2 — Cut over DOL, Quiz and mastery Review (M: 8–10 engineer-days)
 

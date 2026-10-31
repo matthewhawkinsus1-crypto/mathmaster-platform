@@ -133,7 +133,10 @@ test('the runner shows the reason under a red step, from the review only', () =>
   const runner = executableSource(readFileSync(new URL('../../src/platform/workflow/WorkflowRunner.jsx', import.meta.url), 'utf8'));
   const stage = region(runner, 'const renderStage = ', '\n  const promptAndScenario', 'renderStage');
   assert.match(stage, /const stageReason = reviewByStageId\.get\(stage\.id\)\?\.reason \|\| '';/);
-  assert.match(stage, /\{reviewStatus === 'incorrect' && stageReason \? \(\s*<p className="workflow-stage__reason" data-stage-reason=\{stage\.id\}[^>]*>\s*\{stageReason\}\s*<\/p>/);
+  // Shown for a step the review marks wrong with a reason (stageShowsReason,
+  // asserted on real review states in composedMappingOneMessage), and for no other.
+  assert.match(stage, /const reasonShown = stageShowsReason\(reviewByStageId\.get\(stage\.id\)\);/);
+  assert.match(stage, /\{reasonShown \? \(\s*<p className="workflow-stage__reason" data-stage-reason=\{stage\.id\}[^>]*>\s*\{stageReason\}\s*<\/p>/);
   const engine = executableSource(readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8'));
   // The review reaches the runner only where outcome feedback is shown…
   assert.match(engine, /submissionReview=\{showOutcomeFeedback \? workflowSubmissionReview : null\}/);

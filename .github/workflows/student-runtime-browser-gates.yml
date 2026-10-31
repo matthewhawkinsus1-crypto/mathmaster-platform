@@ -74,6 +74,16 @@ name: Student Runtime Browser Gates
 #   planePhoneReach     on a phone the plane's text renders at 12 px or more, a
 #                       press beside a point picks it up, and a third point keeps
 #                       the line (pass 3, TOOL-11)
+#   plotInteraction     Graphing 2 by mouse and by touch: a point lands where
+#                       the gesture ends, the plane stays put while points are
+#                       placed, a point can be dragged, a zoomed point lands
+#                       where it was aimed, a two-finger pinch leaves the
+#                       coordinate window alone
+#   planeReadoutEscape  the plane's hover crosshair and a hovered point's
+#                       coordinates close on Escape without the pointer or focus
+#                       moving, and Escape still closes Work View (WCAG 1.4.13)
+#   wheelEscape         the two progress wheels' hover and focus detail closes
+#                       on Escape, the pointer and focus staying (WCAG 1.4.13)
 #   focusSafeToolControls  Start over, Reset view and Step Algebra's distribution
 #                       targets keep keyboard focus when they disable themselves
 #                       (pass 3, A11Y-2)
@@ -82,6 +92,9 @@ name: Student Runtime Browser Gates
 #                       answer control on screen together, a plane big enough
 #                       to mark, zoom offered, no coordinates printed where a
 #                       later step asks for them
+#   algebra1Module2Topic2  Algebra I M2 T2 lessons 2 and 3: every question opens
+#                       on a laptop and by touch on a phone, and a try is
+#                       counted as it is for a signed-in student (CI10)
 #   composedDraftRestore a composed question with a graph step reaches the
 #                       server backup with no verdict in it, comes back on
 #                       another device (the graph step re-derived when opened)
@@ -100,6 +113,13 @@ name: Student Runtime Browser Gates
 #                       Math Path's mount, items with no id), closes again
 #   closedQuestionEnter on a closed question Enter goes on only from the page:
 #                       a summary, a button or an ARIA widget keeps its Enter
+#   touchAfterScreenshot  an emulated phone, iPad and touch Chromebook still
+#                       answer (pointer: coarse), (hover: none) and touch points
+#                       after a screenshot that looks beyond the viewport. The
+#                       browser takes touch away there; every phone driver takes
+#                       such screenshots through tests/browser/support/
+#                       touchEmulation.mjs, which puts it back (CI12, E1-18).
+#                       It needs no server
 #
 # The gates above run in three jobs of about ten minutes each
 # (student-runtime, -2, -3): one runner took 30 minutes for them all (PR #513).
@@ -136,7 +156,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with: { browser: "true" }
       - name: Start the harness server
@@ -221,13 +241,18 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/relationPlotGrading.mjs
+      - name: A phone stays a phone after a full-page screenshot
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/touchAfterScreenshot.mjs
 
   # The student-runtime gates, continued (see the header).
   student-runtime-2:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with: { browser: "true" }
       - name: Start the harness server
@@ -270,13 +295,19 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/stagedQuestion.mjs
+      - name: Algebra I M2 T2 lessons open on a laptop and a phone, and tries are counted
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/algebra1Module2Topic2.mjs
 
   # The student-runtime gates, continued (see the header).
   student-runtime-3:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with: { browser: "true" }
       - name: Start the harness server
@@ -301,6 +332,24 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/planePhoneReach.mjs
+      - name: A point lands where it was put, the plane stays put, and a point can be dragged
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/plotInteraction.mjs
+      - name: The plane's hover readout closes on Escape
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/planeReadoutEscape.mjs
+      - name: The progress wheels' detail closes on Escape
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/wheelEscape.mjs
       - name: Self-disabling tool controls keep keyboard focus
         if: ${{ !cancelled() }}
         env:
@@ -367,7 +416,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with: { browser: "true" }
       - name: Start the harness server
@@ -410,7 +459,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with: { browser: "true" }
       - name: Start the harness server
@@ -491,7 +540,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with: { browser: "true" }
       - name: Released results, for the student and the teacher

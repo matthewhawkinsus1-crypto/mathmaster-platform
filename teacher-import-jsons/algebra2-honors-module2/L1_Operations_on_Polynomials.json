@@ -156,7 +156,12 @@
                 "Not like terms — the exponents are different",
                 "Not like terms — the letters are different"
               ],
-              "answer": "Like terms — same letters, same exponents"
+              "answer": "Like terms — same letters, same exponents",
+              "optionRationales": {
+                "Like terms — same letters, same exponents": "Both are x² times y; the order the letters are written in does not matter.",
+                "Not like terms — the exponents are different": "Match each letter to its own exponent: both have x² and y, written in a different order.",
+                "Not like terms — the letters are different": "Both use x and y; writing yx² instead of x²y does not change the letters."
+              }
             },
             {
               "id": "pair2",
@@ -167,7 +172,12 @@
                 "Not like terms — the letters are different",
                 "Like terms — same letters, same exponents"
               ],
-              "answer": "Not like terms — the exponents are different"
+              "answer": "Not like terms — the exponents are different",
+              "optionRationales": {
+                "Not like terms — the exponents are different": "Same letter, a, but a³ and a² have different exponents.",
+                "Not like terms — the letters are different": "Both terms use only the letter a; compare the exponents next.",
+                "Like terms — same letters, same exponents": "The matching 4s are coefficients, and coefficients do not decide like terms; check the letters and exponents."
+              }
             },
             {
               "id": "pair3",
@@ -178,7 +188,12 @@
                 "Like terms — same letters, same exponents",
                 "Not like terms — the exponents are different"
               ],
-              "answer": "Not like terms — the letters are different"
+              "answer": "Not like terms — the letters are different",
+              "optionRationales": {
+                "Not like terms — the letters are different": "Both are squared, but m and n are different letters.",
+                "Like terms — same letters, same exponents": "The matching 6s are coefficients, and coefficients do not decide like terms; check the letters and exponents.",
+                "Not like terms — the exponents are different": "Both exponents are 2, so the exponents match; look again at what is being squared."
+              }
             }
           ],
           "hints": [
@@ -330,6 +345,17 @@
                 "instruction": "A polynomial never has a variable in a denominator or under a radical: x² + √x and (ab³ − 1)/(az⁴ + 3) are not polynomials."
               }
             ]
+          },
+          "solutionReview": {
+            "headline": "Check for a radical or a denominator first, then count the terms joined by + or −.",
+            "reasoning": [
+              "Monomial: Card 1 (5), Card 2 (−4x²y³) and Card 3 (5xy) are each one term, a number or a number times variables with whole-number powers.",
+              "Binomial: Card 4 (5 + z), Card 5 (x² − 4y) and Card 6 (r⁶t⁷ + r⁴t⁸) are each two terms joined by + or −.",
+              "Trinomial: Card 7 (2x + 3y + 4z) and Card 8 (x² − 3x + 40) are each three terms.",
+              "Not a polynomial: Card 9 (x² + √x) and Card 11 (√(m − 7)) have a variable under a radical, and Card 10 ((ab³ − 1)/(az⁴ + 3)) has variables in a denominator."
+            ],
+            "commonError": "Counting letters instead of terms: 5xy and −4x²y³ are one term each, so each is a monomial.",
+            "answerSummary": "Monomial: cards 1, 2 and 3. Binomial: cards 4, 5 and 6. Trinomial: cards 7 and 8. Not a polynomial: cards 9, 10 and 11."
           }
         },
         {
@@ -1511,7 +1537,7 @@
           ],
           "dok": 3,
           "difficultyBand": 3,
-          "prompt": "[College-Readiness — SAT style] Answer each question.",
+          "prompt": "Answer each question.",
           "assessmentContext": {
             "framework": "digitalSAT",
             "examStyle": true,
@@ -1629,7 +1655,22 @@
             "Test each statement with examples. One counterexample is enough to rule out \"always\".",
             "(x + 1)(x² − x + 1) = x³ + 1: like terms can cancel.",
             "x³ + (−x³ + x) = x: the highest-degree terms can cancel when you add."
-          ]
+          ],
+          "solutionReview": {
+            "headline": "Test each statement with examples: one that fails rules out always, and sometimes needs an example each way.",
+            "reasoning": [
+              "Card 1, a product of two monomials: Always true. Multiplying the numbers and adding the exponents of each letter leaves one term, for example (3x²)(4x³) = 12x⁵.",
+              "Card 2, a difference of two polynomials: Always true. Subtracting adds the opposite of every term, which leaves a sum of terms with whole-number powers, for example (x² + 1) − (3x − 4) = x² − 3x + 5.",
+              "Card 3, a polynomial minus itself: Always true. Every term cancels its own opposite, for example (x² + 2x) − (x² + 2x) = 0.",
+              "Card 4, a sum of two binomials: Sometimes true. (x + 1) + (x + 2) = 2x + 3 is a binomial, but (x + 1) + (y + 2) = x + y + 3 has three terms.",
+              "Card 5, a binomial times a trinomial: Sometimes true. (x + y)(x² + y² + 1) = x³ + xy² + x + x²y + y³ + y has 6 terms, but (x + 1)(x² − x + 1) = x³ + 1 has only 2 once like terms are combined.",
+              "Card 6, a sum of two polynomials of degree 3: Sometimes true. (x³ + x) + (x³ − 1) = 2x³ + x − 1 has degree 3, but x³ + (−x³ + x) = x has degree 1.",
+              "Card 7, a monomial with a variable in a denominator: Never true. A monomial is a number times variables with whole-number powers, so no variable is ever in a denominator.",
+              "Card 8, a product of two binomials in x of degree 1: Never true. The highest power in the product is x · x = x², so its degree is 1 + 1 = 2, for example (x + 1)(x + 2) = x² + 3x + 2."
+            ],
+            "commonError": "Deciding from one example: two binomials can add to a binomial, but not every pair does, so one example that works does not make a statement always true.",
+            "answerSummary": "Always true: cards 1, 2 and 3. Sometimes true: cards 4, 5 and 6. Never true: cards 7 and 8."
+          }
         }
       ]
     },

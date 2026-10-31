@@ -21,6 +21,7 @@ const require = createRequire(import.meta.url);
 assert.ok(process.env.FIRESTORE_EMULATOR_HOST, 'Run through npm run test:challenge-finish.');
 
 const functionsIndex = require(path.join(repo, 'functions/index.js'));
+const rush = await import('../../functions/shared/graphFeatureRush.mjs');
 const admin = require(path.join(repo, 'functions/node_modules/firebase-admin'));
 const db = admin.firestore();
 const { Timestamp } = admin.firestore;
@@ -111,6 +112,23 @@ const answerAttempts = (question) => (question.targets.length
   ? question.targets.map((target) => tapAt(question, target))
   : [{ attemptId: randomUUID(), questionIndex: question.questionIndex, kind: 'dne', clientElapsedMs: 4_000 }]);
 
+/*
+ * The server takes an attempt only once the round has run long enough for the
+ * student's own device to have made it — its completion flash, skip pause and
+ * miss cooldowns, and a moment to see each new graph (SI08,
+ * graphFeatureRush.mjs rushRoundPace). A test that plays through graphs waits
+ * for that, as a real device's pauses would. It waits for the attempt itself,
+ * leaving the server's slack for the pauses inside one batch.
+ */
+const waitForPace = async (roomId, studentId, questionIndex) => {
+  const [room, player] = await Promise.all([roomOf(roomId), privatePlayer(roomId, studentId)]);
+  const required = rush.rushNextAttemptRequiredMs({
+    receipts: player?.submissionReceipts || {}, roundIndex: Number(room.currentRound), questionIndex,
+  });
+  const delay = (room.startsAt?.toMillis?.() || 0) + required + 50 - Date.now();
+  if (delay > 0) await sleep(delay);
+};
+
 /** A student completes `graphs` graphs, making `misses` wrong taps first. */
 const play = async (roomId, studentId, { graphs = 1, misses = 0 } = {}) => {
   const identity = await identityOf(roomId);
@@ -126,6 +144,8 @@ const play = async (roomId, studentId, { graphs = 1, misses = 0 } = {}) => {
       const attempts = [];
       while (missesLeft > 0 && attempts.length < 2) { attempts.push(missTap(question)); missesLeft -= 1; }
       attempts.push(...answerAttempts(question));
+      // eslint-disable-next-line no-await-in-loop
+      await waitForPace(roomId, studentId, question.questionIndex);
       // eslint-disable-next-line no-await-in-loop
       const result = await call('submitGraphFeatureRushAttempts', student(studentId, { ...identity, attempts }));
       assert.equal(result.verdicts.at(-1).completesQuestion, true, JSON.stringify(result.verdicts));
@@ -151,6 +171,10 @@ const advance = async (roomId, classKey = 'pair') => {
 // The teacher's whole copy of a closed round (the class's copy, rounds/{n}, holds
 // only the public rows: tests/platform/liveChallengeRankPrivacy.test.mjs).
 const roundResult = async (roomId, roundIndex) => (await roomRef(roomId).collection('hostRounds').doc(String(roundIndex)).get()).data();
+
+// What a round publishes once it has closed (LC07): a reading guide to the game's features, never a worked
+// solution to anyone's graph (liveChallengeRooms/{room}/solutions/{n}, read by the room's audience).
+const publishedGuide = async (roomId, roundIndex) => (await roomRef(roomId).collection('solutions').doc(String(roundIndex)).get()).data() || null;
 
 /* ===================== GAME 1: two players, Grand Prix ===================== */
 
@@ -188,6 +212,12 @@ test('nobody gets graphs before the round, and a rush round opens with a card, n
   assert.equal(room.currentQuestion.kind, 'graphFeatureRush');
   assert.ok(!('targets' in room.currentQuestion) && !('graph' in room.currentQuestion), 'the projector never sees a graph or an answer');
   assert.equal(room.activeRoundSeconds, 60);
+  // The round's reading guide is captured with the round and kept private until the round has closed (LC07).
+  const secret = (await privateRef(G1).get()).data();
+  assert.equal(secret.roundSolutions['0'].guide, true);
+  assert.equal(secret.roundSolutions['0'].solutionReview.reasoning.length, 4, 'the algebra1Quick preset asks for three features, and two of them can be absent');
+  assert.deepEqual(room.revealedSolutionRounds || [], [], 'nothing is public while the round can still be played');
+  assert.equal(await publishedGuide(G1, 0), null);
 });
 
 test('two students get different graphs, and a tap before the start is refused', async () => {
@@ -233,20 +263,26 @@ test('a refresh mid-graph resumes on the same graph with its found targets', asy
   const identity = await identityOf(G1);
   // Find a multi-target graph for B and tap only its first target. About one
   // graph in nine has several targets under this preset, so B looks eight
-  // graphs ahead at a time and finishes the ones before it in one batch.
+  // graphs ahead at a time and finishes the ones before it, each when B's
+  // device would have shown it (SI08: the server holds every player to their
+  // device's pace).
   let resumed = null;
   for (let looked = 0; looked < 120 && !resumed;) {
     // eslint-disable-next-line no-await-in-loop
     const { questions } = await call('getGraphFeatureRushRound', student(B, { ...identity, count: 8 }));
-    const multi = questions.find((question) => question.targets.length >= 2);
-    const before = multi ? questions.filter((question) => question.questionIndex < multi.questionIndex) : questions;
-    const attempts = before.flatMap(answerAttempts);
-    if (multi) attempts.push(tapAt(multi, multi.targets[0]));
-    for (let start = 0; start < attempts.length; start += 12) {
+    for (const question of questions) {
       // eslint-disable-next-line no-await-in-loop
-      await call('submitGraphFeatureRushAttempts', student(B, { ...identity, attempts: attempts.slice(start, start + 12) }));
+      await waitForPace(G1, B, question.questionIndex);
+      const multi = question.targets.length >= 2;
+      // eslint-disable-next-line no-await-in-loop
+      await call('submitGraphFeatureRushAttempts', student(B, {
+        ...identity, attempts: multi ? [tapAt(question, question.targets[0])] : answerAttempts(question),
+      }));
+      if (multi) {
+        resumed = question;
+        break;
+      }
     }
-    resumed = multi || null;
     looked += questions.length;
   }
   assert.ok(resumed, 'a multi-target graph came up');
@@ -266,10 +302,26 @@ test('the eighth miss on a graph skips it on the server; a refresh resumes on th
   assert.equal(before.joined, true);
   assert.ok(before.poolSize >= 120, `a pool of ${before.poolSize} outlasts the fastest student`);
   const [question] = before.questions;
-  // Eight wrong taps in one batch: a device that skipped its cooldown.
-  const result = await call('submitGraphFeatureRushAttempts', student(B, { ...identity, attempts: Array.from({ length: 8 }, () => missTap(question)) }));
-  assert.deepEqual(result.verdicts.map((row) => row.verdict), Array(8).fill('miss'));
-  assert.deepEqual(result.verdicts.map((row) => row.autoSkipped === true), [...Array(7).fill(false), true]);
+  // Eight wrong taps in one batch: a device that skipped its cooldown. The
+  // server takes the misses its pace allows and refuses the rest, which
+  // record nothing (SI08)…
+  await waitForPace(G1, B, question.questionIndex);
+  const burst = await call('submitGraphFeatureRushAttempts', student(B, { ...identity, attempts: Array.from({ length: 8 }, () => missTap(question)) }));
+  const taken = burst.verdicts.filter((row) => row.verdict === 'miss').length;
+  assert.ok(taken >= 2 && taken < 8, `${taken} of 8 misses taken at once`);
+  assert.deepEqual(burst.verdicts.slice(taken).map((row) => row.verdict), Array(8 - taken).fill('tooFast'));
+  assert.equal(burst.recorded, taken);
+  assert.equal(burst.state.cursor, question.questionIndex, 'still on the graph');
+  // …and each later one when the cooldown has passed: the eighth skips it.
+  let result = null;
+  for (let miss = taken; miss < 8; miss += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await waitForPace(G1, B, question.questionIndex);
+    // eslint-disable-next-line no-await-in-loop
+    result = await call('submitGraphFeatureRushAttempts', student(B, { ...identity, attempts: [missTap(question)] }));
+    assert.equal(result.verdicts[0].verdict, 'miss');
+    assert.equal(result.verdicts[0].autoSkipped === true, miss === 7, `miss ${miss + 1}`);
+  }
   assert.equal(result.state.cursor, question.questionIndex + 1);
   // The device never sent a skip and reloads: it is on the next graph.
   const after = await call('getGraphFeatureRushRound', student(B, { ...identity, count: 1 }));
@@ -325,6 +377,26 @@ test('round 1 closes into ranked results: placement points for a field of two, a
   const again = await closeRound(G1);
   assert.equal(again.alreadyApplied, true);
   assert.equal((await privatePlayer(G1, A)).matchPoints, aStanding.matchPointsAwarded);
+
+  // LC07: the round that just closed has published its reading guide — and only that round.
+  assert.deepEqual(room.revealedSolutionRounds, [0], 'round 1 is public, rounds 2 and 3 have not been played');
+  const guide = await publishedGuide(G1, 0);
+  assert.equal(guide.guide, true, 'the screens title it "How to read the features"');
+  assert.equal(guide.available, true);
+  assert.equal(guide.prompt, null, 'the lines name the features themselves');
+  assert.equal(guide.solutionReview.reasoning.length, 4, 'a line per feature the game asks for, and one on Does Not Exist');
+  assert.match(guide.solutionReview.reasoning[0], /^x-intercepts/);
+  assert.match(guide.solutionReview.reasoning[1], /^y-intercept/);
+  assert.match(guide.solutionReview.reasoning[2], /^Vertex/);
+  assert.equal(guide.solutionReview.reasoning[3], 'If the graph has no x-intercepts or y-intercept, choose Does Not Exist.');
+  assert.equal(guide.solutionReview.answerSummary, null, 'no answer: there is none to give');
+  assert.equal(await publishedGuide(G1, 1), null);
+  // It names nothing of anyone's graphs: no seed, no coordinates, no student, no player.
+  const seed = (await privateRef(G1).get()).data().graphFeatureRush.seed;
+  const text = JSON.stringify(guide);
+  assert.ok(!text.includes(seed) && !text.includes(A) && !text.includes(B), 'no seed, no student');
+  assert.doesNotMatch(text, /\(\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*\)/, 'no ordered pair');
+  assert.deepEqual(Object.keys(guide).sort(), ['available', 'guide', 'originalRoundIndex', 'prompt', 'revealedAt', 'revealedAtMs', 'roundIndex', 'solutionReview', 'teksCode']);
 });
 
 test('taps after the deadline\'s grace are refused, whatever the device thinks', async () => {
@@ -386,6 +458,15 @@ test('the final round finishes the match: championship standings, report and rew
   const finisher = Object.values(awards?.awards || {}).filter((award) => award.ruleId === 'challengeFinisher');
   assert.equal(finisher.length, 2);
   assert.equal((await privateRef(G1).get()).exists, false);
+  // LC07: all three rounds published their guide, and the student's recap does not repeat it three times.
+  assert.deepEqual((await roomOf(G1)).revealedSolutionRounds, [0, 1, 2]);
+  for (const round of [0, 1, 2]) {
+    // eslint-disable-next-line no-await-in-loop
+    assert.equal((await publishedGuide(G1, round))?.guide, true, `round ${round + 1}`);
+  }
+  const recap = await call('getLiveChallengeMatchRecap', student(A, { roomId: G1 }));
+  assert.equal(recap.rounds.length, 3);
+  assert.ok(recap.rounds.every((row) => row.solutionAvailable === false && row.solutionReview === null && row.prompt === null), 'the recap lists no guide');
 });
 
 test('the class\'s next game starts clean, immediately', async () => {
@@ -406,6 +487,31 @@ test('the class\'s next game starts clean, immediately', async () => {
   assert.equal((await roomOf(G1)).status, 'finished');
   const done = await call('finishLiveChallenge', teacher({ roomId: next.roomId }));
   assert.equal(done.status, 'finished');
+});
+
+test('a game whose rounds hold no guide (one running before it existed) publishes none, and nothing breaks', async () => {
+  // The large class's teacher has no other game on at this point in the file.
+  const roster = studentsOf('large');
+  const asLargeTeacher = teacherAs(CLASSES.large.teacher);
+  const created = await createRush('large', { roundCount: 2 });
+  try {
+    await call('joinLiveChallenge', student(roster[0], { roomId: created.roomId }));
+    await call('startLiveChallenge', asLargeTeacher({ roomId: created.roomId }));
+    assert.equal((await privateRef(created.roomId).get()).data().roundSolutions['0'].guide, true, 'a game started now captures one');
+    // Take it out, as a game opened before this change would not have had it.
+    await privateRef(created.roomId).update({ roundSolutions: admin.firestore.FieldValue.delete() });
+    const identity = await identityOf(created.roomId);
+    await call('closeLiveChallengeRound', asLargeTeacher({
+      roomId: created.roomId, expectedRoundIndex: identity.roundIndex, expectedRoundVersion: identity.roundVersion, force: true,
+    }));
+    const room = await roomOf(created.roomId);
+    assert.equal(room.roundState, 'closed', 'the round closed as it always did');
+    assert.deepEqual(room.revealedSolutionRounds || [], [], 'and published nothing');
+    assert.equal(await publishedGuide(created.roomId, 0), null);
+  } finally {
+    // The teacher's one active game must not outlive a failure here: the large class plays next.
+    await call('cancelLiveChallenge', asLargeTeacher({ roomId: created.roomId })).catch(() => null);
+  }
 });
 
 /* =================== GAME 2: ten students, Correct Count =================== */

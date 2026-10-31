@@ -66,6 +66,15 @@ const emptyEvidence = () => ({ finalized: 0, correct: 0, missed: 0, consecutiveM
  * repair has held. So in-session evidence is blended in: once a skill has two
  * finalized questions this session, the session's own success rate is used when
  * it is the more recent and more relevant number.
+ *
+ * The server's profile, NOT the more favourable of it and the assignment
+ * record that the student's screens read (MP22, recorded on purpose). Routing
+ * and adaptive rigor run on every answer, and the record would need the
+ * class's assignments read for every question; and a session's routing exists
+ * to react to how the student is doing now, which an older assignment record
+ * read as Mastered would hide (no repair for a prerequisite the student is
+ * missing today). Whether a session may be a Challenge or a retention check
+ * IS decided by the one rule, once, when it starts (functions/lib/favourableMastery.js).
  */
 async function buildMasteryBySkill({ profiles = {}, evidenceBySkill = {} }) {
   const graph = await skillGraph();

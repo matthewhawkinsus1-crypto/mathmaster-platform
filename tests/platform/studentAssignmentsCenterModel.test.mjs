@@ -7,6 +7,8 @@ import { buildStudentGradeCenter, findGradeCenterEntry } from '../../src/platfor
 import {
   ALL_PERIODS_ID,
   ASSIGNMENT_CATEGORY,
+  ASSIGNMENT_CATEGORY_HINT,
+  ASSIGNMENT_CATEGORY_LABEL,
   buildStudentAssignmentsCenter,
   categoriesForRow,
   matchesAssignmentSearch,
@@ -314,4 +316,17 @@ test('the Assignments Center reads both models rather than rebuilding either', (
   assert.match(source, /dashboard\?\.allEntries/, 'lifecycle and progress come from the dashboard model');
   assert.match(source, /findGradeCenterEntry\(/, 'status and grades come from the Grade Center');
   assert.doesNotMatch(source, /buildStudentDashboardModel\(|buildStudentGradeCenter\(/, 'it consumes them, it does not re-run them');
+});
+
+// PH12 (LIVE-16): the hint shows under the tab row, where on a phone "…all
+// still open" sat right under "Closed — try again". The Active hint names its
+// tab before it says anything is open, and only the closed tab's hint speaks
+// of trying again.
+test('the Active hint names its tab before it says the work is still open', () => {
+  const active = ASSIGNMENT_CATEGORY_HINT[ASSIGNMENT_CATEGORY.ACTIVE];
+  assert.ok(active.startsWith(`${ASSIGNMENT_CATEGORY_LABEL[ASSIGNMENT_CATEGORY.ACTIVE]} work:`), active);
+  assert.ok(active.indexOf('Active') < active.indexOf('open'), active);
+  for (const [id, hint] of Object.entries(ASSIGNMENT_CATEGORY_HINT)) {
+    assert.equal(/try (?:these |it )?again/i.test(hint), id === ASSIGNMENT_CATEGORY.PRACTICE, `${id}: ${hint}`);
+  }
 });

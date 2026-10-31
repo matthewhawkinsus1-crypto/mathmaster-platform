@@ -1,4 +1,4 @@
-import { sameValue } from '../../../functions/shared/answerEquivalence.mjs';
+import { fieldAllowsArithmetic, looksLikeArithmetic, sameValue } from '../../../functions/shared/answerEquivalence.mjs';
 import { parseFactoredProduct, sameFactoredPolynomialExpression } from '../../../functions/shared/factoredPolynomialExpressionEquivalence.mjs';
 import { isSimplestRadicalForm, sameSimplestRadicalForm } from '../../../functions/shared/simplestRadicalFormEquivalence.mjs';
 // Pre-Flight's self-grade check runs the shared field grader, which reads the
@@ -25,7 +25,7 @@ const isPresent = (value) => value !== undefined && value !== null && clean(valu
 
 // The opt-in field grading modes (functions/shared/answerUtils.mjs
 // matchesFieldAnswer), as lower-case tokens.
-const SUPPORTED_GRADING_MODES = Object.freeze(['equivalentexpression', 'factoredform', 'simplestradicalform']);
+const SUPPORTED_GRADING_MODES = Object.freeze(['equivalentexpression', 'factoredform', 'simplestradicalform', 'sidesaskeyed']);
 
 const gradingMode = (field = {}) => clean(field.gradingMode || field.grading?.mode);
 
@@ -62,6 +62,9 @@ const comparatorForField = (field = {}) => {
   }
   if (modeToken === 'simplestradicalform') {
     return (left, right) => sameSimplestRadicalForm(left, right) || sameValue(left, right);
+  }
+  if (modeToken === 'sidesaskeyed') {
+    return (left, right) => sameValue(left, right, 1e-6, { sidesAsKeyed: true });
   }
   return (left, right) => sameValue(left, right);
 };
@@ -188,7 +191,7 @@ const validateField = (field, {
 
   if (mode && !SUPPORTED_GRADING_MODES.includes(modeToken)) {
     errors.push(
-      `${display} uses unsupported gradingMode "${mode}". Generic answer fields support the default mathematical grader, "equivalentExpression" for expression fields, "factoredForm" for factoring answers and "simplestRadicalForm" for simplified radical or rational-exponent answers. Teacher-reviewed writing must use a teacher-review/composed interaction instead of an auto-graded field.`,
+      `${display} uses unsupported gradingMode "${mode}". Generic answer fields support the default mathematical grader, "equivalentExpression" for expression fields, "factoredForm" for factoring answers, "simplestRadicalForm" for simplified radical or rational-exponent answers and "sidesAsKeyed" for an equation that must be written with its sides as the key has them (y = …). Teacher-reviewed writing must use a teacher-review/composed interaction instead of an auto-graded field.`,
     );
   }
 
@@ -232,6 +235,17 @@ const validateField = (field, {
     }
   }
 
+  // sidesAsKeyed keeps an equation's sides as keyed (GR17): a key that is not
+  // one equation has no sides to keep, and the mode would only refuse more.
+  if (modeToken === 'sidesaskeyed') {
+    const notEquations = [primary, ...accepted].filter(isPresent).filter((value) => clean(value).split('=').length !== 2);
+    if (notEquations.length) {
+      errors.push(
+        `${display} uses gradingMode "sidesAsKeyed" but its key "${clean(notEquations[0])}" is not one equation. The mode keeps an equation's sides as keyed (y = …); remove it, or key the equation.`,
+      );
+    }
+  }
+
   if (autoGraded && !runtimeHasGradingKey({ collection, field, primary, accepted })) {
     errors.push(
       `${display} has no runtime-usable grading key. Add the mathematically intended answer/expected value. Unit responses specifically require expected + expectedUnit/unit; accepted lists are not used by that grader.`,
@@ -266,8 +280,20 @@ const validateField = (field, {
     );
   }
 
+  // GR01: a number field takes one value and refuses a calculation, so a key
+  // written as one ("64-6") could never be typed and marked right. Name the
+  // two fixes rather than only that the key does not grade itself.
+  const calculationKey = fieldAllowsArithmetic(field)
+    ? null
+    : [primary, ...accepted].find((value) => comparableScalar(value) && isPresent(value) && looksLikeArithmetic(value));
+  if (calculationKey) {
+    errors.push(
+      `${display} is a number field, but its key "${clean(calculationKey)}" is a calculation. A number field takes one value: write the key as that value, or set "allowArithmetic": true when the calculation itself is the answer.`,
+    );
+  }
+
   const runtimeSelfGrade = runtimeSelfGradesCanonicalKey({ collection, field, primary, accepted });
-  if (runtimeSelfGrade === false) {
+  if (runtimeSelfGrade === false && !calculationKey) {
     errors.push(
       `${display} fails MathMaster's runtime self-grade check: the canonical grading key is not accepted by the same grader the student will use. Fix the key/grading metadata before publishing.`,
     );

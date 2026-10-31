@@ -305,6 +305,25 @@ export function integrityWarningDue({ status, violationCount, lockThreshold, war
   return count > 0 && count >= threshold - 1;
 }
 
+/**
+ * WHAT THE STUDENT IS TOLD AFTER AN EVENT THAT COUNTED (TS06).
+ *
+ * The start screen states the rule, but the first notice used to come only
+ * one event before the pause: a student who left full screen once heard
+ * nothing, and learned the rule from the "one more time" warning. Now every
+ * counted event says so, with the count, and the event before the pause
+ * keeps the warning. Null when nothing has counted or the test is not under
+ * way.
+ */
+export function integrityNoticeText({ status, violationCount, lockThreshold, warning } = {}) {
+  if (status !== SESSION_STATUS.IN_PROGRESS) return null;
+  if (integrityWarningDue({ status, violationCount, lockThreshold, warning })) return INTEGRITY_WARNING_TEXT;
+  const threshold = wholeNumber(lockThreshold) || DEFAULT_INTEGRITY_LOCK_THRESHOLD;
+  const count = wholeNumber(violationCount) ?? 0;
+  if (count < 1) return null;
+  return `That counted: leaving the test window, or trying to copy, paste or right-click (${count} of ${threshold}). Your teacher sees each time, and at ${threshold} the test pauses until your teacher lets you continue.`;
+}
+
 /** Which kind of pause a session is in: the teacher's, or the integrity limit's. */
 export function pauseKind(status, clockPaused = false) {
   if (status === SESSION_STATUS.LOCKED_PROCTOR) return 'teacher';
@@ -422,6 +441,51 @@ export function startScreenTime({ session = null, delivery = null, courseTest = 
   return null;
 }
 
+/*
+ * EACH MODULE'S OWN TIME, ON THE TIMER (TS03, a first slice).
+ *
+ * On the Digital SAT each module has its own time (35 minutes for 22
+ * questions), and the timer shows the module's. A practice test here has one
+ * limit for the whole test, which the server keeps (`expiresAt`). So while a
+ * module with another after it is open, the timer counts down that module's
+ * share of the limit — its share of the questions, taken off the same
+ * deadline, so a teacher's pause, added time and extended time move it
+ * exactly as they move the test's — and then the test's own time.
+ *
+ * It is for pacing only: it closes and refuses nothing. The server does not
+ * yet end a module when its time runs out (that needs it to close the
+ * questions the student has not opened), so the student is told, and the
+ * test's own time runs on.
+ *
+ * null when there is nothing to show: an untimed test, one module, or the
+ * last module open.
+ */
+export function moduleClock(session, { now = Date.now() } = {}) {
+  const navigation = readNavigation(session);
+  const modules = navigation.modules;
+  const deadline = Number(session?.expiresAt);
+  const limit = Number(session?.timeLimitSeconds);
+  if (!modules || modules.length < 2 || !Number.isFinite(deadline) || deadline <= 0 || !Number.isFinite(limit) || limit <= 0) return null;
+  const index = modules.findIndex((entry) => !entry.closed);
+  if (index < 0 || index === modules.length - 1) return null;
+  const questionsIn = (entries) => entries.reduce((sum, entry) => sum + (entry.end - entry.start), 0);
+  const laterSeconds = Math.round((limit * questionsIn(modules.slice(index + 1))) / questionsIn(modules));
+  const paused = session?.clockPaused === true;
+  const pausedLeft = Number(session?.pausedRemainingSeconds);
+  const pausedRemainingSeconds = paused && Number.isFinite(pausedLeft) ? Math.max(0, pausedLeft - laterSeconds) : null;
+  const expiresAt = deadline - laterSeconds * 1000;
+  return {
+    number: modules[index].number,
+    expiresAt,
+    pausedRemainingSeconds,
+    // A paused clock does not run out, whatever the device's own clock says.
+    timeUp: paused ? pausedRemainingSeconds !== null && pausedRemainingSeconds <= 0 : Number(now) >= expiresAt,
+  };
+}
+
+/** What the screen says when a module's own time has run out (moduleClock). */
+export const moduleTimeUpNotice = (number) => `Module ${number}'s time is up. On test day, module ${number + 1} would start now. Your test time is still running.`;
+
 export function timeAllowanceText(allowance) {
   if (!allowance?.timed) return 'Untimed';
   return `${plural(allowance.minutes, 'minute')}${allowance.extended ? ' (includes your extended time)' : ''}`;
@@ -501,11 +565,16 @@ export function finishedSummary(session, { courseTest = false } = {}) {
   return { title, message: `${lead}${counts}${results}`, canSeeResults: released };
 }
 
-const calculatorRule = (mode) => {
+/**
+ * The calculator rule in a student's words: the start screen says it, and so do
+ * the Test Cycle card and Tests & Exams ("what to have", TC16), so it is worded
+ * here once. A setting's own spelling ("squareRoot") is never shown as it is.
+ */
+export const calculatorRule = (mode) => {
   const value = String(mode || 'questionSpecific');
   if (value === 'none') return 'There is no calculator on this test.';
   if (value === 'questionSpecific') return 'A calculator appears only on questions where your teacher allows one.';
-  return `A ${value} calculator is available on this test.`;
+  return `A ${value.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()} calculator is available on this test.`;
 };
 
 /** The time line of the start screen: how long, from when — or, coming back, how long is left. */
@@ -551,7 +620,8 @@ export function startScreenRules({
     timeRule({ allowance, courseTest, questions }),
     'Move between questions with Previous and Next, or open the question list. You can skip a question and come back to it.',
     'Mark any question for review. You can change any answer until you submit.',
-    modules ? 'This test has 2 modules. At the end of module 1 you review it, then start module 2. After that you can\'t go back to module 1.' : null,
+    // A timed test's timer shows module 1's own time first (moduleClock, TS03).
+    modules ? `This test has 2 modules.${allowance?.timed ? ' The timer shows module 1\'s own time first, as on test day.' : ''} At the end of module 1 you review it, then start module 2. After that you can't go back to module 1.` : null,
     courseTest
       ? 'Your answers save automatically. If you lose your connection or the page reloads, open the test again and you\'ll pick up where you left off.'
       : 'Your answers save automatically as you work.',

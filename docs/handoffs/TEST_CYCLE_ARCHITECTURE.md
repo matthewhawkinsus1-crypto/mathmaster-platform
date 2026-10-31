@@ -101,6 +101,7 @@ audit row per release.
 | Open / scheduled / paused / archived | `functions/shared/assessmentAvailability.mjs` |
 | When the Test and the home window are open | `functions/shared/testCycleAvailability.mjs` |
 | Class-wide operations and their account | `functions/shared/testCycleBulk.mjs` |
+| Fewer questions for one student (a teacher's choice) | `functions/shared/testCycleReducedItems.mjs` |
 | CommonJS bridge + evidence join | `functions/lib/testCycle.js` |
 | Student list labels ("Review required", "Retest unlocked"…) | `src/platform/student/testCycleDiscovery.js` |
 | Teacher row states and the actions that apply now | `src/platform/teacher/testCycleTeacherRows.js` |
@@ -295,6 +296,39 @@ Test: Not taken". If the teacher reopens the Test window and the student
 starts the original after all, the unstarted stand-in Retest is closed
 (`syncTestCycleSessionState`).
 
+### Fewer questions for one student
+
+A student whose support plan lists "Reduced number of items — same TEKS and
+rigor" does not get a shorter Test automatically: MathMaster never reshapes a
+secure Test by itself (an automatic plan would be a test the blueprint never
+approved). Their teacher of record chooses, on the student's row ("Choose
+fewer questions"), which of the Test's questions they skip
+(`setTestCycleReducedItems`, rules in `testCycleReducedItems.mjs`):
+
+- **Limits.** Every skill (blueprint target) keeps at least one question, and
+  at most half the Test can be skipped (the automatic accommodation's own
+  ceiling). Only for a student whose governing plan lists the support; giving
+  back the whole Test is always allowed.
+- **Where it lives.** The student's own server-only record
+  (`record.reducedItems`: the excused slot ids, who chose and when) plus an
+  audit row in the record's history — never the shared assignment.
+- **Their Test.** The plan they would have had, minus the excused slots: every
+  other question keeps its family and seed, and no other student's Test
+  changes. A session already opened and not started is re-planned in place.
+- **Their grade.** Over the questions they were asked, weighted as for
+  everyone; an excused question is never a zero.
+- **Corrections and the Retest.** Corrections come from answered work, so
+  nothing excused is corrected. The targeted Retest is derived from the Test
+  they sat and is shorter by the same share (20 of 25 → four fifths of the
+  class's Retest). A Retest that replaces a missed Test is the whole Test
+  minus the same questions; a teacher's reset keeps the choice.
+- **When.** Until they start. Once their Test (or a Retest standing in for it)
+  has started, it is locked — read from the record and, inside the
+  transaction, from the session itself.
+- **What each side sees.** The teacher's row says "Fewer questions: 20 of 25".
+  The student is told only how many questions their Test has ("20 questions"),
+  skill by skill; nothing names the accommodation.
+
 ### A grade set by hand
 
 `adjustTestCycleGrade` records a grade from a named source — the Review score,
@@ -396,6 +430,7 @@ speak of a retest and of the mastery bar where they apply.
 | `runTestCycleBulkAction` | teacher of record | Waive Review / Open Test sessions as one resumable operation |
 | `getTestCycleOperation` | teacher of record | An operation's progress and per-student account |
 | `adjustTestCycleGrade` | teacher of record | Record a grade by hand from a named source, or remove it; audited |
+| `setTestCycleReducedItems` | teacher of record | The Test questions one student with a fewer-items plan skips, until they start; audited |
 
 ## Testing
 
@@ -420,6 +455,11 @@ speak of a retest and of the mastery bar where they apply.
 - `tests/integration/testCycleSecureWorkflow.test.mjs` — the real handlers
   for windows, the missed-Test Retest, audience, bulk operations (repeat,
   resume, partial failure), grade adjustments, archive and delete.
+- `tests/integration/testCycleFewerItems.test.mjs` and
+  `tests/platform/testCycleReducedItems.test.mjs` — fewer questions for one
+  student: who may choose, the plan minus the excused questions, the grade
+  over the questions asked, Corrections, the shorter Retest, the missed-Test
+  Retest, and the lock once they start.
 - `tests/platform/testCycleAvailability.test.mjs`,
   `testCycleScheduledStages.test.mjs` (every kind of student against every
   moment), `testCycleBulk.test.mjs`, `testCycleGradeAdjustment.test.mjs`,

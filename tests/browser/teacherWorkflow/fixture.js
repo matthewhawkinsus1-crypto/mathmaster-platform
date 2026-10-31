@@ -14,6 +14,7 @@
  *   - Period 5 has a student whose account key is not a numeric SIS id.
  */
 import { addRecoveryHoldScenario, addTargetedRecoveryScenario } from './recoveryFixture.js';
+import { addInnerScreensScenario } from './innerScreensFixture.js';
 import { projectGradeTransferUnits } from '../../../src/platform/gradeTransfer/gradeTransferProjection.js';
 import { createExportSnapshot, transferSnapshotId } from '../../../src/platform/gradeTransfer/gradeTransferModel.js';
 import { buildRevisionDocument, buildSupportProjection, normalizeSupportRevisionInput } from '../../../functions/shared/supportProfileModel.mjs';
@@ -73,6 +74,18 @@ const realLessonSections = (id) => ([
   ] },
   { id: `${id}-dol`, role: 'dol', title: 'DOL', questions: [{ questionId: `${id}-d1`, activityRole: 'dol', type: 'literal', prompt: 'Solve 5x − 5 = 20 for x.', solveFor: 'x', acceptedAnswers: ['5'] }] },
 ]);
+
+// `?questions=family`: the `real` lesson with its first Classwork question a
+// Question Family slot (linear.slopeFromPoints), whose numbers follow the
+// student's seat — for the journeys that move a student between Chromebooks
+// before the first Submit (familyPinCrossDeviceJourneys.mjs, RT15).
+const familyLessonSections = (id) => realLessonSections(id).map((section) => (section.role !== 'classwork' ? section : {
+  ...section,
+  questions: [
+    { questionId: `${id}-c1`, activityRole: 'classwork', type: 'multiAnswer', prompt: 'Find the slope.', standards: { primary: ['A.3A'] }, questionFamily: { id: 'linear.slopeFromPoints' } },
+    ...section.questions.slice(1),
+  ],
+}));
 
 // `?questions=lmr`: today's Warm-Up is the production lmr-wu-1 / lmr-wu-2 card
 // sorts (family-backed), then a Linear Multiple Representations board, so the
@@ -209,16 +222,27 @@ export const DISTRICT_ID_CORRECTION = Object.freeze({
   courseId: 'course-alg1-p1',
 });
 
-export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, params = null } = {}) => {
+// `compiledSections`: the lesson compiled by lessonFixtures.js, which the page
+// loads (fakeFirestore.js) only for `?questions=matrices` or `=dividing`; a
+// Vite `?raw` import cannot be reached from node.
+export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, params = null, compiledSections = null } = {}) => {
   const questionSet = params?.get?.('questions');
   const sectionsFor = questionSet === 'real' ? realLessonSections
+    : questionSet === 'family' ? familyLessonSections
     : questionSet === 'lmr' ? lmrLessonSections
       : questionSet === 'systems' ? systemsLessonSections
-        : lessonSections;
+        : (questionSet === 'matrices' || questionSet === 'dividing') && compiledSections ? compiledSections
+          : lessonSections;
   // `?p3StartMin=<n>`: Period 3 began n minutes ago (default 0: it begins
   // now). Under 10, the Warm-Up is still inside its default ten-minute window,
   // so with no parameter it is open; every journey that passes none relies on
   // that. Pass e.g. 40 for a period well under way with its Warm-Up closed.
+  // DECIDED (CI17, the owner): the default stays 0. It once read "40" in this
+  // comment while the code gave 0, and 40 would close the Warm-Up for the 23
+  // of the 29 journeys that open this harness and pass none: each was written
+  // for a student who walks in at the bell, and each would have to set it
+  // back for no gain in realism. A journey that wants a period under way
+  // asks (40 for the Warm-Up closed, 5 or 8 for it nearly over).
   const p3StartParam = params?.get?.('p3StartMin');
   const p3StartMin = p3StartParam == null || p3StartParam === '' ? 0 : Number(p3StartParam);
   const p3StartMs = now - (Number.isFinite(p3StartMin) && p3StartMin >= 0 ? p3StartMin : 0) * 60_000;
@@ -466,6 +490,9 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
   if (params?.get?.('recovery') === 'p0') addRecoveryHoldScenario({ fixture, now, teacherEmail: TEACHER_EMAIL });
   // Opt-in (`&recovery=targeted`): Practice targeted at a stored misconception.
   if (params?.get?.('recovery') === 'targeted') addTargetedRecoveryScenario({ fixture, now, teacherEmail: TEACHER_EMAIL });
+  // Opt-in (`&innerScreens=1`): a Test Cycle in Corrections and two practice
+  // tests for Algebra I Period 1 (innerScreenBackJourneys.mjs, NV14).
+  if (params?.get?.('innerScreens') === '1') addInnerScreensScenario({ fixture, now });
   // Opt-in (`&prereq=1`): a lesson and a quiz that open early once their
   // prerequisite is met (prerequisiteEarlyJourneys.mjs).
   if (params?.get?.('prereq') === '1') addPrerequisiteEarlyScenario({ fixture, now, lesson, sectionsFor });

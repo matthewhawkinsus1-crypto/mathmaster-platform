@@ -4,6 +4,7 @@ import {
   WorkViewCapabilityPortProvider,
   combinePublishedCapabilities,
   instructionShown,
+  taskShown,
   toggleWorkViewDrawer,
   useHasParentWorkView,
   usePublishWorkViewCapabilities,
@@ -11,12 +12,14 @@ import {
   workViewCapabilitySummary,
 } from '../../platform/workView/workViewCapabilities.js';
 import { readWorkViewViewport } from '../../platform/workView/workViewViewport.js';
+import { OPENER_GAP, openerSharesRow } from '../../platform/workView/openerPlacement.js';
 import { WorkViewPresentationContext } from '../../platform/workView/workViewPresentation.js';
 import { captureWorkViewScrollHold, restoreWorkViewScrollHold } from '../../platform/workView/workViewScrollHold.js';
 import { revealWorkViewTarget } from '../../platform/workView/workViewReveal.js';
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 import { useModalDialog } from '../../ui/Dialog.jsx';
 import { relabelToolPrimaryActions, useMethodWithheld, useToolRuntimeContext } from '../../tools/shared/ToolRuntimeContext.jsx';
+import { LANGUAGE_TOOLS, OPEN_WORK_VIEW, workViewCapabilityWord } from '../../platform/student/studentWords.js';
 import { useFocusSafeDisabled } from './useFocusSafeDisabled.js';
 import './WorkViewShell.css';
 
@@ -105,8 +108,8 @@ function WorkViewActionButton({ action, primary, onInvoke }) {
       {...availability}
       onClick={() => { if (!action.disabled) onInvoke(action); }}
       title={action.title}
-      // A phone row fits four controls only with short labels ("Reset"
-      // for "Reset Question"); the full label stays the accessible name.
+      // A phone row fits four controls only with short labels ("Start over"
+      // for "Start question over"); the full label stays the accessible name.
       aria-label={action.shortLabel && typeof action.label === 'string' ? action.label : undefined}
       >
       {action.icon ? <>{action.icon}{' '}</> : null}
@@ -142,7 +145,6 @@ export default function EnlargeableFigure({
   children,
   label = 'graph',
   style = {},
-  enlargeLabel = 'Enlarge',
   openEnlarged = false,
   dismissKey = null,
   presentationKey = null,
@@ -150,7 +152,7 @@ export default function EnlargeableFigure({
   // A CLOSED QUESTION CAN STILL BE ENLARGED TO LOOK AT (TOOL-13). Closing still
   // closes an open Work View (the grading transition below), but the opener
   // stays: a student can enlarge their own graded graph to review it. The work
-  // area inside stays exactly as closed as it is inline (inert, no Submit,
+  // area inside stays exactly as closed as it is inline (read-only, no Submit,
   // Reset or Undo), so Work View shows nothing the page does not.
   reviewWhenClosed = false,
   // THE ENLARGED PANEL COVERS THE QUESTION THAT SENT THE STUDENT TO IT.
@@ -468,20 +470,41 @@ export default function EnlargeableFigure({
    * Measured, because the label, the font and the zoom all change its size;
    * WorkViewShell.css reserves its width at the end of those first rows, or on
    * a phone starts a wrapping row below its bottom edge.
+   *
+   * WHERE THERE IS NO ROOM BESIDE IT, IT GETS A ROW OF ITS OWN (PH01). At 200%
+   * text on a 390px phone the button is 257px wide and no heading, tool title or
+   * chip row can share its row: nine of the 22 question types still had their
+   * heading under it, and a tool's title ("Syst|ems Workspace") ended at its
+   * fourth letter. When the row has too little room beside the button
+   * (openerPlacement.js), the surface says `data-opener-stacked`, the button
+   * drops into the flow above the work (WorkViewShell.css), and the reserved
+   * space and height are 0: the rows that keep clear of it have nothing to keep
+   * clear of.
    */
   useLayoutEffect(() => {
     const opener = openerRef.current;
     const surface = opener?.parentElement;
     if (enlarged || !opener || !surface) return undefined;
     const publishSpace = () => {
-      surface.style.setProperty('--mm-work-view-opener-space', `${Math.ceil(opener.offsetWidth) + 16}px`);
-      surface.style.setProperty('--mm-work-view-opener-bottom', `${Math.ceil(opener.offsetTop + opener.offsetHeight)}px`);
+      const width = Math.ceil(opener.offsetWidth);
+      const stacked = !openerSharesRow({
+        surfaceWidth: surface.clientWidth,
+        openerWidth: width,
+        fontSize: Number.parseFloat(window.getComputedStyle(opener).fontSize),
+      });
+      if (stacked) surface.setAttribute('data-opener-stacked', 'true');
+      else surface.removeAttribute('data-opener-stacked');
+      surface.style.setProperty('--mm-work-view-opener-space', stacked ? '0px' : `${width + OPENER_GAP}px`);
+      surface.style.setProperty('--mm-work-view-opener-bottom', stacked ? '0px' : `${Math.ceil(opener.offsetTop + opener.offsetHeight)}px`);
     };
     publishSpace();
     const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(publishSpace) : null;
     observer?.observe(opener);
+    // The room beside the button changes with the screen as well as with the button.
+    observer?.observe(surface);
     return () => {
       observer?.disconnect();
+      surface.removeAttribute('data-opener-stacked');
       surface.style.removeProperty('--mm-work-view-opener-space');
       surface.style.removeProperty('--mm-work-view-opener-bottom');
     };
@@ -492,7 +515,13 @@ export default function EnlargeableFigure({
   const shortHeight = enlarged && viewport.shortHeight;
   const presentation = useMemo(() => ({ enlarged, shortHeight }), [enlarged, shortHeight]);
 
-  const task = registeredCapabilities.task?.content || registeredCapabilities.task?.text || taskText;
+  // A tool's own task on an exit ticket, quiz or test: only one marked
+  // `authoritative` or `controlsOnly` (TS11; taskShown). Under QuestionEngine
+  // its authored task is authoritative and replaces the tool's; this covers a
+  // tool shell with no question around it, whose `taskText` is the tool's
+  // own words too.
+  const shownTask = taskShown(registeredCapabilities.task, methodWithheld);
+  const task = shownTask?.content || shownTask?.text || (methodWithheld ? '' : taskText);
   // THE HELP DRAWER, IN THREE PARTS (student pass 3, TOOL-3): the tool's
   // description and steps (its TaskCard, which Work View hides), then the
   // platform's Help — the hint ladder and "Ask my teacher", never replaced —
@@ -516,7 +545,7 @@ export default function EnlargeableFigure({
   // the work lost the numbers the question gives. It is the question's own
   // content, not help: it stays on a DOL, quiz or test. It gets its own header
   // button and drawer; on a phone, where a fourth header button squeezes the
-  // task (see Support tools below), it opens inside the Task drawer instead,
+  // task (see Language tools below), it opens inside the Task drawer instead,
   // as its own labelled group.
   const reference = helpPart(registeredCapabilities.reference);
   const referenceInTask = Boolean(reference && task && viewport.mode === 'mobile');
@@ -538,18 +567,24 @@ export default function EnlargeableFigure({
     (name) => registeredCapabilities[name]?.onAction || registeredCapabilities[name]?.onClick,
   );
   const supports = registeredCapabilities.supports?.render ? registeredCapabilities.supports : null;
-  // ONE DRAWER FOR HELP AND SUPPORT TOOLS ON A PHONE. Every student now has
-  // Support tools outside assessments (universal design), and a fourth 44px
+  // ONE DRAWER FOR HELP AND LANGUAGE TOOLS ON A PHONE. Every student now has
+  // Language tools outside assessments (universal design), and a fourth 44px
   // header button squeezed a phone's task from four lines to six — cut off in
   // the header (studentUxPlatform "staged", PR #454). With Help present, the
   // tools open inside Help there; elsewhere they keep their own button. The
   // button is still named "Help" and the drawer "Help and instructions": the
-  // tray inside is its own group, "Support tools".
+  // tray inside is its own group, "Language tools".
   const supportsInHelp = Boolean(help && supports && viewport.mode === 'mobile');
+  // What the caption says for a capability, in a student's words: the tool's
+  // own label where it has one, else the word list's (studentWords.js). One
+  // the list does not know is left out of the caption rather than printed as
+  // its key (VH-32).
+  const captionWord = (name) => registeredCapabilities[name]?.label || workViewCapabilityWord(name);
   const capabilityNames = workViewCapabilitySummary(registeredCapabilities)
     .filter((name) => !['task', 'help', 'directions', 'toolHelp', 'instruction', 'primaryActions', 'secondaryActions', 'supports'].includes(name))
     .filter((name) => name !== 'reference')
-    .filter((name) => !shellActionNames.includes(name));
+    .filter((name) => !shellActionNames.includes(name))
+    .filter((name) => captionWord(name));
   const shellActions = [
     registeredCapabilities.undo,
     registeredCapabilities.redo,
@@ -599,9 +634,13 @@ export default function EnlargeableFigure({
         : { position: 'relative', margin: 0, boxSizing: 'border-box', ...style }}
     >
       {shortHeight ? null : instructionNode}
+      {/* One name for one feature (TL35): the opener always says "Open Work
+          View". It used to take a label per tool ("Enlarge graph", "Enlarge to
+          plot", "Enlarge algebra workspace"…); a caller that still passes one
+          is ignored, so no tool can name it another way. */}
       {!enlarged ? (
-        <button ref={openerRef} className="mm-button-neutral" type="button" onClick={openWorkView} disabled={openerBlocked} data-work-view-review={reviewingClosed ? 'true' : undefined} style={CONTROL}>
-          ⤢ {enlargeLabel}
+        <button ref={openerRef} className="mm-button-neutral mathmaster-work-view-opener" type="button" onClick={openWorkView} disabled={openerBlocked} data-work-view-review={reviewingClosed ? 'true' : undefined} style={CONTROL}>
+          ⤢ {OPEN_WORK_VIEW}
         </button>
       ) : null}
       <WorkViewCapabilityPortProvider publish={publish}>
@@ -688,6 +727,9 @@ export default function EnlargeableFigure({
           {task ? (
             <div
               className="mathmaster-work-view-persistent-task"
+              // A group, so its name is read (a label on a bare div is not,
+              // AX18); the group says "Your task", so the words are not said twice.
+              role="group"
               aria-label="Your task"
               style={{
                 minWidth: 0,
@@ -698,7 +740,7 @@ export default function EnlargeableFigure({
                 lineHeight: 1.35,
               }}
             >
-              <span style={{ color: 'var(--mm-primary-text)', fontWeight: 900 }}>Your task: </span>
+              <span aria-hidden="true" style={{ color: 'var(--mm-primary-text)', fontWeight: 900 }}>Your task: </span>
               {typeof task === 'string' ? <MathText>{task}</MathText> : task}
             </div>
           ) : null}
@@ -716,7 +758,7 @@ export default function EnlargeableFigure({
             Help
           </button>
         ) : null}
-        {supports && !supportsInHelp ? <button type="button" data-work-view-supports aria-expanded={drawer === 'supports'} onClick={() => setDrawer((value) => toggleWorkViewDrawer(value, 'supports'))}>{supports.label || 'Support tools'}</button> : null}
+        {supports && !supportsInHelp ? <button type="button" data-work-view-supports aria-expanded={drawer === 'supports'} onClick={() => setDrawer((value) => toggleWorkViewDrawer(value, 'supports'))}>{supports.label || LANGUAGE_TOOLS}</button> : null}
         <button ref={closeRef} type="button" onClick={close}>{openEnlarged ? 'Close full screen ✕' : 'Close ✕'}</button>
       </header>
       <section className="mathmaster-work-view-drawer" data-open={enlarged && drawer === 'task' ? 'true' : 'false'} aria-label="Original task">
@@ -733,7 +775,7 @@ export default function EnlargeableFigure({
         {supportsInHelp && enlarged && drawer === 'help' ? supports.render() : null}
       </section>
       {supports && !supportsInHelp ? (
-        <section className="mathmaster-work-view-drawer" data-open={enlarged && drawer === 'supports' ? 'true' : 'false'} aria-label="Support tools">
+        <section className="mathmaster-work-view-drawer" data-open={enlarged && drawer === 'supports' ? 'true' : 'false'} aria-label={supports.label || LANGUAGE_TOOLS}>
           {enlarged && drawer === 'supports' ? supports.render() : null}
         </section>
       ) : null}
@@ -759,7 +801,7 @@ export default function EnlargeableFigure({
               {capabilityNames.map((name, index) => (
                 <React.Fragment key={name}>
                   {index ? ' · ' : null}
-                  <span className="mathmaster-work-view-capability" data-work-view-capability={name}>{registeredCapabilities[name]?.label || name}</span>
+                  <span className="mathmaster-work-view-capability" data-work-view-capability={name}>{captionWord(name)}</span>
                 </React.Fragment>
               ))}
             </p>

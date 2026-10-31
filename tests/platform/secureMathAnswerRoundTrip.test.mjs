@@ -25,8 +25,8 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import {
-  SECURE_AND, SECURE_ANSWER_EDITORS, SECURE_ENTRY_HINTS, SECURE_MATH_EDITOR_PROFILES, SECURE_OR, SECURE_PROFILE_KEYS, SECURE_TEXT_PROFILE_REASONS,
-  secureAnswerEntryFor, variablesInPrompt,
+  SECURE_AND, SECURE_ANSWER_EDITORS, SECURE_ENTRY_HINTS, SECURE_MATH_EDITOR_PROFILES, SECURE_OR, SECURE_PRACTICE_EXAM_HINTS, SECURE_PROFILE_KEYS, SECURE_TEXT_PROFILE_REASONS,
+  isPracticeExam, secureAnswerEntryFor, variablesInPrompt,
 } from '../../src/platform/assessment/secureAnswerEntry.js';
 import { stackDivisions } from '../../functions/shared/stackDivisions.mjs';
 import { toolProfileForInputProfile } from '../../src/platform/interaction/interactionContract.js';
@@ -126,13 +126,19 @@ test('the browser capture covers every profile on both screen sizes, a phone\'s 
   }
 });
 
-test('an expression and an equation stay typed text for reasons the grader still has', async () => {
-  // If either flips, the server now reads the editor's form: the profile can
-  // move to the math editor once the browser capture shows it.
+test('an expression and an equation stay typed text for the reasons that are left', async () => {
+  // The grader's half: if either flips, the server reads the editor's
+  // division binding too, and what is left is a phone's keypad for these
+  // profiles (SECURE_TEXT_PROFILE_REASONS) and the browser capture.
   assert.equal(await grades('\\frac{2A}{h}-b_2', '2A/h-b_2', { profile: 'expression' }), false, SECURE_TEXT_PROFILE_REASONS.expression);
   assert.equal(await grades('2A/h-b_2', '2A/h-b_2', { profile: 'expression' }), true, 'typed text is read');
-  assert.equal(await grades('\\log_2\\left(32\\right)=5', 'log_2(32)=5', { profile: 'equation' }), false, SECURE_TEXT_PROFILE_REASONS.equation);
-  assert.equal(await grades('log_2(32)=5', 'log_2(32)=5', { profile: 'equation' }), true, 'typed text is read');
+  assert.equal(await grades('h=\\frac{2A}{b}', 'h=2A/b', { profile: 'equation' }), false, SECURE_TEXT_PROFILE_REASONS.equation);
+  assert.equal(await grades('h=2A/b', 'h=2A/b', { profile: 'equation' }), true, 'typed text is read');
+  // Earlier reasons, gone: the grader reads a named function's backslash
+  // (GR34), and the editor's spelling of every key a secure Test can issue
+  // (TS05, editorKeySpellings.test.mjs) — its typed log base among them.
+  assert.equal(await grades('\\log_2\\left(32\\right)=5', 'log_2(32)=5', { profile: 'equation' }), true, 'the editor\'s \\log is read as log');
+  assert.equal(await grades('\\log_{_{}2}\\left(32\\right)=5', 'log_2(32)=5', { profile: 'equation' }), true, 'the editor\'s typed log base is read');
   assert.deepEqual(Object.keys(SECURE_TEXT_PROFILE_REASONS).sort(), ['equation', 'expression']);
 });
 
@@ -345,9 +351,11 @@ test('the keypad says nothing about the answer: nothing captioned "Needed for th
     );
   }
   assert.deepEqual(bare.keys.map((key) => key.label), SECURE_PROFILE_KEYS.orderedPair.map((key) => key.label));
-  // An inequality's keypad: the profile's keys, and the PROMPT's letters.
+  // An inequality's keypad: the profile's keys, the PROMPT's letters, and x
+  // and y, which every inequality has (TS04; secureInequalityKeypadLetters).
+  // The key's n is not among them.
   const inequality = secureAnswerEntryFor({ inputProfile: 'inequality', expected: 'n>=4' }, { prompt: 'Let $h$ be the height and $t$ the time.' });
-  assert.deepEqual(inequality.keys.map((key) => key.label), ['a⁄b', '|x|', 'xⁿ', '√', 'π', 'and', 'or', 'h', 't']);
+  assert.deepEqual(inequality.keys.map((key) => key.label), ['a⁄b', '|x|', 'xⁿ', '√', 'π', 'and', 'or', 'h', 't', 'x', 'y']);
   assert.equal(inequality.keys.find((key) => key.label === 'and').command, SECURE_AND);
   assert.equal(inequality.keys.find((key) => key.label === 'or').command, SECURE_OR);
 });
@@ -380,7 +388,7 @@ test('each profile gets the editor and keypad the evidence supports', () => {
 });
 
 test('the hint under the box says how to type, never what — no example numbers, and the server\'s own hint wins', () => {
-  for (const [profile, hint] of Object.entries(SECURE_ENTRY_HINTS)) {
+  for (const [profile, hint] of [...Object.entries(SECURE_ENTRY_HINTS), ...Object.entries(SECURE_PRACTICE_EXAM_HINTS)]) {
     assert.doesNotMatch(hint, /\d/, `${profile}: an example number in a hint could read as an answer on a test`);
   }
   assert.match(secureAnswerEntryFor({ inputProfile: 'inequality' }).hint, /≤ and ≥ keys, or type <= and >=/, 'the keys, and how to type them');
@@ -388,4 +396,32 @@ test('the hint under the box says how to type, never what — no example numbers
   assert.doesNotMatch(secureAnswerEntryFor({ inputProfile: 'expression' }).hint, /key/, 'no key the text box does not have');
   assert.equal(secureAnswerEntryFor({ inputProfile: 'interval', responseHint: 'Use interval notation.' }).hint, 'Use interval notation.');
   assert.equal(secureAnswerEntryFor({ inputProfile: 'interval' }).hint, SECURE_ENTRY_HINTS.interval);
+});
+
+test('the number line says to avoid a mixed number only on a practice exam, where it is the test\'s rule (TS04)', async () => {
+  // Every grader reads a mixed number by its value (GR13), as the editor
+  // writes it from the a/b key or a typed "3 1/2" (GR33), so a course Test's
+  // line does not tell the student to avoid one.
+  assert.equal(await grades('3\\frac{1}{2}', '7/2'), true);
+  assert.equal(await grades('3\\frac12', '3.5'), true);
+  const MIXED = /mixed number/i;
+  for (const examType of ['courseTest', null, undefined, '']) {
+    const hint = secureAnswerEntryFor({ inputProfile: 'number' }, { examType }).hint;
+    assert.equal(isPracticeExam(examType), false, String(examType));
+    assert.doesNotMatch(hint, MIXED, `${examType || 'Corrections (no exam)'}: a course Test does not forbid a mixed number`);
+    assert.match(hint, /^Type only the number\. Make a fraction with \/ or the a\/b key\. Leave out commas, units, % and \$\.$/);
+  }
+  // A Digital SAT takes no mixed number: its practice, and every practice
+  // exam, keeps the line.
+  for (const examType of ['digitalSAT', 'act', 'tsia2', 'asvab']) {
+    const hint = secureAnswerEntryFor({ inputProfile: 'number' }, { examType }).hint;
+    assert.equal(isPracticeExam(examType), true, examType);
+    assert.match(hint, /write a mixed number as a fraction or a decimal/, examType);
+    assert.equal(hint, SECURE_PRACTICE_EXAM_HINTS.number);
+  }
+  // Only the number line depends on the exam, and the server's own hint wins.
+  for (const profile of ['set', 'interval', 'orderedPair', 'inequality', 'expression', 'equation']) {
+    assert.equal(secureAnswerEntryFor({ inputProfile: profile }, { examType: 'digitalSAT' }).hint, secureAnswerEntryFor({ inputProfile: profile }, { examType: 'courseTest' }).hint, profile);
+  }
+  assert.equal(secureAnswerEntryFor({ inputProfile: 'number', responseHint: 'Round to the nearest tenth.' }, { examType: 'digitalSAT' }).hint, 'Round to the nearest tenth.');
 });

@@ -191,6 +191,22 @@ test('the plan is marked done, which is what stops a replay of a replay', () => 
   assert.equal(stateAfterPlan.secondChancePlanned, true);
 });
 
+// LC01. A student working on the replay reports how far they have got. A
+// replay pays only a FULLY correct answer, so unfinished work is worth nothing
+// on the board yet (it used to show up to 1000 and fall to 0 when the answer
+// was graded). Asked before either student answers it.
+const workingOnReplay = await functionsIndex.reportLiveChallengeProgress.run(studentRequest({
+  roomId: ROOM, roundIndex: SCHEDULED, roundVersion: roomAfterPlan.roundVersion, roundToken: roomAfterPlan.roundToken, provisionalPoints: 900,
+}, MISSER));
+const replayRow = (await roomRef.collection('players').doc('pk-missed').get()).data();
+
+test('work in progress on a replay is worth nothing on the board until the answer is graded', () => {
+  assert.equal(workingOnReplay.recorded, true, 'the report is taken');
+  assert.equal(workingOnReplay.provisionalPoints, 0, 'and answered with what the work is worth: nothing yet');
+  assert.equal(replayRow.provisionalRound, SCHEDULED);
+  assert.equal(replayRow.provisionalPoints, 0, 'the public row never carries the 900 the device claimed');
+});
+
 // The replay itself, answered correctly by the student who missed it.
 const recovered = await functionsIndex.submitLiveChallengeResponse.run(studentRequest({
   roomId: ROOM, roundIndex: SCHEDULED, responsePayload: { responses: { answer: await correctAnswerFor(SCHEDULED) } },

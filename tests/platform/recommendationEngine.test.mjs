@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { getSkillGraph, teksSkillId } from '../../src/platform/path/skillGraph.js';
 import { TIMING, sequenceProvider, staticMapProvider } from '../../src/platform/path/curriculumPacing.js';
 import {
-  MASTERED_THRESHOLD, REASON, STATUS,
+  EXTENSION_PREREQUISITE_EVIDENCE, MASTERED_THRESHOLD, REASON, STATUS,
   beginRemediation, evaluatePrerequisites, explainForStudent,
   getStudentPathOptions, shouldReturnFromRemediation,
 } from '../../src/platform/path/recommendationEngine.js';
@@ -141,6 +141,36 @@ test('one window ahead with strong mastery is an extension', () => {
     courseId: COURSE, pacingProvider: provider, pacing: { currentWindow: 1 }, masteryBySkill: mastery,
   });
   assert.equal(find(result, target.skillId).status, STATUS.EXTENSION);
+});
+
+// MP02 (owner decision, 2026-10-23): the Challenge-card bar stays at 0.5 of
+// prerequisite evidence strength, and the drift that per-question scoring
+// causes (cards appearing later, more "Not Enough Evidence") is accepted. The
+// number is pinned here so that changing it is a decision, not an accident; the
+// reasons and the measured drift are written beside the constant.
+test('MP02 — a Challenge card needs prerequisite evidence of at least 0.5, and not less', () => {
+  assert.equal(EXTENSION_PREREQUISITE_EVIDENCE, 0.5, 'the owner kept 0.5; change it only by deciding to');
+
+  const target = graph[5];
+  const provider = staticMapProvider({ windowMap: { [target.skillId]: { window: 2 } } });
+  const statusWithEvidence = (evidenceStrength) => {
+    // Mastered prerequisites (mastery clears the extension threshold), with
+    // only the STRENGTH of the evidence behind them varying.
+    const mastery = masteredEverything();
+    delete mastery[target.skillId];
+    target.prerequisites.forEach((entry) => {
+      mastery[entry.skillId] = { mastery: 0.95, attempts: 20, evidenceStrength };
+    });
+    return find(getStudentPathOptions({
+      courseId: COURSE, pacingProvider: provider, pacing: { currentWindow: 1 }, masteryBySkill: mastery,
+    }), target.skillId).status;
+  };
+
+  assert.equal(statusWithEvidence(1), STATUS.EXTENSION, 'strong evidence earns the card');
+  assert.equal(statusWithEvidence(EXTENSION_PREREQUISITE_EVIDENCE), STATUS.EXTENSION, 'exactly at the bar earns it');
+  assert.equal(statusWithEvidence(EXTENSION_PREREQUISITE_EVIDENCE - 0.01), STATUS.AVAILABLE,
+    'a little under the bar is just an available skill: mastery from thin evidence is not enough');
+  assert.equal(statusWithEvidence(0), STATUS.AVAILABLE, 'and none at all never earns a Challenge');
 });
 
 // --- Case 6: teacher override ----------------------------------------------

@@ -1,15 +1,17 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import QuestionPrompt from './QuestionPrompt';
-import { evaluateStaticGraphFunction, fitStaticGraphViewport, graphAsymptoteLines, resolvePointFill, resolvePointRadius, STATIC_GRAPH_ASYMPTOTE_STYLE } from './graphSpecUtils';
+import { evaluateStaticGraphFunction, graphAsymptoteLines, resolvePointFill, resolvePointRadius, STATIC_GRAPH_ASYMPTOTE_STYLE, staticGraphScaleViews } from './graphSpecUtils';
 import { readGraphPointCoordinates } from './graphPointUtils.js';
 import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 import MathDisplay from './MathDisplay.jsx';
 import { formatGraphEquationLatex } from './functionGraphUtils.js';
 import { majorTicks, niceStep } from './platform/graph/graphScaleService.js';
 import { quadrantLabelPositions } from './platform/graph/quadrantLabels.js';
-import { describeCoordinatePlane } from './platform/language/graphDescription.js';
+import { describeCoordinatePlane, GRAPH_WORDS, joinSegmentPaths } from './platform/language/graphDescription.js';
 import { useQuestionLifecycle } from './platform/question/QuestionLifecycleContext.jsx';
 import { PublishFigureReading } from './platform/language/figureReadings.js';
+import { joinFigureSays, say, sayFigure } from './platform/language/figureSay.js';
+import { graphReadOutApplies, useGraphReadOut, useReportGraphReadOut } from './platform/supports/graphReadOut.js';
 
 const DEFAULT_WIDTH = 620;
 const DEFAULT_HEIGHT = 430;
@@ -153,16 +155,17 @@ const edgeCrossing = (spec, fromX, toX, yMin, yMax) => {
   return null;
 };
 
-const continuationFunctionEndpoints = (functions = [], xMin, xMax, yMin, yMax, { throughEdges = false } = {}) => {
+const continuationFunctionEndpoints = (functions = [], xMin, xMax, yMin, yMax) => {
   const span = Math.max(1, Number(xMax) - Number(xMin));
   const probe = Math.max(span / 60, 0.05);
 
   const visibleArrow = (spec, functionIndex, side, x, innerX) => {
     const y = evaluateFunction(spec, x);
     const innerY = evaluateFunction(spec, innerX);
-    // An equal-unit window lets a steep line leave through the top or the
-    // bottom (R-1): its arrow goes where it leaves, not nowhere.
-    if (throughEdges && Number.isFinite(y) && (y < yMin || y > yMax)) {
+    // A curve that leaves through the top or the bottom (a steep line, an
+    // exponential, any curve in a locked window) gets its arrow where it
+    // leaves, not nowhere (R-1; every static figure since TL14).
+    if (Number.isFinite(y) && (y < yMin || y > yMax)) {
       const crossing = edgeCrossing(spec, x, side === 'left' ? xMax : xMin, yMin, yMax);
       return crossing ? [{ id: `function-${functionIndex}-${side}-continuation`, marker: 'arrow', ...crossing }] : [];
     }
@@ -231,9 +234,10 @@ const describeStaticGraph = ({ xMin, xMax, yMin, yMax, xStep, yStep, minorStep, 
     snapStep: minorStep || 1, minorGridDrawn: Boolean(minorStep),
     lines: functions.filter(isLine).map((spec) => ({ m: Number(spec.m ?? spec.slope), b: Number(spec.b ?? spec.intercept ?? 0) })),
     functions: functions.filter((spec) => !isLine(spec)).map((spec) => (x) => evaluateFunction(spec, x)),
-    polylines: segments
+    // Pieces drawn end to end are one path, not one each (AX27).
+    polylines: joinSegmentPaths(segments
       .map((segment) => [segment.from || segment.start, segment.to || segment.end])
-      .filter((pair) => pair.every(Array.isArray)),
+      .filter((pair) => pair.every(Array.isArray))),
     points: [
       ...points,
       ...endpointRequirements
@@ -250,17 +254,39 @@ const describeStaticGraph = ({ xMin, xMax, yMin, yMax, xStep, yStep, minorStep, 
     verticalLines: asymptotes.filter((line) => line.axis !== 'horizontal').map((line) => line.value),
     horizontalLines: asymptotes.filter((line) => line.axis === 'horizontal').map((line) => line.value),
     emptyText: 'Nothing is plotted.',
-  }).description;
+  });
 };
 
 export default function GraphDisplay({ graph, title = 'Coordinate graph', enlargeable = true }) {
   const descriptionId = `mm-graph-desc-${useId()}`;
   const { positionsReadable: questionClosed, terminal: questionLocked } = useQuestionLifecycle();
+  // GRAPH READ-OUT (AX03): the full reading while the question is open, for a
+  // student whose plan gives it (graphReadOut.js). An axis whose numbers the
+  // graph hides is read by nobody, so the read-out adds nothing there.
+  const graphReadOut = useGraphReadOut();
+  const readOut = graphReadOutApplies({ enabled: graphReadOut.enabled, closed: questionClosed });
+  const axesShown = graph?.axisDisplay?.showXTickLabels !== false && graph?.axisDisplay?.showYTickLabels !== false;
+  useReportGraphReadOut(Boolean(graph) && readOut && axesShown);
   const plotClipId = `mm-graph-plot-${useId().replace(/[^A-Za-z0-9_-]/g, '')}`;
+  // "Fix the scale" (R-9): which of a misleading-scale figure's two drawings is showing.
+  const [scaleFixed, setScaleFixed] = useState(false);
   if (!graph) return null;
 
   // STATIC_GRAPH_PLOT_ASPECT is this plot area's (620 x 430 less padding).
-  const displayGraph = fitStaticGraphViewport(graph);
+  // An author's scale per axis can be fixed by the student (R-9): the figure as
+  // written, or the same figure with one scale for both axes.
+  const { scaled: scaledGraph, fixed: fixedGraph } = staticGraphScaleViews(graph);
+  const displayGraph = fixedGraph && scaleFixed ? fixedGraph : scaledGraph;
+  // EVERY CURVE STAYS IN THE FRAME (TL14, owner decision). An equal-unit window
+  // (R-1) and one framed by an authored scale (R-9) crop a steep line on
+  // purpose, so they drew it inside the plot area with an arrow where it
+  // leaves; every other figure kept the old drawing, where a line ran on past
+  // the frame, over the axis numbers and out of the card: a locked window, a
+  // curve the fit does not chase (1/x near its asymptote, log x near 0), a
+  // line steeper than the window. Now every static figure draws its curves
+  // inside the plot area and marks where each one leaves through the top or
+  // the bottom with its arrow. The window itself is unchanged: what shows,
+  // and where lines meet, is still decided by the fit (graphSpecUtils.js).
   let xMin = clampRange(displayGraph.xMin, -10);
   let xMax = clampRange(displayGraph.xMax, 10);
   let yMin = clampRange(displayGraph.yMin, -10);
@@ -305,7 +331,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
     ? authoredEndpointRequirements
     : [
         ...restrictedFunctionEndpoints(functions),
-        ...continuationFunctionEndpoints(functions, xMin, xMax, yMin, yMax, { throughEdges: displayGraph.equalUnits === true }),
+        ...continuationFunctionEndpoints(functions, xMin, xMax, yMin, yMax),
       ];
   const axisDisplay = displayGraph.axisDisplay && typeof displayGraph.axisDisplay === 'object' ? displayGraph.axisDisplay : {};
   const showXTickLabels = axisDisplay.showXTickLabels !== false;
@@ -328,15 +354,32 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
   const axisY = xMin <= 0 && xMax >= 0 ? toScreenX(0) : toScreenX(xMin);
 
   const authoredDescription = String(graph.accessibleDescription || displayGraph.accessibleDescription || '').trim();
-  const spokenDescription = authoredDescription || describeStaticGraph({
+  const reading = (detail) => describeStaticGraph({
     xMin, xMax, yMin, yMax, xStep, yStep, functions, points, segments, endpointRequirements,
     minorStep: xMinorTicks.length && yMinorTicks.length && xMinorStep === yMinorStep ? xMinorStep : null,
-    asymptotes: graphAsymptoteLines(graph), detail: questionClosed ? 'features' : 'kinds',
+    asymptotes: graphAsymptoteLines(graph), detail,
     axisNumbersHidden: { x: !showXTickLabels, y: !showYTickLabels },
     // Closed, but its review not shown (an ended DOL, a DOL item before
     // release): it can no longer be answered, so the sentence says so.
     positionsWithheldText: questionLocked ? 'Positions are not read out on this question.' : null,
   });
+  // With the read-out, an author's description (written not to give the
+  // answer away) is followed by the full reading.
+  const generated = authoredDescription ? null : reading(questionClosed || readOut ? 'features' : 'kinds');
+  const spokenDescription = authoredDescription
+    ? [authoredDescription, readOut ? reading('features').description : ''].filter(Boolean).join(' ')
+    : generated.description;
+
+  // What the axes count by, said where the student reads it and where a screen
+  // reader does (R-9). Only a figure the student can fix has it: for any other
+  // figure the ticks are the whole story.
+  const scaleSay = fixedGraph
+    ? [scaleFixed ? say('scaleSame') : say('scaleCounts', scaledGraph.xStep, scaledGraph.yStep)]
+    : [];
+  const scaleCaption = sayFigure(scaleSay, GRAPH_WORDS, { english: true });
+  // Read aloud's reading as messages (AX05): said in Spanish under an authored
+  // Spanish translation. An author's description has none: it is read in English.
+  const readingSay = authoredDescription ? null : joinFigureSays(generated.say, graph.caption ? [String(graph.caption)] : [], scaleSay);
 
   const FigureContainer = enlargeable ? EnlargeableFigure : 'div';
   return (
@@ -545,17 +588,15 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
             </text>
           ))}
 
-        {/* An equal-unit window crops steep lines (R-1): drawn inside the
-            plot area only, never over the axis labels around it. */}
-        {displayGraph.equalUnits === true ? (
-          <clipPath id={plotClipId}>
-            <rect x={PADDING} y={PADDING} width={innerWidth} height={innerHeight} />
-          </clipPath>
-        ) : null}
+        {/* Curves are drawn inside the plot area only, never over the axis
+            labels around it (R-1; every static figure since TL14). */}
+        <clipPath id={plotClipId}>
+          <rect x={PADDING} y={PADDING} width={innerWidth} height={innerHeight} />
+        </clipPath>
         {functions.map((spec, functionIndex) =>
           buildFunctionPaths(spec, xMin, xMax, yMin, yMax, toScreenX, toScreenY).map((path, pathIndex) => (
             <path
-              clipPath={displayGraph.equalUnits === true ? `url(#${plotClipId})` : undefined}
+              clipPath={`url(#${plotClipId})`}
               key={`function-${functionIndex}-${pathIndex}`}
               d={toPathData(path)}
               fill="none"
@@ -667,8 +708,21 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
           not heard twice); inline styles so a host with no UI kit CSS never
           shows it. */}
       {/* Read aloud says the same description, and the caption the screen shows (figureReadings.js). */}
-      <PublishFigureReading entry={{ kind: 'figure', label: title, text: [spokenDescription, graph.caption ? String(graph.caption) : ''].join(' ') }} />
+      <PublishFigureReading entry={{ kind: 'figure', label: title, text: [spokenDescription, graph.caption ? String(graph.caption) : '', scaleCaption].join(' '), say: readingSay }} />
       <p id={descriptionId} data-graph-description="" aria-hidden="true" style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 }}>{spokenDescription}</p>
+      {fixedGraph ? (
+        <div data-scale-control="" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '8px 6px 2px' }}>
+          {/* The live region: the button's own name changes with the state, so this line is what says the figure changed. */}
+          <span role="status" data-scale-caption="" style={{ color: 'var(--mm-graph-axis)', fontSize: 'calc(14 * var(--mm-px))' }}>{scaleCaption}</span>
+          <button
+            type="button"
+            onClick={() => setScaleFixed((fixed) => !fixed)}
+            style={{ minHeight: 44, padding: '9px 14px', borderRadius: 999, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: 'pointer' }}
+          >
+            {scaleFixed ? 'Put the scale back' : 'Fix the scale'}
+          </button>
+        </div>
+      ) : null}
       {graph.caption && (
         <figcaption style={{ color: 'var(--mm-graph-axis)', fontSize: 'calc(14 * var(--mm-px))', padding: '8px 6px 2px' }}>
           <QuestionPrompt variant="plain" style={{ color: 'var(--mm-graph-axis)', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.45, margin: 0 }}>

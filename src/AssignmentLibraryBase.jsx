@@ -374,7 +374,21 @@ export default function AssignmentLibrary({
                 }}
               >
                 <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-                  <div style={{ fontWeight: 'bold' }}>{assignment.title}</div>
+                  {/* The row answers a click (it opens Assignments on this folder); its title is the keyboard's way
+                      to the same (TT27), as the buttons beside it stop the row's press and its drag. A button does
+                      not inherit the page's letter spacing or text rendering, so they are named: the title reads
+                      exactly as it did before it was a button. */}
+                  <div style={{ fontWeight: 'bold' }}>
+                    <button
+                      type="button"
+                      aria-label={`Open ${assignment.title} in Assignments`}
+                      onClick={(event) => { event.stopPropagation(); onNavigateToAssignments({ folder: selectedFolder, smartView }); }}
+                      onMouseDown={(event) => event.stopPropagation()}
+                      style={{ padding: 0, border: 0, background: 'transparent', color: 'inherit', font: 'inherit', letterSpacing: 'inherit', textRendering: 'inherit', textAlign: 'left', cursor: 'pointer' }}
+                    >
+                      {assignment.title}
+                    </button>
+                  </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 4 }}>
                     <span style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800, padding: '2px 6px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' }}>
                       {contentVersionLabel(assignment)}

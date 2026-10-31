@@ -100,27 +100,39 @@ test('the coverage line says what is actually wrong', () => {
   // Three marks on one corner: the repeats are counted, not called "two".
   assert.equal(say([...all, { ...all[0], x: all[0].x + 0.05 }, { ...all[0], y: all[0].y + 0.05 }]), '2 of your marks repeat corners you already marked. Remove the extra marks.');
   // One corner left: "the place", not "each other place".
-  assert.match(say(all.slice(0, 2)), /Tap the place where two boundary lines meet at the corner you have not marked yet\.$/);
-  assert.match(say(all.slice(0, 1)), /Tap each place where two boundary lines meet at a corner you have not marked yet\.$/);
+  // (It says what to do, not how: the step's own line says how to mark one, by pointer and by keys, AX32.)
+  assert.match(say(all.slice(0, 2)), /Mark the place where two boundary lines meet at the corner you have not marked yet\.$/);
+  assert.match(say(all.slice(0, 1)), /Mark each place where two boundary lines meet at a corner you have not marked yet\.$/);
   // One corner: singular. No corner at all: nothing to mark.
   assert.match(vertexCoverageMessage(vertexCoverage([corners[0]], [])), /of the 1 corner of/);
   assert.equal(vertexCoverageMessage(vertexCoverage([], [{ x: 1, y: 1 }]), ['A']), 'This solution region has no corners, so there is nothing to mark. Remove your mark.');
 });
 
 test('the vertices step is done only with full coverage where outcomes are shown, and says what is missing', () => {
+  // The rule is verticesStepComplete (inequalityBuildPolicy.js, tested as
+  // behaviour in tests/platform/inequalityBuildOutcomePolicy.test.mjs); the
+  // screen feeds it the grader's coverage of the marks as they stand.
   const stepDone = region(studentBuild, 'const verticesStepDone = ', 'const vertexCoverageReport', 'verticesStepDone');
-  assert.match(stepDone, /reports\.every\(\(report\) => report\.done\)/);
-  assert.match(stepDone, /!buildGate\.verdictsShown \|\| vertexCoverage\(workingVertices, vertices\)\.complete/,
+  assert.match(stepDone, /verticesStepComplete\(\{\s*checked,\s*reports,\s*verdictsShown: buildGate\.verdictsShown,\s*coverageComplete: vertexCoverage\(workingVertices, vertices\)\.complete,\s*\}\)/,
     'where outcomes are shown, every true corner must be marked');
-  // Both places that decide "done" use it: the flow and the Check's own advance.
+  // Both places that decide "done" use it: the flow (checked as it stands) and
+  // the Check's own advance (the press is the check).
   assert.match(studentBuild, /if \(phase === 'vertices'\) return verticesStepDone\(vertexReports\);/);
-  assert.match(studentBuild, /: \{ done: verticesStepDone\(vertices\.map\(vertexReport\)\) \};/);
+  assert.match(studentBuild, /: \{ done: verticesStepDone\(vertices\.map\(vertexReport\), true\) \};/);
+  assert.match(stepDone, /\(reports, checked = verticesChecked\) =>/);
 
   const report = region(studentBuild, 'const vertexCoverageReport = ', 'const reasoningDone', 'vertexCoverageReport');
-  assert.match(report, /if \(!verticesChecked \|\| !buildGate\.verdictsShown\) return null;/, 'a count is a verdict: never on a DOL, quiz or test');
+  assert.match(report, /if \(!verticesChecked\) return null;/);
+  // A count is a verdict: where outcomes are withheld nothing after this
+  // return reads the coverage, and only "No corners" is answered (recorded).
+  const withheld = region(report, 'if (!buildGate.verdictsShown) {', '\n    }', 'withheld');
+  assert.match(withheld, /return vertices\.length \? null : \{ tone: 'recorded', text: completionLine\(/);
+  assert.doesNotMatch(withheld, /vertexCoverage\(/, 'no coverage is read where outcomes are withheld');
+  assert.ok(report.indexOf('if (!buildGate.verdictsShown) {') < report.indexOf('vertexCoverage(workingVertices, vertices)'), 'the coverage is read only after the withheld return');
   // Its words are vertexCoverageMessage's (tested above), from the coverage and
   // the letters of the marks near no corner.
-  assert.match(report, /vertexCoverageMessage\(vertexCoverage\(workingVertices, vertices\), offCornerLetters\)/);
+  assert.match(report, /vertexCoverageMessage\(coverage, offCornerLetters\)/);
+  assert.match(report, /const coverage = vertexCoverage\(workingVertices, vertices\);/);
   assert.match(report, /vertexIncludedExpected\(vertex\) == null \? String\.fromCharCode\(65 \+ index\)/);
   assert.match(studentBuild, /<StepFeedback tone=\{vertexCoverageReport\(\)\?\.tone\}>\{vertexCoverageReport\(\)\?\.text\}<\/StepFeedback>/);
 });

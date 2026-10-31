@@ -8,6 +8,8 @@
 // skill card shows one score and the "what's left" checklist; no sideways
 // scroll, tap targets >= 44px, no console errors. Every non-localhost request
 // is aborted, so nothing here can reach Firestore or a real student.
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
+
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5209';
@@ -73,7 +75,7 @@ for (const view of VIEWPORTS) {
     });
     console.log(`${problems.length ? 'FAIL' : 'ok  '} ${view.name} ${scene.name}${problems.length ? `\n     ${problems.join('\n     ')}` : ''}`);
     if (problems.length) failures.push({ view: view.name, scene: scene.name, problems });
-    await page.screenshot({ path: `${process.env.SHOT_DIR || '/tmp'}/pathProgressTruth-${view.name}-${scene.name}.png`, fullPage: true });
+    await screenshotKeepingTouch(page, { path: `${process.env.SHOT_DIR || '/tmp'}/pathProgressTruth-${view.name}-${scene.name}.png`, fullPage: true });
   }
   await context.close();
 }

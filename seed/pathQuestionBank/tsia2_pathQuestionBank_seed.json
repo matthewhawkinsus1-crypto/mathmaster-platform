@@ -487,7 +487,7 @@
         "headline": "Collect the $x$-terms on one side and the constants on the other: $x={{answer}}$.",
         "reasoning": [
           "Subtract the right side's $x$-term and the left side's constant from both sides: $({{a}}-{{c}})x={{d}}-{{b|paren}}$.",
-          "So the coefficient is ${{amc}}$ and the constant is ${{db}}$: $x=\\frac{ {{db}} }{ {{amc}} }={{answer}}$.",
+          "So the coefficient is {{amc}} and the constant is {{db}}, so $x={{answer}}$.",
           "Check: ${{a|coef}}({{answer}}){{b|term}}={{c|coef}}({{answer}}){{d|term}}$."
         ],
         "commonError": "Adding the $x$-coefficients instead of subtracting them.",
@@ -1860,11 +1860,11 @@
         "Use one equation for the total number of tickets and another for the total revenue."
       ],
       "solutionReview": {
-        "headline": "Each adult ticket adds {{pd}} dollars over a student ticket: {{adultCount}} adult tickets.",
+        "headline": "Each adult ticket adds {{pd}} dollar{{pd|plural}} over a student ticket: {{adultCount}} adult tickets.",
         "reasoning": [
           "If all {{totalCount}} tickets were student tickets, they would bring in ${{studentPrice}}\\cdot {{totalCount}}={{spT}}$ dollars.",
           "The actual revenue is ${{revenue}}-{{spT}}={{rem}}$ dollars more.",
-          "Each adult ticket adds ${{adultPrice}}-{{studentPrice}}={{pd}}$ dollars, so there are $\\frac{ {{rem}} }{ {{pd}} }={{adultCount}}$ adult tickets.",
+          "Each adult ticket adds ${{adultPrice}}-{{studentPrice}}={{pd}}$ dollar{{pd|plural}}, so there are {{adultCount}} adult tickets: ${{pd}}\\cdot {{adultCount}}={{rem}}$.",
           "Check: ${{adultPrice}}\\cdot {{adultCount}}+{{studentPrice}}\\cdot {{studentCount}}={{revenue}}$."
         ],
         "commonError": "Giving the number of student tickets.",
@@ -2473,12 +2473,12 @@
         "headline": "Slope is change in $y$ over change in $x$: {{answer}}.",
         "reasoning": [
           "Change in $y$: ${{y2}}-{{y1|paren}}={{dy}}$. Change in $x$: ${{x2}}-{{x1|paren}}={{delta}}$.",
-          "Slope: $\\frac{ {{dy}} }{ {{delta}} }={{answer}}$."
+          "Slope: the change in $y$ ({{dy}}) over the change in $x$ ({{delta}}) is {{answer}}."
         ],
         "commonError": "Subtracting the coordinates in opposite orders, which flips the sign.",
         "answerSummary": "${{answer}}$"
       },
-      "prompt": "The graph of a linear function contains the points $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. What is the function's slope?",
+      "prompt": "A linear function has a graph that contains the points $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. What is the function's slope?",
       "generator": {
         "parameters": {
           "m": {
@@ -3454,7 +3454,7 @@
       "solutionReview": {
         "headline": "Find the slope, then step from $x={{x2}}$ to $x={{x3}}$: {{answer}}.",
         "reasoning": [
-          "Slope: $\\frac{ {{y2}}-{{y1|paren}} }{ {{x2}}-{{x1|paren}} }=\\frac{ {{dy}} }{ {{delta}} }={{m}}$.",
+          "Slope: $\\frac{ {{y2}}-{{y1|paren}} }{ {{x2}}-{{x1|paren}} }={{m}}$: the change in $y$ is {{dy}} and the change in $x$ is {{delta}}.",
           "From $x={{x2}}$ to $x={{x3}}$ is 2 steps, so $y$ changes by $2\\cdot {{m|paren}}$.",
           "${{y2}}+2\\cdot {{m|paren}}={{answer}}$."
         ],
@@ -17139,7 +17139,8 @@
           "y2": "y1+rise"
         },
         "constraints": [
-          "rise!=run"
+          "rise!=run",
+          "rise!=1"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -17977,7 +17978,8 @@
           }
         },
         "constraints": [
-          "rise!=run"
+          "rise!=run",
+          "rise!=1"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -22400,7 +22402,7 @@
         "commonError": "Subtracting for a move right or up.",
         "answerSummary": "({{xOut}}, {{yOut}})"
       },
-      "prompt": "Point P has coordinates ({{x}}, {{y}}). It is translated {{dx}} units to the right and {{dy}} units up. Which ordered pair gives the image of P?",
+      "prompt": "Point P has coordinates ({{x}}, {{y}}). It is translated {{dx}} unit{{dx|plural}} to the right and {{dy}} unit{{dy|plural}} up. Which ordered pair gives the image of P?",
       "generator": {
         "parameters": {
           "x": {
@@ -23428,7 +23430,7 @@
         "commonError": "Skipping the reflection, which leaves the $y$-coordinate positive.",
         "answerSummary": "({{xOut}}, {{yOut}})"
       },
-      "prompt": "Point T({{x}}, {{y}}) is first reflected across the x-axis and then translated {{dx}} units to the right and {{dy}} units up. What are the final coordinates of T?",
+      "prompt": "Point T({{x}}, {{y}}) is first reflected across the x-axis and then translated {{dx}} unit{{dx|plural}} to the right and {{dy}} unit{{dy|plural}} up. What are the final coordinates of T?",
       "generator": {
         "parameters": {
           "x": {
@@ -24174,7 +24176,7 @@
         ],
         "answerSummary": "Category A has the greatest frequency."
       },
-      "prompt": "A frequency table shows {{countA}} observations in Category A, {{countB}} in Category B, and {{countC}} in Category C. Which conclusion is supported by the table?",
+      "prompt": "A frequency table shows {{countA}} observations in Category A, {{countB}} in Category B, and {{countC}} in Category C. Which conclusion is supported by these counts?",
       "generator": {
         "parameters": {
           "base": {
@@ -25352,7 +25354,7 @@
         ],
         "answerSummary": "Success was more common in Group A."
       },
-      "prompt": "A two-way table summarizes two groups of 10 people each. Group A has {{successA}} successes and Group B has {{successB}} successes. Which conclusion is supported by the table?",
+      "prompt": "A two-way table summarizes two groups of 10 people each. Group A has {{successA}} successes and Group B has {{successB}} successes. Which conclusion is supported by these results?",
       "generator": {
         "parameters": {
           "successA": {
@@ -27490,7 +27492,7 @@
         ],
         "answerSummary": "The table entry is {{target}}."
       },
-      "prompt": "A table shows the number of visitors to a center on three days: Monday {{monday}}, Tuesday {{target}}, and Wednesday {{wednesday}}. According to the table, how many visitors came on Tuesday?",
+      "prompt": "A table shows the number of visitors to a center on three days: Monday {{monday}}, Tuesday {{target}}, and Wednesday {{wednesday}}. According to these counts, how many visitors came on Tuesday?",
       "generator": {
         "parameters": {
           "target": {
@@ -28315,7 +28317,7 @@
         ],
         "answerSummary": "The requested point has value {{pointValue}}."
       },
-      "prompt": "A line graph gives values {{previousValue}}, {{pointValue}}, and {{nextValue}} at 1 p.m., 2 p.m., and 3 p.m., respectively. What value does the graph show at 2 p.m.?",
+      "prompt": "A line graph gives values {{previousValue}}, {{pointValue}}, and {{nextValue}} at 1 p.m., 2 p.m., and 3 p.m., respectively. What value does it show at 2 p.m.?",
       "generator": {
         "parameters": {
           "pointValue": {
@@ -29920,13 +29922,13 @@
       "solutionReview": {
         "headline": "A number of books is a count you can average: Quantitative.",
         "reasoning": [
-          "Each of the {{students}} students gets a number: how many books they read in {{months}} month(s).",
+          "Each of the {{students}} students gets a number: how many books they read in {{months}} month{{months|plural}}.",
           "Numbers that measure an amount, where arithmetic such as an average makes sense, are quantitative data."
         ],
         "commonError": "Treating the counts as labels; here the numbers measure an amount.",
         "answerSummary": "Quantitative"
       },
-      "prompt": "For each of {{students}} students, a researcher records the number of books the student read during {{months}} months. Which type of data is recorded for number of books read?",
+      "prompt": "For each of {{students}} students, a researcher records the number of books the student read during {{months}} month{{months|plural}}. Which type of data is recorded for number of books read?",
       "generator": {
         "parameters": {
           "students": {
@@ -31472,7 +31474,7 @@
         ],
         "answerSummary": "There are {{answer}} observations in all."
       },
-      "prompt": "A frequency table has counts {{f1}}, {{f2}}, and {{f3}} for its three categories. How many observations are represented in the table?",
+      "prompt": "A frequency table has counts {{f1}}, {{f2}}, and {{f3}} for its three categories. How many observations does the frequency table represent?",
       "generator": {
         "parameters": {
           "f1": {
@@ -34460,7 +34462,7 @@
         "commonError": "Moving the constant without changing its sign.",
         "answerSummary": "$x={{answer}}$"
       },
-      "prompt": "What value of $x$ satisfies ${{a}}x {{b|signed}}={{c}}$?",
+      "prompt": "The expression ${{a}}x {{b|signed}}$ is equal to ${{c}}$. What is the value of $x$?",
       "generator": {
         "parameters": {
           "a": {
@@ -35127,8 +35129,8 @@
         "headline": "Set the expressions equal and solve: $x={{answer}}$.",
         "reasoning": [
           "${{a|coef}}x{{b|term}}={{c|coef}}x{{d|term}}$.",
-          "Collect terms: $({{a}}-{{c}})x={{d}}-{{b|paren}}$, so ${{amc|coef}}x={{dmb}}$.",
-          "$x=\\frac{ {{dmb}} }{ {{amc}} }={{answer}}$."
+          "Collect terms: $({{a}}-{{c}})x={{d}}-{{b|paren}}$. The coefficient of $x$ is {{amc}} and the right side is {{dmb}}.",
+          "So $x={{answer}}$."
         ],
         "commonError": "Adding the $x$-coefficients instead of subtracting them.",
         "answerSummary": "$x={{answer}}$"
@@ -37532,7 +37534,7 @@
       "solutionReview": {
         "headline": "Add the tax to the price: {{answer}} dollars.",
         "reasoning": [
-          "Tax: $\\frac{ {{taxRate}} }{100}\\cdot {{price}}={{tax}}$ dollars.",
+          "Tax: $\\frac{ {{taxRate}} }{100}\\cdot {{price}}={{tax}}$ dollar{{tax|plural}}.",
           "Total: ${{price}}+{{tax}}={{answer}}$ dollars, which is also ${{price}}\\cdot\\frac{ {{pct}} }{100}$."
         ],
         "commonError": "Giving the tax alone, or adding {{taxRate}} dollars instead of {{taxRate}}%.",
@@ -37610,19 +37612,19 @@
       "choices": [
         {
           "id": "tsia2-correct",
-          "label": "{{answer}} dollars"
+          "label": "{{answer}} dollar{{answer|plural}}"
         },
         {
           "id": "tsia2-d1",
-          "label": "{{d1}} dollars"
+          "label": "{{d1}} dollar{{d1|plural}}"
         },
         {
           "id": "tsia2-d2",
-          "label": "{{d2}} dollars"
+          "label": "{{d2}} dollar{{d2|plural}}"
         },
         {
           "id": "tsia2-d3",
-          "label": "{{d3}} dollars"
+          "label": "{{d3}} dollar{{d3|plural}}"
         }
       ],
       "routingAlignmentProvenance": {
@@ -39885,7 +39887,9 @@
           "c2": "c*c",
           "nc": "nonSquare-c*c"
         },
-        "constraints": []
+        "constraints": [
+          "c!=1"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [

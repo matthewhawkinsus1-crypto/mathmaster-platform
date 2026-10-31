@@ -10,7 +10,10 @@
 // The real App.jsx with `firebase/*` replaced by in-memory fakes and the
 // synthetic school (fixture.js, `questions=real`): Period 3 is in session now, Period 5 meets
 // later today. The fake store is shared through localStorage, so each step
-// closes its page before the next account opens one.
+// closes its page before the next account opens one. While the teacher's
+// Period 3 is in session Teacher Home only counts the questions (TT26), so
+// Period 3 ends in the store for the teacher's steps (Q2, Q5) and is put back
+// before the hand steps.
 //
 //   Q1  a Period 5 student working at home-time on today's lesson is offered
 //       "Leave a question for my teacher", not a raised hand; sends one
@@ -18,6 +21,13 @@
 //       the question with its place in the assignment; the teacher answers
 //   Q3  the student sees the answer on the question and in the workspace's
 //       "Your teacher answered your question"
+//   Q4  once answered, the student can ask ONE follow-up on the same question
+//       (TT01): an empty box, sent as that document opened again with the first
+//       exchange beside the new words; it can be reworded while it waits and
+//       cannot be followed up again
+//   Q5  Teacher Home lists it with the earlier question and answer above it;
+//       the teacher answers
+//   Q6  the student reads both exchanges and has nothing more to press
 //   H1  a Period 3 student (in class) raises a hand; a reload keeps it raised
 //   H2  the teacher's live tile shows "Hand raised" with Seen / On my way;
 //       "On my way" is sent; the projector's Large room tiles show neither
@@ -58,6 +68,8 @@ const expect = (label, condition, detail) => {
 
 const QUESTION_TEXT = 'I moved 3x to the other side but my answer is still wrong. Do I divide both sides by 2?';
 const ANSWER_TEXT = 'Yes — divide every term on both sides by 2, then check by substituting back.';
+const FOLLOW_UP_TEXT = 'What if the number in front of x is negative?';
+const SECOND_ANSWER_TEXT = 'Divide by it all the same; a negative divisor flips the sign of every term.';
 const P5_STUDENT = '910020';
 const P3_STUDENT = '910001';
 
@@ -82,6 +94,33 @@ const openAssignmentHelp = async (page, title) => {
 };
 
 const shot = (page, name, viewport) => page.screenshot({ path: path.join(ARTIFACTS, `${name}-${viewport.width}x${viewport.height}.png`), fullPage: false });
+
+// Do these lines appear in this text, in this order?
+const inOrder = (text, lines) => {
+  const places = lines.map((line) => text.indexOf(line));
+  return places.every((place, index) => place !== -1 && (index === 0 || place > places[index - 1]));
+};
+
+// Period 3 out of the way for the teacher's steps, and back for the hand's.
+// The windows are in the shared fake store (`settings/classSchedule`), so they
+// move for every page of this context.
+let periodThreeWas = null;
+const endPeriodThree = async (page) => {
+  periodThreeWas = await page.evaluate(() => {
+    const store = window.__mmHarnessStore;
+    const schedule = JSON.parse(JSON.stringify(store.get('settings/classSchedule')));
+    const was = Object.fromEntries(Object.entries(schedule.modifiedSchedules).map(([key, day]) => [key, day.periods['Period 3']]));
+    Object.values(schedule.modifiedSchedules).forEach((day) => { day.periods['Period 3'] = { enabled: true, start: '05:00', end: '05:30' }; });
+    store.set('settings/classSchedule', schedule);
+    return was;
+  });
+};
+const resumePeriodThree = (page) => page.evaluate((was) => {
+  const store = window.__mmHarnessStore;
+  const schedule = JSON.parse(JSON.stringify(store.get('settings/classSchedule')));
+  Object.entries(was).forEach(([key, period]) => { schedule.modifiedSchedules[key].periods['Period 3'] = period; });
+  store.set('settings/classSchedule', schedule);
+}, periodThreeWas);
 
 for (const viewport of VIEWPORTS) {
   const tag = `${viewport.width}x${viewport.height}`;
@@ -112,6 +151,7 @@ for (const viewport of VIEWPORTS) {
   const presence = await page.evaluate(() => window.__mmHarnessStore?.get?.(`presence/${new URLSearchParams(location.search).get('studentId')}`) || null);
   expect(`Q1 ${tag} no hand in presence`, !presence?.helpRequestedAt && !JSON.stringify(presence || {}).includes('divide both sides'), JSON.stringify(presence));
   await shot(page, 'q1-sent', viewport);
+  await endPeriodThree(page);
   await page.close();
 
   /* ---------------------------------------- the teacher answers on Home */
@@ -149,8 +189,67 @@ for (const viewport of VIEWPORTS) {
     await compact.locator('summary').click();
     expect(`Q3 ${tag} the notice holds the answer`, (await compact.innerText()).includes(ANSWER_TEXT), await compact.innerText());
   }
-  expect(`Q3 ${tag} not reopened`, (await page.getByRole('button', { name: /Leave a question|Edit my question/ }).count()) === 0, 'an answered question can be reopened');
+  expect(`Q3 ${tag} not reworded in place`, (await page.getByRole('button', { name: /Leave a question|Edit my question/ }).count()) === 0, 'an answered question can be reworded');
   await shot(page, 'q3-student-reads', viewport);
+
+  /* -------------------------------- one follow-up after the answer (TT01) */
+  const readPanel = page.locator('[data-hint-panel]:visible').first();
+  const askMore = readPanel.getByRole('button', { name: 'Ask a follow-up' });
+  expect(`Q4 ${tag} one follow-up offered`, (await askMore.count()) === 1, 'no "Ask a follow-up" after the answer');
+  await askMore.click();
+  const followBox = readPanel.getByLabel('Your follow-up for your teacher');
+  await followBox.waitFor({ timeout: 5000 });
+  expect(`Q4 ${tag} the box starts empty and takes focus`, (await followBox.inputValue()) === '' && (await followBox.evaluate((node) => node === document.activeElement)), `value "${await followBox.inputValue()}"`);
+  expect(`Q4 ${tag} capped at 500`, (await followBox.getAttribute('maxlength')) === '500', `maxlength ${await followBox.getAttribute('maxlength')}`);
+  await followBox.fill(FOLLOW_UP_TEXT);
+  await shot(page, 'q4-follow-up-compose', viewport);
+  await readPanel.getByRole('button', { name: 'Send follow-up' }).click();
+  await readPanel.locator('[data-ask-teacher-follow-up]').first().waitFor({ timeout: 10000 });
+  const followWaiting = await readPanel.locator('[data-ask-teacher-status="waiting"]').innerText();
+  expect(`Q4 ${tag} the first exchange stays above the follow-up`, inOrder(followWaiting, [QUESTION_TEXT, ANSWER_TEXT, FOLLOW_UP_TEXT]), followWaiting);
+  expect(
+    `Q4 ${tag} it can be reworded, not followed up again`,
+    (await readPanel.getByRole('button', { name: 'Edit my follow-up' }).count()) === 1
+      && (await readPanel.getByRole('button', { name: /Ask a follow-up|Leave a question|Edit my question/ }).count()) === 0,
+    'the wrong buttons are offered while the follow-up waits',
+  );
+  const followDoc = await page.evaluate(() => {
+    const store = window.__mmHarnessStore;
+    const paths = store.paths('askTeacherQuestions/');
+    return { count: paths.length, ...(paths[0] ? store.get(paths[0]) : {}) };
+  });
+  expect(
+    `Q4 ${tag} the same document, open again, with the first exchange beside the new words`,
+    followDoc.count === 1 && followDoc.status === 'open' && followDoc.text === FOLLOW_UP_TEXT
+      && followDoc.earlierText === QUESTION_TEXT && followDoc.earlierAnswer === ANSWER_TEXT && followDoc.answer === ANSWER_TEXT,
+    JSON.stringify(followDoc),
+  );
+  await shot(page, 'q4-follow-up-sent', viewport);
+  await page.close();
+
+  page = await openPage(context, '', viewport);
+  const followQuestions = page.locator('[data-student-questions]');
+  await followQuestions.waitFor({ timeout: 20000 });
+  await followQuestions.locator(':scope > summary').click();
+  const followRow = followQuestions.locator('[data-student-question]').first();
+  const followRowText = await followRow.innerText();
+  expect(`Q5 ${tag} the row shows the earlier question and answer, then the follow-up`, (await followRow.locator('[data-student-follow-up]').count()) === 1 && inOrder(followRowText, [QUESTION_TEXT, ANSWER_TEXT, FOLLOW_UP_TEXT]), followRowText);
+  await followRow.scrollIntoViewIfNeeded();
+  await shot(page, 'q5-teacher-follow-up', viewport);
+  await followRow.getByLabel('Your answer').fill(SECOND_ANSWER_TEXT);
+  await followRow.getByRole('button', { name: 'Send answer' }).click();
+  await followQuestions.getByText(/Answer sent to /).waitFor({ timeout: 10000 });
+  await page.close();
+
+  page = await openPage(context, `as=student&studentId=${P5_STUDENT}`, viewport);
+  await openAssignmentHelp(page, 'Linear Equations — Lesson 5');
+  const finished = page.locator('[data-ask-teacher-status="answered"]').first();
+  await finished.waitFor({ timeout: 10000 }).catch(() => {});
+  const finishedText = (await finished.count()) ? await finished.innerText() : '';
+  expect(`Q6 ${tag} both exchanges, in the order they happened`, inOrder(finishedText, [QUESTION_TEXT, ANSWER_TEXT, FOLLOW_UP_TEXT, SECOND_ANSWER_TEXT]), finishedText || 'no answered status');
+  expect(`Q6 ${tag} nothing more to press, and where to ask next`, (await page.getByRole('button', { name: /Ask a follow-up|Edit my|Leave a question/ }).count()) === 0 && /in class/i.test(finishedText), finishedText);
+  await shot(page, 'q6-student-reads-both', viewport);
+  await resumePeriodThree(page);
   await page.close();
 
   /* ------------------------------------------- in class: the raised hand */

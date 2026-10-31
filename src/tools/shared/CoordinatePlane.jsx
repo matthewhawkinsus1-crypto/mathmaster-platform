@@ -11,11 +11,14 @@ import { verticalLineDrawings } from '../../platform/graph/verticalLineStyle.js'
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 import { describePlot } from './plotAnnouncement.js';
-import { baselineBelowAxis, planeFontSize } from './planeTextScale.js';
+import { baselineBelowAxis, originLabelPlacement, planeDotGrowth, planeFontSize } from './planeTextScale.js';
+import { axisNumberBox, boxesTouch, placePointLabels, placedLabelBox } from './planePointLabels.js';
 import { equalUnitPlaneHeight } from './planeEqualUnits.js';
 import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
 import { PublishFigureReading } from '../../platform/language/figureReadings.js';
-import { axisTitleSentence, cleanAxisLabel } from './planeAxisTitles.js';
+import { joinFigureSays } from '../../platform/language/figureSay.js';
+import { graphReadOutApplies, useGraphReadOut, useReportGraphReadOut } from '../../platform/supports/graphReadOut.js';
+import { axisTitleSay, axisTitleSentence, cleanAxisLabel } from './planeAxisTitles.js';
 
 const POINT_LABEL_STYLE = Object.freeze({
   fill: 'var(--mm-graph-label)',
@@ -58,6 +61,9 @@ const ZOOM_BUTTON = {
 };
 
 const tidy = (value) => Number(Number(value).toFixed(6));
+// The keyboard route, said before the plane has focus (AX32). The same route
+// Graphing 2's directions give ("focus it and use the arrow keys and Enter").
+const KEYBOARD_ROUTE_SENTENCE = 'From the keyboard, focus the grid and use the arrow keys and Enter.';
 // One shared empty list standing in for every empty data prop, so the
 // description memo below is not invalidated by a fresh `[]` default (or a
 // caller's inline `[]`) on each render.
@@ -212,10 +218,10 @@ export default function CoordinatePlane({
   // above them instead of five lines under every plane. The screen-reader
   // readout of the cursor is separate and always stays.
   //
-  // 'keyboard': only the keyboard sentence, and only while the plane has
-  // keyboard focus. For a tool whose current step already says, beside the
-  // plane, what a tap does — a standing gesture line under the plane would say
-  // it twice, for the whole question.
+  // 'keyboard': only the keyboard route — a short line before the plane has
+  // focus, the fuller sentence from its first keyboard focus. For a tool whose
+  // current step already says, beside the plane, what a tap does — a standing
+  // gesture line under the plane would say it twice, for the whole question.
   showPlotHelp = true,
   // A read-only plane whose points the student must READ (a GIVEN graph)
   // draws the same snap-step minor grid a plotting plane does. Without it,
@@ -303,6 +309,14 @@ export default function CoordinatePlane({
   // has been dragged to. Null when the gesture is placing a new point instead.
   const [dragIndex, setDragIndex] = useState(null);
   const [gestureActive, setGestureActive] = useState(false);
+  // CONTENT ON HOVER (WCAG 1.4.13). The pointer's crosshair, its coordinate
+  // chip and a hovered point's coordinates are drawn over the plot, so Escape
+  // puts them away without the pointer or focus moving. They come back when
+  // the student acts on the plane again: a press, an arrow key, Enter, or the
+  // pointer leaving and coming back. Escape still does what it did (Work View
+  // closes on it): one key, never two, to leave. The keyboard crosshair is the
+  // student's own cursor, put there by the arrow keys, so it stays.
+  const [readoutDismissed, setReadoutDismissed] = useState(false);
 
   // WHAT A PLOT DID, SAID ONCE (plotAnnouncement.js). The points before a plot
   // are kept until the tool hands the plane its points after it; the sentence
@@ -467,6 +481,7 @@ export default function CoordinatePlane({
     plotCommitRef.current = null;
     setPlotAnnouncement('');
     setKeyboardActive(false);
+    setReadoutDismissed(false);
     setGestureActive(true);
     setDragIndex(pointIndexNear(point));
     setPointerPreview(point);
@@ -507,12 +522,14 @@ export default function CoordinatePlane({
     if (gestureActive) return;
     setPointerPreview(null);
     setHoveredPointIndex(null);
+    setReadoutDismissed(false);
   };
 
   const moveKeyboardCursor = (dx, dy) => {
     plotCommitRef.current = null;
     setPlotAnnouncement('');
     setKeyboardActive(true);
+    setReadoutDismissed(false);
     setPointerPreview(null);
     setKeyboardCursor((current) => {
       const base = current || [snapValue(clamp(0, xMin, xMax), snapStep), snapValue(clamp(0, yMin, yMax), snapStep)];
@@ -537,6 +554,7 @@ export default function CoordinatePlane({
         const target = keyboardCursor || [snapValue(clamp(0, xMin, xMax), snapStep), snapValue(clamp(0, yMin, yMax), snapStep)];
         setKeyboardCursor(target);
         setKeyboardActive(true);
+        setReadoutDismissed(false);
         // Holding a point: Enter drops it where the crosshair is.
         if (keyboardHeldIndex != null) {
           const moved = keyboardHeldIndex;
@@ -581,7 +599,12 @@ export default function CoordinatePlane({
   const describedVerticals = orNone(verticalLines);
   const describedHorizontals = orNone(horizontalLines);
   const { positionsReadable: questionClosed } = useQuestionLifecycle();
-  const descriptionDetail = (describeFeatures == null ? questionClosed : describeFeatures === true) ? 'features' : 'kinds';
+  // GRAPH READ-OUT (AX03): a student whose plan gives it hears the full
+  // reading while the question is open (graphReadOut.js). Only the words: the
+  // data table below stays the closed question's.
+  const graphReadOut = useGraphReadOut();
+  const readOut = graphReadOutApplies({ enabled: graphReadOut.enabled, closed: questionClosed, explicit: describeFeatures });
+  const descriptionDetail = (describeFeatures == null ? questionClosed || readOut : describeFeatures === true) ? 'features' : 'kinds';
   const generatedDescription = useMemo(() => describeCoordinatePlane({
     xMin, xMax, yMin, yMax, xTickStep, yTickStep, snapStep,
     detail: descriptionDetail,
@@ -606,9 +629,17 @@ export default function CoordinatePlane({
   const authoredDescription = typeof description === 'string' ? description.trim() : '';
   const axisTitles = { x: cleanAxisLabel(xAxisTitle), y: cleanAxisLabel(yAxisTitle) };
   // The captions are hidden from assistive technology, so the description is
-  // where a screen reader and Read Aloud hear what the axes measure.
-  const spokenDescription = [axisTitleSentence(axisTitles), authoredDescription || generatedDescription.description]
+  // where a screen reader and Read Aloud hear what the axes measure. With the
+  // read-out, an author's description (written not to give the answer away) is
+  // followed by the full reading.
+  const readOutReading = readOut && generatedDescription.detail === 'features' ? generatedDescription.description : '';
+  const spokenDescription = [axisTitleSentence(axisTitles), authoredDescription || generatedDescription.description, authoredDescription ? readOutReading : '']
     .filter(Boolean).join(' ');
+  // The same reading as messages, for Read aloud in the reader's language
+  // (AX05). An author's description and the full reading have none yet: they
+  // are read in English, and the reader says so.
+  const spokenSay = authoredDescription ? null : joinFigureSays(axisTitleSay(axisTitles), generatedDescription.say);
+  useReportGraphReadOut(Boolean(readOutReading));
   // IDREFs, not url(#…), so useId's own characters are fine here.
   const descriptionUid = useId();
   const descriptionId = `mm-plane-desc-${descriptionUid}`;
@@ -617,6 +648,23 @@ export default function CoordinatePlane({
   // Null until measured: the toggle must never render, even for one frame,
   // inside a control it would be nested in.
   const planeRef = useRef(null);
+
+  // The pointer's readout hears Escape wherever focus is (the plane, a field,
+  // a button), so the document listens while it shows. It only puts the
+  // readout away; the key still does whatever else it does there. (An Escape
+  // that puts a held point back stops at the plane and is not heard here.)
+  const pointerReadoutShowing = !readoutDismissed && !keyboardActive
+    && (pointerPreview != null || (pointHoverEnabled && revealCoordinates && hoveredPointIndex != null));
+  useEffect(() => {
+    if (!pointerReadoutShowing) return undefined;
+    const doc = planeRef.current?.ownerDocument;
+    if (!doc) return undefined;
+    const onKey = (event) => {
+      if (event.key === 'Escape') setReadoutDismissed(true);
+    };
+    doc.addEventListener('keydown', onKey);
+    return () => doc.removeEventListener('keydown', onKey);
+  }, [pointerReadoutShowing]);
   const [insideControl, setInsideControl] = useState(null);
   useLayoutEffect(() => {
     const host = planeRef.current?.parentElement;
@@ -639,15 +687,63 @@ export default function CoordinatePlane({
     return () => observer.disconnect();
   }, []);
   const svgFont = (size) => planeFontSize(size, width, renderedWidth);
+  // A dot grows the way the text does, so it is not a 7px speck on a phone
+  // (PH09); every dot by the same factor, so a tool's bigger and smaller dots
+  // (Sequence Explorer's two series) stay bigger and smaller.
+  const dotGrowth = planeDotGrowth(width, renderedWidth);
+  const dotRadius = (radius) => radius * dotGrowth;
+  // The first labelled number under the x axis on the y axis, and the first
+  // along the x axis to the right of the y axis: what the origin's "0" must
+  // not touch.
+  const firstYBelow = yTicks.filter((y) => y < 0).reduce((nearest, y) => (nearest === null || y > nearest ? y : nearest), null);
+  const firstXRight = xTicks.filter((x) => x > 0).reduce((nearest, x) => (nearest === null || x < nearest ? x : nearest), null);
+  const originSpot = originVisible
+    ? originLabelPlacement({
+      axisX,
+      axisY,
+      originFont: svgFont(10),
+      tickFont: svgFont(11),
+      firstBelow: firstYBelow === null ? null : { y: sy(firstYBelow), text: tidy(firstYBelow) },
+      firstRight: firstXRight === null ? null : { x: sx(firstXRight), text: tidy(firstXRight) },
+    })
+    : null;
+  // Where each point's name is drawn. It keeps its old place (up and to the
+  // right) unless that would cover another dot, another name, or a number on
+  // an axis (planePointLabels.js: S1 under S2's dot, S2 on the 0).
+  const labelSpots = placePointLabels({
+    // Every dot keeps names off it; only a dot with a label gets a place.
+    dots: points.map((point, index) => {
+      if (!point || point.marker === 'arrow' || point.marker === 'open' || point.marker === 'closed') return null;
+      let [pointX, pointY] = pointXY(point);
+      if (dragIndex === index && pointerPreview) [pointX, pointY] = pointerPreview;
+      else if (keyboardHeldIndex === index && keyboardCursor) [pointX, pointY] = keyboardCursor;
+      if (!Number.isFinite(pointX) || !Number.isFinite(pointY)) return null;
+      return { x: sx(pointX), y: sy(pointY), radius: dotRadius(resolvePointRadius(point, 6)), label: point.label || '' };
+    }),
+    textSize: svgFont(11),
+    bounds: { left: 0, right: width, top: 0, bottom: height },
+    avoid: [
+      ...xTicks.filter((x) => x !== 0).map((x) => axisNumberBox({ x: sx(x), y: axisY + baselineBelowAxis(svgFont(11), 17, 6), characters: String(tidy(x)).length, textSize: svgFont(11) })),
+      ...yTicks.filter((y) => y !== 0).map((y) => axisNumberBox({ x: axisX - 9, y: sy(y) + 4, anchor: 'end', characters: String(tidy(y)).length, textSize: svgFont(11) })),
+      ...(originVisible && originSpot ? [axisNumberBox({ x: originSpot.x, y: originSpot.y, anchor: originSpot.anchor, characters: 1, textSize: svgFont(10) })] : []),
+    ],
+  });
+  // A "0" under a point's name is worse than none: the axes and the dot say
+  // where zero is (the same rule the origin follows for the numbers beside it).
+  const originBox = originVisible && originSpot ? axisNumberBox({ x: originSpot.x, y: originSpot.y, anchor: originSpot.anchor, characters: 1, textSize: svgFont(10) }) : null;
+  const originUnderLabel = Boolean(originBox) && labelSpots.some((spot, index) => spot && boxesTouch(placedLabelBox({ spot, label: points[index].label, textSize: svgFont(11) }), originBox));
   const showDataTable = !interactive && dataTable !== false && insideControl === false
-    && descriptionDetail === 'features' && revealCoordinates !== false && pointHoverEnabled !== false
+    && descriptionDetail === 'features' && !readOut && revealCoordinates !== false && pointHoverEnabled !== false
     && generatedDescription.tables.length > 0;
 
-  const preview = keyboardActive ? keyboardCursor : pointerPreview;
+  // Escape puts away only what is drawn: the spoken readout below is the
+  // plane a screen-reader student has, so it keeps following the cursor.
+  const cursorAt = keyboardActive ? keyboardCursor : pointerPreview;
+  const preview = readoutDismissed ? null : cursorAt;
   const heldPoint = keyboardHeldIndex != null ? points[keyboardHeldIndex] : null;
   const previewText = heldPoint && keyboardCursor
     ? `Moving the point from ${formatCoordinate(heldPoint)} to ${formatCoordinate(keyboardCursor)}. Enter to drop it here, Escape to put it back.`
-    : preview ? `${cursorLabel} ${formatCoordinate(preview)}` : '';
+    : cursorAt ? `${cursorLabel} ${formatCoordinate(cursorAt)}` : '';
 
   // The readout chip flips to the other side of the cursor near the edges so it
   // never gets clipped by the plot border.
@@ -784,7 +880,9 @@ export default function CoordinatePlane({
         <text x={width - pad + 6} y={axisY + 4} fontSize={svgFont(13)} fontWeight="700" style={{ fill: 'var(--mm-graph-label)' }}>{axisNames?.x || 'x'}</text>
         <text x={axisX - 4} y={pad - 10} fontSize={svgFont(13)} fontWeight="700" style={{ fill: 'var(--mm-graph-label)' }} textAnchor="middle">{axisNames?.y || 'y'}</text>
         {/* Ends left of the y axis and sits below the x axis at any text size (TOOL-11). */}
-        {originVisible ? <text x={sx(0) - 6} y={sy(0) + baselineBelowAxis(svgFont(10), 15, 5)} textAnchor="end" fontSize={svgFont(10)} style={{ fill: 'var(--mm-graph-axis)' }}>0</text> : null}
+        {/* Where it goes depends on the numbers beside it: on a phone the "-1"
+            under the axis was drawn through it (PH02, planeTextScale.js). */}
+        {originVisible && originSpot && !originUnderLabel ? <text x={originSpot.x} y={originSpot.y} textAnchor={originSpot.anchor} fontSize={svgFont(10)} style={{ fill: 'var(--mm-graph-axis)' }}>0</text> : null}
 
         {xTicks.filter((x) => x !== 0).map((x) => (
           <g key={`tx${x}`}>
@@ -847,11 +945,11 @@ export default function CoordinatePlane({
         {/* Preview crosshair: the student sees exactly where the click lands
             before committing to it. */}
         {preview && chip ? (
-          <g pointerEvents="none">
+          <g pointerEvents="none" data-plane-readout="">
             <line x1={chip.cx} x2={chip.cx} y1={pad} y2={height - pad} stroke="#1a73e8" strokeDasharray="4 4" strokeWidth="1.5" opacity="0.55" />
             <line x1={pad} x2={width - pad} y1={chip.cy} y2={chip.cy} stroke="#1a73e8" strokeDasharray="4 4" strokeWidth="1.5" opacity="0.55" />
-            <circle cx={chip.cx} cy={chip.cy} r="9" fill="#1a73e8" opacity="0.16" />
-            <circle cx={chip.cx} cy={chip.cy} r="5" fill="none" stroke="#1a73e8" strokeWidth="2.5" />
+            <circle cx={chip.cx} cy={chip.cy} r={dotRadius(5) * 1.8} fill="#1a73e8" opacity="0.16" />
+            <circle cx={chip.cx} cy={chip.cy} r={dotRadius(5)} fill="none" stroke="#1a73e8" strokeWidth="2.5" />
             {revealCoordinates ? (
               <>
                 <rect x={chip.left} y={chip.top} width={chip.chipWidth} height={chip.chipHeight} rx="7" fill="#174ea6" />
@@ -864,7 +962,7 @@ export default function CoordinatePlane({
         {points.map((point, index) => {
           const hovered = pointHoverEnabled && hoveredPointIndex === index;
           const pointFill = resolvePointFill(point, '#1a73e8');
-          const pointRadius = resolvePointRadius(point, 6);
+          const pointRadius = dotRadius(resolvePointRadius(point, 6));
           let [pointX, pointY] = pointXY(point);
           // While a point is held, draw it where the finger is. Leaving it at
           // its old coordinates makes the drag look broken until release.
@@ -928,8 +1026,8 @@ export default function CoordinatePlane({
                   plane's own background so a grid or plotted line under them
                   cannot hide them: a fixed #24324a was 1.35:1 on the dark
                   plane (A11Y-4). */}
-              {point?.label ? <text data-point-label="" x={sx(pointX) + 10} y={sy(pointY) - 9} fontSize={svgFont(11)} fontWeight="700" style={POINT_LABEL_STYLE}>{point.label}</text> : null}
-              {hovered && revealCoordinates ? <text x={sx(pointX) + 10} y={sy(pointY) + 16} fontSize={svgFont(11)} style={POINT_LABEL_STYLE}>{formatCoordinate(point)}</text> : null}
+              {point?.label ? <text data-point-label="" x={labelSpots[index]?.x ?? sx(pointX) + 10} y={labelSpots[index]?.y ?? sy(pointY) - 9} textAnchor={labelSpots[index]?.anchor || 'start'} fontSize={svgFont(11)} fontWeight="700" style={POINT_LABEL_STYLE}>{point.label}</text> : null}
+              {hovered && revealCoordinates && !readoutDismissed ? <text data-plane-point-readout="" x={sx(pointX) + 10} y={sy(pointY) + 16} fontSize={svgFont(11)} style={POINT_LABEL_STYLE}>{formatCoordinate(point)}</text> : null}
             </g>
           );
         })}
@@ -952,7 +1050,7 @@ export default function CoordinatePlane({
           show the description as a visible paragraph (it pushed a staged
           question's first step off a phone screen, PR #454). */}
       {/* Read aloud says the same description, under the same rule (figureReadings.js). */}
-      <PublishFigureReading entry={{ kind: 'figure', label: ariaLabel, text: spokenDescription }} />
+      <PublishFigureReading entry={{ kind: 'figure', label: ariaLabel, text: spokenDescription, say: spokenSay }} />
       <p id={descriptionId} className="mm-sr-only" style={SR_ONLY_STYLE} aria-hidden={insideControl ? undefined : 'true'}>{spokenDescription}</p>
 
       {showDataTable ? (
@@ -1014,24 +1112,34 @@ export default function CoordinatePlane({
               needs is one sentence; keyboard and zoom detail folds away, and
               stays folded once put away. A screen reader already has the
               keyboard instructions in the plane's accessible name. */}
-          {showPlotHelpHere && (showPlotHelp !== 'keyboard' || keyboardHelpVisible) ? (
+          {showPlotHelpHere ? (
             <div className="mathmaster-plot-help" style={{ margin: '6px 0 0', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', textAlign: 'left' }}>
               {showPlotHelp === 'keyboard' ? null : (
                 <p style={{ margin: 0 }}>
                   Press the grid and slide to aim{minorStep === 1 ? ' at a whole-number point' : ''} — the point lands where you
                   let go{canMovePoints ? '; drag a point to move it' : ''}.
+                  {keyboardHelpVisible ? '' : ` ${KEYBOARD_ROUTE_SENTENCE}`}
                 </p>
               )}
-              {/* The keyboard sentence appears when the plane has KEYBOARD
-                  focus — when the student who needs it is using it — instead of
-                  sitting under every plane or in one more folded row (a fold
-                  here put a third 44px row in Sequence Explorer). */}
+              {/* THE KEYBOARD ROUTE IS NAMED BEFORE THE PLANE HAS FOCUS (AX32,
+                  finding C1-98). The gesture line above is a pointer's, and a
+                  keyboard or switch student reading it cannot tell the plane
+                  takes the keys at all until they have reached it. So the line
+                  ends with one short clause (the same route Graphing 2 gives),
+                  and for a tool whose step already says what a tap does — no
+                  gesture line here — the clause is the whole line. When the
+                  plane has KEYBOARD focus the fuller sentence takes the
+                  clause's place, as it did when nothing was there before. Not
+                  a folded row: a fold here put a third 44px row in Sequence
+                  Explorer. */}
               {keyboardHelpVisible ? (
                 <p style={{ margin: '3px 0 0' }}>
                   The arrow keys move the
                   crosshair{minorStep === 1 ? ' one unit' : ` by ${tidy(minorStep)}`} (Shift for five); Enter plots it.
                   {zoomable ? ' The +/− buttons below zoom in when you need a closer view.' : ''}
                 </p>
+              ) : showPlotHelp === 'keyboard' ? (
+                <p style={{ margin: '3px 0 0' }}>{KEYBOARD_ROUTE_SENTENCE}</p>
               ) : null}
             </div>
           ) : null}
@@ -1056,7 +1164,6 @@ export default function CoordinatePlane({
   return (
     <EnlargeableFigure
       label={ariaLabel}
-      enlargeLabel={interactive ? 'Enlarge to plot' : 'Enlarge graph'}
       style={{ width: '100%' }}
       capabilities={{
         fitView: zoomable ? { label:'Fit View', onAction:resetView, disabled:!view, cameraOnly:true } : null,

@@ -60,7 +60,12 @@
                 "[0, ∞)",
                 "(0, ∞)"
               ],
-              "answer": "(−∞, ∞)"
+              "answer": "(−∞, ∞)",
+              "optionRationales": {
+                "(−∞, ∞)": "Any real number can be doubled and increased by 1, so every x is allowed.",
+                "[0, ∞)": "Negative inputs work too: f(−3) = −5.",
+                "(0, ∞)": "Every real input works, including 0 and negatives: f(0) = 1."
+              }
             },
             {
               "id": "range",
@@ -71,7 +76,12 @@
                 "[1, ∞)",
                 "(0, ∞)"
               ],
-              "answer": "(−∞, ∞)"
+              "answer": "(−∞, ∞)",
+              "optionRationales": {
+                "(−∞, ∞)": "A line with a nonzero slope keeps rising, so it reaches every real output.",
+                "[1, ∞)": "1 is the y-intercept, not a lowest value; the line keeps going down to the left: f(−3) = −5.",
+                "(0, ∞)": "Outputs can be 0 or negative: f(−3) = −5."
+              }
             }
           ],
           "dok": 1,
@@ -226,7 +236,12 @@
                 "horizontal y=1 only",
                 "no asymptotes"
               ],
-              "answer": "vertical x=0 and horizontal y=0"
+              "answer": "vertical x=0 and horizontal y=0",
+              "optionRationales": {
+                "vertical x=0 and horizontal y=0": "1/x is undefined at x = 0, and its outputs shrink toward 0 as x grows in either direction.",
+                "horizontal y=1 only": "1/x never settles near 1, and its break at x = 0 is an asymptote too.",
+                "no asymptotes": "Dividing by x fails at x = 0, so the graph breaks there, and far out it flattens toward a line."
+              }
             },
             {
               "id": "exponential",
@@ -237,7 +252,12 @@
                 "vertical x=0",
                 "no asymptotes"
               ],
-              "answer": "horizontal y=0"
+              "answer": "horizontal y=0",
+              "optionRationales": {
+                "horizontal y=0": "As x goes left, 2ˣ gets closer and closer to 0 without reaching it.",
+                "vertical x=0": "2ˣ is defined at x = 0 (2⁰ = 1), so there is no break there.",
+                "no asymptotes": "To the left, 2ˣ keeps shrinking toward a value it never reaches, and that line is an asymptote."
+              }
             },
             {
               "id": "logarithmic",
@@ -248,7 +268,12 @@
                 "horizontal y=0",
                 "no asymptotes"
               ],
-              "answer": "vertical x=0"
+              "answer": "vertical x=0",
+              "optionRationales": {
+                "vertical x=0": "log₂(x) is defined only for x > 0, and it drops without bound as x nears 0.",
+                "horizontal y=0": "y = 0 belongs to 2ˣ; log₂(x) is its inverse, so x and y trade roles.",
+                "no asymptotes": "log₂(x) is not defined at 0 or below, and near 0 it drops without bound, which is an asymptote."
+              }
             }
           ],
           "dok": 2,
@@ -278,7 +303,13 @@
                 "absolute value",
                 "reciprocal"
               ],
-              "answer": "square root"
+              "answer": "square root",
+              "optionRationales": {
+                "square root": "√x takes the principal square root of x: the square root parent function.",
+                "cube root": "A cube root carries a small 3 on its radical, as in ∛x; this radical has none.",
+                "absolute value": "Absolute value is |x|; this function takes a root.",
+                "reciprocal": "The reciprocal is 1/x; this function takes a root, not 1 divided by x."
+              }
             },
             {
               "id": "domain",
@@ -289,7 +320,12 @@
                 "(−∞, ∞)",
                 "(0, ∞)"
               ],
-              "answer": "[0, ∞)"
+              "answer": "[0, ∞)",
+              "optionRationales": {
+                "[0, ∞)": "A real square root needs a number that is not negative, and √0 = 0 is defined, so x starts at 0.",
+                "(−∞, ∞)": "Negative numbers have no real square root, so not every x is allowed.",
+                "(0, ∞)": "x = 0 works, since √0 = 0, so 0 belongs in the domain."
+              }
             },
             {
               "id": "range",
@@ -300,7 +336,12 @@
                 "(−∞, ∞)",
                 "(0, ∞)"
               ],
-              "answer": "[0, ∞)"
+              "answer": "[0, ∞)",
+              "optionRationales": {
+                "[0, ∞)": "√x gives the root that is not negative, starting at √0 = 0, so the outputs are 0 and up.",
+                "(−∞, ∞)": "√x always gives the root that is not negative, so outputs below 0 never appear.",
+                "(0, ∞)": "The output 0 happens at x = 0, so it belongs in the range."
+              }
             }
           ],
           "dok": 2,
@@ -323,7 +364,13 @@
                 "logarithmic",
                 "cubic"
               ],
-              "answer": "reciprocal"
+              "answer": "reciprocal",
+              "optionRationales": {
+                "reciprocal": "1/x divides 1 by x: the reciprocal parent function.",
+                "exponential": "Exponential functions have x in the exponent, like 2ˣ; here x is in the denominator.",
+                "logarithmic": "A logarithm is written log(x); here 1 is divided by x.",
+                "cubic": "Cubic is x³; here x is in the denominator, not raised to the third power."
+              }
             },
             {
               "id": "domain",
@@ -334,7 +381,12 @@
                 "(−∞, ∞)",
                 "(0, ∞)"
               ],
-              "answer": "(−∞, 0) ∪ (0, ∞)"
+              "answer": "(−∞, 0) ∪ (0, ∞)",
+              "optionRationales": {
+                "(−∞, 0) ∪ (0, ∞)": "You can divide 1 by any number except 0, so x can be any real number but 0.",
+                "(−∞, ∞)": "Dividing by 0 is undefined, so x = 0 has to be left out.",
+                "(0, ∞)": "Negative inputs work: 1/(−2) = −1/2; only 0 is left out."
+              }
             },
             {
               "id": "range",
@@ -345,7 +397,12 @@
                 "(−∞, ∞)",
                 "[0, ∞)"
               ],
-              "answer": "(−∞, 0) ∪ (0, ∞)"
+              "answer": "(−∞, 0) ∪ (0, ∞)",
+              "optionRationales": {
+                "(−∞, 0) ∪ (0, ∞)": "1/x can be any nonzero number, but 1 divided by a number is never 0.",
+                "(−∞, ∞)": "1 divided by any number is never 0, so 0 is missing from the outputs.",
+                "[0, ∞)": "Negative inputs give negative outputs, and 1/x never equals 0."
+              }
             }
           ],
           "dok": 2,
@@ -448,7 +505,13 @@
                 "square root",
                 "logarithmic"
               ],
-              "answer": "cube root"
+              "answer": "cube root",
+              "optionRationales": {
+                "cube root": "∛x takes the cube root of x: the cube root parent function.",
+                "cubic": "Cubic is x³, which raises x to the third power; ∛x undoes that.",
+                "square root": "A square root has no small number on its radical; this one carries a 3.",
+                "logarithmic": "A logarithm is written log(x); ∛x is a radical."
+              }
             },
             {
               "id": "attribute",
@@ -460,7 +523,13 @@
                 "range is y≥0",
                 "x=0 is a vertical asymptote"
               ],
-              "answer": "domain and range are both all real numbers"
+              "answer": "domain and range are both all real numbers",
+              "optionRationales": {
+                "domain and range are both all real numbers": "Every real number, negative too, has one real cube root, and the outputs cover every real number.",
+                "domain is x≥0": "That is true of √x; a cube root works for negatives too: ∛(−8) = −2.",
+                "range is y≥0": "Cube roots of negative numbers are negative, like ∛(−8) = −2.",
+                "x=0 is a vertical asymptote": "∛0 = 0 is defined, so the graph passes smoothly through the origin."
+              }
             }
           ],
           "dok": 2,
@@ -482,7 +551,12 @@
                 "x=0",
                 "y=1"
               ],
-              "answer": "y=0"
+              "answer": "y=0",
+              "optionRationales": {
+                "y=0": "As x goes left, 2ˣ shrinks toward 0 but never reaches it.",
+                "x=0": "2ˣ is defined at x = 0 (2⁰ = 1), so there is no vertical break there.",
+                "y=1": "y = 1 is where the graph crosses the y-axis, at (0, 1), not a line it approaches."
+              }
             },
             {
               "id": "log",
@@ -493,7 +567,12 @@
                 "y=0",
                 "x=1"
               ],
-              "answer": "x=0"
+              "answer": "x=0",
+              "optionRationales": {
+                "x=0": "log₂(x) needs x > 0 and drops without bound as x nears 0.",
+                "y=0": "y = 0 belongs to 2ˣ; log₂(x) is its inverse, so x and y trade roles.",
+                "x=1": "x = 1 is where log₂(x) crosses the x-axis, since log₂(1) = 0, not a line it approaches."
+              }
             }
           ],
           "dok": 2,

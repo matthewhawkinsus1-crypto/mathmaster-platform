@@ -36,6 +36,12 @@ exist:
 Not gated behind a per-challenge teacher opt-in. The weight is the control, and
 a switch that had to be remembered mid-lesson would mostly be forgotten.
 
+Graph the Line (LC12) has its own rules at the same weight — each line's first
+try only, Graph it as A.3C and Name it as A.2C — built and switched off: no
+event is written until the owner sets `platformFlags/liveChallengeEvidence`
+`lineGraph: true` (a platform switch, not a teacher's). See
+`docs/architecture/graph-the-line.md` §11.
+
 ### ~~Who may reconcile attendance?~~ — decided
 **Status:** decided · the teacher reconciles
 
@@ -144,10 +150,19 @@ See `docs/architecture/live-challenge-shell.md`.
   can honour it).
 - A **server-side close** for a round whose deadline passed with no host screen
   open (students wait on "Time's up" until one is).
-- **Choosing a scoring strategy for the classic modes** in the console (every
-  results screen already presents Grand Prix and Correct Count).
-- **Removing a student** from a running game, and re-inviting a student added
-  to the class mid-game.
+- ~~**Choosing a scoring strategy for the classic modes** in the console~~ —
+  built (LC16): Standard Challenge and Solver Race offer the strategies their
+  mode allows; see `live-challenge-shell.md` §7.
+- **Removing a student** from a running game. A student added to the class
+  mid-game is invited already (`live-challenge-shell.md` §10). Removal was
+  looked at (LC02, VH-55) and is not small and safe: §14 lists what it needs (a
+  callable, a tombstone against re-invitation, seat bookkeeping, the engine
+  effects, the student's screen, the console, certification).
+- **A student's own answers in the recap, on every device.** Built for the
+  device that played (LC19): the recap shows what the student answered from a
+  copy that device keeps, and a second device shows the rounds and worked
+  solutions without it. The server keeping the answers is a retention decision
+  (who reads them, how long): `live-challenge-shell.md` §14 lists what it needs.
 - **Countdown sound** tied to `startsAt` (cues are tied to the deadline today).
 
 ### ~~Live Challenge engine and rewards foundation~~ — shipped
@@ -169,9 +184,9 @@ See `docs/architecture/live-challenge-engine.md`.
 
 **Open follow-ups, each built on what shipped:**
 
-- **Teacher choice of scoring** — the server accepts `scoringStrategyId`
-  (Accuracy First, Grand Prix, Correct Count); the create panel does not offer
-  it yet, and Grand Prix needs its round-results screen on the projector.
+- ~~**Teacher choice of scoring**~~ — built (LC16): the create panel offers the
+  strategies each classic mode allows (Rush and Graph the Line had their own);
+  Grand Prix's round-results screen is on the projector.
 - ~~**Reward policy editor**~~ — teachers now choose Practice Passes for
   1st / top 2 / top 3 and a Champion badge when creating a Challenge; a
   free-form rule editor remains open.
@@ -182,23 +197,32 @@ See `docs/architecture/live-challenge-engine.md`.
 ### Rewards follow-ups
 **Status:** open
 
-- **Expiry sweep** — persist `expired` on grants past `expiresAt` (they already
-  read as expired everywhere). Housekeeping only.
+- ~~**Expiry sweep**~~ — done lazily (LC23): a grant past `expiresAt` already
+  read as expired everywhere, and the server paths that hold a student's grants
+  (a teacher opening the student's rewards; the use of another pass) now record
+  it (`rewards.md` section 2). A scheduled sweep would be a new function to
+  deploy and was not built; a grant no server path touches stays `available` in
+  storage and reads as expired, as before.
 - **Practice Pass in Parent Contact and the support evidence report** —
   `parentContactCenter.js` and `supportEvidenceReport.js` still compute
   assignment grades without the waiver; they need the class's waiver keys
   passed in the way the gradebook now does.
-- **Per-assignment "allow Practice Passes" switch in the editor** — the rule
-  (`assignment.rewardPolicy.practicePassEligible`) is enforced; no authoring
-  control writes it.
+- ~~**Per-assignment "allow Practice Passes" switch in the editor**~~ — built
+  (LC23): Assignment Review's Delivery step writes
+  `assignment.rewardPolicy.practicePassEligible` (only the "no"); see
+  `rewards.md` section 4.
 - **Class-wide rewards overview** — a teacher sees one student's rewards in the
   drawer; a class list of passes held / used is not built.
 - **Host pause/resume and automatic round close** — modelled in the timer and
   the lifecycle, not wired to controls.
 - **Graph Feature Rush** — multi-target, question-set rounds; the mode
   contract, round structure and attempt model are in place.
-- **Retire the legacy speed trigger** (`adjustLiveChallengeExperienceScore`) in
-  a deployment that deletes it explicitly.
+- **Delete the legacy speed trigger from production.** Out of the source
+  (LC23); the deployed `adjustLiveChallengeExperienceScore` stays (harmless)
+  until `firebase functions:delete adjustLiveChallengeExperienceScore --region
+  us-central1 --project mathmaster-aleks` removes it, and the
+  `experienceSpeedAdjustedRound` marker write must stay until then
+  (`live-challenge-engine.md` section 14).
 
 ### ~~Fix how the question bank is sampled~~ — fixed (variety); difficulty still open
 **Status:** variety fixed · difficulty targeting still open
@@ -247,6 +271,22 @@ not new content:
 - **CCMR / ASVAB / SAT transfer** — the audited banks already exist.
 - **Hand-picked** — everything else is a shortcut to this.
 
+**Not started (G-33; LC14 took only the authoring slice and the timing
+validator, above).** Each source is a query that must return what
+`loadChallengeCandidates` returns today: bank questions that pass
+`liveChallengeEligible` and the issuability gate, so the create panel, the
+sampling (`challengeSampling.sampleBankWindow`) and the round planner need a
+`roundSource` setting and nothing downstream changes. The work is per source:
+the query, a privacy decision for the sources that read student data (yesterday's
+DOL misses and the class's weakest standards come from what individual students
+got wrong, so a round's origin must not name or hint at a student on a shared
+screen), the "not enough questions for N rounds" case a narrow source hits where a
+standard rarely does, and a line on the create panel saying where the rounds came
+from. Every source's rounds pass `validateChallengeRoundSet`
+(`liveChallengeRoundTiming.mjs`) like any other. A source built from an existing
+assignment needs a rule for which of its question types are playable in 45
+seconds.
+
 ### Competition formats
 **Status:** open
 
@@ -261,6 +301,92 @@ already believe.
 - **Co-op against a target**, with no ranking at all — for reteach days
 - **Handicap scoring** against each student's own baseline, so the student who
   improved most can win
+
+**Looked at for LC15 (G-34, A2-63) on 2026-10-25; none built.** Each of these
+is a new game format, not a setting: it touches the scoring registry, the
+public-board privacy rule, the standings projection, the results screens,
+rewards and the report, and every one of those carries students' real data.
+What each needs, so the work can be sized and chosen one at a time. The code to
+read first: `functions/shared/liveChallengeScoring.mjs`
+(the scoring strategies and `leaderboardOptionsFor`), `liveChallengeModes.mjs`
+(capabilities), `liveChallengePrivacy.mjs` ("nobody is publicly last"),
+`liveChallengeStandingsProjection.mjs`, `liveChallengeResults.mjs`,
+`liveChallengeRewardRules.mjs`, `liveChallengeRecognitions.mjs`
+(`teamEffort` is the only team idea today), `liveChallengeAccommodations.mjs`
+(every format must keep a race fair for extended time), and
+`challengeStandingsModel.js` (`scorePresentation`).
+
+- **Class vs its own record** — the safest frame, and the smallest.
+  - *Rules:* a record is the best earlier match result of the same class, mode
+    and settings that are comparable (same mode, round count, round seconds,
+    scoring strategy), read from `liveChallengeMatchResults`; a game that
+    beats it says so once, at the end.
+  - *Scoring:* none new; a target line over the class's total.
+  - *UI:* a target on the live board and the podium; a setup choice and a
+    results line. *Privacy:* the record is a class total, never a student.
+  - *Certification:* a harness game against a seeded earlier result.
+- **Co-op against a target, with no ranking** — for reteach days.
+  - *Rules:* a target the teacher sets or the class's record supplies; the
+    class wins together or does not.
+  - *Scoring:* a new strategy that pools points (`coop`) and ranks nobody;
+    `scorePresentation` needs a presentation with no places.
+  - *Privacy:* with no ranking there is nobody to be last; the public rule's
+    exemption for a mode with no ranking must be written down and tested, so
+    no board is added later that ranks by accident. The podium becomes a
+    shared result.
+  - *Rewards and recognitions:* placement rewards have no places to read, so
+    the reward policy needs a "target met" trigger; `teamEffort` fits.
+  - *UI:* a progress bar on the projector and the student screen, a results
+    moment without a table, and the Play Again copy. *Certification:* the class
+    of 40 launch run, since every student writes to one total.
+- **Teams, scored on the average, not the sum.**
+  - *Rules:* a team assignment (random, balanced by the class's earlier
+    results, or chosen) stored on the private roster, with team names the
+    teacher picks or the game generates; late joiners join the smallest team;
+    a student removed or absent changes the mean's denominator.
+  - *Scoring:* team score = the mean of its members' scores, with a rule for a
+    team of one and for members who never joined; ties; Grand Prix's field size
+    counts teams.
+  - *Privacy:* "nobody is publicly last" extends to teams (the top teams only,
+    never the bottom team by name), and a student's own contribution is never on
+    a board; a student reads their team's standing and their own part from
+    their own summary document.
+  - *Data and rules:* a team projection beside the standings projection, a
+    `teamId` on player rows and summaries, match-result rows per team, rewards
+    for a team's place, a report with team rows. New fields on documents that
+    students read need rules tests.
+  - *UI:* setup (team count or size, assignment), lobby chips by team, results
+    (team table and own team), podium, the student card.
+  - *Certification:* the launch run with teams, the standings profile
+    (`npm run profile:live-challenge-standings`) with a team projection,
+    extended time in a team's mean.
+- **Handicap against each student's own baseline** — the riskiest.
+  - *Rules:* a baseline per student and mode, from their earlier match results
+    (a minimum number of games; none means no handicap), recomputed after each
+    game; the handicapped score is the improvement over it.
+  - *Privacy:* a baseline is private by nature (it says who is weaker), so it
+    is stored server-side only (a new collection with a rules test that no
+    client reads it, removed by `permanentlyDeleteStudent`), never appears on
+    a projector or a classmate's screen, and no public number may let a viewer
+    work one back out; the format must not be announced as "handicap" on a
+    shared screen.
+  - *Fairness:* deliberately losing games to lower a baseline (sandbagging)
+    needs a floor or a trimmed history; a student with extended time must not
+    have the time counted twice.
+  - *Scoring:* a new strategy; ties and a student with no baseline (a new
+    student plays at par).
+  - *Certification:* an emulator suite over baselines, and the privacy suites
+    over every document a student or the projector can read.
+- **Class vs class** — the largest.
+  - A game belongs to one teacher and one class (one active game per teacher,
+    `liveChallengeTeacherActive`); two classes means a second teacher's
+    authority over the same game or a result joined across two rooms. It needs
+    an ownership and invitation model across teachers, aggregated scoring with
+    reads across rooms, privacy across classes (aliases are per room, and one
+    class must not see another's students), an asynchronous variant (the
+    backlog says "settled asynchronously between periods") with its own
+    storage and a closing rule, and rewards for a class. Decide whether this is
+    a game or a standing ladder before designing anything.
 
 ### ~~Live Challenge: question style, live board, game surface~~ — shipped
 
@@ -309,7 +435,7 @@ one prop swapped, not a copy of it — a lookalike would reassure a teacher abou
 a screen students never see.
 
 ### A `liveChallenge` authoring contract slice
-**Status:** open · do after the selector
+**Status:** slice and timing validator built (LC14, 2026-10-25) · the request that hands it to an outside AI, and the import, are not
 
 A challenge question has constraints an assignment question does not: answerable
 in 45 seconds, single part, no multi-stage tool, no scratchpad dependency,
@@ -317,8 +443,25 @@ unambiguous when read fast. `CONTRACT_SLICES` and the `issuable` template gate
 already exist; this adds the slice and a timing validator so an outside AI can
 produce usable rounds.
 
-Worth doing **after** the selector, so the constraints are written from what a
-good round turned out to be in practice.
+**Built.** `CONTRACT_SLICES.liveChallenge` (authoringContract.js) is the V5
+wrapper and question rules plus a "Live Challenge rounds" section
+(`liveChallengeContract.js`) that the full Assignment V5 contract does not
+carry. Its numbers are read from `functions/shared/liveChallengeRoundTiming.mjs`,
+the timing validator: per question it applies the game's own gates (a live round
+can draw the answer; a DOK 3 question only in a round the game fits to 90 seconds
+or more, DOK 4 never in a timed round) and warns about what is probably unfair
+(reading takes more than 40% of the round at 3 words a second, several answer
+boxes, a request to explain); per set it checks 3-20 rounds of 15-120 seconds.
+`tests/platform/liveChallengeContractSlice.test.mjs` reads the section's numbers
+out of its text and plays them against the validator.
+
+**Not built.** (1) The teacher-facing "Copy a prompt for an outside AI" on the
+create panel, which would wrap this slice the way `questionRepairRequest.js`
+wraps its own. (2) Running the validator anywhere a teacher sees it: the Question
+Library's import preview is the natural place. (3) Judging "unambiguous when read
+fast", a scratchpad dependency or a multi-stage tool: no data says which tools
+are multi-stage, so the section only tells the author. The reading pace and share
+are assumptions chosen in LC14; adjust them from what real rounds show.
 
 ### ~~Export a challenge as JSON~~ — shipped
 **Status:** shipped
@@ -360,6 +503,22 @@ time, with no preflight and no way to back out mid-game.
 
 So this waits on the `liveChallenge` contract slice and the timing validator.
 Export first, import second.
+
+**After LC14 (2026-10-25) the slice and validator exist; the import does not.**
+What the import still needs: (1) a callable that takes `parseChallengeExport`'s
+payload and, for each `questionId`, loads the bank question and runs
+`safeBuildTemplateIssuePlan` (the gate every drawn question passes today), the
+liveChallengeEligible readiness check and `validateChallengeRoundSet` with the
+file's `roundSeconds`, refusing the whole set with a sentence per round when any
+fails, because a question can have been retired or edited since it was exported;
+(2) a way to start a game from the validated ids in the order given (the
+create path draws from candidates today, so this is a new planner source that
+fixes `questionIds` instead of sampling); (3) the rules for who may import (the
+teacher whose class it is) and a size limit; (4) a console control and an
+emulator test that a stale id, a retired question and a too-long set are each
+refused before a student sees anything. The export's rounds carry bank ids only,
+so a set an outside AI authors reaches the bank through the Question Library
+first (its own server validation), then is exported or chosen by id.
 
 ### More ways to be recognised at the end
 **Status:** open
@@ -441,13 +600,19 @@ different assignment still gets the old dashboard banner.
 
 - ~~Whether challenge performance counts as mastery evidence.~~ Decided and
   built: it counts, weighted 0.7, aggregated per standard.
-- Whether a student who never joined should get a 0% or no record. Currently no
-  record — an absence is an attendance question, which the teacher reconciles,
-  and a 0% would make it indistinguishable from a student who sat through the
-  game and answered nothing.
+- ~~Whether a student who never joined should get a 0% or no record.~~ Decided
+  (owner, October 2026, LC25): no record — an absence is an attendance
+  question, which the teacher reconciles, and a 0% would make it
+  indistinguishable from a student who sat through the game and answered
+  nothing.
 
 ### Run a challenge at the DOL phase
-**Status:** open · with a caveat worth taking seriously
+**Status:** decided · not as a graded DOL (owner, October 2026, LC24)
+
+Not built. A graded, timed game puts speed pressure on the exit ticket, and a
+student with extended time cannot be given more time in a race without
+changing the race (the real-time exception stays, LC17). If it is ever built,
+it takes the shape below: diagnostic, nothing in the gradebook.
 
 Mechanically the same idea, and the DOL window and single attempt fit a game
 well. But a DOL is **graded**, and putting speed pressure on a graded exit

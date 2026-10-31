@@ -37,14 +37,31 @@ const DRIVERS = [
     'toolChoiceGroups',
   ]],
   ['student-runtime-browser-gates.yml', 'pass3-secure-screens', 'self', ['secureResults', 'secureExamNavigation']],
+  // CI10: the M2 T2 lessons' every question, laptop and phone, and their tries.
+  ['student-runtime-browser-gates.yml', 'student-runtime-2', 'plain', ['algebra1Module2Topic2']],
+  // WCAG 1.4.13: the plane's hover readout and the wheels' detail close on Escape.
+  ['student-runtime-browser-gates.yml', 'student-runtime-3', 'plain', ['planeReadoutEscape', 'wheelEscape']],
+  // Ran by hand only, and had gone stale: Graphing 2's plane stays put while
+  // points are placed (it jumped 18px), and a point is dragged from its dot.
+  ['student-runtime-browser-gates.yml', 'student-runtime-3', 'plain', ['plotInteraction']],
+  // FB10: after a miss, the hint opens under it and Check stays in view.
+  ['student-teacher-journeys.yml', 'student', 'plain', ['feedbackTeachesHintPlace']],
   ['student-runtime-browser-gates.yml', 'pass3-secure-screens', 'stubbed', ['secureAccessParity']],
   ['student-teacher-journeys.yml', 'pass3-student-journeys', 'teacher', [
     'teacherWorkflow/assignmentChromeJourneys', 'teacherWorkflow/studentNameJourneys',
     'teacherWorkflow/draftSaveNoticeReloadJourneys', 'teacherWorkflow/phoneSaveLineJourneys',
+    // LC23: the Practice Passes switch in the real Review, desktop and phone.
+    'teacherWorkflow/practicePassSwitchJourneys',
   ]],
   ['student-teacher-journeys.yml', 'pass3-student-journeys', 'a11yApp', ['teacherWorkflow/askMyTeacherJourneys']],
+  // NV14: Back and a reload inside Recovery, Corrections and a Test review.
+  ['student-teacher-journeys.yml', 'app-urls', 'teacher', ['teacherWorkflow/innerScreenBackJourneys']],
   ['student-pass3-emulator-journeys.yml', 'pass3-test-cycle-rich-tools', 'self', ['testCycleRichToolQa']],
+  // CI16: a whole Test Cycle, ran by hand until it was run twice in a row green.
+  ['student-pass3-emulator-journeys.yml', 'pass3-test-cycle-lifecycle', 'self', ['testCycleLifecycleQa']],
   ['student-pass3-emulator-journeys.yml', 'pass3-live-challenge-shell', 'self', ['liveChallengeShellQa']],
+  // CI06: whole Graph Feature Rush games, ran by hand until it was green twice in a row.
+  ['student-pass3-emulator-journeys.yml', 'pass3-graph-feature-rush', 'self', ['graphFeatureRushGame']],
 ];
 
 for (const [workflow, job, server, drivers] of DRIVERS) {
@@ -107,12 +124,14 @@ test('a pull request that changes one of these drivers, or a page it opens, runs
   assert.ok(runsOnPullRequest(gates, 'tests/browser/keyboardSweep.html'));
   const journeys = 'student-teacher-journeys.yml';
   ['tests/browser/teacherWorkflow/askMyTeacherJourneys.mjs', 'tests/browser/teacherWorkflow/fixtures/school.js',
-    'tests/browser/accessibilityAppHarness.vite.config.mjs', 'tests/browser/accessibilityFakeFirestore.js'].forEach((file) => {
+    'tests/browser/accessibilityAppHarness.vite.config.mjs', 'tests/browser/teacherWorkflow/fakeFirestore.js'].forEach((file) => {
     assert.ok(runsOnPullRequest(journeys, file), `a change to ${file} runs the journeys`);
   });
   const emulator = 'student-pass3-emulator-journeys.yml';
   ['functions/lib/anything.js', 'src/QuestionEngine.jsx', 'tests/browser/emulator/vite.bridge.config.mjs',
     'tests/browser/support/anything.mjs', 'tests/browser/testCycleRichToolQa.mjs', 'tests/browser/liveChallengeShellQa.mjs',
+    'tests/browser/testCycleLifecycleQa.mjs', 'tests/browser/testCycleLifecycleQa.html', 'tests/fixtures/testCycleCertificationFixture.mjs',
+    'tests/browser/graphFeatureRushGame.mjs', 'src/components/liveChallenge/GraphFeatureRushGraph.jsx',
     'tests/fixtures/secureRichToolAnswers.mjs'].forEach((file) => {
     assert.ok(runsOnPullRequest(emulator, file), `a change to ${file} runs the emulator journeys`);
   });
@@ -132,7 +151,7 @@ test('the emulator journeys run on their own area, nightly and on demand; the ga
   ['mathPath', 'pathContentCompiler', 'pathFirestoreShape', 'secureItems', 'secureItemStorage'].forEach((name) => {
     assert.ok(runsOnPullRequest(gates, `functions/lib/${name}.js`), `${name}.js runs the gates (secureAccessParity)`);
   });
-  assert.doesNotMatch(read(gates), /pass3-(test-cycle-rich-tools|live-challenge-shell):/, 'the long jobs left the gates');
+  assert.doesNotMatch(read(gates), /pass3-(test-cycle-rich-tools|test-cycle-lifecycle|live-challenge-shell|graph-feature-rush):/, 'the long jobs left the gates');
 });
 
 // The emulator journeys' area (scripts/lib/ciAreas.mjs) is all of src/ minus the

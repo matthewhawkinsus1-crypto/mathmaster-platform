@@ -148,6 +148,16 @@
               "Add the two months’ counts for that card"
             ],
             "correct": "Add the two months’ counts for that card"
+          },
+          "solutionReview": {
+            "headline": "Each number in an array is one count: its row is the card value and its column is the card type. Add a card’s two months, then multiply by its value.",
+            "reasoning": [
+              "Same information: his 230 gas cards for $20 are the November array’s $20 row, Gas column, and his 110 and 550 sit below it in the $25 and $50 rows. The arrays hold the grocery counts too, for both months: Yes — the same numbers, organized in rows and columns.",
+              "$25 grocery cards: 89 in November and 233 in December, so 89 + 233 = 322 cards, and 322 × 25 = 8050 dollars.",
+              "$50 gas cards: 550 in November and 348 in December, so 550 + 348 = 898 cards, and 898 × 50 = 44900 dollars.",
+              "Fewest cards: add each type’s two months. Gas: $20 cards, 230 + 496 = 726; $25 cards, 110 + 850 = 960; $50 cards, 550 + 348 = 898. Grocery: $20 cards, 112 + 129 = 241; $25 cards, 89 + 233 = 322; $50 cards, 95 + 308 = 403. The fewest, 241, are the $20 grocery cards."
+            ],
+            "answerSummary": "Yes — the same numbers, organized in rows and columns; the $25 grocery cards brought in 8050 dollars and the $50 gas cards 44900 dollars; the $20 grocery cards sold the fewest, 241."
           }
         },
         {
@@ -258,7 +268,7 @@
             },
             {
               "id": "product",
-              "label": "(−2/3) · (its inverse) =",
+              "label": "(−2/3) · (its inverse)",
               "answer": "1"
             },
             {
@@ -277,7 +287,7 @@
           "hints": [
             "Flip the number: the inverse of a/b is b/a, with the same sign.",
             "A number times its multiplicative inverse is always the multiplicative identity.",
-            "Which number times anything is never 1?"
+            "Which real number, times anything, can never give the multiplicative identity?"
           ],
           "scaffold": {
             "prompt": "Let’s back up. The multiplicative inverse of a/b is…",
@@ -286,6 +296,16 @@
               "−a/b"
             ],
             "correct": "b/a"
+          },
+          "solutionReview": {
+            "headline": "A number times its multiplicative inverse is 1, the multiplicative identity: to find the inverse of a fraction, flip it and keep its sign.",
+            "reasoning": [
+              "The multiplicative inverse of 5: it is 1/5, because 5 · (1/5) = 1.",
+              "The multiplicative inverse of −2/3: flip the fraction and keep its sign: −3/2.",
+              "(−2/3) · (its inverse): (−2/3) · (−3/2) = 1, the multiplicative identity.",
+              "No multiplicative inverse: 0 times any number is 0, never 1, so the real number with no multiplicative inverse is 0."
+            ],
+            "answerSummary": "The inverse of 5 is 1/5, the inverse of −2/3 is −3/2, and (−2/3) · (−3/2) = 1; 0 has no multiplicative inverse."
           }
         }
       ]
@@ -314,7 +334,7 @@
           ],
           "dok": 1,
           "difficultyBand": 1,
-          "prompt": "Activity 3.1 — A shoe store tracks its running-shoe inventory in matrix A: each row is a width (C, D, E, EE) and each column is a size (9 through 13). Give the dimensions of A, then tap each named element. After a tap, the lab tells you which width and size that element counts.",
+          "prompt": "Activity 3.1 — A shoe store tracks its running-shoe inventory in matrix A: each row is a width (C, D, E, EE) and each column is a size (9 through 13). Give the dimensions of A, then select the cell of each named element (click or tap it, or Tab to it and press Enter). After you select one, the lab tells you which width and size that element counts.",
           "matrices": {
             "A": {
               "rows": [
@@ -521,7 +541,7 @@
           ],
           "dok": 2,
           "difficultyBand": 2,
-          "prompt": "Coach Flores' sprinters: matrix A shows how many times each sprinter finished in each place, and matrix B is the scoring (10 points for 1st, 8 for 2nd, 6 for 3rd, 4 for 4th, 2 for 5th). Multiply A · B to find every sprinter's score. Tap a cell of the product to see which row and column it pairs.",
+          "prompt": "Coach Flores' sprinters: matrix A shows how many times each sprinter finished in each place, and matrix B is the scoring (10 points for 1st, 8 for 2nd, 6 for 3rd, 4 for 4th, 2 for 5th). Multiply A · B to find every sprinter's score. Click or tap a cell of the product, or Tab to it, to see which row and column it pairs.",
           "matrices": {
             "A": {
               "rows": [
@@ -612,16 +632,16 @@
           "guidedNotes": {
             "steps": [
               {
-                "title": "Matrix multiplication",
-                "instruction": "Element (p, q) of A·B is row p of A times column q of B: multiply matching elements and add the products."
+                "title": "What one entry means",
+                "instruction": "Each number in a product is one total: line one sprinter’s finishes up with the points for each place, then add up what they are worth."
               },
               {
-                "title": "When it is defined",
-                "instruction": "A·B is defined only when the number of columns of A equals the number of rows of B."
+                "title": "Why the sizes must match",
+                "instruction": "Every place in A needs a point value in B. If the two matrices counted different numbers of places, some finishes would be worth nothing."
               },
               {
-                "title": "Outer dimensions",
-                "instruction": "(n × m) · (m × p) gives an n × p product: sprinters by medals · medals by points = sprinters by points."
+                "title": "Reading the size of the answer",
+                "instruction": "The places are used up in the adding, so they do not show in the answer’s size. What is left is one row per sprinter and one column per thing scored."
               }
             ]
           }
@@ -702,7 +722,21 @@
             "Compare the INNER numbers: columns of the first, rows of the second.",
             "If they match, the product has the OUTER numbers.",
             "For example, (3 × 1) · (1 × 5): the inner 1s match, so the product is 3 × 5."
-          ]
+          ],
+          "solutionReview": {
+            "headline": "Joey’s idea: a product is defined only when the inner numbers match (columns of the first, rows of the second), and it has the outer numbers.",
+            "reasoning": [
+              "Card 1, (2 × 3) · (3 × 4): the inner 3 and 3 match, and the outer numbers are 2 and 4: Defined — the product is 2 × 4.",
+              "Card 2, (2 × 4) · (4 × 4): the inner 4 and 4 match, and the outer numbers are 2 and 4: Defined — the product is 2 × 4.",
+              "Card 3, (3 × 2) · (3 × 2): the inner 2 and 3 do not match: Not defined.",
+              "Card 4, (4 × 2) · (4 × 2): the inner 2 and 4 do not match: Not defined.",
+              "Card 5, (2 × 2) · (4 × 4): the inner 2 and 4 do not match: Not defined.",
+              "Card 6, (4 × 1) · (1 × 4): the inner 1 and 1 match, and the outer numbers are 4 and 4: Defined — the product is 4 × 4.",
+              "Card 7, (4 × 3) · (3 × 4): the inner 3 and 3 match, and the outer numbers are 4 and 4: Defined — the product is 4 × 4.",
+              "Card 8, (2 × 5) · (5 × 4): the inner 5 and 5 match, and the outer numbers are 2 and 4: Defined — the product is 2 × 4."
+            ],
+            "answerSummary": "Defined — the product is 2 × 4: cards 1, 2 and 8. Defined — the product is 4 × 4: cards 6 and 7. Not defined: cards 3, 4 and 5."
+          }
         },
         {
           "questionId": "l3m-cw-5",
@@ -1472,7 +1506,7 @@
           ],
           "dok": 3,
           "difficultyBand": 3,
-          "prompt": "[College-Readiness — ACT style] Matrices A and B are shown. Matrix C has dimensions 3 × 2 and matrix D has dimensions 2 × 4.",
+          "prompt": "Matrices A and B are shown. Matrix C has dimensions 3 × 2 and matrix D has dimensions 2 × 4.",
           "assessmentContext": {
             "framework": "act",
             "examStyle": true
@@ -1518,7 +1552,13 @@
                 "0",
                 "−2"
               ],
-              "answer": "−6"
+              "answer": "−6",
+              "optionRationales": {
+                "0": "This uses only the first pair, 0 · 4; an entry of a product adds the products of every matching pair.",
+                "6": "This drops the negative sign of −2 in column 1 of B; 3 times a negative number is negative.",
+                "−6": "Row 2 of A is (0, 3) and column 1 of B is (4, −2): 0 · 4 + 3 · (−2) = −6.",
+                "−2": "−2 is an entry of B; the product entry combines row 2 of A with column 1 of B."
+              }
             },
             {
               "id": "dimsCD",
@@ -1530,7 +1570,13 @@
                 "4 × 3",
                 "CD is not defined"
               ],
-              "answer": "3 × 4"
+              "answer": "3 × 4",
+              "optionRationales": {
+                "3 × 4": "The inner dimensions match (2 and 2), and the product takes the outer ones: 3 rows from C, 4 columns from D.",
+                "2 × 2": "These are the inner dimensions, which have to match; the product takes the outer ones.",
+                "4 × 3": "This reverses rows and columns; the first factor gives the rows.",
+                "CD is not defined": "C has 2 columns and D has 2 rows, so they match and CD is defined."
+              }
             },
             {
               "id": "dimsDC",
@@ -1542,7 +1588,13 @@
                 "4 × 3",
                 "3 × 4"
               ],
-              "answer": "DC is not defined"
+              "answer": "DC is not defined",
+              "optionRationales": {
+                "DC is not defined": "D has 4 columns but C has 3 rows; the inner dimensions do not match, so DC is not defined.",
+                "2 × 2": "This uses the outer dimensions without checking the inner ones; the columns of D must equal the rows of C.",
+                "4 × 3": "These are the inner dimensions, and they have to match before any product exists.",
+                "3 × 4": "This is the size of CD; the order of the factors matters in matrix multiplication."
+              }
             }
           ],
           "hints": [
@@ -1556,6 +1608,15 @@
               "m × p"
             ],
             "correct": "m × p"
+          },
+          "solutionReview": {
+            "headline": "An entry of AB pairs a row of A with a column of B; a product is defined only when the inner dimensions match, and it has the outer ones.",
+            "reasoning": [
+              "The entry in row 2, column 1 of AB: row 2 of A is (0, 3) and column 1 of B is (4, −2), so it is 0 · 4 + 3 · (−2) = −6.",
+              "The dimensions of CD: C is 3 × 2 and D is 2 × 4. The inner numbers, 2 and 2, match, and the outer ones are 3 and 4: 3 × 4.",
+              "The dimensions of DC: D is 2 × 4 and C is 3 × 2. The inner numbers, 4 and 3, do not match, so DC is not defined."
+            ],
+            "answerSummary": "The entry is −6; CD is 3 × 4; DC is not defined."
           }
         }
       ]
@@ -1659,6 +1720,7 @@
           "difficultyBand": 3,
           "prompt": "Write the matrix equation and use technology. Then classify the system.",
           "justifySingular": true,
+          "decisionWeight": 3,
           "equations": [
             "x - 2y + 3z = 4",
             "2x + y - z = 1",

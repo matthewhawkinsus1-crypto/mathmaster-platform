@@ -257,3 +257,84 @@ test('every committed step reports a kind the server already accepts (Hosting-on
   }
   assert.ok(EQUATION_REWRITE_KINDS.includes('student-rewrite') && RELATION_STEP_KINDS.includes('student-rewrite'));
 });
+
+// GR27: a factor of 1 after a letter, x · 1, was drawn `x1` — on the board
+// and in its "Remove 1" part — which reads as "x one". A number after another
+// factor is now set in brackets, as 2 · 3 already was: x(1), 2x(1).
+test('GR27 — a factor of 1 after a letter is drawn x(1), on the board and in its part', async () => {
+  const { expressionToLatex } = await import('../../functions/shared/algebra/algebraAstEngine.mjs');
+  assert.equal(expressionToLatex('x * 1 + 2').trim(), 'x\\left(1\\right)+2');
+  assert.equal(expressionToLatex('2 * x * 1 - 4').trim(), '2x\\left(1\\right)-4');
+  // Unchanged: a number before a letter, two letters, and a number after a number.
+  assert.equal(expressionToLatex('2 * x').trim(), '2x');
+  assert.equal(expressionToLatex('b * h').trim(), 'bh');
+  assert.equal(expressionToLatex('3 * 1 * x').trim(), '3\\left(1\\right)x');
+  const [unit] = detectSimplifyParts(regionsOf('x * 1 + 2', '5'));
+  assert.equal(unit.kind, SIMPLIFY_PART_KINDS.UNIT);
+  assert.equal(unit.latex.trim(), 'x\\left(1\\right)');
+});
+
+// GR27, kept as built (the owner): a padded decimal and a long decimal for a
+// fraction that does not end are the right value written as one term. Refusing
+// them would mark a right answer wrong, so they stay accepted as simplest
+// (writtenTermProblem's comment says why); a wrong value is still refused.
+test('GR27 — padded and long decimals stay accepted as simplest; a wrong value does not', () => {
+  const like = (left) => detectSimplifyParts(regionsOf(left, '7')).find((part) => part.kind === SIMPLIFY_PART_KINDS.LIKE_TERMS);
+  const half = like('2 * x + 0.5 * x');
+  const sixths = like('x / 2 + x / 3');
+  for (const [part, answer] of [[half, '2.50x'], [half, '2.5x'], [sixths, '0.8333333333333334x'], [sixths, '\\frac{5}{6}x']]) {
+    assert.equal(commitSimplifyPart(regionsOf(part === half ? '2 * x + 0.5 * x' : 'x / 2 + x / 3', '7'), part.id, { answer }).ok, true, answer);
+  }
+  assert.equal(checkRegionRewrite(regionsOf('2 * x + 0.5 * x')[0], '2.50x').ok, true);
+  assert.equal(checkRegionRewrite(regionsOf('x / 2 + x / 3')[0], '0.8333333333333334x').ok, true);
+  assert.equal(commitSimplifyPart(regionsOf('2 * x + 0.5 * x', '7'), half.id, { answer: '2.6x' }).ok, false);
+  assert.equal(commitSimplifyPart(regionsOf('x / 2 + x / 3', '7'), sixths.id, { answer: '0.83x' }).ok, false);
+});
+
+// GR36: mathjs reads a typed `xy` as one name, so on a board the engine holds
+// as 2·x·y + 3·x·y (drawn 2xy + 3xy) One Simplify refused the student's 5xy.
+// Letters typed together now read as their product where the board has each
+// of them on its own — and nowhere else.
+test('GR36 — a typed 5xy is 5·x·y where the board has x and y; a board name, a function and a missing letter keep their reading', async () => {
+  const { letterRunsAsProducts } = await import('../../functions/shared/algebra/latexToExpression.mjs');
+  const likeOf = (left) => detectSimplifyParts(regionsOf(left, '10')).find((part) => part.kind === SIMPLIFY_PART_KINDS.LIKE_TERMS);
+  const board = '2 * x * y + 3 * x * y';
+  const like = likeOf(board);
+  for (const answer of ['5xy', '5yx', '5x y', '5x\\cdot y']) {
+    assert.equal(commitSimplifyPart(regionsOf(board, '10'), like.id, { answer }).ok, true, answer);
+  }
+  for (const answer of ['6xy', '5x', '5xyz', '5xy^2']) {
+    assert.equal(commitSimplifyPart(regionsOf(board, '10'), like.id, { answer }).ok, false, answer);
+  }
+  assert.equal(checkRegionRewrite(regionsOf('2 x y + 3 x y + 4')[0], '5xy+4').ok, true, 'the whole side too');
+  // The board the browser builds is one the server verifies (no server change).
+  const { emptyQuestionRecord } = await import('../../functions/shared/attemptPolicy.mjs');
+  const { STEP_ACTIONS, equationStepWork, verifyStepAlgebraStep } = await import('../../functions/shared/serverGrading/stepAlgebraStepVerification.mjs');
+  const question = { questionId: 'q-gr36', type: 'stepAlgebra', prompt: 'Simplify.', equation: '2 * x * y + 3 * x * y + 4 = 10', workspaceDifficulty: 3 };
+  const before = { left: '2 * x * y + 3 * x * y + 4', right: '10', variable: 'x' };
+  const onServer = (kind, left) => verifyStepAlgebraStep({ question, record: emptyQuestionRecord(), stepWork: equationStepWork({ action: STEP_ACTIONS.REWRITE, kind, before, after: { ...before, left }, supportLevel: 3 }) }).verified;
+  const sideRegions = regionsOf(before.left, '10');
+  const combined = commitSimplifyPart(sideRegions, likeOf(before.left).id, { answer: '5xy' });
+  assert.equal(onServer(combined.step.kind, combined.expression), true, combined.expression);
+  const whole = checkRegionRewrite(sideRegions[0], '5xy+4');
+  assert.equal(onServer('student-rewrite', whole.expression), true, whole.expression);
+  const product = detectSimplifyParts(regionsOf('3 * 5 * x * y', '10')).find((part) => part.kind === SIMPLIFY_PART_KINDS.PRODUCT);
+  assert.equal(commitSimplifyPart(regionsOf('3 * 5 * x * y', '10'), product.id, { answer: '15xy' }).ok, true);
+  // A board that holds xy as ONE name keeps that reading: its own 5xy, not 5x y.
+  const named = likeOf('2xy + 3xy');
+  assert.equal(commitSimplifyPart(regionsOf('2xy + 3xy', '10'), named.id, { answer: '5xy' }).ok, true);
+  assert.equal(commitSimplifyPart(regionsOf('2xy + 3xy', '10'), named.id, { answer: '5x y' }).ok, false);
+  // Never a function, a constant, a multi-letter quantity or a subscripted name.
+  assert.equal(letterRunsAsProducts('5xy', [board]), '5x y');
+  assert.equal(letterRunsAsProducts('xy^2', ['x*y^2']), 'x y^2');
+  assert.equal(letterRunsAsProducts('sin(x)', ['s*i*n*x']), 'sin(x)');
+  assert.equal(letterRunsAsProducts('pi x', ['p*i*x']), 'pi x');
+  assert.equal(letterRunsAsProducts('\\ln x', ['l*n*x']), '\\ln x');
+  assert.equal(letterRunsAsProducts('Area', ['Area = l*w']), 'Area');
+  assert.equal(letterRunsAsProducts('x_1y', ['x_1*y']), 'x_1y');
+  assert.equal(letterRunsAsProducts('xy_1', ['x*y_1']), 'xy_1', 'part of a subscripted name');
+  assert.equal(letterRunsAsProducts('xy2', ['x*y2']), 'xy2', 'part of a name with a digit');
+  assert.equal(letterRunsAsProducts('2\\theta', ['t*h*e*a']), '2\\theta', 'a LaTeX command');
+  assert.equal(letterRunsAsProducts('5xyz', ['x*y']), '5xyz', 'z is not on the board');
+  assert.equal(letterRunsAsProducts('5xy', ['xy + x*y']), '5xy', 'a name the board uses stays that name');
+});

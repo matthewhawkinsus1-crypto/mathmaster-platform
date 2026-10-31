@@ -26,6 +26,10 @@ specific descriptor winning and action lists appended.
 </EnlargeableFigure>
 ```
 
+The opener always reads "Open Work View" (`OPEN_WORK_VIEW` in
+`src/platform/student/studentWords.js`) and takes no label of its own; `label`
+names the dialog it opens ("<label>, Work View").
+
 Supported keys are `undo`, `redo`, `fitView`, `panZoom`, `pointEditing`,
 `numericControls`, `equationInput`, `tableData`, `instruction`, `task`, `help`,
 `primaryActions`, and `secondaryActions`. Actions accept `id`, `label`,

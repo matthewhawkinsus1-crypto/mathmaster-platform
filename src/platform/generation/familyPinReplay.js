@@ -34,6 +34,16 @@
  * assumed. Everything else becomes a question-level failure with a
  * classification and a recovery the student screen can act on.
  *
+ * AFTER A CONTENT UPGRADE (RT03, the owner's decision 2026-10-23). A slot
+ * moved to a newer version of its family is not a different question for a
+ * student who had already started it: a CANONICAL pin replays (and rebuilds)
+ * at its own family version, which every build keeps
+ * (questionFamilyInstance.mjs questionAtPinnedFamilyVersion), and the server
+ * grades the same instance. A device pin still yields to the new version,
+ * and a Recovery pin is unchanged. A slot moved to another family, or with
+ * constraints the pinned instance no longer satisfies, still fails closed:
+ * the pin does not record what the slot asked for then.
+ *
  * Pure: no React, no storage.
  */
 
@@ -41,6 +51,7 @@ import {
   FAMILY_RESOLUTION_ERROR,
   familySlotKey,
   normalizeQuestionFamilyReference,
+  questionAtPinnedFamilyVersion,
   resolveFamilyQuestionInstance,
 } from '../../../functions/shared/questionFamilyInstance.mjs';
 import { listPlatformQuestionFamilies } from '../../../functions/shared/questionFamilyRegistry.mjs';
@@ -212,15 +223,17 @@ export const classifyFamilyFailure = ({ question = null, pin = null, error = '',
  *
  * The rebuilt delivery keeps the pin's identity (slot, family, version,
  * variant, seat, index, basis, fingerprint). Only `resolvedIndex`, the
- * locator, is corrected to where the walk really landed.
+ * locator, is corrected to where the walk really landed. `keepPinnedVersion`
+ * (a canonical pin) walks an upgraded slot at the pin's family version.
  */
-export const rebuildFamilyQuestionFromPin = ({ question = null, assignmentId = '', storageIndex = 0, pin = null } = {}) => {
+export const rebuildFamilyQuestionFromPin = ({ question = null, assignmentId = '', storageIndex = 0, pin = null, keepPinnedVersion = false } = {}) => {
   const normalized = normalizeDeliveryPin(pin);
   if (!normalized) return null;
   const slotKey = normalized.slot || familySlotKey({ assignmentId, question, storageIndex });
+  const walkedQuestion = (keepPinnedVersion && questionAtPinnedFamilyVersion(question, normalized)) || question;
   for (const legacyWrapExclusion of [false, true]) {
     const walked = resolveFamilyQuestionInstance({
-      question,
+      question: walkedQuestion,
       assignmentId,
       storageIndex,
       slotKey,

@@ -3,6 +3,7 @@ import {
   audienceCandidates,
   describeLifecycleEvidence,
   describeOperation,
+  fewerItemsFormModel,
   gradeAdjustmentChoices,
   instantFromSchoolInput,
   schoolDateKey,
@@ -26,6 +27,8 @@ import { compareStudentsByName, formatStudentLabel } from '../../platform/studen
  *                             of every student.
  *   TestCycleGradeForm        a grade set by hand, from a named source.
  *   TestCycleStudentWindowForm one student's reopened Test or longer home window.
+ *   TestCycleFewerItemsForm   the Test questions one student with a
+ *                             fewer-items plan skips (TC15).
  *   TestCycleLifecyclePanel   archive (reversible) and delete (only while no
  *                             student has worked on it).
  *
@@ -517,6 +520,87 @@ export const TestCycleGradeForm = ({ row, name, busy, onSave, onClear, onCancel 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button type="submit" disabled={busy} style={button('primary', !busy)}>{busy ? 'Saving…' : 'Record this grade'}</button>
         {adjusted && <button type="button" disabled={busy} style={button(null, !busy)} onClick={onClear}>Remove my adjustment</button>}
+        <button type="button" onClick={onCancel} style={button()}>Cancel</button>
+      </div>
+    </form>
+  );
+};
+
+/*
+ * FEWER QUESTIONS FOR ONE STUDENT (TC15). For a student whose support plan
+ * lists fewer items, the teacher ticks the Test questions they skip, skill by
+ * skill; the rest of their Test is exactly everyone else's. The ticks are
+ * checked as they are made by the rule the server applies (every skill keeps
+ * a question, at most half the Test), and nothing is sent until Save. The
+ * student is told only how many questions their Test has.
+ */
+export const TestCycleFewerItemsForm = ({ row, name, questions = [], noun = 'Test', busy, onSave, onCancel }) => {
+  const reduced = row.reducedItems || {};
+  const saved = Array.isArray(reduced.excusedSlotIds) ? reduced.excusedSlotIds : [];
+  // A choice made for a Test since replaced: saving anything, even the whole
+  // Test, replaces it.
+  const stale = reduced.stale === true;
+  const [ticked, setTicked] = useState(() => new Set(saved));
+  const model = fewerItemsFormModel({ questions, excusedSlotIds: [...ticked], savedSlotIds: saved });
+  const canSave = !busy && model.ok && (model.changed || stale);
+  const toggle = (slotId, skip) => setTicked((current) => {
+    const next = new Set(current);
+    if (skip) next.add(slotId); else next.delete(slotId);
+    return next;
+  });
+  return (
+    <form
+      data-test-cycle-fewer-items={row.studentId}
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (canSave) onSave({ excusedSlotIds: model.excusedSlotIds });
+      }}
+      style={{ display: 'grid', gap: 10 }}
+    >
+      <strong style={{ color: 'var(--mm-text-strong)' }}>Fewer questions for {name}</strong>
+      <p style={muted}>
+        {reduced.planListsFewerItems ? `Their support plan lists fewer items${reduced.planPercent ? ` (${reduced.planPercent}% fewer)` : ''}. ` : ''}
+        {stale ? `The ${noun} was replaced after you chose, so they have the whole ${noun} for now. ` : ''}
+        Tick the {noun} questions they skip.
+        Their {noun} has every other question, just as the class gets it, and their score counts only the questions they answer.
+        {noun === 'Test' ? ' A Retest, if they need one, is shorter by the same share.' : ''}
+        {' '}They see only how many questions their {noun} has. You can change this until they start the {noun}; then it locks.
+      </p>
+      <p style={{ ...fact, fontWeight: 800 }} role="status" aria-live="polite">{model.summary}</p>
+      {model.skills.map((skill) => (
+        <fieldset key={skill.targetId} data-fewer-items-skill={skill.targetId} style={{ ...card, margin: 0 }}>
+          <legend style={{ ...field, padding: '0 4px' }}>
+            {skill.label}{skill.code ? ` · ${skill.code}` : ''}
+          </legend>
+          <div style={{ display: 'flex', gap: '6px 14px', flexWrap: 'wrap' }}>
+            {skill.questions.map((question) => (
+              <label key={question.slotId} style={{ display: 'flex', gap: 6, alignItems: 'center', minHeight: 40, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)' }}>
+                <input
+                  type="checkbox"
+                  data-fewer-items-slot={question.slotId}
+                  checked={question.skipped}
+                  disabled={busy}
+                  onChange={(event) => toggle(question.slotId, event.target.checked)}
+                />
+                Skip question {question.number}{question.dok ? ` · DOK ${question.dok}` : ''}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      ))}
+      <p style={muted}>Question numbers are the class's. Their own {noun} is numbered 1 to {model.questions}.</p>
+      {model.errors.map((error) => (
+        <p key={error} role="alert" style={{ ...fact, color: 'var(--mm-error-text)', fontWeight: 700 }}>{error}</p>
+      ))}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button type="submit" disabled={!canSave} style={button('primary', canSave)}>
+          {busy ? 'Saving…' : 'Save'}
+        </button>
+        {(saved.length > 0 || stale) && (
+          <button type="button" disabled={busy} style={button(null, !busy)} onClick={() => onSave({ excusedSlotIds: [] })}>
+            Give back the whole {noun}
+          </button>
+        )}
         <button type="button" onClick={onCancel} style={button()}>Cancel</button>
       </div>
     </form>

@@ -20,6 +20,7 @@ import { isRootAdminEmail } from '../../../functions/shared/rolePolicy.mjs';
 import { getChallengeMode } from '../../../functions/shared/liveChallengeModes.mjs';
 import { LINE_GRAPH_MODE_IDS } from '../../../functions/shared/lineGraphRules.mjs';
 import { LiveChallengeAudioDirector } from '../../platform/liveChallenge/liveChallengeAudio.js';
+import { teacherErrorSentence } from '../../platform/teacher/teacherErrorWords.js';
 import {
   EXTENDED_TIME_HOST_HINT,
   EXTENDED_TIME_MESSAGE,
@@ -29,13 +30,26 @@ import {
 import { roundSolutionState, solutionRevealed } from '../../platform/liveChallenge/challengeSolutionModel.js';
 import { STANDINGS_DISPLAY, normalizeStandingsDisplay } from '../../../functions/shared/liveChallengePrivacy.mjs';
 import { defaultRushSetup, rushCreateRequest } from '../../platform/liveChallenge/rushSetupModel.js';
+import {
+  CLASSIC_SECOND_CHANCE_NOTE,
+  classicAllowsSecondChance,
+  classicScoringHelp,
+  classicScoringOptions,
+  classicScoringRequest,
+  classicSecondChanceFor,
+  classicShowsSpeedInfluence,
+  classicSpeedInfluence,
+  resolveClassicScoring,
+} from '../../platform/liveChallenge/classicScoringModel.js';
 import { LINE_GRAPH_GAME, defaultLineSetup, lineCreateRequest, lineSetupProblem } from '../../platform/liveChallenge/lineGraphSetupModel.js';
 import { raceRoundFinished } from '../../platform/liveChallenge/rushStandingsModel.js';
 import {
   CHALLENGE_STAGE,
   HOST_COMMAND,
   QUESTION_SET_GAME,
+  cueCountdownStep,
   cueRemainingMs,
+  hostEndedNote,
   hostPrimaryAction,
   questionSetGameOf,
   roundCloseDue,
@@ -50,7 +64,7 @@ import {
   scorePresentation,
   standingsRows,
 } from '../../platform/liveChallenge/challengeStandingsModel.js';
-import { hostRoster } from '../../platform/liveChallenge/challengePresenceModel.js';
+import { hostRoster, invitedCountFor } from '../../platform/liveChallenge/challengePresenceModel.js';
 import { replayExperienceFromRoom, replayRequestFromRoom, replaySummary } from '../../platform/liveChallenge/challengeReplayModel.js';
 import { useChallengeClock, useLatest, usePreviousRoundSummary, useRoundSolution, useRoundSummary, useStandingsPublisher } from '../../platform/liveChallenge/challengeHooks.js';
 import ChallengeRewardSettings from './ChallengeRewardSettings.jsx';
@@ -255,8 +269,20 @@ export function ChallengeProjector(props) {
   return <LiveChallengeArenaProjector {...props} />;
 }
 
-function ScoringCompetitionCard({ roundSeconds, speedInfluencePercent }) {
+function ScoringCompetitionCard({ roundSeconds, speedInfluencePercent, strategyId = 'accuracyFirst' }) {
   const preview = useMemo(() => buildChallengeScoringPreview({ roundSeconds, speedInfluencePercent }), [roundSeconds, speedInfluencePercent]);
+  // Grand Prix and Correct Count do not pay by the Accuracy First table below:
+  // their card says what a round pays instead (LC16).
+  const help = classicScoringHelp({ strategyId });
+  if (help.length) {
+    return (
+      <section data-mm-classic-scoring-help={strategyId} style={{ marginTop: 16, padding: 15, borderRadius: 12, background: 'var(--mm-primary-soft)', border: '1px solid var(--mm-primary-border)', color: 'var(--mm-primary-text)' }}>
+        <h3 style={{ margin: '0 0 8px' }}>How scoring works</h3>
+        {help.map((line) => <p key={line} style={{ margin: '0 0 6px', fontWeight: 800, lineHeight: 1.5 }}>{line}</p>)}
+        <p style={{ margin: '8px 0 0', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5 }}>{preview.academicCreditNote}</p>
+      </section>
+    );
+  }
   return (
     <section style={{ marginTop: 16, padding: 15, borderRadius: 12, background: 'var(--mm-primary-soft)', border: '1px solid var(--mm-primary-border)', color: 'var(--mm-primary-text)' }}>
       <h3 style={{ margin: '0 0 8px' }}>Scoring &amp; Competition</h3>
@@ -319,6 +345,10 @@ export default function LiveChallengeTeacher({
   const [lineSetup, setLineSetup] = useState(() => defaultLineSetup(courseId));
   const [title, setTitle] = useState('');
   const [speedInfluencePercent, setSpeedInfluencePercent] = useState(20);
+  // How a Standard Challenge or Solver Race is scored (LC16). Accuracy First is
+  // the game they have always been; the choice a mode does not allow is read as
+  // its default (classicScoringModel), so switching game type never sends one.
+  const [classicScoringId, setClassicScoringId] = useState('accuracyFirst');
   const [playerDisplayMode, setPlayerDisplayMode] = useState('codeName');
   // The teacher's reward choice, remembered in this browser: a teacher who
   // gives the top three a Practice Pass usually does so every period.
@@ -383,7 +413,7 @@ export default function LiveChallengeTeacher({
     setCourseId(resolved);
     setStandardCode('mixed');
   }, [classId, classPeriod, selectedClass, courseProfiles]);
-  useEffect(() => { setDryRunOpen(false); }, [classId, courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, solverRaceDifficulty, roundCount, roundSeconds, timingMode, speedInfluencePercent, playerDisplayMode]);
+  useEffect(() => { setDryRunOpen(false); }, [classId, courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, solverRaceDifficulty, roundCount, roundSeconds, timingMode, speedInfluencePercent, classicScoringId, playerDisplayMode]);
   // A different course starts from that course's rush preset (and its Graph
   // the Line preset, in the format already chosen).
   useEffect(() => { setRushSetup(defaultRushSetup(courseId)); }, [courseId]);
@@ -436,7 +466,10 @@ export default function LiveChallengeTeacher({
     return watchLiveChallengeRoom(roomId, (next) => {
       setRoomMissing(!next);
       setRoom((current) => acceptChallengeSnapshot(current, next));
-    }, (error) => setMessage(error?.message || 'Could not load the Live Challenge.'));
+    }, (error) => {
+      console.warn('Live Challenge room listener failed:', error);
+      setMessage(teacherErrorSentence(error, 'Could not load the Live Challenge.'));
+    });
   }, [roomId]);
   // CLOCK CALIBRATION, only while the game can still need a clock: the lobby
   // (its first countdown) and the rounds. A finished game stops calling.
@@ -464,7 +497,10 @@ export default function LiveChallengeTeacher({
   }, [roomId]);
   useEffect(() => {
     if (!roomId) { setPlayers([]); return undefined; }
-    return watchLiveChallengePlayers(roomId, setPlayers, (error) => setMessage(error?.message || 'Could not load Live Challenge players.'));
+    return watchLiveChallengePlayers(roomId, setPlayers, (error) => {
+      console.warn('Live Challenge player listener failed:', error);
+      setMessage(teacherErrorSentence(error, 'Could not load Live Challenge players.'));
+    });
   }, [roomId]);
   // The names behind the game aliases, for this console: once per room — in the
   // lobby, during the game AND after it (the server reads a finished game's
@@ -528,6 +564,8 @@ export default function LiveChallengeTeacher({
   // A game with its own settings: no Warm-Up link, no bank question style,
   // no speed setting — and its own setup panel.
   const ownSettingsGame = rushMode || lineMode;
+  // What a classic game will be scored by: the choice, if this game allows it.
+  const classicStrategyId = resolveClassicScoring(challengeMode, classicScoringId);
   const rushProblem = rushMode ? rushConfigProblem(rushSetup) : null;
   const lineProblem = lineMode ? lineSetupProblem(lineSetup) : null;
   const questionSetGame = questionSetGameOf(room);
@@ -592,7 +630,7 @@ export default function LiveChallengeTeacher({
       const { room: current, leaderboard: board, clockOffsetMs: offset } = audioInputs.current;
       if (!current) return;
       const serverNow = Date.now() + offset;
-      audioDirectorRef.current?.sync({ room: current, leaderboard: board, remainingMs: cueRemainingMs(current, serverNow), nowMs: serverNow });
+      audioDirectorRef.current?.sync({ room: current, leaderboard: board, remainingMs: cueRemainingMs(current, serverNow), countdownStep: cueCountdownStep(current, serverNow), nowMs: serverNow });
     };
     syncAudio();
     if (room.status !== 'running') return undefined;
@@ -623,7 +661,11 @@ export default function LiveChallengeTeacher({
     setBusy(key);
     setMessage('');
     try { return await task(); }
-    catch (error) { setMessage(error?.message || 'Live Challenge action failed.'); return null; }
+    catch (error) {
+      console.warn(`Live Challenge action failed (${key}):`, error);
+      setMessage(teacherErrorSentence(error, 'Live Challenge action failed.'));
+      return null;
+    }
     finally { setBusy(''); }
   };
 
@@ -633,7 +675,7 @@ export default function LiveChallengeTeacher({
     setAudioReady(true);
     if (room) {
       const serverNow = Date.now() + clockOffsetMs;
-      audioDirectorRef.current.sync({ room, leaderboard, remainingMs: cueRemainingMs(room, serverNow), nowMs: serverNow });
+      audioDirectorRef.current.sync({ room, leaderboard, remainingMs: cueRemainingMs(room, serverNow), countdownStep: cueCountdownStep(room, serverNow), nowMs: serverNow });
     }
   };
 
@@ -694,8 +736,9 @@ export default function LiveChallengeTeacher({
         try {
           await configureLiveChallengeExperience({ roomId: created.roomId, speedInfluencePercent: 0, playerDisplayMode });
         } catch (configurationError) {
+          console.warn('Live Challenge lobby settings were not saved:', configurationError);
           await cancelLiveChallenge({ roomId: created.roomId }).catch(() => {});
-          throw new Error(`The lobby was cancelled because its name settings could not be secured. ${configurationError?.message || ''}`.trim());
+          throw new Error('The lobby was cancelled because its name settings could not be secured. Try again.');
         }
         return created;
       }
@@ -721,12 +764,15 @@ export default function LiveChallengeTeacher({
           roundSeconds,
           timingMode,
           roundClosingThreshold,
-          secondChanceMode,
+          // Second Chance belongs to Accuracy First (LC16).
+          secondChanceMode: classicSecondChanceFor({ strategyId: classicStrategyId, secondChanceMode }),
           assignmentId: warmupAssignmentId || null,
           title: title.trim() || `${selectedClass?.name || classPeriod || 'Class'} Live Challenge`,
           // Null keeps the server's default (Class Points achievements only).
           rewardPolicy: buildChallengeRewardPolicy(rewardChoice),
           standingsDisplay,
+          // Nothing for Accuracy First, the server's default (LC16).
+          ...classicScoringRequest(challengeMode, classicScoringId),
         });
       } catch (error) {
         const activeRoomId = error?.details?.roomId;
@@ -740,10 +786,16 @@ export default function LiveChallengeTeacher({
       if (!created?.roomId) return created;
       if (created.resumed) return created;
       try {
-        await configureLiveChallengeExperience({ roomId: created.roomId, speedInfluencePercent, playerDisplayMode });
+        await configureLiveChallengeExperience({
+          roomId: created.roomId,
+          // Speed influence belongs to Accuracy First; the others send the default (LC16).
+          speedInfluencePercent: classicSpeedInfluence({ strategyId: classicStrategyId, speedInfluencePercent }),
+          playerDisplayMode,
+        });
       } catch (configurationError) {
+        console.warn('Live Challenge lobby settings were not saved:', configurationError);
         await cancelLiveChallenge({ roomId: created.roomId }).catch(() => {});
-        throw new Error(`The lobby was cancelled because its scoring/name settings could not be secured. ${configurationError?.message || ''}`.trim());
+        throw new Error('The lobby was cancelled because its scoring/name settings could not be secured. Try again.');
       }
       return created;
     });
@@ -855,8 +907,9 @@ export default function LiveChallengeTeacher({
       try {
         await configureLiveChallengeExperience({ roomId: created.roomId, ...replayExperienceFromRoom(room) });
       } catch (configurationError) {
+        console.warn('Live Challenge lobby settings were not saved:', configurationError);
         await cancelLiveChallenge({ roomId: created.roomId }).catch(() => {});
-        throw new Error(`The new lobby was cancelled because its name settings could not be secured. ${configurationError?.message || ''}`.trim());
+        throw new Error('The new lobby was cancelled because its name settings could not be secured. Try again.');
       }
       return created;
     });
@@ -979,6 +1032,8 @@ export default function LiveChallengeTeacher({
             <h2 style={{ margin: 0 }}>Live Challenge dry run</h2>
             <p style={{ color: 'var(--mm-text-muted)', maxWidth: 820, lineHeight: 1.55 }}>{courseLabel(courseId)} · {standardCode === 'mixed' ? 'Mixed review' : standardCode} · {questionStyle === 'tools' ? 'Interactive tools only' : questionStyle === 'noTools' ? 'Typed and chosen answers only' : 'Any question'} · {roundCount} rounds · {timingMode === 'pace' ? 'Pace Race · unlimited solving time' : `${roundSeconds}s each`}.</p>
           </div>
+          {/* The dry run checks the questions; its points are Accuracy First's. */}
+          {classicStrategyId !== 'accuracyFirst' && <p data-mm-dry-run-scoring-note="1" style={{ margin: 0, color: 'var(--mm-text-muted)', maxWidth: 820, lineHeight: 1.55 }}>Your game will be scored by {classicScoringOptions(challengeMode).find((option) => option.id === classicStrategyId)?.label}. This dry run is for checking the questions, so the points it shows are Accuracy First&apos;s.</p>}
           <ScoringCompetitionCard roundSeconds={roundSeconds} speedInfluencePercent={speedInfluencePercent} />
           <ChallengeDryRun
             courseId={courseId}
@@ -1123,11 +1178,17 @@ export default function LiveChallengeTeacher({
                 </select>
                 <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>When this percentage of joined students has submitted, the round enters its closing phase.</span>
               </label>
-              <label style={{ fontWeight: 800 }}>Second Chance
-                <select value={secondChanceMode} onChange={(event) => setSecondChanceMode(event.target.value)} style={field}>
+              <label style={{ fontWeight: 800, opacity: classicAllowsSecondChance(classicStrategyId) ? 1 : 0.55 }}>Second Chance
+                <select
+                  value={classicSecondChanceFor({ strategyId: classicStrategyId, secondChanceMode })}
+                  disabled={!classicAllowsSecondChance(classicStrategyId)}
+                  aria-disabled={!classicAllowsSecondChance(classicStrategyId)}
+                  onChange={(event) => setSecondChanceMode(event.target.value)}
+                  style={{ ...field, cursor: classicAllowsSecondChance(classicStrategyId) ? 'pointer' : 'not-allowed' }}
+                >
                   <option value="off">Off</option><option value="automatic">Automatic</option>
                 </select>
-                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Automatic may add up to 3 replay Final Rounds based on the questions the class misses most.</span>
+                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{classicAllowsSecondChance(classicStrategyId) ? 'Automatic may add up to 3 replay Final Rounds based on the questions the class misses most.' : CLASSIC_SECOND_CHANCE_NOTE}</span>
               </label>
               </>}
               <label style={{ fontWeight: 800 }}>Player display
@@ -1148,7 +1209,13 @@ export default function LiveChallengeTeacher({
                   ? 'Every player the screen has room for, last place included. Each student still sees their own place on their device.'
                   : 'Nobody is shown in last place: the class sees the top 5, and each student sees their own place on their device.'}</span>
               </label>
-              {!ownSettingsGame && <label style={{ fontWeight: 800 }}>Speed influence
+              {!ownSettingsGame && <label style={{ fontWeight: 800 }}>Scoring
+                <select data-mm-classic-scoring="1" value={classicStrategyId} onChange={(event) => setClassicScoringId(event.target.value)} style={field}>
+                  {classicScoringOptions(challengeMode).map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+                </select>
+                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{classicScoringOptions(challengeMode).find((option) => option.id === classicStrategyId)?.description}</span>
+              </label>}
+              {!ownSettingsGame && classicShowsSpeedInfluence(classicStrategyId) && <label style={{ fontWeight: 800 }}>Speed influence
                 <select value={speedPreset(speedInfluencePercent)} onChange={(event) => {
                   const value = event.target.value;
                   if (value !== 'custom') setSpeedInfluencePercent(Number(value));
@@ -1165,7 +1232,7 @@ export default function LiveChallengeTeacher({
               <label style={{ fontWeight: 800, gridColumn: '1 / -1' }}>Challenge title<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={`${selectedClass?.name || classPeriod || 'Class'} ${rushMode ? 'Graph Feature Rush' : lineMode ? 'Graph the Line' : 'Live Challenge'}`} style={field} /></label>
             </div>
           )}
-          {!ownSettingsGame && <ScoringCompetitionCard roundSeconds={roundSeconds} speedInfluencePercent={speedInfluencePercent} />}
+          {!ownSettingsGame && <ScoringCompetitionCard roundSeconds={roundSeconds} speedInfluencePercent={speedInfluencePercent} strategyId={classicStrategyId} />}
           <ChallengeRewardSettings choice={rewardChoice} onChange={setRewardChoice} />
           {!ownSettingsGame && <ChallengeQuestionLibrary assignments={assignments} onImported={() => fetchPathCoverage(courseId).then(setCoverage)} />}
           {ownSettingsGame ? (
@@ -1264,7 +1331,7 @@ export default function LiveChallengeTeacher({
         <>
           <section style={{ ...panel, background: 'var(--mm-primary-soft)', borderColor: 'var(--mm-primary-border)', display: 'grid', gap: 14 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 12, color: 'var(--mm-primary-text)' }}>
-              <div><div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>Joined</div><div style={{ fontSize: 'calc(34 * var(--mm-px))', fontWeight: 1000 }}>{joinedCount} / {room.eligibleCount || 0}</div></div>
+              <div><div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>Joined</div><div style={{ fontSize: 'calc(34 * var(--mm-px))', fontWeight: 1000 }}>{joinedCount} / {invitedCountFor({ roster: rosterNames, eligibleCount: room.eligibleCount })}</div></div>
               <div><div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase' }}>Rounds</div><div style={{ fontSize: 'calc(34 * var(--mm-px))', fontWeight: 1000 }}>{room.roundCount}</div></div>
               {/* A classic round's time is fitted to its question (a one-step
                   question gets less, a multi-step one more); a rush round is
@@ -1334,6 +1401,7 @@ export default function LiveChallengeTeacher({
           <section style={{ ...panel, background: 'var(--mm-success-bg)', borderColor: 'var(--mm-success-border)', display: 'grid', gap: 12 }}>
             <div>
               <h2 style={{ margin: 0, fontSize: 'calc(26 * var(--mm-px))', color: 'var(--mm-success-text)' }}>Challenge complete</h2>
+              {hostEndedNote(room) && <p data-mm-host-ended-note="1" style={{ margin: '6px 0 0', color: 'var(--mm-success-text)', fontWeight: 800 }}>{hostEndedNote(room)}</p>}
               <p style={{ margin: '6px 0 0', color: 'var(--mm-success-text)' }}>Competition points are game results only. Warm-Up academic credit uses participation and mathematical accuracy.</p>
             </div>
             {rewardLines.length > 0 && <div style={{ color: 'var(--mm-success-text)' }}><strong>Rewards from this game:</strong> {rewardLines.join(' · ')}. Each student&apos;s screen shows what reached their wallet.</div>}

@@ -95,8 +95,10 @@ test('the legacy graph workspace reads back the student\'s work, and a given gra
  */
 test('the interval number line is described by the student\'s drawing, then its keys', () => {
   const source = executableSource(read('src/tools/intervalNumberLine/IntervalNumberLine.jsx'));
-  assert.match(source, /^import \{[^}]*\bdescribeNumberLine\b[^}]*\} from '\.\.\/\.\.\/platform\/language\/numberLineDescription\.js';$/m);
-  assert.match(source, /const lineDescription = describeNumberLine\(\{ min, max, labelStep: majorStep, pieces: drawn, pending \}\);/, 'from the drawn pieces and the waiting endpoint');
+  assert.match(source, /^import \{[^}]*\bnumberLineReading\b[^}]*\} from '\.\.\/\.\.\/platform\/language\/numberLineDescription\.js';$/m);
+  // The generator's English is the description (its messages, `say`, are
+  // Read aloud's in another language: AX05, figureReadingSpanish.test.mjs).
+  assert.match(source, /const \{ text: lineDescription, say: lineSay \} = numberLineReading\(\{ min, max, labelStep: majorStep, pieces: drawn, pending \}\);/, 'from the drawn pieces and the waiting endpoint');
   const svg = region(source, '<svg\n            viewBox={`0 0 ${WIDTH} ${HEIGHT}`}\n            role="application"', 'onFocus={handleLineFocus}', 'the line');
   assert.match(svg, /aria-label=\{`Number line from \$\{lineEndLabel\(min\)\} to \$\{lineEndLabel\(max\)\}`\}/, 'named by the line, not its instructions');
   assert.match(svg, /aria-describedby=\{`\$\{lineDescriptionId\} \$\{lineInstructionsId\}`\}/, 'what is drawn first, then the keys');
@@ -106,8 +108,8 @@ test('the interval number line is described by the student\'s drawing, then its 
 
 test('the legacy pick-a-point line is a described group with pressed marks', () => {
   const source = executableSource(read('src/NumberLine.jsx'));
-  assert.match(source, /^import \{ describePointChoiceLine \} from '\.\/platform\/language\/numberLineDescription\.js';$/m);
-  assert.match(source, /const description = describePointChoiceLine\(\{ choices, selected: selectedPoint \}\);/);
+  assert.match(source, /^import \{ pointChoiceLineReading \} from '\.\/platform\/language\/numberLineDescription\.js';$/m);
+  assert.match(source, /const \{ text: description, say: descriptionSay \} = pointChoiceLineReading\(\{ choices, selected: selectedPoint \}\);/);
   assert.match(source, /role="group" aria-label="Number line" aria-describedby=\{descriptionId\}/);
   assert.match(source, /aria-pressed=\{selectedPoint === Number\(number\)\}/);
   assert.match(source, /<span id=\{descriptionId\}[^>]*>\{description\}<\/span>/);
@@ -126,15 +128,24 @@ test('the three-plane model is described by its planes; the detail follows the q
 
 test('the static question graph carries the shared plane\'s description, by the same rule', () => {
   const source = executableSource(read('src/GraphDisplay.jsx'));
-  assert.match(source, /^import \{ describeCoordinatePlane \} from '\.\/platform\/language\/graphDescription\.js';$/m);
+  // (The import list also names joinSegmentPaths, AX27: what is asserted is that the description is the shared one.)
+  assert.match(source, /^import \{[^}]*\bdescribeCoordinatePlane\b[^}]*\} from '\.\/platform\/language\/graphDescription\.js';$/m);
   assert.match(source, /^import \{ useQuestionLifecycle \} from '\.\/platform\/question\/QuestionLifecycleContext\.jsx';$/m);
-  assert.match(source, /const spokenDescription = authoredDescription \|\| describeStaticGraph\(\{[\s\S]*?detail: questionClosed \? 'features' : 'kinds',/, 'kinds while open, features once closed; authored text wins');
+  // Kinds while open, features once closed; authored text wins. For a student
+  // whose plan gives the graph read-out (AX03), features while open too, after
+  // any authored text (behaviour: tests/platform/graphReadOut.test.mjs).
+  assert.match(source, /const reading = \(detail\) => describeStaticGraph\(\{[\s\S]*?asymptotes: graphAsymptoteLines\(graph\), detail,/);
+  // `reading` returns the whole description ({ description, say }: AX05's
+  // messages travel with it to Read aloud).
+  assert.match(source, /const generated = authoredDescription \? null : reading\(questionClosed \|\| readOut \? 'features' : 'kinds'\);/, 'kinds while open, features once closed');
+  assert.match(source, /const spokenDescription = authoredDescription\s*\? \[authoredDescription, readOut \? reading\('features'\)\.description : ''\]\.filter\(Boolean\)\.join\(' '\)\s*: generated\.description;/, 'authored text wins');
   const svg = region(source, '<svg\n        className="mathmaster-responsive-canvas"', '>', 'the graph svg');
   assert.match(svg, /aria-describedby=\{descriptionId\}/);
   assert.match(source, /<p id=\{descriptionId\}[^>]*>\{spokenDescription\}<\/p>/);
   // Hooks before the early return (rules of hooks).
   const head = region(source, 'export default function GraphDisplay(', 'if (!graph) return null;', 'the component head');
   assert.match(head, /useId\(\)[\s\S]*useQuestionLifecycle\(\)/);
+  assert.match(head, /useGraphReadOut\(\)[\s\S]*useReportGraphReadOut\(/);
 });
 
 test('the legacy graph workspace and the Graph Story sketch are described by the student\'s work', () => {
@@ -147,7 +158,9 @@ test('the legacy graph workspace and the Graph Story sketch are described by the
   assert.match(workspace, /<span id=\{workspaceDescriptionId\}[^>]*>\{workspaceDescription\}<\/span>/);
   const story = executableSource(read('src/GraphStory.jsx'));
   assert.match(story, /const strokeCount = Array\.isArray\(values\.strokes\) \? values\.strokes\.length : 0;/);
-  assert.match(story, /role="img" aria-label="Graph story sketch" aria-describedby=\{sketchDescriptionId\}/);
+  // Since AX14 the sketch takes keys (role="application"); its description is
+  // what is drawn, then the keyboard route (graphStorySketchKeys.test.mjs).
+  assert.match(story, /role=\{keyboardRoute \? 'application' : 'img'\}\s*aria-label="Graph story sketch"\s*aria-describedby=\{keyboardRoute \? `\$\{sketchDescriptionId\} \$\{sketchDescriptionId\}-keys` : sketchDescriptionId\}/);
   assert.match(story, /<span id=\{sketchDescriptionId\}[^>]*>\{sketchDescription\}<\/span>/);
 });
 
@@ -281,6 +294,10 @@ test('a fitted window that ends between ticks is read at tick precision', async 
     assert.doesNotMatch(text, /6\.374/);
     // A window end already at the step's precision is said exactly, even off a labelled tick.
     assert.match(describe({ xMin: -5, xMax: 5, yMin: -5, yMax: 7, xStep: 2, yStep: 2, points: [] }), /^x from −5 to 5, y from −5 to 7\./);
+    // So is an authored end one decimal finer than the step (AX36): 7.5 on a
+    // step-1 axis was read "about 7.5".
+    const authored = describe({ xMin: -2.5, xMax: 7.5, yMin: -5, yMax: 5, xStep: 1, yStep: 1, points: [] });
+    assert.match(authored, /^x from −2\.5 to 7\.5, y from −5 to 5\./, authored);
   });
 });
 

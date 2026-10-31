@@ -54,7 +54,7 @@ import { PLACEMENT_CURVE, SCORING_STRATEGY_ID, getScoringStrategy, isRegisteredS
 import { canonicalSolverRaceDifficulty, canonicalSolverRaceFocus } from './solverRace.mjs';
 import { RUSH_ROUND_LIMITS, normalizeGraphFeatureRushConfig } from './graphFeatureRushConfig.mjs';
 import { LINE_ROUND_LIMITS, LINE_RUSH_POOL, LINE_SPRINT_MAX_POOL, normalizeLineGraphConfig } from './lineGraphConfig.mjs';
-import { LINE_GRAPH_FORMAT } from './lineGraphRules.mjs';
+import { LINE_GRAPH_FORMAT, lineFormatGivesExtraTime } from './lineGraphRules.mjs';
 
 export class ChallengeModeContractError extends Error {
   constructor(message) {
@@ -191,6 +191,15 @@ const CAPABILITY_KEYS = Object.freeze([
   // answered and rounds correct, which only means something for one graded
   // response per round.
   'warmupLink',
+  // A question-set race whose round is a fixed set to finish (Graph the
+  // Line's Classic and Sprint): a student with extended time on their plan
+  // keeps working AFTER the class's buzzer, to their own deadline, to finish
+  // it. The race is decided at the buzzer for everyone; what they do after it
+  // is their own work (kept apart from the race's receipts), never the race's
+  // (liveChallengeAccommodations.mjs). A synchronized round extends a
+  // student's deadline without this; an "as many as you can" race (a rush)
+  // has nothing to finish and is not extended.
+  'extraTimeAfterBuzzer',
 ]);
 
 const DEFAULT_ROUND_LIMITS = Object.freeze({
@@ -396,7 +405,18 @@ const lineGraphMode = ({ id, format, label, projectorLabel, description, questio
   scoringStrategies: [SCORING_STRATEGY_ID.GRAND_PRIX, SCORING_STRATEGY_ID.CORRECT_COUNT],
   scoringDefaults: { [SCORING_STRATEGY_ID.GRAND_PRIX]: { placementCurve: PLACEMENT_CURVE.FIELD } },
   roundLimits: LINE_ROUND_LIMITS[format],
-  capabilities: { secondChance: false, progressMilestones: false, paceTiming: false, closingThreshold: false, dryRun: false, warmupLink: false },
+  // Classic and Sprint hand every student a set to finish, so a student with
+  // extended time gets it after the buzzer; a Rush is as many as you can
+  // before the clock, with nothing to finish (graph-the-line.md §7).
+  capabilities: {
+    secondChance: false,
+    progressMilestones: false,
+    paceTiming: false,
+    closingThreshold: false,
+    dryRun: false,
+    warmupLink: false,
+    extraTimeAfterBuzzer: lineFormatGivesExtraTime(format),
+  },
   normalizeConfig: (raw = {}) => Object.freeze({
     questionStyle: 'any',
     solverRaceFocus: null,

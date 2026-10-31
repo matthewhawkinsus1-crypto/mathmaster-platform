@@ -8,10 +8,13 @@ import assert from 'node:assert/strict';
 import {
   EXTENDED_TIME_MESSAGE,
   FINAL_BOARD_MAX_ROWS,
+  FIT_TOLERANCE_PX,
   PROJECTOR_MORE_NOTE,
+  STACKED_STANDINGS_FLOOR,
   STILL_FINISHING_HOST_HINT,
   STILL_FINISHING_MESSAGE,
   finalBoardRows,
+  fitStackedStep,
   lastRankOf,
   podiumRecognitionRows,
   podiumRows,
@@ -21,7 +24,9 @@ import {
   roundStillFinishing,
   roundWaitingOnExtendedTime,
   rushRaceRanked,
+  stackedResultsPlan,
 } from '../../src/platform/liveChallenge/liveChallengeProjectorModel.js';
+import { PUBLIC_TOP_COUNT } from '../../functions/shared/liveChallengePrivacy.mjs';
 import { CHALLENGE_STAGE } from '../../src/platform/liveChallenge/challengeShellModel.js';
 import { SOLUTION_STATE } from '../../src/platform/liveChallenge/challengeSolutionModel.js';
 import { replayRequestFromRoom } from '../../src/platform/liveChallenge/challengeReplayModel.js';
@@ -48,7 +53,8 @@ const FULL = { standingsDisplay: 'full' };
 //
 // ONE rule (publicStandingsRows) for every list the class sees: never a place
 // tied with the class's last, never exactly one player left unnamed (the lobby
-// listed every alias), the top few at most. Full standings are exempt.
+// listed every alias) and, on a list with no viewer, never exactly two (each of
+// the two reads the other: LC22), the top few at most. Full standings are exempt.
 
 const keysOf = (board) => board.rows.map((row) => row.playerKey);
 const ranked = (ranks) => ranks.map((rank, index) => ({ playerKey: `p${index + 1}`, alias: `Player ${index + 1}`, rank, tied: ranks.filter((other) => other === rank).length > 1 }));
@@ -89,22 +95,36 @@ test('ties at the bottom: a hard round with 2 of 24 right projects only the two'
   assert.equal(allRight.hiddenCount, 3);
   // A ranked row that earned nothing is last with the non-answers.
   assert.deepEqual(keysOf(publicStandingsRows(TOP_FEW, withPoints([1, 2, 3, 3, null, null], [90, 80, 0, 0, 0, 0]), { spaceForRows: 10 })), ['p1', 'p2']);
-  assert.deepEqual(keysOf(publicStandingsRows(TOP_FEW, withPoints([1, 2, 3, null, null], [90, 80, 70, 0, 0]), { spaceForRows: 10 })), ['p1', 'p2', 'p3']);
+  // Five players, two with no answer: showing 3rd would leave exactly the two
+  // who did not answer, and each of them would name the other (LC22).
+  assert.deepEqual(keysOf(publicStandingsRows(TOP_FEW, withPoints([1, 2, 3, null, null], [90, 80, 70, 0, 0]), { spaceForRows: 10 })), ['p1', 'p2']);
+  assert.deepEqual(keysOf(publicStandingsRows(TOP_FEW, withPoints([1, 2, 3, 4, null, null], [90, 80, 70, 60, 0, 0]), { spaceForRows: 10 })), ['p1', 'p2', 'p3']);
 });
 
-test('nobody is named by elimination: never exactly one player unshown', () => {
-  // Six players: the top five would leave only 6th unshown — 5th steps off too.
+test('nobody is named by elimination: never one or two players unshown on a list the whole class reads', () => {
+  // Six players: the top five would leave only 6th unshown, so 5th steps off;
+  // that leaves 5th and 6th, and each would name the other (LC22), so 4th steps
+  // off too. Three are left unshown, from whom nobody can say who was last.
   for (const space of [5, 6, 8, 10]) {
     const board = publicStandingsRows(TOP_FEW, players(6), { spaceForRows: space });
-    assert.deepEqual(keysOf(board), ['p1', 'p2', 'p3', 'p4'], `${space}-row screen`);
-    assert.equal(board.hiddenCount, 2);
-    assert.equal(board.moreText, `and 2 more players · ${PROJECTOR_MORE_NOTE}`);
+    assert.deepEqual(keysOf(board), ['p1', 'p2', 'p3'], `${space}-row screen`);
+    assert.equal(board.hiddenCount, 3);
+    assert.equal(board.moreText, `and 3 more players · ${PROJECTOR_MORE_NOTE}`);
   }
-  // Every size: at least two unshown, or nobody shown at all.
+  // What each class size shows, written out (not derived from the rule): the
+  // most that leaves three or more unshown, or nobody.
+  const SHOWN = { 1: 0, 2: 0, 3: 0, 4: 1, 5: 2, 6: 3, 7: 4, 8: 5, 9: 5, 12: 5, 30: 5 };
+  for (const [count, expected] of Object.entries(SHOWN)) {
+    const board = publicStandingsRows(TOP_FEW, players(Number(count)), { spaceForRows: 10 });
+    assert.deepEqual(keysOf(board), players(expected).map((row) => row.playerKey), `${count} players`);
+    assert.equal(board.hiddenCount, Number(count) - expected, `${count} players: how many are left unshown`);
+  }
+  // Every size and screen: three or more unshown, or nobody shown at all, and
+  // never the last place.
   for (let count = 1; count <= 12; count += 1) {
     for (const space of [3, 4, 5, 6, 10]) {
       const board = publicStandingsRows(TOP_FEW, players(count), { spaceForRows: space });
-      assert.ok(board.hiddenCount !== 1 || board.rows.length === 0, `${count} players, ${space} rows: one unshown`);
+      assert.ok(board.hiddenCount >= 3 || board.rows.length === 0, `${count} players, ${space} rows: ${board.hiddenCount} unshown`);
       assert.ok(!board.rows.some((row) => row.rank === count), `${count} players: the last is listed`);
     }
   }
@@ -112,6 +132,8 @@ test('nobody is named by elimination: never exactly one player unshown', () => {
   // co-winner is hidden while the other is shown.
   assert.deepEqual(keysOf(publicStandingsRows(TOP_FEW, ranked([1, 1, 3]), { spaceForRows: 10 })), []);
   assert.deepEqual(keysOf(publicStandingsRows(TOP_FEW, ranked([1, 2, 2, 4]), { spaceForRows: 10 })), ['p1']);
+  // Seven with a five-row screen: 6th and 7th are all that the top five leave.
+  assert.deepEqual(keysOf(publicStandingsRows(TOP_FEW, players(7), { spaceForRows: 5 })), ['p1', 'p2', 'p3', 'p4']);
 });
 
 test('all tied, or a game of one or two: no ranking at all', () => {
@@ -124,27 +146,37 @@ test('all tied, or a game of one or two: no ranking at all', () => {
   assert.equal(publicStandingsRows(TOP_FEW, ranked([1, 1, 1, 1])).moreText, `4 players · ${PROJECTOR_MORE_NOTE}`);
 });
 
-test('the podium follows the same rule: 2 players none, 3 the winner, 4–6 never leave one unnamed', () => {
+test('the podium follows the same rule: 2 and 3 players none, 4 the winner, 5 the first two, 6 the podium', () => {
   const steps = (board) => [board.podium.first, board.podium.second, board.podium.third].map((row) => row?.playerKey || null);
   assert.deepEqual(steps(finalBoardRows(TOP_FEW, players(2), 10)), [null, null, null]);
-  assert.deepEqual(steps(finalBoardRows(TOP_FEW, players(3), 10)), ['p1', null, null]);
-  assert.deepEqual(steps(finalBoardRows(TOP_FEW, players(4), 10)), ['p1', 'p2', null]);
-  assert.equal(finalBoardRows(TOP_FEW, players(4), 10).hiddenCount, 2);
-  assert.deepEqual(steps(finalBoardRows(TOP_FEW, players(5), 10)), ['p1', 'p2', 'p3']);
+  assert.deepEqual(steps(finalBoardRows(TOP_FEW, players(3), 10)), [null, null, null]);
+  assert.equal(finalBoardRows(TOP_FEW, players(3), 10).hiddenCount, 3);
+  assert.deepEqual(steps(finalBoardRows(TOP_FEW, players(4), 10)), ['p1', null, null]);
+  assert.equal(finalBoardRows(TOP_FEW, players(4), 10).hiddenCount, 3);
+  // Five: 3rd on the podium would leave 4th and 5th, and 4th could name 5th.
+  assert.deepEqual(steps(finalBoardRows(TOP_FEW, players(5), 10)), ['p1', 'p2', null]);
   assert.deepEqual(finalBoardRows(TOP_FEW, players(5), 10).rows, []);
-  assert.equal(finalBoardRows(TOP_FEW, players(5), 10).hiddenCount, 2);
+  assert.equal(finalBoardRows(TOP_FEW, players(5), 10).hiddenCount, 3);
   const six = finalBoardRows(TOP_FEW, players(6), 10);
   assert.deepEqual(steps(six), ['p1', 'p2', 'p3']);
-  assert.deepEqual(six.rows.map((row) => row.playerKey), ['p4']);
-  assert.equal(six.hiddenCount, 2);
+  assert.deepEqual(six.rows, []);
+  assert.equal(six.hiddenCount, 3);
+  const seven = finalBoardRows(TOP_FEW, players(7), 10);
+  assert.deepEqual(steps(seven), ['p1', 'p2', 'p3']);
+  assert.deepEqual(seven.rows.map((row) => row.playerKey), ['p4']);
+  assert.equal(seven.hiddenCount, 3);
   // Eight: the podium, 4th and 5th, three more.
   const eight = finalBoardRows(TOP_FEW, players(8), 10);
   assert.deepEqual(eight.rows.map((row) => row.playerKey), ['p4', 'p5']);
   assert.equal(eight.hiddenCount, 3);
-  // Three players: 2nd and 3rd tied for last leave the winner; co-winners
-  // over a 3rd would leave one unnamed, so the tie rule removes them both.
-  assert.deepEqual(steps(finalBoardRows(TOP_FEW, ranked([1, 2, 2]), 10)), ['p1', null, null]);
+  // Three players: 2nd and 3rd tied for last leave the winner, and then 1st
+  // and the two tied for last are three unshown at best; one shown would leave
+  // two (LC22), so nobody. Co-winners over a 3rd would leave one unnamed, so
+  // the tie rule removes them both.
+  assert.deepEqual(steps(finalBoardRows(TOP_FEW, ranked([1, 2, 2]), 10)), [null, null, null]);
   assert.deepEqual(steps(finalBoardRows(TOP_FEW, ranked([1, 1, 3]), 10)), [null, null, null]);
+  // Four with 2nd and 3rd tied: the tied pair step off with 4th, leaving the winner.
+  assert.deepEqual(steps(finalBoardRows(TOP_FEW, ranked([1, 2, 2, 4]), 10)), ['p1', null, null]);
   // All tied: no ranking at all.
   assert.deepEqual(steps(finalBoardRows(TOP_FEW, ranked([1, 1, 1, 1, 1]), 10)), [null, null, null]);
   // Tied players keep the engine's standing order.
@@ -218,7 +250,11 @@ test('a student\'s own cards: classmates by the same rule, their own row always'
 test('the live race ranks equal graph counts together, so GO projects nobody', () => {
   const race = rushRaceRanked([{ playerKey: 'a', completed: 3 }, { playerKey: 'b', completed: 2 }, { playerKey: 'c', completed: 2 }, { playerKey: 'd', completed: 0 }, { playerKey: 'e', completed: 0 }]);
   assert.deepEqual(race.map((row) => row.rank), [1, 2, 2, 4, 4]);
-  assert.deepEqual(keysOf(publicStandingsRows(TOP_FEW, race, { spaceForRows: 10 })), ['a', 'b', 'c']);
+  // d and e tie for last. Showing b and c as well would leave exactly those
+  // two, and each would name the other (LC22), so only the leader is shown.
+  assert.deepEqual(keysOf(publicStandingsRows(TOP_FEW, race, { spaceForRows: 10 })), ['a']);
+  const crowded = rushRaceRanked([{ playerKey: 'a', completed: 4 }, { playerKey: 'b', completed: 3 }, { playerKey: 'c', completed: 3 }, { playerKey: 'd', completed: 2 }, { playerKey: 'e', completed: 0 }, { playerKey: 'f', completed: 0 }, { playerKey: 'g', completed: 0 }]);
+  assert.deepEqual(keysOf(publicStandingsRows(TOP_FEW, crowded, { spaceForRows: 10 })), ['a', 'b', 'c', 'd']);
   const atGo = rushRaceRanked(['a', 'b', 'c', 'd'].map((playerKey) => ({ playerKey, completed: 0 })));
   assert.deepEqual(keysOf(publicStandingsRows(TOP_FEW, atGo, { spaceForRows: 10 })), []);
 });
@@ -343,4 +379,84 @@ test('turning Recognition awards off sends recognitions: false, keeping every ru
   assert.deepEqual(both.rules.map((rule) => rule.ruleId), [...defaults, 'placementPracticePass', 'championBadge']);
   assert.equal(both.recognitions, false);
   assert.ok(describeChallengeRewardChoice({ recognitions: false }).some((line) => /Recognition awards are off/.test(line)));
+});
+
+// LC03. The round's table and the standings share one column beside a worked
+// solution. How many rows each shows is measured on the projector
+// (useStackedRowsThatFit); these are the two pure decisions behind it.
+test('two lists sharing a column start at the public top few, or at the screen\'s rows for full standings, which come first', () => {
+  assert.deepEqual({ ...stackedResultsPlan({}, 10) }, { rowCeiling: 5, standingsFirst: false }, 'the default: the top few, taking turns');
+  assert.deepEqual({ ...stackedResultsPlan({ standingsDisplay: 'topFew' }, 8) }, { rowCeiling: 5, standingsFirst: false });
+  assert.deepEqual({ ...stackedResultsPlan({ standingsDisplay: 'full' }, 10) }, { rowCeiling: 10, standingsFirst: true }, 'full standings: as many as the screen has, the standings first');
+  assert.deepEqual({ ...stackedResultsPlan({ standingsDisplay: 'full' }, 4) }, { rowCeiling: 4, standingsFirst: true });
+  // The default never offers more than the public rule would show, whatever the screen.
+  assert.equal(PUBLIC_TOP_COUNT, 5);
+  assert.equal(stackedResultsPlan({}, 10).rowCeiling, PUBLIC_TOP_COUNT);
+  assert.equal(stackedResultsPlan({}, 3).rowCeiling, PUBLIC_TOP_COUNT);
+  // Something that is not a row count is the top few, never zero or NaN.
+  for (const bad of [undefined, null, 'tall', Number.NaN, Number.POSITIVE_INFINITY, 0, -3]) {
+    assert.equal(stackedResultsPlan({ standingsDisplay: 'full' }, bad).rowCeiling, PUBLIC_TOP_COUNT, `screen rows ${String(bad)}`);
+  }
+});
+
+test('two stacked lists that run past the column give up one row at a time, the standings keeping their top three longest', () => {
+  const at = (round, standings, extra = {}) => fitStackedStep({ round, standings, overflowPx: 12, ...extra });
+  assert.equal(FIT_TOLERANCE_PX, 1);
+  assert.equal(STACKED_STANDINGS_FLOOR, 3);
+  // Both fit, or a pixel of rounding, or no measurement: nothing changes.
+  for (const overflowPx of [0, 1, -40, undefined, null, Number.NaN, 'wide']) {
+    assert.deepEqual(fitStackedStep({ round: 5, standings: 4, overflowPx }), { round: 5, standings: 4, roundShown: true }, `overflow ${String(overflowPx)}`);
+  }
+  assert.deepEqual(fitStackedStep({ round: 5, standings: 4, overflowPx: 2 }), { round: 4, standings: 4, roundShown: true }, 'two pixels past the edge is an overflow');
+  // Above the floor the two take turns, the round's table first.
+  assert.deepEqual(at(5, 5), { round: 4, standings: 5, roundShown: true });
+  assert.deepEqual(at(4, 5), { round: 4, standings: 4, roundShown: true });
+  assert.deepEqual(at(4, 4), { round: 3, standings: 4, roundShown: true });
+  // At the floor the standings keep their three; the round's table gives what it has left ...
+  assert.deepEqual(at(3, 3), { round: 2, standings: 3, roundShown: true });
+  assert.deepEqual(at(2, 3), { round: 1, standings: 3, roundShown: true });
+  // ... and a round table already down to one row leaves the standings to give theirs down to the floor.
+  assert.deepEqual(at(1, 5), { round: 1, standings: 4, roundShown: true });
+  // With one round row and three standings rows still too many, the round's table steps aside
+  // and the standings start again from their ceiling, alone in the column.
+  assert.deepEqual(at(1, 3), { round: 1, standings: 5, roundShown: false });
+  assert.deepEqual(at(1, 3, { standingsCeiling: 8 }), { round: 1, standings: 8, roundShown: false });
+  // Alone, the standings give a row at a time, never fewer than one.
+  assert.deepEqual(at(1, 5, { roundShown: false }), { round: 1, standings: 4, roundShown: false });
+  assert.deepEqual(at(1, 1, { roundShown: false }), { round: 1, standings: 1, roundShown: false });
+  // A list that may show fewer than three keeps all it has while the round's table has a row to give.
+  assert.deepEqual(at(1, 2, { standingsCeiling: 2 }), { round: 1, standings: 2, roundShown: false });
+  // Full standings come first: the round's table gives all its rows but one before the standings give any.
+  assert.deepEqual(at(3, 10, { standingsCeiling: 10, standingsFirst: true }), { round: 2, standings: 10, roundShown: true });
+  assert.deepEqual(at(1, 10, { standingsCeiling: 10, standingsFirst: true }), { round: 1, standings: 9, roundShown: true });
+  // A zero or a non-number is read as one row.
+  assert.deepEqual(at(0, 4), { round: 1, standings: 3, roundShown: true });
+  assert.deepEqual(at('many', 1, { roundShown: false }), { round: 1, standings: 1, roundShown: false });
+});
+
+test('played out on the screens the shell QA drives: three standings rows at every size, the round table beside them while it fits', () => {
+  // A panel is its chrome plus its rows; the column is what the projector measured (1366x768 at 100%, 125%, 150%).
+  const screens = {
+    projector: { column: 526, chrome: 121, row: 41 },
+    zoom125: { column: 397, chrome: 106, row: 38 },
+    zoom150: { column: 276, chrome: 98, row: 36 },
+  };
+  const play = ({ column, chrome, row }, { standingsFirst = false, ceiling = PUBLIC_TOP_COUNT } = {}) => {
+    const height = (rows) => chrome + rows * row;
+    let state = { round: ceiling, standings: ceiling, roundShown: true };
+    for (let steps = 0; steps < 40; steps += 1) {
+      // The round's table takes its own height; the standings the rest.
+      const roundHeight = state.roundShown ? height(state.round) : 0;
+      const overflowPx = Math.max(roundHeight - column, height(state.standings) - (column - roundHeight));
+      const next = fitStackedStep({ ...state, overflowPx, standingsCeiling: ceiling, standingsFirst });
+      if (JSON.stringify(next) === JSON.stringify(state)) return state;
+      state = next;
+    }
+    throw new Error('the fitting never settled');
+  };
+  assert.deepEqual(play(screens.projector), { round: 3, standings: 3, roundShown: true }, 'a projector at 100%: three and three, as LC03 drew them');
+  assert.deepEqual(play(screens.zoom125), { round: 1, standings: 3, roundShown: true }, '125%: the top three, and the round\'s winner beside them');
+  assert.deepEqual(play(screens.zoom150), { round: 1, standings: 4, roundShown: false }, '150%: the standings alone');
+  // Full standings on a 1366x768 projector: the standings take what they need first.
+  assert.deepEqual(play(screens.projector, { standingsFirst: true, ceiling: 8 }), { round: 1, standings: 5, roundShown: true });
 });

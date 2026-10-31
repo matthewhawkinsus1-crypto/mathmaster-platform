@@ -116,7 +116,13 @@ const GROUPS = [
   ['src/tools/representationMatch/RepresentationMatch.jsx', 'function EquationChoices(', 'the equation choices'],
   ['src/tools/representationMatch/RepresentationMatch.jsx', 'function GraphChoices(', 'the graph choices'],
   ['src/tools/representationMatch/RepresentationMatch.jsx', 'function SortSlotChoices(', 'the groups a card sorts into'],
+  // VH-12: Find the Mismatch, Check the Table and the mismatched line's cards.
+  ['src/tools/representationMatch/RepresentationMatch.jsx', 'function PickOneCards(', 'the card or row that does not belong'],
   ['src/tools/stepAlgebra2/linearInterceptsConceptualUi.jsx', 'export function ZeroVariableChoice(', 'which variable equals 0'],
+  // AX37: "Is this relation a function?" and every analysis question with choices.
+  ['src/tools/relationMapping/RelationMapping.jsx', 'function RelationChoiceGroup(', 'Relation Mapping\'s function and analysis choices'],
+  // The last group TOOL-6 left without arrow keys (AX37 follow-up): My Math Path's own response cards.
+  ['src/components/student/PathResponseFields.jsx', 'function ChoiceGroup(', 'My Math Path\'s response choices'],
 ];
 
 for (const [file, start, what] of GROUPS) {
@@ -144,7 +150,18 @@ test('the old per-site groups are gone: each place uses its shared group', () =>
   const match = executableSource(componentSource('src/tools/representationMatch/RepresentationMatch.jsx'));
   assert.equal((match.match(/role="radio"/g) || []).length, 0, 'Representation Match draws no radio of its own');
   for (const name of ['EquationChoices', 'GraphChoices', 'SortSlotChoices']) assert.match(match, new RegExp(`<${name}\\b`), `${name} is drawn`);
-  for (const file of ['src/MultiAnswerGrader.jsx', 'src/platform/workflow/FigureMatchStage.jsx']) {
+  // VH-12: the three "which one does not belong" questions are that group, each named.
+  assert.equal((match.match(/<PickOneCards\b/g) || []).length, 3, 'Find the Mismatch, Check the Table and the mismatched line');
+  for (const label of ['Which card does not belong\\?', 'Which row does not fit the rule\\?', 'Which card does not describe the same line\\?']) {
+    assert.match(match, new RegExp(`<PickOneCards\\s+label="${label}"`), label);
+  }
+  assert.doesNotMatch(match, /mismatchKind === |badRow === |mismatchSelection === /, 'no selection drawn by colour alone');
+  for (const file of ['src/MultiAnswerGrader.jsx', 'src/platform/workflow/FigureMatchStage.jsx', 'src/components/student/PathResponseFields.jsx']) {
     assert.doesNotMatch(executableSource(componentSource(file)), /role="radio"/, `${file} draws no radio of its own`);
   }
+  // Relation Mapping (AX37): both of its choice questions are the one group.
+  const relation = executableSource(componentSource('src/tools/relationMapping/RelationMapping.jsx'));
+  assert.doesNotMatch(relation, /role="radio"/, 'Relation Mapping draws no radio of its own');
+  assert.equal((relation.match(/<RelationChoiceGroup\b/g) || []).length, 2, 'the function question and the analysis choices');
+  assert.match(relation, /<RelationChoiceGroup\s[^>]*legend="Is this relation a function\?"/, 'the function question is a group');
 });

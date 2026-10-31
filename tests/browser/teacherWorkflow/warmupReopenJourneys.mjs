@@ -63,14 +63,30 @@
 //   server-correct   a correct Q1, through the close, the finalizer and the
 //                    reopen: final, locked, nothing re-recorded.
 //
-// `--slow` adds 4× CPU throttling and a slow network: the Chromebook.
-// Exit code 1 on any failure.
+// `--slow` adds 4× CPU throttling and a slow network: the Chromebook. Every
+// reload on it costs about four minutes (the dev server's modules come over the
+// slowed network), and the ten journeys reload fifteen times, so one run takes
+// well over an hour. The nightly therefore runs them as several jobs, one
+// `ONLY=` list each (student-teacher-journeys.yml, teacher-nightly-warmup, CI11).
+// Exit code 1 on any failure; 2 for an `ONLY` name that is no journey.
+
+import { WARMUP_REOPEN_JOURNEYS } from './warmupReopenJourneyNames.mjs';
+
+const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
+// A name that is no journey would select nothing, and a run that ran nothing
+// still ends "all Warm-Up reopen journeys passed": a misspelt shard in the
+// nightly would be green and test nothing. Checked before the browser is
+// touched (tests/platform/nightlyWarmupShards.test.mjs runs it without one).
+const UNKNOWN_ONLY = (ONLY || []).filter((name) => !WARMUP_REOPEN_JOURNEYS.includes(name));
+if (UNKNOWN_ONLY.length) {
+  console.error(`ONLY names no journey: ${UNKNOWN_ONLY.join(', ')}. The journeys are: ${WARMUP_REOPEN_JOURNEYS.join(', ')}.`);
+  process.exit(2);
+}
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
 const ORIGIN = process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188';
 const PAGE = `${ORIGIN}/tests/browser/teacherWorkflow/index.html`;
-const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
 const SLOW = process.argv.includes('--slow');
 const ASSIGNMENT = 'a-today';
 const TODAY_TITLE = 'Systems of Equations — Lesson 3: Elimination';
@@ -175,6 +191,10 @@ const openTodayWarmup = async (page) => {
   const start = marked ? page.locator('[data-journey-open="today"]') : page.getByRole('button', { name: /^(Continue|Resume Question|Start)/ }).first();
   await start.click({ timeout: 60000 * SLOW_FACTOR });
   await stage(page).waitFor({ timeout: 60000 * SLOW_FACTOR });
+  // The stage can show "Loading this question…" first: a personalized
+  // question waits for its pin (RT15), and the question's code then loads
+  // with the stage still on screen. Wait for the question itself.
+  await page.waitForFunction(() => !/Loading this question/.test(document.querySelector('.mathmaster-question-stage')?.innerText || ''), null, { timeout: 60000 * SLOW_FACTOR });
   await page.waitForFunction(() => !document.body.textContent.includes('Opening Work View…'), null, { timeout: 60000 * SLOW_FACTOR });
   await page.waitForTimeout(600 * SLOW_FACTOR);
 };
@@ -530,12 +550,21 @@ const journeyBridgeCorrupt = async () => {
 /* ------------------------------------------------- with the server */
 
 // "Let's back up" after a wrong Check: the student answers and carries on.
+// Since FB01 a sort's step asks about its own cards (two choices, no longer
+// Yes or No). A wrong pick costs nothing and keeps the step open ("Try the
+// other choice"), so the student tries each choice, in order, until the work
+// comes back. The choices are the buttons right under the step's question;
+// Read aloud and Translate below them are not answers.
 const answerScaffold = async (page) => {
   const scaffold = page.locator('[data-scaffold][aria-label="Let\'s back up"]');
-  if (await scaffold.count()) {
-    await scaffold.locator('button', { hasText: 'Yes' }).click();
+  if (!(await scaffold.count())) return;
+  const choices = scaffold.locator('h2 + div > button');
+  const total = await choices.count();
+  for (let index = 0; index < total && (await scaffold.count()); index += 1) {
+    await choices.nth(index).click();
     await page.waitForTimeout(400 * SLOW_FACTOR);
   }
+  check(!(await scaffold.count()), 'the "Let\'s back up" step closes once its right choice is picked', `${total} choice(s)`);
 };
 // Every card into one group (0 = Line A, 1 = Line B), whatever it held before.
 const sortAllInto = async (page, slot) => {
@@ -772,17 +801,36 @@ const journeyServerCorrect = async () => {
   await a.context.close();
 };
 
-if (wanted('inprogress')) await journeyInProgress();
-if (wanted('submitted')) await journeySubmitted();
-if (wanted('pristine')) await journeyPristine();
-if (wanted('corrupt')) await journeyCorrupt();
-if (wanted('cycles')) await journeyCycles();
-if (wanted('bridge')) await journeyBridge();
-if (wanted('bridge-corrupt')) await journeyBridgeCorrupt();
-if (wanted('server-expired')) await journeyServerExpired();
-if (wanted('server-attempted')) await journeyServerAttempted();
-if (wanted('server-correct')) await journeyServerCorrect();
+const JOURNEYS = {
+  inprogress: journeyInProgress,
+  submitted: journeySubmitted,
+  pristine: journeyPristine,
+  corrupt: journeyCorrupt,
+  cycles: journeyCycles,
+  bridge: journeyBridge,
+  'bridge-corrupt': journeyBridgeCorrupt,
+  'server-expired': journeyServerExpired,
+  'server-attempted': journeyServerAttempted,
+  'server-correct': journeyServerCorrect,
+};
+// The nightly names these (warmupReopenJourneyNames.mjs): one that is here and
+// not there could never be selected, one that is there and not here would be
+// "run" as nothing.
+if (JSON.stringify(Object.keys(JOURNEYS)) !== JSON.stringify(WARMUP_REOPEN_JOURNEYS)) {
+  console.error(`warmupReopenJourneyNames.mjs lists ${WARMUP_REOPEN_JOURNEYS.join(', ')}; this file runs ${Object.keys(JOURNEYS).join(', ')}.`);
+  await browser.close();
+  process.exit(2);
+}
+const minutes = [];
+for (const [name, journey] of Object.entries(JOURNEYS)) {
+  if (!wanted(name)) continue;
+  const started = Date.now();
+  await journey();
+  minutes.push(`${name} ${((Date.now() - started) / 60000).toFixed(1)}`);
+}
 
 await browser.close();
+// What each took: the nightly's jobs are sized from this (student-teacher-journeys.yml).
+console.log(`\njourney minutes: ${minutes.join(', ')}`);
 console.log(failures.length ? `\n${failures.length} failure(s):\n- ${failures.join('\n- ')}` : '\nall Warm-Up reopen journeys passed');
 process.exit(failures.length ? 1 : 0);

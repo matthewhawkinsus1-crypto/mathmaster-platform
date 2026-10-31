@@ -36,6 +36,8 @@
  * no work is unanswered.
  */
 import { gradedResult, ungradedResult } from '../gradingResult.mjs';
+import { LINE_FORMS, isVerticalLine, requestedLineForm, sameLine, writtenLineForm } from '../../linearEquationForm.mjs';
+import { studentMisconceptionMessage } from '../../misconceptionStudentMessages.mjs';
 import { buildToolResponse, isToolResponse, readToolWork } from '../toolResponseContract.mjs';
 import { gradeWorkWithGrader } from '../toolWorkGrading.mjs';
 import graphWorkspaceGrader from '../tools/graphWorkspace.mjs';
@@ -124,7 +126,15 @@ const withGraphStageVerdicts = ({ composed, responses, outcomesWithheld = false 
  *     line for any miss.
  *   figureMatch  the count, which the step already turns into named figures
  *     (P2-4, an owner decision).
- * Every other kind ("Not correct yet.") shows nothing.
+ *   equationInput  the FORM, never the value (FB08, an owner decision). The
+ *     right line written in another form than the step asks for ("Right line,
+ *     wrong form: write it as y = mx + b."), or a bare number or expression
+ *     where the key is an equation (a fixed sentence about the = sign). Both
+ *     are fixed text that no number of the key reaches, and a line that is not
+ *     the key's line shows nothing, so a wrong equation reads as red only.
+ * Every other kind ("Not correct yet.") shows nothing. How much a reason may
+ * say is this list, confirmed as built (owner, October 2026, FB12, W7 decision
+ * 14), as is Data Modeling naming which half of a part held.
  */
 const PASS = (detail) => detail;
 const PLOT_POINTS_OFF = 'Some points are not where the ordered pairs put them.';
@@ -145,6 +155,59 @@ const axisFieldsSentence = (stage, rule) => {
   return `Check each axis: ${list}.`;
 };
 const SET_LINE = [[/^That is not the set of values in this relation — list each one once\.$/, PASS]];
+
+/*
+ * AN EQUATION STEP SAYS ITS FORM (FB08). gradeStage reports every equation
+ * miss as "Not correct yet.", so the reason is read from what the student
+ * wrote and the step's own words (the same reading the ordinary multi-answer
+ * classifier gives a line field: misconceptionClassifiers.mjs fieldLineForm).
+ *
+ *   - the student's equation has the key's graph, so the line is right, and
+ *     the form the step asks for — named in its own words, else the form its
+ *     key is written in — is not the one written: the form is named, with the
+ *     words every "right line, wrong form" miss uses. When the step's words
+ *     and a key disagree about the form, or the keys are written in different
+ *     forms, nothing is named: the student cannot be told which one is wanted.
+ *     A vertical line is never told to use a form that needs a slope.
+ *   - there is no relation sign at all and every key is an equation (a bare
+ *     "2" for x = 2): one fixed sentence about the = sign. Not on a function
+ *     rule (`acceptEquivalentFunctionRule`), which takes a bare right side.
+ *
+ * Neither sentence holds a number, and a line that is not the key's graph
+ * shows nothing, so no sentence tells one wrong equation from another.
+ */
+const LINE_FORM_CODES = Object.freeze({
+  [LINE_FORMS.SLOPE_INTERCEPT]: 'line-wrong-form-slope-intercept',
+  [LINE_FORMS.POINT_SLOPE]: 'line-wrong-form-point-slope',
+  [LINE_FORMS.STANDARD]: 'line-wrong-form-standard',
+});
+const NOT_AN_EQUATION = 'Write this step as an equation, with an = sign.';
+const INEQUALITY_SIGN = /[<>≤≥≠]|\\(?:leq?|geq?|neq?|ne)(?![A-Za-z])/;
+const hasRelationSign = (value) => value.includes('=') || INEQUALITY_SIGN.test(value);
+const isEquationText = (value) => value.includes('=') && !INEQUALITY_SIGN.test(value);
+// The keys gradeStage compares against: `anyOf`, else `equals`, else the rule.
+const equationKeys = (rule) => {
+  const expected = isPlainObject(rule) ? (rule.anyOf ?? rule.equals) : rule;
+  return (Array.isArray(expected) ? expected : [expected]).filter((key) => typeof key === 'string' && key.trim() !== '');
+};
+const equationStepSentence = (stage, rule, response) => {
+  const written = typeof response === 'string' ? response.trim() : '';
+  const keys = equationKeys(rule);
+  if (!written || !keys.length) return '';
+  const lineKeys = keys.filter((key) => sameLine(written, key));
+  if (!lineKeys.length) {
+    const bare = !hasRelationSign(written) && stage?.acceptEquivalentFunctionRule !== true;
+    return bare && keys.every(isEquationText) ? NOT_AN_EQUATION : '';
+  }
+  const keyForms = [...new Set(lineKeys.map((key) => writtenLineForm(key)).filter(Boolean))];
+  const asked = requestedLineForm([stage?.prompt, stage?.placeholder, stage?.stepLabel]);
+  if (keyForms.length > 1 || (asked && keyForms.length && asked !== keyForms[0])) return '';
+  const form = asked || keyForms[0];
+  if (!form || writtenLineForm(written) === form) return '';
+  if (form !== LINE_FORMS.STANDARD && isVerticalLine(lineKeys[0])) return '';
+  return studentMisconceptionMessage(LINE_FORM_CODES[form]) || '';
+};
+
 export const STAGE_REASON_ALLOWLIST = Object.freeze({
   graphFeatureSelect: [],
   pointInput: [],
@@ -161,22 +224,28 @@ export const STAGE_REASON_ALLOWLIST = Object.freeze({
   domainInput: SET_LINE,
   rangeInput: SET_LINE,
   figureMatch: [[/^\d+ of \d+ figures are in the right category\.$/, PASS]],
+  equationInput: [[/^Not correct yet\.$/, (detail, stage, rule, response) => equationStepSentence(stage, rule, response)]],
 });
 
-/** What the screen says for one failed stage's detail: a sentence, or ''. */
-export const stageReasonFor = (stage, detail, gradingRule = null) => {
+/**
+ * What the screen says for one failed stage's detail: a sentence, or ''. The
+ * student's own response is read only by a kind whose reason is about how it
+ * was written (equationInput).
+ */
+export const stageReasonFor = (stage, detail, gradingRule = null, response = undefined) => {
   const text = typeof detail === 'string' ? detail.trim() : '';
   const entry = (STAGE_REASON_ALLOWLIST[stage?.kind] || []).find(([shape]) => shape.test(text));
-  return entry ? String(entry[1](text, stage, gradingRule) || '').slice(0, 240) : '';
+  return entry ? String(entry[1](text, stage, gradingRule, response) || '').slice(0, 240) : '';
 };
 
 /** `{ [stageId]: sentence }` for the stages graded wrong that may say why. */
-export const failedStageReasons = (parts, stages = [], grading = null) => {
+export const failedStageReasons = (parts, stages = [], grading = null, responses = null) => {
   const byId = new Map((Array.isArray(stages) ? stages : []).filter((stage) => stage?.id).map((stage) => [String(stage.id), stage]));
   const rules = grading && typeof grading === 'object' ? grading : {};
+  const written = isPlainObject(responses) ? responses : {};
   return Object.fromEntries((Array.isArray(parts) ? parts : [])
     .filter((part) => part && part.graded !== false && part.isCorrect !== true && part.id)
-    .map((part) => [String(part.id), stageReasonFor(byId.get(String(part.id)), part.detail, rules[String(part.id)] ?? null)])
+    .map((part) => [String(part.id), stageReasonFor(byId.get(String(part.id)), part.detail, rules[String(part.id)] ?? null, written[String(part.id)])])
     .filter(([, reason]) => reason));
 };
 
@@ -221,7 +290,7 @@ export const gradeComposedWorkflowWork = (question, work, { stageReasons = false
       score: marked.partialCreditPercent !== null && Number.isFinite(percent) ? percent / 100 : 0,
     }),
     mode: support.mode,
-    ...(stageReasons ? { stageReasons: failedStageReasons(marked.parts, composed.workflow, composed.grading) } : {}),
+    ...(stageReasons ? { stageReasons: failedStageReasons(marked.parts, composed.workflow, composed.grading, responses) } : {}),
   };
 };
 

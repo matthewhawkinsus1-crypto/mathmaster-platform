@@ -103,13 +103,22 @@ test('an exponential bridge written with b: the base-2 answer main accepted is l
   assert.equal(higher.classification, REGRADE_CLASS.CANDIDATE);
 });
 
-test('item 8: a vertex keyed on an exponential is listed for the owner; its verdict does not change', () => {
+test('item 8: a vertex asked of an exponential is listed for the owner, with the way its verdict moves (GR18)', () => {
   const question = { type: 'graphAnalysis', prompt: 'Find the vertex.', functionSpec: { type: 'exponential', a: 1, base: 2, h: 0, k: 1 }, graph: { xMin: -10, xMax: 10, yMin: -10, yMax: 10 } };
+  // Main keyed (h, k): clicking it was right and is now wrong (the owner,
+  // 2026-10-23: an exponential has no vertex); "Does not exist" the reverse.
   const result = toolAttempt('graphAnalysis', question, { analysis: { selections: { feature: [[0, 1]] } } }, true, 'exp-vertex');
-  assert.equal(result.direction, 'same');
+  assert.equal(result.direction, 'lower');
   assert.equal(result.classification, REGRADE_CLASS.NEEDS_TEACHER);
   assert.equal(result.reason, NEEDS_TEACHER_REASON.FEATURE_NOT_ON_FUNCTION);
+  const none = toolAttempt('graphAnalysis', question, { analysis: { noneSelections: { feature: true }, selections: { feature: [] } } }, false, 'exp-none');
+  assert.equal(none.direction, 'higher');
+  assert.equal(none.classification, REGRADE_CLASS.NEEDS_TEACHER);
   // A parabola's vertex is a real feature: unchanged, not listed.
   const parabola = { ...question, functionSpec: { type: 'quadratic', a: 1, h: 0, k: 1 } };
   assert.equal(toolAttempt('graphAnalysis', parabola, { analysis: { selections: { feature: [[0, 1]] } } }, true, 'parabola-vertex').classification, REGRADE_CLASS.UNCHANGED);
+  // A rational graph that names no feature now asks for its center, still
+  // keyed at (h, k): the right answer stays right, and nothing is listed.
+  const rational = { type: 'graphAnalysis', prompt: 'Find the key point.', functionSpec: { type: 'rational', a: 2, h: 1, k: 2 }, graph: { xMin: -10, xMax: 10, yMin: -10, yMax: 10 } };
+  assert.equal(toolAttempt('graphAnalysis', rational, { analysis: { selections: { feature: [[1, 2]] } } }, true, 'rational-center').classification, REGRADE_CLASS.UNCHANGED);
 });

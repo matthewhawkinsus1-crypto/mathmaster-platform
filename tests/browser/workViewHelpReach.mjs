@@ -263,10 +263,10 @@ const showHint = (page) => helpDrawer(page).getByRole('button', { name: /^Show a
 // phone's way to the steps): the control steps on both, the method steps only
 // on practice; the Work View banner never states the method on a DOL.
 const SPLIT = [
-  { tool: 'table', control: 'Tap two rows to form an interval.', method: 'Work out each value yourself from the two rows' },
+  { tool: 'table', control: 'Select two rows to form an interval', method: 'Work out each value yourself from the two rows' },
   { tool: 'constraint', control: 'Choose a family, then adjust the coefficients/parameters', method: 'Read the characteristics first' },
   { tool: 'regression', control: 'Enter the slope and intercept of your model in the Slope m and Intercept b boxes.', method: 'Run a linear regression on the data.', dolOnly: true },
-  { tool: 'bridge', control: 'Table: tap two rows to form an interval', method: 'Factored form: rewrite your equation as y = a(x − c).' },
+  { tool: 'bridge', control: 'Table: select two rows to form an interval', method: 'Factored form: rewrite your equation as y = a(x − c).' },
   { tool: 'match', control: 'Choose the next group and repeat.', method: 'Compare the numbers each card gives you' },
   // A server-graded host (My Math Path, Corrections) reaches the registry
   // forms; an assignment opens the mature engine (its own banner below).
@@ -302,6 +302,10 @@ for (const { tool, grading = '', control, method, banner = null, dolOnly = false
   await page.waitForTimeout(400);
   const shown = await bannerText(page);
   check(!/Choose which variable becomes zero/.test(shown), 'intercepts DOL (assignment): no method banner', shown);
+  // The header's task is the question's own (QuestionEngine's, authoritative),
+  // never the tool's "Decide which variable becomes 0…" (TS11).
+  const task = await page.locator('.mathmaster-work-view-persistent-task').first().innerText().catch(() => '');
+  check(task.includes('Find the x- and y-intercepts of 2x + 3y = 12.') && !/Decide which variable/.test(task), 'intercepts DOL (assignment): Work View\'s task is the question\'s', task);
   await page.close();
 }
 {
@@ -328,6 +332,27 @@ for (const { tool, grading = '', control, method, banner = null, dolOnly = false
   const matchPractice = await open('practice', 'match');
   check(await matchPractice.evaluate(() => document.body.textContent.includes('Representation reasoning')), 'match practice: the fold stays');
   await matchPractice.close();
+}
+
+{
+  // TL13: one "About this tool" in Work View. A desktop Work View kept the
+  // tool header's fold as well as Help's copy of the same description; Help
+  // holds it on a desktop as it does on a phone, and the header's goes.
+  const desktop = await browser.newContext({ viewport: { width: 1366, height: 900 } });
+  const page = await desktop.newPage();
+  page.on('pageerror', (error) => failures.push(`desktop practice/matrix: page error ${error.message}`));
+  await page.goto(`${ORIGIN}/tests/browser/workViewHelpReach.html?role=practice&tool=matrix&run=${run}`, { waitUntil: 'networkidle' });
+  await page.locator('.mathmaster-tool-task-card').first().waitFor({ state: 'attached', timeout: 20000 });
+  const headerAbout = page.locator('.mathmaster-tool-shell-header button', { hasText: 'About this tool' });
+  check(await headerAbout.count() > 0, 'desktop matrix practice: the header has its "About this tool" fold (in the DOM)');
+  await openWorkView(page);
+  check(!(await headerAbout.first().isVisible()), 'desktop matrix practice: Work View does not show the header\'s "About this tool"');
+  await openHelp(page);
+  await helpDrawer(page).locator('[data-task-card-directions]').first().waitFor({ timeout: 8000 });
+  await openDirections(page);
+  const about = helpDrawer(page).locator('.mathmaster-tool-task-about').first();
+  check(await about.isVisible() && (await about.innerText()).trim().length > 0, 'desktop matrix practice: Help holds the description, first in "How to do this"', await about.innerText().catch(() => ''));
+  await desktop.close();
 }
 
 await browser.close();

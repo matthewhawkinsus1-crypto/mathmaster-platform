@@ -190,6 +190,27 @@ export function SubstituteZeroMethod({ env, option, target, facts, ev, setEv, fi
     return description?.latex ? <>Use the GIVEN <Latex value={description.latex} />.</> : null;
   })();
   const pointLabel = target === 'xIntercept' ? 'The x-intercept' : 'The y-intercept';
+  // THE TYPED WAY (TL27): with guided feedback, once the variable that is 0
+  // is chosen, the intercept can be typed straight in and checked — until a
+  // miss, after which the equation is solved step by step (ProcessWorkspace
+  // keeps that rule). One box for the intercept: above the solve while the
+  // typed way is open, under it once the equation is solved.
+  const typedWay = canCheck && !ev?.solveOnly && !current?.solved;
+  const pointField = (intro, step) => (
+    <div data-process-point-step={step} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <p style={{ ...muted, color: 'var(--mm-text)' }}>{intro}</p>
+      <ProcessField
+        field="point"
+        label={pointLabel}
+        profile="orderedPair"
+        placeholder="(x, y)"
+        value={ev?.point ?? ''}
+        status={fieldStatus('point')}
+        disabled={disabled}
+        onChange={(next) => setEv((previous) => ({ ...previous, point: next }))}
+      />
+    </div>
+  );
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
       {sourceLine ? <p style={{ ...muted, color: 'var(--mm-text)' }}>{sourceLine}</p> : null}
@@ -223,6 +244,10 @@ export function SubstituteZeroMethod({ env, option, target, facts, ev, setEv, fi
           <p style={{ ...muted, color: 'var(--mm-text)' }}>
             Substituted: <Latex value={lmrSubstitutionLatex(env, option.source, zero, facts) || questionEquationLatex(question)} /> — now solve for <Latex value={question.solveFor} />.
           </p>
+          {typedWay ? pointField(
+            <>If you can see it already, type {pointLabel.toLowerCase()} and Check. If it is not right, you will solve the equation below step by step.</>,
+            'typed',
+          ) : null}
           <EmbeddedSolver
             question={question}
             title={`Solve for ${question.solveFor}`}
@@ -231,22 +256,9 @@ export function SubstituteZeroMethod({ env, option, target, facts, ev, setEv, fi
             onLive={onLive}
             disabled={disabled}
           />
-          {current?.solved ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <p style={{ ...muted, color: 'var(--mm-text)' }}>
-                Solved: <Latex value={current.solvedLatex} />. Now write {pointLabel.toLowerCase()} as an ordered pair.
-              </p>
-              <ProcessField
-                field="point"
-                label={pointLabel}
-                profile="orderedPair"
-                placeholder="(x, y)"
-                value={ev?.point ?? ''}
-                status={fieldStatus('point')}
-                disabled={disabled}
-                onChange={(next) => setEv((previous) => ({ ...previous, point: next }))}
-              />
-            </div>
+          {current?.solved ? pointField(
+            <>Solved: <Latex value={current.solvedLatex} />. Now write {pointLabel.toLowerCase()} as an ordered pair.</>,
+            'solved',
           ) : null}
         </>
       ) : null}

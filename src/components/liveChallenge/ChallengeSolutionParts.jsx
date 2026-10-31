@@ -1,6 +1,6 @@
 import { MathText } from '../common/MathText.jsx';
 import RevealedLine from './RevealedLine.jsx';
-import { SOLUTION_STATE, solutionStateMessage } from '../../platform/liveChallenge/challengeSolutionModel.js';
+import { SOLUTION_STATE, solutionStateMessage, solutionTitle } from '../../platform/liveChallenge/challengeSolutionModel.js';
 import { normalizeSolutionReview } from '../../platform/liveChallenge/challengeRecapModel.js';
 
 /*
@@ -67,11 +67,12 @@ export function RoundSolutionCard({ review, prompt = null, title = 'Worked solut
  * The solution area of a closed round: the card when it is ready, a plain
  * sentence while it is held (a Second Chance may bring the question back),
  * loading, or has no worked solution; nothing at all for a round without a
- * shared question (a Graph Feature Rush round).
+ * shared question that publishes none (a Graph the Line Sprint round). A Graph
+ * Feature Rush round's card is its reading guide, titled as one.
  */
 export function RoundSolutionPanel({ state, solution = null }) {
   if (state === SOLUTION_STATE.READY) {
-    return <RoundSolutionCard review={solution?.solutionReview} prompt={solution?.prompt || null} lineGraph={solution?.lineGraph || null} />;
+    return <RoundSolutionCard review={solution?.solutionReview} prompt={solution?.prompt || null} title={solutionTitle(solution)} lineGraph={solution?.lineGraph || null} />;
   }
   const message = solutionStateMessage(state);
   if (!message) return null;

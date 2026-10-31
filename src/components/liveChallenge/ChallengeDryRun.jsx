@@ -7,6 +7,7 @@ import {
   gradeChallengeDryRunResponse,
   swapChallengeDryRunRound,
 } from '../../platform/liveChallenge/liveChallengeService.js';
+import { teacherErrorSentence } from '../../platform/teacher/teacherErrorWords.js';
 
 /*
  * PLAYING YOUR OWN CHALLENGE BEFORE A CLASS DOES.
@@ -95,7 +96,9 @@ export default function ChallengeDryRun({ courseId, standardCode, questionStyle 
         setRoundStartedAt(Date.now());
       })
       .catch((createError) => {
-        if (!cancelled) setError(createError?.message || 'The dry run could not be started.');
+        if (cancelled) return;
+        console.warn('Live Challenge dry run could not be started:', createError);
+        setError(teacherErrorSentence(createError, 'The dry run could not be started.'));
       })
       .finally(() => { if (!cancelled) setBusy(''); });
     return () => { cancelled = true; };
@@ -119,7 +122,8 @@ export default function ChallengeDryRun({ courseId, standardCode, questionStyle 
       }));
       setRoundStartedAt(Date.now());
     } catch (swapError) {
-      setError(swapError?.message || 'That round could not be swapped.');
+      console.warn('Live Challenge dry-run round could not be swapped:', swapError);
+      setError(teacherErrorSentence(swapError, 'That round could not be swapped.'));
     } finally {
       setBusy('');
     }

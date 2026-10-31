@@ -23,7 +23,7 @@ import {
   normalizeLineGraphConfig,
   suggestedLineRoundSeconds,
 } from '../../../functions/shared/lineGraphConfig.mjs';
-import { LINE_GRAPH_FORMAT, LINE_GRAPH_FORMAT_IDS, lineGraphModeOfFormat } from '../../../functions/shared/lineGraphRules.mjs';
+import { LINE_GRAPH_FORMAT, LINE_GRAPH_FORMAT_IDS, lineFormatGivesExtraTime, lineGraphModeOfFormat } from '../../../functions/shared/lineGraphRules.mjs';
 
 /*
  * What the teacher's game-type menu holds for Graph the Line: one game, its
@@ -37,6 +37,15 @@ export const LINE_SCORING_OPTIONS = Object.freeze([
 ]);
 
 const formatOr = (format) => (LINE_GRAPH_FORMAT_IDS.includes(format) ? format : LINE_GRAPH_FORMAT.CLASSIC);
+
+/*
+ * EXTENDED TIME, said plainly where the teacher sets the clock
+ * (liveChallengeAccommodations.mjs). The race is the same for everyone; who
+ * has extra time is never shown to the class.
+ */
+export const lineExtraTimeRule = (format) => (lineFormatGivesExtraTime(format)
+  ? 'Extra time on a student\'s plan comes after the buzzer: they keep working to finish their lines. The race is decided at the buzzer, so those lines count for their practice, not the race.'
+  : 'Rush has no extra time: the race is as many lines as the clock allows.');
 
 // The question settings a preset sets (never the format, rounds or time).
 const presetFields = (preset) => ({

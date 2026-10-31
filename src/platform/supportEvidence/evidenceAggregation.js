@@ -245,7 +245,9 @@ export const workloadFactFor = ({ assignment, student, events = [], nowValue = D
   const tracker = student?.gradesByAssignment?.[assignment?.id] || null;
   let current = null;
   try {
-    current = resolveStudentWorkload({ assignment, profile: student?.profile || null, tracker, nowValue });
+    // Historical delivery evidence never borrows a later grade correction.
+    const { workloadCorrections: _corrections, ...deliveredProfile } = student?.profile || {};
+    current = resolveStudentWorkload({ assignment, profile: deliveredProfile, tracker, nowValue });
   } catch {
     current = null;
   }
@@ -335,16 +337,17 @@ const workTimestamps = (student, assignmentId) => {
   return { firstAtMs, lastAtMs, totalAttempts, hasTracker: Object.keys(tracker).length > 0 };
 };
 
-const sectionScores = (student, assignment) => {
+const sectionScores = (student, assignment, practicePassRedeemed = false) => {
   const projected = projectTeacherOverridesForDisplay(student?.gradesByAssignment || {}, student?.teacherGradeOverridesByAssignment || {});
-  // The student's own items: a reduced-item accommodation shrinks the totals.
-  const split = splitGradesBySection({ tracker: projected?.[assignment?.id] || null, assignment, supportProfile: student?.profile || null }) || {};
+  // The student's own items: a reduced-item accommodation shrinks the totals,
+  // and a redeemed Practice Pass excuses Practice, as in the gradebook (TT20).
+  const split = splitGradesBySection({ tracker: projected?.[assignment?.id] || null, assignment, practicePassRedeemed, supportProfile: student?.profile || null }) || {};
   return SECTION_KEYS
     .filter((key) => Number(split?.[key]?.total) > 0)
     .map((key) => ({
       key,
       label: SECTION_LABEL[key],
-      score: canonicalPresentedSectionGrade({ student, assignment, sectionKey: key }),
+      score: canonicalPresentedSectionGrade({ student, assignment, sectionKey: key, practicePassRedeemed }),
       attempted: Number(split?.[key]?.attempted) || 0,
       total: Number(split?.[key]?.total) || 0,
       reducedFrom: Number(split?.[key]?.reducedFrom) || null,
@@ -370,6 +373,8 @@ export const buildAssignmentEvidenceRow = ({
   nowValue = Date.now(),
   // The student's private override record, when the caller holds it.
   privateOverride = undefined,
+  // A Practice Pass the student redeemed on this assignment (TT20).
+  practicePassRedeemed = false,
 } = {}) => {
   const assignmentId = clean(assignment?.id);
   const studentId = clean(student?.id);
@@ -395,7 +400,7 @@ export const buildAssignmentEvidenceRow = ({
   const finalAt = Number.isFinite(effectiveFinalAtMs) ? effectiveFinalAtMs : null;
 
   // Work and standing, from the gradebook's own model.
-  const progress = studentAssignmentProgress({ student, assignment });
+  const progress = studentAssignmentProgress({ student, assignment, practicePassRedeemed });
   const work = workTimestamps(student, assignmentId);
   const excused = override?.excused === true;
   let status;
@@ -599,7 +604,7 @@ export const buildAssignmentEvidenceRow = ({
     },
     attempts: { total: work.totalAttempts, firstAtMs: work.firstAtMs, lastAtMs: work.lastAtMs },
     score: progress.score,
-    sections: sectionScores(student, assignment),
+    sections: sectionScores(student, assignment, practicePassRedeemed),
     condition,
     governing: {
       revisionId: governing.revision?.revisionId || governing.revision?.id || null,

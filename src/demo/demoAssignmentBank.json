@@ -40,11 +40,70 @@
     "teks": "A.5C",
     "timeline": { "dueOffsetDays": -9, "lateOffsetDays": -8 },
     "questions": [
-      { "questionId": "systems-dol-q1", "type": "literal", "formula": "y=x+2 and y=3x-4", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "The two equations form a system. Find the x-coordinate of the solution.", "teks": ["A.5C"], "dok": 2 },
-      { "questionId": "systems-dol-q2", "type": "literal", "formula": "y=2x+1 and y=-x+10", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "Find the x-coordinate where the two lines intersect.", "teks": ["A.5C"], "dok": 2 },
-      { "questionId": "systems-dol-q3", "type": "literal", "formula": "x+y=12 and y=x-2", "solveFor": "x", "acceptedAnswers": ["7"], "prompt": "Solve the system for x.", "teks": ["A.5C"], "dok": 2 },
-      { "questionId": "systems-dol-q4", "type": "literal", "formula": "2x+y=13 and y=1", "solveFor": "x", "acceptedAnswers": ["6"], "prompt": "Solve the system for x.", "teks": ["A.5C"], "dok": 2 },
-      { "questionId": "systems-dol-q5", "type": "literal", "formula": "y=4x-7 and y=x+2", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "Find the x-coordinate of the intersection.", "teks": ["A.5C"], "dok": 2 }
+      { "questionId": "systems-dol-q1", "type": "literal", "formula": "y=x+2 and y=3x-4", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "The two equations form a system. Find the x-coordinate of the solution.", "teks": ["A.5C"], "dok": 2,
+        "solutionReview": {
+          "headline": "Where the two lines cross, both equations give the same $y$. Set the two expressions for $y$ equal and solve for $x$.",
+          "reasoning": [
+            "Both equations are solved for $y$, so $x + 2 = 3x - 4$.",
+            "Subtract $x$ from both sides: $2 = 2x - 4$.",
+            "Add $4$ to both sides: $6 = 2x$.",
+            "Divide both sides by $2$: $x = 3$.",
+            "Check: $y = 3 + 2 = 5$ and $y = 3 \\cdot 3 - 4 = 5$, the same $y$."
+          ],
+          "answerSummary": "The x-coordinate of the solution is $x = 3$."
+        }
+      },
+      { "questionId": "systems-dol-q2", "type": "literal", "formula": "y=2x+1 and y=-x+10", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "Find the x-coordinate where the two lines intersect.", "teks": ["A.5C"], "dok": 2,
+        "solutionReview": {
+          "headline": "Where the two lines cross, both equations give the same $y$. Set the two expressions for $y$ equal and solve for $x$.",
+          "reasoning": [
+            "Both equations are solved for $y$, so $2x + 1 = -x + 10$.",
+            "Add $x$ to both sides: $3x + 1 = 10$.",
+            "Subtract $1$ from both sides: $3x = 9$.",
+            "Divide both sides by $3$: $x = 3$.",
+            "Check: $y = 2 \\cdot 3 + 1 = 7$ and $y = -3 + 10 = 7$, the same $y$."
+          ],
+          "answerSummary": "The lines intersect where $x = 3$."
+        }
+      },
+      { "questionId": "systems-dol-q3", "type": "literal", "formula": "x+y=12 and y=x-2", "solveFor": "x", "acceptedAnswers": ["7"], "prompt": "Solve the system for x.", "teks": ["A.5C"], "dok": 2,
+        "solutionReview": {
+          "headline": "One equation already says what $y$ is. Put that into the other equation, so it has only $x$ in it.",
+          "reasoning": [
+            "Replace $y$ with $x - 2$ in $x + y = 12$: $x + (x - 2) = 12$.",
+            "Combine the $x$-terms: $2x - 2 = 12$.",
+            "Add $2$ to both sides: $2x = 14$.",
+            "Divide both sides by $2$: $x = 7$.",
+            "Check: $y = 7 - 2 = 5$, and $7 + 5 = 12$."
+          ],
+          "answerSummary": "The solution of the system has $x = 7$."
+        }
+      },
+      { "questionId": "systems-dol-q4", "type": "literal", "formula": "2x+y=13 and y=1", "solveFor": "x", "acceptedAnswers": ["6"], "prompt": "Solve the system for x.", "teks": ["A.5C"], "dok": 2,
+        "solutionReview": {
+          "headline": "One equation already says what $y$ is. Put that into the other equation, so it has only $x$ in it.",
+          "reasoning": [
+            "Replace $y$ with $1$ in $2x + y = 13$: $2x + 1 = 13$.",
+            "Subtract $1$ from both sides: $2x = 12$.",
+            "Divide both sides by $2$: $x = 6$.",
+            "Check: $2 \\cdot 6 + 1 = 13$."
+          ],
+          "answerSummary": "The solution of the system has $x = 6$."
+        }
+      },
+      { "questionId": "systems-dol-q5", "type": "literal", "formula": "y=4x-7 and y=x+2", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "Find the x-coordinate of the intersection.", "teks": ["A.5C"], "dok": 2,
+        "solutionReview": {
+          "headline": "Where the two lines cross, both equations give the same $y$. Set the two expressions for $y$ equal and solve for $x$.",
+          "reasoning": [
+            "Both equations are solved for $y$, so $4x - 7 = x + 2$.",
+            "Subtract $x$ from both sides: $3x - 7 = 2$.",
+            "Add $7$ to both sides: $3x = 9$.",
+            "Divide both sides by $3$: $x = 3$.",
+            "Check: $y = 4 \\cdot 3 - 7 = 5$ and $y = 3 + 2 = 5$, the same $y$."
+          ],
+          "answerSummary": "The lines intersect where $x = 3$."
+        }
+      }
     ]
   },
   {
@@ -56,11 +115,58 @@
     "teks": "A.11B",
     "timeline": { "dueOffsetDays": 5, "lateOffsetDays": 6 },
     "questions": [
-      { "questionId": "exponents-adaptive-q1", "type": "literal", "formula": "2^x=16", "solveFor": "x", "acceptedAnswers": ["4"], "prompt": "Find the exponent x.", "teks": ["A.11B"], "dok": 1 },
-      { "questionId": "exponents-adaptive-q2", "type": "literal", "formula": "3^x=27", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "Find the exponent x.", "teks": ["A.11B"], "dok": 1 },
-      { "questionId": "exponents-adaptive-q3", "type": "literal", "formula": "5^2*5^3=5^x", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Use the product rule to find x.", "teks": ["A.11B"], "dok": 2 },
-      { "questionId": "exponents-adaptive-q4", "type": "literal", "formula": "x^3*x^4=x^n", "solveFor": "n", "acceptedAnswers": ["7"], "prompt": "Use exponent rules to find n.", "teks": ["A.11B"], "dok": 2 },
-      { "questionId": "exponents-adaptive-q5", "type": "literal", "formula": "10^6/10^2=10^n", "solveFor": "n", "acceptedAnswers": ["4"], "prompt": "Use the quotient rule to find n.", "teks": ["A.11B"], "dok": 2 }
+      { "questionId": "exponents-adaptive-q1", "type": "literal", "formula": "2^x=16", "solveFor": "x", "acceptedAnswers": ["4"], "prompt": "Find the exponent x.", "teks": ["A.11B"], "dok": 1,
+        "solutionReview": {
+          "headline": "Write the number as a power of the same base. When two powers of the same base are equal, their exponents are equal.",
+          "reasoning": [
+            "Write $16$ as a power of $2$: $16 = 2 \\cdot 2 \\cdot 2 \\cdot 2 = 2^4$.",
+            "So $2^x = 2^4$, and the exponents are equal: $x = 4$."
+          ],
+          "answerSummary": "The exponent is $x = 4$."
+        }
+      },
+      { "questionId": "exponents-adaptive-q2", "type": "literal", "formula": "3^x=27", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "Find the exponent x.", "teks": ["A.11B"], "dok": 1,
+        "solutionReview": {
+          "headline": "Write the number as a power of the same base. When two powers of the same base are equal, their exponents are equal.",
+          "reasoning": [
+            "Write $27$ as a power of $3$: $27 = 3 \\cdot 3 \\cdot 3 = 3^3$.",
+            "So $3^x = 3^3$, and the exponents are equal: $x = 3$."
+          ],
+          "answerSummary": "The exponent is $x = 3$."
+        }
+      },
+      { "questionId": "exponents-adaptive-q3", "type": "literal", "formula": "5^2*5^3=5^x", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Use the product rule to find x.", "teks": ["A.11B"], "dok": 2,
+        "solutionReview": {
+          "headline": "When you multiply powers of the same base, add the exponents.",
+          "reasoning": [
+            "$5^2 \\cdot 5^3$ is $(5 \\cdot 5) \\cdot (5 \\cdot 5 \\cdot 5)$: $2 + 3 = 5$ factors of $5$.",
+            "So $5^2 \\cdot 5^3 = 5^{2+3} = 5^5$.",
+            "Then $5^5 = 5^x$, and the exponents are equal: $x = 5$."
+          ],
+          "answerSummary": "By the product rule, $x = 5$."
+        }
+      },
+      { "questionId": "exponents-adaptive-q4", "type": "literal", "formula": "x^3*x^4=x^n", "solveFor": "n", "acceptedAnswers": ["7"], "prompt": "Use exponent rules to find n.", "teks": ["A.11B"], "dok": 2,
+        "solutionReview": {
+          "headline": "When you multiply powers of the same base, add the exponents.",
+          "reasoning": [
+            "$x^3 \\cdot x^4$ has $3 + 4 = 7$ factors of $x$.",
+            "So $x^3 \\cdot x^4 = x^{3+4} = x^7$.",
+            "Then $x^7 = x^n$, and the exponents are equal: $n = 7$."
+          ],
+          "answerSummary": "By the product rule, $n = 7$."
+        }
+      },
+      { "questionId": "exponents-adaptive-q5", "type": "literal", "formula": "10^6/10^2=10^n", "solveFor": "n", "acceptedAnswers": ["4"], "prompt": "Use the quotient rule to find n.", "teks": ["A.11B"], "dok": 2,
+        "solutionReview": {
+          "headline": "When you divide powers of the same base, subtract the exponents.",
+          "reasoning": [
+            "Dividing cancels $2$ of the $6$ factors of $10$: $10^6 \\div 10^2 = 10^{6-2} = 10^4$.",
+            "Then $10^4 = 10^n$, and the exponents are equal: $n = 4$."
+          ],
+          "answerSummary": "By the quotient rule, $n = 4$."
+        }
+      }
     ]
   },
   {
@@ -73,11 +179,53 @@
     "dok": 4,
     "timeline": { "dueOffsetDays": -7, "lateOffsetDays": -6 },
     "questions": [
-      { "questionId": "phone-modeling-q1", "type": "literal", "formula": "C=25+5g", "solveFor": "C", "acceptedAnswers": ["45"], "prompt": "A plan costs $25 plus $5 per GB. What is the cost for 4 GB?", "teks": ["A.3C"], "dok": 2 },
-      { "questionId": "phone-modeling-q2", "type": "literal", "formula": "A=20+6g, B=32+3g", "solveFor": "g", "acceptedAnswers": ["4"], "prompt": "At how many GB do the two plans cost the same?", "teks": ["A.3C"], "dok": 3 },
-      { "questionId": "phone-modeling-q3", "type": "literal", "formula": "C=18+4g", "solveFor": "C", "acceptedAnswers": ["42"], "prompt": "Find the cost at 6 GB.", "teks": ["A.3C"], "dok": 2 },
+      { "questionId": "phone-modeling-q1", "type": "literal", "formula": "C=25+5g", "solveFor": "C", "acceptedAnswers": ["45"], "prompt": "A plan costs $25 plus $5 per GB. What is the cost for 4 GB?", "teks": ["A.3C"], "dok": 2,
+        "solutionReview": {
+          "headline": "Put the number of gigabytes into the cost formula and work it out.",
+          "reasoning": [
+            "The plan costs $25$ dollars plus $5$ dollars for each gigabyte: $C = 25 + 5g$.",
+            "For $4$ GB, $g = 4$: $C = 25 + 5 \\cdot 4 = 25 + 20 = 45$."
+          ],
+          "answerSummary": "The cost for $4$ GB is $45$ dollars: $C = 45$."
+        }
+      },
+      { "questionId": "phone-modeling-q2", "type": "literal", "formula": "A=20+6g, B=32+3g", "solveFor": "g", "acceptedAnswers": ["4"], "prompt": "At how many GB do the two plans cost the same?", "teks": ["A.3C"], "dok": 3,
+        "solutionReview": {
+          "headline": "The plans cost the same where their two formulas give the same cost, so set the formulas equal and solve for $g$.",
+          "reasoning": [
+            "Set the two costs equal: $20 + 6g = 32 + 3g$.",
+            "Subtract $3g$ from both sides: $20 + 3g = 32$.",
+            "Subtract $20$ from both sides: $3g = 12$.",
+            "Divide both sides by $3$: $g = 4$.",
+            "Check: plan A costs $20 + 6 \\cdot 4 = 44$ dollars and plan B costs $32 + 3 \\cdot 4 = 44$ dollars."
+          ],
+          "answerSummary": "The two plans cost the same at $g = 4$ GB."
+        }
+      },
+      { "questionId": "phone-modeling-q3", "type": "literal", "formula": "C=18+4g", "solveFor": "C", "acceptedAnswers": ["42"], "prompt": "Find the cost at 6 GB.", "teks": ["A.3C"], "dok": 2,
+        "solutionReview": {
+          "headline": "Put the number of gigabytes into the cost formula and work it out.",
+          "reasoning": [
+            "The cost formula is $C = 18 + 4g$.",
+            "For $6$ GB, $g = 6$: $C = 18 + 4 \\cdot 6 = 18 + 24 = 42$."
+          ],
+          "answerSummary": "The cost at $6$ GB is $42$ dollars: $C = 42$."
+        }
+      },
       { "questionId": "phone-modeling-q4", "type": "literal", "formula": "C=15+7g", "solveFor": "g", "acceptedAnswers": ["5"], "prompt": "A bill is $50. How many GB were used?", "teks": ["A.3C"], "dok": 3 },
-      { "questionId": "phone-modeling-q5", "type": "literal", "formula": "A=30+2g, B=18+5g", "solveFor": "g", "acceptedAnswers": ["4"], "prompt": "Find the break-even usage for the two plans.", "teks": ["A.3C"], "dok": 3 }
+      { "questionId": "phone-modeling-q5", "type": "literal", "formula": "A=30+2g, B=18+5g", "solveFor": "g", "acceptedAnswers": ["4"], "prompt": "Find the break-even usage for the two plans.", "teks": ["A.3C"], "dok": 3,
+        "solutionReview": {
+          "headline": "The plans cost the same where their two formulas give the same cost, so set the formulas equal and solve for $g$.",
+          "reasoning": [
+            "Set the two costs equal: $30 + 2g = 18 + 5g$.",
+            "Subtract $2g$ from both sides: $30 = 18 + 3g$.",
+            "Subtract $18$ from both sides: $12 = 3g$.",
+            "Divide both sides by $3$: $g = 4$.",
+            "Check: $30 + 2 \\cdot 4 = 38$ and $18 + 5 \\cdot 4 = 38$, the same cost."
+          ],
+          "answerSummary": "The plans break even at $g = 4$ GB."
+        }
+      }
     ]
   },
   {
@@ -89,11 +237,69 @@
     "teks": "A.5C",
     "timeline": { "dueOffsetDays": -5, "lateOffsetDays": -4 },
     "questions": [
-      { "questionId": "systems-quiz-q1", "type": "literal", "formula": "y=x+5 and y=2x+1", "solveFor": "x", "acceptedAnswers": ["4"], "prompt": "Find the x-coordinate of the solution.", "teks": ["A.5C"], "dok": 2 },
-      { "questionId": "systems-quiz-q2", "type": "literal", "formula": "x+y=11 and y=x+1", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Solve the system for x.", "teks": ["A.5C"], "dok": 2 },
-      { "questionId": "systems-quiz-q3", "type": "literal", "formula": "y=5x-8 and y=2x+1", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "Find the x-coordinate of the intersection.", "teks": ["A.5C"], "dok": 2 },
-      { "questionId": "systems-quiz-q4", "type": "literal", "formula": "3x+y=14 and y=2", "solveFor": "x", "acceptedAnswers": ["4"], "prompt": "Solve the system for x.", "teks": ["A.5C"], "dok": 2 },
-      { "questionId": "systems-quiz-q5", "type": "literal", "formula": "y=-x+9 and y=x+1", "solveFor": "x", "acceptedAnswers": ["4"], "prompt": "Find the x-coordinate of the solution.", "teks": ["A.5C"], "dok": 2 }
+      { "questionId": "systems-quiz-q1", "type": "literal", "formula": "y=x+5 and y=2x+1", "solveFor": "x", "acceptedAnswers": ["4"], "prompt": "Find the x-coordinate of the solution.", "teks": ["A.5C"], "dok": 2,
+        "solutionReview": {
+          "headline": "Where the two lines cross, both equations give the same $y$. Set the two expressions for $y$ equal and solve for $x$.",
+          "reasoning": [
+            "Both equations are solved for $y$, so $x + 5 = 2x + 1$.",
+            "Subtract $x$ from both sides: $5 = x + 1$.",
+            "Subtract $1$ from both sides: $4 = x$, so $x = 4$.",
+            "Check: $y = 4 + 5 = 9$ and $y = 2 \\cdot 4 + 1 = 9$, the same $y$."
+          ],
+          "answerSummary": "The x-coordinate of the solution is $x = 4$."
+        }
+      },
+      { "questionId": "systems-quiz-q2", "type": "literal", "formula": "x+y=11 and y=x+1", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Solve the system for x.", "teks": ["A.5C"], "dok": 2,
+        "solutionReview": {
+          "headline": "One equation already says what $y$ is. Put that into the other equation, so it has only $x$ in it.",
+          "reasoning": [
+            "Replace $y$ with $x + 1$ in $x + y = 11$: $x + (x + 1) = 11$.",
+            "Combine the $x$-terms: $2x + 1 = 11$.",
+            "Subtract $1$ from both sides: $2x = 10$.",
+            "Divide both sides by $2$: $x = 5$.",
+            "Check: $y = 5 + 1 = 6$, and $5 + 6 = 11$."
+          ],
+          "answerSummary": "The solution of the system has $x = 5$."
+        }
+      },
+      { "questionId": "systems-quiz-q3", "type": "literal", "formula": "y=5x-8 and y=2x+1", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "Find the x-coordinate of the intersection.", "teks": ["A.5C"], "dok": 2,
+        "solutionReview": {
+          "headline": "Where the two lines cross, both equations give the same $y$. Set the two expressions for $y$ equal and solve for $x$.",
+          "reasoning": [
+            "Both equations are solved for $y$, so $5x - 8 = 2x + 1$.",
+            "Subtract $2x$ from both sides: $3x - 8 = 1$.",
+            "Add $8$ to both sides: $3x = 9$.",
+            "Divide both sides by $3$: $x = 3$.",
+            "Check: $y = 5 \\cdot 3 - 8 = 7$ and $y = 2 \\cdot 3 + 1 = 7$, the same $y$."
+          ],
+          "answerSummary": "The lines intersect where $x = 3$."
+        }
+      },
+      { "questionId": "systems-quiz-q4", "type": "literal", "formula": "3x+y=14 and y=2", "solveFor": "x", "acceptedAnswers": ["4"], "prompt": "Solve the system for x.", "teks": ["A.5C"], "dok": 2,
+        "solutionReview": {
+          "headline": "One equation already says what $y$ is. Put that into the other equation, so it has only $x$ in it.",
+          "reasoning": [
+            "Replace $y$ with $2$ in $3x + y = 14$: $3x + 2 = 14$.",
+            "Subtract $2$ from both sides: $3x = 12$.",
+            "Divide both sides by $3$: $x = 4$.",
+            "Check: $3 \\cdot 4 + 2 = 14$."
+          ],
+          "answerSummary": "The solution of the system has $x = 4$."
+        }
+      },
+      { "questionId": "systems-quiz-q5", "type": "literal", "formula": "y=-x+9 and y=x+1", "solveFor": "x", "acceptedAnswers": ["4"], "prompt": "Find the x-coordinate of the solution.", "teks": ["A.5C"], "dok": 2,
+        "solutionReview": {
+          "headline": "Where the two lines cross, both equations give the same $y$. Set the two expressions for $y$ equal and solve for $x$.",
+          "reasoning": [
+            "Both equations are solved for $y$, so $-x + 9 = x + 1$.",
+            "Add $x$ to both sides: $9 = 2x + 1$.",
+            "Subtract $1$ from both sides: $8 = 2x$.",
+            "Divide both sides by $2$: $x = 4$.",
+            "Check: $y = -4 + 9 = 5$ and $y = 4 + 1 = 5$, the same $y$."
+          ],
+          "answerSummary": "The x-coordinate of the solution is $x = 4$."
+        }
+      }
     ]
   },
   {
@@ -141,11 +347,71 @@
     "dok": 3,
     "timeline": { "dueOffsetDays": 4, "lateOffsetDays": 5 },
     "questions": [
-      { "questionId": "honors-modeling-q1", "type": "literal", "formula": "A=12+4x, B=30+x", "solveFor": "x", "acceptedAnswers": ["6"], "prompt": "Find the break-even x-value and use it to compare the two models.", "teks": ["A.5C"], "dok": 3 },
-      { "questionId": "honors-modeling-q2", "type": "literal", "formula": "y=2x+9 and y=-x+24", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Find the intersection x-value for the competing models.", "teks": ["A.5C"], "dok": 3 },
-      { "questionId": "honors-modeling-q3", "type": "literal", "formula": "C=75+12m, D=120+7m", "solveFor": "m", "acceptedAnswers": ["9"], "prompt": "At what month m do the costs become equal?", "teks": ["A.5C"], "dok": 3 },
-      { "questionId": "honors-modeling-q4", "type": "literal", "formula": "y=4x-13 and y=x+8", "solveFor": "x", "acceptedAnswers": ["7"], "prompt": "Find the intersection x-value, then consider which representation made the solution most efficient.", "teks": ["A.5C"], "dok": 3 },
-      { "questionId": "honors-modeling-q5", "type": "literal", "formula": "P=22+6n, Q=10+8n", "solveFor": "n", "acceptedAnswers": ["6"], "prompt": "Find the break-even n-value for the two pricing models.", "teks": ["A.5C"], "dok": 3 }
+      { "questionId": "honors-modeling-q1", "type": "literal", "formula": "A=12+4x, B=30+x", "solveFor": "x", "acceptedAnswers": ["6"], "prompt": "Find the break-even x-value and use it to compare the two models.", "teks": ["A.5C"], "dok": 3,
+        "solutionReview": {
+          "headline": "The two models break even where they give the same value, so set them equal and solve.",
+          "reasoning": [
+            "Set the models equal: $12 + 4x = 30 + x$.",
+            "Subtract $x$ from both sides: $12 + 3x = 30$.",
+            "Subtract $12$ from both sides: $3x = 18$.",
+            "Divide both sides by $3$: $x = 6$.",
+            "Both give $12 + 4 \\cdot 6 = 36$ and $30 + 6 = 36$ there. Model A grows faster ($4$ per unit against $1$), so it is lower before $x = 6$ and higher after."
+          ],
+          "answerSummary": "The models break even at $x = 6$."
+        }
+      },
+      { "questionId": "honors-modeling-q2", "type": "literal", "formula": "y=2x+9 and y=-x+24", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Find the intersection x-value for the competing models.", "teks": ["A.5C"], "dok": 3,
+        "solutionReview": {
+          "headline": "Where the two lines cross, both equations give the same $y$. Set the two expressions for $y$ equal and solve for $x$.",
+          "reasoning": [
+            "Both models are solved for $y$, so $2x + 9 = -x + 24$.",
+            "Add $x$ to both sides: $3x + 9 = 24$.",
+            "Subtract $9$ from both sides: $3x = 15$.",
+            "Divide both sides by $3$: $x = 5$.",
+            "Check: $y = 2 \\cdot 5 + 9 = 19$ and $y = -5 + 24 = 19$, the same $y$."
+          ],
+          "answerSummary": "The models intersect where $x = 5$."
+        }
+      },
+      { "questionId": "honors-modeling-q3", "type": "literal", "formula": "C=75+12m, D=120+7m", "solveFor": "m", "acceptedAnswers": ["9"], "prompt": "At what month m do the costs become equal?", "teks": ["A.5C"], "dok": 3,
+        "solutionReview": {
+          "headline": "The two models break even where they give the same value, so set them equal and solve.",
+          "reasoning": [
+            "Set the costs equal: $75 + 12m = 120 + 7m$.",
+            "Subtract $7m$ from both sides: $75 + 5m = 120$.",
+            "Subtract $75$ from both sides: $5m = 45$.",
+            "Divide both sides by $5$: $m = 9$.",
+            "Check: $75 + 12 \\cdot 9 = 183$ and $120 + 7 \\cdot 9 = 183$, the same cost."
+          ],
+          "answerSummary": "The costs become equal at month $m = 9$."
+        }
+      },
+      { "questionId": "honors-modeling-q4", "type": "literal", "formula": "y=4x-13 and y=x+8", "solveFor": "x", "acceptedAnswers": ["7"], "prompt": "Find the intersection x-value, then consider which representation made the solution most efficient.", "teks": ["A.5C"], "dok": 3,
+        "solutionReview": {
+          "headline": "Where the two lines cross, both equations give the same $y$. Set the two expressions for $y$ equal and solve for $x$.",
+          "reasoning": [
+            "Both equations are solved for $y$, so setting them equal is the quickest way: $4x - 13 = x + 8$.",
+            "Subtract $x$ from both sides: $3x - 13 = 8$.",
+            "Add $13$ to both sides: $3x = 21$.",
+            "Divide both sides by $3$: $x = 7$.",
+            "Check: $y = 4 \\cdot 7 - 13 = 15$ and $y = 7 + 8 = 15$, the same $y$."
+          ],
+          "answerSummary": "The lines intersect where $x = 7$."
+        }
+      },
+      { "questionId": "honors-modeling-q5", "type": "literal", "formula": "P=22+6n, Q=10+8n", "solveFor": "n", "acceptedAnswers": ["6"], "prompt": "Find the break-even n-value for the two pricing models.", "teks": ["A.5C"], "dok": 3,
+        "solutionReview": {
+          "headline": "The two models break even where they give the same value, so set them equal and solve.",
+          "reasoning": [
+            "Set the two prices equal: $22 + 6n = 10 + 8n$.",
+            "Subtract $6n$ from both sides: $22 = 10 + 2n$.",
+            "Subtract $10$ from both sides: $12 = 2n$.",
+            "Divide both sides by $2$: $n = 6$.",
+            "Check: $22 + 6 \\cdot 6 = 58$ and $10 + 8 \\cdot 6 = 58$, the same price."
+          ],
+          "answerSummary": "The models break even at $n = 6$."
+        }
+      }
     ]
   },
   {
@@ -174,11 +440,66 @@
     "teks": "A2.2C",
     "timeline": { "dueOffsetDays": -8, "lateOffsetDays": -7 },
     "questions": [
-      { "questionId": "a2-inverse-q1", "type": "literal", "formula": "f(x)=2x+3, f^-1(11)=?", "solveFor": "x", "acceptedAnswers": ["4"], "prompt": "Find the input whose f-value is 11.", "teks": ["A2.2C"], "dok": 2 },
-      { "questionId": "a2-inverse-q2", "type": "literal", "formula": "f(x)=5x-1, f^-1(24)=?", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Find the inverse output at 24.", "teks": ["A2.2C"], "dok": 2 },
-      { "questionId": "a2-inverse-q3", "type": "literal", "formula": "f(x)=3x+7, f^-1(28)=?", "solveFor": "x", "acceptedAnswers": ["7"], "prompt": "Find the inverse output at 28.", "teks": ["A2.2C"], "dok": 2 },
-      { "questionId": "a2-inverse-q4", "type": "literal", "formula": "f(x)=4x-6, f^-1(18)=?", "solveFor": "x", "acceptedAnswers": ["6"], "prompt": "Find the inverse output at 18.", "teks": ["A2.2C"], "dok": 2 },
-      { "questionId": "a2-inverse-q5", "type": "literal", "formula": "f(x)=7x+2, f^-1(37)=?", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Find the inverse output at 37.", "teks": ["A2.2C"], "dok": 2 }
+      { "questionId": "a2-inverse-q1", "type": "literal", "formula": "f(x)=2x+3, f^-1(11)=?", "solveFor": "x", "acceptedAnswers": ["4"], "prompt": "Find the input whose f-value is 11.", "teks": ["A2.2C"], "dok": 2,
+        "solutionReview": {
+          "headline": "$f^{-1}(11)$ is the input that $f$ sends to $11$, so set $f(x) = 11$ and solve for $x$.",
+          "reasoning": [
+            "Set $f(x) = 11$: $2x + 3 = 11$.",
+            "Subtract $3$ from both sides: $2x = 8$.",
+            "Divide both sides by $2$: $x = 4$.",
+            "Check: $f(4) = 2 \\cdot 4 + 3 = 11$."
+          ],
+          "answerSummary": "The input is $x = 4$, so $f^{-1}(11) = 4$."
+        }
+      },
+      { "questionId": "a2-inverse-q2", "type": "literal", "formula": "f(x)=5x-1, f^-1(24)=?", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Find the inverse output at 24.", "teks": ["A2.2C"], "dok": 2,
+        "solutionReview": {
+          "headline": "$f^{-1}(24)$ is the input that $f$ sends to $24$, so set $f(x) = 24$ and solve for $x$.",
+          "reasoning": [
+            "Set $f(x) = 24$: $5x - 1 = 24$.",
+            "Add $1$ to both sides: $5x = 25$.",
+            "Divide both sides by $5$: $x = 5$.",
+            "Check: $f(5) = 5 \\cdot 5 - 1 = 24$."
+          ],
+          "answerSummary": "The input is $x = 5$, so $f^{-1}(24) = 5$."
+        }
+      },
+      { "questionId": "a2-inverse-q3", "type": "literal", "formula": "f(x)=3x+7, f^-1(28)=?", "solveFor": "x", "acceptedAnswers": ["7"], "prompt": "Find the inverse output at 28.", "teks": ["A2.2C"], "dok": 2,
+        "solutionReview": {
+          "headline": "$f^{-1}(28)$ is the input that $f$ sends to $28$, so set $f(x) = 28$ and solve for $x$.",
+          "reasoning": [
+            "Set $f(x) = 28$: $3x + 7 = 28$.",
+            "Subtract $7$ from both sides: $3x = 21$.",
+            "Divide both sides by $3$: $x = 7$.",
+            "Check: $f(7) = 3 \\cdot 7 + 7 = 28$."
+          ],
+          "answerSummary": "The input is $x = 7$, so $f^{-1}(28) = 7$."
+        }
+      },
+      { "questionId": "a2-inverse-q4", "type": "literal", "formula": "f(x)=4x-6, f^-1(18)=?", "solveFor": "x", "acceptedAnswers": ["6"], "prompt": "Find the inverse output at 18.", "teks": ["A2.2C"], "dok": 2,
+        "solutionReview": {
+          "headline": "$f^{-1}(18)$ is the input that $f$ sends to $18$, so set $f(x) = 18$ and solve for $x$.",
+          "reasoning": [
+            "Set $f(x) = 18$: $4x - 6 = 18$.",
+            "Add $6$ to both sides: $4x = 24$.",
+            "Divide both sides by $4$: $x = 6$.",
+            "Check: $f(6) = 4 \\cdot 6 - 6 = 18$."
+          ],
+          "answerSummary": "The input is $x = 6$, so $f^{-1}(18) = 6$."
+        }
+      },
+      { "questionId": "a2-inverse-q5", "type": "literal", "formula": "f(x)=7x+2, f^-1(37)=?", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Find the inverse output at 37.", "teks": ["A2.2C"], "dok": 2,
+        "solutionReview": {
+          "headline": "$f^{-1}(37)$ is the input that $f$ sends to $37$, so set $f(x) = 37$ and solve for $x$.",
+          "reasoning": [
+            "Set $f(x) = 37$: $7x + 2 = 37$.",
+            "Subtract $2$ from both sides: $7x = 35$.",
+            "Divide both sides by $7$: $x = 5$.",
+            "Check: $f(5) = 7 \\cdot 5 + 2 = 37$."
+          ],
+          "answerSummary": "The input is $x = 5$, so $f^{-1}(37) = 5$."
+        }
+      }
     ]
   },
   {
@@ -191,11 +512,64 @@
     "dok": 3,
     "timeline": { "dueOffsetDays": -4, "lateOffsetDays": -3 },
     "questions": [
-      { "questionId": "a2-lq-q1", "type": "literal", "formula": "y=x^2 and y=4", "solveFor": "x", "acceptedAnswers": ["2", "-2"], "prompt": "Give one x-value where the graphs intersect.", "teks": ["A2.3C"], "dok": 2 },
-      { "questionId": "a2-lq-q2", "type": "literal", "formula": "y=x^2 and y=9", "solveFor": "x", "acceptedAnswers": ["3", "-3"], "prompt": "Give one x-value where the graphs intersect.", "teks": ["A2.3C"], "dok": 2 },
-      { "questionId": "a2-lq-q3", "type": "literal", "formula": "y=x^2-1 and y=8", "solveFor": "x", "acceptedAnswers": ["3", "-3"], "prompt": "Give one x-value where the graphs intersect.", "teks": ["A2.3C"], "dok": 2 },
-      { "questionId": "a2-lq-q4", "type": "literal", "formula": "y=x^2+2 and y=18", "solveFor": "x", "acceptedAnswers": ["4", "-4"], "prompt": "Give one x-value where the graphs intersect.", "teks": ["A2.3C"], "dok": 2 },
-      { "questionId": "a2-lq-q5", "type": "literal", "formula": "y=x^2-5 and y=20", "solveFor": "x", "acceptedAnswers": ["5", "-5"], "prompt": "Give one x-value where the graphs intersect.", "teks": ["A2.3C"], "dok": 2 }
+      { "questionId": "a2-lq-q1", "type": "literal", "formula": "y=x^2 and y=4", "solveFor": "x", "acceptedAnswers": ["2", "-2"], "prompt": "Give one x-value where the graphs intersect.", "teks": ["A2.3C"], "dok": 2,
+        "solutionReview": {
+          "headline": "Where the graphs meet, both give the same $y$. Set them equal and solve: a positive number has two square roots, one positive and one negative.",
+          "reasoning": [
+            "Set the two equal: $x^2 = 4$.",
+            "Both $2^2 = 4$ and $(-2)^2 = 4$, so $x = 2$ or $x = -2$.",
+            "The graphs meet at $(2, 4)$ and $(-2, 4)$. Either x-value is an answer."
+          ],
+          "answerSummary": "The graphs intersect at $x = 2$ and at $x = -2$."
+        }
+      },
+      { "questionId": "a2-lq-q2", "type": "literal", "formula": "y=x^2 and y=9", "solveFor": "x", "acceptedAnswers": ["3", "-3"], "prompt": "Give one x-value where the graphs intersect.", "teks": ["A2.3C"], "dok": 2,
+        "solutionReview": {
+          "headline": "Where the graphs meet, both give the same $y$. Set them equal and solve: a positive number has two square roots, one positive and one negative.",
+          "reasoning": [
+            "Set the two equal: $x^2 = 9$.",
+            "Both $3^2 = 9$ and $(-3)^2 = 9$, so $x = 3$ or $x = -3$.",
+            "The graphs meet at $(3, 9)$ and $(-3, 9)$. Either x-value is an answer."
+          ],
+          "answerSummary": "The graphs intersect at $x = 3$ and at $x = -3$."
+        }
+      },
+      { "questionId": "a2-lq-q3", "type": "literal", "formula": "y=x^2-1 and y=8", "solveFor": "x", "acceptedAnswers": ["3", "-3"], "prompt": "Give one x-value where the graphs intersect.", "teks": ["A2.3C"], "dok": 2,
+        "solutionReview": {
+          "headline": "Where the graphs meet, both give the same $y$. Set them equal and solve: a positive number has two square roots, one positive and one negative.",
+          "reasoning": [
+            "Set the two equal: $x^2 - 1 = 8$.",
+            "Add $1$ to both sides: $x^2 = 9$.",
+            "Both $3^2 = 9$ and $(-3)^2 = 9$, so $x = 3$ or $x = -3$.",
+            "The graphs meet at $(3, 8)$ and $(-3, 8)$. Either x-value is an answer."
+          ],
+          "answerSummary": "The graphs intersect at $x = 3$ and at $x = -3$."
+        }
+      },
+      { "questionId": "a2-lq-q4", "type": "literal", "formula": "y=x^2+2 and y=18", "solveFor": "x", "acceptedAnswers": ["4", "-4"], "prompt": "Give one x-value where the graphs intersect.", "teks": ["A2.3C"], "dok": 2,
+        "solutionReview": {
+          "headline": "Where the graphs meet, both give the same $y$. Set them equal and solve: a positive number has two square roots, one positive and one negative.",
+          "reasoning": [
+            "Set the two equal: $x^2 + 2 = 18$.",
+            "Subtract $2$ from both sides: $x^2 = 16$.",
+            "Both $4^2 = 16$ and $(-4)^2 = 16$, so $x = 4$ or $x = -4$.",
+            "The graphs meet at $(4, 18)$ and $(-4, 18)$. Either x-value is an answer."
+          ],
+          "answerSummary": "The graphs intersect at $x = 4$ and at $x = -4$."
+        }
+      },
+      { "questionId": "a2-lq-q5", "type": "literal", "formula": "y=x^2-5 and y=20", "solveFor": "x", "acceptedAnswers": ["5", "-5"], "prompt": "Give one x-value where the graphs intersect.", "teks": ["A2.3C"], "dok": 2,
+        "solutionReview": {
+          "headline": "Where the graphs meet, both give the same $y$. Set them equal and solve: a positive number has two square roots, one positive and one negative.",
+          "reasoning": [
+            "Set the two equal: $x^2 - 5 = 20$.",
+            "Add $5$ to both sides: $x^2 = 25$.",
+            "Both $5^2 = 25$ and $(-5)^2 = 25$, so $x = 5$ or $x = -5$.",
+            "The graphs meet at $(5, 20)$ and $(-5, 20)$. Either x-value is an answer."
+          ],
+          "answerSummary": "The graphs intersect at $x = 5$ and at $x = -5$."
+        }
+      }
     ]
   },
   {
@@ -207,11 +581,58 @@
     "teks": "A2.5B",
     "timeline": { "dueOffsetDays": 3, "lateOffsetDays": 4 },
     "questions": [
-      { "questionId": "a2-exp-q1", "type": "literal", "formula": "2^x=32", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Solve the exponential equation.", "teks": ["A2.5B"], "dok": 2 },
-      { "questionId": "a2-exp-q2", "type": "literal", "formula": "10^x=1000", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "Solve for x.", "teks": ["A2.5B"], "dok": 2 },
-      { "questionId": "a2-exp-q3", "type": "literal", "formula": "3^x=81", "solveFor": "x", "acceptedAnswers": ["4"], "prompt": "Solve the exponential equation.", "teks": ["A2.5B"], "dok": 2 },
-      { "questionId": "a2-exp-q4", "type": "literal", "formula": "log_2(64)=x", "solveFor": "x", "acceptedAnswers": ["6"], "prompt": "Evaluate the logarithm.", "teks": ["A2.5B"], "dok": 2 },
-      { "questionId": "a2-exp-q5", "type": "literal", "formula": "log_5(125)=x", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "Evaluate the logarithm.", "teks": ["A2.5B"], "dok": 2 }
+      { "questionId": "a2-exp-q1", "type": "literal", "formula": "2^x=32", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Solve the exponential equation.", "teks": ["A2.5B"], "dok": 2,
+        "solutionReview": {
+          "headline": "Write the number as a power of the same base. When two powers of the same base are equal, their exponents are equal.",
+          "reasoning": [
+            "Write $32$ as a power of $2$: $32 = 2 \\cdot 2 \\cdot 2 \\cdot 2 \\cdot 2 = 2^5$.",
+            "So $2^x = 2^5$, and the exponents are equal: $x = 5$."
+          ],
+          "answerSummary": "The solution is $x = 5$."
+        }
+      },
+      { "questionId": "a2-exp-q2", "type": "literal", "formula": "10^x=1000", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "Solve for x.", "teks": ["A2.5B"], "dok": 2,
+        "solutionReview": {
+          "headline": "Write the number as a power of the same base. When two powers of the same base are equal, their exponents are equal.",
+          "reasoning": [
+            "Write $1000$ as a power of $10$: $1000 = 10 \\cdot 10 \\cdot 10 = 10^3$.",
+            "So $10^x = 10^3$, and the exponents are equal: $x = 3$."
+          ],
+          "answerSummary": "The solution is $x = 3$."
+        }
+      },
+      { "questionId": "a2-exp-q3", "type": "literal", "formula": "3^x=81", "solveFor": "x", "acceptedAnswers": ["4"], "prompt": "Solve the exponential equation.", "teks": ["A2.5B"], "dok": 2,
+        "solutionReview": {
+          "headline": "Write the number as a power of the same base. When two powers of the same base are equal, their exponents are equal.",
+          "reasoning": [
+            "Write $81$ as a power of $3$: $81 = 3 \\cdot 3 \\cdot 3 \\cdot 3 = 3^4$.",
+            "So $3^x = 3^4$, and the exponents are equal: $x = 4$."
+          ],
+          "answerSummary": "The solution is $x = 4$."
+        }
+      },
+      { "questionId": "a2-exp-q4", "type": "literal", "formula": "log_2(64)=x", "solveFor": "x", "acceptedAnswers": ["6"], "prompt": "Evaluate the logarithm.", "teks": ["A2.5B"], "dok": 2,
+        "solutionReview": {
+          "headline": "A logarithm is an exponent: $\\log_2(64)$ is the power of $2$ that gives $64$.",
+          "reasoning": [
+            "$\\log_2(64) = x$ means $2^x = 64$.",
+            "Write $64$ as a power of $2$: $64 = 2 \\cdot 2 \\cdot 2 \\cdot 2 \\cdot 2 \\cdot 2 = 2^6$.",
+            "So $2^x = 2^6$, and $x = 6$."
+          ],
+          "answerSummary": "The logarithm is $x = 6$: $\\log_2(64) = 6$."
+        }
+      },
+      { "questionId": "a2-exp-q5", "type": "literal", "formula": "log_5(125)=x", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "Evaluate the logarithm.", "teks": ["A2.5B"], "dok": 2,
+        "solutionReview": {
+          "headline": "A logarithm is an exponent: $\\log_5(125)$ is the power of $5$ that gives $125$.",
+          "reasoning": [
+            "$\\log_5(125) = x$ means $5^x = 125$.",
+            "Write $125$ as a power of $5$: $125 = 5 \\cdot 5 \\cdot 5 = 5^3$.",
+            "So $5^x = 5^3$, and $x = 3$."
+          ],
+          "answerSummary": "The logarithm is $x = 3$: $\\log_5(125) = 3$."
+        }
+      }
     ]
   },
   {
@@ -226,11 +647,63 @@
     "dok": 4,
     "timeline": { "dueOffsetDays": 7, "lateOffsetDays": 8 },
     "questions": [
-      { "questionId": "a2-honors-q1", "type": "literal", "formula": "P=120(1.05)^t, P=153.15", "solveFor": "t", "acceptedAnswers": ["5"], "prompt": "Find the integer time t for the growth model.", "teks": ["A2.8C"], "dok": 3 },
-      { "questionId": "a2-honors-q2", "type": "literal", "formula": "2^x=128", "solveFor": "x", "acceptedAnswers": ["7"], "prompt": "Solve and connect the result to logarithmic notation.", "teks": ["A2.8C"], "dok": 3 },
-      { "questionId": "a2-honors-q3", "type": "literal", "formula": "log_3(243)=x", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Evaluate the logarithm and identify its exponential equivalent.", "teks": ["A2.8C"], "dok": 3 },
-      { "questionId": "a2-honors-q4", "type": "literal", "formula": "A=500(1.1)^t, A=605", "solveFor": "t", "acceptedAnswers": ["2"], "prompt": "Find t for the model and interpret the result.", "teks": ["A2.8C"], "dok": 4 },
-      { "questionId": "a2-honors-q5", "type": "literal", "formula": "4^x=1024", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Solve the exponential equation and justify the exponent relationship.", "teks": ["A2.8C"], "dok": 3 }
+      { "questionId": "a2-honors-q1", "type": "literal", "formula": "P=120(1.05)^t, P=153.15", "solveFor": "t", "acceptedAnswers": ["5"], "prompt": "Find the integer time t for the growth model.", "teks": ["A2.8C"], "dok": 3,
+        "solutionReview": {
+          "headline": "Put the amount into the growth model, then find the whole number of years that gives it. The amount is rounded to the cent.",
+          "reasoning": [
+            "Put $P = 153.15$ into the model: $120(1.05)^t = 153.15$.",
+            "Divide both sides by $120$: $(1.05)^t = 1.27625$.",
+            "Try whole numbers: $(1.05)^4 \\approx 1.2155$ is too small, and $(1.05)^5 \\approx 1.2763$ matches.",
+            "Check: $120(1.05)^5 \\approx 153.15$ to the nearest cent, so $t = 5$."
+          ],
+          "answerSummary": "The time is $t = 5$."
+        }
+      },
+      { "questionId": "a2-honors-q2", "type": "literal", "formula": "2^x=128", "solveFor": "x", "acceptedAnswers": ["7"], "prompt": "Solve and connect the result to logarithmic notation.", "teks": ["A2.8C"], "dok": 3,
+        "solutionReview": {
+          "headline": "Write the number as a power of the same base. When two powers of the same base are equal, their exponents are equal.",
+          "reasoning": [
+            "Write $128$ as a power of $2$: $128 = 2 \\cdot 2 \\cdot 2 \\cdot 2 \\cdot 2 \\cdot 2 \\cdot 2 = 2^7$.",
+            "So $2^x = 2^7$, and the exponents are equal: $x = 7$.",
+            "In logarithm notation, the exponent is the logarithm: $\\log_2(128) = 7$."
+          ],
+          "answerSummary": "The solution is $x = 7$, and $\\log_2(128) = 7$."
+        }
+      },
+      { "questionId": "a2-honors-q3", "type": "literal", "formula": "log_3(243)=x", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Evaluate the logarithm and identify its exponential equivalent.", "teks": ["A2.8C"], "dok": 3,
+        "solutionReview": {
+          "headline": "A logarithm is an exponent: $\\log_3(243)$ is the power of $3$ that gives $243$.",
+          "reasoning": [
+            "$\\log_3(243) = x$ means $3^x = 243$.",
+            "Write $243$ as a power of $3$: $243 = 3 \\cdot 3 \\cdot 3 \\cdot 3 \\cdot 3 = 3^5$.",
+            "So $3^x = 3^5$, and $x = 5$. The exponential equivalent is $3^5 = 243$."
+          ],
+          "answerSummary": "The logarithm is $x = 5$: $\\log_3(243) = 5$, the same fact as $3^5 = 243$."
+        }
+      },
+      { "questionId": "a2-honors-q4", "type": "literal", "formula": "A=500(1.1)^t, A=605", "solveFor": "t", "acceptedAnswers": ["2"], "prompt": "Find t for the model and interpret the result.", "teks": ["A2.8C"], "dok": 4,
+        "solutionReview": {
+          "headline": "Put the amount into the growth model and divide by the starting amount, then find the exponent.",
+          "reasoning": [
+            "Put $A = 605$ into the model: $500(1.1)^t = 605$.",
+            "Divide both sides by $500$: $(1.1)^t = 1.21$.",
+            "Since $(1.1)^2 = 1.1 \\cdot 1.1 = 1.21$, $t = 2$.",
+            "So after $2$ time periods the amount has grown from $500$ to $605$."
+          ],
+          "answerSummary": "The time is $t = 2$."
+        }
+      },
+      { "questionId": "a2-honors-q5", "type": "literal", "formula": "4^x=1024", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Solve the exponential equation and justify the exponent relationship.", "teks": ["A2.8C"], "dok": 3,
+        "solutionReview": {
+          "headline": "Write the number as a power of the same base. When two powers of the same base are equal, their exponents are equal.",
+          "reasoning": [
+            "Write $1024$ as a power of $4$: $1024 = 4 \\cdot 4 \\cdot 4 \\cdot 4 \\cdot 4 = 4^5$.",
+            "So $4^x = 4^5$, and the exponents are equal: $x = 5$.",
+            "It also fits powers of $2$: $4^5 = (2^2)^5 = 2^{10} = 1024$."
+          ],
+          "answerSummary": "The solution is $x = 5$."
+        }
+      }
     ]
   }
 ]

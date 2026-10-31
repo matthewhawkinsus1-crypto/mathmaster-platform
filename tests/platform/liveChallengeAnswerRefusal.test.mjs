@@ -14,6 +14,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import {
   REFUSAL_OUTCOME,
   RESEND_AT_GO_MARGIN_MS,
@@ -26,23 +27,31 @@ import {
   rushRefusalIsTimeUp,
 } from '../../src/platform/liveChallenge/challengeAnswerRefusal.js';
 import { buildRoundTimer, timerAcceptsArrival } from '../../functions/shared/liveChallengeTimer.mjs';
+import { lockedAnswerLine } from '../../src/platform/liveChallenge/challengeShellModel.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const server = executableSource(await readFile(new URL('../../functions/index.js', import.meta.url), 'utf8'));
 const refusalSource = region(server, 'const liveChallengeArrivalRefusal', ';\n', 'the arrival refusal');
-const [notStartedMessage, timeUpMessage] = [...refusalSource.matchAll(/"([^"]+\.)"/g)].map((match) => match[1]);
+const wordsSource = region(server, 'const LIVE_CHALLENGE_ARRIVAL_WORDS', '});\n', 'the arrival words');
+const wordFor = (reason) => wordsSource.match(new RegExp(`${reason}: "([^"]+)"`))?.[1];
+const notStartedMessage = wordFor('round_not_started');
+const pausedMessage = wordFor('round_paused');
+const [timeUpMessage] = [...refusalSource.matchAll(/"([^"]+\.)"/g)].map((match) => match[1]);
 
 // What httpsCallable throws for an HttpsError: code `functions/<code>`, the
 // server's message, and its details, untouched.
 const callableError = (code, message, details) => Object.assign(new Error(message), { code: `functions/${code}`, details });
 // What the server throws for an arrival outside the round (liveChallengeArrivalRefusal).
-const serverRefusal = (arrival) => callableError('deadline-exceeded', arrival.reason === ROUND_NOT_STARTED ? notStartedMessage : timeUpMessage, { reason: arrival.reason || null });
+const serverRefusal = (arrival) => callableError('deadline-exceeded', ({ round_not_started: notStartedMessage, round_paused: pausedMessage })[arrival.reason] || timeUpMessage, { reason: arrival.reason || null });
 
 test('the server refuses an early answer with a reason this rule reads, and a message it can fall back on', () => {
   // The refusal carries the timer's own reason in its details.
-  assert.match(refusalSource, /new HttpsError\("deadline-exceeded",/);
+  assert.match(refusalSource, /new HttpsError\(\s*"deadline-exceeded",/);
   assert.match(refusalSource, /\{ reason: arrival\?\.reason \|\| null \}/);
-  assert.ok(notStartedMessage && timeUpMessage, 'both refusal messages were found');
+  assert.ok(notStartedMessage && pausedMessage && timeUpMessage, 'all three refusal messages were found');
+  // A paused round is not "time was up" (LC06).
+  assert.doesNotMatch(pausedMessage, /time (is|was) up/i);
+  assert.match(pausedMessage, /paused/i);
   // The reason the server's timer gives an answer that arrived before GO is
   // the one this rule treats as "send it again at GO"; a late one is not.
   const timer = buildRoundTimer({ nowMs: 100_000, syncLeadMs: 3_500, durationMs: 30_000 });
@@ -60,8 +69,12 @@ test('a refusal before GO is retried at GO; a closed, late or missing round is c
   const late = serverRefusal(timerAcceptsArrival(timer, timer.endsAtMs + 60_000));
   assert.equal(classifyAnswerRefusal(early), REFUSAL_OUTCOME.RETRY_AT_GO);
   assert.equal(classifyAnswerRefusal(late), REFUSAL_OUTCOME.CLOSED);
+  // A paused round keeps the answer for its resume (LC06: it was closed).
+  const paused = buildRoundTimer({ nowMs: 100_000, syncLeadMs: 3_500, durationMs: 30_000 });
+  const pausedRefusal = serverRefusal(timerAcceptsArrival({ ...paused, pausedAtMs: paused.startsAtMs + 5_000 }, paused.startsAtMs + 6_000));
+  assert.equal(pausedRefusal.details.reason, 'round_paused');
+  assert.equal(classifyAnswerRefusal(pausedRefusal), REFUSAL_OUTCOME.PAUSED);
   // Every other way the server says the round is over for this answer.
-  assert.equal(classifyAnswerRefusal(callableError('deadline-exceeded', timeUpMessage, { reason: 'round_paused' })), REFUSAL_OUTCOME.CLOSED);
   assert.equal(classifyAnswerRefusal(callableError('failed-precondition', 'This round is closed.')), REFUSAL_OUTCOME.CLOSED);
   assert.equal(classifyAnswerRefusal(callableError('not-found', 'That Live Challenge is no longer available.')), REFUSAL_OUTCOME.CLOSED);
   // "The challenge has not started" (a lobby) is a different refusal from a
@@ -84,9 +97,20 @@ test('the reason decides; the message is only a fallback', () => {
   // With a reason, the reason wins over the message, either way.
   assert.equal(classifyAnswerRefusal(callableError('deadline-exceeded', notStartedMessage, { reason: 'arrival_window_expired' })), REFUSAL_OUTCOME.CLOSED);
   assert.equal(classifyAnswerRefusal(callableError('deadline-exceeded', 'deadline-exceeded', { reason: ROUND_NOT_STARTED })), REFUSAL_OUTCOME.RETRY_AT_GO);
-  // A client-side timeout (httpsCallable's own deadline-exceeded) is what it
-  // always was: it says nothing about GO.
-  assert.equal(classifyAnswerRefusal(callableError('deadline-exceeded', 'deadline-exceeded')), REFUSAL_OUTCOME.CLOSED);
+  // A client-side timeout (httpsCallable's own deadline-exceeded) says nothing
+  // about the round: the envelope is kept for a retry (LC06: it was read as a
+  // closed round, and the locked answer was dropped).
+  assert.equal(classifyAnswerRefusal(callableError('deadline-exceeded', 'deadline-exceeded')), REFUSAL_OUTCOME.TRANSIENT);
+  assert.equal(classifyAnswerRefusal(callableError('deadline-exceeded', '')), REFUSAL_OUTCOME.TRANSIENT);
+  // The server's own "time is up" still closes it, with its reason or (from a
+  // server older than the reasons) in its words.
+  assert.equal(classifyAnswerRefusal(callableError('deadline-exceeded', timeUpMessage, { reason: 'arrival_window_expired' })), REFUSAL_OUTCOME.CLOSED);
+  assert.equal(classifyAnswerRefusal(callableError('deadline-exceeded', 'deadline-exceeded', { reason: 'invalid_timeline' })), REFUSAL_OUTCOME.CLOSED);
+  assert.equal(classifyAnswerRefusal(callableError('deadline-exceeded', timeUpMessage)), REFUSAL_OUTCOME.CLOSED);
+  assert.equal(classifyAnswerRefusal(callableError('deadline-exceeded', 'Time is up for this round.')), REFUSAL_OUTCOME.CLOSED);
+  // A pause, by its reason or its words.
+  assert.equal(classifyAnswerRefusal(callableError('deadline-exceeded', 'deadline-exceeded', { reason: 'round_paused' })), REFUSAL_OUTCOME.PAUSED);
+  assert.equal(classifyAnswerRefusal(callableError('deadline-exceeded', pausedMessage)), REFUSAL_OUTCOME.PAUSED);
   // Only a deadline-exceeded refusal can mean "before GO".
   assert.equal(classifyAnswerRefusal(callableError('failed-precondition', notStartedMessage, { reason: ROUND_NOT_STARTED })), REFUSAL_OUTCOME.CLOSED);
   // The simulated device's own wrapper uses the same code shape without a prefix too.
@@ -196,24 +220,47 @@ test('the screen keeps an answer refused before GO, says so, and resends the sam
   assert.match(hold, /resendsAtGoRef\.current \+= 1;/);
   assert.match(hold, /resendTimerRef\.current = window\.setTimeout\(\(\) => latestRetryRef\.current\?\.\(\), delayMs\);/);
   assert.match(hold, /if \(delayMs === null\) \{[^}]*setSubmitError\('[^']*Retry locked answer[^']*'\);/, 'out of tries, it asks for a tap on Retry');
+  // A refusal during a pause keeps the envelope too, says so, and sends it
+  // again once the round resumes (LC06).
+  for (const [label, path] of [['submit', submit], ['retry', retry]]) {
+    assert.match(path, /else if \(outcome === REFUSAL_OUTCOME\.PAUSED\) holdForResume\(\);/, label);
+  }
+  const resume = region(round, 'const holdForResume = () => {', '\n  }, [waitingForResume, roundPaused, pending, result]);', 'holdForResume');
+  assert.doesNotMatch(resume, /removeItem\(pendingKey\)|setPending\(/, 'a pause keeps the envelope');
+  assert.match(resume, /if \(!waitingForResume \|\| roundPaused \|\| !pending \|\| result\) return;/);
+  assert.match(resume, /latestRetryRef\.current\?\.\(\);/);
+  assert.match(round, /const roundPaused = Boolean\(timerFromRoom\(room \|\| \{\}\)\.pausedAtMs\);/);
   // The timer resends the same envelope: the retry sends `pending` itself.
   assert.match(round, /latestRetryRef\.current = retryPending;/);
   assert.match(retry, /await submitResponse\(pending\)/);
-  // The student is told plainly while it waits, and the timer dies with the round.
-  assert.match(round, /\{waitingForGo \? 'Your answer is locked in and will send at GO\.' : 'Answer locked in · checking it…'\}/);
+  // The student is told plainly while it waits (the words are the shell
+  // model's, lockedAnswerLine), and the timer dies with the round.
+  assert.match(lockedAnswerLine({ waitingForGo: true }).text, /locked in and will send at GO/);
+  assert.match(lockedAnswerLine({ waitingForResume: true }).text, /paused.*locked in.*resumes/);
+  assert.match(round, /lockedAnswerLine\(\{ waitingForGo, waitingForResume,/, 'the round shows the line for the state it is in');
   assert.match(retry, /setWaitingForGo\(false\);/);
   assert.match(round, /useEffect\(\(\) => \(\) => window\.clearTimeout\(resendTimerRef\.current\), \[\]\);/);
   assert.match(screen, /import \{ REFUSAL_OUTCOME, classifyAnswerRefusal, resendAtGoDelayMs \} from '\.\.\/\.\.\/platform\/liveChallenge\/challengeAnswerRefusal\.js';/);
 });
 
-// GRAPH FEATURE RUSH. Its server refuses a batch outside the round with a bare
-// "Time is up for this round." whether it came late or before GO, so only this
-// device's clock can tell them apart.
-test('a refused rush batch is time up only at the end of the round by this device\'s clock', () => {
+// GRAPH FEATURE RUSH. Its server used to refuse a batch outside the round with
+// a bare "Time is up for this round." whether it came late or before GO
+// (LC06). It now gives the timer's reason, and the device's clock decides only
+// when no reason came (a timeout, or an older server).
+test('a refused rush batch is time up when the server says so, or by this device\'s clock without a reason', () => {
   const rushSubmit = region(server, 'exports.submitGraphFeatureRushAttempts', '\n});\n', 'the rush submit');
-  const refusals = rushSubmit.match(/throw new HttpsError\("deadline-exceeded"[^;]*;/g) || [];
-  assert.ok(refusals.length >= 1, 'the rush server refuses an arrival outside the round');
-  refusals.forEach((refusal) => assert.doesNotMatch(refusal, /reason/, 'without a reason, so the client cannot read one'));
+  assert.doesNotMatch(rushSubmit, /Time is up for this round/, 'no bare "time is up" for a tap before GO');
+  assert.equal((rushSubmit.match(/throw liveChallengeArrivalRefusal\((arrival|arrivalCheck)\);/g) || []).length, 2, 'both refusals give the reason');
+  assert.doesNotMatch(rushSubmit, /throw new HttpsError\("deadline-exceeded"/);
+  // With the server's reason: only a late batch is time up, whatever this clock says.
+  assert.equal(rushRefusalIsTimeUp('functions/deadline-exceeded', 59_000, 'arrival_window_expired'), true);
+  assert.equal(rushRefusalIsTimeUp('functions/deadline-exceeded', -400, ROUND_NOT_STARTED), false);
+  assert.equal(rushRefusalIsTimeUp('functions/deadline-exceeded', -400, 'round_paused'), false);
+  // The rounds pass the reason through.
+  for (const file of ['GraphFeatureRushRound.jsx', 'LineGraphRound.jsx']) {
+    const source = executableSource(readFileSync(new URL(`../../src/components/liveChallenge/${file}`, import.meta.url), 'utf8'));
+    assert.equal((source.match(/rushRefusalIsTimeUp\([^\n]*?, error\?\.details\?\.reason\)/g) || []).length, 2, file);
+  }
   // Mid-round (a batch that arrived just before the server's GO, or a
   // client-side timeout): kept and sent again.
   assert.equal(rushRefusalIsTimeUp('functions/deadline-exceeded', 59_000), false);

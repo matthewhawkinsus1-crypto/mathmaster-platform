@@ -476,6 +476,9 @@ for (const device of DEVICES) {
         [{ inputProfile: 'number', answerFormat: 'simplest radical' }, '', ['√']],
         [{ inputProfile: 'orderedPair', requiredSymbols: ['√', '(', ','] }, '', ['√', 'π', '(', ')']],
         [{ inputProfile: 'inequality', requiredSymbols: ['h', '≤'] }, H_PROMPT.prompt, ['h', 'and', 'or', '≤', '≥', 'a⁄b']],
+        // A letter named only in words, by the box's own label, and x and y,
+        // which every inequality has (TS04): a phone student types C here.
+        [{ inputProfile: 'inequality', label: 'Range of C' }, 'A plan costs 30 dollars plus 2 dollars per hour. Write the range of C as an inequality.', ['C', 'x', 'y', '≤']],
       ]) {
         const bare = await keypadFor({ inputProfile: field.inputProfile });
         const rich = await keypadFor(field, prompt);

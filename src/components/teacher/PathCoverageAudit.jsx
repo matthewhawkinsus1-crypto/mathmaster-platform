@@ -383,7 +383,7 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
           </p>
         )}
 
-        <div style={{ overflowX: 'auto' }}>
+        <div role="region" aria-label="Accommodation delivery by tool" tabIndex={0} style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(12 * var(--mm-px))', minWidth: 640 }}>
             <thead>
               <tr>

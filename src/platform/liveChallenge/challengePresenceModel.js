@@ -80,6 +80,17 @@ export const presenceOf = ({ publicRow = null, diagnostic = null, nowMs = Date.n
 const nameOrder = (left, right) => String(left.name).localeCompare(String(right.name), undefined, { sensitivity: 'base', numeric: true });
 
 /**
+ * How many students the room invited, for the console's "Joined X / N" (LC18):
+ * the host roster's own count once it has loaded (one row per invited player),
+ * else the room's eligibleCount. eligibleCount can run one ahead when a roster
+ * change lands between createLiveChallenge's pointer claim and its player
+ * batch, and only displays read it, so the console counts the players instead.
+ */
+export const invitedCountFor = ({ roster = null, eligibleCount = 0 } = {}) => (
+  Array.isArray(roster) && roster.length ? roster.length : Math.max(0, Number(eligibleCount) || 0)
+);
+
+/**
  * The console roster: every student invited to the room, by name, with their
  * presence and whether they have finished the current round.
  *

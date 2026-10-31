@@ -68,4 +68,83 @@ export const unicodeSubscriptsToMathMarkup = (value, format = 'ascii-math') => (
   })
 );
 
+// The ")" that closes the "(" at `open`, or -1.
+const closingBracket = (text, open) => {
+  let depth = 0;
+  for (let index = open; index < text.length; index += 1) {
+    if (text[index] === '(') depth += 1;
+    else if (text[index] === ')') {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  return -1;
+};
+
+/*
+ * A BRACKETED EXPONENT IS A GROUP, AND IN LATEX A GROUP IS BRACES.
+ *
+ * "x^(1/3)" is a power in plain text and in ASCIIMath, where the brackets
+ * group the exponent. Once MathDisplay has stacked a fraction the value is
+ * typeset as LaTeX, and there "^(" raises the bracket alone: y^(1/7) was drawn
+ * as y⁽ with 1/7 on the line after it, in every Rational Exponents lesson. A
+ * bracketed exponent or subscript becomes the braced group it means. Display
+ * only: nothing graded reads this.
+ */
+export const braceScriptGroups = (value, format = 'latex') => {
+  const text = String(value ?? '');
+  if (format !== 'latex' || !/[\^_]\s*\(/.test(text)) return text;
+  let out = '';
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    if ((character === '^' || character === '_') && text[index - 1] !== '\\') {
+      let open = index + 1;
+      while (text[open] === ' ') open += 1;
+      const close = text[open] === '(' ? closingBracket(text, open) : -1;
+      if (close !== -1) {
+        out += `${character}{${braceScriptGroups(text.slice(open + 1, close), format)}}`;
+        index = close;
+        continue;
+      }
+    }
+    out += character;
+  }
+  return out;
+};
+
+// Verbatim groups: words, not math (`\text{log in}`).
+const VERBATIM_GROUP = /\\(?:text|mathrm|operatorname|textrm|mbox)\s*\{/g;
+const FUNCTION_NAME = /(?<![A-Za-z\\])(ln|log|sin|cos|tan|sec|csc|cot)(?=\s*(?:\(|\\left\(|_|\^))/g;
+
+/*
+ * A FUNCTION'S NAME IS UPRIGHT. Once a value is typeset as LaTeX — a stacked
+ * fraction makes it so — a bare ln(3) is the letters l and n in italics, the
+ * product of two variables. ln, log, sin, cos, tan, sec, csc and cot written
+ * just before their bracket or base become the commands that draw the name.
+ * Words in \text{…} stay words. Display only.
+ */
+export const latexFunctionNames = (value, format = 'latex') => {
+  const text = String(value ?? '');
+  if (format !== 'latex' || !/(?:ln|log|sin|cos|tan|sec|csc|cot)/.test(text)) return text;
+  let out = '';
+  let from = 0;
+  for (const match of text.matchAll(VERBATIM_GROUP)) {
+    if (match.index < from) continue;
+    const open = match.index + match[0].length - 1;
+    let depth = 0;
+    let close = -1;
+    for (let index = open; index < text.length; index += 1) {
+      if (text[index] === '{') depth += 1;
+      else if (text[index] === '}') {
+        depth -= 1;
+        if (depth === 0) { close = index; break; }
+      }
+    }
+    if (close < 0) break;
+    out += text.slice(from, match.index).replace(FUNCTION_NAME, '\\$1') + text.slice(match.index, close + 1);
+    from = close + 1;
+  }
+  return out + text.slice(from).replace(FUNCTION_NAME, '\\$1');
+};
+
 export default resolveMathDisplayFormat;

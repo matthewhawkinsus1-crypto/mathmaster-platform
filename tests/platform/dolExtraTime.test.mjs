@@ -222,7 +222,7 @@ test('the Warm-Up stays class-timed', () => {
   assert.deepEqual(warmupClose(LEGACY_EXTRA_TIME), warmupClose(null));
 });
 
-test('teacher windows: early unlock, "+5 min" and a reopen all carry the student\'s extra minutes; "Close now" ends everyone', () => {
+test('teacher windows: early unlock, "+5 min" and a reopen all carry the student\'s extra minutes; "Close now" ends the class\'s window only', () => {
   const base = lesson();
   // Early unlock at 09:00: class 09:00–09:10, student to 09:15.
   const unlocked = { ...base, dol: buildDolWindowOpening({ assignment: base, classId: 'class-a', recovery: false, dateKey: MONDAY, now: at(9, 0).getTime() }).dol };
@@ -243,17 +243,64 @@ test('teacher windows: early unlock, "+5 min" and a reopen all carry the student
   assert.equal(dolTeacherRecoveryActiveAt({ assignment: reopened, classId: 'class-a', at: justAfterClass, timeZone: null, studentProfile: LEGACY_EXTRA_TIME }), true);
   assert.equal(dolTeacherRecoveryActiveAt({ assignment: reopened, classId: 'class-a', at: new Date(classClose + 6 * MINUTE), timeZone: null, studentProfile: LEGACY_EXTRA_TIME }), false);
 
-  // "Close now" at 09:20 ends the DOL for the class and the student alike.
+  // "Close now" at 09:20 ends the CLASS's DOL; a student on extra time keeps
+  // their own remaining time, to the 09:30 they had (the owner, 2026-10-23,
+  // RT05). Device and server agree on both.
   const closed = { ...base, dol: buildDolClose({ assignment: base, classId: 'class-a', dateKey: MONDAY, now: at(9, 20).getTime() }).dol };
+  const classmate = dolFor(closed, at(9, 21), null);
+  assert.deepEqual([classmate.status, classmate.teacherClosed, classmate.endsAt.getTime()], ['ended', true, at(9, 20).getTime()]);
+  const classmateClose = serverCloseFor(closed, at(9, 21), null);
+  assert.deepEqual([classmateClose.closesAtMs, classmateClose.reason], [at(9, 20).getTime(), 'teacher-dol-close']);
   const state = dolFor(closed, at(9, 21), LEGACY_EXTRA_TIME);
-  assert.equal(state.status, 'ended');
-  assert.equal(state.teacherClosed, true);
-  assert.equal(state.extendedTime, false);
-  assert.equal(serverCloseFor(closed, at(9, 21), LEGACY_EXTRA_TIME).closesAtMs, at(9, 20).getTime());
-  // A close stamped inside the student's extra minutes ends them there.
+  assert.deepEqual(
+    [state.status, state.teacherClosed, state.extendedTime, state.endsAt.getTime(), state.classEndsAt.getTime()],
+    ['active', false, true, at(9, 30).getTime(), at(9, 20).getTime()],
+  );
+  const own = serverCloseFor(closed, at(9, 21), LEGACY_EXTRA_TIME);
+  assert.deepEqual([own.closesAtMs, own.reason, own.extendedTime, own.classClosesAtMs], [at(9, 30).getTime(), 'dol-close', true, at(9, 20).getTime()]);
+  assert.equal(dolFor(closed, at(9, 30, 1), LEGACY_EXTRA_TIME).status, 'ended', 'their own close still ends it');
+  // A close stamped inside the student's extra minutes does not end them either.
   const lateClose = { ...base, dol: buildDolClose({ assignment: base, classId: 'class-a', dateKey: MONDAY, now: at(9, 27).getTime() }).dol };
-  assert.equal(dolFor(lateClose, at(9, 26), LEGACY_EXTRA_TIME).endsAt.getTime(), at(9, 27).getTime());
-  assert.equal(serverCloseFor(lateClose, at(9, 28), LEGACY_EXTRA_TIME).closesAtMs, at(9, 27).getTime());
+  assert.equal(dolFor(lateClose, at(9, 28), LEGACY_EXTRA_TIME).endsAt.getTime(), at(9, 30).getTime());
+  assert.equal(serverCloseFor(lateClose, at(9, 28), LEGACY_EXTRA_TIME).closesAtMs, at(9, 30).getTime());
+});
+
+test('"Close now" spares extra time at every edge, and the teacher\'s control says so', () => {
+  const base = lesson();
+  const closed = { ...base, dol: buildDolClose({ assignment: base, classId: 'class-a', dateKey: MONDAY, now: at(9, 20).getTime() }).dol };
+  // Exactly at their own close the window is still theirs; a moment later it is over.
+  assert.equal(dolFor(closed, at(9, 30), LEGACY_EXTRA_TIME).status, 'active');
+  assert.equal(dolFor(closed, at(9, 30, 1), LEGACY_EXTRA_TIME).status, 'ended');
+  // Double time keeps all ten of its extra minutes past the class's 09:25.
+  assert.equal(serverCloseFor(closed, at(9, 21), DISTRICT_DOUBLE_TIME).closesAtMs, at(9, 35).getTime());
+  // No extra time: the close ends them with the class.
+  assert.equal(serverCloseFor(closed, at(9, 21), LEGACY_NO_EXTRA_TIME).closesAtMs, at(9, 20).getTime());
+  // Extra time the student's own final cutoff had already cut to nothing (a
+  // cutoff before the class's 09:25): no extra time to keep, so the close ends theirs too.
+  const window = { startMs: at(8, 0).getTime(), endMs: at(9, 30).getTime() };
+  const cutShort = resolveDolWindow({ assignment: closed, window, classId: 'class-a', todayKey: MONDAY, timeMultiplier: 1.5, capAtMs: at(9, 22).getTime() });
+  assert.deepEqual([cutShort.endsAtMs, cutShort.teacherClosed, cutShort.extendedTime], [at(9, 20).getTime(), true, false]);
+  // Partly cut (cutoff 09:28): they keep the time up to their cutoff.
+  const partly = resolveDolWindow({ assignment: closed, window, classId: 'class-a', todayKey: MONDAY, timeMultiplier: 1.5, capAtMs: at(9, 28).getTime() });
+  assert.deepEqual([partly.endsAtMs, partly.teacherClosed, partly.classEndsAtMs], [at(9, 28).getTime(), false, at(9, 20).getTime()]);
+  // A reopen after the close is still the latest word, for the class and for them.
+  const reopened = { ...closed, dol: buildDolWindowOpening({ assignment: closed, classId: 'class-a', recovery: true, dateKey: MONDAY, now: at(9, 40).getTime() }).dol };
+  const classReopen = dolFor(reopened, at(9, 41), null).endsAt.getTime();
+  assert.equal(dolFor(reopened, at(9, 41), LEGACY_EXTRA_TIME).endsAt.getTime(), classReopen + 5 * MINUTE);
+
+  // The teacher's live view keeps listing who is still working after the close.
+  const row = (studentId, displayName, stored) => ({ ...normalizeTeacherRosterSummary({ studentId, displayName, profile: stored }), displayName });
+  const roster = [row('S1', 'Ana Ruiz', LEGACY_EXTRA_TIME), row('S2', 'Ben Ode', LEGACY_NO_EXTRA_TIME)];
+  const working = dolExtraTimeForClass({ assignment: closed, schedule, classContext: { classId: 'class-a', classPeriod: 'Period 1' }, roster, nowValue: at(9, 21) });
+  assert.deepEqual(working.students, [{ studentId: 'S1', name: 'Ana Ruiz', endsAt: at(9, 30) }]);
+  assert.equal(working.classEndsAt.getTime(), at(9, 20).getTime());
+
+  // "Close now" asks first, and says that a student on extra time keeps it.
+  const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
+  const closeBranch = region(app, "if (action === 'close') {", "} else if (action === 'extend') {", 'the DOL close confirmation');
+  assert.match(closeBranch, /title: `Close the DOL now for \$\{classLabel\}\?`/);
+  assert.match(closeBranch, /message: `[^`]*A student on extra time keeps their own remaining time\.[^`]*`/);
+  assert.match(closeBranch, /build = \(\) => requireTeacherKit\(\)\.buildDolClose\(/);
 });
 
 test('the shared window resolver adds nothing at multiplier 1 and only fields at all', () => {
@@ -349,7 +396,7 @@ test('the assignment screen hands the student\'s own window to the DOL copy', ()
   assert.match(call, /describeDolClose\(\{[^}]*extendedTime: dolState\.extendedTime[^}]*endsAt: dolState\.endsAt[^}]*\}\)/);
   // …and dolState there is the student's: getDOLState on the projected assignment.
   assert.match(app, /const dolState = getDOLState\(\{ assignment, schedule: classSchedule, classId: user\?\.classId \|\| null, classPeriod: user\?\.classPeriod, nowValue: now \}\);\s*\n[^\n]*\n?[\s\S]{0,4000}const currentDolCopy/);
-  assert.match(app, /import \{ describeDolClose \} from '\.\/platform\/assessment\/dolCloseCopy\.js';/);
+  assert.match(app, /import \{ describeDolClose, DOL_OPEN_NOTICE \} from '\.\/platform\/assessment\/dolCloseCopy\.js';/);
 });
 
 test('the teacher\'s live view knows who still has extra time, and never says so on the projector', () => {
@@ -517,8 +564,10 @@ test('on-device Recovery, the finalize hint and the teacher roster take timing f
   const scope = region(app, 'recoveryDiscoveryScope', 'const studentRecoveryByAssignment = useMemo(', 'Recovery discovery scope');
   assert.match(scope, /studentProfile: user\.timingProfile \|\| null,\s*nowValue: now,/);
   assert.match(scope, /user\?\.timingProfile, assignments/);
-  // The checkpoint's finalize hint (resolveAuthoritativeClose before enqueueResponseCheckpoint).
-  assert.match(app, /studentId: user\.id,\s*studentProfile: user\.timingProfile \|\| null,\s*\}\);\s*try \{\s*setStudentPersistenceStatus\('capturing'\);/);
+  // The checkpoint's finalize hint (resolveAuthoritativeClose before the
+  // checkpoint enqueueResponseCheckpoint queues; RT18 builds it first).
+  assert.match(app, /studentId: user\.id,\s*studentProfile: user\.timingProfile \|\| null,\s*\}\);\s*const checkpoint = \{/);
+  assert.match(app, /finalizeAt: close\.closesAtMs \? new Date\(close\.closesAtMs\)\.toISOString\(\) : null,/);
   // No D7 timing reader is left on the normalized copy.
   assert.doesNotMatch(app, /studentProfile: user\.profile \|\| null/);
   // The teacher's rows carry the stored field.

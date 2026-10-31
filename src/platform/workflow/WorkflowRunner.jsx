@@ -38,11 +38,12 @@ import { stageFamily, stageFamilyLabel } from './stageFamilies';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../interaction/choiceOptions.js';
 import { checkedGraphIsPointOnly, graphWindowOnly, studentPlottedPoints, workflowEndpointMarkers, workflowGraphDomainRestriction } from './workflowGraphVisuals.js';
 import { resolveWorkflowTaskPrompt, selectPersistentWorkflowGraph } from './workflowPresentation.js';
-import { buildWorkflowReviewState, firstIncorrectWorkflowIndex } from './workflowReviewState.js';
+import { branchRestartedBy, buildWorkflowReviewState, firstIncorrectWorkflowIndex, stageShowsReason } from './workflowReviewState.js';
 import { graphArtifactAwaitsVerdict, stagesAwaitingVerdict } from './workflowDraftProjection.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../workView/useMathUndoHistory.js';
 import { useWorkViewPresentation } from '../workView/workViewPresentation.js';
 import { ToolDraftScopeProvider } from '../../tools/shared/usePersistentToolState.js';
+import { scrollMotion } from '../../motionPreference.js';
 import './WorkflowFocusMode.css';
 
 // Renders a question composed from interaction primitives.
@@ -237,7 +238,10 @@ function ChoicePreviewGraph({ stage, value }) {
  * Read-only and coordinate-suppressed for the same reason every feature stage
  * is: a later step asks the student to write the intercept down.
  */
-function StageFigure({ graph, label }) {
+// A step's figure is named by its graph's own label, else "Graph" — never by
+// the step's prompt, which the step's heading already says: Read aloud read
+// "State the domain. x from …" before "Step 1 of 2: State the domain." (AX13).
+function StageFigure({ graph, label = '' }) {
   const spec = isObject(graph) ? graph : {};
   const structuredFunction = staticGraphSpec(spec.functionSpec);
 
@@ -329,7 +333,7 @@ function ChoiceStage({ stage, value, onChange, disabled, controlsBranch = false,
     <>
     {stage?.previewOnGraph
       ? <ChoicePreviewGraph stage={stage} value={value} />
-      : showFigure ? <StageFigure graph={stage?.graph} label={stage?.prompt} /> : null}
+      : showFigure ? <StageFigure graph={stage?.graph} /> : null}
     <div style={chipRow}>
       {choices.map((choice) => {
         const id = typeof choice === 'string' ? choice : choice?.id ?? String(choice);
@@ -517,7 +521,7 @@ const DELEGATES = {
       onAction={toolAction(onChange)}
     />
   ),
-  mappingDiagram: ({ stage, content, onChange }) => (
+  mappingDiagram: ({ stage, content, onChange, coachingReplaced = false }) => (
     <RelationMapping
       questionData={{
         pairs: content?.pairs || stage.pairs || [],
@@ -526,6 +530,7 @@ const DELEGATES = {
         rangeLabel: stage.rangeLabel,
       }}
       onAction={toolAction(onChange)}
+      coachingReplaced={coachingReplaced}
     />
   ),
   /*
@@ -540,7 +545,7 @@ const DELEGATES = {
    * from. `graphStage` is that resolution for this stage, so the graph a
    * student builds is the graph the gradebook marks.
    */
-  coordinatePlot: ({ graphStage, onChange, draftKey, revealCorrectness = true }) => {
+  coordinatePlot: ({ graphStage, onChange, draftKey, revealCorrectness = true, keyboardAccess = false, onSupportEvidence = null }) => {
     if (graphStage?.status !== 'ready') return <GraphStageWaiting />;
     return (
       <InteractiveGraphWorkspace
@@ -549,10 +554,12 @@ const DELEGATES = {
         onStateChange={onChange}
         draftKey={draftKey}
         revealPointCorrectness={revealCorrectness}
+        keyboardAccess={keyboardAccess}
+        onSupportEvidence={onSupportEvidence}
       />
     );
   },
-  functionGraph: ({ graphStage, onChange, draftKey, revealCorrectness = true }) => {
+  functionGraph: ({ graphStage, onChange, draftKey, revealCorrectness = true, keyboardAccess = false, onSupportEvidence = null }) => {
     // The graph must represent the student's own prior work. For a table that
     // came from an equation, contradictory work has no single graph; make that
     // conflict visible and require the student to resolve it rather than
@@ -589,6 +596,8 @@ const DELEGATES = {
         onStateChange={onChange}
         draftKey={draftKey}
         revealPointCorrectness={revealCorrectness}
+        keyboardAccess={keyboardAccess}
+        onSupportEvidence={onSupportEvidence}
       />
     );
   },
@@ -611,7 +620,7 @@ const DELEGATES = {
 const NOTATION_PROFILE = { interval: 'interval', inequality: 'inequality', set: 'set' };
 export const ALL_REAL_NUMBERS_RESPONSE = '\\text{All Real Numbers}';
 
-function StageBody({ stage, input, content, value, onReport, disabled, draftKey, canonicalSavedAt = 0, controlsBranch = false, openKeypad = true, showFigure = true, revealCorrectness = true, graphStage = null, wrongItems = [] }) {
+function StageBody({ stage, input, content, value, onReport, disabled, draftKey, canonicalSavedAt = 0, controlsBranch = false, openKeypad = true, showFigure = true, revealCorrectness = true, keyboardAccess = false, onSupportEvidence = null, graphStage = null, wrongItems = [], coachingReplaced = false }) {
   /*
    * WHAT A STEP REPORTS IS AN EDIT ONLY IF THE STUDENT HAS TOUCHED THE PAGE
    * SINCE THE STEP APPEARED (PQ-044).
@@ -645,7 +654,7 @@ function StageBody({ stage, input, content, value, onReport, disabled, draftKey,
         scope={`stage-${stage.id || stage.kind}`}
         canonicalSavedAt={canonicalSavedAt}
       >
-        {delegate({ stage, input, content, onChange, draftKey, disabled, revealCorrectness, graphStage })}
+        {delegate({ stage, input, content, onChange, draftKey, disabled, revealCorrectness, keyboardAccess, onSupportEvidence, graphStage, coachingReplaced })}
       </ToolDraftScopeProvider>
     );
   }
@@ -681,7 +690,7 @@ function StageBody({ stage, input, content, value, onReport, disabled, draftKey,
       }
       return (
         <>
-          {showFigure ? <StageFigure graph={stage?.graph} label={stage?.prompt} /> : null}
+          {showFigure ? <StageFigure graph={stage?.graph} /> : null}
           <MathInput
             value={value || ''}
             onChange={onChange}
@@ -724,7 +733,7 @@ function StageBody({ stage, input, content, value, onReport, disabled, draftKey,
     case 'pointInput':
       return (
         <>
-          {showFigure ? <StageFigure graph={stage?.graph} label={stage?.prompt} /> : null}
+          {showFigure ? <StageFigure graph={stage?.graph} /> : null}
           <PointInputStage stage={stage} value={value} onChange={onChange} disabled={disabled} />
         </>
       );
@@ -936,6 +945,11 @@ export default function WorkflowRunner({
   // submitted? QuestionEngine's showOutcomeFeedback: false on a DOL, quiz or
   // test until feedback is released. Defaults to the practice behaviour.
   revealCorrectness = true,
+  // The keyboard-access support, for the graph steps: where outcomes are
+  // withheld it offers "Connect my points" (platform/graph/connectPointsPolicy.js),
+  // reported through onSupportEvidence when it shows.
+  keyboardAccess = false,
+  onSupportEvidence = null,
 }) {
   const { content, workflow: authoredWorkflow, grading } = useMemo(() => readComposedQuestion(question), [question]);
   const [storedResponses, setResponses] = useLocalDraftState(
@@ -1132,6 +1146,17 @@ export default function WorkflowRunner({
     () => reviewState.filter((entry) => entry.status === 'incorrect'),
     [reviewState],
   );
+  // The steps that follow each red choice and are asked again once it is
+  // right (FB24), by the choice's id.
+  const followersByStageId = useMemo(() => {
+    const byChoice = new Map();
+    reviewState.forEach((entry) => {
+      if (!entry.followsIncorrect) return;
+      if (!byChoice.has(entry.followsIncorrect)) byChoice.set(entry.followsIncorrect, []);
+      byChoice.get(entry.followsIncorrect).push(entry.index);
+    });
+    return byChoice;
+  }, [reviewState]);
   const reviewAttemptKey = submissionReview
     ? `${submissionReview.attemptNumber ?? 'attempt'}:${submissionReview.responseKey || ''}`
     : '';
@@ -1254,7 +1279,8 @@ export default function WorkflowRunner({
     if (tabBox.left >= stripBox.left && tabBox.right <= stripBox.right) return;
     const left = tabBox.left - stripBox.left + strip.scrollLeft;
     const target = Math.max(0, left - (strip.clientWidth - tabBox.width) / 2);
-    if (typeof strip.scrollTo === 'function') strip.scrollTo({ left: target, behavior: 'smooth' });
+    // A glide only for a student who has not asked for reduced motion (AX39).
+    if (typeof strip.scrollTo === 'function') strip.scrollTo({ left: target, behavior: scrollMotion() });
     else strip.scrollLeft = target;
   }, [activeStageIndex, workflow.length]);
 
@@ -1298,6 +1324,14 @@ export default function WorkflowRunner({
   const renderStage = (stage, index, { focused = false } = {}) => {
     const reviewStatus = reviewByStageId.get(stage.id)?.status || 'unanswered';
     const stageReason = reviewByStageId.get(stage.id)?.reason || '';
+    // ONE MESSAGE UNDER A RED STEP (FB06). Once Submit has marked a step wrong
+    // and the grader says why, that reason is the step's message: the tool's
+    // own coaching from its earlier Check (a mapping step's "The arrows do not
+    // match the relation…") said the same thing a second time, so it steps
+    // aside until the student changes the work and checks again.
+    const reasonShown = stageShowsReason(reviewByStageId.get(stage.id));
+    const restartedBy = branchRestartedBy({ stage, authoredStages: authoredWorkflow, responses });
+    const restartedByIndex = restartedBy ? workflow.findIndex((entry) => entry.id === restartedBy) : -1;
     // A sort marked wrong names its wrong figures (P2-4). Only from a review,
     // which QuestionEngine passes only where outcome feedback is shown, and
     // only for the exact response that was checked ('incorrect', not
@@ -1374,7 +1408,12 @@ export default function WorkflowRunner({
             not match."), under the step it is about. It exists only in a
             review, which QuestionEngine hands over only where outcome feedback
             is shown, and only for the response that was checked. */}
-        {reviewStatus === 'incorrect' && stageReason ? (
+        {restartedByIndex >= 0 ? (
+          <p className="workflow-stage__restarted" data-stage-restarted={stage.id} style={{ margin: '0 0 12px', fontSize: 'calc(14 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-text-muted)' }}>
+            You changed Step {restartedByIndex + 1} ({stepName(workflow[restartedByIndex])}), so this step starts again, written the way that answer needs.
+          </p>
+        ) : null}
+        {reasonShown ? (
           <p className="workflow-stage__reason" data-stage-reason={stage.id} style={{ margin: '0 0 12px', padding: '8px 12px', borderRadius: 8, background: 'var(--mm-error-bg)', color: 'var(--mm-danger)', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 700, lineHeight: 1.45 }}>
             {stageReason}
           </p>
@@ -1413,8 +1452,11 @@ export default function WorkflowRunner({
               draftKey={draftKey ? `${draftKey}:${stage.id}${stage.sourceStageId && ['functionGraph', 'coordinatePlot'].includes(stage.kind) ? `:${dependencyFingerprint(input.value)}` : ''}` : null}
               canonicalSavedAt={canonicalSavedAt}
               revealCorrectness={revealCorrectness}
+              keyboardAccess={keyboardAccess}
+              onSupportEvidence={onSupportEvidence}
               graphStage={graphStage}
               wrongItems={wrongItems}
+              coachingReplaced={reasonShown}
             />
           </>
         )}
@@ -1454,6 +1496,8 @@ export default function WorkflowRunner({
 
   const activeFamily = stageFamily(activeStage?.kind);
   const activeReviewStatus = reviewByStageId.get(activeStage?.id)?.status || (activeAnswered ? 'draft' : 'unanswered');
+  const activeFollows = reviewByStageId.get(activeStage?.id)?.followsIncorrect || '';
+  const activeFollowsIndex = activeFollows ? workflow.findIndex((entry) => entry.id === activeFollows) : -1;
   // Graph steps restored without their verdict, other than the one on screen
   // (that one's workspace is open and is already working it out). Opening a
   // step mounts its workspace, which reports again from the student's own
@@ -1478,6 +1522,7 @@ export default function WorkflowRunner({
         {activeReviewStatus === 'correct' ? <span className="workflow-focus__review-status workflow-focus__review-status--correct">✓ Checked correct</span> : null}
         {activeReviewStatus === 'incorrect' ? <span className="workflow-focus__review-status workflow-focus__review-status--incorrect">! Needs revision</span> : null}
         {activeReviewStatus === 'changed' ? <span className="workflow-focus__review-status workflow-focus__review-status--changed">{reviewByStageId.get(activeStage?.id)?.upstreamChanged ? '↻ An earlier step changed — check again' : '↻ Edited — check again'}</span> : null}
+        {activeFollowsIndex >= 0 ? <span className="workflow-focus__review-status workflow-focus__review-status--changed">Follows Step {activeFollowsIndex + 1}, which needs revision</span> : null}
       </div>
       <span className="workflow-focus__counter">{safeActiveIndex + 1} of {stepsToShow}</span>
     </div>
@@ -1511,7 +1556,9 @@ export default function WorkflowRunner({
               ? ', needs revision'
               : reviewStatus === 'changed'
                 ? (reviewByStageId.get(stage.id)?.upstreamChanged ? ', an earlier step changed since the last check' : ', edited since last check')
-                : answered
+                : reviewByStageId.get(stage.id)?.followsIncorrect
+                  ? ', follows a step that needs revision'
+                  : answered
                   ? ', answered, not checked'
                   : '';
           const className = [
@@ -1563,6 +1610,15 @@ export default function WorkflowRunner({
               );
             })}
           </div>
+          {incorrectReviewStages.filter((entry) => followersByStageId.has(entry.id)).map((entry) => {
+            const followers = followersByStageId.get(entry.id).map((index) => `Step ${index + 1}`);
+            const named = followers.length > 1 ? `${followers.slice(0, -1).join(', ')} and ${followers.at(-1)}` : followers[0];
+            return (
+              <p key={`follows-${entry.id}`} className="workflow-focus__review-follows" data-follows-stage={entry.id}>
+                {named} {followers.length > 1 ? 'follow' : 'follows'} your answer to Step {entry.index + 1}, so {followers.length > 1 ? 'they are' : 'it is'} asked again once Step {entry.index + 1} is right.
+              </p>
+            );
+          })}
         </section>
       ) : null}
 

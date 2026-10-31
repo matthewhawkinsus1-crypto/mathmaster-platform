@@ -18,6 +18,7 @@ import { bringActiveStageIntoView } from '../../src/platform/workflow/stageNavig
 import { pinnedBottom, revealBelowSticky } from '../../src/platform/layout/stickyReveal.js';
 import { CALCULATOR_MODES, getCalculatorDrawerLabel, getCalculatorModeLabel } from '../../src/platform/policies/calculatorPolicy.js';
 import { formatCorrelation } from '../../src/tools/dataModeling/dataModelingMath.js';
+import { linearRegression } from '../../functions/shared/toolMath/shared/toolMath.mjs';
 import { questionAsksAboutQuadrants, quadrantLabelPositions } from '../../src/platform/graph/quadrantLabels.js';
 import { givenRelationInstruction } from '../../src/tools/relationMapping/relationMappingCopy.js';
 import { resolveNextAction } from '../../src/studentDashboardModel.js';
@@ -89,7 +90,8 @@ test('an intercept question is never labelled as a solved equation', () => {
   assert.doesNotMatch(label, /Solved Equation|Intercepts|LINEAR_INTERCEPTS|stepAlgebra/, 'the label names no route');
 });
 
-// ─── Locked work is inert to the keyboard, not only to the mouse ───────────
+// ─── Waiting work is inert to the keyboard, not only to the mouse ──────────
+// (Finished work is read-only instead, AX01: tests/platform/readOnlyWorkArea.test.mjs.)
 
 test('the locked tool region passes a boolean inert (React 19 reads "" as false)', () => {
   const engine = source('src/QuestionEngine.jsx');
@@ -106,7 +108,8 @@ test('Unicode subscripts are rewritten into the syntax of the format that parses
   assert.equal(unicodeSubscriptsToMathMarkup('aₙ₋₁', 'latex'), 'a_{n-1}');
   assert.equal(unicodeSubscriptsToMathMarkup('x^2 + 1', 'ascii-math'), 'x^2 + 1');
   const display = source('src/MathDisplay.jsx');
-  assert.match(display, /const typesetValue = unicodeSubscriptsToMathMarkup\(cleanValue, resolvedFormat\)/);
+  // Whatever else wraps it (braceScriptGroups, mathDisplayFormat.js), the typeset value has its subscripts rewritten.
+  assert.match(display, /const typesetValue = [^;\n]*unicodeSubscriptsToMathMarkup\(cleanValue, resolvedFormat\)/);
   assert.match(region(display, '<Element', '</Element>', 'rendered math'), /\{typesetValue\}/);
 });
 
@@ -226,6 +229,16 @@ test('r is never shown as a perfect ±1 unless it is one', () => {
   assert.equal(formatCorrelation(-0.99999), '-0.99999');
   assert.equal(formatCorrelation(1), '1');
   assert.equal(formatCorrelation(Number.NaN), '—');
+  // Points on a line, with r a rounding error past or short of ±1 (TL30).
+  assert.equal(formatCorrelation(1.0000000000000002), '1');
+  assert.equal(formatCorrelation(0.9999999999999998), '1');
+  assert.equal(formatCorrelation(-1.0000000000000002), '-1');
+  assert.equal(formatCorrelation(-0.9999999999999994), '-1');
+  const onALine = [[-1.1, -28.65], [5.5, 34.05], [-18.4, -192.99999999999997], [19.4, 166.1], [18.6, 158.50000000000003], [-1.3, -30.549999999999997], [10.8, 84.4], [-2.3, -40.05]];
+  assert.notEqual(Math.abs(linearRegression(onALine).r), 1, 'this data computes r a hair off 1');
+  assert.equal(formatCorrelation(linearRegression(onALine).r), '1');
+  // A fit that is merely very good still says so.
+  assert.equal(formatCorrelation(0.9999995), '0.999999');
   const lab = source('src/tools/dataModeling/DataModelingLab.jsx');
   assert.doesNotMatch(lab, /round\(r, 3\)/);
 });

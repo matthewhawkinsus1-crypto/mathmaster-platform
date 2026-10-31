@@ -25,7 +25,7 @@
  * rides in presence. This module only shapes documents; it writes nothing.
  */
 import { getPeriodWindow, localDateKey } from '../../assignmentLifecycle.js';
-import { EXIT_TICKET_SPELLED_OUT } from '../student/studentWords.js';
+import { EXIT_TICKET_SPELLED_OUT, RECOVERY_NAME } from '../student/studentWords.js';
 import { buildNonInstructionalSet } from '../path/curriculumCalendar.js';
 import { schoolYearNonInstructionalRanges } from '../../curriculum/calendars/schoolYear2026-2027.js';
 
@@ -92,11 +92,23 @@ export const askTeacherMode = (inClass) => (inClass ? ASK_MODE.HAND : ASK_MODE.Q
 /** The student's words, trimmed and capped — '' when there is nothing to send. */
 export const cleanQuestionText = (value, max = QUESTION_TEXT_MAX) => text(value).slice(0, max).trim();
 
+/*
+ * ONE ID, ONE QUESTION (SI04). A student id may hold "_" anywhere, "__" too,
+ * so the id below is read back unambiguously only because the assignment id
+ * neither starts nor ends with "_" and has no "__" in it: then the student is
+ * everything before the last run of two or more underscores but its last two
+ * (student "a__" with assignment "X" and student "a_" with assignment "_X"
+ * would both be "a____X__0"). Every assignment is created with a Firestore
+ * auto-id, which has no "_" at all; firestore.rules refuses the same shapes.
+ */
+const SEPARABLE_ASSIGNMENT_ID = /^(?!_)(?!.*__)(?!.*_$).+$/;
+
 /**
  * One question per student per question of an assignment: the id is the
  * student, the assignment and the question position, so asking again edits
- * the open one. The rules also require a real assignment of the student's own
- * class; together with the teacher's capped list (TEACHER_QUESTIONS_SHOWN)
+ * the open one, and after the teacher answers it takes one follow-up
+ * (buildFollowUp). The rules also require a real assignment of the student's
+ * own class; together with the teacher's capped list (TEACHER_QUESTIONS_SHOWN)
  * that keeps one student from burying everyone else's questions.
  */
 export const teacherQuestionId = ({ studentId, assignmentId, questionIndex } = {}) => {
@@ -104,6 +116,7 @@ export const teacherQuestionId = ({ studentId, assignmentId, questionIndex } = {
   const assignment = text(assignmentId);
   const index = Number(questionIndex);
   if (!student || !assignment || !Number.isInteger(index) || index < 0) return null;
+  if (!SEPARABLE_ASSIGNMENT_ID.test(assignment)) return null;
   return `${student}__${assignment}__${index}`;
 };
 
@@ -121,15 +134,21 @@ export const teacherQuestionId = ({ studentId, assignmentId, questionIndex } = {
 // questions already stored under the old tab name.
 const SECTION_LABELS = Object.freeze(['Warm-Up', 'Classwork', 'Practice', EXIT_TICKET_SPELLED_OUT, 'DOL / Exit Ticket', 'Checkpoint', 'Quiz', 'Test']);
 const PLACE_PATTERN = /^(.+) · Question ([1-9][0-9]{0,2})$/;
+// A question left from a Recovery is about the Recovery, not one question:
+// its label is the Recovery's own name (RC10, recoveryTeacherQuestion.js).
+const RECOVERY_PLACES = Object.freeze(Object.values(RECOVERY_NAME));
 
 export const teacherQuestionPlace = ({ assignment = null, questionLabel = '', questionIndex = 0 } = {}) => {
   const title = text(assignment?.title) || 'Assignment';
   const match = PLACE_PATTERN.exec(text(questionLabel));
   const label = match && SECTION_LABELS.includes(match[1])
     ? `${match[1]} · Question ${match[2]}`
-    : `Question ${Math.max(0, Number(questionIndex) || 0) + 1}`;
+    : RECOVERY_PLACES.includes(text(questionLabel))
+      ? text(questionLabel)
+      : `Question ${Math.max(0, Number(questionIndex) || 0) + 1}`;
   return { title, label };
 };
+
 
 /** A new question, exactly the fields firestore.rules allows a student to create. */
 export const buildTeacherQuestion = ({
@@ -162,6 +181,43 @@ export const buildTeacherQuestion = ({
 export const buildQuestionEdit = ({ text: words, timestamp } = {}) => {
   const body = cleanQuestionText(words);
   return body ? { text: body, updatedAt: timestamp } : null;
+};
+
+/*
+ * ONE FOLLOW-UP AFTER AN ANSWER (TT01).
+ *
+ * The document stays one per question, so a follow-up is not a second
+ * document or a list: after the teacher answers, the student may reopen the
+ * same one ONCE. The follow-up becomes the document's `text`, the exchange so
+ * far moves to `earlierText` and `earlierAnswer` (copied from the document
+ * itself, and firestore.rules refuses anything else, so a student cannot write
+ * the teacher's words), and `status` is open again, so Teacher Home lists it
+ * and the teacher's answer lands in `answer` as before. One round keeps it a
+ * question and not a chat; past it, the student asks in class. A longer
+ * thread, or a message outside the app, is not built (STUDENT_PASS3_BATCH8.md).
+ */
+/** Has this question been followed up already? */
+export const hasFollowUp = (question) => Boolean(text(question?.earlierText));
+
+/** May the student ask a follow-up now: answered, with their question and the answer on the document, and not followed up yet? */
+export const canAskFollowUp = (question) => (
+  question?.status === QUESTION_STATUS.ANSWERED
+  && Boolean(text(question?.text))
+  && Boolean(text(question?.answer))
+  && !hasFollowUp(question)
+);
+
+/** The student's follow-up, exactly the fields firestore.rules allows them to change after an answer. */
+export const buildFollowUp = ({ existing, text: words, timestamp } = {}) => {
+  const body = cleanQuestionText(words);
+  if (!body || !canAskFollowUp(existing)) return null;
+  return {
+    status: QUESTION_STATUS.OPEN,
+    text: body,
+    earlierText: existing.text,
+    earlierAnswer: existing.answer,
+    updatedAt: timestamp,
+  };
 };
 
 /** The teacher's answer: the only fields a teacher may change. */

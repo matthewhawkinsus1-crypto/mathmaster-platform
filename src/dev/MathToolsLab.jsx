@@ -89,17 +89,19 @@ export default function MathToolsLab() {
   const Tool = definition.component;
   const onAction = (type, payload) => setEventLog((log) => [{ type, payload, at:new Date().toLocaleTimeString() }, ...log].slice(0, 8));
 
-  return <main style={{ minHeight:'100vh', background:'var(--mm-primary-subtle)', color:'var(--mm-text-strong)', fontFamily:'Inter, ui-sans-serif, system-ui, sans-serif' }}>
+  return <div style={{ minHeight:'100vh', background:'var(--mm-primary-subtle)', color:'var(--mm-text-strong)', fontFamily:'Inter, ui-sans-serif, system-ui, sans-serif' }}>
+    {/* White text on this gradient has to stay opaque: dimmed to 85-90% it measured 4.1-4.4:1 against the lighter end,
+        and the pill is darkened, not lightened, for the same reason (TT27). */}
     <header style={{ background:'linear-gradient(135deg,#174ea6,#2468e5)', color:'#fff', padding:'24px 28px' }}>
       <div style={{ maxWidth:1180, margin:'0 auto', display:'flex', justifyContent:'space-between', gap:18, alignItems:'center', flexWrap:'wrap' }}>
-        <div><div style={{fontWeight:900,fontSize:'calc(13 * var(--mm-px))',letterSpacing:1.1,opacity:.85}}>MATHMASTER · TOOL PREVIEW</div><h1 style={{margin:'5px 0 0',fontSize:'calc(30 * var(--mm-px))',color:'inherit'}}>Math Tools Preview Bench</h1><p style={{margin:'6px 0 0',opacity:.9}}>Try any interactive tool the way a student sees it. Nothing here is graded or saved. Worked answers are shown on this page only — students never see them.</p></div>
-        <div style={{background:'rgba(255,255,255,.14)',border:'1px solid rgba(255,255,255,.28)',padding:'10px 14px',borderRadius:12,fontWeight:800}}>Teacher preview</div>
+        <div><div style={{fontWeight:900,fontSize:'calc(13 * var(--mm-px))',letterSpacing:1.1}}>MATHMASTER · TOOL PREVIEW</div><h1 style={{margin:'5px 0 0',fontSize:'calc(30 * var(--mm-px))',color:'inherit'}}>Math Tools Preview Bench</h1><p style={{margin:'6px 0 0'}}>Try any interactive tool the way a student sees it. Nothing here is graded or saved. Worked answers are shown on this page only — students never see them.</p></div>
+        <div style={{background:'rgba(0,0,0,.2)',border:'1px solid rgba(255,255,255,.28)',padding:'10px 14px',borderRadius:12,fontWeight:800}}>Teacher preview</div>
       </div>
     </header>
     {/* Sidebar pattern: a 260px tool list beside the tool on wide screens, stacked
         on a phone (the old fixed 260px column pushed the tool off-screen). */}
     <div style={{ maxWidth:1180, margin:'0 auto', padding:24, display:'flex', flexWrap:'wrap', alignItems:'flex-start', gap:20 }}>
-      <aside style={{ flex:'1 1 260px', maxWidth:'100%', background:'var(--mm-surface)', border:'1px solid var(--mm-tint-border)', borderRadius:16, padding:14, height:'fit-content', position:'sticky', top:16, boxSizing:'border-box' }}>
+      <aside className="mm-tools-lab-list" style={{ flex:'1 1 260px', maxWidth:'100%', background:'var(--mm-surface)', border:'1px solid var(--mm-tint-border)', borderRadius:16, padding:14, height:'fit-content', position:'sticky', top:16, boxSizing:'border-box' }}>
         <h2 style={{fontSize:'calc(15 * var(--mm-px))',margin:'4px 6px 10px'}}>Tools</h2>
         <div style={{display:'grid',gap:6}}>{tools.map((tool)=><button key={tool.toolId} type="button" onClick={()=>{setToolId(tool.toolId);setEventLog([]);}} style={{textAlign:'left',padding:'10px 11px',borderRadius:9,border:toolId===tool.toolId?'1px solid #1a73e8':'1px solid transparent',background:toolId===tool.toolId?'var(--mm-primary-subtle)':'transparent',color:'var(--mm-text)',fontWeight:toolId===tool.toolId?800:600,cursor:'pointer'}}>{tool.label}</button>)}</div>
       </aside>
@@ -116,5 +118,5 @@ export default function MathToolsLab() {
         </div>
       </section>
     </div>
-  </main>;
+  </div>;
 }

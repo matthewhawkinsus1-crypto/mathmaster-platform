@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   CLASS_PERIODS,
   getScheduleDayType,
+  lateDayTypeNotice,
   localDateKey,
   normalizeSchedule,
   setScheduleDayTypeOverride,
@@ -77,6 +78,10 @@ export default function ClassScheduleSettings({
   const today = nowValue instanceof Date ? nowValue : new Date(nowValue);
   const todayKey = localDateKey(today);
   const todayState = getScheduleDayType(schedule, today);
+  // TC01 (the owner, 2026-10-23): periods that had already ended when today's
+  // A/B day is set never had class time, so a Test set for one of them waits
+  // for a new Test day. Said here, where the day is chosen, before saving.
+  const lateNotice = lateDayTypeNotice({ schedule, nowValue: today, classPeriods });
   const [editingDayType, setEditingDayType] = useState(todayState.dayType || 'A');
   const dayPeriods = schedule.daySchedules?.[editingDayType]?.periods || {};
   const todayOverride = schedule.modifiedSchedules?.[todayKey]?.periods || null;
@@ -181,6 +186,11 @@ export default function ClassScheduleSettings({
               </button>
             )}
           </div>
+          {lateNotice && (
+            <p role="status" data-late-day-type="" style={{ margin: '10px 0 0', padding: '8px 10px', borderRadius: 8, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontWeight: 700, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5 }}>
+              {lateNotice}
+            </p>
+          )}
         </section>
 
         <section style={{ marginTop: 20 }}>

@@ -148,3 +148,25 @@ export const effectiveAttendanceForClassDay = ({
     });
   return Object.fromEntries(latest.entries());
 };
+
+const ABSENT_DAY_MARKS = new Set([
+  ATTENDANCE_DAY_MARK.EXCUSED, ATTENDANCE_DAY_MARK.UNEXCUSED, ATTENDANCE_DAY_MARK.ABSENT_UNCLASSIFIED,
+]);
+
+/**
+ * Who was marked absent on any of these days (TT03). The newest mark for a
+ * student's day governs, as everywhere here, so a mistaken "absent" corrected
+ * to "present" is present. Every absence counts, excused or not: the question
+ * is only whether the student was in the room. An unmarked day is not an
+ * absence, because nobody said so.
+ */
+export const studentsMarkedAbsent = ({
+  supportEvents = [], classId = null, classPeriod = null, dateKeys = [],
+} = {}) => {
+  const absent = new Set();
+  new Set(list(dateKeys).map(clean)).forEach((dateKey) => {
+    Object.entries(effectiveAttendanceForClassDay({ supportEvents, classId, classPeriod, dateKey }))
+      .forEach(([studentId, day]) => { if (ABSENT_DAY_MARKS.has(day.mark)) absent.add(studentId); });
+  });
+  return absent;
+};

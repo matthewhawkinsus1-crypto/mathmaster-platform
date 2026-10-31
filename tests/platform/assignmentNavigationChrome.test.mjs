@@ -2,13 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { region } from './helpers/sourceContract.mjs';
-import { shouldCompactAssignmentNavigation } from '../../src/platform/layout/assignmentNavigationChrome.js';
 
-test('navigation compacts for active work and short landscape, not at the page introduction', () => {
-  assert.equal(shouldCompactAssignmentNavigation({ viewportWidth: 1366, viewportHeight: 768, workTop: 300 }), true);
-  assert.equal(shouldCompactAssignmentNavigation({ viewportWidth: 1366, viewportHeight: 768, workTop: 600 }), false);
-  assert.equal(shouldCompactAssignmentNavigation({ viewportWidth: 844, viewportHeight: 390, workTop: 900 }), true);
-});
+// The scroll-driven auto-compact rule (shouldCompactAssignmentNavigation) and
+// its unit test were removed with the module once App stopped using it (OT03).
 
 // Pass 3, RUN-7: the navigator no longer waits for a window scroll to compact
 // (a phone's window never scrolls, so it never did there). It starts compact
@@ -30,7 +26,7 @@ test('Show progress and Focus view keep the work where it was', async () => {
   const keep = region(source, 'useLayoutEffect(() => {\n    const anchor = navigationToggleAnchorRef.current;', '}, [assignmentNavigationCollapsed]);', 'the work anchor');
   assert.match(keep, /const moved = anchor\.element\.getBoundingClientRect\(\)\.top - anchor\.top;/);
   assert.match(keep, /window\.scrollBy\(\{ top: moved/);
-  assert.match(source, /import \{ Fragment, Suspense, useCallback, useEffect, useLayoutEffect,/);
+  assert.match(source, /^import \{[^}]*\buseLayoutEffect\b[^}]*\} from 'react';$/m);
   const nav = region(source, '<nav ref={stickyHeightRef(ASSIGNMENT_NAV_HEIGHT_VAR)}', '</nav>', 'the navigator');
   assert.match(nav, /onClick=\{toggleAssignmentNavigation\}/);
 });

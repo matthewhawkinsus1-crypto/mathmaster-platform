@@ -15,6 +15,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PRINT_ONLY, runCodemod, scaleFluidClamps } from '../../scripts/codemods/px-to-rem.mjs';
+import { TOOL_CATALOG_IDS } from '../../src/tools/toolCatalog.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -143,7 +144,32 @@ test('CI measures every swept surface at 200% text', () => {
   assert.ok(runs.some((checks) => checks.includes('text')), 'a CI step runs studentShellLargeText --check=text');
   const harness = readFileSync(path.join(root, 'tests/browser/studentShellLargeText.mjs'), 'utf8');
   const screens = harness.slice(harness.indexOf('export const LARGE_TEXT_SCREENS'), harness.indexOf('const runScenes'));
-  for (const id of ['more-tools', 'recovery', 'teacher', 'graph-feature-rush']) assert.match(screens, new RegExp(`id: '${id}'`), `the ${id} screen is measured`);
+  for (const id of ['more-tools', 'recovery', 'teacher', 'graph-feature-rush', 'registry-tools']) assert.match(screens, new RegExp(`id: '${id}'`), `the ${id} screen is measured`);
   assert.match(screens, /^\s*\.\.\.SCREENS,/m, "the certification's student screens are measured too");
   assert.match(harness, /for \(const screen of LARGE_TEXT_SCREENS\)/, 'runScenes walks the extended list');
+});
+
+// CI01 (VH-29): the registry tools the large-text run adds to the scenes the
+// certification shows. The browser run proves each one fits at 200% text, at 320
+// px and with the text-spacing override; this proves the lists name real tools,
+// once each, and do not quietly shrink (a tool renamed in the catalogue would
+// otherwise stop the whole screen at "could not reach the scene").
+test('the registry tools the large-text run measures are real tools, listed once, and the lists keep their size', () => {
+  const harness = readFileSync(path.join(root, 'tests/browser/studentShellLargeText.mjs'), 'utf8');
+  const listOf = (name) => [...(new RegExp(`const ${name} = \\[([^\\]]*)\\]`).exec(harness)?.[1] || '').matchAll(/'(\w+)'/g)].map((match) => match[1]);
+  const everyTool = listOf('ALL_REGISTRY_TOOLS');
+  const inCi = listOf('CI_REGISTRY_TOOLS');
+  // Measured green on 2026-10-25: all 21 by hand, eight of them in CI.
+  assert.ok(everyTool.length >= 21, `the full list names ${everyTool.length} registry tools; 21 were measured, so a tool taken out needs its reason here`);
+  assert.ok(inCi.length >= 8, `CI measures ${inCi.length} registry tools; it was given 8, so one taken out needs its reason here`);
+  for (const [name, list] of [['ALL_REGISTRY_TOOLS', everyTool], ['CI_REGISTRY_TOOLS', inCi]]) {
+    assert.equal(new Set(list).size, list.length, `${name}: a tool is listed once`);
+    for (const id of list) assert.ok(TOOL_CATALOG_IDS.includes(id), `${name}: ${id} is not a registered tool (renamed or removed?): the large-text run would stop at it`);
+  }
+  for (const id of inCi) assert.ok(everyTool.includes(id), `${id} is run in CI but missing from the full list`);
+  assert.match(harness, /process\.env\.LARGE_TEXT_REGISTRY_TOOLS/, 'a person can still measure the others by hand');
+  // A tool sits under Work View's `display: contents` body, which reads 0x0: without
+  // this skip all of the tool's text counted as visually hidden and was never
+  // measured (browser proof: a tool title cut to 24 px passed before, fails now).
+  assert.match(harness, /if \(style\.display === 'contents'\) continue;/, "the sr-only test skips a display: contents wrapper");
 });

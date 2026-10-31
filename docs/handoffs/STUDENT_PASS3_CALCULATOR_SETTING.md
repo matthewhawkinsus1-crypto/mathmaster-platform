@@ -86,8 +86,8 @@ order asked for here puts the assignment above the question; #239's "explicit no
   toolPolicyGates (green).
 
 **Not done of R3.** The graph is not the question's graph (the student cannot send a calculator point into an
-answer), there is no tap-to-trace on the graph itself (trace is typed x; the key points are listed), and
-intersections of two lines are not listed. See "Not done".
+answer). Tap-to-trace on the graph and the intersections of two lines were added later (TL18, below). See "Not
+done".
 
 ### 3. H-19 (two calculators on SAT items)
 
@@ -311,6 +311,21 @@ EOF
 
 (Checked here only that the imports resolve this way from `functions/`; the query itself was not run.)
 
+**The same count as a script (OP03), for this release and any later one that changes a calculator.**
+`scripts/report-assignment-calculator-settings.mjs` is read-only like `report-assignment-key-exposure.mjs`
+(`tests/platform/assignmentCalculatorSettingsReport.test.mjs`): live assignments only, with a setting on the
+assignment *or* on a question, counted by section role, and the exit tickets, quizzes and tests among them that are open
+now (or open within `--within-hours`) listed in `release-reports/assignment-calculator-settings-<time>.json`
+(gitignored; standard output is counts only). The owner runs it, from a checkout with `npm --prefix functions ci` done,
+on Application Default Credentials with read access to Firestore (Cloud Shell already has them):
+
+```bash
+node scripts/report-assignment-calculator-settings.mjs --project mathmaster-aleks --within-hours 24
+```
+
+An exit ticket counts as open for its whole school day (the bell schedule is not read), and a student's private
+extension is not read either; the script's header ("WHICH ASSESSMENTS ARE OPEN") says exactly what a quiet answer covers.
+
 ## Decisions for the owner
 
 1. **Assignment above question.** As asked, the assignment's setting now beats a question's own authored mode on
@@ -331,6 +346,11 @@ EOF
    which would keep the platform's basic calculator there; DOL #2 would then need `calculatorMode: "graphing"`
    authored on its items. It is one condition in `resolveCalculatorPolicy` (`questionAuthoredMode` null on an
    assessment role ⇒ keep the question's) and two tests.
+   **Decided 2026-10-23: the alternative (B-96 / C1-44).** On an exit ticket, quiz or test an item with no calculator
+   of its own counts as having the platform's basic one, and the stricter-of-the-two rule applies to it: "graphing" or
+   "scientific" leaves it basic, "none" turns it off. An item set to "teacher choice" with no choice made still takes
+   the assignment's as that choice. Ordinary work is unchanged. Items that should graph on an assessment (DOL #2's)
+   need `calculatorMode: "graphing"` authored.
 4. **No teacher UI sets `toolPolicy.calculator`.** It comes only from imported V5 JSON (`authoringContract.js` shows
    `"inherit"`). A Pre-Flight control would make PR-25 reachable without JSON.
 
@@ -348,10 +368,9 @@ EOF
 
 ## Not done / noticed
 
-- **Flat higher-order turns are over-rounded (reviewer's note).** Where a line is very flat at its turn, many x
-  values are "as good" within rounding, and the shortest one wins: (x − 2.718)⁶ − 3 reads its minimum at x = 2.7.
-  A fix would cap how far the chosen x may move by the curvature (or prefer the search's own x when the line is
-  flat over the whole half-step), not by value alone.
+- ~~**Flat higher-order turns are over-rounded (reviewer's note).**~~ Fixed (W6-4): a flat turn is anchored at the
+  middle of its basin (`flatTurn` in graphingCalculatorModel.js). TL17: its rounding error is measured where it turns
+  (`flatTurnAtItsOwnPrecision`), so a sixth power in a wide view reads 3.14159, not 3.1416.
 
 - **Follow-up (from W5-4's reviewer):** the graphing calculator (`GraphingCalculatorPanel` and its model) keeps its own
   error handling. It does not use W5-4's TOOL-8 reasons (what to change after an Error), and it does not have W5-4's
@@ -364,13 +383,19 @@ EOF
   and Test Cycles are unchanged. Practice keeps key points (B1's gate allows them where outcome feedback is
   immediate). Live Challenge is a speed game: a graphing calculator that lists zeros there may change the game; the
   owner may want Live Challenge to pass an assessment-like policy or opt out.
-- **N5:** the calculator's lines are lost when the question changes (the panel lives inside QuestionEngine, which is
-  keyed per question). The secure exam keeps lines across items because it mounts the panel once per session.
+- ~~**N5:** the calculator's lines are lost when the question changes.~~ Fixed (TL18): an ordinary assignment's
+  panel keeps its lines for the rest of the assignment (`graphingLineMemory.js`, keyed by the assignment's draft
+  key, in sessionStorage). The secure exam keeps lines across items because it mounts the panel once per session.
 
-- R3 remainder: send a calculator point into the answer; tap-to-trace on the graph; intersections of two lines;
-  the regression tool's own graph is still separate.
-- Other QuestionEngine hosts (Path sessions, SectionRecoveryRunner, Live Challenge) do not pass an assignment
-  setting; only App's assignment screen does. Section recovery runs inside an assignment and could pass it.
+- R3 remainder: tap-to-trace and intersections were added (TL18): a tap on the graph that does not pan puts its x
+  in the trace box (rounded to what one pixel spans, `tapTraceText`) and marks the traced points; "Where two lines
+  meet" lists the crossings on screen (`findIntersections`, the zero search run on f − g; lines that are the same
+  say so). The crossings are listed only where `keyPoints` is; tap-to-trace works wherever the trace does,
+  the secure exam included (it only fills in the trace box). Still not done: sending a calculator point into the answer.
+  The calculator deliberately knows nothing about the question, so this needs a design call (a copy button is the
+  smallest version that keeps that rule). The regression tool's own graph is still separate.
+- Other QuestionEngine hosts (Path sessions, Live Challenge) do not pass an assignment setting. Section Recovery runs
+  inside an assignment and now passes it (RC08, `SectionRecoveryRunner.jsx` PinnedQuestion).
 - `getCalculatorDrawerLabel` (graphing → "SCIENTIFIC") still titles the keypad where graphing reaches it inside an
   assessment context; that is the H-19 area (W5-6).
 - The `studentHome` budget is over its baseline on the base by 25.2 KB (W5-1's lane).

@@ -21,11 +21,15 @@
 //      2026-10-20). On the Chromebook it is drawn as before;
 //   L  a save line that needs the student is inside the screen, inside every
 //      box that clips it, and nothing (the action bar, a toast) is drawn over
-//      it. On a phone the line is the real one with its routine mark taken
-//      off and the longest line that needs the student put in ("Not saved ·
-//      this device could not store your last change…"): this harness cannot
-//      make a real save fail (its server accepts every write, offline too).
-//      On the Chromebook it is the routine line, as before;
+//      it. The line is the real one: the device refuses the write
+//      (deviceStorageFault.mjs, the harness switch that aborts every
+//      IndexedDB write as a full disk does), the app's own failure path runs,
+//      and its longest line that needs the student is drawn ("Not saved ·
+//      this device could not store your last change…"). The journey checks
+//      that the sentence is the app's, not only where it sits (CI13: it used
+//      to type that sentence into the line, because this harness's server
+//      accepts every write, offline too). On the Chromebook the routine line
+//      is measured first, as before, and then the same real failure;
 //   N  with a draft the backup refused (planted the way
 //      draftSaveNoticeReloadJourneys.mjs does), the problem notice is the same;
 //   B  and upright, the question keeps its whole action bar beside either: at
@@ -38,9 +42,12 @@
 // view: two lines upright, one on its side, where the whole stage is 177px
 // and a second line would leave the question nothing (W7-8 review, S1).
 //
-// PHONE_SAVE_LINE_SHOTS=<dir> also saves a screenshot of each. Exit code 1 on
-// any failure.
+// PHONE_SAVE_LINE_SHOTS=<dir> also saves a screenshot of each.
+// PHONE_SAVE_LINE_ONLY="phone 390×844,Chromebook 1366×768" runs only the layouts
+// whose id starts with one of those (all of them when it is not set).
+// Exit code 1 on any failure.
 import { mkdirSync } from 'node:fs';
+import { installDeviceStorageFault, setDeviceStorageFull } from './deviceStorageFault.mjs';
 import { newSchoolContext } from './schoolClock.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -52,7 +59,8 @@ const ASSIGNMENT = 'a-today';
 const KEPT = 'mathmaster:draft-save-health:v1';
 const REFUSED = /can only be saved on this device, not backed up/;
 // The longest save line, and one that needs the student (App.jsx, the
-// device queue could not be written).
+// device queue could not be written). What the app says when the device
+// refuses a write: the journey checks the line it measures is this one.
 const NEEDS_STUDENT_LINE = 'Not saved · this device could not store your last change. Keep this tab open and try it again.';
 // studentShellLargeText.mjs's text-spacing override (the bookmarklet's values).
 const SPACING = '* { line-height: 1.5 !important; letter-spacing: 0.12em !important; word-spacing: 0.16em !important; } p { margin-bottom: 2em !important; }';
@@ -70,6 +78,13 @@ const SETTINGS = [
   { id: 'phone 390×844 with text spacing', width: 390, height: 844, mobile: true, spacing: true },
   { id: 'Chromebook 1366×768', width: 1366, height: 768 },
 ];
+// PHONE_SAVE_LINE_ONLY names layouts by their exact id, to run a few of them.
+const ONLY = (process.env.PHONE_SAVE_LINE_ONLY || '').split(',').map((id) => id.trim()).filter(Boolean);
+const CHOSEN = ONLY.length ? SETTINGS.filter((setting) => ONLY.includes(setting.id)) : SETTINGS;
+if (ONLY.length && CHOSEN.length !== ONLY.length) {
+  console.error(`PHONE_SAVE_LINE_ONLY names a layout that does not exist: ${ONLY.filter((id) => !SETTINGS.some((setting) => setting.id === id)).join(', ')}`);
+  process.exit(2);
+}
 
 const launch = { args: ['--no-sandbox'] };
 if (process.env.CHROMIUM_PATH) launch.executablePath = process.env.CHROMIUM_PATH;
@@ -183,6 +198,22 @@ const typeIntoFirst = async (page, text) => {
   await page.keyboard.type(text, { delay: 25 });
   await page.keyboard.press('Tab');
 };
+// The device refuses what the student types next (deviceStorageFault.mjs), and
+// the app's own line for it is waited for: the first save line that needs the
+// student. The switch stays on until the page is reloaded, so nothing later
+// can save and bring the routine line back while it is being measured.
+const failASave = async (page) => {
+  await setDeviceStorageFull(page, true);
+  await typeIntoFirst(page, '8');
+  const line = page.locator('[data-save-line]:not([data-save-line-routine])').first();
+  try {
+    await line.waitFor({ state: 'attached', timeout: 15000 });
+  } catch {
+    const now = await page.locator('[data-save-line]').first().textContent({ timeout: 1000 }).catch(() => null);
+    throw new Error(`the device refused a write, but the app showed no save line that needs the student (the line reads ${JSON.stringify(now && now.trim())})`);
+  }
+  return (await line.textContent()).trim();
+};
 const draftKeys = (page) => page.evaluate((prefix) => Object.keys(window.localStorage).filter((key) => key.startsWith(prefix)), `mathmaster:draft:v2::${STUDENT}:${ASSIGNMENT}:`);
 const plant = (page, keys) => page.evaluate(([name, value]) => window.sessionStorage.setItem(name, value), [KEPT, JSON.stringify({ 'backup-refused': keys })]);
 const seen = async (page, selector, setting) => {
@@ -203,13 +234,14 @@ const report = (label, result, { mayScroll = false } = {}) => {
     : `${result.top}–${result.bottom}${scrolls ? `, its start in view (${result.shown}), the rest scrolls in place` : ''}`);
 };
 
-for (const setting of SETTINGS) {
+for (const setting of CHOSEN) {
   console.log(`\n${setting.id}`);
   const context = await newSchoolContext(browser, {
     viewport: { width: setting.width, height: setting.height },
     isMobile: Boolean(setting.mobile),
     hasTouch: Boolean(setting.mobile),
   });
+  await installDeviceStorageFault(context);
   const page = await context.newPage();
   page.on('pageerror', (error) => failures.push(`${setting.id}: page error ${error.message}`));
   if (setting.textScale) {
@@ -241,21 +273,23 @@ for (const setting of SETTINGS) {
         `R  the routine save line is not drawn on a phone, and the question keeps the room (${setting.id})`,
         `"${routine.text}" ${routine.routine ? 'routine' : 'not marked routine'}, ${routine.drawn ? 'drawn' : 'not drawn'}, the lines take ${routine.statusHeight}px`);
       await shot(page, `routine ${setting.id}`);
-      // A line that needs the student is drawn: the same element, its routine
-      // mark off and the longest such sentence in it (see L above).
-      await page.evaluate((words) => {
-        const line = document.querySelector('[data-save-line]');
-        line.removeAttribute('data-save-line-routine');
-        line.textContent = words;
-      }, NEEDS_STUDENT_LINE);
+      // A line that needs the student is drawn: the device refuses the next
+      // write and the app says so in its own words (see L above).
+      const refusedLine = await failASave(page);
+      check(refusedLine === NEEDS_STUDENT_LINE, `L  the line is the app's own words for a write the device refused (${setting.id})`, `"${refusedLine}"`);
       // At 200% text the longest line is taller than the 30% cap and scrolls
       // in place, its start in view, as the problem notice does (W7-8).
-      report(`L  a save line that needs the student is seen (the "Not saved" line, simulated; ${setting.id})`, await seen(page, '[data-save-line]', setting), { mayScroll: setting.textScale === 2 });
+      report(`L  a save line that needs the student is seen (the real "Not saved" line; ${setting.id})`, await seen(page, '[data-save-line]', setting), { mayScroll: setting.textScale === 2 });
       await shot(page, `line ${setting.id}`);
       await barWhole('offline save line');
     } else {
       report(`L  the save line is seen (${setting.id})`, await seen(page, '[data-save-line]', setting));
       await shot(page, `line ${setting.id}`);
+      // And the same real failure: a Chromebook draws every line.
+      const refusedLine = await failASave(page);
+      check(refusedLine === NEEDS_STUDENT_LINE, `L  the line is the app's own words for a write the device refused (${setting.id})`, `"${refusedLine}"`);
+      report(`L  a save line that needs the student is seen (the real "Not saved" line; ${setting.id})`, await seen(page, '[data-save-line]', setting));
+      await shot(page, `line refused ${setting.id}`);
     }
 
     const keys = await draftKeys(page);

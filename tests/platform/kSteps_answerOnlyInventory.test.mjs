@@ -17,6 +17,7 @@ import * as inverseComposition from '../../src/platform/supports/families/invers
 import * as transformations from '../../src/platform/supports/families/transformations.js';
 import * as quadraticsAbsoluteValue from '../../src/platform/supports/families/quadraticsAbsoluteValue.js';
 import * as dataAndModels from '../../src/platform/supports/families/dataAndModels.js';
+import * as perpendicularLines from '../../src/platform/supports/families/perpendicularLines.js';
 import { effectivePathVariants, generatePathInstanceWithRetries, hasPathGenerator } from '../../functions/shared/pathQuestionGeneration.mjs';
 import { parseAssignmentBlueprintText } from '../../src/assignmentBlueprint.js';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
@@ -26,6 +27,10 @@ import { resolveFamilyQuestionInstance } from '../../functions/shared/questionFa
 const require = createRequire(import.meta.url);
 const compiler = require('../../functions/lib/pathContentCompiler.js');
 const { bankDocumentToV5Intent } = require('../../functions/lib/ccmrAssignmentBank.js');
+const mathPath = require('../../functions/lib/mathPath.js');
+const secureExam = require('../../functions/lib/secureExam.js');
+const secureExamItems = require('../../functions/lib/secureExamItems.js');
+const { storableItem } = require('../../functions/lib/secureItemStorage.js');
 
 /*
  * JOB K COMPLETENESS SWEEP — WHICH CLOSED QUESTIONS STILL SHOW ONLY THE ANSWER.
@@ -37,8 +42,9 @@ const { bankDocumentToV5Intent } = require('../../functions/lib/ccmrAssignmentBa
  * SolutionReviewPanel calls it, and classified:
  *
  *   STEPS        authored reasoning (the item's own solutionReview, or its
- *                family's workedSolution filling that shape) or a tool review
- *                with steps;
+ *                family's workedSolution filling that shape, or — where no
+ *                family covers it — a worked-solution builder's, CT02) or a
+ *                tool review with steps;
  *   ANSWER-ONLY  anything else: the legacy answer list, a tool review that
  *                only reads off values, or nothing at all.
  *
@@ -58,7 +64,19 @@ const { bankDocumentToV5Intent } = require('../../functions/lib/ccmrAssignmentBa
  *   v5        teacher-import-jsons/** through parseAssignmentBlueprintText
  *             (compileAuthoringIntentV5), each item resolved as seat 0 sees
  *             it; drafts/district-dol2, stored already compiled, every variant;
- *   secure    functions/seeds/secureAssessments/** variants;
+ *   secure    functions/seeds/secureAssessments/** variants, each issued as
+ *             the server issues it and classified by what its RELEASED review
+ *             carries — the only place a secure item's worked solution reaches
+ *             a student (getStudentSecureExamReview: secureExam.publicReview,
+ *             then secureExamItems.withReleasedWorkedSteps; the results page
+ *             hands it to SolutionReviewPanel as { solutionReview });
+ *   corrections the same secure families as a correction issues them (a Test
+ *             Cycle whose blueprint names them: issueTestCycleCorrectionQuestion),
+ *             each classified by the review its CLOSED item's response carries
+ *             (submitTestCycleCorrectionResponse: its own released review,
+ *             through secureExamItems.reviewWithWorkedSteps) — all the
+ *             Corrections screen shows (RichQuestionRuntime hands
+ *             SolutionReviewPanel { solutionReview }; none is nothing at all);
  *   demo      src/demo/demoAssignmentBank.json through generateQuestion.
  *
  * Generated templates are SAMPLED: one seeded draw per variant row (logged).
@@ -67,7 +85,7 @@ const { bankDocumentToV5Intent } = require('../../functions/lib/ccmrAssignmentBa
  */
 
 const FAMILY_NAMES = new Map(Object.entries({
-  linearEquations, systems, linesAndSlope, fractions, pointsAndIntervals, functionFeatures, inverseComposition, transformations, quadraticsAbsoluteValue, dataAndModels,
+  linearEquations, systems, linesAndSlope, fractions, pointsAndIntervals, functionFeatures, inverseComposition, transformations, quadraticsAbsoluteValue, dataAndModels, perpendicularLines,
 }).map(([name, module]) => [module, name]));
 
 const ROOT = new URL('../../', import.meta.url);
@@ -117,13 +135,16 @@ const whyAnswerOnly = (question, review) => {
 const kindOf = (question) => (toolIdOf(question) ? `tool:${toolIdOf(question)}` : `${question?.questionType || question?.type || 'unknown'}${question?.responseFields?.length ? `/${[...new Set(question.responseFields.map((field) => field.inputProfile || field.type || 'text'))].join('+')}` : ''}`);
 
 const inventory = { STEPS: 0, ANSWER_ONLY: 0, bySource: {}, groups: new Map(), sampled: {} };
-const record = (source, question, where) => {
+// `builtOnServer`: the steps were written by the server's worked-solution
+// builder when the released review was served (a secure item, CT02).
+const record = (source, question, where, { builtOnServer = false } = {}) => {
   const review = reviewOf(question);
-  const bucket = (inventory.bySource[source] ||= { steps: 0, answerOnly: 0, fromFamily: 0 });
+  const bucket = (inventory.bySource[source] ||= { steps: 0, answerOnly: 0, fromFamily: 0, fromBuilder: 0 });
   if (hasStepsFrom(review)) {
     inventory.STEPS += 1;
     bucket.steps += 1;
     if (review.fromFamily) bucket.fromFamily += 1;
+    if (review.fromBuilder || builtOnServer) bucket.fromBuilder += 1;
     return;
   }
   inventory.ANSWER_ONLY += 1;
@@ -211,12 +232,56 @@ for (const task of readJson('drafts/district-dol2/assignment.json').sections.fla
 }
 
 /* ------------------------------------------------------------- secure -- */
+// Issued (mathPath.buildIssuePlan), recorded as finalize records it (left
+// blank: its released solution does not depend on the answer), released, and
+// served through the same two calls the review callable makes. An item whose
+// release carries steps is classified by them, as the results page shows them;
+// any other keeps its own fields (the answer list).
+const releasedSecureReview = async (template, questionInstanceId) => {
+  const plan = await mathPath.buildIssuePlan(template);
+  if (!plan.issuable) return null;
+  const item = storableItem({ ...template, questionInstanceId, attemptsAllowed: 1, attemptsUsed: 0, privateGrading: plan.privateGrading, ...plan.toolPayload });
+  const response = await secureExamItems.buildResponseRecord(item, { session: {}, responsePayload: { responses: {} }, now: 1, unanswered: true });
+  const session = { status: 'submitted', feedbackReleased: true, responses: { [questionInstanceId]: response } };
+  const served = await secureExamItems.withReleasedWorkedSteps(secureExam.publicReview(session), { session, readItems: async () => new Map([[questionInstanceId, { item }]]) });
+  const review = served?.items?.[0]?.solution?.review || null;
+  return review?.reasoning?.length ? { review, builtOnServer: !response.releasedSolution?.review?.reasoning?.length } : null;
+};
+const secureStarted = Date.now();
 for (const path of jsonFilesUnder('functions/seeds/secureAssessments')) {
   for (const family of readJson(path).documents || []) {
-    const variants = Array.isArray(family.variants) && family.variants.length ? family.variants : [{}];
-    variants.forEach((variant, index) => record(`secure:${path.split('/').pop()}`, { ...family, ...variant }, `${family.id}#${index}`));
+    for (const row of effectivePathVariants(family)) {
+      const where = `${family.id}#${row.variantIndex ?? 0}`;
+      const released = await releasedSecureReview(row.template, `inventory_${where}`);
+      record(`secure:${path.split('/').pop()}`, released ? { solutionReview: released.review } : row.template, where, { builtOnServer: Boolean(released?.builtOnServer) });
+    }
   }
 }
+inventory.sampled.secureMs = Date.now() - secureStarted;
+
+/* -------------------------------------------------------- corrections -- */
+// Issued as a correction (certified for Corrections, three tries) and closed:
+// the response carries the item's own released review, given steps by the
+// server's builder where it has none. Nothing else reaches the screen.
+const closedCorrectionReview = async (template, questionInstanceId) => {
+  const plan = await mathPath.buildIssuePlan(template);
+  if (!plan.issuable) return null;
+  const item = storableItem({ ...template, questionInstanceId, correctionId: 'inventory', attemptsAllowed: 3, attemptsUsed: 0, privateGrading: plan.privateGrading, ...plan.toolPayload });
+  const own = (await mathPath.buildPrivateSupport(item)).solutionReview || null;
+  const review = await secureExamItems.reviewWithWorkedSteps(own, item);
+  return { review, builtOnServer: Boolean(review?.reasoning?.length) && !own?.reasoning?.length };
+};
+const correctionsStarted = Date.now();
+for (const path of jsonFilesUnder('functions/seeds/secureAssessments')) {
+  for (const family of readJson(path).documents || []) {
+    for (const row of effectivePathVariants(family)) {
+      const where = `${family.id}#${row.variantIndex ?? 0}`;
+      const closed = await closedCorrectionReview(row.template, `inventory_correction_${where}`);
+      record(`corrections:${path.split('/').pop()}`, { solutionReview: closed?.review || null }, where, { builtOnServer: Boolean(closed?.builtOnServer) });
+    }
+  }
+}
+inventory.sampled.correctionsMs = Date.now() - correctionsStarted;
 
 /* --------------------------------------------------------------- demo -- */
 for (const assignment of readJson('src/demo/demoAssignmentBank.json')) {
@@ -234,18 +299,66 @@ const STEPS_FLOOR = Object.freeze({
   'path:act': 136, 'path:asvab': 1176, 'path:digitalSAT': 648, 'path:tsia2': 200,
   'ccmr-v5:act': 136, 'ccmr-v5:digitalSAT': 648, 'ccmr-v5:tsia2': 200,
   drafts: 3295,
-  'v5:algebra1-dol1/District_DOL1_Technology_Graph_Analysis_Review.json': 25,
-  'v5:algebra2-honors-module1/L1_Absolute_Value_ALEKS_Bridge_20260828.json': 13,
+  // CT02 slice 4: the popcorn model's worked solution, written around the common
+  // error it had, in the review and in its Honors copy (kSteps_lessonWorkedSteps).
+  'v5:algebra1-dol3/Algebra1_DOL3_Review.json': 13,
+  'v5:algebra1-dol3/Algebra1_DOL3_Review_Honors.json': 16,
+  // CT02 slice 4: ten more carry their own worked solutions: three sorts, the
+  // vertex choice, three sequences and the three relationship models that ask
+  // only continuity, domain and range (kSteps_lessonWorkedSteps).
+  'v5:algebra1-dol1/District_DOL1_Technology_Graph_Analysis_Review.json': 35,
+  // CT02 slice 4: Lesson 2's 14 answer-only items (12 multi-answer, a table and
+  // a sort) carry their own worked solutions (kSteps_lessonWorkedSteps).
+  'v5:algebra1-module2-topic2/L2_Vertical_and_Horizontal_Transformations_of_Linear_Functions.json': 29,
+  // CT02 slice 3: the perpendicularLines family's worked solutions of Lesson 3
+  // (25 here and 23 in Honors, beside the three graphing2 tool reviews and the
+  // two audited Honors items). Slice 4: l3-wu-2, whose points are in the item
+  // before it, carries its own review in each file (kSteps_lessonWorkedSteps).
+  'v5:algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines.json': 29,
+  'v5:algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines_Honors.json': 29,
+  // CT02: the transformations family's worked solution of a description (6 here, 8 in L2_Day2).
+  // Slice 4: one more here and one in L2_Day2, the parent function |x|'s own
+  // review (vertex, domain, range; family, vertex) (kSteps_lessonWorkedSteps).
+  'v5:algebra2-honors-module1/L1_Absolute_Value_ALEKS_Bridge_20260828.json': 20,
   'v5:algebra2-honors-module1/L1_Day1_Interval_Domain_Range.json': 17,
-  'v5:algebra2-honors-module1/L1_Day2_Function_Attributes_Relations.json': 16,
+  // CT02 slice 4: its two relationship models (chocolate bars, a shower head)
+  // carry their own worked solutions, every step marked (kSteps_lessonWorkedSteps).
+  'v5:algebra2-honors-module1/L1_Day2_Function_Attributes_Relations.json': 18,
   'v5:algebra2-honors-module1/L2_Day1_Parent_Functions_Key_Attributes.json': 19,
-  'v5:algebra2-honors-module1/L2_Day2_Transformations.json': 10,
+  // L2_Day2, CT02 slice 4: one more, its Transformations Lab description of an
+  // exponential, which the lab's own review now works at the question's reading.
+  'v5:algebra2-honors-module1/L2_Day2_Transformations.json': 20,
   'v5:algebra2-honors-module1/L3_Inverse_Linear_Functions.json': 19,
   'v5:algebra2-honors-module1/L4_Operations_on_Functions_Composition.json': 20,
-  demo: 26,
+  // CT02 slice 4: four more carry their own worked solutions: the two warm-ups,
+  // the sort of products by size and the CCMR item (kSteps_lessonWorkedSteps).
+  'v5:algebra2-honors-module1/T2_L3_Solving_Systems_with_Matrices.json': 28,
+  // CT02 slice 4: its two sorts carry their own worked solutions; its exit-ticket
+  // DOL item stays answer-only by the lesson's design (kSteps_lessonWorkedSteps).
+  'v5:algebra2-honors-module2/L1_Operations_on_Polynomials.json': 31,
+  // CT02: all 336 District DOL #2 review variants (7 tasks × 48), from
+  // functions/shared/districtDol2WorkedSolution.mjs; there were none.
+  'v5:district-dol2/assignment.json': 336,
+  // CT02 slice 2: all 832 District DOL #2 retest variants (13 families × 64),
+  // in the released review, from the same builder on the server; there were none.
+  'secure:algebra1_district_dol2.json': 832,
+  // CT02 slice 4: the same 832 issued as corrections, once closed, from the same
+  // builder on the server (kSteps_districtDol2Corrections); there were none.
+  'corrections:algebra1_district_dol2.json': 832,
+  // CT02 slice 3: every demo item. The 44 literal items no family covers carry
+  // their own worked solution (kSteps_demoWorkedSteps); 26 have the family's.
+  demo: 70,
 });
-const STEPS_TOTAL_FLOOR = 7999;
-const FROM_FAMILY_FLOOR = 119;
+const STEPS_TOTAL_FLOOR = 7999 + 336 + 832 + 14 + 48 + 44 + 2 + 832 + 1 + 14 + 7 + 4 + 2 + 2 + 3 + 4;
+const FROM_FAMILY_FLOOR = 119 + 14 + 48;
+// Where a worked-solution builder (not a support family) writes the steps: the
+// DOL #2 review, retest and corrections, every variant, and nothing else it
+// might misread (CT02).
+const FROM_BUILDER = Object.freeze({
+  'v5:district-dol2/assignment.json': 336,
+  'secure:algebra1_district_dol2.json': 832,
+  'corrections:algebra1_district_dol2.json': 832,
+});
 
 test('inventory: every authored item is classified STEPS or ANSWER-ONLY (the answer-only groups are logged)', (t) => {
   t.diagnostic(`sampled: ${JSON.stringify(inventory.sampled)}`);
@@ -268,4 +381,9 @@ test('the STEPS count does not fall, per source and in total', () => {
 test('the support families still write the steps they write today (closed review only)', () => {
   const fromFamily = Object.values(inventory.bySource).reduce((sum, bucket) => sum + bucket.fromFamily, 0);
   assert.ok(fromFamily >= FROM_FAMILY_FLOOR, `family worked solutions ${fromFamily} < ${FROM_FAMILY_FLOOR}`);
+});
+
+test('a worked-solution builder writes steps for the DOL #2 review tasks, retest items and corrections only, every one of them', () => {
+  const fromBuilder = Object.fromEntries(Object.entries(inventory.bySource).filter(([, bucket]) => bucket.fromBuilder > 0).map(([source, bucket]) => [source, bucket.fromBuilder]));
+  assert.deepEqual(fromBuilder, FROM_BUILDER);
 });

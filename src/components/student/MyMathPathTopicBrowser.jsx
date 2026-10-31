@@ -66,7 +66,9 @@ function TopicSkill({ skill, grouping, onChooseSkill, disabled }) {
           {other && <p style={{ margin: '6px 0 0', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45, color: 'var(--mm-text-muted)', fontWeight: 700 }}>{other}</p>}
           {skill.launchable ? (
             skill.evidence.length ? (
-              <ul aria-label={`Why ${skill.title} is a good choice`} style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text)', lineHeight: 1.5 }}>
+              // Named as the map names it: a mastered skill's list is what
+              // its Mastered rests on, not a suggestion (MP17).
+              <ul aria-label={`${skill.evidenceHeading || 'Why this is suggested'}: ${skill.title}`} style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text)', lineHeight: 1.5 }}>
                 {skill.evidence.map((item) => <li key={`${item.kind}:${item.text}`}>{item.text}</li>)}
               </ul>
             ) : (

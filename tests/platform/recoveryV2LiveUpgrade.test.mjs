@@ -365,6 +365,10 @@ test('the operator script refuses to write without a project, the approver, and 
   assert.throws(() => parseRecoveryV2Args(['--execute']), /--execute needs --project/);
   assert.throws(() => parseRecoveryV2Args(['--execute', '--project', 'mathmaster-prod']), /--actor and --approved-by/);
   assert.throws(() => parseRecoveryV2Args(['--execute', '--project', 'mathmaster-prod', '--actor', 'a@x.org', '--approved-by', 'b@x.org']), /--expect/);
+  // --yes skips the typed project id: only against the emulator (SI10).
+  const live = ['--execute', '--project', 'mathmaster-prod', '--actor', 'a@x.org', '--approved-by', 'b@x.org', '--expect', 'asg=hash', '--yes'];
+  assert.throws(() => parseRecoveryV2Args(live, {}), /refusing --yes/);
+  assert.equal(parseRecoveryV2Args(live, { FIRESTORE_EMULATOR_HOST: '127.0.0.1:8080' }).yes, true);
   const options = parseRecoveryV2Args(['--project', 'mathmaster-prod']);
   assert.equal(options.execute, false, 'without --execute it is a dry run');
 });

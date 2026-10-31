@@ -320,7 +320,8 @@ const TEACHER_STEPS = [
   }, after: closeOverlay },
   { id: 'assignments', run: (page) => openTab(page, 'Assignments') },
   { id: 'assignment-menu-open', required: '[role="menu"]', run: async (page) => {
-    await page.locator('.mm-dashboard-content [aria-haspopup="true"]').first().click();
+    // The card's ⋮ is a Menu Button since TT27 (popupMenu.js: aria-haspopup="menu").
+    await page.locator('.mm-dashboard-content [aria-haspopup="menu"]').first().click();
     await page.waitForTimeout(300);
   }, after: closeOverlay },
   { id: 'library', run: (page) => openTab(page, 'Library') },
@@ -342,7 +343,7 @@ const TEACHER_STEPS = [
 const STUDENT_STEPS = [...['Home', 'Assignments', 'Grades', 'My Rewards', 'My Math Path', 'Tests & Exams'].map((name) => ({
   id: `student-${name.toLowerCase().replace(/\W+/g, '-').replace(/-$/, '')}`,
   run: async (page) => {
-    await page.locator('nav button').filter({ hasText: name }).first().evaluate((element) => element.click());
+    await page.locator('nav[aria-label="Student navigation"] a').filter({ hasText: name }).first().evaluate((element) => element.click());
     await page.waitForTimeout(900);
   },
 })),
@@ -353,7 +354,7 @@ const STUDENT_STEPS = [...['Home', 'Assignments', 'Grades', 'My Rewards', 'My Ma
   id: 'student-completed-section',
   required: '.mathmaster-section-tab.is-complete small',
   run: async (page) => {
-    await page.locator('nav button').filter({ hasText: 'Assignments' }).first().evaluate((element) => element.click());
+    await page.locator('nav[aria-label="Student navigation"] a').filter({ hasText: 'Assignments' }).first().evaluate((element) => element.click());
     await page.getByText('My Assignments').first().waitFor({ timeout: 30_000 });
     await openCompletedSection(page);
   },

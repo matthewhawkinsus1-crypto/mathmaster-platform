@@ -163,6 +163,11 @@ test('review S2: what the old fit showed stays in frame, and a cropped line stil
   // With no authored x-range, a nearby meeting point is kept.
   const unpinned = fitStaticGraphViewport({ functions: [{ type: 'line', m: 1, b: 0 }, { type: 'line', m: -1, b: 14 }] });
   assert.equal(shows(unpinned, [7, 7]), true, 'no authored x-range: the meeting point shows');
+  // TL14 (owner decision): so does a figure with only a y-range, which the
+  // old fit (x kept at -5..5) drew without it.
+  const yRangeOnly = { yMin: -5, yMax: 5, functions: [{ type: 'line', m: 1, b: 0 }, { type: 'line', m: -1, b: 14 }] };
+  assert.equal(shows(fitStaticGraphViewport(yRangeOnly), [7, 7]), true, 'only a y-range: the meeting point shows');
+  assert.equal(shows(fitStaticGraphViewport(yRangeOnly, { equalUnits: false }), [7, 7]), false, 'the old fit left it off the plot');
   // Parallel steep lines that show on a sliver of the window: warned.
   const sliver = auditStaticGraphViewport({ xMin: -10, xMax: 10, yMin: -10, yMax: 10, functions: [{ type: 'line', m: 4, b: 30 }, { type: 'line', m: 4, b: -30 }] }, { label: 'sliver' });
   assert.equal(sliver.warnings.filter((message) => /mostly outside/.test(message)).length, 2);
@@ -204,9 +209,16 @@ test('review S3: a printed equal-unit figure stops its lines at the plot edge', 
     // Two figures in one packet never share a clip id.
     const second = renderWorksheetVisual({ kind: 'graph', graph: L3_CW2, label: 'L3 CW 2' });
     assert.notEqual(findAll(second, 'clipPath')[0].attributes.id, clip[0].attributes.id);
-    // Other figures keep the old drawing.
-    const curve = renderWorksheetVisual({ kind: 'graph', graph: { functions: [{ type: 'quadratic', a: 1, b: 0, c: 0 }] }, label: 'parabola' });
-    assert.equal(findAll(curve, 'clipPath').length, 0);
+    // TL14: every other figure stops at the plot edge too (it used to keep the
+    // old drawing, a curve running through the tick labels).
+    const curve = renderWorksheetVisual({ kind: 'graph', graph: { lockViewport: true, xMin: -5, xMax: 5, yMin: -2, yMax: 6, functions: [{ type: 'quadratic', a: 1, h: 0, k: -1 }] }, label: 'parabola' });
+    const curveClip = findAll(curve, 'clipPath');
+    assert.equal(curveClip.length, 1, 'a locked parabola is clipped to its plot');
+    const curvePaths = findAll(curve, 'path').filter((path) => path.attributes.stroke === '#1a73e8');
+    assert.ok(curvePaths.length > 0);
+    curvePaths.forEach((path) => assert.equal(path.attributes['clip-path'], `url(#${curveClip[0].attributes.id})`));
+    // A blank workspace has nothing to clip.
+    assert.equal(findAll(renderWorksheetVisual({ kind: 'blankGraph', bounds: { xMin: -5, xMax: 5, yMin: -5, yMax: 5 }, label: 'blank' }), 'clipPath').length, 0);
   } finally {
     globalThis.document = previous;
   }
@@ -239,6 +251,48 @@ test('GraphDisplay draws the lesson figure at a right angle, with one labelled s
     const ys = [...markup.matchAll(/<line x1="48" y1="([-\d.]+)" x2="572" y2="\1" stroke="var\(--mm-graph-grid\)"/g)].map((match) => Number(match[1]));
     assert.ok(xs.length > 2 && ys.length > 2, 'major gridlines found');
     assert.ok(Math.abs((xs[1] - xs[0]) - Math.abs(ys[1] - ys[0])) < 0.01, `x ${xs[1] - xs[0]}px, y ${Math.abs(ys[1] - ys[0])}px`);
+  } finally {
+    await server.close();
+  }
+});
+
+/*
+ * TL14 (owner decision): the plot clip and the arrow where a curve leaves are
+ * no longer only for equal-unit figures. A locked window drew y = 3x + 1 on
+ * past the frame, over the axis numbers and out of the card, with no arrow at
+ * all; y = 2^x and 1/(x - 1) ran past it the same way.
+ */
+test('TL14: every static figure keeps its curves in the frame, with an arrow where one leaves', async () => {
+  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent', cacheDir: VITE_CACHE });
+  try {
+    const { default: GraphDisplay } = await server.ssrLoadModule('/src/GraphDisplay.jsx');
+    const draw = (graph) => renderToStaticMarkup(React.createElement(GraphDisplay, { graph, enlargeable: false }));
+    const plotClip = (markup) => markup.match(/<clipPath id="([^"]+)"><rect x="48" y="48" width="524" height="334"><\/rect><\/clipPath>/)?.[1];
+    const curves = (markup) => markup.match(/<path\b[^>]*stroke-linecap="round"[^>]*>/g) || [];
+    const arrows = (markup) => [...markup.matchAll(/<g transform="translate\(([-\d.]+) ([-\d.]+)\) rotate\([-\d.e]+\)"><polygon points="14,0 -7,-9 -7,9"/g)]
+      .map(([, x, y]) => [Number(x), Number(y)]);
+    const onFrame = ([x, y]) => x >= 47.9 && x <= 572.1 && y >= 47.9 && y <= 382.1;
+
+    const steep = draw({ lockViewport: true, xMin: -5, xMax: 5, yMin: -5, yMax: 5, functions: [{ type: 'line', m: 3, b: 1 }] });
+    assert.equal(staticGraphUsesEqualUnits({ functions: [{ type: 'line', m: 3, b: 1 }] }), false, 'one line: not an equal-unit figure');
+    const steepClip = plotClip(steep);
+    assert.ok(steepClip, 'a locked window is clipped to its plot');
+    assert.equal(curves(steep).length, 1);
+    curves(steep).forEach((tag) => assert.match(tag, new RegExp(`clip-path="url\\(#${steepClip}\\)"`)));
+    const steepArrows = arrows(steep);
+    assert.equal(steepArrows.length, 2, 'an arrow at each end, where the line leaves through the top and the bottom');
+    steepArrows.forEach((point) => assert.ok(onFrame(point), `arrow on the frame: ${point}`));
+    assert.ok(steepArrows.some(([, y]) => Math.abs(y - 48) < 0.5) && steepArrows.some(([, y]) => Math.abs(y - 382) < 0.5), `one on the top edge and one on the bottom: ${JSON.stringify(steepArrows)}`);
+
+    const exponential = draw({ lockViewport: true, xMin: -4, xMax: 4, yMin: -1, yMax: 8, functions: [{ type: 'exponential', a: 1, base: 2, h: 0, k: 0 }] });
+    const exponentialArrows = arrows(exponential);
+    assert.equal(exponentialArrows.length, 2, 'y = 2^x: an arrow on the left and where it leaves through the top');
+    assert.ok(exponentialArrows.some(([, y]) => Math.abs(y - 48) < 0.5), 'the top edge');
+    curves(exponential).forEach((tag) => assert.match(tag, new RegExp(`clip-path="url\\(#${plotClip(exponential)}\\)"`)));
+
+    const reciprocal = draw({ xMin: -6, xMax: 6, yMin: -6, yMax: 6, functions: [{ type: 'rational', a: 1, h: 1, k: 0 }] });
+    assert.equal(curves(reciprocal).length, 2, 'both branches');
+    curves(reciprocal).forEach((tag) => assert.match(tag, new RegExp(`clip-path="url\\(#${plotClip(reciprocal)}\\)"`)));
   } finally {
     await server.close();
   }

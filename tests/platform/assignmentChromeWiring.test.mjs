@@ -106,8 +106,10 @@ test('RUN-10: a secure test warns at 2:00 and 0:30, never while its clock is sto
   assert.match(code, /import \{ UNFINISHED_WORK_LINE, takeDueTimeAlert \} from '\.\.\/\.\.\/platform\/student\/timeLeftAlerts\.js';/);
   const effect = region(code, 'const [timeAlert, setTimeAlert] = useState(null);', 'const timeAlertText', 'the warning effect');
   assert.match(effect, /if \(secondsRemaining == null \|\| clockPaused\) \{ previousRemainingMsRef\.current = null; return; \}/);
-  assert.match(effect, /takeDueTimeAlert\(\{ key: `test\|\$\{initialDeadline\}`/);
-  assert.match(code, /\$\{timeAlert\.words\} on this test\. \$\{UNFINISHED_WORK_LINE\.test\}/);
+  // Once per deadline: the test's own, or a module's own time (TS03), each its
+  // own window, and only the test's end says what is turned in.
+  assert.match(effect, /takeDueTimeAlert\(\{ key: `\$\{scopeModule \? `module\$\{scopeModule\}` : 'test'\}\|\$\{initialDeadline\}`/);
+  assert.match(code, /\(scopeModule \? `\$\{timeAlert\.words\} of module \$\{scopeModule\}'s time\.` : `\$\{timeAlert\.words\} on this test\. \$\{UNFINISHED_WORK_LINE\.test\}`\)/);
   assert.match(code, /<span role="alert" style=\{SR_ONLY_STYLE\}>\{timeAlertText\}<\/span>/);
 });
 
@@ -151,9 +153,12 @@ test('RUN-16: no program words in the assignment chrome', () => {
 });
 
 test('D9: the enlarged workspace is called Work View where a student opens it', () => {
+  // The word is the figure's own (studentWords OPEN_WORK_VIEW; workViewOpenerWord.test.mjs
+  // renders the opener), so the question's shell hands it no label (TL35) — and
+  // never the old "Enlarge question".
   const figure = region(engine, '<EnlargeableFigure\n        label="Question Work View"', '>', 'the question Work View');
-  assert.match(figure, /enlargeLabel="Open Work View"/);
-  assert.doesNotMatch(executableSource(engine), /enlargeLabel="Enlarge question"/);
+  assert.doesNotMatch(figure, /enlargeLabel/);
+  assert.doesNotMatch(executableSource(engine), /Enlarge question/);
 });
 
 test('a toast never covers the action bar: it rises above where the bar actually is', () => {

@@ -137,7 +137,7 @@ test('a movable point is picked up, carried and dropped by keyboard', () => {
 // Codex review on PR #454: browser proofs nobody runs prove nothing.
 test('CI runs every accessibility browser proof, read-only', () => {
   const workflow = read('.github/workflows/accessibility-certification.yml');
-  for (const driver of ['mathSpeech', 'graphDescription', 'accessiblePrimitives']) {
+  for (const driver of ['mathSpeech', 'graphDescription', 'accessiblePrimitives', 'accessibilityKeyboardReachSelfTest', 'accessibilityTeacherMenus', 'accessibilityTeacherLiveClassTabs', 'accessibilityTeacherLandmarks']) {
     assert.match(workflow, new RegExp(`run: node tests/browser/${driver}\\.mjs`), driver);
   }
   assert.match(workflow, /run: npm run certify:accessibility/);

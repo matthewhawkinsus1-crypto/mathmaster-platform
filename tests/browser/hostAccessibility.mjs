@@ -139,6 +139,56 @@ for (const viewport of VIEWPORTS) {
       await page.close();
     }
   }
+  if (!ONLY || ONLY === 'pathChoices') {
+    // My Math Path's choice cards are one radio group (choiceGroup.js): they
+    // were a Tab stop each with no arrow keys, the chosen one shown by colour
+    // alone. One Tab stop, arrows move AND choose, Home / End, a ✓ on the
+    // chosen card, and no key checks the answer (selecting is not answering).
+    const { page, errors } = await open('scene=path-generic&kind=practice', viewport);
+    const cards = page.locator('[role="radiogroup"] [role="radio"]');
+    const count = await cards.count();
+    check(count >= 3, `${at} path choices: the cards are radios (found ${count})`);
+    const state = () => page.evaluate(() => {
+      const radios = [...document.querySelectorAll('[role="radiogroup"] [role="radio"]')];
+      return {
+        tabIndexes: radios.map((radio) => radio.tabIndex),
+        checked: radios.map((radio) => radio.getAttribute('aria-checked')),
+        marked: radios.map((radio) => Boolean(radio.querySelector('[data-choice-mark]'))),
+        focused: radios.findIndex((radio) => radio === document.activeElement),
+        submits: (window.__hostSubmits || []).length,
+      };
+    });
+    let now = await state();
+    check(now.tabIndexes.filter((index) => index === 0).length === 1 && now.tabIndexes[0] === 0, `${at} path choices: one Tab stop, the first card, while none is chosen ${JSON.stringify(now.tabIndexes)}`);
+    check(now.checked.every((value) => value === 'false') && now.marked.every((mark) => !mark), `${at} path choices: nothing is chosen or marked at the start`);
+    await cards.first().focus();
+    await page.keyboard.press('ArrowDown');
+    now = await state();
+    check(now.focused === 1 && now.checked[1] === 'true' && now.checked.filter((value) => value === 'true').length === 1, `${at} path choices: ArrowDown moves to the second card and chooses it ${JSON.stringify(now)}`);
+    check(now.marked[1] && now.marked.filter(Boolean).length === 1, `${at} path choices: the chosen card carries a ✓`);
+    check(now.tabIndexes[1] === 0 && now.tabIndexes.filter((index) => index === 0).length === 1, `${at} path choices: the Tab stop follows the chosen card`);
+    await page.keyboard.press('End');
+    now = await state();
+    check(now.focused === count - 1 && now.checked[count - 1] === 'true', `${at} path choices: End goes to the last card and chooses it`);
+    await page.keyboard.press('ArrowDown');
+    now = await state();
+    check(now.focused === 0 && now.checked[0] === 'true', `${at} path choices: ArrowDown from the last card wraps to the first`);
+    await page.keyboard.press('Home');
+    await page.keyboard.press('ArrowUp');
+    now = await state();
+    check(now.focused === count - 1 && now.checked[count - 1] === 'true', `${at} path choices: ArrowUp from the first card wraps to the last`);
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('Space');
+    now = await state();
+    check(now.focused === count - 2 && now.checked[count - 2] === 'true', `${at} path choices: Space keeps the focused card chosen`);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(250);
+    now = await state();
+    check(now.submits === 0, `${at} path choices: no key checked the answer (${now.submits} submit(s))`);
+    check(errors.length === 0, `${at} path choices: page errors ${errors.join(' | ')}`);
+    console.log(`pathChoices ${at}: ${count} cards, focus ${now.focused}, checked ${JSON.stringify(now.checked)}`);
+    await page.close();
+  }
   if (!ONLY || ONLY === 'graphs') {
     const recap = await open('scene=recap', viewport);
     const recapText = await recap.page.locator('svg[role="img"], [data-graph-description], .mm-sr-only, figure').allTextContents().then((t) => t.join(' '));

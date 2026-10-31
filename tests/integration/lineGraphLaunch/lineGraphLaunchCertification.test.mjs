@@ -89,6 +89,21 @@ const waitUntil = async (label, predicate, timeoutMs = 30_000, pollMs = 200) => 
   }
 };
 const at = (whenMs, fn) => sleep(whenMs - Date.now()).then(fn);
+// Close what a scenario opened: the host console, every device's listeners (and
+// prove they all closed), then the worker farm, WHATEVER failed before it. Its
+// workers are threads, and a thread left running keeps the process alive, so
+// when anything ahead of `farm.close()` threw (a close that failed, a listener
+// left open) the whole certification used to hang instead of reporting it: seen
+// in the launch certification (CI08, A2-138), whose pattern this copies.
+const closeScenario = async ({ host = null, farm, label }) => {
+  try {
+    await host?.close();
+    await farm.shutdown();
+    assert.equal((await farm.listeners()).total, 0, `${label}: every listener a device opened was closed`);
+  } finally {
+    await farm.close();
+  }
+};
 // The room reads closed as soon as a close commits; the host's own call
 // returns a moment later (about 0.2 s once release 2's Live Challenge changes
 // are in). A close is read once its call has returned, never while it is in
@@ -255,8 +270,23 @@ const assertFinished = async ({ label, entry, roomId, farm, totals }) => {
 
 // While a round is open: no standings listener on any device, and the host
 // asks for no live snapshot.
-const assertQuietDuringRound = async ({ label, farm, host, startsAtMs }) => {
-  const during = await farm.listeners();
+//
+// A device that has just joined, come back online or reloaded has the lobby's
+// listeners (its own row and the room's standings) open until it hears that a
+// round is running, so this waits for that moment, up to `settleMs`: a listener
+// STILL open after it is the failure this exists to catch. (CI08, D-6: a sample
+// taken 1.5 s after a late joiner opened and 1 s after a device came back
+// online found them open on a loaded machine and failed the whole Sprint.)
+const assertQuietDuringRound = async ({ label, farm, host, startsAtMs, settleMs = 4_000 }) => {
+  const isQuiet = (counts) => counts.standings === 0 && counts.self === 0 && counts.players === 0;
+  const settledBy = Date.now() + settleMs;
+  let during = await farm.listeners();
+  while (!isQuiet(during) && Date.now() < settledBy) {
+    // eslint-disable-next-line no-await-in-loop
+    await sleep(100);
+    // eslint-disable-next-line no-await-in-loop
+    during = await farm.listeners();
+  }
   assert.deepEqual({ standings: during.standings, self: during.self, players: during.players }, { standings: 0, self: 0, players: 0 }, `${label}: a standings listener is open during the round: ${JSON.stringify(during)}`);
   const published = host.replies.filter((reply) => reply.published === true && reply.at >= startsAtMs).length;
   assert.equal(published, 0, `${label}: a live snapshot was written while the round was open`);
@@ -329,10 +359,7 @@ test(`Graph the Line Sprint, ${SPRINT_CLASS} students: their own lines, every on
     await teacherCall(entry, 'finishLiveChallenge', { roomId });
     await assertFinished({ label: 'sprint', entry, roomId, farm, totals: sumStates([states]) });
   } finally {
-    await host.close();
-    await farm.shutdown();
-    assert.equal((await farm.listeners()).total, 0, 'every sprint listener was closed');
-    await farm.close();
+    await closeScenario({ host, farm, label: 'sprint' });
   }
 });
 
@@ -417,10 +444,7 @@ test(`Graph the Line Classic, ${CLASSIC_CLASS} students: one line for the class,
     await teacherCall(entry, 'finishLiveChallenge', { roomId });
     await assertFinished({ label: 'classic', entry, roomId, farm, totals: sumStates(statesByRound) });
   } finally {
-    await host.close();
-    await farm.shutdown();
-    assert.equal((await farm.listeners()).total, 0, 'every classic listener was closed');
-    await farm.close();
+    await closeScenario({ host, farm, label: 'classic' });
   }
 });
 
@@ -470,10 +494,7 @@ test(`Graph the Line Rush, ${RUSH_CLASS} students: as many as the clock allows, 
     await teacherCall(entry, 'finishLiveChallenge', { roomId });
     await assertFinished({ label: 'rush', entry, roomId, farm, totals: sumStates([states]) });
   } finally {
-    await host.close();
-    await farm.shutdown();
-    assert.equal((await farm.listeners()).total, 0, 'every rush listener was closed');
-    await farm.close();
+    await closeScenario({ host, farm, label: 'rush' });
   }
 });
 

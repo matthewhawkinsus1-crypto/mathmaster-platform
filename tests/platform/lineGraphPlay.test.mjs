@@ -160,6 +160,9 @@ test('a wrong line is one miss with its mistake; the same wrong line again is no
   const same = game.submit([{ ...wrong, attemptId: nextId() }]);
   assert.equal(same.verdicts[0].verdict, LINE_VERDICT.REPEATED);
   assert.equal(same.recorded, 0);
+  // A device restores that answer after a refresh (LC10): the state carries
+  // the student's own last miss, never the key.
+  assert.equal(game.state().cursorLastMissKey, Object.values(first.receipts).find((receipt) => receipt.isCorrect === false).answerKey);
   // So is the same line drawn through two other of its points.
   const [p, q] = wrong.points;
   const further = { x: q.x + (q.x - p.x), y: q.y + (q.y - p.y) };

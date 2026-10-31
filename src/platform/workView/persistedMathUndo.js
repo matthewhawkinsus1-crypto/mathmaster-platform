@@ -15,6 +15,13 @@
  * draft key so the question's draft family cleanup (`removeQuestionDraftFamily`,
  * `resetQuestionDraftFamily`, `removeAssignmentDrafts`) retires it with the
  * work, and it uses the draft envelope so `readQuestionDraft`'s expiry applies.
+ *
+ * DECIDED (TL47, the owner, October 2026): the history stays on this device.
+ * A student who moves to another Chromebook keeps the WORK, which rides the
+ * server backup, and starts there with an empty Undo. Carrying the stack
+ * across devices would put it back into the synced record and over the 16 KB
+ * limit above, or need a store of its own for what is a convenience, not
+ * work.
  */
 import { readQuestionDraft } from '../../questionDraftStorage.js';
 import { EMPTY_MATH_UNDO_STACK, mathematicalSnapshot } from './mathUndoStack.js';

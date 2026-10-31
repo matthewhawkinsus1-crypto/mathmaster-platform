@@ -482,6 +482,8 @@ test('D19+D20+D21: corrections are instructional, and only correct evidence comp
     assignmentId: CERT_ASSIGNMENT_ID, correctionId: first.correctionId,
     questionInstanceId: issued.questionInstance.questionInstanceId,
     responsePayload: { responses: { answer: CERT_WRONG_ANSWER } },
+    // TC11: what the student said went wrong rides on the response they already make.
+    reflection: { choice: 'misread', sentence: 'Next time, I will reread the question and find the slope before I start.' },
   }));
   assert.equal(wrong.isCorrect, false);
   assert.equal(wrong.correctionsComplete, false);
@@ -500,12 +502,41 @@ test('D19+D20+D21: corrections are instructional, and only correct evidence comp
     assignmentId: CERT_ASSIGNMENT_ID, correctionId: first.correctionId,
     questionInstanceId: reissued.questionInstance.questionInstanceId,
     responsePayload: { responses: { answer: certAnswerFromPrompt(reissued.questionInstance.prompt) } },
+    // TC11: a pick the step never offers is not kept, and never stops the answer being graded.
+    reflection: { choice: 'invented', sentence: 'x'.repeat(5000) },
   }));
   assert.equal(right.isCorrect, true);
   const afterRight = await readCorrectionPlan(CERT_ASSIGNMENT_ID, STUDENT_A);
   const rightTarget = afterRight.plan.targets.find((target) => target.correctionId === first.correctionId);
   assert.equal(rightTarget.correctResponses, 1);
   assert.equal((await readRecord(CERT_ASSIGNMENT_ID, STUDENT_A)).recordedGrade, recordedBefore);
+});
+
+test('TC11: the reflection is kept beside the plan, shown to the teacher of record per skill, and to no student', async () => {
+  const first = state.correctionTargets[0];
+  const stored = (await readCorrectionPlan(CERT_ASSIGNMENT_ID, STUDENT_A)).reflections;
+  assert.deepEqual(
+    { ...stored[first.correctionId], at: undefined },
+    { skipped: false, choice: 'misread', sentence: 'Next time, I will reread the question and find the slope before I start.', at: undefined },
+    'kept from the first response, in the server-only plan document',
+  );
+  assert.ok(Number(stored[first.correctionId].at) > 0);
+  // The correct answer after it carried a pick the step never offers: graded, and not kept over it.
+  assert.deepEqual(Object.keys(stored), [first.correctionId], 'one skill reflected on, no other');
+
+  // The teacher of record reads it on that skill, and only on that skill.
+  const plans = await fns.getTeacherTestCyclePlans.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, studentId: STUDENT_A }));
+  const [reflected, ...others] = [first.correctionId, ...state.correctionTargets.slice(1).map((target) => target.correctionId)]
+    .map((id) => plans.corrections.targets.find((target) => target.correctionId === id));
+  assert.deepEqual([reflected.reflection.choice, reflected.reflection.sentence], ['misread', 'Next time, I will reread the question and find the slope before I start.']);
+  others.forEach((target) => assert.equal(target.reflection, null, 'a skill the student has not reflected on'));
+  assert.ok(await refusal(fns.getTeacherTestCyclePlans.run(teacherRequest({ assignmentId: CERT_ASSIGNMENT_ID, studentId: STUDENT_A }, OTHER_TEACHER_EMAIL))), 'not another teacher');
+
+  // No student card carries it, the student's own included.
+  for (const student of [STUDENT_A, STUDENT_B]) {
+    const card = await cardFor(student);
+    assert.equal(/reflection/i.test(JSON.stringify(card)), false, `${student}'s card`);
+  }
 });
 
 /* ======================================================================== */
@@ -1171,6 +1202,18 @@ test('J: a Test day is never scheduled into a meeting that has ended, and an unr
   const lateStart = await refusal(fns.startSecureExamSession.run(studentRequest(STUDENT, { examSessionId: late.examSessionId })));
   assert.equal(lateStart?.code, 'failed-precondition');
   assert.match(lateStart.message, /waiting for a new Test day/);
+  // TC03: "each class's first meeting from today" moves a class whose day
+  // ran with nobody starting (a snow day the bell schedule never heard of):
+  // the day was set before the meeting, so its window opened and closed. A
+  // class where someone started is still kept (scenario L).
+  await db.collection('assignments').doc(ASSIGNMENT).update({
+    testAvailability: withClassTestDay(null, { classId: CLASS, dateKey: today, at: Date.now() - 2 * 24 * 60 * 60 * 1000 }),
+  });
+  const moved = await availability({ action: 'setTestDayForClasses', fromDateKey: today });
+  assert.match(moved.notes.join(' '), /passed with nobody starting, so it moves too/);
+  const movedDays = (await db.collection('assignments').doc(ASSIGNMENT).get()).data().testAvailability.classWindows[CLASS].map((entry) => entry.dateKey);
+  assert.deepEqual(movedDays, [dayKey(1)]);
+  assert.equal((await notMissed('moved to the class\'s next meeting')).schedule.test.state, 'upcoming');
 
   // 4. A day the bell schedule never gave times for, after its midnight.
   await db.collection('assignments').doc(ASSIGNMENT).update({
@@ -1199,6 +1242,7 @@ test('K: a preview of a Test whose session is not open describes it and opens no
   const { zonedDateKey } = await import('../../functions/shared/instructionalCalendar.mjs');
   const { SCHOOL_TIME_ZONE } = await import('../../functions/shared/sectionDeadline.mjs');
   const { withClassTestDay } = await import('../../functions/shared/testCycleAvailability.mjs');
+  const { teacherActionsForRow } = await import('../../src/platform/teacher/testCycleTeacherRows.js');
   const DAY = 86400000;
   const dayKey = (offset) => zonedDateKey(Date.now() + offset * DAY, SCHOOL_TIME_ZONE);
   const ASSIGNMENT = `${CERT_PREFIX}pr20`;
@@ -1263,6 +1307,31 @@ test('K: a preview of a Test whose session is not open describes it and opens no
   assert.equal(card.stage, 'retest');
   assert.ok((await readRecord(ASSIGNMENT, STUDENT)).retest.examSessionId);
   assert.equal((await db.collection('examSessions').where('courseTest.assignmentId', '==', ASSIGNMENT).get()).size, sessionsBefore + 1);
+
+  // TC02: the stand-in Retest is this student's only sitting, so the teacher's view
+  // reads what it showed all the same, once it is turned in. There was no Test.
+  const standIn = (await readRecord(ASSIGNMENT, STUDENT)).retest.examSessionId;
+  const plansOf = () => fns.getTeacherTestCyclePlans.run(teacherRequest({ assignmentId: ASSIGNMENT, studentId: STUDENT }));
+  const rowOf = async () => (await fns.listTeacherTestCycleRecords.run(teacherRequest({ assignmentId: ASSIGNMENT }))).rows.find((entry) => entry.studentId === STUDENT);
+  await fns.startSecureExamSession.run(studentRequest(STUDENT, { examSessionId: standIn }));
+  const question = await fns.issueSecureExamQuestion.run(studentRequest(STUDENT, { examSessionId: standIn }));
+  await fns.submitSecureExamResponse.run(studentRequest(STUDENT, {
+    examSessionId: standIn,
+    questionInstanceId: question.questionInstance.questionInstanceId,
+    responsePayload: { responses: { answer: CERT_WRONG_ANSWER } },
+    submissionId: 'cert-pr20-standin-1',
+  }));
+  assert.equal((await plansOf()).retestMistakes, null, 'nothing to read before the Retest is turned in');
+  assert.equal(teacherActionsForRow(await rowOf()).some((action) => action.kind === 'plans'), false, 'and nothing to open');
+  await fns.finalizeSecureExam.run(studentRequest(STUDENT, { examSessionId: standIn, reason: 'studentSubmit' }));
+  const shown = await plansOf();
+  assert.equal(shown.corrections, null, 'there was no Test to correct');
+  assert.equal(shown.retest.audit.withoutOriginal, true, 'so the panel can say the Retest stood in');
+  assert.equal(shown.retestMistakes.examSessionId, standIn);
+  assert.ok(shown.retestMistakes.skills.reduce((sum, skill) => sum + skill.missed, 0) >= 1, 'the answer given was missed');
+  const finished = await rowOf();
+  assert.equal(finished.missedTest, true);
+  assert.equal(teacherActionsForRow(finished).find((action) => action.kind === 'plans')?.label, 'View what the Retest showed', 'the row offers it');
 });
 
 /* ======================================================================== */
@@ -1651,5 +1720,20 @@ test('N: a miss on the Test is recorded server-side, hidden until release, and n
   assert.equal((await fns.teacherTestCycleAction.run(teacherRequest({ assignmentId: ASSIGNMENT, studentId: STUDENT, action: 'waiveCorrections' }))).retestOpened, true);
   const retestCard = await cardOf();
   assert.deepEqual([retestCard.stage, retestCard.canEnter], ['retest', true]);
+
+  // TC02: a Retest has no Corrections after it, so its recorded mistakes are
+  // read in the teacher's per-student view, and only once it is turned in.
+  const plansOf = (email) => fns.getTeacherTestCyclePlans.run(teacherRequest({ assignmentId: ASSIGNMENT, studentId: STUDENT }, email));
+  assert.equal((await plansOf()).retestMistakes, null, 'nothing to read before the Retest is turned in');
   await sitWrongForm(retestCard.examSessionId, 'Retest');
+  const shown = (await plansOf()).retestMistakes;
+  assert.equal(shown.examSessionId, retestCard.examSessionId);
+  assert.equal(shown.skills.reduce((sum, skill) => sum + skill.missed, 0), 2, 'both Retest questions were missed');
+  const named = shown.skills.flatMap((skill) => skill.mistakes);
+  assert.ok(named.length >= 1 && named.every((mistake) => mistake.code === 'line-wrong-form-slope-intercept'), 'the mistake the work proved, from the server-only session');
+  assert.ok(named.every((mistake) => mistake.label && mistake.meaning), 'in the registry\'s words for a teacher');
+  // Teacher of record only, and no student payload carries it.
+  assert.ok(await refusal(plansOf(OTHER_TEACHER_EMAIL)), 'another teacher cannot read it');
+  assert.ok(await refusal(fns.getTeacherTestCyclePlans.run(studentRequest(STUDENT, { assignmentId: ASSIGNMENT, studentId: STUDENT }))), 'a student cannot read it');
+  assert.equal(leaks(await cardOf()), false);
 });

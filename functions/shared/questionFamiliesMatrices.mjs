@@ -619,21 +619,23 @@ const inLowestTerms = (row, constant) => [...row, constant].reduce((g, value) =>
  * the way the lesson's own DOL is ("3x − y = 4 + z", "2x + 3z = y + 14"): the
  * student puts every equation in standard form before A and B are written.
  * `moves` says, for equations 2 and 3, which variable term moved and whether
- * it is written before or after the constant.
+ * it is written before or after the constant. `tidyZero` (version 2) leaves a
+ * zero constant out.
  */
-const movedEquation = (row, constant, variableIndex, termFirst) => {
+const movedEquation = (row, constant, variableIndex, termFirst, { tidyZero = false } = {}) => {
   const leftTerms = row.map((coefficient, k) => (k === variableIndex ? '' : termText(coefficient, VARIABLES[k])));
   const moved = termText(-row[variableIndex], VARIABLES[variableIndex]);
-  const right = termFirst ? joinTerms([moved, String(constant)]) : joinTerms([String(constant), moved]);
+  const written = tidyZero && constant === 0 ? [] : [String(constant)];
+  const right = termFirst ? joinTerms([moved, ...written]) : joinTerms([...written, moved]);
   return `${joinTerms(leftTerms)} = ${right}`;
 };
 
-const systemText = ({ A, B, moves }) => A.map((row, i) => {
+const systemText = ({ A, B, moves }, options = {}) => A.map((row, i) => {
   const move = moves[i];
-  return move ? movedEquation(row, B[i], move.variable, move.termFirst) : standardEquation(row, B[i]);
+  return move ? movedEquation(row, B[i], move.variable, move.termFirst, options) : standardEquation(row, B[i]);
 });
 
-export const solveSystem3x3Family = defineQuestionFamily({
+const solveSystem3x3Spec = {
   id: 'matrices.solveSystem3x3',
   version: 1,
   title: 'Solve a system of three equations with matrices',
@@ -703,6 +705,30 @@ export const solveSystem3x3Family = defineQuestionFamily({
     return { params: { A: system.A, B: system.B, moves }, constraints: {} };
   },
   recovery: { eligible: true },
+};
+
+export const solveSystem3x3Family = defineQuestionFamily(solveSystem3x3Spec);
+
+/*
+ * VERSION 2 DOES NOT WRITE A ZERO CONSTANT (CT03 / E2-10, D-78). Version 1
+ * writes "= −3z + 0" (or "= 0 − 3z") when a moved equation's constant is 0: in
+ * 4,612 of the 60,694 valid draws on a 400 × 400 seed grid (7.6%; the audit's
+ * smaller sample said about 4%). The system is the same and still right, but it
+ * reads as a slip. Version 1 is frozen. A delivered question pins its version, an
+ * unpinned reference still means version 1, and so a student who started keeps
+ * the text they were given; a slot gets "= −3z" only when its JSON pins version
+ * 2. Everything but the Matrix Lab's equation text is version 1's own: the same
+ * draws, A, B, answer and fingerprint.
+ */
+export const solveSystem3x3FamilyV2 = defineQuestionFamily({
+  ...solveSystem3x3Spec,
+  version: 2,
+  tools: {
+    matrixLab: (values, context) => ({
+      ...solveSystem3x3Spec.tools.matrixLab(values, context),
+      equations: systemText(values, { tidyZero: true }),
+    }),
+  },
 });
 
 /* ---------------------------------------------------------------------------
@@ -790,17 +816,22 @@ export const singularSystem3x3Family = defineQuestionFamily({
     if (clean(question?.type) !== 'matrixLab' || clean(question?.mode) !== 'solve' || question?.justifySingular !== true) return null;
     const system = readSystem3(question);
     if (!system) return null;
-    // The row that is a multiple of an earlier one, and what its constant does.
-    for (const [row, otherRow] of [[2, 0], [2, 1], [1, 0]]) {
+    // Every row that is a multiple of an earlier one, and what its constant
+    // does. The system's case is ALL of them (RC11, Codex on #511): when every
+    // row is a multiple of the first, the first pair can keep its constants
+    // while another breaks them, and that system has no solution. The pair
+    // named is one that shows the case: a breaking pair for "none".
+    const pairs = [[2, 0], [2, 1], [1, 0]].flatMap(([row, otherRow]) => {
       const factor = rowFactor(system.A[row], system.A[otherRow]);
-      if (factor === null || !Number.isInteger(factor)) continue;
-      const follows = system.B[row] === factor * system.B[otherRow];
-      return {
-        params: { A: system.A, B: system.B, multiple: { row: row + 1, otherRow: otherRow + 1, factor } },
-        constraints: { singularCase: follows ? 'many' : 'none' },
-      };
-    }
-    return null;
+      if (factor === null || !Number.isInteger(factor)) return [];
+      return [{ row, otherRow, factor, follows: system.B[row] === factor * system.B[otherRow] }];
+    });
+    if (!pairs.length) return null;
+    const shown = pairs.find((pair) => !pair.follows) || pairs[0];
+    return {
+      params: { A: system.A, B: system.B, multiple: { row: shown.row + 1, otherRow: shown.otherRow + 1, factor: shown.factor } },
+      constraints: { singularCase: shown.follows ? 'many' : 'none' },
+    };
   },
   recovery: { eligible: true },
 });
@@ -811,5 +842,6 @@ export const MATRIX_FAMILIES = Object.freeze([
   multiplicativeInverseFamily,
   matrixMultiplicationFamily,
   solveSystem3x3Family,
+  solveSystem3x3FamilyV2,
   singularSystem3x3Family,
 ]);

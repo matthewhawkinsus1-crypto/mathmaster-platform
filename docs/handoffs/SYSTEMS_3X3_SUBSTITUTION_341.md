@@ -133,6 +133,15 @@ preflight and blueprint validation) reports these cases:
 If such content reaches a student anyway, the workspace shows a teacher-facing
 explanation instead of the workflow.
 
+**Update (TL11).** A dependent or inconsistent 3×3 is no longer refused for
+substitution or `studentChoice`. `validateAlgebraicSystemAuthoring` accepts it
+with every method; the round ends early in a statement with no variable (the
+student's own simplified sides, or the reduced 2×2's, as `substitutionOutcome`
+reads them) and the student interprets it exactly as they do after elimination;
+the shared grader judges it with the same rubric. Only a system the workspace
+cannot read as linear is refused now. Tests:
+`tests/platform/substitutionNonuniqueOutcome.test.mjs`.
+
 Within a unique system these paths are handled:
 
 - **A variable absent from the source equation:** rejected neutrally.

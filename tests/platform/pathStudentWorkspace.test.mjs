@@ -12,6 +12,7 @@ import { describeSkill, teksSkillId } from '../../src/platform/path/skillGraph.j
 import { deriveStudentLabel, studentLabelForTeks } from '../../src/platform/path/skillLabels.js';
 import { explainStepForStudent, PATH_ACTION } from '../../src/platform/path/pathSessionRouting.js';
 import { normalizeInteractionInputProfile } from '../../src/platform/interaction/interactionContract.js';
+import { choiceOptionProps } from '../../src/platform/interaction/choiceGroup.js';
 
 const read = (relativePath) => readFileSync(new URL(`../../${relativePath}`, import.meta.url), 'utf8');
 
@@ -60,7 +61,11 @@ test('the student player never renders DOK, difficulty band or a raw alignment k
 
 test('multiple choice renders selectable options rather than asking for a typed letter', () => {
   assert.ok(responses.includes("role=\"radiogroup\""), 'choices are a real radio group');
-  assert.ok(responses.includes('role="radio"'), 'each option is selectable');
+  // Each option takes its props from the shared choice group (AX37 follow-up),
+  // which is what makes it a radio; that is asserted where the group is
+  // (choiceGroup.test.mjs) and rendered (pathChoiceGroup.test.mjs).
+  assert.match(responses, /<button[^>]*\{\.\.\.optionProps\(index\)\}/, 'each option is selectable');
+  assert.equal(choiceOptionProps({ refs: { current: [] }, ids: ['a'], value: '' })(0).role, 'radio');
   assert.ok(responses.includes('MathText'), 'option text is rendered as mathematics');
 });
 

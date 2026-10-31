@@ -415,7 +415,8 @@
               "⁴√625 = 5, ⁴√(b²⁸) = |b⁷|, ⁴√(k²⁰) = k⁵",
               "k³ stays under the radical."
             ],
-            "answerSummary": "5|b⁷|k⁵∜(k³)"
+            "answerSummary": "5|b⁷|k⁵∜(k³)",
+            "commonError": "Writing b⁷ without bars: b may be negative, so b⁷ may be too, and a fourth root is never negative. (k⁵ needs none: k³ under the radical forces k ≥ 0.)"
           },
           "questionWeight": 1.25,
           "scaffold": {
@@ -468,7 +469,8 @@
               "√(y⁸/x⁷) = y⁴/(x³√x)",
               "Multiply by √x/√x: y⁴√x/(x³ · x)"
             ],
-            "answerSummary": "y⁴√x/x⁴"
+            "answerSummary": "y⁴√x/x⁴",
+            "commonError": "Multiplying only the denominator by √x: the numerator needs the same factor, so y⁴ becomes y⁴√x."
           },
           "questionWeight": 1.25,
           "scaffold": {
@@ -812,7 +814,8 @@
               "a/(a√2 − a) = 1/(√2 − 1)",
               "1/(√2 − 1) · (√2 + 1)/(√2 + 1) = (√2 + 1)/(2 − 1)"
             ],
-            "answerSummary": "√2 + 1"
+            "answerSummary": "√2 + 1",
+            "commonError": "Cancelling a with one term of the denominator: a/(a√2 − a) is not 1/(√2 − a), because a must come out of both terms first, as a(√2 − 1)."
           },
           "questionWeight": 1.5,
           "scaffold": {

@@ -622,6 +622,19 @@ export const twoByTwoVerificationValid = (equationText, values, leftAnswer, righ
   return leftOk && rightOk && equalityHolds;
 };
 
+/**
+ * A 2×2 verification entry with each side the equation already writes as a
+ * number (the 7 in 2x + 3y = 7) filled in as given (TL50). The screen shows
+ * that side instead of asking for it again, as the 3×3 verification does, and
+ * the check and the shared grader read it as typed: the work is what a student
+ * who retyped the number would send, so it grades as it always has.
+ */
+export const twoByTwoVerificationSides = (equationText, entry = {}) => ({
+  ...entry,
+  leftAnswer: constantEquationSide(equationText, 'left') ?? entry.leftAnswer,
+  rightAnswer: constantEquationSide(equationText, 'right') ?? entry.rightAnswer,
+});
+
 
 /* ==========================================================================
  * N-VARIABLE LINEAR SYSTEMS (#341)
@@ -782,6 +795,62 @@ export const noVariableStatementType = (text, variables) => {
   return Math.abs(form.constant) > EPS ? 'none' : 'infinite';
 };
 
+/*
+ * A 2×2 WHOSE ROWS EACH HOLD ONE DIFFERENT VARIABLE (TL43, finding C2-135):
+ * x = 1 and y = 2, or 2x = 6 and y = 4.
+ *
+ * There is nothing to substitute or eliminate between such rows, and the 2×2
+ * workflow could do neither (no x slot in y = 2; no multiplier cancels x
+ * against a row without it), so a standalone 2×2 written this way could not be
+ * finished. (A 3×3 never hands its reduced 2×2 one: eliminationSeparatedReduction.)
+ * Each row is solved on its own. `given` is the value of a row that already
+ * reads `variable = number` — read as written, nothing computed for the
+ * student; null for any other row (2x = 6, x = 3 − 1), which the student
+ * solves.
+ *
+ *   { rows: [{ index, variable, given }] } in equation order, or null when the
+ *   rows are not separated (or either is not linear in `variables`)
+ */
+const WRITTEN_NUMBER = /^[+\-−]?\d+(?:\.\d+)?(?:\s*\/\s*\d+(?:\.\d+)?)?$/;
+export const separatedTwoByTwo = (equations = [], variables = ['x', 'y']) => {
+  const names = Array.isArray(variables) ? variables.map(String) : [];
+  if (!Array.isArray(equations) || equations.length !== 2 || names.length !== 2) return null;
+  const rows = [];
+  for (let index = 0; index < equations.length; index += 1) {
+    const text = String(equations[index] ?? '');
+    const form = linearEquationForm(text, names);
+    if (!form) return null;
+    const present = names.filter((name) => Math.abs(form.coefficients[name] || 0) > EPS);
+    if (present.length !== 1 || rows.some((row) => row.variable === present[0])) return null;
+    const variable = present[0];
+    const written = variableIsIsolated(text, variable) ? String(isolatedExpressionFor(text, variable) ?? '').trim() : '';
+    rows.push({ index, variable, given: WRITTEN_NUMBER.test(written) ? tidy(form.constant / form.coefficients[variable]) : null });
+  }
+  return { rows };
+};
+
+/*
+ * Every equation holds exactly one variable, a different one each (2x = 2,
+ * 3y = 6, 4z = 12): no variable is shared, so a 3×3 has nothing to eliminate or
+ * substitute whichever variable is chosen (TL43, finding C2-138). Two equations
+ * holding the same variable (x = 1, y = 2, x = 3) are not this: eliminating it
+ * reaches a statement the student can classify. False when an equation is not
+ * linear in `variables`.
+ */
+/** What a 3×3 with such a system says, at the start (both methods strand the student). */
+export const NO_SHARED_VARIABLE_TEXT = 'Every equation holds just one variable, so there is nothing to eliminate or substitute, whichever variable you start with. Nothing you did caused this. Let your teacher know so they can fix the question.';
+
+export const eachEquationHoldsOneVariable = (equations = [], variables = []) => {
+  const names = Array.isArray(variables) ? variables.map(String) : [];
+  if (!Array.isArray(equations) || !equations.length) return false;
+  const held = equations.map((text) => {
+    const form = linearEquationForm(String(text ?? ''), names);
+    const present = form ? names.filter((name) => Math.abs(form.coefficients[name] || 0) > EPS) : [];
+    return present.length === 1 ? present[0] : null;
+  });
+  return held.every(Boolean) && new Set(held).size === held.length;
+};
+
 /** The variables a linear equation actually depends on (nonzero coefficient), in list order. */
 export const variablesWithNonzeroCoefficient = (text, variables) => {
   const form = linearEquationForm(text, variables);
@@ -925,9 +994,11 @@ export const classifyLinearSystem = (forms, variables) => {
  *
  *   - equation and variable counts must match, and be 2 or 3;
  *   - every equation must be linear in exactly the authored variables;
- *   - nonunique 3×3 systems use method "elimination", whose checked rows
- *     and reduced 2×2 work now lead to student classification (#390).
- *     Substitution/studentChoice retain their existing unique-system contract;
+ *   - a dependent or inconsistent 3×3 system works with every method: by
+ *     elimination the checked rows and reduced 2×2 lead to the student's
+ *     classification (#390), and by substitution the student's own simplified
+ *     statement, or the reduced 2×2's, does (TL11: substitutionReduction.mjs).
+ *     It used to be an error unless the method was "elimination";
  *   - 3×3 elimination is a real workflow (#359): substitution, elimination,
  *     and studentChoice are all offered on a 3×3 system, exactly as on 2×2.
  *
@@ -961,6 +1032,24 @@ export const validateAlgebraicSystemAuthoring = (questionData = {}) => {
   if (questionData.method != null && !['substitution', 'elimination', 'studentChoice'].includes(questionData.method)) {
     errors.push('systemsWorkspace algebraic method must be substitution, elimination, or studentChoice.');
   }
+  // A 2×2 system that is never one solution by the way it is written (TT04):
+  // an equation with no variable in it (`0 = 5`, `3 = 3`) is always or never
+  // true, and a variable in neither equation (`x = 3`, `2x = 6`) is free. Both
+  // are graded correctly and the workflow interprets them with the student, so
+  // this is a note for the author, not an error — saved assignments that work
+  // stay valid. An equation missing SOME variable (`x = 3`) is ordinary.
+  if (dimension === 2 && !errors.length) {
+    const trimmed = variables.map((value) => String(value).trim());
+    const forms = rawEquations.map((equation) => linearEquationForm(equation, trimmed));
+    const hasNoVariable = (form) => trimmed.every((name) => Math.abs(form?.coefficients?.[name] || 0) < 1e-12);
+    const bare = forms.flatMap((form, index) => (hasNoVariable(form) ? [index + 1] : []));
+    const nowhere = trimmed.filter((name) => forms.every((form) => Math.abs(form?.coefficients?.[name] || 0) < 1e-12));
+    if (bare.length) {
+      warnings.push(`systemsWorkspace 2×2 algebraic system: equation${bare.length === 1 ? '' : 's'} ${bare.join(' and ')} ${bare.length === 1 ? 'has' : 'have'} no variable in ${bare.length === 1 ? 'it' : 'them'}, so ${bare.length === 1 ? 'it is' : 'they are'} always true or never true and the system cannot have exactly one solution. Check this is the system you meant.`);
+    } else if (nowhere.length) {
+      warnings.push(`systemsWorkspace 2×2 algebraic system: ${nowhere.join(' and ')} ${nowhere.length === 1 ? 'has' : 'have'} a zero coefficient in both equations, so ${nowhere.length === 1 ? 'it is' : 'they are'} never determined and the system has no solution or infinitely many. Check this is the system you meant.`);
+    }
+  }
   if (dimension === 3) {
     // A variable with a zero coefficient in every equation (absent, or 0z) is
     // free whatever the others are, so the system is never unique. It still
@@ -969,22 +1058,26 @@ export const validateAlgebraicSystemAuthoring = (questionData = {}) => {
     // error — an error blocked reusing saved assignments that work (PR-23
     // review). An equation missing SOME variable is fine: elimination brings
     // it down as it is. (A three-plane exploration may draw such planes: its
-    // validation forwards only errors.)
+    // validation forwards only errors.) Pre-Flight shows it to the teacher as
+    // advice (impossibleItemsPreflight.js, TT04).
     if (!errors.length) {
       const trimmed = variables.map((value) => String(value).trim());
       const forms = rawEquations.map((equation) => linearEquationForm(equation, trimmed));
       const nowhere = trimmed.filter((name) => forms.every((form) => Math.abs(form?.coefficients?.[name] || 0) < 1e-12));
       if (nowhere.length) {
         warnings.push(`systemsWorkspace 3×3 algebraic system: ${nowhere.join(' and ')} ${nowhere.length === 1 ? 'has' : 'have'} a zero coefficient in all three equations, so ${nowhere.length === 1 ? 'it is' : 'they are'} never determined and the system has no solution or infinitely many. Students can classify it by elimination; check this is the system you meant.`);
+      } else if (eachEquationHoldsOneVariable(rawEquations, trimmed)) {
+        // TL43 (C2-138): x = 1, y = 2, z = 3 or 2x = 2, 3y = 6, 4z = 12. No
+        // variable is shared, so elimination and substitution have nothing
+        // to combine whichever variable is chosen, and back-substitution has
+        // nothing to place: the workspace cannot carry it to an answer.
+        warnings.push('systemsWorkspace 3×3 algebraic system: every equation holds just one variable, so there is nothing to eliminate or substitute between them and a student cannot finish it in the workspace. Write a system whose equations share variables, or ask for each equation to be solved on its own.');
       }
     }
-    if (!errors.length) {
-      const trimmed = variables.map((value) => String(value).trim());
-      const classification = classifyLinearSystem(rawEquations.map((equation) => linearEquationForm(equation, trimmed)), trimmed);
-      if (classification.type !== 'unique' && questionData.method !== 'elimination') {
-        errors.push(`Use method "elimination" for nonunique 3×3 algebraic systems; this system is ${classification.type === 'none' ? 'inconsistent (no solution)' : 'dependent (infinitely many solutions)'}. Dependent and inconsistent 3×3 systems are not supported by the substitution workflow yet.`);
-      }
-    }
+    // A system that is not exactly one solution is NOT refused for a method
+    // (TL11). Every method reaches the statement with no variable and the
+    // student interprets it; the shared grader judges that the same way
+    // whichever method got there (serverGrading/tools/systemsWorkspace/algebraic.mjs).
   }
   if (questionData.requireVerification != null && typeof questionData.requireVerification !== 'boolean') {
     errors.push('systemsWorkspace algebraic requireVerification must be boolean when supplied.');

@@ -575,3 +575,97 @@ test('row numbers are positions among the non-excluded questions, stable when Wa
   const withheld = await load(world({ assignment }));
   assert.deepEqual(withheld.questions.map((row) => [row.index, row.number]), [[2, 2], [3, 3], [4, 4]]);
 });
+
+/* ------------------------------------------- FB21: which part was right */
+
+const { PART_VERDICT } = reviewMyWork;
+
+// One multi-part Classwork question, with the grader's marks on its last attempt.
+const MULTI = {
+  questionId: 'qm',
+  type: 'multiAnswer',
+  prompt: 'Give the slope and the y-intercept of y = 2x + 3.',
+  answerFields: [
+    { id: 'slope', label: 'Slope', answer: '2' },
+    { id: 'intercept', label: 'y-intercept', answer: '3' },
+    { id: 'form', label: 'Form', answer: 'slope-intercept' },
+  ],
+};
+const partsWorld = ({ partGrades, status = 'expired', grade = {}, extraDocs = {} } = {}) => {
+  const rec = record(status, { id: 0, totalAttempts: 3, partGrades });
+  return world({
+    assignment: baseAssignment({ sections: [{ id: 's-cw', role: 'classwork', title: 'Classwork', questions: [MULTI] }] }),
+    grade: { gradesByAssignment: { [ASSIGNMENT]: { 0: rec } }, ...grade },
+    extraDocs: {
+      [`grades/${STUDENT}/responseInspectionEvidence/${responseInspectionEvidenceDocumentId({ assignmentId: ASSIGNMENT, questionIndex: 0 })}`]: evidenceDoc(0, rec, {
+        kind: 'fields', type: 'multiAnswer', value: '', fields: [{ id: 'slope', value: '2', isComplete: true }, { id: 'intercept', value: '5', isComplete: true }, { id: 'form', value: '', isComplete: false }],
+      }),
+      ...extraDocs,
+    },
+  });
+};
+const GRADES = [
+  { id: 'slope', label: 'Slope', isComplete: true, isCorrect: true, graded: true, weight: 1, credit: 1, response: '2' },
+  { id: 'intercept', label: 'y-intercept', isComplete: true, isCorrect: false, graded: true, weight: 1, credit: 0, response: '5' },
+  { id: 'form', label: 'Form', isComplete: false, isCorrect: false, graded: true, weight: 1, credit: 0, response: '' },
+];
+
+test('FB21: a multi-part row carries the grader\'s mark on each part, and only the mark', async () => {
+  const { questions } = await load(partsWorld({ partGrades: GRADES }));
+  assert.deepEqual(questions[0].parts, [
+    { id: 'slope', label: 'Slope', verdict: PART_VERDICT.CORRECT },
+    { id: 'intercept', label: 'y-intercept', verdict: PART_VERDICT.INCORRECT },
+    { id: 'form', label: 'Form', verdict: PART_VERDICT.NOT_ANSWERED },
+  ]);
+  // Never what the grader weighed or expected, nor what was written (the row's answer says that).
+  questions[0].parts.forEach((part) => assert.deepEqual(Object.keys(part), ['id', 'label', 'verdict']));
+  const partial = await load(partsWorld({ partGrades: [GRADES[0], { ...GRADES[1], credit: 0.5 }] }));
+  assert.equal(partial.questions[0].parts[1].verdict, PART_VERDICT.PARTIAL);
+});
+
+test('FB21: a single answer, or one graded part among others that are not graded, has no part rows', async () => {
+  const single = await load(partsWorld({ partGrades: [GRADES[0]] }));
+  assert.deepEqual(single.questions[0].parts, []);
+  const oneGraded = await load(partsWorld({ partGrades: [GRADES[0], { ...GRADES[1], graded: false }, { ...GRADES[2], graded: false }] }));
+  assert.deepEqual(oneGraded.questions[0].parts, []);
+  const none = await load(partsWorld({ partGrades: undefined }));
+  assert.deepEqual(none.questions[0].parts, []);
+});
+
+test('FB21: a question with very many parts sends the first forty marks and no more', async () => {
+  const many = Array.from({ length: 45 }, (_, i) => ({
+    id: `p${i}`, label: `Part ${i + 1}`, isComplete: true, isCorrect: i % 2 === 0, graded: true, weight: 1, credit: i % 2 === 0 ? 1 : 0, response: '1',
+  }));
+  const { questions } = await load(partsWorld({ partGrades: many }));
+  assert.equal(questions[0].parts.length, 40);
+  assert.deepEqual(questions[0].parts.map((part) => part.id), many.slice(0, 40).map((part) => part.id));
+});
+
+test('FB21: no part rows beside a changed grade, an excused row, work never attempted, or a zero for integrity', async () => {
+  const rec = record('expired', { id: 0, totalAttempts: 3, partGrades: GRADES });
+  const changed = await load(partsWorld({
+    partGrades: GRADES,
+    grade: { teacherGradeOverridesByAssignment: { [ASSIGNMENT]: { 0: {
+      active: true, score: 100, updatedAt: 'T', submissionId: rec.lastSubmissionId, variantIndex: 0, totalAttempts: 3, automaticScore: 0, lastAttemptAt: rec.lastAttemptAt,
+    } } } },
+  }));
+  assert.equal(changed.questions[0].teacherChanged, true);
+  assert.deepEqual(changed.questions[0].parts, []);
+  const excused = await load(partsWorld({ partGrades: GRADES, extraDocs: {
+    [`studentAssignmentOverrides/${studentAssignmentOverrideId(STUDENT, ASSIGNMENT)}`]: { excused: true },
+  } }));
+  assert.deepEqual(excused.questions[0].parts, []);
+  const never = await load(partsWorld({ partGrades: GRADES, grade: { gradesByAssignment: { [ASSIGNMENT]: { 0: { status: 'unattempted', partGrades: GRADES } } } } }));
+  assert.equal(never.questions[0].outcome, OUTCOME.NOT_ANSWERED);
+  assert.deepEqual(never.questions[0].parts, []);
+  const zero = await load(partsWorld({
+    partGrades: GRADES,
+    grade: { teacherGradeOverridesByAssignment: { [ASSIGNMENT]: { 0: { active: true, persistent: true, source: 'teacher-section-zero', score: 0, reason: INTEGRITY_REASON_LABELS[0] } } } },
+  }));
+  assert.deepEqual(zero.questions[0].parts, []);
+});
+
+test('FB21: every row has a parts list, so the screen never has to guess', async () => {
+  const { questions } = await load(world());
+  assert.ok(questions.every((row) => Array.isArray(row.parts)));
+});

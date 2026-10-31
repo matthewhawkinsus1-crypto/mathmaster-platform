@@ -19,6 +19,10 @@
  *   Check         Tab to the tool's Check, Enter: QuestionEngine records a
  *                 grade (onGrade), and it is correct.
  *
+ * AX32: before any key is pressed, the directions on the page (the first step,
+ * the hint under the typed-value box, the line under the number line) name the
+ * very keys this test then presses, beside the click.
+ *
  * At 1366x768 the same graph built by mouse clicks on the line records the
  * same graph and the same grade. Exits non-zero on any failure.
  */
@@ -79,6 +83,14 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
     const page = await browser.newPage({ viewport: { width, height } });
     await page.goto(URL, { waitUntil: 'networkidle' });
     await page.locator(LINE).first().waitFor();
+
+    // The directions say what the keys below do (AX32). The step is in a fold a
+    // student who has read it keeps shut, so it is opened first.
+    await page.getByRole('button', { name: /How to do this/ }).first().click();
+    const directions = await page.locator('.mathmaster-tool-task-card').first().textContent();
+    assert.match(directions, /Place an endpoint: click or tap the line, or Tab to it and use the arrow keys and Enter/, `${at}: the first step names the click and the keys`);
+    assert.match(await page.locator('[data-endpoint-help]').first().textContent(), /click, a drag or an arrow key moves in steps of/, `${at}: the hint under the typed-value box names the arrow keys`);
+    assert.match(await page.locator('p[aria-live="polite"]:not([data-number-line-endpoint-announcement])').first().textContent(), /Click or tap the line .*Tab to it and use the arrow keys and Enter/, `${at}: so does the line under the number line`);
 
     // The line: a tab stop in its own right, with a visible marker on keyboard focus.
     const line = await tabTo(page, (el) => el.tag === 'svg' && el.role === 'application', 'the number line');

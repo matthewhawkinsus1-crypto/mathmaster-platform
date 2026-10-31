@@ -9,7 +9,7 @@ import MyMathPathProgress from './MyMathPathProgress.jsx';
 import StudentGlobalNav, { STUDENT_DESTINATION } from './StudentGlobalNav.jsx';
 import { fetchStudentMasteryState } from '../../services/masteryStateService.js';
 import { buildUnifiedMasteryProfiles } from '../../platform/mastery/unifiedMastery.js';
-import { fetchMyMathPathSkillProgress } from '../../services/pathSessionService.js';
+import { fetchMyMathPathSkillProgress, fetchPathSessionRecap } from '../../services/pathSessionService.js';
 import { fetchStudentEvidenceEvents } from '../../platform/history/evidencePersistence.js';
 import { toCanonicalKey, toDisplayCode } from '../../utils/teksUtils.js';
 import { fetchPathCoverage } from '../../platform/path/pathCoverageService.js';
@@ -38,7 +38,8 @@ import { evaluateStudentRetentionSchedule } from '../../platform/retention/reten
 import { DEFAULT_MASTERY_COURSE_ID, getWheelTeksForCourse } from '../../platform/mastery/strandConfig.js';
 import { buildStudentAssessmentContext } from '../../platform/ccmr/studentAssessmentContext.js';
 import {
-  ccmrPlanFrameworks, ccmrPlanSaveRequest, ccmrPlanWithGoals, ccmrPlanWithTest, decideLegacyCcmrMigration,
+  ccmrPlanContainerView, ccmrPlanFrameworks, ccmrPlanSaveRequest, ccmrPlanStateAfterSave, ccmrPlanStateFromSnapshot,
+  ccmrPlanWithGoals, ccmrPlanWithTest, decideLegacyCcmrMigration,
 } from '../../platform/ccmr/ccmrPlan.js';
 import {
   clearLegacyCcmrGoals, readLegacyCcmrGoals, saveMyCcmrPlan, subscribeStudentCcmrPlan,
@@ -51,7 +52,7 @@ import {
   writeMathPathRouteState,
 } from '../../platform/student/browserHistory.js';
 import { mathPathUrlFor } from '../../app/routes/browserUrl.js';
-import { PATH_HEADER_H1_STYLE, pathContentIsMain, pathHeaderIsH1 } from './myMathPathLandmarks.js';
+import { PATH_HEADER_H1_STYLE, pathContentIsMain, pathHeaderIsH1, pathOwnExitLabel, pathSessionIsMain } from './myMathPathLandmarks.js';
 
 // The mastery-status priority list this used to be was a second, competing
 // idea of what to recommend, sitting beside the path engine and able to
@@ -135,8 +136,9 @@ export const MyMathPathExperience = ({
   // The student's CCMR plan ("I'm preparing for…" and an optional test date),
   // as data. The live container reads studentCcmrPlans and saves through the
   // setMyCcmrPlan callable; the simulator hands over a synthetic plan and keeps
-  // its saves in memory. `ccmrPlanLoaded` means the plan is known, and only
-  // then may it be edited. `ccmrPlanSettled` holds the weekly plan back until
+  // its saves in memory. `ccmrPlanLoaded` means the server has answered, and
+  // only then may the plan be edited (a cached copy may be stale: MP17).
+  // `ccmrPlanSettled` holds the weekly plan back until
   // the student's own plan is known (or plainly unavailable), so a week is
   // not frozen without it.
   ccmrPlan = null,
@@ -153,6 +155,9 @@ export const MyMathPathExperience = ({
   onSimulationEvent = null,
   readOnly = false,
   initialTab = 'path',
+  // The exam a practice test's "Practise this skill" starts on launchTeksCode
+  // (MP14), or null for ordinary course practice.
+  launchFramework = null,
   // A reload of a session (app/routes/urlArrival.js): the session this tab's
   // history entry recorded, restored exactly as browser Forward restores it.
   initialSessionConfig = null,
@@ -659,12 +664,16 @@ export const MyMathPathExperience = ({
   // prevented the exact skill the student chose from ever retrying. The result
   // was seventeen different recommendation buttons that all behaved like the
   // same generic "open My Math Path" button.
+  // A practice test's link starts that exam's practice (launchFramework), which
+  // fails closed with its own notice where the exam has none published for the
+  // skill; the same skill in two formats is two launches.
   const launchedRef = useRef(null);
   useEffect(() => {
-    if (!launchTeksCode || launchedRef.current === launchTeksCode || !coverageLoaded) return;
-    launchedRef.current = launchTeksCode;
-    startSession(launchTeksCode);
-  }, [launchTeksCode, coverageLoaded, coverage]);
+    const launchKey = launchTeksCode ? `${launchFramework || 'course'}:${launchTeksCode}` : null;
+    if (!launchKey || launchedRef.current === launchKey || !coverageLoaded) return;
+    launchedRef.current = launchKey;
+    startSession(launchTeksCode, launchFramework ? { framework: launchFramework } : {});
+  }, [launchTeksCode, launchFramework, coverageLoaded, coverage]);
 
   const startWeeklySession = (session) => {
     // Not until this week's sessions are known: before then a card may show
@@ -725,6 +734,8 @@ export const MyMathPathExperience = ({
 
   const embeddedInTeacherPage = Boolean(readOnly || sessionProvider);
   const ScreenBody = pathContentIsMain({ activeTab, embedded: embeddedInTeacherPage }) ? 'main' : React.Fragment;
+  // The Path's own way out, only where the shared row above does not carry one.
+  const ownExitLabel = pathOwnExitLabel({ readOnly, hasExit: Boolean(onExit), hasGlobalNav: Boolean(onNavigate) });
 
   return (
     <div style={{ minHeight: '100%', background: 'var(--mm-surface-sunken)' }}>
@@ -757,7 +768,7 @@ export const MyMathPathExperience = ({
             )}
             <nav aria-label="My Math Path navigation" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
               {visibleTabs.map(([tab, label]) => <button key={tab} type="button" onClick={() => setActiveTab(tab)} style={{ minHeight: 44, padding: '12px 8px 10px', border: 0, borderBottom: `3px solid ${activeTab === tab ? '#1a73e8' : 'transparent'}`, background: 'transparent', color: activeTab === tab ? 'var(--mm-primary-text)' : 'var(--mm-text-muted)', fontWeight: 900, cursor: 'pointer' }}>{label}</button>)}
-              {onExit && <button type="button" onClick={onExit} style={{ marginLeft: '6px', minHeight: 44, padding: '8px 11px', border: '1px solid var(--mm-border)', borderRadius: '7px', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, cursor: 'pointer' }}>{readOnly ? 'Back to student' : 'Home'}</button>}
+              {ownExitLabel && <button type="button" onClick={onExit} style={{ marginLeft: '6px', minHeight: 44, padding: '8px 11px', border: '1px solid var(--mm-border)', borderRadius: '7px', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, cursor: 'pointer' }}>{ownExitLabel}</button>}
             </nav>
           </div>
         </header>
@@ -826,6 +837,9 @@ export const MyMathPathExperience = ({
             goals={assessmentContext.goals}
             plan={visibleCcmrPlan}
             planStatus={ccmrPlanStatus}
+            // The class's framework setting, as the weekly planner reads it:
+            // a framework the teacher picked wins over the student's test (MP17).
+            teacherFramework={weeklyPlanClassInputs({ config: weeklyGoalConfig || {}, honors }).ccmrFramework}
             teacherPriorities={assessmentContext.teacherPriorities}
             onChangeGoals={changeGoals}
             onChangeTest={changeTest}
@@ -849,13 +863,17 @@ export const MyMathPathExperience = ({
           onOpenPath={readOnly ? null : () => setActiveTab('path')}
         />
       )}
-      {activeTab === 'history' && <StudentPracticeHistory evidenceEvents={evidenceEvents} availableTeks={availableTeks} loading={loading} error={historyError} eventLimit={PRACTICE_HISTORY_EVENT_LIMIT} />}
+      {/* "See the solution" asks the student's own review callable, so it is
+          offered only on the student's own live Path (MP18): never in a
+          teacher's read-only view or the simulator. */}
+      {activeTab === 'history' && <StudentPracticeHistory evidenceEvents={evidenceEvents} availableTeks={availableTeks} loading={loading} error={historyError} eventLimit={PRACTICE_HISTORY_EVENT_LIMIT} loadSessionRecap={readOnly || sessionProvider ? null : fetchPathSessionRecap} />}
       </ScreenBody>
       {/* Keyed per launch: "Start session N of M" from the end screen opens a
           fresh container instead of carrying the last review into it. */}
       {activeTab === 'session' && sessionConfig && <MyMathPathProductionContainer
         key={sessionLaunchKey(sessionConfig)}
         {...sessionConfig} studentProfile={studentProfile} sessionProvider={sessionProvider} onSimulationController={onSimulationController} onSimulationEvent={onSimulationEvent} onReturnToDashboard={returnToDashboard}
+        mainLandmark={pathSessionIsMain({ embedded: embeddedInTeacherPage })}
         masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS}
         liveServerMasteryProfiles={sessionProvider ? null : serverMasteryProfiles}
         weeklySessionEnd={weeklySessionEnd}
@@ -934,7 +952,9 @@ export const MyMathPathApp = (props) => {
     setCcmrPlanState({ studentId, plan: null, loaded: false, exists: false, fromCache: true, error: null });
     return subscribeStudentCcmrPlan({
       studentId,
-      onChange: ({ plan, exists, fromCache }) => setCcmrPlanState({ studentId, plan, loaded: true, exists, fromCache, error: null }),
+      // The same plan object while nothing in it changes, so the server
+      // confirming the cached copy does not rebuild the week (ccmrPlan.js).
+      onChange: ({ plan, exists, fromCache }) => setCcmrPlanState((previous) => ccmrPlanStateFromSnapshot(previous, { studentId, plan, exists, fromCache })),
       onError: (caught) => {
         console.error('Could not load the CCMR plan:', caught);
         setCcmrPlanState((current) => ({
@@ -954,7 +974,7 @@ export const MyMathPathApp = (props) => {
     const run = ccmrSaveQueue.current.catch(() => {}).then(() => saveMyCcmrPlan(request));
     ccmrSaveQueue.current = run;
     return run.then((plan) => {
-      setCcmrPlanState((current) => (current.studentId === studentId ? { ...current, plan, exists: Boolean(plan) } : current));
+      setCcmrPlanState((current) => ccmrPlanStateAfterSave(current, { studentId, plan }));
       return plan;
     });
   }, [studentId]);
@@ -964,8 +984,9 @@ export const MyMathPathApp = (props) => {
   // has no plan, this browser's old copy is saved, once, and then forgotten.
   const ccmrMigrationAttempted = useRef(null);
   useEffect(() => {
-    if (ccmrPlanState.studentId !== studentId || ccmrPlanState.error) return;
     const decision = decideLegacyCcmrMigration({
+      current: ccmrPlanState.studentId === studentId,
+      error: ccmrPlanState.error,
       readOnly,
       loaded: ccmrPlanState.loaded,
       exists: ccmrPlanState.exists,
@@ -981,7 +1002,6 @@ export const MyMathPathApp = (props) => {
       .catch((caught) => console.warn('Could not move saved CCMR goals to this account yet:', caught));
   }, [studentId, readOnly, ccmrPlanState, saveCcmrPlan]);
 
-  const ccmrPlanCurrent = ccmrPlanState.studentId === studentId;
   // "No plan" from the offline cache is not an answer — the server may hold
   // one — so the week waits for the server. It stops waiting after a few
   // seconds, so an offline Chromebook still shows its week.
@@ -991,12 +1011,10 @@ export const MyMathPathApp = (props) => {
     const timer = setTimeout(() => setCcmrPlanWaitExpired(true), 8000);
     return () => clearTimeout(timer);
   }, [studentId]);
-  // Known: the server (or a cached copy of a real plan) has answered. Only a
-  // known plan may be edited — a save built on a guess would overwrite a plan
-  // the student saved on another device.
-  const ccmrPlanKnown = ccmrPlanCurrent && ccmrPlanState.loaded && !ccmrPlanState.error
-    && (ccmrPlanState.exists || !ccmrPlanState.fromCache);
-  const ccmrPlanSettled = ccmrPlanCurrent && (ccmrPlanKnown || Boolean(ccmrPlanState.error) || ccmrPlanWaitExpired);
+  // This student's plan only; editable once the SERVER has answered (a cached
+  // copy may be older than a plan saved on another device); the week settles
+  // on a known plan, an error or the offline wait (ccmrPlan.js, MP17).
+  const ccmrView = ccmrPlanContainerView({ state: ccmrPlanState, studentId, waitExpired: ccmrPlanWaitExpired });
 
   return (
     <MyMathPathExperience
@@ -1008,10 +1026,10 @@ export const MyMathPathApp = (props) => {
       error={error}
       historyError={historyError}
       onReload={loadState}
-      ccmrPlan={ccmrPlanCurrent ? ccmrPlanState.plan : null}
-      ccmrPlanLoaded={ccmrPlanKnown}
-      ccmrPlanSettled={ccmrPlanSettled}
-      ccmrPlanError={ccmrPlanCurrent ? ccmrPlanState.error : null}
+      ccmrPlan={ccmrView.plan}
+      ccmrPlanLoaded={ccmrView.editable}
+      ccmrPlanSettled={ccmrView.settled}
+      ccmrPlanError={ccmrView.error}
       onSaveCcmrPlan={readOnly ? null : saveCcmrPlan}
     />
   );

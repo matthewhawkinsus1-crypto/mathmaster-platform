@@ -299,6 +299,25 @@ test('a run longer than the window keeps paying, aligned to the blocks already p
   assert.ok(unrelated.skipped.some((entry) => entry.reason === SKIP_REASON.RUN_START_UNKNOWN));
 });
 
+// MP06: "the week before" is date arithmetic. A key's own midnight handed back
+// to weekKeyFor as a moment is Sunday evening in the school's zone, a week early,
+// and this check turns on exactly that week.
+test('a run beginning the week after the rewards began might have had a qualifying week before it, so its start is unknown', () => {
+  // The rewards began in WEEK_ONE. A run that starts in WEEK_ONE has nothing
+  // before it that could have qualified, so it is whole and its block pays.
+  const whole = weekly([0, 1, 2].map((n) => addWeeks(WEEK_ONE, n)), { windowStartWeekKey: WEEK_ONE });
+  assert.equal(pointsOf(byRule(whole.awards, GROWTH_RULE_IDS.WEEKLY_PATH_STREAK)).length, 1);
+  assert.ok(!whole.skipped.some((entry) => entry.reason === SKIP_REASON.RUN_START_UNKNOWN));
+
+  // A run that starts the week after has WEEK_ONE before it, which could have
+  // been met: the run may be longer than the window shows, so it is not paid
+  // from the wrong week.
+  const edge = addWeeks(WEEK_ONE, 1);
+  const unknown = weekly([0, 1, 2].map((n) => addWeeks(edge, n)), { windowStartWeekKey: edge });
+  assert.deepEqual(byRule(unknown.awards, GROWTH_RULE_IDS.WEEKLY_PATH_STREAK), []);
+  assert.ok(unknown.skipped.some((entry) => entry.reason === SKIP_REASON.RUN_START_UNKNOWN));
+});
+
 // --- Mastery ---------------------------------------------------------------
 
 /*

@@ -101,7 +101,126 @@ function studentRequiredIndices(indices, omitted) {
   return required.length ? required : list;
 }
 
+const sameSet = (left, right) => left.size === right.size && [...left].every((value) => right.has(value));
+
+/*
+ * A SUPPORT-PROFILE CHANGE THAT MOVES THE ITEMS A STUDENT OWES (TT23).
+ *
+ * Classroom is told a grade when a grade is written: a changed answer, an
+ * override, a release. Saving a student's support profile writes
+ * `grades/{id}.profile` and nothing else, so a reduced-item-count accommodation
+ * added (or taken off) on work that is still open changed the grade MathMaster
+ * shows at once and left Classroom on the old one until the next answer or the
+ * due-date checkpoint. The two Classroom triggers ask this which assignments
+ * the profile change moved and give them the same push an answer would.
+ *
+ * Only the profile's effect is looked for, in three narrowing steps, so the
+ * common edit (a note, another accommodation) costs nothing:
+ *   1. the profile's item-reduction key is the same before and after: stop;
+ *   2. the reduction each assignment resolves to (percent and activities),
+ *      read from its date fields alone, is the same before and after: skip it;
+ *   3. only for the rest, the assignment itself is read and the items omitted
+ *      before and after are compared: an assignment whose omitted items are the
+ *      same has the same grade, so it is not woken.
+ * Never throws: anything unexpected is "nothing moved", which is what happened
+ * before this existed.
+ */
+async function assignmentsWithChangedWorkload({
+  beforeData = null,
+  afterData = null,
+  readAnchors,
+  readAssignment,
+  nowValue = Date.now(),
+  onError = null,
+} = {}) {
+  const beforeProfile = beforeData?.profile;
+  const afterProfile = afterData?.profile;
+  if (!isObject(beforeProfile) && !isObject(afterProfile)) return [];
+  try {
+    const {
+      profileItemReductionKey,
+      itemReductionPolicySummary,
+      resolveItemReductionPolicy,
+    } = await reducedWorkload();
+    if (profileItemReductionKey(beforeProfile) === profileItemReductionKey(afterProfile)) return [];
+    const ids = Object.keys(isObject(afterData?.gradesByAssignment) ? afterData.gradesByAssignment : {});
+    if (!ids.length) return [];
+    const anchors = await readAnchors(ids);
+    const candidates = ids.filter((id) => {
+      const assignment = anchors.get(id);
+      if (!assignment) return false;
+      return itemReductionPolicySummary(resolveItemReductionPolicy({ profile: beforeProfile, assignment, nowValue }))
+        !== itemReductionPolicySummary(resolveItemReductionPolicy({ profile: afterProfile, assignment, nowValue }));
+    });
+    const moved = [];
+    for (const id of candidates) {
+      // eslint-disable-next-line no-await-in-loop
+      const assignment = await readAssignment(id);
+      if (!isObject(assignment)) continue;
+      // eslint-disable-next-line no-await-in-loop
+      const was = await studentOmittedFor({ assignment, gradeData: { ...afterData, profile: beforeProfile }, assignmentId: id, nowValue, onError });
+      // eslint-disable-next-line no-await-in-loop
+      const now = await studentOmittedFor({ assignment, gradeData: afterData, assignmentId: id, nowValue, onError });
+      if (!sameSet(was, now)) moved.push(id);
+    }
+    return moved;
+  } catch (error) {
+    if (typeof onError === "function") {
+      try { onError(error); } catch { /* reporting must not break grading */ }
+    }
+    return [];
+  }
+}
+
+// Just what picks the profile that governs an assignment (workloadAnchorDateKey).
+const ASSIGNMENT_DATE_FIELDS = ["dueAt", "dueDate", "releaseAt", "releaseDate"];
+
+/** The date fields of many assignments, read without their questions. */
+async function readAssignmentAnchors(db, ids) {
+  const anchors = new Map();
+  for (let start = 0; start < ids.length; start += 100) {
+    // eslint-disable-next-line no-await-in-loop
+    const snapshots = await db.getAll(
+      ...ids.slice(start, start + 100).map((id) => db.doc(`assignments/${id}`)),
+      { fieldMask: ASSIGNMENT_DATE_FIELDS },
+    );
+    snapshots.forEach((snapshot) => {
+      if (snapshot.exists) anchors.set(snapshot.id, snapshot.data() || {});
+    });
+  }
+  return anchors;
+}
+
+/** The assignments the profile change moved, read from Firestore. */
+function profileMovedAssignmentIds({ db, beforeData, afterData, nowValue = Date.now(), onError = null }) {
+  return assignmentsWithChangedWorkload({
+    beforeData,
+    afterData,
+    nowValue,
+    onError,
+    readAnchors: (ids) => readAssignmentAnchors(db, ids),
+    readAssignment: async (id) => {
+      const snapshot = await db.doc(`assignments/${id}`).get();
+      return snapshot.exists ? snapshot.data() || null : null;
+    },
+  });
+}
+
+/**
+ * Does a push that only a profile change asked for still have to go out? Only
+ * when Classroom already holds a grade MathMaster pushed (`prior.status` is
+ * "synced") and the grade now differs from it. A profile change corrects a grade
+ * Classroom has; it never starts a column, retries a failed one, or sends the
+ * same number again.
+ */
+function profileChangeNeedsPush(prior, grade) {
+  return prior?.status === "synced" && Number(prior.grade) !== Number(grade);
+}
+
 module.exports = {
+  assignmentsWithChangedWorkload,
+  profileChangeNeedsPush,
+  profileMovedAssignmentIds,
   reducedWorkload,
   studentOmittedFor,
   studentRequiredIndices,

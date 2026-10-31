@@ -194,8 +194,8 @@ test('each question shows the answer given, the right answer and the worked solu
   assert.match(reviewScreen, /^import SolutionReviewPanel from '\.\.\/\.\.\/SolutionReviewPanel\.jsx';$/m);
   assert.doesNotMatch(executableSource(reviewScreen), /PathSolutionReview/, 'one panel, not two');
   const supports = region(reviewScreen, 'const solutionSupports = useMemo(', ');', 'solution supports');
-  assert.match(supports, /workedSolutionSupports\(secureAccessEntitlement\(studentSupportProfile\), \{ speechReady: speechAvailable\(\) \}\)/);
-  assert.match(reviewScreen, /^import \{ secureAccessEntitlement \} from '\.\.\/\.\.\/platform\/assessment\/secureItemAccess\.js';$/m);
+  assert.match(supports, /workedSolutionSupports\(releasedReviewAccessEntitlement\(studentSupportProfile\), \{ speechReady: speechAvailable\(\) \}\)/);
+  assert.match(reviewScreen, /^import \{ releasedReviewAccessEntitlement \} from '\.\.\/\.\.\/platform\/assessment\/secureItemAccess\.js';$/m);
   assert.match(reviewScreen, /^import \{ workedSolutionSupports \} from '\.\.\/\.\.\/platform\/supports\/workedSolutionSupports\.js';$/m);
 });
 
@@ -282,10 +282,13 @@ test('the card states the student\'s own time and that answers can change until 
   const facts = region(card, '{/* The facts a student would otherwise have to ask about. */}', '</div>', 'facts');
   // Every secure item is a draft until the session is finalized: no "one attempt".
   assert.doesNotMatch(executableSource(card), /one attempt/i);
-  assert.match(facts, /questions\. You can change your answers until you submit\./);
-  assert.match(facts, /Number\(card\.delivery\.extendedTimeMultiplier\) > 1 \? ', including your extended time' : ''/);
+  assert.match(facts, /You can change your answers until you submit\./);
+  // The student's own minutes, extended time included, are in the sentence the
+  // card shares with Tests & Exams (testCycleDeliveryText; tested directly in
+  // testsAndExamsAssignedTestCycle.test.mjs), and the card prints that sentence.
+  assert.match(facts, /\{deliveryText\} You can change your answers until you submit\./);
   // Only while a sitting is ahead: not in Corrections, after a submit, or once the cycle is done (QA m3).
-  assert.match(facts, /\{card\.delivery && sittingAhead && \(/);
+  assert.match(facts, /\{deliveryText && sittingAhead && \(/);
   assert.match(card, /const sittingAhead = \[TEST_CYCLE_STAGE\.REVIEW, TEST_CYCLE_STAGE\.TEST, TEST_CYCLE_STAGE\.RETEST_READY, TEST_CYCLE_STAGE\.RETEST\]\.includes\(card\.stage\);/);
 });
 

@@ -22,8 +22,9 @@ const PANEL = read('src/components/assessment/GraphingCalculatorPanel.jsx');
 
 test('the field picks its editor from the entry policy, not from a list of its own', () => {
   const component = region(FIELD, 'export default function SecureMathAnswerField', '\n}\n', 'the field');
-  // The prompt goes in too: an inequality's keypad offers its letters (H-13).
-  assert.match(component, /const entry = useMemo\(\(\) => secureAnswerEntryFor\(field, \{ prompt \}\), \[field, prompt\]\);/);
+  // The prompt goes in too: an inequality's keypad offers its letters (H-13);
+  // and the exam type, which picks a practice exam's number line (TS04).
+  assert.match(component, /const entry = useMemo\(\(\) => secureAnswerEntryFor\(field, \{ prompt, examType \}\), \[field, prompt, examType\]\);/);
   assert.match(component, /\{entry\.editor === SECURE_ANSWER_EDITORS\.MATH \? \(\s*<MathEditor/, 'the math editor only where the policy says the grader reads it');
   assert.match(component, /\) : \(\s*<TextEditor/);
   assert.match(FIELD, /^import \{\n[^}]*\bsecureAnswerEntryFor,\n\} from '\.\.\/\.\.\/platform\/assessment\/secureAnswerEntry\.js';$/m);
@@ -138,7 +139,9 @@ test('the math field\'s accessible name carries the typing hint, which an id ref
   const math = region(FIELD, 'function MathEditor(', '\n}\n', 'the math editor');
   assert.match(region(math, '<MathInput', '/>', 'the editor\'s MathInput'), /\n\s*ariaLabel=\{label\}/, 'the editor\'s name is the math box\'s name');
   const MATH_INPUT = executableSource(componentSource('src/MathInput.jsx'));
-  assert.match(region(MATH_INPUT, 'export default function MathInput(', '\n  return (', 'MathInput hooks'), /const fieldName = ariaLabel \|\| placeholder \|\| 'Math answer';\s*useMathFieldName\(mfRef, fieldName\);/, 'MathInput names its sink with that name');
+  // (A closed question's box adds its answer after that name, AX01:
+  // mathFieldAccessibleName in tests/platform/mathFieldName.test.mjs.)
+  assert.match(region(MATH_INPUT, 'export default function MathInput(', '\n  return (', 'MathInput hooks'), /const fieldName = mathFieldAccessibleName\(\{ name: ariaLabel \|\| placeholder, [^}]*\}\);\s*useMathFieldName\(mfRef, fieldName\);/, 'MathInput names its sink with that name');
   const named = region(FIELD, 'const nameWithHint = (label, hint, fromServer) => {', '\n};', 'nameWithHint');
   assert.match(named, /const spoken = fromServer \? speechTextFor\(hint\) : hint;/, 'a server hint\'s $…$ mathematics is said in words');
   assert.match(component, /<TextEditor[\s\S]*?hintId=\{entry\.hint \? hintId : ''\}/, 'a text box keeps its description');

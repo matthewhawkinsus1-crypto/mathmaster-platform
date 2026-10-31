@@ -12,6 +12,9 @@
  *   points to the teacher.
  * Also noted. "goes down 3 for every 1 to the right" for the field "Slope of
  *   line B′ = −3" is a Pre-Flight warning.
+ * FB11. The owner kept these rules as built. The 31 teacher-written hints
+ *   the guard still hid (Pre-Flight listed each) were reworded to point at
+ *   the next move without stating an answer, so none is hidden now.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -68,6 +71,9 @@ const real = (questionId) => {
 const authoredOf = (question) => [question.supportHints, question.hints, question.hint].flat()
   .filter(Boolean).map((hint) => String(typeof hint === 'string' ? hint : hint.text || '').trim()).filter(Boolean);
 const shownTexts = (question) => new Set(buildQuestionHints(question).map((hint) => hint.text));
+// FB11 reworded every hint the guard dropped from the lessons. A hint that
+// states an answer is still tried against the question it was written for.
+const withHints = (question, hints) => ({ ...question, hints });
 // The guard as it was: any answer value as text.
 const plainGuardDrops = (question, hint) => hintRevealsAnswer(hint, questionAnswerValues(question));
 // The 32 hints the guard dropped on the base (5062cba5), by the pass-3 probe.
@@ -131,13 +137,14 @@ test('a number the hint only quotes from the problem is not an answer it states'
   const rule = 'A whole number n is n/1, so its negative reciprocal is −1/n.';
   assert.ok(plainGuardDrops(cw4, rule));
   assert.ok(shownTexts(cw4).has(rule));
-  assert.ok(!shownTexts(cw4).has('Check: the two slopes should multiply to −1.'), 'while "multiply to −1" still states the answer −1');
+  const product = 'Check: the two slopes should multiply to −1.';
+  assert.ok(!shownTexts(withHints(cw4, [rule, product])).has(product), 'while "multiply to −1" still states the answer −1');
 });
 
 test('a hint that states an answer is still dropped: a value, a point, an expression, a coefficient the problem does not show', () => {
+  // Each was its lesson's own hint until FB11 reworded it.
   const dropped = (questionId, hint) => {
-    const question = real(questionId);
-    assert.ok(authoredOf(question).includes(hint), `${questionId}: ${hint}`);
+    const question = withHints(real(questionId), [hint]);
     assert.ok(!shownTexts(question).has(hint), `${questionId} must not show: ${hint}`);
   };
   dropped('l3-pr-2', 'The negative reciprocal of −3/4 is 4/3.');
@@ -154,7 +161,10 @@ test('a hint that states an answer is still dropped: a value, a point, an expres
   assert.equal(buildQuestionHints(pointAnswer).some((hint) => hint.text.includes('(6, 3)')), false);
   assert.ok(hintAnswerLeak('It lands at (6, 3).', { answers: questionAnswerValues(pointAnswer), visibleText: questionVisibleText(pointAnswer) }));
   // A value read by value: "6/2" writes 3, "x/2" writes 2, "12" does not write 2.
-  assert.deepEqual(statedAnswers('That is 6/2.', { answers: ['3'], visibleText: 'y = 3x' }), [], 'the shared guard never read 6/2 as 3 — only matches it found are refined');
+  // (6/2 was not read as 3 until FB03: the guard only refined what the shared
+  // text guard matched. The same number in another spelling is stated; see
+  // hintGuardSpellings.test.mjs.)
+  assert.deepEqual(statedAnswers('That is 6/2.', { answers: ['3'], visibleText: 'y = 3x' }), ['3'], 'an unreduced fraction is the answer written another way');
   assert.deepEqual(statedAnswers('It is 3/1.', { answers: ['3'], visibleText: '' }), ['3']);
   assert.deepEqual(statedAnswers('Write f(x/2).', { answers: ['2'], visibleText: '' }), ['2']);
   assert.deepEqual(statedAnswers('Add 12 to both sides.', { answers: ['2'], visibleText: '' }), []);
@@ -179,10 +189,11 @@ test('a table\'s answer cells are answers: the hint that filled the first row is
   const cw9 = real('l2-cw-9');
   const values = questionAnswerValues(cw9);
   assert.ok(values.includes('-8/5') && values.includes('-5/2'), JSON.stringify(values));
-  assert.ok(!shownTexts(cw9).has('(4/5)(−2) = −8/5 and (5/4)(−2) = −5/2.'), 'it states two of the cells the student fills in');
+  const firstRow = '(4/5)(−2) = −8/5 and (5/4)(−2) = −5/2.';
+  assert.ok(!shownTexts(withHints(cw9, [firstRow])).has(firstRow), 'it states two of the cells the student fills in');
 });
 
-test('over every real lesson, exactly three hints change to shown, and none of them states an answer', () => {
+test('over every real lesson, every teacher-written hint is shown, and none of them states an answer', () => {
   const nowShown = [];
   const nowDropped = [];
   let total = 0;
@@ -210,38 +221,46 @@ test('over every real lesson, exactly three hints change to shown, and none of t
   // Algebra I Honors DOL #3 Review 44 (the same 39, three on its Honors
   // extension and one on each audited TSIA2 item), the Module 3 lessons 417
   // (their Honors files 430), and the Algebra II Polynomials and Radicals
-  // lessons 229 (their Honors versions 272), every one shown (none is in
+  // lessons 229 (their Honors versions 272), and the Algebra I Lesson 3 Honors
+  // file 58 (the Regular lesson's 56 on the 27 questions it keeps, and one on
+  // each of the two audited SAT items), every one shown (none is in
   // BASE_DROPPED, and nowDropped is unchanged).
-  assert.equal(total, 200 + 87 + 90 + 39 + 66 + 44 + 417 + 430 + 229 + 272);
+  assert.equal(total, 200 + 87 + 90 + 39 + 66 + 44 + 417 + 430 + 229 + 272 + 58);
   assert.equal(BASE_DROPPED.length, 32);
-  assert.deepEqual(nowShown.sort(), [
+  // The Lesson 3 Honors file repeats the Regular lesson's questions (and their
+  // ids), so each hint that is shown now is listed once, not once per file.
+  assert.deepEqual([...new Set(nowShown)].sort(), [
     'l2-wu-2: The x-intercept is where the output is 0: solve 0 = 3x − 8.',
     'l3-cw-2: Line C: from (−2, 9) to (6, 5). Line C′: from (0, −7) to (6, 5).',
     'l3-cw-4: A whole number n is n/1, so its negative reciprocal is −1/n.',
   ]);
-  // The table's cells, read for the first time (the first is the price of
-  // that: it multiplies by a factor that is also a cell).
-  assert.deepEqual(nowDropped.sort(), [
-    'l2-cw-9: (4/5)(−2) = −8/5 and (5/4)(−2) = −5/2.',
-    'l2-cw-9: For c(x), multiply each output f(x) by 4/5.',
-  ]);
-  assert.equal(droppedCount, 31);
+  // Reading a table's cells for the first time dropped two of l2-cw-9's hints
+  // (the first multiplied by a factor that is also a cell). FB11 reworded
+  // them, with every other hint the guard dropped: 31 teacher-written hints
+  // were hidden from students until then, and none is now.
+  assert.deepEqual(nowDropped, []);
+  assert.equal(droppedCount, 0);
 });
 
 /* --------------------------------------------------- HELP-16, Pre-Flight */
 
-const preflightOf = (file) => buildAssignmentV5PreflightModel(buildPreflightReviewedAssignmentV5(parseAssignmentBlueprintText(readFileSync(file, 'utf8')).assignmentV5, {}));
+const preflightOfText = (text) => buildAssignmentV5PreflightModel(buildPreflightReviewedAssignmentV5(parseAssignmentBlueprintText(text).assignmentV5, {}));
+const preflightOf = (file) => preflightOfText(readFileSync(file, 'utf8'));
 
 test('Pre-Flight lists every hint students will not see, with the reason, and only where hints are offered', () => {
-  const l2 = preflightOf(join(ROOT, 'teacher-import-jsons/algebra1-module2-topic2/L2_Vertical_and_Horizontal_Transformations_of_Linear_Functions.json'));
+  // FB11 reworded the lessons' hidden hints, so the panel is read on a copy of
+  // L2 whose Activity 2.3 item l2-pr-9 has its old hints back.
+  const lesson = JSON.parse(read('teacher-import-jsons/algebra1-module2-topic2/L2_Vertical_and_Horizontal_Transformations_of_Linear_Functions.json'));
+  const pr9 = lesson.sections.flatMap((section) => section.questions).find((question) => question.questionId === 'l2-pr-9');
+  pr9.hints = ['Multiply each y-coordinate by −2.', 'Keep each x-coordinate.', 'S1 = (−2, −2) lands at (−2, 4).'];
+  const l2 = preflightOfText(JSON.stringify(lesson));
   const warnings = l2.hiddenHints.warnings;
-  const l2Dropped = realQuestions().filter(({ file }) => file.includes('L2_Vertical_and_Horizontal'))
-    .reduce((count, { question }) => count + authoredOf(question).filter((hint) => !shownTexts(question).has(hint)).length, 0);
-  assert.equal(warnings.length, l2Dropped, 'one line per dropped hint');
-  const xIntercept = warnings.find((warning) => warning.includes('lands at'));
-  assert.match(xIntercept, /^Question \d+, hint 3 \(“S1 = \(−2, −2\) lands at \(−2, 4\)\.”\) is never shown to students: it names “−2”, “4”, “\(−2, 4\)”, which are answers to this question or parts of them\./);
+  assert.equal(warnings.length, 2, 'one line per dropped hint');
+  const landsAt = warnings.find((warning) => warning.includes('lands at'));
+  assert.match(landsAt, /^Question \d+, hint 3 \(“S1 = \(−2, −2\) lands at \(−2, 4\)\.”\) is never shown to students: it names “−2”, “4”, “\(−2, 4\)”, which are answers to this question or parts of them\./);
+  assert.match(warnings.find((warning) => warning.includes('y-coordinate')), /^Question \d+, hint 1 \(“Multiply each y-coordinate by −2\.”\) is never shown to students: it names “−2”/);
   assert.ok(warnings.every((warning) => /is never shown to students: (it names .+|it repeats an earlier hint)\./.test(warning)), warnings.join('\n'));
-  assert.ok(!warnings.some((warning) => warning.includes('solve 0 = 3x − 8')), 'a hint that is shown is not listed');
+  assert.ok(!warnings.some((warning) => warning.includes('Keep each x-coordinate') || warning.includes('solve 0 = 3x − 8')), 'a hint that is shown is not listed');
   // Advisory: never a readiness finding (assignmentAuthoringState reads diagnostics).
   assert.ok(!JSON.stringify(l2.diagnostics || []).includes('never shown to students'));
   assert.ok(!(l2.warnings || []).some((warning) => warning.includes('never shown to students')));
@@ -253,9 +272,10 @@ test('Pre-Flight lists every hint students will not see, with the reason, and on
   assert.equal(auditAssignmentHiddenHints([{ ...leaky, activityRole: 'practice' }]).warnings.length, 1);
   assert.equal(auditAssignmentHiddenHints([{ ...leaky, activityRole: 'practice', teacherExcluded: true }]).warnings.length, 0);
 
-  // Every lesson: the panel's count is the guard's count.
+  // Every lesson as written: the panel's count is the guard's, 0 since FB11
+  // reworded the 31 it listed.
   const fromPreflight = LESSON_FILES.reduce((count, file) => count + preflightOf(file).hiddenHints.warnings.length, 0);
-  assert.equal(fromPreflight, 31);
+  assert.equal(fromPreflight, 0);
 
   // The panel is wired, advisory, and names the list it shows.
   const modal = executableSource(read('src/components/teacher/LessonPreflightModal.jsx'));
@@ -278,7 +298,12 @@ test('a slope described in words is a Pre-Flight warning — L3 Activity 3.1, an
   const flagged = LESSON_FILES.flatMap((file) => preflightOf(file).hintAnswers.warnings
     .filter((warning) => warning.includes('in words'))
     .map((warning) => `${file.split('/').pop()}: ${warning.split('. A hint should')[0]}`));
-  assert.deepEqual(flagged, ['L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines.json: Question 4, hint 1 describes the slope −3 in words, the answer to “Slope of line B′ (read it from the graph)”']);
+  // The Regular lesson, and its Honors file, which keeps that question as it is.
+  const L3_FLAG = 'Question 4, hint 1 describes the slope −3 in words, the answer to “Slope of line B′ (read it from the graph)”';
+  assert.deepEqual(flagged, [
+    `L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines.json: ${L3_FLAG}`,
+    `L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines_Honors.json: ${L3_FLAG}`,
+  ]);
   // Still shown to the student: a warning for the author, not a drop.
   const question = realQuestions().find(({ question: q }) => authoredOf(q).includes('From (0, 5), line B′ goes down 3 for every 1 to the right.')).question;
   assert.ok(shownTexts(question).has('From (0, 5), line B′ goes down 3 for every 1 to the right.'));
@@ -292,7 +317,9 @@ test('the fallback fits the kind of question, and names no method step the item 
     .filter(({ role }) => getEffectiveActivityPolicy(role)?.hintsAllowed)
     .filter(({ question }) => buildQuestionHints(question).every((hint) => hint.source === 'generic'))
     .map(({ question }) => question);
-  assert.equal(genericOnly.length, 50, 'the report counted 50');
+  // 50 when the report counted them; the Algebra I Lesson 3 Honors file repeats
+  // the Regular lesson's three graph-choice items with no hint of their own.
+  assert.equal(genericOnly.length, 50 + 3, 'the report counted 50, and the Lesson 3 Honors file repeats 3');
   const kinds = {};
   genericOnly.forEach((question) => {
     const kind = fallbackKind(question);
@@ -300,7 +327,7 @@ test('the fallback fits the kind of question, and names no method step the item 
     assert.deepEqual(buildQuestionHints(question).map((hint) => hint.text), [...FALLBACK_HINTS[kind]]);
   });
   // No systems, matrix, sort, graph or build item gets "keep the two sides equal" now.
-  assert.deepEqual(kinds, { sort: 7, graphChoice: 4, general: 2, choice: 10, graph: 2, build: 5, systems: 20 });
+  assert.deepEqual(kinds, { sort: 7, graphChoice: 4 + 3, general: 2, choice: 10, graph: 2, build: 5, systems: 20 });
   const systems = genericOnly.filter((question) => question.type === 'systemsWorkspace');
   assert.equal(systems.length, 20);
   systems.forEach((question) => assert.equal(fallbackKind(question), 'systems'));

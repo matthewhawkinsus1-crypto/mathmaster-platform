@@ -7,14 +7,15 @@ import { validateLinearTableWorkbenchQuestion } from './linearTableWorkbench/lin
 import { validateExpressionMeaningQuestion } from './expressionMeaning/expressionMeaningMath.js';
 import { validateRepresentationBridgeQuestion } from './representationBridge/representationBridgeMath.js';
 import { validateMatrixLabQuestion } from './matrixLab/matrixLabMath.js';
-import { DIVISION_LIMITS, POLYNOMIAL_TEXT_LIMITS, addSubtractKey, areaModelKey, longDivisionKey, syntheticDivisionKey } from './polynomialWorkshop/polynomialMath.js';
+import { DIVISION_LIMITS, POLYNOMIAL_TEXT_LIMITS, addSubtractKey, areaModelKey, longDivisionKey, syntheticDivisionKey, syntheticRemainderDivisor } from './polynomialWorkshop/polynomialMath.js';
 import { normalizeLinearInequality } from './systemsWorkspace/linearInequalityEngine.js';
 import { linearEquationCoefficients, validateAlgebraicSystemAuthoring } from './systemsWorkspace/algebraicSystemsEngine.js';
 import { resolveSystemsWorkspaceMode } from './systemsWorkspace/systemsWorkspaceMode.js';
 import { axisLabelProblems } from './shared/planeAxisTitles.js';
-import { GRAPHING2_DEFAULT_BOUNDS, targetLineFromQuestion } from './graphing2/graphingMath.js';
+import { GRAPHING2_DEFAULT_BOUNDS, referenceLineOf, referenceLineProblem, targetLineFromQuestion } from './graphing2/graphingMath.js';
 import { formAwareAnchorsForMode, resolveConstructionPolicy } from './graphing2/constructionPolicy.js';
 import { radicalSolveKey } from './signSolutionAnalyzer/signSolutionMath.js';
+import { SEQUENCE_NOTATIONS, sequenceWritesRules } from './sequenceExplorer/sequenceNotation.js';
 const TOOL_IDS = new Set([
   'dataModelingLab','regressionCalculator','inverseCompositionLab','functionOperationsLab','systemsWorkspace','parabolaGeometryLab','polynomialWorkshop',
   'signSolutionAnalyzer','sequenceExplorer','complexPlaneLab','exponentialLogBridge','transformationsLab',
@@ -46,6 +47,13 @@ const graphing2WindowErrors = (question, mode) => {
     ? target.x >= xMin && target.x <= xMax
     : Math.max(...ends) >= yMin && Math.min(...ends) <= yMax;
   if (!crosses) return [`graphing2 line never crosses the drawn window (${window}); add graphBounds that contain it.`];
+  // The given line of a reference-line question is drawn too: one the window
+  // misses leaves the student nothing to read the slope from.
+  const reference = referenceLineOf(question);
+  if (reference) {
+    const [left, right] = [xMin, xMax].map((x) => reference.m * x + reference.b);
+    if (Math.max(left, right) < yMin || Math.min(left, right) > yMax) return [`graphing2 referenceLine never crosses the drawn window (${window}); add graphBounds that show it.`];
+  }
   if (resolveConstructionPolicy(question).strategy !== 'formAware') return [];
   const tolerance = 1e-9;
   const outside = formAwareAnchorsForMode(mode, question, target).anchors.filter(({ point: [x, y] }) => (
@@ -295,8 +303,9 @@ export const validateToolQuestion = (question = {}) => {
     if (mode === 'linearQuadratic' && Number(question.linearQuadratic?.quadratic?.a ?? 1) === 0) errors.push('linearQuadratic mode requires a nonzero quadratic coefficient.');
     if (mode === 'algebraic') {
       // 2×2 and, since #341, 3×3. One validator decides what the workflow can
-      // honestly run — counts, linearity, the 3×3 unique-solution gate, and
-      // which methods exist at each size — and the preflight reports it.
+      // honestly run — counts, linearity and which methods exist at each size
+      // (a dependent or inconsistent 3×3 works with every method since TL11) —
+      // and the preflight reports it.
       const algebraic = validateAlgebraicSystemAuthoring(question);
       errors.push(...algebraic.errors);
       warnings.push(...algebraic.warnings);
@@ -304,14 +313,16 @@ export const validateToolQuestion = (question = {}) => {
     if (mode === 'spatial') {
       // #359: the three-plane exploration needs exactly three linear
       // equations in exactly three variables — the same shape and linearity
-      // rules as a 3×3 algebraic system, minus the unique-solution gate
-      // (a spatial exploration may intentionally show no solution or
-      // infinitely many, for Day 2 classification).
+      // rules as a 3×3 algebraic system (a spatial exploration may
+      // intentionally show no solution or infinitely many, for Day 2
+      // classification).
       //
-      // Validated as an elimination system, the one method that accepts a
-      // non-unique 3×3 (#390) — never by filtering the uniqueness message out
-      // by its wording: #390 reworded it, the filter stopped matching, and
-      // every dependent/inconsistent three-plane question was refused (#392).
+      // Validated as an elimination system, which accepts a non-unique 3×3 —
+      // never by filtering the uniqueness message out by its wording: #390
+      // reworded it, the filter stopped matching, and every dependent/
+      // inconsistent three-plane question was refused (#392). Every method
+      // accepts one since TL11; the pin stays so a future method rule cannot
+      // refuse a three-plane question again.
       const spatial = validateAlgebraicSystemAuthoring({ ...question, method: 'elimination' });
       errors.push(...spatial.errors);
       if (String(question.spatialModel?.kind || '').trim().toLowerCase() !== 'threeplanes') {
@@ -331,6 +342,18 @@ export const validateToolQuestion = (question = {}) => {
       if (f.h != null && !Number.isFinite(Number(f.h))) errors.push('inverseCompositionLab deriveInverse mode requires finite h when supplied.');
       if (f.k != null && !Number.isFinite(Number(f.k))) errors.push('inverseCompositionLab deriveInverse mode requires finite k when supplied.');
     }
+    // The lab draws, labels and grades a function from a, h, k (and base)
+    // only. A line written as y = mx + b (m, slope, or b as its intercept), or
+    // a horizontal scale b, was shown and marked as a different function than
+    // the prompt states, and its worked review fell silent (FB14). Refused,
+    // with how to write it.
+    ['f', 'g'].forEach((key) => {
+      const fn = question[key];
+      if (!fn || typeof fn !== 'object') return;
+      const ignored = ['m', 'slope'].filter((field) => fn[field] != null);
+      if (fn.b != null && Number(fn.b) !== 1) ignored.push('b');
+      if (ignored.length) errors.push(`inverseCompositionLab ${key} uses ${ignored.join(', ')}, which the lab ignores. Write it with a, h and k: for a line y = mx + c, use a = m, h = 0, k = c.`);
+    });
     if (f.type === 'quadratic' && !f.inverseBranch && !question.inverseBranch && f.domain?.min == null && f.domain?.max == null) warnings.push('Quadratic inverse family should declare inverseBranch or a one-sided domain restriction.');
     if (['exponential','logarithmic'].includes(f.type)) {
       const base = Number(f.base ?? 2);
@@ -391,14 +414,14 @@ export const validateToolQuestion = (question = {}) => {
     if (question.mode === 'graphConnection' && (!Array.isArray(question.roots) || question.roots.length < 1)) errors.push('graphConnection mode requires at least one root/multiplicity entry.');
     if (question.mode === 'synthetic') {
       // Synthetic division divides by x − r: the dividend's full coefficient
-      // list (a 0 for each missing power) and r, as candidateRoot or a monic
-      // linear divisor [1, −r].
+      // list (a 0 for each missing power) and r, as candidateRoot (a number
+      // or a fraction, "1/2") or a linear divisor [a, b] — 2x − 1 is
+      // [2, -1], divided as x − 1/2 (TL49, syntheticRemainderDivisor).
       const dividend = Array.isArray(question.dividend) ? question.dividend.map(Number) : null;
       if (!dividend || dividend.length < 2 || !dividend.every(Number.isFinite) || dividend[0] === 0) errors.push('synthetic mode requires a dividend coefficient array of degree at least 1 with a nonzero leading coefficient.');
       const rootGiven = question.candidateRoot !== undefined && question.candidateRoot !== null && question.candidateRoot !== '';
-      const divisor = Array.isArray(question.divisor) ? question.divisor.map(Number) : null;
-      if (rootGiven && !Number.isFinite(Number(question.candidateRoot))) errors.push('synthetic mode candidateRoot must be a number.');
-      if (!rootGiven && !(divisor && divisor.length === 2 && divisor[0] === 1 && Number.isFinite(divisor[1]))) errors.push('synthetic mode divides by x − r: give candidateRoot r or a divisor [1, -r].');
+      if (rootGiven && !syntheticRemainderDivisor({ candidateRoot: question.candidateRoot })) errors.push('synthetic mode candidateRoot must be a number or a fraction such as 1/2.');
+      if (!rootGiven && !syntheticRemainderDivisor({ divisor: question.divisor })) errors.push('synthetic mode divides by x − r: give candidateRoot r (a number or a fraction such as 1/2) or a linear divisor [a, b] (2x − 1 is [2, -1], divided as x − 1/2).');
       if (question.ask !== undefined && (!Array.isArray(question.ask) || !question.ask.length || question.ask.some((entry) => !['value', 'quotient', 'factor'].includes(entry)))) errors.push('synthetic mode ask must list one or more of "value", "quotient", "factor".');
     }
     if (question.mode === 'rationalFeatures' && (!Array.isArray(question.denominatorRoots) || question.denominatorRoots.length < 1)) errors.push('rationalFeatures mode requires denominatorRoots.');
@@ -457,6 +480,15 @@ export const validateToolQuestion = (question = {}) => {
       if (mode === 'partialSum' && !isPositiveInteger(question.sumN)) errors.push('partialSum mode requires sumN as a positive integer.');
     }
     if (question.displayCount != null && (!isPositiveInteger(question.displayCount) || Number(question.displayCount) > 20)) errors.push('sequenceExplorer displayCount must be an integer from 1 to 20.');
+    // How the terms are written (TL39): a label only. Where the student types a
+    // rule the boxes read aₙ and the grader reads aₙ, so f(n) is refused there
+    // instead of being ignored.
+    if (question.notation != null) {
+      if (!SEQUENCE_NOTATIONS.includes(question.notation)) errors.push('sequenceExplorer notation must be "a_n" or "f(n)".');
+      else if (question.notation === 'f(n)' && sequenceWritesRules(question)) {
+        errors.push('sequenceExplorer notation "f(n)" is for questions that do not have the student write a rule in the tool: the rule boxes read aₙ and the grader reads rules written with aₙ. Drop the notation, or the writeExplicit / writeRecursive actions (and the ruleBridge mode).');
+      }
+    }
     if (mode === 'analyze' && question.revealTargetTerm !== true && question.displayCount != null && question.targetN != null && Number(question.displayCount) >= Number(question.targetN)) {
       errors.push('sequenceExplorer analyze mode must not display the requested target term before the student answers. Use displayCount < targetN, or set revealTargetTerm: true only when intentionally showing the answer as worked evidence.');
     }
@@ -658,6 +690,11 @@ export const validateToolQuestion = (question = {}) => {
     if (mode === 'pointSlope') {
       if (!isFinitePoint(question.point) || !Number.isFinite(Number(question.slope))) errors.push('pointSlope mode requires a finite point and slope.');
     }
+    // A reference line the slope does not agree with would ask for one line
+    // and grade another; the tool would quietly fall back to printing the
+    // slope (graphingMath referenceLineProblem, TL20).
+    const referenceProblem = referenceLineProblem(question);
+    if (referenceProblem) errors.push(`graphing2 referenceLine: ${referenceProblem}`);
     if (mode === 'standardForm') {
       const standard = question.standard || {};
       if (![standard.A,standard.B,standard.C].every((value) => Number.isFinite(Number(value)))) errors.push('standardForm mode requires finite A, B, and C coefficients.');

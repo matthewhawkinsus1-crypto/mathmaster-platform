@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import MathText from '../common/MathText.jsx';
 import MathInput from '../../MathInput.jsx';
+import { ChoiceMark, useChoiceGroup } from '../../platform/interaction/choiceGroup.js';
 import { normalizeInteractionInputProfile, toolProfileForInputProfile } from '../../platform/interaction/interactionContract.js';
 
 // The generic secure Path response.
@@ -78,19 +79,32 @@ const DEFAULT_HINT = {
   equation: 'Write a full equation.',
 };
 
+// A radio group (choiceGroup.js, the one every tool uses): one tab stop, the
+// arrow keys move AND choose, Home and End go to the ends, and the chosen card
+// carries a ✓ besides its colour. Each card used to be a tab stop with no arrow
+// keys. Choosing is never answering: no key here checks the answer.
 function ChoiceGroup({ field, choices, value, onChange, disabled }) {
+  const legendId = useId();
+  const optionProps = useChoiceGroup({
+    ids: choices.map((choice) => String(choice.id)),
+    value,
+    // Back to the choice as it was given (an id may be a number).
+    onSelect: (id, index) => onChange(choices[index].id),
+    disabled,
+  });
   return (
     <fieldset style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
-      <legend style={{ ...LABEL, padding: 0 }}><MathText>{field.label || 'Choose one'}</MathText></legend>
-      <div role="radiogroup" aria-label={field.label || 'Answer choices'} style={{ display: 'grid', gap: 9 }}>
+      <legend id={legendId} style={{ ...LABEL, padding: 0 }}><MathText>{field.label || 'Choose one'}</MathText></legend>
+      {/* Named by the legend, which is read as mathematics: the raw label of a
+          question with a formula in it is `$…$`. */}
+      <div role="radiogroup" aria-labelledby={legendId} style={{ display: 'grid', gap: 9 }}>
         {choices.map((choice, index) => {
           const selected = String(value ?? '') === String(choice.id);
           return (
             <button
               key={choice.id}
               type="button"
-              role="radio"
-              aria-checked={selected}
+              {...optionProps(index)}
               disabled={disabled}
               onClick={() => onChange(choice.id)}
               style={{
@@ -128,6 +142,7 @@ function ChoiceGroup({ field, choices, value, onChange, disabled }) {
               >
                 {String.fromCharCode(65 + index)}
               </span>
+              <ChoiceMark selected={selected} />
               <MathText style={{ flex: 1, minWidth: 0 }}>{choice.label}</MathText>
             </button>
           );

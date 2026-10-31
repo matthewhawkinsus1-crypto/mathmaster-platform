@@ -29,11 +29,16 @@ export { STUDENT_ERROR_TEXT, studentErrorSentence, studentSafeSentence };
  * load the Live Challenge."), used where no safe sentence comes with the error.
  */
 export const describeStudentError = (error, { level = null, retryCount = 0, retryLimit = 2, fallback = null } = {}) => {
-  const { text, retry } = describeStudentErrorWords(error, { fallback });
+  const { text, retry, noAnswer } = describeStudentErrorWords(error, { fallback });
   const exit = resolveErrorExit(level, { retryCount, retryLimit });
   return {
     text,
-    retry: retry && exit.offerRetry,
+    // The limit is for an answer that keeps being the same. A request that got
+    // no answer (the Wi-Fi dropped) is not that: the connection comes back, and
+    // Try again is how a student gets back with it, so it is never taken away
+    // (TC17). The student is still told, after the limit, that it is not theirs
+    // to fix (exhaustedMessage below).
+    retry: retry && (exit.offerRetry || noAnswer === true),
     exit: { level: exit.level, label: exit.label, shortLabel: exit.shortLabel },
     exhaustedMessage: retry ? exit.exhaustedMessage : null,
   };

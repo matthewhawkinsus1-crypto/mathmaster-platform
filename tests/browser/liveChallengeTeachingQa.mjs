@@ -27,7 +27,11 @@
 //              once, in words, and can dismiss it
 //   final      Ana's card leads with her podium place (confetti); Ben's leads
 //              with what he did and shows his place as a private line; both
-//              say what the game counts for; the recap lists their rounds
+//              say what the game counts for; the recap lists their rounds and
+//              what each answered (LC19: from the device that played, none
+//              for a round they missed, the same after a refresh, none on a
+//              device that did not play, and none of Ana's when Ben opens
+//              his recap in her browser)
 //
 // The driver plays the teacher through the real callables (no console), so
 // it closes each round itself once everyone who will answer has.
@@ -44,6 +48,7 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const require = createRequire(import.meta.url);
 // PLAYWRIGHT_MODULE, else the project's playwright (CI installs it), else
@@ -297,7 +302,7 @@ const waitForStage = async (handle, stage, timeout = 20_000) => {
   } catch { return false; }
 };
 const shot = async (handle, name, { fullPage = false } = {}) => {
-  await handle.page.screenshot({ path: path.join(SHOTS, `${name}.png`), fullPage, animations: 'disabled' }).catch(() => {});
+  await screenshotKeepingTouch(handle.page, { path: path.join(SHOTS, `${name}.png`), fullPage, animations: 'disabled' }).catch(() => {});
   log(`  · shot ${name}.png`);
 };
 const overflowX = (handle) => handle.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -309,7 +314,10 @@ const answerInBrowser = async (handle, roomId, { correct = true } = {}) => {
   let index = choices.findIndex((choice) => String(choice?.id ?? choice?.value) === expected);
   if (!correct) index = (Math.max(0, index) + 1) % Math.max(1, choices.length);
   await handle.page.locator('[data-mm-game] [role="radio"]').nth(Math.max(0, index)).click({ timeout: 5_000 });
+  // What this student chose, as the round shows it, for the recap check (LC19).
+  const chosen = (await handle.page.locator('[data-mm-game] [role="radio"][aria-checked="true"]').first().innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
   await handle.page.getByRole('button', { name: 'Lock In Answer' }).click({ timeout: 5_000 });
+  (handle.chosen ||= new Map()).set(Number(room.currentRound), chosen);
 };
 // What sits under the question while a round is open: nothing that ranks.
 const roundShowsNoRank = async (handle, label) => {
@@ -489,6 +497,50 @@ try {
     note('Ben\'s recap rounds', rounds);
     check(rounds.includes('none'), 'Ben\'s recap does not show the round he missed as "No answer"', 'the recap shows his missed round as "No answer"');
   }
+  // LC19: what each student answered, in the recap, beside the round it was for.
+  // The server keeps a verdict and not what was typed, so the device that sent an
+  // answer keeps it; each student sees their own, only for rounds they answered,
+  // and a refresh brings it back.
+  const recapAnswersOf = (handle) => handle.page.locator('[data-mm-recap-round]').evaluateAll((items) => items.map((item) => ({
+    tone: item.getAttribute('data-mm-recap-round'),
+    answer: (item.querySelector('[data-mm-recap-own-answer]')?.innerText || '').replace(/\s+/g, ' ').replace(/^Your answer\s*/i, '').trim(),
+  })));
+  const checkOwnAnswers = async (handle, label) => {
+    const shown = await recapAnswersOf(handle);
+    note(`${label}'s recap answers`, shown.map((round) => round.answer || null));
+    const mismatches = shown.flatMap((round, index) => {
+      const chosen = handle.chosen?.get(index) || '';
+      if (round.tone === 'none') return round.answer ? [`round ${index + 1}: an answer on a round with no answer`] : [];
+      return round.answer === chosen ? [] : [`round ${index + 1}: shows "${round.answer}", chose "${chosen}"`];
+    });
+    check(shown.some((round) => round.answer), `${label}'s recap shows no answers`, `${label}'s recap shows what they answered`);
+    check(mismatches.length === 0, `${label}'s recap: ${mismatches.join('; ')}`, `${label}'s recap shows each answer they gave, in the words they chose it in, and none for a round they missed`);
+    return shown;
+  };
+  await checkOwnAnswers(ana, 'Ana');
+  const benAnswers = await checkOwnAnswers(ben, 'Ben');
+  await ben.page.locator('[data-mm-recap-own-answer]').first().scrollIntoViewIfNeeded().catch(() => {});
+  await shot(ben, 'S11b-recap-own-answers-390');
+  // A refresh: the recap is asked for again, and the device still holds the answers.
+  await ben.page.reload({ waitUntil: 'domcontentloaded' });
+  check(await waitForStage(ben, 'completed', 20_000) && await waitForSelector(ben, '[data-mm-student-recap]', 15_000), 'Ben\'s recap did not come back after a refresh', 'Ben\'s recap comes back after a refresh');
+  const benAfterRefresh = await recapAnswersOf(ben);
+  check(JSON.stringify(benAfterRefresh.map((round) => round.answer)) === JSON.stringify(benAnswers.map((round) => round.answer)), 'Ben\'s answers changed after a refresh', 'Ben\'s answers are the same after a refresh');
+  // A device that never played the game (a fresh browser: no stored answers) shows the recap without them.
+  const guest = await openStudent(ben.studentId, 'phone', ['text-to-speech']);
+  check(await waitForStage(guest, 'completed', 25_000) && await waitForSelector(guest, '[data-mm-student-recap]', 15_000), 'Ben\'s other device has no recap', 'Ben\'s other device shows the recap');
+  const guestAnswers = await recapAnswersOf(guest);
+  check(guestAnswers.length === benAnswers.length && guestAnswers.every((round) => !round.answer), 'a device that did not play shows answers', 'a device that did not play shows the rounds and solutions without answers');
+  await guest.context.close().catch(() => {});
+  // A shared Chromebook: Ana's browser holds Ana's answers to this very game
+  // (checked above), and Ben signs in on it. Answers are kept per student, so
+  // Ben's recap there shows none of hers.
+  const sharedDevice = { page: await ana.context.newPage() };
+  await sharedDevice.page.goto(studentUrl(ben.studentId, ['text-to-speech']), { waitUntil: 'domcontentloaded' });
+  check(await waitForStage(sharedDevice, 'completed', 25_000) && await waitForSelector(sharedDevice, '[data-mm-student-recap]', 15_000), 'Ben\'s recap did not open on Ana\'s device', 'Ben\'s recap opens on a device Ana used');
+  const sharedAnswers = await recapAnswersOf(sharedDevice);
+  check(sharedAnswers.length === benAnswers.length && sharedAnswers.every((round) => !round.answer), `Ben sees answers on Ana's device: ${JSON.stringify(sharedAnswers.map((round) => round.answer || null))}`, 'Ben sees none of Ana\'s answers on her device');
+  await sharedDevice.page.close().catch(() => {});
   check(await ben.page.locator('[data-mm-rewards-slot]').count() === 1, 'the rewards slot is not on the final card', 'the rewards slot is on the final card');
   for (const handle of [ana, ben]) check(await overflowX(handle) <= 1, `${handle.device}: the final screen scrolls sideways`, `${handle.device}: no sideways scroll`);
   // The recap's worked solutions, in view (MathLive typesets on screen).

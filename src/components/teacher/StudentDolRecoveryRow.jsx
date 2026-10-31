@@ -10,6 +10,7 @@
  */
 import { useState } from 'react';
 import { summarizeStudentRecovery } from '../../platform/assessment/assessmentRecovery.js';
+import { resolveSupportEntitlements } from '../../../functions/shared/supportEntitlements.mjs';
 import { fetchStudentOverrideHistory } from '../../platform/teacher/studentOverrideHistory.js';
 
 const timeOf = (ms) => (Number.isFinite(ms) ? new Date(ms).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Time not recorded');
@@ -26,6 +27,10 @@ export default function StudentDolRecoveryRow({
   const [history, setHistory] = useState({ status: 'closed', entries: [], error: null });
   if (!assignment?.dol?.enabled || !student?.id) return null;
   const recovery = summarizeStudentRecovery({ assignment, classId, studentId: student.id });
+  // The support plan's "extra attempts" is a My Math Path support (FB13,
+  // supportCatalog.mjs): it adds nothing here, so the teacher who reads the
+  // plan is told that the DOL try is theirs to give, and where.
+  const planListsExtraAttempts = resolveSupportEntitlements(student.profile || null).extraAttempts > 0;
 
   const toggleHistory = async () => {
     if (history.status === 'open' || history.status === 'loading') {
@@ -56,6 +61,11 @@ export default function StudentDolRecoveryRow({
           {history.status === 'loading' ? 'Loading history…' : history.status === 'open' ? 'Hide grant history' : 'Grant history'}
         </button>
       </div>
+      {planListsExtraAttempts && (
+        <div data-dol-plan-extra-attempts={student.id} style={{ color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>
+          This student's support plan lists extra attempts. MathMaster applies those on My Math Path only, so another DOL try is yours to give with the button above.
+        </div>
+      )}
       {history.status === 'open' && (
         <section data-dol-grant-history={student.id} aria-label="Grant history" style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', display: 'grid', gap: 4 }}>
           {history.error && <div role="alert" style={{ color: 'var(--mm-error-text)' }}>{history.error}</div>}

@@ -2,7 +2,9 @@
 // fixture.js). `?p3StartMin` says how long ago Period 3 began. With no
 // parameter it begins now, so the Warm-Up's ten-minute window is open: every
 // journey that passes none depends on that, and the fixture's comment says so
-// (it once said 40 while the code gave 0). `?p3EndMin` defaults to 50.
+// (it once said 40 while the code gave 0). The owner decided to keep 0
+// (CI17): the first test below is what changing it to 40 would have to
+// answer to. `?p3EndMin` defaults to 50.
 
 import assert from 'node:assert/strict';
 import test from 'node:test';

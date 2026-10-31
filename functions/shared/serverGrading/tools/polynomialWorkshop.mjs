@@ -69,7 +69,7 @@ import {
   // The x − r table the Remainder and Factor Theorems view grades; the name
   // `syntheticDivision` is the Dividing Polynomials view's grader below.
   syntheticDivision as syntheticTable,
-  syntheticDivisionRoot,
+  syntheticRemainderDivisor,
 } from '../../toolMath/polynomialWorkshop/polynomialMath.mjs';
 import { parsePolynomial, samePolynomial } from '../../algebraicForm.mjs';
 
@@ -418,6 +418,12 @@ const rationalFeatures = (question, work) => withKey(
  * written as a polynomial in x, and whether x − r is a factor (the Factor
  * Theorem). Every cell is checked against the key, not against the student's
  * own earlier cells: the table is a calculation with one right outcome.
+ *
+ * r may be a fraction, and the divisor ax + b with a ≠ 1 (TL49;
+ * polynomialMath.mjs syntheticRemainderDivisor): the table divides by x − r,
+ * r = −b/a, so its remainder is P(r) and ax + b is a factor exactly when the
+ * remainder is 0. The quotient asked is the quotient for the divisor the
+ * question names: for ax + b, the table's divided by a.
  */
 const quotientPolynomial = (coefficients) => new Map(coefficients
   .map((value, index) => {
@@ -442,15 +448,19 @@ const rowPart = (id, label, cells, expected) => {
 const synthetic = (question, work) => withKey(
   () => {
     const dividend = question.dividend || DEFAULTS.synthetic.dividend;
-    const root = question.dividend ? syntheticDivisionRoot(question) : (syntheticDivisionRoot(question) ?? DEFAULTS.synthetic.candidateRoot);
-    if (!Array.isArray(dividend) || root === null) throw new Error('A synthetic division needs a dividend and x − r.');
-    const table = syntheticTable(dividend, root);
+    const divisor = question.dividend
+      ? syntheticRemainderDivisor(question)
+      : (syntheticRemainderDivisor(question) ?? { root: DEFAULTS.synthetic.candidateRoot, leading: 1, divisor: null });
+    if (!Array.isArray(dividend) || !divisor) throw new Error('A synthetic division needs a dividend and x − r.');
+    const table = syntheticTable(dividend, divisor.root);
     if (table.top.length < 2 || !table.top.every(Number.isFinite)) throw new Error('A synthetic division needs a polynomial of degree 1 or more.');
-    return table;
+    return { ...table, leading: divisor.leading };
   },
   (key) => {
     const asks = syntheticAsks(question);
     const quotient = parsePolynomial(entry(work.quotient));
+    // The quotient for the divisor the question names: ax + b = a(x − r).
+    const quotientKey = key.quotient.map((value) => value / key.leading);
     return gradedResult({
       parts: [
         numberPart('divisor-root', 'Number in the box', work.root, key.root),
@@ -462,7 +472,7 @@ const synthetic = (question, work) => withKey(
           id: 'quotient',
           label: 'Quotient',
           isComplete: filled(work.quotient),
-          isCorrect: Boolean(quotient) && samePolynomial(quotient, quotientPolynomial(key.quotient), 0.01),
+          isCorrect: Boolean(quotient) && samePolynomial(quotient, quotientPolynomial(quotientKey), 0.01),
           response: entry(work.quotient),
         }] : []),
         ...(asks.includes('factor') ? [choicePart('factor', 'Is (x − r) a factor?', work.factorChoice, YES_NO, Math.abs(key.remainder) < 1e-9 ? 'yes' : 'no')] : []),

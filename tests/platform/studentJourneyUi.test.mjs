@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { region } from './helpers/sourceContract.mjs';
 
 const read = (relative) => readFileSync(new URL(`../../${relative}`, import.meta.url), 'utf8');
 const engine = read('src/QuestionEngine.jsx');
@@ -70,7 +71,10 @@ test('journey 5 review: standards return only after teacher-released feedback', 
   // The list opens the review only once results are released.
   // …and never for an attempt a teacher's reset replaced: the card has the current one.
   assert.match(secureDashboard, /const canReview = done && session\.feedbackReleased === true && !sessionWasReplaced\(session\);/);
-  assert.match(secureDashboard, /onClick=\{\(\) => canReview \? setReviewing\(session\) : setActive\(session\)\}/);
+  // Otherwise the row opens the test itself (openTest also remembers it for a
+  // reload, NV14).
+  assert.match(secureDashboard, /onClick=\{\(\) => canReview \? setReviewing\(session\) : openTest\(session\)\}/);
+  assert.match(region(secureDashboard, 'const openTest = (session) => {', '\n  };', 'openTest'), /setActive\(session\);/);
   assert.match(secureDashboard, /\{canReview \? 'See your results'/);
   assert.match(secureReview, /Released feedback/);
   // The released-only wording is pinned in secureResultsWiring.test.mjs ("the

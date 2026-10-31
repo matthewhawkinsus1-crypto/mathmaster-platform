@@ -87,7 +87,9 @@ test('the "Auto-rotating" cue is shown only while the orbit is still to come', (
   assert.match(code, /const orbitPending = idleOrbitPending\(orbitPhase\);/);
   const cue = region(code, '<div className={`mathmaster-threeplane-motion-cue', '</div>', 'motion cue');
   assert.match(cue, /^<div className=\{`mathmaster-threeplane-motion-cue\$\{orbitPending \? ' is-idle' : ''\}`\}>/);
-  assert.match(cue, /\{orbitPending\s*\?\s*'Auto-rotating to show depth — drag the model to take control\.'\s*:\s*'Drag the model to rotate it\./);
+  // An arrow key takes over as a drag does, so the cue names it beside the drag (AX32; the key is driven in
+  // tests/browser/toolKeyboardThreePlane.mjs).
+  assert.match(cue, /\{orbitPending\s*\?\s*'Auto-rotating to show depth — drag the model, or focus it and press an arrow key, to take control\.'\s*:\s*'Drag the model to rotate it\./);
   // Called, so imported: a missing import is a ReferenceError no build step reports.
   const geometryImport = code.match(/import \{([^}]*)\} from '\.\/threePlaneGeometry\.js';/);
   assert.ok(geometryImport, 'ThreePlaneWorkspace imports its geometry helpers');

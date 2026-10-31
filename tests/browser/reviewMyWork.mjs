@@ -14,6 +14,7 @@
 // this page cannot reach Firestore or any real student's data.
 
 import path from 'node:path';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
@@ -129,7 +130,7 @@ for (const viewport of VIEWPORTS) {
     if (problems.length) failures.push(label);
     if (SHOTS) {
       // eslint-disable-next-line no-await-in-loop
-      await page.screenshot({ path: path.join(SHOTS, `${viewport.name}-${scene.name}.png`), fullPage: true });
+      await screenshotKeepingTouch(page, { path: path.join(SHOTS, `${viewport.name}-${scene.name}.png`), fullPage: true });
     }
   }
   // eslint-disable-next-line no-await-in-loop

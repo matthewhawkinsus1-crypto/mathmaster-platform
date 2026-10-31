@@ -2,6 +2,7 @@ import {
   GRAPH_VIEWPORT_REPAIR_KIND,
   SYSTEMS_WORKSPACE_UPGRADE_REPAIR_KIND,
   analyzeSafeResponseEntryRepair,
+  withoutInferredChoiceMarks,
 } from './liveResponseRepairPolicy.mjs';
 import { getPlatformQuestionFamily } from './questionFamilyRegistry.mjs';
 
@@ -205,8 +206,10 @@ export function recoveryCapabilityChange(beforeQuestion = {}, afterQuestion = {}
 }
 
 export function classifyContentQuestionChange(beforeQuestion = {}, afterQuestion = {}, { recoveryCapability = false } = {}) {
-  const before = withoutValueProvenance(beforeQuestion) || {};
-  const after = withoutValueProvenance(afterQuestion) || {};
+  // Provenance is not the task: who set the value, and who wrote a field's
+  // choices (GR12, liveResponseRepairPolicy.mjs withoutInferredChoiceMarks).
+  const before = withoutInferredChoiceMarks(withoutValueProvenance(beforeQuestion)) || {};
+  const after = withoutInferredChoiceMarks(withoutValueProvenance(afterQuestion)) || {};
   if (stable(before) === stable(after)) return { classification: 'unchanged', safe: true };
 
   const responseRepair = analyzeSafeResponseEntryRepair(before, after);

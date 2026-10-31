@@ -33,10 +33,11 @@
 //
 // NOTHING TOUCHES PRODUCTION: firebase.js is swapped for an emulator module,
 // the browsers block every non-local request, and the project id is throwaway.
-// This is a QA tool, not part of the CI gate: no CI job has the emulator, the
-// functions' dependencies and Chromium together, and the emulator suites
-// (test:challenge-finish, test:test-cycle-certification) already hold its
-// server-side journey on every push.
+// It runs in CI (CI16): .github/workflows/student-pass3-emulator-journeys.yml,
+// job pass3-test-cycle-lifecycle, on a pull request that touches what it loads,
+// nightly and on demand, beside testCycleRichToolQa. The emulator suites
+// (test:challenge-finish, test:test-cycle-certification) hold its server-side
+// journey on every push.
 
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -45,6 +46,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const require = createRequire(import.meta.url);
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -220,7 +222,7 @@ let shotIndex = 0;
 const shot = async (page, name) => {
   shotIndex += 1;
   const file = path.join(SHOTS, `${String(shotIndex).padStart(2, '0')}-${name}.png`);
-  await page.screenshot({ path: file, fullPage: true });
+  await screenshotKeepingTouch(page, { path: file, fullPage: true });
   return file;
 };
 
@@ -295,6 +297,34 @@ const answerValue = async (page, label = 'Sum') => {
   const math = page.locator(`math-field[aria-label^="${label}"]`).first();
   if (await math.count()) return math.evaluate((element) => element.value);
   return page.getByLabel(label, { exact: true }).first().inputValue();
+};
+
+/*
+ * TYPE, THEN SUBMIT ONLY ONCE THE ANSWER HAS LANDED. Corrections' Submit
+ * enables when the runtime holds an answer; on a slow runner the first
+ * keystrokes can reach the math editor before it takes them (CI run
+ * 41236555153: Submit stayed disabled for 30 s after the second answer). Type
+ * again once if Submit has not enabled, and if it still has not, stop with
+ * what the screen shows rather than a bare click timeout.
+ */
+const submitAnswer = async (page, value) => {
+  const submit = page.getByRole('button', { name: /^Submit/ });
+  const enabledSoon = (ms) => submit.first().evaluate((button, wait) => new Promise((resolve) => {
+    const started = Date.now();
+    const poll = () => (!button.disabled ? resolve(true) : Date.now() - started > wait ? resolve(false) : setTimeout(poll, 100));
+    poll();
+  }), ms).catch(() => false);
+  await fillAnswer(page, value);
+  if (!(await enabledSoon(5_000))) {
+    await wait(500);
+    await fillAnswer(page, value);
+  }
+  if (!(await enabledSoon(10_000))) {
+    const field = await answerValue(page).catch((error) => `(unreadable: ${error.message})`);
+    const status = await page.locator('[role="status"]').allInnerTexts().catch(() => []);
+    throw new Error(`Submit stayed disabled after typing ${JSON.stringify(String(value))}: the field holds ${JSON.stringify(field)}; status ${JSON.stringify(status.join(' | ').slice(0, 300))}; button ${JSON.stringify(await submit.first().innerText().catch(() => ''))}`);
+  }
+  await submit.click();
 };
 
 /*
@@ -462,7 +492,7 @@ try {
   // a Help me say it frame for the fix. The question waits behind it.
   const reflection = student.locator('[data-corrections-reflection]');
   await reflection.waitFor({ timeout: 30_000 });
-  check((await student.getByRole('button', { name: 'Check my answer' }).count()) === 0, 'corrections: the reflection comes before the first question');
+  check((await student.getByRole('button', { name: /^Submit/ }).count()) === 0, 'corrections: the reflection comes before the first question');
   const options = reflection.getByRole('radio');
   const optionCount = await options.count();
   check(optionCount >= 2 && optionCount <= 3, 'corrections: the reflection offers 2–3 choices', String(optionCount));
@@ -472,10 +502,9 @@ try {
   check(/_____/.test(framed) && !/\d/.test(framed), 'corrections: Help me say it gives a frame with a blank and no number', framed);
   await reflection.getByRole('textbox').fill(framed.replace('_____', 'checking my work'));
   await reflection.getByRole('button', { name: 'Start practising' }).click();
-  await student.getByRole('button', { name: 'Check my answer' }).waitFor({ timeout: 30_000 });
+  await student.getByRole('button', { name: /^Submit/ }).waitFor({ timeout: 30_000 });
   check(/Your plan:/.test(await student.locator('[data-corrections-plan]').innerText()), 'corrections: the student\'s plan stays on screen');
-  await fillAnswer(student, fixture.CERT_WRONG_ANSWER);
-  await student.getByRole('button', { name: 'Check my answer' }).click();
+  await submitAnswer(student, fixture.CERT_WRONG_ANSWER);
   await student.getByText(/tries left on this question/).waitFor();
   check(true, 'corrections: a wrong answer keeps the question, with tries left');
   const correctionHeader = await student.locator('section').first().innerText();
@@ -494,13 +523,11 @@ try {
     // eslint-disable-next-line no-await-in-loop
     const answer = await answerFromPrompt(student);
     // eslint-disable-next-line no-await-in-loop
-    await fillAnswer(student, answer);
-    // eslint-disable-next-line no-await-in-loop
-    await student.getByRole('button', { name: /Check my answer/ }).click();
+    await submitAnswer(student, answer);
     // eslint-disable-next-line no-await-in-loop
     await wait(600);
     // eslint-disable-next-line no-await-in-loop
-    const next = student.getByRole('button', { name: 'Next practice question' });
+    const next = student.getByRole('button', { name: 'Try a fresh question' });
     // eslint-disable-next-line no-await-in-loop
     if (await next.isVisible().catch(() => false)) await next.click();
     // eslint-disable-next-line no-await-in-loop

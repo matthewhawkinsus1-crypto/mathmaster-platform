@@ -32,12 +32,14 @@ export const normalizeStudentProfile = (profile = {}, { nowValue = Date.now() } 
       modifications: unique(flat.modifications),
       translationLanguage: flat.translationLanguage,
       supportPlan: safeProfile.supportPlan,
+      ...(safeProfile.workloadCorrections ? { workloadCorrections: safeProfile.workloadCorrections } : {}),
       supportRevisionId: flat.supportRevisionId,
     };
   }
 
   return {
     inclusionStatus: flat.inclusionStatus,
+    ...(safeProfile.workloadCorrections ? { workloadCorrections: safeProfile.workloadCorrections } : {}),
     accommodations: unique(flat.accommodations),
     modifications: unique(flat.modifications),
     translationLanguage: flat.translationLanguage,
@@ -78,6 +80,7 @@ export const assessmentSupportProfile = (profile = {}) => {
  */
 export const sameStudentProfile = (a, b) => {
   const key = (profile) => JSON.stringify([
+    profile?.workloadCorrections || null,
     profile?.supportPlan || null,
     profile?.supportRevisionId || null,
     Boolean(profile?.inclusionStatus),
@@ -112,6 +115,9 @@ export const getStudentSupportPresentation = (profile) => {
     algebraAutoApply: normalized.accommodations.includes('algebra-auto-apply'),
     // Supplemental aid: the scratchpad opens on graph paper.
     graphPaper: normalized.accommodations.includes('graph-paper'),
+    // "Connect my points" on an exit ticket, quiz or test
+    // (platform/graph/connectPointsPolicy.js).
+    keyboardAccess: normalized.accommodations.includes('keyboard-access'),
     translationLanguage: normalized.translationLanguage,
   };
 };

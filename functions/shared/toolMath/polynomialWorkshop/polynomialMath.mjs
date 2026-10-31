@@ -1,4 +1,4 @@
-import { nearlyEqual } from '../shared/toolMath.mjs';
+import { nearlyEqual, parseNumericAnswer } from '../shared/toolMath.mjs';
 import { UNANSWERED } from '../shared/judgmentChoices.mjs';
 import { simplifiedPolynomialTerms, readTypedPolynomial, monomialSignature } from '../../simplifiedPolynomialForm.mjs';
 
@@ -65,18 +65,64 @@ export const syntheticDivision = (dividend = [], root = 0) => {
   return { root: r, top, middle, bottom, quotient: bottom.slice(0, -1), remainder: bottom[bottom.length - 1] };
 };
 
-/**
- * The r in "divide by x − r": an authored candidateRoot, else a monic linear
- * divisor [1, −r]. Null when neither names one.
+/*
+ * THE x − r THE REMAINDER AND FACTOR THEOREMS TABLE DIVIDES BY (TL49).
+ *
+ *   { root, leading, divisor }   or null when the question names no r
+ *
+ * r is an authored candidateRoot — a number, or a fraction written as text
+ * ("1/2", "−3/2") — else the zero of a linear divisor written as coefficients
+ * [a, b]. A fractional r is the point: the Remainder Theorem for 2x − 1 is
+ * synthetic division by x − 1/2, which this view could not take (it showed
+ * "x − 0.5", and 2x − 1 had to go to long division).
+ *
+ * For a divisor ax + b with a ≠ 1 (2x − 1, [2, -1]) the table still divides by
+ * x − r, r = −b/a: its remainder is P(r), which is also the remainder for
+ * ax + b, and ax + b is a factor exactly when x − r is. Only the quotient
+ * differs: ax + b = a(x − r), so the quotient for ax + b is the table's
+ * divided by a (`leading`). `divisor` is that [a, b]; null when the table's
+ * own x − r is the divisor (a candidate root, or a = 1).
  */
-export const syntheticDivisionRoot = (question = {}) => {
+export const syntheticRemainderDivisor = (question = {}) => {
   if (question.candidateRoot !== undefined && question.candidateRoot !== null && question.candidateRoot !== '') {
-    const root = Number(question.candidateRoot);
-    return Number.isFinite(root) ? root : null;
+    // A number, or its text: "3", "0.5", "1/2", "−3/2" (the workshop's own reader).
+    const root = typeof question.candidateRoot === 'number' || typeof question.candidateRoot === 'string'
+      ? parseNumericAnswer(question.candidateRoot)
+      : null;
+    return Number.isFinite(root) ? { root: root + 0, leading: 1, divisor: null } : null;
   }
   const divisor = Array.isArray(question.divisor) ? question.divisor.map(Number) : null;
-  if (divisor && divisor.length === 2 && nearlyEqual(divisor[0], 1) && Number.isFinite(divisor[1])) return 0 - divisor[1];
-  return null;
+  if (!divisor || divisor.length !== 2 || !divisor.every(Number.isFinite) || nearlyEqual(divisor[0], 0)) return null;
+  const [leading, constant] = divisor;
+  // A monic divisor reads exactly as before: r = −b.
+  if (nearlyEqual(leading, 1)) return { root: 0 - constant, leading: 1, divisor: null };
+  return { root: (0 - constant / leading) + 0, leading, divisor: [leading, constant] };
+};
+
+/** The r in "divide by x − r" (syntheticRemainderDivisor). Null when the question names none. */
+export const syntheticDivisionRoot = (question = {}) => syntheticRemainderDivisor(question)?.root ?? null;
+
+/*
+ * r as the student reads it: a fraction when it is one ("1/2", "−3/2", "3"),
+ * never "0.5"; anything else to ten significant figures. Display only.
+ */
+export const syntheticRootText = (value) => {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '';
+  const sign = number < 0 ? MINUS_SIGN : '';
+  const magnitude = Math.abs(number);
+  for (let d = 1; d <= 1000; d += 1) {
+    const n = Math.round(magnitude * d);
+    if (Math.abs(magnitude * d - n) <= 1e-9 * Math.max(1, n)) return n === 0 ? '0' : `${sign}${n}${d === 1 ? '' : `/${d}`}`;
+  }
+  return `${sign}${Number(magnitude.toPrecision(10))}`;
+};
+
+/** x − r as text: "x − 3", "x + 1/2", "x" (r = 0). */
+export const xMinusRootText = (root) => {
+  const text = syntheticRootText(Math.abs(Number(root)));
+  if (!text || text === '0') return 'x';
+  return `x ${Number(root) < 0 ? '+' : MINUS_SIGN} ${text}`;
 };
 
 /*
@@ -297,11 +343,14 @@ const makeTerm = (coefficient, powers) => {
   return { coefficient: tidy(coefficient), powers: clean, signature: monomialSignature(clean) };
 };
 
-/** An authored polynomial's terms in written order, or null when it is not one to draw. */
-export const authoredPolynomialTerms = (value) => {
+/**
+ * An authored polynomial's terms in written order, or null when it is not one
+ * to draw. `maxTerms`: a division dividend of degree 6 may have seven (TL10).
+ */
+export const authoredPolynomialTerms = (value, { maxTerms = POLYNOMIAL_TEXT_LIMITS.terms } = {}) => {
   if (typeof value !== 'string' || !value.trim()) return null;
   const terms = simplifiedPolynomialTerms(value);
-  if (!terms || !terms.length || terms.length > POLYNOMIAL_TEXT_LIMITS.terms) return null;
+  if (!terms || !terms.length || terms.length > maxTerms) return null;
   if (terms.some((term) => term.coefficient === 0)) return null;
   return terms.map((term) => makeTerm(term.coefficient, term.powers));
 };
@@ -504,13 +553,20 @@ export const ratioValue = (a) => a.n / a.d;
 const SAFE_RATIO = 1e12;
 const safeRatio = (a) => Number.isSafeInteger(a.n) && Number.isSafeInteger(a.d) && Math.abs(a.n) <= SAFE_RATIO && a.d <= SAFE_RATIO;
 
-/** An authored polynomial in at most one letter: exact coefficients, highest power first; or null. */
-const authoredOneLetter = (value) => {
-  const terms = authoredPolynomialTerms(value);
+/**
+ * An authored polynomial in at most one letter: exact coefficients, highest
+ * power first; or null. The degree is checked BEFORE a coefficient is laid
+ * out per power: x^100000000 built a hundred million of them and froze
+ * Pre-Flight before the limit refused it (TL10). A dense polynomial of the
+ * largest degree has one term more than that degree.
+ */
+const authoredOneLetter = (value, { maxDegree }) => {
+  const terms = authoredPolynomialTerms(value, { maxTerms: maxDegree + 1 });
   if (!terms) return null;
   const letters = [...new Set(terms.flatMap((term) => Object.keys(term.powers)))];
   if (letters.length > 1 || !terms.every((term) => Number.isSafeInteger(term.coefficient))) return null;
   const degree = Math.max(...terms.map(termDegree));
+  if (!Number.isSafeInteger(degree) || degree > maxDegree) return null;
   const coefficients = Array.from({ length: degree + 1 }, (_, index) => {
     const term = terms.find((entry) => termDegree(entry) === degree - index);
     return ratio(term ? term.coefficient : 0);
@@ -520,8 +576,8 @@ const authoredOneLetter = (value) => {
 
 /** The dividend and divisor a division view draws, or null when it cannot draw them. */
 const divisionOperands = (question = {}) => {
-  const dividend = authoredOneLetter(question.dividend);
-  const divisor = authoredOneLetter(question.divisor);
+  const dividend = authoredOneLetter(question.dividend, { maxDegree: DIVISION_LIMITS.degree });
+  const divisor = authoredOneLetter(question.divisor, { maxDegree: DIVISION_LIMITS.divisorDegree });
   if (!dividend || !divisor || !divisor.letter) return null;
   if (dividend.letter && dividend.letter !== divisor.letter) return null;
   if (divisor.degree < 1 || divisor.degree > DIVISION_LIMITS.divisorDegree) return null;

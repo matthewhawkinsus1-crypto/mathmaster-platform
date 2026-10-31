@@ -422,7 +422,9 @@ export const MISCONCEPTION_CLASSIFIERS = Object.freeze([
   // Path definition with each mistake's classifier rule
   // (functions/shared/correctionMissDiagnosis.mjs). One classifier per tool.
   classifier('path:system', 1, ['ordered-pair-reversed']),
-  classifier('path:systemsWorkspace', 1, ['ordered-pair-reversed']),
+  // The workspace names a point on one of its two lines only as well (TC05): its
+  // lines are numbers in the item, unlike a `system` item's equation text.
+  classifier('path:systemsWorkspace', 1, ['ordered-pair-reversed', 'system-point-on-one-line-only']),
   classifier('path:intervalNumberLine', 1, ['endpoint-inclusion-error', 'inequality-direction-reversed']),
   classifier('path:relationMapping', 1, ['domain-range-swapped']),
   classifier('path:graphing2', 1, ['slope-run-over-rise', 'slope-sign-reversed']),

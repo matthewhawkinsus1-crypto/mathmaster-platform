@@ -359,6 +359,13 @@ test('a mastery-gated Review is not done when every item is answered but mastery
   tracker[0].bestRawPartialCredit = 100;
   tracker[1].bestRawPartialCredit = 100;
   assert.equal(reviewProgressFromTracker({ questions, tracker, minimumMastery: 80 }).complete, true);
+  // The bar alone does not unlock it either (TC18, kept as built): a question left
+  // unanswered keeps the Test locked, however well the rest went.
+  const oneLeft = Object.fromEntries(questions.map((_, index) => [index, index === 3
+    ? { status: 'unattempted', totalAttempts: 0 }
+    : { status: 'attempted', totalAttempts: 1, bestPartialCredit: 100, bestRawPartialCredit: 100 }]));
+  const gap = reviewProgressFromTracker({ questions, tracker: oneLeft, minimumMastery: 70 });
+  assert.deepEqual([gap.attempted, gap.mastery >= 70, gap.complete], [3, true, false], '75% clears a 70% bar, and the fourth question is still unanswered');
   // Without a bar, answering is enough — right or wrong.
   const answeredOnly = Object.fromEntries(questions.map((_, index) => [index, { status: 'attempted', totalAttempts: 1 }]));
   assert.equal(reviewProgressFromTracker({ questions, tracker: answeredOnly }).complete, true);

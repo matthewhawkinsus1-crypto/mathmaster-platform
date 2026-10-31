@@ -13,6 +13,8 @@
  *                       written as targetAttempt receipts
  *   rushRoundState      where a student stands in a round (which graph,
  *                       which of its targets are found), read from receipts
+ *   rushRoundPace       the least time those receipts could have taken on
+ *                       the student's device (SI08), which a batch must fit
  *   rushLockoutMs       the brief cooldown after repeated wrong taps
  *   buildRushReport     the teacher's after-game breakdown
  *
@@ -47,6 +49,7 @@ import {
   RUSH_COMPLETE_FLASH_MS,
   RUSH_LIMITS,
   RUSH_LOCKOUT,
+  RUSH_PACING,
   RUSH_SKIP_PAUSE_MS,
   RUSH_VERDICT,
   rushLockoutMs,
@@ -59,6 +62,7 @@ export {
   RUSH_COMPLETE_FLASH_MS,
   RUSH_LIMITS,
   RUSH_LOCKOUT,
+  RUSH_PACING,
   RUSH_SKIP_PAUSE_MS,
   RUSH_VERDICT,
   rushLockoutMs,
@@ -145,6 +149,57 @@ export const rushRoundState = ({ receipts = {}, roundIndex, poolSize = 50 } = {}
     scoreTotal: summary.scoreTotal,
   });
 };
+
+/* --------------------------------- pacing -------------------------------- */
+
+/*
+ * THE TIME A STUDENT'S DEVICE MUST HAVE TAKEN (SI08; RUSH_PACING).
+ *
+ * Read from the round's recorded attempts, in order, exactly as the device
+ * paces input (src/platform/liveChallenge/rushSession.js): after a finished
+ * graph the completion flash, after a skip — the student's, or the one the
+ * server records with an eighth miss — the skip pause, after a miss the
+ * cooldown for the misses in a row on that graph (none for the first), and
+ * before the first answer on each new graph the moment it takes to see it.
+ * `requiredMs` is the least time those attempts could have taken;
+ * `pauseOwedMs` is what the device holds before its next input.
+ */
+const STARTING_PACE = Object.freeze({ requiredMs: 0, pauseOwedMs: 0, missesInARow: 0, questionIndex: null });
+
+/** The least time before an attempt on `questionIndex` could come, after `pace`. */
+const requiredBefore = (pace, questionIndex) => pace.requiredMs + pace.pauseOwedMs
+  + (questionIndex === pace.questionIndex ? 0 : RUSH_PACING.firstLookMs);
+
+const paceAfter = (pace, receipt) => {
+  if (receipt?.automatic === true) {
+    // The skip recorded with an eighth miss: the device shows the skip pause.
+    return Object.freeze({ ...pace, pauseOwedMs: RUSH_SKIP_PAUSE_MS, missesInARow: 0 });
+  }
+  const questionIndex = integerOr(receipt?.questionIndex, 0);
+  const requiredMs = requiredBefore(pace, questionIndex);
+  if (receipt?.forfeit === true) return Object.freeze({ requiredMs, pauseOwedMs: RUSH_SKIP_PAUSE_MS, missesInARow: 0, questionIndex });
+  if (receipt?.isCorrect === true) {
+    return Object.freeze({ requiredMs, pauseOwedMs: receipt.completesQuestion === true ? RUSH_COMPLETE_FLASH_MS : 0, missesInARow: 0, questionIndex });
+  }
+  const missesInARow = (questionIndex === pace.questionIndex ? pace.missesInARow : 0) + 1;
+  return Object.freeze({ requiredMs, pauseOwedMs: rushLockoutMs(missesInARow), missesInARow, questionIndex });
+};
+
+/** Where a student's pace stands in a round, from their recorded attempts. */
+export const rushRoundPace = ({ receipts = {}, roundIndex } = {}) => roundReceiptsOf(receipts, integerOr(roundIndex, -1))
+  .map(([, receipt]) => receipt)
+  .sort((left, right) => integerOr(left.sequence, 0) - integerOr(right.sequence, 0))
+  .reduce(paceAfter, STARTING_PACE);
+
+/**
+ * The round time (from GO) before which the student's device could not have
+ * made its next attempt, on `questionIndex`. The server takes it from
+ * `RUSH_PACING.slackMs` earlier than this.
+ */
+export const rushNextAttemptRequiredMs = ({ receipts = {}, roundIndex, questionIndex } = {}) => requiredBefore(
+  rushRoundPace({ receipts, roundIndex }),
+  integerOr(questionIndex, 0),
+);
 
 /* -------------------------------- attempts ------------------------------- */
 
@@ -236,6 +291,11 @@ export const applyRushAttempts = ({
   };
   let roundRecorded = roundReceiptsOf(receipts, round).length;
   let matchRecorded = Object.values(receipts).filter((receipt) => isAttemptReceipt(receipt) && receiptKindOf(receipt) === RECEIPT_KIND.TARGET).length;
+  // The time the student's recorded attempts must have taken, against the
+  // round's elapsed time on the server's clock when this request arrived.
+  let pace = rushRoundPace({ receipts, roundIndex: round });
+  const paceBudgetMs = Math.max(0, finiteOr(arrivalElapsedMs, 0)) + RUSH_PACING.slackMs;
+  let paceRefused = 0;
   const verdicts = [];
   let recorded = 0;
   let completed = 0;
@@ -276,6 +336,14 @@ export const applyRushAttempts = ({
     const question = questionOf(attempt.questionIndex);
     if (!question) {
       verdicts.push(verdictRow(attempt, RUSH_VERDICT.INVALID));
+      return;
+    }
+    // Sooner than the student's own device could have taken it — a script
+    // skipping the flash, the skip pause or the cooldown (SI08). Not
+    // recorded: no credit, no penalty; the device resynchronizes.
+    if (requiredBefore(pace, attempt.questionIndex) > paceBudgetMs) {
+      verdicts.push(verdictRow(attempt, RUSH_VERDICT.TOO_FAST));
+      paceRefused += 1;
       return;
     }
     const targetCount = Math.max(1, integerOr(question.targetCount, 1));
@@ -363,6 +431,7 @@ export const applyRushAttempts = ({
       ...(attempt.kind === RUSH_ATTEMPT_KIND.TAP ? { x: round3(attempt.x), y: round3(attempt.y), pointer: attempt.pointer } : {}),
       pointsAwarded: Math.max(0, Math.round(Number(score?.pointsAwarded) || 0)),
     });
+    pace = paceAfter(pace, receipts[attempt.attemptId]);
     if (completesQuestion) completed += 1;
 
     // THE LAST ALLOWED MISS SKIPS THE GRAPH, decided here and not only on the
@@ -381,6 +450,7 @@ export const applyRushAttempts = ({
           completesQuestion: false,
           pointsAwarded: 0,
         });
+        pace = paceAfter(pace, receipts[autoSkipAttemptId(attempt.attemptId)]);
         autoSkipped = true;
       }
     }
@@ -397,6 +467,7 @@ export const applyRushAttempts = ({
     verdicts: Object.freeze(verdicts),
     recorded,
     completed,
+    paceRefused,
     attemptSequence: sequence,
     state,
     totals: rushPlayerTotals({ player, receipts, strategy }),

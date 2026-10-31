@@ -52,6 +52,7 @@ import {
   tapArrangeTerm,
 } from './algebraArrangeTermsModel';
 import { factoringOptionsFor } from './algebraStructureTools';
+import FocusSafeButton from './components/common/FocusSafeButton.jsx';
 import { spokenMathValue } from './tools/shared/spokenMathValue.js';
 
 const COMMON_FACTOR_DRAG = 'mathmaster-common-factor';
@@ -107,6 +108,10 @@ function FactorTokenGroup({ termText, tokens, chosen = [], pulled = false, onTok
             ) : (
               <span
                 className={`algebra-structure-token is-static${token.kind === 'sign' ? ' is-sign' : ''}${pulled && isChosen ? ' is-pulled' : ''}`}
+                // A picture of a factor with its words, so the label is read: a
+                // label on a bare span is not (AX18). The group of buttons beside
+                // it names its own factors the same way.
+                role="img"
                 aria-label={token.kind === 'sign' ? `negative one, the sign of ${spokenMathValue(termText)}` : `Factor ${spokenMathValue(token.latex)}${pulled && isChosen ? ', pulled out' : ''}`}
               >
                 <MathDisplay value={token.latex} format="latex" inline style={{ fontSize: 'inherit' }} />
@@ -440,7 +445,7 @@ function SplitSide({ tool, equation, side, update, notify, disabled }) {
                     }}
                     disabled={disabled}
                     aria-pressed={tool.armed}
-                    aria-label={`Pick up the denominator ${active.denominatorText}`}
+                    aria-label={`Pick up the denominator ${spokenMathValue(active.denominatorText)}`}
                   >
                     <MathDisplay value={active.denominatorLatex} format="latex" inline />
                   </button>
@@ -491,18 +496,20 @@ function ReductionTokenRow({ tokens, row, tool, onTap, disabled }) {
           <span key={key} className="algebra-structure-token-slot">
             {index > 0 ? <Times /> : null}
             {token.selectable ? (
-              <button
-                type="button"
+              // A factor is used up on the press that pairs it: focus-safe, so
+              // keyboard focus stays on it rather than dropping to the top of
+              // the page (AX47, VH-22).
+              <FocusSafeButton
                 className={`algebra-structure-token${held ? ' is-chosen' : ''}${paired ? ' is-paired' : ''}`}
                 onClick={() => onTap(row, index)}
-                disabled={disabled || paired}
+                enabled={!(disabled || paired)}
                 aria-pressed={held || paired}
                 aria-label={`${row === 'numerator' ? 'Numerator' : 'Denominator'} factor ${spokenMathValue(token.latex)}${paired ? ', cancelled' : held ? ', held' : ''}`}
               >
                 <MathDisplay value={token.latex} format="latex" inline style={{ fontSize: 'inherit' }} />
-              </button>
+              </FocusSafeButton>
             ) : (
-              <span className="algebra-structure-token is-static" aria-label={`Factor ${spokenMathValue(token.latex)}`}>
+              <span className="algebra-structure-token is-static" role="img" aria-label={`Factor ${spokenMathValue(token.latex)}`}>
                 <MathDisplay value={token.latex} format="latex" inline style={{ fontSize: 'inherit' }} />
               </span>
             )}

@@ -6,6 +6,7 @@ import UsePracticePassDialog from './UsePracticePassDialog.jsx';
 import RewardHistory from './RewardHistory.jsx';
 import ClassRewardsShelf from './ClassRewardsShelf.jsx';
 import { STUDENT_SELF_NEUTRAL_LABEL, formatStudentName } from '../../../platform/studentName.js';
+import { SR_ONLY_STYLE } from '../../../ui/srOnly.js';
 import {
   PRACTICE_PASS,
   badgeView,
@@ -46,8 +47,11 @@ function PracticePassCard({ wallet, newGrantIds, onOpen, unavailable, nowMs }) {
           <h2 id="practice-pass-heading">
             Practice Pass {isNew && <span className="rw-chip rw-chip--new">New</span>}
           </h2>
-          <div className="rw-count" aria-label={`${passes.count} available`}>
-            {passes.count}<small>available</small>
+          <div className="rw-count">
+            {/* "3available" run together as text; the words are a hidden
+                span's, since a label on a bare div is not read (AX18). */}
+            <span aria-hidden="true">{passes.count}<small>available</small></span>
+            <span style={SR_ONLY_STYLE}>{`${passes.count} available`}</span>
           </div>
         </div>
       </div>

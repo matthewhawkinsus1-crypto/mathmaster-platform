@@ -302,7 +302,8 @@ test('Texas Standards renders the student name with the id as a secondary line, 
   const source = read(file);
   const row = region(source, '{students.map((student) => {', '</tr>', 'standards student row');
   assert.doesNotMatch(executableSource(row), /fontWeight: 800 \}\}>\{student\.id\}/, 'the name cell must not render the bare id');
-  assert.match(row, /\{formatStudentName\(student\)\}<div[^>]*>\{studentIdLabel\(student\)\}/);
+  // The name is a button (the keyboard's way to the row's click, TT27), so it may close before the id's line begins.
+  assert.match(row, /\{formatStudentName\(student\)\}(?:<\/button>)?<div[^>]*>\{studentIdLabel\(student\)\}/);
   const aside = region(source, '{selectedStudent ? (', ') : <p', 'selected student panel');
   assert.doesNotMatch(executableSource(aside), /<h3[^>]*>\{selectedStudent\.id\}<\/h3>/);
   assert.match(aside, /<h3[^>]*>\{formatStudentName\(selectedStudent\)\}<\/h3>/);
@@ -407,10 +408,11 @@ test('weekly auto-publish preview rows are named from the roster the grade panel
   const list = region(source, 'preview.results.slice(0, 40).map((row) => (', '</li>', 'preview row');
   assert.doesNotMatch(executableSource(list), /\{row\.studentId\}:/);
   assert.match(list, /\{previewStudentLabel\(row\.studentId, identityIndex\)\}:/);
-  assert.match(source, /export default function WeeklyPathAutoPublish\(\{ classId = null, weekKey = null, students = \[\] \}\)/);
+  // The roster is a prop (the control reads no student list of its own); other props may join it.
+  assert.match(source, /export default function WeeklyPathAutoPublish\(\{[^}]*\bstudents = \[\][^}]*\}\)/);
   assert.match(source, /const identityIndex = studentIdentityIndexFor\(students\);/);
   assertImported(source, ['STUDENT_NAME_UNAVAILABLE', 'formatStudentLabel', 'resolveRosterStudentName', 'studentIdentityIndexFor'], STUDENT_NAME_MODULE, file);
-  assert.match(read('src/components/teacher/WeeklyPathGradePanel.jsx'), /<WeeklyPathAutoPublish classId=\{classId\} weekKey=\{weekKey\} students=\{students\} \/>/);
+  assert.match(read('src/components/teacher/WeeklyPathGradePanel.jsx'), /<WeeklyPathAutoPublish\b[^>]*\bstudents=\{students\}/);
 });
 
 test('case review and the support report headers never print the id where the name belongs', () => {

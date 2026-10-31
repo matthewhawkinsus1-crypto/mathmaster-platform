@@ -379,8 +379,15 @@ collections changed.
 - **The 2×2 workspace itself** cannot solve a pair whose rows each hold a
   different single variable. The 3×3 now avoids sending it one (above). The 2×2
   workspace is unchanged, so a standalone 2×2 authored that way is still stuck.
-- **3×3 substitution** on systems with missing variables was not re-examined.
-  This change does not touch it.
+- **3×3 substitution** on systems with missing variables was not re-examined by
+  this change. It was later (TL11, finding C2-136): it had the same strand as
+  elimination, a reduced 2×2 whose rows each hold one different variable, and
+  `substitutionSeparatedReduction` now reads those rows the way
+  `eliminationSeparatedReduction` does (tests/platform/substitutionMissingVariables.test.mjs).
+  The same change lets a dependent or inconsistent 3×3 be worked by substitution
+  (`substitutionOutcome`); Step Algebra still has no native end state for a
+  statement such as `27 = 27`, so the student finishes that equation side by side
+  (degenerateSubstitution.mjs, SubstitutedStatementEntry.jsx).
 - **Existing gap, not touched (the integrator confirmed it):** in a region
   with no corners the vertices step cannot be completed, because Check vertices
   is disabled with no marks. Submit is not gated by it, and the grader accepts

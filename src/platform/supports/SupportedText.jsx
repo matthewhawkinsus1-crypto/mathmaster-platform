@@ -8,7 +8,7 @@ import {
 /*
  * READ ALOUD AND TRANSLATE FOR WHAT MATHMASTER SAYS BACK.
  *
- * The prompt already has both (the work bar's Read button, the Support tools
+ * The prompt already has both (the work bar's Read button, the Language tools
  * tray). Feedback, hints and the worked solution are text the student did not
  * have before the attempt, so a student entitled to Read aloud or Translate
  * gets the same two actions beside each of them — and only that student:
@@ -29,7 +29,9 @@ import {
  * cannot, the student is told so in one plain line instead — "Translate isn't
  * available in Vietnamese yet" (no language pack), or "No Spanish translation
  * for this text yet" (a sentence the pack does not know, such as a hint a
- * teacher wrote). The mathematics is carried through untouched either way.
+ * teacher wrote and did not translate). A teacher can write their own
+ * (`authored`, TT22), which needs no pack. The mathematics is carried through
+ * untouched either way.
  */
 const shortLanguageName = (code) => {
   const name = LANGUAGE_NAMES[String(code || '').toLowerCase().split('-')[0]];
@@ -71,13 +73,17 @@ const actionStyle = {
   cursor: 'pointer',
 };
 
-export const SupportedTextActions = ({ text, readAloud = null, translation = null, onEvidence = null, label = 'this' }) => {
+// `authored` is the teacher's own words for THIS text in the student's language,
+// when they wrote some ({ text, coverage? }; authoredSupportText.js): a hint, a
+// worked solution. They are shown only if they carry the English's mathematics
+// exactly (translationProviders.js), and then need no language pack at all.
+export const SupportedTextActions = ({ text, readAloud = null, translation = null, onEvidence = null, label = 'this', authored = null }) => {
   const language = translation?.language || null;
   // The translation of THIS text in THIS language, looked up once it is shown.
-  const lookupKey = `${language || ''}|${text || ''}`;
+  const lookupKey = `${language || ''}|${text || ''}|${authored?.text || ''}`;
   // Known at once when the student's pack is already loaded (or there is no
   // pack for the language); otherwise looked up below.
-  const [lookup, setLookup] = useState(() => (language && text ? { key: lookupKey, result: resolveTranslationNow({ text, language }) } : null));
+  const [lookup, setLookup] = useState(() => (language && text ? { key: lookupKey, result: resolveTranslationNow({ text, language, authored }) } : null));
   const [showTranslated, setShowTranslated] = useState(false);
   useEffect(() => {
     setShowTranslated(false);
@@ -90,9 +96,9 @@ export const SupportedTextActions = ({ text, readAloud = null, translation = nul
         onEvidence?.('translation', 'unavailable', translationUnavailableDetails({ language, reason: result?.reason }));
       }
     };
-    const now = resolveTranslationNow({ text, language });
+    const now = resolveTranslationNow({ text, language, authored });
     if (now) settle(now);
-    else resolveTranslation({ text, language }).then(settle);
+    else resolveTranslation({ text, language, authored }).then(settle);
     return () => { alive = false; };
   }, [lookupKey]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!text || (!readAloud && !translation)) return null;
@@ -134,7 +140,8 @@ export const SupportedTextActions = ({ text, readAloud = null, translation = nul
       </span>
       {shown && (
         <span lang={language} data-translated-text="" style={{ display: 'block', marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'var(--mm-surface-tint)', color: 'var(--mm-text)', fontWeight: 600 }}>
-          <MathText>{translated.text}</MathText>
+          {/* The formulas are said in the translation's language too (AX06). */}
+          <MathText language={language}>{translated.text}</MathText>
           {translated.coverage === TRANSLATION_COVERAGE.PARTIAL && (
             <span lang="en" style={{ display: 'block', marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 600 }}>
               Some sentences are still in English.

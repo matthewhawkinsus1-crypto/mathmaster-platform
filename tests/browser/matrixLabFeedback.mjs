@@ -27,6 +27,11 @@
 //          try", the tool's own button mirrored, toolCheckMirror.js) is off
 //          until the work is filled; pressing it spends the one try and the
 //          verdict stays withheld, in Work View and on the page.
+//   AX32   the product grid says "Click or tap a cell, or Tab to it: its row of
+//          the first matrix and its column of the second light up", and Shift+Tab
+//          from one product cell to the next does light them. The two lesson
+//          prompts that told a student to tap (the shoe store's named elements,
+//          the sprinters' product) name Tab and Enter, and the keys do it.
 //
 // Exit code 1 on any finding. Screenshots: tests/browser/artifacts/matrixLabFeedback/.
 
@@ -151,15 +156,17 @@ const session = async (viewport, { appScrollPadding = false, touch = false } = {
 
   journey = 'CW 4 figure sort (P2-4)';
   await s.go('l3m-cw-4');
+  // Its cards show only text (products like "(2 × 3) · (3 × 4)"), so the
+  // stage calls them cards, not figures (FB16).
   const chosen = ['2 × 4', '2 × 4', '2 × 4', 'Not defined', 'Not defined', '4 × 4', '4 × 4', '4 × 4'];
   for (let i = 0; i < chosen.length; i += 1) {
-    const group = page.getByRole('radiogroup', { name: `Category for Figure ${i + 1}` });
+    const group = page.getByRole('radiogroup', { name: `Category for Card ${i + 1}` });
     await group.getByRole('radio', { name: chosen[i] === 'Not defined' ? 'Not defined' : `Defined — the product is ${chosen[i]}` }).click();
   }
   await page.getByRole('button', { name: /^(Check|Submit)/ }).last().click();
   await page.waitForTimeout(1000);
   const named = await page.evaluate(() => document.querySelector('[data-figure-match-wrong]')?.textContent || '');
-  check(named === 'Figures 3 and 8 are not in the right category yet.', `the wrong figures are named: "${named}"`);
+  check(named === 'Cards 3 and 8 are not in the right category yet.', `the wrong cards are named: "${named}"`);
   check((await page.locator('[data-figure-wrong]').count()) === 2, 'and their cards are marked');
   await s.shot('laptop-cw4-figures-named');
 
@@ -233,6 +240,37 @@ const session = async (viewport, { appScrollPadding = false, touch = false } = {
   check(Boolean(beside) && beside.calcLeft >= beside.gridRight - 1 && beside.calcTop < beside.gridTop + 200, `the calculator is beside the grid: ${JSON.stringify(beside)}`);
   await s.shot('laptop-cw6-calculator-beside-grid');
 
+  journey = 'CW 1 and CW 3 prompts name the keys (AX32)';
+  const tabUntil = async (matches, limit = 160) => {
+    for (let step = 0; step < limit; step += 1) {
+      if (await page.evaluate(matches)) return step;
+      await page.keyboard.press('Tab');
+    }
+    return -1;
+  };
+  const lessonText = () => page.evaluate(() => document.querySelector('[data-question-id]').innerText);
+  await s.go('l3m-cw-1');
+  const shoes = await lessonText();
+  check(/then select the cell of each named element \(click or tap it, or Tab to it and press Enter\)\. After you select one, the lab tells you which width and size that element counts\./.test(shoes), 'CW 1: the prompt names the click, the tap and the keys');
+  check(!/tap each named element|After a tap/.test(shoes), 'CW 1: and no longer says tap alone');
+  // The cell for a₃₄ (row 3, size 12) is reached with Tab, and Enter selects it: the lab names the width and size.
+  await page.evaluate(() => document.activeElement?.blur?.());
+  check(await tabUntil(() => document.activeElement?.getAttribute('aria-label')?.startsWith('Row 3, column 4:')) >= 0, 'CW 1: the cell for the named element is reached with Tab');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(300);
+  check(/You chose row 3 \(E\), column 4 \(12\): the value there is \d+\./.test(await lessonText()), 'CW 1: Enter selects it, and the lab says which width and size it counts');
+  await s.go('l3m-cw-3');
+  check(/Click or tap a cell of the product, or Tab to it, to see which row and column it pairs\./.test(await lessonText()), 'CW 3: the prompt names the click, the tap and Tab');
+  await page.getByRole('radio', { name: 'Yes' }).first().click();
+  await s.fill('Dimensions of A · B: number of rows', 4);
+  await s.fill('Dimensions of A · B: number of columns', 1);
+  await page.evaluate(() => document.activeElement?.blur?.());
+  const litCells = (grid) => page.evaluate((name) => [...document.querySelectorAll(`[data-matrix-grid="${name}"] [data-matrix-cell]`)].filter((cell) => /primary-subtle/.test(cell.getAttribute('style') || '')).map((cell) => cell.getAttribute('data-matrix-cell')), grid);
+  check(await tabUntil(() => document.activeElement?.getAttribute('aria-label') === 'Matrix Results, row 3, column 1') >= 0, 'CW 3: a product cell is reached with Tab');
+  const first = await litCells('A');
+  const second = await litCells('B');
+  check(first.length > 0 && first.every((cell) => cell.startsWith('3,')) && second.length > 0 && second.every((cell) => cell.endsWith(',1')), `CW 3: and its row of A (${first}) and column of B (${second}) light up`);
+
   journey = 'exit tickets (DOL)';
   await s.go('l3m-dol-1');
   await page.getByRole('radio', { name: 'Yes' }).first().click();
@@ -240,6 +278,15 @@ const session = async (viewport, { appScrollPadding = false, touch = false } = {
   await s.fill('Dimensions of P · Q: number of columns', 2);
   const product = [['2', '7'], ['2', '-5']];
   for (let i = 0; i < 2; i += 1) for (let j = 0; j < 2; j += 1) await s.fill(`Matrix PQ, row ${i + 1}, column ${j + 1}`, product[i][j]);
+  // AX32: the line over the grid names the keyboard beside the tap, and the key does it. Focus is
+  // on row 2, column 2 (the last box filled); Shift+Tab moves it to row 2, column 1.
+  check(/Click or tap a cell, or Tab to it: its row of the first matrix and its column of the second light up\./.test(await page.evaluate(() => document.querySelector('[data-question-id]').innerText)), 'DOL 1: the product grid names the tap and the key');
+  const lit = (grid) => page.evaluate((name) => [...document.querySelectorAll(`[data-matrix-grid="${name}"] [data-matrix-cell]`)].filter((cell) => /primary-subtle/.test(cell.getAttribute('style') || '')).map((cell) => cell.getAttribute('data-matrix-cell')), grid);
+  const beforeKey = { first: await lit('P'), second: await lit('Q') };
+  await page.keyboard.press('Shift+Tab');
+  const afterKey = { first: await lit('P'), second: await lit('Q') };
+  check(afterKey.first.length > 0 && afterKey.first.every((cell) => cell.startsWith('2,')), `DOL 1: Shift+Tab to a product cell lights its row of the first matrix (${afterKey.first})`);
+  check(afterKey.second.length > 0 && afterKey.second.every((cell) => cell.endsWith(',1')) && !beforeKey.second.every((cell) => cell.endsWith(',1')), `DOL 1: and the column of the second, which moved with it (${beforeKey.second} then ${afterKey.second})`);
   await s.press();
   const dol1 = await page.evaluate(() => document.querySelector('[data-question-id]').innerText);
   check((await s.fixList()).length === 0, 'DOL 1: no list of what to fix');
@@ -251,10 +298,28 @@ const session = async (viewport, { appScrollPadding = false, touch = false } = {
   await s.go('l3m-dol-2');
   await s.fillSystem([[1, 2, 1, 3], [3, -1, -1, 4], [2, -1, 3, 14]]);
   await page.getByRole('button', { name: /A inverse times B/i }).click();
+  // TS08: DOL 2 is not singular and does not grade a reason, but "No
+  // solution" asks for one and waits for it exactly as on DOL 3, so the
+  // panel says nothing about which system is singular.
+  await page.getByRole('radio', { name: 'No solution' }).click();
+  check((await page.locator('[data-singular-reason]').count()) === 1, 'DOL 2 asks for the reason on "No solution" too (TS08)');
+  check(!(await s.checkButton().isEnabled()), 'DOL 2: "No solution" waits for its reason, as on DOL 3');
+  await page.getByLabel('The row that is a multiple').selectOption('3');
+  await s.fill('The multiple', 2);
+  await page.getByLabel('The row it is a multiple of').selectOption('1');
+  await page.getByRole('radio', { name: 'do not follow it' }).click();
+  check(await s.checkButton().isEnabled(), 'DOL 2: with its reason, the answer can be submitted');
   await page.getByRole('radio', { name: 'Exactly one solution' }).click();
+  check((await page.locator('[data-singular-reason]').count()) === 0, 'DOL 2: "Exactly one solution" asks no reason');
   await s.fill('Value of x', 2); await s.fill('Value of y', -1); await s.fill('Value of z', 4);
   await s.press();
   check((await s.record('l3m-dol-2'))?.supportUsage?.calculatorUsed === true, 'DOL 2: the [A]⁻¹·[B] press is recorded as calculatorUsed (P2-12)');
+  // The work the attempt carries (its response key) holds the decision, and
+  // no reason: DOL 2 does not grade one (TS08).
+  const dol2Sent = String((await s.record('l3m-dol-2'))?.lastResponseKey || '');
+  check(dol2Sent.includes('classification') && !dol2Sent.includes('singularReason'), `DOL 2: the reason it does not grade is never sent (TS08): ${dol2Sent.slice(0, 160)}`);
+  const dol2Grade = await s.lastGrade();
+  check(dol2Grade?.questionId === 'l3m-dol-2' && !(dol2Grade.parts || []).some((part) => /singularReason|no inverse/i.test(`${part.id} ${part.label}`)), 'DOL 2: no part for the reason');
   check((await s.fixList()).length === 0, 'DOL 2: no list after a wrong z');
   await s.go('l3m-dol-3');
   await s.fillSystem([[1, -2, 3, 4], [2, 1, -1, 1], [-3, 6, -9, 12]]);

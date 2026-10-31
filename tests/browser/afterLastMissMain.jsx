@@ -4,6 +4,16 @@
 //
 //   ?role=classwork|practice|warmup|dol  the section's role
 //   ?q=inverse|choice                    a real compiled lesson item
+//   ?q=mapping|solutions|asymptotes|shift|graph
+//                                        the five lesson items whose sibling answer has a
+//                                        fixed shape (CT13); with ?direct=1 only the
+//                                        practice is mounted, open, on that item
+//   ?q=system3                           a 3×3 system solved by hand (Day 1, 3x3-d1-pr-5): no
+//                                        family sibling, so the practice is the item with new
+//                                        numbers (FB19, numericVariant.js)
+//   ?closed=1                            mount the item with the record its last miss leaves
+//                                        (recordQuestionAttempt, once per try) — for an item
+//                                        whose workspace a journey cannot miss quickly
 //   ?host=0                              the host does not vouch for the practice
 //                                        (Recovery, Path, a preview elsewhere)
 //
@@ -21,6 +31,12 @@ import { buildSimilarWorkedExample } from '../../src/platform/supports/workedExa
 import { isChoiceOnlyQuestion } from '../../functions/shared/attemptPolicy.mjs';
 import inverseLesson from '../../teacher-import-jsons/algebra2-honors-module1/L3_Inverse_Linear_Functions.json';
 import transformationsLesson from '../../teacher-import-jsons/algebra2-honors-module1/L2_Day2_Transformations.json';
+import parentFunctionsLesson from '../../teacher-import-jsons/algebra2-honors-module1/L2_Day1_Parent_Functions_Key_Attributes.json';
+import dol1Lesson from '../../teacher-import-jsons/algebra1-dol1/District_DOL1_Technology_Graph_Analysis_Review.json';
+import dol2Lesson from '../../teacher-import-jsons/algebra2-honors-dol2/District_DOL2_Absolute_Value_and_3x3_Systems_Review.json';
+import sampleLesson from '../../SAMPLE_AUTHORING_INTENT_V5.json';
+import systems3x3Lesson from '../../docs/assignments/Algebra_II_Honors_3x3_Systems_Day1_V5_FINAL.json';
+import PracticeLikeThis from '../../src/platform/supports/workedExample/PracticeLikeThis.jsx';
 import '../../src/index.css';
 import '../../src/App.css';
 
@@ -37,8 +53,17 @@ const policy = getEffectiveActivityPolicy(role);
 const practiceLike = (lesson) => compileAuthoringIntentV5(lesson).package.sections
   .filter((section) => ['classwork', 'practice'].includes(section.role))
   .flatMap((section) => section.questions);
+const lessonItem = (lesson, questionId) => practiceLike(lesson).find((entry) => entry.questionId === questionId);
 
 const QUESTIONS = {
+  // CT13: items whose sibling's answer has a fixed shape, so it is checked as it is typed.
+  mapping: () => lessonItem(dol1Lesson, 'q_section-3_3_9'),
+  solutions: () => lessonItem(dol2Lesson, 'dol2r-cw-6'),
+  asymptotes: () => lessonItem(parentFunctionsLesson, 'q_classwork-2_2_8'),
+  shift: () => lessonItem(transformationsLesson, 'q_classwork-2_2_5'),
+  graph: () => lessonItem(sampleLesson, 'q_classwork-2_2_2'),
+  // FB19: no family sibling; the practice is this system with new numbers.
+  system3: () => lessonItem(systems3x3Lesson, '3x3-d1-pr-5'),
   // A typed item ("If f(a) = b, …f⁻¹…") whose sibling can be checked.
   inverse: () => practiceLike(inverseLesson).find((question) => buildPracticeLikeThis(question)?.checkable
     && (question.answerFields || []).length >= 1 && question.answerFields.every((field) => !Array.isArray(field.options))),
@@ -56,12 +81,21 @@ const question = QUESTIONS[which]();
 const maximumAttempts = resolveQuestionMaximumAttempts({ question, maximumAttempts: policy.attempts, activityPolicy: policy });
 const hintSibling = buildSimilarWorkedExample(question, { seed: 0 });
 const practice = buildPracticeLikeThis(question, { seed: 0, avoidPrompts: hintSibling ? [hintSibling.prompt] : [] });
-window.__mmPractice = practice ? { prompt: practice.prompt, parts: practice.parts, answer: practice.answer } : null;
+window.__mmPractice = practice ? { prompt: practice.prompt, parts: practice.parts, answer: practice.answer, source: practice.source } : null;
 window.__mmAnswers = (question.answerFields || []).map((field) => ({ id: field.id, label: field.label || field.id, answer: String(field.answer ?? ''), options: field.options || null }));
 window.__mmGrades = [];
 
+// ?closed=1: the record every try of a miss leaves, exactly as onGrade below records one.
+const closedRecord = () => {
+  let record = emptyQuestionRecord();
+  for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
+    record = recordQuestionAttempt({ record, isCorrect: false, responseKey: `miss-${attempt + 1}`, maximumAttempts }).record;
+  }
+  return record;
+};
+
 function Harness() {
-  const [record, setRecord] = useState(emptyQuestionRecord());
+  const [record, setRecord] = useState(() => (params.get('closed') === '1' ? closedRecord() : emptyQuestionRecord()));
   const onGrade = async (isCorrect, details, parts, supportUsage, responseKey, meta) => {
     window.__mmGrades.push({ isCorrect, parts });
     const outcome = recordQuestionAttempt({ record, isCorrect, questionDetails: details, parts, supportUsage, responseKey, partialCreditPercent: meta?.partialCreditPercent, maximumAttempts });
@@ -90,4 +124,15 @@ function Harness() {
   );
 }
 
-createRoot(document.getElementById('root')).render(<Harness />);
+// ?direct=1: only the practice, open, on the item (the engine around it is covered by the other journeys).
+function DirectPractice() {
+  return (
+    <div className="mathmaster-assignment-screen" data-after-last-miss={which} style={{ fontFamily: '"Segoe UI", sans-serif', minHeight: '100vh', padding: 12 }}>
+      <main className="mathmaster-question-stage" style={{ maxWidth: 1120, margin: '0 auto', background: 'var(--mm-surface)', borderRadius: 12, padding: 10 }}>
+        <PracticeLikeThis question={question} seed={0} avoidPrompts={hintSibling ? [hintSibling.prompt] : []} startOpen />
+      </main>
+    </div>
+  );
+}
+
+createRoot(document.getElementById('root')).render(params.get('direct') === '1' ? <DirectPractice /> : <Harness />);

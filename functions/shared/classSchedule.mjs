@@ -7,7 +7,7 @@
  * resolution the browser uses, not a second reading of the same settings
  * document.
  */
-import { zonedDateKey, zonedTimeOnDate } from './instructionalCalendar.mjs';
+import { parseInstant, zonedDateKey, zonedTimeOnDate } from './instructionalCalendar.mjs';
 
 export const CLASS_PERIODS = Object.freeze(Array.from({ length: 8 }, (_, index) => `Period ${index + 1}`));
 
@@ -70,6 +70,72 @@ export const resolveScheduleDayType = (scheduleValue, nowValue = Date.now(), tim
   const weekly = String(schedule.weeklyDayTypes?.[weekdayIndex] || '').toUpperCase();
   if (weekly === 'A' || weekly === 'B') return { dayType: weekly, source: 'weekly', dateKey };
   return { dayType: null, source: 'manualRequired', dateKey };
+};
+
+/*
+ * WHEN EACH DATE'S A/B DAY WAS SET (the owner, 2026-10-23, TC01).
+ *
+ * A date's A/B day can be chosen after some of that day's periods have ended
+ * (Friday's, set in the afternoon; a calendar change entered late). Those
+ * periods had no class time while they met, so a Test set for one of them was
+ * never open to anyone, and the Test Cycle must not read it as missed
+ * (testCycleAvailability.mjs resolveClassWindows). `dayTypeSetAt[dateKey]`
+ * records when that date's A/B day last changed — set, changed or cleared —
+ * stamped by the save (withDayTypeSetAt) with the server's clock. The weekly
+ * Monday–Thursday pattern is known in advance and records nothing; a date
+ * with no stamp reads exactly as before.
+ */
+const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** The A/B day a date resolves to — its override, else the weekly pattern — or null. */
+export const dayTypeOnDate = (scheduleValue, dateKey) => {
+  const key = String(dateKey || '');
+  if (!DATE_KEY.test(key)) return null;
+  const schedule = normalizeSchedule(scheduleValue);
+  const overridden = String(schedule.dayTypeOverrides?.[key] || '').toUpperCase();
+  if (overridden === 'A' || overridden === 'B') return overridden;
+  const weekly = String(schedule.weeklyDayTypes?.[new Date(`${key}T00:00:00Z`).getUTCDay()] || '').toUpperCase();
+  return weekly === 'A' || weekly === 'B' ? weekly : null;
+};
+
+/** When this date's A/B day was last set (ms), or null when nothing records it. */
+export const dayTypeSetAtOf = (scheduleValue, dateKey) => parseInstant(scheduleValue?.dayTypeSetAt?.[String(dateKey || '')] ?? null);
+
+/**
+ * The schedule to save: `next`, with every date whose A/B day differs from
+ * `previous` (what is saved now) stamped `at`, and every other date keeping the
+ * stamp it had. A stamp written on screen before the save is replaced, so a
+ * day clicked to B and back to A records nothing.
+ */
+export const withDayTypeSetAt = (previousValue, nextValue, at) => {
+  const previous = normalizeSchedule(previousValue);
+  const next = normalizeSchedule(nextValue);
+  const kept = previous.dayTypeSetAt && typeof previous.dayTypeSetAt === 'object' ? previous.dayTypeSetAt : {};
+  const stamps = { ...kept };
+  new Set([...Object.keys(previous.dayTypeOverrides || {}), ...Object.keys(next.dayTypeOverrides || {})]).forEach((dateKey) => {
+    if (DATE_KEY.test(dateKey) && dayTypeOnDate(previous, dateKey) !== dayTypeOnDate(next, dateKey)) stamps[dateKey] = at;
+  });
+  return { ...next, dayTypeSetAt: stamps };
+};
+
+/**
+ * The periods of `dayType` on the day of `nowValue` whose class time had ended
+ * by `at`: what setting that day's A/B day at `at` cannot give class time
+ * after the fact. A day with its own special times is not timed by its A/B
+ * day, so none.
+ */
+export const periodsEndedBy = ({ schedule: scheduleValue, dayType, nowValue = Date.now(), at = nowValue, timeZone = null } = {}) => {
+  const schedule = normalizeSchedule(scheduleValue);
+  const cutoff = parseInstant(at);
+  if (cutoff === null || schedule.modifiedSchedules?.[zonedDateKey(nowValue, timeZone)]?.periods) return [];
+  const periods = schedule.daySchedules?.[String(dayType || '').toUpperCase()]?.periods || {};
+  return CLASS_PERIODS.filter((period) => {
+    const entry = periods[period];
+    if (!entry?.enabled || !entry.start || !entry.end) return false;
+    const startMs = zonedTimeOnDate(nowValue, entry.start, timeZone);
+    const endMs = zonedTimeOnDate(nowValue, entry.end, timeZone);
+    return startMs !== null && endMs !== null && endMs > startMs && endMs <= cutoff;
+  });
 };
 
 /**

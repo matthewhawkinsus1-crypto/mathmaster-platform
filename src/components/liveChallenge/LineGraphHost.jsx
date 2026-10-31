@@ -2,6 +2,7 @@ import { LINE_DIFFICULTY_OPTIONS } from '../../../functions/shared/lineGraphConf
 import { LINE_GRAPH_FORMAT, LINE_ITEM_TYPE, lineGraphFormatOfMode } from '../../../functions/shared/lineGraphRules.mjs';
 import { rushPlayingCount, rushRaceRows } from '../../platform/liveChallenge/rushStandingsModel.js';
 import { useChallengeClock } from '../../platform/liveChallenge/challengeHooks.js';
+import { roundWaitingOnExtendedTime } from '../../platform/liveChallenge/liveChallengeProjectorModel.js';
 import { ChallengeClockText, useLowTime } from './ChallengeShellParts.jsx';
 
 /*
@@ -76,9 +77,13 @@ export function LineGraphHostStatus({ room, players = [], clockOffsetMs = 0, joi
   const timeUp = clock.stage === 'roundLocked';
   const playing = rushPlayingCount(players, roundIndex);
   const right = rushRaceRows(players, roundIndex).reduce((sum, row) => sum + row.completed, 0);
+  // Past the class's buzzer while students with extended time finish their
+  // set (Classic, Sprint). The teacher's console alone says why, and the rule.
+  const extraTime = roundWaitingOnExtendedTime({ room, locked: timeUp, joinedCount, answeredCount: finishedCount });
   let headline = RUNNING_WORDS[format] || RUNNING_WORDS[LINE_GRAPH_FORMAT.RUSH];
   if (closed) headline = `Round ${roundIndex + 1} results`;
   else if (counting) headline = 'Get ready — the round is about to start.';
+  else if (extraTime) headline = 'Time is up, and the race is decided. Students with extra time are finishing their lines — those count for their practice, not the race.';
   else if (timeUp) headline = 'Time! Saving the last answers, then the results.';
   else if (finishes && joinedCount > 0 && finishedCount >= joinedCount) headline = 'Everyone has finished. Results are coming up.';
   return (
@@ -149,7 +154,11 @@ export function LineGraphReport({ report }) {
             {students.map((player) => (
               <div key={player.studentId || player.alias} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 4, padding: '6px 0', borderBottom: '1px solid var(--mm-divider)', fontSize: 'calc(14 * var(--mm-px))' }}>
                 <span style={{ fontWeight: 800 }}>{player.alias}</span>
-                <span style={{ color: 'var(--mm-text-muted)' }}>{player.itemsCompleted} right · {pct(player.accuracyPercent)}</span>
+                <span style={{ color: 'var(--mm-text-muted)' }}>
+                  {player.itemsCompleted} right · {pct(player.accuracyPercent)}
+                  {/* Lines finished in extended time, after the buzzer: theirs, never the race's. */}
+                  {player.itemsCompletedInExtraTime > 0 ? ` · ${player.itemsCompletedInExtraTime} in extra time` : ''}
+                </span>
                 {player.topMistake && <span style={{ gridColumn: '1 / -1', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Most often: {player.topMistake}</span>}
               </div>
             ))}

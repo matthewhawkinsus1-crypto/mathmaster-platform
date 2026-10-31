@@ -62,3 +62,14 @@ test('a fractional or negative exponent is never "squared", "cubed" or "inverse"
   assert.equal(mathToSpeech('x^2 + x^3'), 'x squared plus x cubed');
   assert.equal(speechTextFor('A⁻¹ is the inverse.'), 'A inverse is the inverse.');
 });
+
+test('(fg)(x) is the product of two functions, applied: "f times g of x" (AX20)', async () => {
+  const { spokenMathLabel } = await import('../../src/platform/language/mathSpeechLabel.js');
+  assert.equal(mathToSpeech('(fg)(x)'), 'f times g of x');
+  assert.equal(mathToSpeech('(f g)(2)'), 'f times g of 2');
+  assert.equal(spokenMathLabel('(fg)(x)'), 'f times g of x');
+  assert.equal(mathToSpeech('(fg)(x)', { language: 'es' }), 'f por g de x');
+  // A bracket that is not two function names is still a quantity.
+  assert.equal(mathToSpeech('(ab)(c)'), 'the quantity ab times the quantity c');
+  assert.equal(mathToSpeech('(x+1)(x-2)'), 'the quantity x plus 1 times the quantity x minus 2');
+});

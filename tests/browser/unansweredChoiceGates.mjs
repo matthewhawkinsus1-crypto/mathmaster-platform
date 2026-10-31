@@ -63,7 +63,7 @@ const combo = (page, name, index = 0) => page.getByRole('combobox', { name, exac
 // and its cost ("Submit — uses 1 of 3 tries", student pass 3, D9). These were
 // its own words; the journeys below still name it by them.
 const FINAL_ACTIONS = new Set(['Check data model', 'Check system', 'Check matrix solution', 'Check feasible region', 'Check inequality graph',
-  'Check function reasoning', 'Check equidistance', 'Check equation', 'Check connection', 'Check graph connections', 'Check feature', 'Submit this model']);
+  'Check function reasoning', 'Check equidistance', 'Check equation', 'Check connection', 'Check graph connections', 'Check feature', 'Check this model']);
 const button = (page, name) => (FINAL_ACTIONS.has(name)
   ? page.getByRole('button', { name: /^Submit — / }).first()
   : page.getByRole('button', { name, exact: true }));
@@ -130,10 +130,13 @@ const FIXTURES = {
     await startsUnanswered(page, 'Direction');
     await startsUnanswered(page, 'Strength');
     await fill(page, 'spinbutton', 'Correlation coefficient r', 1);
-    await press(page, 'Check data model');
-    const blank = await lastGrade(page);
-    check(partOf(blank, 'correlationInterpretation')?.isCorrect === false && partOf(blank, 'correlation')?.isCorrect === true,
-      `${fixture}: r alone, direction and strength unanswered: the interpretation earns nothing`, brief(blank));
+    // The lab's final action waits for every part the question asks (TL08):
+    // r alone, with direction and strength unanswered, cannot be sent at all,
+    // so no try is spent on a judgment the student has not made.
+    const sentBefore = (await grades(page)).length;
+    check(await button(page, 'Check data model').isDisabled() && (await grades(page)).length === sentBefore,
+      `${fixture}: r alone, direction and strength unanswered: Submit waits and nothing is graded`);
+    check(/Still to do:/.test(await page.locator('.mathmaster-tool-shell').innerText()), `${fixture}: the lab says what is still to do`);
     await choose(page, 'Direction', 'Positive');
     await choose(page, 'Strength', 'Strong');
     await press(page, 'Check data model');
@@ -156,10 +159,11 @@ const FIXTURES = {
     check(checked === 0, `${fixture}: no model family is chosen for the student`, `${checked} checked`);
     // The exact linear prediction at x = 3.5 (least squares on the fixture's points).
     await fill(page, 'spinbutton', 'Predicted y', '7.015');
-    await press(page, 'Check data model');
-    const blank = await lastGrade(page);
-    check(['association', 'modelChoice', 'prediction'].every((id) => partOf(blank, id)?.isCorrect === false),
-      `${fixture}: unanswered association, model family and prediction type earn nothing (the prediction value alone is not enough)`, brief(blank));
+    // TL08: with the association, the model family and the prediction type
+    // unanswered, the prediction value alone cannot be sent.
+    const sentBefore = (await grades(page)).length;
+    check(await button(page, 'Check data model').isDisabled() && (await grades(page)).length === sentBefore,
+      `${fixture}: the prediction value alone, with the association, model family and prediction type unanswered: Submit waits and nothing is graded`);
     await choose(page, 'Direction', 'Positive');
     await choose(page, 'Strength', 'Strong');
     await choose(page, 'What can this observational data justify?', 'An association / relationship');
@@ -391,7 +395,7 @@ const FIXTURES = {
     const continuity = page.locator('[data-constraint-satisfied]').filter({ hasText: 'Continuous graph' });
     check(await continuity.getAttribute('data-constraint-satisfied') === 'false', `${fixture}: "Continuous graph" is not met before the student chooses`);
     await blankThenRight(page, {
-      checkLabel: 'Submit this model',
+      checkLabel: 'Check this model',
       answer: async () => {
         await choose(page, name, 'Continuous');
         check(await continuity.getAttribute('data-constraint-satisfied') === 'true', `${fixture}: met once "Continuous" is chosen`);

@@ -207,22 +207,17 @@ test('the scoring strategy applies the 20% setting where the points are computed
   assert.equal(privateAfterSubmit.experienceSpeedAdjustment, 0);
 });
 
-// Fire the fallback with the BASE write shape after the submission has marked
-// the database. The legacy trigger must observe the marker and decline to pay
-// another 100 points.
-await functionsEntry.adjustLiveChallengeExperienceScore.run({
-  params: { roomId: ROOM, studentId: STUDENT },
-  data: {
-    before: { exists: true, data: () => ({ score: 0, answeredRound: -1, streak: 0 }) },
-    after: { exists: true, data: () => ({ score: 1100, answeredRound: 0, streak: 1, lastAnswerCorrect: true }) },
-  },
-});
-const privateAfterRetry = (await db.collection('liveChallengePrivate').doc(ROOM).collection('players').doc(STUDENT).get()).data();
-
-test('trigger retry cannot double-pay the configured speed bonus', () => {
-  assert.equal(privateAfterRetry.score, 1200);
-  assert.equal(privateAfterRetry.experienceSpeedAdjustedRound, 0);
-  assert.equal(privateAfterRetry.experienceSpeedAdjustment, 0);
+// The post-hoc speed trigger that used to be fired here with a base-shaped write
+// is retired (LC23): the strategy paid the speed at submit, every submission
+// marked its round, and the trigger returned before touching it on every write.
+// Nothing is left to re-fire. (The marker is still written, above, for as long
+// as the deployed copy of the trigger exists in production.)
+test('nothing exported by the entry point can pay the configured speed bonus a second time', async () => {
+  assert.equal(functionsEntry.adjustLiveChallengeExperienceScore, undefined, 'the retired trigger is not exported');
+  const afterwards = (await db.collection('liveChallengePrivate').doc(ROOM).collection('players').doc(STUDENT).get()).data();
+  assert.equal(afterwards.score, 1200);
+  assert.equal(afterwards.experienceSpeedAdjustedRound, 0);
+  assert.equal(afterwards.experienceSpeedAdjustment, 0);
 });
 
 test('another teacher cannot change this room experience', async () => {

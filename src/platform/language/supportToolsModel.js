@@ -1,8 +1,8 @@
 /*
- * SUPPORT TOOLS FOR ONE ITEM — entitled AND backed, or not shown.
+ * LANGUAGE TOOLS FOR ONE ITEM — entitled AND backed, or not shown.
  *
- * The student's neutral "Support tools" (src/components/student/
- * StudentSupportTools.jsx) offer at most five language tools. Each appears only
+ * The student's neutral "Language tools" (the tray in src/components/student/
+ * supportTools/SupportToolsTray.jsx) offer at most five tools. Each appears only
  * when BOTH are true:
  *
  *   entitled  the student's effective support profile includes it — the same
@@ -30,7 +30,7 @@ import { SUPPORT_TOOL, TOOL_STATE, TOOL_SUPPORT_ID } from './supportToolsEntitle
 import { chunkDirections } from './directionChunks.js';
 import { sentenceFramesFor } from './sentenceFrames.js';
 import { TRANSLATION_COVERAGE } from './translationProviders.js';
-import { vocabularyForContext } from './mathVocabulary.js';
+import { VOCABULARY_LIMIT, vocabularyForContext } from './mathVocabulary.js';
 
 export {
   LANGUAGE_SUPPORT_IDS, SUPPORT_TOOL, TOOL_ORDER, TOOL_STATE, TOOL_SUPPORT_ID, toolsEntitlementFromPath, toolsEntitlementFromProfile,
@@ -40,7 +40,7 @@ export {
  * The tools for one item, synchronously. `speech` says whether this browser
  * can speak (speechText.js speechAvailable). Translation starts `pending`.
  */
-export const supportToolsForItem = ({ entitlement, prompt = '', question = null, toolType = '', speech = true } = {}) => {
+export const supportToolsForItem = ({ entitlement, prompt = '', question = null, toolType = '', speech = true, seenText = '' } = {}) => {
   if (!entitlement?.tools?.length) return { any: false, tools: [] };
   const text = String(prompt ?? '');
   const tools = entitlement.tools.map((tool) => {
@@ -51,11 +51,31 @@ export const supportToolsForItem = ({ entitlement, prompt = '', question = null,
     const base = { tool, supportId, label: studentFacingLabel(supportId) || supportId, ...(universal ? { universal: true } : {}) };
     if (tool === SUPPORT_TOOL.TRANSLATE) return { ...base, state: TOOL_STATE.PENDING, language: entitlement.language };
     if (tool === SUPPORT_TOOL.VOCABULARY) {
-      // A secure test item lists the PROMPT's words only (`promptTermsOnly`):
+      // A secure test item DEFINES the PROMPT's words only (`promptTermsOnly`):
       // a tool's own list — distribute, elimination, shade — defines its
       // method, which a test must not hand over (student pass 3, H-16 review).
-      const termIds = vocabularyForContext({ text, toolType: entitlement.promptTermsOnly ? '' : toolType });
-      return { ...base, state: termIds.length ? TOOL_STATE.AVAILABLE : TOOL_STATE.NOT_APPLICABLE, termIds, reason: termIds.length ? null : 'no-vocabulary' };
+      // The tool's words still show there, as labels with no definition
+      // (`labelTermIds`, TS07): the words practice lists, so a student can
+      // read the controls. A label says what a word is called, never how to
+      // use it.
+      // The words in the hints and feedback the student has SEEN (seenHelpText.js,
+      // AX43) follow the prompt's and the tool's, so what was offered before a
+      // hint was opened stays where it was. A secure test shows no help, and
+      // defines its prompt's words only.
+      const fromPrompt = vocabularyForContext({ text, toolType });
+      const fromSeen = entitlement.promptTermsOnly ? [] : vocabularyForContext({ text: String(seenText ?? '') });
+      const listed = [...new Set([...fromPrompt, ...fromSeen])].slice(0, VOCABULARY_LIMIT);
+      const promptWords = entitlement.promptTermsOnly ? vocabularyForContext({ text }) : listed;
+      const termIds = listed.filter((id) => promptWords.includes(id));
+      const labelTermIds = listed.filter((id) => !promptWords.includes(id));
+      const any = termIds.length + labelTermIds.length > 0;
+      return {
+        ...base,
+        state: any ? TOOL_STATE.AVAILABLE : TOOL_STATE.NOT_APPLICABLE,
+        termIds,
+        ...(labelTermIds.length ? { labelTermIds } : {}),
+        reason: any ? null : 'no-vocabulary',
+      };
     }
     if (tool === SUPPORT_TOOL.READ_ALOUD) {
       if (!text.trim()) return { ...base, state: TOOL_STATE.NOT_APPLICABLE, reason: 'nothing-to-read' };
@@ -110,7 +130,8 @@ export const toolEvidence = (tool, { surface = 'assignment', toolType = null } =
   if (tool.state === TOOL_STATE.AVAILABLE) {
     const details = { ...common, ...language, deliveryMode: 'on-demand' };
     if (tool.tool === SUPPORT_TOOL.TRANSLATE) Object.assign(details, { provider: tool.provider || null, coverage: tool.coverage || null });
-    if (tool.tool === SUPPORT_TOOL.VOCABULARY) details.itemCount = (tool.termIds || []).length;
+    // Every word the panel lists, a label without a definition included (TS07).
+    if (tool.tool === SUPPORT_TOOL.VOCABULARY) details.itemCount = (tool.termIds || []).length + (tool.labelTermIds || []).length;
     if (tool.tool === SUPPORT_TOOL.SAY_IT) details.itemCount = (tool.frames || []).length;
     // Full and partial translation are different facts about an assignment.
     return { supportId: tool.supportId, eventType: 'available', details, variant: tool.tool === SUPPORT_TOOL.TRANSLATE ? tool.coverage || null : null };

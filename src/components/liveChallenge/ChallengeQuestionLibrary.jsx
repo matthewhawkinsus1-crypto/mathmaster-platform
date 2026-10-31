@@ -4,6 +4,7 @@ import {
   challengeQuestionsFromAssignment,
   normalizeChallengeQuestionPackage,
 } from '../../platform/liveChallenge/challengeQuestionImport.js';
+import { teacherErrorSentence } from '../../platform/teacher/teacherErrorWords.js';
 
 const box = { border: '1px solid var(--mm-border)', borderRadius: 12, padding: 16, background: 'var(--mm-surface)' };
 const input = { width: '100%', boxSizing: 'border-box', padding: 10, border: '1px solid var(--mm-border)', borderRadius: 8, marginTop: 6 };
@@ -66,7 +67,8 @@ export default function ChallengeQuestionLibrary({ assignments = [], onImported 
       setResult(imported);
       if (imported?.imported) onImported?.(imported);
     } catch (importError) {
-      setError(importError?.message || 'Those questions could not be imported.');
+      console.warn('Live Challenge question import failed:', importError);
+      setError(teacherErrorSentence(importError, 'Those questions could not be imported.'));
     } finally {
       setBusy(false);
       setProgress(null);
@@ -79,7 +81,8 @@ export default function ChallengeQuestionLibrary({ assignments = [], onImported 
       const text = await file.text();
       await runImport(text);
     } catch (readError) {
-      setError(readError?.message || 'That JSON file could not be read.');
+      console.warn('Live Challenge question file could not be read:', readError);
+      setError(teacherErrorSentence(readError, 'That JSON file could not be read.'));
     }
   };
 

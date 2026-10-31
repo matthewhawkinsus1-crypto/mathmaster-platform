@@ -20,8 +20,11 @@ import {
   INTEGRITY_WARNING_TEXT,
   classifySecureExamError,
   finishedSummary,
+  integrityNoticeText,
   integrityPauseText,
   integrityWarningDue,
+  moduleClock,
+  moduleTimeUpNotice,
   nextActionLabel,
   nextTarget,
   pauseKind,
@@ -62,6 +65,10 @@ const WARNING_LAYER = 2147483550;
 // While a test is in progress, how often the screen asks whether a teacher
 // paused it, added time or turned it in (see the status check below).
 const STATUS_CHECK_MS = 30 * 1000;
+// While paused the screen asks every 5 seconds; the server banks that much on
+// resume (functions/lib/secureExam.js RESUME_GRACE_SECONDS, TS09), so it must
+// not ask less often than that.
+const PAUSED_POLL_MS = 5 * 1000;
 
 // How long a start screen waits for the student's list before the card's
 // facts stand in: a slow list never keeps a student from starting or resuming.
@@ -285,7 +292,7 @@ export const SecureExamContainer = ({
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [saveState, setSaveState] = useState('idle');
-  const [integrityNotice, setIntegrityNotice] = useState(false);
+  const [integrityNotice, setIntegrityNotice] = useState('');
   const [fullscreen, setFullscreen] = useState(() => typeof document !== 'undefined' && Boolean(document.fullscreenElement));
   // The session as the student's list knows it, read for the start screen when
   // the screen was opened without one (a course Test, from its card).
@@ -617,7 +624,7 @@ export const SecureExamContainer = ({
       if (started?.status === EXAM_RUNTIME_STATES.IN_PROGRESS) {
         // Where the student left off; a new test opens its first question.
         await openPosition(started.examSessionId, readNavigation(started).cursor);
-        if (integrityWarningDue(started)) setIntegrityNotice(true);
+        if (integrityWarningDue(started)) setIntegrityNotice(INTEGRITY_WARNING_TEXT);
       }
     } catch (startError) {
       // Before a session exists the start screen shows the reason; after, a
@@ -642,11 +649,11 @@ export const SecureExamContainer = ({
           violationCount: Number.isInteger(result.violationCount) ? result.violationCount : current.violationCount,
           ...(result.lockThreshold ? { integrityLockThreshold: result.lockThreshold } : {}),
         } : current));
-        // The event before the one that pauses the test: say so now, while
-        // the student can still act on it.
-        if (integrityWarningDue({ status: EXAM_RUNTIME_STATES.IN_PROGRESS, violationCount: result.violationCount, lockThreshold: result.lockThreshold, warning: result.warning })) {
-          setIntegrityNotice(true);
-        }
+        // Every event that counted says so, with the count (TS06); the event
+        // before the one that pauses the test warns, while the student can
+        // still act on it.
+        const noticeText = integrityNoticeText({ status: EXAM_RUNTIME_STATES.IN_PROGRESS, violationCount: result.violationCount, lockThreshold: result.lockThreshold, warning: result.warning });
+        if (noticeText) setIntegrityNotice(noticeText);
       },
     });
     logger.startListening();
@@ -658,7 +665,7 @@ export const SecureExamContainer = ({
   // callable only while paused so a teacher's resume appears without reloading.
   useEffect(() => {
     if (!session?.examSessionId || !(locked.has(session.status) || session.clockPaused === true)) return undefined;
-    const id = window.setInterval(() => { refreshSession(); }, 5000);
+    const id = window.setInterval(() => { refreshSession(); }, PAUSED_POLL_MS);
     return () => window.clearInterval(id);
   }, [session?.examSessionId, session?.status, session?.clockPaused, refreshSession]);
 
@@ -717,7 +724,7 @@ export const SecureExamContainer = ({
       if (!saved.ok && handleProblem(saved.problem)) return;
       const target = Number.isInteger(positionRef.current) ? positionRef.current : readNavigation(active).cursor;
       await openPosition(active.examSessionId, target);
-      if (integrityWarningDue(active)) setIntegrityNotice(true);
+      if (integrityWarningDue(active)) setIntegrityNotice(INTEGRITY_WARNING_TEXT);
     } catch (resumeError) {
       const problem = classifySecureExamError(resumeError, { expiresAt: active.expiresAt });
       if (!handleProblem(problem)) setError(problem.message || 'Your question did not reopen. Try again.');
@@ -929,6 +936,10 @@ export const SecureExamContainer = ({
   finishRef.current = finish;
 
   const onTimeExpired = useCallback(() => { finishRef.current?.('timeExpired'); }, []);
+  // The end of a module's own time (moduleClock, TS03) ends nothing: the
+  // screen draws again, now with the test's own time and the line saying so.
+  const [, setModuleClockTick] = useState(0);
+  const onModuleTimeUp = useCallback(() => { setModuleClockTick((tick) => tick + 1); }, []);
 
   const policyTitle = getExamPolicy(examType).title;
   // What the start screen knows about the session: what the student's list
@@ -988,6 +999,10 @@ export const SecureExamContainer = ({
   const previous = current === null ? null : previousTarget(navigation, current);
   const pause = pauseKind(session.status, session.clockPaused === true);
   const allowance = timeAllowance(session);
+  // A Digital SAT practice test's timer shows module 1's own time first
+  // (TS03); once that has run out, the test's own time, and a line saying so.
+  const clock = moduleClock(session);
+  const moduleTime = clock && !clock.timeUp ? clock : null;
   const threshold = Number(session.integrityLockThreshold) || DEFAULT_INTEGRITY_LOCK_THRESHOLD;
   const fullscreenAvailable = typeof document !== 'undefined' && document.fullscreenEnabled !== false && typeof document.documentElement?.requestFullscreen === 'function';
   const reviewing = view.kind === 'review' || view.kind === 'moduleEnd';
@@ -1018,6 +1033,10 @@ export const SecureExamContainer = ({
       {tools.referenceSheet && <SatReferenceSheet buttonStyle={EXAM_HEADER_CONTROL} onOpenChange={setReferenceSheetOpen} />}
       <GraphingCalculatorPanel
         available={tools.graphingCalculator && !pause}
+        // A practice test's calculator lists zeros, minimum and maximum, as the
+        // Digital SAT's Desmos does (TS04). A teacher's secure Test does not:
+        // there a listed point could state an answer (keyPointsAllowed).
+        keyPoints={!courseTest}
         launcherStyle={EXAM_HEADER_CONTROL}
         onOpenChange={setGraphingCalculatorOpen}
         onOpened={() => { if (question?.questionInstanceId) calculatorUsedRef.current.add(question.questionInstanceId); }}
@@ -1029,10 +1048,10 @@ export const SecureExamContainer = ({
     <span tabIndex={0} data-secure-focus-guard="start" onFocus={() => focusEdge('last')} style={focusGuardStyle} />
     {integrityNotice && session.status === EXAM_RUNTIME_STATES.IN_PROGRESS && (
       <div role="alert" data-secure-integrity-warning="" style={{ ...bannerStyle('warning'), position: 'fixed', top: 12, left: 0, right: 0, margin: '0 auto', zIndex: WARNING_LAYER, background: 'var(--mm-warning-bg)', boxShadow: 'var(--mm-shadow-lg)', display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-        <span><strong>Stay in the test window.</strong> {INTEGRITY_WARNING_TEXT}</span>
+        <span><strong>Stay in the test window.</strong> {integrityNotice}</span>
         <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {fullscreenAvailable && !fullscreen && <button type="button" onClick={returnToFullscreen} style={primaryButton(true)}>Return to full screen</button>}
-          <button type="button" onClick={() => setIntegrityNotice(false)} style={secondaryButton(true)}>OK</button>
+          <button type="button" onClick={() => setIntegrityNotice('')} style={secondaryButton(true)}>OK</button>
         </span>
       </div>
     )}
@@ -1042,10 +1061,11 @@ export const SecureExamContainer = ({
         title={courseTest ? (session.title || examTitle) : null}
         questionOrdinal={(current ?? navigation.cursor) + 1}
         totalQuestions={navigation.total || session.requiredQuestions}
-        expiresAt={session.expiresAt}
+        expiresAt={moduleTime ? moduleTime.expiresAt : session.expiresAt}
         clockPaused={session.clockPaused === true}
-        pausedRemainingSeconds={session.pausedRemainingSeconds}
-        onTimeExpired={onTimeExpired}
+        pausedRemainingSeconds={moduleTime ? moduleTime.pausedRemainingSeconds : session.pausedRemainingSeconds}
+        onTimeExpired={moduleTime ? onModuleTimeUp : onTimeExpired}
+        timeScope={moduleTime ? { module: moduleTime.number } : null}
         reviewFlagged={currentFlagged}
         onToggleReviewFlag={!reviewing && question && !pause ? toggleFlag : null}
         onOpenNavigator={navigation.total ? (navigatorOpen ? () => setNavigatorOpen(false) : openNavigator) : null}
@@ -1067,6 +1087,7 @@ export const SecureExamContainer = ({
       )}
       {session.watermarkEnabled !== false && <div aria-hidden="true" style={{ position: 'fixed', inset: 0, pointerEvents: 'none', display: 'grid', placeItems: 'center', opacity: .025, fontSize: 'clamp(calc(36 * var(--mm-px)),calc(10vw * var(--mm-text-scale, 1)),calc(100 * var(--mm-px)))', fontWeight: 900, transform: 'rotate(-20deg)' }}>MATHMASTER SECURE</div>}
       {notice && <div role="status" data-secure-notice="" style={bannerStyle('info')}>{notice}</div>}
+      {clock?.timeUp && <div role="status" data-secure-module-time-up={clock.number} style={bannerStyle('info')}>{moduleTimeUpNotice(clock.number)}</div>}
       {error && <div role="alert" style={bannerStyle('error')}>{error}</div>}
       <div ref={columnRef} data-secure-question-column="" style={{ paddingLeft: room.paddingLeft, paddingRight: room.paddingRight }}>
       {reviewing ? (

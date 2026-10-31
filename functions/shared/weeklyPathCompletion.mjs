@@ -30,6 +30,13 @@ export const weeklyCompletionWindow = (weekKey) => {
   return { start, end: start + WEEKLY_COMPLETION_WINDOW_DAYS * DAY };
 };
 
+/** The seven dates (YYYY-MM-DD) of the week that starts on weekKey, Monday first. */
+export const weekDateKeys = (weekKey) => {
+  const window = weeklyCompletionWindow(weekKey);
+  if (!window) return [];
+  return Array.from({ length: 7 }, (_, offset) => new Date(window.start + offset * DAY).toISOString().slice(0, 10));
+};
+
 /** A session counts toward the week only when the server marked it completed. */
 export const isCountedWeeklyPathSession = (session) => session?.status === 'completed';
 

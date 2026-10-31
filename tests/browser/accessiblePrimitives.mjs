@@ -8,10 +8,15 @@
  * Dialog (src/ui/Dialog.jsx): opens with focus on the first control that is
  * not Close; Tab and Shift+Tab wrap; a nested confirm traps alone, opens on its
  * [data-autofocus] Cancel, and Escape closes only it; closeOnEscape={false}
- * holds; focus returns to the opener. Focus ring (src/index.css): an
+ * holds; focus returns to the opener; Escape in a math field (or on its
+ * keypad) leaves the field and keeps the dialog, the next one closes it
+ * (TL15). Focus ring (src/index.css): an
  * interactive span with inline outline:none shows the ring on keyboard focus
  * and not on a mouse press. Announcer: a question change puts position and the
  * rendered prompt — math in words, no LaTeX — in a polite status region.
+ * Marks (AX18): a Live Challenge board's places and movement, My Math Path's
+ * "to" and the sign between two equations reach the accessibility tree in
+ * words, where a label on a bare span or strong did not.
  */
 import assert from 'node:assert/strict';
 
@@ -33,13 +38,35 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   await page.keyboard.press('Enter');
   await page.locator('[data-test="dialog"]').waitFor();
   assert.equal(await focused(page), 'name', `${at}: opens on the first control that is not Close`);
+  // A disclosure inside a dialog (TT27). Its summary is a stop, and Tab goes on from it to
+  // the next control — not back to the dialog's first, which is where a summary the trap did
+  // not know about sent focus, so that nothing after the first disclosure of the Assignment
+  // Hub or the Pre-Flight review could be reached by Tab. A closed one hides its button.
+  await page.locator('[data-test="name"]').focus();
+  await page.keyboard.press('Tab');
+  assert.equal(await focused(page), 'more-summary', `${at}: Tab reaches a disclosure's summary`);
+  await page.keyboard.press('Tab');
+  assert.equal(await focused(page), 'nickname', `${at}: Tab goes on from a closed disclosure, past the button it hides`);
+  await page.keyboard.press('Shift+Tab');
+  assert.equal(await focused(page), 'more-summary', `${at}: and Shift+Tab comes back to the summary`);
+  await page.keyboard.press('Enter');
+  assert.equal(await page.locator('[data-test="more"]').evaluate((details) => details.open), true, `${at}: Enter opens the disclosure`);
+  await page.keyboard.press('Tab');
+  assert.equal(await focused(page), 'more-inner', `${at}: once it is open, the button inside is the next stop`);
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('Enter'); // closed again: the rest of the run sees the dialog as it opened
+
   await page.locator('[data-test="delete"]').focus();
   assert.equal(await focused(page), 'delete');
   await page.keyboard.press('Tab'); // ask
+  await page.keyboard.press('Tab'); // the closed disclosure at the end: a stop of its own
+  assert.equal(await focused(page), 'advanced-summary', `${at}: the last stop is the summary of the closed disclosure at the end`);
   await page.keyboard.press('Tab');
   assert.equal(await focused(page), 'close', `${at}: Tab on the last wraps to the first`);
   await page.keyboard.press('Shift+Tab');
-  assert.equal(await focused(page), 'open-foreign', `${at}: Shift+Tab on the first wraps to the last`);
+  assert.equal(await focused(page), 'advanced-summary', `${at}: Shift+Tab on the first wraps to the last stop, not to the button a closed disclosure hides`);
+  await page.keyboard.press('Shift+Tab');
+  assert.equal(await focused(page), 'open-foreign');
 
   // A modal that is not a Dialog opened on top (the Toast confirm): the Dialog
   // stands down — it neither pulls focus back nor answers Escape.
@@ -71,16 +98,60 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   assert.equal(await page.locator('[data-test="dialog"]').count(), 1, `${at}: …and only the confirm`);
   assert.equal(await focused(page), 'delete', `${at}: focus back on the button that opened the confirm`);
 
-  // Escape in a math field still closes the dialog: MathInput prevents its
-  // default only to keep MathLive out of LaTeX mode (PR #454 review S1).
-  await page.locator('[data-test="math"] math-field').first().click();
+  // TL15 (owner decision): Escape in a math field leaves the field — its
+  // keypad closes and focus moves onto the field's √x button — and the dialog
+  // (Work View) stays open; the next Escape, focus no longer in a field,
+  // closes it. Both keypad states (a phone opens the keypad on focus, a
+  // Chromebook only on request), and from a key of the keypad.
+  const field = page.locator('[data-test="math"] math-field').first();
+  const toggle = page.locator('[data-test="math"] .mathmaster-math-tools-toggle');
+  const keypad = page.locator('[data-test="math"] [role="toolbar"][aria-label="Math tools"]');
+  const dialogs = () => page.locator('[data-test="dialog"]').count();
+  const focusOnToggle = () => page.evaluate(() => document.activeElement?.classList?.contains('mathmaster-math-tools-toggle') === true);
+  const focusInField = () => page.evaluate(() => Boolean(document.activeElement?.closest?.('math-field')));
+  const reopen = async () => {
+    await page.locator('[data-test="opener"]').focus();
+    await page.keyboard.press('Enter');
+    await page.locator('[data-test="dialog"]').waitFor();
+  };
+  const leaveThenClose = async (label) => {
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(150);
+    assert.equal(await dialogs(), 1, `${at} ${label}: the first Escape keeps the dialog open`);
+    assert.equal(await keypad.count(), 0, `${at} ${label}: the first Escape closes the keypad`);
+    assert.equal(await focusInField(), false, `${at} ${label}: focus has left the field`);
+    assert.ok(await focusOnToggle(), `${at} ${label}: focus is on the field's own √x button, not lost`);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(150);
+    assert.equal(await dialogs(), 0, `${at} ${label}: the second Escape closes the dialog`);
+    await reopen();
+  };
+  const phone = width < 768;
+  // The keypad as the device first shows it: open on a phone, closed on a Chromebook.
+  await field.click();
   await page.waitForTimeout(150);
+  assert.equal(await keypad.count(), phone ? 1 : 0, `${at}: the keypad starts ${phone ? 'open' : 'closed'}`);
+  await leaveThenClose(phone ? 'keypad open' : 'keypad closed');
+  // The other state, by the √x button (which keeps focus in the field).
+  await field.click();
+  await page.waitForTimeout(150);
+  await toggle.click();
+  await page.waitForTimeout(150);
+  assert.ok(await focusInField(), `${at}: the √x button left focus in the field`);
+  assert.equal(await keypad.count(), phone ? 0 : 1, `${at}: the keypad is now ${phone ? 'closed' : 'open'}`);
+  await leaveThenClose(phone ? 'keypad closed' : 'keypad open');
+  // From a key of the open keypad.
+  await field.click();
+  await page.waitForTimeout(150);
+  if (!(await keypad.count())) await toggle.click();
+  await keypad.locator('button').first().focus();
+  await leaveThenClose('from a keypad key');
+  // Escape elsewhere still closes the dialog at once.
+  await page.locator('[data-test="name"]').focus();
   await page.keyboard.press('Escape');
   await page.waitForTimeout(150);
-  assert.equal(await page.locator('[data-test="dialog"]').count(), 0, `${at}: Escape in a math field closes the dialog`);
-  await page.locator('[data-test="opener"]').focus();
-  await page.keyboard.press('Enter');
-  await page.locator('[data-test="dialog"]').waitFor();
+  assert.equal(await dialogs(), 0, `${at}: Escape outside a field closes the dialog at once`);
+  await reopen();
 
   // closeOnEscape={false} while busy.
   await page.locator('[data-test="busy"]').check();
@@ -128,7 +199,31 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
   assert.equal(said, 'Practice, question 2 of 3. Graph y equals negative 2 over 3 x plus 4.', `${at}: announcement`);
   assert.equal(await status.getAttribute('aria-live'), 'polite');
   assert.equal(await status.getAttribute('role'), 'status');
+
+  // ---- Marks a screen reader is given in words (AX18). A label on a bare
+  // span or strong is not read; these are the real components, and the lines
+  // are Chromium's own accessibility tree.
+  const tree = (id) => page.locator(`[data-test="${id}"]`).ariaSnapshot();
+  assert.equal(await tree('standings'), [
+    '- list "Standings":',
+    '  - listitem:',
+    '    - strong: 1st',
+    '    - text: Swift Otter up 2 places',
+    '    - strong: 120 pts',
+    '  - listitem:',
+    '    - strong: tied for 2nd',
+    '    - text: Quick Fox down 1 place',
+    '    - strong: 90 pts',
+    '  - listitem:',
+    '    - strong: tied for 2nd',
+    '    - text: Calm Heron',
+    '    - strong: 90 pts',
+  ].join('\n'), `${at}: a Live Challenge board says "tied for 2nd" and "up 2 places", not "T-2" and "↑2"`);
+  const skills = await tree('skills-moved');
+  assert.match(skills, /- text: 62% to\n\s+- strong: 71%\n\s+- text: · Developing to\n\s+- strong: Secure/, `${at}: My Math Path says "to" where the arrow is drawn`);
+  assert.doesNotMatch(skills, /→/, `${at}: and never reads the arrow`);
+  assert.equal(await tree('sign'), '- img "minus": −', `${at}: the sign between two equations is an image named "minus"`);
   await page.close();
-  console.log(`${at}: dialog, focus ring and announcer OK`);
+  console.log(`${at}: dialog, focus ring, announcer and marks OK`);
 }
 await browser.close();

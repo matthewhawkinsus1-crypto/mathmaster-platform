@@ -45,8 +45,10 @@ export const MISCONCEPTION_STUDENT_MESSAGES = Object.freeze({
   'line-wrong-form-slope-intercept': 'Right line, wrong form: write it as y = mx + b.',
   'line-wrong-form-point-slope': 'Right line, wrong form: write it as y − y₁ = m(x − x₁).',
   'line-wrong-form-standard': 'Right line, wrong form: write it as Ax + By = C.',
-  // The value is right; the form is not (simplifiedPolynomialForm.mjs).
-  'polynomial-not-simplified': 'Equal, but not simplified: multiply out every product and combine like terms.',
+  // The value is right; the form is not (simplifiedPolynomialForm.mjs). Said
+  // where no answer can be read (a Test Cycle skill, across items); a miss on
+  // one answer is told what is left in it (POLYNOMIAL_NOT_SIMPLIFIED_MESSAGES).
+  'polynomial-not-simplified': 'Equal, but not simplified: multiply out any product, then combine any like terms.',
   // The key's value, refused for its form (walkthrough 2026-10-23).
   'radical-not-simplest-form': 'Equal, but not in simplest form: take every perfect power out of the root, combine like terms, and leave no root in a denominator.',
   'radical-decimal-not-exact': 'That is a decimal approximation. Give the exact value instead, written the way the question uses: with a radical or with an exponent.',
@@ -55,6 +57,34 @@ export const MISCONCEPTION_STUDENT_MESSAGES = Object.freeze({
   'polynomial-unit-coefficient': 'Equal, but a coefficient of one is never written: leave it out in front of a variable, and keep only the sign.',
   'zeros-sign-reversed': 'Check the signs of your zeros. A zero is the x-value that makes a factor equal 0, so set each factor equal to 0 and solve.',
 });
+
+/*
+ * 'polynomial-not-simplified' NAMES WHAT IS LEFT IN THE STUDENT'S OWN ANSWER
+ * (TL31; walkthrough 2026-10-22, Operations on Polynomials CW 5 / PR 1). One
+ * sentence, "multiply out every product and combine like terms", was said for
+ * every miss, so a subtraction answer with only like terms left was told to
+ * multiply out products it did not have. The first thing left to do in the
+ * typed answer — the problem the simplest-form check found in it
+ * (simplifiedPolynomialForm.mjs SIMPLIFIED_POLYNOMIAL_PROBLEMS) — chooses one
+ * of these fixed sentences: a kind of work, never a term, a value or the key.
+ * Keyed by the problem's name, so this file stays free of imports (the student
+ * first load reaches it through testCycleDiscovery.js); missDiagnosis.js reads
+ * the answer. A problem with no sentence here keeps the code's own message.
+ */
+export const POLYNOMIAL_NOT_SIMPLIFIED_MESSAGES = Object.freeze({
+  likeTerms: 'Equal, but not simplified: combine like terms, so each kind of term appears only once.',
+  product: 'Equal, but not simplified: multiply out every product, then combine any like terms.',
+  grouping: 'Equal, but not simplified: remove every set of parentheses, then combine any like terms.',
+  power: 'Equal, but not simplified: write each power simply — no exponent of one, and nothing to the power zero.',
+  lowestTerms: 'Equal, but not simplified: write every coefficient in lowest terms.',
+  zeroTerm: 'Equal, but not simplified: leave out any term with a coefficient of zero.',
+});
+
+/** The sentence for what is left in an unsimplified answer (a SIMPLIFIED_POLYNOMIAL_PROBLEMS value), or null. */
+export const polynomialNotSimplifiedMessage = (problem) => {
+  const key = String(problem ?? '');
+  return Object.prototype.hasOwnProperty.call(POLYNOMIAL_NOT_SIMPLIFIED_MESSAGES, key) ? POLYNOMIAL_NOT_SIMPLIFIED_MESSAGES[key] : null;
+};
 
 /** The student-safe message for a registered code, or null. */
 export const studentMisconceptionMessage = (code) => {

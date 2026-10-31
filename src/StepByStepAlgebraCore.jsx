@@ -52,6 +52,7 @@ import { equationWorkspaceWork, workGraderForQuestion } from '../functions/share
 import {
   STEP_ACTIONS,
   equationMoveStepGrade,
+  equationRewriteLabel,
   equationRewriteStepGrade,
   equationStatePatch,
   equationStepWork,
@@ -91,6 +92,7 @@ import { useContentStableValue } from './platform/react/useContentStableValue.js
 import { useHintsAllowed, useHintUseReporter, useTeacherView, useToolHintPublisher, useToolRuntimeContext } from './tools/shared/ToolRuntimeContext';
 import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
 import { isStepNotQueued } from './platform/student/submissionNotQueued.js';
+import { START_OVER } from './platform/student/studentWords.js';
 
 const OPERATIONS = [
   { id: 'add', symbol: '+', label: 'Add' },
@@ -316,6 +318,34 @@ function OperationChip({ token, latex = '' }) {
   }
   const sign = token.text.endsWith(token.operand) ? token.text.slice(0, token.text.length - token.operand.length) : '';
   return sign ? <span>{sign}{operand}</span> : <span>{token.text}</span>;
+}
+
+/**
+ * What the solver says when the question's equation is missing or cannot be
+ * read. A student cannot repair it, so the panel says what happened and points
+ * at the person who can.
+ *
+ * The parser's own message ("…require one equation with one equals sign") is
+ * for that person, so only a teacher's preview shows it. A student reads the
+ * sentences and nothing from the parser (pass 3, RUN-16).
+ */
+export function UnreadableEquationPanel({ parseError = null, teacherView = false }) {
+  return (
+    <section style={{ maxWidth: '760px', margin: '0 auto', padding: '26px', textAlign: 'left' }}>
+      <div style={{ padding: '22px 24px', borderRadius: '12px', background: 'var(--mm-warning-soft, var(--mm-warning-bg))', border: '1px solid var(--mm-warning, #f9ab00)' }}>
+        <h3 style={{ margin: 0, color: 'var(--mm-warning-text)' }}>This question could not be loaded</h3>
+        <p style={{ margin: '10px 0 0', color: 'var(--mm-ink, var(--mm-text-strong))', lineHeight: 1.55 }}>
+          Its equation is missing or written in a form the step-by-step solver cannot read, so there is nothing here for you to solve.
+          Nothing you did caused this and your grade is not affected. Let your teacher know so they can fix the question.
+        </p>
+        {parseError && teacherView && (
+          <p style={{ margin: '12px 0 0', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-ink-muted, var(--mm-text-muted))' }}>
+            Details for your teacher: {parseError}
+          </p>
+        )}
+      </div>
+    </section>
+  );
 }
 
 export default function StepByStepAlgebra({
@@ -555,8 +585,24 @@ export default function StepByStepAlgebra({
     equation?.variable,
   ), [question?.equation, question?.formula, question?.solveFor, equation]);
 
+  // THE PROBLEM THE RESET BELOW SETS UP, NOT EVERY FIELD OF THE QUESTION
+  // (TL16, A2-117). The question's content also changes when the problem does
+  // not: a support-plan revision the teacher saves while the student works
+  // (App applies it at once) or the adaptive band moving generates it again
+  // with new presentation. On a question that opened with no draft, that reset
+  // the board under the student — the operation they had picked, the number
+  // they were typing, the step they had placed. Only a new equation, support
+  // level, first-step support or draft is a new problem.
+  const problemKey = useMemo(
+    () => JSON.stringify([localDraftKey, pristineEquation, question.workspaceDifficulty ?? question.mode ?? null, Boolean(question.prefillFirstStep)]),
+    [localDraftKey, pristineEquation, question.workspaceDifficulty, question.mode, question.prefillFirstStep],
+  );
+  const problemSetUpRef = useRef(null);
+
   useEffect(() => {
     if (savedDraft) return;
+    if (problemSetUpRef.current === problemKey) return;
+    problemSetUpRef.current = problemKey;
     setCommittedHistory([]);
     // getInitialEquation returns { equation, error }, not an equation. Putting
     // the wrapper into state left `equation.left` undefined on every question
@@ -586,12 +632,13 @@ export default function StepByStepAlgebra({
   }, [question, savedDraft]);
 
   // A saved draft skips the fresh-question reset block above, so clear Undo
-  // history explicitly whenever the question/draft identity changes. History
+  // history explicitly whenever the problem (or its draft) changes. History
   // belongs to this mounted work session; it is not reconstructed from old
-  // server state and can never leak into the next problem.
+  // server state and can never leak into the next problem — and the same
+  // problem generated again keeps it, like the board (problemKey).
   useEffect(() => {
     setCommittedHistory([]);
-  }, [question, localDraftKey]);
+  }, [problemKey]);
 
   useEffect(() => {
     // A JSON author cannot turn this on for the whole class. The automatic
@@ -1096,7 +1143,7 @@ export default function StepByStepAlgebra({
 
   const persistStudentRewrite = async (beforeEquation, nextEquation, changedSides, {
     kind = 'student-rewrite',
-    label = `Rewrite / simplify ${changedSides.join(' and ')}`,
+    label = equationRewriteLabel('student-rewrite', changedSides),
   } = {}) => {
     if (!onStepGrade) return null;
     setSavingStep(true);
@@ -1116,13 +1163,11 @@ export default function StepByStepAlgebra({
     const beforeEquation = equation;
     const nextEquation = { ...equation, [result.region]: result.expression };
     if (nextEquation[result.region] === beforeEquation[result.region]) return false;
-    const label = result.step.kind === 'student-rewrite'
-      ? `Rewrite / simplify ${result.region}`
-      : result.step.kind === 'combine-like-terms'
-        ? `Combine like terms on the ${result.region} side`
-        : result.step.kind === 'inline-term-rewrite'
-          ? `Rewrite one term on the ${result.region} side`
-          : result.step.description;
+    // The label the server records for these kinds (its own text, GR26), so
+    // the two records stay equal; any other kind is named by its description.
+    const label = ['student-rewrite', 'combine-like-terms', 'inline-term-rewrite'].includes(result.step.kind)
+      ? equationRewriteLabel(result.step.kind, [result.region])
+      : result.step.description;
     const saved = await persistStudentRewrite(beforeEquation, nextEquation, [result.region], { kind: result.step.kind, label });
     if (holdUnsavedStep(saved, () => commitSimplifyResult(result))) return false;
     pushCommittedEquation(beforeEquation, { ...result.step, after: nextEquation });
@@ -1326,6 +1371,10 @@ export default function StepByStepAlgebra({
     const confirmed = typeof window === 'undefined' || window.confirm('Start this problem over? Your current workspace work will be cleared, but your tries will not change.');
     if (!confirmed) return;
 
+    // A reset first (a tombstone, as the question's own Start over writes):
+    // every answer dated before it is gone on every device, including a
+    // prompt answer typed elsewhere that this page never showed (RT22).
+    writeQuestionDraft(localDraftKey, null, { edit: true });
     setEquation(pristineEquation);
     setCommittedHistory([]);
     setWorkSteps([]);
@@ -1349,7 +1398,7 @@ export default function StepByStepAlgebra({
     setPlacedOperationSides([]);
     setPlacedOperationPositions({});
     setHeldToken(null);
-    setMessage({ tone: 'growth', text: 'Workspace reset to the original equation. Your tries did not change.' });
+    setMessage({ tone: 'growth', text: 'You started over from the original equation. Your tries did not change.' });
   };
 
   const attemptMove = async (operation, _originSide = 'left', placementBySideOverride = null) => {
@@ -1631,6 +1680,11 @@ export default function StepByStepAlgebra({
     }
     const incorrect = targets.filter((target) => !expressionsEquivalent(simplificationAnswers[target.side], target.simplifiedExpression, equation.variable));
     if (incorrect.length) {
+      // TL41 (confirmed as built): this box names the side to revise, never a
+      // likely slip. It holds the arithmetic a move leaves on a side (15/3
+      // after dividing 3x = 15 by 3), usually the answer itself, so naming the
+      // slip would give the answer away. Simplify's whole-side route names one
+      // slip where that cannot happen (regionRewriteSlip).
       triggerShake();
       // An intermediate simplification is checked before it is committed, so a
       // wrong one is a slip to revise, not an answer: never a try (decision
@@ -2179,7 +2233,10 @@ export default function StepByStepAlgebra({
           onPointerUp={() => finishStroke(side, cancellationModel)}
           onPointerCancel={() => setStroke(null)}
           style={{ position: 'relative', width: 'min(96%, 520px)', maxWidth: '100%', minHeight: '132px', margin: '12px auto 4px', padding: '24px 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '14px', background: cancellationHintsEnabled ? 'var(--mm-warning-subtle)' : 'var(--mm-surface)', outline: cancellationHintsEnabled ? '2px solid rgba(249,171,0,.32)' : 'none', touchAction: 'none', cursor: cancelAnimating ? 'wait' : 'crosshair', userSelect: 'none', overflowX: 'hidden', overflowY: 'hidden', fontSize: 'inherit' }}
-          aria-label="Cancellation workspace. Draw through matching factors directly in this equation."
+          role="group"
+          // Named by the side and what is on it (AX40): every step's area was
+          // the same "Cancellation workspace".
+          aria-label={`Cancellation on the ${side} side: ${spokenMathValue(sideExpression(side))}. Draw through matching factors.`}
         >
           {renderCancellationInk(side)}
           {directMath}
@@ -2340,24 +2397,7 @@ export default function StepByStepAlgebra({
   // Placed after every hook so hook order stays identical whether or not the
   // blueprint parsed. A student can't repair the JSON, so this states what
   // happened and points at the person who can.
-  if (!equation) {
-    return (
-      <section style={{ maxWidth: '760px', margin: '0 auto', padding: '26px', textAlign: 'left' }}>
-        <div style={{ padding: '22px 24px', borderRadius: '12px', background: 'var(--mm-warning-soft, var(--mm-warning-bg))', border: '1px solid var(--mm-warning, #f9ab00)' }}>
-          <h3 style={{ margin: 0, color: 'var(--mm-warning-text)' }}>This question could not be loaded</h3>
-          <p style={{ margin: '10px 0 0', color: 'var(--mm-ink, var(--mm-text-strong))', lineHeight: 1.55 }}>
-            Its equation is missing or written in a form the step-by-step solver cannot read, so there is nothing here for you to solve.
-            Nothing you did caused this and your grade is not affected. Let your teacher know so they can fix the question.
-          </p>
-          {parseError && (
-            <p style={{ margin: '12px 0 0', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-ink-muted, var(--mm-text-muted))' }}>
-              Details for your teacher: {parseError}
-            </p>
-          )}
-        </div>
-      </section>
-    );
-  }
+  if (!equation) return <UnreadableEquationPanel parseError={parseError} teacherView={teacherView} />;
 
   return (
     <section className={`${shake ? 'algebra-shake' : ''}${embedded ? ' algebra-embedded' : ''}`} style={{ maxWidth: '1120px', margin: '0 auto', padding: embedded ? '4px 0 8px' : '10px 10px 24px', textAlign: 'left' }}>
@@ -2491,7 +2531,7 @@ export default function StepByStepAlgebra({
               Cancellation hints
             </label>
           ) : null}
-          <button type="button" className="algebra-reset-work" onClick={resetQuestionWork} disabled={disabled || savingStep}>Reset work</button>
+          <button type="button" className="algebra-reset-work" onClick={resetQuestionWork} disabled={disabled || savingStep}>{START_OVER}</button>
         </div>
       </div>
 
@@ -2600,6 +2640,9 @@ export default function StepByStepAlgebra({
           contextSymbols={operationContextSymbols}
           collapseSignal={mathToolsCollapseSignal}
           boardHighlights={inlineExpressionTools}
+          // TL41: a retyped side that shows a sign left as it was inside
+          // parentheses after a minus is named, only where verdicts are shown.
+          nameSlips={verdictsShown}
           focusSignal={simplifyFocusSignal}
           onFocusConsumed={() => setSimplifyFocusSignal(0)}
           idPrefix={`${localDraftKey || 'step-algebra'}-simplify`.replace(/[^a-zA-Z0-9_-]/g, '-')}
@@ -2612,7 +2655,10 @@ export default function StepByStepAlgebra({
           <div style={{ display: 'grid', gap: '12px' }}>
             {question.algebraPrompts.map((prompt, index) => {
               const id = String(prompt.id || `algebra-prompt-${index + 1}`);
-              return <div key={id} style={{ padding: '12px', borderRadius: '10px', background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)' }}><strong style={{ display: 'block', marginBottom: '8px' }}>{prompt.prompt || prompt.label || `Simplify expression ${index + 1}`}</strong>{prompt.expression && <div style={{ marginBottom: '8px', fontSize: 'calc(22 * var(--mm-px))' }}><MathDisplay value={prompt.expression} /></div>}<MathInput value={promptAnswers[id] || ''} onChange={(value) => setPromptAnswers((current) => ({ ...current, [id]: value }))} placeholder="Algebraic expression" /></div>;
+              const heading = prompt.prompt || prompt.label || `Simplify expression ${index + 1}`;
+              // Each box is named by its own question, not only "Algebraic
+              // expression", its placeholder (AX40).
+              return <div key={id} style={{ padding: '12px', borderRadius: '10px', background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)' }}><strong style={{ display: 'block', marginBottom: '8px' }}>{heading}</strong>{prompt.expression && <div style={{ marginBottom: '8px', fontSize: 'calc(22 * var(--mm-px))' }}><MathDisplay value={prompt.expression} /></div>}<MathInput value={promptAnswers[id] || ''} onChange={(value) => setPromptAnswers((current) => ({ ...current, [id]: value }))} placeholder="Algebraic expression" ariaLabel={`Answer to ${spokenMathValue(heading)}`} /></div>;
             })}
           </div>
         </div>

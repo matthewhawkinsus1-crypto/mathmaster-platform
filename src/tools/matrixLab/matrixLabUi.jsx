@@ -14,7 +14,10 @@ import { ChoiceMark, useChoiceGroup } from '../../platform/interaction/choiceGro
  */
 
 export const cellInputStyle = {
-  width: 'calc(64 * var(--mm-px))',
+  // 64px, narrower on a phone under 360px wide (MatrixGrid.css): a 3×3 matrix
+  // with its name was 7px wider than a 344px phone's box and scrolled inside it
+  // for 7px (PH09, D-61).
+  width: 'var(--mm-matrix-cell-width, calc(64 * var(--mm-px)))',
   minWidth: 52,
   maxWidth: 96,
   minHeight: 44,

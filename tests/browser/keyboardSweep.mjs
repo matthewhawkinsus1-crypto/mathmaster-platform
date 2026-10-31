@@ -3,21 +3,35 @@
 //   npx vite --host 127.0.0.1 --port 5499 --strictPort &
 //   AUDIT_ORIGIN=http://127.0.0.1:5499 node tests/browser/keyboardSweep.mjs
 //
-//   --tool=<id> | --tool=<id>:<variant>  one scene (e.g. graphing2, systemsWorkspace:spatial)
+//   --tool=<id> | --tool=<id>:<variant>  one scene (e.g. graphing2, systemsWorkspace:spatial, fraction:legacy)
 //   --extras-only / --no-extras          only / without the EXTRA_SCENES below
+//   --legacy-only / --no-legacy          only / without the LEGACY_SCENES below
 //   --host=bare                          no assignment-screen wrapper (Path, live challenge…)
+//   --no-shell                           the wrapper alone, without the navigator and the way on (see SHELL below)
 //   --out=<name>                         write report-<name>.json, not report.json
+//   --gate                               judge the report (keyboardSweepGate.mjs) and exit 1 if a scene fails
 //
 //   (PLAYWRIGHT_MODULE=<path to playwright/index.mjs> and CHROMIUM_PATH=<chrome>
 //    when the defaults below are not installed.)
 //
-// AN AUDIT, NOT A GATE. It always exits 0 and writes
-// tests/browser/artifacts/keyboard/report.json (gitignored, like every browser
-// artifact). docs/accessibility/KEYBOARD_SWEEP.md is the human reading of it.
+// AN AUDIT UNLESS ASKED TO BE A GATE. Without --gate it always exits 0 and
+// writes tests/browser/artifacts/keyboard/report.json (gitignored, like every
+// browser artifact). docs/accessibility/KEYBOARD_SWEEP.md is the human reading
+// of it. With --gate it also judges each scene against the hard criteria in
+// tests/browser/support/keyboardSweepGate.mjs (a trap, a control the keyboard
+// cannot reach or operate, no visible focus, no name, focus lost, a layer that
+// will not close), prints which scene breaks which, and exits 1 if any does. A
+// browser that cannot launch, or a run that measured nothing, fails it too.
 //
 // Every registered student tool is mounted through QuestionEngine with its
 // preview-bench question (keyboardSweepMain.jsx), at a 1366x768 Chromebook,
-// between two sentinel buttons. Then, keyboard only:
+// between two sentinel buttons. So is every LEGACY question type, the graders
+// in src/*.jsx that QuestionEngine's type switch mounts (StepByStepAlgebra,
+// MultiRelationAlgebra and the intercepts orchestrator, the fraction, literal,
+// system, table, ordered-pair and multi-answer graders, the pick-a-point number
+// line, the graph workspaces, the relationship model with its axis editor, the
+// graph story and the rest), with the authoring catalog's example of the type.
+// Then, keyboard only:
 //
 //   1. FORWARD WALK. Tab from the start sentinel until the end sentinel. Every
 //      stop is recorded with its accessibility-tree role and name (Chrome's own,
@@ -47,6 +61,13 @@
 //   7. FOCUS AFTER AN ACTION (ACTION_FOCUS_PROBES). Where a tool's button
 //      disables or removes itself (Open Sort's placements), the tool is worked
 //      by keyboard and focus is recorded after each press: `lostAfterAction`.
+//   8. TARGET SIZE (WCAG 2.2 2.5.8). Every pointer target in the tool at load
+//      (controls, ARIA widgets, anything with a pointer handler) is measured:
+//      `targetsMeasured`, `undersizedTargets` (under 24x24 CSS px),
+//      `undersizedBySpacing` (those the spacing exception passes) and
+//      `smallTargets` (the rest, for a reviewer: an equivalent control or an
+//      essential size may still excuse one). Read, never gated. The rules are
+//      in support/targetSize.mjs.
 //
 // A focused control counts as visibly focused only if something changed on
 // screen AND it is not under another element (elementFromPoint), so a ring
@@ -60,6 +81,8 @@
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { gateLines, gateVerdict } from './support/keyboardSweepGate.mjs';
+import { collectTargetBoxes, smallTargetsOf } from './support/targetSize.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../..');
@@ -69,6 +92,13 @@ const ONLY = (process.argv.find((arg) => arg.startsWith('--tool=')) || '').slice
 // `--host=bare` mounts the tool without the assignment-screen wrapper (see
 // keyboardSweepMain.jsx): the Path session / live challenge / recovery hosts.
 const HOST = (process.argv.find((arg) => arg.startsWith('--host=')) || '').slice('--host='.length) || 'assignment';
+// Judge the report as well as write it (see the header).
+const GATE = process.argv.includes('--gate');
+// The assignment host carries what the student's screen puts around a question
+// (a navigator above it, a way on after it: keyboardSweepMain.jsx "THE
+// ASSIGNMENT SHELL"). `--no-shell` leaves them out, the host of the 2026-10-07
+// and 2026-10-24 runs, to reproduce those numbers.
+const SHELL = HOST !== 'bare' && !process.argv.includes('--no-shell');
 const MAX_STOPS = 260;
 const VIEWPORT = { width: 1366, height: 768 };
 const OUT_DIR = HOST === 'bare' ? path.join(OUT_DIR_BASE, 'bare') : OUT_DIR_BASE;
@@ -402,7 +432,8 @@ try {
   mkdirSync(OUT_DIR, { recursive: true });
   writeFileSync(path.join(OUT_DIR, REPORT_NAME), `${JSON.stringify({ generatedAt: new Date().toISOString(), error: `browser launch failed: ${error.message}`, static: staticScan() }, null, 2)}\n`);
   console.log(`Browser launch failed (${error.message}); wrote static scan only.`);
-  process.exit(0);
+  // A gate that could not look has not passed.
+  process.exit(GATE ? 1 : 0);
 }
 const context = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 1 });
 const diffPage = await context.newPage();
@@ -463,20 +494,29 @@ const axFor = async (cdp) => {
   }
 };
 
-const openTool = async (toolId, { settle = 900, spec = null } = {}) => {
+const openTool = async (toolId, { settle = 900, spec = null, variant = null } = {}) => {
   const page = await context.newPage();
   page.setDefaultTimeout(8000);
   const errors = [];
   page.on('pageerror', (error) => errors.push(String(error?.message || error)));
   const specParam = spec ? `&spec=${encodeURIComponent(JSON.stringify(spec))}` : '';
-  await page.goto(`${ORIGIN}/tests/browser/keyboardSweep.html?tool=${encodeURIComponent(toolId)}${specParam}${HOST === 'bare' ? '&host=bare' : ''}&run=${Date.now()}`, { waitUntil: 'networkidle', timeout: 60000 });
+  const variantParam = variant ? `&variant=${encodeURIComponent(variant)}` : '';
+  await page.goto(`${ORIGIN}/tests/browser/keyboardSweep.html?tool=${encodeURIComponent(toolId)}${specParam}${variantParam}${HOST === 'bare' ? '&host=bare' : ''}${SHELL ? '&shell=assignment' : ''}&run=${Date.now()}`, { waitUntil: 'networkidle', timeout: 60000 });
   await page.waitForSelector('[data-kb-sentinel="end"]');
   await wait(page, settle);
   await page.evaluate(PAGE_HELPERS);
   const cdp = await context.newCDPSession(page);
   await cdp.send('Accessibility.enable').catch(() => {});
   await cdp.send('DOM.enable').catch(() => {});
-  return { page, cdp, errors };
+  // A question QuestionEngine could not show leaves its chrome to be walked
+  // and a clean report: say so, or a mistyped scene would pass for a tool.
+  const renderFailure = await page.evaluate(() => {
+    const root = document.querySelector('[data-kb-root]');
+    const text = (root?.innerText || '').replace(/\s+/g, ' ');
+    const failed = /This question could not be displayed|This question did not load/i.test(text) || Boolean(root?.querySelector('[data-question-resolution-failure]'));
+    return failed ? text.slice(0, 200) : null;
+  });
+  return { page, cdp, errors, renderFailure };
 };
 
 const focusSentinel = async (page, which) => {
@@ -616,7 +656,7 @@ const reverseWalk = async (page) => {
   return { ids, reachedStart, trap };
 };
 
-const POPUP_NAME = /work view|enlarge|expand|full ?screen|scratchpad|calculator|hint|help|menu|more|options|about this tool|how to do this|show|open|reset question/i;
+const POPUP_NAME = /work view|enlarge|expand|full ?screen|scratchpad|calculator|hint|help|menu|more|options|about this tool|how to do this|show|open|start question over/i;
 
 const popupProbe = async (page, stops) => {
   const results = [];
@@ -678,6 +718,19 @@ const popupProbe = async (page, stops) => {
         names.push(d.label);
       }
       dialogTabbing = { leaked, closeReachable: names.some((n) => /close|done|exit|back|×|✕/i.test(n)), stops: [...new Set(names)].slice(0, 20) };
+    }
+    // Escape in a math field — or on the keys of its keypad — leaves the field
+    // and keeps the layer around it open (TL15, owner decision): the way out
+    // is the next Escape. Where the walk ended in a field or on its keys, take
+    // that first step — and record where focus went — before probing Escape.
+    const FIELD_OR_KEYS = 'math-field, .mathmaster-math-input [role="toolbar"]';
+    if (await page.evaluate((field) => Boolean(window.__kb.active()?.closest?.(field)), FIELD_OR_KEYS)) {
+      await page.keyboard.press('Escape');
+      await wait(page, 200);
+      entry.fieldEscape = await page.evaluate((field) => {
+        const act = window.__kb.active();
+        return { leftField: !act?.closest?.(field), focusDroppedToBody: act === document.body };
+      }, FIELD_OR_KEYS);
     }
     await page.keyboard.press('Escape');
     await wait(page, 400);
@@ -970,11 +1023,49 @@ const EXTRA_SCENES = [
   { toolId: 'openSortBoard', variant: 'controlled', spec: { mode: 'controlled', categories: [{ id: 'line', label: 'Linear' }, { id: 'curve', label: 'Quadratic' }], validSchemes: [{ id: 'family', groups: [{ id: 'line', itemIds: ['a', 'c'] }, { id: 'curve', itemIds: ['b', 'd'] }] }] } },
   { toolId: 'sequenceExplorer', variant: 'fullBridge', spec: { mode: 'fullBridge', prompt: 'Complete the table, plot the terms, and write both sequence rules.', sequence: { kind: 'arithmetic', first: 3, difference: 2 }, displayCount: 5, targetN: 8, studentActions: ['buildSequenceTable', 'plotSequence', 'analyzeSequence', 'writeExplicit', 'writeRecursive', 'findSequenceTerm'] } },
 ];
+/*
+ * THE LEGACY QUESTION TYPES (VH-16): the graders QuestionEngine's type switch
+ * mounts from src/*.jsx, outside the tool registry. Each is mounted with the
+ * authoring catalog's example of its type (keyboardSweepMain.jsx), changed by
+ * `spec` where one type is more than one interface: StepByStepAlgebra's
+ * equation workspace, the relation workspace an inequality opens
+ * (MultiRelationAlgebra) and the intercepts orchestrator; the literal grader
+ * and the same formula on the balance workspace; the relationship model with
+ * typed axes and with the drag-the-cards axis editor (GraphAxisEditor).
+ * A `variant` of its own keeps a type's scenes from sharing saved drafts.
+ */
+const LEGACY_SCENES = [
+  { toolId: 'stepAlgebra', variant: 'equation' },
+  { toolId: 'stepAlgebra', variant: 'relation', spec: { prompt: 'Solve the inequality.', equationLatex: '3x + 6 < 21' } },
+  { toolId: 'stepAlgebra', variant: 'intercepts', spec: { mode: 'linearIntercepts', prompt: 'Find both intercepts.', equation: '3x + 4y = 24' } },
+  { toolId: 'literal', variant: 'typed' },
+  { toolId: 'literal', variant: 'balance', spec: { workspace: true } },
+  { toolId: 'fraction', variant: 'legacy' },
+  { toolId: 'numberLine', variant: 'legacy' },
+  { toolId: 'system', variant: 'legacy' },
+  { toolId: 'table', variant: 'legacy' },
+  { toolId: 'orderedPair', variant: 'legacy' },
+  { toolId: 'multiAnswer', variant: 'legacy' },
+  { toolId: 'graphing', variant: 'legacy' },
+  { toolId: 'functionGraph', variant: 'legacy' },
+  { toolId: 'functionInvestigation', variant: 'legacy' },
+  { toolId: 'graphAnalysis', variant: 'legacy' },
+  { toolId: 'relationshipModel', variant: 'typed' },
+  { toolId: 'relationshipModel', variant: 'axes-drag', spec: { axisSetup: { inputMode: 'drag', applyToGraph: true }, recipe: { name: 'functionModeling', ask: ['quantities', 'axes', 'scale'] } } },
+  { toolId: 'graphScenarioMatch', variant: 'legacy' },
+  { toolId: 'graphComparison', variant: 'legacy' },
+  { toolId: 'graphStory', variant: 'legacy' },
+  { toolId: 'contextInterpretation', variant: 'legacy' },
+].map((scene) => ({ spec: null, ...scene, legacy: true }));
 const EXTRAS_ONLY = process.argv.includes('--extras-only');
 const NO_EXTRAS = process.argv.includes('--no-extras');
+const LEGACY_ONLY = process.argv.includes('--legacy-only');
+const NO_LEGACY = process.argv.includes('--no-legacy');
+const SAMPLES_WANTED = !(EXTRAS_ONLY || LEGACY_ONLY);
 const scenes = [
-  ...(EXTRAS_ONLY ? [] : allIds.map((toolId) => ({ toolId, variant: 'sample', spec: null }))),
-  ...(NO_EXTRAS ? [] : EXTRA_SCENES),
+  ...(SAMPLES_WANTED ? allIds.map((toolId) => ({ toolId, variant: 'sample', spec: null })) : []),
+  ...(NO_EXTRAS || LEGACY_ONLY ? [] : EXTRA_SCENES),
+  ...(NO_LEGACY || EXTRAS_ONLY ? [] : LEGACY_SCENES),
 ].filter((scene) => !ONLY || ONLY === scene.toolId || ONLY === `${scene.toolId}:${scene.variant}`);
 const toolIds = [...new Set(scenes.map((scene) => scene.toolId))];
 
@@ -983,28 +1074,33 @@ for (const scene of scenes) {
   const { toolId, variant, spec } = scene;
   const sceneKey = variant === 'sample' ? toolId : `${toolId}:${variant}`;
   const started = Date.now();
-  const entry = { toolId, variant, sceneKey, spec };
+  const entry = { toolId, variant, sceneKey, spec, legacy: scene.legacy === true };
+  // Only a legacy scene names itself to the page: the registry scenes keep the
+  // ids (and so the saved drafts) they have always had.
+  const open = (options = {}) => openTool(toolId, { spec, variant: scene.legacy ? variant : null, ...options });
   try {
-    const first = await openTool(toolId, { spec });
+    const first = await open();
+    entry.renderFailure = first.renderFailure;
     entry.pageErrors = first.errors;
     entry.pointerAudit = await first.page.evaluate(() => window.__kb.pointerAudit());
+    entry.targets = smallTargetsOf(await first.page.evaluate(collectTargetBoxes, { rootSelector: '[data-kb-root]' }));
     entry.forward = await forwardWalk(first.page, first.cdp);
     entry.reverse = await reverseWalk(first.page);
     entry.popups = await popupProbe(first.page, entry.forward.stops);
     await first.page.close();
 
-    const fresh = await openTool(toolId, { settle: 150, spec });
+    const fresh = await open({ settle: 150 });
     entry.lateFocus = await lateFocusProbe(fresh.page);
     entry.pageErrors.push(...fresh.errors);
     await fresh.page.close();
 
-    const second = await openTool(toolId, { spec });
+    const second = await open();
     entry.primary = await primaryProbe(second.page, second.cdp);
     entry.pageErrors.push(...second.errors);
     await second.page.close();
 
     if (ACTION_FOCUS_PROBES[toolId]) {
-      const third = await openTool(toolId, { spec });
+      const third = await open();
       entry.actionFocus = await ACTION_FOCUS_PROBES[toolId](third.page);
       entry.pageErrors.push(...third.errors);
       await third.page.close();
@@ -1035,6 +1131,11 @@ for (const scene of scenes) {
     focusLostAfterCheck: (entry.primary?.checks || []).filter((c) => c.focusLostToBody).map((c) => c.name),
     plotted: entry.primary ? entry.primary.plotMarksAfter !== entry.primary.plotMarksBefore : null,
     focusLostAfterAction: entry.actionFocus ? entry.actionFocus.focusLost : null,
+    // WCAG 2.2 2.5.8: pointer targets measured, those under 24x24 CSS px, how many of those pass by spacing, and the rest.
+    targetsMeasured: entry.targets?.measured ?? null,
+    undersizedTargets: entry.targets?.undersized ?? null,
+    undersizedBySpacing: entry.targets?.bySpacing ?? null,
+    smallTargets: entry.targets?.failing || [],
   };
   entry.ms = Date.now() - started;
   tools.push(entry);
@@ -1042,7 +1143,7 @@ for (const scene of scenes) {
   mkdirSync(OUT_DIR, { recursive: true });
   writeFileSync(path.join(OUT_DIR, `tool-${sceneKey.replace(':', '--')}.json`), `${JSON.stringify(entry, null, 2)}\n`);
   const s = entry.summary;
-  console.log(`${sceneKey.padEnd(36)} stops=${String(s.tabStops).padStart(3)} end=${s.reachedEnd ? 'y' : 'N'} rev=${s.reverseReachedStart ? 'y' : 'N'} noFocusRing=${s.noVisibleFocus.length} unnamed=${s.unnamed.length} mouseOnly=${s.pointerNotReachable.length} notActivatable=${s.pointerNotActivatable.length} escFail=${s.escapeFailures.length} hidden=${s.focusHiddenUnderOverlay.length} lateDrop=${s.focusDroppedAfterLoadMs ?? '-'} lostAfterCheck=${s.focusLostAfterCheck.length}${s.focusLostAfterAction === null ? '' : ` lostAfterAction=${s.focusLostAfterAction}/${entry.actionFocus.steps.length}`} checks=${s.checks.map((c) => c.result).join(',') || '-'} grades=${entry.primary?.gradesTotal ?? '-'}${entry.error ? ` ERROR ${entry.error.split('\n')[0]}` : ''}`);
+  console.log(`${sceneKey.padEnd(36)} stops=${String(s.tabStops).padStart(3)} end=${s.reachedEnd ? 'y' : 'N'} rev=${s.reverseReachedStart ? 'y' : 'N'} noFocusRing=${s.noVisibleFocus.length} unnamed=${s.unnamed.length} mouseOnly=${s.pointerNotReachable.length} notActivatable=${s.pointerNotActivatable.length} escFail=${s.escapeFailures.length} hidden=${s.focusHiddenUnderOverlay.length} lateDrop=${s.focusDroppedAfterLoadMs ?? '-'} lostAfterCheck=${s.focusLostAfterCheck.length}${s.focusLostAfterAction === null ? '' : ` lostAfterAction=${s.focusLostAfterAction}/${entry.actionFocus.steps.length}`} targets=${s.targetsMeasured ?? '-'}/under24=${s.undersizedTargets ?? '-'}/small=${s.smallTargets.length} checks=${s.checks.map((c) => c.result).join(',') || '-'} grades=${entry.primary?.gradesTotal ?? '-'}${entry.error ? ` ERROR ${entry.error.split('\n')[0]}` : ''}`);
 }
 
 await browser.close();
@@ -1053,6 +1154,7 @@ const report = {
   viewport: VIEWPORT,
   harness: 'tests/browser/keyboardSweep.html (QuestionEngine + SAMPLE_SPECS, sentinels)',
   host: HOST,
+  shell: SHELL,
   toolsMeasured: toolIds.length,
   scenesMeasured: tools.length,
   static: staticScan(),
@@ -1061,4 +1163,13 @@ const report = {
 mkdirSync(OUT_DIR, { recursive: true });
 writeFileSync(path.join(OUT_DIR, REPORT_NAME), `${JSON.stringify(report, null, 2)}\n`);
 console.log(`\nWrote ${path.relative(repo, path.join(OUT_DIR, REPORT_NAME))}`);
+if (GATE) {
+  // A run that found no registry tool at all (the page never loaded them) has
+  // not measured what the gate is for, however clean the rest looks.
+  const verdict = gateVerdict(tools);
+  const lines = gateLines(verdict);
+  if (SAMPLES_WANTED && !ONLY && allIds.length === 0) { verdict.ok = false; lines.push('KEYBOARD GATE: FAILED - the page listed no registry tool.'); }
+  console.log(`\n${lines.join('\n')}`);
+  process.exit(verdict.ok ? 0 : 1);
+}
 process.exit(0);

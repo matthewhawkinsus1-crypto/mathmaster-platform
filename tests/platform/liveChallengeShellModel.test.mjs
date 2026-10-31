@@ -271,3 +271,17 @@ test('a student is always told what is happening and what to do', () => {
   assert.equal(studentGuidance({ room: opened({ currentRound: 3 }), stage: CHALLENGE_STAGE.ROUND_ACTIVE, joinedAtRound: 2 }).headline, 'Go!', 'only the round they walked in on');
   assert.match(studentGuidance({ room: opened({ status: 'cancelled' }), stage: CHALLENGE_STAGE.CANCELLED }).detail, /Nothing from it is recorded/);
 });
+
+// LC20: a round left locked waiting for the server's sweep says it can take a
+// minute, so a closed teacher screen does not look like a frozen game.
+test('a long wait for results says so, after the notice time', async () => {
+  const { LOCKED_WAIT_NOTICE_MS, LOCKED_LONG_DETAIL } = await import('../../src/platform/liveChallenge/challengeShellModel.js');
+  const locked = (lockedForMs) => studentGuidance({ room: opened(), stage: CHALLENGE_STAGE.ROUND_LOCKED, lockedForMs });
+  assert.equal(locked(0).detail, 'Your work is locked in. The results are coming.');
+  assert.equal(locked(LOCKED_WAIT_NOTICE_MS - 1).detail, 'Your work is locked in. The results are coming.');
+  assert.equal(locked(LOCKED_WAIT_NOTICE_MS).detail, LOCKED_LONG_DETAIL);
+  assert.match(LOCKED_LONG_DETAIL, /up to a minute/);
+  assert.equal(locked(LOCKED_WAIT_NOTICE_MS).headline, 'Time’s up!');
+  // Only the locked stage changes.
+  assert.equal(studentGuidance({ room: opened(), stage: CHALLENGE_STAGE.ROUND_ACTIVE, lockedForMs: 60_000 }).detail, 'Answer before the timer runs out.');
+});

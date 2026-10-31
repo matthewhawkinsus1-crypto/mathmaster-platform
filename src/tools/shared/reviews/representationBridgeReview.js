@@ -71,10 +71,10 @@ import {
 } from '../../../../functions/shared/toolMath/representationBridge/representationBridgeMath.mjs';
 import {
   CARD_PART_KEYS,
-  PART_LABELS,
   deriveLinearMultipleRepresentations,
   gradedContextFields,
   normalizeStandardCoefficients,
+  partLabelsFor,
   resolveExpectedDomain,
   resolveLinearMultipleRepresentationsGraphBounds,
   resolveRequiredCards,
@@ -285,7 +285,7 @@ const buildBridgeReview = (question) => {
     }));
     items.push({ label: 'Rate conclusion', value: 'The rate is constant' }, { label: 'm (your slope)', value: typed(m) });
     const sentences = intervals.map((interval) => `${rowName(interval.i)} ${pointSay([interval.x1, interval.y1])} → ${rowName(interval.j)} ${pointSay([interval.x2, interval.y2])}: Δx = ${say(interval.x2)} − ${factor(interval.x1)} = ${say(interval.dx)}, Δy = ${say(interval.y2)} − ${factor(interval.y1)} = ${say(interval.dy)}, rate = ${say(interval.dy)} ÷ ${factor(interval.dx)} = ${say(interval.rate)}.`);
-    steps.push(`${STAGE_TITLES.rateEvidence}: tap two rows to make an interval, then go from the row with the smaller x to the row with the larger x — Δx = x₂ − x₁, Δy = y₂ − y₁ and the rate is Δy ÷ Δx. Record ${need === 1 ? 'one interval' : `${need} different intervals`}.`);
+    steps.push(`${STAGE_TITLES.rateEvidence}: select two rows to make an interval, then go from the row with the smaller x to the row with the larger x — Δx = x₂ − x₁, Δy = y₂ − y₁ and the rate is Δy ÷ Δx. Record ${need === 1 ? 'one interval' : `${need} different intervals`}.`);
     if (sentences.length <= 3) steps.push(...sentences); else steps.push(sentences.join(' '));
     steps.push(`Every recorded rate is ${say(m)}, so the rate is constant (choose "The rate is constant") and the slope is m = ${say(m)}.`);
     choices.push(need === 1 ? 'any pair of rows counts as the interval' : `any ${need} different pairs of rows count as the intervals`);
@@ -618,7 +618,9 @@ const buildBoardReview = (question) => {
   const cardItems = [];
   const cardSteps = [];
   const has = (cardId) => required.includes(cardId);
-  const cardLabel = (cardId) => PART_LABELS[CARD_PART_KEYS[cardId]] || cardId;
+  // A graph by its name on this board (TL28): one graph is just "Graph".
+  const partLabels = partLabelsFor(question);
+  const cardLabel = (cardId) => partLabels[CARD_PART_KEYS[cardId]] || cardId;
   const plotText = (points) => points.map(pointTyped).join(' and ');
 
   if (has('standardForm')) work.standardFormEquation = standardEquation;
@@ -643,7 +645,7 @@ const buildBoardReview = (question) => {
     const answer = contextAnswer(key === 'domain' ? resolveExpectedDomain(question) : context[key]);
     if (!answer.trim()) return null;
     work[field] = answer;
-    contextItems.push({ label: PART_LABELS[field] || field, value: answer });
+    contextItems.push({ label: partLabels[field] || field, value: answer });
   }
   if (processMode) work.processLog = log;
 
@@ -684,9 +686,9 @@ const buildBoardReview = (question) => {
   if (has('table')) cardSteps.push(`${cardLabel('table')}: start at the y-intercept ${pointSay(yPoint)} and step by the slope — each time x goes up ${say(slopeStep(m).run)}, y changes by ${say(slopeStep(m).rise)}: ${lattice.map(pointSay).join(', ')}.`);
   if (has('twoPoints')) cardSteps.push(`${cardLabel('twoPoints')}: ${text(shown.featurePoint1).replace(/-/g, '−')} and ${text(shown.featurePoint2).replace(/-/g, '−')} are two different points on the line.`);
   const graphSentences = [
-    has('graphIntercepts') ? `Graph 1 (intercepts): plot ${graph1.map(pointSay).join(' and ')}${graph1[0] === yPoint ? ' — the line goes through the origin, so both intercepts are (0, 0) and the slope gives a second point' : ' — where the line crosses each axis'}.` : '',
-    has('graphSlopeIntercept') ? `Graph 2 (slope-intercept): plot the y-intercept ${pointSay(yPoint)}, then ${runRiseText(yPoint, nextPoint)} to ${pointSay(nextPoint)}.` : '',
-    has('graphPointSlope') ? `Graph 3 (point-slope): plot the point ${pointSay(anchor)} from point-slope form, then ${runRiseText(anchor, anchorNext)} to ${pointSay(anchorNext)}.` : '',
+    has('graphIntercepts') ? `${cardLabel('graphIntercepts')}: plot ${graph1.map(pointSay).join(' and ')}${graph1[0] === yPoint ? ' — the line goes through the origin, so both intercepts are (0, 0) and the slope gives a second point' : ' — where the line crosses each axis'}.` : '',
+    has('graphSlopeIntercept') ? `${cardLabel('graphSlopeIntercept')}: plot the y-intercept ${pointSay(yPoint)}, then ${runRiseText(yPoint, nextPoint)} to ${pointSay(nextPoint)}.` : '',
+    has('graphPointSlope') ? `${cardLabel('graphPointSlope')}: plot the point ${pointSay(anchor)} from point-slope form, then ${runRiseText(anchor, anchorNext)} to ${pointSay(anchorNext)}.` : '',
   ].filter(Boolean);
   if (graphSentences.length) cardSteps.push(`${graphSentences.join(' ')} Draw the line through each pair of points.`);
   if (contextItems.length) cardSteps.push(`The situation: ${contextItems.map((item) => `${item.label.toLowerCase()} — "${item.value}"`).join('; ')}.`);

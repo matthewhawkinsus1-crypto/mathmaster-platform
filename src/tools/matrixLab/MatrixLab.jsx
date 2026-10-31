@@ -18,6 +18,8 @@ import {
   readMatrixLabQuestion,
 } from './matrixLabMath.js';
 import MatrixCalculator from './MatrixCalculator.jsx';
+import { expansionPlan, negativeInParentheses } from './matrixCalculatorDisplay.js';
+import { useMethodWithheld } from '../shared/ToolRuntimeContext';
 import { spokenMathValue } from '../shared/spokenMathValue.js';
 import {
   CellInput, CheckRow, DimensionsInput, MatrixInput, Step, Symbol, SystemDisplay, VariableMatrix, YesNo,
@@ -27,7 +29,7 @@ import {
 /*
  * MATRIX LAB — Algebra II, solving systems with matrices (A2.3B).
  *
- *   locate          dimensions, and the element a_ij: tap it, or write its notation
+ *   locate          dimensions, and the element a_ij: select its cell, or write its notation
  *   operate         is A·B defined, what size is it, fill it in row × column,
  *                   and are the two matrices inverses
  *   equation        write a system as A·X = B (standard form first)
@@ -40,9 +42,9 @@ import {
 
 const SHELL = {
   locate: { title: 'Matrix Lab', subtitle: 'Read a matrix: its dimensions, and where each element lives.', badge: 'Algebra II · Matrices' },
-  operate: { title: 'Matrix Lab', subtitle: 'Multiply matrices row by column — and decide when a product exists.', badge: 'Algebra II · Matrix operations' },
-  equation: { title: 'Matrix Lab', subtitle: 'Write a system of equations as one matrix equation, A · X = B.', badge: 'Algebra II · Matrix equations' },
-  solve: { title: 'Matrix Lab', subtitle: 'Solve A · X = B with matrix technology: X = A⁻¹B.', badge: 'Algebra II · Solving with matrices' },
+  operate: { title: 'Matrix Lab', subtitle: 'Multiply matrices, and decide whether the product exists.', badge: 'Algebra II · Matrix operations' },
+  equation: { title: 'Matrix Lab', subtitle: 'Write a system of equations as one matrix equation.', badge: 'Algebra II · Matrix equations' },
+  solve: { title: 'Matrix Lab', subtitle: 'Solve a matrix equation with matrix technology.', badge: 'Algebra II · Solving with matrices' },
   completeSystem: { title: 'Matrix Lab', subtitle: 'Design a system: what makes it have no solution, or infinitely many?', badge: 'Algebra II · Singular systems' },
 };
 
@@ -176,7 +178,7 @@ function LocateMode({ questionData, model, onAction }) {
             colLabels={matrix.colLabels}
             rowTitle={matrix.rowTitle}
             colTitle={matrix.colTitle}
-            ariaLabel={`Matrix ${letter}. ${activeId ? 'Tap the cell for the element you are placing.' : ''}`}
+            ariaLabel={`Matrix ${letter}. ${activeId ? 'Select the cell for the element you are placing.' : ''}`}
             renderCell={(i, j, value) => {
               const chips = tappedBy(i, j);
               const active = tapTargets.find((target) => target.id === activeId);
@@ -212,10 +214,14 @@ function LocateMode({ questionData, model, onAction }) {
                 return (
                   <li key={target.id}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                      {/* The cells are buttons (enabled for the element in hand), so the
+                          line names the keyboard as well as the tap (AX32). The element's
+                          own button says "Find", not "Tap": it only chooses which
+                          element the next cell is for. */}
                       <button type="button" aria-pressed={activeId === target.id} onClick={() => setActiveId(target.id)} style={choiceStyle(activeId === target.id)}>
-                        Tap {name}
+                        Find {name}
                       </button>
-                      <span style={{ color: 'var(--mm-text-muted)' }}>{chosen ? `You chose ${describe(chosen.row, chosen.col)}.` : activeId === target.id ? 'Now tap its cell in the matrix.' : 'Select, then tap its cell.'}</span>
+                      <span style={{ color: 'var(--mm-text-muted)' }}>{chosen ? `You chose ${describe(chosen.row, chosen.col)}.` : activeId === target.id ? 'Now select its cell in the matrix (click or tap, or Tab to it and press Enter).' : 'Choose it, then select its cell.'}</span>
                     </div>
                   </li>
                 );
@@ -242,6 +248,36 @@ function LocateMode({ questionData, model, onAction }) {
 
 /* ----------------------------------------------------------------- operate */
 
+/*
+ * THE ROW-BY-COLUMN TERMS OF THE FOCUSED PRODUCT CELL, and, where they fade
+ * (R-7), the button that asks for them. The terms name the products and leave
+ * the adding to the student. The button is a disclosure: it stays on screen
+ * while the terms show, so a keyboard student who asked for them keeps their
+ * place and can hide them again. expansionPlan decides what is drawn.
+ */
+export function ProductExpansion({ authored, focus, requested = null, methodWithheld = false, left, right, onToggle = () => {} }) {
+  const plan = expansionPlan({ authored, focus, requested, methodWithheld });
+  if (!plan.show && !plan.offer) return null;
+  const terms = plan.show ? productEntry(left.values, right.values, focus.i, focus.j).terms : null;
+  return (
+    <>
+      {plan.offer ? (
+        <div style={{ textAlign: 'center', marginTop: 12 }}>
+          <button type="button" aria-expanded={plan.show} onClick={() => onToggle({ i: focus.i, j: focus.j })} style={buttonStyle}>
+            {plan.show ? 'Hide' : 'Show'} the multiplication for this cell
+          </button>
+        </div>
+      ) : null}
+      {terms ? (
+        <p aria-live="polite" style={{ textAlign: 'center', margin: '12px 0 0', fontSize: 'calc(17 * var(--mm-px))' }}>
+          Row {focus.i + 1} of {left.name} · column {focus.j + 1} of {right.name} ={' '}
+          <MathText>{terms.map((term) => `${negativeInParentheses(formatRational(term.left))}(${formatRational(term.right)})`.replace(/-/g, '−')).join(' + ')}</MathText>
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 function OperateMode({ questionData, model, onAction }) {
   const { leftMatrix, rightMatrix } = model;
   const [defined, setDefined] = usePersistentToolState('defined', '');
@@ -249,6 +285,9 @@ function OperateMode({ questionData, model, onAction }) {
   const [entries, setEntries] = usePersistentToolState('entries', []);
   const [inverses, setInverses] = usePersistentToolState('inverses', '');
   const [focus, setFocus] = useState(null);
+  // Which product cell the student asked to see the terms of (a fading expansion, R-7).
+  const [requestedCell, setRequestedCell] = useState(null);
+  const methodWithheld = useMethodWithheld();
   const work = useMemo(() => matrixLabWork(questionData, { defined, dimensions, entries, inverses }), [questionData, defined, dimensions, entries, inverses]);
   const { feedback, check, clearFeedback, fixList, wrongCells } = useLabSubmission(questionData, onAction, work, 'operate');
   useLabUndo(questionData, { defined, dimensions, entries, inverses }, (restored) => {
@@ -274,10 +313,8 @@ function OperateMode({ questionData, model, onAction }) {
     clearFeedback();
     setEntries(setCell(resizeCells(entries, gridDims.rows, gridDims.cols), i, j, value));
   };
-  const focusedTerms = model.showExpansion && focus && model.operation === 'multiply'
-    && focus.i < leftMatrix.dims.rows && focus.j < rightMatrix.dims.cols && leftMatrix.dims.cols === rightMatrix.dims.rows
-    ? productEntry(leftMatrix.values, rightMatrix.values, focus.i, focus.j).terms
-    : null;
+  const focusHasTerms = Boolean(focus) && model.operation === 'multiply'
+    && focus.i < leftMatrix.dims.rows && focus.j < rightMatrix.dims.cols && leftMatrix.dims.cols === rightMatrix.dims.rows;
   const highlightLeft = focus && model.operation === 'multiply' ? focus.i : null;
   const highlightRight = focus && model.operation === 'multiply' ? focus.j : null;
   const showGrid = model.fillResult && gridDims;
@@ -329,7 +366,7 @@ function OperateMode({ questionData, model, onAction }) {
       <div data-matrix-grid-and-calculator="" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: 12 }}>
         {showGrid ? (
           <div style={{ flex: '1 1 360px', minWidth: 0 }}>
-            <Step number={nextStep()} title={model.resultName === model.operationLabel || model.resultName === `${model.left}${model.right}` ? `Fill in ${model.operationLabel}` : `Fill in ${model.operationLabel} (${model.resultName})`} note={model.operation === 'multiply' ? 'Tap a cell: its row of the first matrix and its column of the second light up.' : null}>
+            <Step number={nextStep()} title={model.resultName === model.operationLabel || model.resultName === `${model.left}${model.right}` ? `Fill in ${model.operationLabel}` : `Fill in ${model.operationLabel} (${model.resultName})`} note={model.operation === 'multiply' ? 'Click or tap a cell, or Tab to it: its row of the first matrix and its column of the second light up.' : null}>
               <div style={{ display: 'flex', justifyContent: 'safe center' }}>
                 <MatrixInput
                   name={model.resultName}
@@ -343,12 +380,15 @@ function OperateMode({ questionData, model, onAction }) {
                   invalidCells={wrongCells.entries || null}
                 />
               </div>
-              {focusedTerms ? (
-                <p aria-live="polite" style={{ textAlign: 'center', margin: '12px 0 0', fontSize: 'calc(17 * var(--mm-px))' }}>
-                  Row {focus.i + 1} of {model.left} · column {focus.j + 1} of {model.right} ={' '}
-                  <MathText>{focusedTerms.map((term) => `${formatRational(term.left)}(${formatRational(term.right)})`.replace(/-/g, '−')).join(' + ')}</MathText>
-                </p>
-              ) : null}
+              <ProductExpansion
+                authored={questionData.showExpansion}
+                focus={focusHasTerms ? focus : null}
+                requested={requestedCell}
+                methodWithheld={methodWithheld}
+                left={{ name: model.left, values: leftMatrix.values }}
+                right={{ name: model.right, values: rightMatrix.values }}
+                onToggle={(cell) => setRequestedCell((current) => (current && current.i === cell.i && current.j === cell.j ? null : cell))}
+              />
             </Step>
           </div>
         ) : null}
@@ -453,10 +493,11 @@ const EMPTY_REASON = Object.freeze({ row: '', otherRow: '', factor: '', constant
  * WHY A SINGULAR SYSTEM HAS NO SOLUTION OR INFINITELY MANY (P2-2).
  *
  * Three buttons and three tries let a student pass "none or many" on a second
- * guess. Where the question asks (justifySingular), the decision comes with
- * its reason, read from the student's own A and B: which row is a multiple of
- * which, by what, and whether the constants follow. Only the rows and the
- * arithmetic on screen decide it.
+ * guess. So the decision comes with its reason, read from the student's own A
+ * and B: which row is a multiple of which, by what, and whether the constants
+ * follow. Only the rows and the arithmetic on screen decide it. It is graded
+ * where the question asks (justifySingular), and asked on every solve item
+ * (TS08).
  */
 function SingularReason({ size, value, onChange }) {
   const rows = Array.from({ length: size }, (_, index) => String(index + 1));
@@ -529,8 +570,14 @@ function SolveMode({ questionData, model, onAction }) {
     ? A.every((row) => row.every((cell) => String(cell).trim())) && B.every((cell) => String(cell).trim())
     : true;
   const inverseDone = !model.askInverse || inverse.every((row) => row.every((cell) => String(cell).trim()));
-  // Asked for its reason (justifySingular) once the student says none or many.
-  const asksReason = model.justifySingular && (classification === SOLUTION_TYPES.NONE || classification === SOLUTION_TYPES.MANY);
+  // THE REASON ON EVERY "NONE" OR "MANY" (TS08). Asked only where the
+  // question grades it (justifySingular), which a singular system does by
+  // default, its absence told a student who chose "No solution" that the
+  // system was not singular. Every solve item now asks it the same way, and
+  // waits for it the same way. Where the question does not grade it, the
+  // reason is never sent (matrixLabWork), so it shows no verdict and changes
+  // no score.
+  const asksReason = classification === SOLUTION_TYPES.NONE || classification === SOLUTION_TYPES.MANY;
   const reasonDone = !asksReason || (singularReason.row && singularReason.otherRow && String(singularReason.factor).trim() && singularReason.constant);
   const answered = classification && (classification !== SOLUTION_TYPES.ONE || values.every((value) => String(value).trim())) && reasonDone;
   const blocker = formatProblem([
@@ -665,7 +712,7 @@ function CompleteSystemMode({ questionData, model, onAction }) {
               <Symbol>=</Symbol>
               <CellInput value={row.constant} label={`${label(target)}: constant`} onChange={(value) => edit(target.id, { ...row, constant: value })} />
             </div>
-            <MatrixCalculator title="Test this system" left={{ name: 'A', cells: testA }} right={{ name: 'B', cells: testB }} operations={model.technology} onRun={reportCalculator(onAction)} />
+            <MatrixCalculator title="Test this system" historyKey="testCalculatorHistory" left={{ name: 'A', cells: testA }} right={{ name: 'B', cells: testB }} operations={model.technology} onRun={reportCalculator(onAction)} />
           </Step>
         );
       })}

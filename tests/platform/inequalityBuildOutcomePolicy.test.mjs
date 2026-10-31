@@ -26,6 +26,7 @@ import {
   INEQUALITY_STEP_COMPLETION_TEXT,
   REASONING_COMPLETION_TEXT,
   resolveInequalityBuildGate,
+  verticesStepComplete,
 } from '../../src/tools/systemsWorkspace/inequalityBuildPolicy.js';
 import systemsWorkspaceGrader from '../../functions/shared/serverGrading/tools/systemsWorkspace.mjs';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
@@ -207,11 +208,12 @@ test('where outcomes are withheld, whether a Check moves the student on never de
   // Test points and vertices move on with their own reports, which answer
   // "finished?" where outcomes are withheld (next test).
   assert.match(reasoning, /phase === 'teacherPoint' \? pointReport\(/);
-  assert.match(reasoning, /: \{ done: verticesStepDone\(vertices\.map\(vertexReport\)\) \};/);
+  assert.match(reasoning, /: \{ done: verticesStepDone\(vertices\.map\(vertexReport\), true\) \};/);
   // Whether every true corner is marked (PR-22) is a verdict: it decides the
-  // step only where outcomes are shown.
+  // step only where outcomes are shown (verticesStepComplete, tested below as
+  // behaviour; the screen hands it the gate's verdictsShown).
   assert.match(region(mode, 'const verticesStepDone = ', 'const vertexCoverageReport', 'verticesStepDone'),
-    /&& \(!buildGate\.verdictsShown \|\| vertexCoverage\(workingVertices, vertices\)\.complete\);/);
+    /verdictsShown: buildGate\.verdictsShown,\s*coverageComplete: vertexCoverage\(workingVertices, vertices\)\.complete,/);
   // The step on screen does not move on by itself as the work is finished
   // (where outcomes are withheld a step is done once finished).
   assert.match(region(mode, 'const updateBuildEntry = (index, patch) => {', '\n  };', 'updateBuildEntry'), /if \(activeStep == null\) setActiveStep\(cursor\);/);
@@ -252,4 +254,52 @@ test("the boundary questions under the student's own point follow the student's 
   // A teacher's point is the question's own content, probed and graded against the truth.
   assert.match(mode, /showBoundaryProbe=\{boundaryProbeEnabled && onBoundaryIndex\(\[teacherTestPoint\.x, teacherTestPoint\.y\]\) >= 0\}/);
   assert.match(mode, /const teacherReport = teacherPointChecked \? pointReport\(\[teacherTestPoint\.x, teacherTestPoint\.y\], teacherPointResponse\) : null;/);
+});
+
+test('the vertices step finishes once checked as it stands — with no marks too, when the region has no corners (TL43)', () => {
+  const done = { done: true };
+  const open = { done: false };
+  // Never before its Check, whatever the marks.
+  [true, false].forEach((verdictsShown) => {
+    assert.equal(verticesStepComplete({ checked: false, reports: [done], verdictsShown, coverageComplete: true }), false);
+    assert.equal(verticesStepComplete({ checked: false, reports: [], verdictsShown, coverageComplete: true }), false);
+  });
+  // Where outcomes are shown: every mark's line done AND every true corner
+  // marked. "There are no corners" (checked, no marks) finishes it only where
+  // the region really has none (C2-137: it could never finish there).
+  assert.equal(verticesStepComplete({ checked: true, reports: [], verdictsShown: true, coverageComplete: true }), true);
+  assert.equal(verticesStepComplete({ checked: true, reports: [], verdictsShown: true, coverageComplete: false }), false);
+  assert.equal(verticesStepComplete({ checked: true, reports: [done, done], verdictsShown: true, coverageComplete: false }), false, 'two of three corners');
+  assert.equal(verticesStepComplete({ checked: true, reports: [done, open], verdictsShown: true, coverageComplete: true }), false);
+  assert.equal(verticesStepComplete({ checked: true, reports: [done, done, done], verdictsShown: true, coverageComplete: true }), true);
+  // Where outcomes are withheld the coverage is a verdict, so it never decides:
+  // the press records the step with every mark answered — or with none.
+  [true, false].forEach((coverageComplete) => {
+    assert.equal(verticesStepComplete({ checked: true, reports: [], verdictsShown: false, coverageComplete }), true);
+    assert.equal(verticesStepComplete({ checked: true, reports: [done, done], verdictsShown: false, coverageComplete }), true);
+    assert.equal(verticesStepComplete({ checked: true, reports: [done, open], verdictsShown: false, coverageComplete }), false);
+  });
+});
+
+test('"There are no corners" is the vertices Check with no marks, offered on every item and judged as the grader judges it (TL43)', () => {
+  const mode = executableSource(componentSource('src/tools/systemsWorkspace/StudentBuildInequalityMode.jsx'));
+  // The Check is never disabled for want of a mark; with none it says so.
+  const actions = region(mode, "onClick={() => checkReasoning('vertices')}", '</button>', 'vertices Check');
+  assert.doesNotMatch(actions, /disabled=/);
+  assert.match(actions, /\{vertices\.length \? 'Check vertices' : 'There are no corners'\}/);
+  // Checked as it stands, marks or none.
+  assert.match(mode, /const verticesChecked = reasoningChecks\.vertices === verticesSignature;/);
+
+  // The grader takes no marks as the right answer exactly where the region
+  // has no corners: a strip between parallel lines has none, a triangle three.
+  const grade = (inequalities, vertices) => {
+    const question = { type: 'systemsWorkspace', mode: 'inequalities', reasoning: { vertices: true }, inequalities };
+    const work = { build: inequalities.map(() => ({})), vertices };
+    return systemsWorkspaceGrader.grade(question, work).parts.find((part) => part.id === 'vertices');
+  };
+  const strip = [{ m: 1, b: 0, relation: '>=' }, { m: 1, b: 4, relation: '<=' }];
+  const triangle = [{ m: 0, b: 0, relation: '>=' }, { orientation: 'vertical', x: 0, relation: '>=' }, { m: -1, b: 4, relation: '<' }];
+  assert.equal(grade(strip, []).isCorrect, true, 'no corners, none marked');
+  assert.equal(grade(strip, [{ x: 0, y: 2, includedAnswer: 'yes' }]).isCorrect, false, 'a mark where there is no corner');
+  assert.equal(grade(triangle, []).isCorrect, false, 'corners left unmarked');
 });

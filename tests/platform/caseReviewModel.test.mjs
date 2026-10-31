@@ -10,8 +10,9 @@ import { TEMPLATES } from '../../src/platform/caseReview/narrativeFacts.js';
 import { CASE_PROVENANCE } from '../../src/platform/caseReview/caseProvenance.js';
 import { QUESTION_OUTCOME } from '../../src/platform/caseReview/attemptAnalysis.js';
 import { RECONCILIATION_STATUS } from '../../src/platform/caseReview/sisReconciliation.js';
-import { NOW, caseInputs, studentB } from './helpers/caseReviewFixture.mjs';
+import { NOW, caseEvidenceA, caseInputs, studentB } from './helpers/caseReviewFixture.mjs';
 import { caseAssignmentsCsv, gradeItemLabel } from '../../src/platform/caseReview/caseReviewExport.js';
+import { RECOVERY_RECORDS_TRUNCATED } from '../../src/platform/caseReview/errorPatterns.js';
 
 const model = buildStudentCaseReview(caseInputs());
 const entry = (id) => model.assignments.find((row) => row.assignmentId === id);
@@ -192,4 +193,26 @@ test('trends need enough dated values and never overstate', () => {
   const week = 7 * 86400000;
   const trend = trendOf([{ atMs: 0, value: 40 }, { atMs: week, value: 50 }, { atMs: 2 * week, value: 70 }, { atMs: 3 * week, value: 80 }]);
   assert.deepEqual([trend.earlier, trend.later, trend.direction], [45, 75, 'higher']);
+});
+
+test('Recovery records the server stopped reading are said so wherever the review lists what it does not contain (TT05)', () => {
+  const withTruncation = (misconceptionEvidence) => buildStudentCaseReview(caseInputs({
+    caseEvidence: { ...caseEvidenceA, misconceptionEvidence: [], truncated: { ...caseEvidenceA.truncated, misconceptionEvidence } },
+  }));
+  const whole = withTruncation(false);
+  const cut = withTruncation(true);
+  assert.ok(!whole.evidenceGaps.includes(RECOVERY_RECORDS_TRUNCATED));
+  assert.equal(whole.dataSources.misconceptionEvidence.note, '');
+  assert.ok(cut.evidenceGaps.includes(RECOVERY_RECORDS_TRUNCATED), 'a gap, which the print view and the Attention tab list');
+  assert.ok(cut.attention.evidenceMissing.includes(RECOVERY_RECORDS_TRUNCATED));
+  assert.equal(cut.dataSources.misconceptionEvidence.note, RECOVERY_RECORDS_TRUNCATED);
+  assert.equal(cut.dataSources.misconceptionEvidence.loaded, true);
+  assert.equal(cut.errorPatterns.recoveryTruncated, true);
+  assert.equal(whole.errorPatterns.recoveryTruncated, false);
+
+  // Evidence that could not be loaded at all is a different gap, not a cut-short one.
+  const unloaded = buildStudentCaseReview(caseInputs({ caseEvidence: null }));
+  assert.equal(unloaded.dataSources.misconceptionEvidence.loaded, false);
+  assert.ok(!unloaded.evidenceGaps.includes(RECOVERY_RECORDS_TRUNCATED));
+  assert.equal(unloaded.errorPatterns.recoveryTruncated, false);
 });

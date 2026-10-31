@@ -363,6 +363,25 @@ const applyFilter = (value, filter) => {
     case 'xterm': return Number.isFinite(numeric)
       ? (numeric === 0 ? '' : `${numeric < 0 ? '-' : '+'} ${Math.abs(numeric) === 1 ? '' : Math.abs(numeric)}x`)
       : String(value);
+    // Keys a student can write as they are taught (GR10): `pow` is an
+    // exponent that vanishes at 1 ("x{{m|pow}}": 1 → "x", 3 → "x^3", 12 →
+    // "x^{12}"), and `xshift` is x shifted by a value, bare at 0
+    // ("{{h|xshift}}^2": 0 → "x^2", 3 → "(x - 3)^2", -3 → "(x + 3)^2").
+    case 'pow': return Number.isFinite(numeric)
+      ? (numeric === 1 ? '' : `^${String(numeric).length > 1 ? `{${numeric}}` : numeric}`)
+      : String(value);
+    case 'xshift': return Number.isFinite(numeric)
+      ? (numeric === 0 ? 'x' : `(x ${numeric < 0 ? '+' : '-'} ${Math.abs(numeric)})`)
+      : String(value);
+    // `yshift` is `xshift` for y (CT14): a conic centred on the x-axis is "y^2", not "(y )^2".
+    case 'yshift': return Number.isFinite(numeric)
+      ? (numeric === 0 ? 'y' : `(y ${numeric < 0 ? '+' : '-'} ${Math.abs(numeric)})`)
+      : String(value);
+    // A unit word that agrees with its number (CT14): "{{n}} unit{{n|plural}}" reads
+    // "1 unit" and "3 units", where a bare "units" read "1 units" on one draw in
+    // five. It is the suffix alone, so it follows the singular word; -1 is singular
+    // too ("-1 dollar"), and 0 and 1.5 are plural as in English.
+    case 'plural': return Number.isFinite(numeric) ? (Math.abs(numeric) === 1 ? '' : 's') : String(value);
     default: return String(value);
   }
 };

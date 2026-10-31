@@ -156,7 +156,13 @@ test('MathDisplay hides the typeset element and renders one spoken copy from its
   const render = region(source, '<Element', '</Element>', 'the typeset element');
   assert.match(render, /aria-hidden="true"/, 'MathLive markup and MathML are hidden from assistive technology');
   assert.doesNotMatch(render, /aria-label=/, 'no label on the hidden element');
-  assert.match(source, /const spoken = useMemo\(\(\) => mathSpeechLabel\(\{ value: cleanValue, ariaLabel \}\), \[cleanValue, ariaLabel\]\);/);
+  // The one spoken copy is memoised on everything it is spoken from: a screen
+  // of math re-renders often, and a copy that ignored the language (AX06) would
+  // stay English after a translation was switched on. What it says in each
+  // language is rendered for real in mathSpeechLanguage.test.mjs.
+  const spokenCopy = region(source, 'const spoken = useMemo(', ');', 'the spoken copy');
+  assert.match(spokenCopy, /mathSpeechLabel\(\{ value: cleanValue, ariaLabel, language \}\)/);
+  assert.match(spokenCopy, /\[cleanValue, ariaLabel, language\]/);
   assert.match(region(source, '</Element>', '</>', 'after the element'), /\{spoken \? <span[^>]*style=\{SR_ONLY_STYLE\}>\{spoken\}<\/span> : null\}/);
 });
 

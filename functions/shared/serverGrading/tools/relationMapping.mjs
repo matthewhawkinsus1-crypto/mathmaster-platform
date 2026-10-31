@@ -29,6 +29,7 @@ import { bindToolGrader } from '../toolGraderDefinition.mjs';
 import { gradedResult, ungradedResult } from '../gradingResult.mjs';
 import { matchesFieldAnswer } from '../../answerUtils.mjs';
 import { FUNCTION_STATUS_CHOICES, correctFunctionChoice } from '../../relationFunctionChoice.mjs';
+import { parseList, sameSet, uniqueSorted } from '../../toolMath/relationMapping/relationSets.mjs';
 
 const list = (value) => (Array.isArray(value) ? value : []);
 const entry = (value) => (value === null || value === undefined ? '' : String(value));
@@ -47,22 +48,12 @@ export const DEFAULT_RELATION_ASK = Object.freeze(['mapping', 'domain', 'range']
  */
 export { FUNCTION_STATUS_CHOICES };
 
-export const uniqueSorted = (values) => [...new Set(values.map(Number))].sort((a, b) => a - b);
-
-/** A typed comma- (or semicolon-) separated list; tokens that are not finite numbers are dropped. */
-export const parseList = (input) => String(input || '')
-  .split(/[,;]/)
-  .map((part) => part.trim())
-  .filter(Boolean)
-  .map(Number)
-  .filter((value) => Number.isFinite(value));
-
-/** Same values once each, in any order. */
-export const sameSet = (left, right) => {
-  const a = uniqueSorted(left);
-  const b = uniqueSorted(right);
-  return a.length === b.length && a.every((value, index) => Math.abs(value - b[index]) < 1e-9);
-};
+/*
+ * A typed domain or range is a set: ../../toolMath/relationMapping/
+ * relationSets.mjs holds the rule, light enough for My Math Path's contract
+ * (on the app's startup path) to read the same one (MP07).
+ */
+export { parseList, sameSet, uniqueSorted };
 
 export const normalizePair = (pair) => {
   const rawX = Array.isArray(pair) ? pair[0] : pair?.x;

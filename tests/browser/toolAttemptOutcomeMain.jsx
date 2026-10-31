@@ -57,6 +57,8 @@ const QUESTIONS = {
   },
   server: { id: 'attempt-outcome-server', type: 'inverseCompositionLab', prompt: 'Restrict the domain so f has an inverse, then undo it.', ...SAMPLE_SPECS.inverseCompositionLab },
   literal: { id: 'attempt-outcome-literal', type: 'literal', prompt: 'What is 3 + 4?', correctAnswer: '7' },
+  // TL23: a typed question whose math uses π (its keypad keeps π, not e or logₐ).
+  literalPi: { id: 'attempt-outcome-literal-pi', type: 'literal', prompt: 'A circle has radius 3. What is its area? Leave your answer in terms of π.', correctAnswer: '9π' },
 };
 const question = QUESTIONS[tool];
 

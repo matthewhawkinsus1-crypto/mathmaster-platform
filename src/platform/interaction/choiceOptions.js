@@ -116,11 +116,21 @@ export const choiceSeed = (...parts) => parts.map(clean).filter(Boolean).join(':
  * price: "$20 grocery cards" stays "$20 grocery cards", never "20 grocery
  * cards", which names twenty cards instead of the $20 card.
  */
-export const choiceAccessibleLabel = (value) => {
+export const choiceAccessibleLabel = (value, { dimensions = false } = {}) => {
   const text = String(value ?? '').trim();
   const wrapped = text.match(/^\$+([\s\S]*?)\$+$/) || text.match(/^\\\(([\s\S]*)\\\)$/);
-  return (wrapped && text.length > 1 ? wrapped[1] : text).trim();
+  const label = (wrapped && text.length > 1 ? wrapped[1] : text).trim();
+  // "2 × 3" answering a question about a matrix's dimensions is "2 by 3", as
+  // Read aloud says it (speechText.js); a screen reader heard "2 times 3"
+  // (AX30). Anywhere else it is a product and keeps its reading.
+  const size = dimensions ? label.match(DIMENSIONS_CHOICE) : null;
+  return size ? `${size[1]} by ${size[2]}` : label;
 };
+
+const DIMENSIONS_CHOICE = /^(\d+)\s*(?:×|\\times|x|\*)\s*(\d+)$/;
+
+/** Whether a choice field asks for dimensions (its label or its question says so). */
+export const choiceFieldAsksDimensions = (...texts) => /dimension|matri|dimensi/i.test(texts.filter(Boolean).join(' '));
 
 /*
  * THE CHOICES ONE MULTI-ANSWER FIELD SHOWS, IN THE ORDER IT SHOWS THEM.
@@ -130,6 +140,11 @@ export const choiceAccessibleLabel = (value) => {
  * MultiAnswerGrader draws these and Read aloud says them
  * (platform/language/questionReading.js), so what a student hears is the
  * order on the screen. Null when the field is not a choice.
+ *
+ * Options the compiler inferred from the label are stored on the field with
+ * `optionsInferred` (GR12). They are MathMaster's, not the author's, so they
+ * get the distractors any inferred pair gets: before the mark they were read
+ * as authored, and a Yes/No field showed two choices instead of four.
  */
 const inferredBinaryOptions = (field) => {
   const label = String(field?.label || field?.prompt || '').toLowerCase();
@@ -145,10 +160,11 @@ const inferredBinaryOptions = (field) => {
 };
 
 export const choiceOptionsForField = (field, seed = '') => {
-  const authored = Array.isArray(field?.options) && field.options.length ? field.options : null;
-  const options = authored || inferredBinaryOptions(field);
+  const listed = Array.isArray(field?.options) && field.options.length ? field.options : null;
+  const options = listed || inferredBinaryOptions(field);
   if (!options) return null;
-  return stableShuffleChoices(prepareFiniteChoiceSet(options, { authored: Boolean(authored) }), seed);
+  const authored = Boolean(listed) && field?.optionsInferred !== true;
+  return stableShuffleChoices(prepareFiniteChoiceSet(options, { authored }), seed);
 };
 
 /** The seed MultiAnswerGrader shuffles one field's choices with. */

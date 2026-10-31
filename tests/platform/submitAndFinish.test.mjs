@@ -385,8 +385,10 @@ test('Enter and focus after a closed question: the shortcut is live wherever its
   assert.match(focus, /if \(was !== false \|\| !locked \|\| assignmentLocked \|\| typeof window === 'undefined'\) return undefined;/, 'only on the change to closed');
   assert.match(focus, /isExpired && showOutcomeFeedback && closedCardRef\.current\s*\? closedCardRef\.current\s*: continueButtonRef\.current;/);
   // Not taken from the student: a press or key since, or focus they moved elsewhere, wins.
+  // Focus the close left on the finished, read-only work (AX01) is not a
+  // place they moved to (tests/platform/readOnlyWorkArea.test.mjs).
   assert.match(focus, /if \(focusAuthority\.generation !== ticket\.generation \|\| focusAuthority\.interactions !== ticket\.interactions\) return;/);
-  assert.match(focus, /const ours = !active \|\| active === document\.body \|\| active === continueButtonRef\.current \|\| active === submitButtonRef\.current;\s*if \(!ours\) return;/);
+  assert.match(focus, /const ours = !active \|\| active === document\.body \|\| active === continueButtonRef\.current \|\| active === submitButtonRef\.current \|\| stranded;\s*if \(!ours\) return;/);
   assert.match(engine, /<section ref=\{closedCardRef\} tabIndex=\{-1\} className="mathmaster-closed-question-card"/);
   assert.match(engine, /<button\s+ref=\{continueButtonRef\}\s+type="button"\s+className="mathmaster-bar-continue"/);
   // The way on is one rule for the bar, the shortcut and the cards.
@@ -417,7 +419,12 @@ test('"Start this question fresh" works on a closed question, asks first, and sh
   const engine = code('src/QuestionEngine.jsx');
   assert.match(engine, /const workAreaClosed = !moduleFailed && Boolean\(locked \|\| scaffoldRequired \|\| contextScaffoldRequired \|\| submitting \|\| pausedByAnotherTab\);/);
   assert.match(engine, /<fieldset disabled=\{workAreaClosed\}/);
-  assert.match(engine, /inert=\{workAreaClosed \? true : undefined\}/);
+  // Neither the waiting gate (inert) nor the finished one (read-only, AX01)
+  // holds the failure panel: both follow the failure too.
+  assert.match(engine, /const workAreaInert = !moduleFailed && Boolean\(/);
+  assert.match(engine, /inert=\{workAreaInert \? true : undefined\}/);
+  assert.match(engine, /const workAreaReadOnly = workAreaClosed && !workAreaInert;/);
+  assert.match(engine, /data-work-read-only=\{workAreaReadOnly \? 'true' : undefined\}/);
   // The failure is the failed module's (its key and its question), not the mount's.
   assert.match(engine, /const moduleFailureKey = questionModuleFailureKey\(\{ boundaryKey: moduleBoundaryKey, questionId: question\?\.questionId \?\? question\?\.id, draftKey \}\);/);
   assert.match(engine, /const moduleFailed = failedModule !== null && failedModule\.key === moduleFailureKey && failedModule\.question === processedQuestion;/);

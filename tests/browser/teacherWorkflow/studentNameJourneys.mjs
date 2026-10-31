@@ -216,13 +216,19 @@ const rowsForId = (page, scope, id) => page.evaluate(({ scope: selector, id: stu
   return [...rows].map((element) => squashed(element.innerText).slice(0, 260));
 }, { scope, id });
 
+// A screen loads its own code on demand (and the Students list its records):
+// on a busy machine that can take longer than the settle after a click. Wait
+// for the student's id label to be drawn before deciding it is not there.
+const idLabelDrawn = (page, id) => page.waitForFunction((studentId) => (document.body.innerText || '').includes(`ID ${studentId}`), id, { timeout: 20_000 }).catch(() => {});
 const expectNamelessRow = async (journey, page, where, scope, id) => {
+  await idLabelDrawn(page, id);
   const rows = await rowsForId(page, scope, id);
   expect(journey, rows.length > 0, `${where}: a row labelled "ID ${id}" is shown for the nameless student`);
   rows.forEach((row) => expect(journey, row.includes(UNAVAILABLE), `${where}: the nameless student ${id} reads "${UNAVAILABLE}" (${row.slice(0, 120)})`));
   return rows;
 };
 const expectNamedRow = async (journey, page, where, scope, id, name) => {
+  await idLabelDrawn(page, id);
   const rows = await rowsForId(page, scope, id);
   expect(journey, rows.length > 0, `${where}: a row labelled "ID ${id}" is shown`);
   rows.forEach((row) => {
@@ -239,8 +245,11 @@ const chooseLab = async (page) => {
   await page.getByRole('group', { name: 'Classes in session' }).getByRole('button', { name: /Lab/ }).click();
   await settle(page, 1500);
 };
-const liveTiles = (page) => page.locator('#home-live-class [role="button"][aria-label]').evaluateAll((elements) => elements.map((element) => ({
-  label: element.getAttribute('aria-label') || '',
+// A tile is a group (data-live-tile) whose name row is the button that opens the student; its
+// aria-label is the one line assistive technology reads (TT27: the tile itself was a
+// role="button" around the buttons inside it).
+const liveTiles = (page) => page.locator('#home-live-class [data-live-tile]').evaluateAll((elements) => elements.map((element) => ({
+  label: element.querySelector('button[aria-label]')?.getAttribute('aria-label') || '',
   name: (element.querySelector('span')?.textContent || '').trim(),
   idLine: (element.querySelector('[data-student-id-label]')?.textContent || '').trim(),
 })));
@@ -346,7 +355,7 @@ const journeys = {
     await shot(page, 'N1-live-attention');
 
     // A support action from a nameless tile stores the studentId and no name.
-    const tile = live.locator(`[role="button"][aria-label^="${UNAVAILABLE} · ID ${NO_NAME}:"]`).first();
+    const tile = live.locator('[data-live-tile]').filter({ has: page.locator(`button[aria-label^="${UNAVAILABLE} · ID ${NO_NAME}:"]`) }).first();
     const watch = tile.getByRole('button', { name: 'Watch Practice' });
     if (expect(J, await watch.count() > 0, `Attention: the nameless tile offers its support actions (${await text(tile)})`)) {
       const before = (await supportEventsFor(page, NO_NAME)).length;

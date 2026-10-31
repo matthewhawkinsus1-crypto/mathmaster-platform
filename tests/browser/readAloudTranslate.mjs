@@ -18,15 +18,26 @@
 //                no position while it can be answered; a real fillable table
 //                is read by rows with its headers, each cell to fill "blank".
 //   HELP-19      an inclusion student meets "Let's back up" only where a step
-//                is written for the problem, and hears those words once.
+//                is written for the problem, and hears those words once; the
+//                card starts inside the work area, below the Work View button
+//                (PH01).
 //   translate    a platform hint is shown in Spanish (lang="es") and Read
 //                then speaks the Spanish; a teacher-written hint says plainly
 //                that it has no Spanish translation — no dead button.
+//   figures, es  under an authored Spanish prompt the real DOL graph is read
+//                in its own Spanish words, with the same numbers and still no
+//                position; the 3D model, which has no Spanish yet, is read in
+//                English after a sentence that says so (AX05).
+//   tool tables  the DOL #3 review's tools read the tables they draw: the
+//                workbench's rows, the residual table (and again once the
+//                model changes), the sequence table (what the student typed,
+//                never a term), and the board's given table (AX10).
 //
 // Exits non-zero on any failure. Screenshots: tests/browser/artifacts/readAloudTranslate.
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readOpenerCover } from './support/openerCover.mjs';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
 const ARTIFACTS = path.join(path.dirname(fileURLToPath(import.meta.url)), 'artifacts/readAloudTranslate');
@@ -85,6 +96,8 @@ const drawnChoices = (page) => page.locator('[role="radio"]').evaluateAll((butto
 // What the drawn choice says aloud: "−6" is "negative 6", and in a question
 // about dimensions "3 × 4" is "3 by 4".
 const spokenChoice = (choice) => choice.replace(/−/g, 'negative ').replace(/ × /g, ' by ');
+// A value a tool draws, as Read aloud says it: "-0.5" is "negative 0.5".
+const spokenValue = (value) => String(value).replace(/^[-−]/, 'negative ');
 
 for (const device of DEVICES) {
   /* ------------------------------------- a plan's Read aloud, work bar + parts */
@@ -148,6 +161,33 @@ for (const device of DEVICES) {
     await context.close();
   }
 
+  /* ------------ the same graph under an authored Spanish prompt: Spanish (AX05) */
+  {
+    const { page, context } = await open(device, 'q=dolgraphes&role=dol&support=translate');
+    await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
+    const heard = await lastSpoken(page);
+    const said = heard?.text || '';
+    check(heard?.lang === 'es' && said.startsWith('La gráfica muestra una función'), `${device.name}: the Spanish question is read in a Spanish voice`, `${heard?.lang}: ${said.slice(0, 60)}`);
+    const figure = said.slice(said.indexOf('Gráfica.'), said.indexOf('Paso 1 de 2'));
+    check(figure === 'Gráfica. El eje x va de negativo 4 a 7 y el eje y, de negativo 6 a 16. 1 curva. 1 círculo abierto y 1 círculo cerrado. Las posiciones no se leen mientras se pueda responder esta pregunta. ', `${device.name}: the DOL's graph is read in its own Spanish words`, figure || said);
+    check(!/x from|Positions are not|inglés/.test(said), `${device.name}: no English description and no "in English" note`, said);
+    check(!/\(\s*(?:negativo )?\d|\bcruza\b|\bpasa por\b|\bentre\b|\besquinas?\b/.test(said), `${device.name}: no position is read in Spanish while the exit ticket is open`, said);
+    // The numbers are the figure's own: the ones its (English) description gives.
+    const description = await page.locator('[data-graph-description]').first().textContent();
+    const numbers = (text) => (text.replace(/−|negativo /g, '-').match(/-?\d+(?:\.\d+)?/g) || []).join(' ');
+    check(numbers(figure) === numbers(description), `${device.name}: the same numbers as the figure's description`, `${numbers(figure)} | ${numbers(description)}`);
+    await context.close();
+  }
+  {
+    // A figure with no Spanish words yet: its English, and the student is told.
+    const { page, context } = await open(device, 'q=planeses&role=classwork&support=translate');
+    await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
+    const heard = await lastSpoken(page);
+    const said = heard?.text || '';
+    check(heard?.lang === 'es' && /Modelo 3D\. La descripción de esta figura está en inglés\. 3D model with the x, y and z axes\./.test(said), `${device.name}: the 3D model is read in English, after a sentence that says so`, said.slice(0, 400));
+    await context.close();
+  }
+
   /* ------------ a hidden step's figure is not read (review B1, q_section-4_4_4) */
   {
     const { page, context } = await open(device, 'q=dolgraph7&role=dol&support=read');
@@ -164,9 +204,9 @@ for (const device of DEVICES) {
     const { page, context } = await open(device, 'q=table&role=classwork&support=read');
     await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
     const said = (await lastSpoken(page))?.text || '';
-    check(/A table, 5 rows\. Columns: x; f of x; c of x; input of d; d of x\. Row 1: x, negative 2; f of x, negative 2; c of x, blank; input of d, blank; d of x, negative 2\./.test(said), `${device.name}: the table is read by rows with its headers`, said.slice(0, 260));
+    check(/A table, 5 rows\. Columns: x; f of x; c of x; new input for d; d of x\. Row 1: x, negative 2; f of x, negative 2; c of x, blank; new input for d, blank; d of x, negative 2\./.test(said), `${device.name}: the table is read by rows with its headers`, said.slice(0, 260));
     const answers = await page.evaluate(() => window.__mmAnswers);
-    const filled = [...said.matchAll(/(?:c of x|input of d), ([^;.]+)/g)].map((match) => match[1]);
+    const filled = [...said.matchAll(/(?:c of x|new input for d), ([^;.]+)/g)].map((match) => match[1]);
     check(answers.length >= 10 && filled.length === 10 && filled.every((cell) => cell === 'blank'), `${device.name}: every cell to fill in is "blank", never its answer`, filled.join(' | '));
     const partsButton = page.locator('[data-support-tool="read-parts"]').first();
     if (await partsButton.count()) {
@@ -194,7 +234,7 @@ for (const device of DEVICES) {
     const read = page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]');
     await read.click();
     const before = (await lastSpoken(page))?.text || '';
-    check(/Row 1: x, negative 2; f of x, negative 2; c of x, you wrote 8 over 5; input of d, blank;/.test(before), `${device.name}: the student's own entry is read as theirs`, before.slice(0, 320));
+    check(/Row 1: x, negative 2; f of x, negative 2; c of x, you wrote 8 over 5; new input for d, blank;/.test(before), `${device.name}: the student's own entry is read as theirs`, before.slice(0, 320));
     const inputs = page.locator('table input');
     const count = await inputs.count();
     for (let index = 0; index < count; index += 1) await inputs.nth(index).fill('1');
@@ -204,6 +244,67 @@ for (const device of DEVICES) {
     await read.click();
     const after = (await lastSpoken(page))?.text || '';
     check(/c of x, you wrote 1/.test(after) && !/correct|incorrect|check this|wrong|✓|✗/i.test(after), `${device.name}: after a DOL submit, the entries — and no verdict`, after.slice(0, 320));
+    await context.close();
+  }
+
+  /* -------------- tables a tool draws itself (AX10; the DOL #3 review's tools) */
+  {
+    // PR 3, the Linear Table Workbench: the 2026-10-22 walkthrough heard none of its rows.
+    const { page, context } = await open(device, 'q=ltw&role=practice&support=read');
+    await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
+    const said = (await lastSpoken(page))?.text || '';
+    // Every row the workbench draws, as its row button names it ("Row 1: x equals -2, y equals -4").
+    const rows = await page.locator('button[aria-pressed][aria-label^="Row "]').evaluateAll((buttons) => buttons.map((button) => button.getAttribute('aria-label')));
+    const expected = rows.map((label) => label.replace(/^Row (\d+): x equals (\S+), y equals (\S+)$/, (match, n, x, y) => `Row ${n}: x, ${spokenValue(x)}; y, ${spokenValue(y)}.`));
+    const at = said.indexOf('A table');
+    check(rows.length === 4 && said.includes(`A table, 4 rows. Columns: x; y. ${expected.join(' ')}`), `${device.name}: the workbench's rows are read, as drawn`, at >= 0 ? said.slice(at, at + 220) : said.slice(0, 200));
+    await context.close();
+  }
+  {
+    // PR 11, the Data Modeling Lab: its residual table, as drawn, and again after the model changes.
+    const { page, context } = await open(device, 'q=dml&role=practice&support=read');
+    const read = page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]');
+    const drawnResiduals = () => page.locator('[data-residual-table-scroller] tbody tr').evaluateAll((trs) => trs.map((tr) => [...tr.querySelectorAll('td')].map((td) => td.textContent.trim())));
+    const residualReading = (cells) => `Residual table, ${cells.length} rows. Columns: x, Hours studied; y, Quiz score (points); y hat; residual. ${cells.map(([x, y, fitted, residual], index) => `Row ${index + 1}: x, ${spokenValue(x)}; y, ${spokenValue(y)}; y hat, ${spokenValue(fitted)}; residual, ${spokenValue(residual)}.`).join(' ')}`;
+    const excerpt = (text) => text.slice(Math.max(0, text.indexOf('Residual table')), Math.max(0, text.indexOf('Residual table')) + 200);
+    await read.click();
+    const before = await drawnResiduals();
+    const said = (await lastSpoken(page))?.text || '';
+    check(before.length === 10 && said.includes(residualReading(before)), `${device.name}: the residual table is read, as drawn, ŷ as "y hat"`, excerpt(said));
+    await page.getByRole('button', { name: 'Increase Slope m' }).click();
+    await page.waitForTimeout(400);
+    await read.click();
+    const after = await drawnResiduals();
+    const again = (await lastSpoken(page))?.text || '';
+    check(JSON.stringify(after) !== JSON.stringify(before) && again.includes(residualReading(after)), `${device.name}: after the slope changes, the residuals read are the new ones`, excerpt(again));
+    await context.close();
+  }
+  {
+    // PR 13, the Sequence Explorer: what the student typed, or blank — never a term.
+    const { page, context } = await open(device, 'q=sequence&role=practice&support=read');
+    const read = page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]');
+    const excerpt = (text) => text.slice(Math.max(0, text.indexOf('Sequence table')), Math.max(0, text.indexOf('Sequence table')) + 240);
+    await read.click();
+    const said = (await lastSpoken(page))?.text || '';
+    check(said.includes('Sequence table, 6 rows. Columns: n, domain input; f of n, output. Row 1: n, 1; f of n, blank. Row 2: n, 2; f of n, blank. Row 3: n, 3; f of n, blank. Row 4: n, 4; f of n, blank. Row 5: n, 5; f of n, blank. Row 6: n, 6; f of n, blank.'), `${device.name}: the sequence table is read, every box blank before the student types`, excerpt(said));
+    const box = page.locator('input[aria-label="Sequence output f(1)"]');
+    await box.fill('-7');
+    // On a phone the number keypad holds the bar's place until "Done".
+    const done = page.locator('button:visible', { hasText: /^Done$/ });
+    if (await done.count()) await done.first().click();
+    else await box.evaluate((element) => element.blur());
+    await page.waitForTimeout(300);
+    await read.click();
+    const typed = (await lastSpoken(page))?.text || '';
+    check(typed.includes('Row 1: n, 1; f of n, you wrote negative 7. Row 2: n, 2; f of n, blank.'), `${device.name}: the student's own entry is read as theirs`, excerpt(typed));
+    await context.close();
+  }
+  {
+    // The Linear Multiple Representations board's GIVEN table (lmr-pr-1).
+    const { page, context } = await open(device, 'q=lmrtable&role=practice&support=read');
+    await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
+    const said = (await lastSpoken(page))?.text || '';
+    check(said.includes('Given table of values, 4 rows. Columns: x; y. Row 1: x, negative 1; y, 9. Row 2: x, 1; y, 7. Row 3: x, 3; y, 5. Row 4: x, 5; y, 3.'), `${device.name}: the board's given table is read`, said.slice(0, 300));
     await context.close();
   }
 
@@ -232,6 +333,28 @@ for (const device of DEVICES) {
     await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
     const said = (await lastSpoken(page))?.text || '';
     check((said.match(/Let’s back up/g) || []).length === 1 && said.startsWith('Let’s back up.'), `${device.name}: Read aloud says "Let's back up" once, first`, said.slice(0, 160));
+    // PH01: the floating "Open Work View" button sat on the end of the question
+    // ("which move comes first|?"), and on a phone the card (taller than the one
+    // box it covers) rose out of the work area, its label and first line under
+    // the task card where nothing could scroll to them. Read from the top.
+    await page.evaluate(() => {
+      window.scrollTo(0, 0);
+      document.querySelectorAll('.math-tool-workspace').forEach((element) => { element.scrollTop = 0; });
+    });
+    await page.waitForTimeout(250);
+    const cover = await readOpenerCover(page);
+    check(cover.opener !== null && cover.covered.length === 0, `${device.name}: the Work View button covers nothing of "Let's back up"`, cover.covered.join(', '));
+    if (device.isMobile) {
+      const reach = await page.evaluate(() => {
+        const card = document.querySelector('[data-scaffold]')?.firstElementChild;
+        const scroller = card?.closest('.math-tool-workspace');
+        if (!card || !scroller) return null;
+        return { card: Math.round(card.getBoundingClientRect().top), scroller: Math.round(scroller.getBoundingClientRect().top) };
+      });
+      check(reach && reach.card >= reach.scroller, `${device.name}: "Let's back up" starts inside the work area, not above it`, JSON.stringify(reach));
+      // Below the button, so its first line is never on it at any text size.
+      check(reach && cover.opener && reach.card >= Math.floor(cover.opener.bottom), `${device.name}: "Let's back up" starts below the Work View button`, JSON.stringify({ card: reach?.card, button: cover.opener && Math.round(cover.opener.bottom) }));
+    }
     await page.screenshot({ path: path.join(ARTIFACTS, `${device.name}-back-up.png`) });
     await context.close();
   }

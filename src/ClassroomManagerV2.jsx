@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ensureClassroomTopics,
   getClassroomConnectionStatus,
@@ -40,8 +40,10 @@ import {
   CLASSROOM_TOPIC_STYLE_OPTIONS,
   classroomTopicNameFor,
   readClassroomTopicStyle,
-  saveClassroomTopicStyle,
 } from './platform/classroom/classroomTopicNaming.js';
+import { chooseTeacherTopicStyle, syncTeacherTopicStyle } from './platform/classroom/teacherTopicStyle.js';
+import { takeClassroomSignInReturn } from './platform/classroom/classroomSignInReturn.js';
+import { db } from './firebase.js';
 import ClassroomSectionGradeSelector from './components/ClassroomSectionGradeSelector';
 import ClassroomForceRepublishPreview from './components/ClassroomForceRepublishPreview';
 import {
@@ -99,6 +101,9 @@ export default function ClassroomManagerV2({
   classes = [],
   students = [],
   teacherEmail = '',
+  // The teacher's sign-in id: their saved Classroom topic style is read and
+  // written under it (teacherTopicStyle.js, TT07).
+  teacherUid = '',
   initialAssignmentId = '',
 }) {
   const [connection, setConnection] = useState({ connected: false, needsReconnect: false, missingScopes: [] });
@@ -125,6 +130,13 @@ export default function ClassroomManagerV2({
   const [selectedClassroomSectionKeys, setSelectedClassroomSectionKeys] = useState(['whole']);
   const [topicName, setTopicName] = useState('');
   const [topicStyle, setTopicStyle] = useState(readClassroomTopicStyle);
+  // The style the teacher saved, from any device, replaces this browser's own
+  // once it is read; the topic below follows whichever style is in force.
+  useEffect(() => {
+    let current = true;
+    syncTeacherTopicStyle({ db, uid: teacherUid }).then((style) => { if (current) setTopicStyle(style); });
+    return () => { current = false; };
+  }, [teacherUid]);
   const [instructions, setInstructions] = useState('');
   const [resourceMode, setResourceMode] = useState('separate');
   const [materials, setMaterials] = useState([{ title: '', url: '' }]);
@@ -147,6 +159,14 @@ export default function ClassroomManagerV2({
     () => assignments.find((assignment) => String(assignment.id) === String(assignmentId)) || null,
     [assignments, assignmentId],
   );
+  // The topic follows the style in force, however it changed: the teacher's
+  // saved style arriving from another device, or the picker below.
+  const topicStyleShownRef = useRef(topicStyle);
+  useEffect(() => {
+    if (topicStyleShownRef.current === topicStyle) return;
+    topicStyleShownRef.current = topicStyle;
+    if (selectedAssignment) setTopicName(topicForAssignment(selectedAssignment, topicStyle));
+  }, [topicStyle]); // eslint-disable-line react-hooks/exhaustive-deps
   const rosterMapping = rosterCourseId ? mappingByCourse.get(String(rosterCourseId)) : null;
   const mappedClass = rosterMapping ? classById.get(String(rosterMapping.classId)) : null;
   const classStudents = useMemo(
@@ -215,9 +235,10 @@ export default function ClassroomManagerV2({
   };
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('classroomConnected')) setStatus('Google Classroom reconnected successfully.');
-    if (params.get('classroomError')) setError(`Google Classroom connection failed: ${params.get('classroomError')}`);
+    // The sign-in result is shown once and taken out of the address (TT06).
+    const signIn = takeClassroomSignInReturn();
+    if (signIn.connected) setStatus('Google Classroom reconnected successfully.');
+    if (signIn.error) setError(`Google Classroom connection failed: ${signIn.error}`);
     refreshManagerData().catch((err) => setError(err.message));
   }, []);
 
@@ -852,7 +873,7 @@ export default function ClassroomManagerV2({
                 onChange={(e) => {
                   const next = e.target.value;
                   setTopicStyle(next);
-                  saveClassroomTopicStyle(next);
+                  chooseTeacherTopicStyle({ db, uid: teacherUid, style: next });
                   if (selectedAssignment) setTopicName(topicForAssignment(selectedAssignment, next));
                 }}
               >

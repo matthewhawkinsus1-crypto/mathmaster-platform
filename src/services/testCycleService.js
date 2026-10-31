@@ -41,6 +41,7 @@ const CALL_TIMEOUT_MS = Object.freeze({
   updateTestCycleAudience: TEACHER_CALL_TIMEOUT_MS,
   updateTestCycleAvailability: TEACHER_CALL_TIMEOUT_MS,
   adjustTestCycleGrade: TEACHER_CALL_TIMEOUT_MS,
+  setTestCycleReducedItems: TEACHER_CALL_TIMEOUT_MS,
   runTestCycleBulkAction: TEACHER_CALL_TIMEOUT_MS,
   getTestCycleOperation: TEACHER_CALL_TIMEOUT_MS,
   getStudentTestCycle: TEACHER_CALL_TIMEOUT_MS,
@@ -94,10 +95,13 @@ export const issueTestCycleCorrectionQuestion = async ({ assignmentId, correctio
 };
 
 export const submitTestCycleCorrectionResponse = async ({
-  assignmentId, correctionId, questionInstanceId, responsePayload,
+  assignmentId, correctionId, questionInstanceId, responsePayload, reflection = null,
 }) => {
   if (isSandbox()) throw new Error('Corrections are graded on the server and are not available in sandbox mode.');
-  return call('submitTestCycleCorrectionResponse', { assignmentId, correctionId, questionInstanceId, responsePayload });
+  // `reflection`: what the student said went wrong and how they will fix it (TC11), kept with the plan for their teacher.
+  return call('submitTestCycleCorrectionResponse', {
+    assignmentId, correctionId, questionInstanceId, responsePayload, ...(reflection ? { reflection } : {}),
+  });
 };
 
 /** Teacher: open secure Test sessions for a class in one action. */
@@ -210,6 +214,14 @@ export const updateTestCycleAvailability = async ({ assignmentId, ...change }) =
 export const adjustTestCycleGrade = async ({ assignmentId, studentId, source = null, grade = null, note = '', clear = false }) => {
   if (isSandbox()) return sandboxRefusal('Setting a grade')();
   return call('adjustTestCycleGrade', { assignmentId, studentId, ...(clear ? { clear: true } : { source, grade, note }) });
+};
+
+// TC15: the Test questions one student with a fewer-items plan does not
+// answer, chosen by their teacher. An empty list gives back the whole Test.
+// The server checks the plan, the limits and that they have not started.
+export const setTestCycleReducedItems = async ({ assignmentId, studentId, excusedSlotIds = [] }) => {
+  if (isSandbox()) return sandboxRefusal('Choosing fewer questions')();
+  return call('setTestCycleReducedItems', { assignmentId, studentId, excusedSlotIds });
 };
 
 // One step of a class-wide operation. Sending the same `operationId` again

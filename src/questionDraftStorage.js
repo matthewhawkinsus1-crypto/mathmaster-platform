@@ -2,7 +2,9 @@ import { auditDraftWrite } from './platform/persistence/draftSyncDiagnostics.js'
 import { reportDraftSaveProblem, clearDraftSaveProblem, clearDraftSaveProblemsForFamily, DRAFT_SAVE_PROBLEM } from './platform/persistence/draftSaveHealth.js';
 import {
   fieldRecordDraftKind,
+  copyFieldRecordGroup,
   fieldRecordGroups,
+  fieldRecordGroupsFor,
   freshToolWorkspaceEdits,
   isSyncableDraftKey,
   isToolWorkspaceDraftKey,
@@ -293,16 +295,17 @@ export const writeQuestionDraft = (key, value, { edit } = {}) => {
     const storedValue = stored?.value;
     if (seen?.groups && value && typeof value === 'object' && !Array.isArray(value)
       && storedValue && typeof storedValue === 'object' && !Array.isArray(storedValue)) {
-      const incoming = fieldRecordGroups(fieldKind, value);
+      // A draft an older build touched keeps its prompt answers as one set here too.
+      const incoming = fieldRecordGroupsFor(fieldKind, value, stored?.fieldEditedAt);
       const unseen = [];
-      fieldRecordGroups(fieldKind, storedValue).forEach((entry, group) => {
+      fieldRecordGroupsFor(fieldKind, storedValue, stored?.fieldEditedAt).forEach((entry, group) => {
         if (incoming.has(group) || seen.groups.has(group)) return;
-        entry.fields.forEach((field) => unseen.push(field));
+        unseen.push(entry);
       });
       if (unseen.length) {
         // Own properties only: a field id may be "__proto__" (workspaceDraftSchema.mjs).
         written = { ...value };
-        unseen.forEach((field) => Object.defineProperty(written, field, { value: storedValue[field], enumerable: true, writable: true, configurable: true }));
+        unseen.forEach((entry) => copyFieldRecordGroup(written, storedValue, entry));
       }
     }
     // Start over (a tombstone written as an edit) dates nothing and records
@@ -354,6 +357,10 @@ export const writeQuestionDraft = (key, value, { edit } = {}) => {
     // student must hear is that this device does not hold it (App.jsx).
     console.warn('MathMaster could not save local question work:', error);
     reportDraftSaveProblem(DRAFT_SAVE_PROBLEM.DEVICE_FULL, key);
+    // The stored copy is still the one the page last saw: so is its view of it,
+    // or the next write would take what the page removed for answers it never saw.
+    if (seen) pageView.set(key, seen);
+    else pageView.delete(key);
     return false;
   }
 };

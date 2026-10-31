@@ -170,27 +170,118 @@ const quotedAt = (haystack, { start, end }, shown) => {
   return quotedWhole(shown, expression);
 };
 
+/*
+ * THE SAME NUMBER, SPELLED ANOTHER WAY (FB03; B-18 and C2-29).
+ *
+ * The shared guard reads text, so a hint that wrote the answer 1/2 as "0.5",
+ * 4/3 as "4 / 3" or "\frac{4}{3}", or 2 as "6/3" passed it: the answer was in
+ * the hint, in a spelling nobody looked for. A NUMBER answer is now also read by
+ * value against every decimal (0.5, .5, 2.0), fraction (4/3, 4 / 3, 6/3) and
+ * LaTeX fraction (\frac{4}{3}) the hint writes, and against a whole number when
+ * the answer is spelled another way (2.0 for 2). "02" and the 1 of "1,000" are
+ * not read, and a different number — 12, 2.5, −2 for the answer 2 — never is.
+ *
+ * It states the answer unless the student is told nothing new by it:
+ *   - it is part of something the problem shows, quoted whole (the same quotation
+ *     rule as for the literal match: "solve 0 = 0.5x − 8" for g(x) = 0.5x − 8);
+ *   - or, said in prose, it is a number the problem shows in the form it shows
+ *     it ("simplify 2/6", the hint's \frac{2}{6}: the given fraction equals the
+ *     answer 1/3 and is not it; "write 0.5 as a fraction": 0.5 is the question).
+ *     A form the problem does not show is the answer: 5/10 for 1/2;
+ *   - or it is a numerator over a variable ("0.5/n" is not 0.5).
+ * A sign is read as the literal match reads it (a minus after an operand is
+ * subtraction). Only more hints are held back than before, never fewer.
+ */
+const SPELLED_NUMBER = /(?<![\d.]|\d,|[a-z])(?:\\[dt]?frac\{\s*(-?\d+(?:\.\d+)?)\s*\}\{\s*(\d+(?:\.\d+)?)\s*\}|(\d+(?:\.\d+)?|\.\d+)(?:\s*\/\s*(\d+(?:\.\d+)?|\.\d+))?)/gi;
+const LATEX_FRACTION = /^(-?)\\[dt]?frac\{(-?\d+(?:\.\d+)?)\}\{(\d+(?:\.\d+)?)\}$/;
+
+// Every decimal and fraction the text writes, with its value.
+const spelledNumbers = (haystack) => [...haystack.matchAll(SPELLED_NUMBER)].flatMap((match) => {
+  const latex = match[1] !== undefined;
+  const top = Number(latex ? match[1] : match[3]);
+  const underText = latex ? match[2] : match[4];
+  const value = top / (underText === undefined ? 1 : Number(underText));
+  // A whole number is read when the answer is spelled another way (2.0, 4/2),
+  // but not "02" or the 1 of "1,000": those are not numbers a hint states.
+  if (!latex && !/[./]/.test(match[0]) && (/^0\d/.test(match[0]) || /^,\d{3}/.test(haystack.slice(match.index + match[0].length)))) return [];
+  // The number as a problem writes it: 2/6 and its LaTeX form are one fraction;
+  // 0.5, .5 and 0.50 are one decimal.
+  const form = underText === undefined ? String(top) : `${top}/${Number(underText)}`;
+  return Number.isFinite(value) ? [{ start: match.index, end: match.index + match[0].length, raw: match[0].toLowerCase(), form, value }] : [];
+});
+
+// The value of a number answer: 3, −2, 0.5, 4/3 — and \frac{4}{3}.
+const answerNumber = (value) => {
+  const plain = numberValue(value);
+  if (plain !== null) return plain;
+  const match = LATEX_FRACTION.exec(squash(value));
+  if (!match) return null;
+  const size = Number(match[2]) / Number(match[3]);
+  return Number.isFinite(size) ? (match[1] ? -size : size) : null;
+};
+
+// The numbers the problem already shows, each as it writes it and with its sign.
+const shownForms = (visibleText) => {
+  const haystack = minus(visibleText);
+  return new Set(spelledNumbers(haystack).map((token) => `${signBefore(haystack, token.start) === null ? '' : '-'}${token.form}`));
+};
+
+// The first place the hint writes this number in another spelling, as the text
+// it wrote, or null.
+const restatedAs = (haystack, value, shown, visible) => {
+  const wanted = answerNumber(value);
+  if (wanted === null) return null;
+  // Written exactly as the answer is, the literal match decided ("4 / 3" with spaces is not).
+  const own = minus(value).toLowerCase().replace(/^-\s*/, '');
+  for (const token of spelledNumbers(haystack)) {
+    if (token.raw === own) continue;
+    if (/^\s*\/\s*[a-z]/i.test(haystack.slice(token.end))) continue;
+    const sign = signBefore(haystack, token.start);
+    if (Math.abs((sign === null ? token.value : -token.value) - wanted) > 1e-9) continue;
+    const occurrence = { start: sign === null ? token.start : sign, end: token.end };
+    if (quotedAt(haystack, occurrence, shown)) continue;
+    // Said in prose ("write 0.5 as a fraction"), a number the problem shows in
+    // this form tells the student nothing new. Inside an expression the hint
+    // builds, it does, as for the literal match: only quoting the whole
+    // expression excuses it.
+    const expression = expressionAround(haystack, occurrence.start, occurrence.end);
+    const building = /[a-z]/i.test(expression) && MATHEMATICS.test(expression);
+    if (!building && visible.has(`${sign === null ? '' : '-'}${token.form}`)) continue;
+    return haystack.slice(occurrence.start, occurrence.end).replace(/\s+/g, '');
+  }
+  return null;
+};
+
+// Every answer the hint states, and for a number written another way, how.
+const statements = (hint, { answers = [], visibleText = '', displayText = '' } = {}) => {
+  const raw = text(hint);
+  if (!raw) return [];
+  const haystack = minus(raw);
+  const shown = squash(visibleText);
+  let visible = null;
+  return list(answers).map(text).filter(Boolean).flatMap((value) => {
+    if (hintRevealsAnswer(raw, [value])) {
+      if (!isNumberAnswer(value)) return [{ value }];
+      // The shared guard reads text; read as numbers, its match may have been a
+      // different number only ("2" in "1/2", "−2"). Then this one is not
+      // written — but only when every such match is accounted for.
+      const { found, candidates } = occurrences(haystack, value);
+      const literal = !found.length ? candidates === 0 : !found.every((occurrence) => quotedAt(haystack, occurrence, shown));
+      if (literal) return [{ value }];
+    }
+    if (answerNumber(value) === null) return [];
+    visible = visible || shownForms(`${visibleText}\n${displayText}`);
+    const written = restatedAs(haystack, value, shown, visible);
+    return written === null ? [] : [{ value, written }];
+  });
+};
+
 /**
  * The answers this hint states. `answers` is the guard's list
  * (questionAnswerValues); `visibleText` is what the student already reads —
  * the prompt and the field labels.
  */
-export const statedAnswers = (hint, { answers = [], visibleText = '' } = {}) => {
-  const raw = text(hint);
-  if (!raw) return [];
-  const haystack = minus(raw);
-  const shown = squash(visibleText);
-  return list(answers).map(text).filter(Boolean).filter((value) => {
-    if (!hintRevealsAnswer(raw, [value])) return false;
-    if (!isNumberAnswer(value)) return true;
-    // The shared guard reads text; read as numbers, its match may have been a
-    // different number only ("2" in "1/2", "−2"). Then this one is not
-    // written — but only when every such match is accounted for.
-    const { found, candidates } = occurrences(haystack, value);
-    if (!found.length) return candidates === 0;
-    return !found.every((occurrence) => quotedAt(haystack, occurrence, shown));
-  });
-};
+export const statedAnswers = (hint, options = {}) => statements(hint, options).map(({ value }) => value);
 
 // The author reads each value once, with a real minus sign.
 const shownValue = (value) => `“${text(value).replace(/(^|[(,\s])-(?=[\d.(a-z])/gi, '$1−')}”`;
@@ -198,19 +289,22 @@ const shownValue = (value) => `“${text(value).replace(/(^|[(,\s])-(?=[\d.(a-z]
 /** The verdict, with the author's reason: null when the hint states no answer. */
 export const hintAnswerLeak = (hint, options = {}) => {
   const values = [];
+  const named = [];
   const seen = new Set();
-  statedAnswers(hint, options).forEach((value) => {
+  statements(hint, options).forEach(({ value, written }) => {
     if (seen.has(squash(value))) return;
     seen.add(squash(value));
     values.push(value);
+    // A number written another way says how, so the author can find it.
+    named.push(`${shownValue(value)}${written ? ` (written ${shownValue(written)})` : ''}`);
   });
   if (!values.length) return null;
-  const named = values.slice(0, 3).map(shownValue).join(', ') + (values.length > 3 ? ' and more' : '');
+  const listed = named.slice(0, 3).join(', ') + (values.length > 3 ? ' and more' : '');
   return {
     values,
     reason: values.length === 1
-      ? `it names ${named}, which is an answer to this question or part of one`
-      : `it names ${named}, which are answers to this question or parts of them`,
+      ? `it names ${listed}, which is an answer to this question or part of one`
+      : `it names ${listed}, which are answers to this question or parts of them`,
   };
 };
 

@@ -15,6 +15,7 @@ import {
   samePolynomialEquationRelation,
   sameValue,
   splitTopLevelCommaList,
+  withoutStaleSetStamp,
 } from './answerEquivalence.mjs';
 import { sameEquivalentExpression } from './equivalentExpression.mjs';
 import { exactConstantValue } from './exactConstantValue.mjs';
@@ -22,7 +23,7 @@ import { fieldRequiresSimplifiedPolynomial, isSimplifiedPolynomial } from './sim
 
 export const normalizeMathAnswer = normalizeAnswer;
 export const parseNumericAnswer = asNumber;
-export { fieldAcceptsThousandsSeparators, looksLikeFiniteSetNotation, parseFiniteSetNotation, sameFiniteSetNotation };
+export { fieldAcceptsThousandsSeparators, looksLikeFiniteSetNotation, parseFiniteSetNotation, sameFiniteSetNotation, withoutStaleSetStamp };
 
 const ELLIPSIS_TOKEN = '__mathmaster_ellipsis__';
 const ELLIPSIS_PATTERN = /(?:\.\.\.|…|\\ldots|\\cdots)/g;
@@ -201,8 +202,51 @@ const isOrderedPairField = (field) => (
 );
 
 /** A single-number answer written with (or keyed with) thousands separators. */
-export const matchesAnyNumberWithThousandsSeparators = (studentAnswer, acceptedAnswers = []) =>
-  acceptedAnswers.some((acceptedAnswer) => sameNumberWithThousandsSeparators(studentAnswer, acceptedAnswer));
+export const matchesAnyNumberWithThousandsSeparators = (studentAnswer, acceptedAnswers = [], tolerance = 1e-6) =>
+  acceptedAnswers.some((acceptedAnswer) => sameNumberWithThousandsSeparators(studentAnswer, acceptedAnswer, tolerance));
+
+/*
+ * GR35b: the author's `numericTolerance` on a typed field. Path has always
+ * read it (functions/lib/mathPath.js valuesEquivalent); this matcher did not,
+ * so "round each prediction to the nearest whole item" (±1) took 48 for 49 on
+ * the secure test and refused it in the assignment. It only ever WIDENS a
+ * comparison: a tolerance below the one a comparison already uses is no
+ * reason to refuse an answer that was right. Not a finite number ≥ 0: ignored.
+ */
+const authoredTolerance = (field = {}) => {
+  const raw = field?.numericTolerance;
+  if (raw === undefined || raw === null || raw === '') return null;
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 0 ? value : null;
+};
+
+/*
+ * GR05: a field's numbers are compared to 1e-6, the default every other field
+ * grader uses — Path, secure tests and Live Challenge (functions/lib/mathPath.js
+ * and legacyFieldGrading.mjs store `numericTolerance` 1e-6) and the teacher's
+ * Path simulation. This matcher compared to 1e-9, so 0.3333333 for 1/3 was
+ * right on a Path field and wrong on the same assignment field. Only ever
+ * wider than before: no answer that was right here becomes wrong.
+ *
+ * Except for a key that states a number other than 0 smaller than 0.001: there
+ * 1e-6 is a large part of the number, and 0.000003 would be right for
+ * 0.000004 (it is on Path, whose default is the same absolute 1e-6). Such a
+ * key keeps the 1e-9 it had, so none of its verdicts change.
+ */
+const FIELD_TOLERANCE = 1e-6;
+const SMALL_NUMBER = 1e-3;
+const NUMERALS = /\d*\.\d+|\d+/g;
+const isSmallNumber = (value) => typeof value === 'number' && Number.isFinite(value) && value !== 0 && Math.abs(value) < SMALL_NUMBER;
+const statesSmallNumber = (key) => {
+  if (typeof key === 'number') return isSmallNumber(key);
+  if (Array.isArray(key)) return key.some(statesSmallNumber);
+  if (typeof key !== 'string') return false;
+  const written = normalizeMathAnswer(key);
+  // Its value (one number, or an exact constant such as 4\times10^{-6}), and
+  // every number written in it (x = 0.000004, a pair's coordinate).
+  return [asNumber(key) ?? exactConstantValue(written)?.value, ...(written.match(NUMERALS) || []).map(Number)].some(isSmallNumber);
+};
+const fieldToleranceFor = (key) => (statesSmallNumber(key) ? 1e-9 : FIELD_TOLERANCE);
 
 /*
  * FORM-SPECIFIC FIELD GRADING, LOADED WITH THE SURFACES THAT GRADE.
@@ -214,8 +258,16 @@ export const matchesAnyNumberWithThousandsSeparators = (studentAnswer, acceptedA
  * need to, so they register themselves here from formSpecificFieldGrading.mjs,
  * which the multi-answer screen, the server's grading dispatch and Pre-Flight
  * import (tests/platform/formSpecificFieldGrading.test.mjs pins each import).
+ *
+ * `gradingMode: 'sidesAsKeyed'` (GR17) is the opt-out from "sides swapped is
+ * right": the ordinary comparison, except that an equation's sides must stand
+ * as the key's do, so `2x + 1 = y` is not `y = 2x + 1` on a field that asks
+ * for the equation written as y = …. It needs nothing heavy and no
+ * comparator: matchesFieldAnswer grades it with the field's own options and
+ * tolerance. No field uses it until an author opts in.
  */
-export const FORM_SPECIFIC_GRADING_MODES = Object.freeze(['factoredForm', 'simplestRadicalForm']);
+export const SIDES_AS_KEYED = 'sidesAsKeyed';
+export const FORM_SPECIFIC_GRADING_MODES = Object.freeze(['factoredForm', 'simplestRadicalForm', SIDES_AS_KEYED]);
 const FORM_SPECIFIC_COMPARATORS = new Map();
 export const registerFormSpecificComparator = (mode, comparator) => {
   if (!FORM_SPECIFIC_GRADING_MODES.includes(mode) || typeof comparator !== 'function') {
@@ -233,8 +285,51 @@ const sameWrittenForm = (studentAnswer, acceptedAnswer) => (
   || (normalizeMathAnswer(studentAnswer) !== '' && normalizeMathAnswer(studentAnswer) === normalizeMathAnswer(acceptedAnswer))
 );
 
+/*
+ * A CHOICE IS THE OPTION PICKED, NOT ITS VALUE (GR06). Read as a value, an
+ * option that equals the key — the unsimplified (2a²b)(4a³b) for 8a⁵b², or
+ * "f(3x) − 2", which the value reader takes for "3f(x) − 2" — was marked
+ * right. A choice answer names an option: it is right only when that option
+ * is the key's. A key names its option by its text, or, spelled another way
+ * (1/2 for \frac{1}{2}), by being the value of exactly one option. When the
+ * answer or the key cannot be placed among the options, the value reading
+ * stands, as before.
+ */
+const CHOICE_PROFILES = Object.freeze(['choice', 'multiplechoice', 'multiple-choice', 'select']);
+export const isChoiceAnswerField = (field = {}) => CHOICE_PROFILES.includes(
+  String(field?.inputProfile ?? field?.inputMode ?? field?.type ?? '').trim().toLowerCase(),
+);
+/** A choice field's options as the values an answer names: an id, a value or the option's own text. */
+export const choiceFieldOptions = (field = {}) => [
+  ...(Array.isArray(field?.options) && field.options.length ? field.options : Array.isArray(field?.choices) ? field.choices : []),
+].map((option) => (option && typeof option === 'object' ? (option.id ?? option.value ?? option.label ?? option.text) : option))
+  .filter((value) => value !== undefined && value !== null)
+  .map(String);
+const spelledOption = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
+const pickedChoiceVerdict = (studentAnswer, field, acceptedAnswers, options) => {
+  if (!isChoiceAnswerField(field)) return null;
+  const values = choiceFieldOptions(field);
+  if (values.length < 2) return null;
+  const picked = values.findIndex((value) => spelledOption(value) === spelledOption(studentAnswer));
+  if (picked < 0 || spelledOption(studentAnswer) === '') return null;
+  const keyed = new Set();
+  acceptedAnswers.forEach((accepted) => {
+    if (typeof accepted !== 'string' && typeof accepted !== 'number') return;
+    const exact = values.findIndex((value) => spelledOption(value) === spelledOption(accepted));
+    if (exact >= 0) { keyed.add(exact); return; }
+    const byValue = values.flatMap((value, index) => (matchesAnyAnswer(value, [accepted], options) ? [index] : []));
+    if (byValue.length === 1) keyed.add(byValue[0]);
+  });
+  return keyed.size ? keyed.has(picked) : null;
+};
+
 export const matchesFieldAnswer = (studentAnswer, field = {}) => {
   const acceptedAnswers = answerCandidatesForField(field);
+  const authored = authoredTolerance(field);
+  const tolerance = (usual) => (authored === null ? usual : Math.max(usual, authored));
+
+  const choice = pickedChoiceVerdict(studentAnswer, field, acceptedAnswers, fieldValueOptions(field));
+  if (choice !== null) return choice;
 
   // A field that asks for a polynomial in simplest form (answerForm:
   // 'simplifiedPolynomial') takes only an answer with nothing left to do:
@@ -252,7 +347,7 @@ export const matchesFieldAnswer = (studentAnswer, field = {}) => {
   if (isOrderedPairField(field)) {
     return acceptedAnswers.some((acceptedAnswer) => {
       const expectedPair = Array.isArray(acceptedAnswer) ? acceptedAnswer : parseOrderedPair(acceptedAnswer);
-      if (expectedPair) return compareOrderedPair(studentAnswer, expectedPair);
+      if (expectedPair) return compareOrderedPair(studentAnswer, expectedPair, tolerance(fieldToleranceFor(expectedPair)));
       // A key with a root in a coordinate is not a pair of plain numbers:
       // compared by exact value (sameNumericPair, student pass 3), or, for a
       // pair key that is not two constants (`(\pi,\sqrt{2})`,
@@ -260,13 +355,13 @@ export const matchesFieldAnswer = (studentAnswer, field = {}) => {
       // pair at all ("none") is still not one this box can take.
       if (typeof acceptedAnswer !== 'string') return false;
       const key = normalizeAnswer(acceptedAnswer);
-      return sameNumericPair(studentAnswer, acceptedAnswer)
+      return sameNumericPair(studentAnswer, acceptedAnswer, tolerance(1e-6))
         || (/^\(.*,.*\)$/.test(key) && normalizeAnswer(studentAnswer) === key);
     });
   }
 
   const options = fieldValueOptions(field);
-  if (options.thousandsSeparators && matchesAnyNumberWithThousandsSeparators(studentAnswer, acceptedAnswers)) {
+  if (options.thousandsSeparators && matchesAnyNumberWithThousandsSeparators(studentAnswer, acceptedAnswers, tolerance(1e-6))) {
     return true;
   }
 
@@ -276,14 +371,21 @@ export const matchesFieldAnswer = (studentAnswer, field = {}) => {
   // (teacherPathRuntime): by default an equation keeps the form it is keyed
   // in, because "write it in slope-intercept form" is often the question.
   if (field?.equivalence === 'polynomialRelation') {
-    return acceptedAnswers.some((acceptedAnswer) => samePolynomialEquationRelation(studentAnswer, acceptedAnswer));
+    return acceptedAnswers.some((acceptedAnswer) => samePolynomialEquationRelation(studentAnswer, acceptedAnswer, tolerance(1e-6)));
   }
 
   if (field?.gradingMode === 'equivalentExpression') {
     // A mixed number against a number key is read as one here too, never as
     // a product (answerEquivalence.sameMixedNumber).
     return acceptedAnswers.some((acceptedAnswer) => (
-      sameMixedNumber(studentAnswer, acceptedAnswer) ?? sameEquivalentExpression(studentAnswer, acceptedAnswer)));
+      sameMixedNumber(studentAnswer, acceptedAnswer, tolerance(1e-6), { thousandsSeparators: options.thousandsSeparators })
+      ?? sameEquivalentExpression(studentAnswer, acceptedAnswer, tolerance(1e-6))));
+  }
+
+  // sidesAsKeyed (GR17): the field's own options and tolerance, as for any
+  // field, with the key's sides kept and no any-form reading.
+  if (field?.gradingMode === SIDES_AS_KEYED) {
+    return acceptedAnswers.some((acceptedAnswer) => compareMathAnswer(studentAnswer, acceptedAnswer, tolerance(fieldToleranceFor(acceptedAnswer)), { ...options, anyLineForm: false, sidesAsKeyed: true }));
   }
 
   // factoredForm: a factoring answer in any factor order, with a sign moved
@@ -300,7 +402,7 @@ export const matchesFieldAnswer = (studentAnswer, field = {}) => {
       || sameWrittenForm(studentAnswer, acceptedAnswer)));
   }
 
-  return matchesAnyAnswer(studentAnswer, acceptedAnswers, options);
+  return acceptedAnswers.some((acceptedAnswer) => compareMathAnswer(studentAnswer, acceptedAnswer, tolerance(fieldToleranceFor(acceptedAnswer)), options));
 };
 
 export const parseOrderedPair = (value) => {

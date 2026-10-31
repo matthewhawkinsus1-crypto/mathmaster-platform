@@ -63,6 +63,8 @@ export const releaseTestCycleResults = call('releaseTestCycleResults');
 export const updateTestCycleAudience = call('updateTestCycleAudience');
 export const updateTestCycleAvailability = call('updateTestCycleAvailability');
 export const adjustTestCycleGrade = call('adjustTestCycleGrade');
+// TC15: fewer Test questions for one student with a fewer-items plan.
+export const setTestCycleReducedItems = call('setTestCycleReducedItems');
 export const runTestCycleBulkAction = call('runTestCycleBulkAction');
 export const getTestCycleOperation = call('getTestCycleOperation');
 export const releaseTestCycleAnswers = call('releaseTestCycleAnswers');

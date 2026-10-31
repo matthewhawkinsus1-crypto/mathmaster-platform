@@ -26,8 +26,9 @@
 //     numbered heading;
 //   - skills come weakest first, and "Practise this skill" hands the app the
 //     right destination, which the app's own launch (practiceSkillLaunch)
-//     sends to My Math Path for a standard and to the CCMR tab for any
-//     practice-test skill — never course practice;
+//     sends to My Math Path for a standard and, for any practice-test skill,
+//     to that exam's practice on the missed standard from the CCMR tab (MP14)
+//     — never course practice;
 //   - a practice test shows an estimated range with its size and the real
 //     benchmark, and says it is not an official score; a course Test shows none;
 //   - a review the server did not release shows nothing but "not ready";
@@ -50,6 +51,7 @@ import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
@@ -147,7 +149,7 @@ const renderAllMath = async (page) => {
 };
 const shot = async (page, device, name) => {
   await renderAllMath(page);
-  await page.screenshot({ path: path.join(SHOTS, `${device.id}-${name}.png`), fullPage: true });
+  await screenshotKeepingTouch(page, { path: path.join(SHOTS, `${device.id}-${name}.png`), fullPage: true });
 };
 const text = (locator) => locator.evaluate((element) => element.innerText.replace(/\s+/g, ' ').trim());
 const bodyText = (page) => page.evaluate(() => document.body.innerText.replace(/\s+/g, ' '));
@@ -209,7 +211,7 @@ for (const device of DEVICES) {
     check(await table.count() === 1 && await articles.nth(2).locator('[data-result-figure="stimulus"] h4').count() === 1, at('a table question shows its table, its title an h4'));
     const graph = articles.nth(5).locator('[data-result-figure="stimulus"] svg');
     check(await graph.count() >= 1 && (await graph.first().boundingBox())?.width > 150, at('a graph question shows its graph'), `${await graph.count()} svg`);
-    await articles.nth(5).screenshot({ path: path.join(SHOTS, `${device.id}-review-graph-figure.png`) });
+    await screenshotKeepingTouch(articles.nth(5), { path: path.join(SHOTS, `${device.id}-review-graph-figure.png`) });
     const q3 = await text(articles.nth(2).locator('[data-result-block="yours"]'));
     check(/Left blank/.test(q3), at('a blank question says "Left blank"'), q3);
     const q4 = await text(articles.nth(3));
@@ -222,7 +224,7 @@ for (const device of DEVICES) {
     const editorText = await text(editorAnswer);
     const editorMath = await editorAnswer.locator('math-span').count();
     check(editorMath === 1 && !/\\frac|\\left|\\right/.test(editorText), at('a math-editor answer is drawn as math, not LaTeX'), `${editorMath} math-span; "${editorText}"`);
-    await articles.nth(6).screenshot({ path: path.join(SHOTS, `${device.id}-review-editor-answer.png`) });
+    await screenshotKeepingTouch(articles.nth(6), { path: path.join(SHOTS, `${device.id}-review-editor-answer.png`) });
     const skills = await page.locator('[data-skill-result]').evaluateAll((nodes) => nodes.map((node) => node.dataset.skillResult));
     check(skills.join(',') === 'skill:texas:A.3B,skill:texas:A.5A,skill:texas:A.2A', at('skills weakest first'), skills.join(','));
     const skillText = await text(page.locator('section[aria-labelledby="results-by-skill"]'));
@@ -234,7 +236,7 @@ for (const device of DEVICES) {
     const practised = await page.evaluate(() => window.__practised);
     const launched = await page.evaluate(() => window.__launches);
     check(JSON.stringify(practised[0]) === JSON.stringify({ alignmentKey: 'texas:A.3B', framework: null, domainId: null })
-      && JSON.stringify(launched[0]) === JSON.stringify({ teksCode: 'A.3B', tab: null }), at('practise a course skill → My Math Path on the standard'), `${JSON.stringify(practised[0])} → ${JSON.stringify(launched[0])}`);
+      && JSON.stringify(launched[0]) === JSON.stringify({ teksCode: 'A.3B', framework: null, tab: null }), at('practise a course skill → My Math Path on the standard'), `${JSON.stringify(practised[0])} → ${JSON.stringify(launched[0])}`);
     noErrors(errors, at('course results'));
     await page.close();
   }
@@ -258,7 +260,7 @@ for (const device of DEVICES) {
     // plainly where it does not (SupportedText.jsx) — never a dead button.
     const solutionText = await q2.locator('[data-worked-solution]').count() ? await text(q2.locator('[data-worked-solution]')) : '';
     check(/Translate|No Spanish translation for this text yet/.test(solutionText), at('supports: Translate is offered or says why not'), solutionText.slice(-160));
-    await q2.screenshot({ path: path.join(SHOTS, `${device.id}-review-solution-supports.png`) });
+    await screenshotKeepingTouch(q2, { path: path.join(SHOTS, `${device.id}-review-solution-supports.png`) });
     // The actions beside the solution are a student's controls too.
     await layout(page, at('supports: results'), ['[data-worked-solution] button']);
     noErrors(errors, at('supports: results'));
@@ -284,7 +286,7 @@ for (const device of DEVICES) {
     const practised = await page.evaluate(() => window.__practised);
     const launched = await page.evaluate(() => window.__launches);
     check(JSON.stringify(practised[0]) === JSON.stringify({ alignmentKey: 'texas:G.9A', framework: 'digitalSAT', domainId: 'geometryTrigonometry' })
-      && JSON.stringify(launched[0]) === JSON.stringify({ teksCode: null, tab: 'ccmr' }), at('practise a domain → the exam\'s practice (CCMR tab), not course practice'), `${JSON.stringify(practised[0])} → ${JSON.stringify(launched[0])}`);
+      && JSON.stringify(launched[0]) === JSON.stringify({ teksCode: 'G.9A', framework: 'digitalSAT', tab: 'ccmr' }), at('practise a domain → the exam\'s practice on the missed standard (CCMR tab), not course practice'), `${JSON.stringify(practised[0])} → ${JSON.stringify(launched[0])}`);
     await layout(page, at('practice results'), REVIEW_SCOPES);
     await shot(page, device, 'review-sat-practice');
     noErrors(errors, at('practice results'));
@@ -421,7 +423,7 @@ for (const device of DEVICES) {
     const skipReflection = page.getByRole('button', { name: 'Skip for now' });
     if (await skipReflection.first().waitFor({ timeout: 5000 }).then(() => true).catch(() => false)) await skipReflection.first().click();
     // The shared runtime's answer field: the math editor for a number, or a text box.
-    const answerField = page.locator('section[aria-label="Practice question"] [data-secure-answer-editor]').first();
+    const answerField = page.locator('section[aria-label="Corrections question"] [data-secure-answer-editor]').first();
     await answerField.waitFor({ state: 'visible', timeout: 15000 });
     const editorKind = await answerField.getAttribute('data-secure-answer-editor');
     const readAnswer = () => (editorKind === 'math'
@@ -430,7 +432,7 @@ for (const device of DEVICES) {
     const heading = await text(page.locator('[data-corrections-heading]'));
     check(heading === 'Solving linear equations', at('corrections: headed by the skill, not its code'), heading);
     // Corrections' own controls; the answer editor's keypad is certified with the editor.
-    await layout(page, at('corrections'), ['[data-test-cycle-corrections] > section:first-child button', '[data-test-cycle-corrections] > div:last-child button', 'section[aria-label="Practice question"] form button[type="submit"]']);
+    await layout(page, at('corrections'), ['[data-test-cycle-corrections] > section:first-child button', '[data-test-cycle-corrections] > div:last-child button', 'section[aria-label="Corrections question"] form button[type="submit"]']);
     // An answer typed and not yet checked, then the Test review from the bottom of the page.
     if (editorKind === 'math') {
       await answerField.locator('math-field').click();

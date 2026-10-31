@@ -18,7 +18,9 @@
  *
  *   mixedNumber    3\frac{1}{2} or `3 1/2` read as a mixed number, in the
  *                  response or the key (up for 7/2, down for 1.5: the product
- *                  reading is gone);
+ *                  reading is gone). Since GR13 (the owner, 2026-10-23) also
+ *                  up for 3½ on a lowest-terms fraction question, and down for
+ *                  7/2 or 3.5 against a key written as a mixed number;
  *   halfPi         \frac{1}{2}\pi read as π/2;
  *   exactNumber    a number box keyed with an exact constant, compared by value;
  *   textPairKey    an orderedPair question keyed as text, '(2,3)'.

@@ -20,13 +20,19 @@ import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
-test('A11Y-10: Undo and Reset keep their word under the icon where the bar drops words', () => {
+test('A11Y-10: Undo and Start over keep their word under the icon where the bar drops words', () => {
   const undo = executableSource(read('src/components/common/UniversalUndoButton.jsx'));
   assert.match(undo, /<span aria-hidden="true">↶<\/span><span className="mathmaster-action-label mathmaster-action-label--kept"> Undo<\/span>/);
   const engine = executableSource(read('src/QuestionEngine.jsx'));
-  assert.match(engine, /<span aria-hidden="true">↺<\/span><span className="mathmaster-action-label mathmaster-action-label--kept"> Reset<span className="mathmaster-action-label-long"> Question<\/span><\/span>/);
+  // The platform's one word for beginning again (studentWords.js): "Start
+  // question over" where there is room, "Start over" kept as the caption on a
+  // phone. It is the control that throws work away.
+  assert.match(engine, /<span aria-hidden="true">↺<\/span><span className="mathmaster-action-label mathmaster-action-label--kept"> Start<span className="mathmaster-action-label-long"> question<\/span> over<\/span>/);
   // No other bar tool keeps its word: ✎, the calculator and 💡 are distinct.
-  assert.equal((engine.match(/mathmaster-action-label--kept/g) || []).length, 1, 'Reset only, in the engine');
+  // The one other kept caption is a state, not a tool's name: "Hand up" on
+  // the Hint/Ask button while the student's hand is raised (FB18).
+  assert.equal((engine.match(/mathmaster-action-label--kept/g) || []).length, 2, 'Start over, and the raised hand, in the engine');
+  assert.match(engine, /\{handRaised\s*\? <span className="mathmaster-action-label mathmaster-action-label--kept"> Hand up<\/span>/);
   const css = executableSource(read('src/components/student/MathToolMobileLayout.css'));
   const phone = region(css, '@media (max-width: 768px) and (orientation: portrait) {', '\n}\n', 'the phone portrait rules');
   // Beside Submit, and below 385px: the two places the words are hidden.
@@ -47,7 +53,8 @@ test('A11Y-11: platform scrolls and the Scratchpad slide follow "reduce motion"'
   } finally {
     globalThis.window = original;
   }
-  for (const [file, count] of [['src/QuestionEngine.jsx', 1], ['src/tools/systemsWorkspace/AlgebraicSystemMode.jsx', 2], ['src/tools/systemsWorkspace/EliminationReductionMode.jsx', 1]]) {
+  // AX39: the composed question's step strip (#517) glided whatever the setting.
+  for (const [file, count] of [['src/QuestionEngine.jsx', 1], ['src/tools/systemsWorkspace/AlgebraicSystemMode.jsx', 2], ['src/tools/systemsWorkspace/EliminationReductionMode.jsx', 1], ['src/platform/workflow/WorkflowRunner.jsx', 1]]) {
     const source = executableSource(read(file));
     assert.equal((source.match(/behavior: scrollMotion\(\)/g) || []).length, count, `${file}: every platform-started scroll`);
     assert.doesNotMatch(source, /behavior: 'smooth'/, `${file}: no unconditional smooth scroll`);

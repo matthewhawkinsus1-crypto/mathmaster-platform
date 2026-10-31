@@ -25,8 +25,9 @@ async function shared() {
   if (!sharedModules) {
     // `availability` is the assignment-level gate (archived, paused, not yet
     // released); `schedule` is when each secure part is open (the class-time
-    // Test window and the home window); `bulk` is the class-wide operation.
-    const [policy, grade, record, stages, blueprint, issuance, corrections, retest, preflight, availability, external, schedule, bulk, deadline] = await Promise.all([
+    // Test window and the home window); `bulk` is the class-wide operation;
+    // `reducedItems` is a teacher's choice of fewer Test questions (TC15).
+    const [policy, grade, record, stages, blueprint, issuance, corrections, retest, preflight, availability, external, schedule, bulk, deadline, reducedItems] = await Promise.all([
       import("../shared/testCyclePolicy.mjs"),
       import("../shared/testCycleGrade.mjs"),
       import("../shared/testCycleRecord.mjs"),
@@ -41,9 +42,10 @@ async function shared() {
       import("../shared/testCycleAvailability.mjs"),
       import("../shared/testCycleBulk.mjs"),
       import("../shared/sectionDeadline.mjs"),
+      import("../shared/testCycleReducedItems.mjs"),
     ]);
     sharedModules = {
-      policy, grade, record, stages, blueprint, issuance, corrections, retest, preflight, availability, external, schedule, bulk,
+      policy, grade, record, stages, blueprint, issuance, corrections, retest, preflight, availability, external, schedule, bulk, reducedItems,
       // The school's wall clock: every window is read and shown in it.
       timeZone: deadline.SCHOOL_TIME_ZONE,
     };
@@ -211,6 +213,16 @@ function reviewAttemptRule(assignment = {}) {
  * last remaining Review question. They may keep retrying Review questions
  * before starting the Test, but score and correctness never decide whether the
  * Test is unlocked.
+ *
+ * WITH A MASTERY BAR, BOTH ARE REQUIRED (TC18; kept as built). When a teacher
+ * sets `review.minimumMastery`, the Test unlocks only when every Review question
+ * has been attempted AND the bar is reached. The bar alone would let a student who
+ * answers well leave the rest of the Review unanswered; "attempted" alone is the
+ * no-bar rule above. Unlocking on the bar alone is a change to this function, the
+ * stage text in functions/shared/testCycleStages.mjs (Review) and its mirror in
+ * src/platform/student/testCycleDiscovery.js (reviewProgressFromTracker,
+ * reviewRequirementText), together, with the tests that pin both parts
+ * (districtDOL2Policy, assessmentLifecycleRules).
  */
 function reviewProgress(assignment = {}, tracker = {}) {
   const indices = roleQuestionIndices(assignment, "review");

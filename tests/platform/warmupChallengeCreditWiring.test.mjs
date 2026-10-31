@@ -102,7 +102,7 @@ test('the join round is recorded and preserved across a rejoin', () => {
   // and the round already on the player's record.
   const join = joinBody();
   assert.match(join, /const joinedAtRound = lifecycle\.joinRoundFor\(\{ room, recordedJoinRound: player\.joinedAtRound \}\);/);
-  assert.match(join, /const joinedPlayer = \{ \.\.\.player, joined: true, joinedAtRound,/);
+  assert.match(join, /const joinedPlayer = \{\s*\.\.\.player,\s*joined: true,\s*joinedAtRound,/);
   // Recomputing on a rejoin would shrink the denominator of the one student
   // whose device failed them.
   const laterRoom = { status: 'running', currentRound: 7, roundState: 'open' };

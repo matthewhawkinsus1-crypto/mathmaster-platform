@@ -1,10 +1,14 @@
 name: Accessibility Certification (WCAG 2.1 AA)
 
 # axe-core over the student screens (Home, Assignments, Grades, an assignment
-# with rich tools open, My Math Path, a secure exam, Live Challenge) at
-# Chromebook and phone sizes, ratcheted against scripts/accessibility-baseline.json:
-# a new or increased violation fails; a reduction passes. Read-only: nothing is
-# written back to the repository and nothing reaches Firebase.
+# with rich tools open, My Math Path, a secure exam, Live Challenge) and the
+# teacher's (every destination of the navigation, a class's page, a student's
+# drawer, the Find palette, the Assignment Hub, the Pre-Flight review and the
+# administrator's workspace, which are also walked by Tab: TT27) at Chromebook and
+# phone sizes, ratcheted against
+# scripts/accessibility-baseline.json: a new or increased violation fails; a
+# reduction passes. Read-only: nothing is written back to the repository and
+# nothing reaches Firebase.
 #
 # ci.yml calls this when a pull request changes a file in its area
 # (scripts/lib/ciAreas.mjs), and on every push to main. The large-text sweep,
@@ -20,9 +24,12 @@ permissions:
 jobs:
   browser-accessibility:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    # 61 scenes at two sizes, 48 of them the teacher's and walked by Tab as well as audited (TT27), and the
+    # contrast review replays the same scenes: each took about twenty minutes on a busy two-core machine, and
+    # the job runs both and the drivers after them. A hung run is still stopped, later than it was at 35.
+    timeout-minutes: 70
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with: { browser: "true" }
       # Standalone harnesses (assignment tools, secure exam), served with
@@ -34,7 +41,7 @@ jobs:
           for i in {1..90}; do curl -fsS http://127.0.0.1:5199/tests/browser/accessibilitySecureExam.html >/dev/null && exit 0; sleep 1; done
           cat /tmp/accessibility-vite.log; exit 1
       # The real app in memory (firebase/* faked, synthetic school), signed in
-      # as a student.
+      # as a student, and as the synthetic teacher for the teacher screens.
       - name: Start the in-memory app harness
         run: |
           TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs >/tmp/accessibility-app-harness.log 2>&1 &
@@ -66,6 +73,38 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/accessiblePrimitives.mjs
+      # The Tab walk of the teacher screens counts nothing unless it can be seen
+      # finding something: thirteen pages, each wrong in one way, or right.
+      - name: The Tab walk finds each planted keyboard defect (TT27)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/accessibilityKeyboardReachSelfTest.mjs
+      # The two pop-ups of the teacher's Assignments screen, driven with the keys a keyboard
+      # teacher presses (the ratchet's scenes open them; this presses what is in them).
+      - name: The card menu and the class list by keyboard (TT27)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/accessibilityTeacherMenus.mjs
+      # Live Class's Room / Walkthrough / Attention: one Tab stop, the arrow keys, and a panel.
+      - name: Live Class's tabs by keyboard (TT27)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/accessibilityTeacherLiveClassTabs.mjs
+      # The teacher workspace's one main landmark and its skip link, over every screen and the dialogs on top,
+      # and the three states where a student's own screen runs inside it (the Test Cycle preview, a Demo
+      # Experience session, a Path Simulator session), which used to draw a second main.
+      - name: The teacher workspace's main landmark and skip link (TT27)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/accessibilityTeacherLandmarks.mjs
       - name: The calculator by keyboard (Escape, focus return, Move)
         if: ${{ !cancelled() }}
         env:
@@ -78,13 +117,13 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/hostAccessibility.mjs
-      - name: Log Out target size and the Live Challenge host by keyboard
+      - name: Log Out target size, every student target's size (WCAG 2.5.8), and the Live Challenge host by keyboard
         if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
           TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
-        run: node tests/browser/studentShellLargeText.mjs --check=targets,s5
+        run: node tests/browser/studentShellLargeText.mjs --check=targets,s5,targetsize
       - name: Contrast over gradients (axe's undecided nodes, measured)
         if: ${{ !cancelled() }}
         env:
@@ -191,7 +230,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
         with: { browser: "true" }
       # Standalone harnesses (assignment tools, secure exam), served with

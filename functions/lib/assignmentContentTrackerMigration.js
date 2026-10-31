@@ -1,5 +1,7 @@
 "use strict";
 
+const { normalizeStoredQuestionRecord } = require("./classroomGradeRuntime");
+
 const clamp = (value) => Math.max(0, Math.min(100, Number.isFinite(Number(value)) ? Number(value) : 0));
 
 function parseStoredResponse(record = {}) {
@@ -53,25 +55,24 @@ function dataModelingFitIsCorrect(question = {}, response = {}) {
     && Math.abs(b - regression.b) <= interceptTolerance;
 }
 
-const normalizeText = (value) => String(value ?? "").trim().replace(/\s+/g, " ").toLowerCase();
-
-function fieldAccepts(field = {}, response) {
-  const answers = [
-    ...(field.answer !== undefined && field.answer !== null ? [field.answer] : []),
-    ...(Array.isArray(field.acceptedAnswers) ? field.acceptedAnswers : []),
-  ];
-  if (!answers.length) return null;
-
-  const numericResponse = Number(response);
-  const numericAnswer = Number(field.answer);
-  const tolerance = Number(field.tolerance);
-  if (Number.isFinite(numericResponse) && Number.isFinite(numericAnswer) && Number.isFinite(tolerance)) {
-    return Math.abs(numericResponse - numericAnswer) <= Math.abs(tolerance);
-  }
-
-  const normalized = normalizeText(response);
-  return answers.some((answer) => normalizeText(answer) === normalized);
-}
+/*
+ * THE SERVER'S OWN GRADER FOR A MULTI-ANSWER REGRADE (GR07).
+ *
+ * A grading expansion (more accepted answers, a wider tolerance) re-marks a
+ * part with ordinaryResponseGrading.mjs gradeMultiAnswerResponse — what
+ * ingestion and the deadline finalizer run — against the upgraded question,
+ * so a part is credited exactly when the server would credit the same
+ * response today. The reader this replaces compared text and a `tolerance`
+ * key: it refused the same answer in another spelling (`5cm` for an added
+ * `5 cm`), never read `numericTolerance`, and credited numbers within a
+ * `tolerance` that no grader reads. A question the server does not mark from
+ * its stored copy (generated, a family slot, variants; serverGradingSupport)
+ * is not provable here and keeps its record.
+ *
+ * An ES module, so the caller loads it (loadServerGrading, once per upgrade)
+ * and passes it in; without it a multi-answer expansion is not provable.
+ */
+const loadServerGrading = () => import("../shared/ordinaryResponseGrading.mjs");
 
 function recalcPartCredit(record, partGrades) {
   const scorable = partGrades.filter((part) => part?.graded !== false);
@@ -91,6 +92,29 @@ function compactHistory(history, entry) {
   return [...(Array.isArray(history) ? history : []), entry].slice(-20);
 }
 
+/*
+ * A REPAIR GIVES BACK AN ATTEMPT, NEVER AN ATTEMPT NUMBER.
+ *
+ * A returned attempt lowers attemptCount (what is left to spend); the attempts
+ * made still happened. A record from before totalAttempts existed counts them
+ * in attemptCount alone, so lowering it lowered the number too: the next
+ * attempt reused the last one's number and evidence key, overwrote that
+ * event, the create trigger never fired, and the redone work never reached
+ * mastery (GR20). So every migrated record writes its number down, read as
+ * every grader reads it, as the browser's own correction
+ * (liveQuestionCorrection.js) already keeps it.
+ */
+const attemptNumberOf = (record) => normalizeStoredQuestionRecord(record).totalAttempts;
+
+/*
+ * A SAFE RESPONSE CONTROL (a free-text box made a choice) credits every
+ * complete part of a converted field, whatever was typed. Not re-marked by a
+ * server grader, by design (GR07): the old box was free text no grader could
+ * read reliably ("existing bad prose grading is credited"), the browser's live
+ * correction credits it the same way (liveQuestionCorrection.js), and the new
+ * choice's key is one of the old box's keys, so a server grader would read
+ * the typed text as before and take that credit away.
+ */
 function migrateResponseControlRecord(record = {}, change = {}, correctedAt) {
   const affected = new Set((change.affectedFieldIds || []).map(String));
   if (!affected.size || !Array.isArray(record.partGrades) || !record.partGrades.length) return record;
@@ -113,6 +137,7 @@ function migrateResponseControlRecord(record = {}, change = {}, correctedAt) {
     status: allCorrect ? "correct" : (wasExpired ? "attempted" : record.status),
     attemptCount: allCorrect ? Number(record.attemptCount || 0)
       : (wasExpired ? Math.max(0, Number(record.attemptCount || 0) - 1) : Number(record.attemptCount || 0)),
+    totalAttempts: attemptNumberOf(record),
     partialCredit: allCorrect ? 100 : Math.max(clamp(record.partialCredit), recalculated),
     bestPartialCredit: allCorrect ? 100 : Math.max(clamp(record.bestPartialCredit), recalculated),
     partGrades,
@@ -121,26 +146,33 @@ function migrateResponseControlRecord(record = {}, change = {}, correctedAt) {
       questionId: change.questionId,
       affectedFieldIds: [...affected],
       correctedAt,
-      preservedTotalAttempts: Number(record.totalAttempts || 0),
+      preservedTotalAttempts: attemptNumberOf(record),
       grantedRepairRetry: wasExpired && !allCorrect,
     }),
   };
 }
 
-function migrateMultiAnswerExpansion(record = {}, change = {}, correctedAt) {
+function migrateMultiAnswerExpansion(record = {}, change = {}, correctedAt, serverGrading = null) {
   const question = change.afterQuestion || {};
   if (!Array.isArray(question.answerFields) || !Array.isArray(record.partGrades) || !record.partGrades.length) {
     return { record, provable: false };
   }
+  // Marked by the server's own grader (loadServerGrading), or not at all.
+  if (typeof serverGrading?.gradeMultiAnswerResponse !== "function"
+    || serverGrading.serverGradingSupport?.(question)?.supported !== true) {
+    return { record, provable: false };
+  }
   const gradingKeys = new Set(change.gradingKeys || []);
-  const fields = new Map(question.answerFields.map((field) => [String(field.id), field]));
+  const fieldIds = new Set(question.answerFields.map((field) => String(field?.id)));
+  const marked = new Map(serverGrading.gradeMultiAnswerResponse(question, Object.fromEntries(record.partGrades
+    .map((part) => [String(part?.id || ""), String(part?.response ?? "")])))
+    .parts.map((part) => [String(part.id), part.isCorrect === true]));
   let improved = false;
   const partGrades = record.partGrades.map((part) => {
     const id = String(part?.id || "");
     const relevant = [...gradingKeys].some((key) => key.startsWith(`answerFields.${id}.`));
-    if (!relevant || !part?.isComplete || part?.isCorrect || !fields.has(id)) return part;
-    const accepted = fieldAccepts(fields.get(id), part.response);
-    if (accepted !== true) return part;
+    if (!relevant || !part?.isComplete || part?.isCorrect || !fieldIds.has(id)) return part;
+    if (marked.get(id) !== true) return part;
     improved = true;
     return { ...part, isCorrect: true, credit: 1, contentVersionRegraded: true };
   });
@@ -168,7 +200,7 @@ function migrateMultiAnswerExpansion(record = {}, change = {}, correctedAt) {
   };
 }
 
-function migrateGradingExpansionRecord(record = {}, change = {}, correctedAt) {
+function migrateGradingExpansionRecord(record = {}, change = {}, correctedAt, serverGrading = null) {
   if (!record || record.status === "unattempted" || record.status === "correct") return record;
   const response = parseStoredResponse(record);
   if (response) {
@@ -195,20 +227,21 @@ function migrateGradingExpansionRecord(record = {}, change = {}, correctedAt) {
         ...record,
         status: "attempted",
         attemptCount: Math.max(0, Number(record.attemptCount || 0) - 1),
+        totalAttempts: attemptNumberOf(record),
         contentVersionRegradeHistory: compactHistory(record.contentVersionRegradeHistory, {
           kind: "grading-expansion",
           questionId: change.questionId,
           correctedAt,
           previousBestPartialCredit: clamp(record.bestPartialCredit),
           newBestPartialCredit: clamp(record.bestPartialCredit),
-          preservedTotalAttempts: Number(record.totalAttempts || 0),
+          preservedTotalAttempts: attemptNumberOf(record),
           grantedRepairRetry: true,
         }),
       } : record;
     }
   }
 
-  const multipart = migrateMultiAnswerExpansion(record, change, correctedAt);
+  const multipart = migrateMultiAnswerExpansion(record, change, correctedAt, serverGrading);
   return multipart.provable ? multipart.record : record;
 }
 
@@ -219,19 +252,22 @@ function migrateSystemsWorkspaceUpgradeRecord(record = {}, change = {}, correcte
   // renderer requires the full substitution/elimination workflow. Historical
   // score and total-attempt evidence are preserved exactly; only an exhausted
   // student receives one returned attempt so the fixed workspace is usable.
+  // Nothing is re-marked, by design (GR07): the old ordered-pair answer is not
+  // work the restored workspace's grader can read.
   if (record.status !== "expired") return record;
 
   return {
     ...record,
     status: "attempted",
     attemptCount: Math.max(0, Number(record.attemptCount || 0) - 1),
+    totalAttempts: attemptNumberOf(record),
     contentVersionRegradeHistory: compactHistory(record.contentVersionRegradeHistory, {
       kind: "systems-workspace-upgrade",
       questionId: change.questionId,
       correctedAt,
       previousBestPartialCredit: clamp(record.bestPartialCredit),
       newBestPartialCredit: clamp(record.bestPartialCredit),
-      preservedTotalAttempts: Number(record.totalAttempts || 0),
+      preservedTotalAttempts: attemptNumberOf(record),
       grantedRepairRetry: true,
     }),
   };
@@ -240,6 +276,8 @@ function migrateTrackerForContentUpgrade({
   tracker = {},
   plan,
   correctedAt = new Date().toISOString(),
+  // ordinaryResponseGrading.mjs, from loadServerGrading (GR07).
+  serverGrading = null,
 } = {}) {
   if (!plan || !Array.isArray(plan.changes)) throw new Error("A content upgrade plan is required.");
   let changed = false;
@@ -256,7 +294,7 @@ function migrateTrackerForContentUpgrade({
     } else if (change.classification === "systemsWorkspaceUpgrade") {
       after = migrateSystemsWorkspaceUpgradeRecord(before, change, correctedAt);
     } else if (change.classification === "gradingExpansion") {
-      after = migrateGradingExpansionRecord(before, change, correctedAt);
+      after = migrateGradingExpansionRecord(before, change, correctedAt, serverGrading);
     }
     if (after !== before) {
       next[index] = after;
@@ -272,5 +310,6 @@ function migrateTrackerForContentUpgrade({
 
 module.exports = {
   dataModelingFitIsCorrect,
+  loadServerGrading,
   migrateTrackerForContentUpgrade,
 };

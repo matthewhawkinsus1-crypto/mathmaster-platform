@@ -61,6 +61,7 @@ import {
 import { buildRecoveryReplacementItems } from '../../../functions/shared/sectionRecoveryPlan.mjs';
 import { recoveryContextFor } from './recoveryFixture.js';
 import { ingestStudentSubmissions as ingestLikeTheServer } from './fakeServer.js';
+import { adminScreenHandlers } from './fakeAdminScreens.js';
 
 const iso = (value) => (value instanceof Timestamp ? value.toDate().toISOString() : value || null);
 const harness = (typeof window !== 'undefined' && (window.__mmHarness = window.__mmHarness || {})) || {};
@@ -852,6 +853,10 @@ const handlers = {
     return { success: true, applied: true, ignored: false, reportGeneration: generation, summarySchemaVersion };
   },
 };
+
+// The four administrator / integration screens the accessibility scenes open (fakeAdminScreens.js): a callable
+// this file implements itself is never replaced by them.
+Object.entries(adminScreenHandlers).forEach(([name, handler]) => { if (!handlers[name]) handlers[name] = handler; });
 
 export const getFunctions = () => ({ region: 'harness' });
 // `?server=1`: the harness runs server ingestion (fakeServer.js — the shared

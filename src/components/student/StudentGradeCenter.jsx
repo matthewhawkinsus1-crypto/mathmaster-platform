@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
+import WorkloadReceipt from './WorkloadReceipt.jsx';
 import { EmptyState } from '../../ui/primitives';
 import GradeSectionBreakdown from './GradeSectionBreakdown.jsx';
 import TestCycleGradeBreakdown from './TestCycleGradeBreakdown.jsx';
+import HiddenGradeMask from './HiddenGradeMask.jsx';
 import StudentGlobalNav, { STUDENT_DESTINATION } from './StudentGlobalNav.jsx';
 import BuildStamp from './BuildStamp.jsx';
 import { GRADE_STATUS, applyTodayToGradeActions, describeGradeMath, missingGradeWarning } from '../../platform/student/studentGradeCenterModel.js';
@@ -35,7 +37,6 @@ const TONE = {
   [GRADE_STATUS.MISSING]: { bg: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' },
   [GRADE_STATUS.PRACTICE_ONLY]: { bg: 'var(--mm-primary-subtle)', color: 'var(--mm-accent-text)' },
   [GRADE_STATUS.EXCUSED]: { bg: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
-  [GRADE_STATUS.REOPENED]: { bg: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)' },
   [GRADE_STATUS.LOCKED]: { bg: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
   [GRADE_STATUS.NOT_STARTED]: { bg: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
 };
@@ -73,7 +74,7 @@ function PeriodSummary({ courseLabel, periodLabel, summary, hidden, onToggleHidd
             {[courseLabel, periodLabel].filter(Boolean).join(' — ') || 'MathMaster'}
           </div>
           <div style={{ marginTop: 6, fontSize: 'clamp(calc(30 * var(--mm-px)), calc(9vw * var(--mm-text-scale, 1)), calc(44 * var(--mm-px)))', fontWeight: 1000, lineHeight: 1.05, color: 'var(--mm-primary-text)' }}>
-            {hidden ? '•••' : summary.score === null ? 'No graded work yet' : `${summary.score}%`}
+            {hidden ? <HiddenGradeMask dots="•••" /> : summary.score === null ? 'No graded work yet' : `${summary.score}%`}
           </div>
           <div style={{ marginTop: 4, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Current MathMaster grade</div>
           {/* D4 / NAV-2: the number leaves missing work out, and Classroom may
@@ -289,7 +290,7 @@ function GradeRow({ entry, hidden, onOpenResult, onPractice, onStart, today = nu
               null for anything the model refused to count, so this branch can
               never print 0% for pending or missing work.
             */}
-            {hidden ? '••' : entry.displayGrade === null ? '—' : `${entry.displayGrade}%`}
+            {hidden ? <HiddenGradeMask /> : entry.displayGrade === null ? '—' : `${entry.displayGrade}%`}
           </div>
           <span style={{ display: 'inline-block', marginTop: 4, padding: '4px 9px', borderRadius: 999, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, textTransform: 'uppercase', background: tone.bg, color: tone.color }}>
             {entry.statusLabel}
@@ -313,6 +314,7 @@ function GradeRow({ entry, hidden, onOpenResult, onPractice, onStart, today = nu
         <p style={{ margin: '10px 0 0', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text-muted)' }}>{entry.exclusionText}</p>
       )}
 
+      <WorkloadReceipt receipt={entry.workloadReceipt} showGrade={!hidden && entry.displayGrade !== null} />
       <GradeSectionBreakdown sections={entry.sections} shares={entry.sectionShares} hidden={hidden} compact spellExitTicket={spellExitTicket} />
       <TestCycleGradeBreakdown entry={entry} hidden={hidden} compact />
 
@@ -387,7 +389,7 @@ function PeriodGroup({ group, hidden, onOpenResult, onPractice, onStart, todayBy
           {group.period.label}
         </span>
         <span style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)' }}>
-          {hidden ? '••' : group.summary.score === null ? 'No grade yet' : `${group.summary.score}%`}
+          {hidden ? <HiddenGradeMask /> : group.summary.score === null ? 'No grade yet' : `${group.summary.score}%`}
           {' · '}
           {group.entries.length} assignment{group.entries.length === 1 ? '' : 's'}
         </span>

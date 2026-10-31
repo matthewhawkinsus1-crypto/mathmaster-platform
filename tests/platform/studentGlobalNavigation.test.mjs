@@ -87,11 +87,18 @@ test('My Math Path routes to the Assignments Center rather than exiting to Home'
   assert.match(mathPath, /current=\{STUDENT_DESTINATION\.MATH_PATH\}/);
 
   // The defect being fixed: a control labelled "Assignments" that called
-  // onExit, which returns the student to HOME. The exit control remains, and
-  // now says where it actually goes.
+  // onExit, which returns the student to HOME. The shared row has Home now, so
+  // the Path's own exit is drawn only where there is no shared row (MP08; what
+  // it says, and when, is pathOwnExitLabel's, tested in myMathPathLandmarks).
   const header = region(mathPath, 'aria-label="My Math Path navigation"', '</div>', 'My Math Path header');
   assert.doesNotMatch(header, /'Assignments'/, 'the exit button must not claim to be Assignments');
-  assert.match(header, /readOnly \? 'Back to student' : 'Home'/);
+  const ownExit = region(mathPath, 'const ownExitLabel = ', ';', 'own exit label');
+  assert.match(ownExit, /pathOwnExitLabel\(/);
+  assert.match(ownExit, /\breadOnly(?:,|\s*:\s*(?:Boolean\()?readOnly\b)/, 'the prop is passed through: a teacher reading a student\'s Path keeps "Back to student"');
+  assert.match(ownExit, /Boolean\(onNavigate\)/, 'it is the shared row\'s presence that retires the second Home');
+  assert.match(ownExit, /Boolean\(onExit\)/);
+  assert.match(header, /\{ownExitLabel && <button[^>]*onClick=\{onExit\}/);
+  assert.doesNotMatch(executableSource(header), />\s*Home\s*</, 'the Path\'s nav draws no literal second Home');
 
   const pathRender = region(app, '<MyMathPathApp', '/>', 'My Math Path render');
   assert.match(pathRender, /onNavigate=\{navigateStudent\}/);

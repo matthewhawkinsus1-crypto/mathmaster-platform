@@ -28,13 +28,14 @@
  *     server, never a time a browser sends — so it cannot be back-dated. The
  *     server requires the first full weekday after that moment (school time
  *     zone, midnight to midnight) to be over.
- *   * Holidays: the district calendar lives with the client
- *     (src/curriculum/calendars), which the server cannot load. A weekday the
- *     server counts may have been a holiday or a staff day, so retiring also
- *     needs the operator's explicit attestation that students used the new
- *     release for a full school day. The admin screen computes the earliest
- *     such day from the district calendar to help; the attestation is
- *     recorded with the gate's evidence in the admin audit log.
+ *   * Holidays: this gate counts weekdays. The district calendar is readable
+ *     on the server since TT17 (functions/shared/schoolYearCalendar.mjs), but
+ *     this gate does not read it, so a weekday it counts may have been a
+ *     holiday or a staff day. Retiring therefore also needs the operator's
+ *     explicit attestation that students used the new release for a full
+ *     school day. The admin screen computes the earliest such day from the
+ *     district calendar to help; the attestation is recorded with the gate's
+ *     evidence in the admin audit log.
  *   * Backfill: counted by the server itself, page by page, as one pass
  *     (studentAssignmentOverrideStore.mjs runOverrideMigration): a pass is
  *     complete only when every page from the first ran in order, and its

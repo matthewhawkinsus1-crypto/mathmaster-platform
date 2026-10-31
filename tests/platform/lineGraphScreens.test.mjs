@@ -158,7 +158,21 @@ test('a question-set round is never "held for a Second Chance": its line comes a
   assert.equal(roundSolutionState({ room: revealed, roundIndex: 0, solution: { available: true, solutionReview: { headline: 'h' }, lineGraph: {} } }), SOLUTION_STATE.READY);
   // A bank round still waits for a Second Chance replay.
   assert.equal(roundSolutionState({ room: { ...closed, challengeMode: 'standard' }, roundIndex: 0 }), SOLUTION_STATE.HELD);
-  assert.equal(roundWaitingOnExtendedTime({ room: { challengeMode: LINE_GRAPH_MODE_ID.SPRINT, extendedTimeInPlay: true }, locked: true, joinedCount: 3, answeredCount: 1 }), false);
+});
+
+test('past the buzzer, a Classic or Sprint round waiting on extra time says "still finishing"; a Rush never waits', () => {
+  // Extra time after the buzzer (liveChallengeAccommodations.mjs): the round
+  // is held for a student finishing their set, and the screens say only that
+  // someone is — never who. A Rush (and Graph Feature Rush) has no extra time.
+  const held = (challengeMode) => roundWaitingOnExtendedTime({ room: { challengeMode, extendedTimeInPlay: true }, locked: true, joinedCount: 3, answeredCount: 1 });
+  assert.equal(held(LINE_GRAPH_MODE_ID.CLASSIC), true);
+  assert.equal(held(LINE_GRAPH_MODE_ID.SPRINT), true);
+  assert.equal(held(LINE_GRAPH_MODE_ID.RUSH), false);
+  assert.equal(held(RUSH_MODE_ID), false);
+  // Not before the buzzer, not when nobody has extra time, not once everyone has finished.
+  assert.equal(roundWaitingOnExtendedTime({ room: { challengeMode: LINE_GRAPH_MODE_ID.SPRINT, extendedTimeInPlay: true }, locked: false, joinedCount: 3, answeredCount: 1 }), false);
+  assert.equal(roundWaitingOnExtendedTime({ room: { challengeMode: LINE_GRAPH_MODE_ID.SPRINT, extendedTimeInPlay: false }, locked: true, joinedCount: 3, answeredCount: 1 }), false);
+  assert.equal(roundWaitingOnExtendedTime({ room: { challengeMode: LINE_GRAPH_MODE_ID.SPRINT, extendedTimeInPlay: true }, locked: true, joinedCount: 3, answeredCount: 3 }), false);
 });
 
 test('Play Again replays a Graph the Line room with every one of its settings', () => {
@@ -206,7 +220,7 @@ test('the line round: refs at the input gate, one clock anchor, a stored queue, 
   assert.match(round, /useEffect\(\(\) => \{\n\s+if \(finished\) flushRef\.current\(\);\n\s+\}, \[finished\]\);/, 'a finished set goes at once: the round may close early');
   const failure = region(round, '} catch (error) {\n      if (!mountedRef.current) return;\n      const code', '} finally {', 'send failure');
   assert.match(failure, /if \(isFinalRefusal\(error\) \|\| timeIsUp\) \{[\s\S]*dropQueue\(/);
-  assert.match(failure, /rushRefusalIsTimeUp\(code, timing\.endMono - performance\.now\(\)\)/);
+  assert.match(failure, /rushRefusalIsTimeUp\(code, timing\.endMono - performance\.now\(\), error\?\.details\?\.reason\)/);
   assert.match(failure, /flushTimerRef\.current = window\.setTimeout\(\(\) => flushRef\.current\(\), retryDelayRef\.current\)/, 'anything else is retried');
   // Skip is a Sprint's and a Rush's; a Classic line is worked until right or shown.
   assert.match(round, /const canSkip = format !== LINE_GRAPH_FORMAT\.CLASSIC;/);
@@ -248,6 +262,25 @@ test('the canvas floats its labels and badge where the model places them, and dr
   assert.match(svg, /onFocus=\{\(\) => setCursorVisible\(drawing && lastModality === 'keyboard'\)\}/, 'a keyboard student sees it on arrival');
   const css = read('../../src/index.css');
   assert.match(region(css, 'body :is(', '}', 'the global focus ring'), /\):not\(\[data-focus-ring="container"\]\):not\(\[data-focus-ring="own"\]\):focus-visible \{/);
+});
+
+// A new item resets the keyboard cursor, a held point and what was announced.
+// As a passive effect that reset ran a moment AFTER the commit, so an arrow
+// pressed in that moment was moved and announced by its handler and then undone
+// by the late effect: the first key on a new item said nothing and moved
+// nothing. The Rush graph had the same race (CI06, graphFeatureRushScreens
+// .test.mjs). A layout effect has run before the browser can deliver any key.
+test('the canvas resets its cursor, held point and announcement before a key can reach the new item', () => {
+  const canvas = executableSource(read('../../src/components/liveChallenge/LineGraphCanvas.jsx'));
+  const reset = region(canvas, 'useLayoutEffect(() => {', '[resetKey, view]);', 'the new-item reset');
+  assert.match(reset, /pointerRef\.current = null;/, 'a press still held from the last item is let go');
+  assert.match(reset, /setDraft\(emptyDraft\(\)\);/, 'the grid starts empty');
+  assert.match(reset, /setCursor\(initialLineCursor\(view\)\);/, 'the cursor goes back to its start');
+  assert.match(reset, /setAnnouncement\(''\);/, 'what was announced is cleared');
+  assert.match(canvas, /import \{[^}]*\buseLayoutEffect\b[^}]*\} from 'react';/);
+  // That is the only place the cursor goes back to its start: a passive effect
+  // doing it as well would run late and undo a key.
+  assert.equal((canvas.match(/setCursor\(initialLineCursor\(view\)\)/g) || []).length, 1, 'no passive effect resets the cursor');
 });
 
 /* ------------------------------ the teacher ------------------------------ */
@@ -344,8 +377,13 @@ test('the server: the finished flag on the public row, and a shared line capture
   const server = read('../../functions/index.js');
   const submit = region(server, 'exports.submitLineGraphAttempts = onCall', '\nexports.', 'line submit');
   const publicWrite = region(submit, 'transaction.set(roomRef.collection("players")', '}, { merge: true });', 'public row');
-  assert.match(publicWrite, /rushRoundFinished: applied\.state\.finished === true,/);
-  assert.doesNotMatch(publicWrite, /submissionReceipts|studentId|answeredRound/);
+  // The race's own state: work a student does in extra time after the buzzer
+  // never moves their public row (it would name them, and it is not the race).
+  assert.match(publicWrite, /rushRoundCompleted: applied\.raceState\.questionsCorrect,/);
+  assert.match(publicWrite, /rushRoundFinished: applied\.raceState\.finished === true,/);
+  assert.doesNotMatch(publicWrite, /submissionReceipts|studentId|answeredRound|extraTime/);
+  assert.match(submit, /if \(raceRecorded > 0\) \{\s*transaction\.set\(roomRef\.collection\("players"\)/, 'a batch made only in extra time writes no public row');
+  assert.match(submit, /\.\.\.\(raceRecorded > 0 \? \{\s*submissionReceipts: applied\.receipts,/, 'the race\'s receipts change only with race attempts');
   const planner = region(server, 'const LINE_GRAPH_PLANNER = Object.freeze({', '\n});', 'line planner');
   assert.match(planner, /const sharedLineKeys = lineGraphSharesRounds\(config\)/);
   assert.match(planner, /privateFields: \{ lineGraph: \{ seed, config, generatorVersion, \.\.\.\(sharedLineKeys \? \{ sharedLineKeys \} : \{\}\) \} \}/);

@@ -8,8 +8,8 @@
  *  - A closed question's opener was disabled, so a student could not enlarge
  *    their own graded graph to review it. It stays enabled for review; the
  *    grading transition still closes an open Work View, and what Work View
- *    shows of a closed question is exactly the closed work area (inert, no
- *    Submit / Reset / Undo, Help says it is closed).
+ *    shows of a closed question is exactly the closed work area (read-only
+ *    since AX01, no Submit / Reset / Undo, Help says it is closed).
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -64,7 +64,10 @@ test('TOOL-13: a closed question\'s opener stays for review; closing still close
   assert.match(shell, /forceClosed=\{locked\}/);
   assert.match(shell, /reviewWhenClosed/);
   assert.match(engine, /const workAreaClosed = !moduleFailed && Boolean\(locked \|\|/);
-  assert.match(engine, /inert=\{workAreaClosed \? true : undefined\}/);
+  // Closed in Work View as on the page: read-only (AX01), so the student can
+  // read the enlarged graph and change nothing (readOnlyWorkArea.test.mjs).
+  assert.match(engine, /const workAreaReadOnly = workAreaClosed && !workAreaInert;/);
+  assert.match(engine, /data-work-read-only=\{workAreaReadOnly \? 'true' : undefined\}/);
   // On a closed question the Work View Help is only "this question is closed".
   assert.match(engine, /: locked\s*\?\s*\{ label: 'Help', text: 'This question is closed\. Your work stays in place when you open or close Work View\.'/);
 });

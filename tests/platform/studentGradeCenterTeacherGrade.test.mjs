@@ -98,7 +98,8 @@ test('reopening cannot reopen a teacher-set grade', () => {
   });
   const entry = findGradeCenterEntry(center, 'lesson-4');
   assert.equal(entry.reopened, true, 'fixture no longer exercises the case');
-  assert.notEqual(entry.status, GRADE_STATUS.REOPENED);
+  // A student is never told "Reopened" (NV08); the teacher's grade decides the row.
+  assert.doesNotMatch(String(entry.statusLabel), /reopen/i);
   assert.equal(entry.actions.start, null);
   assert.equal(entryCanStillRise(entry), false);
 });

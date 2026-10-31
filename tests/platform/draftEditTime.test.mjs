@@ -650,7 +650,8 @@ test('a composed question\'s step reports an edit only when the student touched 
 test('App tells the sync what the server holds, and reads again when the device is back', () => {
   const app = stripComments(read('src/App.jsx'));
   const effect = app.slice(app.indexOf('const sync = createWorkspaceDraftSync({'), app.indexOf('sync.stop();'));
-  assert.match(effect, /const entries = readWorkspaceDraftEntries\(stored\);[\s\S]*?restoreQuestionDrafts\(restorable\b[\s\S]*?sync\.noteServerCopy\(entries\);/);
+  // (With the delivery pins it read, RT15: tests/platform/familyServerDeliveryPin.test.mjs.)
+  assert.match(effect, /const entries = readWorkspaceDraftEntries\(stored\);[\s\S]*?restoreQuestionDrafts\(restorable\b[\s\S]*?sync\.noteServerCopy\(entries, \{ deliveryPins \}\);/);
   assert.doesNotMatch(effect, /if \(cancelled \|\| !stored\) return;/, 'no server document is still an answer: the server holds nothing');
   assert.match(effect, /window\.addEventListener\('online', readServerCopy\);/);
   assert.match(effect, /window\.removeEventListener\('online', readServerCopy\);/);

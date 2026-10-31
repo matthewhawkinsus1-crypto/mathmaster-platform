@@ -90,7 +90,14 @@ export const questionKeyFor = (evidence = {}) => {
  * helpers: { canonicalAlignmentKey, displayAlignmentKey, mathematicalIndependence, opaqueId }
  */
 export const masteryEventFacts = (evidence = {}, helpers, { eventId = null } = {}) => {
-  const keys = evidence.masteryEvidenceKeys?.length ? evidence.masteryEvidenceKeys : evidence.alignmentKeys || [];
+  // Work from an assignment the teacher marked "not for mastery" moves no
+  // skill (MP25): the assignment record has always skipped it
+  // (masteryEngine.js collectStudentEvidence), and the server's profile, which
+  // the Path reads too, now does the same. Events stored before carry no flag
+  // and count as they did.
+  const masteryEligible = evidence.source?.masteryEligible !== false;
+  const keys = !masteryEligible ? []
+    : (evidence.masteryEvidenceKeys?.length ? evidence.masteryEvidenceKeys : evidence.alignmentKeys || []);
   const alignmentKeys = [...new Set(keys.map(helpers.canonicalAlignmentKey).filter((key) => key.startsWith('texas:')))];
   const roleWeight = ROLE_WEIGHT[evidence.source?.activityRole] || 1;
   const modified = Boolean(evidence.supportUsage?.modified) || Boolean(evidence.supportUsage?.modifications?.length);

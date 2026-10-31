@@ -30,7 +30,7 @@ import { attemptWasIndependent } from '../../functions/shared/sectionRecoverySer
 import { classifyAttemptEvidence } from '../../src/platform/mastery/evidenceClassification.js';
 import { attemptSupportUsageFrom, readSupportUse, rememberSupportUse, restoredSupportUse } from '../../src/platform/supports/supportUseMemory.js';
 import { resolveFamilyQuestionInstance } from '../../functions/shared/questionFamilyInstance.mjs';
-import { genericMissCheck, GENERIC_MISS_MESSAGES } from '../../src/platform/supports/feedback/genericMissChecks.js';
+import { genericMissCheck, GENERIC_MISS_MESSAGES, OPEN_ITEM_CHECKS } from '../../src/platform/supports/feedback/genericMissChecks.js';
 import { diagnoseMiss, displayFamilyValues, expectedForPart, partIsChoice } from '../../src/platform/supports/feedback/missDiagnosis.js';
 import { closedAttemptText, feedbackOpenForItem, hintOfferedAfterMiss, missFeedback } from '../../src/platform/supports/feedback/attemptFeedbackPlan.js';
 import { partialCreditBreakdown } from '../../src/platform/supports/feedback/partialCreditBreakdown.js';
@@ -180,9 +180,11 @@ test('2. while attempts are left, a miss a generic check explains looks exactly 
   // computed: 6/8 is wrong only where lowest terms were asked for.
   const missed = (response) => ({ graded: true, isCorrect: false, parts: [{ id: 'a', response, graded: true, isComplete: true, isCorrect: false }] });
   const keys = [
-    { answer: '-7', misses: { 'sign-flipped': '7', reciprocal: '-1/7', none: '5' } },
+    { answer: '-7', misses: { 'sign-flipped': '7', reciprocal: '-1/7', 'point-for-value': '(0, -7)', none: '5' } },
     { answer: '3/4', misses: { 'not-simplified': '6/8', 'sign-flipped': '-3/4', reciprocal: '4/3', none: '2' } },
-    { answer: '(2, 5)', misses: { 'coordinates-swapped': '(5, 2)', 'sign-flipped': '(-2, -5)', none: '(1, 1)' } },
+    { answer: '(2, 5)', misses: { 'coordinates-swapped': '(5, 2)', 'sign-flipped': '(-2, -5)', 'value-for-point': '2', none: '(1, 1)' } },
+    { answer: '(-\\infty, -3]', misses: { 'interval-notation-right-value': 'x \\le -3', 'interval-notation-asked': 'x \\le -4', none: '(-\\infty, -4]' } },
+    { answer: 'x \\le -3', misses: { 'inequality-right-value': '(-\\infty, -3]', 'inequality-asked': '(-\\infty, -4]', none: 'x \\le -4' } },
   ];
   const fired = new Set();
   for (const attemptFeedback of [undefined, ['Look again at your work.', 'Try a different approach.']]) {
@@ -199,7 +201,19 @@ test('2. while attempts are left, a miss a generic check explains looks exactly 
           return [check, JSON.stringify({ diagnosis, shown: missFeedback({ question, attemptNumber, diagnosis, parts: grading.parts }) })];
         });
         const ordinary = shown.find(([check]) => check === 'none')[1];
-        shown.forEach(([check, output]) => assert.equal(output, ordinary, `${answer}, attempt ${attemptNumber}, ${attemptFeedback ? 'authored' : 'no authored'} feedback: ${check} shows what an ordinary miss shows`));
+        shown.forEach(([check, output]) => {
+          const context = `${answer}, attempt ${attemptNumber}, ${attemptFeedback ? 'authored' : 'no authored'} feedback: ${check}`;
+          // The exceptions (FB23, the owner 2026-10-23; lowestTermsWhileOpen
+          // .test.mjs; FB22): "not in lowest terms" and the other form checks
+          // name the form a field asks for, no move toward another value, so
+          // they are said while the item is open.
+          if (OPEN_ITEM_CHECKS.includes(check)) {
+            assert.notEqual(output, ordinary, `${context} is said while open`);
+            assert.equal(JSON.parse(output).shown.message, GENERIC_MISS_MESSAGES[check], context);
+            return;
+          }
+          assert.equal(output, ordinary, `${context} shows what an ordinary miss shows`);
+        });
       }
     }
   }
@@ -457,10 +471,10 @@ test('5. what counts as help: a hint, a worked example, a problem-specific back-
   assert.match(usage, /workedExampleUsed,/);
   // A miss message on screen makes the next attempt feedback-assisted.
   assert.match(engine, /useEffect\(\(\) => \{\s*if \(missDetail\?\.message\) setFeedbackAssisted\(true\);\s*\}, \[missDetail\]\);/);
-  const reveal = region(engine, 'const revealNextHint = () => {', '};', 'revealing a hint');
+  const reveal = region(engine, 'const revealNextHint = (place) => {', '};', 'revealing a hint');
   assert.match(reveal, /recordHintUse\(\);/, 'every hint revealed is recorded');
   assert.match(engine, /const recordHintUse = \(\) => setHintUsed\(true\);/);
-  const similar = region(engine, 'const openSimilarExample = () => {', '};', 'opening a worked example');
+  const similar = region(engine, 'const openSimilarExample = (place) => {', '};', 'opening a worked example');
   assert.match(similar, /setWorkedExampleUsed\(true\);/);
 });
 

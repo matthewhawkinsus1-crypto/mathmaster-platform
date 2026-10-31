@@ -29,9 +29,12 @@ import {
   REWARD_SOURCE,
   buildRewardGrant,
   getRewardDefinition,
+  grantExpiryTime,
+  grantsDueToExpire,
   pickGrantToSpend,
   planGrantTransition,
 } from './rewardGrants.mjs';
+import { persistExpiredGrants } from './rewardGrantStore.mjs';
 import { normalizeQuestionRecord } from './attemptPolicy.mjs';
 import { STUDENT_ASSIGNMENT_OVERRIDES_COLLECTION, studentAssignmentOverrideId } from './studentAssignmentOverrides.mjs';
 import { explainStudentChallengeRewards } from './rewardDiagnostics.mjs';
@@ -290,6 +293,16 @@ export async function redeemPracticePass(db, {
       });
       transaction.set(db.collection(COLLECTIONS.GRANTS).doc(chosen.grantId), { ...plan.next, updatedAt: FieldValue.serverTimestamp() });
       transaction.set(redemptionRef, redemption);
+      // LAZY EXPIRY (LC23): any other pass this student holds that is past its
+      // end date is recorded as expired in this same commit. It already read as
+      // expired everywhere; this makes the stored status say so. A use refused
+      // above writes nothing, so it settles nothing.
+      grantsDueToExpire(held, nowMs).forEach((stale) => {
+        const expiry = planGrantTransition(stale, { to: REWARD_GRANT_STATUS.EXPIRED, at: grantExpiryTime(stale) }, nowMs);
+        if (expiry.outcome === GRANT_OUTCOME.APPLY) {
+          transaction.set(db.collection(COLLECTIONS.GRANTS).doc(stale.grantId), { ...expiry.next, updatedAt: FieldValue.serverTimestamp() });
+        }
+      });
       return {
         outcome: 'redeemed', replay: false, redemptionId, redemption, grantId: chosen.grantId, account: accountSnap.exists ? account : null,
       };
@@ -587,9 +600,13 @@ const plainTime = (value) => {
  * class record BEFORE anything about the student is read. Bounded: the
  * student's own grants and waivers (a handful per term), their latest 30
  * Class Points entries, and their last six Live Challenges in this class with
- * those matches' award records.
+ * those matches' award records. It is a read that also settles the student's
+ * grants that are past their end date (lazy expiry, rewardGrants.mjs); that
+ * housekeeping never fails it.
  */
-export async function loadStudentRewardsForTeacher(db, { studentId, classId, teacher = {} } = {}) {
+export async function loadStudentRewardsForTeacher(db, {
+  studentId, classId, teacher = {}, nowMs = Date.now(),
+} = {}) {
   const student = cleanText(studentId, 64);
   const cls = cleanText(classId, 120);
   if (!student || !cls) fail('invalid-argument', 'Choose a student and a class.');
@@ -627,9 +644,24 @@ export async function loadStudentRewardsForTeacher(db, { studentId, classId, tea
   const jobSnaps = jobRefs.length ? await db.getAll(...jobRefs) : [];
   const jobsByRoom = new Map(jobSnaps.filter((entry) => entry.exists).map((entry) => [entry.id, entry.data()]));
 
+  // LAZY EXPIRY (LC23): this read holds the student's grants, so the ones past
+  // their end date are recorded as expired while it is here. Best effort, never
+  // a reason for the read to fail; what comes back says so too, so the first
+  // view and the next one agree.
+  const settled = new Map((await persistExpiredGrants(
+    db,
+    grantsSnap.docs.map((entry) => ({ grantId: entry.id, ...entry.data() })),
+    { nowMs },
+  )).map((grant) => [grant.grantId, grant]));
+
   const plain = (entry) => {
     const data = entry.data() || {};
     return { id: entry.id, ...data, createdAt: plainTime(data.createdAt), updatedAt: plainTime(data.updatedAt) };
+  };
+  const plainGrant = (entry) => {
+    const grant = plain(entry);
+    const next = settled.get(entry.id);
+    return next ? { ...grant, status: next.status, expiredAt: next.expiredAt, history: next.history } : grant;
   };
   const account = accountSnap.exists ? accountSnap.data() : {};
   return {
@@ -640,7 +672,7 @@ export async function loadStudentRewardsForTeacher(db, { studentId, classId, tea
       lifetimeEarned: Number(account.lifetimeEarned) || 0,
       lifetimeSpent: Number(account.lifetimeSpent) || 0,
     },
-    grants: grantsSnap.docs.map(plain),
+    grants: grantsSnap.docs.map(plainGrant),
     redemptions: redemptionsSnap.docs.map(plain),
     transactions: transactionsSnap.docs.map(plain),
     challenges: matches.map((match) => explainStudentChallengeRewards({

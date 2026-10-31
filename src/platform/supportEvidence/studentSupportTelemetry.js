@@ -40,10 +40,15 @@ const TIMED_ROLES = new Set(['warmup', 'dol', 'quiz', 'test']);
 // Recorded per question when the tool is on screen, not at launch. The
 // language tools are recorded only where the item or tool actually has the
 // resource behind them (src/platform/language/supportToolsModel.js) — a
-// language on the profile is not translated content on the screen.
+// language on the profile is not translated content on the screen. Keyboard
+// access is "provided" when a graph shows "Connect my points" on an exit
+// ticket, quiz or test because of it (platform/graph/connectPointsPolicy.js).
+// The graph read-out is provided only where a graph was read out in full
+// (src/platform/supports/graphReadOut.js), never because an assignment opened.
 const RECORDED_IN_QUESTION = new Set([
   'text-to-speech', 'calculator', 'calculator-override-computation',
   'translation', 'glossary-lookup', 'chunked-directions', 'sentence-frames',
+  'keyboard-access', 'graph-read-out',
 ]);
 // Not a platform fact in an assignment.
 const NOT_RECORDED_AT_LAUNCH = new Set(['extra-attempts']);
@@ -95,6 +100,7 @@ const reducedWorkloadRecord = ({ workload, plan }) => {
   }
   const summary = workload.workload;
   if (!summary) return null;
+  if (summary.kind === 'retroactive-grade-correction') return null;
   if (workload.status === WORKLOAD_STATUS.APPLIED) {
     return {
       supportId: REDUCED_WORKLOAD_SUPPORT_ID,

@@ -22,6 +22,10 @@
 //                            message recommends
 //   preview-fresh            Teacher Preview, select-then-place instead of drag,
 //                            including a wrong destination first
+//   student-keyboard         the same draft worked by keys alone: the line beside
+//                            the token names Tab and Enter, Tab reaches the token
+//                            and Enter picks it up, Tab reaches x in Equation 2
+//                            and Enter puts it there (AX32)
 //   preview-old-draft        the broken draft under the teacher-preview key
 //
 // Exit code 1 on any finding. Screenshots and a report of every observed value
@@ -106,12 +110,30 @@ const useIsolatedFormAsToken = async (page) => {
   await page.locator('.mathmaster-systems-substitution-token').waitFor({ timeout: 5000 });
 };
 
-const equationTwoVariable = (page, variable) => page.locator(`[aria-label^="Equation 2: choose where"] [data-variable="${variable}"]`);
+const TOKEN = '.mathmaster-systems-substitution-token';
+const equationTwoSelector = (variable) => `[aria-label^="Equation 2: choose where"] [data-variable="${variable}"]`;
+const equationTwoVariable = (page, variable) => page.locator(equationTwoSelector(variable));
+
+// Tab until the element has focus. If 80 presses do not reach it, that is a finding.
+const tabTo = async (page, selector) => {
+  for (let guard = 0; guard < 80; guard += 1) {
+    if (await page.evaluate((query) => document.activeElement === document.querySelector(query), selector)) return true;
+    await page.keyboard.press('Tab');
+  }
+  return false;
+};
 
 const dropTokenOnEquationTwoX = async (page, how) => {
-  const token = page.locator('.mathmaster-systems-substitution-token');
+  const token = page.locator(TOKEN);
   if (how === 'drag') {
     await token.dragTo(equationTwoVariable(page, 'x'));
+  } else if (how === 'keys') {
+    // The two steps of a tap, from the keyboard: the token and x are both buttons.
+    for (const [selector, what] of [[TOKEN, 'the token'], [equationTwoSelector('x'), 'x in Equation 2']]) {
+      if (!(await tabTo(page, selector))) note('student-keyboard', `${what} is not reached with Tab`);
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(150);
+    }
   } else {
     await token.click();
     await equationTwoVariable(page, 'x').click();
@@ -335,6 +357,20 @@ await assertTokenIsPlainMath(page, 'preview-old-draft');
 await dropTokenOnEquationTwoX(page, 'drag');
 await assertStepAlgebraOpenedForY(page, 'preview-old-draft');
 await shoot(page, 'preview-old-draft');
+
+// 6b. The student's draft again, worked by keys alone (AX32). The line beside the
+//     token names Tab and Enter; the keys then do what it says, and the solve for y
+//     opens exactly as it does after a drag.
+await openFresh(page, { scope: 'student', seed: BROKEN_DRAFT });
+{
+  const direction = (await page.locator('.mathmaster-systems-substitution-direction').allInnerTexts()).join(' ');
+  if (!/Drag the expression, or select it and then select a variable \(click or tap, or Tab to each one and press Enter\)\./.test(direction)) {
+    note('student-keyboard', `the line beside the token does not name the keys: ${direction}`);
+  }
+}
+await dropTokenOnEquationTwoX(page, 'keys');
+await assertStepAlgebraOpenedForY(page, 'student-keyboard');
+await shoot(page, 'student-keyboard');
 
 // 7. PR #336 direct-manipulation acceptance: prove the exact screen the
 //    teacher requested, then actually perform the distribution and open the

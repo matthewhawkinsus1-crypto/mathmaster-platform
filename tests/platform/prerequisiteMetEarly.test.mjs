@@ -315,3 +315,24 @@ test('sectionAccessForStudent: one binding gives every call the student\'s own g
   assert.equal(getSectionAccessState(args).isOpen, false, 'the plain call (no grades) still reads scheduled');
   assert.equal(bound({ ...args, classworkGradesByAssignment: UNMET }).isOpen, false, 'a caller\'s own grades win');
 });
+
+// RT17: a met prerequisite opens a lesson early, never a quiz or a test: an
+// assessment opens at its release date for the whole class.
+test('a met prerequisite does not open a quiz or test before its release date', () => {
+  const quizSections = [{ id: 'quiz', role: 'quiz', questions: [{ type: 'algebra', prompt: 'Q', equationLatex: 'x=3', activityRole: 'quiz' }] }];
+  for (const assessment of [
+    dependent({ assignmentType: 'quiz' }),
+    dependent({ sections: quizSections }),
+    dependent({ assignmentType: 'test' }),
+  ]) {
+    const before = prerequisiteAccess({ assignment: assessment, classworkGradesByAssignment: MET, nowValue: NOW });
+    assert.equal(before.open, false);
+    assert.equal(before.reason, 'scheduled', 'waiting for its date, not for the prerequisite');
+    const after = prerequisiteAccess({ assignment: assessment, classworkGradesByAssignment: MET, nowValue: Date.parse(RELEASE) + 60_000 });
+    assert.equal(after.open, true);
+    // Unmet before release still says what is missing.
+    assert.equal(prerequisiteAccess({ assignment: assessment, classworkGradesByAssignment: UNMET, nowValue: NOW }).reason, 'prerequisiteRequired');
+  }
+  // A lesson still opens early.
+  assert.equal(prerequisiteAccess({ assignment: dependent(), classworkGradesByAssignment: MET, nowValue: NOW }).reason, 'prerequisiteMet');
+});

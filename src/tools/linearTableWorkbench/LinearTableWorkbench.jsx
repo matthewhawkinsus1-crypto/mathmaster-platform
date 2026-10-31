@@ -18,6 +18,8 @@ import { resolveLinearTableWorkbenchMode } from '../../../functions/shared/serve
 import { FRACTION_ENTRY_PROPS } from '../../platform/interaction/numberEntry.js';
 import { SubmitText } from '../shared/ToolRuntimeContext';
 import { questionAxisLabels } from '../shared/planeAxisTitles.js';
+import { givenXyTable } from '../shared/toolTableReading.js';
+import { PublishFigureReading } from '../../platform/language/figureReadings.js';
 import { intervalMissMessage } from './intervalFeedback.js';
 
 const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
@@ -248,13 +250,14 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
   return (
     <ToolShell
       title="Linear Table Workbench"
-      subtitle="Select two rows to build an interval, record what you calculate, and repeat until you can prove whether the rate of change is constant."
+      subtitle="Use a table to decide whether the rate of change is constant, and show how you know."
       badge="Rate-of-change evidence"
     >
       {/* One list, each step marked (student pass 3, W6-4). Control steps
           name a control and what it unlocks, and stay on an exit ticket,
           quiz or test; the plain strings are the method and go there:
-          - "Tap two rows…": the row buttons. Control.
+          - "Select two rows…": the row buttons, by tap, click or Tab and Enter
+            (AX32). Control.
           - "Enter Δx, Δy and Δy/Δx…, then record it": the three boxes and
             Record, by their on-screen labels. Control.
           - "Work out each value yourself…": how the values are found. Method.
@@ -266,7 +269,7 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
         question={questionData}
         task="Select pairs of rows, compute Δx, Δy, and the rate for each interval you record, then classify the table."
         steps={[
-          controlStep('Tap two rows to form an interval.'),
+          controlStep('Select two rows to form an interval (click or tap, or Tab to a row and press Enter).'),
           controlStep('Enter Δx, Δy and Δy/Δx for that interval in the boxes below, then record it.'),
           'Work out each value yourself from the two rows, then repeat with a different pair of rows.',
           controlStep(`Record ${requiredComparisons} different intervals; the questions below the table open after that.`),
@@ -280,6 +283,9 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
       />
 
       <Panel title={`Table (${rows.length} rows)`}>
+        {/* Read aloud reads the rows as they are drawn below (AX10; the
+            walkthrough's DOL #3 review PR 3 heard none of them). */}
+        <PublishFigureReading entry={{ kind: 'table', label: '', table: givenXyTable(rows.map((row) => [formatCoord(row.x), formatCoord(row.y)]), columnLabels) }} />
         {columnLabels ? (
           <p data-table-quantities="true" style={{ margin: '0 0 10px', color: 'var(--mm-text)', lineHeight: 1.5 }}>
             Each row is (x, y).
@@ -343,7 +349,7 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
           {alreadyRecorded ? <p style={{ color: 'var(--mm-warning-text)', fontSize: 'calc(13 * var(--mm-px))' }}>That row pair is already recorded elsewhere. Keep this interval unique or edit the existing one.</p> : null}
         </Panel>
       ) : selectedRows.length === 1 ? (
-        <p style={{ color: 'var(--mm-text-muted)' }}>Row {selectedRows[0] + 1} selected. Tap a second row to form an interval.</p>
+        <p style={{ color: 'var(--mm-text-muted)' }}>Row {selectedRows[0] + 1} selected. Select a second row to form an interval (click or tap, or Tab to it and press Enter).</p>
       ) : null}
 
       <Panel title={`Recorded intervals (${evidence.length}, need ${requiredComparisons})`}>
@@ -399,7 +405,11 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
 
       {mode === 'repairValue' ? (
         <Panel title="Repair the table">
-          <p style={{ marginTop: 0, color: 'var(--mm-text)' }}>One row breaks the pattern. Tap the offending row above, then enter its corrected y-value.</p>
+          {/* The row buttons above pick rows for an interval; they do not choose the
+              row to repair. That is the list below, which Tab reaches and the
+              arrow keys change, so the direction names the list (AX32: it used
+              to say "Tap the offending row above", which did nothing here). */}
+          <p style={{ marginTop: 0, color: 'var(--mm-text)' }}>One row breaks the pattern. Find it in the table above, choose it in the Offending row list, then enter its corrected y-value.</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: 10 }}>
             <label>
               <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>Offending row</span>

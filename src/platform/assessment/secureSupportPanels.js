@@ -57,6 +57,29 @@ export const secureVocabularyEntries = (glossary, termIds = [], { language = nul
 };
 
 /**
+ * A secure tool item's own words, as LABELS (TS07): the term, and its Spanish
+ * term for a Spanish-language student, so a student can read the tool's
+ * controls ("distribute", "boundary", "shade"). Never the definition: the
+ * tool's words define its method, which a test must not hand over. Never the
+ * example either.
+ *
+ * @param glossary  loadMathGlossary()'s result (id → entry)
+ * @param termIds   the tool's words, from the support model (`labelTermIds`)
+ */
+export const secureVocabularyLabels = (glossary, termIds = [], { language = null } = {}) => {
+  const spanish = baseLanguage(language) === 'es';
+  return (Array.isArray(termIds) ? termIds : [])
+    .filter((id) => typeof id === 'string' && glossary && Object.prototype.hasOwnProperty.call(glossary, id))
+    .map((id) => [id, glossary[id]])
+    .filter(([, entry]) => clean(entry?.term))
+    .map(([id, entry]) => ({
+      id,
+      term: entry.term,
+      translation: spanish && clean(entry.es?.term) ? { language: 'es', term: entry.es.term } : null,
+    }));
+};
+
+/**
  * What the Translate panel shows, from a resolved translation
  * (translationProviders.js resolveTranslation), or null when there is nothing
  * to show.

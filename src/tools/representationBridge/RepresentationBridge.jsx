@@ -348,7 +348,8 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
       {/* One list, each step marked (student pass 3, W6-4). The two control
           steps say how the table is worked and that the panels open in
           order, and stay on an exit ticket, quiz or test (without them
-          nothing says rows are tapped in pairs). The plain strings are the
+          nothing says rows are picked in pairs, by tap, click or Tab and
+          Enter: AX32). The plain strings are the
           method: how m, b and c are found, what to plot, what to connect. The
           note is about the highlight buttons, which are method too, and goes
           with them. */}
@@ -356,7 +357,7 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
         question={questionData}
         task="Build the same linear relationship across every representation, then check that they all agree."
         steps={[
-          controlStep('Table: tap two rows to form an interval, enter Δx, Δy and the rate, and record it. Record more than one.'),
+          controlStep('Table: select two rows to form an interval (click or tap, or Tab to a row and press Enter), enter Δx, Δy and the rate, and record it. Record more than one.'),
           'Work out each value yourself, then conclude whether the rate is constant and state m.',
           controlStep('Then fill in each panel below in order: the equations, the graph, and what the parts mean.'),
           'General form: write y = mx + b using the b you determine yourself.',
@@ -424,7 +425,7 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
                 {alreadyRecorded ? 'Already recorded' : 'Record this interval'}
               </button>
             </div>
-          ) : selectedRows.length === 1 ? <p style={{ color: 'var(--mm-text-muted)' }}>Row {selectedRows[0] + 1} selected. Tap a second row to form an interval.</p> : null}
+          ) : selectedRows.length === 1 ? <p style={{ color: 'var(--mm-text-muted)' }}>Row {selectedRows[0] + 1} selected. Select a second row to form an interval (click or tap, or Tab to it and press Enter).</p> : null}
 
           <div style={{ marginBottom: 12 }}>
             <div style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', marginBottom: 6 }}>Recorded intervals ({tableEvidence.length}, need {requiredComparisons})</div>
@@ -641,7 +642,7 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
           disabled={!readyToSubmit}
           style={{ ...button, background: readyToSubmit ? '#1a73e8' : '#dadce0', color: readyToSubmit ? '#fff' : 'var(--mm-text-muted)', border: 0 }}
         >
-          <SubmitText>Submit the bridge</SubmitText>
+          <SubmitText>Check the bridge</SubmitText>
         </button>
         {feedback ? <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Every representation agrees' : 'Some representations need another look'}</ResultPill> : null}
       </div>

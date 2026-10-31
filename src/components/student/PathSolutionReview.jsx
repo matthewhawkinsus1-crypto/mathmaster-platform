@@ -31,7 +31,12 @@ const heading = {
   color: 'var(--mm-primary-text)',
 };
 
-export const PathSolutionReview = ({ review, wasCorrect = false }) => {
+// Its heading sits one level below the section that holds it (MP14): an h2 on
+// the question's own screen, an h3 inside the session recap under its "Review
+// what you missed" h2. Only levels 2 to 6 are taken; anything else is an h2.
+const headingTag = (level) => (Number.isInteger(level) && level >= 2 && level <= 6 ? `h${level}` : 'h2');
+
+export const PathSolutionReview = ({ review, wasCorrect = false, headingLevel = 2 }) => {
   if (!review) return null;
   const hasBody = Boolean(
     review.headline || review.reasoning?.length || review.answerSummary || review.commonError || review.connection,
@@ -40,7 +45,7 @@ export const PathSolutionReview = ({ review, wasCorrect = false }) => {
 
   return (
     <section style={card} aria-label="How this question works">
-      <h2 style={heading}>{wasCorrect ? 'Why that works' : 'How this one works'}</h2>
+      {React.createElement(headingTag(headingLevel), { style: heading }, wasCorrect ? 'Why that works' : 'How this one works')}
       {review.headline && (
         <MathText as="p" style={{ margin: '0 0 10px', fontSize: 'calc(16 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-strong)', lineHeight: 1.5 }}>
           {review.headline}

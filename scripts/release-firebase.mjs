@@ -375,6 +375,22 @@ const outcome = await executeReleasePlan({
 });
 
 const retryCommand = retryCommandFor(outcome);
+
+// OP02: once Hosting is out, load the site itself (scripts/check-live-site.mjs,
+// read-only). A bundle that throws on start, a chunk that 404s or a stale
+// build would otherwise ship green: the functions checks never open the page.
+const hostingReleased = outcome.ok && steps.some((step) => step.target === RELEASE_TARGETS.HOSTING);
+const liveSite = (() => {
+  if (!hostingReleased) return { status: 'skipped', reason: outcome.ok ? 'Hosting was not deployed' : 'the release did not finish' };
+  const check = spawnSync('node', ['scripts/check-live-site.mjs', '--project', PROJECT, '--expect-sha', headFull], {
+    cwd: repoRoot, encoding: 'utf8', env: process.env, timeout: 180_000,
+  });
+  const detail = String(check.stdout || '').trim() || String(check.stderr || '').trim();
+  if (check.status === 0) return { status: 'passed', detail };
+  if (check.status === 2) return { status: 'skipped', reason: detail || 'Playwright is not installed here' };
+  return { status: 'failed', detail: detail || `the check exited ${check.status ?? check.signal}` };
+})();
+
 const report = {
   project: PROJECT,
   startedAt: startedAt.toISOString(),
@@ -394,6 +410,8 @@ const report = {
   verification: outcome.verification,
   // passed | failed | skipped, with the callables granted browser access and any still unreachable.
   access: outcome.access,
+  // passed | failed | skipped: the live page loaded and the app started (OP02).
+  liveSite,
   failedStep: outcome.failedStep,
   stoppedBeforeTargets: outcome.stoppedBeforeTargets,
   retryCommand,
@@ -434,8 +452,16 @@ if (outcome.access?.status === 'passed') {
 } else if (outcome.access?.status === 'skipped') {
   console.log(`Browser access check skipped: ${outcome.access.reason}.`);
 }
+if (liveSite.status === 'passed') {
+  console.log('Live site started cleanly.');
+} else if (liveSite.status === 'failed') {
+  console.log(`Live site did NOT start cleanly:\n${liveSite.detail}`);
+  console.log(`  Roll back Hosting: ${report.rollback.hosting}`);
+} else if (hostingReleased) {
+  console.log(`Live-site check skipped: ${liveSite.reason}. Check by hand: node scripts/check-live-site.mjs --project ${PROJECT}`);
+}
 if (outcome.failedStep) console.log(`Failed step: ${outcome.failedStep}`);
 if (outcome.stoppedBeforeTargets?.length) console.log(`Not deployed: ${[...new Set(outcome.stoppedBeforeTargets)].join(', ')}`);
 if (retryCommand) console.log(`Finish with:\n  ${retryCommand}`);
 console.log(`Report: ${path.relative(repoRoot, reportPath)}`);
-process.exit(outcome.ok ? 0 : 1);
+process.exit(outcome.ok && liveSite.status !== 'failed' ? 0 : 1);

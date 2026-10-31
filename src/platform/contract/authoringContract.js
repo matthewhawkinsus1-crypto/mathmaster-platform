@@ -16,6 +16,7 @@ import { QUESTION_TYPE_CATALOG, REPRESENTATIONS } from './questionTypeCatalog.js
 import { TYPES_THAT_RENDER_A_TABLE } from './semanticValidation.js';
 import { AUTHORING_INTENT_V5_ACTIONS } from './authoringIntentV5.js';
 import { allRegisteredQuestionFamilies } from '../../../functions/shared/questionFamilyRegistry.mjs';
+import { LIVE_CHALLENGE_SECTION, liveChallengeSectionLines } from './liveChallengeContract.js';
 import { ANALYSIS_NOTATIONS, NOTATION_ANALYSIS_KINDS, POINT_FEATURES } from '../../analysisRequestCatalog.js';
 import {
   ALIGNMENT_FRAMEWORK_IDS,
@@ -519,7 +520,7 @@ export const AUTHORING_INTENT_SCHEMA_NAME = 'MathMaster Assignment V5';
  * Canonical teacher-facing Assignment V5 contract. Outside AIs author
  * mathematical intent; MathMaster chooses renderer implementation details.
  */
-export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = null } = {}) => [
+export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = null, includeLiveChallenge = false } = {}) => [
   `# ${AUTHORING_INTENT_SCHEMA_NAME}`,
   `Generated from MathMaster on ${generatedAt.toISOString().slice(0, 10)}.`,
   '',
@@ -599,6 +600,10 @@ export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = nu
   '- Generic answerFields/responseFields are auto-graded and therefore require a grading key. Teacher-reviewed explanations must use the platform\'s composed/teacher-review interaction rather than an unkeyed generic field.',
   '- If a response requires justification, comparison, or explanation, author the response part explicitly; do not collapse it to one numeric field.',
   '- Pure finite-choice questions are ONE ATTEMPT per generated version. In Warm-Up/Classwork/Practice, offer a replacement only when the question has a real generator or at least two authored variants so the replacement is mathematically fresh; never reset the same static choices and call that a new question. DOL/Quiz/Test remain one-and-done.',
+  // FB05 (owner, 2026-10-16): one-try choice items get a reason per option.
+  // oneTryChoice.js shows the chosen option's line after the single try; no
+  // lesson had one because this text never asked for them.
+  '- Because a pure finite-choice question has one try, give each of its choice responses a one-line reason per option, keyed by the option\'s exact text: `"optionRationales": { "increasing": "…", "decreasing": "…", "constant": "…", "mixed": "…" }`. The student reads the reason for the option they chose after that try. A wrong option\'s reason names the mistake that leads to it without stating the right answer; the right option\'s reason says why it is right. A question a platform family builds takes none: the family writes its answer fields.',
   '- Ordinary course Classwork and Practice should not default to multiple choice. Prefer constructed responses, graphing, modeling, tables, mappings, or other interactions that require students to produce mathematics. Multiple choice is more natural for a concise DOL/checkpoint or when authentic CCMR assessment format requires it.',
   '- Finite-choice questions should still provide meaningful distractors, normally at least four options when the mathematics supports them. For binary concepts, use rationale-based distractors when appropriate rather than making the item a trivial coin flip.',
   '- Do not rely on authored option order to communicate meaning or correctness. MathMaster keeps a stable shuffled order during a question attempt so the first authored option is not automatically displayed first.',
@@ -607,6 +612,7 @@ export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = nu
   '- If a multiple-choice task asks students to choose among graphs, preserve every candidate graph as a visible graph card. Never reduce A/B/C graph choices to text labels with no graphs.',
   '- In buildFunctionFromConstraints tasks, use a vertexQuadrant constraint when the source only requires a vertex/extremum to lie in Quadrant I, II, III, or IV. Never invent one exact vertex coordinate just to make the builder gradeable.',
   '- For authored responseFields, use the semantic inputProfile that matches the answer: choice, text, number, expression, equation, interval, inequality, set, or orderedPair.',
+  '- A number field (inputProfile "number") takes one value, written any way a single number is written (a fraction, a decimal, a mixed number, scientific notation), never a calculation: "64 - 6" is not accepted for 58. Key it as the value. Only when the calculation itself is the answer, set "allowArithmetic": true on that response field.',
   '- Never use inputProfile "text" merely because the answer will be typed. Mathematical responses belong in MathInput; plain text is for genuine word/phrase responses.',
   '- MathMaster infers answerFormat and required mobile keys from the expected response (parentheses, commas, variables, fractions, roots, exponents, interval/set symbols, inequalities). Do not micromanage keypad layout.',
   '- requiredSymbols is only for an unusual symbol the expected response cannot reveal on its own. Preflight blocks any response whose required notation cannot be guaranteed on the controlled mobile keypad.',
@@ -630,7 +636,7 @@ export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = nu
   '## Matrix Lab (Algebra II, A2.3B — matrices and solving systems with technology)',
   '- Matrices are named givens: `"matrices": { "A": { "rows": [[2, -1, -2], [3, 1, -2]], "rowLabels": [...], "colLabels": [...], "rowTitle": "Width", "colTitle": "Size" } }`. Cells are numbers or fraction text ("2/3"). Labels are optional. Any question type may show `matrices` (with an optional `"matrixLayout": ["Nov", "+", "Dec"]`).',
   '- `locateMatrixElements`: `"matrix": "A"`, `"askDimensions": true`, `"targets": [{ "id", "kind": "tap", "row", "col" }]` (tap a₍ᵢⱼ₎) or `{ "kind": "notation", "row", "col", "description": "the number of size 10E shoes" }` (write the notation).',
-  '- `operateOnMatrices`: `"left": "A", "right": "B"`, optional `"operation": "add"`. The student decides whether the result is defined and its size (`askDefined`, default true), fills it in (`fillResult`, default true), and optionally judges `"judgeInverse": true`. `"showExpansion": true` shows the row × column terms as a scaffold.',
+  '- `operateOnMatrices`: `"left": "A", "right": "B"`, optional `"operation": "add"`. The student decides whether the result is defined and its size (`askDefined`, default true), fills it in (`fillResult`, default true), and optionally judges `"judgeInverse": true`. `"showExpansion": true` shows the row × column terms of the cell being filled as a scaffold; `"showExpansion": "fading"` (for Practice) shows them for the first cell and then only when the student asks, and never on an exit ticket, quiz or test.',
   '- `writeMatrixEquation` and `solveMatrixEquation`: `"equations": ["2x - y - 2z = 3", "5x = -4y", ...]` in x, y, z (any form — the student writes standard form). The platform derives A, B and the solution; do not author them. Solve adds the matrix calculator; `"askInverse": true` also asks for A⁻¹; `"variableMeanings": { "x": "small baskets" }` labels the answers. `"startFrom": { "A": [[...]], "B": [...] }` pre-fills a matrix equation to correct. `"showEquations": false` makes it a modeling task: the system is hidden and the student writes A and B from the words (any row order, any nonzero multiple of an equation counts).',
   '- `completeSingularSystem`: two `equations` and `"targets": [{ "id": "none", "classification": "none" }, { "id": "many", "classification": "many" }]`; the student writes a third equation for each.',
   '- `"technology": { "operations": ["multiply", "add", "inverse", "inverseTimes"] }` lists the calculator commands allowed; `false` hides the calculator. Omit it on by-hand items.',
@@ -679,6 +685,9 @@ export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = nu
   '- Use the live Assignment Question Editor → Copy Safe Repair Pack Prompt. That prompt contains the protected before-state and requires kind "mathmasterSafeLiveRepairPack" with replacementQuestions keyed to existing question IDs.',
   '- Safe live packs may change only MathMaster-approved response-entry mechanics. They may not silently rewrite prompts, mathematics, graphs/tables, standards, question IDs/order, weights, or student state.',
   '',
+  // Only in the "liveChallenge" slice: an assignment prompt never carries it
+  // (liveChallengeContract.js).
+  ...(includeLiveChallenge ? liveChallengeSectionLines() : []),
   '## Output',
   'Return exactly one MathMaster Assignment V5 JSON object. Older assignment formats and raw question arrays are unsupported.',
   ...guidanceSections(),
@@ -776,9 +785,9 @@ const splitByMark = (text, mark) => {
   return chunks.map((chunk) => ({ name: chunk.name, text: chunk.lines.join('\n').trimEnd() }));
 };
 
-/** Every section heading the contract currently produces. */
+/** Every section heading the contract can produce, including the one only a slice carries. */
 export const authoringContractSections = (options = {}) => splitByMark(
-  buildAuthoringContract(options), SECTION_MARK,
+  buildAuthoringContract({ ...options, includeLiveChallenge: true }), SECTION_MARK,
 ).map((section) => section.name);
 
 /**
@@ -792,7 +801,9 @@ export const buildContractSlice = ({
   courseId = null,
   generatedAt = new Date(),
 } = {}) => {
-  const full = buildAuthoringContract({ courseId, generatedAt });
+  const full = buildAuthoringContract({
+    courseId, generatedAt, includeLiveChallenge: sections.includes(LIVE_CHALLENGE_SECTION),
+  });
   const parts = splitByMark(full, SECTION_MARK);
   const byName = new Map(parts.map((part) => [part.name, part.text]));
 
@@ -837,6 +848,16 @@ export const CONTRACT_SLICES = Object.freeze({
   ]),
   publishingPackage: Object.freeze([
     'PDF / printable output',
+    'Output',
+  ]),
+  // Questions for a timed class game (LC14): the V5 wrapper and question
+  // rules, plus the round's own limits. The result is still one V5 object.
+  liveChallenge: Object.freeze([
+    LIVE_CHALLENGE_SECTION,
+    'Required assignment shape',
+    'Section rules',
+    'Question authoring',
+    'Common studentActions',
     'Output',
   ]),
 });

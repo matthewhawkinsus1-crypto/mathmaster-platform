@@ -5,7 +5,7 @@ import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workVie
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { HintPanel, Panel, ResultPill, TaskCard, ToolGrid, controlStep } from '../shared/ToolShell.jsx';
 import useToolSubmission from '../shared/useToolSubmission.js';
-import { InteractiveStandardEquation, ZeroVariableChoice } from './linearInterceptsConceptualUi.jsx';
+import { InteractiveStandardEquation, ZERO_TOKEN_DIRECTIONS, ZeroVariableChoice } from './linearInterceptsConceptualUi.jsx';
 import {
   INTERCEPT_FEEDBACK_TIMINGS,
   applyInterceptOperation,
@@ -90,7 +90,7 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
 
   if (!standard || Math.abs(Number(standard.A)) <= 1e-12 || Math.abs(Number(standard.B)) <= 1e-12) {
     return (
-      <ToolShell title="Find Intercepts Algebraically" subtitle="Set one variable to zero, solve, and write the intercept as a point." badge="Linear intercepts">
+      <ToolShell title="Find Intercepts Algebraically" subtitle="Find an intercept of a line and write it as a point." badge="Linear intercepts">
         <Panel title="This question needs repair">
           <p style={{ margin: 0, color: 'var(--mm-error-text)', lineHeight: 1.55 }}>
             This intercept workbench requires a two-variable linear equation with nonzero x- and y-coefficients. Use the vertical/horizontal graphing mode for a one-variable line.
@@ -277,7 +277,7 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
   const activity = (
     <ToolShell
       title="Find Intercepts Algebraically"
-      subtitle="Choose the zero coordinate, make the substitution yourself, solve, and turn the result into a point."
+      subtitle="Find an intercept of a line from its equation and write it as a point."
       badge="Standard form"
     >
       <TaskCard
@@ -291,7 +291,7 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
         // uses a try) and stay there.
         steps={[
           `Decide which coordinate is always 0 at the ${stageLabel(kind)}.`,
-          controlStep('Place the 0 on a variable (drag it, or tap the 0 and then the variable), then press Substitute and solve.'),
+          controlStep('Place the 0 on a variable (drag it, or select the 0 and then the variable: click or tap, or Tab to each and press Enter), then press Substitute and solve.'),
           controlStep('Solve the one-variable equation with the operation buttons. Return to substitution starts the substitution again.'),
           controlStep(`Write the ${stageLabel(kind)} as an ordered pair and press Check ${stageLabel(kind)}.`),
         ]}
@@ -347,7 +347,7 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
                   0
                 </button>
                 <span style={{ color: 'var(--mm-text-muted)', lineHeight: 1.45, flex: '1 1 220px' }}>
-                  Drag the 0 onto x or y. On a touch screen, tap the 0 and then tap the variable.
+                  {ZERO_TOKEN_DIRECTIONS}
                 </span>
               </div>
 
@@ -491,7 +491,6 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
   return (
     <EnlargeableFigure
       label="Linear intercept algebra workbench"
-      enlargeLabel="Enlarge intercept workspace"
       style={{ width: '100%' }}
       taskText={targetPrompt(kind)}
       capabilities={{

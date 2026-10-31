@@ -25,9 +25,11 @@
  *   LIVE CHALLENGE      a Warm-Up delivered by Live Challenge is reported as
  *                       such — never as a Warm-Up students will be missing.
  *
- * Bounded work: each family's capacity is measured once per run (budgeted),
- * and at most SAMPLE_INSTANCES instances per slot are built and graded.
- * Nothing is cached across runs, so an edited template is always re-checked.
+ * Bounded work: each family's capacity is measured once (budgeted), and at
+ * most SAMPLE_INSTANCES instances per slot are built and graded. Both are kept
+ * for the page's life, keyed by their whole content (measuredCapacity and
+ * auditFamilySlot below), so an edited template or question is a new key and
+ * is checked again; the section-level findings are worked out on every run.
  */
 
 import {
@@ -37,6 +39,7 @@ import {
   familySlotKey,
 } from '../../../functions/shared/questionFamilyInstance.mjs';
 import { measureFamilyCapacity } from '../../../functions/shared/questionFamilyEngine.mjs';
+import { stableStringify } from '../../../functions/shared/idUtils.mjs';
 import { constraintNameKey, describeConstraintIssue } from '../../../functions/shared/questionFamilyContract.mjs';
 import { allRegisteredQuestionFamilies } from '../../../functions/shared/questionFamilyRegistry.mjs';
 import { evaluateExpression, placeholdersUsed } from '../../../functions/shared/pathQuestionGeneration.mjs';
@@ -168,11 +171,81 @@ export const answerKeyResponse = (question = {}) => {
   return null;
 };
 
+/*
+ * A FAMILY'S CAPACITY, MEASURED ONCE PER CONTENT.
+ *
+ * measureFamilyCapacity is deterministic (its order comes from a fixed seed)
+ * and depends only on the family, its constraint values and the budget. The
+ * Review dialog rebuilds Pre-Flight's model on every edit (a date, a class, a
+ * calculator setting), and measuring was most of each rebuild: 5 to 8 seconds
+ * a click for a 40-question review. So a measurement is kept, keyed by that
+ * whole content (a template edited in the dialog is a different key and is
+ * measured again), for the page's life, the least recently used dropped past
+ * CAPACITY_CACHE_LIMIT. Results are frozen: every run shares them.
+ */
+export const CAPACITY_CACHE_LIMIT = 256;
+const capacityCache = new Map();
+const freezeCapacity = (capacity) => Object.freeze({
+  ...capacity,
+  rejections: Object.freeze({ ...capacity?.rejections }),
+  ...(Array.isArray(capacity?.strata) ? { strata: Object.freeze(capacity.strata.map((entry) => Object.freeze({ ...entry }))) } : {}),
+});
+export const measuredCapacity = (family, constraintValues) => {
+  const key = `${CAPACITY_BUDGET}|${stableStringify(family)}|${stableStringify(constraintValues ?? {})}`;
+  if (capacityCache.has(key)) {
+    const kept = capacityCache.get(key);
+    capacityCache.delete(key);
+    capacityCache.set(key, kept);
+    return kept;
+  }
+  const measured = freezeCapacity(measureFamilyCapacity(family, constraintValues, { budget: CAPACITY_BUDGET }));
+  capacityCache.set(key, measured);
+  if (capacityCache.size > CAPACITY_CACHE_LIMIT) capacityCache.delete(capacityCache.keys().next().value);
+  return measured;
+};
+/** For tests: how many measurements are kept, and forget them. */
+export const capacityCacheSize = () => capacityCache.size;
+export const clearCapacityCache = () => capacityCache.clear();
+
+/*
+ * A SLOT'S AUDIT, KEPT PER CONTENT. Everything below is a pure function of
+ * the question, the assignment id and the slot's position (its versions are
+ * drawn for preview seats 0..n, its keys graded by the shared graders), so a
+ * rebuild that changed neither (a date, a class, a calculator setting) reads
+ * the audit back instead of building and grading up to 32 versions again. The
+ * key is the question's whole content: an edit is a new key. Frozen, shared,
+ * the least recently used dropped past SLOT_AUDIT_CACHE_LIMIT.
+ */
+export const SLOT_AUDIT_CACHE_LIMIT = 512;
+const slotAuditCache = new Map();
+const freezeSlotAudit = (audit) => Object.freeze({
+  ...audit,
+  ...(Array.isArray(audit.keyFailures) ? { keyFailures: Object.freeze([...audit.keyFailures]) } : {}),
+  ...(Array.isArray(audit.invalidVersions) ? { invalidVersions: Object.freeze(audit.invalidVersions.map((entry) => Object.freeze({ ...entry }))) } : {}),
+  ...(Array.isArray(audit.constraintIssues) ? { constraintIssues: Object.freeze([...audit.constraintIssues]) } : {}),
+});
+const auditFamilySlot = ({ assignmentId, question, storageIndex, capacityMemo }) => {
+  const key = `${assignmentId}|${storageIndex}|${stableStringify(question)}`;
+  if (slotAuditCache.has(key)) {
+    const kept = slotAuditCache.get(key);
+    slotAuditCache.delete(key);
+    slotAuditCache.set(key, kept);
+    return kept;
+  }
+  const audit = freezeSlotAudit(auditFamilySlotFresh({ assignmentId, question, storageIndex, capacityMemo }));
+  slotAuditCache.set(key, audit);
+  if (slotAuditCache.size > SLOT_AUDIT_CACHE_LIMIT) slotAuditCache.delete(slotAuditCache.keys().next().value);
+  return audit;
+};
+/** For tests: how many slot audits are kept, and forget them. */
+export const slotAuditCacheSize = () => slotAuditCache.size;
+export const clearSlotAuditCache = () => slotAuditCache.clear();
+
 /**
  * One family-backed slot: does it resolve, does its key grade, how many
  * distinct questions can it make?
  */
-const auditFamilySlot = ({ assignmentId, question, storageIndex, capacityMemo }) => {
+const auditFamilySlotFresh = ({ assignmentId, question, storageIndex, capacityMemo }) => {
   const slotKey = familySlotKey({ assignmentId, question, storageIndex });
   const definition = resolveQuestionFamilyDefinition(question, { slotKey });
   if (definition.error) {
@@ -181,7 +254,7 @@ const auditFamilySlot = ({ assignmentId, question, storageIndex, capacityMemo })
   const { family, constraintValues } = definition;
   const capacityKey = `${family.id}@${family.version}|${JSON.stringify(constraintValues)}|${family.scope === 'assignment' ? slotKey : ''}`;
   if (!capacityMemo.has(capacityKey)) {
-    capacityMemo.set(capacityKey, measureFamilyCapacity(family, constraintValues, { budget: CAPACITY_BUDGET }));
+    capacityMemo.set(capacityKey, measuredCapacity(family, constraintValues));
   }
   const capacity = capacityMemo.get(capacityKey);
   const keyFailures = [];

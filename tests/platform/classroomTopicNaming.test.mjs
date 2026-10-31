@@ -108,7 +108,10 @@ test('App.jsx: automatic publishing sends the resolved topic to BOTH posts, from
   assert.equal(kit.automaticClassroomTopicName, automaticClassroomTopicName);
   assert.doesNotMatch(app, /from '\.\/platform\/classroom\/classroomTopicNaming\.js'/);
   const publish = executableSource(region(app, 'const autoPublishAssignmentPackageToClassroom = async', 'const summary = response?.summary', 'automatic Classroom publish'));
-  assert.match(publish, /const \{ automaticClassroomTopicName, [\w, ]+ \} = requireTeacherKit\(\);[\s\S]*const topicName = automaticClassroomTopicName\(assignment\);/);
+  // The name is built from the teacher's saved style, read first (TT07: a
+  // second device names topics the same way); the resolver still names it.
+  assert.match(publish, /const \{ automaticClassroomTopicName, [\w, ]*teacherClassroomTopicStyle[\w, ]* \} = requireTeacherKit\(\);/);
+  assert.match(publish, /const topicStyle = await teacherClassroomTopicStyle\(\{ db, uid: user\?\.uid \}\);\s*const topicName = automaticClassroomTopicName\(assignment, \{ style: topicStyle \}\);/);
   const material = region(publish, 'publishClassroomMaterial({', '});', 'materials post');
   const post = region(publish, 'publishAssignmentToClassrooms({', '});', 'assignment post');
   for (const [name, call] of [['materials post', material], ['assignment post', post]]) {
@@ -123,7 +126,8 @@ test('Classroom Manager: the topic follows the chosen style, and the choice is s
   const selection = executableSource(region(manager, 'useEffect(() => {\n    if (!selectedAssignment) return;', '}, [selectedAssignment?.id', 'assignment selection'));
   assert.match(selection, /setTopicName\(topicForAssignment\(selectedAssignment, topicStyle\)\)/);
   const picker = executableSource(region(manager, 'id="classroom-topic-style"', '</select>', 'topic style picker'));
-  assert.match(picker, /saveClassroomTopicStyle\(next\)/);
+  // Saved for the teacher (and in this browser) — teacherTopicStyle.js, TT07.
+  assert.match(picker, /chooseTeacherTopicStyle\(\{ db, uid: teacherUid, style: next \}\)/);
   assert.match(picker, /setTopicName\(topicForAssignment\(selectedAssignment, next\)\)/);
   assert.match(manager, /useState\(readClassroomTopicStyle\)/);
 });

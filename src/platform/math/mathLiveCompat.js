@@ -19,11 +19,17 @@
  *   render part      `part="render"` inside <math-span>/<math-div>, whose child
  *                    count says whether lazy typesetting has happened.
  *   CSS parts        `virtual-keyboard-toggle`, `menu-toggle`, hidden in
- *                    src/index.css, and `keyboard-sink`, repositioned there
+ *                    src/index.css, `keyboard-sink`, repositioned there
  *                    onto its own field so typing while pinch-zoomed does not
- *                    pan the page (platform/layout/pinchZoomReveal.js). CSS
- *                    cannot import this file, so the names are listed for the
- *                    compatibility test to hold both to.
+ *                    pan the page (platform/layout/pinchZoomReveal.js), and
+ *                    `placeholder`, recoloured so an empty box's hint can be
+ *                    read (AX17). CSS cannot import this file, so the names
+ *                    are listed for the compatibility test to hold both to.
+ *   style variables  `--highlight-text`, `--text-highlight-background-color`:
+ *                    the tint MathLive puts behind a focused field's
+ *                    text-mode content (a placeholder is text mode). The light
+ *                    and dark schemes read different names; index.css sets
+ *                    both on the field.
  *   deferred focus   MathLive focuses a field's sink from a 60 ms timer after
  *                    the field's onFocus, by calling the sink element's own
  *                    `focus` method — which is where guardStaleMathFieldFocus
@@ -56,6 +62,12 @@ export const MATHLIVE_HIDDEN_CSS_PARTS = Object.freeze(['virtual-keyboard-toggle
 // Styled, not hidden: index.css moves the sink from MathLive's position: fixed
 // (the field's PAGE position) onto the field itself.
 export const MATHLIVE_REPOSITIONED_CSS_PARTS = Object.freeze(['keyboard-sink']);
+// Recoloured: the grey hint of an empty box, which MathLive draws too pale to
+// read (src/index.css, AX17).
+export const MATHLIVE_RECOLORED_CSS_PARTS = Object.freeze(['placeholder']);
+// Custom properties MathLive reads for the tint behind text-mode content,
+// which src/index.css sets on every field.
+export const MATHLIVE_TEXT_TINT_VARIABLES = Object.freeze(['--highlight-text', '--text-highlight-background-color']);
 
 /** The hidden element that owns DOM focus while a student types in a field. */
 export const mathFieldKeyboardSink = (mathField) => (

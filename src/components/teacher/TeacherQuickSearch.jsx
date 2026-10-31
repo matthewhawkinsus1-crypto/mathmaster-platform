@@ -119,12 +119,12 @@ export default function TeacherQuickSearch({
           </p>
         )}
 
-        <ul role="listbox" style={{ listStyle: 'none', margin: 0, padding: 0, maxHeight: '48vh', overflowY: 'auto' }}>
+        <ul role="listbox" aria-label="Results" style={{ listStyle: 'none', margin: 0, padding: 0, maxHeight: '48vh', overflowY: 'auto' }}>
           {results.map((result, index) => {
             const tone = KIND_TONE[result.kind];
             const active = index === cursor;
             return (
-              <li key={`${result.kind}:${result.id}`}>
+              <li key={`${result.kind}:${result.id}`} role="presentation">
                 <button
                   type="button"
                   role="option"

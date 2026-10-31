@@ -155,6 +155,21 @@ export const normalizeWeeklyGoalConfig = (config = {}, { honors = false } = {}) 
  * when the class expects it, and the framework the teacher picked. (A class
  * that expects no CCMR work previewed an EMPTY week to its teacher while its
  * students were given four sessions.)
+ *
+ * THE STUDENT'S OWN CCMR PLAN IN A TEACHER'S PREVIEW (MP24, recorded
+ * 2026-10-25). The plan (studentCcmrPlans) never adds a slot: under the
+ * "Auto" framework it picks the FORMAT of transfer slots (weeklyPathPlan.js
+ * `ccmrPlan`). The one teacher screen that has it loaded uses it: the roster's
+ * read-only My Math Path is the student's own container, which reads the plan.
+ * That view gets no class weekly settings from the roster, so it previews the
+ * default count and "Auto" even when the teacher chose otherwise (a teacher-
+ * screen prop: StudentsRoster → `weeklyGoalConfig`, from the
+ * `weeklyGoalsByClass` the teacher workspace already holds). The Weekly Path
+ * table, the profile drawer, the Learning Profile tab and the Weekly Path
+ * explainer do not load the plan (one more read per student; the table, one per
+ * student in the class), so before the week freezes they show transfer slots
+ * in the format "Auto" picks without a plan. From the freeze, the Weekly Path
+ * table shows the frozen snapshot, which the student's own plan built.
  */
 export const weeklyPlanClassInputs = ({ config = {}, honors = false } = {}) => {
   const settings = normalizeWeeklyGoalConfig(config || {}, { honors });

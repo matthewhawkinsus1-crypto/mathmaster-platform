@@ -219,10 +219,12 @@ const SecureItemsPreview = ({ assignment, candidate = null, stage, accommodation
               draftKey={secureItemDraftKey({ surface: 'preview', sessionId: previewDraftSession(previewKey), questionInstanceId: `${draw}-${item.ordinal}-corrections` })}
               busy={checking}
               closed={Boolean(itemCorrection && (itemCorrection.isCorrect || itemCorrection.attemptsUsed >= 3))}
-              closedMessage="This practice question is closed. A student would get a fresh parallel question."
+              closedMessage="This question is closed. A student would get a fresh parallel question."
               feedback={itemCorrection}
               attempt={{ used: itemCorrection?.attemptsUsed || 0, allowed: 3 }}
               executionScope="teacherPreview"
+              // The teacher's page has its main; the student's item inside this dialog is not a second (TT27).
+              mainLandmark={false}
               onSubmit={correctionAttempt}
             />
           )}
@@ -237,6 +239,7 @@ const SecureItemsPreview = ({ assignment, candidate = null, stage, accommodation
               accommodationConfirmed
               busy={checking}
               executionScope="teacherPreview"
+              mainLandmark={false}
               onSubmit={(responsePayload) => check(responsePayload)}
               onDraftChange={() => {}}
             />

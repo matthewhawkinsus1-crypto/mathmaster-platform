@@ -25,6 +25,7 @@
 // every non-localhost request is aborted at the browser level.
 
 import path from 'node:path';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
@@ -201,7 +202,7 @@ for (const viewport of VIEWPORTS) {
 
     if (SCREENSHOT_DIR) {
       // eslint-disable-next-line no-await-in-loop
-      await page.screenshot({ path: path.join(SCREENSHOT_DIR, `pathSessionEnd-${viewport.name}-${scene.name}.png`), fullPage: true });
+      await screenshotKeepingTouch(page, { path: path.join(SCREENSHOT_DIR, `pathSessionEnd-${viewport.name}-${scene.name}.png`), fullPage: true });
     }
 
     if (scene.click) {

@@ -1,4 +1,5 @@
 import { buildPrivateSupport } from '../../../../functions/shared/pathSolutionSupport.mjs';
+import { districtDol2ReviewWorkedSolution } from '../../../../functions/shared/districtDol2WorkedSolution.mjs';
 import { buildToolSolutionReviewModel } from '../../../tools/shared/toolSolutionReview.js';
 import { familyFor } from '../families/index.js';
 
@@ -22,6 +23,12 @@ import { familyFor } from '../families/index.js';
  *             connection still win. It states the answer, which is why only
  *             this closed-question model asks for it — never hints, the
  *             back-up step or a sibling, which are shown while the item is open.
+ *   fromBuilder true when `authored` was written, the same way and on the same
+ *             terms, by a worked-solution builder that is not a support family:
+ *             one that recognises a task by its own parts and holds every
+ *             answer it states to the item's key. Asked only when no family
+ *             wrote steps. Today that is the District DOL #2 review's seven
+ *             tasks (functions/shared/districtDol2WorkedSolution.mjs, CT02).
  *   hasContent / hasSteps / intro / speechText
  *
  * Pure and safe on any input: a builder or family that throws is "no tool
@@ -41,14 +48,27 @@ const authoredReviewOf = (question) => {
   }
 };
 
+/** A worked solution ({ headline, steps, answerSummary }) in the authored shape; null when it has no steps. */
+const writtenReviewOf = (worked) => {
+  if (!worked || typeof worked !== 'object') return null;
+  const reasoning = list(worked.steps).map(clean).filter(Boolean);
+  if (!reasoning.length) return null;
+  return { headline: clean(worked.headline), reasoning, answerSummary: clean(worked.answerSummary) || null };
+};
+
 /** The question family's worked solution, in the authored shape; null when it has none. */
 const familyReviewOf = (question) => {
   try {
-    const worked = familyFor(question)?.workedSolution?.(question);
-    if (!worked || typeof worked !== 'object') return null;
-    const reasoning = list(worked.steps).map(clean).filter(Boolean);
-    if (!reasoning.length) return null;
-    return { headline: clean(worked.headline), reasoning, answerSummary: clean(worked.answerSummary) || null };
+    return writtenReviewOf(familyFor(question)?.workedSolution?.(question));
+  } catch {
+    return null;
+  }
+};
+
+/** A worked-solution builder's, for a task no family covers; null when none recognises it. */
+const builderReviewOf = (question) => {
+  try {
+    return writtenReviewOf(districtDol2ReviewWorkedSolution(question));
   } catch {
     return null;
   }
@@ -163,9 +183,14 @@ export const buildClosedQuestionReview = ({ question = null, isToolQuestion = fa
   // The tool review is asked for even when the caller did not flag a tool
   // question (SolutionReview2 does not), so the rule holds for every caller.
   const toolSteps = (isToolQuestion ? tool : toolReviewOf(question))?.steps?.length;
-  const family = ownReview?.reasoning?.length || toolSteps ? null : familyReviewOf(question);
+  const ownSteps = Boolean(ownReview?.reasoning?.length || toolSteps);
+  const familyWritten = ownSteps ? null : familyReviewOf(question);
+  // A builder only where no family wrote steps (CT02: the DOL #2 review tasks).
+  const builderWritten = ownSteps || familyWritten ? null : builderReviewOf(question);
+  const family = familyWritten || builderWritten;
   const authored = family ? withFamilySteps(ownReview, family) : ownReview;
-  const fromFamily = Boolean(family);
+  const fromFamily = Boolean(familyWritten);
+  const fromBuilder = Boolean(builderWritten);
   const legacyReview = isToolQuestion ? null : legacyContentOf(question, legacyContent);
   const legacy = Boolean(legacyReview?.hasContent);
   const hasContent = Boolean(authored || tool || legacy);
@@ -183,13 +208,25 @@ export const buildClosedQuestionReview = ({ question = null, isToolQuestion = fa
       : (hasSteps
         ? 'Compare each step of your work with the worked solution.'
         : 'Compare your answer with the correct one below.');
-  const speechText = [
-    authored?.headline, ...(authored?.reasoning || []), authored?.answerSummary, authored?.commonError,
-    ...(tool?.steps || []), ...(tool?.items || []).map((item) => `${item.label}: ${item.value}`), tool?.why ? `Why it works: ${tool.why}` : '',
+  // Each sentence the panel reads or translates, in order. A part the TEACHER
+  // wrote carries the `path` of the field it came from (authoredSupportText.js),
+  // so their own Spanish can stand in for exactly that sentence; a tool's
+  // steps, the legacy review and anything a question family wrote have no path.
+  const ownsHeadline = Boolean(ownReview?.headline) && clean(authored?.headline) === clean(ownReview.headline);
+  const ownsSummary = Boolean(ownReview?.answerSummary) && clean(authored?.answerSummary) === clean(ownReview.answerSummary);
+  const speechParts = [
+    { text: authored?.headline, ...(ownsHeadline ? { path: ['headline'] } : {}) },
+    ...(authored?.reasoning || []).map((line, index) => ({ text: line, ...(family ? {} : { path: ['reasoning', index] }) })),
+    { text: authored?.answerSummary, ...(ownsSummary ? { path: ['answerSummary'] } : {}) },
+    { text: authored?.commonError, path: ['commonError'] },
+    ...(tool?.steps || []).map((line) => ({ text: line })),
+    ...(tool?.items || []).map((item) => ({ text: `${item.label}: ${item.value}` })),
+    { text: tool?.why ? `Why it works: ${tool.why}` : '' },
     // The legacy review is read too (HELP-11): it used to be skipped.
-    ...(legacy ? legacyReviewSpeechLines(question, legacyReview) : []),
-  ].map(clean).filter(Boolean).join(' ');
-  return { authored, tool, legacy, fromFamily, hasContent, hasSteps, intro, speechText };
+    ...(legacy ? legacyReviewSpeechLines(question, legacyReview) : []).map((line) => ({ text: line })),
+  ].map((part) => ({ ...part, text: clean(part.text) })).filter((part) => part.text);
+  const speechText = speechParts.map((part) => part.text).join(' ');
+  return { authored, tool, legacy, fromFamily, fromBuilder, hasContent, hasSteps, intro, speechText, speechParts };
 };
 
 /** Does this closed question have a worked solution to point at? */

@@ -86,6 +86,9 @@ test('the student card carries reviewBySkill and the Test\'s own released sessio
   // (tests/platform/testCycleSkillNames.test.mjs holds that to the review guard).
   assert.match(payload, /const testReviewOffered = record\.test\.state === shared\.record\.SESSION_STATE\.RELEASED\s*&&/);
   assert.match(payload, /testReviewExamSessionId: testReviewOffered \? record\.test\.examSessionId : null,/);
-  // What's on the test stays, from the blueprint.
-  assert.match(payload, /testSkills: await testCycleSkillList\(blueprint\)/);
+  // What's on the test stays, from the blueprint: the Test as THIS student
+  // sits it, which is the blueprint itself unless their teacher excused
+  // questions for a fewer-items plan (TC15, testCycleReducedItems.test.mjs).
+  assert.match(payload, /testSkills: await testCycleSkillList\(ownBlueprint\)/);
+  assert.match(payload, /const ownBlueprint = excusedSlotIds\.length \? shared\.reducedItems\.studentTestBlueprint\(blueprint, excusedSlotIds\) : blueprint;/);
 });

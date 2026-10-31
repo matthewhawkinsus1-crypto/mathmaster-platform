@@ -81,6 +81,8 @@ test('literal and table answers are single numbers too', () => {
 // #496 (wave 6 review, B1: the server re-grades every queued answer, so a box
 // that refused it would turn a "Correct!" a student saw into a wrong record
 // during a release). The SAT's own decimal rule and the strict grouping stay.
+// The owner confirmed it (GR09): a no-comma rule, if ever wanted, is an entry
+// rule, never a right value graded wrong.
 test('a Digital SAT number box accepts a correctly grouped number, as live does', () => {
   const sat = { numberRules: 'digitalSAT' };
   assert.equal(gradeField('8050', '8,050', sat).isCorrect, true);
@@ -170,7 +172,8 @@ test('the assignment matcher keeps a list or roster field comma-literal under #4
   assert.equal(gradeField('1234', '1,234', { answerFormat: 'list' }).isCorrect, false);
   assert.equal(gradeField('1234', '1,234', { partialCredit: 'matchedElements' }).isCorrect, false);
   // A comma and a space is a list of two numbers, never one (#496's rule; the
-  // pass-3 matcher used to accept `1, 250` for 1250).
+  // pass-3 matcher used to accept `1, 250` for 1250). The owner confirmed it
+  // (GR02).
   assert.equal(gradeField('1250', '1, 250').isCorrect, false);
   assert.equal(withoutThousandsSeparators('1, 250'), null);
   assert.equal(gradeField('1250', '1,250').isCorrect, true);

@@ -31,6 +31,7 @@ import { executableSource, region } from './helpers/sourceContract.mjs';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
 import {
   PRACTICE_LIKE_THIS_ROLES,
+  PRACTICE_SOURCE,
   PRACTICE_VERDICT,
   buildPracticeLikeThis,
   checkPracticeAnswers,
@@ -40,6 +41,7 @@ import {
   readPracticeAnswer,
 } from '../../src/platform/supports/workedExample/practiceLikeThis.js';
 import { buildSimilarWorkedExample } from '../../src/platform/supports/workedExample/similarProblem.js';
+import { buildNumericVariant } from '../../src/platform/supports/workedExample/numericVariant.js';
 import { buildClosedQuestionReview, buildPartReviewRows, legacyReviewSpeechLines, partReviewSpeech } from '../../src/platform/supports/review/closedQuestionReview.js';
 import { auditAssignmentSolutionReviews, workedSolutionDepth } from '../../src/platform/preflight/solutionReviewPreflight.js';
 import { ONE_TRY, ONE_TRY_WITH_HINT, chosenOptionReasons, oneTryNotice, optionRationale, optionRationaleProblems } from '../../src/platform/supports/feedback/oneTryChoice.js';
@@ -81,22 +83,34 @@ test('HELP-1: every real Classwork/Practice item with a family sibling gets an u
   assert.ok(items.length >= 200, 'the real lessons are read');
   let offered = 0;
   let checkable = 0;
+  const onlyWords = [];
   items.forEach(({ question }) => {
     const practice = buildPracticeLikeThis(question, { seed: 0 });
-    // Offered exactly where the family can work a sibling: no sibling, nothing new.
-    assert.equal(Boolean(practice), Boolean(buildSimilarWorkedExample(question)), 'a practice only where a sibling exists');
+    // Offered where the family can work a sibling — and, since FB19, where the
+    // item has none but can be varied in its own numbers (numericVariant.js;
+    // which items, and how, is practiceLikeThisNumericVariant.test.mjs). A
+    // family sibling always wins; with neither, nothing new.
+    const familySibling = buildSimilarWorkedExample(question);
+    assert.equal(Boolean(practice), Boolean(familySibling || buildNumericVariant(question)), 'a practice only where a sibling or a variant exists');
+    if (familySibling) assert.equal(practice.source, PRACTICE_SOURCE.FAMILY, 'the family sibling, where there is one');
     if (!practice) return;
     offered += 1;
     assert.notEqual(practice.prompt, String(question.prompt || '').trim(), 'never this question in disguise');
     assert.ok(practice.steps.length > 0, 'a worked solution to compare with');
     if (practice.checkable) checkable += 1;
+    else onlyWords.push(`${question.questionId}: ${practice.prompt} → ${practice.answer}`);
     // The sibling's own answer, typed part by part, is never marked wrong.
     const responses = Object.fromEntries(practice.parts.map((part) => [part.id, part.expected]));
     const result = checkPracticeAnswers(practice, responses);
     assert.deepEqual(result.parts.filter((part) => part.verdict === PRACTICE_VERDICT.INCORRECT), [], `${practice.answer}: its own answer is right`);
   });
   assert.ok(offered >= 100, `practice offered on ${offered} items`);
-  assert.ok(checkable >= offered - 12, `${checkable} of ${offered} have a part that can be checked`);
+  // CT13: was "at most 12 items with nothing to check" (then 6). The last six are
+  // read in practiceLikeThis.js, so the ratchet is closed: a new lesson item whose
+  // sibling is only words is named here, to be read in a fixed shape or recorded
+  // as a part that stays in words beside one that can be checked.
+  assert.deepEqual(onlyWords, [], `${checkable} of ${offered} have a part that can be checked`);
+  assert.equal(checkable, offered);
 });
 
 test('HELP-1: "another one" and the Hint panel\'s sibling are not repeated', () => {
@@ -132,11 +146,13 @@ test('HELP-1: a practice answer is checked the way a field is graded, whatever w
   assert.deepEqual(verdicts('slope 4', ''), ['blank']);
 });
 
-test('HELP-1: words, rosters with an ellipsis and mappings are never marked right or wrong', () => {
+test('HELP-1: words and rosters with an ellipsis are never marked right or wrong; a mapping and a shift only once they are read completely (CT13)', () => {
   const { parts } = readPracticeAnswer('arrows -7 → 5, -3 → 8; domain {0, 1, 2, ..., 40}; falls, then rises; Horizontal: 6 units to the left');
   assert.equal(parts.length, 4);
+  // A mapping and a distance with a direction have a fixed shape: checked (practiceLikeThisFixedShapes.test.mjs).
+  assert.deepEqual(parts.map((part) => [part.kind, part.checkable]), [['mapping', true], ['value', false], ['words', false], ['shift', true]]);
   parts.forEach((part) => {
-    assert.equal(part.checkable, false, `${part.expected}: compared, not judged`);
+    // Whatever cannot be read completely is compared, never called wrong.
     assert.equal(checkPracticePart(part, 'anything'), PRACTICE_VERDICT.COMPARE);
   });
   const checked = checkPracticeAnswers(readPracticeAnswer('domain [0, 2]; rises everywhere'), { 'part-1': '[0,2]' });
@@ -188,6 +204,8 @@ test('HELP-1: the practice records nothing — no grader, attempt, grade, eviden
   const forbidden = /onGrade|onStateChange|recordQuestionAttempt|onSupportEvidence|onEvidence|reportSupportEvidence|setDoc|updateDoc|addDoc|httpsCallable|localStorage|sessionStorage|indexedDB|questionDraftStorage|evidence/i;
   assert.doesNotMatch(code('src/platform/supports/workedExample/PracticeLikeThis.jsx'), forbidden);
   assert.doesNotMatch(code('src/platform/supports/workedExample/practiceLikeThis.js'), forbidden);
+  // FB19's variants: the grader is asked about the variant's key, and its verdict goes nowhere.
+  assert.doesNotMatch(code('src/platform/supports/workedExample/numericVariant.js'), forbidden);
   // The engine hands it the question and the text supports, and nothing that reports.
   const engine = code('src/QuestionEngine.jsx');
   const mount = region(engine, 'const practiceLikeThis = practiceOffered ? (', ') : null;');
@@ -325,16 +343,38 @@ test('HELP-11: Pre-Flight warns — never blocks — on answer-only worked solut
   assert.equal(workedSolutionDepth(factorTemplate), 'steps');
   assert.equal(workedSolutionDepth(sumTemplate), 'answerOnly');
   assert.equal(workedSolutionDepth({ ...sumTemplate, solutionReview: { reasoning: ['{{a}} + 1 = {{v}}.'] } }), 'steps');
-  // The real lessons: 884 of 945 practice-like items walk through steps —
+  // The real lessons: 959 of 971 practice-like items walk through steps —
   // 204 of 265 in the lessons before October 22 (199 before family slots
   // were judged by a version), then every one in Operations on Polynomials
   // and Dividing Polynomials (59), the Algebra I DOL #3 Review (13) and its
   // Honors version (16), the Algebra II Honors DOL #2 review (33), Module 3
-  // (144) and its Honors files (146), and the Algebra II Polynomials and
-  // Radicals lessons (132) and their Honors versions (137).
+  // (144) and its Honors files (146), the Algebra II Polynomials and
+  // Radicals lessons (132) and their Honors versions (137), and the Algebra I
+  // Lesson 3 Honors file (26, 9 with steps: the Regular lesson's 8 less the
+  // one it swaps out, and both audited items); and the 12 warm-up, classwork
+  // and practice transformation descriptions of Algebra II Honors Module 1
+  // (L1 absolute value, L2 day 2), which the transformations family now
+  // works (CT02; its two DOL items are not practice-like); and the Algebra I
+  // Lesson 3 multi-answer items the perpendicularLines family now works
+  // (CT02): 17 in the Regular file and 16 in the Honors file, every warm-up,
+  // classwork and practice one but l3-wu-2, whose points are in the warm-up
+  // before it (its sorts and line choices were already counted, as composed
+  // workflows; its three DOL items are not practice-like); and l3-wu-2 itself,
+  // once per file, which now carries its own worked solution (CT02 slice 4),
+  // and the Algebra II Honors M1 L2 day 2 Transformations Lab description of
+  // an exponential, which the lab's review now works (CT02 slice 4); and 11 of
+  // the Algebra I M2 T2 Lesson 2 items counted in the 265, which now carry
+  // their own worked solutions (CT02 slice 4: its warm-ups, classwork and
+  // practice; its sort was already counted, its DOL items are not practice-like);
+  // and the Algebra I DOL #1 review's arithmetic and geometric sequences (CT02
+  // slice 4; the other items given steps there were already counted); and the
+  // Algebra II Honors matrices lesson's two warm-ups and its CCMR practice item
+  // (CT02 slice 4; its sort of products was already counted); and the parent
+  // function |x| in the ALEKS bridge's practice and the Lesson 2 Day 2 warm-up
+  // (CT02 slice 4).
   const practiceLike = itemsByRole().filter((item) => ['warmup', 'classwork', 'practice'].includes(item.role));
-  assert.equal(practiceLike.length, 265 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137);
-  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 204 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137);
+  assert.equal(practiceLike.length, 265 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 26);
+  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 204 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 9 + 12 + 17 + 16 + 2 + 1 + 11 + 2 + 3 + 2);
   // Wired into Pre-Flight as advice the teacher sees in the Check step, and
   // never as a diagnostic: any warning diagnostic makes an assignment "Needs
   // Review", which students never see (isUnpublishedDraft) — and most real
@@ -409,7 +449,8 @@ test('HELP-18: before the single try a choice-only item says so, and that a hint
   assert.match(notice, /immediateFeedback: showOutcomeFeedback && resolvedActivityPolicy\?\.feedback === 'immediate'/);
   const panel = region(engine, '<div className="mathmaster-question-context-panel">', '{!supportPresentation.declutter && (');
   assert.match(panel, /\{oneTryLine && \(/, 'shown before the declutter gate, so an inclusion student sees it');
-  assert.match(panel, /onClick=\{revealNextHint\}/, 'the existing hint reveal, rules unchanged');
+  // The notice sits at the top of the work, so the panel opens there (FB10).
+  assert.match(panel, /onClick=\{\(\) => revealNextHint\('top'\)\}/, 'the existing hint reveal, rules unchanged');
 });
 
 test('HELP-18: after it, the author\'s one-line reason for the chosen option — kept through the compiler, checked in Pre-Flight', () => {

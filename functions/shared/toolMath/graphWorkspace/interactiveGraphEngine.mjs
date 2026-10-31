@@ -27,9 +27,6 @@ const reorderWithKeyInMiddle = (points, keyPoint) => {
   return output.slice(0, 5);
 };
 
-/** A workflow graph plots every row of the student's table, up to this many. */
-export const MAX_WORKFLOW_POINT_TASKS = 12;
-
 export const buildInteractivePointTasks = (spec, options = {}) => {
   const keyPoint = getGraphKeyPoint(spec);
   const suggested = Array.isArray(options.points) && options.points.length ? options.points : getSuggestedGraphPoints(spec);
@@ -52,8 +49,14 @@ export const buildInteractivePointTasks = (spec, options = {}) => {
     // Every one: a six-row table (x = 0…5) once offered P1–P5 only, so the
     // last row could not be plotted, "All point placements are correct" was
     // said with a point missing, and the graph was marked right without it
-    // (walkthrough 2026-10-22, DOL #3 PR 2). The cap only bounds a runaway list.
-    suggested.slice(0, MAX_WORKFLOW_POINT_TASKS).forEach((point, index) => tasks.push({
+    // (walkthrough 2026-10-22, DOL #3 PR 2). A cap of 12 then did the same to
+    // rows 13–20 of a 20-row table, which the workflow allows (TL48), so there
+    // is no cap. The list is never the student's to lengthen: it is the
+    // authored table's rows (the server rebuilds them from the question), or a
+    // generated question's five points. And a graph whose work cannot carry a
+    // placement for every row (the work keeps 100, graphWorkspaceModel.mjs)
+    // can never be finished, so it is never marked right with a row missing.
+    suggested.forEach((point, index) => tasks.push({
       id: `point-${index + 1}`,
       label: `P${index + 1}`,
       role: 'point',
@@ -330,9 +333,25 @@ const findXIntercepts = (spec, window) => {
   return dedupePoints(roots.map(([x, y]) => [round(x, 4), y]), 0.12);
 };
 
+/*
+ * WHICH FUNCTIONS HAVE A VERTEX OR A CENTER (the owner, 2026-10-23; GR18).
+ * (h, k) is the vertex of a parabola and of an absolute-value graph, and the
+ * center of a rational, cubic or cube-root graph. It was keyed as both for
+ * every type, so a student asked for the vertex of an exponential, a
+ * logarithm or a line was right only by clicking a point that is no feature
+ * of the graph. Anywhere else the key is empty: "Does not exist".
+ */
+export const FUNCTION_TYPES_WITH_FEATURE = Object.freeze({
+  vertex: Object.freeze(['quadratic', 'absolute']),
+  center: Object.freeze(['rational', 'cubic', 'cubeRoot']),
+});
+
+/** The point feature a graph question asks for when it names none: the function's center where it has one, else its vertex. */
+export const ownPointFeature = (spec = {}) => (FUNCTION_TYPES_WITH_FEATURE.center.includes(spec?.type) ? 'center' : 'vertex');
+
 export const getGraphFeaturePoints = (spec, feature, window) => {
   const h = Number(spec.h ?? 0); const k = Number(spec.k ?? 0);
-  if (feature === 'vertex' || feature === 'center') return [[h, k]];
+  if (feature === 'vertex' || feature === 'center') return FUNCTION_TYPES_WITH_FEATURE[feature].includes(spec.type) ? [[h, k]] : [];
   if (feature === 'localMaximum') return Number(spec.a ?? 1) < 0 && ['absolute', 'quadratic'].includes(spec.type) ? [[h, k]] : [];
   if (feature === 'localMinimum') return Number(spec.a ?? 1) > 0 && ['absolute', 'quadratic'].includes(spec.type) ? [[h, k]] : [];
   if (feature === 'yIntercept') {

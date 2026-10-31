@@ -1,0 +1,132 @@
+/*
+ * HOW TO READ EACH GRAPH FEATURE: what a Graph Feature Rush round publishes
+ * once it has ended (LC07).
+ *
+ * A Rush round has no shared question: every student's graphs are their own,
+ * so there is no worked solution to show without handing one student's answer
+ * to the class. What every student in the room does share is WHAT they were
+ * asked to find. So a Rush round's results carry a short reading guide to the
+ * features in the game — what each one is and where it sits on a graph, when
+ * to choose "Does Not Exist", and the slip students most often make. It names
+ * no graph, no target and no coordinate of anyone's: it is the same text for
+ * every student and every round, written from the feature definitions
+ * (graphFeatureRegistry.mjs) alone, so it can never tell a student the answer
+ * to a graph they are still working on.
+ *
+ * It is SHORT on purpose: the projector shows it to a class from the back of a
+ * room beside the round's tables, where a card that runs past the screen is
+ * cut off (a first draft of 40-word lines was, and so was a headline that only
+ * repeated the card's title). One line a feature, one line on "Does Not
+ * Exist", one on the slips, nothing else.
+ *
+ * It rides the worked-solution pipeline: captured privately when the round
+ * opens, published at the round's close (liveChallengeSolutionReveal.mjs), and
+ * read by the screens that read a solution, which title it by `guide: true`
+ * (challengeSolutionModel.solutionTitle). Rush has no Second Chance, so
+ * nothing holds it back. The end-of-game recap does not repeat it.
+ *
+ * ADDING A FEATURE to the registry means adding its reading here: a test fails
+ * until every registered feature has one, so a game never publishes a guide
+ * with a feature missing from it.
+ *
+ * Pure: shared by Cloud Functions and tests.
+ */
+
+import { getGraphFeature, listGraphFeatures } from './graphFeatureRegistry.mjs';
+import { roundSolutionRecord } from './liveChallengeSolutionReveal.mjs';
+
+/*
+ * `line` says what the feature is and where it sits; `slip` is the mistake to
+ * watch for. Plain, short sentences. Where a feature can be absent (registry
+ * `canNotExist`) the guide adds one line on "Does Not Exist", naming those
+ * features, because choosing it well is part of the skill.
+ */
+export const FEATURE_READING = Object.freeze({
+  xIntercept: Object.freeze({
+    line: 'x-intercepts (zeros, roots): where the graph meets the x-axis, so y = 0. Tap every one.',
+    slip: 'Stopping at the first x-intercept when the graph meets the axis again.',
+  }),
+  yIntercept: Object.freeze({
+    line: 'y-intercept: where the graph meets the y-axis, so x = 0. There is at most one.',
+    slip: 'Mixing up the axes: the y-intercept is on the y-axis.',
+  }),
+  vertex: Object.freeze({
+    line: 'Vertex: the turning point of a parabola, or the corner of an absolute value graph.',
+    slip: 'Tapping an intercept: the vertex is usually not on an axis.',
+  }),
+  maximum: Object.freeze({
+    line: 'Maximum: the highest point of the whole graph; a graph that keeps rising has none.',
+    slip: 'Calling the top of the screen the maximum when the graph keeps rising.',
+  }),
+  minimum: Object.freeze({
+    line: 'Minimum: the lowest point of the whole graph; a graph that keeps falling has none.',
+    slip: 'Calling the bottom of the screen the minimum when the graph keeps falling.',
+  }),
+});
+
+// A game's features in the registry's own order, whatever order the teacher
+// chose them in, each once; ids the registry does not know (or this module has
+// no reading for) are left out.
+const featuresInGame = (features) => {
+  const wanted = new Set((Array.isArray(features) ? features : []).map((id) => String(id ?? '').trim()));
+  return listGraphFeatures().map((feature) => feature.id).filter((id) => wanted.has(id) && FEATURE_READING[id]);
+};
+
+const labelOf = (id) => getGraphFeature(id)?.shortLabel || id;
+
+// "x-intercepts", "x-intercepts or maximum", "x-intercepts, y-intercept or maximum".
+const orList = (names) => (names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`);
+
+// As many of the slips as the review's "watch out" line takes here, whole, in
+// feature order: the first two, not a paragraph.
+const SLIPS_MAX = 150;
+const joinSlips = (ids) => {
+  let text = '';
+  for (const id of ids) {
+    const next = text ? `${text} ${FEATURE_READING[id].slip}` : FEATURE_READING[id].slip;
+    if (next.length > SLIPS_MAX) break;
+    text = next;
+  }
+  return text;
+};
+
+/**
+ * The guide for a game that asks for `features`: the review a solution card
+ * draws (headline, a line per feature, a line on "Does Not Exist" when any
+ * of them can be absent, and the slips to watch for). Null when the game asks
+ * for none this module can read: nothing is published then.
+ */
+export const rushReadingGuide = ({ features = [] } = {}) => {
+  const ids = featuresInGame(features);
+  if (!ids.length) return null;
+  const absentable = ids.filter((id) => getGraphFeature(id)?.canNotExist);
+  const reasoning = [
+    ...ids.map((id) => FEATURE_READING[id].line),
+    ...(absentable.length ? [`If the graph has no ${orList(absentable.map(labelOf))}, choose Does Not Exist.`] : []),
+  ];
+  return Object.freeze({
+    // The card's title says what it is and the lines name the features themselves: nothing to say above them.
+    prompt: null,
+    solutionReview: Object.freeze({
+      headline: null,
+      reasoning: Object.freeze(reasoning),
+      commonError: joinSlips(ids) || null,
+      connection: null,
+      answerSummary: null,
+    }),
+  });
+};
+
+/**
+ * What the Rush planner stores privately when a round opens: the guide as a
+ * worked-solution record (liveChallengeSolutionReveal.roundSolutionRecord),
+ * marked `guide` so the screens title it as one. Null when there is no guide.
+ */
+export const rushRoundSolutionRecord = ({ features = [] } = {}) => {
+  const guide = rushReadingGuide({ features });
+  if (!guide) return null;
+  return Object.freeze({
+    ...roundSolutionRecord({ question: { prompt: guide.prompt }, solutionReview: guide.solutionReview, displayStandard: null }),
+    guide: true,
+  });
+};

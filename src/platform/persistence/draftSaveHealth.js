@@ -46,11 +46,14 @@ const snapshot = () => Object.fromEntries(KINDS.map((kind) => [kind, problems.ge
  * and read back on load — but only for a draft this device still holds (one
  * submitted, started over or retired since is not unsaved work any more).
  * Every clear writes through, so the notice goes the moment the draft is
- * backed up. DEVICE_FULL is not kept: the work storage refused never reached
- * it, so after a reload it is gone from this page, and the next write that
- * fails says so again. Per tab, as before; a new tab starts clear.
+ * backed up. DEVICE_FULL is kept too (RT07), until that draft's next write
+ * succeeds: the work storage refused never reached it, so it is kept whether
+ * or not an older copy is there — after a reload the student still hears that
+ * this device is not saving their work, not silence until the next keystroke.
+ * Per tab, as before; a new tab starts clear.
  */
-const KEPT_KINDS = [DRAFT_SAVE_PROBLEM.BACKUP_REFUSED, DRAFT_SAVE_PROBLEM.BACKUP_FULL];
+const KEPT_KINDS = [DRAFT_SAVE_PROBLEM.DEVICE_FULL, DRAFT_SAVE_PROBLEM.BACKUP_REFUSED, DRAFT_SAVE_PROBLEM.BACKUP_FULL];
+const stillOnDevice = (kind, key) => kind === DRAFT_SAVE_PROBLEM.DEVICE_FULL || window.localStorage.getItem(key) !== null;
 const KEPT_STORAGE_KEY = 'mathmaster:draft-save-health:v1';
 
 const tabStorage = () => {
@@ -82,7 +85,7 @@ const restoreKept = () => {
     KEPT_KINDS.forEach((kind) => {
       const keys = Array.isArray(kept[kind]) ? kept[kind].slice(-MAX_KEYS_PER_KIND) : [];
       keys.forEach((key) => {
-        if (typeof key === 'string' && key && window.localStorage.getItem(key) !== null) problems.get(kind).add(key);
+        if (typeof key === 'string' && key && stillOnDevice(kind, key)) problems.get(kind).add(key);
       });
     });
     keep();
@@ -199,6 +202,27 @@ export const draftSaveProblemsFor = ({ studentId, assignmentId } = {}) => {
   const part = (value) => encodeURIComponent(String(value ?? ''));
   const prefix = `mathmaster:draft:v2::${part(studentId)}:${part(assignmentId)}:`;
   return Object.fromEntries(KINDS.map((kind) => [kind, [...problems.get(kind)].filter((key) => key.startsWith(prefix)).length]));
+};
+
+/*
+ * The assignments where one student has a problem, for Home to name them
+ * (NV10). Draft keys are `mathmaster:draft:v2::<student>:<assignment>:…`.
+ */
+export const draftSaveProblemAssignmentIds = (studentId) => {
+  if (!studentId) return [];
+  const prefix = `mathmaster:draft:v2::${encodeURIComponent(String(studentId))}:`;
+  const ids = new Set();
+  KINDS.forEach((kind) => problems.get(kind).forEach((key) => {
+    if (!key.startsWith(prefix)) return;
+    const part = key.slice(prefix.length).split(':')[0];
+    try {
+      const id = decodeURIComponent(part);
+      if (id) ids.add(id);
+    } catch {
+      // A key this build did not write names nothing.
+    }
+  }));
+  return [...ids];
 };
 
 /* Every problem of one student, on any assignment: what Home's status line reads. */

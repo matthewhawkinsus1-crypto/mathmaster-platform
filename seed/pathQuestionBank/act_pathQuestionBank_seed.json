@@ -13739,7 +13739,7 @@
         "stemProfile": "translated-point",
         "answerChoiceCount": 4
       },
-      "prompt": "The point $({{p}},{{q}})$ lies on the graph of $y=f(x)$. Which point lies on the graph of $y=f(x-{{h}})+{{k}}$?",
+      "prompt": "The point $({{p}},{{q}})$ lies on the curve $y=f(x)$. Which point lies on the curve $y=f(x-{{h}})+{{k}}$?",
       "generator": {
         "parameters": {
           "p": {
@@ -13810,7 +13810,7 @@
       "solutionReview": {
         "headline": "Right {{h}} and up {{k}}: $({{x1}},{{y1}})$.",
         "reasoning": [
-          "$f(x-{{h}})$ shifts the graph {{h}} units right, and $+{{k}}$ shifts it {{k}} units up.",
+          "$f(x-{{h}})$ shifts the graph {{h}} unit{{h|plural}} right, and $+{{k}}$ shifts it {{k}} unit{{k|plural}} up.",
           "New $x$: ${{p}}+{{h}}={{x1}}$. New $y$: ${{q}}+{{k}}={{y1}}$."
         ],
         "commonError": "Shifting left for $x-{{h}}$; subtracting inside the function moves the graph right.",
@@ -19485,7 +19485,7 @@
         "commonError": "Moving vertically by $b={{b}}$, which reaches an end of the minor axis instead.",
         "answerSummary": "$({{xp}},{{k}})$"
       },
-      "prompt": "The ellipse $\\dfrac{(x {{nh|term}})^2}{{{a2}}}+\\dfrac{(y {{nk|term}})^2}{{{b2}}}=1$ has $a>b$. Which point is a vertex on its major axis?",
+      "prompt": "The ellipse $\\dfrac{ {{h|xshift}}^2 }{ {{a2}} }+\\dfrac{ {{k|yshift}}^2 }{ {{b2}} }=1$ has $a>b$. Which point is a vertex on its major axis?",
       "generator": {
         "parameters": {
           "h": {
@@ -20800,7 +20800,7 @@
         "commonError": "Giving $a$ alone, which is the distance from the center to one vertex.",
         "answerSummary": "${{answer}}$"
       },
-      "prompt": "For the hyperbola $\\dfrac{(x {{nh|term}})^2}{{{a2}}}-\\dfrac{(y {{nk|term}})^2}{{{b2}}}=1$, what is the distance between its 2 vertices?",
+      "prompt": "For the hyperbola $\\dfrac{ {{h|xshift}}^2 }{ {{a2}} }-\\dfrac{ {{k|yshift}}^2 }{ {{b2}} }=1$, what is the distance between its 2 vertices?",
       "generator": {
         "parameters": {
           "h": {
@@ -21410,13 +21410,13 @@
       "solutionReview": {
         "headline": "Negative $x$ and positive $y$: Quadrant II.",
         "reasoning": [
-          "The point $(-{{a}},{{b}})$ is {{a}} units left of the $y$-axis and {{b}} units above the $x$-axis.",
+          "The point $(-{{a}},{{b}})$ is {{a}} unit{{a|plural}} left of the $y$-axis and {{b}} unit{{b|plural}} above the $x$-axis.",
           "Left and up is the upper-left region, Quadrant II (Quadrant I is upper right; the numbering goes counterclockwise)."
         ],
         "commonError": "Numbering the quadrants clockwise.",
         "answerSummary": "Quadrant II"
       },
-      "prompt": "The point $(-{{a}},{{b}})$ is plotted in the coordinate plane, where {{a}} and {{b}} are positive. In which quadrant is the point?",
+      "prompt": "The point $(-{{a}},{{b}})$ is plotted in a coordinate plane. In which quadrant is the point?",
       "generator": {
         "parameters": {
           "a": {
@@ -21663,7 +21663,7 @@
         "headline": "Across the $x$-axis, keep $x$ and change the sign of $y$: $({{x}},{{ny}})$.",
         "reasoning": [
           "Reflecting across the $x$-axis flips the point from above the axis to below it, the same distance away.",
-          "$P$ is {{y}} units above the axis, so its image is {{y}} units below, at $({{x}},{{ny}})$."
+          "$P$ is {{y}} unit{{y|plural}} above the axis, so its image is {{y}} unit{{y|plural}} below, at $({{x}},{{ny}})$."
         ],
         "commonError": "Changing the sign of $x$, which reflects across the $y$-axis instead.",
         "answerSummary": "$({{x}},{{ny}})$"
@@ -29644,7 +29644,7 @@
         "commonError": "Adding each increase only once instead of to both sides of each pair.",
         "answerSummary": "${{ans}}$ units"
       },
-      "prompt": "A rectangle is {{l}} units long and {{w}} units wide. Its length is increased by {{a}} units and its width by {{b}} units. What is the perimeter of the new rectangle?",
+      "prompt": "A rectangle is {{l}} units long and {{w}} units wide. Its length is increased by {{a}} unit{{a|plural}} and its width by {{b}} unit{{b|plural}}. What is the perimeter of the new rectangle?",
       "generator": {
         "parameters": {
           "l": {
@@ -38960,13 +38960,13 @@
         "Use the numerical relationship or property that makes the computation most efficient, then verify the units or sign."
       ],
       "solutionReview": {
-        "headline": "Withdrawals subtract and deposits add: {{ans}} dollars.",
+        "headline": "Withdrawals subtract and deposits add: {{ans}} dollar{{ans|plural}}.",
         "reasoning": [
           "Apply each transaction in order to the starting balance of {{start}} dollars.",
-          "${{start}}-{{w}}+{{dep}}-{{fee}}={{ans}}$ dollars."
+          "${{start}}-{{w}}+{{dep}}-{{fee}}={{ans}}$ dollar{{ans|plural}}."
         ],
         "commonError": "Adding a withdrawal as though it were a deposit.",
-        "answerSummary": "${{ans}}$ dollars"
+        "answerSummary": "${{ans}}$ dollar{{ans|plural}}"
       },
       "prompt": "An account balance is ${{start}}. A withdrawal of ${{w}} is followed by a deposit of ${{dep}} and another withdrawal of ${{fee}}. What is the new balance?",
       "generator": {
@@ -39422,7 +39422,7 @@
         "commonError": "Adding the walk back instead of subtracting it.",
         "answerSummary": "$\\dfrac{{{quarters}}}{4}$ miles"
       },
-      "prompt": "A hiker walks {{whole}} miles in the morning and $\\dfrac{{{n}}}{4}$ mile in the afternoon, then walks {{back}} miles back toward the starting point. How many miles from the starting point is the hiker?",
+      "prompt": "A hiker walks {{whole}} miles in the morning and $\\dfrac{{{n}}}{4}$ mile in the afternoon, then walks {{back}} mile{{back|plural}} back toward the starting point. How many miles from the starting point is the hiker?",
       "generator": {
         "parameters": {
           "whole": {
@@ -58693,13 +58693,13 @@
         "Distinguish observed data from summaries, and identify the correct sample space or sampling condition before calculating."
       ],
       "solutionReview": {
-        "headline": "Expected winnings minus the cost to play: {{answer}} dollars.",
+        "headline": "Expected winnings minus the cost to play: {{answer}} dollar{{answer|plural}}.",
         "reasoning": [
           "Expected winnings: $20\\cdot\\frac{1}{ {{n}} }={{winEV}}$ dollars per play.",
-          "The {{cost}}-dollar cost is paid every play: ${{winEV}}-{{cost}}={{answer}}$ dollars."
+          "The {{cost}}-dollar cost is paid every play: ${{winEV}}-{{cost}}={{answer}}$ dollar{{answer|plural}}."
         ],
         "commonError": "Leaving out the cost, or subtracting it only from the prize.",
-        "answerSummary": "${{answer}}$ dollars"
+        "answerSummary": "${{answer}}$ dollar{{answer|plural}}"
       },
       "prompt": "A game costs ${{cost}} to play. A player wins ${{prize}} with probability $1/{{n}}$ and wins $0 otherwise. What is the expected net value, in dollars, to the player for 1 play?",
       "generator": {

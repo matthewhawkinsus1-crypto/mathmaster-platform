@@ -9,6 +9,7 @@ import {
   sequenceStudentActions,
   sequenceTerm,
 } from '../sequenceExplorer/sequenceMath.js';
+import { A_N_WORDS, sequenceWords } from '../sequenceExplorer/sequenceNotation.js';
 import sequenceExplorerDeclaration from '../../../functions/shared/serverGrading/declarations/sequenceExplorer.mjs';
 import functionInvestigationDeclaration from '../../../functions/shared/serverGrading/declarations/functionInvestigation2.mjs';
 import { resolveToolMode } from '../../../functions/shared/serverGrading/toolGraderDefinition.mjs';
@@ -77,62 +78,66 @@ const plusOrMinus = (value) => (Number(value) < 0 ? `${MINUS_SIGN} ${shownNumber
 
 const sequenceDeclarationMode = (question) => resolveToolMode(sequenceExplorerDeclaration, question);
 
-const sequenceRules = (spec) => {
+// How the question writes its terms (aₙ, or f(n) where it says so and the
+// student types no rule; TL39, sequenceNotation.js): every sequence builder
+// below takes the question's `words`, and the default is aₙ as it always was.
+const sequenceRules = (spec, words = A_N_WORDS) => {
   if (spec.kind === 'arithmetic') {
     const sign = spec.difference < 0 ? '−' : '+';
     const magnitude = Math.abs(spec.difference);
     return {
-      explicit: `aₙ = ${shownNumber(spec.first)} ${sign} (n − 1)(${shownNumber(magnitude)})`,
-      recursive: `aₙ = aₙ₋₁ ${sign} ${typedNumber(magnitude)}`,
+      explicit: `${words.general} = ${shownNumber(spec.first)} ${sign} (n − 1)(${shownNumber(magnitude)})`,
+      recursive: `${words.general} = ${words.previous} ${sign} ${typedNumber(magnitude)}`,
     };
   }
   // Typed the way the rule box reads it: a power as ^(n − 1).
   return {
-    explicit: `aₙ = ${shownNumber(spec.first)}(${shownNumber(spec.ratio)})^(n − 1)`,
-    recursive: `aₙ = ${typedNumber(spec.ratio)} · aₙ₋₁`,
+    explicit: `${words.general} = ${shownNumber(spec.first)}(${shownNumber(spec.ratio)})^(n − 1)`,
+    recursive: `${words.general} = ${typedNumber(spec.ratio)} · ${words.previous}`,
   };
 };
 
 /** "Each term is the one before plus 4: a₁ = 3, a₂ = 3 + 4 = 7, … — arithmetic, common difference 4." */
-const sequenceFamilyStep = (spec, start = 1) => {
+const sequenceFamilyStep = (spec, start = 1, words = A_N_WORDS) => {
   const indexes = [start, start + 1, start + 2];
   const terms = indexes.map((n) => sequenceTerm(spec, n));
   const shown = indexes.map((n, position) => (position === 0
-    ? `a${n} = ${shownNumber(terms[0])}`
+    ? `${words.term(n)} = ${shownNumber(terms[0])}`
     : spec.kind === 'arithmetic'
-      ? `a${n} = ${shownNumber(terms[position - 1])} ${plusOrMinus(spec.difference)} = ${shownNumber(terms[position])}`
-      : `a${n} = ${shownNumber(terms[position - 1])} · ${shownFactor(spec.ratio)} = ${shownNumber(terms[position])}`));
+      ? `${words.term(n)} = ${shownNumber(terms[position - 1])} ${plusOrMinus(spec.difference)} = ${shownNumber(terms[position])}`
+      : `${words.term(n)} = ${shownNumber(terms[position - 1])} · ${shownFactor(spec.ratio)} = ${shownNumber(terms[position])}`));
   return spec.kind === 'arithmetic'
     ? `Each term is the one before ${spec.difference < 0 ? 'minus' : 'plus'} ${shownNumber(Math.abs(spec.difference))}: ${shown.join(', ')}. The difference between neighbouring terms is always ${shownNumber(spec.difference)}, so the sequence is arithmetic with common difference ${shownNumber(spec.difference)}.`
     : `Each term is the one before times ${shownNumber(spec.ratio)}: ${shown.join(', ')}. The ratio of neighbouring terms is always ${shownNumber(spec.ratio)}, so the sequence is geometric with common ratio ${shownNumber(spec.ratio)}.`;
 };
 
 /** aₙ from the explicit formula, worked out. */
-const sequenceTermStep = (spec, n) => {
+const sequenceTermStep = (spec, n, words = A_N_WORDS) => {
   const value = sequenceTerm(spec, n);
   if (spec.kind === 'arithmetic') {
     const added = (n - 1) * spec.difference;
-    return `Use aₙ = a₁ + (n − 1)d with a₁ = ${shownNumber(spec.first)} and d = ${shownNumber(spec.difference)}: a${n} = ${shownNumber(spec.first)} + (${n} − 1)(${shownNumber(spec.difference)}) = ${shownNumber(spec.first)} + ${shownFactor(added)} = ${shownNumber(value)}.`;
+    return `Use ${words.general} = ${words.first} + (n − 1)d with ${words.first} = ${shownNumber(spec.first)} and d = ${shownNumber(spec.difference)}: ${words.term(n)} = ${shownNumber(spec.first)} + (${n} − 1)(${shownNumber(spec.difference)}) = ${shownNumber(spec.first)} + ${shownFactor(added)} = ${shownNumber(value)}.`;
   }
   const power = spec.ratio ** (n - 1);
-  return `Use aₙ = a₁ · rⁿ⁻¹ with a₁ = ${shownNumber(spec.first)} and r = ${shownNumber(spec.ratio)}: a${n} = ${shownNumber(spec.first)} · ${shownFactor(spec.ratio)}^(${n} − 1) = ${shownNumber(spec.first)} · ${shownFactor(power)} = ${shownNumber(value)}.`;
+  return `Use ${words.general} = ${words.first} · rⁿ⁻¹ with ${words.first} = ${shownNumber(spec.first)} and r = ${shownNumber(spec.ratio)}: ${words.term(n)} = ${shownNumber(spec.first)} · ${shownFactor(spec.ratio)}^(${n} − 1) = ${shownNumber(spec.first)} · ${shownFactor(power)} = ${shownNumber(value)}.`;
 };
 
-const sequenceRuleSteps = (spec) => {
-  const rules = sequenceRules(spec);
+const sequenceRuleSteps = (spec, words = A_N_WORDS) => {
+  const rules = sequenceRules(spec, words);
   return spec.kind === 'arithmetic'
     ? [
-      `Recursive rule: start at a₁ = ${shownNumber(spec.first)}, and each term is the one before ${spec.difference < 0 ? 'minus' : 'plus'} ${shownNumber(Math.abs(spec.difference))}: ${rules.recursive}.`,
-      `Explicit rule: to reach aₙ from a₁ you add the common difference ${shownNumber(spec.difference)} once for each step after the first — (n − 1) times: ${rules.explicit}.`,
+      `Recursive rule: start at ${words.first} = ${shownNumber(spec.first)}, and each term is the one before ${spec.difference < 0 ? 'minus' : 'plus'} ${shownNumber(Math.abs(spec.difference))}: ${rules.recursive}.`,
+      `Explicit rule: to reach ${words.general} from ${words.first} you add the common difference ${shownNumber(spec.difference)} once for each step after the first — (n − 1) times: ${rules.explicit}.`,
     ]
     : [
-      `Recursive rule: start at a₁ = ${shownNumber(spec.first)}, and each term is the one before times ${shownNumber(spec.ratio)}: ${rules.recursive}.`,
-      `Explicit rule: to reach aₙ from a₁ you multiply by the common ratio ${shownNumber(spec.ratio)} once for each step after the first — (n − 1) times: ${rules.explicit}.`,
+      `Recursive rule: start at ${words.first} = ${shownNumber(spec.first)}, and each term is the one before times ${shownNumber(spec.ratio)}: ${rules.recursive}.`,
+      `Explicit rule: to reach ${words.general} from ${words.first} you multiply by the common ratio ${shownNumber(spec.ratio)} once for each step after the first — (n − 1) times: ${rules.explicit}.`,
     ];
 };
 
 const buildSequenceReview = (question) => {
   const mode = sequenceDeclarationMode(question);
+  const words = sequenceWords(question);
   if (mode === 'compare') {
     // The screen's and the grader's pair, with their defaults.
     const { left, right } = compareSpecsFromQuestion(question);
@@ -141,7 +146,7 @@ const buildSequenceReview = (question) => {
     const leftLabel = question.leftLabel || 'Sequence A';
     const rightLabel = question.rightLabel || 'Sequence B';
     const larger = result.relation === 'left' ? leftLabel : result.relation === 'right' ? rightLabel : 'They are equal';
-    const describe = (spec, label) => `${label}: ${sequenceTermStep(spec, n)}`;
+    const describe = (spec, label) => `${label}: ${sequenceTermStep(spec, n, words)}`;
     const bigger = Math.max(result.left, result.right);
     const smaller = Math.min(result.left, result.right);
     return {
@@ -165,16 +170,16 @@ const buildSequenceReview = (question) => {
   const spec = sequenceSpecFromQuestion(question);
   const family = titleCase(spec.kind);
   if (mode === 'ruleBridge') {
-    const rules = sequenceRules(spec);
+    const rules = sequenceRules(spec, words);
     return {
       title: 'Sequence-rule solution',
       items: [
         { label: 'Sequence family', value: family },
         { label: 'Explicit rule', value: rules.explicit },
-        { label: 'a₁', value: typedNumber(spec.first) },
+        { label: words.first, value: typedNumber(spec.first) },
         { label: 'Recursive rule', value: rules.recursive },
       ],
-      steps: [sequenceFamilyStep(spec), ...sequenceRuleSteps(spec)],
+      steps: [sequenceFamilyStep(spec, 1, words), ...sequenceRuleSteps(spec, words)],
     };
   }
   if (mode === 'missingTerm') {
@@ -184,18 +189,18 @@ const buildSequenceReview = (question) => {
     const start = n >= 4 ? 1 : n + 1;
     const neighbour = n > 1
       ? (spec.kind === 'arithmetic'
-        ? `The missing term comes right after a${n - 1} = ${shownNumber(sequenceTerm(spec, n - 1))}, so a${n} = ${shownNumber(sequenceTerm(spec, n - 1))} ${plusOrMinus(spec.difference)} = ${shownNumber(value)}.`
-        : `The missing term comes right after a${n - 1} = ${shownNumber(sequenceTerm(spec, n - 1))}, so a${n} = ${shownNumber(sequenceTerm(spec, n - 1))} · ${shownFactor(spec.ratio)} = ${shownNumber(value)}.`)
+        ? `The missing term comes right after ${words.term(n - 1)} = ${shownNumber(sequenceTerm(spec, n - 1))}, so ${words.term(n)} = ${shownNumber(sequenceTerm(spec, n - 1))} ${plusOrMinus(spec.difference)} = ${shownNumber(value)}.`
+        : `The missing term comes right after ${words.term(n - 1)} = ${shownNumber(sequenceTerm(spec, n - 1))}, so ${words.term(n)} = ${shownNumber(sequenceTerm(spec, n - 1))} · ${shownFactor(spec.ratio)} = ${shownNumber(value)}.`)
       : (spec.kind === 'arithmetic'
-        ? `The missing term comes right before a2 = ${shownNumber(sequenceTerm(spec, 2))}, so undo one step: a1 = ${shownNumber(sequenceTerm(spec, 2))} − ${shownFactor(spec.difference)} = ${shownNumber(value)}.`
-        : `The missing term comes right before a2 = ${shownNumber(sequenceTerm(spec, 2))}, so undo one step: a1 = ${shownNumber(sequenceTerm(spec, 2))} ÷ ${shownFactor(spec.ratio)} = ${shownNumber(value)}.`);
+        ? `The missing term comes right before ${words.term(2)} = ${shownNumber(sequenceTerm(spec, 2))}, so undo one step: ${words.term(1)} = ${shownNumber(sequenceTerm(spec, 2))} − ${shownFactor(spec.difference)} = ${shownNumber(value)}.`
+        : `The missing term comes right before ${words.term(2)} = ${shownNumber(sequenceTerm(spec, 2))}, so undo one step: ${words.term(1)} = ${shownNumber(sequenceTerm(spec, 2))} ÷ ${shownFactor(spec.ratio)} = ${shownNumber(value)}.`);
     return {
       title: 'Missing-term solution',
       items: [
         { label: 'Sequence family', value: family },
-        { label: `a${n}`, value: typedNumber(value) },
+        { label: words.term(n), value: typedNumber(value) },
       ],
-      steps: [sequenceFamilyStep(spec, start), neighbour],
+      steps: [sequenceFamilyStep(spec, start, words), neighbour],
     };
   }
   if (mode === 'partialSum') {
@@ -203,17 +208,17 @@ const buildSequenceReview = (question) => {
     const last = sequenceTerm(spec, n);
     const sum = sequencePartialSum(spec, n);
     const sumStep = spec.kind === 'arithmetic'
-      ? `An arithmetic sum is the number of terms times the average of the first and last: Sₙ = n(a₁ + aₙ) ÷ 2, so S${n} = ${n}(${shownNumber(spec.first)} + ${shownFactor(last)}) ÷ 2 = ${n}(${shownNumber(spec.first + last)}) ÷ 2 = ${shownNumber(sum)}.`
+      ? `An arithmetic sum is the number of terms times the average of the first and last: Sₙ = n(${words.first} + ${words.general}) ÷ 2, so S${n} = ${n}(${shownNumber(spec.first)} + ${shownFactor(last)}) ÷ 2 = ${n}(${shownNumber(spec.first + last)}) ÷ 2 = ${shownNumber(sum)}.`
       : Math.abs(spec.ratio - 1) < 1e-8
         ? `With ratio 1 every term is ${shownNumber(spec.first)}, so S${n} = ${n} · ${shownFactor(spec.first)} = ${shownNumber(sum)}.`
-        : `A geometric sum is Sₙ = a₁(1 − rⁿ) ÷ (1 − r), so S${n} = ${shownNumber(spec.first)}(1 − ${shownFactor(spec.ratio)}^${n}) ÷ (1 − ${shownFactor(spec.ratio)}) = ${shownNumber(spec.first)}(1 − ${shownFactor(spec.ratio ** n)}) ÷ ${shownFactor(1 - spec.ratio)} = ${shownNumber(sum)}.`;
+        : `A geometric sum is Sₙ = ${words.first}(1 − rⁿ) ÷ (1 − r), so S${n} = ${shownNumber(spec.first)}(1 − ${shownFactor(spec.ratio)}^${n}) ÷ (1 − ${shownFactor(spec.ratio)}) = ${shownNumber(spec.first)}(1 − ${shownFactor(spec.ratio ** n)}) ÷ ${shownFactor(1 - spec.ratio)} = ${shownNumber(sum)}.`;
     return {
       title: 'Finite-sum solution',
       items: [
-        { label: `Last term a${n}`, value: typedNumber(last) },
+        { label: `Last term ${words.term(n)}`, value: typedNumber(last) },
         { label: `Sum S${n}`, value: typedNumber(sum) },
       ],
-      steps: [sequenceFamilyStep(spec), sequenceTermStep(spec, n), sumStep],
+      steps: [sequenceFamilyStep(spec, 1, words), sequenceTermStep(spec, n, words), sumStep],
     };
   }
   if (mode === 'fullBridge') {
@@ -221,25 +226,25 @@ const buildSequenceReview = (question) => {
     const actions = sequenceStudentActions(question);
     const rows = generateSequence(spec, fullBridgeTermCount(question));
     const targetN = Number(question.targetN || 0);
-    const rules = sequenceRules(spec);
+    const rules = sequenceRules(spec, words);
     const items = [];
-    const steps = [sequenceFamilyStep(spec)];
+    const steps = [sequenceFamilyStep(spec, 1, words)];
     const rowText = rows.map((row) => `(${row.n}, ${typedNumber(row.value)})`).join(', ');
     if (actions.includes('buildSequenceTable') || actions.includes('plotSequence')) {
-      steps.push(`Keep going to term ${rows.length}: the terms (n, aₙ) are ${rows.map((row) => `(${row.n}, ${shownNumber(row.value)})`).join(', ')}.`);
+      steps.push(`Keep going to term ${rows.length}: the terms (n, ${words.general}) are ${rows.map((row) => `(${row.n}, ${shownNumber(row.value)})`).join(', ')}.`);
     }
-    if (actions.includes('buildSequenceTable')) items.push({ label: 'Table of (n, aₙ)', value: rowText });
+    if (actions.includes('buildSequenceTable')) items.push({ label: `Table of (n, ${words.general})`, value: rowText });
     if (actions.includes('plotSequence')) {
       items.push({ label: 'Discrete graph', value: `plot ${rowText}` });
-      steps.push('Plot each (n, aₙ) as a single point — a sequence is defined only at whole-number n, so the points are not joined.');
+      steps.push(`Plot each (n, ${words.general}) as a single point — a sequence is defined only at whole-number n, so the points are not joined.`);
     }
     if (actions.includes('analyzeSequence')) {
       items.push({ label: 'Sequence family', value: family }, { label: spec.kind === 'arithmetic' ? 'Common difference' : 'Common ratio', value: typedNumber(sequenceChange(spec)) });
     }
     if (actions.includes('writeExplicit') || actions.includes('writeRecursive')) {
-      const [recursiveStep, explicitStep] = sequenceRuleSteps(spec);
+      const [recursiveStep, explicitStep] = sequenceRuleSteps(spec, words);
       if (actions.includes('writeRecursive')) {
-        items.push({ label: 'a₁', value: typedNumber(spec.first) }, { label: 'Recursive rule', value: rules.recursive });
+        items.push({ label: words.first, value: typedNumber(spec.first) }, { label: 'Recursive rule', value: rules.recursive });
         steps.push(recursiveStep);
       }
       if (actions.includes('writeExplicit')) {
@@ -248,8 +253,8 @@ const buildSequenceReview = (question) => {
       }
     }
     if (actions.includes('findSequenceTerm') && targetN > 0) {
-      items.push({ label: `a${targetN}`, value: typedNumber(sequenceTerm(spec, targetN)) });
-      steps.push(sequenceTermStep(spec, targetN));
+      items.push({ label: words.term(targetN), value: typedNumber(sequenceTerm(spec, targetN)) });
+      steps.push(sequenceTermStep(spec, targetN, words));
     }
     return { title: 'Sequence solution', items, steps };
   }
@@ -260,9 +265,9 @@ const buildSequenceReview = (question) => {
     items: [
       { label: 'Sequence family', value: family },
       { label: spec.kind === 'arithmetic' ? 'Common difference' : 'Common ratio', value: typedNumber(sequenceChange(spec)) },
-      { label: `a${targetN}`, value: typedNumber(sequenceTerm(spec, targetN)) },
+      { label: words.term(targetN), value: typedNumber(sequenceTerm(spec, targetN)) },
     ],
-    steps: [sequenceFamilyStep(spec), sequenceTermStep(spec, targetN)],
+    steps: [sequenceFamilyStep(spec, 1, words), sequenceTermStep(spec, targetN, words)],
   };
 };
 

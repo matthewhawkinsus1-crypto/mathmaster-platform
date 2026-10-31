@@ -12,7 +12,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.2A:v2-bounded-range",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 2,
@@ -85,7 +85,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.2A:v2-context-domain-range",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 3,
@@ -829,7 +829,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.2A:v2-decreasing-range-error",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 3,
@@ -14352,7 +14352,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.6A:v2-projectile-context-domain-range",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 3,
@@ -14422,7 +14422,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.6A:v2-restricted-domain-range",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 3,
@@ -14603,7 +14603,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.6A:v2-downward-range-error",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 3,
@@ -19274,7 +19274,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.9A:v2-context-restricted-domain",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "calculatorPolicy": "inherit",
@@ -24378,7 +24378,10 @@
           "id": "answer",
           "label": "Complete expression",
           "inputProfile": "expression",
-          "expected": "{{g}}x({{a}}x^2{{b|signed}}x{{c|signed}})"
+          "expected": "{{g}}x({{a|coef}}x^2{{b|xterm}}{{c|term}})",
+          "accepted": [
+            "{{g}}x({{a}}x^2{{b|signed}}x{{c|signed}})"
+          ]
         }
       ],
       "solutionReview": {
@@ -24460,7 +24463,10 @@
               "id": "answer",
               "label": "Factored expression",
               "inputProfile": "expression",
-              "expected": "{{g}}*x*({{a}}*x+({{b}}))"
+              "expected": "{{g}}x({{a|coef}}x{{b|term}})",
+              "accepted": [
+                "{{g}}*x*({{a}}*x+({{b}}))"
+              ]
             }
           ],
           "solutionReview": {
@@ -24538,7 +24544,10 @@
               "id": "answer",
               "label": "Correct factorization",
               "inputProfile": "expression",
-              "expected": "{{g}}*x*({{a}}*x^2+({{b}})*x+({{c}}))"
+              "expected": "{{g}}x({{a|coef}}x^2{{b|xterm}}{{c|term}})",
+              "accepted": [
+                "{{g}}*x*({{a}}*x^2+({{b}})*x+({{c}}))"
+              ]
             },
             {
               "id": "verify",
@@ -24639,7 +24648,10 @@
               "id": "answer",
               "label": "Correct complete factored expression",
               "inputProfile": "expression",
-              "expected": "{{g}}x({{a}}x^2{{b|signed}}x{{c|signed}})"
+              "expected": "{{g}}x({{a|coef}}x^2{{b|xterm}}{{c|term}})",
+              "accepted": [
+                "{{g}}x({{a}}x^2{{b|signed}}x{{c|signed}})"
+              ]
             }
           ],
           "solutionReview": {
@@ -26911,7 +26923,7 @@
       ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.12A:v2-mapping-nonfunction",
-      "familyVersion": 3,
+      "familyVersion": 4,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 2,
@@ -26921,7 +26933,7 @@
       "taskType": "conceptual",
       "representation": "orderedPairs",
       "type": "relationMapping",
-      "prompt": "Use the mapping to decide whether the relation is a function.",
+      "prompt": "The mapping shows the pairs $({{x}}, {{y1}})$, $({{x}}, {{y2}})$ and $({{x2}}, {{y3}})$. Use the mapping to decide whether the relation is a function.",
       "pairs": [
         {
           "x": "{{x}}",
@@ -26985,7 +26997,77 @@
           "x2 != x",
           "y2 != y1"
         ]
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-1b2-input-repeats",
+          "dok": 1,
+          "difficultyBand": 2
+        },
+        {
+          "coverageKey": "core-1b2-output-repeats",
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "The mapping shows the pairs $({{x1}}, {{y1}})$, $({{x2}}, {{y2}})$ and $({{x3}}, {{y1}})$. Use the mapping to decide whether the relation is a function.",
+          "pairs": [
+            {
+              "x": "{{x1}}",
+              "y": "{{y1}}"
+            },
+            {
+              "x": "{{x2}}",
+              "y": "{{y2}}"
+            },
+            {
+              "x": "{{x3}}",
+              "y": "{{y1}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Each input has exactly one output, so the relation is a function.",
+            "reasoning": [
+              "The inputs {{x1}}, {{x2}} and {{x3}} are all different, and each is paired with one output.",
+              "The output {{y1}} is used twice. That is allowed: only one input sent to two different outputs would stop a function."
+            ],
+            "answerSummary": "The relation is a function."
+          },
+          "generator": {
+            "parameters": {
+              "x1": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "x2": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "x3": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "y1": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "y2": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              }
+            },
+            "constraints": [
+              "x2 != x1",
+              "x3 != x1",
+              "x3 != x2",
+              "y2 != y1"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_12A_v2_table-function",

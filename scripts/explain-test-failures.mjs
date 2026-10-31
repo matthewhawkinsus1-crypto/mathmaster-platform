@@ -37,6 +37,7 @@ import {
   classify,
   missingFunctionsDependency,
   parseFailures,
+  suiteExitCode,
 } from './lib/testFailureClassifier.mjs';
 
 const PLAYBOOK = 'docs/handoffs/SOURCE_CONTRACT_PLAYBOOK.md';
@@ -57,13 +58,17 @@ const run = () => new Promise((resolve) => {
   let out = '';
   child.stdout.on('data', (d) => { out += d; process.stdout.write(d); });
   child.stderr.on('data', (d) => { out += d; process.stderr.write(d); });
-  child.on('close', (code) => resolve({ out, code }));
+  child.on('close', (code, signal) => resolve({ out, code, signal }));
 });
 
-const { out, code } = await run();
+const { out, code, signal } = await run();
+const exitCode = suiteExitCode({ code, signal });
+if (signal || typeof code !== 'number') {
+  console.error(`\nThe test run was stopped${signal ? ` by ${signal}` : ''} before it finished: the suite did not pass.`);
+}
 const failures = parseFailures(out);
 
-if (!failures.length) process.exit(code);
+if (!failures.length) process.exit(exitCode);
 
 const bar = '='.repeat(78);
 const classified = failures.map((failure) => ({ ...failure, kind: classify(failure) }));
@@ -120,4 +125,4 @@ toRead.forEach((failure, index) => {
 console.log(`\n${bar}`);
 console.log('Classification is a heuristic from the error shape. Verify before acting.');
 console.log(bar);
-process.exit(code || 1);
+process.exit(exitCode || 1);

@@ -4,8 +4,9 @@
  * Decision D7: a student's extended-time accommodation stretches THEIR DOL
  * window (functions/shared/sectionDeadline.mjs dolExtendedTimeMultiplier). The
  * teacher's live view times the class's DOL; without this it would show the
- * DOL as over while a student is still working, and a teacher could not tell
- * whether "Close now" would cut anyone's extra minutes.
+ * DOL as over while a student is still working — after the class's timer, and
+ * after "Close now", which ends the class's window but not a student's extra
+ * time (RT05).
  *
  * Each student's window comes from the same getDOLState the student's device
  * runs, with the support profile the teacher's roster row already carries, so

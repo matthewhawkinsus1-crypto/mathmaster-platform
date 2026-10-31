@@ -41,11 +41,12 @@ import AlgebraicSystemMode, {
   MathDragToken,
   VariableDropEquation,
   SystemsWorkTrail,
+  dragOrSelectDirection,
   solvedExpressionFor,
   solvedNumberFor,
   subsystemReportFromDraft,
 } from './AlgebraicSystemMode.jsx';
-import { applyFormMultiplier, classroomEquationText, exactNumberText, linearEquationForm, normalizeAlgebraicSystemConfig } from './algebraicSystemsEngine.js';
+import { NO_SHARED_VARIABLE_TEXT, applyFormMultiplier, classroomEquationText, eachEquationHoldsOneVariable, exactNumberText, linearEquationForm, normalizeAlgebraicSystemConfig } from './algebraicSystemsEngine.js';
 import { verificationTokenNeeded } from './verificationTokenState.js';
 import { buildReductionSystem, reductionAnswerKey } from './substitutionReduction.js';
 import {
@@ -239,6 +240,12 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
   // student is pointed back (PR-23 review).
   const separated = useMemo(() => eliminationSeparatedReduction(elimination, system), [elimination, system]);
   const reducedSolution = separated ? separated.solution : (subsystemState?.solution || null);
+  // When every equation holds one variable (2x = 2, 3y = 6, 4z = 12) every
+  // choice of variable strands the student — two separated scaled rows, or
+  // (x = 1, y = 2, z = 3) a back-substitution with nothing to place — and
+  // "Undo and eliminate a different variable" cannot help (TL43, C2-138). The
+  // student is told at the start, as for a system that cannot be read.
+  const noSharedVariable = useMemo(() => eachEquationHoldsOneVariable(system.equations.map((equation) => equation.text), system.variables), [system]);
 
   const activeRound = activeEliminationRoundKey(elimination);
   const variable = elimination.variable;
@@ -399,7 +406,6 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
   return (
     <EnlargeableFigure
       label="3×3 algebraic systems workspace"
-      enlargeLabel="Enlarge 3×3 algebraic systems workspace"
       style={{ width: '100%' }}
       capabilities={{
         undo: undoCapability,
@@ -440,7 +446,7 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
           ) : null}
 
           {solution && Object.keys(solution).length ? (
-            <div className="mathmaster-reduction-solved-values" aria-label="Solved values">
+            <div className="mathmaster-reduction-solved-values" role="group" aria-label="Solved values">
               {system.variables.filter((name) => solution[name] != null).map((name) => (
                 <span key={name} className="mathmaster-reduction-value-chip">{name} = {name === variable ? elimination.back.solved.text : exactNumberText(solution[name])}</span>
               ))}
@@ -459,6 +465,11 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
               <div className="mathmaster-reduction-unsupported" role="alert">
                 <strong>This system cannot be solved in this workspace yet.</strong>
                 <p>Its equations could not be read as a linear system. Nothing you did caused this. Let your teacher know so they can fix the question.</p>
+              </div>
+            ) : noSharedVariable ? (
+              <div className="mathmaster-reduction-unsupported" role="alert" data-no-shared-variable="">
+                <strong>This system cannot be finished in this workspace.</strong>
+                <p>{NO_SHARED_VARIABLE_TEXT}</p>
               </div>
             ) : (
               <>
@@ -948,7 +959,7 @@ function EliminationBackSubstitution({ elimination, system, reducedSolution, bac
     <div className="mathmaster-systems-substitution-stage mathmaster-reduction-back-stage">
       <p className="mathmaster-systems-substitution-direction">
         Use the values you found to solve for {variable}. Choose any original equation, then place each value where it belongs.
-        <span> Drag a value, or select it and then select a variable.</span>
+        <span> {dragOrSelectDirection('a value')}</span>
       </p>
       {!solved ? (
         <div className="mathmaster-reduction-button-row">

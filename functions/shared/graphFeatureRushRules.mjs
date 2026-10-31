@@ -31,6 +31,8 @@ export const RUSH_VERDICT = Object.freeze({
   OUT_OF_ORDER: 'outOfOrder',
   LIMIT: 'limit',
   INVALID: 'invalid',
+  // Sooner than the student's own device could have taken it (RUSH_PACING).
+  TOO_FAST: 'tooFast',
 });
 
 export const RUSH_LIMITS = Object.freeze({
@@ -80,3 +82,21 @@ export const rushLockoutMs = (consecutiveMisses = 0) => {
 // How long a completed graph's success flash, and a skip, hold the screen.
 export const RUSH_COMPLETE_FLASH_MS = 420;
 export const RUSH_SKIP_PAUSE_MS = 1_200;
+
+/*
+ * WHAT THE SERVER CHECKS OF A STUDENT'S PACE (SI08).
+ *
+ * The device holds the screen after each answer: the completion flash, the
+ * skip pause, the cooldown from the second miss in a row. A scripted client
+ * can skip all of that, so the server now requires that the pauses a
+ * student's recorded attempts imply, plus `firstLookMs` before the first
+ * answer on each new graph (no one answers a graph in less time than it takes
+ * to see it), fit in the round's elapsed time on the SERVER's clock when the
+ * request arrived, give or take `slackMs`: a refresh or a resync clears a
+ * pause still running on the device, a round pause can hold one, and a
+ * device's GO can be a moment ahead of the server's. `firstLookMs` is far
+ * below the time a person needs to see a new graph and answer it: it bounds a
+ * script, never a student. Refused attempts are not recorded (no credit, no
+ * penalty); the device resynchronizes and the student taps again.
+ */
+export const RUSH_PACING = Object.freeze({ firstLookMs: 100, slackMs: 5_000 });

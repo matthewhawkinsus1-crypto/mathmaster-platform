@@ -74,7 +74,14 @@ const missMessages = [
   ['Right line, wrong form: write it as {1}₁ {2}({3}₁).', 'La recta es correcta, pero la forma no: escríbela como {1}₁ {2}({3}₁).'],
   ['Right line, wrong form: write it as Ax {1} By {2}.', 'La recta es correcta, pero la forma no: escríbela como Ax {1} By {2}.'],
   // Right value, not simplified (operations on polynomials).
-  ['Equal, but not simplified: multiply out every product and combine like terms.', 'Es igual, pero no está simplificado: haz cada multiplicación y combina los términos semejantes.'],
+  ['Equal, but not simplified: multiply out any product, then combine any like terms.', 'Es igual, pero no está simplificado: haz cualquier multiplicación y luego combina los términos semejantes que haya.'],
+  // What is left in the student's own answer (TL31).
+  ['Equal, but not simplified: combine like terms, so each kind of term appears only once.', 'Es igual, pero no está simplificado: combina los términos semejantes, para que cada tipo de término aparezca una sola vez.'],
+  ['Equal, but not simplified: multiply out every product, then combine any like terms.', 'Es igual, pero no está simplificado: haz cada multiplicación y luego combina los términos semejantes que haya.'],
+  ['Equal, but not simplified: remove every set of parentheses, then combine any like terms.', 'Es igual, pero no está simplificado: quita todos los paréntesis y luego combina los términos semejantes que haya.'],
+  ['Equal, but not simplified: write each power simply — no exponent of one, and nothing to the power zero.', 'Es igual, pero no está simplificado: escribe cada potencia de forma simple, sin exponente uno y sin nada elevado a la potencia cero.'],
+  ['Equal, but not simplified: write every coefficient in lowest terms.', 'Es igual, pero no está simplificado: escribe cada coeficiente en su mínima expresión.'],
+  ['Equal, but not simplified: leave out any term with a coefficient of zero.', 'Es igual, pero no está simplificado: quita cualquier término con coeficiente cero.'],
   ['Equal, but not in simplest form: take every perfect power out of the root, combine like terms, and leave no root in a denominator.', 'Es igual, pero no está en su forma más simple: saca de la raíz cada potencia perfecta, combina los términos semejantes y no dejes raíces en el denominador.'],
   // Two sentences: the pack is read one sentence at a time.
   ['That is a decimal approximation.', 'Eso es una aproximación decimal.'],
@@ -92,6 +99,13 @@ const missMessages = [
   ['Check which quantity goes on top.', 'Revisa qué cantidad va arriba.'],
   ['Your value is right, but it is not in simplest form.', 'Tu valor es correcto, pero no está en su forma más simple.'],
   ['Divide the numerator and denominator by their greatest common factor.', 'Divide el numerador y el denominador entre su máximo común divisor.'],
+  // Form checks said while the item is open (FB22).
+  ['This asks for a single number, not an ordered pair.', 'Aquí se pide un solo número, no un par ordenado.'],
+  ['This asks for an ordered pair {1}, not a single number.', 'Aquí se pide un par ordenado {1}, no un solo número.'],
+  ['Your inequality describes the right numbers, but this asks for interval notation.', 'Tu desigualdad describe los números correctos, pero aquí se pide notación de intervalo.'],
+  ['This asks for interval notation, not an inequality.', 'Aquí se pide notación de intervalo, no una desigualdad.'],
+  ['Your interval describes the right numbers, but this asks for an inequality.', 'Tu intervalo describe los números correctos, pero aquí se pide una desigualdad.'],
+  ['This asks for an inequality, not interval notation.', 'Aquí se pide una desigualdad, no notación de intervalo.'],
 ];
 
 // --- The attempt outcome (QuestionEngine attemptOutcomeText, closedAttemptText)
@@ -106,6 +120,9 @@ const attemptOutcome = [
   ['You have {1} tries left on this version.', 'Te quedan {1} intentos en esta versión.'],
   ['You have {1} try left on this version.', 'Te queda {1} intento en esta versión.'],
   ['Correct! This question is complete.', '¡Correcto! Esta pregunta está completa.'],
+  // src/platform/supports/feedback/standardFormMultipleNote.js (GR29)
+  ['Every term shares a factor of {1}.', 'Todos los términos tienen un factor común de {1}.'],
+  ['Divide it out to write the equation with the smallest whole numbers.', 'Divide entre ese factor para escribir la ecuación con los números enteros más pequeños.'],
   ['That was the final allowed attempt ({1} total).', 'Ese fue el último intento permitido ({1} en total).'],
   ['That was the final allowed try ({1} total).', 'Ese fue el último intento permitido ({1} en total).'],
   ['That was your last try ({1} total).', 'Ese fue tu último intento ({1} en total).'],
@@ -261,6 +278,28 @@ const backUpSteps = [
   ['To solve for {1}, {2} and {3} by substitution, what do you write first?', 'Para resolver {1}, {2} y {3} por sustitución, ¿qué escribes primero?'],
   ['One equation solved for one variable.', 'Una ecuación despejada para una variable.'],
   ['The sum of two equations.', 'La suma de dos ecuaciones.'],
+  // Transformations Lab, figure match, graph-choice preview and Representation
+  // Match, built from the tool (toolBackUpSteps.js; W7 decision 15).
+  ['To find how far the graph moved up or down, which coordinates do you compare?', 'Para saber cuánto subió o bajó la gráfica, ¿qué coordenadas comparas?'],
+  ['The outputs are multiplied by a factor and shifted.', 'Las salidas se multiplican por un factor y se desplazan.'],
+  ['What do you do to a point’s y-coordinate first?', '¿Qué le haces primero a la coordenada y de un punto?'],
+  ['Moving a graph left or right changes which coordinate of each point?', 'Al mover una gráfica a la izquierda o a la derecha, ¿qué coordenada de cada punto cambia?'],
+  ['Moving a graph up or down changes which coordinate of each point?', 'Al mover una gráfica hacia arriba o hacia abajo, ¿qué coordenada de cada punto cambia?'],
+  ['Changing the outputs by a factor changes which coordinate of each point?', 'Al cambiar las salidas por un factor, ¿qué coordenada de cada punto cambia?'],
+  ['Changing the inputs by a factor changes which coordinate of each point?', 'Al cambiar las entradas por un factor, ¿qué coordenada de cada punto cambia?'],
+  ['Monomial, binomial and trinomial name a polynomial by its number of…', 'Monomio, binomio y trinomio nombran un polinomio según su número de…'],
+  ['To sort a statement as sometimes true, what do you need?', 'Para clasificar un enunciado como a veces verdadero, ¿qué necesitas?'],
+  ['Perpendicular lines have slopes that are…', 'Las rectas perpendiculares tienen pendientes que son…'],
+  ['Parallel lines have slopes that are…', 'Las rectas paralelas tienen pendientes que son…'],
+  ['A relation is not a function when…', 'Una relación no es una función cuando…'],
+  ['Read from left to right, an exponential growth graph…', 'Leída de izquierda a derecha, una gráfica de crecimiento exponencial…'],
+  ['What tells a linear graph apart from the others?', '¿Qué distingue a una gráfica lineal de las demás?'],
+  ['After you simplify both sides, what do you compare first?', 'Después de simplificar los dos lados, ¿qué comparas primero?'],
+  ['What does a number added outside the function change?', '¿Qué cambia un número sumado afuera de la función?'],
+  ['On a horizontal line, which coordinate is the same at every point?', 'En una recta horizontal, ¿qué coordenada es la misma en todos los puntos?'],
+  ['On a parabola, where is the vertex?', 'En una parábola, ¿dónde está el vértice?'],
+  ['To find the card that does not belong, what do you find first?', 'Para hallar la tarjeta que no corresponde, ¿qué hallas primero?'],
+  ['When do two cards show the same line?', '¿Cuándo muestran dos tarjetas la misma recta?'],
   ['In aₙ, what does {1} stand for?', 'En aₙ, ¿qué representa {1}?'],
   ['Let’s back up. In aₙ, what does {1} stand for?', 'Retrocedamos un paso. En aₙ, ¿qué representa {1}?'],
 ];
@@ -328,6 +367,33 @@ const backUpChoices = [
   ['Only the number in the rule of {1}', 'Solo el número de la regla de {1}'],
   ['The position of the term', 'La posición del término'],
   ['The value of the term', 'El valor del término'],
+  // The tool steps of W7 decision 15 (toolBackUpSteps.js).
+  ['The y-coordinates of a point and its image', 'Las coordenadas y de un punto y de su imagen'],
+  ['The x-coordinates of a point and its image', 'Las coordenadas x de un punto y de su imagen'],
+  ['Multiply it by the factor', 'Multiplicarla por el factor'],
+  ['Add the shift', 'Sumarle el desplazamiento'],
+  ['terms', 'términos'],
+  ['variables', 'variables'],
+  ['An example where it is true and one where it is false', 'Un ejemplo en el que es verdadero y otro en el que es falso'],
+  ['One example where it is true', 'Un ejemplo en el que es verdadero'],
+  ['negative reciprocals', 'recíprocas negativas'],
+  ['equal', 'iguales'],
+  ['one input has two different outputs', 'una entrada tiene dos salidas diferentes'],
+  ['two inputs have the same output', 'dos entradas tienen la misma salida'],
+  ['rises', 'sube'],
+  ['falls', 'baja'],
+  ['It is a straight line', 'Es una línea recta'],
+  ['It crosses the y-axis', 'Cruza el eje y'],
+  ['The variable terms on the two sides', 'Los términos con variable de los dos lados'],
+  ['The constant terms on the two sides', 'Los términos constantes de los dos lados'],
+  ['The outputs', 'Las salidas'],
+  ['The inputs', 'Las entradas'],
+  ['Where the graph turns around', 'Donde la gráfica da la vuelta'],
+  ['Where the graph crosses the y-axis', 'Donde la gráfica cruza el eje y'],
+  ['The line most of the cards describe', 'La recta que describe la mayoría de las tarjetas'],
+  ['The card with the largest numbers', 'La tarjeta con los números más grandes'],
+  ['When they have the same slope and the same y-intercept', 'Cuando tienen la misma pendiente y la misma intersección con el eje y'],
+  ['When they have the same slope', 'Cuando tienen la misma pendiente'],
 ];
 
 

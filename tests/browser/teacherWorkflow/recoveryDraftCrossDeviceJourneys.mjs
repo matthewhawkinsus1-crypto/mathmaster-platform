@@ -173,7 +173,7 @@ const openStudentGrades = async (page) => {
   const viewAllGrades = page.getByRole('button', { name: 'View All Grades' });
   if (await backToGrades.count()) await backToGrades.first().click();
   else if (await viewAllGrades.count()) await viewAllGrades.first().click();
-  else await page.getByRole('button', { name: /^Grades$/ }).first().click();
+  else await page.getByRole('link', { name: /^Grades$/ }).first().click();
   await page.waitForTimeout(500);
 };
 const gradeRow = (page, title) => page.locator('article').filter({ has: page.getByRole('heading', { name: title, exact: true }) }).first();

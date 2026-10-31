@@ -31,6 +31,8 @@ import { normalizeContextualQuestion } from '../../src/platform/context/wordProb
 import { backUpQuestionText, questionReadingParts, questionReadingText, tableReading } from '../../src/platform/language/questionReading.js';
 import { speechTextFor } from '../../src/platform/language/speechText.js';
 import { FigureReadingPortProvider, FigureReadingScope, figureReadingEntries, updateFigureReadings, useFigureReadingPublisher } from '../../src/platform/language/figureReadings.js';
+import { say } from '../../src/platform/language/figureSay.js';
+import esFigures from '../../src/platform/language/packs/esFigures.js';
 import { displayTableFor } from '../../src/platform/question/displayTable.js';
 import { backUpStepFor, backUpStepWritten } from '../../src/platform/supports/feedback/backUpStep.js';
 import { readComposedQuestion } from '../../src/platform/workflow/questionWorkflow.js';
@@ -82,9 +84,9 @@ test('a fillable table is read by rows with its headers, and a cell to fill in i
     assert.deepEqual(table.rows[Number(row)][index], { entered: '' }, `${key} is blank`);
   });
   const said = speechTextFor(tableReading(table));
-  assert.match(said, /^A table, 5 rows\. Columns: x; f of x; c of x; input of d; d of x\. Row 1: x, negative 2; f of x, negative 2; c of x, blank; input of d, blank; d of x, negative 2\./);
+  assert.match(said, /^A table, 5 rows\. Columns: x; f of x; c of x; new input for d; d of x\. Row 1: x, negative 2; f of x, negative 2; c of x, blank; new input for d, blank; d of x, negative 2\./);
   // No row says a value where the student writes one.
-  assert.doesNotMatch(said, /c of x, (?!blank)|input of d, (?!blank)/);
+  assert.doesNotMatch(said, /c of x, (?!blank)|new input for d, (?!blank)/);
 });
 
 test('even when the row data holds the answer, a cell to fill in is read "blank"', () => {
@@ -206,9 +208,15 @@ test('on a real exit ticket, Read aloud says the graph without a position while 
 
 test('each figure publishes the text it describes itself with, and QuestionEngine reads it', () => {
   const graph = code('src/GraphDisplay.jsx');
-  assert.match(graph, /<PublishFigureReading entry=\{\{ kind: 'figure', label: title, text: \[spokenDescription, graph\.caption \? String\(graph\.caption\) : ''\]\.join\(' '\) \}\} \/>\s*<p id=\{descriptionId\} data-graph-description="" aria-hidden="true"[^>]*>\{spokenDescription\}<\/p>/);
+  // The reading is the figure's own description, then the captions it shows: its
+  // authored caption and, on a figure the student can "Fix the scale" of, the line
+  // that says what each axis counts by (R-9). The hidden description beside it stays
+  // the description alone: the visible captions are read in place, not twice.
+  // `say` is the same reading as messages, for Read aloud in Spanish (AX05,
+  // figureReadingSpanish.test.mjs).
+  assert.match(graph, /<PublishFigureReading entry=\{\{ kind: 'figure', label: title, text: \[spokenDescription, graph\.caption \? String\(graph\.caption\) : '', scaleCaption\]\.join\(' '\), say: readingSay \}\} \/>\s*<p id=\{descriptionId\} data-graph-description="" aria-hidden="true"[^>]*>\{spokenDescription\}<\/p>/);
   const plane = code('src/tools/shared/CoordinatePlane.jsx');
-  assert.match(plane, /<PublishFigureReading entry=\{\{ kind: 'figure', label: ariaLabel, text: spokenDescription \}\} \/>\s*<p id=\{descriptionId\} className="mm-sr-only"[^>]*>\{spokenDescription\}<\/p>/);
+  assert.match(plane, /<PublishFigureReading entry=\{\{ kind: 'figure', label: ariaLabel, text: spokenDescription, say: spokenSay \}\} \/>\s*<p id=\{descriptionId\} className="mm-sr-only"[^>]*>\{spokenDescription\}<\/p>/);
   const visual = code('src/QuestionVisual.jsx');
   assert.match(visual, /const displayTable = includeTable \? displayTableFor\(question\) : null;/, 'the table drawn is the shared model');
   assert.match(visual, /\{displayTable && <PublishFigureReading entry=\{\{ kind: 'table', label: question\?\.tableCaption \|\| '', table: displayTable \}\} \/>\}/);
@@ -217,8 +225,8 @@ test('each figure publishes the text it describes itself with, and QuestionEngin
 
   // The other figures that already describe themselves, beside that description.
   [
-    ['src/tools/intervalNumberLine/IntervalNumberLine.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Number line', text: lineDescription \}\} \/>\s*<p id=\{lineDescriptionId\} data-number-line-description=""[^>]*>\{lineDescription\}<\/p>/],
-    ['src/NumberLine.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Number line', text: description \}\} \/>\s*<span id=\{descriptionId\}[^>]*>\{description\}<\/span>/],
+    ['src/tools/intervalNumberLine/IntervalNumberLine.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Number line', text: lineDescription, say: lineSay \}\} \/>\s*<p id=\{lineDescriptionId\} data-number-line-description=""[^>]*>\{lineDescription\}<\/p>/],
+    ['src/NumberLine.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Number line', text: description, say: descriptionSay \}\} \/>\s*<span id=\{descriptionId\}[^>]*>\{description\}<\/span>/],
     ['src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: '3D model', text: modelDescription \}\} \/>\s*<span id=\{modelDescriptionId\}[^>]*>\{modelDescription\}<\/span>/],
     ['src/InteractiveGraphWorkspace.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Graph', text: workspaceDescription \}\} \/>\s*<span id=\{workspaceDescriptionId\}[^>]*>\{workspaceDescription\}<\/span>/],
   ].forEach(([path, wiring]) => assert.match(code(path), wiring, path));
@@ -298,11 +306,39 @@ test('the student\'s inequality graph is said as drawn — line styles, shaded s
   assert.equal(inequalityGraphMarksText({}), 'No boundary line is drawn yet.');
 });
 
+// AX12: a closed question's inequality region now reads its corners; while
+// the question is open the plane still says only that a region is shaded.
+test('the inequality region names its corners once positions may be said, and says when it goes on', async () => {
+  const { regionCornersText } = await import('../../src/tools/systemsWorkspace/inequalityGraphMarks.js');
+  const { feasibleRegionPolygon } = await import('../../src/tools/systemsWorkspace/inequalityBuilderAdapter.js');
+  const { describeCoordinatePlane } = await import('../../src/platform/language/graphDescription.js');
+  const bounds = { xMin: -6, xMax: 8, yMin: -4, yMax: 10 };
+  // A closed triangle: three corners, nothing past the edge.
+  const triangle = [{ m: 0, b: 0, relation: '>=' }, { m: -1, b: 4, relation: '<=' }, { m: 1, b: 0, relation: '<=' }];
+  assert.equal(
+    regionCornersText({ polygon: feasibleRegionPolygon(triangle, bounds), lines: triangle, intro: '1 shaded region' }),
+    '1 shaded region, with corners at (0, 0), (4, 0) and (2, 2).',
+  );
+  // An open region: only where boundaries meet is a corner; the window's cut is not.
+  const open = [{ m: 0, b: 0, relation: '>=' }, { m: -1, b: 4, relation: '<=' }, { m: 1, b: -2, relation: '>=' }];
+  const said = regionCornersText({ polygon: feasibleRegionPolygon(open, bounds), lines: open, intro: '1 shaded region' });
+  assert.equal(said, '1 shaded region, with corners at (2, 0) and (3, 1). It goes on past the edge of the graph.');
+  assert.doesNotMatch(said, /−6/, 'a window edge is no corner');
+  assert.equal(regionCornersText({ polygon: [[0, 0], [1, 0]], lines: open }), null, 'no region, no sentence');
+  // Through the plane: open, the kind only; closed, the corners.
+  const base = { xMin: -6, xMax: 8, yMin: -4, yMax: 10, xTickStep: 1, yTickStep: 1, hasUndescribedMarks: true };
+  const toolMarks = { kinds: '1 shaded region.', features: regionCornersText({ polygon: feasibleRegionPolygon(triangle, bounds), lines: triangle, intro: '1 shaded region' }) };
+  assert.doesNotMatch(describeCoordinatePlane({ ...base, toolMarks }).description, /corner|\(\d/);
+  assert.match(describeCoordinatePlane({ ...base, toolMarks, detail: 'features' }).description, /corners at \(0, 0\), \(4, 0\) and \(2, 2\)\.$/);
+});
+
 test('the Complex Plane, the sideways parabola and the inequality region pass their words to the plane', async () => {
   assert.match(code('src/tools/complexPlane/ComplexPlaneLab.jsx'), /toolMarks=\{\{ kinds: 'A segment joins the origin to each point\.' \}\}\s*>\s*\{\(\{ sx, sy \}\) => <>\{items\.map\(\(item\) => <line/);
   const parabola = code('src/tools/parabolaGeometry/ParabolaGeometryLab.jsx');
   assert.match(parabola, /toolMarks=\{\{ kinds: '1 curve\.', features: `1 curve, opening to the \$\{spec\.p>0\?'right':'left'\}\.` \}\}>[^<]*?\{spec\.orientation==='horizontal' \? \(\{sx,sy\}\)=> <path/, 'only a sideways parabola draws (and names) its own curve');
-  assert.match(code('src/tools/systemsWorkspace/SystemsWorkspace.jsx'), /toolMarks=\{\{ kinds: shownPolygon\.length >= 3 \? `1 shaded region\$\{requiresConstruction \? '' : ', where every inequality is true'\}\.` : 'No region is shaded yet\.' \}\}/);
+  const systems = code('src/tools/systemsWorkspace/SystemsWorkspace.jsx');
+  assert.match(systems, /const regionIntro = `1 shaded region\$\{requiresConstruction \? '' : ', where every inequality is true'\}`;/);
+  assert.match(systems, /toolMarks=\{\{\s*kinds: shownPolygon\.length >= 3 \? `\$\{regionIntro\}\.` : 'No region is shaded yet\.',\s*features: regionCornersText\(\{ polygon: shownPolygon, lines: requiresConstruction \? studentInequalities : inequalities, intro: regionIntro \}\) \|\| undefined,\s*\}\}/);
   assert.match(code('src/tools/systemsWorkspace/StudentBuildInequalityMode.jsx'), /toolMarks=\{\{ kinds: inequalityGraphMarksText\(\{ build, effectiveLines, buildConfig, workingConstraints, bounds, combined, studentPolygon \}\) \}\}/);
   const plane = code('src/tools/shared/CoordinatePlane.jsx');
   assert.match(plane, /hasUndescribedMarks: hasToolMarks,\s*toolMarks: hasToolMarks \? toolMarks : null,/);
@@ -341,8 +377,9 @@ test('S2: " · " between words in a figure\'s name is a pause, not "times" (en a
   const said = speechTextFor(questionReadingText(questionReadingParts(question, { figures })));
   assert.match(said, /Coordinate plane for Graph 1, Intercept method\. 1 line, Your points\./);
   assert.doesNotMatch(said, /times Intercept/);
-  const es = questionReadingParts(question, { figures: [{ kind: 'figure', label: 'Gráfica 1 · Método', text: 'Una recta.' }], language: 'es' }).find((part) => part.kind === 'figure');
-  assert.equal(speechTextFor(es.text, { language: 'es' }), 'Gráfica 1, Método. Una recta.');
+  // In Spanish, a figure says its own Spanish (AX05: its messages and the pack).
+  const es = questionReadingParts(question, { figures: [{ kind: 'figure', label: 'Gráfica 1 · Método', text: '1 line.', say: [say('lineCount', 1)] }], language: 'es', figurePack: esFigures }).find((part) => part.kind === 'figure');
+  assert.equal(speechTextFor(es.text, { language: 'es' }), 'Gráfica 1, Método. 1 recta.');
   // Multiplication stays multiplication.
   assert.match(speechTextFor(questionReadingText(questionReadingParts(question, { figures: [{ kind: 'figure', label: 'Area', text: 'It shows 2 · 3 and 2 · x.' }] }))), /2 times 3 and 2 times x/);
 });
@@ -360,9 +397,9 @@ test('S5: a cell the student filled is read as what they wrote; an empty one is 
   const question = real('l2-cw-9');
   const table = displayTableFor(question, { editable: true, entries: { '0:cx': ' 8/5 ', '1:cx': '' } });
   const said = speechTextFor(tableReading(table));
-  assert.match(said, /Row 1: x, negative 2; f of x, negative 2; c of x, you wrote 8 over 5; input of d, blank;/, said);
+  assert.match(said, /Row 1: x, negative 2; f of x, negative 2; c of x, you wrote 8 over 5; new input for d, blank;/, said);
   assert.match(said, /Row 2: x, negative 1; f of x, negative 1; c of x, blank;/);
-  assert.match(tableReading(table, { language: 'es' }), /c de x, escribiste 8\/5; input of d, en blanco/);
+  assert.match(tableReading(table, { language: 'es' }), /c de x, escribiste 8\/5; new input for d, en blanco/);
   // The reader is handed the student's text only — no grade travels with it,
   // so on a DOL, quiz or test before release there is no verdict to say.
   assert.doesNotMatch(said, /correct|wrong|check this|✓|✗/i);
@@ -375,4 +412,16 @@ test('an interactive plane does not contradict itself: the student\'s points are
   const said = describeCoordinatePlane({ xMin: -5, xMax: 5, yMin: -5, yMax: 5, listPlottedPoints: true, lines: [{ m: 1, b: 0 }], points: [{ x: 2, y: 2 }] }).description;
   assert.match(said, /You plotted 1 point: \(2, 2\)\. Positions of the given marks are not read out while this question can be answered\./, said);
   assert.match(describeCoordinatePlane({ xMin: -5, xMax: 5, yMin: -5, yMax: 5, lines: [{ m: 1, b: 0 }] }).description, /Positions are not read out while this question can be answered\./);
+});
+
+// AX13: a composed step's figure was named by the step's prompt, so Read
+// aloud said "State the domain. x from …" and then the step's own heading,
+// "Step 1 of 2: State the domain.". The figure takes its graph's own label,
+// else "Graph".
+test('a composed step\'s figure is not named by the step\'s prompt', () => {
+  const runner = code('src/platform/workflow/WorkflowRunner.jsx');
+  assert.equal((runner.match(/<StageFigure graph=\{stage\?\.graph\} \/>/g) || []).length, 3, 'every step figure');
+  assert.doesNotMatch(runner, /<StageFigure[^>]*label=\{stage\?\.prompt\}/);
+  const figure = region(runner, 'function StageFigure(', '\n}\n', 'StageFigure');
+  assert.match(figure, /ariaLabel: label \|\| spec\.ariaLabel \|\| 'Graph',/);
 });

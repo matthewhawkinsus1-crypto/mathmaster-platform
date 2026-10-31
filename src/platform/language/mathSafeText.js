@@ -345,15 +345,29 @@ const sameTokens = (a, b) => {
   return left.length === right.length && left.every((token, index) => token === right[index]);
 };
 
+// How a span is written is not what it says: "$y$" and "y" are the same letter,
+// "\(x+1\)" is x+1. A price's lone dollar sign is no delimiter and stays ("$4").
+const PAIRED_DELIMITERS = /\$\$([\s\S]+?)\$\$|\$([^$]+?)\$|\\\(([\s\S]+?)\\\)|\\\[([\s\S]+?)\\\]/g;
+const withoutDelimiters = (token) => token.replace(PAIRED_DELIMITERS, (_, display, dollars, parentheses, brackets) => display ?? dollars ?? parentheses ?? brackets);
+
+/** The math tokens of a text with the delimiters it was written in taken off. */
+export const comparableMathTokens = (input, { language = 'en' } = {}) => mathTokensOf(input, { language }).map(withoutDelimiters);
+
 /**
  * Does `candidate` carry exactly the mathematics of `original` (same tokens,
  * any order, and the same capital-letter names)? The guard every language
  * provider's output must pass.
+ *
+ * `ignoreDelimiters` is for text a PERSON wrote in the other language: a lone
+ * "y" in Spanish prose is the word "and", so a Spanish line that means the
+ * variable writes it "$y$", and that must match the English "y". Machine and
+ * pack output is held to the strict reading.
  */
-export const preservesMath = (original, candidate, { language = 'en' } = {}) => (
-  sameTokens(mathTokensOf(original), mathTokensOf(candidate, { language }))
-  && sameTokens(identifiersOf(original), identifiersOf(candidate))
-);
+export const preservesMath = (original, candidate, { language = 'en', ignoreDelimiters = false } = {}) => {
+  const tokens = ignoreDelimiters ? comparableMathTokens : mathTokensOf;
+  return sameTokens(tokens(original), tokens(candidate, { language }))
+    && sameTokens(identifiersOf(original), identifiersOf(candidate));
+};
 
 /** Sentences of a text, keeping math (and decimals inside it) intact. */
 export const splitSentences = (input, { language = 'en' } = {}) => {

@@ -77,7 +77,9 @@ const normalizeGraph = (source = {}, plotAspect = undefined) => {
   if (Number.isFinite(Number(source.m)) || Number.isFinite(Number(source.b))) {
     graph.functions.push({ type: 'line', m: Number(source.m || 0), b: Number(source.b || 0) });
   }
-  return fitStaticGraphViewport(graph, { plotAspect });
+  // On paper the figure is the author's sketch: an authored scale per axis (R-9) is
+  // drawn as written, since a printed page has no button to fix it.
+  return fitStaticGraphViewport(graph, { plotAspect, axisScale: true });
 };
 
 const graphVisual = (visual = {}, { blank = false, compact = false } = {}) => {
@@ -151,10 +153,12 @@ const graphVisual = (visual = {}, { blank = false, compact = false } = {}) => {
     }, tick);
   });
 
-  // An equal-unit window crops a steep line on purpose (R-1): on paper too it
-  // stops at the plot's edge, never running through the tick labels.
+  // A curve stops at the plot's edge, never running through the tick labels:
+  // first for the windows that crop a steep line on purpose (equal units, R-1;
+  // an authored scale per axis, R-9), now for every figure, as on screen
+  // (TL14, GraphDisplay.jsx).
   let plotClip = null;
-  if (!blank && graph.equalUnits === true) {
+  if (!blank) {
     worksheetClipCount += 1;
     plotClip = `mm-worksheet-plot-${worksheetClipCount}`;
     const clip = addSvg(svg, 'clipPath', { id: plotClip });

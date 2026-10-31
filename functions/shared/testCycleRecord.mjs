@@ -26,6 +26,7 @@ import {
 import { clampPercent, normalizeTeacherControls, normalizeTestCyclePolicy } from './testCyclePolicy.mjs';
 import { normalizeExternalOriginal } from './externalAssessment.mjs';
 import { normalizeStudentAvailability } from './testCycleAvailability.mjs';
+import { normalizeReducedItems } from './testCycleReducedItems.mjs';
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const clean = (value) => String(value ?? '').trim();
@@ -123,13 +124,17 @@ export const normalizeTestCycleRecord = (record) => {
     recordId: clean(source.recordId) || testCycleRecordId(source.assignmentId, source.studentId),
     classId: clean(source.classId) || null,
     ...(source.externalAssessment ? { externalAssessment: normalizeExternalOriginal(source.externalAssessment) } : {}),
-    // The three below are present only when a teacher has done the thing they
+    // The four below are present only when a teacher has done the thing they
     // record, so a record nobody adjusted keeps the shape it always had.
     //   audience       this student was added to the Test individually, not
     //                  through a class: the record itself is their assignment.
     //   availability   this student's own reopened Test window or extended
     //                  home window (testCycleAvailability.mjs).
     //   gradeAdjustment the recorded grade a teacher set by hand, and from what.
+    //   reducedItems   the Test questions this student does not answer, chosen
+    //                  by their teacher for a fewer-items plan (TC15,
+    //                  testCycleReducedItems.mjs). This server-only record is
+    //                  the one place it lives: never the shared assignment.
     ...(source.audience?.individual === true ? {
       audience: {
         individual: true,
@@ -141,6 +146,7 @@ export const normalizeTestCycleRecord = (record) => {
     } : {}),
     ...(studentAvailabilityOf(source.availability) ? { availability: studentAvailabilityOf(source.availability) } : {}),
     ...(normalizeGradeAdjustment(source.gradeAdjustment) ? { gradeAdjustment: normalizeGradeAdjustment(source.gradeAdjustment) } : {}),
+    ...(normalizeReducedItems(source.reducedItems) ? { reducedItems: normalizeReducedItems(source.reducedItems) } : {}),
     blueprintId: clean(source.blueprintId) || null,
     blueprintVersion: Number(source.blueprintVersion) || 1,
     review: {

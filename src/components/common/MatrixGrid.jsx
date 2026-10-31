@@ -2,6 +2,7 @@ import React from 'react';
 import MathDisplay from '../../MathDisplay';
 import { spokenMathLabel } from '../../platform/language/mathSpeechLabel.js';
 import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
+import './MatrixGrid.css';
 
 /*
  * A MATRIX AS A STUDENT READS IT ON PAPER: numbers in rows and columns between

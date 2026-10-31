@@ -14,7 +14,11 @@
  *
  *   authored  question.translations[language] — written by a person with the
  *             item (src/studentSupport.js applies it to the prompt). Refused if
- *             its mathematics differs from the authored prompt.
+ *             its mathematics differs from the authored prompt. The same entry
+ *             carries the teacher's hints and worked solution (TT22): the
+ *             caller finds the line for the text it is showing
+ *             (authoredSupportText.js) and passes it as `authored`; it stands in
+ *             only under the same rule.
  *   curated   a built-in language pack (./packs/<language>.js) of curated
  *             direction sentences; mathematics is carried through slots and
  *             never translated (./mathSafeText.js). Loaded on demand.
@@ -220,6 +224,30 @@ export const authoredTranslationOf = (question, language) => {
   };
 };
 
+/**
+ * The teacher's own words for ONE text — a hint, a worked solution — when the
+ * caller found them with the item (authoredSupportText.js): `{ text, coverage }`.
+ * They stand in only if they carry the English's mathematics exactly, the same
+ * rule as the prompt; otherwise the English stays and `mismatch` says why.
+ * `coverage` is `full` unless the caller says only some sentences are theirs.
+ * A text the caller put together from sentences it has already held to the rule
+ * one at a time (`verified`: a worked solution, some of it English) is not read
+ * again as a whole: its English sentences would be read as Spanish prose.
+ */
+const teachersOwnWords = ({ original, authored, language }) => {
+  const text = typeof authored?.text === 'string' ? authored.text.trim() : '';
+  if (!text) return { result: null, mismatch: false };
+  if (authored.verified !== true && !preservesMath(original, text, { language, ignoreDelimiters: true })) return { result: null, mismatch: true };
+  return {
+    mismatch: false,
+    result: {
+      coverage: authored.coverage === TRANSLATION_COVERAGE.PARTIAL ? TRANSLATION_COVERAGE.PARTIAL : TRANSLATION_COVERAGE.FULL,
+      provider: TRANSLATION_PROVIDER.AUTHORED,
+      text,
+    },
+  };
+};
+
 // Additional providers (a future reviewed service, a district glossary) plug in
 // here with the same contract: ({ text, language, question }) => result | null.
 const extraProviders = [];
@@ -233,7 +261,7 @@ export const registerTranslationProvider = (provider) => {
  * Resolves to `{ coverage, provider, language, text, original, sentences, reason }`.
  * Never throws: a pack that fails to load is a recorded gap, not a crash.
  */
-export const resolveTranslation = async ({ question = null, text = null, language } = {}) => {
+export const resolveTranslation = async ({ question = null, text = null, language, authored: teachersText = null } = {}) => {
   const code = String(language || '').trim().toLowerCase();
   const original = text ?? (typeof question?.authoredPrompt === 'string' ? question.authoredPrompt : String(question?.prompt ?? ''));
   const base = { language: code, original, provider: null, text: null, sentences: [], reason: null };
@@ -243,6 +271,10 @@ export const resolveTranslation = async ({ question = null, text = null, languag
   if (authored?.keepsMath) {
     return { ...base, coverage: TRANSLATION_COVERAGE.FULL, provider: TRANSLATION_PROVIDER.AUTHORED, text: authored.text, original: authored.original };
   }
+  // A hint's or worked solution's own translation, found with the item (TT22).
+  const own = teachersOwnWords({ original, authored: teachersText, language: code });
+  if (own.result) return { ...base, ...own.result };
+  const authoredMismatch = (authored && !authored.keepsMath) || own.mismatch;
 
   for (const provider of extraProviders) {
     // eslint-disable-next-line no-await-in-loop
@@ -262,7 +294,7 @@ export const resolveTranslation = async ({ question = null, text = null, languag
     return {
       ...base,
       coverage: TRANSLATION_COVERAGE.NONE,
-      reason: authored && !authored.keepsMath ? TRANSLATION_GAP.MATH_MISMATCH : TRANSLATION_GAP.NO_PACK,
+      reason: authoredMismatch ? TRANSLATION_GAP.MATH_MISMATCH : TRANSLATION_GAP.NO_PACK,
     };
   }
   const result = translateWithPack(original, pack, { language: code });
@@ -274,7 +306,7 @@ export const resolveTranslation = async ({ question = null, text = null, languag
       ...base,
       coverage: result.coverage,
       sentences: result.sentences,
-      reason: authored && !authored.keepsMath ? TRANSLATION_GAP.MATH_MISMATCH : TRANSLATION_GAP.NO_RESOURCE,
+      reason: authoredMismatch ? TRANSLATION_GAP.MATH_MISMATCH : TRANSLATION_GAP.NO_RESOURCE,
     };
   }
   return {
@@ -293,14 +325,18 @@ export const resolveTranslation = async ({ question = null, text = null, languag
  * is known at once. Lets a support text show Translate (or say there is none)
  * on its first paint once the pack has loaded for an earlier text.
  */
-export const resolveTranslationNow = ({ text, language } = {}) => {
+export const resolveTranslationNow = ({ text, language, authored: teachersText = null } = {}) => {
   const code = String(language || '').trim().toLowerCase();
   const original = String(text ?? '');
   const base = { language: code, original, provider: null, text: null, sentences: [], reason: null };
   if (!code) return { ...base, coverage: TRANSLATION_COVERAGE.NONE, reason: TRANSLATION_GAP.NO_PACK };
+  // The teacher's own words need no pack and no wait: known at once (TT22).
+  const own = teachersOwnWords({ original, authored: teachersText, language: code });
+  if (own.result) return { ...base, ...own.result };
   if (extraProviders.length) return null;
+  const none = own.mismatch ? TRANSLATION_GAP.MATH_MISMATCH : null;
   const packCode = baseLanguage(code);
-  if (!PACK_LOADERS[packCode]) return { ...base, coverage: TRANSLATION_COVERAGE.NONE, reason: TRANSLATION_GAP.NO_PACK };
+  if (!PACK_LOADERS[packCode]) return { ...base, coverage: TRANSLATION_COVERAGE.NONE, reason: none || TRANSLATION_GAP.NO_PACK };
   const pack = loadedPacks.get(packCode);
   if (!pack) return null;
   const result = translateWithPack(original, pack, { language: code });
@@ -308,7 +344,7 @@ export const resolveTranslationNow = ({ text, language } = {}) => {
     return { ...base, coverage: result.coverage, provider: TRANSLATION_PROVIDER.CURATED, text: original, sentences: result.sentences };
   }
   if (result.coverage === TRANSLATION_COVERAGE.NONE) {
-    return { ...base, coverage: result.coverage, sentences: result.sentences, reason: TRANSLATION_GAP.NO_RESOURCE };
+    return { ...base, coverage: result.coverage, sentences: result.sentences, reason: none || TRANSLATION_GAP.NO_RESOURCE };
   }
   return { ...base, coverage: result.coverage, provider: TRANSLATION_PROVIDER.CURATED, text: result.text, sentences: result.sentences };
 };

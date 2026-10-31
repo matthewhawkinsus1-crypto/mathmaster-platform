@@ -16,6 +16,11 @@
 //               numbers are 44px too (RUN-15).
 //   focusView   "Show progress" and "Focus view", pressed with a real pointer,
 //               leave the work where it was on screen (RUN-7).
+//   tabClear    Chromebook, keyboard only: Tab through a Number Line question
+//               (a legacy type; its "Show a hint" sits in the context panel
+//               right under the task card) and no stop of the question is under
+//               the sticky task card or the navigator (CI09: the keyboard
+//               sweep's host had no navigator and read two stops as covered).
 //   warmup      phone, Warm-Up open: no banner over the task card, the time is
 //               in the section pill, no toast over Submit, Submit can be
 //               tapped; from Classwork the status chip offers the Warm-Up (RUN-14).
@@ -232,6 +237,67 @@ if (wanted('focusView')) {
     check(Math.abs(focused - before) <= 2, `${CHROMEBOOK.name} (${questions}): "Focus view" leaves the work in place`, `${Math.round(before)} → ${Math.round(focused)}`);
     await context.close();
   }
+}
+
+/* ------------------------------------------------------------- tabClear */
+if (wanted('tabClear')) {
+  const { context, page } = await openLesson(CHROMEBOOK, {
+    // Every open section's questions become the catalog's Number Line example.
+    prepare: ({ lesson }) => {
+      const stored = window.__mmHarnessStore.exportDoc(`assignments/${lesson}`);
+      const numberLine = { type: 'numberLine', prompt: 'Which number line shows x = -2?', choices: [{ id: 'a', points: [-2] }, { id: 'b', points: [2] }], answer: 'a' };
+      const sections = (stored.sections || []).map((section) => (section.role === 'dol' ? section : {
+        ...section,
+        questions: section.questions.map((question) => ({ ...numberLine, questionId: question.questionId, activityRole: question.activityRole })),
+      }));
+      window.__mmHarnessStore.importDoc(`assignments/${lesson}`, { ...stored, sections });
+    },
+  });
+  await page.evaluate(() => {
+    window.scrollTo(0, 0);
+    [...document.querySelectorAll('a')].find((link) => /skip to main/i.test(link.textContent || ''))?.focus();
+  });
+  await page.waitForTimeout(300);
+  const stops = [];
+  const walk = async (key, presses) => {
+    for (let press = 0; press < presses; press += 1) {
+      await page.keyboard.press(key);
+      await page.waitForTimeout(250);
+      const stop = await page.evaluate(() => {
+        const element = document.activeElement;
+        if (!element || element === document.body) return null;
+        const box = element.getBoundingClientRect();
+        const taken = [];
+        for (const across of [0.1, 0.3, 0.5, 0.7, 0.9]) {
+          for (const down of [0.2, 0.5, 0.8]) {
+            const x = box.left + box.width * across;
+            const y = box.top + box.height * down;
+            if (x < 0 || y < 0 || x > innerWidth || y > innerHeight) continue;
+            const top = document.elementFromPoint(x, y);
+            taken.push(Boolean(top && (top === element || element.contains(top) || top.contains(element))));
+          }
+        }
+        return {
+          name: (element.getAttribute('aria-label') || element.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 40),
+          inQuestion: Boolean(element.closest('.mathmaster-question-stage')),
+          sampled: taken.length,
+          covered: taken.filter((clear) => !clear).length,
+        };
+      });
+      if (stop) stops.push({ ...stop, key });
+    }
+  };
+  // Forward, past the number line and the work bar; then back the way it came.
+  // Backwards matters: a control scrolled into view from above lands at the top
+  // of the screen, under the sticky card, unless the page keeps room for it.
+  await walk('Tab', 22);
+  await walk('Shift+Tab', 22);
+  const inQuestion = stops.filter((stop) => stop.inQuestion);
+  check(inQuestion.some((stop) => stop.name === 'Show a hint') && inQuestion.some((stop) => stop.name.startsWith('Select ')), `${CHROMEBOOK.name}: the walk reached the hint row and the number line's points`, inQuestion.map((stop) => stop.name).join(' | '));
+  check(inQuestion.some((stop) => stop.key === 'Shift+Tab' && stop.name.startsWith('Select ')), `${CHROMEBOOK.name}: and came back through them with Shift+Tab`);
+  const hidden = inQuestion.filter((stop) => stop.sampled > 0 && stop.covered / stop.sampled >= 0.2);
+  check(!hidden.length, `${CHROMEBOOK.name}: no stop of the question is under the sticky task card or the navigator, either way`, hidden.map((stop) => `${stop.key} ${stop.name} ${stop.covered}/${stop.sampled}`).join(' | '));
+  await context.close();
 }
 
 /* -------------------------------------------------------------- warmup */

@@ -8,7 +8,8 @@ import SolutionReviewPanel from '../../SolutionReviewPanel.jsx';
 import LinearRegressionPanel from '../assessment/LinearRegressionPanel.jsx';
 import SecureItemAccessSupports from '../assessment/SecureItemAccessSupports.jsx';
 import SecureMathAnswerField from '../assessment/SecureMathAnswerField.jsx';
-import { secureAccessEntitlement } from '../../platform/assessment/secureItemAccess.js';
+import { SECURE_ACTIVITY_ROLE, secureAccessEntitlement } from '../../platform/assessment/secureItemAccess.js';
+import { GraphReadOutProvider, graphReadOutEntitled } from '../../platform/supports/graphReadOut.js';
 import { toolsEntitlementFromProfile } from '../../platform/language/supportToolsEntitlement.js';
 import { workedSolutionSupports } from '../../platform/supports/workedSolutionSupports.js';
 import { speechAvailable } from '../../platform/language/speechText.js';
@@ -21,6 +22,7 @@ import { readQuestionDraftFamily, restoreQuestionDrafts, subscribeToQuestionDraf
 import { withoutPersistedUndo } from '../../platform/workView/persistedMathUndo.js';
 import { createToolWorkGate } from './toolWorkGate.js';
 import { assessmentSupportProfile } from '../../studentSupport.js';
+import { SUBMIT_VERB, submitActionLabel, submitTryCost } from '../../platform/student/submitCost.js';
 
 /*
  * THE SHARED RICH QUESTION RUNTIME.
@@ -57,6 +59,12 @@ import { assessmentSupportProfile } from '../../studentSupport.js';
  * refresh, a Chromebook sleep, a dropped connection, a proctor lock), and its
  * raw construction plus those drafts go up with every autosave through
  * `onDraftChange`, so the item reopens on another device as it was left.
+ *
+ * ITS LANDMARK (`mainLandmark`, TT27). The item is the page's <main>. A teacher's
+ * page already has one, and draws this inside it (the Test Cycle preview): there
+ * it passes `mainLandmark={false}` and the item is a plain <div>, so the page has
+ * one main and not a main inside a main. Every student surface leaves it at its
+ * default, which draws the <main> it always drew.
  *
  * NAVIGATION MODE (`navigationMode`). A secure test the student moves around
  * in — Previous, Next, a question list, change any answer until Submit — has
@@ -142,7 +150,8 @@ const InstructionalSupport = ({ policy, feedback, isToolItem, supportProfile = n
  * given the raw profile, because the flattened assessment profile loses the
  * plan's per-activity limits). Nothing here reads or computes correctness.
  */
-const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, rawStudentSupportProfile = null, initialResponsePayload, busy, closed, feedback, navigationMode = false, calculatorInToolbar = false, onSubmit, onDraftChange }) => {
+const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, rawStudentSupportProfile = null, graphReadOut = false, initialResponsePayload, busy, closed, feedback, attempt = null, navigationMode = false, calculatorInToolbar = false, examType = null, mainLandmark = true, onSubmit, onDraftChange }) => {
+  const Landmark = mainLandmark ? 'main' : 'div';
   const [responses, setResponses] = useState(() => initialResponsePayload?.responses || {});
   const [calculatorUsed, setCalculatorUsed] = useState(false);
   const [regressionState, setRegressionState] = useState(() => {
@@ -174,13 +183,18 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
     });
   };
 
+  // Outside a secure test this is Corrections, where every press spends a try,
+  // so it is Submit with what it costs, as everywhere else (D9; TC06). It said
+  // "Check my answer", the word that never costs a try.
   const actionLabel = policy.secure
     ? (busy ? 'Recording securely…' : complete ? 'Record answer & continue' : 'Answer to continue')
-    : (busy ? 'Checking…' : feedback && !feedback.isCorrect && !closed ? 'Check my answer again' : 'Check my answer');
+    : (attempt
+      ? submitActionLabel({ submitting: busy, cost: submitTryCost({ maximumAttempts: attempt.allowed, attemptCount: attempt.used }) })
+      : (busy ? 'Submitting…' : SUBMIT_VERB));
   const enabled = complete && !locked;
 
   return (
-    <main style={{ width: 'min(820px, 100%)', margin: '0 auto', padding: '28px 18px 64px', boxSizing: 'border-box' }}>
+    <Landmark style={{ width: 'min(820px, 100%)', margin: '0 auto', padding: '28px 18px 64px', boxSizing: 'border-box' }}>
       <section style={card}>
         {policy.secure && <div style={sectionLabelStyle}>Secure exam question</div>}
         {/* Secure mode deliberately hides TEKS/domain labels while answering,
@@ -188,7 +202,12 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
         <MathText as="h1" style={{ color: 'var(--mm-text-strong)', fontSize: 'clamp(calc(20 * var(--mm-px)), calc(4vw * var(--mm-text-scale, 1)), calc(27 * var(--mm-px)))', lineHeight: 1.45, margin: '10px 0 24px', fontWeight: 760 }}>{question.prompt}</MathText>
         {policy.secure && <SecureItemAccessSupports question={question} studentSupportProfile={rawStudentSupportProfile} />}
         {question.formulaLatex && <div style={{ background: 'var(--mm-surface-sunken)', padding: 12, borderRadius: 8, marginBottom: 18, overflowX: 'auto' }}><MathDisplay value={question.formulaLatex} /></div>}
-        <PathQuestionStimulus stimulus={question.stimulus} />
+        {/* The graph read-out (AX03): the stimulus graph read in full for a
+            student whose plan gives it. Recorded with the item's
+            accommodations (supportUsage), as every secure accommodation is. */}
+        <GraphReadOutProvider enabled={graphReadOut}>
+          <PathQuestionStimulus stimulus={question.stimulus} />
+        </GraphReadOutProvider>
         {question.permittedTools?.includes('linearRegression') && <LinearRegressionPanel value={regressionState} onUsed={() => setCalculatorUsed(true)} onChange={(next) => {
           setRegressionState(next);
           if (locked) return; // the item is being recorded; see updateResponse
@@ -220,6 +239,9 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
                       autoFocus={fieldIndex === 0}
                       ariaLabel={field.label || `Response ${fieldIndex + 1}`}
                       prompt={question?.prompt || ''}
+                      // A practice exam's number line keeps its test's rule
+                      // on mixed numbers; a course Test's does not (TS04).
+                      examType={examType}
                     />
                   )}
                 </fieldset>
@@ -238,7 +260,7 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
       {/* One calculator (H-19): where the exam toolbar has the graphing
           calculator, the item draws no second, scientific one. */}
       {!calculatorInToolbar && <CalculatorPanel policy={calculatorPolicy} onCalculatorOpened={() => setCalculatorUsed(true)} />}
-    </main>
+    </Landmark>
   );
 };
 
@@ -250,9 +272,10 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
  * On a secure Rich Tool item the engine's own support tray offers what a
  * secure item allows — Read aloud, Translate and Vocabulary, from the
  * student's own plan for a test — and nothing else: no Break it down and no
- * Help me say it. Vocabulary lists the PROMPT's words only
+ * Help me say it. Vocabulary defines the PROMPT's words only
  * (`promptTermsOnly`: a tool's own word list — distribute, elimination,
- * shade — defines its method), each with its definition and WITHOUT the
+ * shade — defines its method, so those words show as labels with no
+ * definition, TS07), each with its definition and WITHOUT the
  * glossary's worked example (`showExamples: false`): an example applies the
  * word, and can apply it to exactly what the item asks. Both match the secure
  * field item's tray. A student with a glossary accommodation kept the terms
@@ -264,7 +287,8 @@ const secureToolTrayEntitlement = (rawStudentSupportProfile) => {
   return { tools: entitlement.tools, language: entitlement.language, showExamples: false, promptTermsOnly: true };
 };
 
-const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStudentSupportProfile = null, draftKey, initialResponsePayload, busy, closed, closedMessage, feedback, attempt, executionScope, navigationMode = false, calculatorInToolbar = false, onSubmit, onDraftChange }) => {
+const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStudentSupportProfile = null, graphReadOut = false, draftKey, initialResponsePayload, busy, closed, closedMessage, feedback, attempt, executionScope, navigationMode = false, calculatorInToolbar = false, mainLandmark = true, onSubmit, onDraftChange }) => {
+  const Landmark = mainLandmark ? 'main' : 'div';
   const latestRawRef = useRef(initialResponsePayload?.raw || null);
   const onSubmitRef = useRef(onSubmit);
   onSubmitRef.current = onSubmit;
@@ -391,7 +415,7 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStude
   }), [calculatorPolicy?.available, calculatorPolicy?.mode, calculatorPolicy?.source]);
 
   return (
-    <main ref={hostRef} data-rich-question-runtime={policy.mode} data-path-tool={question.pathToolId} style={{ width: 'min(1180px, 100%)', margin: '0 auto', padding: '18px 14px 64px', boxSizing: 'border-box', minWidth: 0, overflowX: 'clip' }}>
+    <Landmark ref={hostRef} data-rich-question-runtime={policy.mode} data-path-tool={question.pathToolId} style={{ width: 'min(1180px, 100%)', margin: '0 auto', padding: '18px 14px 64px', boxSizing: 'border-box', minWidth: 0, overflowX: 'clip' }}>
       {policy.secure && <div style={{ ...sectionLabelStyle, margin: '0 4px 8px' }}>Secure exam question</div>}
       <Suspense fallback={<p role="status" style={{ padding: 30, textAlign: 'center', color: 'var(--mm-text-muted)' }}>Opening the math workspace…</p>}>
         <QuestionEngine
@@ -406,6 +430,7 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStude
           activityPolicy={activityPolicy}
           studentProfile={supportProfile}
           supportEntitlement={trayEntitlement}
+          graphReadOut={graphReadOut}
           showStandardBadge={false}
           draftKey={draftKey}
           assessmentContext={assessmentContext}
@@ -425,7 +450,7 @@ const ToolItem = ({ question, policy, calculatorPolicy, supportProfile, rawStude
         />
       </Suspense>
       <InstructionalSupport policy={policy} feedback={feedback} isToolItem supportProfile={rawStudentSupportProfile || supportProfile} />
-    </main>
+    </Landmark>
   );
 };
 
@@ -453,6 +478,9 @@ export default function RichQuestionRuntime({
   navigationMode = false,
   // The host's toolbar has the item's calculator (SecureExamContainer).
   calculatorInToolbar = false,
+  // The item is the page's <main>, as every student surface has it. A teacher's page has one
+  // already and passes false: the item is then a plain <div> (see ITS LANDMARK, above).
+  mainLandmark = true,
   onSubmit,
   onDraftChange,
 }) {
@@ -482,6 +510,14 @@ export default function RichQuestionRuntime({
       studentSupportProfile: supportProfile,
     });
   }, [question, examType, sessionCalculatorMode, supportProfile, accommodationConfirmed, policy.mode]);
+  // GRAPH READ-OUT (AX03), from the student's OWN plan — the flattened
+  // assessment profile has lost its per-activity limits — for a test on a
+  // secure item (as secureItemAccess.js decides the language tools), else for
+  // the mode's activity.
+  const graphReadOut = useMemo(
+    () => graphReadOutEntitled(studentSupportProfile, { activityRole: policy.secure ? SECURE_ACTIVITY_ROLE : policy.activityRole || null }),
+    [studentSupportProfile, policy.secure, policy.activityRole],
+  );
 
   if (!question) return <div style={{ padding: 36, textAlign: 'center', color: 'var(--mm-text-muted)' }}>Preparing the next secure item…</div>;
 
@@ -493,6 +529,7 @@ export default function RichQuestionRuntime({
         calculatorPolicy={calculatorPolicy}
         supportProfile={supportProfile}
         rawStudentSupportProfile={studentSupportProfile}
+        graphReadOut={graphReadOut}
         draftKey={draftKey}
         initialResponsePayload={initialResponsePayload}
         busy={busy}
@@ -503,6 +540,7 @@ export default function RichQuestionRuntime({
         executionScope={executionScope}
         navigationMode={navigationMode}
         calculatorInToolbar={calculatorInToolbar}
+        mainLandmark={mainLandmark}
         onSubmit={onSubmit}
         onDraftChange={onDraftChange}
       />
@@ -515,12 +553,16 @@ export default function RichQuestionRuntime({
       calculatorPolicy={calculatorPolicy}
       studentSupportProfile={supportProfile}
       rawStudentSupportProfile={studentSupportProfile}
+      graphReadOut={graphReadOut}
       initialResponsePayload={initialResponsePayload}
       busy={busy}
       closed={closed}
       feedback={feedback}
+      attempt={attempt}
       navigationMode={navigationMode}
       calculatorInToolbar={calculatorInToolbar}
+      examType={examType}
+      mainLandmark={mainLandmark}
       onSubmit={onSubmit}
       onDraftChange={onDraftChange}
     />

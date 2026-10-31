@@ -11,7 +11,10 @@
 // they have), and the engine ranks it; the finished match writes the report
 // by form, item type and mistake; a Classic round the class graphed together
 // publishes its line and the class's most common mistake — only once it has
-// closed; and extended time never holds a round no answer can reach.
+// closed; a student with extended time finishes after the buzzer while the
+// race stays the class's, and nothing public says who; and a finished game
+// writes each student's first tries as mastery evidence only while the
+// owner's switch is on.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -41,7 +44,7 @@ const CLASSES = {
   sprint: { id: 'line-class-sprint', size: 3, teacher: ROOT_ADMIN_EMAIL },
   classic: { id: 'line-class-classic', size: 3, teacher: ROOT_ADMIN_EMAIL },
   regular: { id: 'line-class-regular', size: 2, teacher: TEACHER },
-  extended: { id: 'line-class-extended', size: 2, teacher: ROOT_ADMIN_EMAIL },
+  extended: { id: 'line-class-extended', size: 3, teacher: ROOT_ADMIN_EMAIL },
 };
 const studentsOf = (key) => Array.from({ length: CLASSES[key].size }, (_, index) => `${CLASSES[key].id}-s${index + 1}`);
 
@@ -77,8 +80,9 @@ for (const key of Object.keys(CLASSES)) {
   const batch = db.batch();
   studentsOf(key).forEach((studentId, index) => batch.set(db.collection('grades').doc(studentId), {
     assignedTeacherEmail: CLASSES[key].teacher, classId: CLASSES[key].id, classPeriod: CLASSES[key].id, firstName: `Line${index + 1}`, lastName: 'Student',
-    // The extended-time class's second student has extra time on their plan (1.5×).
-    ...(key === 'extended' && index === 1 ? { profile: { accommodations: ['extra-time'] } } : {}),
+    // The extended-time class's second student has extra time on their plan
+    // (1.5×) and a graphing aid (graph paper: the slope helper is theirs).
+    ...(key === 'extended' && index === 1 ? { profile: { accommodations: ['extra-time', 'graph-paper'] } } : {}),
   }));
   // eslint-disable-next-line no-await-in-loop
   await batch.commit();
@@ -171,7 +175,7 @@ test('a Sprint lobby carries its settings, and its seed stays on the server', as
   assert.ok(secret.lineGraph.seed);
   assert.equal(secret.scoringConfig.placementCurve, 'field');
   assert.deepEqual(secret.questionIds, ['lineGraph:round:1', 'lineGraph:round:2']);
-  assert.deepEqual(Object.values(secret.roundStandards), ['', ''], 'no standard per round: no evidence until outcomes can feed it');
+  assert.deepEqual(Object.values(secret.roundStandards), ['', ''], 'no standard per round: the bank rounds\' evidence never reads a line game (its own rules do: lineGraphEvidence.mjs)');
 });
 
 test('a round opens with a card, never an equation, and students get their own items', async () => {
@@ -367,34 +371,246 @@ test('a Classic round: everyone gets the same equation, and the round is done wh
   assert.equal(finished.status, 'finished');
 });
 
-/* ===== GAME 3: extended time never holds a round no answer can reach ===== */
+/* ===== GAME 3: a student's plan — extra time after the buzzer, their own slope helper ===== */
 
-test('a student with extended time does not hold a Graph the Line round past the class\'s deadline', async () => {
-  const [onTime, extra] = studentsOf('extended');
+// What a classmate (or the projector) can read about a room: the room, every
+// public row, the class's round copy, the standings snapshot and a published
+// solution. None of it may say who has an accommodation.
+const publicDocumentsOf = async (roomId) => {
+  const ref = roomRef(roomId);
+  const [room, players, rounds, standings, solutions] = await Promise.all([
+    ref.get(), ref.collection('players').get(), ref.collection('rounds').get(), ref.collection('standings').get(), ref.collection('solutions').get(),
+  ]);
+  return JSON.stringify([room.data(), ...[players, rounds, standings, solutions].flatMap((snapshot) => snapshot.docs.map((doc) => doc.data()))]);
+};
+
+test('a student with extended time finishes their Classic line after the buzzer; the race is decided at the buzzer, and nothing public says who', async () => {
+  const [onTime, extra, slow] = studentsOf('extended');
   const created = await createLine('extended', 'lineGraphClassic', { itemTypes: ['graph'] }, { roundCount: 3, roundSeconds: 20 });
   const roomId = created.roomId;
-  await Promise.all([onTime, extra].map((studentId) => call('joinLiveChallenge', student(studentId, { roomId }))));
-  // Extended time is a synchronized round's: the join gives a question-set
-  // game none, so the close guard has nobody's personal deadline to wait for.
-  assert.equal((await privatePlayer(roomId, extra)).timeMultiplier, 1, 'no extra time in a question-set round');
+  assert.equal((await roomOf(roomId)).lineGraph.config.slopeHelper, false, 'the room has no slope helper');
+  await Promise.all([onTime, extra, slow].map((studentId) => call('joinLiveChallenge', student(studentId, { roomId }))));
+
+  // THE PLAN, privately: 1.5× and the slope helper on the student's own record
+  // and (the multiplier) their own invite — never on the room or a public row.
+  const extraRecord = await privatePlayer(roomId, extra);
+  assert.equal(extraRecord.timeMultiplier, 1.5);
+  assert.equal(extraRecord.lineSlopeHelper, true);
+  assert.equal((await privatePlayer(roomId, onTime)).timeMultiplier, 1);
+  assert.equal((await privatePlayer(roomId, onTime)).lineSlopeHelper, false);
+  assert.equal((await db.collection('liveChallengeInvites').doc(extra).get()).data().timeMultiplier, 1.5);
   await call('startLiveChallenge', administrator({ roomId }));
+  const opened = await roomOf(roomId);
+  assert.equal(opened.extendedTimeInPlay, true, 'the room says someone has more time — never who');
   await waitForRoundStart(roomId);
-  const { questions } = await fetchItems(roomId, onTime);
-  await submit(roomId, onTime, [rightAttempt(questions[0])]);
-  const room = await roomOf(roomId);
-  assert.equal(room.extendedTimeInPlay, false, 'a question-set round has no extended time to announce');
-  // Past the class's deadline and the arrival grace — inside what the
-  // student's plan would give them in a question round — the round closes
-  // without force: the submit callable takes nobody's answer now.
-  await sleep(Math.max(0, room.endsAt.toMillis() - Date.now() + 1_500));
-  const late = await failureOf(submit(roomId, extra, [rightAttempt((await fetchItems(roomId, extra)).questions[0] || questions[0])]));
-  assert.ok(late, 'the extra student\'s answer after the class\'s deadline is refused');
-  const identity = await identityOf(roomId);
+
+  // Their own round request turns their slope helper on; a classmate's does not.
+  const extraItems = await fetchItems(roomId, extra);
+  assert.equal(extraItems.slopeHelper, true);
+  const onTimeItems = await fetchItems(roomId, onTime);
+  assert.equal(onTimeItems.slopeHelper, false);
+
+  // The race: one student right, the student with extra time one miss.
+  const item = onTimeItems.questions[0];
+  assert.equal((await submit(roomId, onTime, [rightAttempt(item)])).verdicts[0].verdict, 'correct');
+  assert.equal((await submit(roomId, extra, [wrongLine(extraItems.questions[0], 0)])).verdicts[0].verdict, 'incorrect');
+  const extraRowAtBuzzer = await publicRow(roomId, extra);
+
+  // PAST THE CLASS'S BUZZER (and its arrival grace).
+  await sleep(Math.max(0, opened.endsAt.toMillis() - Date.now() + 1_500));
+  // A classmate without extra time is refused…
+  const late = await failureOf(submit(roomId, slow, [rightAttempt(item)]));
+  assert.equal(late?.code, 'deadline-exceeded');
+  // …and the round waits for the student inside their own time.
+  let identity = await identityOf(roomId);
+  const held = await failureOf(call('closeLiveChallengeRound', administrator({ roomId, expectedRoundIndex: identity.roundIndex, expectedRoundVersion: identity.roundVersion })));
+  assert.equal(held?.code, 'failed-precondition');
+  assert.equal(held?.details?.readiness, 'extended_time');
+  assert.equal((await roomOf(roomId)).roundState, 'open');
+
+  // EXTRA TIME: they finish their line. Recorded, apart from the race.
+  const finished = await submit(roomId, extra, [rightAttempt(extraItems.questions[0])]);
+  assert.equal(finished.verdicts[0].verdict, 'correct');
+  assert.equal(finished.state.finished, true);
+  const afterRecord = await privatePlayer(roomId, extra);
+  const raceReceipts = Object.values(afterRecord.submissionReceipts);
+  assert.equal(raceReceipts.length, 1, 'the race holds their miss only');
+  assert.equal(raceReceipts[0].isCorrect, false);
+  const extraTimeReceipts = Object.values(afterRecord.extraTimeReceipts || {});
+  assert.equal(extraTimeReceipts.length, 1);
+  assert.equal(extraTimeReceipts[0].extraTime, true);
+  assert.equal(extraTimeReceipts[0].pointsAwarded, 0);
+  // Their public row did not move: a row that changed now would name them.
+  const extraRowNow = await publicRow(roomId, extra);
+  for (const field of ['score', 'correctCount', 'rushRoundCompleted', 'rushRoundFinished', 'matchAccuracy']) {
+    assert.deepEqual(extraRowNow[field], extraRowAtBuzzer[field], field);
+  }
+  assert.equal(extraRowNow.updatedAt?.toMillis?.(), extraRowAtBuzzer.updatedAt?.toMillis?.(), 'not written at all');
+
+  // Everyone is done: the round closes without force.
+  identity = await identityOf(roomId);
   await call('closeLiveChallengeRound', administrator({ roomId, expectedRoundIndex: identity.roundIndex, expectedRoundVersion: identity.roundVersion }));
-  const closed = await roomOf(roomId);
-  assert.equal(closed.roundState, 'closed');
-  assert.notEqual(closed.extendedTimeInPlay, true, 'and the room never says someone has extra time');
+  assert.equal((await roomOf(roomId)).roundState, 'closed');
+  // THE RACE AT THE BUZZER: the student with extra time is placed by what they
+  // had done then (no line), exactly as a classmate who did the same.
+  const table = (await roomRef(roomId).collection('hostRounds').doc('0').get()).data();
+  const keyOf = async (studentId) => (await privatePlayer(roomId, studentId)).playerKey;
+  const byKey = new Map(table.standings.map((row) => [row.playerKey, row]));
+  assert.equal(byKey.get(await keyOf(onTime)).rank, 1);
+  assert.equal(byKey.get(await keyOf(extra)).completed, 0, 'their line in extra time is not the race\'s');
+  assert.equal(byKey.get(await keyOf(extra)).matchPointsAwarded, byKey.get(await keyOf(slow)).matchPointsAwarded, 'placed as the class\'s clock alone would place them');
+  // The class's line, published at the close, counts the work done in extra time — as counts.
+  const solution = (await roomRef(roomId).collection('solutions').doc('0').get()).data();
+  assert.equal(solution.lineGraph.class.answered, 2);
+  assert.equal(solution.lineGraph.class.correct, 2);
+  assert.equal(solution.lineGraph.class.firstTry, 1);
+
+  // NOTHING PUBLIC SAYS WHO.
+  const published = await publicDocumentsOf(roomId);
+  assert.doesNotMatch(published, /extraTime|timeMultiplier|SlopeHelper|"slopeHelper":true/);
+  assert.ok(!published.includes(extra), 'no student id');
+
+  // The finished match: the race's numbers from the race, the report from all their work.
   await call('finishLiveChallenge', administrator({ roomId }));
+  let report = null;
+  for (let attempt = 0; attempt < 30 && !report?.lineGraph; attempt += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    report = (await db.collection('liveChallengeReports').doc(roomId).get()).data() || null;
+    // eslint-disable-next-line no-await-in-loop
+    if (!report?.lineGraph) await sleep(100);
+  }
+  const match = (await db.collection('liveChallengeMatchResults').doc(roomId).get()).data();
+  const standing = match.standings.find((row) => row.studentId === extra);
+  assert.equal(standing.matchAccuracy, 0, 'the race\'s accuracy: their one miss');
+  assert.equal(standing.questionSetSummary.completed, 1);
+  assert.equal(standing.questionSetSummary.extraTimeCompleted, 1);
+  const reportRow = report.lineGraph.players.find((row) => row.studentId === extra);
+  assert.equal(reportRow.itemsCompleted, 1);
+  assert.equal(reportRow.itemsCompletedInExtraTime, 1, 'the teacher sees it came after the buzzer');
+});
+
+test('a Rush gives no extra time; the slope helper from the plan still goes with the student', async () => {
+  const extra = studentsOf('extended')[1];
+  const { roomId } = await createLine('extended', 'lineGraphRush', { itemTypes: ['graph'] }, { roundCount: 1, roundSeconds: 30 });
+  await call('joinLiveChallenge', student(extra, { roomId }));
+  const record = await privatePlayer(roomId, extra);
+  assert.equal(record.timeMultiplier, 1, 'as many as you can before the clock: nothing to finish');
+  assert.equal(record.lineSlopeHelper, true);
+  await call('cancelLiveChallenge', administrator({ roomId }));
+});
+
+/* ===== GAME 4: mastery evidence — each line's first try, per kind of item, behind the owner's switch ===== */
+
+const evidenceSwitch = db.collection('platformFlags').doc('liveChallengeEvidence');
+const lineEvidenceOf = async (studentId, roomId) => (await db.collection('grades').doc(studentId).collection('evidenceEvents')
+  .where('source.roomId', '==', roomId).get()).docs.map((doc) => doc.data());
+
+// A wrong answer of the item's own kind.
+const wrongAttempt = (item) => (item.answerStyle === 'choice'
+  ? { attemptId: randomUUID(), questionIndex: item.questionIndex, kind: 'choice', choice: item.choices.find((choice) => choice.id !== item.answerChoice).id, clientElapsedMs: 3_000 }
+  : wrongLine(item, 0));
+
+// What the rules should count, from what this test did: each line once (the
+// first meeting), a vertical Graph it line never, right only when the first try was.
+const expectedFirstTries = (items, firstTryRight) => {
+  const tally = { graph: { lines: 0, right: 0 }, name: { lines: 0, right: 0 } };
+  const met = new Set();
+  items.forEach((item, index) => {
+    if (item.itemType === 'graph' && item.line.b === 0) return;
+    const identity = `${item.itemType}|${item.line.a}|${item.line.b}|${item.line.c}`;
+    if (met.has(identity)) return;
+    met.add(identity);
+    tally[item.itemType].lines += 1;
+    if (firstTryRight(index)) tally[item.itemType].right += 1;
+  });
+  return tally;
+};
+
+test('a line game writes no mastery evidence while the owner\'s switch is off', async () => {
+  // GAME 1 finished with the switch off: its facts are on the result, and no event.
+  const match = (await db.collection('liveChallengeMatchResults').doc(S).get()).data();
+  assert.ok(match.standings.filter((row) => row.joined).every((row) => row.lineGraphEvidence?.version === 1), 'the facts are always counted');
+  for (const studentId of [A, B, C]) {
+    // eslint-disable-next-line no-await-in-loop
+    assert.deepEqual(await lineEvidenceOf(studentId, S), [], studentId);
+  }
+});
+
+test('with the switch on, a finished line game writes each student\'s first tries: Graph it as A.3C, Name it as A.2C', async () => {
+  await evidenceSwitch.set({ lineGraph: true });
+  try {
+    const created = await createLine('sprint', 'lineGraphSprint', { presetId: 'graphAndName', itemTypes: ['graph', 'name'], nameStyle: 'choice', sprintLength: 5, triesPerItem: 2 }, { roundCount: 1, roundSeconds: 60 });
+    const roomId = created.roomId;
+    await Promise.all([A, B].map((studentId) => call('joinLiveChallenge', student(studentId, { roomId }))));
+    await call('startLiveChallenge', administrator({ roomId }));
+    await waitForRoundStart(roomId);
+    // Five of a block of six, two of which are Name it: at least three Graph
+    // it lines and one Name it. A: the first Graph it line wrong, then right
+    // after the hint; the first Name it wrong (one try); the next line
+    // skipped; the rest right at once. B: every line right at once. C never
+    // joined.
+    const aItems = (await fetchItems(roomId, A)).questions;
+    assert.equal(aItems.length, 5);
+    const retried = aItems.findIndex((item) => item.itemType === 'graph');
+    const missed = aItems.findIndex((item) => item.itemType === 'name');
+    const skipped = aItems.findIndex((_, index) => index !== retried && index !== missed);
+    assert.ok(retried >= 0 && missed >= 0 && skipped >= 0, JSON.stringify(aItems.map((item) => item.itemType)));
+    for (const [index, item] of aItems.entries()) {
+      if (index === retried) {
+        // eslint-disable-next-line no-await-in-loop
+        await submit(roomId, A, [wrongAttempt(item)]);
+        // eslint-disable-next-line no-await-in-loop
+        assert.equal((await submit(roomId, A, [rightAttempt(item)])).verdicts[0].verdict, 'correct', 'right on the second try');
+      } else if (index === missed) {
+        // eslint-disable-next-line no-await-in-loop
+        assert.equal((await submit(roomId, A, [wrongAttempt(item)])).verdicts[0].revealed, true, 'one try, then the answer is shown');
+      } else if (index === skipped) {
+        // eslint-disable-next-line no-await-in-loop
+        await submit(roomId, A, [{ attemptId: randomUUID(), questionIndex: item.questionIndex, kind: 'skip' }]);
+      } else {
+        // eslint-disable-next-line no-await-in-loop
+        await submit(roomId, A, [rightAttempt(item)]);
+      }
+    }
+    const bItems = (await fetchItems(roomId, B)).questions;
+    await submit(roomId, B, bItems.map(rightAttempt));
+    const done = await call('finishLiveChallenge', administrator({ roomId }));
+    assert.equal(done.status, 'finished');
+
+    const expectedA = expectedFirstTries(aItems, (index) => ![retried, missed, skipped].includes(index));
+    const expectedB = expectedFirstTries(bItems, () => true);
+    const match = (await db.collection('liveChallengeMatchResults').doc(roomId).get()).data();
+    const factsOf = (studentId) => match.standings.find((row) => row.studentId === studentId).lineGraphEvidence;
+    assert.deepEqual([factsOf(A).graph.lines, factsOf(A).graph.firstTryRight, factsOf(A).name.lines, factsOf(A).name.firstTryRight],
+      [expectedA.graph.lines, expectedA.graph.right, expectedA.name.lines, expectedA.name.right]);
+
+    for (const [studentId, expected] of [[A, expectedA], [B, expectedB]]) {
+      // eslint-disable-next-line no-await-in-loop
+      const events = await lineEvidenceOf(studentId, roomId);
+      const byStandard = Object.fromEntries(events.map((event) => [event.alignmentKeys[0], event]));
+      assert.equal(events.length, ['graph', 'name'].filter((itemType) => expected[itemType].lines).length, `${studentId}: one event per standard`);
+      for (const [itemType, standard] of [['graph', 'A.3C'], ['name', 'A.2C']]) {
+        const want = expected[itemType];
+        if (!want.lines) {
+          assert.equal(byStandard[standard], undefined, `${studentId}: no ${standard} without a ${itemType} line`);
+          continue;
+        }
+        const event = byStandard[standard];
+        assert.ok(event, `${studentId}: ${standard}`);
+        assert.equal(event.performance.linesCounted, want.lines);
+        assert.equal(event.performance.linesRightFirstTry, want.right);
+        assert.equal(event.performance.score, want.right / want.lines);
+        assert.equal(event.source.kind, 'liveChallenge');
+        assert.equal(event.source.activityRole, 'liveChallenge', 'weighted as a Live Challenge');
+        assert.equal(event.source.itemType, itemType);
+        assert.match(event.conditions, /first try/i, 'the record states its conditions');
+      }
+    }
+    // A student who never joined has no evidence from the game.
+    assert.deepEqual(await lineEvidenceOf(C, roomId), []);
+  } finally {
+    await evidenceSwitch.delete();
+  }
 });
 
 /* ================================ preview ================================ */

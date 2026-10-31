@@ -32,7 +32,7 @@ import { useExamToolRoom } from '../assessment/examToolDrawerHooks.js';
  * holding the question (QuestionEngine's root), padded on the left by exactly
  * how far the open drawer reaches into it (examToolLayout.js examToolRoom).
  */
-export default function AssignmentGraphingCalculator({ open = false, onOpenChange = null, roomRef = null, keyPoints = false }) {
+export default function AssignmentGraphingCalculator({ open = false, onOpenChange = null, roomRef = null, keyPoints = false, keepLinesKey = null }) {
   const room = useExamToolRoom(roomRef || { current: null }, { graphingCalculatorOpen: open });
   useEffect(() => {
     const element = roomRef?.current;
@@ -49,6 +49,7 @@ export default function AssignmentGraphingCalculator({ open = false, onOpenChang
       onOpenChange={onOpenChange}
       showLauncher={false}
       keyPoints={keyPoints}
+      keepLinesKey={keepLinesKey}
     />
   );
 }

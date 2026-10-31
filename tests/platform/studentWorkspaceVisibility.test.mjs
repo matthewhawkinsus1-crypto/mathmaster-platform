@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { ASSIGNMENT_NAV_HEIGHT_VAR, STICKY_TASK_HEIGHT_VAR, stickyHeightRef } from '../../src/platform/layout/stickyHeightRef.js';
 import { region } from './helpers/sourceContract.mjs';
+import { workViewCapabilityWord } from '../../src/platform/student/studentWords.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -79,9 +80,16 @@ test('the navigator height ref is stable across renders and publishes the height
 test('reference chips scroll with the page; the Hide task control sits on the card', () => {
   const container = read('src/components/student/MobileViewportContainer.jsx');
   const anchorStart = container.lastIndexOf('<div', container.indexOf('className={`mathmaster-desktop-question-anchor'));
-  const anchorEnd = container.indexOf('{!workspaceActive && !isPromptCollapsed && taskMeta');
+  // The anchor ends where the rows under the task begin (their own comment
+  // says why they are not in it).
+  const anchorEnd = container.indexOf('Standards and CCMR links are reference, not the task');
   assert.ok(anchorStart > 0 && anchorEnd > anchorStart);
-  assert.doesNotMatch(container.slice(anchorStart, anchorEnd), /taskMeta &&/, 'chips are not inside the sticky anchor');
+  assert.doesNotMatch(container.slice(anchorStart, anchorEnd), /taskMeta/, 'chips are not inside the sticky anchor');
+  // They are drawn after it, in the row they share with the Support tools (PH03),
+  // where the page scrolls them.
+  const extras = container.indexOf('<div className="mathmaster-desktop-task-extras">');
+  assert.ok(extras > anchorEnd, 'after the anchor');
+  assert.match(container.slice(extras, extras + 700), /<div className="mathmaster-question-task-meta mathmaster-desktop-task-meta">\{taskMeta\}<\/div>/);
   const css = read('src/App.css');
   assert.match(css, /\.mathmaster-desktop-question-anchor:not\(\.is-collapsed\) \.mathmaster-desktop-task-toggle-row \{\s*position: absolute;/);
   assert.match(css, /\.mathmaster-desktop-question-anchor:not\(\.is-collapsed\) > \.mathmaster-question-prompt \{\s*padding-right: 104px !important;/);
@@ -140,19 +148,21 @@ test('Work View holds the tool’s place and restores the scroll position on clo
 
 // Live QA round 2, Connect the Line in Work View: the header showed "Your task:
 // …" and the instruction banner under it repeated the same prompt; the rail
-// chips read "numeric Controls" and "table Data".
-test('registered-tool Work View shows the task once and labels chips in sentence case', () => {
+// chips read "numeric Controls" and "table Data" (then "Numeric controls" and
+// "Table data": the key split into words, VH-32).
+test('registered-tool Work View shows the task once and names what it carries in the student\'s words', () => {
   const source = read('src/tools/shared/RegisteredToolWorkView.jsx');
   const describe = source.slice(source.indexOf('const capabilityDescriptor'), source.indexOf('// Final-registry safety net'));
   assert.match(describe, /if \(key === 'instruction'\) return descriptor\(key\);/);
   assert.doesNotMatch(describe, /'instruction'\) return \{[^}]*content: taskText/);
 
-  // Evaluate the label helper without importing JSX.
-  const helper = source.slice(source.indexOf('export const capabilityLabel'), source.indexOf('const descriptor'));
-  const capabilityLabel = new Function(`${helper.replace('export const', 'const')} return capabilityLabel;`)();
-  assert.equal(capabilityLabel('numericControls'), 'Numeric controls');
-  assert.equal(capabilityLabel('tableData'), 'Table data');
-  assert.equal(capabilityLabel('pointEditing'), 'Edit mathematical objects');
+  // The caption's words come from the student word list, not from splitting
+  // the capability key.
+  assert.match(source, /const descriptor = \(key\) => \(\{\s*label: workViewCapabilityWord\(key\),/);
+  assert.equal(workViewCapabilityWord('numericControls'), 'Number boxes');
+  assert.equal(workViewCapabilityWord('equationInput'), 'Equation boxes');
+  assert.equal(workViewCapabilityWord('tableData'), 'Tables');
+  assert.equal(workViewCapabilityWord('pointEditing'), 'Things you can move or change');
 });
 
 // Live QA round 2, 1536×900 Work View: twelve line cards in a 540px column with
@@ -215,7 +225,8 @@ test('a committed step reveals the equation when it is under the sticky chrome',
 test('every embedded systems solver reveals itself when it opens', () => {
   const source = read('src/tools/systemsWorkspace/AlgebraicSystemMode.jsx');
   const solvers = source.split('<EmbeddedStepAlgebra').slice(1).map((chunk) => chunk.slice(0, chunk.indexOf('/>')));
-  assert.equal(solvers.length, 3);
+  // Isolate, reduce, back-substitute, and a separated row's solve (TL43).
+  assert.equal(solvers.length, 4);
   solvers.forEach((solver) => assert.match(solver, /\n\s*autoReveal\n/, solver.slice(0, 80)));
 });
 
@@ -286,22 +297,25 @@ test('only a pointer that actually moved counts as activity', () => {
 // desktop and the tool's title on a phone.
 test('the tool header leaves room for the floating Work View opener', () => {
   const css = read('src/components/common/WorkViewShell.css');
-  assert.match(css, /\.mathmaster-question-container \.mathmaster-work-view-surface\[data-enlarged="false"\] \.mathmaster-tool-shell-header \{\s*padding-right: 176px !important;/);
+  // The room is the button's measured width (EnlargeableFigure publishes it; 176px is what a phone at
+  // 100% text measures and the fallback before it does). It was the fixed 176px, which held until the
+  // text grew: at 200% the title ended under the 257px button (PH01).
+  assert.match(css, /\.mathmaster-question-container \.mathmaster-work-view-surface\[data-enlarged="false"\] \.mathmaster-tool-shell-header \{[^}]*padding-right: var\(--mm-work-view-opener-space, 176px\) !important;/);
   const opener = read('src/components/common/EnlargeableFigure.jsx');
   assert.match(opener, /const CONTROL = \{\s*position: 'absolute',\s*top: 8,\s*right: 8,/, 'the opener still floats at the top-right corner');
 });
 
 // Live QA round 2, 390×844: the four work-bar pills (446px) wrapped into a
 // 105px two-row bar.
-test('the phone work bar is one flexible row with a short Reset label', () => {
+test('the phone work bar is one flexible row with a short Start over caption', () => {
   const css = read('src/components/student/MathToolMobileLayout.css');
   assert.match(css, /\.mathmaster-question-container\.mode-portrait \.portrait-action-bar \{\s*display: flex;\s*flex-wrap: wrap;\s*gap: 6px;/);
   assert.match(css, /\.mathmaster-question-container\.mode-portrait \.mathmaster-action-label-long \{\s*display: none;/);
   const engine = read('src/QuestionEngine.jsx');
-  assert.match(engine, /aria-label=\{resettingQuestion \? 'Resetting…' : 'Reset Question'\}/);
+  assert.match(engine, /aria-label=\{resettingQuestion \? STARTING_OVER : START_QUESTION_OVER\}/);
   // The word sits in a label span (a phone hides it, or since A11Y-10 keeps it
   // as a caption under the icon: `mathmaster-action-label--kept`).
-  assert.match(engine, /<span aria-hidden="true">↺<\/span><span className="mathmaster-action-label(?: [\w-]+)*"> Reset<span className="mathmaster-action-label-long"> Question<\/span><\/span>/);
+  assert.match(engine, /<span aria-hidden="true">↺<\/span><span className="mathmaster-action-label(?: [\w-]+)*"> Start<span className="mathmaster-action-label-long"> question<\/span> over<\/span>/);
 });
 
 // Student UX pass (R-1), 390×844: with "Submit Answer" in the bar the four
@@ -355,7 +369,7 @@ test('Work View phone controls use short labels and share one row', () => {
   const css = read('src/components/common/WorkViewShell.css');
   assert.match(css, /\[data-open="true"\]\[data-layout="mobile"\] \.mathmaster-work-view-action-full \{ display: none; \}/);
   assert.match(css, /\[data-open="true"\]\[data-layout="mobile"\]\[data-controls="bottom"\] \.mathmaster-work-view-actions button \{\s*flex: 1 1 auto;/);
-  assert.match(read('src/QuestionEngine.jsx'), /shortLabel: resettingQuestion \? 'Resetting…' : '↺ Reset',/);
+  assert.match(read('src/QuestionEngine.jsx'), /shortLabel: resettingQuestion \? STARTING_OVER : `↺ \$\{START_OVER\}`,/);
 });
 
 // iPhone landscape, 844×390: seven full-size actions need the side rail's
@@ -461,11 +475,12 @@ test('phone Work View trims nested padding around the math', () => {
 // "Mathematical expression".
 test('multi-part choices are named by their own text', () => {
   const grader = read('src/MultiAnswerGrader.jsx');
-  assert.match(grader, /format=\{format\} inline ariaLabel=\{choiceAccessibleLabel\(text\)\} \/>/);
+  // (A dimensions field names "2 × 3" as "2 by 3": AX30, choiceAccessibleLabel.test.mjs.)
+  assert.match(grader, /format=\{format\} inline ariaLabel=\{choiceAccessibleLabel\(text, \{ dimensions \}\)\} \/>/);
   // Role and checked state come from the shared choice group; the name, given
   // after them, is the choice's own text.
   const options = region(grader, 'function ChoiceFieldOptions(', '\n}\n', 'ChoiceFieldOptions');
-  assert.match(options, /\{\.\.\.optionProps\(index\)\}\s*aria-label=\{choiceAccessibleLabel\(raw\)\}/);
+  assert.match(options, /\{\.\.\.optionProps\(index\)\}\s*aria-label=\{choiceAccessibleLabel\(raw, \{ dimensions \}\)\}/);
 });
 
 // PR #357 CI: the typeset operand made the placed marker's innerText MathLive

@@ -7,14 +7,44 @@
  * chooses — "Choose your seat for a day", 50 Class Points — that a student
  * spends points on and the teacher then hands out in the room. Nothing in
  * MathMaster reads a class reward to decide a grade, a completion, a deadline
- * or a mastery level, and this module makes sure nothing ever could:
+ * or a mastery level, and this module makes sure nothing ever could.
  *
- *   * an item is rebuilt from an allow-list of fields, so a grade field a
- *     client sends is never stored — and a payload that tries to carry one is
- *     refused outright rather than silently trimmed, so the teacher learns why;
- *   * a label or description that promises an academic effect (homework-free,
- *     extra credit, skip a quiz, a retake…) is refused with a sentence saying
- *     so. The Practice Pass is the only reward that touches an assignment.
+ * THE PROMISE ("none of these change a grade") IS KEPT IN THREE LAYERS, AND
+ * ONLY THE LAST ONE IS A WORD LIST (LC04):
+ *
+ *   1. NOTHING READS A REWARD. No grader, assignment, deadline, attempt or
+ *      mastery code imports this module or reads its collections;
+ *      tests/platform/classRewardNoAcademicReach.test.mjs lists every file
+ *      that knows class rewards exist and fails the day another one does. A
+ *      reward cannot change a grade because no code could notice it. This is
+ *      the layer that is true however a reward is worded.
+ *   2. AN ITEM IS SIX FIELDS AND NO OTHER (CLASS_REWARD_ITEM_FIELDS). The
+ *      server rebuilds every item from them, so nothing grade-like is ever
+ *      stored, and a payload carrying any other field is refused outright
+ *      rather than silently trimmed — the teacher learns why, and a client
+ *      that tries to attach an effect is told so. The list of grade-like
+ *      names below only chooses the sentence; it protects nothing.
+ *   3. FREE TEXT IS SCREENED, AND ONLY EVER SHOWN AS A REWARD. A name or
+ *      description that promises an academic effect (homework-free, extra
+ *      credit, skip a quiz, a retake…) is refused with a sentence saying so,
+ *      and wherever a student reads it, MathMaster's own words sit beside it
+ *      ("None of these change a grade", "This does not change any grade or
+ *      assignment"). The Practice Pass is the only reward that touches an
+ *      assignment.
+ *
+ * WHAT THE SCREEN CANNOT CATCH. It reads words, not meaning, and it checks
+ * only what is typed here:
+ *   - a promise made without the words: "A pass on tonight's problem set",
+ *     "Take tonight off", "Everyone gets the A";
+ *   - a spelling it has no rule for: a typo ("homwork"), letters spaced or
+ *     joined apart ("h o m e w o r k", "home_work"), slang, a language other
+ *     than English and Spanish, an emoji standing in for a word;
+ *   - context: "pass" is a hall pass in one room and a free pass in another;
+ *   - the teacher's decline reason, which is free text shown to the student
+ *     but is not a reward, and so is not screened;
+ *   - anything said, written or promised in the room: MathMaster never sees it.
+ * Layers 1 and 2 are why none of that can move a grade; layer 3 only stops
+ * MathMaster itself from publishing the promise.
  *
  * Request lifecycle (classRewardRequests/{id}, written only by the server):
  *
@@ -71,8 +101,19 @@ const reject = (message, field = null) => { throw new ClassRewardInputError(mess
 const cleanText = (value, max) => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 
 /*
- * Fields an item may never carry. A class reward is a label and a price; any
- * of these would mean somebody is trying to make it change academic records.
+ * The ONLY fields an item has. The server rebuilds an item from these and
+ * refuses a payload that names any other (validateCatalogItem), so what a
+ * reward can be is fixed here, not by a list of what it may not be.
+ */
+export const CLASS_REWARD_ITEM_FIELDS = Object.freeze([
+  'itemId', 'label', 'description', 'cost', 'active', 'weeklyLimitPerStudent',
+]);
+const ITEM_FIELD_SET = new Set(CLASS_REWARD_ITEM_FIELDS);
+
+/*
+ * Field names that would mean somebody is trying to make a reward change
+ * academic records. Not the guard (CLASS_REWARD_ITEM_FIELDS is): a payload
+ * naming one gets the academic sentence rather than the general one.
  */
 export const ACADEMIC_FIELDS = Object.freeze([
   'grade', 'gradeEffect', 'gradeChange', 'score', 'scoreBonus', 'credit', 'extraCredit',
@@ -123,13 +164,52 @@ const ACADEMIC_WORDING = Object.freeze([
   // problems", "any question", "the next problem". The skip rule above only
   // knew "a/an/the/one" in front of the noun.
   { pattern: /\b(?:\d+|one|two|three|four|five|a|an|any|every|each|next|last|hardest|extra|free|bonus|skip(?:ped|ping|s)?|drop(?:ped|ping|s)?|peek)\s+(?:\w+\s+)?(?:questions?|problems?)\b/i, words: 'skipping or excusing work' },
+  // The same effects in Spanish (LC04). MathMaster serves Spanish-speaking
+  // families, and a teacher writing in Spanish would otherwise walk past every
+  // rule above. These run on text with its accents folded away (below), so
+  // "crédito extra" and "credito extra" are one rule. "Nota" and "trabajo" are
+  // left out on purpose: a note on the board and teamwork are ordinary.
+  { pattern: /\b(?:tareas?|deberes)\b/, words: 'homework' },
+  { pattern: /\bcredito\s+extra\b|\bpuntos?\s+(?:extra|adicionales)\b/, words: 'extra credit' },
+  { pattern: /\bcalificacion(?:es)?\b|\bcalificar\b/, words: 'a grade' },
+  { pattern: /\bexamen(?:es)?\b|\bcuestionarios?\b|\bpruebas?\b/, words: 'a quiz or test' },
+  { pattern: /\bfecha\s+(?:limite|de\s+entrega)\b|\bentrega\s+tardia\b|\bentregar\s+tarde\b/, words: 'a deadline' },
+  { pattern: /\brespuestas?\b|\bpistas?\b/, words: 'answers or hints' },
+  { pattern: /\b(?:otro|segundo)\s+intento\b|\breintentos?\b/, words: 'another attempt' },
 ]);
+
+/*
+ * THE SAME WORDS, WRITTEN DIFFERENTLY (LC04). The rules above read text as a
+ * person reads it, so the text is first put in the form a person reads it in:
+ * full-width and styled letters become plain ones, invisible characters (a
+ * zero-width space inside "home\u200bwork") are dropped, accents are folded
+ * ("crédito" -> "credito") and case is ignored. A second reading swaps the
+ * look-alike digits and symbols teachers and students type for letters
+ * ("h0mework", "qu1z", "gr@de"). A hit in either reading is a hit.
+ *
+ * This is all it does. A spelling it has no rule for is not caught — see
+ * "WHAT THE SCREEN CANNOT CATCH" at the top of this file.
+ */
+const INVISIBLE = /[\u00ad\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff]/g;
+const LOOKALIKE = Object.freeze({ 0: 'o', 1: 'i', 3: 'e', 4: 'a', 5: 's', 7: 't', '@': 'a', $: 's' });
+const foldWording = (value) => String(value ?? '')
+  .normalize('NFKC')
+  .replace(INVISIBLE, '')
+  .normalize('NFD')
+  .replace(/\p{M}+/gu, '')
+  .toLowerCase();
+const readingsOf = (text) => {
+  const plain = foldWording(text);
+  return [plain, plain.replace(/[013457@$]/g, (character) => LOOKALIKE[character])];
+};
 
 /** The academic effect a piece of text promises, in a few words, or null. */
 export const academicWordingIn = (text) => {
-  const value = String(text ?? '');
-  const hit = ACADEMIC_WORDING.find((rule) => rule.pattern.test(value));
-  return hit ? hit.words : null;
+  for (const reading of readingsOf(text)) {
+    const hit = ACADEMIC_WORDING.find((rule) => rule.pattern.test(reading));
+    if (hit) return hit.words;
+  }
+  return null;
 };
 
 export const ACADEMIC_REFUSAL = 'Class rewards can\'t change grades or required work. The Practice Pass is the only reward that touches an assignment.';
@@ -156,8 +236,16 @@ const ITEM_ID_PATTERN = /^[A-Za-z0-9_-]{3,40}$/;
  */
 export const validateCatalogItem = (raw = {}) => {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) reject('Each reward needs a name and a price.');
-  const academicKey = Object.keys(raw).find((key) => ACADEMIC_FIELD_SET.has(String(key).toLowerCase()));
+  const keys = Object.keys(raw);
+  const academicKey = keys.find((key) => ACADEMIC_FIELD_SET.has(String(key).toLowerCase()));
   if (academicKey) reject(ACADEMIC_REFUSAL, academicKey);
+  // A reward is exactly CLASS_REWARD_ITEM_FIELDS. Any other field is refused,
+  // not dropped: nothing outside the list is ever stored, and a request that
+  // tries to attach one hears about it (LC04).
+  const strayKey = keys.find((key) => !ITEM_FIELD_SET.has(key));
+  if (strayKey !== undefined) {
+    reject(`A reward is a name, a description, a price and a weekly limit. "${String(strayKey).slice(0, 40)}" is not part of it.`, strayKey);
+  }
 
   const itemId = String(raw.itemId ?? '').trim();
   if (!ITEM_ID_PATTERN.test(itemId)) reject('Each reward needs an id of 3–40 letters, numbers, - or _.', 'itemId');

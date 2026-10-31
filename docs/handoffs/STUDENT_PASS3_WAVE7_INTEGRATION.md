@@ -287,7 +287,12 @@ Each handoff lists its own, in full. Grouped here:
 5. Ten Algebra I fields re-asked without a version move at `dc2ae1ad` (W7-1 5).
    **Decided 2026-10-20: a field that asks for another kind of answer must move `familyVersion`.**
    `scripts/check-family-version-bumps.mjs`, run on every pull request that touches a bank (answer-acceptance audit).
+   The ten fields' seven families moved to `familyVersion` 4 on 2026-10-23 (GR21); the check against `dc2ae1ad^`
+   passes.
 6. Run the two read-only counts; re-grade up only (W7-1 6, D8).
+   The apply step is built (GR22, not run against any project): `scripts/apply-upward-regrade.mjs --from <count.json>`
+   raises only classroom answers a count listed that were marked wrong and the platform's replay now marks right, with
+   no teacher decision on them. It is a dry run unless `--apply` (typed project id; `--yes` only on the emulator).
 7. Point-slope through another point of the same line is graded wrong (found in W7-6's review; older than pass 3).
    **Decided 2026-10-20: accept any point on the line.** `samePointSlopeLine` in `answerEquivalence.mjs` (branch
    `claude/point-slope-any-point-20261020`).
@@ -330,6 +335,10 @@ Each handoff lists its own, in full. Grouped here:
     workflow when a scheduled run fails, and closes it when one passes.
 24. In a championship game, the projector shows the round table and "championship points" only after Hide solution: a
     ready worked solution takes the table's place, by design (W7-7 2h). Should the table stay in view beside it?
+    **Decided 2026-10-25: yes.** With a ready solution the round table and the standings share the right-hand column,
+    one above the other, each showing the rows that fit it, measured (`LiveChallengeArenaProjector` `ResultsView`,
+    `ResultsPanel`; LC03 in `live-challenge-shell.md` §8). "Hide solution" still brings back the two tables side by
+    side.
 25. The teacher harness's `p3StartMin` stays 0, and the bank count does not see Firestore-only teacher items (W7-7 2
     and 3).
 

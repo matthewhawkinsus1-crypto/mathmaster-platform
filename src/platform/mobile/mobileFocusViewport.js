@@ -151,6 +151,26 @@ const nearestVerticalScroller = (target, windowObject) => {
   return null;
 };
 
+/*
+ * THE PART OF THE PAGE THE STUDENT CAN SEE WITH THE SCREEN KEYBOARD UP (PH05,
+ * findings B-68, C2-76).
+ *
+ * The keyboard takes its room from the visual viewport, and on Android Chrome
+ * and iOS only from that: the layout viewport, and every box measured by
+ * getBoundingClientRect, keeps its size, so a box can sit "inside its scroller"
+ * and below the keyboard at once. At 390×480 the focused box showed 11 of its
+ * 70px. Rects are in layout coordinates and the visual viewport sits at
+ * (offsetTop) inside them. While pinch-zoomed it is a magnifying glass over an
+ * unchanged page (pinchZoomReveal.js), not a keyboard, so it is ignored there.
+ */
+const visibleBand = (windowObject) => {
+  const visual = windowObject?.visualViewport;
+  const height = numberOrZero(visual?.height);
+  if (!visual || height <= 0 || pinchZoomed(windowObject)) return { top: -Infinity, bottom: Infinity };
+  const top = numberOrZero(visual.offsetTop);
+  return { top, bottom: top + height };
+};
+
 export const scrollFocusedControlVertically = (
   target,
   {
@@ -185,7 +205,8 @@ export const scrollFocusedControlVertically = (
     && stickyRect?.height > 0
     ? Math.min(scrollerRect.bottom, stickyRect.bottom)
     : scrollerRect.top;
-  const safeTop = Math.max(scrollerRect.top, stickyBottom) + safeMargin;
+  const band = visibleBand(windowObject);
+  const safeTop = Math.max(scrollerRect.top, stickyBottom, band.top) + safeMargin;
 
   // MathMaster's number keypad is fixed over the bottom of the screen, on top
   // of the workspace. A box "inside the scroller" can still be under the keys:
@@ -195,7 +216,7 @@ export const scrollFocusedControlVertically = (
   const keypadRect = documentObject?.querySelector?.('.mathmaster-mobile-numeric-keypad')?.getBoundingClientRect?.();
   const keypadCoversColumn = keypadRect && keypadRect.height > 0
     && keypadRect.left < targetRect.right && keypadRect.right > targetRect.left;
-  const safeBottom = Math.min(scrollerRect.bottom, keypadCoversColumn ? keypadRect.top : scrollerRect.bottom) - safeMargin;
+  const safeBottom = Math.min(scrollerRect.bottom, keypadCoversColumn ? keypadRect.top : scrollerRect.bottom, band.bottom) - safeMargin;
 
   let deltaY = 0;
   if (targetRect.top < safeTop) {
@@ -216,6 +237,28 @@ export const scrollFocusedControlVertically = (
 
   stabilizeHorizontalViewport({ root, windowObject, documentObject });
   return true;
+};
+
+const TYPING_SURFACE = 'input, textarea, select, math-field, [contenteditable=""], [contenteditable="true"]';
+
+/**
+ * THE KEYBOARD OPENS AFTER FOCUS LANDS (PH05).
+ *
+ * Focus runs the reveal above once, before the keyboard is on screen, when
+ * nothing needs to move. Then the keyboard slides up, the visible height drops
+ * from 844 to 480, and the box being typed into is left below it. Run again
+ * when the visible height changes and a typing surface in `root` has focus.
+ * Anything else focused (a button, a link) or focus outside the question is
+ * left alone: the keyboard does not make that scroll.
+ */
+export const revealFocusedControlAfterResize = ({
+  root = null,
+  windowObject = typeof window !== 'undefined' ? window : null,
+  documentObject = typeof document !== 'undefined' ? document : null,
+} = {}) => {
+  const active = documentObject?.activeElement;
+  if (!active || !root?.contains?.(active) || !active.matches?.(TYPING_SURFACE)) return false;
+  return scrollFocusedControlVertically(active, { root, windowObject, documentObject });
 };
 
 export const mobileViewportLockSelector = LOCKED_CONTAINER_SELECTOR;

@@ -20,7 +20,9 @@
 //                      group must stay whole with the -1 offered to distribute
 //   strip-fit-*        Q-24: with a solver open, every equation in the strip
 //                      above it shows whole (1366×768 at 100%, 110% and 125%
-//                      text with Isolate x and with R₁ simplifying; 390×844)
+//                      text with Isolate x and with R₁ simplifying; 390×844 at
+//                      100%, 125% and 200% text, both too: PH07/C2-139 found no
+//                      cut equation on the phone, and this keeps it so)
 //   no-preview/*       Step Algebra -9x + 21 = 1 in Student View and Teacher
 //                      Preview: selecting/typing does not preview; an actual
 //                      drag and one-sided drop DO show a layout-neutral ghost
@@ -153,7 +155,7 @@ const step = async (page, journey, name, action) => {
 
 const dragTokenOnto = async (page, token, target, journey = 'drag') => {
   // A drop target near the bottom edge can sit under the floating work bar
-  // (Undo, Reset Question, Scratchpad, Calculator). In CI the reduced 2×2's
+  // (Undo, Start question over, Scratchpad, Calculator). In CI the reduced 2×2's
   // R₁/R₂ targets did: the drop landed on the bar and the journey timed out
   // waiting for a solver that never opened. When something covers the target,
   // scroll the page just enough to lift it clear, as a student would.
@@ -560,7 +562,7 @@ const runFull3x3 = async (context, scope) => {
   await page.close();
 };
 
-/** Reset Question clears the whole 3×3 workflow, nested drafts included. */
+/** Start question over clears the whole 3×3 workflow, nested drafts included. */
 const runReset = async (context) => {
   const journey = 'student-reset';
   const page = await context.newPage();
@@ -576,13 +578,13 @@ const runReset = async (context) => {
     // The harness mounts no ToastProvider, so the platform confirm falls back
     // to the native dialog; accept it the way a student confirms the reset.
     page.once('dialog', (dialog) => dialog.accept());
-    await page.locator('button:visible', { hasText: 'Reset Question' }).first().click();
+    await page.locator('button:visible', { hasText: 'Start question over' }).first().click();
     await settle(page, 900);
     observed.after = await reduction(page);
-    expect(journey, !observed.after?.source, `Reset Question left 3×3 work behind: ${JSON.stringify(observed.after)}`);
-    expect(journey, await page.locator('button[aria-label="Isolate x in Equation 1"]').count() === 1, 'Reset Question did not return to the first decision');
+    expect(journey, !observed.after?.source, `Start question over left 3×3 work behind: ${JSON.stringify(observed.after)}`);
+    expect(journey, await page.locator('button[aria-label="Isolate x in Equation 1"]').count() === 1, 'Start question over did not return to the first decision');
     const nested = Object.entries(await page.evaluate(() => window.__mm341.drafts())).filter(([key, value]) => /reduction:isolate/.test(key) && value);
-    expect(journey, nested.length === 0, `nested Step Algebra drafts survived Reset Question: ${JSON.stringify(nested.map(([key]) => key))}`);
+    expect(journey, nested.length === 0, `nested Step Algebra drafts survived Start question over: ${JSON.stringify(nested.map(([key]) => key))}`);
     await shoot(page, 'student-reset');
   });
   report.push(observed);
@@ -758,12 +760,17 @@ if (wanted('strip-fit')) {
     ['laptop-110', { width: 1366, height: 768 }, 1.1],
     ['laptop-125', { width: 1366, height: 768 }, 1.25],
     ['phone', { width: 390, height: 844 }, 1],
+    // PH07 (C2-139): the handoff said a phone's strip cut equations at 200%
+    // (Day 2 PR-1 Equations 1 and 3) and R₁ at 125%. Measured now, it does not:
+    // these keep it so.
+    ['phone-125', { width: 390, height: 844 }, 1.25],
+    ['phone-200', { width: 390, height: 844 }, 2],
   ];
   for (const [name, viewport, textScale] of settings) {
     const scaled = await browser.newContext({ viewport });
-    // Q4 and Q5 with Isolate x open; on a laptop also Q1 while R₁ is
-    // simplified — R₁ = 2(−y − z + 6) − y + 3z = 9 is the widest card.
-    for (const q of viewport.width > 1000 ? [3, 4, 0] : [3, 4]) {
+    // Q4 and Q5 with Isolate x open, and Q1 while R₁ is simplified —
+    // R₁ = 2(−y − z + 6) − y + 3z = 9 is the widest card.
+    for (const q of [3, 4, 0]) {
       // A page per question: the browser text size did not survive a second
       // navigation of the same page.
       const page = await scaled.newPage();
@@ -788,7 +795,9 @@ if (wanted('strip-fit')) {
         // The app's own root size differs by width; 125% text must scale the laptop's.
         const rootFont = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
         rootFonts[name] = rootFont;
-        if (textScale !== 1) expect(journey, rootFont >= rootFonts.laptop * (textScale - 0.02), `browser text did not grow: ${rootFont}px against ${rootFonts.laptop}px at 100%`);
+        // Against the same screen's own 100%: the app's root size differs by width (18px on a laptop, 16px on a phone).
+        const baseline = rootFonts[name.startsWith('phone') ? 'phone' : 'laptop'];
+        if (textScale !== 1) expect(journey, rootFont >= baseline * (textScale - 0.02), `browser text did not grow: ${rootFont}px against ${baseline}px at 100%`);
         const clipped = await expectStripFits(page, journey, `${viewport.width}×${viewport.height} at ${textScale * 100}% text`);
         const solverWidth = await solver(page).evaluate((element) => Math.round(element.getBoundingClientRect().width));
         await shoot(page, journey);

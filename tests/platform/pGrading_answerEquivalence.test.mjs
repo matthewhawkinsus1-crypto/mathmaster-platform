@@ -179,6 +179,57 @@ test('point-slope form through any point of the line (the owner, 2026-10-20)', a
   await rejects('2x-y=-3', 'y-7=2(x-2)');
 });
 
+// GR34: the editor writes log and ln as \log and \ln (its logₐ key inserts
+// \log_{a}(…)). \log_4(y) = x + 2 was refused for the key log_4(y) = x − (−2)
+// while log_4(y) = x + 2 passed. A \log or \ln now grades as the key's own
+// log and ln, and only that: a wrong base, argument or side stays wrong.
+test('GR34 — a typed \\log or \\ln grades the same as the key\'s log and ln', async () => {
+  await accepts('log_4(y)=x-(-2)', 'log_4(y)=x+2');
+  await accepts('log_4(y)=x-(-2)', '\\log_4(y)=x+2');
+  await accepts('log_4(y)=x-(-2)', '\\log_{4}\\left(y\\right)=x+2');
+  await accepts('log_2(8)=3', '\\log_{2}\\left(8\\right)=3');
+  await accepts('ln(5)=t', '\\ln\\left(5\\right)=t');
+  await accepts('ln(5)=t', 't=\\ln(5)');
+  await accepts('ln(3)/ln(2)', '\\ln(3)/\\ln(2)');
+  await rejects('log_4(y)=x-(-2)', '\\log_5(y)=x+2');
+  await rejects('log_4(y)=x-(-2)', '\\log_4(y)=x+3');
+  await rejects('ln(5)=t', '\\ln(6)=t');
+  await rejects('ln(3)/ln(2)', '\\ln(3)/\\ln(5)');
+});
+
+// GR19: the rule guessed the form — any bracket holding x against y and a
+// constant — so a same-line answer in no form passed, y − 0 did not count,
+// and the slope and point were compared to a fixed 1e-6. It now reads the
+// structure y − y₁ = m(x − x₁) and the field's own tolerance.
+test('GR19 — point-slope through another point is read from its structure, within the field\'s tolerance', async () => {
+  const { pointSlopeParts, writtenLineForm } = await import('../../functions/shared/linearEquationForm.mjs');
+  // The key's line, but not point-slope form: never this rule's.
+  await rejects('y-5=2(x-1)', 'y-7=x+(x-4)');
+  await rejects('y-5=2(x-1)', 'y-7=(2x-4)');
+  await rejects('y-5=2(x-1)', 'y-7=2(x-2)+0');
+  assert.equal(writtenLineForm('y-7=x+(x-4)'), null, 'so the miss is explained as the wrong form');
+  // Point-slope forms the guess missed: y − 0, a key through an x-axis point,
+  // a doubled sign; and the bracket's terms in either order.
+  await accepts('y-5=2(x-1)', 'y-0=2(x+1.5)');
+  await accepts('y-0=2(x-3)', 'y-2=2(x-4)');
+  await accepts('y-5=2(x-1)', 'y-(-3)=2(x-(-3))');
+  await accepts('y-5=2(x-1)', 'y-7=2(-2+x)');
+  await rejects('y-0=2(x-3)', 'y-2=2(x-3)');
+  assert.deepEqual(pointSlopeParts('y-0=2(x+1.5)'), { slope: 2, x1: -1.5, y1: 0, ySide: 'left' });
+  assert.deepEqual(pointSlopeParts('\\frac{2(x-4)}{3}=y-7'), { slope: 2 / 3, x1: 4, y1: 7, ySide: 'right' });
+  // A bare y is not read as y − 0 (it never was).
+  await rejects('y-5=2(x-1)', 'y=2(x+1.5)');
+  // The field's tolerance, not a fixed one: exact on a Path field (0) …
+  assert.equal(await pathVerdict('y-5=2(x-1)', 'y-7.0000001=2(x-2)'), false);
+  assert.equal(sameValue('y-7.0000001=2(x-2)', 'y-5=2(x-1)', 0), false);
+  assert.equal(await pathVerdict('y-5=2(x-1)', 'y-7=2(x-2)'), true);
+  // … and the author's tolerance where a field sets one.
+  assert.equal(await pathVerdict('y-5=2(x-1)', 'y-7.01=2(x-2)', { numericTolerance: 0.05 }), true);
+  assert.equal(await pathVerdict('y-5=2(x-1)', 'y-7.1=2(x-2)', { numericTolerance: 0.05 }), false);
+  // GR03 is untouched: a field that names no form takes any equation of its line.
+  assert.equal(sameValue('y-7=x+(x-4)', 'y-5=2(x-1)', 1e-6, { anyLineForm: true }), true);
+});
+
 test('item 5: the same equation with its sides swapped, and vertex form with the constant first', async () => {
   await accepts('x=5', '5=x');
   await accepts('y=2x+1', '2x+1=y');
@@ -220,7 +271,8 @@ test('item 5: \\land / \\lor, and chained against "and" compound inequalities', 
 });
 
 test('plain-text quotients with ambiguous precedence keep their old verdict', async () => {
-  // Job K, 2d: accepted before, accepted now; x - 1/x stays wrong.
+  // Job K, 2d: accepted before, accepted now; x - 1/x stays wrong. The owner
+  // confirmed it (GR04).
   assert.equal(sameValue('x^2-1/x^2+x', 'x^2-1/x^2+x'), true);
   assert.equal(sameValue('x-1/x', '(x-1)/x'), false);
 });

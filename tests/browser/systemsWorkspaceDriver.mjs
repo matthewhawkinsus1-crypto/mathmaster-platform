@@ -16,6 +16,9 @@ import { create, all } from 'mathjs';
 import { setMathField, settle } from './relationWorkspaceDriver.mjs';
 import { isolateInEquationWorkspace, linearLatex, solveLinearInEquationWorkspace } from './equationWorkspacePlanner.mjs';
 
+// A side written as a plain number (7, (-1), 3/4): what the screen shows as given.
+const WRITTEN_NUMBER = /^\s*\(?\s*[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:\s*\/\s*[+-]?(?:\d+(?:\.\d+)?|\.\d+))?\s*\)?\s*$/;
+
 const math = create(all, { number: 'Fraction' });
 const F = (value) => math.fraction(value);
 const isZero = (value) => math.equal(F(value), 0);
@@ -249,8 +252,18 @@ export const verifyOriginalEquations = async (page, equations, solution, log = (
     const scope = { x: F(solution.x), y: F(solution.y) };
     const leftValue = math.evaluate(left, scope);
     const rightValue = math.evaluate(right, scope);
-    await setMathField(page, page.locator(`math-field[aria-label="Equation ${index + 1} left side value"]:visible`).first(), latex(leftValue));
-    await setMathField(page, page.locator(`math-field[aria-label="Equation ${index + 1} right side value"]:visible`).first(), latex(rightValue));
+    // A side the equation already writes as a number is shown as given and
+    // not asked for again (TL50, as the 3×3 verification does); every other
+    // side is typed.
+    for (const [side, written, value] of [['left', left, leftValue], ['right', right, rightValue]]) {
+      const field = page.locator(`math-field[aria-label="Equation ${index + 1} ${side} side value"]:visible`).first();
+      const given = card.locator(`[data-given-side="${side}"]`);
+      if (WRITTEN_NUMBER.test(written)) {
+        if ((await field.count()) || !(await given.count())) throw new Error(`Equation ${index + 1}: the ${side} side is the number ${written.trim()} but is asked for again`);
+        continue;
+      }
+      await setMathField(page, field, latex(value));
+    }
     await page.locator('button:visible', { hasText: `Check equation ${index + 1}` }).first().click();
     await settle(page, 600);
     log(`verify Equation ${index + 1}: ${text(leftValue)} = ${text(rightValue)}`);

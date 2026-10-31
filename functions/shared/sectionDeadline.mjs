@@ -115,7 +115,8 @@ export const assignmentFinalCloseAt = (assignment, timeZone = null, studentId = 
  * One narrowing the secure exam does not need: a versioned plan whose
  * "extra time" entry is limited to activities that do not include the DOL
  * ("Activities Extra time applies to" in the profile editor) does not stretch
- * the DOL.
+ * the DOL. The owner confirmed these rules as built, including extra time
+ * running past the bell (2026-10-23, RT05).
  *
  * HOW MUCH. The same arithmetic as a secure exam's time limit
  * (functions/lib/secureExamNavigation.js accommodatedTimeLimitSeconds): the
@@ -123,12 +124,14 @@ export const assignmentFinalCloseAt = (assignment, timeZone = null, studentId = 
  * The difference is added to the end of whichever class window is in force —
  * the regular one, an early unlock, a teacher's reopen or "+5 min" — so extra
  * time never shortens anything and a teacher who gives the class more time
- * gives this student the same more. A teacher's "Close now" ends the window
- * for everyone (applyTeacherDolClose). The teacher UI offers it only while the
- * CLASS's DOL is open, and the live view shows who has extra time before they
- * press it; once the class's DOL has closed there is no control that ends one
- * student's extra minutes early (a close record stamped inside them — another
- * tab, a future control — would end them there).
+ * gives this student the same more.
+ *
+ * "CLOSE NOW" ENDS THE CLASS'S WINDOW, NOT A STUDENT'S EXTRA TIME (the owner,
+ * 2026-10-23, RT05). A teacher's close (applyTeacherDolClose) ends the DOL for
+ * the class; a student on extra time keeps their own remaining time, to the
+ * close they had before it. A close stamped inside their extra minutes —
+ * another tab, a future control — does not end them either. The teacher's
+ * confirmation says so, and the live view keeps showing who is still working.
  *
  * NEVER PAST THE STUDENT'S FINAL CUTOFF. Work captured after the assignment's
  * own final cutoff is refused (ingestion: assignment-closed-at-capture), so the
@@ -373,9 +376,10 @@ const applyTeacherDolClose = ({ resolved, assignment, classId, todayKey }) => {
 export const resolveDolWindow = ({ assignment, window, classId = null, todayKey = null, timeMultiplier = 1, capAtMs = null } = {}) => {
   const resolved = resolveDolWindowBeforeTeacherClose({ assignment, window, classId, todayKey });
   const classWindow = applyTeacherDolClose({ resolved, assignment, classId, todayKey });
-  // One student's extra time (header above): added to the class's close, then
-  // subject to a teacher close like any window — "Close now" during the class
-  // window, or inside the student's extra minutes, ends theirs there too.
+  // One student's extra time (header above): added to the class's close before
+  // any teacher close. "Close now" ends the class's window, not theirs: during
+  // the class window or inside their extra minutes, a student on extra time
+  // keeps their own remaining time (RT05).
   const fullExtraMs = resolved.endsAtMs === null
     ? 0
     : dolExtraTimeMs({ durationMinutes: resolved.durationMinutes, multiplier: timeMultiplier });
@@ -384,7 +388,7 @@ export const resolveDolWindow = ({ assignment, window, classId = null, todayKey 
     ? fullExtraMs
     : Math.max(0, Math.min(resolved.endsAtMs + fullExtraMs, cap) - resolved.endsAtMs);
   const own = extraMs > 0
-    ? applyTeacherDolClose({ resolved: { ...resolved, endsAtMs: resolved.endsAtMs + extraMs }, assignment, classId, todayKey })
+    ? { ...resolved, endsAtMs: resolved.endsAtMs + extraMs, teacherClosed: false, teacherClosedAtMs: null }
     : classWindow;
   const { teacherActionAtMs: _teacherActionAtMs, ...withClose } = own;
   const extendedTimeMs = extraMs > 0 ? Math.max(0, own.endsAtMs - classWindow.endsAtMs) : 0;

@@ -283,11 +283,14 @@ test('time up finishes the test, and the messages say what actually went wrong',
   assert.match(container, /const OPEN_FAILED = '(?:[^'\\]|\\.)*Your answers are saved(?:[^'\\]|\\.)*';/);
 });
 
-test('the event before an integrity pause warns, naming everything that counts, with a way back to full screen', () => {
+test('every counted event says so and the event before an integrity pause warns, with a way back to full screen', () => {
   const logger = region(container, 'onEvent: async (event) => {', 'logger.startListening();', 'integrity logger');
-  assert.match(logger, /if \(integrityWarningDue\(\{ status: EXAM_RUNTIME_STATES\.IN_PROGRESS, violationCount: result\.violationCount, lockThreshold: result\.lockThreshold, warning: result\.warning \}\)\) \{\s*setIntegrityNotice\(true\);/);
+  // TS06: the notice comes from the first counted event, not only the one before the pause.
+  assert.match(logger, /const noticeText = integrityNoticeText\(\{ status: EXAM_RUNTIME_STATES\.IN_PROGRESS, violationCount: result\.violationCount, lockThreshold: result\.lockThreshold, warning: result\.warning \}\);\s*if \(noticeText\) setIntegrityNotice\(noticeText\);/);
   const warning = region(container, '{integrityNotice && session.status === EXAM_RUNTIME_STATES.IN_PROGRESS && (', '    )}', 'warning');
-  assert.match(warning, /<span><strong>Stay in the test window\.<\/strong> \{INTEGRITY_WARNING_TEXT\}<\/span>/);
+  assert.match(warning, /<span><strong>Stay in the test window\.<\/strong> \{integrityNotice\}<\/span>/);
+  // Opening or resuming a test one event short of the pause still warns.
+  assert.equal((container.match(/if \(integrityWarningDue\((?:started|active)\)\) setIntegrityNotice\(INTEGRITY_WARNING_TEXT\);/g) || []).length, 2);
   assert.match(warning, /<button type="button" onClick=\{returnToFullscreen\}[^>]*>Return to full screen<\/button>/);
   assert.match(region(container, 'const returnToFullscreen = () => {', '};', 'full screen'), /document\.documentElement\?\.requestFullscreen\?\.\(\)/);
 });
@@ -363,11 +366,50 @@ test('the student\'s list shows plain statuses, and released results open from t
   assert.match(row, /\{status\.label\}/);
   assert.match(row, /\{canReview \? 'See your results' : done \? 'Waiting for results'/);
   const active = region(dashboard, 'if (active) return (', '  );', 'active test');
-  assert.match(active, /onOpenResults=\{\(finished\) => \{ setActive\(null\); setReviewing\(finished\?\.examSessionId \? finished : active\); \}\}/);
+  // "See your results" leaves the finished test (testFinished: nothing is open
+  // any more, NV14) and opens its released review.
+  assert.match(active, /onOpenResults=\{\(finished\) => \{ testFinished\(\); setReviewing\(finished\?\.examSessionId \? finished : active\); \}\}/);
+  assert.match(region(dashboard, 'const testFinished = () => {', '\n  };', 'testFinished'), /setActive\(null\);/);
   assert.match(active, /sessionPreview=\{active\}/);
 
   const finished = region(container, 'if (terminal.has(session.status)) {', 'const current = Number.isInteger(position)', 'finished screen');
   assert.match(finished, /const showResults = summary\.canSeeResults && typeof onOpenResults === 'function';/);
   assert.match(finished, /\{showResults && <button type="button" onClick=\{\(\) => onOpenResults\(session\)\}[^>]*>See your results<\/button>\}/);
   assert.match(finished, /<h1 style=\{screenTitle\}>\{summary\.title\}<\/h1>/);
+});
+
+/*
+ * TS03 (a first slice): a Digital SAT practice test's timer shows module 1's
+ * own time first (moduleClock, tested by behaviour in the model test). Its
+ * end draws the screen again, with the test's own time and a line saying so;
+ * it never ends the test. The header says which time it shows.
+ */
+test('TS03: the header counts down module 1\'s own time first, and the end of it ends nothing', async () => {
+  assert.match(container, /const clock = moduleClock\(session\);\s*const moduleTime = clock && !clock\.timeUp \? clock : null;/);
+  const headerProps = region(container, '<ExamPrepHeader', '/>', 'header props');
+  assert.match(headerProps, /expiresAt=\{moduleTime \? moduleTime\.expiresAt : session\.expiresAt\}/);
+  assert.match(headerProps, /onTimeExpired=\{moduleTime \? onModuleTimeUp : onTimeExpired\}/);
+  assert.match(headerProps, /timeScope=\{moduleTime \? \{ module: moduleTime\.number \} : null\}/);
+  const handler = region(container, 'const onModuleTimeUp = useCallback(', ', []);', 'module time up');
+  assert.match(handler, /setModuleClockTick\(\(tick\) => tick \+ 1\)/);
+  assert.doesNotMatch(executableSource(handler), /finish|finalize|timeExpired|move\(/, 'a module\'s time ends nothing');
+  assert.match(container, /\{clock\?\.timeUp && <div role="status" data-secure-module-time-up=\{clock\.number\} style=\{bannerStyle\('info'\)\}>\{moduleTimeUpNotice\(clock\.number\)\}<\/div>\}/);
+
+  // The header, rendered: which time it shows, in its name and on its face.
+  const { createServer } = await import('vite');
+  const React = (await import('react')).default;
+  const { renderToStaticMarkup } = await import('react-dom/server');
+  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent' });
+  try {
+    const Header = (await server.ssrLoadModule('/src/components/assessment/ExamPrepHeader.jsx')).default;
+    const render = (props) => renderToStaticMarkup(React.createElement(Header, { examType: 'digitalSAT', totalQuestions: 44, expiresAt: Date.now() + 20 * 60_000, ...props }));
+    const moduleHtml = render({ timeScope: { module: 1 } });
+    assert.match(moduleHtml, /aria-label="Module 1 time left (19:5\d|20:00)\. Hide the timer"/);
+    assert.match(moduleHtml, />Module 1 · (19:5\d|20:00)</);
+    const testHtml = render({});
+    assert.match(testHtml, /aria-label="Time left (19:5\d|20:00)\. Hide the timer"/);
+    assert.doesNotMatch(testHtml, /Module 1/);
+  } finally {
+    await server.close();
+  }
 });

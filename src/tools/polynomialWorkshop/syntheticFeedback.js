@@ -53,7 +53,11 @@ export const syntheticMissMessage = ({ key = null, work = {}, wrong = new Set() 
 export const SYNTHETIC_TABLE_RETRY = 'Check the coefficient row first (a 0 for each missing power), then each multiply-and-add.';
 export const SYNTHETIC_TABLE_WITHHELD = 'Not yet. Each row depends on the box and the row before it, so check them in order.';
 
-export const syntheticTableMissMessage = ({ parts = [], root = null, typedRoot = '', methodWithheld = false } = {}) => {
+// For a divisor ax + b with a ≠ 1 (TL49) the table's quotient is for x − r;
+// the one asked is for ax + b = a(x − r), the table's divided by a.
+export const SYNTHETIC_SCALED_QUOTIENT = 'Your table is right. Its bottom row without the remainder is the quotient for x − r: divide each of those numbers by the leading coefficient of the divisor.';
+
+export const syntheticTableMissMessage = ({ parts = [], root = null, typedRoot = '', methodWithheld = false, leading = 1 } = {}) => {
   if (methodWithheld) return SYNTHETIC_TABLE_WITHHELD;
   const wrong = new Set(parts.filter((part) => part && part.isCorrect === false).map((part) => part.id));
   if (!wrong.size) return SYNTHETIC_TABLE_RETRY;
@@ -67,7 +71,11 @@ export const syntheticTableMissMessage = ({ parts = [], root = null, typedRoot =
   if (wrong.has('products')) return 'Check the middle row: each product is the box number times the bottom-row number in the column before it.';
   if (wrong.has('sums')) return 'Check the bottom row: bring down the first coefficient, then add each column.';
   if (wrong.has('value')) return 'Your table is right. P(r) is the remainder: the last number in the bottom row.';
-  if (wrong.has('quotient')) return 'Your table is right. The quotient\'s coefficients are the bottom row without the remainder, one degree lower than P(x).';
+  if (wrong.has('quotient')) {
+    return Number.isFinite(Number(leading)) && Math.abs(Number(leading) - 1) > 1e-9
+      ? SYNTHETIC_SCALED_QUOTIENT
+      : 'Your table is right. The quotient\'s coefficients are the bottom row without the remainder, one degree lower than P(x).';
+  }
   if (wrong.has('factor')) return 'Your table is right. x − r is a factor exactly when the remainder is 0.';
   return SYNTHETIC_TABLE_RETRY;
 };

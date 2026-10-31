@@ -7,8 +7,9 @@ test('Path session owns a horizontal viewport lock instead of relying on CSS alo
   assert.match(source, /workspaceRef = useRef\(null\)/);
   assert.match(source, /window\.scrollTo\(0, top\)/);
   assert.match(source, /window\.addEventListener\('scroll', scheduleRestore/);
-  assert.match(source, /<main ref=\{workspaceRef\} style=\{TOOL_WRAPPER\}>/);
-  assert.match(source, /<main ref=\{workspaceRef\} style=\{WRAPPER\}>/);
+  // The wrapper is the page's <main>, or a plain <div> in a teacher's page (studentScreensInTeacherPages.test.mjs).
+  assert.match(source, /<Landmark ref=\{workspaceRef\} style=\{TOOL_WRAPPER\}>/);
+  assert.match(source, /<Landmark ref=\{workspaceRef\} style=\{WRAPPER\}>/);
 });
 
 test('MathInput focus cannot ask the browser to pan the document', () => {

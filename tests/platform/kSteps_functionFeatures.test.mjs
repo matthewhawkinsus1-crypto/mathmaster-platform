@@ -559,6 +559,8 @@ const checkTable = (question, worked, label) => {
 };
 
 const ORDINALS = ['zeroth', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth', 'thirteenth', 'fourteenth', 'fifteenth', 'sixteenth', 'seventeenth', 'eighteenth', 'nineteenth', 'twentieth'];
+// Mid-chain values the sweep below read (CI15, A1-60): asserted non-zero at its end, so a step that stops printing them cannot pass unseen.
+const stepReads = { missingTerm: 0, firstTerm: 0, radicand: 0 };
 const sequenceOf = (raw = {}, fallback = 'arithmetic') => {
   const kind = raw.kind || fallback;
   const first = Number(raw.first ?? 1);
@@ -621,6 +623,20 @@ const checkSequence = (question, worked, label) => {
     for (const [, which, list] of steps.join(' ').matchAll(/(Differences|Ratios): ([-\d., ]+) are all equal/g)) {
       list.split(', ').map(Number).forEach((value) => assert.equal(value, sequence.change, `${label}: ${which}`));
     }
+    // The missing-term step names the term it works from and the step it uses, and each is the sequence's own, not only
+    // the term it ends on (CI15, A1-60). The first term is the one worked BACK from the second; every other from the term before it.
+    const NUMBER = '(-?\\d+(?:\\.\\d+)?)';
+    for (const [, which, source, how, from, change, value] of steps.join(' ').matchAll(new RegExp(`The missing (\\w+) term is the (second term|term before it) (minus the step|plus the step|divided by the ratio|times the ratio): ${NUMBER} [-+÷·] \\(?${NUMBER}\\)? = ${NUMBER}\\.`, 'g'))) {
+      const gap = ORDINALS.indexOf(which);
+      const back = gap === 1;
+      stepReads.missingTerm += 1;
+      if (back) stepReads.firstTerm += 1;
+      assert.equal(source, back ? 'second term' : 'term before it', `${label}: the first term is worked back from the second, every other from the term before it`);
+      assert.equal(how, sequence.kind === 'arithmetic' ? (back ? 'minus the step' : 'plus the step') : (back ? 'divided by the ratio' : 'times the ratio'), `${label}: the operation undoes or repeats the sequence's own step`);
+      assert.ok(close(Number(from), sequence.term(back ? 2 : gap - 1)), `${label}: the term it works from is the sequence's (${from})`);
+      assert.ok(close(Number(change), sequence.change), `${label}: the step it uses is the sequence's (${change})`);
+      assert.ok(close(Number(value), sequence.term(gap)), `${label}: the term it ends on (${value})`);
+    }
   }
   const graded = gradeToolWork({ toolId: 'sequenceExplorer', question, work });
   assert.equal(graded.isCorrect, true, `${label}: the sequence grader accepts ${JSON.stringify(work)} (${JSON.stringify(graded.parts?.filter((part) => !part.isCorrect))})`);
@@ -673,6 +689,20 @@ const checkInvestigation = (question, worked, label) => {
       if (xPart) xPart[1].split(', ').forEach((x) => assert.ok(close(f(Number(x)), 0), `${label}: f(${x}) = 0`));
       else assert.match(summary, /no x-intercept/, label);
       if (yPart) assert.ok(close(f(0), Number(yPart[1])), label); else assert.ok(!Number.isFinite(f(0)), label);
+      // The step that solves f(x) = 0 quotes its radicand and its ± root on the way to the zeros, and both are the
+      // function's own, not only the zeros it ends on (CI15, A1-60).
+      const solving = worked.steps.map(ascii).find((step) => step.startsWith('x-intercepts: set '));
+      const solved = /x-intercepts: set .+? = 0: (?:\(.+\)²|\|.+\|) = (-?\d+(?:\.\d+)?), so .+ = ±(-?\d+(?:\.\d+)?) and x = (-?\d+(?:\.\d+)?) or x = (-?\d+(?:\.\d+)?)\./.exec(solving || '');
+      if (solved) {
+        assert.ok(['quadratic', 'absolute'].includes(spec.type), `${label}: only a square or an absolute value is solved by ±`);
+        const radicand = -spec.k / spec.a;
+        const root = spec.type === 'quadratic' ? Math.sqrt(radicand) : radicand;
+        const rounded = (value) => Math.round(value * 1e6) / 1e6;
+        stepReads.radicand += 1;
+        assert.ok(close(Number(solved[1]), radicand), `${label}: the step's right-hand side is ${radicand}, not ${solved[1]}: ${solving}`);
+        assert.ok(close(Number(solved[2]), root), `${label}: the ± value is ${root}, not ${solved[2]}: ${solving}`);
+        assert.deepEqual([Number(solved[3]), Number(solved[4])].sort((p, q) => p - q).map(rounded), [spec.h - root, spec.h + root].map(rounded), `${label}: the zeros are h ± the root: ${solving}`);
+      }
       work = { xIntercepts: xPart ? xPart[1] : 'none', yIntercept: yPart ? yPart[1] : 'none' };
     } else {
       const ys = Array.from({ length: 121 }, (_, index) => f(-6 + index * 0.1));
@@ -871,6 +901,17 @@ const PART_SETS = [
   }
 }
 
+// Hand-made, because the seeded sweep above never drew them (CI15, A1-60): a sequence's missing FIRST term, which is
+// worked back from the second, and the ± step of a square and of an absolute value.
+[['arithmetic', 5, 3], ['arithmetic', 7, -2], ['geometric', 3, 2], ['geometric', 2, -3], ['geometric', 8, 0.5]].forEach(([kind, first, change]) => {
+  [1, 3].forEach((missingIndex) => push(`sequence missingTerm a${missingIndex} ${kind} ${first}, ${change}`, {
+    type: 'sequenceExplorer', mode: 'missingTerm', prompt: `Find the missing term (${kind} ${first} ${change}).`,
+    sequence: { kind, first, ...(kind === 'arithmetic' ? { difference: change } : { ratio: change }) }, missingIndex,
+  }));
+});
+[{ type: 'quadratic', a: 2, h: 1, k: -8 }, { type: 'quadratic', a: -1, h: -3, k: 4 }, { type: 'quadratic', a: 0.5, h: 2, k: -2 }, { type: 'absolute', a: 2, h: 1, k: -6 }, { type: 'absolute', a: -1, h: -2, k: 3 }]
+  .forEach((fn, index) => push(`investigation intercepts ${fn.type} hand-made #${index}`, { type: 'functionInvestigation2', mode: 'intercepts', prompt: `Find the intercepts (${index}).`, function: fn }));
+
 // multiAnswer attributes: restricted lines in context, and every parent.
 {
   const random = seeded(8080);
@@ -951,6 +992,9 @@ test('every shape the family claims: the steps work THIS item, each is true, the
   share('sequence', 0.6);
   share('investigation', 0.6);
   share('attributes', 0.9);
+  // The mid-chain values read above were read: the missing-term step (the first term worked back from the second
+  // too) and the ± root of an x-intercept (CI15, A1-60).
+  assert.ok(stepReads.missingTerm >= 15 && stepReads.firstTerm >= 5 && stepReads.radicand >= 5, `mid-chain steps read: ${JSON.stringify(stepReads)}`);
 });
 
 test('edges: a horizontal line, a zero vertex, a graph with no x-intercept, a constant sequence', () => {

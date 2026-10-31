@@ -18,7 +18,11 @@
  * So a server record is adopted when it is AHEAD of the open session's:
  *
  *   - a later variant (the question was replaced on another device), or
- *   - the same variant with more attempts recorded.
+ *   - the same variant with more attempts recorded, or
+ *   - the same count, where the server's attempt is the deadline's
+ *     auto-submit and the session's is not (RT20): the device sent its own
+ *     attempt in the same moment, the server refused it as superseded, and
+ *     the screen kept showing a verdict the server never recorded.
  *
  * Never otherwise. A record the session moved ahead itself (a submission
  * still queued, or ingested but not yet echoed) is never rolled back, and an
@@ -28,6 +32,7 @@
  * Pure. Returns the same object when nothing is adopted.
  */
 import { normalizeQuestionRecord } from '../../attemptPolicy.js';
+import { DEADLINE_SUBMISSION_ORIGIN } from './canonicalResponseTime.js';
 
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
@@ -37,7 +42,9 @@ export const canonicalRecordIsAhead = (sessionRecord, serverRecord) => {
   const server = normalizeQuestionRecord(serverRecord);
   const session = normalizeQuestionRecord(sessionRecord);
   if (server.variantIndex !== session.variantIndex) return server.variantIndex > session.variantIndex;
-  return server.totalAttempts > session.totalAttempts;
+  if (server.totalAttempts !== session.totalAttempts) return server.totalAttempts > session.totalAttempts;
+  const fromDeadline = (record) => String(record?.submissionOrigin || '') === DEADLINE_SUBMISSION_ORIGIN;
+  return server.totalAttempts > 0 && fromDeadline(serverRecord) && !fromDeadline(sessionRecord);
 };
 
 /**

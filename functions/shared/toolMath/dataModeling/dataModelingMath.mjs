@@ -186,11 +186,18 @@ export const correlationDescriptor = (r) => {
  * line (live QA, Algebra I DOL #2 practice-hours data) — telling students the
  * five points sat exactly on a line when they do not. Keep adding places until
  * the shown value is not ±1; only an exactly perfect fit reads as one.
+ *
+ * Exactly, to floating-point error (TL30): about two in five sets of points
+ * that do lie on a line compute r a few units in the 16th place past or short
+ * of ±1 (1.0000000000000002), and those printed "0.999999", a perfect fit
+ * shown as imperfect. Within 10^-12 of ±1 is ±1; points off a line are far
+ * further off (r = 0.99966 is 3.4 × 10^-4 away).
  */
+const PERFECT_FIT_ERROR = 1e-12;
 export const formatCorrelation = (r) => {
   const value = Number(r);
   if (!Number.isFinite(value)) return '—';
-  if (Math.abs(value) === 1) return value > 0 ? '1' : '-1';
+  if (Math.abs(1 - Math.abs(value)) <= PERFECT_FIT_ERROR) return value > 0 ? '1' : '-1';
   for (let places = 3; places <= 6; places += 1) {
     const text = value.toFixed(places);
     if (Math.abs(Number(text)) < 1) return text;

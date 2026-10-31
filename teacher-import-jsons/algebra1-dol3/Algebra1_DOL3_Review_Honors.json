@@ -153,7 +153,18 @@
             "List every number of buckets that makes sense in this situation. Then find the total cost for each one."
           ],
           "solutionReview": {
-            "commonError": "Leaving 0 out of the domain or connecting the points; the friends may buy no buckets, and they can buy only whole buckets, so the domain is {0, 1, 2, 3, 4, 5} and the graph is separate points."
+            "headline": "The cost depends on how many buckets are bought, $6 each, and $30 pays for at most 5 whole buckets.",
+            "reasoning": [
+              "Input and output: the total cost depends on how many buckets the friends buy, so the input is the number of popcorn buckets bought and the output is the total cost of the popcorn (dollars); the price of one bucket stays the same.",
+              "Function: each bucket costs $6, so x buckets cost 6 times x dollars: f(x) = 6x.",
+              "Table: f(0) = 6 · 0 = 0, f(1) = 6 · 1 = 6, f(2) = 6 · 2 = 12, f(3) = 6 · 3 = 18, f(4) = 6 · 4 = 24 and f(5) = 6 · 5 = 30.",
+              "Discrete or continuous: the friends can buy only whole buckets, never part of one, so the relationship is discrete.",
+              "Graph: plot the table’s points (0, 0), (1, 6), (2, 12), (3, 18), (4, 24) and (5, 30) as separate points, without connecting them.",
+              "Domain: they may buy none, and 30 ÷ 6 = 5, so $30 pays for at most 5 buckets: the domain is {0, 1, 2, 3, 4, 5}.",
+              "Range: each number of buckets costs 6 times as many dollars, so the range is {0, 6, 12, 18, 24, 30}."
+            ],
+            "commonError": "Leaving 0 out of the domain or connecting the points; the friends may buy no buckets, and they can buy only whole buckets, so the domain is {0, 1, 2, 3, 4, 5} and the graph is separate points.",
+            "answerSummary": "f(x) = 6x; the relationship is discrete, with domain {0, 1, 2, 3, 4, 5} and range {0, 6, 12, 18, 24, 30}."
           }
         },
         {
@@ -245,11 +256,19 @@
           "difficultyBand": 3,
           "questionWeight": 1,
           "prompt": "Read the rideshare situation. Decide what x and y stand for, write the equation of the relationship in slope-intercept form, and graph it.",
+          "xAxisLabel": "Length of the ride (miles)",
+          "yAxisLabel": "Total cost of the ride (dollars)",
           "source": {
             "kind": "scenario",
             "prompt": "A rideshare company charges a $3 pickup fee plus $2 for each mile of the ride. Let x be the length of the ride, in miles, and y be the total cost of the ride, in dollars.",
             "rate": 2,
             "initialValue": 3
+          },
+          "graphBounds": {
+            "xMin": -2,
+            "xMax": 8,
+            "yMin": -1,
+            "yMax": 20
           },
           "requiredCards": [
             "slope",
@@ -416,7 +435,7 @@
           },
           "graphBounds": {
             "xMin": -1,
-            "xMax": 5,
+            "xMax": 9,
             "yMin": -1,
             "yMax": 11
           },
@@ -985,10 +1004,11 @@
             "difference": 4
           },
           "displayCount": 6,
+          "notation": "f(n)",
           "dok": 2,
           "difficultyBand": 3,
           "questionWeight": 1,
-          "prompt": "A sequence is given in function form by f(1) = −7 and f(n) = f(n − 1) + 4 for n ≥ 2. In the tool, the nth term f(n) is written aₙ. Use the recursive rule to find the first six terms, plot them, and identify the common difference.",
+          "prompt": "A sequence is given in function form by f(1) = −7 and f(n) = f(n − 1) + 4 for n ≥ 2. Use the recursive rule to find the first six terms, plot them, and identify the common difference.",
           "hints": [
             "A recursive rule tells you how to get each term from the term just before it.",
             "Start with the first term the rule gives you. Apply the rule to it to get the second term, then apply the rule again to get the third.",
@@ -1189,7 +1209,13 @@
                 "The data prove that higher Y causes higher X",
                 "The data show that X and Y have no relationship"
               ],
-              "answer": "The data show an association, but they do not establish that one variable caused the other"
+              "answer": "The data show an association, but they do not establish that one variable caused the other",
+              "optionRationales": {
+                "The data show an association, but they do not establish that one variable caused the other": "With no experiment, the data show only that X and Y rise together; some other factor could be driving both.",
+                "The data prove that higher X causes higher Y": "This reads a pattern as proof of cause; without random assignment, a third variable could be raising both X and Y.",
+                "The data prove that higher Y causes higher X": "Turning the cause around does not fix it: observational data cannot show which variable, if either, causes the other.",
+                "The data show that X and Y have no relationship": "Higher values of X do tend to come with higher values of Y, so there is a relationship to describe."
+              }
             }
           ],
           "alignments": [

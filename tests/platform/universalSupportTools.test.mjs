@@ -83,9 +83,16 @@ test('a universal-only tray follows the work on a laptop and never moves it', ()
   const engine = executableSource(read('src/QuestionEngine.jsx'));
   assert.match(engine, /supportTrayAfterWork=\{languageTools\.tools\.length > 0 && \(languageTools\.universal\?\.length \|\| 0\) === languageTools\.tools\.length\}/);
   const container = executableSource(read('src/components/student/MobileViewportContainer.jsx'));
-  assert.match(container, /\{!workspaceActive && supportTray && !supportTrayAfterWork && <div className="mathmaster-question-support-tray">/, 'not above the work on a laptop');
-  assert.match(region(container, '<main className="math-tool-workspace">', '</main>\n', 'the workspace') + container.slice(container.indexOf('</main>\n'), container.indexOf('</main>\n') + 200),
-    /<\/main>\s*\{supportTray && supportTrayAfterWork && !isMobile && <div className="mathmaster-question-support-tray mathmaster-question-support-tray--after">/, 'after it instead');
+  // Above the work on a laptop only when it is not a universal-only tray: the
+  // rows under the task (chips and tray share one, PH03) draw it under that rule.
+  const rows = region(container, '<div className="mathmaster-desktop-task-extras">', '</div>\n          )}', 'the rows between the task and the work');
+  assert.match(rows, /\{supportTray && !supportTrayAfterWork \? <div className="mathmaster-question-support-tray">\{supportTray\}<\/div> : null\}/, 'not above the work on a laptop');
+  assert.match(container, /\{!workspaceActive && \(\(!isPromptCollapsed && taskMeta\) \|\| \(supportTray && !supportTrayAfterWork\)\) && \(/, 'and the rows are drawn only while one of them has something to show');
+  // The work area (a main landmark only where no host gave one, AX45).
+  const workArea = container.indexOf('className="math-tool-workspace"');
+  assert.ok(workArea > 0, 'the work area');
+  assert.match(container.slice(workArea, workArea + 600),
+    /<\/React\.Fragment>\s*<\/div>\s*\{supportTray && supportTrayAfterWork && !isMobile && <div className="mathmaster-question-support-tray mathmaster-question-support-tray--after">/, 'after it instead');
 });
 
 // Wave 2 (job H, F's conservative call 3): My Math Path offers the universal

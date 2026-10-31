@@ -63,6 +63,7 @@ import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
@@ -137,7 +138,7 @@ const layout = async (page, label) => {
 };
 
 const shot = async (page, device, name) => {
-  await page.screenshot({ path: path.join(SHOTS, `${device.id}-${name}.png`), fullPage: true });
+  await screenshotKeepingTouch(page, { path: path.join(SHOTS, `${device.id}-${name}.png`), fullPage: true });
 };
 const bodyText = (page) => page.evaluate(() => document.body.innerText || '');
 const headerPosition = async (page) => (await page.locator('[data-secure-navigator-toggle]').textContent()).replace('▾', '').trim();
@@ -287,6 +288,10 @@ const supportsJourney = async (context, device) => {
     // define its method (H-16 review B2).
     const termIds = await page.locator('[data-support-panel="vocabulary"] [data-vocabulary-term]').evaluateAll((nodes) => nodes.map((node) => node.dataset.vocabularyTerm));
     check(!termIds.includes('boundary'), label('only the prompt\'s words, not the tool\'s'), termIds.join(', '));
+    // The tool's own words are there as labels, with no definition (TS07).
+    const labelIds = await page.locator('[data-support-panel="vocabulary"] [data-vocabulary-label]').evaluateAll((nodes) => nodes.map((node) => node.dataset.vocabularyLabel));
+    check(labelIds.includes('boundary'), label('the tool\'s words are listed as labels'), labelIds.join(', '));
+    check(!/separates the solutions/i.test(panel) && /boundary line/i.test(panel), label('a label has no definition'), panel.slice(0, 200));
     check(!/Example/i.test(panel), label('no worked example on a test'), panel.slice(0, 200));
     check(/·/.test(panel), label('the Spanish term is beside the English one'), panel.slice(0, 120));
     // A definition may use the word "solution"; what matters is that none
@@ -321,6 +326,7 @@ const practiceJourney = async (context, device) => {
   await page.waitForSelector('[data-secure-start-rules]');
   text = await bodyText(page);
   check(/skip a question/.test(text) && /change any answer until you submit/.test(text) && /2 modules/.test(text), label('start screen states the new rules'));
+  check(/The timer shows module 1's own time first, as on test day\./.test(text), label('start screen says the timer shows module 1\'s own time first (TS03)'));
   check(!/one attempt per question|cannot go back|monitored web delivery|lockdown/i.test(text), label('start screen has none of the old rules or jargon'));
   await shot(page, device, 'practice-02-start');
   await layout(page, label('start'));
@@ -358,6 +364,9 @@ const practiceJourney = async (context, device) => {
   await graphButton.click();
   const graph = page.locator('[role="dialog"]').filter({ has: page.getByRole('button', { name: 'Close graphing calculator' }) });
   check(await graph.first().waitFor({ timeout: 5000 }).then(() => true).catch(() => false), label('the graphing calculator opens'));
+  // A practice test's calculator lists zeros, minimum and maximum, as the
+  // Digital SAT's Desmos does (TS04); a teacher's secure Test does not.
+  check(await graph.first().locator('[data-graphing-key-points]').count() === 1, label('the practice calculator offers zeros, minimum and maximum'));
   await shot(page, device, 'practice-03a-graphing-calculator');
   await page.getByRole('button', { name: 'Close graphing calculator' }).click();
   text = await bodyText(page);
@@ -429,7 +438,12 @@ const practiceJourney = async (context, device) => {
   await page.keyboard.press('Escape');
   check(await page.waitForSelector('[data-secure-navigator]', { state: 'detached', timeout: 5000 }).then(() => true).catch(() => false), label('Escape on the question button closes the list'));
   const timerName = await page.locator('[data-secure-timer]').getAttribute('aria-label');
-  check(/^(Untimed test|Show the timer|Time left \d+:\d{2}\. (Hide the timer|Shown for the last five minutes))$/.test(timerName || ''), label('the timer button says what it shows and does'), timerName);
+  check(/^(Untimed test|Show the timer|(Module \d+ time|Time) left \d+:\d{2}\. (Hide the timer|Shown for the last five minutes))$/.test(timerName || ''), label('the timer button says what it shows and does'), timerName);
+  // In module 1 the timer is module 1's own time (TS03): its share of the
+  // 7 minutes this 4-question practice test has.
+  const moduleTimer = await page.locator('[data-secure-timer]').innerText();
+  const moduleSeconds = (([, m, s]) => Number(m) * 60 + Number(s))(/(\d+):(\d{2})/.exec(moduleTimer) || [0, 0, 0]);
+  check((timerName || '').startsWith('Module 1 time left') && /^Module 1 · \d+:\d{2}$/.test(moduleTimer) && moduleSeconds > 0 && moduleSeconds <= 210, label('module 1 shows its own time (TS03)'), `${timerName} | ${moduleTimer}`);
   await page.locator('[data-secure-navigator-toggle]').click();
   await page.waitForSelector('[data-secure-navigator]');
 
@@ -460,6 +474,9 @@ const practiceJourney = async (context, device) => {
   await page.getByRole('button', { name: 'Start module 2' }).click();
   await page.waitForFunction(() => document.querySelector('[data-secure-navigator-toggle]')?.textContent.includes('Question 3 of 4'));
   check(await page.locator('[data-secure-nav="previous"]').isDisabled(), label('module 1 is closed: Previous is off on question 3'));
+  // Module 2, the last: the test's own time again (TS03).
+  const testTimer = await page.locator('[data-secure-timer]').getAttribute('aria-label');
+  check(/^Time left \d+:\d{2}\./.test(testTimer || '') && !/Module/.test(await page.locator('[data-secure-timer]').innerText()), label('module 2 shows the test\'s own time (TS03)'), testTimer);
   await page.locator('[data-secure-navigator-toggle]').click();
   await page.waitForSelector('[data-secure-navigator]');
   const closed = await page.evaluate(() => [...document.querySelectorAll('[data-secure-navigator] [data-question-status]')].slice(0, 2).every((cell) => cell.disabled));
@@ -596,14 +613,18 @@ const courseJourney = async (context, device) => {
   check(await headerPosition(page) === 'Question 2 of 5', label('resume reopens the same question'), await headerPosition(page));
   check(await toolValue() === '[-3,5)', label('the saved work is still there after the pause'), await toolValue());
 
-  // Leaving the window: warned on the second time, paused on the third. The
-  // first is leaving full screen (Start entered it), the second a lost focus.
+  // Leaving the window: told it counted on the first time (TS06), warned on
+  // the second, paused on the third. The first is leaving full screen (Start
+  // entered it), the second a lost focus.
   const startedFullscreen = await page.evaluate(() => Boolean(document.fullscreenElement));
   if (startedFullscreen) await page.evaluate(() => document.exitFullscreen());
   else await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  await page.waitForSelector('[data-secure-integrity-warning]', { timeout: 8000 });
+  text = await page.locator('[data-secure-integrity-warning]').innerText();
+  check(/That counted: leaving the test window, or trying to copy, paste or right-click \(1 of 3\)/.test(text), label('the first leave says it counted, with the count'), text);
   await wait(900);
   await page.evaluate(() => window.dispatchEvent(new Event('blur')));
-  await page.waitForSelector('[data-secure-integrity-warning]', { timeout: 8000 });
+  await page.waitForFunction(() => /One more time/.test(document.querySelector('[data-secure-integrity-warning]')?.innerText || ''), null, { timeout: 8000 }).catch(() => {});
   text = await page.locator('[data-secure-integrity-warning]').innerText();
   check(/One more time leaving the test window, or trying to copy, paste or right-click, will pause the test for your teacher\./.test(text), label('second leave warns before the pause, naming everything that counts'));
   check(/Return to full screen/.test(text), label('the warning offers a way back to full screen'), `started in full screen: ${startedFullscreen}`);

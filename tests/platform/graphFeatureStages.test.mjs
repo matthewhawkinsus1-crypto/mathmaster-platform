@@ -237,7 +237,7 @@ test('CoordinatePlane hides both readouts when coordinates are suppressed', () =
   const source = readFileSync('src/tools/shared/CoordinatePlane.jsx', 'utf8');
   // The preview chip and the hovered-point label are two separate leaks.
   assert.match(source, /revealCoordinates \? \(/, 'the preview chip must be gated');
-  assert.match(source, /hovered && revealCoordinates \?/, 'the hover readout must be gated');
+  assert.match(source, /hovered && revealCoordinates && !readoutDismissed \?/, 'the hover readout must be gated (and Escape puts it away, WCAG 1.4.13)');
   // The live region is deliberately NOT gated: it is the only rendering of the
   // plane a screen-reader student has, so removing it makes the question
   // impossible rather than harder.
@@ -246,6 +246,9 @@ test('CoordinatePlane hides both readouts when coordinates are suppressed', () =
   assert.match(source, /aria-live="polite" className="mm-sr-only">\{(?:plotAnnouncement \|\| )?previewText\}/);
   const readout = source.slice(source.indexOf('const previewText ='), source.indexOf(';', source.indexOf('const previewText =')));
   assert.doesNotMatch(readout, /revealCoordinates/, 'the spoken readout is never gated');
+  // Nor put away by Escape: that hides only what is drawn over the plot.
+  assert.doesNotMatch(readout, /readoutDismissed|\bpreview\b/, 'the spoken readout follows the cursor, not the drawn crosshair');
+  assert.match(source, /const preview = readoutDismissed \? null : cursorAt;/);
 });
 
 test('every recipe still expands, so the new one did not disturb the others', () => {

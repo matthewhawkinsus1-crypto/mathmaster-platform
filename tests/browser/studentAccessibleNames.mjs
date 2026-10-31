@@ -28,7 +28,10 @@
  *           LANDS — the element the accessibility tree reports focused is
  *           MathLive's keyboard sink, and its name is the box's own (never
  *           ""), on first focus and again after typing, leaving and coming
- *           back (MathLive rewrites the sink's label on every focus).
+ *           back (MathLive rewrites the sink's label on every focus). And (AX11)
+ *           it says what it holds: the focused element's description is the
+ *           box's content in words ("3 over 4") once there is some, absent on
+ *           an empty box, and gone again when the box is cleared.
  *   Complete badge (pass 3, A11Y-7): a finished section's "Complete" badge
  *           on the section tabs is at least 12px.
  * Exits non-zero on any failure.
@@ -36,6 +39,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openCompletedSection, SCREENS, VIEWPORTS } from './accessibilityCertification.mjs';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const artifacts = path.join(here, 'artifacts/accessible-names');
@@ -168,7 +172,7 @@ const focusedName = async (page) => {
   await cdp.detach();
   const focused = nodes.filter((node) => !node.ignored && (node.properties || []).some((prop) => prop.name === 'focused' && prop.value?.value) && node.role?.value !== 'RootWebArea');
   const node = focused[focused.length - 1];
-  return { ...dom, role: node?.role?.value || '', name: String(node?.name?.value || '').trim() };
+  return { ...dom, role: node?.role?.value || '', name: String(node?.name?.value || '').trim(), description: String(node?.description?.value || '').trim() };
 };
 
 const checkBoxNamed = async (page, field, where) => {
@@ -177,13 +181,45 @@ const checkBoxNamed = async (page, field, where) => {
   const first = await focusedName(page);
   check(first.host === 'math-field' && first.part === 'keyboard-sink', `${where}: focus lands in the math box's keyboard sink (${first.host || 'no host'} ${first.part || first.role})`);
   check(first.name !== '' && first.name === first.hostName, `${where}: the focused element is named "${first.hostName}" (got ${first.role} "${first.name}")`);
+  check(first.description === '', `${where}: an empty box describes nothing (got "${first.description}")`);
   await page.keyboard.type('1');
   await page.keyboard.press('Tab');
   await field.click();
   await page.waitForTimeout(250);
   const again = await focusedName(page);
   check(again.name !== '' && again.name === again.hostName, `${where}: typed in, left and focused again, still named "${again.hostName}" (got ${again.role} "${again.name}")`);
+  check(again.description === '1', `${where}: focused again, the box says what it holds, "1" (got "${again.description}")`);
   await page.keyboard.press('Backspace');
+  await page.waitForTimeout(250);
+  const emptied = await focusedName(page);
+  check(emptied.description === '', `${where}: emptied, it describes nothing again (got "${emptied.description}")`);
+};
+
+// A fraction is said in words, and what a box holds follows what is typed into
+// it (AX11): typed, left, and come back to, it still says "3 over 4"; the sink
+// carries the description itself, never the host, where focus never lands.
+const checkBoxDescribed = async (page, field, where) => {
+  await field.click();
+  await page.waitForTimeout(250);
+  await page.keyboard.type('3/4');
+  await page.waitForTimeout(250);
+  const typed = await focusedName(page);
+  check(typed.description === '3 over 4', `${where}: typed 3/4, the focused box describes "3 over 4" (got "${typed.description}")`);
+  await page.keyboard.press('Tab');
+  await field.click();
+  await page.waitForTimeout(250);
+  const back = await focusedName(page);
+  check(back.description === '3 over 4' && back.name === back.hostName, `${where}: focused again, named "${back.hostName}" and described "3 over 4" (got "${back.name}" / "${back.description}")`);
+  const where2 = await field.evaluate((host) => ({
+    host: host.getAttribute('aria-description'),
+    sink: host.shadowRoot?.querySelector('[part="keyboard-sink"]')?.getAttribute('aria-description'),
+  }));
+  check(where2.host === null && where2.sink === '3 over 4', `${where}: the description is on the keyboard sink, not the host (host ${JSON.stringify(where2.host)}, sink ${JSON.stringify(where2.sink)})`);
+  await page.keyboard.press('Control+a');
+  await page.keyboard.press('Backspace');
+  await page.waitForTimeout(250);
+  const cleared = await focusedName(page);
+  check(cleared.description === '', `${where}: cleared, it describes nothing again (got "${cleared.description}")`);
 };
 
 const runMathBoxes = async (page, viewport) => {
@@ -197,6 +233,7 @@ const runMathBoxes = async (page, viewport) => {
     const count = await fields.count();
     check(count > 0, `${viewport} ${where}: the question has math boxes to check (${count})`);
     for (let index = 0; index < count; index += 1) await checkBoxNamed(page, fields.nth(index), `${viewport} ${where} box ${index + 1}`);
+    if (questionId === 'ux-multi') await checkBoxDescribed(page, fields.first(), `${viewport} ${where} box 1`);
   }
   // Work View: the enlarged workspace draws its own copy of the question.
   await page.evaluate(() => window.__ux.go('ux-multi'));
@@ -211,13 +248,24 @@ const runMathBoxes = async (page, viewport) => {
 };
 
 const runCompleteBadge = async (page, viewport) => {
-  await page.locator('nav[aria-label="Student navigation"] button').filter({ hasText: 'Assignments' }).first().evaluate((button) => button.click());
+  await page.locator('nav[aria-label="Student navigation"] a').filter({ hasText: 'Assignments' }).first().evaluate((link) => link.click());
   await page.getByText('My Assignments').first().waitFor({ timeout: 30_000 });
   await openCompletedSection(page);
   const badge = await page.locator('.mathmaster-section-tab.is-complete small').first().evaluate((element) => ({
     text: element.textContent.trim(), size: parseFloat(getComputedStyle(element).fontSize),
   }));
   check(badge.size >= 12, `${viewport} section tabs: the "${badge.text}" badge is at least 12px (${badge.size}px)`);
+  // AX38: every tab's count, not only the Complete badge (10px on a laptop).
+  const counts = await page.locator('.mathmaster-section-tab small').evaluateAll((elements) => elements
+    .map((element) => ({ text: element.textContent.trim(), size: parseFloat(getComputedStyle(element).fontSize) })));
+  check(counts.length > 0 && counts.every((count) => count.size >= 12), `${viewport} section tabs: every count is at least 12px (${counts.map((count) => `${count.text} ${count.size}px`).join(', ')})`);
+  // AX45: one main landmark on the assignment screen; its work area is not a
+  // second one nested inside it.
+  const landmarks = await page.evaluate(() => ({
+    mains: document.querySelectorAll('main, [role="main"]').length,
+    workArea: Boolean(document.querySelector('.math-tool-workspace')),
+  }));
+  check(landmarks.workArea && landmarks.mains === 1, `${viewport} assignment: exactly one main landmark with the work area open (${landmarks.mains}, work area ${landmarks.workArea})`);
   await page.screenshot({ path: path.join(artifacts, `complete-badge-${viewport}.png`) }).catch(() => {});
 };
 
@@ -250,7 +298,7 @@ const main = async () => {
         await runMathBoxes(page, viewport.id);
       } catch (error) {
         check(false, `${viewport.id}: could not finish — ${error.message.split('\n')[0]}`);
-        await page.screenshot({ path: path.join(artifacts, `FAIL-${viewport.id}.png`), fullPage: true }).catch(() => {});
+        await screenshotKeepingTouch(page, { path: path.join(artifacts, `FAIL-${viewport.id}.png`), fullPage: true }).catch(() => {});
       }
       await context.close();
     }

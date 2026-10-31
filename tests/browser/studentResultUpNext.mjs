@@ -25,6 +25,7 @@
 
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const loadPlaywright = async () => {
   for (const specifier of [process.env.PLAYWRIGHT_MODULE, '/opt/node22/lib/node_modules/playwright/index.mjs', 'playwright']) {
@@ -131,7 +132,7 @@ for (const viewport of VIEWPORTS) {
       problems.push(`check threw: ${error.message}`);
     }
     problems.push(...consoleErrors.map((error) => `console: ${error}`));
-    if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${viewport.name}-${name}.png`), fullPage: true });
+    if (SHOTS) await screenshotKeepingTouch(page, { path: path.join(SHOTS, `${viewport.name}-${name}.png`), fullPage: true });
     const status = problems.length ? 'FAIL' : 'ok';
     log.push(`${status.padEnd(4)} ${viewport.name.padEnd(6)} ${name}`);
     for (const problem of problems) log.push(`       -> ${problem}`);
@@ -157,7 +158,7 @@ for (const viewport of VIEWPORTS) {
       .filter((article) => /Solving Inequalities|Slope from Two Points/.test(article.innerText))
       .flatMap((article) => [...article.querySelectorAll('button')].map((button) => button.innerText.trim())));
     expect(problems, !waitingButtons.some((label) => /^(Start|Continue)$/.test(label)), `waiting rows offer ${JSON.stringify(waitingButtons)}`);
-    if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${viewport.name}-center-upcoming.png`), fullPage: true });
+    if (SHOTS) await screenshotKeepingTouch(page, { path: path.join(SHOTS, `${viewport.name}-center-upcoming.png`), fullPage: true });
 
     // Active: past due first; Continue carries the question index.
     expect(problems, await clickButton(page, 'Active ·') === 'ok', 'could not open Active');
@@ -180,7 +181,7 @@ for (const viewport of VIEWPORTS) {
     const retry = await lastCall();
     expect(problems, retry?.type === 'practice' && retry.args[0] === 'closed', `Try again sent ${JSON.stringify(retry)}`);
     expect(problems, !(await buttons(page)).some((label) => /^Practice$/.test(label)), 'a bare "Practice" button is on the Closed tab');
-    if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${viewport.name}-center-closed.png`), fullPage: true });
+    if (SHOTS) await screenshotKeepingTouch(page, { path: path.join(SHOTS, `${viewport.name}-center-closed.png`), fullPage: true });
 
     // Completed: excused offers results only.
     expect(problems, await clickButton(page, 'Completed ·') === 'ok', 'could not open Completed');

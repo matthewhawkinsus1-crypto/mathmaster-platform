@@ -16,6 +16,7 @@ import { readFileSync } from 'node:fs';
 
 import {
   CASE_EVIDENCE_LIMITS,
+  anyChunkAtItsShare,
   chunk,
   validateCaseEvidenceRequest,
 } from '../../functions/shared/caseReviewEvidence.mjs';
@@ -69,4 +70,35 @@ test('the callable runs every `in` query per chunk, never over the whole request
     assert.notEqual(values, 'assignmentIds', `${field} must be queried per chunk, not with every id at once`);
   }
   assert.match(callable, /caseEvidence\.chunk\(assignmentIds\)/);
+});
+
+test('a chunk cut off at its share of a cap is truncation even when the total is under the cap (TT05)', () => {
+  // Three chunks read Recovery records with a third of the cap each: 334.
+  const cap = CASE_EVIDENCE_LIMITS.maxMisconceptionRecords;
+  assert.equal(Math.ceil(cap / 3), 334);
+  assert.equal(anyChunkAtItsShare({ sizes: [334, 12, 0], cap, chunks: 3 }), true, 'one busy chunk stopped at its share; the total is only 346');
+  assert.equal(anyChunkAtItsShare({ sizes: [0, 0, 334], cap, chunks: 3 }), true, 'whichever chunk it is');
+  assert.equal(anyChunkAtItsShare({ sizes: [333, 333, 333], cap, chunks: 3 }), false, 'every chunk came back under its share');
+  // One chunk is the whole cap.
+  assert.equal(anyChunkAtItsShare({ sizes: [cap], cap, chunks: 1 }), true);
+  assert.equal(anyChunkAtItsShare({ sizes: [cap - 1], cap, chunks: 1 }), false);
+  // The chunk count defaults to the number of queries run; nothing read is nothing cut.
+  assert.equal(anyChunkAtItsShare({ sizes: [500, 499], cap }), true);
+  assert.equal(anyChunkAtItsShare({ sizes: [499, 499], cap }), false);
+  assert.equal(anyChunkAtItsShare({ sizes: [], cap }), false);
+  assert.equal(anyChunkAtItsShare(), false);
+  // The share each chunk is asked for is the one the callable uses to query.
+  for (const count of [1, 2, 3, 7, 7]) assert.equal(anyChunkAtItsShare({ sizes: [Math.ceil(cap / count)], cap, chunks: count }), true, `${count} chunks`);
+});
+
+test('the callable reports Recovery records cut short per chunk, from the same share it queries with', () => {
+  const callable = region(
+    executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8')),
+    'exports.loadStudentCaseEvidence',
+    'exports.overrideStudentResponseGrade',
+    'loadStudentCaseEvidence',
+  );
+  // The query's limit and the flag's share are the same expression.
+  assert.match(callable, /\.limit\(Math\.ceil\(limits\.maxMisconceptionRecords \/ chunks\.length\)\)/);
+  assert.match(callable, /response\.truncated\.misconceptionEvidence = response\.truncated\.misconceptionEvidence\s*\|\| caseEvidence\.anyChunkAtItsShare\(\{\s*sizes: misconceptionSnapshots\.map\(\(snapshot\) => snapshot\.size\),\s*cap: limits\.maxMisconceptionRecords,\s*chunks: chunks\.length,\s*\}\);/);
 });

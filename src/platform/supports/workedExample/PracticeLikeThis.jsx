@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import MathInput from '../../../MathInput.jsx';
+import { KeypadConstantsProvider } from '../../interaction/keypadConstants.js';
 import MathText from '../../../components/common/MathText.jsx';
 import { SupportedTextActions } from '../SupportedText.jsx';
 import { PRACTICE_VERDICT, buildPracticeLikeThis, checkPracticeAnswers, practiceCheckMessage } from './practiceLikeThis.js';
@@ -72,7 +73,10 @@ export default function PracticeLikeThis({
   const verdictOf = (id) => result?.parts.find((part) => part.id === id)?.verdict || null;
   const solutionText = practice ? [...practice.steps, `Answer: ${practice.answer}`].join(' ') : '';
 
+  // Another problem's numbers: its keypads keep every π, e and logₐ key rather
+  // than the ones the question beside it uses (TL23, keypadConstants.js).
   return (
+    <KeypadConstantsProvider constants={null}>
     <section
       className="mathmaster-practice-like-this"
       data-practice-like-this={open ? 'open' : 'closed'}
@@ -121,7 +125,8 @@ export default function PracticeLikeThis({
                               inputStatus={verdict === PRACTICE_VERDICT.CORRECT ? 'correct' : verdict === PRACTICE_VERDICT.INCORRECT ? 'incorrect' : 'neutral'}
                             />
                           </div>
-                          {mark && <span aria-label={mark.label} title={mark.label} style={{ color: mark.color, fontWeight: 900, fontSize: 'calc(18 * var(--mm-px))' }}>{mark.symbol}</span>}
+                          {/* The mark is a picture of the verdict: an image with its words (a label on a bare span is not read, AX18). */}
+                          {mark && <span role="img" aria-label={mark.label} title={mark.label} style={{ color: mark.color, fontWeight: 900, fontSize: 'calc(18 * var(--mm-px))' }}>{mark.symbol}</span>}
                         </div>
                       </div>
                     );
@@ -168,5 +173,6 @@ export default function PracticeLikeThis({
         </>
       )}
     </section>
+    </KeypadConstantsProvider>
   );
 }

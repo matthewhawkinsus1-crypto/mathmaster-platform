@@ -33,6 +33,7 @@ import {
 const require = createRequire(import.meta.url);
 const mathPath = require('../../functions/lib/mathPath.js');
 const pathContentRelease = require('../../functions/lib/pathContentRelease.js');
+const pathSessionLock = require('../../functions/lib/pathSessionLock.js');
 
 const SERVER = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
 
@@ -109,6 +110,14 @@ const startCallable = (db, overrides = {}) => {
     rebuildStoredPathCoverage: unexpected('rebuildStoredPathCoverage'),
     loadAssessmentContentReleaseState: unexpected('loadAssessmentContentReleaseState'),
     safeBuildTemplateIssuePlan: unexpected('safeBuildTemplateIssuePlan'),
+    // The lock every launch takes (MP21). The one-rule reads are reached only
+    // by an open retention check or a Challenge, never by a weekly launch.
+    pathSessionLock,
+    favourableMastery: {
+      retentionDueByOneRule: unexpected('favourableMastery.retentionDueByOneRule'),
+      courseChallengeEarnedByOneRule: unexpected('favourableMastery.courseChallengeEarnedByOneRule'),
+    },
+    courseChallengeEarned: unexpected('courseChallengeEarned'),
     ...overrides,
   };
   const body = [

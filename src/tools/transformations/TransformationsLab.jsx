@@ -11,7 +11,7 @@ import useReportToolWork from '../shared/useReportToolWork.js';
 import { useMethodWithheld } from '../shared/ToolRuntimeContext';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import transformationsGrader from '../../../functions/shared/serverGrading/tools/transformationsLab.mjs';
-import { plotTransformMissMessage } from './plotTransformFeedback.js';
+import { plotTransformFallbackMessage, plotTransformMissMessage } from './plotTransformFeedback.js';
 import {
   TRANSFORMATION_FAMILY_LABELS,
   evaluateParentFunction,
@@ -22,6 +22,8 @@ import {
 } from './transformationsMath';
 import { SubmitText, useSubmitActionName } from '../shared/ToolRuntimeContext';
 import FocusSafeButton from '../../components/common/FocusSafeButton.jsx';
+import { labGuidanceFor } from './transformationsGuidance.js';
+import { START_OVER } from '../../platform/student/studentWords.js';
 
 const inputStyle = { width: '100%', padding: 9, marginTop: 5, border: '1px solid var(--mm-tint-border)', borderRadius: 8 };
 const buttonStyle = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
@@ -31,8 +33,6 @@ const MODE_TASKS = {'match': 'Change a, b, h and k until your graph sits exactly
 // button's name as it reads (D9, wave 7): "Submit" where the press spends a
 // try, a secure host's label, or the lab's own "Check …" elsewhere.
 const stepsNamingAction = (steps, actionName) => steps.map((step) => step.replace('{action}', actionName));
-const MODE_STEPS = {'match': ['Change one parameter at a time and watch what moves.', 'Use h and k for position, then a and b for reflections/scales.', 'When the two graphs overlap, press {action}.'], 'identify': ['Find the defining feature of the graph — that gives you h and k.', 'Use one or more additional points to recover a and b.', 'Enter all four, then press {action}.'], 'pointMap': ['For x, undo the inside multiplier b, then apply h.', 'For y, apply a and then k exactly as written.', 'Enter the transformed coordinates.'], 'plotTransform': ['Map each corner/end point using x/b + h and ay + k.', 'Plot the transformed defining points on the grid.', 'Connect them in the same order as the source graph, then press {action}.'], 'describe': ['Read the inside changes for x using opposite/reciprocal behavior.', 'Read the outside changes for y exactly as written.', 'Then account for h and k translations.'], 'anchor': ['Identify which feature defines this family.', 'Find it on the transformed graph.', 'Count gridlines across, then up or down.']};
-const HINTS = {'match': ['Start with h and k to put the graph in the right place, then fix reflections/scales with a and b.', 'Use y = a·f(b(x − h)) + k. Inside changes control x; outside changes control y.', 'Remember the class rule: x\'s lie, y\'s tell the truth. For x, signs reverse and scale factors become reciprocals.'], 'identify': ['Find the defining feature first — the vertex, the corner, the endpoint. Its coordinates are (h, k).', 'Then compare another point. Outside a acts directly on y; inside b acts reciprocally on x.', 'Negative a reflects across the x-axis. Negative b reflects across the y-axis.'], 'pointMap': ['x and y are transformed by different parameters, so handle them separately.', 'For x, divide the parent x-coordinate by b, then add h.', 'For y, multiply by a first and then add k — y tells the truth.'], 'plotTransform': ['Move one defining point at a time instead of trying to redraw the whole graph at once.', 'For x, use opposite/reciprocal behavior; for y, use the outside transformation exactly as written.', 'Order matters: P1 is the image of S1, P2 is the image of S2, and so on. The transformed graph keeps the same connections between corresponding defining points.'], 'describe': ['Compare the graph with the parent shape one feature at a time.', 'Outside a is direct: sign gives x-axis reflection and |a| is the vertical scale.', 'Inside b is opposite/reciprocal: sign gives y-axis reflection and the horizontal scale is 1/|b|.'], 'anchor': ['Every family is organized around one feature: a vertex, a corner, an endpoint, or an asymptote intersection.', 'On the parent function that feature sits at the origin. The transformation moves it to (h, k).', 'Count the gridlines rather than estimating — go across for x first, then up or down for y.']};
 
 const pointCoordinates = (point) => (
   Array.isArray(point)
@@ -92,6 +92,8 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
   const {
     family, targetSpec, investigationSpec, anchor, parentPoint, sourcePoints, graphBounds, showB, startingValues,
   } = resolveTransformationsQuestion(questionData);
+  // A line has no vertex to find: its steps and hints say what to read instead.
+  const { steps: MODE_STEPS, hints: HINTS } = labGuidanceFor(family);
   const [a, setA] = usePersistentToolState('a', startingValues.a);
   const [b, setB] = usePersistentToolState('b', startingValues.b);
   const [h, setH] = usePersistentToolState('h', startingValues.h);
@@ -232,7 +234,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
       const correspondence = plotTransformMissMessage({ plotted: feedback.response?.plottedPoints, images: expectedTransformedPoints, spec: investigationSpec, family });
       if (correspondence) return correspondence;
       const expectedCount = Number(feedbackParts.length || expectedTransformedPoints.length || 0);
-      return `${feedbackPartsCorrect} of ${expectedCount} defining points are in the correct transformed locations. Use x/b + h for x and ay + k for y.`;
+      return plotTransformFallbackMessage(feedbackPartsCorrect, expectedCount);
     }
     if (mode === 'anchor') {
       if (feedbackPartsCorrect === 1) return `One coordinate of the ${anchor.label} is right. Check the other — h moves it sideways and k moves it up or down.`;
@@ -295,7 +297,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
     },
     primaryActions: [primaryAction],
     secondaryActions: mode === 'plotTransform'
-      ? [{ id: 'clear-points', label: 'Clear', onAction: clearPlottedPoints, disabled: !plottedPoints.length }]
+      ? [{ id: 'clear-points', label: START_OVER, onAction: clearPlottedPoints, disabled: !plottedPoints.length }]
       : [],
   };
 
@@ -303,7 +305,6 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
     <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.match} steps={stepsNamingAction(MODE_STEPS[mode] || MODE_STEPS.match, finishActionName)} />
     <EnlargeableFigure
         label="Transformation workspace"
-        enlargeLabel="Enlarge workspace"
         taskText={questionData.prompt || questionData.task || ''}
         style={{ width: '100%' }}
         openEnlarged={shouldOpenFigureEnlarged({ toolId: 'transformations', question: questionData || {}, viewportWidth })}
@@ -376,10 +377,10 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
               now covers this lab: the platform control beside Submit takes back
               a placed point, and in every other mode of this tool it takes back
               the parameter or description edit that the local button never
-              reached. Clear is not undo — it discards the whole construction in
-              one press — so it stays. */}
+              reached. Start over is not undo — it discards the whole construction
+              in one press — so it stays. */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
-            <FocusSafeButton onClick={clearPlottedPoints} enabled={plottedPoints.length > 0} style={{ ...buttonStyle, background: 'var(--mm-surface)', color: 'var(--mm-text-muted)', border: '1px solid var(--mm-border)' }}>Clear</FocusSafeButton>
+            <FocusSafeButton onClick={clearPlottedPoints} enabled={plottedPoints.length > 0} style={{ ...buttonStyle, background: 'var(--mm-surface)', color: 'var(--mm-text-muted)', border: '1px solid var(--mm-border)' }}>{START_OVER}</FocusSafeButton>
             <button data-mm-enter-action="submit" type="button" onClick={check} disabled={plotTransformIncomplete} style={{ ...buttonStyle, opacity: plotTransformIncomplete ? 0.55 : 1 }}><SubmitText>Check graph</SubmitText></button>
           </div>
           <p style={{ marginBottom: 0, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{plottedPoints.length} of {expectedTransformedPoints.length} defining points plotted.</p>

@@ -17,6 +17,7 @@ import {
   applyLinePreset,
   changeLineFormat,
   changeLineSetup,
+  lineExtraTimeRule,
   lineSetupProblem,
 } from '../../platform/liveChallenge/lineGraphSetupModel.js';
 
@@ -173,6 +174,7 @@ export default function LineGraphSetup({ setup, onChange, classSize = 0, onPract
             {limits.secondsOptions.map((seconds) => <option key={seconds} value={seconds}>{seconds >= 120 && seconds % 60 === 0 ? `${seconds / 60} minutes` : `${seconds} seconds`}</option>)}
           </select>
           <span style={hint}>{setup.format === LINE_GRAPH_FORMAT.RUSH ? 'Each student graphs as many lines as they can.' : 'The round ends early once everyone has finished.'}</span>
+          <span style={hint} data-mm-line-extra-time-rule="1">{lineExtraTimeRule(setup.format)}</span>
         </label>
         <label style={{ fontWeight: 800 }}>Scoring
           <select value={setup.scoringStrategyId} onChange={(event) => onChange({ ...setup, scoringStrategyId: event.target.value })} style={field}>
@@ -194,7 +196,7 @@ export default function LineGraphSetup({ setup, onChange, classSize = 0, onPract
         </label>
         <label style={switchRow}>
           <input type="checkbox" checked={setup.slopeHelper} onChange={() => update({ slopeHelper: !setup.slopeHelper })} />
-          <span>Slope helper<span style={hint}>Shows the rise and run between a student&apos;s two points ("up 2, right 3") while they place them.</span></span>
+          <span>Slope helper<span style={hint}>Shows the rise and run between a student&apos;s two points ("up 2, right 3") while they place them. A student whose support plan has graph paper or a graphic organizer always gets it; only they see that.</span></span>
         </label>
       </fieldset>
 

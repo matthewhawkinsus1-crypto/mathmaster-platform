@@ -10,6 +10,7 @@ import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerSta
 import './GraphScenarioMatch.css';
 import useMobileInteractionMode from './platform/mobile/useMobileInteractionMode.js';
 import { scrollMotion } from './motionPreference.js';
+import { START_OVER } from './platform/student/studentWords.js';
 
 const getPartGrade = (feedback, id) => feedback?.partGrades?.find((part) => part.id === id);
 
@@ -263,7 +264,7 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
                 setSelectedGraphId('');
               }}
             >
-              Clear all
+              {START_OVER}
             </button>
           )}
         </div>
@@ -299,6 +300,7 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
             ref={graphPaneRef}
             tabIndex={0}
             role="region"
+            data-focus-ring="own"
             aria-label="Scrollable graph bank"
             onWheel={handlePaneWheel}
             onKeyDown={handlePaneKeyDown}
@@ -383,6 +385,7 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
             ref={scenarioPaneRef}
             tabIndex={0}
             role="region"
+            data-focus-ring="own"
             aria-label="Scrollable scenario bank"
             onWheel={handlePaneWheel}
             onKeyDown={handlePaneKeyDown}
@@ -442,7 +445,7 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
         </section>
       </div>
 
-      <div className="graph-scenario-mobile-match-summary" aria-label="Current matches">
+      <div className="graph-scenario-mobile-match-summary" role="group" aria-label="Current matches">
         {scenarios.map((scenario) => {
           const matchedGraph = graphById.get(matches[scenario.id]);
           if (!matchedGraph) return null;

@@ -21,7 +21,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import {
-  SYNC_STATE, weeklyPathGradebookRows, syncReadiness, prepareClassroomSync,
+  SYNC_STATE, classDueDayName, prepareClassroomSync, syncReadiness, weekClosesClause, weeklyPathGradebookRows,
 } from '../../src/platform/path/weeklyPathGradebook.js';
 import { GRADING_POLICY } from '../../src/platform/path/weeklyPathGoal.js';
 
@@ -74,6 +74,32 @@ test('a student with no plan yet is shown as having no goal, not as failing one'
     now: NOW,
   });
   assert.equal(rows[0].goal, 0);
+});
+
+// --- when the automatic grade is posted (MP05) -------------------------------
+
+const FRIDAY_CLOSE = Date.parse('2026-09-04T23:59:59.999-05:00');
+const SUNDAY_CLOSE = Date.parse('2026-09-06T23:59:59.999-05:00');
+
+test('the automatic-publishing sentence names the day this class is due, not a fixed Sunday (MP05)', () => {
+  // 11:59pm Friday in Chicago is already Saturday in UTC: the day is named
+  // where the students are, as the student's own screen names it.
+  assert.equal(new Date(FRIDAY_CLOSE).getUTCDay(), 6, 'the fixture must cross midnight UTC to mean anything');
+  const friday = classDueDayName({ s1: { dueAt: FRIDAY_CLOSE }, s2: { dueAt: FRIDAY_CLOSE } });
+  assert.equal(friday, 'Friday');
+  assert.equal(weekClosesClause(friday), 'after the week closes on Friday night');
+  assert.equal(weekClosesClause(classDueDayName({ s1: { dueAt: SUNDAY_CLOSE } })), 'after the week closes on Sunday night');
+});
+
+test('goals that disagree, or that have no day, name none rather than a wrong one (MP05)', () => {
+  // A teacher who moves the due day mid-week leaves goals frozen earlier on the old day.
+  assert.equal(classDueDayName({ s1: { dueAt: FRIDAY_CLOSE }, s2: { dueAt: SUNDAY_CLOSE } }), null);
+  assert.equal(classDueDayName({}), null);
+  assert.equal(classDueDayName(undefined), null);
+  assert.equal(classDueDayName({ s1: goalFor(0) }), null, 'a student with no plan yet has no deadline');
+  assert.equal(weekClosesClause(null), 'after the week closes on its due day');
+  // With no deadline on the goal, the day the class configured is the answer.
+  assert.equal(classDueDayName({ s1: { settings: { dueDayOfWeek: 3 } } }), 'Wednesday');
 });
 
 // --- nothing leaves without a teacher ------------------------------------------

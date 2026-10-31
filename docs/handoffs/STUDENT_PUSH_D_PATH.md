@@ -30,7 +30,14 @@ so the served ids matched nothing in the answer key.
   multiple-choice item.
 - **Not done (owner's decision):** Path evidence, mastery and weekly accuracy
   for multiple-choice items answered before the deploy are still recorded as
-  wrong. They could be re-graded from `pathSubmissions`.
+  wrong. They cannot be re-graded: no stored record says which option the
+  student picked. `pathSubmissions` holds the verdict and, since #459, the
+  answer as display text, never the choice; a closed question's issued item is
+  cleared from the session. (This note used to say they "could be re-graded
+  from `pathSubmissions`"; corrected under MP03, 2026-10-25.) The Path report,
+  `scripts/report-path-choice-id-regrade.mjs`, lists the answers whose
+  recorded "wrong" carries no information, and "What's left" below records
+  what was decided about them (MP19).
 
 ---
 
@@ -204,6 +211,15 @@ server rule (85+, four events, two independent successes, a DOK-3 item).
   (`getMyWeeklyPathHistory`).
 - Practice History: support ids become student-facing names, raw ids are never
   shown, and the 300-answer cap is stated with a by-week summary.
+  **Added (MP18, 2026-10-25):** a My Math Path question the student finished
+  without getting right offers **See the solution**: the session's own review
+  item (`getMyPathSessionRecap`, drawn by `RecapItem`), fetched only when asked
+  and once per session. A session not finished yet says the solution opens when
+  it is; a question answered before reviews were recorded says it cannot be
+  shown. Not in a teacher's read-only view or the simulator (the callable is
+  the student's own). **Not offered: "Try a similar one"** (no generator builds
+  a sibling from the question the review releases; recorded beside
+  `practiceHistorySolutionSource`). Assignment misses keep Review My Work.
 - "N of M recent weeks hit" no longer counts the week in progress as a miss.
   On Sunday evening, when last week is still open by the Central-time
   deadline, the streak card says "Including last week".
@@ -300,6 +316,12 @@ and `skillMastered` events with idempotency keys. Documented in
 
 - **Historical multiple-choice grades** (before #456 deploys) are still wrong
   in evidence and mastery — owner's decision.
+  **Decided 2026-10-23 (MP19): remove them from mastery as not attempted**,
+  after the read-only report. `scripts/remove-path-choice-misses-from-mastery.mjs`
+  takes the report's window, reads only by default, and with `--execute`
+  (project id typed back) rewrites only `studentMasteryProfiles` and records
+  each removal there (`voidedEvidence`). Evidence events and weekly accuracy
+  are not changed.
 - **Server mastery scoring is wave 2** (coordinator). Until the server scores
   each question's final attempt, the wheel, its card and the planner (server
   rule) can disagree with the map (more favourable of the two records); see
@@ -308,6 +330,16 @@ and `skillMastered` events with idempotency keys. Documented in
   `weekKeyFor` starts a week at Sunday 00:00 UTC, so from 7pm CDT (6pm CST) on
   Sunday a student already sees next week. Changing week keys needs a
   migration of frozen snapshots, completions and Classroom syncs.
+  **Decided and built (MP06, 2026-10-25): the week turns over at midnight Monday
+  in the school's time zone, and no migration was needed.** A week key is still a
+  Monday's date, so every stored key stays valid and is read as it was; only the
+  moment that changes weeks moved, so a few hours on Sunday evening (5, or 6 in
+  standard time) now belong to the week still running. Work stored in that window
+  before the change keeps the next week's key and is still found (the completion
+  window was left as it was) and graded there. Stepping from one key to another
+  is now `shiftWeekKey` (date arithmetic), not a clock. Deploy outside Sunday
+  6pm to midnight Central, Functions and Hosting together. Tests:
+  `tests/platform/weeklyPathSchoolWeek.test.mjs`.
 - **Short weeks are refused** (the cost of the server-decided count). In a
   sweep of 360 legitimate class configurations the planner produced a short
   week 4 times, all six-session classes in August, when too few skills are
@@ -317,6 +349,14 @@ and `skillMastered` events with idempotency keys. Documented in
   that week, as for any freeze that fails. Fix later by having the server plan
   the week itself, or accept a short week when the server's own planner, on
   the same inputs, cannot fill it.
+  **Built after this handoff was written (21538adb, 2f8fb41a, 889527c1;
+  confirmed on 70ecf1bb under MP06, 2026-10-25):** the freeze runs the browser's
+  own planner on the server's records and accepts a short week when that plan is
+  at least as short (`functions/lib/weeklyPathServerPlan.js`), and
+  `tests/platform/weeklyPathShortWeek.test.mjs` reproduces this sweep (the 4 short
+  weeks freeze and grade). Still refused, as before: a Grade 6–8 course with no
+  saved pacing (the server does not plan it), and a week that is short only
+  because of practice cooldowns (push I, §3 item 5).
 - **Content follow-up: 27 templates repeat their questions** (fewer than 8
   distinct in 30 draws). Their recap now withholds the answer and steps; the
   real fix is to widen these generators, after which the regeneration test
@@ -348,12 +388,35 @@ and `skillMastered` events with idempotency keys. Documented in
   `mm_A_3G_v2_transport-estimate`,
   `mm_A_9B_v2_growth-factor`,
   `mm_A_9D_v2_context-decay-graph`.
+  **Done (push J for 26; MP20, 2026-10-25, for the 27th):**
+  `mm_A_12A_v2_mapping-nonfunction` now also draws functions whose outputs
+  repeat (with their own solution text) and names the drawn pairs, at
+  familyVersion 4; every draw's verdict is recomputed from the pairs and graded
+  in production (`pathTemplateWidening_a1FunctionsSequences.test.mjs`). Still
+  withheld: `mm_A2_2A_v2_logarithmic-graph-attributes`, by mathematics: its
+  graded answers are the attributes every logarithmic parent shares, so no
+  draw within A2.2A changes them (recorded in `pathRecapWithheld.mjs`). For the
+  owner: the other four A.12A families each give one verdict on every draw
+  (table-function and error-repeated-output: function; ordered-pairs-nonfunction
+  and context-one-input-two-outputs: not a function). They pass the recap's
+  count, so their recap shows that verdict.
 - **Teacher previews before a week freezes** now use the class's weekly
   settings, but not the student's own CCMR plan ("Auto": their test and date),
   which is still read only on the student's side. The drawer and
   StudentsRoster's Learning Profile stay previews; the roster needs a
   weekly-settings prop that lives outside this lane. Once the student opens
   Path, the frozen snapshot is the truth and the teacher table matches it.
+  **Recorded (MP24, 2026-10-25), nothing changed:** the plan only picks the
+  format of transfer slots under "Auto", never adds one. The one teacher
+  screen with the plan already loaded uses it: the roster's read-only My Math
+  Path is the student's own container, which reads it. Every other preview
+  (Weekly Path table, profile drawer, Learning Profile tab, Weekly Path
+  explainer) would need one more read per student, so each keeps the format
+  "Auto" picks without a plan until the freeze. For the teacher lane: the
+  read-only roster view still gets no class weekly settings (pass
+  `weeklyGoalConfig` from the `weeklyGoalsByClass` that `TeacherWorkspace.jsx`
+  already holds, through `StudentsRoster`), so it previews the default count
+  and "Auto". Written beside `weeklyPlanClassInputs` (`weeklyPathGoal.js`).
 - **Verifier minors not fixed** (low risk, listed for a follow-up):
   - topics: the wheel's hub still says "Not practised yet" where the colour key
     says "Not Enough Evidence"; mastered map cards carry the heading "Why this
@@ -362,25 +425,107 @@ and `skillMastered` events with idempotency keys. Documented in
     skill can show a repair button for a different skill with no sentence
     linking the two, and the topic browser can show a skill as closed while
     offering it as repair practice.
+    **Done (MP17, 2026-10-25), four of five:** the hub uses the wedge's own word
+    (`profileStatus`); a mastered card's list is headed "What this is based on"
+    (`evidenceHeadingFor`); a unit with topics both behind and ahead of the class
+    says "Your class is partway through this unit"; a repair button has a line
+    over it ("To open this skill, practise this first:", or "Practising this
+    first will make this skill easier:" on a Strengthen card). **Not changed, a
+    product call:** a repair can be a skill that is later in the course, shown
+    as closed on its own row. The map offers the same repair and the browser's
+    doors equal the map's, so the choice (make such a skill a door on its own
+    row and card, or hold the repair back until the class gets there) is
+    recorded at `buildSkill` in `topicBrowser.js`.
   - CCMR: a saved test date that has passed shows a validation alert on load;
     the hub's "leans toward this test" promise is false in a class whose
     teacher picked a framework; a cached plan unlocks editing before the
     server answers; a simulator comment overstates what it follows; every
     plan snapshot rebuilds the weekly plan; three container guards in
     `ccmrPlanWiring.test.mjs` can be broken with every test green.
+    **Done (MP17, 2026-10-25), all six:** the saved date is not checked as a
+    draft (`ccmrTestDateDraftProblem(…, { saved })`); under a framework the
+    teacher picked, the hub says so instead of promising the lean
+    (`ccmrTestDateGuidance`); editing waits for the server, never a cached copy
+    (`ccmrPlanContainerView`); the simulator's comment says its week has no test
+    practice; a snapshot with an unchanged plan keeps the same object
+    (`ccmrPlanStateFromSnapshot`), so the week is not rebuilt; the container's
+    guards are tested steps in `ccmrPlan.js` (`ccmrPlanClient.test.mjs`). One
+    cost: offline with a cached plan, the plan shows but cannot be edited.
   - retention: `submitPathResponse` imports `pathRetentionCheck.mjs` inside its
     transaction (a cold-start cost, not a correctness issue); the "· 2
     questions" start label has no test; in the Teacher Path Simulator a passed
     weekly check can un-tick its slot when the unfrozen simulated week
     re-plans.
+    **Done (MP17, 2026-10-25), all three:** `submitPathResponse` loads the
+    module before its transaction; the start label is `weeklyStartLabel` in
+    `pathSessionLaunch.js`, tested (the panel re-exports it); the simulator
+    freezes a week once, as the server does, so a passed check stays ticked
+    (forced changes such as Make Retention Due then show on the map at once
+    and in the weekly plan from the next simulated week, as for a student).
 - **Open retention checks share the open-practice lock** with practice on the
   same TEKS (pre-existing), and the server does not check that an open check
   is actually due (pre-existing; weekly slots are protected).
+  **Done (MP21, 2026-10-25), both:** `startMyMathPathSession` refuses a NEW open
+  check that is not due ("This check is not due yet…", reason
+  `retention-check-not-due`, nothing written), by the rule the student's screen
+  offered it by (the one mastery rule, MP22); an open check is always resumed.
+  An open check now takes a lock of its own (`lib/pathSessionLock.js`), so it
+  and practice on the same standard no longer block each other; a weekly slot
+  keeps one lock whatever its kind. In flight on deploy day: each session now
+  records the lock it took (`lockId`) and is released by it; one started before
+  is released by the id it took then (recomputed exactly), and a check opened
+  before holds the open-practice lock, where a new launch finds and resumes it.
+- **Screens that bypass the one mastery rule (MP22, 2026-10-25).** Moved to the
+  more favourable of the server profile and the assignment record:
+  - whether a Challenge is earned. The server asked whether the TARGET skill
+    was Mastered on its own profile, which a Challenge skill (ahead of the
+    class, strong prerequisites) never is: every Challenge card was refused at
+    its first question, and the open session then blocked ordinary practice on
+    the skill. Now `startMyMathPathSession` asks the student's own Path
+    (`lib/favourableMastery.js`, the browser's engine over records the browser
+    cannot write) and records `challengeEarned`; the old answer still counts.
+    Not earned, the launch is ordinary practice. A Challenge session opened
+    before the deploy and never earned now gets ordinary questions (still
+    labelled Challenge) instead of being stuck.
+  - whether a retention check is due: the weekly freeze (a skill Mastered in
+    assignment work froze its Retention slot as a Review) and an open check.
+  - "Skills that moved" at a session's end (it listed a skill the Path showed
+    as Mastered as "Developing → Secure").
+  Kept on the server's profile, on purpose: in-session routing and adaptive
+  rigor (`functions/lib/pathRouting.js`: every answer, and it must react to
+  today's answers), and the mastery history behind My Progress and the growth
+  rewards (`functions/shared/masteryHistory.mjs`: weeks compare like with like,
+  and the assignment record keeps no past). So "Skills mastered" on My Progress
+  can be lower than the Path's count. Outside this lane: the teacher screens
+  (roster Learning Profile, profile drawer, Weekly Path explainer) read the
+  assignment record alone; they load no server profile.
+- **When assignment evidence moves the Path (MP25, 2026-10-25).** Traced and
+  written beside `favourableMasteryBySkill` (`masteryAdapter.js`), pinned by
+  `tests/platform/pathAssignmentEvidence.test.mjs`. Two moves on evidence that
+  did not warrant them are fixed: (1) a prerequisite too thin for the one rule
+  to judge on both records (one assignment question, under two Path
+  questions) locked every skill built on it after a single miss; it no longer
+  locks or sends a skill to remediation (`lock: false`). It still counts in
+  readiness as main counted it, so the skills built on it stay open but can
+  drop from Recommended to Available, and nothing main credited is lost; with
+  enough evidence on either record it locks as before; (2) work from an
+  assignment marked "not for mastery"
+  (`evidencePolicy.masteryEligible: false`) was skipped by the assignment
+  record but still moved the server's profile; new answers from such work no
+  longer do (stored events are not rewritten). Kept as decided: one right
+  answer reads Mastered on the 0.9 record.
 - **Swap lock ids** are still per target and slot (changing them would orphan
   in-flight sessions); the client resumes the open session.
 - **My Progress history starts at deploy** (profiles were never time-indexed).
+  **Decided (MP11, 2026-10-23): accepted, nothing retroactive is built.** The
+  screen says so in the student's words ("Your progress starts with your next
+  answer", `describeGrowthForStudent`, pinned by
+  `tests/platform/myMathPathProgress.test.mjs`).
 - Teacher-facing copy in `WeeklyPathAutoPublish.jsx` still says "midnight
   Sunday night" (outside job D's lane; `weeklyDueDayName` is available).
+  **Done (MP05, 2026-10-25):** it names the class's own due day ("after the week
+  closes on Friday night", from `classDueDayName` over the goals the grade panel
+  holds), and says "on its due day" when those goals disagree.
 
 ## Deploy (owner, Cloud Shell)
 

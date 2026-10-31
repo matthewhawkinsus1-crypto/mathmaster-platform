@@ -70,13 +70,15 @@ test('Day 2 uses the exact source systems specified in issue #371', () => {
   assert.equal(cwClass.type, 'unique');
   assert.deepEqual(cwClass.solution, { x: -2, y: 6, z: -3 });
 
-  // 2. Alternate unique system: x + y - z = -1, x + y + z = 3, 3x - 2y - z = -4 (solution: 0, 1, 2)
+  // 2. Alternate unique system for Practice 1: x + y + z = 5, x - y + z = 9, 2x + 3y - z = -4
+  //    (solution: 3, -2, 4). It used to be the Warm-Up's own system (CT10 / A2-37), whose
+  //    solution point the Warm-Up's 3D model can reveal.
   const prSolve = questions.find((q) => q.questionId === '3x3-d2-pr-1');
   assert.ok(prSolve);
   const prForms = prSolve.equations.map((eq) => linearEquationForm(eq, ['x', 'y', 'z']));
   const prClass = classifyLinearSystem(prForms, ['x', 'y', 'z']);
   assert.equal(prClass.type, 'unique');
-  assert.deepEqual(prClass.solution, { x: 0, y: 1, z: 2 });
+  assert.deepEqual(prClass.solution, { x: 3, y: -2, z: 4 });
 
   // 3. Infinite-solution system: 2x + y - 3z = 5, x + 2y - 4z = 7, 6x + 3y - 9z = 15
   const infSpatial = questions.find((q) => q.questionId === '3x3-d2-cw-1');
@@ -98,6 +100,41 @@ test('Day 2 uses the exact source systems specified in issue #371', () => {
   const triClass = classifyLinearSystem(triForms, ['s', 'm', 'l']);
   assert.equal(triClass.type, 'unique');
   assert.deepEqual(triClass.solution, { s: 17, m: 23, l: 32 });
+});
+
+test('No Practice question reuses the Warm-Up system, so the point its 3D model reveals answers nothing later (CT10 / A2-37)', () => {
+  // The Warm-Up's three planes let a student reveal their intersection point
+  // (`allowSolutionReveal`). Practice 1 used to be that very system, so a
+  // remembered (0, 1, 2) was the whole Practice answer.
+  const [warmupSection, , practiceSection] = rawLesson.sections;
+  const xyz = ['x', 'y', 'z'];
+  const threeByThree = (section) => section.questions.filter((question) => (
+    Array.isArray(question.equations) && question.equations.length === 3
+    && Array.isArray(question.variables) && question.variables.join() === xyz.join()
+  ));
+  // A system is its rows, in any order: [x, y, z coefficients, constant] each.
+  const rowsOf = (question) => JSON.stringify(question.equations.map((equation) => {
+    const form = linearEquationForm(equation, xyz);
+    return [...xyz.map((name) => form.coefficients[name]), form.constant];
+  }).sort());
+  const solutionOf = (question) => classifyLinearSystem(question.equations.map((equation) => linearEquationForm(equation, xyz)), xyz);
+
+  const warmupSystems = threeByThree(warmupSection);
+  const practiceSystems = threeByThree(practiceSection);
+  assert.ok(warmupSystems.length >= 1, 'the Warm-Up has its three-plane system');
+  assert.ok(practiceSystems.length >= 2, 'Practice has several x, y, z systems to compare');
+  assert.equal(warmupSystems[0].spatialModel.allowSolutionReveal, true, 'the Warm-Up can reveal its solution point');
+  const revealed = solutionOf(warmupSystems[0]);
+  assert.equal(revealed.type, 'unique');
+  practiceSystems.forEach((practice) => {
+    warmupSystems.forEach((warmup) => {
+      assert.notEqual(rowsOf(practice), rowsOf(warmup), `${practice.questionId} is not ${warmup.questionId}'s system`);
+    });
+    const result = solutionOf(practice);
+    if (result.type === 'unique') {
+      assert.notDeepEqual(result.solution, revealed.solution, `${practice.questionId} is not answered by the point the Warm-Up reveals`);
+    }
+  });
 });
 
 test('Day 2 preserves reveal timing, strategy agency, and correct no-solution geometry', () => {

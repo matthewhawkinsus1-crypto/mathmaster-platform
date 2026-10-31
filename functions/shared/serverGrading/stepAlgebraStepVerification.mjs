@@ -615,9 +615,20 @@ const recomputeMove = (before, operation) => {
 /** The side a one-side rewrite changed, by the workspace's own comparison. */
 const changedSides = (before, after) => ['left', 'right'].filter((side) => compact(before[side]) !== compact(after[side]));
 
-const rewriteLabel = (kind, changed, claimed) => {
-  if (kind === 'student-rewrite') return `Rewrite / simplify ${changed.join(' and ')}`;
-  if (kind === 'combine-like-terms') return `Combine like terms on the ${changed[0]} side`;
+/*
+ * THE LABEL A REWRITE STEP IS RECORDED UNDER (GR26). One Simplify tells the
+ * student "Simplified the left side" for a whole side and "Combined like
+ * terms on the left side" for a like-terms part; the step was recorded under
+ * the retired bar's "Rewrite / simplify left". The workspace sends this same
+ * text (StepByStepAlgebraCore imports it), so the browser's record and the
+ * server's stay equal. An inline rewrite keeps its general label: its kind
+ * does not say whether parentheses or a factor of 1 went. Display only: no
+ * credit, state or check reads a label, and a record already stored keeps
+ * the label it was written with.
+ */
+export const equationRewriteLabel = (kind, changed = [], claimed = '') => {
+  if (kind === 'student-rewrite') return changed.length > 1 ? `Simplified the ${changed.join(' and ')} sides` : `Simplified the ${changed[0]} side`;
+  if (kind === 'combine-like-terms') return `Combined like terms on the ${changed[0]} side`;
   if (kind === 'inline-term-rewrite') return `Rewrite one term on the ${changed[0]} side`;
   if (kind === 'student-cancellation') return `Cancel matching terms on the ${changed[0]} side`;
   // Distribution and the structure tools name the factor or fraction they
@@ -714,7 +725,7 @@ const verifyEquationStep = ({ work, pristine, question, record, stepNumberBase }
       action,
       stepGrade: equationRewriteStepGrade({
         kind,
-        label: rewriteLabel(kind, changed, text(work.label)),
+        label: equationRewriteLabel(kind, changed, text(work.label)),
         supportLevel,
         before,
         after,

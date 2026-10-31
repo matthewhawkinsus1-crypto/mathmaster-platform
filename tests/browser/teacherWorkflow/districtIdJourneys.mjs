@@ -307,7 +307,7 @@ const run = async (page, context, viewport) => {
   const home = await text(studentPage.locator('body'));
   expect('D5', home.includes(`Welcome, ${CASE.firstName} ${CASE.lastName}`), `she signs in to the same account (${home.slice(0, 160)})`);
   // Her graded work is all still hers: My Grades lists both lessons, graded.
-  await studentPage.getByRole('button', { name: /^Grades$/ }).first().click();
+  await studentPage.getByRole('link', { name: /^Grades$/ }).first().click();
   await settle(studentPage, 1500);
   const grades = await text(studentPage.locator('body'));
   expect('D5', /Slope Foundations .*?\d+% GRADED/.test(grades) && /Linear Functions — Review .*?\d+% GRADED/.test(grades), `her graded work is all there (${grades.slice(0, 300)})`);

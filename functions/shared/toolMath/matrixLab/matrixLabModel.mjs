@@ -98,6 +98,14 @@ const readMode = (question) => {
   return MATRIX_LAB_MODES.includes(mode) ? mode : 'operate';
 };
 
+// A part weight as the grade contract reads one: a number above 0, at most 20
+// (gradingResult.mjs). Anything else is no weight.
+const readPartWeight = (value) => {
+  if (typeof value !== 'number' && !(typeof value === 'string' && value.trim() !== '')) return null;
+  const weight = Number(value);
+  return Number.isFinite(weight) && weight > 0 && weight <= 20 ? weight : null;
+};
+
 const readVariables = (question) => {
   const variables = list(question.variables).map((variable) => text(variable).trim()).filter((variable) => /^[A-Za-z]$/.test(variable));
   return variables.length >= 2 ? variables : [...DEFAULT_VARIABLES];
@@ -239,6 +247,11 @@ export const readMatrixLabQuestion = (question = {}) => {
     // constants follow (student pass 3, P2-2). Authored, so a published
     // assignment keeps the grading it was published with.
     justifySingular: mode === 'solve' && q.justifySingular === true,
+    // How many parts' worth the decision counts: the number of solutions and,
+    // where its reason is asked, the reason, which share it (the owner,
+    // 2026-10-23, A2-17: more weight for the decision on DOL 3). Authored like
+    // justifySingular; unset, each counts one part, as before.
+    decisionWeight: mode === 'solve' ? readPartWeight(q.decisionWeight) : null,
     keyInverse: inverse.value || null,
     classification,
     asWritten: equations.map((equation) => asWrittenReading(equation, variables)),
@@ -438,6 +451,24 @@ export const proportionalRowPair = (A) => {
   return null;
 };
 
+/**
+ * Does a solve question whose author did not set `justifySingular` ask for
+ * the singular reason? Yes for every singular system with two rows of A that
+ * are multiples of each other (the owner, 2026-10-23, C2-61): with three
+ * buttons and three tries, "none or many" could otherwise be passed by
+ * guessing. A system with no such pair cannot be given that reason, so it is
+ * not asked there. The V5 compile applies this when a question is CREATED;
+ * read time never does, so a published question keeps the grading it was
+ * published with, and `justifySingular: false` turns it off.
+ */
+export const asksSingularReasonByDefault = (question = {}) => {
+  const model = readMatrixLabQuestion(question);
+  return model.mode === 'solve'
+    && Boolean(model.classification)
+    && model.classification.type !== SOLUTION_TYPES.ONE
+    && Boolean(proportionalRowPair(model.keyA));
+};
+
 /* ---------------------------------------------------------------------------
  * The matrix calculator.
  * ------------------------------------------------------------------------- */
@@ -575,6 +606,9 @@ export const validateMatrixLabQuestion = (question = {}) => {
     if (!model.buildEquation && !(model.matrices.A?.values && model.matrices.B?.values)) errors.push('matrixLab solve without equations needs matrices A and B.');
     if (model.justifySingular && model.classification && model.classification.type !== SOLUTION_TYPES.ONE && !proportionalRowPair(model.keyA)) {
       errors.push('matrixLab solve justifySingular asks the student for two rows of A that are multiples of each other, but no two rows of this A are. Choose a system where one row is a multiple of another, or leave justifySingular out.');
+    }
+    if (q.decisionWeight !== undefined && q.decisionWeight !== null && model.decisionWeight === null) {
+      errors.push('matrixLab solve decisionWeight is how many parts\' worth the number of solutions (with its reason) counts: a number above 0, at most 20.');
     }
   }
 

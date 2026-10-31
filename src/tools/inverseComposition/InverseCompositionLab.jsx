@@ -140,7 +140,7 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
   return (
     <ToolShell
       title="Inverse & Composition Lab"
-      subtitle={mode === 'composition' ? 'Follow a value through two functions in both orders.' : mode === 'inverse' ? 'Undo a function and connect its graph to the inverse.' : 'Compose functions and connect a function to its inverse.'}
+      subtitle={mode === 'composition' ? 'Follow a value through two functions in both orders.' : mode === 'inverse' ? 'Find the inverse of a function and connect its graph to the original.' : 'Compose functions and connect a function to its inverse.'}
       badge="Algebra II · Functions"
     >
       <TaskCard

@@ -32,8 +32,9 @@
  * Honors DOL #2 review, what is added is support, the way every question in
  * this review has it: a "Let's back up" step, a "Watch out" line, its worked
  * solution in plain text (the bank writes it in $…$ LaTeX, which outside a
- * prompt reaches the student as markup), and an assignment-local Question
- * Family so each student gets their own numbers.
+ * prompt reaches the student as markup), a reason for each option of a
+ * one-try choice, and an assignment-local Question Family so each student
+ * gets their own numbers.
  *
  * The regular file is the source of truth: change it, then run this again.
  * tests/platform/algebra1Dol3HonorsReview.test.mjs fails if the committed
@@ -72,6 +73,16 @@ export const HONORS_CCMR_DOCUMENTS = Object.freeze([
       correct: 'An experiment in which the values of one variable are assigned at random',
     },
     commonError: 'Reading a strong pattern as proof of cause; without random assignment, a third variable could be making both X and Y rise.',
+    // A choice-only item has one try, so each option gets a reason shown after
+    // it (FB05, the owner, 2026-10-16), keyed by the bank's own option text.
+    optionRationales: {
+      answer: {
+        'The data show an association, but they do not establish that one variable caused the other': 'With no experiment, the data show only that X and Y rise together; some other factor could be driving both.',
+        'The data prove that higher X causes higher Y': 'This reads a pattern as proof of cause; without random assignment, a third variable could be raising both X and Y.',
+        'The data prove that higher Y causes higher X': 'Turning the cause around does not fix it: observational data cannot show which variable, if either, causes the other.',
+        'The data show that X and Y have no relationship': 'Higher values of X do tend to come with higher values of Y, so there is a relationship to describe.',
+      },
+    },
   },
   {
     framework: 'digitalSAT',
@@ -137,10 +148,31 @@ const loadBankDocument = ({ framework, documentId }) => {
   return document;
 };
 
+/**
+ * A choice field with this review's reason for each of its options, right
+ * after its answer. A reason for an option the bank does not offer, or an
+ * option with none, is refused, never guessed at.
+ */
+const withOptionRationales = (field, reasons) => {
+  const options = (field.options || []).map(String);
+  const keys = Object.keys(reasons);
+  if (options.length !== keys.length || options.some((option) => !keys.includes(option))) {
+    throw new Error(`${field.id}: write one reason for each of its options (${options.join(' | ')}).`);
+  }
+  return Object.fromEntries(Object.entries(field).flatMap(([key, value]) => (key === 'answer'
+    ? [[key, value], ['optionRationales', Object.fromEntries(options.map((option) => [option, reasons[option]]))]]
+    : [[key, value]])));
+};
+
 /** The audited item as the bank converts it for a Practice place, with this review's supports. */
 export const honorsCcmrQuestion = (reference) => {
   // The section gives it its role, and the review its id.
   const intent = without(bank.bankDocumentToV5Intent(loadBankDocument(reference), { activityRole: 'practice' }), ['activityRole', 'questionId']);
+  if (reference.optionRationales) {
+    intent.answerFields = intent.answerFields.map((field) => (
+      reference.optionRationales[field.id] ? withOptionRationales(field, reference.optionRationales[field.id]) : field
+    ));
+  }
   const solutionReview = Object.fromEntries(Object.entries(intent.solutionReview || {}).map(([key, value]) => (
     [key, Array.isArray(value) ? value.map(plainSolutionText) : plainSolutionText(value)]
   )));

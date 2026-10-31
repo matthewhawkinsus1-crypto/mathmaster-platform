@@ -1027,17 +1027,26 @@ My Math Path and Live Challenge.
   ingestion's sanitized, attempt-bounded client record, unchanged.
 * **My Math Path and Live Challenge contracts diverge from the tools.** Path
   is its own server-authoritative subsystem, and migrating its contracts to
-  the shared graders would change live Path scores, so it is left to a
-  dedicated change. Fixed here: the relation-mapping functionhood vocabulary
-  (every correct answer was marked wrong). Still divergent, from the audit and
-  the tool reviews: relation mapping (`yes-output-rule` accepted, domain and
-  range compared as multisets, a 1e-6 tolerance, plot and analysis fields
-  ignored); systems workspace (every mode but inequalities and matrix3 treated
-  as `linear`); data modeling (causation, intercept default, a line fit with a
-  prediction graded on the fit alone); Step Algebra (form objectives,
-  candidate checks and representations ignored). Path's `algebra` contract
-  cannot read the balance workspace's answer, but the Path question bank holds
-  no `algebra` items. The shared graders export the helpers Path can adopt.
+  the shared graders would change live Path scores, so it moves one rule at a
+  time. Fixed: the relation-mapping functionhood vocabulary (every correct
+  answer was marked wrong); "is it a function?" through the tool's own rule,
+  so `yes-output-rule` is wrong on the Path too, and the `algebra` contract
+  reading the balance workspace's equation (both 2026-10-01, PR #415); the
+  typed domain and range read as sets by the lab's own rule
+  (`toolMath/relationMapping/relationSets.mjs`, MP07: a value typed twice was
+  wrong on the Path only). The rest are pinned on every live item, with the
+  side that is right, by `tests/platform/pathToolSharedParity.test.mjs`
+  (`KNOWN_DIVERGENCES`), and the verdicts a change moves are listed by
+  `scripts/sweep-path-tool-verdicts.mjs`. On live items: a linear system's
+  authored `numericTolerance` (the Path honours 0.15 on the estimate items,
+  the shared grader always uses 0.05), a typed line's intercept tolerance
+  (Path max(0.8, 8% of |b|), the lab 0.8), all-or-nothing scores on the Path
+  where the shared graders give the share of right parts, and shapes today's
+  tools no longer send. Not reached by any live item (each asserted there):
+  relation plot and analysis fields (not served or graded on the Path),
+  systems modes other than linear, inequalities and matrix3, data modeling's
+  causation and line-fit prediction modes, and Step Algebra's form
+  objectives, candidate checks and representations.
 * **Secure Test Cycle issuability.** The audit found the issuability gate accepts
   any Path tool-contract family while the secure runtime grades with the legacy
   field grader. Recorded for the Test Cycle owners; unchanged here.
@@ -1050,15 +1059,30 @@ My Math Path and Live Challenge.
   a provisional pin can choose *which* instance of the family to answer — never
   credit for an instance they did not answer correctly. Seating the class
   (which every roster sync does) closes it for that assignment.
-* **A pin's support modification is the browser's claim.** A family can narrow
-  its parameters for a student support (`supportConstraints`), and the pin
-  names the support it was built under. The server rebuilds and grades that
-  instance faithfully but does not cross-check the support against the
-  student's profile at delivery time. As above, this can choose an instance; it
-  cannot turn a wrong answer into credit.
-* **Other content-upgrade regrades.** The content-upgrade migration's own
-  regrades for safe response controls and systems-workspace upgrades keep their
-  existing logic; only the Data Modeling prediction case (§2) was corrected.
+* **~~A pin's support modification is the browser's claim.~~ Closed (SI03,
+  2026-10-24).** A family can narrow its parameters for a student support
+  (`supportConstraints`), and the pin names the support it was built under.
+  Ingestion and the deadline finalizer now check that support against the
+  student's profile (`familySupportsGranted` in `questionFamilyGrading.mjs`:
+  the grade document's `profile`, read as the student's app reads it, granted
+  on the day of the work or the day it arrived). A pin naming a support the
+  profile does not grant is refused (`family-pin-support-not-granted`): the
+  work is held for a teacher, never graded as the unsupported instance, whose
+  numbers differ. The canonical record's own delivery keeps its support after
+  a plan ends. Left: a canonical pin written before this check is trusted as
+  stored, and a student whose modification is ended between first seeing a
+  question and first submitting it has that answer held for review.
+  Tests: `tests/platform/familyPinSupportGrant.test.mjs`.
+* **Other content-upgrade regrades.** A grading expansion's multi-answer parts
+  are re-marked by the server's own multi-answer grader
+  (`gradeMultiAnswerResponse`) against the upgraded question (GR07,
+  2026-10-25); a question the server does not mark from its stored copy keeps
+  its record. Two regrades keep their own rules by design, recorded at the
+  code: a safe response control credits every complete part of a box that
+  became a choice (as the browser's live correction does: the old free-text
+  box could not be read), and a systems-workspace upgrade re-marks nothing
+  and returns one attempt. The Data Modeling fit regrade still reads the fit
+  itself (§2: a fit with a prediction is not provable and is left alone).
 * **Small, documented edges kept for parity.** A points-only graph with no
   point tasks is vacuously complete; free text past 3,000 characters in one
   scenario textarea is graded on its first 3,000; a hand-authored workflow with

@@ -159,7 +159,15 @@ const VISIBILITY = {
     'slope-sign-reversed': ({ n, d }) => finite(n) && finite(d) && n !== 0 && d !== 0 && !near(Math.abs(n), Math.abs(d)),
     'intercepts-swapped': ({ b, zero }) => finite(b) && finite(zero) && !near(b, zero) && b !== 0 && zero !== 0,
     'ordered-pair-reversed': ({ b, zero }) => finite(b) && finite(zero) && !near(b, zero) && b !== 0 && zero !== 0,
-    'initial-value-from-later-reading': (values) => finite(values.readAmount) && finite(values.readTime) && finite(values.rate),
+    // The classifier names it only when the later reading equals no other
+    // number of the story (misconceptionClassifiers.mjs, its `others`), so a
+    // version where it does cannot show the error (RC12). The same blockers,
+    // and the true start: then the reading IS the start.
+    'initial-value-from-later-reading': ({ n, d, b, zero, rate, per, readTime, readAmount, remaining }) => {
+      if (![n, d, b, zero, rate, per, readTime, readAmount].every(finite) || n === 0 || d === 0) return false;
+      const others = [rate, -rate, per, zero, readTime, remaining, -b, n / d, d / n];
+      return !near(readAmount, b) && !others.some((value) => near(value, readAmount));
+    },
   },
 };
 

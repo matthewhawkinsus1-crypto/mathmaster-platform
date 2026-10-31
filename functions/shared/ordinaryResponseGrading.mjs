@@ -39,6 +39,7 @@ import {
   sameWrittenNumber,
 } from './fractionAnswer.mjs';
 import { numericSetCredit } from './numericSetCredit.mjs';
+import { withLineFormPolicy } from './lineFormPolicy.mjs';
 
 const text = (value) => String(value ?? '');
 const filled = (value) => text(value).trim() !== '';
@@ -82,7 +83,7 @@ const hasAnswerKey = (question = {}) => {
       return Array.isArray(pair) || Boolean(orderedPairKey(pair));
     }
     case 'system':
-      return Array.isArray(question.solution);
+      return Boolean(systemSolutionKey(question));
     case 'table':
       return Object.keys(question?.table?.answers || {}).length > 0;
     default:
@@ -137,7 +138,10 @@ export const gradeLiteralResponse = (question = {}, rawAnswer) => {
     isCorrect,
     parts: [{
       id: 'literal',
-      label: `Expression for ${question.solveFor}`,
+      // A question compiled from a solveLiteral action without solveFor names
+      // no variable: its part is "Your answer", never "Expression for undefined"
+      // (a miss reads "Focus on: …" with this label).
+      label: text(question.solveFor).trim() ? `Expression for ${text(question.solveFor).trim()}` : 'Your answer',
       isComplete,
       isCorrect,
       response: answer,
@@ -213,8 +217,26 @@ export const gradeOrderedPairResponse = (question = {}, rawAnswer) => {
   };
 };
 
+/*
+ * A system's key as [x, y]. The type catalog's own example keys it as
+ * `answer: { x: 2, y: 5 }` and the V5 compiler writes `answer`, but only an
+ * array in `solution` was read, so a system keyed { x, y } was wrong for
+ * every answer and the server never marked it (GR31). Either field, as an
+ * array, an { x, y } record or pair text.
+ */
+export const systemSolutionKey = (question = {}) => {
+  for (const key of [question.solution, question.answer]) {
+    const pairOf = key && typeof key === 'object' && !Array.isArray(key) && key.x !== undefined && key.y !== undefined
+      ? [key.x, key.y]
+      : key;
+    const pair = orderedPairKey(pairOf);
+    if (pair) return pair;
+  }
+  return null;
+};
+
 export const gradeSystemResponse = (question = {}, rawAnswer) => {
-  const solution = question.solution;
+  const solution = systemSolutionKey(question);
   const parsed = parseOrderedPair(rawAnswer);
   const isComplete = Boolean(parsed);
   const xCorrect = Boolean(parsed) && Math.abs(parsed[0] - Number(solution?.[0])) <= 1e-9;
@@ -249,7 +271,10 @@ export const gradeMultiAnswerResponse = (question = {}, responsesById = {}) => {
   const fields = multiAnswerFields(question);
   const parts = fields.map((field) => {
     const response = text(responsesById?.[field.id]);
-    const isCorrect = response.trim() !== '' && matchesFieldAnswer(response, field);
+    // GR03: a line field whose question asks for no form takes any equation
+    // of its line, read from the question's own words (lineFormPolicy.mjs).
+    // The screen hands this the whole question too, so both agree.
+    const isCorrect = response.trim() !== '' && matchesFieldAnswer(response, withLineFormPolicy(question, field));
     return {
       id: field.id,
       label: field.label || field.id,

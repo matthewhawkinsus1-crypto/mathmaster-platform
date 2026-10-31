@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { region, executableSource } from './helpers/sourceContract.mjs';
 import {
+  HOST_AWAY_ENDED_BY,
   HOST_AWAY_FINISH_MS,
   HOST_HEARD_WRITE_INTERVAL_MS,
   SERVER_CLOSE_GRACE_MS,
@@ -24,42 +25,84 @@ import {
   sweepDueAfterOpeningMs,
   sweepSettingsFrom,
 } from '../../functions/shared/liveChallengeServerSweep.mjs';
-import { ROUND_CLOSE_AFTER_DEADLINE_MS } from '../../src/platform/liveChallenge/challengeShellModel.js';
+import { ROUND_CLOSE_AFTER_DEADLINE_MS, hostEndedNote } from '../../src/platform/liveChallenge/challengeShellModel.js';
 import { SUBMISSION_ARRIVAL_GRACE_MS } from '../../functions/shared/liveChallengeParity.mjs';
 
 const NOW = Date.UTC(2026, 9, 16, 15, 0, 0);
 const open = (endsAtMs, extra = {}) => ({ status: 'running', roundState: 'open', currentRound: 2, roundVersion: 3, endsAt: endsAtMs, ...extra });
 const closed = (closedAtMs, extra = {}) => ({ status: 'running', roundState: 'closed', currentRound: 2, roundVersion: 3, roundClosedAt: closedAtMs, ...extra });
-// The owner switched ending abandoned games on; the host was heard, long ago.
+// Ending abandoned games written on explicitly; the host was heard, long ago.
 const FINISH_ON = sweepSettingsFrom({ finishAbandonedGames: true });
+// The rollback: the switch turns ending abandoned games off.
+const FINISH_OFF = sweepSettingsFrom({ finishAbandonedGames: false });
 const HEARD_LONG_AGO = { hostHeardAt: NOW - 2 * HOST_AWAY_FINISH_MS };
 
-test('the switch: the sweep is on and ending abandoned games is off unless the owner sets them', () => {
+test('the switch: the sweep and ending abandoned games are on unless the switch turns them off, and it fails closed', () => {
   assert.equal(SWEEP_SETTINGS_COLLECTION, 'platformFlags', 'a server-written-only collection (firestore.rules)');
   assert.ok(SWEEP_SETTINGS_FLAG);
-  assert.deepEqual({ ...sweepSettingsFrom(null) }, { enabled: true, finishAbandonedGames: false });
-  assert.deepEqual({ ...sweepSettingsFrom({ enabled: false }) }, { enabled: false, finishAbandonedGames: false });
-  // It fails CLOSED: a rollback typed into a console as a string still takes.
-  for (const value of ['false', 'off', 0, null, 'true', 1]) {
+  // The owner's decision (LC05): with no switch written, abandoned results end.
+  assert.deepEqual({ ...sweepSettingsFrom(null) }, { enabled: true, finishAbandonedGames: true });
+  assert.deepEqual({ ...sweepSettingsFrom({}) }, { enabled: true, finishAbandonedGames: true }, 'an empty document keeps both defaults');
+  assert.deepEqual({ ...sweepSettingsFrom({ enabled: false }) }, { enabled: false, finishAbandonedGames: true });
+  // It fails CLOSED: a rollback typed into a console as a string still takes,
+  // for the whole sweep and for ending abandoned games alike.
+  for (const value of ['false', 'off', 0, null, 'true', 1, 'yes', false]) {
     assert.equal(sweepSettingsFrom({ enabled: value }).enabled, false, `enabled: ${JSON.stringify(value)} turns the sweep off`);
+    assert.equal(sweepSettingsFrom({ finishAbandonedGames: value }).finishAbandonedGames, false, `finishAbandonedGames: ${JSON.stringify(value)} turns the finish off`);
   }
   assert.equal(sweepSettingsFrom({ enabled: true }).enabled, true);
-  assert.equal(sweepSettingsFrom({ finishAbandonedGames: true }).enabled, true, 'a document without the field keeps the default');
-  assert.deepEqual({ ...sweepSettingsFrom({ finishAbandonedGames: 'yes' }) }, { enabled: true, finishAbandonedGames: false }, 'only a real true turns it on');
+  assert.equal(sweepSettingsFrom({ finishAbandonedGames: true }).finishAbandonedGames, true);
+  assert.equal(sweepSettingsFrom({ finishAbandonedGames: false }).enabled, true, 'a document without the field keeps the default');
   // Longer than a class talking a round through, or a laptop's nap.
   assert.ok(HOST_AWAY_FINISH_MS >= 30 * 60_000);
+});
+
+test('LC05: with no switch written, a game that writes no grade ends at 30 minutes with no host heard, not a moment before; a graded game never', () => {
+  const DEFAULT = sweepSettingsFrom(null);
+  // The owner's window: 30 minutes, on the results' clock and the host's.
+  assert.equal(HOST_AWAY_FINISH_MS, 30 * 60_000);
+  const thirtyAgo = NOW - 30 * 60_000;
+  const expected = { roundIndex: 2, roundVersion: 3 };
+  const plan = (room, privateState) => planServerSweep({ room, privateState, nowMs: NOW, settings: DEFAULT });
+  const recheck = (room, privateState) => stillAbandoned({ room, privateState, expected, nowMs: NOW, settings: DEFAULT });
+
+  // At the line: results 30 minutes old, the host last heard 30 minutes ago.
+  const atLine = { hostHeardAt: thirtyAgo };
+  assert.deepEqual(plan(closed(thirtyAgo), atLine), { action: SWEEP_ACTION.FINISH, expected });
+  assert.equal(recheck(closed(thirtyAgo), atLine), true, 'and the finish transaction agrees');
+
+  // One millisecond short on the results' clock: not ended, and looked at
+  // again a recheck later (the line itself is a millisecond away).
+  assert.deepEqual(plan(closed(thirtyAgo + 1), atLine), { action: SWEEP_ACTION.RESCHEDULE, nextDueMs: NOW + SERVER_RECHECK_MS });
+  assert.equal(recheck(closed(thirtyAgo + 1), atLine), false);
+  // One millisecond short on the host's clock: a host heard 29:59.999 ago keeps the game.
+  const heardJustInside = { hostHeardAt: thirtyAgo + 1 };
+  assert.deepEqual(plan(closed(NOW - 2 * HOST_AWAY_FINISH_MS), heardJustInside), { action: SWEEP_ACTION.RESCHEDULE, nextDueMs: NOW + SERVER_RECHECK_MS });
+  assert.equal(recheck(closed(NOW - 2 * HOST_AWAY_FINISH_MS), heardJustInside), false);
+
+  // A game that writes a grade (a Warm-Up) is never ended by the server, on
+  // either side of the line: left to the teacher, and not looked at again.
+  for (const [room, privateState] of [
+    [closed(thirtyAgo, { assignmentId: 'warmup-a1' }), atLine],
+    [closed(NOW - 10 * HOST_AWAY_FINISH_MS, { assignmentId: 'warmup-a1' }), HEARD_LONG_AGO],
+    [closed(thirtyAgo + 1, { assignmentId: 'warmup-a1' }), atLine],
+  ]) {
+    assert.deepEqual(plan(room, privateState), { action: SWEEP_ACTION.CLEAR });
+    assert.equal(recheck(room, privateState), false);
+  }
 });
 
 test('the server never ends a game it never heard a host on, or one that writes a grade', () => {
   assert.equal(finishAllowed({ room: closed(0), privateState: HEARD_LONG_AGO, settings: FINISH_ON }), true);
   assert.equal(finishAllowed({ room: closed(0), privateState: {}, settings: FINISH_ON }), false, 'no heartbeat ever: an older console or calibration');
   assert.equal(finishAllowed({ room: closed(0, { assignmentId: 'a1' }), privateState: HEARD_LONG_AGO, settings: FINISH_ON }), false, "a Warm-Up's result is its grade");
-  assert.equal(finishAllowed({ room: closed(0), privateState: HEARD_LONG_AGO }), false, 'off by default');
+  assert.equal(finishAllowed({ room: closed(0), privateState: HEARD_LONG_AGO }), true, 'on by default (LC05)');
+  assert.equal(finishAllowed({ room: closed(0), privateState: HEARD_LONG_AGO, settings: FINISH_OFF }), false, 'unless the switch turns it off');
   const longAgo = NOW - HOST_AWAY_FINISH_MS;
   for (const [room, privateState, settings] of [
     [closed(longAgo), {}, FINISH_ON],
     [closed(longAgo, { assignmentId: 'a1' }), HEARD_LONG_AGO, FINISH_ON],
-    [closed(longAgo), HEARD_LONG_AGO, sweepSettingsFrom(null)],
+    [closed(longAgo), HEARD_LONG_AGO, FINISH_OFF],
   ]) {
     assert.deepEqual(planServerSweep({ room, privateState, settings, nowMs: NOW }), { action: SWEEP_ACTION.CLEAR }, 'left to the teacher, and not looked at again');
   }
@@ -128,7 +171,7 @@ test('the finish re-checks, inside its transaction, that nobody came back', () =
   assert.equal(check(closed(longAgo, { status: 'finished' })), false);
   assert.equal(check(closed(longAgo + 1)), false, 'not yet a whole window');
   assert.equal(check(closed(longAgo), {}), false, 'never heard');
-  assert.equal(check(closed(longAgo), HEARD_LONG_AGO, sweepSettingsFrom(null)), false, 'switched off since the decision');
+  assert.equal(check(closed(longAgo), HEARD_LONG_AGO, FINISH_OFF), false, 'switched off since the decision');
 });
 
 test("the host's heartbeat is written at most once a minute and ages out after the window", () => {
@@ -200,4 +243,21 @@ test("the console's calibration is the host heartbeat, and a student added mid-g
   ]) {
     assert.ok(region(index, `${name} = onCall(`, '\n});', name).includes(call), `${name} invites the student to their class's game`);
   }
+});
+
+test('LC05: a teacher who comes back to a game the server ended reads why it is over', () => {
+  const note = hostEndedNote({ status: 'finished', endedBy: HOST_AWAY_ENDED_BY });
+  assert.match(note, /no teacher screen was open for 30 minutes/);
+  assert.match(note, /Answers students gave still count/);
+  // A game the teacher ended (or one from before the field) says nothing more.
+  for (const room of [{ status: 'finished' }, { status: 'finished', endedBy: 'teacher' }, {}, null]) {
+    assert.equal(hostEndedNote(room), null, JSON.stringify(room));
+  }
+  // The finish records exactly the value the console reads.
+  const room = executableSource(region(index, 'async function sweepLiveChallengeRoom(', 'async function sweepOverdueLiveChallengeRooms(', 'one room'));
+  assert.match(room, /endedBy: serverSweep\.HOST_AWAY_ENDED_BY,/);
+  // And the console prints it in the finished game's panel.
+  const teacher = readFileSync(new URL('../../src/components/liveChallenge/LiveChallengeTeacher.jsx', import.meta.url), 'utf8');
+  const finished = region(teacher, '{finished && (', '{cancelled && (', 'the finished panel');
+  assert.match(finished, /\{hostEndedNote\(room\) && <p[^>]*>\{hostEndedNote\(room\)\}<\/p>\}/);
 });

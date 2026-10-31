@@ -82,6 +82,12 @@ import {
   validateGraphingResponse,
 } from './pathGraphingGrading.mjs';
 import { functionAnswerIsCorrect } from './relationFunctionChoice.mjs';
+import { sameSet as sameRelationSet } from './toolMath/relationMapping/relationSets.mjs';
+// Which tool a question names is answered by the names alone (pathToolIds.mjs),
+// so a screen that only needs the answer does not load these graders.
+import { PATH_TOOL_ALIASES, resolvePathToolId } from './pathToolIds.mjs';
+
+export { resolvePathToolId };
 
 export {
   asNumber,
@@ -529,6 +535,10 @@ const enhancedInverseReflectionPrompt = (question = {}, inverse = null) => {
 };
 
 // --- The tools ----------------------------------------------------------------
+//
+// Adding a tool here? Add its id to PATH_CONTRACT_TOOL_IDS in pathToolIds.mjs
+// too: which tool a name means is answered there, without these graders
+// (tests/platform/pathToolIds.test.mjs fails until you do).
 
 const CONTRACTS = {
   // Solve an equation. The equation is the question; its solution is not.
@@ -752,8 +762,15 @@ const CONTRACTS = {
   // gained the reasons: every function was marked wrong and every non-function
   // right, whatever the student chose. The tool and this grader now share one
   // rule (relationFunctionChoice.mjs); a bare yes / no / boolean is still read.
+  //
+  // Version 3 (MP07). Version 2 compared the typed domain and range as lists,
+  // so a set with a value typed twice was wrong here and right in the lab:
+  // the range of {(-7, -2), (2, 1), (14, -2)} typed as its pairs give it,
+  // "-2, 1, -2". Both now go through the lab's own set rule
+  // (toolMath/relationMapping/relationSets.mjs). The stored definition did not
+  // change, so a question issued under version 2 is graded the same way.
   relationMapping: {
-    serverGradingVersion: 2,
+    serverGradingVersion: 3,
     responseShape: 'relation',
     // No secret in the pairs — a student can see the relation and work its
     // domain out. What the server protects is the verdict, not the data.
@@ -791,11 +808,13 @@ const CONTRACTS = {
       if (definition.ask.includes('mapping')) {
         parts.push({ id: 'mapping', isCorrect: samePairs(list(raw.arrows), definition.arrows) });
       }
+      // `domain` / `range` are the boxes as the lab parses them (parseList),
+      // compared as sets exactly as the lab's Check compares them.
       if (definition.ask.includes('domain')) {
-        parts.push({ id: 'domain', isCorrect: sameSet(list(raw.domain), definition.domain) });
+        parts.push({ id: 'domain', isCorrect: sameRelationSet(list(raw.domain), definition.domain) });
       }
       if (definition.ask.includes('range')) {
-        parts.push({ id: 'range', isCorrect: sameSet(list(raw.range), definition.range) });
+        parts.push({ id: 'range', isCorrect: sameRelationSet(list(raw.range), definition.range) });
       }
       if (definition.ask.includes('isFunction')) {
         // The tool answers with a reason ('yes-definition', …); only the
@@ -1305,35 +1324,9 @@ const parseOrderedPair = (value) => {
 
 export const PATH_TOOL_IDS = Object.freeze(Object.keys(CONTRACTS));
 
-// Authoring names that mean the same tool. `functionGraph` and
-// `functionInvestigation` are the same workspace in two modes, and one contract
-// covers both rather than two contracts drifting apart.
-//
-// `literal` is deliberately NOT aliased here even though it can render on the
-// same workspace: solving a formula for one of its letters produces an
-// expression, and marking an expression needs symbolic equivalence the server
-// does not have.
-const TOOL_ALIASES = Object.freeze({
-  functionGraph: 'functionInvestigation',
-  // Existing authoring uses the shorter semantic name while the shared tool
-  // registry renders the component under dataModelingLab. Resolve once here so
-  // the server, simulator and browser all agree on the canonical Path tool id.
-  dataModeling: 'dataModelingLab',
-});
-
-export const getPathToolContract = (toolId) => CONTRACTS[TOOL_ALIASES[toolId] || toolId] || null;
-
-/**
- * Which tool grades this question, from the question itself.
- *
- * Never from anything the browser sends: the grader is chosen from what the
- * server stored when it issued the question.
- */
-export const resolvePathToolId = (question) => {
-  const explicit = String(question?.pathToolId || question?.toolId || question?.type || '').trim();
-  const resolved = TOOL_ALIASES[explicit] || explicit;
-  return CONTRACTS[resolved] ? resolved : null;
-};
+// The authoring aliases and `resolvePathToolId` (which tool grades a question)
+// are in pathToolIds.mjs, with the list of ids this registry must match.
+export const getPathToolContract = (toolId) => CONTRACTS[PATH_TOOL_ALIASES[toolId] || toolId] || null;
 
 /**
  * Can this question be issued on a path?

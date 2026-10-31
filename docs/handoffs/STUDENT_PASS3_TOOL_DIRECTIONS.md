@@ -286,6 +286,14 @@ Hosting only (browser code). No functions, no Firestore rules, no indexes.
    division by 0, square roots and logs; the keypad's shared "notFinite" sentence ("Check for dividing by 0") was left
    as W5-4 wrote it.
 
+**Decided 2026-10-23 (B-92, B-93, C1-133, C1-134).** Decisions 1–4 are accepted as built. The proposed rule (N2) is
+adopted: a sentence that names a route shows on an assessment only where the grader requires that route, and then says
+what will be checked. Checking the three sentences against their graders found one gap: Graphing 2's factored-form
+anchor note said "…then use the slope for another point", but its grader takes the x-intercept and any second point on
+the line. Where the method is withheld it now reads "This question requires you to plot the x-intercept yourself, and a
+second point on your line." (`src/tools/graphing2/anchorInstruction.js`; tests in
+`tests/platform/assessmentRouteSentences.test.mjs`). The inequality sentence and the Bridge line were already right.
+
 ## Touched outside my scope
 
 - `src/QuestionEngine.jsx`: the stage prompt instruction gains `authoritative:true`; the keypad element gains

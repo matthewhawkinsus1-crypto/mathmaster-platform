@@ -23,7 +23,8 @@
  *                  coordinate earns credit only once BOTH are entered.
  *   plotTransform  each plotted point against its source point's image, in
  *                  plotting order, at 0.01; correct only with exactly one
- *                  point per image.
+ *                  point per image. When the plot is the images in another
+ *                  order, a misplaced image earns half its share (GR32).
  *   describe       the ten descriptions (six choices, four numbers at 0.01),
  *                  or a full description of the same function another way
  *                  (descriptionDrawsSameFunction), right in every part.
@@ -181,30 +182,55 @@ const plottedPoint = (point) => {
   return x === null || y === null ? null : [x, y];
 };
 
+/*
+ * AN ORDER-ONLY MISS (GR32, the owner). The order is the answer's order — P1
+ * must be S1's image — so only an image in its own place is right. But five
+ * right images plotted in the wrong order scored 20%, as if the student had
+ * found one. When the plot is exactly the images, each once, in another order,
+ * an image under another point's label now earns half its share: the order
+ * still costs, and no score falls, since an image in its own place keeps its
+ * full share. Any other plot is scored as before — points that only happen to
+ * land on other images (every point moved up 3 when the line moved left 3)
+ * found nothing by order.
+ */
+const MISPLACED_IMAGE_CREDIT = 0.5;
+
 const plotTransform = (question, work) => {
   const { investigationSpec, sourcePoints } = resolveTransformationsQuestion(question);
   const images = transformedSourcePoints(sourcePoints, investigationSpec);
   const plotted = Array.isArray(work.plottedPoints) ? work.plottedPoints : [];
+  const onImage = (point, image) => Boolean(point)
+    && Math.abs(point[0] - Number(image[0])) <= TOLERANCE
+    && Math.abs(point[1] - Number(image[1])) <= TOLERANCE;
   // Plotting order is the answer's order: P1 is S1's image, P2 is S2's, ...
-  const parts = images.map((image, index) => {
-    const point = plottedPoint(plotted[index]);
-    return {
-      id: `P${index + 1}`,
-      label: `Point P${index + 1}`,
-      isComplete: Boolean(point),
-      isCorrect: Boolean(point)
-        && Math.abs(point[0] - Number(image[0])) <= TOLERANCE
-        && Math.abs(point[1] - Number(image[1])) <= TOLERANCE,
-      response: point ? `(${point[0]}, ${point[1]})` : '',
-    };
+  const points = images.map((image, index) => plottedPoint(plotted[index]));
+  const inPlace = images.map((image, index) => onImage(points[index], image));
+  // Each other plotted point against an image no point holds in its place.
+  const unclaimed = images.filter((image, index) => !inPlace[index]);
+  const misplaced = points.map((point, index) => {
+    if (inPlace[index] || !point) return false;
+    const at = unclaimed.findIndex((image) => onImage(point, image));
+    if (at < 0) return false;
+    unclaimed.splice(at, 1);
+    return true;
   });
-  const matched = parts.filter((part) => part.isCorrect).length;
   // The lab's Check opens only with exactly one point per image.
-  const isComplete = images.length > 0 && plotted.length === images.length && parts.every((part) => part.isComplete);
+  const isComplete = images.length > 0 && plotted.length === images.length && points.every(Boolean);
+  const orderOnly = isComplete && points.every((point, index) => inPlace[index] || misplaced[index]);
+  const parts = images.map((image, index) => ({
+    id: `P${index + 1}`,
+    label: `Point P${index + 1}`,
+    isComplete: Boolean(points[index]),
+    isCorrect: inPlace[index],
+    credit: inPlace[index] ? 1 : orderOnly && misplaced[index] ? MISPLACED_IMAGE_CREDIT : 0,
+    response: points[index] ? `(${points[index][0]}, ${points[index][1]})` : '',
+  }));
+  const matched = inPlace.filter(Boolean).length;
+  const earned = parts.reduce((sum, part) => sum + part.credit, 0);
   return gradedResult({
     isComplete,
     isCorrect: isComplete && matched === images.length,
-    score: images.length ? matched / images.length : 0,
+    score: images.length ? earned / images.length : 0,
     parts,
   });
 };

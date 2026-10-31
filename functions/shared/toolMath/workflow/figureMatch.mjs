@@ -34,7 +34,19 @@ const list = (value) => (Array.isArray(value) ? value : []);
 const text = (value) => String(value ?? '').trim();
 
 /** What Figure N is called on screen. The author has no say in this. */
-export const figureLabel = (index) => `Figure ${index + 1}`;
+export const figureLabel = (index, noun = 'Figure') => `${noun} ${index + 1}`;
+
+/*
+ * A SORT OF WORDS IS A SORT OF CARDS (FB16). Cards that show only text were
+ * headed "FIGURE 1", "FIGURE 2". The noun is the stage's, never one card's —
+ * every card in a stage is named the same way — so it says nothing about any
+ * card's category: "Card" when every card is text alone, "Figure" otherwise.
+ */
+export const figureNoun = (stage) => {
+  const items = list(stage?.items).filter(isObject);
+  const textOnly = items.length > 0 && items.every((item) => Boolean(text(item.text)) && !isObject(item.graph) && !text(item.math));
+  return textOnly ? 'Card' : 'Figure';
+};
 
 export const matchItems = (stage) => list(stage?.items).filter(isObject);
 export const matchCategories = (stage) => list(stage?.categories).filter(isObject);
@@ -165,7 +177,9 @@ export const figureMatchKeyProblems = (stage, rule) => {
  * sort that only turned red left a student to guess which of eight figures
  * to move. Shown only where the step's verdict is shown (WorkflowRunner reads
  * it from a submission review, which QuestionEngine withholds on an exit
- * ticket, quiz or test before release). Empty without a key.
+ * ticket, quiz or test before release). Empty without a key. Named from the
+ * first miss, kept as built (owner, October 2026, FB17): a retry that knows
+ * which figures to rethink is practice; the tries strip still limits them.
  */
 export const figureMatchWrongItems = (stage, value, key) => {
   if (!isObject(key)) return [];

@@ -338,8 +338,10 @@ test('the answer path never reads or writes the snapshot, and a missing or corru
 });
 
 test('work in progress reaches the live board while the round takes answers, and never an exact snapshot', { timeout: 90_000 }, async () => {
-  // Four players: the two who did nothing tie for last, so the other two are shown.
-  const entry = await seedClass(4);
+  // Six players: the four who did nothing tie for last, so the other two are
+  // shown. (Four players would show 1st only: 2nd would leave 3rd and 4th, and
+  // each would name the other, LC22.)
+  const entry = await seedClass(6);
   const roomId = await createRoom(entry);
   await joinAll(entry, roomId);
   await teacherCall(entry, 'startLiveChallenge', { roomId });

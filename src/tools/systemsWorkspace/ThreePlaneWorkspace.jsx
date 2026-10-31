@@ -356,7 +356,6 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
   return (
     <EnlargeableFigure
       label="Three-plane systems workspace"
-      enlargeLabel="Enlarge three-plane systems workspace"
       style={{ width: '100%' }}
       capabilities={{
         // The model's controls (W6-4): kept on a DOL.
@@ -365,7 +364,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
       }}
     >
       <div className="mathmaster-threeplane-layout">
-        <div className="mathmaster-threeplane-equations" aria-label="The three original equations">
+        <div className="mathmaster-threeplane-equations" role="group" aria-label="The three original equations">
           {equations.map((equation, index) => (
             <div key={equation} className="mathmaster-reduction-equation-card" style={{ borderLeft: `4px solid ${PLANE_COLORS[index % PLANE_COLORS.length]}` }}>
               <span className="mathmaster-reduction-equation-label">Plane {index + 1}</span>
@@ -381,11 +380,13 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
         <div className="mathmaster-threeplane-viewport">
           {/* Says the model is turning only while the orbit is still to come:
               never after the student takes over, under reduced motion, or once
-              the budget is spent and the model has stopped. */}
+              the budget is spent and the model has stopped. An arrow key takes
+              over as a drag does (handleModelKeyDown), so the cue names it
+              beside the drag (AX32). */}
           <div className={`mathmaster-threeplane-motion-cue${orbitPending ? ' is-idle' : ''}`}>
             <span className="mathmaster-threeplane-motion-dot" aria-hidden="true" />
             {orbitPending
-              ? 'Auto-rotating to show depth — drag the model to take control.'
+              ? 'Auto-rotating to show depth — drag the model, or focus it and press an arrow key, to take control.'
               : 'Drag the model to rotate it. When it has focus, the arrow keys rotate it too. Reset view (or Home) returns to the opening angle.'}
           </div>
           <span id={instructionId} className="mathmaster-threeplane-sr-only">

@@ -147,9 +147,13 @@ test('the Question Family registry and its families are not in the first load', 
   }
   const app = readFileSync(path.join(repo, 'src/App.jsx'), 'utf8');
   assert.match(app, /import\('\.\/platform\/generation\/familyDelivery\.js'\)/, 'the context builder is loaded, not imported');
-  // A question waits for it rather than render with its pin unchecked.
+  // A question waits for it rather than render with its pin unchecked (and,
+  // with no pin, for the server's pins: RT15, familyServerDeliveryPin.test.mjs).
   assert.match(app, /const familyEngineLoading = !familyDelivery;/);
-  assert.match(app, /\{familyEngineLoading \? <p role="status"[^>]*>Loading this question…<\/p> : <QuestionEngine/);
+  assert.match(app, /\{familyEngineLoading(?: \|\| familyPinPending)? \? <p role="status"[^>]*>Loading this question…<\/p> : <QuestionEngine/);
+  // The module lands in a transition, so the question that waited for it
+  // mounts without hiding the workspace (familyServerDeliveryPin.test.mjs).
+  assert.match(app, /import\('\.\/platform\/generation\/familyDelivery\.js'\)\.then\(\(module\) => \{\s*startTransition\(\(\) => setFamilyDelivery\(\(current\) => current \|\| module\)\);/);
 });
 
 // The worksheet and answer-key builders run when someone asks for a PDF, so
@@ -162,6 +166,31 @@ test('the worksheet and answer-key builders are not in the first load', () => {
     'src/platform/resources/teacherAssignmentWorksheetExport.js',
     'functions/shared/toolMath/matrixLab/matrixLabModel.mjs',
   ]) {
+    const key = path.join(repo, file);
+    assert.ok(!graph.has(key), `${file} is in the first load: ${graph.has(key) ? chainTo(graph, key) : ''}`);
+  }
+});
+
+// The student Test Cycle card names a skill with one small helper; reaching
+// it through the secure exam results model put that model, the score
+// predictor and the exam policies (about 8 KB gzip) on every first load.
+test('the secure exam results model is not in the first load (only its skill names are)', () => {
+  for (const file of [
+    'src/platform/assessment/secureExamResultsModel.js',
+    'src/platform/assessment/examScorePredictor.js',
+  ]) {
+    const key = path.join(repo, file);
+    assert.ok(!graph.has(key), `${file} is in the first load: ${graph.has(key) ? chainTo(graph, key) : ''}`);
+  }
+  assert.ok(graph.has(path.join(repo, 'src/platform/assessment/studentSkillName.js')), 'the skill names the card uses are');
+});
+
+// A question's reference sheet (TL07) comes with the question runtime. Its
+// registry holds the sheets' formulas as data, so it grows with each sheet
+// registered: it must stay where QuestionEngine is, and the panel (a lazy chunk
+// of its own) must never be a static import of anything a student loads first.
+test('the reference sheet registry and its panel are not in the first load', () => {
+  for (const file of ['src/platform/assessment/referenceSheets.js', 'src/components/assessment/AssignmentReferenceSheet.jsx']) {
     const key = path.join(repo, file);
     assert.ok(!graph.has(key), `${file} is in the first load: ${graph.has(key) ? chainTo(graph, key) : ''}`);
   }

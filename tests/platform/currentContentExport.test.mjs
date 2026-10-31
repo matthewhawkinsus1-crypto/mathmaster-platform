@@ -35,3 +35,17 @@ test('teacher worksheet contains replacement once in its original logical sectio
   assert.deepEqual(model.sections[0].questions.map((item) => item.sourceIndex), [0, 3]);
   assert.equal(model.sections.flatMap((section) => section.questions).some((item) => item.sourceIndex === 1), false);
 });
+
+// NV13: a printed worksheet goes to students, so its sections use the
+// students' names (D9): the exit ticket is spelled out, never a bare "DOL".
+test('the worksheet names its sections as students read them', () => {
+  const withDol = {
+    ...assignment,
+    sections: [
+      ...assignment.sections,
+      { id: 'dol', role: 'dol', title: 'DOL', questions: [question('d1', { activityRole: 'dol' })] },
+    ],
+  };
+  const model = buildTeacherAssignmentWorksheetModel({ assignment: withDol });
+  assert.deepEqual(model.sections.map((section) => section.label), ['Warm-Up', 'Classwork', 'Exit ticket (DOL)']);
+});

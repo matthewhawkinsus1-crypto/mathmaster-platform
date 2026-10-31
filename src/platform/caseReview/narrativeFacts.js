@@ -19,6 +19,7 @@
 import { supportLabel } from '../../../functions/shared/supportCatalog.mjs';
 import { CASE_PROVENANCE, caseFact, caseSource, fromSupportProvenance } from './caseProvenance.js';
 import { renderNarrativeTemplate } from './narrativeGuard.js';
+import { RECOVERY_RECORDS_TRUNCATED } from './errorPatterns.js';
 
 export const TEMPLATES = Object.freeze({
   assignedCompleted: 'The student was assigned {assigned} MathMaster {activityWord} during the selected period and completed {completed}.',
@@ -157,16 +158,29 @@ export const buildNarrativeFacts = (model) => {
   // A recurring pattern only: what a server classifier proved on two or more
   // questions (errorPatterns.js reads it through the registry's trust gate).
   // An isolated code stays in the error-pattern list, not in a narrative.
+  //
+  // DERIVED, not direct (TT05): each code was recorded by the server on one
+  // graded question, but "recurring" is a count across several records, and a
+  // statement built from direct records and a count is a derivation
+  // (caseProvenance.js weakestProvenance). The sources name each store the
+  // count drew on: the attempt events of the assignment's own questions, and the
+  // Recovery and Recovery Practice items the server graded.
   list(model?.errorPatterns?.codes).filter((entry) => entry.recurrence === 'recurring').slice(0, 4).forEach((entry) => {
+    const recoveryQuestions = Number(entry.recoveryQuestions) || 0;
+    const sources = [];
+    if (entry.questions - recoveryQuestions > 0) {
+      sources.push(caseSource({ label: 'Per-attempt events', path: 'grades/{student}/evidenceEvents', ids: entry.assignmentIds, detail: 'The codes a server classifier recorded on graded attempts, with their provenance.' }));
+    }
+    if (recoveryQuestions > 0) {
+      sources.push(caseSource({ label: 'Recovery and Recovery Practice question records', path: 'grades/{student}/misconceptionEvidence', ids: entry.assignmentIds, detail: 'Items the server graded in a Recovery or Recovery Practice, each counted as one question.' }));
+    }
     add(`attempts.error-pattern.${entry.code}`, 'attempts', 'recurringErrorPattern', {
       questions: entry.questions,
       questionWord: plural(entry.questions, 'question', 'questions'),
       assignments: entry.assignmentIds.length,
       assignmentWord: plural(entry.assignmentIds.length, 'assignment', 'assignments'),
       label: entry.label.charAt(0).toLowerCase() + entry.label.slice(1),
-    }, CASE_PROVENANCE.DIRECT, [
-      caseSource({ label: 'Server misconception evidence', path: 'grades/{student}/evidenceEvents · misconceptionEvidence', detail: 'Codes a server classifier recorded from graded work, with their provenance.' }),
-    ]);
+    }, CASE_PROVENANCE.DERIVED, sources, model.errorPatterns.recoveryTruncated === true ? RECOVERY_RECORDS_TRUNCATED : '');
   });
 
   // Deadlines: a count for the period, and the date itself where the work was

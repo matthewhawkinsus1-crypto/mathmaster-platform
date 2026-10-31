@@ -225,7 +225,8 @@ export function EliminationOperationRail({ operation, onChoose, firstLabel, seco
 /** The chosen operation, once it is part of the work being combined. */
 export function EliminationOperationSymbol({ operation }) {
   if (!operation) return null;
-  return <span className="mathmaster-systems-operation-symbol" aria-label={operation === 'subtract' ? 'minus' : 'plus'}>{operation === 'subtract' ? '−' : '+'}</span>;
+  // A picture of the sign with its word: a label on a bare span is not read (AX18).
+  return <span className="mathmaster-systems-operation-symbol" role="img" aria-label={operation === 'subtract' ? 'minus' : 'plus'}>{operation === 'subtract' ? '−' : '+'}</span>;
 }
 
 /**
@@ -240,7 +241,7 @@ export function EliminationCombinationEntry({ variables, target, label, values, 
       <div className="mathmaster-elim-op" />
       <div className="mathmaster-elim-label"><span>{label}</span></div>
       {variables.map((name) => (name === target ? (
-        <span key={name} className="mathmaster-elim-term is-eliminated" aria-label={`${name} eliminated`}>—</span>
+        <span key={name} className="mathmaster-elim-term is-eliminated" role="img" aria-label={`${name} eliminated`}>—</span>
       ) : (
         <div key={name} className="mathmaster-elim-term">
           <span className="mathmaster-elim-entry-label" aria-hidden="true">{name} term</span>

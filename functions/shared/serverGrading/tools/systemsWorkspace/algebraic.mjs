@@ -28,7 +28,7 @@
  *                         from its typed sides (verificationEntryValid — the
  *                         checkVerification the screen runs, sides already
  *                         written as numbers taken as given).
- *        none / infinite  (elimination only) the checked statement with no
+ *        none / infinite  (either method: TL11) the checked statement with no
  *                         variable, the classification the student recorded
  *                         with their reading of that statement, and how they
  *                         say each pair of planes meets.
@@ -314,13 +314,17 @@ const gradeThreeByThree = (question, work) => {
   // elimination renders the substitution workspace.
   const chosen = config.method === 'studentChoice' ? entered(work.method).trim() : config.method;
   if (!chosen) return allOrNothing([{ id: 'method', label: 'Method', isComplete: false, isCorrect: false, response: '' }]);
-  const route = chosen === 'elimination' ? 'elimination' : 'substitution';
-  if (key.type === 'invalid' || (route === 'substitution' && key.type !== 'unique')) {
+  if (key.type === 'invalid') {
     // Both workspaces replace the workflow with an "unsupported" notice and
-    // no Check for these systems: there is no verdict to reproduce.
+    // no Check for a system they cannot read: there is no verdict to reproduce.
     return ungradedResult('unsupported-system');
   }
   if (key.type === 'unique') return gradeOrderedTriple(config, system, key, work);
+  // A dependent or inconsistent system is graded the same whichever way the
+  // student worked it (TL11). Substitution used to be refused here, because
+  // its workspace could not reach the statement with no variable; it reaches
+  // the same statement now, and what is judged is that statement, the
+  // student's reading of it and the planes, never the method that got there.
   return gradeInterpretation(system, key, work);
 };
 

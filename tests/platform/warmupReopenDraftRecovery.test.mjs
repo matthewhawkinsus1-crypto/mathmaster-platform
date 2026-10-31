@@ -521,6 +521,13 @@ test('the question boundary logs who/what/where without PII, and offers a fresh 
   // Offered once per question: a question that still throws after a fresh
   // start is a content or code fault, and the panel says so instead.
   assert.match(engine, /<QuestionModuleBoundary[\s\S]*?onRecover=\{draftKey && moduleRecoveries < 1 \? handleRecoverQuestionModule : null\}/);
+  // …once per question, not once per engine (MP12): My Math Path reuses one
+  // engine, so the allowance is held with the draft it was spent on, and the
+  // next question (another draft) has its own.
+  assert.match(engine, /const moduleRecoveries = moduleRecovery\.draftKey === draftKey \? moduleRecovery\.count : 0;/);
+  assert.match(recover, /setModuleRecovery\(\(current\) => \(\{ draftKey, count: \(current\.draftKey === draftKey \? current\.count : 0\) \+ 1 \}\)\);/);
+  // Each Path question is its own draft, so each gets its own allowance.
+  assert.match(read('src/components/student/PathSessionPlayer.jsx'), /draftKey=\{`path-\$\{questionInstance\.questionInstanceId\}`\}/);
 });
 
 test('the card sort reads its draft through the normaliser', () => {
@@ -543,7 +550,7 @@ test('the time-ended receipt belongs to a closed window, not a reopened one', ()
   // submitted when time ends, never that time already ended.
   const reopened = describeDolClose({ status: 'active', outcome: 'auto-submitted' });
   assert.equal(reopened.closeReceipt, '');
-  assert.match(reopened.openNotice, /will be submitted automatically when time ends/);
+  assert.match(reopened.openNotice, /^When time ends, your latest completed answers are turned in\./);
 });
 
 test('the teacher handler writes the Warm-Up controls through the shared, tested function', () => {

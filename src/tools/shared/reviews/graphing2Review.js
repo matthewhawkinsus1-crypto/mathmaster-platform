@@ -8,7 +8,9 @@
  * target line, read with the tool's own helper (graphingTargetLine):
  *
  *   slopeIntercept      y = mx + b (or an authored vertical x = c)
- *   pointSlope          through the given point with the given slope
+ *   pointSlope          through the given point with the given slope (with a
+ *                       reference line, the review first finds that slope
+ *                       from the given line: referenceLineOf)
  *   factoredLinear      y = a(x − c)
  *   standardForm        Ax + By = C
  *   throughPoints       through the two given points
@@ -54,6 +56,7 @@ import {
   graphingModeOf,
   graphingTargetLine,
   lineFromPoints,
+  referenceLineOf,
 } from '../../../../functions/shared/toolMath/graphing2/graphingMath.mjs';
 import {
   formAwareAnchorsForMode,
@@ -353,7 +356,14 @@ const introSteps = (mode, question, target) => {
   if (mode === 'pointSlope') {
     const [x1, y1] = readPoint(question.point);
     const m = Number(question.slope);
-    return [`The line goes through the given point ${pt([x1, y1])} with slope ${frac(m)}: ${pointSlopeText([x1, y1], m)}, which is ${line} in slope-intercept form.`];
+    // A reference-line question never printed the slope: finding it is the
+    // first step (TL20).
+    const reference = referenceLineOf(question);
+    const rule = !reference ? []
+      : reference.relation === 'perpendicular'
+        ? [`The given line ${lineText(reference)} has slope ${frac(reference.m)}. Perpendicular lines have slopes that are negative reciprocals, so this line's slope is ${frac(m)}.`]
+        : [`The given line ${lineText(reference)} has slope ${frac(reference.m)}. Parallel lines have the same slope, so this line's slope is ${frac(m)} too.`];
+    return [...rule, `The line goes through the given point ${pt([x1, y1])} with slope ${frac(m)}: ${pointSlopeText([x1, y1], m)}, which is ${line} in slope-intercept form.`];
   }
   if (mode === 'factoredLinear') {
     const a = Number(question.factored.a); const c = Number(question.factored.c);

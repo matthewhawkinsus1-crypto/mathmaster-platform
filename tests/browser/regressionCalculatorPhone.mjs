@@ -1,4 +1,6 @@
 // Real 390px acceptance flow for Issue #202. Run with Vite on port 5199.
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
+
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5199';
 const launchOptions = { args: ['--no-sandbox'] };
@@ -114,7 +116,7 @@ for (const label of ['Undo', 'Scratchpad', 'Calculator', 'Submit']) {
   const count = await page.getByRole('button', { name: new RegExp(label, 'i') }).evaluateAll((nodes) => nodes.filter((node) => { const r=node.getBoundingClientRect(); return r.width && r.height; }).length);
   if (count > 1) throw new Error(`Duplicate ${label} controls are visible`);
 }
-await page.screenshot({ path: 'tests/browser/artifacts/regression-calculator-390.png', fullPage: true });
+await screenshotKeepingTouch(page, { path: 'tests/browser/artifacts/regression-calculator-390.png', fullPage: true });
 
 // Chromebook acceptance: the same workflow is presented as an editor/graph
 // split rather than the phone's vertical calculator.

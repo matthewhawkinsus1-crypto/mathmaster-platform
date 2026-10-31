@@ -19,6 +19,7 @@
  */
 
 import { isTestCycleAssignment } from '../assessment/testCycle.js';
+import { calculatorRule } from '../assessment/secureExamNavigationModel.js';
 import { studentScheduleBlocks } from './testCycleScheduleView.js';
 import { sittingFactsFor, testCycleCardDueFacts } from './testCycleDiscovery.js';
 
@@ -56,21 +57,47 @@ export const testCycleDeliveryText = (card = {}) => {
   return sitting.questionCount ? `${length} ${sitting.questionCount} questions.` : length;
 };
 
+/*
+ * WHAT TO HAVE FOR THE SITTING, SAID ONCE (TC16).
+ *
+ * The card and Tests & Exams both used to say how long a Test is and when, and
+ * nothing about what a student needs for it. Two things are known:
+ *
+ *   - a charged device: the Test is taken on it, and a battery that runs out
+ *     partway costs the student their time (the answers themselves are saved);
+ *   - the calculator rule, from the Test's own setting (`delivery.calculatorMode`),
+ *     in the words the start screen uses (calculatorRule).
+ *
+ * Paper and other materials are NOT mentioned: no setting says what a class
+ * allows, and a line the teacher did not write would be a rule nobody set.
+ * Null when the card has no delivery facts (a look that returned none).
+ */
+export const TEST_CYCLE_DEVICE_LINE = 'Have your device charged.';
+export const testCycleBringText = (card = {}) => {
+  if (!card?.delivery) return null;
+  return `${TEST_CYCLE_DEVICE_LINE} ${calculatorRule(card.delivery.calculatorMode)}`;
+};
+
+/** The same line for a listed course-Test session, from the session's own calculator mode (none recorded: none said). */
+export const sessionBringText = (session = {}) => (
+  session?.calculatorMode ? testCycleBringText({ delivery: { calculatorMode: session.calculatorMode } }) : null
+);
+
 /**
  * One row, from the read-only card and the student's own dates.
  *
- * `dueAt` / `lateDueAt` are THIS student's (getAssignmentLifecycle) and
- * `classLateDueAt` the class's: the dates are chosen for the stage exactly as
- * the card chooses them (testCycleCardDueFacts).
+ * `dueAt` / `lateDueAt` are THIS student's (getAssignmentLifecycle): the
+ * dates are chosen for the stage exactly as the card chooses them
+ * (testCycleCardDueFacts).
  */
-export const assignedTestCycleRow = ({ card = null, assignment = null, dueAt = null, lateDueAt = null, classLateDueAt = null, now = Date.now() } = {}) => {
+export const assignedTestCycleRow = ({ card = null, assignment = null, dueAt = null, lateDueAt = null, now = Date.now() } = {}) => {
   const assignmentId = clean(card?.assignmentId || assignment?.id);
   if (!assignmentId) return null;
   // The record has a session (beyond what the list showed): the list, not a
   // row, is where it belongs. Only an explicit "none" gets a row.
   if (card?.hasSecureSession !== false) return null;
   const when = studentScheduleBlocks(card).find((block) => block.id === 'test') || null;
-  const due = testCycleCardDueFacts({ card, dueAt, lateDueAt, classLateDueAt, now });
+  const due = testCycleCardDueFacts({ card, dueAt, lateDueAt, now });
   return {
     assignmentId,
     title: clean(card?.title) || clean(assignment?.title) || clean(assignment?.assignment?.title) || 'Test',
@@ -79,6 +106,7 @@ export const assignedTestCycleRow = ({ card = null, assignment = null, dueAt = n
     detail: clean(card?.detail) || null,
     when: when ? { headline: when.headline, detail: when.detail, home: when.home } : null,
     delivery: testCycleDeliveryText(card),
+    bring: testCycleBringText(card),
     dueAt: due.dueAt,
     finalLateDueAt: due.finalLateDueAt,
   };

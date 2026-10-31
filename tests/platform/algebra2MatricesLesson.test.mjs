@@ -18,12 +18,15 @@
  *     Cramer's rule — not with the lab's exact engine — so a key cannot pass
  *     by agreeing with itself.
  */
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import React from 'react';
 import { compileTeacherImport } from '../../scripts/check-teacher-import.mjs';
+import { closeEngine, loadEngine } from './helpers/actionBarRender.mjs';
+import { render, withBrowser } from './helpers/studentToolRender.mjs';
 import { gradeMultiAnswerResponse } from '../../functions/shared/ordinaryResponseGrading.mjs';
 import { gradeToolWork } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
 import { matrixLabWork } from '../../functions/shared/serverGrading/tools/matrixLab.mjs';
@@ -32,6 +35,8 @@ import { gradeWorkflow } from '../../src/platform/workflow/workflowGrading.js';
 import { validateToolQuestion } from '../../src/tools/toolSchemas.js';
 import { buildToolSolutionReviewModel } from '../../src/tools/shared/toolSolutionReview.js';
 import { answerLinesFromResolvedQuestion, printableQuestionFromResolved } from '../../src/platform/resources/assignmentWorksheetPdfModel.js';
+
+after(closeEngine);
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const FILE = path.resolve(here, '../../teacher-import-jsons/algebra2-honors-module1/T2_L3_Solving_Systems_with_Matrices.json');
@@ -349,4 +354,62 @@ test('on paper: the matrices print with their brackets, a modeling system stays 
     assert.ok(answerLinesFromResolvedQuestion(question).length >= 1, `${question.questionId} has answer-key lines`);
   }
   assert.ok(answerLinesFromResolvedQuestion(compiled('l3m-pr-7')).includes('Solution: x = 59/4, y = 12, z = 17/2'));
+});
+
+/* ------------------------------------------------------------ Guided Notes */
+
+// The words of a line, as a student reads them: lower case, no markup or punctuation.
+const wordsOf = (value) => String(value).replace(/<[^>]+>/g, ' ').replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&amp;/g, '&')
+  .toLowerCase().replace(/[^a-z0-9']+/g, ' ').trim().split(/\s+/).filter(Boolean);
+// The longest run of words two lines have in common, in the same order.
+const longestSharedRun = (a, b) => {
+  let best = 0;
+  const run = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+  for (let i = 1; i <= a.length; i += 1) {
+    for (let j = 1; j <= b.length; j += 1) {
+      if (a[i - 1] === b[j - 1]) {
+        run[i][j] = run[i - 1][j - 1] + 1;
+        best = Math.max(best, run[i][j]);
+      }
+    }
+  }
+  return best;
+};
+// What the tool's "How to do this" card says, as a student who has it open reads it
+// (QuietDisclosure keeps the open or folded choice in storage): the real Matrix Lab.
+const openCardLines = async (question) => {
+  const { server } = await loadEngine();
+  const registry = await server.ssrLoadModule('/src/tools/toolRegistry.js');
+  const { ToolRuntimeProvider } = await server.ssrLoadModule('/src/tools/shared/ToolRuntimeContext.jsx');
+  const tool = registry.getToolDefinition(question.type).component;
+  const markup = await withBrowser(() => {
+    const { localStorage } = globalThis.window;
+    const stored = localStorage.getItem.bind(localStorage);
+    localStorage.getItem = (key) => (String(key).startsWith('mm.tool.steps.') ? 'open' : stored(key));
+    return render(React.createElement(ToolRuntimeProvider, { submitCost: null }, React.createElement(tool, { questionData: question, onAction() {}, attemptRecord: null })));
+  });
+  const from = markup.indexOf('How to do this');
+  assert.ok(from >= 0, `${question.questionId} has a "How to do this" card`);
+  const card = markup.slice(from, markup.indexOf('</ol>', from) + 5);
+  return [...card.matchAll(/<(?:li|p)\b[^>]*>([\s\S]*?)<\/(?:li|p)>/g)].map((match) => wordsOf(match[1]));
+};
+
+test('a Guided Note says something its tool\'s "How to do this" card does not: none repeats a card line for ten words in a row (CT04 / A2-41)', async () => {
+  // CW 3's notes were the card's three steps over again, almost word for word
+  // ("A·B is defined only when the number of columns of A equals the number of
+  // rows of B": nineteen words in a row), so a student read the same rule twice.
+  const noted = LESSON.questions.filter((question) => question.type === 'matrixLab' && question.guidedNotes?.steps?.length);
+  assert.ok(noted.length >= 6, `${noted.length} questions carry Guided Notes`);
+  for (const question of noted) {
+    const card = await openCardLines(question);
+    assert.ok(card.length >= 4, `${question.questionId}: the card's lines were read (${card.length})`);
+    question.guidedNotes.steps.forEach((note, index) => {
+      const said = wordsOf(`${note.title} ${note.instruction}`);
+      const shared = Math.max(...card.map((line) => longestSharedRun(said, line)));
+      assert.ok(shared < 10, `${question.questionId} note ${index + 1} repeats the card for ${shared} words in a row`);
+    });
+  }
+  // The sprinters' notes now tie the rules to the sprinters, not to the rule's letters.
+  const cw3 = compiled('l3m-cw-3');
+  assert.ok(cw3.guidedNotes.steps.every((note) => /sprinter|place|finish|score|point/i.test(note.instruction)), 'each CW 3 note is about the sprinters');
 });

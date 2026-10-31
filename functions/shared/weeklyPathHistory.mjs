@@ -29,20 +29,17 @@
  * reward reader that needs "hit N weeks in a row".
  */
 
-import { gradeWeeklyGoal, weekKeyFor } from './weeklyPathGrade.mjs';
+import { gradeWeeklyGoal, shiftWeekKey, weekKeyFor } from './weeklyPathGrade.mjs';
 import { collectWeeklyPathSessions, weeklyCompletionWindow } from './weeklyPathCompletion.mjs';
 
 export const WEEKLY_PATH_HISTORY_WEEKS = 12;
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const WEEK_KEY = /^\d{4}-\d{2}-\d{2}$/;
 
 const isWeekKey = (value) => {
   const text = String(value ?? '');
   return WEEK_KEY.test(text) && Number.isFinite(Date.parse(`${text}T00:00:00Z`));
 };
-
-const shiftWeekKey = (weekKey, weeks) => weekKeyFor(Date.parse(`${weekKey}T00:00:00Z`) + weeks * WEEK_MS);
 
 /** This week and the ones before it, newest first. Deterministic: no scan. */
 export const recentWeeklyPathWeekKeys = (now = Date.now(), count = WEEKLY_PATH_HISTORY_WEEKS) => {

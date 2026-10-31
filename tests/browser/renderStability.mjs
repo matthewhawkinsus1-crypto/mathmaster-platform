@@ -18,11 +18,18 @@
 //                            was handed a new question object on every render
 //                            and reset itself: a host re-render erased the
 //                            student's work
+//   supportChangeStepAlgebra a support-plan revision saved while the student
+//   supportChangeRelation    works generates the question again with new
+//                            presentation; on a question opened with no draft
+//                            the workspace reset itself: the operation picked,
+//                            the number being typed and the step on the board
+//                            were gone (TL16). An edited equation still starts
+//                            afresh.
 //
 // A loop shows as hundreds of commits in a window where nothing happened.
 // Exits non-zero on any failure.
 
-import { balancedMove, settle, visibleEquation } from './stepAlgebraDriver.mjs';
+import { balancedMove, chooseOperation, settle, visibleEquation } from './stepAlgebraDriver.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5199';
@@ -91,6 +98,74 @@ for (const sceneId of ['serverGradedInlineHost', 'systemWithoutEquations', 'mult
   if (!kept) failures.push(`${sceneId}: a host re-render erased the student's step (${JSON.stringify(afterMove)} -> ${JSON.stringify(afterHostRender)})`);
   if (idle.commits > IDLE_COMMIT_LIMIT) failures.push(`${sceneId}: ${idle.commits} idle commits`);
   if (loops.length) failures.push(`${sceneId}: ${loops[0].slice(0, 160)}`);
+  await page.close();
+}
+
+// A SUPPORT-PLAN REVISION IS NOT A NEW QUESTION (TL16). The student picks an
+// operation and types its number with the keyboard, as in class; the teacher
+// saves a revision (large text) meanwhile. The number, and then a step placed
+// on the board, must survive it. An edited equation is a different problem,
+// and the board starts afresh on it.
+const fieldValue = (page, selector) => page.evaluate((css) => document.querySelector(css)?.value ?? null, selector);
+const check = (ok, sceneId, label, detail) => {
+  console.log(`${ok ? 'ok  ' : 'FAIL'} ${sceneId.padEnd(26)} ${label}${detail ? ` — ${detail}` : ''}`);
+  if (!ok) failures.push(`${sceneId}: ${label}${detail ? ` (${detail})` : ''}`);
+};
+{
+  const sceneId = 'supportChangeStepAlgebra';
+  const operand = '.algebra-operation-composer math-field';
+  const { page, consoleErrors } = await openScene(sceneId);
+  const host = page.locator(`[data-render-scene="${sceneId}"]`);
+  const before = await visibleEquation(host);
+  await chooseOperation(page, host, 'Add');
+  await page.keyboard.type('7', { delay: 30 });
+  await settle(page, 300);
+  const typed = await fieldValue(page, operand);
+  await page.evaluate(() => window.__mmSupport(['large-text']));
+  await settle(page, 600);
+  const kept = await fieldValue(page, operand);
+  check(typed === '7' && kept === '7', sceneId, 'the number being typed survives a support-plan revision', `${JSON.stringify(typed)} -> ${JSON.stringify(kept)}`);
+  // Placed on the board (picked again first, should the revision have lost it).
+  if (kept !== '7') {
+    await chooseOperation(page, host, 'Add');
+    await page.keyboard.type('7', { delay: 30 });
+    await settle(page, 300);
+  }
+  await host.locator('button.algebra-pickup-button').click();
+  await host.locator('[aria-label$="on the left side"]').first().click();
+  await settle(page, 250);
+  await host.locator('[aria-label$="on the right side"]').first().click();
+  await settle(page, 500);
+  const afterMove = await visibleEquation(host);
+  await page.evaluate(() => window.__mmSupport([]));
+  await settle(page, 600);
+  const afterRevision = await visibleEquation(host);
+  const moved = JSON.stringify(afterMove) !== JSON.stringify(before);
+  check(moved && JSON.stringify(afterRevision) === JSON.stringify(afterMove), sceneId, 'so does the step on the board', `${JSON.stringify(before)} -> ${JSON.stringify(afterMove)} -> ${JSON.stringify(afterRevision)}`);
+  await page.evaluate(() => window.__mmEditEquation('5x - 2 = 13'));
+  await settle(page, 600);
+  const afterEdit = await visibleEquation(host);
+  check(/5 x/.test(afterEdit[0] || '') && !/7/.test(afterEdit.join(' ')), sceneId, 'an edited equation is a new problem: the board starts afresh', JSON.stringify(afterEdit));
+  const loops = loopErrors(consoleErrors);
+  check(!loops.length, sceneId, 'no render loop', loops[0]?.slice(0, 160));
+  await page.close();
+}
+{
+  const sceneId = 'supportChangeRelation';
+  const operand = '[data-render-scene] math-field[aria-label="subtract value"]';
+  const { page, consoleErrors } = await openScene(sceneId);
+  const host = page.locator(`[data-render-scene="${sceneId}"]`);
+  await host.getByRole('button', { name: /Subtract/ }).first().click();
+  await settle(page, 150);
+  await page.keyboard.type('3', { delay: 30 });
+  await settle(page, 300);
+  const typed = await fieldValue(page, operand);
+  await page.evaluate(() => window.__mmSupport(['large-text']));
+  await settle(page, 600);
+  const kept = await fieldValue(page, operand);
+  check(typed === '3' && kept === '3', sceneId, 'the number being typed survives a support-plan revision', `${JSON.stringify(typed)} -> ${JSON.stringify(kept)}`);
+  const loops = loopErrors(consoleErrors);
+  check(!loops.length, sceneId, 'no render loop', loops[0]?.slice(0, 160));
   await page.close();
 }
 

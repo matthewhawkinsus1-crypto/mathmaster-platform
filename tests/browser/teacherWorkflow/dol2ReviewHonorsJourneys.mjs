@@ -48,8 +48,17 @@ const ARTIFACTS = path.join(repo, 'tests/browser/artifacts/dol2ReviewHonors');
 const ORIGIN = process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188';
 const PAGE = `${ORIGIN}/tests/browser/teacherWorkflow/index.html?reset=1&honors=alg2`;
 const MIN_TAP = 44;
+// EVERY CHANGE TO THE REVIEW'S DRAFT RE-RUNS THE WHOLE PRE-FLIGHT on the page's main
+// thread (LessonPreflightModal's preflightModel is a useMemo over the draft): the file
+// import, each class checkbox, the Honors version. For this 40-question review that is
+// 4.5-5.5 s on a free desktop core (measured in Node; 85% of it is question-family
+// generation for the class-size uniqueness check), times how much slower the machine
+// is. With the page's CPU slowed 6x the import took 55 s and each class checkbox 39-47 s,
+// and the journey stopped on Playwright's 30 s default in 3 of 3 runs (CI08, D-6). A wait
+// for that work gets that work's time, as a bound that is never reached on a quiet run.
+const PREFLIGHT_MS = 300_000;
 
-const LESSON_NAME = 'District_DOL2_Absolute_Value_and_3x3_Systems_Review.json';
+const LESSON_NAME ='District_DOL2_Absolute_Value_and_3x3_Systems_Review.json';
 const LESSON_TEXT = readFileSync(path.join(repo, 'teacher-import-jsons/algebra2-honors-dol2', LESSON_NAME), 'utf8');
 const LESSON = JSON.parse(LESSON_TEXT);
 const LESSON_QUESTION_IDS = LESSON.sections.flatMap((section) => section.questions.map((question) => question.questionId));
@@ -101,7 +110,7 @@ const honorsState = (page) => honorsPanel(page).getAttribute('data-honors-versio
 const waitForHonorsState = async (page, states) => until(page, (wanted) => {
   const state = document.querySelector('section[aria-label="Honors version"]')?.getAttribute('data-honors-version-state');
   return wanted.includes(state);
-}, states, 60000);
+}, states, PREFLIGHT_MS);
 const footerText = async (page) => textOf(reviewDialog(page).locator('footer'));
 const assignmentPaths = (page) => page.evaluate(() => window.__mmHarnessStore.paths('assignments/'));
 const storedAssignment = (page, pathName) => page.evaluate((target) => window.__mmHarnessStore.get(target), pathName);
@@ -166,12 +175,12 @@ const journey = async (page, device, server, label) => {
   await creator.waitFor({ timeout: 20000 });
   if (!(await creator.evaluate((summary) => summary.parentElement.open))) await creator.click();
   await page.locator('input[type="file"][accept="application/json,.json"]').setInputFiles({ name: LESSON_NAME, mimeType: 'application/json', buffer: Buffer.from(LESSON_TEXT) });
-  await reviewDialog(page).waitFor({ timeout: 60000 });
+  await reviewDialog(page).waitFor({ timeout: PREFLIGHT_MS });
   await goToStep(page, 'Classes');
   for (const entry of [STANDARD_CLASS, HONORS_CLASS]) {
-    await reviewDialog(page).locator('label', { hasText: entry.name }).locator('input[type="checkbox"]').check();
+    await reviewDialog(page).locator('label', { hasText: entry.name }).locator('input[type="checkbox"]').check({ timeout: PREFLIGHT_MS });
   }
-  await honorsPanel(page).waitFor({ timeout: 20000 });
+  await honorsPanel(page).waitFor({ timeout: PREFLIGHT_MS });
 
   // THE HONORS VERSION: its own audited CCMR passes, so nothing is replaced.
   await waitForHonorsState(page, ['ready', 'needsDecision', 'error', 'invalid']);
@@ -188,14 +197,15 @@ const journey = async (page, device, server, label) => {
   await goToStep(page, 'Check');
   const preview = reviewDialog(page).locator('#preflight-student-preview');
   const versions = preview.getByRole('group', { name: 'Which version to preview' });
-  await versions.waitFor({ timeout: 20000 });
+  await versions.waitFor({ timeout: PREFLIGHT_MS });
   expect(label, /What Standard classes receive\./.test(await textOf(versions)), 'the preview opens on the Standard version');
   await versions.getByRole('button', { name: 'Honors version' }).click();
   expect(label, (await versions.getByRole('button', { name: 'Honors version' }).getAttribute('aria-pressed')) === 'true', 'the Honors version can be previewed');
   expect(label, /What Honors classes receive/.test(await textOf(versions)), 'and is named as what Honors classes receive');
   const opener = preview.getByRole('button', { name: /Open the student preview/ });
   if (await opener.count()) await opener.click();
-  await page.waitForTimeout(800);
+  // The student preview renders on the page's own thread: wait for it, not for 800 ms.
+  await until(page, () => (document.querySelector('#preflight-student-preview')?.innerText || '').replace(/\s+/g, ' ').trim().length > 200, null, PREFLIGHT_MS).catch(() => {});
   const rendered = await preview.evaluate((element) => ({
     text: element.innerText.replace(/\s+/g, ' ').trim(),
     crashed: /Something went wrong|Could not render/i.test(element.innerText),
@@ -210,9 +220,10 @@ const journey = async (page, device, server, label) => {
 
   // CREATE: one Standard and one Honors assignment, each the whole review.
   const before = await assignmentPaths(page);
-  await (await createButton(page, device)).click();
-  await reviewDialog(page).waitFor({ state: 'detached', timeout: 60000 });
-  await page.waitForTimeout(800);
+  await (await createButton(page, device)).click({ timeout: PREFLIGHT_MS });
+  await reviewDialog(page).waitFor({ state: 'detached', timeout: PREFLIGHT_MS });
+  // Both assignments are stored (not "800 ms after the dialog closed").
+  await until(page, (count) => window.__mmHarnessStore.paths('assignments/').length >= count, before.length + 2, PREFLIGHT_MS).catch(() => {});
   const created = await newAssignments(page, before);
   expect(label, created.length === 2, `exactly two assignments were created (${created.length})`);
   const standard = created.find((entry) => entry.data?.rigorVariant === 'standard')?.data;

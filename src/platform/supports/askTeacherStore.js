@@ -15,10 +15,12 @@ import {
   QUESTION_STATUS,
   TEACHER_QUESTIONS_SHOWN,
   TEACHER_QUESTION_COLLECTION,
+  buildFollowUp,
   buildHelpAcknowledgement,
   buildQuestionEdit,
   buildTeacherAnswer,
   buildTeacherQuestion,
+  cleanQuestionText,
 } from './askTeacher.js';
 
 const withIds = (snapshot) => snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
@@ -48,8 +50,10 @@ export const watchQuestions = (target, onChange, onError) => onSnapshot(
 );
 
 /**
- * Send the student's question, or reword the one still waiting. A question
- * already answered is not reopened (the rules refuse it too).
+ * Send the student's question, or reword the one still waiting. One already
+ * answered takes a single follow-up on the same document (TT01); after that,
+ * or with the answer gone from it, nothing more is sent (the rules refuse it
+ * too).
  */
 export const sendTeacherQuestion = async (db, {
   existing = null, studentId, classId, teacherEmail, assignmentId, assignmentTitle, questionIndex, questionLabel, text,
@@ -58,6 +62,12 @@ export const sendTeacherQuestion = async (db, {
     const edit = buildQuestionEdit({ text, timestamp: serverTimestamp() });
     if (!edit) throw new Error('empty');
     await updateDoc(doc(db, TEACHER_QUESTION_COLLECTION, existing.id), edit);
+    return existing.id;
+  }
+  if (existing?.id && existing.status === QUESTION_STATUS.ANSWERED) {
+    const followUp = buildFollowUp({ existing, text, timestamp: serverTimestamp() });
+    if (!followUp) throw new Error(cleanQuestionText(text) ? 'followed-up' : 'empty');
+    await updateDoc(doc(db, TEACHER_QUESTION_COLLECTION, existing.id), followUp);
     return existing.id;
   }
   const built = buildTeacherQuestion({

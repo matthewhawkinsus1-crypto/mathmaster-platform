@@ -123,9 +123,11 @@ test('a past week reads the very grade the Classroom publisher sends', async () 
   assert.equal(week.passing, true);
 });
 
-test('Sunday evening after UTC midnight: last week is still open until its Central-time deadline', () => {
-  // 9pm Sunday in Chicago is already Monday in UTC, so the UTC week has
-  // turned; last week's goal is due at 23:59 Central and is not over yet.
+test('Sunday evening after UTC midnight: the week is still open until its Central-time deadline', () => {
+  // 9pm Sunday in Chicago is already Monday in UTC. The week is read in
+  // Chicago (MP06), so it has not turned: this is still the week, and its goal
+  // is due at 23:59 Central, not over yet. (Before MP06 the UTC week had
+  // already turned here and the same goal read as last week, still open.)
   const sundayEvening = Date.parse('2026-10-05T02:00:00Z');
   const goal = frozenGoal(LAST_WEEK);
   assert.ok(sundayEvening < goal.dueAt);
@@ -349,7 +351,7 @@ test('the callable is student-only and passes nothing from the request into the 
 
 test('the shared builder grades with the publisher\'s functions, not its own rule', () => {
   const shared = executableSource(read('functions/shared/weeklyPathHistory.mjs'));
-  assert.match(shared, /import \{ gradeWeeklyGoal, weekKeyFor \} from '\.\/weeklyPathGrade\.mjs';/);
+  assert.match(shared, /import \{[^}]*\bgradeWeeklyGoal\b[^}]*\} from '\.\/weeklyPathGrade\.mjs';/);
   assert.match(shared, /import \{ collectWeeklyPathSessions, weeklyCompletionWindow \} from '\.\/weeklyPathCompletion\.mjs';/);
   assert.doesNotMatch(shared, /status\s*===\s*'completed'/, 'what counts as finished is weeklyPathCompletion.mjs\'s call');
   const loader = executableSource(read('functions/lib/weeklyPathHistory.js'));

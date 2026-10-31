@@ -307,7 +307,10 @@ const CARD_FIELDS = {
   'x-intercept': 'featureXIntercept',
   'y-intercept': 'featureYIntercept',
 };
-const GRAPH_FIELDS = { 'Graph 1 (intercepts)': 'graph1Points', 'Graph 2 (slope-intercept)': 'graph2Points', 'Graph 3 (point-slope)': 'graph3Points' };
+// A graph is named among the graphs its board shows (TL28): "Graph (point-slope)"
+// alone, "Graph 2 (point-slope)" beside one other. Read by its method.
+const GRAPH_METHOD_FIELDS = { intercepts: 'graph1Points', 'slope-intercept': 'graph2Points', 'point-slope': 'graph3Points' };
+const graphFieldOf = (label) => GRAPH_METHOD_FIELDS[/^Graph(?: [123])? \((intercepts|slope-intercept|point-slope)\)$/.exec(label)?.[1]] || null;
 
 const auditBoard = ({ question, m, b }, model, label) => {
   auditText(model, label);
@@ -345,19 +348,19 @@ const auditBoard = ({ question, m, b }, model, label) => {
     } else if (itemLabel === 'y-intercept') {
       const [[x, y]] = pointsIn(value);
       assert.ok(x.equals(0) && y.equals(b), where);
-    } else if (itemLabel === 'Two points on the line' || itemLabel === 'Table of values' || GRAPH_FIELDS[itemLabel]) {
+    } else if (itemLabel === 'Two points on the line' || itemLabel === 'Table of values' || graphFieldOf(itemLabel)) {
       const points = pointsIn(value);
       points.forEach((point) => assert.ok(onLine(line, point), `${where}: (${point.join(', ')}) on the line`));
       assert.equal(new Set(points.map((point) => point[0].toFraction())).size, points.length, `${where}: different points`);
       if (itemLabel === 'Table of values') assert.ok(points.length >= 4, where);
-      if (itemLabel === 'Graph 1 (intercepts)') {
+      if (graphFieldOf(itemLabel) === 'graph1Points') {
         assert.ok(points.some(([x, y]) => x.equals(0) && y.equals(b)), `${where}: the y-intercept`);
         assert.ok(points.some(([x, y]) => x.equals(zero) && y.equals(0)), `${where}: the x-intercept`);
       }
-      if (itemLabel === 'Graph 2 (slope-intercept)') assert.ok(points[0][0].equals(0) && points[0][1].equals(b), `${where}: starts at the y-intercept`);
+      if (graphFieldOf(itemLabel) === 'graph2Points') assert.ok(points[0][0].equals(0) && points[0][1].equals(b), `${where}: starts at the y-intercept`);
     }
     if (CARD_FIELDS[itemLabel]) work[CARD_FIELDS[itemLabel]] = value;
-    else if (GRAPH_FIELDS[itemLabel]) work[GRAPH_FIELDS[itemLabel]] = pointsIn(value).map((point) => point.map((v) => v.valueOf()));
+    else if (graphFieldOf(itemLabel)) work[graphFieldOf(itemLabel)] = pointsIn(value).map((point) => point.map((v) => v.valueOf()));
     else if (itemLabel === 'Two points on the line') [work.featurePoint1, work.featurePoint2] = value.split(' and ');
     else if (itemLabel === 'Table of values') work.tableRows = [...value.matchAll(/\(([^,()]+), ([^,()]+)\)/g)].map(([, x, y]) => ({ x, y }));
     else assert.fail(`${label}: an item with no board field: ${itemLabel}`);

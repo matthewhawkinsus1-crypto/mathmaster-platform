@@ -339,7 +339,19 @@ A cloud session picked this up from the handoff below and finished it on `ai/cla
 **Known limitations** (PR "Known limitations"):
 - **Classroom passback's class-wide `final-deadline` signal still returns a grade at the class cutoff** for students with any individual deadline. This is pre-existing for attendance extensions; it needs a per-student final signal.
 - **Per-student Warm-Up and DOL timed windows are not extended by extra time.** Secure-exam multipliers are not applied either.
-- **"Next school day" means the next weekday.** A/B meetings and holidays are not known server-side.
+- ~~**"Next school day" means the next weekday.**~~ **Holidays: fixed (TT17).** A school day is now a day the district is open to
+  students: weekends, breaks, holidays and staff days on the 2026-27 district calendar are skipped, by the browser and the server
+  alike (the calendar moved to `functions/shared/schoolYearCalendar.mjs`; `src/curriculum/calendars/schoolYear2026-2027.js`
+  re-exports it). It can only move a date later than the weekday rule gave, never earlier. A date outside that calendar (summer, or
+  next year until its dates are added there) is still counted by weekdays alone.
+  **A/B days: decided not to apply.** "School day" means a day school is open, for every student; an A/B rotation does not change
+  which days those are, only which days one class meets. Counting class meetings would also need the bell schedule
+  (`settings/classSchedule`, with Fridays undesignated until the teacher chooses) and the class period at every one of the four
+  readers of a deadline (the student's screen, ingestion, the checkpoint finalizer, Grade Export), and a reader that lacked either
+  would compute an earlier date than the others. A teacher who wants "until I next see the student" has the attendance extension,
+  which already counts class meetings (`classMeetings.js`, `extendDueByClassMeetings`). If the owner wants a "next class meeting"
+  choice for extra time, it is a new preset that carries the schedule to all four readers.
+  **Owner supplies:** the 2027-28 district calendar, as a second year object in `schoolYearCalendar.mjs`.
 - **No provider role.** Providers are recorded by the teacher of record, with a provider role and label.
 - **A former teacher's list queries use current-teacher access.**
 - **Profile resolution lag in My Math Path.** Its entitlements (`functions/shared/supportEntitlements.mjs`) use the flat keys written at save time. A future-dated revision switches on in the student client and for deadlines automatically, but in Path only at the next save.

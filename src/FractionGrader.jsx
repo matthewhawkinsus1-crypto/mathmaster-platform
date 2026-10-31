@@ -20,8 +20,9 @@ export default function FractionGrader({ question, onStateChange, onUndoStateCha
   // whole question: an authored answer is graded against the author's key,
   // a sum against the sum.
   const graded = gradeFractionResponse(question, answer);
-  // A mixed number where one fraction is asked for is not ready to submit:
-  // the student is told why instead of losing a try to it (answerShapeGuard).
+  // A mixed number not in lowest terms where lowest terms are asked for is
+  // not ready to submit: the student is told why instead of losing a try to
+  // it (answerShapeGuard).
   const formProblem = fractionFormProblemForResponse(question, answer);
   const isComplete = graded.isComplete && !formProblem;
   const { isCorrect } = graded;
@@ -40,7 +41,7 @@ export default function FractionGrader({ question, onStateChange, onUndoStateCha
 
   return (
     <div>
-      <h2 style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>Fractions</h2>
+      <h2 className="mathmaster-grader-heading" style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>Fractions</h2>
       {display.prompt && <QuestionPrompt>{display.prompt}</QuestionPrompt>}
       {display.expressionLatex && (
         <div style={{ margin: '34px auto', fontSize: 'calc(30 * var(--mm-px))', fontWeight: 'bold', color: 'var(--mm-primary)', width: 'fit-content', maxWidth: '100%' }}>

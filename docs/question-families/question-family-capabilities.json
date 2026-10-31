@@ -900,6 +900,87 @@
       "declared": {}
     },
     {
+      "id": "intervals.graphAndWrite",
+      "version": 1,
+      "title": "Graph an inequality on a number line and write it in interval notation",
+      "alignments": [
+        "A2.7I"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "strict",
+      "constraints": [
+        {
+          "name": "shape",
+          "label": "Shape of the inequality",
+          "kind": "choice",
+          "default": "segment",
+          "concept": true,
+          "values": [
+            "segment",
+            "ray",
+            "twoRays",
+            "rayAndSegment"
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "shape"
+      ],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "intervalNumberLine",
+          "default": true,
+          "mode": "numberLine",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 612,
+          "exact": true
+        },
+        {
+          "label": "shape: \"ray\"",
+          "constraints": {
+            "shape": "ray"
+          },
+          "capacity": 76,
+          "exact": true
+        },
+        {
+          "label": "shape: \"twoRays\"",
+          "constraints": {
+            "shape": "twoRays"
+          },
+          "capacity": 612,
+          "exact": true
+        },
+        {
+          "label": "shape: \"rayAndSegment\"",
+          "constraints": {
+            "shape": "rayAndSegment"
+          },
+          "capacity": 1584,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
       "id": "linear.contextFunction",
       "version": 1,
       "title": "Write and interpret a linear function from a situation",
@@ -2136,6 +2217,481 @@
       }
     },
     {
+      "id": "linear.multiStepEquation",
+      "version": 3,
+      "title": "Linear equation with variables on both sides (special cases)",
+      "alignments": [
+        "A.5A",
+        "8.8C"
+      ],
+      "unpinnedReferenceMeansThisVersion": false,
+      "constraintPolicy": "strict",
+      "constraints": [
+        {
+          "name": "solutionCase",
+          "label": "Solution case",
+          "kind": "choice",
+          "default": "one",
+          "concept": true,
+          "values": [
+            "one",
+            "none",
+            "infinite",
+            "mixed"
+          ]
+        },
+        {
+          "name": "distribute",
+          "label": "Distributive property",
+          "kind": "choice",
+          "default": false,
+          "concept": true,
+          "values": [
+            false,
+            true,
+            "mixed"
+          ]
+        },
+        {
+          "name": "solutionForm",
+          "label": "Answer form (one-solution equations)",
+          "kind": "choice",
+          "default": "integer",
+          "concept": true,
+          "values": [
+            "integer",
+            "fraction"
+          ]
+        },
+        {
+          "name": "coefficientForm",
+          "label": "Coefficient form",
+          "kind": "choice",
+          "default": "integer",
+          "concept": true,
+          "values": [
+            "integer",
+            "fraction"
+          ]
+        },
+        {
+          "name": "solutionRange",
+          "label": "Solution range",
+          "kind": "range",
+          "default": [
+            -10,
+            10
+          ],
+          "concept": false,
+          "limits": [
+            -30,
+            30
+          ]
+        },
+        {
+          "name": "coefficientRange",
+          "label": "Coefficient range",
+          "kind": "range",
+          "default": [
+            -8,
+            8
+          ],
+          "concept": false,
+          "limits": [
+            -15,
+            15
+          ]
+        },
+        {
+          "name": "constantRange",
+          "label": "Constant range",
+          "kind": "range",
+          "default": [
+            -15,
+            15
+          ],
+          "concept": false,
+          "limits": [
+            -40,
+            40
+          ]
+        },
+        {
+          "name": "variable",
+          "label": "Variable",
+          "kind": "choice",
+          "default": "x",
+          "concept": false,
+          "values": [
+            "x",
+            "n",
+            "a",
+            "b",
+            "k",
+            "m",
+            "p",
+            "t",
+            "w",
+            "y"
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "solutionCase",
+        "distribute",
+        "solutionForm",
+        "coefficientForm"
+      ],
+      "solutionCases": [
+        "one",
+        "none",
+        "infinite",
+        "mixed"
+      ],
+      "solutionForms": [
+        "integer",
+        "fraction"
+      ],
+      "coefficientForms": [
+        "integer",
+        "fraction"
+      ],
+      "tools": [
+        {
+          "tool": "stepAlgebra",
+          "default": true,
+          "mode": "equation",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 3875760,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "case": "one",
+                "shape": "likeTerms"
+              },
+              "capacity": 1937880,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "one",
+                "shape": "constants"
+              },
+              "capacity": 3902850,
+              "exact": false
+            }
+          ]
+        },
+        {
+          "label": "solutionCase: \"none\"",
+          "constraints": {
+            "solutionCase": "none"
+          },
+          "capacity": 418274,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "case": "none",
+                "shape": "likeTerms"
+              },
+              "capacity": 209137,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "none",
+                "shape": "constants"
+              },
+              "capacity": 404156,
+              "exact": false
+            }
+          ]
+        },
+        {
+          "label": "solutionCase: \"infinite\"",
+          "constraints": {
+            "solutionCase": "infinite"
+          },
+          "capacity": 14474,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "case": "infinite",
+                "shape": "likeTerms"
+              },
+              "capacity": 7237,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "infinite",
+                "shape": "constants"
+              },
+              "capacity": 13907,
+              "exact": false
+            }
+          ]
+        },
+        {
+          "label": "solutionCase: \"mixed\"",
+          "constraints": {
+            "solutionCase": "mixed"
+          },
+          "capacity": 43422,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "case": "one",
+                "shape": "likeTerms"
+              },
+              "capacity": 1937880,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "one",
+                "shape": "constants"
+              },
+              "capacity": 3902850,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "none",
+                "shape": "likeTerms"
+              },
+              "capacity": 209137,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "none",
+                "shape": "constants"
+              },
+              "capacity": 404156,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "infinite",
+                "shape": "likeTerms"
+              },
+              "capacity": 7237,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "infinite",
+                "shape": "constants"
+              },
+              "capacity": 13907,
+              "exact": false
+            }
+          ]
+        },
+        {
+          "label": "distribute: true",
+          "constraints": {
+            "distribute": true
+          },
+          "capacity": 3222450,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "case": "one",
+                "shape": "distributeConstant"
+              },
+              "capacity": 3246960,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "one",
+                "shape": "distributeLikeTerms"
+              },
+              "capacity": 1611225,
+              "exact": false
+            }
+          ]
+        },
+        {
+          "label": "distribute: \"mixed\"",
+          "constraints": {
+            "distribute": "mixed"
+          },
+          "capacity": 6444900,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "case": "one",
+                "shape": "likeTerms"
+              },
+              "capacity": 1937880,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "one",
+                "shape": "constants"
+              },
+              "capacity": 3902850,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "one",
+                "shape": "distributeConstant"
+              },
+              "capacity": 3246960,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "one",
+                "shape": "distributeLikeTerms"
+              },
+              "capacity": 1611225,
+              "exact": false
+            }
+          ]
+        },
+        {
+          "label": "solutionForm: \"fraction\"",
+          "constraints": {
+            "solutionForm": "fraction"
+          },
+          "capacity": 4093200,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "case": "one",
+                "shape": "likeTerms"
+              },
+              "capacity": 2046600,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "one",
+                "shape": "constants"
+              },
+              "capacity": 3918375,
+              "exact": false
+            }
+          ]
+        },
+        {
+          "label": "coefficientForm: \"fraction\"",
+          "constraints": {
+            "coefficientForm": "fraction"
+          },
+          "capacity": 8730914,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "case": "one",
+                "shape": "likeTerms"
+              },
+              "capacity": 4584726,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "one",
+                "shape": "constants"
+              },
+              "capacity": 4365457,
+              "exact": false
+            }
+          ]
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [
+        {
+          "support": "reduce-complexity",
+          "narrows": {
+            "coefficientRange": [
+              -6,
+              6
+            ],
+            "constantRange": [
+              -10,
+              10
+            ],
+            "solutionRange": [
+              -6,
+              6
+            ]
+          },
+          "keeps": [
+            "solutionCase",
+            "distribute",
+            "solutionForm",
+            "coefficientForm"
+          ],
+          "capacity": 764302
+        }
+      ],
+      "declared": {
+        "targetTool": {
+          "tool": "stepAlgebra",
+          "workspaces": [
+            "equation",
+            "relation"
+          ]
+        },
+        "solutionCases": [
+          "one",
+          "none",
+          "infinite",
+          "mixed"
+        ],
+        "solutionForms": [
+          "integer",
+          "fraction"
+        ],
+        "coefficientForms": [
+          "integer",
+          "fraction"
+        ],
+        "distribute": [
+          false,
+          true,
+          "mixed"
+        ],
+        "shapes": [
+          "likeTerms",
+          "constants",
+          "distributeConstant",
+          "distributeLikeTerms"
+        ],
+        "exactArithmetic": true,
+        "independentVerification": "questionFamilyExact.classifyLinearEquation on the displayed equation"
+      }
+    },
+    {
       "id": "linear.representationSort",
       "version": 1,
       "title": "Sort the representations of two lines",
@@ -2724,6 +3280,300 @@
       }
     },
     {
+      "id": "linear.twoStepEquation",
+      "version": 3,
+      "title": "Two-step linear equation (distribution and fractions)",
+      "alignments": [
+        "A.5A",
+        "7.11A"
+      ],
+      "unpinnedReferenceMeansThisVersion": false,
+      "constraintPolicy": "strict",
+      "constraints": [
+        {
+          "name": "distribute",
+          "label": "Distributive property",
+          "kind": "choice",
+          "default": false,
+          "concept": true,
+          "values": [
+            false,
+            true,
+            "mixed"
+          ]
+        },
+        {
+          "name": "solutionForm",
+          "label": "Answer form",
+          "kind": "choice",
+          "default": "integer",
+          "concept": true,
+          "values": [
+            "integer",
+            "fraction"
+          ]
+        },
+        {
+          "name": "coefficientForm",
+          "label": "Coefficient form",
+          "kind": "choice",
+          "default": "integer",
+          "concept": true,
+          "values": [
+            "integer",
+            "fraction"
+          ]
+        },
+        {
+          "name": "solutionRange",
+          "label": "Solution range",
+          "kind": "range",
+          "default": [
+            -10,
+            10
+          ],
+          "concept": false,
+          "limits": [
+            -40,
+            40
+          ]
+        },
+        {
+          "name": "coefficientRange",
+          "label": "Coefficient range",
+          "kind": "range",
+          "default": [
+            -9,
+            9
+          ],
+          "concept": false,
+          "limits": [
+            -20,
+            20
+          ]
+        },
+        {
+          "name": "constantRange",
+          "label": "Constant range",
+          "kind": "range",
+          "default": [
+            -15,
+            15
+          ],
+          "concept": false,
+          "limits": [
+            -50,
+            50
+          ]
+        },
+        {
+          "name": "variable",
+          "label": "Variable",
+          "kind": "choice",
+          "default": "x",
+          "concept": false,
+          "values": [
+            "x",
+            "n",
+            "a",
+            "b",
+            "k",
+            "m",
+            "p",
+            "t",
+            "w",
+            "y"
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "distribute",
+        "solutionForm",
+        "coefficientForm"
+      ],
+      "solutionCases": [
+        "one"
+      ],
+      "solutionForms": [
+        "integer",
+        "fraction"
+      ],
+      "coefficientForms": [
+        "integer",
+        "fraction"
+      ],
+      "tools": [
+        {
+          "tool": "stepAlgebra",
+          "default": true,
+          "mode": "equation",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 9622,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "case": "one",
+                "shape": "plain"
+              },
+              "capacity": 9622,
+              "exact": false
+            }
+          ]
+        },
+        {
+          "label": "distribute: true",
+          "constraints": {
+            "distribute": true
+          },
+          "capacity": 7245,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "case": "one",
+                "shape": "distribute"
+              },
+              "capacity": 7245,
+              "exact": false
+            }
+          ]
+        },
+        {
+          "label": "distribute: \"mixed\"",
+          "constraints": {
+            "distribute": "mixed"
+          },
+          "capacity": 14490,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "case": "one",
+                "shape": "plain"
+              },
+              "capacity": 9622,
+              "exact": false
+            },
+            {
+              "stratum": {
+                "case": "one",
+                "shape": "distribute"
+              },
+              "capacity": 7245,
+              "exact": false
+            }
+          ]
+        },
+        {
+          "label": "solutionForm: \"fraction\"",
+          "constraints": {
+            "solutionForm": "fraction"
+          },
+          "capacity": 10856,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "case": "one",
+                "shape": "plain"
+              },
+              "capacity": 10856,
+              "exact": false
+            }
+          ]
+        },
+        {
+          "label": "coefficientForm: \"fraction\"",
+          "constraints": {
+            "coefficientForm": "fraction"
+          },
+          "capacity": 4202,
+          "exact": false,
+          "strata": [
+            {
+              "stratum": {
+                "case": "one",
+                "shape": "plain"
+              },
+              "capacity": 4202,
+              "exact": false
+            }
+          ]
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [
+        {
+          "support": "reduce-complexity",
+          "narrows": {
+            "coefficientRange": [
+              2,
+              6
+            ],
+            "constantRange": [
+              -8,
+              8
+            ],
+            "solutionRange": [
+              -6,
+              6
+            ]
+          },
+          "keeps": [
+            "distribute",
+            "solutionForm",
+            "coefficientForm"
+          ],
+          "capacity": 1020
+        }
+      ],
+      "declared": {
+        "targetTool": {
+          "tool": "stepAlgebra",
+          "workspaces": [
+            "equation"
+          ]
+        },
+        "solutionCases": [
+          "one"
+        ],
+        "solutionForms": [
+          "integer",
+          "fraction"
+        ],
+        "coefficientForms": [
+          "integer",
+          "fraction"
+        ],
+        "distribute": [
+          false,
+          true,
+          "mixed"
+        ],
+        "shapes": [
+          "plain",
+          "distribute"
+        ],
+        "exactArithmetic": true,
+        "independentVerification": "questionFamilyExact.classifyLinearEquation on the displayed equation",
+        "notes": "a·x + b = c with a ≠ 0 has exactly one solution, so this family has no solutionCase; use linear.multiStepEquation v3 for no-solution and identity equations."
+      }
+    },
+    {
       "id": "lines.horizontalVertical",
       "version": 1,
       "title": "Horizontal and vertical lines through a point",
@@ -3167,6 +4017,47 @@
           "label": "default",
           "constraints": {},
           "capacity": 60390,
+          "exact": false
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "matrices.solveSystem3x3",
+      "version": 2,
+      "title": "Solve a system of three equations with matrices",
+      "alignments": [
+        "A2.3B"
+      ],
+      "unpinnedReferenceMeansThisVersion": false,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "matrixLab",
+          "default": true,
+          "mode": "solve",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 60859,
           "exact": false
         }
       ],

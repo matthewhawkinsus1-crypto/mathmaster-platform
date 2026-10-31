@@ -9,7 +9,6 @@ Object.assign(exports, base);
 
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
-const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 
 const LIVE_CHALLENGE_EXPERIENCE = 'liveChallengeExperience';
 const LIVE_CHALLENGE_ROOMS = 'liveChallengeRooms';
@@ -139,132 +138,33 @@ exports.configureLiveChallengeExperience = onCall(async (request) => {
   return { roomId, speedInfluencePercent, playerDisplayMode, playersConfigured: records.length };
 });
 
-/**
- * LEGACY post-hoc speed adjustment.
- *
- * Speed influence used to be applied after the mature scorer returned — by a
- * synchronous wrapper around submitLiveChallengeResponse and, as a fallback,
- * by the trigger below. The room's scoring strategy now applies it natively
- * (functions/shared/liveChallengeScoring.mjs), and every new submission marks
- * its round as adjusted (`experienceSpeedAdjustedRound`), so this primitive
- * only ever acts on a private player written by the earlier code during a
- * rolling deploy. The marker is what keeps it from ever paying speed twice.
- */
-const applyExperienceSpeedAdjustment = async ({ db, roomId, studentId, answeredRound, originalSpeedBonus, submissionId = null }) => {
-  const [config, privateRoomSnapshot] = await Promise.all([
-    readExperience(db, roomId),
-    db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId).get(),
-  ]);
-  const privateRoom = privateRoomSnapshot.exists ? privateRoomSnapshot.data() || {} : {};
-  if (Object.prototype.hasOwnProperty.call(privateRoom.secondChanceOf || {}, String(answeredRound))) {
-    return { adjustment: 0, secondChance: true, totalScore: null };
-  }
-
-  const rules = await experienceRules();
-  const requestedAdjustment = rules.experienceScoreAdjustment({
-    originalSpeedBonus,
-    speedInfluencePercent: config.speedInfluencePercent,
-    secondChance: false,
-  });
-  const privatePlayerRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId).collection('players').doc(studentId);
-
-  return db.runTransaction(async (transaction) => {
-    const currentSnapshot = await transaction.get(privatePlayerRef);
-    if (!currentSnapshot.exists) return { adjustment: 0, totalScore: null, missing: true };
-    const current = currentSnapshot.data() || {};
-    if (Number(current.answeredRound) !== Number(answeredRound)) return { adjustment: 0, totalScore: Number(current.score) || 0, stale: true };
-    if (Number(current.experienceSpeedAdjustedRound) === Number(answeredRound)) {
-      return {
-        adjustment: Math.round(Number(current.experienceSpeedAdjustment) || 0),
-        totalScore: Math.max(0, Math.round(Number(current.score) || 0)),
-        alreadyAdjusted: true,
-      };
-    }
-
-    const playerKey = String(current.playerKey || '').trim();
-    const publicRef = playerKey ? db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId).collection('players').doc(playerKey) : null;
-    const publicSnapshot = publicRef ? await transaction.get(publicRef) : null;
-    const nextScore = Math.max(0, Math.round(Number(current.score) || 0) + requestedAdjustment);
-    const receiptId = submissionId || Object.entries(current.submissionReceipts || {})
-      .find(([, candidate]) => Number(candidate?.roundIndex) === Number(answeredRound))?.[0] || null;
-    const receipt = receiptId ? current.submissionReceipts?.[receiptId] : null;
-    const reconciledReceipt = receipt ? {
-      ...receipt,
-      speedBonus: Math.max(0, Math.round(Number(receipt.speedBonus) || 0) + requestedAdjustment),
-      pointsAwarded: Math.max(0, Math.round(Number(receipt.pointsAwarded) || 0) + requestedAdjustment),
-      totalScore: nextScore,
-    } : null;
-    const reconciledReceipts = { ...(current.submissionReceipts || {}) };
-    if (reconciledReceipt) {
-      reconciledReceipts[receiptId] = reconciledReceipt;
-      let runningTotal = 0;
-      Object.entries(reconciledReceipts)
-        .sort((left, right) => Number(left[1]?.roundIndex) - Number(right[1]?.roundIndex))
-        .forEach(([id, item]) => {
-          if (item?.serverConfirmed === true) runningTotal += Math.max(0, Math.round(Number(item.pointsAwarded) || 0));
-          reconciledReceipts[id] = { ...item, totalScore: runningTotal };
-        });
-    }
-
-    // All reads are complete before these writes; Firestore transactions reject
-    // a read performed after the first write.
-    transaction.set(privatePlayerRef, {
-      score: nextScore,
-      experienceSpeedAdjustedRound: Number(answeredRound),
-      experienceSpeedAdjustment: requestedAdjustment,
-      ...(reconciledReceipt ? { submissionReceipts: reconciledReceipts } : {}),
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
-    if (publicRef && publicSnapshot?.exists) {
-      transaction.set(publicRef, { score: nextScore, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-    }
-    return { adjustment: requestedAdjustment, totalScore: nextScore };
-  });
-};
-
 /*
  * submitLiveChallengeResponse is exported from index.js unwrapped: it scores
  * with the room's strategy and speed setting and returns the stored numbers
  * directly, so the student's result panel and the leaderboard can never
  * disagree.
+ *
+ * RETIRED (LC23): `adjustLiveChallengeExperienceScore`, a Firestore trigger on
+ * liveChallengePrivate/{roomId}/players/{studentId} that rescaled the speed
+ * bonus of a player write from the submit code that scored it on the mature
+ * 100-point scale. Since the strategies apply speed natively, every submission
+ * has marked its round (`experienceSpeedAdjustedRound`, functions/index.js
+ * submitLiveChallengeResponse, the only writer of a player's answeredRound) and
+ * the trigger returned before touching it, on every write. Nothing called it.
+ *
+ * Taking it out of this file does not by itself delete the deployed function.
+ * An exact-name release (scripts/release-firebase.mjs deploys the names in the
+ * source) never names it, so it stays deployed, harmless; a whole-fleet
+ * `firebase deploy --only functions` offers to delete it, and does with
+ * --force. To delete it on purpose, once the release that carries this change
+ * is live:
+ *
+ *   firebase functions:delete adjustLiveChallengeExperienceScore --region us-central1 --project mathmaster-aleks
+ *
+ * KEEP THE MARKER WRITE in submitLiveChallengeResponse until it is gone from
+ * production: the deployed trigger reads it, and without it would rescale every
+ * correct answer. docs/architecture/live-challenge-engine.md says the same.
  */
-
-/**
- * LEGACY fallback for a player write from the earlier submit code, which
- * scored speed on the mature 100-point scale and relied on this trigger to
- * rescale it. Current submissions mark their round as already adjusted, so
- * this returns early for every write the current code makes — including the
- * round-close and milestone writes, which never change answeredRound. It is
- * kept deployed for the rolling-deploy window and can be deleted in a
- * deployment that explicitly removes the function.
- */
-exports.adjustLiveChallengeExperienceScore = onDocumentWritten(
-  `${LIVE_CHALLENGE_PRIVATE}/{roomId}/players/{studentId}`,
-  async (event) => {
-    const beforeSnapshot = event.data?.before;
-    const afterSnapshot = event.data?.after;
-    if (!beforeSnapshot?.exists || !afterSnapshot?.exists) return null;
-    const before = beforeSnapshot.data() || {};
-    const after = afterSnapshot.data() || {};
-    const answeredRound = Number(after.answeredRound);
-    if (!Number.isInteger(answeredRound) || answeredRound < 0) return null;
-    if (Number(before.answeredRound) === answeredRound) return null;
-    if (Number(after.experienceSpeedAdjustedRound) === answeredRound) return null;
-    if (after.lastAnswerCorrect !== true) return null;
-
-    const scoreDelta = Math.max(0, Math.round(Number(after.score) || 0) - Math.round(Number(before.score) || 0));
-    const streakAfter = Math.max(0, Math.round(Number(after.streak) || 0));
-    const streakBonus = Math.min(100, Math.max(0, streakAfter - 1) * 25);
-    const comebackBonus = before.lastAnswerCorrect === false ? 150 : 0;
-    const originalSpeedBonus = Math.max(0, Math.min(100, scoreDelta - 1000 - streakBonus - comebackBonus));
-    if (!originalSpeedBonus) return null;
-
-    const roomId = String(event.params?.roomId || '').trim();
-    const studentId = String(event.params?.studentId || '').trim();
-    if (!roomId || !studentId) return null;
-    return applyExperienceSpeedAdjustment({ db: getFirestore(), roomId, studentId, answeredRound, originalSpeedBonus });
-  },
-);
 
 // --- Assignment V5 Honors-depth Gemini --------------------------------------
 // This endpoint is intentionally separate from the mature OpenAI assignment
@@ -424,5 +324,51 @@ exports.authorHonorsAssignmentWithGemini = onCall({
       }
     }
     throw translated;
+  }
+});
+
+// --- Answer keys in shadow (D10 Phase 1, P1-4; SI02) -------------------------
+// Whenever an assignment is written, its answer keys, accepted answers and
+// worked solutions are split out into assignmentKeys/{assignmentId}
+// (functions/lib/assignmentKeyShadow.js, functions/shared/assignmentKeySplit.mjs).
+// In shadow the assignment keeps every key and nothing reads the copy, so no
+// student or teacher sees any change. It writes only when the sections change
+// (or its key document is missing or stale), and re-reads the assignment in a
+// transaction before writing, so events out of order cannot store old keys.
+//
+// DEPLOY ORDER: the firestore:rules release that adds the assignmentKeys rule
+// first, then this one function by name, outside class hours:
+//   node scripts/release-firebase.mjs --execute --only rules
+//   node scripts/release-firebase.mjs --execute --only functions --functions shadowAssignmentKeys
+// (Were the function to ship first, the catch-all `match /{document=**}` rule
+// would still refuse every browser the new collection.)
+// ROLLBACK: delete the trigger; nothing reads what it wrote, and every
+// assignment still carries its own keys.
+//   firebase functions:delete shadowAssignmentKeys --region us-central1 --project mathmaster-aleks
+// then remove this export, or the next whole-fleet release recreates it.
+const { onDocumentWritten } = require('firebase-functions/v2/firestore');
+const logger = require('firebase-functions/logger');
+const assignmentKeyShadow = require('./lib/assignmentKeyShadow');
+
+exports.shadowAssignmentKeys = onDocumentWritten('assignments/{assignmentId}', async (event) => {
+  const assignmentId = String(event.params?.assignmentId || '');
+  if (!assignmentId) return;
+  try {
+    const result = await assignmentKeyShadow.shadowAssignmentKeysOnWrite({
+      db: getFirestore(),
+      assignmentId,
+      after: event.data?.after || null,
+      serverTimestamp: () => FieldValue.serverTimestamp(),
+    });
+    if (result.outcome !== assignmentKeyShadow.SHADOW_OUTCOME.CURRENT) {
+      logger.info('Assignment answer-key shadow copy changed', { assignmentId, ...result });
+    }
+  } catch (error) {
+    // Shadow only: a failure changes nothing anyone reads. It is logged, and
+    // the next write of this assignment (or the backfill) tries again.
+    logger.error('Assignment answer keys could not be stored in shadow', {
+      assignmentId,
+      message: String(error?.message || error).slice(0, 300),
+    });
   }
 });

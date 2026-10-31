@@ -20,12 +20,14 @@
  * An activity role nobody recognises fails closed (`roleKnown: false`).
  *
  * missFeedback — the sentence under "Not quite": an authored message keyed
- * to this wrong answer first, then the misconception / generic diagnosis
- * (missDiagnosis.js), then the authored attempt feedback for this attempt
- * number. Null when there is nothing specific to say — the platform never
- * pads it with a generic "check your work".
+ * to this wrong answer first, then the lesson's own common error when it is
+ * the one the student made (commonErrorMiss, FB04), then the misconception /
+ * generic diagnosis (missDiagnosis.js), then the authored attempt feedback for
+ * this attempt number. Null when there is nothing specific to say — the
+ * platform never pads it with a generic "check your work".
  */
 import { buildPrivateSupport } from '../../../../functions/shared/pathSolutionSupport.mjs';
+import { answerCandidatesForField, matchesFieldAnswer } from '../../../../functions/shared/answerUtils.mjs';
 
 const list = (value) => (Array.isArray(value) ? value : []);
 const text = (value) => String(value ?? '').trim();
@@ -52,6 +54,70 @@ export const submittedValues = (parts = []) => list(parts)
   .map(text)
   .filter(Boolean);
 
+/*
+ * THE LESSON'S OWN COMMON ERROR, WHEN IT IS THE ONE THE STUDENT MADE (FB04).
+ *
+ * A lesson item's solutionReview.commonError reads "<the mistake>; <why, and
+ * the right answer>". It was shown only once the question closed, so a
+ * student who wrote exactly that wrong answer heard "Not quite" and nothing
+ * more (walkthrough 2026-10-22, DOL #3 PR 1). Now the mistake half is said on
+ * a miss, and only when a wrong value the student submitted is one the
+ * mistake half names, compared by the grader's own equivalence. The half
+ * after ";" explains and gives the answer, so it still waits for the closed
+ * question's review; a mistake half with no ";" after it, or one that names a
+ * value the question accepts, is never said. Like everything missFeedback
+ * returns, it shows only where feedbackOpenForItem allows outcome feedback.
+ */
+const MATH_WORDS = new Set(['sqrt', 'log', 'ln', 'sin', 'cos', 'tan', 'inf', 'pi']);
+const isMathToken = (token) => {
+  const bare = token.replace(/^\$/, '').replace(/[.;:!?]+$/, '');
+  if (!bare) return false;
+  return (bare.match(/[A-Za-z]{2,}/g) || []).every((word) => MATH_WORDS.has(word.toLowerCase()));
+};
+// Each run of consecutive math tokens with a digit in it: "0 ≤ y ≤ 80" and
+// "0 ≤ y ≤ 100" in "Writing the range as 0 ≤ y ≤ 80 or 0 ≤ y ≤ 100".
+const namedValues = (clause) => {
+  const runs = [];
+  let run = [];
+  const close = () => {
+    const value = run.join(' ').replace(/^\$/, '').replace(/[.,;:!?]+$/, '');
+    if (/\d/.test(value)) runs.push(value);
+    run = [];
+  };
+  clause.split(/\s+/).forEach((token) => {
+    if (isMathToken(token)) run.push(token); else close();
+  });
+  close();
+  return runs;
+};
+const KEY_FIELDS = ['answerFields', 'responses', 'responseFields'];
+const questionKeys = (question = {}) => [
+  ...KEY_FIELDS.flatMap((key) => list(question?.[key]).flatMap((field) => answerCandidatesForField(field || {}))),
+  ...Object.entries(question || {})
+    .filter(([key, value]) => (/^correct[A-Z]/.test(key) || key === 'answer') && (typeof value === 'string' || typeof value === 'number'))
+    .map(([, value]) => value),
+].map(text).filter(Boolean);
+
+export const commonErrorMiss = ({ question = null, parts = [] } = {}) => {
+  const authored = text(question?.solutionReview?.commonError);
+  const split = authored.indexOf(';');
+  // A family template's text before its numbers are filled in says nothing yet.
+  if (split <= 0 || authored.includes('{{')) return null;
+  const mistake = authored.slice(0, split).trim().replace(/[.,:]+$/, '');
+  const named = namedValues(mistake);
+  if (!named.length) return null;
+  const same = (value, candidate) => {
+    try { return matchesFieldAnswer(value, { answer: candidate }); } catch { return false; }
+  };
+  const keys = questionKeys(question);
+  if (named.some((candidate) => keys.some((key) => same(key, candidate)))) return null;
+  const wrong = list(parts).filter((part) => part && part.graded !== false && part.isCorrect === false);
+  const made = submittedValues(wrong).some((value) => named.some((candidate) => same(value, candidate)));
+  if (!made) return null;
+  const sentence = /^[A-Z][a-z]/.test(mistake) ? `${mistake[0].toLowerCase()}${mistake.slice(1)}` : mistake;
+  return { message: `A common slip here: ${sentence}.`, source: 'authored-common-error' };
+};
+
 export const missFeedback = ({ question = null, attemptNumber = 1, diagnosis = null, parts = [] } = {}) => {
   let support = null;
   try {
@@ -63,6 +129,8 @@ export const missFeedback = ({ question = null, attemptNumber = 1, diagnosis = n
   const authoredMatch = list(support?.misconceptions).find((entry) => entry.match
     .some((candidate) => given.includes(text(candidate).toLowerCase().replace(/\s+/g, ''))));
   if (authoredMatch) return { message: authoredMatch.message, source: 'authored-misconception' };
+  const commonError = commonErrorMiss({ question, parts });
+  if (commonError) return commonError;
   if (diagnosis?.message) return { message: diagnosis.message, source: diagnosis.source || 'diagnosis' };
   const feedback = list(support?.attemptFeedback);
   if (feedback.length) {

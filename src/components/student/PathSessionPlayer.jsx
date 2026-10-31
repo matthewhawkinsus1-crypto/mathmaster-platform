@@ -13,6 +13,7 @@ import { resolveCalculatorPolicy } from '../../platform/policies/calculatorPolic
 import PathSupportBar, { speechTextFor, supportPresentationStyle } from './PathSupportBar.jsx';
 import { questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
 import { foldPathDelivery, pathUniversalDesignRole, toolsEntitlementFromPath } from '../../platform/language/supportToolsEntitlement.js';
+import { seenHelpText } from '../../platform/language/seenHelpText.js';
 import { describeSkill, teksSkillId } from '../../platform/path/skillGraph.js';
 import { toDisplayCode } from '../../utils/teksUtils.js';
 import StandardBadge from '../common/StandardBadge.jsx';
@@ -322,6 +323,10 @@ export const PathSessionPlayer = ({
   // One logical level up: My Math Path, never Home. Null in the teacher
   // simulator, which has its own frame around this.
   onExit = null,
+  // The session is the page's <main>, as every student's is. A teacher's page (the Path
+  // Simulator, Demo Experience) has one already and passes false: the session is then a plain
+  // <div>, so the page has one main and not a main inside a main (TT27).
+  mainLandmark = true,
 }) => {
   const [responsesByQuestion, setResponsesByQuestion] = useState({});
   const [calculatorUsed, setCalculatorUsed] = useState(false);
@@ -509,13 +514,14 @@ export const PathSessionPlayer = ({
   // (responseClosesQuestion), so an older server that signals closure only
   // with needsNextQuestion still counts, and so does a failed advance.
   const reviewing = finalized || typeof onContinue === 'function';
+  const Landmark = mainLandmark ? 'main' : 'div';
 
   // A secure payload wins over a canonical one: if the server built a tool
   // payload it also kept the grading definition, and the verdict is its own.
   const canonical = secureQuestion || questionInstance.canonicalQuestion || null;
   if (canonical) {
     return (
-      <main ref={workspaceRef} style={TOOL_WRAPPER}>
+      <Landmark ref={workspaceRef} style={TOOL_WRAPPER}>
         <SessionHeader
           session={session}
           questionInstance={questionInstance}
@@ -580,7 +586,7 @@ export const PathSessionPlayer = ({
         {onContinue && (
           <ContinueAction onContinue={onContinue} pending={isAdvancing} label={continueLabel} />
         )}
-      </main>
+      </Landmark>
     );
   }
 
@@ -633,7 +639,7 @@ export const PathSessionPlayer = ({
       : { background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)' };
 
   return (
-    <main ref={workspaceRef} style={WRAPPER}>
+    <Landmark ref={workspaceRef} style={WRAPPER}>
       <SessionHeader
         session={session}
         questionInstance={questionInstance}
@@ -654,6 +660,13 @@ export const PathSessionPlayer = ({
           onDelivery={setSupportDelivery}
           disabled={isSubmitting}
           prompt={questionInstance?.prompt || ''}
+          // The hint they opened and the feedback on the screen (AX43): the
+          // hint is on screen only until the question is finished.
+          seenText={seenHelpText({
+            hints: lastSupport?.hint && !finalized ? [lastSupport.hint] : [],
+            revealed: hintOpen ? 1 : 0,
+            feedback: lastFeedback?.message || '',
+          })}
           toolType={questionInstance?.pathToolId || questionInstance?.questionType || ''}
           supportLanguage={supportLanguage}
           universalDesignRole={universalDesignRole}
@@ -768,7 +781,7 @@ export const PathSessionPlayer = ({
       )}
 
       <CalculatorPanel policy={calculatorPolicy} onCalculatorOpened={() => setCalculatorUsed(true)} />
-    </main>
+    </Landmark>
   );
 };
 

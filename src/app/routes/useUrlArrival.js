@@ -20,7 +20,7 @@ import { useEffect, useRef, useState } from 'react';
 export const ARRIVAL_SETTLE_TIMEOUT_MS = 8000;
 import { readMathPathRouteState, readRouteOwner, readStudentRouteState } from '../../platform/student/browserHistory.js';
 import { readTeacherRouteState } from '../../platform/teacher/teacherBrowserHistory.js';
-import { planStudentArrival, planTeacherArrival } from './urlArrival.js';
+import { arrivalStillWanted, planStudentArrival, planTeacherArrival } from './urlArrival.js';
 import { replaceAddressPath } from './browserUrl.js';
 
 export const useUrlArrival = ({
@@ -32,9 +32,18 @@ export const useUrlArrival = ({
   toastInfo,
   student,
   teacher,
+  // When the page read the address, and the screen the account is on now (a
+  // student's; null for anyone else): see arrivalStillWanted (NV09).
+  arrivedAt = null,
+  routeKey = null,
 }) => {
   const openedRef = useRef(null);
   const [waitedOut, setWaitedOut] = useState(false);
+  // The first screen the account showed while the address waited.
+  const firstRouteRef = useRef(null);
+  useEffect(() => {
+    if (urlArrival && user?.id && routeKey && firstRouteRef.current === null) firstRouteRef.current = routeKey;
+  }, [urlArrival, user?.id, routeKey]);
   useEffect(() => {
     if (!urlArrival || !user?.id || ready) return undefined;
     const timer = setTimeout(() => setWaitedOut(true), ARRIVAL_SETTLE_TIMEOUT_MS);
@@ -47,6 +56,9 @@ export const useUrlArrival = ({
     // Once, even where an effect runs twice for the same state (StrictMode).
     if (openedRef.current === arrival) return;
     openedRef.current = arrival;
+    // Left too long on a signed-out page, or the student went elsewhere
+    // first: the screen they are on stays (NV09).
+    if (!arrivalStillWanted({ arrivedAt, firstRouteKey: firstRouteRef.current, routeKey })) return;
     // A reload of an entry another account wrote (Back across a page load
     // after the previous student logged out): not this account's address.
     // The writers then replace it with this account's own screen.
@@ -64,7 +76,10 @@ export const useUrlArrival = ({
       if (!plan) return;
       if (plan.message && plan.action !== 'assignment') toastInfo(plan.message.title, plan.message.body);
       if (plan.action === 'assignment') {
-        const opening = student.startAssignment(plan.assignmentId, plan.storageIndex ?? 0, plan.exact ? { keepRequestedQuestion: true } : {});
+        const opening = student.startAssignment(plan.assignmentId, plan.storageIndex ?? 0, {
+          ...(plan.exact ? { keepRequestedQuestion: true } : {}),
+          ...(plan.sectionKey ? { sectionKey: plan.sectionKey } : {}),
+        });
         // A notice about the work is shown with the work, not over the screen
         // it is leaving; a start that went elsewhere (the result page, a
         // section not open) says it now.
@@ -73,7 +88,11 @@ export const useUrlArrival = ({
           else toastInfo(plan.message.title, plan.message.body);
         }
       } else if (plan.action === 'result') {
-        student.openStudentAssignmentResult(plan.assignmentId, { sectionKey: plan.sectionKey, origin: plan.origin });
+        student.openStudentAssignmentResult(plan.assignmentId, {
+          sectionKey: plan.sectionKey,
+          origin: plan.origin,
+          ...(plan.recoverySection ? { recoverySection: plan.recoverySection } : {}),
+        });
       } else if (plan.action === 'testCycle') {
         student.setActiveTestCycleAssignmentId(plan.assignmentId);
         student.openStudentDashboardMode('testCycle');

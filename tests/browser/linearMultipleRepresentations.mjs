@@ -56,6 +56,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { establishProcessFacts } from './lmrProcessDriver.mjs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5197';
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -107,8 +108,8 @@ const renderAllMath = async (page) => {
 const shot = async (page, name, locator = null) => {
   mkdirSync(ARTIFACTS, { recursive: true });
   const file = path.join(ARTIFACTS, `${name}.png`);
-  if (locator) await locator.screenshot({ path: file });
-  else await page.screenshot({ path: file, fullPage: true });
+  if (locator) await screenshotKeepingTouch(locator, { path: file });
+  else await screenshotKeepingTouch(page, { path: file, fullPage: true });
   return file;
 };
 
@@ -722,10 +723,17 @@ journeys['phone-scenario'] = async (browser) => {
   await settle(page);
   const contextText = await page.locator('[data-lmr-card="context"]').innerText();
   check((contextText.match(/Take another look/g) || []).length === 1 && (contextText.match(/✓ Correct/g) || []).length === 5, 'context check marks the one wrong meaning, next to it');
+  // …and says what a slope is under it, describing that field (TL28).
+  const reason = page.locator('[data-lmr-card="context"] [data-lmr-meaning-reason]');
+  const reasonFor = await reason.evaluateAll((nodes) => nodes.map((node) => ({ field: node.dataset.lmrMeaningReason, id: node.id, text: node.textContent, visible: node.getBoundingClientRect().height > 0 })));
+  const slopeSelect = await selects.nth(2).getAttribute('aria-describedby');
+  check(reasonFor.length === 1 && reasonFor[0].field === 'contextSlopeMeaning' && /up or down/.test(reasonFor[0].text) && reasonFor[0].visible && slopeSelect === reasonFor[0].id, `one reason, under the wrong slope meaning, describing it (${JSON.stringify({ reasonFor, slopeSelect })})`);
+  await shot(page, 'phone-pr2-meaning-reason');
   await selects.nth(2).selectOption(answers[2]);
   await page.locator('[data-lmr-card="context"] button[data-card-check="true"]').tap();
   await settle(page);
   check(((await page.locator('[data-lmr-card="context"]').innerText()).match(/✓ Correct/g) || []).length === 6, 'all six meanings accepted');
+  check(await reason.count() === 0 && !(await selects.nth(2).getAttribute('aria-describedby')), 'a right meaning has no reason under it');
   // Slope via the on-screen keypad (the phone keyboard is suppressed).
   const slopeField = mathField(page, 'slope');
   await slopeField.scrollIntoViewIfNeeded();
@@ -778,6 +786,9 @@ journeys.dol = async (browser) => {
   const strip = await page.locator('[aria-label="Your progress"]').innerText();
   check(/Filled in/.test(strip) && !/Checked correct/.test(strip), `DOL progress counts filled-in work, not correctness ("${strip}")`);
   check(await card(page, 'table').count() === 0 && await card(page, 'graphIntercepts').count() === 0 && await card(page, 'pointSlope').count() === 0, 'the DOL shows only its required cards');
+  // Its only graph is "Graph", not "Graph 2" (TL28).
+  const onlyGraph = (await card(page, 'graphSlopeIntercept').locator('strong').first().innerText()).trim();
+  check(onlyGraph === 'Graph · Slope-intercept method', `the DOL's only graph is titled without a number ("${onlyGraph}")`);
   // Enter in a field neither checks nor submits.
   await typeMath(page, mathField(page, 'slope'), '-3');
   await page.keyboard.press('Enter');
@@ -797,6 +808,7 @@ journeys.dol = async (browser) => {
   await settle(page);
   const warning = await page.locator('[data-lmr-submit] [role="alert"]').innerText().catch(() => '');
   check(/still empty/.test(warning), `an incomplete DOL asks before submitting ("${warning.slice(0, 90)}")`);
+  check(/Graph \(slope-intercept\)/.test(warning) && !/Graph 2/.test(warning), `and names the empty graph as the board does ("${warning}")`);
   check((await grades(page)).length === 0, 'the first press on an incomplete DOL does not submit');
   await page.getByRole('button', { name: 'Keep working' }).click();
   // Complete it.
@@ -899,16 +911,17 @@ journeys.complete = async (browser) => {
     const recorded = (await grades(page)).filter((grade) => grade.questionId === id);
     check(recorded.length === 1 && recorded[0].isCorrect === true, `${id}: submitted correct (${JSON.stringify(recorded.map((g) => [g.isCorrect, g.partialCreditPercent]))})`);
     // A finished question is final: the Undo that walks the board back cannot reopen it.
-    // QuestionEngine locks a correct question by making the whole tool `inert`,
-    // which takes the board out of the accessibility tree. A role lookup then
-    // finds no Submit button at all in some Playwright versions (1.55, as CI
-    // pins) and the disabled one in others, so look the button up by its text,
-    // which sees inert content, and check that it cannot be used: disabled, or
-    // inside the inert lock. Still looked up without waiting, and if it is
-    // truly gone, say what the page shows instead.
+    // QuestionEngine locks a correct question: since AX01 its work is
+    // read-only (a disabled fieldset, still in the accessibility tree), and
+    // while a submit is in flight it is `inert`, which a role lookup cannot
+    // see in some Playwright versions (1.55, as CI pins). So look the button
+    // up by its text, which sees either, and check that it cannot be used:
+    // disabled, or inside an inert lock. Still looked up without waiting, and
+    // if it is truly gone, say what the page shows instead.
     // The board's own button: once the question is closed its label drops the
-    // try cost ("Submit board"), since a closed question spends none.
-    const submitBoard = page.locator('[data-lmr-submit] button', { hasText: /^Submit\b/ }).first();
+    // try cost for the tool's own word ("Check board"), since a closed
+    // question spends none. Found by its marker, not by the word.
+    const submitBoard = page.locator('[data-lmr-submit] button[data-work-view-check]').first();
     const submitShown = await submitBoard.count();
     const submitState = submitShown
       ? await submitBoard.evaluate((element) => ({ disabled: element.matches(':disabled'), inert: Boolean(element.closest('[inert]')) }))

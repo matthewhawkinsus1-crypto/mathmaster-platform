@@ -219,6 +219,31 @@ test('units are ordered by the calendar, keep the calendar\'s own names, and say
   assert.equal(browser.groups.find((group) => group.id === 'alg1.module2').classHere, true);
 });
 
+test('between two topic windows of one unit, the unit says the class is partway through it (MP17)', () => {
+  // Algebra I Module 3: Topic 1 ends Nov 20, Topic 2 starts Nov 30. In
+  // Thanksgiving week its first topic is behind the class and its second is
+  // ahead, so it neither "starts soon" nor was "covered earlier". Module 2 has
+  // the same gap around its first assessment (Oct 2).
+  const standingOn = (iso) => {
+    const at = Date.parse(iso);
+    const options = buildStudentPathOptions({ ...studentWithAssignmentWork({}), courseId: 'algebra1', nowValue: at });
+    const browser = buildTopicBrowser({ pathOptions: options });
+    return Object.fromEntries(browser.groups.map((group) => [group.id, {
+      standing: group.standing,
+      timings: [...new Set(group.skills.map((skill) => skill.calendarTiming))].sort(),
+    }]));
+  };
+  const thanksgiving = standingOn('2026-11-24T15:00:00Z');
+  // The fixture is the gap itself: some of Module 3 behind, some ahead.
+  assert.deepEqual(thanksgiving['alg1.module3'].timings, ['review', 'upcoming']);
+  assert.equal(thanksgiving['alg1.module3'].standing, 'Your class is partway through this unit');
+  assert.equal(thanksgiving['alg1.module2'].standing, 'Your class covered this unit earlier');
+  assert.equal(thanksgiving['alg1.module4'].standing, 'Later in the course');
+  assert.equal(standingOn('2026-10-02T15:00:00Z')['alg1.module2'].standing, 'Your class is partway through this unit');
+  // Inside a topic window the class is on it now, as before.
+  assert.equal(standingOn('2026-12-02T15:00:00Z')['alg1.module3'].standing, 'Your class is working on this unit now');
+});
+
 test('unit rules hold for any calendar: parents name topics, review-only and embedded units come last', () => {
   const calendar = { windows: [
     // A review-only unit dated BEFORE the first taught unit still follows every

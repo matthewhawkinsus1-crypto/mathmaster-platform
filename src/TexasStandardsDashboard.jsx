@@ -319,7 +319,7 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
         {viewButtons.map(([key, label]) => (
           <button key={key} type="button" onClick={() => setView(key)} style={{ fontWeight: 900, borderColor: view === key ? '#1a73e8' : 'var(--mm-border)', background: view === key ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', color: view === key ? 'var(--mm-primary-text)' : 'var(--mm-text)' }}>{label}</button>
         ))}
-        <select value={classId} onChange={(event) => setClassId(event.target.value)} style={{ marginLeft: 'auto' }}>
+        <select value={classId} onChange={(event) => setClassId(event.target.value)} aria-label="Class" style={{ marginLeft: 'auto' }}>
           <option value="All">All classes</option>
           {classOptions.map((entry) => <option key={entry.classId} value={entry.classId}>{entry.name || entry.period || entry.classId}{entry.period ? ` · ${entry.period}` : ''}</option>)}
         </select>
@@ -358,7 +358,11 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
                   const courseProfile = getCourseProfile(profile, selectedCourseId);
                   return (
                     <tr key={student.id} onClick={() => setSelectedStudentId(student.id)} style={{ cursor: 'pointer', background: selectedStudent?.id === student.id ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', borderTop: '1px solid var(--mm-border-soft)' }}>
-                      <td style={{ padding: '10px', fontWeight: 800 }}>{formatStudentName(student)}<div style={{ color: 'var(--mm-text-muted)', fontWeight: 400 }}>{studentIdLabel(student)} · {student.classPeriod || 'Unassigned'}</div></td>
+                      {/* The row answers a click; the name is the keyboard's way to the same (TT27). A press on it
+                          is the row's press, so it stops here and the row does not choose twice. A button does not
+                          inherit the page's letter spacing or text rendering, so they are named: the name reads
+                          exactly as it did before it was a button. */}
+                      <td style={{ padding: '10px', fontWeight: 800 }}><button type="button" aria-current={selectedStudent?.id === student.id ? 'true' : undefined} onClick={(event) => { event.stopPropagation(); setSelectedStudentId(student.id); }} style={{ padding: 0, border: 0, background: 'transparent', color: 'inherit', font: 'inherit', letterSpacing: 'inherit', textRendering: 'inherit', textAlign: 'left', cursor: 'pointer' }}>{formatStudentName(student)}</button><div style={{ color: 'var(--mm-text-muted)', fontWeight: 400 }}>{studentIdLabel(student)} · {student.classPeriod || 'Unassigned'}</div></td>
                       <td style={{ padding: '10px', textAlign: 'center' }}><PerformanceBadge performance={courseProfile?.overall?.performance} /></td>
                       <td style={{ padding: '10px', textAlign: 'center' }}>{courseProfile?.overall?.confidence || 'Low'}</td>
                       <td style={{ padding: '10px', textAlign: 'center', fontWeight: 900 }}>{courseProfile?.overall?.recommendedGeneratorBand || 3}</td>
@@ -421,7 +425,7 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
       )}
 
       {view === 'items' && (
-        <div style={{ overflowX: 'auto', border: '1px solid var(--mm-border-soft)', borderRadius: '10px' }}>
+        <div role="region" aria-label="Question item analysis" tabIndex={0} style={{ overflowX: 'auto', border: '1px solid var(--mm-border-soft)', borderRadius: '10px' }}>
           <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: '1080px', fontSize: 'calc(12 * var(--mm-px))' }}>
             <thead><tr style={{ background: 'var(--mm-surface-sunken)' }}>{['Course', 'Assignment / question', 'TEKS', 'DOK', 'Intended', 'Purpose', 'Responses', '1st attempt', 'Eventual', 'Avg attempts', 'Observed'].map((header) => <th key={header} style={{ padding: '10px', textAlign: 'left' }}>{header}</th>)}</tr></thead>
             <tbody>
@@ -491,13 +495,17 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
                 <div style={{ fontWeight: 900 }}>Trace a TEKS vertically</div>
                 <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))', marginTop: '3px' }}>Prior TEKS are support targets. They never replace the current-course TEKS being taught.</div>
               </div>
-              <select value={pathwayStandard?.code || ''} onChange={(event) => setSelectedPathwayCode(event.target.value)} style={{ minWidth: '320px', maxWidth: '100%' }}>
+              <select value={pathwayStandard?.code || ''} onChange={(event) => setSelectedPathwayCode(event.target.value)} aria-label="TEKS to trace" style={{ minWidth: '320px', maxWidth: '100%' }}>
                 {selectedRegistry.filter((standard) => !search.trim() || `${standard.code} ${standard.description}`.toLowerCase().includes(search.trim().toLowerCase())).map((standard) => <option key={standard.code} value={standard.code}>{standard.code} — {standard.description}</option>)}
               </select>
             </div>
           </section>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1fr)', gap: '11px' }}>
+          {/* Prior, current, next: side by side where each column has room, stacked
+              on a phone. Three fixed columns left about 100px each at 390px, and the
+              bold headings ran over the next column's card border (contrast review,
+              teacher-teks/pathway, phone). */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '11px' }}>
             <section>
               <div style={{ fontWeight: 900, marginBottom: '7px', color: 'var(--mm-text-muted)' }}>PRIOR-COURSE SUPPORT</div>
               <div style={{ display: 'grid', gap: '8px' }}>
@@ -527,7 +535,7 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
               <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))', marginBottom: '10px' }}>
                 Level 1 is the first support recommendation. Lower levels are a diagnostic roadmap only; MathMaster does not automatically skip a student down multiple grades without evidence from the intervening prerequisite level.
               </div>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch', overflowX: 'auto', paddingBottom: '4px' }}>
+              <div role="region" aria-label="Prerequisite support levels" tabIndex={0} style={{ display: 'flex', gap: '8px', alignItems: 'stretch', overflowX: 'auto', paddingBottom: '4px' }}>
                 {priorPath.map((level, index) => (
                   <div key={`${level.depth}-${level.courseId}`} style={{ display: 'flex', alignItems: 'center', flex: '0 0 auto' }}>
                     <div style={{ minWidth: '205px', maxWidth: '280px', padding: '10px', borderRadius: '9px', border: index === 0 ? '2px solid #1a73e8' : '1px solid var(--mm-border)', background: index === 0 ? 'var(--mm-primary-subtle)' : 'var(--mm-surface-sunken)' }}>

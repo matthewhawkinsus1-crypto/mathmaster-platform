@@ -932,6 +932,20 @@ test('23. the teacher sees what failed, why, whether the Recovery is held, and w
   });
 });
 
+test('TT13: past the student\'s final submission date a held Recovery offers no replacement, until their date is extended', () => {
+  const { assignment, student } = heldFixture();
+  const AFTER = Date.parse('2026-10-12T15:00:00Z'); // the fixture's final cutoff is 2026-10-10 23:00Z
+  const [ended] = teacherAuditModule.buildTeacherRecoveryAudit({ student, assignment, nowValue: AFTER });
+  assert.equal(ended.held, true);
+  assert.deepEqual([...ended.actions].sort(), ['finalizeGraded', 'keepOriginal'], 'the server would refuse a replacement now');
+  assert.match(ended.recommendedAction, /extend the student's final submission date[^.]*and then issue a replacement question/);
+  // The student's own extension (merged into the teacher's lesson as the server merges it) reopens the choice.
+  const extended = { ...assignment, studentOverrides: { [STUDENT]: { lateDueAt: '2026-10-20T23:00:00Z' } } };
+  const [open] = teacherAuditModule.buildTeacherRecoveryAudit({ student, assignment: extended, nowValue: AFTER });
+  assert.deepEqual([...open.actions].sort(), ['finalizeGraded', 'issueReplacement', 'keepOriginal']);
+  assert.match(open.recommendedAction, /issue a replacement question so the student can answer it/);
+});
+
 test('the student Grade Center reads a held Recovery as Pending Grade — never a final number', () => {
   const { assignment, record } = heldFixture();
   const center = buildStudentGradeCenter({

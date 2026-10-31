@@ -69,18 +69,22 @@ test('a projection is the public rule\'s rows and how many play, nothing else', 
 });
 
 test('nobody the public rule hides is in a projection: not their alias, key, rank or score', () => {
-  // Three players: the class sees first place only.
-  const three = [publicRow(0, { score: 900 }), publicRow(1, { score: 500 }), publicRow(2, { score: 100 })];
-  const small = liveProjectionFromPublicRows({ roomId: 'r', room: runningRoom(), rows: three, nowMs: 20_000 });
+  // Four players: the class sees first place only (LC22: 1st and 2nd would
+  // leave 3rd and 4th, and 3rd could name 4th).
+  const four = [publicRow(0, { score: 900 }), publicRow(1, { score: 500 }), publicRow(2, { score: 300 }), publicRow(3, { score: 100 })];
+  const small = liveProjectionFromPublicRows({ roomId: 'r', room: runningRoom(), rows: four, nowMs: 20_000 });
   assert.deepEqual(small.top.map((row) => row.alias), ['Player 0']);
   const smallText = JSON.stringify(small);
-  for (const hidden of three.slice(1)) {
+  for (const hidden of four.slice(1)) {
     assert.equal(smallText.includes(hidden.alias), false, `${hidden.alias} is named`);
     assert.equal(smallText.includes(hidden.playerKey), false, `${hidden.alias}'s key is there`);
   }
   assert.equal(smallText.includes('"100"') || smallText.includes(':100,') || smallText.includes(',100'), false, 'the last score is nowhere');
-  // Two players: no ranking at all.
-  assert.deepEqual(liveProjectionFromPublicRows({ roomId: 'r', room: runningRoom(), rows: three.slice(0, 2), nowMs: 20_000 }).top, []);
+  // Five players: the top two. Three players, and two: no ranking at all.
+  const five = [...four, publicRow(4, { score: 50 })];
+  assert.deepEqual(liveProjectionFromPublicRows({ roomId: 'r', room: runningRoom(), rows: five, nowMs: 20_000 }).top.map((row) => row.alias), ['Player 0', 'Player 1']);
+  assert.deepEqual(liveProjectionFromPublicRows({ roomId: 'r', room: runningRoom(), rows: four.slice(0, 3), nowMs: 20_000 }).top, []);
+  assert.deepEqual(liveProjectionFromPublicRows({ roomId: 'r', room: runningRoom(), rows: four.slice(0, 2), nowMs: 20_000 }).top, []);
   // Twenty-four where twenty-two tie for last: the two above them, nobody else.
   const hard = Array.from({ length: 24 }, (_, index) => publicRow(index, { score: index < 2 ? 900 - index * 100 : 0 }));
   const tied = liveProjectionFromPublicRows({ roomId: 'r', room: runningRoom(), rows: hard, nowMs: 80_000 });
@@ -90,7 +94,7 @@ test('nobody the public rule hides is in a projection: not their alias, key, ran
   // projector choice (the teacher's full standings stay the teacher's).
   const finalFull = exactProjectionFromStandings({
     roomId: 'r', room: { ...runningRoom(), standingsDisplay: 'full' }, kind: PROJECTION_KIND.FINAL, status: 'finished',
-    standings: three.map((row, index) => ({ playerKey: row.playerKey, alias: row.alias, rank: index + 1, position: index + 1, tied: false, score: row.score })),
+    standings: four.map((row, index) => ({ playerKey: row.playerKey, alias: row.alias, rank: index + 1, position: index + 1, tied: false, score: row.score })),
   });
   assert.deepEqual(finalFull.top.map((row) => row.alias), ['Player 0']);
 });
@@ -107,7 +111,7 @@ test('nothing private reaches a projection: no student id, email, answer, per-pl
   }));
   const text = JSON.stringify(liveProjectionFromPublicRows({ roomId: 'r', room: runningRoom(), rows, nowMs: 20_000 }));
   // An alias is shown, never parsed: no control character reaches a screen.
-  const odd = liveProjectionFromPublicRows({ roomId: 'r', room: runningRoom(), rows: [publicRow(0, { alias: 'Swift\nOtter\u0007\u001b[31m', score: 10 }), publicRow(1, { score: 5 }), publicRow(2, { score: 1 })], nowMs: 20_000 });
+  const odd = liveProjectionFromPublicRows({ roomId: 'r', room: runningRoom(), rows: [publicRow(0, { alias: 'Swift\nOtter\u0007\u001b[31m', score: 10 }), publicRow(1, { score: 9 }), publicRow(2, { score: 8 }), publicRow(3, { score: 5 }), publicRow(4, { score: 2 }), publicRow(5, { score: 1 })], nowMs: 20_000 });
   assert.equal(odd.top[0].alias, 'Swift Otter  [31m');
   assert.equal([...odd.top[0].alias].some((char) => char.charCodeAt(0) < 32), false);
   for (const forbidden of ['student-', '@school.org', 'answeredRound', 'provisional', 'At"', 'Audit', 'Receipts', 'isCorrect', 'x = 3', 'extendedTime', 'readAloud', 'launchMilestones', 'connection', 'Student 0', 'supports', 'accommodations', 'slot']) {
@@ -199,8 +203,9 @@ test('a screen decodes the class\'s rows and size, and refuses another room\'s o
   const view = standingsFromProjection(projection, { roomId: 'room-a' });
   assert.equal(view.count, 6);
   assert.equal(view.lastRank, 6);
-  // 4th and 5th would leave one unshown, so 5th steps off with 6th.
-  assert.deepEqual(view.top.map((row) => [row.rank, row.tied]), [[1, false], [2, true], [2, true], [4, false]], 'a shared place stays shared');
+  // 4th would leave 5th and 6th (each would name the other, LC22), so the
+  // three above are all that is shown.
+  assert.deepEqual(view.top.map((row) => [row.rank, row.tied]), [[1, false], [2, true], [2, true]], 'a shared place stays shared');
   assert.equal('self' in view, false, 'a screen\'s own place is its own summary\'s, never the snapshot\'s');
   assert.equal(standingsFromProjection(projection, { roomId: 'room-b' }), null, 'another room');
   assert.equal(standingsFromProjection({ ...projection, schemaVersion: 99 }, { roomId: 'room-a' }), null, 'a schema this screen does not know');

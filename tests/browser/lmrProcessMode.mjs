@@ -47,6 +47,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { balancedMove, cancelFactor, cancelTerm, closeInlineModes, combineLikeTerms, mathState, rewriteTerm, setMathField, simplifySide, removeParentheses } from './stepAlgebraDriver.mjs';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -91,7 +92,7 @@ const open = async (viewport, questionId, { touch = false, family = false, run =
   return { context, page };
 };
 const shot = async (target, name) => {
-  await target.screenshot({ path: path.join(ARTIFACTS, `${journeyName}-${name}.png`) });
+  await screenshotKeepingTouch(target, { path: path.join(ARTIFACTS, `${journeyName}-${name}.png`) });
 };
 const workspace = (page) => page.locator('[data-lmr-card="process"]');
 const strip = (page) => page.locator('[data-process-facts]');
@@ -164,8 +165,11 @@ const pick = async (page, [x, y], { touch = false } = {}) => {
 };
 
 // Step Algebra inside the workspace: solve a·v = c to v = c/a.
+// The solver itself: a typed-intercept box can sit above it (TL27), and the
+// operation's operand is the solver's first math field, not the workspace's.
+const solver = (page) => workspace(page).locator('[data-process-algebra]').first();
 const divideAndSimplify = async (page, divisor, simplified, side = 'right') => {
-  const host = workspace(page);
+  const host = solver(page);
   await balancedMove(page, host, 'Divide by', divisor);
   if (await host.locator('[aria-label$="mark this factor for cancellation"]').count()) await cancelFactor(page, host);
   await settle(page, 400);
@@ -186,6 +190,9 @@ const journeys = {
   async recognition() {
     const { context, page } = await open(LAPTOP, 'pm-slope-intercept');
     check((await lockedCards(page)).includes('graphSlopeIntercept'), 'Graph 2 starts locked');
+    // A board with all three graphs numbers them as before (TL28).
+    const graphTitle = await page.locator('[data-lmr-card="graphSlopeIntercept"] strong').first().innerText().catch(() => '');
+    check(graphTitle.trim() === 'Graph 2 · Slope-intercept method', `a full board keeps Graph 2 ("${graphTitle}")`);
     await find(page, 'slope');
     // One way to find it here, so it opens on it; the GIVEN stays in sight.
     check(await workspace(page).locator('[data-process-method="readSlopeIntercept@given"]').count(), 'reading m and b is the method');
@@ -206,7 +213,7 @@ const journeys = {
     await checkWork(page);
     check(!(await workspace(page).count()), 'established, the workspace returns to the board');
     check(await page.evaluate(() => document.activeElement?.closest?.('[data-process-facts]') !== null), 'focus returns to the facts');
-    check(/Now open: .*Graph 2/.test(await notice(page)), `the cards it opened are named: ${await notice(page)}`);
+    check(/Now open: .*Graph 2 \(slope-intercept\)/.test(await notice(page)), `the cards it opened are named: ${await notice(page)}`);
     check(!(await lockedCards(page)).includes('graphSlopeIntercept'), 'Graph 2 is open');
     const log = (await recordShape(page, 'pm-slope-intercept')).processLog;
     check(log?.entries?.length === 1 && log.entries[0].tries === 4, `one entry, four tries: ${JSON.stringify(log?.entries?.map((entry) => entry.tries))}`);
@@ -234,21 +241,40 @@ const journeys = {
     await chooseMethod(page, 'substituteZero');
     await press(page, workspace(page).locator('[data-process-choice="zero:x"]'));
     check(/same y-coordinate/.test(await message(page)), 'substituting into the wrong variable is redirected at once (guided)');
+    check(!(await workspace(page).locator('[data-process-point-step="typed"]').count()), 'no typed intercept with the wrong variable at 0');
     await press(page, workspace(page).locator('[data-process-choice="zero:y"]'));
     await settle(page, 1200);
     check(/2~?\s*x\s*=\s*12/.test(await mathState(workspace(page))), `Step Algebra opens on 2x = 12: ${await mathState(workspace(page))}`);
-    await divideAndSimplify(page, '2', '6');
+    // TL27: once y = 0 is chosen, the x-intercept can be typed straight in.
+    check(await workspace(page).locator('[data-process-point-step="typed"]').count() === 1, 'the typed intercept is offered once the variable that is 0 is chosen');
     await type(page, 'point', '(6, 0)');
     await checkWork(page);
-    check(/x-intercept: \(6, 0\)/.test(await notice(page)), `x-intercept established: ${await notice(page)}`);
+    check(/x-intercept: \(6, 0\)/.test(await notice(page)), `x-intercept established, typed straight in: ${await notice(page)}`);
+    const typedEntry = (await work(page, 'pm-standard'))?.processLog?.entries?.find((entry) => entry.target === 'xIntercept');
+    check(typedEntry?.ev?.direct === true && !typedEntry?.ev?.eq, `recorded as typed, with no solve: ${JSON.stringify(typedEntry?.ev)}`);
     await find(page, 'yIntercept');
     await chooseMethod(page, 'substituteZero');
     await press(page, workspace(page).locator('[data-process-choice="zero:x"]'));
     await settle(page, 1200);
+    // The typed box is next in the tab order after "which variable is 0".
+    await workspace(page).locator('[data-process-choice="zero:x"]').focus();
+    await page.keyboard.press('Tab');
+    check(await page.evaluate(() => Boolean(document.activeElement?.closest?.('[data-process-point-step="typed"]'))), 'Tab from the choice reaches the typed intercept');
+    // A miss closes the typed way: the substituted equation is solved.
+    await type(page, 'point', '(0, 3)');
+    await workspace(page).locator('[data-card-check="true"]').focus();
+    await page.keyboard.press('Enter');
+    await settle(page, 700);
+    check(/not where the line crosses the axis\. Now solve the equation step by step/.test(await message(page)), `a wrong typed intercept is named, and the solve is next: ${await message(page)}`);
+    check(!(await workspace(page).locator('[data-process-field="point"]').count()), 'after a miss the intercept box waits for the solve');
+    await shot(workspace(page), 'typed-intercept-missed');
     await divideAndSimplify(page, '-4', '-3');
+    check(await workspace(page).locator('[data-process-point-step="solved"] [data-process-field="point"]').count() === 1, 'solved, the box is back under the solve');
     await type(page, 'point', '(0, -3)');
     await checkWork(page);
     check(/y-intercept: \(0, -3\)/.test(await notice(page)), `y-intercept established: ${await notice(page)}`);
+    const solvedEntry = (await work(page, 'pm-standard'))?.processLog?.entries?.find((entry) => entry.target === 'yIntercept');
+    check(!solvedEntry?.ev?.direct && Boolean(solvedEntry?.ev?.eq), `after the miss it is recorded as solved: ${JSON.stringify(solvedEntry?.ev)}`);
     // The slope from the student's own two intercepts.
     await find(page, 'slope');
     await chooseMethod(page, 'twoPointFormula');
@@ -392,10 +418,18 @@ const journeys = {
     await type(page, 'start', '24');
     await checkWork(page, touch);
     check(/Rate of change: -3 · Initial value: 24/.test(await notice(page)), `the situation read: ${await notice(page)}`);
+    // This board's only graph is "Graph", never "Graph 2" (TL28), wherever it is named.
+    check(/Now open: .*Graph \(slope-intercept\)/.test(await notice(page)) && !/Graph 2/.test(await notice(page)), `"Now open" names the only graph as the board does: ${await notice(page)}`);
+    const onlyGraph = (await page.locator('[data-lmr-card="graphSlopeIntercept"] strong').first().innerText().catch(() => '')).trim();
+    check(onlyGraph === 'Graph · Slope-intercept method', `the only graph is titled without a number ("${onlyGraph}")`);
     await find(page, 'xIntercept', touch);
     await press(page, workspace(page).locator('[data-process-choice="zero:y"]'), true);
     await settle(page, 1200);
-    const host = workspace(page);
+    // TL27: the typed way is offered on a phone too; solving instead still works.
+    check(await workspace(page).locator('[data-process-point-step="typed"]').count() === 1, 'the typed intercept is offered on a phone');
+    await noSidewaysScroll(page, 'phone typed intercept');
+    await shot(workspace(page), 'typed-intercept-phone');
+    const host = solver(page);
     await balancedMove(page, host, 'Subtract', '24');
     await cancelTerm(page, host, '+ 24');
     await simplifySide(page, host, 'left', '-24');
@@ -447,6 +481,7 @@ const journeys = {
     check((await workspace(page).locator('[data-card-check="true"]').innerText()).trim() === 'Save', 'the workspace saves; it does not check');
     await press(page, workspace(page).locator('[data-process-choice="zero:x"]'));
     check(!(await message(page)), 'no redirect where outcomes are withheld');
+    check(!(await workspace(page).locator('[data-process-point-step="typed"]').count()), 'no typed intercept where outcomes are withheld: the solve is the work (TL27)');
     await settle(page, 1200);
     await divideAndSimplify(page, '2', '3');
     await type(page, 'point', '(0, 3');

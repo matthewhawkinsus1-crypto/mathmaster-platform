@@ -139,7 +139,11 @@ test('a round past the class deadline waits for an unfinished student inside the
 
 test('the server reads the multiplier at join, keeps it private, and judges arrivals against it', () => {
   const join = regionOf(server, 'exports.joinLiveChallenge = onCall', '\nexports.');
-  assert.match(join, /accommodations\.gameTimeMultiplierFor\(gradeSnapshot\.exists/);
+  // From the student's own support profile, read in the join's transaction,
+  // and only where the mode gives extended time.
+  assert.match(join, /const supportProfile = gradeSnapshot\.exists \? \(gradeSnapshot\.data\(\)\?\.profile \|\| null\) : null;/);
+  assert.match(join, /const timeMultiplier = extendedTimeAllowed \? accommodations\.gameTimeMultiplierFor\(supportProfile\) : 1;/);
+  assert.match(join, /const extendedTimeAllowed = accommodations\.extendedTimeRuleFor\(roomMode\) !== accommodations\.EXTENDED_TIME_RULE\.NONE;/);
   // Never on the public player row.
   const publicRow = join.slice(join.indexOf('transaction.set(publicPlayerRef'), join.indexOf('transaction.set(inviteRef'));
   assert.doesNotMatch(publicRow, /timeMultiplier/);
@@ -215,8 +219,13 @@ test('a closing threshold shortens the class\'s deadline, never an accommodated 
 test('a student\'s board lists classmates by the projector\'s rule: never a place tied with the last', async () => {
   const { publicStandingsRows } = await import('../../src/platform/liveChallenge/liveChallengeProjectorModel.js');
   const five = Array.from({ length: 5 }, (_, index) => ({ playerKey: `p${index + 1}`, rank: index + 1 }));
-  // Five players: a classmate's screen lists 1st–3rd (4th and 5th unshown together);
-  // the fifth sees the same three and their own row.
+  // Five players, a screen handed every row: a classmate's list is 1st–3rd (4th
+  // and 5th unshown together, which is two to find for this viewer); the fifth
+  // sees the same three and their own row. A real screen is handed the class's
+  // list, which stops at 1st–2nd (LC22), and adds only its own row to it.
+  const fourth = publicStandingsRows({}, [...five.slice(0, 2), five[3]], { selfKey: 'p4', lastRank: 5, totalCount: 5 });
+  assert.deepEqual(fourth.rows.map((row) => row.playerKey), ['p1', 'p2', 'p4']);
+  assert.equal(fourth.hiddenCount, 2, '3rd and 5th: the fourth cannot say which is last');
   assert.deepEqual(publicStandingsRows({}, five, { selfKey: 'p2' }).rows.map((row) => row.playerKey), ['p1', 'p2', 'p3']);
   const last = publicStandingsRows({}, five, { selfKey: 'p5' });
   assert.equal(last.self?.playerKey, 'p5');
@@ -265,7 +274,8 @@ test('an answer after the class\'s deadline reaches the public row only when the
 test('the recap withholds worked solutions while another game the student is in can still be answered', () => {
   const recap = readFileSync(new URL('../../functions/lib/liveChallengeRecap.js', import.meta.url), 'utf8');
   assert.match(recap, /solutionsWithheld = liveRoom\.exists && \["lobby", "running"\]\.includes\(liveRoom\.data\(\)\?\.status\)/);
-  assert.match(recap, /const available = !solutionsWithheld && Boolean\(/);
+  // (a Graph Feature Rush reading guide is also left out of the recap: graphFeatureReading.test.mjs)
+  assert.match(recap, /const available = !solutionsWithheld && [^;\n]*Boolean\(/);
 });
 
 test('the class sees only recognitions that name no struggle; a Warm-Up game only team effort', async () => {

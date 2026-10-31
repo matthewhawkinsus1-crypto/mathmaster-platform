@@ -369,7 +369,28 @@ export const INTERACTIVE_CAPABILITIES = Object.freeze([
  * start their own. A suite is stopped after `timeoutMinutes` (default 20) and
  * reported as TIMED OUT. `results` names a JSON file with per-journey outcomes when
  * the suite writes one; otherwise the suite passes or fails as a whole.
+ *
+ * SHARDS (CI03, the owner's decision 2026-10-23). The release tier ran every
+ * suite one after another in one job, about 43 minutes, and main's CI waited on
+ * it. Each suite now names a `shard`, and the workflow runs one job per shard
+ * in parallel; together they run exactly what the one job ran
+ * (tests/platform/interactiveCapabilityCertification.test.mjs). The
+ * capabilities shard runs the node gate and holds every capability's browser
+ * harness, so each capability's verdict is decided in one place. Below the
+ * release tier only that shard has anything to run.
  */
+export const CERTIFICATION_SHARD = Object.freeze({
+  // The node gate, the node suites, the capability journeys and the short
+  // release suites (about 13 minutes at release).
+  CAPABILITIES: 'capabilities',
+  // The generated special cases on three devices (about 14 minutes).
+  QUESTION_FAMILY_CASES: 'question-family-cases',
+  // Work View certification and its graphing matrix (about 16 minutes).
+  WORK_VIEW: 'work-view',
+});
+export const CERTIFICATION_SHARDS = Object.freeze(Object.values(CERTIFICATION_SHARD));
+export const NODE_GATE_SHARD = CERTIFICATION_SHARD.CAPABILITIES;
+
 export const CERTIFICATION_SUITES = Object.freeze([
   // Node gates for the subsystems whose certification is model- and
   // policy-level today; seconds, so they run at every tier.
@@ -378,6 +399,7 @@ export const CERTIFICATION_SUITES = Object.freeze([
     label: 'Teacher dashboard: listener cleanup, presence batching, memory footprint, question/tool check, DOL controls (node)',
     subsystem: 'TEACHER EXPERIENCE',
     tier: 'pr',
+    shard: CERTIFICATION_SHARD.CAPABILITIES,
     server: false,
     command: ['node', '--test',
       'tests/platform/listenerLifecycleGuard.test.mjs',
@@ -391,6 +413,7 @@ export const CERTIFICATION_SUITES = Object.freeze([
     label: 'DOL reopen, extra attempts and grade resolution, browser and server agree (node)',
     subsystem: 'ASSESSMENTS',
     tier: 'pr',
+    shard: CERTIFICATION_SHARD.CAPABILITIES,
     server: false,
     command: ['node', '--test',
       'tests/platform/assessmentRecoveryPolicy.test.mjs',
@@ -402,6 +425,7 @@ export const CERTIFICATION_SUITES = Object.freeze([
     label: 'Draft durability, outbox and corrupted-draft recovery (node)',
     subsystem: 'PERSISTENCE',
     tier: 'pr',
+    shard: CERTIFICATION_SHARD.CAPABILITIES,
     server: false,
     command: ['node', '--test',
       'tests/platform/studentDraftDurability.test.mjs',
@@ -413,6 +437,7 @@ export const CERTIFICATION_SUITES = Object.freeze([
     id: 'interactive-capabilities',
     label: 'Interactive capability journeys',
     tier: 'merge',
+    shard: CERTIFICATION_SHARD.CAPABILITIES,
     server: true,
     command: ['node', 'tests/browser/capabilityCertification.mjs'],
     results: 'tests/browser/artifacts/capabilityCertification/results.json',
@@ -422,6 +447,7 @@ export const CERTIFICATION_SUITES = Object.freeze([
     id: 'structure-tools',
     label: 'Factoring, fraction splitting and slope-intercept',
     tier: 'merge',
+    shard: CERTIFICATION_SHARD.CAPABILITIES,
     server: true,
     command: ['node', 'tests/browser/stepAlgebraStructureTools.mjs'],
     artifacts: 'tests/browser/artifacts/stepAlgebraStructureTools',
@@ -430,6 +456,7 @@ export const CERTIFICATION_SUITES = Object.freeze([
     id: 'systems-substitution',
     label: 'Systems substitution, distribution and elimination',
     tier: 'merge',
+    shard: CERTIFICATION_SHARD.CAPABILITIES,
     server: true,
     command: ['node', 'tests/browser/algebraicSubstitutionHandoff.mjs'],
     artifacts: 'tests/browser/artifacts/algebraicSubstitutionHandoff',
@@ -438,6 +465,7 @@ export const CERTIFICATION_SUITES = Object.freeze([
     id: 'systems-3x3',
     label: '3×3 substitution and no staged previews',
     tier: 'merge',
+    shard: CERTIFICATION_SHARD.CAPABILITIES,
     server: true,
     command: ['node', 'tests/browser/algebraicSystems3x3.mjs'],
     artifacts: 'tests/browser/artifacts/algebraicSystems3x3',
@@ -451,6 +479,7 @@ export const CERTIFICATION_SUITES = Object.freeze([
     label: 'Generated equation special cases and algebraic 2×2 systems, solved and server-regraded',
     subsystem: 'STEPALGEBRA',
     tier: 'release',
+    shard: CERTIFICATION_SHARD.QUESTION_FAMILY_CASES,
     server: true,
     command: ['node', 'tests/browser/questionFamilyCases.mjs'],
     artifacts: 'tests/browser/artifacts/questionFamilyCases',
@@ -461,6 +490,7 @@ export const CERTIFICATION_SUITES = Object.freeze([
     label: 'Unfinished work survives navigation, reload and reopen',
     subsystem: 'PERSISTENCE',
     tier: 'release',
+    shard: CERTIFICATION_SHARD.CAPABILITIES,
     server: false,
     command: ['node', 'scripts/run-draft-persistence-certification.mjs'],
   },
@@ -469,6 +499,7 @@ export const CERTIFICATION_SUITES = Object.freeze([
     label: 'Queued actions survive a reload (IndexedDB)',
     subsystem: 'PERSISTENCE',
     tier: 'release',
+    shard: CERTIFICATION_SHARD.CAPABILITIES,
     server: true,
     command: ['node', 'tests/browser/durableOutboxRecovery.mjs'],
   },
@@ -477,6 +508,7 @@ export const CERTIFICATION_SUITES = Object.freeze([
     label: 'Test Cycle on Chromebook and phone',
     subsystem: 'ASSESSMENTS',
     tier: 'release',
+    shard: CERTIFICATION_SHARD.CAPABILITIES,
     server: false,
     command: ['node', 'scripts/run-test-cycle-device-certification.mjs'],
   },
@@ -485,6 +517,7 @@ export const CERTIFICATION_SUITES = Object.freeze([
     label: 'Regression calculator at 390px',
     subsystem: 'STATISTICS',
     tier: 'release',
+    shard: CERTIFICATION_SHARD.CAPABILITIES,
     server: true,
     command: ['node', 'tests/browser/regressionCalculatorPhone.mjs'],
   },
@@ -493,6 +526,7 @@ export const CERTIFICATION_SUITES = Object.freeze([
     label: 'Work View opens, keeps the task, and closes cleanly',
     subsystem: 'MOBILE/WORK VIEW',
     tier: 'release',
+    shard: CERTIFICATION_SHARD.WORK_VIEW,
     server: true,
     command: ['node', 'tests/browser/workViewCertification.mjs'],
     timeoutMinutes: 30,
@@ -502,6 +536,7 @@ export const CERTIFICATION_SUITES = Object.freeze([
     label: 'Graphing tools in Work View',
     subsystem: 'GRAPHING',
     tier: 'release',
+    shard: CERTIFICATION_SHARD.WORK_VIEW,
     server: true,
     command: ['node', 'tests/browser/workViewMatrix.mjs'],
     timeoutMinutes: 30,
@@ -510,10 +545,17 @@ export const CERTIFICATION_SUITES = Object.freeze([
 
 export const CERTIFICATION_TIERS = Object.freeze(['pr', 'merge', 'release']);
 
-export const suitesForTier = (tier) => {
+/** The tier's suites; with `shard`, only that shard's share of them. */
+export const suitesForTier = (tier, { shard = null } = {}) => {
   const rank = CERTIFICATION_TIERS.indexOf(tier);
-  return CERTIFICATION_SUITES.filter((suite) => CERTIFICATION_TIERS.indexOf(suite.tier) <= rank);
+  return CERTIFICATION_SUITES.filter((suite) => CERTIFICATION_TIERS.indexOf(suite.tier) <= rank
+    && (!shard || suite.shard === shard));
 };
+
+/** The shards with anything to run at this tier (the node gate's always). */
+export const shardsForTier = (tier) => CERTIFICATION_SHARDS.filter((shard) => (
+  shard === NODE_GATE_SHARD || suitesForTier(tier, { shard }).length > 0
+));
 
 export const capabilityFixture = (capability) => (
   INTERACTIVE_CAPABILITY_FIXTURES.find((fixture) => fixture.id === capability?.fixture) || null

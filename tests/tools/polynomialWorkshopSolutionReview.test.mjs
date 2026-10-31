@@ -599,11 +599,25 @@ test('synthetic: a nonzero remainder is P(r) and the verdict is "not a factor"; 
   assert.ok(!model.steps.some((step) => step.includes('Q(x)')), 'no quotient step when the quotient is not asked');
 });
 
+test('synthetic: a fractional r, from a fraction or from 2x − 1, is explained and graded correct (TL49)', () => {
+  // 2x − 1 divides as x − 1/2; the quotient stated is the one for 2x − 1.
+  const scaled = assertReviewGradesCorrect(q({ mode: 'synthetic', dividend: [6, 7, -1, -2], divisor: [2, -1] }), '2x − 1').model;
+  assert.equal(itemValue(scaled, 'Number in the box'), '0.5');
+  assert.equal(itemValue(scaled, 'Bottom row'), '6, 10, 4, 0');
+  assert.equal(itemValue(scaled, 'Quotient'), '$3x^{2} + 5x + 2$');
+  assert.ok(scaled.steps.some((step) => step.includes('(2x - 1) = 2(x - 0.5)')), 'the step from x − r to 2x − 1 is said');
+  assert.ok(scaled.steps.some((step) => step.includes('(2x - 1)(3x^{2} + 5x + 2)')), 'the factor is shown as a product with 2x − 1');
+  // The same division asked as x − 1/2: the table's own quotient.
+  const half = assertReviewGradesCorrect(q({ mode: 'synthetic', dividend: [6, 7, -1, -2], candidateRoot: '1/2' }), 'r = 1/2').model;
+  assert.equal(itemValue(half, 'Quotient'), '$6x^{2} + 10x + 4$');
+});
+
 test('synthetic: questions the grader cannot key have no review', () => {
   for (const question of [
     q({ mode: 'synthetic', dividend: '1,4,-15,-18', candidateRoot: 3 }),
     q({ mode: 'synthetic', dividend: [1, 4, -15, -18] }),
-    q({ mode: 'synthetic', dividend: [1, 4, -15, -18], divisor: [2, -3] }),
+    // Not linear (2x − 3 is keyed and reviewed since TL49).
+    q({ mode: 'synthetic', dividend: [1, 4, -15, -18], divisor: [1, 2, 3] }),
     q({ mode: 'synthetic', dividend: [5], candidateRoot: 1 }),
   ]) {
     assert.equal(grade(question, {}).reason, 'invalid-question', JSON.stringify(question));

@@ -28,10 +28,17 @@ const workArea = (page) => page.evaluate(() => {
   return {
     disabled: Boolean(fieldset?.disabled),
     inert: Boolean(inner?.inert),
+    // A finished question's work is read-only rather than inert (AX01):
+    // disabled, guarded, and still in the accessibility tree.
+    readOnly: inner?.getAttribute('data-work-read-only') === 'true',
     panel: Boolean([...document.querySelectorAll('button')].find((button) => /Start this question fresh/.test(button.textContent || ''))),
     probe: Boolean(document.querySelector('[data-probe-tool]')),
   };
-});
+}).then((state) => ({
+  ...state,
+  closed: state.disabled && state.readOnly && !state.inert,
+  live: !state.disabled && !state.inert && !state.readOnly,
+}));
 
 const open = async (viewport, query) => {
   const page = await browser.newPage({ viewport });
@@ -47,14 +54,14 @@ for (const [name, viewport] of [['chromebook', { width: 1366, height: 768 }], ['
     const at = `${name} ${status}`;
     const page = await open(viewport, `scene=fresh&status=${status}`);
     let state = await workArea(page);
-    check(state.panel && !state.disabled && !state.inert, `${at}: the failure panel can be used on a closed question`, JSON.stringify(state));
+    check(state.panel && state.live, `${at}: the failure panel can be used on a closed question`, JSON.stringify(state));
     await page.evaluate(() => { window.__mmCrash = false; });
     await page.getByRole('button', { name: 'Start this question fresh' }).click();
     await page.getByRole('button', { name: 'Start fresh' }).click();
     await page.locator('[data-probe-tool]').waitFor();
     await page.waitForTimeout(300);
     state = await workArea(page);
-    check(state.probe && state.disabled && state.inert, `${at}: started fresh, the closed question is closed again (disabled, inert)`, JSON.stringify(state));
+    check(state.probe && state.closed, `${at}: started fresh, the closed question is closed again (disabled, read-only)`, JSON.stringify(state));
     await page.close();
   }
 
@@ -67,11 +74,11 @@ for (const [name, viewport] of [['chromebook', { width: 1366, height: 768 }], ['
   await page.locator('[data-probe-tool]').waitFor();
   await page.waitForTimeout(300);
   state = await workArea(page);
-  check(state.probe && state.disabled && state.inert, `${name} path: the next item, correct, is closed (the failure did not carry over)`, JSON.stringify(state));
+  check(state.probe && state.closed, `${name} path: the next item, correct, is closed (the failure did not carry over)`, JSON.stringify(state));
   await page.evaluate(() => window.__mmNextItem({ status: 'unattempted' }));
   await page.waitForTimeout(400);
   state = await workArea(page);
-  check(state.probe && !state.disabled && !state.inert, `${name} path: an open item is live`, JSON.stringify(state));
+  check(state.probe && state.live, `${name} path: an open item is live`, JSON.stringify(state));
   await page.close();
 
   // My Math Path as PathSessionPlayer really mounts it (see the harness): every
@@ -90,15 +97,15 @@ for (const [name, viewport] of [['chromebook', { width: 1366, height: 768 }], ['
   await player.evaluate(() => window.__mmSetStatus('correct'));
   await player.waitForTimeout(300);
   state = await workArea(player);
-  check(state.probe && state.disabled && state.inert, `${name} path player: item 1, started fresh and answered, closes`, JSON.stringify(state));
+  check(state.probe && state.closed, `${name} path player: item 1, started fresh and answered, closes`, JSON.stringify(state));
   await player.evaluate(() => window.__mmNextItem({ status: 'unattempted' }));
   await player.waitForTimeout(400);
   state = await workArea(player);
-  check(state.probe && !state.disabled && !state.inert, `${name} path player: item 2 opens live`, JSON.stringify(state));
+  check(state.probe && state.live, `${name} path player: item 2 opens live`, JSON.stringify(state));
   await player.evaluate(() => window.__mmSetStatus('correct'));
   await player.waitForTimeout(300);
   state = await workArea(player);
-  check(state.probe && state.disabled && state.inert, `${name} path player: item 2, answered, closes (item 1's failure did not carry over)`, JSON.stringify(state));
+  check(state.probe && state.closed, `${name} path player: item 2, answered, closes (item 1's failure did not carry over)`, JSON.stringify(state));
   await player.close();
 
   // The same mount, but the student moves on WITHOUT starting item 1 fresh:
@@ -113,7 +120,7 @@ for (const [name, viewport] of [['chromebook', { width: 1366, height: 768 }], ['
   await onward.evaluate(() => window.__mmSetStatus('correct'));
   await onward.waitForTimeout(300);
   state = await workArea(onward);
-  check(state.probe && state.disabled && state.inert, `${name} path player, moving on: item 2, answered, closes`, JSON.stringify(state));
+  check(state.probe && state.closed, `${name} path player, moving on: item 2, answered, closes`, JSON.stringify(state));
   await onward.close();
 }
 

@@ -98,7 +98,7 @@ const MODE_STEPS = {
   // The first two say how the board works (a group button, then card taps),
   // so an exit ticket, quiz or test keeps them; the third is how to decide
   // which cards belong together, the method (student pass 3, W6-4).
-  linearConnections: [controlStep('Choose a group at the top, then tap every card that belongs to it — a slope, an intercept, an equation in any form, a table or the graph.'), controlStep('Choose the next group and repeat.'), 'Compare the numbers each card gives you rather than how the card looks.'],
+  linearConnections: [controlStep('Choose a group at the top, then select every card that belongs to it (click or tap, or Tab to a card and press Enter) — a slope, an intercept, an equation in any form, a table or the graph.'), controlStep('Choose the next group and repeat.'), 'Compare the numbers each card gives you rather than how the card looks.'],
 };
 
 const MODE_HINTS = {
@@ -185,6 +185,41 @@ function GraphChoices({ sets, value, onSelect, bounds }) {
           >
             <strong><ChoiceMark selected={selected} />Graph {String.fromCharCode(65 + index)}</strong>
             <div style={{ marginTop: 8 }}><CoordinatePlane enlargeable={false} width={420} height={230} {...bounds} functions={[x => evaluateFunctionSpec(item.graphSpec || {}, x)]} /></div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/*
+ * "Pick the one that does not belong / does not fit": the three places this
+ * tool asks for one card or one row, each a radio group too (choiceGroup.js).
+ * The chosen one was shown by its border and fill alone, and Find the Mismatch
+ * and Check the Table were plain buttons that told a screen reader nothing
+ * about which was chosen (VH-12). Picking never checks.
+ */
+function PickOneCards({ label, items, idOf, value, onSelect, renderItem, padding = 12, radius = 10, weight = 400, gap = 10 }) {
+  const ids = items.map(idOf);
+  const optionProps = useChoiceGroup({ ids, value, onSelect: (id) => onSelect(id) });
+  return (
+    <div role="radiogroup" aria-label={label} style={{ display: 'grid', gap }}>
+      {items.map((item, index) => {
+        const selected = value === ids[index];
+        return (
+          <button
+            type="button"
+            key={ids[index]}
+            {...optionProps(index)}
+            onClick={() => onSelect(ids[index])}
+            style={{
+              textAlign: 'left', padding, borderRadius: radius, fontWeight: weight, cursor: 'pointer', color: 'var(--mm-text-strong)',
+              border: selected ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)',
+              background: selected ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)',
+            }}
+          >
+            <ChoiceMark selected={selected} />
+            {renderItem(item, index)}
           </button>
         );
       })}
@@ -457,13 +492,31 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
 
         {mode === 'findMismatch' ? <>
           <p>Two of these cards describe the same relationship. Select the one that does not belong.</p>
-          <div style={{ display: 'grid', gap: 10 }}>{cards.map((card) => <button type="button" key={card.kind} onClick={() => setMismatchKind(card.kind)} style={{ textAlign: 'left', padding: 12, borderRadius: 10, border: mismatchKind === card.kind ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: mismatchKind === card.kind ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', cursor: 'pointer' }}><strong style={{ textTransform: 'capitalize' }}>{card.kind}</strong><div style={{ marginTop: 5, color: 'var(--mm-text-muted)' }}>{card.kind === 'equation' ? <MathDisplay value={card.value} format="ascii-math" inline /> : card.value}</div></button>)}</div>
+          <PickOneCards
+            label="Which card does not belong?"
+            items={cards}
+            idOf={(card) => card.kind}
+            value={mismatchKind}
+            onSelect={setMismatchKind}
+            renderItem={(card) => <><strong style={{ textTransform: 'capitalize' }}>{card.kind}</strong><div style={{ marginTop: 5, color: 'var(--mm-text-muted)' }}>{card.kind === 'equation' ? <MathDisplay value={card.value} format="ascii-math" inline /> : card.value}</div></>}
+          />
           <button type="button" data-work-view-check="true" onClick={check} disabled={!mismatchKind} style={{ ...buttonStyle, marginTop: 12, opacity: mismatchKind ? 1 : .55 }}><SubmitText>Check mismatch</SubmitText></button>
         </> : null}
 
         {mode === 'tableAudit' ? <>
           <p>Exactly one row does not satisfy the relationship. Select it.</p>
-          <div style={{ display: 'grid', gap: 8 }}>{tableRows.map((row, index) => <button type="button" key={index} onClick={() => setBadRow(index)} style={{ padding: 10, borderRadius: 9, border: badRow === index ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: badRow === index ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', fontWeight: 700, cursor: 'pointer' }}>Row {index + 1}: ({row[0]}, {row[1]})</button>)}</div>
+          <PickOneCards
+            label="Which row does not fit the rule?"
+            items={tableRows}
+            idOf={(row, index) => index}
+            value={badRow}
+            onSelect={setBadRow}
+            padding={10}
+            radius={9}
+            weight={700}
+            gap={8}
+            renderItem={(row, index) => <>Row {index + 1}: ({row[0]}, {row[1]})</>}
+          />
           <button type="button" data-work-view-check="true" onClick={check} disabled={badRow == null} style={{ ...buttonStyle, marginTop: 12, opacity: badRow == null ? .55 : 1 }}><SubmitText>Check row</SubmitText></button>
         </> : null}
 
@@ -474,7 +527,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
         </> : null}
 
         {mode === 'linearConnections' && linearTask === 'group' ? <div className="mathmaster-line-sort" style={{ textAlign: 'left' }}>
-          <p style={{ margin: '0 0 10px', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>Choose a {groupNoun.toLowerCase()}, then tap every card that belongs to it. Tap a card again to take it back out.</p>
+          <p style={{ margin: '0 0 10px', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>Choose a {groupNoun.toLowerCase()}, then select every card that belongs to it (click or tap, or Tab to a card and press Enter or Space). Select a card again to take it back out.</p>
           <fieldset style={{ border: 0, padding: 0, margin: '0 0 12px' }}>
             <legend style={{ fontWeight: 800, marginBottom: 7, color: 'var(--mm-text)' }}>Sorting cards into:</legend>
             <SortSlotChoices
@@ -506,7 +559,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
                         aria-pressed={assignedSlot === activeLineSlot}
                         // Spoken, not program text (A11Y-3): "y equals negative 2 over 3 x
                         // plus 4", which is also what a voice-control student says.
-                        aria-label={`${spokenLinearCard(card, { bounds: linearGraphBounds })}. In ${assignedLabel}. Tap to ${assignedSlot === activeLineSlot ? 'take it out of' : 'put it in'} ${lineLabels[activeLineSlot]}.`}
+                        aria-label={`${spokenLinearCard(card, { bounds: linearGraphBounds })}. In ${assignedLabel}. Select to ${assignedSlot === activeLineSlot ? 'take it out of' : 'put it in'} ${lineLabels[activeLineSlot]}.`}
                         style={{
                           textAlign: 'left', padding: 10, borderRadius: 10, cursor: 'pointer', minHeight: 64,
                           border: assigned ? `2px solid ${groupColor(assignedSlot)}` : '1px solid var(--mm-tint-border)',
@@ -532,20 +585,14 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
 
         {mode === 'linearConnections' && linearTask === 'findMismatch' ? <>
           <p>These cards claim to describe the same line, but one of them does not. Select the card that does not belong.</p>
-          <div style={{ display: 'grid', gap: 10 }}>
-            {linearMismatchCards.map((card) => (
-              <button
-                type="button"
-                key={card.id}
-                onClick={() => setMismatchSelection(card.id)}
-                aria-pressed={mismatchSelection === card.id}
-                style={{ textAlign: 'left', padding: 12, borderRadius: 10, border: mismatchSelection === card.id ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: mismatchSelection === card.id ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', cursor: 'pointer' }}
-              >
-                <strong>{LINEAR_KIND_LABELS[card.kind]}</strong>
-                <div style={{ marginTop: 5, color: 'var(--mm-text-muted)' }}>{renderLinearCardBody(card)}</div>
-              </button>
-            ))}
-          </div>
+          <PickOneCards
+            label="Which card does not describe the same line?"
+            items={linearMismatchCards}
+            idOf={(card) => card.id}
+            value={mismatchSelection}
+            onSelect={setMismatchSelection}
+            renderItem={(card) => <><strong>{LINEAR_KIND_LABELS[card.kind]}</strong><div style={{ marginTop: 5, color: 'var(--mm-text-muted)' }}>{renderLinearCardBody(card)}</div></>}
+          />
           {questionData.correctionOptions?.length ? (
             <label style={{ display: 'block', marginTop: 12 }}>
               What should that card say instead?

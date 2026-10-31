@@ -83,6 +83,52 @@ export const resolveTeacherGrantedExtraAttempts = ({
   return resolveStudentDolExtraAttempts({ assignment, classId, studentId, privateOverride }).total;
 };
 
+/*
+ * NO STUDENT PROFILE IS READ HERE, ON PURPOSE (FB13, audit A3-90).
+ *
+ * The "Extra attempts" support (supportEntitlements.mjs) adds a try on My Math
+ * Path only, and the catalog label says "(My Math Path)". On an assignment a
+ * try is added by one thing, a teacher's explicit and audited grant
+ * (resolveTeacherGrantedExtraAttempts above, DOL only). A case manager may
+ * expect the support on classroom work too. It is not built, for these
+ * reasons, and this is what building it would take.
+ *
+ * WHERE IT WOULD MATTER. The roles with more than one try (warm-up, classwork,
+ * practice, review, corrections) already allow a replacement question once a
+ * question that can vary is used up, so a fourth try is worth little there.
+ * The roles with one try (DOL, quiz, test) are where it would be wanted, and
+ * they need a decision and a flow no number in this function supplies: a DOL
+ * withholds a question's outcome until the question is finished
+ * (assignmentNavigator.js outcomeWithheld), so a standing extra try from the
+ * start leaves the first miss unannounced and the second try blind; a
+ * teacher's grant is a recovery step given after the fact
+ * (assessmentRecovery.js), when the outcome is already showing. A quiz or
+ * test is a secure assessment with its own retest.
+ *
+ * WHAT IT WOULD TAKE, for the roles that allow more than one try:
+ *   1. a `supportExtraAttempts` input here, added only when the base is above
+ *      one (a choice-only question and a one-try role stay one try, the rule
+ *      attemptsWithEntitlements applies on Path), worked out by ONE function
+ *      from resolveSupportEntitlements(profile).extraAttempts;
+ *   2. the server passes gradeDocument.profile where it counts attempts
+ *      (submissionIngestion.mjs buildIngestedAttempt and
+ *      responseCheckpointFinalizer.mjs) and takes the larger of the moment the
+ *      student worked and the moment the server heard, as
+ *      questionFamilyGrading.mjs familySupportsGranted does;
+ *   3. the app passes the signed-in student's profile at every other call
+ *      site of this function (fifteen in all): App.jsx handleGradeSubmit,
+ *      handleStepGrade, entryMaximumAttempts and the QuestionEngine props,
+ *      QuestionEngine.jsx, studentWorkState.js and the teacher's
+ *      attemptAnalysis.js, which would otherwise show "4 of 3";
+ *   4. a test that fails when a call site forgets it, one that runs a client
+ *      record and buildIngestedAttempt over the same fixtures, and a deploy of
+ *      functions BEFORE hosting (a client that offers a try the server refuses
+ *      loses the student's answer);
+ *   5. a 'provided' evidence record on the assignment, because the support
+ *      report says "Not recorded in assignments" today, and the label.
+ * tests/platform/extraAttemptsDecision.test.mjs fails when any of that is
+ * wired without the label and the report changing with it.
+ */
 export const resolveQuestionMaximumAttempts = ({
   question = {},
   maximumAttempts = null,
@@ -198,10 +244,14 @@ const clampPercent = (value) =>
 // The same holds for MathJS's TeX tie: since pass 3 (Q-31) an implicit product
 // is written 2 x, not 2~ x. A tie is only spacing, so it goes with the spaces
 // and records from either side of that deploy give one key.
+// And for a number after a letter (GR27): x · 1 was drawn x1 and is now drawn
+// x(1). A letter straight before a bracketed plain number is only ever that
+// product on the board, so both drawings give the key x1.
 export const compactStepStateKey = (value) => String(value || '')
   .replace(/[\s~]+/g, '')
   .replace(/[−–—]/g, '-')
-  .replace(/(^|[=+\-(,{])1\\left\(/g, '$1\\left(');
+  .replace(/(^|[=+\-(,{])1\\left\(/g, '$1\\left(')
+  .replace(/(?<=[A-Za-z])\\left\((\d+(?:\.\d+)?)\\right\)/g, '$1');
 
 export const calculateStepPartialCredit = (stepGrades = [], variantIndex = 0) => {
   const currentSteps = (Array.isArray(stepGrades) ? stepGrades : []).filter(

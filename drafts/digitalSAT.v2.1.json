@@ -7550,7 +7550,7 @@
         "stemProfile": "missing-exponent-parameter",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "For $x\\ne0$, $\\dfrac{(x^{ {{p}} })^{ {{q}} }}{x^k}=x^{ {{r}} }$. What is the value of $k$?",
+      "prompt": "For $x\\ne0$, $\\dfrac{(x^{ {{p}} })^{ {{q}} }}{x^k}=x{{r|pow}}$. What is the value of $k$?",
       "generator": {
         "parameters": {
           "p": {
@@ -9259,7 +9259,7 @@
         "officialSkillFamily": "nonlinear equations in one variable and systems of equations in two variables",
         "stemProfile": "ccmr-challenge-solve-shift-parameter"
       },
-      "prompt": "In $y={{a}}(x-h)^2+{{k}}$, the point $({{x}},{{y}})$ lies on the graph and $x>h$. What is the value of $h$?",
+      "prompt": "In $y={{a}}(x-h)^2+{{k}}$, the point $({{x}},{{y}})$ lies on the parabola and $x>h$. What is the value of $h$?",
       "generator": {
         "parameters": {
           "a": {
@@ -9944,7 +9944,7 @@
         "officialSkillFamily": "nonlinear functions",
         "stemProfile": "vertex-form-leading-parameter"
       },
-      "prompt": "The graph of $f(x)=a(x {{nh|signed}})^2 {{k|signed}}$ passes through $({{x1}},{{y1}})$. What is the value of $a$?",
+      "prompt": "The parabola $y=a(x {{nh|signed}})^2 {{k|signed}}$ passes through $({{x1}},{{y1}})$. What is the value of $a$?",
       "generator": {
         "parameters": {
           "h": {
@@ -10909,7 +10909,7 @@
         "officialSkillFamily": "nonlinear functions",
         "stemProfile": "graph-intercepts-to-equation"
       },
-      "prompt": "The graph of a quadratic crosses the $x$-axis at $x={{r1}}$ and $x={{r2}}$ and opens upward. Which equation could represent the graph?",
+      "prompt": "A parabola crosses the $x$-axis at $x={{r1}}$ and $x={{r2}}$ and opens upward. Which equation could represent it?",
       "generator": {
         "parameters": {
           "r1": {
@@ -11670,7 +11670,7 @@
         "officialSkillFamily": "nonlinear functions",
         "stemProfile": "zeros-from-factored"
       },
-      "prompt": "What are the $x$-intercepts of the graph of $y=(x {{f1|signed}})(x {{f2|signed}})$?",
+      "prompt": "What are the $x$-intercepts of the parabola $y=(x {{f1|signed}})(x {{f2|signed}})$?",
       "generator": {
         "parameters": {
           "r1": {
@@ -11782,7 +11782,7 @@
         "officialSkillFamily": "nonlinear functions",
         "stemProfile": "y-intercept-standard"
       },
-      "prompt": "What is the $y$-intercept of the graph of $y={{a}}x^2 {{b|signed}}x {{c|signed}}$?",
+      "prompt": "What is the $y$-intercept of the parabola $y={{a}}x^2 {{b|signed}}x {{c|signed}}$?",
       "generator": {
         "parameters": {
           "a": {
@@ -11907,7 +11907,7 @@
         "officialSkillFamily": "nonlinear functions",
         "stemProfile": "challenge-max-value"
       },
-      "prompt": "The graph of $f(x)={{aneg}}(x {{nh|signed}})^2+{{k}}$ has a maximum value. What is the maximum value?",
+      "prompt": "The function $f(x)={{aneg}}(x {{nh|signed}})^2+{{k}}$ has a maximum value. What is the maximum value?",
       "generator": {
         "parameters": {
           "a": {
@@ -13680,7 +13680,7 @@
         "officialSkillFamily": "nonlinear functions",
         "stemProfile": "challenge-parameter-for-vertex"
       },
-      "prompt": "The graph of $f(x)=(x-p)^2 {{k|signed}}$ passes through $({{x1}},{{y1}})$ and $({{x2}},{{y1}})$. What is the value of $p$?",
+      "prompt": "The parabola $y=(x-p)^2 {{k|signed}}$ passes through $({{x1}},{{y1}})$ and $({{x2}},{{y1}})$. What is the value of $p$?",
       "generator": {
         "parameters": {
           "h": {
@@ -13782,7 +13782,7 @@
         "officialSkillFamily": "nonlinear functions",
         "stemProfile": "challenge-compare-values"
       },
-      "prompt": "For a nonzero number $t$, $f(t)={{a}}t^2$ and $g(t)={{b}}t^2$, where {{b}}>{{a}}>0. Which quantity is equal to $g(t)-f(t)$?",
+      "prompt": "For a nonzero number $t$, $f(t)={{a}}t^2$ and $g(t)={{b}}t^2$. Which quantity is equal to $g(t)-f(t)$?",
       "generator": {
         "parameters": {
           "a": {
@@ -15335,7 +15335,7 @@
         ],
         "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
       },
-      "prompt": "Functions $f$ and $g$ are defined by $f(x)={{A}}({{b}})^x$ and $g(x)={{C}}({{d}})^x$, where {{A}}>{{C}}>0 and {{d}}>{{b}}>1. Which statement must be true?",
+      "prompt": "Functions $f$ and $g$ are defined by $f(x)={{A}}({{b}})^x$ and $g(x)={{C}}({{d}})^x$. Which statement must be true?",
       "generator": {
         "parameters": {
           "C": {
@@ -16039,7 +16039,7 @@
         ],
         "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
       },
-      "prompt": "An exponential function satisfies $f(0)={{A}}$ and $f(2)={{v2}}$, where {{b}}>1. Which equation defines $f$?",
+      "prompt": "An exponential function with a positive growth factor satisfies $f(0)={{A}}$ and $f(2)={{v2}}$. Which equation defines $f$?",
       "generator": {
         "parameters": {
           "A": {
@@ -16341,7 +16341,7 @@
         ],
         "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
       },
-      "prompt": "What is the $y$-intercept of the graph of $y={{A}}({{b}})^x$?",
+      "prompt": "What is the $y$-intercept of the curve $y={{A}}({{b}})^x$?",
       "generator": {
         "parameters": {
           "A": {
@@ -16445,7 +16445,7 @@
         ],
         "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
       },
-      "prompt": "Which statement is true about $f(x)={{A}}\\left(\\dfrac{{{r}}}{100}\\right)^x$, where $0<{{r}}<100$?",
+      "prompt": "Which statement is true about $f(x)={{A}}\\left(\\dfrac{{{r}}}{100}\\right)^x$?",
       "generator": {
         "parameters": {
           "A": {
@@ -16545,7 +16545,7 @@
         ],
         "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
       },
-      "prompt": "The point $(2,y)$ lies on the graph of $y={{A}}({{b}})^x$. What is the value of $y$?",
+      "prompt": "The point $(2,y)$ lies on the curve $y={{A}}({{b}})^x$. What is the value of $y$?",
       "generator": {
         "parameters": {
           "A": {
@@ -16630,7 +16630,7 @@
         ],
         "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
       },
-      "prompt": "The graph of $f(x)={{A}}({{b}})^x$, where {{A}}>0 and {{b}}>1, approaches which line as $x$ decreases without bound?",
+      "prompt": "The curve $y={{A}}({{b}})^x$ approaches which line as $x$ decreases without bound?",
       "generator": {
         "parameters": {
           "A": {
@@ -16989,7 +16989,7 @@
         ],
         "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
       },
-      "prompt": "The point $(0,1)$ lies on the graph of $f(x)=({{b}})^x$. The graph of $g(x)=({{b}})^{x-{{h}}} {{k|signed}}$ is obtained from the graph of $f$. Which point must lie on the graph of $g$?",
+      "prompt": "The point $(0,1)$ lies on the curve $y=f(x)$, where $f(x)=({{b}})^x$. The curve $y=g(x)$, where $g(x)=({{b}})^{x-{{h}}} {{k|signed}}$, is obtained from it by a translation. Which point must lie on the curve $y=g(x)$?",
       "generator": {
         "parameters": {
           "b": {
@@ -22184,7 +22184,7 @@
       "id": "mm_sat_A2_4D_vertex-from-completed-square_v21",
       "familyId": "mathmaster:sat:A2.4D:vertex-from-completed-square",
       "familyVersion": 2,
-      "prompt": "The quadratic $f(x)={{a}}x^2 {{B|signed}}x {{C|signed}}$ is equivalent to ${{a}}(x-{{h}})^2 {{k|signed}}$. Which ordered pair is the vertex of the graph of $f$?",
+      "prompt": "The quadratic $f(x)={{a}}x^2 {{B|signed}}x {{C|signed}}$ is equivalent to ${{a}}(x-{{h}})^2 {{k|signed}}$. Which ordered pair is the vertex of the parabola $y=f(x)$?",
       "generator": {
         "parameters": {
           "a": {
@@ -23780,7 +23780,7 @@
         "answerSummary": "Reject any candidate that fails the original equation."
       },
       "assessmentItemFormat": "multipleChoice",
-      "prompt": "For $\\sqrt{{{A}}-x}=x-{{b}}$, squaring gives $x={{p}}$ and $x={{q}}$, where $q<b<p$. Why must $x={{q}}$ be rejected?",
+      "prompt": "For $\\sqrt{{{A}}-x}=x-{{b}}$, squaring gives $x={{p}}$ and $x={{q}}$. Why must $x={{q}}$ be rejected?",
       "generator": {
         "parameters": {
           "b": {
@@ -24132,7 +24132,7 @@
         "answerSummary": "$x={{q}}$"
       },
       "assessmentItemFormat": "multipleChoice",
-      "prompt": "Squaring $\\sqrt{{{m}}x {{a|signed}}}=x-{{b}}$ gives roots $x={{p}}$ and $x={{q}}$, where $q<b<p$. What is the extraneous root?",
+      "prompt": "Squaring $\\sqrt{{{m}}x {{a|signed}}}=x-{{b}}$ gives roots $x={{p}}$ and $x={{q}}$. What is the extraneous root?",
       "generator": {
         "parameters": {
           "m": {
@@ -26103,7 +26103,7 @@
         ],
         "answerSummary": "$k={{k}}$"
       },
-      "prompt": "The equation ${{b}}^{x+k}={{b}}^{ {{n}} }$ has solution $x={{p}}$. What is the value of $k$?",
+      "prompt": "The equation ${{b}}^{x+k}={{b}}{{n|pow}}$ has solution $x={{p}}$. What is the value of $k$?",
       "generator": {
         "parameters": {
           "b": {
@@ -28391,7 +28391,7 @@
         ],
         "answerSummary": "Check the result in the original inequality."
       },
-      "prompt": "A machine part is acceptable when its length $L$, in millimeters, differs from {{target}} by at most {{tol}} millimeters. What is the greatest acceptable length, in millimeters?",
+      "prompt": "A machine part is acceptable when its length $L$, in millimeters, differs from {{target}} by at most {{tol}}. What is the greatest acceptable length, in millimeters?",
       "generator": {
         "parameters": {
           "target": {
@@ -37112,7 +37112,7 @@
       },
       "courseId": "algebra2",
       "familyId": "mathmaster:sat:A2.7G:ccmr-challenge-radical-exponent-parameter",
-      "familyVersion": 1,
+      "familyVersion": 2,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 5,
@@ -37131,18 +37131,18 @@
         "stemProfile": "radical-exponent-parameter",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "For $x>0$, $\\sqrt{x^n}=x^{ {{k}} }\\sqrt{x^{ {{m}} }}$, where $n$ and $m$ are positive integers. What is the value of $n$?",
+      "prompt": "For $x>0$, $\\sqrt{x^n}=x{{k|pow}}\\sqrt{x{{m|pow}}}$, where $n$ is a positive integer. What is the value of $n$?",
       "generator": {
         "parameters": {
           "k": {
             "type": "int",
             "min": 1,
-            "max": 6
+            "max": 9
           },
           "j": {
             "type": "int",
             "min": 0,
-            "max": 3
+            "max": 4
           }
         },
         "derived": {
@@ -40344,7 +40344,7 @@
         "officialSkillFamily": "linear equations in two variables",
         "stemProfile": "fractional-slope-point-form"
       },
-      "prompt": "The graph of a linear function contains the points $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. Which equation could define the function?",
+      "prompt": "A linear function has a graph that contains the points $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. Which equation could define the function?",
       "solutionReview": {
         "headline": "Use the two points to determine a rational slope.",
         "reasoning": [
@@ -40399,7 +40399,8 @@
           "ndy": "-dy"
         },
         "constraints": [
-          "p!=q"
+          "p!=q",
+          "p!=1"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -40475,7 +40476,7 @@
         "officialSkillFamily": "linear equations in two variables",
         "stemProfile": "coefficient-from-slope"
       },
-      "prompt": "The graph of $px+{{q}}y={{r}}$, where $p$ is a constant, has slope ${{m}}$. What is the value of $p$?",
+      "prompt": "The line $px+{{q}}y={{r}}$, where $p$ is a constant, has slope ${{m}}$. What is the value of $p$?",
       "solutionReview": {
         "headline": "Read the slope from standard form.",
         "reasoning": [
@@ -40963,7 +40964,7 @@
         "officialSkillFamily": "linear equations in two variables",
         "stemProfile": "intercepts-to-standard-form"
       },
-      "prompt": "The graph of a line has x-intercept $({{a}},0)$ and y-intercept $(0,{{b}})$. Which equation represents the line?",
+      "prompt": "A line has x-intercept $({{a}},0)$ and y-intercept $(0,{{b}})$. Which equation represents the line?",
       "solutionReview": {
         "headline": "Use both intercepts as solutions of the equation.",
         "reasoning": [
@@ -41430,7 +41431,7 @@
         "officialSkillFamily": "linear functions",
         "stemProfile": "context-two-observations"
       },
-      "prompt": "A laboratory sample cools at a constant rate. After {{t1}} minutes, its temperature is {{T1}} degrees Celsius, and after {{t2}} minutes, its temperature is {{T2}} degrees Celsius. Which equation gives the temperature $T$ after $t$ minutes?",
+      "prompt": "A laboratory sample cools at a constant rate. After {{t1}} minutes, its temperature is {{T1}} degree{{T1|plural}} Celsius, and after {{t2}} minutes, its temperature is {{T2}} degree{{T2|plural}} Celsius. Which equation gives the temperature $T$ after $t$ minutes?",
       "solutionReview": {
         "headline": "Recover the linear model from two observations.",
         "reasoning": [
@@ -41794,7 +41795,7 @@
         "officialSkillFamily": "linear functions",
         "stemProfile": "constant-of-proportionality"
       },
-      "prompt": "The equation $y=kx$ represents a proportional relationship, where $k$ is a constant. If the point $({{x}},{{y}})$ lies on the graph, what is the value of $k$?",
+      "prompt": "The line $y=kx$ represents a proportional relationship, where $k$ is a constant. If the point $({{x}},{{y}})$ lies on the line, what is the value of $k$?",
       "solutionReview": {
         "headline": "Use the defining equation of direct variation.",
         "reasoning": [
@@ -42320,7 +42321,7 @@
         "officialSkillFamily": "linear functions",
         "stemProfile": "embedded-constant-of-variation"
       },
-      "prompt": "For the proportional relationship $y=(a-{{c}})x$, the point $({{x}},{{y}})$ lies on the graph. What is the value of $a$?",
+      "prompt": "The point $({{x}},{{y}})$ lies on the line $y=(a-{{c}})x$, which represents a proportional relationship. What is the value of $a$?",
       "solutionReview": {
         "headline": "Determine the proportionality constant, then solve for the parameter.",
         "reasoning": [
@@ -43319,7 +43320,7 @@
         "stemProfile": "parallel-intercept-shift-output",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "The lines $f$ and $g$ are parallel. The graph of $f$ passes through $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. The y-intercept of $g$ is {{bg}}. What is $g({{xt}})$?",
+      "prompt": "The lines $f$ and $g$ are parallel. The line $f$ passes through $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. The y-intercept of $g$ is {{bg}}. What is $g({{xt}})$?",
       "generator": {
         "parameters": {
           "m": {
@@ -47535,7 +47536,7 @@
         "officialSkillFamily": "linear equations in two variables",
         "stemProfile": "slope-table"
       },
-      "prompt": "The table gives values of $x$ and $y$ for points on a line. As $x$ increases from {{x1}} to {{x2}}, $y$ changes from {{y1}} to {{y2}}. What is the slope of the line?",
+      "prompt": "A table of values for points on a line shows that, as $x$ increases from {{x1}} to {{x2}}, $y$ changes from {{y1}} to {{y2}}. What is the slope of the line?",
       "generator": {
         "parameters": {
           "x1": {
@@ -47812,7 +47813,8 @@
           "m!=y1",
           "-m!=x1",
           "-m!=y1",
-          "x1!=y1"
+          "x1!=y1",
+          "x1!=0"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -48360,7 +48362,7 @@
         "stemProfile": "water-level-rate",
         "secondarySkillFamily": "ratios, rates, proportional relationships, and units"
       },
-      "prompt": "The water level in a reservoir was {{h1}} feet at {{t1}} hours and {{h2}} feet at {{t2}} hours. The level changed at a constant rate. What was the rate of change, in feet per hour?",
+      "prompt": "The water level in a reservoir was {{h1}} feet at {{t1}} hour{{t1|plural}} and {{h2}} feet at {{t2}} hours. The level changed at a constant rate. What was the rate of change, in feet per hour?",
       "generator": {
         "parameters": {
           "t1": {
@@ -48393,7 +48395,8 @@
           "answer": "rate"
         },
         "constraints": [
-          "h1+rate*dt>0"
+          "h1+rate*dt>0",
+          "h2!=1"
         ]
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -49253,7 +49256,7 @@
         "officialSkillFamily": "linear functions",
         "stemProfile": "y-intercept-equation"
       },
-      "prompt": "The graph of $y={{m}}x {{b|signed}}$ intersects the $y$-axis at $(0,k)$. What is the value of $k$?",
+      "prompt": "The line $y={{m}}x {{b|signed}}$ intersects the $y$-axis at $(0,k)$. What is the value of $k$?",
       "generator": {
         "parameters": {
           "m": {
@@ -49346,7 +49349,7 @@
         "officialSkillFamily": "linear functions",
         "stemProfile": "x-intercept-equation"
       },
-      "prompt": "The graph of $y={{m}}x {{b|signed}}$ intersects the $x$-axis at $({{x0}},0)$. What is the value of $x_0$?",
+      "prompt": "The line $y={{m}}x {{b|signed}}$ intersects the $x$-axis at $(x_0,0)$. What is the value of $x_0$?",
       "generator": {
         "parameters": {
           "m": {
@@ -49672,7 +49675,7 @@
         "officialSkillFamily": "linear functions",
         "stemProfile": "feature-from-context-model"
       },
-      "prompt": "A linear model $V(t)={{m}}t+{{b}}$ gives the value $V$, in dollars, of an item $t$ years after purchase. Which ordered pair represents the $V$-intercept of the graph?",
+      "prompt": "A linear model $V(t)={{m}}t+{{b}}$ gives the value $V$, in dollars, of an item $t$ years after purchase. Which ordered pair represents the $V$-intercept of its graph?",
       "generator": {
         "parameters": {
           "m": {
@@ -50600,7 +50603,7 @@
         "officialSkillFamily": "linear inequalities in one or two variables",
         "stemProfile": "strict-boundary-inclusion"
       },
-      "prompt": "The graph of ${{P}}x-{{Q}}y<{{R}}$ is drawn in the $xy$-plane. Which statement about its boundary line is true?",
+      "prompt": "The solution set of the inequality ${{P}}x-{{Q}}y<{{R}}$ is a region of the $xy$-plane. Which statement about its boundary line is true?",
       "generator": {
         "parameters": {
           "P": {
@@ -51046,7 +51049,7 @@
         "officialSkillFamily": "linear functions",
         "stemProfile": "vertical-shift-intercept"
       },
-      "prompt": "The function $f(x)={{m}}x {{b|signed}}$. The graph of $g$ is obtained by shifting the graph of $f$ upward {{k}} units. What is the $y$-intercept of the graph of $g$?",
+      "prompt": "The function $f(x)={{m}}x {{b|signed}}$. The function $g$ is found by shifting $f$ upward {{k}} unit{{k|plural}}. What is the $y$-intercept of $g$?",
       "generator": {
         "parameters": {
           "m": {
@@ -51190,7 +51193,7 @@
       "choices": [
         {
           "id": "choice-a",
-          "label": "The lines are parallel, and the graph of $g$ has a $y$-intercept {{delta}} units greater than that of $f$."
+          "label": "The lines are parallel, and the graph of $g$ has a $y$-intercept {{delta}} unit{{delta|plural}} greater than that of $f$."
         },
         {
           "id": "choice-b",
@@ -51198,7 +51201,7 @@
         },
         {
           "id": "choice-c",
-          "label": "The graph of $g$ has a slope {{delta}} units greater than that of $f$."
+          "label": "The graph of $g$ has a slope {{delta}} unit{{delta|plural}} greater than that of $f$."
         },
         {
           "id": "choice-d",
@@ -51388,7 +51391,7 @@
         "officialSkillFamily": "linear functions",
         "stemProfile": "scale-output-slope"
       },
-      "prompt": "The function $g$ is defined by $g(x)={{a}}f(x)$, where $f(x)={{m}}x {{b|signed}}$. What is the slope of the graph of $g$?",
+      "prompt": "The function $g$ is defined by $g(x)={{a}}f(x)$, where $f(x)={{m}}x {{b|signed}}$. What is the slope of the line $y=g(x)$?",
       "generator": {
         "parameters": {
           "a": {
@@ -51486,7 +51489,7 @@
         "officialSkillFamily": "linear functions",
         "stemProfile": "intercept-change"
       },
-      "prompt": "The graph of $y={{m}}x {{b|signed}}$ is translated $k$ units vertically, producing a line with $y$-intercept ${{newb}}$. A positive value of $k$ means the graph moved up. What is the value of $k$?",
+      "prompt": "The line $y={{m}}x {{b|signed}}$ is translated $k$ units vertically, producing a line with $y$-intercept ${{newb}}$. A positive value of $k$ means the line moved up. What is the value of $k$?",
       "generator": {
         "parameters": {
           "m": {
@@ -51618,7 +51621,7 @@
         "stemProfile": "combined-shifts-intercept",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "For $f(x)={{m}}x {{b|signed}}$, define $g(x)=f(x-{{h}})+{{k}}$. What is the $y$-intercept of the graph of $g$?",
+      "prompt": "For $f(x)={{m}}x {{b|signed}}$, define $g(x)=f(x-{{h}})+{{k}}$. What is the $y$-intercept of the line $y=g(x)$?",
       "generator": {
         "parameters": {
           "m": {
@@ -51751,7 +51754,7 @@
         "officialSkillFamily": "linear functions",
         "stemProfile": "parameter-pass-through-point"
       },
-      "prompt": "The graph of $g(x)=f(x)+k$, where $f(x)={{m}}x {{b|signed}}$, passes through $({{x}},{{y}})$. What is the value of $k$?",
+      "prompt": "The line $y=g(x)$, where $g(x)=f(x)+k$ and $f(x)={{m}}x {{b|signed}}$, passes through $({{x}},{{y}})$. What is the value of $k$?",
       "generator": {
         "parameters": {
           "m": {
@@ -53112,11 +53115,11 @@
       "choices": [
         {
           "id": "choice-c",
-          "label": "After {{t}} hours, both vehicles have traveled {{d}} miles."
+          "label": "After {{t}} hour{{t|plural}}, both vehicles have traveled {{d}} miles."
         },
         {
           "id": "choice-d",
-          "label": "The vehicles travel {{t}} miles each hour."
+          "label": "The vehicles travel {{t}} mile{{t|plural}} each hour."
         },
         {
           "id": "choice-a",
@@ -53124,7 +53127,7 @@
         },
         {
           "id": "choice-b",
-          "label": "After {{d}} hours, both vehicles have traveled {{t}} miles."
+          "label": "After {{d}} hours, both vehicles have traveled {{t}} mile{{t|plural}}."
         }
       ],
       "attemptFeedback": [
@@ -53185,7 +53188,7 @@
         "officialSkillFamily": "systems of two linear equations in two variables",
         "stemProfile": "estimate-crossing-from-values"
       },
-      "prompt": "For two linear functions $f$ and $g$, $f({{a}})<g({{a}})$ and $f({{b}})>g({{b}})$, where {{a}}<{{b}}. The graphs of $f$ and $g$ intersect once. Which interval must contain the $x$-coordinate of the intersection?",
+      "prompt": "For two linear functions $f$ and $g$, $f({{a}})<g({{a}})$ and $f({{b}})>g({{b}})$. The graphs of $f$ and $g$ intersect once. Which interval must contain the $x$-coordinate of the intersection?",
       "generator": {
         "parameters": {
           "a": {
@@ -57657,7 +57660,7 @@
         "officialSkillFamily": "linear inequalities in one or two variables",
         "stemProfile": "production-resources"
       },
-      "prompt": "A workshop makes tables and shelves. Each table requires {{woodT}} units of wood and {{laborT}} hours of labor. Each shelf requires {{woodS}} units of wood and {{laborS}} hours of labor. At most {{woodMax}} units of wood and {{laborMax}} labor hours are available. Which system represents the possible nonnegative numbers $x$ of tables and $y$ of shelves?",
+      "prompt": "A workshop makes tables and shelves. A table requires {{woodT}} units of wood and {{laborT}} hours of labor. A shelf requires {{woodS}} units of wood and {{laborS}} hours of labor. At most {{woodMax}} units of wood and {{laborMax}} labor hours are available. Which system represents the possible nonnegative numbers $x$ of tables and $y$ of shelves?",
       "generator": {
         "parameters": {
           "woodT": {

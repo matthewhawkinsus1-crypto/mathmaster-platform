@@ -123,6 +123,16 @@ const buildSkill = ({ skillId, strand, strandNumber }, context) => {
   const pass = describeCoursePathPass(skillProgressByTEKS?.[code] || {}, { mastered: pathStatus === STATUS.MASTERED });
   // The repair a blocked skill points at, offered only where the bank can
   // actually issue it — the same coverage question the skill's own door asks.
+  //
+  // KEPT AS BUILT, A PRODUCT CALL (MP17). The repair can be a skill whose own
+  // row here is closed: most often one that is later in the course ("Coming
+  // up"), sometimes one that is itself locked. The map offers the same repair
+  // (a repair is not held back by pacing), and this list's doors are the
+  // map's doors (pathTopicBrowser.test.mjs), so changing it here alone would
+  // make the two disagree. The choice is the owner's: let a skill that is some
+  // locked skill's repair be a door on its own row and card too ("your class
+  // reaches this later, but you can practise it now"), or hold the repair back
+  // until the class gets there, which leaves the locked skill no way forward.
   const strengthen = node?.strengthen && (typeof isCovered !== 'function' || isCovered(node.strengthen.skillId))
     ? node.strengthen
     : null;
@@ -152,6 +162,7 @@ const buildSkill = ({ skillId, strand, strandNumber }, context) => {
     strengthen,
     reason: node?.reason || '',
     evidence: launchable ? list(node?.evidence) : [],
+    evidenceHeading: node?.evidenceHeading || null,
     classHere: row?.calendarTiming === 'current',
     calendarTiming: row?.calendarTiming || null,
     passCompletedLabel: pass.completedLabel || null,
@@ -166,6 +177,12 @@ const unitStanding = (unit, skills) => {
   if (timings.includes('current') && !unit?.embedded) return 'Your class is working on this unit now';
   if (unit?.embedded) return 'Taught throughout the year';
   if (unit && !unit.scheduled) return 'Not on your class calendar yet';
+  // Between two topic windows of one unit the class has covered part of it and
+  // has not reached the rest. That is neither "starts soon" nor "covered
+  // earlier" (MP17, a verifier minor of push D).
+  if (timings.includes('review') && timings.some((timing) => timing === 'upcoming' || timing === 'future')) {
+    return 'Your class is partway through this unit';
+  }
   if (timings.includes('upcoming')) return 'Your class starts this unit soon';
   if (timings.length && timings.every((timing) => timing === 'review')) return 'Your class covered this unit earlier';
   if (timings.includes('future')) return 'Later in the course';

@@ -52,9 +52,9 @@ test('an old snapshot keeps the public rows, its count and where the last group 
   const scrubbed = scrubbedStandings(legacyStandings);
   assert.equal(scrubbed.schemaVersion, STANDINGS_PROJECTION_SCHEMA_VERSION);
   for (const field of ['ranks', 'scores', 'slotKeys', 'digest']) assert.equal(field in scrubbed, false, field);
-  // Ranks 1-5,5 of six: the two tied for last step off; two are unshown,
-  // so 1st-4th stay.
-  assert.deepEqual(scrubbed.top.map((row) => row.playerKey), ['pk-0', 'pk-1', 'pk-2', 'pk-3']);
+  // Ranks 1-5,5 of six: the two tied for last step off; two are unshown, and
+  // each would name the other (LC22), so 4th steps off too and 1st-3rd stay.
+  assert.deepEqual(scrubbed.top.map((row) => row.playerKey), ['pk-0', 'pk-1', 'pk-2']);
   assert.equal(scrubbed.count, 6);
   assert.equal(scrubbed.lastRank, 5);
   assert.equal(scrubbed.kind, 'final', 'the moment it is from is kept');

@@ -1,5 +1,6 @@
 import { Suspense, lazy, useState } from 'react';
 import { studentSupportTools } from '../../studentSupport.js';
+import { SUPPORT_TOOLS } from '../../platform/student/studentWords.js';
 
 // The per-question tray (language tools) is its own chunk: a student with no
 // language support never downloads it, its vocabulary or its language packs.
@@ -26,7 +27,10 @@ const WHERE = {
 };
 
 /**
- * SUPPORT TOOLS FOR ONE QUESTION — the same neutral surface, per item.
+ * LANGUAGE TOOLS FOR ONE QUESTION — read aloud, translate, vocabulary and the
+ * rest, under the task. Not the "Support tools" list below: that is the
+ * student's own supports and their teacher's materials, and the two do not
+ * share a name (studentWords.js, RUN-22).
  *
  * `entitlement` comes from platform/language/supportToolsEntitlement.js (from
  * the student's own profile, or on My Math Path from the server's applicable
@@ -55,10 +59,10 @@ export default function StudentSupportTools({ profile = null, onResourceOpened =
         onClick={() => setOpen((current) => !current)}
         style={{ minHeight: 36, padding: '6px 12px', borderRadius: 999, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer' }}
       >
-        Support tools {open ? '▴' : '▾'}
+        {SUPPORT_TOOLS} {open ? '▴' : '▾'}
       </button>
       {open && (
-        <div role="region" aria-label="Support tools" style={{ marginTop: 8, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', display: 'grid', gap: 8, textAlign: 'left', maxWidth: 520 }}>
+        <div role="region" aria-label={SUPPORT_TOOLS} style={{ marginTop: 8, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', display: 'grid', gap: 8, textAlign: 'left', maxWidth: 520 }}>
           {tools.map((tool) => (
             <div key={tool.supportId} style={{ fontSize: 'calc(13 * var(--mm-px))' }}>
               <strong>{tool.label}</strong>{WHERE[tool.supportId] ? ` — ${WHERE[tool.supportId]}` : ''}

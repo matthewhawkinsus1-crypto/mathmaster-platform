@@ -13,6 +13,14 @@
  * reported ungraded, as the board always has. Completeness is the board's own
  * Check gate (openSortProgress().ready).
  *
+ * GR16 (the owner): they count neither right nor wrong, and say so. Any 12
+ * characters met the explanation's check, so a student was shown it as a
+ * correct part. The parts are labelled "(for your teacher)", a screen shows
+ * no mark for an ungraded part (QuestionEngine's closed card), and the
+ * verdict and score are unchanged: the score never counted them (an exact
+ * sort scores 1, any other the share of its pairs), so a stored attempt's
+ * score is what the same work earns now, and nothing is re-graded.
+ *
  * One correction, reachable only through a tampered response or a board saved
  * before the teacher removed a card: only the question's cards, each in
  * exactly one group, are placements (boardPlacements). Invented ids used to
@@ -75,7 +83,7 @@ const gradeSort = (question, work, scoreSort) => {
       },
       {
         id: 'names',
-        label: 'Group names',
+        label: 'Group names (for your teacher)',
         isComplete: progress.namesComplete,
         isCorrect: progress.namesComplete,
         graded: false,
@@ -83,7 +91,7 @@ const gradeSort = (question, work, scoreSort) => {
       },
       {
         id: 'rationale',
-        label: 'Group explanations',
+        label: 'Group explanations (for your teacher)',
         isComplete: progress.rationaleComplete,
         isCorrect: progress.rationaleComplete,
         graded: false,

@@ -354,11 +354,14 @@ const planeSize = (bounds, width) => {
   return { width, height: Math.max(Math.round(width * 0.62), Math.min(Math.round(width * 1.25), height)) };
 };
 
+// What to do, not how: the line under the plane says how (tap or press the grid,
+// or the arrow keys and Enter), and the plane's own name adds its route, so a
+// task that said "Tap" named a pointer in a sentence with no keyboard route (AX32).
 const GRAPH_TASKS = Object.freeze({
-  graphCrossing: (target) => (target === 'xIntercept' ? 'Tap where the line crosses the x-axis.' : 'Tap where the line crosses the y-axis.'),
-  graphPoint: () => 'Tap a point the line passes through exactly, then write its coordinates.',
-  riseRun: () => 'Tap two points the line passes through exactly: A, then B. Then count from A to B.',
-  twoPointFormula: () => 'Tap two points the line passes through exactly: point 1, then point 2.',
+  graphCrossing: (target) => (target === 'xIntercept' ? 'Place a point where the line crosses the x-axis.' : 'Place a point where the line crosses the y-axis.'),
+  graphPoint: () => 'Place a point the line passes through exactly, then write its coordinates.',
+  riseRun: () => 'Place two points the line passes through exactly: A, then B. Then count from A to B.',
+  twoPointFormula: () => 'Place two points the line passes through exactly: point 1, then point 2.',
 });
 
 const PICK_FIELDS = Object.freeze({ graphCrossing: ['pick'], graphPoint: ['pick'], riseRun: ['p1', 'p2'], twoPointFormula: ['p1', 'p2'] });
@@ -456,8 +459,8 @@ export function GraphMethod({ option, target, description, bounds, snapStep, ev,
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <span style={muted}>
           {picks.every(Boolean)
-            ? (fields.length > 1 ? 'Tap the grid to move your second point, or drag either point.' : 'Tap again or drag to move it.')
-            : (picks[0] ? 'Now tap the second point.' : 'Tap the grid to place a point (keyboard: arrow keys, then Enter).')}
+            ? (fields.length > 1 ? 'Tap the grid to move your second point, or drag either point (keyboard: arrow keys, then Enter).' : 'Tap again or drag to move it (keyboard: arrow keys, then Enter).')
+            : (picks[0] ? 'Now tap the second point (keyboard: arrow keys, then Enter).' : 'Tap the grid to place a point (keyboard: arrow keys, then Enter).')}
         </span>
         <button type="button" disabled={disabled || !picks.some(Boolean)} onClick={() => setEv((current) => ({ ...current, ...Object.fromEntries(fields.map((field) => [field, null])) }))} style={touchButton}>
           Start over
