@@ -254,6 +254,9 @@ const RUSH_CSS = `
 /* An inequality: the arrows and ✓ Check, then No Solution and Skip. */
 .mm-rush-buttons[data-inequality="1"] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr); }
 .mm-rush-buttons[data-inequality="1"] .mm-rush-dne { grid-column: span 2; }
+/* The arena is dark in both themes, so these keep fixed colors, as Does Not
+   Exist does: a pressed arrow's blue and white, and dark text on the green ✓ Check
+   (recorded in scripts/theme-color-baseline.json and theme-token-baseline.json). */
 .mm-rush-arrow, .mm-rush-check { min-height: 52px; border-radius: 12px; font-size: calc(19 * var(--mm-px)); font-weight: 1000; cursor: pointer; }
 .mm-rush-arrow { border: 2px solid rgba(255,255,255,.35); background: rgba(255,255,255,.06); color: #eef1f6; }
 .mm-rush-arrow[aria-pressed="true"] { border-color: #8ab4f8; background: rgba(138,180,248,.22); color: #fff; }
