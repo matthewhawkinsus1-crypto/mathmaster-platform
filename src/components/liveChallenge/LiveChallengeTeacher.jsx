@@ -83,6 +83,7 @@ import {
   getLiveChallengeHostRoster,
   publishLiveChallengeStandings,
   readChallengeReport,
+  readClassGameMemory,
   setWarmupChallengeDelivery,
   startLiveChallenge,
   updateLiveChallengePacing,
@@ -348,6 +349,9 @@ export default function LiveChallengeTeacher({
   const [secondChanceMode, setSecondChanceMode] = useState('off');
   const [rushSetup, setRushSetup] = useState(() => defaultRushSetup(courseId));
   const [inequalitySetup, setInequalitySetup] = useState(() => defaultInequalitySetup(courseId));
+  // What the chosen class did the last time it played the chosen rush, if it
+  // has (liveChallengeClassMemory.mjs): the setup card's "last played … → try …".
+  const [classMemory, setClassMemory] = useState(null);
   const [lineSetup, setLineSetup] = useState(() => defaultLineSetup(courseId));
   const [title, setTitle] = useState('');
   const [speedInfluencePercent, setSpeedInfluencePercent] = useState(20);
@@ -576,6 +580,21 @@ export default function LiveChallengeTeacher({
   const classicStrategyId = resolveClassicScoring(challengeMode, classicScoringId);
   const rushProblem = rushMode ? rushConfigProblem(rushSetup) : null;
   const inequalityProblem = inequalityMode ? inequalitySetupProblem(inequalitySetup) : null;
+  let memoryGame = null;
+  if (rushMode) memoryGame = 'graphFeatureRush';
+  else if (inequalityMode) memoryGame = 'inequalityRush';
+  // Read again when the class or the game changes, and when a game ends — a
+  // finished game may just have written it. Nothing is shown while a game is
+  // open, and a class that has not played the game has no card.
+  useEffect(() => {
+    let alive = true;
+    setClassMemory(null);
+    if (!memoryGame || !classId || roomId) return undefined;
+    readClassGameMemory(classId, memoryGame)
+      .then((memory) => { if (alive) setClassMemory(memory); })
+      .catch((error) => console.warn('The last-time card could not be read:', error));
+    return () => { alive = false; };
+  }, [memoryGame, classId, roomId]);
   const lineProblem = lineMode ? lineSetupProblem(lineSetup) : null;
   const questionSetGame = questionSetGameOf(room);
   // Graph Feature Rush and Inequality Graphing Rush: the rush's host views.
@@ -1173,12 +1192,12 @@ export default function LiveChallengeTeacher({
               </label>}
               {rushMode && (
                 <Suspense fallback={<p style={{ gridColumn: '1 / -1', color: 'var(--mm-text-muted)' }}>Loading Graph Feature Rush settings…</p>}>
-                  <GraphFeatureRushSetup setup={rushSetup} onChange={setRushSetup} classSize={allStudents.filter((student) => student?.classId === classId).length} onPractice={() => { setMessage(''); setDryRunOpen(true); }} />
+                  <GraphFeatureRushSetup setup={rushSetup} onChange={setRushSetup} classSize={allStudents.filter((student) => student?.classId === classId).length} onPractice={() => { setMessage(''); setDryRunOpen(true); }} memory={classMemory?.game === 'graphFeatureRush' ? classMemory : null} />
                 </Suspense>
               )}
               {inequalityMode && (
                 <Suspense fallback={<p style={{ gridColumn: '1 / -1', color: 'var(--mm-text-muted)' }}>Loading Inequality Graphing Rush settings…</p>}>
-                  <InequalityRushSetup setup={inequalitySetup} onChange={setInequalitySetup} classSize={allStudents.filter((student) => student?.classId === classId).length} onPractice={() => { setMessage(''); setDryRunOpen(true); }} />
+                  <InequalityRushSetup setup={inequalitySetup} onChange={setInequalitySetup} classSize={allStudents.filter((student) => student?.classId === classId).length} onPractice={() => { setMessage(''); setDryRunOpen(true); }} memory={classMemory?.game === 'inequalityRush' ? classMemory : null} />
                 </Suspense>
               )}
               {lineMode && (

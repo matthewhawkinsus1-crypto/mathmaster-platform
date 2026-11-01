@@ -15,6 +15,12 @@ ranking, round and match results, finalization and rewards are the engine's;
 the rush adds a question source, a way for a student to receive and answer
 questions, and screens.
 
+**What the class did last time.** A finished rush game leaves its class a
+memory (`liveChallengeClassMemory.mjs`, `live-challenge-engine.md` →
+Finalization effects): the setup card's "Period 5 last played this on Oct 28
+at Standard, 3 × 60 s, 86% accuracy → try Challenge", with **Use last
+settings** and **Use suggestion**.
+
 **Inequality Graphing Rush** (`inequality-rush.md`) is a second game on the
 rush's machinery: its items are number-line questions (one target, a solution
 set, checked like a domain), issued and graded by the same callables

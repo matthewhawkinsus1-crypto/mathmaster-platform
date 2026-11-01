@@ -11064,6 +11064,14 @@ async function graphFeatureRushRules() {
   return graphFeatureRushModules;
 }
 
+// CLASS MEMORY: what a class did the last time it played a rush game, and
+// the rule for what to try next.
+let liveChallengeClassMemoryModule = null;
+async function liveChallengeClassMemoryRules() {
+  if (!liveChallengeClassMemoryModule) liveChallengeClassMemoryModule = await import("./shared/liveChallengeClassMemory.mjs");
+  return liveChallengeClassMemoryModule;
+}
+
 // INEQUALITY GRAPHING RUSH: the mode's own pure rules (generation, settings,
 // hints) and its reading guide. Its attempts are Graph Feature Rush's.
 let inequalityRushModules = null;
@@ -11158,6 +11166,10 @@ const LIVE_CHALLENGE_HOST_ROUNDS = "hostRounds";
 // derived from it, so each can be re-run safely after a crash.
 const LIVE_CHALLENGE_MATCH_RESULTS = "liveChallengeMatchResults";
 const LIVE_CHALLENGE_EXPERIENCE = "liveChallengeExperience";
+// What a class did the last time it played a rush game, with which settings
+// (liveChallengeClassMemory.mjs): one document per class and game, class
+// totals only, read by the teacher's setup card.
+const LIVE_CHALLENGE_CLASS_MEMORY = "liveChallengeClassMemory";
 
 function challengeCourseId(value) {
   const token = String(value || "").trim().toLowerCase();
@@ -13172,11 +13184,14 @@ function planNextLiveChallengeRound({ challenge, engine, room, privateState, pla
   };
 }
 
-// Which finalization effects a match needs. Cancelled matches earn no rewards.
+// Which finalization effects a match needs. Cancelled matches earn no rewards,
+// and leave their class no memory (only a finished rush game does; the effect
+// itself passes over every other game).
 function liveChallengeFinalizationEffects(room = {}, status) {
   const challengeFinished = status === "finished";
   return {
     report: "pending",
+    classMemory: challengeFinished ? "pending" : "notApplicable",
     invites: "pending",
     warmupCredit: room.assignmentId ? "pending" : "notApplicable",
     evidence: "pending",
@@ -13351,6 +13366,31 @@ async function liveChallengeEffectRecipients(transaction, db, studentIds = []) {
   if (!ids.length) return new Set();
   const rows = await transaction.getAll(...ids.map((id) => db.collection("grades").doc(id)));
   return new Set(rows.filter((row) => rosterRowAcceptsEffects(row)).map((row) => row.id));
+}
+
+/*
+ * CLASS MEMORY, written from the durable match result like the report: a
+ * finished rush game leaves its class one small record — when, with which
+ * settings (read from the room, which keeps them), and how the class did —
+ * for the next setup's card (liveChallengeClassMemory.mjs). Class totals
+ * only. A late or repeated run for an older game never replaces a newer one.
+ */
+async function writeClassMemoryFromResult(db, result) {
+  const memoryRules = await liveChallengeClassMemoryRules();
+  const game = memoryRules.classMemoryGameOfMode(result.modeId);
+  if (!game || result.status !== "finished" || !result.classId) return;
+  const roomSnapshot = await db.collection(LIVE_CHALLENGE_ROOMS).doc(String(result.roomId || "")).get();
+  if (!roomSnapshot.exists) return;
+  const labels = game.id === "inequalityRush" ? (await inequalityRushRules()).generator.INEQUALITY_REPORT_LABELS : undefined;
+  const report = (await graphFeatureRushRules()).rush.buildRushReport(result, labels);
+  const memory = memoryRules.buildClassMemory({ result, room: roomSnapshot.data() || {}, report });
+  if (!memory) return;
+  const memoryRef = db.collection(LIVE_CHALLENGE_CLASS_MEMORY).doc(memoryRules.classMemoryId(memory.classId, memory.game));
+  await db.runTransaction(async (transaction) => {
+    const stored = await transaction.get(memoryRef);
+    if (stored.exists && memoryRules.memoryIsNewer(stored.data(), memory)) return;
+    transaction.set(memoryRef, { ...memory, updatedAt: FieldValue.serverTimestamp() });
+  });
 }
 
 async function writeLiveChallengeReportFromResult(db, result) {
@@ -13559,7 +13599,7 @@ async function deliverLiveChallengeRewardsFromResult(db, result) {
 // After this many runs an effect that still fails stops being retried by the
 // sweep (and is logged), so one broken match cannot occupy the sweep forever.
 const LIVE_CHALLENGE_EFFECT_MAX_ATTEMPTS = 10;
-const LIVE_CHALLENGE_EFFECT_ORDER = Object.freeze(["report", "invites", "warmupCredit", "evidence", "rewards"]);
+const LIVE_CHALLENGE_EFFECT_ORDER = Object.freeze(["report", "classMemory", "invites", "warmupCredit", "evidence", "rewards"]);
 
 /**
  * Run every outstanding finalization effect of a match, idempotently. Safe to
@@ -13578,6 +13618,7 @@ async function runLiveChallengeFinalizationEffects(db, roomId) {
   const settled = results.finalizationEffectSettled;
   const tasks = {
     report: () => writeLiveChallengeReportFromResult(db, result),
+    classMemory: () => writeClassMemoryFromResult(db, result),
     invites: () => updateLiveChallengeInvitesForRoom(db, {
       roomId,
       studentIds: (result.standings || []).map((standing) => standing.studentId),

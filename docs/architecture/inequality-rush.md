@@ -192,6 +192,12 @@ objects — Firestore refuses an array directly inside an array — and its
   first (the sign flip named as such). Permanent deletion takes a student out
   of `inequalityRush.players` (`REPORT_STUDENT_ROW_PATHS`, SI07).
 - **Play Again** replays the kinds and difficulty (`challengeReplayModel.js`).
+- **Last time:** a finished game leaves its class a memory, and the next setup
+  opens with its card — "Period 2 last played this on Oct 28 at Standard,
+  3 × 90 s, 58% accuracy → try Easy" — with **Use last settings** and **Use
+  suggestion**; at Easy the suggestion drops the weakest kind ("try it
+  without absolute value"). See `live-challenge-engine.md` → Finalization
+  effects.
 
 ## 7. The round's guide
 

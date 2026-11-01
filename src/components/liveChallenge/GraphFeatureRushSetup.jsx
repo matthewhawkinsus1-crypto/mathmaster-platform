@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import ClassMemoryCard from './ClassMemoryCard.jsx';
 import { graphFamilyLabel, GRAPH_FAMILY_CATALOG_IDS } from '../../../functions/shared/graphFeatureCatalog.mjs';
 import { getGraphFeature, GRAPH_FEATURE_IDS } from '../../../functions/shared/graphFeatureRegistry.mjs';
 import {
@@ -45,7 +46,10 @@ const chip = (active) => ({
 const field = { display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 6, padding: 10, borderRadius: 8, border: '1px solid var(--mm-border)' };
 const hint = { display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' };
 
-export default function GraphFeatureRushSetup({ setup, onChange, classSize = 0, onPractice = null }) {
+// `memory`: what this class did the last time it played a rush, if it has
+// (liveChallengeClassMemory.mjs) — the card at the top, whose buttons fill
+// in the whole setup.
+export default function GraphFeatureRushSetup({ setup, onChange, classSize = 0, onPractice = null, memory = null }) {
   const problem = useMemo(
     () => rushConfigProblem({ families: setup.families, features: setup.features, difficulty: setup.difficulty, offScreen: setup.offScreen === true }),
     [setup.families, setup.features, setup.difficulty, setup.offScreen],
@@ -55,6 +59,7 @@ export default function GraphFeatureRushSetup({ setup, onChange, classSize = 0, 
 
   return (
     <div style={{ gridColumn: '1 / -1', display: 'grid', gap: 16 }}>
+      {memory && <ClassMemoryCard memory={memory} onUse={onChange} />}
       <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
         <legend style={{ fontWeight: 900, marginBottom: 8 }}>Start from a preset</legend>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

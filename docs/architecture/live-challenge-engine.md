@@ -429,11 +429,27 @@ runs each effect **from the match result**, never from private game state:
 | Effect | Writes |
 | --- | --- |
 | `report` | `liveChallengeReports/{roomId}` |
+| `classMemory` | `liveChallengeClassMemory/{classId}__{game}` — a finished rush game's record for its class's next setup (below); finished matches only, and a no-op for every other game |
 | `invites` | invite status — only invites that still point at this room |
 | `warmupCredit` | the assignment's participation/accuracy credit, measured against rounds actually played |
 | `evidence` | mastery evidence (weight 0.7, replays excluded); a line game's by its own rules — each line's first try, per item type, from each standing's `lineGraphEvidence` (`lineGraphEvidence.mjs`, `graph-the-line.md` §11) — only while the owner's switch `platformFlags/liveChallengeEvidence` has `lineGraph: true` (off) |
 | `rewards` | reward delivery (section 9); finished matches only |
 | `privateCleanup` | deletes `liveChallengePrivate/{roomId}` — last, once every other effect has settled, or on the last attempt |
+
+**Class memory** (`liveChallengeClassMemory.mjs`). A finished Graph Feature
+Rush or Inequality Graphing Rush game leaves its class one record per game:
+when it was played, the settings it was created with (read from the room),
+and how the class did — accuracy, completed per student, the weakest feature
+or kind (the report's hardest row). No student is named. The next setup of
+that game for that class opens with a card — "Period 5 last played this on
+Oct 28 at Standard, 3 × 60 s, 86% accuracy → try Challenge." — and two
+buttons, **Use last settings** and **Use suggestion**. The suggestion is
+worked out when the card is shown: 85% or higher steps up a difficulty (at
+the top, a shorter clock); 65% to 85% repeats; below 65% steps down (at the
+bottom, or where the easier difficulty cannot play the settings, it drops the
+weakest feature; failing that, a longer clock). Every suggestion passes the
+game's own settings rule. A late or repeated run for an older game never
+replaces a newer memory.
 
 Each effect is idempotent. Outcomes are merged into `effects` in a transaction
 where `done` always wins. A failure is logged and left for the scheduled sweep
@@ -621,6 +637,7 @@ late join and Play Again. The rules below are the engine-facing ones.
 | `liveChallengeTeacherActive/{email}` | the teacher's active room pointer | own teacher |
 | `liveChallengeMatchResults/{roomId}` | durable final result + effects bookkeeping | none |
 | `liveChallengeReports/{roomId}` | teacher report | room's teacher |
+| `liveChallengeClassMemory/{classId}__{game}` | what a class did the last time it played a rush game, with which settings — class totals only | the teacher who ran that game (a class with none reads as nothing); no client writes |
 | `liveChallengeAchievementJobs/{roomId}` | staged awards and outcomes | none |
 | `classPointTransactions`, `classPointAccounts` | the Class Points ledger | student own; authorized teachers |
 | `rewardGrants/{grantId}` | item rewards | student own; authorized teachers; no client writes |

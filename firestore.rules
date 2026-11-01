@@ -1525,6 +1525,18 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // What a class did the last time it played a rush game, and with which
+    // settings (functions/shared/liveChallengeClassMemory.mjs): the setup
+    // card's "last played … → try …", one document per class and game. Class
+    // totals only — no student is named. The teacher who ran that game reads
+    // it; a class with no memory yet reads as nothing rather than a refusal,
+    // so the setup asks without first knowing. Only the server writes it.
+    match /liveChallengeClassMemory/{memoryId} {
+      allow read: if rootAdmin()
+        || (teacher() && (resource == null || resource.data.teacherEmail == request.auth.token.email));
+      allow create, update, delete: if false;
+    }
+
     // A teacher's rehearsal of their own challenge. It holds the question ids
     // for that dry run, so it is server-only for the same reason the private
     // game state is: a document a browser can read is a document a browser can

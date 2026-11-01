@@ -1,6 +1,7 @@
 import { collection, doc, getDoc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../firebase.js';
+import { CLASS_MEMORY_COLLECTION, classMemoryId } from '../../../functions/shared/liveChallengeClassMemory.mjs';
 
 const call = (name) => {
   const callable = httpsCallable(functions, name);
@@ -232,6 +233,18 @@ export const readChallengeReport = async (roomId) => {
   const id = String(roomId || '').trim();
   if (!id) return null;
   const snapshot = await getDoc(doc(db, 'liveChallengeReports', id));
+  return snapshot.exists() ? snapshot.data() : null;
+};
+
+/**
+ * What a class did the last time it played a rush game, for the setup card
+ * (liveChallengeClassMemory.mjs), or null when it has not played it yet. A
+ * one-shot read: the memory changes only when that class finishes another game.
+ */
+export const readClassGameMemory = async (classId, game) => {
+  const id = classMemoryId(classId, game);
+  if (!String(classId || '').trim() || !String(game || '').trim()) return null;
+  const snapshot = await getDoc(doc(db, CLASS_MEMORY_COLLECTION, id));
   return snapshot.exists() ? snapshot.data() : null;
 };
 

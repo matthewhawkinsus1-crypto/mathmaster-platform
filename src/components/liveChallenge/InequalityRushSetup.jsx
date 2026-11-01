@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import ClassMemoryCard from './ClassMemoryCard.jsx';
 import {
   INEQUALITY_DIFFICULTY_OPTIONS,
   INEQUALITY_ITEMS,
@@ -40,13 +41,16 @@ const chip = (active) => ({
 const field = { display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 6, padding: 10, borderRadius: 8, border: '1px solid var(--mm-border)' };
 const hint = { display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' };
 
-export default function InequalityRushSetup({ setup, onChange, classSize = 0, onPractice = null }) {
+// `memory`: what this class did the last time it played this game, if it has
+// (liveChallengeClassMemory.mjs).
+export default function InequalityRushSetup({ setup, onChange, classSize = 0, onPractice = null, memory = null }) {
   const problem = useMemo(() => inequalitySetupProblem(setup), [setup]);
   const update = (patch) => onChange(changeInequalitySetup(setup, patch));
   const ladder = grandPrixLadder(classSize || 24);
 
   return (
     <div style={{ gridColumn: '1 / -1', display: 'grid', gap: 16 }}>
+      {memory && <ClassMemoryCard memory={memory} onUse={onChange} />}
       <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
         <legend style={{ fontWeight: 900, marginBottom: 8 }}>Start from a preset</legend>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
