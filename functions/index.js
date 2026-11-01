@@ -11425,8 +11425,10 @@ const GRAPH_FEATURE_RUSH_PLANNER = Object.freeze({
         teksCode: null,
       },
       roundSeconds: engine.modes.normalizeModeRoundSeconds(mode, room.roundSeconds),
-      // The round's reading guide, kept privately until the round has closed.
-      solution: reading.rushRoundSolutionRecord({ features: config.features }),
+      // The round's reading guide, kept privately until the round has closed:
+      // the game's features, and its difficulty and off-screen setting (what
+      // it says about dots and "Off screen").
+      solution: reading.rushRoundSolutionRecord({ features: config.features, difficulty: config.difficulty, offScreen: config.offScreen === true }),
     };
   },
 });

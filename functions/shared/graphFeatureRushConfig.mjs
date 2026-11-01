@@ -17,8 +17,15 @@
  * setup screen carry it without the graph builders.
  */
 
-import { catalogSupportsFeature, graphFamilyLabel, GRAPH_FAMILY_CATALOG_IDS as GRAPH_FAMILY_IDS } from './graphFeatureCatalog.mjs';
-import { getGraphFeature, GRAPH_FEATURE, GRAPH_FEATURE_IDS, QUESTION_TIER, QUESTION_TIER_ORDER } from './graphFeatureRegistry.mjs';
+import { catalogOffScreenFeature, catalogSupportsFeature, graphFamilyLabel, GRAPH_FAMILY_CATALOG_IDS as GRAPH_FAMILY_IDS } from './graphFeatureCatalog.mjs';
+import {
+  CLASSIC_GRAPH_FEATURE_IDS,
+  getGraphFeature,
+  GRAPH_FEATURE,
+  GRAPH_FEATURE_IDS,
+  QUESTION_TIER,
+  QUESTION_TIER_ORDER,
+} from './graphFeatureRegistry.mjs';
 
 export class GraphFeatureRushConfigError extends Error {
   constructor(message) {
@@ -58,6 +65,12 @@ export const RUSH_ROUND_LIMITS = Object.freeze({
   secondsOptions: Object.freeze([30, 45, 60, 90, 120]),
 });
 
+/*
+ * The presets are starting points, and they keep the features they had when
+ * the registry held five: a feature added since (asymptotes) is the
+ * teacher's to choose, never slipped into a preset a class already plays.
+ * None turns off-screen features on.
+ */
 export const GRAPH_FEATURE_RUSH_PRESETS = Object.freeze([
   Object.freeze({
     id: 'algebra1Quick',
@@ -80,7 +93,7 @@ export const GRAPH_FEATURE_RUSH_PRESETS = Object.freeze([
     roundSeconds: 60,
     scoringStrategyId: 'grandPrix',
     families: Object.freeze(['linear', 'quadratic', 'exponential']),
-    features: Object.freeze([...GRAPH_FEATURE_IDS]),
+    features: Object.freeze([...CLASSIC_GRAPH_FEATURE_IDS]),
     difficulty: RUSH_DIFFICULTY.STANDARD,
   }),
   Object.freeze({
@@ -104,7 +117,7 @@ export const GRAPH_FEATURE_RUSH_PRESETS = Object.freeze([
     roundSeconds: 60,
     scoringStrategyId: 'grandPrix',
     families: Object.freeze(['quadratic', 'absolute', 'cubic', 'squareRoot', 'rational', 'exponential', 'piecewise']),
-    features: Object.freeze([...GRAPH_FEATURE_IDS]),
+    features: Object.freeze([...CLASSIC_GRAPH_FEATURE_IDS]),
     difficulty: RUSH_DIFFICULTY.MIXED,
   }),
   Object.freeze({
@@ -116,7 +129,7 @@ export const GRAPH_FEATURE_RUSH_PRESETS = Object.freeze([
     roundSeconds: 90,
     scoringStrategyId: 'grandPrix',
     families: Object.freeze([...GRAPH_FAMILY_IDS]),
-    features: Object.freeze([...GRAPH_FEATURE_IDS]),
+    features: Object.freeze([...CLASSIC_GRAPH_FEATURE_IDS]),
     difficulty: RUSH_DIFFICULTY.CHALLENGE,
   }),
 ]);
@@ -159,6 +172,28 @@ export const unsupportedRushFeatures = ({ families = [], features = [], difficul
   });
 };
 
+/*
+ * OFF-SCREEN FEATURES, a layer of difficulty a teacher turns on: some graphs'
+ * feature exists past the edge of the view, and the student answers "Off
+ * screen" — the arrows say where the curve keeps going. It starts at
+ * Standard, and only some families can hide a feature (graphFeatureCatalog
+ * GRAPH_FAMILY_OFF_SCREEN): turned on for graphs that cannot, it is refused,
+ * so a class never sees a button that is never the answer.
+ */
+export const OFF_SCREEN_SETTING = Object.freeze({
+  label: 'Off-screen features',
+  description: 'Some graphs keep going past the edge to the feature. Students choose "Off screen" when the arrows show it is out there.',
+});
+
+/** The message for an off-screen setting this game cannot play, or null. */
+export const offScreenProblem = ({ families = [], features = [], difficulty = RUSH_DIFFICULTY.STANDARD, offScreen = false } = {}) => {
+  if (offScreen !== true) return null;
+  if (difficulty === RUSH_DIFFICULTY.EASY) return 'Off-screen features start at Standard difficulty.';
+  const tiers = difficultyTiers(difficulty);
+  const possible = families.some((family) => features.some((feature) => tiers.some((tier) => catalogOffScreenFeature(family, feature, tier))));
+  return possible ? null : 'Off-screen features come from lines (x- and y-intercepts), parabolas (the vertex) and, at Challenge, absolute value graphs (the vertex and x-intercepts). Choose one of those, or turn off-screen features off.';
+};
+
 /**
  * The validated question settings for a room. Throws
  * GraphFeatureRushConfigError with a teacher-facing message.
@@ -169,14 +204,19 @@ export const normalizeGraphFeatureRushConfig = (raw = {}) => {
   const families = listOf(source.families ?? preset?.families, GRAPH_FAMILY_IDS);
   const features = listOf(source.features ?? preset?.features, GRAPH_FEATURE_IDS);
   const difficulty = DIFFICULTIES.has(source.difficulty) ? source.difficulty : (preset?.difficulty || RUSH_DIFFICULTY.STANDARD);
+  // Off unless asked for: a room created before the setting existed has none.
+  const offScreen = source.offScreen === true;
   if (!families.length) throw new GraphFeatureRushConfigError('Choose at least one kind of graph.');
   if (!features.length) throw new GraphFeatureRushConfigError('Choose at least one feature for students to find.');
   const unsupported = unsupportedRushFeatures({ families, features, difficulty });
   if (unsupported.length) throw new GraphFeatureRushConfigError(unsupported.map((entry) => entry.message).join(' '));
+  const offScreenRefusal = offScreenProblem({ families, features, difficulty, offScreen });
+  if (offScreenRefusal) throw new GraphFeatureRushConfigError(offScreenRefusal);
   // The preset is remembered only while the settings still match it — in
   // canonical order on both sides, so a preset listed in any order matches.
   const matchesPreset = preset
     && preset.difficulty === difficulty
+    && offScreen === false
     && listOf(preset.families, GRAPH_FAMILY_IDS).join() === families.join()
     && listOf(preset.features, GRAPH_FEATURE_IDS).join() === features.join();
   return Object.freeze({
@@ -184,6 +224,7 @@ export const normalizeGraphFeatureRushConfig = (raw = {}) => {
     families: Object.freeze(families),
     features: Object.freeze(features),
     difficulty,
+    offScreen,
   });
 };
 

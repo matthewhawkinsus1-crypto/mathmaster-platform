@@ -35,7 +35,21 @@
  *     it visibly meets the axis is where the zero is (a crossing so shallow
  *     that the curve lies along the axis for a stretch is a guess, not a
  *     reading);
- *   - open endpoints are clearly separated from closed ones and from targets.
+ *   - open endpoints are clearly separated from closed ones and from targets;
+ *   - THE CURVE LEAVES THE SCREEN ONLY AT ITS ENDS: each continuous piece is
+ *     on screen as one stretch, which ends at a dot (its own end, inside the
+ *     view) or by leaving through an edge, where the screen draws an arrow —
+ *     so an arrow always means "keeps going", never "comes back"
+ *     (graphFeatureCurves.mjs curveRuns), and no stretch turns back just
+ *     inside an edge, where it would look like it left;
+ *   - a restricted domain's ends are inside the view, so every end of the
+ *     curve is drawn as a dot and never hidden past an edge an arrow claims;
+ *   - for an asymptote question, the asymptotes are the targets: lines,
+ *     inside the view, tapped anywhere along them;
+ *   - OFF THE SCREEN (a game with off-screen features): every target of the
+ *     feature lies well past an edge, the curve still shows where it is
+ *     heading (the family's anchors in view), and an off-screen zero is not
+ *     approached on screen (offScreenProblems).
  *
  * If a slot ever exhausted its attempts, a known-good question for the same
  * feature is issued instead and marked `fallback`; tests hold every slot to
@@ -47,15 +61,19 @@
 import * as Q from './graphFeatureRational.mjs';
 import { createRng } from './seededRandom.mjs';
 import {
+  curveRuns,
   curveSegments,
   evaluateGraph,
   graphAsymptotes,
+  graphDomain,
   graphMarkers,
+  unrestrictedGraph,
   visibleCurveFraction,
 } from './graphFeatureCurves.mjs';
 import {
   DOES_NOT_EXIST_TARGET_ID,
   GRAPH_FEATURE,
+  OFF_SCREEN_TARGET_ID,
   QUESTION_TIER,
   QUESTION_TIER_ORDER,
   featureTargetId,
@@ -65,12 +83,15 @@ import {
 } from './graphFeatureRegistry.mjs';
 import {
   FEATURE_STATUS,
+  LINE_ORIENTATION,
   familyVariants,
   getGraphFamily,
   tierGridDenominator,
 } from './graphFeatureFamilies.mjs';
 
-export const GRAPH_FEATURE_GENERATOR_VERSION = 2;
+// 3: arrows and endpoints (every graph leaves the screen only at its ends),
+// restricted domains, asymptote questions, off-screen features.
+export const GRAPH_FEATURE_GENERATOR_VERSION = 3;
 
 export const SCHEDULE_BLOCK_SIZE = 6;
 export const MAX_GENERATION_ATTEMPTS = 80;
@@ -114,7 +135,15 @@ export const VIEW_RULES = Object.freeze({
   openMarkerClearance: 0.06,
   jumpClearance: 0.08,
   asymptoteClearance: 0.08,
+  // A restricted domain's end dot is at least this far inside the edges.
+  domainEndInset: 0.06,
+  // An off-screen target is at least this far past an edge (a fraction of
+  // that axis's span): plainly off the screen, not a dot cut in half.
+  offScreenMargin: 0.1,
 });
+
+/** Whether a target is a line (an asymptote) rather than a point. */
+export const isLineTarget = (target) => target?.geometry === 'line';
 
 /** The tick step for a span: the smallest of 1, 2, 5, 10 giving ≤ 14 lines. */
 export const tickStep = (span) => [1, 2, 5, 10, 20].find((step) => span / step <= 14) || 20;
@@ -200,12 +229,15 @@ const normalizedDistance = (a, b, view) => Math.hypot(
  * A crossing's closest approach IS its zero, so this rule passes it; how
  * readably the curve crosses is zerosReadable's question.
  */
-const ghostZeroFree = (graph, view, zeros) => {
+const ghostZeroFree = (graph, view, zeros, allowedXs = []) => {
   const xSpan = view.xMax - view.xMin;
   const ySpan = view.yMax - view.yMin;
   const band = VIEW_RULES.ghostBand * ySpan;
   const reach = VIEW_RULES.ghostReach * xSpan;
-  const nearZero = (x) => zeros.some((zero) => Math.abs(zero.x - x) <= reach);
+  // A deliberate approach — an open end sitting on the axis — is the question
+  // itself, not a ghost.
+  const nearZero = (x) => zeros.some((zero) => Math.abs(zero.x - x) <= reach)
+    || allowedXs.some((allowed) => Math.abs(allowed - x) <= reach);
   return curveSegments(graph, view).every((segment) => {
     const count = 400;
     const nudge = (segment.to - segment.from) / 4000;
@@ -239,7 +271,7 @@ const ghostZeroFree = (graph, view, zeros) => {
  * longer stretch, which its symmetry keeps centred. A stretch that runs off
  * the edge of the view never passes.
  */
-const zerosReadable = (graph, view, zeros, flat) => {
+const zerosReadable = (graph, view, zeros, flat, endXs = []) => {
   const xSpan = view.xMax - view.xMin;
   const band = VIEW_RULES.contactBand * (view.yMax - view.yMin);
   const reach = (flat ? VIEW_RULES.flatContactReach : VIEW_RULES.contactReach) * xSpan;
@@ -254,8 +286,31 @@ const zerosReadable = (graph, view, zeros, flat) => {
     let right = zero.x;
     while (right + step <= view.xMax && onAxis(right + step)) right += step;
     if (left - step < view.xMin || right + step > view.xMax) return false;
-    return Math.max(zero.x - left, right - zero.x) <= reach
-      && Math.abs((left + right) / 2 - zero.x) <= VIEW_RULES.contactCentring * xSpan;
+    if (Math.max(zero.x - left, right - zero.x) > reach) return false;
+    // A zero at an end of the graph is marked by its dot, exactly; the curve
+    // runs off it to one side only, so it is never centred and need not be.
+    if (endXs.some((x) => Math.abs(x - zero.x) < 1e-9)) return true;
+    return Math.abs((left + right) / 2 - zero.x) <= VIEW_RULES.contactCentring * xSpan;
+  });
+};
+
+/*
+ * A graph that ENDS on the x-axis — a ray from its zero, or from an open dot
+ * there — is a question about that dot, so the curve must leave the axis
+ * promptly: within a few percent of the width of its end it is well clear of
+ * the axis. A shallow ray hugging the axis all the way to its dot reads as
+ * neither a crossing nor a miss.
+ */
+const endsLeaveAxis = (graph, view, endXs) => {
+  const xSpan = view.xMax - view.xMin;
+  const ySpan = view.yMax - view.yMin;
+  const formula = unrestrictedGraph(graph);
+  return endXs.every((x) => {
+    if (Math.abs(evaluateGraph(formula, x)) > 1e-9) return true;
+    const probes = [x - 2 * VIEW_RULES.contactReach * xSpan, x + 2 * VIEW_RULES.contactReach * xSpan]
+      .map((probe) => evaluateGraph(graph, probe))
+      .filter(Number.isFinite);
+    return probes.length > 0 && probes.every((y) => Math.abs(y) >= VIEW_RULES.crossingDepth * ySpan);
   });
 };
 
@@ -280,19 +335,53 @@ const separatedCrossings = (graph, view, zeros) => {
   return true;
 };
 
+// Whether a point lies well past an edge of the view.
+const pastEdge = (p, view, margin) => {
+  const xSpan = view.xMax - view.xMin;
+  const ySpan = view.yMax - view.yMin;
+  return p.x < view.xMin - margin * xSpan || p.x > view.xMax + margin * xSpan
+    || p.y < view.yMin - margin * ySpan || p.y > view.yMax + margin * ySpan;
+};
+
+/*
+ * THE CURVE LEAVES THE SCREEN ONLY AT ITS ENDS (see the header). Each piece of
+ * the graph must be on screen as exactly one stretch: a piece that leaves and
+ * comes back would carry an arrow that does not mean "keeps going", and a
+ * piece not on screen at all is a part of the graph nobody can read.
+ */
+const curveRunProblems = (graph, view) => {
+  const problems = [];
+  curveRuns(graph, view).forEach((segment) => {
+    if (!segment.runs.length) problems.push('a piece of the graph is off the screen');
+    else if (segment.runs.length > 1) problems.push('the curve leaves the screen and comes back');
+    if (segment.runs.some((run) => run.grazes)) problems.push('the curve turns back just inside an edge');
+  });
+  return problems;
+};
+
 /** Every reason a candidate in a view is not fit to issue (empty = issue it). */
 export const viewProblems = ({ family, feature, variant, graph, view, targets, tier }) => {
   const problems = [];
   if (!view) return ['no readable view'];
   const grid = tierGridDenominator(tier);
+  const offScreen = variant.flags?.offScreen === true;
+  // An off-screen question's targets are hidden: the checks for targets on
+  // screen do not apply to them (offScreenProblems has its own).
+  const shown = offScreen ? [] : targets;
+  const points = shown.filter((target) => !isLineTarget(target));
   targets.forEach((target) => {
-    if (!Q.onGrid(target.exactX, grid) || !Q.onGrid(target.exactY, grid)) problems.push('target off the grid');
+    const onGrid = isLineTarget(target)
+      ? Q.onGrid(target.exactValue, grid)
+      : Q.onGrid(target.exactX, grid) && Q.onGrid(target.exactY, grid);
+    if (!onGrid) problems.push('target off the grid');
+  });
+  points.forEach((target) => {
     if (!insetOk(target, view, VIEW_RULES.targetInset)) problems.push('target too close to the edge');
     if (tier === EASY && target.x === 0 && target.y === 0) problems.push('target at the origin on Easy');
   });
-  for (let i = 0; i < targets.length; i += 1) {
-    for (let j = i + 1; j < targets.length; j += 1) {
-      if (normalizedDistance(targets[i], targets[j], view) < VIEW_RULES.targetSeparation) problems.push('targets too close together');
+  for (let i = 0; i < points.length; i += 1) {
+    for (let j = i + 1; j < points.length; j += 1) {
+      if (normalizedDistance(points[i], points[j], view) < VIEW_RULES.targetSeparation) problems.push('targets too close together');
     }
   }
   if (!insetOk({ x: 0, y: 0 }, view, VIEW_RULES.originInset)) problems.push('axes not clearly visible');
@@ -301,21 +390,29 @@ export const viewProblems = ({ family, feature, variant, graph, view, targets, t
   const ySpan = view.yMax - view.yMin;
   asymptotes.vertical.forEach((x) => {
     if (x - view.xMin < VIEW_RULES.asymptoteInset * xSpan || view.xMax - x < VIEW_RULES.asymptoteInset * xSpan) problems.push('asymptote at the edge');
-    targets.forEach((target) => { if (Math.abs(target.x - x) < VIEW_RULES.asymptoteClearance * xSpan) problems.push('target hugs an asymptote'); });
+    points.forEach((target) => { if (Math.abs(target.x - x) < VIEW_RULES.asymptoteClearance * xSpan) problems.push('target hugs an asymptote'); });
   });
   asymptotes.horizontal.forEach((y) => {
     if (y - view.yMin < VIEW_RULES.asymptoteInset * ySpan || view.yMax - y < VIEW_RULES.asymptoteInset * ySpan) problems.push('asymptote at the edge');
-    targets.forEach((target) => { if (Math.abs(target.y - y) < VIEW_RULES.asymptoteClearance * ySpan) problems.push('target hugs an asymptote'); });
+    points.forEach((target) => { if (Math.abs(target.y - y) < VIEW_RULES.asymptoteClearance * ySpan) problems.push('target hugs an asymptote'); });
   });
   if (visibleCurveFraction(graph, view) < (family.minVisibleFraction ?? 0.2)) problems.push('too little of the curve is visible');
-  if (feature === GRAPH_FEATURE.X_INTERCEPT && variant.flags?.asymptoteOnAxis !== true && !ghostZeroFree(graph, view, targets)) {
-    problems.push('the curve skims the x-axis without crossing it');
-  }
-  if (feature === GRAPH_FEATURE.X_INTERCEPT && !separatedCrossings(graph, view, targets)) {
-    problems.push('neighbouring zeros are not visibly separate');
-  }
-  if (feature === GRAPH_FEATURE.X_INTERCEPT && !zerosReadable(graph, view, targets, variant.flags?.flatZero === true)) {
-    problems.push('where the curve meets the x-axis is not clear');
+  problems.push(...curveRunProblems(graph, view));
+  // Every end of a restricted graph is a dot well inside the view.
+  const domain = graphDomain(graph);
+  const endXs = domain ? [domain.from, domain.to].filter(Boolean).map((end) => end.x) : [];
+  endXs.forEach((x) => {
+    const y = evaluateGraph(unrestrictedGraph(graph), x);
+    if (!Number.isFinite(y) || !insetOk({ x, y }, view, VIEW_RULES.domainEndInset)) problems.push('an end of the graph is at the edge of the screen');
+  });
+  if (feature === GRAPH_FEATURE.X_INTERCEPT && !offScreen) {
+    const openEndsOnAxis = variant.flags?.openEndOnAxis === true ? endXs : [];
+    if (variant.flags?.asymptoteOnAxis !== true && !ghostZeroFree(graph, view, points, openEndsOnAxis)) {
+      problems.push('the curve skims the x-axis without crossing it');
+    }
+    if (!separatedCrossings(graph, view, points)) problems.push('neighbouring zeros are not visibly separate');
+    if (!zerosReadable(graph, view, points, variant.flags?.flatZero === true, endXs)) problems.push('where the curve meets the x-axis is not clear');
+    if (!endsLeaveAxis(graph, view, endXs)) problems.push('the curve hugs the x-axis up to its end');
   }
   // A domain that excludes x = 0 must visibly do so.
   if (feature === GRAPH_FEATURE.Y_INTERCEPT && !variant.exists && variant.flags?.domainExcludesZero) {
@@ -324,15 +421,44 @@ export const viewProblems = ({ family, feature, variant, graph, view, targets, t
   }
   const markers = graphMarkers(graph, view);
   markers.filter((marker) => !marker.closed).forEach((open) => {
-    targets.forEach((target) => {
+    points.forEach((target) => {
       if (normalizedDistance(open, target, view) < VIEW_RULES.openMarkerClearance) problems.push('target beside an open endpoint');
     });
     markers.filter((marker) => marker.closed && marker.x === open.x).forEach((closed) => {
       if (Math.abs(closed.y - open.y) < VIEW_RULES.jumpClearance * ySpan) problems.push('open and closed endpoints overlap');
     });
   });
+  if (offScreen) problems.push(...offScreenProblems({ feature, graph, view, targets }));
   return [...new Set(problems)];
 };
+
+/*
+ * AN OFF-SCREEN QUESTION: the feature exists, every one of its targets lies
+ * well past an edge, and nothing on screen passes for it. A hidden zero is
+ * never approached on screen (the curve stays clear of the x-axis there), so
+ * the only way to the answer is where the curve is heading: its arrows.
+ */
+const offScreenProblems = ({ feature, graph, view, targets }) => {
+  const problems = [];
+  if (!targets.length || targets.some((target) => isLineTarget(target) || !pastEdge(target, view, VIEW_RULES.offScreenMargin))) {
+    problems.push('an off-screen target is on or near the screen');
+  }
+  if (feature === GRAPH_FEATURE.X_INTERCEPT && !ghostZeroFree(graph, view, [])) problems.push('the curve nears the x-axis on screen');
+  return problems;
+};
+
+/**
+ * The views that can show an off-screen question, widest first: symmetric
+ * square windows that keep `anchors` well inside and every one of `hidden`
+ * well past an edge. The widest that passes viewProblems shows the most of
+ * where the curve is going.
+ */
+export const offScreenViews = ({ anchors = [], hidden = [], tier = STANDARD } = {}) => NICE_HALF_SPANS
+  .filter((half) => 2 * half <= MAX_X_SPAN[tier] && 2 * half <= MAX_Y_SPAN[tier])
+  .map((half) => Object.freeze({ xMin: -half, xMax: half, yMin: -half, yMax: half, xStep: tickStep(2 * half), yStep: tickStep(2 * half) }))
+  .filter((view) => anchors.every((p) => insetOk(p, view, VIEW_RULES.targetInset))
+    && hidden.every((p) => pastEdge(p, view, VIEW_RULES.offScreenMargin)))
+  .reverse();
 
 /* ------------------------------- generation ------------------------------ */
 
@@ -342,20 +468,52 @@ const EXPECTED_TARGETS = Object.freeze({
   one: 1,
   triple: 1,
   single: 1,
+  rayFromZero: 1,
+  cutOneZero: 1,
+  rayFromAxis: 1,
+  twoOnAxis: 2,
+  oneOnAxis: 1,
 });
 
-const expectedTargetCount = (familyId, variantId) => {
+const expectedTargetCount = (familyId, variantId, featureId) => {
   if (variantId === 'tangent') return familyId === 'cubic' ? 2 : 1;
+  // An off-screen V hides both of its zeros; every other hidden feature is one.
+  if (variantId === 'offScreen') return familyId === 'absolute' && featureId === GRAPH_FEATURE.X_INTERCEPT ? 2 : 1;
   return EXPECTED_TARGETS[variantId] ?? null;
 };
 
-const toTarget = (featureId, exactPoint, index) => Object.freeze({
-  id: featureTargetId(featureId, index),
-  x: Q.toNumber(exactPoint.x),
-  y: Q.toNumber(exactPoint.y),
-  exactX: exactPoint.x,
-  exactY: exactPoint.y,
-});
+// A target as the generator keeps it: exact coordinates beside the numbers. A
+// line (an asymptote) carries its orientation and the one coordinate it fixes.
+const toTarget = (featureId, exact, index) => {
+  const id = featureTargetId(featureId, index);
+  if (exact.orientation) {
+    const vertical = exact.orientation === LINE_ORIENTATION.VERTICAL;
+    const value = vertical ? exact.x : exact.y;
+    return Object.freeze({
+      id,
+      geometry: 'line',
+      orientation: exact.orientation,
+      ...(vertical ? { x: Q.toNumber(value) } : { y: Q.toNumber(value) }),
+      exactValue: value,
+    });
+  }
+  return Object.freeze({ id, x: Q.toNumber(exact.x), y: Q.toNumber(exact.y), exactX: exact.x, exactY: exact.y });
+};
+
+// Targets in a stable order: points left to right; lines vertical first,
+// then each kind by where it sits.
+const compareTargets = (left, right) => {
+  if (left.orientation || right.orientation) {
+    if (left.orientation !== right.orientation) return left.orientation === LINE_ORIENTATION.VERTICAL ? -1 : 1;
+    return left.orientation === LINE_ORIENTATION.VERTICAL ? Q.cmp(left.x, right.x) : Q.cmp(left.y, right.y);
+  }
+  return Q.cmp(left.x, right.x);
+};
+
+/** The target a device receives: no exact fractions, nothing else. */
+const publicTarget = (target) => (isLineTarget(target)
+  ? Object.freeze({ id: target.id, geometry: 'line', orientation: target.orientation, ...(target.orientation === LINE_ORIENTATION.VERTICAL ? { x: target.x } : { y: target.y }) })
+  : Object.freeze({ id: target.id, x: target.x, y: target.y }));
 
 const asPlain = (points) => points.map((p) => ({ x: Q.toNumber(p.x), y: Q.toNumber(p.y) }));
 
@@ -371,22 +529,34 @@ const attemptSlot = ({ slot, rng }) => {
   const analysis = family.analyze(params)[slot.feature];
   const wanted = variant.exists ? FEATURE_STATUS.EXISTS : FEATURE_STATUS.NONE;
   if (analysis?.status !== wanted) return { problems: [`analysis says ${analysis?.status}`] };
-  const expected = variant.exists ? expectedTargetCount(slot.family, slot.variant) : 0;
+  const expected = variant.exists ? expectedTargetCount(slot.family, slot.variant, slot.feature) : 0;
   if (expected !== null && analysis.points.length !== expected) return { problems: ['wrong number of targets'] };
 
   const graph = family.toGraph(params);
-  const targets = [...analysis.points].sort((left, right) => Q.cmp(left.x, right.x)).map((p, index) => toTarget(slot.feature, p, index));
+  const targets = [...analysis.points].sort(compareTargets).map((p, index) => toTarget(slot.feature, p, index));
+  const pointTargets = targets.filter((target) => !isLineTarget(target));
   const keyPoints = asPlain(family.keyPoints(params));
   const limit = VALUE_LIMIT[slot.tier];
-  if ([...keyPoints, ...targets].some((p) => Math.abs(p.x) > limit + 3 || Math.abs(p.y) > (family.valueLimit?.(slot.tier) ?? limit))) {
+  if ([...keyPoints, ...pointTargets].some((p) => Math.abs(p.x) > limit + 3 || Math.abs(p.y) > (family.valueLimit?.(slot.tier) ?? limit))) {
     return { problems: ['values too large'] };
+  }
+  if (variant.flags?.offScreen === true) {
+    // The widest window that still leaves the feature out and passes every
+    // rule: the most of the curve's heading a student can read.
+    const anchors = asPlain(family.offScreenAnchors?.(params, slot.feature) || []);
+    let problems = ['no window leaves the feature off the screen'];
+    for (const view of offScreenViews({ anchors, hidden: pointTargets, tier: slot.tier })) {
+      problems = viewProblems({ family, feature: slot.feature, variant, graph, view, targets, tier: slot.tier });
+      if (!problems.length) return { question: { graph, view, targets, offScreen: true } };
+    }
+    return { problems };
   }
   const optional = asPlain(family.optionalKeyPoints?.(params) || [])
     .filter((p) => Math.abs(p.y) <= limit && Math.abs(p.x) <= limit);
   const framing = [...optional, ...(family.framingPoints?.(params) || [])];
   const symmetric = slot.tier !== CHALLENGE || rng.chance(0.5);
   const view = chooseView({
-    required: [...keyPoints, ...targets],
+    required: [...keyPoints, ...pointTargets],
     framing,
     asymptotes: family.asymptotes(params),
     tier: slot.tier,
@@ -403,15 +573,25 @@ const FALLBACKS = Object.freeze({
   [GRAPH_FEATURE.VERTEX]: { family: 'quadratic', graph: { kind: 'quadratic', a: 1, h: 1, k: -2 }, targets: [[1, -2]] },
   [GRAPH_FEATURE.MAXIMUM]: { family: 'quadratic', graph: { kind: 'quadratic', a: -1, h: 1, k: 3 }, targets: [[1, 3]] },
   [GRAPH_FEATURE.MINIMUM]: { family: 'quadratic', graph: { kind: 'quadratic', a: 1, h: -1, k: -3 }, targets: [[-1, -3]] },
+  [GRAPH_FEATURE.ASYMPTOTE]: {
+    family: 'rational',
+    graph: { kind: 'rational', a: 2, h: 2, k: -1 },
+    lines: [{ orientation: LINE_ORIENTATION.VERTICAL, x: 2 }, { orientation: LINE_ORIENTATION.HORIZONTAL, y: -1 }],
+  },
 });
 
 const fallbackQuestion = (feature) => {
   const entry = FALLBACKS[feature] || FALLBACKS[GRAPH_FEATURE.X_INTERCEPT];
+  const targets = entry.lines
+    ? entry.lines.map((line, index) => toTarget(feature, line.orientation === LINE_ORIENTATION.VERTICAL
+      ? { orientation: line.orientation, x: Q.rat(line.x) }
+      : { orientation: line.orientation, y: Q.rat(line.y) }, index))
+    : entry.targets.map(([x, y], index) => ({ id: featureTargetId(feature, index), x, y, exactX: Q.rat(x), exactY: Q.rat(y) }));
   return {
     family: entry.family,
     graph: entry.graph,
     view: { xMin: -8, xMax: 8, yMin: -8, yMax: 8, xStep: 2, yStep: 2 },
-    targets: entry.targets.map(([x, y], index) => ({ id: featureTargetId(feature, index), x, y, exactX: Q.rat(x), exactY: Q.rat(y) })),
+    targets,
   };
 };
 
@@ -421,8 +601,11 @@ const wordingFor = (rng, slot) => {
   // never meets the axis still has two roots, so "Find all roots" answered
   // "Does Not Exist" would teach something false. A polynomial with non-real
   // roots is only ever asked for its x-intercepts.
+  // A graph cut by a restricted domain: its zeros are the graph's, but "the
+  // roots" of the polynomial ignore the cut, so it is never asked for roots.
   const options = featureWordings(slot.feature, { family: slot.family, tier: slot.tier })
-    .filter((entry) => variant?.flags?.nonRealRoots !== true || entry.id === 'xIntercepts');
+    .filter((entry) => variant?.flags?.nonRealRoots !== true || entry.id === 'xIntercepts')
+    .filter((entry) => variant?.flags?.restricted !== true || entry.id !== 'roots');
   return options.length ? rng.pick(options) : { id: slot.feature, prompt: getGraphFeature(slot.feature)?.label || slot.feature };
 };
 
@@ -458,7 +641,11 @@ export const generateQuestionForSlot = ({ slot, seedText, questionIndex = 0, avo
   }
   const fallback = !built;
   const question = built || fallbackQuestion(slot.feature);
-  const targets = question.targets.map(({ id, x, y }) => Object.freeze({ id, x, y }));
+  const offScreen = question.offScreen === true;
+  // An off-screen question's targets are past the edge: nothing to tap. Its
+  // one target is found by "Off screen", as "Does Not Exist" finds an absent
+  // feature's; where they lie travels beside it, for the reveal.
+  const targets = offScreen ? [] : question.targets.map(publicTarget);
   return Object.freeze({
     generatorVersion: GRAPH_FEATURE_GENERATOR_VERSION,
     questionIndex,
@@ -471,9 +658,11 @@ export const generateQuestionForSlot = ({ slot, seedText, questionIndex = 0, avo
     graph: question.graph,
     view: question.view,
     targets: Object.freeze(targets),
-    // "Does Not Exist" is one target, found by its button.
+    // "Does Not Exist" (or "Off screen") is one target, found by its button.
     targetCount: Math.max(1, targets.length),
-    doesNotExist: targets.length === 0,
+    doesNotExist: targets.length === 0 && !offScreen,
+    offScreen,
+    ...(offScreen ? { offScreenTargets: Object.freeze(question.targets.map(({ x, y }) => Object.freeze({ x, y }))) } : {}),
     fallback,
     attempts,
   });
@@ -489,10 +678,11 @@ export const DOES_NOT_EXIST_SHARE = Object.freeze({ [EASY]: 0, [STANDARD]: 0.12,
  * feature gets an equal share, each family an equal share of its feature,
  * and "Does Not Exist" answers are held at the tier's share.
  */
-export const slotCatalog = ({ families = [], features = [] } = {}, tier = STANDARD) => {
+export const slotCatalog = ({ families = [], features = [], offScreen = false } = {}, tier = STANDARD) => {
   const perFeature = features.map((feature) => {
     const familyEntries = families
-      .map((family) => ({ family, variants: familyVariants(family, feature, tier) }))
+      // Off-screen variants play only in a game that turns them on.
+      .map((family) => ({ family, variants: familyVariants(family, feature, tier).filter((entry) => offScreen === true || entry.flags?.offScreen !== true) }))
       .filter((entry) => entry.variants.length);
     return { feature, familyEntries };
   }).filter((entry) => entry.familyEntries.length);
@@ -630,6 +820,8 @@ export const publicRushQuestion = (question) => (question ? Object.freeze({
   view: question.view,
   targets: question.targets,
   targetCount: question.targetCount,
+  // Like the targets: the device answers "Off screen" instantly with it.
+  ...(question.offScreen ? { offScreen: true, offScreenTargets: question.offScreenTargets } : {}),
 }) : null);
 
-export { DOES_NOT_EXIST_TARGET_ID };
+export { DOES_NOT_EXIST_TARGET_ID, OFF_SCREEN_TARGET_ID };

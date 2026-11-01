@@ -17,6 +17,13 @@
  *   rational     a / (x − h) + k                        (asymptotes x = h, y = k)
  *   piecewise    linear pieces m·x + b on intervals with open/closed ends
  *
+ * A RESTRICTED DOMAIN. A line, parabola, absolute value or exponential graph
+ * may carry `domain: { from, to }`, each end `{ x, closed }` or null (no end
+ * that way): a ray, or a segment. Off the domain the graph is undefined, so
+ * every reader below (evaluation, continuous pieces, endpoint dots,
+ * asymptotes) sees exactly the curve that is drawn. An end that is drawn is a
+ * dot, filled when the point belongs to the graph and open when it does not.
+ *
  * DISCONTINUITIES ARE STRUCTURE, NOT A SAMPLING ACCIDENT. Each kind says where
  * its graph is continuous (`curveSegments`); the sampler draws each segment on
  * its own, so a rational graph is never joined across its asymptote and a
@@ -58,6 +65,30 @@ const insideInterval = (x, from, to) => {
   return true;
 };
 
+// The kinds that may carry a restricted domain (rays and segments).
+export const RESTRICTABLE_KINDS = Object.freeze([GRAPH_KIND.LINEAR, GRAPH_KIND.QUADRATIC, GRAPH_KIND.ABSOLUTE, GRAPH_KIND.EXPONENTIAL]);
+
+const domainEnd = (end) => (end && Number.isFinite(Number(end.x)) ? { x: Number(end.x), closed: end.closed === true } : null);
+
+/**
+ * A graph's restricted domain, `{ from, to }` (each `{ x, closed }` or null),
+ * or null when the graph is defined wherever its formula is.
+ */
+export const graphDomain = (graph = {}) => {
+  if (!RESTRICTABLE_KINDS.includes(graph?.kind) || !graph.domain) return null;
+  const from = domainEnd(graph.domain.from);
+  const to = domainEnd(graph.domain.to);
+  return from || to ? { from, to } : null;
+};
+
+/** The formula alone, ignoring any restricted domain: where an open dot is drawn. */
+export const unrestrictedGraph = (graph = {}) => {
+  if (!graph?.domain) return graph;
+  const formula = { ...graph };
+  delete formula.domain;
+  return formula;
+};
+
 /**
  * f(x) for a spec, or NaN where the function is undefined. Exact at the
  * points the generators care about whenever the parameters are dyadic.
@@ -65,6 +96,8 @@ const insideInterval = (x, from, to) => {
 export const evaluateGraph = (graph = {}, x) => {
   const value = Number(x);
   if (!Number.isFinite(value)) return Number.NaN;
+  const domain = graphDomain(graph);
+  if (domain && !insideInterval(value, domain.from, domain.to)) return Number.NaN;
   switch (graph.kind) {
     case GRAPH_KIND.LINEAR:
       return finite(graph.m) * value + finite(graph.b);
@@ -143,17 +176,35 @@ export const curveSegments = (graph = {}, { xMin, xMax } = {}) => {
         piece.to ? piece.to.closed === true : true,
         { piece: index },
       ));
-    default:
-      return clip(-Infinity, Infinity);
+    default: {
+      const domain = graphDomain(graph);
+      if (!domain) return clip(-Infinity, Infinity);
+      return clip(
+        domain.from ? domain.from.x : -Infinity,
+        domain.to ? domain.to.x : Infinity,
+        domain.from ? domain.from.closed : true,
+        domain.to ? domain.to.closed : true,
+      );
+    }
   }
 };
 
-/** Dashed guide lines a reader of the graph should see. */
+/**
+ * The graph's asymptotes, as dashed guide lines a reader should see. An
+ * exponential approaches y = k on one side only (the left for a base above 1,
+ * the right below 1); a restricted domain that cuts that side off leaves it
+ * no asymptote.
+ */
 export const graphAsymptotes = (graph = {}) => {
   if (graph.kind === GRAPH_KIND.RATIONAL) {
     return { vertical: [finite(graph.h)], horizontal: [finite(graph.k)] };
   }
-  if (graph.kind === GRAPH_KIND.EXPONENTIAL) return { vertical: [], horizontal: [finite(graph.k)] };
+  if (graph.kind === GRAPH_KIND.EXPONENTIAL) {
+    const domain = graphDomain(graph);
+    const approachesOnLeft = baseValue(graph.base) > 1;
+    const tailKept = !domain || (approachesOnLeft ? !domain.from : !domain.to);
+    return { vertical: [], horizontal: tailKept ? [finite(graph.k)] : [] };
+  }
   return { vertical: [], horizontal: [] };
 };
 
@@ -167,6 +218,16 @@ export const graphMarkers = (graph = {}, view = {}) => {
   if (graph.kind === GRAPH_KIND.SQUARE_ROOT) {
     const point = { x: finite(graph.h), y: finite(graph.k), closed: true };
     return inView(point) ? [point] : [];
+  }
+  const domain = graphDomain(graph);
+  if (domain) {
+    // A restricted domain's ends, at the formula's value there: an open end
+    // is not on the graph, but its dot is drawn where the curve would reach.
+    const formula = unrestrictedGraph(graph);
+    return [domain.from, domain.to]
+      .filter(Boolean)
+      .map((end) => ({ x: end.x, y: evaluateGraph(formula, end.x), closed: end.closed }))
+      .filter((point) => Number.isFinite(point.y) && inView(point));
   }
   if (graph.kind !== GRAPH_KIND.PIECEWISE) return [];
   const markers = [];
@@ -248,6 +309,99 @@ export const sampleGraph = (graph = {}, view = {}, { samples = 240 } = {}) => {
     if (current.length > 1) polylines.push(current);
   });
   return polylines;
+};
+
+/*
+ * WHERE THE CURVE IS ON SCREEN, AND HOW EACH STRETCH ENDS.
+ *
+ * For each continuous piece of the graph (curveSegments), the stretches of x
+ * where the curve is inside the view, and what happens at each end of a
+ * stretch:
+ *
+ *   'end'    the piece itself ends there, inside the view: a domain end, a
+ *            piecewise split or an endpoint (`closed` says which dot)
+ *   'exit'   the curve leaves the screen through an edge ('left', 'right',
+ *            'top' or 'bottom') and goes on beyond it
+ *
+ * An exit is where the screen draws an arrow, and the generator issues a graph
+ * only when each piece is ONE stretch: the curve leaves the screen only at its
+ * ends, so an arrow always means "keeps going" — it never comes back into view
+ * (graphFeatureGenerator.mjs). `grazes` marks a stretch that runs within
+ * GRAZE_FRACTION of the top or bottom edge without leaving, which reads like an
+ * exit that is not one. The device draws its arrows from this same analysis
+ * (rushGraphModel.js), so every arrow on a screen is an exit the generator
+ * checked.
+ */
+export const GRAZE_FRACTION = 0.012;
+const RUN_SAMPLES = 600;
+
+const insideView = (y, view) => Number.isFinite(y) && y >= view.yMin && y <= view.yMax;
+
+// The x where the curve crosses out of [yMin, yMax] between an inside and an
+// outside sample, and which edge it crosses.
+const viewCrossing = (graph, view, insideX, outsideX) => {
+  let inX = insideX;
+  let outX = outsideX;
+  for (let step = 0; step < 40; step += 1) {
+    const mid = (inX + outX) / 2;
+    if (insideView(evaluateGraph(graph, mid), view)) inX = mid;
+    else outX = mid;
+  }
+  const beyond = evaluateGraph(graph, outX);
+  const edge = Number.isFinite(beyond) && beyond < view.yMin ? 'bottom' : 'top';
+  return { x: inX, y: edge === 'top' ? view.yMax : view.yMin, edge };
+};
+
+export const curveRuns = (graph = {}, view = {}) => {
+  const box = {
+    xMin: finite(view.xMin, -10), xMax: finite(view.xMax, 10), yMin: finite(view.yMin, -10), yMax: finite(view.yMax, 10),
+  };
+  const xSpan = box.xMax - box.xMin;
+  const graze = GRAZE_FRACTION * (box.yMax - box.yMin);
+  // Whether the graph goes on past a vertical edge (defined just beyond it).
+  const continuesPast = (x, direction) => Number.isFinite(evaluateGraph(graph, x + direction * 1e-6 * xSpan));
+  return curveSegments(graph, box).map((segment, index) => {
+    const nudge = Math.min(1e-7 * xSpan, (segment.to - segment.from) / 1e6);
+    const start = segment.fromClosed ? segment.from : segment.from + nudge;
+    const end = segment.toClosed ? segment.to : segment.to - nudge;
+    const runs = [];
+    let current = null;
+    let previous = null;
+    for (let step = 0; step <= RUN_SAMPLES; step += 1) {
+      const x = step === RUN_SAMPLES ? end : start + ((end - start) * step) / RUN_SAMPLES;
+      const y = evaluateGraph(graph, x);
+      const inside = insideView(y, box);
+      if (inside && !current) {
+        let from;
+        if (previous) from = { kind: 'exit', ...viewCrossing(graph, box, x, previous.x) };
+        else if (segment.from <= box.xMin && continuesPast(box.xMin, -1)) from = { kind: 'exit', edge: 'left', x: box.xMin, y };
+        else from = { kind: 'end', x: segment.from, y: evaluateGraph(unrestrictedGraph(graph), segment.from), closed: segment.fromClosed };
+        current = { segment: index, from, grazes: false, ys: [] };
+      }
+      if (inside && current) current.ys.push(y);
+      if (!inside && current) {
+        current.to = { kind: 'exit', ...viewCrossing(graph, box, previous.x, x) };
+        runs.push(current);
+        current = null;
+      }
+      previous = { x, y, inside };
+    }
+    if (current) {
+      current.to = segment.to >= box.xMax && continuesPast(box.xMax, 1)
+        ? { kind: 'exit', edge: 'right', x: box.xMax, y: evaluateGraph(graph, end) }
+        : { kind: 'end', x: segment.to, y: evaluateGraph(unrestrictedGraph(graph), segment.to), closed: segment.toClosed };
+      runs.push(current);
+    }
+    // Grazing: the curve turns back within the band of an edge. Heading out
+    // through the edge is an exit, not a graze, so only a turn counts.
+    const grazes = (ys) => ys.some((y, at) => at > 0 && at < ys.length - 1 && (
+      (box.yMax - y < graze && y >= ys[at - 1] && y >= ys[at + 1])
+      || (y - box.yMin < graze && y <= ys[at - 1] && y <= ys[at + 1])));
+    return Object.freeze({
+      segment: index,
+      runs: Object.freeze(runs.map(({ ys, ...run }) => Object.freeze({ ...run, grazes: grazes(ys) }))),
+    });
+  });
 };
 
 /** The y-values a segment reaches inside the view, for visibility checks. */

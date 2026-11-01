@@ -198,7 +198,9 @@ test('Play Again for a Graph Feature Rush carries its features, not its seed', (
     graphFeatureRush: { config: { presetId: 'intercepts', families: ['linear', 'quadratic'], features: ['xIntercept', 'yIntercept'], difficulty: 'standard' }, seed: 'secret' },
   };
   const request = replayRequestFromRoom(rush);
-  assert.deepEqual(request.graphFeatureRush, { presetId: 'intercepts', families: ['linear', 'quadratic'], features: ['xIntercept', 'yIntercept'], difficulty: 'standard' });
+  // offScreen: a room from before off-screen features (no field) replays without them.
+  assert.deepEqual(request.graphFeatureRush, { presetId: 'intercepts', families: ['linear', 'quadratic'], features: ['xIntercept', 'yIntercept'], difficulty: 'standard', offScreen: false });
+  assert.equal(replayRequestFromRoom({ ...rush, graphFeatureRush: { config: { ...rush.graphFeatureRush.config, offScreen: true } } }).graphFeatureRush.offScreen, true, 'and a game that had them replays with them');
   assert.equal(JSON.stringify(request).includes('secret'), false);
   assert.equal('standardCode' in request, false, 'no bank settings for a rush');
   assert.equal(replayExperienceFromRoom(rush).speedInfluencePercent, 0, 'a rush never scores speed');

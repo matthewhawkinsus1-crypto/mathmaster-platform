@@ -153,9 +153,12 @@ test('the rush planner captures the guide when a round opens, and the reveal pub
   const planner = region(index, 'const GRAPH_FEATURE_RUSH_PLANNER = Object.freeze({', '\n});\n', 'the rush planner');
   const open = region(planner, 'async openRound(', '\n  },', 'the rush openRound');
   assert.match(open, /const \{ reading \} = await graphFeatureRushRules\(\);/);
-  // The guide is of the features the room's own config asks for, and is the round's `solution` (kept privately by the opening).
+  // The guide is of the room's own config — its features, and its difficulty
+  // and off-screen setting (what it says about dots and "Off screen") — and is
+  // the round's `solution` in what the opening returns (kept privately by it).
   assert.match(open, /const config = privateState\.graphFeatureRush\?\.config \|\| room\.graphFeatureRush\?\.config \|\| \{\};/);
-  assert.match(open, /roundSeconds: engine\.modes\.normalizeModeRoundSeconds\(mode, room\.roundSeconds\),\s*\/\/[^\n]*\n\s*solution: reading\.rushRoundSolutionRecord\(\{ features: config\.features \}\),/);
+  const opening = region(open, 'return {', '\n    };', 'what the opening returns');
+  assert.match(opening, /\n\s*solution: reading\.rushRoundSolutionRecord\(\{ features: config\.features, difficulty: config\.difficulty, offScreen: config\.offScreen === true \}\),/);
   // The module is loaded with the rush's other rules.
   assert.match(region(index, 'async function graphFeatureRushRules() {', '\n}\n', 'the rush modules'), /import\("\.\/shared\/graphFeatureReading\.mjs"\)/);
 
@@ -190,9 +193,11 @@ test('the three screens that show a solution title it from the document', () => 
   assert.equal((projector.match(/<div style=\{labelStyle\}>\{title\}<\/div>/g) || []).length, 2, 'the held/loading card and the ready card');
 });
 
-test('the projector draws every line of a guide, up to six, and the first five of any other solution', () => {
-  assert.equal(projectorStepLimit({ guide: true }), 6);
-  assert.equal(PROJECTOR_GUIDE_STEPS, 6);
+test('the projector draws every line of a guide, up to seven, and the first five of any other solution', () => {
+  // Seven since asymptotes: a game asking for all six features has six lines
+  // and the answers line, which is the one a cut would lose.
+  assert.equal(projectorStepLimit({ guide: true }), 7);
+  assert.equal(PROJECTOR_GUIDE_STEPS, 7);
   assert.equal(PROJECTOR_SOLUTION_STEPS, 5);
   for (const solution of [{}, null, undefined, { guide: false }, { guide: 'true' }, { guide: 1 }]) assert.equal(projectorStepLimit(solution), 5);
   // The longest guide the registry's features can make is within it: its last line is the one on Does Not Exist.

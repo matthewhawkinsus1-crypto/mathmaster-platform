@@ -388,7 +388,10 @@ test('round 1 closes into ranked results: placement points for a field of two, a
   assert.match(guide.solutionReview.reasoning[0], /^x-intercepts/);
   assert.match(guide.solutionReview.reasoning[1], /^y-intercept/);
   assert.match(guide.solutionReview.reasoning[2], /^Vertex/);
-  assert.equal(guide.solutionReview.reasoning[3], 'If the graph has no x-intercepts or y-intercept, choose Does Not Exist.');
+  assert.match(guide.solutionReview.reasoning[3], /^If the graph has no x-intercepts or y-intercept, choose Does Not Exist\./);
+  // A Standard game's graphs can end in dots (rays, splits): the same line
+  // says what an open one means (generator 3).
+  assert.match(guide.solutionReview.reasoning[3], / An open dot is not on the graph\.$/);
   assert.equal(guide.solutionReview.answerSummary, null, 'no answer: there is none to give');
   assert.equal(await publishedGuide(G1, 1), null);
   // It names nothing of anyone's graphs: no seed, no coordinates, no student, no player.

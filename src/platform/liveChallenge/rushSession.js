@@ -12,7 +12,8 @@
  * (plus, for an input, the attempt to send). Timing comes in as `nowMs`, a
  * monotonic clock reading, so the rules are tested without timers.
  *
- *   recordTap / recordDoesNotExist / recordSkip   a student's input
+ *   recordTap / recordDoesNotExist / recordOffScreen / recordSkip
+ *                                                 a student's input
  *   settle                                        a completion flash or skip
  *                                                 pause ending: next graph
  *   acknowledge                                   the server's reply to a batch
@@ -29,7 +30,7 @@ import {
   RUSH_SKIP_PAUSE_MS,
   rushLockoutMs,
 } from '../../../functions/shared/graphFeatureRushRules.mjs';
-import { formatPoint } from './rushGraphModel.js';
+import { formatPoint, formatTarget, nearOpenDot } from './rushGraphModel.js';
 
 export const RUSH_FEEDBACK = Object.freeze({
   HIT: 'hit',
@@ -229,13 +230,24 @@ export const recordTap = (session, { x, y, tolerance, pointer, nowMs, elapsedMs,
     pointer,
     clientElapsedMs: elapsedOf(elapsedMs),
   });
+  // A miss on an open dot is told why: that point is not on the graph.
   const next = tap.result === TAP_RESULT.HIT
     ? applyHit(session, question, tap.targetId, nowMs)
-    : applyMiss(session, nowMs, { x: Number(x), y: Number(y) });
+    : applyMiss(session, nowMs, {
+      x: Number(x),
+      y: Number(y),
+      ...(nearOpenDot({ question, x, y, tolerance: limits }) ? { openDot: true } : {}),
+    });
   return { session: queued(next, attempt), attempt };
 };
 
-/** "Does Not Exist": right on a graph without the feature, a miss on one with it. */
+/** Whether a question's feature exists past the edge of its view. */
+const isOffScreen = (question) => question?.offScreen === true;
+
+/**
+ * "Does Not Exist": right on a graph without the feature, a miss on one with
+ * it — on screen, or past the edge (it exists there).
+ */
 export const recordDoesNotExist = (session, { nowMs, elapsedMs, attemptId }) => {
   if (inputState(session, nowMs) !== RUSH_INPUT.READY) return refused(session, nowMs);
   const question = currentQuestion(session);
@@ -245,10 +257,29 @@ export const recordDoesNotExist = (session, { nowMs, elapsedMs, attemptId }) => 
     kind: RUSH_ATTEMPT_KIND.DOES_NOT_EXIST,
     clientElapsedMs: elapsedOf(elapsedMs),
   });
-  const absent = !Array.isArray(question.targets) || question.targets.length === 0;
+  const absent = (!Array.isArray(question.targets) || question.targets.length === 0) && !isOffScreen(question);
   const next = absent
     ? applyHit(session, question, 'dne', nowMs, { doesNotExist: true })
-    : applyMiss(session, nowMs, { doesNotExist: true });
+    : applyMiss(session, nowMs, { doesNotExist: true, offScreen: isOffScreen(question) });
+  return { session: queued(next, attempt), attempt };
+};
+
+/**
+ * "Off screen" (a game with off-screen features): right when the feature
+ * exists past the edge of the view, a miss when it is on screen or absent.
+ */
+export const recordOffScreen = (session, { nowMs, elapsedMs, attemptId }) => {
+  if (inputState(session, nowMs) !== RUSH_INPUT.READY) return refused(session, nowMs);
+  const question = currentQuestion(session);
+  const attempt = Object.freeze({
+    attemptId: String(attemptId),
+    questionIndex: session.cursor,
+    kind: RUSH_ATTEMPT_KIND.OFF_SCREEN,
+    clientElapsedMs: elapsedOf(elapsedMs),
+  });
+  const next = isOffScreen(question)
+    ? applyHit(session, question, 'offScreen', nowMs, { offScreenPress: true })
+    : applyMiss(session, nowMs, { offScreenPress: true });
   return { session: queued(next, attempt), attempt };
 };
 
@@ -336,18 +367,34 @@ export const dropQueue = (session) => Object.freeze({ ...session, queue: Object.
  * What a student is told, in words, for a feedback event. Never a hint about
  * where to look, and never how many targets remain.
  */
+// Where an off-screen feature is: "(11, 0)", "(−8, 0) and (8, 0)".
+const offScreenPlaces = (question) => {
+  const places = (question?.offScreenTargets || []).map(formatPoint);
+  return places.length < 2 ? places.join('') : `${places.slice(0, -1).join(', ')} and ${places[places.length - 1]}`;
+};
+
+export const OPEN_DOT_MESSAGE = 'Open dot — that point isn\'t on the graph.';
+
 export const feedbackMessage = (feedback, question) => {
   if (!feedback) return '';
   const feature = featureOf(question);
   const target = (question?.targets || []).find((entry) => entry.id === feedback.targetId);
   switch (feedback.kind) {
     case RUSH_FEEDBACK.HIT:
-      return target ? `Found ${formatPoint(target)}.` : 'Found one.';
-    case RUSH_FEEDBACK.COMPLETE:
+      return target ? `Found ${formatTarget(target)}.` : 'Found one.';
+    case RUSH_FEEDBACK.COMPLETE: {
       if (feedback.doesNotExist) return 'Correct — it does not exist on this graph.';
-      return target ? `Found ${formatPoint(target)}. Graph complete!` : 'Graph complete!';
+      if (feedback.offScreenPress) {
+        const places = offScreenPlaces(question);
+        return places ? `Correct — it is off the screen, at ${places}.` : 'Correct — it is off the screen.';
+      }
+      return target ? `Found ${formatTarget(target)}. Graph complete!` : 'Graph complete!';
+    }
     case RUSH_FEEDBACK.MISS:
-      if (feedback.doesNotExist) return 'It is on this graph — look again.';
+      // A feature past the edge exists: the arrows say where the graph goes.
+      if (feedback.doesNotExist) return feedback.offScreen ? 'It exists — follow the arrows.' : 'It is on this graph — look again.';
+      if (feedback.offScreenPress) return 'Not off the screen — look again.';
+      if (feedback.openDot) return OPEN_DOT_MESSAGE;
       return feature?.missMessage || 'Not there — try again.';
     case RUSH_FEEDBACK.ALREADY_FOUND:
       return 'Already found.';

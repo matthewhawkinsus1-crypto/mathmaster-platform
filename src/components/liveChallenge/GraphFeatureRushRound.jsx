@@ -20,6 +20,7 @@ import {
   parseStoredQueue,
   prefetchRequest,
   recordDoesNotExist,
+  recordOffScreen,
   recordSkip,
   recordTap,
   rushQueueKey,
@@ -178,6 +179,9 @@ const RUSH_CSS = `
   color: #eef1f6; font-family: "Segoe UI", system-ui, sans-serif;
   touch-action: manipulation; overscroll-behavior: none;
   --mm-rush-curve: var(--mm-primary); --mm-rush-found: var(--mm-success-text); --mm-rush-miss: var(--mm-error-border);
+  /* Asymptotes in a colour of their own, distinct from the axes, the curve and
+     the found/miss marks in both themes. */
+  --mm-rush-asymptote: var(--mm-accent);
 }
 .mm-rush-bar {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
@@ -205,11 +209,13 @@ const RUSH_CSS = `
 .mm-rush-feedback[data-kind="hit"], .mm-rush-feedback[data-kind="complete"] { color: #81c995; }
 .mm-rush-feedback[data-kind="miss"], .mm-rush-feedback[data-kind="autoSkipped"] { color: #ffb4ab; }
 .mm-rush-buttons { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 10px; }
-.mm-rush-dne, .mm-rush-skip { min-height: 52px; border-radius: 12px; font-size: calc(17 * var(--mm-px)); font-weight: 1000; cursor: pointer; }
+.mm-rush-buttons[data-off-screen="1"] { grid-template-columns: minmax(0, 3fr) minmax(0, 3fr) minmax(0, 2fr); }
+.mm-rush-dne, .mm-rush-off, .mm-rush-skip { min-height: 52px; border-radius: 12px; font-size: calc(17 * var(--mm-px)); font-weight: 1000; cursor: pointer; }
 .mm-rush-dne { border: 0; background: #fdd663; color: #1b1f2a; }
+.mm-rush-off { border: 2px solid #fdd663; background: rgba(253,214,99,.12); color: #fdd663; }
 .mm-rush-skip { border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.06); color: #eef1f6; }
-.mm-rush-dne:disabled, .mm-rush-skip:disabled { opacity: .45; cursor: not-allowed; }
-.mm-rush-dne:focus-visible, .mm-rush-skip:focus-visible, .mm-rush-exit:focus-visible { outline: 3px solid var(--mm-focus); outline-offset: 2px; }
+.mm-rush-dne:disabled, .mm-rush-off:disabled, .mm-rush-skip:disabled { opacity: .45; cursor: not-allowed; }
+.mm-rush-dne:focus-visible, .mm-rush-off:focus-visible, .mm-rush-skip:focus-visible, .mm-rush-exit:focus-visible { outline: 3px solid var(--mm-focus); outline-offset: 2px; }
 .mm-rush-cooldown { height: 6px; border-radius: 999px; background: rgba(255,255,255,.12); overflow: hidden; }
 .mm-rush-cooldown > span { display: block; height: 100%; background: #ffb4ab; transform-origin: left; animation: mmRushDrain linear forwards; }
 .mm-rush-overlay {
@@ -243,7 +249,7 @@ const RUSH_CSS = `
   .mm-rush-prompt { grid-area: prompt; padding-top: 6px; }
   .mm-rush-graph-area { grid-area: graph; place-items: center; }
   .mm-rush-controls { grid-area: controls; align-self: end; }
-  .mm-rush-buttons { grid-template-columns: 1fr; }
+  .mm-rush-buttons, .mm-rush-buttons[data-off-screen="1"] { grid-template-columns: 1fr; }
 }
 @media (max-width: 480px) {
   .mm-rush-chip { display: none; }
@@ -254,7 +260,7 @@ const RUSH_CSS = `
   .mm-rush-bar { min-height: 44px; padding-top: 4px; padding-bottom: 4px; }
   .mm-rush-clock { font-size: calc(24 * var(--mm-px)); }
   .mm-rush-hint { display: none; }
-  .mm-rush-dne, .mm-rush-skip { min-height: 46px; }
+  .mm-rush-dne, .mm-rush-off, .mm-rush-skip { min-height: 46px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .mm-rush-found-fresh, .mm-rush-in-a, .mm-rush-in-b, .mm-rush-count { animation: none; }
@@ -551,7 +557,11 @@ export default function GraphFeatureRushRound({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [commit, scheduleFlush]);
   const onDoesNotExist = () => act(recordDoesNotExist);
+  const onOffScreen = () => act(recordOffScreen);
   const onSkip = () => act(recordSkip);
+  // A game with off-screen features offers "Off screen" on every graph, so
+  // the button being there never says anything about the graph on screen.
+  const offScreenGame = room.graphFeatureRush?.config?.offScreen === true;
 
   // Focus the graph when play begins, so a keyboard is ready at once.
   const frameRef = useRef(null);
@@ -603,7 +613,9 @@ export default function GraphFeatureRushRound({
         <section className="mm-rush-prompt" aria-live="polite">
           {practice && <div className="mm-rush-banner" style={{ marginBottom: 6 }}>Practice — nothing is recorded.</div>}
           <h2>{playing && question ? question.prompt : 'Graph Feature Rush'}</h2>
-          <p className="mm-rush-hint">Tap it on the graph. Not there? Choose Does Not Exist.</p>
+          <p className="mm-rush-hint">{offScreenGame
+            ? 'Tap it on the graph. Past the edge? Off Screen. Not there at all? Does Not Exist.'
+            : 'Tap it on the graph. Not there? Choose Does Not Exist.'}</p>
         </section>
         <section className="mm-rush-graph-area" ref={graphAreaRef}>
           {side > 0 && (
@@ -640,8 +652,11 @@ export default function GraphFeatureRushRound({
               <span key={session.lockedUntil} style={{ animationDuration: `${lockMs}ms` }} />
             </div>
           )}
-          <div className="mm-rush-buttons">
+          <div className="mm-rush-buttons" data-off-screen={offScreenGame ? '1' : '0'}>
             <button type="button" className="mm-rush-dne" disabled={buttonsDisabled} onClick={onDoesNotExist}>Does Not Exist</button>
+            {offScreenGame && (
+              <button type="button" className="mm-rush-off" disabled={buttonsDisabled} onClick={onOffScreen} aria-label="Off screen: it exists, past the edge of the graph">Off Screen</button>
+            )}
             <button type="button" className="mm-rush-skip" disabled={buttonsDisabled} onClick={onSkip}>Skip</button>
           </div>
           {alert && <div role="alert" className="mm-rush-alert">{alert}</div>}

@@ -2,10 +2,12 @@
 
 A Live Challenge game mode: every student gets their own graphs and races the
 round clock to tap the features asked for — x-intercepts (zeros, roots), the
-y-intercept, the vertex, the maximum, the minimum — or to answer "Does Not
-Exist". The graph dominates the screen; a correct tap is acknowledged in the
+y-intercept, the vertex, the maximum, the minimum, the asymptotes — or to
+answer "Does Not Exist" (and, in a game with off-screen features, "Off
+screen"). The graph dominates the screen; a correct tap is acknowledged in the
 next frame; a graph with several targets completes itself when the last one is
-found.
+found. Every curve carries an arrowhead where it leaves the screen and a dot
+where it ends, so a student reads where it goes.
 
 It is built **on** the Live Challenge engine (`live-challenge-engine.md`), not
 beside it. Lifecycle, the authoritative clock, receipts and idempotency,
@@ -36,7 +38,7 @@ questions, and screens.
 | --- | --- | --- |
 | `graphFeatureRational.mjs` | exact rational arithmetic for every coordinate a student can be asked to tap | server, tests |
 | `graphFeatureRegistry.mjs` | canonical features, their vocabulary, target ids | everywhere |
-| `graphFeatureCurves.mjs` | graph specs (`kind` + parameters), evaluation, continuous segments, asymptotes, endpoint dots, sampling for drawing | everywhere |
+| `graphFeatureCurves.mjs` | graph specs (`kind` + parameters, an optional restricted `domain`), evaluation, continuous segments, asymptotes, endpoint dots, where each stretch of the curve leaves the screen (`curveRuns`), sampling for drawing | everywhere |
 | `graphFeatureFamilies.mjs` | the nine families: exact builders and independent analyses | server, tests |
 | `graphFeatureCatalog.mjs` | a static summary of the families (names; which features each can ask, from which tier), held to the families by test | everywhere |
 | `graphFeatureGenerator.mjs` | seeded schedules, view selection, visual validation, the question a student gets (its random source, `seededRandom.mjs`, is shared with Graph the Line and re-exported here) | server, tests |
@@ -44,7 +46,7 @@ questions, and screens.
 | `graphFeatureRushConfig.mjs` | presets, difficulty, round limits, teacher-setting validation | everywhere |
 | `graphFeatureRushRules.mjs` | the constants device and server share: attempt kinds, verdicts, request and record limits, cooldown, auto-skip | everywhere |
 | `graphFeatureRush.mjs` | the submit transaction's body (`applyRushAttempts`), round state from receipts, player totals, the report | server, practice, tests |
-| `src/platform/liveChallenge/rushGraphModel.js` | the drawing in unit space, screen↔graph, keyboard cursor | browser, tests |
+| `src/platform/liveChallenge/rushGraphModel.js` | the drawing in unit space (curve, grid, asymptotes, dots, arrowheads), screen↔graph, keyboard cursor, open-dot taps | browser, tests |
 | `src/platform/liveChallenge/rushSession.js` | a student's round on the device: local grading, queue, reconciliation | browser, tests |
 | `rushStandingsModel.js`, `rushSetupModel.js` | round results and the live race from public rows; the setup as data | browser, tests |
 
@@ -85,7 +87,7 @@ defaults) and the report.
 ### Features
 
 One canonical id per feature (`xIntercept`, `yIntercept`, `vertex`, `maximum`,
-`minimum`), with classroom vocabulary chosen per family and tier: "Find all
+`minimum`, `asymptote`), with classroom vocabulary chosen per family and tier: "Find all
 x-intercepts", "Find all zeros", "Find all roots" (roots only for
 polynomials). A polynomial with non-real roots — a parabola that never meets
 the axis, a cubic with one real root — is only ever asked for its
@@ -96,6 +98,23 @@ never says how many targets there are. Adding a feature
 family support and — for a non-point geometry — a hit-test distance; nothing
 in the engine changes.
 
+**Asymptotes** were added that way: the first feature whose targets are
+**lines** (`geometry: 'line'`: `{ orientation: 'vertical', x }` or
+`{ orientation: 'horizontal', y }`). "Find all asymptotes": a rational graph
+has two (x = h, y = k), an exponential one (y = k, on the side it approaches,
+if its domain keeps that side), every other family none — "Does Not Exist".
+Rational from Standard, exponential from Easy; an asymptote on an axis (x = 0,
+y = 0) at Challenge. A slanted line, and piecewise pieces (never level), have
+none; whether a level line is its own asymptote is a debate, so it is never
+asked. On an asymptote question the dashed lines are not drawn (they are the
+answer); each is drawn, labelled "x = 2", when found. Everywhere else they are
+drawn in their own colour (`--mm-rush-asymptote`, the theme's accent), over the
+axes, so one lying on an axis still shows.
+
+The existing presets keep the five features they had
+(`CLASSIC_GRAPH_FEATURE_IDS`): a feature added to the registry is the
+teacher's to choose, never slipped into a preset a class already plays.
+
 ### Families
 
 Linear, quadratic, absolute value, cubic, exponential, square root, cube root,
@@ -103,6 +122,25 @@ rational (`a/(x − h) + k`) and piecewise linear — all nine. Each family
 **builds** exact parameters meant to give a requested shape (two zeros, a
 tangent, no maximum…) and, separately, **analyses** those parameters from
 scratch. A question is issued only when the analysis agrees with the request.
+
+**Restricted domains (rays and segments).** A line, parabola, absolute value
+or exponential graph may carry `domain: { from, to }`, each end `{ x, closed }`
+or null. Its analysis is the same graph's, restricted: an intercept counts
+only where the domain includes it, the vertex only if it is on the graph, and
+a maximum or minimum is worked out exactly from the closed ends, the turning
+point and where the graph heads past an open side (`restrictedExtreme`). They
+are asked as intercept variants:
+
+| Variant | From | The question |
+| --- | --- | --- |
+| `rayFromZero` (line, parabola, absolute value, exponential) | Standard | a ray whose CLOSED end is on the x-axis: that end is the zero, and counts |
+| `rayFromAxis` (the same four) | Standard | a ray from a closed end on the y-axis: the y-intercept |
+| `rayOpenAtZero`, `rayOpenAtAxis` | Challenge | the same with an OPEN end there: not on the graph, so Does Not Exist |
+| `cutOneZero` (parabola, absolute value) | Challenge | cut at the vertex, so only one of its two zeros is on the graph |
+| `segmentShort` (line) | Challenge | a segment that stops at least 1.5 units short of the axis it heads for: Does Not Exist |
+
+A restricted graph is asked for its x-intercepts or zeros, never its "roots"
+(the polynomial's roots ignore the cut).
 
 Every tappable coordinate is an exact rational on the grid (integers at Easy,
 halves above). Deliberately not asked in v1: the vertex of anything but a
@@ -126,7 +164,27 @@ the same mix, and a neighbour's screen is a different graph. Question k for a
 student is a pure function of (room seed, student, round, k, settings,
 generator version), so the server stores nothing it issued — it regenerates a
 question to grade a tap. A room created under another generator version
-refuses to issue or grade (the current version is 2).
+refuses to issue or grade (the current version is 3: arrows and endpoints,
+restricted domains, asymptotes, off-screen features).
+
+**Off-screen features** are a layer a teacher turns on (`offScreen` in the
+config; off by default and in every preset). Variants flagged `offScreen`
+build a graph whose feature exists where the generator then chooses a view
+that leaves it out — every target at least 10% of the span past an edge — and
+the student answers **"Off screen"**: the arrows show the curve keeps going
+to it. They are the ones a student can infer from what is on screen: a line's
+x- or y-intercept (Standard), a parabola's vertex (Standard; the prompt says
+it has one), and at Challenge an absolute value graph's vertex and a wide V's
+two x-intercepts (its vertex on screen below the axis). The view is the widest
+symmetric window that keeps the family's anchors (the y-intercept for a hidden
+zero, the zero for a hidden y-intercept, the vertex of a V) well inside and
+the feature out; a hidden zero is never approached on screen. A game with the
+layer offers "Off screen" on every graph, so the button never hints. It starts
+at Standard and needs a family and feature that can hide (graphFeatureCatalog
+`GRAPH_FAMILY_OFF_SCREEN`, held to the families by test); otherwise the
+config is refused with a sentence. The public question carries
+`offScreen: true` and `offScreenTargets` (the reveal names where it was);
+"Does Not Exist" on it is a miss.
 
 Each slot of a block first settles whether its answer exists — "Does Not
 Exist" at exactly the tier's share — and only then picks a (family, feature)
@@ -147,7 +205,14 @@ Challenge.
 
 **Visual validation** (fractions of the square view): targets 8% inside the
 edges and 15% apart; both axes and asymptotes visible; enough curve on
-screen; no "ghost zero" — wherever the curve comes closest to the x-axis it
+screen; **the curve leaves the screen only at its ends** — each continuous
+piece is on screen as one stretch, ending at a dot (its own end, inside the
+view) or by leaving through an edge, where the screen draws an arrowhead, so
+an arrow always means "keeps going" and never "comes back"; no stretch turns
+back within 1.2% of the top or bottom edge (it would look like an exit); a
+restricted domain's ends 6% inside the view, so every end is a dot on screen;
+a graph that ends on the x-axis leaves it promptly (well clear of it within
+12% of the width of its end); no "ghost zero" — wherever the curve comes closest to the x-axis it
 either crosses (a real zero) or stays clearly away; **every zero is readable
 where it is drawn** — the stretch around it where the curve lies on the axis
 (within 1.5% of the height) reaches at most 6% of the width to either side
@@ -159,8 +224,9 @@ must be separated by a visible dip; open dots clear of targets and other dots;
 a lopsided Challenge window is at least 6 units each way (a 2-by-2 window
 flattened a cubic into a line). Below Challenge a piecewise y-intercept never
 sits on the split, so the filled or open dot is never the whole question.
-Measured over every slot: build attempts rarely past 15 (cap 80), a mean
-about 1.25, and no fallback question ever needed.
+Measured over every slot (generator 3, 40 seeds each, 7,040 questions): a
+mean of 1.23 build attempts, the worst 17 (cap 80), and no fallback question
+ever needed.
 
 ---
 
@@ -174,6 +240,15 @@ graph is 300 or 900 pixels wide.
 | touch | 26 px |
 | pen, mouse, touchpad | 18 px |
 | keyboard cursor | 22 px |
+
+A **line target** (an asymptote) is found by a tap anywhere near it: its
+distance is measured across the line only, in the same tolerance units. Two
+asymptotes cross, so a tap near the crossing reaches both; it finds the
+nearest one not yet found, and is "already found" only when every target in
+reach has been. Point targets are 15% apart, so a tap never reaches two of
+them and this changes nothing for them. A miss on an open dot is told "Open
+dot — that point isn't on the graph." (the device's words; the server records
+a miss like any other).
 
 The radius is converted to graph units for each axis of the rendered plot and
 clamped to 0.5–7% of the axis span, so a device claiming absurd pixels cannot
@@ -191,8 +266,10 @@ is at that x.
 
 ## 5. Attempts, fairness and the server's authority
 
-A batch of up to 12 attempts (`tap`, `dne`, `skip`) is graded in one
-transaction against regenerated questions, in order:
+A batch of up to 12 attempts (`tap`, `dne`, `offScreen`, `skip`) is graded in
+one transaction against regenerated questions, in order ("Does Not Exist" is
+right only when the feature is absent; "Off screen" only when it exists past
+the edge):
 
 - only the **current** question (the first neither completed nor skipped)
   takes attempts; a late tap for a finished graph is `resolved`, an attempt
@@ -226,7 +303,12 @@ Intercepts lie on an axis, so a sweep can find them without reading the
 graph. With the earlier 600 ms cooldown steps a tolerance-spaced sweep matched
 careful readers on an intercept-only game (16.8 graphs each); with 1 s steps
 it completes about two thirds as many (11.6), at about a quarter accuracy —
-plain in the teacher's report — while careful readers lose nothing. A sweep
+plain in the teacher's report — while careful readers lose nothing. Measured
+over 100 rooms of intercept-only Standard games (every family), a sweep
+completes 62% of what careful reading does, under generator 2 and 3 alike;
+any one room is luck (a room whose first blocks hold no "Does Not Exist"
+graph lets a lucky sweep pass an unlucky reader there, in about a quarter of
+rooms), so the test measures eight rooms. A sweep
 can still outscore a student who reads very slowly; the cooldown is not
 allowed to punish honest mistakes harder than that.
 
@@ -312,7 +394,10 @@ arrival order. (↓: higher first; ↑: lower first.)
 
 **Student.** A full-screen surface (fixed, safe-area aware): the prompt, the
 graph as the largest square that fits, "Does Not Exist" and Skip in the same
-place on every graph, the round, the student's count and the clock. Portrait
+place on every graph ("Off screen" between them in a game with off-screen
+features), the round, the student's count and the clock. Every curve has an
+arrowhead where it leaves the plot (`curveArrows`, from the same analysis the
+generator checked) and a dot where it ends inside it. Portrait
 stacks them; landscape puts the controls beside the graph. Feedback: a found
 point draws a mark with its coordinates; a miss draws a fading cross and
 names the feature it was not; the cooldown dims the graph and shows a draining
@@ -330,8 +415,10 @@ question and so no worked solution, but every student shares what they were
 asked to find, so the results carry a short reading guide to the features in
 the game: one line each saying what the feature is and where it sits ("x-
 intercepts: the points where the graph meets the x-axis, so the y-value is 0")
-and the slip to watch for. It is the same text for every student and every
-round, a function of the game's features alone (`graphFeatureReading.mjs`),
+and the slip to watch for, and one line on the answers that are not a tap
+("Does Not Exist"; "Off screen" in a game with off-screen features; above
+Easy, "An open dot is not on the graph."). It is the same text for every
+student and every round, a function of the game's settings alone (`graphFeatureReading.mjs`),
 and names no graph, target or coordinate of anyone's. It rides the
 worked-solution pipeline: captured with the round when it opens
 (`GRAPH_FEATURE_RUSH_PLANNER.openRound`), published at the round's close
@@ -343,8 +430,9 @@ guide captured and publishes none. A feature added to the registry needs its
 reading in `graphFeatureReading.mjs`: a test fails until it has one.
 
 **Teacher.** Graph Feature Rush is a game type in the existing Create a
-challenge panel: presets as starting points, then families, features,
-difficulty, rounds, time and scoring (with the ladder for the class size).
+challenge panel: presets as starting points, then families, features (the
+asymptotes among them), the off-screen layer, difficulty, rounds, time and
+scoring (with the ladder for the class size).
 Rewards use the same choice as every Live Challenge (`ChallengeRewardSettings`:
 the standard Class Points achievements, plus a Practice Pass for the top
 places and a Champion badge if the teacher wants them); placement comes from
@@ -408,8 +496,17 @@ and dark; reduced motion turns the pops and fades off.
 
 - `tests/platform/graphFeatureRushMath.test.mjs` — every family, feature,
   variant and tier generates valid questions verified by an independent
-  oracle; special cases; vocabulary; determinism; schedules; the "Does Not
-  Exist" share; the catalog equals the families.
+  oracle (asymptotes found from where the curve blows up and where it
+  settles; off-screen features found on the curve and past the edge; zeros at
+  closed ends); special cases; vocabulary; determinism; schedules; the "Does
+  Not Exist" share; the catalog equals the families.
+- `graphFeatureRushArrowsAsymptotes.test.mjs` — every graph leaves the screen
+  only at its ends (sampled independently), the device's arrowheads,
+  restricted domains (closed and open ends, the parabola cut to one zero, the
+  exact restricted extremes, no "roots"), asymptotes by family, hidden lines
+  revealed with labels, line hit testing, the open-dot message, the
+  off-screen layer end to end, device–server agreement over random play with
+  all of them, the reading guide's lines, and the screens' wiring.
 - `graphFeatureRushPlay.test.mjs` — hit testing on every device size, the
   attempt pipeline, replays, races, limits, claimed times, the eighth-miss
   skip, round state equal to the engine's round summary.
@@ -440,6 +537,17 @@ and dark; reduced motion turns the pops and fades off.
 - **More features** (axis of symmetry, holes, relative extrema, inflection
   points) and families (logarithmic, trigonometric, higher-degree
   polynomials) through the registry and family contracts.
+- **Off-screen presses in the report**: receipts record them (`attemptKind:
+  'offScreen'`), the report does not yet count them beside "Does Not Exist".
+
+---
+
+## 13. Releasing a generator change
+
+A room is graded with the generator it was created under, or not at all
+(§3). A release that bumps `GRAPH_FEATURE_GENERATOR_VERSION` therefore stops
+every rush room created before it: its students are told to ask for a new
+game. Deploy it outside class time, after the day's games have finished.
 - **Warm-Up link** for a rush (the capability is off).
 - **Teacher-tunable fairness** (cooldown, auto-skip) and per-student
   accommodations such as larger tolerance.

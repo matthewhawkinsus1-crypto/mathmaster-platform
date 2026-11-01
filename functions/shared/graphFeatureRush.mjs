@@ -40,7 +40,7 @@ import {
   summarizeRoundProgress,
 } from './liveChallengeResponses.mjs';
 import { SCORE_ACCUMULATION } from './liveChallengeScoring.mjs';
-import { DOES_NOT_EXIST_TARGET_ID, getGraphFeature } from './graphFeatureRegistry.mjs';
+import { DOES_NOT_EXIST_TARGET_ID, OFF_SCREEN_TARGET_ID, getGraphFeature } from './graphFeatureRegistry.mjs';
 import { graphFamilyLabel } from './graphFeatureCatalog.mjs';
 import { POINTER_KIND, TAP_RESULT, clampTolerance, normalizePointerKind, resolveTap } from './graphFeatureHitTest.mjs';
 import {
@@ -357,7 +357,11 @@ export const applyRushAttempts = ({
       forfeit = true;
     } else if (attempt.kind === RUSH_ATTEMPT_KIND.DOES_NOT_EXIST) {
       targetId = DOES_NOT_EXIST_TARGET_ID;
-      isCorrect = question.targets.length === 0;
+      // A feature past the edge of the view exists: "Does Not Exist" is wrong there.
+      isCorrect = question.targets.length === 0 && question.offScreen !== true;
+    } else if (attempt.kind === RUSH_ATTEMPT_KIND.OFF_SCREEN) {
+      targetId = OFF_SCREEN_TARGET_ID;
+      isCorrect = question.offScreen === true;
     } else {
       const tap = resolveTap({
         targets: question.targets,

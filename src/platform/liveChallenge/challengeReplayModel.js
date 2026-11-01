@@ -61,6 +61,8 @@ export const replayRequestFromRoom = (room = {}, { rewardPolicy = null } = {}) =
       families: Array.isArray(config.families) ? [...config.families] : [],
       features: Array.isArray(config.features) ? [...config.features] : [],
       difficulty: text(config.difficulty),
+      // Absent on a room from before the setting: off, as it played.
+      offScreen: config.offScreen === true,
     };
   } else if (game === QUESTION_SET_GAME.LINE_GRAPH) {
     // The room's own question settings, as the server normalized them; the

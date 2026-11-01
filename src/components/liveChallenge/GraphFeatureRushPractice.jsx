@@ -80,10 +80,13 @@ export default function GraphFeatureRushPractice({ config, roundSeconds = 60, on
         startsAt: startsAtMs,
         roundEndsAt: startsAtMs + roundSeconds * 1000,
         serverNowAtRender: now,
+        // The game's settings, as a room carries them: the round offers "Off
+        // screen" from them, exactly as in a live game.
+        graphFeatureRush: { config: JSON.parse(configKey) },
       },
       services: practiceServices({ questions, startsAtMs, roundSeconds }),
     };
-  }, [questions, play, roundSeconds]);
+  }, [questions, play, roundSeconds, configKey]);
 
   if (error) {
     return (

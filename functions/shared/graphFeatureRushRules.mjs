@@ -17,6 +17,9 @@ export const RUSH_MODE_ID = 'graphFeatureRush';
 export const RUSH_ATTEMPT_KIND = Object.freeze({
   TAP: 'tap',
   DOES_NOT_EXIST: 'dne',
+  // The feature exists, past the edge of the view (a game with off-screen
+  // features turned on).
+  OFF_SCREEN: 'offScreen',
   SKIP: 'skip',
 });
 

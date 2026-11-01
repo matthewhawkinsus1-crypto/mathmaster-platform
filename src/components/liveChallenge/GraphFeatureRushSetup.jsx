@@ -4,6 +4,7 @@ import { getGraphFeature, GRAPH_FEATURE_IDS } from '../../../functions/shared/gr
 import {
   getRushPreset,
   GRAPH_FEATURE_RUSH_PRESETS,
+  OFF_SCREEN_SETTING,
   RUSH_DIFFICULTY_OPTIONS,
   RUSH_ROUND_LIMITS,
   rushConfigProblem,
@@ -45,7 +46,10 @@ const field = { display: 'block', width: '100%', boxSizing: 'border-box', margin
 const hint = { display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' };
 
 export default function GraphFeatureRushSetup({ setup, onChange, classSize = 0, onPractice = null }) {
-  const problem = useMemo(() => rushConfigProblem({ families: setup.families, features: setup.features, difficulty: setup.difficulty }), [setup.families, setup.features, setup.difficulty]);
+  const problem = useMemo(
+    () => rushConfigProblem({ families: setup.families, features: setup.features, difficulty: setup.difficulty, offScreen: setup.offScreen === true }),
+    [setup.families, setup.features, setup.difficulty, setup.offScreen],
+  );
   const update = (patch) => onChange(changeRushSetup(setup, patch));
   const ladder = grandPrixLadder(classSize || 24);
 
@@ -87,6 +91,14 @@ export default function GraphFeatureRushSetup({ setup, onChange, classSize = 0, 
         </div>
         <span style={hint}>Prompts vary the wording — "zeros", "roots", "x-intercepts" — and never say how many there are. Some graphs have none: students answer with "Does Not Exist".</span>
       </fieldset>
+
+      <label style={{ ...chip(setup.offScreen === true), display: 'flex', alignItems: 'flex-start', gap: 9, borderRadius: 12, padding: '10px 13px' }}>
+        <input type="checkbox" checked={setup.offScreen === true} onChange={() => update({ offScreen: setup.offScreen !== true })} style={{ marginTop: 3 }} />
+        <span>
+          {OFF_SCREEN_SETTING.label}
+          <span style={{ ...hint, marginTop: 2 }}>{OFF_SCREEN_SETTING.description} Standard difficulty and above.</span>
+        </span>
+      </label>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 14 }}>
         <label style={{ fontWeight: 800 }}>Difficulty

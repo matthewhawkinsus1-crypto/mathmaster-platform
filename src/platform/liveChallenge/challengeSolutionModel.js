@@ -32,12 +32,15 @@ export const solutionTitle = (solution) => (solution?.guide === true ? READING_G
 /*
  * How many steps the projector draws. An authored review can run long and the
  * projector never scrolls, so it takes the first five. A reading guide is
- * written to fit (a line a feature and one on "Does Not Exist": at most six),
- * and its last line is the one that says when to choose "Does Not Exist", so
- * it takes all of them.
+ * written to fit (a line a feature and one on the answers that are not a tap:
+ * at most seven), and its last line is the one that says when to choose
+ * "Does Not Exist", so it takes all of them.
  */
 export const PROJECTOR_SOLUTION_STEPS = 5;
-export const PROJECTOR_GUIDE_STEPS = 6;
+// A guide's every line: one per feature (six since asymptotes) and the
+// answers line ("Does Not Exist", "Off screen", open dots), which a cut at six
+// would drop from a game that asks for every feature.
+export const PROJECTOR_GUIDE_STEPS = 7;
 export const projectorStepLimit = (solution) => (solution?.guide === true ? PROJECTOR_GUIDE_STEPS : PROJECTOR_SOLUTION_STEPS);
 
 /** Whether the server has published this round's solution. */
