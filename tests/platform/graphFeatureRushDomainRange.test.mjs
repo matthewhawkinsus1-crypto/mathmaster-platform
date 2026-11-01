@@ -12,12 +12,11 @@ import { GRAPH_FEATURE_RUSH_PRESETS, getRushPreset, normalizeGraphFeatureRushCon
 import { RUSH_ATTEMPT_KIND, RUSH_REVEAL_PAUSE_MS, RUSH_SET_AUTO_SKIP_MISSES, rushAutoSkipMisses } from '../../functions/shared/graphFeatureRushRules.mjs';
 import { correctCountStrategy } from '../../functions/shared/liveChallengeScoring.mjs';
 import * as N from '../../functions/shared/numberLineSets.mjs';
-import { axisSetDrawing, foundMarkTargets } from '../../src/platform/liveChallenge/rushGraphModel.js';
+import { axisSetDrawing, foundMarkTargets, graphDrawing, graphPointAt, setLandmarks, setTapAt } from '../../src/platform/liveChallenge/rushGraphModel.js';
 import {
   RUSH_FEEDBACK,
   RUSH_INPUT,
   acknowledge,
-  axisValueAt,
   createRushSession,
   currentQuestion,
   differsFromServer,
@@ -29,24 +28,26 @@ import {
   nextBatch,
   recordAxisTap,
   recordCheck,
+  recordSetTap,
   recordSkip,
   recordTap,
   settle,
   toggleAxisArrow,
 } from '../../src/platform/liveChallenge/rushSession.js';
 import { rushCreateRequest, rushSetupFromPreset } from '../../src/platform/liveChallenge/rushSetupModel.js';
-import { region } from './helpers/sourceContract.mjs';
+import { executableSource, region } from './helpers/sourceContract.mjs';
 
 /*
  * DOMAIN AND RANGE, CLICK ONLY (plan part 3).
  *
- * A domain is marked on the x-axis and a range on the y-axis. A tap anywhere
- * drops a dot onto the axis at the nearest grid line: once for ● closed, twice
- * for ○ open, a third time to take it away, two dots at most. ◀ ▶ (▼ ▲ for a
- * range) mean "keeps going". Two dots shade between them; two dots and both
- * arrows shade the outside. The interval notation shows live. ✓ Check sends
- * the drawing; a wrong one gets a hint about the one thing that is off, and
- * the third shows the answer and moves on. "Domain & Range Rush" is a preset,
+ * A domain is drawn on the x-axis and a range on the y-axis, by tapping the
+ * graph itself (graphFeatureRushTapTheGraph.test.mjs): one of its arrows for
+ * "keeps going" (−∞ or ∞), a point where it starts, stops or turns for a
+ * number — once for ● closed, twice for ○ open, a third time to take it
+ * away, two dots at most. Two dots shade between them; two dots and both
+ * arrows shade the outside. Both notations show live, inequality first.
+ * ✓ Check sends the drawing; a wrong one gets a hint about the one thing
+ * that is off, and the third shows the answer and moves on. "Domain & Range Rush" is a preset,
  * and the merge with intercepts is another; the existing presets keep their
  * features.
  *
@@ -175,7 +176,7 @@ test('domain and range: the families that have them, from the tier their variant
   for (const id of ['algebra1Quick', 'algebra1Functions', 'interceptSprint', 'algebra2Mixed', 'algebra2Challenge']) {
     assert.ok(getRushPreset(id).features.every((feature) => CLASSIC_GRAPH_FEATURE_IDS.includes(feature)), `${id} keeps its features`);
   }
-  assert.equal(GRAPH_FEATURE_RUSH_PRESETS.length, 7);
+  assert.equal(GRAPH_FEATURE_RUSH_PRESETS.length, 9);
 });
 
 /* -------------------------------- questions -------------------------------- */
@@ -266,24 +267,13 @@ test('the third wrong check skips the graph, recorded by the server with that ch
 
 const freshSession = (question) => createRushSession({ roundIndex: 0, serverState: { cursor: 0 }, questions: [question, { ...question, questionIndex: 1 }], poolSize: 2 });
 
-test('on the device a tap anywhere drops a dot on the axis at the nearest grid line in view; nothing is sent until ✓ Check', () => {
+test('on the device a graph\'s set is tapped on the graph itself, never on its axis (graphFeatureRushTapTheGraph.test.mjs)', () => {
   const question = publicRushQuestion(slotQuestion('exponential', GRAPH_FEATURE.RANGE, 'asymptote', QUESTION_TIER.STANDARD, 'device'));
-  const { view } = question;
-  assert.equal(axisValueAt(question, { x: view.xMin + 0.3, y: 2.3 * view.yStep }), 2 * view.yStep, 'a range: the y of the tap, to the nearest y grid line');
-  assert.ok(axisValueAt(question, { x: 0, y: view.yMax + 5 }) <= view.yMax, 'never past the view');
-  let session = freshSession(question);
-  const tapped = recordAxisTap(session, { x: 1, y: view.yStep, nowMs: 0 });
-  assert.equal(tapped.attempt, null, 'a tap edits the drawing on this device only');
-  session = tapped.session;
-  assert.deepEqual(session.drawing.points, [{ value: view.yStep, closed: true }]);
-  assert.equal(drawingReady(session), true);
-  session = recordAxisTap(session, { x: -3, y: view.yStep, nowMs: 0 }).session;
-  assert.equal(drawingReady(session), false, 'a lone open dot names no set yet');
-  session = toggleAxisArrow(session, 'right', { nowMs: 0 }).session;
-  assert.equal(drawingReady(session), true);
-  // A domain is the x of the tap.
-  const domain = publicRushQuestion(slotQuestion('squareRoot', GRAPH_FEATURE.DOMAIN, 'endpoint', QUESTION_TIER.EASY, 'device'));
-  assert.equal(axisValueAt(domain, { x: 2.4 * domain.view.xStep, y: 99 }), 2 * domain.view.xStep);
+  const session = freshSession(question);
+  // The number line's inputs are an inequality's alone.
+  assert.equal(recordAxisTap(session, { x: 1, y: question.view.yStep, nowMs: 0 }).session, session, 'no dot from a tap on the axis');
+  assert.equal(toggleAxisArrow(session, 'right', { nowMs: 0 }).session, session, 'no arrow button to press');
+  assert.equal(drawingReady(session), false);
 });
 
 test('✓ Check on the device: right completes the graph; wrong gets a hint; the third shows the answer and moves on', () => {
@@ -295,7 +285,8 @@ test('✓ Check on the device: right completes the graph; wrong gets a hint; the
   const right = recordCheck(drawWith(freshSession(question), N.drawingForSet(answer)), { nowMs: 0, elapsedMs: 0, attemptId: 'r' });
   assert.equal(right.attempt.kind, RUSH_ATTEMPT_KIND.CHECK);
   assert.equal(right.session.feedback.kind, RUSH_FEEDBACK.COMPLETE);
-  assert.equal(feedbackMessage(right.session.feedback, question), `Correct — ${notation(answer)}.`);
+  // Read back in both notations, inequality first.
+  assert.equal(feedbackMessage(right.session.feedback, question), `Correct — ${N.inequalityNotation(answer, 'x')} · ${notation(answer)}.`);
   // Wrong: an open end where it is closed.
   const openEnd = N.toggleArrow(N.tapNumber(N.tapNumber(N.EMPTY_DRAWING, h), h), 'right');
   let session = drawWith(freshSession(question), openEnd);
@@ -308,7 +299,7 @@ test('✓ Check on the device: right completes the graph; wrong gets a hint; the
   assert.equal(inputState(session, 2), RUSH_INPUT.LOCKED, 'the second miss in a row pauses input');
   outcome = recordCheck(session, { nowMs: session.lockedUntil, elapsedMs: session.lockedUntil, attemptId: 'w3' });
   assert.equal(outcome.session.feedback.kind, RUSH_FEEDBACK.AUTO_SKIPPED);
-  assert.equal(feedbackMessage(outcome.session.feedback, question), `The domain is ${notation(answer)}. Next graph.`);
+  assert.equal(feedbackMessage(outcome.session.feedback, question), `The domain is ${N.inequalityNotation(answer, 'x')} · ${notation(answer)}. Next graph.`);
   assert.equal(outcome.session.transition.until - session.lockedUntil, RUSH_REVEAL_PAUSE_MS, 'long enough to read the answer');
   // The next graph starts with a clean drawing.
   const next = settle(outcome.session, outcome.session.transition.until);
@@ -358,12 +349,18 @@ test('device and server agree on every step of random play on domain, range and 
       if (isSetQuestion(question)) {
         const answer = N.setFromPlain(question.targets[0].set);
         if (roll < 0.05) input = recordSkip(session, context);
-        else if (roll < 0.35) input = { session: Object.freeze({ ...session, drawing: N.drawingForSet(answer) }) };
-        else if (roll < 0.6) {
+        else if (roll < 0.3) input = { session: Object.freeze({ ...session, drawing: N.drawingForSet(answer) }) };
+        else if (roll < 0.7) {
+          // A tap on the graph: mostly on something there (a point, an arrow), sometimes anywhere.
           const { view } = question;
-          input = recordAxisTap(session, { x: view.xMin + random() * (view.xMax - view.xMin), y: view.yMin + random() * (view.yMax - view.yMin), nowMs: now });
-        } else if (roll < 0.7) input = toggleAxisArrow(session, random() < 0.5 ? 'left' : 'right', context);
-        else if (drawingReady(session)) { input = recordCheck(session, context); checks += 1; }
+          const picture = graphDrawing(question);
+          const spots = [...setLandmarks(question), ...picture.arrows.map((arrow) => graphPointAt(view, arrow.u, arrow.v))];
+          const spot = spots.length && random() < 0.75
+            ? spots[Math.floor(random() * spots.length)]
+            : { x: view.xMin + random() * (view.xMax - view.xMin), y: view.yMin + random() * (view.yMax - view.yMin) };
+          const hit = setTapAt({ question, drawing: picture, x: spot.x, y: spot.y, tolerance: { x: 0.03 * (view.xMax - view.xMin), y: 0.03 * (view.yMax - view.yMin) } });
+          input = recordSetTap(session, { hit, nowMs: now });
+        } else if (drawingReady(session)) { input = recordCheck(session, context); checks += 1; }
         else input = recordSkip(session, context);
       } else {
         const open = question.targets.filter((target) => !session.found.includes(target.id));
@@ -403,19 +400,24 @@ test('a correct check marks no point: a domain or range shows as its drawing, ne
   assert.match(read('src/components/liveChallenge/GraphFeatureRushGraph.jsx'), /const foundTargets = useMemo\(\(\) => foundMarkTargets\(question, found\), \[question, found\]\);/);
 });
 
-test('the round shows the set as drawn, its notation, the arrows and ✓ Check on a domain or range — and Does Not Exist only elsewhere', () => {
+test('the round shows the set as drawn, its notation and ✓ Check — "keeps going" is the graph\'s own arrows, and Does Not Exist only where a set can be empty', () => {
   const round = read('src/components/liveChallenge/GraphFeatureRushRound.jsx');
   const setControls = region(round, '<div className="mm-rush-buttons" data-set="1"', '\n            </div>', 'the set controls');
-  assert.match(setControls, /onClick=\{\(\) => onArrow\('left'\)\}[^>]*>\{vertical \? '▼' : '◀'\}/);
-  assert.match(setControls, /onClick=\{\(\) => onArrow\('right'\)\}[^>]*>\{vertical \? '▲' : '▶'\}/);
+  // No arrow buttons: an arrow is tapped on the graph (or the number line).
+  assert.doesNotMatch(setControls, /onArrow|mm-rush-arrow|◀|▶|▲|▼/, 'no arrow bar');
+  assert.doesNotMatch(executableSource(round), /onArrow/, 'nothing left wired to one');
   assert.match(setControls, /disabled=\{buttonsDisabled \|\| !drawingReady\(session\)\} onClick=\{onCheck\}>✓ Check</);
-  // The one answer button beside them is an inequality's No Solution, offered
-  // on inequality items alone: never Does Not Exist on a domain or range.
-  const noSolution = /\{inequalityItem && \(\s*<button type="button" className="mm-rush-dne"[^>]*>No Solution<\/button>\s*\)\}/;
-  assert.match(setControls, noSolution);
-  assert.doesNotMatch(setControls.replace(noSolution, ''), /mm-rush-dne/, 'no Does Not Exist on a domain or range');
-  assert.match(round, /\{setQuestion \? \(\s*<div className="mm-rush-buttons" data-set="1"/);
-  assert.match(round, /\(isNumberLineQuestion\(currentQuestion\(current\)\)\s*\? recordAxisTap\(current, \{ \.\.\.context, x, y \}\)\s*: recordTap\(/);
+  // The "none" button: an inequality's No Solution, an interval's Does Not
+  // Exist — only on a set that can be empty, never on a domain or range.
+  assert.match(setControls, /\{inequalityItem && \(\s*<button type="button" className="mm-rush-dne"[^>]*>No Solution<\/button>\s*\)\}/);
+  assert.match(setControls, /\{setCanBeEmpty && !inequalityItem && \(\s*<button type="button" className="mm-rush-dne"[^>]*>Does Not Exist<\/button>\s*\)\}/);
+  assert.match(round, /const setCanBeEmpty = setQuestion && \(inequalityItem \|\| getGraphFeature\(question\?\.feature\)\?\.canNotExist === true\);/);
+  for (const feature of ['domain', 'range']) assert.equal(getGraphFeature(feature).canNotExist, false, `${feature}: never empty`);
+  assert.match(round, /\{setQuestion \? \(\s*\/\/[^\n]*\n[^\n]*\n\s*<div className="mm-rush-buttons" data-set="1"/);
+  // A tap on a set question is read by the set tap model; on an inequality,
+  // a number or one of the line's end arrows.
+  assert.match(round, /if \(isInequalityQuestion\(tapped\)\) \{\s*return end \? toggleAxisArrow\(current, end, context\) : recordAxisTap\(current, \{ \.\.\.context, x, y \}\);/);
+  assert.match(round, /return recordSetTap\(current, \{ \.\.\.context, hit: setTapAt\(\{ question: tapped, drawing: graphDrawing\(tapped\), x, y, tolerance \}\) \}\);/);
   // The notation is the set as drawn (rushSession.lineNotation, tested with
   // the session), with a prompt to start while nothing is drawn.
   assert.match(round, /const notation = setQuestion \? lineNotation\(question, studentDrawing, \{ revealing \}\) : null;/);

@@ -416,10 +416,12 @@ test('on the device: a tap drops a dot on the line, the arrows toggle, Check gra
   assert.deepEqual(lineNotation(none, session.drawing), ['x ≥ 2', '[2, ∞)']);
   assert.equal(lineNotation(none, N.EMPTY_DRAWING), null, 'nothing drawn: nothing to say');
   assert.deepEqual(lineNotation(none, N.EMPTY_DRAWING, { revealing: true }), ['no solution', '∅']);
-  // A domain or range keeps its one form, interval notation.
+  // A domain or range shows both forms too, as it is built — in y for a range.
   const domain = { targets: [{ id: 'dom1', geometry: 'set', axis: 'x', set: [[1, false, null, false]] }] };
-  assert.deepEqual(lineNotation(domain, N.drawingForSet(N.raySet(1, true, 1))), ['[1, ∞)']);
-  assert.deepEqual(lineNotation(domain, null, { revealing: true }), ['(1, ∞)']);
+  assert.deepEqual(lineNotation(domain, N.drawingForSet(N.raySet(1, true, 1))), ['x ≥ 1', '[1, ∞)']);
+  assert.deepEqual(lineNotation(domain, null, { revealing: true }), ['x > 1', '(1, ∞)']);
+  const range = { targets: [{ id: 'ran1', geometry: 'set', axis: 'y', set: [[null, false, 2, true]] }] };
+  assert.deepEqual(lineNotation(range, null, { revealing: true }), ['y ≤ 2', '(−∞, 2]']);
   let outcome = recordCheck(session, { nowMs: 20, elapsedMs: 20, attemptId: 'c1' });
   assert.equal(outcome.attempt.kind, RUSH_ATTEMPT_KIND.CHECK);
   assert.equal(feedbackMessage(outcome.session.feedback, none), 'Test a number you shaded: does it make the inequality true?');
@@ -436,7 +438,7 @@ test('on the device: a tap drops a dot on the line, the arrows toggle, Check gra
   session = Object.freeze({ ...outcome.session, drawing: N.drawingForSet(answerOf(ray)) });
   outcome = recordCheck(session, { nowMs: 1_200, elapsedMs: 1_200, attemptId: 'c2' });
   assert.equal(outcome.session.feedback.kind, RUSH_FEEDBACK.COMPLETE);
-  assert.equal(feedbackMessage(outcome.session.feedback, ray), `Correct — ${I.inequalityAnswerText(ray)}.`);
+  assert.equal(feedbackMessage(outcome.session.feedback, ray), `Correct — ${I.inequalityAnswerText(ray)} · ${N.intervalNotation(answerOf(ray))}.`);
   assert.equal(feedbackMessage({ kind: RUSH_FEEDBACK.SKIPPED, questionIndex: 1 }, ray), 'Skipped. Next one.');
 });
 

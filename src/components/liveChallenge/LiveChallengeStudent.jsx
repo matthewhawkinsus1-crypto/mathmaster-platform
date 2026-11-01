@@ -1108,7 +1108,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   // only. The student's own place is their summary's.
   const standings = useMemo(() => standingsFromProjection(projection, { roomId }), [projection, roomId]);
   const ownFinal = useMemo(() => summaryFinal(ownSummary, { roomId }), [ownSummary, roomId]);
-  const presentation = useMemo(() => scorePresentation({ scoringStrategyId, questionSet: questionSetRoom }), [scoringStrategyId, questionSetRoom]);
+  const presentation = useMemo(() => scorePresentation({ scoringStrategyId, questionSet: questionSetRoom, itemPoints: rushRoom }), [scoringStrategyId, questionSetRoom, rushRoom]);
 
   // A FINISHED ROOM WITHOUT ITS FINAL SNAPSHOT, OR WITHOUT THIS STUDENT'S OWN
   // FINAL PLACE (it finished before either existed, or its final snapshot

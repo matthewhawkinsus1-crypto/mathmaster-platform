@@ -4,10 +4,11 @@ import InequalityNumberLine from './InequalityNumberLine.jsx';
 import StartLights from './StartLights.jsx';
 import { ARENA_RUSH_VARS, GP_RACE_CSS, arenaLayerCss } from './grandPrixTheme.js';
 import { INEQUALITY_RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
+import { getGraphFeature } from '../../../functions/shared/graphFeatureRegistry.mjs';
 import { monotonicRoundOrigin } from '../../../functions/shared/liveChallengeParity.mjs';
 import { rushRefusalIsTimeUp } from '../../platform/liveChallenge/challengeAnswerRefusal.js';
 import { rushGameWords } from '../../platform/liveChallenge/challengeShellModel.js';
-import { axisSetDrawing, graphDrawing } from '../../platform/liveChallenge/rushGraphModel.js';
+import { axisSetDrawing, graphDrawing, setAxisOf, setTapAt } from '../../platform/liveChallenge/rushGraphModel.js';
 import {
   RUSH_FEEDBACK,
   RUSH_INPUT,
@@ -33,9 +34,9 @@ import {
   recordCheck,
   recordDoesNotExist,
   recordOffScreen,
+  recordSetTap,
   recordSkip,
   recordTap,
-  setTargetOf,
   toggleAxisArrow,
   rushQueueKey,
   settle,
@@ -234,7 +235,9 @@ ${arenaLayerCss('.mm-rush-shell')}
 /* The student's name on a racing plate. */
 .mm-rush-chip { padding: 3px 12px; border-radius: 7px; transform: skewX(-8deg); background: linear-gradient(180deg, #ff4d6d, #c8102e); border: 1px solid rgba(255,255,255,.85); color: #fff; font-weight: 1000; font-style: italic; font-size: calc(13 * var(--mm-px)); white-space: nowrap; }
 .mm-rush-round { font-weight: 1000; font-style: italic; text-transform: uppercase; letter-spacing: .02em; color: #35e3ff; font-size: calc(15 * var(--mm-px)); white-space: nowrap; }
-.mm-rush-done { font-weight: 1000; font-style: italic; font-size: calc(18 * var(--mm-px)); color: #ffd23f; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mm-rush-done { font-weight: 1000; font-style: italic; font-size: calc(15 * var(--mm-px)); color: #b8c4ef; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* The round's points: what the race is ranked by. */
+.mm-rush-points { font-weight: 1000; font-style: italic; font-size: calc(18 * var(--mm-px)); color: #ffd23f; font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* The clock redraws every second: crisp edges only (a blur here would be redrawn with it). */
 .mm-rush-clock { margin-left: auto; font-size: calc(30 * var(--mm-px)); font-weight: 1000; font-style: italic; line-height: 1; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 2px 2px 0 rgba(53,227,255,.45); }
 /* The last ten seconds: red, and a pulse (a transform: the compositor's). */
@@ -263,20 +266,17 @@ ${arenaLayerCss('.mm-rush-shell')}
 .mm-rush-dne { border: 0; background: linear-gradient(180deg, #ffe680 0%, #ffc21a 60%, #f59f00 100%); color: #2b1700; box-shadow: 0 4px 0 #a86400; }
 .mm-rush-off { border: 2px solid #ffd23f; background: rgba(255,210,63,.1); color: #ffd23f; }
 .mm-rush-skip { border: 1px solid rgba(53,227,255,.45); background: rgba(10,16,52,.6); color: #eef2ff; }
-.mm-rush-dne:active:not(:disabled), .mm-rush-off:active:not(:disabled), .mm-rush-skip:active:not(:disabled), .mm-rush-arrow:active:not(:disabled), .mm-rush-check:active:not(:disabled) { transform: translateY(2px); }
+.mm-rush-dne:active:not(:disabled), .mm-rush-off:active:not(:disabled), .mm-rush-skip:active:not(:disabled), .mm-rush-check:active:not(:disabled) { transform: translateY(2px); }
 .mm-rush-dne:disabled, .mm-rush-off:disabled, .mm-rush-skip:disabled { opacity: .45; cursor: not-allowed; }
 .mm-rush-dne:focus-visible, .mm-rush-off:focus-visible, .mm-rush-skip:focus-visible, .mm-rush-exit:focus-visible { outline: 3px solid var(--mm-focus); outline-offset: 2px; }
-/* A domain or range: the arrows, ✓ Check and Skip, with the set as it is drawn. */
-.mm-rush-buttons[data-set="1"] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1.4fr); }
-/* An inequality: the arrows and ✓ Check, then No Solution and Skip. */
-.mm-rush-buttons[data-inequality="1"] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr); }
-.mm-rush-buttons[data-inequality="1"] .mm-rush-dne { grid-column: span 2; }
-.mm-rush-arrow, .mm-rush-check { min-height: 52px; border-radius: 12px; font-size: calc(19 * var(--mm-px)); font-weight: 1000; cursor: pointer; }
-.mm-rush-arrow { border: 2px solid rgba(53,227,255,.5); background: rgba(10,16,52,.6); color: #eef2ff; }
-.mm-rush-arrow[aria-pressed="true"] { border-color: #35e3ff; background: rgba(53,227,255,.22); color: #fff; box-shadow: 0 0 0 3px rgba(53,227,255,.3); }
-.mm-rush-check { border: 0; background: linear-gradient(180deg, #8dffb8 0%, #45ff8a 55%, #16c45a 100%); color: #052b14; box-shadow: 0 4px 0 #0c7a37; }
-.mm-rush-arrow:disabled, .mm-rush-check:disabled { opacity: .45; cursor: not-allowed; }
-.mm-rush-arrow:focus-visible, .mm-rush-check:focus-visible { outline: 3px solid var(--mm-focus); outline-offset: 2px; }
+/* A set marked on the graph (or an inequality on its line): ✓ Check and Skip,
+   and "Does Not Exist" / "No Solution" between them where the set can be
+   empty. "Keeps going" is the graph's own arrows: no arrow buttons. */
+.mm-rush-buttons[data-set="1"] { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.mm-rush-buttons[data-set="1"][data-dne="1"] { grid-template-columns: minmax(0, 2fr) minmax(0, 1.6fr) minmax(0, 1fr); }
+.mm-rush-check { min-height: 52px; border-radius: 12px; font-size: calc(19 * var(--mm-px)); font-weight: 1000; cursor: pointer; border: 0; background: linear-gradient(180deg, #8dffb8 0%, #45ff8a 55%, #16c45a 100%); color: #052b14; box-shadow: 0 4px 0 #0c7a37; }
+.mm-rush-check:disabled { opacity: .45; cursor: not-allowed; }
+.mm-rush-check:focus-visible { outline: 3px solid var(--mm-focus); outline-offset: 2px; }
 .mm-rush-notation { font-size: calc(22 * var(--mm-px)); font-weight: 900; font-variant-numeric: tabular-nums; color: #f7f9ff; min-height: 1.3em; }
 /* An inequality's two forms break between them, never inside one. */
 .mm-rush-notation > span { white-space: nowrap; }
@@ -321,11 +321,7 @@ ${GP_RACE_CSS}
   .mm-rush-prompt { grid-area: prompt; padding-top: 6px; }
   .mm-rush-graph-area { grid-area: graph; place-items: center; }
   .mm-rush-controls { grid-area: controls; align-self: end; }
-  .mm-rush-buttons, .mm-rush-buttons[data-off-screen="1"] { grid-template-columns: 1fr; }
-  .mm-rush-buttons[data-set="1"] { grid-template-columns: 1fr 1fr; }
-  .mm-rush-buttons[data-set="1"] .mm-rush-check, .mm-rush-buttons[data-set="1"] .mm-rush-skip { grid-column: span 2; }
-  /* An inequality's No Solution and Skip share a row: three rows, as a domain's. */
-  .mm-rush-buttons[data-inequality="1"] .mm-rush-dne, .mm-rush-buttons[data-inequality="1"] .mm-rush-skip { grid-column: span 1; }
+  .mm-rush-buttons, .mm-rush-buttons[data-off-screen="1"], .mm-rush-buttons[data-set="1"], .mm-rush-buttons[data-set="1"][data-dne="1"] { grid-template-columns: 1fr; }
 }
 @media (max-width: 480px) {
   .mm-rush-chip { display: none; }
@@ -337,7 +333,7 @@ ${GP_RACE_CSS}
   .mm-rush-clock { font-size: calc(24 * var(--mm-px)); }
   .mm-rush-hint { display: none; }
   .mm-rush-dne, .mm-rush-off, .mm-rush-skip { min-height: 46px; }
-  .mm-rush-arrow, .mm-rush-check { min-height: 46px; }
+  .mm-rush-check { min-height: 46px; }
   .mm-rush-notation { font-size: calc(17 * var(--mm-px)); }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -638,19 +634,28 @@ export default function GraphFeatureRushRound({
     if (outcome.session !== current) commit(outcome.session);
     if (outcome.attempt) scheduleFlush();
   };
-  const onTap = useCallback(({ x, y, pointer, tolerance }) => {
-    // On a domain, a range or an inequality, a tap drops a dot on the line
-    // (this device only).
-    act((current, context) => (isNumberLineQuestion(currentQuestion(current))
-      ? recordAxisTap(current, { ...context, x, y })
-      : recordTap(current, { ...context, x, y, pointer, tolerance })));
+  const onTap = useCallback(({ x, y, pointer, tolerance, end = null }) => {
+    act((current, context) => {
+      const tapped = currentQuestion(current);
+      // An inequality's number line: a number drops a dot; one of the line's
+      // own end arrows turns "keeps going" that way on or off.
+      if (isInequalityQuestion(tapped)) {
+        return end ? toggleAxisArrow(current, end, context) : recordAxisTap(current, { ...context, x, y });
+      }
+      // A domain, a range or an interval, marked on the graph itself: an
+      // arrow for "keeps going", a point or an asymptote for a number
+      // (rushGraphModel.setTapAt). This device only, until ✓ Check.
+      if (isNumberLineQuestion(tapped)) {
+        return recordSetTap(current, { ...context, hit: setTapAt({ question: tapped, drawing: graphDrawing(tapped), x, y, tolerance }) });
+      }
+      return recordTap(current, { ...context, x, y, pointer, tolerance });
+    });
     // `act` reads only refs and stable callbacks.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [commit, scheduleFlush]);
   const onDoesNotExist = () => act(recordDoesNotExist);
   const onOffScreen = () => act(recordOffScreen);
   const onSkip = () => act(recordSkip);
-  const onArrow = (side) => act((current, context) => toggleAxisArrow(current, side, context));
   const onCheck = () => act(recordCheck);
   // A game with off-screen features offers "Off screen" on every graph, so
   // the button being there never says anything about the graph on screen.
@@ -670,12 +675,13 @@ export default function GraphFeatureRushRound({
     ? feedbackMessage(feedback, feedbackQuestion)
     : '';
   const completed = session?.counts.completed ?? 0;
+  // The round's points: each item worth the taps its answer takes.
+  const points = session?.counts.points ?? 0;
   const transition = session?.transition || null;
   // A DOMAIN, A RANGE OR AN INEQUALITY: the set as drawn, its notation as it
   // is drawn, and — as the item moves on after the third miss — the answer.
   const setQuestion = isNumberLineQuestion(question);
   const inequalityItem = isInequalityQuestion(question);
-  const setTarget = setQuestion ? setTargetOf(question) : null;
   const studentDrawing = session?.drawing;
   const axisSet = useMemo(() => (setQuestion && !inequalityItem && studentDrawing ? axisSetDrawing(question, studentDrawing) : null), [setQuestion, inequalityItem, question, studentDrawing]);
   const revealing = setQuestion && transition?.kind === RUSH_FEEDBACK.AUTO_SKIPPED && transition.questionIndex === question?.questionIndex;
@@ -683,7 +689,11 @@ export default function GraphFeatureRushRound({
   // line as it is; on a graph, on its axis.
   const revealDrawing = useMemo(() => (revealing ? answerDrawing(question) : null), [revealing, question]);
   const revealSet = useMemo(() => (revealDrawing && !inequalityItem ? axisSetDrawing(question, revealDrawing) : null), [revealDrawing, inequalityItem, question]);
-  const vertical = setTarget?.axis === 'y';
+  const vertical = setAxisOf(question) === 'y';
+  // A set that can be empty offers its "none" button: an inequality's "No
+  // Solution", an interval's "Does Not Exist" (a line that only rises has no
+  // decreasing interval). On every such item, so it never gives anything away.
+  const setCanBeEmpty = setQuestion && (inequalityItem || getGraphFeature(question?.feature)?.canNotExist === true);
   const notation = setQuestion ? lineNotation(question, studentDrawing, { revealing }) : null;
   const queued = session?.queue.length || 0;
   const buttonsDisabled = !playing || input !== RUSH_INPUT.READY;
@@ -707,8 +717,9 @@ export default function GraphFeatureRushRound({
   else if (!question) overlay = <><strong>Loading…</strong><span>Getting your next {noun.one}.</span></>;
 
   let promptHint = 'Tap it on the graph. Not there? Choose Does Not Exist.';
-  if (inequalityItem) promptHint = 'Tap the number line: once for a closed dot, twice for open, three times to take it away. Arrows mean it keeps going. Nothing works? No Solution.';
-  else if (setQuestion) promptHint = `Tap to put a dot on the ${vertical ? 'y' : 'x'}-axis: once closed, twice open, three times to take it away. Arrows mean it keeps going.`;
+  if (inequalityItem) promptHint = 'Tap the number line: once for a closed dot, twice for open, three times to take it away. Tap an end arrow for "keeps going". Nothing works? No Solution.';
+  // Two lines on a phone: the tip a wrong tap gets says the rest.
+  else if (setQuestion) promptHint = `Tap the graph: an arrow for "keeps going", a point for its ${vertical ? 'y' : 'x'}-value — twice for an open dot.${setCanBeEmpty ? ' Nowhere? Does Not Exist.' : ''}`;
   else if (offScreenGame) promptHint = 'Tap it on the graph. Past the edge? Off Screen. Not there at all? Does Not Exist.';
 
   return (
@@ -717,7 +728,8 @@ export default function GraphFeatureRushRound({
       <header className="mm-rush-bar">
         {alias && <span className="mm-rush-chip">{alias}</span>}
         <span className="mm-rush-round">{practice ? 'Practice' : `Round ${roundIndex + 1} of ${roundCount}`}</span>
-        {/* Each completed item pops the count once (keyed to the count). */}
+        {/* The round's points, and items completed: each pops once as it goes up (keyed to it). */}
+        <span className="mm-rush-points"><span key={points} className={points > 0 ? 'mm-gp-bump' : undefined} aria-hidden="true">★ {points}</span><span style={SR_ONLY_STYLE}>{`${points} ${points === 1 ? 'point' : 'points'}`}</span></span>
         <span className="mm-rush-done"><span key={completed} className={completed > 0 ? 'mm-gp-bump' : undefined} aria-hidden="true">✓ {completed}</span><span style={SR_ONLY_STYLE}>{`${completed} ${noun.many} completed`}</span></span>
         {connection === 'retrying' && <span className="mm-rush-sync" role="status">Reconnecting… your taps are saved</span>}
         <RushClock startMono={timing.startMono} endMono={timing.endMono} />
@@ -748,7 +760,7 @@ export default function GraphFeatureRushRound({
                     height={frame.height}
                     paused={input === RUSH_INPUT.LOCKED || over}
                     onTap={onTap}
-                    label={`${question.prompt}. Tap the number line, or use the arrow keys and Enter.`}
+                    label={`${question.prompt}. Tap the number line, or its end arrows for "keeps going"; or use the arrow keys and Enter.`}
                   />
                 </div>
               ) : question && drawing && started && phase === 'ready' ? (
@@ -761,15 +773,18 @@ export default function GraphFeatureRushRound({
                     feedback={feedback}
                     paused={input === RUSH_INPUT.LOCKED || over}
                     onTap={onTap}
-                    label={`${question.prompt}. Tap the graph, or use the arrow keys and Enter.`}
+                    label={setQuestion
+                      ? `${question.prompt}. Tap the graph's arrows and points; or use Page Up and Page Down to step through them, and Enter.`
+                      : `${question.prompt}. Tap the graph, or use the arrow keys and Enter.`}
                     axisSet={axisSet}
                     revealSet={revealSet}
+                    picks={setQuestion ? session.arrowPicks : null}
                   />
                 </div>
               ) : <div style={{ width: frame.width, height: frame.height, borderRadius: 12, background: 'var(--mm-graph-bg)' }} />}
               {transition?.kind === RUSH_FEEDBACK.COMPLETE && <div key={transition.questionIndex} className="mm-rush-flash" aria-hidden="true" />}
-              {/* A gold +1 rises off a finished item, inside the flash's own time. */}
-              {transition?.kind === RUSH_FEEDBACK.COMPLETE && <span key={`plus-${transition.questionIndex}`} className="mm-gp-plus" aria-hidden="true">+1</span>}
+              {/* A gold +N rises off a finished item (its points), inside the flash's own time. */}
+              {transition?.kind === RUSH_FEEDBACK.COMPLETE && <span key={`plus-${transition.questionIndex}`} className="mm-gp-plus" aria-hidden="true">+{feedback?.kind === RUSH_FEEDBACK.COMPLETE && feedback.questionIndex === transition.questionIndex ? (feedback.points ?? 1) : 1}</span>}
               {overlay && <div className="mm-rush-overlay">{overlay}</div>}
               {/* Mounted once, at the start; faded out and hidden after (CSS). */}
               {started && sawCountdown && (
@@ -799,12 +814,15 @@ export default function GraphFeatureRushRound({
             </div>
           )}
           {setQuestion ? (
-            <div className="mm-rush-buttons" data-set="1" data-inequality={inequalityItem ? '1' : '0'}>
-              <button type="button" className="mm-rush-arrow" aria-pressed={studentDrawing?.left === true} disabled={buttonsDisabled} onClick={() => onArrow('left')} aria-label={vertical ? 'Keeps going down' : 'Keeps going left'}>{vertical ? '▼' : '◀'}</button>
-              <button type="button" className="mm-rush-arrow" aria-pressed={studentDrawing?.right === true} disabled={buttonsDisabled} onClick={() => onArrow('right')} aria-label={vertical ? 'Keeps going up' : 'Keeps going right'}>{vertical ? '▲' : '▶'}</button>
+            // "Keeps going" is tapped on the graph's own arrows (or the number
+            // line's): no arrow buttons here.
+            <div className="mm-rush-buttons" data-set="1" data-inequality={inequalityItem ? '1' : '0'} data-dne={setCanBeEmpty ? '1' : '0'}>
               <button type="button" className="mm-rush-check" disabled={buttonsDisabled || !drawingReady(session)} onClick={onCheck}>✓ Check</button>
               {inequalityItem && (
                 <button type="button" className="mm-rush-dne" disabled={buttonsDisabled} onClick={onDoesNotExist} aria-label="No solution: no number makes it true">No Solution</button>
+              )}
+              {setCanBeEmpty && !inequalityItem && (
+                <button type="button" className="mm-rush-dne" disabled={buttonsDisabled} onClick={onDoesNotExist}>Does Not Exist</button>
               )}
               <button type="button" className="mm-rush-skip" disabled={buttonsDisabled} onClick={onSkip}>Skip</button>
             </div>

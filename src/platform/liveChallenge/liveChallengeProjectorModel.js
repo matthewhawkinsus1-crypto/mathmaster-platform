@@ -120,15 +120,16 @@ export const belowPodiumRows = (leaderboard = []) => finalStandingRows(leaderboa
 export { PROJECTOR_MORE_NOTE, lastRankOf, projectorMoreText, publicStandingsRows } from '../../../functions/shared/liveChallengePrivacy.mjs';
 
 /**
- * The live race (rushStandingsModel.rushRaceRows: most graphs this round
- * first) with a place on each row: equal counts share one, so the rule above
+ * The live race (rushStandingsModel.rushRaceRows: most points this round
+ * first) with a place on each row: equal points share one, so the rule above
  * can tell who sits at the bottom. The order is the race board's own.
  */
+const racePoints = (row) => Number(row?.points ?? row?.completed) || 0;
 export const rushRaceRanked = (raceRows = []) => {
   const rows = (Array.isArray(raceRows) ? raceRows : []).filter(Boolean);
   return rows.map((row) => ({
     ...row,
-    rank: 1 + rows.filter((other) => Number(other.completed) > Number(row.completed)).length,
+    rank: 1 + rows.filter((other) => racePoints(other) > racePoints(row)).length,
   }));
 };
 

@@ -73,23 +73,26 @@ export function rushSettingsLine(room = {}) {
 }
 
 /**
- * Graphs completed this round, as bars. A player who has worked through
- * their whole round (a Graph the Line Classic or Sprint round; never a rush)
- * is marked done — in words as well as the mark.
+ * The round's race, as bars: each player's points this round (a rush item is
+ * worth the taps its answer takes), or — `points={false}`, a Graph the Line
+ * game, whose items are worth one each — what they have completed. A player
+ * who has worked through their whole round (a Graph the Line Classic or
+ * Sprint round; never a rush) is marked done — in words as well as the mark.
  */
-export function RushRaceBoard({ players = [], roundIndex = 0, limit = 10, look = 'console', label = 'Graphs completed this round' }) {
+export function RushRaceBoard({ players = [], roundIndex = 0, limit = 10, look = 'console', label = 'Points this round', points = true }) {
   const style = LOOKS[look] || LOOKS.console;
   const rows = rushRaceRows(players, roundIndex).slice(0, limit);
-  const top = Math.max(1, ...rows.map((row) => row.completed));
+  const valueOf = (row) => (points ? row.points : row.completed);
+  const top = Math.max(1, ...rows.map(valueOf));
   if (!rows.length) return <p style={{ margin: 0, color: style.muted }}>Players appear here as they join.</p>;
   return (
     <ol aria-label={label} style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 7, textAlign: 'left' }}>
       {rows.map((row) => (
         <li key={row.playerKey} data-mm-race-finished={row.finished ? '1' : undefined} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 4, padding: '7px 10px', borderRadius: 10, background: style.row, border: `1px solid ${style.rowBorder}`, color: style.text, fontSize: style.size }}>
           <span style={{ fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.alias}</span>
-          <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{row.finished && <span style={{ color: style.good, marginRight: 8 }}>✓ done</span>}{row.completed}</strong>
+          <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{row.finished && <span style={{ color: style.good, marginRight: 8 }}>✓ done</span>}{points ? `${row.points} pts` : row.completed}</strong>
           <span aria-hidden="true" style={{ gridColumn: '1 / -1', height: 6, borderRadius: 999, background: style.track, overflow: 'hidden' }}>
-            <span style={{ display: 'block', height: '100%', width: `${Math.round((row.completed / top) * 100)}%`, background: style.bar, transition: 'width 300ms ease' }} />
+            <span style={{ display: 'block', height: '100%', width: `${Math.round((valueOf(row) / top) * 100)}%`, background: style.bar, transition: 'width 300ms ease' }} />
           </span>
         </li>
       ))}
@@ -97,7 +100,7 @@ export function RushRaceBoard({ players = [], roundIndex = 0, limit = 10, look =
   );
 }
 
-/** A closed round: place, graphs, accuracy and the points the place earned. */
+/** A closed round: place, points, graphs, accuracy and the championship points the place earned. */
 export function RushRoundResultsBoard({ players = [], roundIndex = 0, scoringStrategyId = null, limit = 10, look = 'console', units = { one: 'graph', many: 'graphs' } }) {
   const style = LOOKS[look] || LOOKS.console;
   const unit = rushScoreUnit(scoringStrategyId);
@@ -109,7 +112,7 @@ export function RushRoundResultsBoard({ players = [], roundIndex = 0, scoringStr
         <li key={playerKey} style={{ display: 'grid', gridTemplateColumns: '48px minmax(0,1fr) auto auto', gap: 10, alignItems: 'center', padding: '8px 10px', borderRadius: 10, background: style.row, border: `1px solid ${style.rowBorder}`, color: style.text, fontSize: style.size }}>
           <strong style={{ textAlign: 'center' }}>{facts.rank != null ? ordinal(facts.rank) : '—'}</strong>
           <span style={{ fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{alias}</span>
-          <span style={{ color: style.muted, fontVariantNumeric: 'tabular-nums' }}>{facts.completed} {facts.completed === 1 ? units.one : units.many}{facts.accuracyPercent != null ? ` · ${facts.accuracyPercent}%` : ''}</span>
+          <span style={{ color: style.muted, fontVariantNumeric: 'tabular-nums' }}>{facts.points} pts · {facts.completed} {facts.completed === 1 ? units.one : units.many}{facts.accuracyPercent != null ? ` · ${facts.accuracyPercent}%` : ''}</span>
           <strong style={{ color: style.good, fontVariantNumeric: 'tabular-nums', minWidth: 36, textAlign: 'right' }}>{unit.placement ? (facts.matchPointsAwarded ? `+${facts.matchPointsAwarded}` : '0') : ''}</strong>
         </li>
       ))}

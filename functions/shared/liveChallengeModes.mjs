@@ -353,7 +353,7 @@ export const graphFeatureRushMode = defineChallengeMode({
   id: CHALLENGE_MODE_ID.GRAPH_FEATURE_RUSH,
   label: 'Graph Feature Rush',
   projectorLabel: 'Graph Feature Rush',
-  description: 'Every student gets their own graphs and races the clock to tap intercepts, vertices and extremes.',
+  description: 'Every student gets their own graphs and races the clock to find intercepts, vertices and extremes, and to mark domains, ranges and intervals.',
   roundStructure: ROUND_STRUCTURE.QUESTION_SET,
   questionsPerRound: GRAPH_FEATURE_RUSH_QUESTION_POOL,
   questionSource: QUESTION_SOURCE.GRAPH_FEATURE_GENERATOR,

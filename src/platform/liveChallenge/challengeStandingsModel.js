@@ -66,29 +66,38 @@ export const placeLabel = ({ rank, tied = false } = {}) => {
  *                     (Grand Prix): results show place and the points it
  *                     earned beside the raw performance
  */
-export const scorePresentation = ({ scoringStrategyId = null, questionSet = false } = {}) => {
+// A rush's items are worth the taps their answers take: its round, and a
+// Correct Count game's total, are counted in those points (`itemPoints`).
+const ITEM_POINTS = Object.freeze({ long: 'points', short: 'pts', one: 'point' });
+
+export const scorePresentation = ({ scoringStrategyId = null, questionSet = false, itemPoints = false } = {}) => {
   const strategy = getScoringStrategy(scoringStrategyId);
   const perRound = strategy.accumulation === SCORE_ACCUMULATION.PER_ROUND;
+  const weighted = questionSet && itemPoints === true;
   if (perRound) {
+    let round = Object.freeze({ long: 'round points', short: 'round pts', one: 'round point' });
+    if (weighted) round = ITEM_POINTS;
+    else if (questionSet) round = Object.freeze({ long: 'graphs completed', short: 'graphs', one: 'graph completed' });
     return Object.freeze({
       strategyId: strategy.id,
       placementPoints: true,
+      itemPoints: weighted,
       total: Object.freeze({ long: 'championship points', short: 'champ pts', one: 'championship point' }),
-      round: questionSet
-        ? Object.freeze({ long: 'graphs completed', short: 'graphs', one: 'graph completed' })
-        : Object.freeze({ long: 'round points', short: 'round pts', one: 'round point' }),
+      round,
     });
   }
   if (strategy.id === 'correctCount') {
+    const graphs = Object.freeze({ long: 'graphs completed', short: 'graphs', one: 'graph completed' });
+    let total = Object.freeze({ long: 'correct answers', short: 'correct', one: 'correct answer' });
+    let round = Object.freeze({ long: 'correct this round', short: 'correct', one: 'correct this round' });
+    if (weighted) [total, round] = [ITEM_POINTS, ITEM_POINTS];
+    else if (questionSet) [total, round] = [graphs, graphs];
     return Object.freeze({
       strategyId: strategy.id,
       placementPoints: false,
-      total: questionSet
-        ? Object.freeze({ long: 'graphs completed', short: 'graphs', one: 'graph completed' })
-        : Object.freeze({ long: 'correct answers', short: 'correct', one: 'correct answer' }),
-      round: questionSet
-        ? Object.freeze({ long: 'graphs completed', short: 'graphs', one: 'graph completed' })
-        : Object.freeze({ long: 'correct this round', short: 'correct', one: 'correct this round' }),
+      itemPoints: weighted,
+      total,
+      round,
     });
   }
   return Object.freeze({

@@ -15,15 +15,15 @@
  */
 
 export const GRAPH_FAMILY_CATALOG = Object.freeze([
-  { id: 'linear', label: 'Linear', existsFrom: { xIntercept: 'easy', yIntercept: 'easy', vertex: null, maximum: null, minimum: null, asymptote: null, domain: 'easy', range: 'easy' } },
-  { id: 'quadratic', label: 'Quadratic', existsFrom: { xIntercept: 'standard', yIntercept: 'easy', vertex: 'easy', maximum: 'easy', minimum: 'easy', asymptote: null, domain: 'easy', range: 'easy' } },
-  { id: 'absolute', label: 'Absolute value', existsFrom: { xIntercept: 'standard', yIntercept: 'easy', vertex: 'easy', maximum: 'easy', minimum: 'easy', asymptote: null, domain: 'easy', range: 'easy' } },
-  { id: 'cubic', label: 'Cubic', existsFrom: { xIntercept: 'standard', yIntercept: 'easy', vertex: null, maximum: null, minimum: null, asymptote: null, domain: 'standard', range: 'standard' } },
-  { id: 'exponential', label: 'Exponential', existsFrom: { xIntercept: 'standard', yIntercept: 'easy', vertex: null, maximum: null, minimum: null, asymptote: 'easy', domain: 'standard', range: 'standard' } },
-  { id: 'squareRoot', label: 'Square root', existsFrom: { xIntercept: 'easy', yIntercept: 'easy', vertex: null, maximum: 'standard', minimum: 'easy', asymptote: null, domain: 'easy', range: 'easy' } },
-  { id: 'cubeRoot', label: 'Cube root', existsFrom: { xIntercept: 'standard', yIntercept: 'standard', vertex: null, maximum: null, minimum: null, asymptote: null, domain: 'standard', range: 'standard' } },
-  { id: 'rational', label: 'Rational', existsFrom: { xIntercept: 'standard', yIntercept: 'standard', vertex: null, maximum: null, minimum: null, asymptote: 'standard', domain: 'standard', range: 'standard' } },
-  { id: 'piecewise', label: 'Piecewise', existsFrom: { xIntercept: 'standard', yIntercept: 'standard', vertex: null, maximum: 'challenge', minimum: 'challenge', asymptote: null, domain: 'standard', range: 'challenge' } },
+  { id: 'linear', label: 'Linear', existsFrom: { xIntercept: 'easy', yIntercept: 'easy', vertex: null, maximum: null, minimum: null, asymptote: null, domain: 'easy', range: 'easy', increasing: 'easy', decreasing: 'easy', constant: 'standard', positive: 'easy', negative: 'easy' } },
+  { id: 'quadratic', label: 'Quadratic', existsFrom: { xIntercept: 'standard', yIntercept: 'easy', vertex: 'easy', maximum: 'easy', minimum: 'easy', asymptote: null, domain: 'easy', range: 'easy', increasing: 'easy', decreasing: 'easy', constant: null, positive: 'easy', negative: 'easy' } },
+  { id: 'absolute', label: 'Absolute value', existsFrom: { xIntercept: 'standard', yIntercept: 'easy', vertex: 'easy', maximum: 'easy', minimum: 'easy', asymptote: null, domain: 'easy', range: 'easy', increasing: 'easy', decreasing: 'easy', constant: null, positive: 'easy', negative: 'easy' } },
+  { id: 'cubic', label: 'Cubic', existsFrom: { xIntercept: 'standard', yIntercept: 'easy', vertex: null, maximum: null, minimum: null, asymptote: null, domain: 'standard', range: 'standard', increasing: 'standard', decreasing: 'standard', constant: null, positive: 'standard', negative: 'standard' } },
+  { id: 'exponential', label: 'Exponential', existsFrom: { xIntercept: 'standard', yIntercept: 'easy', vertex: null, maximum: null, minimum: null, asymptote: 'easy', domain: 'standard', range: 'standard', increasing: 'easy', decreasing: 'easy', constant: null, positive: 'standard', negative: 'standard' } },
+  { id: 'squareRoot', label: 'Square root', existsFrom: { xIntercept: 'easy', yIntercept: 'easy', vertex: null, maximum: 'standard', minimum: 'easy', asymptote: null, domain: 'easy', range: 'easy', increasing: 'easy', decreasing: 'standard', constant: null, positive: 'easy', negative: 'easy' } },
+  { id: 'cubeRoot', label: 'Cube root', existsFrom: { xIntercept: 'standard', yIntercept: 'standard', vertex: null, maximum: null, minimum: null, asymptote: null, domain: 'standard', range: 'standard', increasing: 'standard', decreasing: 'standard', constant: null, positive: 'standard', negative: 'standard' } },
+  { id: 'rational', label: 'Rational', existsFrom: { xIntercept: 'standard', yIntercept: 'standard', vertex: null, maximum: null, minimum: null, asymptote: 'standard', domain: 'standard', range: 'standard', increasing: 'standard', decreasing: 'standard', constant: null, positive: 'standard', negative: 'standard' } },
+  { id: 'piecewise', label: 'Piecewise', existsFrom: { xIntercept: 'standard', yIntercept: 'standard', vertex: null, maximum: 'challenge', minimum: 'challenge', asymptote: null, domain: 'standard', range: 'challenge', increasing: 'standard', decreasing: 'standard', constant: 'standard', positive: 'standard', negative: 'standard' } },
 ].map((entry) => Object.freeze({ ...entry, existsFrom: Object.freeze({ ...entry.existsFrom }) })));
 
 export const GRAPH_FAMILY_CATALOG_IDS = Object.freeze(GRAPH_FAMILY_CATALOG.map((entry) => entry.id));

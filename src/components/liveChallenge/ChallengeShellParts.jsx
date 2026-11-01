@@ -286,7 +286,9 @@ export const roundPerformanceText = (row, presentation) => {
   if (!row?.participated) return 'no answer';
   if (row.completed !== null && row.completed !== undefined) {
     const graphs = `${row.completed} graph${row.completed === 1 ? '' : 's'}`;
-    return row.accuracyPercent === null ? graphs : `${graphs} · ${row.accuracyPercent}%`;
+    // A rush ranks its round by points (each item the taps its answer takes).
+    const work = presentation?.itemPoints ? `${formatPoints(row.roundPoints)} pts · ${graphs}` : graphs;
+    return row.accuracyPercent === null ? work : `${work} · ${row.accuracyPercent}%`;
   }
   if (presentation?.strategyId === 'correctCount') return row.roundPoints > 0 ? 'correct' : 'not correct';
   return `${formatPoints(row.roundPoints)} pts`;

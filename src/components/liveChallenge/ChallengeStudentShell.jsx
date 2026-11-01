@@ -166,6 +166,8 @@ export function StudentRoundResultsCard({ view, presentation, guidance, rushRoun
         <div style={{ marginTop: 10, fontSize: 'clamp(calc(22 * var(--mm-px)), calc(6vw * var(--mm-text-scale, 1)), calc(30 * var(--mm-px)))', fontWeight: 1000, fontStyle: 'italic', color: '#fff' }}>{headline}</div>
         {self && (participated || ownItems) && (
           <div style={{ marginTop: 16, display: 'flex', justifyContent: 'center', gap: 26, flexWrap: 'wrap' }}>
+            {/* A rush ranks the round by points: each item the taps its answer takes. */}
+            {rushRound && <Stat value={self.roundPoints ?? 0} label={self.roundPoints === 1 ? 'point' : 'points'} />}
             {ownItems || self.completed !== null
               ? <Stat value={completed} label={`${completed === 1 ? units.one : units.many} completed`} />
               : <Stat value={presentation.strategyId === 'correctCount' ? (self.roundPoints > 0 ? '✓' : '✗') : `+${self.roundPoints.toLocaleString()}`} label={presentation.strategyId === 'correctCount' ? (self.roundPoints > 0 ? 'correct' : 'not correct') : 'points this round'} />}

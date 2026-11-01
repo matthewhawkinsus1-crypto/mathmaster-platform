@@ -13009,6 +13009,8 @@ function applyLiveChallengeRoundPlayerTotals(transaction, {
             rank: standing.participated ? standing.rank : null,
             fieldSize: roundResult.fieldSize,
             completed: Number(publicRow.completed) || 0,
+            // The round's points (a rush item worth the taps its answer takes).
+            points: Number(publicRow.roundPoints) || 0,
             accuracyPercent: publicRow.accuracyPercent ?? null,
             workScore: Number(standing.metrics?.workScore) || 0,
             matchPointsAwarded: standing.matchPointsAwarded,
@@ -15552,6 +15554,8 @@ exports.submitGraphFeatureRushAttempts = onCall(async (request) => {
         matchAccuracy: totals.matchAccuracy,
         rushRound: roundIndex,
         rushRoundCompleted: applied.state.questionsCorrect,
+        // The round's points: each item worth the taps its answer takes.
+        rushRoundPoints: Math.round((Number(applied.state.scoreTotal) || 0) * 1000) / 1000,
         rushActiveAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       }, { merge: true });

@@ -404,6 +404,76 @@ export const curveRuns = (graph = {}, view = {}) => {
   });
 };
 
+/*
+ * WHERE EACH ARROW GOES. For every exit of curveRuns — where the screen draws
+ * an arrow — which way x and y head as the curve goes on past the edge:
+ *
+ *   heads.x   −1 / +1 when x runs off to −∞ / +∞ (the piece is unbounded
+ *             that way); 0 when x stays bounded (the curve runs up or down
+ *             beside a vertical asymptote)
+ *   heads.y   −1 / +1 when y runs off to −∞ / +∞; 0 when it levels off
+ *             (toward a horizontal asymptote) or stays put (a level line)
+ *
+ * Tapping an arrow is how a student says "keeps going" in a domain, a range
+ * or an interval: along x on the x-axis, along y on the y-axis. An arrow that
+ * heads nowhere along the axis asked about (the flat end of an exponential,
+ * in a range) says nothing there. `id` names the end: `${segment}:${side}`,
+ * side 'from' (the left end of the stretch) or 'to'.
+ *
+ * Far along an unbounded piece the curve is sampled at |x| = 10⁸ and 10⁹:
+ * every family here either grows past any bound by then (even ∛x reaches
+ * 1000) or has settled to its asymptote to the last digit.
+ */
+const FAR_X = Object.freeze([1e8, 1e9]);
+// The piece itself, unclipped: whether it goes on forever each way.
+const UNBOUNDED_REACH = 1e12;
+
+const farHeading = (graph, sign) => {
+  const [near, far] = FAR_X.map((x) => evaluateGraph(graph, sign * x));
+  if (!Number.isFinite(far) || !Number.isFinite(near)) {
+    // Past every float (an exponential's growth): heading that way.
+    const value = Number.isFinite(far) ? near : far;
+    return Number.isNaN(value) ? 0 : Math.sign(value);
+  }
+  const change = far - near;
+  return Math.abs(change) <= 1e-6 * Math.max(1, Math.abs(near)) ? 0 : Math.sign(change);
+};
+
+export const curveEnds = (graph = {}, view = {}) => {
+  const box = {
+    xMin: finite(view.xMin, -10), xMax: finite(view.xMax, 10), yMin: finite(view.yMin, -10), yMax: finite(view.yMax, 10),
+  };
+  const shown = curveSegments(graph, box);
+  const whole = curveSegments(graph, { xMin: -UNBOUNDED_REACH, xMax: UNBOUNDED_REACH });
+  // The whole piece a shown segment belongs to: the one holding its middle.
+  const pieceOf = (segment) => {
+    const middle = (segment.from + segment.to) / 2;
+    return whole.find((piece) => piece.from <= middle && middle <= piece.to) || segment;
+  };
+  return curveRuns(graph, box).flatMap((entry) => {
+    const piece = pieceOf(shown[entry.segment]);
+    return entry.runs.flatMap((run) => ['from', 'to'].map((side) => {
+      const end = run[side];
+      if (end.kind !== 'exit') return null;
+      const direction = side === 'from' ? -1 : 1;
+      const unbounded = direction < 0 ? piece.from <= -UNBOUNDED_REACH * 0.99 : piece.to >= UNBOUNDED_REACH * 0.99;
+      let headsY = 0;
+      if (unbounded) headsY = farHeading(graph, direction);
+      else if (end.edge === 'top') headsY = 1;
+      else if (end.edge === 'bottom') headsY = -1;
+      return Object.freeze({
+        id: `${entry.segment}:${side}`,
+        segment: entry.segment,
+        side,
+        edge: end.edge,
+        x: end.x,
+        y: end.y,
+        heads: Object.freeze({ x: unbounded ? direction : 0, y: headsY }),
+      });
+    })).filter(Boolean);
+  });
+};
+
 /** The y-values a segment reaches inside the view, for visibility checks. */
 export const visibleCurveFraction = (graph = {}, view = {}, samples = 200) => {
   const xMin = finite(view.xMin, -10);

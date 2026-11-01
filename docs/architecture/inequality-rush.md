@@ -115,10 +115,17 @@ limits and scoring.
   anywhere on the line's panel counts, above or below it. The keyboard moves a
   cursor along the ticks (← →, Shift for five, Home/End) and Enter taps; a
   screen reader hears the number and the dot on it.
-- **◀ ▶** mean "keeps going". Two dots shade between them; two dots and both
-  arrows shade outside; both arrows alone are every number; an open dot and
-  both arrows, every number but one.
-- The notation updates live in both forms: `x ≥ −3 · [−3, ∞)`.
+- **The line's own end arrows** mean "keeps going": a tap past the outermost
+  tick by more than half a tick's spacing lands on the arrow there and turns
+  it on or off (`numberLineModel.lineEndAtPixel`); the keyboard steps one
+  past −10 or 10 onto it. There is no separate arrow button. Two dots shade
+  between them; two dots and both arrows shade outside; both arrows alone are
+  every number; an open dot and both arrows, every number but one.
+- The notation updates live in both forms, inequality first:
+  `x ≥ −3 · [−3, ∞)` — Algebra I students see both as they build.
+- An item is worth the taps its answer takes — a ● 1, a ○ 2, an arrow 1,
+  ✓ Check 1; "No Solution" is one press — and a correct answer earns them all
+  (Graph Feature Rush's "a point a correct tap", `rushQuestionWeight`).
 - **✓ Check** is the attempt, offered once the drawing names a set, graded by
   set equality. **No Solution** is the other attempt.
 - **Wrong** gets a hint (`inequalityHint`), in this order:
@@ -177,9 +184,8 @@ objects — Firestore refuses an array directly inside an array — and its
 
 - **Student:** the rush's round screen (`GraphFeatureRushRound.jsx`). For an
   inequality item it draws `InequalityNumberLine` — the area's width, centred
-  — and offers ◀ ▶, ✓ Check, **No Solution** and Skip (on a laptop, No
-  Solution and Skip share a row, so the side panel holds three rows of
-  buttons, as a domain's does). The prompt keeps its inequality on one line;
+  — and offers ✓ Check, **No Solution** and Skip (the arrows are the line's
+  own; on a laptop the buttons stack in the side panel, as a domain's do). The prompt keeps its inequality on one line;
   its words come from `rushGameWords` ("inequalities", not "graphs").
 - **Teacher:** "Inequality Graphing Rush" in the game type list; its setup
   panel (presets, the seven kinds, difficulty, rounds, time, scoring); "Try

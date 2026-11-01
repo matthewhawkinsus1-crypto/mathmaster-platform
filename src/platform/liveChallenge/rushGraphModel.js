@@ -21,15 +21,18 @@
  * graph; open: it is not). The arrows come from the same analysis the
  * generator issued the graph by (curveRuns), which only issues a graph whose
  * curve leaves the screen at its ends: an arrow always means "keeps going".
+ * Each arrow knows which way x and y head past the edge (curveEnds), so a
+ * tap on it can say "to −∞" or "to +∞" in a domain, a range or an interval
+ * (setTapAt).
  *
  * An asymptote question hides the dashed asymptote lines (they are the
  * answer); each one is drawn, labelled "x = 2", once it is found.
  */
 
-import { curveRuns, evaluateGraph, graphAsymptotes, graphMarkers, sampleGraph } from '../../../functions/shared/graphFeatureCurves.mjs';
+import { curveEnds, evaluateGraph, graphAsymptotes, graphMarkers, sampleGraph } from '../../../functions/shared/graphFeatureCurves.mjs';
 import { POINTER_KIND, clampTolerance, targetDistance, toleranceForPointer } from '../../../functions/shared/graphFeatureHitTest.mjs';
 import { GRAPH_FEATURE } from '../../../functions/shared/graphFeatureRegistry.mjs';
-import { drawingSet } from '../../../functions/shared/numberLineSets.mjs';
+import { drawingSet, onDrawingGrid } from '../../../functions/shared/numberLineSets.mjs';
 
 const finite = (value, fallback = 0) => {
   const numeric = Number(value);
@@ -144,7 +147,9 @@ const ARROW_REACH = 0.03;
 /**
  * An arrowhead wherever the curve leaves the plot: its tip on the edge, at
  * (u, v), pointing the way the curve goes out, (dx, dy) — a unit vector in
- * unit space, which is square, so it is the direction on the screen too.
+ * unit space, which is square, so it is the direction on the screen too —
+ * with the end's `id` and where x and y head past the edge (`heads`,
+ * graphFeatureCurves.curveEnds).
  */
 export const curveArrows = (graph, view = {}) => {
   const span = viewSpan(view);
@@ -161,12 +166,9 @@ export const curveArrows = (graph, view = {}) => {
     if (!back) return null;
     const length = Math.hypot(tip.u - back.u, tip.v - back.v);
     if (!(length > 0)) return null;
-    return Object.freeze({ ...tip, dx: (tip.u - back.u) / length, dy: (tip.v - back.v) / length, edge: end.edge });
+    return Object.freeze({ ...tip, dx: (tip.u - back.u) / length, dy: (tip.v - back.v) / length, edge: end.edge, id: end.id, heads: end.heads });
   };
-  return curveRuns(graph, view).flatMap((segment) => segment.runs.flatMap((run) => [
-    run.from.kind === 'exit' ? arrow(run.from, -1) : null,
-    run.to.kind === 'exit' ? arrow(run.to, 1) : null,
-  ])).filter(Boolean);
+  return curveEnds(graph, view).map((end) => arrow(end, end.side === 'from' ? -1 : 1)).filter(Boolean);
 };
 
 /*
@@ -187,10 +189,10 @@ export const foundMarkTargets = (question, found = []) => (question?.targets || 
   .filter((target) => target?.geometry !== 'set' && found.includes(target.id));
 
 export const axisSetDrawing = (question, drawing) => {
-  const target = (question?.targets || []).find((entry) => entry?.geometry === 'set');
-  if (!target || !question?.view || !drawing) return null;
+  const axis = setAxisOf(question);
+  if (!axis || !question?.view || !drawing) return null;
   const { view } = question;
-  const vertical = target.axis === 'y';
+  const vertical = axis === 'y';
   const grid = gridLines(view);
   const along = (value) => (vertical ? unitY(view, value) : unitX(view, value));
   const lowEdge = vertical ? 1 : 0;
@@ -213,11 +215,18 @@ export const axisSetDrawing = (question, drawing) => {
 /** Whether a question asks for its asymptotes (so they are not drawn). */
 export const hidesAsymptotes = (question) => question?.feature === GRAPH_FEATURE.ASYMPTOTE;
 
+// One drawing per question: the screen draws it, and a tap on a set question
+// reads its arrows from it, without sampling the curve again (a question
+// never changes once dealt).
+const DRAWINGS = new WeakMap();
+
 /** Everything a question draws, computed once per question. */
 export const graphDrawing = (question) => {
   if (!question?.graph || !question?.view) return null;
+  const cached = DRAWINGS.get(question);
+  if (cached) return cached;
   const { graph, view } = question;
-  return Object.freeze({
+  const drawing = Object.freeze({
     paths: Object.freeze(curvePaths(graph, view)),
     grid: gridLines(view),
     // An asymptote question's asymptotes are its answer: not drawn until found.
@@ -225,6 +234,8 @@ export const graphDrawing = (question) => {
     dots: Object.freeze(endpointDots(graph, view)),
     arrows: Object.freeze(curveArrows(graph, view)),
   });
+  DRAWINGS.set(question, drawing);
+  return drawing;
 };
 
 /** A line target (an asymptote) in unit space: where it crosses the plot. */
@@ -276,6 +287,157 @@ export const nearOpenDot = ({ question, x, y, tolerance }) => {
   const limits = clampTolerance(tolerance, question.view);
   return graphMarkers(question.graph, question.view)
     .some((marker) => marker.closed !== true && targetDistance(marker, { x: Number(x), y: Number(y) }, limits) <= 1);
+};
+
+/*
+ * A TAP ON THE GRAPH WHILE A SET IS DRAWN — a domain, a range or an interval.
+ * Every end of a graph is an arrow or a dot, so the student marks a set on
+ * the graph itself, and the tap lands on the nearest thing it can mean
+ * within the pointer's reach (the hit test's ellipse, as for a feature):
+ *
+ *   an arrow        "keeps going": −∞ or +∞ along the question's axis, when
+ *                   that end really runs off that way (curveEnds). Tapped
+ *                   again, it is taken back.
+ *   a point         a number — where the graph starts, stops, turns or crosses
+ *                   (the question's landmarks): its x on the x-axis, its y on
+ *                   the y-axis, dropped as a dot, cycled ● → ○ → gone
+ *   an asymptote    a number the graph never reaches: x = h on the x-axis,
+ *                   y = k on the y-axis
+ *
+ * What a tap cannot mean is said, never counted (SET_TAP_TIP): an arrow that
+ * heads nowhere along this axis, an asymptote across it, nothing in reach.
+ * The device alone does this: the drawing it builds is what ✓ Check sends,
+ * and the server grades that set.
+ */
+export const SET_TAP_TIP = Object.freeze({
+  // An arrow that does not run off along this axis (levels off, or runs beside an asymptote).
+  GOES_NOWHERE: 'goesNowhere',
+  // An asymptote that marks the other axis (x = 2 on a range).
+  OTHER_AXIS: 'otherAxis',
+  NOTHING: 'nothing',
+});
+
+/** The axis a set question is drawn on: 'x' or 'y' (null for a tap question). */
+export const setAxisOf = (question) => {
+  const target = (question?.targets || []).find((entry) => entry?.geometry === 'set');
+  if (target) return target.axis === 'y' ? 'y' : 'x';
+  return question?.setAxis === 'y' || question?.setAxis === 'x' ? question.setAxis : null;
+};
+
+/**
+ * The points a set question's taps can land on: the landmarks the server
+ * sent (where the graph starts, stops, turns and crosses, each with whether
+ * it is on the graph), or — for a question from before them — the endpoint
+ * dots alone. Inside the view, and only where a dot can go: on the half-unit
+ * grid along the set's axis (the generator issues no others).
+ */
+export const setLandmarks = (question) => {
+  const view = question?.view || {};
+  const axis = setAxisOf(question) || 'x';
+  const inView = (point) => point.x >= view.xMin && point.x <= view.xMax && point.y >= view.yMin && point.y <= view.yMax;
+  const sent = Array.isArray(question?.landmarks) ? question.landmarks : null;
+  const points = sent || (question?.graph ? graphMarkers(question.graph, view) : []);
+  return points
+    .map((point) => ({ x: finite(point.x, Number.NaN), y: finite(point.y, Number.NaN), closed: point.closed !== false }))
+    .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y) && inView(point) && onDrawingGrid(point[axis]));
+};
+
+/** What a tap at (x, y) means on a set question (see above). */
+export const setTapAt = ({ question, drawing, x, y, tolerance }) => {
+  const axis = setAxisOf(question);
+  if (!axis || !question?.view) return null;
+  const view = question.view;
+  const limits = clampTolerance(tolerance, view);
+  const tap = { x: Number(x), y: Number(y) };
+  const candidates = [];
+  setLandmarks(question).forEach((point) => {
+    candidates.push({ distance: targetDistance(point, tap, limits), hit: Object.freeze({ kind: 'value', value: axis === 'y' ? point.y : point.x, point }) });
+  });
+  (drawing?.arrows || []).forEach((arrow) => {
+    const tip = graphPointAt(view, arrow.u, arrow.v);
+    const heading = arrow.heads ? arrow.heads[axis] : 0;
+    candidates.push({
+      distance: targetDistance(tip, tap, limits),
+      hit: heading
+        ? Object.freeze({ kind: 'arrow', id: arrow.id, side: heading < 0 ? 'left' : 'right' })
+        : Object.freeze({ kind: 'tip', tip: SET_TAP_TIP.GOES_NOWHERE }),
+    });
+  });
+  if (question.graph && !hidesAsymptotes(question)) {
+    const { vertical, horizontal } = graphAsymptotes(question.graph);
+    vertical.filter((value) => value > view.xMin && value < view.xMax).forEach((value) => {
+      candidates.push({
+        distance: Math.abs(tap.x - value) / limits.x,
+        hit: axis === 'x' ? Object.freeze({ kind: 'value', value, asymptote: 'vertical' }) : Object.freeze({ kind: 'tip', tip: SET_TAP_TIP.OTHER_AXIS, line: `x = ${formatCoordinate(value)}` }),
+      });
+    });
+    horizontal.filter((value) => value > view.yMin && value < view.yMax).forEach((value) => {
+      candidates.push({
+        distance: Math.abs(tap.y - value) / limits.y,
+        hit: axis === 'y' ? Object.freeze({ kind: 'value', value, asymptote: 'horizontal' }) : Object.freeze({ kind: 'tip', tip: SET_TAP_TIP.OTHER_AXIS, line: `y = ${formatCoordinate(value)}` }),
+      });
+    });
+  }
+  const reach = candidates.filter((entry) => entry.distance <= 1).sort((left, right) => left.distance - right.distance);
+  // Something that means a number or an infinity wins over what does not,
+  // anywhere within reach: an asymptote beside a branch's arrow is the tap.
+  const meaningful = reach.find((entry) => entry.hit.kind !== 'tip');
+  if (meaningful) return meaningful.hit;
+  return reach[0]?.hit || Object.freeze({ kind: 'tip', tip: SET_TAP_TIP.NOTHING });
+};
+
+/**
+ * Everything a keyboard can stop on in a set question, left to right: the
+ * landmarks, the arrow tips and each asymptote (at its middle), so Page Up /
+ * Page Down step through them and Enter taps there (setStopAfter).
+ */
+export const setStops = (question, drawing) => {
+  if (!setAxisOf(question) || !question?.view) return [];
+  const view = question.view;
+  const stops = [
+    ...setLandmarks(question).map((point) => ({ x: point.x, y: point.y })),
+    ...(drawing?.arrows || []).map((arrow) => graphPointAt(view, arrow.u, arrow.v)),
+  ];
+  if (question.graph && !hidesAsymptotes(question)) {
+    const { vertical, horizontal } = graphAsymptotes(question.graph);
+    vertical.filter((value) => value > view.xMin && value < view.xMax).forEach((value) => stops.push({ x: value, y: (finite(view.yMin) + finite(view.yMax)) / 2 }));
+    horizontal.filter((value) => value > view.yMin && value < view.yMax).forEach((value) => stops.push({ x: (finite(view.xMin) + finite(view.xMax)) / 2, y: value }));
+  }
+  return stops.sort((left, right) => left.x - right.x || right.y - left.y);
+};
+
+/**
+ * What a screen reader hears at a keyboard stop on a set question: what is
+ * there — an arrow at an edge, a point on the graph (or an open dot), an
+ * asymptote — never what it means for the answer.
+ */
+export const describeSetStop = (question, drawing, cursor) => {
+  const view = question?.view || {};
+  const near = (a, b) => Math.abs(a - b) < 1e-6;
+  const arrow = (drawing?.arrows || []).find((entry) => {
+    const tip = graphPointAt(view, entry.u, entry.v);
+    return near(tip.x, cursor.x) && near(tip.y, cursor.y);
+  });
+  if (arrow) return `Arrow at the ${arrow.edge} edge, at ${formatPoint(graphPointAt(view, arrow.u, arrow.v))}.`;
+  const point = setLandmarks(question).find((entry) => near(entry.x, cursor.x) && near(entry.y, cursor.y));
+  if (point) return point.closed ? `Point ${formatPoint(point)}, on the graph.` : `Open dot at ${formatPoint(point)}: not on the graph.`;
+  if (question?.graph) {
+    const { vertical, horizontal } = graphAsymptotes(question.graph);
+    if (vertical.some((value) => near(value, cursor.x))) return `Asymptote x = ${formatCoordinate(cursor.x)}.`;
+    if (horizontal.some((value) => near(value, cursor.y))) return `Asymptote y = ${formatCoordinate(cursor.y)}.`;
+  }
+  return describeCursor(question, cursor);
+};
+
+/** The stop after (direction 1) or before (−1) the cursor; wraps round. */
+export const setStopAfter = (stops, cursor, direction = 1) => {
+  if (!stops.length) return null;
+  const at = stops.findIndex((stop) => Math.abs(stop.x - cursor.x) < 1e-9 && Math.abs(stop.y - cursor.y) < 1e-9);
+  if (at >= 0) return stops[(at + direction + stops.length) % stops.length];
+  const ahead = direction > 0
+    ? stops.find((stop) => stop.x > cursor.x || (stop.x === cursor.x && stop.y < cursor.y))
+    : [...stops].reverse().find((stop) => stop.x < cursor.x || (stop.x === cursor.x && stop.y > cursor.y));
+  return ahead || stops[direction > 0 ? 0 : stops.length - 1];
 };
 
 /* ------------------------------ numbers shown ----------------------------- */

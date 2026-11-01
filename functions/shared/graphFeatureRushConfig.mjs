@@ -67,10 +67,10 @@ export const RUSH_ROUND_LIMITS = Object.freeze({
 
 /*
  * The presets are starting points, and they keep the features they had when
- * the registry held five: a feature added since (asymptotes, domain, range) is
- * the teacher's to choose, never slipped into a preset a class already plays.
- * Domains and ranges have presets of their own. None turns off-screen
- * features on.
+ * the registry held five: a feature added since (asymptotes, domain, range,
+ * the intervals) is the teacher's to choose, never slipped into a preset a
+ * class already plays. Domains and ranges have presets of their own, and so
+ * do the intervals. None turns off-screen features on.
  */
 export const GRAPH_FEATURE_RUSH_PRESETS = Object.freeze([
   Object.freeze({
@@ -147,6 +147,33 @@ export const GRAPH_FEATURE_RUSH_PRESETS = Object.freeze([
     families: Object.freeze(['linear', 'quadratic', 'absolute', 'squareRoot', 'exponential']),
     features: Object.freeze([GRAPH_FEATURE.X_INTERCEPT, GRAPH_FEATURE.Y_INTERCEPT, GRAPH_FEATURE.DOMAIN, GRAPH_FEATURE.RANGE]),
     difficulty: RUSH_DIFFICULTY.STANDARD,
+  }),
+  // Where a graph rises, falls or stays level, and where it is above or below
+  // the x-axis: sets of x, marked on the graph like a domain.
+  Object.freeze({
+    id: 'intervals',
+    label: 'Intervals Rush',
+    course: null,
+    description: 'Mark where each graph increases, decreases or stays constant, and where it is positive or negative.',
+    roundCount: 3,
+    roundSeconds: 90,
+    scoringStrategyId: 'grandPrix',
+    families: Object.freeze(['linear', 'quadratic', 'absolute', 'exponential', 'piecewise']),
+    features: Object.freeze([GRAPH_FEATURE.INCREASING, GRAPH_FEATURE.DECREASING, GRAPH_FEATURE.CONSTANT, GRAPH_FEATURE.POSITIVE, GRAPH_FEATURE.NEGATIVE]),
+    difficulty: RUSH_DIFFICULTY.STANDARD,
+  }),
+  // The Algebra I start: whole numbers, every interval there to find.
+  Object.freeze({
+    id: 'algebra1Intervals',
+    label: 'Algebra I Intervals',
+    course: 'algebra1',
+    description: 'Lines, parabolas, absolute value and exponentials: where each rises or falls, and where it is above or below the x-axis.',
+    roundCount: 3,
+    roundSeconds: 90,
+    scoringStrategyId: 'grandPrix',
+    families: Object.freeze(['linear', 'quadratic', 'absolute', 'exponential']),
+    features: Object.freeze([GRAPH_FEATURE.INCREASING, GRAPH_FEATURE.DECREASING, GRAPH_FEATURE.POSITIVE, GRAPH_FEATURE.NEGATIVE]),
+    difficulty: RUSH_DIFFICULTY.EASY,
   }),
   Object.freeze({
     id: 'algebra2Challenge',

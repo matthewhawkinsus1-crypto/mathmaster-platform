@@ -50,6 +50,11 @@ export const GRAPH_FEATURE = Object.freeze({
   ASYMPTOTE: 'asymptote',
   DOMAIN: 'domain',
   RANGE: 'range',
+  INCREASING: 'increasing',
+  DECREASING: 'decreasing',
+  CONSTANT: 'constant',
+  POSITIVE: 'positive',
+  NEGATIVE: 'negative',
 });
 
 // The features every game had before asymptotes: what the existing presets
@@ -70,8 +75,21 @@ export const TARGET_GEOMETRY = Object.freeze({
   SET: 'set',
 });
 
-// The features whose answer is a set drawn on an axis, and the axis.
-export const SET_FEATURE_AXIS = Object.freeze({ domain: 'x', range: 'y' });
+// The features whose answer is a set drawn on an axis, and the axis: a
+// range on the y-axis, everything else — a domain, and where a graph rises,
+// falls, stays level, or is above or below the x-axis — on the x-axis.
+export const SET_FEATURE_AXIS = Object.freeze({
+  domain: 'x',
+  range: 'y',
+  increasing: 'x',
+  decreasing: 'x',
+  constant: 'x',
+  positive: 'x',
+  negative: 'x',
+});
+// The interval features: sets of x that can be empty ("Does Not Exist").
+export const INTERVAL_FEATURE_IDS = Object.freeze(['increasing', 'decreasing', 'constant', 'positive', 'negative']);
+export const isIntervalFeature = (id) => INTERVAL_FEATURE_IDS.includes(String(id || ''));
 export const isSetFeature = (id) => Object.prototype.hasOwnProperty.call(SET_FEATURE_AXIS, String(id || ''));
 
 // The difficulty tiers a generated question can belong to, easiest first.
@@ -235,11 +253,11 @@ registerGraphFeature({
 });
 
 /*
- * DOMAIN AND RANGE are answered on an axis, not by a tap on a feature: every
- * tap drops a dot onto the x-axis (domain) or the y-axis (range) at the
- * nearest grid line — once for a closed dot, twice for open, a third time to
- * take it away — the arrows say "keeps going", and ✓ Check sends the drawing.
- * Every function has both, so neither is ever "Does Not Exist".
+ * DOMAIN AND RANGE are answered on an axis, built by tapping the graph
+ * itself: a point where it starts, stops or turns drops a dot at its x (a
+ * domain) or its y (a range) — once for a closed dot, twice for open, a third
+ * time to take it away — an arrow says "keeps going", and ✓ Check sends the
+ * drawing. Every function has both, so neither is ever "Does Not Exist".
  */
 registerGraphFeature({
   id: GRAPH_FEATURE.DOMAIN,
@@ -268,6 +286,38 @@ registerGraphFeature({
     { id: 'range', prompt: 'Mark the range', families: 'any', minTier: QUESTION_TIER.EASY },
   ],
 });
+
+/*
+ * WHERE A GRAPH RISES, FALLS OR STAYS LEVEL, AND WHERE IT IS ABOVE OR BELOW
+ * THE x-AXIS: sets of x, drawn on the x-axis exactly as a domain is, by
+ * tapping the graph (its turning points, zeros, ends and arrows). Increasing,
+ * decreasing and constant are written as open intervals, the convention a
+ * class uses: where a graph turns, starts or stops is never in the set.
+ * Positive and negative are f(x) > 0 and f(x) < 0: a zero is never in the
+ * set, a closed end of the graph is when the graph is above (below) the axis
+ * there. Any of them can be empty — a parabola is never constant, a line
+ * with a positive slope never decreasing — and then "Does Not Exist" is the
+ * answer, so every question offers that button.
+ */
+const intervalFeature = ({ id, label, word, prefix }) => registerGraphFeature({
+  id,
+  label: `${label} intervals`,
+  shortLabel: `${label} intervals`,
+  geometry: TARGET_GEOMETRY.SET,
+  multiTarget: false,
+  canNotExist: true,
+  targetIdPrefix: prefix,
+  missMessage: `Not where it is ${word} — look again.`,
+  vocabulary: [
+    { id, prompt: `Mark where it is ${word}`, families: 'any', minTier: QUESTION_TIER.EASY },
+  ],
+});
+
+intervalFeature({ id: GRAPH_FEATURE.INCREASING, label: 'increasing', word: 'increasing', prefix: 'inc' });
+intervalFeature({ id: GRAPH_FEATURE.DECREASING, label: 'decreasing', word: 'decreasing', prefix: 'dec' });
+intervalFeature({ id: GRAPH_FEATURE.CONSTANT, label: 'constant', word: 'constant', prefix: 'con' });
+intervalFeature({ id: GRAPH_FEATURE.POSITIVE, label: 'positive', word: 'positive', prefix: 'pos' });
+intervalFeature({ id: GRAPH_FEATURE.NEGATIVE, label: 'negative', word: 'negative', prefix: 'neg' });
 
 export const isGraphFeature = (id) => REGISTRY.has(String(id || ''));
 export const getGraphFeature = (id) => REGISTRY.get(String(id || '')) || null;

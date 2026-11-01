@@ -27,9 +27,10 @@
  *                (|x − 3| ≤ 0) and every number but one (|x − 3| > 0); Mixed
  *                ramps from gentle to hard, as in Graph Feature Rush.
  *
- *   ANSWERS      drawn on a number line exactly as a domain is on an axis: a
+ *   ANSWERS      drawn on a number line, in the same drawing a domain is: a
  *                tap drops a dot on the nearest whole number (● then ○ then
- *                gone), ◀ ▶ mean "keeps going", ✓ Check sends the drawing.
+ *                gone), a tap on one of the line's own end arrows means
+ *                "keeps going" that way, ✓ Check sends the drawing.
  *                "No solution" is its own button — Graph Feature Rush's "Does
  *                Not Exist" press — right exactly when nothing makes the
  *                inequality true, so such an item has no target at all. Every
@@ -67,7 +68,7 @@ import {
   SET_DIAGNOSIS_LABELS,
   unionSets,
 } from './numberLineSets.mjs';
-import { INEQUALITY_RUSH_MODE_ID, RUSH_SIGN_FLIP } from './graphFeatureRushRules.mjs';
+import { INEQUALITY_RUSH_MODE_ID, RUSH_SIGN_FLIP, rushQuestionWeight } from './graphFeatureRushRules.mjs';
 
 // The game mode's id (liveChallengeModes.CHALLENGE_MODE_ID.INEQUALITY_RUSH),
 // declared with the rules the rush's screen and attempts share.
@@ -75,6 +76,7 @@ export { INEQUALITY_RUSH_MODE_ID };
 
 // Bump whenever a change would generate a different item for the same seed:
 // a room is graded with the generator it was created under, or not at all.
+// (An item's `weight` is read from its answer, so stamping it changed no item.)
 export const INEQUALITY_GENERATOR_VERSION = 1;
 
 // What every item asks for (a receipt's `feature`), and its one target's id.
@@ -560,6 +562,9 @@ export const generateInequalityItem = ({ slot, seedText, questionIndex = 0, avoi
   }
   // Unreachable for these builders (a test draws thousands); a fixed item rather than none.
   if (!built) built = { text: 'x ≥ 2', set: raySet(2, true, 1) };
+  const targets = Object.freeze(built.set.length
+    ? [Object.freeze({ id: INEQUALITY_TARGET_ID, geometry: 'set', axis: 'x', set: setToPlain(built.set) })]
+    : []);
   return Object.freeze({
     generatorVersion: INEQUALITY_GENERATOR_VERSION,
     questionIndex,
@@ -576,10 +581,10 @@ export const generateInequalityItem = ({ slot, seedText, questionIndex = 0, avoi
     // One target, the solution set — none at all when nothing makes it true:
     // that item is answered with "No solution", as a missing feature is with
     // "Does Not Exist".
-    targets: Object.freeze(built.set.length
-      ? [Object.freeze({ id: INEQUALITY_TARGET_ID, geometry: 'set', axis: 'x', set: setToPlain(built.set) })]
-      : []),
+    targets,
     targetCount: 1,
+    // What it is worth: the taps its answer takes (graphFeatureRushRules.rushQuestionWeight).
+    weight: rushQuestionWeight({ targets }),
     ...(built.flipSet ? { flipSet: setToPlain(built.flipSet) } : {}),
   });
 };
@@ -621,6 +626,7 @@ export const publicInequalityQuestion = (question) => (question ? Object.freeze(
   graph: null,
   targets: question.targets,
   targetCount: question.targetCount,
+  weight: question.weight,
   ...(question.flipSet ? { flipSet: question.flipSet } : {}),
 }) : null);
 

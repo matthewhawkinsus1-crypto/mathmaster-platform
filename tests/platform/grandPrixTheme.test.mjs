@@ -167,10 +167,13 @@ test('a +1 rises off a finished item inside the flash the game already shows: it
   assert.ok(rise > 0, 'the +1 has its rise');
   assert.ok(rise <= RUSH_COMPLETE_FLASH_MS, `rush: ${rise} ms fits a finished graph's ${RUSH_COMPLETE_FLASH_MS} ms`);
   assert.ok(rise <= LINE_CORRECT_FLASH_MS, `line: ${rise} ms fits a right line's ${LINE_CORRECT_FLASH_MS} ms`);
-  assert.match(executableSource(rushRound), /\{transition\?\.kind === RUSH_FEEDBACK\.COMPLETE && <span key=\{`plus-\$\{transition\.questionIndex\}`\} className="mm-gp-plus" aria-hidden="true">\+1<\/span>\}/);
+  // A rush item's +N is its points (the taps its answer takes), from the
+  // completing feedback of that very item.
+  assert.match(executableSource(rushRound), /\{transition\?\.kind === RUSH_FEEDBACK\.COMPLETE && <span key=\{`plus-\$\{transition\.questionIndex\}`\} className="mm-gp-plus" aria-hidden="true">\+\{feedback\?\.kind === RUSH_FEEDBACK\.COMPLETE && feedback\.questionIndex === transition\.questionIndex \? \(feedback\.points \?\? 1\) : 1\}<\/span>\}/);
   assert.match(executableSource(lineRound), /\{transition\?\.kind === LINE_FEEDBACK\.CORRECT && <span key=\{`plus-\$\{transition\.questionIndex\}`\} className="mm-gp-plus" aria-hidden="true">\+1<\/span>\}/);
   // The counts pop by remounting on their own value: no state, no timer.
   assert.match(rushRound, /<span key=\{completed\} className=\{completed > 0 \? 'mm-gp-bump' : undefined\} aria-hidden="true">✓ \{completed\}<\/span>/);
+  assert.match(rushRound, /<span key=\{points\} className=\{points > 0 \? 'mm-gp-bump' : undefined\} aria-hidden="true">★ \{points\}<\/span>/);
   assert.match(lineRound, /<span key=\{completed\} className=\{completed > 0 \? 'mm-gp-bump' : undefined\} aria-hidden="true">✓ \{completed\}<\/span>/);
   assert.match(lineRound, /<span key=\{streak\} className="mm-gp-bump" aria-hidden="true">🔥 \{streak\}<\/span>/);
 });
@@ -192,7 +195,7 @@ test('every animation the theme adds moves only transform and opacity (the compo
 
 test('nothing that changes during a round carries a blurred shadow; the graph frames carry no blurred glow', () => {
   const changing = [
-    [RUSH_CSS, ['.mm-rush-clock', '.mm-rush-clock-low', '.mm-rush-count', '.mm-rush-done', '.mm-rush-flash', '.mm-rush-overlay strong', '.mm-rush-dne', '.mm-rush-check', '.mm-rush-arrow[aria-pressed="true"]']],
+    [RUSH_CSS, ['.mm-rush-clock', '.mm-rush-clock-low', '.mm-rush-count', '.mm-rush-done', '.mm-rush-points', '.mm-rush-flash', '.mm-rush-overlay strong', '.mm-rush-dne', '.mm-rush-check']],
     [LINE_CSS, ['.mm-line-clock', '.mm-line-clock-low', '.mm-line-count', '.mm-line-done', '.mm-line-streak', '.mm-line-flash', '.mm-line-overlay strong', '.mm-line-button-primary']],
     [GP_RACE_CSS, ['.mm-gp-light[data-on="red"]', '.mm-gp-light[data-on="green"]', '.mm-gp-go', '.mm-gp-plus']],
   ];

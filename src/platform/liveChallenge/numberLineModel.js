@@ -50,15 +50,46 @@ export const numberAtPixel = (line, width, px) => {
   return Math.max(layout.min, Math.min(layout.max, snapped));
 };
 
-/** The keyboard cursor moved by a key: ←/→ a tick (Shift: five), Home/End the ends. */
+/*
+ * THE LINE'S OWN END ARROWS ARE TAPPED for "keeps going": a tap past the
+ * outermost tick by more than half a tick's spacing lands on the arrow there
+ * ('left' or 'right'), not on a number. The keyboard reaches them one step
+ * past −10 and 10 (the cursor is then −∞ or +∞).
+ */
+export const lineEndAtPixel = (line, width, px) => {
+  const layout = numberLineLayout(line, width);
+  const spacing = layout.usable / Math.max(1, Math.round((layout.max - layout.min) / layout.step));
+  const position = Number(px);
+  if (!Number.isFinite(position)) return null;
+  if (position < layout.xOf(layout.min) - spacing / 2) return 'left';
+  if (position > layout.xOf(layout.max) + spacing / 2) return 'right';
+  return null;
+};
+
+/** Whether a cursor sits on one of the line's end arrows (−∞ or +∞), and which. */
+export const lineCursorEnd = (value) => {
+  if (value === Number.NEGATIVE_INFINITY) return 'left';
+  if (value === Number.POSITIVE_INFINITY) return 'right';
+  return null;
+};
+
+/** The keyboard cursor moved by a key: ←/→ a tick (Shift: five), past the last tick onto its arrow; Home/End the ends. */
 export const moveLineCursor = (line, value, key, { large = false } = {}) => {
   const min = Number(line?.min ?? -10);
   const max = Number(line?.max ?? 10);
   const step = Number(line?.step) > 0 ? Number(line.step) : 1;
   const by = (large ? 5 : 1) * step;
-  let next = Number(value) || 0;
-  if (key === 'ArrowLeft' || key === 'ArrowDown') next -= by;
-  else if (key === 'ArrowRight' || key === 'ArrowUp') next += by;
+  const left = key === 'ArrowLeft' || key === 'ArrowDown';
+  const right = key === 'ArrowRight' || key === 'ArrowUp';
+  // On an end arrow: back onto the line, or nowhere further.
+  if (value === Number.NEGATIVE_INFINITY) return right ? min : (key === 'End' ? max : value);
+  if (value === Number.POSITIVE_INFINITY) return left ? max : (key === 'Home' ? min : value);
+  const current = Number(value) || 0;
+  if (left && current <= min) return Number.NEGATIVE_INFINITY;
+  if (right && current >= max) return Number.POSITIVE_INFINITY;
+  let next = current;
+  if (left) next -= by;
+  else if (right) next += by;
   else if (key === 'Home') next = min;
   else if (key === 'End') next = max;
   return round6(Math.max(min, Math.min(max, next)));
@@ -69,8 +100,10 @@ export const isLineCursorKey = (key) => ['ArrowLeft', 'ArrowRight', 'ArrowUp', '
 const MINUS = '−';
 export const formatLineNumber = (value) => (value < 0 ? `${MINUS}${Math.abs(value)}` : String(value));
 
-/** What a screen reader hears at the cursor: the number, and the dot on it. */
+/** What a screen reader hears at the cursor: the number, and the dot on it — or an end arrow, on or off. */
 export const describeLineCursor = (drawing, value) => {
+  const end = lineCursorEnd(value);
+  if (end) return `${end === 'left' ? 'Left' : 'Right'} arrow: ${drawing?.[end] === true ? `keeps going ${end}` : `off — Enter to keep going ${end}`}`;
   const dot = (drawing?.points || []).find((point) => point.value === value);
   if (!dot) return formatLineNumber(value);
   return `${formatLineNumber(value)}, ${dot.closed ? 'closed dot' : 'open dot'}`;
@@ -79,8 +112,8 @@ export const describeLineCursor = (drawing, value) => {
 /**
  * What a drawing puts on the line, in px: the shaded pieces of the set it
  * means (an end at infinity runs to the line's end), its dots, and the
- * arrows it has on — shown even before the drawing names a set, so a pressed
- * ◀ is visible at once.
+ * arrows it has on — shown even before the drawing names a set, so a tapped
+ * end arrow lights up at once.
  */
 export const numberLineMarks = (line, width, drawing) => {
   if (!drawing) return null;

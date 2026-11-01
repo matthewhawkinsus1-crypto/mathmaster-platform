@@ -69,12 +69,33 @@ export const FEATURE_READING = Object.freeze({
     slip: 'Tapping the curve itself instead of the line it heads for.',
   }),
   domain: Object.freeze({
-    line: 'Domain: every x the graph covers, read left to right; an open dot leaves its x out.',
+    line: 'Domain: every x it covers. Tap an arrow for ∞, a dot where it stops; an open dot leaves it out.',
     slip: 'Stopping at the edge of the screen when an arrow says the graph keeps going.',
   }),
   range: Object.freeze({
-    line: 'Range: every y the graph reaches, read bottom to top along the y-axis.',
+    line: 'Range: every y it reaches, bottom to top. Tap its lowest and highest points, or an arrow for ∞.',
     slip: 'Reading the range along the x-axis instead of the y-axis.',
+  }),
+  // Intervals: x-values, read left to right; turns and ends stay out (open).
+  increasing: Object.freeze({
+    line: 'Increasing: the x-values where it rises, left to right. Where it turns or stops is left out.',
+    slip: 'Writing y-values: where it rises is read along the x-axis.',
+  }),
+  decreasing: Object.freeze({
+    line: 'Decreasing: the x-values where it falls, left to right. Where it turns or stops is left out.',
+    slip: 'Reading right to left: always move left to right along x.',
+  }),
+  constant: Object.freeze({
+    line: 'Constant: the x-values where it is level. Where the level part starts or stops is left out.',
+    slip: 'Closing the ends of a level stretch: they stay open.',
+  }),
+  positive: Object.freeze({
+    line: 'Positive: the x-values where the graph is above the x-axis. A zero is left out.',
+    slip: 'Marking where the graph rises instead of where it is above the axis.',
+  }),
+  negative: Object.freeze({
+    line: 'Negative: the x-values where the graph is below the x-axis. A zero is left out.',
+    slip: 'Counting a zero: on the x-axis the graph is neither above nor below.',
   }),
 });
 

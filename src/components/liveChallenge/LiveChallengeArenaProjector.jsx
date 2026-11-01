@@ -651,8 +651,8 @@ function RushRunningView({ room, clock, clockOffsetMs, players, joinedCount, row
       <section style={{ display: 'grid', gridTemplateRows: 'auto minmax(0,1fr)', gap: 'clamp(10px, 1.4vh, 16px)', minHeight: 0 }}>
         <ArenaClock room={room} clock={clock} clockOffsetMs={clockOffsetMs} />
         <div style={{ ...glassPanel, padding: 'clamp(10px, 1.4vw, 18px)', overflow: 'hidden' }}>
-          <div style={{ ...labelStyle, marginBottom: 10 }}>Live race · {words.many} this round</div>
-          {boardLimit > 0 && <RushRaceBoard players={players} roundIndex={roundIndex} limit={boardLimit} look="projector" label={`${words.many[0].toUpperCase()}${words.many.slice(1)} completed this round`} />}
+          <div style={{ ...labelStyle, marginBottom: 10 }}>Live race · points this round</div>
+          {boardLimit > 0 && <RushRaceBoard players={players} roundIndex={roundIndex} limit={boardLimit} look="projector" label="Points this round" />}
           {/* RushRaceBoard lists only its rows; how many more are racing is said here. */}
           {racersMore && (
             <div data-mm-board-more="rush" style={{ marginTop: 6, paddingLeft: 4, color: 'rgba(236,241,255,.7)', fontWeight: 800, fontSize: 'clamp(calc(14 * var(--mm-px)), calc(1.4vw * var(--mm-text-scale, 1)), calc(20 * var(--mm-px)))' }}>{racersMore}</div>
@@ -719,7 +719,7 @@ function LineRunningView({ room, clock, clockOffsetMs, players, joinedCount, row
         <ArenaClock room={room} clock={clock} clockOffsetMs={clockOffsetMs} finishing={finishing} />
         <div style={{ ...glassPanel, padding: 'clamp(10px, 1.4vw, 18px)', overflow: 'hidden' }}>
           <div style={{ ...labelStyle, marginBottom: 10 }}>Live race · lines right this round</div>
-          {raceBoard.rows.length > 0 && <RushRaceBoard players={players} roundIndex={roundIndex} limit={raceBoard.rows.length} look="projector" label="Lines right this round" />}
+          {raceBoard.rows.length > 0 && <RushRaceBoard players={players} roundIndex={roundIndex} limit={raceBoard.rows.length} look="projector" label="Lines right this round" points={false} />}
           {raceBoard.moreText && (
             <div data-mm-board-more="line" style={{ marginTop: 6, paddingLeft: 4, color: 'rgba(236,241,255,.7)', fontWeight: 800, fontSize: 'clamp(calc(14 * var(--mm-px)), calc(1.4vw * var(--mm-text-scale, 1)), calc(20 * var(--mm-px)))' }}>{raceBoard.moreText}</div>
           )}
@@ -1011,7 +1011,7 @@ export default function LiveChallengeArenaProjector({
     try { if (document.fullscreenElement) await document.exitFullscreen?.(); } catch { /* CSS viewport remains active */ }
   };
   const stage = room ? clock.stage : null;
-  const presentation = presentationProp || scorePresentation({ scoringStrategyId: room?.scoringStrategyId, questionSet: roomRunsQuestionSets(room) });
+  const presentation = presentationProp || scorePresentation({ scoringStrategyId: room?.scoringStrategyId, questionSet: roomRunsQuestionSets(room), itemPoints: isRushGame(questionSetGameOf(room)) });
   const gameLabel = room ? projectorGameLabel(room) : 'Live Challenge';
   const accent = familyAccent(room);
   const title = room?.title || 'MathMaster Live Challenge';

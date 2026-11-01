@@ -46,10 +46,13 @@
  *     curve is drawn as a dot and never hidden past an edge an arrow claims;
  *   - for an asymptote question, the asymptotes are the targets: lines,
  *     inside the view, tapped anywhere along them;
- *   - for a domain or range question, the answer is a set drawn on an axis:
- *     every finite end of it sits ON a drawn grid line of that axis (a tap
- *     drops its dot on the nearest one), well inside the view, and the set
- *     can be drawn with at most two dots;
+ *   - for a set question (a domain, a range, an interval), the answer is a
+ *     set marked on the graph itself: every finite end of it is something a
+ *     student can tap — a point where the graph starts, stops, turns or
+ *     crosses (the question's `landmarks`, every one on the half-unit grid
+ *     along the set's axis), or an asymptote — well inside the view; every
+ *     infinite end is an arrow that really runs off that way (curveEnds); and
+ *     the set can be drawn with at most two dots;
  *   - OFF THE SCREEN (a game with off-screen features): every target of the
  *     feature lies well past an edge, the curve still shows where it is
  *     heading (the family's anchors in view), and an off-screen zero is not
@@ -65,6 +68,7 @@
 import * as Q from './graphFeatureRational.mjs';
 import { createRng } from './seededRandom.mjs';
 import {
+  curveEnds,
   curveRuns,
   curveSegments,
   evaluateGraph,
@@ -80,9 +84,11 @@ import {
   OFF_SCREEN_TARGET_ID,
   QUESTION_TIER,
   QUESTION_TIER_ORDER,
+  SET_FEATURE_AXIS,
   featureTargetId,
   featureWordings,
   getGraphFeature,
+  isSetFeature,
   tierRank,
 } from './graphFeatureRegistry.mjs';
 import {
@@ -92,11 +98,14 @@ import {
   getGraphFamily,
   tierGridDenominator,
 } from './graphFeatureFamilies.mjs';
-import { canonicalSet, drawingForSet, setEndpoints, setToPlain } from './numberLineSets.mjs';
+import { canonicalSet, drawingForSet, onDrawingGrid, setEndpoints, setToPlain } from './numberLineSets.mjs';
+import { rushQuestionWeight } from './graphFeatureRushRules.mjs';
 
 // 3: arrows and endpoints (every graph leaves the screen only at its ends),
 // restricted domains, asymptote questions, off-screen features.
-export const GRAPH_FEATURE_GENERATOR_VERSION = 3;
+// 4: sets marked on the graph (landmarks; an answer's ends need only be
+// tappable, not on a grid line), each item's weight, interval features.
+export const GRAPH_FEATURE_GENERATOR_VERSION = 4;
 
 export const SCHEDULE_BLOCK_SIZE = 6;
 export const MAX_GENERATION_ATTEMPTS = 80;
@@ -150,26 +159,69 @@ export const VIEW_RULES = Object.freeze({
 /** Whether a target is a line (an asymptote) rather than a point. */
 export const isLineTarget = (target) => target?.geometry === 'line';
 
-/** Whether a target is a set drawn on an axis (a domain or range). */
+/** Whether a target is a set drawn on an axis (a domain, a range, an interval). */
 export const isSetTarget = (target) => target?.geometry === 'set';
 
 /*
- * A DOMAIN OR RANGE IN ITS VIEW: every finite end on a drawn grid line of its
- * axis (a multiple of the step there), well inside the view, and the whole set
- * drawable with at most two dots (numberLineSets.drawingForSet).
+ * A SET IN ITS VIEW, MARKED ON THE GRAPH: every finite end is something a
+ * student can tap — a landmark's x (or y, on the y-axis), or an asymptote
+ * across that axis — well inside the view; every infinite end is an arrow
+ * that runs off that way along the axis (curveEnds: the flat end of an
+ * exponential says nothing about a range, a branch beside its asymptote
+ * nothing about a domain); and the whole set is drawable with at most two
+ * dots (numberLineSets.drawingForSet).
  */
-const setTargetProblems = (target, view) => {
+const setTargetProblems = (target, view, { graph, landmarks = [] } = {}) => {
   const problems = [];
   const vertical = target.axis === 'y';
-  const [low, high, step] = vertical ? [view.yMin, view.yMax, view.yStep] : [view.xMin, view.xMax, view.xStep];
+  const [low, high] = vertical ? [view.yMin, view.yMax] : [view.xMin, view.xMax];
   const span = high - low;
+  const asymptotes = graph ? graphAsymptotes(graph) : { vertical: [], horizontal: [] };
+  const tappable = [
+    ...landmarks.map((point) => (vertical ? point.y : point.x)),
+    ...(vertical ? asymptotes.horizontal : asymptotes.vertical),
+  ];
   setEndpoints(target.exactSet).forEach((value) => {
-    const steps = value / (step || 1);
-    if (Math.abs(steps - Math.round(steps)) > 1e-9) problems.push('an end of the set is between grid lines');
     if (value - low < VIEW_RULES.targetInset * span || high - value < VIEW_RULES.targetInset * span) problems.push('an end of the set is at the edge');
+    if (!tappable.some((candidate) => Math.abs(candidate - value) < 1e-9)) problems.push('an end of the set is nothing a student can tap');
   });
-  if (!drawingForSet(target.exactSet)) problems.push('the set cannot be drawn with two dots');
+  const set = target.exactSet;
+  if (graph && set.length) {
+    const ends = curveEnds(graph, view);
+    const heads = (direction) => ends.some((end) => end.heads[vertical ? 'y' : 'x'] === direction);
+    if (set[0].lo === null && !heads(-1)) problems.push('the set keeps going where no arrow does');
+    if (set[set.length - 1].hi === null && !heads(1)) problems.push('the set keeps going where no arrow does');
+  }
+  if (!drawingForSet(set)) problems.push('the set cannot be drawn with two dots');
   return problems;
+};
+
+/*
+ * WHAT A STUDENT CAN TAP ON A SET QUESTION: where the graph starts, stops,
+ * turns and crosses — its endpoint dots (each with whether it is on the
+ * graph), its turning points, its zeros and its y-intercept — inside the
+ * view. Every one of them, whatever the question asks, so the list never
+ * gives the answer away (a domain question still offers the zeros). The
+ * device lands a tap on the nearest (rushGraphModel.setTapAt).
+ */
+const POINT_KEY = (point) => `${Math.round(point.x * 1e6)}|${Math.round(point.y * 1e6)}`;
+export const setLandmarksFor = ({ family, params, graph, view }) => {
+  const analysis = family.analyze(params);
+  const exactPoints = (featureId) => (analysis[featureId]?.status === FEATURE_STATUS.EXISTS ? analysis[featureId].points : [])
+    .filter((p) => p && p.x !== undefined && p.y !== undefined)
+    .map((p) => ({ x: Q.toNumber(p.x), y: Q.toNumber(p.y), closed: true }));
+  const turning = (family.turningPoints?.(params) || []).map((p) => ({ x: Q.toNumber(p.x), y: Q.toNumber(p.y), closed: true }));
+  const markers = graphMarkers(graph, view).map((marker) => ({ x: marker.x, y: marker.y, closed: marker.closed === true }));
+  const inView = (point) => point.x >= view.xMin && point.x <= view.xMax && point.y >= view.yMin && point.y <= view.yMax;
+  const byPlace = new Map();
+  [...markers, ...turning, ...exactPoints(GRAPH_FEATURE.X_INTERCEPT), ...exactPoints(GRAPH_FEATURE.Y_INTERCEPT)]
+    .filter(inView)
+    .forEach((point) => {
+      const key = POINT_KEY(point);
+      // A point on the graph wins over an open dot drawn at the same place.
+      if (!byPlace.has(key) || point.closed) byPlace.set(key, Object.freeze({ x: point.x, y: point.y, closed: point.closed }));
+    });
+  return Object.freeze([...byPlace.values()].sort((left, right) => left.x - right.x || left.y - right.y));
 };
 
 /** The tick step for a span: the smallest of 1, 2, 5, 10 giving ≤ 14 lines. */
@@ -387,7 +439,7 @@ const curveRunProblems = (graph, view) => {
 };
 
 /** Every reason a candidate in a view is not fit to issue (empty = issue it). */
-export const viewProblems = ({ family, feature, variant, graph, view, targets, tier }) => {
+export const viewProblems = ({ family, feature, variant, graph, view, targets, tier, landmarks = [] }) => {
   const problems = [];
   if (!view) return ['no readable view'];
   const grid = tierGridDenominator(tier);
@@ -396,9 +448,17 @@ export const viewProblems = ({ family, feature, variant, graph, view, targets, t
   // screen do not apply to them (offScreenProblems has its own).
   const shown = offScreen ? [] : targets;
   const points = shown.filter((target) => !isLineTarget(target) && !isSetTarget(target));
+  if (isSetFeature(feature)) {
+    // Every point a student can tap drops a dot there: none between
+    // half-units along the set's axis (a zero at x = 2.25 could not be
+    // drawn, so its tap would do nothing) — on a "Does Not Exist" question
+    // too, which must play exactly like the others.
+    const axis = SET_FEATURE_AXIS[feature];
+    if (landmarks.some((point) => !onDrawingGrid(point[axis]))) problems.push('a point a student can tap is between grid numbers');
+  }
   targets.forEach((target) => {
     if (isSetTarget(target)) {
-      problems.push(...setTargetProblems(target, view));
+      problems.push(...setTargetProblems(target, view, { graph, landmarks }));
       return;
     }
     const onGrid = isLineTarget(target)
@@ -519,6 +579,8 @@ const EXPECTED_TARGETS = Object.freeze({
 });
 
 const expectedTargetCount = (familyId, variantId, featureId) => {
+  // A domain, a range or an interval: one target, the set.
+  if (isSetFeature(featureId)) return 1;
   if (variantId === 'tangent') return familyId === 'cubic' ? 2 : 1;
   // An off-screen V hides both of its zeros; every other hidden feature is one.
   if (variantId === 'offScreen') return familyId === 'absolute' && featureId === GRAPH_FEATURE.X_INTERCEPT ? 2 : 1;
@@ -527,7 +589,7 @@ const expectedTargetCount = (familyId, variantId, featureId) => {
 
 // A target as the generator keeps it: exact coordinates beside the numbers. A
 // line (an asymptote) carries its orientation and the one coordinate it fixes;
-// a set (a domain or range), its axis and its pieces.
+// a set (a domain, a range, an interval), its axis and its pieces.
 const toTarget = (featureId, exact, index) => {
   const id = featureTargetId(featureId, index);
   if (exact.set) return Object.freeze({ id, geometry: 'set', axis: exact.axis, set: setToPlain(exact.set), exactSet: exact.set });
@@ -611,9 +673,10 @@ const attemptSlot = ({ slot, rng }) => {
     tier: slot.tier,
     symmetric,
   });
-  const problems = viewProblems({ family, feature: slot.feature, variant, graph, view, targets, tier: slot.tier });
+  const landmarks = view && isSetFeature(slot.feature) ? setLandmarksFor({ family, params, graph, view }) : null;
+  const problems = viewProblems({ family, feature: slot.feature, variant, graph, view, targets, tier: slot.tier, landmarks: landmarks || [] });
   if (problems.length) return { problems };
-  return { question: { graph, view, targets } };
+  return { question: { graph, view, targets, ...(landmarks ? { landmarks } : {}) } };
 };
 
 const FALLBACKS = Object.freeze({
@@ -630,13 +693,23 @@ const FALLBACKS = Object.freeze({
   // A square root from (−2, 1): domain [−2, ∞), range [1, ∞).
   [GRAPH_FEATURE.DOMAIN]: { family: 'squareRoot', graph: { kind: 'squareRoot', a: 1, s: 1, h: -2, k: 1 }, set: { axis: 'x', pieces: [{ lo: -2, loClosed: true, hi: null }] } },
   [GRAPH_FEATURE.RANGE]: { family: 'squareRoot', graph: { kind: 'squareRoot', a: 1, s: 1, h: -2, k: 1 }, set: { axis: 'y', pieces: [{ lo: 1, loClosed: true, hi: null }] } },
+  // y = (x − 1)² − 2: falling to its vertex (1, −2), rising after.
+  [GRAPH_FEATURE.INCREASING]: { family: 'quadratic', graph: { kind: 'quadratic', a: 1, h: 1, k: -2 }, set: { axis: 'x', pieces: [{ lo: 1, loClosed: false, hi: null }] }, landmarks: [{ x: 0, y: -1, closed: true }, { x: 1, y: -2, closed: true }] },
+  [GRAPH_FEATURE.DECREASING]: { family: 'quadratic', graph: { kind: 'quadratic', a: 1, h: 1, k: -2 }, set: { axis: 'x', pieces: [{ lo: null, hi: 1, hiClosed: false }] }, landmarks: [{ x: 0, y: -1, closed: true }, { x: 1, y: -2, closed: true }] },
+  // y = 2, level everywhere.
+  [GRAPH_FEATURE.CONSTANT]: { family: 'linear', graph: { kind: 'linear', m: 0, b: 2 }, set: { axis: 'x', pieces: [{ lo: null, hi: null }] }, landmarks: [{ x: 0, y: 2, closed: true }] },
+  // y = x − 2: below the axis before its zero 2, above after.
+  [GRAPH_FEATURE.POSITIVE]: { family: 'linear', graph: { kind: 'linear', m: 1, b: -2 }, set: { axis: 'x', pieces: [{ lo: 2, loClosed: false, hi: null }] }, landmarks: [{ x: 0, y: -2, closed: true }, { x: 2, y: 0, closed: true }] },
+  [GRAPH_FEATURE.NEGATIVE]: { family: 'linear', graph: { kind: 'linear', m: 1, b: -2 }, set: { axis: 'x', pieces: [{ lo: null, hi: 2, hiClosed: false }] }, landmarks: [{ x: 0, y: -2, closed: true }, { x: 2, y: 0, closed: true }] },
 });
 
 const fallbackQuestion = (feature) => {
   const entry = FALLBACKS[feature] || FALLBACKS[GRAPH_FEATURE.X_INTERCEPT];
   if (entry.set) {
     const set = canonicalSet(entry.set.pieces.map((piece) => ({ ...piece, lo: piece.lo === null ? null : Q.rat(piece.lo), hi: piece.hi === null ? null : Q.rat(piece.hi) })));
-    return { family: entry.family, graph: entry.graph, view: { xMin: -8, xMax: 8, yMin: -8, yMax: 8, xStep: 2, yStep: 2 }, targets: [toTarget(feature, { axis: entry.set.axis, set }, 0)] };
+    // The square root's endpoint is its one landmark: it starts there.
+    const landmarks = entry.landmarks || [{ x: -2, y: 1, closed: true }];
+    return { family: entry.family, graph: entry.graph, view: { xMin: -8, xMax: 8, yMin: -8, yMax: 8, xStep: 2, yStep: 2 }, targets: [toTarget(feature, { axis: entry.set.axis, set }, 0)], landmarks };
   }
   const targets = entry.lines
     ? entry.lines.map((line, index) => toTarget(feature, line.orientation === LINE_ORIENTATION.VERTICAL
@@ -702,6 +775,7 @@ export const generateQuestionForSlot = ({ slot, seedText, questionIndex = 0, avo
   // one target is found by "Off screen", as "Does Not Exist" finds an absent
   // feature's; where they lie travels beside it, for the reveal.
   const targets = offScreen ? [] : question.targets.map(publicTarget);
+  const weight = rushQuestionWeight({ targets });
   return Object.freeze({
     generatorVersion: GRAPH_FEATURE_GENERATOR_VERSION,
     questionIndex,
@@ -716,8 +790,14 @@ export const generateQuestionForSlot = ({ slot, seedText, questionIndex = 0, avo
     targets: Object.freeze(targets),
     // "Does Not Exist" (or "Off screen") is one target, found by its button.
     targetCount: Math.max(1, targets.length),
+    // What it is worth: the taps its answer takes (rushQuestionWeight).
+    weight,
     doesNotExist: targets.length === 0 && !offScreen,
     offScreen,
+    // A set question's tappable points (setLandmarksFor), and its axis — also
+    // on one whose answer is "Does Not Exist", which has no target to say it.
+    ...(question.landmarks ? { landmarks: Object.freeze(question.landmarks) } : {}),
+    ...(isSetFeature(slot.feature) ? { setAxis: SET_FEATURE_AXIS[slot.feature] } : {}),
     ...(offScreen ? { offScreenTargets: Object.freeze(question.targets.map(({ x, y }) => Object.freeze({ x, y }))) } : {}),
     fallback,
     attempts,
@@ -876,6 +956,9 @@ export const publicRushQuestion = (question) => (question ? Object.freeze({
   view: question.view,
   targets: question.targets,
   targetCount: question.targetCount,
+  weight: question.weight,
+  ...(question.landmarks ? { landmarks: question.landmarks } : {}),
+  ...(question.setAxis ? { setAxis: question.setAxis } : {}),
   // Like the targets: the device answers "Off screen" instantly with it.
   ...(question.offScreen ? { offScreen: true, offScreenTargets: question.offScreenTargets } : {}),
 }) : null);
