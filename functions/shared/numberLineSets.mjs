@@ -310,9 +310,10 @@ export const drawingForSet = (set) => {
 };
 
 /**
- * A drawing as a device sends it — { points: [[value, closed], ...], left,
- * right } — shape-checked. Null for anything malformed: too many dots, a
- * value off the half grid or out of range, the same number twice.
+ * A drawing as a device sends it — { points: [{ value, closed }, ...], left,
+ * right }, a dot also read as a [value, closed] pair — shape-checked. Null
+ * for anything malformed: too many dots, a value off the half grid or out of
+ * range, the same number twice.
  */
 export const normalizeDrawing = (raw) => {
   if (!raw || typeof raw !== 'object') return null;
@@ -328,9 +329,15 @@ export const normalizeDrawing = (raw) => {
   return freezeDrawing({ points, left: raw.left === true, right: raw.right === true });
 };
 
-/** The wire form of a drawing (what normalizeDrawing reads). */
+/*
+ * The plain form of a drawing, as a device sends it and a receipt stores it:
+ * { points: [{ value, closed }, ...], left, right }. Each dot is an object,
+ * never a [value, closed] pair: Firestore holds no array directly inside an
+ * array, so a receipt carrying pairs could not be written at all.
+ * normalizeDrawing reads either.
+ */
 export const drawingToPlain = (drawing = EMPTY_DRAWING) => ({
-  points: (drawing.points || []).map((p) => [p.value, p.closed === true]),
+  points: (drawing.points || []).map((p) => ({ value: p.value, closed: p.closed === true })),
   left: drawing.left === true,
   right: drawing.right === true,
 });

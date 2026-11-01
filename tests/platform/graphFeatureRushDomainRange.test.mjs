@@ -114,7 +114,10 @@ test('a drawing from a device is shape-checked: two dots at most, on the half gr
   assert.equal(N.normalizeDrawing({ points: [[1, true], [2, true], [3, true]] }), null);
   assert.equal(N.normalizeDrawing({ points: [[5000, true]] }), null);
   assert.equal(N.normalizeDrawing('nope'), null);
-  assert.deepEqual(N.drawingToPlain(N.normalizeDrawing({ points: [[1.5, false], [-2, true]], left: true })), { points: [[-2, true], [1.5, false]], left: true, right: false });
+  assert.deepEqual(N.drawingToPlain(N.normalizeDrawing({ points: [[1.5, false], [-2, true]], left: true })), { points: [{ value: -2, closed: true }, { value: 1.5, closed: false }], left: true, right: false });
+  // The plain form reads back as itself.
+  const plain = N.drawingToPlain(N.normalizeDrawing({ points: [{ value: 3, closed: false }], right: true }));
+  assert.deepEqual(N.drawingToPlain(N.normalizeDrawing(plain)), plain);
   assert.equal(normalizeRushAttempt({ attemptId: 'c1', questionIndex: 0, kind: RUSH_ATTEMPT_KIND.CHECK, drawing: { points: [[0.25, true]] } }), null, 'a check with a malformed drawing is refused');
 });
 
@@ -215,9 +218,32 @@ test('the server grades a check by the set the drawing means: the same set drawn
   assert.equal(wrong.verdicts[0].verdict, 'miss');
   const receipt = wrong.receipts['c-wrong'];
   assert.equal(receipt.diagnosis, N.SET_DIAGNOSIS.INCLUSION);
-  assert.deepEqual(receipt.drawing, { points: [[h, false]], left: false, right: true });
+  assert.deepEqual(receipt.drawing, { points: [{ value: h, closed: false }], left: false, right: true });
   // A tap on a domain question is not an answer: a miss.
   assert.equal(play(question, [{ attemptId: 't', questionIndex: 0, kind: 'tap', x: h, y: 0, tolerance: { x: 1, y: 1 }, pointer: 'touch', clientElapsedMs: 0 }]).verdicts[0].verdict, 'miss');
+});
+
+// Whether a value holds an array directly inside an array, anywhere: Firestore refuses to write one.
+const nestsArrays = (value) => {
+  if (Array.isArray(value)) return value.some((entry) => Array.isArray(entry) || nestsArrays(entry));
+  return Boolean(value) && typeof value === 'object' && Object.values(value).some(nestsArrays);
+};
+
+test('every receipt a check writes can be stored: no array directly inside an array', () => {
+  // Firestore rejects a document holding [[…]] ("Cannot convert an array value
+  // in an array value"): a receipt carrying its drawing as [value, closed]
+  // pairs failed every domain and range check against the database.
+  const question = slotQuestion('squareRoot', GRAPH_FEATURE.DOMAIN, 'endpoint', QUESTION_TIER.EASY, 'storable');
+  const answer = N.setFromPlain(question.targets[0].set);
+  const wrong = N.drawingForSet(N.intervalSet(-3, true, 3, false));
+  const outcome = applyRushAttempts({
+    player: {}, roundIndex: 0, roundVersion: 1, questionFor: () => question, arrivedAtMs: 600_000, arrivalElapsedMs: 600_000, roundDurationMs: 600_000, strategy: correctCountStrategy, poolSize: 50,
+    attempts: [check('w1', wrong), check('w2', wrong), check('w3', wrong)],
+  });
+  const receipts = Object.values(outcome.receipts);
+  assert.ok(receipts.some((receipt) => receipt.drawing), 'checks record their drawing');
+  receipts.forEach((receipt) => assert.equal(nestsArrays(receipt), false, JSON.stringify(receipt)));
+  assert.equal(nestsArrays(check('ok', N.drawingForSet(answer))), false, 'nor does the attempt a device sends');
 });
 
 test('the third wrong check skips the graph, recorded by the server with that check', () => {

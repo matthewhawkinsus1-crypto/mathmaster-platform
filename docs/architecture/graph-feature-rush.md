@@ -502,7 +502,7 @@ and dark; reduced motion turns the pops and fades off.
 | `liveChallengeRooms/{room}` | `challengeMode: 'graphFeatureRush'`, `graphFeatureRush: { config, generatorVersion }` (no seed) |
 | `…/players/{key}` | `score`, `rawScore`, `correctCount`, `roundsAnswered`, `matchAccuracy`, `rushRound`, `rushRoundCompleted`, `rushActiveAt`, and after a close `lastRound: { roundIndex, rank, fieldSize, completed, accuracyPercent, workScore, matchPointsAwarded, participated }` |
 | `liveChallengePrivate/{room}` | `graphFeatureRush: { seed, config, generatorVersion }` |
-| `…/players/{studentId}` | receipts (`targetAttempt`, with feature, family, tier, tap position, pointer), totals |
+| `…/players/{studentId}` | receipts (`targetAttempt`, with feature, family, tier, tap position, pointer; a check's `drawing` — its dots as `{ value, closed }` objects, never `[value, closed]` pairs, which Firestore refuses inside an array — and `diagnosis`), totals |
 | `liveChallengeReports/{room}` | `graphFeatureRush`: graphs completed, tap accuracy, skips, "Does Not Exist" accuracy, by feature and by family (hardest first), per student |
 
 ---
@@ -570,6 +570,10 @@ and dark; reduced motion turns the pops and fades off.
   through the callables: replays, refresh, stale tokens, deadlines, the
   eighth-miss skip, closes and results, finish, the next game, 10 and 35
   students.
+- `tests/integration/graphFeatureRushDomainRange.test.mjs` (emulator) — ✓ Check
+  through the callables into Firestore: right and wrong checks stored with
+  their drawing and diagnosis, the third wrong check's skip, the mistakes in
+  the match result.
 - `tests/browser/graphFeatureRushGame.mjs` (QA harness, not CI) — whole games
   in real browsers against the real server code (see its header).
 
