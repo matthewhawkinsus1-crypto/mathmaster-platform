@@ -705,18 +705,27 @@ await run('correct-count-devices', async () => {
   const endsAt = endsAtOf(room);
   await Promise.all(students.map((student, index) => playUntil(student, roomId, endsAt, { scenario: S, missEvery: index + 2 })));
   await waitForRoundClosed(roomId, 0, 15_000);
+  // Each student's record, read now: finishing the game cleans the private rows up.
+  const records = new Map();
   for (const student of students) {
     check(S, await waitForText(student, 'Round 1 results', 10_000), `${student.studentId}: no results`);
     const record = await privatePlayer(roomId, student.studentId);
-    // The standings line: their match total, in the room's own unit.
-    const total = `${record.correctCount} ${record.correctCount === 1 ? 'graph' : 'graphs'} completed`;
+    records.set(student.studentId, record);
+    // The standings line: their match total, in the room's own unit — a
+    // rush's points (each graph worth the taps its answer takes).
+    const total = `${record.score} ${record.score === 1 ? 'point' : 'points'}`;
     check(S, await waitForText(student, `Overall: `, 5_000) && await waitForText(student, total, 5_000), `${student.studentId}: results do not show the match total "${total}"`);
     await shot(student, `cc-results-${student.device}`);
   }
   await teacher.page.getByRole('button', { name: 'Finish & Show Final Standings' }).click();
   const until = Date.now() + 20_000;
   while (Date.now() < until && (await roomOf(roomId)).status !== 'finished') await wait(400);
-  for (const student of students) check(S, await waitForText(student, 'graphs completed', 15_000), `${student.studentId}: final summary is not in graphs`);
+  // The final summary: the points, and the graphs they came from.
+  for (const student of students) {
+    const record = records.get(student.studentId);
+    const made = `${record.score} ${record.score === 1 ? 'point' : 'points'} · ${record.correctCount} ${record.correctCount === 1 ? 'graph' : 'graphs'}`;
+    check(S, await waitForText(student, made, 15_000), `${student.studentId}: final summary is not "${made}"`);
+  }
 
   // The class's next game: a new lobby reaches every open screen.
   // Back to setup with this game's settings (Play Again would replay the same preset).

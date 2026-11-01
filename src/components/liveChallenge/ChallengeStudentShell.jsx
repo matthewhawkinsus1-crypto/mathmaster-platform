@@ -251,8 +251,10 @@ export function StudentFinalCard({ selfRow, presentation, totalPlayers = 0, rows
   let units = null;
   if (rush) units = rushGameWords(room);
   else if (lines) units = { one: 'line', many: 'lines' };
+  // The total, then what it was made of — unless the total is that count
+  // itself (Correct Count outside a rush, whose items are worth one each).
   const didLine = selfRow
-    ? `${amountText(selfRow.score, presentation.total)}${presentation.placementPoints || presentation.strategyId !== 'correctCount'
+    ? `${amountText(selfRow.score, presentation.total)}${presentation.placementPoints || presentation.itemPoints || presentation.strategyId !== 'correctCount'
       ? ` · ${selfRow.correctCount} ${units ? (selfRow.correctCount === 1 ? units.one : units.many) : 'correct'}`
       : ''}`
     : '';
