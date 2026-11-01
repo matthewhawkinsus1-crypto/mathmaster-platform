@@ -7,6 +7,7 @@ import {
   warmupChallengeCredit,
 } from '../../functions/shared/warmupChallenge.mjs';
 import { joinRoundFor } from '../../functions/shared/liveChallengeLifecycle.mjs';
+import { region } from './helpers/sourceContract.mjs';
 
 const source = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
 const code = source
@@ -102,7 +103,14 @@ test('the join round is recorded and preserved across a rejoin', () => {
   // and the round already on the player's record.
   const join = joinBody();
   assert.match(join, /const joinedAtRound = lifecycle\.joinRoundFor\(\{ room, recordedJoinRound: player\.joinedAtRound \}\);/);
-  assert.match(join, /const joinedPlayer = \{\s*\.\.\.player,\s*joined: true,\s*joinedAtRound,/);
+  // The joined record keeps everything already on the player's record (the
+  // spread comes first) and writes the round the rule decided over it. Which
+  // other fields the join sets beside it (the seat's alias, its clock) is not
+  // this test's business.
+  const joinedPlayer = region(join, 'const joinedPlayer = {', '};', 'the joined player record');
+  assert.match(joinedPlayer, /^const joinedPlayer = \{\s*\.\.\.player,/);
+  assert.match(joinedPlayer, /\n\s*joined: true,\n/);
+  assert.match(joinedPlayer, /\n\s*joinedAtRound,\n/);
   // Recomputing on a rejoin would shrink the denominator of the one student
   // whose device failed them.
   const laterRoom = { status: 'running', currentRound: 7, roundState: 'open' };

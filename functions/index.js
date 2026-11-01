@@ -11627,6 +11627,7 @@ async function inviteStudentToClassLiveChallenge(db, studentId) {
   const id = String(studentId || "").trim();
   if (!id) return { invited: false, reason: "no_student" };
   const challenge = await liveChallengeRules();
+  const { experience } = await liveChallengeEngine();
   const gradeRef = db.collection("grades").doc(id);
   const gradeSnapshot = await gradeRef.get();
   const grade = gradeSnapshot.exists ? gradeSnapshot.data() || {} : null;
@@ -11672,10 +11673,15 @@ async function inviteStudentToClassLiveChallenge(db, studentId) {
       if (otherRoom.exists && live(otherRoom.data()?.status)) return { invited: false, reason: "in_another_game" };
     }
     // The next seat, and its code name from the room's own seed — the one
-    // createLiveChallenge would have given the next student.
+    // createLiveChallenge would have given the next student — under the
+    // room's name setting: their name in a game played with names.
     const slot = Math.max(0, Number(room.eligibleCount) || 0);
     const aliasSeed = parseInt(crypto.createHash("sha256").update(roomId).digest("hex").slice(0, 6), 16);
-    const player = { playerKey: crypto.randomUUID(), slot, alias: challenge.challengeAlias(slot, aliasSeed) };
+    const player = {
+      playerKey: crypto.randomUUID(),
+      slot,
+      ...experience.seatAliasUnder({ room, student, studentId: id, player: { codeAlias: challenge.challengeAlias(slot, aliasSeed) } }),
+    };
     transaction.set(playerRef, {
       ...player,
       joined: false,
@@ -11990,6 +11996,11 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
   // Speed influence is part of scoring, so it is stored on the room the scorer
   // reads. configureLiveChallengeExperience may still change it in the lobby.
   const speedInfluencePercent = engine.experience.normalizeSpeedInfluencePercent(request.data?.speedInfluencePercent);
+  // The names the class's seats carry (code names unless the teacher chose
+  // names), applied as each seat is written below — never afterwards. A
+  // student whose screen follows the invite joins at once, before any later
+  // call from the teacher's device could rename the seat (seatAliasUnder).
+  const playerDisplayMode = engine.experience.normalizePlayerDisplayMode(request.data?.playerDisplayMode);
 
   // One active room per teacher. A tiny pointer keeps refresh recovery O(1) and
   // avoids reading completed challenge history every time the teacher opens
@@ -12044,7 +12055,13 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
     // compact lists. Their position in this shuffled order, so it says nothing
     // about the roster either.
     slot: index,
-    alias: challenge.challengeAlias(index, aliasSeed),
+    // The seat's code name, and the alias the room's name setting gives it.
+    ...engine.experience.seatAliasUnder({
+      room: { playerDisplayMode },
+      student,
+      studentId: student.studentId,
+      player: { codeAlias: challenge.challengeAlias(index, aliasSeed) },
+    }),
     joined: false,
     score: 0,
     correctCount: 0,
@@ -12096,6 +12113,9 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
     // Kept for readers that predate scoringStrategyId.
     scoringMode: scoringStrategyId,
     speedInfluencePercent,
+    // What every seat's alias is (code names or the students' names). A join
+    // reads it, so a seat written before a later change still comes out right.
+    playerDisplayMode,
     // Public settings a mode's planner contributes (a rush's families and
     // features, which the projector shows; never its seed).
     ...planned.roomFields,
@@ -12199,6 +12219,7 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
           playerKey: player.playerKey,
           slot: player.slot,
           alias: player.alias,
+          codeAlias: player.codeAlias,
           joined: false,
           score: 0,
           correctCount: 0,
@@ -13676,7 +13697,7 @@ async function finalizeLiveChallengeMatch(db, { roomRef, room, command, status, 
 exports.joinLiveChallenge = onCall(async (request) => {
   const { studentId } = requireStudent(request);
   const db = getFirestore();
-  const { lifecycle, modes, accommodations } = await liveChallengeEngine();
+  const { lifecycle, modes, accommodations, experience } = await liveChallengeEngine();
   const roomId = String(request.data?.roomId || "").trim();
   if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
 
@@ -13725,8 +13746,23 @@ exports.joinLiveChallenge = onCall(async (request) => {
     // for this student alone). Private too: their record, handed only to
     // their own device with their items (getLineGraphRound).
     const lineRoom = roomMode.questionSource === modes.QUESTION_SOURCE.LINE_GRAPH_GENERATOR;
+    // THE NAME ON THE BOARD, under the room's name setting as it stands in
+    // this transaction. The teacher's device may still be applying the
+    // setting (configureLiveChallengeExperience writes the room first, then
+    // renames the seats that exist). A join that read the room before that
+    // write commits before it, so the renaming finds this row. A join that
+    // read it after gives the name here. A room that has not said keeps the
+    // seat's alias (seatAliasUnder).
+    const seat = experience.seatAliasUnder({
+      room,
+      student: gradeSnapshot.exists ? gradeSnapshot.data() || {} : {},
+      studentId,
+      player,
+    });
     const joinedPlayer = {
       ...player,
+      alias: seat.alias,
+      codeAlias: seat.codeAlias,
       joined: true,
       joinedAtRound,
       timeMultiplier,
@@ -13738,15 +13774,16 @@ exports.joinLiveChallenge = onCall(async (request) => {
     // learns only, when a round opens, whether anyone in it has extended time
     // (extendedTimeInPlay).
     const publicPlayerRef = roomRef.collection("players").doc(player.playerKey);
-    // The same identity every time: the player key and alias were fixed when
-    // the room was created, so a reconnect can never mint a second player.
+    // The same identity every time: the player key was fixed when the room
+    // was created, so a reconnect can never mint a second player. The alias
+    // follows the room's name setting (above).
     transaction.set(privatePlayerRef, joinedPlayer, { merge: true });
     transaction.set(publicPlayerRef, {
       playerKey: player.playerKey,
       // The seat of this player's rank in the standings snapshot. A room
       // created before seats has none; its snapshot seats players by key.
       ...(Number.isInteger(player.slot) ? { slot: player.slot } : {}),
-      alias: player.alias,
+      alias: seat.alias,
       joined: true,
       score: Math.max(0, Math.round(Number(player.score) || 0)),
       correctCount: Math.max(0, Math.round(Number(player.correctCount) || 0)),
@@ -13759,6 +13796,8 @@ exports.joinLiveChallenge = onCall(async (request) => {
       status: room.status === lifecycle.SESSION_STATUS.RUNNING ? "running" : "joined",
       // The student's own round clock (1 = the class's). Only they read it.
       timeMultiplier,
+      // The name their screen shows them as: the one on the board.
+      alias: seat.alias,
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
     return { playerKey: player.playerKey, rejoined: player.joined === true, timeMultiplier };
