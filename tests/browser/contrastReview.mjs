@@ -258,6 +258,10 @@ const pixelExtremes = async (b64) => {
 const HIDE_CSS = `
   .__crHide, .__crHide * { color: transparent !important; -webkit-text-fill-color: transparent !important; text-shadow: none !important; caret-color: transparent !important; }
   .__crHide text, text.__crHide, .__crHide tspan, tspan.__crHide { fill: transparent !important; stroke: transparent !important; }
+  /* Gradient text (background-clip: text) is painted by its own background, so a
+     transparent colour leaves the glyphs in the shot: take the paint away, and
+     the drop-shadow glow that follows the glyphs with it (as text-shadow above). */
+  .__crHideClip { background-image: none !important; filter: none !important; }
   *, *::before, *::after { transition: none !important; animation-play-state: paused !important; }
 `;
 
@@ -278,6 +282,10 @@ const measurePixels = async (page, index) => {
     }
     el.scrollIntoView({ block: 'center', inline: 'center' });
     el.classList.add('__crHide');
+    for (const node of [el, ...el.querySelectorAll('*')]) {
+      const clip = getComputedStyle(node);
+      if (/text/.test(clip.backgroundClip || clip.webkitBackgroundClip || '')) node.classList.add('__crHideClip');
+    }
     const out = [];
     const push = (r) => {
       // Inset by a pixel: the box edge can antialias into a neighbouring layer.
@@ -307,7 +315,12 @@ const measurePixels = async (page, index) => {
     // eslint-disable-next-line no-await-in-loop
     extremes.push(await page.evaluate(pixelExtremes, png.toString('base64')));
   }
-  await page.evaluate((i) => window.__crTargets[i]?.classList.remove('__crHide'), index);
+  await page.evaluate((i) => {
+    const el = window.__crTargets[i];
+    if (!el) return;
+    el.classList.remove('__crHide');
+    for (const node of [el, ...el.querySelectorAll('.__crHideClip')]) node.classList.remove('__crHideClip');
+  }, index);
   const all = extremes.flatMap((e) => [e.dark, e.light]).filter(Boolean);
   if (!all.length) return null;
   const sorted = all.sort((a, b) => luminance(a) - luminance(b));

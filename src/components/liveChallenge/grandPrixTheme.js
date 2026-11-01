@@ -261,6 +261,9 @@ export const GRAND_PRIX_CSS = `
 .mm-gp-title {
   margin: 0; font-style: italic; font-weight: 1000; text-transform: uppercase; letter-spacing: .01em; line-height: .95;
   display: inline-block; transform: skewX(-6deg);
+  /* At 200% text a phone has no room for CHALLENGE on one line: break the word
+     rather than cut it off at the card's edge. */
+  max-width: 100%; overflow-wrap: anywhere;
   background: linear-gradient(180deg, #ffffff 0%, #dbe6ff 42%, #7d93d8 52%, #f2f6ff 74%, #aebdf0 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 0 10px rgba(255,63,209,.45)) drop-shadow(0 2px 0 rgba(10,16,52,.9));
@@ -293,9 +296,11 @@ export const GRAND_PRIX_CSS = `
   mask-image: linear-gradient(90deg, #000 0 16%, transparent 34% 66%, #000 84%);
 }
 .mm-gp-eyebrow { font-size: calc(13 * var(--mm-px)); font-weight: 1000; font-style: italic; text-transform: uppercase; letter-spacing: .1em; color: ${GP.cyan}; }
+/* The red's light end is #d92a48, not brighter: white on it is 4.8:1, for the
+   13 px chips in a round as well as the lobby's large plate. */
 .mm-gp-plate {
   display: inline-block; padding: 6px 18px; border-radius: 10px; transform: skewX(-8deg);
-  background: linear-gradient(180deg, #ff4d6d 0%, #c8102e 100%); color: #fff;
+  background: linear-gradient(180deg, #d92a48 0%, #c8102e 100%); color: #fff;
   border: 2px solid rgba(255,255,255,.85); box-shadow: 0 4px 0 rgba(0,0,0,.35);
   font-style: italic; font-weight: 1000; letter-spacing: .01em; overflow-wrap: anywhere;
 }

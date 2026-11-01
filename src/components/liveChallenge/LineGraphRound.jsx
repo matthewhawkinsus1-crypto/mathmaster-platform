@@ -223,7 +223,7 @@ ${arenaLayerCss('.mm-line-shell')}
   border-bottom: 1px solid rgba(53,227,255,.45); box-shadow: 0 1px 0 rgba(255,63,209,.35), 0 6px 18px rgba(0,0,0,.35);
 }
 /* The student's name on a racing plate. */
-.mm-line-chip { padding: 3px 12px; border-radius: 7px; transform: skewX(-8deg); background: linear-gradient(180deg, #ff4d6d, #c8102e); border: 1px solid rgba(255,255,255,.85); color: #fff; font-weight: 1000; font-style: italic; font-size: calc(13 * var(--mm-px)); white-space: nowrap; }
+.mm-line-chip { padding: 3px 12px; border-radius: 7px; transform: skewX(-8deg); background: linear-gradient(180deg, #d92a48, #c8102e); border: 1px solid rgba(255,255,255,.85); color: #fff; font-weight: 1000; font-style: italic; font-size: calc(13 * var(--mm-px)); white-space: nowrap; }
 .mm-line-round { font-weight: 1000; font-style: italic; text-transform: uppercase; letter-spacing: .02em; color: #35e3ff; font-size: calc(15 * var(--mm-px)); white-space: nowrap; }
 .mm-line-progress { padding: 4px 10px; border-radius: 999px; background: rgba(10,16,52,.7); border: 1px solid rgba(53,227,255,.35); font-weight: 900; font-size: calc(13 * var(--mm-px)); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .mm-line-done { font-weight: 1000; font-style: italic; font-size: calc(18 * var(--mm-px)); color: #ffd23f; font-variant-numeric: tabular-nums; white-space: nowrap; }
