@@ -660,6 +660,9 @@ test('students race on the rush\'s screen with a number line and No Solution; ev
   assert.equal(words.game, 'Inequality Graphing Rush');
   assert.deepEqual([words.one, words.many], ['inequality', 'inequalities']);
   assert.equal(rushGameWords({ challengeMode: RUSH_MODE_ID }).many, 'graphs');
+  // The final card counts what the game's items are: inequalities, not graphs.
+  const shell = read('src/components/liveChallenge/ChallengeStudentShell.jsx');
+  assert.match(region(shell, 'export function StudentFinalCard(', '\n}\n', 'the final card'), /if \(rush\) units = rushGameWords\(room\);/);
   assert.equal(isRushGame(QUESTION_SET_GAME.INEQUALITY_RUSH), true);
   const projector = read('src/components/liveChallenge/LiveChallengeArenaProjector.jsx');
   assert.match(projector, /const words = rushGameWords\(room\);/);
