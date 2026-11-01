@@ -32,6 +32,14 @@
  *   - prefers-reduced-motion turns every animation here off; nothing is
  *     conveyed by motion or colour alone.
  *
+ * FIXED COLOURS, ON PURPOSE. The arena is a night in both themes, so what
+ * sits on it keeps its colours in dark mode too, as the rush's Does Not
+ * Exist button always has: white on the racing plate, the banner and the
+ * clock, and dark brown on the gold +1, points badge and medals, edged in
+ * pale gold. A theme token would turn that text light on light gold in dark
+ * mode. They are recorded in scripts/theme-color-baseline.json and
+ * theme-token-baseline.json.
+ *
  * Pure: strings and one small function. The screens put the strings in a
  * <style>; node tests read them (tests/platform/grandPrixTheme.test.mjs).
  */

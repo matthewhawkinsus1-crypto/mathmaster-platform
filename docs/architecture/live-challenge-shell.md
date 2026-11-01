@@ -549,7 +549,8 @@ every effect off; nothing is said by motion or colour alone.
   to the class while its game is in the lobby or running (and active in the
   last 12 hours)
   (`setStudentClass`, `createStudentAccount`, `assignStudentToTeacher` call
-  `inviteStudentToClassLiveChallenge`): the next seat and code name, an invite
+  `inviteStudentToClassLiveChallenge`): the next seat and its code name (or
+  their name, in a game played with names, §11), an invite
   their screen follows at once, and the late-join rule below. A student whose
   invite is for another class's game that is still live is left in it: **a
   student moved between two classes that both have a game stays in the first**
@@ -596,6 +597,21 @@ and reward identities, so nothing from the last game can be scored into this
 one. A Warm-Up game's replay is standalone (a Warm-Up records one result per
 assignment). Its name settings are secured the same way as a create — or the
 new lobby is cancelled.
+
+**Names: a game played with the students' names replays with them.** The
+name setting (`playerDisplayMode`: code names, first name, first name and
+last initial, full name) rides on the create request, and the room stores it.
+Every seat is named where it is written, from the room's setting
+(`seatAliasUnder`, `liveChallengeExperience.mjs`): when the room is created,
+when a student is invited late, and in every join's transaction. Each seat
+keeps its own code name (`codeAlias`) for a switch back.
+`configureLiveChallengeExperience`, which the console still sends after a
+create, writes the room first and then renames the seats it can see, so it
+agrees with all three. Before 2026-11, the names were applied only by that
+call. The class sits on the podium and joins the new lobby within a second,
+so a student who joined while the call was running kept their code name on
+the board: a named game came back with code names
+(`liveChallengeSeatNames.test.mjs`, platform and integration).
 
 `createLiveChallenge` re-invites the class, and every student's screen follows
 its invite into the new lobby (the student screen is keyed by room id, so the

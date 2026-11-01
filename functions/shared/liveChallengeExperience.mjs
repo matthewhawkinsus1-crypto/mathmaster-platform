@@ -80,6 +80,48 @@ export const displayAliasForStudent = ({ student = {}, mode = 'codeName', codeAl
 };
 
 /**
+ * The name setting a room's seats are under, or null for a room that has not
+ * said: one created before rooms carried the setting, before its teacher's
+ * configuration landed. A reader that gets null leaves an alias as it is.
+ */
+export const roomPlayerDisplayMode = (room = {}) => {
+  const raw = room && typeof room === 'object' ? room.playerDisplayMode : undefined;
+  return raw === undefined || raw === null ? null : normalizePlayerDisplayMode(raw);
+};
+
+/**
+ * THE ALIAS A SEAT CARRIES UNDER ITS ROOM'S NAME SETTING.
+ *
+ * Every seat gets a code name from the room's seed (`codeAlias`, kept so a
+ * room switched back to code names gets the same one). Under a name setting
+ * the public alias is the student's name instead, from displayAliasForStudent.
+ *
+ * The room's setting decides, read where the seat is written: when the room is
+ * created, when a student is invited late, when a student joins. The setting
+ * used to be applied only after the create, by a second call from the
+ * teacher's device (configureLiveChallengeExperience). A student who joined
+ * while that call was running kept their code name on the class's board. On
+ * Play Again the whole class is sitting on the podium and joins the new lobby
+ * within a second, so a named game came back with code names.
+ *
+ * `player` is the seat as stored: `{ alias, codeAlias }`. The result is what to
+ * write back: `{ alias, codeAlias }`.
+ */
+export const seatAliasUnder = ({ room = {}, student = {}, studentId = '', player = {} } = {}) => {
+  const codeAlias = cleanText(player?.codeAlias) || cleanText(player?.alias) || 'MathMaster Player';
+  const mode = roomPlayerDisplayMode(room);
+  if (mode === null) return Object.freeze({ alias: cleanText(player?.alias) || codeAlias, codeAlias });
+  const record = student && typeof student === 'object' && !Array.isArray(student) ? student : {};
+  const id = cleanText(studentId) || cleanText(record.studentId);
+  return Object.freeze({
+    // With its id, so a name field holding the student's own id is never used
+    // as the public alias (the same as the configuration callable).
+    alias: displayAliasForStudent({ student: id ? { ...record, studentId: id } : record, mode, codeAlias }),
+    codeAlias,
+  });
+};
+
+/**
  * The existing mature scorer pays speed on a 10% (100-point) scale. Option B
  * keeps that scorer intact and asks the experience layer only for the delta
  * needed to reach the room's selected percentage.
@@ -162,6 +204,8 @@ export default /* @__PURE__ */ Object.freeze({
   speedBonusCapForPercent,
   normalizePlayerDisplayMode,
   displayAliasForStudent,
+  roomPlayerDisplayMode,
+  seatAliasUnder,
   experienceScoreAdjustment,
   scaleLegacySpeedPoints,
   buildChallengeScoringPreview,

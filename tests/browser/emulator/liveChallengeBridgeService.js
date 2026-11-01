@@ -22,6 +22,7 @@ export {
   readLiveChallengePlayerSummary,
   readLiveChallengeSolution,
   readChallengeReport,
+  readClassGameMemory,
   timestampMillis,
   setWarmupChallengeDelivery,
 } from '../../../src/platform/liveChallenge/liveChallengeService.js';
