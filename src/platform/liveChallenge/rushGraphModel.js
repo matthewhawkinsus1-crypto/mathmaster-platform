@@ -177,6 +177,15 @@ export const curveArrows = (graph, view = {}) => {
  * drawing that names none yet: a lone open dot or arrow); dots and arrows are
  * drawn as placed, so a half-finished drawing still shows.
  */
+/**
+ * The targets a graph marks found, with a check and their coordinates:
+ * points and lines. A domain or range has no point to mark — it shows as the
+ * drawing on its axis — so a correct check never puts a stray "(0, 0)" on
+ * the graph.
+ */
+export const foundMarkTargets = (question, found = []) => (question?.targets || [])
+  .filter((target) => target?.geometry !== 'set' && found.includes(target.id));
+
 export const axisSetDrawing = (question, drawing) => {
   const target = (question?.targets || []).find((entry) => entry?.geometry === 'set');
   if (!target || !question?.view || !drawing) return null;
