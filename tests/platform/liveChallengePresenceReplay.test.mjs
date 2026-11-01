@@ -174,6 +174,10 @@ test('Play Again asks for the same game as a new match — never the old room, n
     roundClosingThreshold: null,
     secondChanceMode: 'automatic',
     assignmentId: null,
+    // The names ride on the create itself, so the server names each seat as
+    // it makes it: a class that follows into the new lobby at once is never
+    // seated under code names (liveChallengeSeatNames.test.mjs).
+    playerDisplayMode: 'firstName',
   });
   assert.equal('roomId' in request, false, 'a fresh room id is the server\'s');
   for (const carried of ['currentRound', 'status', 'roundVersion', 'roundToken', 'startsAt']) assert.equal(carried in request, false);

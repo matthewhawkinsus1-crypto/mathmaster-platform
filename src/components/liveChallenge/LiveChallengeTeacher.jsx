@@ -721,6 +721,9 @@ export default function LiveChallengeTeacher({
               ? rushCreateRequest(rushSetup, { rewardPolicy: buildChallengeRewardPolicy(rewardChoice) })
               : lineCreateRequest(lineSetup, { rewardPolicy: buildChallengeRewardPolicy(rewardChoice) })),
             standingsDisplay,
+            // The seats are named as they are created: students who join
+            // before the configuration below lands still get their names.
+            playerDisplayMode,
             title: title.trim() || `${selectedClass?.name || classPeriod || 'Class'} ${rushMode ? 'Graph Feature Rush' : 'Graph the Line'}`,
           });
         } catch (error) {
@@ -771,6 +774,8 @@ export default function LiveChallengeTeacher({
           // Null keeps the server's default (Class Points achievements only).
           rewardPolicy: buildChallengeRewardPolicy(rewardChoice),
           standingsDisplay,
+          // The seats are named as they are created (see the rush branch).
+          playerDisplayMode,
           // Nothing for Accuracy First, the server's default (LC16).
           ...classicScoringRequest(challengeMode, classicScoringId),
         });
