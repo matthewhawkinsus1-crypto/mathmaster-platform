@@ -369,6 +369,29 @@ export const roundResultsView = ({
   });
 };
 
+/*
+ * A MEDAL FOR A ROUND'S 1ST, 2ND OR 3RD on the student's own results card (the
+ * Grand Prix look) — never for a place in the round's last group, whatever
+ * its number: a last place is not dressed up as a podium, as the final card
+ * never leads with one (finalPlaceIsHeadline). The last group is the class
+ * copy's (`tableBoard.lastRank`), else the lowest place in the rows; not
+ * knowing it means no medal.
+ */
+export const roundMedalPlace = (view) => {
+  const self = view?.self;
+  if (!self?.participated || self.place?.short === '—') return null;
+  const rank = Number(self.rank);
+  if (!Number.isInteger(rank) || rank < 1 || rank > 3) return null;
+  const ranks = (Array.isArray(view.rows) ? view.rows : [])
+    .filter((row) => row?.participated && Number.isInteger(row.rank))
+    .map((row) => row.rank);
+  let lastRank = null;
+  if (Number.isInteger(view.tableBoard?.lastRank)) lastRank = view.tableBoard.lastRank;
+  else if (ranks.length) lastRank = Math.max(...ranks);
+  if (lastRank === null || rank >= lastRank) return null;
+  return rank;
+};
+
 /** "You placed 4th of 22" / "You tied for 2nd of 22" / "No answer this round". */
 export const roundPlacementSentence = (row, fieldSize) => {
   if (!row) return 'You will play from the next round.';

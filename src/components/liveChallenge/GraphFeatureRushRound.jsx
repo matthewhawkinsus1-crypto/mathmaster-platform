@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import GraphFeatureRushGraph from './GraphFeatureRushGraph.jsx';
 import InequalityNumberLine from './InequalityNumberLine.jsx';
+import StartLights from './StartLights.jsx';
+import { ARENA_RUSH_VARS, GP_RACE_CSS, arenaLayerCss } from './grandPrixTheme.js';
 import { INEQUALITY_RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { monotonicRoundOrigin } from '../../../functions/shared/liveChallengeParity.mjs';
 import { rushRefusalIsTimeUp } from '../../platform/liveChallenge/challengeAnswerRefusal.js';
@@ -183,7 +185,12 @@ function RushCountdownNumber({ startMono }) {
   const before = startMono - now;
   if (before <= 0) return null;
   const step = Math.min(3, Math.max(1, Math.ceil(before / 1000)));
-  return <span key={step} className="mm-rush-count" data-mm-countdown={String(step)} aria-hidden="true">{step}</span>;
+  return (
+    <>
+      <StartLights step={step} />
+      <span key={step} className="mm-rush-count" data-mm-countdown={String(step)} aria-hidden="true">{step}</span>
+    </>
+  );
 }
 
 /** Spoken time warnings, once each: a screen reader is not asked to read a ticking clock. */
@@ -208,45 +215,55 @@ const RUSH_CSS = `
      bar is shown. */
   position: fixed; top: var(--mm-student-identity-stack-offset, 0px); right: 0; bottom: 0; left: 0; z-index: 9000;
   display: grid; grid-template-rows: auto minmax(0, 1fr); grid-template-columns: minmax(0, 1fr);
-  background: radial-gradient(120% 90% at 50% 0%, #1f2a44 0%, #131722 55%, #0d1017 100%);
-  color: #eef1f6; font-family: "Segoe UI", system-ui, sans-serif;
+  color: #eef2ff; font-family: "Segoe UI", system-ui, sans-serif;
   touch-action: manipulation; overscroll-behavior: none;
-  --mm-rush-curve: var(--mm-primary); --mm-rush-found: var(--mm-success-text); --mm-rush-miss: var(--mm-error-border);
-  /* Asymptotes in a colour of their own, distinct from the axes, the curve and
-     the found/miss marks in both themes. */
-  --mm-rush-asymptote: var(--mm-accent);
+  /* The Grand Prix's graph: dark glass, the curve cyan, found points green,
+     misses red, and asymptotes in a colour of their own (magenta), distinct
+     from the axes, the curve and the found/miss marks (grandPrixTheme.js
+     ARENA_MARKS). The arena behind it is the rule after this one. */
+  ${ARENA_RUSH_VARS};
 }
+${arenaLayerCss('.mm-rush-shell')}
 .mm-rush-bar {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   padding: 8px max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
-  border-bottom: 1px solid rgba(255,255,255,.1); min-height: 52px; box-sizing: border-box;
+  min-height: 52px; box-sizing: border-box;
+  background: linear-gradient(90deg, rgba(42,15,92,.92), rgba(10,16,52,.92) 55%, rgba(42,15,92,.92));
+  border-bottom: 1px solid rgba(53,227,255,.45); box-shadow: 0 1px 0 rgba(255,63,209,.35), 0 6px 18px rgba(0,0,0,.35);
 }
-.mm-rush-chip { padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.12); font-weight: 900; font-size: calc(13 * var(--mm-px)); white-space: nowrap; }
-.mm-rush-round { font-weight: 900; font-size: calc(15 * var(--mm-px)); white-space: nowrap; }
-.mm-rush-done { font-weight: 1000; font-size: calc(18 * var(--mm-px)); color: #81c995; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.mm-rush-clock { margin-left: auto; font-size: calc(30 * var(--mm-px)); font-weight: 1000; line-height: 1; font-variant-numeric: tabular-nums; }
-.mm-rush-clock-low { color: #ffb4ab; }
+/* The student's name on a racing plate. */
+.mm-rush-chip { padding: 3px 12px; border-radius: 7px; transform: skewX(-8deg); background: linear-gradient(180deg, #ff4d6d, #c8102e); border: 1px solid rgba(255,255,255,.85); color: #fff; font-weight: 1000; font-style: italic; font-size: calc(13 * var(--mm-px)); white-space: nowrap; }
+.mm-rush-round { font-weight: 1000; font-style: italic; text-transform: uppercase; letter-spacing: .02em; color: #35e3ff; font-size: calc(15 * var(--mm-px)); white-space: nowrap; }
+.mm-rush-done { font-weight: 1000; font-style: italic; font-size: calc(18 * var(--mm-px)); color: #ffd23f; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* The clock redraws every second: crisp edges only (a blur here would be redrawn with it). */
+.mm-rush-clock { margin-left: auto; font-size: calc(30 * var(--mm-px)); font-weight: 1000; font-style: italic; line-height: 1; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 2px 2px 0 rgba(53,227,255,.45); }
+/* The last ten seconds: red, and a pulse (a transform: the compositor's). */
+.mm-rush-clock-low { color: #ff5d73; text-shadow: 2px 2px 0 rgba(255,63,209,.4); animation: mmGpPulse 1s ease-in-out infinite; }
 .mm-rush-sync { font-size: calc(12 * var(--mm-px)); font-weight: 900; color: #fdd663; }
-.mm-rush-exit { min-height: 40px; padding: 6px 12px; border: 1px solid rgba(255,255,255,.3); border-radius: 8px; background: transparent; color: #eef1f6; font-weight: 900; cursor: pointer; }
+.mm-rush-exit { min-height: 40px; padding: 6px 12px; border: 1px solid rgba(53,227,255,.45); border-radius: 8px; background: rgba(10,16,52,.6); color: #eef2ff; font-weight: 900; cursor: pointer; }
 .mm-rush-stage {
   display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 10px; min-height: 0;
   padding: 10px max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
 }
 .mm-rush-prompt h2 { margin: 0; font-size: clamp(calc(21 * var(--mm-px)), calc(4.2vmin * var(--mm-text-scale, 1)), calc(34 * var(--mm-px))); line-height: 1.15; font-weight: 800; color: #f7f9ff; }
-.mm-rush-hint { margin: 4px 0 0; font-size: calc(13 * var(--mm-px)); color: #b9c4d8; }
+.mm-rush-hint { margin: 4px 0 0; font-size: calc(13 * var(--mm-px)); color: #b8c4ef; }
 .mm-rush-graph-area { position: relative; min-height: 0; min-width: 0; display: grid; place-items: start center; }
-.mm-rush-graph-frame { position: relative; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,.35); }
+/* The graph in neon: a cyan rim and a faint outer ring — crisp, not a blurred
+   glow, which every new graph would draw again. */
+.mm-rush-graph-frame { position: relative; border-radius: 12px; box-shadow: 0 0 0 1px rgba(53,227,255,.6), 0 0 0 5px rgba(53,227,255,.1), 0 8px 30px rgba(0,0,0,.35); }
 .mm-rush-graph-frame[data-paused="1"] .mm-rush-graph { opacity: .55; transition: opacity 120ms; }
 .mm-rush-controls { display: grid; gap: 8px; }
 .mm-rush-feedback { min-height: 1.5em; font-weight: 900; font-size: calc(16 * var(--mm-px)); }
-.mm-rush-feedback[data-kind="hit"], .mm-rush-feedback[data-kind="complete"] { color: #81c995; }
-.mm-rush-feedback[data-kind="miss"], .mm-rush-feedback[data-kind="autoSkipped"] { color: #ffb4ab; }
+.mm-rush-feedback[data-kind="hit"], .mm-rush-feedback[data-kind="complete"] { color: #45ff8a; }
+.mm-rush-feedback[data-kind="miss"], .mm-rush-feedback[data-kind="autoSkipped"] { color: #ff8fa3; }
 .mm-rush-buttons { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 10px; }
 .mm-rush-buttons[data-off-screen="1"] { grid-template-columns: minmax(0, 3fr) minmax(0, 3fr) minmax(0, 2fr); }
 .mm-rush-dne, .mm-rush-off, .mm-rush-skip { min-height: 52px; border-radius: 12px; font-size: calc(17 * var(--mm-px)); font-weight: 1000; cursor: pointer; }
-.mm-rush-dne { border: 0; background: #fdd663; color: #1b1f2a; }
-.mm-rush-off { border: 2px solid #fdd663; background: rgba(253,214,99,.12); color: #fdd663; }
-.mm-rush-skip { border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.06); color: #eef1f6; }
+/* Buttons with a little depth (a crisp ledge, no blur), pressed down on a tap (a transform only). */
+.mm-rush-dne { border: 0; background: linear-gradient(180deg, #ffe680 0%, #ffc21a 60%, #f59f00 100%); color: #2b1700; box-shadow: 0 4px 0 #a86400; }
+.mm-rush-off { border: 2px solid #ffd23f; background: rgba(255,210,63,.1); color: #ffd23f; }
+.mm-rush-skip { border: 1px solid rgba(53,227,255,.45); background: rgba(10,16,52,.6); color: #eef2ff; }
+.mm-rush-dne:active:not(:disabled), .mm-rush-off:active:not(:disabled), .mm-rush-skip:active:not(:disabled), .mm-rush-arrow:active:not(:disabled), .mm-rush-check:active:not(:disabled) { transform: translateY(2px); }
 .mm-rush-dne:disabled, .mm-rush-off:disabled, .mm-rush-skip:disabled { opacity: .45; cursor: not-allowed; }
 .mm-rush-dne:focus-visible, .mm-rush-off:focus-visible, .mm-rush-skip:focus-visible, .mm-rush-exit:focus-visible { outline: 3px solid var(--mm-focus); outline-offset: 2px; }
 /* A domain or range: the arrows, ✓ Check and Skip, with the set as it is drawn. */
@@ -255,28 +272,30 @@ const RUSH_CSS = `
 .mm-rush-buttons[data-inequality="1"] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr); }
 .mm-rush-buttons[data-inequality="1"] .mm-rush-dne { grid-column: span 2; }
 .mm-rush-arrow, .mm-rush-check { min-height: 52px; border-radius: 12px; font-size: calc(19 * var(--mm-px)); font-weight: 1000; cursor: pointer; }
-.mm-rush-arrow { border: 2px solid rgba(255,255,255,.35); background: rgba(255,255,255,.06); color: #eef1f6; }
-.mm-rush-arrow[aria-pressed="true"] { border-color: #8ab4f8; background: rgba(138,180,248,.22); color: #fff; }
-.mm-rush-check { border: 0; background: #81c995; color: #10261a; }
+.mm-rush-arrow { border: 2px solid rgba(53,227,255,.5); background: rgba(10,16,52,.6); color: #eef2ff; }
+.mm-rush-arrow[aria-pressed="true"] { border-color: #35e3ff; background: rgba(53,227,255,.22); color: #fff; box-shadow: 0 0 0 3px rgba(53,227,255,.3); }
+.mm-rush-check { border: 0; background: linear-gradient(180deg, #8dffb8 0%, #45ff8a 55%, #16c45a 100%); color: #052b14; box-shadow: 0 4px 0 #0c7a37; }
 .mm-rush-arrow:disabled, .mm-rush-check:disabled { opacity: .45; cursor: not-allowed; }
 .mm-rush-arrow:focus-visible, .mm-rush-check:focus-visible { outline: 3px solid var(--mm-focus); outline-offset: 2px; }
 .mm-rush-notation { font-size: calc(22 * var(--mm-px)); font-weight: 900; font-variant-numeric: tabular-nums; color: #f7f9ff; min-height: 1.3em; }
 /* An inequality's two forms break between them, never inside one. */
 .mm-rush-notation > span { white-space: nowrap; }
-.mm-rush-notation-sep { color: #b9c4d8; }
+.mm-rush-notation-sep { color: #b8c4ef; }
 .mm-rush-math { white-space: nowrap; }
 /* A number line sits in the middle of its area; a graph fills it from the top. */
 .mm-rush-graph-area[data-line="1"] { place-items: center; }
-.mm-rush-notation[data-empty="1"] { font-size: calc(14 * var(--mm-px)); font-weight: 700; color: #b9c4d8; }
+.mm-rush-notation[data-empty="1"] { font-size: calc(14 * var(--mm-px)); font-weight: 700; color: #b8c4ef; }
 .mm-rush-cooldown { height: 6px; border-radius: 999px; background: rgba(255,255,255,.12); overflow: hidden; }
-.mm-rush-cooldown > span { display: block; height: 100%; background: #ffb4ab; transform-origin: left; animation: mmRushDrain linear forwards; }
+.mm-rush-cooldown > span { display: block; height: 100%; background: #ff5d73; transform-origin: left; animation: mmRushDrain linear forwards; }
 .mm-rush-overlay {
   position: absolute; inset: 0; display: grid; place-content: center; gap: 8px; text-align: center;
-  border-radius: 12px; background: rgba(13,16,23,.86); color: #f7f9ff; padding: 16px;
+  border-radius: 12px; background: radial-gradient(90% 80% at 50% 30%, rgba(42,15,92,.94), rgba(8,12,42,.95)); color: #f7f9ff; padding: 16px;
+  border: 1px solid rgba(53,227,255,.35);
 }
-.mm-rush-overlay strong { font-size: clamp(calc(28 * var(--mm-px)), calc(7vmin * var(--mm-text-scale, 1)), calc(56 * var(--mm-px))); line-height: 1; }
-.mm-rush-count { font-size: clamp(calc(64 * var(--mm-px)), calc(18vmin * var(--mm-text-scale, 1)), calc(140 * var(--mm-px))); font-weight: 1000; line-height: .9; font-variant-numeric: tabular-nums; color: #fff; animation: mmRushCountPop 420ms cubic-bezier(.2,.9,.3,1.3); }
-.mm-rush-flash { position: absolute; inset: 0; border-radius: 12px; pointer-events: none; box-shadow: inset 0 0 0 6px #81c995; animation: mmRushFlash 420ms ease-out forwards; }
+.mm-rush-overlay strong { font-size: clamp(calc(28 * var(--mm-px)), calc(7vmin * var(--mm-text-scale, 1)), calc(56 * var(--mm-px))); line-height: 1; font-style: italic; text-transform: uppercase; text-shadow: 2px 2px 0 rgba(255,63,209,.6); }
+/* A new number each second: neon by offset shadows (a blur would be drawn again each time). */
+.mm-rush-count { font-size: clamp(calc(64 * var(--mm-px)), calc(18vmin * var(--mm-text-scale, 1)), calc(140 * var(--mm-px))); font-weight: 1000; font-style: italic; line-height: .9; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 4px 4px 0 rgba(255,63,209,.7), 0 7px 0 rgba(10,16,52,.9); animation: mmRushCountPop 420ms cubic-bezier(.2,.9,.3,1.3); }
+.mm-rush-flash { position: absolute; inset: 0; border-radius: 12px; pointer-events: none; box-shadow: inset 0 0 0 6px #45ff8a; animation: mmRushFlash 420ms ease-out forwards; }
 .mm-rush-banner { padding: 6px 10px; border-radius: 8px; background: rgba(253,214,99,.14); border: 1px solid rgba(253,214,99,.45); color: #fdd663; font-weight: 800; font-size: calc(13 * var(--mm-px)); }
 .mm-rush-alert { padding: 9px 12px; border-radius: 9px; background: #4a3708; color: #ffe9a8; border: 1px solid #f9ab00; font-weight: 800; }
 .mm-rush-visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
@@ -291,6 +310,7 @@ const RUSH_CSS = `
 @keyframes mmRushMiss { 0% { opacity: 1; transform: scale(.8); } 70% { opacity: .9; transform: scale(1); } 100% { opacity: 0; transform: scale(1.05); } }
 @keyframes mmRushInA { from { opacity: .6; } to { opacity: 1; } }
 @keyframes mmRushInB { from { opacity: .6; } to { opacity: 1; } }
+${GP_RACE_CSS}
 @media (min-aspect-ratio: 5/4) and (min-width: 600px) {
   .mm-rush-stage {
     grid-template-columns: minmax(0, 1fr) clamp(240px, 30vw, 380px);
@@ -322,6 +342,7 @@ const RUSH_CSS = `
 }
 @media (prefers-reduced-motion: reduce) {
   .mm-rush-found-fresh, .mm-rush-in-a, .mm-rush-in-b, .mm-rush-count { animation: none; }
+  .mm-rush-clock-low { animation: none; }
   .mm-rush-miss { animation: mmRushFlash 650ms linear forwards; }
   .mm-rush-flash { animation: none; opacity: .8; }
 }
@@ -374,6 +395,9 @@ export default function GraphFeatureRushRound({
   const [alert, setAlert] = useState('');
   const [connection, setConnection] = useState('ok');
   const [started, setStarted] = useState(() => performance.now() >= timing.startMono);
+  // GO over the round's first moment, for a student who watched its countdown
+  // (not one who opens the round already running).
+  const [sawCountdown] = useState(() => performance.now() < timing.startMono);
   const [timeUp, setTimeUp] = useState(() => performance.now() >= timing.endMono);
   const [, setWake] = useState(0);
   const over = timeUp || roundClosed;
@@ -693,7 +717,8 @@ export default function GraphFeatureRushRound({
       <header className="mm-rush-bar">
         {alias && <span className="mm-rush-chip">{alias}</span>}
         <span className="mm-rush-round">{practice ? 'Practice' : `Round ${roundIndex + 1} of ${roundCount}`}</span>
-        <span className="mm-rush-done"><span aria-hidden="true">✓ {completed}</span><span style={SR_ONLY_STYLE}>{`${completed} ${noun.many} completed`}</span></span>
+        {/* Each completed item pops the count once (keyed to the count). */}
+        <span className="mm-rush-done"><span key={completed} className={completed > 0 ? 'mm-gp-bump' : undefined} aria-hidden="true">✓ {completed}</span><span style={SR_ONLY_STYLE}>{`${completed} ${noun.many} completed`}</span></span>
         {connection === 'retrying' && <span className="mm-rush-sync" role="status">Reconnecting… your taps are saved</span>}
         <RushClock startMono={timing.startMono} endMono={timing.endMono} />
         {typeof onExit === 'function' && <button type="button" className="mm-rush-exit" onClick={onExit}>{exitLabel}</button>}
@@ -743,7 +768,13 @@ export default function GraphFeatureRushRound({
                 </div>
               ) : <div style={{ width: frame.width, height: frame.height, borderRadius: 12, background: 'var(--mm-graph-bg)' }} />}
               {transition?.kind === RUSH_FEEDBACK.COMPLETE && <div key={transition.questionIndex} className="mm-rush-flash" aria-hidden="true" />}
+              {/* A gold +1 rises off a finished item, inside the flash's own time. */}
+              {transition?.kind === RUSH_FEEDBACK.COMPLETE && <span key={`plus-${transition.questionIndex}`} className="mm-gp-plus" aria-hidden="true">+1</span>}
               {overlay && <div className="mm-rush-overlay">{overlay}</div>}
+              {/* Mounted once, at the start; faded out and hidden after (CSS). */}
+              {started && sawCountdown && (
+                <div className="mm-gp-go-flash" aria-hidden="true"><StartLights go /><span className="mm-gp-go">GO!</span></div>
+              )}
             </div>
           )}
         </section>

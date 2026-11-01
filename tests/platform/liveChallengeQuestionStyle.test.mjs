@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { shortPlaceText } from '../../src/platform/liveChallenge/challengeStandingsModel.js';
+import { ARENA_PAGE_BACKGROUND, GRAND_PRIX_CSS } from '../../src/components/liveChallenge/grandPrixTheme.js';
 
 import {
   CHALLENGE_QUESTION_STYLES,
@@ -187,7 +188,12 @@ test('the last-ten-seconds pulse respects prefers-reduced-motion', () => {
 test('the whole student shell is themed, not just one bar', () => {
   // A game bar bolted onto an assignment-coloured page still reads as the
   // assignment. Every status a student can land on gets the game ground.
-  assert.match(student, /radial-gradient\(120% 90% at 50% 0%, #1f2a44/);
+  // The Grand Prix arena (grandPrixTheme.js): on the screen that opens a room
+  // and on the room itself, each with the stylesheet that draws it.
+  const grounds = student.match(/className="mm-gp-arena-page"/g) || [];
+  assert.ok(grounds.length >= 2, `the opening screen and the room both stand on the arena; found ${grounds.length}`);
+  assert.ok((student.match(/<GrandPrixStyles \/>/g) || []).length >= 2, 'each draws it');
+  assert.ok(GRAND_PRIX_CSS.includes(`.mm-gp-arena-page { background: ${ARENA_PAGE_BACKGROUND}; }`), 'the arena behind the page, over its first screen');
   assert.doesNotMatch(student, /background: '#f0f2f5'/, 'the old worksheet ground must be gone');
   for (const status of ['lobby', 'running', 'finished', 'cancelled']) {
     assert.ok(student.includes(`room.status === '${status}'`), `${status} must still render`);

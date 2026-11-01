@@ -3,6 +3,7 @@ import { challengeClock, formatChallengeClock, stageHasOpenRound } from '../../p
 import { usePrefersReducedMotion, useTicker } from '../../platform/liveChallenge/challengeHooks.js';
 import { formatPoints, standingsWindow } from '../../platform/liveChallenge/challengeStandingsModel.js';
 import { SHELL_CSS } from './challengeShellCss.js';
+import StartLights from './StartLights.jsx';
 import Dialog from '../../ui/Dialog.jsx';
 import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 
@@ -52,18 +53,20 @@ export const SHELL_LOOKS = Object.freeze({
     compactSize: 'clamp(calc(15 * var(--mm-px)), calc(1.45vw * var(--mm-text-scale, 1)), calc(21 * var(--mm-px)))',
     compactRowHeight: 'clamp(32px, 4.8vh, 44px)',
   }),
+  // The Grand Prix's race night (grandPrixTheme.js): a student's own row in
+  // magenta light, gold for the leader and the countdown's title.
   student: Object.freeze({
-    text: '#eef1f6',
-    muted: '#b9c4d8',
-    row: 'rgba(255,255,255,.07)',
-    rowBorder: 'rgba(255,255,255,.12)',
-    self: 'rgba(66,133,244,.30)',
-    selfBorder: '#8ab4f8',
-    accent: '#fdd663',
-    good: '#81c995',
-    up: '#81c995',
-    down: '#ffb4ab',
-    gold: '#fdd663',
+    text: '#eef2ff',
+    muted: '#b8c4ef',
+    row: 'rgba(20,28,84,.6)',
+    rowBorder: 'rgba(53,227,255,.16)',
+    self: 'rgba(255,63,209,.2)',
+    selfBorder: '#ff7ae0',
+    accent: '#ffd23f',
+    good: '#45ff8a',
+    up: '#45ff8a',
+    down: '#ff8fa3',
+    gold: '#ffd23f',
     size: 'calc(15 * var(--mm-px))',
     rowHeight: 40,
   }),
@@ -118,11 +121,16 @@ export function useLowTime(room, clockOffsetMs = 0, thresholdMs = 10_000) {
   return clock.stage === 'roundActive' && clock.remainingMs !== null && clock.remainingMs <= thresholdMs;
 }
 
+// A student's countdown number, in the Grand Prix's neon: offset shadows, no
+// blur (a new number is drawn every second).
+const STUDENT_COUNT_GLOW = Object.freeze({ fontStyle: 'italic', textShadow: '4px 4px 0 rgba(255,63,209,.7), 0 7px 0 rgba(10,16,52,.9)' });
+
 /**
  * 3 · 2 · 1 · GO, from the round's authoritative start. `clock` is a
  * useChallengeClock reading: the number changes exactly on the second, on
  * every screen at once, and a screen that wakes mid-countdown shows the step
- * the server clock is on — there is no local countdown to drift.
+ * the server clock is on — there is no local countdown to drift. A student's
+ * device adds the start lights, lit off the same step.
  */
 export function ChallengeCountdown({ clock, look = 'projector', title = '', detail = '', size = null }) {
   const style = lookOf(look);
@@ -134,7 +142,8 @@ export function ChallengeCountdown({ clock, look = 'projector', title = '', deta
   return (
     <div className="mm-shell-count" data-mm-countdown={go ? 'go' : String(step)} style={{ color: style.text, padding: look === 'console' ? 12 : 20 }}>
       {title && <div style={{ fontSize: look === 'projector' ? 'clamp(calc(20 * var(--mm-px)), calc(2.6vw * var(--mm-text-scale, 1)), calc(34 * var(--mm-px)))' : 'calc(18 * var(--mm-px))', fontWeight: 900, color: style.accent, letterSpacing: '.04em', textTransform: 'uppercase' }}>{title}</div>}
-      <div key={text} className="mm-shell-count-number" aria-hidden="true" style={{ fontSize, color: go ? style.good : style.text }}>{text}</div>
+      {look === 'student' && <div style={{ margin: '12px 0 4px' }}><StartLights step={step} go={go} /></div>}
+      <div key={text} className="mm-shell-count-number" aria-hidden="true" style={{ fontSize, color: go ? style.good : style.text, ...(look === 'student' ? STUDENT_COUNT_GLOW : null) }}>{text}</div>
       <div aria-live="polite" style={{ fontSize: look === 'projector' ? 'clamp(calc(18 * var(--mm-px)), calc(2vw * var(--mm-text-scale, 1)), calc(28 * var(--mm-px)))' : 'calc(16 * var(--mm-px))', fontWeight: 800, color: style.muted }}>
         {go ? 'Go!' : `Get ready… ${step}`}{detail ? ` · ${detail}` : ''}
       </div>

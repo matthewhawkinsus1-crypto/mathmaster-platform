@@ -28,6 +28,7 @@ import { applyRushAttempts } from '../../functions/shared/graphFeatureRush.mjs';
 import { GRAPH_FEATURE_RUSH_PRESETS, normalizeGraphFeatureRushConfig } from '../../functions/shared/graphFeatureRushConfig.mjs';
 import { RUSH_ATTEMPT_KIND } from '../../functions/shared/graphFeatureRushRules.mjs';
 import { correctCountStrategy } from '../../functions/shared/liveChallengeScoring.mjs';
+import { ARENA_GRAPH, ARENA_MARKS, ARENA_RUSH_VARS } from '../../src/components/liveChallenge/grandPrixTheme.js';
 import { curveArrows, formatTarget, graphDrawing, lineLabelSpot, nearOpenDot } from '../../src/platform/liveChallenge/rushGraphModel.js';
 import {
   OPEN_DOT_MESSAGE,
@@ -484,7 +485,14 @@ test('the screens draw arrows, asymptotes in their own colour, and offer Off scr
   // Drawn after the axes, so an asymptote on an axis shows over it.
   assert.ok(layer.indexOf('drawing.asymptotes.vertical') > layer.indexOf('stroke="var(--mm-graph-axis)"'));
   const round = read('src/components/liveChallenge/GraphFeatureRushRound.jsx');
-  assert.match(round, /--mm-rush-asymptote: var\(--mm-accent\);/);
+  // The round's shell sets the arena graph's tokens (grandPrixTheme.js), and
+  // the asymptote's is a colour of its own: not the curve's, a found or a
+  // missed mark's, or the axes'.
+  assert.match(round, /\.mm-rush-shell \{[^`]*?\$\{ARENA_RUSH_VARS\};\n\}/);
+  assert.ok(ARENA_RUSH_VARS.includes(`--mm-rush-asymptote: ${ARENA_MARKS.asymptote}`));
+  for (const other of [ARENA_MARKS.curve, ARENA_MARKS.found, ARENA_MARKS.miss, ARENA_GRAPH.axis]) {
+    assert.notEqual(ARENA_MARKS.asymptote, other, `the asymptote's colour is not ${other}`);
+  }
   assert.match(round, /const offScreenGame = room\.graphFeatureRush\?\.config\?\.offScreen === true;/);
   assert.match(region(round, '<div className="mm-rush-buttons" data-off-screen=', '</div>', 'the answer buttons'), /\{offScreenGame && \(\s*<button type="button" className="mm-rush-off" disabled=\{buttonsDisabled\} onClick=\{onOffScreen\}/);
   assert.match(round, /const onOffScreen = \(\) => act\(recordOffScreen\);/);
