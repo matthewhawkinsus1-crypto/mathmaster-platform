@@ -197,6 +197,9 @@ function useTimeAnnouncements(endMono, active) {
   return spoken;
 }
 
+// The arena is dark in both themes: its plate, clock, answer boxes and
+// buttons keep fixed colours in dark mode too (grandPrixTheme.js, "Fixed
+// colours, on purpose").
 const LINE_CSS = `
 .mm-line-shell {
   /* Full screen below the student identity bar, which stays on top and

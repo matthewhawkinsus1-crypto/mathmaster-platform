@@ -14,6 +14,12 @@
  *   - the same projector standings choice (top few, or full standings): a
  *     teacher who opted one class into full standings keeps it, and a class
  *     on the default is never moved onto a full board by a replay;
+ *   - the same names: a game played with the students' names replays with
+ *     them. The setting rides on the create request, so the server names every
+ *     seat as it creates it. The class is already on the podium and joins the
+ *     new lobby within a second, before configureLiveChallengeExperience (sent
+ *     after the create) could rename anyone. Sent only by configure, the names
+ *     came back as code names;
  *   - NOT the assignment Warm-Up link. A Warm-Up records one result per
  *     assignment; a second game would overwrite the first. A replay of a
  *     Warm-Up game is a standalone game.
@@ -51,6 +57,9 @@ export const replayRequestFromRoom = (room = {}, { rewardPolicy = null } = {}) =
     // A room created before the choice existed has no field: the server's
     // default (top few) applies.
     standingsDisplay: room.standingsDisplay === undefined || room.standingsDisplay === null ? undefined : normalizeStandingsDisplay(room.standingsDisplay),
+    // The names the last game's seats carried (see the header). The same value
+    // configureLiveChallengeExperience is then sent (replayExperienceFromRoom).
+    playerDisplayMode: replayExperienceFromRoom(room).playerDisplayMode,
   };
   const game = questionSetGameOf(room);
   if (game === QUESTION_SET_GAME.GRAPH_FEATURE_RUSH) {

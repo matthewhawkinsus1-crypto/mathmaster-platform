@@ -207,6 +207,8 @@ function useTimeAnnouncements(endMono, active) {
   return spoken;
 }
 
+// The arena is dark in both themes: its plate, clock and buttons keep fixed
+// colours in dark mode too (grandPrixTheme.js, "Fixed colours, on purpose").
 const RUSH_CSS = `
 .mm-rush-shell {
   /* Full screen below the student identity bar, which stays on top (z 21000)
@@ -271,6 +273,9 @@ ${arenaLayerCss('.mm-rush-shell')}
 /* An inequality: the arrows and ✓ Check, then No Solution and Skip. */
 .mm-rush-buttons[data-inequality="1"] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr); }
 .mm-rush-buttons[data-inequality="1"] .mm-rush-dne { grid-column: span 2; }
+/* The arena is dark in both themes, so these keep fixed colors, as Does Not
+   Exist does: a pressed arrow's cyan and white, and dark text on the green ✓ Check
+   (recorded in scripts/theme-color-baseline.json and theme-token-baseline.json). */
 .mm-rush-arrow, .mm-rush-check { min-height: 52px; border-radius: 12px; font-size: calc(19 * var(--mm-px)); font-weight: 1000; cursor: pointer; }
 .mm-rush-arrow { border: 2px solid rgba(53,227,255,.5); background: rgba(10,16,52,.6); color: #eef2ff; }
 .mm-rush-arrow[aria-pressed="true"] { border-color: #35e3ff; background: rgba(53,227,255,.22); color: #fff; box-shadow: 0 0 0 3px rgba(53,227,255,.3); }
