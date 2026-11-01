@@ -37,6 +37,7 @@ import { describeLineCursor, moveLineCursor, numberAtPixel, numberLineLayout, nu
 import {
   NO_SOLUTION_RIGHT,
   RUSH_FEEDBACK,
+  answerDrawing,
   RUSH_INPUT,
   acknowledge,
   axisValueAt,
@@ -346,6 +347,14 @@ test('three wrong answers show the answer and move on — on the device and on t
     assert.equal(session.feedback.kind, RUSH_FEEDBACK.AUTO_SKIPPED);
     assert.equal(session.transition.until - now, RUSH_REVEAL_PAUSE_MS);
     assert.equal(feedbackMessage(session.feedback, I.publicInequalityQuestion(question)), `Answer: ${I.inequalityAnswerText(question)}. Next one.`);
+    // The line shows the answer — for "no solution", an empty line, never the student's wrong shading.
+    const shownDrawing = answerDrawing(I.publicInequalityQuestion(question));
+    if (question.targets.length) assert.deepEqual(shownDrawing, N.drawingForSet(answerOf(question)));
+    else {
+      assert.deepEqual(shownDrawing, N.EMPTY_DRAWING);
+      const marks = numberLineMarks(I.NUMBER_LINE, 900, shownDrawing);
+      assert.deepEqual([marks.bands, marks.dots, marks.arrows.left, marks.arrows.right], [[], [], null, null]);
+    }
     const shown = lineNotation(I.publicInequalityQuestion(question), session.drawing, { revealing: true });
     assert.equal(shown[0], I.inequalityAnswerText(question), 'the answer, as an inequality');
     assert.equal(shown[1], N.intervalNotation(answerOf(question)), 'and in interval notation');
@@ -642,6 +651,8 @@ test('students race on the rush\'s screen with a number line and No Solution; ev
   const round = read('src/components/liveChallenge/GraphFeatureRushRound.jsx');
   assert.match(round, /\{question && inequalityItem && started && phase === 'ready' \? \(/);
   assert.match(region(round, '<InequalityNumberLine', '/>', 'the number line'), /drawing=\{studentDrawing\}[\s\S]*reveal=\{revealDrawing\}[\s\S]*onTap=\{onTap\}/);
+  // The reveal draws the answer from the session's own rule (answerDrawing): an empty line for "no solution".
+  assert.match(round, /const revealDrawing = useMemo\(\(\) => \(revealing \? answerDrawing\(question\) : null\), \[revealing, question\]\);/);
   // No Solution on every inequality item, whatever its answer.
   assert.match(round, /\{inequalityItem && \(\s*<button type="button" className="mm-rush-dne" disabled=\{buttonsDisabled\} onClick=\{onDoesNotExist\}[^>]*>No Solution<\/button>/);
   // Words for the game, from the client's one place.

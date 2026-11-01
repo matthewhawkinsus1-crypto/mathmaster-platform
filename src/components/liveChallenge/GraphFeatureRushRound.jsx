@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import GraphFeatureRushGraph from './GraphFeatureRushGraph.jsx';
 import InequalityNumberLine from './InequalityNumberLine.jsx';
-import { drawingForSet, setFromPlain } from '../../../functions/shared/numberLineSets.mjs';
 import { INEQUALITY_RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { monotonicRoundOrigin } from '../../../functions/shared/liveChallengeParity.mjs';
 import { rushRefusalIsTimeUp } from '../../platform/liveChallenge/challengeAnswerRefusal.js';
@@ -13,6 +12,7 @@ import {
   RUSH_PREFETCH,
   RUSH_QUEUE_KEY_PREFIX,
   acknowledge,
+  answerDrawing,
   createRushSession,
   currentQuestion,
   dropQueue,
@@ -655,12 +655,9 @@ export default function GraphFeatureRushRound({
   const studentDrawing = session?.drawing;
   const axisSet = useMemo(() => (setQuestion && !inequalityItem && studentDrawing ? axisSetDrawing(question, studentDrawing) : null), [setQuestion, inequalityItem, question, studentDrawing]);
   const revealing = setQuestion && transition?.kind === RUSH_FEEDBACK.AUTO_SKIPPED && transition.questionIndex === question?.questionIndex;
-  // The answer as a drawing: on a number line as it is; on a graph, on its axis.
-  const revealDrawing = useMemo(() => {
-    if (!revealing || !setTarget) return null;
-    const answer = setFromPlain(setTarget.set);
-    return answer ? drawingForSet(answer) : null;
-  }, [revealing, setTarget]);
+  // The answer as a drawing (an empty line for "no solution"): on a number
+  // line as it is; on a graph, on its axis.
+  const revealDrawing = useMemo(() => (revealing ? answerDrawing(question) : null), [revealing, question]);
   const revealSet = useMemo(() => (revealDrawing && !inequalityItem ? axisSetDrawing(question, revealDrawing) : null), [revealDrawing, inequalityItem, question]);
   const vertical = setTarget?.axis === 'y';
   const notation = setQuestion ? lineNotation(question, studentDrawing, { revealing }) : null;

@@ -32,6 +32,7 @@ import { clampTolerance, resolveTap, TAP_RESULT } from '../../../functions/share
 import { getGraphFeature } from '../../../functions/shared/graphFeatureRegistry.mjs';
 import {
   EMPTY_DRAWING,
+  drawingForSet,
   drawingSet,
   drawingToPlain,
   inequalityNotation,
@@ -423,6 +424,21 @@ export const recordCheck = (session, { nowMs, elapsedMs, attemptId }) => {
     next = applyMiss(session, nowMs, { hint: inequality ? inequalityHint(question, drawn) : setHint(drawn, answer || [], { axis: target.axis }) });
   }
   return { session: queued(next, attempt), attempt };
+};
+
+/**
+ * The answer as a drawing, for the reveal after the third miss: a set's own
+ * drawing; for an inequality with no solution, an empty line — so the
+ * student's wrong shading never stays up beside "no solution". Null for a
+ * question answered by taps.
+ */
+export const answerDrawing = (question) => {
+  const target = setTargetOf(question);
+  if (target) {
+    const answer = setFromPlain(target.set);
+    return answer ? drawingForSet(answer) : null;
+  }
+  return isInequalityQuestion(question) ? EMPTY_DRAWING : null;
 };
 
 /**
