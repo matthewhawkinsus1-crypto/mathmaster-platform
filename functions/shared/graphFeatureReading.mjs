@@ -68,6 +68,14 @@ export const FEATURE_READING = Object.freeze({
     line: 'Asymptotes: lines the graph gets closer and closer to, like x = 2 or y = −1. Tap each line.',
     slip: 'Tapping the curve itself instead of the line it heads for.',
   }),
+  domain: Object.freeze({
+    line: 'Domain: every x the graph covers, read left to right; an open dot leaves its x out.',
+    slip: 'Stopping at the edge of the screen when an arrow says the graph keeps going.',
+  }),
+  range: Object.freeze({
+    line: 'Range: every y the graph reaches, read bottom to top along the y-axis.',
+    slip: 'Reading the range along the x-axis instead of the y-axis.',
+  }),
 });
 
 // The sentences of the answers line beyond "Does Not Exist".

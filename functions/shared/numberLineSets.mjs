@@ -384,7 +384,9 @@ export const inequalityNotation = (set, variable = 'x') => {
  * WHAT A WRONG DRAWING GOT WRONG, in terms of the drawing — never the answer.
  * Both sets are compared as the drawings that show them: their dots (number
  * and style) and their arrows. One reason is named only when it is the whole
- * story; anything else is "several".
+ * story; anything else is "several". `end` says which end a style or a number
+ * is wrong at: 'low' (the left of a number line, the bottom of the y-axis),
+ * 'high', or 'both'.
  */
 export const SET_DIAGNOSIS = Object.freeze({
   INCLUSION: 'inclusion',     // right numbers, a dot open where it should be closed (or back)
@@ -394,22 +396,62 @@ export const SET_DIAGNOSIS = Object.freeze({
   SEVERAL: 'several',
 });
 
+// Which ends differ, given two equal-length lists of dots, by a test.
+const endsWhere = (mine, right, differs) => {
+  const wrong = mine.map((dot, index) => differs(dot, right[index]));
+  if (wrong.length === 1) return wrong[0] ? (mine[0].value <= right[0].value ? 'low' : 'high') : null;
+  if (wrong[0] && wrong[wrong.length - 1]) return 'both';
+  if (wrong[0]) return 'low';
+  return wrong[wrong.length - 1] ? 'high' : null;
+};
+
+/** The diagnosis of a wrong set against the right one: `{ kind, end }`. */
 export const diagnoseSet = (student, key) => {
   const mine = drawingForSet(student);
   const right = drawingForSet(key);
-  if (!mine || !right || setsEqual(student, key)) return SET_DIAGNOSIS.SEVERAL;
+  const several = Object.freeze({ kind: SET_DIAGNOSIS.SEVERAL, end: null });
+  if (!mine || !right || setsEqual(student, key)) return several;
   const values = (d) => d.points.map((p) => p.value).join();
   const styles = (d) => d.points.map((p) => p.closed).join();
   const sameDots = values(mine) === values(right);
   const sameArrows = mine.left === right.left && mine.right === right.right;
-  if (sameDots && sameArrows && styles(mine) !== styles(right)) return SET_DIAGNOSIS.INCLUSION;
+  if (sameDots && sameArrows && styles(mine) !== styles(right)) {
+    // A lone dot's one end: low or high is the side its shading runs from.
+    const lone = mine.points.length === 1;
+    const end = lone ? (mine.right ? 'low' : 'high') : endsWhere(mine.points, right.points, (a, b) => a.closed !== b.closed);
+    return Object.freeze({ kind: SET_DIAGNOSIS.INCLUSION, end });
+  }
   if (sameDots && styles(mine) === styles(right) && !sameArrows) {
     // The same dots with the arrows pointing the other way round.
     const flipped = mine.left === right.right && mine.right === right.left && mine.left !== mine.right;
-    return flipped ? SET_DIAGNOSIS.DIRECTION : SET_DIAGNOSIS.EXTENT;
+    return Object.freeze({ kind: flipped ? SET_DIAGNOSIS.DIRECTION : SET_DIAGNOSIS.EXTENT, end: null });
   }
-  if (sameDots && !sameArrows) return SET_DIAGNOSIS.SEVERAL;
-  if (mine.points.length === right.points.length && sameArrows && styles(mine) === styles(right)) return SET_DIAGNOSIS.ENDPOINT;
-  if (mine.points.length !== right.points.length || !sameArrows) return SET_DIAGNOSIS.EXTENT;
-  return SET_DIAGNOSIS.SEVERAL;
+  // The right numbers, but both the dots' styles and the arrows differ: the
+  // arrows first (does it keep going?), the dots after.
+  if (sameDots && !sameArrows) return Object.freeze({ kind: SET_DIAGNOSIS.EXTENT, end: null });
+  if (mine.points.length === right.points.length && sameArrows && styles(mine) === styles(right)) {
+    const lone = mine.points.length === 1;
+    const end = lone ? (mine.right ? 'low' : 'high') : endsWhere(mine.points, right.points, (a, b) => a.value !== b.value);
+    return Object.freeze({ kind: SET_DIAGNOSIS.ENDPOINT, end });
+  }
+  if (mine.points.length !== right.points.length || !sameArrows) return Object.freeze({ kind: SET_DIAGNOSIS.EXTENT, end: null });
+  return several;
+};
+
+/*
+ * A HINT FOR A WRONG SET: a question back at the student about the one thing
+ * the diagnosis says is off, never the answer. On the x-axis or a number line
+ * the ends are left and right; on the y-axis, the bottom and the top.
+ */
+export const setHint = (student, key, { axis = 'x' } = {}) => {
+  const { kind, end } = diagnoseSet(student, key);
+  const [low, high] = axis === 'y' ? ['bottom', 'top'] : ['left', 'right'];
+  const at = (which) => (which === 'both' ? 'each end' : `the ${which === 'high' ? high : low} end`);
+  switch (kind) {
+    case SET_DIAGNOSIS.INCLUSION: return `Open or closed at ${at(end)}?`;
+    case SET_DIAGNOSIS.DIRECTION: return 'Which way does it keep going?';
+    case SET_DIAGNOSIS.EXTENT: return 'Does it keep going, or does it stop?';
+    case SET_DIAGNOSIS.ENDPOINT: return end === 'both' ? 'Check where it starts and where it stops.' : `Check the number at ${at(end)}.`;
+    default: return 'Look again at where it starts and where it stops.';
+  }
 };

@@ -35,7 +35,7 @@ import {
   rushRaceRanked,
   stackedResultsPlan,
 } from '../../platform/liveChallenge/liveChallengeProjectorModel.js';
-import { SOLUTION_STATE, answerSummaryLabel, projectorStepLimit, solutionStateMessage, solutionTitle } from '../../platform/liveChallenge/challengeSolutionModel.js';
+import { SOLUTION_STATE, answerSummaryLabel, projectorSteps, solutionStateMessage, solutionTitle } from '../../platform/liveChallenge/challengeSolutionModel.js';
 
 /*
  * THE PROJECTOR: THE GAME AS THE WHOLE CLASS SEES IT.
@@ -753,7 +753,8 @@ function ProjectorSolution({ solution, state }) {
     );
   }
   const review = solution?.solutionReview || {};
-  const steps = (Array.isArray(review.reasoning) ? review.reasoning : []).filter(Boolean).slice(0, projectorStepLimit(solution));
+  // A long guide keeps its answers line (challengeSolutionModel.projectorSteps).
+  const steps = projectorSteps(solution);
   if (solution?.lineGraph) {
     return (
       <section data-mm-projector-solution="ready" data-mm-projector-line="1" aria-label="The line" style={{ ...glassPanel, padding: 'clamp(14px, 2vw, 26px)', overflow: 'auto', minHeight: 0, display: 'grid', alignContent: 'start', gap: 'clamp(8px, 1.4vh, 14px)', fontSize: 'clamp(calc(17 * var(--mm-px)), calc(2.4vh * var(--mm-text-scale, 1)), calc(24 * var(--mm-px)))' }}>

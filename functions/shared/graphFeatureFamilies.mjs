@@ -47,6 +47,13 @@
  * exponential one (on the side it approaches y = k, if its domain keeps that
  * side), every other family none.
  *
+ * DOMAIN AND RANGE are sets of numbers (numberLineSets.mjs), worked out
+ * exactly: `{ status: 'exists', points: [{ axis, set }] }` — one target, the
+ * set, drawn on the x-axis (domain) or the y-axis (range). A continuous graph
+ * on an interval reaches every value between the lowest and the highest it
+ * reaches or approaches; each end of its range is closed exactly when some
+ * closed end, or the turn, attains it (rangeOver).
+ *
  * OFF THE SCREEN. A variant flagged `offScreen` builds a graph whose feature
  * exists where the generator will choose a view that leaves it out: the
  * student answers "Off screen" (a game with off-screen features turned on).
@@ -59,6 +66,7 @@
 import * as Q from './graphFeatureRational.mjs';
 import { GRAPH_KIND } from './graphFeatureCurves.mjs';
 import { GRAPH_FEATURE, QUESTION_TIER, tierRank } from './graphFeatureRegistry.mjs';
+import { ALL_REALS, allExcept, canonicalSet, intervalSet, pointSet, unionSets } from './numberLineSets.mjs';
 
 export const GRAPH_FAMILY = Object.freeze({
   LINEAR: 'linear',
@@ -139,6 +147,60 @@ const asymptoteLine = (orientation, value) => Object.freeze(orientation === LINE
   ? { orientation, x: Q.toRational(value) }
   : { orientation, y: Q.toRational(value) });
 const NO_ASYMPTOTES = () => none();
+
+/* ------------------------------ domain and range ----------------------------- */
+
+// A domain or range: one target, the set, on its axis.
+const setFeature = (axis, set) => (set
+  ? Object.freeze({ status: FEATURE_STATUS.EXISTS, points: Object.freeze([Object.freeze({ axis, set })]) })
+  : inexact());
+
+const UNBOUNDED = Object.freeze({ from: null, to: null });
+
+/** A restricted domain as a set (null: every number). */
+const domainSet = (domain) => (domain
+  ? intervalSet(domain.from ? domain.from.x : null, domain.from?.closed === true, domain.to ? domain.to.x : null, domain.to?.closed === true)
+  : ALL_REALS);
+
+/*
+ * THE RANGE OF A CONTINUOUS GRAPH ON AN INTERVAL (the shape restrictedExtreme
+ * reads). Every value between the lowest and the highest it reaches or
+ * approaches is taken; an end of the range is closed when some closed end of
+ * the domain, or a turning point inside it, attains that value, and open when
+ * it is only approached (an open end, an asymptote). Null where a value is not
+ * exact.
+ */
+const rangeOver = (shape, domain = UNBOUNDED) => {
+  const candidates = [];
+  for (const side of ['left', 'right']) {
+    if ((side === 'left' && domain.from) || (side === 'right' && domain.to)) continue;
+    const tail = shape.tail(side);
+    if (tail.kind === 'infinite') candidates.push({ infinite: tail.sign });
+    else if (tail.kind === 'approach') candidates.push({ value: tail.value, closed: false });
+  }
+  for (const end of [domain.from, domain.to]) {
+    if (!end) continue;
+    const value = shape.valueAt(end.x);
+    if (value === null) return null;
+    candidates.push({ value, closed: end.closed });
+  }
+  (shape.critical || []).forEach((x) => {
+    const strictlyInside = inDomain(domain, x)
+      && !(domain.from && Q.eq(x, domain.from.x)) && !(domain.to && Q.eq(x, domain.to.x));
+    if (strictlyInside) candidates.push({ value: shape.valueAt(x), closed: true });
+  });
+  const finite = candidates.filter((entry) => !entry.infinite);
+  const end = (sign) => {
+    if (candidates.some((entry) => entry.infinite === sign)) return { value: null, closed: false };
+    if (!finite.length) return null;
+    const best = finite.reduce((top, entry) => (sign * Q.cmp(entry.value, top.value) > 0 ? entry : top)).value;
+    return { value: best, closed: finite.some((entry) => entry.closed && Q.eq(entry.value, best)) };
+  };
+  const low = end(-1);
+  const high = end(1);
+  if (!low || !high) return null;
+  return intervalSet(low.value, low.closed, high.value, high.closed);
+};
 
 /* ---------------------------- restricted domains --------------------------- */
 
@@ -235,6 +297,26 @@ const linearShape = ({ m, b }) => ({
     : { kind: 'infinite', sign: Q.sign(m) * (side === 'right' ? 1 : -1) }),
 });
 
+/*
+ * A line for a domain or range question. Whole-number slopes and ends, so
+ * every end of the answer is a whole number a student can drop a dot on.
+ */
+const linearSetBuild = (rng, { feature, variant: id, tier }) => {
+  const m = Q.rat((rng.chance(0.5) ? 1 : -1) * rng.int(1, tier === EASY ? 2 : 3));
+  const b = Q.rat(rng.int(-4, 4));
+  if (id === 'all') return { m, b };
+  if (id === 'constant') return { m: Q.ZERO, b: Q.rat((rng.chance(0.5) ? 1 : -1) * rng.int(1, 4)) };
+  const start = Q.rat(rng.int(-4, 3));
+  if (id === 'ray') return { m, b, domain: rayDomain(start, true, rng.chance(0.5) ? 1 : -1) };
+  const stop = Q.add(start, Q.rat(rng.int(3, 6)));
+  // A segment with closed ends at Standard; at Challenge, at least one open.
+  const openEnds = id === 'openEnds' || (feature === F.RANGE && id === 'segment');
+  const openLeft = openEnds && rng.chance(0.5);
+  const openRight = openEnds && (!openLeft || rng.chance(0.5));
+  if (id === 'openEnds' && rng.chance(0.4)) return { m, b, domain: rayDomain(start, false, rng.chance(0.5) ? 1 : -1) };
+  return { m, b, domain: { from: domainEnd(start, !openLeft), to: domainEnd(stop, !openRight) } };
+};
+
 // Gentle slopes for a line whose zero is past the edge: it still visibly
 // heads for the axis across a small window.
 const OFF_SCREEN_SLOPES = Object.freeze({ [STANDARD]: [[1, 2], [-1, 2]], [CHALLENGE]: [[1, 2], [-1, 2], [1, 3], [-1, 3], [1, 4], [-1, 4]] });
@@ -267,8 +349,23 @@ const linear = Object.freeze({
     [F.MINIMUM]: [variant('none', { exists: false, minTier: STANDARD })],
     // A slanted line has no asymptote (a horizontal one is never asked).
     [F.ASYMPTOTE]: [variant('none', { exists: false, minTier: STANDARD })],
+    // Every number, a ray, a segment; open ends at Challenge.
+    [F.DOMAIN]: [
+      variant('all'),
+      variant('ray', { minTier: STANDARD, flags: { restricted: true } }),
+      variant('segment', { minTier: STANDARD, flags: { restricted: true } }),
+      variant('openEnds', { minTier: CHALLENGE, flags: { restricted: true } }),
+    ],
+    // Every number; one number (a level line); the y-values of a ray or segment.
+    [F.RANGE]: [
+      variant('all'),
+      variant('constant', { minTier: STANDARD, weight: 0.6 }),
+      variant('ray', { minTier: STANDARD, flags: { restricted: true } }),
+      variant('segment', { minTier: CHALLENGE, flags: { restricted: true } }),
+    ],
   }),
   build(rng, { feature, variant: id, tier }) {
+    if (feature === F.DOMAIN || feature === F.RANGE) return linearSetBuild(rng, { feature, variant: id, tier });
     if (feature === F.X_INTERCEPT && id === 'none') {
       // A horizontal line clearly away from the x-axis.
       return { m: Q.ZERO, b: signedInt(rng, 2, range(tier) - 1) };
@@ -326,6 +423,8 @@ const linear = Object.freeze({
       // Whether a horizontal line is its own asymptote is a debate, not a
       // reading: never asked.
       [F.ASYMPTOTE]: constant ? ambiguous() : NO_ASYMPTOTES(),
+      [F.DOMAIN]: setFeature('x', domainSet(domain)),
+      [F.RANGE]: setFeature('y', constant ? pointSet(b) : rangeOver(shape, domain || UNBOUNDED)),
     };
   },
   keyPoints({ m, b, domain = null }) {
@@ -397,8 +496,25 @@ const vertexFamily = ({ id, label, kind, leads, zeroDistance, zeroDepth, noZeros
     [F.MAXIMUM]: [variant('one'), variant('none', { exists: false, minTier: STANDARD })],
     [F.MINIMUM]: [variant('one'), variant('none', { exists: false, minTier: STANDARD })],
     [F.ASYMPTOTE]: [variant('none', { exists: false, minTier: STANDARD })],
+    // Every number; at Challenge, a ray of it.
+    [F.DOMAIN]: [variant('all'), variant('ray', { minTier: CHALLENGE, flags: { restricted: true } })],
+    // From the vertex up (or down); at Challenge, an arm cut short of it.
+    [F.RANGE]: [variant('fromVertex'), variant('cut', { minTier: CHALLENGE, flags: { restricted: true } })],
   }),
   build(rng, { feature, variant: chosen, tier }) {
+    if (feature === F.DOMAIN || feature === F.RANGE) {
+      // Whole-number vertex and leads, so the range's end is a whole number.
+      const a = Q.rat((rng.chance(0.5) ? 1 : -1) * rng.int(1, 2));
+      const h = Q.rat(rng.int(-4, 4));
+      const k = Q.rat(rng.int(-4, 4));
+      if (chosen === 'ray') return { a, h, k, domain: rayDomain(Q.rat(rng.int(-4, 4)), rng.chance(0.6), rng.chance(0.5) ? 1 : -1) };
+      if (chosen === 'cut') {
+        // An arm from a point past the vertex, heading away from it.
+        const side = rng.chance(0.5) ? 1 : -1;
+        return { a, h, k, domain: rayDomain(Q.add(h, Q.rat(side * rng.int(1, 2))), rng.chance(0.5), side) };
+      }
+      return { a, h, k };
+    }
     const pickLead = (sign = 0) => {
       const options = (leads[tier] || leads[STANDARD]).map((entry) => Q.toRational(entry))
         .filter((lead) => sign === 0 || Q.sign(lead) === sign);
@@ -497,6 +613,8 @@ const vertexFamily = ({ id, label, kind, leads, zeroDistance, zeroDepth, noZeros
       [F.MAXIMUM]: domain ? restrictedExtreme(shape, domain, 1) : (Q.sign(a) < 0 ? exists(vertex) : none()),
       [F.MINIMUM]: domain ? restrictedExtreme(shape, domain, -1) : (Q.sign(a) > 0 ? exists(vertex) : none()),
       [F.ASYMPTOTE]: NO_ASYMPTOTES(),
+      [F.DOMAIN]: setFeature('x', domainSet(domain)),
+      [F.RANGE]: setFeature('y', rangeOver(shape, domain || UNBOUNDED)),
     };
   },
   keyPoints(params) {
@@ -617,10 +735,12 @@ const cubic = Object.freeze({
     ],
     [F.Y_INTERCEPT]: [variant('one')],
     [F.ASYMPTOTE]: [variant('none', { exists: false, minTier: STANDARD })],
+    [F.DOMAIN]: [variant('all', { minTier: STANDARD })],
+    [F.RANGE]: [variant('all', { minTier: STANDARD })],
   }),
   build(rng, { feature, variant: chosen, tier }) {
     const lead = () => Q.toRational(rng.pick(CUBIC_LEADS));
-    const shape = feature === F.Y_INTERCEPT || feature === F.ASYMPTOTE
+    const shape = feature === F.Y_INTERCEPT || feature === F.ASYMPTOTE || feature === F.DOMAIN || feature === F.RANGE
       ? rng.pick(tier === EASY ? ['triple'] : ['three', 'triple', 'tangent'])
       : chosen;
     if (shape === 'three') {
@@ -657,6 +777,8 @@ const cubic = Object.freeze({
       [F.MAXIMUM]: notApplicable(),
       [F.MINIMUM]: notApplicable(),
       [F.ASYMPTOTE]: NO_ASYMPTOTES(),
+      [F.DOMAIN]: setFeature('x', ALL_REALS),
+      [F.RANGE]: setFeature('y', ALL_REALS),
     };
   },
   keyPoints(params) {
@@ -726,6 +848,9 @@ const exponential = Object.freeze({
       // y = 0: the asymptote is the x-axis itself.
       variant('oneOnAxis', { minTier: CHALLENGE, weight: 0.6, flags: { asymptoteOnAxis: true } }),
     ],
+    [F.DOMAIN]: [variant('all', { minTier: STANDARD })],
+    // Up to its asymptote, never reaching it: an open end.
+    [F.RANGE]: [variant('asymptote', { minTier: STANDARD })],
   }),
   build(rng, { feature, variant: chosen, tier }) {
     const base = Q.toRational(rng.pick(EXPONENTIAL_BASES[tier] || EXPONENTIAL_BASES[STANDARD]));
@@ -749,7 +874,7 @@ const exponential = Object.freeze({
       return { a, base, h, k: Q.mul(Q.rat(Q.sign(a)), Q.rat(rng.int(2, 4))) };
     }
     if (feature === F.ASYMPTOTE && chosen === 'oneOnAxis') return { a, base, h, k: Q.ZERO };
-    if (feature === F.ASYMPTOTE) return { a, base, h, k: Q.rat((rng.chance(0.5) ? 1 : -1) * rng.int(1, 4)) };
+    if (feature === F.ASYMPTOTE || feature === F.DOMAIN || feature === F.RANGE) return { a, base, h, k: Q.rat((rng.chance(0.5) ? 1 : -1) * rng.int(1, 4)) };
     const k = Q.rat(rng.int(-4, 4));
     if (feature === F.Y_INTERCEPT && (chosen === 'rayFromAxis' || chosen === 'rayOpenAtAxis')) {
       return { a, base, h, k, domain: rayDomain(Q.ZERO, chosen === 'rayFromAxis', rng.chance(0.5) ? 1 : -1) };
@@ -792,6 +917,8 @@ const exponential = Object.freeze({
       [F.MAXIMUM]: domain ? restrictedExtreme(shape, domain, 1) : none(),
       [F.MINIMUM]: domain ? restrictedExtreme(shape, domain, -1) : none(),
       [F.ASYMPTOTE]: keepsApproach ? exists(asymptoteLine(LINE_ORIENTATION.HORIZONTAL, k)) : none(),
+      [F.DOMAIN]: setFeature('x', domainSet(domain)),
+      [F.RANGE]: setFeature('y', rangeOver(shape, domain || UNBOUNDED)),
     };
   },
   keyPoints(params) {
@@ -832,6 +959,9 @@ const squareRoot = Object.freeze({
     [F.MAXIMUM]: [variant('one', { minTier: STANDARD }), variant('none', { exists: false, minTier: STANDARD })],
     [F.MINIMUM]: [variant('one'), variant('none', { exists: false, minTier: STANDARD })],
     [F.ASYMPTOTE]: [variant('none', { exists: false, minTier: STANDARD })],
+    // From its endpoint on: a closed end, either way.
+    [F.DOMAIN]: [variant('endpoint')],
+    [F.RANGE]: [variant('endpoint')],
   }),
   build(rng, { feature, variant: chosen, tier }) {
     const s = tier === CHALLENGE && rng.chance(0.4) ? -1 : 1;
@@ -881,6 +1011,8 @@ const squareRoot = Object.freeze({
       [F.MINIMUM]: Q.sign(a) > 0 ? exists(endpoint) : none(),
       // It grows without bound, ever more slowly: no asymptote.
       [F.ASYMPTOTE]: NO_ASYMPTOTES(),
+      [F.DOMAIN]: setFeature('x', s === -1 ? intervalSet(null, false, h, true) : intervalSet(h, true, null, false)),
+      [F.RANGE]: setFeature('y', Q.sign(a) < 0 ? intervalSet(null, false, k, true) : intervalSet(k, true, null, false)),
     };
   },
   keyPoints(params) {
@@ -904,6 +1036,8 @@ const cubeRoot = Object.freeze({
     [F.MAXIMUM]: [variant('none', { exists: false, minTier: CHALLENGE })],
     [F.MINIMUM]: [variant('none', { exists: false, minTier: CHALLENGE })],
     [F.ASYMPTOTE]: [variant('none', { exists: false, minTier: STANDARD })],
+    [F.DOMAIN]: [variant('all', { minTier: STANDARD })],
+    [F.RANGE]: [variant('all', { minTier: STANDARD })],
   }),
   build(rng, { feature, tier }) {
     const a = Q.toRational(rng.pick((ROOT_LEADS[tier] || ROOT_LEADS[STANDARD]).filter((lead) => lead.length === 1)));
@@ -928,6 +1062,8 @@ const cubeRoot = Object.freeze({
       [F.MAXIMUM]: none(),
       [F.MINIMUM]: none(),
       [F.ASYMPTOTE]: NO_ASYMPTOTES(),
+      [F.DOMAIN]: setFeature('x', ALL_REALS),
+      [F.RANGE]: setFeature('y', ALL_REALS),
     };
   },
   keyPoints(params) {
@@ -967,6 +1103,9 @@ const rational = Object.freeze({
       // One of the two is an axis: x = 0 or y = 0.
       variant('twoOnAxis', { minTier: CHALLENGE, weight: 0.6, flags: { asymptoteOnAxis: true } }),
     ],
+    // Every number but the one the graph cannot take: an open dot with both arrows.
+    [F.DOMAIN]: [variant('allButOne', { minTier: STANDARD })],
+    [F.RANGE]: [variant('allButOne', { minTier: STANDARD })],
   }),
   build(rng, { feature, variant: chosen }) {
     const a = Q.rat(rng.pick(RATIONAL_LEADS));
@@ -1006,6 +1145,8 @@ const rational = Object.freeze({
       [F.MAXIMUM]: none(),
       [F.MINIMUM]: none(),
       [F.ASYMPTOTE]: exists(asymptoteLine(LINE_ORIENTATION.VERTICAL, h), asymptoteLine(LINE_ORIENTATION.HORIZONTAL, k)),
+      [F.DOMAIN]: setFeature('x', allExcept(h)),
+      [F.RANGE]: setFeature('y', allExcept(k)),
     };
   },
   keyPoints(params) {
@@ -1059,6 +1200,10 @@ const piecewise = Object.freeze({
     [F.MINIMUM]: [variant('one', { minTier: CHALLENGE }), variant('none', { exists: false, minTier: CHALLENGE })],
     // Two slanted pieces (no slope is ever 0): no asymptote.
     [F.ASYMPTOTE]: [variant('none', { exists: false, minTier: STANDARD })],
+    [F.DOMAIN]: [variant('all', { minTier: STANDARD })],
+    // The two pieces' y-values together: a ray, everything, or two rays with
+    // a gap — the dots at the split decide.
+    [F.RANGE]: [variant('pieces', { minTier: CHALLENGE })],
   }),
   build(rng, { feature, variant: chosen, tier }) {
     const s = Q.rat(rng.int(-3, 3));
@@ -1173,6 +1318,16 @@ const piecewise = Object.freeze({
       [F.MINIMUM]: extreme(-1),
       // A level piece would be its own asymptote to some readers: never asked.
       [F.ASYMPTOTE]: pieces.some((piece) => Q.isZero(piece.m)) ? ambiguous() : NO_ASYMPTOTES(),
+      [F.DOMAIN]: setFeature('x', canonicalSet(pieces.map((piece) => ({
+        lo: piece.from ? piece.from.x : null,
+        loClosed: piece.from?.closed === true,
+        hi: piece.to ? piece.to.x : null,
+        hiClosed: piece.to?.closed === true,
+      })))),
+      [F.RANGE]: setFeature('y', (() => {
+        const images = pieces.map((piece) => rangeOver(linearShape(piece), { from: piece.from, to: piece.to }));
+        return images.every(Boolean) ? unionSets(...images) : null;
+      })()),
     };
   },
   keyPoints({ s, pieces }) {

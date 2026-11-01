@@ -347,9 +347,10 @@ test('off-screen features: a layer a teacher turns on, from Standard, for the gr
   assert.equal(off.some((slot) => slot.variant === 'offScreen'), false);
   assert.ok(on.some((slot) => slot.variant === 'offScreen'));
   assert.ok(on.some((slot) => slot.variant !== 'offScreen' && slot.exists));
-  // The presets keep their features and never turn it on.
+  // The presets a class already played keep their features; no preset turns it on.
+  const ORIGINAL_PRESETS = ['algebra1Quick', 'algebra1Functions', 'interceptSprint', 'algebra2Mixed', 'algebra2Challenge'];
   for (const preset of GRAPH_FEATURE_RUSH_PRESETS) {
-    assert.ok(preset.features.every((feature) => CLASSIC_GRAPH_FEATURE_IDS.includes(feature)), `${preset.id} keeps its features`);
+    if (ORIGINAL_PRESETS.includes(preset.id)) assert.ok(preset.features.every((feature) => CLASSIC_GRAPH_FEATURE_IDS.includes(feature)), `${preset.id} keeps its features`);
     assert.equal(normalizeGraphFeatureRushConfig({ presetId: preset.id }).offScreen, false);
   }
   // The setup carries it to the request, and a preset turned up is a custom game.
@@ -466,8 +467,10 @@ test('the reading guide has a line on asymptotes, and its answers line says when
   assert.equal(offScreen.length, 3, 'still one line for the answers');
   // A vertex-only game with off-screen features has only the Off screen sentence to say.
   assert.deepEqual(rushReadingGuide({ features: ['vertex'], difficulty: 'standard', offScreen: true }).solutionReview.reasoning.at(-1), OFF_SCREEN_READING);
-  // A game that asks for every feature still fits the projector: six lines and the answers line.
-  assert.equal(rushReadingGuide({ features: GRAPH_FEATURE_IDS, difficulty: 'challenge', offScreen: true }).solutionReview.reasoning.length, 7);
+  // A line a feature, and the answers line last (the projector keeps it: graphFeatureReading.test.mjs).
+  const every = rushReadingGuide({ features: GRAPH_FEATURE_IDS, difficulty: 'challenge', offScreen: true }).solutionReview.reasoning;
+  assert.equal(every.length, GRAPH_FEATURE_IDS.length + 1);
+  assert.match(every.at(-1), /Off screen/);
 });
 
 /* --------------------------------- screens --------------------------------- */
@@ -483,7 +486,7 @@ test('the screens draw arrows, asymptotes in their own colour, and offer Off scr
   const round = read('src/components/liveChallenge/GraphFeatureRushRound.jsx');
   assert.match(round, /--mm-rush-asymptote: var\(--mm-accent\);/);
   assert.match(round, /const offScreenGame = room\.graphFeatureRush\?\.config\?\.offScreen === true;/);
-  assert.match(region(round, '<div className="mm-rush-buttons"', '</div>', 'the answer buttons'), /\{offScreenGame && \(\s*<button type="button" className="mm-rush-off" disabled=\{buttonsDisabled\} onClick=\{onOffScreen\}/);
+  assert.match(region(round, '<div className="mm-rush-buttons" data-off-screen=', '</div>', 'the answer buttons'), /\{offScreenGame && \(\s*<button type="button" className="mm-rush-off" disabled=\{buttonsDisabled\} onClick=\{onOffScreen\}/);
   assert.match(round, /const onOffScreen = \(\) => act\(recordOffScreen\);/);
   // Practice reads the same setting from the room it builds.
   assert.match(read('src/components/liveChallenge/GraphFeatureRushPractice.jsx'), /graphFeatureRush: \{ config: JSON\.parse\(configKey\) \},/);

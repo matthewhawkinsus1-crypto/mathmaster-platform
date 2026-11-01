@@ -46,6 +46,10 @@
  *     curve is drawn as a dot and never hidden past an edge an arrow claims;
  *   - for an asymptote question, the asymptotes are the targets: lines,
  *     inside the view, tapped anywhere along them;
+ *   - for a domain or range question, the answer is a set drawn on an axis:
+ *     every finite end of it sits ON a drawn grid line of that axis (a tap
+ *     drops its dot on the nearest one), well inside the view, and the set
+ *     can be drawn with at most two dots;
  *   - OFF THE SCREEN (a game with off-screen features): every target of the
  *     feature lies well past an edge, the curve still shows where it is
  *     heading (the family's anchors in view), and an off-screen zero is not
@@ -88,6 +92,7 @@ import {
   getGraphFamily,
   tierGridDenominator,
 } from './graphFeatureFamilies.mjs';
+import { canonicalSet, drawingForSet, setEndpoints, setToPlain } from './numberLineSets.mjs';
 
 // 3: arrows and endpoints (every graph leaves the screen only at its ends),
 // restricted domains, asymptote questions, off-screen features.
@@ -144,6 +149,28 @@ export const VIEW_RULES = Object.freeze({
 
 /** Whether a target is a line (an asymptote) rather than a point. */
 export const isLineTarget = (target) => target?.geometry === 'line';
+
+/** Whether a target is a set drawn on an axis (a domain or range). */
+export const isSetTarget = (target) => target?.geometry === 'set';
+
+/*
+ * A DOMAIN OR RANGE IN ITS VIEW: every finite end on a drawn grid line of its
+ * axis (a multiple of the step there), well inside the view, and the whole set
+ * drawable with at most two dots (numberLineSets.drawingForSet).
+ */
+const setTargetProblems = (target, view) => {
+  const problems = [];
+  const vertical = target.axis === 'y';
+  const [low, high, step] = vertical ? [view.yMin, view.yMax, view.yStep] : [view.xMin, view.xMax, view.xStep];
+  const span = high - low;
+  setEndpoints(target.exactSet).forEach((value) => {
+    const steps = value / (step || 1);
+    if (Math.abs(steps - Math.round(steps)) > 1e-9) problems.push('an end of the set is between grid lines');
+    if (value - low < VIEW_RULES.targetInset * span || high - value < VIEW_RULES.targetInset * span) problems.push('an end of the set is at the edge');
+  });
+  if (!drawingForSet(target.exactSet)) problems.push('the set cannot be drawn with two dots');
+  return problems;
+};
 
 /** The tick step for a span: the smallest of 1, 2, 5, 10 giving ≤ 14 lines. */
 export const tickStep = (span) => [1, 2, 5, 10, 20].find((step) => span / step <= 14) || 20;
@@ -368,8 +395,12 @@ export const viewProblems = ({ family, feature, variant, graph, view, targets, t
   // An off-screen question's targets are hidden: the checks for targets on
   // screen do not apply to them (offScreenProblems has its own).
   const shown = offScreen ? [] : targets;
-  const points = shown.filter((target) => !isLineTarget(target));
+  const points = shown.filter((target) => !isLineTarget(target) && !isSetTarget(target));
   targets.forEach((target) => {
+    if (isSetTarget(target)) {
+      problems.push(...setTargetProblems(target, view));
+      return;
+    }
     const onGrid = isLineTarget(target)
       ? Q.onGrid(target.exactValue, grid)
       : Q.onGrid(target.exactX, grid) && Q.onGrid(target.exactY, grid);
@@ -473,6 +504,18 @@ const EXPECTED_TARGETS = Object.freeze({
   rayFromAxis: 1,
   twoOnAxis: 2,
   oneOnAxis: 1,
+  // A domain or range is one target: the set.
+  all: 1,
+  ray: 1,
+  segment: 1,
+  openEnds: 1,
+  constant: 1,
+  fromVertex: 1,
+  cut: 1,
+  asymptote: 1,
+  endpoint: 1,
+  allButOne: 1,
+  pieces: 1,
 });
 
 const expectedTargetCount = (familyId, variantId, featureId) => {
@@ -483,9 +526,11 @@ const expectedTargetCount = (familyId, variantId, featureId) => {
 };
 
 // A target as the generator keeps it: exact coordinates beside the numbers. A
-// line (an asymptote) carries its orientation and the one coordinate it fixes.
+// line (an asymptote) carries its orientation and the one coordinate it fixes;
+// a set (a domain or range), its axis and its pieces.
 const toTarget = (featureId, exact, index) => {
   const id = featureTargetId(featureId, index);
+  if (exact.set) return Object.freeze({ id, geometry: 'set', axis: exact.axis, set: setToPlain(exact.set), exactSet: exact.set });
   if (exact.orientation) {
     const vertical = exact.orientation === LINE_ORIENTATION.VERTICAL;
     const value = vertical ? exact.x : exact.y;
@@ -503,6 +548,7 @@ const toTarget = (featureId, exact, index) => {
 // Targets in a stable order: points left to right; lines vertical first,
 // then each kind by where it sits.
 const compareTargets = (left, right) => {
+  if (left.set || right.set) return 0;
   if (left.orientation || right.orientation) {
     if (left.orientation !== right.orientation) return left.orientation === LINE_ORIENTATION.VERTICAL ? -1 : 1;
     return left.orientation === LINE_ORIENTATION.VERTICAL ? Q.cmp(left.x, right.x) : Q.cmp(left.y, right.y);
@@ -511,9 +557,12 @@ const compareTargets = (left, right) => {
 };
 
 /** The target a device receives: no exact fractions, nothing else. */
-const publicTarget = (target) => (isLineTarget(target)
-  ? Object.freeze({ id: target.id, geometry: 'line', orientation: target.orientation, ...(target.orientation === LINE_ORIENTATION.VERTICAL ? { x: target.x } : { y: target.y }) })
-  : Object.freeze({ id: target.id, x: target.x, y: target.y }));
+const publicTarget = (target) => {
+  if (isSetTarget(target)) return Object.freeze({ id: target.id, geometry: 'set', axis: target.axis, set: target.set });
+  return isLineTarget(target)
+    ? Object.freeze({ id: target.id, geometry: 'line', orientation: target.orientation, ...(target.orientation === LINE_ORIENTATION.VERTICAL ? { x: target.x } : { y: target.y }) })
+    : Object.freeze({ id: target.id, x: target.x, y: target.y });
+};
 
 const asPlain = (points) => points.map((p) => ({ x: Q.toNumber(p.x), y: Q.toNumber(p.y) }));
 
@@ -534,7 +583,7 @@ const attemptSlot = ({ slot, rng }) => {
 
   const graph = family.toGraph(params);
   const targets = [...analysis.points].sort(compareTargets).map((p, index) => toTarget(slot.feature, p, index));
-  const pointTargets = targets.filter((target) => !isLineTarget(target));
+  const pointTargets = targets.filter((target) => !isLineTarget(target) && !isSetTarget(target));
   const keyPoints = asPlain(family.keyPoints(params));
   const limit = VALUE_LIMIT[slot.tier];
   if ([...keyPoints, ...pointTargets].some((p) => Math.abs(p.x) > limit + 3 || Math.abs(p.y) > (family.valueLimit?.(slot.tier) ?? limit))) {
@@ -578,10 +627,17 @@ const FALLBACKS = Object.freeze({
     graph: { kind: 'rational', a: 2, h: 2, k: -1 },
     lines: [{ orientation: LINE_ORIENTATION.VERTICAL, x: 2 }, { orientation: LINE_ORIENTATION.HORIZONTAL, y: -1 }],
   },
+  // A square root from (−2, 1): domain [−2, ∞), range [1, ∞).
+  [GRAPH_FEATURE.DOMAIN]: { family: 'squareRoot', graph: { kind: 'squareRoot', a: 1, s: 1, h: -2, k: 1 }, set: { axis: 'x', pieces: [{ lo: -2, loClosed: true, hi: null }] } },
+  [GRAPH_FEATURE.RANGE]: { family: 'squareRoot', graph: { kind: 'squareRoot', a: 1, s: 1, h: -2, k: 1 }, set: { axis: 'y', pieces: [{ lo: 1, loClosed: true, hi: null }] } },
 });
 
 const fallbackQuestion = (feature) => {
   const entry = FALLBACKS[feature] || FALLBACKS[GRAPH_FEATURE.X_INTERCEPT];
+  if (entry.set) {
+    const set = canonicalSet(entry.set.pieces.map((piece) => ({ ...piece, lo: piece.lo === null ? null : Q.rat(piece.lo), hi: piece.hi === null ? null : Q.rat(piece.hi) })));
+    return { family: entry.family, graph: entry.graph, view: { xMin: -8, xMax: 8, yMin: -8, yMax: 8, xStep: 2, yStep: 2 }, targets: [toTarget(feature, { axis: entry.set.axis, set }, 0)] };
+  }
   const targets = entry.lines
     ? entry.lines.map((line, index) => toTarget(feature, line.orientation === LINE_ORIENTATION.VERTICAL
       ? { orientation: line.orientation, x: Q.rat(line.x) }

@@ -67,9 +67,10 @@ export const RUSH_ROUND_LIMITS = Object.freeze({
 
 /*
  * The presets are starting points, and they keep the features they had when
- * the registry held five: a feature added since (asymptotes) is the
- * teacher's to choose, never slipped into a preset a class already plays.
- * None turns off-screen features on.
+ * the registry held five: a feature added since (asymptotes, domain, range) is
+ * the teacher's to choose, never slipped into a preset a class already plays.
+ * Domains and ranges have presets of their own. None turns off-screen
+ * features on.
  */
 export const GRAPH_FEATURE_RUSH_PRESETS = Object.freeze([
   Object.freeze({
@@ -119,6 +120,33 @@ export const GRAPH_FEATURE_RUSH_PRESETS = Object.freeze([
     families: Object.freeze(['quadratic', 'absolute', 'cubic', 'squareRoot', 'rational', 'exponential', 'piecewise']),
     features: Object.freeze([...CLASSIC_GRAPH_FEATURE_IDS]),
     difficulty: RUSH_DIFFICULTY.MIXED,
+  }),
+  // Domains and ranges, marked on the axes: rays, segments, asymptotes.
+  Object.freeze({
+    id: 'domainRange',
+    label: 'Domain & Range Rush',
+    course: null,
+    description: 'Mark the domain on the x-axis and the range on the y-axis: rays, segments, open dots and asymptotes.',
+    roundCount: 3,
+    // Drawing a set and checking it takes longer than a tap.
+    roundSeconds: 90,
+    scoringStrategyId: 'grandPrix',
+    families: Object.freeze(['linear', 'quadratic', 'absolute', 'squareRoot', 'exponential']),
+    features: Object.freeze([GRAPH_FEATURE.DOMAIN, GRAPH_FEATURE.RANGE]),
+    difficulty: RUSH_DIFFICULTY.STANDARD,
+  }),
+  // The merge: intercepts to tap and domains and ranges to mark, on the same families.
+  Object.freeze({
+    id: 'domainRangeIntercepts',
+    label: 'Domain, Range & Intercepts',
+    course: null,
+    description: 'Tap the intercepts, mark the domain and range: the same graphs, every way of reading them.',
+    roundCount: 3,
+    roundSeconds: 90,
+    scoringStrategyId: 'grandPrix',
+    families: Object.freeze(['linear', 'quadratic', 'absolute', 'squareRoot', 'exponential']),
+    features: Object.freeze([GRAPH_FEATURE.X_INTERCEPT, GRAPH_FEATURE.Y_INTERCEPT, GRAPH_FEATURE.DOMAIN, GRAPH_FEATURE.RANGE]),
+    difficulty: RUSH_DIFFICULTY.STANDARD,
   }),
   Object.freeze({
     id: 'algebra2Challenge',

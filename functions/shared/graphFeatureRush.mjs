@@ -8,7 +8,8 @@
  * database:
  *
  *   applyRushAttempts   the body of the submit transaction: a batch of taps,
- *                       "Does Not Exist" presses and skips, graded in order
+ *                       "Does Not Exist" and "Off screen" presses, checked
+ *                       domains and ranges, and skips, graded in order
  *                       against the server's own regenerated questions and
  *                       written as targetAttempt receipts
  *   rushRoundState      where a student stands in a round (which graph,
@@ -43,9 +44,11 @@ import { SCORE_ACCUMULATION } from './liveChallengeScoring.mjs';
 import { DOES_NOT_EXIST_TARGET_ID, OFF_SCREEN_TARGET_ID, getGraphFeature } from './graphFeatureRegistry.mjs';
 import { graphFamilyLabel } from './graphFeatureCatalog.mjs';
 import { POINTER_KIND, TAP_RESULT, clampTolerance, normalizePointerKind, resolveTap } from './graphFeatureHitTest.mjs';
+import { diagnoseSet, drawingSet, drawingToPlain, normalizeDrawing, setFromPlain, setsEqual } from './numberLineSets.mjs';
 import {
   RUSH_ATTEMPT_KIND,
   RUSH_AUTO_SKIP_MISSES,
+  rushAutoSkipMisses,
   RUSH_COMPLETE_FLASH_MS,
   RUSH_LIMITS,
   RUSH_LOCKOUT,
@@ -221,6 +224,10 @@ export const normalizeRushAttempt = (raw = {}) => {
   const x = finiteOr(raw?.x);
   const y = finiteOr(raw?.y);
   if (kind === RUSH_ATTEMPT_KIND.TAP && (x === null || y === null)) return null;
+  // A check carries the student's drawing, shape-checked: at most two dots on
+  // the half grid, each once (numberLineSets.normalizeDrawing).
+  const drawing = kind === RUSH_ATTEMPT_KIND.CHECK ? normalizeDrawing(raw?.drawing) : null;
+  if (kind === RUSH_ATTEMPT_KIND.CHECK && !drawing) return null;
   return Object.freeze({
     attemptId,
     questionIndex,
@@ -230,6 +237,7 @@ export const normalizeRushAttempt = (raw = {}) => {
     tolerance: Object.freeze({ x: finiteOr(raw?.tolerance?.x), y: finiteOr(raw?.tolerance?.y) }),
     pointer: normalizePointerKind(raw?.pointer),
     clientElapsedMs: finiteOr(raw?.clientElapsedMs),
+    ...(drawing ? { drawing } : {}),
   });
 };
 
@@ -352,7 +360,18 @@ export const applyRushAttempts = ({
     let targetId;
     let isCorrect = false;
     let forfeit = false;
-    if (attempt.kind === RUSH_ATTEMPT_KIND.SKIP) {
+    let diagnosis = null;
+    if (attempt.kind === RUSH_ATTEMPT_KIND.CHECK) {
+      // A domain or range: the set the drawing means against the answer,
+      // exactly. A drawing that names no set, or a check on a question that
+      // asks for none, is a miss like any other.
+      const target = question.targets.find((entry) => entry?.geometry === 'set');
+      const drawn = drawingSet(attempt.drawing);
+      const answer = target ? setFromPlain(target.set) : null;
+      isCorrect = Boolean(drawn && answer && setsEqual(drawn, answer));
+      targetId = isCorrect ? target.id : 'miss';
+      if (!isCorrect && drawn && answer) diagnosis = diagnoseSet(drawn, answer).kind;
+    } else if (attempt.kind === RUSH_ATTEMPT_KIND.SKIP) {
       targetId = 'skip';
       forfeit = true;
     } else if (attempt.kind === RUSH_ATTEMPT_KIND.DOES_NOT_EXIST) {
@@ -433,6 +452,10 @@ export const applyRushAttempts = ({
       completesQuestion,
       // Where a tap landed, for analysing what students mistake for a feature.
       ...(attempt.kind === RUSH_ATTEMPT_KIND.TAP ? { x: round3(attempt.x), y: round3(attempt.y), pointer: attempt.pointer } : {}),
+      // What a checked set looked like, and what was off about a wrong one
+      // (the report counts the diagnoses).
+      ...(attempt.kind === RUSH_ATTEMPT_KIND.CHECK ? { drawing: drawingToPlain(attempt.drawing) } : {}),
+      ...(diagnosis ? { diagnosis } : {}),
       pointsAwarded: Math.max(0, Math.round(Number(score?.pointsAwarded) || 0)),
     });
     pace = paceAfter(pace, receipts[attempt.attemptId]);
@@ -444,7 +467,8 @@ export const applyRushAttempts = ({
     let autoSkipped = false;
     if (!isCorrect && !forfeit) {
       const progress = rushQuestionProgress({ receipts, roundIndex: round, questionIndex: attempt.questionIndex, targetCount });
-      if (!progress.completed && progress.incorrectAttempts >= RUSH_AUTO_SKIP_MISSES) {
+      // Three wrong checks of a domain or range, eight misses on a tap question.
+      if (!progress.completed && progress.incorrectAttempts >= rushAutoSkipMisses(question)) {
         record(autoSkipAttemptId(attempt.attemptId), {
           attemptKind: RUSH_ATTEMPT_KIND.SKIP,
           automatic: true,

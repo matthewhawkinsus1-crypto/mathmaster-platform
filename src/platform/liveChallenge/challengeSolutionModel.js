@@ -31,17 +31,24 @@ export const solutionTitle = (solution) => (solution?.guide === true ? READING_G
 
 /*
  * How many steps the projector draws. An authored review can run long and the
- * projector never scrolls, so it takes the first five. A reading guide is
- * written to fit (a line a feature and one on the answers that are not a tap:
- * at most seven), and its last line is the one that says when to choose
- * "Does Not Exist", so it takes all of them.
+ * projector never scrolls, so it takes the first five. A reading guide is a
+ * line a feature and, last, its answers line ("Does Not Exist", "Off screen",
+ * open dots): up to seven lines show whole, and a longer one (a custom game
+ * asking for most of the eight features) keeps its first lines and ALWAYS its
+ * answers line, which is the one a plain cut would lose. A student's own card
+ * shows every line.
  */
 export const PROJECTOR_SOLUTION_STEPS = 5;
-// A guide's every line: one per feature (six since asymptotes) and the
-// answers line ("Does Not Exist", "Off screen", open dots), which a cut at six
-// would drop from a game that asks for every feature.
 export const PROJECTOR_GUIDE_STEPS = 7;
 export const projectorStepLimit = (solution) => (solution?.guide === true ? PROJECTOR_GUIDE_STEPS : PROJECTOR_SOLUTION_STEPS);
+
+/** The steps the projector draws for a solution (see above). */
+export const projectorSteps = (solution) => {
+  const steps = (Array.isArray(solution?.solutionReview?.reasoning) ? solution.solutionReview.reasoning : []).filter(Boolean);
+  const limit = projectorStepLimit(solution);
+  if (steps.length <= limit) return steps;
+  return solution?.guide === true ? [...steps.slice(0, limit - 1), steps[steps.length - 1]] : steps.slice(0, limit);
+};
 
 /** Whether the server has published this round's solution. */
 export const solutionRevealed = (room = {}, roundIndex) => (

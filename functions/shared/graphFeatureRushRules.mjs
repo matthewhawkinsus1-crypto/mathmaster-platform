@@ -20,6 +20,9 @@ export const RUSH_ATTEMPT_KIND = Object.freeze({
   // The feature exists, past the edge of the view (a game with off-screen
   // features turned on).
   OFF_SCREEN: 'offScreen',
+  // A domain or range drawn on an axis, sent with ✓ Check
+  // (`drawing`: numberLineSets.drawingToPlain).
+  CHECK: 'check',
   SKIP: 'skip',
 });
 
@@ -67,6 +70,20 @@ export const RUSH_LOCKOUT = Object.freeze({ after: 2, baseMs: 1_000, stepMs: 1_0
 // student moves on, and sweeping an axis for intercepts stops paying. The
 // server records the skip with the miss that reaches it; the device shows it.
 export const RUSH_AUTO_SKIP_MISSES = 8;
+
+// A domain or range is checked, not tapped for: three wrong checks show the
+// answer and move on. The device holds the answer on screen for
+// RUSH_REVEAL_PAUSE_MS (the server's pace accounting takes the skip pause, the
+// shorter of the two, so it never refuses a student who waited longer).
+export const RUSH_SET_AUTO_SKIP_MISSES = 3;
+export const RUSH_REVEAL_PAUSE_MS = 2_600;
+
+/** How many misses on a question skip it: three for a drawn set, eight for taps. */
+export const rushAutoSkipMisses = (question) => (
+  Array.isArray(question?.targets) && question.targets.some((target) => target?.geometry === 'set')
+    ? RUSH_SET_AUTO_SKIP_MISSES
+    : RUSH_AUTO_SKIP_MISSES
+);
 
 /**
  * The cooldown after `consecutiveMisses` wrong taps (or wrong "Does Not

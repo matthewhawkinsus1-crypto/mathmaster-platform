@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import GraphFeatureRushGraph from './GraphFeatureRushGraph.jsx';
+import { drawingForSet, drawingSet, intervalNotation, setFromPlain } from '../../../functions/shared/numberLineSets.mjs';
 import { monotonicRoundOrigin } from '../../../functions/shared/liveChallengeParity.mjs';
 import { rushRefusalIsTimeUp } from '../../platform/liveChallenge/challengeAnswerRefusal.js';
-import { graphDrawing } from '../../platform/liveChallenge/rushGraphModel.js';
+import { axisSetDrawing, graphDrawing } from '../../platform/liveChallenge/rushGraphModel.js';
 import {
   RUSH_FEEDBACK,
   RUSH_INPUT,
@@ -19,10 +20,16 @@ import {
   nextBatch,
   parseStoredQueue,
   prefetchRequest,
+  drawingReady,
+  isSetQuestion,
+  recordAxisTap,
+  recordCheck,
   recordDoesNotExist,
   recordOffScreen,
   recordSkip,
   recordTap,
+  setTargetOf,
+  toggleAxisArrow,
   rushQueueKey,
   settle,
   withQuestions,
@@ -216,6 +223,16 @@ const RUSH_CSS = `
 .mm-rush-skip { border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.06); color: #eef1f6; }
 .mm-rush-dne:disabled, .mm-rush-off:disabled, .mm-rush-skip:disabled { opacity: .45; cursor: not-allowed; }
 .mm-rush-dne:focus-visible, .mm-rush-off:focus-visible, .mm-rush-skip:focus-visible, .mm-rush-exit:focus-visible { outline: 3px solid var(--mm-focus); outline-offset: 2px; }
+/* A domain or range: the arrows, ✓ Check and Skip, with the set as it is drawn. */
+.mm-rush-buttons[data-set="1"] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1.4fr); }
+.mm-rush-arrow, .mm-rush-check { min-height: 52px; border-radius: 12px; font-size: calc(19 * var(--mm-px)); font-weight: 1000; cursor: pointer; }
+.mm-rush-arrow { border: 2px solid rgba(255,255,255,.35); background: rgba(255,255,255,.06); color: #eef1f6; }
+.mm-rush-arrow[aria-pressed="true"] { border-color: #8ab4f8; background: rgba(138,180,248,.22); color: #fff; }
+.mm-rush-check { border: 0; background: #81c995; color: #10261a; }
+.mm-rush-arrow:disabled, .mm-rush-check:disabled { opacity: .45; cursor: not-allowed; }
+.mm-rush-arrow:focus-visible, .mm-rush-check:focus-visible { outline: 3px solid var(--mm-focus); outline-offset: 2px; }
+.mm-rush-notation { font-size: calc(22 * var(--mm-px)); font-weight: 900; font-variant-numeric: tabular-nums; color: #f7f9ff; min-height: 1.3em; }
+.mm-rush-notation[data-empty="1"] { font-size: calc(14 * var(--mm-px)); font-weight: 700; color: #b9c4d8; }
 .mm-rush-cooldown { height: 6px; border-radius: 999px; background: rgba(255,255,255,.12); overflow: hidden; }
 .mm-rush-cooldown > span { display: block; height: 100%; background: #ffb4ab; transform-origin: left; animation: mmRushDrain linear forwards; }
 .mm-rush-overlay {
@@ -250,6 +267,8 @@ const RUSH_CSS = `
   .mm-rush-graph-area { grid-area: graph; place-items: center; }
   .mm-rush-controls { grid-area: controls; align-self: end; }
   .mm-rush-buttons, .mm-rush-buttons[data-off-screen="1"] { grid-template-columns: 1fr; }
+  .mm-rush-buttons[data-set="1"] { grid-template-columns: 1fr 1fr; }
+  .mm-rush-buttons[data-set="1"] .mm-rush-check, .mm-rush-buttons[data-set="1"] .mm-rush-skip { grid-column: span 2; }
 }
 @media (max-width: 480px) {
   .mm-rush-chip { display: none; }
@@ -552,13 +571,18 @@ export default function GraphFeatureRushRound({
     if (outcome.attempt) scheduleFlush();
   };
   const onTap = useCallback(({ x, y, pointer, tolerance }) => {
-    act((current, context) => recordTap(current, { ...context, x, y, pointer, tolerance }));
+    // On a domain or range, a tap drops a dot on the axis (this device only).
+    act((current, context) => (isSetQuestion(currentQuestion(current))
+      ? recordAxisTap(current, { ...context, x, y })
+      : recordTap(current, { ...context, x, y, pointer, tolerance })));
     // `act` reads only refs and stable callbacks.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [commit, scheduleFlush]);
   const onDoesNotExist = () => act(recordDoesNotExist);
   const onOffScreen = () => act(recordOffScreen);
   const onSkip = () => act(recordSkip);
+  const onArrow = (side) => act((current, context) => toggleAxisArrow(current, side, context));
+  const onCheck = () => act(recordCheck);
   // A game with off-screen features offers "Off screen" on every graph, so
   // the button being there never says anything about the graph on screen.
   const offScreenGame = room.graphFeatureRush?.config?.offScreen === true;
@@ -578,6 +602,21 @@ export default function GraphFeatureRushRound({
     : '';
   const completed = session?.counts.completed ?? 0;
   const transition = session?.transition || null;
+  // A DOMAIN OR RANGE: the set as drawn, its notation as it is drawn, and — as
+  // the graph moves on after the third wrong check — the answer.
+  const setQuestion = isSetQuestion(question);
+  const setTarget = setQuestion ? setTargetOf(question) : null;
+  const studentDrawing = session?.drawing;
+  const axisSet = useMemo(() => (setQuestion && studentDrawing ? axisSetDrawing(question, studentDrawing) : null), [setQuestion, question, studentDrawing]);
+  const revealing = setQuestion && transition?.kind === RUSH_FEEDBACK.AUTO_SKIPPED && transition.questionIndex === question?.questionIndex;
+  const revealSet = useMemo(() => {
+    if (!revealing || !setTarget) return null;
+    const answer = setFromPlain(setTarget.set);
+    const shown = answer ? drawingForSet(answer) : null;
+    return shown ? axisSetDrawing(question, shown) : null;
+  }, [revealing, setTarget, question]);
+  const drawnSet = setQuestion && studentDrawing ? drawingSet(studentDrawing) : null;
+  const vertical = setTarget?.axis === 'y';
   const queued = session?.queue.length || 0;
   const buttonsDisabled = !playing || input !== RUSH_INPUT.READY;
 
@@ -613,9 +652,11 @@ export default function GraphFeatureRushRound({
         <section className="mm-rush-prompt" aria-live="polite">
           {practice && <div className="mm-rush-banner" style={{ marginBottom: 6 }}>Practice — nothing is recorded.</div>}
           <h2>{playing && question ? question.prompt : 'Graph Feature Rush'}</h2>
-          <p className="mm-rush-hint">{offScreenGame
-            ? 'Tap it on the graph. Past the edge? Off Screen. Not there at all? Does Not Exist.'
-            : 'Tap it on the graph. Not there? Choose Does Not Exist.'}</p>
+          <p className="mm-rush-hint">{setQuestion
+            ? `Tap to put a dot on the ${vertical ? 'y' : 'x'}-axis: once closed, twice open, three times to take it away. Arrows mean it keeps going.`
+            : offScreenGame
+              ? 'Tap it on the graph. Past the edge? Off Screen. Not there at all? Does Not Exist.'
+              : 'Tap it on the graph. Not there? Choose Does Not Exist.'}</p>
         </section>
         <section className="mm-rush-graph-area" ref={graphAreaRef}>
           {side > 0 && (
@@ -637,6 +678,8 @@ export default function GraphFeatureRushRound({
                     paused={input === RUSH_INPUT.LOCKED || over}
                     onTap={onTap}
                     label={`${question.prompt}. Tap the graph, or use the arrow keys and Enter.`}
+                    axisSet={axisSet}
+                    revealSet={revealSet}
                   />
                 </div>
               ) : <div style={{ width: side, height: side, borderRadius: 12, background: 'var(--mm-graph-bg)' }} />}
@@ -652,13 +695,30 @@ export default function GraphFeatureRushRound({
               <span key={session.lockedUntil} style={{ animationDuration: `${lockMs}ms` }} />
             </div>
           )}
-          <div className="mm-rush-buttons" data-off-screen={offScreenGame ? '1' : '0'}>
-            <button type="button" className="mm-rush-dne" disabled={buttonsDisabled} onClick={onDoesNotExist}>Does Not Exist</button>
-            {offScreenGame && (
-              <button type="button" className="mm-rush-off" disabled={buttonsDisabled} onClick={onOffScreen} aria-label="Off screen: it exists, past the edge of the graph">Off Screen</button>
-            )}
-            <button type="button" className="mm-rush-skip" disabled={buttonsDisabled} onClick={onSkip}>Skip</button>
-          </div>
+          {setQuestion && (
+            // The set as it is drawn; while the answer is shown, the answer.
+            <div className="mm-rush-notation" data-empty={drawnSet || revealSet ? '0' : '1'} aria-live="polite">
+              {revealSet && setTarget
+                ? intervalNotation(setFromPlain(setTarget.set) || [])
+                : (drawnSet ? intervalNotation(drawnSet) : 'Tap the graph to place a dot.')}
+            </div>
+          )}
+          {setQuestion ? (
+            <div className="mm-rush-buttons" data-set="1">
+              <button type="button" className="mm-rush-arrow" aria-pressed={studentDrawing?.left === true} disabled={buttonsDisabled} onClick={() => onArrow('left')} aria-label={vertical ? 'Keeps going down' : 'Keeps going left'}>{vertical ? '▼' : '◀'}</button>
+              <button type="button" className="mm-rush-arrow" aria-pressed={studentDrawing?.right === true} disabled={buttonsDisabled} onClick={() => onArrow('right')} aria-label={vertical ? 'Keeps going up' : 'Keeps going right'}>{vertical ? '▲' : '▶'}</button>
+              <button type="button" className="mm-rush-check" disabled={buttonsDisabled || !drawingReady(session)} onClick={onCheck}>✓ Check</button>
+              <button type="button" className="mm-rush-skip" disabled={buttonsDisabled} onClick={onSkip}>Skip</button>
+            </div>
+          ) : (
+            <div className="mm-rush-buttons" data-off-screen={offScreenGame ? '1' : '0'}>
+              <button type="button" className="mm-rush-dne" disabled={buttonsDisabled} onClick={onDoesNotExist}>Does Not Exist</button>
+              {offScreenGame && (
+                <button type="button" className="mm-rush-off" disabled={buttonsDisabled} onClick={onOffScreen} aria-label="Off screen: it exists, past the edge of the graph">Off Screen</button>
+              )}
+              <button type="button" className="mm-rush-skip" disabled={buttonsDisabled} onClick={onSkip}>Skip</button>
+            </div>
+          )}
           {alert && <div role="alert" className="mm-rush-alert">{alert}</div>}
           <div aria-live="polite" className="mm-rush-visually-hidden">{spoken}</div>
         </section>

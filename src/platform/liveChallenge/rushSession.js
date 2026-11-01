@@ -14,6 +14,9 @@
  *
  *   recordTap / recordDoesNotExist / recordOffScreen / recordSkip
  *                                                 a student's input
+ *   recordAxisTap / toggleAxisArrow / recordCheck a domain or range: the
+ *                                                 drawing (on this device
+ *                                                 only) and its ✓ Check
  *   settle                                        a completion flash or skip
  *                                                 pause ending: next graph
  *   acknowledge                                   the server's reply to a batch
@@ -23,11 +26,24 @@
 import { clampTolerance, resolveTap, TAP_RESULT } from '../../../functions/shared/graphFeatureHitTest.mjs';
 import { getGraphFeature } from '../../../functions/shared/graphFeatureRegistry.mjs';
 import {
+  EMPTY_DRAWING,
+  drawingSet,
+  drawingToPlain,
+  intervalNotation,
+  setFromPlain,
+  setHint,
+  setsEqual,
+  snapNumberLineValue,
+  tapNumber,
+  toggleArrow,
+} from '../../../functions/shared/numberLineSets.mjs';
+import {
   RUSH_ATTEMPT_KIND,
-  RUSH_AUTO_SKIP_MISSES,
   RUSH_COMPLETE_FLASH_MS,
   RUSH_LIMITS,
+  RUSH_REVEAL_PAUSE_MS,
   RUSH_SKIP_PAUSE_MS,
+  rushAutoSkipMisses,
   rushLockoutMs,
 } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { formatPoint, formatTarget, nearOpenDot } from './rushGraphModel.js';
@@ -97,9 +113,16 @@ export const createRushSession = ({ roundIndex = 0, serverState = {}, questions 
   transition: null,
   counts: countsFromServer(serverState),
   queue: Object.freeze([...(Array.isArray(queue) ? queue : [])]),
+  // A domain or range being drawn on the current graph (numberLineSets).
+  drawing: EMPTY_DRAWING,
   feedback: null,
   seq: 0,
 });
+
+/** The set target of a domain or range question, or null. */
+export const setTargetOf = (question) => (question?.targets || []).find((target) => target?.geometry === 'set') || null;
+/** Whether a question is answered by drawing a set on an axis. */
+export const isSetQuestion = (question) => Boolean(setTargetOf(question));
 
 /** The question index the student is on once any flash or pause has ended. */
 export const effectiveCursor = (session) => (session.transition ? session.transition.questionIndex + 1 : session.cursor);
@@ -177,11 +200,15 @@ const applyHit = (session, question, targetId, nowMs, extra = {}) => {
 };
 
 // A miss: a cooldown from the second in a row, and the graph is skipped on
-// the last allowed miss — as the server records it in the same transaction.
+// the last allowed miss — as the server records it in the same transaction:
+// the eighth on a tap question, the third wrong check of a domain or range,
+// which holds the answer on screen long enough to read.
 const applyMiss = (session, nowMs, extra = {}) => {
+  const question = currentQuestion(session);
   const missesInARow = session.missesInARow + 1;
   const missesOnGraph = session.missesOnGraph + 1;
-  const autoSkip = missesOnGraph >= RUSH_AUTO_SKIP_MISSES;
+  const autoSkip = missesOnGraph >= rushAutoSkipMisses(question);
+  const skipPause = isSetQuestion(question) ? RUSH_REVEAL_PAUSE_MS : RUSH_SKIP_PAUSE_MS;
   const counts = Object.freeze({
     ...session.counts,
     // The server's skip is a record of its own.
@@ -194,7 +221,7 @@ const applyMiss = (session, nowMs, extra = {}) => {
     missesInARow,
     missesOnGraph,
     lockedUntil: autoSkip ? 0 : Number(nowMs) + rushLockoutMs(missesInARow),
-    transition: autoSkip ? Object.freeze({ kind: RUSH_FEEDBACK.AUTO_SKIPPED, questionIndex: session.cursor, until: Number(nowMs) + RUSH_SKIP_PAUSE_MS }) : null,
+    transition: autoSkip ? Object.freeze({ kind: RUSH_FEEDBACK.AUTO_SKIPPED, questionIndex: session.cursor, until: Number(nowMs) + skipPause }) : null,
   });
   return withFeedback(next, {
     kind: autoSkip ? RUSH_FEEDBACK.AUTO_SKIPPED : RUSH_FEEDBACK.MISS,
@@ -302,12 +329,81 @@ export const recordSkip = (session, { nowMs, elapsedMs, attemptId }) => {
   return { session: queued(withFeedback(next, { kind: RUSH_FEEDBACK.SKIPPED, questionIndex: session.cursor }), attempt), attempt };
 };
 
+/*
+ * DRAWING A DOMAIN OR RANGE. A tap anywhere on the graph drops a dot onto
+ * the question's axis (x for a domain, y for a range) at the nearest grid line
+ * inside the view: once for a closed dot, twice for open, a third time to take
+ * it away (numberLineSets.tapNumber). The arrows say "keeps going". None of it
+ * is sent: only ✓ Check is an attempt.
+ */
+const axisStepOf = (question, axis) => {
+  const step = Number(axis === 'y' ? question.view?.yStep : question.view?.xStep);
+  return step > 0 ? step : 1;
+};
+
+/** The axis value a tap at (x, y) drops a dot at: the nearest grid line in view. */
+export const axisValueAt = (question, { x, y }) => {
+  const target = setTargetOf(question);
+  if (!target) return null;
+  const axis = target.axis === 'y' ? 'y' : 'x';
+  const step = axisStepOf(question, axis);
+  const [low, high] = axis === 'y' ? [question.view.yMin, question.view.yMax] : [question.view.xMin, question.view.xMax];
+  let value = snapNumberLineValue(axis === 'y' ? y : x, step);
+  if (value === null) return null;
+  if (value > high) value -= step;
+  if (value < low) value += step;
+  return value >= low && value <= high ? value : null;
+};
+
+export const recordAxisTap = (session, { x, y, nowMs }) => {
+  if (inputState(session, nowMs) !== RUSH_INPUT.READY) return refused(session, nowMs);
+  const question = currentQuestion(session);
+  const value = axisValueAt(question, { x, y });
+  if (value === null) return { session, attempt: null };
+  return { session: Object.freeze({ ...session, drawing: tapNumber(session.drawing, value) }), attempt: null };
+};
+
+/** An arrow toggled on the drawing: 'left' (or down, on the y-axis) or 'right' (up). */
+export const toggleAxisArrow = (session, side, { nowMs }) => {
+  if (inputState(session, nowMs) !== RUSH_INPUT.READY || !isSetQuestion(currentQuestion(session))) return refused(session, nowMs);
+  return { session: Object.freeze({ ...session, drawing: toggleArrow(session.drawing, side) }), attempt: null };
+};
+
+/** Whether the drawing names a set yet (✓ Check is offered only then). */
+export const drawingReady = (session) => drawingSet(session.drawing) !== null;
+
+/**
+ * ✓ Check: the set the drawing means against the answer, exactly — right
+ * completes the graph; wrong is a miss with a hint about the one thing that
+ * is off (numberLineSets.setHint), and the third skips it, showing the answer.
+ */
+export const recordCheck = (session, { nowMs, elapsedMs, attemptId }) => {
+  if (inputState(session, nowMs) !== RUSH_INPUT.READY) return refused(session, nowMs);
+  const question = currentQuestion(session);
+  const target = setTargetOf(question);
+  const drawn = drawingSet(session.drawing);
+  if (!target || !drawn) return { session, attempt: null };
+  const attempt = Object.freeze({
+    attemptId: String(attemptId),
+    questionIndex: session.cursor,
+    kind: RUSH_ATTEMPT_KIND.CHECK,
+    drawing: drawingToPlain(session.drawing),
+    clientElapsedMs: elapsedOf(elapsedMs),
+  });
+  const answer = setFromPlain(target.set);
+  const next = answer && setsEqual(drawn, answer)
+    ? applyHit(session, question, target.id, nowMs, { checked: intervalNotation(drawn) })
+    : applyMiss(session, nowMs, { hint: setHint(drawn, answer || [], { axis: target.axis }) });
+  return { session: queued(next, attempt), attempt };
+};
+
 /** When a completion flash or skip pause is over, the next graph. */
 export const settle = (session, nowMs) => {
   if (!session.transition || Number(nowMs) < session.transition.until) return session;
   return Object.freeze({
     ...session,
     cursor: session.transition.questionIndex + 1,
+    drawing: EMPTY_DRAWING,
     found: Object.freeze([]),
     missesOnGraph: 0,
     missesInARow: 0,
@@ -349,6 +445,8 @@ export const acknowledge = (session, { sent = [], reply = {} } = {}) => {
   next = Object.freeze({
     ...next,
     cursor: Math.max(0, integerOr(serverState.cursor, 0)),
+    // A drawing belongs to the graph it was drawn on.
+    drawing: integerOr(serverState.cursor, 0) === next.cursor ? next.drawing : EMPTY_DRAWING,
     found: Object.freeze((serverState.cursorTargetsFound || []).map(String)),
     missesOnGraph: missesFromServer(serverState),
     missesInARow: 0,
@@ -384,6 +482,7 @@ export const feedbackMessage = (feedback, question) => {
       return target ? `Found ${formatTarget(target)}.` : 'Found one.';
     case RUSH_FEEDBACK.COMPLETE: {
       if (feedback.doesNotExist) return 'Correct — it does not exist on this graph.';
+      if (feedback.checked) return `Correct — ${feedback.checked}.`;
       if (feedback.offScreenPress) {
         const places = offScreenPlaces(question);
         return places ? `Correct — it is off the screen, at ${places}.` : 'Correct — it is off the screen.';
@@ -395,13 +494,19 @@ export const feedbackMessage = (feedback, question) => {
       if (feedback.doesNotExist) return feedback.offScreen ? 'It exists — follow the arrows.' : 'It is on this graph — look again.';
       if (feedback.offScreenPress) return 'Not off the screen — look again.';
       if (feedback.openDot) return OPEN_DOT_MESSAGE;
+      if (feedback.hint) return feedback.hint;
       return feature?.missMessage || 'Not there — try again.';
     case RUSH_FEEDBACK.ALREADY_FOUND:
       return 'Already found.';
     case RUSH_FEEDBACK.SKIPPED:
       return 'Skipped. Next graph.';
-    case RUSH_FEEDBACK.AUTO_SKIPPED:
+    case RUSH_FEEDBACK.AUTO_SKIPPED: {
+      // A domain or range shows its answer as it moves on.
+      const target = setTargetOf(question);
+      const answer = target ? setFromPlain(target.set) : null;
+      if (answer) return `The ${feature?.shortLabel || 'answer'} is ${intervalNotation(answer)}. Next graph.`;
       return 'Too many misses on this one — moving on.';
+    }
     case RUSH_FEEDBACK.RESYNCED:
       return 'Synced with your saved progress.';
     default:

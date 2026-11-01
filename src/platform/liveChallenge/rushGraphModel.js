@@ -29,6 +29,7 @@
 import { curveRuns, evaluateGraph, graphAsymptotes, graphMarkers, sampleGraph } from '../../../functions/shared/graphFeatureCurves.mjs';
 import { POINTER_KIND, clampTolerance, targetDistance, toleranceForPointer } from '../../../functions/shared/graphFeatureHitTest.mjs';
 import { GRAPH_FEATURE } from '../../../functions/shared/graphFeatureRegistry.mjs';
+import { drawingSet } from '../../../functions/shared/numberLineSets.mjs';
 
 const finite = (value, fallback = 0) => {
   const numeric = Number(value);
@@ -166,6 +167,38 @@ export const curveArrows = (graph, view = {}) => {
     run.from.kind === 'exit' ? arrow(run.from, -1) : null,
     run.to.kind === 'exit' ? arrow(run.to, 1) : null,
   ])).filter(Boolean);
+};
+
+/*
+ * A DOMAIN OR RANGE ON ITS AXIS, as the student draws it: the x-axis for a
+ * domain, the y-axis for a range. `along` is the unit coordinate along the
+ * axis (u for x, v for y, so up the y-axis is toward v = 0); the axis line
+ * itself sits at `across`. Bands are the set the drawing means (nothing for a
+ * drawing that names none yet: a lone open dot or arrow); dots and arrows are
+ * drawn as placed, so a half-finished drawing still shows.
+ */
+export const axisSetDrawing = (question, drawing) => {
+  const target = (question?.targets || []).find((entry) => entry?.geometry === 'set');
+  if (!target || !question?.view || !drawing) return null;
+  const { view } = question;
+  const vertical = target.axis === 'y';
+  const grid = gridLines(view);
+  const along = (value) => (vertical ? unitY(view, value) : unitX(view, value));
+  const lowEdge = vertical ? 1 : 0;
+  const highEdge = vertical ? 0 : 1;
+  const set = drawingSet(drawing);
+  return Object.freeze({
+    axis: vertical ? 'y' : 'x',
+    across: vertical ? grid.axisU : grid.axisV,
+    bands: Object.freeze((set || []).map((piece) => Object.freeze({
+      from: piece.lo === null ? lowEdge : along(piece.lo.n / piece.lo.d),
+      to: piece.hi === null ? highEdge : along(piece.hi.n / piece.hi.d),
+      single: piece.lo !== null && piece.hi !== null && piece.lo.n * piece.hi.d === piece.hi.n * piece.lo.d,
+    }))),
+    dots: Object.freeze((drawing.points || []).map((point) => Object.freeze({ at: along(point.value), closed: point.closed === true, value: point.value }))),
+    // "Keeps going": left/down at the low edge, right/up at the high edge.
+    arrows: Object.freeze({ low: drawing.left === true ? lowEdge : null, high: drawing.right === true ? highEdge : null }),
+  });
 };
 
 /** Whether a question asks for its asymptotes (so they are not drawn). */

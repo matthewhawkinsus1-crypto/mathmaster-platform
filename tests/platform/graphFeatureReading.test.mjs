@@ -19,7 +19,7 @@ import {
   rushRoundSolutionRecord,
 } from '../../functions/shared/graphFeatureReading.mjs';
 import { publicSolutionDocument, roundSolutionRecord } from '../../functions/shared/liveChallengeSolutionReveal.mjs';
-import { PROJECTOR_GUIDE_STEPS, PROJECTOR_SOLUTION_STEPS, READING_GUIDE_TITLE, SOLUTION_TITLE, projectorStepLimit, solutionTitle } from '../../src/platform/liveChallenge/challengeSolutionModel.js';
+import { PROJECTOR_GUIDE_STEPS, PROJECTOR_SOLUTION_STEPS, READING_GUIDE_TITLE, SOLUTION_TITLE, projectorStepLimit, projectorSteps, solutionTitle } from '../../src/platform/liveChallenge/challengeSolutionModel.js';
 
 const read = (relative) => readFileSync(new URL(`../../${relative}`, import.meta.url), 'utf8');
 const index = read('functions/index.js');
@@ -193,20 +193,30 @@ test('the three screens that show a solution title it from the document', () => 
   assert.equal((projector.match(/<div style=\{labelStyle\}>\{title\}<\/div>/g) || []).length, 2, 'the held/loading card and the ready card');
 });
 
-test('the projector draws every line of a guide, up to seven, and the first five of any other solution', () => {
-  // Seven since asymptotes: a game asking for all six features has six lines
-  // and the answers line, which is the one a cut would lose.
+test('the projector draws a guide whole up to seven lines, and a longer one keeps its answers line; any other solution, its first five', () => {
   assert.equal(projectorStepLimit({ guide: true }), 7);
   assert.equal(PROJECTOR_GUIDE_STEPS, 7);
   assert.equal(PROJECTOR_SOLUTION_STEPS, 5);
   for (const solution of [{}, null, undefined, { guide: false }, { guide: 'true' }, { guide: 1 }]) assert.equal(projectorStepLimit(solution), 5);
-  // The longest guide the registry's features can make is within it: its last line is the one on Does Not Exist.
-  const every = rushReadingGuide({ features: listGraphFeatures().map((feature) => feature.id) }).solutionReview.reasoning;
-  assert.ok(every.length <= PROJECTOR_GUIDE_STEPS, `${every.length} lines for every feature: raise PROJECTOR_GUIDE_STEPS, or shorten, before the projector cuts the last one off`);
-  assert.match(every.at(-1), DNE_LINE);
-  // The projector takes its limit from the model.
+  // Every preset's guide fits whole.
+  for (const preset of GRAPH_FEATURE_RUSH_PRESETS) {
+    const guide = { guide: true, solutionReview: rushReadingGuide({ features: preset.features, difficulty: preset.difficulty }).solutionReview };
+    assert.deepEqual(projectorSteps(guide), [...guide.solutionReview.reasoning], preset.id);
+  }
+  // The longest guide the registry's features can make keeps its last line —
+  // the one on Does Not Exist — and as many feature lines as fit before it.
+  const every = { guide: true, solutionReview: rushReadingGuide({ features: listGraphFeatures().map((feature) => feature.id) }).solutionReview };
+  const shown = projectorSteps(every);
+  assert.ok(every.solutionReview.reasoning.length > PROJECTOR_GUIDE_STEPS, 'a game of every feature runs past seven lines');
+  assert.equal(shown.length, PROJECTOR_GUIDE_STEPS);
+  assert.equal(shown.at(-1), every.solutionReview.reasoning.at(-1));
+  assert.match(shown.at(-1), DNE_LINE);
+  // An authored solution keeps its first five, whatever comes after.
+  const authored = { solutionReview: { reasoning: ['a', 'b', 'c', 'd', 'e', 'f', 'g'] } };
+  assert.deepEqual(projectorSteps(authored), ['a', 'b', 'c', 'd', 'e']);
+  // The projector draws what the model says.
   const projector = region(read('src/components/liveChallenge/LiveChallengeArenaProjector.jsx'), 'function ProjectorSolution(', '\n}\n', 'the projector panel');
-  assert.match(projector, /\.filter\(Boolean\)\.slice\(0, projectorStepLimit\(solution\)\);/);
+  assert.match(projector, /const steps = projectorSteps\(solution\);/);
 });
 
 // Last in the file, because it adds a feature to the registry (for this process only).

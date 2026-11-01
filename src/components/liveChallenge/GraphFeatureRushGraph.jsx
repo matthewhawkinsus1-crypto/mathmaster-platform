@@ -46,6 +46,36 @@ const arrowPoints = (arrow, side) => {
   ].join(' ');
 };
 
+// A domain or range drawn on its axis (rushGraphModel.axisSetDrawing): a
+// shaded band for the set it means, its dots (filled: included; open: not),
+// and an arrowhead at the edge for "keeps going". `tone` draws the student's
+// own in the curve's colour and a revealed answer in the found colour.
+const SET_BAND = 10;
+function AxisSet({ shape, side, tone }) {
+  if (!shape) return null;
+  const vertical = shape.axis === 'y';
+  const across = shape.across * side;
+  const at = (unit) => (vertical ? { x: across, y: unit * side } : { x: unit * side, y: across });
+  const edgeArrow = (unit, outward) => arrowPoints(vertical
+    ? { u: shape.across, v: unit, dx: 0, dy: outward }
+    : { u: unit, v: shape.across, dx: outward, dy: 0 }, side);
+  return (
+    <g className="mm-rush-set" pointerEvents="none" aria-hidden="true">
+      {shape.bands.map((band) => {
+        const from = at(band.from);
+        const to = at(band.to);
+        return <line key={`band${band.from}-${band.to}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={tone} strokeOpacity={0.42} strokeWidth={SET_BAND} strokeLinecap={band.single ? 'round' : 'butt'} />;
+      })}
+      {shape.arrows.low !== null && <polygon points={edgeArrow(shape.arrows.low, vertical ? 1 : -1)} fill={tone} />}
+      {shape.arrows.high !== null && <polygon points={edgeArrow(shape.arrows.high, vertical ? -1 : 1)} fill={tone} />}
+      {shape.dots.map((dot) => {
+        const center = at(dot.at);
+        return <circle key={`dot${dot.value}`} cx={center.x} cy={center.y} r={8} fill={dot.closed ? tone : 'var(--mm-graph-bg)'} stroke={tone} strokeWidth={3} />;
+      })}
+    </g>
+  );
+}
+
 // Asymptotes: dashed, in their own colour, drawn over the axes so one lying
 // along an axis still shows.
 const ASYMPTOTE_STROKE = { stroke: 'var(--mm-rush-asymptote)', strokeWidth: 2.25, strokeDasharray: '8 6' };
@@ -223,8 +253,10 @@ function MissMark({ x, y, view, side }) {
  * @param {boolean}  props.paused     input paused (cooldown, time up): drawn dimmed;
  *                                    taps still reach onTap, which refuses them
  * @param {Function} props.onTap      ({ x, y, pointer, tolerance }) => void
+ * @param {object}   props.axisSet    a domain or range being drawn (axisSetDrawing)
+ * @param {object}   props.revealSet  the answer, shown as the graph moves on
  */
-function GraphFeatureRushGraph({ question, drawing, side, found = [], feedback = null, paused = false, onTap, label }) {
+function GraphFeatureRushGraph({ question, drawing, side, found = [], feedback = null, paused = false, onTap, label, axisSet = null, revealSet = null }) {
   const svgRef = useRef(null);
   const view = question.view;
   const [cursor, setCursor] = useState(() => initialCursor(view));
@@ -326,6 +358,9 @@ function GraphFeatureRushGraph({ question, drawing, side, found = [], feedback =
           <FoundMark key={target.id} question={question} target={target} view={view} side={side} fresh={target.id === freshTarget} />
         ))}
         {missAt && <MissMark key={missAt.seq} x={missAt.x} y={missAt.y} view={view} side={side} />}
+        {revealSet
+          ? <AxisSet shape={revealSet} side={side} tone="var(--mm-rush-found)" />
+          : <AxisSet shape={axisSet} side={side} tone="var(--mm-rush-curve)" />}
         {cursorVisible && (
           <g aria-hidden="true" pointerEvents="none">
             <line x1={cursorX} x2={cursorX} y1={0} y2={side} stroke="var(--mm-focus)" strokeWidth={1.5} strokeDasharray="4 4" />

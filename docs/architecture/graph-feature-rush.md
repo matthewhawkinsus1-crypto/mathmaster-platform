@@ -4,7 +4,7 @@ A Live Challenge game mode: every student gets their own graphs and races the
 round clock to tap the features asked for — x-intercepts (zeros, roots), the
 y-intercept, the vertex, the maximum, the minimum, the asymptotes — or to
 answer "Does Not Exist" (and, in a game with off-screen features, "Off
-screen"). The graph dominates the screen; a correct tap is acknowledged in the
+screen"), and to mark domains and ranges on the axes. The graph dominates the screen; a correct tap is acknowledged in the
 next frame; a graph with several targets completes itself when the last one is
 found. Every curve carries an arrowhead where it leaves the screen and a dot
 where it ends, so a student reads where it goes.
@@ -45,6 +45,7 @@ questions, and screens.
 | `graphFeatureHitTest.mjs` | screen-space tolerance and nearest-target resolution | everywhere |
 | `graphFeatureRushConfig.mjs` | presets, difficulty, round limits, teacher-setting validation | everywhere |
 | `graphFeatureRushRules.mjs` | the constants device and server share: attempt kinds, verdicts, request and record limits, cooldown, auto-skip | everywhere |
+| `numberLineSets.mjs` | sets of numbers on a number line, exactly: the tap model a student draws with, what a drawing means, interval and inequality notation, and what a wrong drawing got wrong (hints) | everywhere |
 | `graphFeatureRush.mjs` | the submit transaction's body (`applyRushAttempts`), round state from receipts, player totals, the report | server, practice, tests |
 | `src/platform/liveChallenge/rushGraphModel.js` | the drawing in unit space (curve, grid, asymptotes, dots, arrowheads), screen↔graph, keyboard cursor, open-dot taps | browser, tests |
 | `src/platform/liveChallenge/rushSession.js` | a student's round on the device: local grading, queue, reconciliation | browser, tests |
@@ -110,6 +111,17 @@ asked. On an asymptote question the dashed lines are not drawn (they are the
 answer); each is drawn, labelled "x = 2", when found. Everywhere else they are
 drawn in their own colour (`--mm-rush-asymptote`, the theme's accent), over the
 axes, so one lying on an axis still shows.
+
+**Domain and range** (`domain`, `range`; geometry `'set'`) are answered on
+an axis, not by a tap on a feature: "Mark the domain" (the x-axis), "Mark the
+range" (the y-axis). Every family computes both exactly; a continuous graph
+on an interval reaches every value between the lowest and the highest it
+reaches or approaches, each end closed exactly when a closed end of the
+domain, or the turn, attains it (`rangeOver`). Rays and segments, a level
+line's single value, an exponential up to its asymptote (open), a rational's
+everything-but-one, a piecewise jump that leaves a gap. Every finite end of an
+answer sits on a drawn grid line of its axis, well inside the view, and every
+answer can be drawn with two dots. Neither is ever "Does Not Exist".
 
 The existing presets keep the five features they had
 (`CLASSIC_GRAPH_FEATURE_IDS`): a feature added to the registry is the
@@ -230,6 +242,32 @@ ever needed.
 
 ---
 
+### Drawing a domain or range (click only)
+
+`numberLineSets.mjs` holds the model. A tap anywhere on the graph drops a dot
+onto the question's axis at the nearest grid line inside the view: once for
+● closed, twice for ○ open, a third time to take it away; two dots at most (a
+third new number moves the nearer dot there, keeping its style). ◀ ▶ (▼ ▲ for
+a range) mean "keeps going". Two dots shade between them; two dots and both
+arrows shade the outside ("x ≤ −1 or x > 3"); one open dot and both arrows is
+everything but that number. The interval notation, `[−3, ∞)`, shows live.
+None of it is sent: **✓ Check** is the attempt (`check`, carrying the
+drawing), offered once the drawing names a set. It is graded by set equality,
+so the right set drawn another way is right. A wrong check gets a hint about
+the one thing that is off, at the end it is off — "Open or closed at the left
+end?", "Which way does it keep going?", "Does it keep going, or does it
+stop?", "Check the number at the bottom end." — never the answer. The third
+wrong check shows the answer on the axis, in the found colour, with its
+notation, for `RUSH_REVEAL_PAUSE_MS`, and moves on (the server records the skip
+with that check, `RUSH_SET_AUTO_SKIP_MISSES`). Receipts keep the drawing and
+the diagnosis. On these graphs "Does Not Exist" and "Off screen" step aside
+for the arrows and ✓ Check; Skip stays where it always is.
+
+**Presets.** "Domain & Range Rush" (domain and range on lines, parabolas,
+absolute value, square root and exponential graphs, Standard, 90 s rounds) and
+"Domain, Range & Intercepts", the merge: intercepts to tap and domains and
+ranges to mark on the same families.
+
 ## 4. Hit testing
 
 Tolerance is measured on the **screen**: a fingertip is a fingertip whether the
@@ -266,10 +304,10 @@ is at that x.
 
 ## 5. Attempts, fairness and the server's authority
 
-A batch of up to 12 attempts (`tap`, `dne`, `offScreen`, `skip`) is graded in
-one transaction against regenerated questions, in order ("Does Not Exist" is
-right only when the feature is absent; "Off screen" only when it exists past
-the edge):
+A batch of up to 12 attempts (`tap`, `dne`, `offScreen`, `check`, `skip`) is
+graded in one transaction against regenerated questions, in order ("Does Not
+Exist" is right only when the feature is absent; "Off screen" only when it
+exists past the edge; a check only when its drawing means the answer's set):
 
 - only the **current** question (the first neither completed nor skipped)
   takes attempts; a late tap for a finished graph is `resolved`, an attempt
@@ -415,7 +453,8 @@ question and so no worked solution, but every student shares what they were
 asked to find, so the results carry a short reading guide to the features in
 the game: one line each saying what the feature is and where it sits ("x-
 intercepts: the points where the graph meets the x-axis, so the y-value is 0")
-and the slip to watch for, and one line on the answers that are not a tap
+(a domain's says an open dot leaves its x out) and the slip to watch for,
+and one line on the answers that are not a tap
 ("Does Not Exist"; "Off screen" in a game with off-screen features; above
 Easy, "An open dot is not on the graph."). It is the same text for every
 student and every round, a function of the game's settings alone (`graphFeatureReading.mjs`),
@@ -444,7 +483,9 @@ graphs on the student's screen, graded locally, recording nothing.
 round), then the round's results with the points each place earned and the
 championship it left (movement included) and the reading guide beside them
 (the shell's results layout, LC03), then the podium. Never a graph, an
-answer or a coordinate. The lobby, results, final standings, confirmations and
+answer or a coordinate. The projector draws a guide whole up to seven lines;
+a longer one (a custom game asking for most of the features) keeps its first
+lines and always its answers line (`projectorSteps`). The lobby, results, final standings, confirmations and
 Play Again are the shell's (`live-challenge-shell.md`).
 
 **Accessibility.** Keyboard play with a visible cursor (shown only to keyboard
@@ -500,6 +541,13 @@ and dark; reduced motion turns the pops and fades off.
   settles; off-screen features found on the curve and past the edge; zeros at
   closed ends); special cases; vocabulary; determinism; schedules; the "Does
   Not Exist" share; the catalog equals the families.
+- `graphFeatureRushDomainRange.test.mjs` — the number-line model (the tap
+  cycle, what drawings mean, notation, shape-checking), hints, every family's
+  exact domain and range, the presets, the server's grading by set equality
+  and its third-miss skip, the device's drawing, check and reveal, and
+  device–server agreement over random play. The math oracle checks every
+  domain and range from the curve alone (where it is defined; which values it
+  attains, approaches, covers and skips).
 - `graphFeatureRushArrowsAsymptotes.test.mjs` — every graph leaves the screen
   only at its ends (sampled independently), the device's arrowheads,
   restricted domains (closed and open ends, the parabola cut to one zero, the
