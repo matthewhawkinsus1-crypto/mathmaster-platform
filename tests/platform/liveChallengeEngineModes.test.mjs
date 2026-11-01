@@ -50,7 +50,8 @@ test('the shipped modes declare what they did before the engine', () => {
   assert.equal(solverRaceMode.questionSource, QUESTION_SOURCE.SOLVER_RACE_GENERATOR);
   for (const mode of [standardMode, solverRaceMode]) {
     assert.equal(mode.roundStructure, ROUND_STRUCTURE.SYNCHRONIZED_QUESTION);
-    assert.deepEqual(roundQuestionSpecsFor(mode), [{ questionIndex: 0, targetCount: 1, completionRule: COMPLETION_RULE.SINGLE_RESPONSE }]);
+    // One question worth one, as every question was before items had weights.
+    assert.deepEqual(roundQuestionSpecsFor(mode), [{ questionIndex: 0, targetCount: 1, completionRule: COMPLETION_RULE.SINGLE_RESPONSE, weight: 1 }]);
     assert.equal(mode.defaultScoringStrategy, 'accuracyFirst');
     assert.equal(mode.capabilities.secondChance, true);
   }
