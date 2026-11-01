@@ -15,6 +15,12 @@ ranking, round and match results, finalization and rewards are the engine's;
 the rush adds a question source, a way for a student to receive and answer
 questions, and screens.
 
+**Inequality Graphing Rush** (`inequality-rush.md`) is a second game on the
+rush's machinery: its items are number-line questions (one target, a solution
+set, checked like a domain), issued and graded by the same callables
+(`RUSH_QUESTION_SOURCES` in `functions/index.js` names each game's generator
+and private state) and played on the same round screen with a number line.
+
 ```
  teacher setup ─► createLiveChallenge (mode: graphFeatureRush) ─► lobby ─► start
                                                                             │

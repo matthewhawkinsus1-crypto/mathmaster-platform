@@ -44,7 +44,7 @@ import { SCORE_ACCUMULATION } from './liveChallengeScoring.mjs';
 import { DOES_NOT_EXIST_TARGET_ID, OFF_SCREEN_TARGET_ID, getGraphFeature } from './graphFeatureRegistry.mjs';
 import { graphFamilyLabel } from './graphFeatureCatalog.mjs';
 import { POINTER_KIND, TAP_RESULT, clampTolerance, normalizePointerKind, resolveTap } from './graphFeatureHitTest.mjs';
-import { diagnoseSet, drawingSet, drawingToPlain, normalizeDrawing, setFromPlain, setsEqual } from './numberLineSets.mjs';
+import { SET_DIAGNOSIS_LABELS, diagnoseSet, drawingSet, drawingToPlain, normalizeDrawing, setFromPlain, setsEqual } from './numberLineSets.mjs';
 import {
   RUSH_ATTEMPT_KIND,
   RUSH_AUTO_SKIP_MISSES,
@@ -53,6 +53,7 @@ import {
   RUSH_LIMITS,
   RUSH_LOCKOUT,
   RUSH_PACING,
+  RUSH_SIGN_FLIP,
   RUSH_SKIP_PAUSE_MS,
   RUSH_VERDICT,
   rushLockoutMs,
@@ -362,15 +363,21 @@ export const applyRushAttempts = ({
     let forfeit = false;
     let diagnosis = null;
     if (attempt.kind === RUSH_ATTEMPT_KIND.CHECK) {
-      // A domain or range: the set the drawing means against the answer,
-      // exactly. A drawing that names no set, or a check on a question that
-      // asks for none, is a miss like any other.
+      // A domain, a range or an inequality's solutions: the set the drawing
+      // means against the answer, exactly. A drawing that names no set, or a
+      // check on a question that asks for none (an inequality with no
+      // solution), is a miss like any other.
       const target = question.targets.find((entry) => entry?.geometry === 'set');
       const drawn = drawingSet(attempt.drawing);
       const answer = target ? setFromPlain(target.set) : null;
       isCorrect = Boolean(drawn && answer && setsEqual(drawn, answer));
       targetId = isCorrect ? target.id : 'miss';
-      if (!isCorrect && drawn && answer) diagnosis = diagnoseSet(drawn, answer).kind;
+      if (!isCorrect && drawn && answer) {
+        // A question may name the set one known slip draws (`flipSet`: the
+        // sign left unflipped after dividing by a negative).
+        const slip = question.flipSet ? setFromPlain(question.flipSet) : null;
+        diagnosis = slip && setsEqual(drawn, slip) ? RUSH_SIGN_FLIP : diagnoseSet(drawn, answer).kind;
+      }
     } else if (attempt.kind === RUSH_ATTEMPT_KIND.SKIP) {
       targetId = 'skip';
       forfeit = true;
@@ -560,21 +567,34 @@ const mergeBuckets = (target, source) => {
   });
 };
 
+// How the report names its rows: Graph Feature Rush's features and families,
+// and the number-line diagnoses of wrong checks. Inequality Graphing Rush
+// passes its own (inequalityRush.INEQUALITY_REPORT_LABELS).
+const GRAPH_REPORT_LABELS = Object.freeze({
+  featureLabel: (key) => getGraphFeature(key)?.shortLabel || key,
+  familyLabel: (key) => graphFamilyLabel(key) || key,
+  mistakeLabel: (key) => SET_DIAGNOSIS_LABELS[key] || key,
+});
+
 /**
  * The teacher's after-game breakdown, from the match result's standings
  * (each carries its questionSetSummary). Never a verdict on a student: counts
- * and percentages only.
+ * and percentages only. `labels` names the rows (GRAPH_REPORT_LABELS).
  */
-export const buildRushReport = (matchResult = {}) => {
+export const buildRushReport = (matchResult = {}, labels = GRAPH_REPORT_LABELS) => {
+  const { featureLabel, familyLabel, mistakeLabel } = { ...GRAPH_REPORT_LABELS, ...labels };
   const standings = Array.isArray(matchResult.standings) ? matchResult.standings : [];
   const totals = { questions: 0, completed: 0, skipped: 0, attempts: 0, hits: 0, dnePresses: 0, dneCorrect: 0 };
   const byFeature = {};
   const byFamily = {};
+  const mistakes = {};
   const players = standings.map((standing) => {
     const summary = standing.questionSetSummary || {};
     Object.keys(totals).forEach((key) => { totals[key] += Number(summary[key]) || 0; });
     mergeBuckets(byFeature, summary.byFeature);
     mergeBuckets(byFamily, summary.byFamily);
+    // What wrong checks got wrong (a domain, a range, an inequality), counted.
+    Object.entries(summary.mistakes || {}).forEach(([key, count]) => { mistakes[key] = (mistakes[key] || 0) + (Number(count) || 0); });
     return {
       studentId: standing.studentId || null,
       alias: String(standing.alias || 'Player'),
@@ -594,8 +614,13 @@ export const buildRushReport = (matchResult = {}) => {
     attempts: totals.attempts,
     accuracyPercent: percent(totals.hits, totals.attempts),
     doesNotExist: { presses: totals.dnePresses, correct: totals.dneCorrect, accuracyPercent: percent(totals.dneCorrect, totals.dnePresses) },
-    byFeature: breakdown(byFeature, (key) => getGraphFeature(key)?.shortLabel || key),
-    byFamily: breakdown(byFamily, (key) => graphFamilyLabel(key) || key),
+    byFeature: breakdown(byFeature, featureLabel),
+    byFamily: breakdown(byFamily, familyLabel),
+    // Most common first.
+    mistakes: Object.entries(mistakes)
+      .filter(([, count]) => count > 0)
+      .map(([key, count]) => ({ key, label: mistakeLabel(key), count }))
+      .sort((left, right) => right.count - left.count || (left.key < right.key ? -1 : 1)),
     players,
   });
 };

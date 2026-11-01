@@ -6,11 +6,11 @@ import { executableSource, region } from './helpers/sourceContract.mjs';
 import { getChallengeMode, modeScoringConfig, normalizeModeConfig, normalizeModeRoundCount, normalizeModeRoundSeconds, resolveModeScoringStrategy } from '../../functions/shared/liveChallengeModes.mjs';
 import { evaluateRewardPolicy } from '../../functions/shared/liveChallengeRewardRules.mjs';
 import { GRAPH_FEATURE_RUSH_PRESETS } from '../../functions/shared/graphFeatureRushConfig.mjs';
-import { RUSH_MODE_ID } from '../../functions/shared/graphFeatureRushRules.mjs';
+import { INEQUALITY_RUSH_MODE_ID, RUSH_MODE_ID } from '../../functions/shared/graphFeatureRushRules.mjs';
 import { rushPlayingCount, rushRaceRows, rushRoundFacts, rushRoundResultRows, rushScoreUnit } from '../../src/platform/liveChallenge/rushStandingsModel.js';
 import { changeRushSetup, defaultRushSetup, grandPrixLadder, rushCreateRequest, rushSetupFromPreset } from '../../src/platform/liveChallenge/rushSetupModel.js';
 import { PASS_RULE_ID, buildChallengeRewardPolicy } from '../../src/platform/rewards/challengeRewardPolicy.js';
-import { CHALLENGE_STAGE, HOST_COMMAND, QUESTION_SET_GAME, ROUND_CLOSE_AFTER_DEADLINE_MS, hostPrimaryAction, questionSetGameOf, roundCloseDue } from '../../src/platform/liveChallenge/challengeShellModel.js';
+import { CHALLENGE_STAGE, HOST_COMMAND, QUESTION_SET_GAME, ROUND_CLOSE_AFTER_DEADLINE_MS, hostPrimaryAction, isRushGame, questionSetGameOf, roundCloseDue } from '../../src/platform/liveChallenge/challengeShellModel.js';
 import { SUBMISSION_ARRIVAL_GRACE_MS } from '../../functions/shared/liveChallengeParity.mjs';
 
 /*
@@ -124,7 +124,13 @@ test('the student screen plays a rush on its own surface, loaded only for a rush
   assert.match(rushRender, /<GraphFeatureRushRound\b/);
   assert.match(rushRender, /serverNowAtRender: Date\.now\(\) \+ clock\.offsetMs/, 'the round is timed on the calibrated clock');
   assert.match(student, /const questionSetGame = questionSetGameOf\(room\);/);
-  assert.match(student, /const rushRoom = questionSetGame === QUESTION_SET_GAME\.GRAPH_FEATURE_RUSH;/);
+  // The rush's surface plays every game the client calls a rush: Graph
+  // Feature Rush and Inequality Graphing Rush, never Graph the Line.
+  assert.match(student, /const rushRoom = isRushGame\(questionSetGame\);/);
+  assert.equal(isRushGame(questionSetGameOf({ challengeMode: RUSH_MODE_ID })), true);
+  assert.equal(isRushGame(questionSetGameOf({ challengeMode: INEQUALITY_RUSH_MODE_ID })), true);
+  assert.equal(isRushGame(questionSetGameOf({ challengeMode: 'lineGraphRush' })), false);
+  assert.equal(isRushGame(questionSetGameOf({ challengeMode: 'standard' })), false);
   assert.match(student, /const rushRoundOpen = rushRoom && questionSetRoundOpen;/);
   assert.match(student, /const questionSetRoom = questionSetGame !== null;/);
   assert.match(student, /\{!questionSetRoom && room\.status === 'running' && room\.currentQuestion[^\n]*\n\s*<ChallengeRound/);
@@ -274,14 +280,18 @@ test('the teacher console offers the rush and creates it with its own settings',
   const teacher = read('../../src/components/liveChallenge/LiveChallengeTeacher.jsx');
   assert.match(teacher, /<option value=\{RUSH_MODE_ID\}>Graph Feature Rush<\/option>/);
   assert.match(teacher, /const GraphFeatureRushSetup = lazy\(\(\) => import\('\.\/GraphFeatureRushSetup\.jsx'\)\);/);
-  // The rush and Graph the Line share the create path of a game with its own
-  // settings (the console has two creates: these games', and the bank's).
-  const create = region(teacher, 'if (rushMode || lineMode) {', 'if (warmupAssignmentId && warmupDeliveryMode', 'own-settings create');
+  // The rush, Inequality Graphing Rush and Graph the Line share the create
+  // path of a game with its own settings (the console has two creates: these
+  // games', and the bank's).
+  const create = region(teacher, 'if (ownSettingsGame) {', 'if (warmupAssignmentId && warmupDeliveryMode', 'own-settings create');
   assert.match(teacher, /const rushProblem = rushMode \? rushConfigProblem\(rushSetup\) : null;/);
   assert.match(create, /if \(rushProblem\) throw new Error\(rushProblem\);/, 'an impossible game is not sent');
   assert.match(create, /rushMode\s*\?\s*rushCreateRequest\(rushSetup, \{ rewardPolicy: buildChallengeRewardPolicy\(rewardChoice\) \}\)/);
-  // The Rewards choice is shown for every game type, the rush included.
-  assert.match(teacher, /const ownSettingsGame = rushMode \|\| lineMode;/);
+  // The Rewards choice is shown for every game type, the rush included: every
+  // own-settings game is one, the rush among them.
+  const ownSettings = /const ownSettingsGame = ([^;]+);/.exec(teacher);
+  assert.ok(ownSettings, 'the console names the games with their own settings');
+  assert.deepEqual(ownSettings[1].split('||').map((name) => name.trim()).sort(), ['inequalityMode', 'lineMode', 'rushMode']);
   assert.match(teacher, /\{!ownSettingsGame && <ScoringCompetitionCard [^\n]*\n\s*<ChallengeRewardSettings choice=\{rewardChoice\} onChange=\{setRewardChoice\} \/>/);
   assert.doesNotMatch(executableSource(create), /assignmentId/, 'a rush is never linked to a Warm-Up');
   assert.match(teacher, /\{!ownSettingsGame && <label style=\{\{ fontWeight: 800 \}\}>Run as a Warm-Up/);
@@ -316,7 +326,8 @@ test('a rush round closes itself after its deadline, and moves on only once clos
 test('the projector shows the race, never a graph or an answer', () => {
   const projector = read('../../src/components/liveChallenge/LiveChallengeArenaProjector.jsx');
   const host = read('../../src/components/liveChallenge/GraphFeatureRushHost.jsx');
-  assert.match(projector, /room\?\.challengeMode === RUSH_MODE_ID && <RushRunningView /);
+  // Every game the client calls a rush races on the projector's rush view.
+  assert.match(projector, /openRound && isRushGame\(questionSetGameOf\(room\)\) && <RushRunningView /);
   // The closing threshold is a classic-mode control; a rush never shows it.
   assert.match(region(projector, 'function HostStrip(', '\nexport const formatArenaClock', 'host strip'), /\{projectorShowsClosingThreshold\(room\) && [^\n]*<label/);
   assert.equal(getChallengeMode(RUSH_MODE_ID).capabilities.closingThreshold, false);

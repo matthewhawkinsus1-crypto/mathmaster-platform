@@ -23,11 +23,15 @@ export const SOLUTION_STATE = Object.freeze({
  * What a screen calls a round's published document. A Graph Feature Rush round
  * has no question to solve; what it publishes is a reading guide to the
  * features in the game (graphFeatureReading.mjs, marked `guide: true`), which
- * is not a worked solution and is not titled as one.
+ * is not a worked solution and is not titled as one. A guide may carry its
+ * own title (Inequality Graphing Rush's, inequalityReading.mjs).
  */
 export const SOLUTION_TITLE = 'Worked solution';
 export const READING_GUIDE_TITLE = 'How to read the features';
-export const solutionTitle = (solution) => (solution?.guide === true ? READING_GUIDE_TITLE : SOLUTION_TITLE);
+export const solutionTitle = (solution) => {
+  if (solution?.guide !== true) return SOLUTION_TITLE;
+  return typeof solution.guideTitle === 'string' && solution.guideTitle.trim() ? solution.guideTitle.trim() : READING_GUIDE_TITLE;
+};
 
 /*
  * How many steps the projector draws. An authored review can run long and the

@@ -488,8 +488,11 @@ test('the screens draw arrows, asymptotes in their own colour, and offer Off scr
   assert.match(round, /const offScreenGame = room\.graphFeatureRush\?\.config\?\.offScreen === true;/);
   assert.match(region(round, '<div className="mm-rush-buttons" data-off-screen=', '</div>', 'the answer buttons'), /\{offScreenGame && \(\s*<button type="button" className="mm-rush-off" disabled=\{buttonsDisabled\} onClick=\{onOffScreen\}/);
   assert.match(round, /const onOffScreen = \(\) => act\(recordOffScreen\);/);
-  // Practice reads the same setting from the room it builds.
-  assert.match(read('src/components/liveChallenge/GraphFeatureRushPractice.jsx'), /graphFeatureRush: \{ config: JSON\.parse\(configKey\) \},/);
+  // Practice reads the same setting from the room it builds: the settings go
+  // where the game's room carries them, which for this game is graphFeatureRush.
+  const practice = read('src/components/liveChallenge/GraphFeatureRushPractice.jsx');
+  assert.match(practice, /\[practiceGame\.key\]: \{ config: JSON\.parse\(configKey\) \},/);
+  assert.match(practice, /\[RUSH_MODE_ID\]: Object\.freeze\(\{ key: 'graphFeatureRush',/);
   // The setup offers the toggle and checks it with the server's own rule.
   const setup = read('src/components/liveChallenge/GraphFeatureRushSetup.jsx');
   assert.match(setup, /rushConfigProblem\(\{ families: setup\.families, features: setup\.features, difficulty: setup\.difficulty, offScreen: setup\.offScreen === true \}\)/);
@@ -501,5 +504,12 @@ test('generator 3: rooms created under an older generator refuse to play rather 
   // must not turn this red: AGENTS.md, versioned constants).
   assert.ok(GRAPH_FEATURE_GENERATOR_VERSION >= 3);
   const index = read('functions/index.js');
-  assert.match(region(index, 'async function loadGraphFeatureRushContext(', '\n}\n', 'the rush context'), /Number\(rushState\.generatorVersion\) !== rules\.generator\.GRAPH_FEATURE_GENERATOR_VERSION/);
+  // A room is played only under the generator version it was created with —
+  // its own game's: for Graph Feature Rush, this generator's.
+  const context = region(index, 'async function loadGraphFeatureRushContext(', '\n}\n', 'the rush context');
+  assert.match(context, /if \(!rushState\.seed \|\| Number\(rushState\.generatorVersion\) !== questions\.version\) \{\s*throw new HttpsError\("failed-precondition"/);
+  const games = region(index, 'const RUSH_QUESTION_SOURCES = Object.freeze({', '\n});\n', 'the rush games');
+  const graphs = region(games, 'graphFeatureGenerator: Object.freeze({', '\n  }),', 'the graph game');
+  assert.match(graphs, /stateKey: "graphFeatureRush",/);
+  assert.match(graphs, /return \{ version: generator\.GRAPH_FEATURE_GENERATOR_VERSION, generate: generator\.generateRushQuestion, publicQuestion: generator\.publicRushQuestion \};/);
 });

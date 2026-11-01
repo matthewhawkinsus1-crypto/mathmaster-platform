@@ -14,9 +14,14 @@
  *
  *   recordTap / recordDoesNotExist / recordOffScreen / recordSkip
  *                                                 a student's input
- *   recordAxisTap / toggleAxisArrow / recordCheck a domain or range: the
- *                                                 drawing (on this device
- *                                                 only) and its ✓ Check
+ *   recordAxisTap / toggleAxisArrow / recordCheck a domain, a range or an
+ *                                                 inequality: the drawing (on
+ *                                                 this device only) and its
+ *                                                 ✓ Check
+ *
+ * Inequality Graphing Rush plays on this same session: its items are number
+ * line questions (inequalityRush.mjs) — a tap on the line drops a dot, ✓ Check
+ * grades the drawing, and "No solution" is the "Does Not Exist" press.
  *   settle                                        a completion flash or skip
  *                                                 pause ending: next graph
  *   acknowledge                                   the server's reply to a batch
@@ -29,6 +34,7 @@ import {
   EMPTY_DRAWING,
   drawingSet,
   drawingToPlain,
+  inequalityNotation,
   intervalNotation,
   setFromPlain,
   setHint,
@@ -43,9 +49,11 @@ import {
   RUSH_LIMITS,
   RUSH_REVEAL_PAUSE_MS,
   RUSH_SKIP_PAUSE_MS,
+  isNumberLineQuestion,
   rushAutoSkipMisses,
   rushLockoutMs,
 } from '../../../functions/shared/graphFeatureRushRules.mjs';
+import { NO_SOLUTION_MISS, inequalityAnswerText, inequalityHint, isInequalityQuestion } from '../../../functions/shared/inequalityRush.mjs';
 import { formatPoint, formatTarget, nearOpenDot } from './rushGraphModel.js';
 
 export const RUSH_FEEDBACK = Object.freeze({
@@ -121,6 +129,8 @@ export const createRushSession = ({ roundIndex = 0, serverState = {}, questions 
 
 /** The set target of a domain or range question, or null. */
 export const setTargetOf = (question) => (question?.targets || []).find((target) => target?.geometry === 'set') || null;
+
+export { isInequalityQuestion, isNumberLineQuestion };
 /** Whether a question is answered by drawing a set on an axis. */
 export const isSetQuestion = (question) => Boolean(setTargetOf(question));
 
@@ -208,7 +218,8 @@ const applyMiss = (session, nowMs, extra = {}) => {
   const missesInARow = session.missesInARow + 1;
   const missesOnGraph = session.missesOnGraph + 1;
   const autoSkip = missesOnGraph >= rushAutoSkipMisses(question);
-  const skipPause = isSetQuestion(question) ? RUSH_REVEAL_PAUSE_MS : RUSH_SKIP_PAUSE_MS;
+  // A number line shows its answer as it moves on: long enough to read.
+  const skipPause = isNumberLineQuestion(question) ? RUSH_REVEAL_PAUSE_MS : RUSH_SKIP_PAUSE_MS;
   const counts = Object.freeze({
     ...session.counts,
     // The server's skip is a record of its own.
@@ -285,9 +296,11 @@ export const recordDoesNotExist = (session, { nowMs, elapsedMs, attemptId }) => 
     clientElapsedMs: elapsedOf(elapsedMs),
   });
   const absent = (!Array.isArray(question.targets) || question.targets.length === 0) && !isOffScreen(question);
+  // On an inequality the press is "No solution": the same rule, its own words.
+  const noSolution = isInequalityQuestion(question) ? { noSolution: true } : {};
   const next = absent
-    ? applyHit(session, question, 'dne', nowMs, { doesNotExist: true })
-    : applyMiss(session, nowMs, { doesNotExist: true, offScreen: isOffScreen(question) });
+    ? applyHit(session, question, 'dne', nowMs, { doesNotExist: true, ...noSolution })
+    : applyMiss(session, nowMs, { doesNotExist: true, offScreen: isOffScreen(question), ...noSolution });
   return { session: queued(next, attempt), attempt };
 };
 
@@ -330,22 +343,30 @@ export const recordSkip = (session, { nowMs, elapsedMs, attemptId }) => {
 };
 
 /*
- * DRAWING A DOMAIN OR RANGE. A tap anywhere on the graph drops a dot onto
- * the question's axis (x for a domain, y for a range) at the nearest grid line
- * inside the view: once for a closed dot, twice for open, a third time to take
- * it away (numberLineSets.tapNumber). The arrows say "keeps going". None of it
- * is sent: only ✓ Check is an attempt.
+ * DRAWING A DOMAIN, A RANGE OR AN INEQUALITY. A tap anywhere on the graph
+ * drops a dot onto the question's axis (x for a domain, y for a range) at the
+ * nearest grid line inside the view; a tap on an inequality's number line
+ * drops one at the nearest whole number. Once for a closed dot, twice for
+ * open, a third time to take it away (numberLineSets.tapNumber). The arrows
+ * say "keeps going". None of it is sent: only ✓ Check is an attempt.
  */
 const axisStepOf = (question, axis) => {
   const step = Number(axis === 'y' ? question.view?.yStep : question.view?.xStep);
   return step > 0 ? step : 1;
 };
 
+// The axis a question is drawn on: its set's, or an inequality's line (x) —
+// also for an item with no solution, which has no set to name it.
+const drawingAxisOf = (question) => {
+  const target = setTargetOf(question);
+  if (target) return target.axis === 'y' ? 'y' : 'x';
+  return isInequalityQuestion(question) ? 'x' : null;
+};
+
 /** The axis value a tap at (x, y) drops a dot at: the nearest grid line in view. */
 export const axisValueAt = (question, { x, y }) => {
-  const target = setTargetOf(question);
-  if (!target) return null;
-  const axis = target.axis === 'y' ? 'y' : 'x';
+  const axis = drawingAxisOf(question);
+  if (!axis || !question?.view) return null;
   const step = axisStepOf(question, axis);
   const [low, high] = axis === 'y' ? [question.view.yMin, question.view.yMax] : [question.view.xMin, question.view.xMax];
   let value = snapNumberLineValue(axis === 'y' ? y : x, step);
@@ -365,7 +386,7 @@ export const recordAxisTap = (session, { x, y, nowMs }) => {
 
 /** An arrow toggled on the drawing: 'left' (or down, on the y-axis) or 'right' (up). */
 export const toggleAxisArrow = (session, side, { nowMs }) => {
-  if (inputState(session, nowMs) !== RUSH_INPUT.READY || !isSetQuestion(currentQuestion(session))) return refused(session, nowMs);
+  if (inputState(session, nowMs) !== RUSH_INPUT.READY || !isNumberLineQuestion(currentQuestion(session))) return refused(session, nowMs);
   return { session: Object.freeze({ ...session, drawing: toggleArrow(session.drawing, side) }), attempt: null };
 };
 
@@ -375,14 +396,17 @@ export const drawingReady = (session) => drawingSet(session.drawing) !== null;
 /**
  * ✓ Check: the set the drawing means against the answer, exactly — right
  * completes the graph; wrong is a miss with a hint about the one thing that
- * is off (numberLineSets.setHint), and the third skips it, showing the answer.
+ * is off (numberLineSets.setHint; for an inequality, inequalityHint: the sign
+ * flip, which way, open or closed), and the third skips it, showing the
+ * answer. An inequality with no solution has no set: any drawing is wrong.
  */
 export const recordCheck = (session, { nowMs, elapsedMs, attemptId }) => {
   if (inputState(session, nowMs) !== RUSH_INPUT.READY) return refused(session, nowMs);
   const question = currentQuestion(session);
   const target = setTargetOf(question);
+  const inequality = isInequalityQuestion(question);
   const drawn = drawingSet(session.drawing);
-  if (!target || !drawn) return { session, attempt: null };
+  if (!drawn || (!target && !inequality)) return { session, attempt: null };
   const attempt = Object.freeze({
     attemptId: String(attemptId),
     questionIndex: session.cursor,
@@ -390,11 +414,33 @@ export const recordCheck = (session, { nowMs, elapsedMs, attemptId }) => {
     drawing: drawingToPlain(session.drawing),
     clientElapsedMs: elapsedOf(elapsedMs),
   });
-  const answer = setFromPlain(target.set);
-  const next = answer && setsEqual(drawn, answer)
-    ? applyHit(session, question, target.id, nowMs, { checked: intervalNotation(drawn) })
-    : applyMiss(session, nowMs, { hint: setHint(drawn, answer || [], { axis: target.axis }) });
+  const answer = target ? setFromPlain(target.set) : null;
+  let next;
+  if (answer && setsEqual(drawn, answer)) {
+    // An inequality's answer reads back as an inequality: "x > −4".
+    next = applyHit(session, question, target.id, nowMs, { checked: inequality ? inequalityNotation(drawn) : intervalNotation(drawn) });
+  } else {
+    next = applyMiss(session, nowMs, { hint: inequality ? inequalityHint(question, drawn) : setHint(drawn, answer || [], { axis: target.axis }) });
+  }
   return { session: queued(next, attempt), attempt };
+};
+
+/**
+ * The notation under a number-line question, as the forms to show side by
+ * side: the set as drawn — interval notation, and for an inequality its
+ * inequality notation first (["x ≥ −3", "[−3, ∞)"]) — or, while the answer
+ * is shown after the third miss, the answer the same way (an inequality with
+ * no solution: ["no solution", "∅"]). Null when nothing names a set yet.
+ */
+export const lineNotation = (question, drawing, { revealing = false } = {}) => {
+  if (!isNumberLineQuestion(question)) return null;
+  const inequality = isInequalityQuestion(question);
+  const target = setTargetOf(question);
+  let set = null;
+  if (revealing) set = (target && setFromPlain(target.set)) || [];
+  else if (drawing) set = drawingSet(drawing);
+  if (!set) return null;
+  return Object.freeze(inequality ? [inequalityNotation(set), intervalNotation(set)] : [intervalNotation(set)]);
 };
 
 /** When a completion flash or skip pause is over, the next graph. */
@@ -473,15 +519,18 @@ const offScreenPlaces = (question) => {
 
 export const OPEN_DOT_MESSAGE = 'Open dot — that point isn\'t on the graph.';
 
+export const NO_SOLUTION_RIGHT = 'Correct — no solution: no number makes it true.';
+
 export const feedbackMessage = (feedback, question) => {
   if (!feedback) return '';
   const feature = featureOf(question);
   const target = (question?.targets || []).find((entry) => entry.id === feedback.targetId);
+  const inequality = isInequalityQuestion(question);
   switch (feedback.kind) {
     case RUSH_FEEDBACK.HIT:
       return target ? `Found ${formatTarget(target)}.` : 'Found one.';
     case RUSH_FEEDBACK.COMPLETE: {
-      if (feedback.doesNotExist) return 'Correct — it does not exist on this graph.';
+      if (feedback.doesNotExist) return inequality ? NO_SOLUTION_RIGHT : 'Correct — it does not exist on this graph.';
       if (feedback.checked) return `Correct — ${feedback.checked}.`;
       if (feedback.offScreenPress) {
         const places = offScreenPlaces(question);
@@ -490,6 +539,7 @@ export const feedbackMessage = (feedback, question) => {
       return target ? `Found ${formatTarget(target)}. Graph complete!` : 'Graph complete!';
     }
     case RUSH_FEEDBACK.MISS:
+      if (feedback.doesNotExist && inequality) return NO_SOLUTION_MISS;
       // A feature past the edge exists: the arrows say where the graph goes.
       if (feedback.doesNotExist) return feedback.offScreen ? 'It exists — follow the arrows.' : 'It is on this graph — look again.';
       if (feedback.offScreenPress) return 'Not off the screen — look again.';
@@ -499,9 +549,10 @@ export const feedbackMessage = (feedback, question) => {
     case RUSH_FEEDBACK.ALREADY_FOUND:
       return 'Already found.';
     case RUSH_FEEDBACK.SKIPPED:
-      return 'Skipped. Next graph.';
+      return inequality ? 'Skipped. Next one.' : 'Skipped. Next graph.';
     case RUSH_FEEDBACK.AUTO_SKIPPED: {
-      // A domain or range shows its answer as it moves on.
+      // An inequality, a domain or a range shows its answer as it moves on.
+      if (inequality) return `Answer: ${inequalityAnswerText(question)}. Next one.`;
       const target = setTargetOf(question);
       const answer = target ? setFromPlain(target.set) : null;
       if (answer) return `The ${feature?.shortLabel || 'answer'} is ${intervalNotation(answer)}. Next graph.`;

@@ -202,11 +202,12 @@ export const buildChallengeReport = ({
  *
  * The class list (`players`), who never joined (`neverJoined`), the key
  * permanent deletion searches by (`studentIds`), and a question-set mode's own
- * player rows (`lineGraph.players`, `graphFeatureRush.players`). A student
+ * player rows (`lineGraph.players`, `graphFeatureRush.players`,
+ * `inequalityRush.players`). A student
  * taken out of a report leaves every one of them; the class's totals stay, the
  * class's record, as permanent deletion has always left them.
  */
-export const REPORT_STUDENT_ROW_PATHS = Object.freeze(['players', 'neverJoined', 'lineGraph.players', 'graphFeatureRush.players']);
+export const REPORT_STUDENT_ROW_PATHS = Object.freeze(['players', 'neverJoined', 'lineGraph.players', 'graphFeatureRush.players', 'inequalityRush.players']);
 
 const rowStudentId = (row) => (row && typeof row === 'object' ? String(row.studentId || '').trim() : '');
 

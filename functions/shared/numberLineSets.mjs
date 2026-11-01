@@ -445,6 +445,15 @@ export const diagnoseSet = (student, key) => {
   return several;
 };
 
+/** What each diagnosis is called in a teacher's report. */
+export const SET_DIAGNOSIS_LABELS = Object.freeze({
+  [SET_DIAGNOSIS.INCLUSION]: 'Open or closed dot',
+  [SET_DIAGNOSIS.DIRECTION]: 'Shaded the wrong way',
+  [SET_DIAGNOSIS.ENDPOINT]: 'Wrong number',
+  [SET_DIAGNOSIS.EXTENT]: 'Stops, or keeps going',
+  [SET_DIAGNOSIS.SEVERAL]: 'Several things at once',
+});
+
 /*
  * A HINT FOR A WRONG SET: a question back at the student about the one thing
  * the diagnosis says is off, never the answer. On the x-axis or a number line

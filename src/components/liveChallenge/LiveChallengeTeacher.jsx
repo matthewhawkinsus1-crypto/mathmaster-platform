@@ -15,7 +15,7 @@ import { buildChallengeScoringPreview } from '../../../functions/shared/liveChal
 import { acceptChallengeSnapshot, calibrateChallengeClock } from '../../../functions/shared/liveChallengeParity.mjs';
 import { leaderboardOptionsFor } from '../../../functions/shared/liveChallengeScoring.mjs';
 import { rushConfigProblem } from '../../../functions/shared/graphFeatureRushConfig.mjs';
-import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
+import { INEQUALITY_RUSH_MODE_ID, RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { isRootAdminEmail } from '../../../functions/shared/rolePolicy.mjs';
 import { getChallengeMode } from '../../../functions/shared/liveChallengeModes.mjs';
 import { LINE_GRAPH_MODE_IDS } from '../../../functions/shared/lineGraphRules.mjs';
@@ -30,6 +30,7 @@ import {
 import { roundSolutionState, solutionRevealed } from '../../platform/liveChallenge/challengeSolutionModel.js';
 import { STANDINGS_DISPLAY, normalizeStandingsDisplay } from '../../../functions/shared/liveChallengePrivacy.mjs';
 import { defaultRushSetup, rushCreateRequest } from '../../platform/liveChallenge/rushSetupModel.js';
+import { defaultInequalitySetup, inequalityCreateRequest, inequalitySetupProblem } from '../../platform/liveChallenge/inequalitySetupModel.js';
 import {
   CLASSIC_SECOND_CHANCE_NOTE,
   classicAllowsSecondChance,
@@ -51,8 +52,10 @@ import {
   cueRemainingMs,
   hostEndedNote,
   hostPrimaryAction,
+  isRushGame,
   questionSetGameOf,
   roundCloseDue,
+  rushGameWords,
   roomRoundsEndOnTheClock,
   roomRunsQuestionSets,
   stageHasOpenRound,
@@ -100,6 +103,8 @@ const courseLabel = (courseId) => courseId === 'algebra2' ? 'Algebra II' : 'Alge
 // teacher chooses the rush; a classic game's console carries neither.
 const GraphFeatureRushSetup = lazy(() => import('./GraphFeatureRushSetup.jsx'));
 const GraphFeatureRushPractice = lazy(() => import('./GraphFeatureRushPractice.jsx'));
+// Inequality Graphing Rush's setup the same way (its practice is the rush's).
+const InequalityRushSetup = lazy(() => import('./InequalityRushSetup.jsx'));
 // Graph the Line's the same way: loaded only when a teacher chooses it.
 const LineGraphSetup = lazy(() => import('./LineGraphSetup.jsx'));
 const LineGraphPractice = lazy(() => import('./LineGraphPractice.jsx'));
@@ -183,7 +188,7 @@ function ChallengeReport({ report }) {
           <span style={{ display: 'block', marginTop: 5, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{roundSet.roundCount} questions. Run the same set with another period — no student names or scores are in the file.</span>
         </div>
       )}
-      {report.graphFeatureRush && <RushReport report={report} />}
+      {(report.graphFeatureRush || report.inequalityRush) && <RushReport report={report} />}
       {report.lineGraph && <LineGraphReport report={report} />}
       {report.neverJoined?.length > 0 && (
         <div style={{ padding: '10px 13px', borderRadius: 9, background: 'var(--mm-surface-control)', fontSize: 'calc(13.5 * var(--mm-px))', color: 'var(--mm-text)' }}>
@@ -342,6 +347,7 @@ export default function LiveChallengeTeacher({
   const [roundClosingThreshold, setRoundClosingThreshold] = useState(70);
   const [secondChanceMode, setSecondChanceMode] = useState('off');
   const [rushSetup, setRushSetup] = useState(() => defaultRushSetup(courseId));
+  const [inequalitySetup, setInequalitySetup] = useState(() => defaultInequalitySetup(courseId));
   const [lineSetup, setLineSetup] = useState(() => defaultLineSetup(courseId));
   const [title, setTitle] = useState('');
   const [speedInfluencePercent, setSpeedInfluencePercent] = useState(20);
@@ -417,6 +423,7 @@ export default function LiveChallengeTeacher({
   // A different course starts from that course's rush preset (and its Graph
   // the Line preset, in the format already chosen).
   useEffect(() => { setRushSetup(defaultRushSetup(courseId)); }, [courseId]);
+  useEffect(() => { setInequalitySetup(defaultInequalitySetup(courseId)); }, [courseId]);
   useEffect(() => { setLineSetup((current) => defaultLineSetup(courseId, current.format)); }, [courseId]);
   useEffect(() => {
     const selected = assignments.find((assignment) => String(assignment.id) === String(warmupAssignmentId));
@@ -555,6 +562,7 @@ export default function LiveChallengeTeacher({
   );
   const joinedCount = leaderboard.length;
   const rushMode = challengeMode === RUSH_MODE_ID;
+  const inequalityMode = challengeMode === INEQUALITY_RUSH_MODE_ID;
   // Graph the Line is offered to every teacher while its modes are
   // teacher-selectable — the server's own switch. A mode that is not is a
   // preview, which createLiveChallenge launches for the platform administrator
@@ -563,13 +571,15 @@ export default function LiveChallengeTeacher({
   const lineMode = lineGraphOffered && challengeMode === LINE_GRAPH_GAME;
   // A game with its own settings: no Warm-Up link, no bank question style,
   // no speed setting — and its own setup panel.
-  const ownSettingsGame = rushMode || lineMode;
+  const ownSettingsGame = rushMode || inequalityMode || lineMode;
   // What a classic game will be scored by: the choice, if this game allows it.
   const classicStrategyId = resolveClassicScoring(challengeMode, classicScoringId);
   const rushProblem = rushMode ? rushConfigProblem(rushSetup) : null;
+  const inequalityProblem = inequalityMode ? inequalitySetupProblem(inequalitySetup) : null;
   const lineProblem = lineMode ? lineSetupProblem(lineSetup) : null;
   const questionSetGame = questionSetGameOf(room);
-  const rushRoom = questionSetGame === QUESTION_SET_GAME.GRAPH_FEATURE_RUSH;
+  // Graph Feature Rush and Inequality Graphing Rush: the rush's host views.
+  const rushRoom = isRushGame(questionSetGame);
   const lineRoom = questionSetGame === QUESTION_SET_GAME.LINE_GRAPH;
   const questionSetRoom = roomRunsQuestionSets(room);
   const roundsEndOnTheClock = roomRoundsEndOnTheClock(room);
@@ -704,12 +714,14 @@ export default function LiveChallengeTeacher({
     audioDirectorRef.current.prime().then(() => setAudioReady(true)).catch(() => {});
     creatingRef.current = true;
     const result = await run('create', async () => {
-      if (rushMode || lineMode) {
-        // Graph Feature Rush and Graph the Line: no Warm-Up link, no bank
-        // question style, no speed setting — the game's own settings,
-        // validated again by the server.
+      if (ownSettingsGame) {
+        // Graph Feature Rush, Inequality Graphing Rush and Graph the Line: no
+        // Warm-Up link, no bank question style, no speed setting — the game's
+        // own settings, validated again by the server.
         if (rushProblem) throw new Error(rushProblem);
+        if (inequalityProblem) throw new Error(inequalityProblem);
         if (lineProblem) throw new Error(lineProblem);
+        const gameName = rushMode ? 'Graph Feature Rush' : inequalityMode ? 'Inequality Graphing Rush' : 'Graph the Line';
         let created;
         try {
           created = await createLiveChallenge({
@@ -719,9 +731,11 @@ export default function LiveChallengeTeacher({
             // The same Rewards choice as every Live Challenge.
             ...(rushMode
               ? rushCreateRequest(rushSetup, { rewardPolicy: buildChallengeRewardPolicy(rewardChoice) })
-              : lineCreateRequest(lineSetup, { rewardPolicy: buildChallengeRewardPolicy(rewardChoice) })),
+              : inequalityMode
+                ? inequalityCreateRequest(inequalitySetup, { rewardPolicy: buildChallengeRewardPolicy(rewardChoice) })
+                : lineCreateRequest(lineSetup, { rewardPolicy: buildChallengeRewardPolicy(rewardChoice) })),
             standingsDisplay,
-            title: title.trim() || `${selectedClass?.name || classPeriod || 'Class'} ${rushMode ? 'Graph Feature Rush' : 'Graph the Line'}`,
+            title: title.trim() || `${selectedClass?.name || classPeriod || 'Class'} ${gameName}`,
           });
         } catch (error) {
           const activeRoomId = error?.details?.roomId;
@@ -1018,6 +1032,18 @@ export default function LiveChallengeTeacher({
         </Suspense>
       );
     }
+    if (dryRunOpen && inequalityMode) {
+      return (
+        <Suspense fallback={<p style={{ padding: 20 }}>Loading practice…</p>}>
+          <GraphFeatureRushPractice
+            game={INEQUALITY_RUSH_MODE_ID}
+            config={inequalityCreateRequest(inequalitySetup).inequalityRush}
+            roundSeconds={inequalitySetup.roundSeconds}
+            onClose={() => setDryRunOpen(false)}
+          />
+        </Suspense>
+      );
+    }
     if (dryRunOpen && lineMode) {
       return (
         <Suspense fallback={<p style={{ padding: 20 }}>Loading practice…</p>}>
@@ -1103,9 +1129,11 @@ export default function LiveChallengeTeacher({
                   <option value="standard">Standard Challenge</option>
                   <option value="solverRace">Solver Race</option>
                   <option value={RUSH_MODE_ID}>Graph Feature Rush</option>
+                  <option value={INEQUALITY_RUSH_MODE_ID}>Inequality Graphing Rush</option>
                   {lineGraphOffered && <option value={LINE_GRAPH_GAME}>{LINE_GRAPH_LAUNCHED ? 'Graph the Line' : 'Graph the Line (preview)'}</option>}
                 </select>
                 {rushMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Every student gets their own graphs and races the clock to tap intercepts, vertices, maximums and minimums.</span>}
+                {inequalityMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Every student gets their own inequalities and races the clock to graph each one on a number line — open or closed, which way, and "no solution".</span>}
                 {lineMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Students graph lines from slope-intercept, standard and point-slope form — and, if you choose, name the equation of a line. Each line is checked the moment it is drawn.{LINE_GRAPH_LAUNCHED ? '' : ' In preview: only you can launch it.'}</span>}
               </label>
               {challengeMode === 'solverRace' && <label style={{ fontWeight: 800 }}>Race focus
@@ -1146,6 +1174,11 @@ export default function LiveChallengeTeacher({
               {rushMode && (
                 <Suspense fallback={<p style={{ gridColumn: '1 / -1', color: 'var(--mm-text-muted)' }}>Loading Graph Feature Rush settings…</p>}>
                   <GraphFeatureRushSetup setup={rushSetup} onChange={setRushSetup} classSize={allStudents.filter((student) => student?.classId === classId).length} onPractice={() => { setMessage(''); setDryRunOpen(true); }} />
+                </Suspense>
+              )}
+              {inequalityMode && (
+                <Suspense fallback={<p style={{ gridColumn: '1 / -1', color: 'var(--mm-text-muted)' }}>Loading Inequality Graphing Rush settings…</p>}>
+                  <InequalityRushSetup setup={inequalitySetup} onChange={setInequalitySetup} classSize={allStudents.filter((student) => student?.classId === classId).length} onPractice={() => { setMessage(''); setDryRunOpen(true); }} />
                 </Suspense>
               )}
               {lineMode && (
@@ -1229,7 +1262,7 @@ export default function LiveChallengeTeacher({
                 </select>
                 {speedPreset(speedInfluencePercent) === 'custom' && <input type="number" min="0" max="50" value={speedInfluencePercent} onChange={(event) => setSpeedInfluencePercent(Math.max(0, Math.min(50, Number(event.target.value) || 0)))} style={field} />}
               </label>}
-              <label style={{ fontWeight: 800, gridColumn: '1 / -1' }}>Challenge title<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={`${selectedClass?.name || classPeriod || 'Class'} ${rushMode ? 'Graph Feature Rush' : lineMode ? 'Graph the Line' : 'Live Challenge'}`} style={field} /></label>
+              <label style={{ fontWeight: 800, gridColumn: '1 / -1' }}>Challenge title<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={`${selectedClass?.name || classPeriod || 'Class'} ${rushMode ? 'Graph Feature Rush' : inequalityMode ? 'Inequality Graphing Rush' : lineMode ? 'Graph the Line' : 'Live Challenge'}`} style={field} /></label>
             </div>
           )}
           {!ownSettingsGame && <ScoringCompetitionCard roundSeconds={roundSeconds} speedInfluencePercent={speedInfluencePercent} strategyId={classicStrategyId} />}
@@ -1342,7 +1375,7 @@ export default function LiveChallengeTeacher({
             <div style={{ color: 'var(--mm-primary-text)', lineHeight: 1.5 }}>
               <strong>How students join:</strong> students in {room.className || room.classPeriod || 'this class'} see a Live Challenge card on their MathMaster dashboard — no code to type.{room.assignmentId ? ' Students who open the linked assignment during its Warm-Up are taken straight in.' : ''}
             </div>
-            {rushRoom && <div style={{ color: 'var(--mm-text)', fontWeight: 800 }}>Graph Feature Rush · {rushSettingsLine(room)}</div>}
+            {rushRoom && <div style={{ color: 'var(--mm-text)', fontWeight: 800 }}>{rushGameWords(room).game} · {rushSettingsLine(room)}</div>}
             {lineRoom && <div style={{ color: 'var(--mm-text)', fontWeight: 800 }}>Graph the Line · {lineSettingsLine(room)}</div>}
             {!questionSetRoom && <div style={{ color: 'var(--mm-text)', fontWeight: 800 }}>{room.timingMode === 'pace' ? 'Pace Race' : 'Timed Race'} · Closing {room.roundClosingThreshold == null ? 'Off' : `at ${room.roundClosingThreshold}%`} · Second Chance {room.secondChanceMode === 'off' ? 'Off' : 'Automatic'}{room.solverRaceDifficulty === 'ramp' ? ' · Ramp difficulty' : ''}</div>}
             {rewardLines.length > 0 && <div style={{ color: 'var(--mm-text)' }}><strong>Rewards:</strong> {rewardLines.join(' · ')}</div>}
@@ -1385,7 +1418,7 @@ export default function LiveChallengeTeacher({
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: 16, alignItems: 'start' }}>
             {stage !== CHALLENGE_STAGE.ROUND_RESULTS && (
               <section style={panel}>
-                <h3 style={{ marginTop: 0 }}>{rushRoom ? 'Live race · graphs this round' : lineRoom ? 'Live race · lines right this round' : `Live ${standingTitle.toLowerCase()}`}</h3>
+                <h3 style={{ marginTop: 0 }}>{rushRoom ? `Live race · ${rushGameWords(room).many} this round` : lineRoom ? 'Live race · lines right this round' : `Live ${standingTitle.toLowerCase()}`}</h3>
                 {questionSetRoom
                   ? <RushRaceBoard players={players} roundIndex={currentRound || 0} label={lineRoom ? 'Lines right this round' : undefined} />
                   : <Leaderboard rows={leaderboard} presentation={presentation} limit={12} />}

@@ -64,6 +64,15 @@ export const replayRequestFromRoom = (room = {}, { rewardPolicy = null } = {}) =
       // Absent on a room from before the setting: off, as it played.
       offScreen: config.offScreen === true,
     };
+  } else if (game === QUESTION_SET_GAME.INEQUALITY_RUSH) {
+    // The kinds of inequality and the difficulty, as the server normalized them.
+    const config = room.inequalityRush?.config;
+    if (!config) return null;
+    request.inequalityRush = {
+      presetId: text(config.presetId) || 'custom',
+      itemTypes: Array.isArray(config.itemTypes) ? [...config.itemTypes] : [],
+      difficulty: text(config.difficulty),
+    };
   } else if (game === QUESTION_SET_GAME.LINE_GRAPH) {
     // The room's own question settings, as the server normalized them; the
     // format is the mode's, so it rides on challengeMode, not here.
@@ -116,6 +125,7 @@ export const replaySummary = (room = {}) => {
   const LINE_FORMAT_WORDS = { classic: 'Graph the Line (Classic)', sprint: 'Graph the Line Sprint', rush: 'Graph the Line Rush' };
   let label = room.challengeMode === 'solverRace' ? 'Solver Race' : 'Standard Challenge';
   if (game === QUESTION_SET_GAME.GRAPH_FEATURE_RUSH) label = 'Graph Feature Rush';
+  else if (game === QUESTION_SET_GAME.INEQUALITY_RUSH) label = 'Inequality Graphing Rush';
   else if (game === QUESTION_SET_GAME.LINE_GRAPH) label = LINE_FORMAT_WORDS[lineGraphFormatOfMode(room.challengeMode)] || 'Graph the Line';
   const parts = [
     label,

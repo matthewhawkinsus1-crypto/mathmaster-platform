@@ -31,6 +31,9 @@ export const getLiveChallengeHostRoster = call('getLiveChallengeHostRoster');
 export const getGraphFeatureRushRound = call('getGraphFeatureRushRound');
 export const submitGraphFeatureRushAttempts = call('submitGraphFeatureRushAttempts');
 export const previewGraphFeatureRush = call('previewGraphFeatureRush');
+// Inequality Graphing Rush plays on the two rush calls above; its preview
+// shows a teacher sample inequalities for their settings, writing nothing.
+export const previewInequalityRush = call('previewInequalityRush');
 
 // Graph the Line. The same shape: a student's place in the round and their
 // next items, and a batch of drawn lines, chosen options, typed equations and

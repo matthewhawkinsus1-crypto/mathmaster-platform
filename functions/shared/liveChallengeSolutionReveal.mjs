@@ -164,8 +164,15 @@ export const solutionHeldForReplay = ({ roundIndex, revealed = [] } = {}) => {
  * lineGraphReveal.mjs) for the screens that draw it. A Graph Feature Rush
  * round has no question to solve: its record is a reading guide to the
  * features in the game (graphFeatureReading.mjs), marked `guide: true` so a
- * screen titles it "How to read the features", not "Worked solution".
+ * screen titles it "How to read the features", not "Worked solution" — or by
+ * the guide's own `guideTitle` (Inequality Graphing Rush's "How to graph
+ * inequalities", inequalityReading.mjs).
  */
+const guideTitleOf = (record) => {
+  const title = typeof record?.guideTitle === 'string' ? record.guideTitle.trim().slice(0, 60) : '';
+  return title ? { guideTitle: title } : {};
+};
+
 export const publicSolutionDocument = ({ roundIndex, record = null, originalRoundIndex = null, revealedAtMs = null } = {}) => {
   const review = record?.solutionReview || null;
   return Object.freeze({
@@ -175,7 +182,7 @@ export const publicSolutionDocument = ({ roundIndex, record = null, originalRoun
     teksCode: record?.teksCode || null,
     available: Boolean(review),
     solutionReview: review,
-    ...(record?.guide === true ? { guide: true } : {}),
+    ...(record?.guide === true ? { guide: true, ...guideTitleOf(record) } : {}),
     ...(record?.lineGraph ? { lineGraph: record.lineGraph } : {}),
     revealedAtMs: Number.isFinite(Number(revealedAtMs)) ? Number(revealedAtMs) : null,
   });

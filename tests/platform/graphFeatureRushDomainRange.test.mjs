@@ -395,14 +395,22 @@ test('the reading guide says how to read a domain and a range', () => {
 
 test('the round shows the set as drawn, its notation, the arrows and ✓ Check on a domain or range — and Does Not Exist only elsewhere', () => {
   const round = read('src/components/liveChallenge/GraphFeatureRushRound.jsx');
-  const setControls = region(round, '<div className="mm-rush-buttons" data-set="1">', '</div>', 'the set controls');
+  const setControls = region(round, '<div className="mm-rush-buttons" data-set="1"', '\n            </div>', 'the set controls');
   assert.match(setControls, /onClick=\{\(\) => onArrow\('left'\)\}[^>]*>\{vertical \? '▼' : '◀'\}/);
   assert.match(setControls, /onClick=\{\(\) => onArrow\('right'\)\}[^>]*>\{vertical \? '▲' : '▶'\}/);
   assert.match(setControls, /disabled=\{buttonsDisabled \|\| !drawingReady\(session\)\} onClick=\{onCheck\}>✓ Check</);
-  assert.doesNotMatch(setControls, /mm-rush-dne/, 'no Does Not Exist on a domain or range');
-  assert.match(round, /\{setQuestion \? \(\s*<div className="mm-rush-buttons" data-set="1">/);
-  assert.match(round, /\(isSetQuestion\(currentQuestion\(current\)\)\s*\? recordAxisTap\(current, \{ \.\.\.context, x, y \}\)\s*: recordTap\(/);
-  assert.match(round, /drawnSet \? intervalNotation\(drawnSet\) : 'Tap the graph to place a dot\.'/);
+  // The one answer button beside them is an inequality's No Solution, offered
+  // on inequality items alone: never Does Not Exist on a domain or range.
+  const noSolution = /\{inequalityItem && \(\s*<button type="button" className="mm-rush-dne"[^>]*>No Solution<\/button>\s*\)\}/;
+  assert.match(setControls, noSolution);
+  assert.doesNotMatch(setControls.replace(noSolution, ''), /mm-rush-dne/, 'no Does Not Exist on a domain or range');
+  assert.match(round, /\{setQuestion \? \(\s*<div className="mm-rush-buttons" data-set="1"/);
+  assert.match(round, /\(isNumberLineQuestion\(currentQuestion\(current\)\)\s*\? recordAxisTap\(current, \{ \.\.\.context, x, y \}\)\s*: recordTap\(/);
+  // The notation is the set as drawn (rushSession.lineNotation, tested with
+  // the session), with a prompt to start while nothing is drawn.
+  assert.match(round, /const notation = setQuestion \? lineNotation\(question, studentDrawing, \{ revealing \}\) : null;/);
+  assert.match(round, /\{notation\s*\? notation\.map\(\(form, index\) => \(/);
+  assert.match(round, /: \(inequalityItem \? 'Tap the number line to place a dot\.' : 'Tap the graph to place a dot\.'\)\}/);
   const graph = read('src/components/liveChallenge/GraphFeatureRushGraph.jsx');
   assert.match(graph, /\{revealSet\s*\? <AxisSet shape=\{revealSet\} side=\{side\} tone="var\(--mm-rush-found\)" \/>\s*: <AxisSet shape=\{axisSet\} side=\{side\} tone="var\(--mm-rush-curve\)" \/>\}/);
 });
