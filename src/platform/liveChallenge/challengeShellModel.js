@@ -26,7 +26,7 @@
 
 import { MATCH_STATE, deriveMatchState, roomRoundState } from '../../../functions/shared/liveChallengeLifecycle.mjs';
 import { timerElapsedMs, timerFromRoom } from '../../../functions/shared/liveChallengeTimer.mjs';
-import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
+import { INEQUALITY_RUSH_MODE_ID, RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { LINE_GRAPH_MODE_ID, LINE_GRAPH_MODE_IDS } from '../../../functions/shared/lineGraphRules.mjs';
 import { personalRoundTimer, storedTimeMultiplier } from '../../../functions/shared/liveChallengeAccommodations.mjs';
 import { HOST_AWAY_ENDED_BY, HOST_AWAY_FINISH_MS } from '../../../functions/shared/liveChallengeServerSweep.mjs';
@@ -59,7 +59,7 @@ export const ROUND_CLOSE_AFTER_ALL_DONE_MS = 1_200;
 // id because the student bundle does not carry the mode registry
 // (liveChallengeModes.mjs brings Solver Race and the rush catalog with it); a
 // test holds this set to the registry's question-set modes.
-const QUESTION_SET_MODES = new Set([RUSH_MODE_ID, ...LINE_GRAPH_MODE_IDS]);
+const QUESTION_SET_MODES = new Set([RUSH_MODE_ID, INEQUALITY_RUSH_MODE_ID, ...LINE_GRAPH_MODE_IDS]);
 export const roomRunsQuestionSets = (room = {}) => QUESTION_SET_MODES.has(String(room?.challengeMode || ''));
 
 /*
@@ -69,26 +69,64 @@ export const roomRunsQuestionSets = (room = {}) => QUESTION_SET_MODES.has(String
  */
 export const QUESTION_SET_GAME = Object.freeze({
   GRAPH_FEATURE_RUSH: 'graphFeatureRush',
+  INEQUALITY_RUSH: 'inequalityRush',
   LINE_GRAPH: 'lineGraph',
 });
 
 export const questionSetGameOf = (room = {}) => {
   const modeId = String(room?.challengeMode || '');
   if (modeId === RUSH_MODE_ID) return QUESTION_SET_GAME.GRAPH_FEATURE_RUSH;
+  if (modeId === INEQUALITY_RUSH_MODE_ID) return QUESTION_SET_GAME.INEQUALITY_RUSH;
   if (LINE_GRAPH_MODE_IDS.includes(modeId)) return QUESTION_SET_GAME.LINE_GRAPH;
   return null;
 };
 
 /*
+ * The games played on Graph Feature Rush's round screen and attempts: the
+ * rush itself, and Inequality Graphing Rush (its items graphed on a number
+ * line). Their host views, race boards and reports are the rush's.
+ */
+export const isRushGame = (game) => game === QUESTION_SET_GAME.GRAPH_FEATURE_RUSH || game === QUESTION_SET_GAME.INEQUALITY_RUSH;
+
+const RUSH_WORDS = Object.freeze({
+  [QUESTION_SET_GAME.GRAPH_FEATURE_RUSH]: Object.freeze({
+    game: 'Graph Feature Rush',
+    one: 'graph',
+    many: 'graphs',
+    task: 'Find the features',
+    working: 'Students are finding features on their own graphs.',
+    go: 'Everyone has their own graphs. Tap the features. Go!',
+    countdown: 'Everyone gets their own graphs',
+    lobby: 'Graph Feature Rush — tap the features on your own graphs',
+    earn: 'Tap the features on your graphs to earn points.',
+  }),
+  [QUESTION_SET_GAME.INEQUALITY_RUSH]: Object.freeze({
+    game: 'Inequality Graphing Rush',
+    one: 'inequality',
+    many: 'inequalities',
+    task: 'Graph the inequalities',
+    working: 'Students are graphing their own inequalities.',
+    go: 'Everyone has their own inequalities. Graph each on the number line. Go!',
+    countdown: 'Everyone gets their own inequalities',
+    lobby: 'Inequality Graphing Rush — graph your own inequalities on a number line',
+    earn: 'Graph the inequalities on your number line to earn points.',
+  }),
+});
+
+/** How a rush room's screens name the game and what students work through. */
+export const rushGameWords = (room = {}) => RUSH_WORDS[questionSetGameOf(room)] || RUSH_WORDS[QUESTION_SET_GAME.GRAPH_FEATURE_RUSH];
+
+/*
  * Question-set rounds that hold more than anyone finishes — Graph Feature
- * Rush, and Graph the Line's Rush — end on the clock alone. A Classic or
+ * Rush, Inequality Graphing Rush and Graph the Line's Rush — end on the
+ * clock alone. A Classic or
  * Sprint round of Graph the Line is over for a student who has worked
  * through it, and closes early once everyone has (the server agrees:
  * liveChallengeRoundCompletion reads the same receipts). A test holds this
  * set to the registry: the question-set modes whose pool is the engine's
  * largest.
  */
-const CLOCK_ONLY_MODES = new Set([RUSH_MODE_ID, LINE_GRAPH_MODE_ID.RUSH]);
+const CLOCK_ONLY_MODES = new Set([RUSH_MODE_ID, INEQUALITY_RUSH_MODE_ID, LINE_GRAPH_MODE_ID.RUSH]);
 export const roomRoundsEndOnTheClock = (room = {}) => CLOCK_ONLY_MODES.has(String(room?.challengeMode || ''));
 
 const integerOr = (value, fallback) => {

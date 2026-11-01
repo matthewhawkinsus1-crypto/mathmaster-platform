@@ -7,17 +7,19 @@
  * to the class. What every student in the room does share is WHAT they were
  * asked to find. So a Rush round's results carry a short reading guide to the
  * features in the game — what each one is and where it sits on a graph, when
- * to choose "Does Not Exist", and the slip students most often make. It names
- * no graph, no target and no coordinate of anyone's: it is the same text for
- * every student and every round, written from the feature definitions
- * (graphFeatureRegistry.mjs) alone, so it can never tell a student the answer
- * to a graph they are still working on.
+ * to choose "Does Not Exist" (and "Off screen", in a game with off-screen
+ * features), what an open dot means, and the slip students most often make. It
+ * names no graph, no target and no coordinate of anyone's: it is the same text
+ * for every student and every round, written from the feature definitions
+ * (graphFeatureRegistry.mjs) and the game's settings alone, so it can never
+ * tell a student the answer to a graph they are still working on.
  *
  * It is SHORT on purpose: the projector shows it to a class from the back of a
  * room beside the round's tables, where a card that runs past the screen is
  * cut off (a first draft of 40-word lines was, and so was a headline that only
- * repeated the card's title). One line a feature, one line on "Does Not
- * Exist", one on the slips, nothing else.
+ * repeated the card's title). One line a feature, one line on the answers that
+ * are not a tap ("Does Not Exist", "Off screen", and above Easy what an open
+ * dot means: graphs there can end in dots), one on the slips, nothing else.
  *
  * It rides the worked-solution pipeline: captured privately when the round
  * opens, published at the round's close (liveChallengeSolutionReveal.mjs), and
@@ -62,7 +64,23 @@ export const FEATURE_READING = Object.freeze({
     line: 'Minimum: the lowest point of the whole graph; a graph that keeps falling has none.',
     slip: 'Calling the bottom of the screen the minimum when the graph keeps falling.',
   }),
+  asymptote: Object.freeze({
+    line: 'Asymptotes: lines the graph gets closer and closer to, like x = 2 or y = −1. Tap each line.',
+    slip: 'Tapping the curve itself instead of the line it heads for.',
+  }),
+  domain: Object.freeze({
+    line: 'Domain: every x the graph covers, read left to right; an open dot leaves its x out.',
+    slip: 'Stopping at the edge of the screen when an arrow says the graph keeps going.',
+  }),
+  range: Object.freeze({
+    line: 'Range: every y the graph reaches, read bottom to top along the y-axis.',
+    slip: 'Reading the range along the x-axis instead of the y-axis.',
+  }),
 });
+
+// The sentences of the answers line beyond "Does Not Exist".
+export const OFF_SCREEN_READING = 'If one is past the edge of the screen, choose Off screen.';
+export const OPEN_DOT_READING = 'An open dot is not on the graph.';
 
 // A game's features in the registry's own order, whatever order the teacher
 // chose them in, each once; ids the registry does not know (or this module has
@@ -90,19 +108,36 @@ const joinSlips = (ids) => {
   return text;
 };
 
+/*
+ * The answers that are not a tap, as one line: "Does Not Exist" when a feature
+ * in the game can be absent; "Off screen" when the game turns off-screen
+ * features on; and, above Easy, where a graph can end in a dot (a ray, a
+ * segment, a piecewise split), that an open dot is not on the graph. Null when
+ * there is nothing to say.
+ */
+const answersLine = ({ absentable, offScreen, dots }) => {
+  const sentences = [];
+  if (absentable.length) sentences.push(`If the graph has no ${orList(absentable.map(labelOf))}, choose Does Not Exist.`);
+  if (offScreen) sentences.push(OFF_SCREEN_READING);
+  if (dots && absentable.length) sentences.push(OPEN_DOT_READING);
+  return sentences.length ? sentences.join(' ') : null;
+};
+
 /**
- * The guide for a game that asks for `features`: the review a solution card
- * draws (headline, a line per feature, a line on "Does Not Exist" when any
- * of them can be absent, and the slips to watch for). Null when the game asks
+ * The guide for a game: the review a solution card draws (a line per feature
+ * it asks for, the answers line, and the slips to watch for). `difficulty` and
+ * `offScreen` are the game's settings (graphFeatureRushConfig); left out, the
+ * guide is an Easy game's without off-screen features. Null when the game asks
  * for none this module can read: nothing is published then.
  */
-export const rushReadingGuide = ({ features = [] } = {}) => {
+export const rushReadingGuide = ({ features = [], difficulty = 'easy', offScreen = false } = {}) => {
   const ids = featuresInGame(features);
   if (!ids.length) return null;
   const absentable = ids.filter((id) => getGraphFeature(id)?.canNotExist);
+  const answers = answersLine({ absentable, offScreen: offScreen === true, dots: Boolean(difficulty) && difficulty !== 'easy' });
   const reasoning = [
     ...ids.map((id) => FEATURE_READING[id].line),
-    ...(absentable.length ? [`If the graph has no ${orList(absentable.map(labelOf))}, choose Does Not Exist.`] : []),
+    ...(answers ? [answers] : []),
   ];
   return Object.freeze({
     // The card's title says what it is and the lines name the features themselves: nothing to say above them.
@@ -122,8 +157,8 @@ export const rushReadingGuide = ({ features = [] } = {}) => {
  * worked-solution record (liveChallengeSolutionReveal.roundSolutionRecord),
  * marked `guide` so the screens title it as one. Null when there is no guide.
  */
-export const rushRoundSolutionRecord = ({ features = [] } = {}) => {
-  const guide = rushReadingGuide({ features });
+export const rushRoundSolutionRecord = ({ features = [], difficulty = 'easy', offScreen = false } = {}) => {
+  const guide = rushReadingGuide({ features, difficulty, offScreen });
   if (!guide) return null;
   return Object.freeze({
     ...roundSolutionRecord({ question: { prompt: guide.prompt }, solutionReview: guide.solutionReview, displayStandard: null }),

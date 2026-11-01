@@ -31,6 +31,9 @@ export const getLiveChallengeHostRoster = call('getLiveChallengeHostRoster');
 export const getGraphFeatureRushRound = call('getGraphFeatureRushRound');
 export const submitGraphFeatureRushAttempts = call('submitGraphFeatureRushAttempts');
 export const previewGraphFeatureRush = call('previewGraphFeatureRush');
+// Inequality Graphing Rush plays on the two rush calls above; its preview
+// shows a teacher sample inequalities for their settings, writing nothing.
+export const previewInequalityRush = call('previewInequalityRush');
 
 // Graph the Line. The same shape: a student's place in the round and their
 // next items, and a batch of drawn lines, chosen options, typed equations and
@@ -229,6 +232,21 @@ export const readChallengeReport = async (roomId) => {
   const id = String(roomId || '').trim();
   if (!id) return null;
   const snapshot = await getDoc(doc(db, 'liveChallengeReports', id));
+  return snapshot.exists() ? snapshot.data() : null;
+};
+
+/**
+ * What a class did the last time it played a rush game, for the setup card
+ * (liveChallengeClassMemory.mjs), or null when it has not played it yet. A
+ * one-shot read: the memory changes only when that class finishes another game.
+ * The module loads with the first read: this service is on every student's
+ * first load, and only the teacher's setup asks (check-first-load-budget.mjs).
+ */
+export const readClassGameMemory = async (classId, game) => {
+  if (!String(classId || '').trim() || !String(game || '').trim()) return null;
+  const { CLASS_MEMORY_COLLECTION, classMemoryId } = await import('../../../functions/shared/liveChallengeClassMemory.mjs');
+  const id = classMemoryId(classId, game);
+  const snapshot = await getDoc(doc(db, CLASS_MEMORY_COLLECTION, id));
   return snapshot.exists() ? snapshot.data() : null;
 };
 

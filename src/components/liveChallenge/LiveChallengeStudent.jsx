@@ -9,7 +9,7 @@ import { PROJECTION_KIND, standingsFromProjection } from '../../../functions/sha
 import { summaryFinal, summaryRound, summaryUnansweredRounds } from '../../../functions/shared/liveChallengePlayerSummary.mjs';
 import { calculateStepPartialCredit, emptyQuestionRecord, recordQuestionStep } from '../../attemptPolicy.js';
 import { hasMeaningfulRawPathResponse, questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
-import { CHALLENGE_STAGE, GO_FLASH_MS, LOCKED_WAIT_NOTICE_MS, QUESTION_SET_GAME, lockedAnswerLine, personalRoundClock, questionSetGameOf, roundBannerBackground, studentGuidance } from '../../platform/liveChallenge/challengeShellModel.js';
+import { CHALLENGE_STAGE, GO_FLASH_MS, LOCKED_WAIT_NOTICE_MS, QUESTION_SET_GAME, isRushGame, lockedAnswerLine, personalRoundClock, questionSetGameOf, roundBannerBackground, rushGameWords, studentGuidance } from '../../platform/liveChallenge/challengeShellModel.js';
 import { speakAloud, speechAvailable, stopSpeaking } from '../../platform/language/speechText.js';
 import { projectionBoardRows, rewardSummaryLines, roundResultsView, scorePresentation, standingsRows } from '../../platform/liveChallenge/challengeStandingsModel.js';
 import { readLastSeenRound, roundsClosedWhileAway, seenRoundOf, missedRoundsNotice, writeLastSeenRound } from '../../platform/liveChallenge/challengeMissedRounds.js';
@@ -1006,7 +1006,8 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   // return — exact — when the round closes.
   const questionSetGame = questionSetGameOf(room);
   const questionSetRoom = questionSetGame !== null;
-  const rushRoom = questionSetGame === QUESTION_SET_GAME.GRAPH_FEATURE_RUSH;
+  // Graph Feature Rush and Inequality Graphing Rush: the rush's round screen.
+  const rushRoom = isRushGame(questionSetGame);
   const lineRoom = questionSetGame === QUESTION_SET_GAME.LINE_GRAPH;
   const questionSetRoundOpen = questionSetRoom && room?.status === 'running' && room?.roundState !== 'closed';
   const rushRoundOpen = rushRoom && questionSetRoundOpen;
@@ -1344,7 +1345,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
         )}
 
         {rushRoundOpen && room.currentQuestion && clockReady && (
-          <Suspense fallback={<section aria-live="polite" style={{ padding: 26, borderRadius: 16, background: '#17365f', textAlign: 'center' }}><h2>Loading your graphs…</h2></section>}>
+          <Suspense fallback={<section aria-live="polite" style={{ padding: 26, borderRadius: 16, background: '#17365f', textAlign: 'center' }}><h2>Loading your {rushGameWords(room).many}…</h2></section>}>
             <GraphFeatureRushRound
               key={`${room.roomId}-${room.currentRound}-${room.roundVersion}`}
               room={{ ...room, connectionQuality: clock.quality, serverNowAtRender: Date.now() + clock.offsetMs }}

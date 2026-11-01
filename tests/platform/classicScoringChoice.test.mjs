@@ -160,7 +160,9 @@ test('Play Again keeps the choice: a Grand Prix classic game replays as Grand Pr
 const teacher = readFileSync(new URL('../../src/components/liveChallenge/LiveChallengeTeacher.jsx', import.meta.url), 'utf8');
 const create = region(teacher, '  const create = async () => {', '  const control = async (key, action) => {', 'the create handler');
 const classicBranch = region(create, "      if (warmupAssignmentId && warmupDeliveryMode === 'standard') {", '      return created;\n    });', 'the classic branch of create');
-const gameBranch = region(create, '      if (rushMode || lineMode) {', "      if (warmupAssignmentId && warmupDeliveryMode === 'standard') {", 'the rush and line branch of create');
+// The games with their own settings (Graph Feature Rush, Inequality Graphing
+// Rush, Graph the Line) share one branch of create.
+const gameBranch = region(create, '      if (ownSettingsGame) {', "      if (warmupAssignmentId && warmupDeliveryMode === 'standard') {", 'the own-settings branch of create');
 
 test('the console sends the choice with a classic game\'s create request, and never with a rush or a line game', () => {
   assert.match(executableSource(classicBranch), /await createLiveChallenge\(\{[\s\S]*\.\.\.classicScoringRequest\(challengeMode, classicScoringId\),[\s\S]*\}\);/);

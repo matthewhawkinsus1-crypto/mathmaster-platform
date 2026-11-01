@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import GraphFeatureRushGraph from './GraphFeatureRushGraph.jsx';
+import InequalityNumberLine from './InequalityNumberLine.jsx';
+import { INEQUALITY_RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { monotonicRoundOrigin } from '../../../functions/shared/liveChallengeParity.mjs';
 import { rushRefusalIsTimeUp } from '../../platform/liveChallenge/challengeAnswerRefusal.js';
-import { graphDrawing } from '../../platform/liveChallenge/rushGraphModel.js';
+import { rushGameWords } from '../../platform/liveChallenge/challengeShellModel.js';
+import { axisSetDrawing, graphDrawing } from '../../platform/liveChallenge/rushGraphModel.js';
 import {
   RUSH_FEEDBACK,
   RUSH_INPUT,
   RUSH_PREFETCH,
   RUSH_QUEUE_KEY_PREFIX,
   acknowledge,
+  answerDrawing,
   createRushSession,
   currentQuestion,
   dropQueue,
@@ -19,9 +23,18 @@ import {
   nextBatch,
   parseStoredQueue,
   prefetchRequest,
+  drawingReady,
+  isInequalityQuestion,
+  isNumberLineQuestion,
+  lineNotation,
+  recordAxisTap,
+  recordCheck,
   recordDoesNotExist,
+  recordOffScreen,
   recordSkip,
   recordTap,
+  setTargetOf,
+  toggleAxisArrow,
   rushQueueKey,
   settle,
   withQuestions,
@@ -41,6 +54,11 @@ import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
  * same places on every graph. Every tap is graded on the device at once
  * (rushSession.js) and queued for the server, which grades it again and alone
  * decides what counts.
+ *
+ * INEQUALITY GRAPHING RUSH plays on this same screen: a number line
+ * (InequalityNumberLine.jsx) in place of the graph, the arrows and ✓ Check of
+ * a domain, and "No Solution" — on every item, so its being there says
+ * nothing about the one on screen.
  *
  * TIME. The round's start and deadline are the room's, anchored once to this
  * device's monotonic clock — a device clock change mid-round moves nothing,
@@ -95,14 +113,16 @@ const wait = (milliseconds) => new Promise((resolve) => { window.setTimeout(reso
 // The server will never take these: the round is over, stale, or not this student's.
 const isFinalRefusal = (error) => /failed-precondition|not-found|permission-denied|invalid-argument/.test(String(error?.code || ''));
 
-function useElementSquare(ref) {
-  const [side, setSide] = useState(0);
+function useElementBox(ref) {
+  const [size, setSize] = useState({ width: 0, height: 0 });
   useEffect(() => {
     const element = ref.current;
     if (!element) return undefined;
     const measure = () => {
       const box = element.getBoundingClientRect();
-      setSide(Math.max(0, Math.floor(Math.min(box.width, box.height))));
+      const width = Math.max(0, Math.floor(box.width));
+      const height = Math.max(0, Math.floor(box.height));
+      setSize((previous) => (previous.width === width && previous.height === height ? previous : { width, height }));
     };
     measure();
     if (typeof ResizeObserver !== 'function') {
@@ -113,8 +133,22 @@ function useElementSquare(ref) {
     observer.observe(element);
     return () => observer.disconnect();
   }, [ref]);
-  return side;
+  return size;
 }
+
+// An inequality's prompt keeps its inequality on one line: "Solve, then
+// graph:" may wrap, "|x − 1| > 0" never breaks inside.
+const promptWords = (question) => {
+  if (!question?.inequality || !question.prompt.endsWith(question.inequality)) return question.prompt;
+  return <>{question.prompt.slice(0, question.prompt.length - question.inequality.length)}<span className="mm-rush-math">{question.inequality}</span></>;
+};
+
+// A number line's frame: the area's width (to a readable most), and a
+// height that leaves room for the labels and the "Get ready" card.
+const lineFrame = ({ width, height }) => {
+  const lineWidth = Math.min(width, 960);
+  return { width: lineWidth, height: Math.min(height, Math.max(160, Math.min(300, Math.round(lineWidth * 0.36)))) };
+};
 
 /** The round clock: its own component, so its ticks redraw nothing else. */
 function RushClock({ startMono, endMono }) {
@@ -178,6 +212,9 @@ const RUSH_CSS = `
   color: #eef1f6; font-family: "Segoe UI", system-ui, sans-serif;
   touch-action: manipulation; overscroll-behavior: none;
   --mm-rush-curve: var(--mm-primary); --mm-rush-found: var(--mm-success-text); --mm-rush-miss: var(--mm-error-border);
+  /* Asymptotes in a colour of their own, distinct from the axes, the curve and
+     the found/miss marks in both themes. */
+  --mm-rush-asymptote: var(--mm-accent);
 }
 .mm-rush-bar {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
@@ -205,11 +242,35 @@ const RUSH_CSS = `
 .mm-rush-feedback[data-kind="hit"], .mm-rush-feedback[data-kind="complete"] { color: #81c995; }
 .mm-rush-feedback[data-kind="miss"], .mm-rush-feedback[data-kind="autoSkipped"] { color: #ffb4ab; }
 .mm-rush-buttons { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 10px; }
-.mm-rush-dne, .mm-rush-skip { min-height: 52px; border-radius: 12px; font-size: calc(17 * var(--mm-px)); font-weight: 1000; cursor: pointer; }
+.mm-rush-buttons[data-off-screen="1"] { grid-template-columns: minmax(0, 3fr) minmax(0, 3fr) minmax(0, 2fr); }
+.mm-rush-dne, .mm-rush-off, .mm-rush-skip { min-height: 52px; border-radius: 12px; font-size: calc(17 * var(--mm-px)); font-weight: 1000; cursor: pointer; }
 .mm-rush-dne { border: 0; background: #fdd663; color: #1b1f2a; }
+.mm-rush-off { border: 2px solid #fdd663; background: rgba(253,214,99,.12); color: #fdd663; }
 .mm-rush-skip { border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.06); color: #eef1f6; }
-.mm-rush-dne:disabled, .mm-rush-skip:disabled { opacity: .45; cursor: not-allowed; }
-.mm-rush-dne:focus-visible, .mm-rush-skip:focus-visible, .mm-rush-exit:focus-visible { outline: 3px solid var(--mm-focus); outline-offset: 2px; }
+.mm-rush-dne:disabled, .mm-rush-off:disabled, .mm-rush-skip:disabled { opacity: .45; cursor: not-allowed; }
+.mm-rush-dne:focus-visible, .mm-rush-off:focus-visible, .mm-rush-skip:focus-visible, .mm-rush-exit:focus-visible { outline: 3px solid var(--mm-focus); outline-offset: 2px; }
+/* A domain or range: the arrows, ✓ Check and Skip, with the set as it is drawn. */
+.mm-rush-buttons[data-set="1"] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1.4fr); }
+/* An inequality: the arrows and ✓ Check, then No Solution and Skip. */
+.mm-rush-buttons[data-inequality="1"] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr); }
+.mm-rush-buttons[data-inequality="1"] .mm-rush-dne { grid-column: span 2; }
+/* The arena is dark in both themes, so these keep fixed colors, as Does Not
+   Exist does: a pressed arrow's blue and white, and dark text on the green ✓ Check
+   (recorded in scripts/theme-color-baseline.json and theme-token-baseline.json). */
+.mm-rush-arrow, .mm-rush-check { min-height: 52px; border-radius: 12px; font-size: calc(19 * var(--mm-px)); font-weight: 1000; cursor: pointer; }
+.mm-rush-arrow { border: 2px solid rgba(255,255,255,.35); background: rgba(255,255,255,.06); color: #eef1f6; }
+.mm-rush-arrow[aria-pressed="true"] { border-color: #8ab4f8; background: rgba(138,180,248,.22); color: #fff; }
+.mm-rush-check { border: 0; background: #81c995; color: #10261a; }
+.mm-rush-arrow:disabled, .mm-rush-check:disabled { opacity: .45; cursor: not-allowed; }
+.mm-rush-arrow:focus-visible, .mm-rush-check:focus-visible { outline: 3px solid var(--mm-focus); outline-offset: 2px; }
+.mm-rush-notation { font-size: calc(22 * var(--mm-px)); font-weight: 900; font-variant-numeric: tabular-nums; color: #f7f9ff; min-height: 1.3em; }
+/* An inequality's two forms break between them, never inside one. */
+.mm-rush-notation > span { white-space: nowrap; }
+.mm-rush-notation-sep { color: #b9c4d8; }
+.mm-rush-math { white-space: nowrap; }
+/* A number line sits in the middle of its area; a graph fills it from the top. */
+.mm-rush-graph-area[data-line="1"] { place-items: center; }
+.mm-rush-notation[data-empty="1"] { font-size: calc(14 * var(--mm-px)); font-weight: 700; color: #b9c4d8; }
 .mm-rush-cooldown { height: 6px; border-radius: 999px; background: rgba(255,255,255,.12); overflow: hidden; }
 .mm-rush-cooldown > span { display: block; height: 100%; background: #ffb4ab; transform-origin: left; animation: mmRushDrain linear forwards; }
 .mm-rush-overlay {
@@ -243,7 +304,11 @@ const RUSH_CSS = `
   .mm-rush-prompt { grid-area: prompt; padding-top: 6px; }
   .mm-rush-graph-area { grid-area: graph; place-items: center; }
   .mm-rush-controls { grid-area: controls; align-self: end; }
-  .mm-rush-buttons { grid-template-columns: 1fr; }
+  .mm-rush-buttons, .mm-rush-buttons[data-off-screen="1"] { grid-template-columns: 1fr; }
+  .mm-rush-buttons[data-set="1"] { grid-template-columns: 1fr 1fr; }
+  .mm-rush-buttons[data-set="1"] .mm-rush-check, .mm-rush-buttons[data-set="1"] .mm-rush-skip { grid-column: span 2; }
+  /* An inequality's No Solution and Skip share a row: three rows, as a domain's. */
+  .mm-rush-buttons[data-inequality="1"] .mm-rush-dne, .mm-rush-buttons[data-inequality="1"] .mm-rush-skip { grid-column: span 1; }
 }
 @media (max-width: 480px) {
   .mm-rush-chip { display: none; }
@@ -254,7 +319,9 @@ const RUSH_CSS = `
   .mm-rush-bar { min-height: 44px; padding-top: 4px; padding-bottom: 4px; }
   .mm-rush-clock { font-size: calc(24 * var(--mm-px)); }
   .mm-rush-hint { display: none; }
-  .mm-rush-dne, .mm-rush-skip { min-height: 46px; }
+  .mm-rush-dne, .mm-rush-off, .mm-rush-skip { min-height: 46px; }
+  .mm-rush-arrow, .mm-rush-check { min-height: 46px; }
+  .mm-rush-notation { font-size: calc(17 * var(--mm-px)); }
 }
 @media (prefers-reduced-motion: reduce) {
   .mm-rush-found-fresh, .mm-rush-in-a, .mm-rush-in-b, .mm-rush-count { animation: none; }
@@ -524,7 +591,12 @@ export default function GraphFeatureRushRound({
   }, []);
 
   const graphAreaRef = useRef(null);
-  const side = useElementSquare(graphAreaRef);
+  const area = useElementBox(graphAreaRef);
+  const side = Math.min(area.width, area.height);
+  // Inequality Graphing Rush: the same race, its words and its number line.
+  const inequalityGame = room.challengeMode === INEQUALITY_RUSH_MODE_ID;
+  const noun = rushGameWords(room);
+  const frame = inequalityGame ? lineFrame(area) : { width: side, height: side };
   const question = session ? currentQuestion(session) : null;
   const drawing = useMemo(() => graphDrawing(question), [question]);
   const nowMs = performance.now();
@@ -546,12 +618,22 @@ export default function GraphFeatureRushRound({
     if (outcome.attempt) scheduleFlush();
   };
   const onTap = useCallback(({ x, y, pointer, tolerance }) => {
-    act((current, context) => recordTap(current, { ...context, x, y, pointer, tolerance }));
+    // On a domain, a range or an inequality, a tap drops a dot on the line
+    // (this device only).
+    act((current, context) => (isNumberLineQuestion(currentQuestion(current))
+      ? recordAxisTap(current, { ...context, x, y })
+      : recordTap(current, { ...context, x, y, pointer, tolerance })));
     // `act` reads only refs and stable callbacks.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [commit, scheduleFlush]);
   const onDoesNotExist = () => act(recordDoesNotExist);
+  const onOffScreen = () => act(recordOffScreen);
   const onSkip = () => act(recordSkip);
+  const onArrow = (side) => act((current, context) => toggleAxisArrow(current, side, context));
+  const onCheck = () => act(recordCheck);
+  // A game with off-screen features offers "Off screen" on every graph, so
+  // the button being there never says anything about the graph on screen.
+  const offScreenGame = room.graphFeatureRush?.config?.offScreen === true;
 
   // Focus the graph when play begins, so a keyboard is ready at once.
   const frameRef = useRef(null);
@@ -568,33 +650,53 @@ export default function GraphFeatureRushRound({
     : '';
   const completed = session?.counts.completed ?? 0;
   const transition = session?.transition || null;
+  // A DOMAIN, A RANGE OR AN INEQUALITY: the set as drawn, its notation as it
+  // is drawn, and — as the item moves on after the third miss — the answer.
+  const setQuestion = isNumberLineQuestion(question);
+  const inequalityItem = isInequalityQuestion(question);
+  const setTarget = setQuestion ? setTargetOf(question) : null;
+  const studentDrawing = session?.drawing;
+  const axisSet = useMemo(() => (setQuestion && !inequalityItem && studentDrawing ? axisSetDrawing(question, studentDrawing) : null), [setQuestion, inequalityItem, question, studentDrawing]);
+  const revealing = setQuestion && transition?.kind === RUSH_FEEDBACK.AUTO_SKIPPED && transition.questionIndex === question?.questionIndex;
+  // The answer as a drawing (an empty line for "no solution"): on a number
+  // line as it is; on a graph, on its axis.
+  const revealDrawing = useMemo(() => (revealing ? answerDrawing(question) : null), [revealing, question]);
+  const revealSet = useMemo(() => (revealDrawing && !inequalityItem ? axisSetDrawing(question, revealDrawing) : null), [revealDrawing, inequalityItem, question]);
+  const vertical = setTarget?.axis === 'y';
+  const notation = setQuestion ? lineNotation(question, studentDrawing, { revealing }) : null;
   const queued = session?.queue.length || 0;
   const buttonsDisabled = !playing || input !== RUSH_INPUT.READY;
 
+  const completedWords = `${completed} ${completed === 1 ? noun.one : noun.many} completed`;
   let overlay = null;
-  if (phase === 'loading') overlay = <><strong>Loading…</strong><span>{connection === 'retrying' ? 'Reconnecting to the round…' : 'Getting your graphs ready.'}</span></>;
+  if (phase === 'loading') overlay = <><strong>Loading…</strong><span>{connection === 'retrying' ? 'Reconnecting to the round…' : `Getting your ${noun.many} ready.`}</span></>;
   else if (phase === 'closed' || roundClosed) overlay = <><strong>Round over</strong><span>Waiting for the results…</span></>;
-  else if (!started) overlay = <><RushCountdownNumber startMono={timing.startMono} /><strong>Get ready</strong><span>Tap each feature you are asked for.</span></>;
+  else if (!started) overlay = <><RushCountdownNumber startMono={timing.startMono} /><strong>Get ready</strong><span>{inequalityGame ? 'Graph each inequality on the number line.' : 'Tap each feature you are asked for.'}</span></>;
   else if (over) {
     overlay = practice
       ? (
         <>
           <strong>Time!</strong>
-          <span>{completed} graph{completed === 1 ? '' : 's'} completed in practice.</span>
+          <span>{completedWords} in practice.</span>
           {typeof onPracticeAgain === 'function' && <button type="button" className="mm-rush-skip" style={{ marginTop: 8 }} onClick={onPracticeAgain}>Play again</button>}
         </>
       )
-      : <><strong>Time!</strong><span>{completed} graph{completed === 1 ? '' : 's'} completed. {queued ? 'Saving your last taps…' : 'Waiting for the results…'}</span></>;
-  } else if (input === RUSH_INPUT.EXHAUSTED) overlay = <><strong>All done!</strong><span>You finished every graph in this round.</span></>;
-  else if (!question) overlay = <><strong>Loading…</strong><span>Getting your next graph.</span></>;
+      : <><strong>Time!</strong><span>{completedWords}. {queued ? 'Saving your last taps…' : 'Waiting for the results…'}</span></>;
+  } else if (input === RUSH_INPUT.EXHAUSTED) overlay = <><strong>All done!</strong><span>You finished every {noun.one} in this round.</span></>;
+  else if (!question) overlay = <><strong>Loading…</strong><span>Getting your next {noun.one}.</span></>;
+
+  let promptHint = 'Tap it on the graph. Not there? Choose Does Not Exist.';
+  if (inequalityItem) promptHint = 'Tap the number line: once for a closed dot, twice for open, three times to take it away. Arrows mean it keeps going. Nothing works? No Solution.';
+  else if (setQuestion) promptHint = `Tap to put a dot on the ${vertical ? 'y' : 'x'}-axis: once closed, twice open, three times to take it away. Arrows mean it keeps going.`;
+  else if (offScreenGame) promptHint = 'Tap it on the graph. Past the edge? Off Screen. Not there at all? Does Not Exist.';
 
   return (
-    <div className="mm-rush-shell" role="region" aria-label={practice ? 'Graph Feature Rush practice' : `Graph Feature Rush, round ${roundIndex + 1}`}>
+    <div className="mm-rush-shell" role="region" aria-label={practice ? `${noun.game} practice` : `${noun.game}, round ${roundIndex + 1}`}>
       <style>{RUSH_CSS}</style>
       <header className="mm-rush-bar">
         {alias && <span className="mm-rush-chip">{alias}</span>}
         <span className="mm-rush-round">{practice ? 'Practice' : `Round ${roundIndex + 1} of ${roundCount}`}</span>
-        <span className="mm-rush-done"><span aria-hidden="true">✓ {completed}</span><span style={SR_ONLY_STYLE}>{`${completed} graphs completed`}</span></span>
+        <span className="mm-rush-done"><span aria-hidden="true">✓ {completed}</span><span style={SR_ONLY_STYLE}>{`${completed} ${noun.many} completed`}</span></span>
         {connection === 'retrying' && <span className="mm-rush-sync" role="status">Reconnecting… your taps are saved</span>}
         <RushClock startMono={timing.startMono} endMono={timing.endMono} />
         {typeof onExit === 'function' && <button type="button" className="mm-rush-exit" onClick={onExit}>{exitLabel}</button>}
@@ -602,19 +704,32 @@ export default function GraphFeatureRushRound({
       <div className="mm-rush-stage">
         <section className="mm-rush-prompt" aria-live="polite">
           {practice && <div className="mm-rush-banner" style={{ marginBottom: 6 }}>Practice — nothing is recorded.</div>}
-          <h2>{playing && question ? question.prompt : 'Graph Feature Rush'}</h2>
-          <p className="mm-rush-hint">Tap it on the graph. Not there? Choose Does Not Exist.</p>
+          <h2>{playing && question ? promptWords(question) : noun.game}</h2>
+          <p className="mm-rush-hint">{promptHint}</p>
         </section>
-        <section className="mm-rush-graph-area" ref={graphAreaRef}>
-          {side > 0 && (
+        <section className="mm-rush-graph-area" ref={graphAreaRef} data-line={inequalityGame ? '1' : '0'}>
+          {frame.width > 0 && frame.height > 0 && (
             <div
               ref={frameRef}
               className="mm-rush-graph-frame"
               data-question-index={question && started ? question.questionIndex : ''}
               data-paused={playing && input === RUSH_INPUT.LOCKED ? '1' : '0'}
-              style={{ width: side, height: side }}
+              style={{ width: frame.width, height: frame.height }}
             >
-              {question && drawing && started && phase === 'ready' ? (
+              {question && inequalityItem && started && phase === 'ready' ? (
+                <div className={question.questionIndex % 2 ? 'mm-rush-in-a' : 'mm-rush-in-b'} style={{ width: frame.width, height: frame.height }}>
+                  <InequalityNumberLine
+                    question={question}
+                    drawing={studentDrawing}
+                    reveal={revealDrawing}
+                    width={frame.width}
+                    height={frame.height}
+                    paused={input === RUSH_INPUT.LOCKED || over}
+                    onTap={onTap}
+                    label={`${question.prompt}. Tap the number line, or use the arrow keys and Enter.`}
+                  />
+                </div>
+              ) : question && drawing && started && phase === 'ready' ? (
                 <div className={question.questionIndex % 2 ? 'mm-rush-in-a' : 'mm-rush-in-b'} style={{ width: side, height: side }}>
                   <GraphFeatureRushGraph
                     question={question}
@@ -625,9 +740,11 @@ export default function GraphFeatureRushRound({
                     paused={input === RUSH_INPUT.LOCKED || over}
                     onTap={onTap}
                     label={`${question.prompt}. Tap the graph, or use the arrow keys and Enter.`}
+                    axisSet={axisSet}
+                    revealSet={revealSet}
                   />
                 </div>
-              ) : <div style={{ width: side, height: side, borderRadius: 12, background: 'var(--mm-graph-bg)' }} />}
+              ) : <div style={{ width: frame.width, height: frame.height, borderRadius: 12, background: 'var(--mm-graph-bg)' }} />}
               {transition?.kind === RUSH_FEEDBACK.COMPLETE && <div key={transition.questionIndex} className="mm-rush-flash" aria-hidden="true" />}
               {overlay && <div className="mm-rush-overlay">{overlay}</div>}
             </div>
@@ -640,10 +757,38 @@ export default function GraphFeatureRushRound({
               <span key={session.lockedUntil} style={{ animationDuration: `${lockMs}ms` }} />
             </div>
           )}
-          <div className="mm-rush-buttons">
-            <button type="button" className="mm-rush-dne" disabled={buttonsDisabled} onClick={onDoesNotExist}>Does Not Exist</button>
-            <button type="button" className="mm-rush-skip" disabled={buttonsDisabled} onClick={onSkip}>Skip</button>
-          </div>
+          {setQuestion && (
+            // The set as it is drawn; while the answer is shown, the answer.
+            <div className="mm-rush-notation" data-empty={notation ? '0' : '1'} aria-live="polite">
+              {notation
+                ? notation.map((form, index) => (
+                  <span key={form}>
+                    {index > 0 && <><span className="mm-rush-notation-sep" aria-hidden="true"> · </span><span className="mm-rush-visually-hidden">, </span></>}
+                    {form}
+                  </span>
+                ))
+                : (inequalityItem ? 'Tap the number line to place a dot.' : 'Tap the graph to place a dot.')}
+            </div>
+          )}
+          {setQuestion ? (
+            <div className="mm-rush-buttons" data-set="1" data-inequality={inequalityItem ? '1' : '0'}>
+              <button type="button" className="mm-rush-arrow" aria-pressed={studentDrawing?.left === true} disabled={buttonsDisabled} onClick={() => onArrow('left')} aria-label={vertical ? 'Keeps going down' : 'Keeps going left'}>{vertical ? '▼' : '◀'}</button>
+              <button type="button" className="mm-rush-arrow" aria-pressed={studentDrawing?.right === true} disabled={buttonsDisabled} onClick={() => onArrow('right')} aria-label={vertical ? 'Keeps going up' : 'Keeps going right'}>{vertical ? '▲' : '▶'}</button>
+              <button type="button" className="mm-rush-check" disabled={buttonsDisabled || !drawingReady(session)} onClick={onCheck}>✓ Check</button>
+              {inequalityItem && (
+                <button type="button" className="mm-rush-dne" disabled={buttonsDisabled} onClick={onDoesNotExist} aria-label="No solution: no number makes it true">No Solution</button>
+              )}
+              <button type="button" className="mm-rush-skip" disabled={buttonsDisabled} onClick={onSkip}>Skip</button>
+            </div>
+          ) : (
+            <div className="mm-rush-buttons" data-off-screen={offScreenGame ? '1' : '0'}>
+              <button type="button" className="mm-rush-dne" disabled={buttonsDisabled} onClick={onDoesNotExist}>Does Not Exist</button>
+              {offScreenGame && (
+                <button type="button" className="mm-rush-off" disabled={buttonsDisabled} onClick={onOffScreen} aria-label="Off screen: it exists, past the edge of the graph">Off Screen</button>
+              )}
+              <button type="button" className="mm-rush-skip" disabled={buttonsDisabled} onClick={onSkip}>Skip</button>
+            </div>
+          )}
           {alert && <div role="alert" className="mm-rush-alert">{alert}</div>}
           <div aria-live="polite" className="mm-rush-visually-hidden">{spoken}</div>
         </section>

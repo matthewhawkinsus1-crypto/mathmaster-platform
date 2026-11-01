@@ -14,9 +14,24 @@
 // student's screen can recognise a rush room without the mode registry.
 export const RUSH_MODE_ID = 'graphFeatureRush';
 
+// Inequality Graphing Rush (inequalityRush.mjs) plays by these same rules:
+// its items are rush questions graphed on a number line, its attempts are rush
+// attempts, and its students play on the rush's round screen.
+export const INEQUALITY_RUSH_MODE_ID = 'inequalityRush';
+export const RUSH_MODE_IDS = Object.freeze([RUSH_MODE_ID, INEQUALITY_RUSH_MODE_ID]);
+
+/** Whether a room's mode plays on the rush's attempts and round screen. */
+export const isRushModeId = (modeId) => RUSH_MODE_IDS.includes(String(modeId || ''));
+
 export const RUSH_ATTEMPT_KIND = Object.freeze({
   TAP: 'tap',
   DOES_NOT_EXIST: 'dne',
+  // The feature exists, past the edge of the view (a game with off-screen
+  // features turned on).
+  OFF_SCREEN: 'offScreen',
+  // A domain or range drawn on an axis, sent with ✓ Check
+  // (`drawing`: numberLineSets.drawingToPlain).
+  CHECK: 'check',
   SKIP: 'skip',
 });
 
@@ -64,6 +79,29 @@ export const RUSH_LOCKOUT = Object.freeze({ after: 2, baseMs: 1_000, stepMs: 1_0
 // student moves on, and sweeping an axis for intercepts stops paying. The
 // server records the skip with the miss that reaches it; the device shows it.
 export const RUSH_AUTO_SKIP_MISSES = 8;
+
+// A domain or range is checked, not tapped for — and so is every inequality,
+// including one whose answer is "No solution": three wrong answers show the
+// answer and move on. The device holds the answer on screen for
+// RUSH_REVEAL_PAUSE_MS (the server's pace accounting takes the skip pause, the
+// shorter of the two, so it never refuses a student who waited longer).
+export const RUSH_SET_AUTO_SKIP_MISSES = 3;
+export const RUSH_REVEAL_PAUSE_MS = 2_600;
+
+/** Whether a question is answered on a number line: a domain, a range, an inequality. */
+export const isNumberLineQuestion = (question) => question?.kind === 'inequality'
+  || (Array.isArray(question?.targets) && question.targets.some((target) => target?.geometry === 'set'));
+
+// The diagnosis of a wrong check that drew exactly a question's `flipSet` —
+// the set its solving gives with the sign left unflipped (an inequality
+// divided by a negative). Counted in the teacher's report beside the
+// number-line diagnoses (numberLineSets.SET_DIAGNOSIS).
+export const RUSH_SIGN_FLIP = 'signFlip';
+
+/** How many misses on a question skip it: three for a number line, eight for taps. */
+export const rushAutoSkipMisses = (question) => (
+  isNumberLineQuestion(question) ? RUSH_SET_AUTO_SKIP_MISSES : RUSH_AUTO_SKIP_MISSES
+);
 
 /**
  * The cooldown after `consecutiveMisses` wrong taps (or wrong "Does Not

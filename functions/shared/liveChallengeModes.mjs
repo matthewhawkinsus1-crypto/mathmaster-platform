@@ -23,10 +23,11 @@
  * Built-in modes: `standard` (the classic secure-bank challenge),
  * `solverRace` (generated algebra-workspace races with milestone speed),
  * `graphFeatureRush` (individually generated graphs; tap every feature
- * against the round clock) and Graph the Line's three formats,
- * `lineGraphClassic`, `lineGraphSprint` and `lineGraphRush` (draw the line
- * of an equation, or name the equation of a line; checked the moment the
- * answer is complete).
+ * against the round clock), `inequalityRush` (individually generated
+ * inequalities graphed on a number line, on the rush's machinery) and Graph
+ * the Line's three formats, `lineGraphClassic`, `lineGraphSprint` and
+ * `lineGraphRush` (draw the line of an equation, or name the equation of a
+ * line; checked the moment the answer is complete).
  *
  * Pure: shared by Cloud Functions and the browser. The server holds the
  * question planners keyed by `questionSource`; nothing here touches Firestore.
@@ -53,6 +54,7 @@ import { RANK_DIRECTION, normalizeRankingSpec } from './liveChallengeRanking.mjs
 import { PLACEMENT_CURVE, SCORING_STRATEGY_ID, getScoringStrategy, isRegisteredScoringStrategy } from './liveChallengeScoring.mjs';
 import { canonicalSolverRaceDifficulty, canonicalSolverRaceFocus } from './solverRace.mjs';
 import { RUSH_ROUND_LIMITS, normalizeGraphFeatureRushConfig } from './graphFeatureRushConfig.mjs';
+import { INEQUALITY_ROUND_LIMITS, normalizeInequalityRushConfig } from './inequalityRush.mjs';
 import { LINE_ROUND_LIMITS, LINE_RUSH_POOL, LINE_SPRINT_MAX_POOL, normalizeLineGraphConfig } from './lineGraphConfig.mjs';
 import { LINE_GRAPH_FORMAT, lineFormatGivesExtraTime } from './lineGraphRules.mjs';
 
@@ -67,6 +69,7 @@ export const CHALLENGE_MODE_ID = Object.freeze({
   STANDARD: 'standard',
   SOLVER_RACE: 'solverRace',
   GRAPH_FEATURE_RUSH: 'graphFeatureRush',
+  INEQUALITY_RUSH: 'inequalityRush',
   LINE_GRAPH_CLASSIC: 'lineGraphClassic',
   LINE_GRAPH_SPRINT: 'lineGraphSprint',
   LINE_GRAPH_RUSH: 'lineGraphRush',
@@ -76,6 +79,7 @@ export const QUESTION_SOURCE = Object.freeze({
   SECURE_BANK: 'secureBank',
   SOLVER_RACE_GENERATOR: 'solverRaceGenerator',
   GRAPH_FEATURE_GENERATOR: 'graphFeatureGenerator',
+  INEQUALITY_GENERATOR: 'inequalityGenerator',
   LINE_GRAPH_GENERATOR: 'lineGraphGenerator',
 });
 
@@ -369,6 +373,38 @@ export const graphFeatureRushMode = defineChallengeMode({
 });
 
 /*
+ * INEQUALITY GRAPHING RUSH. Graph Feature Rush's race with inequalities in
+ * place of graphs: each student's own items (inequalityRush.mjs), graphed on
+ * a number line with the rush's taps, arrows and ✓ Check, "No solution" for
+ * an inequality nothing satisfies. One target an item (its solution set), so
+ * the rush's attempts, receipts, ranking and screen apply unchanged — the
+ * same pool, the same Grand Prix field curve. See
+ * docs/architecture/inequality-rush.md.
+ */
+export const inequalityRushMode = defineChallengeMode({
+  id: CHALLENGE_MODE_ID.INEQUALITY_RUSH,
+  label: 'Inequality Graphing Rush',
+  projectorLabel: 'Inequality Graphing Rush',
+  description: 'Every student gets their own inequalities and races the clock to graph each one on a number line.',
+  roundStructure: ROUND_STRUCTURE.QUESTION_SET,
+  questionsPerRound: GRAPH_FEATURE_RUSH_QUESTION_POOL,
+  questionSource: QUESTION_SOURCE.INEQUALITY_GENERATOR,
+  questionIssue: QUESTION_ISSUE.PER_PLAYER,
+  questionSpec: { completionRule: COMPLETION_RULE.ALL_TARGETS, targetCount: 1 },
+  defaultScoringStrategy: SCORING_STRATEGY_ID.GRAND_PRIX,
+  scoringStrategies: [SCORING_STRATEGY_ID.GRAND_PRIX, SCORING_STRATEGY_ID.CORRECT_COUNT],
+  scoringDefaults: { [SCORING_STRATEGY_ID.GRAND_PRIX]: { placementCurve: PLACEMENT_CURVE.FIELD } },
+  roundLimits: INEQUALITY_ROUND_LIMITS,
+  capabilities: { secondChance: false, progressMilestones: false, paceTiming: false, closingThreshold: false, dryRun: false, warmupLink: false },
+  normalizeConfig: (raw = {}) => Object.freeze({
+    questionStyle: 'any',
+    solverRaceFocus: null,
+    solverRaceDifficulty: null,
+    inequalityRush: normalizeInequalityRushConfig(raw?.inequalityRush),
+  }),
+});
+
+/*
  * GRAPH THE LINE. Students draw the line of an equation (slope-intercept,
  * standard form by its intercepts, point-slope) or name the equation of a
  * line; an answer is checked the moment it is complete. Each FORMAT is its
@@ -456,6 +492,7 @@ const REGISTRY = new Map([
   [standardMode.id, standardMode],
   [solverRaceMode.id, solverRaceMode],
   [graphFeatureRushMode.id, graphFeatureRushMode],
+  [inequalityRushMode.id, inequalityRushMode],
   [lineGraphClassicMode.id, lineGraphClassicMode],
   [lineGraphSprintMode.id, lineGraphSprintMode],
   [lineGraphRushMode.id, lineGraphRushMode],

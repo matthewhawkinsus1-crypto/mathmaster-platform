@@ -22,6 +22,7 @@ export {
   readLiveChallengePlayerSummary,
   readLiveChallengeSolution,
   readChallengeReport,
+  readClassGameMemory,
   timestampMillis,
   setWarmupChallengeDelivery,
 } from '../../../src/platform/liveChallenge/liveChallengeService.js';
@@ -152,6 +153,7 @@ export const getLiveChallengeHostRoster = call('getLiveChallengeHostRoster');
 export const getGraphFeatureRushRound = call('getGraphFeatureRushRound');
 export const submitGraphFeatureRushAttempts = call('submitGraphFeatureRushAttempts');
 export const previewGraphFeatureRush = call('previewGraphFeatureRush');
+export const previewInequalityRush = call('previewInequalityRush');
 export const getLineGraphRound = call('getLineGraphRound');
 export const submitLineGraphAttempts = call('submitLineGraphAttempts');
 export const previewLineGraph = call('previewLineGraph');

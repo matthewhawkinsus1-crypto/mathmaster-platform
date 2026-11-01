@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
+import ClassMemoryCard from './ClassMemoryCard.jsx';
 import { graphFamilyLabel, GRAPH_FAMILY_CATALOG_IDS } from '../../../functions/shared/graphFeatureCatalog.mjs';
 import { getGraphFeature, GRAPH_FEATURE_IDS } from '../../../functions/shared/graphFeatureRegistry.mjs';
 import {
   getRushPreset,
   GRAPH_FEATURE_RUSH_PRESETS,
+  OFF_SCREEN_SETTING,
   RUSH_DIFFICULTY_OPTIONS,
   RUSH_ROUND_LIMITS,
   rushConfigProblem,
@@ -44,13 +46,20 @@ const chip = (active) => ({
 const field = { display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 6, padding: 10, borderRadius: 8, border: '1px solid var(--mm-border)' };
 const hint = { display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' };
 
-export default function GraphFeatureRushSetup({ setup, onChange, classSize = 0, onPractice = null }) {
-  const problem = useMemo(() => rushConfigProblem({ families: setup.families, features: setup.features, difficulty: setup.difficulty }), [setup.families, setup.features, setup.difficulty]);
+// `memory`: what this class did the last time it played a rush, if it has
+// (liveChallengeClassMemory.mjs) — the card at the top, whose buttons fill
+// in the whole setup.
+export default function GraphFeatureRushSetup({ setup, onChange, classSize = 0, onPractice = null, memory = null }) {
+  const problem = useMemo(
+    () => rushConfigProblem({ families: setup.families, features: setup.features, difficulty: setup.difficulty, offScreen: setup.offScreen === true }),
+    [setup.families, setup.features, setup.difficulty, setup.offScreen],
+  );
   const update = (patch) => onChange(changeRushSetup(setup, patch));
   const ladder = grandPrixLadder(classSize || 24);
 
   return (
     <div style={{ gridColumn: '1 / -1', display: 'grid', gap: 16 }}>
+      {memory && <ClassMemoryCard memory={memory} onUse={onChange} />}
       <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
         <legend style={{ fontWeight: 900, marginBottom: 8 }}>Start from a preset</legend>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -87,6 +96,14 @@ export default function GraphFeatureRushSetup({ setup, onChange, classSize = 0, 
         </div>
         <span style={hint}>Prompts vary the wording — "zeros", "roots", "x-intercepts" — and never say how many there are. Some graphs have none: students answer with "Does Not Exist".</span>
       </fieldset>
+
+      <label style={{ ...chip(setup.offScreen === true), display: 'flex', alignItems: 'flex-start', gap: 9, borderRadius: 12, padding: '10px 13px' }}>
+        <input type="checkbox" checked={setup.offScreen === true} onChange={() => update({ offScreen: setup.offScreen !== true })} style={{ marginTop: 3 }} />
+        <span>
+          {OFF_SCREEN_SETTING.label}
+          <span style={{ ...hint, marginTop: 2 }}>{OFF_SCREEN_SETTING.description} Standard difficulty and above.</span>
+        </span>
+      </label>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 14 }}>
         <label style={{ fontWeight: 800 }}>Difficulty

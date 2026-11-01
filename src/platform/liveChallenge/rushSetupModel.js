@@ -25,6 +25,8 @@ export const rushSetupFromPreset = (preset) => ({
   families: [...preset.families],
   features: [...preset.features],
   difficulty: preset.difficulty,
+  // Off-screen features are a layer a teacher adds; no preset turns it on.
+  offScreen: false,
   roundCount: preset.roundCount,
   roundSeconds: preset.roundSeconds,
   scoringStrategyId: preset.scoringStrategyId,
@@ -45,6 +47,7 @@ export const changeRushSetup = (setup, patch) => {
   const preset = getRushPreset(setup.presetId);
   const matches = preset
     && preset.difficulty === next.difficulty
+    && next.offScreen !== true
     && sameMembers(preset.families, next.families)
     && sameMembers(preset.features, next.features);
   return { ...next, presetId: matches ? preset.id : 'custom' };
@@ -61,6 +64,7 @@ export const rushCreateRequest = (setup, { rewardPolicy = null } = {}) => ({
     families: [...setup.families],
     features: [...setup.features],
     difficulty: setup.difficulty,
+    offScreen: setup.offScreen === true,
   },
   roundCount: setup.roundCount,
   roundSeconds: setup.roundSeconds,

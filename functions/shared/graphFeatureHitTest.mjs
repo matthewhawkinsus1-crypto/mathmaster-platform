@@ -23,6 +23,13 @@
  *                                                          a penalty)
  *   inside nobody's radius                              → miss
  *
+ * A LINE TARGET (an asymptote: `{ geometry: 'line', orientation, x | y }`) is
+ * found by a tap anywhere near it: its distance is across the line only. Two
+ * asymptotes cross, so a tap near the crossing is near both; it finds the
+ * nearest one NOT yet found, and is "already found" only when every target it
+ * reaches has been. Point targets are 15% of the view apart, so a tap never
+ * reaches two of them and this changes nothing for them.
+ *
  * Generated questions keep targets at least 15% of the view apart, so at
  * the maximum tolerance two targets' circles cannot overlap; nearest-target
  * resolution still decides correctly if a device's scale makes them touch.
@@ -112,20 +119,37 @@ export const resolveTap = ({ targets = [], found = [], tap = {}, tolerance = {},
   const y = finite(tap.y);
   if (x === null || y === null) return Object.freeze({ result: TAP_RESULT.MISS, targetId: null, distance: null });
   const limits = clampTolerance(tolerance, view);
+  const foundIds = (Array.isArray(found) ? found : []).map(String);
   let nearest = null;
+  let nearestNew = null;
   (Array.isArray(targets) ? targets : []).forEach((target) => {
-    const tx = finite(target?.x);
-    const ty = finite(target?.y);
-    if (tx === null || ty === null) return;
-    const distance = Math.hypot((x - tx) / limits.x, (y - ty) / limits.y);
+    const distance = targetDistance(target, { x, y }, limits);
+    if (distance === null) return;
+    const entry = { id: String(target.id), distance };
     // Ties go to the target listed first (left to right), deterministically.
-    if (!nearest || distance < nearest.distance) nearest = { id: String(target.id), distance };
+    if (!nearest || distance < nearest.distance) nearest = entry;
+    if (!foundIds.includes(entry.id) && (!nearestNew || distance < nearestNew.distance)) nearestNew = entry;
   });
   if (!nearest || nearest.distance > 1) return Object.freeze({ result: TAP_RESULT.MISS, targetId: null, distance: nearest?.distance ?? null });
-  const already = (Array.isArray(found) ? found : []).map(String).includes(nearest.id);
-  return Object.freeze({
-    result: already ? TAP_RESULT.ALREADY_FOUND : TAP_RESULT.HIT,
-    targetId: nearest.id,
-    distance: nearest.distance,
-  });
+  if (nearestNew && nearestNew.distance <= 1) {
+    return Object.freeze({ result: TAP_RESULT.HIT, targetId: nearestNew.id, distance: nearestNew.distance });
+  }
+  return Object.freeze({ result: TAP_RESULT.ALREADY_FOUND, targetId: nearest.id, distance: nearest.distance });
 };
+
+/**
+ * How far a tap is from a target, in tolerance units (1 = the edge of its
+ * reach): to a point, both ways; to a vertical or horizontal line, across it.
+ * Null for a target that is not one.
+ */
+export function targetDistance(target, tap, limits) {
+  const tx = finite(target?.x);
+  const ty = finite(target?.y);
+  if (target?.geometry === 'line') {
+    if (target.orientation === 'vertical') return tx === null ? null : Math.abs(tap.x - tx) / limits.x;
+    if (target.orientation === 'horizontal') return ty === null ? null : Math.abs(tap.y - ty) / limits.y;
+    return null;
+  }
+  if (tx === null || ty === null) return null;
+  return Math.hypot((tap.x - tx) / limits.x, (tap.y - ty) / limits.y);
+}

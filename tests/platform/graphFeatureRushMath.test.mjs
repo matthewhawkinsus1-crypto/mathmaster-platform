@@ -31,6 +31,7 @@ import {
   featureWordings,
 } from '../../functions/shared/graphFeatureRegistry.mjs';
 import { GRAPH_FEATURE_RUSH_PRESETS, normalizeGraphFeatureRushConfig } from '../../functions/shared/graphFeatureRushConfig.mjs';
+import { setContains, setEndpoints, setFromPlain } from '../../functions/shared/numberLineSets.mjs';
 import {
   DOES_NOT_EXIST_SHARE,
   SCHEDULE_BLOCK_SIZE,
@@ -82,6 +83,13 @@ const numericZeros = (graph) => {
   const zeros = [];
   const step = 1 / 64;
   wideSegments(graph).forEach((segment) => {
+    // A CLOSED end of the graph that sits on the axis is a zero: evaluated at
+    // that one x, not approached, so within a hair of 0 is 0 (a slope of 2/3
+    // leaves 8.9e-16 there, and a ray starting at its zero has no sign change
+    // to find). An open end is never a zero, however close it sits.
+    [[segment.from, segment.fromClosed], [segment.to, segment.toClosed]].forEach(([x, closed]) => {
+      if (closed && Number.isFinite(x) && Math.abs(x) < 110 && Math.abs(evaluateGraph(graph, x)) < 1e-9) zeros.push(x);
+    });
     let previous = null;
     for (let x = Math.ceil(segment.from / step) * step; x <= segment.to + EPS; x += step) {
       if (x === segment.from && !segment.fromClosed) continue;
@@ -123,10 +131,139 @@ const sampledValues = (graph, half) => {
   return values;
 };
 
+/*
+ * Asymptotes, found from the curve alone: a vertical one where the graph
+ * breaks between two pieces and blows up on both sides of the break; a
+ * horizontal one where, far out one way, the graph settles to a value.
+ */
+const numericAsymptotes = (graph) => {
+  const vertical = [];
+  const segments = wideSegments(graph);
+  for (let index = 1; index < segments.length; index += 1) {
+    const x = segments[index - 1].to;
+    if (Math.abs(segments[index].from - x) > EPS) continue;
+    const sides = [evaluateGraph(graph, x - 1e-7), evaluateGraph(graph, x + 1e-7)];
+    if (sides.every((y) => Number.isFinite(y) && Math.abs(y) > 1e5)) vertical.push(x);
+  }
+  const horizontal = [];
+  for (const direction of [-1, 1]) {
+    // Far enough out that a / (x − h) is below a millionth.
+    const near = evaluateGraph(graph, direction * 1e7);
+    const far = evaluateGraph(graph, direction * 1e9);
+    if (!Number.isFinite(near) || !Number.isFinite(far) || Math.abs(far - near) >= 1e-3) continue;
+    // `|| 0`: a curve settling on y = 0 from below rounds to −0.
+    const limit = Math.round(far * 1e6) / 1e6 || 0;
+    if (!horizontal.some((value) => Math.abs(value - limit) < 1e-6)) horizontal.push(limit);
+  }
+  return { vertical: vertical.sort((a, b) => a - b), horizontal: horizontal.sort((a, b) => a - b) };
+};
+
+/*
+ * A DOMAIN, checked from the curve alone: the graph is defined exactly where
+ * the set says — on a fine grid over a wide window (every integer and half
+ * included, so every end is probed itself), and at each end, defined exactly
+ * when the end is closed.
+ */
+const checkDomainNumerically = (graph, set, where) => {
+  const defined = (x) => Number.isFinite(evaluateGraph(graph, x));
+  for (let eighths = -480; eighths <= 480; eighths += 1) {
+    assert.equal(defined(eighths / 8), setContains(set, Q.rat(eighths, 8)), `domain at x = ${eighths / 8}: ${where}`);
+  }
+  setEndpoints(set).forEach((end) => {
+    assert.equal(defined(end - 1e-6) || defined(end + 1e-6), true, `defined beside its end ${end}: ${where}`);
+  });
+};
+
+/*
+ * A RANGE, checked from the curve alone. The graph is sampled over a wide
+ * window on a fine dyadic grid (every integer and half among the samples, so
+ * a vertex, a split or a closed end is sampled exactly), beside each open end,
+ * and far out. Then: a closed end of the set is attained exactly, an open one
+ * is approached but never attained; each piece's inside is reached (between
+ * the lowest and highest values of one continuous piece of the curve); a gap
+ * between pieces is never reached; and an end at ±∞ is outrun.
+ */
+const checkRangeNumerically = (graph, set, where) => {
+  // Exact attainment is read only from samples near the origin: far out, a
+  // curve creeping toward an asymptote saturates onto it in floating point
+  // ((1/2)^60 is below the spacing of doubles near 2), so a far sample is
+  // evidence of approach, never of reaching.
+  const exact = [];
+  const pieces = curveSegments(graph, { xMin: -400, xMax: 400 }).map((segment) => {
+    const values = [];
+    const add = (x) => {
+      const y = evaluateGraph(graph, x);
+      if (!Number.isFinite(y)) return;
+      values.push(y);
+      if (Math.abs(x) <= 30) exact.push(y);
+    };
+    for (let x = Math.ceil(segment.from * 64) / 64; x <= segment.to + 1e-12; x += 1 / 64) {
+      if (Math.abs(x - segment.from) < 1e-12 && !segment.fromClosed) continue;
+      if (Math.abs(x - segment.to) < 1e-12 && !segment.toClosed) continue;
+      if (Math.abs(x) <= 60 || Math.abs(x - Math.round(x)) < 1e-12) add(x);
+    }
+    // Beside open ends (approach only), and far out along an unbounded piece.
+    [1e-3, 1e-5].forEach((gap) => {
+      const near = (x) => { const y = evaluateGraph(graph, x); if (Number.isFinite(y)) values.push(y); };
+      if (!segment.fromClosed) near(segment.from + gap);
+      if (!segment.toClosed) near(segment.to - gap);
+    });
+    [100, 200, 400].forEach((far) => { add(-far); add(far); });
+    // Much farther still, for curves that grow slowly (√x is 24 at x = 400).
+    // A piece that reaches the edge of the ±400 window goes on past it.
+    [1e4, 1e6].forEach((far) => {
+      [[-far, segment.from <= -400 + 1e-9], [far, segment.to >= 400 - 1e-9]].forEach(([x, unbounded]) => {
+        const y = unbounded ? evaluateGraph(graph, x) : Number.NaN;
+        if (Number.isFinite(y)) values.push(y);
+      });
+    });
+    return { min: Math.min(...values), max: Math.max(...values), values };
+  });
+  const all = pieces.flatMap((piece) => piece.values);
+  const attained = (y) => exact.some((value) => value === y);
+  const approached = (y) => all.some((value) => Math.abs(value - y) < 2e-3);
+  set.forEach((piece, index) => {
+    const lo = piece.lo === null ? null : piece.lo.n / piece.lo.d;
+    const hi = piece.hi === null ? null : piece.hi.n / piece.hi.d;
+    if (lo === null) assert.ok(all.some((value) => value < -40), `the range runs down without end: ${where}`);
+    else {
+      assert.equal(attained(lo), piece.loClosed, `${lo} ${piece.loClosed ? 'attained' : 'never attained'}: ${where}`);
+      assert.ok(approached(lo), `${lo} is approached: ${where}`);
+      assert.ok(!all.some((value) => value < lo - 1e-9 && (index === 0 || value > (set[index - 1].hi.n / set[index - 1].hi.d) + 1e-9)), `nothing just below ${lo}: ${where}`);
+    }
+    if (hi === null) assert.ok(all.some((value) => value > 40), `the range runs up without end: ${where}`);
+    else {
+      assert.equal(attained(hi), piece.hiClosed, `${hi} ${piece.hiClosed ? 'attained' : 'never attained'}: ${where}`);
+      assert.ok(approached(hi), `${hi} is approached: ${where}`);
+    }
+    // Inside the piece: reached by one continuous piece of the curve.
+    if (lo !== hi) {
+      const inside = lo === null ? (hi === null ? 0 : hi - 1.5) : (hi === null ? lo + 1.5 : (lo + hi) / 2);
+      assert.ok(pieces.some((curve) => curve.min <= inside && curve.max >= inside), `${inside} is reached: ${where}`);
+    }
+  });
+  // A gap between two pieces is never reached.
+  for (let index = 1; index < set.length; index += 1) {
+    const from = set[index - 1].hi.n / set[index - 1].hi.d;
+    const to = set[index].lo.n / set[index].lo.d;
+    assert.ok(!all.some((value) => value > from + 1e-9 && value < to - 1e-9), `nothing in the gap (${from}, ${to}): ${where}`);
+  }
+};
+
+// Whether a point lies past an edge of the view by at least `margin` of that axis's span.
+const pastEdge = (point, view, margin) => {
+  const xSpan = view.xMax - view.xMin;
+  const ySpan = view.yMax - view.yMin;
+  return point.x < view.xMin - margin * xSpan || point.x > view.xMax + margin * xSpan
+    || point.y < view.yMin - margin * ySpan || point.y > view.yMax + margin * ySpan;
+};
+
 const checkQuestion = (question, slot) => {
   const where = `${slot.family}/${slot.feature}/${slot.variant}/${slot.tier}: ${JSON.stringify(question.graph)}`;
   const { graph, view, targets } = question;
   assert.equal(question.fallback, false, `fallback used for ${where}`);
+  const offScreen = slot.flags?.offScreen === true;
+  assert.equal(question.offScreen, offScreen, where);
   assert.equal(question.doesNotExist, !slot.exists, where);
   assert.equal(question.targetCount, Math.max(1, targets.length), where);
 
@@ -135,16 +272,42 @@ const checkQuestion = (question, slot) => {
   const xSpan = view.xMax - view.xMin;
   const ySpan = view.yMax - view.yMin;
   assert.ok(view.xMin < 0 && view.xMax > 0 && view.yMin < 0 && view.yMax > 0, `both axes visible: ${where}`);
-  for (const target of targets) {
+
+  // OFF THE SCREEN: nothing to tap, and the feature, found again from the
+  // curve, is real and lies well past an edge of the view.
+  if (offScreen) {
+    assert.equal(targets.length, 0, `nothing to tap: ${where}`);
+    const hidden = question.offScreenTargets;
+    assert.ok(hidden.length >= 1, where);
+    hidden.forEach((point) => {
+      assert.ok(Number.isInteger(point.x * grid) && Number.isInteger(point.y * grid), `hidden target on the grid: ${where}`);
+      assert.ok(pastEdge(point, view, VIEW_RULES.offScreenMargin), `${JSON.stringify(point)} is well off the screen ${JSON.stringify(view)}: ${where}`);
+    });
+    if (slot.feature === GRAPH_FEATURE.X_INTERCEPT) {
+      const zeros = numericZeros(graph);
+      assert.deepEqual(zeros.map((x) => Math.round(x * 1e6) / 1e6), hidden.map((point) => point.x), `the hidden zeros are the curve's zeros: ${where}`);
+      hidden.forEach((point) => assert.equal(point.y, 0));
+    } else if (slot.feature === GRAPH_FEATURE.Y_INTERCEPT) {
+      assert.deepEqual(hidden, [{ x: 0, y: evaluateGraph(graph, 0) }], where);
+    } else if (slot.feature === GRAPH_FEATURE.VERTEX) {
+      assert.deepEqual(hidden, [{ x: graph.h, y: graph.k }], where);
+    } else {
+      assert.fail(`no off-screen check for ${slot.feature}`);
+    }
+    return;
+  }
+
+  for (const target of targets.filter((entry) => entry.geometry !== 'line' && entry.geometry !== 'set')) {
     assert.ok(Number.isInteger(target.x * grid) && Number.isInteger(target.y * grid), `target on the grid: ${JSON.stringify(target)} ${where}`);
     assert.equal(String(target.x).length < 8 && String(target.y).length < 8, true, `no float artifacts: ${JSON.stringify(target)}`);
     for (const [value, min, span] of [[target.x, view.xMin, xSpan], [target.y, view.yMin, ySpan]]) {
       assert.ok(value - min >= VIEW_RULES.targetInset * span - EPS && min + span - value >= VIEW_RULES.targetInset * span - EPS, `target inset: ${JSON.stringify(target)} in ${JSON.stringify(view)} ${where}`);
     }
   }
-  for (let i = 0; i < targets.length; i += 1) {
-    for (let j = i + 1; j < targets.length; j += 1) {
-      const distance = Math.hypot((targets[i].x - targets[j].x) / xSpan, (targets[i].y - targets[j].y) / ySpan);
+  const points = targets.filter((entry) => entry.geometry !== 'line' && entry.geometry !== 'set');
+  for (let i = 0; i < points.length; i += 1) {
+    for (let j = i + 1; j < points.length; j += 1) {
+      const distance = Math.hypot((points[i].x - points[j].x) / xSpan, (points[i].y - points[j].y) / ySpan);
       assert.ok(distance >= VIEW_RULES.targetSeparation - EPS, `targets apart: ${where}`);
     }
   }
@@ -175,6 +338,40 @@ const checkQuestion = (question, slot) => {
     case GRAPH_FEATURE.VERTEX:
       assert.deepEqual(targets.map(({ x, y }) => [x, y]), [[graph.h, graph.k]], where);
       break;
+    case GRAPH_FEATURE.DOMAIN:
+    case GRAPH_FEATURE.RANGE: {
+      // One target: the set, on the feature's axis, every finite end on a
+      // drawn grid line of that axis, well inside the view.
+      assert.equal(targets.length, 1, where);
+      const [target] = targets;
+      const axis = slot.feature === GRAPH_FEATURE.DOMAIN ? 'x' : 'y';
+      assert.equal(target.geometry, 'set', where);
+      assert.equal(target.axis, axis, where);
+      const set = setFromPlain(target.set);
+      assert.ok(set && set.length, `a set: ${where}`);
+      const [low, high, step] = axis === 'x' ? [view.xMin, view.xMax, view.xStep] : [view.yMin, view.yMax, view.yStep];
+      setEndpoints(set).forEach((end) => {
+        assert.ok(Number.isInteger(end / step), `${end} is on a grid line (step ${step}): ${where}`);
+        assert.ok(end > low && end < high, `${end} is on screen: ${where}`);
+      });
+      if (axis === 'x') checkDomainNumerically(graph, set, where);
+      else checkRangeNumerically(graph, set, where);
+      break;
+    }
+    case GRAPH_FEATURE.ASYMPTOTE: {
+      // The lines, found again from the curve; each a line target inside the view.
+      const found = numericAsymptotes(graph);
+      const asked = {
+        vertical: targets.filter((target) => target.orientation === 'vertical').map((target) => target.x),
+        horizontal: targets.filter((target) => target.orientation === 'horizontal').map((target) => target.y),
+      };
+      assert.ok(targets.every((target) => target.geometry === 'line'), `asymptotes are lines: ${where}`);
+      assert.deepEqual(asked, found, `asymptotes ${JSON.stringify(found)}: ${where}`);
+      if (!slot.exists) assert.equal(targets.length, 0, where);
+      asked.vertical.forEach((x) => assert.ok(x > view.xMin && x < view.xMax && Number.isInteger(x * grid), `x = ${x} on screen and on the grid: ${where}`));
+      asked.horizontal.forEach((y) => assert.ok(y > view.yMin && y < view.yMax && Number.isInteger(y * grid), `y = ${y} on screen and on the grid: ${where}`));
+      break;
+    }
     case GRAPH_FEATURE.MAXIMUM:
     case GRAPH_FEATURE.MINIMUM: {
       const sign = slot.feature === GRAPH_FEATURE.MAXIMUM ? 1 : -1;

@@ -23,22 +23,36 @@ export const SOLUTION_STATE = Object.freeze({
  * What a screen calls a round's published document. A Graph Feature Rush round
  * has no question to solve; what it publishes is a reading guide to the
  * features in the game (graphFeatureReading.mjs, marked `guide: true`), which
- * is not a worked solution and is not titled as one.
+ * is not a worked solution and is not titled as one. A guide may carry its
+ * own title (Inequality Graphing Rush's, inequalityReading.mjs).
  */
 export const SOLUTION_TITLE = 'Worked solution';
 export const READING_GUIDE_TITLE = 'How to read the features';
-export const solutionTitle = (solution) => (solution?.guide === true ? READING_GUIDE_TITLE : SOLUTION_TITLE);
+export const solutionTitle = (solution) => {
+  if (solution?.guide !== true) return SOLUTION_TITLE;
+  return typeof solution.guideTitle === 'string' && solution.guideTitle.trim() ? solution.guideTitle.trim() : READING_GUIDE_TITLE;
+};
 
 /*
  * How many steps the projector draws. An authored review can run long and the
- * projector never scrolls, so it takes the first five. A reading guide is
- * written to fit (a line a feature and one on "Does Not Exist": at most six),
- * and its last line is the one that says when to choose "Does Not Exist", so
- * it takes all of them.
+ * projector never scrolls, so it takes the first five. A reading guide is a
+ * line a feature and, last, its answers line ("Does Not Exist", "Off screen",
+ * open dots): up to seven lines show whole, and a longer one (a custom game
+ * asking for most of the eight features) keeps its first lines and ALWAYS its
+ * answers line, which is the one a plain cut would lose. A student's own card
+ * shows every line.
  */
 export const PROJECTOR_SOLUTION_STEPS = 5;
-export const PROJECTOR_GUIDE_STEPS = 6;
+export const PROJECTOR_GUIDE_STEPS = 7;
 export const projectorStepLimit = (solution) => (solution?.guide === true ? PROJECTOR_GUIDE_STEPS : PROJECTOR_SOLUTION_STEPS);
+
+/** The steps the projector draws for a solution (see above). */
+export const projectorSteps = (solution) => {
+  const steps = (Array.isArray(solution?.solutionReview?.reasoning) ? solution.solutionReview.reasoning : []).filter(Boolean);
+  const limit = projectorStepLimit(solution);
+  if (steps.length <= limit) return steps;
+  return solution?.guide === true ? [...steps.slice(0, limit - 1), steps[steps.length - 1]] : steps.slice(0, limit);
+};
 
 /** Whether the server has published this round's solution. */
 export const solutionRevealed = (room = {}, roundIndex) => (

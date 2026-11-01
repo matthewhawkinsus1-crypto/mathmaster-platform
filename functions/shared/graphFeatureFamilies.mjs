@@ -34,12 +34,39 @@
  *     it; deferred until it can be taught deliberately.
  *   vertical lines — not functions; this game is about functions.
  *
+ * RESTRICTED DOMAINS (rays and segments). A line, parabola, absolute value or
+ * exponential may be built with `domain: { from, to }`, each end
+ * `{ x, closed }` or null. Its analysis is the same graph's, restricted: an
+ * intercept counts only where the domain includes it (on a closed end yes, on
+ * an open end no), the vertex only if it is on the graph, and a maximum or
+ * minimum is worked out exactly from the closed ends, the turning point and
+ * where the graph heads past an open side (restrictedExtreme).
+ *
+ * ASYMPTOTES are lines, not points: `{ orientation: 'vertical', x }` or
+ * `{ orientation: 'horizontal', y }`. A rational graph has two, an
+ * exponential one (on the side it approaches y = k, if its domain keeps that
+ * side), every other family none.
+ *
+ * DOMAIN AND RANGE are sets of numbers (numberLineSets.mjs), worked out
+ * exactly: `{ status: 'exists', points: [{ axis, set }] }` — one target, the
+ * set, drawn on the x-axis (domain) or the y-axis (range). A continuous graph
+ * on an interval reaches every value between the lowest and the highest it
+ * reaches or approaches; each end of its range is closed exactly when some
+ * closed end, or the turn, attains it (rangeOver).
+ *
+ * OFF THE SCREEN. A variant flagged `offScreen` builds a graph whose feature
+ * exists where the generator will choose a view that leaves it out: the
+ * student answers "Off screen" (a game with off-screen features turned on).
+ * `offScreenAnchors` names what must stay on screen so the graph still shows
+ * where it is heading.
+ *
  * Pure: Cloud Functions and tests. The student device never generates.
  */
 
 import * as Q from './graphFeatureRational.mjs';
 import { GRAPH_KIND } from './graphFeatureCurves.mjs';
 import { GRAPH_FEATURE, QUESTION_TIER, tierRank } from './graphFeatureRegistry.mjs';
+import { ALL_REALS, allExcept, canonicalSet, intervalSet, pointSet, unionSets } from './numberLineSets.mjs';
 
 export const GRAPH_FAMILY = Object.freeze({
   LINEAR: 'linear',
@@ -63,6 +90,8 @@ export const FEATURE_STATUS = Object.freeze({
   // The feature is not a concept for this family (a line's vertex).
   NOT_APPLICABLE: 'notApplicable',
 });
+
+export const LINE_ORIENTATION = Object.freeze({ VERTICAL: 'vertical', HORIZONTAL: 'horizontal' });
 
 const { EASY, STANDARD, CHALLENGE } = QUESTION_TIER;
 const F = GRAPH_FEATURE;
@@ -113,6 +142,145 @@ const variant = (id, { exists: present = true, minTier = EASY, weight = 1, flags
 
 const num = (value) => Q.toNumber(value);
 
+// An asymptote: a vertical line x = value or a horizontal line y = value.
+const asymptoteLine = (orientation, value) => Object.freeze(orientation === LINE_ORIENTATION.VERTICAL
+  ? { orientation, x: Q.toRational(value) }
+  : { orientation, y: Q.toRational(value) });
+const NO_ASYMPTOTES = () => none();
+
+/* ------------------------------ domain and range ----------------------------- */
+
+// A domain or range: one target, the set, on its axis.
+const setFeature = (axis, set) => (set
+  ? Object.freeze({ status: FEATURE_STATUS.EXISTS, points: Object.freeze([Object.freeze({ axis, set })]) })
+  : inexact());
+
+const UNBOUNDED = Object.freeze({ from: null, to: null });
+
+/** A restricted domain as a set (null: every number). */
+const domainSet = (domain) => (domain
+  ? intervalSet(domain.from ? domain.from.x : null, domain.from?.closed === true, domain.to ? domain.to.x : null, domain.to?.closed === true)
+  : ALL_REALS);
+
+/*
+ * THE RANGE OF A CONTINUOUS GRAPH ON AN INTERVAL (the shape restrictedExtreme
+ * reads). Every value between the lowest and the highest it reaches or
+ * approaches is taken; an end of the range is closed when some closed end of
+ * the domain, or a turning point inside it, attains that value, and open when
+ * it is only approached (an open end, an asymptote). Null where a value is not
+ * exact.
+ */
+const rangeOver = (shape, domain = UNBOUNDED) => {
+  const candidates = [];
+  for (const side of ['left', 'right']) {
+    if ((side === 'left' && domain.from) || (side === 'right' && domain.to)) continue;
+    const tail = shape.tail(side);
+    if (tail.kind === 'infinite') candidates.push({ infinite: tail.sign });
+    else if (tail.kind === 'approach') candidates.push({ value: tail.value, closed: false });
+  }
+  for (const end of [domain.from, domain.to]) {
+    if (!end) continue;
+    const value = shape.valueAt(end.x);
+    if (value === null) return null;
+    candidates.push({ value, closed: end.closed });
+  }
+  (shape.critical || []).forEach((x) => {
+    const strictlyInside = inDomain(domain, x)
+      && !(domain.from && Q.eq(x, domain.from.x)) && !(domain.to && Q.eq(x, domain.to.x));
+    if (strictlyInside) candidates.push({ value: shape.valueAt(x), closed: true });
+  });
+  const finite = candidates.filter((entry) => !entry.infinite);
+  const end = (sign) => {
+    if (candidates.some((entry) => entry.infinite === sign)) return { value: null, closed: false };
+    if (!finite.length) return null;
+    const best = finite.reduce((top, entry) => (sign * Q.cmp(entry.value, top.value) > 0 ? entry : top)).value;
+    return { value: best, closed: finite.some((entry) => entry.closed && Q.eq(entry.value, best)) };
+  };
+  const low = end(-1);
+  const high = end(1);
+  if (!low || !high) return null;
+  return intervalSet(low.value, low.closed, high.value, high.closed);
+};
+
+/* ---------------------------- restricted domains --------------------------- */
+
+const domainEnd = (x, closed) => Object.freeze({ x: Q.toRational(x), closed: closed === true });
+
+/** A ray from x: to the right (direction 1) or the left (−1). */
+const rayDomain = (x, closed, direction) => Object.freeze(direction < 0
+  ? { from: null, to: domainEnd(x, closed) }
+  : { from: domainEnd(x, closed), to: null });
+
+/** Whether an exact x is on a restricted domain (null: everywhere). */
+export const inDomain = (domain, x) => {
+  if (!domain) return true;
+  const value = Q.toRational(x);
+  if (domain.from) {
+    const order = Q.cmp(value, domain.from.x);
+    if (order < 0 || (order === 0 && !domain.from.closed)) return false;
+  }
+  if (domain.to) {
+    const order = Q.cmp(value, domain.to.x);
+    if (order > 0 || (order === 0 && !domain.to.closed)) return false;
+  }
+  return true;
+};
+
+const domainToGraph = (domain) => (domain ? {
+  domain: {
+    from: domain.from ? { x: num(domain.from.x), closed: domain.from.closed === true } : null,
+    to: domain.to ? { x: num(domain.to.x), closed: domain.to.closed === true } : null,
+  },
+} : {});
+
+// The points of a feature that the domain keeps.
+const keepInDomain = (entry, domain) => {
+  if (!domain || entry.status !== FEATURE_STATUS.EXISTS) return entry;
+  const kept = entry.points.filter((p) => inDomain(domain, p.x));
+  return kept.length ? exists(...kept) : none();
+};
+
+/*
+ * THE MAXIMUM (sign 1) OR MINIMUM (sign −1) OF A RESTRICTED GRAPH, exactly.
+ *
+ * `shape` describes the family: `valueAt(x)` (exact, or null where it is not),
+ * the turning points it may have (`critical`), and where it heads past each
+ * side (`tail('left' | 'right')`: { kind: 'infinite', sign }, { kind:
+ * 'approach', value } for an asymptote it never reaches, or { kind:
+ * 'constant' }). The extreme exists only where it is ATTAINED at one point:
+ * a closed end or a turning point inside the domain, beaten by nothing the
+ * graph only approaches (an open end, an asymptote) or heads past.
+ */
+const restrictedExtreme = (shape, domain, sign) => {
+  const attained = [];
+  const approached = [];
+  for (const side of ['left', 'right']) {
+    if ((side === 'left' && domain.from) || (side === 'right' && domain.to)) continue;
+    const tail = shape.tail(side);
+    if (tail.kind === 'constant') return ambiguous();
+    if (tail.kind === 'infinite' && tail.sign === sign) return none();
+    if (tail.kind === 'approach') approached.push(tail.value);
+  }
+  for (const end of [domain.from, domain.to]) {
+    if (!end) continue;
+    const value = shape.valueAt(end.x);
+    if (value === null) return inexact();
+    if (end.closed) attained.push(point(end.x, value));
+    else approached.push(value);
+  }
+  (shape.critical || []).forEach((x) => {
+    const strictlyInside = inDomain(domain, x)
+      && !(domain.from && Q.eq(x, domain.from.x)) && !(domain.to && Q.eq(x, domain.to.x));
+    if (strictlyInside) attained.push(point(x, shape.valueAt(x)));
+  });
+  if (!attained.length) return none();
+  const best = attained.reduce((top, entry) => (sign * Q.cmp(entry.y, top.y) > 0 ? entry : top));
+  const atBest = attained.filter((entry) => Q.eq(entry.y, best.y));
+  if (atBest.some((entry) => !Q.eq(entry.x, best.x))) return ambiguous();
+  if (approached.some((value) => sign * Q.cmp(value, best.y) > 0)) return none();
+  return exists(best);
+};
+
 /* -------------------------------- families -------------------------------- */
 
 const LINEAR_SLOPES = Object.freeze({
@@ -121,46 +289,161 @@ const LINEAR_SLOPES = Object.freeze({
   [CHALLENGE]: [[1], [-1], [2], [-2], [3], [-3], [1, 2], [-1, 2], [3, 2], [-3, 2], [1, 3], [-1, 3], [2, 3], [-2, 3], [1, 4], [-1, 4], [4], [-4]],
 });
 
+const linearShape = ({ m, b }) => ({
+  valueAt: (x) => Q.add(Q.mul(m, x), b),
+  critical: [],
+  tail: (side) => (Q.isZero(m)
+    ? { kind: 'constant' }
+    : { kind: 'infinite', sign: Q.sign(m) * (side === 'right' ? 1 : -1) }),
+});
+
+/*
+ * A line for a domain or range question. Whole-number slopes and ends, so
+ * every end of the answer is a whole number a student can drop a dot on.
+ */
+const linearSetBuild = (rng, { feature, variant: id, tier }) => {
+  const m = Q.rat((rng.chance(0.5) ? 1 : -1) * rng.int(1, tier === EASY ? 2 : 3));
+  const b = Q.rat(rng.int(-4, 4));
+  if (id === 'all') return { m, b };
+  if (id === 'constant') return { m: Q.ZERO, b: Q.rat((rng.chance(0.5) ? 1 : -1) * rng.int(1, 4)) };
+  const start = Q.rat(rng.int(-4, 3));
+  if (id === 'ray') return { m, b, domain: rayDomain(start, true, rng.chance(0.5) ? 1 : -1) };
+  const stop = Q.add(start, Q.rat(rng.int(3, 6)));
+  // A segment with closed ends at Standard; at Challenge, at least one open.
+  const openEnds = id === 'openEnds' || (feature === F.RANGE && id === 'segment');
+  const openLeft = openEnds && rng.chance(0.5);
+  const openRight = openEnds && (!openLeft || rng.chance(0.5));
+  if (id === 'openEnds' && rng.chance(0.4)) return { m, b, domain: rayDomain(start, false, rng.chance(0.5) ? 1 : -1) };
+  return { m, b, domain: { from: domainEnd(start, !openLeft), to: domainEnd(stop, !openRight) } };
+};
+
+// Gentle slopes for a line whose zero is past the edge: it still visibly
+// heads for the axis across a small window.
+const OFF_SCREEN_SLOPES = Object.freeze({ [STANDARD]: [[1, 2], [-1, 2]], [CHALLENGE]: [[1, 2], [-1, 2], [1, 3], [-1, 3], [1, 4], [-1, 4]] });
+const STEEP_SLOPES = Object.freeze({ [STANDARD]: [[2], [-2], [3], [-3]], [CHALLENGE]: [[2], [-2], [3], [-3], [4], [-4]] });
+
 const linear = Object.freeze({
   id: GRAPH_FAMILY.LINEAR,
   label: 'Linear',
   kind: GRAPH_KIND.LINEAR,
   variants: Object.freeze({
-    [F.X_INTERCEPT]: [variant('one'), variant('none', { exists: false, minTier: STANDARD, weight: 0.8 })],
-    [F.Y_INTERCEPT]: [variant('one')],
+    [F.X_INTERCEPT]: [
+      variant('one'),
+      variant('none', { exists: false, minTier: STANDARD, weight: 0.8 }),
+      // A ray whose closed end sits on the x-axis: that end is the zero.
+      variant('rayFromZero', { minTier: STANDARD, weight: 0.5, flags: { restricted: true, endpointZero: true } }),
+      // The same ray with an OPEN end there: the point is not on the graph.
+      variant('rayOpenAtZero', { exists: false, minTier: CHALLENGE, weight: 0.5, flags: { restricted: true, openEndOnAxis: true } }),
+      // A segment that stops before the axis it is heading for.
+      variant('segmentShort', { exists: false, minTier: CHALLENGE, weight: 0.4, flags: { restricted: true } }),
+      // The zero is past the edge; the line visibly heads for it.
+      variant('offScreen', { minTier: STANDARD, weight: 0.7, flags: { offScreen: true } }),
+    ],
+    [F.Y_INTERCEPT]: [
+      variant('one'),
+      variant('rayFromAxis', { minTier: STANDARD, weight: 0.5, flags: { restricted: true } }),
+      variant('rayOpenAtAxis', { exists: false, minTier: CHALLENGE, weight: 0.5, flags: { restricted: true, openEndOnAxis: true } }),
+      variant('offScreen', { minTier: STANDARD, weight: 0.7, flags: { offScreen: true } }),
+    ],
     [F.MAXIMUM]: [variant('none', { exists: false, minTier: STANDARD })],
     [F.MINIMUM]: [variant('none', { exists: false, minTier: STANDARD })],
+    // A slanted line has no asymptote (a horizontal one is never asked).
+    [F.ASYMPTOTE]: [variant('none', { exists: false, minTier: STANDARD })],
+    // Every number, a ray, a segment; open ends at Challenge.
+    [F.DOMAIN]: [
+      variant('all'),
+      variant('ray', { minTier: STANDARD, flags: { restricted: true } }),
+      variant('segment', { minTier: STANDARD, flags: { restricted: true } }),
+      variant('openEnds', { minTier: CHALLENGE, flags: { restricted: true } }),
+    ],
+    // Every number; one number (a level line); the y-values of a ray or segment.
+    [F.RANGE]: [
+      variant('all'),
+      variant('constant', { minTier: STANDARD, weight: 0.6 }),
+      variant('ray', { minTier: STANDARD, flags: { restricted: true } }),
+      variant('segment', { minTier: CHALLENGE, flags: { restricted: true } }),
+    ],
   }),
   build(rng, { feature, variant: id, tier }) {
+    if (feature === F.DOMAIN || feature === F.RANGE) return linearSetBuild(rng, { feature, variant: id, tier });
     if (feature === F.X_INTERCEPT && id === 'none') {
       // A horizontal line clearly away from the x-axis.
       return { m: Q.ZERO, b: signedInt(rng, 2, range(tier) - 1) };
     }
+    if (feature === F.X_INTERCEPT && id === 'offScreen') {
+      const m = Q.toRational(rng.pick(OFF_SCREEN_SLOPES[tier] || OFF_SCREEN_SLOPES[STANDARD]));
+      const x0 = Q.rat((rng.chance(0.5) ? 1 : -1) * rng.int(7, 11));
+      return { m, b: Q.neg(Q.mul(m, x0)) };
+    }
+    if (feature === F.Y_INTERCEPT && id === 'offScreen') {
+      return { m: Q.toRational(rng.pick(STEEP_SLOPES[tier] || STEEP_SLOPES[STANDARD])), b: Q.rat((rng.chance(0.5) ? 1 : -1) * rng.int(7, 11)) };
+    }
     const m = Q.toRational(rng.pick(LINEAR_SLOPES[tier] || LINEAR_SLOPES[STANDARD]));
+    if (feature === F.X_INTERCEPT && (id === 'rayFromZero' || id === 'rayOpenAtZero')) {
+      // The ray starts on the axis and runs away from it either way.
+      const x0 = coordinate(rng, tier, { min: -range(tier) + 2, max: range(tier) - 2, nonZero: true });
+      return { m, b: Q.neg(Q.mul(m, x0)), domain: rayDomain(x0, id === 'rayFromZero', rng.chance(0.5) ? 1 : -1) };
+    }
+    if (feature === F.X_INTERCEPT && id === 'segmentShort') {
+      // The zero, then a segment of the line on one side of it, ending at
+      // least two units short of it.
+      const x0 = coordinate(rng, tier, { min: -3, max: 3 });
+      const side = rng.chance(0.5) ? 1 : -1;
+      const near = Q.add(x0, Q.rat(side * rng.int(2, 3)));
+      // Plainly short of the axis: its nearer end at least 1.5 units off it.
+      if (Math.abs(num(Q.mul(m, Q.sub(near, x0)))) < 1.5) return null;
+      const far = Q.add(near, Q.rat(side * rng.int(3, 6)));
+      const [left, right] = Q.cmp(near, far) < 0 ? [near, far] : [far, near];
+      return { m, b: Q.neg(Q.mul(m, x0)), domain: { from: domainEnd(left, rng.chance(0.5)), to: domainEnd(right, rng.chance(0.5)) } };
+    }
     if (feature === F.X_INTERCEPT) {
       // Start from the answer: the intercept, then the line through it.
       const x0 = coordinate(rng, tier, { nonZero: tier === EASY });
       return { m, b: Q.neg(Q.mul(m, x0)) };
     }
-    return { m, b: coordinate(rng, tier, { min: -range(tier) + 1, max: range(tier) - 1 }) };
+    const b = coordinate(rng, tier, { min: -range(tier) + 1, max: range(tier) - 1 });
+    if (feature === F.Y_INTERCEPT && (id === 'rayFromAxis' || id === 'rayOpenAtAxis')) {
+      return { m, b, domain: rayDomain(Q.ZERO, id === 'rayFromAxis', rng.chance(0.5) ? 1 : -1) };
+    }
+    // A slanted line for "Find all asymptotes": it has none.
+    return { m, b };
   },
-  toGraph: ({ m, b }) => ({ kind: GRAPH_KIND.LINEAR, m: num(m), b: num(b) }),
-  analyze({ m, b }) {
+  toGraph: ({ m, b, domain }) => ({ kind: GRAPH_KIND.LINEAR, m: num(m), b: num(b), ...domainToGraph(domain) }),
+  analyze({ m, b, domain = null }) {
     const constant = Q.isZero(m);
+    const shape = linearShape({ m, b });
     return {
-      [F.X_INTERCEPT]: constant
+      [F.X_INTERCEPT]: keepInDomain(constant
         ? (Q.isZero(b) ? ambiguous() : none())
-        : exists(point(Q.div(Q.neg(b), m), 0)),
-      [F.Y_INTERCEPT]: exists(point(0, b)),
+        : exists(point(Q.div(Q.neg(b), m), 0)), domain),
+      [F.Y_INTERCEPT]: keepInDomain(exists(point(0, b)), domain),
       [F.VERTEX]: notApplicable(),
-      [F.MAXIMUM]: constant ? ambiguous() : none(),
-      [F.MINIMUM]: constant ? ambiguous() : none(),
+      [F.MAXIMUM]: domain ? restrictedExtreme(shape, domain, 1) : (constant ? ambiguous() : none()),
+      [F.MINIMUM]: domain ? restrictedExtreme(shape, domain, -1) : (constant ? ambiguous() : none()),
+      // Whether a horizontal line is its own asymptote is a debate, not a
+      // reading: never asked.
+      [F.ASYMPTOTE]: constant ? ambiguous() : NO_ASYMPTOTES(),
+      [F.DOMAIN]: setFeature('x', domainSet(domain)),
+      [F.RANGE]: setFeature('y', constant ? pointSet(b) : rangeOver(shape, domain || UNBOUNDED)),
     };
   },
-  keyPoints({ m, b }) {
+  keyPoints({ m, b, domain = null }) {
     const points = [point(0, b)];
     if (!Q.isZero(m)) points.push(point(Q.div(Q.neg(b), m), 0));
-    return points;
+    if (!domain) return points;
+    // A restricted line shows its ends; the intercepts frame it only where
+    // they are on it.
+    const shape = linearShape({ m, b });
+    return [
+      ...points.filter((p) => inDomain(domain, p.x)),
+      ...[domain.from, domain.to].filter(Boolean).map((end) => point(end.x, shape.valueAt(end.x))),
+    ];
+  },
+  // What must stay in view while the feature is off the screen: the
+  // y-intercept for a hidden zero, the zero for a hidden y-intercept.
+  offScreenAnchors({ m, b }, feature) {
+    if (feature === F.X_INTERCEPT) return [point(0, b)];
+    return Q.isZero(m) ? [] : [point(Q.div(Q.neg(b), m), 0)];
   },
   asymptotes: () => ({ vertical: [], horizontal: [] }),
   minVisibleFraction: 0.3,
@@ -178,7 +461,7 @@ const VERTEX_DEPTH_LIMIT = Object.freeze({ [EASY]: 6, [STANDARD]: 12, [CHALLENGE
  * (h, k), an opening direction, and zeros at an exact distance from the
  * vertex. Only the distance rule differs (√(−k/a) against −k/a).
  */
-const vertexFamily = ({ id, label, kind, leads, zeroDistance, zeroDepth, noZerosMeansComplexRoots = false }) => Object.freeze({
+const vertexFamily = ({ id, label, kind, leads, zeroDistance, zeroDepth, noZerosMeansComplexRoots = false, offScreenVertexTier = STANDARD, offScreenZeros = false }) => Object.freeze({
   id,
   label,
   kind,
@@ -189,19 +472,55 @@ const vertexFamily = ({ id, label, kind, leads, zeroDistance, zeroDepth, noZeros
       variant('tangent', { minTier: STANDARD, weight: 0.6, flags: { flatZero: true } }),
       // A parabola that never meets the axis still has two (complex) roots.
       variant('none', { exists: false, minTier: STANDARD, flags: noZerosMeansComplexRoots ? { nonRealRoots: true } : {} }),
+      // One arm, ending at a closed dot on one of its zeros: that end counts.
+      variant('rayFromZero', { minTier: STANDARD, weight: 0.5, flags: { restricted: true, endpointZero: true } }),
+      // The same arm ending at an OPEN dot there: no zero on the graph.
+      variant('rayOpenAtZero', { exists: false, minTier: CHALLENGE, weight: 0.5, flags: { restricted: true, openEndOnAxis: true } }),
+      // Cut at the vertex, so only one of its two zeros is on the graph.
+      variant('cutOneZero', { minTier: CHALLENGE, weight: 0.6, flags: { restricted: true } }),
+      // Both zeros past the edges, the vertex on screen below (or above)
+      // the axis with the arms heading for it.
+      ...(offScreenZeros ? [variant('offScreen', { minTier: CHALLENGE, weight: 0.6, flags: { offScreen: true } })] : []),
     ],
-    [F.Y_INTERCEPT]: [variant('one')],
-    [F.VERTEX]: [variant('one')],
+    [F.Y_INTERCEPT]: [
+      variant('one'),
+      variant('rayFromAxis', { minTier: STANDARD, weight: 0.5, flags: { restricted: true } }),
+      variant('rayOpenAtAxis', { exists: false, minTier: CHALLENGE, weight: 0.5, flags: { restricted: true, openEndOnAxis: true } }),
+    ],
+    [F.VERTEX]: [
+      variant('one'),
+      // Every parabola and absolute value graph has one, so a vertex not on
+      // the screen is past the edge.
+      variant('offScreen', { minTier: offScreenVertexTier, weight: 0.7, flags: { offScreen: true } }),
+    ],
     [F.MAXIMUM]: [variant('one'), variant('none', { exists: false, minTier: STANDARD })],
     [F.MINIMUM]: [variant('one'), variant('none', { exists: false, minTier: STANDARD })],
+    [F.ASYMPTOTE]: [variant('none', { exists: false, minTier: STANDARD })],
+    // Every number; at Challenge, a ray of it.
+    [F.DOMAIN]: [variant('all'), variant('ray', { minTier: CHALLENGE, flags: { restricted: true } })],
+    // From the vertex up (or down); at Challenge, an arm cut short of it.
+    [F.RANGE]: [variant('fromVertex'), variant('cut', { minTier: CHALLENGE, flags: { restricted: true } })],
   }),
   build(rng, { feature, variant: chosen, tier }) {
+    if (feature === F.DOMAIN || feature === F.RANGE) {
+      // Whole-number vertex and leads, so the range's end is a whole number.
+      const a = Q.rat((rng.chance(0.5) ? 1 : -1) * rng.int(1, 2));
+      const h = Q.rat(rng.int(-4, 4));
+      const k = Q.rat(rng.int(-4, 4));
+      if (chosen === 'ray') return { a, h, k, domain: rayDomain(Q.rat(rng.int(-4, 4)), rng.chance(0.6), rng.chance(0.5) ? 1 : -1) };
+      if (chosen === 'cut') {
+        // An arm from a point past the vertex, heading away from it.
+        const side = rng.chance(0.5) ? 1 : -1;
+        return { a, h, k, domain: rayDomain(Q.add(h, Q.rat(side * rng.int(1, 2))), rng.chance(0.5), side) };
+      }
+      return { a, h, k };
+    }
     const pickLead = (sign = 0) => {
       const options = (leads[tier] || leads[STANDARD]).map((entry) => Q.toRational(entry))
         .filter((lead) => sign === 0 || Q.sign(lead) === sign);
       return rng.pick(options);
     };
-    if (feature === F.X_INTERCEPT && chosen === 'two') {
+    const twoZeros = () => {
       const a = pickLead();
       const r1 = coordinate(rng, tier, { min: -range(tier), max: range(tier) - 2 });
       const separation = Q.rat(rng.int(2, Math.min(8, range(tier))));
@@ -209,7 +528,34 @@ const vertexFamily = ({ id, label, kind, leads, zeroDistance, zeroDepth, noZeros
       const h = Q.div(Q.add(r1, r2), 2);
       const k = Q.neg(zeroDepth(a, Q.div(separation, 2)));
       if (Math.abs(num(k)) > VERTEX_DEPTH_LIMIT[tier]) return null;
-      return { a, h, k };
+      return { a, h, k, r1, r2 };
+    };
+    if (feature === F.X_INTERCEPT && chosen === 'two') {
+      const shape = twoZeros();
+      return shape && { a: shape.a, h: shape.h, k: shape.k };
+    }
+    if (feature === F.X_INTERCEPT && (chosen === 'rayFromZero' || chosen === 'rayOpenAtZero')) {
+      // One arm: from a zero, away from the other one.
+      const shape = twoZeros();
+      if (!shape) return null;
+      const left = rng.chance(0.5);
+      return {
+        a: shape.a,
+        h: shape.h,
+        k: shape.k,
+        domain: rayDomain(left ? shape.r1 : shape.r2, chosen === 'rayFromZero', left ? -1 : 1),
+      };
+    }
+    if (feature === F.X_INTERCEPT && chosen === 'cutOneZero') {
+      const shape = twoZeros();
+      if (!shape) return null;
+      return { a: shape.a, h: shape.h, k: shape.k, domain: rayDomain(shape.h, rng.chance(0.5), rng.chance(0.5) ? 1 : -1) };
+    }
+    if (feature === F.X_INTERCEPT && chosen === 'offScreen') {
+      // A wide V: the vertex on screen, its zeros 2|k| either side of it.
+      const a = Q.mul(Q.rat(rng.chance(0.5) ? 1 : -1), Q.rat(1, 2));
+      const k = Q.mul(Q.rat(-Q.sign(a)), Q.rat(rng.int(3, 5)));
+      return { a, h: Q.rat(rng.int(-1, 1)), k };
     }
     if (feature === F.X_INTERCEPT && chosen === 'tangent') {
       return { a: pickLead(), h: coordinate(rng, tier, { nonZero: true }), k: Q.ZERO };
@@ -217,6 +563,14 @@ const vertexFamily = ({ id, label, kind, leads, zeroDistance, zeroDepth, noZeros
     if (feature === F.X_INTERCEPT && chosen === 'none') {
       const a = pickLead();
       return { a, h: coordinate(rng, tier), k: Q.mul(Q.rat(Q.sign(a)), Q.rat(rng.int(2, Math.max(3, range(tier) - 1)))) };
+    }
+    if (feature === F.VERTEX && chosen === 'offScreen') {
+      // The vertex well past a side edge, so one arm crosses the screen. A
+      // lead below 1 keeps the arm wide enough to read across a small window.
+      const options = (leads[tier] || leads[STANDARD]).map((entry) => Q.toRational(entry))
+        .filter((lead) => Q.cmp(Q.abs(lead), Q.ONE) < 0);
+      const a = rng.pick(options);
+      return { a, h: Q.rat((rng.chance(0.5) ? 1 : -1) * rng.int(7, 10)), k: Q.mul(Q.rat(-Q.sign(a)), Q.rat(rng.int(0, 4))) };
     }
     // Vertex, maximum, minimum, y-intercept: a vertex on the grid and an
     // opening direction that makes the requested extremum exist or not.
@@ -226,10 +580,15 @@ const vertexFamily = ({ id, label, kind, leads, zeroDistance, zeroDepth, noZeros
     const a = pickLead(direction);
     const h = coordinate(rng, tier, { min: -range(tier) + 1, max: range(tier) - 1 });
     const k = coordinate(rng, tier, { min: -range(tier) + 1, max: range(tier) - 1 });
+    if (feature === F.Y_INTERCEPT && (chosen === 'rayFromAxis' || chosen === 'rayOpenAtAxis')) {
+      return { a, h, k, domain: rayDomain(Q.ZERO, chosen === 'rayFromAxis', rng.chance(0.5) ? 1 : -1) };
+    }
     return { a, h, k };
   },
-  toGraph: ({ a, h, k }) => ({ kind, a: num(a), h: num(h), k: num(k) }),
-  analyze({ a, h, k }) {
+  toGraph: ({ a, h, k, domain }) => ({ kind, a: num(a), h: num(h), k: num(k), ...domainToGraph(domain) }),
+  valueAt: ({ a, h, k }, x) => Q.add(Q.mul(a, kind === GRAPH_KIND.QUADRATIC ? Q.mul(Q.sub(x, h), Q.sub(x, h)) : Q.abs(Q.sub(x, h))), k),
+  analyze(params) {
+    const { a, h, k, domain = null } = params;
     let xIntercept;
     const ratio = Q.div(Q.neg(k), a);
     if (Q.isZero(k)) xIntercept = exists(point(h, 0));
@@ -241,26 +600,44 @@ const vertexFamily = ({ id, label, kind, leads, zeroDistance, zeroDepth, noZeros
         : inexact();
     }
     const vertex = point(h, k);
-    const yValue = Q.add(Q.mul(a, kind === GRAPH_KIND.QUADRATIC ? Q.mul(h, h) : Q.abs(h)), k);
+    const yValue = this.valueAt(params, Q.ZERO);
+    const shape = {
+      valueAt: (x) => this.valueAt(params, x),
+      critical: [h],
+      tail: () => ({ kind: 'infinite', sign: Q.sign(a) }),
+    };
     return {
-      [F.X_INTERCEPT]: xIntercept,
-      [F.Y_INTERCEPT]: exists(point(0, yValue)),
-      [F.VERTEX]: exists(vertex),
-      [F.MAXIMUM]: Q.sign(a) < 0 ? exists(vertex) : none(),
-      [F.MINIMUM]: Q.sign(a) > 0 ? exists(vertex) : none(),
+      [F.X_INTERCEPT]: keepInDomain(xIntercept, domain),
+      [F.Y_INTERCEPT]: keepInDomain(exists(point(0, yValue)), domain),
+      [F.VERTEX]: keepInDomain(exists(vertex), domain),
+      [F.MAXIMUM]: domain ? restrictedExtreme(shape, domain, 1) : (Q.sign(a) < 0 ? exists(vertex) : none()),
+      [F.MINIMUM]: domain ? restrictedExtreme(shape, domain, -1) : (Q.sign(a) > 0 ? exists(vertex) : none()),
+      [F.ASYMPTOTE]: NO_ASYMPTOTES(),
+      [F.DOMAIN]: setFeature('x', domainSet(domain)),
+      [F.RANGE]: setFeature('y', rangeOver(shape, domain || UNBOUNDED)),
     };
   },
   keyPoints(params) {
     const analysis = this.analyze(params);
+    const { domain = null } = params;
+    if (!domain) return [point(params.h, params.k), ...analysis[F.X_INTERCEPT].points];
+    // A cut graph shows its end and what of it is on the graph.
     return [
-      point(params.h, params.k),
+      ...(inDomain(domain, params.h) ? [point(params.h, params.k)] : []),
       ...analysis[F.X_INTERCEPT].points,
+      ...[domain.from, domain.to].filter(Boolean).map((end) => point(end.x, this.valueAt(params, end.x))),
     ];
   },
   // The y-intercept frames the view only when it is close enough to matter;
   // a far one would shrink the parabola to a sliver.
   optionalKeyPoints(params) {
     return this.analyze(params)[F.Y_INTERCEPT].points;
+  },
+  // A hidden vertex keeps nothing in particular on screen (the arm crossing
+  // it is checked by how much of the curve shows); hidden zeros keep the
+  // vertex, so the turn below the axis is in view.
+  offScreenAnchors(params, feature) {
+    return feature === F.X_INTERCEPT ? [point(params.h, params.k)] : [];
   },
   asymptotes: () => ({ vertical: [], horizontal: [] }),
   minVisibleFraction: 0.15,
@@ -289,6 +666,11 @@ const absolute = vertexFamily({
   leads: ABSOLUTE_LEADS,
   zeroDistance: (ratio) => Q.toRational(ratio),
   zeroDepth: (a, halfSeparation) => Q.mul(a, halfSeparation),
+  // One straight arm on screen reads like a line: only the prompt says a
+  // vertex is out there, so a hidden one waits for Challenge.
+  offScreenVertexTier: CHALLENGE,
+  // A V crossing the screen with its vertex below the axis must meet it twice.
+  offScreenZeros: true,
 });
 
 /* Cubic: a · Π(x − rᵢ) · ((x − p)² + q)?, integer roots. */
@@ -352,10 +734,13 @@ const cubic = Object.freeze({
       variant('single', { minTier: CHALLENGE, weight: 0.6, flags: { nonRealRoots: true } }),
     ],
     [F.Y_INTERCEPT]: [variant('one')],
+    [F.ASYMPTOTE]: [variant('none', { exists: false, minTier: STANDARD })],
+    [F.DOMAIN]: [variant('all', { minTier: STANDARD })],
+    [F.RANGE]: [variant('all', { minTier: STANDARD })],
   }),
   build(rng, { feature, variant: chosen, tier }) {
     const lead = () => Q.toRational(rng.pick(CUBIC_LEADS));
-    const shape = feature === F.Y_INTERCEPT
+    const shape = feature === F.Y_INTERCEPT || feature === F.ASYMPTOTE || feature === F.DOMAIN || feature === F.RANGE
       ? rng.pick(tier === EASY ? ['triple'] : ['three', 'triple', 'tangent'])
       : chosen;
     if (shape === 'three') {
@@ -391,6 +776,9 @@ const cubic = Object.freeze({
       [F.VERTEX]: notApplicable(),
       [F.MAXIMUM]: notApplicable(),
       [F.MINIMUM]: notApplicable(),
+      [F.ASYMPTOTE]: NO_ASYMPTOTES(),
+      [F.DOMAIN]: setFeature('x', ALL_REALS),
+      [F.RANGE]: setFeature('y', ALL_REALS),
     };
   },
   keyPoints(params) {
@@ -426,6 +814,12 @@ const exactLogarithm = (base, value) => {
   return null;
 };
 
+// The exact value a · base^(x − h) + k, where the exponent is a whole number.
+const exponentialValueAt = ({ a, base, h, k }, x) => {
+  const exponent = Q.sub(x, h);
+  return Q.isInteger(exponent) ? Q.add(Q.mul(a, Q.pow(base, exponent.n)), k) : null;
+};
+
 const exponential = Object.freeze({
   id: GRAPH_FAMILY.EXPONENTIAL,
   label: 'Exponential',
@@ -437,16 +831,32 @@ const exponential = Object.freeze({
       // The asymptote IS the x-axis: the curve approaches it and never
       // arrives. Correct and worth teaching, but visually subtle.
       variant('noneOnAxis', { exists: false, minTier: CHALLENGE, weight: 0.6, flags: { asymptoteOnAxis: true } }),
+      // A ray from its zero (a closed dot on the axis), or from an open dot there.
+      variant('rayFromZero', { minTier: STANDARD, weight: 0.5, flags: { restricted: true, endpointZero: true } }),
+      variant('rayOpenAtZero', { exists: false, minTier: CHALLENGE, weight: 0.5, flags: { restricted: true, openEndOnAxis: true } }),
     ],
-    [F.Y_INTERCEPT]: [variant('one')],
+    [F.Y_INTERCEPT]: [
+      variant('one'),
+      variant('rayFromAxis', { minTier: STANDARD, weight: 0.5, flags: { restricted: true } }),
+      variant('rayOpenAtAxis', { exists: false, minTier: CHALLENGE, weight: 0.5, flags: { restricted: true, openEndOnAxis: true } }),
+    ],
     [F.MAXIMUM]: [variant('none', { exists: false, minTier: CHALLENGE })],
     [F.MINIMUM]: [variant('none', { exists: false, minTier: CHALLENGE })],
+    [F.ASYMPTOTE]: [
+      // One horizontal asymptote, y = k, off the axis.
+      variant('one', { weight: 1.2 }),
+      // y = 0: the asymptote is the x-axis itself.
+      variant('oneOnAxis', { minTier: CHALLENGE, weight: 0.6, flags: { asymptoteOnAxis: true } }),
+    ],
+    [F.DOMAIN]: [variant('all', { minTier: STANDARD })],
+    // Up to its asymptote, never reaching it: an open end.
+    [F.RANGE]: [variant('asymptote', { minTier: STANDARD })],
   }),
   build(rng, { feature, variant: chosen, tier }) {
     const base = Q.toRational(rng.pick(EXPONENTIAL_BASES[tier] || EXPONENTIAL_BASES[STANDARD]));
     const a = Q.toRational(rng.pick(EXPONENTIAL_LEADS[tier] || EXPONENTIAL_LEADS[STANDARD]));
     const h = tier === CHALLENGE && rng.chance(0.35) ? Q.rat(rng.pick([-1, 1])) : Q.ZERO;
-    if (feature === F.X_INTERCEPT && chosen === 'one') {
+    if (feature === F.X_INTERCEPT && ['one', 'rayFromZero', 'rayOpenAtZero'].includes(chosen)) {
       // Start from the intercept x = h + e, then the shift that puts it there.
       // base^e between 2 and 9 keeps the asymptote y = k clear of the axis,
       // so the crossing reads as a crossing and not as the curve flattening.
@@ -456,23 +866,31 @@ const exponential = Object.freeze({
       });
       const e = rng.pick(exponents);
       const k = Q.neg(Q.mul(a, Q.pow(base, e)));
-      return { a, base, h, k };
+      if (chosen === 'one') return { a, base, h, k };
+      return { a, base, h, k, domain: rayDomain(Q.add(h, Q.rat(e)), chosen === 'rayFromZero', rng.chance(0.5) ? 1 : -1) };
     }
     if (feature === F.X_INTERCEPT && chosen === 'noneOnAxis') return { a, base, h, k: Q.ZERO };
     if (feature === F.X_INTERCEPT && chosen === 'none') {
       return { a, base, h, k: Q.mul(Q.rat(Q.sign(a)), Q.rat(rng.int(2, 4))) };
     }
+    if (feature === F.ASYMPTOTE && chosen === 'oneOnAxis') return { a, base, h, k: Q.ZERO };
+    if (feature === F.ASYMPTOTE || feature === F.DOMAIN || feature === F.RANGE) return { a, base, h, k: Q.rat((rng.chance(0.5) ? 1 : -1) * rng.int(1, 4)) };
     const k = Q.rat(rng.int(-4, 4));
+    if (feature === F.Y_INTERCEPT && (chosen === 'rayFromAxis' || chosen === 'rayOpenAtAxis')) {
+      return { a, base, h, k, domain: rayDomain(Q.ZERO, chosen === 'rayFromAxis', rng.chance(0.5) ? 1 : -1) };
+    }
     return { a, base, h, k };
   },
-  toGraph: ({ a, base, h, k }) => ({
+  toGraph: ({ a, base, h, k, domain }) => ({
     kind: GRAPH_KIND.EXPONENTIAL,
     a: num(a),
     base: [base.n, base.d],
     h: num(h),
     k: num(k),
+    ...domainToGraph(domain),
   }),
-  analyze({ a, base, h, k }) {
+  analyze(params) {
+    const { a, base, h, k, domain = null } = params;
     let xIntercept;
     const ratio = Q.div(Q.neg(k), a);
     if (Q.sign(ratio) <= 0) xIntercept = none();
@@ -480,24 +898,42 @@ const exponential = Object.freeze({
       const exponent = exactLogarithm(base, ratio);
       xIntercept = exponent === null ? inexact() : exists(point(Q.add(h, Q.rat(exponent)), 0));
     }
-    const shift = Q.neg(h);
-    const yIntercept = Q.isInteger(shift)
-      ? exists(point(0, Q.add(Q.mul(a, Q.pow(base, shift.n)), k)))
-      : inexact();
+    const atZero = exponentialValueAt(params, Q.ZERO);
+    const yIntercept = atZero === null ? inexact() : exists(point(0, atZero));
+    // It approaches y = k as x heads left for a base above 1, right below 1.
+    const growsRight = Q.cmp(base, Q.ONE) > 0;
+    const approachSide = growsRight ? 'left' : 'right';
+    const shape = {
+      valueAt: (x) => exponentialValueAt(params, x),
+      critical: [],
+      tail: (side) => (side === approachSide ? { kind: 'approach', value: k } : { kind: 'infinite', sign: Q.sign(a) }),
+    };
+    const keepsApproach = !domain || (approachSide === 'left' ? !domain.from : !domain.to);
     return {
-      [F.X_INTERCEPT]: xIntercept,
-      [F.Y_INTERCEPT]: yIntercept,
+      [F.X_INTERCEPT]: keepInDomain(xIntercept, domain),
+      [F.Y_INTERCEPT]: keepInDomain(yIntercept, domain),
       [F.VERTEX]: notApplicable(),
       // Unbounded one way, approaching (never reaching) the asymptote the other.
-      [F.MAXIMUM]: none(),
-      [F.MINIMUM]: none(),
+      [F.MAXIMUM]: domain ? restrictedExtreme(shape, domain, 1) : none(),
+      [F.MINIMUM]: domain ? restrictedExtreme(shape, domain, -1) : none(),
+      [F.ASYMPTOTE]: keepsApproach ? exists(asymptoteLine(LINE_ORIENTATION.HORIZONTAL, k)) : none(),
+      [F.DOMAIN]: setFeature('x', domainSet(domain)),
+      [F.RANGE]: setFeature('y', rangeOver(shape, domain || UNBOUNDED)),
     };
   },
   keyPoints(params) {
     const analysis = this.analyze(params);
-    return [...analysis[F.Y_INTERCEPT].points, ...analysis[F.X_INTERCEPT].points];
+    const ends = params.domain
+      ? [params.domain.from, params.domain.to].filter(Boolean)
+        .map((end) => exponentialValueAt(params, end.x) === null ? null : point(end.x, exponentialValueAt(params, end.x)))
+        .filter(Boolean)
+      : [];
+    return [...analysis[F.Y_INTERCEPT].points, ...analysis[F.X_INTERCEPT].points, ...ends];
   },
-  asymptotes: ({ k }) => ({ vertical: [], horizontal: [num(k)] }),
+  // y = k frames the view only while the graph still approaches it.
+  asymptotes(params) {
+    return { vertical: [], horizontal: this.analyze(params)[F.ASYMPTOTE].points.map((line) => num(line.y)) };
+  },
   minVisibleFraction: 0.2,
 });
 
@@ -522,6 +958,10 @@ const squareRoot = Object.freeze({
     // The closed endpoint is the extreme value; the other way is unbounded.
     [F.MAXIMUM]: [variant('one', { minTier: STANDARD }), variant('none', { exists: false, minTier: STANDARD })],
     [F.MINIMUM]: [variant('one'), variant('none', { exists: false, minTier: STANDARD })],
+    [F.ASYMPTOTE]: [variant('none', { exists: false, minTier: STANDARD })],
+    // From its endpoint on: a closed end, either way.
+    [F.DOMAIN]: [variant('endpoint')],
+    [F.RANGE]: [variant('endpoint')],
   }),
   build(rng, { feature, variant: chosen, tier }) {
     const s = tier === CHALLENGE && rng.chance(0.4) ? -1 : 1;
@@ -569,6 +1009,10 @@ const squareRoot = Object.freeze({
       [F.VERTEX]: notApplicable(),
       [F.MAXIMUM]: Q.sign(a) < 0 ? exists(endpoint) : none(),
       [F.MINIMUM]: Q.sign(a) > 0 ? exists(endpoint) : none(),
+      // It grows without bound, ever more slowly: no asymptote.
+      [F.ASYMPTOTE]: NO_ASYMPTOTES(),
+      [F.DOMAIN]: setFeature('x', s === -1 ? intervalSet(null, false, h, true) : intervalSet(h, true, null, false)),
+      [F.RANGE]: setFeature('y', Q.sign(a) < 0 ? intervalSet(null, false, k, true) : intervalSet(k, true, null, false)),
     };
   },
   keyPoints(params) {
@@ -591,6 +1035,9 @@ const cubeRoot = Object.freeze({
     [F.Y_INTERCEPT]: [variant('one', { minTier: STANDARD })],
     [F.MAXIMUM]: [variant('none', { exists: false, minTier: CHALLENGE })],
     [F.MINIMUM]: [variant('none', { exists: false, minTier: CHALLENGE })],
+    [F.ASYMPTOTE]: [variant('none', { exists: false, minTier: STANDARD })],
+    [F.DOMAIN]: [variant('all', { minTier: STANDARD })],
+    [F.RANGE]: [variant('all', { minTier: STANDARD })],
   }),
   build(rng, { feature, tier }) {
     const a = Q.toRational(rng.pick((ROOT_LEADS[tier] || ROOT_LEADS[STANDARD]).filter((lead) => lead.length === 1)));
@@ -614,6 +1061,9 @@ const cubeRoot = Object.freeze({
       [F.VERTEX]: notApplicable(),
       [F.MAXIMUM]: none(),
       [F.MINIMUM]: none(),
+      [F.ASYMPTOTE]: NO_ASYMPTOTES(),
+      [F.DOMAIN]: setFeature('x', ALL_REALS),
+      [F.RANGE]: setFeature('y', ALL_REALS),
     };
   },
   keyPoints(params) {
@@ -647,9 +1097,23 @@ const rational = Object.freeze({
     ],
     [F.MAXIMUM]: [variant('none', { exists: false, minTier: CHALLENGE })],
     [F.MINIMUM]: [variant('none', { exists: false, minTier: CHALLENGE })],
+    [F.ASYMPTOTE]: [
+      // A vertical asymptote x = h and a horizontal one y = k.
+      variant('two', { minTier: STANDARD, weight: 1.4 }),
+      // One of the two is an axis: x = 0 or y = 0.
+      variant('twoOnAxis', { minTier: CHALLENGE, weight: 0.6, flags: { asymptoteOnAxis: true } }),
+    ],
+    // Every number but the one the graph cannot take: an open dot with both arrows.
+    [F.DOMAIN]: [variant('allButOne', { minTier: STANDARD })],
+    [F.RANGE]: [variant('allButOne', { minTier: STANDARD })],
   }),
   build(rng, { feature, variant: chosen }) {
     const a = Q.rat(rng.pick(RATIONAL_LEADS));
+    if (feature === F.ASYMPTOTE && chosen === 'twoOnAxis') {
+      return rng.chance(0.5)
+        ? { a, h: Q.ZERO, k: Q.rat(rng.pick([-3, -2, 2, 3])) }
+        : { a, h: Q.rat(rng.pick([-3, -2, 2, 3])), k: Q.ZERO };
+    }
     if (feature === F.X_INTERCEPT && chosen === 'noneOnAxis') {
       return { a, h: Q.rat(rng.pick([-3, -2, 2, 3])), k: Q.ZERO };
     }
@@ -680,6 +1144,9 @@ const rational = Object.freeze({
       [F.VERTEX]: notApplicable(),
       [F.MAXIMUM]: none(),
       [F.MINIMUM]: none(),
+      [F.ASYMPTOTE]: exists(asymptoteLine(LINE_ORIENTATION.VERTICAL, h), asymptoteLine(LINE_ORIENTATION.HORIZONTAL, k)),
+      [F.DOMAIN]: setFeature('x', allExcept(h)),
+      [F.RANGE]: setFeature('y', allExcept(k)),
     };
   },
   keyPoints(params) {
@@ -731,6 +1198,12 @@ const piecewise = Object.freeze({
     [F.Y_INTERCEPT]: [variant('one', { minTier: STANDARD })],
     [F.MAXIMUM]: [variant('one', { minTier: CHALLENGE }), variant('none', { exists: false, minTier: CHALLENGE })],
     [F.MINIMUM]: [variant('one', { minTier: CHALLENGE }), variant('none', { exists: false, minTier: CHALLENGE })],
+    // Two slanted pieces (no slope is ever 0): no asymptote.
+    [F.ASYMPTOTE]: [variant('none', { exists: false, minTier: STANDARD })],
+    [F.DOMAIN]: [variant('all', { minTier: STANDARD })],
+    // The two pieces' y-values together: a ray, everything, or two rays with
+    // a gap — the dots at the split decide.
+    [F.RANGE]: [variant('pieces', { minTier: CHALLENGE })],
   }),
   build(rng, { feature, variant: chosen, tier }) {
     const s = Q.rat(rng.int(-3, 3));
@@ -843,6 +1316,18 @@ const piecewise = Object.freeze({
       [F.VERTEX]: notApplicable(),
       [F.MAXIMUM]: extreme(1),
       [F.MINIMUM]: extreme(-1),
+      // A level piece would be its own asymptote to some readers: never asked.
+      [F.ASYMPTOTE]: pieces.some((piece) => Q.isZero(piece.m)) ? ambiguous() : NO_ASYMPTOTES(),
+      [F.DOMAIN]: setFeature('x', canonicalSet(pieces.map((piece) => ({
+        lo: piece.from ? piece.from.x : null,
+        loClosed: piece.from?.closed === true,
+        hi: piece.to ? piece.to.x : null,
+        hiClosed: piece.to?.closed === true,
+      })))),
+      [F.RANGE]: setFeature('y', (() => {
+        const images = pieces.map((piece) => rangeOver(linearShape(piece), { from: piece.from, to: piece.to }));
+        return images.every(Boolean) ? unionSets(...images) : null;
+      })()),
     };
   },
   keyPoints({ s, pieces }) {
@@ -877,6 +1362,10 @@ export const familyVariants = (familyId, featureId, tier = STANDARD) => {
   return variants.filter((entry) => tierRank(entry.minTier) <= tierRank(tier));
 };
 
-/** Whether a family can ever ask a feature with a real (existing) answer. */
+/**
+ * Whether a family can ever ask a feature with a real (existing) answer. An
+ * off-screen variant does not count: it plays only in a game that turns
+ * off-screen features on, and always beside the on-screen ones.
+ */
 export const familySupportsFeature = (familyId, featureId, tier = CHALLENGE) => familyVariants(familyId, featureId, tier)
-  .some((entry) => entry.exists);
+  .some((entry) => entry.exists && entry.flags?.offScreen !== true);

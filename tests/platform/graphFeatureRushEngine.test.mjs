@@ -112,7 +112,9 @@ test('the rush is a declared mode of the engine, not a branch in it', () => {
 
 test('the rush config is validated with sentences a teacher can act on', () => {
   const config = normalizeModeConfig(MODE, { graphFeatureRush: { presetId: 'algebra1Quick' } }).graphFeatureRush;
-  assert.deepEqual(config, { presetId: 'algebra1Quick', families: ['linear', 'quadratic'], features: ['xIntercept', 'yIntercept', 'vertex'], difficulty: 'standard' });
+  // offScreen: off-screen features are a layer a teacher turns on; a preset
+  // (and every room from before the setting) plays without them.
+  assert.deepEqual(config, { presetId: 'algebra1Quick', families: ['linear', 'quadratic'], features: ['xIntercept', 'yIntercept', 'vertex'], difficulty: 'standard', offScreen: false });
   const edited = normalizeGraphFeatureRushConfig({ presetId: 'algebra1Quick', families: ['linear', 'quadratic', 'absolute'] });
   assert.equal(edited.presetId, 'custom', 'an edited preset is a custom game');
   const refusal = (raw) => assert.throws(() => normalizeGraphFeatureRushConfig(raw), GraphFeatureRushConfigError);
@@ -125,6 +127,15 @@ test('the rush config is validated with sentences a teacher can act on', () => {
   assert.doesNotThrow(() => normalizeGraphFeatureRushConfig({ families: ['quadratic'], features: ['xIntercept'], difficulty: 'mixed' }));
   // Unknown entries are dropped, order is canonical.
   assert.deepEqual(normalizeGraphFeatureRushConfig({ families: ['quadratic', 'nope', 'linear'], features: ['vertex'] }).families, ['linear', 'quadratic']);
+  // OFF-SCREEN FEATURES: from Standard, and only for graphs that can hide a
+  // feature; turned on, a preset's game is a custom one.
+  assert.equal(normalizeGraphFeatureRushConfig({ presetId: 'algebra1Quick', offScreen: true }).offScreen, true);
+  assert.equal(normalizeGraphFeatureRushConfig({ presetId: 'algebra1Quick', offScreen: true }).presetId, 'custom');
+  assert.equal(normalizeGraphFeatureRushConfig({ presetId: 'algebra1Quick', offScreen: 'yes' }).offScreen, false, 'only true turns it on');
+  assert.throws(() => normalizeGraphFeatureRushConfig({ families: ['linear'], features: ['xIntercept'], difficulty: 'easy', offScreen: true }), /start at Standard/);
+  assert.throws(() => normalizeGraphFeatureRushConfig({ families: ['exponential', 'rational'], features: ['xIntercept', 'asymptote'], difficulty: 'challenge', offScreen: true }), /Off-screen features come from lines/);
+  assert.throws(() => normalizeGraphFeatureRushConfig({ families: ['absolute'], features: ['vertex'], difficulty: 'standard', offScreen: true }), /Off-screen features come from/, 'a hidden absolute value vertex waits for Challenge');
+  assert.doesNotThrow(() => normalizeGraphFeatureRushConfig({ families: ['absolute'], features: ['vertex'], difficulty: 'mixed', offScreen: true }));
 });
 
 test('a rush round reads each player\'s own question specs from their receipts', () => {
@@ -441,26 +452,36 @@ test('reading the graph beats a sweep spaced to the tap tolerance, even on inter
   // Intercepts lie on an axis, so a sweep can find them without reading. The
   // cooldown after repeated misses is what keeps that slower than looking: at
   // 600 ms steps a tolerance-spaced sweep matched careful readers here.
+  //
+  // Measured over eight rooms, never one. How one room goes is luck: a room
+  // whose first blocks hold no "Does Not Exist" graph (the answers a sweep
+  // loses the most time on), or whose targets sit where a sweep starts, lets
+  // a lucky sweep pass an unlucky reader there. A quarter of rooms did, under
+  // generator 2 and 3 alike; this test pinned to one room went red when
+  // generator 3 reshuffled which rooms those are. Over 100 rooms a sweep
+  // completes about 62% of what reading does (2: 0.632, 3: 0.618); any eight
+  // rooms here, 57–66%.
   const interceptsOnly = normalizeGraphFeatureRushConfig({ families: [...GRAPH_FAMILY_IDS], features: ['xIntercept', 'yIntercept'], difficulty: 'standard' });
   // On a phone, where a fingertip's tolerance is widest and a sweep needs the fewest taps.
   const ids = ['a', 'b', 'c', 'd', 'e', 'f'];
-  const players = [
-    ...ids.map((id) => simulateRound({ studentKey: `reader-${id}`, decide: accurate, config: interceptsOnly, reach: 0.07 })),
-    ...ids.map((id) => simulateRound({ studentKey: `sweeper-${id}`, decide: toleranceSweeper(), config: interceptsOnly, reach: 0.07 })),
-  ];
-  const round = closeRound(players, 0);
-  const row = (id) => round.standings.find((entry) => entry.studentId === id);
-  const graphs = (prefix) => round.standings.filter((entry) => entry.studentId.startsWith(prefix)).map((entry) => entry.metrics.questionsCorrect);
-  const worstReader = Math.min(...graphs('reader-'));
-  const bestSweeper = Math.max(...graphs('sweeper-'));
-  for (const reader of ids.map((id) => `reader-${id}`)) {
-    for (const sweeper of ids.map((id) => `sweeper-${id}`)) {
-      assert.ok(row(reader).rank < row(sweeper).rank, `${reader} (${row(reader).metrics.questionsCorrect} graphs) outranks ${sweeper} (${row(sweeper).metrics.questionsCorrect} graphs)`);
-    }
+  const totals = { readerGraphs: 0, sweeperGraphs: 0, readerPlaces: 0, sweeperPlaces: 0 };
+  for (let room = 1; room <= 8; room += 1) {
+    const seed = `sweep-room-${room}`;
+    const players = [
+      ...ids.map((id) => simulateRound({ studentKey: `reader-${id}`, decide: accurate, config: interceptsOnly, reach: 0.07, seed })),
+      ...ids.map((id) => simulateRound({ studentKey: `sweeper-${id}`, decide: toleranceSweeper(), config: interceptsOnly, reach: 0.07, seed })),
+    ];
+    const round = closeRound(players, 0);
+    const of = (prefix) => round.standings.filter((entry) => entry.studentId.startsWith(prefix));
+    totals.readerGraphs += of('reader-').reduce((sum, entry) => sum + entry.metrics.questionsCorrect, 0);
+    totals.sweeperGraphs += of('sweeper-').reduce((sum, entry) => sum + entry.metrics.questionsCorrect, 0);
+    totals.readerPlaces += of('reader-').reduce((sum, entry) => sum + entry.rank, 0);
+    totals.sweeperPlaces += of('sweeper-').reduce((sum, entry) => sum + entry.rank, 0);
+    // And the class can see it: in every room, a sweep is mostly misses.
+    of('sweeper-').forEach((entry) => assert.ok(entry.metrics.accuracy < 0.5, `${seed}: sweep accuracy ${entry.metrics.accuracy}`));
   }
-  assert.ok(bestSweeper <= 0.85 * worstReader, `the best sweep (${bestSweeper} graphs) stays well behind the slowest careful reader (${worstReader})`);
-  // And the class can see it: a sweep is mostly misses.
-  round.standings.filter((entry) => entry.studentId.startsWith('sweeper-')).forEach((entry) => assert.ok(entry.metrics.accuracy < 0.5, `sweep accuracy ${entry.metrics.accuracy}`));
+  assert.ok(totals.sweeperGraphs <= 0.8 * totals.readerGraphs, `over eight rooms a sweep completes ${totals.sweeperGraphs} graphs to reading's ${totals.readerGraphs}: it must stay well behind`);
+  assert.ok(totals.readerPlaces < totals.sweeperPlaces, `careful readers place ahead of sweeps (places summed: ${totals.readerPlaces} against ${totals.sweeperPlaces})`);
 });
 
 test('every class size plays a full simulated round without a broken question', () => {

@@ -1,5 +1,5 @@
 import { LINE_GRAPH_FORMAT, lineGraphFormatOfMode } from '../../../functions/shared/lineGraphRules.mjs';
-import { QUESTION_SET_GAME, questionSetGameOf } from '../../platform/liveChallenge/challengeShellModel.js';
+import { QUESTION_SET_GAME, isRushGame, questionSetGameOf, rushGameWords } from '../../platform/liveChallenge/challengeShellModel.js';
 import { amountText, ordinal, rewardSummaryLines, roundPlacementSentence } from '../../platform/liveChallenge/challengeStandingsModel.js';
 import { finalPlaceIsPrivate, gameGradeSentence, recapHasContent, RESULT_TONE } from '../../platform/liveChallenge/challengeRecapModel.js';
 import { publicStandingsRows } from '../../platform/liveChallenge/liveChallengeProjectorModel.js';
@@ -64,7 +64,7 @@ const LINE_LOBBY_WORDS = Object.freeze({
 /** What the game is, in one line, for the lobby. */
 export const lobbyGameWords = (room = {}) => {
   const game = questionSetGameOf(room);
-  if (game === QUESTION_SET_GAME.GRAPH_FEATURE_RUSH) return 'Graph Feature Rush — tap the features on your own graphs';
+  if (isRushGame(game)) return rushGameWords(room).lobby;
   if (game === QUESTION_SET_GAME.LINE_GRAPH) return LINE_LOBBY_WORDS[lineGraphFormatOfMode(room?.challengeMode)] || 'Graph the Line';
   return room?.challengeMode === 'solverRace' ? 'Solver Race' : 'Live Challenge';
 };
@@ -123,10 +123,11 @@ export function StudentRoundResultsCard({ view, presentation, guidance, rushRoun
   // items: one who never completed one is told so in graphs or lines, not
   // "no answer".
   const ownItems = rushRound || lineRound;
-  const unit = lineRound ? 'line' : 'graph';
+  // What the game's items are called: lines, graphs, or inequalities.
+  const units = lineRound ? { one: 'line', many: 'lines' } : rushGameWords(room);
   const completed = self ? (self.completed ?? 0) : null;
   const headline = ownItems && self && !participated
-    ? `No ${unit}s completed this round.`
+    ? `No ${units.many} completed this round.`
     : roundPlacementSentence(self, view.fieldSize);
   return (
     <div style={{ display: 'grid', gap: 16 }}>
@@ -136,7 +137,7 @@ export function StudentRoundResultsCard({ view, presentation, guidance, rushRoun
         {self && (participated || ownItems) && (
           <div style={{ marginTop: 16, display: 'flex', justifyContent: 'center', gap: 26, flexWrap: 'wrap' }}>
             {ownItems || self.completed !== null
-              ? <Stat value={completed} label={completed === 1 ? `${unit} completed` : `${unit}s completed`} />
+              ? <Stat value={completed} label={`${completed === 1 ? units.one : units.many} completed`} />
               : <Stat value={presentation.strategyId === 'correctCount' ? (self.roundPoints > 0 ? '✓' : '✗') : `+${self.roundPoints.toLocaleString()}`} label={presentation.strategyId === 'correctCount' ? (self.roundPoints > 0 ? 'correct' : 'not correct') : 'points this round'} />}
             {participated && self.accuracyPercent !== null && <Stat value={`${self.accuracyPercent}%`} label="accuracy" />}
             {participated && <Stat value={self.place.short === '—' ? '—' : self.place.ordinal} label={`of ${view.fieldSize} this round`} />}
@@ -163,7 +164,7 @@ export function StudentRoundResultsCard({ view, presentation, guidance, rushRoun
             )}
           </div>
         )}
-        {self && !participated && rushRound && <p style={{ margin: '12px 0 0', color: '#c3d2ea' }}>Tap the features on your graphs to earn points.</p>}
+        {self && !participated && rushRound && <p style={{ margin: '12px 0 0', color: '#c3d2ea' }}>{rushGameWords(room).earn}</p>}
         {self && !participated && lineRound && <p style={{ margin: '12px 0 0', color: '#c3d2ea' }}>Graph the lines on your grid to earn points.</p>}
         {guidance?.detail && <p style={{ margin: '14px 0 0', color: '#c3d2ea' }}>{guidance.detail}</p>}
       </section>
@@ -211,12 +212,13 @@ export function StudentFinalCard({ selfRow, presentation, totalPlayers = 0, rows
   const placeWords = selfRow && selfRow.rank !== null
     ? `${selfRow.tied ? `tied for ${ordinal(selfRow.rank)}` : ordinal(selfRow.rank)} of ${totalPlayers}`
     : null;
-  let unit = null;
-  if (rush) unit = 'graph';
-  else if (lines) unit = 'line';
+  // What the game's items are called: graphs or inequalities (a rush), lines.
+  let units = null;
+  if (rush) units = rushGameWords(room);
+  else if (lines) units = { one: 'line', many: 'lines' };
   const didLine = selfRow
     ? `${amountText(selfRow.score, presentation.total)}${presentation.placementPoints || presentation.strategyId !== 'correctCount'
-      ? ` · ${selfRow.correctCount} ${unit ? (selfRow.correctCount === 1 ? unit : `${unit}s`) : 'correct'}`
+      ? ` · ${selfRow.correctCount} ${units ? (selfRow.correctCount === 1 ? units.one : units.many) : 'correct'}`
       : ''}`
     : '';
   return (

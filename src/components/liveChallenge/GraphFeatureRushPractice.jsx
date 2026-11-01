@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import GraphFeatureRushRound from './GraphFeatureRushRound.jsx';
 import { applyRushAttempts, rushRoundState } from '../../../functions/shared/graphFeatureRush.mjs';
+import { INEQUALITY_RUSH_MODE_ID, RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { correctCountStrategy } from '../../../functions/shared/liveChallengeScoring.mjs';
-import { previewGraphFeatureRush } from '../../platform/liveChallenge/liveChallengeService.js';
+import { previewGraphFeatureRush, previewInequalityRush } from '../../platform/liveChallenge/liveChallengeService.js';
 import { studentErrorSentence } from '../../platform/student/studentErrorWords.js';
 
 /*
@@ -12,7 +13,16 @@ import { studentErrorSentence } from '../../platform/student/studentErrorWords.j
  * each time, nothing stored); the teacher plays them on the student's own
  * screen. Taps are graded on this device by the server's grading function —
  * the same verdicts a class gets — and nothing is sent or recorded.
+ *
+ * Inequality Graphing Rush practises the same way (`game`): sample
+ * inequalities from its own preview, on the same screen.
  */
+
+// Each game's preview call, and where its room carries its settings.
+const PRACTICE_GAMES = Object.freeze({
+  [RUSH_MODE_ID]: Object.freeze({ key: 'graphFeatureRush', preview: (config, count) => previewGraphFeatureRush({ graphFeatureRush: config, count }), noun: 'graphs' }),
+  [INEQUALITY_RUSH_MODE_ID]: Object.freeze({ key: 'inequalityRush', preview: (config, count) => previewInequalityRush({ inequalityRush: config, count }), noun: 'inequalities' }),
+});
 
 const PRACTICE_GRAPHS = 18;
 const START_DELAY_MS = 2_000;
@@ -46,24 +56,25 @@ export const practiceServices = ({ questions, startsAtMs, roundSeconds }) => {
   });
 };
 
-export default function GraphFeatureRushPractice({ config, roundSeconds = 60, onClose }) {
+export default function GraphFeatureRushPractice({ config, roundSeconds = 60, onClose, game = RUSH_MODE_ID }) {
   const [play, setPlay] = useState(0);
   const [questions, setQuestions] = useState(null);
   const [error, setError] = useState('');
   const configKey = JSON.stringify(config || {});
+  const practiceGame = PRACTICE_GAMES[game] || PRACTICE_GAMES[RUSH_MODE_ID];
 
   useEffect(() => {
     let alive = true;
     setQuestions(null);
     setError('');
-    previewGraphFeatureRush({ graphFeatureRush: JSON.parse(configKey), count: PRACTICE_GRAPHS })
+    practiceGame.preview(JSON.parse(configKey), PRACTICE_GRAPHS)
       .then((reply) => { if (alive) setQuestions(Array.isArray(reply?.questions) ? reply.questions : []); })
       .catch((previewError) => {
-        console.error('Practice graphs could not be loaded:', previewError);
-        if (alive) setError(studentErrorSentence(previewError, 'Practice graphs could not be loaded.'));
+        console.error('Practice questions could not be loaded:', previewError);
+        if (alive) setError(studentErrorSentence(previewError, 'Practice questions could not be loaded.'));
       });
     return () => { alive = false; };
-  }, [configKey, play]);
+  }, [configKey, play, practiceGame]);
 
   const session = useMemo(() => {
     if (!questions?.length) return null;
@@ -80,10 +91,15 @@ export default function GraphFeatureRushPractice({ config, roundSeconds = 60, on
         startsAt: startsAtMs,
         roundEndsAt: startsAtMs + roundSeconds * 1000,
         serverNowAtRender: now,
+        // The game and its settings, as a room carries them: the round offers
+        // "Off screen" from them, and speaks of inequalities in that game,
+        // exactly as in a live game.
+        challengeMode: game in PRACTICE_GAMES ? game : RUSH_MODE_ID,
+        [practiceGame.key]: { config: JSON.parse(configKey) },
       },
       services: practiceServices({ questions, startsAtMs, roundSeconds }),
     };
-  }, [questions, play, roundSeconds]);
+  }, [questions, play, roundSeconds, configKey, game, practiceGame]);
 
   if (error) {
     return (
@@ -93,7 +109,7 @@ export default function GraphFeatureRushPractice({ config, roundSeconds = 60, on
       </div>
     );
   }
-  if (!session) return <p aria-live="polite" style={{ color: 'var(--mm-text-muted)' }}>Generating practice graphs…</p>;
+  if (!session) return <p aria-live="polite" style={{ color: 'var(--mm-text-muted)' }}>Generating practice {practiceGame.noun}…</p>;
   return (
     <GraphFeatureRushRound
       key={session.room.roomId}

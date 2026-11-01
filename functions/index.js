@@ -7299,7 +7299,7 @@ async function deleteStudentLiveChallengeFootprint(db, studentId, deleted) {
   }));
   if (resultsScrubbed) deleted.liveChallengeMatchResultsScrubbed = resultsScrubbed;
   // Every row a report names them in, a question-set mode's own player rows
-  // included (lineGraph / graphFeatureRush; SI07) — the class's totals stay.
+  // included (lineGraph / graphFeatureRush / inequalityRush; SI07) — the class's totals stay.
   const reportRules = await liveChallengeReportRules();
   const reportsScrubbed = await scrub(LIVE_CHALLENGE_REPORTS, (data) => reportRules.reportRowsWithout(data, (id) => id === studentId));
   if (reportsScrubbed) deleted.liveChallengeReportsScrubbed = reportsScrubbed;
@@ -11064,6 +11064,28 @@ async function graphFeatureRushRules() {
   return graphFeatureRushModules;
 }
 
+// CLASS MEMORY: what a class did the last time it played a rush game, and
+// the rule for what to try next.
+let liveChallengeClassMemoryModule = null;
+async function liveChallengeClassMemoryRules() {
+  if (!liveChallengeClassMemoryModule) liveChallengeClassMemoryModule = await import("./shared/liveChallengeClassMemory.mjs");
+  return liveChallengeClassMemoryModule;
+}
+
+// INEQUALITY GRAPHING RUSH: the mode's own pure rules (generation, settings,
+// hints) and its reading guide. Its attempts are Graph Feature Rush's.
+let inequalityRushModules = null;
+async function inequalityRushRules() {
+  if (!inequalityRushModules) {
+    const [generator, reading] = await Promise.all([
+      import("./shared/inequalityRush.mjs"),
+      import("./shared/inequalityReading.mjs"),
+    ]);
+    inequalityRushModules = { generator, reading };
+  }
+  return inequalityRushModules;
+}
+
 // GRAPH THE LINE: the mode's own pure rules (attempts, generation, config).
 let lineGraphModuleSet = null;
 async function lineGraphModules() {
@@ -11144,6 +11166,10 @@ const LIVE_CHALLENGE_HOST_ROUNDS = "hostRounds";
 // derived from it, so each can be re-run safely after a crash.
 const LIVE_CHALLENGE_MATCH_RESULTS = "liveChallengeMatchResults";
 const LIVE_CHALLENGE_EXPERIENCE = "liveChallengeExperience";
+// What a class did the last time it played a rush game, with which settings
+// (liveChallengeClassMemory.mjs): one document per class and game, class
+// totals only, read by the teacher's setup card.
+const LIVE_CHALLENGE_CLASS_MEMORY = "liveChallengeClassMemory";
 
 function challengeCourseId(value) {
   const token = String(value || "").trim().toLowerCase();
@@ -11425,8 +11451,61 @@ const GRAPH_FEATURE_RUSH_PLANNER = Object.freeze({
         teksCode: null,
       },
       roundSeconds: engine.modes.normalizeModeRoundSeconds(mode, room.roundSeconds),
-      // The round's reading guide, kept privately until the round has closed.
-      solution: reading.rushRoundSolutionRecord({ features: config.features }),
+      // The round's reading guide, kept privately until the round has closed:
+      // the game's features, and its difficulty and off-screen setting (what
+      // it says about dots and "Off screen").
+      solution: reading.rushRoundSolutionRecord({ features: config.features, difficulty: config.difficulty, offScreen: config.offScreen === true }),
+    };
+  },
+});
+
+/*
+ * INEQUALITY GRAPHING RUSH draws nothing up front either: Graph Feature
+ * Rush's planner with inequalities for graphs. Each student's items are
+ * generated from the room's private seed as they reach them (the rush's
+ * getGraphFeatureRushRound) and regenerated to grade an attempt; a round is a
+ * placeholder id; its results carry a guide to graphing the kinds of
+ * inequality in the game (inequalityReading.mjs), the same for everyone.
+ */
+const INEQUALITY_RUSH_PLANNER = Object.freeze({
+  async plan({ modeConfig, roundCount }) {
+    const { generator } = await inequalityRushRules();
+    const config = modeConfig.inequalityRush;
+    const generatorVersion = generator.INEQUALITY_GENERATOR_VERSION;
+    return {
+      candidateCount: roundCount,
+      selected: Array.from({ length: roundCount }, (_, index) => ({
+        question: { id: `inequalityRush:round:${index + 1}`, alignmentKeys: [] },
+      })),
+      roundQuestions: null,
+      seed: null,
+      // The seed never leaves the server: it makes a student's items theirs.
+      privateFields: { inequalityRush: { seed: crypto.randomUUID(), config, generatorVersion } },
+      roomFields: { inequalityRush: { config, generatorVersion } },
+    };
+  },
+  async swap() {
+    throw new HttpsError("failed-precondition", "Inequality Graphing Rush items are generated for each student; there is no shared round to swap.");
+  },
+  async openRound({ room, privateState, roundIndex, mode, engine }) {
+    const questionId = privateState.questionIds?.[roundIndex];
+    if (!questionId) throw new HttpsError("failed-precondition", "That Live Challenge round has no question.");
+    const config = privateState.inequalityRush?.config || room.inequalityRush?.config || {};
+    const { reading } = await inequalityRushRules();
+    return {
+      roundIndex,
+      questionId,
+      currentQuestion: {
+        kind: "inequalityRush",
+        challengeRound: roundIndex,
+        prompt: "Graph your own inequalities on the number line",
+        itemTypes: Array.isArray(config.itemTypes) ? config.itemTypes : [],
+        difficulty: config.difficulty || null,
+        teksCode: null,
+      },
+      roundSeconds: engine.modes.normalizeModeRoundSeconds(mode, room.roundSeconds),
+      // The round's guide, kept privately until the round has closed.
+      solution: reading.inequalityRoundSolutionRecord({ itemTypes: config.itemTypes, difficulty: config.difficulty }),
     };
   },
 });
@@ -11522,6 +11601,7 @@ const LINE_GRAPH_PLANNER = Object.freeze({
 // The per-player generated sources, beside the shared-question planners.
 const GENERATED_QUESTION_PLANNERS = Object.freeze({
   graphFeatureGenerator: GRAPH_FEATURE_RUSH_PLANNER,
+  inequalityGenerator: INEQUALITY_RUSH_PLANNER,
   lineGraphGenerator: LINE_GRAPH_PLANNER,
 });
 
@@ -11876,7 +11956,7 @@ async function requireOwnedChallenge(db, request, roomId) {
 }
 
 // A mode's own settings errors: each carries a sentence a teacher can act on.
-const LIVE_CHALLENGE_CONFIG_ERRORS = new Set(["GraphFeatureRushConfigError", "LineGraphConfigError"]);
+const LIVE_CHALLENGE_CONFIG_ERRORS = new Set(["GraphFeatureRushConfigError", "InequalityRushConfigError", "LineGraphConfigError"]);
 
 exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
   await requireTeacher(request);
@@ -12994,8 +13074,10 @@ function liveChallengeRevealableRounds({ challenge, engine, room, privateState, 
     // (LC07): the same for every student and about no graph, so nothing holds
     // it back, and no Second Chance replays a Rush round. Only a round whose
     // guide was captured when it opened (a game already running before this
-    // existed has none, and publishes none).
-    if (mode.questionSource === engine.modes.QUESTION_SOURCE.GRAPH_FEATURE_GENERATOR) {
+    // existed has none, and publishes none). An Inequality Graphing Rush
+    // round's guide is published the same way.
+    if (mode.questionSource === engine.modes.QUESTION_SOURCE.GRAPH_FEATURE_GENERATOR
+      || mode.questionSource === engine.modes.QUESTION_SOURCE.INEQUALITY_GENERATOR) {
       const scheduled = Number(privateState.scheduledRoundCount) || (Array.isArray(privateState.questionIds) ? privateState.questionIds.length : 0);
       return engine.solutionReveal.revealableRounds({
         closedThrough, scheduledRoundCount: scheduled, secondChancePossible: false, replayOf: {}, finished,
@@ -13123,11 +13205,14 @@ function planNextLiveChallengeRound({ challenge, engine, room, privateState, pla
   };
 }
 
-// Which finalization effects a match needs. Cancelled matches earn no rewards.
+// Which finalization effects a match needs. Cancelled matches earn no rewards,
+// and leave their class no memory (only a finished rush game does; the effect
+// itself passes over every other game).
 function liveChallengeFinalizationEffects(room = {}, status) {
   const challengeFinished = status === "finished";
   return {
     report: "pending",
+    classMemory: challengeFinished ? "pending" : "notApplicable",
     invites: "pending",
     warmupCredit: room.assignmentId ? "pending" : "notApplicable",
     evidence: "pending",
@@ -13276,6 +13361,11 @@ async function questionSetModeReport(mode, result) {
   if (mode.questionSource === "lineGraphGenerator") {
     return { key: "lineGraph", report: (await lineGraphModules()).attempts.buildLineGraphReport(result) };
   }
+  if (mode.questionSource === "inequalityGenerator") {
+    // The rush's report, its rows named for inequalities.
+    const { generator } = await inequalityRushRules();
+    return { key: "inequalityRush", report: (await graphFeatureRushRules()).rush.buildRushReport(result, generator.INEQUALITY_REPORT_LABELS) };
+  }
   return { key: "graphFeatureRush", report: (await graphFeatureRushRules()).rush.buildRushReport(result) };
 }
 
@@ -13297,6 +13387,31 @@ async function liveChallengeEffectRecipients(transaction, db, studentIds = []) {
   if (!ids.length) return new Set();
   const rows = await transaction.getAll(...ids.map((id) => db.collection("grades").doc(id)));
   return new Set(rows.filter((row) => rosterRowAcceptsEffects(row)).map((row) => row.id));
+}
+
+/*
+ * CLASS MEMORY, written from the durable match result like the report: a
+ * finished rush game leaves its class one small record — when, with which
+ * settings (read from the room, which keeps them), and how the class did —
+ * for the next setup's card (liveChallengeClassMemory.mjs). Class totals
+ * only. A late or repeated run for an older game never replaces a newer one.
+ */
+async function writeClassMemoryFromResult(db, result) {
+  const memoryRules = await liveChallengeClassMemoryRules();
+  const game = memoryRules.classMemoryGameOfMode(result.modeId);
+  if (!game || result.status !== "finished" || !result.classId) return;
+  const roomSnapshot = await db.collection(LIVE_CHALLENGE_ROOMS).doc(String(result.roomId || "")).get();
+  if (!roomSnapshot.exists) return;
+  const labels = game.id === "inequalityRush" ? (await inequalityRushRules()).generator.INEQUALITY_REPORT_LABELS : undefined;
+  const report = (await graphFeatureRushRules()).rush.buildRushReport(result, labels);
+  const memory = memoryRules.buildClassMemory({ result, room: roomSnapshot.data() || {}, report });
+  if (!memory) return;
+  const memoryRef = db.collection(LIVE_CHALLENGE_CLASS_MEMORY).doc(memoryRules.classMemoryId(memory.classId, memory.game));
+  await db.runTransaction(async (transaction) => {
+    const stored = await transaction.get(memoryRef);
+    if (stored.exists && memoryRules.memoryIsNewer(stored.data(), memory)) return;
+    transaction.set(memoryRef, { ...memory, updatedAt: FieldValue.serverTimestamp() });
+  });
 }
 
 async function writeLiveChallengeReportFromResult(db, result) {
@@ -13505,7 +13620,7 @@ async function deliverLiveChallengeRewardsFromResult(db, result) {
 // After this many runs an effect that still fails stops being retried by the
 // sweep (and is logged), so one broken match cannot occupy the sweep forever.
 const LIVE_CHALLENGE_EFFECT_MAX_ATTEMPTS = 10;
-const LIVE_CHALLENGE_EFFECT_ORDER = Object.freeze(["report", "invites", "warmupCredit", "evidence", "rewards"]);
+const LIVE_CHALLENGE_EFFECT_ORDER = Object.freeze(["report", "classMemory", "invites", "warmupCredit", "evidence", "rewards"]);
 
 /**
  * Run every outstanding finalization effect of a match, idempotently. Safe to
@@ -13524,6 +13639,7 @@ async function runLiveChallengeFinalizationEffects(db, roomId) {
   const settled = results.finalizationEffectSettled;
   const tasks = {
     report: () => writeLiveChallengeReportFromResult(db, result),
+    classMemory: () => writeClassMemoryFromResult(db, result),
     invites: () => updateLiveChallengeInvitesForRoom(db, {
       roomId,
       studentIds: (result.standings || []).map((standing) => standing.studentId),
@@ -15267,10 +15383,41 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
 //                                   replays by attempt id; a graph completes
 //                                   once.
 //   previewGraphFeatureRush         sample graphs for a teacher's settings.
+//   previewInequalityRush           sample inequalities, likewise.
 //
 // The device grades each tap instantly with the same hit test; the server's
 // verdict is the one that counts, and the device resynchronizes to it.
+//
+// INEQUALITY GRAPHING RUSH plays on the same two callables: its items are
+// rush questions (one target, a solution set, checked like a domain), so a
+// room of either game is played, graded and recorded by the same code, with
+// its questions from its own generator (RUSH_QUESTION_SOURCES).
 // ---------------------------------------------------------------------------
+
+/*
+ * THE GAMES PLAYED ON THE RUSH'S ATTEMPTS, by question source: where a room's
+ * private seed and settings live, what the game is called in a refusal, and
+ * its generator — the version a room must have been created under, how
+ * question k is generated, and what a student's device receives of it.
+ */
+const RUSH_QUESTION_SOURCES = Object.freeze({
+  graphFeatureGenerator: Object.freeze({
+    label: "Graph Feature Rush",
+    stateKey: "graphFeatureRush",
+    async generator() {
+      const { generator } = await graphFeatureRushRules();
+      return { version: generator.GRAPH_FEATURE_GENERATOR_VERSION, generate: generator.generateRushQuestion, publicQuestion: generator.publicRushQuestion };
+    },
+  }),
+  inequalityGenerator: Object.freeze({
+    label: "Inequality Graphing Rush",
+    stateKey: "inequalityRush",
+    async generator() {
+      const { generator } = await inequalityRushRules();
+      return { version: generator.INEQUALITY_GENERATOR_VERSION, generate: generator.generateInequalityQuestion, publicQuestion: generator.publicInequalityQuestion };
+    },
+  }),
+});
 
 const optionalRushInteger = (value) => {
   if (value === undefined || value === null || value === "") return null;
@@ -15296,26 +15443,27 @@ async function loadGraphFeatureRushContext(db, { studentId, roomId }) {
   const room = roomSnapshot.data() || {};
   const engine = await liveChallengeEngine();
   const mode = engine.modes.getChallengeMode(room.challengeMode);
-  if (mode.questionSource !== engine.modes.QUESTION_SOURCE.GRAPH_FEATURE_GENERATOR) {
+  const source = Object.hasOwn(RUSH_QUESTION_SOURCES, mode.questionSource) ? RUSH_QUESTION_SOURCES[mode.questionSource] : null;
+  if (!source) {
     throw new HttpsError("failed-precondition", "This Live Challenge is not a Graph Feature Rush.");
   }
-  const rules = await graphFeatureRushRules();
-  const rushState = (privateSnapshot.data() || {}).graphFeatureRush || {};
+  const [rules, questions] = await Promise.all([graphFeatureRushRules(), source.generator()]);
+  const rushState = (privateSnapshot.data() || {})[source.stateKey] || {};
   // A room is graded with the generator it was created under, or not at all:
   // regenerating under different rules would grade a tap on a graph the
   // student never saw.
-  if (!rushState.seed || Number(rushState.generatorVersion) !== rules.generator.GRAPH_FEATURE_GENERATOR_VERSION) {
-    throw new HttpsError("failed-precondition", "This Graph Feature Rush was created before an update. Ask your teacher to start a new game.");
+  if (!rushState.seed || Number(rushState.generatorVersion) !== questions.version) {
+    throw new HttpsError("failed-precondition", `This ${source.label} was created before an update. Ask your teacher to start a new game.`);
   }
-  return { engine, rules, mode, room, roomRef, privatePlayerRef, player: playerSnapshot.data() || {}, rushState };
+  return { engine, rules, questions, mode, room, roomRef, privatePlayerRef, player: playerSnapshot.data() || {}, rushState };
 }
 
 /** Question k of one student's round: deterministic, generated once per call. */
-function graphFeatureRushIssuer({ rules, rushState, studentId, roundIndex }) {
+function graphFeatureRushIssuer({ questions, rushState, studentId, roundIndex }) {
   const issued = new Map();
   return (questionIndex) => {
     if (!issued.has(questionIndex)) {
-      issued.set(questionIndex, rules.generator.generateRushQuestion({
+      issued.set(questionIndex, questions.generate({
         seed: rushState.seed, studentKey: studentId, roundIndex, questionIndex, config: rushState.config,
       }));
     }
@@ -15333,7 +15481,7 @@ exports.getGraphFeatureRushRound = onCall(async (request) => {
   if (!roomId || !Number.isInteger(roundIndex) || roundIndex < 0 || Number.isNaN(roundVersion)) {
     throw new HttpsError("invalid-argument", "roomId and roundIndex are required.");
   }
-  const { engine, rules, mode, room, player, rushState } = await loadGraphFeatureRushContext(db, { studentId, roomId });
+  const { engine, rules, questions: generator, mode, room, player, rushState } = await loadGraphFeatureRushContext(db, { studentId, roomId });
   const { lifecycle } = engine;
   const poolSize = mode.questionSpecs.length;
   const state = rules.rush.rushRoundState({ receipts: player.submissionReceipts || {}, roundIndex, poolSize });
@@ -15349,10 +15497,10 @@ exports.getGraphFeatureRushRound = onCall(async (request) => {
     ? Math.min(Math.max(requested, state.cursor), state.cursor + 2 * rules.rush.RUSH_LIMITS.issueBatch)
     : state.cursor;
   const count = Math.max(0, Math.min(rules.rush.RUSH_LIMITS.issueBatch, Math.floor(Number(request.data?.count ?? 6)) || 0));
-  const issue = graphFeatureRushIssuer({ rules, rushState, studentId, roundIndex });
+  const issue = graphFeatureRushIssuer({ questions: generator, rushState, studentId, roundIndex });
   const joined = player.joined === true;
   const questions = roundOpen && joined
-    ? Array.from({ length: Math.max(0, Math.min(count, poolSize - fromIndex)) }, (_, offset) => rules.generator.publicRushQuestion(issue(fromIndex + offset)))
+    ? Array.from({ length: Math.max(0, Math.min(count, poolSize - fromIndex)) }, (_, offset) => generator.publicQuestion(issue(fromIndex + offset)))
     : [];
   // `poolSize` is where the round's graphs end; `joined` tells a device whose
   // join is still on its way to ask again rather than to give up.
@@ -15371,7 +15519,7 @@ exports.submitGraphFeatureRushAttempts = onCall(async (request) => {
   if (!roomId || !Number.isInteger(roundIndex) || roundIndex < 0 || !Number.isInteger(roundVersion) || !attempts.length) {
     throw new HttpsError("invalid-argument", "roomId, roundIndex, roundVersion and attempts are required.");
   }
-  const { engine, rules, mode, room, roomRef, privatePlayerRef, rushState } = await loadGraphFeatureRushContext(db, { studentId, roomId });
+  const { engine, rules, questions, mode, room, roomRef, privatePlayerRef, rushState } = await loadGraphFeatureRushContext(db, { studentId, roomId });
   const { lifecycle, timer: roundTimer } = engine;
   const expected = { roundIndex, roundVersion, roundToken };
   // Cheap refusals before the transaction: a stale round, a closed one, or a
@@ -15384,7 +15532,7 @@ exports.submitGraphFeatureRushAttempts = onCall(async (request) => {
   const arrivalCheck = roundTimer.timerAcceptsArrival(roundTimer.timerFromRoom(room), requestArrivedAt);
   if (!arrivalCheck.accepted) throw liveChallengeArrivalRefusal(arrivalCheck);
   const poolSize = mode.questionSpecs.length;
-  const issue = graphFeatureRushIssuer({ rules, rushState, studentId, roundIndex });
+  const issue = graphFeatureRushIssuer({ questions, rushState, studentId, roundIndex });
 
   const outcome = await db.runTransaction(async (transaction) => {
     const [latestRoomSnapshot, latestPlayerSnapshot] = await Promise.all([
@@ -15478,6 +15626,25 @@ exports.previewGraphFeatureRush = onCall(async (request) => {
   const seed = crypto.randomUUID();
   const count = Math.max(1, Math.min(18, Math.floor(Number(request.data?.count) || 12)));
   const questions = Array.from({ length: count }, (_, questionIndex) => generator.publicRushQuestion(generator.generateRushQuestion({
+    seed, studentKey: "preview", roundIndex: 0, questionIndex, config: normalized,
+  })));
+  return { config: normalized, questions };
+});
+
+exports.previewInequalityRush = onCall(async (request) => {
+  await requireTeacher(request);
+  const { generator } = await inequalityRushRules();
+  let normalized;
+  try {
+    normalized = generator.normalizeInequalityRushConfig(request.data?.inequalityRush || {});
+  } catch (error) {
+    if (error?.name === "InequalityRushConfigError") throw new HttpsError("invalid-argument", error.message);
+    throw error;
+  }
+  // A fresh seed every time, as for graphs: nothing is written anywhere.
+  const seed = crypto.randomUUID();
+  const count = Math.max(1, Math.min(18, Math.floor(Number(request.data?.count) || 12)));
+  const questions = Array.from({ length: count }, (_, questionIndex) => generator.publicInequalityQuestion(generator.generateInequalityQuestion({
     seed, studentKey: "preview", roundIndex: 0, questionIndex, config: normalized,
   })));
   return { config: normalized, questions };

@@ -15,10 +15,21 @@
  * The curve is sampled from the same graph spec the server validated the
  * question with (graphFeatureCurves.mjs): the graph a student sees is the graph
  * the answer key was checked against.
+ *
+ * ARROWS AND DOTS. Wherever the curve leaves the plot it gets an arrowhead,
+ * and wherever it ends inside the plot a dot (filled: the point is on the
+ * graph; open: it is not). The arrows come from the same analysis the
+ * generator issued the graph by (curveRuns), which only issues a graph whose
+ * curve leaves the screen at its ends: an arrow always means "keeps going".
+ *
+ * An asymptote question hides the dashed asymptote lines (they are the
+ * answer); each one is drawn, labelled "x = 2", once it is found.
  */
 
-import { evaluateGraph, graphAsymptotes, graphMarkers, sampleGraph } from '../../../functions/shared/graphFeatureCurves.mjs';
-import { POINTER_KIND, toleranceForPointer } from '../../../functions/shared/graphFeatureHitTest.mjs';
+import { curveRuns, evaluateGraph, graphAsymptotes, graphMarkers, sampleGraph } from '../../../functions/shared/graphFeatureCurves.mjs';
+import { POINTER_KIND, clampTolerance, targetDistance, toleranceForPointer } from '../../../functions/shared/graphFeatureHitTest.mjs';
+import { GRAPH_FEATURE } from '../../../functions/shared/graphFeatureRegistry.mjs';
+import { drawingSet } from '../../../functions/shared/numberLineSets.mjs';
 
 const finite = (value, fallback = 0) => {
   const numeric = Number(value);
@@ -126,6 +137,82 @@ export const asymptoteLines = (graph, view = {}) => {
 export const endpointDots = (graph, view = {}) => graphMarkers(graph, view)
   .map((marker) => ({ u: unitX(view, marker.x), v: unitY(view, marker.y), closed: marker.closed === true }));
 
+// How far back along the curve an arrow takes its direction, in unit space:
+// far enough to be steady, near enough to follow the curve at the edge.
+const ARROW_REACH = 0.03;
+
+/**
+ * An arrowhead wherever the curve leaves the plot: its tip on the edge, at
+ * (u, v), pointing the way the curve goes out, (dx, dy) — a unit vector in
+ * unit space, which is square, so it is the direction on the screen too.
+ */
+export const curveArrows = (graph, view = {}) => {
+  const span = viewSpan(view);
+  const arrow = (end, outward) => {
+    const tip = { u: unitX(view, end.x), v: unitY(view, end.y) };
+    let back = null;
+    for (const fraction of [0.002, 0.004, 0.008, 0.016, 0.032, 0.064]) {
+      const x = end.x - outward * fraction * span.x;
+      const y = evaluateGraph(graph, x);
+      if (!Number.isFinite(y)) break;
+      back = { u: unitX(view, x), v: unitY(view, y) };
+      if (Math.hypot(tip.u - back.u, tip.v - back.v) >= ARROW_REACH) break;
+    }
+    if (!back) return null;
+    const length = Math.hypot(tip.u - back.u, tip.v - back.v);
+    if (!(length > 0)) return null;
+    return Object.freeze({ ...tip, dx: (tip.u - back.u) / length, dy: (tip.v - back.v) / length, edge: end.edge });
+  };
+  return curveRuns(graph, view).flatMap((segment) => segment.runs.flatMap((run) => [
+    run.from.kind === 'exit' ? arrow(run.from, -1) : null,
+    run.to.kind === 'exit' ? arrow(run.to, 1) : null,
+  ])).filter(Boolean);
+};
+
+/*
+ * A DOMAIN OR RANGE ON ITS AXIS, as the student draws it: the x-axis for a
+ * domain, the y-axis for a range. `along` is the unit coordinate along the
+ * axis (u for x, v for y, so up the y-axis is toward v = 0); the axis line
+ * itself sits at `across`. Bands are the set the drawing means (nothing for a
+ * drawing that names none yet: a lone open dot or arrow); dots and arrows are
+ * drawn as placed, so a half-finished drawing still shows.
+ */
+/**
+ * The targets a graph marks found, with a check and their coordinates:
+ * points and lines. A domain or range has no point to mark — it shows as the
+ * drawing on its axis — so a correct check never puts a stray "(0, 0)" on
+ * the graph.
+ */
+export const foundMarkTargets = (question, found = []) => (question?.targets || [])
+  .filter((target) => target?.geometry !== 'set' && found.includes(target.id));
+
+export const axisSetDrawing = (question, drawing) => {
+  const target = (question?.targets || []).find((entry) => entry?.geometry === 'set');
+  if (!target || !question?.view || !drawing) return null;
+  const { view } = question;
+  const vertical = target.axis === 'y';
+  const grid = gridLines(view);
+  const along = (value) => (vertical ? unitY(view, value) : unitX(view, value));
+  const lowEdge = vertical ? 1 : 0;
+  const highEdge = vertical ? 0 : 1;
+  const set = drawingSet(drawing);
+  return Object.freeze({
+    axis: vertical ? 'y' : 'x',
+    across: vertical ? grid.axisU : grid.axisV,
+    bands: Object.freeze((set || []).map((piece) => Object.freeze({
+      from: piece.lo === null ? lowEdge : along(piece.lo.n / piece.lo.d),
+      to: piece.hi === null ? highEdge : along(piece.hi.n / piece.hi.d),
+      single: piece.lo !== null && piece.hi !== null && piece.lo.n * piece.hi.d === piece.hi.n * piece.lo.d,
+    }))),
+    dots: Object.freeze((drawing.points || []).map((point) => Object.freeze({ at: along(point.value), closed: point.closed === true, value: point.value }))),
+    // "Keeps going": left/down at the low edge, right/up at the high edge.
+    arrows: Object.freeze({ low: drawing.left === true ? lowEdge : null, high: drawing.right === true ? highEdge : null }),
+  });
+};
+
+/** Whether a question asks for its asymptotes (so they are not drawn). */
+export const hidesAsymptotes = (question) => question?.feature === GRAPH_FEATURE.ASYMPTOTE;
+
 /** Everything a question draws, computed once per question. */
 export const graphDrawing = (question) => {
   if (!question?.graph || !question?.view) return null;
@@ -133,9 +220,62 @@ export const graphDrawing = (question) => {
   return Object.freeze({
     paths: Object.freeze(curvePaths(graph, view)),
     grid: gridLines(view),
-    asymptotes: asymptoteLines(graph, view),
+    // An asymptote question's asymptotes are its answer: not drawn until found.
+    asymptotes: hidesAsymptotes(question) ? Object.freeze({ vertical: [], horizontal: [] }) : asymptoteLines(graph, view),
     dots: Object.freeze(endpointDots(graph, view)),
+    arrows: Object.freeze(curveArrows(graph, view)),
   });
+};
+
+/** A line target (an asymptote) in unit space: where it crosses the plot. */
+export const lineTargetUnit = (view, target) => (target?.orientation === 'vertical'
+  ? { orientation: 'vertical', u: unitX(view, target.x) }
+  : { orientation: 'horizontal', v: unitY(view, target.y) });
+
+/**
+ * Where a found line's label goes, in unit space, clear of the curve: near the
+ * top of a vertical line, on the side the curve does not run up (a rational
+ * branch climbs one side of its asymptote); near the right end of a
+ * horizontal line, on the side of it the curve is not. `anchor` is the text's
+ * anchor, `side` which way it sits from the line.
+ */
+export const lineLabelSpot = (question, target) => {
+  const { graph, view } = question;
+  const span = viewSpan(view);
+  // How far from the top (vertical) or from the line (horizontal) the curve is
+  // at x: a curve off the screen above counts as at the top.
+  const curveV = (x) => {
+    const y = evaluateGraph(graph, x);
+    return Number.isFinite(y) ? unitY(view, y) : null;
+  };
+  if (target.orientation === 'vertical') {
+    const u = unitX(view, target.x);
+    const nearTop = (x) => {
+      const v = curveV(x);
+      return v === null ? 1 : Math.max(0, v);
+    };
+    let side = nearTop(target.x - 0.04 * span.x) >= nearTop(target.x + 0.04 * span.x) ? 'left' : 'right';
+    if (u > 0.85) side = 'left';
+    if (u < 0.15) side = 'right';
+    return Object.freeze({ u, v: 0.04, side, anchor: side === 'left' ? 'end' : 'start' });
+  }
+  const v = unitY(view, target.y);
+  const curve = curveV(view.xMax - 0.06 * span.x);
+  let side = curve !== null && curve < v ? 'below' : 'above';
+  if (v < 0.08) side = 'below';
+  if (v > 0.92) side = 'above';
+  return Object.freeze({ u: 0.98, v, side, anchor: 'end' });
+};
+
+/**
+ * Whether a tap lands on an open dot, within the same reach as a tap on a
+ * target: a miss there is told "Open dot — that point isn't on the graph".
+ */
+export const nearOpenDot = ({ question, x, y, tolerance }) => {
+  if (!question?.graph || !question?.view) return false;
+  const limits = clampTolerance(tolerance, question.view);
+  return graphMarkers(question.graph, question.view)
+    .some((marker) => marker.closed !== true && targetDistance(marker, { x: Number(x), y: Number(y) }, limits) <= 1);
 };
 
 /* ------------------------------ numbers shown ----------------------------- */
@@ -151,6 +291,14 @@ export const formatCoordinate = (value) => {
 };
 
 export const formatPoint = (point = {}) => `(${formatCoordinate(point.x)}, ${formatCoordinate(point.y)})`;
+
+/** A target as a student writes it: a point "(2, −1)", or a line "x = 2" / "y = −1". */
+export const formatTarget = (target = {}) => {
+  if (target?.geometry === 'line') {
+    return target.orientation === 'vertical' ? `x = ${formatCoordinate(target.x)}` : `y = ${formatCoordinate(target.y)}`;
+  }
+  return formatPoint(target);
+};
 
 /* --------------------------------- input --------------------------------- */
 

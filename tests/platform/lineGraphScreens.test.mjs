@@ -307,7 +307,8 @@ test('the console offers Graph the Line to every teacher once its modes are laun
 test('the console creates Graph the Line with its own settings and the shared Rewards choice', () => {
   const teacher = read('../../src/components/liveChallenge/LiveChallengeTeacher.jsx');
   assert.match(teacher, /const lineProblem = lineMode \? lineSetupProblem\(lineSetup\) : null;/);
-  const create = region(teacher, 'if (rushMode || lineMode) {', 'if (warmupAssignmentId && warmupDeliveryMode', 'own-settings create');
+  const create = region(teacher, 'if (ownSettingsGame) {', 'if (warmupAssignmentId && warmupDeliveryMode', 'own-settings create');
+  assert.match(teacher, /const ownSettingsGame = [^;]*\blineMode\b[^;]*;/, 'Graph the Line is a game with its own settings');
   assert.match(create, /if \(lineProblem\) throw new Error\(lineProblem\);/, 'an impossible game is not sent');
   assert.match(create, /:\s*lineCreateRequest\(lineSetup, \{ rewardPolicy: buildChallengeRewardPolicy\(rewardChoice\) \}\)/);
   assert.match(create, /\n\s*standingsDisplay,\n/);

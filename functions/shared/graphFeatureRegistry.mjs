@@ -10,8 +10,10 @@
  * A feature declares:
  *
  *   id               permanent; stored on attempt receipts and in reports
- *   geometry         what a target is. Only 'point' is built today; a future
- *                    axis of symmetry or asymptote would be a 'line'
+ *   geometry         what a target is: a 'point' (an intercept, a vertex), a
+ *                    'line' (an asymptote: a tap anywhere near it counts) or
+ *                    a 'set' (a domain or range: a set of numbers the student
+ *                    draws on an axis and checks)
  *   multiTarget      whether one question can have several targets
  *   canNotExist      whether "Does Not Exist" can be the right answer
  *   vocabulary       the student-facing wordings, with the families each one
@@ -45,11 +47,32 @@ export const GRAPH_FEATURE = Object.freeze({
   VERTEX: 'vertex',
   MAXIMUM: 'maximum',
   MINIMUM: 'minimum',
+  ASYMPTOTE: 'asymptote',
+  DOMAIN: 'domain',
+  RANGE: 'range',
 });
+
+// The features every game had before asymptotes: what the existing presets
+// ask, unchanged as the registry grows.
+export const CLASSIC_GRAPH_FEATURE_IDS = Object.freeze([
+  GRAPH_FEATURE.X_INTERCEPT,
+  GRAPH_FEATURE.Y_INTERCEPT,
+  GRAPH_FEATURE.VERTEX,
+  GRAPH_FEATURE.MAXIMUM,
+  GRAPH_FEATURE.MINIMUM,
+]);
 
 export const TARGET_GEOMETRY = Object.freeze({
   POINT: 'point',
+  // A vertical (x = c) or horizontal (y = c) line.
+  LINE: 'line',
+  // A set of real numbers, drawn on an axis (numberLineSets.mjs).
+  SET: 'set',
 });
+
+// The features whose answer is a set drawn on an axis, and the axis.
+export const SET_FEATURE_AXIS = Object.freeze({ domain: 'x', range: 'y' });
+export const isSetFeature = (id) => Object.prototype.hasOwnProperty.call(SET_FEATURE_AXIS, String(id || ''));
 
 // The difficulty tiers a generated question can belong to, easiest first.
 export const QUESTION_TIER = Object.freeze({
@@ -67,6 +90,11 @@ const POLYNOMIAL_FAMILIES = Object.freeze(['linear', 'quadratic', 'cubic']);
 // so a question whose feature is absent is a one-target question whose single
 // target is found by that button.
 export const DOES_NOT_EXIST_TARGET_ID = 'dne';
+
+// The target id an "Off screen" press records: the feature exists, but every
+// one of its targets lies past the edge of the view (a game with off-screen
+// features turned on). Like "Does Not Exist", one per question.
+export const OFF_SCREEN_TARGET_ID = 'offScreen';
 
 const FEATURE_ID_PATTERN = /^[a-z][A-Za-z0-9]{1,40}$/;
 
@@ -187,6 +215,57 @@ registerGraphFeature({
   missMessage: 'Not the minimum — try again.',
   vocabulary: [
     { id: 'minimum', prompt: 'Find the minimum', families: 'any', minTier: QUESTION_TIER.EASY },
+  ],
+});
+
+registerGraphFeature({
+  id: GRAPH_FEATURE.ASYMPTOTE,
+  label: 'asymptotes',
+  shortLabel: 'asymptotes',
+  geometry: TARGET_GEOMETRY.LINE,
+  multiTarget: true,
+  canNotExist: true,
+  targetIdPrefix: 'a',
+  missMessage: 'Not an asymptote — try again.',
+  vocabulary: [
+    // A rational graph has two, an exponential one, everything else none:
+    // never said, like the number of zeros.
+    { id: 'asymptotes', prompt: 'Find all asymptotes', families: 'any', minTier: QUESTION_TIER.EASY },
+  ],
+});
+
+/*
+ * DOMAIN AND RANGE are answered on an axis, not by a tap on a feature: every
+ * tap drops a dot onto the x-axis (domain) or the y-axis (range) at the
+ * nearest grid line — once for a closed dot, twice for open, a third time to
+ * take it away — the arrows say "keeps going", and ✓ Check sends the drawing.
+ * Every function has both, so neither is ever "Does Not Exist".
+ */
+registerGraphFeature({
+  id: GRAPH_FEATURE.DOMAIN,
+  label: 'domain',
+  shortLabel: 'domain',
+  geometry: TARGET_GEOMETRY.SET,
+  multiTarget: false,
+  canNotExist: false,
+  targetIdPrefix: 'dom',
+  missMessage: 'Not the domain — look again.',
+  vocabulary: [
+    { id: 'domain', prompt: 'Mark the domain', families: 'any', minTier: QUESTION_TIER.EASY },
+  ],
+});
+
+registerGraphFeature({
+  id: GRAPH_FEATURE.RANGE,
+  label: 'range',
+  shortLabel: 'range',
+  geometry: TARGET_GEOMETRY.SET,
+  multiTarget: false,
+  canNotExist: false,
+  targetIdPrefix: 'ran',
+  missMessage: 'Not the range — look again.',
+  vocabulary: [
+    { id: 'range', prompt: 'Mark the range', families: 'any', minTier: QUESTION_TIER.EASY },
   ],
 });
 

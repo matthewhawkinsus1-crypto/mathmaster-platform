@@ -4,8 +4,12 @@ import {
   describeCursor,
   formatCoordinate,
   formatPoint,
+  formatTarget,
+  foundMarkTargets,
   initialCursor,
   isCursorKey,
+  lineLabelSpot,
+  lineTargetUnit,
   moveCursor,
   pointerKindOf,
   tapPoint,
@@ -25,6 +29,57 @@ import {
  */
 
 const LABEL_GAP = 6;
+
+// An arrowhead on the edge where the curve leaves the plot: its tip at the
+// edge, pointing the way the curve goes on (rushGraphModel.curveArrows).
+const ARROW_LENGTH = 14;
+const ARROW_HALF_WIDTH = 7;
+const arrowPoints = (arrow, side) => {
+  const tipX = arrow.u * side;
+  const tipY = arrow.v * side;
+  const baseX = tipX - arrow.dx * ARROW_LENGTH;
+  const baseY = tipY - arrow.dy * ARROW_LENGTH;
+  const [nx, ny] = [-arrow.dy, arrow.dx];
+  return [
+    `${tipX},${tipY}`,
+    `${baseX + nx * ARROW_HALF_WIDTH},${baseY + ny * ARROW_HALF_WIDTH}`,
+    `${baseX - nx * ARROW_HALF_WIDTH},${baseY - ny * ARROW_HALF_WIDTH}`,
+  ].join(' ');
+};
+
+// A domain or range drawn on its axis (rushGraphModel.axisSetDrawing): a
+// shaded band for the set it means, its dots (filled: included; open: not),
+// and an arrowhead at the edge for "keeps going". `tone` draws the student's
+// own in the curve's colour and a revealed answer in the found colour.
+const SET_BAND = 10;
+function AxisSet({ shape, side, tone }) {
+  if (!shape) return null;
+  const vertical = shape.axis === 'y';
+  const across = shape.across * side;
+  const at = (unit) => (vertical ? { x: across, y: unit * side } : { x: unit * side, y: across });
+  const edgeArrow = (unit, outward) => arrowPoints(vertical
+    ? { u: shape.across, v: unit, dx: 0, dy: outward }
+    : { u: unit, v: shape.across, dx: outward, dy: 0 }, side);
+  return (
+    <g className="mm-rush-set" pointerEvents="none" aria-hidden="true">
+      {shape.bands.map((band) => {
+        const from = at(band.from);
+        const to = at(band.to);
+        return <line key={`band${band.from}-${band.to}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={tone} strokeOpacity={0.42} strokeWidth={SET_BAND} strokeLinecap={band.single ? 'round' : 'butt'} />;
+      })}
+      {shape.arrows.low !== null && <polygon points={edgeArrow(shape.arrows.low, vertical ? 1 : -1)} fill={tone} />}
+      {shape.arrows.high !== null && <polygon points={edgeArrow(shape.arrows.high, vertical ? -1 : 1)} fill={tone} />}
+      {shape.dots.map((dot) => {
+        const center = at(dot.at);
+        return <circle key={`dot${dot.value}`} cx={center.x} cy={center.y} r={8} fill={dot.closed ? tone : 'var(--mm-graph-bg)'} stroke={tone} strokeWidth={3} />;
+      })}
+    </g>
+  );
+}
+
+// Asymptotes: dashed, in their own colour, drawn over the axes so one lying
+// along an axis still shows.
+const ASYMPTOTE_STROKE = { stroke: 'var(--mm-rush-asymptote)', strokeWidth: 2.25, strokeDasharray: '8 6' };
 
 // How the student last used the page. A graph focused when play begins shows
 // its keyboard ring only to a student who has been using the keyboard; a
@@ -63,10 +118,10 @@ const GraphLayer = memo(function GraphLayer({ drawing, view, side }) {
       <line x1={0} x2={side} y1={axisY} y2={axisY} stroke="var(--mm-graph-axis)" strokeWidth={2} />
       <line x1={axisX} x2={axisX} y1={0} y2={side} stroke="var(--mm-graph-axis)" strokeWidth={2} />
       {drawing.asymptotes.vertical.map((u) => (
-        <line key={`av${u}`} x1={u * side} x2={u * side} y1={0} y2={side} stroke="var(--mm-graph-axis)" strokeWidth={1.5} strokeDasharray="7 6" opacity={0.75} />
+        <line key={`av${u}`} x1={u * side} x2={u * side} y1={0} y2={side} {...ASYMPTOTE_STROKE} />
       ))}
       {drawing.asymptotes.horizontal.map((v) => (
-        <line key={`ah${v}`} x1={0} x2={side} y1={v * side} y2={v * side} stroke="var(--mm-graph-axis)" strokeWidth={1.5} strokeDasharray="7 6" opacity={0.75} />
+        <line key={`ah${v}`} x1={0} x2={side} y1={v * side} y2={v * side} {...ASYMPTOTE_STROKE} />
       ))}
       {/* The curve runs on past the plot (the sampler extends it a band above
           and below), so it is clipped to the plot square itself rather than
@@ -81,6 +136,10 @@ const GraphLayer = memo(function GraphLayer({ drawing, view, side }) {
             <path key={index} d={path} fill="none" stroke="var(--mm-rush-curve)" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
           ))}
         </g>
+        {/* Where the curve leaves the plot it keeps going: an arrowhead. */}
+        {(drawing.arrows || []).map((arrow) => (
+          <polygon key={`arrow${arrow.u.toFixed(4)}-${arrow.v.toFixed(4)}`} className="mm-rush-arrow" points={arrowPoints(arrow, side)} fill="var(--mm-rush-curve)" stroke="var(--mm-rush-curve)" strokeWidth={1} strokeLinejoin="round" />
+        ))}
       </g>
       {/* The axis numbers are drawn OVER the curve, each with its own outline
           in the plot's colour: a steep curve hugging an axis used to run over
@@ -119,7 +178,38 @@ const GraphLayer = memo(function GraphLayer({ drawing, view, side }) {
   );
 });
 
-function FoundMark({ target, view, side, fresh }) {
+// A found asymptote: its line drawn in, labelled with its equation, the label
+// on the side of the line the curve is not (rushGraphModel.lineLabelSpot).
+function FoundLine({ question, target, view, side, fresh }) {
+  const line = lineTargetUnit(view, target);
+  const label = formatTarget(target);
+  const vertical = line.orientation === 'vertical';
+  const at = (vertical ? line.u : line.v) * side;
+  const spot = lineLabelSpot(question, target);
+  const labelX = vertical ? at + (spot.side === 'left' ? -8 : 8) : spot.u * side;
+  const labelY = vertical ? spot.v * side + 12 : at + (spot.side === 'below' ? 18 : -8);
+  return (
+    <g className={fresh ? 'mm-rush-found mm-rush-found-fresh' : 'mm-rush-found'} style={{ transformOrigin: vertical ? `${at}px ${side / 2}px` : `${side / 2}px ${at}px` }}>
+      {vertical
+        ? <line x1={at} x2={at} y1={0} y2={side} {...ASYMPTOTE_STROKE} strokeWidth={3} />
+        : <line x1={0} x2={side} y1={at} y2={at} {...ASYMPTOTE_STROKE} strokeWidth={3} />}
+      <text
+        x={labelX}
+        y={labelY}
+        textAnchor={spot.anchor}
+        fontSize={14}
+        fontWeight={900}
+        fill="var(--mm-rush-asymptote)"
+        style={{ paintOrder: 'stroke', stroke: 'var(--mm-graph-bg)', strokeWidth: 4, strokeLinejoin: 'round' }}
+      >
+        {label}
+      </text>
+    </g>
+  );
+}
+
+function FoundMark({ question, target, view, side, fresh }) {
+  if (target?.geometry === 'line') return <FoundLine question={question} target={target} view={view} side={side} fresh={fresh} />;
   const cx = unitX(view, target.x) * side;
   const cy = unitY(view, target.y) * side;
   const nearRight = cx > side - 90;
@@ -164,8 +254,10 @@ function MissMark({ x, y, view, side }) {
  * @param {boolean}  props.paused     input paused (cooldown, time up): drawn dimmed;
  *                                    taps still reach onTap, which refuses them
  * @param {Function} props.onTap      ({ x, y, pointer, tolerance }) => void
+ * @param {object}   props.axisSet    a domain or range being drawn (axisSetDrawing)
+ * @param {object}   props.revealSet  the answer, shown as the graph moves on
  */
-function GraphFeatureRushGraph({ question, drawing, side, found = [], feedback = null, paused = false, onTap, label }) {
+function GraphFeatureRushGraph({ question, drawing, side, found = [], feedback = null, paused = false, onTap, label, axisSet = null, revealSet = null }) {
   const svgRef = useRef(null);
   const view = question.view;
   const [cursor, setCursor] = useState(() => initialCursor(view));
@@ -185,10 +277,7 @@ function GraphFeatureRushGraph({ question, drawing, side, found = [], feedback =
     setAnnouncement('');
   }, [question.questionIndex, view]);
 
-  const foundTargets = useMemo(
-    () => (question.targets || []).filter((target) => found.includes(target.id)),
-    [question.targets, found],
-  );
+  const foundTargets = useMemo(() => foundMarkTargets(question, found), [question, found]);
   const freshTarget = feedback && feedback.questionIndex === question.questionIndex ? feedback.targetId : null;
   const missAt = feedback && feedback.kind === 'miss' && feedback.questionIndex === question.questionIndex && Number.isFinite(feedback.x)
     ? feedback
@@ -264,9 +353,12 @@ function GraphFeatureRushGraph({ question, drawing, side, found = [], feedback =
       >
         <GraphLayer drawing={drawing} view={view} side={side} />
         {foundTargets.map((target) => (
-          <FoundMark key={target.id} target={target} view={view} side={side} fresh={target.id === freshTarget} />
+          <FoundMark key={target.id} question={question} target={target} view={view} side={side} fresh={target.id === freshTarget} />
         ))}
         {missAt && <MissMark key={missAt.seq} x={missAt.x} y={missAt.y} view={view} side={side} />}
+        {revealSet
+          ? <AxisSet shape={revealSet} side={side} tone="var(--mm-rush-found)" />
+          : <AxisSet shape={axisSet} side={side} tone="var(--mm-rush-curve)" />}
         {cursorVisible && (
           <g aria-hidden="true" pointerEvents="none">
             <line x1={cursorX} x2={cursorX} y1={0} y2={side} stroke="var(--mm-focus)" strokeWidth={1.5} strokeDasharray="4 4" />

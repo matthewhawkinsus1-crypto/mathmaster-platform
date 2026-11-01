@@ -40,7 +40,9 @@ durable match result.
 | `liveChallenge.mjs` | the mature per-response scorer, receipts, leaderboard, tallies (pre-engine; still authoritative for Accuracy First arithmetic) | yes |
 | `liveChallengeParity.mjs` | client clock calibration, round phases, snapshot acceptance | yes |
 | `graphFeature*.mjs` | Graph Feature Rush: exact graph math, the generator, hit testing, attempt rules (see `graph-feature-rush.md`) | yes |
-| `seededRandom.mjs` | the integer-only seeded random source generated questions are rebuilt from (Graph Feature Rush and Graph the Line) | yes |
+| `inequality*.mjs` | Inequality Graphing Rush: generated inequalities with exact answers, settings, hints and the round's guide; played on Graph Feature Rush's attempts and screens (see `inequality-rush.md`) | yes |
+| `numberLineSets.mjs` | sets on a number line and the tap model that draws them: Graph Feature Rush's domains and ranges, every inequality's answer | yes |
+| `seededRandom.mjs` | the integer-only seeded random source generated questions are rebuilt from (Graph Feature Rush, Inequality Graphing Rush and Graph the Line) | yes |
 | `lineGraph*.mjs` | Graph the Line — three modes (Classic, Sprint, Rush), offered to every teacher since its class-scale certification: exact lines, how equations are written and read, the generator, auto-check grading and hints, the attempt pipeline (see `graph-the-line.md`) | yes |
 | `liveChallengePresence.mjs` | the heartbeat a game screen's clock calibration writes: quality, recent sessions (devices), reconnects | yes |
 
@@ -427,11 +429,27 @@ runs each effect **from the match result**, never from private game state:
 | Effect | Writes |
 | --- | --- |
 | `report` | `liveChallengeReports/{roomId}` |
+| `classMemory` | `liveChallengeClassMemory/{classId}__{game}` — a finished rush game's record for its class's next setup (below); finished matches only, and a no-op for every other game |
 | `invites` | invite status — only invites that still point at this room |
 | `warmupCredit` | the assignment's participation/accuracy credit, measured against rounds actually played |
 | `evidence` | mastery evidence (weight 0.7, replays excluded); a line game's by its own rules — each line's first try, per item type, from each standing's `lineGraphEvidence` (`lineGraphEvidence.mjs`, `graph-the-line.md` §11) — only while the owner's switch `platformFlags/liveChallengeEvidence` has `lineGraph: true` (off) |
 | `rewards` | reward delivery (section 9); finished matches only |
 | `privateCleanup` | deletes `liveChallengePrivate/{roomId}` — last, once every other effect has settled, or on the last attempt |
+
+**Class memory** (`liveChallengeClassMemory.mjs`). A finished Graph Feature
+Rush or Inequality Graphing Rush game leaves its class one record per game:
+when it was played, the settings it was created with (read from the room),
+and how the class did — accuracy, completed per student, the weakest feature
+or kind (the report's hardest row). No student is named. The next setup of
+that game for that class opens with a card — "Period 5 last played this on
+Oct 28 at Standard, 3 × 60 s, 86% accuracy → try Challenge." — and two
+buttons, **Use last settings** and **Use suggestion**. The suggestion is
+worked out when the card is shown: 85% or higher steps up a difficulty (at
+the top, a shorter clock); 65% to 85% repeats; below 65% steps down (at the
+bottom, or where the easier difficulty cannot play the settings, it drops the
+weakest feature; failing that, a longer clock). Every suggestion passes the
+game's own settings rule. A late or repeated run for an older game never
+replaces a newer memory.
 
 Each effect is idempotent. Outcomes are merged into `effects` in a transaction
 where `done` always wins. A failure is logged and left for the scheduled sweep
@@ -598,7 +616,8 @@ late join and Play Again. The rules below are the engine-facing ones.
   makes no sound it cannot play (unprimed or muted).
 - **Graph Feature Rush** (`graph-feature-rush.md`): the student plays on a
   lazily loaded full-screen surface; both standings listeners (the snapshot
-  and the student's own row) pause while a rush round is open.
+  and the student's own row) pause while a rush round is open. Inequality
+  Graphing Rush (`inequality-rush.md`) plays on the same surface.
 
 ---
 
@@ -618,6 +637,7 @@ late join and Play Again. The rules below are the engine-facing ones.
 | `liveChallengeTeacherActive/{email}` | the teacher's active room pointer | own teacher |
 | `liveChallengeMatchResults/{roomId}` | durable final result + effects bookkeeping | none |
 | `liveChallengeReports/{roomId}` | teacher report | room's teacher |
+| `liveChallengeClassMemory/{classId}__{game}` | what a class did the last time it played a rush game, with which settings — class totals only | the teacher who ran that game (a class with none reads as nothing); no client writes |
 | `liveChallengeAchievementJobs/{roomId}` | staged awards and outcomes | none |
 | `classPointTransactions`, `classPointAccounts` | the Class Points ledger | student own; authorized teachers |
 | `rewardGrants/{grantId}` | item rewards | student own; authorized teachers; no client writes |
@@ -634,7 +654,8 @@ list them), and scrubs their rows from match results and reports (by the
 round results (`liveChallengePrivate/{roomId}/rounds/{round}`) of the room
 their invite names, which a room retired without finishing keeps, and of each
 match they played whose private cleanup has not run (SI13). A report's
-question-set rows (`lineGraph.players`, `graphFeatureRush.players`) go too
+question-set rows (`lineGraph.players`, `graphFeatureRush.players`,
+`inequalityRush.players`) go too
 (`reportRowsWithout`, SI07).
 
 A match that finishes while the deletion runs never pays or reports the
@@ -806,7 +827,7 @@ support. Rules: the room's audience reads it; no client writes it.
 
 | Piece | Module | Rule |
 | --- | --- | --- |
-| Worked solution between rounds | `liveChallengeSolutionReveal.mjs` | Captured privately when a round opens (`liveChallengePrivate.roundSolutions`), published to `liveChallengeRooms/{room}/solutions/{round}` only after the round closes; while Second Chance may replay a question its solution is held until the replay plan is known and, for a replayed question, until the replay closes. A finished match publishes everything; a cancelled one nothing. `room.revealedSolutionRounds` lists what is public. A Graph Feature Rush round (no shared question) publishes a reading guide to the game's features instead (`graphFeatureReading.mjs`, `guide: true`, LC07), at the round's close with nothing to hold it back; the recap leaves it out. |
+| Worked solution between rounds | `liveChallengeSolutionReveal.mjs` | Captured privately when a round opens (`liveChallengePrivate.roundSolutions`), published to `liveChallengeRooms/{room}/solutions/{round}` only after the round closes; while Second Chance may replay a question its solution is held until the replay plan is known and, for a replayed question, until the replay closes. A finished match publishes everything; a cancelled one nothing. `room.revealedSolutionRounds` lists what is public. A Graph Feature Rush round (no shared question) publishes a reading guide to the game's features instead (`graphFeatureReading.mjs`, `guide: true`, LC07), at the round's close with nothing to hold it back; the recap leaves it out. An Inequality Graphing Rush round publishes its guide to graphing inequalities the same way, titled by its own `guideTitle` (`inequalityReading.mjs`). |
 | Extended time | `liveChallengeAccommodations.mjs` | `joinLiveChallenge` reads the student's support profile; the multiplier (≤ 2) is private (player record, own invite); the room carries only `maxTimeMultiplier`. Submissions are judged against the student's own deadline, stretched from the round's full length (`activeRoundSeconds`) so a closing threshold never takes it away; a round past the class deadline is not ready to close while an unfinished student is inside theirs (`extendedPendingCount`, readiness `extended_time`). By mode (`extendedTimeRuleFor`): a synchronized question round counts their answer like anyone's; a question-set race with a set to finish (capability `extraTimeAfterBuzzer`: Graph the Line's Classic and Sprint) is decided at the class's buzzer and the extra time comes after it — attempts then are kept in `extraTimeReceipts`, apart from the race's `submissionReceipts`, so nothing that ranks, scores or rewards reads them, and the public row never moves (`graph-the-line.md` §7); an "as many as you can" race (Graph Feature Rush, Graph the Line's Rush) is not extended. |
 | Difficulty targeting | `liveChallengeDifficulty.mjs` | No DOK 3 under 90 s, no DOK 4 in a timed round; Pace Race takes anything. A pool it empties is refused at create with the reason. |
 | Public top few | `liveChallengePrivacy.mjs` | `room.standingsDisplay` (`topFew` default, `full` opt-in). |

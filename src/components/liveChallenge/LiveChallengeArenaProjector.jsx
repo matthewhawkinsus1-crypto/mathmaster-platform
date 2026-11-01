@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import MathText from '../common/MathText.jsx';
-import { RushRaceBoard, rushSettingsLine } from './GraphFeatureRushHost.jsx';
+import { RushRaceBoard, rushBadges, rushSettingsLine } from './GraphFeatureRushHost.jsx';
 import { lineSettingsLine } from './LineGraphHost.jsx';
 import RevealedLine from './RevealedLine.jsx';
 import {
@@ -12,11 +12,9 @@ import {
   StandingsBoard,
   useLowTime,
 } from './ChallengeShellParts.jsx';
-import { getGraphFeature } from '../../../functions/shared/graphFeatureRegistry.mjs';
-import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { LINE_GRAPH_FORMAT, lineGraphFormatOfMode } from '../../../functions/shared/lineGraphRules.mjs';
 import { rushPlayingCount, rushRaceRows } from '../../platform/liveChallenge/rushStandingsModel.js';
-import { CHALLENGE_STAGE, HOST_COMMAND, QUESTION_SET_GAME, formatChallengeClock, questionSetGameOf, roomRunsQuestionSets } from '../../platform/liveChallenge/challengeShellModel.js';
+import { CHALLENGE_STAGE, HOST_COMMAND, QUESTION_SET_GAME, formatChallengeClock, isRushGame, questionSetGameOf, roomRunsQuestionSets, rushGameWords } from '../../platform/liveChallenge/challengeShellModel.js';
 import { useChallengeClock } from '../../platform/liveChallenge/challengeHooks.js';
 import { amountText, rewardSummaryLines, scorePresentation, standingsRows } from '../../platform/liveChallenge/challengeStandingsModel.js';
 import {
@@ -35,7 +33,7 @@ import {
   rushRaceRanked,
   stackedResultsPlan,
 } from '../../platform/liveChallenge/liveChallengeProjectorModel.js';
-import { SOLUTION_STATE, answerSummaryLabel, projectorStepLimit, solutionStateMessage, solutionTitle } from '../../platform/liveChallenge/challengeSolutionModel.js';
+import { SOLUTION_STATE, answerSummaryLabel, projectorSteps, solutionStateMessage, solutionTitle } from '../../platform/liveChallenge/challengeSolutionModel.js';
 
 /*
  * THE PROJECTOR: THE GAME AS THE WHOLE CLASS SEES IT.
@@ -538,7 +536,7 @@ function LobbyView({ room, leaderboard, joinedCount, busy, onStart }) {
 // What the room is told while the countdown runs.
 const countdownDetail = (room) => {
   const game = questionSetGameOf(room);
-  if (game === QUESTION_SET_GAME.GRAPH_FEATURE_RUSH) return 'Everyone gets their own graphs';
+  if (isRushGame(game)) return rushGameWords(room).countdown;
   if (game === QUESTION_SET_GAME.LINE_GRAPH) {
     const together = lineGraphFormatOfMode(room?.challengeMode) === LINE_GRAPH_FORMAT.CLASSIC && room?.lineGraph?.config?.sameEquations === true;
     return together ? 'Everyone graphs the same line' : 'Everyone gets their own lines';
@@ -616,14 +614,16 @@ function RunningView({ room, clock, clockOffsetMs, leaderboard, presentation, jo
 /*
  * GRAPH FEATURE RUSH ON THE PROJECTOR. Every student has their own graphs, so
  * the room sees the race — graphs completed this round — and never a graph or
- * an answer.
+ * an answer. An Inequality Graphing Rush room races the same way, in its own
+ * words: inequalities, never one of them.
  */
 function RushRunningView({ room, clock, clockOffsetMs, players, joinedCount, rows }) {
   const roundIndex = Number(room?.currentRound) || 0;
   const locked = clock.stage === CHALLENGE_STAGE.ROUND_LOCKED;
   const playing = rushPlayingCount(players, roundIndex);
   const graphs = rushRaceRows(players, roundIndex).reduce((sum, row) => sum + row.completed, 0);
-  const features = (room?.graphFeatureRush?.config?.features || []).map((id) => getGraphFeature(id)?.shortLabel || id);
+  const words = rushGameWords(room);
+  const features = rushBadges(room);
   // The race is ranked by graphs this round (equal counts share a place), so
   // the same rule keeps everyone tied at the bottom — at GO, everyone — off it.
   const raceBoard = publicStandingsRows(room, rushRaceRanked(rushRaceRows(players, roundIndex)), { spaceForRows: rows });
@@ -637,22 +637,22 @@ function RushRunningView({ room, clock, clockOffsetMs, players, joinedCount, row
           {features.map((feature) => <ArenaBadge key={feature} accent="#b79cff">{feature}</ArenaBadge>)}
         </div>
         <div style={{ alignSelf: 'center' }}>
-          <div style={labelStyle}>{locked ? 'Time is up' : 'Find the features'}</div>
+          <div style={labelStyle}>{locked ? 'Time is up' : words.task}</div>
           <div style={{ marginTop: 10, fontSize: 'clamp(calc(28 * var(--mm-px)), calc(5vh * var(--mm-text-scale, 1)), calc(48 * var(--mm-px)))', lineHeight: 1.2, fontWeight: 900, color: '#f7f9ff' }}>
-            {locked ? 'Saving the last taps — results next.' : 'Everyone has their own graphs. Tap the features. Go!'}
+            {locked ? 'Saving the last taps — results next.' : words.go}
           </div>
           <div style={{ marginTop: 10, color: 'rgba(236,241,255,.68)', fontWeight: 800, fontSize: 'clamp(calc(14 * var(--mm-px)), calc(1.4vw * var(--mm-text-scale, 1)), calc(19 * var(--mm-px)))' }}>{rushSettingsLine(room)}</div>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', color: 'rgba(236,241,255,.78)', fontWeight: 900, fontSize: 'clamp(calc(15 * var(--mm-px)), calc(1.5vw * var(--mm-text-scale, 1)), calc(20 * var(--mm-px)))' }}>
           <span>{playing} of {joinedCount} racing</span>
-          <span>{graphs} {graphs === 1 ? 'graph' : 'graphs'} completed</span>
+          <span>{graphs} {graphs === 1 ? words.one : words.many} completed</span>
         </div>
       </section>
       <section style={{ display: 'grid', gridTemplateRows: 'auto minmax(0,1fr)', gap: 'clamp(10px, 1.4vh, 16px)', minHeight: 0 }}>
         <ArenaClock room={room} clock={clock} clockOffsetMs={clockOffsetMs} />
         <div style={{ ...glassPanel, padding: 'clamp(10px, 1.4vw, 18px)', overflow: 'hidden' }}>
-          <div style={{ ...labelStyle, marginBottom: 10 }}>Live race · graphs this round</div>
-          {boardLimit > 0 && <RushRaceBoard players={players} roundIndex={roundIndex} limit={boardLimit} look="projector" />}
+          <div style={{ ...labelStyle, marginBottom: 10 }}>Live race · {words.many} this round</div>
+          {boardLimit > 0 && <RushRaceBoard players={players} roundIndex={roundIndex} limit={boardLimit} look="projector" label={`${words.many[0].toUpperCase()}${words.many.slice(1)} completed this round`} />}
           {/* RushRaceBoard lists only its rows; how many more are racing is said here. */}
           {racersMore && (
             <div data-mm-board-more="rush" style={{ marginTop: 6, paddingLeft: 4, color: 'rgba(236,241,255,.7)', fontWeight: 800, fontSize: 'clamp(calc(14 * var(--mm-px)), calc(1.4vw * var(--mm-text-scale, 1)), calc(20 * var(--mm-px)))' }}>{racersMore}</div>
@@ -753,7 +753,8 @@ function ProjectorSolution({ solution, state }) {
     );
   }
   const review = solution?.solutionReview || {};
-  const steps = (Array.isArray(review.reasoning) ? review.reasoning : []).filter(Boolean).slice(0, projectorStepLimit(solution));
+  // A long guide keeps its answers line (challengeSolutionModel.projectorSteps).
+  const steps = projectorSteps(solution);
   if (solution?.lineGraph) {
     return (
       <section data-mm-projector-solution="ready" data-mm-projector-line="1" aria-label="The line" style={{ ...glassPanel, padding: 'clamp(14px, 2vw, 26px)', overflow: 'auto', minHeight: 0, display: 'grid', alignContent: 'start', gap: 'clamp(8px, 1.4vh, 14px)', fontSize: 'clamp(calc(17 * var(--mm-px)), calc(2.4vh * var(--mm-text-scale, 1)), calc(24 * var(--mm-px)))' }}>
@@ -1146,7 +1147,7 @@ export default function LiveChallengeArenaProjector({
           {loading && <section style={{ ...glassPanel, height: '100%', display: 'grid', placeItems: 'center', fontSize: 'clamp(calc(24 * var(--mm-px)), calc(4vh * var(--mm-text-scale, 1)), calc(40 * var(--mm-px)))', fontWeight: 900 }} aria-busy="true">Opening the new lobby…</section>}
           {!loading && stage === CHALLENGE_STAGE.LOBBY && <LobbyView room={room} leaderboard={leaderboard} joinedCount={joinedCount} busy={busy} onStart={onStart} />}
           {!loading && stage === CHALLENGE_STAGE.COUNTDOWN && <CountdownView room={room} clock={clock} />}
-          {!loading && openRound && room?.challengeMode === RUSH_MODE_ID && <RushRunningView room={room} clock={clock} clockOffsetMs={clockOffsetMs} players={players} joinedCount={joinedCount} rows={rows} />}
+          {!loading && openRound && isRushGame(questionSetGameOf(room)) && <RushRunningView room={room} clock={clock} clockOffsetMs={clockOffsetMs} players={players} joinedCount={joinedCount} rows={rows} />}
           {!loading && openRound && questionSetGameOf(room) === QUESTION_SET_GAME.LINE_GRAPH && <LineRunningView room={room} clock={clock} clockOffsetMs={clockOffsetMs} players={players} joinedCount={joinedCount} rows={rows} finishing={finishing} />}
           {!loading && openRound && !roomRunsQuestionSets(room) && <RunningView room={room} clock={clock} clockOffsetMs={clockOffsetMs} leaderboard={leaderboard} presentation={presentation} joinedCount={joinedCount} answeredCount={answeredCount} rows={rows} />}
           {!loading && stage === CHALLENGE_STAGE.ROUND_RESULTS && <ResultsView room={room} clock={clock} roundView={roundView} presentation={presentation} leaderboard={leaderboard} rows={rows} solution={solution} solutionState={solutionState} solutionHidden={solutionHidden} />}
