@@ -5,6 +5,7 @@ import {
   formatCoordinate,
   formatPoint,
   formatTarget,
+  foundMarkTargets,
   initialCursor,
   isCursorKey,
   lineLabelSpot,
@@ -276,10 +277,7 @@ function GraphFeatureRushGraph({ question, drawing, side, found = [], feedback =
     setAnnouncement('');
   }, [question.questionIndex, view]);
 
-  const foundTargets = useMemo(
-    () => (question.targets || []).filter((target) => found.includes(target.id)),
-    [question.targets, found],
-  );
+  const foundTargets = useMemo(() => foundMarkTargets(question, found), [question, found]);
   const freshTarget = feedback && feedback.questionIndex === question.questionIndex ? feedback.targetId : null;
   const missAt = feedback && feedback.kind === 'miss' && feedback.questionIndex === question.questionIndex && Number.isFinite(feedback.x)
     ? feedback

@@ -12,7 +12,7 @@ import { GRAPH_FEATURE_RUSH_PRESETS, getRushPreset, normalizeGraphFeatureRushCon
 import { RUSH_ATTEMPT_KIND, RUSH_REVEAL_PAUSE_MS, RUSH_SET_AUTO_SKIP_MISSES, rushAutoSkipMisses } from '../../functions/shared/graphFeatureRushRules.mjs';
 import { correctCountStrategy } from '../../functions/shared/liveChallengeScoring.mjs';
 import * as N from '../../functions/shared/numberLineSets.mjs';
-import { axisSetDrawing } from '../../src/platform/liveChallenge/rushGraphModel.js';
+import { axisSetDrawing, foundMarkTargets } from '../../src/platform/liveChallenge/rushGraphModel.js';
 import {
   RUSH_FEEDBACK,
   RUSH_INPUT,
@@ -391,6 +391,16 @@ test('the reading guide says how to read a domain and a range', () => {
   const guide = rushReadingGuide({ features: ['domain', 'range'], difficulty: 'standard' }).solutionReview;
   assert.deepEqual(guide.reasoning, [FEATURE_READING.domain.line, FEATURE_READING.range.line], 'two lines: neither is ever "Does Not Exist"');
   assert.match(FEATURE_READING.domain.line, /open dot/);
+});
+
+test('a correct check marks no point: a domain or range shows as its drawing, never a "(0, 0)" check', () => {
+  const domain = publicRushQuestion(slotQuestion('squareRoot', GRAPH_FEATURE.DOMAIN, 'endpoint', QUESTION_TIER.EASY, 'no-mark'));
+  const [target] = domain.targets;
+  assert.deepEqual(foundMarkTargets(domain, [target.id]), [], 'the set target is found, and drawn as a set');
+  const intercept = publicRushQuestion(slotQuestion('linear', GRAPH_FEATURE.X_INTERCEPT, 'one', QUESTION_TIER.EASY, 'mark'));
+  assert.deepEqual(foundMarkTargets(intercept, [intercept.targets[0].id]), [intercept.targets[0]], 'a point is still marked');
+  assert.deepEqual(foundMarkTargets(intercept, []), []);
+  assert.match(read('src/components/liveChallenge/GraphFeatureRushGraph.jsx'), /const foundTargets = useMemo\(\(\) => foundMarkTargets\(question, found\), \[question, found\]\);/);
 });
 
 test('the round shows the set as drawn, its notation, the arrows and ✓ Check on a domain or range — and Does Not Exist only elsewhere', () => {
