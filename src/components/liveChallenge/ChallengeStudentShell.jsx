@@ -212,12 +212,13 @@ export function StudentFinalCard({ selfRow, presentation, totalPlayers = 0, rows
   const placeWords = selfRow && selfRow.rank !== null
     ? `${selfRow.tied ? `tied for ${ordinal(selfRow.rank)}` : ordinal(selfRow.rank)} of ${totalPlayers}`
     : null;
-  let unit = null;
-  if (rush) unit = 'graph';
-  else if (lines) unit = 'line';
+  // What the game's items are called: graphs or inequalities (a rush), lines.
+  let units = null;
+  if (rush) units = rushGameWords(room);
+  else if (lines) units = { one: 'line', many: 'lines' };
   const didLine = selfRow
     ? `${amountText(selfRow.score, presentation.total)}${presentation.placementPoints || presentation.strategyId !== 'correctCount'
-      ? ` · ${selfRow.correctCount} ${unit ? (selfRow.correctCount === 1 ? unit : `${unit}s`) : 'correct'}`
+      ? ` · ${selfRow.correctCount} ${units ? (selfRow.correctCount === 1 ? units.one : units.many) : 'correct'}`
       : ''}`
     : '';
   return (
