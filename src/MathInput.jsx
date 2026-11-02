@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { createFieldEchoGuard } from './platform/interaction/fieldEchoGuard.js';
 import './platform/math/mathliveRuntime.js';
 import { requiredAnswerToolForSymbol, resolveRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
@@ -283,6 +284,10 @@ export default function MathInput({
 }) {
   const mfRef = useRef(null);
   const onChangeRef = useRef(onChange);
+  // The newest onSubmit, and the last value reported upward: Enter reports the
+  // field first when MathLive has not yet, then acts through these (below).
+  const onSubmitRef = useRef(onSubmit);
+  const reportedRef = useRef(null);
   // Every value this field reports upward goes through `emit`, so the prop
   // sync below can tell its own late echo from a change made elsewhere.
   const echoGuardRef = useRef(null);
@@ -295,6 +300,7 @@ export default function MathInput({
   const mixedNumberRef = useRef(null);
   const emit = useCallback((next) => {
     echoGuardRef.current.emitted(next);
+    reportedRef.current = next;
     onChangeRef.current(next);
   }, []);
   const [showTools, setShowTools] = useState(showToolsInitially || requiredSymbols.length > 0);
@@ -426,6 +432,11 @@ export default function MathInput({
     onChangeRef.current = onChange;
   }, [onChange]);
 
+  // A layout effect, so the render that flushSync below forces has set it.
+  useLayoutEffect(() => {
+    onSubmitRef.current = onSubmit;
+  }, [onSubmit]);
+
   // Declared BEFORE the listener effect below, so on mount its stale-key guard
   // is the first capture listener on the host and runs ahead of Enter/space
   // handling: a key meant for another box never reaches this field's handlers.
@@ -534,7 +545,14 @@ export default function MathInput({
       if (event.key === 'Enter' && onSubmit && !event.isComposing && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
         event.preventDefault();
         event.stopPropagation();
-        onSubmit();
+        // MathLive shows a key before it reports it: the `input` event comes a
+        // beat later. On a slow Chromebook Enter can land in that beat, and the
+        // answer checked or submitted was the one before the last keys (a box
+        // showing −2 was checked as the −1 typed before it: afterLastMiss.mjs,
+        // the 3×3 practice). Report the field as it stands, let the parent
+        // render that, and act through the parent's newest onSubmit.
+        if (mathField.value !== reportedRef.current) flushSync(() => emit(mathField.value));
+        onSubmitRef.current?.();
         return;
       }
       if (event.key === ' ' || event.code === 'Space') {
