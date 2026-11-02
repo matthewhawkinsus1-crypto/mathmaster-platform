@@ -247,10 +247,16 @@ for (const device of DEVICES) {
         message: await section.locator('[data-practice-message]').textContent(),
       };
     };
+    // A slow Chromebook: MathLive reports a key a beat after it shows it, and
+    // Enter in the last box must not check in that beat (MathInput.jsx). With
+    // the CPU slowed the beat is there on every run, not only on a busy runner.
+    const cdp = device.name === 'desktop' ? await context.newCDPSession(page) : null;
+    await cdp?.send('Emulation.setCPUThrottlingRate', { rate: 6 });
     const wrong = await typeAll((part) => String(Number(part.expected) + 1));
     check(wrong.marks.every((mark) => mark === 'incorrect') && wrong.message.startsWith('Not quite'), `${device.name} 3×3: wrong values are marked ✗`, `${wrong.marks.join(',')} · ${wrong.message}`);
     const right = await typeAll((part) => part.expected);
     check(right.marks.every((mark) => mark === 'correct') && /That matches/.test(right.message), `${device.name} 3×3: the solution is marked ✓`, `${right.marks.join(',')} · ${right.message}`);
+    await cdp?.send('Emulation.setCPUThrottlingRate', { rate: 1 });
     check((await page.evaluate(() => window.__mmGrades.length)) === graded, `${device.name} 3×3: no attempt, grade or submission from the practice`);
     await section.getByRole('button', { name: 'Show the worked solution' }).click();
     const steps = await section.locator('[data-practice-solution] li').count();
