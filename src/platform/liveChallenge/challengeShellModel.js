@@ -117,6 +117,34 @@ const RUSH_WORDS = Object.freeze({
 export const rushGameWords = (room = {}) => RUSH_WORDS[questionSetGameOf(room)] || RUSH_WORDS[QUESTION_SET_GAME.GRAPH_FEATURE_RUSH];
 
 /*
+ * THE RACE'S NAME AND TAGLINE, as the student's lobby writes them in the Grand
+ * Prix look (grandPrixTheme.js): the game's name, then three short calls —
+ * what to do, earn points, race to the podium. Words only: the lobby's plain
+ * line (lobbyGameWords) still says how the game plays.
+ */
+const ARENA_LINE_TITLES = Object.freeze({
+  [LINE_GRAPH_MODE_ID.CLASSIC]: 'Graph the Line',
+  [LINE_GRAPH_MODE_ID.SPRINT]: 'Graph the Line Sprint',
+  [LINE_GRAPH_MODE_ID.RUSH]: 'Graph the Line Rush',
+});
+const ARENA_TASKS = Object.freeze({
+  [QUESTION_SET_GAME.GRAPH_FEATURE_RUSH]: 'Find the features',
+  [QUESTION_SET_GAME.INEQUALITY_RUSH]: 'Graph the solutions',
+  [QUESTION_SET_GAME.LINE_GRAPH]: 'Graph the lines',
+});
+export const arenaGameTitle = (room = {}) => {
+  const game = questionSetGameOf(room);
+  if (isRushGame(game)) return rushGameWords(room).game;
+  if (game === QUESTION_SET_GAME.LINE_GRAPH) return ARENA_LINE_TITLES[String(room?.challengeMode)] || 'Graph the Line';
+  return room?.challengeMode === 'solverRace' ? 'Solver Race' : 'Live Challenge';
+};
+export const arenaTagline = (room = {}) => Object.freeze([
+  ARENA_TASKS[questionSetGameOf(room)] || (room?.challengeMode === 'solverRace' ? 'Solve it fast' : 'Answer fast'),
+  'Earn points',
+  'Race to the podium',
+]);
+
+/*
  * Question-set rounds that hold more than anyone finishes — Graph Feature
  * Rush, Inequality Graphing Rush and Graph the Line's Rush — end on the
  * clock alone. A Classic or
@@ -479,15 +507,16 @@ export const lockedAnswerLine = ({ waitingForGo = false, waitingForResume = fals
 
 /*
  * THE ROUND BANNER'S COLOURS (AX22). The banner over a student's question is
- * white text on a gradient. Its light end was #1a73e8: white on it is 4.51:1,
- * one rounding from failing AA, and the small lines on the banner ("Points
- * banked", "Your extra time is on") are drawn at 80-90% white, which was 3.5 to
- * 4.0:1 there. Both ends now keep 80% white, and the gold points, above 4.5:1
- * (tests/platform/liveChallengeRoundBanner.test.mjs). The last ten seconds turn
- * the banner red; those ends were already well above it.
+ * white text on a gradient. Its light end was once #1a73e8: white on it is
+ * 4.51:1, one rounding from failing AA, and the small lines on the banner
+ * ("Points banked", "Your extra time is on") are drawn at 80-90% white, which
+ * was 3.5 to 4.0:1 there. Both ends keep 80% white, and the gold points, above
+ * 4.5:1 (tests/platform/liveChallengeRoundBanner.test.mjs). Calm, it is the
+ * Grand Prix's race night (purple into blue, grandPrixTheme.js); the last ten
+ * seconds turn it red.
  */
 export const ROUND_BANNER_COLORS = Object.freeze({
-  calm: Object.freeze(['#174ea6', '#185abc']),
+  calm: Object.freeze(['#2b1278', '#1442b0']),
   urgent: Object.freeze(['#7f1d1d', '#a50e0e']),
 });
 export const roundBannerBackground = (urgent = false) => (

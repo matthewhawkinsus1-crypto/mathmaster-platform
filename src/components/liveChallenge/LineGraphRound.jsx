@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import LineEquation from './LineEquation.jsx';
 import LineGraphCanvas from './LineGraphCanvas.jsx';
+import StartLights from './StartLights.jsx';
+import { ARENA_LINE_VARS, GP_RACE_CSS, arenaLayerCss } from './grandPrixTheme.js';
 import { monotonicRoundOrigin } from '../../../functions/shared/liveChallengeParity.mjs';
 import { roomFullRoundMs } from '../../../functions/shared/liveChallengeAccommodations.mjs';
 import { BUILD_FIELDS, buildPreview, LINE_FORM } from '../../../functions/shared/lineGraphForms.mjs';
@@ -173,7 +175,12 @@ function LineCountdownNumber({ startMono }) {
   const before = startMono - now;
   if (before <= 0) return null;
   const step = Math.min(3, Math.max(1, Math.ceil(before / 1000)));
-  return <span key={step} className="mm-line-count" data-mm-countdown={String(step)} aria-hidden="true">{step}</span>;
+  return (
+    <>
+      <StartLights step={step} />
+      <span key={step} className="mm-line-count" data-mm-countdown={String(step)} aria-hidden="true">{step}</span>
+    </>
+  );
 }
 
 /** Spoken time warnings, once each: a screen reader is not asked to read a ticking clock. */
@@ -190,33 +197,43 @@ function useTimeAnnouncements(endMono, active) {
   return spoken;
 }
 
+// The arena is dark in both themes: its plate, clock, answer boxes and
+// buttons keep fixed colours in dark mode too (grandPrixTheme.js, "Fixed
+// colours, on purpose").
 const LINE_CSS = `
 .mm-line-shell {
   /* Full screen below the student identity bar, which stays on top and
      publishes its height (the rush's contract, .mm-rush-shell). */
   position: fixed; top: var(--mm-student-identity-stack-offset, 0px); right: 0; bottom: 0; left: 0; z-index: 9000;
   display: grid; grid-template-rows: auto minmax(0, 1fr); grid-template-columns: minmax(0, 1fr);
-  background: radial-gradient(120% 90% at 50% 0%, #1f2a44 0%, #131722 55%, #0d1017 100%);
-  color: #eef1f6; font-family: "Segoe UI", system-ui, sans-serif;
+  color: #eef2ff; font-family: "Segoe UI", system-ui, sans-serif;
   touch-action: manipulation; overscroll-behavior: none;
-  --mm-line-draw: var(--mm-primary); --mm-line-given: var(--mm-primary);
-  --mm-line-right: #1e8e3e; --mm-line-wrong: #d93025; --mm-line-method: #e37400; --mm-line-helper: #9334e6;
+  /* The Grand Prix's grid: dark glass, the lines in neon, each mark its own
+     colour (grandPrixTheme.js ARENA_MARKS). The arena behind it is the rule
+     after this one. */
+  ${ARENA_LINE_VARS};
   --mm-line-label-bg: var(--mm-graph-bg); --mm-line-label-text: var(--mm-graph-label);
 }
+${arenaLayerCss('.mm-line-shell')}
 .mm-line-bar {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   padding: 8px max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
-  border-bottom: 1px solid rgba(255,255,255,.1); min-height: 52px; box-sizing: border-box;
+  min-height: 52px; box-sizing: border-box;
+  background: linear-gradient(90deg, rgba(42,15,92,.92), rgba(10,16,52,.92) 55%, rgba(42,15,92,.92));
+  border-bottom: 1px solid rgba(53,227,255,.45); box-shadow: 0 1px 0 rgba(255,63,209,.35), 0 6px 18px rgba(0,0,0,.35);
 }
-.mm-line-chip { padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.12); font-weight: 900; font-size: calc(13 * var(--mm-px)); white-space: nowrap; }
-.mm-line-round { font-weight: 900; font-size: calc(15 * var(--mm-px)); white-space: nowrap; }
-.mm-line-progress { padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.12); font-weight: 900; font-size: calc(13 * var(--mm-px)); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.mm-line-done { font-weight: 1000; font-size: calc(18 * var(--mm-px)); color: #81c995; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.mm-line-streak { font-weight: 1000; font-size: calc(15 * var(--mm-px)); color: #fdd663; white-space: nowrap; }
-.mm-line-clock { margin-left: auto; font-size: calc(30 * var(--mm-px)); font-weight: 1000; line-height: 1; font-variant-numeric: tabular-nums; }
-.mm-line-clock-low { color: #ffb4ab; }
+/* The student's name on a racing plate. */
+.mm-line-chip { padding: 3px 12px; border-radius: 7px; transform: skewX(-8deg); background: linear-gradient(180deg, #d92a48, #c8102e); border: 1px solid rgba(255,255,255,.85); color: #fff; font-weight: 1000; font-style: italic; font-size: calc(13 * var(--mm-px)); white-space: nowrap; }
+.mm-line-round { font-weight: 1000; font-style: italic; text-transform: uppercase; letter-spacing: .02em; color: #35e3ff; font-size: calc(15 * var(--mm-px)); white-space: nowrap; }
+.mm-line-progress { padding: 4px 10px; border-radius: 999px; background: rgba(10,16,52,.7); border: 1px solid rgba(53,227,255,.35); font-weight: 900; font-size: calc(13 * var(--mm-px)); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.mm-line-done { font-weight: 1000; font-style: italic; font-size: calc(18 * var(--mm-px)); color: #ffd23f; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mm-line-streak { font-weight: 1000; font-style: italic; font-size: calc(15 * var(--mm-px)); color: #ffb020; white-space: nowrap; }
+/* The clock redraws every second: crisp edges only (a blur here would be redrawn with it). */
+.mm-line-clock { margin-left: auto; font-size: calc(30 * var(--mm-px)); font-weight: 1000; font-style: italic; line-height: 1; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 2px 2px 0 rgba(53,227,255,.45); }
+/* The last ten seconds: red, and a pulse (a transform: the compositor's). */
+.mm-line-clock-low { color: #ff5d73; text-shadow: 2px 2px 0 rgba(255,63,209,.4); animation: mmGpPulse 1s ease-in-out infinite; }
 .mm-line-sync { font-size: calc(12 * var(--mm-px)); font-weight: 900; color: #fdd663; }
-.mm-line-exit { min-height: 40px; padding: 6px 12px; border: 1px solid rgba(255,255,255,.3); border-radius: 8px; background: transparent; color: #eef1f6; font-weight: 900; cursor: pointer; }
+.mm-line-exit { min-height: 40px; padding: 6px 12px; border: 1px solid rgba(53,227,255,.45); border-radius: 8px; background: rgba(10,16,52,.6); color: #eef2ff; font-weight: 900; cursor: pointer; }
 .mm-line-stage {
   /* minmax(0, 1fr) here and in the grids inside: nothing may widen a column
      past the screen (auto columns grew to a built equation's width on a
@@ -226,28 +243,32 @@ const LINE_CSS = `
 }
 .mm-line-prompt h2 { margin: 0; font-size: clamp(calc(18 * var(--mm-px)), calc(3.4vmin * var(--mm-text-scale, 1)), calc(26 * var(--mm-px))); line-height: 1.15; font-weight: 800; color: #c3d2ea; }
 .mm-line-equation { display: block; margin-top: 4px; font-size: clamp(calc(28 * var(--mm-px)), calc(6vmin * var(--mm-text-scale, 1)), calc(46 * var(--mm-px))); font-weight: 800; line-height: 1.25; color: #fff; }
-.mm-line-hint { margin: 4px 0 0; font-size: calc(13 * var(--mm-px)); color: #b9c4d8; }
+.mm-line-hint { margin: 4px 0 0; font-size: calc(13 * var(--mm-px)); color: #b8c4ef; }
 .mm-line-graph-area { position: relative; min-height: 0; min-width: 0; display: grid; place-items: start center; }
-.mm-line-graph-frame { position: relative; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,.35); }
+/* The grid in neon: a cyan rim and a faint outer ring — crisp, not a blurred
+   glow, which every new line would draw again. */
+.mm-line-graph-frame { position: relative; border-radius: 12px; box-shadow: 0 0 0 1px rgba(53,227,255,.6), 0 0 0 5px rgba(53,227,255,.1), 0 8px 30px rgba(0,0,0,.35); }
 .mm-line-graph-frame[data-paused="1"] .mm-line-graph { opacity: .6; transition: opacity 120ms; }
 .mm-line-controls { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .mm-line-feedback { min-height: 1.5em; font-weight: 900; font-size: calc(16 * var(--mm-px)); line-height: 1.3; }
-.mm-line-feedback[data-kind="correct"] { color: #81c995; }
-.mm-line-feedback[data-kind="miss"], .mm-line-feedback[data-kind="revealed"], .mm-line-feedback[data-kind="repeated"] { color: #ffb4ab; }
+.mm-line-feedback[data-kind="correct"] { color: #45ff8a; }
+.mm-line-feedback[data-kind="miss"], .mm-line-feedback[data-kind="revealed"], .mm-line-feedback[data-kind="repeated"] { color: #ff8fa3; }
 .mm-line-feedback[data-kind="method"], .mm-line-feedback[data-kind="form"] { color: #fdd663; }
 .mm-line-buttons { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 10px; }
-.mm-line-button { min-height: 52px; border-radius: 12px; font-size: calc(17 * var(--mm-px)); font-weight: 1000; cursor: pointer; border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.06); color: #eef1f6; }
-.mm-line-button-primary { border: 0; background: #fdd663; color: #1b1f2a; }
+.mm-line-button { min-height: 52px; border-radius: 12px; font-size: calc(17 * var(--mm-px)); font-weight: 1000; cursor: pointer; border: 1px solid rgba(53,227,255,.45); background: rgba(10,16,52,.6); color: #eef2ff; }
+.mm-line-button-primary { border: 0; background: linear-gradient(180deg, #ffe680 0%, #ffc21a 60%, #f59f00 100%); color: #2b1700; box-shadow: 0 4px 0 #a86400; }
+/* Pressed down on a tap (a transform only). */
+.mm-line-button:active:not(:disabled), .mm-line-choice:active:not(:disabled) { transform: translateY(2px); }
 .mm-line-button:disabled { opacity: .45; cursor: not-allowed; }
 .mm-line-button:focus-visible, .mm-line-exit:focus-visible, .mm-line-choice:focus-visible, .mm-line-box:focus-visible { outline: 3px solid var(--mm-focus); outline-offset: 2px; }
 .mm-line-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .mm-line-choice {
   min-height: 60px; padding: 8px 10px; border-radius: 12px; cursor: pointer; text-align: center;
-  border: 2px solid rgba(255,255,255,.28); background: rgba(255,255,255,.07); color: #fff;
+  border: 2px solid rgba(53,227,255,.4); background: rgba(10,16,52,.6); color: #fff;
   font-size: clamp(calc(18 * var(--mm-px)), calc(3.6vmin * var(--mm-text-scale, 1)), calc(24 * var(--mm-px))); font-weight: 800;
 }
-.mm-line-choice[data-state="right"] { border-color: #81c995; background: rgba(129,201,149,.18); }
-.mm-line-choice[data-state="wrong"] { border-color: #ffb4ab; background: rgba(255,180,171,.14); }
+.mm-line-choice[data-state="right"] { border-color: #45ff8a; background: rgba(69,255,138,.16); }
+.mm-line-choice[data-state="wrong"] { border-color: #ff8fa3; background: rgba(255,93,115,.14); }
 .mm-line-choice:disabled { cursor: default; }
 /* One line, always: an equation split across lines (a lone ")" under the
    boxes) no longer reads as one. The boxes give up width before anything wraps. */
@@ -256,19 +277,21 @@ const LINE_CSS = `
 .mm-line-build i { font-family: Georgia, "Times New Roman", serif; }
 .mm-line-box {
   flex: 0 1 3.6em; width: 3.6em; min-width: 2.6em; min-height: 46px; padding: 4px 6px; border-radius: 10px; box-sizing: border-box; text-align: center;
-  border: 2px solid rgba(255,255,255,.4); background: #0d1017; color: #fff; font: inherit; font-size: .8em;
+  border: 2px solid rgba(53,227,255,.5); background: #070a22; color: #fff; font: inherit; font-size: .8em;
 }
 .mm-line-box[aria-invalid="true"] { border-color: #fdd663; }
 .mm-line-preview { text-align: center; color: #c3d2ea; font-size: calc(15 * var(--mm-px)); min-height: 1.6em; }
 .mm-line-cooldown { height: 6px; border-radius: 999px; background: rgba(255,255,255,.12); overflow: hidden; }
-.mm-line-cooldown > span { display: block; height: 100%; background: #ffb4ab; transform-origin: left; animation: mmLineDrain linear forwards; }
+.mm-line-cooldown > span { display: block; height: 100%; background: #ff5d73; transform-origin: left; animation: mmLineDrain linear forwards; }
 .mm-line-overlay {
   position: absolute; inset: 0; display: grid; place-content: center; gap: 8px; text-align: center;
-  border-radius: 12px; background: rgba(13,16,23,.86); color: #f7f9ff; padding: 16px;
+  border-radius: 12px; background: radial-gradient(90% 80% at 50% 30%, rgba(42,15,92,.94), rgba(8,12,42,.95)); color: #f7f9ff; padding: 16px;
+  border: 1px solid rgba(53,227,255,.35);
 }
-.mm-line-overlay strong { font-size: clamp(calc(28 * var(--mm-px)), calc(7vmin * var(--mm-text-scale, 1)), calc(56 * var(--mm-px))); line-height: 1; }
-.mm-line-count { font-size: clamp(calc(64 * var(--mm-px)), calc(18vmin * var(--mm-text-scale, 1)), calc(140 * var(--mm-px))); font-weight: 1000; line-height: .9; font-variant-numeric: tabular-nums; color: #fff; animation: mmLineCountPop 420ms cubic-bezier(.2,.9,.3,1.3); }
-.mm-line-flash { position: absolute; inset: 0; border-radius: 12px; pointer-events: none; box-shadow: inset 0 0 0 6px #81c995; animation: mmLineFlash 420ms ease-out forwards; }
+.mm-line-overlay strong { font-size: clamp(calc(28 * var(--mm-px)), calc(7vmin * var(--mm-text-scale, 1)), calc(56 * var(--mm-px))); line-height: 1; font-style: italic; text-transform: uppercase; text-shadow: 2px 2px 0 rgba(255,63,209,.6); }
+/* A new number each second: neon by offset shadows (a blur would be drawn again each time). */
+.mm-line-count { font-size: clamp(calc(64 * var(--mm-px)), calc(18vmin * var(--mm-text-scale, 1)), calc(140 * var(--mm-px))); font-weight: 1000; font-style: italic; line-height: .9; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 4px 4px 0 rgba(255,63,209,.7), 0 7px 0 rgba(10,16,52,.9); animation: mmLineCountPop 420ms cubic-bezier(.2,.9,.3,1.3); }
+.mm-line-flash { position: absolute; inset: 0; border-radius: 12px; pointer-events: none; box-shadow: inset 0 0 0 6px #45ff8a; animation: mmLineFlash 420ms ease-out forwards; }
 .mm-line-banner { padding: 6px 10px; border-radius: 8px; background: rgba(253,214,99,.14); border: 1px solid rgba(253,214,99,.45); color: #fdd663; font-weight: 800; font-size: calc(13 * var(--mm-px)); }
 .mm-line-alert { padding: 9px 12px; border-radius: 9px; background: #4a3708; color: #ffe9a8; border: 1px solid #f9ab00; font-weight: 800; }
 .mm-line-visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
@@ -281,6 +304,7 @@ const LINE_CSS = `
 @keyframes mmLineReveal { from { opacity: 0; } to { opacity: 1; } }
 @keyframes mmLineInA { from { opacity: .6; } to { opacity: 1; } }
 @keyframes mmLineInB { from { opacity: .6; } to { opacity: 1; } }
+${GP_RACE_CSS}
 @media (min-aspect-ratio: 5/4) and (min-width: 600px) {
   .mm-line-stage {
     grid-template-columns: minmax(0, 1fr) clamp(260px, 34vw, 420px);
@@ -305,6 +329,7 @@ const LINE_CSS = `
 }
 @media (prefers-reduced-motion: reduce) {
   .mm-line-in-a, .mm-line-in-b, .mm-line-count, .mm-line-reveal { animation: none; }
+  .mm-line-clock-low { animation: none; }
   .mm-line-flash { animation: none; opacity: .8; }
 }
 `;
@@ -479,6 +504,9 @@ export default function LineGraphRound({
   const [alert, setAlert] = useState('');
   const [connection, setConnection] = useState('ok');
   const [started, setStarted] = useState(() => performance.now() >= timing.startMono);
+  // GO over the round's first moment, for a student who watched its countdown
+  // (not one who opens the round already running).
+  const [sawCountdown] = useState(() => performance.now() < timing.startMono);
   const [timeUp, setTimeUp] = useState(() => performance.now() >= timing.endMono);
   // Past the class's buzzer (the same moment as timeUp, unless this student
   // has extra time after it).
@@ -814,8 +842,9 @@ export default function LineGraphRound({
         {alias && <span className="mm-line-chip">{alias}</span>}
         <span className="mm-line-round">{practice ? 'Practice' : `Round ${roundIndex + 1} of ${roundCount}`}</span>
         {progress && <span className="mm-line-progress"><span aria-hidden="true">{progress}</span><span style={SR_ONLY_STYLE}>{`${progress.replace(' / ', ' of ')} done`}</span></span>}
-        <span className="mm-line-done"><span aria-hidden="true">✓ {completed}</span><span style={SR_ONLY_STYLE}>{`${completed} right`}</span></span>
-        {streak >= 2 && <span className="mm-line-streak"><span aria-hidden="true">🔥 {streak}</span><span style={SR_ONLY_STYLE}>{`${streak} right in a row`}</span></span>}
+        {/* Each right line pops the count (and the streak) once, keyed to it. */}
+        <span className="mm-line-done"><span key={completed} className={completed > 0 ? 'mm-gp-bump' : undefined} aria-hidden="true">✓ {completed}</span><span style={SR_ONLY_STYLE}>{`${completed} right`}</span></span>
+        {streak >= 2 && <span className="mm-line-streak"><span key={streak} className="mm-gp-bump" aria-hidden="true">🔥 {streak}</span><span style={SR_ONLY_STYLE}>{`${streak} right in a row`}</span></span>}
         {connection === 'retrying' && <span className="mm-line-sync" role="status">Reconnecting… your answers are saved</span>}
         <LineClock startMono={timing.startMono} endMono={clockEndMono} />
         {typeof onExit === 'function' && <button type="button" className="mm-line-exit" onClick={onExit}>{exitLabel}</button>}
@@ -861,7 +890,13 @@ export default function LineGraphRound({
                 </div>
               ) : <div style={{ width: side, height: side, borderRadius: 12, background: 'var(--mm-graph-bg)' }} />}
               {transition?.kind === LINE_FEEDBACK.CORRECT && <div key={transition.questionIndex} className="mm-line-flash" aria-hidden="true" />}
+              {/* A gold +1 rises off a right line, inside the flash's own time. */}
+              {transition?.kind === LINE_FEEDBACK.CORRECT && <span key={`plus-${transition.questionIndex}`} className="mm-gp-plus" aria-hidden="true">+1</span>}
               {overlay && <div className="mm-line-overlay">{overlay}</div>}
+              {/* Mounted once, at the start; faded out and hidden after (CSS). */}
+              {started && sawCountdown && (
+                <div className="mm-gp-go-flash" aria-hidden="true"><StartLights go /><span className="mm-gp-go">GO!</span></div>
+              )}
             </div>
           )}
         </section>

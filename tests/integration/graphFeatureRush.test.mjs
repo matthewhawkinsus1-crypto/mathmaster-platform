@@ -129,10 +129,16 @@ const waitForPace = async (roomId, studentId, questionIndex) => {
   if (delay > 0) await sleep(delay);
 };
 
-/** A student completes `graphs` graphs, making `misses` wrong taps first. */
+/**
+ * A student completes `graphs` graphs, making `misses` wrong taps first.
+ * Returns what they completed and the points it was worth (each item's
+ * `weight`: the taps its answer takes).
+ */
 const play = async (roomId, studentId, { graphs = 1, misses = 0 } = {}) => {
   const identity = await identityOf(roomId);
   let completed = 0;
+  let points = 0;
+  const weights = [];
   let missesLeft = misses;
   while (completed < graphs) {
     // eslint-disable-next-line no-await-in-loop
@@ -150,8 +156,11 @@ const play = async (roomId, studentId, { graphs = 1, misses = 0 } = {}) => {
       const result = await call('submitGraphFeatureRushAttempts', student(studentId, { ...identity, attempts }));
       assert.equal(result.verdicts.at(-1).completesQuestion, true, JSON.stringify(result.verdicts));
       completed += 1;
+      points += question.weight;
+      weights.push({ questionIndex: question.questionIndex, weight: question.weight });
     }
   }
+  return { completed, points, weights };
 };
 
 const closeRound = async (roomId, classKey = 'pair') => {
@@ -519,17 +528,20 @@ test('a game whose rounds hold no guide (one running before it existed) publishe
 
 /* =================== GAME 2: ten students, Correct Count =================== */
 
-test('ten students, Correct Count: totals are graphs, ties go to accuracy, a late joiner plays', async () => {
+// Intercept Sprint plays at Easy, where every graph has one target: a point a
+// graph, so the totals are the graphs and two students can tie on them.
+test('ten students, Correct Count: a point a graph here, ties go to accuracy, a late joiner plays', async () => {
   const roster = studentsOf('medium');
   const late = roster[roster.length - 1];
-  const created = await createRush('medium', { scoringStrategyId: 'correctCount', roundCount: 1 });
+  const created = await createRush('medium', { graphFeatureRush: { presetId: 'interceptSprint' }, scoringStrategyId: 'correctCount', roundCount: 1 });
   await Promise.all(roster.slice(0, -1).map((studentId) => call('joinLiveChallenge', student(studentId, { roomId: created.roomId }))));
   await call('startLiveChallenge', teacher({ roomId: created.roomId }));
   await waitForRoundStart(created.roomId);
   // One student walks in after the round started.
   await call('joinLiveChallenge', student(late, { roomId: created.roomId }));
   assert.equal((await privatePlayer(created.roomId, late)).joinedAtRound, 0, 'joined during round 1, measured from round 1');
-  await Promise.all(roster.map((studentId, index) => play(created.roomId, studentId, { graphs: 1 + (index % 4), misses: index === 1 ? 2 : 0 })));
+  const played = await Promise.all(roster.map((studentId, index) => play(created.roomId, studentId, { graphs: 1 + (index % 4), misses: index === 1 ? 2 : 0 })));
+  assert.ok(played.every((entry) => entry.points === entry.completed), 'one point a graph at Easy');
   const rows = await publicPlayers(created.roomId);
   assert.deepEqual(rows.map((row) => row.score).sort((x, y) => x - y), [1, 1, 1, 2, 2, 2, 3, 3, 4, 4]);
   // Students 1 and 5 both completed two graphs; student 1 missed twice.
@@ -542,6 +554,38 @@ test('ten students, Correct Count: totals are graphs, ties go to accuracy, a lat
   const result = (await db.collection('liveChallengeMatchResults').doc(created.roomId).get()).data();
   const order = result.standings.map((row) => row.studentId);
   assert.ok(order.indexOf(roster[5]) < order.indexOf(roster[1]), 'equal graphs: the accurate student ranks ahead');
+});
+
+test('Correct Count banks what each item is worth: a graph with two zeros is two points', async () => {
+  // Parabolas' x-intercepts at Standard: most graphs have two.
+  const [studentId] = studentsOf('medium');
+  const created = await createRush('medium', {
+    graphFeatureRush: { families: ['quadratic'], features: ['xIntercept'], difficulty: 'standard' }, scoringStrategyId: 'correctCount', roundCount: 1,
+  });
+  try {
+    await call('joinLiveChallenge', student(studentId, { roomId: created.roomId }));
+    await call('startLiveChallenge', teacher({ roomId: created.roomId }));
+    await waitForRoundStart(created.roomId);
+    let points = 0;
+    let completed = 0;
+    let twoPoint = null;
+    for (let graph = 0; graph < 12 && !twoPoint; graph += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      const one = await play(created.roomId, studentId, { graphs: 1 });
+      points += one.points;
+      completed += one.completed;
+      twoPoint = one.weights.find((entry) => entry.weight === 2) || null;
+    }
+    assert.ok(twoPoint, 'a graph with two zeros came up');
+    const player = await privatePlayer(created.roomId, studentId);
+    const receipts = Object.values(player.submissionReceipts || {}).filter((receipt) => receipt.questionIndex === twoPoint.questionIndex);
+    assert.deepEqual(receipts.map((receipt) => [receipt.pointsAwarded, receipt.questionWeight]), [[1, 2], [1, 2]], 'a point a zero, the item worth two');
+    const row = (await publicPlayers(created.roomId)).find((entry) => entry.id === player.playerKey);
+    assert.deepEqual([row.score, row.correctCount, row.rushRoundPoints], [points, completed, points]);
+    assert.ok(row.score > row.correctCount, 'more points than graphs');
+  } finally {
+    await call('finishLiveChallenge', teacher({ roomId: created.roomId })).catch(() => null);
+  }
 });
 
 /* ============== GAME 3: thirty-five students tapping at once ============== */

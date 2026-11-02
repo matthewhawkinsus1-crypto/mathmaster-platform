@@ -3,6 +3,8 @@ import {
   describeLineCursor,
   formatLineNumber,
   isLineCursorKey,
+  lineCursorEnd,
+  lineEndAtPixel,
   moveLineCursor,
   numberAtPixel,
   numberLineLayout,
@@ -16,9 +18,11 @@ import { pointerKindOf } from '../../platform/liveChallenge/rushGraphModel.js';
  * Drawn in CSS pixels at whatever width the screen gives it: −10 to 10, a
  * tick a whole number. A tap anywhere on it — above or below the line counts
  * — drops a dot at the nearest number (the round's session cycles it ● → ○ →
- * gone); the keyboard moves a cursor along the ticks with Enter to tap. The
- * student's own drawing is in the curve colour; the answer, shown as an item
- * moves on after its third miss, in the found colour.
+ * gone), and a tap on one of the line's own end arrows turns "keeps going"
+ * that way on or off; the keyboard moves a cursor along the ticks, and one
+ * step past either end onto its arrow, with Enter to tap. The student's own
+ * drawing is in the curve colour; the answer, shown as an item moves on after
+ * its third miss, in the found colour.
  */
 
 const BAND = 10;
@@ -68,7 +72,8 @@ function LineMarks({ marks, cy, tone }) {
  * @param {number}   props.height    CSS pixels
  * @param {boolean}  props.paused    input paused: drawn dimmed; taps still
  *                                   reach onTap, which refuses them
- * @param {Function} props.onTap     ({ x, y, pointer }) => void, x the number
+ * @param {Function} props.onTap     ({ x, y, pointer }) => void, x the number;
+ *                                   ({ end: 'left' | 'right', pointer }) for an end arrow
  */
 function InequalityNumberLine({ question, drawing = null, reveal = null, width, height, paused = false, onTap, label }) {
   const svgRef = useRef(null);
@@ -96,7 +101,11 @@ function InequalityNumberLine({ question, drawing = null, reveal = null, width, 
   const marks = useMemo(() => numberLineMarks(line, width, drawing), [line, width, drawing]);
   const revealMarks = useMemo(() => (reveal ? numberLineMarks(line, width, reveal) : null), [line, width, reveal]);
 
-  const tap = (value, pointer) => onTap?.({ x: value, y: 0, pointer });
+  const tap = (value, pointer) => {
+    const end = lineCursorEnd(value);
+    if (end) onTap?.({ end, pointer });
+    else onTap?.({ x: value, y: 0, pointer });
+  };
 
   const handlePointerDown = (event) => {
     if (!event.isPrimary) return;
@@ -106,6 +115,12 @@ function InequalityNumberLine({ question, drawing = null, reveal = null, width, 
     event.preventDefault();
     setCursorVisible(false);
     const px = ((event.clientX - rect.left) / Math.max(1, rect.width)) * width;
+    const end = lineEndAtPixel(line, width, px);
+    if (end) {
+      setCursor(end === 'left' ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY);
+      onTap?.({ end, pointer: pointerKindOf(event.pointerType) });
+      return;
+    }
     const value = numberAtPixel(line, width, px);
     if (value === null) return;
     setCursor(value);
@@ -130,7 +145,10 @@ function InequalityNumberLine({ question, drawing = null, reveal = null, width, 
   };
 
   const tickHalf = 9;
-  const cursorX = layout.xOf(cursor);
+  const cursorEnd = lineCursorEnd(cursor);
+  let cursorX = layout.xOf(cursor);
+  if (cursorEnd === 'left') cursorX = layout.left + ARROW_LENGTH / 2;
+  else if (cursorEnd === 'right') cursorX = layout.right - ARROW_LENGTH / 2;
   return (
     <>
       <svg

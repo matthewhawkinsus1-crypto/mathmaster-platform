@@ -344,10 +344,13 @@ test('device and server agree on every step of thousands of random taps', () => 
       while (session.queue.length) {
         const size = 1 + Math.floor(random() * Math.min(RUSH_LIMITS.batch, session.queue.length));
         const batch = nextBatch(session).slice(0, size);
+        // What the device has counted for itself before the server answers.
+        const predicted = batch.length === session.queue.length ? session.counts.points : null;
         const outcome = applyRushAttempts({
           player, roundIndex: 0, roundVersion: 1, attempts: batch, questionFor: serverQuestion,
           arrivedAtMs: now, arrivalElapsedMs: now, roundDurationMs: 600_000, strategy: correctCountStrategy, poolSize: 50,
         });
+        if (predicted !== null) assert.equal(predicted, outcome.state.scoreTotal, 'the device counts the points the server awards');
         player = { ...player, submissionReceipts: outcome.receipts, attemptSequence: outcome.attemptSequence };
         const reply = { verdicts: outcome.verdicts, state: outcome.state };
         const acked = acknowledge(session, { sent: batch, reply });
@@ -356,7 +359,7 @@ test('device and server agree on every step of thousands of random taps', () => 
         session = acked.session;
         if (!session.queue.length) {
           assert.deepEqual(session.counts, {
-            completed: outcome.state.questionsCorrect, skipped: outcome.state.skipped, attempts: outcome.state.attempts, hits: outcome.state.hits,
+            completed: outcome.state.questionsCorrect, skipped: outcome.state.skipped, attempts: outcome.state.attempts, hits: outcome.state.hits, points: outcome.state.scoreTotal,
           });
         }
       }

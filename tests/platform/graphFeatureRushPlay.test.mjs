@@ -184,7 +184,7 @@ test('"Does Not Exist" completes a graph that has none, and is a miss on one tha
   assert.equal(dneReceipt.attemptKind, 'dne');
 });
 
-test('a skipped graph is given up: done, not correct, partial targets kept', () => {
+test('a skipped graph is given up: done, not correct, partial targets kept (a point each)', () => {
   const player = carry({}, play({}, [tap('a', 0, -4)]));
   const skipped = play(player, [press('s', 0, 'skip'), tap('late', 0, 1)], { questions: [question(), question({ questionIndex: 1 })] });
   assert.deepEqual(skipped.verdicts.map((row) => row.verdict), [RUSH_VERDICT.SKIPPED, RUSH_VERDICT.RESOLVED]);
@@ -192,7 +192,9 @@ test('a skipped graph is given up: done, not correct, partial targets kept', () 
   assert.equal(skipped.state.questionsCorrect, 0);
   assert.equal(skipped.state.skipped, 1);
   assert.equal(skipped.state.attempts, 2, 'the skip counts against accuracy');
-  assert.ok(Math.abs(skipped.state.scoreTotal - 1 / 3) < 1e-9, 'the zero found before skipping still counts');
+  // Three zeros make the graph worth three points; the one found before
+  // skipping is still one of them.
+  assert.equal(skipped.state.scoreTotal, 1, 'the zero found before skipping still counts');
 });
 
 test('attempts for a graph the server has not reached are refused, not recorded', () => {
@@ -327,13 +329,16 @@ test('attempt times are server-bounded: never after arrival, never backwards', (
   assert.equal(old.receipts.z.elapsedMs, 20_000 - RUSH_LIMITS.claimWindowMs, 'no claim older than the window');
 });
 
-test('Correct Count banks one point per completed graph; Grand Prix waits for placement', () => {
+test('Correct Count banks a point per correct tap (an item is worth the taps it takes); Grand Prix waits for placement', () => {
   const graphs = [question(), question({ questionIndex: 1, targets: [{ id: 'v', x: 2, y: 3 }], targetCount: 1, feature: 'vertex', family: 'quadratic' })];
   const run = (strategy) => play({}, [tap('a', 0, -4), tap('b', 0, 1), tap('c', 0, 5), tap('d', 1, 2, 3)], { questions: graphs, strategy });
   const count = run(correctCountStrategy);
-  assert.deepEqual([count.totals.score, count.totals.rawScore, count.totals.correctCount], [2, 2, 2]);
+  // Three zeros (3 points) and a vertex (1): 4 points, 2 graphs completed.
+  assert.deepEqual([count.totals.score, count.totals.rawScore, count.totals.correctCount], [4, 4, 2]);
+  assert.deepEqual(['a', 'b', 'c', 'd'].map((id) => count.receipts[id].pointsAwarded), [1, 1, 1, 1], 'a point a correct tap');
+  assert.deepEqual(['a', 'd'].map((id) => count.receipts[id].questionWeight), [3, 1], 'each receipt says what its item is worth');
   const prix = run(grandPrixStrategy);
-  assert.deepEqual([prix.totals.score, prix.totals.rawScore, prix.totals.correctCount], [0, 2, 2], 'a placement score changes only at round close');
+  assert.deepEqual([prix.totals.score, prix.totals.rawScore, prix.totals.correctCount], [0, 4, 2], 'a placement score changes only at round close');
   assert.equal(prix.totals.matchAccuracy, 1);
   assert.deepEqual(prix.totals.answeredRounds, [0]);
   const totals = rushPlayerTotals({ player: { score: 24 }, receipts: prix.receipts, strategy: grandPrixStrategy });

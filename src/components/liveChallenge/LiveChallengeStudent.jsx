@@ -25,7 +25,8 @@ import { REFUSAL_OUTCOME, classifyAnswerRefusal, resendAtGoDelayMs } from '../..
 import { timerFromRoom } from '../../../functions/shared/liveChallengeTimer.mjs';
 import LiveChallengeFieldQuestion from './LiveChallengeFieldQuestion.jsx';
 import { ChallengeCountdown, ChallengeShellStyles, Confetti, ConnectionPill } from './ChallengeShellParts.jsx';
-import { StudentFinalCard, StudentGuidance, StudentLobbyCard, StudentMatchRecap, StudentRoundResultsCard } from './ChallengeStudentShell.jsx';
+import { GrandPrixStyles, StudentFinalCard, StudentGuidance, StudentLobbyCard, StudentMatchRecap, StudentRoundResultsCard } from './ChallengeStudentShell.jsx';
+import { GP_RACE_CSS } from './grandPrixTheme.js';
 import { RoundSolutionPanel } from './ChallengeSolutionParts.jsx';
 import {
   joinLiveChallenge,
@@ -524,6 +525,9 @@ export function ChallengeRound({
 
   return (
     <div style={{ display: 'grid', gap: 14 }}>
+      {/* The start lights' styles (grandPrixTheme.js): this round is also a
+          teacher's dry run, which has no student page around it. */}
+      <style>{GP_RACE_CSS}</style>
       {beforeQuestion}
       <section
         style={{
@@ -534,13 +538,15 @@ export function ChallengeRound({
           background: roundBannerBackground(urgent),
           color: '#fff',
           transition: 'background .5s',
-          boxShadow: '0 2px 10px rgba(23,78,166,.25)',
+          border: '1px solid rgba(53,227,255,.5)',
+          // A neon rim, not a blurred glow: the banner redraws as its lines come and go.
+          boxShadow: '0 0 0 1px rgba(255,63,209,.18), 0 0 0 4px rgba(53,227,255,.12)',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <span style={{ padding: '4px 10px', borderRadius: 999, background: 'rgba(0,0,0,.2)', fontWeight: 900, fontSize: 'calc(13 * var(--mm-px))' }}>{alias}</span>
-            <span style={{ fontWeight: 900, fontSize: 'calc(15 * var(--mm-px))' }}>{room.secondChanceOf != null ? `FINAL ROUND ${roundIndex - Number(room.scheduledRoundCount || room.roundCount) + 1}` : `Round ${roundIndex + 1} of ${room.roundCount}`}</span>
+            <span className="mm-gp-plate" style={{ padding: '3px 12px', borderWidth: 1, boxShadow: 'none', fontSize: 'calc(13 * var(--mm-px))' }}>{alias}</span>
+            <span style={{ fontWeight: 1000, fontStyle: 'italic', textTransform: 'uppercase', fontSize: 'calc(15 * var(--mm-px))' }}>{room.secondChanceOf != null ? `FINAL ROUND ${roundIndex - Number(room.scheduledRoundCount || room.roundCount) + 1}` : `Round ${roundIndex + 1} of ${room.roundCount}`}</span>
             <span style={{ fontSize: 'calc(13 * var(--mm-px))' }}>{question?.teksCode || 'Mixed review'}</span>
             {/* Only once the question is on screen: reading it during the
                 countdown would hand this student a head start. */}
@@ -561,8 +567,11 @@ export function ChallengeRound({
             style={{
               fontSize: 'calc(40 * var(--mm-px))',
               fontWeight: 1000,
+              fontStyle: 'italic',
               lineHeight: 1,
               fontVariantNumeric: 'tabular-nums',
+              // Redrawn every second: crisp offsets only, no blur.
+              textShadow: urgent ? '2px 2px 0 rgba(255,63,209,.4)' : '2px 2px 0 rgba(53,227,255,.45)',
               animation: urgent ? 'challengePulse .9s ease-in-out infinite' : 'none',
             }}
           >
@@ -605,7 +614,7 @@ export function ChallengeRound({
           nor a screen reader can read it during the countdown. An empty box
           keeps the countdown's size; GO never blocks a tap. */}
       {(!roundStarted || elapsedMs < GO_FLASH_MS) && (
-        <div data-mm-round-countdown={roundStarted ? 'go' : 'counting'} style={{ position: 'absolute', inset: 0, zIndex: 2, display: 'grid', placeItems: 'center', borderRadius: 14, pointerEvents: roundStarted ? 'none' : 'auto', background: roundStarted ? 'transparent' : 'radial-gradient(120% 90% at 50% 0%, #22325a 0%, #141a2b 100%)', minHeight: 220 }}>
+        <div data-mm-round-countdown={roundStarted ? 'go' : 'counting'} style={{ position: 'absolute', inset: 0, zIndex: 2, display: 'grid', placeItems: 'center', borderRadius: 14, pointerEvents: roundStarted ? 'none' : 'auto', background: roundStarted ? 'transparent' : 'radial-gradient(120% 90% at 50% 0%, #2a0f5c 0%, #0c1446 60%, #080c2a 100%)', border: roundStarted ? 0 : '1px solid rgba(53,227,255,.35)', minHeight: 220 }}>
           <ChallengeCountdown
             look="student"
             clock={{ countdownStep: roundStarted ? null : Math.min(3, Math.max(1, Math.ceil(startsInMs / 1000))), showGo: roundStarted }}
@@ -664,16 +673,16 @@ export function ChallengeRound({
       {lockedLine && (
         // A new node when it starts to be announced: a live region speaks what
         // is added to it, not an attribute switched on beside new words.
-        <div key={lockedLine.announce ? 'announced' : 'quiet'} data-mm-lock-line={lockedLine.announce ? 'announced' : 'quiet'} aria-live={lockedLine.announce ? 'assertive' : undefined} style={{ padding: 12, borderRadius: 9, background: '#17365f', color: '#dbeafe', fontWeight: 900 }}>{lockedLine.text}</div>
+        <div key={lockedLine.announce ? 'announced' : 'quiet'} data-mm-lock-line={lockedLine.announce ? 'announced' : 'quiet'} aria-live={lockedLine.announce ? 'assertive' : undefined} style={{ padding: 12, borderRadius: 9, background: 'rgba(10,16,52,.88)', border: '1px solid rgba(53,227,255,.35)', color: '#dbe4ff', fontWeight: 900 }}>{lockedLine.text}</div>
       )}
 
       {submitError && <div role="alert" style={{ padding: 11, borderRadius: 9, background: '#4a3708', color: '#ffe9a8', border: '1px solid #f9ab00' }}>{submitError}</div>}
       {pending && !result && <button type="button" onClick={retryPending}>Retry locked answer</button>}
-      {!result && !pending && (answeredOnServer || alreadyRecorded) && <div aria-live="polite" style={{ padding: 12, borderRadius: 9, background: '#17365f', color: '#dbeafe', fontWeight: 900 }}>{liveShell ? 'Your answer for this round is recorded. The results show when the round ends.' : 'Your answer for this round is recorded. Wait for your teacher to start the next round.'}</div>}
+      {!result && !pending && (answeredOnServer || alreadyRecorded) && <div aria-live="polite" style={{ padding: 12, borderRadius: 9, background: 'rgba(10,16,52,.88)', border: '1px solid rgba(53,227,255,.35)', color: '#dbe4ff', fontWeight: 900 }}>{liveShell ? 'Your answer for this round is recorded. The results show when the round ends.' : 'Your answer for this round is recorded. Wait for your teacher to start the next round.'}</div>}
       {expired && !answerRecorded && <div aria-live="polite" style={{ padding: 15, borderRadius: 11, background: 'rgba(255,255,255,.08)', color: '#eef1f6', border: '1px solid rgba(255,255,255,.16)', fontWeight: 900 }}>{liveShell
         ? (lockedLong ? 'Time is up. Still counting everyone’s answers — this can take up to a minute. Keep this screen open.' : 'Time is up! The results are coming.')
         : 'Time is up. Wait for your teacher to start the next round.'}</div>}
-      {liveShell && result && !expired && <div aria-live="polite" data-mm-finished-early="1" style={{ padding: 12, borderRadius: 9, background: '#17365f', color: '#dbeafe', fontWeight: 900 }}>Round complete for you — waiting for the others. The results show when the round ends.</div>}
+      {liveShell && result && !expired && <div aria-live="polite" data-mm-finished-early="1" style={{ padding: 12, borderRadius: 9, background: 'rgba(10,16,52,.88)', border: '1px solid rgba(53,227,255,.35)', color: '#dbe4ff', fontWeight: 900 }}>Round complete for you — waiting for the others. The results show when the round ends.</div>}
       {result && (
         <section aria-live="polite" style={{ padding: 16, borderRadius: 12, background: result.isCorrect ? 'var(--mm-success-bg)' : 'var(--mm-warning-soft)', color: result.isCorrect ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', textAlign: 'left' }}>
           <div style={{ fontSize: 'calc(22 * var(--mm-px))', fontWeight: 1000 }}>{result.isCorrect ? 'Correct!' : `${Number(result.scorePercent) || 0}% credit`}</div>
@@ -1099,7 +1108,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   // only. The student's own place is their summary's.
   const standings = useMemo(() => standingsFromProjection(projection, { roomId }), [projection, roomId]);
   const ownFinal = useMemo(() => summaryFinal(ownSummary, { roomId }), [ownSummary, roomId]);
-  const presentation = useMemo(() => scorePresentation({ scoringStrategyId, questionSet: questionSetRoom }), [scoringStrategyId, questionSetRoom]);
+  const presentation = useMemo(() => scorePresentation({ scoringStrategyId, questionSet: questionSetRoom, itemPoints: rushRoom }), [scoringStrategyId, questionSetRoom, rushRoom]);
 
   // A FINISHED ROOM WITHOUT ITS FINAL SNAPSHOT, OR WITHOUT THIS STUDENT'S OWN
   // FINAL PLACE (it finished before either existed, or its final snapshot
@@ -1246,7 +1255,8 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
 
   if (!room || roomMissing) {
     return (
-      <div data-mm-student-room={roomMissing ? 'missing' : 'opening'} style={{ minHeight: '100vh', padding: 40, background: 'radial-gradient(120% 90% at 50% 0%, #1f2a44 0%, #131722 55%, #0d1017 100%)', color: '#eef1f6', textAlign: 'center', fontFamily: '"Segoe UI", sans-serif' }}>
+      <div data-mm-student-room={roomMissing ? 'missing' : 'opening'} className="mm-gp-arena-page" style={{ minHeight: '100vh', padding: 40, color: '#eef2ff', textAlign: 'center', fontFamily: '"Segoe UI", sans-serif' }}>
+        <GrandPrixStyles />
         {roomMissing ? (
           <>
             <h1 style={{ fontSize: 'calc(24 * var(--mm-px))', lineHeight: '118%', letterSpacing: '-0.24px', margin: '0 0 8px', color: '#fff' }}>This Live Challenge is no longer available.</h1>
@@ -1297,20 +1307,21 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   const finalLoading = !finalStandings || !summaryFresh || (selfRow?.joined === true && !ownFinal);
 
   return (
-    <div style={{ minHeight: '100vh', background: 'radial-gradient(120% 90% at 50% 0%, #1f2a44 0%, #131722 55%, #0d1017 100%)', padding: '20px 14px 50px', fontFamily: '"Segoe UI", sans-serif', color: '#eef1f6' }}>
+    <div className="mm-gp-arena-page" style={{ minHeight: '100vh', padding: '20px 14px 50px', fontFamily: '"Segoe UI", sans-serif', color: '#eef2ff' }}>
       <ChallengeShellStyles />
+      <GrandPrixStyles />
       <div data-mm-student-stage={stage} style={{ maxWidth: 900, margin: '0 auto' }}>
         <header style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
           <div style={{ textAlign: 'left', minWidth: 0 }}>
-            <div style={{ color: '#fdd663', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 1000, textTransform: 'uppercase', letterSpacing: '.08em' }}>MathMaster Live Challenge</div>
-            <h1 style={{ margin: '4px 0 0', fontSize: 'calc(25 * var(--mm-px))', color: '#fff', overflowWrap: 'anywhere' }}>{room.title}</h1>
+            <div style={{ color: '#ffd23f', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 1000, fontStyle: 'italic', textTransform: 'uppercase', letterSpacing: '.08em' }}><span className="mm-gp-checker" aria-hidden="true" style={{ marginRight: 8 }} />MathMaster Live Challenge</div>
+            <h1 style={{ margin: '4px 0 0', fontSize: 'calc(25 * var(--mm-px))', fontStyle: 'italic', color: '#fff', overflowWrap: 'anywhere' }}>{room.title}</h1>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <ConnectionPill state={connection} look="student" />
             {headerRow && (
               <div data-mm-student-score="1" style={{ textAlign: 'right', lineHeight: 1.2 }}>
                 <div style={{ fontSize: 'calc(11 * var(--mm-px))', textTransform: 'uppercase', letterSpacing: '.06em', color: '#9fb0cc', fontWeight: 900 }}>Your score</div>
-                <div style={{ fontSize: 'calc(22 * var(--mm-px))', fontWeight: 1000, fontVariantNumeric: 'tabular-nums', color: '#fdd663' }}>
+                <div style={{ fontSize: 'calc(22 * var(--mm-px))', fontWeight: 1000, fontStyle: 'italic', fontVariantNumeric: 'tabular-nums', color: '#ffd23f', textShadow: '2px 2px 0 rgba(255,63,209,.35)' }}>
                   {(headerRow.liveScore ?? headerRow.score).toLocaleString()}
                   <span style={{ marginLeft: 6, fontSize: 'calc(12 * var(--mm-px))', color: '#c3d2ea' }}>{presentation.total.short}</span>
                 </div>
@@ -1327,7 +1338,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
         </header>
         {error && <div role="alert" style={{ marginBottom: 14, padding: 11, borderRadius: 9, background: '#4a3708', color: '#ffe9a8', border: '1px solid #f9ab00' }}>{error}</div>}
         {missedNotice && (
-          <div role="status" data-mm-missed-rounds="1" style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: 14, padding: '11px 14px', borderRadius: 10, background: 'rgba(23,54,95,.9)', border: '1px solid rgba(138,180,248,.4)', color: '#dbeafe', fontWeight: 800 }}>
+          <div role="status" data-mm-missed-rounds="1" style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: 14, padding: '11px 14px', borderRadius: 10, background: 'rgba(10,16,52,.88)', border: '1px solid rgba(53,227,255,.4)', color: '#dbe4ff', fontWeight: 800 }}>
             <span>{missedNotice}</span>
             <button type="button" onClick={() => setMissedNotice('')} style={{ minHeight: 44, padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,.35)', background: 'transparent', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Got it</button>
           </div>
@@ -1338,14 +1349,14 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
         )}
 
         {roundOpen && room.currentQuestion && !clockReady && (
-          <section aria-live="polite" style={{ padding: 26, borderRadius: 16, background: '#17365f', textAlign: 'center' }}>
+          <section aria-live="polite" className="mm-gp-card">
             <h2>Getting the round ready…</h2>
             <p>Your screen is catching up with your teacher's timer. This only takes a moment.</p>
           </section>
         )}
 
         {rushRoundOpen && room.currentQuestion && clockReady && (
-          <Suspense fallback={<section aria-live="polite" style={{ padding: 26, borderRadius: 16, background: '#17365f', textAlign: 'center' }}><h2>Loading your {rushGameWords(room).many}…</h2></section>}>
+          <Suspense fallback={<section aria-live="polite" className="mm-gp-card"><h2>Loading your {rushGameWords(room).many}…</h2></section>}>
             <GraphFeatureRushRound
               key={`${room.roomId}-${room.currentRound}-${room.roundVersion}`}
               room={{ ...room, connectionQuality: clock.quality, serverNowAtRender: Date.now() + clock.offsetMs }}
@@ -1357,7 +1368,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
         )}
 
         {lineRoundOpen && room.currentQuestion && clockReady && (
-          <Suspense fallback={<section aria-live="polite" style={{ padding: 26, borderRadius: 16, background: '#17365f', textAlign: 'center' }}><h2>Loading your grid…</h2></section>}>
+          <Suspense fallback={<section aria-live="polite" className="mm-gp-card"><h2>Loading your grid…</h2></section>}>
             <LineGraphRound
               key={`${room.roomId}-${room.currentRound}-${room.roundVersion}`}
               room={{ ...room, connectionQuality: clock.quality, serverNowAtRender: Date.now() + clock.offsetMs }}

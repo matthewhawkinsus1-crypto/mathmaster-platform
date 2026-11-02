@@ -6,6 +6,7 @@ import {
   ATTEMPT_REJECTION,
   COMPLETION_RULE,
   MAX_QUESTIONS_PER_ROUND,
+  MAX_QUESTION_WEIGHT,
   MAX_TARGETS_PER_QUESTION,
   RECEIPT_KIND,
   isAttemptReceipt,
@@ -160,7 +161,13 @@ test('a round summary is the input round ranking reads', () => {
 });
 
 test('question specs are bounded and normalized', () => {
-  assert.deepEqual(normalizeQuestionSpec({}), { questionIndex: 0, targetCount: 1, completionRule: 'singleResponse' });
+  assert.deepEqual(normalizeQuestionSpec({}), { questionIndex: 0, targetCount: 1, completionRule: 'singleResponse', weight: 1 });
+  // What a question is worth: a whole number from 1 to the cap, 1 unless said.
+  assert.equal(normalizeQuestionSpec({ weight: 5 }).weight, 5);
+  assert.equal(normalizeQuestionSpec({ weight: 0 }).weight, 1);
+  assert.equal(normalizeQuestionSpec({ weight: 2.5 }).weight, 1);
+  assert.equal(normalizeQuestionSpec({ weight: 'heavy' }).weight, 1);
+  assert.equal(normalizeQuestionSpec({ weight: 999 }).weight, MAX_QUESTION_WEIGHT);
   assert.equal(normalizeQuestionSpec({ completionRule: 'singleResponse', targetCount: 5 }).targetCount, 1, 'a single response has one target');
   assert.equal(normalizeQuestionSpec({ completionRule: 'allTargets', targetCount: 999 }).targetCount, MAX_TARGETS_PER_QUESTION);
   assert.equal(normalizeQuestionSpec({ completionRule: 'allTargets', targetCount: 0 }).targetCount, 1);

@@ -66,29 +66,38 @@ export const placeLabel = ({ rank, tied = false } = {}) => {
  *                     (Grand Prix): results show place and the points it
  *                     earned beside the raw performance
  */
-export const scorePresentation = ({ scoringStrategyId = null, questionSet = false } = {}) => {
+// A rush's items are worth the taps their answers take: its round, and a
+// Correct Count game's total, are counted in those points (`itemPoints`).
+const ITEM_POINTS = Object.freeze({ long: 'points', short: 'pts', one: 'point' });
+
+export const scorePresentation = ({ scoringStrategyId = null, questionSet = false, itemPoints = false } = {}) => {
   const strategy = getScoringStrategy(scoringStrategyId);
   const perRound = strategy.accumulation === SCORE_ACCUMULATION.PER_ROUND;
+  const weighted = questionSet && itemPoints === true;
   if (perRound) {
+    let round = Object.freeze({ long: 'round points', short: 'round pts', one: 'round point' });
+    if (weighted) round = ITEM_POINTS;
+    else if (questionSet) round = Object.freeze({ long: 'graphs completed', short: 'graphs', one: 'graph completed' });
     return Object.freeze({
       strategyId: strategy.id,
       placementPoints: true,
+      itemPoints: weighted,
       total: Object.freeze({ long: 'championship points', short: 'champ pts', one: 'championship point' }),
-      round: questionSet
-        ? Object.freeze({ long: 'graphs completed', short: 'graphs', one: 'graph completed' })
-        : Object.freeze({ long: 'round points', short: 'round pts', one: 'round point' }),
+      round,
     });
   }
   if (strategy.id === 'correctCount') {
+    const graphs = Object.freeze({ long: 'graphs completed', short: 'graphs', one: 'graph completed' });
+    let total = Object.freeze({ long: 'correct answers', short: 'correct', one: 'correct answer' });
+    let round = Object.freeze({ long: 'correct this round', short: 'correct', one: 'correct this round' });
+    if (weighted) [total, round] = [ITEM_POINTS, ITEM_POINTS];
+    else if (questionSet) [total, round] = [graphs, graphs];
     return Object.freeze({
       strategyId: strategy.id,
       placementPoints: false,
-      total: questionSet
-        ? Object.freeze({ long: 'graphs completed', short: 'graphs', one: 'graph completed' })
-        : Object.freeze({ long: 'correct answers', short: 'correct', one: 'correct answer' }),
-      round: questionSet
-        ? Object.freeze({ long: 'graphs completed', short: 'graphs', one: 'graph completed' })
-        : Object.freeze({ long: 'correct this round', short: 'correct', one: 'correct this round' }),
+      itemPoints: weighted,
+      total,
+      round,
     });
   }
   return Object.freeze({
@@ -367,6 +376,29 @@ export const roundResultsView = ({
     tableBoard: classCopy ? Object.freeze({ lastRank: integerOrNull(summary.tableLastRank), totalCount: nonNegativeInt(summary.participantCount) }) : null,
     standingsBoard: classCopy && afterRows ? Object.freeze({ lastRank: integerOrNull(summary.standingsLastRank), totalCount: nonNegativeInt(summary.standingsCount) }) : null,
   });
+};
+
+/*
+ * A MEDAL FOR A ROUND'S 1ST, 2ND OR 3RD on the student's own results card (the
+ * Grand Prix look) — never for a place in the round's last group, whatever
+ * its number: a last place is not dressed up as a podium, as the final card
+ * never leads with one (finalPlaceIsHeadline). The last group is the class
+ * copy's (`tableBoard.lastRank`), else the lowest place in the rows; not
+ * knowing it means no medal.
+ */
+export const roundMedalPlace = (view) => {
+  const self = view?.self;
+  if (!self?.participated || self.place?.short === '—') return null;
+  const rank = Number(self.rank);
+  if (!Number.isInteger(rank) || rank < 1 || rank > 3) return null;
+  const ranks = (Array.isArray(view.rows) ? view.rows : [])
+    .filter((row) => row?.participated && Number.isInteger(row.rank))
+    .map((row) => row.rank);
+  let lastRank = null;
+  if (Number.isInteger(view.tableBoard?.lastRank)) lastRank = view.tableBoard.lastRank;
+  else if (ranks.length) lastRank = Math.max(...ranks);
+  if (lastRank === null || rank >= lastRank) return null;
+  return rank;
 };
 
 /** "You placed 4th of 22" / "You tied for 2nd of 22" / "No answer this round". */

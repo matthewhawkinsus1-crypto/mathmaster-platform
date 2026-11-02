@@ -57,6 +57,7 @@ import {
   RUSH_SKIP_PAUSE_MS,
   RUSH_VERDICT,
   rushLockoutMs,
+  rushQuestionWeight,
 } from './graphFeatureRushRules.mjs';
 
 // The shared rules, re-exported for the server and tests.
@@ -72,7 +73,9 @@ export {
   rushLockoutMs,
 };
 
-const TARGET_SPEC = (targetCount) => Object.freeze({ completionRule: COMPLETION_RULE.ALL_TARGETS, targetCount });
+// A question's spec: all its targets to complete it, and its weight — the
+// taps its answer takes (graphFeatureRushRules.rushQuestionWeight).
+const TARGET_SPEC = (targetCount, weight = 1) => Object.freeze({ completionRule: COMPLETION_RULE.ALL_TARGETS, targetCount, weight });
 
 const integerOr = (value, fallback) => {
   const numeric = Number(value);
@@ -93,21 +96,28 @@ const roundReceiptsOf = (receipts, roundIndex) => Object.entries(receipts || {})
     && receiptKindOf(receipt) === RECEIPT_KIND.TARGET
     && integerOr(receipt.roundIndex, null) === roundIndex);
 
-const targetCountOf = (receipts, roundIndex, questionIndex) => {
+// What a question's first receipt recorded of it: its target count and weight.
+const recordedSpecOf = (receipts, roundIndex, questionIndex) => {
   const first = roundReceiptsOf(receipts, roundIndex)
     .map(([, receipt]) => receipt)
     .filter((receipt) => integerOr(receipt.questionIndex, 0) === questionIndex)
     .sort((left, right) => integerOr(left.sequence, 0) - integerOr(right.sequence, 0))[0];
-  return first ? Math.max(1, integerOr(first.targetCount, 1)) : 1;
+  return {
+    targetCount: first ? Math.max(1, integerOr(first.targetCount, 1)) : 1,
+    weight: first ? Math.max(1, integerOr(first.questionWeight, 1)) : 1,
+  };
 };
 
 /** The progress of one of a student's questions, read from their receipts. */
-export const rushQuestionProgress = ({ receipts, roundIndex, questionIndex, targetCount = null }) => questionProgress({
-  receipts,
-  roundIndex,
-  questionIndex,
-  spec: TARGET_SPEC(targetCount ?? targetCountOf(receipts, roundIndex, questionIndex)),
-});
+export const rushQuestionProgress = ({ receipts, roundIndex, questionIndex, targetCount = null, weight = null }) => {
+  const recorded = recordedSpecOf(receipts, roundIndex, questionIndex);
+  return questionProgress({
+    receipts,
+    roundIndex,
+    questionIndex,
+    spec: TARGET_SPEC(targetCount ?? recorded.targetCount, weight ?? recorded.weight),
+  });
+};
 
 /**
  * Where a student stands in a round. `cursor` is the question they are on:
@@ -115,17 +125,20 @@ export const rushQuestionProgress = ({ receipts, roundIndex, questionIndex, targ
  */
 export const rushRoundState = ({ receipts = {}, roundIndex, poolSize = 50 } = {}) => {
   const round = integerOr(roundIndex, -1);
-  // Each attempted question's target count — recorded on its first receipt —
-  // in one pass. Called once per attempt in a batch, so it stays linear.
+  // Each attempted question's target count and weight — recorded on its
+  // first receipt — in one pass. Called once per attempt in a batch, so it
+  // stays linear.
   const targetCounts = new Map();
+  const weights = new Map();
   roundReceiptsOf(receipts, round)
     .map(([, receipt]) => receipt)
     .sort((left, right) => integerOr(left.sequence, 0) - integerOr(right.sequence, 0))
     .forEach((receipt) => {
       const index = integerOr(receipt.questionIndex, 0);
       if (!targetCounts.has(index)) targetCounts.set(index, Math.max(1, integerOr(receipt.targetCount, 1)));
+      if (!weights.has(index)) weights.set(index, Math.max(1, integerOr(receipt.questionWeight, 1)));
     });
-  const specFor = (questionIndex) => ({ ...TARGET_SPEC(targetCounts.get(questionIndex) ?? 1), questionIndex });
+  const specFor = (questionIndex) => ({ ...TARGET_SPEC(targetCounts.get(questionIndex) ?? 1, weights.get(questionIndex) ?? 1), questionIndex });
   let cursor = 0;
   let current = null;
   while (cursor < poolSize) {
@@ -150,6 +163,7 @@ export const rushRoundState = ({ receipts = {}, roundIndex, poolSize = 50 } = {}
     attempts: summary.attempts,
     hits: summary.correctAttempts,
     accuracy: summary.accuracy,
+    // The round's points: each item's weight times the share of it done.
     scoreTotal: summary.scoreTotal,
   });
 };
@@ -356,6 +370,8 @@ export const applyRushAttempts = ({
       return;
     }
     const targetCount = Math.max(1, integerOr(question.targetCount, 1));
+    // The server's own copy says what the item is worth, never the device.
+    const weight = Math.max(1, integerOr(question.weight, rushQuestionWeight(question)));
     const found = [...state.cursorTargetsFound];
 
     let targetId;
@@ -410,7 +426,7 @@ export const applyRushAttempts = ({
       receipts,
       roundIndex: round,
       questionIndex: attempt.questionIndex,
-      spec: TARGET_SPEC(targetCount),
+      spec: TARGET_SPEC(targetCount, weight),
       attemptId: attempt.attemptId,
       targetId,
     });
@@ -425,9 +441,13 @@ export const applyRushAttempts = ({
     // attempt, never earlier than the claim window allows.
     const elapsedMs = Math.round(Math.min(ceiling, Math.max(elapsedFloor, ceiling - RUSH_LIMITS.claimWindowMs, claimed)));
     elapsedFloor = elapsedMs;
+    // A correct answer earns its share of the item: a point a target found
+    // (the weight of a tapped feature is its target count), the whole weight
+    // for a checked set, "Does Not Exist" or "Off screen".
+    const points = isCorrect ? Math.round((weight * (found.length + 1)) / targetCount) - Math.round((weight * found.length) / targetCount) : 0;
     const score = strategy?.scoreTargetAttempt
-      ? strategy.scoreTargetAttempt({ completesQuestion, isCorrect })
-      : { pointsAwarded: completesQuestion ? 1 : 0 };
+      ? strategy.scoreTargetAttempt({ completesQuestion, isCorrect, points })
+      : { pointsAwarded: points };
     const record = (receiptId, fields) => {
       sequence += 1;
       receipts[receiptId] = {
@@ -437,6 +457,8 @@ export const applyRushAttempts = ({
         roundVersion: integerOr(roundVersion, 0),
         questionIndex: attempt.questionIndex,
         targetCount,
+        // What the item is worth (the engine reads it back for the round's points).
+        questionWeight: weight,
         // What was asked, for the teacher's report.
         feature: question.feature,
         family: question.family,
@@ -473,8 +495,8 @@ export const applyRushAttempts = ({
     // student who refreshes after that miss resumes on the next graph.
     let autoSkipped = false;
     if (!isCorrect && !forfeit) {
-      const progress = rushQuestionProgress({ receipts, roundIndex: round, questionIndex: attempt.questionIndex, targetCount });
-      // Three wrong checks of a domain or range, eight misses on a tap question.
+      const progress = rushQuestionProgress({ receipts, roundIndex: round, questionIndex: attempt.questionIndex, targetCount, weight });
+      // Three wrong checks of a set (a domain, a range, an interval), eight misses on a tap question.
       if (!progress.completed && progress.incorrectAttempts >= rushAutoSkipMisses(question)) {
         record(autoSkipAttemptId(attempt.attemptId), {
           attemptKind: RUSH_ATTEMPT_KIND.SKIP,

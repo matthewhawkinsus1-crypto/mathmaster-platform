@@ -8,6 +8,7 @@ import { evaluateRewardPolicy } from '../../functions/shared/liveChallengeReward
 import { GRAPH_FEATURE_RUSH_PRESETS } from '../../functions/shared/graphFeatureRushConfig.mjs';
 import { INEQUALITY_RUSH_MODE_ID, RUSH_MODE_ID } from '../../functions/shared/graphFeatureRushRules.mjs';
 import { rushPlayingCount, rushRaceRows, rushRoundFacts, rushRoundResultRows, rushScoreUnit } from '../../src/platform/liveChallenge/rushStandingsModel.js';
+import { rushRaceRanked } from '../../src/platform/liveChallenge/liveChallengeProjectorModel.js';
 import { changeRushSetup, defaultRushSetup, grandPrixLadder, rushCreateRequest, rushSetupFromPreset } from '../../src/platform/liveChallenge/rushSetupModel.js';
 import { PASS_RULE_ID, buildChallengeRewardPolicy } from '../../src/platform/rewards/challengeRewardPolicy.js';
 import { CHALLENGE_STAGE, HOST_COMMAND, QUESTION_SET_GAME, ROUND_CLOSE_AFTER_DEADLINE_MS, hostPrimaryAction, isRushGame, questionSetGameOf, roundCloseDue } from '../../src/platform/liveChallenge/challengeShellModel.js';
@@ -43,13 +44,30 @@ test('the live race counts only the round now running, most graphs first', () =>
   assert.deepEqual(rushRaceRows([{ playerKey: 'z', alias: 'Zed', joined: true }, { playerKey: 'y', alias: 'Amy', joined: true }], 0).map((row) => row.alias), ['Amy', 'Zed']);
 });
 
+test('the race is ranked by points: an item is worth the taps its answer takes', () => {
+  const racers = [
+    { playerKey: 'a', alias: 'Ada', joined: true, rushRound: 0, rushRoundCompleted: 6, rushRoundPoints: 21 },
+    { playerKey: 'b', alias: 'Bo', joined: true, rushRound: 0, rushRoundCompleted: 9, rushRoundPoints: 13 },
+    // A row from before round points: its count stands for them.
+    { playerKey: 'c', alias: 'Cy', joined: true, rushRound: 0, rushRoundCompleted: 15 },
+  ];
+  const rows = rushRaceRows(racers, 0);
+  assert.deepEqual(rows.map((row) => [row.alias, row.points, row.completed]), [['Ada', 21, 6], ['Cy', 15, 15], ['Bo', 13, 9]], 'fewer graphs, more points, ahead');
+  assert.deepEqual(rushRaceRanked(rows).map((row) => row.rank), [1, 2, 3], 'places by points');
+  assert.deepEqual(rushRaceRanked(rushRaceRows([{ ...racers[0] }, { ...racers[1], rushRoundPoints: 21 }], 0)).map((row) => row.rank), [1, 1], 'equal points share a place');
+});
+
 test('a closed round\'s facts belong to that round, and the board ranks them', () => {
-  assert.deepEqual(rushRoundFacts(players, 'a', 0), { roundIndex: 0, participated: true, completed: 11, accuracyPercent: 92, rank: 1, fieldSize: 4, matchPointsAwarded: 12 });
+  // A row from before round points read its completed count as its points.
+  assert.deepEqual(rushRoundFacts(players, 'a', 0), { roundIndex: 0, participated: true, completed: 11, points: 11, accuracyPercent: 92, rank: 1, fieldSize: 4, matchPointsAwarded: 12 });
+  const weighted = players.map((player) => (player.playerKey === 'a' ? { ...player, lastRound: { ...player.lastRound, points: 26 } } : player));
+  assert.equal(rushRoundFacts(weighted, 'a', 0).points, 26, 'the round\'s points as recorded');
   assert.equal(rushRoundFacts(players, 'a', 1), null, 'last round\'s facts are not this round\'s');
   assert.equal(rushRoundFacts(players, 'c', 0).rank, null, 'no rank without taking part');
   assert.deepEqual(rushRoundResultRows(players, 0).map((row) => row.alias), ['Ada', 'Bo', 'Cy'], 'by rank, non-players last');
   assert.deepEqual(rushScoreUnit('grandPrix'), { short: 'pts', long: 'championship points', placement: true });
-  assert.equal(rushScoreUnit('correctCount').placement, false);
+  // Correct Count banks the items' points: a point per correct tap.
+  assert.deepEqual(rushScoreUnit('correctCount'), { short: 'pts', long: 'points', placement: false });
 });
 
 /* --------------------------------- setup ---------------------------------- */

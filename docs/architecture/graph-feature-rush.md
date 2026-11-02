@@ -4,10 +4,13 @@ A Live Challenge game mode: every student gets their own graphs and races the
 round clock to tap the features asked for — x-intercepts (zeros, roots), the
 y-intercept, the vertex, the maximum, the minimum, the asymptotes — or to
 answer "Does Not Exist" (and, in a game with off-screen features, "Off
-screen"), and to mark domains and ranges on the axes. The graph dominates the screen; a correct tap is acknowledged in the
-next frame; a graph with several targets completes itself when the last one is
-found. Every curve carries an arrowhead where it leaves the screen and a dot
-where it ends, so a student reads where it goes.
+screen"), and to mark sets of numbers by tapping the graph itself: domains
+and ranges, and where a graph increases, decreases, stays constant, or is
+positive or negative. The graph dominates the screen; a correct tap is
+acknowledged in the next frame; a graph with several targets completes itself
+when the last one is found. Every curve carries an arrowhead where it leaves
+the screen and a dot where it ends, so a student reads where it goes — and
+taps those arrows and dots to say so.
 
 It is built **on** the Live Challenge engine (`live-challenge-engine.md`), not
 beside it. Lifecycle, the authoritative clock, receipts and idempotency,
@@ -125,15 +128,52 @@ drawn in their own colour (`--mm-rush-asymptote`, the theme's accent), over the
 axes, so one lying on an axis still shows.
 
 **Domain and range** (`domain`, `range`; geometry `'set'`) are answered on
-an axis, not by a tap on a feature: "Mark the domain" (the x-axis), "Mark the
-range" (the y-axis). Every family computes both exactly; a continuous graph
-on an interval reaches every value between the lowest and the highest it
-reaches or approaches, each end closed exactly when a closed end of the
+an axis, built by tapping the graph: "Mark the domain" (the x-axis), "Mark
+the range" (the y-axis). Every family computes both exactly; a continuous
+graph on an interval reaches every value between the lowest and the highest
+it reaches or approaches, each end closed exactly when a closed end of the
 domain, or the turn, attains it (`rangeOver`). Rays and segments, a level
 line's single value, an exponential up to its asymptote (open), a rational's
 everything-but-one, a piecewise jump that leaves a gap. Every finite end of an
-answer sits on a drawn grid line of its axis, well inside the view, and every
-answer can be drawn with two dots. Neither is ever "Does Not Exist".
+answer is something a student can tap — a landmark (where the graph starts,
+stops, turns or crosses) or an asymptote across that axis — well inside the
+view; every infinite end is an arrow that runs off that way along the axis
+(`curveEnds`); every landmark sits on the half-unit grid along the axis, so a
+tap on it always drops a dot; and every answer can be drawn with two dots.
+Neither is ever "Does Not Exist".
+
+**Intervals** (`increasing`, `decreasing`, `constant`, `positive`,
+`negative`; geometry `'set'`, on the x-axis) are marked the same way: "Mark
+where it is increasing". `intervalFeatures` (graphFeatureFamilies) cuts the
+x-axis at every exact x where an answer can change — the zeros, the turning
+points, where the domain or a piece starts or stops, a vertical asymptote —
+and samples each stretch between cuts only to say which side of the axis it
+is on and which way it goes; a stretch whose samples disagree (a cubic
+turning at irrational x) makes the feature inexact, never issued. Every end
+of an answer is a cut, exact. The conventions a class writes:
+
+- **Increasing, decreasing, constant** are open intervals: where the graph
+  turns, starts or stops is never in the set (a parabola is decreasing on
+  `(−∞, 1)`, a segment on `(−3, 4)`). Two stretches going the same way are
+  one where the graph runs unbroken between them (x³ and ∛x are increasing on
+  `(−∞, ∞)`); a rational's two branches stay two (`(−∞, 1) ∪ (1, ∞)`). Two
+  pieces going the same way across a jump are one interval to some classes
+  and two to others: ambiguous, never asked.
+- **Positive, negative** are f(x) > 0 and f(x) < 0: a zero is never in the
+  set; a closed end of the domain, or the end a piece owns, is in it when the
+  graph is above (below) the axis there (a square root from (−4, −2) is
+  negative on `[−4, 0)`).
+
+Any of them can be empty — a parabola is never constant, a line with a
+positive slope never decreasing — and then "Does Not Exist" is the answer.
+Such a question has no target but carries `setAxis: 'x'` and its landmarks,
+so it plays exactly like the rest: the same ✓ Check, the same "Does Not
+Exist" button (on every interval question), three misses
+(`isNumberLineQuestion`), a wrong check nudged to test what was marked ("Check
+a part you marked: is the graph level there?"), and the reveal "It is never
+constant." with an empty axis. Only a level line or a level piecewise piece is
+ever constant. The catalog says from which difficulty each family asks each
+one; Algebra I's families rise, fall and cross from Easy.
 
 The existing presets keep the five features they had
 (`CLASSIC_GRAPH_FEATURE_IDS`): a feature added to the registry is the
@@ -188,8 +228,10 @@ the same mix, and a neighbour's screen is a different graph. Question k for a
 student is a pure function of (room seed, student, round, k, settings,
 generator version), so the server stores nothing it issued — it regenerates a
 question to grade a tap. A room created under another generator version
-refuses to issue or grade (the current version is 3: arrows and endpoints,
-restricted domains, asymptotes, off-screen features).
+refuses to issue or grade (the current version is 4: sets marked on the
+graph — landmarks, tappable ends instead of grid lines — each item's weight,
+and the interval features; 3 added arrows and endpoints, restricted domains,
+asymptotes and off-screen features).
 
 **Off-screen features** are a layer a teacher turns on (`offScreen` in the
 config; off by default and in every preset). Variants flagged `offScreen`
@@ -248,23 +290,42 @@ must be separated by a visible dip; open dots clear of targets and other dots;
 a lopsided Challenge window is at least 6 units each way (a 2-by-2 window
 flattened a cubic into a line). Below Challenge a piecewise y-intercept never
 sits on the split, so the filled or open dot is never the whole question.
-Measured over every slot (generator 3, 40 seeds each, 7,040 questions): a
-mean of 1.23 build attempts, the worst 17 (cap 80), and no fallback question
-ever needed.
+Measured over every slot (generator 4, 431 slots, 40 seeds each, 17,240
+questions): a mean of 1.20 build attempts, the worst 17 (cap 80), and no
+fallback question ever needed.
 
 ---
 
-### Drawing a domain or range (click only)
+### Marking a set on the graph (click only)
 
-`numberLineSets.mjs` holds the model. A tap anywhere on the graph drops a dot
-onto the question's axis at the nearest grid line inside the view: once for
-● closed, twice for ○ open, a third time to take it away; two dots at most (a
-third new number moves the nearer dot there, keeping its style). ◀ ▶ (▼ ▲ for
-a range) mean "keeps going". Two dots shade between them; two dots and both
-arrows shade the outside ("x ≤ −1 or x > 3"); one open dot and both arrows is
-everything but that number. The interval notation, `[−3, ∞)`, shows live.
-None of it is sent: **✓ Check** is the attempt (`check`, carrying the
-drawing), offered once the drawing names a set. It is graded by set equality,
+`numberLineSets.mjs` holds the drawing; `rushGraphModel.setTapAt` reads a tap
+on the graph itself — there is no bar of arrow buttons:
+
+- **one of the graph's arrows** means "keeps going" that way along the
+  question's axis (−∞ or ∞: left or right on the x-axis, down or up on the
+  y-axis), from the end's real heading (`curveEnds`: both arms of a parabola
+  say "up" in a range). Each arrow is picked on its own and tapped again to
+  take it back; the drawing keeps an infinity while any arrow says it.
+- **a landmark** (where the graph starts, stops, turns or crosses — the
+  server's `landmarks`, every one in view, whatever the question asks, so the
+  list never gives an answer away) drops a dot at its x (or its y, on the
+  y-axis): once for ● closed, twice for ○ open, a third time to take it away;
+  two dots at most (a third new number moves the nearer dot there).
+- **an asymptote** across the axis is its number (x = h on the x-axis).
+- What a tap cannot mean is said, never counted: an arrow that heads nowhere
+  along this axis ("That end levels off — it doesn't keep going up or
+  down."), an asymptote across the other axis, nothing in reach. Something
+  that means a number or an infinity wins over what does not, anywhere within
+  reach.
+
+Page Up / Page Down step the keyboard through those same stops, left to
+right, and Enter taps there; a screen reader hears what is there, never what
+it means. Two dots shade between them; two dots and both arrows shade the
+outside ("x ≤ −1 or x > 3"); one open dot and both arrows is everything but
+that number. Both notations show live, inequality first — `x ≥ −3 ·
+[−3, ∞)`, `y < 2 · (−∞, 2)` for a range — so Algebra I students see both as
+they build. None of it is sent: **✓ Check** is the attempt (`check`, carrying
+the drawing), offered once the drawing names a set. It is graded by set equality,
 so the right set drawn another way is right. A wrong check gets a hint about
 the one thing that is off, at the end it is off — "Open or closed at the left
 end?", "Which way does it keep going?", "Does it keep going, or does it
@@ -272,13 +333,26 @@ stop?", "Check the number at the bottom end." — never the answer. The third
 wrong check shows the answer on the axis, in the found colour, with its
 notation, for `RUSH_REVEAL_PAUSE_MS`, and moves on (the server records the skip
 with that check, `RUSH_SET_AUTO_SKIP_MISSES`). Receipts keep the drawing and
-the diagnosis. On these graphs "Does Not Exist" and "Off screen" step aside
-for the arrows and ✓ Check; Skip stays where it always is.
+the diagnosis. On these graphs "Off screen" steps aside for ✓ Check, "Does Not
+Exist" stays only where the set can be empty (an interval), and Skip stays
+where it always is.
+
+**What an item is worth.** A set takes many more taps than an intercept, so
+an item is worth the taps its answer takes (`rushQuestionWeight`): a point to
+find 1 each; a ● 1, a ○ 2, an arrow 1 and ✓ Check 1 for a set (`[2, ∞)` is 3,
+`(−∞, 1) ∪ (3, ∞)` 7); "Does Not Exist" or "Off screen" 1. The generator
+stamps it on every question (`weight`), the server keeps its own copy, and a
+correct answer earns it — a set all at once, a multi-target graph a share per
+target found (`round(W(k+1)/T) − round(Wk/T)`, summing to W).
 
 **Presets.** "Domain & Range Rush" (domain and range on lines, parabolas,
-absolute value, square root and exponential graphs, Standard, 90 s rounds) and
+absolute value, square root and exponential graphs, Standard, 90 s rounds);
 "Domain, Range & Intercepts", the merge: intercepts to tap and domains and
-ranges to mark on the same families.
+ranges to mark on the same families; "Intervals Rush" (all five interval
+features on lines, parabolas, absolute value, exponential and piecewise
+graphs, Standard, 90 s); and "Algebra I Intervals" (increasing, decreasing,
+positive and negative on lines, parabolas, absolute value and exponentials,
+Easy, 90 s).
 
 ## 4. Hit testing
 
@@ -374,9 +448,11 @@ its speed and protect nothing. The answer key is never on a shared screen.
 
 ### Correct Count
 
-One point per completed graph, banked as the server confirms it; the match
-total is graphs completed. Ties: match accuracy (hits ÷ attempts), then fewer
-rounds played (the same total in fewer rounds ranks first).
+A point per correct tap — each item worth the taps its answer takes (§3,
+"What an item is worth") — banked as the server confirms it; the match total
+is points, and the screens show graphs completed beside them. Ties: match
+accuracy (hits ÷ attempts), then fewer rounds played (the same total in fewer
+rounds ranks first).
 
 ### Grand Prix
 
@@ -385,10 +461,12 @@ last correct completion. Placement earns championship points on a curve sized
 to the class: a straight line from 11 at the top of the field down to 3 for
 last (rounded half up), with a one-point winner's bonus that makes 1st worth
 12. Ties share the place's points, and a player with no credit earns nothing:
-nothing found, or misses that cancel what was (a work score of 0). Work counts
-targets found fractionally, so a student who found one of a graph's two zeros
-before time ran out has half a graph of work — it places them, and the
-results card says so beside "0 graphs completed".
+nothing found, or misses that cancel what was (a work score of 0). Work is
+the round's points (each item worth its taps, a share per target found), so a
+domain that takes five taps counts five times a y-intercept, and a student
+who found one of a graph's two zeros before time ran out has that zero's
+point — it places them, and the results card shows the points beside "0
+graphs completed".
 
 | Players | Points by place |
 | --- | --- |
@@ -556,10 +634,23 @@ and dark; reduced motion turns the pops and fades off.
 - `graphFeatureRushDomainRange.test.mjs` — the number-line model (the tap
   cycle, what drawings mean, notation, shape-checking), hints, every family's
   exact domain and range, the presets, the server's grading by set equality
-  and its third-miss skip, the device's drawing, check and reveal, and
-  device–server agreement over random play. The math oracle checks every
+  and its third-miss skip, the device's check and reveal, and device–server
+  agreement over random play on the graph. The math oracle checks every
   domain and range from the curve alone (where it is defined; which values it
   attains, approaches, covers and skips).
+- `graphFeatureRushTapTheGraph.test.mjs` — the arrows tell the truth (a set
+  keeps going exactly where an arrow heads along its axis), every landmark
+  drops a dot, what each tap means (points, arrows, asymptotes, tips never
+  counted), each arrow picked on its own, a perfect student building every
+  domain and range from the keyboard's stops in exactly the item's points
+  with the server agreeing, what a set is worth, and the number line's own
+  end arrows.
+- `graphFeatureRushIntervals.test.mjs` — the five interval features: the
+  conventions on graphs a teacher draws, the catalog, the "Does Not Exist"
+  question playing exactly like the rest on device and server, a perfect
+  student, device–server agreement over random play, the presets and guide.
+  The math oracle checks every interval answer from the curve alone, at every
+  sixteenth from −16 to 16.
 - `graphFeatureRushArrowsAsymptotes.test.mjs` — every graph leaves the screen
   only at its ends (sampled independently), the device's arrowheads,
   restricted domains (closed and open ends, the parabola cut to one zero, the

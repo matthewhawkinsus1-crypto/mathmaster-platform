@@ -2,6 +2,7 @@ import { memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } fr
 import {
   axisLabels,
   describeCursor,
+  describeSetStop,
   formatCoordinate,
   formatPoint,
   formatTarget,
@@ -12,6 +13,10 @@ import {
   lineTargetUnit,
   moveCursor,
   pointerKindOf,
+  setAxisOf,
+  setLandmarks,
+  setStopAfter,
+  setStops,
   tapPoint,
   tapTolerance,
   unitX,
@@ -26,6 +31,12 @@ import {
  * a memoized layer; a tap redraws only the marks on top. Input is pointerdown
  * (no click delay on touch), and the keyboard moves a cursor on the half grid
  * — every target sits on it — with Enter to choose.
+ *
+ * A SET MARKED ON THE GRAPH (a domain, a range, an interval): the arrows a
+ * student has tapped for "keeps going" glow, and every point a dot came from
+ * wears a ring, so the graph shows what the axis is built from. Page Up and
+ * Page Down step the keyboard through everything tappable — points, arrows,
+ * asymptotes — saying what each one is.
  */
 
 const LABEL_GAP = 6;
@@ -47,7 +58,7 @@ const arrowPoints = (arrow, side) => {
   ].join(' ');
 };
 
-// A domain or range drawn on its axis (rushGraphModel.axisSetDrawing): a
+// A set drawn on its axis (rushGraphModel.axisSetDrawing): a
 // shaded band for the set it means, its dots (filled: included; open: not),
 // and an arrowhead at the edge for "keeps going". `tone` draws the student's
 // own in the curve's colour and a revealed answer in the found colour.
@@ -73,6 +84,27 @@ function AxisSet({ shape, side, tone }) {
         const center = at(dot.at);
         return <circle key={`dot${dot.value}`} cx={center.x} cy={center.y} r={8} fill={dot.closed ? tone : 'var(--mm-graph-bg)'} stroke={tone} strokeWidth={3} />;
       })}
+    </g>
+  );
+}
+
+// What a set has taken from the graph: the arrows tapped for "keeps going"
+// (a ring round each tip) and the points its dots came from (a ring each).
+// Rings, not glows: they redraw with every tap.
+function SetPicks({ question, drawing, axisSet, picks, side }) {
+  if (!question || !drawing) return null;
+  const axis = setAxisOf(question);
+  const picked = new Set((picks || []).map((pick) => pick.id));
+  const dotValues = new Set((axisSet?.dots || []).map((dot) => dot.value));
+  const used = axis ? setLandmarks(question).filter((point) => dotValues.has(axis === 'y' ? point.y : point.x)) : [];
+  return (
+    <g className="mm-rush-picks" pointerEvents="none" aria-hidden="true">
+      {(drawing.arrows || []).filter((arrow) => picked.has(arrow.id)).map((arrow) => (
+        <circle key={`pick${arrow.id}`} cx={arrow.u * side - arrow.dx * 7} cy={arrow.v * side - arrow.dy * 7} r={15} fill="none" stroke="var(--mm-graph-highlight)" strokeWidth={3} />
+      ))}
+      {used.map((point) => (
+        <circle key={`used${point.x},${point.y}`} cx={unitX(question.view, point.x) * side} cy={unitY(question.view, point.y) * side} r={11} fill="none" stroke="var(--mm-graph-highlight)" strokeWidth={3} />
+      ))}
     </g>
   );
 }
@@ -254,10 +286,11 @@ function MissMark({ x, y, view, side }) {
  * @param {boolean}  props.paused     input paused (cooldown, time up): drawn dimmed;
  *                                    taps still reach onTap, which refuses them
  * @param {Function} props.onTap      ({ x, y, pointer, tolerance }) => void
- * @param {object}   props.axisSet    a domain or range being drawn (axisSetDrawing)
+ * @param {object}   props.axisSet    a set being drawn (axisSetDrawing)
  * @param {object}   props.revealSet  the answer, shown as the graph moves on
+ * @param {Array}    props.picks      the arrows tapped for the set ({ id, side })
  */
-function GraphFeatureRushGraph({ question, drawing, side, found = [], feedback = null, paused = false, onTap, label, axisSet = null, revealSet = null }) {
+function GraphFeatureRushGraph({ question, drawing, side, found = [], feedback = null, paused = false, onTap, label, axisSet = null, revealSet = null, picks = null }) {
   const svgRef = useRef(null);
   const view = question.view;
   const [cursor, setCursor] = useState(() => initialCursor(view));
@@ -302,6 +335,16 @@ function GraphFeatureRushGraph({ question, drawing, side, found = [], feedback =
   };
 
   const handleKeyDown = (event) => {
+    // A set question: step through everything tappable.
+    if ((event.key === 'PageDown' || event.key === 'PageUp') && setAxisOf(question)) {
+      event.preventDefault();
+      const next = setStopAfter(setStops(question, drawing), cursor, event.key === 'PageDown' ? 1 : -1);
+      if (!next) return;
+      setCursor(next);
+      setCursorVisible(true);
+      setAnnouncement(describeSetStop(question, drawing, next));
+      return;
+    }
     if (isCursorKey(event.key)) {
       event.preventDefault();
       const next = moveCursor(view, cursor, event.key, { large: event.shiftKey });
@@ -359,6 +402,7 @@ function GraphFeatureRushGraph({ question, drawing, side, found = [], feedback =
         {revealSet
           ? <AxisSet shape={revealSet} side={side} tone="var(--mm-rush-found)" />
           : <AxisSet shape={axisSet} side={side} tone="var(--mm-rush-curve)" />}
+        {!revealSet && picks && <SetPicks question={question} drawing={drawing} axisSet={axisSet} picks={picks} side={side} />}
         {cursorVisible && (
           <g aria-hidden="true" pointerEvents="none">
             <line x1={cursorX} x2={cursorX} y1={0} y2={side} stroke="var(--mm-focus)" strokeWidth={1.5} strokeDasharray="4 4" />

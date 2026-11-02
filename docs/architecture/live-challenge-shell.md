@@ -34,6 +34,8 @@ lobby ──Start──► countdown ──startsAt──► round ──deadlin
 | `src/components/liveChallenge/ChallengeShellParts.jsx` | shared pieces: countdown, self-ticking clock, standings board, round results table, confirmation dialog, confetti, connection pill | — |
 | `…/ChallengeHostConsole.jsx` | the console's stage pill, primary control bar, named roster, round results panel | — |
 | `…/ChallengeStudentShell.jsx` | a student's lobby, guidance, results and final cards | — |
+| `…/grandPrixTheme.js` | the Grand Prix look of every student screen (§9): its colours, the arena and its own layer, the dark graph's tokens, the start lights, the race moments' CSS | yes |
+| `…/StartLights.jsx` | the start lights over a countdown, from the step it shows | — |
 | `…/LiveChallengeTeacher.jsx` | the console; host commands, pacing, recovery, Play Again | — |
 | `…/LiveChallengeArenaProjector.jsx` | the projector, one view per stage | presentation only |
 | `…/LiveChallengeStudent.jsx` | a student's screen, one card per stage; the classic round | — |
@@ -92,7 +94,12 @@ it. Elapsed time, speed scoring and the arrival window all count from
   (`data-mm-round-countdown`); GO flashes for 0.8 s without blocking a tap.
   The round's screen gets a render at each step and at GO from its monotonic
   origin, so it lands on the server's second, not up to a tick later.
-- Student (rush): the "Get ready" card shows the number (`.mm-rush-count`).
+- Student (rush, Graph the Line): the "Get ready" card shows the number
+  (`.mm-rush-count`, `.mm-line-count`).
+- Every student countdown has the Grand Prix's start lights (§9) over its
+  number, lit from the same step: a red pod more each second, all green at GO.
+  A rush or line screen that watched its countdown shows GO for 0.8 s at the
+  round's start, under nothing a student taps.
 - Console: the countdown in the live status and the stage pill.
 
 ---
@@ -487,6 +494,51 @@ The server keeps a bounded map of recently heard sessions and marks
 `reconnectedAt` when a report follows a silence longer than
 `PRESENCE_FRESH_MS` (75 s) — the console's presence. A finished or cancelled
 game stops calibrating.
+
+### The Grand Prix look
+
+Every student screen — the cards around a game, the classic round and the
+rush and line screens — wears a neon race night (`grandPrixTheme.js`): a
+navy-and-purple arena with cyan and magenta light, chrome and gold italic
+titles, a checkered edge on the cards, the student's name on a racing plate,
+start lights and GO on every countdown, gold "+N championship points" badges,
+medals for a round's top three, a trophy for a podium finish, and the graphs
+on dark glass in neon. The lobby names the race as the poster does
+(`arenaGameTitle`, `arenaTagline` in `challengeShellModel.js`). It is CSS
+only: no images, no web fonts, no libraries (about 6 KB gzipped across the
+app, in chunks that already loaded).
+
+It must not cost the game anything a student could feel, and four rules keep
+it that way (`tests/platform/grandPrixTheme.test.mjs` holds each):
+
+1. **Behind a full-screen round, the arena is drawn once, on a compositor
+   layer of its own** (`arenaLayerCss`: a `::before` with `will-change`).
+   Drawn into the round's layer, its seven gradients were redrawn under every
+   new graph — most of the first draft's cost. The layer lives inside the
+   round's shell, already a stacking context (fixed, z-index 9000). The
+   student page around it paints the arena as its own background instead
+   (`ARENA_PAGE_BACKGROUND`): a stacking context there would trap the round
+   under the app's own layers, and what changes on the page is small.
+2. **Nothing that changes during a round carries a blurred shadow.** A blur is
+   the one costly thing to draw, and it is drawn again with each tick, step or
+   finished graph. The clock, the counts, the countdown, the lights, GO, the +1
+   and the buttons use crisp edges and offset shadows; a graph's frame has a
+   rim, not a glow. Static glows (cards, banners, titles) are drawn once.
+3. **The theme's animations move only transform and opacity.** One other
+   property in a keyframe runs the whole animation on the main thread (the
+   first GO did, for 800 ms, as students start tapping).
+4. **No effect has a clock of its own.** The lights follow the step the
+   countdown already shows, GO follows the round's start, a +1 lives inside the
+   finished item's flash (`RUSH_COMPLETE_FLASH_MS`, `LINE_CORRECT_FLASH_MS`),
+   a count pops by remounting on its new value. Every student's screen changes
+   on the same server second, and no effect holds a student up.
+
+Measured in Chromium with the CPU slowed four times (a classroom Chromebook's
+stand-in), against the screens before the theme: five seconds of play do the
+same work (main thread 177 ms vs 186, raster 1.3 ms vs 1.1, one frame per
+clock second either way); GO costs 25 + 2 ms of main thread and raster (was
+13 + 3); a finished item about 60 + 16 ms (was 40 + 11). Reduced motion turns
+every effect off; nothing is said by motion or colour alone.
 
 ---
 

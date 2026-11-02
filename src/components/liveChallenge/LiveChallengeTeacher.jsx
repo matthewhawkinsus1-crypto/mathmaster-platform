@@ -615,7 +615,7 @@ export default function LiveChallengeTeacher({
     : []), [players, roundOpen, roundsEndOnTheClock, questionSetRoom, currentRound]);
   const answeredCount = finishedKeys.size;
   const controlBusy = LIFECYCLE_CONTROLS.includes(busy);
-  const presentation = useMemo(() => scorePresentation({ scoringStrategyId, questionSet: questionSetRoom }), [scoringStrategyId, questionSetRoom]);
+  const presentation = useMemo(() => scorePresentation({ scoringStrategyId, questionSet: questionSetRoom, itemPoints: rushRoom }), [scoringStrategyId, questionSetRoom, rushRoom]);
   // Player key -> student name, from the roster callable (console only).
   const rosterNameByKey = useMemo(() => new Map((Array.isArray(rosterNames) ? rosterNames : [])
     .filter((entry) => entry?.playerKey && entry?.name)
@@ -1156,7 +1156,7 @@ export default function LiveChallengeTeacher({
                   <option value={INEQUALITY_RUSH_MODE_ID}>Inequality Graphing Rush</option>
                   {lineGraphOffered && <option value={LINE_GRAPH_GAME}>{LINE_GRAPH_LAUNCHED ? 'Graph the Line' : 'Graph the Line (preview)'}</option>}
                 </select>
-                {rushMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Every student gets their own graphs and races the clock to tap intercepts, vertices, maximums and minimums.</span>}
+                {rushMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Every student gets their own graphs and races the clock to tap intercepts, vertices, maximums and minimums — or to mark domains, ranges, and where a graph rises, falls, or is positive or negative.</span>}
                 {inequalityMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Every student gets their own inequalities and races the clock to graph each one on a number line — open or closed, which way, and "no solution".</span>}
                 {lineMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Students graph lines from slope-intercept, standard and point-slope form — and, if you choose, name the equation of a line. Each line is checked the moment it is drawn.{LINE_GRAPH_LAUNCHED ? '' : ' In preview: only you can launch it.'}</span>}
               </label>
@@ -1444,7 +1444,7 @@ export default function LiveChallengeTeacher({
               <section style={panel}>
                 <h3 style={{ marginTop: 0 }}>{rushRoom ? `Live race · ${rushGameWords(room).many} this round` : lineRoom ? 'Live race · lines right this round' : `Live ${standingTitle.toLowerCase()}`}</h3>
                 {questionSetRoom
-                  ? <RushRaceBoard players={players} roundIndex={currentRound || 0} label={lineRoom ? 'Lines right this round' : undefined} />
+                  ? <RushRaceBoard players={players} roundIndex={currentRound || 0} label={lineRoom ? 'Lines right this round' : undefined} points={!lineRoom} />
                   : <Leaderboard rows={leaderboard} presentation={presentation} limit={12} />}
               </section>
             )}

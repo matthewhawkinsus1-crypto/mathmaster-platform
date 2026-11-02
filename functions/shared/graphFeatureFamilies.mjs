@@ -64,8 +64,8 @@
  */
 
 import * as Q from './graphFeatureRational.mjs';
-import { GRAPH_KIND } from './graphFeatureCurves.mjs';
-import { GRAPH_FEATURE, QUESTION_TIER, tierRank } from './graphFeatureRegistry.mjs';
+import { GRAPH_KIND, evaluateGraph } from './graphFeatureCurves.mjs';
+import { GRAPH_FEATURE, QUESTION_TIER, isIntervalFeature, tierRank } from './graphFeatureRegistry.mjs';
 import { ALL_REALS, allExcept, canonicalSet, intervalSet, pointSet, unionSets } from './numberLineSets.mjs';
 
 export const GRAPH_FAMILY = Object.freeze({
@@ -281,6 +281,168 @@ const restrictedExtreme = (shape, domain, sign) => {
   return exists(best);
 };
 
+/* ------------------------ intervals: where and which way ------------------------ */
+
+/*
+ * WHERE A GRAPH RISES, FALLS OR STAYS LEVEL, AND WHERE IT IS ABOVE OR BELOW
+ * THE x-AXIS — the interval features, sets of x drawn on the x-axis.
+ *
+ * The x-axis is cut at every exact x where an answer can change: the zeros,
+ * the turning points, where the domain or a piece starts or stops, and a
+ * vertical asymptote. Between two neighbouring cuts the graph is one
+ * unbroken stretch that neither crosses the axis nor turns, so samples there
+ * only say which side of the axis it is on and which way it goes. A stretch
+ * whose samples disagree (a zero or a turn that is not exact, so not among
+ * the cuts) makes those features inexact: never issued. Every end of an
+ * answer is a cut — an exact number — never a sampled approximation.
+ *
+ *   increasing, decreasing, constant   open intervals, the convention a class
+ *     writes: where the graph turns, starts or stops is never in the set.
+ *     Two stretches going the same way are one where the graph runs unbroken
+ *     between them (x³ is increasing on (−∞, ∞)). Where it jumps between two
+ *     pieces going the same way, classes disagree (one interval or two?):
+ *     ambiguous, never issued.
+ *   positive, negative                 f(x) > 0, f(x) < 0: a zero is never in
+ *     the set; a closed end of the domain, or the end a piece owns, is in it
+ *     when the graph is above (below) the axis there.
+ *
+ * An empty set is the feature not existing: "Does Not Exist".
+ *
+ *   graph    the plain graph (toGraph), sampled between cuts
+ *   zeros    the x-intercept analysis on the graph: every zero (EXISTS), none
+ *            (NONE); AMBIGUOUS (zero along a stretch) or INEXACT make the
+ *            sign features inexact
+ *   turns    the exact x of every turning point, or null when they are not
+ *            exact (a cubic turning at irrational x)
+ *   breaks   exact x where the graph starts, stops, jumps or breaks
+ */
+const STRETCH_FRACTIONS = Object.freeze([0.1, 0.3, 0.5, 0.7, 0.9]);
+const TAIL_STEPS = Object.freeze([0.5, 1, 2, 4, 8]);
+const WHOLE_LINE = Object.freeze([-8, -4, -2, -1, 0, 1, 2, 4, 8]);
+// A value this close to 0 away from every exact zero means a zero was missed.
+const NEAR_ZERO = 1e-9;
+// Unbroken at x: the values just either side agree with f(x) to well under
+// the smallest jump a family draws (half a unit; relative, far up a steep
+// curve), even where the graph is vertical for an instant (∛x at its center
+// moves 2·10⁻³ over 10⁻⁹).
+const CONTINUITY_STEP = 1e-9;
+const CONTINUITY_TOLERANCE = 1e-2;
+
+const stretchSamples = (low, high) => {
+  if (low === null && high === null) return WHOLE_LINE;
+  if (low === null) return [...TAIL_STEPS].reverse().map((step) => high - step);
+  if (high === null) return TAIL_STEPS.map((step) => low + step);
+  return STRETCH_FRACTIONS.map((fraction) => low + (high - low) * fraction);
+};
+
+const signOf = (values) => {
+  if (values.every((value) => value > NEAR_ZERO)) return 1;
+  if (values.every((value) => value < -NEAR_ZERO)) return -1;
+  return null;
+};
+
+const directionOf = (values) => {
+  const scale = Math.max(1, ...values.map(Math.abs));
+  const steps = values.slice(1).map((value, index) => value - values[index]);
+  const level = (step) => Math.abs(step) <= 1e-9 * scale;
+  if (steps.every(level)) return 0;
+  if (steps.every((step) => step > 0 && !level(step))) return 1;
+  if (steps.every((step) => step < 0 && !level(step))) return -1;
+  return null;
+};
+
+const continuousAt = (graph, x) => {
+  const at = evaluateGraph(graph, x);
+  if (!Number.isFinite(at)) return false;
+  return [x - CONTINUITY_STEP, x + CONTINUITY_STEP].every((near) => {
+    const value = evaluateGraph(graph, near);
+    return Number.isFinite(value) && Math.abs(value - at) <= CONTINUITY_TOLERANCE * Math.max(1, Math.abs(at));
+  });
+};
+
+const intervalAnswer = (set) => (set.length ? setFeature('x', set) : none());
+
+const intervalFeatures = ({ graph, zeros, turns, breaks = [] }) => {
+  const zeroXs = zeros?.status === FEATURE_STATUS.EXISTS ? zeros.points.map((p) => p.x) : [];
+  const signKnown = zeros?.status === FEATURE_STATUS.EXISTS || zeros?.status === FEATURE_STATUS.NONE;
+  const cuts = uniqueX([...zeroXs, ...(turns || []), ...breaks]);
+  const stretches = [];
+  let broken = false;
+  for (let index = 0; index <= cuts.length; index += 1) {
+    const low = index === 0 ? null : cuts[index - 1];
+    const high = index === cuts.length ? null : cuts[index];
+    const values = stretchSamples(low === null ? null : num(low), high === null ? null : num(high))
+      .map((x) => evaluateGraph(graph, x));
+    const defined = values.filter(Number.isFinite);
+    if (!defined.length) continue;
+    // Defined in part: the graph starts or stops somewhere not among the cuts.
+    if (defined.length !== values.length) broken = true;
+    stretches.push({ low, high, sign: signOf(values), direction: directionOf(values) });
+  }
+  const neighbours = (cut) => [
+    stretches.find((stretch) => stretch.high !== null && Q.eq(stretch.high, cut)),
+    stretches.find((stretch) => stretch.low !== null && Q.eq(stretch.low, cut)),
+  ];
+
+  const signSet = (sign) => {
+    if (broken || !signKnown || stretches.some((stretch) => stretch.sign === null)) return inexact();
+    const parts = stretches.filter((stretch) => stretch.sign === sign)
+      .map((stretch) => intervalSet(stretch.low, false, stretch.high, false));
+    for (const cut of cuts) {
+      const value = evaluateGraph(graph, num(cut));
+      if (!Number.isFinite(value) || zeroXs.some((zero) => Q.eq(zero, cut))) continue;
+      if (Math.abs(value) <= NEAR_ZERO) return inexact();
+      if (Math.sign(value) === sign) parts.push(pointSet(cut));
+    }
+    return intervalAnswer(unionSets(...parts));
+  };
+
+  const ambiguousJump = cuts.some((cut) => {
+    const [before, after] = neighbours(cut);
+    return before && after && before.direction !== 0 && before.direction === after.direction
+      && Number.isFinite(evaluateGraph(graph, num(cut))) && !continuousAt(graph, num(cut));
+  });
+  const directionSet = (direction) => {
+    if (broken || !Array.isArray(turns) || stretches.some((stretch) => stretch.direction === null)) return inexact();
+    if (ambiguousJump) return ambiguous();
+    const parts = stretches.filter((stretch) => stretch.direction === direction)
+      .map((stretch) => intervalSet(stretch.low, false, stretch.high, false));
+    cuts.forEach((cut) => {
+      const [before, after] = neighbours(cut);
+      if (before?.direction === direction && after?.direction === direction && continuousAt(graph, num(cut))) parts.push(pointSet(cut));
+    });
+    return intervalAnswer(unionSets(...parts));
+  };
+
+  return {
+    [F.INCREASING]: directionSet(1),
+    [F.DECREASING]: directionSet(-1),
+    [F.CONSTANT]: directionSet(0),
+    [F.POSITIVE]: signSet(1),
+    [F.NEGATIVE]: signSet(-1),
+  };
+};
+
+// The exact x where a restricted domain starts and stops.
+const domainBreaks = (domain) => (domain ? [domain.from, domain.to].filter(Boolean).map((end) => end.x) : []);
+
+// Which way a monotone feature asks (1 rising, −1 falling, 0 level), and
+// which side of the axis a sign feature asks (1 above, −1 below).
+const askedDirection = (feature) => ({ [F.INCREASING]: 1, [F.DECREASING]: -1, [F.CONSTANT]: 0 })[feature];
+const askedSign = (feature) => ({ [F.POSITIVE]: 1, [F.NEGATIVE]: -1 })[feature];
+const isMonotoneFeature = (feature) => askedDirection(feature) !== undefined;
+
+/*
+ * The variants every family offers for the interval features, by name:
+ * `exists` ones whose answer is a set, and 'none' where the honest answer is
+ * "Does Not Exist" (a parabola is never constant). Each family's
+ * `intervalBuild` gives the shape its variant names; the analysis above
+ * decides the answer, and the generator issues it only when they agree.
+ */
+const intervalVariants = (spec) => Object.freeze(Object.fromEntries(
+  Object.entries(spec).map(([feature, entries]) => [feature, entries.map(([id, options = {}]) => variant(id, options))]),
+));
+
 /* -------------------------------- families -------------------------------- */
 
 const LINEAR_SLOPES = Object.freeze({
@@ -315,6 +477,42 @@ const linearSetBuild = (rng, { feature, variant: id, tier }) => {
   const openRight = openEnds && (!openLeft || rng.chance(0.5));
   if (id === 'openEnds' && rng.chance(0.4)) return { m, b, domain: rayDomain(start, false, rng.chance(0.5) ? 1 : -1) };
   return { m, b, domain: { from: domainEnd(start, !openLeft), to: domainEnd(stop, !openRight) } };
+};
+
+/*
+ * A line for an interval question. A whole-number zero (a half above Easy)
+ * and a slope that keeps its y-intercept on the grid, so the answer's end is
+ * a point a student can tap.
+ */
+const linearIntervalBuild = (rng, { feature, variant: id, tier }) => {
+  const sign = (wanted) => (wanted === undefined || wanted === 0 ? (rng.chance(0.5) ? 1 : -1) : wanted);
+  const slope = (direction) => Q.mul(Q.rat(direction), Q.rat(rng.int(1, tier === EASY ? 2 : 3)));
+  const level = (side) => Q.mul(Q.rat(side), Q.rat(rng.int(1, 4)));
+  if (isMonotoneFeature(feature)) {
+    const wanted = askedDirection(feature);
+    if (id === 'none') {
+      // The other way, or level for a rising or falling question.
+      if (wanted !== 0 && rng.chance(0.3)) return { m: Q.ZERO, b: level(sign()) };
+      return { m: slope(wanted === 0 ? sign() : -wanted), b: Q.rat(rng.int(-4, 4)) };
+    }
+    const m = wanted === 0 ? Q.ZERO : slope(wanted);
+    const b = wanted === 0 ? level(sign()) : Q.rat(rng.int(-4, 4));
+    if (id !== 'segment') return { m, b };
+    const start = Q.rat(rng.int(-5, 1));
+    const stop = Q.add(start, Q.rat(rng.int(3, 6)));
+    return { m, b, domain: { from: domainEnd(start, rng.chance(0.6)), to: domainEnd(stop, rng.chance(0.6)) } };
+  }
+  const wanted = askedSign(feature);
+  if (id === 'level') return { m: Q.ZERO, b: level(wanted) };
+  if (id === 'none') return { m: Q.ZERO, b: level(-wanted) };
+  const zero = coordinate(rng, tier, { min: -4, max: 4 });
+  const m = slope(sign());
+  const b = Q.neg(Q.mul(m, zero));
+  if (id !== 'segment') return { m, b };
+  // A segment across the axis: its zero strictly inside, two or more from each end.
+  const start = Q.sub(zero, Q.rat(rng.int(2, 4)));
+  const stop = Q.add(zero, Q.rat(rng.int(2, 4)));
+  return { m, b, domain: { from: domainEnd(start, rng.chance(0.5)), to: domainEnd(stop, rng.chance(0.5)) } };
 };
 
 // Gentle slopes for a line whose zero is past the edge: it still visibly
@@ -363,9 +561,21 @@ const linear = Object.freeze({
       variant('ray', { minTier: STANDARD, flags: { restricted: true } }),
       variant('segment', { minTier: CHALLENGE, flags: { restricted: true } }),
     ],
+    // A slanted line rises or falls everywhere; a level one is constant
+    // everywhere; a segment does it between its ends (open, either way).
+    ...intervalVariants({
+      [F.INCREASING]: [['slanted'], ['segment', { minTier: STANDARD, flags: { restricted: true } }], ['none', { exists: false, minTier: STANDARD }]],
+      [F.DECREASING]: [['slanted'], ['segment', { minTier: STANDARD, flags: { restricted: true } }], ['none', { exists: false, minTier: STANDARD }]],
+      [F.CONSTANT]: [['level', { minTier: STANDARD }], ['segment', { minTier: CHALLENGE, flags: { restricted: true } }], ['none', { exists: false, minTier: STANDARD }]],
+      // Past its zero one way; a level line above (or below) the axis is
+      // everything; a segment across the axis keeps a closed end.
+      [F.POSITIVE]: [['ray'], ['level', { minTier: STANDARD, weight: 0.5 }], ['segment', { minTier: CHALLENGE, flags: { restricted: true } }], ['none', { exists: false, minTier: STANDARD, weight: 0.6 }]],
+      [F.NEGATIVE]: [['ray'], ['level', { minTier: STANDARD, weight: 0.5 }], ['segment', { minTier: CHALLENGE, flags: { restricted: true } }], ['none', { exists: false, minTier: STANDARD, weight: 0.6 }]],
+    }),
   }),
   build(rng, { feature, variant: id, tier }) {
     if (feature === F.DOMAIN || feature === F.RANGE) return linearSetBuild(rng, { feature, variant: id, tier });
+    if (isIntervalFeature(feature)) return linearIntervalBuild(rng, { feature, variant: id, tier });
     if (feature === F.X_INTERCEPT && id === 'none') {
       // A horizontal line clearly away from the x-axis.
       return { m: Q.ZERO, b: signedInt(rng, 2, range(tier) - 1) };
@@ -409,13 +619,16 @@ const linear = Object.freeze({
     return { m, b };
   },
   toGraph: ({ m, b, domain }) => ({ kind: GRAPH_KIND.LINEAR, m: num(m), b: num(b), ...domainToGraph(domain) }),
-  analyze({ m, b, domain = null }) {
+  analyze(params) {
+    const { m, b, domain = null } = params;
     const constant = Q.isZero(m);
     const shape = linearShape({ m, b });
+    const xIntercept = keepInDomain(constant
+      ? (Q.isZero(b) ? ambiguous() : none())
+      : exists(point(Q.div(Q.neg(b), m), 0)), domain);
     return {
-      [F.X_INTERCEPT]: keepInDomain(constant
-        ? (Q.isZero(b) ? ambiguous() : none())
-        : exists(point(Q.div(Q.neg(b), m), 0)), domain),
+      ...intervalFeatures({ graph: this.toGraph(params), zeros: xIntercept, turns: [], breaks: domainBreaks(domain) }),
+      [F.X_INTERCEPT]: xIntercept,
       [F.Y_INTERCEPT]: keepInDomain(exists(point(0, b)), domain),
       [F.VERTEX]: notApplicable(),
       [F.MAXIMUM]: domain ? restrictedExtreme(shape, domain, 1) : (constant ? ambiguous() : none()),
@@ -500,6 +713,17 @@ const vertexFamily = ({ id, label, kind, leads, zeroDistance, zeroDepth, noZeros
     [F.DOMAIN]: [variant('all'), variant('ray', { minTier: CHALLENGE, flags: { restricted: true } })],
     // From the vertex up (or down); at Challenge, an arm cut short of it.
     [F.RANGE]: [variant('fromVertex'), variant('cut', { minTier: CHALLENGE, flags: { restricted: true } })],
+    // One side of the vertex each way; at Challenge, a ray through the vertex
+    // (open at its start too). Never constant.
+    ...intervalVariants({
+      [F.INCREASING]: [['vertex'], ['ray', { minTier: CHALLENGE, flags: { restricted: true } }]],
+      [F.DECREASING]: [['vertex'], ['ray', { minTier: CHALLENGE, flags: { restricted: true } }]],
+      [F.CONSTANT]: [['none', { exists: false, minTier: STANDARD }]],
+      // Between its zeros or outside them; everything when it clears the
+      // axis; everything but the vertex when it touches; never, the other way.
+      [F.POSITIVE]: [['crossing'], ['clear', { minTier: STANDARD, weight: 0.6 }], ['touching', { minTier: CHALLENGE, weight: 0.5 }], ['none', { exists: false, minTier: STANDARD }]],
+      [F.NEGATIVE]: [['crossing'], ['clear', { minTier: STANDARD, weight: 0.6 }], ['touching', { minTier: CHALLENGE, weight: 0.5 }], ['none', { exists: false, minTier: STANDARD }]],
+    }),
   }),
   build(rng, { feature, variant: chosen, tier }) {
     if (feature === F.DOMAIN || feature === F.RANGE) {
@@ -533,6 +757,30 @@ const vertexFamily = ({ id, label, kind, leads, zeroDistance, zeroDepth, noZeros
     if (feature === F.X_INTERCEPT && chosen === 'two') {
       const shape = twoZeros();
       return shape && { a: shape.a, h: shape.h, k: shape.k };
+    }
+    if (isMonotoneFeature(feature)) {
+      // Rises on one side of the vertex and falls on the other.
+      const a = pickLead();
+      const h = coordinate(rng, tier, { min: -range(tier) + 2, max: range(tier) - 2 });
+      const k = coordinate(rng, tier, { min: -range(tier) + 1, max: range(tier) - 1 });
+      if (chosen !== 'ray') return { a, h, k };
+      // A ray that starts one to three units before the vertex and runs through it.
+      const side = rng.chance(0.5) ? 1 : -1;
+      return { a, h, k, domain: rayDomain(Q.sub(h, Q.rat(side * rng.int(1, 3))), rng.chance(0.5), side) };
+    }
+    if (isIntervalFeature(feature)) {
+      const wanted = askedSign(feature);
+      if (chosen === 'crossing') {
+        const shape = twoZeros();
+        return shape && { a: shape.a, h: shape.h, k: shape.k };
+      }
+      // Clear of the axis on the side asked (or, for 'none', the other side);
+      // touching it at the vertex, opening the way asked.
+      const side = chosen === 'none' ? -wanted : wanted;
+      const a = pickLead(side);
+      const h = coordinate(rng, tier, { min: -range(tier) + 2, max: range(tier) - 2 });
+      if (chosen === 'touching') return { a, h, k: Q.ZERO };
+      return { a, h, k: Q.mul(Q.rat(side), Q.rat(rng.int(1, Math.max(2, range(tier) - 2)))) };
     }
     if (feature === F.X_INTERCEPT && (chosen === 'rayFromZero' || chosen === 'rayOpenAtZero')) {
       // One arm: from a zero, away from the other one.
@@ -606,8 +854,10 @@ const vertexFamily = ({ id, label, kind, leads, zeroDistance, zeroDepth, noZeros
       critical: [h],
       tail: () => ({ kind: 'infinite', sign: Q.sign(a) }),
     };
+    const zeros = keepInDomain(xIntercept, domain);
     return {
-      [F.X_INTERCEPT]: keepInDomain(xIntercept, domain),
+      ...intervalFeatures({ graph: this.toGraph(params), zeros, turns: inDomain(domain, h) ? [h] : [], breaks: domainBreaks(domain) }),
+      [F.X_INTERCEPT]: zeros,
       [F.Y_INTERCEPT]: keepInDomain(exists(point(0, yValue)), domain),
       [F.VERTEX]: keepInDomain(exists(vertex), domain),
       [F.MAXIMUM]: domain ? restrictedExtreme(shape, domain, 1) : (Q.sign(a) < 0 ? exists(vertex) : none()),
@@ -632,6 +882,10 @@ const vertexFamily = ({ id, label, kind, leads, zeroDistance, zeroDepth, noZeros
   // a far one would shrink the parabola to a sliver.
   optionalKeyPoints(params) {
     return this.analyze(params)[F.Y_INTERCEPT].points;
+  },
+  // Where the graph turns: the vertex, when the graph has it.
+  turningPoints(params) {
+    return inDomain(params.domain || null, params.h) ? [point(params.h, params.k)] : [];
   },
   // A hidden vertex keeps nothing in particular on screen (the arm crossing
   // it is checked by how much of the curve shows); hidden zeros keep the
@@ -704,6 +958,47 @@ export const cubicTurningPoints = (params) => {
   return [(-B - root) / (2 * A), (-B + root) / (2 * A)].map((x) => ({ x, y: evaluate(x) }));
 };
 
+/*
+ * The cubic's turning points exactly, when they are on the half grid: the
+ * float roots of f′ rounded to the nearest half, then kept only if f′ is
+ * EXACTLY zero there (the coefficients expanded in exact rationals), so a
+ * float that lands near a half is never taken for one. Empty when they are
+ * irrational, or when it never turns.
+ */
+const cubicExactCoefficients = ({ a, roots = [], quadratic: factor = null }) => {
+  let poly = [Q.toRational(a)];
+  const multiply = (left, right) => {
+    const out = Array.from({ length: left.length + right.length - 1 }, () => Q.ZERO);
+    left.forEach((lc, li) => right.forEach((rc, ri) => { out[li + ri] = Q.add(out[li + ri], Q.mul(lc, rc)); }));
+    return out;
+  };
+  roots.forEach((root) => { poly = multiply(poly, [Q.neg(root), Q.ONE]); });
+  if (factor) poly = multiply(poly, [Q.add(Q.mul(factor.p, factor.p), factor.q), Q.mul(Q.rat(-2), factor.p), Q.ONE]);
+  return poly;
+};
+
+const cubicExactTurningPoints = (params) => {
+  const [, c1, c2, c3] = cubicExactCoefficients(params);
+  const slopeAt = (x) => Q.add(Q.add(Q.mul(Q.rat(3), Q.mul(c3, Q.mul(x, x))), Q.mul(Q.rat(2), Q.mul(c2, x))), c1);
+  const candidates = cubicTurningPoints(params).map(({ x }) => Q.rat(Math.round(x * 2), 2));
+  if (!candidates.length || !candidates.every((x) => Q.isZero(slopeAt(x)))) return [];
+  return candidates.map((x) => point(x, cubicValueAt(params, x)));
+};
+
+/*
+ * Where the cubic turns, exactly: [] when it never does (f′ has no two
+ * distinct roots — a triple root only flattens), the two x when they are on
+ * the half grid, null when it turns somewhere irrational.
+ */
+const cubicTurnXs = (params) => {
+  const [, c1, c2, c3] = cubicExactCoefficients(params);
+  // f′(x) = 3c3·x² + 2c2·x + c1: two distinct roots when 4c2² − 12c3·c1 > 0.
+  const discriminant = Q.sub(Q.mul(Q.rat(4), Q.mul(c2, c2)), Q.mul(Q.rat(12), Q.mul(c3, c1)));
+  if (Q.sign(discriminant) <= 0) return [];
+  const exact = cubicExactTurningPoints(params);
+  return exact.length === 2 ? exact.map((p) => p.x) : null;
+};
+
 const cubicValueAt = ({ a, roots = [], quadratic: factor = null }, x) => {
   let value = Q.toRational(a);
   roots.forEach((root) => { value = Q.mul(value, Q.sub(x, root)); });
@@ -737,9 +1032,40 @@ const cubic = Object.freeze({
     [F.ASYMPTOTE]: [variant('none', { exists: false, minTier: STANDARD })],
     [F.DOMAIN]: [variant('all', { minTier: STANDARD })],
     [F.RANGE]: [variant('all', { minTier: STANDARD })],
+    // Rising (or falling) everywhere through a flat point; at Challenge one
+    // that turns twice, at grid points. Above and below its axis: past a
+    // single zero, or around one it touches.
+    ...intervalVariants({
+      [F.INCREASING]: [['monotone', { minTier: STANDARD }], ['turns', { minTier: CHALLENGE }], ['none', { exists: false, minTier: STANDARD }]],
+      [F.DECREASING]: [['monotone', { minTier: STANDARD }], ['turns', { minTier: CHALLENGE }], ['none', { exists: false, minTier: STANDARD }]],
+      [F.CONSTANT]: [['none', { exists: false, minTier: STANDARD }]],
+      [F.POSITIVE]: [['crossing', { minTier: STANDARD }], ['touching', { minTier: CHALLENGE }]],
+      [F.NEGATIVE]: [['crossing', { minTier: STANDARD }], ['touching', { minTier: CHALLENGE }]],
+    }),
   }),
   build(rng, { feature, variant: chosen, tier }) {
     const lead = () => Q.toRational(rng.pick(CUBIC_LEADS));
+    if (isIntervalFeature(feature)) {
+      const wanted = askedDirection(feature);
+      const signedLead = (sign) => Q.mul(Q.rat(sign), Q.abs(lead()));
+      if (chosen === 'monotone' || chosen === 'none') {
+        // a(x − r)³: rising everywhere for a > 0, falling for a < 0 (either,
+        // for a question about where it is constant: never).
+        const r = Q.rat(rng.int(-3, 3));
+        const way = wanted === 0 ? (rng.chance(0.5) ? 1 : -1) : wanted;
+        return { a: signedLead(chosen === 'none' && wanted !== 0 ? -way : way), roots: [r, r, r], quadratic: null };
+      }
+      if (chosen === 'turns' || chosen === 'touching') {
+        // a(x − p)²(x − q) with q = p ± 3: it turns at p and at (p + 2q)/3 = p ± 2.
+        const p = Q.rat(rng.int(-3, 3));
+        const q = Q.add(p, Q.rat(rng.chance(0.5) ? 3 : -3));
+        return { a: lead(), roots: [p, p, q], quadratic: null };
+      }
+      // Crossing once: a flat crossing, or one real zero beside a factor that never vanishes.
+      const r = Q.rat(rng.int(-3, 3));
+      if (rng.chance(0.5)) return { a: lead(), roots: [r, r, r], quadratic: null };
+      return { a: lead(), roots: [r], quadratic: { p: Q.rat(rng.int(-2, 2)), q: Q.rat(rng.int(1, 3)) } };
+    }
     const shape = feature === F.Y_INTERCEPT || feature === F.ASYMPTOTE || feature === F.DOMAIN || feature === F.RANGE
       ? rng.pick(tier === EASY ? ['triple'] : ['three', 'triple', 'tangent'])
       : chosen;
@@ -770,8 +1096,10 @@ const cubic = Object.freeze({
   }),
   analyze(params) {
     const zeros = uniqueX(params.roots).map((x) => point(x, 0));
+    const xIntercept = zeros.length ? exists(...zeros) : none();
     return {
-      [F.X_INTERCEPT]: zeros.length ? exists(...zeros) : none(),
+      ...intervalFeatures({ graph: this.toGraph(params), zeros: xIntercept, turns: cubicTurnXs(params) }),
+      [F.X_INTERCEPT]: xIntercept,
       [F.Y_INTERCEPT]: exists(point(0, cubicValueAt(params, Q.ZERO))),
       [F.VERTEX]: notApplicable(),
       [F.MAXIMUM]: notApplicable(),
@@ -789,6 +1117,9 @@ const cubic = Object.freeze({
   },
   // Turning points frame the view so the shape between zeros is visible.
   framingPoints: (params) => cubicTurningPoints(params),
+  // Where it turns, when that is a grid point (a double root and its partner
+  // turn there; three distinct roots usually turn somewhere irrational).
+  turningPoints: (params) => cubicExactTurningPoints(params),
   valueLimit: (tier) => CUBIC_VALUE_LIMIT[tier],
   asymptotes: () => ({ vertical: [], horizontal: [] }),
   minVisibleFraction: 0.15,
@@ -851,11 +1182,36 @@ const exponential = Object.freeze({
     [F.DOMAIN]: [variant('all', { minTier: STANDARD })],
     // Up to its asymptote, never reaching it: an open end.
     [F.RANGE]: [variant('asymptote', { minTier: STANDARD })],
+    // Growth or decay: rising or falling everywhere, never level. Above the
+    // axis past its zero, or everywhere when it never crosses.
+    ...intervalVariants({
+      [F.INCREASING]: [['monotone'], ['none', { exists: false, minTier: STANDARD }]],
+      [F.DECREASING]: [['monotone'], ['none', { exists: false, minTier: STANDARD }]],
+      [F.CONSTANT]: [['none', { exists: false, minTier: STANDARD }]],
+      [F.POSITIVE]: [['crossing', { minTier: STANDARD }], ['clear', { minTier: STANDARD, weight: 0.6 }], ['none', { exists: false, minTier: STANDARD }]],
+      [F.NEGATIVE]: [['crossing', { minTier: STANDARD }], ['clear', { minTier: STANDARD, weight: 0.6 }], ['none', { exists: false, minTier: STANDARD }]],
+    }),
   }),
   build(rng, { feature, variant: chosen, tier }) {
     const base = Q.toRational(rng.pick(EXPONENTIAL_BASES[tier] || EXPONENTIAL_BASES[STANDARD]));
     const a = Q.toRational(rng.pick(EXPONENTIAL_LEADS[tier] || EXPONENTIAL_LEADS[STANDARD]));
     const h = tier === CHALLENGE && rng.chance(0.35) ? Q.rat(rng.pick([-1, 1])) : Q.ZERO;
+    if (isMonotoneFeature(feature)) {
+      // Rising when a > 0 grows (base above 1) or a < 0 decays; the sign of a
+      // is chosen to make it go the way asked (or, for 'none', the other way).
+      const grows = Q.cmp(base, Q.ONE) > 0 ? 1 : -1;
+      const wanted = askedDirection(feature) || (rng.chance(0.5) ? 1 : -1);
+      const way = chosen === 'none' && askedDirection(feature) !== 0 ? -wanted : wanted;
+      const lead = Q.mul(Q.rat(way * grows), Q.abs(a));
+      return { a: lead, base, h, k: Q.rat(rng.int(-3, 3)) };
+    }
+    if (isIntervalFeature(feature)) {
+      const wanted = askedSign(feature);
+      if (chosen === 'crossing') return this.build(rng, { feature: F.X_INTERCEPT, variant: 'one', tier });
+      // Never crossing: above the axis (a > 0, k ≥ 0) or below it (a < 0, k ≤ 0).
+      const side = chosen === 'none' ? -wanted : wanted;
+      return { a: Q.mul(Q.rat(side), Q.abs(a)), base, h, k: Q.mul(Q.rat(side), Q.rat(rng.int(0, 3))) };
+    }
     if (feature === F.X_INTERCEPT && ['one', 'rayFromZero', 'rayOpenAtZero'].includes(chosen)) {
       // Start from the intercept x = h + e, then the shift that puts it there.
       // base^e between 2 and 9 keeps the asymptote y = k clear of the axis,
@@ -909,8 +1265,10 @@ const exponential = Object.freeze({
       tail: (side) => (side === approachSide ? { kind: 'approach', value: k } : { kind: 'infinite', sign: Q.sign(a) }),
     };
     const keepsApproach = !domain || (approachSide === 'left' ? !domain.from : !domain.to);
+    const zeros = keepInDomain(xIntercept, domain);
     return {
-      [F.X_INTERCEPT]: keepInDomain(xIntercept, domain),
+      ...intervalFeatures({ graph: this.toGraph(params), zeros, turns: [], breaks: domainBreaks(domain) }),
+      [F.X_INTERCEPT]: zeros,
       [F.Y_INTERCEPT]: keepInDomain(yIntercept, domain),
       [F.VERTEX]: notApplicable(),
       // Unbounded one way, approaching (never reaching) the asymptote the other.
@@ -962,10 +1320,38 @@ const squareRoot = Object.freeze({
     // From its endpoint on: a closed end, either way.
     [F.DOMAIN]: [variant('endpoint')],
     [F.RANGE]: [variant('endpoint')],
+    // From its endpoint on, one way only (open at the endpoint): rising for
+    // an Easy lead, falling from Standard. Above or below the axis from the
+    // endpoint (closed there when it is off the axis) or from its zero.
+    ...intervalVariants({
+      [F.INCREASING]: [['endpoint'], ['none', { exists: false, minTier: STANDARD }]],
+      [F.DECREASING]: [['endpoint', { minTier: STANDARD }], ['none', { exists: false, minTier: STANDARD }]],
+      [F.CONSTANT]: [['none', { exists: false, minTier: STANDARD }]],
+      [F.POSITIVE]: [['crossing'], ['clear', { minTier: STANDARD, weight: 0.6 }], ['none', { exists: false, minTier: STANDARD }]],
+      [F.NEGATIVE]: [['crossing'], ['clear', { minTier: STANDARD, weight: 0.6 }], ['none', { exists: false, minTier: STANDARD }]],
+    }),
   }),
   build(rng, { feature, variant: chosen, tier }) {
     const s = tier === CHALLENGE && rng.chance(0.4) ? -1 : 1;
     const leads = (ROOT_LEADS[tier] || ROOT_LEADS[STANDARD]).map((entry) => Q.toRational(entry));
+    if (isMonotoneFeature(feature)) {
+      // Rising when a and s agree in sign.
+      const wanted = askedDirection(feature) || (rng.chance(0.5) ? 1 : -1);
+      const way = chosen === 'none' && askedDirection(feature) !== 0 ? -wanted : wanted;
+      const options = leads.filter((lead) => Q.sign(lead) * s === way);
+      if (!options.length) return null;
+      return { a: rng.pick(options), s, h: Q.rat(rng.int(-5, 3)), k: Q.rat(rng.int(-4, 4)) };
+    }
+    if (isIntervalFeature(feature)) {
+      const wanted = askedSign(feature);
+      if (chosen === 'crossing') return this.build(rng, { feature: F.X_INTERCEPT, variant: 'one', tier });
+      // Never crossing: from an endpoint on the side asked (or, for 'none',
+      // the other side), heading away from the axis — or from the axis itself.
+      const side = chosen === 'none' ? -wanted : wanted;
+      const options = leads.filter((lead) => Q.sign(lead) === side);
+      if (!options.length) return null;
+      return { a: rng.pick(options), s, h: Q.rat(rng.int(-5, 3)), k: Q.mul(Q.rat(side), Q.rat(rng.int(0, 4))) };
+    }
     let sign = 0;
     if (feature === F.MAXIMUM) sign = chosen === 'one' ? -1 : 1;
     if (feature === F.MINIMUM) sign = chosen === 'one' ? 1 : -1;
@@ -990,7 +1376,8 @@ const squareRoot = Object.freeze({
     return { a, s, h: Q.rat(rng.int(-5, 4)), k: Q.rat(rng.int(-5, 5)) };
   },
   toGraph: ({ a, s, h, k }) => ({ kind: GRAPH_KIND.SQUARE_ROOT, a: num(a), s, h: num(h), k: num(k) }),
-  analyze({ a, s, h, k }) {
+  analyze(params) {
+    const { a, s, h, k } = params;
     const ratio = Q.div(Q.neg(k), a);
     const xIntercept = Q.sign(ratio) < 0
       ? none()
@@ -1004,6 +1391,7 @@ const squareRoot = Object.freeze({
     }
     const endpoint = point(h, k);
     return {
+      ...intervalFeatures({ graph: this.toGraph(params), zeros: xIntercept, turns: [], breaks: [h] }),
       [F.X_INTERCEPT]: xIntercept,
       [F.Y_INTERCEPT]: yIntercept,
       [F.VERTEX]: notApplicable(),
@@ -1038,9 +1426,24 @@ const cubeRoot = Object.freeze({
     [F.ASYMPTOTE]: [variant('none', { exists: false, minTier: STANDARD })],
     [F.DOMAIN]: [variant('all', { minTier: STANDARD })],
     [F.RANGE]: [variant('all', { minTier: STANDARD })],
+    // Rising (or falling) everywhere, even through its steep center; one
+    // side of its zero above the axis, the other below.
+    ...intervalVariants({
+      [F.INCREASING]: [['monotone', { minTier: STANDARD }], ['none', { exists: false, minTier: STANDARD }]],
+      [F.DECREASING]: [['monotone', { minTier: STANDARD }], ['none', { exists: false, minTier: STANDARD }]],
+      [F.CONSTANT]: [['none', { exists: false, minTier: STANDARD }]],
+      [F.POSITIVE]: [['crossing', { minTier: STANDARD }]],
+      [F.NEGATIVE]: [['crossing', { minTier: STANDARD }]],
+    }),
   }),
-  build(rng, { feature, tier }) {
+  build(rng, { feature, variant: chosen, tier }) {
     const a = Q.toRational(rng.pick((ROOT_LEADS[tier] || ROOT_LEADS[STANDARD]).filter((lead) => lead.length === 1)));
+    if (isMonotoneFeature(feature)) {
+      const wanted = askedDirection(feature) || (rng.chance(0.5) ? 1 : -1);
+      const way = chosen === 'none' && askedDirection(feature) !== 0 ? -wanted : wanted;
+      return { a: Q.mul(Q.rat(way), Q.abs(a)), h: Q.rat(rng.int(-4, 4)), k: Q.rat(rng.int(-4, 4)) };
+    }
+    if (isIntervalFeature(feature)) return this.build(rng, { feature: F.X_INTERCEPT, variant: 'one', tier });
     if (feature === F.X_INTERCEPT) {
       // The zero is (−k/a)³ from the center: 0, ±1 or ±8.
       const t = rng.pick([0, 1, -1, 1, -1, 2, -2]);
@@ -1052,11 +1455,14 @@ const cubeRoot = Object.freeze({
     return { a, h: Q.rat(rng.int(-4, 4)), k: Q.rat(rng.int(-4, 4)) };
   },
   toGraph: ({ a, h, k }) => ({ kind: GRAPH_KIND.CUBE_ROOT, a: num(a), h: num(h), k: num(k) }),
-  analyze({ a, h, k }) {
+  analyze(params) {
+    const { a, h, k } = params;
     const t = Q.div(Q.neg(k), a);
     const root = Q.exactCbrt(Q.neg(h));
+    const xIntercept = exists(point(Q.add(h, Q.mul(t, Q.mul(t, t))), 0));
     return {
-      [F.X_INTERCEPT]: exists(point(Q.add(h, Q.mul(t, Q.mul(t, t))), 0)),
+      ...intervalFeatures({ graph: this.toGraph(params), zeros: xIntercept, turns: [] }),
+      [F.X_INTERCEPT]: xIntercept,
       [F.Y_INTERCEPT]: root ? exists(point(0, Q.add(Q.mul(a, root), k))) : inexact(),
       [F.VERTEX]: notApplicable(),
       [F.MAXIMUM]: none(),
@@ -1106,9 +1512,31 @@ const rational = Object.freeze({
     // Every number but the one the graph cannot take: an open dot with both arrows.
     [F.DOMAIN]: [variant('allButOne', { minTier: STANDARD })],
     [F.RANGE]: [variant('allButOne', { minTier: STANDARD })],
+    // Each branch rises (or falls), on both sides of the asymptote: two
+    // intervals, never joined across it. Above the axis between (or outside)
+    // its zero and the asymptote.
+    ...intervalVariants({
+      [F.INCREASING]: [['branches', { minTier: STANDARD }], ['none', { exists: false, minTier: STANDARD }]],
+      [F.DECREASING]: [['branches', { minTier: STANDARD }], ['none', { exists: false, minTier: STANDARD }]],
+      [F.CONSTANT]: [['none', { exists: false, minTier: STANDARD }]],
+      [F.POSITIVE]: [['branches', { minTier: STANDARD }]],
+      [F.NEGATIVE]: [['branches', { minTier: STANDARD }]],
+    }),
   }),
-  build(rng, { feature, variant: chosen }) {
+  build(rng, { feature, variant: chosen, tier }) {
     const a = Q.rat(rng.pick(RATIONAL_LEADS));
+    if (isMonotoneFeature(feature)) {
+      // a > 0 falls on both branches, a < 0 rises.
+      const wanted = askedDirection(feature) || (rng.chance(0.5) ? 1 : -1);
+      const way = chosen === 'none' && askedDirection(feature) !== 0 ? -wanted : wanted;
+      return { a: Q.mul(Q.rat(-way), Q.abs(a)), h: Q.rat(rng.pick([-3, -2, -1, 1, 2, 3])), k: Q.rat(rng.pick([-3, -2, 2, 3])) };
+    }
+    if (isIntervalFeature(feature)) {
+      // Its zero a whole step or more from the asymptote; now and then the
+      // x-axis is the horizontal asymptote, and one branch is the answer.
+      if (rng.chance(0.25)) return { a, h: Q.rat(rng.pick([-3, -2, -1, 1, 2, 3])), k: Q.ZERO };
+      return this.build(rng, { feature: F.X_INTERCEPT, variant: 'one', tier });
+    }
     if (feature === F.ASYMPTOTE && chosen === 'twoOnAxis') {
       return rng.chance(0.5)
         ? { a, h: Q.ZERO, k: Q.rat(rng.pick([-3, -2, 2, 3])) }
@@ -1137,9 +1565,12 @@ const rational = Object.freeze({
     return { a, h: Q.rat(rng.pick([-3, -2, -1, 1, 2, 3])), k: Q.rat(rng.pick([-3, -2, 2, 3])) };
   },
   toGraph: ({ a, h, k }) => ({ kind: GRAPH_KIND.RATIONAL, a: num(a), h: num(h), k: num(k) }),
-  analyze({ a, h, k }) {
+  analyze(params) {
+    const { a, h, k } = params;
+    const xIntercept = Q.isZero(k) ? none() : exists(point(Q.sub(h, Q.div(a, k)), 0));
     return {
-      [F.X_INTERCEPT]: Q.isZero(k) ? none() : exists(point(Q.sub(h, Q.div(a, k)), 0)),
+      ...intervalFeatures({ graph: this.toGraph(params), zeros: xIntercept, turns: [], breaks: [h] }),
+      [F.X_INTERCEPT]: xIntercept,
       [F.Y_INTERCEPT]: Q.isZero(h) ? none() : exists(point(0, Q.sub(k, Q.div(a, h)))),
       [F.VERTEX]: notApplicable(),
       [F.MAXIMUM]: none(),
@@ -1204,12 +1635,41 @@ const piecewise = Object.freeze({
     // The two pieces' y-values together: a ray, everything, or two rays with
     // a gap — the dots at the split decide.
     [F.RANGE]: [variant('pieces', { minTier: CHALLENGE })],
+    // One piece each way (or one level): the split is never in a rising,
+    // falling or level interval. Two pieces going the same way across a jump
+    // are one interval to some classes and two to others: never asked.
+    ...intervalVariants({
+      [F.INCREASING]: [['pieces', { minTier: STANDARD }], ['none', { exists: false, minTier: STANDARD }]],
+      [F.DECREASING]: [['pieces', { minTier: STANDARD }], ['none', { exists: false, minTier: STANDARD }]],
+      [F.CONSTANT]: [['level', { minTier: STANDARD }], ['none', { exists: false, minTier: STANDARD }]],
+      [F.POSITIVE]: [['pieces', { minTier: STANDARD }]],
+      [F.NEGATIVE]: [['pieces', { minTier: STANDARD }]],
+    }),
   }),
   build(rng, { feature, variant: chosen, tier }) {
     const s = Q.rat(rng.int(-3, 3));
     const slope = (sign = 0) => rng.pick(PIECE_SLOPES.map((entry) => Q.toRational(entry))
       .filter((m) => sign === 0 || Q.sign(m) === sign));
     const leftClosed = rng.chance(0.5);
+    if (isMonotoneFeature(feature)) {
+      // Two pieces that go different ways: rising, falling or level.
+      const wanted = askedDirection(feature);
+      const ways = (() => {
+        if (chosen === 'none') {
+          // Neither piece goes the way asked.
+          const others = [1, -1, 0].filter((way) => way !== wanted);
+          return rng.chance(0.5) ? others : [...others].reverse();
+        }
+        const other = rng.pick([1, -1, 0].filter((way) => way !== wanted));
+        return rng.chance(0.5) ? [wanted, other] : [other, wanted];
+      })();
+      const pieceSlope = (way) => (way === 0 ? Q.ZERO : slope(way));
+      return {
+        s,
+        pieces: makePieces({ s, leftSlope: pieceSlope(ways[0]), rightSlope: pieceSlope(ways[1]), leftValue: Q.rat(rng.int(-4, 4)), rightValue: Q.rat(rng.int(-4, 4)), leftClosed }),
+      };
+    }
+    if (isIntervalFeature(feature)) return this.build(rng, { feature: F.X_INTERCEPT, variant: rng.chance(0.6) ? 'two' : 'one', tier });
     if (feature === F.X_INTERCEPT && chosen !== 'none') {
       // Zeros placed first, strictly inside each piece's own interval.
       const leftZero = Q.sub(s, Q.rat(rng.int(2, 5)));
@@ -1310,8 +1770,11 @@ const piecewise = Object.freeze({
       // The supremum sits at the open endpoint: not attained. Never issued.
       return ambiguous();
     };
+    const xIntercept = zeroAmbiguous ? ambiguous() : (zeros.length ? exists(...uniqueX(zeros).map((x) => point(x, 0))) : none());
+    const breaks = pieces.flatMap((piece) => [piece.from, piece.to]).filter(Boolean).map((end) => end.x);
     return {
-      [F.X_INTERCEPT]: zeroAmbiguous ? ambiguous() : (zeros.length ? exists(...uniqueX(zeros).map((x) => point(x, 0))) : none()),
+      ...intervalFeatures({ graph: this.toGraph({ s, pieces }), zeros: xIntercept, turns: [], breaks }),
+      [F.X_INTERCEPT]: xIntercept,
       [F.Y_INTERCEPT]: owner ? exists(point(0, pieceValue(owner, Q.ZERO))) : none(),
       [F.VERTEX]: notApplicable(),
       [F.MAXIMUM]: extreme(1),
@@ -1344,6 +1807,11 @@ const piecewise = Object.freeze({
     const x = num(s) + (index === 0 ? -4 : 4);
     return { x, y: num(piece.m) * x + num(piece.b) };
   }),
+  // A corner where the pieces meet (a jump is drawn as dots instead).
+  turningPoints: ({ s, pieces }) => {
+    const [left, right] = pieces;
+    return Q.eq(pieceValue(left, s), pieceValue(right, s)) ? [point(s, pieceValue(left, s))] : [];
+  },
   asymptotes: () => ({ vertical: [], horizontal: [] }),
   minVisibleFraction: 0.3,
 });

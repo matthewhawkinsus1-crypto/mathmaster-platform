@@ -3,12 +3,15 @@
  *
  * The small set of constants the student's device and the server must agree
  * on — what an attempt can be, what a verdict can say, how many attempts fit
- * in one request, and the device's pacing after mistakes. Kept apart from
- * graphFeatureRush.mjs (the server's grading) so the student's game bundle
- * carries these few numbers and not the generator and its families.
+ * in one request, the device's pacing after mistakes, and what an item is
+ * worth. Kept apart from graphFeatureRush.mjs (the server's grading) so the
+ * student's game bundle carries these few numbers and not the generator and
+ * its families.
  *
  * Pure: shared by Cloud Functions, the student device and tests.
  */
+
+import { setAnswerTaps, setFromPlain } from './numberLineSets.mjs';
 
 // The game mode's id (liveChallengeModes.CHALLENGE_MODE_ID), here so the
 // student's screen can recognise a rush room without the mode registry.
@@ -29,7 +32,8 @@ export const RUSH_ATTEMPT_KIND = Object.freeze({
   // The feature exists, past the edge of the view (a game with off-screen
   // features turned on).
   OFF_SCREEN: 'offScreen',
-  // A domain or range drawn on an axis, sent with ✓ Check
+  // A set drawn on an axis — a domain, a range, an interval, an inequality's
+  // solutions — sent with ✓ Check
   // (`drawing`: numberLineSets.drawingToPlain).
   CHECK: 'check',
   SKIP: 'skip',
@@ -80,16 +84,20 @@ export const RUSH_LOCKOUT = Object.freeze({ after: 2, baseMs: 1_000, stepMs: 1_0
 // server records the skip with the miss that reaches it; the device shows it.
 export const RUSH_AUTO_SKIP_MISSES = 8;
 
-// A domain or range is checked, not tapped for — and so is every inequality,
-// including one whose answer is "No solution": three wrong answers show the
+// A set — a domain, a range, an interval — is checked, not tapped for, and so
+// is every inequality, including one whose answer is "No solution" (and an
+// interval that happens nowhere): three wrong answers show the
 // answer and move on. The device holds the answer on screen for
 // RUSH_REVEAL_PAUSE_MS (the server's pace accounting takes the skip pause, the
 // shorter of the two, so it never refuses a student who waited longer).
 export const RUSH_SET_AUTO_SKIP_MISSES = 3;
 export const RUSH_REVEAL_PAUSE_MS = 2_600;
 
-/** Whether a question is answered on a number line: a domain, a range, an inequality. */
+/** Whether a question is answered on a number line: a domain, a range, an interval, an inequality. */
 export const isNumberLineQuestion = (question) => question?.kind === 'inequality'
+  // A set feature's question says its axis — also when its answer is "Does
+  // Not Exist" and it has no target (an interval that never happens).
+  || question?.setAxis === 'x' || question?.setAxis === 'y'
   || (Array.isArray(question?.targets) && question.targets.some((target) => target?.geometry === 'set'));
 
 // The diagnosis of a wrong check that drew exactly a question's `flipSet` —
@@ -97,6 +105,32 @@ export const isNumberLineQuestion = (question) => question?.kind === 'inequality
 // divided by a negative). Counted in the teacher's report beside the
 // number-line diagnoses (numberLineSets.SET_DIAGNOSIS).
 export const RUSH_SIGN_FLIP = 'signFlip';
+
+/*
+ * WHAT AN ITEM IS WORTH: THE TAPS ITS ANSWER TAKES. A tapped feature is a
+ * point a target (two zeros: 2), "Does Not Exist", "Off screen" and "No
+ * solution" a point, and a set — a domain, a range, an interval, an
+ * inequality — the taps that draw it and check it (numberLineSets.
+ * setAnswerTaps): "x ≥ −2" is 3, "−1 < x ≤ 4" is 4, "x ≠ 2" 5. So an item
+ * that takes more taps pays for the time they take, and a student whose
+ * round deals more domains is not out-raced by one who draws intercepts: a
+ * correct tap is worth a point, whatever the item.
+ *
+ * The generator stamps it on the question (`weight`); the server grades with
+ * the weight of its own regenerated copy, records it on the receipts
+ * (`questionWeight`), and the round's work is the weighted sum
+ * (liveChallengeResponses.questionProgress).
+ */
+export const RUSH_MAX_QUESTION_WEIGHT = 8;
+
+export const rushQuestionWeight = (question) => {
+  const targets = Array.isArray(question?.targets) ? question.targets : [];
+  const setTarget = targets.find((target) => target?.geometry === 'set');
+  let taps = 1;
+  if (setTarget) taps = setAnswerTaps(setFromPlain(setTarget.set) || []) ?? 1;
+  else if (targets.length) taps = targets.length;
+  return Math.max(1, Math.min(RUSH_MAX_QUESTION_WEIGHT, taps));
+};
 
 /** How many misses on a question skip it: three for a number line, eight for taps. */
 export const rushAutoSkipMisses = (question) => (

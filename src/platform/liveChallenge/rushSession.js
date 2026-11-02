@@ -14,10 +14,17 @@
  *
  *   recordTap / recordDoesNotExist / recordOffScreen / recordSkip
  *                                                 a student's input
- *   recordAxisTap / toggleAxisArrow / recordCheck a domain, a range or an
- *                                                 inequality: the drawing (on
- *                                                 this device only) and its
- *                                                 ✓ Check
+ *   recordSetTap / recordCheck                    a domain, a range or an
+ *                                                 interval, marked on the
+ *                                                 graph itself: its arrows for
+ *                                                 "keeps going", its points
+ *                                                 and asymptotes for numbers
+ *                                                 (rushGraphModel.setTapAt) —
+ *                                                 the drawing (this device
+ *                                                 only) and its ✓ Check
+ *   recordAxisTap / toggleAxisArrow               an inequality's number line:
+ *                                                 a tap on a number, a tap on
+ *                                                 one of its end arrows
  *
  * Inequality Graphing Rush plays on this same session: its items are number
  * line questions (inequalityRush.mjs) — a tap on the line drops a dot, ✓ Check
@@ -29,7 +36,7 @@
  */
 
 import { clampTolerance, resolveTap, TAP_RESULT } from '../../../functions/shared/graphFeatureHitTest.mjs';
-import { getGraphFeature } from '../../../functions/shared/graphFeatureRegistry.mjs';
+import { getGraphFeature, isIntervalFeature } from '../../../functions/shared/graphFeatureRegistry.mjs';
 import {
   EMPTY_DRAWING,
   drawingForSet,
@@ -43,6 +50,7 @@ import {
   snapNumberLineValue,
   tapNumber,
   toggleArrow,
+  withArrows,
 } from '../../../functions/shared/numberLineSets.mjs';
 import {
   RUSH_ATTEMPT_KIND,
@@ -53,9 +61,10 @@ import {
   isNumberLineQuestion,
   rushAutoSkipMisses,
   rushLockoutMs,
+  rushQuestionWeight,
 } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { NO_SOLUTION_MISS, inequalityAnswerText, inequalityHint, isInequalityQuestion } from '../../../functions/shared/inequalityRush.mjs';
-import { formatPoint, formatTarget, nearOpenDot } from './rushGraphModel.js';
+import { SET_TAP_TIP, formatPoint, formatTarget, nearOpenDot, setAxisOf } from './rushGraphModel.js';
 
 export const RUSH_FEEDBACK = Object.freeze({
   HIT: 'hit',
@@ -65,6 +74,9 @@ export const RUSH_FEEDBACK = Object.freeze({
   SKIPPED: 'skipped',
   AUTO_SKIPPED: 'autoSkipped',
   RESYNCED: 'resynced',
+  // A tap on a set question that means nothing there (rushGraphModel.SET_TAP_TIP):
+  // said, never counted.
+  TIP: 'tip',
 });
 
 export const RUSH_INPUT = Object.freeze({
@@ -83,11 +95,19 @@ const integerOr = (value, fallback) => {
   return Number.isInteger(numeric) ? numeric : fallback;
 };
 
+// The round's points as the server counts them: each item's weight times
+// the share of it done (whole numbers for a rush; rounded for display).
+const pointsOf = (value) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? Math.round(numeric * 1000) / 1000 : 0;
+};
+
 const countsFromServer = (state = {}) => Object.freeze({
   completed: Math.max(0, integerOr(state.questionsCorrect, 0)),
   skipped: Math.max(0, integerOr(state.skipped, 0)),
   attempts: Math.max(0, integerOr(state.attempts, 0)),
   hits: Math.max(0, integerOr(state.hits, 0)),
+  points: pointsOf(state.scoreTotal),
 });
 
 const missesFromServer = (state = {}) => Math.max(
@@ -122,18 +142,27 @@ export const createRushSession = ({ roundIndex = 0, serverState = {}, questions 
   transition: null,
   counts: countsFromServer(serverState),
   queue: Object.freeze([...(Array.isArray(queue) ? queue : [])]),
-  // A domain or range being drawn on the current graph (numberLineSets).
+  // A domain, range or interval being drawn on the current graph (numberLineSets),
+  // and the graph's arrows tapped for it (each id with the side it says).
   drawing: EMPTY_DRAWING,
+  arrowPicks: Object.freeze([]),
   feedback: null,
   seq: 0,
 });
 
-/** The set target of a domain or range question, or null. */
+/** The set target of a domain, range or interval question, or null. */
 export const setTargetOf = (question) => (question?.targets || []).find((target) => target?.geometry === 'set') || null;
 
 export { isInequalityQuestion, isNumberLineQuestion };
-/** Whether a question is answered by drawing a set on an axis. */
-export const isSetQuestion = (question) => Boolean(setTargetOf(question));
+/**
+ * Whether a question is answered by drawing a set on an axis — also an
+ * interval question whose answer is "Does Not Exist" (no target, its axis
+ * stamped on it), which must play exactly like the rest.
+ */
+export const isSetQuestion = (question) => Boolean(setAxisOf(question));
+
+// The word an interval question asks about ("increasing", "positive"), or null.
+const intervalWordOf = (question) => (isIntervalFeature(question?.feature) ? question.feature : null);
 
 /** The question index the student is on once any flash or pause has ended. */
 export const effectiveCursor = (session) => (session.transition ? session.transition.questionIndex + 1 : session.cursor);
@@ -184,15 +213,29 @@ const queued = (session, attempt) => Object.freeze({ ...session, queue: Object.f
 
 const elapsedOf = (elapsedMs) => Math.max(0, Math.round(Number(elapsedMs) || 0));
 
+/** What an item is worth: the taps its answer takes (the server's stamp, else the rule). */
+export const questionWeightOf = (question) => Math.max(1, integerOr(question?.weight, rushQuestionWeight(question)));
+
+// The points a correct answer earns: its share of the item, as the server
+// awards it (graphFeatureRush.applyRushAttempts) — a point a target found,
+// the whole weight for a set, "Does Not Exist" or "Off screen".
+const shareOf = (question, foundBefore) => {
+  const weight = questionWeightOf(question);
+  const targets = Math.max(1, integerOr(question?.targetCount, 1));
+  return Math.round((weight * (foundBefore + 1)) / targets) - Math.round((weight * foundBefore) / targets);
+};
+
 // A hit: the target is found; finding the last one completes the graph.
 const applyHit = (session, question, targetId, nowMs, extra = {}) => {
   const found = Object.freeze([...session.found, String(targetId)]);
   const completes = found.length >= Math.max(1, integerOr(question.targetCount, 1));
+  const earned = shareOf(question, session.found.length);
   const counts = Object.freeze({
     ...session.counts,
     attempts: session.counts.attempts + 1,
     hits: session.counts.hits + 1,
     completed: session.counts.completed + (completes ? 1 : 0),
+    points: pointsOf((session.counts.points || 0) + earned),
   });
   const next = Object.freeze({
     ...session,
@@ -206,13 +249,14 @@ const applyHit = (session, question, targetId, nowMs, extra = {}) => {
     kind: completes ? RUSH_FEEDBACK.COMPLETE : RUSH_FEEDBACK.HIT,
     questionIndex: session.cursor,
     targetId: String(targetId),
+    points: earned,
     ...extra,
   });
 };
 
 // A miss: a cooldown from the second in a row, and the graph is skipped on
 // the last allowed miss — as the server records it in the same transaction:
-// the eighth on a tap question, the third wrong check of a domain or range,
+// the eighth on a tap question, the third wrong check of a set,
 // which holds the answer on screen long enough to read.
 const applyMiss = (session, nowMs, extra = {}) => {
   const question = currentQuestion(session);
@@ -344,13 +388,40 @@ export const recordSkip = (session, { nowMs, elapsedMs, attemptId }) => {
 };
 
 /*
- * DRAWING A DOMAIN, A RANGE OR AN INEQUALITY. A tap anywhere on the graph
- * drops a dot onto the question's axis (x for a domain, y for a range) at the
- * nearest grid line inside the view; a tap on an inequality's number line
- * drops one at the nearest whole number. Once for a closed dot, twice for
- * open, a third time to take it away (numberLineSets.tapNumber). The arrows
- * say "keeps going". None of it is sent: only ✓ Check is an attempt.
+ * DRAWING A DOMAIN, A RANGE OR AN INTERVAL ON THE GRAPH ITSELF. A tap lands on
+ * what it means there (rushGraphModel.setTapAt): an arrow says "keeps going"
+ * that way along the question's axis, and tapping it again takes it back —
+ * each arrow on its own, so tapping both arms of a parabola for its range
+ * keeps "up" on; a point or an asymptote drops a dot at its number, once for
+ * a closed dot, twice for open, a third time to take it away
+ * (numberLineSets.tapNumber). A tap that means nothing there is told why.
+ *
+ * AN INEQUALITY'S NUMBER LINE: a tap drops a dot at the nearest whole number,
+ * and a tap on one of the line's own end arrows turns "keeps going" that way
+ * on or off (toggleAxisArrow).
+ *
+ * None of it is sent: only ✓ Check is an attempt.
  */
+const arrowsOf = (picks) => ({
+  left: picks.some((pick) => pick.side === 'left'),
+  right: picks.some((pick) => pick.side === 'right'),
+});
+
+export const recordSetTap = (session, { hit, nowMs }) => {
+  if (inputState(session, nowMs) !== RUSH_INPUT.READY) return refused(session, nowMs);
+  if (!hit) return { session, attempt: null };
+  if (hit.kind === 'value') {
+    return { session: Object.freeze({ ...session, drawing: tapNumber(session.drawing, hit.value) }), attempt: null };
+  }
+  if (hit.kind === 'arrow') {
+    const picked = session.arrowPicks.some((pick) => pick.id === hit.id);
+    const arrowPicks = Object.freeze(picked
+      ? session.arrowPicks.filter((pick) => pick.id !== hit.id)
+      : [...session.arrowPicks, Object.freeze({ id: String(hit.id), side: hit.side === 'left' ? 'left' : 'right' })]);
+    return { session: Object.freeze({ ...session, arrowPicks, drawing: withArrows(session.drawing, arrowsOf(arrowPicks)) }), attempt: null };
+  }
+  return { session: withFeedback(session, { kind: RUSH_FEEDBACK.TIP, questionIndex: session.cursor, tip: hit.tip, line: hit.line || null }), attempt: null };
+};
 const axisStepOf = (question, axis) => {
   const step = Number(axis === 'y' ? question.view?.yStep : question.view?.xStep);
   return step > 0 ? step : 1;
@@ -358,13 +429,9 @@ const axisStepOf = (question, axis) => {
 
 // The axis a question is drawn on: its set's, or an inequality's line (x) —
 // also for an item with no solution, which has no set to name it.
-const drawingAxisOf = (question) => {
-  const target = setTargetOf(question);
-  if (target) return target.axis === 'y' ? 'y' : 'x';
-  return isInequalityQuestion(question) ? 'x' : null;
-};
+const drawingAxisOf = (question) => setAxisOf(question) || (isInequalityQuestion(question) ? 'x' : null);
 
-/** The axis value a tap at (x, y) drops a dot at: the nearest grid line in view. */
+/** The number an inequality's line drops a dot at for a tap at (x, y): the nearest tick in view. */
 export const axisValueAt = (question, { x, y }) => {
   const axis = drawingAxisOf(question);
   if (!axis || !question?.view) return null;
@@ -377,17 +444,18 @@ export const axisValueAt = (question, { x, y }) => {
   return value >= low && value <= high ? value : null;
 };
 
+// An inequality's number line only: a graph's set is tapped on the graph (recordSetTap).
 export const recordAxisTap = (session, { x, y, nowMs }) => {
-  if (inputState(session, nowMs) !== RUSH_INPUT.READY) return refused(session, nowMs);
+  if (inputState(session, nowMs) !== RUSH_INPUT.READY || !isInequalityQuestion(currentQuestion(session))) return refused(session, nowMs);
   const question = currentQuestion(session);
   const value = axisValueAt(question, { x, y });
   if (value === null) return { session, attempt: null };
   return { session: Object.freeze({ ...session, drawing: tapNumber(session.drawing, value) }), attempt: null };
 };
 
-/** An arrow toggled on the drawing: 'left' (or down, on the y-axis) or 'right' (up). */
+/** One of an inequality's number-line end arrows tapped: 'left' or 'right' toggled. */
 export const toggleAxisArrow = (session, side, { nowMs }) => {
-  if (inputState(session, nowMs) !== RUSH_INPUT.READY || !isNumberLineQuestion(currentQuestion(session))) return refused(session, nowMs);
+  if (inputState(session, nowMs) !== RUSH_INPUT.READY || !isInequalityQuestion(currentQuestion(session))) return refused(session, nowMs);
   return { session: Object.freeze({ ...session, drawing: toggleArrow(session.drawing, side) }), attempt: null };
 };
 
@@ -407,7 +475,7 @@ export const recordCheck = (session, { nowMs, elapsedMs, attemptId }) => {
   const target = setTargetOf(question);
   const inequality = isInequalityQuestion(question);
   const drawn = drawingSet(session.drawing);
-  if (!drawn || (!target && !inequality)) return { session, attempt: null };
+  if (!drawn || (!setAxisOf(question) && !inequality)) return { session, attempt: null };
   const attempt = Object.freeze({
     attemptId: String(attemptId),
     questionIndex: session.cursor,
@@ -418,12 +486,31 @@ export const recordCheck = (session, { nowMs, elapsedMs, attemptId }) => {
   const answer = target ? setFromPlain(target.set) : null;
   let next;
   if (answer && setsEqual(drawn, answer)) {
-    // An inequality's answer reads back as an inequality: "x > −4".
-    next = applyHit(session, question, target.id, nowMs, { checked: inequality ? inequalityNotation(drawn) : intervalNotation(drawn) });
+    // Read back in both notations: "x > −4 · (−4, ∞)".
+    next = applyHit(session, question, target.id, nowMs, { checked: bothNotations(drawn, setVariableOf(question)).join(' · ') });
   } else {
-    next = applyMiss(session, nowMs, { hint: inequality ? inequalityHint(question, drawn) : setHint(drawn, answer || [], { axis: target.axis }) });
+    next = applyMiss(session, nowMs, { hint: checkHint(question, drawn, answer) });
   }
   return { session: queued(next, attempt), attempt };
+};
+
+/*
+ * The hint for a wrong check: the one thing that is off (setHint); for an
+ * inequality, inequalityHint; for an interval that happens nowhere, a nudge
+ * to test what was marked — as an inequality with no solution gets — never
+ * the answer.
+ */
+const NOWHERE_HINTS = Object.freeze({
+  increasing: 'Check a part you marked: does the graph rise there, left to right?',
+  decreasing: 'Check a part you marked: does the graph fall there, left to right?',
+  constant: 'Check a part you marked: is the graph level there?',
+  positive: 'Check a part you marked: is the graph above the x-axis there?',
+  negative: 'Check a part you marked: is the graph below the x-axis there?',
+});
+const checkHint = (question, drawn, answer) => {
+  if (isInequalityQuestion(question)) return inequalityHint(question, drawn);
+  if (!answer) return NOWHERE_HINTS[question?.feature] || 'Look again at the graph.';
+  return setHint(drawn, answer, { axis: setAxisOf(question) || 'x' });
 };
 
 /**
@@ -438,25 +525,34 @@ export const answerDrawing = (question) => {
     const answer = setFromPlain(target.set);
     return answer ? drawingForSet(answer) : null;
   }
-  return isInequalityQuestion(question) ? EMPTY_DRAWING : null;
+  // No solution, or an interval that happens nowhere: an empty axis.
+  return isNumberLineQuestion(question) ? EMPTY_DRAWING : null;
 };
+
+// The letter a set is written in: y for a range (the y-axis), x otherwise.
+const setVariableOf = (question) => (setAxisOf(question) === 'y' ? 'y' : 'x');
+
+/** A set in both notations, inequality first: ["x ≥ −3", "[−3, ∞)"]. */
+export const bothNotations = (set, variable = 'x') => Object.freeze([inequalityNotation(set, variable), intervalNotation(set)]);
 
 /**
  * The notation under a number-line question, as the forms to show side by
- * side: the set as drawn — interval notation, and for an inequality its
- * inequality notation first (["x ≥ −3", "[−3, ∞)"]) — or, while the answer
- * is shown after the third miss, the answer the same way (an inequality with
- * no solution: ["no solution", "∅"]). Null when nothing names a set yet.
+ * side — inequality notation first, then interval notation, so a student
+ * sees both as they build (["x ≥ −3", "[−3, ∞)"]; a range in y:
+ * ["y < 2", "(−∞, 2)"]) — of the set as drawn, or, while the answer is shown
+ * after the third miss, of the answer (an inequality with no solution:
+ * ["no solution", "∅"]). Null when nothing names a set yet.
  */
 export const lineNotation = (question, drawing, { revealing = false } = {}) => {
   if (!isNumberLineQuestion(question)) return null;
-  const inequality = isInequalityQuestion(question);
   const target = setTargetOf(question);
   let set = null;
   if (revealing) set = (target && setFromPlain(target.set)) || [];
   else if (drawing) set = drawingSet(drawing);
   if (!set) return null;
-  return Object.freeze(inequality ? [inequalityNotation(set), intervalNotation(set)] : [intervalNotation(set)]);
+  // An interval that happens nowhere is said in words, never "no solution".
+  if (!set.length && intervalWordOf(question)) return Object.freeze([`never ${intervalWordOf(question)}`, '∅']);
+  return bothNotations(set, setVariableOf(question));
 };
 
 /** When a completion flash or skip pause is over, the next graph. */
@@ -466,6 +562,7 @@ export const settle = (session, nowMs) => {
     ...session,
     cursor: session.transition.questionIndex + 1,
     drawing: EMPTY_DRAWING,
+    arrowPicks: Object.freeze([]),
     found: Object.freeze([]),
     missesOnGraph: 0,
     missesInARow: 0,
@@ -509,6 +606,7 @@ export const acknowledge = (session, { sent = [], reply = {} } = {}) => {
     cursor: Math.max(0, integerOr(serverState.cursor, 0)),
     // A drawing belongs to the graph it was drawn on.
     drawing: integerOr(serverState.cursor, 0) === next.cursor ? next.drawing : EMPTY_DRAWING,
+    arrowPicks: integerOr(serverState.cursor, 0) === next.cursor ? next.arrowPicks : Object.freeze([]),
     found: Object.freeze((serverState.cursorTargetsFound || []).map(String)),
     missesOnGraph: missesFromServer(serverState),
     missesInARow: 0,
@@ -535,6 +633,23 @@ const offScreenPlaces = (question) => {
 
 export const OPEN_DOT_MESSAGE = 'Open dot — that point isn\'t on the graph.';
 
+// What a tap that means nothing on a set question is told (rushGraphModel.SET_TAP_TIP).
+export const setTapTipMessage = (feedback, question) => {
+  const range = setAxisOf(question) === 'y';
+  switch (feedback?.tip) {
+    case SET_TAP_TIP.GOES_NOWHERE:
+      return range
+        ? 'That end levels off — it doesn\'t keep going up or down.'
+        : 'That end runs along an asymptote — it doesn\'t keep going left or right.';
+    case SET_TAP_TIP.OTHER_AXIS:
+      return range
+        ? `${feedback.line || 'That line'} marks an x-value — this set is on the y-axis.`
+        : `${feedback.line || 'That line'} marks a y-value — this set is on the x-axis.`;
+    default:
+      return 'Tap an arrow for "keeps going", or a point where the graph starts, stops, turns or crosses.';
+  }
+};
+
 export const NO_SOLUTION_RIGHT = 'Correct — no solution: no number makes it true.';
 
 export const feedbackMessage = (feedback, question) => {
@@ -546,6 +661,7 @@ export const feedbackMessage = (feedback, question) => {
     case RUSH_FEEDBACK.HIT:
       return target ? `Found ${formatTarget(target)}.` : 'Found one.';
     case RUSH_FEEDBACK.COMPLETE: {
+      if (feedback.doesNotExist && intervalWordOf(question)) return `Correct — it is never ${intervalWordOf(question)}.`;
       if (feedback.doesNotExist) return inequality ? NO_SOLUTION_RIGHT : 'Correct — it does not exist on this graph.';
       if (feedback.checked) return `Correct — ${feedback.checked}.`;
       if (feedback.offScreenPress) {
@@ -556,6 +672,7 @@ export const feedbackMessage = (feedback, question) => {
     }
     case RUSH_FEEDBACK.MISS:
       if (feedback.doesNotExist && inequality) return NO_SOLUTION_MISS;
+      if (feedback.doesNotExist && intervalWordOf(question)) return `It is ${intervalWordOf(question)} somewhere — look again.`;
       // A feature past the edge exists: the arrows say where the graph goes.
       if (feedback.doesNotExist) return feedback.offScreen ? 'It exists — follow the arrows.' : 'It is on this graph — look again.';
       if (feedback.offScreenPress) return 'Not off the screen — look again.';
@@ -567,15 +684,22 @@ export const feedbackMessage = (feedback, question) => {
     case RUSH_FEEDBACK.SKIPPED:
       return inequality ? 'Skipped. Next one.' : 'Skipped. Next graph.';
     case RUSH_FEEDBACK.AUTO_SKIPPED: {
-      // An inequality, a domain or a range shows its answer as it moves on.
+      // An inequality, a domain, a range or an interval shows its answer as it moves on.
       if (inequality) return `Answer: ${inequalityAnswerText(question)}. Next one.`;
       const target = setTargetOf(question);
       const answer = target ? setFromPlain(target.set) : null;
-      if (answer) return `The ${feature?.shortLabel || 'answer'} is ${intervalNotation(answer)}. Next graph.`;
+      const word = intervalWordOf(question);
+      if (word) {
+        const said = answer ? bothNotations(answer, 'x').join(' · ') : null;
+        return said ? `${word[0].toUpperCase()}${word.slice(1)}: ${said}. Next graph.` : `It is never ${word}. Next graph.`;
+      }
+      if (answer) return `The ${feature?.shortLabel || 'answer'} is ${bothNotations(answer, setVariableOf(question)).join(' · ')}. Next graph.`;
       return 'Too many misses on this one — moving on.';
     }
     case RUSH_FEEDBACK.RESYNCED:
       return 'Synced with your saved progress.';
+    case RUSH_FEEDBACK.TIP:
+      return setTapTipMessage(feedback, question);
     default:
       return '';
   }

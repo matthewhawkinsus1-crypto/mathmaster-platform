@@ -4,10 +4,13 @@ import assert from 'node:assert/strict';
 import * as Q from '../../functions/shared/graphFeatureRational.mjs';
 import {
   GRAPH_KIND,
+  curveEnds,
   curveSegments,
   evaluateGraph,
+  graphAsymptotes,
   graphMarkers,
   sampleGraph,
+  unrestrictedGraph,
 } from '../../functions/shared/graphFeatureCurves.mjs';
 import {
   FEATURE_STATUS,
@@ -31,7 +34,7 @@ import {
   featureWordings,
 } from '../../functions/shared/graphFeatureRegistry.mjs';
 import { GRAPH_FEATURE_RUSH_PRESETS, normalizeGraphFeatureRushConfig } from '../../functions/shared/graphFeatureRushConfig.mjs';
-import { setContains, setEndpoints, setFromPlain } from '../../functions/shared/numberLineSets.mjs';
+import { setAnswerTaps, setContains, setEndpoints, setFromPlain } from '../../functions/shared/numberLineSets.mjs';
 import {
   DOES_NOT_EXIST_SHARE,
   SCHEDULE_BLOCK_SIZE,
@@ -156,6 +159,37 @@ const numericAsymptotes = (graph) => {
     if (!horizontal.some((value) => Math.abs(value - limit) < 1e-6)) horizontal.push(limit);
   }
   return { vertical: vertical.sort((a, b) => a - b), horizontal: horizontal.sort((a, b) => a - b) };
+};
+
+/*
+ * AN INTERVAL FEATURE, checked from the curve alone, at every sixteenth from
+ * −16 to 16 (every integer and half among them, so every end is probed
+ * itself). Positive and negative: f(x) > 0, f(x) < 0 — a zero (|f| below a
+ * billionth) is in neither. Increasing, decreasing, constant: the open-
+ * interval convention, read off three values — just left, at and just right
+ * of x — where the graph is unbroken through x (so a turning point, an end of
+ * the domain and a jump are never in the set, while x³'s flat point is).
+ * `set` empty: the feature exists nowhere ("Does Not Exist").
+ */
+const NUMERIC_ZERO = 1e-9;
+const intervalHolds = (graph, feature, x) => {
+  const f = (at) => evaluateGraph(graph, at);
+  const y = f(x);
+  if (!Number.isFinite(y)) return false;
+  if (feature === GRAPH_FEATURE.POSITIVE) return y > NUMERIC_ZERO;
+  if (feature === GRAPH_FEATURE.NEGATIVE) return y < -NUMERIC_ZERO;
+  const unbroken = [f(x - 1e-9), f(x + 1e-9)].every((near) => Number.isFinite(near) && Math.abs(near - y) < 1e-2 * Math.max(1, Math.abs(y)));
+  const [before, after] = [f(x - 1e-5), f(x + 1e-5)];
+  if (!unbroken || !Number.isFinite(before) || !Number.isFinite(after)) return false;
+  if (feature === GRAPH_FEATURE.INCREASING) return before < y && y < after;
+  if (feature === GRAPH_FEATURE.DECREASING) return before > y && y > after;
+  return before === y && y === after;
+};
+const checkIntervalNumerically = (graph, feature, set, where) => {
+  for (let sixteenths = -256; sixteenths <= 256; sixteenths += 1) {
+    const x = sixteenths / 16;
+    assert.equal(setContains(set, Q.rat(sixteenths, 16)), intervalHolds(graph, feature, x), `${feature} at x = ${x}: ${where}`);
+  }
 };
 
 /*
@@ -340,8 +374,11 @@ const checkQuestion = (question, slot) => {
       break;
     case GRAPH_FEATURE.DOMAIN:
     case GRAPH_FEATURE.RANGE: {
-      // One target: the set, on the feature's axis, every finite end on a
-      // drawn grid line of that axis, well inside the view.
+      // One target: the set, on the feature's axis, marked on the graph
+      // itself: every finite end is something to tap — a landmark (where the
+      // graph starts, stops, turns or crosses) or an asymptote across that
+      // axis — well inside the view; every infinite end is an arrow that
+      // runs off that way along the axis.
       assert.equal(targets.length, 1, where);
       const [target] = targets;
       const axis = slot.feature === GRAPH_FEATURE.DOMAIN ? 'x' : 'y';
@@ -349,13 +386,64 @@ const checkQuestion = (question, slot) => {
       assert.equal(target.axis, axis, where);
       const set = setFromPlain(target.set);
       assert.ok(set && set.length, `a set: ${where}`);
-      const [low, high, step] = axis === 'x' ? [view.xMin, view.xMax, view.xStep] : [view.yMin, view.yMax, view.yStep];
+      const [low, high] = axis === 'x' ? [view.xMin, view.xMax] : [view.yMin, view.yMax];
+      const asymptotes = graphAsymptotes(graph);
+      const tappable = [
+        ...question.landmarks.map((point) => (axis === 'x' ? point.x : point.y)),
+        ...(axis === 'x' ? asymptotes.vertical : asymptotes.horizontal),
+      ];
       setEndpoints(set).forEach((end) => {
-        assert.ok(Number.isInteger(end / step), `${end} is on a grid line (step ${step}): ${where}`);
+        assert.ok(tappable.some((value) => Math.abs(value - end) < 1e-9), `${end} can be tapped on the graph: ${where}`);
         assert.ok(end > low && end < high, `${end} is on screen: ${where}`);
       });
+      const heads = curveEnds(graph, view).map((end) => end.heads[axis]);
+      if (set[0].lo === null) assert.ok(heads.includes(-1), `an arrow runs to −∞ along ${axis}: ${where}`);
+      if (set[set.length - 1].hi === null) assert.ok(heads.includes(1), `an arrow runs to +∞ along ${axis}: ${where}`);
+      // Every landmark is where it says: on the curve, or an open dot where
+      // the formula would reach.
+      question.landmarks.forEach((point) => {
+        const y = evaluateGraph(point.closed ? graph : unrestrictedGraph(graph), point.x);
+        const onAPiece = point.closed || graphMarkers(graph, view).some((marker) => !marker.closed && marker.x === point.x && marker.y === point.y);
+        assert.ok(onAPiece && (!point.closed || Math.abs(y - point.y) < 1e-9), `landmark ${JSON.stringify(point)}: ${where}`);
+      });
+      // Worth the taps its answer takes.
+      assert.equal(question.weight, setAnswerTaps(set), `weight: ${where}`);
       if (axis === 'x') checkDomainNumerically(graph, set, where);
       else checkRangeNumerically(graph, set, where);
+      break;
+    }
+    case GRAPH_FEATURE.INCREASING:
+    case GRAPH_FEATURE.DECREASING:
+    case GRAPH_FEATURE.CONSTANT:
+    case GRAPH_FEATURE.POSITIVE:
+    case GRAPH_FEATURE.NEGATIVE: {
+      // A set on the x-axis, marked on the graph like a domain — or nothing,
+      // when the feature exists nowhere ("Does Not Exist"); either way the
+      // question says its axis and offers points to tap.
+      assert.equal(question.setAxis, 'x', where);
+      assert.ok(Array.isArray(question.landmarks), `landmarks: ${where}`);
+      question.landmarks.forEach((point) => assert.ok(Number.isInteger(point.x * 2), `landmark between half-units: ${where}`));
+      if (!slot.exists) {
+        assert.equal(targets.length, 0, where);
+        assert.equal(question.weight, 1, `"Does Not Exist" is one press: ${where}`);
+        checkIntervalNumerically(graph, slot.feature, [], where);
+        break;
+      }
+      assert.equal(targets.length, 1, where);
+      const [target] = targets;
+      assert.deepEqual([target.geometry, target.axis], ['set', 'x'], where);
+      const set = setFromPlain(target.set);
+      assert.ok(set && set.length, `a set: ${where}`);
+      const tappable = [...question.landmarks.map((point) => point.x), ...graphAsymptotes(graph).vertical];
+      setEndpoints(set).forEach((end) => {
+        assert.ok(tappable.some((value) => Math.abs(value - end) < 1e-9), `${end} can be tapped on the graph: ${where}`);
+        assert.ok(end > view.xMin && end < view.xMax, `${end} is on screen: ${where}`);
+      });
+      const heads = curveEnds(graph, view).map((end) => end.heads.x);
+      if (set[0].lo === null) assert.ok(heads.includes(-1), `an arrow runs left: ${where}`);
+      if (set[set.length - 1].hi === null) assert.ok(heads.includes(1), `an arrow runs right: ${where}`);
+      assert.equal(question.weight, setAnswerTaps(set), `weight: ${where}`);
+      checkIntervalNumerically(graph, slot.feature, set, where);
       break;
     }
     case GRAPH_FEATURE.ASYMPTOTE: {

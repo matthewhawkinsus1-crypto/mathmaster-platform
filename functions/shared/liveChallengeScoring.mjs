@@ -83,13 +83,15 @@ const requireFunction = (definition, name) => {
 
 /*
  * TARGET ATTEMPTS. In a question-set round (Graph Feature Rush) one tap is one
- * attempt and a question is complete when all its targets are found. The
- * attempt that completes a question is worth one point of round work; every
- * other attempt is worth none. A per-response strategy banks that point into
- * the match; a placement strategy keeps it as raw performance.
+ * attempt and a question is complete when all its targets are found. A mode
+ * that weighs its items says what a correct attempt earns (`points`: a rush
+ * item is worth the taps its answer takes, each correct one its share);
+ * otherwise the attempt that completes a question is worth one point and
+ * every other none. A per-response strategy banks the points into the match;
+ * a placement strategy keeps them as raw performance.
  */
-export const defaultTargetAttemptScore = ({ completesQuestion = false } = {}, accumulation = SCORE_ACCUMULATION.PER_RESPONSE) => {
-  const pointsAwarded = completesQuestion === true ? 1 : 0;
+export const defaultTargetAttemptScore = ({ completesQuestion = false, points = null } = {}, accumulation = SCORE_ACCUMULATION.PER_RESPONSE) => {
+  const pointsAwarded = Number.isInteger(points) && points >= 0 ? points : (completesQuestion === true ? 1 : 0);
   return Object.freeze({
     pointsAwarded,
     matchPointsDelta: accumulation === SCORE_ACCUMULATION.PER_RESPONSE ? pointsAwarded : 0,

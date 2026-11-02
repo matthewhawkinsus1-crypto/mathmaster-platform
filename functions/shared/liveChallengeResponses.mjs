@@ -67,6 +67,17 @@ export const ATTEMPT_REJECTION = Object.freeze({
 });
 
 export const MAX_TARGETS_PER_QUESTION = 20;
+
+/*
+ * WHAT A QUESTION IS WORTH, as a whole number of points (default 1). Every
+ * question was worth one; a rush item is now worth the taps its answer takes
+ * (graphFeatureRushRules.rushQuestionWeight), recorded on its receipts as
+ * `questionWeight` and read back like the target count. A question's score is
+ * its weight times the share of its targets found, so a mode that records no
+ * weight scores exactly as before.
+ */
+export const MAX_QUESTION_WEIGHT = 20;
+const weightOf = (value) => Math.min(MAX_QUESTION_WEIGHT, Math.max(1, integerOr(value, 1)));
 // The most questions one round can hold. A per-player question set (Graph
 // Feature Rush) needs room for a fast student's whole round — 150 graphs in a
 // two-minute round is faster than anyone reads a graph — and a classic round
@@ -94,6 +105,7 @@ export const DEFAULT_QUESTION_SPEC = Object.freeze({
   questionIndex: 0,
   targetCount: 1,
   completionRule: COMPLETION_RULE.SINGLE_RESPONSE,
+  weight: 1,
 });
 
 export const normalizeQuestionSpec = (raw = {}, questionIndex = 0) => {
@@ -104,6 +116,7 @@ export const normalizeQuestionSpec = (raw = {}, questionIndex = 0) => {
     // A single-response question has exactly one target by definition.
     targetCount: rule === COMPLETION_RULE.ALL_TARGETS ? targets : 1,
     completionRule: rule,
+    weight: weightOf(raw?.weight),
   });
 };
 
@@ -208,7 +221,7 @@ export const questionProgress = ({ receipts, roundIndex, questionIndex = 0, spec
       completed = true;
       completedCorrectly = correct;
       scoreFraction = scoreFractionOf(attempt);
-      scoreUnits = Math.round(scoreFraction * SCORE_UNIT);
+      scoreUnits = Math.round(scoreFraction * SCORE_UNIT) * normalized.weight;
     } else if (attempt.forfeit === true) {
       // Given up: done, not correct, partial credit kept.
       completed = true;
@@ -220,13 +233,13 @@ export const questionProgress = ({ receipts, roundIndex, questionIndex = 0, spec
         completedCorrectly = true;
         scoreFraction = 1;
       }
-      scoreUnits = Math.round(scoreFraction * SCORE_UNIT);
+      scoreUnits = Math.round(scoreFraction * SCORE_UNIT) * normalized.weight;
     } else if (correct && attempt.targetId != null) {
       const target = String(attempt.targetId);
       if (!targetsFound.includes(target)) targetsFound.push(target);
       scoreFraction = targetsFound.length / normalized.targetCount;
-      // Exact: every target count divides SCORE_UNIT.
-      scoreUnits = targetsFound.length * (SCORE_UNIT / normalized.targetCount);
+      // Exact: every target count divides SCORE_UNIT, and a weight is whole.
+      scoreUnits = targetsFound.length * (SCORE_UNIT / normalized.targetCount) * normalized.weight;
       if (targetsFound.length >= normalized.targetCount) {
         completed = true;
         completedCorrectly = true;
@@ -293,7 +306,7 @@ export const planAttempt = ({
 
 /**
  * The specs of a round whose questions are issued per player: `poolSize`
- * questions, each with the target count its attempts recorded. A question
+ * questions, each with the target count (and weight) its attempts recorded. A question
  * nobody has attempted yet keeps a placeholder count — it is incomplete
  * whatever its count, so the placeholder can never change a result.
  *
@@ -311,6 +324,7 @@ export const questionSpecsFromReceipts = ({
 } = {}) => {
   let size = Math.max(1, Math.min(MAX_QUESTIONS_PER_ROUND, integerOr(poolSize, MAX_QUESTIONS_PER_ROUND)));
   const counts = new Map();
+  const weights = new Map();
   let recordedSize = null;
   receiptList(receipts)
     .filter(([, receipt]) => isAttemptReceipt(receipt) && integerOr(receipt.roundIndex, null) === integerOr(roundIndex, NaN))
@@ -318,6 +332,7 @@ export const questionSpecsFromReceipts = ({
     .forEach(([, receipt]) => {
       const index = integerOr(receipt.questionIndex, 0);
       if (!counts.has(index)) counts.set(index, integerOr(receipt.targetCount, 1));
+      if (!weights.has(index)) weights.set(index, weightOf(receipt.questionWeight));
       const declared = integerOr(receipt.roundQuestionCount, null);
       if (declared !== null && declared >= 1) recordedSize = recordedSize === null ? declared : Math.min(recordedSize, declared);
     });
@@ -326,6 +341,7 @@ export const questionSpecsFromReceipts = ({
     questionIndex: index,
     completionRule,
     targetCount: counts.get(index) ?? 1,
+    weight: weights.get(index) ?? 1,
   })));
 };
 

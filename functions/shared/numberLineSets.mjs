@@ -184,6 +184,9 @@ const exactOnGrid = (value, denominator = NUMBER_LINE_GRID_DENOMINATOR) => {
   return Q.rat(scaled, denominator);
 };
 
+/** Whether a number can be a dot on a drawing: on the half-unit grid, within the line's limit. */
+export const onDrawingGrid = (value) => exactOnGrid(value) !== null;
+
 /** A plain set back to a canonical one, or null when anything is malformed. */
 export const setFromPlain = (plain) => {
   if (!Array.isArray(plain) || plain.length > 8) return null;
@@ -284,6 +287,13 @@ export const tapNumber = (drawing = EMPTY_DRAWING, value) => {
   return freezeDrawing({ ...drawing, points: points.map((p) => (p === nearest ? { value: numeric, closed: p.closed } : p)) });
 };
 
+/** The drawing with its arrows set: `left` (to −∞) and `right` (to +∞). */
+export const withArrows = (drawing = EMPTY_DRAWING, { left = false, right = false } = {}) => freezeDrawing({
+  ...drawing,
+  left: left === true,
+  right: right === true,
+});
+
 /** An arrow toggled: 'left' (to −∞) or 'right' (to +∞). */
 export const toggleArrow = (drawing = EMPTY_DRAWING, side) => {
   if (side !== 'left' && side !== 'right') return drawing;
@@ -327,6 +337,26 @@ export const normalizeDrawing = (raw) => {
     points.push({ value: Number(value), closed: closed === true });
   }
   return freezeDrawing({ points, left: raw.left === true, right: raw.right === true });
+};
+
+/*
+ * THE TAPS A DRAWING TAKES: a dot is one tap (an open one two: ● then ○),
+ * "keeps going" one tap each way, and ✓ Check one more. What a set question
+ * is worth in a rush is the taps its answer takes (setAnswerTaps; see
+ * graphFeatureRushRules.rushQuestionWeight): "x ≥ −2" is a dot, an arrow and
+ * the check, 3; "x ≠ 2" is an open dot, two arrows and the check, 5.
+ */
+export const SET_CHECK_TAPS = 1;
+export const drawingTaps = (drawing = EMPTY_DRAWING) => (drawing.points || [])
+  .reduce((taps, point) => taps + (point.closed === true ? 1 : 2), 0)
+  + (drawing.left === true ? 1 : 0)
+  + (drawing.right === true ? 1 : 0)
+  + SET_CHECK_TAPS;
+
+/** The fewest taps that draw a set and check it, or null for a set no drawing shows. */
+export const setAnswerTaps = (set) => {
+  const drawing = drawingForSet(set);
+  return drawing ? drawingTaps(drawing) : null;
 };
 
 /*
