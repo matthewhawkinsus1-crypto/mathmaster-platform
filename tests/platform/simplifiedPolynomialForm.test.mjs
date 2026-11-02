@@ -200,3 +200,58 @@ test('Pre-Flight: the key must itself be simplified, and only the known form is 
   const unknown = { ...QUESTION, answerFields: [field('a^3+8a-9', { answerForm: 'standardForm' })] };
   assert.ok(validateQuestionGradingContracts(unknown).errors.some((message) => /unsupported answerForm "standardForm"/.test(message)));
 });
+
+/*
+ * A CORRECT ANSWER PASTED AS PLAIN TEXT (live classwork, 2026-11-02).
+ *
+ * The math box turns a TYPED superscript into `^{2}`, but keeps PASTED text
+ * as written: `3y²+4y+3`, `−3x⁴ + 2x² − 5x`, with any zero-width characters
+ * copied text carries. The value grader reads those as the key's spelling
+ * (answerEquivalence asEditorSpelling, GR35c); the simplest-form reader called
+ * them unreadable. So a correct answer in simplest form was refused with
+ * "Equal, but not simplified" (Operations on Polynomials CW 6, CW 8, CW 10).
+ */
+const PASTED = Object.freeze([
+  // [as the student's box held it, the key]
+  ['3y²+4y+3', '3y^2+4y+3'],
+  ['3y² + 4y + 3', '3y^2+4y+3'],
+  ['−3x⁴ + 2x² − 5x', '-3x^4+2x^2-5x'],
+  ['a³+5a²+2a−8', 'a^3+5a^2+2a-8'],
+  ['6x³y − 9x³y² + 12x⁴y³', '6x^3y-9x^3y^2+12x^4y^3'],
+  ['3y^2+4y+3​', '3y^2+4y+3'],
+  ['3​y​^​2​+​4y+3', '3y^2+4y+3'],
+  ['3y^2⁠+4y﻿+3', '3y^2+4y+3'],
+  ['3·y^2+4y+3', '3y^2+4y+3'],
+  ['3⋅y²+4y+3', '3y^2+4y+3'],
+  ['3×y^2+4y+3', '3y^2+4y+3'],
+  ['3\\mathbf{y}^2+4y+3', '3y^2+4y+3'],
+  ['−0.001x² + 5x − 500', '-0.001x^2+5x-500'],
+]);
+
+test('a correct answer pasted as plain text is in simplest form, and graded right', () => {
+  PASTED.forEach(([typed, key]) => {
+    assert.equal(simplifiedPolynomialProblem(typed), null, typed);
+    assert.equal(matchesFieldAnswer(typed, field(key)), true, typed);
+  });
+  // The device and the server agree, and nothing is said about simplifying.
+  const question = { type: 'multiAnswer', prompt: 'Simplify.', answerFields: [field('3y^2+4y+3')] };
+  const device = gradeMultiAnswerResponse(question, { simplified: '3y² + 4y + 3' });
+  assert.equal(device.isCorrect, true);
+  assert.equal(gradeServerResponse({ question, response: fieldsResponse({ simplified: '3y² + 4y + 3' }) }).isCorrect, true);
+  const evidence = classifyMisconceptions({ question, response: fieldsResponse({ simplified: '3y² + 4y + 3' }), grading: { graded: true, isCorrect: false, parts: device.parts.map((part) => ({ ...part, isCorrect: false })) } });
+  assert.deepEqual(evidence.findings.map((entry) => entry.code).filter((code) => /polynomial-(not-simplified|unit-coefficient)/.test(code)), []);
+});
+
+test('pasted plain text still shows the work left in it: only the spelling is read differently', () => {
+  [
+    ['(2a²b)(4a³b)', P.PRODUCT], ['2·3x', P.PRODUCT], ['x·x²', P.PRODUCT], ['2³x', P.PRODUCT],
+    ['2a³+5a−7−a³+3a−2', P.LIKE_TERMS], ['3x²y+2yx²', P.LIKE_TERMS],
+    ['−y(4y²+2y−3)', P.GROUPING],
+    ['x¹+2', P.POWER], ['x⁰', P.POWER], ['x⁻²', P.NOT_POLYNOMIAL],
+    ['1x²+3', P.UNIT_COEFFICIENT], ['−1x²+x+2', P.UNIT_COEFFICIENT], ['0x²+3', P.ZERO_TERM],
+    ['​', P.UNREADABLE],
+  ].forEach(([typed, problem]) => assert.equal(simplifiedPolynomialProblem(typed), problem, typed));
+  assert.equal(matchesFieldAnswer('(2a²b)(4a³b)', field('8a^5b^2')), false);
+  assert.equal(matchesFieldAnswer('5y²−2y+4−2y²+6y−1', field('3y^2+4y+3')), false);
+  assert.equal(matchesFieldAnswer('3y²+4y+4', field('3y^2+4y+3')), false, 'a wrong value is still wrong');
+});

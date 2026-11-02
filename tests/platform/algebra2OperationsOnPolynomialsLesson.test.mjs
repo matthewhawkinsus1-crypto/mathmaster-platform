@@ -29,6 +29,7 @@ import { validateToolQuestion } from '../../src/tools/toolSchemas.js';
 import { buildToolSolutionReviewModel } from '../../src/tools/shared/toolSolutionReview.js';
 import { answerLinesFromResolvedQuestion } from '../../src/platform/resources/assignmentWorksheetPdfModel.js';
 import { workedSolutionDepth } from '../../src/platform/preflight/solutionReviewPreflight.js';
+import { fieldsResponse } from './helpers/misconceptionFixtures.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const FILE = path.resolve(here, '../../teacher-import-jsons/algebra2-honors-module2/L1_Operations_on_Polynomials.json');
@@ -249,6 +250,34 @@ test('DOL Q2: every cell of the area model is graded, so a pasted product earns 
   const pasted = workshop(question, { terms: [], product: full.product });
   assert.equal(pasted.isCorrect, false);
   assert.ok(pasted.score <= 1 / 7 + 1e-9, `the product alone scores ${pasted.score}`);
+});
+
+/*
+ * Live classwork, 2026-11-02: a correct answer in simplest form, pasted into
+ * the box as plain text (`3y² + 4y + 3`), was refused as "Equal, but not
+ * simplified" on CW 6 and CW 8, and the area model's product was marked red on
+ * CW 10. The box keeps pasted superscripts and zero-width characters as
+ * written; the simplest-form reader now reads them as the value grader does.
+ */
+test('a correct answer pasted as plain text is accepted on CW 6, CW 8 and the CW 10 area model', () => {
+  const pasted = {
+    'opp-cw-6': { mistake: 'He changed the sign of only the first term of the second polynomial.', fixed: '3y² + 4y + 3' },
+    'opp-cw-8': { cyp: '−3x⁴ + 2x² − 5x', twoLetters: '6x³y − 9x³y² + 12x⁴y³​' },
+  };
+  for (const [id, responses] of Object.entries(pasted)) {
+    const question = compiled(id);
+    assert.equal(gradeMultiAnswerResponse(question, responses).isCorrect, true, `${id} on the device`);
+    const server = gradeServerResponse({ question, response: fieldsResponse(responses) });
+    assert.equal(server.isCorrect, true, `${id} on the server`);
+  }
+  const areaModel = compiled('opp-cw-10');
+  const typed = { terms: ['a^3', '2a^2', '3a^2', '6a', '-4a', '-8'], product: 'a^3+5a^2+2a-8' };
+  assert.equal(workshop(areaModel, typed).isCorrect, true);
+  const plainText = workshop(areaModel, { terms: ['a³', '2a²', '3a²', '6a', '−4a', '−8'], product: 'a³ + 5a² + 2a − 8' });
+  assert.equal(plainText.isCorrect, true, plainText.parts.filter((part) => !part.isCorrect).map((part) => part.id).join(', '));
+  // Still simplest form: the cells added up and left uncombined are not the product.
+  const uncombined = workshop(areaModel, { ...typed, product: 'a³ + 2a² + 3a² + 6a − 4a − 8' });
+  assert.deepEqual(uncombined.parts.filter((part) => !part.isCorrect).map((part) => part.id), ['product']);
 });
 
 /* ------------------------------------------- the worked solutions */
