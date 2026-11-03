@@ -390,6 +390,31 @@ const splitTerms = (tokens) => {
   return depth === 0 ? terms : null;
 };
 
+/*
+ * THE SAME POLYNOMIAL, SPELLED AS PLAIN TEXT (live classwork, 2026-11-02).
+ *
+ * The value grader reads `3y²+4y+3` as the editor's `3y^{2}+4y+3`
+ * (answerEquivalence.mjs asEditorSpelling, GR35c), and so does the math box
+ * when a superscript is TYPED. Text PASTED into the box is kept as written:
+ * superscript digits, `·` and `×`, and the zero-width characters copied text
+ * carries. This reader refused all of those as unreadable, so a correct answer
+ * in simplest form was marked wrong as "Equal, but not simplified" (Operations
+ * on Polynomials CW 6 and CW 8, and the area model's product on CW 10, which
+ * reads its cells and product here too).
+ *
+ * Only the spelling changes. A product, a bracket, a like term or a written 1
+ * left in the answer is read exactly as before: `(2a²b)(4a³b)` is a product.
+ */
+const INVISIBLE_CHARACTERS = /[­​-‍⁠﻿]/g;
+const SUPERSCRIPT_DIGITS = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+const LETTER_STYLE = /\\(?:mathbf|mathit|mathsf|mathnormal|boldsymbol|bm)\{([^{}]*)\}/g;
+const asEditorSpelling = (value) => String(value ?? '')
+  .replace(INVISIBLE_CHARACTERS, '')
+  .replace(/⁻?[⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, (power) => `^{${[...power].map((character) => (character === '⁻' ? '-' : SUPERSCRIPT_DIGITS.indexOf(character))).join('')}}`)
+  .replace(/[·⋅]/g, '\\cdot ')
+  .replace(/×/g, '\\times ')
+  .replace(LETTER_STYLE, '$1');
+
 /** The letters of a term as one key: { x: 2, y: 1 } → "x^2y^1"; a constant is "". */
 export const monomialSignature = (powers = {}) => Object.entries(powers)
   .filter(([, power]) => Number(power) !== 0)
@@ -409,7 +434,7 @@ export const monomialSignature = (powers = {}) => Object.entries(powers)
  */
 export const readTypedPolynomial = (value, { allowZeroTerms = false } = {}) => {
   const unreadable = { problem: P.UNREADABLE, terms: [] };
-  const raw = String(value ?? '').trim();
+  const raw = asEditorSpelling(value).trim();
   if (!raw || raw.length > MAX_LENGTH || raw.includes('=')) return unreadable;
   const text = normalizeAlgebraicText(raw);
   if (!text) return unreadable;
