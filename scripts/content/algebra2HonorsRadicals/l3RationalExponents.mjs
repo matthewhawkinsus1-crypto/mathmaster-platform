@@ -69,7 +69,7 @@ const warmup = [
       expression('variable', 'x^(−{{k}}) =', '1/x^{{k}}'),
     ],
     hints: ['A negative exponent means the reciprocal of the positive power.', 'Evaluate the positive power first, then take its reciprocal.'],
-    scaffold: backUp('2⁻³ equals…', ['1/8', '−8'], '1/8'),
+    scaffold: backUp('10⁻² equals…', ['1/100', '−20'], '1/100'),
     guidedNotes: guidedNotes(['Negative exponent', 'x⁻ᵃ = 1/xᵃ and 1/x⁻ᵃ = xᵃ (x ≠ 0). A negative exponent is never a negative number.']),
     solutionReview: review(
       'Take the reciprocal of the positive power.',
@@ -281,16 +281,16 @@ const classwork = [
     responses: [
       simplest('product', 'y^(1/7) · y^(4/7) =', 'y^(5/7)'),
       simplest('reciprocal', 'x^(−2/3) = 1 / ?', 'x^(2/3)'),
-      simplest('simplified', 'x^(−2/3) in simplest form', 'x^(1/3)/x'),
+      simplest('simplified', 'x^(−2/3) in simplest form', '(x^(1/3))/x'),
       choice('cyp1', 'x^(1/5) · x^(2/5) =', ['x^(2/5)', 'x^(3/5)', 'x^(1/2)', 'x²'], 'x^(3/5)'),
-      choice('cyp2', 'y^(−3/4) =', ['y^(3/4)', 'y^(1/4)/y⁴', 'y^(1/4)/y', 'y⁴/y³'], 'y^(1/4)/y'),
+      choice('cyp2', 'y^(−3/4) =', ['y^(3/4)', '(y^(1/4))/y⁴', '(y^(1/4))/y', 'y⁴/y³'], '(y^(1/4))/y'),
     ],
     hints: ['Add the fractions in the exponents.', 'Multiply the top and bottom by the power that makes the denominator’s exponent a whole number.', 'Exponents add when you multiply: two thirds plus one third is one.'],
     scaffold: backUp('x^(2/3) · x^(1/3) equals…', ['x', 'x^(2/9)'], 'x'),
     solutionReview: review(
       'Add exponents; clear the fractional exponent from the denominator.',
-      ['y^(1/7 + 4/7) = y^(5/7).', 'x^(−2/3) = 1/x^(2/3) = x^(1/3)/(x^(2/3) · x^(1/3)) = x^(1/3)/x.', 'x^(3/5); y^(−3/4) = y^(1/4)/y.'],
-      'y^(5/7); x^(1/3)/x; x^(3/5); y^(1/4)/y',
+      ['y^(1/7 + 4/7) = y^(5/7).', 'x^(−2/3) = 1/x^(2/3) = (x^(1/3))/(x^(2/3) · x^(1/3)) = (x^(1/3))/x.', 'x^(3/5); y^(−3/4) = (y^(1/4))/y.'],
+      'y^(5/7); (x^(1/3))/x; x^(3/5); (y^(1/4))/y',
       'Leaving 1/x^(2/3): no fractional exponent may stay in a denominator.',
     ),
   },
@@ -310,10 +310,10 @@ const classwork = [
       choice('cyp2', '⁶√(16x²) =', ['∛(4x)', '∛(4x²)', '∛(2x)', '∛(2x²)'], '∛(4x)'),
     ],
     hints: ['16 = 2⁴, so ⁶√16 = 2^(4/6).', 'Reduce the fraction in the exponent before writing a radical.', '4x⁴ = (2x²)², so ⁶√(4x⁴) = (2x²)^(2/6).'],
-    scaffold: backUp('2^(4/6) equals…', ['2^(2/3)', '2^(1/6)'], '2^(2/3)'),
+    scaffold: backUp('3^(2/4) equals…', ['3^(1/2)', '3^2'], '3^(1/2)'),
     solutionReview: review(
       'Exponents make different indices comparable.',
-      ['⁶√16/∛2 = 2^(4/6)/2^(1/3) = 2^(2/3 − 1/3) = 2^(1/3) = ∛2.', '⁶√(4x⁴) = (2²x⁴)^(1/6) = 2^(1/3)x^(2/3) = ∛(2x²).', '⁴√4/√2 = 2^(1/2)/2^(1/2) = 1, and ⁶√(16x²) = 2^(2/3)x^(1/3) = ∛(4x) for x > 0.'],
+      ['⁶√16/∛2 = (2^(4/6))/(2^(1/3)) = 2^(2/3 − 1/3) = 2^(1/3) = ∛2.', '⁶√(4x⁴) = (2²x⁴)^(1/6) = 2^(1/3)x^(2/3) = ∛(2x²).', '⁴√4/√2 = (2^(1/2))/(2^(1/2)) = 1, and ⁶√(16x²) = 2^(2/3)x^(1/3) = ∛(4x) for x > 0.'],
       '∛2; ∛(2x²); 1; ∛(4x)',
       'Leaving ⁶√(4x⁴): the index is not as small as it can be.',
     ),
@@ -353,16 +353,16 @@ const classwork = [
       choice('a', 'x^(−1/2)', ['Not simplified: it has a negative exponent', 'Simplified', 'Not simplified: it is a complex fraction', 'Not simplified: the index can be smaller'], 'Not simplified: it has a negative exponent'),
       choice('b', '1 / y^(2/3)', ['Not simplified: a fractional exponent is in the denominator', 'Simplified', 'Not simplified: it has a negative exponent', 'Not simplified: the index can be smaller'], 'Not simplified: a fractional exponent is in the denominator'),
       choice('c', '⁸√(x⁴)', ['Not simplified: the index can be smaller', 'Simplified', 'Not simplified: it has a negative exponent', 'Not simplified: it is a complex fraction'], 'Not simplified: the index can be smaller'),
-      choice('d', 'x^(1/3) / x', ['Simplified', 'Not simplified: it has a negative exponent', 'Not simplified: a fractional exponent is in the denominator', 'Not simplified: the index can be smaller'], 'Simplified'),
+      choice('d', '(x^(1/3))/x', ['Simplified', 'Not simplified: it has a negative exponent', 'Not simplified: a fractional exponent is in the denominator', 'Not simplified: the index can be smaller'], 'Simplified'),
       simplest('fix', 'Write ⁸√(x⁴) in simplest form (x positive)', '√x'),
     ],
     hints: ['Test each rule one at a time.', 'A whole-number exponent in a denominator is allowed.', 'x^(4/8) can be reduced.'],
-    scaffold: backUp('Is y^(1/3)/y simplified?', ['Yes', 'No'], 'Yes'),
+    scaffold: backUp('Is (y^(1/3))/y simplified?', ['Yes', 'No'], 'Yes'),
     solutionReview: review(
       'Four rules, one at a time.',
-      ['x^(−1/2) has a negative exponent; 1/y^(2/3) has a fractional exponent in the denominator.', '⁸√(x⁴) = x^(4/8) = x^(1/2) = √x, a smaller index. x^(1/3)/x breaks no rule.'],
+      ['x^(−1/2) has a negative exponent; 1/y^(2/3) has a fractional exponent in the denominator.', '⁸√(x⁴) = x^(4/8) = x^(1/2) = √x, a smaller index. (x^(1/3))/x breaks no rule.'],
       'a, b, c not simplified; d simplified; ⁸√(x⁴) = √x',
-      'Calling x^(1/3)/x unsimplified: the denominator’s exponent is a positive integer.',
+      'Calling (x^(1/3))/x unsimplified: the denominator’s exponent is a positive integer.',
     ),
   },
 ];
@@ -410,7 +410,7 @@ const practice = [
       number('value', '{{p}}^(−{{m}}/{{n}}) =', '1/{{cm}}'),
     ],
     hints: ['A negative exponent means the reciprocal.', 'Evaluate the positive power first.'],
-    scaffold: backUp('4^(−1/2) equals…', ['1/2', '−2'], '1/2'),
+    scaffold: backUp('100^(−1/2) equals…', ['1/10', '−10'], '1/10'),
     solutionReview: review(
       'Reciprocal of the positive power.',
       ['{{p}}^({{m}}/{{n}}) = {{c}}^{{m}} = {{cm}}.', 'So {{p}}^(−{{m}}/{{n}}) = 1/{{cm}}.'],
@@ -437,7 +437,7 @@ const practice = [
       simplest('radical', 'Radical form', 'root({{b}})(y^{{a}})'),
     ],
     hints: ['The index becomes the denominator of the exponent.', 'The denominator of the exponent becomes the index.'],
-    scaffold: backUp('∛(x²) equals…', ['x^(2/3)', 'x^(3/2)'], 'x^(2/3)'),
+    scaffold: backUp('∛(a²) equals…', ['a^(2/3)', 'a^(3/2)'], 'a^(2/3)'),
     solutionReview: review(
       'Index ↔ denominator, power ↔ numerator.',
       ['ⁿ√(x^m) = x^(m/n): here x^({{m}}/{{n}}).', 'y^({{a}}/{{b}}) = the {{b}}th root of y^{{a}}.'],
@@ -460,7 +460,7 @@ const practice = [
     directionSteps: ['Add the exponents.', 'Reduce the exponent if you can.'],
     responses: [simplest('simplified', 'Simplified', 'x^({{s}}/{{n}})')],
     hints: ['Multiplying powers with the same base: add the exponents.', 'The exponents have the same denominator.'],
-    scaffold: backUp('x^(1/5) · x^(2/5) equals…', ['x^(3/5)', 'x^(2/25)'], 'x^(3/5)'),
+    scaffold: backUp('a^(1/5) · a^(2/5) equals…', ['a^(3/5)', 'a^(2/25)'], 'a^(3/5)'),
     solutionReview: review(
       'Add the exponents.',
       ['{{a}}/{{n}} + {{b}}/{{n}} = {{s}}/{{n}}.', 'So the product is x^({{s}}/{{n}}).'],
@@ -487,8 +487,8 @@ const practice = [
     scaffold: backUp('x^(−1/3) equals…', ['1/x^(1/3)', '−x^(1/3)'], '1/x^(1/3)'),
     solutionReview: review(
       'Positive exponent, then a whole-number exponent below.',
-      ['{{k}}x^(−{{a}}/{{n}}) = {{k}}/x^({{a}}/{{n}}).', 'Multiply by x^({{b}}/{{n}})/x^({{b}}/{{n}}): {{k}}x^({{b}}/{{n}})/x.'],
-      '{{k}}x^({{b}}/{{n}})/x',
+      ['{{k}}x^(−{{a}}/{{n}}) = {{k}}/x^({{a}}/{{n}}).', 'Multiply by (x^({{b}}/{{n}}))/(x^({{b}}/{{n}})): ({{k}}x^({{b}}/{{n}}))/x.'],
+      '({{k}}x^({{b}}/{{n}}))/x',
       'Stopping at {{k}}/x^({{a}}/{{n}}): a fractional exponent may not stay in a denominator.',
     ),
     generator: {
@@ -552,7 +552,7 @@ const practice = [
       ], '(8V)^(2/3) = 8^(2/3) · V^(2/3), and 8^(2/3) = 4'),
     ],
     hints: ['Each volume is a perfect cube: find its cube root, square it, then multiply by 6.', 'The denominator 3 is the index of the radical.', 'Use the power of a product: (ab)^(2/3) = a^(2/3) · b^(2/3).'],
-    scaffold: backUp('8^(2/3) equals…', ['4', '16/3'], '4'),
+    scaffold: backUp('1000^(2/3) equals…', ['100', '10'], '100'),
     solutionReview: review(
       'Root, power, multiply by 6.',
       ['8^(2/3) = 4, so S = 24; 27^(2/3) = 9, S = 54; 64^(2/3) = 16, S = 96; 125^(2/3) = 25, S = 150.', 'V^(2/3) = ∛(V²).', 'Multiplying V by 8 multiplies V^(2/3) by 8^(2/3) = 4 (the edge doubles, so each face is 4 times as large).'],
@@ -605,7 +605,7 @@ const practice = [
     scaffold: backUp('1/2 + 1/3 equals…', ['5/6', '2/5'], '5/6'),
     solutionReview: review(
       'Common denominators combine different indices.',
-      ['x^(1/2) · x^(1/3) = x^(3/6 + 2/6) = x^(5/6) = ⁶√(x⁵).', 'x^(3/4)/x^(1/2) = x^(1/4) = ⁴√x.'],
+      ['x^(1/2) · x^(1/3) = x^(3/6 + 2/6) = x^(5/6) = ⁶√(x⁵).', '(x^(3/4))/(x^(1/2)) = x^(1/4) = ⁴√x.'],
       '⁶√(x⁵); ⁴√x',
       'Multiplying the radicands and keeping one index: √x · ∛x is not √(x²) or ∛(x²).',
     ),
@@ -665,12 +665,30 @@ const practice = [
     questionId: 'a2r3-p-12',
     scaffold: backUp('x² · √x as one radical equals, for x > 0…', ['√(x⁵)', '√(x³)'], '√(x⁵)'),
     commonError: 'Moving the outside power under the radical without doubling its exponent: xᵏ outside a square root is x²ᵏ inside it.',
+    // One try: a reason for each option, in the bank's option order.
+    optionRationales: {
+      answer: [
+        'Right: moving x^{{k}} back under the square root doubles its exponent, so n = 2({{k}}) + {{m}}.',
+        'This adds the outside exponent as it is: under a square root, x^{{k}} becomes x^(2·{{k}}).',
+        'This also doubles the exponent that is already under the root; only the outside factor’s exponent doubles.',
+        'This doubles the exponent under the root instead of the one outside it.',
+      ],
+    },
   }),
   auditedCcmrQuestion({
     documentId: 'mm_sat_A_11B_challenge_1_nested_rational_exponents_v21',
     questionId: 'a2r3-p-13',
     scaffold: backUp('(x^(1/3))² equals…', ['x^(2/3)', 'x^(1/6)'], 'x^(2/3)'),
     commonError: 'Adding the exponents for a power of a power, or adding instead of subtracting the exponent of the denominator.',
+    // One try: a reason for each option, in the bank's option order.
+    optionRationales: {
+      answer: [
+        'Right: a power of a power multiplies, giving {{p}}·{{r}} over {{q}}, and dividing subtracts {{s}} over {{q}}.',
+        'This adds the denominator’s exponent; dividing powers of x subtracts exponents.',
+        'This applies the power rule but skips the division: subtract the denominator’s exponent too.',
+        'This adds {{p}} and {{r}}; raising a power to a power multiplies the exponents.',
+      ],
+    },
   }),
   {
     questionId: 'a2r3-p-14',
@@ -768,8 +786,8 @@ const dol = [
     ],
     solutionReview: review(
       'Positive exponent, then a whole-number exponent below.',
-      ['{{k}}x^(−{{a}}/{{n}}) = {{k}}/x^({{a}}/{{n}}).', 'Multiply by x^({{b}}/{{n}})/x^({{b}}/{{n}}): {{k}}x^({{b}}/{{n}})/x.'],
-      '{{k}}x^({{b}}/{{n}})/x',
+      ['{{k}}x^(−{{a}}/{{n}}) = {{k}}/x^({{a}}/{{n}}).', 'Multiply by (x^({{b}}/{{n}}))/(x^({{b}}/{{n}})): ({{k}}x^({{b}}/{{n}}))/x.'],
+      '({{k}}x^({{b}}/{{n}}))/x',
       'Stopping at {{k}}/x^({{a}}/{{n}}).',
     ),
     generator: {

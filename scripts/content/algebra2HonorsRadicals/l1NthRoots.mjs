@@ -807,7 +807,7 @@ const practice = [
       simplest('simplified', '√{{R}} =', '{{s}}√{{k}}'),
     ],
     hints: ['Try the perfect squares 4, 9, 16, 25, 36, 49, 64, 81, … from the largest down.', 'Write the radicand as a perfect square times what is left, then take the square root of the perfect square.'],
-    scaffold: backUp('Which is a perfect square?', ['36', '24'], '36'),
+    scaffold: backUp('Which is a perfect square?', ['144', '128'], '144'),
     solutionReview: review(
       'Largest perfect-square factor first.',
       ['{{R}} = {{s2}} · {{k}}, and {{k}} has no perfect-square factor other than 1.', '√{{R}} = {{s}}√{{k}}.'],
@@ -978,7 +978,7 @@ const practice = [
       ], 'wrong: an odd root keeps the sign, so ∛(x³) = x'),
     ],
     hints: ['Evaluate x⁴ at the test value first, then take the fourth root.', 'Evaluate x³ at the test value first, then take the cube root.', 'Compare each result with x itself and with |x|.'],
-    scaffold: backUp('∛(−8) equals…', ['−2', '2'], '−2'),
+    scaffold: backUp('∛(−27) equals…', ['−3', '3'], '−3'),
     solutionReview: review(
       'A counterexample decides it.',
       ['x = −2: ⁴√((−2)⁴) = ⁴√16 = 2, not −2. Even index: ⁴√(x⁴) = |x|.', 'x = −2: ∛((−2)³) = ∛(−8) = −2, not 2. Odd index: ∛(x³) = x.'],
@@ -1068,6 +1068,15 @@ const practice = [
     documentId: 'mm_sat_A2_7G_1_variable-radical-square-factor_v21',
     questionId: 'a2r1-p-14',
     scaffold: backUp('√(9x²) equals, for x > 0…', ['3x', '9x'], '3x'),
+    // One try: a reason for each option, in the bank's option order.
+    optionRationales: {
+      answer: [
+        'Right: {{radCoef}}x² = ({{k}}x)² · {{m}}, and for x > 0 the square root of ({{k}}x)² is {{k}}x.',
+        'This puts {{k2}} itself outside the root. {{k2}} is the perfect-square factor; only its square root comes out.',
+        'This leaves x² outside the root: for x > 0 the square root of x² is x.',
+        'This takes only x out of the root. {{radCoef}} = {{k2}} · {{m}} has a perfect-square factor that comes out too.',
+      ],
+    },
   }),
   auditedCcmrQuestion({
     documentId: 'mm_sat_A2_7G_3_radical-product-variable_v21',

@@ -1364,12 +1364,12 @@
             "Solid means the boundary is included; above means y is greater."
           ],
           "scaffold": {
-            "prompt": "Let’s back up. A solid boundary with the half-plane above shaded uses…",
+            "prompt": "Let’s back up. A solid boundary line means the points on the line are…",
             "options": [
-              "≥",
-              ">"
+              "solutions",
+              "not solutions"
             ],
-            "correct": "≥"
+            "correct": "solutions"
           },
           "guidedNotes": {
             "steps": [
@@ -3260,7 +3260,13 @@
                 "${{dSlopeSign}}$",
                 "${{dConstantSign}}$"
               ],
-              "answer": "${{answer}}$"
+              "answer": "${{answer}}$",
+              "optionRationales": {
+                "${{answer}}$": "Right: at x = {{x}} the boundary value is {{boundary}}, and the least integer greater than it is one more.",
+                "${{dInclusive}}$": "This is the boundary value itself. The symbol > leaves the boundary out, so y must be greater than it.",
+                "${{dSlopeSign}}$": "This changes the sign of the slope term: at x = {{x}}, {{m}}x is {{m}}({{x}}).",
+                "${{dConstantSign}}$": "This changes the sign of the constant: the boundary is {{m}}x {{b|signed}}."
+              }
             }
           ],
           "alignments": [

@@ -1359,12 +1359,12 @@
             "Solid means the boundary is included; above means y is greater."
           ],
           "scaffold": {
-            "prompt": "Let’s back up. A solid boundary with the half-plane above shaded uses…",
+            "prompt": "Let’s back up. A solid boundary line means the points on the line are…",
             "options": [
-              "≥",
-              ">"
+              "solutions",
+              "not solutions"
             ],
-            "correct": "≥"
+            "correct": "solutions"
           },
           "guidedNotes": {
             "steps": [

@@ -111,16 +111,42 @@ const loadBankDocument = (framework, documentId) => {
 };
 
 /**
+ * A choice field with a reason for each option, right after its answer: a
+ * question made only of choices has one try, and after it oneTryChoice.js
+ * shows the reason for the option the student chose. `reasons` gives one per
+ * option in the field's own option order (a bank item's options are
+ * templates such as "{{answer}}", which the family fills in the reason keys
+ * as it fills the options); a list of any other length is refused.
+ */
+const withOptionRationales = (field, reasons) => {
+  const options = (field.options || []).map(String);
+  if (!Array.isArray(reasons) || reasons.length !== options.length || reasons.some((reason) => !String(reason || '').trim())) {
+    throw new Error(`${field.id}: write one reason for each of its ${options.length} options (${options.join(' | ')}).`);
+  }
+  return Object.fromEntries(Object.entries(field).flatMap(([key, value]) => (key === 'answer'
+    ? [[key, value], ['optionRationales', Object.fromEntries(options.map((option, index) => [option, reasons[index]]))]]
+    : [[key, value]])));
+};
+
+/**
  * An audited CCMR item from MathMaster's bank, placed in Practice exactly as
  * the bank converts it: its prompt, answer, generator, alignments and
  * provenance are untouched. The lesson adds only its own question id, a
  * "Let's back up" step, its worked solution in plain text (the bank writes it
- * in $…$ LaTeX, which outside a prompt reaches the student as markup) and an
+ * in $…$ LaTeX, which outside a prompt reaches the student as markup), a reason
+ * for each option of a choice ({ fieldId: [reason per option] }) and an
  * assignment-local Question Family, so each student gets their own numbers and
  * the server grades it.
  */
-export const auditedCcmrQuestion = ({ framework = 'digitalSAT', documentId, questionId, scaffold, commonError }) => {
+export const auditedCcmrQuestion = ({ framework = 'digitalSAT', documentId, questionId, scaffold, commonError, optionRationales = null }) => {
   const { activityRole: _role, questionId: _id, ...intent } = bank.bankDocumentToV5Intent(loadBankDocument(framework, documentId), { activityRole: 'practice' });
+  const choiceFields = (intent.answerFields || []).filter((field) => field.type === 'choice');
+  if (choiceFields.length && !optionRationales) throw new Error(`${documentId} is a choice item, one try: give a reason for each option.`);
+  if (optionRationales) {
+    const known = new Set(choiceFields.map((field) => field.id));
+    Object.keys(optionRationales).forEach((id) => { if (!known.has(id)) throw new Error(`${documentId} has no choice field ${id}.`); });
+    intent.answerFields = intent.answerFields.map((field) => (optionRationales[field.id] ? withOptionRationales(field, optionRationales[field.id]) : field));
+  }
   const solutionReview = Object.fromEntries(Object.entries(intent.solutionReview || {}).map(([key, value]) => (
     [key, Array.isArray(value) ? value.map(plainSolutionText) : plainSolutionText(value)]
   )));

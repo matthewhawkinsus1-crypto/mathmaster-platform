@@ -30,7 +30,11 @@ import {
 import { recoveryCandidateFamilies } from '../../functions/shared/recoveryContentPlan.mjs';
 
 // "now/prepared/questions status" for the Warm-Up, then the DOL. Measured on
-// 2026-10-25 with intervals.graphAndWrite (RC01) registered.
+// 2026-10-25 with intervals.graphAndWrite (RC01) registered. The Algebra I
+// Module 3 Topic 2 Lesson 4 and 5 files and the Algebra II Honors radicals
+// lessons (added 2026-11-03) generate every Warm-Up and DOL question from an
+// assignment Question Family, so each section is 3/3/3 ready with nothing
+// prepared.
 const PINNED = Object.freeze({
   'docs/assignments/Algebra1_Linear_Multiple_Representations_V5_FAMILY_UPDATED.json': ['2/2/2 ready', '1/1/1 ready'],
   'docs/assignments/Algebra_II_Honors_3x3_Systems_Day1_V5_FINAL.json': ['0/0/2 unavailable', '0/0/2 unavailable'],
@@ -51,7 +55,14 @@ const PINNED = Object.freeze({
   'teacher-import-jsons/algebra1-module3/T2_L1_Solving_Systems_by_Graphing_Honors.json': ['3/3/3 ready', '2/2/2 ready'],
   'teacher-import-jsons/algebra1-module3/T2_L2_Solving_Systems_by_Substitution.json': ['3/3/3 ready', '2/2/2 ready'],
   'teacher-import-jsons/algebra1-module3/T2_L2_Solving_Systems_by_Substitution_Honors.json': ['3/3/3 ready', '2/2/2 ready'],
+  'teacher-import-jsons/algebra1-module3/T2_L4_Graphing_Inequalities_in_Two_Variables.json': ['3/3/3 ready', '3/3/3 ready'],
+  'teacher-import-jsons/algebra1-module3/T2_L4_Graphing_Inequalities_in_Two_Variables_Honors.json': ['3/3/3 ready', '3/3/3 ready'],
+  'teacher-import-jsons/algebra1-module3/T2_L5_Systems_of_Linear_Inequalities.json': ['3/3/3 ready', '3/3/3 ready'],
+  'teacher-import-jsons/algebra1-module3/T2_L5_Systems_of_Linear_Inequalities_Honors.json': ['3/3/3 ready', '3/3/3 ready'],
   'teacher-import-jsons/algebra2-honors-dol2/District_DOL2_Absolute_Value_and_3x3_Systems_Review.json': ['4/4/4 ready', '7/7/7 ready'],
+  'teacher-import-jsons/algebra2-honors-radicals/L1_nth_Roots.json': ['3/3/3 ready', '3/3/3 ready'],
+  'teacher-import-jsons/algebra2-honors-radicals/L2_Operations_with_Radical_Expressions.json': ['3/3/3 ready', '3/3/3 ready'],
+  'teacher-import-jsons/algebra2-honors-radicals/L3_Rational_Exponents.json': ['3/3/3 ready', '3/3/3 ready'],
   'teacher-import-jsons/algebra2-honors-module1/L1_Absolute_Value_ALEKS_Bridge_20260828.json': ['0/0/3 unavailable', '0/0/2 unavailable'],
   'teacher-import-jsons/algebra2-honors-module1/L1_Day1_Interval_Domain_Range.json': ['0/3/3 ready', '0/1/3 unavailable'],
   'teacher-import-jsons/algebra2-honors-module1/L1_Day2_Function_Attributes_Relations.json': ['0/1/3 ready', '0/0/3 unavailable'],
@@ -75,8 +86,8 @@ const PINNED = Object.freeze({
 });
 
 const TOTALS = Object.freeze({
-  warmup: { questions: 111, now: 60, prepared: 82, lessonsWithSection: 38, lessonsReady: 28 },
-  dol: { questions: 102, now: 49, prepared: 68, lessonsWithSection: 38, lessonsReady: 26 },
+  warmup: { questions: 132, now: 81, prepared: 103, lessonsWithSection: 45, lessonsReady: 35 },
+  dol: { questions: 123, now: 70, prepared: 89, lessonsWithSection: 45, lessonsReady: 33 },
 });
 
 // What is left: [shape, questions, lessons], most first. A typed-and-chosen
@@ -165,7 +176,9 @@ test('the interval family is what changed: without it the five number-line quest
   // typed-and-chosen boards: the reason it was built first.
   assert.deepEqual(before.withoutRecoveryByShape.slice(0, 2).map((entry) => [entry.shape, entry.questions, entry.lessons]), [['multiAnswer', 31, 9], [intervalShape, 5, 2]]);
   assert.ok(!REPORT.withoutRecoveryByShape.some((entry) => entry.shape === intervalShape), 'none is left');
-  assert.deepEqual([before.totals.warmup.prepared, before.totals.warmup.lessonsReady, before.totals.dol.prepared], [78, 26, 67]);
+  // (78, 26 and 67 before the 2026-11-03 lessons, whose 21 + 21 questions and
+  // 7 lessons never needed the interval family.)
+  assert.deepEqual([before.totals.warmup.prepared, before.totals.warmup.lessonsReady, before.totals.dol.prepared], [78 + 21, 26 + 7, 67 + 21]);
 });
 
 test('the import\'s parse, which the report reads, plans exactly as Pre-Flight\'s model does for the lessons this changed', () => {
@@ -180,8 +193,8 @@ test('the import\'s parse, which the report reads, plans exactly as Pre-Flight\'
 test('the printed report says the same', () => {
   const text = renderRecoveryCoverageText(REPORT);
   assert.match(text, /^teacher-import-jsons\/algebra2-honors-module1\/L1_Day1_Interval_Domain_Range\.json +Warm-Up 3\/3 ready +DOL 1\/3 unavailable$/m);
-  assert.match(text, /^Warm-Up: 82 of 111 questions have Recovery once prepared \(60 with nothing prepared\); 28 of 38 lessons ready\.$/m);
-  assert.match(text, /^DOL: 68 of 102 questions have Recovery once prepared \(49 with nothing prepared\); 26 of 38 lessons ready\.$/m);
+  assert.match(text, /^Warm-Up: 103 of 132 questions have Recovery once prepared \(81 with nothing prepared\); 35 of 45 lessons ready\.$/m);
+  assert.match(text, /^DOL: 89 of 123 questions have Recovery once prepared \(70 with nothing prepared\); 33 of 45 lessons ready\.$/m);
   assert.match(text, /^ +31 {2}multiAnswer {2}\(9 lessons\)$/m);
   assert.match(text, /L1_Day1_Interval_Domain_Range\.json {2}DOL Q2 {2}graphAnalysis · domain \+ range {2}no-certified-family/);
 });

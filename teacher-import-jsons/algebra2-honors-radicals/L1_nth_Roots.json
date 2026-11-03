@@ -2019,10 +2019,10 @@
           "scaffold": {
             "prompt": "Let’s back up. Which is a perfect square?",
             "options": [
-              "36",
-              "24"
+              "144",
+              "128"
             ],
-            "correct": "36"
+            "correct": "144"
           },
           "solutionReview": {
             "headline": "Largest perfect-square factor first.",
@@ -2564,12 +2564,12 @@
             "Compare each result with x itself and with |x|."
           ],
           "scaffold": {
-            "prompt": "Let’s back up. ∛(−8) equals…",
+            "prompt": "Let’s back up. ∛(−27) equals…",
             "options": [
-              "−2",
-              "2"
+              "−3",
+              "3"
             ],
-            "correct": "−2"
+            "correct": "−3"
           },
           "solutionReview": {
             "headline": "A counterexample decides it.",
@@ -2871,7 +2871,13 @@
                 "${{k}}x^2\\sqrt{{{m}}}$",
                 "$x\\sqrt{{{radCoef}}}$"
               ],
-              "answer": "${{k}}x\\sqrt{{{m}}}$"
+              "answer": "${{k}}x\\sqrt{{{m}}}$",
+              "optionRationales": {
+                "${{k}}x\\sqrt{{{m}}}$": "Right: {{radCoef}}x² = ({{k}}x)² · {{m}}, and for x > 0 the square root of ({{k}}x)² is {{k}}x.",
+                "${{k2}}x\\sqrt{{{m}}}$": "This puts {{k2}} itself outside the root. {{k2}} is the perfect-square factor; only its square root comes out.",
+                "${{k}}x^2\\sqrt{{{m}}}$": "This leaves x² outside the root: for x > 0 the square root of x² is x.",
+                "$x\\sqrt{{{radCoef}}}$": "This takes only x out of the root. {{radCoef}} = {{k2}} · {{m}} has a perfect-square factor that comes out too."
+              }
             }
           ],
           "alignments": [

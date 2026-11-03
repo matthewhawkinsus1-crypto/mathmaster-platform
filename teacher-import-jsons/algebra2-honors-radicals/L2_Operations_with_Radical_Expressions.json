@@ -2476,7 +2476,13 @@
                 "${{a}}x+{{b}}x$",
                 "$\\sqrt{{{sumSq}}x}$"
               ],
-              "answer": "${{sum}}\\sqrt{x}$"
+              "answer": "${{sum}}\\sqrt{x}$",
+              "optionRationales": {
+                "${{sum}}\\sqrt{x}$": "Right: √({{a2}}x) = {{a}}√x and √({{b2}}x) = {{b}}√x, and like radicals add by their coefficients.",
+                "${{prod}}\\sqrt{x}$": "This multiplies the coefficients {{a}} and {{b}}. Like radicals are added by adding their coefficients.",
+                "${{a}}x+{{b}}x$": "This takes x out of the roots too. x is not a perfect square, so √x stays; only {{a2}} and {{b2}} come out.",
+                "$\\sqrt{{{sumSq}}x}$": "This adds under one root, but √A + √B is not √(A + B). Simplify each root first."
+              }
             }
           ],
           "alignments": [
@@ -2604,7 +2610,13 @@
                 "{{dRoundedUp}}",
                 "{{dSquaredCoefficient}}"
               ],
-              "answer": "{{answer}}"
+              "answer": "{{answer}}",
+              "optionRationales": {
+                "{{answer}}": "Right: one root over the other is √({{a2}}x⁵ ÷ x) = √({{a2}}x⁴) = {{a}}x², and x = {{xval}} gives this value.",
+                "{{dDroppedCoefficient}}": "This leaves out the coefficient: the square root of {{a2}} still multiplies the result.",
+                "{{dRoundedUp}}": "This keeps one power of x too many: x⁵ ÷ x is x⁴, whose square root is x², not x³.",
+                "{{dSquaredCoefficient}}": "This brings {{a2}} out of the root whole and keeps only one factor of x: take the square root of each factor of {{a2}}x⁴."
+              }
             }
           ],
           "alignments": [

@@ -3515,7 +3515,13 @@
                 "{{dIgnoredSlope}}",
                 "{{dSwappedCoordinates}}"
               ],
-              "answer": "{{answer}}"
+              "answer": "{{answer}}",
+              "optionRationales": {
+                "{{answer}}": "Right: y ≥ {{m}}x + k gives k ≤ y − {{m}}x, and at ({{x}}, {{y}}) the greatest integer k is this value.",
+                "{{dSignError}}": "This adds the x-term to y instead of subtracting it: y ≥ {{m}}x + k gives k ≤ y − {{m}}x.",
+                "{{dIgnoredSlope}}": "This leaves out the x-term: at x = {{x}}, the boundary’s {{m}}x term is {{m}}({{x}}).",
+                "{{dSwappedCoordinates}}": "This swaps the coordinates: in ({{x}}, {{y}}), x is {{x}} and y is {{y}}."
+              }
             }
           ],
           "alignments": [
@@ -3655,7 +3661,13 @@
                 "{{dIgnoredSlope}}",
                 "{{dCountedBothEnds}}"
               ],
-              "answer": "{{answer}}"
+              "answer": "{{answer}}",
+              "optionRationales": {
+                "{{answer}}": "Right: the integers from {{low}} to {{high}}, counting both ends, number {{high}} − ({{low}}) + 1.",
+                "{{dFencepost}}": "This is the difference of the bounds. Both bounds are included, so add 1 to count both ends.",
+                "{{dIgnoredSlope}}": "This uses {{c}} as the lower bound and leaves out the {{m}}x term: at x = {{x}} the lower bound is {{low}}.",
+                "{{dCountedBothEnds}}": "This adds 2: the difference already counts one end, so adding 1 includes the other."
+              }
             }
           ],
           "alignments": [

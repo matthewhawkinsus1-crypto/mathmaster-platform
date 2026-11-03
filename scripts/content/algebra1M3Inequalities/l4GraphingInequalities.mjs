@@ -432,7 +432,7 @@ const classwork = (P) => [
       choice('check', 'Test (0, 0): 0 ≥ −(3/2)(0) − 5 is…', ['true, and (0, 0) is in the shaded half-plane', 'false, so (0, 0) is not shaded', 'true, so the line is dashed', 'impossible to test'], 'true, and (0, 0) is in the shaded half-plane'),
     ],
     hints: ['Slope = change in y ÷ change in x between the two points.', 'The point with x = 0 gives the y-intercept.', 'Solid means the boundary is included; above means y is greater.'],
-    scaffold: backUp('A solid boundary with the half-plane above shaded uses…', ['≥', '>'], '≥'),
+    scaffold: backUp('A solid boundary line means the points on the line are…', ['solutions', 'not solutions'], 'solutions'),
     guidedNotes: guidedNotes(['Writing an inequality from a graph', 'Write the boundary’s equation as you would for a line, then replace = with the symbol the line style and the shaded side call for. Test a point to check.']),
     solutionReview: review(
       'Equation of the line, then the symbol.',
@@ -861,6 +861,15 @@ const practiceHonors = (P) => [
     questionId: `${P}-p-18`,
     scaffold: backUp('For y > 4, is y = 4 a solution?', ['no', 'yes'], 'no'),
     commonError: 'Choosing the boundary value itself: > leaves the boundary out, so the least integer is one more than it.',
+    // One try: a reason for each option, in the bank's option order.
+    optionRationales: {
+      answer: [
+        'Right: at x = {{x}} the boundary value is {{boundary}}, and the least integer greater than it is one more.',
+        'This is the boundary value itself. The symbol > leaves the boundary out, so y must be greater than it.',
+        'This changes the sign of the slope term: at x = {{x}}, {{m}}x is {{m}}({{x}}).',
+        'This changes the sign of the constant: the boundary is {{m}}x {{b|signed}}.',
+      ],
+    },
   }),
 ];
 

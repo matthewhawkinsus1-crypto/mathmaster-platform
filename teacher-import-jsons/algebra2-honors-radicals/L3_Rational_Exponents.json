@@ -202,12 +202,12 @@
             "Evaluate the positive power first, then take its reciprocal."
           ],
           "scaffold": {
-            "prompt": "Let’s back up. 2⁻³ equals…",
+            "prompt": "Let’s back up. 10⁻² equals…",
             "options": [
-              "1/8",
-              "−8"
+              "1/100",
+              "−20"
             ],
-            "correct": "1/8"
+            "correct": "1/100"
           },
           "guidedNotes": {
             "steps": [
@@ -951,7 +951,7 @@
             {
               "id": "simplified",
               "label": "x^(−2/3) in simplest form",
-              "answer": "x^(1/3)/x",
+              "answer": "(x^(1/3))/x",
               "inputProfile": "expression",
               "gradingMode": "simplestRadicalForm"
             },
@@ -973,11 +973,11 @@
               "type": "choice",
               "options": [
                 "y^(3/4)",
-                "y^(1/4)/y⁴",
-                "y^(1/4)/y",
+                "(y^(1/4))/y⁴",
+                "(y^(1/4))/y",
                 "y⁴/y³"
               ],
-              "answer": "y^(1/4)/y"
+              "answer": "(y^(1/4))/y"
             }
           ],
           "hints": [
@@ -997,10 +997,10 @@
             "headline": "Add exponents; clear the fractional exponent from the denominator.",
             "reasoning": [
               "y^(1/7 + 4/7) = y^(5/7).",
-              "x^(−2/3) = 1/x^(2/3) = x^(1/3)/(x^(2/3) · x^(1/3)) = x^(1/3)/x.",
-              "x^(3/5); y^(−3/4) = y^(1/4)/y."
+              "x^(−2/3) = 1/x^(2/3) = (x^(1/3))/(x^(2/3) · x^(1/3)) = (x^(1/3))/x.",
+              "x^(3/5); y^(−3/4) = (y^(1/4))/y."
             ],
-            "answerSummary": "y^(5/7); x^(1/3)/x; x^(3/5); y^(1/4)/y",
+            "answerSummary": "y^(5/7); (x^(1/3))/x; x^(3/5); (y^(1/4))/y",
             "commonError": "Leaving 1/x^(2/3): no fractional exponent may stay in a denominator."
           }
         },
@@ -1084,19 +1084,19 @@
             "4x⁴ = (2x²)², so ⁶√(4x⁴) = (2x²)^(2/6)."
           ],
           "scaffold": {
-            "prompt": "Let’s back up. 2^(4/6) equals…",
+            "prompt": "Let’s back up. 3^(2/4) equals…",
             "options": [
-              "2^(2/3)",
-              "2^(1/6)"
+              "3^(1/2)",
+              "3^2"
             ],
-            "correct": "2^(2/3)"
+            "correct": "3^(1/2)"
           },
           "solutionReview": {
             "headline": "Exponents make different indices comparable.",
             "reasoning": [
-              "⁶√16/∛2 = 2^(4/6)/2^(1/3) = 2^(2/3 − 1/3) = 2^(1/3) = ∛2.",
+              "⁶√16/∛2 = (2^(4/6))/(2^(1/3)) = 2^(2/3 − 1/3) = 2^(1/3) = ∛2.",
               "⁶√(4x⁴) = (2²x⁴)^(1/6) = 2^(1/3)x^(2/3) = ∛(2x²).",
-              "⁴√4/√2 = 2^(1/2)/2^(1/2) = 1, and ⁶√(16x²) = 2^(2/3)x^(1/3) = ∛(4x) for x > 0."
+              "⁴√4/√2 = (2^(1/2))/(2^(1/2)) = 1, and ⁶√(16x²) = 2^(2/3)x^(1/3) = ∛(4x) for x > 0."
             ],
             "answerSummary": "∛2; ∛(2x²); 1; ∛(4x)",
             "commonError": "Leaving ⁶√(4x⁴): the index is not as small as it can be."
@@ -1258,7 +1258,7 @@
             },
             {
               "id": "d",
-              "label": "x^(1/3) / x",
+              "label": "(x^(1/3))/x",
               "type": "choice",
               "options": [
                 "Simplified",
@@ -1282,7 +1282,7 @@
             "x^(4/8) can be reduced."
           ],
           "scaffold": {
-            "prompt": "Let’s back up. Is y^(1/3)/y simplified?",
+            "prompt": "Let’s back up. Is (y^(1/3))/y simplified?",
             "options": [
               "Yes",
               "No"
@@ -1293,10 +1293,10 @@
             "headline": "Four rules, one at a time.",
             "reasoning": [
               "x^(−1/2) has a negative exponent; 1/y^(2/3) has a fractional exponent in the denominator.",
-              "⁸√(x⁴) = x^(4/8) = x^(1/2) = √x, a smaller index. x^(1/3)/x breaks no rule."
+              "⁸√(x⁴) = x^(4/8) = x^(1/2) = √x, a smaller index. (x^(1/3))/x breaks no rule."
             ],
             "answerSummary": "a, b, c not simplified; d simplified; ⁸√(x⁴) = √x",
-            "commonError": "Calling x^(1/3)/x unsimplified: the denominator’s exponent is a positive integer."
+            "commonError": "Calling (x^(1/3))/x unsimplified: the denominator’s exponent is a positive integer."
           }
         }
       ]
@@ -1442,12 +1442,12 @@
             "Evaluate the positive power first."
           ],
           "scaffold": {
-            "prompt": "Let’s back up. 4^(−1/2) equals…",
+            "prompt": "Let’s back up. 100^(−1/2) equals…",
             "options": [
-              "1/2",
-              "−2"
+              "1/10",
+              "−10"
             ],
-            "correct": "1/2"
+            "correct": "1/10"
           },
           "solutionReview": {
             "headline": "Reciprocal of the positive power.",
@@ -1531,12 +1531,12 @@
             "The denominator of the exponent becomes the index."
           ],
           "scaffold": {
-            "prompt": "Let’s back up. ∛(x²) equals…",
+            "prompt": "Let’s back up. ∛(a²) equals…",
             "options": [
-              "x^(2/3)",
-              "x^(3/2)"
+              "a^(2/3)",
+              "a^(3/2)"
             ],
-            "correct": "x^(2/3)"
+            "correct": "a^(2/3)"
           },
           "solutionReview": {
             "headline": "Index ↔ denominator, power ↔ numerator.",
@@ -1621,12 +1621,12 @@
             "The exponents have the same denominator."
           ],
           "scaffold": {
-            "prompt": "Let’s back up. x^(1/5) · x^(2/5) equals…",
+            "prompt": "Let’s back up. a^(1/5) · a^(2/5) equals…",
             "options": [
-              "x^(3/5)",
-              "x^(2/25)"
+              "a^(3/5)",
+              "a^(2/25)"
             ],
-            "correct": "x^(3/5)"
+            "correct": "a^(3/5)"
           },
           "solutionReview": {
             "headline": "Add the exponents.",
@@ -1720,9 +1720,9 @@
             "headline": "Positive exponent, then a whole-number exponent below.",
             "reasoning": [
               "{{k}}x^(−{{a}}/{{n}}) = {{k}}/x^({{a}}/{{n}}).",
-              "Multiply by x^({{b}}/{{n}})/x^({{b}}/{{n}}): {{k}}x^({{b}}/{{n}})/x."
+              "Multiply by (x^({{b}}/{{n}}))/(x^({{b}}/{{n}})): ({{k}}x^({{b}}/{{n}}))/x."
             ],
-            "answerSummary": "{{k}}x^({{b}}/{{n}})/x",
+            "answerSummary": "({{k}}x^({{b}}/{{n}}))/x",
             "commonError": "Stopping at {{k}}/x^({{a}}/{{n}}): a fractional exponent may not stay in a denominator."
           },
           "generator": {
@@ -1954,12 +1954,12 @@
             "Use the power of a product: (ab)^(2/3) = a^(2/3) · b^(2/3)."
           ],
           "scaffold": {
-            "prompt": "Let’s back up. 8^(2/3) equals…",
+            "prompt": "Let’s back up. 1000^(2/3) equals…",
             "options": [
-              "4",
-              "16/3"
+              "100",
+              "10"
             ],
-            "correct": "4"
+            "correct": "100"
           },
           "solutionReview": {
             "headline": "Root, power, multiply by 6.",
@@ -2132,7 +2132,7 @@
             "headline": "Common denominators combine different indices.",
             "reasoning": [
               "x^(1/2) · x^(1/3) = x^(3/6 + 2/6) = x^(5/6) = ⁶√(x⁵).",
-              "x^(3/4)/x^(1/2) = x^(1/4) = ⁴√x."
+              "(x^(3/4))/(x^(1/2)) = x^(1/4) = ⁴√x."
             ],
             "answerSummary": "⁶√(x⁵); ⁴√x",
             "commonError": "Multiplying the radicands and keeping one index: √x · ∛x is not √(x²) or ∛(x²)."
@@ -2352,7 +2352,13 @@
                 "{{dDoubledBoth}}",
                 "{{dDoubledWrong}}"
               ],
-              "answer": "{{n}}"
+              "answer": "{{n}}",
+              "optionRationales": {
+                "{{n}}": "Right: moving x^{{k}} back under the square root doubles its exponent, so n = 2({{k}}) + {{m}}.",
+                "{{dNoDouble}}": "This adds the outside exponent as it is: under a square root, x^{{k}} becomes x^(2·{{k}}).",
+                "{{dDoubledBoth}}": "This also doubles the exponent that is already under the root; only the outside factor’s exponent doubles.",
+                "{{dDoubledWrong}}": "This doubles the exponent under the root instead of the one outside it."
+              }
             }
           ],
           "alignments": [
@@ -2495,7 +2501,13 @@
                 "{{dNoSubtraction}}",
                 "{{dAddedExponents}}"
               ],
-              "answer": "{{n}}"
+              "answer": "{{n}}",
+              "optionRationales": {
+                "{{n}}": "Right: a power of a power multiplies, giving {{p}}·{{r}} over {{q}}, and dividing subtracts {{s}} over {{q}}.",
+                "{{dAdded}}": "This adds the denominator’s exponent; dividing powers of x subtracts exponents.",
+                "{{dNoSubtraction}}": "This applies the power rule but skips the division: subtract the denominator’s exponent too.",
+                "{{dAddedExponents}}": "This adds {{p}} and {{r}}; raising a power to a power multiplies the exponents."
+              }
             }
           ],
           "alignments": [
@@ -2898,9 +2910,9 @@
             "headline": "Positive exponent, then a whole-number exponent below.",
             "reasoning": [
               "{{k}}x^(−{{a}}/{{n}}) = {{k}}/x^({{a}}/{{n}}).",
-              "Multiply by x^({{b}}/{{n}})/x^({{b}}/{{n}}): {{k}}x^({{b}}/{{n}})/x."
+              "Multiply by (x^({{b}}/{{n}}))/(x^({{b}}/{{n}})): ({{k}}x^({{b}}/{{n}}))/x."
             ],
-            "answerSummary": "{{k}}x^({{b}}/{{n}})/x",
+            "answerSummary": "({{k}}x^({{b}}/{{n}}))/x",
             "commonError": "Stopping at {{k}}/x^({{a}}/{{n}})."
           },
           "generator": {

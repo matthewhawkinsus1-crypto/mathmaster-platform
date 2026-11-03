@@ -31,6 +31,7 @@ import { HONORS_CCMR_STATUS, confirmHonorsCandidateForCreate } from '../../src/p
 import {
   VERSIONS,
   auditedItemFindings,
+  backUpFindings,
   compiled,
   directionFindings,
   dolSupportFindings,
@@ -84,6 +85,7 @@ for (const entry of ALGEBRA2_HONORS_RADICALS_LESSONS) {
   test(`${name}: accommodations — authored Break it down steps, and supports everywhere but the Exit Ticket`, () => {
     assert.deepEqual(directionFindings(compiled(text).questions), []);
     assert.deepEqual(supportFindings(lesson), []);
+    assert.deepEqual(backUpFindings(compiled(text).questions), []);
     assert.deepEqual(dolSupportFindings(lesson), []);
   });
 

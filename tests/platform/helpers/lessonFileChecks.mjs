@@ -211,6 +211,22 @@ export const supportFindings = (lesson) => lesson.sections
     question.solutionReview?.commonError ? null : `${question.questionId}: no common error in its worked solution`,
   ].filter(Boolean));
 
+const asAnswer = (value) => String(value).trim().toLowerCase().replace(/[.\s]+$/, '');
+/**
+ * A "Let's back up" step asks something simpler than the item, so neither of
+ * its two choices may be one of the item's own answers, in any version (the
+ * student would be handed one; toolBackUpSteps.test.mjs holds the same rule
+ * over every lesson for the first version).
+ */
+export const backUpFindings = (questions) => questions
+  .filter((question) => question.type === 'multiAnswer' && question.scaffold)
+  .flatMap((question) => versionsOf(question).flatMap((version) => {
+    const answers = new Set((version.answerFields || []).map((field) => asAnswer(field.answer)));
+    return (version.scaffold?.options || []).filter((option) => answers.has(asAnswer(option)))
+      .map((option) => `${version.questionId}: its back-up step offers "${option}", one of its own answers`);
+  }))
+  .filter((problem, index, all) => all.indexOf(problem) === index);
+
 const bankDocuments = new Map();
 const bankDocument = (framework, documentId) => {
   if (!bankDocuments.has(framework)) {
@@ -220,10 +236,15 @@ const bankDocument = (framework, documentId) => {
   return bankDocuments.get(framework).find((entry) => entry?.id === documentId) || null;
 };
 
+// What the lesson adds to an audited answer field: a reason per option, shown
+// after a one-try item's single try (oneTryChoice.js).
+const withoutLessonSupports = (fields) => (Array.isArray(fields) ? fields.map(({ optionRationales: _reasons, ...field }) => field) : fields);
+
 /**
  * An audited CCMR item placed in a lesson is the bank's item: its prompt,
  * answer fields, generator, alignments and provenance exactly as the bank
- * converts them (lessonKit.auditedCcmrQuestion adds only supports).
+ * converts them (lessonKit.auditedCcmrQuestion adds only supports), and each
+ * choice in it has a reason for every option, since a choice item has one try.
  */
 export const auditedItemFindings = (lesson) => lesson.sections.flatMap((section) => section.questions
   .filter((question) => question.ccmrSource)
@@ -232,8 +253,12 @@ export const auditedItemFindings = (lesson) => lesson.sections.flatMap((section)
     const document = bankDocument(framework, documentId);
     if (!document) return [`${question.questionId}: ${documentId} is not in the audited ${framework} bank`];
     const intent = bank.bankDocumentToV5Intent(document, { activityRole: 'practice' });
+    const ours = { ...question, answerFields: withoutLessonSupports(question.answerFields) };
     return ['prompt', 'answerFields', 'generator', 'alignments', 'ccmrSource', 'standard']
-      .filter((key) => JSON.stringify(question[key]) !== JSON.stringify(intent[key]))
+      .filter((key) => JSON.stringify(ours[key]) !== JSON.stringify(intent[key]))
       .map((key) => `${question.questionId}: its ${key} is not the bank's (${documentId})`)
+      .concat((question.answerFields || []).filter((field) => field.type === 'choice')
+        .flatMap((field) => (field.options || []).filter((option) => !String(field.optionRationales?.[option] || '').trim())
+          .map((option) => `${question.questionId} ${field.id}: no reason for the option "${option}"`)))
       .concat(section.role === 'practice' ? [] : [`${question.questionId}: an audited item outside Practice`]);
   }));

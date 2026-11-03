@@ -1005,12 +1005,30 @@ const practiceHonors = (P) => [
     questionId: `${P}-p-16`,
     scaffold: backUp('Solving y ≥ 2x + k for k gives…', ['k ≤ y − 2x', 'k ≥ y − 2x'], 'k ≤ y − 2x'),
     commonError: 'Adding {{m}}({{x}}) to y instead of subtracting it when solving for k.',
+    // One try: a reason for each option, in the bank's option order.
+    optionRationales: {
+      answer: [
+        'Right: y ≥ {{m}}x + k gives k ≤ y − {{m}}x, and at ({{x}}, {{y}}) the greatest integer k is this value.',
+        'This adds the x-term to y instead of subtracting it: y ≥ {{m}}x + k gives k ≤ y − {{m}}x.',
+        'This leaves out the x-term: at x = {{x}}, the boundary’s {{m}}x term is {{m}}({{x}}).',
+        'This swaps the coordinates: in ({{x}}, {{y}}), x is {{x}} and y is {{y}}.',
+      ],
+    },
   }),
   auditedCcmrQuestion({
     documentId: 'mm_sat_A_3H_challenge_2_integer-points-vertical-slice_v21',
     questionId: `${P}-p-17`,
     scaffold: backUp('How many integers are there from 2 to 5, including both?', ['4', '3'], '4'),
     commonError: 'Subtracting the bounds without adding 1: both bounds are included, so both endpoints count.',
+    // One try: a reason for each option, in the bank's option order.
+    optionRationales: {
+      answer: [
+        'Right: the integers from {{low}} to {{high}}, counting both ends, number {{high}} − ({{low}}) + 1.',
+        'This is the difference of the bounds. Both bounds are included, so add 1 to count both ends.',
+        'This uses {{c}} as the lower bound and leaves out the {{m}}x term: at x = {{x}} the lower bound is {{low}}.',
+        'This adds 2: the difference already counts one end, so adding 1 includes the other.',
+      ],
+    },
   }),
 ];
 

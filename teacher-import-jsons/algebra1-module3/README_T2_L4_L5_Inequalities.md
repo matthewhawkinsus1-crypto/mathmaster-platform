@@ -46,7 +46,7 @@ Honors adds fractional slopes and standard forms with y-coefficients other than 
 **Lesson 5 — Systems of Linear Inequalities.** The Warm-Up climbs from one inequality graphed, to a point checked against two inequalities, to two constraints written for one situation. Classwork follows Noah's raft (writing, checking and graphing the constraints, and the intersection point (10, −12)), Activity 5.2's x + y > 1 and −x + y ≤ 3 with Ava's error, the parallel and vertical systems, Emma's workout, Activity 5.4's systems A–D with Isabella's error and the blank Graph D, and Talk the Talk. Practice and the Exit Ticket give each student their own systems.
 Honors adds standard-form systems to rewrite, a parameter (P11), a bounded region with its corners and area (P12, P13), an Open Sort of systems by their solution sets (P14), Emma's corners found algebraically (P15), and CCMR items `mm_sat_A_3H_challenge_1_parameter-feasible-point_v21` (P16) and `mm_sat_A_3H_challenge_2_integer-points-vertical-slice_v21` (P17).
 
-**Supports.** Every question except the audited CCMR items has authored "Break it down" steps. Every Warm-Up, Classwork and Practice question has hints, a "Let's back up" step, a worked solution and a common error, and the key Classwork questions have Guided Coach notes. The Exit Ticket has none of these.
+**Supports.** Every question except the audited CCMR items has authored "Break it down" steps. Every Warm-Up, Classwork and Practice question has hints, a "Let's back up" step, a worked solution and a common error, and the key Classwork questions have Guided Coach notes. The Exit Ticket has none of these. The audited multiple-choice items allow one try, so after it the student sees the reason for the option they chose.
 
 ## Slide notes
 

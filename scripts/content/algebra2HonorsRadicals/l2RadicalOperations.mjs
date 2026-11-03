@@ -716,12 +716,30 @@ const practice = [
     documentId: 'mm_sat_A2_7G_challenge_1_combine-variable-radicals_v21',
     questionId: 'a2r2-p-13',
     scaffold: backUp('√(4x) + √(9x) equals, for x ≥ 0…', ['5√x', '√(13x)'], '5√x'),
+    // One try: a reason for each option, in the bank's option order.
+    optionRationales: {
+      answer: [
+        'Right: √({{a2}}x) = {{a}}√x and √({{b2}}x) = {{b}}√x, and like radicals add by their coefficients.',
+        'This multiplies the coefficients {{a}} and {{b}}. Like radicals are added by adding their coefficients.',
+        'This takes x out of the roots too. x is not a perfect square, so √x stays; only {{a2}} and {{b2}} come out.',
+        'This adds under one root, but √A + √B is not √(A + B). Simplify each root first.',
+      ],
+    },
   }),
   auditedCcmrQuestion({
     documentId: 'mm_sat_A2_7G_challenge_2_radical-quotient-variable_v21',
     questionId: 'a2r2-p-14',
     scaffold: backUp('√(x⁵)/√x equals, for x > 0…', ['x²', 'x⁴'], 'x²'),
     commonError: 'Dividing the exponents (x⁵ ÷ x = x⁵ˑ¹) or forgetting to take the square root of the coefficient after combining under one radical.',
+    // One try: a reason for each option, in the bank's option order.
+    optionRationales: {
+      answer: [
+        'Right: one root over the other is √({{a2}}x⁵ ÷ x) = √({{a2}}x⁴) = {{a}}x², and x = {{xval}} gives this value.',
+        'This leaves out the coefficient: the square root of {{a2}} still multiplies the result.',
+        'This keeps one power of x too many: x⁵ ÷ x is x⁴, whose square root is x², not x³.',
+        'This brings {{a2}} out of the root whole and keeps only one factor of x: take the square root of each factor of {{a2}}x⁴.',
+      ],
+    },
   }),
   {
     questionId: 'a2r2-p-15',
