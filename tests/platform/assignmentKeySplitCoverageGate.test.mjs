@@ -300,6 +300,15 @@ const PUBLIC_GRADER_READS = Object.freeze({
     'workflow[].responseColumn', 'workflow[].graphMode', 'workflow[].showWhen', 'workflow[].showWhen.is',
     'workflow[].showWhen.stage', 'workflow[].source', 'workflow[].source.fromStage', 'workflow[].continuityStageId',
     'workflow[].xValues', 'workflow[].graph',
+    // The Systems Workspace's student-build inequalities (first committed with
+    // the Algebra I Module 3 Topic 2 Lesson 4 and 5 files): which steps the tool
+    // asks for — rewrite, boundary, solid or dashed, shading, a marked or chosen
+    // test point, the boundary probe, the region's class, its corners. The
+    // constraints the work is graded against (`expectedConstraints`, in
+    // `modeling` too) are a key at every depth and move.
+    'studentBuild.rewrite', 'studentBuild.boundary', 'studentBuild.lineStyle', 'studentBuild.shading',
+    'reasoning.testPoint', 'reasoning.boundaryProbe', 'reasoning.classifyRegion', 'reasoning.vertices',
+    'askClassification', 'askVertices', 'allowStudentTestPoint',
   ],
   /*
    * Design §1.1 "stimulus-derived keys" and R9: the student must see these to
@@ -325,6 +334,9 @@ const PUBLIC_GRADER_READS = Object.freeze({
     'm', 'b', 'expressions[].expression', 'd1', 'd2', 'n1', 'n2', 'quantities[].id', 'quantities[].label', 'quantities[].unit',
     'focus', 'directrix.**', 'z.**', 'w.**', 'quarterTurns', 'base', 'exponent', 'h', 'k', 'p', 'y', 'offset',
     'startingModel', 'predictionX', 'sourceData.**', 'constraints.**',
+    // The inequalities of a Systems Workspace item as the student reads them,
+    // and the variables (symbol and meaning) a student writes a model in.
+    'sourceConstraints', 'modeling.variables', 'modeling.variables[].symbol', 'modeling.variables[].label',
   ],
 });
 

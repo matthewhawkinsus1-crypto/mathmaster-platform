@@ -9,6 +9,7 @@ import { validateRepresentationBridgeQuestion } from './representationBridge/rep
 import { validateMatrixLabQuestion } from './matrixLab/matrixLabMath.js';
 import { DIVISION_LIMITS, POLYNOMIAL_TEXT_LIMITS, addSubtractKey, areaModelKey, longDivisionKey, syntheticDivisionKey, syntheticRemainderDivisor } from './polynomialWorkshop/polynomialMath.js';
 import { normalizeLinearInequality } from './systemsWorkspace/linearInequalityEngine.js';
+import { studentBuildInequalityEnabled } from './systemsWorkspace/inequalityBuilderAdapter.js';
 import { linearEquationCoefficients, validateAlgebraicSystemAuthoring } from './systemsWorkspace/algebraicSystemsEngine.js';
 import { resolveSystemsWorkspaceMode } from './systemsWorkspace/systemsWorkspaceMode.js';
 import { axisLabelProblems } from './shared/planeAxisTitles.js';
@@ -226,6 +227,16 @@ export const validateToolQuestion = (question = {}) => {
       if (!Array.isArray(gradingConstraints) || gradingConstraints.length < minimumInequalities) {
         errors.push(`Inequality mode requires at least ${minimumInequalities} inequalit${minimumInequalities === 1 ? 'y' : 'ies'}.`);
       }
+    }
+    // The analyze form — no studentBuild, reasoning or modeling — draws, grades
+    // and explains `inequalities` only (ClassicInequalityMode, the server's
+    // legacyInequalities and its worked solution all read that one field).
+    // Given only `expectedConstraints`, it drew and graded the built-in demo
+    // system instead: a different question from the one authored, which
+    // Pre-Flight passed with no warning.
+    if (mode === 'inequalities' && !studentBuildInequalityEnabled(question)
+      && !Array.isArray(question.inequalities) && Array.isArray(question.expectedConstraints)) {
+      errors.push('systemsWorkspace inequality analyze form draws and grades `inequalities` ({ m, b, relation }); with only `expectedConstraints` it shows and grades a demo system instead. Give `inequalities`, or turn on `studentBuild` or `reasoning` so the workspace uses `expectedConstraints`.');
     }
     if (mode === 'inequalities' && question.sourceConstraints != null) {
       if (!Array.isArray(question.sourceConstraints) || question.sourceConstraints.length < 1

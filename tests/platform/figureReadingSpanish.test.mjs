@@ -35,6 +35,7 @@ import { generateQuestion } from '../../src/problemGenerator.js';
 import { normalizeContextualQuestion } from '../../src/platform/context/wordProblemLayer.js';
 import { readComposedQuestion } from '../../src/platform/workflow/questionWorkflow.js';
 import { selectPersistentWorkflowGraph } from '../../src/platform/workflow/workflowPresentation.js';
+import { studentBuildInequalityEnabled } from '../../functions/shared/toolMath/systemsWorkspace/inequalityBuilderAdapter.mjs';
 import { describeCoordinatePlane, GRAPH_WORDS } from '../../src/platform/language/graphDescription.js';
 import { NUMBER_LINE_WORDS, numberLineReading, pointChoiceLineReading } from '../../src/platform/language/numberLineDescription.js';
 import { AXIS_TITLE_WORDS } from '../../src/tools/shared/planeAxisTitles.js';
@@ -216,7 +217,12 @@ test('every real assessment graph is read in Spanish while open, with no positio
     }
     return (workflow?.length ? selectPersistentWorkflowGraph({ content, workflow, checkedGraph: null }) : null) || question.graph;
   };
-  const constructed = (question) => question.type === 'systemsWorkspace' && question.interaction === 'construct';
+  // The Systems Workspace's construct form and its student-build inequalities
+  // draw their own plane for the student to build on: `graph` there is that
+  // plane's window, never a figure GraphDisplay draws (QuestionVisual is the
+  // typed graders'), so there is no drawn graph to read.
+  const constructed = (question) => question.type === 'systemsWorkspace'
+    && (question.interaction === 'construct' || studentBuildInequalityEnabled(question));
   const assessed = realQuestions().filter(({ role, question }) => ['dol', 'quiz', 'test'].includes(role) && question.graph && !constructed(question));
   assert.ok(assessed.length >= 6, `${assessed.length} real assessment items with a graph`);
   assessed.forEach(({ stored, question }) => {

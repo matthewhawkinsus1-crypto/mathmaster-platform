@@ -1,0 +1,3293 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Algebra II Honors — nth Roots",
+    "courseId": "algebra2",
+    "folder": "Algebra II/Radicals and Rational Exponents/Lesson 1",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork",
+    "essentialQuestion": "Why can it be useful to simplify expressions?",
+    "instructions": "nth roots. Every answer is entered in a step-by-step tool: write the radicand as a perfect power, take the root, and decide whether absolute value bars are needed — the tool checks each step. You have 3 tries on each Warm-Up, Classwork and Practice question, with hints. The Exit Ticket is one try with no hints.",
+    "teacherNotes": "Algebra II Honors, Radicals Lesson 1 (nth Roots), from the district slides, TEKS A2.7G. Warm-Up rebuilt as readiness: powers → perfect powers → √(x²) = |x|. Every Classwork item is a slide example with its Check Your Progress; \"Simplify\" answers are graded by value AND form (simplest radical form, bars only where needed). Two audited Digital SAT items from the CCMR bank sit in Practice, and the Honors extension items (P12, P13, P11) are DOK 3–4, so the Honors version is ready as written. Warm-Up and Exit Ticket are generated per student and back Recovery. Slide note: the \"Simplify\" slide gives √(9x⁴y¹⁰z⁴) = 3x²y⁵z²; with y allowed to be negative it is 3x²|y⁵|z², which CW10 teaches."
+  },
+  "variantPolicy": {
+    "mode": "personalized",
+    "sectionModes": {
+      "warmup": "shared",
+      "classwork": "shared",
+      "practice": "personalized",
+      "dol": "personalized"
+    },
+    "avoidRecentTemplates": true,
+    "avoidDuplicateParameters": true
+  },
+  "sections": [
+    {
+      "id": "warmup",
+      "role": "warmup",
+      "title": "Warm-Up — From Powers to Roots",
+      "recommendedMinutes": 10,
+      "questions": [
+        {
+          "questionId": "a2r1-wu-1",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.11B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "From powers to roots. Evaluate each power. Then use the powers to name a root: a number $r$ is an $n$th root of $b$ when $r^n = b$. Evaluate $({{b}})^2$, $({{c}})^3$, $(-{{c}})^3$ and $(-{{d}})^4$.",
+          "directionSteps": [
+            "Evaluate each power.",
+            "Use the powers to name a root."
+          ],
+          "responses": [
+            {
+              "id": "square",
+              "label": "({{b}})² =",
+              "answer": "{{b2}}",
+              "inputProfile": "number"
+            },
+            {
+              "id": "cube",
+              "label": "({{c}})³ =",
+              "answer": "{{c3}}",
+              "inputProfile": "number"
+            },
+            {
+              "id": "negativeCube",
+              "label": "(−{{c}})³ =",
+              "answer": "{{nc3}}",
+              "inputProfile": "number"
+            },
+            {
+              "id": "negativeFourth",
+              "label": "(−{{d}})⁴ =",
+              "answer": "{{d4}}",
+              "inputProfile": "number"
+            },
+            {
+              "id": "cubeRoot",
+              "label": "So a cube root of {{nc3}} is",
+              "answer": "{{nc}}",
+              "inputProfile": "number"
+            },
+            {
+              "id": "otherFourthRoot",
+              "label": "{{d}} is a fourth root of {{d4}}. The other real fourth root of {{d4}} is",
+              "answer": "{{nd}}",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "A power is repeated multiplication: (−{{c}})³ = (−{{c}})(−{{c}})(−{{c}}).",
+            "An odd number of negative factors gives a negative product; an even number gives a positive one.",
+            "A root undoes a power: if r multiplied by itself n times is b, then r is an nth root of b."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. An even power of a negative number is…",
+            "options": [
+              "negative",
+              "positive"
+            ],
+            "correct": "positive"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Powers",
+                "instruction": "bⁿ means b used as a factor n times. (−2)³ = −8, but (−2)⁴ = 16."
+              },
+              {
+                "title": "Roots undo powers",
+                "instruction": "r is an nth root of b when rⁿ = b. Because 3⁴ = 81 and (−3)⁴ = 81, both 3 and −3 are fourth roots of 81."
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "Multiply, then read each power backward as a root.",
+            "reasoning": [
+              "({{b}})² = {{b2}}, ({{c}})³ = {{c3}}, (−{{c}})³ = {{nc3}} and (−{{d}})⁴ = {{d4}}.",
+              "(−{{c}})³ = {{nc3}}, so −{{c}} is a cube root of {{nc3}}.",
+              "{{d}}⁴ and (−{{d}})⁴ both equal {{d4}}, so −{{d}} is the other real fourth root."
+            ],
+            "answerSummary": "cube root of {{nc3}}: {{nc}}; other fourth root of {{d4}}: {{nd}}",
+            "commonError": "Giving (−{{d}})⁴ a negative value: four negative factors make a positive product."
+          },
+          "generator": {
+            "parameters": {
+              "b": {
+                "type": "int",
+                "min": 4,
+                "max": 15
+              },
+              "c": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "d": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              }
+            },
+            "derived": {
+              "b2": "b*b",
+              "c3": "c^3",
+              "nc3": "0 - c^3",
+              "nc": "0 - c",
+              "d4": "d^4",
+              "nd": "0 - d"
+            },
+            "constraints": [
+              "c != d",
+              "b*b != d^4",
+              "b*b != c^3"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "a2r1-wu-2",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.11B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Perfect powers. Use the power of a power rule, $(x^a)^b = x^{ab}$, backward. Write $ {{p}}x^{ {{e2}} } $ as the square of a monomial, and $ {{q}}y^{ {{e3}} } $ as the cube of a monomial.",
+          "directionSteps": [
+            "Write the first expression as the square of a monomial.",
+            "Write the second expression as the cube of a monomial."
+          ],
+          "responses": [
+            {
+              "id": "squareBase",
+              "label": "{{p}}x^{{e2}} = ( ? )²",
+              "answer": "{{b}}x^{{h}}",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "cubeBase",
+              "label": "{{q}}y^{{e3}} = ( ? )³",
+              "answer": "{{c}}y^{{k}}",
+              "inputProfile": "expression"
+            }
+          ],
+          "hints": [
+            "Which whole number squared is {{p}}? Which whole number cubed is {{q}}?",
+            "For the square, halve the exponent: (x^h)² = x^(2h). For the cube, divide the exponent by 3."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. (x⁴)² equals…",
+            "options": [
+              "x⁶",
+              "x⁸"
+            ],
+            "correct": "x⁸"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Power of a power",
+                "instruction": "(xᵃ)ᵇ = xᵃᵇ, so x¹⁰ = (x⁵)² and x¹² = (x⁴)³."
+              },
+              {
+                "title": "Why it matters today",
+                "instruction": "A square root undoes a square and a cube root undoes a cube. Writing the radicand as a perfect power is how you take the root."
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "Take the root of the number and divide each exponent.",
+            "reasoning": [
+              "{{b}}² = {{p}} and (x^{{h}})² = x^{{e2}}, so {{p}}x^{{e2}} = ({{b}}x^{{h}})².",
+              "{{c}}³ = {{q}} and (y^{{k}})³ = y^{{e3}}, so {{q}}y^{{e3}} = ({{c}}y^{{k}})³."
+            ],
+            "answerSummary": "({{b}}x^{{h}})² and ({{c}}y^{{k}})³",
+            "commonError": "Dividing the number instead of taking its root: the base of {{p}} is {{b}}, not {{p}} ÷ 2."
+          },
+          "generator": {
+            "parameters": {
+              "b": {
+                "type": "int",
+                "min": 2,
+                "max": 12
+              },
+              "h": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "c": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "k": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              }
+            },
+            "derived": {
+              "p": "b*b",
+              "e2": "2*h",
+              "q": "c^3",
+              "e3": "3*k"
+            }
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "a2r1-wu-3",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.11A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Square roots and absolute value. Evaluate $\\sqrt{ {{s}} }$, $\\sqrt{(-{{r}})^2}$ and $\\sqrt{({{t}})^2}$. Then decide what $\\sqrt{x^2}$ equals for every real number $x$.",
+          "directionSteps": [
+            "Evaluate each square root.",
+            "Decide what the square root of x squared equals for every real number."
+          ],
+          "responses": [
+            {
+              "id": "root",
+              "label": "√{{s}} =",
+              "answer": "{{a}}",
+              "inputProfile": "number"
+            },
+            {
+              "id": "negativeSquared",
+              "label": "√((−{{r}})²) =",
+              "answer": "{{r}}",
+              "inputProfile": "number"
+            },
+            {
+              "id": "positiveSquared",
+              "label": "√(({{t}})²) =",
+              "answer": "{{t}}",
+              "inputProfile": "number"
+            },
+            {
+              "id": "rule",
+              "label": "For every real number x, √(x²) =",
+              "type": "choice",
+              "options": [
+                "|x|",
+                "x",
+                "−x",
+                "±x"
+              ],
+              "answer": "|x|"
+            }
+          ],
+          "hints": [
+            "Square the inside first: the square of a negative number is positive.",
+            "The radical sign √ means the principal (nonnegative) square root.",
+            "Which rule gives a nonnegative answer for every x, including a negative x?"
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. √ always gives a value that is…",
+            "options": [
+              "never negative",
+              "sometimes negative"
+            ],
+            "correct": "never negative"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Principal square root",
+                "instruction": "The radical sign √ means the nonnegative square root: √25 = 5, never −5."
+              },
+              {
+                "title": "Absolute value",
+                "instruction": "Squaring hides a sign, so √(x²) gives back the size of x: √(x²) = |x|."
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "Squaring loses the sign, and √ is never negative.",
+            "reasoning": [
+              "√{{s}} = {{a}} because {{a}}² = {{s}}.",
+              "(−{{r}})² = {{r2}} and √{{r2}} = {{r}}: the answer is positive even though the base was negative.",
+              "So √(x²) = |x| for every real x: x when x ≥ 0 and −x when x < 0."
+            ],
+            "answerSummary": "{{a}}, {{r}}, {{t}}; √(x²) = |x|",
+            "commonError": "Writing √((−{{r}})²) = −{{r}}: a principal square root is never negative."
+          },
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 6,
+                "max": 15
+              },
+              "r": {
+                "type": "int",
+                "min": 2,
+                "max": 9
+              },
+              "t": {
+                "type": "int",
+                "min": 2,
+                "max": 9
+              }
+            },
+            "derived": {
+              "s": "a*a",
+              "r2": "r*r"
+            },
+            "constraints": [
+              "r != t",
+              "a != r",
+              "a != t"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        }
+      ]
+    },
+    {
+      "id": "classwork",
+      "role": "classwork",
+      "title": "Classwork — nth Roots: Find, Simplify, Approximate",
+      "recommendedMinutes": 45,
+      "questions": [
+        {
+          "questionId": "a2r1-cw-1",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "New vocabulary. In $\\sqrt[5]{32}$, the small 5 is the index and 32 is the radicand. A number $a$ is an $n$th root of $b$ when $a^n = b$. Name the parts of $\\sqrt[5]{32}$, and then find both real fourth roots of 81.",
+          "directionSteps": [
+            "Name the index.",
+            "Name the radicand.",
+            "Choose the statement that proves the root.",
+            "Find both real fourth roots of 81."
+          ],
+          "responses": [
+            {
+              "id": "index",
+              "label": "Index of ⁵√32",
+              "answer": "5",
+              "inputProfile": "number"
+            },
+            {
+              "id": "radicand",
+              "label": "Radicand of ⁵√32",
+              "answer": "32",
+              "inputProfile": "number"
+            },
+            {
+              "id": "proof",
+              "label": "Which statement shows that 2 is a fifth root of 32?",
+              "type": "choice",
+              "options": [
+                "2⁵ = 32",
+                "5² = 25",
+                "32 ÷ 5 = 6.4",
+                "2 · 5 = 10"
+              ],
+              "answer": "2⁵ = 32"
+            },
+            {
+              "id": "principal",
+              "label": "The principal fourth root of 81",
+              "answer": "3",
+              "inputProfile": "number"
+            },
+            {
+              "id": "other",
+              "label": "The other real fourth root of 81",
+              "answer": "-3",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "The index is the small number tucked into the radical sign; the radicand is under it.",
+            "Which number, used as a factor 4 times, gives 81? Its opposite works too.",
+            "The principal root is the nonnegative one."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In ⁿ√b, the number under the radical sign is the…",
+            "options": [
+              "index",
+              "radicand"
+            ],
+            "correct": "radicand"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "nth root",
+                "instruction": "For real numbers a and b and a positive integer n, if aⁿ = b, then a is an nth root of b."
+              },
+              {
+                "title": "Radical sign, index, radicand",
+                "instruction": "In ⁿ√b the symbol √ is the radical sign, n is the index and b is the radicand. √b means index 2."
+              },
+              {
+                "title": "Principal root",
+                "instruction": "When b has two real nth roots, the nonnegative one is the principal root, written ⁿ√b. ±ⁿ√b names both."
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "Read the parts, then undo the power.",
+            "reasoning": [
+              "The index is 5 and the radicand is 32; 2⁵ = 32, so 2 is a fifth root of 32.",
+              "3⁴ = 81 and (−3)⁴ = 81. The principal fourth root is 3; the other is −3."
+            ],
+            "answerSummary": "index 5, radicand 32; fourth roots of 81: 3 and −3",
+            "commonError": "Calling −3 the principal root: the principal root is the nonnegative one."
+          }
+        },
+        {
+          "questionId": "a2r1-cw-2",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "sortIntoCategories"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Real nth roots. Sort each set of roots by how many REAL roots it has. Use the index (even or odd) and the sign of the radicand. Then give a reason for each group.",
+          "directionSteps": [
+            "Look at the index: even or odd.",
+            "Look at the sign of the radicand.",
+            "Sort each card into a group.",
+            "Give a reason for each group."
+          ],
+          "categories": [
+            {
+              "id": "two",
+              "label": "Two real roots"
+            },
+            {
+              "id": "one",
+              "label": "Exactly one real root"
+            },
+            {
+              "id": "none",
+              "label": "No real roots"
+            }
+          ],
+          "items": [
+            {
+              "id": "cubeNeg64",
+              "label": "The cube roots of −64"
+            },
+            {
+              "id": "sq49",
+              "label": "The square roots of 49"
+            },
+            {
+              "id": "sqNeg9",
+              "label": "The square roots of −9"
+            },
+            {
+              "id": "fifth32",
+              "label": "The fifth roots of 32"
+            },
+            {
+              "id": "sixth64",
+              "label": "The sixth roots of 64"
+            },
+            {
+              "id": "fourth0",
+              "label": "The fourth roots of 0"
+            },
+            {
+              "id": "sixthNeg1",
+              "label": "The sixth roots of −1"
+            },
+            {
+              "id": "fourth16",
+              "label": "The fourth roots of 16"
+            }
+          ],
+          "validSchemes": [
+            {
+              "id": "answer",
+              "groups": [
+                {
+                  "id": "two",
+                  "itemIds": [
+                    "sq49",
+                    "fourth16",
+                    "sixth64"
+                  ]
+                },
+                {
+                  "id": "one",
+                  "itemIds": [
+                    "cubeNeg64",
+                    "fifth32",
+                    "fourth0"
+                  ]
+                },
+                {
+                  "id": "none",
+                  "itemIds": [
+                    "sqNeg9",
+                    "sixthNeg1"
+                  ]
+                }
+              ]
+            }
+          ],
+          "hints": [
+            "An even index with a positive radicand gives a positive root and its opposite.",
+            "An odd index always gives exactly one real root, with the same sign as the radicand.",
+            "No real number raised to an even power is negative. And 0 has only one root: 0."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. A real number raised to an even power is never…",
+            "options": [
+              "negative",
+              "positive"
+            ],
+            "correct": "negative"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Even index",
+                "instruction": "a > 0: two real roots, ±ⁿ√a. a < 0: no real roots. a = 0: one root, 0."
+              },
+              {
+                "title": "Odd index",
+                "instruction": "a > 0: one positive root. a < 0: one negative root. a = 0: one root, 0."
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "Even or odd index, then the sign of the radicand.",
+            "reasoning": [
+              "Even index, positive radicand: two real roots (±7, ±2, ±2).",
+              "Odd index: exactly one real root (−4 and 2); and 0 has only the root 0.",
+              "Even index, negative radicand: no real root, because an even power is never negative."
+            ],
+            "commonError": "Putting the cube roots of −64 under \"No real roots\": an odd index takes a negative radicand to a negative root, −4."
+          }
+        },
+        {
+          "questionId": "a2r1-cw-3",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Example A, then Check Your Progress A. Simplify $\\pm\\sqrt{16x^8}$ by writing the radicand as a perfect square. Then simplify $\\pm\\sqrt{9x^8}$.",
+          "directionSteps": [
+            "Write the radicand as a perfect square.",
+            "Name the negative square root too.",
+            "Choose the simplified form of the second expression."
+          ],
+          "responses": [
+            {
+              "id": "square",
+              "label": "16x⁸ = ( ? )². This base is the positive square root.",
+              "answer": "4x^4",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "negative",
+              "label": "The negative square root of 16x⁸",
+              "answer": "-4x^4",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "cyp",
+              "label": "±√(9x⁸) =",
+              "type": "choice",
+              "options": [
+                "±3x⁶",
+                "±3x⁴",
+                "3x⁴",
+                "±3x²"
+              ],
+              "answer": "±3x⁴"
+            }
+          ],
+          "hints": [
+            "16 = 4² and x⁸ = (x⁴)².",
+            "± asks for both square roots: the positive one and its opposite.",
+            "For 9x⁸, take the square root of 9 and halve the exponent 8."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. √(x⁸) equals…",
+            "options": [
+              "x⁴",
+              "x⁶"
+            ],
+            "correct": "x⁴"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Find roots",
+                "instruction": "Write the radicand as a perfect power whose exponent is the index, then take the root."
+              },
+              {
+                "title": "±",
+                "instruction": "±√ means both square roots. 16x⁸ = (4x⁴)², so ±√(16x⁸) = ±4x⁴."
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "Perfect square first, then both roots.",
+            "reasoning": [
+              "16x⁸ = (4x⁴)².",
+              "The square roots of 16x⁸ are 4x⁴ and −4x⁴, written ±4x⁴.",
+              "9x⁸ = (3x⁴)², so ±√(9x⁸) = ±3x⁴."
+            ],
+            "answerSummary": "±4x⁴; ±3x⁴",
+            "commonError": "Taking the square root of the exponent (x⁸ → x^√8) or dividing it by 4: √(x⁸) halves the exponent, x⁴."
+          }
+        },
+        {
+          "questionId": "a2r1-cw-4",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Example B, then Check Your Progress B. Simplify $-\\sqrt{(q^3+5)^4}$. Decide whether absolute value bars are needed. Then simplify $-\\sqrt{(a^3+2)^8}$.",
+          "directionSteps": [
+            "Write the radicand as a perfect square.",
+            "Take the principal square root and keep the negative sign in front.",
+            "Decide whether absolute value bars are needed.",
+            "Choose the simplified form of the second expression."
+          ],
+          "responses": [
+            {
+              "id": "square",
+              "label": "(q³ + 5)⁴ = [ ? ]²",
+              "answer": "(q^3+5)^2",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "simplified",
+              "label": "−√((q³ + 5)⁴) =",
+              "answer": "-(q^3+5)^2",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "bars",
+              "label": "Why are absolute value bars not needed?",
+              "type": "choice",
+              "options": [
+                "(q³ + 5)² is never negative, so it is already the principal root",
+                "q is always positive",
+                "The index is odd",
+                "The radicand is negative"
+              ],
+              "answer": "(q³ + 5)² is never negative, so it is already the principal root"
+            },
+            {
+              "id": "cyp",
+              "label": "−√((a³ + 2)⁸) =",
+              "type": "choice",
+              "options": [
+                "−(a³ + 2)⁴",
+                "−(a³ + 2)⁸",
+                "(a³ + 2)⁴",
+                "(a + 2)⁴"
+              ],
+              "answer": "−(a³ + 2)⁴"
+            }
+          ],
+          "hints": [
+            "Treat q³ + 5 as one block: (q³ + 5)⁴ = [(q³ + 5)²]².",
+            "The negative sign is outside the radical. Take the principal root first, then make it the opposite.",
+            "A square is never negative, so no bars are needed around (q³ + 5)²."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The negative sign in −√(…) is…",
+            "options": [
+              "part of the radicand",
+              "outside the radical"
+            ],
+            "correct": "outside the radical"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "A binomial base",
+                "instruction": "Treat (q³ + 5) as one quantity: (q³ + 5)⁴ = [(q³ + 5)²]²."
+              },
+              {
+                "title": "The opposite of a principal root",
+                "instruction": "−√b is the opposite of the principal square root of b."
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "One block, a perfect square, then the opposite.",
+            "reasoning": [
+              "(q³ + 5)⁴ = [(q³ + 5)²]², so √((q³ + 5)⁴) = (q³ + 5)², which is never negative.",
+              "The opposite of the principal root is −(q³ + 5)².",
+              "In the same way, −√((a³ + 2)⁸) = −(a³ + 2)⁴."
+            ],
+            "answerSummary": "−(q³ + 5)²; −(a³ + 2)⁴",
+            "commonError": "Dropping the negative sign, or halving the 3 inside the base: only the outside exponent is halved."
+          }
+        },
+        {
+          "questionId": "a2r1-cw-5",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Example C, then Check Your Progress C. Simplify $\\sqrt[5]{243a^{10}b^{15}}$ by writing the radicand as a fifth power. Then simplify $\\sqrt[5]{32x^5y^{10}}$.",
+          "directionSteps": [
+            "Write the radicand as a fifth power.",
+            "Take the fifth root.",
+            "Decide whether absolute value bars are needed.",
+            "Simplify the second expression."
+          ],
+          "responses": [
+            {
+              "id": "fifthPower",
+              "label": "243a¹⁰b¹⁵ = ( ? )⁵",
+              "answer": "3a^2b^3",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "bars",
+              "label": "Does the answer need absolute value bars?",
+              "type": "choice",
+              "options": [
+                "No — the index is odd, so a fifth root keeps the sign of 3a²b³",
+                "Yes — b³ can be negative",
+                "Yes — every variable needs bars",
+                "No — because a and b are always positive"
+              ],
+              "answer": "No — the index is odd, so a fifth root keeps the sign of 3a²b³"
+            },
+            {
+              "id": "cyp",
+              "label": "⁵√(32x⁵y¹⁰) =",
+              "answer": "2xy^2",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "243 = 3⁵. Divide each exponent by 5: a¹⁰ = (a²)⁵ and b¹⁵ = (b³)⁵.",
+            "An odd root of a negative number is negative, so an odd root never needs bars.",
+            "32 = 2⁵; x⁵ = (x)⁵; y¹⁰ = (y²)⁵."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. 243 equals…",
+            "options": [
+              "3⁵",
+              "5³"
+            ],
+            "correct": "3⁵"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Odd index",
+                "instruction": "ⁿ√(aⁿ) = a when n is odd: the root keeps the sign."
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "Write a fifth power; an odd root needs no bars.",
+            "reasoning": [
+              "243a¹⁰b¹⁵ = (3a²b³)⁵, so ⁵√(243a¹⁰b¹⁵) = 3a²b³.",
+              "The index is odd, so no absolute value bars are needed.",
+              "32x⁵y¹⁰ = (2xy²)⁵, so ⁵√(32x⁵y¹⁰) = 2xy²."
+            ],
+            "answerSummary": "3a²b³; 2xy²",
+            "commonError": "Writing ±2xy²: an odd index gives exactly one real root."
+          }
+        },
+        {
+          "questionId": "a2r1-cw-6",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Example D, then Check Your Progress D. Decide whether $\\sqrt{-4}$ is a real number, and name its two imaginary square roots. Then simplify $\\sqrt{-16}$.",
+          "directionSteps": [
+            "Decide whether the first root is a real number.",
+            "Name its two imaginary square roots.",
+            "Choose the simplified form of the second expression."
+          ],
+          "responses": [
+            {
+              "id": "real",
+              "label": "√(−4) is…",
+              "type": "choice",
+              "options": [
+                "not a real number: the index is even and the radicand is negative",
+                "−2, because (−2)² = −4",
+                "2",
+                "−2"
+              ],
+              "answer": "not a real number: the index is even and the radicand is negative"
+            },
+            {
+              "id": "rootPlus",
+              "label": "The two imaginary square roots of −4 are",
+              "answer": "2i",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "rootMinus",
+              "label": "and",
+              "answer": "-2i",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "cyp",
+              "label": "√(−16) (both roots) =",
+              "type": "choice",
+              "options": [
+                "−4",
+                "±4",
+                "−2",
+                "±4i"
+              ],
+              "answer": "±4i"
+            }
+          ],
+          "hints": [
+            "Is (−2)² equal to 4 or −4?",
+            "i is the imaginary unit, and i² = −1. Which multiple of i squares to −4?",
+            "Both 4i and −4i square to −16."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. A real number raised to an even power is…",
+            "options": [
+              "never negative",
+              "sometimes negative"
+            ],
+            "correct": "never negative"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Even index, negative radicand",
+                "instruction": "There is no real root. In the complex numbers there are roots: i = √(−1), so √(−4) = 2i, and −2i is the other square root."
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "No real root; two imaginary roots.",
+            "reasoning": [
+              "The index is even and −4 < 0, so √(−4) is not a real number.",
+              "(2i)² = 4i² = −4 and (−2i)² = −4, so the square roots are 2i and −2i.",
+              "Similarly, the square roots of −16 are ±4i."
+            ],
+            "answerSummary": "2i and −2i; ±4i",
+            "commonError": "Writing (−2)² = −4: the square of a negative number is positive."
+          }
+        },
+        {
+          "questionId": "a2r1-cw-7",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Simplify using absolute value (even index). Simplify $\\sqrt[6]{t^6}$ and $\\sqrt[4]{x^4}$, then $\\sqrt[4]{16x^4y^8}$. Here $t$, $x$ and $y$ can be any real numbers. Explain when absolute value bars are needed.",
+          "directionSteps": [
+            "Simplify the sixth root.",
+            "Simplify the fourth root of x to the fourth.",
+            "Simplify the third expression.",
+            "Explain when absolute value bars are needed."
+          ],
+          "responses": [
+            {
+              "id": "sixth",
+              "label": "⁶√(t⁶) =",
+              "type": "choice",
+              "options": [
+                "t",
+                "−t",
+                "|t|",
+                "t⁶"
+              ],
+              "answer": "|t|"
+            },
+            {
+              "id": "fourth",
+              "label": "⁴√(x⁴) =",
+              "type": "choice",
+              "options": [
+                "x",
+                "−x",
+                "|x|",
+                "1"
+              ],
+              "answer": "|x|"
+            },
+            {
+              "id": "mixed",
+              "label": "⁴√(16x⁴y⁸) =",
+              "answer": "2|x|y^2",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "why",
+              "label": "Why does x need bars in the last answer but y² does not?",
+              "type": "choice",
+              "options": [
+                "x may be negative, but a fourth root is never negative; y² is never negative",
+                "x is always negative",
+                "Every variable outside an even root needs bars",
+                "y² needs bars too, because y may be negative"
+              ],
+              "answer": "x may be negative, but a fourth root is never negative; y² is never negative"
+            }
+          ],
+          "hints": [
+            "t is a sixth root of t⁶, but t could be negative. The principal sixth root must be nonnegative.",
+            "16x⁴y⁸ = (2xy²)⁴.",
+            "Bars are needed only around a factor that can be negative."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. For an even index n, ⁿ√(aⁿ) equals…",
+            "options": [
+              "a",
+              "|a|"
+            ],
+            "correct": "|a|"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Even index",
+                "instruction": "ⁿ√(aⁿ) = |a| when n is even, because the principal root is nonnegative and a might not be."
+              },
+              {
+                "title": "Only where needed",
+                "instruction": "x², y⁴ and every even power are already nonnegative, so they need no bars."
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "Even index: bars around anything that can be negative.",
+            "reasoning": [
+              "⁶√(t⁶) = |t| and ⁴√(x⁴) = |x|.",
+              "16x⁴y⁸ = (2xy²)⁴, so ⁴√(16x⁴y⁸) = |2xy²| = 2|x|y².",
+              "y² is never negative, so it needs no bars."
+            ],
+            "answerSummary": "|t|, |x|, 2|x|y²",
+            "commonError": "Writing 2xy²: if x = −1 and y = 1, the root is 2 but 2xy² is −2."
+          }
+        },
+        {
+          "questionId": "a2r1-cw-8",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Simplify using absolute value (odd index). Simplify $\\sqrt[5]{243(x+2)^{15}}$ by writing the radicand as a fifth power. Then simplify $\\sqrt[3]{27(x+2)^9}$.",
+          "directionSteps": [
+            "Write the radicand as a fifth power.",
+            "Decide whether absolute value bars are needed.",
+            "Choose the simplified form of the second expression."
+          ],
+          "responses": [
+            {
+              "id": "fifthPower",
+              "label": "243(x + 2)¹⁵ = [ ? ]⁵. This base is the fifth root.",
+              "answer": "3(x+2)^3",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "bars",
+              "label": "Does ⁵√(243(x + 2)¹⁵) need absolute value bars?",
+              "type": "choice",
+              "options": [
+                "No — the index is odd, so the root keeps the sign of 3(x + 2)³",
+                "Yes — x + 2 can be negative",
+                "Yes — every binomial root needs bars",
+                "No — because x + 2 is always positive"
+              ],
+              "answer": "No — the index is odd, so the root keeps the sign of 3(x + 2)³"
+            },
+            {
+              "id": "cyp",
+              "label": "∛(27(x + 2)⁹) =",
+              "type": "choice",
+              "options": [
+                "|3(x + 2)³|",
+                "3(x + 2)³",
+                "|3(x + 2)⁶|",
+                "3(x + 2)⁶"
+              ],
+              "answer": "3(x + 2)³"
+            }
+          ],
+          "hints": [
+            "243 = 3⁵ and (x + 2)¹⁵ = [(x + 2)³]⁵.",
+            "The index is odd, so no absolute value bars are needed.",
+            "27 = 3³ and (x + 2)⁹ = [(x + 2)³]³."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. For an odd index n, ⁿ√(aⁿ) equals…",
+            "options": [
+              "a",
+              "|a|"
+            ],
+            "correct": "a"
+          },
+          "solutionReview": {
+            "headline": "Write the fifth power; odd roots keep the sign.",
+            "reasoning": [
+              "243(x + 2)¹⁵ = [3(x + 2)³]⁵.",
+              "The index is odd, so ⁵√(243(x + 2)¹⁵) = 3(x + 2)³, with no bars.",
+              "In the same way ∛(27(x + 2)⁹) = 3(x + 2)³."
+            ],
+            "answerSummary": "3(x + 2)³; 3(x + 2)³",
+            "commonError": "Adding absolute value bars to an odd root: |3(x + 2)³| is wrong when x < −2."
+          }
+        },
+        {
+          "questionId": "a2r1-cw-9",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Simplify numerical radicals. For $\\sqrt{63}$ and $3\\sqrt{12}$, find the largest perfect-square factor of the radicand, then write each in simplest radical form.",
+          "directionSteps": [
+            "Find the largest perfect-square factor of each radicand.",
+            "Take its square root outside the radical.",
+            "Write each in simplest radical form."
+          ],
+          "responses": [
+            {
+              "id": "factor63",
+              "label": "Largest perfect-square factor of 63",
+              "answer": "9",
+              "inputProfile": "number"
+            },
+            {
+              "id": "root63",
+              "label": "√63 =",
+              "answer": "3√7",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "factor12",
+              "label": "Largest perfect-square factor of 12",
+              "answer": "4",
+              "inputProfile": "number"
+            },
+            {
+              "id": "root12",
+              "label": "3√12 =",
+              "answer": "6√3",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "List the perfect squares in order and test which ones divide each radicand.",
+            "Split each radicand into a perfect square times what is left.",
+            "Multiply the outside coefficient by the square root of the perfect square."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. √(ab) equals…",
+            "options": [
+              "√a · √b",
+              "√a + √b"
+            ],
+            "correct": "√a · √b"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Product Property",
+                "instruction": "ⁿ√(ab) = ⁿ√a · ⁿ√b when the roots are real. Split off the largest perfect nth-power factor."
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "Split off the largest perfect square.",
+            "reasoning": [
+              "63 = 9 · 7, so √63 = 3√7.",
+              "12 = 4 · 3, so 3√12 = 3 · 2√3 = 6√3."
+            ],
+            "answerSummary": "3√7; 6√3",
+            "commonError": "Splitting 12 as 2 · 6: neither factor is a perfect square, so nothing comes out."
+          }
+        },
+        {
+          "questionId": "a2r1-cw-10",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Simplify $\\sqrt{9x^4y^{10}z^4}$, where $x$, $y$ and $z$ can be any real numbers. Write the radicand as a perfect square first. Use absolute value bars only where they are needed.",
+          "directionSteps": [
+            "Write the radicand as a perfect square.",
+            "Take the principal square root.",
+            "Decide which factor needs absolute value bars."
+          ],
+          "responses": [
+            {
+              "id": "square",
+              "label": "9x⁴y¹⁰z⁴ = ( ? )²",
+              "answer": "3x^2y^5z^2",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "simplified",
+              "label": "√(9x⁴y¹⁰z⁴) =",
+              "answer": "3x^2|y^5|z^2",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "why",
+              "label": "Why does only y⁵ need bars?",
+              "type": "choice",
+              "options": [
+                "y⁵ is negative when y is negative; x² and z² never are",
+                "y has the largest exponent",
+                "x² and z² are always positive, and y⁵ is always negative",
+                "Only odd numbers need bars"
+              ],
+              "answer": "y⁵ is negative when y is negative; x² and z² never are"
+            }
+          ],
+          "hints": [
+            "Halve every exponent: x⁴ = (x²)², y¹⁰ = (y⁵)², z⁴ = (z²)².",
+            "The square root of a square is the absolute value of its base.",
+            "Which factor of 3x²y⁵z² can be negative?"
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. √(y¹⁰) equals…",
+            "options": [
+              "y⁵",
+              "|y⁵|"
+            ],
+            "correct": "|y⁵|"
+          },
+          "solutionReview": {
+            "headline": "Halve the exponents; bars only where a factor can be negative.",
+            "reasoning": [
+              "9x⁴y¹⁰z⁴ = (3x²y⁵z²)².",
+              "√((3x²y⁵z²)²) = |3x²y⁵z²| = 3x²|y⁵|z², because 3x² and z² are never negative."
+            ],
+            "answerSummary": "3x²|y⁵|z²",
+            "commonError": "Writing 3x²y⁵z² (as on the slide): when y = −1 that value is negative, but a square root is never negative."
+          }
+        },
+        {
+          "questionId": "a2r1-cw-11",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Multiply radicals. Simplify $2\\sqrt{8a^2}\\cdot 4\\sqrt{18a^2}$. Multiply the coefficients, multiply the radicands, then take the square root.",
+          "directionSteps": [
+            "Multiply the coefficients.",
+            "Multiply the radicands.",
+            "Take the square root.",
+            "Write the product."
+          ],
+          "responses": [
+            {
+              "id": "coefficients",
+              "label": "Coefficients: 2 · 4 =",
+              "answer": "8",
+              "inputProfile": "number"
+            },
+            {
+              "id": "radicand",
+              "label": "Radicands: 8a² · 18a² =",
+              "answer": "144a^4",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "root",
+              "label": "√(144a⁴) =",
+              "answer": "12a^2",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "product",
+              "label": "2√(8a²) · 4√(18a²) =",
+              "answer": "96a^2",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Use the Product Property backward: √m · √n = √(mn).",
+            "Multiply the numbers under the radicals, then add the exponents of a.",
+            "a² is never negative, so √(a⁴) = a² with no bars."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. √m · √n equals…",
+            "options": [
+              "√(mn)",
+              "√(m + n)"
+            ],
+            "correct": "√(mn)"
+          },
+          "solutionReview": {
+            "headline": "Coefficients times coefficients, radicands times radicands.",
+            "reasoning": [
+              "2 · 4 = 8 and 8a² · 18a² = 144a⁴.",
+              "√(144a⁴) = 12a², so the product is 8 · 12a² = 96a²."
+            ],
+            "answerSummary": "96a²",
+            "commonError": "Adding the radicands (8a² + 18a²) instead of multiplying them."
+          }
+        },
+        {
+          "questionId": "a2r1-cw-12",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Simplify $\\dfrac{3\\sqrt{2}}{\\sqrt{6}}$ and $(3\\sqrt{3x})^2$, and then $3\\sqrt{2x^3y^5}\\cdot 4\\sqrt{12x^3y^3}$. Assume $x$ and $y$ are positive.",
+          "directionSteps": [
+            "Simplify the fraction under one radical, then rationalize.",
+            "Square the second expression.",
+            "Multiply the coefficients and the radicands of the third expression."
+          ],
+          "responses": [
+            {
+              "id": "afterDividing",
+              "label": "3√2 / √6 = 3 / √( ? )",
+              "answer": "3",
+              "inputProfile": "number"
+            },
+            {
+              "id": "quotient",
+              "label": "3√2 / √6 =",
+              "answer": "√3",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "square",
+              "label": "(3√(3x))² =",
+              "answer": "27x",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "radicand",
+              "label": "2x³y⁵ · 12x³y³ =",
+              "answer": "24x^6y^8",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "product",
+              "label": "3√(2x³y⁵) · 4√(12x³y³) =",
+              "answer": "24x^3y^4√6",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Write the quotient under one radical and reduce the fraction there.",
+            "A radical left in a denominator is cleared by multiplying the top and the bottom by that radical.",
+            "Square the coefficient and the radical separately. For the product, find the largest perfect-square factor of the new radicand."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To rationalize 3/√3, multiply by…",
+            "options": [
+              "√3/√3",
+              "3/3"
+            ],
+            "correct": "√3/√3"
+          },
+          "solutionReview": {
+            "headline": "Divide under one radical, rationalize, then multiply.",
+            "reasoning": [
+              "3√2/√6 = 3/√3 = (3√3)/3 = √3.",
+              "(3√(3x))² = 9 · 3x = 27x.",
+              "3 · 4 = 12 and 2x³y⁵ · 12x³y³ = 24x⁶y⁸ = (2x³y⁴)² · 6, so the product is 12 · 2x³y⁴√6 = 24x³y⁴√6."
+            ],
+            "answerSummary": "√3; 27x; 24x³y⁴√6",
+            "commonError": "Leaving 3/√3: no radical may stay in a denominator, and 3√3/3 reduces to √3."
+          }
+        },
+        {
+          "questionId": "a2r1-cw-13",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.6B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "SPACE. A study showed that the diameter $d$ (millimeters) of the hole made in a solar cell by a dust particle with energy $k$ (joules) is about $d = 0.926\\sqrt[3]{k} - 0.169$. (a) Estimate the diameter for a particle with energy 3.5 joules. (b) Justify by working backward: if a hole has diameter 2.5 millimeters, estimate the particle's energy. Use a calculator.",
+          "calculatorPolicy": "scientific",
+          "directionSteps": [
+            "Substitute the energy and evaluate the cube root.",
+            "Find the diameter.",
+            "Work backward from the diameter one step at a time."
+          ],
+          "responses": [
+            {
+              "id": "cubeRoot",
+              "label": "(a) ∛3.5 ≈ (nearest thousandth)",
+              "answer": "1.518",
+              "inputProfile": "number"
+            },
+            {
+              "id": "diameter",
+              "label": "(a) d ≈ (millimeters, nearest thousandth)",
+              "answer": "1.237",
+              "inputProfile": "number",
+              "numericTolerance": 0.001
+            },
+            {
+              "id": "added",
+              "label": "(b) Add 0.169 to each side: 0.926∛k =",
+              "answer": "2.669",
+              "inputProfile": "number"
+            },
+            {
+              "id": "divided",
+              "label": "(b) Divide by 0.926: ∛k ≈ (nearest thousandth)",
+              "answer": "2.882",
+              "inputProfile": "number",
+              "numericTolerance": 0.001
+            },
+            {
+              "id": "energy",
+              "label": "(b) Cube each side: k ≈ (joules, nearest tenth)",
+              "answer": "23.9",
+              "inputProfile": "number",
+              "numericTolerance": 0.1
+            }
+          ],
+          "hints": [
+            "On a calculator, ∛3.5 is 3.5^(1/3).",
+            "Order matters: cube root first, then multiply by 0.926, then subtract 0.169.",
+            "Undo the steps in reverse order: add 0.169, divide by 0.926, then cube."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To undo a cube root, you…",
+            "options": [
+              "cube both sides",
+              "divide by 3"
+            ],
+            "correct": "cube both sides"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Analyze, formulate, determine, justify",
+                "instruction": "Substitute what you know, evaluate with a calculator, then check by working backward."
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "Evaluate, then undo the steps in reverse order.",
+            "reasoning": [
+              "(a) d = 0.926 · ∛3.5 − 0.169 ≈ 0.926 · 1.518 − 0.169 ≈ 1.237 mm.",
+              "(b) 2.5 + 0.169 = 2.669 = 0.926∛k, so ∛k ≈ 2.882.",
+              "Cube both sides: k ≈ 2.882³ ≈ 23.9 joules."
+            ],
+            "answerSummary": "d ≈ 1.237 mm; k ≈ 23.9 J",
+            "commonError": "Dividing by 3 to undo a cube root: cube both sides instead."
+          }
+        },
+        {
+          "questionId": "a2r1-cw-14",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.6B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "PHYSICS. The time $T$ (seconds) for a pendulum to swing back and forth is $T = 2\\pi\\sqrt{\\dfrac{L}{g}}$, where $L$ is its length in feet and $g = 32$ feet per second squared. (a) Find $T$ for a pendulum 2 feet long. (b) How long is a pendulum that takes 5 seconds to swing back and forth? Use a calculator.",
+          "calculatorPolicy": "scientific",
+          "directionSteps": [
+            "Substitute the length and evaluate.",
+            "For the second part, undo each step of the formula in reverse order."
+          ],
+          "responses": [
+            {
+              "id": "ratio",
+              "label": "(a) L/g =",
+              "answer": "0.0625",
+              "inputProfile": "number"
+            },
+            {
+              "id": "root",
+              "label": "(a) √(L/g) =",
+              "answer": "0.25",
+              "inputProfile": "number"
+            },
+            {
+              "id": "time",
+              "label": "(a) T ≈ (seconds, nearest hundredth)",
+              "answer": "1.57",
+              "inputProfile": "number"
+            },
+            {
+              "id": "divided",
+              "label": "(b) Divide by 2π: √(L/32) ≈ (nearest thousandth)",
+              "answer": "0.796",
+              "inputProfile": "number",
+              "numericTolerance": 0.001
+            },
+            {
+              "id": "length",
+              "label": "(b) Square, then multiply by 32: L ≈ (feet, nearest tenth)",
+              "answer": "20.3",
+              "inputProfile": "number",
+              "numericTolerance": 0.1
+            }
+          ],
+          "hints": [
+            "Divide the length by g first.",
+            "Take the square root of that quotient, then multiply by 2π.",
+            "For (b): 5 = 2π√(L/32). Divide by 2π, square both sides, then multiply by 32."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To undo a square root, you…",
+            "options": [
+              "square both sides",
+              "divide by 2"
+            ],
+            "correct": "square both sides"
+          },
+          "solutionReview": {
+            "headline": "Evaluate; then undo the formula in reverse order.",
+            "reasoning": [
+              "(a) T = 2π√(2/32) = 2π · 0.25 ≈ 1.57 seconds.",
+              "(b) 5 = 2π√(L/32), so √(L/32) = 5/(2π) ≈ 0.796.",
+              "Square: L/32 ≈ 0.633, so L ≈ 20.3 feet."
+            ],
+            "answerSummary": "T ≈ 1.57 s; L ≈ 20.3 ft",
+            "commonError": "Squaring before dividing by 2π: undo the multiplication first, then the square root."
+          }
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "role": "practice",
+      "title": "Practice — nth Roots, with Honors Extension and College-Readiness",
+      "recommendedMinutes": 45,
+      "questions": [
+        {
+          "questionId": "a2r1-p-1",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Simplify $\\pm\\sqrt{ {{p}}x^{ {{e}} } }$: give both square roots.",
+          "directionSteps": [
+            "Write the radicand as a perfect square.",
+            "Give the positive root and its opposite."
+          ],
+          "responses": [
+            {
+              "id": "positive",
+              "label": "Positive square root",
+              "answer": "{{b}}x^{{h}}",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "negative",
+              "label": "Negative square root",
+              "answer": "-{{b}}x^{{h}}",
+              "inputProfile": "expression"
+            }
+          ],
+          "hints": [
+            "{{p}} = {{b}}², and halve the exponent of x.",
+            "± means the positive root and its opposite."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. ±√(25x⁶) equals…",
+            "options": [
+              "±5x³",
+              "±5x⁴"
+            ],
+            "correct": "±5x³"
+          },
+          "solutionReview": {
+            "headline": "A perfect square, then both roots.",
+            "reasoning": [
+              "{{p}}x^{{e}} = ({{b}}x^{{h}})².",
+              "So ±√({{p}}x^{{e}}) = ±{{b}}x^{{h}}."
+            ],
+            "answerSummary": "±{{b}}x^{{h}}",
+            "commonError": "Halving {{p}} instead of taking its square root."
+          },
+          "generator": {
+            "parameters": {
+              "b": {
+                "type": "int",
+                "min": 2,
+                "max": 13
+              },
+              "h": {
+                "type": "int",
+                "min": 2,
+                "max": 7
+              }
+            },
+            "derived": {
+              "p": "b*b",
+              "e": "2*h"
+            }
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "a2r1-p-2",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Simplify $\\sqrt[3]{ -{{c3}}a^{ {{e1}} }b^{ {{e2}} } }$.",
+          "directionSteps": [
+            "Write the radicand as a cube.",
+            "Take the cube root and keep its sign."
+          ],
+          "responses": [
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "-{{c}}a{{m|pow}}b{{n|pow}}",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "{{c3}} = {{c}}³. Divide each exponent by 3.",
+            "A cube root of a negative number is negative."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. ∛(−8) equals…",
+            "options": [
+              "−2",
+              "not a real number"
+            ],
+            "correct": "−2"
+          },
+          "solutionReview": {
+            "headline": "Write a cube; an odd root keeps the sign.",
+            "reasoning": [
+              "−{{c3}}a^{{e1}}b^{{e2}} = (−{{c}}a^{{m}}b^{{n}})³.",
+              "So the cube root is −{{c}}a^{{m}}b^{{n}}."
+            ],
+            "answerSummary": "−{{c}}a^{{m}}b^{{n}}",
+            "commonError": "Saying a cube root of a negative number is not real: only even roots of negatives are not real."
+          },
+          "generator": {
+            "parameters": {
+              "c": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "m": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              },
+              "n": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              }
+            },
+            "derived": {
+              "c3": "c^3",
+              "e1": "3*m",
+              "e2": "3*n"
+            },
+            "constraints": [
+              "m != n"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "a2r1-p-3",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Simplify $\\sqrt[4]{ {{d4}}x^{ {{e1}} }y^{ {{e2}} } }$. The variables $x$ and $y$ can be any real numbers, so use absolute value bars where they are needed.",
+          "directionSteps": [
+            "Write the radicand as a fourth power.",
+            "Take the principal fourth root.",
+            "Put bars only around a factor that can be negative."
+          ],
+          "responses": [
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "{{d}}|x{{m|pow}}|y^{{n}}",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "{{d4}} = {{d}}⁴; divide each exponent by 4.",
+            "x^{{m}} has an odd exponent, so it can be negative. y^{{n}} has an even exponent."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. ⁴√(x⁴) equals…",
+            "options": [
+              "x",
+              "|x|"
+            ],
+            "correct": "|x|"
+          },
+          "solutionReview": {
+            "headline": "A fourth power, then bars where a factor can be negative.",
+            "reasoning": [
+              "{{d4}}x^{{e1}}y^{{e2}} = ({{d}}x^{{m}}y^{{n}})⁴.",
+              "The principal fourth root is |{{d}}x^{{m}}y^{{n}}| = {{d}}|x^{{m}}|y^{{n}}: y^{{n}} is never negative, x^{{m}} can be."
+            ],
+            "answerSummary": "{{d}}|x^{{m}}|y^{{n}}",
+            "commonError": "Leaving off the bars around x^{{m}}, or putting them around y^{{n}} too (harmless but not simplest)."
+          },
+          "generator": {
+            "parameters": {
+              "d": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "m": {
+                "type": "choice",
+                "values": [
+                  1,
+                  3,
+                  5
+                ]
+              },
+              "n": {
+                "type": "choice",
+                "values": [
+                  2,
+                  4,
+                  6
+                ]
+              }
+            },
+            "derived": {
+              "d4": "d^4",
+              "e1": "4*m",
+              "e2": "4*n"
+            }
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "a2r1-p-4",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Simplify $\\sqrt[5]{ {{c5}}(x+{{h}})^{ {{e}} } }$.",
+          "directionSteps": [
+            "Treat the binomial as one block.",
+            "Write the radicand as a fifth power.",
+            "Take the fifth root."
+          ],
+          "responses": [
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "{{c}}(x+{{h}})^{{k}}",
+              "inputProfile": "expression"
+            }
+          ],
+          "hints": [
+            "{{c5}} = {{c}}⁵.",
+            "(x + {{h}})^{{e}} = [(x + {{h}})^{{k}}]⁵. Is the index odd or even?"
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. An odd root of a negative number is…",
+            "options": [
+              "negative",
+              "not real"
+            ],
+            "correct": "negative"
+          },
+          "solutionReview": {
+            "headline": "One block, a fifth power, no bars for an odd index.",
+            "reasoning": [
+              "{{c5}}(x + {{h}})^{{e}} = [{{c}}(x + {{h}})^{{k}}]⁵.",
+              "The index is odd, so the fifth root is {{c}}(x + {{h}})^{{k}}."
+            ],
+            "answerSummary": "{{c}}(x + {{h}})^{{k}}",
+            "commonError": "Adding absolute value bars to an odd root."
+          },
+          "generator": {
+            "parameters": {
+              "c": {
+                "type": "choice",
+                "values": [
+                  2,
+                  3
+                ]
+              },
+              "h": {
+                "type": "int",
+                "min": 1,
+                "max": 9
+              },
+              "k": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              }
+            },
+            "derived": {
+              "c5": "c^5",
+              "e": "5*k"
+            }
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "a2r1-p-5",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Simplify $\\sqrt{ {{R}} }$. First find the largest perfect-square factor of {{R}}.",
+          "directionSteps": [
+            "Find the largest perfect-square factor.",
+            "Write the radical in simplest form."
+          ],
+          "responses": [
+            {
+              "id": "factor",
+              "label": "Largest perfect-square factor of {{R}}",
+              "answer": "{{s2}}",
+              "inputProfile": "number"
+            },
+            {
+              "id": "simplified",
+              "label": "√{{R}} =",
+              "answer": "{{s}}√{{k}}",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Try the perfect squares 4, 9, 16, 25, 36, 49, 64, 81, … from the largest down.",
+            "Write the radicand as a perfect square times what is left, then take the square root of the perfect square."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Which is a perfect square?",
+            "options": [
+              "36",
+              "24"
+            ],
+            "correct": "36"
+          },
+          "solutionReview": {
+            "headline": "Largest perfect-square factor first.",
+            "reasoning": [
+              "{{R}} = {{s2}} · {{k}}, and {{k}} has no perfect-square factor other than 1.",
+              "√{{R}} = {{s}}√{{k}}."
+            ],
+            "answerSummary": "{{s}}√{{k}}",
+            "commonError": "Using a smaller perfect square and stopping, which leaves a perfect-square factor under the radical."
+          },
+          "generator": {
+            "parameters": {
+              "s": {
+                "type": "int",
+                "min": 2,
+                "max": 10
+              },
+              "k": {
+                "type": "choice",
+                "values": [
+                  2,
+                  3,
+                  5,
+                  6,
+                  7,
+                  10,
+                  11
+                ]
+              }
+            },
+            "derived": {
+              "s2": "s*s",
+              "R": "s*s*k"
+            }
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "a2r1-p-6",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Simplify ${{a}}\\sqrt{ {{k}}x }\\cdot {{b}}\\sqrt{ {{v}}x }$. Assume $x$ is positive.",
+          "directionSteps": [
+            "Multiply the coefficients.",
+            "Multiply the radicands.",
+            "Take the square root and write the product."
+          ],
+          "responses": [
+            {
+              "id": "coefficients",
+              "label": "Coefficients: {{a}} · {{b}} =",
+              "answer": "{{ab}}",
+              "inputProfile": "number"
+            },
+            {
+              "id": "radicand",
+              "label": "Radicands: {{k}}x · {{v}}x =",
+              "answer": "{{w}}x^2",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "product",
+              "label": "Product",
+              "answer": "{{r}}x",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "√m · √n = √(mn).",
+            "{{w}} is a perfect square: {{kj}}² = {{w}}."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. √(16x²) equals (x positive)…",
+            "options": [
+              "4x",
+              "16x"
+            ],
+            "correct": "4x"
+          },
+          "solutionReview": {
+            "headline": "Multiply outside and inside, then take the root.",
+            "reasoning": [
+              "{{a}} · {{b}} = {{ab}}, and {{k}}x · {{v}}x = {{w}}x² = ({{kj}}x)².",
+              "So the product is {{ab}} · {{kj}}x = {{r}}x."
+            ],
+            "answerSummary": "{{r}}x",
+            "commonError": "Forgetting the coefficients {{a}} and {{b}} after taking the root."
+          },
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "b": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "k": {
+                "type": "choice",
+                "values": [
+                  2,
+                  3,
+                  5
+                ]
+              },
+              "j": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              }
+            },
+            "derived": {
+              "ab": "a*b",
+              "v": "k*j*j",
+              "w": "k*k*j*j",
+              "kj": "k*j",
+              "r": "a*b*k*j"
+            }
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "a2r1-p-7",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Compare an even and an odd root of a negative number. Simplify $\\sqrt{ -{{p}} }$ and $\\sqrt[3]{ -{{q}} }$.",
+          "directionSteps": [
+            "Decide whether the square root is real and name its square roots.",
+            "Find the cube root."
+          ],
+          "responses": [
+            {
+              "id": "real",
+              "label": "√(−{{p}}) is…",
+              "type": "choice",
+              "options": [
+                "not a real number",
+                "equal to −{{n}}",
+                "equal to {{n}}",
+                "equal to ±{{n}}"
+              ],
+              "answer": "not a real number"
+            },
+            {
+              "id": "rootPlus",
+              "label": "Its two imaginary square roots are",
+              "answer": "{{n}}i",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "rootMinus",
+              "label": "and",
+              "answer": "-{{n}}i",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "cube",
+              "label": "∛(−{{q}}) =",
+              "answer": "{{nm}}",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "No real number squared is negative.",
+            "i² = −1, so a multiple of i can square to a negative number.",
+            "An odd root keeps the sign of its radicand."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. An odd root of a negative number is…",
+            "options": [
+              "negative",
+              "not real"
+            ],
+            "correct": "negative"
+          },
+          "solutionReview": {
+            "headline": "Even root of a negative: not real. Odd root: real and negative.",
+            "reasoning": [
+              "√(−{{p}}) is not real; its square roots are {{n}}i and −{{n}}i.",
+              "∛(−{{q}}) = {{nm}} because ({{nm}})³ = −{{q}}."
+            ],
+            "answerSummary": "{{n}}i, −{{n}}i; {{nm}}",
+            "commonError": "Calling ∛(−{{q}}) not real."
+          },
+          "generator": {
+            "parameters": {
+              "n": {
+                "type": "int",
+                "min": 2,
+                "max": 15
+              },
+              "m": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              }
+            },
+            "derived": {
+              "p": "n*n",
+              "q": "m^3",
+              "nm": "0 - m"
+            }
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "a2r1-p-8",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "How many real roots? For each, give the number of real roots, then the root or roots you found: the fourth roots of −81, the sixth roots of 64, and the fifth roots of −243.",
+          "directionSteps": [
+            "For each one, decide how many real roots there are.",
+            "Then give the real root or roots."
+          ],
+          "responses": [
+            {
+              "id": "count1",
+              "label": "Fourth roots of −81: how many real roots?",
+              "answer": "0",
+              "inputProfile": "number"
+            },
+            {
+              "id": "count2",
+              "label": "Sixth roots of 64: how many real roots?",
+              "answer": "2",
+              "inputProfile": "number"
+            },
+            {
+              "id": "root2",
+              "label": "The negative sixth root of 64",
+              "answer": "-2",
+              "inputProfile": "number"
+            },
+            {
+              "id": "count3",
+              "label": "Fifth roots of −243: how many real roots?",
+              "answer": "1",
+              "inputProfile": "number"
+            },
+            {
+              "id": "root3",
+              "label": "The real fifth root of −243",
+              "answer": "-3",
+              "inputProfile": "number"
+            }
+          ],
+          "hints": [
+            "Even index and a negative radicand: no real roots.",
+            "Which whole number to the sixth power is 64? Its opposite works too, because the power is even.",
+            "An odd index gives one real root with the radicand’s sign."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. How many real sixth roots does a positive number have?",
+            "options": [
+              "two",
+              "one"
+            ],
+            "correct": "two"
+          },
+          "solutionReview": {
+            "headline": "Even/odd index and the sign of the radicand decide the count.",
+            "reasoning": [
+              "−81 with an even index: no real fourth roots.",
+              "64 = 2⁶: two real sixth roots, ±2.",
+              "−243 = (−3)⁵: one real fifth root, −3."
+            ],
+            "answerSummary": "0; 2 (±2); 1 (−3)",
+            "commonError": "Giving −81 the fourth root −3: (−3)⁴ = 81, not −81."
+          }
+        },
+        {
+          "questionId": "a2r1-p-9",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.6B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "GEOMETRY. The radius of a sphere with volume $V$ is $r = \\sqrt[3]{\\dfrac{3V}{4\\pi}}$. A ball has a volume of {{V}} cubic centimeters. Find its radius. Use a calculator.",
+          "calculatorPolicy": "scientific",
+          "directionSteps": [
+            "Find the value under the radical.",
+            "Take its cube root."
+          ],
+          "responses": [
+            {
+              "id": "inside",
+              "label": "3V/(4π) ≈ (nearest tenth)",
+              "answer": "{{inside}}",
+              "inputProfile": "number",
+              "numericTolerance": 0.1
+            },
+            {
+              "id": "radius",
+              "label": "r ≈ (centimeters, nearest tenth)",
+              "answer": "{{r}}",
+              "inputProfile": "number",
+              "numericTolerance": 0.1
+            }
+          ],
+          "hints": [
+            "Multiply 3 by the volume, then divide by 4π.",
+            "Take the cube root: the result raised to the 1/3 power."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. ∛125 equals…",
+            "options": [
+              "5",
+              "25"
+            ],
+            "correct": "5"
+          },
+          "solutionReview": {
+            "headline": "Evaluate inside the radical, then take the cube root.",
+            "reasoning": [
+              "3({{V}})/(4π) ≈ {{inside}}.",
+              "r = ∛{{inside}} ≈ {{r}} cm."
+            ],
+            "answerSummary": "r ≈ {{r}} cm",
+            "commonError": "Taking a square root instead of a cube root."
+          },
+          "generator": {
+            "parameters": {
+              "V": {
+                "type": "int",
+                "min": 100,
+                "max": 3000,
+                "step": 50
+              }
+            },
+            "derived": {
+              "inside": "round(3*V/(4*3.141592653589793)*10)/10",
+              "r": "round(pow(3*V/(4*3.141592653589793), 1/3)*10)/10"
+            }
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "a2r1-p-10",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.6B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "SPACE. The hole a dust particle makes in a solar cell has diameter $d = 0.926\\sqrt[3]{k} - 0.169$ millimeters, where $k$ is the particle's energy in joules. A hole has diameter {{d}} millimeters. Estimate the particle's energy. Use a calculator.",
+          "calculatorPolicy": "scientific",
+          "directionSteps": [
+            "Add 0.169 to each side.",
+            "Divide by 0.926.",
+            "Cube each side."
+          ],
+          "responses": [
+            {
+              "id": "cubeRoot",
+              "label": "∛k ≈ (nearest thousandth)",
+              "answer": "{{cr}}",
+              "inputProfile": "number",
+              "numericTolerance": 0.001
+            },
+            {
+              "id": "energy",
+              "label": "k ≈ (joules, nearest tenth)",
+              "answer": "{{k}}",
+              "inputProfile": "number",
+              "numericTolerance": 0.1
+            }
+          ],
+          "hints": [
+            "Undo the operations in reverse order.",
+            "Cubing undoes a cube root."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The first step to undo is…",
+            "options": [
+              "subtracting 0.169",
+              "the cube root"
+            ],
+            "correct": "subtracting 0.169"
+          },
+          "solutionReview": {
+            "headline": "Undo each step in reverse.",
+            "reasoning": [
+              "{{d}} + 0.169 = 0.926∛k, so ∛k ≈ {{cr}}.",
+              "k ≈ {{cr}}³ ≈ {{k}} joules."
+            ],
+            "answerSummary": "k ≈ {{k}} J",
+            "commonError": "Cubing before dividing by 0.926."
+          },
+          "generator": {
+            "parameters": {
+              "d": {
+                "type": "decimal",
+                "min": 1,
+                "max": 4.5,
+                "places": 1
+              }
+            },
+            "derived": {
+              "cr": "round((d+0.169)/0.926*1000)/1000",
+              "k": "round(pow((d+0.169)/0.926, 3)*10)/10"
+            }
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "a2r1-p-11",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Error analysis. Jamal writes $\\sqrt[4]{x^4} = x$ and Priya writes $\\sqrt[3]{x^3} = |x|$, each for every real number $x$. Test $x = -2$ in both, then explain each mistake.",
+          "directionSteps": [
+            "Test the first statement.",
+            "Test the second statement.",
+            "Explain each mistake."
+          ],
+          "responses": [
+            {
+              "id": "jamalValue",
+              "label": "When x = −2, ⁴√(x⁴) =",
+              "answer": "2",
+              "inputProfile": "number"
+            },
+            {
+              "id": "jamal",
+              "label": "Jamal’s statement is…",
+              "type": "choice",
+              "options": [
+                "wrong: a fourth root is never negative, so ⁴√(x⁴) = |x|",
+                "right for every x",
+                "wrong: ⁴√(x⁴) = x²",
+                "wrong: ⁴√(x⁴) = −x"
+              ],
+              "answer": "wrong: a fourth root is never negative, so ⁴√(x⁴) = |x|"
+            },
+            {
+              "id": "priyaValue",
+              "label": "When x = −2, ∛(x³) =",
+              "answer": "-2",
+              "inputProfile": "number"
+            },
+            {
+              "id": "priya",
+              "label": "Priya’s statement is…",
+              "type": "choice",
+              "options": [
+                "wrong: an odd root keeps the sign, so ∛(x³) = x",
+                "right for every x",
+                "wrong: ∛(x³) = x²",
+                "right, because roots are never negative"
+              ],
+              "answer": "wrong: an odd root keeps the sign, so ∛(x³) = x"
+            }
+          ],
+          "hints": [
+            "Evaluate x⁴ at the test value first, then take the fourth root.",
+            "Evaluate x³ at the test value first, then take the cube root.",
+            "Compare each result with x itself and with |x|."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. ∛(−8) equals…",
+            "options": [
+              "−2",
+              "2"
+            ],
+            "correct": "−2"
+          },
+          "solutionReview": {
+            "headline": "A counterexample decides it.",
+            "reasoning": [
+              "x = −2: ⁴√((−2)⁴) = ⁴√16 = 2, not −2. Even index: ⁴√(x⁴) = |x|.",
+              "x = −2: ∛((−2)³) = ∛(−8) = −2, not 2. Odd index: ∛(x³) = x."
+            ],
+            "answerSummary": "Jamal: |x|; Priya: x",
+            "commonError": "Treating every root the same: bars belong to even indices only."
+          }
+        },
+        {
+          "questionId": "a2r1-p-12",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Honors extension — reasoning about the index. For which positive integers $n > 1$ is $\\sqrt[n]{a^n} = a$ true for every real number $a$? What does $\\sqrt[n]{a^n}$ equal for the other values of $n$? Then find every real $x$ with $\\sqrt{x^2} = -x$, and simplify $\\sqrt[6]{x^{18}}$ and $\\sqrt[6]{x^{12}}$.",
+          "directionSteps": [
+            "Decide which indices keep every real number unchanged.",
+            "Say what the other indices give.",
+            "Find every real x that solves the equation.",
+            "Simplify the two sixth roots."
+          ],
+          "responses": [
+            {
+              "id": "which",
+              "label": "ⁿ√(aⁿ) = a for every real a when n is…",
+              "type": "choice",
+              "options": [
+                "odd",
+                "even",
+                "any integer greater than 1",
+                "never"
+              ],
+              "answer": "odd"
+            },
+            {
+              "id": "even",
+              "label": "For the other values of n, ⁿ√(aⁿ) =",
+              "type": "choice",
+              "options": [
+                "a",
+                "−a",
+                "|a|",
+                "aⁿ"
+              ],
+              "answer": "|a|"
+            },
+            {
+              "id": "solve",
+              "label": "√(x²) = −x exactly when…",
+              "type": "choice",
+              "options": [
+                "x ≤ 0",
+                "x ≥ 0",
+                "x = 0 only",
+                "never"
+              ],
+              "answer": "x ≤ 0"
+            },
+            {
+              "id": "eighteen",
+              "label": "⁶√(x¹⁸) =",
+              "answer": "|x^3|",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "twelve",
+              "label": "⁶√(x¹²) =",
+              "answer": "x^2",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Try a = −2 with n = 2 and with n = 3.",
+            "√(x²) = |x|. When is |x| = −x?",
+            "x¹⁸ = (x³)⁶ and x¹² = (x²)⁶. Can x³ be negative? Can x²?"
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. |x| = −x when x is…",
+            "options": [
+              "zero or negative",
+              "positive"
+            ],
+            "correct": "zero or negative"
+          },
+          "solutionReview": {
+            "headline": "Odd index keeps the sign; even index gives the absolute value.",
+            "reasoning": [
+              "For odd n, ⁿ√(aⁿ) = a; for even n, ⁿ√(aⁿ) = |a| (try a = −2: √4 = 2 ≠ −2).",
+              "√(x²) = |x|, and |x| = −x exactly when x ≤ 0.",
+              "⁶√(x¹⁸) = |x³| because x³ can be negative; ⁶√(x¹²) = x² because x² never is."
+            ],
+            "answerSummary": "odd; |a|; x ≤ 0; |x³|; x²",
+            "commonError": "Writing ⁶√(x¹⁸) = x³: an even root is never negative, but x³ is negative when x is."
+          }
+        },
+        {
+          "questionId": "a2r1-p-13",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.6B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Honors extension — model with a table. A pendulum of length $L$ feet swings back and forth in $T = 2\\pi\\sqrt{\\dfrac{L}{32}}$ seconds. Complete the table, then use it to describe how the period changes as the length grows, and explain why.",
+          "calculatorPolicy": "scientific",
+          "table": {
+            "columns": [
+              {
+                "key": "L",
+                "label": "Length L (feet)"
+              },
+              {
+                "key": "T",
+                "label": "Period T (seconds)"
+              }
+            ],
+            "rows": [
+              {
+                "L": "2",
+                "T": "?"
+              },
+              {
+                "L": "8",
+                "T": "?"
+              },
+              {
+                "L": "18",
+                "T": "?"
+              },
+              {
+                "L": "32",
+                "T": "?"
+              }
+            ]
+          },
+          "directionSteps": [
+            "Find the period for each length in the table.",
+            "Describe how the period changes as the length grows.",
+            "Explain why with the formula."
+          ],
+          "responses": [
+            {
+              "id": "t2",
+              "label": "T for L = 2 (nearest hundredth)",
+              "answer": "1.57",
+              "inputProfile": "number"
+            },
+            {
+              "id": "t8",
+              "label": "T for L = 8 (nearest hundredth)",
+              "answer": "3.14",
+              "inputProfile": "number"
+            },
+            {
+              "id": "t18",
+              "label": "T for L = 18 (nearest hundredth)",
+              "answer": "4.71",
+              "inputProfile": "number"
+            },
+            {
+              "id": "t32",
+              "label": "T for L = 32 (nearest hundredth)",
+              "answer": "6.28",
+              "inputProfile": "number"
+            },
+            {
+              "id": "factor",
+              "label": "When the length is multiplied by 4, the period is multiplied by",
+              "answer": "2",
+              "inputProfile": "number"
+            },
+            {
+              "id": "doubleLength",
+              "label": "To double the period, multiply the length by",
+              "answer": "4",
+              "inputProfile": "number"
+            },
+            {
+              "id": "newPeriod",
+              "label": "A pendulum of length L has period T. Written in terms of T, the period of a pendulum of length 4L is",
+              "answer": "2T",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "why",
+              "label": "Why?",
+              "type": "choice",
+              "options": [
+                "T depends on √L, and √(4L) = 2√L",
+                "T is proportional to L",
+                "Multiplying L by 4 adds 2 to T",
+                "The period does not depend on the length"
+              ],
+              "answer": "T depends on √L, and √(4L) = 2√L"
+            }
+          ],
+          "hints": [
+            "√(2/32) = 1/4, √(8/32) = 1/2, √(18/32) = 3/4 and √(32/32) = 1.",
+            "Compare rows where the length is multiplied by the same factor.",
+            "Use the Product Property on the square root of a product."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. √4 · √L equals…",
+            "options": [
+              "2√L",
+              "4√L"
+            ],
+            "correct": "2√L"
+          },
+          "solutionReview": {
+            "headline": "The period grows like the square root of the length.",
+            "reasoning": [
+              "T(2) = 2π · ¼ ≈ 1.57, T(8) = 2π · ½ ≈ 3.14, T(18) = 2π · ¾ ≈ 4.71, T(32) = 2π ≈ 6.28.",
+              "From 2 to 8 feet and from 8 to 32 feet the length is multiplied by 4 and the period doubles.",
+              "T is 2π/√32 times √L, and √(4L) = 2√L, so quadrupling L doubles T."
+            ],
+            "answerSummary": "1.57, 3.14, 4.71, 6.28; ×2; ×4",
+            "commonError": "Assuming the period doubles when the length doubles: doubling L multiplies T by √2 ≈ 1.41."
+          }
+        },
+        {
+          "questionId": "a2r1-p-14",
+          "familyId": "mathmaster:sat:A2.7G:variable-radical-square-factor",
+          "familyVersion": 2,
+          "standard": "A2.7G",
+          "prompt": "For $x>0$, which expression is equivalent to $\\sqrt{{{radCoef}}x^2}$?",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "calculatorPolicy": "graphing",
+          "assessedConstruct": "A2.7G",
+          "taskType": "structuralRewrite",
+          "representation": "symbolic",
+          "generator": {
+            "parameters": {
+              "k": {
+                "type": "int",
+                "min": 2,
+                "max": 8
+              },
+              "m": {
+                "type": "int",
+                "min": 2,
+                "max": 10
+              }
+            },
+            "derived": {
+              "radCoef": "k*k*m",
+              "k2": "k*k"
+            },
+            "constraints": [
+              "m!=4",
+              "m!=9",
+              "k2!=0",
+              "k2!=1",
+              "k2!=-1",
+              "radCoef!=0",
+              "radCoef!=1",
+              "radCoef!=-1"
+            ]
+          },
+          "answerFields": [
+            {
+              "id": "answer",
+              "label": "Choose the correct answer",
+              "type": "choice",
+              "inputProfile": "choice",
+              "options": [
+                "${{k}}x\\sqrt{{{m}}}$",
+                "${{k2}}x\\sqrt{{{m}}}$",
+                "${{k}}x^2\\sqrt{{{m}}}$",
+                "$x\\sqrt{{{radCoef}}}$"
+              ],
+              "answer": "${{k}}x\\sqrt{{{m}}}$"
+            }
+          ],
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary",
+              "evidenceLevel": "assessed"
+            },
+            {
+              "framework": "digitalSAT",
+              "domainId": "advancedMath",
+              "role": "primary",
+              "evidenceMode": "direct"
+            }
+          ],
+          "assessmentContext": {
+            "framework": "digitalSAT",
+            "examStyle": true,
+            "domainId": "advancedMath"
+          },
+          "assessmentItemFormat": "multipleChoice",
+          "ccmrChallengeTier": 1,
+          "ccmrFamilyRole": "direct",
+          "ccmrAuthenticLanguage": {
+            "version": "2.1",
+            "authored": true,
+            "officialSkillFamily": "equivalent expressions",
+            "stemProfile": "variable-radical-square-factor"
+          },
+          "solutionReview": {
+            "headline": "Take the square factors out of the root: {{k}}x√({{m}}).",
+            "reasoning": [
+              "{{radCoef}}x^2={{k2}}· {{m}}· x^2, and {{k2}}x^2=({{k}}x)^2.",
+              "For x>0: √({{radCoef}}x^2)=√(({{k}}x)^2)·√({{m}})={{k}}x√({{m}})."
+            ],
+            "commonError": "Putting {{k2}} outside the root instead of its square root {{k}}, or leaving x^2 outside.",
+            "answerSummary": "{{k}}x√({{m}})"
+          },
+          "attemptFeedback": [
+            "Use the algebraic structure of the expression and preserve equivalence."
+          ],
+          "supportHints": [
+            "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
+          ],
+          "ccmrSource": {
+            "source": "auditedBank",
+            "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+            "framework": "digitalSAT",
+            "domainId": "advancedMath",
+            "documentId": "mm_sat_A2_7G_1_variable-radical-square-factor_v21",
+            "familyId": "mathmaster:sat:A2.7G:variable-radical-square-factor",
+            "familyVersion": 2
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. √(9x²) equals, for x > 0…",
+            "options": [
+              "3x",
+              "9x"
+            ],
+            "correct": "3x"
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "a2r1-p-15",
+          "familyId": "mathmaster:sat:A2.7G:radical-product-variable",
+          "familyVersion": 2,
+          "standard": "A2.7G",
+          "prompt": "For $x\\ge0$, what is the value of $\\sqrt{{{a2}}x}\\cdot\\sqrt{x}$ when $x={{xval}}$?",
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "calculatorPolicy": "graphing",
+          "assessedConstruct": "A2.7G",
+          "taskType": "evaluateEquivalentForm",
+          "representation": "symbolic",
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 8
+              },
+              "xval": {
+                "type": "int",
+                "min": 2,
+                "max": 12
+              }
+            },
+            "derived": {
+              "a2": "a*a",
+              "answer": "a*xval"
+            },
+            "constraints": [
+              "a2!=0",
+              "a2!=1",
+              "a2!=-1"
+            ]
+          },
+          "answerFields": [
+            {
+              "id": "answer",
+              "label": "Answer",
+              "inputProfile": "number",
+              "answer": "{{answer}}",
+              "numberRules": "digitalSAT"
+            }
+          ],
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary",
+              "evidenceLevel": "assessed"
+            },
+            {
+              "framework": "digitalSAT",
+              "domainId": "advancedMath",
+              "role": "primary",
+              "evidenceMode": "direct"
+            }
+          ],
+          "assessmentContext": {
+            "framework": "digitalSAT",
+            "examStyle": true,
+            "domainId": "advancedMath"
+          },
+          "assessmentItemFormat": "studentProducedResponse",
+          "ccmrChallengeTier": 1,
+          "ccmrFamilyRole": "direct",
+          "ccmrAuthenticLanguage": {
+            "version": "2.1",
+            "authored": true,
+            "officialSkillFamily": "equivalent expressions",
+            "stemProfile": "radical-product-variable"
+          },
+          "solutionReview": {
+            "headline": "Combine the roots, simplify, then substitute: {{answer}}.",
+            "reasoning": [
+              "For x ≥ 0: √({{a2}}x)·√(x)=√({{a2}}x^2)={{a}}x.",
+              "At x={{xval}}: {{a}}· {{xval}}={{answer}}."
+            ],
+            "commonError": "Multiplying {{a2}} by {{xval}} without taking the square root.",
+            "answerSummary": "{{answer}}"
+          },
+          "attemptFeedback": [
+            "Use the algebraic structure of the expression and preserve equivalence."
+          ],
+          "supportHints": [
+            "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
+          ],
+          "ccmrSource": {
+            "source": "auditedBank",
+            "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+            "framework": "digitalSAT",
+            "domainId": "advancedMath",
+            "documentId": "mm_sat_A2_7G_3_radical-product-variable_v21",
+            "familyId": "mathmaster:sat:A2.7G:radical-product-variable",
+            "familyVersion": 2
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. √(4x) · √x equals, for x ≥ 0…",
+            "options": [
+              "√(4x²)",
+              "√(4x) + √x"
+            ],
+            "correct": "√(4x²)"
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        }
+      ]
+    },
+    {
+      "id": "dol",
+      "role": "dol",
+      "title": "Exit Ticket (DOL) — nth Roots",
+      "recommendedMinutes": 10,
+      "questions": [
+        {
+          "questionId": "a2r1-dol-1",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Simplify $\\sqrt[{{n}}]{ {{dn}}x^{ {{e1}} }y^{ {{e2}} } }$. The variables $x$ and $y$ can be any real numbers, so use absolute value bars where they are needed.",
+          "directionSteps": [
+            "Write the radicand as a power whose exponent is the index.",
+            "Take the principal root.",
+            "Put bars only around a factor that can be negative."
+          ],
+          "responses": [
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "{{d}}|x{{m|pow}}|y^{{k}}",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "solutionReview": {
+            "headline": "An even index: bars around any factor that can be negative.",
+            "reasoning": [
+              "{{dn}}x^{{e1}}y^{{e2}} = ({{d}}x^{{m}}y^{{k}})^{{n}}.",
+              "The index {{n}} is even, so the root is |{{d}}x^{{m}}y^{{k}}| = {{d}}|x^{{m}}|y^{{k}}."
+            ],
+            "answerSummary": "{{d}}|x^{{m}}|y^{{k}}",
+            "commonError": "Leaving off the bars around x^{{m}}: it is negative when x is."
+          },
+          "generator": {
+            "parameters": {
+              "n": {
+                "type": "choice",
+                "values": [
+                  4,
+                  6
+                ]
+              },
+              "d": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              },
+              "m": {
+                "type": "choice",
+                "values": [
+                  1,
+                  3,
+                  5
+                ]
+              },
+              "k": {
+                "type": "choice",
+                "values": [
+                  2,
+                  4
+                ]
+              }
+            },
+            "derived": {
+              "dn": "pow(d, n)",
+              "e1": "n*m",
+              "e2": "n*k"
+            }
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "a2r1-dol-2",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Simplify $\\sqrt[{{n}}]{ -{{cn}}a^{ {{e1}} }b^{ {{e2}} } }$.",
+          "directionSteps": [
+            "Write the radicand as a power whose exponent is the index.",
+            "Take the root and keep its sign."
+          ],
+          "responses": [
+            {
+              "id": "simplified",
+              "label": "Simplified",
+              "answer": "-{{c}}a{{m|pow}}b{{k|pow}}",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "solutionReview": {
+            "headline": "An odd index keeps the sign.",
+            "reasoning": [
+              "−{{cn}}a^{{e1}}b^{{e2}} = (−{{c}}a^{{m}}b^{{k}})^{{n}}.",
+              "The index {{n}} is odd, so the root is −{{c}}a^{{m}}b^{{k}}."
+            ],
+            "answerSummary": "−{{c}}a^{{m}}b^{{k}}",
+            "commonError": "Calling an odd root of a negative number not real."
+          },
+          "generator": {
+            "parameters": {
+              "n": {
+                "type": "choice",
+                "values": [
+                  3,
+                  5
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              },
+              "m": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              },
+              "k": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              }
+            },
+            "derived": {
+              "cn": "pow(c, n)",
+              "e1": "n*m",
+              "e2": "n*k"
+            },
+            "constraints": [
+              "m != k"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "a2r1-dol-3",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A2.6B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "A pendulum of length $L$ feet swings back and forth in $T = 2\\pi\\sqrt{\\dfrac{L}{32}}$ seconds. Find the period of a pendulum {{L}} feet long. Use a calculator.",
+          "calculatorPolicy": "scientific",
+          "directionSteps": [
+            "Substitute the pendulum’s length into the formula.",
+            "Evaluate the square root with a calculator.",
+            "Multiply that result by the number in front of the square root."
+          ],
+          "responses": [
+            {
+              "id": "root",
+              "label": "√(L/32) ≈ (nearest thousandth)",
+              "answer": "{{root}}",
+              "inputProfile": "number",
+              "numericTolerance": 0.001
+            },
+            {
+              "id": "period",
+              "label": "T ≈ (seconds, nearest hundredth)",
+              "answer": "{{T}}",
+              "inputProfile": "number",
+              "numericTolerance": 0.01
+            }
+          ],
+          "solutionReview": {
+            "headline": "Evaluate the radical, then multiply.",
+            "reasoning": [
+              "√({{L}}/32) ≈ {{root}}.",
+              "T = 2π · {{root}} ≈ {{T}} seconds."
+            ],
+            "answerSummary": "T ≈ {{T}} s",
+            "commonError": "Taking the square root of L before dividing by 32."
+          },
+          "generator": {
+            "parameters": {
+              "L": {
+                "type": "int",
+                "min": 3,
+                "max": 60
+              }
+            },
+            "derived": {
+              "root": "round(sqrt(L/32)*1000)/1000",
+              "T": "round(2*3.141592653589793*sqrt(L/32)*100)/100"
+            },
+            "constraints": [
+              "L != 8",
+              "L != 18",
+              "L != 32",
+              "L != 50"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        }
+      ]
+    }
+  ]
+}
