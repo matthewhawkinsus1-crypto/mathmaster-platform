@@ -5,7 +5,9 @@ name: Student Runtime Browser Gates
 #
 #   mathEntryContract   types on a real keyboard into MathInput and the
 #                       calculator and checks the structure MathLive built
-#                       (src/platform/math/typedFractionEntry.js, PQ-040)
+#                       (src/platform/math/typedFractionEntry.js, PQ-040;
+#                       typedRootEntry.js, F-RADICAL-TYPING), and grades
+#                       typed radicals on the radicals lessons' own keys
 #   renderStability     mounts QuestionEngine the ways its hosts do and counts
 #                       React commits while nothing happens: a render loop
 #                       ("Maximum update depth exceeded") is hundreds of them;

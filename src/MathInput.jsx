@@ -21,6 +21,7 @@ import {
   typedFractionKeyStep,
   typedFractionValueStep,
 } from './platform/math/typedFractionEntry.js';
+import { climbToDepth, typedRootCommandStep, typedRootKeyStep } from './platform/math/typedRootEntry.js';
 import { mathFieldAccessibleDescription, useMathFieldDescription } from './platform/math/mathFieldDescription.js';
 
 // π, e and logₐ are `constant` keys: inside a question they show only where
@@ -298,6 +299,9 @@ export default function MathInput({
   // A space typed after a whole number, waiting to see whether a mixed number
   // follows (GR33, typedFractionEntry.js mixedNumberKeyStep).
   const mixedNumberRef = useRef(null);
+  // A root the student opened by typing `sqrt` or `cbrt`, and its bracket
+  // (typedRootEntry.js, F-RADICAL-TYPING).
+  const typedRootRef = useRef(null);
   const emit = useCallback((next) => {
     echoGuardRef.current.emitted(next);
     reportedRef.current = next;
@@ -507,6 +511,10 @@ export default function MathInput({
       stabilizeMobileViewport();
     };
 
+    // How many fractions, powers, roots or brackets the caret is inside (0 at
+    // the top level), for the typed-root rule.
+    const caretDepth = () => mathField.getElementInfo?.(mathField.position)?.depth;
+
     // Climb out of every open fraction, power or root. Stops when the cursor
     // stops moving, which is how a top-level position announces itself.
     const leaveAllGroups = () => {
@@ -542,6 +550,18 @@ export default function MathInput({
       const fractionStep = typedFractionKeyStep(typedFractionRef.current, event, mathField.value);
       typedFractionRef.current = fractionStep.state;
       if (fractionStep.leaveFraction) mathField.executeCommand('moveAfterParent');
+      // A typed `sqrt(` … `)` is a root that ends at its bracket, and a space
+      // straight after `sqrt` keeps the root open: y^4sqrt(x)/x^4 is
+      // (y⁴√(x))/x⁴, x^3 sqrt x is x³√x (F-RADICAL-TYPING). Read after the
+      // fraction step, which may already have moved the caret.
+      const rootStep = typedRootKeyStep(typedRootRef.current, event, { value: mathField.value, depth: caretDepth() });
+      typedRootRef.current = rootStep.state;
+      if (rootStep.climbTo !== null) climbToDepth(mathField, rootStep.climbTo);
+      if (rootStep.swallow) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       if (event.key === 'Enter' && onSubmit && !event.isComposing && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
         event.preventDefault();
         event.stopPropagation();
@@ -595,6 +615,7 @@ export default function MathInput({
     const forgetTypedFraction = () => {
       typedFractionRef.current = null;
       mixedNumberRef.current = null;
+      typedRootRef.current = null;
     };
     const handleFocus = () => {
       forgetTypedFraction();
@@ -625,6 +646,7 @@ export default function MathInput({
       // Written from outside: whatever the student was typing into is gone.
       typedFractionRef.current = null;
       mixedNumberRef.current = null;
+      typedRootRef.current = null;
       // And so is the field's own undo history. MathLive keeps one per field,
       // and after a platform Undo cleared "[-3,5)" a Ctrl+Z in the field put
       // it straight back (tests/browser/undoTyping.mjs). The field's history
@@ -706,6 +728,7 @@ export default function MathInput({
     if (action) {
       typedFractionRef.current = null;
       mixedNumberRef.current = null;
+      typedRootRef.current = null;
       mathField.executeCommand?.(action);
       emit(mathField.value);
       stabilizeMobileViewport();
@@ -717,6 +740,15 @@ export default function MathInput({
     typedFractionRef.current = fractionStep.state;
     mixedNumberRef.current = null;
     if (fractionStep.leaveFraction) mathField.executeCommand?.('moveAfterParent');
+    // The same for a typed root: a keypad `)` closes it like the key, and
+    // after its `)` a keypad key goes after the root (x² squares the root).
+    const rootStep = typedRootCommandStep(typedRootRef.current, command, {
+      value: mathField.value,
+      depth: mathField.getElementInfo?.(mathField.position)?.depth,
+    });
+    typedRootRef.current = rootStep.state;
+    if (rootStep.climbTo !== null) climbToDepth(mathField, rootStep.climbTo);
+    if (rootStep.swallow) return;
     mathField.insert(command, {
       insertionMode: 'replaceSelection',
       selectionMode: /#0|#\?/.test(command) ? 'placeholder' : 'after',

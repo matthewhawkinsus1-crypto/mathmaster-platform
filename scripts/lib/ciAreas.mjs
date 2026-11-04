@@ -222,6 +222,10 @@ export const CI_AREAS = {
     'src/**',
     'functions/shared/**',
     'tests/browser/mathEntryContract*',
+    // mathEntryContract grades typed radicals on these lessons' own keys,
+    // compiled by the teacher import (which reads only src/).
+    'teacher-import-jsons/algebra2-honors-radicals/**',
+    'scripts/check-teacher-import.mjs',
     'tests/browser/renderStability*',
     'tests/browser/errorRecovery*',
     'tests/browser/duplicateTabs.mjs',
