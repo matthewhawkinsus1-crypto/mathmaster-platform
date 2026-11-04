@@ -38,7 +38,7 @@ import { READ_ONLY_WORK_AREA_LABEL, READ_ONLY_WORK_AREA_SELECTOR, bindReadOnlyWo
 import { GRAPH_READ_OUT_SUPPORT_ID, GraphReadOutProvider, graphReadOutEntitled } from './platform/supports/graphReadOut.js';
 import { questionModuleFailureKey } from './platform/runtime/questionModuleFailureKey.js';
 import { practiceLikeThisOffered } from './platform/supports/workedExample/practiceLikeThis.js';
-import { buildPartReviewRows, closedQuestionHasReview } from './platform/supports/review/closedQuestionReview.js';
+import { buildPartReviewRows, closedQuestionHasReview, responseIsProse } from './platform/supports/review/closedQuestionReview.js';
 import { closedAttemptText, feedbackOpenForItem, hintOfferedAfterMiss, missFeedback } from './platform/supports/feedback/attemptFeedbackPlan.js';
 import { attemptSupportUsageFrom, rememberSupportUse, restoredSupportUse } from './platform/supports/supportUseMemory.js';
 import { diagnoseMiss, displayFamilyValues } from './platform/supports/feedback/missDiagnosis.js';
@@ -2719,7 +2719,7 @@ function QuestionEngineBody({
   const closedYourAnswer = isExpired && gradedForDisplay && gradedForDisplay.feedback === feedback
     ? (gradedForDisplay.grading?.parts || [])
       .filter((part) => typeof part?.response === 'string' && part.response.trim())
-      .map((part, index) => ({ key: String(part.id ?? part.label ?? index), label: String(part.label || ''), response: readableStoredResponseLatex(part.response, processedQuestion), isCorrect: part.graded !== false && typeof part.isCorrect === 'boolean' ? part.isCorrect : null }))
+      .map((part, index) => ({ key: String(part.id ?? part.label ?? index), label: String(part.label || ''), response: readableStoredResponseLatex(part.response, processedQuestion), isText: responseIsProse(part.response, (processedQuestion?.answerFields || []).find((field) => String(field?.id) === String(part.id))), isCorrect: part.graded !== false && typeof part.isCorrect === 'boolean' ? part.isCorrect : null }))
     : [];
   // HELP-18. Before the single try of a choice-only item, say so (and that a
   // hint is there — the hint control's own release rule decides that); after
@@ -3066,7 +3066,7 @@ function QuestionEngineBody({
               {closedYourAnswer.map((part) => (
                 <span key={part.key} style={{ display: 'inline-flex', alignItems: 'baseline', gap: '6px' }}>
                   {closedYourAnswer.length > 1 && part.label ? <span style={{ color: 'var(--mm-text-muted)', fontWeight: 700 }}>{part.label}</span> : null}
-                  <MathDisplay value={part.response} format="latex" />
+                  {part.isText ? <MathText>{part.response}</MathText> : <MathDisplay value={part.response} format="latex" />}
                   {part.isCorrect === true ? <span role="img" aria-label="correct" style={{ color: 'var(--mm-success-text)', fontWeight: 900 }}>✓</span> : part.isCorrect === false ? <span role="img" aria-label="not correct" style={{ color: 'var(--mm-error-text)', fontWeight: 900 }}>✗</span> : null}
                 </span>
               ))}

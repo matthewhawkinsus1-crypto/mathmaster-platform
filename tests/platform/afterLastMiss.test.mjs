@@ -318,6 +318,42 @@ test('HELP-11: rendered, the wrong part comes first and says what the student wr
   assert.match(html, /aria-label="Read the worked solution aloud"/);
 });
 
+test('a choice part\'s sentence is read as text, and a math answer stays typeset', async () => {
+  const SolutionReviewPanel = (await vite.ssrLoadModule('/src/SolutionReviewPanel.jsx')).default;
+  const SENTENCE = 'He changed the sign of the 3';
+  const question = {
+    type: 'multiAnswer',
+    prompt: 'Solve, then say what went wrong.',
+    answerFields: [
+      { id: 'x', label: 'Solution', answer: '-3' },
+      { id: 'why', label: 'What went wrong', type: 'choice', options: [SENTENCE, 'He divided by 2'], answer: SENTENCE },
+      { id: 'note', label: 'Reason', answer: 'The sign flips when you subtract' },
+    ],
+    solutionReview: { headline: 'Check each step.', reasoning: ['Subtract 3 from both sides.'] },
+  };
+  const html = renderToStaticMarkup(React.createElement(SolutionReviewPanel, {
+    question,
+    yourParts: [
+      { key: 'x', response: '2x+3', isCorrect: false },
+      { key: 'why', response: 'He divided by 2', isCorrect: false },
+      { key: 'note', response: 'The sign flips when you add', isCorrect: false },
+    ],
+  }));
+  const rowOf = (id) => {
+    const at = html.indexOf(`>${id}<`);
+    assert.ok(at > -1, `row ${id}`);
+    return html.slice(at, html.indexOf('Correct: ', at));
+  };
+  // The choice is plain text with its spaces, not letters in math italics.
+  assert.match(rowOf('What went wrong'), /You wrote: <\/span><span[^>]*>He divided by 2<\/span>/);
+  assert.doesNotMatch(rowOf('What went wrong'), /math-span/);
+  // A sentence in a part with no declared type is told by its words.
+  assert.match(rowOf('Reason'), /The sign flips when you add/);
+  assert.doesNotMatch(rowOf('Reason'), /math-span/);
+  // A math answer is still typeset.
+  assert.match(rowOf('Solution'), /math-span/);
+});
+
 test('HELP-11: Pre-Flight warns — never blocks — on answer-only worked solutions and a missing common error', async () => {
   const answerOnly = { type: 'multiAnswer', prompt: 'Find m.', answerFields: [{ id: 'm', label: 'Slope', answer: '3' }, { id: 'b', label: 'b', answer: '1' }] };
   const withSteps = { ...answerOnly, solutionReview: { reasoning: ['Rise over run is 3.'], commonError: 'Run over rise gives 1/3.' } };
