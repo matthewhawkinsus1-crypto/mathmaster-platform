@@ -59,6 +59,7 @@ A class gets these changes only when its teacher imports the file again. An assi
 
 - **Lesson 4:** Activity 4.2's y > 4x − 6 (CW 6) now comes right after CW 1. Before, the first graph a student built was Kai's word problem (CW 2), and the first graph with no story came sixth.
 - **Lesson 5:** Classwork has 17 questions. The plain system (y > x − 2 and y ≤ −x + 4) is new and comes first, and Noah's four questions now follow Activity 5.2's system. Before, the first system a student built was Noah's, a word problem in standard form, and the plain case first appeared as item 14 of 16. The first hint on Noah's graph now asks for the intercepts instead of listing all four.
+- **Lesson 4:** an empty box that asks for the inequality a graph shows (or a description of one) now shows the example y ≥ 3x + 5, one inequality in x and y that is no question's answer. It used to show 0 ≤ x ≤ 4, a compound inequality in one variable.
 - Question ids keep their numbers, so they no longer follow the order: Lesson 4's second Classwork question is `m3t2l4-cw-6`, and Lesson 5's first is the new `m3t2l5-cw-17` (`m3t2l5h-cw-17` in Honors).
 
 ## Changing a lesson

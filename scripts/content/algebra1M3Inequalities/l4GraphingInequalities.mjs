@@ -27,6 +27,17 @@ import { A2H, A3D, computedChoice, inequalityBuild, tex } from './shared.mjs';
 
 const FOLDER = 'Algebra I/Module 3/Topic 2/Lesson 4';
 
+/*
+ * The example in an empty box that asks for the inequality a graph (or a
+ * description of one) shows. The platform's example for any inequality box is
+ * "0 ≤ x ≤ 4", a compound inequality in one variable, not one inequality in x
+ * and y (F-GRAPH-IN-WORDS, docs/qa/2026-11-03-pr537-walkthrough/findings.md).
+ * This one is no item's answer in any version, nor a graph a student builds in
+ * this lesson (algebra1Module3InequalityLessons.test.mjs).
+ */
+const GRAPH_INEQUALITY_EXAMPLE = 'y ≥ 3x + 5';
+const graphInequality = (id, label, answer) => inequality(id, label, answer, { placeholder: GRAPH_INEQUALITY_EXAMPLE });
+
 /* ----------------------------------------------------------- Warm-Up */
 
 const numberLineWarmup = (id) => ({
@@ -335,10 +346,10 @@ const classwork = (P) => [
     prompt: 'Four graphs share one boundary line, y = (1/2)x − 3, through (0, −3) and (6, 0). Graph a: dashed line, the half-plane above it shaded. Graph b: solid line, the half-plane below it shaded. Graph c: dashed line, the half-plane below it shaded. Write the inequality graphs a, b and c show, and the fourth inequality with this boundary, which none of them shows.',
     directionSteps: ['Use solid or dashed to narrow the symbol.', 'Use the shaded side to finish each inequality.', 'Write the fourth inequality with this boundary.'],
     responses: [
-      inequality('a', 'Graph a', 'y > 1/2x - 3'),
-      inequality('b', 'Graph b', 'y <= 1/2x - 3'),
-      inequality('c', 'Graph c', 'y < 1/2x - 3'),
-      inequality('d', 'The inequality no graph shows (you graph it next)', 'y >= 1/2x - 3'),
+      graphInequality('a', 'Graph a', 'y > 1/2x - 3'),
+      graphInequality('b', 'Graph b', 'y <= 1/2x - 3'),
+      graphInequality('c', 'Graph c', 'y < 1/2x - 3'),
+      graphInequality('d', 'The inequality no graph shows (you graph it next)', 'y >= 1/2x - 3'),
     ],
     hints: ['Dashed goes with < or >; solid with ≤ or ≥.', 'Solved for y, > and ≥ shade above; < and ≤ shade below.'],
     scaffold: backUp('Solved for y, y < mx + b shades…', ['below the line', 'above the line'], 'below the line'),
@@ -434,7 +445,7 @@ const classwork = (P) => [
       number('slope', 'Slope of the boundary line', '-3/2'),
       number('intercept', 'y-intercept', '-5'),
       choice('symbol', 'Solid line, shaded above: the symbol is', ['≥', '>', '≤', '<'], '≥'),
-      inequality('inequality', 'The inequality', 'y >= -3/2x - 5'),
+      graphInequality('inequality', 'The inequality', 'y >= -3/2x - 5'),
       choice('check', 'Test (0, 0): 0 ≥ −(3/2)(0) − 5 is…', ['true, and (0, 0) is in the shaded half-plane', 'false, so (0, 0) is not shaded', 'true, so the line is dashed', 'impossible to test'], 'true, and (0, 0) is in the shaded half-plane'),
     ],
     hints: ['Slope = change in y ÷ change in x between the two points.', 'The point with x = 0 gives the y-intercept.', 'Solid means the boundary is included; above means y is greater.'],
@@ -456,9 +467,9 @@ const classwork = (P) => [
     prompt: 'Write a linear inequality for graphs a, b and c. Graph a: a DASHED boundary line through (0, 2) and (1, 6); the shaded half-plane contains (0, 0). Graph b: a SOLID boundary line through (0, −3) and (6, 0); the half-plane above it is shaded. Graph c: a DASHED boundary line through (0, −2) and (4, 1); the half-plane below it is shaded.',
     directionSteps: ['Find each boundary line’s slope and y-intercept.', 'Choose each symbol from the line style and the shaded side.', 'Write each inequality.'],
     responses: [
-      inequality('a', 'Graph a', 'y < 4x + 2'),
-      inequality('b', 'Graph b', 'y >= 1/2x - 3'),
-      inequality('c', 'Graph c', 'y < 3/4x - 2'),
+      graphInequality('a', 'Graph a', 'y < 4x + 2'),
+      graphInequality('b', 'Graph b', 'y >= 1/2x - 3'),
+      graphInequality('c', 'Graph c', 'y < 3/4x - 2'),
     ],
     hints: ['Find each slope from the two points, and read the y-intercept at x = 0.', 'Dashed: < or >. Solid: ≤ or ≥.', 'For graph a, test (0, 0): which symbol makes 0 ? 4(0) + 2 true?'],
     scaffold: backUp('A dashed boundary uses…', ['< or >', '≤ or ≥'], '< or >'),
@@ -558,9 +569,9 @@ const classwork = (P) => [
       choice('lt12', 'x + y < 12', ['dashed line, shade below (test (0, 0): 0 < 12 is true)', 'solid line, shade below', 'dashed line, shade above', 'solid line, shade above'], 'dashed line, shade below (test (0, 0): 0 < 12 is true)'),
       choice('le12', 'x + y ≤ 12', ['solid line, shade below', 'dashed line, shade below', 'solid line, shade above', 'dashed line, shade above'], 'solid line, shade below'),
       choice('gt12', 'x + y > 12', ['dashed line, shade above (test (0, 0): 0 > 12 is false)', 'solid line, shade above', 'dashed line, shade below', 'solid line, shade below'], 'dashed line, shade above (test (0, 0): 0 > 12 is false)'),
-      inequality('ge0', 'The line x + y = 0 and the half-plane above it', 'x + y >= 0'),
-      inequality('lt0', 'The half-plane below the line x + y = 0, without the line', 'x + y < 0'),
-      inequality('le0', 'The line x + y = 0 and the half-plane below it', 'x + y <= 0'),
+      graphInequality('ge0', 'The line x + y = 0 and the half-plane above it', 'x + y >= 0'),
+      graphInequality('lt0', 'The half-plane below the line x + y = 0, without the line', 'x + y < 0'),
+      graphInequality('le0', 'The line x + y = 0 and the half-plane below it', 'x + y <= 0'),
     ],
     hints: ['The symbol decides solid or dashed.', 'The second line passes through the origin, so test a different point, such as (1, 1).', 'Solved for y, > and ≥ are above; < and ≤ are below.'],
     scaffold: backUp('x + y = 0 passes through (0, 0), so to test a side use…', ['another point, such as (1, 1)', '(0, 0)'], 'another point, such as (1, 1)'),
@@ -682,7 +693,7 @@ const practiceRegular = (P) => [
     difficultyBand: 2,
     prompt: 'Vertical and horizontal boundaries. Write an inequality for graphs a and b. Graph a: a dashed vertical line x = 3, the half-plane to its left shaded. Graph b: a solid horizontal line y = −2, the half-plane above it shaded.',
     directionSteps: ['Use the line and its style to choose the symbol.', 'Write each inequality.'],
-    responses: [inequality('a', 'Graph a', 'x < 3'), inequality('b', 'Graph b', 'y >= -2')],
+    responses: [graphInequality('a', 'Graph a', 'x < 3'), graphInequality('b', 'Graph b', 'y >= -2')],
     hints: ['A vertical line x = c: left means x is less than c.', 'A horizontal line y = c: above means y is greater than c.'],
     scaffold: backUp('Points to the left of x = 3 have x-coordinates…', ['less than 3', 'greater than 3'], 'less than 3'),
     solutionReview: review('Vertical: compare x. Horizontal: compare y.', ['Left of the dashed line x = 3: x < 3.', 'Above the solid line y = −2: y ≥ −2.'], 'x < 3; y ≥ −2', 'Writing y < 3 for a vertical boundary.'),
@@ -737,7 +748,7 @@ const practiceRegular = (P) => [
     prompt: 'Error analysis. Marcus graphed y < −2x + 1 with a SOLID boundary line and shaded the half-plane below it. Write the inequality his graph actually shows, identify his error, and check his shading with the point (0, 0).',
     directionSteps: ['Write the inequality Marcus’s graph shows.', 'Decide which part of the graph is wrong.', 'Check the shading with the test point.'],
     responses: [
-      inequality('graphed', 'The inequality Marcus’s graph shows', 'y <= -2x + 1'),
+      graphInequality('graphed', 'The inequality Marcus’s graph shows', 'y <= -2x + 1'),
       choice('error', 'Marcus’s error:', ['The line should be dashed, because < does not include the boundary', 'The shading should be above the line', 'The slope should be 2', 'There is no error'], 'The line should be dashed, because < does not include the boundary'),
       choice('test', 'Test (0, 0): 0 < −2(0) + 1 is…', ['true, so the shading below (with the origin) is correct', 'false, so the shading is wrong', 'true, so the line is solid', 'not useful here'], 'true, so the shading below (with the origin) is correct'),
     ],
@@ -775,7 +786,7 @@ const practiceRegular = (P) => [
     directionSteps: ['Find the boundary line.', 'Use the test point to choose the side.', 'Write the inequality.'],
     responses: [
       number('slope', 'Slope', '-2'),
-      inequality('inequality', 'Inequality', 'y >= -2x + 4'),
+      graphInequality('inequality', 'Inequality', 'y >= -2x + 4'),
     ],
     hints: ['Find the slope from the two points; the y-intercept is where x = 0.', '(0, 0) is not shaded, so the inequality is false at (0, 0).', 'Solid: ≤ or ≥.'],
     scaffold: backUp('Is 0 ≤ −2(0) + 4 true?', ['yes', 'no'], 'yes'),
@@ -834,7 +845,7 @@ const practiceHonors = (P) => [
     responses: [
       number('slope', 'Slope', '-1'),
       number('intercept', 'y-intercept', '3'),
-      inequality('inequality', 'Inequality', 'y <= -x + 3'),
+      graphInequality('inequality', 'Inequality', 'y <= -x + 3'),
     ],
     hints: ['Slope = change in y ÷ change in x between the two given points.', 'Substitute one point and the slope into y = mx + b and solve for b.', 'The line is solid and the origin is shaded: which symbol makes the statement true at (0, 0)?'],
     scaffold: backUp('The slope through (−2, 5) and (4, −1) is…', ['−1', '1'], '−1'),

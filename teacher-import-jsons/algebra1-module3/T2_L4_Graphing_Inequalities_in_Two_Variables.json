@@ -946,25 +946,29 @@
               "id": "a",
               "label": "Graph a",
               "answer": "y > 1/2x - 3",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             },
             {
               "id": "b",
               "label": "Graph b",
               "answer": "y <= 1/2x - 3",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             },
             {
               "id": "c",
               "label": "Graph c",
               "answer": "y < 1/2x - 3",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             },
             {
               "id": "d",
               "label": "The inequality no graph shows (you graph it next)",
               "answer": "y >= 1/2x - 3",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             }
           ],
           "hints": [
@@ -1338,7 +1342,8 @@
               "id": "inequality",
               "label": "The inequality",
               "answer": "y >= -3/2x - 5",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             },
             {
               "id": "check",
@@ -1416,19 +1421,22 @@
               "id": "a",
               "label": "Graph a",
               "answer": "y < 4x + 2",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             },
             {
               "id": "b",
               "label": "Graph b",
               "answer": "y >= 1/2x - 3",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             },
             {
               "id": "c",
               "label": "Graph c",
               "answer": "y < 3/4x - 2",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             }
           ],
           "hints": [
@@ -1848,19 +1856,22 @@
               "id": "ge0",
               "label": "The line x + y = 0 and the half-plane above it",
               "answer": "x + y >= 0",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             },
             {
               "id": "lt0",
               "label": "The half-plane below the line x + y = 0, without the line",
               "answer": "x + y < 0",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             },
             {
               "id": "le0",
               "label": "The line x + y = 0 and the half-plane below it",
               "answer": "x + y <= 0",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             }
           ],
           "hints": [
@@ -2477,13 +2488,15 @@
               "id": "a",
               "label": "Graph a",
               "answer": "x < 3",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             },
             {
               "id": "b",
               "label": "Graph b",
               "answer": "y >= -2",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             }
           ],
           "hints": [
@@ -2764,7 +2777,8 @@
               "id": "graphed",
               "label": "The inequality Marcus’s graph shows",
               "answer": "y <= -2x + 1",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             },
             {
               "id": "error",
@@ -2949,7 +2963,8 @@
               "id": "inequality",
               "label": "Inequality",
               "answer": "y >= -2x + 4",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             }
           ],
           "hints": [

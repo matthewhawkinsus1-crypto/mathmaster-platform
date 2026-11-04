@@ -32,11 +32,15 @@ import { ALGEBRA1_M3_INEQUALITY_LESSONS, ALGEBRA1_M3_INEQUALITY_PAIRS, expectedF
 import { collectReviewBlockers, summarizePreflightReadiness } from '../../src/components/teacher/preflightSteps.js';
 import { inspectHonorsRigor } from '../../src/platform/rigor/courseRigor.js';
 import { HONORS_CCMR_STATUS, confirmHonorsCandidateForCreate } from '../../src/platform/assignments/canonicalCcmrHydration.js';
+import { describeBoxPlaceholder } from '../../src/platform/interaction/answerFormatHints.js';
+import { gradeMultiAnswerResponse } from '../../functions/shared/ordinaryResponseGrading.mjs';
+import { sameLinearInequality } from '../../functions/shared/linearInequalityEquivalence.mjs';
 import {
   VERSIONS,
   auditedItemFindings,
   backUpFindings,
   compiled,
+  constraintText,
   directionFindings,
   dolSupportFindings,
   honorsCandidateOf,
@@ -46,6 +50,7 @@ import {
   reviewedModel,
   supportFindings,
   toolFindings,
+  versionsOf,
 } from './helpers/lessonFileChecks.mjs';
 
 const SECTIONS = ['warmup', 'classwork', 'practice', 'dol'];
@@ -214,4 +219,52 @@ for (const entry of ALGEBRA1_M3_INEQUALITY_LESSONS) {
       assert.doesNotMatch(hint, /\(\s*-?\d|[1-9]/, hint);
     });
   }
+}
+
+/*
+ * THE EXAMPLE IN AN EMPTY "WRITE THE INEQUALITY THIS GRAPH SHOWS" BOX
+ * (F-GRAPH-IN-WORDS, the same walkthrough). The platform's example for any
+ * inequality box is "0 ≤ x ≤ 4", a compound inequality in one variable. L4's
+ * graph items ask for one inequality in x and y, so their boxes show one, and
+ * it is nobody's answer: no key in any version accepts it, and no student
+ * builds its graph.
+ */
+const GRAPH_ITEMS = ['cw-7', 'cw-12', 'cw-13', 'cw-17', 'p-6', 'p-10', 'p-12', 'p-15'];
+
+for (const entry of ALGEBRA1_M3_INEQUALITY_LESSONS.filter((candidate) => lessonOf(candidate) === 'Lesson 4')) {
+  const name = entry.lesson.assignment.title;
+  const text = readRepoFile(entry.file);
+
+  test(`${name}: a box that asks for the inequality a graph shows has an example of that shape, which is no item's answer`, () => {
+    const { questions } = compiled(text);
+    const P = questions[0].questionId.replace(/-wu-1$/, '');
+    const boxes = questions
+      .filter((question) => GRAPH_ITEMS.some((suffix) => question.questionId === `${P}-${suffix}`))
+      .flatMap((question) => (question.answerFields || []).filter((field) => field.inputProfile === 'inequality'));
+    assert.ok(boxes.length >= 15, `${boxes.length} graph boxes`);
+    // What each empty box shows, asked as MultiAnswerGrader asks it.
+    const shown = new Set(boxes.map((field) => describeBoxPlaceholder(field, { inferredExample: '0 ≤ x ≤ 4' }).placeholder));
+    assert.equal(shown.size, 1, [...shown].join(' | '));
+    const [example] = shown;
+    // One relation between x and y, and no longer than the platform's own
+    // examples, which fit the narrowest box (answerPlaceholderFits).
+    assert.equal((example.match(/[<>≤≥]/g) || []).length, 1, example);
+    assert.match(example, /x/);
+    assert.match(example, /y/);
+    assert.ok(example.length <= 10, example);
+    questions.forEach((question) => versionsOf(question).forEach((version) => {
+      if (version.type === 'multiAnswer') {
+        (version.answerFields || []).filter((field) => field.inputProfile === 'inequality').forEach((field) => {
+          const part = gradeMultiAnswerResponse(version, { [field.id]: example }).parts.find((entry) => entry.id === field.id);
+          assert.equal(part.isCorrect, false, `${version.questionId} ${field.id} accepts the example "${example}"`);
+        });
+      }
+      if (version.type === 'systemsWorkspace') {
+        const constraints = version.expectedConstraints || version.modeling?.expectedConstraints || [];
+        [...(version.sourceConstraints || []), ...constraints.map(constraintText)].forEach((graphed) => {
+          assert.equal(sameLinearInequality(example, String(graphed)), false, `${version.questionId}: a student builds ${graphed}`);
+        });
+      }
+    }));
+  });
 }
