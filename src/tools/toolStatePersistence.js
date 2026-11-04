@@ -139,6 +139,7 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
     selectedId: 'Which card is picked up. Selection, not a placement.',
     announcement: 'The polite screen-reader read-out of the last placement ("Graph C placed in Group 2 · Linear. 2 cards left to place."). Speech, not work.',
     focusRequest: 'Where keyboard focus goes after a placement or a removed group (the next card, or a group heading). Consumed in the next effect; focus, never mathematics.',
+    wrongCardIds: 'Which cards the last Check found in the wrong fixed category (F-SORT-WHICH-CARD). Feedback on that Check, shown only with its verdict and cleared with it when the work changes; recomputed by the next Check, never an answer.',
   }),
   constraintFunctionBuilder: entry(['constraintFunctionBuilder/ConstraintFunctionBuilder.jsx']),
   linearTableWorkbench: entry(['linearTableWorkbench/LinearTableWorkbench.jsx'], {
