@@ -83,7 +83,7 @@ import {
   getLiveChallengeHostRoster,
   publishLiveChallengeStandings,
   readChallengeReport,
-  readClassGameMemory,
+  watchClassGameMemory,
   setWarmupChallengeDelivery,
   startLiveChallenge,
   updateLiveChallengePacing,
@@ -583,17 +583,19 @@ export default function LiveChallengeTeacher({
   let memoryGame = null;
   if (rushMode) memoryGame = 'graphFeatureRush';
   else if (inequalityMode) memoryGame = 'inequalityRush';
-  // Read again when the class or the game changes, and when a game ends — a
-  // finished game may just have written it. Nothing is shown while a game is
-  // open, and a class that has not played the game has no card.
+  // Followed while setup is open, not read once: New Challenge can be chosen
+  // before the game that just ended has written its memory (the room closes
+  // first), and the write then updates the card. Nothing is shown while a
+  // game is open, and a class that has not played the game has no card.
   useEffect(() => {
-    let alive = true;
     setClassMemory(null);
     if (!memoryGame || !classId || roomId) return undefined;
-    readClassGameMemory(classId, memoryGame)
-      .then((memory) => { if (alive) setClassMemory(memory); })
-      .catch((error) => console.warn('The last-time card could not be read:', error));
-    return () => { alive = false; };
+    return watchClassGameMemory(
+      classId,
+      memoryGame,
+      setClassMemory,
+      (error) => console.warn('The last-time card could not be read:', error),
+    );
   }, [memoryGame, classId, roomId]);
   const lineProblem = lineMode ? lineSetupProblem(lineSetup) : null;
   const questionSetGame = questionSetGameOf(room);

@@ -112,6 +112,26 @@ export const classMemoryGameOfMode = (modeId) => Object.values(GAMES).find((game
 /** A memory's document id: one per class and game. */
 export const classMemoryId = (classId, game) => `${String(classId || '').trim()}__${String(game || '').trim()}`;
 
+/**
+ * Follow one class's memory for one game: `onValue` gets the record each time
+ * it changes (null when there is none), so a game that has just finished and
+ * writes it a moment after the room closes still reaches the setup card.
+ * `listen(collection, id, next, fail)` is the database's own subscription
+ * (Firestore's onSnapshot in the app) and returns its unsubscribe function.
+ */
+export const watchClassMemory = ({ classId, game, listen, onValue, onError }) => {
+  if (!String(classId || '').trim() || !String(game || '').trim()) {
+    onValue?.(null);
+    return () => {};
+  }
+  return listen(
+    CLASS_MEMORY_COLLECTION,
+    classMemoryId(classId, game),
+    (data) => onValue?.(data ?? null),
+    onError,
+  );
+};
+
 const percentOrNull = (value) => (Number.isFinite(Number(value)) && value !== null ? Math.round(Number(value)) : null);
 
 /**

@@ -250,6 +250,36 @@ export const readClassGameMemory = async (classId, game) => {
   return snapshot.exists() ? snapshot.data() : null;
 };
 
+/**
+ * The same memory, followed while the setup is open: choosing New Challenge
+ * right after a game can come before the game's finalization has written the
+ * memory (the room closes first), so a single read showed the game before it,
+ * or none. Returns the unsubscribe function straight away; the module loads
+ * with the first subscription (see readClassGameMemory).
+ */
+export const watchClassGameMemory = (classId, game, onValue, onError = console.warn) => {
+  let stop = null;
+  let cancelled = false;
+  import('../../../functions/shared/liveChallengeClassMemory.mjs').then(({ watchClassMemory }) => {
+    if (cancelled) return;
+    stop = watchClassMemory({
+      classId,
+      game,
+      onValue,
+      onError,
+      listen: (collectionName, id, next, fail) => onSnapshot(
+        doc(db, collectionName, id),
+        (snapshot) => next(snapshot.exists() ? snapshot.data() : null),
+        fail,
+      ),
+    });
+  }).catch(onError);
+  return () => {
+    cancelled = true;
+    stop?.();
+  };
+};
+
 export const watchTeacherActiveChallenge = (teacherEmail, onValue, onError = console.error) => {
   if (!teacherEmail) {
     onValue?.(null);

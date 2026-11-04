@@ -236,8 +236,8 @@ test('the server writes the memory as a finalization effect, from the result and
 
 test('the console reads the chosen class\'s memory and the setup shows the card with its two buttons', () => {
   const teacher = read('src/components/liveChallenge/LiveChallengeTeacher.jsx');
-  assert.match(teacher, /readClassGameMemory\(classId, memoryGame\)/);
-  assert.match(teacher, /\}, \[memoryGame, classId, roomId\]\);/, 'read again when the class, the game, or a game\'s end changes it');
+  assert.match(teacher, /watchClassGameMemory\(\s*classId,\s*memoryGame,\s*setClassMemory,/, 'followed, not read once');
+  assert.match(teacher, /\}, \[memoryGame, classId, roomId\]\);/, 'followed again when the class or the game changes, and only while setup is open');
   assert.match(teacher, /<GraphFeatureRushSetup [^\n]*memory=\{classMemory\?\.game === 'graphFeatureRush' \? classMemory : null\}/);
   assert.match(teacher, /<InequalityRushSetup [^\n]*memory=\{classMemory\?\.game === 'inequalityRush' \? classMemory : null\}/);
   for (const setup of ['GraphFeatureRushSetup', 'InequalityRushSetup']) {
@@ -247,4 +247,32 @@ test('the console reads the chosen class\'s memory and the setup shows the card 
   assert.match(card, />Use last settings<\/button>/);
   assert.match(card, /\{offerSuggestion && <button [^>]*onClick=\{\(\) => onUse\(setupFromMemory\(memory\.game, next\.settings\)\)\}>Use suggestion<\/button>\}/);
   assert.match(read('src/platform/liveChallenge/liveChallengeService.js'), /getDoc\(doc\(db, CLASS_MEMORY_COLLECTION, id\)\)/);
+});
+
+test('the setup card follows the memory: a game finishing after New Challenge was chosen updates it (P2 on PR 530)', () => {
+  // A fake database: one document, many listeners, like onSnapshot.
+  const listeners = new Set();
+  const listen = (collectionName, id, next) => {
+    assert.equal(collectionName, M.CLASS_MEMORY_COLLECTION);
+    assert.equal(id, M.classMemoryId('class-5', 'graphFeatureRush'));
+    listeners.add(next);
+    next(null); // the first snapshot: nothing written yet
+    return () => listeners.delete(next);
+  };
+  const shown = [];
+  const stop = M.watchClassMemory({ classId: 'class-5', game: 'graphFeatureRush', listen, onValue: (value) => shown.push(value) });
+  assert.deepEqual(shown, [null], 'no card yet');
+  // The finalization writes the memory after the teacher is already on setup.
+  const memory = graphMemory(86);
+  listeners.forEach((next) => next(memory));
+  assert.deepEqual(shown, [null, memory], 'the card appears without leaving setup');
+  const newer = graphMemory(70);
+  listeners.forEach((next) => next(newer));
+  assert.equal(shown.at(-1), newer, 'and follows a later write');
+  stop();
+  assert.equal(listeners.size, 0, 'leaving setup (a room opens) closes the listener');
+  // No class or no game: nothing is listened to, and the card is empty.
+  const none = [];
+  M.watchClassMemory({ classId: '', game: 'graphFeatureRush', listen: () => assert.fail('no listener'), onValue: (v) => none.push(v) });
+  assert.deepEqual(none, [null]);
 });

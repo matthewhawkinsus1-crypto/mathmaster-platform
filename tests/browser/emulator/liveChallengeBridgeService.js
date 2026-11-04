@@ -87,6 +87,7 @@ export const watchLiveChallengePlayers = counted('players', loggedPlayers);
 export const watchLiveChallengeStandings = counted('standings', loggedStandings);
 export const watchLiveChallengePlayer = counted('self', loggedSelf);
 export const watchLiveChallengeDiagnostics = counted('diagnostics', service.watchLiveChallengeDiagnostics);
+export const watchClassGameMemory = counted('classMemory', service.watchClassGameMemory);
 export const watchTeacherActiveChallenge = counted('teacherActive', service.watchTeacherActiveChallenge);
 export const watchLiveChallengeRound = counted('round', service.watchLiveChallengeRound);
 // The student's own place (playerSummaries/{studentId}): changes only at a
