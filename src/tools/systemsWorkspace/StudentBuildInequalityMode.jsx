@@ -52,6 +52,7 @@ import {
   stepPosition,
 } from './inequalityBuildFlow.js';
 import { ChoiceGroup, InequalityLayout, PLANE_KEYS, StepFeedback, revealStep } from './InequalityControls.jsx';
+import { diagnoseModelRows, modelRowMessage, modelRowVerdicts } from './inequalityModelCheck.js';
 import { POINT_COLORS, constraintColor } from './constraintPalette.js';
 import { inequalityGraphMarksText } from './inequalityGraphMarks.js';
 import {
@@ -92,6 +93,11 @@ import {
 // entry also carries what its last Check was about, which the grader does not
 // read); and on a DOL, quiz or test every check still says only whether a step
 // is finished (resolveInequalityBuildGate).
+//
+// A CONTEXT ITEM'S MODEL HAS ITS CHECK TOO (F-SW-CHECKS-OWN-MODEL): where
+// outcomes are shown, "Graph these constraints" graphs only a model the shared
+// grader accepts and says why a row is not (inequalityModelCheck.js). It used
+// to graph any model, and every step after it said ✓ about the wrong half-plane.
 // ============================================================================
 
 const emptyBuildEntry = () => ({
@@ -138,6 +144,10 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
     modeling ? Array.from({ length: constraintCount }, emptyModelingEntry) : []
   ));
   const [modelingSent, setModelingSent] = usePersistentToolState('modelingSent', !modeling);
+  // The model's last Check where outcomes are shown: the rows it was about and
+  // how many times each was sent wrong (F-SW-CHECKS-OWN-MODEL). Its lines go
+  // when the rows change, until the next press.
+  const [modelCheck, setModelCheck] = usePersistentToolState('modelCheck', null);
   const [build, setBuild] = usePersistentToolState('build', () => Array.from({ length: constraintCount }, emptyBuildEntry));
   const [rewriteEntries, setRewriteEntries] = usePersistentToolState('rewriteEntries', () => (
     sourceConstraints.map((constraint) => emptyRewriteEntry(typeof constraint === 'string' ? constraint : formatInequality(constraint)))
@@ -281,6 +291,35 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
   });
   const allConstraintsComplete = buildGate.allConstraintsDone;
   const completionLine = (report, text) => (report?.kind === 'completion' ? (report.complete ? text.complete : text.incomplete) : null);
+
+  // THE WRITTEN MODEL, CHECKED AGAINST THE SITUATION (F-SW-CHECKS-OWN-MODEL;
+  // inequalityModelCheck.js). Each row's verdict is the shared grader's own
+  // "Modeled constraint N" part, so an equivalent model passes exactly where
+  // Submit would accept it — and it is asked only where outcomes are shown.
+  const modelVerdicts = useMemo(() => (
+    modeling && buildGate.verdictsShown
+      ? modelRowVerdicts(gradeToolCheck(systemsWorkspaceGrader, questionData, { build: [], modelingEntries, modelingSent: true }).parts, constraintCount)
+      : []
+  ), [modeling, buildGate.verdictsShown, questionData, modelingEntries, constraintCount]);
+  // Graphed only once accepted where outcomes are shown; a draft sent before
+  // this Check existed may hold a model it does not accept, and is held on the
+  // model step like a wrong one.
+  const modelAccepted = !modeling || buildGate.modelAccepted({ sent: modelingSent, correct: modelVerdicts.every((verdict) => verdict !== false) });
+  const modelSignature = reasoningSignature(modelingEntries);
+  const modelLines = (() => {
+    if (!modeling || !buildGate.verdictsShown) return [];
+    const checked = modelCheck?.signature === modelSignature || (modelingSent && !modelAccepted);
+    if (!checked) return [];
+    const diagnoses = diagnoseModelRows({ entries: modelingEntries, expectedConstraints, rowCorrect: modelVerdicts });
+    return diagnoses.map((diagnosis, index) => modelRowMessage({
+      diagnosis,
+      row: modelingEntries[index],
+      question: questionData,
+      expected: expectedConstraints[diagnosis?.kind === 'relation' ? diagnosis.expectedIndex : index],
+      misses: Math.max(1, Number(modelCheck?.misses?.[index]) || 0),
+      label: constraintCount > 1 ? `Constraint ${index + 1}: ` : '',
+    })).filter(Boolean);
+  })();
 
   const studentBoundaries = build.map((entry, index) => {
     const line = effectiveLines[index];
@@ -451,7 +490,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
   // ------------------------------------------------------------ the steps
   const flowContext = {
     plan,
-    modelingSent,
+    modelingSent: modelAccepted,
     stepDone: (index, step) => (step === 'rewrite' ? rewriteVerified(index) : buildGate.stepDone(index, step)),
     combined,
     reasoningDone,
@@ -511,7 +550,19 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
     moveCursor(cursorAfterCheck(flowContext, 'combine', true), { focus: true });
   };
 
+  // "Graph these constraints". Where outcomes are shown it is the model's
+  // Check: a row the grader turns down keeps the student here with a line
+  // that says why, as a wrong boundary keeps its step. Where they are
+  // withheld the model is sent as written, right or wrong.
   const sendModel = () => {
+    if (buildGate.verdictsShown && modelVerdicts.some((verdict) => verdict === false)) {
+      setModelCheck((current) => ({
+        signature: modelSignature,
+        misses: modelVerdicts.map((verdict, index) => (Number(current?.misses?.[index]) || 0) + (verdict === false ? 1 : 0)),
+      }));
+      return;
+    }
+    setModelCheck(null);
     setModelingSent(true);
     moveCursor(cursorAfterCheck(flowContext, 'model', true), { focus: true });
   };
@@ -903,9 +954,12 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
                 <button type="button" className="mm-ineq-action" onClick={sendModel} disabled={!modelingEntriesReady}>Graph these constraints</button>
               </div>
               {!modelingEntriesReady ? <p className="mm-ineq-note">Every constraint needs both coefficients, a relation and a constant.</p> : null}
+              <StepFeedback tone="revise">
+                {modelLines.length ? modelLines.map((line, index) => <span key={index} style={{ display: 'block' }}>{line}</span>) : null}
+              </StepFeedback>
             </>
           ), modelingSent ? modelingEntries.map((entry) => formatModelingConstraint(entry, variables)).join(';  ') : '') : null}
-          {modeling && modelingSent ? (
+          {modeling && modelAccepted ? (
             <div className="mm-ineq-actions" style={{ justifyContent: 'flex-end', marginTop: -4 }}>
               <button type="button" className="mm-ineq-link" onClick={reopenModeling}>Edit constraints</button>
             </div>

@@ -33,6 +33,11 @@
 //              on a 390x844 touch screen (rewritePhone)
 //   workview   the enlarged Work View says what the graph is waiting for, and a
 //              tap there is the same work as a tap on the page
+//   modeling   a context item's model is checked when it is graphed: ≤ for
+//              "at least 20 points" is held and told why, the right model (and
+//              an equivalent one) is graphed; on a DOL nothing says whether
+//              the model is right and Submit grades it as before
+//              (F-SW-CHECKS-OWN-MODEL)
 //   contrast   every line of the steps is readable, light and dark
 //
 // Nothing here weakens the mathematics: every step is still the student's to
@@ -546,6 +551,88 @@ const contrast = async (theme) => {
   for (const [state, low] of states) check(low.length === 0, `contrast (${theme}): ${state} reads at 4.5:1 or better`, low.join('; '));
 };
 
+/* -------------------------------------------------------------- modeling */
+
+// F-SW-CHECKS-OWN-MODEL (PR #537 walkthrough, L4 CW 2): "AT LEAST 20 points"
+// written with ≤. The model was graphed as written and every step after it said
+// ✓ about the wrong half-plane, until Submit said "Not yet" without a reason.
+const KAI = { xMin: 0, xMax: 12, yMin: 0, yMax: 10 };
+const writeModel = async (page, [a, b, relation, c]) => {
+  await page.getByLabel('Constraint 1: coefficient of x', { exact: true }).fill(String(a));
+  await page.getByLabel('Constraint 1: coefficient of y', { exact: true }).fill(String(b));
+  await page.getByLabel('Constraint 1: relation', { exact: true }).selectOption(relation);
+  await page.getByLabel('Constraint 1: constant', { exact: true }).fill(String(c));
+  await settle(page, 200);
+};
+// Anything that would say whether the model is right.
+const MODEL_VERDICT = /means 20 points or more|match the situation|fit the situation|Check the coefficients|Check each coefficient|checks out|Correct/;
+const buildKai = async (page, shadeAt) => {
+  await tapAt(page, [10, 0], KAI);
+  await tapAt(page, [4, 4], KAI);
+  await press(page, 'Check boundary');
+  await choose(page, 'solid');
+  await press(page, 'Check line style');
+  await tapAt(page, shadeAt, KAI);
+  await press(page, 'Check shading');
+};
+const testKaiPoint = async (page, answer) => {
+  for (const question of ['inequality-1', 'system']) await page.locator(`[data-question="${question}"] button[data-choice="${answer}"]`).click();
+  await press(page, 'Check this point');
+};
+
+const modeling = async () => {
+  const page = await open('kai');
+  check(await cursor(page) === 'model', 'modeling: the question opens on writing the model');
+  await writeModel(page, [2, 3, '<=', 20]);
+  await press(page, 'Graph these constraints');
+  const said = await bodyText(page);
+  check(said.includes('“At least 20 points” means 20 points or more: ≥.') && await cursor(page) === 'model',
+    'modeling: ≤ for "at least 20" is called out in the situation\'s words, and the student stays on the model', await cursor(page));
+  check(!(await page.locator('[data-constraint-index]').count()) && !said.includes('✓'), 'modeling: nothing is graphed from the wrong model, and nothing ticks');
+  await page.getByLabel('Constraint 1: relation', { exact: true }).selectOption('>=');
+  await settle(page, 200);
+  check(!(await bodyText(page)).includes('means 20 points or more'), 'modeling: the line goes with the row it was about');
+  await press(page, 'Graph these constraints');
+  check(await cursor(page) === 'c0:boundary', 'modeling: the right model is graphed, and the boundary step opens', await cursor(page));
+  await buildKai(page, [8, 8]);
+  check(await cursor(page) === 'combine', 'modeling: the graph of the right model is built step by step', await cursor(page));
+  await press(page, 'Find overlap / Combine regions');
+  await testKaiPoint(page, 'yes');
+  await press(page, 'Check my work');
+  await settle(page, 600);
+  const grade = await lastGrade(page);
+  check(grade?.isCorrect === true && grade.partialCreditPercent === 100, 'modeling: graded right', JSON.stringify(grade && { isCorrect: grade.isCorrect, partial: grade.partialCreditPercent }));
+};
+
+const modelingEquivalent = async () => {
+  // −2x − 3y ≤ −20 is 2x + 3y ≥ 20 with every sign switched: the grader accepts it, so the step does.
+  const page = await open('kai');
+  await writeModel(page, [-2, -3, '<=', -20]);
+  await press(page, 'Graph these constraints');
+  check(await cursor(page) === 'c0:boundary' && !MODEL_VERDICT.test(await bodyText(page)), 'modeling: an equivalent model passes, with nothing said against it', await cursor(page));
+};
+
+const modelingDol = async () => {
+  // On a DOL nothing before Submit says whether the model is right: the wrong
+  // model is graphed as written, every step is recorded, and Submit grades it.
+  const page = await open('kai', { role: 'dol' });
+  await writeModel(page, [2, 3, '<=', 20]);
+  await press(page, 'Graph these constraints');
+  check(await cursor(page) === 'c0:boundary', 'modeling (DOL): the model is graphed as written', await cursor(page));
+  await buildKai(page, [1, 1]);
+  await press(page, 'Find overlap / Combine regions');
+  // (6, 4) does not satisfy the student's own 2x + 3y ≤ 20.
+  await testKaiPoint(page, 'no');
+  const said = await bodyText(page);
+  check(!MODEL_VERDICT.test(said) && !said.includes('✓'), 'modeling (DOL): nothing says whether the model or any step is right', (said.match(MODEL_VERDICT) || [''])[0]);
+  await press(page, 'Check my work');
+  await settle(page, 800);
+  const grade = await lastGrade(page);
+  const parts = Object.fromEntries((grade?.parts || []).map((part) => [part.id, part.isCorrect]));
+  check(grade?.isCorrect === false && parts['model-1'] === false && parts['constraint-1'] === true && grade.partialCreditPercent === 75,
+    'modeling (DOL): Submit grades the model wrong and the graph of it right, as before', JSON.stringify({ parts, partial: grade?.partialCreditPercent }));
+};
+
 /* ------------------------------------------------------------------- run */
 
 const SCENARIOS = {
@@ -558,6 +645,11 @@ const SCENARIOS = {
   rewrite: () => scenario('rewrite', () => rewrite()),
   rewritePhone: () => scenario('rewritePhone', () => rewrite({ viewport: PHONE, touch: true })),
   workview: () => scenario('workview', workview),
+  modeling: async () => {
+    await scenario('modeling', modeling);
+    await scenario('modeling equivalent', modelingEquivalent);
+    await scenario('modeling dol', modelingDol);
+  },
   contrast: async () => {
     await scenario('contrast light', () => contrast('light'));
     await scenario('contrast dark', () => contrast('dark'));
