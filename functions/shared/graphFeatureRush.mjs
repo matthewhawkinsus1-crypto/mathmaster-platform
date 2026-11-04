@@ -606,7 +606,7 @@ const GRAPH_REPORT_LABELS = Object.freeze({
 export const buildRushReport = (matchResult = {}, labels = GRAPH_REPORT_LABELS) => {
   const { featureLabel, familyLabel, mistakeLabel } = { ...GRAPH_REPORT_LABELS, ...labels };
   const standings = Array.isArray(matchResult.standings) ? matchResult.standings : [];
-  const totals = { questions: 0, completed: 0, skipped: 0, attempts: 0, hits: 0, dnePresses: 0, dneCorrect: 0 };
+  const totals = { questions: 0, completed: 0, skipped: 0, attempts: 0, hits: 0, dnePresses: 0, dneCorrect: 0, offScreenPresses: 0, offScreenCorrect: 0 };
   const byFeature = {};
   const byFamily = {};
   const mistakes = {};
@@ -636,6 +636,10 @@ export const buildRushReport = (matchResult = {}, labels = GRAPH_REPORT_LABELS) 
     attempts: totals.attempts,
     accuracyPercent: percent(totals.hits, totals.attempts),
     doesNotExist: { presses: totals.dnePresses, correct: totals.dneCorrect, accuracyPercent: percent(totals.dneCorrect, totals.dnePresses) },
+    // "Off screen" presses, beside "Does Not Exist": the feature exists past
+    // the edge of the view. None in a game without off-screen features, or in
+    // a match result written before they were counted.
+    offScreen: { presses: totals.offScreenPresses, correct: totals.offScreenCorrect, accuracyPercent: percent(totals.offScreenCorrect, totals.offScreenPresses) },
     byFeature: breakdown(byFeature, featureLabel),
     byFamily: breakdown(byFamily, familyLabel),
     // Most common first.

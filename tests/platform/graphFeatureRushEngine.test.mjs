@@ -309,6 +309,31 @@ test('the match result carries what rewards and the teacher report need', () => 
   assert.equal(report.players.find((row) => row.studentId === 'away').joined, false, 'the roster includes who never came');
 });
 
+test('the report counts "Off screen" presses beside "Does Not Exist", each with how many were right', () => {
+  // Two "Off screen" presses (one right), three "Does Not Exist" (two right), and a tap.
+  const presses = (studentId, kinds) => {
+    const receipts = {};
+    kinds.forEach(([attemptKind, isCorrect], index) => {
+      receipts[`p${index}`] = { serverConfirmed: true, receiptKind: 'targetAttempt', roundIndex: 0, sequence: index + 1, targetCount: 1, feature: 'xIntercept', family: 'linear', tier: 'standard', questionIndex: index, targetId: 't0', attemptKind, isCorrect, completesQuestion: isCorrect, pointsAwarded: isCorrect ? 1 : 0, elapsedMs: 1000 * (index + 1) };
+    });
+    return rushPlayer(studentId, receipts, { answeredRounds: [0], roundsAnswered: 1, joinedAtRound: 0 });
+  };
+  const players = [
+    presses('a', [['offScreen', true], ['offScreen', false], ['dne', true], ['tap', true]]),
+    presses('b', [['dne', true], ['dne', false]]),
+  ];
+  const result = buildMatchResult({ roomId: 'rush-room', status: 'finished', room: { challengeMode: MODE.id, scoringStrategyId: 'grandPrix', currentRound: 0, roundCount: 1 }, privateState: { questionIds: ['graphFeatureRush:round:1'] }, players });
+  const summary = result.standings.find((row) => row.studentId === 'a').questionSetSummary;
+  assert.equal(summary.offScreenPresses, 2);
+  assert.equal(summary.offScreenCorrect, 1);
+  assert.equal(summary.dnePresses, 1, 'an "Off screen" press is not a "Does Not Exist" press');
+  const report = buildRushReport(result);
+  assert.deepEqual(report.offScreen, { presses: 2, correct: 1, accuracyPercent: 50 });
+  assert.deepEqual(report.doesNotExist, { presses: 3, correct: 2, accuracyPercent: 67 });
+  // A match result written before they were counted reads as none.
+  assert.deepEqual(buildRushReport({ standings: [{ studentId: 'old', questionSetSummary: { dnePresses: 1, dneCorrect: 1 } }] }).offScreen, { presses: 0, correct: 0, accuracyPercent: null });
+});
+
 /* ------------ the full pipeline with simulated players (bots) ------------ */
 
 const CONFIG = normalizeGraphFeatureRushConfig({ presetId: 'algebra1Functions' });

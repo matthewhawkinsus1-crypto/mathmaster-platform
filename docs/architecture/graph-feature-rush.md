@@ -593,7 +593,7 @@ and dark; reduced motion turns the pops and fades off.
 | `…/players/{key}` | `score`, `rawScore`, `correctCount`, `roundsAnswered`, `matchAccuracy`, `rushRound`, `rushRoundCompleted`, `rushActiveAt`, and after a close `lastRound: { roundIndex, rank, fieldSize, completed, accuracyPercent, workScore, matchPointsAwarded, participated }` |
 | `liveChallengePrivate/{room}` | `graphFeatureRush: { seed, config, generatorVersion }` |
 | `…/players/{studentId}` | receipts (`targetAttempt`, with feature, family, tier, tap position, pointer; a check's `drawing` — its dots as `{ value, closed }` objects, never `[value, closed]` pairs, which Firestore refuses inside an array — and `diagnosis`), totals |
-| `liveChallengeReports/{room}` | `graphFeatureRush`: graphs completed, tap accuracy, skips, "Does Not Exist" accuracy, by feature and by family (hardest first), per student |
+| `liveChallengeReports/{room}` | `graphFeatureRush`: graphs completed, tap accuracy, skips, "Does Not Exist" accuracy and, in a game with off-screen features, "Off screen" accuracy (`offScreen`, from receipts with `attemptKind: 'offScreen'`), by feature and by family (hardest first), per student |
 
 ---
 
@@ -694,8 +694,6 @@ and dark; reduced motion turns the pops and fades off.
 - **More features** (axis of symmetry, holes, relative extrema, inflection
   points) and families (logarithmic, trigonometric, higher-degree
   polynomials) through the registry and family contracts.
-- **Off-screen presses in the report**: receipts record them (`attemptKind:
-  'offScreen'`), the report does not yet count them beside "Does Not Exist".
 
 ---
 

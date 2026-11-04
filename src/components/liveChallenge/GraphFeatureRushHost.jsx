@@ -183,6 +183,7 @@ export function RushReport({ report }) {
         <span>{inequality ? 'Accuracy' : 'Tap accuracy'} <strong>{pct(rush.accuracyPercent)}</strong></span>
         <span><strong>{rush.skipped}</strong> skipped</span>
         <span>{inequality ? '"No Solution"' : '"Does Not Exist"'} right <strong>{pct(rush.doesNotExist?.accuracyPercent)}</strong> of {rush.doesNotExist?.presses || 0} presses</span>
+        {!inequality && rush.offScreen?.presses > 0 && <span>"Off screen" right <strong>{pct(rush.offScreen.accuracyPercent)}</strong> of {rush.offScreen.presses} presses</span>}
       </div>
       {!inequality && rush.byFeature?.length > 0 && table(rush.byFeature, 'By feature, hardest first')}
       {rush.byFamily?.length > 0 && table(
