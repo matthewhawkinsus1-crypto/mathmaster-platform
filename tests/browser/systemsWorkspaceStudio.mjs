@@ -31,6 +31,9 @@
 //              graph does nothing until y is alone, then the boundary opens;
 //              the solver teaches no cancelling there (TL34), at 1366x768 and
 //              on a 390x844 touch screen (rewritePhone)
+//   rewritePlacement  once an operation and its value are chosen, the line
+//              under the operations says how to place it, with the keys, and
+//              the keys place it (F-SW-PLACEMENT-HOW)
 //   workview   the enlarged Work View says what the graph is waiting for, and a
 //              tap there is the same work as a tap on the page
 //   modeling   a context item's model is checked when it is graphed: ≤ for
@@ -49,6 +52,7 @@ import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { balanced, cancelPair } from './relationWorkspaceDriver.mjs';
+import { setMathField } from './stepAlgebraDriver.mjs';
 import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
@@ -500,6 +504,37 @@ const rewrite = async ({ viewport = CHROMEBOOK, touch = false } = {}) => {
   check(/Plot boundary point 1 for constraint 1/.test(await label()), `${where}: and the graph takes the first boundary point`, await label());
 };
 
+// F-SW-PLACEMENT-HOW: after choosing Subtract and typing its value, Commit step
+// stays disabled until the operation is placed on both sides. How to place it
+// was only in a hover tooltip; the line under the operations says it now, with
+// the keyboard route — and the keys it names do it, leaving focus on the term.
+const rewritePlacement = async () => {
+  const page = await open('rewrite');
+  await page.locator('.mm-ineq-rewrite button:visible').filter({ hasText: /^.Subtract$/ }).first().click();
+  await settle(page, 250);
+  await setMathField(page, page.locator('math-field[aria-label="subtract value"]:visible').first(), 'x');
+  const line = page.locator('.mm-ineq-rewrite [data-placement-how="true"]');
+  const said = (await line.innerText()).trim();
+  check(said === 'Click or tap a term on each side (or Tab to it and press Enter), then choose where the operation goes.', 'rewritePlacement: with Subtract and its value chosen, the line says how to place it, with the keys', said);
+  const size = await line.evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
+  check(size >= 12, 'rewritePlacement: at a size a student reads', `${size}px`);
+  const commit = page.locator('.mm-ineq-rewrite button:visible', { hasText: 'Commit step' }).first();
+  check(await commit.isDisabled(), 'rewritePlacement: Commit step waits for the placement');
+  const focusedTerm = () => page.evaluate(() => document.activeElement?.getAttribute('data-cancel-key') || document.activeElement?.tagName);
+  for (const [side, key] of [['left', '0:0'], ['right', '0:1']]) {
+    const terms = page.locator(`.mm-ineq-rewrite button[data-cancel-key="${key}"]:visible`);
+    await terms.nth((await terms.count()) - 1).focus();
+    await page.keyboard.press('Enter');
+    await settle(page, 200);
+    // The menu follows the term: Before, Under, After.
+    for (let tab = 0; tab < 3; tab += 1) await page.keyboard.press('Tab');
+    await page.keyboard.press('Enter');
+    await settle(page, 250);
+    check(await focusedTerm() === key, `rewritePlacement: Enter on "After" places it on the ${side} side and leaves focus on the term`, await focusedTerm());
+  }
+  check(!(await commit.isDisabled()) && !(await line.count()), 'rewritePlacement: placed on both sides by keys, Commit step opens and the how-to line goes');
+};
+
 /* -------------------------------------------------------------- workview */
 
 const workview = async () => {
@@ -670,6 +705,7 @@ const SCENARIOS = {
   keyboardConstruct: () => scenario('keyboardConstruct', keyboardConstruct),
   rewrite: () => scenario('rewrite', () => rewrite()),
   rewritePhone: () => scenario('rewritePhone', () => rewrite({ viewport: PHONE, touch: true })),
+  rewritePlacement: () => scenario('rewritePlacement', rewritePlacement),
   workview: () => scenario('workview', workview),
   modeling: async () => {
     await scenario('modeling', modeling);

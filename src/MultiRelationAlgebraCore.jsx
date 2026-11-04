@@ -7,6 +7,7 @@ import IntervalNumberLine from './tools/intervalNumberLine/IntervalNumberLine';
 import { NoTryCostScope, useHostSubmitLabel, useToolRuntimeContext } from './tools/shared/ToolRuntimeContext';
 import { inequalitySolutionRepresentationStages, solutionRepresentationStageStatus } from './platform/curriculum/inequalityRepresentationPolicy.js';
 import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
+import { placementInstruction } from './relationOperationPlacement.js';
 import { normalizeQuestionRecord } from './attemptPolicy';
 import {
   expressionToLatex,
@@ -273,6 +274,14 @@ function AdditiveExpressionRegion({
   operandLatex,
 }) {
   const [placementTargetIndex, setPlacementTargetIndex] = useState(null);
+  // The term each Before / Under / After menu opened from, so a choice made
+  // from the keyboard leaves focus on that term instead of the page (the
+  // line under the operations names this route, F-SW-PLACEMENT-HOW).
+  const termButtonRefs = useRef([]);
+  const closePlacementMenu = (termIndex) => {
+    setPlacementTargetIndex(null);
+    window.requestAnimationFrame(() => termButtonRefs.current[termIndex]?.focus?.());
+  };
 
   const terms = useMemo(() => splitAdditiveTerms(expression), [expression]);
   const cancellationModel = useMemo(
@@ -367,6 +376,7 @@ function AdditiveExpressionRegion({
 
               <button
                 type="button"
+                ref={(element) => { termButtonRefs.current[termIndex] = element; }}
                 data-cancel-key={expressionKey(branchIndex, expressionIndex)}
                 data-cancel-index={termIndex}
                 onClick={(event) => {
@@ -464,9 +474,9 @@ function AdditiveExpressionRegion({
               <PlacementMiniMenu
                 onChoose={(kind) => {
                   onPlacement({ kind, termIndex });
-                  setPlacementTargetIndex(null);
+                  closePlacementMenu(termIndex);
                 }}
-                onClose={() => setPlacementTargetIndex(null)}
+                onClose={() => closePlacementMenu(termIndex)}
               />
             )}
           </div>
@@ -1090,6 +1100,12 @@ export default function MultiRelationAlgebra({
   const explicitPlacementComplete = explicitOperationPlacementMode
     && stagedBranchStats.length > 0
     && stagedBranchStats.every((item) => item.complete);
+  // F-SW-PLACEMENT-HOW: with an operation and its value chosen and nothing
+  // placed yet, the line under the operations says how to place it, with the
+  // keyboard route (relationOperationPlacement.js). It was only in a tooltip.
+  const placementHowTo = explicitOperationPlacementMode && !stagedBranchStats.length && relationState.branches.length <= 1
+    ? placementInstruction({ operation, regions: relationState.branches?.[activeBranch]?.expressions?.length || 2 })
+    : null;
 
   const applyOperation = async () => {
     if (!operation || !String(operand || '').trim() || disabled) return;
@@ -1893,15 +1909,18 @@ export default function MultiRelationAlgebra({
         </div>
 
         <div
+          data-placement-how={placementHowTo ? 'true' : undefined}
           style={{
             marginTop: 5,
             textAlign: 'center',
-            fontSize: 'calc(10.5 * var(--mm-px))',
-            color: 'var(--mm-text-muted)',
+            // The step the student is stuck on reads at the size of a step's own line.
+            fontSize: placementHowTo ? 'calc(13 * var(--mm-px))' : 'calc(10.5 * var(--mm-px))',
+            fontWeight: placementHowTo ? 700 : undefined,
+            color: placementHowTo ? 'var(--mm-text-strong)' : 'var(--mm-text-muted)',
             lineHeight: 1.3,
           }}
         >
-          {explicitOperationPlacementMode
+          {placementHowTo || (explicitOperationPlacementMode
             ? stagedBranchStats.length
               ? operation === 'divide'
                 ? `${stagedPlacementCount}/${stagedPlacementTotal} divisors placed across ${stagedBranchStats.length} branch${stagedBranchStats.length === 1 ? '' : 'es'}`
@@ -1917,7 +1936,7 @@ export default function MultiRelationAlgebra({
               ? 'Choose an operation, then stage one branch or several split branches.'
               : active?.expressions?.length === 3
                 ? 'Place the same balanced operation in all three regions.'
-                : 'Place the balanced operation on both sides.'}
+                : 'Place the balanced operation on both sides.')}
         </div>
       </div>
     )
