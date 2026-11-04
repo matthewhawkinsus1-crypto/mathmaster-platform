@@ -65,7 +65,9 @@ export const sendTeacherQuestion = async (db, {
     return existing.id;
   }
   if (existing?.id && existing.status === QUESTION_STATUS.ANSWERED) {
-    const followUp = buildFollowUp({ existing, text, timestamp: serverTimestamp() });
+    const followUp = buildFollowUp({
+      existing, text, teacherEmail, classId, timestamp: serverTimestamp(),
+    });
     if (!followUp) throw new Error(cleanQuestionText(text) ? 'followed-up' : 'empty');
     await updateDoc(doc(db, TEACHER_QUESTION_COLLECTION, existing.id), followUp);
     return existing.id;

@@ -208,16 +208,32 @@ export const canAskFollowUp = (question) => (
 );
 
 /** The student's follow-up, exactly the fields firestore.rules allows them to change after an answer. */
-export const buildFollowUp = ({ existing, text: words, timestamp } = {}) => {
+export const buildFollowUp = ({
+  existing, text: words, timestamp, teacherEmail = null, classId = null,
+} = {}) => {
   const body = cleanQuestionText(words);
   if (!body || !canAskFollowUp(existing)) return null;
-  return {
+  const followUp = {
     status: QUESTION_STATUS.OPEN,
     text: body,
     earlierText: existing.text,
     earlierAnswer: existing.answer,
     updatedAt: timestamp,
   };
+  // If the class changed teachers since the answer, the follow-up goes to
+  // today's teacher of record, as a new question would. Teacher Home lists
+  // questions by the teacher they are addressed to, so one left on the former
+  // teacher would never reach anyone who teaches the student now. Only a
+  // change is written; firestore.rules allows it only to the roster's values.
+  const moved = text(teacherEmail) && (
+    text(teacherEmail) !== text(existing.teacherEmail)
+    || (text(classId) || null) !== (text(existing.classId) || null)
+  );
+  if (moved) {
+    followUp.teacherEmail = text(teacherEmail);
+    followUp.classId = text(classId) || null;
+  }
+  return followUp;
 };
 
 /** The teacher's answer: the only fields a teacher may change. */

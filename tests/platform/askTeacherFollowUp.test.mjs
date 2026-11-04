@@ -65,6 +65,20 @@ const closed = { ...reopened, ...buildTeacherAnswer({ answer: SECOND_ANSWER, tea
 
 /* ------------------------------------------------------------------ the model */
 
+test('a follow-up after a class handover is addressed to the current teacher, and only then', () => {
+  const NEW_TEACHER = 'new.teacher@example.org';
+  const moved = buildFollowUp({ existing: answered, text: SECOND, timestamp: 3, teacherEmail: NEW_TEACHER, classId: 'C2' });
+  assert.equal(moved.teacherEmail, NEW_TEACHER, 'Teacher Home lists by the address, so the new teacher sees it');
+  assert.equal(moved.classId, 'C2');
+  assert.equal(moved.status, QUESTION_STATUS.OPEN);
+  // Same teacher and class: nothing about the address is written.
+  const same = buildFollowUp({ existing: answered, text: SECOND, timestamp: 3, teacherEmail: TEACHER, classId: 'C1' });
+  assert.equal('teacherEmail' in same, false);
+  assert.equal('classId' in same, false);
+  // No current teacher known: the address is left alone rather than blanked.
+  assert.equal('teacherEmail' in buildFollowUp({ existing: answered, text: SECOND, timestamp: 3 }), false);
+});
+
 test('a follow-up is possible once, after the answer, and only with words', () => {
   assert.equal(canAskFollowUp(waiting), false, 'nobody has answered: that is rewording, not a follow-up');
   assert.equal(canAskFollowUp(answered), true);
@@ -132,7 +146,9 @@ test('a follow-up writes exactly the fields firestore.rules lets a student chang
   const named = block.match(/hasOnly\(\[([^\]]*'earlierText'[^\]]*)\]\)/);
   assert.ok(named, 'the rules name the fields a follow-up may change');
   assert.deepEqual(
-    Object.keys(buildFollowUp({ existing: answered, text: SECOND, timestamp: 'TS' })).sort(),
+    Object.keys(buildFollowUp({
+      existing: answered, text: SECOND, timestamp: 'TS', teacherEmail: 'new.teacher@example.org', classId: 'C2',
+    })).sort(),
     [...listIn(named[1])].sort(),
     'the app writes what the rule allows, and the rule allows nothing more',
   );
@@ -146,7 +162,7 @@ test('the store writes the follow-up to the same document, never a second one', 
   const store = code('src/platform/supports/askTeacherStore.js');
   const send = region(store, 'export const sendTeacherQuestion', '\n};', 'sendTeacherQuestion');
   const answeredCase = region(send, 'QUESTION_STATUS.ANSWERED', 'return existing.id;', 'the answered case');
-  assert.match(answeredCase, /buildFollowUp\(\{ existing, text, timestamp: serverTimestamp\(\) \}\)/);
+  assert.match(answeredCase, /buildFollowUp\(\{[^}]*existing,[^}]*text,[^}]*teacherEmail,[^}]*classId,[^}]*timestamp: serverTimestamp\(\)/);
   assert.match(answeredCase, /updateDoc\(doc\(db, TEACHER_QUESTION_COLLECTION, existing\.id\), followUp\)/);
   assert.doesNotMatch(answeredCase, /setDoc|addDoc|collection\(/, 'one document per question: no second document, no list');
   // With no room left (already followed up) or nothing to say, it throws instead of writing.
