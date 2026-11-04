@@ -1,5 +1,6 @@
 import { CONTRACT_SLICES, buildContractSlice } from './authoringContract.js';
 import { compileAuthoringIntentV5 } from './authoringIntentV5.js';
+import { HONORS_DEPTH_REQUIRED } from '../rigor/courseRigor.js';
 const clean = (value) => String(value ?? '').trim();
 
 const MISSING_LABELS = Object.freeze({
@@ -129,7 +130,7 @@ const compileHonorsExtension = ({
 export const nonCcmrHonorsReady = (honorsReport = {}) => Boolean(
   honorsReport?.checks?.coreTeks
   && honorsReport?.checks?.higherOrderReasoning
-  && Number(honorsReport?.depthCount || 0) >= 3
+  && Number(honorsReport?.depthCount || 0) >= HONORS_DEPTH_REQUIRED
 );
 
 export const honorsMissingLabels = (missing = []) => (

@@ -128,6 +128,28 @@ const searchableQuestionText = (question = {}) => [
 
 const hasAnyToken = (value, tokens) => tokens.some((token) => value.includes(token));
 
+/*
+ * A QUESTION CAN SAY IT IS MODELING OR APPLICATION WORK.
+ *
+ * Modeling / application used to be found only by searching the wording for
+ * "model", "real-world", "scenario" or "application". Algebra II Honors —
+ * Dividing Polynomials had four real-world problems under the textbook's
+ * headings ("APPLY MATH", "PHYSICS", ...) and was blocked for an Honors class
+ * because none of them used one of those words. An author can now say so
+ * instead: V5 carries `taskType` (the vocabulary is TASK_TYPES in
+ * functions/shared/pathQuestionQuality.mjs; these are its two modeling
+ * values), compared exactly as that audit compares it.
+ *
+ * The label adds credit; it never removes it. `taskType` names a question's
+ * main task, so an error-analysis item about "two real-world models" is
+ * labelled errorAnalysis and is still applied mathematics. Letting a label
+ * overrule the wording would take modeling credit away from 59 audited CCMR
+ * items written exactly that way, so the wording is still read for every
+ * question.
+ */
+const MODELING_TASK_TYPES = Object.freeze(['modeling', 'application']);
+export const declaresModelingTask = (question = {}) => MODELING_TASK_TYPES.includes(String(question?.taskType ?? '').trim());
+
 const hasExplicitRepresentationConnection = (question = {}) => {
   const type = String(question.type || question.toolId || '').trim().toLowerCase();
   if (['representationmatch', 'representationbridge'].includes(type)) return true;
@@ -187,6 +209,24 @@ const representationKinds = (question = {}) => {
   return kinds;
 };
 
+/*
+ * THE HONORS DEPTH RULE, NAMED ONCE.
+ *
+ * An Honors assignment is judged on these four depth areas and needs
+ * HONORS_DEPTH_REQUIRED of them. Higher-order reasoning is one of the four
+ * and is also required on its own, so the rule is DOK 3 work plus two of the
+ * other three. The Review blocker (preflightSteps.js) and the AI repair gate
+ * (honorsDepthAiRepair.js) read it from here, so the message a teacher sees
+ * cannot ask for more than this check requires.
+ */
+export const HONORS_DEPTH_AREAS = Object.freeze([
+  'higherOrderReasoning',
+  'multipleRepresentations',
+  'justification',
+  'modelingApplication',
+]);
+export const HONORS_DEPTH_REQUIRED = 3;
+
 export const isNarrowHonorsCheckpoint = (questions = []) => {
   const included = (Array.isArray(questions) ? questions : []).filter((question) => question?.teacherExcluded !== true);
   return included.length > 0 && included.length <= 3 && included.every((question) => (
@@ -214,6 +254,7 @@ export const inspectHonorsRigor = (
     )),
     modelingApplication: included.some((question) => (
       ['modelingLab', 'dataModelingLab', 'relationshipModel', 'graphStory', 'contextInterpretation'].includes(question.type || question.toolId)
+      || declaresModelingTask(question)
       || hasAnyToken(searchableQuestionText(question), ['model', 'real-world', 'scenario', 'application'])
     )),
     // Filled below after we know which TEKS the non-exam lesson actually teaches.
@@ -233,16 +274,11 @@ export const inspectHonorsRigor = (
     isDirectCcmrPracticeQuestion(question)
     && questionTeks(question).some((code) => lessonTeks.has(code))
   ));
-  const depthCount = [
-    checks.higherOrderReasoning,
-    checks.multipleRepresentations,
-    checks.justification,
-    checks.modelingApplication,
-  ].filter(Boolean).length;
+  const depthCount = HONORS_DEPTH_AREAS.filter((key) => checks[key]).length;
   const narrowCheckpoint = allowNarrowCheckpoint && isNarrowHonorsCheckpoint(included);
   const fullContractReady = checks.coreTeks
     && checks.higherOrderReasoning
-    && depthCount >= 3
+    && depthCount >= HONORS_DEPTH_REQUIRED
     && (ccmrTargetRequired === false || checks.ccmrEnrichment);
   return {
     checks,

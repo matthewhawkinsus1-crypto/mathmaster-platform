@@ -1124,7 +1124,7 @@
           ],
           "dok": 3,
           "difficultyBand": 3,
-          "prompt": "APPLY MATH (Exercise 32). A box is designed so its volume is $6x^3 + 31x^2 + 53x + 30$ and its height is always $x + 2$. Find the width and the length.",
+          "prompt": "MODELING (Exercise 32). A box is designed so its volume is $6x^3 + 31x^2 + 53x + 30$ and its height is always $x + 2$. Find the width and the length.",
           "responses": [
             {
               "id": "base",
