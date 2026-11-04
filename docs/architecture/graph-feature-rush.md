@@ -684,9 +684,11 @@ and dark; reduced motion turns the pops and fades off.
 
 ## 12. Deferred
 
-- **A server-side close** for an expired round when no host screen is open
-  (today the console or projector closes it; students wait on "Time!"). This
-  now applies to every mode (`live-challenge-shell.md` §14).
+- ~~A server-side close for an expired round when no host screen is open.~~
+  Built: the server's one-minute sweep (`closeOverdueLiveChallengeRounds`,
+  `functions/shared/liveChallengeServerSweep.mjs`) closes it through the
+  console's own close transaction, for every mode (`live-challenge-shell.md`
+  §4).
 - **Misconception analytics**: receipts already record where wrong taps land
   (e.g. the y-intercept tapped for "zeros"); the report does not yet group them.
 - **More features** (axis of symmetry, holes, relative extrema, inflection
