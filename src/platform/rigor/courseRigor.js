@@ -128,6 +128,28 @@ const searchableQuestionText = (question = {}) => [
 
 const hasAnyToken = (value, tokens) => tokens.some((token) => value.includes(token));
 
+/*
+ * A QUESTION CAN SAY IT IS MODELING OR APPLICATION WORK.
+ *
+ * Modeling / application used to be found only by searching the wording for
+ * "model", "real-world", "scenario" or "application". Algebra II Honors —
+ * Dividing Polynomials had four real-world problems under the textbook's
+ * headings ("APPLY MATH", "PHYSICS", ...) and was blocked for an Honors class
+ * because none of them used one of those words. An author can now say so
+ * instead: V5 carries `taskType` (the vocabulary is TASK_TYPES in
+ * functions/shared/pathQuestionQuality.mjs; these are its two modeling
+ * values), compared exactly as that audit compares it.
+ *
+ * The label adds credit; it never removes it. `taskType` names a question's
+ * main task, so an error-analysis item about "two real-world models" is
+ * labelled errorAnalysis and is still applied mathematics. Letting a label
+ * overrule the wording would take modeling credit away from 59 audited CCMR
+ * items written exactly that way, so the wording is still read for every
+ * question.
+ */
+const MODELING_TASK_TYPES = Object.freeze(['modeling', 'application']);
+export const declaresModelingTask = (question = {}) => MODELING_TASK_TYPES.includes(String(question?.taskType ?? '').trim());
+
 const hasExplicitRepresentationConnection = (question = {}) => {
   const type = String(question.type || question.toolId || '').trim().toLowerCase();
   if (['representationmatch', 'representationbridge'].includes(type)) return true;
@@ -232,6 +254,7 @@ export const inspectHonorsRigor = (
     )),
     modelingApplication: included.some((question) => (
       ['modelingLab', 'dataModelingLab', 'relationshipModel', 'graphStory', 'contextInterpretation'].includes(question.type || question.toolId)
+      || declaresModelingTask(question)
       || hasAnyToken(searchableQuestionText(question), ['model', 'real-world', 'scenario', 'application'])
     )),
     // Filled below after we know which TEKS the non-exam lesson actually teaches.
