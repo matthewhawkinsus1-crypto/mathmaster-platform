@@ -256,7 +256,7 @@ const classwork = [
     calculatorPolicy: 'scientific',
     directionSteps: ['Find the power with a positive exponent.', 'Divide.', 'Subtract from 512.', 'Find the maximum for the second lifter.'],
     responses: [
-      number('power', '168^(8/5) ≈ (nearest whole number)', '3638', { numericTolerance: 1 }),
+      number('power', '168^(8/5) ≈ (nearest whole number)', '3635', { numericTolerance: 1 }),
       number('quotient', '146,230 ÷ 168^(8/5) ≈ (nearest tenth)', '40.2', { numericTolerance: 0.1 }),
       number('mass', 'M ≈ (kilograms, nearest whole number)', '472', { numericTolerance: 1 }),
       choice('cyp', 'For B = 80 kilograms, M is about…', ['300 kg', '340 kg', '380 kg', '400 kg'], '380 kg'),
@@ -265,7 +265,7 @@ const classwork = [
     scaffold: backUp('146,230 · B^(−8/5) equals…', ['146,230 ÷ B^(8/5)', '−146,230 · B^(8/5)'], '146,230 ÷ B^(8/5)'),
     solutionReview: review(
       'A negative exponent divides.',
-      ['168^(8/5) ≈ 3637.6, and 146,230 ÷ 3637.6 ≈ 40.2.', 'M ≈ 512 − 40.2 ≈ 472 kg.', 'For B = 80: 80^(8/5) ≈ 1110.2, 146,230 ÷ 1110.2 ≈ 131.7, so M ≈ 380 kg.'],
+      ['168^(8/5) ≈ 3634.9, and 146,230 ÷ 3634.9 ≈ 40.2.', 'M ≈ 512 − 40.2 ≈ 472 kg.', 'For B = 80: 80^(8/5) ≈ 1109.0, 146,230 ÷ 1109.0 ≈ 131.9, so M ≈ 380 kg.'],
       '472 kg; about 380 kg',
       'Typing 168^8/5 without parentheses: the calculator raises to the 8th power and then divides by 5.',
     ),

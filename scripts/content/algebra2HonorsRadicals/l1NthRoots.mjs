@@ -718,9 +718,11 @@ const practice = [
       '±{{b}}x^{{h}}',
       'Halving {{p}} instead of taking its square root.',
     ),
+    // An even power of x only, so the positive root needs no bars (as the lesson
+    // teaches): with h odd and x negative, b·x^h is the negative root.
     generator: {
-      parameters: { b: { type: 'int', min: 2, max: 13 }, h: { type: 'int', min: 2, max: 7 } },
-      derived: { p: 'b*b', e: '2*h' },
+      parameters: { b: { type: 'int', min: 2, max: 13 }, k: { type: 'int', min: 1, max: 3 } },
+      derived: { p: 'b*b', h: '2*k', e: '4*k' },
     },
     questionFamily: { scope: 'assignment' },
   },

@@ -851,7 +851,7 @@
             {
               "id": "power",
               "label": "168^(8/5) ≈ (nearest whole number)",
-              "answer": "3638",
+              "answer": "3635",
               "inputProfile": "number",
               "numericTolerance": 1
             },
@@ -898,9 +898,9 @@
           "solutionReview": {
             "headline": "A negative exponent divides.",
             "reasoning": [
-              "168^(8/5) ≈ 3637.6, and 146,230 ÷ 3637.6 ≈ 40.2.",
+              "168^(8/5) ≈ 3634.9, and 146,230 ÷ 3634.9 ≈ 40.2.",
               "M ≈ 512 − 40.2 ≈ 472 kg.",
-              "For B = 80: 80^(8/5) ≈ 1110.2, 146,230 ÷ 1110.2 ≈ 131.7, so M ≈ 380 kg."
+              "For B = 80: 80^(8/5) ≈ 1109.0, 146,230 ÷ 1109.0 ≈ 131.9, so M ≈ 380 kg."
             ],
             "answerSummary": "472 kg; about 380 kg",
             "commonError": "Typing 168^8/5 without parentheses: the calculator raises to the 8th power and then divides by 5."
