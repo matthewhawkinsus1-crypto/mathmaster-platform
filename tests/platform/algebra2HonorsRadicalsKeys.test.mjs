@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-// The answer keys of the Algebra II Honors radicals lessons, recomputed. The
-// lesson test (algebra2HonorsRadicalsLessons) holds each file to its builder;
-// this one holds the mathematics. Two keys shipped wrong (PR #537 review):
+// The answer keys of the Algebra II Honors radicals lessons, recomputed, and
+// two pacing rules from the same review. The lesson test
+// (algebra2HonorsRadicalsLessons) holds each file to its builder; this one
+// holds the mathematics. Two keys shipped wrong (PR #537 review):
 // L3 CW 6 keyed 168^(8/5) as 3638 (it is 3634.92, so the right 3635 was
 // refused), and L1 PR 1 called b·x^h the positive square root of b²x^(2h) for
 // odd h, where a negative x makes it the negative one.
@@ -87,4 +88,16 @@ test('L1 Exit Ticket 1: the root is the practice item\'s, so the one try is no h
   const most = (values) => 4 * Math.max(...values);
   assert.ok(most(parameters.m.values) <= most(practice.generator.parameters.m.values), 'x\'s exponent is within practice\'s');
   assert.ok(most(parameters.k.values) <= most(practice.generator.parameters.n.values), 'y\'s exponent is within practice\'s');
+});
+
+test('L3 Practice: the band-3 items come before the Honors extension and the CCMR items', () => {
+  // A student who stopped after the hardest items never reached the index
+  // reduction the classwork had just taught (PR 14 sat after bands 4 and 5).
+  const practice = lesson('L3_Rational_Exponents.json').sections.find((section) => section.role === 'practice').questions;
+  const bands = practice.map((question) => question.difficultyBand);
+  const peak = bands.findIndex((band) => band >= 4);
+  assert.ok(peak > 0, 'the practice climbs to band 4');
+  assert.deepEqual(bands.slice(peak).filter((band) => band < 4), [], `no easier item after the climb: ${bands.join(', ')}`);
+  const reduction = practice.findIndex((question) => /Reduce the index/.test(question.prompt));
+  assert.ok(reduction >= 0 && reduction < peak, 'the index reduction comes before the extension');
 });

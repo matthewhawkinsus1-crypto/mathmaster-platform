@@ -33,13 +33,13 @@ Or plan the release with `node scripts/release-firebase.mjs`. Never use a raw `f
 
 **Classwork** follows every slide example and Check Your Progress, staged so each step is its own graded box. "Simplify" answers are graded by value and form: simplest radical form, with absolute-value bars only where they are needed.
 
-**Practice** has new versions for each student, the Honors extension (DOK 3–4: error analysis, reasoning about the index, tables, comparing without a calculator) and two CCMR items:
+**Practice** has new versions for each student, the Honors extension (DOK 3–4: error analysis, reasoning about the index, tables, comparing without a calculator) and two CCMR items. In Lesson 3 the band-3 index reduction and calculator items come before the extension, so a student who stops early has met them:
 
 | Lesson | Audited CCMR items |
 |---|---|
 | 1 | `mm_sat_A2_7G_1_variable-radical-square-factor_v21` (P14), `mm_sat_A2_7G_3_radical-product-variable_v21` (P15) |
 | 2 | `mm_sat_A2_7G_challenge_1_combine-variable-radicals_v21` (P13), `mm_sat_A2_7G_challenge_2_radical-quotient-variable_v21` (P14) |
-| 3 | `mm_sat_A2_7G_challenge_3_radical-exponent-parameter_v21` (P12), `mm_sat_A_11B_challenge_1_nested_rational_exponents_v21` (P13) |
+| 3 | `mm_sat_A2_7G_challenge_3_radical-exponent-parameter_v21` (P14), `mm_sat_A_11B_challenge_1_nested_rational_exponents_v21` (P15) |
 
 **Exit Ticket** has three generated questions, each server-graded.
 

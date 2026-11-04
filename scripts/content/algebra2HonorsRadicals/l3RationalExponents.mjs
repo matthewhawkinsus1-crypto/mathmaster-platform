@@ -525,6 +525,62 @@ const practice = [
     },
     questionFamily: { scope: 'assignment' },
   },
+  // The index reduction the classwork just taught (PR 14) and the calculator item
+  // (PR 15), both band 3, come before the Honors extension and the CCMR items
+  // (bands 4-5), so a student who stops early has met them (the L3 pacing note in
+  // docs/qa/2026-11-03-pr537-walkthrough/findings.md). Their ids keep their numbers.
+  {
+    questionId: 'a2r3-p-14',
+    ...TX,
+    studentActions: ['multipleResponses'],
+    dok: 2,
+    difficultyBand: 3,
+    prompt: tex`Simplify $\sqrt[{{n}}]{ {{c2}}x^{ {{e}} } }$. Assume $x$ is positive. Reduce the index.`,
+    directionSteps: ['Write the radical with a rational exponent.', 'Reduce the exponent.', 'Write the answer as a radical with the smaller index.'],
+    responses: [simplest('simplified', 'Simplified', 'root({{h}})({{c}}x{{k|pow}})')],
+    hints: ['The radicand is a perfect square: a number squared times a power of x squared.', 'Halve the index after taking that square.'],
+    scaffold: backUp('⁶√(9x²) equals (x positive)…', ['∛(3x)', '∛(9x²)'], '∛(3x)'),
+    solutionReview: review(
+      'Rational exponents reduce the index.',
+      ['{{c2}}x^{{e}} = ({{c}}x^{{k}})².', 'So the root is ({{c}}x^{{k}})^(2/{{n}}) = ({{c}}x^{{k}})^(1/{{h}}).'],
+      'the {{h}}th root of {{c}}x^{{k}}',
+      'Leaving the index as {{n}}: it is not as small as it can be.',
+    ),
+    generator: {
+      parameters: { h: { type: 'choice', values: [2, 3, 4] }, c: { type: 'choice', values: [2, 3, 5, 6, 7, 10, 11] }, k: { type: 'choice', values: [1, 2, 3] } },
+      derived: { n: '2*h', c2: 'c*c', e: '2*k' },
+      constraints: ['k < h', 'gcd(k, h) == 1'],
+    },
+    questionFamily: { scope: 'assignment' },
+  },
+  {
+    questionId: 'a2r3-p-15',
+    ...TX,
+    studentActions: ['multipleResponses'],
+    dok: 2,
+    difficultyBand: 3,
+    prompt: tex`Use a calculator. Evaluate $ {{b}}^{ {{m}}/{{n}} } $ to the nearest hundredth, and write it in radical form.`,
+    calculatorPolicy: 'scientific',
+    directionSteps: ['Evaluate the power with a calculator.', 'Write the power in radical form.'],
+    responses: [
+      number('value', '{{b}}^({{m}}/{{n}}) ≈ (nearest hundredth)', '{{v}}', { numericTolerance: 0.01 }),
+      simplest('radical', '{{b}}^({{m}}/{{n}}) in radical form', 'root({{n}})({{bm}})'),
+    ],
+    hints: ['Put the exponent in parentheses on the calculator.', 'The denominator of the exponent is the index; the numerator is the power of the radicand.'],
+    scaffold: backUp('7^(2/3) in radical form is…', ['∛(7²)', '√(7³)'], '∛(7²)'),
+    solutionReview: review(
+      'Root and power; a calculator gives the decimal.',
+      ['{{b}}^({{m}}/{{n}}) ≈ {{v}}.', 'In radical form it is the {{n}}th root of {{b}}^{{m}} = {{bm}}.'],
+      '≈ {{v}}',
+      'Typing {{b}}^{{m}}/{{n}} without parentheses.',
+    ),
+    generator: {
+      parameters: { b: { type: 'choice', values: [2, 3, 5, 6, 7, 10, 11] }, m: { type: 'int', min: 2, max: 4 }, n: { type: 'int', min: 3, max: 5 } },
+      derived: { v: 'round(pow(b, m/n)*100)/100', bm: 'pow(b, m)' },
+      constraints: ['gcd(m, n) == 1', 'm < n'],
+    },
+    questionFamily: { scope: 'assignment' },
+  },
   {
     questionId: 'a2r3-p-7',
     ...teks('A2.7G', 'A2.6B'),
@@ -693,58 +749,6 @@ const practice = [
       ],
     },
   }),
-  {
-    questionId: 'a2r3-p-14',
-    ...TX,
-    studentActions: ['multipleResponses'],
-    dok: 2,
-    difficultyBand: 3,
-    prompt: tex`Simplify $\sqrt[{{n}}]{ {{c2}}x^{ {{e}} } }$. Assume $x$ is positive. Reduce the index.`,
-    directionSteps: ['Write the radical with a rational exponent.', 'Reduce the exponent.', 'Write the answer as a radical with the smaller index.'],
-    responses: [simplest('simplified', 'Simplified', 'root({{h}})({{c}}x{{k|pow}})')],
-    hints: ['The radicand is a perfect square: a number squared times a power of x squared.', 'Halve the index after taking that square.'],
-    scaffold: backUp('⁶√(9x²) equals (x positive)…', ['∛(3x)', '∛(9x²)'], '∛(3x)'),
-    solutionReview: review(
-      'Rational exponents reduce the index.',
-      ['{{c2}}x^{{e}} = ({{c}}x^{{k}})².', 'So the root is ({{c}}x^{{k}})^(2/{{n}}) = ({{c}}x^{{k}})^(1/{{h}}).'],
-      'the {{h}}th root of {{c}}x^{{k}}',
-      'Leaving the index as {{n}}: it is not as small as it can be.',
-    ),
-    generator: {
-      parameters: { h: { type: 'choice', values: [2, 3, 4] }, c: { type: 'choice', values: [2, 3, 5, 6, 7, 10, 11] }, k: { type: 'choice', values: [1, 2, 3] } },
-      derived: { n: '2*h', c2: 'c*c', e: '2*k' },
-      constraints: ['k < h', 'gcd(k, h) == 1'],
-    },
-    questionFamily: { scope: 'assignment' },
-  },
-  {
-    questionId: 'a2r3-p-15',
-    ...TX,
-    studentActions: ['multipleResponses'],
-    dok: 2,
-    difficultyBand: 3,
-    prompt: tex`Use a calculator. Evaluate $ {{b}}^{ {{m}}/{{n}} } $ to the nearest hundredth, and write it in radical form.`,
-    calculatorPolicy: 'scientific',
-    directionSteps: ['Evaluate the power with a calculator.', 'Write the power in radical form.'],
-    responses: [
-      number('value', '{{b}}^({{m}}/{{n}}) ≈ (nearest hundredth)', '{{v}}', { numericTolerance: 0.01 }),
-      simplest('radical', '{{b}}^({{m}}/{{n}}) in radical form', 'root({{n}})({{bm}})'),
-    ],
-    hints: ['Put the exponent in parentheses on the calculator.', 'The denominator of the exponent is the index; the numerator is the power of the radicand.'],
-    scaffold: backUp('7^(2/3) in radical form is…', ['∛(7²)', '√(7³)'], '∛(7²)'),
-    solutionReview: review(
-      'Root and power; a calculator gives the decimal.',
-      ['{{b}}^({{m}}/{{n}}) ≈ {{v}}.', 'In radical form it is the {{n}}th root of {{b}}^{{m}} = {{bm}}.'],
-      '≈ {{v}}',
-      'Typing {{b}}^{{m}}/{{n}} without parentheses.',
-    ),
-    generator: {
-      parameters: { b: { type: 'choice', values: [2, 3, 5, 6, 7, 10, 11] }, m: { type: 'int', min: 2, max: 4 }, n: { type: 'int', min: 3, max: 5 } },
-      derived: { v: 'round(pow(b, m/n)*100)/100', bm: 'pow(b, m)' },
-      constraints: ['gcd(m, n) == 1', 'm < n'],
-    },
-    questionFamily: { scope: 'assignment' },
-  },
 ];
 
 /* ------------------------------------------------------ Exit Ticket */
@@ -839,7 +843,7 @@ export const L3_RATIONAL_EXPONENTS = {
       gradingPurpose: 'classwork',
       essentialQuestion: 'Why can it be useful to simplify expressions?',
       instructions: 'Rational exponents. Each question has a box for every step — the root, the power, the exponent you add, the form you rewrite — and each step is checked. Answers are graded in the form asked: a "radical form" box needs a radical and an "exponential form" box a rational exponent. You have 3 tries on each Warm-Up, Classwork and Practice question, with hints. The Exit Ticket is one try with no hints.',
-      teacherNotes: 'Algebra II Honors, Radicals Lesson 3 (Rational Exponents), from the district slides, TEKS A2.7G (with A.11B, the laws of exponents). Warm-Up rebuilt as readiness: integer exponent laws → negative exponents → why b^(1/n) must be the nth root. Classwork follows every slide example and Check Your Progress. Simplified means positive exponents, no fractional exponent in a denominator, reduced exponents and the smallest index. Two audited Digital SAT items from the CCMR bank sit in Practice; P7–P11 are the Honors extension (DOK 3–4), so the Honors version is ready as written. Warm-Up and Exit Ticket are generated per student and back Recovery. Slide note: the Check Your Progress ⁶√(16x²) = ∛(4x) holds for x ≥ 0; CW8 states that assumption (for every real x it is ∛(4|x|)).',
+      teacherNotes: 'Algebra II Honors, Radicals Lesson 3 (Rational Exponents), from the district slides, TEKS A2.7G (with A.11B, the laws of exponents). Warm-Up rebuilt as readiness: integer exponent laws → negative exponents → why b^(1/n) must be the nth root. Classwork follows every slide example and Check Your Progress. Simplified means positive exponents, no fractional exponent in a denominator, reduced exponents and the smallest index. Two audited Digital SAT items from the CCMR bank sit in Practice; P9–P13 are the Honors extension (DOK 3–4), after the band-3 index reduction and calculator items, so the Honors version is ready as written. Warm-Up and Exit Ticket are generated per student and back Recovery. Slide note: the Check Your Progress ⁶√(16x²) = ∛(4x) holds for x ≥ 0; CW8 states that assumption (for every real x it is ∛(4|x|)).',
     },
     variantPolicy: {
       mode: 'personalized',
