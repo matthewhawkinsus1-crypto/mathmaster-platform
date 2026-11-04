@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { stackDivisions } from '../../functions/shared/stackDivisions.mjs';
+import { editorProductsAsTyped, stackDivisions } from '../../functions/shared/stackDivisions.mjs';
 import { matchesFieldAnswer } from '../../functions/shared/answerUtils.mjs';
 
 // Turning a written division into a stacked fraction, without ever changing
@@ -213,3 +213,79 @@ test('what the grader receives: every spelling of 3/(x+1)^2, sin(x)/cos(x) and 1
   assert.equal(right('\\frac{1}{f}x', '1/f(x)'), false, '(1/f)·x is another reading');
 });
 
+
+/*
+ * THE EDITOR'S STACKED PRODUCT, READ AS TYPED TEXT BINDS IT (TS05; the
+ * owner's decision). A typed slash takes one factor before it: 2A/h-b_2 is
+ * 2·(A/h) − b₂. The math editor stacks the whole product: the same keys give
+ * \frac{2A}{h}-b_2. Inside a sum, or as an equation's side, grading reads the
+ * editor's fraction as the typed text binds it; everywhere else (a lone
+ * fraction) it keeps its reading, so GR35a stands.
+ */
+const graded = (value, options) => editorProductsAsTyped(stackDivisions(value, { skipAsciiCalls: false, constantOperands: true }), options);
+
+test('grading: a stacked product inside a sum, or as an equation\'s side, reads as the same keys typed', () => {
+  for (const [editor, typed] of [
+    ['\\frac{2A}{h}-b_2', '2A/h-b_2'],
+    ['h=\\frac{2A}{b}', 'h=2A/b'],
+    ['\\frac{2A}{b}=h', '2A/b=h'],
+    ['b_1=\\frac{2A}{h}-b_2', 'b_1=2A/h-b_2'],
+    ['y=-\\frac{2A}{b}', 'y=-2A/b'],
+    ['3+\\frac{2(x+1)}{3}', '3+2(x+1)/3'],
+    ['V=\\frac{4π r^3}{3}', 'V=4π r^3/3'],
+    ['x+\\frac{x\\sqrt{3}}{2}', 'x+x\\sqrt{3}/2'],
+    ['1+\\frac{2ln(3)}{ln(2)}', '1+2ln(3)/ln(2)'],
+    ['\\sqrt{\\frac{2A}{h}+1}', '\\sqrt{2A/h+1}'],
+    ['2\\cdot\\frac{3A}{h}+1', '2\\cdot3A/h+1'],
+    // Two letters, as typed (a letter after a letter is a factor, below).
+    ['V=\\frac{Bh}{3}', 'V=Bh/3'],
+    ['t=\\frac{xy}{z}+1', 't=xy/z+1'],
+    ['\\frac{2Ah}{b}+1', '2Ah/b+1'],
+  ]) {
+    // (Spaces aside: every reading drops them next.)
+    assert.equal(graded(editor).replace(/\s+/g, ''), graded(typed).replace(/\s+/g, ''), `${editor} reads as ${typed}`);
+  }
+  assert.equal(graded('\\frac{2A}{h}-b_2'), '2\\frac{A}{h}-b_2');
+  assert.equal(graded('h=\\frac{2A}{b}'), 'h=2\\frac{A}{b}');
+  // One side of an equation, passed alone (the comparisons that split it first).
+  assert.equal(graded('\\frac{2A}{b}', { side: true }), '2\\frac{A}{b}');
+});
+
+test('grading: everywhere else a stacked fraction keeps its reading (GR35a, and nothing that would change the number)', () => {
+  for (const kept of [
+    // A lone fraction: GR35a's monomial quotient, \frac{3b^2}{a^3} is not 3\frac{b^2}{a^3}.
+    '\\frac{3b^2}{a^3}', '-\\frac{3b^2}{a^3}', '\\frac{2A}{h}', '(\\frac{2A}{h})^2', '(\\frac{2A}{h},1)', '\\frac{2A}{h}\\cdot 3',
+    // Not a factor's worth of typing: a sign, an operation or a sum in the numerator.
+    '\\frac{-2A}{h}+1', '\\frac{2\\cdot A}{h}+1', '\\frac{2x+1}{3}+x',
+    // One factor already: π or a root with its number, a call.
+    '\\frac{3π}{4}+1', '\\frac{2\\sqrt{3}}{3}+1', '\\frac{ln(3)}{ln(2)}+1',
+    // A fraction that does not start its term: a number before it would run into the front.
+    '2\\frac{3A}{h}+1', 'x\\frac{2A}{h}+1',
+    // Never after a slash, a power's or a subscript's sign: 1/-(2A/h) is not (1/-2)·(A/h).
+    '1/-\\frac{2A}{h}+1', 'x^-\\frac{2A}{h}+1',
+    // Something binds to the whole fraction: (2A/h)² is not 2·(A/h)².
+    '\\frac{2A}{h}^2+1', '\\frac{2A}{h}_1+1',
+    // Two numbers side by side would read as one, or as a mixed number.
+    '\\frac{2 3}{5}+1',
+    // An inequality's side is not an equation's (only a sum is read there).
+    'x<\\frac{2A}{h}', 'x\\le\\frac{2A}{h}', 'x<=\\frac{2A}{h}',
+  ]) {
+    assert.equal(editorProductsAsTyped(kept), kept, kept);
+  }
+  assert.equal(editorProductsAsTyped('x<\\frac{2A}{h}+1'), 'x<2\\frac{A}{h}+1', 'a sum on an inequality\'s side is still a sum');
+});
+
+test('grading: the second letter of a two-letter product is a factor, as after a number or a space', () => {
+  const read = (value) => stackDivisions(value, { skipAsciiCalls: false, constantOperands: true });
+  assert.equal(read('xy/z'), 'x\\frac{y}{z}');
+  assert.equal(read('x y/z'), 'x \\frac{y}{z}', 'as a space already read it');
+  assert.equal(read('Bh/3'), 'B\\frac{h}{3}');
+  assert.equal(read('2Ah/b'), '2A\\frac{h}{b}');
+  assert.equal(read('xy^2/z'), 'x\\frac{y^2}{z}', 'with its power');
+  // Three letters or more may be a word, and are left as written, with or
+  // without a space inside them; a command's name is never a letter.
+  for (const kept of ['xyz/w', 'x yz/w', 'num/den', 'rise/run', '\\pi/2', '\\alphar/2']) assert.equal(read(kept), kept, kept);
+  // The screen's reading is not grading's, and keeps its own.
+  assert.equal(stackDivisions('xy/z'), 'xy/z');
+  assert.equal(stackDivisions('xy/z', { unicodeMath: true }), 'xy/z');
+});

@@ -14,7 +14,7 @@ import {
   samePolynomial,
   splitEquationSides,
 } from './algebraicForm.mjs';
-import { stackDivisions } from './stackDivisions.mjs';
+import { editorProductsAsTyped, stackDivisions } from './stackDivisions.mjs';
 import { exactConstantValue } from './exactConstantValue.mjs';
 import { sameExpandedPolynomialExpression } from './expandedPolynomialExpressionEquivalence.mjs';
 import { sameMonomialQuotient } from './monomialQuotientEquivalence.mjs';
@@ -196,7 +196,17 @@ export const normalizeStructuralMathLive = (value) => expandLatexShorthand(witho
  */
 // π and a square root count as numbers here (stackDivisions.mjs, H-13), so
 // the editor's `\frac{\pi}{2}` and the key `pi/2` meet on one spelling.
-const canonicalizeDivisions = (value) => stackDivisions(value, { skipAsciiCalls: false, constantOperands: true });
+//
+// …and inside a sum, or as an equation's side, the editor's stacked product
+// is read as the same keys typed bind it (TS05, the owner's decision):
+// \frac{2A}{h}-b_2 is 2A/h-b_2 and h=\frac{2A}{b} is h=2A/b, while a lone
+// \frac{3b^2}{a^3} keeps GR35a's reading (stackDivisions.mjs
+// editorProductsAsTyped). `side`: the text is one side of an equation, for
+// the comparisons that split an equation before reading it.
+const canonicalizeDivisions = (value, { side = false } = {}) => editorProductsAsTyped(
+  stackDivisions(value, { skipAsciiCalls: false, constantOperands: true }),
+  { side },
+);
 
 /** `abs(...)` as the bars it means, with the call's own parentheses matched. */
 const absCallsAsBars = (value) => {
@@ -332,7 +342,7 @@ const FRACTION_COEFFICIENT_PI = /(?<![\w})\]^_.\\|/])\\frac\{(\d+)\}\{(\d+)\}π(
 const fractionCoefficientPi = (value) => value.replace(FRACTION_COEFFICIENT_PI, (match, numerator, denominator) => (
   `\\frac{${numerator === '1' ? '' : numerator}π}{${denominator}}`));
 
-export const normalizeAnswer = (value) => fractionCoefficientPi(unitFractionPowers(canonicalSymbolSpellings(canonicalizeDivisions(canonicalSymbolSpellings(normalizeStructuralMathLive(value), { keepCompoundBraced: true })), { asciiPi: false }))
+export const normalizeAnswer = (value, { side = false } = {}) => fractionCoefficientPi(unitFractionPowers(canonicalSymbolSpellings(canonicalizeDivisions(canonicalSymbolSpellings(normalizeStructuralMathLive(value), { keepCompoundBraced: true }), { side }), { asciiPi: false }))
   .replace(/\\cdot|\\times/g, '*')
   .replace(/\\infty|∞/g, 'inf')
   .replace(/\\cup|∪/g, 'u')
@@ -770,7 +780,7 @@ const hasVariableGrouping = (value) => {
  * vertex form into standard form, factor, distribute, reorder terms, or move
  * anything across the equals sign.
  */
-const normalizeFormPreservingSide = (value) => {
+const normalizeFormPreservingSide = (value, { side = false } = {}) => {
   // Remove generator bookkeeping around SINGLE numeric parameters BEFORE
   // structural MathLive normalization. This ordering matters for radicals:
   //
@@ -812,7 +822,7 @@ const normalizeFormPreservingSide = (value) => {
   radicalReady = radicalReady
     .replace(/([0-9A-Za-z)\]])sqrt\s*\(/g, '$1*sqrt(');
 
-  let text = canonicalizeDivisions(normalizeStructuralMathLive(radicalReady))
+  let text = canonicalizeDivisions(normalizeStructuralMathLive(radicalReady), { side })
     .replace(/\\cdot|\\times/g, '*')
     .replace(/\s+/g, '')
     .replace(/\^\{(-?\d+)\}/g, '^$1');
@@ -855,14 +865,14 @@ const normalizeFormPreservingSide = (value) => {
 // The same side, or the same side with its constant term written first:
 // vertex form `-3 + 2(x-4)^2` for `2(x-4)^2 - 3` (Job P). Moving a whole
 // constant term never changes any term's own form.
-const sameFormPreservingSide = (left, right) => {
+const sameFormPreservingSide = (left, right, { side = false } = {}) => {
   // π is read before the form normaliser removes spaces (so `p i` stays p·i);
   // everything else after it, so its own rules (a coefficient of 1 before a
   // root, generator brackets) see what they always saw.
   const piFirst = (value) => String(value ?? '')
     .replace(/\\pi(?!tchfork)/g, 'π')
     .replace(/(?<![A-Za-z\\])pi(?![A-Za-z])/g, 'π');
-  const form = (value) => canonicalSymbolSpellings(normalizeFormPreservingSide(piFirst(value)), { asciiPi: false });
+  const form = (value) => canonicalSymbolSpellings(normalizeFormPreservingSide(piFirst(value), { side }), { asciiPi: false });
   const a = form(left);
   const b = form(right);
   if (a === b) return true;
@@ -878,7 +888,8 @@ export const sameFormPreservingEquation = (left, right) => {
   const b = splitEquationSides(right);
   if (!a || !b) return false;
 
-  return sameFormPreservingSide(a.left, b.left) && sameFormPreservingSide(a.right, b.right);
+  // Each is an equation's side, read so (canonicalizeDivisions, TS05).
+  return sameFormPreservingSide(a.left, b.left, { side: true }) && sameFormPreservingSide(a.right, b.right, { side: true });
 };
 
 
@@ -911,8 +922,8 @@ export const sameExpandedPolynomialEquation = (left, right, tolerance = 1e-6) =>
   const b = splitEquationSides(right);
   if (!a || !b) return false;
 
-  // Preserve which quantity/function is being defined.
-  if (!sameText(a.left, b.left)) return false;
+  // Preserve which quantity/function is being defined (read as a side, TS05).
+  if (normalizeAnswer(a.left, { side: true }) !== normalizeAnswer(b.left, { side: true })) return false;
 
   // Do not turn a form-specific question into a generic "same graph" grader.
   if (hasVariableGrouping(a.right) || hasVariableGrouping(b.right)) return false;
@@ -1097,7 +1108,8 @@ export const sameFiniteSetNotation = (left, right, tolerance = 1e-6) => {
  */
 export const sameCommutativeModelEquation = (left, right) => {
   const canonicalSide = (value) => {
-    const text = normalizeAnswer(value);
+    // An equation's side, read so (canonicalizeDivisions, TS05).
+    const text = normalizeAnswer(value, { side: true });
     if (!text) return null;
     const terms = [];
     let token = '';
