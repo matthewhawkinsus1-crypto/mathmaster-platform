@@ -267,11 +267,14 @@ export const watchClassGameMemory = (classId, game, onValue, onError = console.w
       game,
       onValue,
       onError,
-      listen: (collectionName, id, next, fail) => onSnapshot(
-        doc(db, collectionName, id),
-        (snapshot) => next(snapshot.exists() ? snapshot.data() : null),
-        fail,
-      ),
+      // watchClassMemory returns this unsubscribe; the cleanup below calls it.
+      listen: (collectionName, id, next, fail) => {
+        return onSnapshot(
+          doc(db, collectionName, id),
+          (snapshot) => next(snapshot.exists() ? snapshot.data() : null),
+          fail,
+        );
+      },
     });
   }).catch(onError);
   return () => {

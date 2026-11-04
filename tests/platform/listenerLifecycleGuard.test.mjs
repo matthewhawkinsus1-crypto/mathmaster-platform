@@ -39,7 +39,11 @@ const classify = (code, index, name) => {
   const via = '(?:[\\w$]+\\??\\.)*';
   if (new RegExp(`return\\s+${via}$`).test(before)) return 'returned';
   if (/useEffect\(\(\)\s*=>\s*$/.test(before)) return 'returned';
-  const assigned = before.match(new RegExp(`(?:const|let)\\s+(\\w+)\\s*=\\s*${via}$`));
+  // Into a local declared here, or one declared before it: a subscription
+  // opened after a lazy import (`stop = watch…(`) is kept in a local the
+  // returned cleanup calls.
+  const assigned = before.match(new RegExp(`(?:const|let)\\s+(\\w+)\\s*=\\s*${via}$`))
+    || before.match(new RegExp(`^\\s*(\\w+)\\s*=\\s*${via}$`));
   if (assigned) {
     const variable = assigned[1];
     return new RegExp(`\\b${variable}(?:\\?\\.)?\\(\\)`).test(after) ? 'released' : `never released: ${variable}`;
@@ -104,4 +108,27 @@ test('the guard catches a listener opened and never released', () => {
     }, [id]);
   `);
   assert.equal(classify(fine, fine.indexOf('onSnapshot('), 'onSnapshot'), 'released');
+});
+
+test('a local declared earlier and assigned after a lazy import is released only by a cleanup that calls it', () => {
+  const kept = executableSource(`
+    export const watchThing = (id, onValue) => {
+      let stop = null;
+      import('./thing.mjs').then(({ watchThingNow }) => {
+        stop = watchThingNow({ id, onValue });
+      });
+      return () => { stop?.(); };
+    };
+  `);
+  assert.equal(classify(kept, kept.indexOf('watchThingNow({'), 'watchThingNow'), 'released');
+  const dropped = executableSource(`
+    export const watchThing = (id, onValue) => {
+      let stop = null;
+      import('./thing.mjs').then(({ watchThingNow }) => {
+        stop = watchThingNow({ id, onValue });
+      });
+      return () => {};
+    };
+  `);
+  assert.match(classify(dropped, dropped.indexOf('watchThingNow({'), 'watchThingNow'), /never released: stop/);
 });
