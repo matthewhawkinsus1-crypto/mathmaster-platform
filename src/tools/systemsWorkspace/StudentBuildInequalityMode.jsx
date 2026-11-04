@@ -53,6 +53,7 @@ import {
 } from './inequalityBuildFlow.js';
 import { ChoiceGroup, InequalityLayout, PLANE_KEYS, StepFeedback, revealStep } from './InequalityControls.jsx';
 import { diagnoseModelRows, modelRowMessage, modelRowVerdicts } from './inequalityModelCheck.js';
+import { pointSubstitution, valueEntered, valueWorkedOut } from './testPointSubstitution.js';
 import { POINT_COLORS, constraintColor } from './constraintPalette.js';
 import { inequalityGraphMarksText } from './inequalityGraphMarks.js';
 import {
@@ -112,8 +113,10 @@ const emptyRewriteEntry = (source = '') => ({ source, steps: [], committedText:s
 // opened on ≥, which was already right for every "at least" constraint.
 const emptyModelingEntry = () => ({ coeffA: '', coeffB: '', relation: UNANSWERED, constant: '' });
 
+// `values`: what the student worked out for each inequality at the point
+// before judging it (F-SW-TEST-POINT-YESNO). Step work: the grader reads none.
 const emptyTestPointResponse = (count) => ({
-  overall: '', perInequality: Array.from({ length: count }, () => ''), onBoundary: '', boundaryIncluded: '',
+  overall: '', perInequality: Array.from({ length: count }, () => ''), values: Array.from({ length: count }, () => ''), onBoundary: '', boundaryIncluded: '',
 });
 
 // First miss stays neutral — a nudge to re-examine the work, not the rule
@@ -377,19 +380,41 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
   const stepMessage = (index, step) => (step === 'boundary' ? boundaryMessage(index) : step === 'lineStyle' ? styleMessage(index) : shadeMessage(index));
   const stepTone = (index, step) => (!buildGate.verdictsShown ? 'recorded' : stepCorrect(index, step) ? 'correct' : 'revise');
 
+  // What each inequality asks the student to work out at a point before
+  // judging it: "2(6) + 3(4) = [ ]" (testPointSubstitution.js), read from the
+  // inequality as it is written on screen. Null where there is nothing to do.
+  const substitutionsFor = (point) => {
+    if (!point) return [];
+    const satisfied = membership(point);
+    return Array.from({ length: constraintCount }, (_, index) => pointSubstitution(inequalityLabel(index), point, {
+      satisfied: satisfied[index],
+      symbols: variables.map((variable) => variable.symbol),
+    }));
+  };
+
   // What the student said about a point, judged only once they check it.
   // `probeIndex`: the boundary the point's boundary questions were shown for
   // (the student's own point: studentProbeIndex).
   const pointReport = (point, response, probeIndex = onBoundaryIndex(point)) => {
     if (!point) return null;
     const boundaryIndex = onBoundaryIndex(point);
+    const substitutions = substitutionsFor(point);
     if (!buildGate.verdictsShown) {
       // Recorded, not judged: every question about the point answered or not —
-      // the boundary questions exactly when they are on screen.
-      const complete = response.perInequality.every((value) => value === 'yes' || value === 'no')
+      // its values, and the boundary questions exactly when they are on screen.
+      const complete = substitutions.every((substitution, index) => !substitution || valueEntered(response.values?.[index]))
+        && response.perInequality.every((value) => value === 'yes' || value === 'no')
         && (response.overall === 'yes' || response.overall === 'no')
         && (!boundaryProbeEnabled || probeIndex < 0 || (Boolean(response.onBoundary) && Boolean(response.boundaryIncluded)));
       return { done: complete, tone: 'recorded', text: completionLine(buildGate.reasoningReport({ pressed: true, complete }), REASONING_COMPLETION_TEXT) };
+    }
+    // The working out comes first: a value that is missing or off is named
+    // before any judgement about the point.
+    const worked = substitutions.map((substitution, index) => (substitution ? valueWorkedOut(response.values?.[index], substitution) : 'right'));
+    const valueMiss = worked.findIndex((state) => state !== 'right');
+    if (valueMiss >= 0) {
+      const { text } = substitutions[valueMiss];
+      return { done: false, tone: 'revise', text: worked[valueMiss] === 'off' ? `Recheck the value of ${text}.` : `Work out ${text} first.` };
     }
     const expectedMembership = membership(point);
     const perInequalityCorrect = response.perInequality.every((value, index) => explicitBooleanAnswerMatches(value, expectedMembership[index]));
@@ -1010,6 +1035,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
                 setResponse={setTeacherPointResponse}
                 count={constraintCount}
                 inequalityLabels={inequalityLabels}
+                substitutions={substitutionsFor([teacherTestPoint.x, teacherTestPoint.y])}
                 showBoundaryProbe={boundaryProbeEnabled && onBoundaryIndex([teacherTestPoint.x, teacherTestPoint.y]) >= 0}
               />
               <div className="mm-ineq-actions">
@@ -1030,6 +1056,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
                     setResponse={setStudentPointResponse}
                     count={constraintCount}
                     inequalityLabels={inequalityLabels}
+                    substitutions={substitutionsFor(studentTestPoint)}
                     showBoundaryProbe={boundaryProbeEnabled && studentProbeIndex(studentTestPoint) >= 0}
                   />
                   <div className="mm-ineq-actions">

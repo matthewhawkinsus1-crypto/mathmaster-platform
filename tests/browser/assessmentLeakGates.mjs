@@ -289,7 +289,7 @@ const systems2x2 = async () => {
 
 /* ------------------------------------------------------- inequality-build */
 
-const BUILD_VERDICT = /Correct boundary\.|Correct line style\.|Correct shading\.|Check whether points on the boundary|Check whether the points you used|Use a test point or compare|Every constraint checks out|Locked until every constraint above is correct|Correct classification\.|Look at whether the shaded overlap|Correct —|misjudged|Re-examine|Not quite/;
+const BUILD_VERDICT = /Correct boundary\.|Correct line style\.|Correct shading\.|Check whether points on the boundary|Check whether the points you used|Use a test point or compare|Every constraint checks out|Locked until every constraint above is correct|Correct classification\.|Look at whether the shaded overlap|Correct —|misjudged|Re-examine|Not quite|Recheck the value of|Work out [^.]* first\./;
 // The graph's own mapping (CoordinatePlane: 560×380 viewBox, 42 padding) for
 // this fixture's −6..8 × −4..10 window.
 const GRAPH = 'svg[aria-label^="Student-constructed graph of the inequality system"]';
@@ -488,6 +488,10 @@ const inequalityBuild = async () => {
       check(PROBE.test(await bodyText(page)), `${role} inequality-probe: a point on the student's own line gets them`);
       await answerPoint(page, [[/Does the point satisfy inequality 1\?/, 'yes'], [/Does the point satisfy inequality 2\?/, 'yes'], ['Is the point a solution to the entire system?', 'yes']]);
       check(/Not finished yet — answer every part above\./.test(await bodyText(page)) && await cursor(page) === 'studentPoint', `${role} inequality-probe: the check asks for the boundary answers on screen`);
+      // Each inequality's value at the point comes first (x ≥ 1: x = [ ]; y < 3: y = [ ]);
+      // a wrong one is recorded like a right one (F-SW-TEST-POINT-YESNO).
+      await page.locator('[data-substitution="1"] input').fill('2');
+      await page.locator('[data-substitution="2"] input').fill('5');
       await answerPoint(page, [['Does this point lie exactly on one of the boundary lines?', 'yes'], ['Since it is on that boundary, is it included in the solution region?', 'yes']]);
       const text = await bodyText(page);
       check(!BUILD_VERDICT.test(text) && await page.locator('[data-phase="studentPoint"]').getAttribute('data-state') === 'done', `${role} inequality-probe: then records the point without judging it`, firstMatch(text, BUILD_VERDICT));

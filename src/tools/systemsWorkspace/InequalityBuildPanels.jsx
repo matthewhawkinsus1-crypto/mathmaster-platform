@@ -202,8 +202,18 @@ export function PhaseCard({ phase, title, state, summary = '', doneMark, doneTon
   );
 }
 
-/** The questions about one test point: each inequality, the system, and (on a boundary) inclusion. */
-export function TestPointQuestions({ point, response, setResponse, count, inequalityLabels, showBoundaryProbe }) {
+/**
+ * The questions about one test point: each inequality, the system, and (on a
+ * boundary) inclusion. Each inequality asks for its value at the point first
+ * ("2(6) + 3(4) = [ ]", testPointSubstitution.js), then Yes / No: a click
+ * alone was a coin toss (F-SW-TEST-POINT-YESNO). `substitutions[i]` is null
+ * where there is nothing to work out, and only the Yes / No is asked.
+ */
+export function TestPointQuestions({ point, response, setResponse, count, inequalityLabels, substitutions = [], showBoundaryProbe }) {
+  const setValue = (index, value) => setResponse((current) => ({
+    ...current,
+    values: Array.from({ length: count }, (_, i) => (i === index ? value : (current.values?.[i] ?? ''))),
+  }));
   return (
     <div style={{ display: 'grid', gap: 8 }} data-test-point={formatPoint(point[0], point[1])}>
       {Array.from({ length: count }).map((_, index) => (
@@ -213,7 +223,23 @@ export function TestPointQuestions({ point, response, setResponse, count, inequa
           legend={<>Does the point satisfy inequality {index + 1}? <span className="mm-ineq-math" style={{ fontSize: 'inherit' }}>{inequalityLabels[index] || ''}</span></>}
           value={response.perInequality[index] || ''}
           onChange={(value) => setResponse((current) => ({ ...current, perInequality: current.perInequality.map((entry, i) => (i === index ? value : entry)) }))}
-        />
+        >
+          {substitutions[index] ? (
+            <label className="mm-ineq-substitution" data-substitution={index + 1}>
+              <span className="mm-ineq-math" style={{ fontSize: 'inherit' }}>{substitutions[index].text} =</span>
+              <input
+                className="mm-ineq-input"
+                data-size="narrow"
+                type="text"
+                inputMode="text"
+                autoComplete="off"
+                aria-label={`Inequality ${index + 1}: the value of ${substitutions[index].text}`}
+                value={response.values?.[index] ?? ''}
+                onChange={(event) => setValue(index, event.target.value)}
+              />
+            </label>
+          ) : null}
+        </YesNoQuestion>
       ))}
       <YesNoQuestion
         name="system"

@@ -118,6 +118,11 @@ const choose = async (page, value) => {
   await settle(page, 200);
 };
 const cursor = (page) => page.locator('[data-cursor]').first().getAttribute('data-cursor');
+// A test point's value for each inequality, typed before it is judged ("2(6) + 3(4) = [ ]").
+const workOut = async (page, values) => {
+  for (const [index, value] of values.entries()) await page.locator(`[data-substitution="${index + 1}"] input`).fill(value);
+  await settle(page, 150);
+};
 const lastGrade = async (page) => (await page.evaluate(() => window.__mmGraded)).at(-1) || null;
 const chips = (page) => page.locator('[data-boundary-point]:visible').allInnerTexts().then((texts) => texts.map((text) => text.replace('×', '').trim()));
 const status = (page, index) => page.locator(`[data-constraint-index="${index}"] .mm-ineq-card-status-text`).innerText();
@@ -403,6 +408,10 @@ const keyboardReasoning = async () => {
   check((await bodyText(page)).includes('Your point: (2, 2). Click or tap the graph again to move it, or focus the grid and use the arrow keys and Enter.'), 'keyboard: Enter places the point, and the line says how to move it');
   await plane.plot([3, 2]);
   check((await bodyText(page)).includes('Your point: (3, 2). Click or tap the graph again to move it'), 'keyboard: the same keys move it');
+  // Each inequality is worked out at the point before it is judged (F-SW-TEST-POINT-YESNO).
+  const asked = await page.locator('[data-substitution]').allInnerTexts();
+  check(asked.map((text) => text.trim()).join(' | ') === '0.5(3) = | −3 + 6 = | 2(3) =', 'keyboard: each inequality asks for its value at the point', asked.join(' | '));
+  await workOut(page, ['1.5', '3', '6']);
   for (const question of ['inequality-1', 'inequality-2', 'inequality-3', 'system']) await page.locator(`[data-question="${question}"] button[data-choice="yes"]`).click();
   await press(page, 'Check this point');
   check(await cursor(page) === 'vertices', 'keyboard: the point is judged right, and the corners are next', await cursor(page));
@@ -564,8 +573,8 @@ const writeModel = async (page, [a, b, relation, c]) => {
   await page.getByLabel('Constraint 1: constant', { exact: true }).fill(String(c));
   await settle(page, 200);
 };
-// Anything that would say whether the model is right.
-const MODEL_VERDICT = /means 20 points or more|match the situation|fit the situation|Check the coefficients|Check each coefficient|checks out|Correct/;
+// Anything that would say whether the model, a step or a worked-out value is right.
+const MODEL_VERDICT = /means 20 points or more|match the situation|fit the situation|Check the coefficients|Check each coefficient|checks out|Correct|Recheck the value|Work out 2\(6\)/;
 const buildKai = async (page, shadeAt) => {
   await tapAt(page, [10, 0], KAI);
   await tapAt(page, [4, 4], KAI);
@@ -575,7 +584,8 @@ const buildKai = async (page, shadeAt) => {
   await tapAt(page, shadeAt, KAI);
   await press(page, 'Check shading');
 };
-const testKaiPoint = async (page, answer) => {
+const testKaiPoint = async (page, answer, value = '24') => {
+  await workOut(page, [value]);
   for (const question of ['inequality-1', 'system']) await page.locator(`[data-question="${question}"] button[data-choice="${answer}"]`).click();
   await press(page, 'Check this point');
 };
@@ -597,7 +607,15 @@ const modeling = async () => {
   await buildKai(page, [8, 8]);
   check(await cursor(page) === 'combine', 'modeling: the graph of the right model is built step by step', await cursor(page));
   await press(page, 'Find overlap / Combine regions');
+  // F-SW-TEST-POINT-YESNO: the point is worked out before it is judged, so a guessed Yes passes nothing.
+  check((await page.locator('[data-substitution="1"]').innerText()).trim() === '2(6) + 3(4) =', 'modeling: the test point asks for 2(6) + 3(4) first');
+  for (const question of ['inequality-1', 'system']) await page.locator(`[data-question="${question}"] button[data-choice="yes"]`).click();
+  await press(page, 'Check this point');
+  check((await bodyText(page)).includes('Work out 2(6) + 3(4) first.') && await cursor(page) === 'teacherPoint', 'modeling: Yes alone does not pass the test point', await cursor(page));
+  await testKaiPoint(page, 'yes', '25');
+  check((await bodyText(page)).includes('Recheck the value of 2(6) + 3(4).') && await cursor(page) === 'teacherPoint', 'modeling: a wrong value is named, and the student stays on the point', await cursor(page));
   await testKaiPoint(page, 'yes');
+  check(await page.locator('[data-phase="teacherPoint"]').getAttribute('data-state') === 'done', 'modeling: the right value and the right answers pass it');
   await press(page, 'Check my work');
   await settle(page, 600);
   const grade = await lastGrade(page);
@@ -621,8 +639,10 @@ const modelingDol = async () => {
   check(await cursor(page) === 'c0:boundary', 'modeling (DOL): the model is graphed as written', await cursor(page));
   await buildKai(page, [1, 1]);
   await press(page, 'Find overlap / Combine regions');
-  // (6, 4) does not satisfy the student's own 2x + 3y ≤ 20.
-  await testKaiPoint(page, 'no');
+  // (6, 4) does not satisfy the student's own 2x + 3y ≤ 20. A wrong value is
+  // recorded like a right one: nothing is judged before Submit.
+  await testKaiPoint(page, 'no', '25');
+  check(await page.locator('[data-phase="teacherPoint"]').getAttribute('data-state') === 'done', 'modeling (DOL): the worked-out point is recorded, the value not judged');
   const said = await bodyText(page);
   check(!MODEL_VERDICT.test(said) && !said.includes('✓'), 'modeling (DOL): nothing says whether the model or any step is right', (said.match(MODEL_VERDICT) || [''])[0]);
   await press(page, 'Check my work');

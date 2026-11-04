@@ -199,25 +199,33 @@ export function ChoiceGroup({ legend, options, value, onChange, disabled = false
   );
 }
 
-/** A yes / no judgement on one row: the question, then its two answers. */
-export function YesNoQuestion({ legend, value, onChange, yesLabel = 'Yes', noLabel = 'No', name }) {
+/**
+ * A yes / no judgement on one row: the question, then its two answers. What
+ * the student works out first (a test point's value, F-SW-TEST-POINT-YESNO)
+ * comes as `children`: under the question, on one line with the answers
+ * where they fit (a phone wraps them).
+ */
+export function YesNoQuestion({ legend, value, onChange, yesLabel = 'Yes', noLabel = 'No', name, children = null }) {
+  const answers = (
+    <span className="mm-ineq-choices">
+      {[['yes', yesLabel], ['no', noLabel]].map(([choice, label]) => (
+        <button
+          key={choice}
+          type="button"
+          className="mm-ineq-choice"
+          aria-pressed={value === choice}
+          data-choice={choice}
+          onClick={() => onChange(choice)}
+        >
+          {label}
+        </button>
+      ))}
+    </span>
+  );
   return (
-    <fieldset className="mm-ineq-question" data-question={name || undefined}>
+    <fieldset className="mm-ineq-question" data-question={name || undefined} data-with-work={children ? 'true' : undefined}>
       <legend>{legend}</legend>
-      <span className="mm-ineq-choices">
-        {[['yes', yesLabel], ['no', noLabel]].map(([choice, label]) => (
-          <button
-            key={choice}
-            type="button"
-            className="mm-ineq-choice"
-            aria-pressed={value === choice}
-            data-choice={choice}
-            onClick={() => onChange(choice)}
-          >
-            {label}
-          </button>
-        ))}
-      </span>
+      {children ? <span className="mm-ineq-question-work">{children}{answers}</span> : answers}
     </fieldset>
   );
 }
