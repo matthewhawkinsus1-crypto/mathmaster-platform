@@ -187,6 +187,24 @@ const representationKinds = (question = {}) => {
   return kinds;
 };
 
+/*
+ * THE HONORS DEPTH RULE, NAMED ONCE.
+ *
+ * An Honors assignment is judged on these four depth areas and needs
+ * HONORS_DEPTH_REQUIRED of them. Higher-order reasoning is one of the four
+ * and is also required on its own, so the rule is DOK 3 work plus two of the
+ * other three. The Review blocker (preflightSteps.js) and the AI repair gate
+ * (honorsDepthAiRepair.js) read it from here, so the message a teacher sees
+ * cannot ask for more than this check requires.
+ */
+export const HONORS_DEPTH_AREAS = Object.freeze([
+  'higherOrderReasoning',
+  'multipleRepresentations',
+  'justification',
+  'modelingApplication',
+]);
+export const HONORS_DEPTH_REQUIRED = 3;
+
 export const isNarrowHonorsCheckpoint = (questions = []) => {
   const included = (Array.isArray(questions) ? questions : []).filter((question) => question?.teacherExcluded !== true);
   return included.length > 0 && included.length <= 3 && included.every((question) => (
@@ -233,16 +251,11 @@ export const inspectHonorsRigor = (
     isDirectCcmrPracticeQuestion(question)
     && questionTeks(question).some((code) => lessonTeks.has(code))
   ));
-  const depthCount = [
-    checks.higherOrderReasoning,
-    checks.multipleRepresentations,
-    checks.justification,
-    checks.modelingApplication,
-  ].filter(Boolean).length;
+  const depthCount = HONORS_DEPTH_AREAS.filter((key) => checks[key]).length;
   const narrowCheckpoint = allowNarrowCheckpoint && isNarrowHonorsCheckpoint(included);
   const fullContractReady = checks.coreTeks
     && checks.higherOrderReasoning
-    && depthCount >= 3
+    && depthCount >= HONORS_DEPTH_REQUIRED
     && (ccmrTargetRequired === false || checks.ccmrEnrichment);
   return {
     checks,

@@ -18,6 +18,7 @@
 // actually taking, which is decided by whether any class is selected.
 
 import { CREATION_MODE_LABELS, resolveCreationMode } from '../../assignmentDestinations.js';
+import { HONORS_DEPTH_AREAS, HONORS_DEPTH_REQUIRED } from '../../platform/rigor/courseRigor.js';
 
 export const PREFLIGHT_STEPS = Object.freeze([
   { id: 'details', label: 'Details', hint: 'Title, folder and dates' },
@@ -40,6 +41,59 @@ const HONORS_BLOCKER_LABELS = Object.freeze({
 });
 
 const honorsBlockerLabel = (key) => HONORS_BLOCKER_LABELS[key] || String(key || 'Honors requirement');
+
+const COUNT_WORDS = Object.freeze(['none', 'one', 'two', 'three', 'four']);
+const countWord = (count) => COUNT_WORDS[count] || String(count);
+const orList = (labels) => (labels.length < 2
+  ? labels.join('')
+  : `${labels.slice(0, -1).join(', ')} or ${labels[labels.length - 1]}`);
+
+/*
+ * WHAT AN HONORS CLASS NEEDS, SAID AS THE RULE RATHER THAN A LIST OF GAPS.
+ *
+ * Honors needs HONORS_DEPTH_REQUIRED of the four depth areas, one of which
+ * must be higher-order reasoning (courseRigor.js). This used to print every
+ * area the assignment lacked, "Fix: multiple representations, modeling /
+ * application.", so a teacher one area short read it as two things to build.
+ * It now says how many areas the assignment has, how many more it needs and
+ * which ones can supply them. A narrow checkpoint (a short Warm-Up or DOL)
+ * needs only its Core TEKS, so nothing else is asked of it. The CCMR gap is
+ * not described here: the Honors version supplies audited Practice, and its
+ * own blocker below says when it cannot.
+ *
+ * Reads only `missing` and `isNarrowCheckpoint`: inspectHonorsRigor lists
+ * every check that failed, so an area is present exactly when it is not
+ * listed. Returns '' when nothing the teacher can add is missing.
+ */
+export const describeHonorsGap = (honorsReport) => {
+  const report = honorsReport && typeof honorsReport === 'object' ? honorsReport : {};
+  if (!Array.isArray(report.missing)) return `Fix: ${honorsBlockerLabel('unknownHonorsRequirement')}.`;
+  const missing = new Set(report.missing.filter((key) => key && key !== 'ccmrEnrichment'));
+  const sentences = [];
+  if (missing.has('coreTeks')) {
+    sentences.push('Core TEKS alignment is missing: align at least one question to a Core TEKS.');
+  }
+  if (report.isNarrowCheckpoint !== true) {
+    const present = HONORS_DEPTH_AREAS.filter((key) => !missing.has(key));
+    const hasReasoning = present.includes('higherOrderReasoning');
+    // Higher-order reasoning is asked for by name, so it is not also one of the options.
+    const stillNeeded = Math.max(0, HONORS_DEPTH_REQUIRED - present.length - (hasReasoning ? 0 : 1));
+    if (present.length < HONORS_DEPTH_REQUIRED) {
+      sentences.push(`Honors needs ${HONORS_DEPTH_REQUIRED} of the ${HONORS_DEPTH_AREAS.length} depth areas, and this assignment has ${present.length ? `${present.length} (${present.map(honorsBlockerLabel).join(', ')})` : 'none'}.`);
+    }
+    if (!hasReasoning) {
+      sentences.push('Add at least one DOK 3 question: higher-order reasoning is required in every Honors assignment.');
+    }
+    if (stillNeeded > 0) {
+      const options = HONORS_DEPTH_AREAS.filter((key) => key !== 'higherOrderReasoning' && missing.has(key));
+      sentences.push(`${hasReasoning ? 'Add' : 'Then add'} ${countWord(stillNeeded)} of: ${orList(options.map(honorsBlockerLabel))}.`);
+    }
+  }
+  // Anything the report names that is not part of the rule above is still said.
+  const unexplained = [...missing].filter((key) => key !== 'coreTeks' && !HONORS_DEPTH_AREAS.includes(key));
+  if (unexplained.length) sentences.push(`Also fix: ${unexplained.map(honorsBlockerLabel).join(', ')}.`);
+  return sentences.join(' ');
+};
 
 /*
  * THE HONORS VERSION IS DECIDED HERE, NOT AT CREATE.
@@ -137,13 +191,8 @@ export const collectReviewBlockers = ({
   // Selecting no class is no longer a blocker — it is the library path, and the
   // Check step says so rather than the Classes step complaining about it.
   if (honorsSelected && honorsReport && !honorsReport.isHonorsReady) {
-    const reportedMissing = Array.isArray(honorsReport.missing)
-      ? honorsReport.missing
-      : ['unknownHonorsRequirement'];
-    const unresolved = reportedMissing.filter((key) => key !== 'ccmrEnrichment');
-    if (unresolved.length) {
-      blockers.push(blocker('classes', `An Honors class is selected. Fix: ${unresolved.map(honorsBlockerLabel).join(', ')}.`));
-    }
+    const gap = describeHonorsGap(honorsReport);
+    if (gap) blockers.push(blocker('classes', `An Honors class is selected. ${gap}`));
     // The source's own CCMR gap is not the question: the Honors version
     // replaces Practice with audited items, and that version is judged below.
   }
