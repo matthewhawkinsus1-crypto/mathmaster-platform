@@ -12,6 +12,7 @@
  */
 import { boundaryWithChosenSide, feasibleRegionPolygon, sideOfBoundaryLine } from './inequalityBuilderAdapter.js';
 import { formatNumber } from '../../platform/language/graphDescription.js';
+import { wordsFor } from './inequalitySystemWords.js';
 
 const STYLE_WORDS = { solid: 'solid', dashed: 'dashed' };
 
@@ -38,7 +39,8 @@ export const inequalityGraphMarksText = ({
       ? `One side of boundary line ${shadedSides[0]} is shaded.`
       : `One side of each of boundary lines ${shadedSides.slice(0, -1).join(', ')} and ${shadedSides[shadedSides.length - 1]} is shaded.`);
   }
-  if (combined && Array.isArray(studentPolygon) && studentPolygon.length >= 3) sentences.push('The overlap of the shaded sides is hatched.');
+  // One constraint has no overlap: its shaded side is hatched (F-SW-SYSTEM-WORDS).
+  if (combined && Array.isArray(studentPolygon) && studentPolygon.length >= 3) sentences.push(wordsFor(Array.isArray(workingConstraints) ? workingConstraints.length : 0)('The overlap of the shaded sides is hatched.'));
   return sentences.length ? sentences.join(' ') : 'No boundary line is drawn yet.';
 };
 

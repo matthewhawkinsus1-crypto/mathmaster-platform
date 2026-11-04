@@ -14,7 +14,8 @@ import {
   solve3x3System,
   solveLinearQuadratic,
 } from './systemsMath';
-import { studentBuildInequalityEnabled } from './inequalityBuilderAdapter';
+import { studentBuildInequalityEnabled, studentBuildInequalityTask } from './inequalityBuilderAdapter';
+import { wordsFor } from './inequalitySystemWords.js';
 import useToolSubmission from '../shared/useToolSubmission';
 import { UNANSWERED, isAnswered } from '../shared/judgmentChoices.js';
 import useReportToolWork from '../shared/useReportToolWork.js';
@@ -942,6 +943,8 @@ export default function SystemsWorkspace({ questionData = {}, onAction, draftKey
   // step says what to do where it is done, so a folded "How to do this" above
   // it would only repeat it (and it used to repeat the ANALYZE steps).
   const inequalityBuild = mode === 'inequalities' && studentBuildInequalityEnabled(questionData);
+  // A one-inequality lesson is not a system (F-SW-SYSTEM-WORDS): its badge says so.
+  const said = wordsFor(inequalityBuild ? studentBuildInequalityTask(questionData).constraintCount : 0);
   // Graph mode (the linear fallback) with the student constructing both lines.
   const linearConstruct = questionData.interaction === 'construct'
     && !['inequalities', 'linearQuadratic', 'matrix', 'matrix3', 'spatial', 'algebraic'].includes(mode);
@@ -951,7 +954,7 @@ export default function SystemsWorkspace({ questionData = {}, onAction, draftKey
       : mode;
   const modeLabel = algebraic3 ? 'Algebraic Systems (3×3 Substitution / Elimination)'
     : mode === 'spatial' ? 'Three-Plane Systems'
-    : mode === 'inequalities' ? 'Systems of Inequalities'
+    : mode === 'inequalities' ? said('Systems of Inequalities')
     : mode === 'linearQuadratic' ? 'Linear–Quadratic Systems'
       : mode === 'matrix3' ? '3×3 Matrix Technology / RREF'
         : mode === 'matrix' ? 'Matrix / Row Reduction'

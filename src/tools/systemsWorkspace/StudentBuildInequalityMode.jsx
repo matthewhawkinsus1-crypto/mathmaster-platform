@@ -54,6 +54,7 @@ import {
 import { ChoiceGroup, InequalityLayout, PLANE_KEYS, StepFeedback, revealStep } from './InequalityControls.jsx';
 import { diagnoseModelRows, modelRowMessage, modelRowVerdicts } from './inequalityModelCheck.js';
 import { pointSubstitution, valueEntered, valueWorkedOut } from './testPointSubstitution.js';
+import { wordsFor } from './inequalitySystemWords.js';
 import { POINT_COLORS, constraintColor } from './constraintPalette.js';
 import { inequalityGraphMarksText } from './inequalityGraphMarks.js';
 import {
@@ -142,6 +143,9 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
     boundaryProbeEnabled, teacherTestPoint, allowStudentTestPoint,
   } = task;
   const plan = useMemo(() => buildFlowPlan(task), [task]);
+  // One inequality is not a system: its words, where the screen would say
+  // "overlap", "combine" or "the entire system" (F-SW-SYSTEM-WORDS).
+  const said = wordsFor(constraintCount);
 
   const [modelingEntries, setModelingEntries] = usePersistentToolState('modelingEntries', () => (
     modeling ? Array.from({ length: constraintCount }, emptyModelingEntry) : []
@@ -423,8 +427,8 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
       (response.onBoundary === 'yes') && explicitBooleanAnswerMatches(response.boundaryIncluded, expectedMembership.every(Boolean))
     );
     if (perInequalityCorrect && overallCorrect && boundaryProbeCorrect) return { done: true, tone: 'correct', text: 'Correct — every part of your reasoning about this point checks out.' };
-    if (!perInequalityCorrect) return { done: false, tone: 'revise', text: 'At least one individual inequality is misjudged. Substitute the point into that inequality by itself and see whether the statement is true.' };
-    if (!overallCorrect) return { done: false, tone: 'revise', text: 'Your individual inequality answers are right, but the system verdict is not. A point solves the system only when it satisfies every inequality at once.' };
+    if (!perInequalityCorrect) return { done: false, tone: 'revise', text: said('At least one individual inequality is misjudged. Substitute the point into that inequality by itself and see whether the statement is true.') };
+    if (!overallCorrect) return { done: false, tone: 'revise', text: said('Your individual inequality answers are right, but the system verdict is not. A point solves the system only when it satisfies every inequality at once.') };
     return {
       done: false,
       tone: 'revise',
@@ -461,9 +465,9 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
       : {
         done: false,
         tone: 'revise',
-        text: staged(regionClassificationAttempts,
+        text: said(staged(regionClassificationAttempts,
           'Look at whether the shaded overlap keeps going forever in some direction, closes into a polygon, or never forms at all.',
-          'A region is unbounded when the constraints leave a direction open forever. If no point satisfies every inequality at once, there is no solution.'),
+          'A region is unbounded when the constraints leave a direction open forever. If no point satisfies every inequality at once, there is no solution.')),
       };
   };
   const teacherPointSignature = reasoningSignature(teacherPointResponse);
@@ -898,14 +902,14 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
       return `${prefix}${lowerFirst(STEP_INSTRUCTIONS[parsedCursor.step])}`;
     }
     if (cursor === 'model') return 'Write each constraint, then graph them.';
-    if (cursor === 'combine') return 'Show where the shaded regions overlap.';
-    if (cursor === 'classify') return 'Classify the combined solution region.';
-    if (cursor === 'teacherPoint') return 'Test the marked point against each inequality.';
+    if (cursor === 'combine') return said('Show where the shaded regions overlap.');
+    if (cursor === 'classify') return said('Classify the combined solution region.');
+    if (cursor === 'teacherPoint') return said('Test the marked point against each inequality.');
     if (cursor === 'studentPoint') return `Click or tap the graph to place a test point of your own (or ${PLANE_KEYS}), then test it.`;
     if (cursor === 'vertices') return `Click or tap each corner of the solution region (or ${PLANE_KEYS}) and say whether it is included.`;
-    return hasBuildSteps
+    return said(hasBuildSteps
       ? 'Build each constraint, combine them, and reason about the result.'
-      : 'Use the provided system to combine regions and complete the requested reasoning.';
+      : 'Use the provided system to combine regions and complete the requested reasoning.');
   })();
 
   return (
@@ -993,21 +997,21 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
           {flow.modelReady ? Array.from({ length: constraintCount }, (_, index) => renderConstraintCard(index)) : null}
 
           <div data-combine-ready={allConstraintsComplete ? 'true' : 'false'}>
-            {phaseCard('combine', 'Combine the regions', (
+            {phaseCard('combine', said('Combine the regions'), (
               <>
                 <p className="mm-ineq-instruction">
-                  {buildGate.verdictsShown
+                  {said(buildGate.verdictsShown
                     ? (allConstraintsComplete ? 'Every constraint checks out. Combine them to see your overlap region.' : 'Locked until every constraint above is correct.')
                     // Opens on finished work, right or wrong: the lock would be the verdict.
-                    : (allConstraintsComplete ? 'Every constraint is built. Combine them to see your overlap region.' : 'Finish every constraint above first.')}
+                    : (allConstraintsComplete ? 'Every constraint is built. Combine them to see your overlap region.' : 'Finish every constraint above first.'))}
                 </p>
                 <div className="mm-ineq-actions">
-                  <button type="button" className="mm-ineq-action" onClick={combineRegions} disabled={!allConstraintsComplete}>Find overlap / Combine regions</button>
+                  <button type="button" className="mm-ineq-action" onClick={combineRegions} disabled={!allConstraintsComplete}>{said('Find overlap / Combine regions')}</button>
                 </div>
               </>
             ), combined
-              ? 'Your overlap is hatched on the graph.'
-              : `${buildGate.verdictsShown ? 'Locked until every constraint above is correct.' : 'Finish every constraint above first.'}${reasoningPreview ? ` Then: ${reasoningPreview}.` : ''}`)}
+              ? said('Your overlap is hatched on the graph.')
+              : `${said(buildGate.verdictsShown ? 'Locked until every constraint above is correct.' : 'Finish every constraint above first.')}${reasoningPreview ? ` Then: ${reasoningPreview}.` : ''}`)}
           </div>
 
           {combined && plan.reasoningSteps.includes('classify') ? phaseCard('classify', STEP_LABELS.classify, (
@@ -1028,7 +1032,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
 
           {combined && plan.reasoningSteps.includes('teacherPoint') ? phaseCard('teacherPoint', `Test the point ${formatPoint(teacherTestPoint.x, teacherTestPoint.y)}`, (
             <>
-              <p className="mm-ineq-instruction">Substitute the point into each inequality.</p>
+              <p className="mm-ineq-instruction">{said('Substitute the point into each inequality.')}</p>
               <TestPointQuestions
                 point={[teacherTestPoint.x, teacherTestPoint.y]}
                 response={teacherPointResponse}
@@ -1094,7 +1098,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
           <HintPanel
             hints={[
               'Replace the inequality symbol with = to find the boundary line. Any two points that satisfy that equation determine it — you do not need the exact points a teacher would pick.',
-              'Solid means the boundary is included (≤ or ≥). Dashed means it is not (< or >). Shade the side where a point makes the original inequality true, then check a point in that shaded region against every inequality to find the system solution.',
+              said('Solid means the boundary is included (≤ or ≥). Dashed means it is not (< or >). Shade the side where a point makes the original inequality true, then check a point in that shaded region against every inequality to find the system solution.'),
               'A region that never closes up in some direction is unbounded. A vertex is only part of the solution when every boundary meeting there is solid — a dashed boundary at that exact corner excludes it, even though the lines still cross there.',
             ]}
             onHintUsed={() => onAction?.('HINT_USED')}

@@ -606,7 +606,12 @@ const modeling = async () => {
   check(await cursor(page) === 'c0:boundary', 'modeling: the right model is graphed, and the boundary step opens', await cursor(page));
   await buildKai(page, [8, 8]);
   check(await cursor(page) === 'combine', 'modeling: the graph of the right model is built step by step', await cursor(page));
-  await press(page, 'Find overlap / Combine regions');
+  // F-SW-SYSTEM-WORDS: one inequality is not a system.
+  check((await bodyText(page)).includes('Your inequality checks out. Check your region to see it on the graph.'), 'modeling: one inequality is checked as a region, not combined');
+  await press(page, 'Check your region');
+  const side = await page.locator('.mm-ineq-side').innerText();
+  check(side.includes('Is the point a solution?') && !/overlap|system|combine/i.test(side), 'modeling: and its words are one inequality\'s — no overlap, no system', (side.match(/[^\n]*(overlap|system|combine)[^\n]*/i) || [''])[0]);
+  check(await page.getByText('Inequality in Two Variables', { exact: true }).count() === 1, 'modeling: the tool\'s badge says so too');
   // F-SW-TEST-POINT-YESNO: the point is worked out before it is judged, so a guessed Yes passes nothing.
   check((await page.locator('[data-substitution="1"]').innerText()).trim() === '2(6) + 3(4) =', 'modeling: the test point asks for 2(6) + 3(4) first');
   for (const question of ['inequality-1', 'system']) await page.locator(`[data-question="${question}"] button[data-choice="yes"]`).click();
@@ -638,7 +643,8 @@ const modelingDol = async () => {
   await press(page, 'Graph these constraints');
   check(await cursor(page) === 'c0:boundary', 'modeling (DOL): the model is graphed as written', await cursor(page));
   await buildKai(page, [1, 1]);
-  await press(page, 'Find overlap / Combine regions');
+  check((await bodyText(page)).includes('Your inequality is built. Check your region to see it on the graph.'), 'modeling (DOL): the region opens on finished work, in one inequality\'s words');
+  await press(page, 'Check your region');
   // (6, 4) does not satisfy the student's own 2x + 3y ≤ 20. A wrong value is
   // recorded like a right one: nothing is judged before Submit.
   await testKaiPoint(page, 'no', '25');
