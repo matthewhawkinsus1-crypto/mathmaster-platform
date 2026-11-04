@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { stackDivisions } from '../../functions/shared/stackDivisions.mjs';
+import { matchesFieldAnswer } from '../../functions/shared/answerUtils.mjs';
 
 // Turning a written division into a stacked fraction, without ever changing
 // what the mathematics says.
@@ -158,14 +159,57 @@ test('on screen, a call keeps its name and a bracketed denominator its power', (
   assert.equal(shown('3/4x'), '\\frac{3}{4}x', 'the slope stays 3/4');
 });
 
-test('grading reads calls and bracketed powers exactly as before', () => {
-  // Grading has its own call names (ln and log, TS05) and reads the rest as
-  // it always did; changing a grading reading needs a verdict sweep.
+test('grading reads a call and a bracketed power as the mathematics means', () => {
+  // This test pinned grading's old readings, which were not the mathematics: the
+  // key 3/(x+1)^2 read as (3/(x+1))², sin(x)/cos(x) as sin·(x/c)·os(x) and
+  // 1/f(x) as (1/f)·x. Each key then met only its own spelling, and the
+  // editor's \frac{3}{(x+1)^2} or 3/((x+1)^2) was refused. Grading now reads
+  // them as the display does (above), with grading's own reading of a power:
+  // a bracketed denominator, a call and a one-letter function take their
+  // power as a letter's does (180/d^2). The verdict sweep against the base
+  // moved no right answer to wrong.
   const graded = (value) => stackDivisions(value, { skipAsciiCalls: false, constantOperands: true });
   assert.equal(graded('ln(3)/ln(2)'), '\\frac{ln(3)}{ln(2)}');
-  assert.equal(graded('sin(x)/cos(x)'), 'sin\\frac{x}{c}os(x)');
-  assert.equal(graded('1/f(x)'), '\\frac{1}{f}(x)');
-  assert.equal(graded('3/(x+1)^2'), '\\frac{3}{x+1}^2');
-  assert.equal(stackDivisions('3/(x+1)^2'), '\\frac{3}{x+1}^2', 'and so does the plain reading');
+  assert.equal(graded('sin(x)/cos(x)'), '\\frac{sin(x)}{cos(x)}');
+  assert.equal(graded('\\sin(x)/2'), '\\frac{\\sin(x)}{2}', 'the editor\'s \\sin too');
+  assert.equal(graded('2/tan(x)'), '\\frac{2}{tan(x)}');
+  assert.equal(graded('1/f(x)'), '\\frac{1}{f(x)}');
+  assert.equal(graded('f(x)/g(x)'), '\\frac{f(x)}{g(x)}');
+  assert.equal(graded('3/(x+1)^2'), '\\frac{3}{(x+1)^2}');
+  assert.equal(graded('3/((x+1)^2)'), '\\frac{3}{(x+1)^2}', 'the same denominator, bracketed again');
+  assert.equal(graded('3/(x+1)^{n-1}'), '\\frac{3}{(x+1)^{n-1}}');
+  assert.equal(graded('3/(x+1)^-2'), '\\frac{3}{(x+1)^-2}');
+  assert.equal(graded('1/sin(x)^2'), '\\frac{1}{sin(x)^2}', 'over the square of the call, as 180/d^2');
+  assert.equal(graded('1/f(x)^2'), '\\frac{1}{f(x)^2}');
+  // A power that cannot be read leaves the slash as written, never half-stacked.
+  assert.equal(graded('3/(x+1)^\\frac{1}{2}'), '3/(x+1)^\\frac{1}{2}');
+  // Unchanged: a number denominator still stops at the number (point-slope),
+  // a power on the numerator's bracket keeps GR04's reading, a word is not a
+  // call, and a subscript after a call is not read.
+  assert.equal(graded('-1/2(x-6)'), '-\\frac{1}{2}(x-6)');
+  assert.equal(graded('3/4x(x+1)'), '\\frac{3}{4}x(x+1)');
+  assert.equal(graded('x^(n-1)/2'), 'x^\\frac{n-1}{2}');
+  assert.equal(graded('cosine(x)/2'), 'cosine\\frac{x}{2}');
+  assert.equal(graded('2/ln(2)_3'), '2/ln(2)_3');
+  // The plain reading (no options: the notes PDF, spoken math) is not
+  // grading's, and keeps its own.
+  assert.equal(stackDivisions('3/(x+1)^2'), '\\frac{3}{x+1}^2');
+  assert.equal(stackDivisions('sin(x)/cos(x)'), 'sin\\frac{x}{c}os(x)');
+});
+
+test('what the grader receives: every spelling of 3/(x+1)^2, sin(x)/cos(x) and 1/f(x) meets the key', () => {
+  const right = (answer, key) => matchesFieldAnswer(answer, { answer: key, inputProfile: 'expression' });
+  for (const answer of ['3/(x+1)^2', '3/((x+1)^2)', '\\frac{3}{(x+1)^2}', '\\frac{3}{\\left(x+1\\right)^2}', '\\frac{3}{\\left(x+1\\right)^{2}}']) {
+    assert.equal(right(answer, '3/(x+1)^2'), true, answer);
+  }
+  // …and the key is no longer (3/(x+1))², nor anything else.
+  for (const answer of ['(3/(x+1))^2', '9/(x+1)^2', '3/(x+1)', '\\frac{3}{x+1}', '3/(x+1)^3']) {
+    assert.equal(right(answer, '3/(x+1)^2'), false, answer);
+  }
+  assert.equal(right('\\frac{sin(x)}{cos(x)}', 'sin(x)/cos(x)'), true);
+  assert.equal(right('cos(x)/sin(x)', 'sin(x)/cos(x)'), false);
+  assert.equal(right('\\frac{1}{f(x)}', '1/f(x)'), true);
+  assert.equal(right('\\frac{1}{f\\left(x\\right)}', '1/f(x)'), true);
+  assert.equal(right('\\frac{1}{f}x', '1/f(x)'), false, '(1/f)·x is another reading');
 });
 
