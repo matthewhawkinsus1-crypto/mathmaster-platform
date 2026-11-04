@@ -1644,7 +1644,18 @@
               "inputProfile": "expression",
               "answerForm": "simplifiedPolynomial"
             }
-          ]
+          ],
+          "solutionReview": {
+            "headline": "Divide each term of the numerator by the monomial, then add the quotients.",
+            "reasoning": [
+              "Write the fraction as a sum of quotients, one for each term of the numerator.",
+              "12x⁴y² ÷ (6x²y) = 2x²y: 12 ÷ 6 = 2, x⁴ ÷ x² = x² and y² ÷ y = y.",
+              "−18x³y ÷ (6x²y) = −3x, and 6x²y ÷ (6x²y) = 1.",
+              "So the quotient is 2x²y − 3x + 1."
+            ],
+            "commonError": "Dropping the last term: 6x²y ÷ (6x²y) is 1, not 0, so the quotient ends in + 1.",
+            "answerSummary": "The terms divide to 2x²y, −3x and 1, so the quotient is 2x²y − 3x + 1."
+          }
         },
         {
           "questionId": "dp-dol-2",

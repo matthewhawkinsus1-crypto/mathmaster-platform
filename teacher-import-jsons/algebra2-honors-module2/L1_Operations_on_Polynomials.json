@@ -1766,7 +1766,18 @@
               "label": "The profit, in dollars, when 500 items are sold",
               "answer": "3150"
             }
-          ]
+          ],
+          "solutionReview": {
+            "headline": "Profit is revenue minus all of the cost: subtract the whole cost polynomial.",
+            "reasoning": [
+              "P(x) = R(x) − C(x) = 12x − (0.002x² + 4x + 350): the brackets keep the whole cost together.",
+              "The minus sign reaches every term of the cost: 12x − 0.002x² − 4x − 350.",
+              "Combine the like terms 12x and −4x: P(x) = −0.002x² + 8x − 350.",
+              "For 500 items, P(500) = −0.002(500)² + 8(500) − 350 = −500 + 4000 − 350 = 3150 dollars."
+            ],
+            "commonError": "Subtracting only the first term of the cost: 12x − 0.002x² + 4x + 350 adds 4x and 350 instead of taking them away.",
+            "answerSummary": "P(x) = 12x − (0.002x² + 4x + 350) = −0.002x² + 8x − 350, and P(500) = 3150 dollars."
+          }
         }
       ]
     }
