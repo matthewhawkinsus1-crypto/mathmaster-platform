@@ -6,7 +6,7 @@
  *
  *   TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs &
  *   npx vite --config tests/browser/emulator/vite.config.mjs --host 127.0.0.1 --port 5199 --strictPort &
- *   node tests/browser/studentShellLargeText.mjs [--check=targets,s5,text,default,targetsize] [--only=<screen id,…>]
+ *   node tests/browser/studentShellLargeText.mjs [--check=targets,s5,text,default,targetsize,workviewheader] [--only=<screen id,…>]
  *
  * targets  The identity bar's Log Out is at least 44px tall (WCAG 2.5.5).
  * s5       Live Challenge round (1366×768): Tab from the top of the round to
@@ -26,6 +26,11 @@
  *          text, both viewports, screenshotted to --shots=<dir>; with
  *          --compare=<dir> (shots taken before the change) each pair is
  *          diffed pixel by pixel and any difference fails.
+ * workviewheader  The Work View header at large text on a phone (task text, Task, Help,
+ *          Close): at 150-200% text on 360 and 390 px the buttons no longer sit on
+ *          each other. Below 22em the buttons wrap onto their own row under the
+ *          whole task, each at least 44 px; on a laptop, and on a phone at 100%,
+ *          the header is one row, as it was. Not in the default set.
  * targetsize  WCAG 2.2 2.5.8 (Target Size, Minimum): every pointer target on
  *          every student scene (not the teacher's), at 1366×768 and 390×844,
  *          is 24×24 CSS px or more, or has the room the spacing exception asks
@@ -63,7 +68,7 @@ const report = [];
 
 const applyTextScale = async (page) => {
   if (!page.__cdp || page.__textScale === 1) return;
-  await page.__cdp.send('Page.setFontSizes', { fontSizes: { standard: 16 * page.__textScale, fixed: 13 * page.__textScale } });
+  await page.__cdp.send('Page.setFontSizes', { fontSizes: { standard: 16 * page.__textScale, fixed: Math.round(13 * page.__textScale) } });
 };
 
 const newPage = async ({ width, height, mobile = false, textScale = 1, fixedTime = null }) => {
@@ -561,6 +566,88 @@ if (CHECKS.has('targetsize')) {
     });
   }
   writeFileSync(path.join(artifacts, 'target-size.json'), JSON.stringify(sizeReport, null, 2));
+}
+
+// The Work View header's buttons never collide with each other or the task
+// (student walkthrough, large text on a phone). Measured in the Work View
+// harness's real QuestionEngine, with a task long enough to want the room.
+if (CHECKS.has('workviewheader')) {
+  const sortTask = {
+    id: 'wv-header-sort', type: 'openSortBoard', mode: 'controlled',
+    prompt: 'Real nth roots. Sort each set of roots by how many REAL roots it has. Use the index (even or odd) and the sign of the radicand. Then give a reason for each group.',
+    categories: [{ id: 'even', label: 'Even' }, { id: 'odd', label: 'Odd' }],
+    items: [{ id: 'a', label: 'Card A', text: 'The number 2' }, { id: 'b', label: 'Card B', text: 'The number 3' }, { id: 'c', label: 'Card C', text: 'The number 4' }],
+    validSchemes: [{ id: 'answer', groups: [{ id: 'even', itemIds: ['a', 'c'] }, { id: 'odd', itemIds: ['b'] }] }],
+  };
+  const measureHeader = () => {
+    const header = document.querySelector('.mathmaster-work-view-host[data-open="true"] .mathmaster-work-view-header');
+    if (!header) return null;
+    const box = (element) => { const rect = element.getBoundingClientRect(); return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, w: rect.width, h: rect.height }; };
+    const heading = header.querySelector('.mathmaster-work-view-heading');
+    return {
+      viewport: window.innerWidth,
+      emPx: parseFloat(getComputedStyle(document.documentElement).fontSize),
+      header: box(header),
+      heading: box(heading),
+      buttons: [...header.querySelectorAll(':scope > button')].map((button) => ({ name: button.textContent.trim(), ...box(button), clippedX: button.scrollWidth - button.clientWidth })),
+    };
+  };
+  const overlaps = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1;
+  for (const setting of [
+    { id: 'laptop-100%', width: 1366, height: 768, textScale: 1, expect: 'row' },
+    { id: 'laptop-200%', width: 1366, height: 768, textScale: 2, expect: 'row' },
+    { id: 'phone-360-100%', width: 360, height: 640, mobile: true, textScale: 1, expect: 'row' },
+    { id: 'phone-390-100%', width: 390, height: 844, mobile: true, textScale: 1, expect: 'row' },
+    { id: 'phone-360-150%', width: 360, height: 640, mobile: true, textScale: 1.5, expect: 'wrapped' },
+    { id: 'phone-360-200%', width: 360, height: 640, mobile: true, textScale: 2, expect: 'wrapped' },
+    { id: 'phone-390-150%', width: 390, height: 844, mobile: true, textScale: 1.5, expect: 'wrapped' },
+    { id: 'phone-390-200%', width: 390, height: 844, mobile: true, textScale: 2, expect: 'wrapped' },
+  ]) {
+    if (ONLY.size && !ONLY.has('workviewheader')) continue;
+    const { context, page } = await newPage(setting);
+    const label = `work view header ${setting.id}`;
+    try {
+      await page.goto(`${origins.audit}/tests/browser/workViewMatrix.html`, { waitUntil: 'load', timeout: 180_000 });
+      await page.waitForFunction(() => typeof window.__mmWorkView === 'function', null, { timeout: 180_000 });
+      await page.evaluate((question) => window.__mmWorkView({ id: question.id, question }), sortTask);
+      await page.waitForSelector(`[data-scene-id="${sortTask.id}"]`, { timeout: 60_000 });
+      await page.waitForTimeout(800);
+      await applyTextScale(page);
+      await page.evaluate(() => {
+        if (document.querySelector('.mathmaster-work-view-host[data-open="true"]')) return;
+        [...document.querySelectorAll('button')].filter((button) => button.getBoundingClientRect().width > 0).find((button) => /enlarge|work view/i.test(button.textContent || ''))?.click();
+      });
+      await page.waitForSelector('.mathmaster-work-view-host[data-open="true"] .mathmaster-work-view-header', { timeout: 30_000 });
+      await page.waitForTimeout(800);
+      const view = await page.evaluate(measureHeader);
+      const problems = [];
+      if (!view.buttons.some((button) => /^Task$/.test(button.name)) || !view.buttons.some((button) => /^Help$/.test(button.name)) || !view.buttons.some((button) => /^Close/.test(button.name))) {
+        problems.push(`the header lacks Task, Help or Close (${view.buttons.map((button) => button.name).join(', ')})`);
+      }
+      if (setting.textScale > 1 && view.emPx < 16 * setting.textScale - 1) problems.push(`the text-size setting did not apply (root ${view.emPx}px); the measurement is void`);
+      const parts = [{ name: 'task', ...view.heading }, ...view.buttons];
+      parts.forEach((a, i) => parts.slice(i + 1).forEach((b) => { if (overlaps(a, b)) problems.push(`"${a.name}" and "${b.name}" overlap`); }));
+      view.buttons.forEach((button) => {
+        if (button.h < 43.5 || button.w < 43.5) problems.push(`"${button.name}" is ${Math.round(button.w)}x${Math.round(button.h)}, under 44`);
+        // Only where the buttons have their own row. Beside the task, as on a
+        // laptop and a 100% phone, they keep the squeeze they always had (a
+        // label can run a few px past its box at 200% on a laptop): that row is
+        // held to "nothing overlaps and nothing moved", not made roomier.
+        if (setting.expect === 'wrapped' && button.clippedX > 1) problems.push(`"${button.name}" label runs ${Math.round(button.clippedX)}px past its button`);
+        if (button.right > view.viewport + 0.5 || button.left < -0.5) problems.push(`"${button.name}" is past the screen edge`);
+      });
+      const under = view.buttons.every((button) => button.top >= view.heading.bottom - 1);
+      const beside = view.buttons.every((button) => button.left >= view.heading.right - 1);
+      if (setting.expect === 'wrapped' && !under) problems.push('the buttons are not on their own row under the task');
+      if (setting.expect === 'wrapped' && view.heading.w < view.viewport * 0.85) problems.push(`the task has ${Math.round(view.heading.w)}px of ${view.viewport}px: it should have the whole row`);
+      if (setting.expect === 'row' && !beside) problems.push('the buttons left the task\'s row, where they have always been');
+      console.log(`${problems.length ? 'FAIL' : 'ok  '} ${label.padEnd(36)} ${setting.expect.padEnd(8)} task ${Math.round(view.heading.w)}px wide, header ${Math.round(view.header.h)}px tall, buttons ${view.buttons.map((button) => `${button.name.replace(/ ✕/, '')} ${Math.round(button.w)}x${Math.round(button.h)}`).join(', ')}`);
+      problems.forEach((problem) => failures.push(`${label}: ${problem}`));
+    } catch (error) {
+      failures.push(`${label}: could not measure — ${error.message.split('\n')[0]}`);
+    }
+    await context.close();
+  }
 }
 
 await browser.close();
