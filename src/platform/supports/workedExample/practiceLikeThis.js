@@ -58,6 +58,7 @@ import { compareMathAnswer } from '../../../../functions/shared/answerUtils.mjs'
 import { sameNumberWithThousandsSeparators } from '../../../../functions/shared/answerEquivalence.mjs';
 import { sameEquivalentExpression } from '../../../../functions/shared/equivalentExpression.mjs';
 import { latexToExpression } from '../../../../functions/shared/algebra/latexToExpression.mjs';
+import { expandImplicitProducts } from '../../../../functions/shared/toolMath/algebra-literal/literalWorkspace.mjs';
 import { parse } from '../../math/mathjs.js';
 import { NUMERIC_VARIANT_SOURCE, buildNumericVariant } from './numericVariant.js';
 import { buildSimilarWorkedExample } from './similarProblem.js';
@@ -533,6 +534,15 @@ export const buildPracticeLikeThis = (question, { seed = 0, avoidPrompts = [] } 
   return null;
 };
 
+// A part written as one math span — the linear-equations family's literal and
+// line siblings answer "$q = \frac{L - 10h}{2}$" and "$y = -\frac{5}{2}x + 7$" —
+// is read as the mathematics inside it, in the plain form every other part is
+// read in. Its letters follow the literal workspace's convention: lowercase
+// letters standing together are separate variables (bg is b·g), in the key and
+// in what the student types alike. The answer line keeps the span to show it.
+const WHOLE_MATH_SPAN = /^\$([^$]+)\$$/;
+const plainLetterMath = (value) => text(expandImplicitProducts(latexToExpression(text(value))));
+
 /** The parts of a sibling's answer line. */
 export const readPracticeAnswer = (answer) => {
   let line = text(answer);
@@ -548,7 +558,11 @@ export const readPracticeAnswer = (answer) => {
     // "g: asymptotes vertical x = -3, horizontal y = 2" is one statement about
     // g; its pieces mean nothing apart, so it stays whole (and in words).
     .flatMap((chunk) => (/^[^=]*:/.test(chunk) && equalsIndex(chunk) > 0 ? [chunk] : splitTopLevel(chunk, LABELLED_COMMA)));
-  const parts = chunks.map((chunk, position) => readPart(chunk, position, { ordered })).filter(Boolean);
+  const parts = chunks.map((chunk, position) => {
+    const span = WHOLE_MATH_SPAN.exec(text(chunk));
+    const part = readPart(span ? plainLetterMath(span[1]) : chunk, position, { ordered });
+    return part && span ? { ...part, letterProducts: true } : part;
+  }).filter(Boolean);
   // Parts with the same label read "Domain", "Domain (2)".
   const seen = new Map();
   parts.forEach((part) => {
@@ -707,7 +721,8 @@ const checkLine = (through, typed) => {
 
 /** One part: CORRECT / INCORRECT / BLANK / COMPARE. */
 export const checkPracticePart = (part, response) => {
-  const typed = text(response);
+  // Read the way its key was read: Q/(bg) is Q/(b·g) in a literal sibling.
+  const typed = part?.letterProducts ? plainLetterMath(response) : text(response);
   if (!part || !part.checkable) return PRACTICE_VERDICT.COMPARE;
   if (!typed) return PRACTICE_VERDICT.BLANK;
   const { expected } = part;

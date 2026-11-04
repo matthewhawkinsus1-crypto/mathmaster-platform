@@ -272,8 +272,17 @@ test('it claims nothing that is not a linear equation: the whole teacher-import 
   // one-variable linear equations into the corpus. Those are claimed — every
   // hand-written one — and anything claimed is a linear equation the oracle
   // reads on its own.
+  //
+  // Algebra I Module 3 Topic 1 Lesson 2 (Literal Equations) brought the
+  // family's other two kinds: formulas solved for one letter (P = 2l + 2w for
+  // w) and linear equations rewritten in slope-intercept form (8x − 2y = 12).
+  // Its items are judged as a student is given them — a generated slot by a
+  // delivered version, never by its raw {{template}} — and each one claimed is
+  // linear in the letter it asks for, checked exactly at a point by the oracle.
+  const LITERAL_LESSON = /^m3t1l2-/;
   const claimed = questions.filter((question) => linearEquations.matches(question));
-  claimed.forEach((question) => {
+  const claimedElsewhere = claimed.filter((question) => !LITERAL_LESSON.test(String(question.questionId)));
+  claimedElsewhere.forEach((question) => {
     assert.equal(question.type, 'stepAlgebra', `corpus: ${question.type} ${String(question.prompt).slice(0, 80)}`);
     assert.ok(['one', 'none', 'infinite'].includes(numericOracle(question).case), `corpus: ${String(question.prompt).slice(0, 80)}`);
   });
@@ -282,7 +291,29 @@ test('it claims nothing that is not a linear equation: the whole teacher-import 
   ));
   assert.ok(handWrittenEquations.length >= 20);
   handWrittenEquations.forEach((question) => assert.ok(claimed.includes(question), `claimed: ${question.questionId}`));
-  assert.equal(claimed.length, handWrittenEquations.length, 'nothing else in the corpus is claimed');
+  assert.equal(claimedElsewhere.length, handWrittenEquations.length, 'nothing else in the corpus is claimed');
+
+  const literalLesson = questions.filter((question) => LITERAL_LESSON.test(String(question.questionId)))
+    .map((question) => (question.questionFamily ? delivered(question, 0) : question));
+  const literalClaimed = literalLesson.filter((question) => linearEquations.matches(question));
+  literalClaimed.forEach((question) => {
+    const where = `${question.questionId}: ${String(question.prompt).slice(0, 60)}`;
+    assert.equal(question.type, 'stepAlgebra', where);
+    // The equation the workspace opens, products written out; π as an exact 22/7 so the check stays exact.
+    const [left, right] = String(question.equation ?? question.equationLatex).split('=')
+      .map((side) => latexToExpression(side.trim()).replace(/\bpi\b/g, '(22/7)'));
+    const target = question.solveFor || question.variable || question.objective?.variable || (question.targetForm === 'slopeIntercept' ? 'y' : 'x');
+    const names = new Set();
+    [left, right].forEach((side) => math.parse(side).traverse((node) => { if (node.isSymbolNode) names.add(node.name); }));
+    assert.ok(names.has(target), `${where}: the equation contains ${target}`);
+    assert.equal(solveLinear(left, right, target, pointFor([...names].filter((name) => name !== target)))?.case, 'one', `${where}: linear in ${target}`);
+  });
+  // Every formula and rewrite the lesson opens in the workspace is claimed but
+  // Z = A/B + C/D, whose letter sits under a fraction bar of its own.
+  assert.deepEqual(
+    literalClaimed.map((question) => question.questionId),
+    literalLesson.filter((question) => question.type === 'stepAlgebra' && question.questionId !== 'm3t1l2-pr-20').map((question) => question.questionId),
+  );
   readJson('drafts/district-dol2/assignment.json').sections.flatMap((section) => section.questions)
     .forEach((question) => assert.equal(linearEquations.matches(question), false, `district DOL: ${question.heading}`));
 

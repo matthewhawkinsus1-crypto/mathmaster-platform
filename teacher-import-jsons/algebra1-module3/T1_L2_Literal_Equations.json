@@ -1,0 +1,2579 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Literal Equations (M3 T1 L2)",
+    "courseId": "algebra1",
+    "folder": "Algebra I/Module 3/Topic 1/Lesson 2",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork",
+    "essentialQuestion": "You have used properties of equality to solve linear equations. How can you use those same properties to solve for one specific variable in an equation that has multiple variables?",
+    "instructions": "Literal equations. Solve each formula for the letter asked for in the step-by-step workspace: undo what was done to that letter, doing the same thing to both sides, until it stands alone. Treat the other letters like numbers. You have 3 tries on each Warm-Up, Classwork and Practice question, with hints. The DOL is one try with no hints.",
+    "teacherNotes": "Algebra I Module 3 Topic 1 Lesson 2, from the district slides, for one 90-minute block: Warm-Up 10 min, Classwork 20 min (nine questions to go over in 15–20 minutes: Perimeter Perspectives, Activity 2.1 forms, Activity 2.2 temperature with Isabella, Ethan and Minh, Activity 2.3 trapezoid, Talk the Talk soup can), Practice 50 min (26 questions, easiest first), DOL 10 min. TEKS A.12E, with A.2B, A.3A and A.3C for Activity 2.1. Formulas are solved in the step-by-step workspace, which accepts any equivalent answer with the letter alone. Warm-Up and DOL are generated per student and back Recovery. Slide note: the Activity 2.2 opening slide shows C = −5/9(F − 32); the minus sign is a typo, and Isabella’s work uses C = 5/9(F − 32), as this assignment does."
+  },
+  "variantPolicy": {
+    "mode": "personalized",
+    "sectionModes": {
+      "warmup": "shared",
+      "classwork": "shared",
+      "practice": "personalized",
+      "dol": "personalized"
+    }
+  },
+  "sections": [
+    {
+      "id": "warmup",
+      "role": "warmup",
+      "title": "Warm-Up — Solving, Intercepts and a First Literal Equation",
+      "recommendedMinutes": 10,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "m3t1l2-wu-1",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Hey, I remember this! Solve {{equation}}. Distribute first, or divide both sides first — your choice. Notice the order you undo things in: today you will use the same moves on formulas.",
+          "questionFamily": {
+            "id": "linear.twoStepEquation",
+            "version": 3,
+            "constraints": {
+              "distribute": true,
+              "solutionRange": [
+                -9,
+                9
+              ]
+            }
+          },
+          "directionSteps": [
+            "Undo the number outside the parentheses: divide both sides by it, or distribute it.",
+            "Undo the addition or subtraction.",
+            "Check your solution in the original equation."
+          ],
+          "hints": [
+            "You can distribute: multiply the number outside the parentheses by each term inside.",
+            "Or divide both sides by the number outside the parentheses first, then undo the addition or subtraction."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In 3(x + 4) = 21, the 3 multiplies…",
+            "options": [
+              "both x and 4",
+              "only x"
+            ],
+            "correct": "both x and 4"
+          },
+          "solutionReview": {
+            "headline": "Undo the operations in reverse order.",
+            "reasoning": [
+              "Divide both sides by the number outside the parentheses, or distribute it to every term inside.",
+              "Undo the remaining addition or subtraction on both sides.",
+              "Get x alone, then check the value in the original equation."
+            ],
+            "commonError": "Multiplying the number outside the parentheses by the first term only."
+          }
+        },
+        {
+          "questionId": "m3t1l2-wu-2",
+          "standard": "A.3C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Intercepts. Find the x-intercept and the y-intercept of {{equation}}. Write each as an ordered pair.",
+          "questionFamily": {
+            "id": "functions.identifyIntercepts"
+          },
+          "directionSteps": [
+            "Set y equal to zero and solve for x.",
+            "Set x equal to zero and solve for y.",
+            "Write each intercept as an ordered pair."
+          ],
+          "hints": [
+            "At the x-intercept the y-value is zero: substitute y = 0 and solve for x.",
+            "At the y-intercept the x-value is zero: substitute x = 0 and solve for y."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The x-intercept is the point where…",
+            "options": [
+              "x = 0",
+              "y = 0"
+            ],
+            "correct": "y = 0"
+          },
+          "solutionReview": {
+            "headline": "Substitute 0 for the other variable.",
+            "reasoning": [
+              "x-intercept: substitute y = 0 and solve for x; write it as (x, 0).",
+              "y-intercept: substitute x = 0 and solve for y; write it as (0, y)."
+            ],
+            "commonError": "Writing the intercepts with the coordinates switched, such as (0, 4) for an x-intercept of 4."
+          }
+        },
+        {
+          "questionId": "m3t1l2-wu-3",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "A first look. Solve ${{a}}x + y = {{c}}$ for $y$. Do the same thing to both sides until y is alone — treat the x-term like a number.",
+          "equation": "{{a}}x + y = {{c}}",
+          "solveFor": "y",
+          "directionSteps": [
+            "Find the term that is added to y.",
+            "Subtract it from both sides."
+          ],
+          "hints": [
+            "The term {{a}}x is added to y. What undoes adding?",
+            "Subtract {{a}}x from both sides. It cannot combine with {{c}}, so it stays as its own term."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To get y alone in {{a}}x + y = {{c}}, you…",
+            "options": [
+              "subtract {{a}}x from both sides",
+              "divide both sides by {{a}}"
+            ],
+            "correct": "subtract {{a}}x from both sides"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Same moves",
+                "instruction": "Solving for y works exactly like solving for x: do the same thing to both sides."
+              },
+              {
+                "title": "Unlike terms",
+                "instruction": "{{c}} − {{a}}x does not simplify: the two terms are not like terms, so leave both."
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "Subtract the x-term from both sides.",
+            "reasoning": [
+              "{{a}}x + y = {{c}}",
+              "Subtract {{a}}x from both sides: y = {{c}} − {{a}}x, which is also y = −{{a}}x + {{c}}."
+            ],
+            "answerSummary": "y = −{{a}}x + {{c}}",
+            "commonError": "Combining {{c}} − {{a}}x into one number: they are not like terms."
+          },
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 9
+              },
+              "c": {
+                "type": "int",
+                "min": -12,
+                "max": 12,
+                "exclude": [
+                  0
+                ]
+              }
+            }
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        }
+      ]
+    },
+    {
+      "id": "classwork",
+      "role": "classwork",
+      "title": "Classwork — Literal Equations",
+      "recommendedMinutes": 20,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "m3t1l2-cw-1",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Getting Started — Perimeter Perspectives. Juan and Mia have rectangular backyards that each share a side with a rectangular park. The city gives them the perimeter P of the park, in feet: $P = 2l + 2w$. Juan needs the width of the park. Rewrite the formula from Juan’s perspective: solve $P = 2l + 2w$ for $w$.",
+          "equation": "P = 2l + 2w",
+          "solveFor": "w",
+          "directionSteps": [
+            "Decide which term is added to 2w.",
+            "Undo the addition on both sides.",
+            "Undo the multiplication by 2."
+          ],
+          "hints": [
+            "Treat 2l like a number. It is added to 2w, so subtract 2l from both sides.",
+            "w is multiplied by 2, so divide both sides by 2 — the whole side, not just one term."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In P = 2l + 2w, what has been done to w?",
+            "options": [
+              "It was multiplied by 2, then 2l was added.",
+              "It was divided by 2, then 2l was subtracted."
+            ],
+            "correct": "It was multiplied by 2, then 2l was added."
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Literal equation",
+                "instruction": "A literal equation is an equation in which the variables represent specific measures. Formulas such as I = Prt and A = lw are literal equations."
+              },
+              {
+                "title": "Same properties",
+                "instruction": "To solve for one letter, use the properties of equality you already know. Treat every other letter like a number."
+              },
+              {
+                "title": "Perspective",
+                "instruction": "Juan wants w alone; Mia wants l alone. Same formula, two perspectives — and the two equations are equivalent."
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "Undo the addition, then the multiplication.",
+            "reasoning": [
+              "P = 2l + 2w",
+              "Subtract 2l from both sides: P − 2l = 2w.",
+              "Divide both sides by 2: w = (P − 2l)/2, which is the same as w = P/2 − l."
+            ],
+            "answerSummary": "w = (P − 2l)/2",
+            "commonError": "Dividing only P by 2 (w = P/2 − 2l): divide the whole side by 2."
+          }
+        },
+        {
+          "questionId": "m3t1l2-cw-2",
+          "standard": "A.3A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3A",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Activity 2.1 — Equations in Different Forms. The equation $3x - 2y = 8$ is in standard form, $Ax + By = C$. Find its slope and both intercepts from the equation. Then tell how the slope of any line in standard form depends on A and B.",
+          "responses": [
+            {
+              "id": "slope",
+              "label": "Slope",
+              "answer": "3/2",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "yInt",
+              "label": "$y$-intercept",
+              "answer": "(0, -4)",
+              "inputProfile": "orderedPair"
+            },
+            {
+              "id": "xInt",
+              "label": "$x$-intercept",
+              "answer": "(8/3, 0)",
+              "inputProfile": "orderedPair"
+            },
+            {
+              "id": "rule",
+              "label": "In $Ax + By = C$, the slope is…",
+              "type": "choice",
+              "options": [
+                "A/B",
+                "−A/B",
+                "C/B",
+                "−B/A"
+              ],
+              "answer": "−A/B"
+            }
+          ],
+          "directionSteps": [
+            "Set x equal to zero to find the y-intercept.",
+            "Set y equal to zero to find the x-intercept.",
+            "Solve for y to see the slope.",
+            "Compare the slope with A and B."
+          ],
+          "hints": [
+            "y-intercept: set x = 0, so −2y = 8. x-intercept: set y = 0, so 3x = 8.",
+            "For the slope, solve 3x − 2y = 8 for y; the coefficient of x is the slope."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To find the y-intercept of 3x − 2y = 8, you substitute…",
+            "options": [
+              "x = 0",
+              "y = 0"
+            ],
+            "correct": "x = 0"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Three forms",
+                "instruction": "Slope-intercept y = mx + b; point-slope y − y₁ = m(x − x₁); standard Ax + By = C, where A, B and C are integers and A and B are not both 0."
+              },
+              {
+                "title": "Structure",
+                "instruction": "Standard form shows both intercepts quickly: (C/A, 0) and (0, C/B). Its slope is −A/B."
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "Substitute 0 for the intercepts; solve for y for the slope.",
+            "reasoning": [
+              "x = 0: −2y = 8, so y = −4. The y-intercept is (0, −4).",
+              "y = 0: 3x = 8, so x = 8/3. The x-intercept is (8/3, 0).",
+              "Solve for y: −2y = −3x + 8, so y = (3/2)x − 4. The slope is 3/2.",
+              "In general By = −Ax + C, so y = (−A/B)x + C/B: the slope is −A/B. Here −3/(−2) = 3/2."
+            ],
+            "answerSummary": "slope 3/2; (0, −4); (8/3, 0); slope = −A/B",
+            "commonError": "Reading the slope as A/B = 3/(−2) = −3/2, or as the coefficient 3 of x in standard form."
+          }
+        },
+        {
+          "questionId": "m3t1l2-cw-3",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "stepAlgebra2"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Activity 2.1 — Rewrite $8x - 2y = 12$ in slope-intercept form, $y = mx + b$. Slope-intercept form is the form technology graphs most easily.",
+          "mode": "rewriteLinearForm",
+          "targetForm": "slopeIntercept",
+          "equation": "8x - 2y = 12",
+          "directionSteps": [
+            "Move the x-term to the other side.",
+            "Divide every term by the coefficient of y.",
+            "Write the result as y = mx + b."
+          ],
+          "hints": [
+            "Subtract 8x from both sides first, so the y-term is alone on the left.",
+            "Then divide every term on both sides by −2. Watch the signs."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. After subtracting 8x from both sides of 8x − 2y = 12, you have…",
+            "options": [
+              "−2y = −8x + 12",
+              "−2y = 8x + 12"
+            ],
+            "correct": "−2y = −8x + 12"
+          },
+          "solutionReview": {
+            "headline": "Get the y-term alone, then divide by its coefficient.",
+            "reasoning": [
+              "8x − 2y = 12",
+              "Subtract 8x: −2y = −8x + 12.",
+              "Divide every term by −2: y = 4x − 6."
+            ],
+            "answerSummary": "y = 4x − 6",
+            "commonError": "Dividing only some of the terms by −2, or forgetting that dividing −8x by −2 gives +4x."
+          }
+        },
+        {
+          "questionId": "m3t1l2-cw-4",
+          "standard": "A.2B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Activity 2.1 — Rewrite $y + 7 = 0.5(x - 1)$ in standard form, $Ax + By = C$. Use integers with $A > 0$ and no common factor other than 1.",
+          "responses": [
+            {
+              "id": "A",
+              "label": "$A$ (the coefficient of $x$)",
+              "answer": "1",
+              "inputProfile": "number"
+            },
+            {
+              "id": "B",
+              "label": "$B$ (the coefficient of $y$)",
+              "answer": "-2",
+              "inputProfile": "number"
+            },
+            {
+              "id": "C",
+              "label": "$C$ (the constant)",
+              "answer": "15",
+              "inputProfile": "number"
+            }
+          ],
+          "directionSteps": [
+            "Distribute 0.5.",
+            "Multiply every term by 2 to clear the decimal.",
+            "Move the x-term and the y-term to the same side.",
+            "Make A positive."
+          ],
+          "hints": [
+            "Distribute: y + 7 = 0.5x − 0.5. Multiply every term on both sides by 2 to clear the decimals.",
+            "Collect the x- and y-terms on one side and the constants on the other. If the x-coefficient is negative, multiply every term by −1."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Standard form needs A, B and C to be…",
+            "options": [
+              "integers",
+              "fractions or decimals"
+            ],
+            "correct": "integers"
+          },
+          "solutionReview": {
+            "headline": "Clear the decimal, then collect the variable terms.",
+            "reasoning": [
+              "y + 7 = 0.5x − 0.5",
+              "Multiply every term by 2: 2y + 14 = x − 1.",
+              "Subtract x and subtract 14 from both sides: −x + 2y = −15.",
+              "Multiply by −1 so A > 0: x − 2y = 15."
+            ],
+            "answerSummary": "x − 2y = 15",
+            "commonError": "Leaving a decimal coefficient such as 0.5x − y = 7.5: standard form uses integers."
+          }
+        },
+        {
+          "questionId": "m3t1l2-cw-5",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Activity 2.2 — Rewriting Literal Equations. Mateo, who lives in Europe, converts degrees Fahrenheit to degrees Celsius with $C = \\frac{5}{9}(F - 32)$. Rewrite the formula so Jayden can convert degrees Celsius to degrees Fahrenheit: solve it for $F$.",
+          "equation": "C = (5/9)(F - 32)",
+          "solveFor": "F",
+          "directionSteps": [
+            "Undo the multiplication by the fraction.",
+            "Undo the subtraction of 32."
+          ],
+          "hints": [
+            "F − 32 is multiplied by 5/9. Multiply both sides by 9/5, the reciprocal — or distribute 5/9 to both F and 32 first.",
+            "Then undo the subtraction of 32: add 32 to both sides."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In C = (5/9)(F − 32), which operation was done to F first?",
+            "options": [
+              "32 was subtracted from F",
+              "F was multiplied by 5/9"
+            ],
+            "correct": "32 was subtracted from F"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Two ways",
+                "instruction": "Isabella distributed 5/9, multiplied by 9, added 160 and divided by 5. Multiplying both sides by 9/5 first is quicker."
+              },
+              {
+                "title": "Undo in reverse",
+                "instruction": "The formula subtracts 32, then multiplies by 5/9. Undo the multiplication first, then the subtraction."
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "Multiply by the reciprocal, then add 32.",
+            "reasoning": [
+              "C = (5/9)(F − 32)",
+              "Multiply both sides by 9/5: (9/5)C = F − 32.",
+              "Add 32 to both sides: F = (9/5)C + 32."
+            ],
+            "answerSummary": "F = (9/5)C + 32",
+            "commonError": "Distributing 5/9 to F but not to 32 (Ethan’s error), which changes the constant."
+          }
+        },
+        {
+          "questionId": "m3t1l2-cw-6",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Activity 2.2 — Who is warmer? Jayden tells Mateo it is 77°F where he lives. Mateo says it is 30°C where he lives. Each says it is warmer where he lives. Use $C = \\frac{5}{9}(F - 32)$ and your formula from the last question to decide who is correct.",
+          "responses": [
+            {
+              "id": "jaydenC",
+              "label": "Jayden’s 77°F in degrees Celsius",
+              "answer": "25",
+              "inputProfile": "number"
+            },
+            {
+              "id": "mateoF",
+              "label": "Mateo’s 30°C in degrees Fahrenheit",
+              "answer": "86",
+              "inputProfile": "number"
+            },
+            {
+              "id": "who",
+              "label": "Who is correct?",
+              "type": "choice",
+              "options": [
+                "Jayden: it is warmer where Jayden lives",
+                "Mateo: it is warmer where Mateo lives",
+                "Neither: the temperatures are the same"
+              ],
+              "answer": "Mateo: it is warmer where Mateo lives"
+            }
+          ],
+          "directionSteps": [
+            "Convert Jayden’s 77°F to degrees Celsius.",
+            "Convert Mateo’s 30°C to degrees Fahrenheit.",
+            "Compare the temperatures in the same unit."
+          ],
+          "hints": [
+            "Substitute F = 77 into C = (5/9)(F − 32): subtract first, then multiply by 5/9.",
+            "Substitute C = 30 into F = (9/5)C + 32. Then compare two temperatures in the same unit."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To compare 77°F and 30°C, you first…",
+            "options": [
+              "write both in the same unit",
+              "compare 77 with 30"
+            ],
+            "correct": "write both in the same unit"
+          },
+          "solutionReview": {
+            "headline": "Compare in the same unit.",
+            "reasoning": [
+              "77°F: C = (5/9)(77 − 32) = (5/9)(45) = 25°C.",
+              "30°C: F = (9/5)(30) + 32 = 54 + 32 = 86°F.",
+              "30°C is warmer than 25°C (86°F is warmer than 77°F), so Mateo is correct."
+            ],
+            "answerSummary": "25°C; 86°F; Mateo",
+            "commonError": "Comparing 77 and 30 directly: the numbers are in different units."
+          }
+        },
+        {
+          "questionId": "m3t1l2-cw-7",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Activity 2.2 — Error analysis. Isabella, Ethan and Minh each solved $C = \\frac{5}{9}(F - 32)$ for F.\nIsabella: C = (5/9)F − 160/9 → 9C = 5F − 160 → 9C + 160 = 5F → F = (9/5)C + 32\nEthan: C = (5/9)F − 32 → 9C = 5F − 288 → 9C + 288 = 5F → F = (9/5)C + 57.6\nMinh: C = (5/9)F − 160/9 → 9C = 45F − 1440 → 9C + 1440 = 45F → F = (1/5)C + 32\nExplain each error, then use the correct formula to convert 100°C to degrees Fahrenheit.",
+          "responses": [
+            {
+              "id": "ethan",
+              "label": "Ethan’s error",
+              "type": "choice",
+              "options": [
+                "He multiplied both sides by 9.",
+                "He distributed 5/9 to F but not to 32.",
+                "He added 288 to both sides.",
+                "He divided both sides by 5."
+              ],
+              "answer": "He distributed 5/9 to F but not to 32."
+            },
+            {
+              "id": "minh",
+              "label": "Minh’s error",
+              "type": "choice",
+              "options": [
+                "He distributed 5/9 to F but not to 32.",
+                "He subtracted 160/9 instead of adding it.",
+                "He multiplied 9 by each numerator but did not divide by the denominator 9, so he got 45F and 1440 instead of 5F and 160.",
+                "He divided both sides by 45 instead of 5."
+              ],
+              "answer": "He multiplied 9 by each numerator but did not divide by the denominator 9, so he got 45F and 1440 instead of 5F and 160."
+            },
+            {
+              "id": "boiling",
+              "label": "Use the correct formula: 100°C in degrees Fahrenheit",
+              "answer": "212",
+              "inputProfile": "number"
+            }
+          ],
+          "directionSteps": [
+            "Find Ethan’s first wrong step.",
+            "Find Minh’s first wrong step.",
+            "Use the correct formula to convert 100°C."
+          ],
+          "hints": [
+            "Check Ethan’s first step: (5/9)(F − 32) means 5/9 times F and 5/9 times 32.",
+            "Check Minh’s second step: 9 · (5/9)F = (9 · 5/9)F. What is 9 times 5/9?"
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. (5/9)(F − 32) is equal to…",
+            "options": [
+              "(5/9)F − 160/9",
+              "(5/9)F − 32"
+            ],
+            "correct": "(5/9)F − 160/9"
+          },
+          "solutionReview": {
+            "headline": "Distribute to every term; multiply fractions correctly.",
+            "reasoning": [
+              "Ethan wrote (5/9)F − 32: the 5/9 must multiply 32 too, giving 160/9.",
+              "Minh wrote 9 · (5/9)F = 45F: it is 5F, because 9 · 5/9 = 5. The same mistake gave 1440 instead of 160.",
+              "Isabella is correct: F = (9/5)C + 32, so 100°C is (9/5)(100) + 32 = 212°F."
+            ],
+            "answerSummary": "Ethan did not distribute to 32; Minh did not divide by 9; 212°F",
+            "commonError": "Thinking Ethan’s final answer only has a rounding error: his constant is wrong from the first step."
+          }
+        },
+        {
+          "questionId": "m3t1l2-cw-8",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Activity 2.3 — Solving Literal Equations for Specific Variables. The area of a trapezoid is $A = \\frac{1}{2}h(b_1 + b_2)$, where h is the height and $b_1$ and $b_2$ are the lengths of the bases. Solve the formula for the height, $h$.",
+          "equation": "A = (1/2)*h*(b_1 + b_2)",
+          "solveFor": "h",
+          "directionSteps": [
+            "Undo the multiplication by the fraction.",
+            "Undo the multiplication by the sum of the bases."
+          ],
+          "hints": [
+            "Multiply both sides by 2 to undo the multiplication by 1/2.",
+            "h is multiplied by the whole sum (b₁ + b₂). Divide both sides by that sum — keep it in parentheses."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In A = ½h(b₁ + b₂), h is multiplied by…",
+            "options": [
+              "½ and by the sum (b₁ + b₂)",
+              "only b₁"
+            ],
+            "correct": "½ and by the sum (b₁ + b₂)"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "A group is one factor",
+                "instruction": "Treat (b₁ + b₂) as one quantity. Dividing by it means dividing by the whole sum."
+              },
+              {
+                "title": "Check with numbers",
+                "instruction": "An area of 24 cm² with bases 9 cm and 7 cm gives a height of 2(24)/(9 + 7) = 3 cm."
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "Multiply by 2, then divide by the sum of the bases.",
+            "reasoning": [
+              "A = ½h(b₁ + b₂)",
+              "Multiply both sides by 2: 2A = h(b₁ + b₂).",
+              "Divide both sides by (b₁ + b₂): h = 2A/(b₁ + b₂)."
+            ],
+            "answerSummary": "h = 2A/(b₁ + b₂)",
+            "commonError": "Dividing by b₁ and then subtracting b₂: the sum (b₁ + b₂) is one factor."
+          }
+        },
+        {
+          "questionId": "m3t1l2-cw-9",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Talk the Talk — Rearrange It. The lateral surface area of a cylinder is $S = 2\\pi rh$, where r is the radius of the base and h is the height. A can of soup has a lateral surface area of 37.68 square inches and a radius of 1.5 inches. Choose the formula solved for the height, then find the height of the can. Use 3.14 for π.",
+          "responses": [
+            {
+              "id": "formula",
+              "label": "The formula solved for h",
+              "type": "choice",
+              "options": [
+                "h = 2πr/S",
+                "h = S − 2πr",
+                "h = S/(2πr)",
+                "h = 2πrS"
+              ],
+              "answer": "h = S/(2πr)"
+            },
+            {
+              "id": "height",
+              "label": "Height of the can (inches)",
+              "answer": "4",
+              "inputProfile": "number"
+            }
+          ],
+          "directionSteps": [
+            "Choose the formula solved for h.",
+            "Substitute the area, the radius and 3.14 for π.",
+            "Calculate the height."
+          ],
+          "hints": [
+            "In S = 2πrh, h is multiplied by 2πr. Divide both sides by 2πr.",
+            "2(3.14)(1.5) = 9.42. Divide the lateral surface area by 9.42."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To get h alone in S = 2πrh, you…",
+            "options": [
+              "divide both sides by 2πr",
+              "subtract 2πr from both sides"
+            ],
+            "correct": "divide both sides by 2πr"
+          },
+          "solutionReview": {
+            "headline": "Divide by everything that multiplies h.",
+            "reasoning": [
+              "S = 2πrh, so h = S/(2πr).",
+              "2(3.14)(1.5) = 9.42.",
+              "h = 37.68/9.42 = 4 inches."
+            ],
+            "answerSummary": "h = S/(2πr); 4 inches",
+            "commonError": "Subtracting 2πr instead of dividing: h is multiplied by 2πr, not added to it."
+          }
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "role": "practice",
+      "title": "Practice — Solving Formulas and Rewriting Linear Equations",
+      "recommendedMinutes": 50,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "m3t1l2-pr-1",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "The area of a rectangle is $A = lw$. Solve the formula for the length, $l$.",
+          "equation": "A = l*w",
+          "solveFor": "l",
+          "directionSteps": [
+            "Find what is done to l.",
+            "Undo it on both sides."
+          ],
+          "hints": [
+            "l is multiplied by w.",
+            "Divide both sides by w."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In A = lw, the length l is…",
+            "options": [
+              "multiplied by w",
+              "added to w"
+            ],
+            "correct": "multiplied by w"
+          },
+          "attemptFeedback": [
+            "l is multiplied by w, so undo the multiplication: divide both sides by w."
+          ],
+          "solutionReview": {
+            "headline": "Divide both sides by w.",
+            "reasoning": [
+              "A = lw",
+              "Divide both sides by w: l = A/w."
+            ],
+            "answerSummary": "l = A/w",
+            "commonError": "Subtracting w instead of dividing by it."
+          }
+        },
+        {
+          "questionId": "m3t1l2-pr-2",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Distance equals rate times time: $d = rt$. Solve the formula for the time, $t$.",
+          "equation": "d = r*t",
+          "solveFor": "t",
+          "directionSteps": [
+            "Find what is done to t.",
+            "Undo it on both sides."
+          ],
+          "hints": [
+            "t is multiplied by r.",
+            "Divide both sides by r."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In d = rt, the time t is…",
+            "options": [
+              "multiplied by r",
+              "divided by r"
+            ],
+            "correct": "multiplied by r"
+          },
+          "attemptFeedback": [
+            "t is multiplied by r. Divide both sides by r so t stands alone."
+          ],
+          "solutionReview": {
+            "headline": "Divide both sides by r.",
+            "reasoning": [
+              "d = rt",
+              "Divide both sides by r: t = d/r."
+            ],
+            "answerSummary": "t = d/r",
+            "commonError": "Writing t = r/d: the distance goes on top."
+          }
+        },
+        {
+          "questionId": "m3t1l2-pr-3",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "Simple interest is $I = Prt$: principal P, annual rate r and time t in years. Solve the formula for the time, $t$.",
+          "equation": "I = P*r*t",
+          "solveFor": "t",
+          "directionSteps": [
+            "Find everything that multiplies t.",
+            "Divide both sides by it."
+          ],
+          "hints": [
+            "t is multiplied by both P and r.",
+            "Divide both sides by the product Pr."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In I = Prt, the time t is multiplied by…",
+            "options": [
+              "P and r",
+              "only r"
+            ],
+            "correct": "P and r"
+          },
+          "attemptFeedback": [
+            "t is multiplied by P and by r. Divide both sides by both of them — by the product Pr."
+          ],
+          "solutionReview": {
+            "headline": "Divide by the product Pr.",
+            "reasoning": [
+              "I = Prt",
+              "Divide both sides by Pr: t = I/(Pr)."
+            ],
+            "answerSummary": "t = I/(Pr)",
+            "commonError": "Dividing by only P or only r: both multiply t."
+          }
+        },
+        {
+          "questionId": "m3t1l2-pr-4",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 1,
+          "difficultyBand": 1,
+          "prompt": "The circumference of a circle is $C = 2\\pi r$. Solve the formula for the radius, $r$.",
+          "equation": "C = 2*pi*r",
+          "solveFor": "r",
+          "directionSteps": [
+            "Find everything that multiplies r.",
+            "Divide both sides by it."
+          ],
+          "hints": [
+            "r is multiplied by 2 and by π.",
+            "Divide both sides by 2π."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In C = 2πr, π is…",
+            "options": [
+              "a number, about 3.14",
+              "a variable to solve for"
+            ],
+            "correct": "a number, about 3.14"
+          },
+          "attemptFeedback": [
+            "π is a number. r is multiplied by 2π, so divide both sides by 2π."
+          ],
+          "solutionReview": {
+            "headline": "Divide by 2π.",
+            "reasoning": [
+              "C = 2πr",
+              "Divide both sides by 2π: r = C/(2π)."
+            ],
+            "answerSummary": "r = C/(2π)",
+            "commonError": "Dividing by 2 but not by π."
+          }
+        },
+        {
+          "questionId": "m3t1l2-pr-5",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Perimeter Perspectives, Mia’s turn. Mia needs the length of the park. Solve $P = 2l + 2w$ for $l$.",
+          "equation": "P = 2l + 2w",
+          "solveFor": "l",
+          "directionSteps": [
+            "Undo the addition of 2w.",
+            "Undo the multiplication by 2."
+          ],
+          "hints": [
+            "Subtract 2w from both sides.",
+            "Then divide both sides by 2 — the whole side."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. First, to start getting l alone in P = 2l + 2w, you…",
+            "options": [
+              "subtract 2w from both sides",
+              "divide only P by 2"
+            ],
+            "correct": "subtract 2w from both sides"
+          },
+          "attemptFeedback": [
+            "Undo the addition first: subtract 2w from both sides. Then divide every term on the other side by 2."
+          ],
+          "solutionReview": {
+            "headline": "Subtract 2w, then divide by 2.",
+            "reasoning": [
+              "P = 2l + 2w",
+              "P − 2w = 2l",
+              "l = (P − 2w)/2, which is also l = P/2 − w."
+            ],
+            "answerSummary": "l = (P − 2w)/2",
+            "commonError": "Dividing only P by 2: l = P/2 − 2w is not equivalent."
+          }
+        },
+        {
+          "questionId": "m3t1l2-pr-6",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Solve $y = mx + b$ for $x$.",
+          "equation": "y = m*x + b",
+          "solveFor": "x",
+          "directionSteps": [
+            "Undo the addition of b.",
+            "Undo the multiplication by m."
+          ],
+          "hints": [
+            "Subtract b from both sides.",
+            "Then divide both sides by m."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In y = mx + b, what is done to x first?",
+            "options": [
+              "It is multiplied by m.",
+              "b is added to it."
+            ],
+            "correct": "It is multiplied by m."
+          },
+          "attemptFeedback": [
+            "x was multiplied by m, then b was added. Undo in reverse: subtract b, then divide by m."
+          ],
+          "solutionReview": {
+            "headline": "Subtract b, then divide by m.",
+            "reasoning": [
+              "y = mx + b",
+              "y − b = mx",
+              "x = (y − b)/m"
+            ],
+            "answerSummary": "x = (y − b)/m",
+            "commonError": "Dividing y by m before subtracting b: x = y/m − b is not equivalent."
+          }
+        },
+        {
+          "questionId": "m3t1l2-pr-7",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "The area of a triangle is $A = \\frac{1}{2}bh$. Solve the formula for the height, $h$.",
+          "equation": "A = (1/2)*b*h",
+          "solveFor": "h",
+          "directionSteps": [
+            "Undo the multiplication by the fraction.",
+            "Undo the multiplication by the base."
+          ],
+          "hints": [
+            "Multiply both sides by 2.",
+            "Then divide both sides by b."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Multiplying both sides of A = ½bh by 2 gives…",
+            "options": [
+              "2A = bh",
+              "A = 2bh"
+            ],
+            "correct": "2A = bh"
+          },
+          "attemptFeedback": [
+            "Clear the fraction first: multiply both sides by 2. Then divide both sides by b."
+          ],
+          "solutionReview": {
+            "headline": "Multiply by 2, then divide by b.",
+            "reasoning": [
+              "A = ½bh",
+              "2A = bh",
+              "h = 2A/b"
+            ],
+            "answerSummary": "h = 2A/b",
+            "commonError": "Writing h = A/(2b): multiplying by 2 undoes the ½, so the 2 multiplies A."
+          }
+        },
+        {
+          "questionId": "m3t1l2-pr-8",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Activity 2.3 — An ice cream cone company wants a taller cone that holds the same amount of ice cream. The volume of a cone is $V = \\frac{1}{3}Bh$, where B is the area of the base. Solve the formula for the height, $h$.",
+          "equation": "V = (1/3)*B*h",
+          "solveFor": "h",
+          "directionSteps": [
+            "Undo the multiplication by the fraction.",
+            "Undo the multiplication by B."
+          ],
+          "hints": [
+            "Multiply both sides by 3.",
+            "Then divide both sides by B."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To undo multiplying by ⅓, you…",
+            "options": [
+              "multiply by 3",
+              "divide by 3"
+            ],
+            "correct": "multiply by 3"
+          },
+          "attemptFeedback": [
+            "Multiply both sides by 3 to undo the ⅓, then divide both sides by B."
+          ],
+          "solutionReview": {
+            "headline": "Multiply by 3, then divide by B.",
+            "reasoning": [
+              "V = ⅓Bh",
+              "3V = Bh",
+              "h = 3V/B. Volume (cubic units) divided by an area (square units) leaves a length."
+            ],
+            "answerSummary": "h = 3V/B",
+            "commonError": "Writing h = V/(3B): multiplying by 3 undoes the ⅓, so the 3 multiplies V."
+          }
+        },
+        {
+          "questionId": "m3t1l2-pr-9",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "The lateral surface area of a cylinder is $S = 2\\pi rh$. Solve the formula for the radius, $r$.",
+          "equation": "S = 2*pi*r*h",
+          "solveFor": "r",
+          "directionSteps": [
+            "Find everything that multiplies r.",
+            "Divide both sides by it."
+          ],
+          "hints": [
+            "r is multiplied by 2, by π and by h.",
+            "Divide both sides by 2πh."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In S = 2πrh, r is multiplied by…",
+            "options": [
+              "2, π and h",
+              "only h"
+            ],
+            "correct": "2, π and h"
+          },
+          "attemptFeedback": [
+            "Every factor next to r multiplies it: divide both sides by 2πh."
+          ],
+          "solutionReview": {
+            "headline": "Divide by 2πh.",
+            "reasoning": [
+              "S = 2πrh",
+              "Divide both sides by 2πh: r = S/(2πh)."
+            ],
+            "answerSummary": "r = S/(2πh)",
+            "commonError": "Dividing by 2π but leaving h on the right side with r."
+          }
+        },
+        {
+          "questionId": "m3t1l2-pr-10",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "stepAlgebra2"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Rewrite $6x + 2y = 10$ in slope-intercept form, $y = mx + b$.",
+          "mode": "rewriteLinearForm",
+          "targetForm": "slopeIntercept",
+          "equation": "6x + 2y = 10",
+          "directionSteps": [
+            "Move the x-term to the other side.",
+            "Divide every term by the coefficient of y."
+          ],
+          "hints": [
+            "Subtract 6x from both sides.",
+            "Divide every term by 2."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. After subtracting 6x from both sides of 6x + 2y = 10, you have…",
+            "options": [
+              "2y = −6x + 10",
+              "2y = 6x + 10"
+            ],
+            "correct": "2y = −6x + 10"
+          },
+          "attemptFeedback": [
+            "Get 2y alone first, then divide every term — both of them — by 2."
+          ],
+          "solutionReview": {
+            "headline": "Subtract 6x, then divide by 2.",
+            "reasoning": [
+              "6x + 2y = 10",
+              "2y = −6x + 10",
+              "y = −3x + 5"
+            ],
+            "answerSummary": "y = −3x + 5",
+            "commonError": "Dividing only 10 by 2: every term on that side is divided by 2."
+          }
+        },
+        {
+          "questionId": "m3t1l2-pr-11",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "stepAlgebra2"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Rewrite $4x - 3y = 12$ in slope-intercept form. The slope is a fraction — leave it as a fraction.",
+          "mode": "rewriteLinearForm",
+          "targetForm": "slopeIntercept",
+          "equation": "4x - 3y = 12",
+          "directionSteps": [
+            "Move the x-term to the other side.",
+            "Divide every term by the coefficient of y."
+          ],
+          "hints": [
+            "Subtract 4x from both sides so the y-term is alone on the left.",
+            "Divide every term by −3. A negative divided by a negative is positive."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. −4x divided by −3 is…",
+            "options": [
+              "(4/3)x",
+              "−(4/3)x"
+            ],
+            "correct": "(4/3)x"
+          },
+          "attemptFeedback": [
+            "After −3y = −4x + 12, divide both terms by −3: the signs of both change."
+          ],
+          "solutionReview": {
+            "headline": "Subtract 4x, then divide by −3.",
+            "reasoning": [
+              "4x − 3y = 12",
+              "−3y = −4x + 12",
+              "y = (4/3)x − 4"
+            ],
+            "answerSummary": "y = (4/3)x − 4",
+            "commonError": "Dividing by 3 instead of −3, which gives y = −(4/3)x + 4."
+          }
+        },
+        {
+          "questionId": "m3t1l2-pr-12",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "stepAlgebra2"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Rewrite $y - 3 = 2(x + 4)$, which is in point-slope form, in slope-intercept form.",
+          "mode": "rewriteLinearForm",
+          "targetForm": "slopeIntercept",
+          "equation": "y - 3 = 2(x + 4)",
+          "directionSteps": [
+            "Distribute the 2.",
+            "Undo the subtraction of 3."
+          ],
+          "hints": [
+            "Distribute: multiply the number outside the parentheses by both terms inside.",
+            "Add 3 to both sides."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. 2(x + 4) is equal to…",
+            "options": [
+              "2x + 8",
+              "2x + 4"
+            ],
+            "correct": "2x + 8"
+          },
+          "attemptFeedback": [
+            "Distribute the 2 to both x and 4, then add 3 to both sides."
+          ],
+          "solutionReview": {
+            "headline": "Distribute, then add 3.",
+            "reasoning": [
+              "y − 3 = 2(x + 4)",
+              "y − 3 = 2x + 8",
+              "y = 2x + 11"
+            ],
+            "answerSummary": "y = 2x + 11",
+            "commonError": "Multiplying only x by 2, which gives y = 2x + 7."
+          }
+        },
+        {
+          "questionId": "m3t1l2-pr-13",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "stepAlgebra2"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Rewrite $y + 1 = -\\frac{1}{2}(x - 6)$ in slope-intercept form.",
+          "mode": "rewriteLinearForm",
+          "targetForm": "slopeIntercept",
+          "equation": "y + 1 = -(1/2)(x - 6)",
+          "directionSteps": [
+            "Distribute the fraction to both terms in the parentheses.",
+            "Undo the addition of 1."
+          ],
+          "hints": [
+            "Distribute −½ to both terms: −½ · x and −½ · (−6).",
+            "Then subtract 1 from both sides."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. −½ times −6 is…",
+            "options": [
+              "3",
+              "−3"
+            ],
+            "correct": "3"
+          },
+          "attemptFeedback": [
+            "Distribute −½ to x and to −6 — a negative times a negative is positive — then subtract 1 from both sides."
+          ],
+          "solutionReview": {
+            "headline": "Distribute, then subtract 1.",
+            "reasoning": [
+              "y + 1 = −½(x − 6)",
+              "y + 1 = −½x + 3",
+              "y = −½x + 2"
+            ],
+            "answerSummary": "y = −(1/2)x + 2",
+            "commonError": "Getting −3 from −½ · (−6): the product of two negatives is positive."
+          }
+        },
+        {
+          "questionId": "m3t1l2-pr-14",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Your own equation. Solve ${{A}}x {{B|signed}}y = {{C}}$ for $y$. When y is alone, you have the slope-intercept form of the line.",
+          "equation": "{{A}}x {{B|signed}}y = {{C}}",
+          "solveFor": "y",
+          "directionSteps": [
+            "Move the x-term to the other side.",
+            "Divide every term by the coefficient of y."
+          ],
+          "hints": [
+            "Subtract {{A}}x from both sides so the y-term is alone.",
+            "Divide every term on both sides by {{B}}. Watch the signs."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In {{A}}x {{B|signed}}y = {{C}}, the coefficient of y is…",
+            "options": [
+              "{{B}}",
+              "{{A}}"
+            ],
+            "correct": "{{B}}"
+          },
+          "attemptFeedback": [
+            "Subtract {{A}}x from both sides first. Then divide every term by {{B}}, including the x-term."
+          ],
+          "solutionReview": {
+            "headline": "Get the y-term alone, then divide by {{B}}.",
+            "reasoning": [
+              "{{A}}x {{B|signed}}y = {{C}}",
+              "Subtract {{A}}x: {{B}}y = −{{A}}x {{C|signed}}.",
+              "Divide every term by {{B}}: y = {{m|coef}}x {{b|signed}}."
+            ],
+            "answerSummary": "y = {{m|coef}}x {{b|signed}}",
+            "commonError": "Dividing only the constant by {{B}}, or losing the sign when dividing by a negative."
+          },
+          "generator": {
+            "parameters": {
+              "p": {
+                "type": "int",
+                "min": 1,
+                "max": 5
+              },
+              "s": {
+                "type": "choice",
+                "values": [
+                  -1,
+                  1
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "k": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              }
+            },
+            "derived": {
+              "m": "s*p",
+              "A": "p*k",
+              "B": "-s*k",
+              "C": "-s*b*k"
+            }
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "m3t1l2-pr-15",
+          "standard": "A.2B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Activity 2.1 — Rewrite $y = -4x + 3$ in standard form, $Ax + By = C$. Use integers with $A > 0$ and no common factor other than 1.",
+          "responses": [
+            {
+              "id": "A",
+              "label": "$A$ (the coefficient of $x$)",
+              "answer": "4",
+              "inputProfile": "number"
+            },
+            {
+              "id": "B",
+              "label": "$B$ (the coefficient of $y$)",
+              "answer": "1",
+              "inputProfile": "number"
+            },
+            {
+              "id": "C",
+              "label": "$C$ (the constant)",
+              "answer": "3",
+              "inputProfile": "number"
+            }
+          ],
+          "directionSteps": [
+            "Move the x-term to the side with y.",
+            "Read A, B and C."
+          ],
+          "hints": [
+            "Add 4x to both sides so the x-term and the y-term are on the same side.",
+            "In Ax + By = C, B is the coefficient of y — even when it is not written."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Adding 4x to both sides of y = −4x + 3 gives…",
+            "options": [
+              "4x + y = 3",
+              "−4x + y = 3"
+            ],
+            "correct": "4x + y = 3"
+          },
+          "attemptFeedback": [
+            "Add 4x to both sides: the x-term moves next to y. If y has no number in front, its coefficient is 1."
+          ],
+          "solutionReview": {
+            "headline": "Add 4x to both sides.",
+            "reasoning": [
+              "y = −4x + 3",
+              "4x + y = 3, so A = 4, B = 1, C = 3."
+            ],
+            "answerSummary": "4x + y = 3",
+            "commonError": "Writing B = 0 because no number is written in front of y: y means 1y."
+          }
+        },
+        {
+          "questionId": "m3t1l2-pr-16",
+          "standard": "A.2B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Activity 2.1 — Write the equation, in standard form, of the line with slope $\\frac{1}{2}$ that passes through $(-3, 5)$. Use integers with $A > 0$ and no common factor other than 1.",
+          "responses": [
+            {
+              "id": "A",
+              "label": "$A$ (the coefficient of $x$)",
+              "answer": "1",
+              "inputProfile": "number"
+            },
+            {
+              "id": "B",
+              "label": "$B$ (the coefficient of $y$)",
+              "answer": "-2",
+              "inputProfile": "number"
+            },
+            {
+              "id": "C",
+              "label": "$C$ (the constant)",
+              "answer": "-13",
+              "inputProfile": "number"
+            }
+          ],
+          "directionSteps": [
+            "Write the line in point-slope form.",
+            "Multiply every term by 2 to clear the fraction.",
+            "Collect the terms with variables on one side.",
+            "Make A positive."
+          ],
+          "hints": [
+            "Point-slope form: y − 5 = ½(x + 3). Multiply every term by 2.",
+            "Collect x and y on one side and the constants on the other. Make the x-coefficient positive."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In point-slope form, the line with slope ½ through (−3, 5) is…",
+            "options": [
+              "y − 5 = ½(x + 3)",
+              "y + 5 = ½(x − 3)"
+            ],
+            "correct": "y − 5 = ½(x + 3)"
+          },
+          "attemptFeedback": [
+            "Start from y − 5 = ½(x + 3). Clear the fraction by multiplying every term by 2, then collect the variable terms on one side."
+          ],
+          "solutionReview": {
+            "headline": "Point-slope form, clear the fraction, collect terms.",
+            "reasoning": [
+              "y − 5 = ½(x + 3)",
+              "Multiply by 2: 2y − 10 = x + 3.",
+              "Subtract x and add 10: −x + 2y = 13.",
+              "Multiply by −1: x − 2y = −13. Check (−3, 5): −3 − 10 = −13."
+            ],
+            "answerSummary": "x − 2y = −13",
+            "commonError": "Using (3, −5) in point-slope form: y − y₁ uses the opposite sign of the coordinate, so y − 5 and x + 3."
+          }
+        },
+        {
+          "questionId": "m3t1l2-pr-17",
+          "standard": "A.2B",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2B",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Activity 2.1 — Write the equation, in standard form, of the line with slope −4 that passes through $(2, 1)$. Use integers with $A > 0$ and no common factor other than 1.",
+          "responses": [
+            {
+              "id": "A",
+              "label": "$A$ (the coefficient of $x$)",
+              "answer": "4",
+              "inputProfile": "number"
+            },
+            {
+              "id": "B",
+              "label": "$B$ (the coefficient of $y$)",
+              "answer": "1",
+              "inputProfile": "number"
+            },
+            {
+              "id": "C",
+              "label": "$C$ (the constant)",
+              "answer": "9",
+              "inputProfile": "number"
+            }
+          ],
+          "directionSteps": [
+            "Write the line in point-slope form.",
+            "Distribute.",
+            "Collect the terms with variables on one side."
+          ],
+          "hints": [
+            "Write point-slope form with the given point and slope, then distribute the slope to both terms in the parentheses.",
+            "Move the x-term to the same side as y, and the constants to the other side."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. −4(x − 2) is equal to…",
+            "options": [
+              "−4x + 8",
+              "−4x − 8"
+            ],
+            "correct": "−4x + 8"
+          },
+          "attemptFeedback": [
+            "Start from y − 1 = −4(x − 2). Distribute −4 to both terms, then move the x-term next to y."
+          ],
+          "solutionReview": {
+            "headline": "Point-slope form, distribute, collect terms.",
+            "reasoning": [
+              "y − 1 = −4(x − 2)",
+              "y − 1 = −4x + 8",
+              "Add 4x and add 1: 4x + y = 9. Check (2, 1): 8 + 1 = 9."
+            ],
+            "answerSummary": "4x + y = 9",
+            "commonError": "Getting −4x − 8 from −4(x − 2): −4 times −2 is +8."
+          }
+        },
+        {
+          "questionId": "m3t1l2-pr-18",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Activity 2.2 in reverse. Solve $F = \\frac{9}{5}C + 32$ for $C$, so Mateo can convert Jayden’s temperatures to degrees Celsius.",
+          "equation": "F = (9/5)*C + 32",
+          "solveFor": "C",
+          "directionSteps": [
+            "Undo the addition of 32.",
+            "Undo the multiplication by the fraction."
+          ],
+          "hints": [
+            "Subtract 32 from both sides.",
+            "Multiply both sides by 5/9, the reciprocal of 9/5."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To undo multiplying by 9/5, multiply by…",
+            "options": [
+              "5/9",
+              "−9/5"
+            ],
+            "correct": "5/9"
+          },
+          "attemptFeedback": [
+            "Undo the addition first: subtract 32. Then multiply the whole side by 5/9."
+          ],
+          "solutionReview": {
+            "headline": "Subtract 32, then multiply by 5/9.",
+            "reasoning": [
+              "F = (9/5)C + 32",
+              "F − 32 = (9/5)C",
+              "C = (5/9)(F − 32)"
+            ],
+            "answerSummary": "C = (5/9)(F − 32)",
+            "commonError": "Multiplying by 5/9 before subtracting 32, then subtracting 32 from only part of the side."
+          }
+        },
+        {
+          "questionId": "m3t1l2-pr-19",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve the trapezoid formula $A = \\frac{1}{2}h(b_1 + b_2)$ for the base $b_1$.",
+          "equation": "A = (1/2)*h*(b_1 + b_2)",
+          "solveFor": "b_1",
+          "directionSteps": [
+            "Undo the multiplication by the fraction.",
+            "Undo the multiplication by the height.",
+            "Undo the addition of the other base."
+          ],
+          "hints": [
+            "Multiply both sides by 2, then divide both sides by h.",
+            "Now 2A/h = b₁ + b₂. Subtract b₂ from both sides."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. After multiplying both sides of A = ½h(b₁ + b₂) by 2, you have…",
+            "options": [
+              "2A = h(b₁ + b₂)",
+              "2A = 2h(b₁ + b₂)"
+            ],
+            "correct": "2A = h(b₁ + b₂)"
+          },
+          "attemptFeedback": [
+            "Peel off the factors outside the parentheses first (the ½ and the h), then subtract b₂."
+          ],
+          "solutionReview": {
+            "headline": "Multiply by 2, divide by h, subtract b₂.",
+            "reasoning": [
+              "A = ½h(b₁ + b₂)",
+              "2A = h(b₁ + b₂)",
+              "2A/h = b₁ + b₂",
+              "b₁ = 2A/h − b₂"
+            ],
+            "answerSummary": "b₁ = 2A/h − b₂",
+            "commonError": "Subtracting b₂ before dividing by h: h multiplies b₂ too."
+          }
+        },
+        {
+          "questionId": "m3t1l2-pr-20",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Activity 2.3 — Solve the literal equation $Z = \\frac{A}{B} + \\frac{C}{D}$ for $C$.",
+          "equation": "Z = A/B + C/D",
+          "solveFor": "C",
+          "directionSteps": [
+            "Undo the addition of the first fraction.",
+            "Undo the division by D."
+          ],
+          "hints": [
+            "Subtract A/B from both sides.",
+            "C is divided by D, so multiply both sides by D."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In Z = A/B + C/D, the letter C is…",
+            "options": [
+              "divided by D",
+              "multiplied by D"
+            ],
+            "correct": "divided by D"
+          },
+          "attemptFeedback": [
+            "Isolate the term C/D first by subtracting A/B, then multiply both sides by D."
+          ],
+          "solutionReview": {
+            "headline": "Subtract A/B, then multiply by D.",
+            "reasoning": [
+              "Z = A/B + C/D",
+              "Z − A/B = C/D",
+              "C = D(Z − A/B), which is also C = DZ − AD/B."
+            ],
+            "answerSummary": "C = D(Z − A/B)",
+            "commonError": "Multiplying only Z by D: the whole side Z − A/B is multiplied by D."
+          }
+        },
+        {
+          "questionId": "m3t1l2-pr-21",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Activity 2.3 — Think Inside the Box is making boxes for Pack-n-Ship. The volume of a box is $V = Bh$, where B is the area of the base. The volume must be 450 cubic inches and the area of the base 75 square inches. Choose the formula for the height, then find the height of the boxes.",
+          "responses": [
+            {
+              "id": "formula",
+              "label": "The formula solved for h",
+              "type": "choice",
+              "options": [
+                "h = VB",
+                "h = V/B",
+                "h = B/V",
+                "h = V − B"
+              ],
+              "answer": "h = V/B"
+            },
+            {
+              "id": "height",
+              "label": "Height of the boxes (inches)",
+              "answer": "6",
+              "inputProfile": "number"
+            }
+          ],
+          "directionSteps": [
+            "Choose the formula solved for h.",
+            "Substitute the volume and the area of the base."
+          ],
+          "hints": [
+            "h is multiplied by B, so divide both sides by B.",
+            "Divide 450 by 75."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To get h alone in V = Bh, you…",
+            "options": [
+              "divide both sides by B",
+              "subtract B from both sides"
+            ],
+            "correct": "divide both sides by B"
+          },
+          "attemptFeedback": [
+            "Solve V = Bh for h first, then substitute: the volume goes on top."
+          ],
+          "solutionReview": {
+            "headline": "Divide the volume by the base area.",
+            "reasoning": [
+              "V = Bh, so h = V/B.",
+              "h = 450/75 = 6 inches."
+            ],
+            "answerSummary": "h = V/B; 6 inches",
+            "commonError": "Dividing 75 by 450: the volume goes on top."
+          }
+        },
+        {
+          "questionId": "m3t1l2-pr-22",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Activity 2.3 — Use your trapezoid formula. A trapezoid has an area of 24 square centimeters and bases of 9 cm and 7 cm. Choose the formula for the height, then find the height.",
+          "responses": [
+            {
+              "id": "formula",
+              "label": "The formula solved for h",
+              "type": "choice",
+              "options": [
+                "h = A/(2(b₁ + b₂))",
+                "h = 2A − (b₁ + b₂)",
+                "h = 2A/(b₁ + b₂)",
+                "h = (b₁ + b₂)/(2A)"
+              ],
+              "answer": "h = 2A/(b₁ + b₂)"
+            },
+            {
+              "id": "height",
+              "label": "Height of the trapezoid (cm)",
+              "answer": "3",
+              "inputProfile": "number"
+            }
+          ],
+          "directionSteps": [
+            "Choose the formula solved for the height.",
+            "Add the bases.",
+            "Substitute and calculate."
+          ],
+          "hints": [
+            "Multiply both sides of A = ½h(b₁ + b₂) by 2, then divide by the sum of the bases.",
+            "9 + 7 = 16. Divide 2 · 24 by 16."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The sum of the bases is…",
+            "options": [
+              "16 cm",
+              "63 cm"
+            ],
+            "correct": "16 cm"
+          },
+          "attemptFeedback": [
+            "Use h = 2A/(b₁ + b₂): double the area, then divide by the sum of the bases."
+          ],
+          "solutionReview": {
+            "headline": "Double the area, divide by the sum of the bases.",
+            "reasoning": [
+              "h = 2A/(b₁ + b₂)",
+              "h = 2(24)/(9 + 7) = 48/16 = 3 cm."
+            ],
+            "answerSummary": "h = 2A/(b₁ + b₂); 3 cm",
+            "commonError": "Forgetting to double the area, which gives 1.5 cm."
+          }
+        },
+        {
+          "questionId": "m3t1l2-pr-23",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Talk the Talk — The surface area of a cylinder is $S = 2\\pi r^2 + 2\\pi rh$. A can of soup has a surface area of 51.81 square inches and a radius of 1.5 inches. Choose the formula solved for the height, then find the height of the can. Use 3.14 for π.",
+          "responses": [
+            {
+              "id": "formula",
+              "label": "The formula solved for h",
+              "type": "choice",
+              "options": [
+                "h = S/(2πr) − 2πr²",
+                "h = (S − 2πr²)/(2πr)",
+                "h = (S − 2πr)/(2πr²)",
+                "h = S − 2πr² − 2πr"
+              ],
+              "answer": "h = (S − 2πr²)/(2πr)"
+            },
+            {
+              "id": "height",
+              "label": "Height of the can (inches)",
+              "answer": "4",
+              "inputProfile": "number"
+            }
+          ],
+          "directionSteps": [
+            "Choose the formula solved for h.",
+            "Work out each term that has π in it.",
+            "Substitute and calculate."
+          ],
+          "hints": [
+            "Subtract 2πr² from both sides first, then divide both sides by 2πr.",
+            "2(3.14)(1.5)² = 14.13 and 2(3.14)(1.5) = 9.42."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The first step to get h alone in S = 2πr² + 2πrh is…",
+            "options": [
+              "subtract 2πr² from both sides",
+              "divide both sides by 2πr²"
+            ],
+            "correct": "subtract 2πr² from both sides"
+          },
+          "attemptFeedback": [
+            "Undo the addition first: subtract 2πr². Then divide the whole side by 2πr."
+          ],
+          "solutionReview": {
+            "headline": "Subtract 2πr², then divide by 2πr.",
+            "reasoning": [
+              "h = (S − 2πr²)/(2πr)",
+              "2πr² = 2(3.14)(2.25) = 14.13 and 2πr = 9.42.",
+              "h = (51.81 − 14.13)/9.42 = 37.68/9.42 = 4 inches."
+            ],
+            "answerSummary": "h = (S − 2πr²)/(2πr); 4 inches",
+            "commonError": "Dividing before subtracting: 2πr does not divide evenly out of 2πr²."
+          }
+        },
+        {
+          "questionId": "m3t1l2-pr-24",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Your own formula. A phone repair shop charges a {{f}}-dollar service fee plus {{r}} dollars for each hour of work. The total charge for h hours is $T = {{f}} + {{r}}h$ dollars. Solve the formula for $h$ so the shop can find the hours from any total charge.",
+          "equation": "T = {{f}} + {{r}}h",
+          "solveFor": "h",
+          "directionSteps": [
+            "Undo the addition of the service fee.",
+            "Undo the multiplication by the hourly rate."
+          ],
+          "hints": [
+            "Subtract {{f}} from both sides.",
+            "Then divide both sides by {{r}} — the whole side."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. In T = {{f}} + {{r}}h, what is done to h first?",
+            "options": [
+              "It is multiplied by {{r}}.",
+              "{{f}} is added to it."
+            ],
+            "correct": "It is multiplied by {{r}}."
+          },
+          "attemptFeedback": [
+            "Undo the fee first: subtract {{f}}. Then divide every term on that side by {{r}}."
+          ],
+          "solutionReview": {
+            "headline": "Subtract the fee, then divide by the rate.",
+            "reasoning": [
+              "T = {{f}} + {{r}}h",
+              "T − {{f}} = {{r}}h",
+              "h = (T − {{f}})/{{r}}"
+            ],
+            "answerSummary": "h = (T − {{f}})/{{r}}",
+            "commonError": "Dividing only T by {{r}}: h = T/{{r}} − {{f}} is not equivalent."
+          },
+          "generator": {
+            "parameters": {
+              "f": {
+                "type": "int",
+                "min": 20,
+                "max": 75,
+                "step": 5
+              },
+              "r": {
+                "type": "int",
+                "min": 15,
+                "max": 40,
+                "step": 5
+              }
+            }
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "m3t1l2-pr-25",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Your own trapezoid. A trapezoid-shaped garden bed has an area of {{A}} square feet. Its parallel sides (the bases) are {{b1}} feet and {{b2}} feet long. Use $A = \\frac{1}{2}h(b_1 + b_2)$: solve it for h, then find the width h of the bed between the bases.",
+          "responses": [
+            {
+              "id": "height",
+              "label": "Height h (feet)",
+              "answer": "{{h}}",
+              "inputProfile": "number"
+            }
+          ],
+          "directionSteps": [
+            "Solve the formula for h.",
+            "Add the bases.",
+            "Substitute and calculate."
+          ],
+          "hints": [
+            "Solved for h, the formula is h = 2A/(b₁ + b₂).",
+            "Double the area, then divide by the sum of the bases."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The sum of the bases is…",
+            "options": [
+              "{{s}} feet",
+              "{{q}} feet"
+            ],
+            "correct": "{{s}} feet"
+          },
+          "attemptFeedback": [
+            "Use h = 2A/(b₁ + b₂): double the area {{A}}, then divide by {{b1}} + {{b2}}."
+          ],
+          "solutionReview": {
+            "headline": "Double the area, divide by the sum of the bases.",
+            "reasoning": [
+              "h = 2A/(b₁ + b₂)",
+              "h = 2({{A}})/({{b1}} + {{b2}}) = {{A2}}/{{s}} = {{h}} feet."
+            ],
+            "answerSummary": "{{h}} feet",
+            "commonError": "Forgetting to double the area."
+          },
+          "generator": {
+            "parameters": {
+              "b1": {
+                "type": "int",
+                "min": 3,
+                "max": 12
+              },
+              "b2": {
+                "type": "int",
+                "min": 3,
+                "max": 12
+              },
+              "h": {
+                "type": "int",
+                "min": 2,
+                "max": 9
+              }
+            },
+            "derived": {
+              "s": "b1 + b2",
+              "q": "b1*b2",
+              "A": "h*(b1 + b2)/2",
+              "A2": "h*(b1 + b2)"
+            },
+            "constraints": [
+              "b1 < b2",
+              "(h*(b1 + b2)) % 2 == 0"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "m3t1l2-pr-26",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Error analysis. Leah rewrote $4x + 2y = 10$ in slope-intercept form:\n4x + 2y = 10 → 2y = 10 − 4x → y = 10 − 2x\nDescribe her error. Then give the correct slope and y-intercept.",
+          "responses": [
+            {
+              "id": "error",
+              "label": "Leah’s error",
+              "type": "choice",
+              "options": [
+                "She subtracted 4x instead of adding it.",
+                "She divided 4x by 2 but did not divide 10 by 2.",
+                "She should have divided by 4 instead of 2.",
+                "She made no error."
+              ],
+              "answer": "She divided 4x by 2 but did not divide 10 by 2."
+            },
+            {
+              "id": "slope",
+              "label": "Correct slope",
+              "answer": "-2",
+              "inputProfile": "number"
+            },
+            {
+              "id": "yIntercept",
+              "label": "Correct y-intercept (the value of b)",
+              "answer": "5",
+              "inputProfile": "number"
+            }
+          ],
+          "directionSteps": [
+            "Find Leah’s wrong step.",
+            "Redo the last step correctly.",
+            "Read the slope and y-intercept."
+          ],
+          "hints": [
+            "Look at the last step: 2y = 10 − 4x. Both terms on the right must be divided by 2.",
+            "Write the corrected equation as y = mx + b, then read m and b."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. (10 − 4x) ÷ 2 is equal to…",
+            "options": [
+              "5 − 2x",
+              "10 − 2x"
+            ],
+            "correct": "5 − 2x"
+          },
+          "attemptFeedback": [
+            "Divide every term of 10 − 4x by 2, then write the result as y = mx + b."
+          ],
+          "solutionReview": {
+            "headline": "Divide every term by 2.",
+            "reasoning": [
+              "2y = 10 − 4x",
+              "y = 5 − 2x, so y = −2x + 5.",
+              "Slope −2, y-intercept 5."
+            ],
+            "answerSummary": "divided only 4x by 2; slope −2; b = 5",
+            "commonError": "Reading the slope as 4 from 4x + 2y = 10: in standard form the slope is −A/B = −4/2."
+          }
+        }
+      ]
+    },
+    {
+      "id": "dol",
+      "role": "dol",
+      "title": "DOL — Literal Equations",
+      "recommendedMinutes": 10,
+      "feedbackMode": "afterAssignmentSubmit",
+      "hintsAllowed": false,
+      "attemptsAllowed": 1,
+      "questions": [
+        {
+          "questionId": "m3t1l2-dol-1",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Solve ${{A}}x {{B|signed}}y = {{C}}$ for $y$. When y is alone, you have the slope-intercept form of the line.",
+          "equation": "{{A}}x {{B|signed}}y = {{C}}",
+          "solveFor": "y",
+          "directionSteps": [
+            "Move the x-term to the other side.",
+            "Divide every term by the coefficient of y."
+          ],
+          "solutionReview": {
+            "headline": "Get the y-term alone, then divide by {{B}}.",
+            "reasoning": [
+              "{{A}}x {{B|signed}}y = {{C}}",
+              "Subtract {{A}}x: {{B}}y = −{{A}}x {{C|signed}}.",
+              "Divide every term by {{B}}: y = {{m|coef}}x {{b|signed}}."
+            ],
+            "answerSummary": "y = {{m|coef}}x {{b|signed}}",
+            "commonError": "Dividing only the constant by {{B}}, or losing the sign when dividing by a negative."
+          },
+          "generator": {
+            "parameters": {
+              "p": {
+                "type": "int",
+                "min": 1,
+                "max": 5
+              },
+              "s": {
+                "type": "choice",
+                "values": [
+                  -1,
+                  1
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "k": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              }
+            },
+            "derived": {
+              "m": "s*p",
+              "A": "p*k",
+              "B": "-s*k",
+              "C": "-s*b*k"
+            }
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "m3t1l2-dol-2",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "A climbing gym charges a one-time fee of {{f}} dollars plus {{r}} dollars for each visit. The total cost for v visits is $C = {{f}} + {{r}}v$ dollars. Solve the formula for $v$ so the gym can find the number of visits from any total cost.",
+          "equation": "C = {{f}} + {{r}}v",
+          "solveFor": "v",
+          "directionSteps": [
+            "Undo the addition of the fee.",
+            "Undo the multiplication by the cost per visit."
+          ],
+          "solutionReview": {
+            "headline": "Subtract the fee, then divide by the cost per visit.",
+            "reasoning": [
+              "C = {{f}} + {{r}}v",
+              "C − {{f}} = {{r}}v",
+              "v = (C − {{f}})/{{r}}"
+            ],
+            "answerSummary": "v = (C − {{f}})/{{r}}",
+            "commonError": "Dividing only C by {{r}}: v = C/{{r}} − {{f}} is not equivalent."
+          },
+          "generator": {
+            "parameters": {
+              "f": {
+                "type": "int",
+                "min": 15,
+                "max": 60,
+                "step": 5
+              },
+              "r": {
+                "type": "int",
+                "min": 4,
+                "max": 15
+              }
+            }
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        },
+        {
+          "questionId": "m3t1l2-dol-3",
+          "standard": "A.12E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "The area of a trapezoid is $A = \\frac{1}{2}h(b_1 + b_2)$. A trapezoid has an area of {{A}} square centimeters and bases of {{b1}} cm and {{b2}} cm. Choose the formula solved for h, then find the height.",
+          "responses": [
+            {
+              "id": "formula",
+              "label": "The formula solved for h",
+              "type": "choice",
+              "options": [
+                "h = A/(2(b₁ + b₂))",
+                "h = 2A − (b₁ + b₂)",
+                "h = 2A/(b₁ + b₂)",
+                "h = (b₁ + b₂)/(2A)"
+              ],
+              "answer": "h = 2A/(b₁ + b₂)"
+            },
+            {
+              "id": "height",
+              "label": "Height of the trapezoid (cm)",
+              "answer": "{{h}}",
+              "inputProfile": "number"
+            }
+          ],
+          "directionSteps": [
+            "Choose the formula solved for h.",
+            "Substitute and calculate the height."
+          ],
+          "solutionReview": {
+            "headline": "Double the area, divide by the sum of the bases.",
+            "reasoning": [
+              "A = ½h(b₁ + b₂), so h = 2A/(b₁ + b₂).",
+              "h = 2({{A}})/({{b1}} + {{b2}}) = {{A2}}/{{s}} = {{h}} cm."
+            ],
+            "answerSummary": "h = 2A/(b₁ + b₂); {{h}} cm",
+            "commonError": "Forgetting to double the area, which gives half the height."
+          },
+          "generator": {
+            "parameters": {
+              "b1": {
+                "type": "int",
+                "min": 3,
+                "max": 12
+              },
+              "b2": {
+                "type": "int",
+                "min": 3,
+                "max": 12
+              },
+              "h": {
+                "type": "int",
+                "min": 2,
+                "max": 9
+              }
+            },
+            "derived": {
+              "s": "b1 + b2",
+              "A": "h*(b1 + b2)/2",
+              "A2": "h*(b1 + b2)"
+            },
+            "constraints": [
+              "b1 < b2",
+              "(h*(b1 + b2)) % 2 == 0"
+            ]
+          },
+          "questionFamily": {
+            "scope": "assignment"
+          }
+        }
+      ]
+    }
+  ]
+}

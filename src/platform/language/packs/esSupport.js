@@ -719,6 +719,21 @@ const familyHints = [
   ['Which of the two stays the same every time?', '¿Cuál de los dos se mantiene igual cada vez?'],
   ['Plot each term as the point ({1}, aₙ): its position {2} across and its value up.', 'Marca cada término como el punto ({1}, aₙ): su posición {2} en horizontal y su valor en vertical.'],
   ['Leave the points unconnected, because {1} takes only whole-number positions.', 'No unas los puntos, porque {1} solo toma posiciones que son números enteros.'],
+  // The linear-equations family on a formula solved for one letter, and on a
+  // linear equation rewritten in slope-intercept form (Algebra I M3 T1 L2).
+  ['Start from {1}: you are solving for {2}.', 'Empieza con {1}: vas a despejar {2}.'],
+  ['Treat every other letter as if it were a number, and undo what is done to {1}.', 'Trata cada una de las otras letras como si fuera un número y deshaz lo que se le hace a {1}.'],
+  ['Undo the {1} on the {2} side: subtract {3} from both sides.', 'Deshaz el {1} del lado de {2}: resta {3} en los dos lados.'],
+  ['Undo the {1} on the {2} side: add {3} to both sides.', 'Deshaz el {1} del lado de {2}: suma {3} en los dos lados.'],
+  ['Undo the multiplication: divide both sides by {1}.', 'Deshaz la multiplicación: divide los dos lados entre {1}.'],
+  ['Undo the multiplication: divide both sides by {1}, the coefficient of {2}.', 'Deshaz la multiplicación: divide los dos lados entre {1}, el coeficiente de {2}.'],
+  ['Clear the fraction first: multiply both sides by {1}.', 'Primero elimina la fracción: multiplica los dos lados por {1}.'],
+  ['Clear the fraction first: multiply both sides by the denominator.', 'Primero elimina la fracción: multiplica los dos lados por el denominador.'],
+  ['Undo the term without {1} on the {2} side: do the opposite operation to both sides.', 'Deshaz el término sin {1} del lado de {2}: haz la operación opuesta en los dos lados.'],
+  ['Check: your answer for {1} should not contain {2}, and putting it back into {3} should make both sides equal.', 'Comprueba: tu respuesta para {1} no debe contener {2}, y al sustituirla en {3} los dos lados deben dar lo mismo.'],
+  ['Start from {1}: to write it in slope-intercept form, get {2} by itself on one side.', 'Empieza con {1}: para escribirla en la forma pendiente-intersección, deja sola {2} en un lado.'],
+  ['To write the equation in slope-intercept form, get {1} by itself on one side.', 'Para escribir la ecuación en la forma pendiente-intersección, deja sola {1} en un lado.'],
+  ['Finish by writing the equation as {1}: the {2}-term first, then the constant.', 'Termina escribiendo la ecuación como {1}: primero el término en {2} y luego la constante.'],
 ];
 
 // --- The worked example ("Try a similar one", Practise one like this) -------
@@ -812,6 +827,7 @@ const workedExamplePrompts = [
   ['A sequence has a₁ {1} and aₙ {2} aₙ₋₁ {3} for {4}.', 'Una sucesión tiene a₁ {1} y aₙ {2} aₙ₋₁ {3} para {4}.'],
   ['A sequence has a₁ {1} and aₙ {2} aₙ₋₁ for {3}.', 'Una sucesión tiene a₁ {1} y aₙ {2} aₙ₋₁ para {3}.'],
   ['Use the recursive rule to find the first five terms.', 'Usa la regla recursiva para hallar los primeros cinco términos.'],
+  ['Write {1} in slope-intercept form.', 'Escribe {1} en la forma pendiente-intersección.'],
 ];
 
 const workedExampleAnswers = [
@@ -1113,6 +1129,15 @@ const workedExampleSteps = [
   ['Apply the rule to each term to get the next one: {1}, {2}, {3}, {4}.', 'Aplica la regla a cada término para obtener el siguiente: {1}, {2}, {3}, {4}.'],
   ['Each term comes from the one before it the same way, so the terms have a common difference of {1}.', 'Cada término viene del anterior de la misma manera, así que los términos tienen una diferencia común de {1}.'],
   ['Each term comes from the one before it the same way, so the terms have a common ratio of {1}.', 'Cada término viene del anterior de la misma manera, así que los términos tienen una razón común de {1}.'],
+  // A formula solved for one letter, and a line rewritten in slope-intercept form.
+  ['Divide every term on both sides by {1}: {2}.', 'Divide cada término de los dos lados entre {1}: {2}.'],
+  ['Divide both sides by {1}, which changes the sign of every term: {2}.', 'Divide los dos lados entre {1}, lo que cambia el signo de cada término: {2}.'],
+  ['Check: the slope is {1} and the {2}-intercept is {3}.', 'Comprueba: la pendiente es {1} y la intersección con el eje {2} es {3}.'],
+  ['Check: multiplying {1} by {2} gives back {3}, so the formula holds.', 'Comprueba: al multiplicar {1} por {2} vuelves a obtener {3}, así que la fórmula se cumple.'],
+  ['Check: multiplying {1} by {2}, then adding {3} gives back {4}, so the formula holds.', 'Comprueba: al multiplicar {1} por {2} y luego sumar {3} vuelves a obtener {4}, así que la fórmula se cumple.'],
+  ['Check: multiplying {1} by {2}, then subtracting {3} gives back {4}, so the formula holds.', 'Comprueba: al multiplicar {1} por {2} y luego restar {3} vuelves a obtener {4}, así que la fórmula se cumple.'],
+  ['Check: starting from {1}, then adding {2} gives back {3}, so the formula holds.', 'Comprueba: si partes de {1} y luego sumas {2}, vuelves a obtener {3}, así que la fórmula se cumple.'],
+  ['Check: starting from {1}, then subtracting {2} gives back {3}, so the formula holds.', 'Comprueba: si partes de {1} y luego restas {2}, vuelves a obtener {3}, así que la fórmula se cumple.'],
 ];
 
 // --- The platform's question families (functions/shared/questionFamily*):

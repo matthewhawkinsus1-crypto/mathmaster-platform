@@ -129,6 +129,27 @@ test('HELP-1: a practice answer is checked the way a field is graded, whatever w
   assert.deepEqual(verdicts('f⁻¹(x) = (x − 5)/2', '\\frac{x-5}{2}'), ['correct']);
   assert.deepEqual(verdicts('f⁻¹(x) = (x − 5)/2', 'f^{-1}(x)=\\frac{x}{2}-\\frac{5}{2}'), ['correct']);
   assert.deepEqual(verdicts('f⁻¹(x) = −(x + 1)/7', '\\frac{-x-1}{7}'), ['correct']);
+  // A literal or line sibling writes its whole answer as one math span: it is
+  // read, and checked, as the expression for the letter (Algebra I M3 T1 L2).
+  assert.deepEqual(verdicts('$q = \\frac{L - 10h}{2}$', '\\frac{L-10h}{2}'), ['correct']);
+  assert.deepEqual(verdicts('$q = \\frac{L - 10h}{2}$', '\\frac{L}{2}-5h'), ['correct']);
+  assert.deepEqual(verdicts('$q = \\frac{L - 10h}{2}$', 'L-10h'), ['incorrect']);
+  assert.deepEqual(verdicts('$y = -\\frac{5}{2}x + 7$', '-2.5x+7'), ['correct']);
+  assert.deepEqual(verdicts('$y = -\\frac{5}{2}x + 7$', '\\frac{5}{2}x+7'), ['incorrect']);
+  assert.equal(readPracticeAnswer('$q = \\frac{L - 10h}{2}$').parts[0].label, 'q =');
+  // Lowercase letters standing together are a product, as in the literal
+  // workspace: Q/(bg) is Q/(b·g), however the student writes it.
+  assert.deepEqual(verdicts('$h = \\frac{Q}{bg}$', '\\frac{Q}{bg}'), ['correct']);
+  assert.deepEqual(verdicts('$h = \\frac{Q}{bg}$', '\\frac{Q}{b\\cdot g}'), ['correct']);
+  assert.deepEqual(verdicts('$h = \\frac{Q}{bg}$', 'Qbg'), ['incorrect']);
+  // The one-variable siblings in Solving Linear Equations answer the same way,
+  // "$x = -8$". Read as one "Equation", a right "x = -8" was marked wrong and
+  // "-8" was never checked; read as the box "x =", both are right.
+  assert.deepEqual(verdicts('$x = -8$', 'x = -8'), ['correct']);
+  assert.deepEqual(verdicts('$x = -8$', '-8'), ['correct']);
+  assert.deepEqual(verdicts('$x = -8$', '\\frac{-16}{2}'), ['correct']);
+  assert.deepEqual(verdicts('$x = -8$', '8'), ['incorrect']);
+  assert.deepEqual(verdicts('$x = -8$', 'x = 8'), ['incorrect']);
   assert.deepEqual(verdicts('x² + 7x + 6 (coefficients 1, 7, 6)', 'x^{2}+7x+6'), ['correct']);
   assert.deepEqual(verdicts('domain -4 ≤ x ≤ 3', '[-4,3]'), ['correct'], 'an interval for the inequality');
   assert.deepEqual(verdicts('domain [-1, 4]', '-1\\le x\\le4'), ['correct'], 'the inequality for the interval');
@@ -374,10 +395,11 @@ test('HELP-11: Pre-Flight warns — never blocks — on answer-only worked solut
   // (CT02 slice 4); and, every one with steps, the Algebra II Honors Radicals
   // and Rational Exponents Lessons 1–3 (89: 32, 29 and 28) and the Algebra I
   // Module 3 Topic 2 Lessons 4 and 5 with their Honors files (131: 32, 36, 29
-  // and 34).
+  // and 34), and the Algebra I Module 3 Topic 1 Lesson 2 file, Literal
+  // Equations (38: its Warm-Up, Classwork and Practice).
   const practiceLike = itemsByRole().filter((item) => ['warmup', 'classwork', 'practice'].includes(item.role));
-  assert.equal(practiceLike.length, 265 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 26 + 89 + 131);
-  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 204 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 9 + 12 + 17 + 16 + 2 + 1 + 11 + 2 + 3 + 2 + 89 + 131);
+  assert.equal(practiceLike.length, 265 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 26 + 89 + 131 + 38);
+  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 204 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 9 + 12 + 17 + 16 + 2 + 1 + 11 + 2 + 3 + 2 + 89 + 131 + 38);
   // Wired into Pre-Flight as advice the teacher sees in the Check step, and
   // never as a diagnostic: any warning diagnostic makes an assignment "Needs
   // Review", which students never see (isUnpublishedDraft) — and most real
