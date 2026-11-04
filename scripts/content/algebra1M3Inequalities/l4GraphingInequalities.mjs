@@ -8,7 +8,9 @@
  * Linear Inequalities (half-planes, boundary lines, test points, matching,
  * graphing, writing an inequality from a graph), Activity 4.3 Interpreting
  * the Graph of a Linear Inequality (César's phone card) and Talk the Talk
- * (There's a Fine Line).
+ * (There's a Fine Line). One change of order: Activity 4.2's first graph,
+ * y > 4x − 6, comes right after CW 1, so the first graph a student builds is
+ * an inequality with no story, before Kai's goal is graphed.
  *
  * The Warm-Up climbs from what students know to the lesson: a one-variable
  * solution statement on a number line (open or closed circle — tomorrow's
@@ -171,6 +173,34 @@ const classwork = (P) => [
       'Switching the point values: the two-point shots are x, so the term is 2x.',
     ),
   },
+  // The first bare graph (Activity 4.2's y > 4x − 6) comes right after CW 1, so a
+  // student builds one inequality in the tool before modeling Kai's goal with it
+  // (CW 2): the L4 pacing note in docs/qa/2026-11-03-pr537-walkthrough/findings.md.
+  // Every id keeps its number.
+  inequalityBuild({
+    questionId: `${P}-cw-6`,
+    alignment: A3D,
+    dok: 2,
+    difficultyBand: 2,
+    prompt: tex`Activity 4.2 — Determining the Graphs of Linear Inequalities. Consider $y > 4x - 6$. Its boundary line is determined by the equation of the line. Build the boundary line, decide whether it is solid or dashed, and shade the correct half-plane. Then test the point (0, 0).`,
+    source: ['y > 4x - 6'],
+    constraints: [{ m: 4, b: -6, relation: '>' }],
+    testPoint: { x: 0, y: 0 },
+    directionSteps: ['Build the boundary line.', 'Choose solid or dashed.', 'Shade the half-plane of solutions.', 'Test the point.'],
+    hints: ['The boundary of y > 4x − 6 is the line with slope 4 and y-intercept −6.', '> leaves the line itself out of the solutions.', 'Substitute (0, 0): is 0 > 4(0) − 6 true?'],
+    scaffold: backUp('For > or <, the boundary line is…', ['dashed', 'solid'], 'dashed'),
+    guidedNotes: guidedNotes(
+      ['Boundary line', 'The boundary line divides the plane into two half-planes; the symbol says which half-plane holds the solutions.'],
+      ['Solid or dashed', '≥ or ≤: solid, because points on the line are solutions. > or <: dashed, because no point on the line is.'],
+      ['Test point', 'If (0, 0) is a solution, shade its half-plane; if not, shade the other one. (Use another point if the line passes through the origin.)'],
+    ),
+    solutionReview: review(
+      'Boundary, style, shading, test.',
+      ['Boundary y = 4x − 6: plot (0, −6) and (1, −2).', '> is strict, so the line is dashed.', '0 > 4(0) − 6 is true, so shade the half-plane containing (0, 0): above the line.'],
+      'dashed line y = 4x − 6, shaded above',
+      'Shading below because the slope is positive: the symbol decides the side, not the slope.',
+    ),
+  }),
   inequalityBuild({
     questionId: `${P}-cw-2`,
     alignment: A2H,
@@ -296,30 +326,6 @@ const classwork = (P) => [
       'Reading "no more than" as <: the number itself is allowed.',
     ),
   },
-  inequalityBuild({
-    questionId: `${P}-cw-6`,
-    alignment: A3D,
-    dok: 2,
-    difficultyBand: 2,
-    prompt: tex`Activity 4.2 — Determining the Graphs of Linear Inequalities. Consider $y > 4x - 6$. Its boundary line is determined by the equation of the line. Build the boundary line, decide whether it is solid or dashed, and shade the correct half-plane. Then test the point (0, 0).`,
-    source: ['y > 4x - 6'],
-    constraints: [{ m: 4, b: -6, relation: '>' }],
-    testPoint: { x: 0, y: 0 },
-    directionSteps: ['Build the boundary line.', 'Choose solid or dashed.', 'Shade the half-plane of solutions.', 'Test the point.'],
-    hints: ['The boundary of y > 4x − 6 is the line with slope 4 and y-intercept −6.', '> leaves the line itself out of the solutions.', 'Substitute (0, 0): is 0 > 4(0) − 6 true?'],
-    scaffold: backUp('For > or <, the boundary line is…', ['dashed', 'solid'], 'dashed'),
-    guidedNotes: guidedNotes(
-      ['Boundary line', 'The boundary line divides the plane into two half-planes; the symbol says which half-plane holds the solutions.'],
-      ['Solid or dashed', '≥ or ≤: solid, because points on the line are solutions. > or <: dashed, because no point on the line is.'],
-      ['Test point', 'If (0, 0) is a solution, shade its half-plane; if not, shade the other one. (Use another point if the line passes through the origin.)'],
-    ),
-    solutionReview: review(
-      'Boundary, style, shading, test.',
-      ['Boundary y = 4x − 6: plot (0, −6) and (1, −2).', '> is strict, so the line is dashed.', '0 > 4(0) − 6 is true, so shade the half-plane containing (0, 0): above the line.'],
-      'dashed line y = 4x − 6, shaded above',
-      'Shading below because the slope is positive: the symbol decides the side, not the slope.',
-    ),
-  }),
   {
     questionId: `${P}-cw-7`,
     ...A3D,
@@ -987,7 +993,7 @@ const assignment = (honors) => ({
   gradingPurpose: 'classwork',
   essentialQuestion: 'What does the graph of a linear inequality in two variables look like? How does it compare to the graph of a linear equation?',
   instructions: 'Graphing inequalities in two variables. Every graph is built in the graphing workspace one step at a time — the boundary line, solid or dashed, the side to shade, and a test point — and each step is checked. For a word problem, write the inequality in the tool before you graph it. You have 3 tries on each Warm-Up, Classwork and Practice question, with hints. The Exit Ticket is one try with no hints.',
-  teacherNotes: `Algebra I Module 3 Topic 2 Lesson 4, from the district slides (two 45-minute days), TEKS A.2H and A.3D.${honors ? ' Honors version: the same lesson with fractional slopes and y-coefficients other than ±1 in the Warm-Up, Practice and Exit Ticket, parameters (P14), boundaries from two points (P15), reasoning from a description (P16), and two audited Digital SAT items from the CCMR bank (P17, P18), so the Honors version is ready as written.' : ''} Warm-Up rebuilt as readiness: a number-line solution statement (open/closed circle → dashed/solid), graphing the boundary line, and testing points. Every graph is built in the Systems Workspace's inequality builder (boundary, line style, shading, test point), and context items have students write the model in the tool first. Warm-Up and Exit Ticket are generated per student and back Recovery. Slide note: the worked example's title reads "Write a linear equality"; it means inequality.`,
+  teacherNotes: `Algebra I Module 3 Topic 2 Lesson 4, from the district slides (two 45-minute days), TEKS A.2H and A.3D.${honors ? ' Honors version: the same lesson with fractional slopes and y-coefficients other than ±1 in the Warm-Up, Practice and Exit Ticket, parameters (P14), boundaries from two points (P15), reasoning from a description (P16), and two audited Digital SAT items from the CCMR bank (P17, P18), so the Honors version is ready as written.' : ''} Classwork order: Activity 4.2's first graph, y > 4x − 6 (CW 6), comes right after CW 1, before Kai's goal is graphed. Warm-Up rebuilt as readiness: a number-line solution statement (open/closed circle → dashed/solid), graphing the boundary line, and testing points. Every graph is built in the Systems Workspace's inequality builder (boundary, line style, shading, test point), and context items have students write the model in the tool first. Warm-Up and Exit Ticket are generated per student and back Recovery. Slide note: the worked example's title reads "Write a linear equality"; it means inequality.`,
 });
 
 const P = 'm3t2l4';

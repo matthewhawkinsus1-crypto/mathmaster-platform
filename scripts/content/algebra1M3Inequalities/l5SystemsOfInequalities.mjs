@@ -9,7 +9,11 @@
  * the parallel and vertical systems), Activity 5.3 Applying Systems of Linear
  * Inequalities (Emma's workout), Activity 5.4 Identifying Systems of Linear
  * Inequalities (systems A–D, Isabella's error) and Talk the Talk (Get to Know
- * the Region).
+ * the Region). The order changes once: Classwork opens with a plain system,
+ * y > x − 2 and y ≤ −x + 4 (CW 17, not on the slides), then Activity 5.2's
+ * x + y > 1 and −x + y ≤ 3, then Noah's raft (Getting Started and Activity
+ * 5.1), so the first system a student builds is not a word problem in
+ * standard form.
  *
  * The Warm-Up climbs from Lesson 4 to this lesson: one inequality graphed in
  * the tool, then a point checked against two inequalities at once, then two
@@ -167,6 +171,90 @@ const FOUR_SYSTEMS = `The four systems use the same two dashed boundary lines, t
 const REGIONS = ['A region above both lines', 'A region below both lines', 'A region between the lines', 'No solution'];
 
 const classwork = (P) => [
+  // The plainest system first (F-L5-HARDEST-FIRST in
+  // docs/qa/2026-11-03-pr537-walkthrough/findings.md): two slope-intercept
+  // boundaries with whole-number slopes and an overlap, the case Practice 1 and
+  // Exit Ticket 1 test. Activity 5.2's system follows (each inequality rewritten
+  // first), then Noah's raft, a word problem in standard form, with his four
+  // items together and in order. Every other id keeps its number.
+  inequalityBuild({
+    questionId: `${P}-cw-17`,
+    alignment: A3H,
+    dok: 2,
+    difficultyBand: 2,
+    prompt: tex`Graph a system of two inequalities: $y > x - 2$ and $y \le -x + 4$. Build each boundary line, choose solid or dashed for each, and shade each half-plane — the overlap is the solution set. Then test the point (0, 0), and choose a point of your own in the overlap.`,
+    source: ['y > x - 2', 'y <= -x + 4'],
+    constraints: [{ m: 1, b: -2, relation: '>' }, { m: -1, b: 4, relation: '<=' }],
+    testPoint: { x: 0, y: 0 },
+    studentTestPoint: true,
+    directionSteps: ['Build both boundary lines.', 'Choose solid or dashed for each.', 'Shade each half-plane and find the overlap.', 'Test the marked point.', 'Choose a point of your own in the overlap.'],
+    hints: ['Build each boundary from its y-intercept and slope.', 'One boundary is dashed and one is solid: which symbol leaves its line out?', 'The solutions are the points shaded by BOTH inequalities.'],
+    scaffold: backUp('A point is a solution of a system when it is…', ['in both shaded half-planes', 'in at least one shaded half-plane'], 'in both shaded half-planes'),
+    guidedNotes: guidedNotes(
+      ['Solution set of a system', 'The solution set of a system of linear inequalities is the intersection of the solutions of its inequalities: every point in the overlap satisfies every inequality.'],
+      ['Shade each one', 'Shade each half-plane in its own way; the region shaded twice is the solution set.'],
+    ),
+    solutionReview: review(
+      'Two half-planes, one overlap.',
+      ['y > x − 2: a dashed boundary through (0, −2) and (2, 0), shaded above. y ≤ −x + 4: a solid boundary through (0, 4) and (4, 0), shaded below.', '(0, 0) is in the overlap: 0 > −2 and 0 ≤ 4. The boundaries meet at (3, 1), on the dashed line, so that corner is not a solution.'],
+      'above the dashed line and on or below the solid line',
+      'Shading only one inequality: the solution set is where both shadings overlap.',
+    ),
+  }),
+  inequalityBuild({
+    questionId: `${P}-cw-5`,
+    alignment: A3H,
+    dok: 3,
+    difficultyBand: 3,
+    prompt: tex`Activity 5.2 — Analyzing Graphs of Systems of Linear Inequalities. Graph the system $x + y > 1$ and $-x + y \le 3$. Rewrite each inequality with y alone in the tool (notice the symbols), build both boundaries and shade. Then test the point (−8, 2), choose a point of your own, classify the solution region and find its corner.`,
+    source: ['x + y > 1', '-x + y <= 3'],
+    constraints: [{ A: 1, B: 1, C: -1, relation: '>' }, { A: -1, B: 1, C: -3, relation: '<=' }],
+    rewrite: true,
+    testPoint: { x: -8, y: 2 },
+    studentTestPoint: true,
+    classify: true,
+    vertices: true,
+    directionSteps: ['Rewrite each inequality with y alone.', 'Build both boundary lines.', 'Choose solid or dashed for each.', 'Shade each half-plane and find the overlap.', 'Test the marked point and a point of your own.', 'Classify the region and find its corner.'],
+    hints: ['x + y > 1 becomes y > −x + 1; −x + y ≤ 3 becomes y ≤ x + 3.', 'One boundary is dashed and one is solid: which is which?', 'The corner is where the boundary lines meet. Is it on a dashed line?'],
+    scaffold: backUp('For x + y > 1, the boundary is…', ['dashed', 'solid'], 'dashed'),
+    solutionReview: review(
+      'Rewrite, build, shade, reason.',
+      ['y > −x + 1 (dashed, above) and y ≤ x + 3 (solid, below).', '(−8, 2) satisfies neither inequality. The region is unbounded, and its corner (−1, 2) is on the dashed line, so it is not a solution.'],
+      null,
+      'Including the corner (−1, 2): it fails x + y > 1, because 1 is not greater than 1.',
+    ),
+  }),
+  {
+    questionId: `${P}-cw-6`,
+    ...A3H,
+    studentActions: ['multipleResponses'],
+    dok: 3,
+    difficultyBand: 3,
+    prompt: 'Use the system x + y > 1 and −x + y ≤ 3. The two boundary lines cut the plane into four regions, and each point below lies in a different one: decide which inequalities it makes true. Then evaluate Ava’s claim: "The intersection point is always a solution to a system of inequalities because that is where the two lines meet."',
+    directionSteps: ['Substitute each point into both inequalities.', 'Decide which inequalities each point makes true.', 'Check the point where the two boundary lines meet.', 'Explain why Ava is wrong.'],
+    responses: [
+      choice('p1', '(2, 2)', ['both inequalities — it is in the overlap', 'only x + y > 1', 'only −x + y ≤ 3', 'neither inequality'], 'both inequalities — it is in the overlap'),
+      choice('p2', '(0, 5)', ['both inequalities — it is in the overlap', 'only x + y > 1', 'only −x + y ≤ 3', 'neither inequality'], 'only x + y > 1'),
+      choice('p3', '(0, −2)', ['both inequalities — it is in the overlap', 'only x + y > 1', 'only −x + y ≤ 3', 'neither inequality'], 'only −x + y ≤ 3'),
+      choice('p4', '(−8, 2)', ['both inequalities — it is in the overlap', 'only x + y > 1', 'only −x + y ≤ 3', 'neither inequality'], 'neither inequality'),
+      number('s1', 'At the intersection (−1, 2): x + y =', '1'),
+      number('s2', 'At (−1, 2): −x + y =', '3'),
+      choice('ava', 'Why is Ava wrong?', [
+        'At (−1, 2), x + y is not greater than 1: that boundary is dashed, so the intersection point is not a solution of this system',
+        'Ava is right — the lines meet there',
+        'An intersection point is never a solution of any system',
+        'The intersection point is not on either line',
+      ], 'At (−1, 2), x + y is not greater than 1: that boundary is dashed, so the intersection point is not a solution of this system'),
+    ],
+    hints: ['Substitute each point into x + y and into −x + y, then compare with each right side.', 'Only the region shaded by both inequalities holds solutions of the system.', 'On a dashed boundary, the inequality is false.'],
+    scaffold: backUp('Is 1 > 1 true?', ['no', 'yes'], 'no'),
+    solutionReview: review(
+      'Each region, then the corner.',
+      ['(2, 2): 4 > 1 and 0 ≤ 3, both. (0, 5): 5 > 1 but 5 ≤ 3 is false. (0, −2): −2 > 1 is false, −2 ≤ 3 true. (−8, 2): neither.', '(−1, 2): x + y = 1, and 1 > 1 is false, so the intersection point is not a solution, even though both lines pass through it.'],
+      'both; only the first; only the second; neither; Ava is wrong',
+      'Treating the intersection as a solution because the lines meet there: check it in every inequality.',
+    ),
+  },
   {
     questionId: `${P}-cw-1`,
     ...A2H_SYSTEM,
@@ -245,12 +333,10 @@ const classwork = (P) => [
     studentTestPoint: true,
     graph: { xMin: 0, xMax: 10, yMin: 0, yMax: 10 },
     directionSteps: ['Enter both constraints.', 'Build each boundary line.', 'Choose solid or dashed for each.', 'Shade each half-plane and find the overlap.', 'Test the marked point.', 'Choose a point of your own in the overlap.'],
-    hints: ['The weight boundary passes through (4, 0) and (0, 8); the money boundary through (2, 0) and (0, 3).', 'Both symbols include equality.', 'The solutions are the points shaded by BOTH inequalities.'],
+    // Hint 1 asks for the intercepts and says how to find them; it used to give
+    // all four, which is the whole boundary step (F-HINT-GIVES-STEP).
+    hints: ['Where does each boundary line cross the axes? Find y when x = 0, and x when y = 0.', 'Both symbols include equality.', 'The solutions are the points shaded by BOTH inequalities.'],
     scaffold: backUp('The solution set of a system is…', ['where the shaded half-planes overlap', 'everything either inequality shades'], 'where the shaded half-planes overlap'),
-    guidedNotes: guidedNotes(
-      ['Solution set of a system', 'The solution set of a system of linear inequalities is the intersection of the solutions of its inequalities: every point in the overlap satisfies every inequality.'],
-      ['Shade each one', 'Shade each half-plane in its own way; the region shaded twice is the solution set.'],
-    ),
     solutionReview: review(
       'Two constraints, one overlap.',
       ['Weight: solid boundary through (4, 0) and (0, 8), shaded below. Money: solid boundary through (2, 0) and (0, 3), shaded above.', 'The overlap lies between the two lines; (2, 2) is in it: 600 ≤ 800 and 250 ≥ 150.'],
@@ -291,60 +377,6 @@ const classwork = (P) => [
       ['200(10) + 100(−12) = 800 ≤ 800 and 75(10) + 50(−12) = 150 ≥ 150, so (10, −12) solves the system — but −12 children is impossible.', 'Two inequalities either share no points or share a whole region, so a system has no solution or infinitely many.', '3 adults and 3 children weigh 900 pounds, more than 800.'],
       'yes, but not for Noah; none or infinitely many; 3 adults and 3 children',
       'Assuming an intersection point is never a solution: it is when both boundaries are solid.',
-    ),
-  },
-  inequalityBuild({
-    questionId: `${P}-cw-5`,
-    alignment: A3H,
-    dok: 3,
-    difficultyBand: 3,
-    prompt: tex`Activity 5.2 — Analyzing Graphs of Systems of Linear Inequalities. Graph the system $x + y > 1$ and $-x + y \le 3$. Rewrite each inequality with y alone in the tool (notice the symbols), build both boundaries and shade. Then test the point (−8, 2), choose a point of your own, classify the solution region and find its corner.`,
-    source: ['x + y > 1', '-x + y <= 3'],
-    constraints: [{ A: 1, B: 1, C: -1, relation: '>' }, { A: -1, B: 1, C: -3, relation: '<=' }],
-    rewrite: true,
-    testPoint: { x: -8, y: 2 },
-    studentTestPoint: true,
-    classify: true,
-    vertices: true,
-    directionSteps: ['Rewrite each inequality with y alone.', 'Build both boundary lines.', 'Choose solid or dashed for each.', 'Shade each half-plane and find the overlap.', 'Test the marked point and a point of your own.', 'Classify the region and find its corner.'],
-    hints: ['x + y > 1 becomes y > −x + 1; −x + y ≤ 3 becomes y ≤ x + 3.', 'One boundary is dashed and one is solid: which is which?', 'The corner is where the boundary lines meet. Is it on a dashed line?'],
-    scaffold: backUp('For x + y > 1, the boundary is…', ['dashed', 'solid'], 'dashed'),
-    solutionReview: review(
-      'Rewrite, build, shade, reason.',
-      ['y > −x + 1 (dashed, above) and y ≤ x + 3 (solid, below).', '(−8, 2) satisfies neither inequality. The region is unbounded, and its corner (−1, 2) is on the dashed line, so it is not a solution.'],
-      null,
-      'Including the corner (−1, 2): it fails x + y > 1, because 1 is not greater than 1.',
-    ),
-  }),
-  {
-    questionId: `${P}-cw-6`,
-    ...A3H,
-    studentActions: ['multipleResponses'],
-    dok: 3,
-    difficultyBand: 3,
-    prompt: 'Use the system x + y > 1 and −x + y ≤ 3. The two boundary lines cut the plane into four regions, and each point below lies in a different one: decide which inequalities it makes true. Then evaluate Ava’s claim: "The intersection point is always a solution to a system of inequalities because that is where the two lines meet."',
-    directionSteps: ['Substitute each point into both inequalities.', 'Decide which inequalities each point makes true.', 'Check the point where the two boundary lines meet.', 'Explain why Ava is wrong.'],
-    responses: [
-      choice('p1', '(2, 2)', ['both inequalities — it is in the overlap', 'only x + y > 1', 'only −x + y ≤ 3', 'neither inequality'], 'both inequalities — it is in the overlap'),
-      choice('p2', '(0, 5)', ['both inequalities — it is in the overlap', 'only x + y > 1', 'only −x + y ≤ 3', 'neither inequality'], 'only x + y > 1'),
-      choice('p3', '(0, −2)', ['both inequalities — it is in the overlap', 'only x + y > 1', 'only −x + y ≤ 3', 'neither inequality'], 'only −x + y ≤ 3'),
-      choice('p4', '(−8, 2)', ['both inequalities — it is in the overlap', 'only x + y > 1', 'only −x + y ≤ 3', 'neither inequality'], 'neither inequality'),
-      number('s1', 'At the intersection (−1, 2): x + y =', '1'),
-      number('s2', 'At (−1, 2): −x + y =', '3'),
-      choice('ava', 'Why is Ava wrong?', [
-        'At (−1, 2), x + y is not greater than 1: that boundary is dashed, so the intersection point is not a solution of this system',
-        'Ava is right — the lines meet there',
-        'An intersection point is never a solution of any system',
-        'The intersection point is not on either line',
-      ], 'At (−1, 2), x + y is not greater than 1: that boundary is dashed, so the intersection point is not a solution of this system'),
-    ],
-    hints: ['Substitute each point into x + y and into −x + y, then compare with each right side.', 'Only the region shaded by both inequalities holds solutions of the system.', 'On a dashed boundary, the inequality is false.'],
-    scaffold: backUp('Is 1 > 1 true?', ['no', 'yes'], 'no'),
-    solutionReview: review(
-      'Each region, then the corner.',
-      ['(2, 2): 4 > 1 and 0 ≤ 3, both. (0, 5): 5 > 1 but 5 ≤ 3 is false. (0, −2): −2 > 1 is false, −2 ≤ 3 true. (−8, 2): neither.', '(−1, 2): x + y = 1, and 1 > 1 is false, so the intersection point is not a solution, even though both lines pass through it.'],
-      'both; only the first; only the second; neither; Ava is wrong',
-      'Treating the intersection as a solution because the lines meet there: check it in every inequality.',
     ),
   },
   inequalityBuild({
@@ -1209,7 +1241,7 @@ const assignment = (honors) => ({
   gradingPurpose: 'classwork',
   essentialQuestion: 'What does the graph of a system of linear inequalities look like, and how can you describe the solution set?',
   instructions: 'Systems of linear inequalities. Every system is graphed in the graphing workspace: each boundary line, solid or dashed, each half-plane, and the overlap where the solutions are — then you test points and describe the region. For a word problem, write the constraints in the tool before you graph them. You have 3 tries on each Warm-Up, Classwork and Practice question, with hints. The Exit Ticket is one try with no hints.',
-  teacherNotes: `Algebra I Module 3 Topic 2 Lesson 5, from the district slides (three 45-minute days), TEKS A.3H with A.2H for writing the constraints.${honors ? ' Honors version: the same lesson with standard-form systems to rewrite in the Warm-Up, Practice and Exit Ticket, a parameter (P11), a bounded region with its corners and area (P12, P13), a sort of systems by their solution sets (P14), Emma’s corners found algebraically (P15), and two audited Digital SAT items from the CCMR bank (P16, P17), so the Honors version is ready as written.' : ''} Warm-Up rebuilt as readiness: one inequality graphed (Lesson 4), a point checked against two inequalities, and two constraints written for one situation. Every system is built in the Systems Workspace except Emma’s: her calorie line, 6.9x + 10.4y = 400, has no whole-number points to plot, so the tool draws her system and students test a point and choose their own (the slide says to use technology). Warm-Up and Exit Ticket are generated per student and back Recovery. Slide notes: the Getting Started "Think about…" box names Chase; the guide is Noah. On the Activity 5.4 slide the pictures of Systems B and C overlap; this file uses B: y > (3/5)x + 3 and y > −(3/5)x + 3, C: y > (3/5)x + 3 and y < −(3/5)x + 3, which match Possible Solutions B and C.`,
+  teacherNotes: `Algebra I Module 3 Topic 2 Lesson 5, from the district slides (three 45-minute days), TEKS A.3H with A.2H for writing the constraints.${honors ? ' Honors version: the same lesson with standard-form systems to rewrite in the Warm-Up, Practice and Exit Ticket, a parameter (P11), a bounded region with its corners and area (P12, P13), a sort of systems by their solution sets (P14), Emma’s corners found algebraically (P15), and two audited Digital SAT items from the CCMR bank (P16, P17), so the Honors version is ready as written.' : ''} Classwork order: a plain system, y > x − 2 and y ≤ −x + 4 (CW 17, added), comes first, then Activity 5.2's x + y > 1 and −x + y ≤ 3 (CW 5–6), then Noah's raft (Getting Started and Activity 5.1, CW 1–4), so students build the plain case before the word problem. Warm-Up rebuilt as readiness: one inequality graphed (Lesson 4), a point checked against two inequalities, and two constraints written for one situation. Every system is built in the Systems Workspace except Emma’s: her calorie line, 6.9x + 10.4y = 400, has no whole-number points to plot, so the tool draws her system and students test a point and choose their own (the slide says to use technology). Warm-Up and Exit Ticket are generated per student and back Recovery. Slide notes: the Getting Started "Think about…" box names Chase; the guide is Noah. On the Activity 5.4 slide the pictures of Systems B and C overlap; this file uses B: y > (3/5)x + 3 and y > −(3/5)x + 3, C: y > (3/5)x + 3 and y < −(3/5)x + 3, which match Possible Solutions B and C.`,
 });
 
 const P = 'm3t2l5';
@@ -1223,7 +1255,7 @@ export const L5_REGULAR = {
     variantPolicy: { mode: 'personalized', sectionModes: { warmup: 'shared', classwork: 'shared', practice: 'personalized', dol: 'personalized' } },
     sections: [
       { id: 'warmup', role: 'warmup', title: 'Warm-Up — From One Inequality to Two', recommendedMinutes: 10, questions: [oneInequalityWarmup(`${P}-wu-1`, false), twoConditionsWarmup(`${P}-wu-2`), twoConstraintsWarmup(`${P}-wu-3`)] },
-      { id: 'classwork', role: 'classwork', title: 'Classwork — Systems of Linear Inequalities', recommendedMinutes: 95, questions: classwork(P) },
+      { id: 'classwork', role: 'classwork', title: 'Classwork — Systems of Linear Inequalities', recommendedMinutes: 100, questions: classwork(P) },
       { id: 'practice', role: 'practice', title: 'Practice — Graphing and Interpreting Systems of Inequalities', recommendedMinutes: 45, questions: practiceRegular(P) },
       { id: 'dol', role: 'dol', title: 'Exit Ticket (DOL) — Systems of Linear Inequalities', recommendedMinutes: 10, questions: dolRegular(P) },
     ],
@@ -1238,7 +1270,7 @@ export const L5_HONORS = {
     variantPolicy: { mode: 'personalized', sectionModes: { warmup: 'shared', classwork: 'shared', practice: 'personalized', dol: 'personalized' } },
     sections: [
       { id: 'warmup', role: 'warmup', title: 'Warm-Up — From One Inequality to Two', recommendedMinutes: 10, questions: [oneInequalityWarmup(`${H}-wu-1`, true), twoConditionsWarmup(`${H}-wu-2`), twoConstraintsWarmup(`${H}-wu-3`)] },
-      { id: 'classwork', role: 'classwork', title: 'Classwork — Systems of Linear Inequalities', recommendedMinutes: 95, questions: classwork(H) },
+      { id: 'classwork', role: 'classwork', title: 'Classwork — Systems of Linear Inequalities', recommendedMinutes: 100, questions: classwork(H) },
       { id: 'practice', role: 'practice', title: 'Practice — Graphing, Interpreting and Reasoning with Systems of Inequalities', recommendedMinutes: 50, questions: practiceHonors(H) },
       { id: 'dol', role: 'dol', title: 'Exit Ticket (DOL) — Systems of Linear Inequalities', recommendedMinutes: 10, questions: dolHonors(H) },
     ],

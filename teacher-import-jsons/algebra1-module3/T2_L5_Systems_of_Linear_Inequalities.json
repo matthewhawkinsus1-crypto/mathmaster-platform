@@ -8,7 +8,7 @@
     "gradingPurpose": "classwork",
     "essentialQuestion": "What does the graph of a system of linear inequalities look like, and how can you describe the solution set?",
     "instructions": "Systems of linear inequalities. Every system is graphed in the graphing workspace: each boundary line, solid or dashed, each half-plane, and the overlap where the solutions are — then you test points and describe the region. For a word problem, write the constraints in the tool before you graph them. You have 3 tries on each Warm-Up, Classwork and Practice question, with hints. The Exit Ticket is one try with no hints.",
-    "teacherNotes": "Algebra I Module 3 Topic 2 Lesson 5, from the district slides (three 45-minute days), TEKS A.3H with A.2H for writing the constraints. Warm-Up rebuilt as readiness: one inequality graphed (Lesson 4), a point checked against two inequalities, and two constraints written for one situation. Every system is built in the Systems Workspace except Emma’s: her calorie line, 6.9x + 10.4y = 400, has no whole-number points to plot, so the tool draws her system and students test a point and choose their own (the slide says to use technology). Warm-Up and Exit Ticket are generated per student and back Recovery. Slide notes: the Getting Started \"Think about…\" box names Chase; the guide is Noah. On the Activity 5.4 slide the pictures of Systems B and C overlap; this file uses B: y > (3/5)x + 3 and y > −(3/5)x + 3, C: y > (3/5)x + 3 and y < −(3/5)x + 3, which match Possible Solutions B and C."
+    "teacherNotes": "Algebra I Module 3 Topic 2 Lesson 5, from the district slides (three 45-minute days), TEKS A.3H with A.2H for writing the constraints. Classwork order: a plain system, y > x − 2 and y ≤ −x + 4 (CW 17, added), comes first, then Activity 5.2's x + y > 1 and −x + y ≤ 3 (CW 5–6), then Noah's raft (Getting Started and Activity 5.1, CW 1–4), so students build the plain case before the word problem. Warm-Up rebuilt as readiness: one inequality graphed (Lesson 4), a point checked against two inequalities, and two constraints written for one situation. Every system is built in the Systems Workspace except Emma’s: her calorie line, 6.9x + 10.4y = 400, has no whole-number points to plot, so the tool draws her system and students test a point and choose their own (the slide says to use technology). Warm-Up and Exit Ticket are generated per student and back Recovery. Slide notes: the Getting Started \"Think about…\" box names Chase; the guide is Noah. On the Activity 5.4 slide the pictures of Systems B and C overlap; this file uses B: y > (3/5)x + 3 and y > −(3/5)x + 3, C: y > (3/5)x + 3 and y < −(3/5)x + 3, which match Possible Solutions B and C."
   },
   "variantPolicy": {
     "mode": "personalized",
@@ -408,8 +408,328 @@
       "id": "classwork",
       "role": "classwork",
       "title": "Classwork — Systems of Linear Inequalities",
-      "recommendedMinutes": 95,
+      "recommendedMinutes": 100,
       "questions": [
+        {
+          "questionId": "m3t2l5-cw-17",
+          "standard": "A.3H",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3H",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3D",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveInequalitySystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "mode": "inequalities",
+          "prompt": "Graph a system of two inequalities: $y > x - 2$ and $y \\le -x + 4$. Build each boundary line, choose solid or dashed for each, and shade each half-plane — the overlap is the solution set. Then test the point (0, 0), and choose a point of your own in the overlap.",
+          "sourceConstraints": [
+            "y > x - 2",
+            "y <= -x + 4"
+          ],
+          "expectedConstraints": [
+            {
+              "m": 1,
+              "b": -2,
+              "relation": ">"
+            },
+            {
+              "m": -1,
+              "b": 4,
+              "relation": "<="
+            }
+          ],
+          "studentBuild": {
+            "rewrite": false,
+            "boundary": true,
+            "lineStyle": true,
+            "shading": true
+          },
+          "reasoning": {
+            "testPoint": true,
+            "classifyRegion": false,
+            "vertices": false
+          },
+          "testPoint": {
+            "x": 0,
+            "y": 0
+          },
+          "allowStudentTestPoint": true,
+          "graph": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10
+          },
+          "directionSteps": [
+            "Build both boundary lines.",
+            "Choose solid or dashed for each.",
+            "Shade each half-plane and find the overlap.",
+            "Test the marked point.",
+            "Choose a point of your own in the overlap."
+          ],
+          "hints": [
+            "Build each boundary from its y-intercept and slope.",
+            "One boundary is dashed and one is solid: which symbol leaves its line out?",
+            "The solutions are the points shaded by BOTH inequalities."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. A point is a solution of a system when it is…",
+            "options": [
+              "in both shaded half-planes",
+              "in at least one shaded half-plane"
+            ],
+            "correct": "in both shaded half-planes"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Solution set of a system",
+                "instruction": "The solution set of a system of linear inequalities is the intersection of the solutions of its inequalities: every point in the overlap satisfies every inequality."
+              },
+              {
+                "title": "Shade each one",
+                "instruction": "Shade each half-plane in its own way; the region shaded twice is the solution set."
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "Two half-planes, one overlap.",
+            "reasoning": [
+              "y > x − 2: a dashed boundary through (0, −2) and (2, 0), shaded above. y ≤ −x + 4: a solid boundary through (0, 4) and (4, 0), shaded below.",
+              "(0, 0) is in the overlap: 0 > −2 and 0 ≤ 4. The boundaries meet at (3, 1), on the dashed line, so that corner is not a solution."
+            ],
+            "answerSummary": "above the dashed line and on or below the solid line",
+            "commonError": "Shading only one inequality: the solution set is where both shadings overlap."
+          }
+        },
+        {
+          "questionId": "m3t2l5-cw-5",
+          "standard": "A.3H",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3H",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3D",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveInequalitySystem"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "mode": "inequalities",
+          "prompt": "Activity 5.2 — Analyzing Graphs of Systems of Linear Inequalities. Graph the system $x + y > 1$ and $-x + y \\le 3$. Rewrite each inequality with y alone in the tool (notice the symbols), build both boundaries and shade. Then test the point (−8, 2), choose a point of your own, classify the solution region and find its corner.",
+          "sourceConstraints": [
+            "x + y > 1",
+            "-x + y <= 3"
+          ],
+          "expectedConstraints": [
+            {
+              "A": 1,
+              "B": 1,
+              "C": -1,
+              "relation": ">"
+            },
+            {
+              "A": -1,
+              "B": 1,
+              "C": -3,
+              "relation": "<="
+            }
+          ],
+          "studentBuild": {
+            "rewrite": true,
+            "boundary": true,
+            "lineStyle": true,
+            "shading": true
+          },
+          "reasoning": {
+            "testPoint": true,
+            "classifyRegion": true,
+            "vertices": true
+          },
+          "testPoint": {
+            "x": -8,
+            "y": 2
+          },
+          "allowStudentTestPoint": true,
+          "askClassification": true,
+          "askVertices": true,
+          "graph": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10
+          },
+          "directionSteps": [
+            "Rewrite each inequality with y alone.",
+            "Build both boundary lines.",
+            "Choose solid or dashed for each.",
+            "Shade each half-plane and find the overlap.",
+            "Test the marked point and a point of your own.",
+            "Classify the region and find its corner."
+          ],
+          "hints": [
+            "x + y > 1 becomes y > −x + 1; −x + y ≤ 3 becomes y ≤ x + 3.",
+            "One boundary is dashed and one is solid: which is which?",
+            "The corner is where the boundary lines meet. Is it on a dashed line?"
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. For x + y > 1, the boundary is…",
+            "options": [
+              "dashed",
+              "solid"
+            ],
+            "correct": "dashed"
+          },
+          "solutionReview": {
+            "headline": "Rewrite, build, shade, reason.",
+            "reasoning": [
+              "y > −x + 1 (dashed, above) and y ≤ x + 3 (solid, below).",
+              "(−8, 2) satisfies neither inequality. The region is unbounded, and its corner (−1, 2) is on the dashed line, so it is not a solution."
+            ],
+            "commonError": "Including the corner (−1, 2): it fails x + y > 1, because 1 is not greater than 1."
+          }
+        },
+        {
+          "questionId": "m3t2l5-cw-6",
+          "standard": "A.3H",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3H",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3D",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Use the system x + y > 1 and −x + y ≤ 3. The two boundary lines cut the plane into four regions, and each point below lies in a different one: decide which inequalities it makes true. Then evaluate Ava’s claim: \"The intersection point is always a solution to a system of inequalities because that is where the two lines meet.\"",
+          "directionSteps": [
+            "Substitute each point into both inequalities.",
+            "Decide which inequalities each point makes true.",
+            "Check the point where the two boundary lines meet.",
+            "Explain why Ava is wrong."
+          ],
+          "responses": [
+            {
+              "id": "p1",
+              "label": "(2, 2)",
+              "type": "choice",
+              "options": [
+                "both inequalities — it is in the overlap",
+                "only x + y > 1",
+                "only −x + y ≤ 3",
+                "neither inequality"
+              ],
+              "answer": "both inequalities — it is in the overlap"
+            },
+            {
+              "id": "p2",
+              "label": "(0, 5)",
+              "type": "choice",
+              "options": [
+                "both inequalities — it is in the overlap",
+                "only x + y > 1",
+                "only −x + y ≤ 3",
+                "neither inequality"
+              ],
+              "answer": "only x + y > 1"
+            },
+            {
+              "id": "p3",
+              "label": "(0, −2)",
+              "type": "choice",
+              "options": [
+                "both inequalities — it is in the overlap",
+                "only x + y > 1",
+                "only −x + y ≤ 3",
+                "neither inequality"
+              ],
+              "answer": "only −x + y ≤ 3"
+            },
+            {
+              "id": "p4",
+              "label": "(−8, 2)",
+              "type": "choice",
+              "options": [
+                "both inequalities — it is in the overlap",
+                "only x + y > 1",
+                "only −x + y ≤ 3",
+                "neither inequality"
+              ],
+              "answer": "neither inequality"
+            },
+            {
+              "id": "s1",
+              "label": "At the intersection (−1, 2): x + y =",
+              "answer": "1",
+              "inputProfile": "number"
+            },
+            {
+              "id": "s2",
+              "label": "At (−1, 2): −x + y =",
+              "answer": "3",
+              "inputProfile": "number"
+            },
+            {
+              "id": "ava",
+              "label": "Why is Ava wrong?",
+              "type": "choice",
+              "options": [
+                "At (−1, 2), x + y is not greater than 1: that boundary is dashed, so the intersection point is not a solution of this system",
+                "Ava is right — the lines meet there",
+                "An intersection point is never a solution of any system",
+                "The intersection point is not on either line"
+              ],
+              "answer": "At (−1, 2), x + y is not greater than 1: that boundary is dashed, so the intersection point is not a solution of this system"
+            }
+          ],
+          "hints": [
+            "Substitute each point into x + y and into −x + y, then compare with each right side.",
+            "Only the region shaded by both inequalities holds solutions of the system.",
+            "On a dashed boundary, the inequality is false."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Is 1 > 1 true?",
+            "options": [
+              "no",
+              "yes"
+            ],
+            "correct": "no"
+          },
+          "solutionReview": {
+            "headline": "Each region, then the corner.",
+            "reasoning": [
+              "(2, 2): 4 > 1 and 0 ≤ 3, both. (0, 5): 5 > 1 but 5 ≤ 3 is false. (0, −2): −2 > 1 is false, −2 ≤ 3 true. (−8, 2): neither.",
+              "(−1, 2): x + y = 1, and 1 > 1 is false, so the intersection point is not a solution, even though both lines pass through it."
+            ],
+            "answerSummary": "both; only the first; only the second; neither; Ava is wrong",
+            "commonError": "Treating the intersection as a solution because the lines meet there: check it in every inequality."
+          }
+        },
         {
           "questionId": "m3t2l5-cw-1",
           "standard": "A.2H",
@@ -689,7 +1009,7 @@
             "Choose a point of your own in the overlap."
           ],
           "hints": [
-            "The weight boundary passes through (4, 0) and (0, 8); the money boundary through (2, 0) and (0, 3).",
+            "Where does each boundary line cross the axes? Find y when x = 0, and x when y = 0.",
             "Both symbols include equality.",
             "The solutions are the points shaded by BOTH inequalities."
           ],
@@ -700,18 +1020,6 @@
               "everything either inequality shades"
             ],
             "correct": "where the shaded half-planes overlap"
-          },
-          "guidedNotes": {
-            "steps": [
-              {
-                "title": "Solution set of a system",
-                "instruction": "The solution set of a system of linear inequalities is the intersection of the solutions of its inequalities: every point in the overlap satisfies every inequality."
-              },
-              {
-                "title": "Shade each one",
-                "instruction": "Shade each half-plane in its own way; the region shaded twice is the solution set."
-              }
-            ]
           },
           "solutionReview": {
             "headline": "Two constraints, one overlap.",
@@ -834,224 +1142,6 @@
             ],
             "answerSummary": "yes, but not for Noah; none or infinitely many; 3 adults and 3 children",
             "commonError": "Assuming an intersection point is never a solution: it is when both boundaries are solid."
-          }
-        },
-        {
-          "questionId": "m3t2l5-cw-5",
-          "standard": "A.3H",
-          "alignments": [
-            {
-              "framework": "teks",
-              "code": "A.3H",
-              "role": "primary"
-            },
-            {
-              "framework": "teks",
-              "code": "A.3D",
-              "role": "secondary"
-            }
-          ],
-          "studentActions": [
-            "solveInequalitySystem"
-          ],
-          "dok": 3,
-          "difficultyBand": 3,
-          "mode": "inequalities",
-          "prompt": "Activity 5.2 — Analyzing Graphs of Systems of Linear Inequalities. Graph the system $x + y > 1$ and $-x + y \\le 3$. Rewrite each inequality with y alone in the tool (notice the symbols), build both boundaries and shade. Then test the point (−8, 2), choose a point of your own, classify the solution region and find its corner.",
-          "sourceConstraints": [
-            "x + y > 1",
-            "-x + y <= 3"
-          ],
-          "expectedConstraints": [
-            {
-              "A": 1,
-              "B": 1,
-              "C": -1,
-              "relation": ">"
-            },
-            {
-              "A": -1,
-              "B": 1,
-              "C": -3,
-              "relation": "<="
-            }
-          ],
-          "studentBuild": {
-            "rewrite": true,
-            "boundary": true,
-            "lineStyle": true,
-            "shading": true
-          },
-          "reasoning": {
-            "testPoint": true,
-            "classifyRegion": true,
-            "vertices": true
-          },
-          "testPoint": {
-            "x": -8,
-            "y": 2
-          },
-          "allowStudentTestPoint": true,
-          "askClassification": true,
-          "askVertices": true,
-          "graph": {
-            "xMin": -10,
-            "xMax": 10,
-            "yMin": -10,
-            "yMax": 10
-          },
-          "directionSteps": [
-            "Rewrite each inequality with y alone.",
-            "Build both boundary lines.",
-            "Choose solid or dashed for each.",
-            "Shade each half-plane and find the overlap.",
-            "Test the marked point and a point of your own.",
-            "Classify the region and find its corner."
-          ],
-          "hints": [
-            "x + y > 1 becomes y > −x + 1; −x + y ≤ 3 becomes y ≤ x + 3.",
-            "One boundary is dashed and one is solid: which is which?",
-            "The corner is where the boundary lines meet. Is it on a dashed line?"
-          ],
-          "scaffold": {
-            "prompt": "Let’s back up. For x + y > 1, the boundary is…",
-            "options": [
-              "dashed",
-              "solid"
-            ],
-            "correct": "dashed"
-          },
-          "solutionReview": {
-            "headline": "Rewrite, build, shade, reason.",
-            "reasoning": [
-              "y > −x + 1 (dashed, above) and y ≤ x + 3 (solid, below).",
-              "(−8, 2) satisfies neither inequality. The region is unbounded, and its corner (−1, 2) is on the dashed line, so it is not a solution."
-            ],
-            "commonError": "Including the corner (−1, 2): it fails x + y > 1, because 1 is not greater than 1."
-          }
-        },
-        {
-          "questionId": "m3t2l5-cw-6",
-          "standard": "A.3H",
-          "alignments": [
-            {
-              "framework": "teks",
-              "code": "A.3H",
-              "role": "primary"
-            },
-            {
-              "framework": "teks",
-              "code": "A.3D",
-              "role": "secondary"
-            }
-          ],
-          "studentActions": [
-            "multipleResponses"
-          ],
-          "dok": 3,
-          "difficultyBand": 3,
-          "prompt": "Use the system x + y > 1 and −x + y ≤ 3. The two boundary lines cut the plane into four regions, and each point below lies in a different one: decide which inequalities it makes true. Then evaluate Ava’s claim: \"The intersection point is always a solution to a system of inequalities because that is where the two lines meet.\"",
-          "directionSteps": [
-            "Substitute each point into both inequalities.",
-            "Decide which inequalities each point makes true.",
-            "Check the point where the two boundary lines meet.",
-            "Explain why Ava is wrong."
-          ],
-          "responses": [
-            {
-              "id": "p1",
-              "label": "(2, 2)",
-              "type": "choice",
-              "options": [
-                "both inequalities — it is in the overlap",
-                "only x + y > 1",
-                "only −x + y ≤ 3",
-                "neither inequality"
-              ],
-              "answer": "both inequalities — it is in the overlap"
-            },
-            {
-              "id": "p2",
-              "label": "(0, 5)",
-              "type": "choice",
-              "options": [
-                "both inequalities — it is in the overlap",
-                "only x + y > 1",
-                "only −x + y ≤ 3",
-                "neither inequality"
-              ],
-              "answer": "only x + y > 1"
-            },
-            {
-              "id": "p3",
-              "label": "(0, −2)",
-              "type": "choice",
-              "options": [
-                "both inequalities — it is in the overlap",
-                "only x + y > 1",
-                "only −x + y ≤ 3",
-                "neither inequality"
-              ],
-              "answer": "only −x + y ≤ 3"
-            },
-            {
-              "id": "p4",
-              "label": "(−8, 2)",
-              "type": "choice",
-              "options": [
-                "both inequalities — it is in the overlap",
-                "only x + y > 1",
-                "only −x + y ≤ 3",
-                "neither inequality"
-              ],
-              "answer": "neither inequality"
-            },
-            {
-              "id": "s1",
-              "label": "At the intersection (−1, 2): x + y =",
-              "answer": "1",
-              "inputProfile": "number"
-            },
-            {
-              "id": "s2",
-              "label": "At (−1, 2): −x + y =",
-              "answer": "3",
-              "inputProfile": "number"
-            },
-            {
-              "id": "ava",
-              "label": "Why is Ava wrong?",
-              "type": "choice",
-              "options": [
-                "At (−1, 2), x + y is not greater than 1: that boundary is dashed, so the intersection point is not a solution of this system",
-                "Ava is right — the lines meet there",
-                "An intersection point is never a solution of any system",
-                "The intersection point is not on either line"
-              ],
-              "answer": "At (−1, 2), x + y is not greater than 1: that boundary is dashed, so the intersection point is not a solution of this system"
-            }
-          ],
-          "hints": [
-            "Substitute each point into x + y and into −x + y, then compare with each right side.",
-            "Only the region shaded by both inequalities holds solutions of the system.",
-            "On a dashed boundary, the inequality is false."
-          ],
-          "scaffold": {
-            "prompt": "Let’s back up. Is 1 > 1 true?",
-            "options": [
-              "no",
-              "yes"
-            ],
-            "correct": "no"
-          },
-          "solutionReview": {
-            "headline": "Each region, then the corner.",
-            "reasoning": [
-              "(2, 2): 4 > 1 and 0 ≤ 3, both. (0, 5): 5 > 1 but 5 ≤ 3 is false. (0, −2): −2 > 1 is false, −2 ≤ 3 true. (−8, 2): neither.",
-              "(−1, 2): x + y = 1, and 1 > 1 is false, so the intersection point is not a solution, even though both lines pass through it."
-            ],
-            "answerSummary": "both; only the first; only the second; neither; Ava is wrong",
-            "commonError": "Treating the intersection as a solution because the lines meet there: check it in every inequality."
           }
         },
         {

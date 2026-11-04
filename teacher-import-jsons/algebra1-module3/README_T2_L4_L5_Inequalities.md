@@ -6,8 +6,8 @@ Four Assignment V5 teacher imports built from the district's Lesson 4 and Lesson
 |---|---|---|
 | `T2_L4_Graphing_Inequalities_in_Two_Variables.json` | Algebra I | 3 · 17 · 12 · 3 |
 | `T2_L4_Graphing_Inequalities_in_Two_Variables_Honors.json` | Algebra I Honors | 3 · 17 · 16 · 3 |
-| `T2_L5_Systems_of_Linear_Inequalities.json` | Algebra I | 3 · 16 · 10 · 3 |
-| `T2_L5_Systems_of_Linear_Inequalities_Honors.json` | Algebra I Honors | 3 · 16 · 15 · 3 |
+| `T2_L5_Systems_of_Linear_Inequalities.json` | Algebra I | 3 · 17 · 10 · 3 |
+| `T2_L5_Systems_of_Linear_Inequalities_Honors.json` | Algebra I Honors | 3 · 17 · 15 · 3 |
 
 Lesson 4 teaches TEKS A.2H and A.3D (two 45-minute days). Lesson 5 teaches A.3H, with A.2H for writing constraints (three days).
 
@@ -40,10 +40,10 @@ Graph descriptions that the slides show as pictures (matching graphs, writing an
 
 ## What is in each lesson
 
-**Lesson 4 — Graphing Inequalities in Two Variables.** The Warm-Up climbs from a one-variable solution on a number line (open or closed circle, the dashed or solid line to come) to graphing the boundary line and testing points. Classwork follows Kai's points per game, half-planes and test points, matching graphs, writing inequalities from graphs, César's phone card, and Talk the Talk. Practice and the Exit Ticket give each student their own inequalities to graph and contexts to model.
+**Lesson 4 — Graphing Inequalities in Two Variables.** The Warm-Up climbs from a one-variable solution on a number line (open or closed circle, the dashed or solid line to come) to graphing the boundary line and testing points. Classwork starts with Kai's points per game, then Activity 4.2's first graph, y > 4x − 6, so that the first graph a student builds has no story. Then Kai's goal is graphed in the tool, followed by half-planes and test points, matching graphs, writing inequalities from graphs, César's phone card, and Talk the Talk. Practice and the Exit Ticket give each student their own inequalities to graph and contexts to model.
 Honors adds fractional slopes and standard forms with y-coefficients other than ±1, a parameter (P14), a boundary from two points (P15), reasoning from a description (P16), and CCMR items `mm_sat_A_3D_challenge_1_parameter-boundary-point_v21` (P17) and `mm_sat_A_3D_challenge_3_minimum-integer-y_v21` (P18).
 
-**Lesson 5 — Systems of Linear Inequalities.** The Warm-Up climbs from one inequality graphed, to a point checked against two inequalities, to two constraints written for one situation. Classwork follows Noah's raft (writing, checking and graphing the constraints, and the intersection point (10, −12)), Activity 5.2's x + y > 1 and −x + y ≤ 3 with Ava's error, the parallel and vertical systems, Emma's workout, Activity 5.4's systems A–D with Isabella's error and the blank Graph D, and Talk the Talk. Practice and the Exit Ticket give each student their own systems.
+**Lesson 5 — Systems of Linear Inequalities.** The Warm-Up climbs from one inequality graphed, to a point checked against two inequalities, to two constraints written for one situation. Classwork opens with a system that is not on the slides, y > x − 2 and y ≤ −x + 4: two boundaries with y alone and whole-number slopes, the case Practice 1 and Exit Ticket 1 test. Then come Activity 5.2's x + y > 1 and −x + y ≤ 3 with Ava's error, Noah's raft (writing, checking and graphing the constraints, and the intersection point (10, −12)), the parallel and vertical systems, Emma's workout, Activity 5.4's systems A–D with Isabella's error and the blank Graph D, and Talk the Talk. Practice and the Exit Ticket give each student their own systems.
 Honors adds standard-form systems to rewrite, a parameter (P11), a bounded region with its corners and area (P12, P13), an Open Sort of systems by their solution sets (P14), Emma's corners found algebraically (P15), and CCMR items `mm_sat_A_3H_challenge_1_parameter-feasible-point_v21` (P16) and `mm_sat_A_3H_challenge_2_integer-points-vertical-slice_v21` (P17).
 
 **Supports.** Every question except the audited CCMR items has authored "Break it down" steps. Every Warm-Up, Classwork and Practice question has hints, a "Let's back up" step, a worked solution and a common error, and the key Classwork questions have Guided Coach notes. The Exit Ticket has none of these. The audited multiple-choice items allow one try, so after it the student sees the reason for the option they chose.
@@ -52,6 +52,14 @@ Honors adds standard-form systems to rewrite, a parameter (P11), a bounded regio
 
 - Lesson 4: the worked example is titled "Write a linear equality"; it means inequality.
 - Lesson 5: the Getting Started "Think about…" box says Chase, but the guide is Noah. On the Activity 5.4 slide the pictures of Systems B and C overlap. These files use B: y > (3/5)x + 3 and y > −(3/5)x + 3, and C: y > (3/5)x + 3 and y < −(3/5)x + 3, which match Possible Solutions B and C.
+
+## Changed after the first import (a class that already has a lesson needs a re-import)
+
+A class gets these changes only when its teacher imports the file again. An assignment created from an earlier import keeps its questions and their order.
+
+- **Lesson 4:** Activity 4.2's y > 4x − 6 (CW 6) now comes right after CW 1. Before, the first graph a student built was Kai's word problem (CW 2), and the first graph with no story came sixth.
+- **Lesson 5:** Classwork has 17 questions. The plain system (y > x − 2 and y ≤ −x + 4) is new and comes first, and Noah's four questions now follow Activity 5.2's system. Before, the first system a student built was Noah's, a word problem in standard form, and the plain case first appeared as item 14 of 16. The first hint on Noah's graph now asks for the intercepts instead of listing all four.
+- Question ids keep their numbers, so they no longer follow the order: Lesson 4's second Classwork question is `m3t2l4-cw-6`, and Lesson 5's first is the new `m3t2l5-cw-17` (`m3t2l5h-cw-17` in Honors).
 
 ## Changing a lesson
 

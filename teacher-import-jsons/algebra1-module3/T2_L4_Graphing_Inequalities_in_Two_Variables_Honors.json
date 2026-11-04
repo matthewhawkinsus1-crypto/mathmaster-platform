@@ -8,7 +8,7 @@
     "gradingPurpose": "classwork",
     "essentialQuestion": "What does the graph of a linear inequality in two variables look like? How does it compare to the graph of a linear equation?",
     "instructions": "Graphing inequalities in two variables. Every graph is built in the graphing workspace one step at a time — the boundary line, solid or dashed, the side to shade, and a test point — and each step is checked. For a word problem, write the inequality in the tool before you graph it. You have 3 tries on each Warm-Up, Classwork and Practice question, with hints. The Exit Ticket is one try with no hints.",
-    "teacherNotes": "Algebra I Module 3 Topic 2 Lesson 4, from the district slides (two 45-minute days), TEKS A.2H and A.3D. Honors version: the same lesson with fractional slopes and y-coefficients other than ±1 in the Warm-Up, Practice and Exit Ticket, parameters (P14), boundaries from two points (P15), reasoning from a description (P16), and two audited Digital SAT items from the CCMR bank (P17, P18), so the Honors version is ready as written. Warm-Up rebuilt as readiness: a number-line solution statement (open/closed circle → dashed/solid), graphing the boundary line, and testing points. Every graph is built in the Systems Workspace's inequality builder (boundary, line style, shading, test point), and context items have students write the model in the tool first. Warm-Up and Exit Ticket are generated per student and back Recovery. Slide note: the worked example's title reads \"Write a linear equality\"; it means inequality."
+    "teacherNotes": "Algebra I Module 3 Topic 2 Lesson 4, from the district slides (two 45-minute days), TEKS A.2H and A.3D. Honors version: the same lesson with fractional slopes and y-coefficients other than ±1 in the Warm-Up, Practice and Exit Ticket, parameters (P14), boundaries from two points (P15), reasoning from a description (P16), and two audited Digital SAT items from the CCMR bank (P17, P18), so the Honors version is ready as written. Classwork order: Activity 4.2's first graph, y > 4x − 6 (CW 6), comes right after CW 1, before Kai's goal is graphed. Warm-Up rebuilt as readiness: a number-line solution statement (open/closed circle → dashed/solid), graphing the boundary line, and testing points. Every graph is built in the Systems Workspace's inequality builder (boundary, line style, shading, test point), and context items have students write the model in the tool first. Warm-Up and Exit Ticket are generated per student and back Recovery. Slide note: the worked example's title reads \"Write a linear equality\"; it means inequality."
   },
   "variantPolicy": {
     "mode": "personalized",
@@ -385,6 +385,105 @@
             ],
             "answerSummary": "18; 20; 26; 2x + 3y = 20",
             "commonError": "Switching the point values: the two-point shots are x, so the term is 2x."
+          }
+        },
+        {
+          "questionId": "m3t2l4h-cw-6",
+          "standard": "A.3D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3D",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2H",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveInequalitySystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "mode": "inequalities",
+          "prompt": "Activity 4.2 — Determining the Graphs of Linear Inequalities. Consider $y > 4x - 6$. Its boundary line is determined by the equation of the line. Build the boundary line, decide whether it is solid or dashed, and shade the correct half-plane. Then test the point (0, 0).",
+          "sourceConstraints": [
+            "y > 4x - 6"
+          ],
+          "expectedConstraints": [
+            {
+              "m": 4,
+              "b": -6,
+              "relation": ">"
+            }
+          ],
+          "studentBuild": {
+            "rewrite": false,
+            "boundary": true,
+            "lineStyle": true,
+            "shading": true
+          },
+          "reasoning": {
+            "testPoint": true,
+            "classifyRegion": false,
+            "vertices": false
+          },
+          "testPoint": {
+            "x": 0,
+            "y": 0
+          },
+          "graph": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10
+          },
+          "directionSteps": [
+            "Build the boundary line.",
+            "Choose solid or dashed.",
+            "Shade the half-plane of solutions.",
+            "Test the point."
+          ],
+          "hints": [
+            "The boundary of y > 4x − 6 is the line with slope 4 and y-intercept −6.",
+            "> leaves the line itself out of the solutions.",
+            "Substitute (0, 0): is 0 > 4(0) − 6 true?"
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. For > or <, the boundary line is…",
+            "options": [
+              "dashed",
+              "solid"
+            ],
+            "correct": "dashed"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Boundary line",
+                "instruction": "The boundary line divides the plane into two half-planes; the symbol says which half-plane holds the solutions."
+              },
+              {
+                "title": "Solid or dashed",
+                "instruction": "≥ or ≤: solid, because points on the line are solutions. > or <: dashed, because no point on the line is."
+              },
+              {
+                "title": "Test point",
+                "instruction": "If (0, 0) is a solution, shade its half-plane; if not, shade the other one. (Use another point if the line passes through the origin.)"
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "Boundary, style, shading, test.",
+            "reasoning": [
+              "Boundary y = 4x − 6: plot (0, −6) and (1, −2).",
+              "> is strict, so the line is dashed.",
+              "0 > 4(0) − 6 is true, so shade the half-plane containing (0, 0): above the line."
+            ],
+            "answerSummary": "dashed line y = 4x − 6, shaded above",
+            "commonError": "Shading below because the slope is positive: the symbol decides the side, not the slope."
           }
         },
         {
@@ -819,105 +918,6 @@
             ],
             "answerSummary": "2x + 3y ≥ 20; 2x + 3y ≤ 30; x + y < 12; x − y > 4",
             "commonError": "Reading \"no more than\" as <: the number itself is allowed."
-          }
-        },
-        {
-          "questionId": "m3t2l4h-cw-6",
-          "standard": "A.3D",
-          "alignments": [
-            {
-              "framework": "teks",
-              "code": "A.3D",
-              "role": "primary"
-            },
-            {
-              "framework": "teks",
-              "code": "A.2H",
-              "role": "secondary"
-            }
-          ],
-          "studentActions": [
-            "solveInequalitySystem"
-          ],
-          "dok": 2,
-          "difficultyBand": 2,
-          "mode": "inequalities",
-          "prompt": "Activity 4.2 — Determining the Graphs of Linear Inequalities. Consider $y > 4x - 6$. Its boundary line is determined by the equation of the line. Build the boundary line, decide whether it is solid or dashed, and shade the correct half-plane. Then test the point (0, 0).",
-          "sourceConstraints": [
-            "y > 4x - 6"
-          ],
-          "expectedConstraints": [
-            {
-              "m": 4,
-              "b": -6,
-              "relation": ">"
-            }
-          ],
-          "studentBuild": {
-            "rewrite": false,
-            "boundary": true,
-            "lineStyle": true,
-            "shading": true
-          },
-          "reasoning": {
-            "testPoint": true,
-            "classifyRegion": false,
-            "vertices": false
-          },
-          "testPoint": {
-            "x": 0,
-            "y": 0
-          },
-          "graph": {
-            "xMin": -10,
-            "xMax": 10,
-            "yMin": -10,
-            "yMax": 10
-          },
-          "directionSteps": [
-            "Build the boundary line.",
-            "Choose solid or dashed.",
-            "Shade the half-plane of solutions.",
-            "Test the point."
-          ],
-          "hints": [
-            "The boundary of y > 4x − 6 is the line with slope 4 and y-intercept −6.",
-            "> leaves the line itself out of the solutions.",
-            "Substitute (0, 0): is 0 > 4(0) − 6 true?"
-          ],
-          "scaffold": {
-            "prompt": "Let’s back up. For > or <, the boundary line is…",
-            "options": [
-              "dashed",
-              "solid"
-            ],
-            "correct": "dashed"
-          },
-          "guidedNotes": {
-            "steps": [
-              {
-                "title": "Boundary line",
-                "instruction": "The boundary line divides the plane into two half-planes; the symbol says which half-plane holds the solutions."
-              },
-              {
-                "title": "Solid or dashed",
-                "instruction": "≥ or ≤: solid, because points on the line are solutions. > or <: dashed, because no point on the line is."
-              },
-              {
-                "title": "Test point",
-                "instruction": "If (0, 0) is a solution, shade its half-plane; if not, shade the other one. (Use another point if the line passes through the origin.)"
-              }
-            ]
-          },
-          "solutionReview": {
-            "headline": "Boundary, style, shading, test.",
-            "reasoning": [
-              "Boundary y = 4x − 6: plot (0, −6) and (1, −2).",
-              "> is strict, so the line is dashed.",
-              "0 > 4(0) − 6 is true, so shade the half-plane containing (0, 0): above the line."
-            ],
-            "answerSummary": "dashed line y = 4x − 6, shaded above",
-            "commonError": "Shading below because the slope is positive: the symbol decides the side, not the slope."
           }
         },
         {

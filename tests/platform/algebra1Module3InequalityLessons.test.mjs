@@ -155,3 +155,63 @@ for (const { regular: regularEntry, honors: honorsEntry } of ALGEBRA1_M3_INEQUAL
     assert.deepEqual(created.assignmentV5, candidate.assignmentV5);
   });
 }
+
+/*
+ * PACING, from the PR #537 student walkthrough
+ * (docs/qa/2026-11-03-pr537-walkthrough/findings.md, "A1 M3 T2 L4" and "L5").
+ * A student builds the plain case in the tool before a word problem asks for
+ * the same build. Items moved, but every id kept its number (the recovery and
+ * walkthrough tools find items by id), so the order is held here.
+ */
+const isBuild = (question) => (question.studentActions || []).includes('solveInequalitySystem');
+
+for (const entry of ALGEBRA1_M3_INEQUALITY_LESSONS) {
+  const name = entry.lesson.assignment.title;
+  const lesson = JSON.parse(readRepoFile(entry.file));
+  const P = lesson.sections[0].questions[0].questionId.replace(/-wu-1$/, '');
+  const classwork = questionsOf(lesson, 'classwork');
+  const ids = classwork.map((question) => question.questionId);
+  const at = (number) => ids.indexOf(`${P}-cw-${number}`);
+
+  test(`${name}: Classwork keeps every question id it had`, () => {
+    const expected = Array.from({ length: ids.length }, (_, index) => `${P}-cw-${index + 1}`);
+    assert.deepEqual([...ids].sort(), expected.sort());
+  });
+
+  if (lessonOf(entry) === 'Lesson 4') {
+    test(`${name}: the first graph is a bare inequality, right after CW 1 and before Kai's goal is modeled`, () => {
+      const first = classwork.find(isBuild);
+      assert.equal(first.modeling, undefined, `${first.questionId} is a word problem`);
+      assert.equal(first.sourceConstraints.length, 1);
+      assert.ok(ids.indexOf(first.questionId) < ids.indexOf(classwork.find((question) => question.modeling).questionId));
+      // The walkthrough's fix: Activity 4.2's y > 4x − 6 (CW 6) moves to just after CW 1.
+      assert.deepEqual([at(1), at(6), at(2)], [0, 1, 2]);
+    });
+  }
+
+  if (lessonOf(entry) === 'Lesson 5') {
+    test(`${name}: the first system built is the plain case, and Noah's word problem comes after Activity 5.2's system`, () => {
+      // Two boundaries the student reads with y alone and whole-number slopes,
+      // crossing, so the half-planes overlap: the case Practice 1 and Exit
+      // Ticket 1 test. It used to appear first at item 14 of 16.
+      const first = classwork.find(isBuild);
+      assert.equal(ids.indexOf(first.questionId), 0, 'Classwork opens with it');
+      assert.equal(first.modeling, undefined, `${first.questionId} is a word problem`);
+      assert.equal(first.studentBuild.rewrite, false, `${first.questionId} asks for a rewrite`);
+      assert.equal(first.expectedConstraints.length, 2);
+      first.expectedConstraints.forEach((constraint) => assert.ok(Number.isInteger(constraint.m) && Number.isInteger(constraint.b), JSON.stringify(constraint)));
+      assert.notEqual(first.expectedConstraints[0].m, first.expectedConstraints[1].m, 'the boundaries cross');
+      // Noah's items (Getting Started, Activity 5.1, his graph and its analysis)
+      // stay together and in order, after x + y > 1 and −x + y ≤ 3 (CW 5).
+      assert.deepEqual([1, 2, 3, 4].map(at), [0, 1, 2, 3].map((offset) => at(1) + offset));
+      assert.ok(at(1) > at(5), `Noah starts at item ${at(1) + 1}, CW 5 is item ${at(5) + 1}`);
+    });
+
+    test(`${name}: the first hint on Noah's graph asks for the intercepts and gives none of them`, () => {
+      // It used to list all four, which is the whole boundary step (F-HINT-GIVES-STEP).
+      const [hint] = classwork[at(3)].hints;
+      assert.match(hint, /intercept|cross/i);
+      assert.doesNotMatch(hint, /\(\s*-?\d|[1-9]/, hint);
+    });
+  }
+}
