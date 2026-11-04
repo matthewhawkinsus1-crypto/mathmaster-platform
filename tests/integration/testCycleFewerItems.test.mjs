@@ -46,6 +46,7 @@ import { buildSupportProjection } from '../../functions/shared/supportProfileMod
 import { withClassTestDay } from '../../functions/shared/testCycleAvailability.mjs';
 import { SCHOOL_TIME_ZONE } from '../../functions/shared/sectionDeadline.mjs';
 import { zonedDateKey } from '../../functions/shared/instructionalCalendar.mjs';
+import { shiftDateKey } from '../../src/platform/attendance/classMeetings.js';
 
 const PREFIX = 'tc15_';
 const CLASS_F = 'tc15-class-f';
@@ -56,8 +57,10 @@ const PERIOD_W = 'TC15 Period W';
 const FEWER = `${PREFIX}cycle`;
 const MISSED = `${PREFIX}missedcycle`;
 
-const DAY = 86400000;
-const dayKey = (offset) => zonedDateKey(Date.now() + offset * DAY, SCHOOL_TIME_ZONE);
+// Whole calendar days in the school's zone. Adding 24 hours to now lands on the
+// wrong day across a clock change (a 23- or 25-hour day), which turned these
+// tests red in the hour after midnight on those days.
+const dayKey = (offset) => shiftDateKey(zonedDateKey(Date.now(), SCHOOL_TIME_ZONE), offset);
 
 const families = () => certFamilies().map((family) => ({
   ...family,

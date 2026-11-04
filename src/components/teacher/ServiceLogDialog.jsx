@@ -5,6 +5,7 @@ import {
   PROVIDER_ROLES, PROVIDER_ROLE_LABEL, summarizeServiceMinutes, weekStartOf,
 } from '../../../functions/shared/supportEvidenceModel.mjs';
 import { zonedDateKey } from '../../../functions/shared/instructionalCalendar.mjs';
+import { shiftDateKey } from '../../platform/attendance/classMeetings.js';
 import { fetchServiceLog, recordServiceLogEntry } from '../../platform/supportEvidence/supportEvidenceStore.js';
 import Dialog from '../../ui/Dialog.jsx';
 import './teacherWorkspace.css';
@@ -62,8 +63,9 @@ export default function ServiceLogDialog({
     });
     setErrors([]);
     setLoadState({ loading: true, error: '' });
-    // Eight school weeks is enough context for "this week" and the trend.
-    const from = zonedDateKey(Date.now() - 56 * 86400000, SCHOOL_TIME_ZONE);
+    // Eight school weeks is enough context for "this week" and the trend. Whole
+    // calendar days, so a clock change cannot move the first day.
+    const from = shiftDateKey(zonedDateKey(Date.now(), SCHOOL_TIME_ZONE), -56);
     fetchServiceLog({ db, studentId: student.id, fromDateKey: from })
       .then((loaded) => { if (!cancelled) { setEntries(loaded); setLoadState({ loading: false, error: '' }); } })
       .catch((error) => { if (!cancelled) setLoadState({ loading: false, error: error?.message || 'Could not load the service log.' }); });
