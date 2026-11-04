@@ -27,7 +27,8 @@
  *   expression, equation
  *       PLAIN TEXT, deliberately, for the reason that is left
  *       (SECURE_TEXT_PROFILE_REASONS): a phone's keypad for these profiles
- *       cannot type every key. The grader reads what the editor writes for
+ *       cannot type every key (secureExpressionEquationKeypad.test.mjs lists
+ *       them, family by family). The grader reads what the editor writes for
  *       every expression and equation key a secure Test can issue (TS05:
  *       tests/browser/editorKeyRoundTrip.mjs typed each into the real editor,
  *       editorKeySpellings.test.mjs grades them all), and reads the editor's
@@ -68,13 +69,16 @@ export const SECURE_TEXT_PROFILE_REASONS = Object.freeze({
   // stacked product inside a sum (\frac{2A}{h}-b_2 as 2A/h-b_2), the owner's
   // decision; a lone \frac{3b^2}{a^3} still keeps GR35a's reading.
   // The keypad has the letters the student reads, set notation and ln since
-  // TS05 (secureKeypadKeys); what it still cannot type keeps the text box.
-  expression: 'a phone\'s expression keypad cannot yet type every expression key a secure Test can issue',
+  // TS05 (secureKeypadKeys). What a phone still cannot type, over every
+  // family a secure Test can issue, is pinned family by family in
+  // secureExpressionEquationKeypad.test.mjs (STILL_UNTYPEABLE): 4 expression
+  // families and 14 equation families.
+  expression: 'a phone\'s keypad cannot type every expression key a secure Test can issue: no key types a multiplication sign the grader needs (3·|x|·y², x·ⁿ√x), or a letter the item names only in the prompt\'s words (v, I)',
   // The named-function backslash (\log_2\left(32\right)=5) is read since
   // GR34, the editor's typed log base (\log_{_{}2}) since TS05, and its
   // stacked product as an equation's side (h=\frac{2A}{b} as h=2A/b) since
   // the owner's TS05 decision.
-  equation: 'a phone\'s equation keypad cannot yet type every equation key a secure Test can issue',
+  equation: 'a phone\'s keypad cannot type every equation key a secure Test can issue: no key types a subscript (P₀, aₙ), the phone equation pad drops ⁿ√ (∛), and some letters are named only in the prompt\'s words (t, v, w, l, L, I) or nowhere the field shows them (a, b, c, n, P, V)',
 });
 
 /*

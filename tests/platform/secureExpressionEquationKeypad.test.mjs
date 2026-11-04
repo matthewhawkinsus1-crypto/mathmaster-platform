@@ -15,7 +15,10 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync, readdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { buildMobileMathTools } from '../../src/platform/interaction/mobileKeypadPolicy.js';
+import { normalizeInteractionInputProfile } from '../../src/platform/interaction/interactionContract.js';
 import {
   EVERY_INEQUALITY_LETTER, SECURE_ANSWER_EDITORS, SECURE_LETTER_PROFILES, SECURE_PROFILE_KEYS,
   secureAnswerEntryFor, secureFieldLetters, secureKeypadKeys,
@@ -112,4 +115,153 @@ test('an expression and an equation are still typed text: the keypad is ready fo
     assert.equal(entry.editor, SECURE_ANSWER_EDITORS.TEXT, profile);
     assert.equal(entry.keys, undefined, `${profile}: a text box has no keypad`);
   }
+});
+
+/*
+ * CAN A PHONE TYPE EVERY SECURE EXPRESSION AND EQUATION KEY? (TS05)
+ *
+ * The bar for moving these profiles from the text box to the math editor on a
+ * secure Test: every key a secure Test can issue is typeable on the keypad a
+ * phone student has. This draws every family the secure runtime can issue
+ * (the built-in Path seeds a course Test falls back to and the
+ * secure-assessment seed, three draws each, as TS04's bank test does) and
+ * reads what each typed expression and equation key needs against that
+ * field's phone keypad: MathInput's pad for the profile, with the secure keys
+ * (secureKeypadKeys). MathInput's phone pads have digits, . , − + = ( ), π, e,
+ * logₐ, √, ⁿ√, x², xⁿ, |x| and a⁄b; the equation pad also x, y, f(x) and
+ * f⁻¹(x), and drops ⁿ√ (mobileKeypadPolicy, read below). No pad has a
+ * subscript or a multiplication key, and these have no "and" or "or".
+ *
+ * The decided keys (TS05) close the set-notation and ln gaps and most
+ * letters; what is left is pinned below, family by family, so the test fails
+ * and says what changed when a key is added or a bank changes. Until it is
+ * empty for a profile, that profile stays typed text
+ * (SECURE_TEXT_PROFILE_REASONS).
+ */
+const STILL_UNTYPEABLE = Object.freeze({
+  // Letters the item names only in the prompt's words ("Let v be…",
+  // "intensity I"), which the keypad does not read; a product the grader
+  // reads only with its multiplication sign, which no pad types.
+  expression: {
+    'mm_A2_5B_v2_logarithmic-ratio-scale-model': ['letter I'],
+    'mm_A2_6H_v2_round-trip-current-equation': ['letter v'],
+    'mm_A2_7G_v2_absolute-value-error-full-repair': ['multiplication sign'],
+    'mm_A2_7G_v2_rational-exponent-to-indexed-radical': ['multiplication sign'],
+  },
+  // …and letters the field's prompt and label never name (a, b, c of
+  // y = ax² + bx + c; P₀ beside "Explicit model P(t)"), a subscript, and a
+  // cube root, whose ⁿ√ key the phone equation pad drops.
+  equation: {
+    'mm_A2_4A_v2_error-repair-coefficient-system': ['letter a', 'letter b', 'letter c'],
+    'mm_A2_5B_v2_decay-explicit-and-recursive': ['letter V', 'letter n', 'subscript'],
+    'mm_A2_5B_v2_growth-explicit-and-recursive': ['letter P', 'letter n', 'subscript'],
+    'mm_A2_5B_v2_growth-factor-error-repair': ['subscript'],
+    'mm_A2_5B_v2_logarithmic-ratio-scale-model': ['letter I', 'letter L'],
+    'mm_A2_5B_v2_table-infer-ratio-models': ['letter a', 'letter n', 'subscript'],
+    'mm_A2_6B_v2_context-modeled-cube-root': ['nth root'],
+    'mm_A2_6B_v2_noninteger-real-cube-root': ['nth root'],
+    'mm_A2_6B_v2_scaled-linear-radicand': ['nth root'],
+    'mm_A2_6H_v2_average-speed-equation': ['letter v'],
+    'mm_A2_6H_v2_combined-work-equation': ['letter t'],
+    'mm_A2_6H_v2_round-trip-current-equation': ['letter v'],
+    'mm_A2_6L_v2_fixed-area-rectangle-context': ['letter l', 'letter w'],
+    'mm_A2_6L_v2_fixed-distance-time-context': ['letter t', 'letter v'],
+  },
+});
+
+const NTH_ROOT_KEY = Object.freeze({ label: 'ⁿ√', command: '\\sqrt[#?]{#0}', ariaLabel: 'Insert nth root' });
+const PAD_LETTERS = Object.freeze({ expression: ['e'], equation: ['e', 'x', 'y', 'f'] });
+const NOT_LETTERS = new Set(['and', 'or', 'pi', 'inf', 'abs', 'sqrt', 'cbrt', 'root', 'log', 'ln', 'sin', 'cos', 'tan']);
+
+/** The letters a key is written in: single letters, never a word or a function name. */
+const keyLetters = (key) => {
+  const body = String(key ?? '').replace(/\\[A-Za-z]+/g, ' ');
+  const letters = [];
+  for (const run of body.match(/[A-Za-z]+/g) || []) {
+    if (NOT_LETTERS.has(run.toLowerCase())) continue;
+    assert.ok(run.length <= 3, `a key holds the word "${run}": read it here before counting its letters`);
+    for (const letter of run) if (!letters.includes(letter)) letters.push(letter);
+  }
+  return letters;
+};
+
+// Every character a key may hold that one of the pads types (letters and
+// words are read apart); anything else is a symbol this test does not know.
+const PAD_CHARACTERS = /[0-9.,+\-=()^/\s{}|<>!∅]/;
+
+const seedFiles = () => {
+  const bank = new URL('../../functions/seeds/pathQuestionBank/', import.meta.url);
+  const secure = new URL('../../functions/seeds/secureAssessments/', import.meta.url);
+  return [
+    ...readdirSync(bank).filter((name) => name.endsWith('_pathQuestionBank_seed.json')).map((name) => new URL(name, bank)),
+    ...readdirSync(secure).filter((name) => name.endsWith('.json')).map((name) => new URL(name, secure)),
+  ];
+};
+
+test('every typed expression and equation key a secure Test can issue, against the keypad a phone has: what is left untypeable', async () => {
+  // MathInput's phone layout keeps ⁿ√ on the expression pad and drops it from the equation pad.
+  const padHasNthRoot = (profile) => buildMobileMathTools({ toolProfile: profile, profileKeys: [NTH_ROOT_KEY] }).some((key) => key.command === NTH_ROOT_KEY.command);
+  const nthRoot = { expression: padHasNthRoot('expression'), equation: padHasNthRoot('equation') };
+  assert.deepEqual(nthRoot, { expression: true, equation: false });
+  let fields = 0;
+  const untypeable = { expression: {}, equation: {} };
+  const note = (profile, family, reason) => {
+    const reasons = untypeable[profile][family] || (untypeable[profile][family] = []);
+    if (!reasons.includes(reason)) reasons.push(reason);
+  };
+  for (const file of seedFiles()) {
+    const parsed = JSON.parse(readFileSync(file, 'utf8'));
+    const documents = Array.isArray(parsed) ? parsed : (parsed.documents || parsed.items || parsed.questions || []);
+    for (const item of documents) {
+      if (item?.active === false) continue;
+      for (let draw = 0; draw < 3; draw += 1) {
+        // eslint-disable-next-line no-await-in-loop
+        const question = (await mathPath.instantiateQuestion(item, `ts05-keypad-${draw}`))?.question;
+        if (!question || question.pathToolId) continue;
+        const issued = mathPath.buildSanitizedQuestion(question, { questionInstanceId: 'q' });
+        const grading = mathPath.privateGradingDefinition(question);
+        for (const field of issued.responseFields || []) {
+          const profile = normalizeInteractionInputProfile(field.inputProfile);
+          if (!['expression', 'equation'].includes(profile)) continue;
+          // A field answered by choosing is not typed.
+          if (field.choices?.length || (issued.responseFields.length === 1 && issued.choices?.length)) continue;
+          const graded = grading.fields.find((entry) => entry.id === field.id);
+          const key = String(graded?.expected ?? '');
+          if (!key) continue;
+          fields += 1;
+          const keys = secureKeypadKeys(field, { prompt: issued.prompt });
+          const has = (label) => keys.some((entry) => entry.label === label);
+          // The field's own grading decides whether another spelling is the key.
+          const right = async (response) => (await secureItems.gradeItem({ fields: [{ ...graded, id: 'answer' }] }, { responses: { answer: response } })).isCorrect === true;
+          for (const letter of keyLetters(key)) {
+            if (!has(letter) && !PAD_LETTERS[profile].includes(letter)) note(profile, item.id, `letter ${letter}`);
+          }
+          // A set's braces are the ones no command, power or subscript opens.
+          const setBraces = /(?:^|[^\\A-Za-z\]}^_])\{/.test(key);
+          for (const [symbol, used] of [
+            ['{', setBraces], ['}', setBraces], ['|', setBraces && /\|/.test(key)], ['≠', /!=|≠/.test(key)],
+            ['<', /<(?!=)/.test(key)], ['>', />(?!=)/.test(key)], ['≤', /<=|≤/.test(key)], ['≥', />=|≥/.test(key)],
+            ['∅', /∅/.test(key)], ['ln', /(?<![A-Za-z])ln/.test(key)],
+          ]) if (used && !has(symbol)) note(profile, item.id, `${symbol} key`);
+          // A log's base has the logₐ key; any other subscript has none.
+          if (/(?<!log)_/.test(key)) note(profile, item.id, 'subscript');
+          if (/cbrt\(|\\sqrt\[|root\(/.test(key) && !nthRoot[profile]) note(profile, item.id, 'nth root');
+          if (/\*/.test(key)) {
+            // eslint-disable-next-line no-await-in-loop
+            const typed = await right(key.replace(/\s*\*\s*/g, '')) || await right(key.replace(/(\d+)\s*\*\s*(\d+)/g, '$1($2)').replace(/\s*\*\s*/g, ''));
+            if (!typed) note(profile, item.id, 'multiplication sign');
+          }
+          // eslint-disable-next-line no-await-in-loop
+          if (/\sand\s/.test(key) && !(await right(key.replace(/\s+and\s+/g, ',')))) note(profile, item.id, '"and"');
+          if (/\sor\s/.test(key)) note(profile, item.id, '"or"');
+          const unknown = [...key.replace(/\\[A-Za-z]+|[A-Za-z]+|\*|_|\[[^\]]*\]/g, '')].filter((character) => !PAD_CHARACTERS.test(character));
+          unknown.forEach((character) => note(profile, item.id, `symbol ${character}`));
+        }
+      }
+    }
+  }
+  assert.ok(fields > 500, `the banks hold typed expression and equation fields to check (found ${fields})`);
+  const sorted = (byFamily) => Object.fromEntries(Object.entries(byFamily).sort(([a], [b]) => a.localeCompare(b)).map(([family, reasons]) => [family, [...reasons].sort()]));
+  assert.deepEqual(sorted(untypeable.expression), STILL_UNTYPEABLE.expression, 'expression: what a phone cannot type changed (update STILL_UNTYPEABLE and the reason)');
+  assert.deepEqual(sorted(untypeable.equation), STILL_UNTYPEABLE.equation, 'equation: what a phone cannot type changed (update STILL_UNTYPEABLE and the reason)');
 });
