@@ -1105,8 +1105,11 @@ const dol = [
       '{{d}}|x^{{m}}|y^{{k}}',
       'Leaving off the bars around x^{{m}}: it is negative when x is.',
     ),
+    // A fourth root, as in the practice item it mirrors (PR 3): a sixth root
+    // made the one try range from 16x⁴y⁸ to 4096x³⁰y²⁴ (F-L1-EXIT-SPREAD).
+    // Within PR 3's ranges, 36 versions, so a class of 32 each gets its own.
     generator: {
-      parameters: { n: { type: 'choice', values: [4, 6] }, d: { type: 'int', min: 2, max: 4 }, m: { type: 'choice', values: [1, 3, 5] }, k: { type: 'choice', values: [2, 4] } },
+      parameters: { n: { type: 'choice', values: [4] }, d: { type: 'int', min: 2, max: 5 }, m: { type: 'choice', values: [1, 3, 5] }, k: { type: 'choice', values: [2, 4, 6] } },
       derived: { dn: 'pow(d, n)', e1: 'n*m', e2: 'n*k' },
     },
     questionFamily: { scope: 'assignment' },

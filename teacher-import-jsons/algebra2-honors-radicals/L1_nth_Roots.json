@@ -3108,14 +3108,13 @@
               "n": {
                 "type": "choice",
                 "values": [
-                  4,
-                  6
+                  4
                 ]
               },
               "d": {
                 "type": "int",
                 "min": 2,
-                "max": 4
+                "max": 5
               },
               "m": {
                 "type": "choice",
@@ -3129,7 +3128,8 @@
                 "type": "choice",
                 "values": [
                   2,
-                  4
+                  4,
+                  6
                 ]
               }
             },

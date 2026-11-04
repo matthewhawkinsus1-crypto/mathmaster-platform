@@ -69,3 +69,22 @@ test('L1 PR 1: the "positive square root" key is never negative, for any version
   // The radicand's exponent stays twice the root's.
   assert.deepEqual(values('e'), exponents.map((h) => 2 * h));
 });
+
+test('L1 Exit Ticket 1: the root is the practice item\'s, so the one try is no harder than PR 3', () => {
+  // The exit ticket mirrors PR 3, a fourth root. A sixth root as well made the
+  // one try range from ⁴√(16x⁴y⁸) to ⁶√(4096x³⁰y²⁴) (F-L1-EXIT-SPREAD).
+  const file = lesson('L1_nth_Roots.json');
+  const practice = find(file, 'a2r1-p-3');
+  const exit = find(file, 'a2r1-dol-1');
+  assert.match(practice.prompt, /\\sqrt\[4\]/);
+  const { parameters } = exit.generator;
+  assert.deepEqual(parameters.n.values, [4], 'the index is always 4');
+  const range = ({ min, max }) => Array.from({ length: max - min + 1 }, (_, index) => min + index);
+  const largest = Math.max(...parameters.n.values.flatMap((n) => range(parameters.d).map((d) => d ** n)));
+  const practiceLargest = Math.max(...range(practice.generator.parameters.d).map((d) => d ** 4));
+  assert.ok(largest <= practiceLargest && largest <= 3 ** 6, `the largest coefficient, ${largest}, is within practice's ${practiceLargest} and 729`);
+  // Each exponent is within practice's (PR 3 names y's exponent n, the exit ticket k).
+  const most = (values) => 4 * Math.max(...values);
+  assert.ok(most(parameters.m.values) <= most(practice.generator.parameters.m.values), 'x\'s exponent is within practice\'s');
+  assert.ok(most(parameters.k.values) <= most(practice.generator.parameters.n.values), 'y\'s exponent is within practice\'s');
+});
