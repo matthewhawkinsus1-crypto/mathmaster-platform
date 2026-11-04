@@ -189,7 +189,11 @@ const copyCommon = (source, target = {}) => {
   // teacher's own version of the item's words for a student whose profile names
   // that language (TT22; authoredTranslation.js). It was dropped here, so no
   // authored translation, of the prompt or anything else, ever reached a student.
-  ['scaffold','prompt','activityRole','dok','difficultyBand','purpose','evidenceWeight','differentiation','calculator','calculatorPolicy','examCalculatorMode','assessmentContext','context','familyId','familyVersion','assessedConstruct','taskType','representation','ccmrChallengeTier','ccmrFamilyRole','ccmrAuthenticLanguage','assessmentItemFormat','ccmrSource','solutionReview','attemptFeedback','misconceptions','supportHints','hints','hint','translations','guidedNotes','guidedSteps','referenceInfo','referenceSheet','representSolution','solutionRepresentations','representationAsk','showEquation'].forEach((key) => {
+  // `directionSteps` (["Find …", "Then write …"]) is the item's own "Break it
+  // down" restatement for a student whose plan gives chunked directions
+  // (directionChunks.js reads it first). It was dropped here too, so every
+  // student got the rule-based split instead of the steps the author wrote.
+  ['scaffold','prompt','activityRole','dok','difficultyBand','purpose','evidenceWeight','differentiation','calculator','calculatorPolicy','examCalculatorMode','assessmentContext','context','familyId','familyVersion','assessedConstruct','taskType','representation','ccmrChallengeTier','ccmrFamilyRole','ccmrAuthenticLanguage','assessmentItemFormat','ccmrSource','solutionReview','attemptFeedback','misconceptions','supportHints','hints','hint','translations','guidedNotes','guidedSteps','directionSteps','referenceInfo','referenceSheet','representSolution','solutionRepresentations','representationAsk','showEquation'].forEach((key) => {
     if (source[key] != null) target[key] = source[key];
   });
   // Canonical V5 questions keep the normalized mathematical intent that chose

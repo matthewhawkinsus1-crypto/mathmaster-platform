@@ -37,6 +37,7 @@ import { displayTableFor } from '../../src/platform/question/displayTable.js';
 import { backUpStepFor, backUpStepWritten } from '../../src/platform/supports/feedback/backUpStep.js';
 import { readComposedQuestion } from '../../src/platform/workflow/questionWorkflow.js';
 import { selectPersistentWorkflowGraph } from '../../src/platform/workflow/workflowPresentation.js';
+import { studentBuildInequalityEnabled } from '../../functions/shared/toolMath/systemsWorkspace/inequalityBuilderAdapter.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const ROOT = new URL('../../', import.meta.url);
@@ -183,9 +184,11 @@ test('on a real exit ticket, Read aloud says the graph without a position while 
     return (workflow?.length ? selectPersistentWorkflowGraph({ content, workflow, checkedGraph: null }) : null) || question.graph;
   };
   // A graph the student constructs (Systems Workspace graph mode, `interaction:
-  // "construct"`) carries only the window of the plane they draw on: nothing
-  // is drawn for them, and it is the workspace's plane, never this figure.
-  const constructed = (question) => question.type === 'systemsWorkspace' && question.interaction === 'construct';
+  // "construct"`, and its student-build inequalities: boundary, style, shading)
+  // carries only the window of the plane they draw on: nothing is drawn for
+  // them, and it is the workspace's plane, never this figure.
+  const constructed = (question) => question.type === 'systemsWorkspace'
+    && (question.interaction === 'construct' || studentBuildInequalityEnabled(question));
   const assessed = realQuestions().filter(({ role, question }) => ['dol', 'quiz', 'test'].includes(role) && question.graph && !constructed(question));
   assert.ok(assessed.length >= 6, `${assessed.length} real assessment items with a graph`);
   assessed.forEach(({ stored, question }) => {
