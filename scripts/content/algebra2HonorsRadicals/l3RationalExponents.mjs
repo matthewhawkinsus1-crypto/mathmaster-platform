@@ -571,21 +571,24 @@ const practice = [
     responses: [
       number('sixthRoot', '⁶√64 =', '2'),
       number('cubeRoot', '∛(−8) =', '-2'),
-      choice('verdict', 'The two answers differ because…', [
-        'reducing 2/6 to 1/3 changes the value when the base is negative: the exponent laws hold for nonnegative bases',
-        'Ben made an arithmetic error',
-        'Ana made an arithmetic error',
-        '(−8)^(2/6) has two values',
-      ], 'reducing 2/6 to 1/3 changes the value when the base is negative: the exponent laws hold for nonnegative bases'),
+      // Ben's first step is the error, as the rule part below says: a negative
+      // base's exponent is read in lowest terms (PR #537 walkthrough,
+      // F-L3-PR8-KEY). The key had blamed Ana's reduction, which that rule requires.
+      choice('verdict', 'Who made the error?', [
+        'Ben: the law that turns it into ⁶√((−8)²) needs a base ≥ 0',
+        'Ana: the exponent 2/6 may not be reduced when the base is negative',
+        'Ben: ⁶√64 is −2, not 2, so his last step is the error',
+        'Neither: (−8)^(2/6) has two values, so both are right',
+      ], 'Ben: the law that turns it into ⁶√((−8)²) needs a base ≥ 0'),
       choice('rule', 'So, for a negative base, a rational exponent must be written in…', ['lowest terms', 'any form', 'decimal form', 'a form with an even denominator'], 'lowest terms'),
     ],
-    hints: ['Square −8 first, then take the sixth root.', 'An odd root of a negative number is negative.', 'Which step changed a power of a negative base?'],
+    hints: ['Square −8 first, then take the sixth root.', 'An odd root of a negative number is negative.', 'Which first step uses an exponent law with a condition on the base?'],
     scaffold: backUp('(−8)² equals…', ['64', '−64'], '64'),
     solutionReview: review(
       'Exponent laws need a nonnegative base.',
-      ['Ben: (−8)² = 64 and ⁶√64 = 2. Ana: (−8)^(1/3) = −2.', 'Both computations are correct; the expressions differ because reducing 2/6 to 1/3 for a negative base is not allowed — (bᵐ)^(1/n) = (b^(1/n))ᵐ needs b ≥ 0 when n is even.', 'So b^(x/y) is defined with x/y in lowest terms: (−8)^(1/3) = −2.'],
-      'They differ; write the exponent in lowest terms.',
-      'Applying (bᵐ)^(1/n) = (b^(1/n))ᵐ to a negative base with an even n.',
+      ['Ben: (−8)² = 64 and ⁶√64 = 2. Ana: (−8)^(1/3) = −2.', 'Ben’s first step is the error: (−8)^(2/6) = ⁶√((−8)²) uses (bᵐ)^(1/n) = b^(m/n), which needs b ≥ 0 when n is even.', 'For a negative base, b^(m/n) is read with m/n in lowest terms: (−8)^(2/6) = (−8)^(1/3) = −2, so Ana is right.'],
+      'Ben made the error; (−8)^(2/6) = −2. Write the exponent in lowest terms.',
+      'Applying (bᵐ)^(1/n) = b^(m/n) to a negative base with an even n.',
     ),
   },
   {
