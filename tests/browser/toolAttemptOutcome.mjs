@@ -367,6 +367,38 @@ for (const role of ['dol', 'quiz', 'test']) {
   await context.close();
 }
 
+// ---------------------------------- a fixed-category sort that asks for reasons
+// F-SORT-NO-REASON. Where the author asks for a reason per category, each
+// category that holds cards shows the box ("For your teacher"), Check waits
+// for them, and the reason is saved without being marked.
+{
+  const { context, page } = await open('chromebook', 'practice', 'sortReasons');
+  const checkButton = page.getByRole('button', { name: /^(Check my sort|Submit)/ }).first();
+  check(await page.locator('textarea').count() === 0, 'sort reasons: no box for a category that holds no cards');
+  for (const [card, category] of [['Card A', 'Even'], ['Card B', 'Odd'], ['Card C', 'Even'], ['Card D', 'Odd']]) {
+    await page.getByRole('button', { name: `${category}: place ${card} here` }).click();
+    await page.waitForTimeout(120);
+  }
+  check(await page.locator('textarea').count() === 2 && await page.locator('[data-rationale-audience]').count() === 2,
+    'sort reasons: one box per category, each saying who reads it');
+  check(await checkButton.isDisabled() && /explanation for each category/.test(await page.evaluate(() => document.body.innerText)),
+    'sort reasons: Check waits for the reasons, and says so');
+  const labels = await page.locator('textarea').evaluateAll((boxes) => boxes.map((box) => box.getAttribute('aria-label')));
+  check(new Set(labels).size === 2 && labels.some((label) => /Even/.test(label)) && labels.some((label) => /Odd/.test(label)),
+    'sort reasons: each box is named for its category', labels.join(' | '));
+  const boxes = page.locator('textarea');
+  await boxes.nth(0).fill('Each of these numbers divides by 2 with nothing left.');
+  await boxes.nth(1).fill('Each of these numbers leaves 1 when divided by 2.');
+  await page.waitForTimeout(150);
+  check(!(await checkButton.isDisabled()), 'sort reasons: with both reasons written, Check is ready');
+  check((await page.evaluate(() => document.body.innerText)).match(/Saved for your teacher\. It is not marked right or wrong\./g)?.length === 2, 'sort reasons: the reason is saved, not marked');
+  await checkButton.click();
+  await page.waitForFunction(() => /Correct|tries? left|Your answer is saved/.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {});
+  const grades = await page.evaluate(() => window.__mmGrades);
+  check(grades.length === 1 && grades[0].isCorrect === true, 'sort reasons: the right sort with its reasons is correct', JSON.stringify(grades));
+  await context.close();
+}
+
 // ------------------------------------------------- π, e and logₐ (TL23)
 // A keypad offers π, e and logₐ only where the item's math uses them — on
 // practice. An assessment item keeps every key: its keypad says nothing about

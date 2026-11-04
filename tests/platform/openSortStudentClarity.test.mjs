@@ -73,3 +73,15 @@ test('a missed fixed-category sort marks its wrong cards only while the verdict 
   assert.match(board, /<ResultPill ok=\{feedback\.isCorrect\} showFocus=\{!wrongShown\.length\}/);
   assert.match(board, /is not in the right category yet\. It is marked above\./);
 });
+
+// F-SORT-NO-REASON: the fixed-category board shows the reason box for a
+// category that holds cards, and only when the item asks for it.
+test('a fixed-category sort shows a reason box per category with cards, only when the item asks', () => {
+  const controlledBoard = region(board, '<div ref={boardRef}>\n          <Panel title={`Cards to classify', '\n      ) : (', 'the fixed-category board');
+  assert.match(controlledBoard, /\{requireRationale && group\.itemIds\.length > 0 && rationaleField\(group, groupIndex, true\)\}/);
+  assert.match(board, /\{requireRationale && rationaleField\(group, groupIndex, false\)\}/);
+  // The box is for the teacher and says so; it is never part of the verdict shown to the student.
+  const field = region(board, 'const rationaleField = (', '\n  );', 'the reason box');
+  assert.match(field, /data-rationale-audience/);
+  assert.match(field, /It is not marked right or wrong\./);
+});

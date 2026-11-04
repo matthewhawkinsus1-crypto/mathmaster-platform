@@ -306,6 +306,37 @@ test('controlled: a group whose id is not an authored category earns nothing', (
   assert.equal(result.score, 4 / 6);
 });
 
+// F-SORT-NO-REASON: a fixed-category sort asks for a reason per category only
+// when the author asks, and the reason is saved for the teacher, never marked.
+test('controlled: a reason per category is required only when the author asks for it', () => {
+  assert.equal(openSortSettings(controlledQuestion()).requireRationale, false, 'unauthored: as before');
+  assert.equal(openSortSettings(controlledQuestion({ requireRationale: false })).requireRationale, false);
+  assert.equal(openSortSettings(controlledQuestion({ requireRationale: true })).requireRationale, true);
+  assert.equal(openSortSettings(openQuestion()).requireRationale, true, 'an open sort still defaults to asking');
+
+  const asked = controlledQuestion({ requireRationale: true });
+  const sorted = { positive: ['A', 'D'], negative: ['B', 'E'], none: ['C', 'F'] };
+  const bare = grade(asked, bins(sorted));
+  assert.equal(bare.isComplete, false, 'every category with cards needs its reason before the sort is complete');
+  assert.equal(bare.isCorrect, false);
+  assert.equal(part(bare, 'rationale').isComplete, false);
+  const reasoned = bins(sorted);
+  reasoned.groups.forEach((group) => { group.rationale = 'every card here shows the same direction'; });
+  const done = grade(asked, reasoned);
+  assert.equal(done.isComplete, true);
+  assert.equal(done.isCorrect, true);
+  assert.equal(done.score, 1);
+  // The reason is for the teacher: not marked, and a wrong sort scores what it always did.
+  assert.equal(part(done, 'rationale').graded, false);
+  const oneOff = bins({ positive: ['A', 'D', 'C'], negative: ['B', 'E'], none: ['F'] });
+  oneOff.groups.forEach((group) => { group.rationale = 'every card here shows the same direction'; });
+  assert.equal(grade(asked, oneOff).score, 5 / 6);
+  // A category left empty needs no reason.
+  const twoUsed = bins({ positive: ['A', 'D', 'C', 'F'], negative: ['B', 'E'] });
+  twoUsed.groups.forEach((group) => { group.rationale = group.itemIds.length ? 'every card here shows the same direction' : ''; });
+  assert.equal(grade(asked, twoUsed).isComplete, true);
+});
+
 // F-SORT-WHICH-CARD: after a wrong try the board marks the misplaced cards.
 // Which cards is a pure function of the work and the key; grading never reads it.
 test('controlled: the cards in the wrong category are named, and only those', () => {

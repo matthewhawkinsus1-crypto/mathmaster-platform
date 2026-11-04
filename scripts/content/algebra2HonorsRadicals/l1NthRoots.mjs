@@ -212,6 +212,8 @@ const classwork = [
     questionId: 'a2r1-cw-2',
     ...T,
     studentActions: ['sortIntoCategories'],
+    // The task asks for a reason for each group, so the board does too (F-SORT-NO-REASON).
+    requireRationale: true,
     dok: 2,
     difficultyBand: 2,
     prompt: 'Real nth roots. Sort each set of roots by how many REAL roots it has. Use the index (even or odd) and the sign of the radicand. Then give a reason for each group.',

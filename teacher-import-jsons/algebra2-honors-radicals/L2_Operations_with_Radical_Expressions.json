@@ -371,6 +371,7 @@
           "studentActions": [
             "sortIntoCategories"
           ],
+          "requireRationale": true,
           "dok": 2,
           "difficultyBand": 3,
           "prompt": "Like radical expressions. Sort each expression: after you simplify it, can it be combined with √5, or not? Give a reason for each group.",

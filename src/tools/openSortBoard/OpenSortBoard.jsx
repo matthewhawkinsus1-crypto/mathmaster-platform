@@ -312,6 +312,20 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
     );
   };
 
+  // The explanation is for the teacher, never marked right or wrong (GR16):
+  // the counter is only the length the Check waits for, and once that is met it
+  // says who reads it. One per group; in a fixed-category sort, one per
+  // category that holds cards, when the author asks for it (F-SORT-NO-REASON).
+  const rationaleField = (group, groupIndex, inFixedCategory) => (
+    <label style={{ display: 'block', marginTop: 10, fontWeight: 800, color: 'var(--mm-text)' }}>
+      Why do these belong together? <span data-rationale-audience="" style={{ fontWeight: 600, color: 'var(--mm-text-muted)' }}>For your teacher</span>
+      <textarea value={group.rationale} onChange={(event) => updateGroup(group.id, { rationale: event.target.value })} aria-label={rationaleInputLabel(group, groupIndex, { controlled: inFixedCategory })} placeholder="Describe the feature every card in this group shares." rows={2} style={{ ...input, fontFamily: 'inherit', minHeight: 72, resize: 'vertical' }} />
+      <span style={{ display: 'block', marginTop: 4, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{group.rationale.trim().length < rationaleMinLength
+        ? `${group.rationale.trim().length}/${rationaleMinLength} characters needed before checking`
+        : 'Saved for your teacher. It is not marked right or wrong.'}</span>
+    </label>
+  );
+
   // Named only while this Check's verdict is on screen, and cleared with it
   // the moment the student changes the work (clearFeedback).
   const wrongShown = feedback && feedback.isCorrect === false ? wrongCardIds : [];
@@ -354,6 +368,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
           'Read or inspect one card.',
           'Select the category that best describes it.',
           'Select a placed card to move it back if you want to change your choice.',
+          ...(requireRationale ? ['Say why the cards in each category belong together.'] : []),
           'When every card is placed, submit your sort.',
         ] : [
           'Select a card, then select a group to place it there.',
@@ -363,7 +378,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
             ? 'Submit your sort when it is finished. More than one way of grouping can be right, as long as every card in a group shares the feature you named.'
             : 'Submit your sort when it is finished: every card in a group should share the feature you named.',
         ]}
-        note={controlled ? 'The categories are fixed, so the automatic grade checks the exact mathematical classification.' : 'Your explanations are saved for your teacher. The automatic grade checks the mathematics of the grouping; it does not pretend to judge the quality of your prose.'}
+        note={controlled ? `The categories are fixed, so the automatic grade checks the exact mathematical classification.${requireRationale ? ' Your reasons are saved for your teacher; they are not marked.' : ''}` : 'Your explanations are saved for your teacher. The automatic grade checks the mathematics of the grouping; it does not pretend to judge the quality of your prose.'}
       />
 
       <p role="status" aria-live="polite" style={srOnly}>{announcement}</p>
@@ -411,6 +426,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
                     {group.itemIds.map((id) => placedCard({ id, group, groupIndex, controlled: true }))}
                     {!group.itemIds.length && <span style={{ color: 'var(--mm-text-subtle)', alignSelf: 'center' }}>No cards here yet.</span>}
                   </div>
+                  {requireRationale && group.itemIds.length > 0 && rationaleField(group, groupIndex, true)}
                 </Panel>
               </div>
             ))}
@@ -448,18 +464,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
                     {group.itemIds.map((id) => placedCard({ id, group, groupIndex, controlled: false }))}
                     {!group.itemIds.length && <span style={{ color: 'var(--mm-text-subtle)', alignSelf: 'center' }}>No cards in this group yet.</span>}
                   </div>
-                  {/* The explanation is for the teacher, never marked right or
-                      wrong (GR16): the counter is only the length the Check
-                      waits for, and once that is met it says who reads it. */}
-                  {requireRationale && (
-                    <label style={{ display: 'block', marginTop: 10, fontWeight: 800, color: 'var(--mm-text)' }}>
-                      Why do these belong together? <span data-rationale-audience="" style={{ fontWeight: 600, color: 'var(--mm-text-muted)' }}>For your teacher</span>
-                      <textarea value={group.rationale} onChange={(event) => updateGroup(group.id, { rationale: event.target.value })} aria-label={rationaleInputLabel(group, groupIndex)} placeholder="Describe the feature every card in this group shares." rows={2} style={{ ...input, fontFamily: 'inherit', minHeight: 72, resize: 'vertical' }} />
-                      <span style={{ display: 'block', marginTop: 4, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{group.rationale.trim().length < rationaleMinLength
-                        ? `${group.rationale.trim().length}/${rationaleMinLength} characters needed before checking`
-                        : 'Saved for your teacher. It is not marked right or wrong.'}</span>
-                    </label>
-                  )}
+                  {requireRationale && rationaleField(group, groupIndex, false)}
                 </Panel>
               </div>
             );
@@ -471,7 +476,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
 
       <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <button type="button" data-work-view-check="true" onClick={check} disabled={!ready} style={{ ...button, background: ready ? '#1a73e8' : '#dadce0', color: ready ? '#fff' : 'var(--mm-text-muted)', border: 0, minHeight: 46 }}><SubmitText>Check my sort</SubmitText></button>
-        {!ready && <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{unassigned.length ? `Place ${unassigned.length} remaining card${unassigned.length === 1 ? '' : 's'}.` : usedGroups.length < minGroups ? `Use at least ${minGroups} groups.` : !namesComplete ? 'Give each used group a short mathematical name.' : !rationaleComplete ? 'Finish the explanation for each used group.' : 'Finish the sort.'}</span>}
+        {!ready && <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{unassigned.length ? `Place ${unassigned.length} remaining card${unassigned.length === 1 ? '' : 's'}.` : !controlled && usedGroups.length < minGroups ? `Use at least ${minGroups} groups.` : !namesComplete ? 'Give each used group a short mathematical name.' : !rationaleComplete ? (controlled ? 'Finish the explanation for each category that has cards.' : 'Finish the explanation for each used group.') : 'Finish the sort.'}</span>}
         {feedback && <ResultPill ok={feedback.isCorrect} showFocus={!wrongShown.length} message={feedback.isCorrect ? null : (controlled ? controlledMissMessage(wrongShown.length) : 'Not every group holds together yet. A group needs one feature that every card in it has and the cards in your other groups do not. Check each card against its group\'s name.')}>{feedback.isCorrect ? (controlled ? 'Correct classification' : 'Valid mathematical sort') : (controlled ? 'Some cards need to move' : 'Revise the grouping')}</ResultPill>}
       </div>
       <HintPanel hints={questionData.hints || (controlled ? [

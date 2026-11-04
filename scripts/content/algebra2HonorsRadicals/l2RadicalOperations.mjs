@@ -117,6 +117,8 @@ const classwork = [
     questionId: 'a2r2-cw-1',
     ...T,
     studentActions: ['sortIntoCategories'],
+    // The task asks for a reason for each group, so the board does too (F-SORT-NO-REASON).
+    requireRationale: true,
     dok: 2,
     difficultyBand: 3,
     prompt: 'Like radical expressions. Sort each expression: after you simplify it, can it be combined with √5, or not? Give a reason for each group.',

@@ -76,5 +76,7 @@ test('each group\'s explanation box is named for its group, starting with the wo
   names.forEach((name) => assert.ok(name.startsWith('Why do these belong together?')));
   const board = readFileSync(new URL('../../src/tools/openSortBoard/OpenSortBoard.jsx', import.meta.url), 'utf8');
   const box = board.slice(board.indexOf('Why do these belong together?'), board.indexOf('characters needed before checking'));
-  assert.match(box, /<textarea[\s\S]*?aria-label=\{rationaleInputLabel\(group, groupIndex\)\}/, 'the box takes its group\'s name');
+  assert.match(box, /<textarea[\s\S]*?aria-label=\{rationaleInputLabel\(group, groupIndex, \{ controlled: inFixedCategory \}\)\}/, 'the box takes its group\'s name');
+  // A fixed-category sort names it for the category, as its placement words do (F-SORT-NO-REASON).
+  assert.equal(rationaleInputLabel({ id: 'two', name: 'Two real roots' }, 0, { controlled: true }), 'Why do these belong together? (Two real roots)');
 });

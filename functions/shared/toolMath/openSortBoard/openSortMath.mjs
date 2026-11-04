@@ -168,7 +168,12 @@ export const openSortSettings = (question = {}) => {
     minGroups,
     maxGroups,
     rationaleMinLength: Math.max(0, Number(question?.rationaleMinLength ?? 12)),
-    requireRationale: controlled ? false : question?.requireRationale !== false,
+    // An open sort asks for a reason per group unless the author turns it off.
+    // A fixed-category sort asks for one per category only when the author
+    // turns it ON: a task that says "give a reason for each group" has no
+    // other way to get one (F-SORT-NO-REASON), and every controlled sort
+    // authored without it stays as it was.
+    requireRationale: controlled ? question?.requireRationale === true : question?.requireRationale !== false,
     requireGroupNames: controlled ? false : question?.requireGroupNames !== false,
   };
 };
@@ -209,7 +214,7 @@ export const openSortProgress = ({ settings, items = [], groups = [] }) => {
     || usedGroups.every((group) => group.rationale.trim().length >= settings.rationaleMinLength);
   const namesComplete = !settings.requireGroupNames || usedGroups.every((group) => group.name.trim().length >= 2);
   const ready = settings.controlled
-    ? unassigned.length === 0
+    ? unassigned.length === 0 && rationaleComplete
     : unassigned.length === 0 && usedGroups.length >= settings.minGroups && namesComplete && rationaleComplete;
   return { unassigned, usedGroups, placedGroups, namesComplete, rationaleComplete, ready };
 };

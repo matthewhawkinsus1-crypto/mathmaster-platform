@@ -2202,7 +2202,9 @@ const compileOne = (q, index, repairs) => {
         validSchemes: q.validSchemes || board.validSchemes,
         minGroups: q.minGroups ?? board.minGroups,
         maxGroups: q.maxGroups ?? board.maxGroups,
-        requireRationale: controlled ? false : (q.requireRationale ?? board.requireRationale),
+        // A fixed-category sort asks for a reason per category only when the
+        // author says so (F-SORT-NO-REASON); unauthored, it never did.
+        requireRationale: controlled ? (q.requireRationale ?? board.requireRationale) === true : (q.requireRationale ?? board.requireRationale),
         requireGroupNames: controlled ? false : (q.requireGroupNames ?? board.requireGroupNames),
         rationaleMinLength: q.rationaleMinLength ?? board.rationaleMinLength,
         hints: q.hints || board.hints,

@@ -14,6 +14,7 @@
 //   ?tool=board           the Linear Multiple Representations board, whose
 //                         Submit verdict is its own live region
 //   ?tool=sort            a fixed-category sort of four cards (F-SORT-WHICH-CARD)
+//   ?tool=sortReasons     the same sort, whose author asks for a reason per category
 //   ?tool=server          Inverse & Composition, server-graded (Path): the tool
 //                         shows no verdict of its own, so the engine's box stays
 //   ?tool=literal         an ordinary typed question, not a tool: the engine's box
@@ -61,6 +62,16 @@ const QUESTIONS = {
     type: 'openSortBoard',
     mode: 'controlled',
     prompt: 'Sort each card into its category.',
+    categories: [{ id: 'even', label: 'Even' }, { id: 'odd', label: 'Odd' }],
+    items: [{ id: 'a', label: 'Card A', text: 'The number 2' }, { id: 'b', label: 'Card B', text: 'The number 3' }, { id: 'c', label: 'Card C', text: 'The number 4' }, { id: 'd', label: 'Card D', text: 'The number 5' }],
+    validSchemes: [{ id: 'answer', groups: [{ id: 'even', itemIds: ['a', 'c'] }, { id: 'odd', itemIds: ['b', 'd'] }] }],
+  },
+  sortReasons: {
+    id: 'attempt-outcome-sort-reasons',
+    type: 'openSortBoard',
+    mode: 'controlled',
+    requireRationale: true,
+    prompt: 'Sort each card into its category. Give a reason for each group.',
     categories: [{ id: 'even', label: 'Even' }, { id: 'odd', label: 'Odd' }],
     items: [{ id: 'a', label: 'Card A', text: 'The number 2' }, { id: 'b', label: 'Card B', text: 'The number 3' }, { id: 'c', label: 'Card C', text: 'The number 4' }, { id: 'd', label: 'Card D', text: 'The number 5' }],
     validSchemes: [{ id: 'answer', groups: [{ id: 'even', itemIds: ['a', 'c'] }, { id: 'odd', itemIds: ['b', 'd'] }] }],
