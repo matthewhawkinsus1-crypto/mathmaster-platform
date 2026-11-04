@@ -12,7 +12,7 @@ import { gradeMultiAnswerResponse } from '../functions/shared/ordinaryResponseGr
 // Registers the factoredForm / simplestRadicalForm comparators the shared
 // field grader reads (kept out of the first load: answerUtils.mjs).
 import '../functions/shared/formSpecificFieldGrading.mjs';
-import { labelHasDelimitedMath, resolveLabelFormat } from './labelFormat';
+import { choiceShowsMixedMath, labelHasDelimitedMath, resolveLabelFormat } from './labelFormat';
 import { inferRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
 import { describeAnswerFormat, describeBoxPlaceholder } from './platform/interaction/answerFormatHints.js';
 import { keypadProfileForResponseField } from './platform/interaction/interactionContract.js';
@@ -40,6 +40,11 @@ const accessibleFieldLabel = (field) => {
 
 const renderChoiceText = (value, { dimensions = false } = {}) => {
   const text = String(value ?? '');
+  // Words with mathematics in them, or LaTeX the word test leaves as words
+  // ("$y\ge 2x+1$ and $y\le -x+3$", "$\frac{1}{2}$"): the words as words and
+  // each span typeset, as a field label is. As plain text the student saw the
+  // dollar signs and the LaTeX, on 466 options of the CCMR bank.
+  if (choiceShowsMixedMath(text)) return <MathText>{text}</MathText>;
   const format = resolveLabelFormat(text);
   return format
     // Named by its own text: every choice was announced "Mathematical

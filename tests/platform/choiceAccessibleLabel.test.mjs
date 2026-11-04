@@ -14,11 +14,19 @@ test('a choice that starts with a price keeps its dollar sign', () => {
   assert.equal(choiceAccessibleLabel('$25'), '$25');
 });
 
-test('a choice wrapped in math delimiters is named by the mathematics inside', () => {
-  assert.equal(choiceAccessibleLabel('$\\frac{1}{2}$'), '\\frac{1}{2}');
+test('a choice wrapped in math delimiters is named by the mathematics inside, LaTeX as characters', () => {
   assert.equal(choiceAccessibleLabel('$$x = 3$$'), 'x = 3');
-  assert.equal(choiceAccessibleLabel('\\(y \\le 4\\)'), 'y \\le 4');
+  assert.equal(choiceAccessibleLabel('$4x-5y=19$'), '4x-5y=19');
   assert.equal(choiceAccessibleLabel('  3 × 4 '), '3 × 4');
+  // LaTeX the screen draws as MathText is named as a person reads it, never by its backslashes.
+  assert.equal(choiceAccessibleLabel('$\\frac{1}{2}$'), '1/2');
+  assert.equal(choiceAccessibleLabel('\\(y \\le 4\\)'), 'y ≤ 4');
+});
+
+test('a choice of words and mathematics is named by both, without its dollar signs', () => {
+  assert.equal(choiceAccessibleLabel('$y\\ge 2x+1$ and $y\\le -x+3$'), 'y≥ 2x+1 and y≤ -x+3');
+  assert.equal(choiceAccessibleLabel('It is an interpolation within the observed $x$-values.'), 'It is an interpolation within the observed x-values.');
+  assert.equal(choiceAccessibleLabel('$\\begin{cases}y=2x+1\\\\y=-x+4\\end{cases}$'), 'y=2x+1; y=-x+4');
 });
 
 test('the multi-answer choices take their names from it', () => {

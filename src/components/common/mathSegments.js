@@ -377,6 +377,8 @@ export const splitMathSegments = (value) => {
 export const toPlainMath = (value) => splitMathSegments(value)
   .map((segment) => (isMathSegment(segment) ? unwrapMathSegment(segment).value : segment))
   .join('')
+  // A system written as cases is its equations, one after another.
+  .replace(/\\begin\s*\{cases\}([\s\S]*?)\\end\s*\{cases\}/g, (match, rows) => rows.split(/\\\\/).map((row) => row.trim()).filter(Boolean).join('; '))
   .replace(/\\[dt]?frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, '$1/$2')
   .replace(/\\sqrt\s*\{([^{}]*)\}/g, '√($1)')
   .replace(/\\(?:le|leq)\b/g, '≤')
