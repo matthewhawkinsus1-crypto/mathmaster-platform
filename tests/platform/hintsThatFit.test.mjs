@@ -228,9 +228,10 @@ test('over every real lesson, every teacher-written hint is shown, and none of t
   // bank hints) and the Algebra I Module 3 Topic 2 Lessons 4 and 5 with their
   // Honors files 364 (87, 95, 85 and 97), and the Algebra I Module 3 Topic 1
   // Lesson 2 file, Literal Equations, 76 (two on each Warm-Up, Classwork and
-  // Practice question), every one shown (none is in BASE_DROPPED, and
-  // nowDropped is unchanged).
-  assert.equal(total, 200 + 87 + 90 + 39 + 66 + 44 + 417 + 430 + 229 + 272 + 58 + 224 + 364 + 76);
+  // Practice question) and its Honors file 76 (two on each but the four
+  // audited items, which carry the bank's one), every one shown (none is in
+  // BASE_DROPPED, and nowDropped is unchanged).
+  assert.equal(total, 200 + 87 + 90 + 39 + 66 + 44 + 417 + 430 + 229 + 272 + 58 + 224 + 364 + 76 + 76);
   assert.equal(BASE_DROPPED.length, 32);
   // The Lesson 3 Honors file repeats the Regular lesson's questions (and their
   // ids), so each hint that is shown now is listed once, not once per file.

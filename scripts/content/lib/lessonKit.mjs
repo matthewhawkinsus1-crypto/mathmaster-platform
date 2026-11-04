@@ -150,6 +150,13 @@ export const auditedCcmrQuestion = ({ framework = 'digitalSAT', documentId, ques
   const solutionReview = Object.fromEntries(Object.entries(intent.solutionReview || {}).map(([key, value]) => (
     [key, Array.isArray(value) ? value.map(plainSolutionText) : plainSolutionText(value)]
   )));
+  // The bank's feedback after a miss and its support hint are plain UI text
+  // too: a line that writes its mathematics in $…$ ("The coefficient $8$
+  // stays on the top") is rewritten the same way. A line with none is kept.
+  const plainLines = (lines) => lines.map((line) => (String(line).includes('$') ? plainSolutionText(line) : line));
+  ['attemptFeedback', 'supportHints'].forEach((key) => {
+    if (Array.isArray(intent[key])) intent[key] = plainLines(intent[key]);
+  });
   if (!solutionReview.commonError) {
     if (!commonError) throw new Error(`${documentId} names no usual mistake; write one.`);
     solutionReview.commonError = commonError;

@@ -396,10 +396,11 @@ test('HELP-11: Pre-Flight warns — never blocks — on answer-only worked solut
   // and Rational Exponents Lessons 1–3 (89: 32, 29 and 28) and the Algebra I
   // Module 3 Topic 2 Lessons 4 and 5 with their Honors files (131: 32, 36, 29
   // and 34), and the Algebra I Module 3 Topic 1 Lesson 2 file, Literal
-  // Equations (38: its Warm-Up, Classwork and Practice).
+  // Equations, and its Honors file (38 and 40: their Warm-Ups, Classwork and
+  // Practice).
   const practiceLike = itemsByRole().filter((item) => ['warmup', 'classwork', 'practice'].includes(item.role));
-  assert.equal(practiceLike.length, 265 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 26 + 89 + 131 + 38);
-  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 204 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 9 + 12 + 17 + 16 + 2 + 1 + 11 + 2 + 3 + 2 + 89 + 131 + 38);
+  assert.equal(practiceLike.length, 265 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 26 + 89 + 131 + 38 + 40);
+  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 204 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 9 + 12 + 17 + 16 + 2 + 1 + 11 + 2 + 3 + 2 + 89 + 131 + 38 + 40);
   // Wired into Pre-Flight as advice the teacher sees in the Check step, and
   // never as a diagnostic: any warning diagnostic makes an assignment "Needs
   // Review", which students never see (isUnpublishedDraft) — and most real

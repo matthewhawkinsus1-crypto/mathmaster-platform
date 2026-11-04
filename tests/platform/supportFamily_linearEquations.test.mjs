@@ -273,13 +273,14 @@ test('it claims nothing that is not a linear equation: the whole teacher-import 
   // hand-written one — and anything claimed is a linear equation the oracle
   // reads on its own.
   //
-  // Algebra I Module 3 Topic 1 Lesson 2 (Literal Equations) brought the
-  // family's other two kinds: formulas solved for one letter (P = 2l + 2w for
-  // w) and linear equations rewritten in slope-intercept form (8x − 2y = 12).
-  // Its items are judged as a student is given them — a generated slot by a
-  // delivered version, never by its raw {{template}} — and each one claimed is
-  // linear in the letter it asks for, checked exactly at a point by the oracle.
-  const LITERAL_LESSON = /^m3t1l2-/;
+  // Algebra I Module 3 Topic 1 Lesson 2 (Literal Equations, and its Honors
+  // file) brought the family's other two kinds: formulas solved for one
+  // letter (P = 2l + 2w for w) and linear equations rewritten in
+  // slope-intercept form (8x − 2y = 12). Its items are judged as a student is
+  // given them — a generated slot by a delivered version, never by its raw
+  // {{template}} — and each one claimed is linear in the letter it asks for,
+  // checked exactly at a point by the oracle.
+  const LITERAL_LESSON = /^m3t1l2h?-/;
   const claimed = questions.filter((question) => linearEquations.matches(question));
   const claimedElsewhere = claimed.filter((question) => !LITERAL_LESSON.test(String(question.questionId)));
   claimedElsewhere.forEach((question) => {
@@ -308,11 +309,13 @@ test('it claims nothing that is not a linear equation: the whole teacher-import 
     assert.ok(names.has(target), `${where}: the equation contains ${target}`);
     assert.equal(solveLinear(left, right, target, pointFor([...names].filter((name) => name !== target)))?.case, 'one', `${where}: linear in ${target}`);
   });
-  // Every formula and rewrite the lesson opens in the workspace is claimed but
-  // Z = A/B + C/D, whose letter sits under a fraction bar of its own.
+  // Every formula and rewrite the lessons open in the workspace is claimed but
+  // Z = A/B + C/D, whose letters sit under fraction bars of their own.
+  const underFractionBars = (question) => String(question.equation ?? question.equationLatex) === 'Z = A/B + C/D';
+  assert.equal(literalLesson.filter(underFractionBars).length, 3, 'Z = A/B + C/D for C in each file, and for D in the Honors file');
   assert.deepEqual(
     literalClaimed.map((question) => question.questionId),
-    literalLesson.filter((question) => question.type === 'stepAlgebra' && question.questionId !== 'm3t1l2-pr-20').map((question) => question.questionId),
+    literalLesson.filter((question) => question.type === 'stepAlgebra' && !underFractionBars(question)).map((question) => question.questionId),
   );
   readJson('drafts/district-dol2/assignment.json').sections.flatMap((section) => section.questions)
     .forEach((question) => assert.equal(linearEquations.matches(question), false, `district DOL: ${question.heading}`));

@@ -34,9 +34,9 @@ import { recoveryCandidateFamilies } from '../../functions/shared/recoveryConten
 // Module 3 Topic 2 Lesson 4 and 5 files and the Algebra II Honors radicals
 // lessons (added 2026-11-03) generate every Warm-Up and DOL question from an
 // assignment Question Family, so each section is 3/3/3 ready with nothing
-// prepared. So does the Algebra I Module 3 Topic 1 Lesson 2 file, Literal
-// Equations (added 2026-11-04): one registered family slot and two of its own
-// in the Warm-Up, three of its own in the DOL.
+// prepared. So do the Algebra I Module 3 Topic 1 Lesson 2 file, Literal
+// Equations, and its Honors file (added 2026-11-04): one registered family
+// slot and two of its own in each Warm-Up, three of its own in each DOL.
 const PINNED = Object.freeze({
   'docs/assignments/Algebra1_Linear_Multiple_Representations_V5_FAMILY_UPDATED.json': ['2/2/2 ready', '1/1/1 ready'],
   'docs/assignments/Algebra_II_Honors_3x3_Systems_Day1_V5_FINAL.json': ['0/0/2 unavailable', '0/0/2 unavailable'],
@@ -52,6 +52,7 @@ const PINNED = Object.freeze({
   'teacher-import-jsons/algebra1-module3/T1_L1_Solving_Linear_Equations.json': ['3/3/3 ready', '2/2/2 ready'],
   'teacher-import-jsons/algebra1-module3/T1_L1_Solving_Linear_Equations_Honors.json': ['3/3/3 ready', '2/2/2 ready'],
   'teacher-import-jsons/algebra1-module3/T1_L2_Literal_Equations.json': ['3/3/3 ready', '3/3/3 ready'],
+  'teacher-import-jsons/algebra1-module3/T1_L2_Literal_Equations_Honors.json': ['3/3/3 ready', '3/3/3 ready'],
   'teacher-import-jsons/algebra1-module3/T1_L3_Modeling_and_Solving_Linear_Inequalities.json': ['3/3/3 ready', '2/2/2 ready'],
   'teacher-import-jsons/algebra1-module3/T1_L3_Modeling_and_Solving_Linear_Inequalities_Honors.json': ['3/3/3 ready', '2/2/2 ready'],
   'teacher-import-jsons/algebra1-module3/T2_L1_Solving_Systems_by_Graphing.json': ['3/3/3 ready', '2/2/2 ready'],
@@ -89,8 +90,8 @@ const PINNED = Object.freeze({
 });
 
 const TOTALS = Object.freeze({
-  warmup: { questions: 135, now: 84, prepared: 106, lessonsWithSection: 46, lessonsReady: 36 },
-  dol: { questions: 126, now: 73, prepared: 92, lessonsWithSection: 46, lessonsReady: 34 },
+  warmup: { questions: 138, now: 87, prepared: 109, lessonsWithSection: 47, lessonsReady: 37 },
+  dol: { questions: 129, now: 76, prepared: 95, lessonsWithSection: 47, lessonsReady: 35 },
 });
 
 // What is left: [shape, questions, lessons], most first. A typed-and-chosen
@@ -181,8 +182,8 @@ test('the interval family is what changed: without it the five number-line quest
   assert.ok(!REPORT.withoutRecoveryByShape.some((entry) => entry.shape === intervalShape), 'none is left');
   // (78, 26 and 67 before the 2026-11-03 lessons, whose 21 + 21 questions and
   // 7 lessons never needed the interval family; nor did the 2026-11-04
-  // Literal Equations lesson's 3 + 3 questions and 1 lesson.)
-  assert.deepEqual([before.totals.warmup.prepared, before.totals.warmup.lessonsReady, before.totals.dol.prepared], [78 + 21 + 3, 26 + 7 + 1, 67 + 21 + 3]);
+  // Literal Equations lessons' 6 + 6 questions and 2 lessons.)
+  assert.deepEqual([before.totals.warmup.prepared, before.totals.warmup.lessonsReady, before.totals.dol.prepared], [78 + 21 + 6, 26 + 7 + 2, 67 + 21 + 6]);
 });
 
 test('the import\'s parse, which the report reads, plans exactly as Pre-Flight\'s model does for the lessons this changed', () => {
@@ -197,8 +198,8 @@ test('the import\'s parse, which the report reads, plans exactly as Pre-Flight\'
 test('the printed report says the same', () => {
   const text = renderRecoveryCoverageText(REPORT);
   assert.match(text, /^teacher-import-jsons\/algebra2-honors-module1\/L1_Day1_Interval_Domain_Range\.json +Warm-Up 3\/3 ready +DOL 1\/3 unavailable$/m);
-  assert.match(text, /^Warm-Up: 106 of 135 questions have Recovery once prepared \(84 with nothing prepared\); 36 of 46 lessons ready\.$/m);
-  assert.match(text, /^DOL: 92 of 126 questions have Recovery once prepared \(73 with nothing prepared\); 34 of 46 lessons ready\.$/m);
+  assert.match(text, /^Warm-Up: 109 of 138 questions have Recovery once prepared \(87 with nothing prepared\); 37 of 47 lessons ready\.$/m);
+  assert.match(text, /^DOL: 95 of 129 questions have Recovery once prepared \(76 with nothing prepared\); 35 of 47 lessons ready\.$/m);
   assert.match(text, /^ +31 {2}multiAnswer {2}\(9 lessons\)$/m);
   assert.match(text, /L1_Day1_Interval_Domain_Range\.json {2}DOL Q2 {2}graphAnalysis · domain \+ range {2}no-certified-family/);
 });

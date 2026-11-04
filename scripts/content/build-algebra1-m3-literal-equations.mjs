@@ -35,7 +35,7 @@
  */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { backUp, choice, guidedNotes, lessonText, number, pair, review, teks, writeLessonFile } from './lib/lessonKit.mjs';
+import { auditedCcmrQuestion, backUp, choice, guidedNotes, lessonText, number, pair, review, teks, writeLessonFile } from './lib/lessonKit.mjs';
 
 const P = 'm3t1l2';
 const FILE = 'teacher-import-jsons/algebra1-module3/T1_L2_Literal_Equations.json';
@@ -93,7 +93,7 @@ const standardForm = (A, B, C) => [
 
 /* ------------------------------------------------------------------ Warm-Up */
 
-const warmup = () => [
+const warmup = (P) => [
   {
     questionId: `${P}-wu-1`,
     ...teks('A.5A'),
@@ -171,7 +171,7 @@ const warmup = () => [
 
 /* ---------------------------------------------------------------- Classwork */
 
-const classwork = () => [
+const classwork = (P) => [
   solveFor({
     questionId: `${P}-cw-1`,
     prompt: 'Getting Started — Perimeter Perspectives. Juan and Mia have rectangular backyards that each share a side with a rectangular park. The city gives them the perimeter P of the park, in feet: $P = 2l + 2w$. Juan needs the width of the park. Rewrite the formula from Juan’s perspective: solve $P = 2l + 2w$ for $w$.',
@@ -396,7 +396,7 @@ const practiceFormula = ({ questionId, alignment = A12E, dok = 1, difficultyBand
   questionId, alignment, dok, difficultyBand, prompt, equation, variable, directionSteps, hints, scaffold, attemptFeedback, solutionReview,
 });
 
-const practice = () => [
+const practice = (P) => [
   // One step: one operation to undo.
   practiceFormula({
     questionId: `${P}-pr-1`,
@@ -775,7 +775,7 @@ const practice = () => [
 
 /* ---------------------------------------------------------------------- DOL */
 
-const dol = () => [
+const dol = (P) => [
   solveFor({
     questionId: `${P}-dol-1`,
     alignment: A12E_FORMS,
@@ -828,7 +828,423 @@ const dol = () => [
   }),
 ];
 
-/* ------------------------------------------------------------------- Lesson */
+/* ------------------------------------------------------------------- Honors */
+
+/*
+ * The Honors file is the same lesson from the same slides — the same nine
+ * Classwork questions — at Honors depth: fraction coefficients in the Warm-Up,
+ * fractional slopes and a line from two points, formulas with a grouped
+ * factor (P = 2(l + w), C = f + r(h − k)), the letter in a denominator (Z for
+ * D, the slide's 4b) and the letter twice (A = xB + xC, solved by factoring),
+ * a model, the units of h = 3V/B, when x = (y − b)/m fails, one line in every
+ * form, and four audited CCMR items from MathMaster's bank in Practice, so
+ * Pre-Flight builds the Honors version without replacing anything.
+ */
+const H = 'm3t1l2h';
+
+/** Honors: Ax + By = C with a fractional slope and a whole-number y-intercept: y = (sp/q)x + b. */
+const fractionalSlopeGenerator = {
+  parameters: {
+    p: { type: 'int', min: 1, max: 5 },
+    q: { type: 'int', min: 2, max: 5 },
+    s: { type: 'choice', values: [-1, 1] },
+    b: { type: 'int', min: -6, max: 6, exclude: [0] },
+  },
+  derived: { A: 'p', sp: 's*p', B: '-s*q', C: '-s*q*b' },
+  constraints: ['gcd(p, q) == 1'],
+};
+const fractionalSlopeReview = review(
+  'Get the y-term alone, then divide by {{B}}.',
+  ['{{A|coef}}x {{B|signed}}y = {{C}}', 'Subtract the x-term: {{B}}y = −{{A|coef}}x {{C|signed}}.', 'Divide every term by {{B}}: y = ({{sp}}/{{q}})x {{b|signed}}.'],
+  'y = ({{sp}}/{{q}})x {{b|signed}}',
+  'Dividing only the constant by {{B}}, or losing a sign when {{B}} is negative.',
+);
+
+/** Honors: a charge with a fee and a rate for each hour after the first k, C = f + r(h − k), solved for h. */
+const groupedChargeReview = review(
+  'Subtract the fee, divide by the rate, then add the first {{k}} hours back.',
+  ['C − {{f}} = {{r}}(h − {{k}})', '(C − {{f}})/{{r}} = h − {{k}}', 'h = (C − {{f}})/{{r}} + {{k}}'],
+  'h = (C − {{f}})/{{r}} + {{k}}',
+  'Adding {{k}} before dividing by {{r}}: {{r}} multiplies the whole group h − {{k}}.',
+);
+
+/** Honors: a trapezoid's other base from its area, height and one base. */
+const otherBaseGenerator = {
+  parameters: { b1: { type: 'int', min: 3, max: 12 }, b2: { type: 'int', min: 3, max: 12 }, h: { type: 'int', min: 2, max: 10 } },
+  derived: { s: 'b1 + b2', A: 'h*(b1 + b2)/2' },
+  constraints: ['b1 != b2', '(h*(b1 + b2)) % 2 == 0'],
+};
+const otherBaseFormula = () => choice('formula', 'The formula solved for b₂', ['b₂ = 2A − h − b₁', 'b₂ = 2A/h − b₁', 'b₂ = A/(2h) − b₁', 'b₂ = 2A/(h − b₁)'], 'b₂ = 2A/h − b₁');
+
+const warmupHonors = (P) => {
+  const [, intercepts] = warmup(P);
+  return [
+    {
+      questionId: `${P}-wu-1`,
+      ...teks('A.5A'),
+      studentActions: ['solveStepByStep'],
+      dok: 2,
+      difficultyBand: 3,
+      prompt: 'Hey, I remember this! Solve {{equation}}. Clear the fraction first, or distribute it — your choice. The temperature formula you will rewrite today has this same shape.',
+      questionFamily: { id: 'linear.twoStepEquation', version: 3, constraints: { distribute: true, coefficientForm: 'fraction', solutionRange: [-9, 9] } },
+      directionSteps: ['Undo the fraction outside the parentheses: multiply both sides by its reciprocal, or distribute it.', 'Undo the addition or subtraction.', 'Check your solution in the original equation.'],
+      hints: [
+        'Multiplying both sides by the reciprocal of the fraction outside the parentheses clears it in one step.',
+        'Then undo the addition or subtraction inside the parentheses.',
+      ],
+      scaffold: backUp('To undo multiplying by a fraction a/b, multiply both sides by…', ['its reciprocal, b/a', 'the same fraction, a/b'], 'its reciprocal, b/a'),
+      solutionReview: review(
+        'Multiply by the reciprocal, then undo the addition or subtraction.',
+        [
+          'Multiply both sides by the reciprocal of the fraction outside the parentheses, or distribute the fraction to both terms.',
+          'Undo the addition or subtraction that is left.',
+          'Check the value in the original equation.',
+        ],
+        null,
+        'Multiplying by the fraction itself instead of its reciprocal, which does not clear it.',
+      ),
+    },
+    intercepts,
+    solveFor({
+      questionId: `${P}-wu-3`,
+      alignment: A12E_FORMS,
+      dok: 2,
+      difficultyBand: 2,
+      prompt: 'A first look. Solve ${{a}}x + {{b}}y = {{c}}$ for $y$. Do the same thing to both sides until y is alone — treat the x-term like a number.',
+      equation: '{{a}}x + {{b}}y = {{c}}',
+      variable: 'y',
+      directionSteps: ['Move the x-term to the other side.', 'Divide every term by the coefficient of y.'],
+      hints: [
+        'The term {{a}}x is added to {{b}}y. Subtract it from both sides.',
+        'y is multiplied by {{b}}: divide every term on both sides by {{b}}.',
+      ],
+      scaffold: backUp('After you subtract {{a}}x from both sides of {{a}}x + {{b}}y = {{c}}, the next step is to…', ['divide every term by {{b}}', 'divide only {{c}} by {{b}}'], 'divide every term by {{b}}'),
+      guidedNotes: guidedNotes(
+        ['Same moves', 'Solving for y works exactly like solving for x: do the same thing to both sides.'],
+        ['Every term', 'Dividing a side by {{b}} divides every term on that side.'],
+      ),
+      solutionReview: review(
+        'Subtract the x-term, then divide every term.',
+        ['{{a}}x + {{b}}y = {{c}}', 'Subtract {{a}}x from both sides: {{b}}y = {{c}} − {{a}}x.', 'Divide every term by {{b}}: y = ({{c}} − {{a}}x)/{{b}}.'],
+        'y = ({{c}} − {{a}}x)/{{b}}',
+        'Dividing only {{c}} by {{b}}: the x-term is divided by {{b}} too.',
+      ),
+      generator: { parameters: { a: { type: 'int', min: 2, max: 9 }, b: { type: 'int', min: 2, max: 6 }, c: { type: 'int', min: -24, max: 24, exclude: [0] } }, constraints: ['a != b'] },
+      questionFamily: { scope: 'assignment' },
+    }),
+  ];
+};
+
+const practiceHonors = (P) => {
+  const regular = Object.fromEntries(practice(P).map((question) => [question.questionId.split('-pr-')[1], question]));
+  // The regular Practice minus its one-step formulas and its easiest rewrites
+  // and forms (Honors takes I = Prt and Mia's P = 2l + 2w further, in
+  // P = 2(l + w) and the audited items), with the Honors work in between.
+  const items = [
+    solveFor({
+      questionId: `${P}-pr-grouped`,
+      difficultyBand: 2,
+      prompt: 'The perimeter of a rectangle can also be written $P = 2(l + w)$. Solve this form for $w$.',
+      equation: 'P = 2(l + w)',
+      variable: 'w',
+      directionSteps: ['Undo the multiplication by 2.', 'Undo the addition of l.'],
+      hints: ['The 2 multiplies the whole sum l + w. Divide both sides by 2 first, or distribute it.', 'Then subtract l from both sides.'],
+      scaffold: backUp('In P = 2(l + w), the 2 multiplies…', ['the whole sum l + w', 'only l'], 'the whole sum l + w'),
+      attemptFeedback: ['Divide both sides by 2 to undo the multiplication, then subtract l. Every term on the other side is divided by 2.'],
+      solutionReview: review('Divide by 2, then subtract l.', ['P = 2(l + w)', 'Divide both sides by 2: P/2 = l + w.', 'Subtract l: w = P/2 − l, which is also w = (P − 2l)/2.'], 'w = P/2 − l', 'Subtracting l before dividing by 2: the 2 multiplies l too.'),
+    }),
+    regular[6],
+    regular[8],
+    regular[9],
+    regular[11],
+    regular[13],
+    solveFor({
+      questionId: `${P}-pr-fraction-slope`,
+      alignment: A12E_FORMS,
+      difficultyBand: 3,
+      prompt: 'Your own equation. Solve ${{A|coef}}x {{B|signed}}y = {{C}}$ for $y$. When y is alone, you have the slope-intercept form of the line — and its slope is a fraction.',
+      equation: '{{A|coef}}x {{B|signed}}y = {{C}}',
+      variable: 'y',
+      directionSteps: ['Move the x-term to the other side.', 'Divide every term by the coefficient of y.'],
+      hints: ['Subtract the x-term from both sides so the y-term is alone.', 'Divide every term on both sides by {{B}}. Leave the slope as a fraction.'],
+      scaffold: backUp('In {{A|coef}}x {{B|signed}}y = {{C}}, the coefficient of y is…', ['{{B}}', '{{A}}'], '{{B}}'),
+      attemptFeedback: ['Subtract the x-term first. Then divide every term by {{B}}, the x-term too: its coefficient becomes a fraction.'],
+      solutionReview: fractionalSlopeReview,
+      generator: fractionalSlopeGenerator,
+      questionFamily: { scope: 'assignment' },
+    }),
+    regular[16],
+    regular[17],
+    answers({
+      questionId: `${P}-pr-two-points`,
+      alignment: A2B,
+      difficultyBand: 3,
+      prompt: 'From two points. Write the equation, in standard form, of the line through $(-2, 7)$ and $(4, -2)$. Use integers with $A > 0$ and no common factor other than 1.',
+      directionSteps: ['Find the slope from the two points.', 'Write point-slope form with one of the points.', 'Clear the fraction and collect the terms with variables on one side.'],
+      responses: standardForm(3, 2, 8),
+      hints: ['Slope = change in y ÷ change in x, subtracting in the same order.', 'Use point-slope form with either point, then multiply every term by the denominator of the slope.'],
+      scaffold: backUp('The slope of the line through (−2, 7) and (4, −2) is…', ['−3/2', '−2/3'], '−3/2'),
+      attemptFeedback: ['Find the slope first, write point-slope form, then clear the fraction and move the x-term to the side with y.'],
+      solutionReview: review(
+        'Slope, point-slope form, then standard form.',
+        ['Slope = (−2 − 7)/(4 − (−2)) = −9/6 = −3/2.', 'y − 7 = −(3/2)(x + 2). Multiply by 2: 2y − 14 = −3x − 6.', 'Add 3x and 14: 3x + 2y = 8. Check (4, −2): 12 − 4 = 8.'],
+        '3x + 2y = 8',
+        'Subtracting the coordinates in different orders, which flips the sign of the slope.',
+      ),
+    }),
+    regular[18],
+    regular[19],
+    regular[20],
+    solveFor({
+      questionId: `${P}-pr-z-for-d`,
+      dok: 3,
+      difficultyBand: 4,
+      prompt: 'Honors extension — Activity 2.3. Solve $Z = \\frac{A}{B} + \\frac{C}{D}$ for $D$. This time the letter you want is in a denominator.',
+      equation: 'Z = A/B + C/D',
+      variable: 'D',
+      directionSteps: ['Get the term with D alone.', 'Multiply both sides by D.', 'Divide by everything that still multiplies D.'],
+      hints: ['Subtract A/B from both sides so the fraction with D is alone.', 'Multiply both sides by D to bring it out of the denominator. Then divide both sides by the whole group that multiplies D.'],
+      scaffold: backUp('To bring D out of the denominator of C/D, you…', ['multiply both sides by D', 'subtract D from both sides'], 'multiply both sides by D'),
+      attemptFeedback: ['Isolate C/D first. Multiplying both sides by D gives D(Z − A/B) = C; then divide by the whole group (Z − A/B).'],
+      solutionReview: review(
+        'Isolate the fraction, multiply by D, divide by the group.',
+        ['Z − A/B = C/D', 'Multiply both sides by D: D(Z − A/B) = C.', 'Divide both sides by (Z − A/B): D = C/(Z − A/B), which is also D = BC/(BZ − A).'],
+        'D = C/(Z − A/B)',
+        'Writing D = C/Z − A/B: the whole difference Z − A/B divides C.',
+      ),
+    }),
+    solveFor({
+      questionId: `${P}-pr-factor`,
+      dok: 3,
+      difficultyBand: 4,
+      prompt: 'Honors extension — the letter appears twice. Solve $A = xB + xC$ for $x$, where $B + C \\ne 0$. In the workspace, Rewrite → Factor brings the two x-terms together, and Rewrite → Cancel factors finishes the division.',
+      equation: 'A = x*B + x*C',
+      variable: 'x',
+      directionSteps: ['Factor x out of the two terms.', 'Divide both sides by the group that multiplies x.'],
+      hints: ['Both terms on the right contain x. Factor it out so x appears only once.', 'Then divide both sides by the whole group that multiplies x.'],
+      scaffold: backUp('What do the two terms xB and xC have in common?', ['the factor x', 'the factor A'], 'the factor x'),
+      attemptFeedback: ['Factor first, so x appears once. Then divide both sides by the whole sum, not by B and C separately.'],
+      solutionReview: review(
+        'Factor out x, then divide by the sum.',
+        ['A = xB + xC', 'Factor out x: A = x(B + C).', 'Divide both sides by (B + C), which is not 0: x = A/(B + C).'],
+        'x = A/(B + C)',
+        'Dividing by BC: x multiplies B and C separately, so it multiplies their sum.',
+      ),
+    }),
+    regular[21],
+    regular[23],
+    solveFor({
+      questionId: `${P}-pr-garage`,
+      difficultyBand: 3,
+      prompt: 'Your own formula. A parking garage charges a {{f}}-dollar entry fee plus {{r}} dollars for each hour after the first {{k}}. For a stay of h hours (at least {{k}}), the charge is $C = {{f}} + {{r}}(h - {{k}})$ dollars. Solve the formula for $h$.',
+      equation: 'C = {{f}} + {{r}}(h - {{k}})',
+      variable: 'h',
+      directionSteps: ['Undo the addition of the entry fee.', 'Undo the multiplication by the hourly rate.', 'Undo the subtraction inside the parentheses.'],
+      hints: ['Subtract {{f}} from both sides first.', 'Then divide both sides by {{r}} — the whole side — and add {{k}} last.'],
+      scaffold: backUp('In C = {{f}} + {{r}}(h − {{k}}), what is the last thing done to h?', ['{{f}} is added', '{{k}} is subtracted'], '{{f}} is added'),
+      attemptFeedback: ['Undo in reverse order: subtract {{f}}, divide by {{r}}, then add {{k}}.'],
+      solutionReview: groupedChargeReview,
+      generator: { parameters: { f: { type: 'int', min: 3, max: 12 }, r: { type: 'int', min: 2, max: 6 }, k: { type: 'int', min: 1, max: 3 } } },
+      questionFamily: { scope: 'assignment' },
+    }),
+    answers({
+      questionId: `${P}-pr-other-base`,
+      difficultyBand: 3,
+      prompt: 'Your own trapezoid. A trapezoid has an area of {{A}} square inches, a height of {{h}} inches and one base of {{b1}} inches. Solve $A = \\frac{1}{2}h(b_1 + b_2)$ for $b_2$, then find the other base.',
+      directionSteps: ['Choose the formula solved for the other base.', 'Substitute and calculate.'],
+      responses: [otherBaseFormula(), number('base', 'The other base, b₂ (inches)', '{{b2}}')],
+      hints: ['Multiply both sides by 2, divide both sides by h, then subtract b₁.', 'Double the area, divide by the height, then subtract the base you know.'],
+      scaffold: backUp('After multiplying both sides of A = ½h(b₁ + b₂) by 2, you have…', ['2A = h(b₁ + b₂)', '2A = 2h(b₁ + b₂)'], '2A = h(b₁ + b₂)'),
+      attemptFeedback: ['Use b₂ = 2A/h − b₁: double the area {{A}}, divide by the height {{h}}, then subtract {{b1}}.'],
+      solutionReview: review('Double the area, divide by the height, subtract the known base.', ['b₂ = 2A/h − b₁', 'b₂ = 2({{A}})/{{h}} − {{b1}} = {{s}} − {{b1}} = {{b2}} inches.'], 'b₂ = 2A/h − b₁; {{b2}} inches', 'Subtracting b₁ before dividing by h: the height multiplies both bases.'),
+      generator: otherBaseGenerator,
+      questionFamily: { scope: 'assignment' },
+    }),
+    answers({
+      questionId: `${P}-pr-model`,
+      difficultyBand: 3,
+      prompt: 'Honors extension — a model. A rideshare company models the fare, in dollars, for a trip of m miles that takes t minutes as $F = 3 + 2m + 0.5t$. Choose the model solved for m. Then find the length of an 18-minute trip that cost 26 dollars.',
+      directionSteps: ['Choose the model solved for m.', 'Substitute the fare and the minutes.', 'Calculate the miles.'],
+      responses: [
+        choice('formula', 'The model solved for m', ['m = F/2 − 3 − 0.5t', 'm = (F − 3 − 0.5t)/2', 'm = (F − 3)/2 − 0.5t', 'm = 2(F − 3 − 0.5t)'], 'm = (F − 3 − 0.5t)/2'),
+        number('miles', 'Length of the trip (miles)', 7),
+      ],
+      hints: ['Subtract the terms without m from both sides, then divide by the number that multiplies m.', 'For this trip, 0.5 · 18 = 9: subtract 3 and 9 from the fare before you divide.'],
+      scaffold: backUp('In F = 3 + 2m + 0.5t, the miles m are multiplied by…', ['2', '0.5'], '2'),
+      attemptFeedback: ['Solve for m first: subtract 3 and 0.5t, then divide by 2. Then use t = 18 and F = 26.'],
+      solutionReview: review('Subtract the other terms, then divide by 2.', ['F − 3 − 0.5t = 2m, so m = (F − 3 − 0.5t)/2.', 'm = (26 − 3 − 0.5 · 18)/2 = (26 − 3 − 9)/2 = 14/2 = 7 miles.'], 'm = (F − 3 − 0.5t)/2; 7 miles', 'Dividing only F by 2 and then subtracting the other terms.'),
+    }),
+    answers({
+      questionId: `${P}-pr-units`,
+      dok: 3,
+      difficultyBand: 3,
+      prompt: 'Honors extension — Activity 2.3. Solved for the height, the cone formula is $h = \\frac{3V}{B}$. Explain how this formula gives a linear measurement when the original formula gave a cubic measurement. Then use it: a cone holds 60 cubic inches, and its base has an area of 15 square inches.',
+      directionSteps: ['Compare the units of V and B.', 'Decide what units are left after dividing.', 'Substitute and calculate the height.'],
+      responses: [
+        choice('why', 'Why is h a length?', [
+          'Multiplying by 3 turns cubic units into units of length.',
+          'V is in cubic units and B is in square units, so 3V/B is in cubic units ÷ square units, which is units of length.',
+          'Solving for h changes the units of V.',
+          'The units cancel completely, so h has no units.',
+        ], 'V is in cubic units and B is in square units, so 3V/B is in cubic units ÷ square units, which is units of length.'),
+        number('height', 'Height of the cone (inches)', 12),
+      ],
+      hints: ['Write the units: V is in cubic inches (in³) and B is in square inches (in²). What is in³ ÷ in²?', 'The 3 is a number with no units, so it does not change the units.'],
+      scaffold: backUp('in³ ÷ in² is…', ['in', 'in⁵'], 'in'),
+      attemptFeedback: ['Divide the units as well as the numbers: cubic units ÷ square units leaves one unit of length. Then substitute V and B.'],
+      solutionReview: review('Cubic units ÷ square units = units of length.', ['V is in cubic units and B in square units, so 3V/B is in cubic ÷ square units: a length.', 'h = 3(60)/15 = 180/15 = 12 inches.'], 'a length; 12 inches', 'Thinking the 3 changes the units: it is a pure number.'),
+    }),
+    answers({
+      questionId: `${P}-pr-when-it-fails`,
+      dok: 3,
+      difficultyBand: 3,
+      prompt: 'Honors extension — when does a formula fail? Solved for x, $y = mx + b$ becomes $x = \\frac{y - b}{m}$. For which value of m does this formula not work? Explain what that means for the line.',
+      directionSteps: ['Find the value of m that the formula cannot divide by.', 'Decide what kind of line has that slope.', 'Explain why x cannot be found from y.'],
+      responses: [
+        number('m', 'The value of m', 0),
+        choice('why', 'What it means', [
+          'When m = 0 the line is vertical, so it has no slope.',
+          'Dividing by 0 is undefined: when m = 0 the line y = b is horizontal, so every point has the same y and a value of y does not give one x.',
+          'The formula fails when b = 0 because the line passes through the origin.',
+          'It never fails: every line can be solved for x.',
+        ], 'Dividing by 0 is undefined: when m = 0 the line y = b is horizontal, so every point has the same y and a value of y does not give one x.'),
+      ],
+      hints: ['Look at the denominator: which value of m makes x = (y − b)/m impossible to compute?', 'Picture the line y = 3. What kind of line is it, and how many x-values go with y = 3?'],
+      scaffold: backUp('Can you divide a number by zero?', ['no, it is undefined', 'yes, the answer is zero'], 'no, it is undefined'),
+      attemptFeedback: ['Look at the denominator of (y − b)/m: for which slope can you not divide, and what does a line with that slope look like?'],
+      solutionReview: review(
+        'No division by zero.',
+        ['The denominator m cannot be 0.', 'When m = 0, y = b is a horizontal line: every point has y = b, so a value of y gives every x or none, and x cannot be solved for.'],
+        'm = 0; the line is horizontal',
+        'Calling the line vertical: a vertical line x = c has no slope at all, and it is not of the form y = mx + b.',
+      ),
+    }),
+    {
+      questionId: `${P}-pr-every-form`,
+      ...teks('A.2B', 'A.3A', 'A.3C'),
+      type: 'representationBridge',
+      mode: 'linearMultipleRepresentations',
+      interactionMode: 'process',
+      studentActions: ['connectLinearRepresentations'],
+      dok: 2,
+      difficultyBand: 3,
+      questionFamily: {
+        id: 'linear.multipleRepresentations',
+        version: 1,
+        constraints: { given: 'standardForm', slope: 'fraction', slopeRange: [1, 3], denominatorRange: [2, 4], interceptRange: [-6, 6], standardScale: 2 },
+      },
+      prompt: 'Honors extension — one line, every form. You are given the standard form equation {{given}}. Build every other representation of this same line, in any order you like.',
+      feedbackTiming: 'guided',
+      directionSteps: ['Solve the given equation for y to find the slope and the y-intercept.', 'Find the x-intercept.', 'Build the other forms, the table and the graph from what you found.'],
+      hints: ['Solve the standard form equation for y first: that gives the slope-intercept form.', 'Every form, the table and the graph describe the same line, so each one must pass through the same points.'],
+      scaffold: backUp('In standard form, setting y equal to zero gives…', ['the x-intercept', 'the y-intercept'], 'the x-intercept'),
+      attemptFeedback: ['Start from slope-intercept form: solve the given equation for y. Check each representation with one point of the line.'],
+      solutionReview: {
+        reasoning: [
+          'Solve the given equation for y: that is the slope-intercept form, with the slope and the y-intercept.',
+          'Set y equal to zero for the x-intercept, use the slope and a point for point-slope form, and build the table and the graph from the equation.',
+          'Check: every representation passes through the same points.',
+        ],
+        commonError: 'Reading the slope as A/B from standard form: it is −A/B.',
+      },
+    },
+    regular[26],
+    auditedCcmrQuestion({
+      documentId: 'mm_sat_A_12E_challenge_2_solve-parameter-generated_v21',
+      questionId: `${P}-pr-sat`,
+      scaffold: backUp('To find y when x is known, you first…', ['substitute the value of x', 'divide both sides by y'], 'substitute the value of x'),
+    }),
+    auditedCcmrQuestion({
+      framework: 'act',
+      documentId: 'mm_act_alg_ch3_service-plan-intersection_v21',
+      questionId: `${P}-pr-act`,
+      scaffold: backUp('For h hours, Plan A charges…', ['its fixed fee plus its hourly rate times h', 'its hourly rate plus its fixed fee times h'], 'its fixed fee plus its hourly rate times h'),
+      optionRationales: {
+        answer: [
+          'Right: set the two totals equal, collect the h-terms on one side, and divide by the difference of the rates.',
+          'This is the difference of the fixed fees: it still has to be divided by the difference of the hourly rates.',
+          'This is the difference of the hourly rates, not the number of hours.',
+          'This is one more than the hours: check it in both plans, and the totals are not equal.',
+        ],
+      },
+    }),
+    auditedCcmrQuestion({
+      framework: 'asvab',
+      documentId: 'mm_asvab_mk_A_12E_current_from_a_rearranged_resistance',
+      questionId: `${P}-pr-asvab`,
+      scaffold: backUp('In R = {{a}}V/I, the letter I is…', ['in the denominator', 'in the numerator'], 'in the denominator'),
+      commonError: 'Stopping at {{a}}V without dividing by R, or leaving out the factor {{a}}.',
+      // One try: a reason for each option, in the bank's option order.
+      optionRationales: {
+        answer: [
+          'Right: solved for I, the formula is I = {{a}}V/R. With R = {{r}} and V = {{v}}, that is {{a}} · {{v}} ÷ {{r}}.',
+          'This is V ÷ R: the factor {{a}} multiplies V too, so I = {{a}}V/R.',
+          'This is {{a}}V, the numerator only: you still have to divide by R.',
+          'This is the value of V from the problem, not the value of I.',
+        ],
+      },
+    }),
+    auditedCcmrQuestion({
+      framework: 'asvab',
+      documentId: 'mm_asvab_mk_A_12E_hours_from_a_rearranged_bill',
+      questionId: `${P}-pr-asvab-bill`,
+      scaffold: backUp('In T = {{a}}h + {{b}}, which part is paid only once?', ['the fixed charge {{b}}', 'the rate {{a}}'], 'the fixed charge {{b}}'),
+      commonError: 'Dividing by the rate before taking off the fixed charge, or not dividing at all.',
+      optionRationales: {
+        answer: [
+          'Right: h = (T − {{b}})/{{a}}, and with T = {{t}} that is ({{t}} − {{b}}) ÷ {{a}}.',
+          'This is the fixed charge {{b}}, a number from the bill, not the hours.',
+          'This is not (T − {{b}}) ÷ {{a}}: subtract {{b}} from {{t}} once, then divide by {{a}}.',
+          'This is T − {{b}}: the fixed charge is off, but you still have to divide by the rate {{a}}.',
+        ],
+      },
+    }),
+  ];
+  return items.map((question, index) => ({ ...question, questionId: `${P}-pr-${index + 1}` }));
+};
+
+const dolHonors = (P) => [
+  solveFor({
+    questionId: `${P}-dol-1`,
+    alignment: A12E_FORMS,
+    difficultyBand: 3,
+    prompt: 'Solve ${{A|coef}}x {{B|signed}}y = {{C}}$ for $y$. When y is alone, you have the slope-intercept form of the line.',
+    equation: '{{A|coef}}x {{B|signed}}y = {{C}}',
+    variable: 'y',
+    directionSteps: ['Move the x-term to the other side.', 'Divide every term by the coefficient of y.'],
+    solutionReview: fractionalSlopeReview,
+    generator: fractionalSlopeGenerator,
+    questionFamily: { scope: 'assignment' },
+  }),
+  solveFor({
+    questionId: `${P}-dol-2`,
+    difficultyBand: 3,
+    prompt: 'A bike rental shop charges {{f}} dollars plus {{r}} dollars for each hour after the first {{k}}. For a rental of h hours (at least {{k}}), the charge is $C = {{f}} + {{r}}(h - {{k}})$ dollars. Solve the formula for $h$ so the shop can find the hours from any charge.',
+    equation: 'C = {{f}} + {{r}}(h - {{k}})',
+    variable: 'h',
+    directionSteps: ['Undo the addition of the fee.', 'Undo the multiplication by the hourly rate.', 'Undo the subtraction inside the parentheses.'],
+    solutionReview: groupedChargeReview,
+    generator: { parameters: { f: { type: 'int', min: 5, max: 20 }, r: { type: 'int', min: 3, max: 9 }, k: { type: 'int', min: 1, max: 3 } } },
+    questionFamily: { scope: 'assignment' },
+  }),
+  answers({
+    questionId: `${P}-dol-3`,
+    difficultyBand: 3,
+    prompt: 'The area of a trapezoid is $A = \\frac{1}{2}h(b_1 + b_2)$. A trapezoid has an area of {{A}} square centimeters, a height of {{h}} cm and one base of {{b1}} cm. Choose the formula solved for $b_2$, then find the other base.',
+    directionSteps: ['Choose the formula solved for the other base.', 'Substitute and calculate the other base.'],
+    responses: [otherBaseFormula(), number('base', 'The other base, b₂ (cm)', '{{b2}}')],
+    solutionReview: review('Double the area, divide by the height, subtract the known base.', ['A = ½h(b₁ + b₂), so b₂ = 2A/h − b₁.', 'b₂ = 2({{A}})/{{h}} − {{b1}} = {{s}} − {{b1}} = {{b2}} cm.'], 'b₂ = 2A/h − b₁; {{b2}} cm', 'Subtracting b₁ before dividing by h: the height multiplies both bases.'),
+    generator: otherBaseGenerator,
+    questionFamily: { scope: 'assignment' },
+  }),
+];
+
+/* ------------------------------------------------------------------- Lessons */
+
+const ESSENTIAL_QUESTION = 'You have used properties of equality to solve linear equations. How can you use those same properties to solve for one specific variable in an equation that has multiple variables?';
+const INSTRUCTIONS = 'Literal equations. Solve each formula for the letter asked for in the step-by-step workspace: undo what was done to that letter, doing the same thing to both sides, until it stands alone. Treat the other letters like numbers. You have 3 tries on each Warm-Up, Classwork and Practice question, with hints. The DOL is one try with no hints.';
+const SLIDE_NOTE = 'Slide note: the Activity 2.2 opening slide shows C = −5/9(F − 32); the minus sign is a typo, and Isabella’s work uses C = 5/9(F − 32), as this assignment does.';
+const VARIANT_POLICY = { mode: 'personalized', sectionModes: { warmup: 'shared', classwork: 'shared', practice: 'personalized', dol: 'personalized' } };
 
 export const L2_LITERAL_EQUATIONS = Object.freeze({
   file: FILE,
@@ -840,24 +1256,52 @@ export const L2_LITERAL_EQUATIONS = Object.freeze({
       folder: 'Algebra I/Module 3/Topic 1/Lesson 2',
       instructionalPurpose: 'lesson',
       gradingPurpose: 'classwork',
-      essentialQuestion: 'You have used properties of equality to solve linear equations. How can you use those same properties to solve for one specific variable in an equation that has multiple variables?',
-      instructions: 'Literal equations. Solve each formula for the letter asked for in the step-by-step workspace: undo what was done to that letter, doing the same thing to both sides, until it stands alone. Treat the other letters like numbers. You have 3 tries on each Warm-Up, Classwork and Practice question, with hints. The DOL is one try with no hints.',
-      teacherNotes: 'Algebra I Module 3 Topic 1 Lesson 2, from the district slides, for one 90-minute block: Warm-Up 10 min, Classwork 20 min (nine questions to go over in 15–20 minutes: Perimeter Perspectives, Activity 2.1 forms, Activity 2.2 temperature with Isabella, Ethan and Minh, Activity 2.3 trapezoid, Talk the Talk soup can), Practice 50 min (26 questions, easiest first), DOL 10 min. TEKS A.12E, with A.2B, A.3A and A.3C for Activity 2.1. Formulas are solved in the step-by-step workspace, which accepts any equivalent answer with the letter alone. Warm-Up and DOL are generated per student and back Recovery. Slide note: the Activity 2.2 opening slide shows C = −5/9(F − 32); the minus sign is a typo, and Isabella’s work uses C = 5/9(F − 32), as this assignment does.',
+      essentialQuestion: ESSENTIAL_QUESTION,
+      instructions: INSTRUCTIONS,
+      teacherNotes: `Algebra I Module 3 Topic 1 Lesson 2, from the district slides, for one 90-minute block: Warm-Up 10 min, Classwork 20 min (nine questions to go over in 15–20 minutes: Perimeter Perspectives, Activity 2.1 forms, Activity 2.2 temperature with Isabella, Ethan and Minh, Activity 2.3 trapezoid, Talk the Talk soup can), Practice 50 min (26 questions, easiest first), DOL 10 min. TEKS A.12E, with A.2B, A.3A and A.3C for Activity 2.1. Formulas are solved in the step-by-step workspace, which accepts any equivalent answer with the letter alone. Warm-Up and DOL are generated per student and back Recovery. ${SLIDE_NOTE}`,
     },
-    variantPolicy: { mode: 'personalized', sectionModes: { warmup: 'shared', classwork: 'shared', practice: 'personalized', dol: 'personalized' } },
+    variantPolicy: VARIANT_POLICY,
     sections: [
-      { id: 'warmup', role: 'warmup', title: 'Warm-Up — Solving, Intercepts and a First Literal Equation', recommendedMinutes: 10, feedbackMode: 'immediate', hintsAllowed: true, attemptsAllowed: 3, questions: warmup() },
-      { id: 'classwork', role: 'classwork', title: 'Classwork — Literal Equations', recommendedMinutes: 20, feedbackMode: 'immediate', hintsAllowed: true, attemptsAllowed: 3, questions: classwork() },
-      { id: 'practice', role: 'practice', title: 'Practice — Solving Formulas and Rewriting Linear Equations', recommendedMinutes: 50, feedbackMode: 'immediate', hintsAllowed: true, attemptsAllowed: 3, questions: practice() },
-      { id: 'dol', role: 'dol', title: 'DOL — Literal Equations', recommendedMinutes: 10, feedbackMode: 'afterAssignmentSubmit', hintsAllowed: false, attemptsAllowed: 1, questions: dol() },
+      { id: 'warmup', role: 'warmup', title: 'Warm-Up — Solving, Intercepts and a First Literal Equation', recommendedMinutes: 10, feedbackMode: 'immediate', hintsAllowed: true, attemptsAllowed: 3, questions: warmup(P) },
+      { id: 'classwork', role: 'classwork', title: 'Classwork — Literal Equations', recommendedMinutes: 20, feedbackMode: 'immediate', hintsAllowed: true, attemptsAllowed: 3, questions: classwork(P) },
+      { id: 'practice', role: 'practice', title: 'Practice — Solving Formulas and Rewriting Linear Equations', recommendedMinutes: 50, feedbackMode: 'immediate', hintsAllowed: true, attemptsAllowed: 3, questions: practice(P) },
+      { id: 'dol', role: 'dol', title: 'DOL — Literal Equations', recommendedMinutes: 10, feedbackMode: 'afterAssignmentSubmit', hintsAllowed: false, attemptsAllowed: 1, questions: dol(P) },
     ],
   },
 });
 
-export const expectedFileText = () => lessonText(L2_LITERAL_EQUATIONS.lesson);
+export const L2_LITERAL_EQUATIONS_HONORS = Object.freeze({
+  file: 'teacher-import-jsons/algebra1-module3/T1_L2_Literal_Equations_Honors.json',
+  lesson: {
+    schemaVersion: 5,
+    assignment: {
+      title: 'Literal Equations Honors (M3 T1 L2)',
+      courseId: 'algebra1',
+      folder: 'Algebra I/Module 3/Topic 1/Lesson 2',
+      instructionalPurpose: 'lesson',
+      gradingPurpose: 'classwork',
+      essentialQuestion: ESSENTIAL_QUESTION,
+      instructions: INSTRUCTIONS,
+      teacherNotes: `Algebra I Module 3 Topic 1 Lesson 2, Honors version, from the district slides, for one 90-minute block: Warm-Up 10 min, Classwork 20 min (the same nine questions as the regular file), Practice 50 min (28 questions), DOL 10 min. TEKS A.12E, with A.2B, A.3A and A.3C. Honors depth: fraction coefficients in the Warm-Up (the shape of C = 5/9(F − 32)); in Practice, P = 2(l + w) (P1), fractional slopes (P7), a line from two points (P10), Z = A/B + C/D solved for D, the slide's 4b (P14), A = xB + xC solved by factoring (P15), a charge with a grouped factor (P18), a trapezoid's other base (P19), a rideshare model (P20), the units of h = 3V/B (P21), when x = (y − b)/m fails (P22), one line in every form (P23), and four audited CCMR items from MathMaster's bank (P25 Digital SAT, P26 ACT, P27–P28 ASVAB), so the Honors version is ready as written; the DOL at Honors settings. Formulas are solved in the step-by-step workspace, which accepts any equivalent answer with the letter alone. Warm-Up and DOL are generated per student and back Recovery. ${SLIDE_NOTE}`,
+    },
+    variantPolicy: VARIANT_POLICY,
+    sections: [
+      { id: 'warmup', role: 'warmup', title: 'Warm-Up — Fractions, Intercepts and a First Literal Equation', recommendedMinutes: 10, feedbackMode: 'immediate', hintsAllowed: true, attemptsAllowed: 3, questions: warmupHonors(H) },
+      { id: 'classwork', role: 'classwork', title: 'Classwork — Literal Equations', recommendedMinutes: 20, feedbackMode: 'immediate', hintsAllowed: true, attemptsAllowed: 3, questions: classwork(H) },
+      { id: 'practice', role: 'practice', title: 'Practice — Solving, Rewriting and Reasoning with Literal Equations', recommendedMinutes: 50, feedbackMode: 'immediate', hintsAllowed: true, attemptsAllowed: 3, questions: practiceHonors(H) },
+      { id: 'dol', role: 'dol', title: 'DOL — Literal Equations', recommendedMinutes: 10, feedbackMode: 'afterAssignmentSubmit', hintsAllowed: false, attemptsAllowed: 1, questions: dolHonors(H) },
+    ],
+  },
+});
+
+export const ALGEBRA1_M3_LITERAL_LESSONS = Object.freeze([L2_LITERAL_EQUATIONS, L2_LITERAL_EQUATIONS_HONORS]);
+
+export const expectedFileText = (entry = L2_LITERAL_EQUATIONS) => lessonText(entry.lesson);
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
-  const file = writeLessonFile(L2_LITERAL_EQUATIONS.file, L2_LITERAL_EQUATIONS.lesson);
-  console.log(`wrote ${path.relative(process.cwd(), file)}`);
+  ALGEBRA1_M3_LITERAL_LESSONS.forEach((entry) => {
+    const file = writeLessonFile(entry.file, entry.lesson);
+    console.log(`wrote ${path.relative(process.cwd(), file)}`);
+  });
 }

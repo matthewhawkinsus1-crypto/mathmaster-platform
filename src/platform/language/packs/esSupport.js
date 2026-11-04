@@ -730,6 +730,7 @@ const familyHints = [
   ['Clear the fraction first: multiply both sides by {1}.', 'Primero elimina la fracción: multiplica los dos lados por {1}.'],
   ['Clear the fraction first: multiply both sides by the denominator.', 'Primero elimina la fracción: multiplica los dos lados por el denominador.'],
   ['Undo the term without {1} on the {2} side: do the opposite operation to both sides.', 'Deshaz el término sin {1} del lado de {2}: haz la operación opuesta en los dos lados.'],
+  ['Move the terms without {1} to the other side: subtract {2} from both sides.', 'Pasa al otro lado los términos sin {1}: resta {2} en los dos lados.'],
   ['Check: your answer for {1} should not contain {2}, and putting it back into {3} should make both sides equal.', 'Comprueba: tu respuesta para {1} no debe contener {2}, y al sustituirla en {3} los dos lados deben dar lo mismo.'],
   ['Start from {1}: to write it in slope-intercept form, get {2} by itself on one side.', 'Empieza con {1}: para escribirla en la forma pendiente-intersección, deja sola {2} en un lado.'],
   ['To write the equation in slope-intercept form, get {1} by itself on one side.', 'Para escribir la ecuación en la forma pendiente-intersección, deja sola {1} en un lado.'],
