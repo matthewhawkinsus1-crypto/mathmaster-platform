@@ -26,10 +26,10 @@ import GradedEntryMark, { gradedEntryInputProps } from './components/common/Grad
 
 const TEXTUAL_MATH_SIGNAL = /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩]/;
 
-const normalizeMathDisplayValue = (value) => normalizePlainMathTypography(value)
-  .replace(/⁻¹/g, '^(-1)')
-  .replace(/²/g, '^2')
-  .replace(/³/g, '^3');
+// ≤ for <= and the like. Its x⁴ for x^4 is drawn as a power: MathDisplay
+// rewrites every Unicode superscript (mathDisplayFormat.js), where this once
+// rewrote only ⁻¹, ² and ³ and the rest showed as carets.
+const normalizeMathDisplayValue = (value) => normalizePlainMathTypography(value);
 
 // A field's name for a screen reader: the label's mathematics as characters,
 // never its dollar signs.
