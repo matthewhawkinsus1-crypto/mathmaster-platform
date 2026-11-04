@@ -326,6 +326,47 @@ for (const role of ['dol', 'quiz', 'test']) {
   await context.close();
 }
 
+// ------------------------------------------- a missed sort names its card
+// F-SORT-WHICH-CARD. A fixed-category sort with one card in the wrong category
+// marks that card on practice, says how many, and no longer says "Focus on:
+// Mathematical grouping", which names nothing. On a DOL, quiz or test before
+// release the sort is submitted and nothing about right or wrong appears.
+const placeSort = async (page, placements) => {
+  for (const [card, category] of placements) {
+    await page.getByRole('button', { name: `${category}: place ${card} here` }).click();
+    await page.waitForTimeout(120);
+  }
+  await page.getByRole('button', { name: /^(Check my sort|Submit)/ }).first().click();
+};
+for (const device of ['chromebook', 'phone']) {
+  const { context, page } = await open(device, 'practice', 'sort');
+  await placeSort(page, [['Card A', 'Even'], ['Card B', 'Odd'], ['Card C', 'Odd'], ['Card D', 'Odd']]);
+  await waitForOutcome(page);
+  await page.waitForTimeout(300);
+  const state = await outcomeState(page);
+  const marked = await page.locator('[data-sort-card-wrong]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-placed-card')));
+  check(marked.length === 1 && marked[0] === 'c', `${device} practice sort, one card misplaced: that card, and only that card, is marked`, JSON.stringify(marked));
+  check(/One card is not in the right category yet/.test(state.pageText) && /Not in the right category yet/.test(await page.locator('[data-sort-card-wrong]').innerText()),
+    `${device} practice sort: the count and the card both say so`);
+  check(!/Focus on/.test(state.pageText), `${device} practice sort: no "Focus on: Mathematical grouping" line`, state.pageText.match(/Focus on[^\n]*/)?.[0] || '');
+  check(/You have 2 tries left/.test(state.text) && state.count === 1 && state.liveRegions === 1, `${device} practice sort: the try count is still said, once`, state.text);
+  // Moving the card takes the mark with the verdict it belonged to.
+  await page.locator('[data-placed-card="c"]').getByRole('button', { name: /take it out of/ }).click();
+  await page.waitForTimeout(200);
+  check(await page.locator('[data-sort-card-wrong]').count() === 0, `${device} practice sort: changing the work clears the marks`);
+  await context.close();
+}
+for (const role of ['dol', 'quiz', 'test']) {
+  const { context, page } = await open('chromebook', role, 'sort');
+  await placeSort(page, [['Card A', 'Even'], ['Card B', 'Odd'], ['Card C', 'Odd'], ['Card D', 'Odd']]);
+  await page.waitForFunction(() => /Your answer is saved\. You will see whether it is right when /.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {});
+  await page.waitForTimeout(400);
+  const text = await page.evaluate(() => document.body.innerText);
+  check(await page.locator('[data-sort-card-wrong]').count() === 0 && !/not in the right category|Not quite|wrong category/i.test(text),
+    `chromebook ${role} sort: no card is marked and nothing says what is wrong`);
+  await context.close();
+}
+
 // ------------------------------------------------- π, e and logₐ (TL23)
 // A keypad offers π, e and logₐ only where the item's math uses them — on
 // practice. An assessment item keeps every key: its keypad says nothing about

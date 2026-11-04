@@ -119,6 +119,35 @@ export const scoreControlledSort = ({ items = [], responseGroups = [], validSche
 };
 
 /*
+ * WHICH CARDS A FIXED-CATEGORY SORT HAS IN THE WRONG CATEGORY (F-SORT-WHICH-CARD).
+ *
+ * The cards, in the board's order, whose category differs from the one the
+ * closest authored scheme gives them. "Closest" is the scheme the score is
+ * taken from, so a sort with one card misplaced names that one card. Only
+ * placed cards are judged; an unplaced card is not "wrong", it is still to
+ * place. Empty for a right sort and without a scheme. Grading does not read
+ * this: it is only what the board says after a wrong try, and the board says
+ * it only where the verdict itself is shown.
+ */
+export const controlledSortWrongItems = ({ items = [], responseGroups = [], validSchemes = [] }) => {
+  const { best } = scoreControlledSort({ items, responseGroups, validSchemes });
+  if (!best?.scheme || best.exact) return [];
+  const categoryOf = (groups) => {
+    const owner = new Map();
+    groups.forEach((group, index) => {
+      const id = String(group?.id || group?.categoryId || `group-${index + 1}`);
+      (group?.itemIds || group?.items || []).forEach((itemId) => owner.set(String(itemId), id));
+    });
+    return owner;
+  };
+  const expected = categoryOf(best.scheme.groups || []);
+  const placed = categoryOf(responseGroups);
+  return items
+    .map((item) => String(item?.id ?? ''))
+    .filter((id) => id && placed.has(id) && placed.get(id) !== expected.get(id));
+};
+
+/*
  * WHAT THE BOARD ASKS FOR, AND WHEN THE STUDENT HAS FINISHED IT.
  *
  * OpenSortBoard.jsx gates its Check button on `openSortProgress(...).ready`,

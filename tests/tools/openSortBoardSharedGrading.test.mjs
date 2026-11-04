@@ -8,7 +8,7 @@ import { GRADING_AUTHORITY, GRADING_MANIFEST } from '../../functions/shared/serv
 import { resolveToolMode } from '../../functions/shared/serverGrading/toolGraderDefinition.mjs';
 import { gradeServerResponse, serverResponseGradingSupport } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
 import { TOOL_RESPONSE_LIMITS, boundToolWork, canonicalToolWorkJson } from '../../functions/shared/serverGrading/toolResponseContract.mjs';
-import { openSortSettings } from '../../functions/shared/toolMath/openSortBoard/openSortMath.mjs';
+import { controlledSortWrongItems, openSortSettings } from '../../functions/shared/toolMath/openSortBoard/openSortMath.mjs';
 import { gradeToolCheck } from '../../src/tools/shared/sharedToolGrading.js';
 import { executableSource, region } from '../platform/helpers/sourceContract.mjs';
 
@@ -304,6 +304,28 @@ test('controlled: a group whose id is not an authored category earns nothing', (
   });
   assert.equal(result.isCorrect, false);
   assert.equal(result.score, 4 / 6);
+});
+
+// F-SORT-WHICH-CARD: after a wrong try the board marks the misplaced cards.
+// Which cards is a pure function of the work and the key; grading never reads it.
+test('controlled: the cards in the wrong category are named, and only those', () => {
+  const wrong = (groups, schemes = CONTROLLED_SCHEMES) => controlledSortWrongItems({
+    items: ITEMS,
+    responseGroups: bins(groups).groups,
+    validSchemes: schemes,
+  });
+  assert.deepEqual(wrong({ positive: ['A', 'D', 'C'], negative: ['B', 'E'], none: ['F'] }), ['C'], 'one card misplaced names that card');
+  assert.deepEqual(wrong({ positive: ['B', 'E'], negative: ['A', 'D'], none: ['C', 'F'] }), ['A', 'B', 'D', 'E'], 'swapped bins name all four, in the board order');
+  assert.deepEqual(wrong({ positive: ['A', 'D'], negative: ['B', 'E'], none: ['C', 'F'] }), [], 'a right sort names nothing');
+  assert.deepEqual(wrong({ positive: ['A', 'D', 'C'], negative: ['B'] }), ['C'], 'a card still to place is not wrong');
+  assert.deepEqual(wrong({ positive: ['A', 'D', 'C'], negative: ['B', 'E'], none: ['F'] }, []), [], 'no key, nothing named');
+  // With two accepted sorts, the one the student is closest to decides.
+  const twoSorts = [...CONTROLLED_SCHEMES, { id: 'other', groups: [
+    { id: 'positive', itemIds: ['A', 'D', 'C'] },
+    { id: 'negative', itemIds: ['B', 'E'] },
+    { id: 'none', itemIds: ['F'] },
+  ] }];
+  assert.deepEqual(wrong({ positive: ['A', 'D', 'C'], negative: ['B', 'E', 'F'] }, twoSorts), ['F']);
 });
 
 /* ------------------------------------------------------------------ */

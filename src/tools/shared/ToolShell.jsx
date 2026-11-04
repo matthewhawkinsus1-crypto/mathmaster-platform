@@ -385,7 +385,10 @@ export const AttemptOutcomeWords = ({ outcome, toolWords = '', detail = '', sayT
 
 // `showDetail={false}` for a tool whose verdict already lists the parts to
 // revisit (the representations board), so the "Focus on" line is not said twice.
-export const AttemptOutcome = ({ inline = false, showDetail = true, verdict = null, coaching = null }) => {
+// `showFocus={false}` drops only that line and keeps the miss's own detail: a
+// fixed-category sort that marks the wrong cards (F-SORT-WHICH-CARD) says more
+// than "Focus on: Mathematical grouping" does.
+export const AttemptOutcome = ({ inline = false, showDetail = true, showFocus = true, verdict = null, coaching = null }) => {
   const { attemptOutcome, attemptOutcomeSlots } = useToolRuntimeContext();
   const [slot, setSlot] = useState(null);
   const regionRef = useRef(null);
@@ -401,7 +404,7 @@ export const AttemptOutcome = ({ inline = false, showDetail = true, verdict = nu
   }, []);
   const outcome = attemptOutcomeSlots && attemptOutcome && slot !== null && attemptOutcome.slot === slot ? attemptOutcome : null;
   const toolWords = verdictWords({ verdict, coaching });
-  const detail = showDetail && outcome?.detail ? outcome.detail : '';
+  const detail = showDetail && outcome ? [outcome.detail, showFocus ? outcome.focus : ''].filter(Boolean).join(' ') : '';
   // Once per attempt, and only as far as needed: Check pressed low on a phone
   // leaves the verdict at the bottom edge, where the sentence below it could
   // land under the action bar. `nearest` does nothing when it is already in
@@ -445,7 +448,7 @@ export const AttemptOutcome = ({ inline = false, showDetail = true, verdict = nu
 // but the other one is not."). Shown under the pill, and said with the
 // attempt's outcome (AttemptOutcome), so a screen reader hears why as well as
 // what it cost (student pass 3, A11Y-1).
-export const ResultPill = ({ ok, children, stageCheck = false, message = null }) => {
+export const ResultPill = ({ ok, children, stageCheck = false, message = null, showFocus = true }) => {
   // PQ-032: a verdict that wraps is a 10px card, not a 999px lozenge. Long
   // text is known before layout; whether a shorter one wraps depends on the
   // width it is given, so it is measured, and re-measured when that changes.
@@ -483,7 +486,7 @@ export const ResultPill = ({ ok, children, stageCheck = false, message = null })
       </span>
       {/* Its own row in the flex rows some tools put their verdict in. */}
       {message ? <p className="mathmaster-result-message" style={{ flexBasis: '100%', margin: '9px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>{message}</p> : null}
-      {stageCheck ? null : <AttemptOutcome verdict={children} coaching={message} />}
+      {stageCheck ? null : <AttemptOutcome showFocus={showFocus} verdict={children} coaching={message} />}
     </>
   );
 };

@@ -2149,7 +2149,10 @@ function QuestionEngineBody({
     id: toolOutcomeOwner.id,
     slot: toolOutcomeSlot,
     text: attemptOutcomeText,
-    detail: [attemptOutcomeSpecific, attemptOutcomeFocus].filter(Boolean).join(' '),
+    detail: attemptOutcomeSpecific,
+    // Apart from the detail so a tool that already names what to revisit (a
+    // sort that marks its wrong cards) can leave the "Focus on" line out.
+    focus: attemptOutcomeFocus,
     tone: feedback.isCorrect ? 'correct' : 'incorrect',
     readAloud: supportedTextReadAloud,
     translation: supportedTextTranslation,

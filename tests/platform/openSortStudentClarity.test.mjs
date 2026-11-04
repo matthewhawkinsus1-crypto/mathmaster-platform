@@ -53,3 +53,23 @@ test('a circle card is drawn with equal units, so it looks like a circle', async
   assert.match(board, /equalUnits=\{item\.graphSpec\?\.type === 'circle'\}/);
   assert.equal(equalUnitPlaneHeight({ width: 300, pad: 42, xMin: -6, xMax: 6, yMin: -6, yMax: 6, fallback: 220 }), 300, 'a square window gets a square plane');
 });
+
+// F-SORT-WHICH-CARD: a fixed-category sort that misses marks the cards that are
+// in the wrong category, where its verdict is shown and nowhere else.
+test('a missed fixed-category sort marks its wrong cards only while the verdict is shown', () => {
+  // The marks are read through the verdict: no feedback (an exit ticket, quiz
+  // or test before release), no mark and no count.
+  assert.match(board, /const wrongShown = feedback && feedback\.isCorrect === false \? wrongCardIds : \[\];/);
+  const placed = region(board, 'const placedCard = (', '\n  };', 'the placed card');
+  assert.match(placed, /const wrongCard = wrongShown\.includes\(String\(id\)\);/);
+  assert.match(placed, /data-sort-card-wrong=\{wrongCard \? '' : undefined\}/);
+  assert.match(placed, /Not in the right category yet/);
+  // Worked out at Check from the placements the grader scores, for a controlled sort only.
+  const check = region(board, 'const check = () => {', '\n  };', 'the check');
+  assert.match(check, /setWrongCardIds\(controlled && !result\.isCorrect \? misplacedCards\(\) : \[\]\);/);
+  assert.match(board, /const misplacedCards = \(\) => controlledSortWrongItems\(/);
+  assert.doesNotMatch(check, /validSchemes/, 'the key never rides with the attempt');
+  // The count replaces "Focus on: Mathematical grouping", which names nothing.
+  assert.match(board, /<ResultPill ok=\{feedback\.isCorrect\} showFocus=\{!wrongShown\.length\}/);
+  assert.match(board, /is not in the right category yet\. It is marked above\./);
+});
