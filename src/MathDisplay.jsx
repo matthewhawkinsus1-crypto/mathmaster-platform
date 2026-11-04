@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import './platform/math/mathliveRuntime.js';
 import { ensureMathElementRenders } from './platform/math/ensureMathElementRenders.js';
 import { stackDivisions } from '../functions/shared/stackDivisions.mjs';
-import { braceScriptGroups, latexFunctionNames, resolveMathDisplayFormat, unicodeSubscriptsToMathMarkup } from './mathDisplayFormat.js';
+import { braceScriptGroups, latexFunctionNames, resolveMathDisplayFormat, unicodeSubscriptsToMathMarkup, unicodeSuperscriptsToMathMarkup } from './mathDisplayFormat.js';
 import { mathSpeechLabel } from './platform/language/mathSpeechLabel.js';
 import { SR_ONLY_STYLE } from './ui/srOnly.js';
 
@@ -96,8 +96,9 @@ export default function MathDisplay({
   // displaying \frac / \left / \right as visible command text.
   const resolvedFormat = resolveMathDisplayFormat(cleanValue, format);
   // In LaTeX a bracketed exponent raises the bracket alone, and a bare ln is
-  // two italic letters (mathDisplayFormat.js).
-  const typesetValue = latexFunctionNames(braceScriptGroups(unicodeSubscriptsToMathMarkup(cleanValue, resolvedFormat), resolvedFormat), resolvedFormat);
+  // two italic letters. MathLive reads Unicode sub- and superscripts (a₄, x¹⁸,
+  // ⁶√) as neither (mathDisplayFormat.js).
+  const typesetValue = latexFunctionNames(braceScriptGroups(unicodeSuperscriptsToMathMarkup(unicodeSubscriptsToMathMarkup(cleanValue, resolvedFormat), resolvedFormat), resolvedFormat), resolvedFormat);
   const Element = inline ? 'math-span' : 'math-div';
   // ONE SPOKEN COPY. MathLive exposes the LaTeX source and its own MathML
   // under whatever label it is given, so a screen reader announced every

@@ -36,7 +36,9 @@ export const looksLikeLatex = (value) => LATEX_SIGNAL.test(String(value ?? ''));
  * kept only while the value still contains no LaTeX syntax.
  */
 export const resolveMathDisplayFormat = (value, requestedFormat = 'auto') => {
-  const latex = looksLikeLatex(value);
+  // A radical with an index written before it (⁶√(x¹⁸)) has no ASCIIMath
+  // spelling MathLive reads, so it is LaTeX too (unicodeSuperscriptsToMathMarkup).
+  const latex = looksLikeLatex(value) || hasIndexedRadical(value);
 
   if (requestedFormat === 'latex') return 'latex';
   if (requestedFormat === 'ascii-math' && !latex) return 'ascii-math';
@@ -79,6 +81,93 @@ const closingBracket = (text, open) => {
     }
   }
   return -1;
+};
+
+/*
+ * UNICODE SUPERSCRIPTS ARE NOT MATH MARKUP EITHER.
+ *
+ * The radicals and exponents lessons write powers the way they look: "(−3)⁴",
+ * "x¹⁸", "x⁻²", "aⁿ", "⁶√(x¹⁸)". An author's x^4 reaches a label as x⁴ too
+ * (normalizePlainMathTypography). MathLive reads these characters one at a
+ * time: in ASCIIMath every one but ² and ³ typeset as a caret, so students saw
+ * "(−3)ˆ4" and "ˆ6√(xˆ1ˆ8)", and in LaTeX "x¹⁸" is the double power x^1^8.
+ * Each run becomes one power in the syntax of the format that parses it, and
+ * an index written before √ becomes the radical's index, which only LaTeX can
+ * draw (resolveMathDisplayFormat). Words stay words: a run inside \text{…} or
+ * an ASCIIMath "…" is left as written. Display only: nothing graded reads this.
+ */
+const UNICODE_SUPERSCRIPTS = Object.freeze({
+  '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9',
+  '⁺': '+', '⁻': '-', '⁼': '=', '⁽': '(', '⁾': ')', 'ⁿ': 'n', 'ⁱ': 'i', 'ˣ': 'x',
+});
+const SUPERSCRIPT_RUN = new RegExp(`[${Object.keys(UNICODE_SUPERSCRIPTS).join('')}]+`, 'g');
+const HAS_SUPERSCRIPT = new RegExp(`[${Object.keys(UNICODE_SUPERSCRIPTS).join('')}]`);
+const plainSuperscripts = (run) => [...run].map((character) => UNICODE_SUPERSCRIPTS[character]).join('');
+
+// An index before a square-root sign: ⁶√, ⁿ√. Right after a letter, a number
+// or a bracket the run is that factor's power instead: "x³√x" is x³ times √x,
+// as stackDivisions.mjs reads it.
+const RADICAL_INDEX = /([⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ]+)√/g;
+const POWER_BASE = /[\p{L}\p{N})\]}|]/u;
+
+// The radicand after a radical sign: a bracketed group, a number or one letter.
+const radicandAt = (text, start) => {
+  if (text[start] === '(') {
+    const close = closingBracket(text, start);
+    return close === -1 ? null : { inner: text.slice(start + 1, close), end: close + 1 };
+  }
+  const token = /^(?:\d+(?:\.\d+)?|\p{L})/u.exec(text.slice(start));
+  return token ? { inner: token[0], end: start + token[0].length } : null;
+};
+
+const indexedRadicalsToLatex = (text) => {
+  let out = '';
+  let from = 0;
+  for (const match of text.matchAll(RADICAL_INDEX)) {
+    if (match.index < from || POWER_BASE.test(text[match.index - 1] || '')) continue;
+    const radicand = radicandAt(text, match.index + match[0].length);
+    if (!radicand) continue;
+    out += `${text.slice(from, match.index)}\\sqrt[${plainSuperscripts(match[1])}]{${indexedRadicalsToLatex(radicand.inner)}}`;
+    from = radicand.end;
+  }
+  return out + text.slice(from);
+};
+
+// Words in a value: LaTeX \text{…} (and its kin) or an ASCIIMath "…".
+const VERBATIM_LATEX = /\\(?:text|mathrm|operatorname|textrm|mbox)\s*\{/g;
+const verbatimSpans = (text, format) => {
+  if (format !== 'latex') return [...text.matchAll(/"[^"]*"/g)].map((match) => [match.index, match.index + match[0].length]);
+  const spans = [];
+  for (const match of text.matchAll(VERBATIM_LATEX)) {
+    if (spans.length && match.index < spans[spans.length - 1][1]) continue;
+    let depth = 0;
+    for (let index = match.index + match[0].length - 1; index < text.length; index += 1) {
+      if (text[index] === '{') depth += 1;
+      else if (text[index] === '}' && (depth -= 1) === 0) { spans.push([match.index, index + 1]); break; }
+    }
+  }
+  return spans;
+};
+const outsideWords = (text, format, rewrite) => {
+  let out = '';
+  let from = 0;
+  for (const [start, end] of verbatimSpans(text, format)) {
+    out += rewrite(text.slice(from, start)) + text.slice(start, end);
+    from = end;
+  }
+  return out + rewrite(text.slice(from));
+};
+
+const hasIndexedRadical = (value) => {
+  const text = String(value ?? '');
+  return /[⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ]√/.test(text) && outsideWords(text, 'latex', indexedRadicalsToLatex) !== text;
+};
+
+export const unicodeSuperscriptsToMathMarkup = (value, format = 'ascii-math') => {
+  const text = String(value ?? '');
+  if (!HAS_SUPERSCRIPT.test(text)) return text;
+  return outsideWords(text, format, (math) => (format === 'latex' ? indexedRadicalsToLatex(math) : math)
+    .replace(SUPERSCRIPT_RUN, (run) => (format === 'latex' ? `^{${plainSuperscripts(run)}}` : `^(${plainSuperscripts(run)})`)));
 };
 
 /*
