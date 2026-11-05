@@ -4,6 +4,7 @@
 //   ?role=practice|dol      the activity policy
 //   ?q=multi|family|system  the fixture
 //   ?support=translate      give the student Read aloud + Translate (Spanish)
+//   ?support=translatereadout  the same, and the graph read-out (AX03)
 //   ?support=read           give the student Read aloud only (a plan's text-to-speech)
 //   ?q=plain                an item with no step written for it (HELP-19)
 //   ?support=inclusion      an inclusion student, with Read aloud (the "Let's back up" step)
@@ -163,6 +164,8 @@ window.__mmAnswers = which === 'transform' ? (question?.answerFields || []).map(
   : which === 'table' ? Object.values(question?.table?.answers || {}).map(String) : [];
 const SUPPORT_PROFILES = {
   translate: { accommodations: ['text-to-speech', 'translation'], translationLanguage: 'es' },
+  // The same, with the graph read-out (AX03): a graph is read in full while it can be answered.
+  translatereadout: { accommodations: ['text-to-speech', 'translation', 'graph-read-out'], translationLanguage: 'es' },
   read: { accommodations: ['text-to-speech'] },
   // An inclusion student with a plan's Read aloud: the "Let's back up" step (HELP-19).
   inclusion: { inclusionStatus: true, accommodations: ['text-to-speech'] },

@@ -636,8 +636,8 @@ export default function CoordinatePlane({
   const spokenDescription = [axisTitleSentence(axisTitles), authoredDescription || generatedDescription.description, authoredDescription ? readOutReading : '']
     .filter(Boolean).join(' ');
   // The same reading as messages, for Read aloud in the reader's language
-  // (AX05). An author's description and the full reading have none yet: they
-  // are read in English, and the reader says so.
+  // (AX05), the full reading included. An author's description has none: it
+  // is read in English, and the reader says so.
   const spokenSay = authoredDescription ? null : joinFigureSays(axisTitleSay(axisTitles), generatedDescription.say);
   useReportGraphReadOut(Boolean(readOutReading));
   // IDREFs, not url(#…), so useId's own characters are fine here.

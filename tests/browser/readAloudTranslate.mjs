@@ -26,8 +26,9 @@
 //                that it has no Spanish translation — no dead button.
 //   figures, es  under an authored Spanish prompt the real DOL graph is read
 //                in its own Spanish words, with the same numbers and still no
-//                position; the 3D model, which has no Spanish yet, is read in
-//                English after a sentence that says so (AX05).
+//                position; with the graph read-out (AX03) it is read in full,
+//                in Spanish (AX05, slice 2); the 3D model, which has no Spanish
+//                yet, is read in English after a sentence that says so (AX05).
 //   tool tables  the DOL #3 review's tools read the tables they draw: the
 //                workbench's rows, the residual table (and again once the
 //                model changes), the sequence table (what the student typed,
@@ -178,6 +179,21 @@ for (const device of DEVICES) {
     const description = await page.locator('[data-graph-description]').first().textContent();
     const numbers = (text) => (text.replace(/−|negativo /g, '-').match(/-?\d+(?:\.\d+)?/g) || []).join(' ');
     check(numbers(figure) === numbers(description), `${device.name}: the same numbers as the figure's description`, `${numbers(figure)} | ${numbers(description)}`);
+    await context.close();
+  }
+  {
+    // The graph read-out (AX03) under the same Spanish prompt: the full reading,
+    // positions and all, in Spanish (AX05, slice 2), as a closed question's is.
+    const { page, context } = await open(device, 'q=dolgraphes&role=dol&support=translatereadout');
+    await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
+    const heard = await lastSpoken(page);
+    const said = heard?.text || '';
+    const figure = said.slice(said.indexOf('Gráfica.'), said.indexOf('Paso 1 de 2'));
+    check(heard?.lang === 'es' && figure.startsWith('Gráfica. El eje x va de negativo 4 a 7 y el eje y, de negativo 6 a 16. 1 curva. La curva 1 ') && /círculo cerrado/.test(figure) && /círculo abierto/.test(figure), `${device.name}: the read-out reads the DOL's graph in full, in Spanish`, figure || said.slice(0, 400));
+    check(!/x from|Positions are not|inglés|no se leen/.test(said), `${device.name}: no English, no note, and no position held back`, said.slice(0, 400));
+    const description = await page.locator('[data-graph-description]').first().textContent();
+    const numbers = (text) => (text.replace(/−|negativo /g, '-').match(/-?\d+(?:\.\d+)?/g) || []).join(' ');
+    check(numbers(figure) === numbers(description), `${device.name}: the read-out says the numbers its description gives`, `${numbers(figure)} | ${numbers(description)}`);
     await context.close();
   }
   {

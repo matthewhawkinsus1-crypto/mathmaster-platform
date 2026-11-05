@@ -53,12 +53,13 @@
  * is also why the resolution rule above matters: the text must not read the
  * plane MORE precisely than the eye can.
  *
- * IN THE READER'S LANGUAGE (AX05). The reading while the question can be
- * answered (`kinds`) is built from messages (./figureSay.js) and returned as
- * `say` beside its English: the same sentences, with the same numbers, can be
- * read in Spanish from ./packs/esFigures.js under an authored Spanish
- * translation. The full reading (`features`) has no messages yet (`say: null`),
- * so Read aloud reads it in English and says so.
+ * IN THE READER'S LANGUAGE (AX05). Both readings — while the question can be
+ * answered (`kinds`) and the full one (`features`: a closed question, or the
+ * graph read-out) — are built from messages (./figureSay.js) and returned as
+ * `say` beside their English, which is said from the same messages: the same
+ * sentences, with the same numbers, can be read in Spanish from
+ * ./packs/esFigures.js under an authored Spanish translation. A tool's own
+ * sentence the pack has no words for keeps the figure in English.
  */
 import { readGraphPointCoordinates } from '../../graphPointUtils.js';
 import { majorTicks, niceStep } from '../graph/graphScaleService.js';
@@ -120,6 +121,11 @@ const readPairSay = (x, y, res) => {
   if (isMultiple(x, res.x) && isMultiple(y, res.y)) return readPair(x, y, res);
   return say('pairApprox', readValueSay(x, res.x), readValueSay(y, res.y));
 };
+// Where a mark meets an axis or a gridline: "at 3" or "through 3" on a drawn
+// gridline, and between two of them with no "at" ("crosses the x-axis between
+// 2 and 3", not "at between").
+const atSay = (value, resolution) => (isMultiple(value, resolution) ? say('atValue', formatNumber(value)) : readValueSay(value, resolution));
+const throughSay = (value, resolution) => (isMultiple(value, resolution) ? say('throughValue', formatNumber(value)) : readValueSay(value, resolution));
 
 const plural = (count, one, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
 
@@ -192,10 +198,10 @@ const arrowDirection = (vector) => {
   // Only a vector that is exactly zero has no direction. A tiny one still
   // points somewhere: an edge arrow found by bisection carries a vector like
   // [−4.6e-14, −1.8e-13] (W5-2 review, for W5-5's equal-unit arrows).
-  if (!Number.isFinite(dx) || !Number.isFinite(dy) || (dx === 0 && dy === 0)) return 'right';
+  if (!Number.isFinite(dx) || !Number.isFinite(dy) || (dx === 0 && dy === 0)) return say('pointingRight');
   const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-  const names = ['right', 'up and right', 'up', 'up and left', 'left', 'down and left', 'down', 'down and right'];
-  return names[((Math.round(angle / 45) % 8) + 8) % 8];
+  const names = ['pointingRight', 'pointingUpRight', 'pointingUp', 'pointingUpLeft', 'pointingLeft', 'pointingDownLeft', 'pointingDown', 'pointingDownRight'];
+  return say(names[((Math.round(angle / 45) % 8) + 8) % 8]);
 };
 
 /* ---------------------------------------------------------------- points */
@@ -214,21 +220,20 @@ const describePoints = (points, res, w) => {
     // marker value falls through to the plain dot in CoordinatePlane, label
     // and all, so it is read as one here too.
     const label = !marker && point?.label != null && String(point.label).trim() ? String(point.label).trim() : '';
-    const at = readPair(x, y, res);
-    const offscreen = inWindow(x, y, w) ? '' : ', outside the window';
-    let text;
+    const at = readPairSay(x, y, res);
+    let mark;
     let kind = 'point';
     if (marker === 'arrow') {
       kind = 'arrowhead';
-      text = `arrowhead at ${at} pointing ${arrowDirection(point?.vector)}`;
+      mark = say('arrowheadAt', at, arrowDirection(point?.vector));
     } else if (marker === 'open' || marker === 'closed') {
-      text = `${at}, ${marker} dot`;
+      mark = say(marker === 'open' ? 'openDotAt' : 'closedDotAt', at);
     } else {
       // A label that is the point's own coordinates ("(1, 3)") is not read
       // twice: "(1, 3) at (1, 3)" (AX36).
-      text = label && !sameCoordinates(label, at) ? `${label} at ${at}` : at;
+      mark = label && !sameCoordinates(label, readPair(x, y, res)) ? say('pointAt', label, at) : at;
     }
-    entries.push({ kind, label, x, y, marker, text: `${text}${offscreen}` });
+    entries.push({ kind, label, x, y, marker, say: inWindow(x, y, w) ? mark : say('outsideWindowMark', mark) });
   });
   return entries;
 };
@@ -249,32 +254,34 @@ const gridPointsOnLine = (m, b, res, w) => {
   return found.slice(0, 2).sort((p, q) => p[0] - q[0]);
 };
 
-// `styled`: the figure draws its lines' styles (N38), so a solid line is said
-// to be solid, not only a dashed one dashed.
-const describeLine = (line, name, res, w, styled = false) => {
+// A line's name as its sentence opens, with the way it is drawn when the
+// figure draws its lines' styles (N38): a solid line is said to be solid, not
+// only a dashed one dashed. A sort's shared line is "Reference line" (CT04).
+const lineSubjectSay = (line, number, styled) => {
+  if (line?.reference === true) return say(line?.dash ? 'dashedReferenceLineSubject' : 'referenceLineSubject');
+  return say(line?.dash ? 'dashedLineSubject' : styled ? 'solidLineSubject' : 'lineSubject', number);
+};
+
+const describeLine = (line, subject, res, w) => {
   const m = Number(line?.m);
   const b = Number(line?.b);
   if (!Number.isFinite(m) || !Number.isFinite(b)) return null;
   const yLeft = m * w.xMin + b;
   const yRight = m * w.xMax + b;
-  const style = line?.dash ? ' (dashed)' : styled ? ' (solid)' : '';
-  if (Math.max(yLeft, yRight) < w.yMin - EPS || Math.min(yLeft, yRight) > w.yMax + EPS) {
-    return { name, text: `${name}${style} is outside the window.` };
-  }
+  if (Math.max(yLeft, yRight) < w.yMin - EPS || Math.min(yLeft, yRight) > w.yMax + EPS) return say('outsideWindow', subject);
   const parts = [];
   const flat = Math.abs(m) < EPS;
-  parts.push(flat ? 'is horizontal' : m > 0 ? 'rises from left to right' : 'falls from left to right');
+  parts.push(say(flat ? 'isHorizontal' : m > 0 ? 'risesLeftToRight' : 'fallsLeftToRight'));
   const yAxisVisible = w.xMin <= EPS && w.xMax >= -EPS;
   const xAxisVisible = w.yMin <= EPS && w.yMax >= -EPS;
-  if (yAxisVisible && b >= w.yMin - EPS && b <= w.yMax + EPS) parts.push(`crosses the y-axis at ${readText(b, res.y)}`);
+  if (yAxisVisible && b >= w.yMin - EPS && b <= w.yMax + EPS) parts.push(say('crossesYAxis', atSay(b, res.y)));
   if (!flat && xAxisVisible) {
     const x0 = -b / m;
-    if (x0 >= w.xMin - EPS && x0 <= w.xMax + EPS) parts.push(`crosses the x-axis at ${readText(x0, res.x)}`);
+    if (x0 >= w.xMin - EPS && x0 <= w.xMax + EPS) parts.push(say('crossesXAxis', atSay(x0, res.x)));
   }
   const through = gridPointsOnLine(m, b, res, w);
-  if (through.length === 2) parts.push(`passes through ${readPair(...through[0], res)} and ${readPair(...through[1], res)}`);
-  else if (through.length === 1) parts.push(`passes through ${readPair(...through[0], res)}`);
-  return { name, text: `${name}${style} ${joinClauses(parts)}.` };
+  if (through.length) parts.push(say('passesThrough', through.map(([x, y]) => readPairSay(x, y, res))));
+  return say('markReading', subject, parts);
 };
 
 const joinClauses = (clauses) => {
@@ -322,12 +329,12 @@ const curveFeatures = (fn, res, w) => {
     const next = samples[i + 1];
     // Edges: where the visible curve begins and ends.
     if (s.inside && (!prev || !prev.inside)) {
-      if (!prev) features.push({ x: s.x, y: s.y, text: `starts at the left edge at ${readPair(s.x, s.y, res)}` });
-      else if (prev.y == null) features.push({ x: s.x, y: s.y, text: `begins at ${readPair(s.x, s.y, res)}` });
+      if (!prev) features.push({ x: s.x, y: s.y, say: say('startsAtLeftEdge', readPairSay(s.x, s.y, res)) });
+      else if (prev.y == null) features.push({ x: s.x, y: s.y, say: say('beginsAt', readPairSay(s.x, s.y, res)) });
       else {
         const edge = prev.y > w.yMax ? w.yMax : w.yMin;
         const x = edgeCrossing(prev, s, edge);
-        features.push({ x, y: edge, text: `comes in through the ${edge === w.yMax ? 'top' : 'bottom'} edge at ${readPair(x, edge, res)}` });
+        features.push({ x, y: edge, say: say(edge === w.yMax ? 'comesInTop' : 'comesInBottom', readPairSay(x, edge, res)) });
       }
     }
     // An x-axis zero at the very end of the visible curve is already spoken
@@ -335,12 +342,12 @@ const curveFeatures = (fn, res, w) => {
     if (xAxisVisible && s.inside && prev && next && prev.inside && next.inside) {
       if (atZero(s) && !atZero(prev)) {
         const touching = Math.sign(prev.y) === Math.sign(next.y) && Math.sign(prev.y) !== 0;
-        features.push({ x: s.x, y: 0, text: `${touching ? 'touches' : 'crosses'} the x-axis at ${readText(s.x, res.x)}` });
+        features.push({ x: s.x, y: 0, say: say(touching ? 'touchesXAxis' : 'crossesXAxis', atSay(s.x, res.x)) });
       }
     }
     if (xAxisVisible && s.inside && prev && prev.inside && !atZero(prev) && !atZero(s) && prev.y * s.y < 0) {
       const x0 = prev.x + ((0 - prev.y) * (s.x - prev.x)) / (s.y - prev.y);
-      features.push({ x: x0, y: 0, text: `crosses the x-axis at ${readText(x0, res.x)}` });
+      features.push({ x: x0, y: 0, say: say('crossesXAxis', atSay(x0, res.x)) });
     }
     // Turning points: the direction of travel reverses inside the window.
     if (s.inside && prev && next && prev.inside && next.inside) {
@@ -351,16 +358,16 @@ const curveFeatures = (fn, res, w) => {
       if (Math.abs(before) > 1e-12 && Math.abs(after) > 1e-12 && Math.sign(before) !== Math.sign(after)) {
         const high = before > 0;
         const touchesAxis = xAxisVisible && Math.abs(s.y) < 1e-9;
-        if (!touchesAxis) features.push({ x: s.x, y: s.y, text: `has a ${high ? 'high' : 'low'} point at ${readPair(s.x, s.y, res)}` });
+        if (!touchesAxis) features.push({ x: s.x, y: s.y, say: say(high ? 'highPointAt' : 'lowPointAt', readPairSay(s.x, s.y, res)) });
       }
     }
     if (s.inside && (!next || !next.inside)) {
-      if (!next) features.push({ x: s.x, y: s.y, text: `ends at the right edge at ${readPair(s.x, s.y, res)}` });
-      else if (next.y == null) features.push({ x: s.x, y: s.y, text: `stops at ${readPair(s.x, s.y, res)}` });
+      if (!next) features.push({ x: s.x, y: s.y, say: say('endsAtRightEdge', readPairSay(s.x, s.y, res)) });
+      else if (next.y == null) features.push({ x: s.x, y: s.y, say: say('stopsAt', readPairSay(s.x, s.y, res)) });
       else {
         const edge = next.y > w.yMax ? w.yMax : w.yMin;
         const x = edgeCrossing(s, next, edge);
-        features.push({ x, y: edge, text: `leaves through the ${edge === w.yMax ? 'top' : 'bottom'} edge at ${readPair(x, edge, res)}` });
+        features.push({ x, y: edge, say: say(edge === w.yMax ? 'leavesTop' : 'leavesBottom', readPairSay(x, edge, res)) });
       }
     }
   });
@@ -373,7 +380,7 @@ const curveFeatures = (fn, res, w) => {
       // Already said when another feature reads as the same grid point.
       const said = features.some((f) => Number.isFinite(f.y)
         && readValue(f.x, res.x).value === 0 && readValue(f.y, res.y).value === readValue(y0, res.y).value);
-      if (!said) features.push({ x: 0, text: `crosses the y-axis at ${readText(y0, res.y)}` });
+      if (!said) features.push({ x: 0, say: say('crossesYAxis', atSay(y0, res.y)) });
     }
   }
   features.sort((a, b) => a.x - b.x);
@@ -385,24 +392,24 @@ const describeCurve = (fn, index, count, res, w, dashes = null) => {
   // CoordinatePlane draws the first curve solid and every later one dashed;
   // with one curve there is nothing to tell apart. A figure that says which
   // curves it draws dashed (`curveDashes`, GraphDisplay) is said as drawn.
-  const name = `Curve ${index + 1}`;
-  const style = dashes
-    ? (dashes[index] ? ' (dashed)' : ' (solid)')
-    : count < 2 ? '' : index === 0 ? ' (solid)' : ' (dashed)';
+  const number = index + 1;
+  const dashed = dashes ? Boolean(dashes[index]) : count < 2 ? null : index !== 0;
+  const subject = dashed === null ? say('curveSubject', number) : say(dashed ? 'dashedCurveSubject' : 'solidCurveSubject', number);
   const { features, visible } = curveFeatures(fn, res, w);
-  if (!visible) return { name, text: `${name}${style} is outside the window.` };
-  const shown = features.slice(0, MAX_CURVE_FEATURES).map((f) => f.text);
-  if (features.length > MAX_CURVE_FEATURES) shown.push('continues');
-  return { name, text: `${name}${style} ${joinClauses(shown)}.` };
+  if (!visible) return say('outsideWindow', subject);
+  const shown = features.slice(0, MAX_CURVE_FEATURES).map((f) => f.say);
+  if (features.length > MAX_CURVE_FEATURES) shown.push(say('continues'));
+  return say('markReading', subject, shown);
 };
 
 /* ------------------------------------------------------ shapes and guides */
 
-const vertexList = (vertices, res) => {
-  const shown = vertices.slice(0, MAX_VERTICES).map(([x, y]) => readPair(x, y, res));
-  if (vertices.length > MAX_VERTICES) shown.push(`${vertices.length - MAX_VERTICES} more`);
-  return joinClauses(shown);
-};
+// Corners or vertices, as many as are said, then how many more there are.
+const vertexListSay = (vertices, res) => say(
+  'vertices',
+  vertices.slice(0, MAX_VERTICES).map(([x, y]) => readPairSay(x, y, res)),
+  Math.max(0, vertices.length - MAX_VERTICES),
+);
 
 const toolMarkSentence = (toolMarks, detail) => {
   const pick = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
@@ -490,6 +497,80 @@ export const GRAPH_WORDS = Object.freeze({
   // What a static graph's axes count by, on a figure the student can fix (R-9).
   scaleSame: () => 'Both axes now use the same scale.',
   scaleCounts: (x, y) => `The x-axis counts by ${x}s and the y-axis counts by ${y}s.`,
+
+  /*
+   * THE FULL READING, once positions may be said: a closed question, or the
+   * graph read-out while it is open (AX03). Each line, curve, guide, shaded
+   * side, path, region and point, where the grid lets the eye read it.
+   */
+  // Where a mark meets an axis or a gridline; a value between two gridlines
+  // is `between` ("crosses the x-axis between 2 and 3").
+  atValue: (value) => `at ${value}`,
+  throughValue: (value) => `through ${value}`,
+  curveTotal: (count) => `${plural(count, 'curve')}.`,
+  // A line or a curve by its name, as drawn, then what it does.
+  lineSubject: (number) => `Line ${number}`,
+  solidLineSubject: (number) => `Line ${number} (solid)`,
+  dashedLineSubject: (number) => `Line ${number} (dashed)`,
+  referenceLineSubject: () => 'Reference line',
+  dashedReferenceLineSubject: () => 'Reference line (dashed)',
+  curveSubject: (number) => `Curve ${number}`,
+  solidCurveSubject: (number) => `Curve ${number} (solid)`,
+  dashedCurveSubject: (number) => `Curve ${number} (dashed)`,
+  markReading: (subject, clauses) => `${subject} ${joinClauses(clauses)}.`,
+  outsideWindow: (subject) => `${subject} is outside the window.`,
+  isHorizontal: () => 'is horizontal',
+  risesLeftToRight: () => 'rises from left to right',
+  fallsLeftToRight: () => 'falls from left to right',
+  crossesYAxis: (where) => `crosses the y-axis ${where}`,
+  crossesXAxis: (where) => `crosses the x-axis ${where}`,
+  touchesXAxis: (where) => `touches the x-axis ${where}`,
+  passesThrough: (pairs) => `passes through ${pairs.join(' and ')}`,
+  startsAtLeftEdge: (at) => `starts at the left edge at ${at}`,
+  beginsAt: (at) => `begins at ${at}`,
+  comesInTop: (at) => `comes in through the top edge at ${at}`,
+  comesInBottom: (at) => `comes in through the bottom edge at ${at}`,
+  highPointAt: (at) => `has a high point at ${at}`,
+  lowPointAt: (at) => `has a low point at ${at}`,
+  endsAtRightEdge: (at) => `ends at the right edge at ${at}`,
+  stopsAt: (at) => `stops at ${at}`,
+  leavesTop: (at) => `leaves through the top edge at ${at}`,
+  leavesBottom: (at) => `leaves through the bottom edge at ${at}`,
+  continues: () => 'continues',
+  // Guides, said the way they are drawn.
+  dashedVerticalAt: (where) => `Dashed vertical line ${where} on the x-axis.`,
+  solidVerticalAt: (where) => `Solid vertical line ${where} on the x-axis.`,
+  dashedHorizontalAt: (where) => `Dashed horizontal line ${where} on the y-axis.`,
+  // Each shaded side with the line it is beside (N38).
+  lineRef: (number) => `line ${number}`,
+  referenceLineRef: () => 'the reference line',
+  verticalLineRef: (where) => `the vertical line ${where}`,
+  aboveOf: (line) => `above ${line}`,
+  belowOf: (line) => `below ${line}`,
+  leftOf: (line) => `to the left of ${line}`,
+  rightOf: (line) => `to the right of ${line}`,
+  shadedSide: (where) => `Shaded ${where}.`,
+  regionShadedSides: (sides) => `The region ${joinClauses(sides)} is shaded.`,
+  // Paths and regions by their corners.
+  vertices: (pairs, more) => joinClauses(more ? [...pairs, `${more} more`] : pairs),
+  pathThrough: (number, vertices) => `Connected path ${number} through ${vertices}.`,
+  dashedPathThrough: (number, vertices) => `Connected path ${number} (dashed) through ${vertices}.`,
+  regionCorners: (number, vertices) => `Shaded region ${number} with corners at ${vertices}.`,
+  // Every point, where it is.
+  pointsRead: (dots, arrows, marks) => `${[dots ? plural(dots, 'point') : '', arrows ? plural(arrows, 'arrowhead') : ''].filter(Boolean).join(' and ')}: ${marks.join('; ')}.`,
+  pointAt: (label, at) => `${label} at ${at}`,
+  openDotAt: (at) => `${at}, open dot`,
+  closedDotAt: (at) => `${at}, closed dot`,
+  arrowheadAt: (at, direction) => `arrowhead at ${at} pointing ${direction}`,
+  pointingRight: () => 'right',
+  pointingUpRight: () => 'up and right',
+  pointingUp: () => 'up',
+  pointingUpLeft: () => 'up and left',
+  pointingLeft: () => 'left',
+  pointingDownLeft: () => 'down and left',
+  pointingDown: () => 'down',
+  pointingDownRight: () => 'down and right',
+  outsideWindowMark: (mark) => `${mark}, outside the window`,
 });
 
 const english = (segment) => sayFigure([segment], GRAPH_WORDS, { english: true });
@@ -504,7 +585,7 @@ const graphSentenceSay = (text) => {
 /* ------------------------------------------------------- shaded sides (N38) */
 
 const SIDE_SAYS = Object.freeze({ above: 'sideAbove', below: 'sideBelow', left: 'sideLeft', right: 'sideRight' });
-const SIDE_WORDS = Object.freeze({ above: 'above', below: 'below', left: 'to the left of', right: 'to the right of' });
+const SIDE_OF_SAYS = Object.freeze({ above: 'aboveOf', below: 'belowOf', left: 'leftOf', right: 'rightOf' });
 
 /*
  * WHICH DRAWN LINE EACH SHADED SIDE BELONGS TO. A figure's `halfPlanes` say,
@@ -739,79 +820,83 @@ export function describeCoordinatePlane({
     });
   }
 
-  // The full reading is English only for now (say: null below).
-  const sentences = windowSays.map(english);
+  // The full reading, as messages like the reading above (AX05): Read aloud
+  // says it in Spanish under an authored Spanish translation, with the same
+  // numbers. Its English is said from the same messages.
+  const says = [...windowSays];
   const plan = shadingPlan({ lines: list(lines), verticalLines: list(verticalLines), halfPlanes: list(halfPlanes) });
   const styled = list(lines).some((line) => line?.reference !== true && line?.dash) || plan.lineSide.size > 0
     || plan.entries.some((entry) => entry.kind === 'overlap');
   // Each line's name, said in its own sentence and wherever a shaded side
   // names it: a sort's shared reference line is "Reference line" (CT04).
   const lineNames = new Map();
+  const lineRefs = new Map();
   let lineNumber = 0;
   const lineEntries = list(lines).map((line, i) => {
     const reference = line?.reference === true;
     if (!reference) lineNumber += 1;
-    const name = reference ? 'Reference line' : `Line ${lineNumber}`;
-    const entry = describeLine(line, name, res, w, styled && !reference);
-    if (entry) lineNames.set(i, name);
+    const entry = describeLine(line, lineSubjectSay(line, lineNumber, styled), res, w);
+    if (entry) {
+      lineNames.set(i, reference ? 'Reference line' : `Line ${lineNumber}`);
+      lineRefs.set(i, reference ? say('referenceLineRef') : say('lineRef', lineNumber));
+    }
     return entry;
   }).filter(Boolean);
   const ownLineCount = list(lines).filter((line, i) => lineNames.has(i) && line?.reference !== true).length;
-  if (ownLineCount) sentences.push(`${plural(ownLineCount, 'line')}.`);
-  if (lineEntries.length > ownLineCount) sentences.push(`${plural(lineEntries.length - ownLineCount, 'reference line')}.`);
-  lineEntries.forEach((entry) => sentences.push(entry.text));
+  if (ownLineCount) says.push(say('lineCount', ownLineCount));
+  if (lineEntries.length > ownLineCount) says.push(say('referenceLineCount', lineEntries.length - ownLineCount));
+  says.push(...lineEntries);
 
   const curveIndexes = list(functions).map((fn, i) => (typeof fn === 'function' ? i : null)).filter((i) => i !== null);
   const curveFns = curveIndexes.map((i) => list(functions)[i]);
   const dashes = Array.isArray(curveDashes) && curveIndexes.some((i) => curveDashes[i]) ? curveIndexes.map((i) => Boolean(curveDashes[i])) : null;
   const curveEntries = curveFns.map((fn, i) => describeCurve(fn, i, curveFns.length, res, w, dashes)).filter(Boolean);
-  if (curveEntries.length) {
-    sentences.push(`${plural(curveEntries.length, 'curve')}.`);
-    curveEntries.forEach((entry) => sentences.push(entry.text));
-  }
+  if (curveEntries.length) says.push(say('curveTotal', curveEntries.length), ...curveEntries);
 
   // Said the way it is drawn: a guide or a strict boundary dashed, an inclusive one solid.
   const verticalEntries = list(verticalLines).map((entry, index) => ({ ...verticalLineDrawing(entry), index }));
   const verticals = verticalEntries.filter((line) => Number.isFinite(line.x));
   const horizontals = list(horizontalLines).map(Number).filter(Number.isFinite);
-  verticals.forEach(({ x, dash }) => sentences.push(`${dash ? 'Dashed' : 'Solid'} vertical line through ${readText(x, res.x)} on the x-axis.`));
-  horizontals.forEach((y) => sentences.push(`Dashed horizontal line through ${readText(y, res.y)} on the y-axis.`));
+  verticals.forEach(({ x, dash }) => says.push(say(dash ? 'dashedVerticalAt' : 'solidVerticalAt', throughSay(x, res.x))));
+  horizontals.forEach((y) => says.push(say('dashedHorizontalAt', throughSay(y, res.y))));
 
   // Each shaded side, said with the line it is beside (N38).
-  const sideOf = (entry) => (Number.isInteger(entry.line) && lineNames.has(entry.line)
-    ? `${SIDE_WORDS[entry.side]} ${lineNames.get(entry.line).replace(/^Line\b/, 'line').replace(/^Reference line/, 'the reference line')}`
-    : `${SIDE_WORDS[entry.side]} the vertical line through ${readText(verticalEntries[entry.vertical]?.x, res.x)}`);
+  const sideOf = (entry) => say(SIDE_OF_SAYS[entry.side], Number.isInteger(entry.line) && lineRefs.has(entry.line)
+    ? lineRefs.get(entry.line)
+    : say('verticalLineRef', throughSay(verticalEntries[entry.vertical]?.x, res.x)));
   const looseRegions = [];
   plan.entries.forEach((entry) => {
-    if (entry.kind === 'line') sentences.push(`Shaded ${sideOf({ line: entry.index, side: entry.side })}.`);
-    else if (entry.kind === 'vertical') sentences.push(`Shaded ${sideOf({ vertical: entry.index, side: entry.side })}.`);
-    else if (entry.kind === 'overlap') sentences.push(`The region ${joinClauses(entry.sides.map(sideOf))} is shaded.`);
+    if (entry.kind === 'line') says.push(say('shadedSide', sideOf({ line: entry.index, side: entry.side })));
+    else if (entry.kind === 'vertical') says.push(say('shadedSide', sideOf({ vertical: entry.index, side: entry.side })));
+    else if (entry.kind === 'overlap') says.push(say('regionShadedSides', entry.sides.map(sideOf)));
     else looseRegions.push(entry.polygon);
   });
 
   const polyEntries = list(polylines).filter((entry) => rawPointList(entry).length);
   const polyVertices = polyEntries.map(rawPointList);
   polyEntries.forEach((entry, i) => {
-    sentences.push(`Connected path ${i + 1}${entry?.dash ? ' (dashed)' : ''} through ${vertexList(polyVertices[i], res)}.`);
+    says.push(say(entry?.dash ? 'dashedPathThrough' : 'pathThrough', i + 1, vertexListSay(polyVertices[i], res)));
   });
 
   const regionVertices = [...list(regions), ...looseRegions].map(rawPointList).filter((v) => v.length);
   regionVertices.forEach((vertices, i) => {
-    sentences.push(`Shaded region ${i + 1} with corners at ${vertexList(vertices, res)}.`);
+    says.push(say('regionCorners', i + 1, vertexListSay(vertices, res)));
   });
 
   const pointEntries = describePoints(list(points), res, w);
   if (pointEntries.length) {
     const dots = pointEntries.filter((p) => p.kind === 'point').length;
-    const arrows = pointEntries.length - dots;
-    const counts = [dots ? plural(dots, 'point') : '', arrows ? plural(arrows, 'arrowhead') : ''].filter(Boolean).join(' and ');
-    sentences.push(`${counts}: ${pointEntries.map((p) => p.text).join('; ')}.`);
+    says.push(say('pointsRead', dots, pointEntries.length - dots, pointEntries.map((p) => p.say)));
   }
 
   const described = lineEntries.length + curveEntries.length + verticals.length + horizontals.length
     + polyVertices.length + regionVertices.length + plan.entries.filter((entry) => entry.kind !== 'region').length + pointEntries.length;
-  if (!described && !hasUndescribedMarks) sentences.push(emptyText);
-  if (hasUndescribedMarks) sentences.push(toolMarkSentence(toolMarks, 'features') || GRAPH_WORDS.undescribedMarks());
+  if (!described && !hasUndescribedMarks) says.push(graphSentenceSay(emptyText));
+  if (hasUndescribedMarks) {
+    const own = toolMarkSentence(toolMarks, 'features');
+    says.push(own ? graphSentenceSay(own) : say('undescribedMarks'));
+  }
+  const sentences = says.map(english);
 
   /* Tables: the same reading, laid out as a sighted student would tabulate it. */
   const tables = [];
@@ -856,9 +941,6 @@ export function describeCoordinatePlane({
     });
   }
 
-  // "crosses the x-axis at between 2 and 4" reads as "… between 2 and 4".
-  const spoken = sentences.map((sentence) => sentence.replace(/\b(?:at|through) between\b/g, 'between'));
-  sentences.splice(0, sentences.length, ...spoken);
   const description = sentences.join(' ');
   return {
     summary: label ? `${label}, ${description}` : description,
@@ -866,8 +948,7 @@ export function describeCoordinatePlane({
     sentences,
     tables,
     detail: 'features',
-    // No messages for the full reading yet: Read aloud says it in English (AX05).
-    say: null,
+    say: says,
   };
 }
 

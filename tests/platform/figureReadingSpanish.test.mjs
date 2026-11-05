@@ -13,11 +13,12 @@
  *   after   in Spanish: the coordinate plane while the question can be
  *           answered (every question graph and every tool plane, with its axis
  *           sentence and a fixable graph's scale caption), the interval number
- *           line and the pick-a-point number line.
+ *           line and the pick-a-point number line; in slice 2, the plane's
+ *           full reading once a question is closed or for the graph read-out
+ *           (AX03), with its positions and the same numbers.
  *           In English, after "La descripción de esta figura está en inglés.":
- *           the full reading once a question is closed or for the graph
- *           read-out, an author's description, the 3D model, the graph
- *           workspace, and a tool's own sentence the pack does not know.
+ *           an author's description, the 3D model, the graph workspace, and a
+ *           tool's own sentence the pack does not know.
  *
  * The browser half: tests/browser/readAloudTranslate.mjs (the real DOL graph
  * and the 3D model, with an authored Spanish prompt).
@@ -75,8 +76,9 @@ after(async () => { await capture?.close(); });
 test('the Spanish pack says every sentence the figure generators say, and no other', () => {
   const english = { ...GRAPH_WORDS, ...NUMBER_LINE_WORDS, ...AXIS_TITLE_WORDS };
   const ids = Object.keys(english);
-  // Measured: every message the three generators have (51 today).
-  assert.ok(ids.length >= 50, `${ids.length} figure messages`);
+  // Measured: every message the three generators have (112 today: 51, and
+  // 61 for the full reading in slice 2).
+  assert.ok(ids.length >= 112, `${ids.length} figure messages`);
   ids.forEach((id) => assert.equal(typeof esFigures.words[id], 'function', `Spanish for "${id}"`));
   Object.keys(esFigures.words).forEach((id) => assert.ok(Object.hasOwn(english, id), `"${id}" is a message a generator says`));
   // Built from the same pieces, a sentence keeps the English's numbers.
@@ -142,13 +144,79 @@ test('a Spanish figure reading says the English reading\'s numbers, in order, ov
   assert.equal(said, 1200);
 });
 
-test('the full reading of a closed question has no messages yet: it stays English', () => {
-  const closed = describeCoordinatePlane({ xMin: -6, xMax: 6, yMin: -6, yMax: 6, lines: [{ m: 1, b: 2 }], detail: 'features' });
-  assert.equal(closed.detail, 'features');
-  assert.equal(closed.say, null);
-  const open = describeCoordinatePlane({ xMin: -6, xMax: 6, yMin: -6, yMax: 6, lines: [{ m: 1, b: 2 }] });
-  assert.ok(Array.isArray(open.say));
-  assert.equal(sayFigure(open.say, GRAPH_WORDS, { english: true }), open.description, 'the English is said from the same messages');
+/*
+ * THE FULL READING (slice 2): a closed question, or the graph read-out while
+ * it is open (AX03). It was read in English after the note; it is now said in
+ * Spanish, positions included, with the English's numbers in the same order.
+ * Its English is said from the same messages, so the two cannot drift.
+ */
+test('the full reading of a closed question is said in Spanish, with the English\'s numbers, over many figures', () => {
+  let seed = 20261105;
+  const rand = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+  const pick = (list) => list[Math.floor(rand() * list.length)];
+  const int = (lo, hi) => lo + Math.floor(rand() * (hi - lo + 1));
+  const curves = [(x) => x * x - 2, (x) => (x - 1) ** 2, (x) => (x < 2 ? Math.sqrt(2 - x) : NaN), (x) => Math.sin(x) * 3, (x) => 20 * x, (x) => 1 / x];
+  const said = new Set();
+  for (let n = 0; n < 400; n += 1) {
+    const plane = describeCoordinatePlane({
+      detail: 'features',
+      xMin: pick([-10, -6, -5, -6.374046]), xMax: pick([10, 6, 7]), yMin: pick([-10, -6, -3.5]), yMax: pick([10, 16, 3.5]),
+      windowSteps: rand() < 0.3 ? { x: 1, y: 1 } : null, snapStep: pick([1, 0.5]), minorGridDrawn: rand() < 0.5,
+      points: Array.from({ length: int(0, 4) }, () => ({ x: int(-12, 12) / pick([1, 2, 3]), y: int(-12, 12) / pick([1, 2]), label: pick(['', 'A', 'P₁', '(1, 3)']), marker: pick([undefined, undefined, 'open', 'closed', 'arrow']), vector: pick([undefined, [1, 1], [-1, 1], [0, -1], [-1, -1]]) })),
+      lines: Array.from({ length: int(0, 2) }, () => ({ m: pick([int(-3, 3), 0.5, 7]), b: pick([int(-4, 4), 2.3, 40]), ...(rand() < 0.4 ? { dash: '10 6' } : {}), ...(rand() < 0.15 ? { reference: true } : {}) })),
+      functions: Array.from({ length: int(0, 2) }, () => pick(curves)),
+      curveDashes: rand() < 0.3 ? [true, false] : null,
+      verticalLines: Array.from({ length: int(0, 2) }, () => (rand() < 0.5 ? pick([int(-3, 3), 1.5]) : { x: int(-3, 3), boundaryStyle: pick(['solid', 'dashed']) })),
+      horizontalLines: Array.from({ length: int(0, 1) }, () => pick([int(-3, 3), 2.5])),
+      polylines: rand() < 0.3 ? [{ points: Array.from({ length: int(1, 14) }, () => [int(-5, 5) / pick([1, 2]), int(-5, 5)]), dash: rand() < 0.5 ? '10 6' : undefined }] : [],
+      regions: rand() < 0.2 ? [Array.from({ length: int(3, 14) }, () => [int(-5, 5), int(-5, 5) / pick([1, 2])])] : [],
+      halfPlanes: Array.from({ length: int(0, 2) }, () => ({
+        sides: Array.from({ length: int(1, 2) }, () => pick([{ side: pick(['above', 'below']), line: int(0, 1) }, { side: pick(['left', 'right']), vertical: int(0, 1) }, { side: 'below' }])),
+        polygon: [[0, 0], [2, 0], [0, 2]],
+      })),
+      emptyText: pick(['Nothing is plotted.', 'Nothing is plotted yet.']),
+    });
+    assert.equal(plane.detail, 'features');
+    assert.equal(sayFigure(plane.say, GRAPH_WORDS, { english: true }), plane.description, `figure ${n}: the English is said from the same messages`);
+    const spanish = sayFigure(plane.say, esFigures.words);
+    assert.ok(spanish, `has Spanish: ${plane.description}`);
+    sameNumbers(plane.description, spanish, `figure ${n}`);
+    plane.say.forEach((segment) => said.add(segment?.id));
+  }
+  // The figures above reach every kind of sentence the full reading has.
+  ['markReading', 'outsideWindow', 'curveTotal', 'dashedVerticalAt', 'solidVerticalAt', 'dashedHorizontalAt', 'shadedSide', 'regionShadedSides', 'pathThrough', 'dashedPathThrough', 'regionCorners', 'pointsRead']
+    .forEach((id) => assert.ok(said.has(id), `a figure says ${id}`));
+});
+
+test('the full reading in Spanish: each line, curve, guide, shaded side, path, region and point, where it is', () => {
+  const spanish = (input) => sayFigure(describeCoordinatePlane({ detail: 'features', xMin: -5, xMax: 5, yMin: -5, yMax: 5, ...input }).say, esFigures.words);
+  // Two lines, one dashed, and the region between their sides (N38).
+  assert.equal(
+    spanish({ xMin: -6, xMax: 6, yMin: -6, yMax: 6, lines: [{ m: 1, b: 2 }, { m: -0.5, b: 1.5, dash: '6 4' }], halfPlanes: [{ sides: [{ side: 'above', line: 0 }, { side: 'below', line: 1 }], polygon: [[0, 0], [1, 0], [0, 1]] }] }),
+    'El eje x va de −6 a 6 y el eje y, de −6 a 6. 2 rectas. La recta 1 (continua) sube de izquierda a derecha, cruza el eje y en 2, cruza el eje x en −2 y pasa por (0, 2) y (2, 4). La recta 2 (discontinua) baja de izquierda a derecha, cruza el eje y entre 0 y 2 y cruza el eje x entre 2 y 4. La región por encima de la recta 1 y por debajo de la recta 2 está sombreada.',
+  );
+  // Two curves, the first solid and the second dashed; guides; a shaded side of a vertical line.
+  assert.equal(
+    spanish({ functions: [(x) => x * x - 2, (x) => (x < 2 ? Math.sqrt(2 - x) : NaN)], verticalLines: [{ x: 1.5, boundaryStyle: 'dashed' }, { x: 3, boundaryStyle: 'solid' }], horizontalLines: [2], halfPlanes: [{ sides: [{ side: 'left', vertical: 1 }], polygon: [] }] }),
+    'El eje x va de −5 a 5 y el eje y, de −5 a 5. 2 curvas. La curva 1 (con trazo continuo) entra por el borde superior en (x entre −4 y −2, y entre 4 y 6), cruza el eje x entre −2 y 0, tiene un punto bajo en (0, −2), cruza el eje x entre 0 y 2 y sale por el borde superior en (x entre 2 y 4, y entre 4 y 6). La curva 2 (con trazo discontinuo) empieza en el borde izquierdo en (x entre −6 y −4, y entre 2 y 4), cruza el eje y entre 0 y 2 y se detiene en (x entre 0 y 2, y entre 0 y 2). Recta vertical discontinua entre 0 y 2 en el eje x. Recta vertical continua entre 2 y 4 en el eje x. Recta horizontal discontinua que pasa por 2 en el eje y. La región a la izquierda de la recta vertical entre 2 y 4 está sombreada.',
+  );
+  // A line off the window, a reference line (CT04), a dashed path and a region by its corners.
+  assert.equal(
+    spanish({ lines: [{ m: 0, b: 7 }, { m: 2, b: 1, reference: true }], polylines: [{ points: [[0, 0], [1, 2], [2.5, 3]], dash: '6 4' }], regions: [[[0, 0], [2, 0], [0, 2]]] }),
+    'El eje x va de −5 a 5 y el eje y, de −5 a 5. 1 recta. 1 recta de referencia. La recta 1 está fuera de la ventana. La recta de referencia sube de izquierda a derecha, cruza el eje y entre 0 y 2 y cruza el eje x entre −2 y 0. La línea poligonal 1 (discontinua) pasa por (0, 0), (x entre 0 y 2, y 2) y (x entre 2 y 4, y entre 2 y 4). La región sombreada 1 tiene esquinas en (0, 0), (2, 0) y (0, 2).',
+  );
+  // Every point: its label as the plane draws it, open and closed dots, an
+  // arrowhead's way, and one outside the window.
+  assert.equal(
+    spanish({ minorGridDrawn: true, points: [{ x: 2, y: 3, label: 'A' }, { x: -1, y: -2, marker: 'closed' }, { x: 4, y: 1, marker: 'open' }, { x: 3, y: 3, marker: 'arrow', vector: [-1, 1] }, { x: 9, y: 2 }] }),
+    'El eje x va de −5 a 5 y el eje y, de −5 a 5. 4 puntos y 1 punta de flecha: A en (2, 3); (−1, −2), círculo cerrado; (4, 1), círculo abierto; punta de flecha en (3, 3) que apunta hacia arriba y a la izquierda; (9, 2), fuera de la ventana.',
+  );
+  // Nothing drawn: the plane's own sentence. A tool's own sentence the pack
+  // does not know keeps the figure in English, as while it is open.
+  assert.equal(spanish({}), 'El eje x va de −5 a 5 y el eje y, de −5 a 5. No hay nada graficado.');
+  assert.equal(spanish({ hasUndescribedMarks: true, toolMarks: { kinds: '1 curve.', features: '1 curve, opening to the right.' } }), null);
+  // The Spanish is said with the reader's own words for the mathematics.
+  assert.match(speechTextFor(spanish({ lines: [{ m: 1, b: -2 }] }), { language: 'es' }), /cruza el eje y en negativo 2, cruza el eje x en 2 y pasa por el punto 0, negativo 2 y el punto 2, 0\.$/);
 });
 
 /* ------------------------------------------------------------- the reader */
@@ -207,7 +275,7 @@ const realQuestions = () => {
 // What would give a position or a value away, in Spanish.
 const POSITIONS_ES = /\(\s*[−-]?\d|\bcruza\b|\bpasa por\b|\bentre\b|\besquinas?\b|punto (?:alto|bajo)/;
 
-test('every real assessment graph is read in Spanish while open, with no position; once closed, in English', async () => {
+test('every real assessment graph is read in Spanish while open, with no position; once closed, in full, in Spanish', async () => {
   const { default: GraphDisplay } = await capture.load('/src/GraphDisplay.jsx');
   const { QuestionLifecycleProvider } = await capture.load('/src/platform/question/QuestionLifecycleContext.jsx');
   const { staticGraphSpec } = await capture.load('/src/platform/workflow/WorkflowRunner.jsx');
@@ -246,11 +314,16 @@ test('every real assessment graph is read in Spanish while open, with no positio
     sameNumbers(open.text, spanish, stored.questionId);
     assert.match(spanish, /Las posiciones no se leen mientras se pueda responder esta pregunta\./, stored.questionId);
     assert.doesNotMatch(spanish, POSITIONS_ES, `${stored.questionId}: ${spanish}`);
-    // Closed: the full reading, English only for now, and the reader says so.
+    // Closed: the full reading, positions and all, in Spanish too (slice 2),
+    // with the same numbers, and no note that it is in English.
     const closed = published({ terminal: true, positionsReadable: true });
-    assert.equal(closed.say, undefined, `${stored.questionId}: the full reading has no Spanish yet`);
+    const full = sayFigure(closed.say, esFigures.words);
+    assert.ok(full, `${stored.questionId}: the full reading has Spanish`);
+    assert.equal(sayFigure(closed.say, GRAPH_WORDS, { english: true }), closed.text, `${stored.questionId}: closed, the messages say what the English says`);
+    sameNumbers(closed.text, full, `${stored.questionId} closed`);
+    assert.match(full, POSITIONS_ES, `${stored.questionId}: closed, its positions are said: ${full}`);
     const part = questionReadingParts(question, { figures: [closed], language: 'es', figurePack: esFigures }).find((entry) => entry.kind === 'figure');
-    assert.ok(part.text.startsWith(`Gráfica de la pregunta. ${NOTE} `), `${stored.questionId}: ${part.text.slice(0, 80)}`);
+    assert.ok(part.text.startsWith('Gráfica de la pregunta. El eje x va de ') && !part.text.includes(NOTE), `${stored.questionId}: ${part.text.slice(0, 80)}`);
   });
 });
 
@@ -269,8 +342,10 @@ test('the shared plane publishes its axis sentence and its reading as messages; 
   // An author's own description is English only: no messages travel.
   const authored = capture.render(React.createElement(CoordinatePlane, { ...props, description: 'A scatter plot of ten students.' })).entries[0];
   assert.equal(authored.say, undefined);
-  // Nor with the full reading.
-  assert.equal(capture.render(React.createElement(CoordinatePlane, { ...props, describeFeatures: true })).entries[0].say, undefined);
+  // The full reading (a closed question, the graph read-out) travels as messages too (slice 2).
+  const full = capture.render(React.createElement(CoordinatePlane, { ...props, describeFeatures: true })).entries[0];
+  assert.equal(sayFigure(full.say, { ...GRAPH_WORDS, ...AXIS_TITLE_WORDS }, { english: true }), full.text);
+  assert.equal(sayFigure(full.say, esFigures.words), 'El eje x horizontal muestra Hours studied. El eje y vertical muestra Quiz score (points). El eje x va de −1 a 7 y el eje y, de −20 a 100. 1 recta. La recta 1 sube de izquierda a derecha, cruza el eje y entre 40 y 60 y pasa por (1, 60) y (5, 80). 2 puntos: (1, 60); (x 2, y entre 60 y 80).');
 });
 
 test('the question graph publishes its caption as written and its scale line as a message', async () => {
@@ -281,6 +356,26 @@ test('the question graph publishes its caption as written and its scale line as 
   assert.equal(sayFigure(entries[0].say, GRAPH_WORDS, { english: true }), entries[0].text);
   assert.equal(sayFigure([say('scaleCounts', 2, 5)], esFigures.words), 'El eje x va de 2 en 2 y el eje y, de 5 en 5.');
   assert.equal(sayFigure([say('scaleCounts', 2, 5)], GRAPH_WORDS, { english: true }), 'The x-axis counts by 2s and the y-axis counts by 5s.');
+});
+
+test('the graph read-out (AX03) is said in Spanish while the question is open; an author\'s description stays English', async () => {
+  const { default: GraphDisplay } = await capture.load('/src/GraphDisplay.jsx');
+  const { GraphReadOutProvider } = await capture.load('/src/platform/supports/graphReadOut.js');
+  const graph = { xMin: -5, xMax: 5, yMin: -5, yMax: 5, points: [{ x: 2, y: 3, label: 'A' }], functions: [{ type: 'linear', m: 1, b: -1 }] };
+  const read = (shown, enabled) => capture.render(React.createElement(GraphReadOutProvider, { enabled }, React.createElement(GraphDisplay, { graph: shown, title: 'Question graph', enlargeable: false }))).entries[0];
+  // Everyone else hears no position while it can be answered.
+  assert.match(sayFigure(read(graph, false).say, esFigures.words), /^El eje x va de −5 a 5 y el eje y, de −7 a 5\. 1 recta\. 1 punto con la etiqueta A\. Las posiciones no se leen/);
+  // The read-out's student hears the full reading, in Spanish, with the English's numbers.
+  const readOut = read(graph, true);
+  const spanish = sayFigure(readOut.say, esFigures.words);
+  assert.equal(spanish, 'El eje x va de −5 a 5 y el eje y, de −7 a 5. 1 recta. La recta 1 sube de izquierda a derecha, cruza el eje y en −1, cruza el eje x en 1 y pasa por (0, −1) y (1, 0). 1 punto: A en (2, 3).');
+  sameNumbers(readOut.text, spanish, 'the read-out');
+  const part = questionReadingParts({ prompt: 'La gráfica muestra una recta.' }, { figures: [readOut], language: 'es', figurePack: esFigures }).find((entry) => entry.kind === 'figure');
+  assert.equal(part.text, `Gráfica de la pregunta. ${spanish}`);
+  // An author's description, then the full reading: the author's English words keep it English.
+  const authored = read({ ...graph, accessibleDescription: 'One line and one labelled point.' }, true);
+  assert.equal(authored.say, undefined);
+  assert.match(questionReadingParts({ prompt: 'La gráfica.' }, { figures: [authored], language: 'es', figurePack: esFigures }).find((entry) => entry.kind === 'figure').text, new RegExp(`^Gráfica de la pregunta\\. ${NOTE} One line and one labelled point\\. x from −5 to 5, y from −7 to 5`));
 });
 
 test('the number lines publish their readings as messages', async () => {
