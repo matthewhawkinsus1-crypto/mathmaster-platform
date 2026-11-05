@@ -146,7 +146,8 @@ test('CI measures every swept surface at 200% text', () => {
   const screens = harness.slice(harness.indexOf('export const LARGE_TEXT_SCREENS'), harness.indexOf('const runScenes'));
   for (const id of ['more-tools', 'recovery', 'teacher', 'graph-feature-rush', 'registry-tools']) assert.match(screens, new RegExp(`id: '${id}'`), `the ${id} screen is measured`);
   assert.match(screens, /^\s*\.\.\.SCREENS,/m, "the certification's student screens are measured too");
-  assert.match(harness, /for \(const screen of LARGE_TEXT_SCREENS\)/, 'runScenes walks the extended list');
+  // The default run walks the extended list; only --teacher (TT27) swaps it for the teacher's scenes.
+  assert.match(harness, /for \(const screen of \(TEACHER_SWEEP \? TEACHER_SCREENS : LARGE_TEXT_SCREENS\)\)/, 'runScenes walks the extended list');
 });
 
 // CI01 (VH-29): the registry tools the large-text run adds to the scenes the

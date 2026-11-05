@@ -67,11 +67,11 @@ export default function RetroactiveAccommodationReview({ student, assignments = 
         <p>Correct a documented historical workload through an explicit grade correction. Saving a support profile does not change already-due work. Original attempts and support records stay intact.</p>
         <p>Use a short source reference only. Do not paste confidential documents or plan details.</p>
         <form className="se-stack" onSubmit={preview} aria-label="Preview historical workload corrections">
-          <label>Documented reduction (%) <input type="number" min="10" max="50" step="1" required value={input.percent} onChange={(e) => field('percent', Number(e.target.value))} /></label>
-          <label>Source descriptor <input required maxLength={120} value={input.sourceDescriptor} onChange={(e) => field('sourceDescriptor', e.target.value)} /></label>
-          <label>Documented effective date <input type="date" required value={input.effectiveDate} onChange={(e) => field('effectiveDate', e.target.value)} /></label>
-          <label>Historical range from <input type="date" required value={input.fromDate} onChange={(e) => field('fromDate', e.target.value)} /></label>
-          <label>Historical range through <input type="date" required value={input.toDate} onChange={(e) => field('toDate', e.target.value)} /></label>
+          <label>Documented reduction (%) <input style={{ minHeight: 28 }} type="number" min="10" max="50" step="1" required value={input.percent} onChange={(e) => field('percent', Number(e.target.value))} /></label>
+          <label>Source descriptor <input style={{ minHeight: 28 }} required maxLength={120} value={input.sourceDescriptor} onChange={(e) => field('sourceDescriptor', e.target.value)} /></label>
+          <label>Documented effective date <input style={{ minHeight: 28 }} type="date" required value={input.effectiveDate} onChange={(e) => field('effectiveDate', e.target.value)} /></label>
+          <label>Historical range from <input style={{ minHeight: 28 }} type="date" required value={input.fromDate} onChange={(e) => field('fromDate', e.target.value)} /></label>
+          <label>Historical range through <input style={{ minHeight: 28 }} type="date" required value={input.toDate} onChange={(e) => field('toDate', e.target.value)} /></label>
           <fieldset><legend>Applicable activities (none selected means all eligible activities)</legend>{roles.map((role) => <label key={role} style={{ display: 'block', minHeight: 44 }}><input type="checkbox" checked={input.appliesTo.includes(role)} onChange={(e) => field('appliesTo', e.target.checked ? [...input.appliesTo, role] : input.appliesTo.filter((r) => r !== role))} /> {role === 'dol' ? 'Exit ticket (DOL)' : role}</label>)}</fieldset>
           <button className="tw-btn" type="submit" disabled={busy}>Preview historical assignments</button>
         </form>

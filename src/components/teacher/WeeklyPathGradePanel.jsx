@@ -137,7 +137,7 @@ export default function WeeklyPathGradePanel({
         <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, background: 'var(--mm-surface)', color: tone.fg, border: `1px solid ${tone.border}` }}>
           GOOGLE CLASSROOM
         </span>
-        <span style={{ flex: 1, minWidth: 220, color: tone.fg, fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.45 }}>{readiness.reason}</span>
+        <span style={{ flex: 1, minWidth: 'min(220px, 100%)', color: tone.fg, fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.45 }}>{readiness.reason}</span>
         <button
           type="button"
           disabled={readiness.state !== SYNC_STATE.READY_FOR_REVIEW || !onReviewClassroomSync}

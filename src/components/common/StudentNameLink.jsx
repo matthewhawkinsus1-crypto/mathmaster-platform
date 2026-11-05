@@ -63,6 +63,8 @@ export default function StudentNameLink({
           border: 0,
           background: 'transparent',
           padding: 0,
+          // A target is 24 CSS px tall at least (WCAG 2.5.8): a name in a table row was 16 to 21.
+          minHeight: 24,
           color: 'var(--mm-primary-text)',
           fontWeight: 800,
           fontSize: 'inherit',

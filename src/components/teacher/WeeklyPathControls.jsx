@@ -53,7 +53,7 @@ const CCMR_LABEL = {
 
 function Field({ label, hint, children }) {
   return (
-    <label style={{ display: 'grid', gap: 5 }}>
+    <label style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 5 }}>
       <span style={{ fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text)' }}>{label}</span>
       {children}
       {hint && <span style={{ fontSize: 'calc(11.5 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>{hint}</span>}

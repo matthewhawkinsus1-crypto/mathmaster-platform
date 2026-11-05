@@ -471,7 +471,7 @@ export default function GradeTransferCenter({
         ))}
       </div>
       <div className="tw-row">
-        <label className="tw-row tw-small tw-strong" style={{ gap: 6 }}>
+        <label className="tw-row tw-small tw-strong" style={{ gap: 6, maxWidth: '100%' }}>
           Marking period
           <select className="tw-select" value={periodFilter} onChange={(event) => { setSelected(new Set()); setPeriodFilter(event.target.value); }}>
             <option value="current">Current marking period</option>

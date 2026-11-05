@@ -6,7 +6,7 @@
  *
  *   TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs &
  *   npx vite --config tests/browser/emulator/vite.config.mjs --host 127.0.0.1 --port 5199 --strictPort &
- *   node tests/browser/studentShellLargeText.mjs [--check=targets,s5,text,default,targetsize,workviewheader] [--only=<screen id,…>]
+ *   node tests/browser/studentShellLargeText.mjs [--check=targets,s5,text,default,targetsize,workviewheader] [--only=<screen id,…>] [--teacher]
  *
  * targets  The identity bar's Log Out is at least 44px tall (WCAG 2.5.5).
  * s5       Live Challenge round (1366×768): Tab from the top of the round to
@@ -31,6 +31,9 @@
  *          each other. Below 22em the buttons wrap onto their own row under the
  *          whole task, each at least 44 px; on a laptop, and on a phone at 100%,
  *          the header is one row, as it was. Not in the default set.
+ * --teacher  (TT27) Run the text and targetsize checks over every TEACHER_SCREENS scene of the accessibility
+ *          certification (48 scenes: the real app signed in as the synthetic teacher, on the school's clock)
+ *          instead of the student scenes. CI runs it as a job of its own (browser-teacher-large-text).
  * targetsize  WCAG 2.2 2.5.8 (Target Size, Minimum): every pointer target on
  *          every student scene (not the teacher's), at 1366×768 and 390×844,
  *          is 24×24 CSS px or more, or has the room the spacing exception asks
@@ -42,7 +45,8 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { readdirSync, readFileSync } from 'node:fs';
-import { SCREENS, sceneLabel } from './accessibilityCertification.mjs';
+import { SCREENS, sceneLabel, newScreenContext } from './accessibilityCertification.mjs';
+import { TEACHER_SCREENS } from './accessibilityTeacherScreens.mjs';
 import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 import { collectTargetBoxes, smallTargetsOf } from './support/targetSize.mjs';
 
@@ -51,6 +55,9 @@ const artifacts = path.join(here, 'artifacts/large-text');
 mkdirSync(artifacts, { recursive: true });
 const arg = (name) => process.argv.find((entry) => entry.startsWith(`--${name}=`))?.slice(name.length + 3) || null;
 const CHECKS = new Set((arg('check') || 'targets,s5,text').split(','));
+// --teacher: run the sweep over every teacher screen of the accessibility certification (TT27) instead of the
+// student scenes. The text and targetsize checks both honour it.
+const TEACHER_SWEEP = process.argv.includes('--teacher');
 const ONLY = new Set((arg('only') || '').split(',').filter(Boolean));
 const origins = {
   app: process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188',
@@ -71,8 +78,9 @@ const applyTextScale = async (page) => {
   await page.__cdp.send('Page.setFontSizes', { fontSizes: { standard: 16 * page.__textScale, fixed: Math.round(13 * page.__textScale) } });
 };
 
-const newPage = async ({ width, height, mobile = false, textScale = 1, fixedTime = null }) => {
-  const context = await browser.newContext({ viewport: { width, height }, isMobile: mobile, hasTouch: mobile, colorScheme: 'light', reducedMotion: 'reduce' });
+const newPage = async ({ width, height, mobile = false, textScale = 1, fixedTime = null }, screen = null) => {
+  const contextOptions = { viewport: { width, height }, isMobile: mobile, hasTouch: mobile, colorScheme: 'light', reducedMotion: 'reduce' };
+  const context = await (screen ? newScreenContext(browser, screen, contextOptions) : browser.newContext(contextOptions));
   await context.route('**/*', (route) => {
     const url = route.request().url();
     if (/^(https?|wss?):\/\/(localhost|127\.0\.0\.1)[:/]/.test(url) || url.startsWith('data:') || url.startsWith('blob:')) return route.continue();
@@ -102,6 +110,12 @@ const MEASURE = (rootSelector) => {
   const visible = (element) => {
     const style = getComputedStyle(element);
     if (style.visibility === 'hidden' || style.display === 'none' || Number(style.opacity) === 0) return false;
+    // What a closed <details> holds is not on screen, though Chromium still reports a box for it
+    // (the schedule's "Special bell schedule" read as text cut by its card). Its summary is.
+    for (let node = element; node && node !== document.body; node = node.parentElement) {
+      if (node.tagName === 'SUMMARY') break;
+      if (node.parentElement?.tagName === 'DETAILS' && !node.parentElement.open) return false;
+    }
     const rect = element.getBoundingClientRect();
     return rect.width > 0 && rect.height > 0;
   };
@@ -326,9 +340,9 @@ export const LARGE_TEXT_SCREENS = [
 ];
 
 const runScenes = async (setting, callback) => {
-  for (const screen of LARGE_TEXT_SCREENS) {
+  for (const screen of (TEACHER_SWEEP ? TEACHER_SCREENS : LARGE_TEXT_SCREENS)) {
     if (ONLY.size && !ONLY.has(screen.id)) continue;
-    const { context, page } = await newPage(setting);
+    const { context, page } = await newPage(setting, screen);
     try {
       if (screen.open) await screen.open(page, origins);
       let first = true;
@@ -554,7 +568,7 @@ if (CHECKS.has('targetsize')) {
   const sizeReport = [];
   for (const setting of [{ id: 'chromebook', width: 1366, height: 768 }, { id: 'phone', width: 390, height: 844, mobile: true }]) {
     await runScenes(setting, async (page, label, screen) => {
-      if (screen.id === 'teacher') return;
+      if (screen.id === 'teacher') return; // the two older teacher scenes; the --teacher sweep measures all of them
       const result = smallTargetsOf(await page.evaluate(collectTargetBoxes, { rootSelector: 'body' }));
       sizeReport.push({ label, setting: setting.id, ...result });
       console.log(`${result.failing.length || !result.measured ? 'FAIL' : 'ok  '} targets ${label.padEnd(30)} ${setting.id.padEnd(10)} measured=${result.measured} under24=${result.undersized} bySpacing=${result.bySpacing} crowded=${result.failing.length}`);
