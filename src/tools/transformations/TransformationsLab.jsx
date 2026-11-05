@@ -94,6 +94,13 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
   } = resolveTransformationsQuestion(questionData);
   // A line has no vertex to find: its steps and hints say what to read instead.
   const { steps: MODE_STEPS, hints: HINTS } = labGuidanceFor(family);
+  // THE POINT MAP WITHOUT THE ANSWER'S GRAPH (CT04, Algebra I M2 T2 L2 PR 10).
+  // The point map draws the parent and the transformed graph, the second
+  // dashed, so "where does (2, 2) on f(x) land on g(x)?" came down to a point
+  // on the dashed line: once x was mapped, y could be read off it instead of
+  // worked out. `showTransformedGraph: false` keeps g(x) off the figure, which
+  // then shows what the item asks about: f(x) and the point to map.
+  const showTransformedGraph = questionData.showTransformedGraph !== false;
   const [a, setA] = usePersistentToolState('a', startingValues.a);
   const [b, setB] = usePersistentToolState('b', startingValues.b);
   const [h, setH] = usePersistentToolState('h', startingValues.h);
@@ -334,7 +341,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
 
         {mode === 'pointMap' ? <>
           <p>Map the parent-function point <strong>({parentPoint[0]}, {parentPoint[1]})</strong> through the transformation.</p>
-          {graph([x => evaluateParentFunction(family, x, investigationSpec.base), x => evaluateTransformedFunction(investigationSpec, x)], [{ x: parentPoint[0], y: parentPoint[1], label: 'parent' }])}
+          {graph([x => evaluateParentFunction(family, x, investigationSpec.base), ...(showTransformedGraph ? [x => evaluateTransformedFunction(investigationSpec, x)] : [])], [{ x: parentPoint[0], y: parentPoint[1], label: 'parent' }])}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 }}><label>Transformed x<input type="number" value={mappedX} onChange={(event) => { setMappedX(event.target.value); resetFeedback(); }} style={inputStyle} /></label><label>Transformed y<input type="number" value={mappedY} onChange={(event) => { setMappedY(event.target.value); resetFeedback(); }} style={inputStyle} /></label></div>
           <button data-mm-enter-action="submit" type="button" onClick={check} style={{ ...buttonStyle, marginTop: 12 }}><SubmitText>Check mapped point</SubmitText></button>
         </> : null}

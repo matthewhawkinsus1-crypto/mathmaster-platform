@@ -2183,6 +2183,8 @@ const compileOne = (q, index, repairs) => {
         graphBounds: q.graphBounds || t.graphBounds,
         snapStep: q.snapStep ?? t.snapStep,
         initial: q.initial || t.initial,
+        // A point map that keeps the transformed graph off its figure (CT04).
+        showTransformedGraph: (q.showTransformedGraph ?? t.showTransformedGraph) === false ? false : undefined,
       });
       break;
     }
