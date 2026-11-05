@@ -172,8 +172,8 @@ const answer = async (roomId, studentId, { correct }) => {
 };
 
 /** A game in round 0 with the class's two students in: one right, one wrong. Nobody has closed it. */
-const roundZeroPlayed = async (klass) => {
-  const { roomId } = await create(klass);
+const roundZeroPlayed = async (klass, settings = {}) => {
+  const { roomId } = await create(klass, settings);
   for (const studentId of klass.students) {
     // eslint-disable-next-line no-await-in-loop
     await call('joinLiveChallenge', studentRequest(studentId, { roomId }));
@@ -203,6 +203,29 @@ const resultsAbandonedLongAgo = async (roomId) => {
     hostHeardAt: Timestamp.fromMillis(LONG_AGO_MS - 60_000),
   }, { merge: true });
 };
+
+/** A lobby opened long ago, its host last heard long ago, far past the host-away window (N73). */
+const lobbyAbandonedLongAgo = async (roomId) => {
+  await roomRef(roomId).set({ createdAt: Timestamp.fromMillis(LONG_AGO_MS - 40_000) }, { merge: true });
+  await privateRef(roomId).set({
+    serverSweepDueAt: Timestamp.fromMillis(LONG_AGO_MS),
+    hostHeardAt: Timestamp.fromMillis(LONG_AGO_MS - 60_000),
+  }, { merge: true });
+};
+
+/** A Pace Race round that started long ago, its host last heard long ago (N73). It has no deadline. */
+const paceRoundAbandonedLongAgo = async (roomId) => {
+  const startsAt = Timestamp.fromMillis(LONG_AGO_MS - 40_000);
+  await roomRef(roomId).set({ startsAt, roundStartedAt: startsAt }, { merge: true });
+  await privateRef(roomId).set({
+    serverSweepDueAt: Timestamp.fromMillis(LONG_AGO_MS),
+    hostHeardAt: Timestamp.fromMillis(LONG_AGO_MS - 60_000),
+  }, { merge: true });
+};
+
+// A Pace Race game whose round has no deadline at all: no closing threshold
+// to give it one when the class answers.
+const PACE = Object.freeze({ timingMode: 'pace', roundClosingThreshold: 'off' });
 
 /**
  * The console calibrating a minute after its last heartbeat (each game here
@@ -481,6 +504,219 @@ test('a finished game is never swept again, even if its private state outlived t
   await runSweep();
   assert.equal((await privateOf(roomId)).serverSweepDueAt, null, 'the sweep drops it');
   assert.equal((await roomOf(roomId)).finalizationId, finished.finalizationId, 'and changes nothing about the game');
+});
+
+/* ========== N73: a lobby, or a Pace Race round, nobody comes back to ========== */
+
+test('a lobby tells the server, when it opens, when to look at it if nobody starts it', async () => {
+  const klass = await seedClass('lobby-due');
+  const before = Date.now();
+  const { roomId } = await create(klass);
+  const due = millis((await privateOf(roomId)).serverSweepDueAt);
+  assert.ok(due >= before + sweep.HOST_AWAY_FINISH_MS && due <= Date.now() + sweep.HOST_AWAY_FINISH_MS, 'a host-away window after it opens');
+  assert.equal((await roomOf(roomId)).serverSweepDueAt, undefined, 'on the private state, never on the room the class listens to');
+  await call('cancelLiveChallenge', klass.as({ roomId }));
+});
+
+test('a lobby nobody started, its host long unheard, is cancelled once: nothing recorded, every student released', async () => {
+  const klass = await seedClass('lobby-gone');
+  const { roomId } = await create(klass);
+  await call('joinLiveChallenge', studentRequest(klass.students[0], { roomId }));
+  // The console's heartbeat, as it calibrates in the lobby — then nothing.
+  await call('calibrateLiveChallengeClock', klass.as({ roomId }));
+  await lobbyAbandonedLongAgo(roomId);
+  // Two runs at once (a slow run overlapping the next): one cancels; the
+  // other is told it is done, or finds nothing left to do.
+  const runs = await Promise.all([runSweep(), runSweep()]);
+  const outcomes = runs.map((run) => run.outcomes[roomId]);
+  assert.equal(outcomes.filter((outcome) => outcome === 'cancelled').length, 1, JSON.stringify(outcomes));
+  assert.ok(outcomes.every((outcome) => ['cancelled', 'alreadyCancelled', 'cleared', undefined].includes(outcome)), JSON.stringify(outcomes));
+  const room = await roomOf(roomId);
+  assert.equal(room.status, 'cancelled', 'cancelled, never finished: no round was played');
+  assert.equal(room.endedBy, sweep.HOST_AWAY_ENDED_BY, 'and says the server cancelled it');
+  const result = (await db.collection('liveChallengeMatchResults').doc(roomId).get()).data();
+  assert.equal(result.status, 'cancelled');
+  assert.equal(result.playedRoundCount, 0);
+  assert.equal(result.finalizationId, room.finalizationId, 'one cancel');
+  assert.equal(result.effects.rewards, 'notApplicable', 'nobody is rewarded');
+  assert.equal(result.effectsPending, false);
+  for (const studentId of klass.students) {
+    // eslint-disable-next-line no-await-in-loop
+    assert.equal((await inviteOf(studentId))?.status, 'cancelled', `${studentId}'s lobby banner goes`);
+  }
+  assert.equal((await db.collection('liveChallengeTeacherActive').doc(klass.teacher).get()).exists, false, "the teacher's next game is not blocked");
+  // And once more: still one cancel.
+  await runSweep();
+  assert.equal((await roomOf(roomId)).finalizationId, room.finalizationId);
+  // The teacher can set up their next game at once.
+  const next = await create(klass);
+  assert.ok(next.roomId && next.roomId !== roomId);
+  await call('cancelLiveChallenge', klass.as({ roomId: next.roomId }));
+});
+
+test('a teacher still on the lobby keeps it, however long it has been open', async () => {
+  const klass = await seedClass('lobby-present');
+  const { roomId } = await create(klass);
+  await call('joinLiveChallenge', studentRequest(klass.students[0], { roomId }));
+  await lobbyAbandonedLongAgo(roomId);
+  // The console, open on the lobby, calibrates.
+  await calibrateAMinuteLater(klass, roomId);
+  const heard = millis((await privateOf(roomId)).hostHeardAt);
+  const run = await runSweep();
+  assert.equal(run.outcomes[roomId], 'rescheduled');
+  assert.equal((await roomOf(roomId)).status, 'lobby', 'a teacher who is there is never cut off');
+  assert.equal(millis((await privateOf(roomId)).serverSweepDueAt), heard + sweep.HOST_AWAY_FINISH_MS, 'looked at again a host-away window after the host was last heard');
+  // And they can still start it.
+  await call('startLiveChallenge', klass.as({ roomId }));
+  assert.equal((await roomOf(roomId)).status, 'running');
+  await call('finishLiveChallenge', klass.as({ roomId }));
+});
+
+test('a Start that lands after the server decided to cancel the lobby is played', async () => {
+  const klass = await seedClass('lobby-start-race');
+  const { roomId } = await create(klass);
+  await call('joinLiveChallenge', studentRequest(klass.students[0], { roomId }));
+  await call('calibrateLiveChallengeClock', klass.as({ roomId }));
+  await lobbyAbandonedLongAgo(roomId);
+  const gate = beforeNextTransaction(() => call('startLiveChallenge', klass.as({ roomId })));
+  const run = await runSweep();
+  assert.equal(gate.fired, true);
+  assert.equal(run.outcomes[roomId], 'kept', 'the cancel re-checked inside its transaction and stood down');
+  const room = await roomOf(roomId);
+  assert.equal(room.status, 'running', 'the game the teacher started is played');
+  assert.equal(room.currentRound, 0);
+  assert.equal((await db.collection('liveChallengeMatchResults').doc(roomId).get()).exists, false, 'and nothing ended it');
+  assert.equal(
+    millis((await privateOf(roomId)).serverSweepDueAt),
+    millis(room.endsAt) + sweep.SERVER_CLOSE_GRACE_MS,
+    "the round's own due time stands: the stood-down cancel never moves a due time it did not read",
+  );
+  await call('finishLiveChallenge', klass.as({ roomId }));
+});
+
+test('a console heard after the server decided to cancel the lobby keeps it', async () => {
+  const klass = await seedClass('lobby-heard-late');
+  const { roomId } = await create(klass);
+  await call('calibrateLiveChallengeClock', klass.as({ roomId }));
+  await lobbyAbandonedLongAgo(roomId);
+  const gate = beforeNextTransaction(() => calibrateAMinuteLater(klass, roomId));
+  const run = await runSweep();
+  assert.equal(gate.fired, true);
+  assert.equal(run.outcomes[roomId], 'kept');
+  assert.equal((await roomOf(roomId)).status, 'lobby');
+  await call('cancelLiveChallenge', klass.as({ roomId }));
+});
+
+test('lobbies the server must never cancel are left to the teacher', async () => {
+  // (a) A lobby whose host the server never heard.
+  const unheard = await seedClass('lobby-unheard');
+  const { roomId: unheardRoom } = await create(unheard);
+  await lobbyAbandonedLongAgo(unheardRoom);
+  await privateRef(unheardRoom).update({ hostHeardAt: admin.firestore.FieldValue.delete() });
+  // (b) A Warm-Up's lobby: a game that writes a grade.
+  const warmup = await seedClass('lobby-warmup');
+  const { roomId: warmupRoom } = await create(warmup);
+  await call('calibrateLiveChallengeClock', warmup.as({ roomId: warmupRoom }));
+  await lobbyAbandonedLongAgo(warmupRoom);
+  await roomRef(warmupRoom).update({ assignmentId: 'sweep-warmup-lobby-assignment' });
+  const firstRun = await runSweep();
+  for (const roomId of [unheardRoom, warmupRoom]) {
+    assert.equal(firstRun.outcomes[roomId], 'cleared');
+    // eslint-disable-next-line no-await-in-loop
+    assert.equal((await roomOf(roomId)).status, 'lobby', 'still waiting for the teacher');
+    // eslint-disable-next-line no-await-in-loop
+    assert.equal((await privateOf(roomId)).serverSweepDueAt, null, 'and not looked at again');
+  }
+  // (c) Ending abandoned games switched off (a rollback).
+  const rollback = await seedClass('lobby-rollback');
+  const { roomId: rollbackRoom } = await create(rollback);
+  await call('calibrateLiveChallengeClock', rollback.as({ roomId: rollbackRoom }));
+  await lobbyAbandonedLongAgo(rollbackRoom);
+  await switchRef.set({ enabled: true, finishAbandonedGames: false });
+  try {
+    assert.equal((await runSweep()).outcomes[rollbackRoom], 'cleared', 'the rollback leaves lobbies to the teacher');
+    assert.equal((await roomOf(rollbackRoom)).status, 'lobby');
+  } finally {
+    await switchRef.set({ enabled: true, finishAbandonedGames: true });
+  }
+  await roomRef(warmupRoom).update({ assignmentId: null });
+  await call('cancelLiveChallenge', unheard.as({ roomId: unheardRoom }));
+  await call('cancelLiveChallenge', warmup.as({ roomId: warmupRoom }));
+  await call('cancelLiveChallenge', rollback.as({ roomId: rollbackRoom }));
+});
+
+test('a Pace Race round tells the server, when it opens, to look a host-away window after its start', async () => {
+  const klass = await seedClass('pace-due');
+  const { roomId } = await create(klass, PACE);
+  await call('joinLiveChallenge', studentRequest(klass.students[0], { roomId }));
+  await call('startLiveChallenge', klass.as({ roomId }));
+  const room = await roomOf(roomId);
+  assert.equal(room.timingMode, 'pace');
+  assert.equal(room.endsAt, null, 'a Pace Race round has no deadline');
+  assert.equal(millis((await privateOf(roomId)).serverSweepDueAt), millis(room.startsAt) + sweep.HOST_AWAY_FINISH_MS);
+  await call('finishLiveChallenge', klass.as({ roomId }));
+});
+
+test('a Pace Race round nobody comes back to is finished as End Game finishes it: the answers given count', async () => {
+  const klass = await seedClass('pace-gone');
+  const roomId = await roundZeroPlayed(klass, PACE);
+  await paceRoundAbandonedLongAgo(roomId);
+  assert.equal((await roomOf(roomId)).roundState, 'open', 'nothing closes a round with no deadline');
+  const runs = await Promise.all([runSweep(), runSweep()]);
+  const outcomes = runs.map((run) => run.outcomes[roomId]);
+  assert.equal(outcomes.filter((outcome) => outcome === 'finished').length, 1, JSON.stringify(outcomes));
+  assert.ok(outcomes.every((outcome) => ['finished', 'alreadyFinished', 'cleared', undefined].includes(outcome)), JSON.stringify(outcomes));
+  const room = await roomOf(roomId);
+  assert.equal(room.status, 'finished');
+  assert.equal(room.endedBy, sweep.HOST_AWAY_ENDED_BY);
+  const result = (await db.collection('liveChallengeMatchResults').doc(roomId).get()).data();
+  assert.equal(result.finalizationId, room.finalizationId, 'one finish');
+  assert.equal(result.playedRoundCount, 1, 'the round the class answered is counted as played');
+  // The round was ranked in the finishing commit, from the answers given.
+  const round = await hostRound(roomId, 0);
+  assert.equal(round?.standingsAfterRound?.length, 2, 'the open round was closed and ranked by the finish');
+  const right = result.standings.find((row) => row.studentId === klass.students[0]);
+  const wrong = result.standings.find((row) => row.studentId === klass.students[1]);
+  assert.equal(right.rank, 1, 'the right answer wins');
+  assert.ok(right.score > wrong.score);
+  assert.equal(result.effectsPending, false, 'report, invites, evidence and rewards all ran');
+  for (const studentId of klass.students) {
+    // eslint-disable-next-line no-await-in-loop
+    assert.equal((await inviteOf(studentId))?.status, 'finished', `${studentId}'s screen moves to the final card`);
+  }
+  assert.equal((await db.collection('liveChallengeTeacherActive').doc(klass.teacher).get()).exists, false);
+});
+
+test('a teacher still on a Pace Race round keeps it, however long it has run', async () => {
+  const klass = await seedClass('pace-present');
+  const roomId = await roundZeroPlayed(klass, PACE);
+  await paceRoundAbandonedLongAgo(roomId);
+  await calibrateAMinuteLater(klass, roomId);
+  const heard = millis((await privateOf(roomId)).hostHeardAt);
+  assert.equal((await runSweep()).outcomes[roomId], 'rescheduled');
+  const room = await roomOf(roomId);
+  assert.equal(room.status, 'running', 'a teacher who is there is never cut off');
+  assert.equal(room.roundState, 'open', 'and their round is still open');
+  assert.equal(millis((await privateOf(roomId)).serverSweepDueAt), heard + sweep.HOST_AWAY_FINISH_MS);
+  await call('finishLiveChallenge', klass.as({ roomId }));
+});
+
+test('End Round Now pressed after the server decided to finish a Pace Race round is what happens', async () => {
+  const klass = await seedClass('pace-close-race');
+  const roomId = await roundZeroPlayed(klass, PACE);
+  await paceRoundAbandonedLongAgo(roomId);
+  const room = await roomOf(roomId);
+  const gate = beforeNextTransaction(() => call('closeLiveChallengeRound', klass.as({
+    roomId, expectedRoundIndex: room.currentRound, expectedRoundVersion: room.roundVersion, force: true,
+  })));
+  const run = await runSweep();
+  assert.equal(gate.fired, true);
+  assert.equal(run.outcomes[roomId], 'kept', 'the finish re-checked inside its transaction and stood down');
+  const after = await roomOf(roomId);
+  assert.equal(after.status, 'running', "the teacher's results, not the server's finish");
+  assert.equal(after.roundState, 'closed');
+  assert.equal((await db.collection('liveChallengeMatchResults').doc(roomId).get()).exists, false);
+  await call('finishLiveChallenge', klass.as({ roomId }));
 });
 
 /* ================ Q-58: a student added to the class mid-game ================ */

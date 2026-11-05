@@ -12251,6 +12251,9 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
     secondChanceOf: {},
     secondChancePlanned: false,
     status: challenge.LIVE_CHALLENGE_STATUS.LOBBY,
+    // A lobby nobody starts, with no host screen heard for the host-away
+    // window, is cancelled by the server (liveChallengeServerSweep.mjs, N73).
+    serverSweepDueAt: liveChallengeSweepDate(engine.serverSweep.sweepDueForLobbyMs({ nowMs: Date.now() })),
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
@@ -12773,8 +12776,9 @@ function applyLiveChallengeRoundOpening(transaction, {
     roundVersion,
     roundToken,
     // When the server closes this round if no host screen does
-    // (liveChallengeServerSweep.mjs). None for a Pace Race: no deadline.
-    serverSweepDueAt: liveChallengeSweepDate(engine.serverSweep.sweepDueAfterOpeningMs({ endsAtMs: timer.endsAtMs })),
+    // (liveChallengeServerSweep.mjs) — or, for a Pace Race round, which has
+    // no deadline, when it first asks whether the host is still there (N73).
+    serverSweepDueAt: liveChallengeSweepDate(engine.serverSweep.sweepDueAfterOpeningMs({ endsAtMs: timer.endsAtMs, startsAtMs: timer.startsAtMs })),
     updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
   transaction.set(roomRef, {
@@ -14235,11 +14239,13 @@ async function closeLiveChallengeRoundForRoom(db, { roomRef, expected, force = f
  *
  * Every minute: the rooms whose private state says they are due. An open
  * round past its deadline (plus a grace no open console ever reaches) is
- * closed by the console's own close; results that have stood with no host
- * screen heard for the host-away window are ended by the console's own
- * Finish, which writes the match result, standings and rewards once. Each
- * decision is re-checked inside the command's own transaction, so a console,
- * a retry or a second run arriving at the same moment changes nothing twice.
+ * closed by the console's own close; results, or a Pace Race round, with no
+ * host screen heard for the host-away window are ended by the console's own
+ * Finish, which writes the match result, standings and rewards once; a lobby
+ * nobody started, with no host heard for as long, is cancelled by the
+ * console's own Cancel Session (N73). Each decision is re-checked inside the
+ * command's own transaction, so a console, a retry or a second run arriving
+ * at the same moment changes nothing twice.
  */
 async function sweepLiveChallengeRoom(db, privateDoc, nowMs, settings) {
   const engine = await liveChallengeEngine();
@@ -14279,11 +14285,17 @@ async function sweepLiveChallengeRoom(db, privateDoc, nowMs, settings) {
       }
       return closed.alreadyApplied ? "alreadyClosed" : "closed";
     }
+    // A lobby nobody started is cancelled — no round was played, so nothing
+    // is finished or recorded (N73); anything else waiting on its host is
+    // finished as End Game would finish it.
+    const cancelling = plan.action === serverSweep.SWEEP_ACTION.CANCEL;
+    const ending = cancelling
+      ? { command: lifecycle.LIFECYCLE_COMMAND.CANCEL, status: lifecycle.SESSION_STATUS.CANCELLED }
+      : { command: lifecycle.LIFECYCLE_COMMAND.FINISH, status: lifecycle.SESSION_STATUS.FINISHED };
     const finished = await finalizeLiveChallengeMatch(db, {
       roomRef,
       room,
-      command: lifecycle.LIFECYCLE_COMMAND.FINISH,
-      status: lifecycle.SESSION_STATUS.FINISHED,
+      ...ending,
       // The switch is read again here, in the finish's own transaction: a
       // flip during a long run is honoured by the very next finish.
       stillWanted: async ({ transaction, room: latestRoom, privateState: latestPrivate }) => {
@@ -14302,6 +14314,10 @@ async function sweepLiveChallengeRoom(db, privateDoc, nowMs, settings) {
       // The teacher came back (or moved on): look again after the window.
       await reschedule(nowMs + serverSweep.HOST_AWAY_FINISH_MS, "kept");
       return "kept";
+    }
+    if (cancelling) {
+      if (!finished.alreadyApplied) logger.info("liveChallenge.serverCancel", { roomId: roomRef.id });
+      return finished.alreadyApplied ? "alreadyCancelled" : "cancelled";
     }
     if (!finished.alreadyApplied) logger.info("liveChallenge.serverFinish", { roomId: roomRef.id, roundIndex: plan.expected.roundIndex });
     return finished.alreadyApplied ? "alreadyFinished" : "finished";

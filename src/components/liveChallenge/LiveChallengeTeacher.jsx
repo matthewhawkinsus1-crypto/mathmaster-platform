@@ -1494,6 +1494,7 @@ export default function LiveChallengeTeacher({
       {cancelled && (
         <section style={{ ...panel, display: 'grid', gap: 12 }}>
           <h3 style={{ margin: 0 }}>Challenge cancelled</h3>
+          {hostEndedNote(room) && <p data-mm-host-ended-note="1" style={{ margin: 0, fontWeight: 800 }}>{hostEndedNote(room)}</p>}
           <p style={{ margin: 0, color: 'var(--mm-text-muted)' }}>Nothing from this game is recorded, and nobody is rewarded.</p>
           <HostControlBar action={primaryAction} busy={busy} controlBusy={controlBusy} onPrimary={runPrimaryAction} secondary={[{ key: 'sameAgain', label: 'Same Settings Again', onClick: playAgain }]} />
         </section>

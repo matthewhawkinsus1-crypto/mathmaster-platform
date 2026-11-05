@@ -147,7 +147,24 @@ every minute (`functions/shared/liveChallengeServerSweep.mjs`):
   played. The room records `endedBy: "hostAway"` (readable by the class), and
   the teacher's console, reopening that game, says why it ended
   (`hostEndedNote`). With the switch off, results wait for the teacher, as
-  before.
+  before;
+- **a Pace Race round and a lobby nobody comes back to** (N73), under the same
+  switch and the same guards (the heartbeat, never a Warm-Up, never a host
+  the server has not heard, the re-check inside the transaction): a Pace Race
+  round has no deadline, so the first rule never closes it — one open
+  `HOST_AWAY_FINISH_MS` from its start with no host screen heard for as long
+  is finished by End Game, so the answers given count; a lobby nobody started
+  with no host screen heard for 30 minutes since it opened is **cancelled**
+  by Cancel Session (no round was played: nothing is finished, recorded or
+  rewarded), so every invited student's "Your teacher opened the Live
+  Challenge lobby" banner goes. The window is the results' own: the console
+  calibrates in the lobby as in a round, so a teacher with it open in any tab
+  is heard every minute and never loses the game. A Start, a close or a
+  heartbeat that lands between the sweep's decision and its transaction wins.
+  The cancelled lobby's console says why ("MathMaster cancelled this lobby
+  because no teacher screen was open for 30 minutes before the game
+  started."); a student's screen says the challenge was cancelled and nothing
+  from it is recorded.
 
 On the same switch, `enabled` set to anything but the boolean `true` (`false`,
 `"false"`, `0`, …) turns the whole sweep off — it fails closed — and each run
@@ -156,10 +173,11 @@ logs that it did nothing. That is the first step of a rollback
 at the start of every run and again inside each finish's transaction.
 
 The sweep reads only rooms whose private state is due (`serverSweepDueAt`, set
-when a round opens and closes, cleared at the finish): one single-field range
-query, no composite index, nothing a student listens to. A Pace Race round
-has no deadline until its closing threshold sets one; a paused round and a
-lobby are the host's.
+when a lobby opens, when a round opens and closes, cleared at the finish): one
+single-field range query, no composite index, nothing a student listens to. A
+Pace Race round is due a host-away window after its start (its closing
+threshold, when it sets a deadline, makes it due at that deadline instead); a
+paused round is the host's.
 
 Every mode then shows its **results**, and the next round starts only when the
 teacher presses **Next Round** (or **Finish & Show Final Standings** after the
@@ -732,5 +750,7 @@ GC) flat across them.
     removes the summaries).
   - *Then* `getLiveChallengeMatchRecap` returns them with the rounds, and the
     device copy becomes a fallback or goes.
-- **A lobby, or a Pace Race round, nobody comes back to** is not ended by the
-  server (§4); it waits for the teacher to finish or cancel it.
+- ~~**A lobby, or a Pace Race round, nobody comes back to** is not ended by the
+  server (§4); it waits for the teacher to finish or cancel it.~~ Built (N73,
+  §4): the sweep cancels the lobby and finishes the Pace Race round after the
+  host-away window.
