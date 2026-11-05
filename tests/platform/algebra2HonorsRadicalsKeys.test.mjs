@@ -49,7 +49,9 @@ test('L3 CW 6: each weightlifting key is the number the formula gives', () => {
   assert.equal(key('quotient').answer, (146230 / power).toFixed(1));
   assert.equal(key('mass').answer, String(Math.round(512 - 146230 / power)));
   const light = 512 - 146230 / 80 ** (8 / 5);
-  assert.equal(key('cyp').answer, `${Math.round(light / 20) * 20} kg`, `M for 80 kg is ${light}`);
+  // Typed now, to the nearest kilogram as the first lifter's M is (it was a choice among 300–400 kg).
+  assert.equal(key('cyp').answer, String(Math.round(light)), `M for 80 kg is ${light}`);
+  assert.equal(key('cyp').numericTolerance, key('mass').numericTolerance);
   // The worked steps state the same numbers.
   const steps = item.solutionReview.reasoning.join(' ');
   assert.match(steps, new RegExp(`168\\^\\(8/5\\) ≈ ${power.toFixed(1)}`));
@@ -125,10 +127,13 @@ const L1 = 'L1_nth_Roots.json';
 const L2 = 'L2_Operations_with_Radical_Expressions.json';
 const L3 = 'L3_Rational_Exponents.json';
 const CHECK_YOUR_PROGRESS = [
-  [L1, ['a2r1-cw-3', 'a2r1-cw-4', 'a2r1-cw-7', 'a2r1-cw-8']],
+  // a2r1-cw-6: √(−16) and its other square root, one to a box, as Example D's.
+  [L1, ['a2r1-cw-3', 'a2r1-cw-4', 'a2r1-cw-6', 'a2r1-cw-7', 'a2r1-cw-8']],
   // a2r2-cw-12: the Check Your Progress after Examples A and B (L2 pacing).
-  [L2, ['a2r2-cw-6', 'a2r2-cw-12']],
-  [L3, ['a2r3-cw-2']],
+  // a2r2-cw-8, 9 and 10: the second product, sum and FOIL product.
+  [L2, ['a2r2-cw-6', 'a2r2-cw-8', 'a2r2-cw-9', 'a2r2-cw-10', 'a2r2-cw-12']],
+  // a2r3-cw-8 and 9 were the walkthrough's L3 pair; the rest have the same shape.
+  [L3, ['a2r3-cw-2', 'a2r3-cw-3', 'a2r3-cw-4', 'a2r3-cw-6', 'a2r3-cw-7', 'a2r3-cw-8', 'a2r3-cw-9']],
 ];
 
 test('Check Your Progress: each simplification is typed in a math box, and a choice is left only for a decision', async () => {
@@ -166,6 +171,24 @@ const TYPED_HALVES = [
   [L2, 'a2r2-cw-12', 'second', '3x^{3}y^{4}\\sqrt[3]{y^{2}}', ['\\sqrt[3]{27x^9y^{14}}', '3x^3y^4\\sqrt[3]{y}', '3x^3y^3\\sqrt[3]{y^5}', '9x^3y^4\\sqrt[3]{y^2}']],
   [L3, 'a2r3-cw-2', 'a', '\\frac{y^{2}z^{2}}{x^{5}}', ['x^{-5}y^2z^2', '\\frac{y^2}{x^5z^2}']],
   [L3, 'a2r3-cw-2', 'b', 'h^{8}', ['\\frac{h^6}{h^{-2}}', 'h^{6+2}', 'h^4']],
+  [L1, 'a2r1-cw-6', 'rootPlus', '2i', ['-2i', '2']],
+  [L1, 'a2r1-cw-6', 'rootMinus', '-2i', ['2i', '-2']],
+  [L1, 'a2r1-cw-6', 'cypRoot', '4i', ['-4i', '4', '\\sqrt{-16}', '\\pm4i']],
+  [L1, 'a2r1-cw-6', 'cypOther', '-4i', ['4i', '-4', '\\pm4i']],
+  [L2, 'a2r2-cw-8', 'second', '24a', ['6\\sqrt[3]{64a^3}', '12a', '4a']],
+  [L2, 'a2r2-cw-9', 'cyp', '8\\sqrt{3}', ['15\\sqrt{3}-8\\sqrt{3}+\\sqrt{3}', '\\sqrt{192}', '24\\sqrt{3}', '2\\sqrt{30}']],
+  [L2, 'a2r2-cw-10', 'cyp', '10\\sqrt{5}-2\\sqrt{35}+20\\sqrt{6}-4\\sqrt{42}', ['\\left(2\\sqrt{5}+4\\sqrt{6}\\right)\\left(5-\\sqrt{7}\\right)', '10\\sqrt{5}-2\\sqrt{35}-4\\sqrt{42}', '10\\sqrt{5}-4\\sqrt{42}']],
+  [L2, 'a2r2-cw-10', 'cyp', '20\\sqrt{6}+10\\sqrt{5}-4\\sqrt{42}-2\\sqrt{35}', []],
+  [L3, 'a2r3-cw-3', 'a3', '\\sqrt[3]{a}', ['a^{\\frac{1}{3}}', '\\sqrt{a^3}']],
+  [L3, 'a2r3-cw-3', 'x5', 'x^{\\frac{1}{5}}', ['\\sqrt[5]{x}', 'x^5']],
+  [L3, 'a2r3-cw-4', 'cyp25', '\\frac{1}{5}', ['-5', '5', '-\\frac{1}{5}']],
+  [L3, 'a2r3-cw-4', 'cyp16', '8', ['64', '12']],
+  [L3, 'a2r3-cw-6', 'cyp', '380', ['512', '400', '472']],
+  [L3, 'a2r3-cw-7', 'cyp1', 'x^{\\frac{3}{5}}', ['x^{\\frac{1}{5}}\\cdot x^{\\frac{2}{5}}', 'x^{\\frac{2}{25}}']],
+  [L3, 'a2r3-cw-7', 'cyp2', '\\frac{y^{\\frac{1}{4}}}{y}', ['y^{-\\frac{3}{4}}', '\\frac{1}{y^{\\frac{3}{4}}}', 'y^{\\frac{3}{4}}']],
+  [L3, 'a2r3-cw-8', 'cyp1', '1', ['\\frac{\\sqrt[4]{4}}{\\sqrt{2}}', '2^{\\frac{1}{4}}']],
+  [L3, 'a2r3-cw-8', 'cyp2', '\\sqrt[3]{4x}', ['\\sqrt[6]{16x^2}', '\\sqrt[3]{4x^2}']],
+  [L3, 'a2r3-cw-9', 'cyp', '\\frac{x-2x^{\\frac{1}{2}}+1}{x-1}', ['\\frac{x^{\\frac{1}{2}}-1}{x^{\\frac{1}{2}}+1}', '\\frac{x+1}{x-1}']],
 ];
 
 test('Check Your Progress: each typed half takes its simplification and refuses the expression copied or the slip', () => {

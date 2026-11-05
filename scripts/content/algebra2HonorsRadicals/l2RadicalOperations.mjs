@@ -363,15 +363,19 @@ const classwork = [
     directionSteps: ['Multiply the radicands of the first product.', 'Take the cube root and multiply.', 'Simplify the second product the same way.'],
     responses: [
       expression('radicand', '100a² · 10a =', '1000a^3'),
-      simplest('first', '5∛(100a²) · ∛(10a) =', '50a'),
-      choice('second', '3∛(16a²) · 2∛(4a) =', ['12a', '24a', '4a', '6a'], '24a'),
+      // Math boxes: the box chooser reads 50a, with no sign it knows, as words.
+      simplest('first', '5∛(100a²) · ∛(10a) =', '50a', { type: 'math' }),
+      simplest('second', '3∛(16a²) · 2∛(4a) =', '24a', { type: 'math' }),
     ],
     hints: [
       'How can you write a product of two cube roots as one cube root?',
       'Multiply the radicands. Is the product a perfect cube: a cube number times a³?',
       '∛m · ∛n = ∛(mn). Keep the coefficients: for the second, multiply 3 and 2 too.',
     ],
-    misconceptions: [slip('first', '10a', 'That is the cube root alone: keep the coefficient 5 in front.')],
+    misconceptions: [
+      slip('first', '10a', 'That is the cube root alone: keep the coefficient 5 in front.'),
+      slip('second', ['4a', '12a', '8a'], 'The coefficients multiply too: keep both 3 and 2 in front.'),
+    ],
     scaffold: backUp('∛(1000) equals…', ['10', '100'], '10'),
     solutionReview: review(
       'One radical, a perfect cube, then the coefficients.',
@@ -430,12 +434,16 @@ const classwork = [
       simplest('t2', '5√80 =', '20√5'),
       simplest('t3', '4√20 =', '8√5'),
       simplest('sum', '3√45 − 5√80 + 4√20 =', '-3√5'),
-      choice('cyp', '3√75 − 2√48 + √3 =', ['12√3', '3√3', '24√3', '8√3'], '8√3'),
+      simplest('cyp', '3√75 − 2√48 + √3 =', '8√3'),
     ],
     hints: [
       'What is the largest perfect square that divides 45? 80? 20?',
       'Once every term is a multiple of √5, add and subtract the coefficients, keeping each sign with its term.',
       '45 = 9 · 5, 80 = 16 · 5 and 20 = 4 · 5. Do the same for 75 and 48.',
+    ],
+    misconceptions: [
+      slip('cyp', '24√3', 'Keep each sign with its term: the middle term is subtracted.'),
+      slip('cyp', '2√30', 'Only like radicals combine: simplify each radical first, then combine the coefficients.'),
     ],
     scaffold: backUp('9√5 − 20√5 + 8√5 equals…', ['−3√5', '−3√15'], '−3√5'),
     guidedNotes: guidedNotes(['Combine like radicals', 'Simplify every radical first; then add or subtract the coefficients of like radicals.']),
@@ -453,20 +461,21 @@ const classwork = [
     dok: 2,
     difficultyBand: 3,
     prompt: tex`Multiply binomials with radicals (FOIL). Simplify $(2\sqrt{3} + 3\sqrt{5})(3 - \sqrt{3})$ one product at a time. Then simplify $(2\sqrt{5} + 4\sqrt{6})(5 - \sqrt{7})$.`,
-    directionSteps: ['Find the first, outer, inner and last products.', 'Write the sum.', 'Choose the product for the second pair.'],
+    directionSteps: ['Find the first, outer, inner and last products.', 'Write the sum.', 'Multiply the second pair the same way.'],
     responses: [
       simplest('first', 'First: 2√3 · 3 =', '6√3'),
       number('outer', 'Outer: 2√3 · (−√3) =', '-6'),
       simplest('inner', 'Inner: 3√5 · 3 =', '9√5'),
       simplest('last', 'Last: 3√5 · (−√3) =', '-3√15'),
       simplest('sum', '(2√3 + 3√5)(3 − √3) =', '6√3-6+9√5-3√15'),
-      choice('cyp', '(2√5 + 4√6)(5 − √7) =', ['10√5 − 2√35 − 4√42', '24√66', '10√5 − 4√42', '10√5 − 2√35 + 20√6 − 4√42'], '10√5 − 2√35 + 20√6 − 4√42'),
+      simplest('cyp', '(2√5 + 4√6)(5 − √7) =', '10√5-2√35+20√6-4√42'),
     ],
     hints: [
       'Which four products does FOIL give? Name the first, outer, inner and last pairs.',
       'What is √3 · √3? What is √5 · √3?',
       '√3 · √3 = 3 and √5 · √3 = √15. Unlike radicals stay as separate terms.',
     ],
+    misconceptions: [slip('cyp', ['10√5-2√35-4√42', '10√5-4√42'], 'FOIL gives four products: first, outer, inner and last. Check that your answer has all four.')],
     scaffold: backUp('√3 · √3 equals…', ['3', '9'], '3'),
     solutionReview: review(
       'Four products, then combine only like terms.',

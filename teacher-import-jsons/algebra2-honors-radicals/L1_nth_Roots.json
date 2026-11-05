@@ -1082,11 +1082,11 @@
           ],
           "dok": 2,
           "difficultyBand": 3,
-          "prompt": "Example D, then Check Your Progress D. Decide whether $\\sqrt{-4}$ is a real number, and name its two imaginary square roots. Then simplify $\\sqrt{-16}$.",
+          "prompt": "Example D, then Check Your Progress D. Decide whether $\\sqrt{-4}$ is a real number. Then simplify it using $i$, and name the other square root of $-4$. Do the same for $\\sqrt{-16}$.",
           "directionSteps": [
             "Decide whether the first root is a real number.",
-            "Name its two imaginary square roots.",
-            "Choose the simplified form of the second expression."
+            "Simplify it using i, and name the other square root.",
+            "Do the same for the second root."
           ],
           "responses": [
             {
@@ -1103,33 +1103,83 @@
             },
             {
               "id": "rootPlus",
-              "label": "The two imaginary square roots of −4 are",
+              "label": "√(−4) =",
               "answer": "2i",
-              "inputProfile": "expression"
+              "inputProfile": "expression",
+              "type": "math"
             },
             {
               "id": "rootMinus",
-              "label": "and",
+              "label": "The other square root of −4 is",
               "answer": "-2i",
-              "inputProfile": "expression"
+              "inputProfile": "expression",
+              "type": "math"
             },
             {
-              "id": "cyp",
-              "label": "√(−16) (both roots) =",
-              "type": "choice",
-              "options": [
-                "−4",
-                "±4",
-                "−2",
-                "±4i"
-              ],
-              "answer": "±4i"
+              "id": "cypRoot",
+              "label": "√(−16) =",
+              "answer": "4i",
+              "inputProfile": "expression",
+              "type": "math"
+            },
+            {
+              "id": "cypOther",
+              "label": "The other square root of −16 is",
+              "answer": "-4i",
+              "inputProfile": "expression",
+              "type": "math"
             }
           ],
           "hints": [
             "Is (−2)² equal to 4 or −4?",
             "i is the imaginary unit, and i² = −1. Which multiple of i squares to −4?",
-            "Both 4i and −4i square to −16."
+            "For b > 0, √(−b) = i√b, and the other square root is its opposite."
+          ],
+          "misconceptions": [
+            {
+              "field": "rootPlus",
+              "match": [
+                "-2i"
+              ],
+              "message": "That is the other square root. The radical sign names the principal one."
+            },
+            {
+              "field": "rootMinus",
+              "match": [
+                "2i"
+              ],
+              "message": "That is the principal root. The other square root is its opposite."
+            },
+            {
+              "field": "cypRoot",
+              "match": [
+                "-4i"
+              ],
+              "message": "That is the other square root. The radical sign names the principal one."
+            },
+            {
+              "field": "cypOther",
+              "match": [
+                "4i"
+              ],
+              "message": "That is the principal root. The other square root is its opposite."
+            },
+            {
+              "field": "cypRoot",
+              "match": [
+                "4",
+                "-4"
+              ],
+              "message": "A real number squared is never negative, so a square root of a negative number is imaginary."
+            },
+            {
+              "field": "cypOther",
+              "match": [
+                "4",
+                "-4"
+              ],
+              "message": "A real number squared is never negative, so a square root of a negative number is imaginary."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. A real number raised to an even power is…",
@@ -1151,10 +1201,10 @@
             "headline": "No real root; two imaginary roots.",
             "reasoning": [
               "The index is even and −4 < 0, so √(−4) is not a real number.",
-              "(2i)² = 4i² = −4 and (−2i)² = −4, so the square roots are 2i and −2i.",
-              "Similarly, the square roots of −16 are ±4i."
+              "(2i)² = 4i² = −4 and (−2i)² = −4, so √(−4) = 2i, and the other square root is −2i.",
+              "In the same way, √(−16) = 4i, and the other square root of −16 is −4i."
             ],
-            "answerSummary": "2i and −2i; ±4i",
+            "answerSummary": "2i and −2i; 4i and −4i",
             "commonError": "Writing (−2)² = −4: the square of a negative number is positive."
           }
         },

@@ -1024,19 +1024,16 @@
               "label": "5∛(100a²) · ∛(10a) =",
               "answer": "50a",
               "inputProfile": "expression",
-              "gradingMode": "simplestRadicalForm"
+              "gradingMode": "simplestRadicalForm",
+              "type": "math"
             },
             {
               "id": "second",
               "label": "3∛(16a²) · 2∛(4a) =",
-              "type": "choice",
-              "options": [
-                "12a",
-                "24a",
-                "4a",
-                "6a"
-              ],
-              "answer": "24a"
+              "answer": "24a",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm",
+              "type": "math"
             }
           ],
           "hints": [
@@ -1051,6 +1048,15 @@
                 "10a"
               ],
               "message": "That is the cube root alone: keep the coefficient 5 in front."
+            },
+            {
+              "field": "second",
+              "match": [
+                "4a",
+                "12a",
+                "8a"
+              ],
+              "message": "The coefficients multiply too: keep both 3 and 2 in front."
             }
           ],
           "scaffold": {
@@ -1203,20 +1209,31 @@
             {
               "id": "cyp",
               "label": "3√75 − 2√48 + √3 =",
-              "type": "choice",
-              "options": [
-                "12√3",
-                "3√3",
-                "24√3",
-                "8√3"
-              ],
-              "answer": "8√3"
+              "answer": "8√3",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
             }
           ],
           "hints": [
             "What is the largest perfect square that divides 45? 80? 20?",
             "Once every term is a multiple of √5, add and subtract the coefficients, keeping each sign with its term.",
             "45 = 9 · 5, 80 = 16 · 5 and 20 = 4 · 5. Do the same for 75 and 48."
+          ],
+          "misconceptions": [
+            {
+              "field": "cyp",
+              "match": [
+                "24√3"
+              ],
+              "message": "Keep each sign with its term: the middle term is subtracted."
+            },
+            {
+              "field": "cyp",
+              "match": [
+                "2√30"
+              ],
+              "message": "Only like radicals combine: simplify each radical first, then combine the coefficients."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. 9√5 − 20√5 + 8√5 equals…",
@@ -1264,7 +1281,7 @@
           "directionSteps": [
             "Find the first, outer, inner and last products.",
             "Write the sum.",
-            "Choose the product for the second pair."
+            "Multiply the second pair the same way."
           ],
           "responses": [
             {
@@ -1304,20 +1321,25 @@
             {
               "id": "cyp",
               "label": "(2√5 + 4√6)(5 − √7) =",
-              "type": "choice",
-              "options": [
-                "10√5 − 2√35 − 4√42",
-                "24√66",
-                "10√5 − 4√42",
-                "10√5 − 2√35 + 20√6 − 4√42"
-              ],
-              "answer": "10√5 − 2√35 + 20√6 − 4√42"
+              "answer": "10√5-2√35+20√6-4√42",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
             }
           ],
           "hints": [
             "Which four products does FOIL give? Name the first, outer, inner and last pairs.",
             "What is √3 · √3? What is √5 · √3?",
             "√3 · √3 = 3 and √5 · √3 = √15. Unlike radicals stay as separate terms."
+          ],
+          "misconceptions": [
+            {
+              "field": "cyp",
+              "match": [
+                "10√5-2√35-4√42",
+                "10√5-4√42"
+              ],
+              "message": "FOIL gives four products: first, outer, inner and last. Check that your answer has all four."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. √3 · √3 equals…",

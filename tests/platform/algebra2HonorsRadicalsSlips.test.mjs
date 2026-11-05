@@ -111,7 +111,7 @@ test('every slip names a box of its own item, with at most six to an item, and t
     });
   });
   assert.deepEqual(problems, []);
-  assert.deepEqual(counts, { 'L1_nth_Roots.json': 31, 'L2_Operations_with_Radical_Expressions.json': 13, 'L3_Rational_Exponents.json': 15 });
+  assert.deepEqual(counts, { 'L1_nth_Roots.json': 37, 'L2_Operations_with_Radical_Expressions.json': 17, 'L3_Rational_Exponents.json': 26 });
   const named = (questionId, box) => withSlips().find((question) => question.questionId === questionId)?.misconceptions.find((slip) => slip.field === box);
   assert.deepEqual(named('a2r1-cw-7', 'mixed'), { field: 'mixed', match: ['2xy^2'], message: 'Your answer is right when x ≥ 0. Try x = −1.' });
   assert.deepEqual(named('a2r1-wu-1', 'negativeCube').match, ['{{c3}}'], 'the sign of an odd power: (−c)³ written as c³');
@@ -154,6 +154,22 @@ const TYPED = [
   ['a2r3-cw-4', 'value49', '-\\frac{1}{7}'],
   ['a2r3-cw-9', 'simplified', '\\frac{y+1}{y-1}'],
   ['a2r3-p-9', 'product', '\\sqrt[3]{x^{2}}'],
+  // The Check Your Progress halves typed since (each box's first slip).
+  ['a2r1-cw-6', 'rootPlus', '-2i'],
+  ['a2r1-cw-6', 'cypRoot', '-4i'],
+  ['a2r1-cw-6', 'cypOther', '4i'],
+  ['a2r2-cw-8', 'second', '12a'],
+  ['a2r2-cw-9', 'cyp', '24\\sqrt{3}'],
+  ['a2r2-cw-10', 'cyp', '10\\sqrt{5}-2\\sqrt{35}-4\\sqrt{42}'],
+  ['a2r3-cw-3', 'a3', '\\sqrt{a^{3}}'],
+  ['a2r3-cw-3', 'x5', 'x^{5}'],
+  ['a2r3-cw-4', 'cyp25', '-\\frac{1}{5}'],
+  ['a2r3-cw-4', 'cyp16', '12'],
+  ['a2r3-cw-6', 'cyp', '512'],
+  ['a2r3-cw-7', 'cyp1', 'x^{\\frac{2}{25}}'],
+  ['a2r3-cw-7', 'cyp2', 'y^{\\frac{3}{4}}'],
+  ['a2r3-cw-8', 'cyp2', '\\sqrt[3]{4x^{2}}'],
+  ['a2r3-cw-9', 'cyp', '\\frac{x+1}{x-1}'],
 ];
 
 test('typed as MathLive spells it, each slip is named', () => {

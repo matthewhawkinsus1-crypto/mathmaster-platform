@@ -609,26 +609,16 @@
             {
               "id": "a3",
               "label": "a^(1/3) in radical form",
-              "type": "choice",
-              "options": [
-                "√(a^(1/3))",
-                "√(a³)",
-                "∛a",
-                "a³"
-              ],
-              "answer": "∛a"
+              "answer": "root(3)(a)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
             },
             {
               "id": "x5",
               "label": "⁵√x in exponential form",
-              "type": "choice",
-              "options": [
-                "x^(1/5)",
-                "√(x⁵)",
-                "x⁵",
-                "√(x^(1/5))"
-              ],
-              "answer": "x^(1/5)"
+              "answer": "x^(1/5)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
             }
           ],
           "hints": [
@@ -642,6 +632,20 @@
                 "√(a^7)"
               ],
               "message": "In a^(1/7), the 7 is the index of the root, not a power."
+            },
+            {
+              "field": "a3",
+              "match": [
+                "√(a^3)"
+              ],
+              "message": "In a^(1/3), the 3 is the index of the root, not a power."
+            },
+            {
+              "field": "x5",
+              "match": [
+                "x^5"
+              ],
+              "message": "The index of the root becomes the denominator of the exponent."
             }
           ],
           "scaffold": {
@@ -716,26 +720,14 @@
             {
               "id": "cyp25",
               "label": "25^(−1/2) =",
-              "type": "choice",
-              "options": [
-                "5",
-                "1/5",
-                "1/625",
-                "−1/5"
-              ],
-              "answer": "1/5"
+              "answer": "1/5",
+              "inputProfile": "number"
             },
             {
               "id": "cyp16",
               "label": "16^(3/4) =",
-              "type": "choice",
-              "options": [
-                "8",
-                "∛65,536",
-                "256",
-                "64"
-              ],
-              "answer": "8"
+              "answer": "8",
+              "inputProfile": "number"
             }
           ],
           "hints": [
@@ -751,6 +743,35 @@
                 "-1/7"
               ],
               "message": "A negative exponent makes a reciprocal, not a negative number."
+            },
+            {
+              "field": "cyp25",
+              "match": [
+                "-5",
+                "-1/5"
+              ],
+              "message": "A negative exponent makes a reciprocal, not a negative number."
+            },
+            {
+              "field": "cyp25",
+              "match": [
+                "5"
+              ],
+              "message": "The negative exponent makes a reciprocal."
+            },
+            {
+              "field": "cyp16",
+              "match": [
+                "12"
+              ],
+              "message": "The exponent is not a factor: take the fourth root first, then cube it."
+            },
+            {
+              "field": "cyp16",
+              "match": [
+                "64"
+              ],
+              "message": "The denominator of the exponent is the index: take the fourth root, not the square root."
             }
           ],
           "scaffold": {
@@ -927,21 +948,25 @@
             },
             {
               "id": "cyp",
-              "label": "For B = 80 kilograms, M is about…",
-              "type": "choice",
-              "options": [
-                "300 kg",
-                "340 kg",
-                "380 kg",
-                "400 kg"
-              ],
-              "answer": "380 kg"
+              "label": "For B = 80 kilograms, M ≈ (kilograms, nearest whole number)",
+              "answer": "380",
+              "inputProfile": "number",
+              "numericTolerance": 1
             }
           ],
           "hints": [
             "What does the negative exponent in B^(−8/5) tell you to do with 146,230?",
             "B^(−8/5) = 1/B^(8/5), so divide 146,230 by B^(8/5). On a calculator, put 8/5 in parentheses.",
             "Subtract the quotient from 512 last."
+          ],
+          "misconceptions": [
+            {
+              "field": "cyp",
+              "match": [
+                "512"
+              ],
+              "message": "Put 8/5 in parentheses: without them the calculator raises to the 8th power and then divides by 5."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. 146,230 · B^(−8/5) equals…",
@@ -1014,32 +1039,39 @@
             {
               "id": "cyp1",
               "label": "x^(1/5) · x^(2/5) =",
-              "type": "choice",
-              "options": [
-                "x^(2/5)",
-                "x^(3/5)",
-                "x^(1/2)",
-                "x²"
-              ],
-              "answer": "x^(3/5)"
+              "answer": "x^(3/5)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
             },
             {
               "id": "cyp2",
-              "label": "y^(−3/4) =",
-              "type": "choice",
-              "options": [
-                "y^(3/4)",
-                "(y^(1/4))/y⁴",
-                "(y^(1/4))/y",
-                "y⁴/y³"
-              ],
-              "answer": "(y^(1/4))/y"
+              "label": "y^(−3/4) in simplest form",
+              "answer": "(y^(1/4))/y",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
             }
           ],
           "hints": [
             "When you multiply powers of y, what do you do with their exponents?",
             "A negative exponent means a reciprocal. What can you multiply the top and bottom by so the denominator’s exponent is a whole number?",
             "Exponents add when you multiply: two thirds plus one third is one."
+          ],
+          "misconceptions": [
+            {
+              "field": "cyp1",
+              "match": [
+                "x^(2/25)"
+              ],
+              "message": "When you multiply powers of x, add the exponents."
+            },
+            {
+              "field": "cyp2",
+              "match": [
+                "y^(3/4)",
+                "-y^(3/4)"
+              ],
+              "message": "A negative exponent makes a reciprocal."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. x^(2/3) · x^(1/3) equals…",
@@ -1112,32 +1144,31 @@
             {
               "id": "cyp1",
               "label": "⁴√4 / √2 =",
-              "type": "choice",
-              "options": [
-                "2^(−1/4)",
-                "1",
-                "2^(1/2)",
-                "2^(1/4)"
-              ],
-              "answer": "1"
+              "answer": "1",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
             },
             {
               "id": "cyp2",
               "label": "⁶√(16x²) =",
-              "type": "choice",
-              "options": [
-                "∛(4x)",
-                "∛(4x²)",
-                "∛(2x)",
-                "∛(2x²)"
-              ],
-              "answer": "∛(4x)"
+              "answer": "∛(4x)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
             }
           ],
           "hints": [
             "What power of 2 is 16? How do you write the sixth root of a power as a rational exponent?",
             "Write each radical as a power of 2, then reduce the fraction in the exponent before writing a radical.",
             "16 = 2⁴, so ⁶√16 = 2^(4/6); and 4x⁴ = (2x²)², so ⁶√(4x⁴) = (2x²)^(2/6)."
+          ],
+          "misconceptions": [
+            {
+              "field": "cyp2",
+              "match": [
+                "∛(4x^2)"
+              ],
+              "message": "Reduce the power of x with the index too: write 16x² as a square first."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. 3^(2/4) equals…",
@@ -1183,7 +1214,7 @@
             "Name the conjugate of the denominator.",
             "Multiply the denominator by its conjugate.",
             "Simplify the first quotient.",
-            "Choose the simplified form of the second quotient."
+            "Simplify the second quotient the same way."
           ],
           "responses": [
             {
@@ -1203,7 +1234,8 @@
               "label": "(y^(1/2) − 1)(y^(1/2) + 1) =",
               "answer": "y-1",
               "inputProfile": "expression",
-              "gradingMode": "equivalentExpression"
+              "gradingMode": "equivalentExpression",
+              "type": "math"
             },
             {
               "id": "simplified",
@@ -1215,14 +1247,9 @@
             {
               "id": "cyp",
               "label": "(x^(1/2) − 1)/(x^(1/2) + 1) =",
-              "type": "choice",
-              "options": [
-                "(x − 2x^(1/2) + 1)/(x − 1)",
-                "(x + 1)/(x − 1)",
-                "(x − 2x^(1/2) + 1)/(x + 1)",
-                "(x − 1)/(x + 1)"
-              ],
-              "answer": "(x − 2x^(1/2) + 1)/(x − 1)"
+              "answer": "(x-2x^(1/2)+1)/(x-1)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
             }
           ],
           "hints": [
@@ -1237,6 +1264,13 @@
                 "(y+1)/(y-1)"
               ],
               "message": "(y^(1/2) + 1)² has a middle term: multiply it out term by term."
+            },
+            {
+              "field": "cyp",
+              "match": [
+                "(x+1)/(x-1)"
+              ],
+              "message": "(x^(1/2) − 1)² has a middle term: multiply it out term by term."
             }
           ],
           "scaffold": {

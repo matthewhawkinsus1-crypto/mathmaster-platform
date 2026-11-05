@@ -30,6 +30,11 @@ const withOwnHint = (hint, question) => ({ ...question, supportHints: [hint] });
 // that box's own grader, and never when the box is right.
 const slip = (field, match, message) => ({ field, match: [match].flat(), message });
 const BARS = (letter) => `Your answer is right when ${letter} ≥ 0. Try ${letter} = −1.`;
+// Example D's roots, one to a box: the opposite root in the wrong box, or a
+// real number for the root of a negative.
+const OTHER_ROOT = 'That is the other square root. The radical sign names the principal one.';
+const PRINCIPAL_ROOT = 'That is the principal root. The other square root is its opposite.';
+const REAL_SQUARE = 'A real number squared is never negative, so a square root of a negative number is imaginary.';
 
 /* ----------------------------------------------------------- Warm-Up */
 
@@ -448,12 +453,17 @@ const classwork = [
     studentActions: ['multipleResponses'],
     dok: 2,
     difficultyBand: 3,
-    prompt: tex`Example D, then Check Your Progress D. Decide whether $\sqrt{-4}$ is a real number, and name its two imaginary square roots. Then simplify $\sqrt{-16}$.`,
+    prompt: tex`Example D, then Check Your Progress D. Decide whether $\sqrt{-4}$ is a real number. Then simplify it using $i$, and name the other square root of $-4$. Do the same for $\sqrt{-16}$.`,
     directionSteps: [
       'Decide whether the first root is a real number.',
-      'Name its two imaginary square roots.',
-      'Choose the simplified form of the second expression.',
+      'Simplify it using i, and name the other square root.',
+      'Do the same for the second root.',
     ],
+    // Each root has its own box, so the order is never a guess: the radical
+    // names the principal root (2i), and "the other" is its opposite. The
+    // Check Your Progress half is typed as the example is (F-CYP-AS-CHOICE).
+    // Math boxes: the box chooser reads a key with no sign it knows, such as
+    // 2i, as words, and drew these as plain text boxes.
     responses: [
       choice('real', '√(−4) is…', [
         'not a real number: the index is even and the radicand is negative',
@@ -461,14 +471,25 @@ const classwork = [
         'a real number: −4 is negative, and an odd root of a negative is real',
         'not a real number: every root of a negative number is imaginary',
       ], 'not a real number: the index is even and the radicand is negative'),
-      expression('rootPlus', 'The two imaginary square roots of −4 are', '2i'),
-      expression('rootMinus', 'and', '-2i'),
-      choice('cyp', '√(−16) (both roots) =', ['−4', '±4', '−2', '±4i'], '±4i'),
+      expression('rootPlus', '√(−4) =', '2i', { type: 'math' }),
+      expression('rootMinus', 'The other square root of −4 is', '-2i', { type: 'math' }),
+      expression('cypRoot', '√(−16) =', '4i', { type: 'math' }),
+      expression('cypOther', 'The other square root of −16 is', '-4i', { type: 'math' }),
     ],
     hints: [
       'Is (−2)² equal to 4 or −4?',
       'i is the imaginary unit, and i² = −1. Which multiple of i squares to −4?',
-      'Both 4i and −4i square to −16.',
+      // The last hint shows the move, not the four typed roots: a hint that
+      // states a box's answer is dropped by the leak guard.
+      'For b > 0, √(−b) = i√b, and the other square root is its opposite.',
+    ],
+    misconceptions: [
+      slip('rootPlus', '-2i', OTHER_ROOT),
+      slip('rootMinus', '2i', PRINCIPAL_ROOT),
+      slip('cypRoot', '-4i', OTHER_ROOT),
+      slip('cypOther', '4i', PRINCIPAL_ROOT),
+      slip('cypRoot', ['4', '-4'], REAL_SQUARE),
+      slip('cypOther', ['4', '-4'], REAL_SQUARE),
     ],
     scaffold: backUp('A real number raised to an even power is…', ['never negative', 'sometimes negative'], 'never negative'),
     guidedNotes: guidedNotes(
@@ -476,8 +497,8 @@ const classwork = [
     ),
     solutionReview: review(
       'No real root; two imaginary roots.',
-      ['The index is even and −4 < 0, so √(−4) is not a real number.', '(2i)² = 4i² = −4 and (−2i)² = −4, so the square roots are 2i and −2i.', 'Similarly, the square roots of −16 are ±4i.'],
-      '2i and −2i; ±4i',
+      ['The index is even and −4 < 0, so √(−4) is not a real number.', '(2i)² = 4i² = −4 and (−2i)² = −4, so √(−4) = 2i, and the other square root is −2i.', 'In the same way, √(−16) = 4i, and the other square root of −16 is −4i.'],
+      '2i and −2i; 4i and −4i',
       'Writing (−2)² = −4: the square of a negative number is positive.',
     ),
   },
