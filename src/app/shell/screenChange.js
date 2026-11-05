@@ -57,7 +57,9 @@ export const screenChangeMovesFocus = (nextKey = '') => !String(nextKey || '').s
 /**
  * The new screen's top heading: the first visible h1 inside the main landmark,
  * else the first visible h1 anywhere, else the main landmark itself. Null
- * while the screen is still loading (a lazy screen draws its heading later).
+ * while the screen is still loading (a lazy screen draws its heading later):
+ * also inside the shell's own main, where a student screen whose code is on
+ * its way says so with aria-busy (app/lazyScreens.js, PF01).
  */
 export const screenHeadingTarget = (doc) => {
   if (!doc) return null;
@@ -68,6 +70,7 @@ export const screenHeadingTarget = (doc) => {
   }
   const heading = [...doc.querySelectorAll('h1')].find(visible);
   if (heading) return heading;
+  if ([...doc.querySelectorAll('[aria-busy="true"]')].some(visible)) return null;
   return mains[0] || null;
 };
 

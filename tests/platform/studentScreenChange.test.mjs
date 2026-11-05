@@ -124,6 +124,19 @@ test('NAV-3: a screen still loading has no target yet; a main with no h1 is the 
   assert.equal(screenHeadingTarget(doc), main);
 });
 
+test('NAV-3, PF01: a screen whose code is on its way inside the shell\'s main (aria-busy) waits for its heading', () => {
+  // Grades, Assignments and Rewards draw in the shell's own main; until their
+  // code is here it holds a busy "Opening …" status (app/lazyScreens.js).
+  const opening = el('div', { 'aria-busy': 'true' }, el('p', { role: 'status' }));
+  const main = el('main', { id: MAIN_CONTENT_ID, tabindex: '-1' }, opening);
+  const loading = fakeDocument(el('body', {}, main));
+  assert.equal(screenHeadingTarget(loading), null, 'not the landmark: the shell keeps looking, and the h1 is focused when it lands');
+  assert.equal(focusScreenHeading(loading), null);
+  // Only a busy region on screen holds it up.
+  opening.visible = false;
+  assert.equal(screenHeadingTarget(loading), main);
+});
+
 test('NAV-3: focus the student or the screen already put inside the new screen is left alone', () => {
   const screen = gradesScreen();
   screen.doc.activeElement = screen.navButton; // inside main

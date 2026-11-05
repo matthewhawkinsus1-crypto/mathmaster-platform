@@ -350,19 +350,26 @@ import {
   TEACHER_SUPPORT_STREAM_TABS,
 } from './app/screenScopes.js';
 // Every screen loaded on demand (one chunk each), and the teacher-only
-// panels, each with its own Suspense boundary (lazyScreens.js).
+// panels, each with its own Suspense boundary (lazyScreens.js). The student's
+// Grades, Assignments, Rewards and result screens also carry their own way
+// through code that cannot load, and are fetched while Home is idle (PF01).
 import {
   LiveChallengeStudent,
   MyMathPathApp,
   QuestionEngine,
   ReviewMyWork,
   SectionRecoveryRunner,
+  StudentAssignmentResult,
+  StudentAssignmentsCenter,
+  StudentGradeCenter,
+  StudentRewardsCenter,
   StudentSecureExamDashboard,
   TeacherQuestionReviewPanel,
   TeacherWorkspace,
   TestCycleCard,
   WarmupChallengeGate,
 } from './app/lazyScreens.js';
+import { prefetchStudentScreens } from './app/student/studentScreenPrefetch.js';
 import {
   TEACHER_HISTORY_DOCUMENT_ID,
   planTeacherHistoryWrite,
@@ -393,13 +400,10 @@ import { buildStudentLearningProfile } from './platform/profile/studentLearningP
 import { resolveDeliveredQuestionMetadata } from './platform/assignments/assignmentAdaptation.js';
 import { adaptLegacyMasteryToPhase5 } from './platform/profile/legacyMasteryAdapter.js';
 import StudentDashboardView from './components/student/StudentDashboardView.jsx';
-import StudentGradeCenter from './components/student/StudentGradeCenter.jsx';
-import StudentAssignmentsCenter from './components/student/StudentAssignmentsCenter.jsx';
 import { isTestCycleAssignment } from './platform/assessment/testCycle.js';
 import { isSecureExamActive, useSecureExamActive } from './platform/assessment/secureExamPresence.js';
 import { getAssignmentEvidenceSummary, manageAssignmentLifecycle } from './services/assessmentLifecycleService.js';
 import StudentGlobalNav, { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
-import StudentAssignmentResult from './components/student/StudentAssignmentResult.jsx';
 import SectionRecoveryPanel from './components/student/SectionRecoveryPanel.jsx';
 // Showing and announcing a Recovery list is light; DECIDING one runs the
 // server's own rules and loads after Home (app/student/studentRecoveryKit.js).
@@ -431,7 +435,6 @@ import {
 import { buildRewardWallet } from './platform/rewards/rewardWallet.js';
 import { useRewardCelebrations } from './platform/rewards/useRewardCelebrations.js';
 import { useClassPracticePasses } from './platform/rewards/useClassPracticePasses.js';
-import StudentRewardsCenter from './components/student/rewards/StudentRewardsCenter.jsx';
 import ChallengeRewardsEarned from './components/student/rewards/ChallengeRewardsEarned.jsx';
 import { useGrowthRewardSync } from './platform/rewards/useGrowthRewardSync.js';
 
@@ -5685,6 +5688,16 @@ function App() {
     const timer = window.setTimeout(prefetch, 2000);
     return () => window.clearTimeout(timer);
   }, [user?.role, activeView]);
+
+  // THE STUDENT'S OTHER SCREENS (PF01). Grades, Assignments, Rewards and an
+  // assignment's result load on demand (app/lazyScreens.js). Once Home has
+  // rendered, their code is fetched while the browser is idle: once per page,
+  // never when the device asks to save data, and not while it is offline
+  // (app/student/studentScreenPrefetch.js). Opening one is then instant.
+  useEffect(() => {
+    if (user?.role !== 'student' || activeView !== 'dashboard' || studentDashboardMode !== 'assignments') return undefined;
+    return prefetchStudentScreens([StudentGradeCenter, StudentAssignmentsCenter, StudentRewardsCenter, StudentAssignmentResult]);
+  }, [user?.role, activeView, studentDashboardMode]);
 
   // WCAG 2.4.2: the tab names the screen (./components/common/pageChrome.jsx).
   const documentTitle = pageTitleFor({

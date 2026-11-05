@@ -4,7 +4,12 @@
  * downloads a screen when they first open it, never at sign-in
  * (tests/platform/initialBundleBoundary.test.mjs).
  */
-import { Suspense, createElement, lazy } from 'react';
+import { Suspense, createElement, lazy, useEffect, useState } from 'react';
+// Not screens: what a student screen below wraps itself in (PF01).
+import ScreenErrorBoundary from '../components/common/ScreenErrorBoundary.jsx';
+import { CHUNK_RETRY, retryableChunk } from '../platform/runtime/retryableChunk.js';
+import { STUDENT_DESTINATION } from '../platform/student/navigationModel.js';
+import { focusScreenHeading } from './shell/screenChange.js';
 
 export const ClassroomManagerV2 = lazy(() => import('../ClassroomManagerV2.jsx'));
 export const AssignmentQuestionEditor = lazy(() => import('../AssignmentQuestionEditor.jsx'));
@@ -52,6 +57,77 @@ export const TestCyclePreview = lazy(() => import('../components/teacher/TestCyc
 // The Recovery runner mounts QuestionEngine, and with it MathLive (~780 KB):
 // a student who opens a Recovery fetches it then, not every student at sign-in.
 export const SectionRecoveryRunner = lazy(() => import('../components/student/SectionRecoveryRunner.jsx'));
+
+/*
+ * THE STUDENT'S GRADES, ASSIGNMENTS, REWARDS AND RESULT SCREENS (PF01).
+ *
+ * About 16 KB gzip of every student's first load, needed only after opening
+ * one of them. Each loads on demand, and App fetches all four while the
+ * browser is idle on Home (app/student/studentScreenPrefetch.js), so opening
+ * one is as quick as before. Like a teacher panel, a student screen carries
+ * what it needs, and App's JSX is unchanged:
+ *
+ *   - its code, drawn at once when it is already here (after the prefetch);
+ *   - until then a calm "Opening …" in the screen's place, marked busy, so
+ *     the shell's focus waits for the screen's heading (shell/screenChange.js);
+ *   - a boundary of its own for code that cannot load (offline before the
+ *     prefetch finished, or a deploy replaced the chunk): a short message with
+ *     Try again in the screen's place, never a blank screen or the app-wide
+ *     panel. Try again really asks again (platform/runtime/retryableChunk.js),
+ *     and the screen it brings back takes focus on its heading, as a screen
+ *     change does: the button that had focus is gone.
+ */
+const STUDENT_SCREEN_FRAME = { minHeight: '100vh', boxSizing: 'border-box', padding: '20px 14px 48px', background: 'var(--mm-surface-control)' };
+const STUDENT_SCREEN_STATUS = { maxWidth: 920, margin: '0 auto', textAlign: 'left', color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))' };
+const studentScreen = (load, opening) => {
+  const chunk = retryableChunk(load);
+  // Try again's button had focus, and goes with the panel. The visit it brings
+  // back puts focus on the screen's heading once the screen is drawn
+  // (shell/screenChange.js, NAV-3).
+  let focusOnArrival = false;
+  const retryChunk = (error) => {
+    const next = chunk.retry(error);
+    focusOnArrival = next === CHUNK_RETRY.LOAD;
+    return next;
+  };
+  // Around the screen, inside the visit's Suspense boundary, so its effect
+  // runs only once the screen itself is on the page. Its one child keeps the
+  // screen's place in the tree, and so the ids it draws (useId).
+  const Arrived = ({ children }) => {
+    useEffect(() => {
+      if (!focusOnArrival) return;
+      focusOnArrival = false;
+      focusScreenHeading(document);
+    }, []);
+    return children;
+  };
+  // One visit to the screen. What it draws is chosen once, ABOVE the Suspense
+  // boundary: a component whose first mount suspends is thrown away and
+  // mounted again, so a lazy chosen below it would be a new one each time, and
+  // a failed load would never reach the boundary ("Opening …" for good). The
+  // screen itself when its code is here (no "Opening …" at all), else a lazy
+  // of its own: React.lazy keeps a rejected import, and the boundary unmounts
+  // a failed visit, so Try again mounts a new one with a new lazy.
+  const Visit = (props) => {
+    const [Screen] = useState(() => chunk.loaded()?.default || lazy(chunk.load));
+    const fallback = createElement('div', { 'aria-busy': 'true', 'data-student-screen-opening': '', style: STUDENT_SCREEN_FRAME },
+      createElement('p', { role: 'status', style: STUDENT_SCREEN_STATUS }, opening));
+    return createElement(Suspense, { fallback }, createElement(Arrived, null, createElement(Screen, props)));
+  };
+  const StudentScreen = (props) => {
+    // The way Home each screen is handed: Grades, Assignments and Rewards
+    // navigate (onNavigate); the result page has its own (onBackToHome).
+    const home = props.onBackToHome || (props.onNavigate ? () => props.onNavigate(STUDENT_DESTINATION.HOME) : null);
+    return createElement(ScreenErrorBoundary, { source: 'student-screen', retryChunk, exitLabel: 'Back to Home', onExit: home },
+      createElement(Visit, props));
+  };
+  StudentScreen.prefetch = () => chunk.load().catch(() => { /* opening the screen asks again */ });
+  return StudentScreen;
+};
+export const StudentGradeCenter = studentScreen(() => import('../components/student/StudentGradeCenter.jsx'), 'Opening your grades…');
+export const StudentAssignmentsCenter = studentScreen(() => import('../components/student/StudentAssignmentsCenter.jsx'), 'Opening your assignments…');
+export const StudentRewardsCenter = studentScreen(() => import('../components/student/rewards/StudentRewardsCenter.jsx'), 'Opening your rewards…');
+export const StudentAssignmentResult = studentScreen(() => import('../components/student/StudentAssignmentResult.jsx'), 'Opening your result…');
 
 /*
  * TEACHER-ONLY PANELS (student push G2). App rendered these from static

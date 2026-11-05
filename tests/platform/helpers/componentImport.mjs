@@ -11,7 +11,10 @@
  *
  *   import Name from './components/…/Name.jsx';             (static)
  *   import { …, Name, … } from './app/lazyScreens.js';       (on demand)
- *     with  export const Name = lazy|teacherPanel(() => import('../components/…/Name.jsx'…
+ *     with  export const Name = lazy|teacherPanel|studentScreen(() => import('../components/…/Name.jsx'…
+ *
+ * (`studentScreen`: a student screen that left the first load in PF01, with
+ * its own boundary for code that cannot load.)
  *
  * `importsComponent(sourcePath, name, componentPath)` answers 'static',
  * 'onDemand' or null. Paths are repo-relative ('src/App.jsx').
@@ -36,7 +39,7 @@ export const importsComponent = (sourcePath, name, componentPath) => {
   const fromScreens = source.match(new RegExp(`^import \\{([^}]*)\\} from '${screens}';$`, 'm'));
   if (!fromScreens || !fromScreens[1].split(',').map((entry) => entry.trim()).includes(name)) return null;
   const loaded = escape(relativeSpecifier(LAZY_SCREENS, componentPath));
-  const entry = new RegExp(`^export const ${name} = (?:lazy|teacherPanel)\\(\\(\\) => import\\('${loaded}'\\)`, 'm');
+  const entry = new RegExp(`^export const ${name} = (?:lazy|teacherPanel|studentScreen)\\(\\(\\) => import\\('${loaded}'\\)`, 'm');
   return entry.test(read(LAZY_SCREENS)) ? 'onDemand' : null;
 };
 

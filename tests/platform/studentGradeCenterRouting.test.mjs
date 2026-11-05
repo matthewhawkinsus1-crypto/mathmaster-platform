@@ -240,9 +240,10 @@ test('App imports every student grade module it calls', () => {
   ]) {
     const escapedFrom = from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const staticImport = new RegExp(`${identifier}[\\s\\S]{0,400}?from '\\.\\/${escapedFrom}'`);
-    // Lazily: declared in app/lazyScreens.js (the App split) and imported
-    // from there by App.
-    const lazyImport = new RegExp(`export const ${identifier} = lazy\\(\\(\\) => import\\('\\.\\.\\/${escapedFrom}'\\)\\)`);
+    // Lazily: declared in app/lazyScreens.js (the App split; a student screen
+    // since PF01, `studentScreen`, with its own boundary) and imported from
+    // there by App.
+    const lazyImport = new RegExp(`export const ${identifier} = (?:lazy|studentScreen)\\(\\(\\) => import\\('\\.\\.\\/${escapedFrom}'\\)[,)]`);
     const fromLazyScreens = new RegExp(`\\b${identifier},\\n[\\s\\S]*?\\} from '\\.\\/app\\/lazyScreens\\.js'`);
     assert.ok(staticImport.test(app) || (lazyImport.test(lazyScreens) && fromLazyScreens.test(app)), `${identifier} must be statically or lazily imported from ${from}`);
     assert.match(app, new RegExp(`<${identifier}[\\s>]|${identifier}\\(|${identifier}\\)`), `${identifier} must actually be used`);

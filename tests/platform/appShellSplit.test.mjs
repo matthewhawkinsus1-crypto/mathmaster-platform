@@ -64,12 +64,22 @@ test('every screen in lazyScreens.js is a lazy import, so none joins the first l
   const declarations = [...screens.matchAll(/^export const ([A-Za-z0-9]+) = (.*)$/gm)];
   assert.ok(declarations.length >= 30);
   for (const [, name, value] of declarations) {
-    // A screen (`lazy`), or a teacher-only panel (`teacherPanel`, the same
-    // lazy import inside its own Suspense boundary). GradebookClassChooser is
-    // a named export, so it is picked out of the loaded module.
-    assert.match(value, /^(?:lazy|teacherPanel)\(\(\) => import\('\.\.\/[^']+\.jsx'\)(?:\.then\(\(module\) => \(\{ default: module\.[A-Za-z]+ \}\)\))?\);$/, `${name} is not a lazy import`);
+    // A screen (`lazy`), a teacher-only panel (`teacherPanel`, the same
+    // lazy import inside its own Suspense boundary), or a student screen
+    // (`studentScreen`, PF01: the same, with its own boundary for code that
+    // cannot load, and the words it shows while it loads). GradebookClassChooser
+    // is a named export, so it is picked out of the loaded module.
+    assert.match(value, /^(?:(?:lazy|teacherPanel)\(\(\) => import\('\.\.\/[^']+\.jsx'\)(?:\.then\(\(module\) => \(\{ default: module\.[A-Za-z]+ \}\)\))?|studentScreen\(\(\) => import\('\.\.\/[^']+\.jsx'\), '[^']+')\);$/, `${name} is not a lazy import`);
   }
-  assert.doesNotMatch(executableSource(screens), /^import (?!\{ Suspense, createElement, lazy \} from 'react')/m, 'lazyScreens.js imports a screen eagerly');
+  // Eagerly, React and what a student screen wraps itself in: never a screen.
+  const eager = [...executableSource(screens).matchAll(/^import\s+(?:[^;]*?\s+from\s+)?'([^']+)';$/gm)].map((match) => match[1]);
+  assert.deepEqual(eager, [
+    'react',
+    '../components/common/ScreenErrorBoundary.jsx',
+    '../platform/runtime/retryableChunk.js',
+    '../platform/student/navigationModel.js',
+    './shell/screenChange.js',
+  ], 'lazyScreens.js imports a screen eagerly');
 });
 
 /*
