@@ -216,10 +216,11 @@ test('each figure publishes the text it describes itself with, and QuestionEngin
   // that says what each axis counts by (R-9). The hidden description beside it stays
   // the description alone: the visible captions are read in place, not twice.
   // `say` is the same reading as messages, for Read aloud in Spanish (AX05,
-  // figureReadingSpanish.test.mjs).
-  assert.match(graph, /<PublishFigureReading entry=\{\{ kind: 'figure', label: title, text: \[spokenDescription, graph\.caption \? String\(graph\.caption\) : '', scaleCaption\]\.join\(' '\), say: readingSay \}\} \/>\s*<p id=\{descriptionId\} data-graph-description="" aria-hidden="true"[^>]*>\{spokenDescription\}<\/p>/);
+  // figureReadingSpanish.test.mjs); the hidden description is `described`: the
+  // same description, in Spanish under a translation (slice 2).
+  assert.match(graph, /<PublishFigureReading entry=\{\{ kind: 'figure', label: title, text: \[spokenDescription, graph\.caption \? String\(graph\.caption\) : '', scaleCaption\]\.join\(' '\), say: readingSay \}\} \/>\s*<p id=\{descriptionId\} data-graph-description="" aria-hidden="true"[^>]*>\{described\.text\}<\/p>/);
   const plane = code('src/tools/shared/CoordinatePlane.jsx');
-  assert.match(plane, /<PublishFigureReading entry=\{\{ kind: 'figure', label: ariaLabel, text: spokenDescription, say: spokenSay \}\} \/>\s*<p id=\{descriptionId\} className="mm-sr-only"[^>]*>\{spokenDescription\}<\/p>/);
+  assert.match(plane, /<PublishFigureReading entry=\{\{ kind: 'figure', label: ariaLabel, text: spokenDescription, say: spokenSay \}\} \/>\s*<p id=\{descriptionId\} className="mm-sr-only"[^>]*>\{described\.text\}<\/p>/);
   const visual = code('src/QuestionVisual.jsx');
   assert.match(visual, /const displayTable = includeTable \? displayTableFor\(question\) : null;/, 'the table drawn is the shared model');
   assert.match(visual, /\{displayTable && <PublishFigureReading entry=\{\{ kind: 'table', label: question\?\.tableCaption \|\| '', table: displayTable \}\} \/>\}/);
@@ -228,15 +229,17 @@ test('each figure publishes the text it describes itself with, and QuestionEngin
 
   // The other figures that already describe themselves, beside that description.
   [
-    ['src/tools/intervalNumberLine/IntervalNumberLine.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Number line', text: lineDescription, say: lineSay \}\} \/>\s*<p id=\{lineDescriptionId\} data-number-line-description=""[^>]*>\{lineDescription\}<\/p>/],
-    ['src/NumberLine.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Number line', text: description, say: descriptionSay \}\} \/>\s*<span id=\{descriptionId\}[^>]*>\{description\}<\/span>/],
-    ['src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: '3D model', text: modelDescription, say: modelSay \}\} \/>\s*<span id=\{modelDescriptionId\}[^>]*>\{modelDescription\}<\/span>/],
-    ['src/InteractiveGraphWorkspace.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Graph', text: workspaceDescription, say: workspaceSay \}\} \/>\s*<span id=\{workspaceDescriptionId\}[^>]*>\{workspaceDescription\}<\/span>/],
+    ['src/tools/intervalNumberLine/IntervalNumberLine.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Number line', text: lineDescription, say: lineSay \}\} \/>\s*<p id=\{lineDescriptionId\} data-number-line-description=""[^>]*>\{described\.text\}<\/p>/],
+    ['src/NumberLine.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Number line', text: description, say: descriptionSay \}\} \/>\s*<span id=\{descriptionId\}[^>]*>\{described\.text\}<\/span>/],
+    ['src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: '3D model', text: modelDescription, say: modelSay \}\} \/>\s*<span id=\{modelDescriptionId\}[^>]*>\{described\.text\}<\/span>/],
+    ['src/InteractiveGraphWorkspace.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Graph', text: workspaceDescription, say: workspaceSay \}\} \/>\s*<span id=\{workspaceDescriptionId\}[^>]*>\{described\.text\}<\/span>/],
   ].forEach(([path, wiring]) => assert.match(code(path), wiring, path));
 
   const engine = code('src/QuestionEngine.jsx');
-  assert.match(engine, /import \{ FigureReadingPortProvider, figureReadingEntries, updateFigureReadings \} from '\.\/platform\/language\/figureReadings\.js';/);
-  assert.match(engine, /<FigureReadingPortProvider publish=\{publishFigureReading\}>\{renderModule\(\)\}<\/FigureReadingPortProvider>/, 'the question\'s own figures, not a practice item or a review beside it');
+  assert.match(engine, /import \{ FigureReadingPortProvider, FigureWordsProvider, figureReadingEntries, updateFigureReadings \} from '\.\/platform\/language\/figureReadings\.js';/);
+  // The question's own figures, not a practice item or a review beside it; they
+  // write their screen-reader descriptions in the reading's words (AX05, slice 2).
+  assert.match(engine, /<FigureReadingPortProvider publish=\{publishFigureReading\}>\s*<FigureWordsProvider pack=\{figurePack\}>\{renderModule\(\)\}<\/FigureWordsProvider>\s*<\/FigureReadingPortProvider>/, 'the question\'s own figures, not a practice item or a review beside it');
   assert.match(engine, /const publishFigureReading = useCallback\(\(id, entry\) => setPublishedFigures\(\(current\) => updateFigureReadings\(current, id, entry\)\), \[\]\);/);
   const reading = region(engine, 'const readingParts = useMemo(', ');', 'the reading');
   assert.match(reading, /figures: figureReadings,/);

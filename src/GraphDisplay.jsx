@@ -12,7 +12,7 @@ import { boundaryIsLine, boundaryIsVertical, SHADE_OPACITY, shadingPolygon, shad
 import { constraintColor } from './tools/systemsWorkspace/constraintPalette.js';
 import { describeCoordinatePlane, GRAPH_WORDS, joinSegmentPaths } from './platform/language/graphDescription.js';
 import { useQuestionLifecycle } from './platform/question/QuestionLifecycleContext.jsx';
-import { PublishFigureReading } from './platform/language/figureReadings.js';
+import { PublishFigureReading, describedIn, useFigureWords } from './platform/language/figureReadings.js';
 import { joinFigureSays, say, sayFigure } from './platform/language/figureSay.js';
 import { graphReadOutApplies, useGraphReadOut, useReportGraphReadOut } from './platform/supports/graphReadOut.js';
 
@@ -313,6 +313,8 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
   const readOut = graphReadOutApplies({ enabled: graphReadOut.enabled, closed: questionClosed });
   const axesShown = graph?.axisDisplay?.showXTickLabels !== false && graph?.axisDisplay?.showYTickLabels !== false;
   useReportGraphReadOut(Boolean(graph) && readOut && axesShown);
+  // The reading language's figure words, under an authored translation (AX05).
+  const figureWords = useFigureWords();
   const plotClipId = `mm-graph-plot-${useId().replace(/[^A-Za-z0-9_-]/g, '')}`;
   // "Fix the scale" (R-9): which of a misleading-scale figure's two drawings is showing.
   const [scaleFixed, setScaleFixed] = useState(false);
@@ -449,6 +451,9 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
   // Read aloud's reading as messages (AX05): said in Spanish under an authored
   // Spanish translation. An author's description has none: it is read in English.
   const readingSay = authoredDescription ? null : joinFigureSays(generated.say, graph.caption ? [String(graph.caption)] : [], scaleSay);
+  // What a screen reader hears: the same description, in Spanish (lang="es")
+  // where the figure's messages can say it all (AX05, slice 2).
+  const described = describedIn(figureWords, spokenDescription, authoredDescription ? null : generated.say);
 
   const FigureContainer = enlargeable ? EnlargeableFigure : 'div';
   return (
@@ -807,7 +812,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
           shows it. */}
       {/* Read aloud says the same description, and the caption the screen shows (figureReadings.js). */}
       <PublishFigureReading entry={{ kind: 'figure', label: title, text: [spokenDescription, graph.caption ? String(graph.caption) : '', scaleCaption].join(' '), say: readingSay }} />
-      <p id={descriptionId} data-graph-description="" aria-hidden="true" style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 }}>{spokenDescription}</p>
+      <p id={descriptionId} data-graph-description="" aria-hidden="true" lang={described.lang} style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 }}>{described.text}</p>
       {fixedGraph ? (
         <div data-scale-control="" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '8px 6px 2px' }}>
           {/* The live region: the button's own name changes with the state, so this line is what says the figure changed. */}

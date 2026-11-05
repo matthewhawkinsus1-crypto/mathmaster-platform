@@ -14,7 +14,7 @@ import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workVie
 import { clientPointToViewBox } from '../../utils/responsiveCoordinates.js';
 import { describeNumberLinePiece, numberLineReading } from '../../platform/language/numberLineDescription.js';
 import { isAlgebraOneQuestion } from '../../platform/curriculum/inequalityRepresentationPolicy.js';
-import { PublishFigureReading } from '../../platform/language/figureReadings.js';
+import { PublishFigureReading, describedIn, useFigureWords } from '../../platform/language/figureReadings.js';
 import { intervalTickSteps, niceTickStep } from './intervalTicks.js';
 import { intervalGraphMissMessage } from './intervalFeedback.js';
 import {
@@ -562,6 +562,9 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
   // `lineSay` is the same reading as messages: Read aloud says it in Spanish
   // under an authored Spanish translation (AX05).
   const { text: lineDescription, say: lineSay } = numberLineReading({ min, max, labelStep: majorStep, pieces: drawn, pending });
+  // A screen reader hears it in Spanish (lang="es") under a translation (AX05, slice 2).
+  const figureWords = useFigureWords();
+  const described = describedIn(figureWords, lineDescription, lineSay);
 
   return (
     <ToolShell
@@ -955,7 +958,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
           {/* Read through the line's aria-describedby, and hidden from browse
               mode so it is not heard a second time as a loose paragraph. */}
           <PublishFigureReading entry={{ kind: 'figure', label: 'Number line', text: lineDescription, say: lineSay }} />
-          <p id={lineDescriptionId} data-number-line-description="" aria-hidden="true" style={srOnly}>{lineDescription}</p>
+          <p id={lineDescriptionId} data-number-line-description="" aria-hidden="true" style={srOnly} lang={described.lang}>{described.text}</p>
           <p id={lineInstructionsId} aria-hidden="true" style={srOnly}>
             {`Click anywhere on the line to place an endpoint, or drag an existing endpoint. From the keyboard, use the left and right arrow keys to move the marker by ${snapLabel}, Shift for bigger steps, and press Enter or Space to place an endpoint at the marker. You can also type an exact endpoint above.`}
           </p>

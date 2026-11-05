@@ -120,7 +120,7 @@ import { resolveTaskContextPresentation } from './platform/workflow/taskContextP
 import { WorkViewCapabilityProvider } from './platform/workView/workViewCapabilities.js';
 import { WorkViewUndoProvider } from './platform/workView/useMathUndoHistory.js';
 import { QuestionLifecycleProvider } from './platform/question/QuestionLifecycleContext.jsx';
-import { FigureReadingPortProvider, figureReadingEntries, updateFigureReadings } from './platform/language/figureReadings.js';
+import { FigureReadingPortProvider, FigureWordsProvider, figureReadingEntries, updateFigureReadings } from './platform/language/figureReadings.js';
 import { loadFigureWords } from './platform/language/figureSay.js';
 import UniversalUndoButton from './components/common/UniversalUndoButton.jsx';
 import { toolSubmissionParts } from './tools/shared/toolSubmissionParts.js';
@@ -1221,6 +1221,8 @@ function QuestionEngineBody({
   // translation a figure is read in Spanish from the language's own figure
   // words (figureSay.js), loaded only then; until they arrive, or for a
   // figure they cannot say, it is read in English and the reader says so.
+  // The same words write each figure's screen-reader description, marked
+  // lang="es" (figureReadings.js FigureWordsProvider, slice 2).
   const [loadedFigureWords, setLoadedFigureWords] = useState(null);
   useEffect(() => {
     if (readAloudLanguage === 'en') return undefined;
@@ -3445,7 +3447,11 @@ function QuestionEngineBody({
               onRecover={draftKey && moduleRecoveries < 1 ? handleRecoverQuestionModule : null}
               onFailureChange={(failed) => setFailedModule(failed ? { key: moduleFailureKey, question: processedQuestion } : null)}
             >
-              <FigureReadingPortProvider publish={publishFigureReading}>{renderModule()}</FigureReadingPortProvider>
+              {/* The figures publish what they say to Read aloud, and write their
+                  screen-reader descriptions in the reading's language (AX05). */}
+              <FigureReadingPortProvider publish={publishFigureReading}>
+                <FigureWordsProvider pack={figurePack}>{renderModule()}</FigureWordsProvider>
+              </FigureReadingPortProvider>
             </QuestionModuleBoundary>
           </div>
         </fieldset>

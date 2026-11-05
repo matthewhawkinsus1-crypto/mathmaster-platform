@@ -29,6 +29,10 @@
 //                position; with the graph read-out (AX03) it is read in full,
 //                in Spanish, and the 3D model and the graph workspace (the
 //                student's own point) are read in Spanish too (AX05, slice 2).
+//   lang="es"    under that Spanish prompt each figure's screen-reader
+//                description is the same Spanish, marked lang="es", and is what
+//                Chromium's accessibility tree describes the figure with; in
+//                English it is unmarked (AX05, slice 2).
 //   tool tables  the DOL #3 review's tools read the tables they draw: the
 //                workbench's rows, the residual table (and again once the
 //                model changes), the sequence table (what the student typed,
@@ -88,6 +92,25 @@ const open = async (device, query) => {
   return { page, context };
 };
 const lastSpoken = (page) => page.evaluate(() => window.__mmSpoken[window.__mmSpoken.length - 1] || null);
+// The accessible description Chromium computes for an element: what a screen reader reads.
+const axDescription = async (page, selector) => {
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    const { root } = await cdp.send('DOM.getDocument', { depth: -1, pierce: true });
+    const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector });
+    if (!nodeId) return null;
+    const { nodes } = await cdp.send('Accessibility.getPartialAXTree', { nodeId, fetchRelatives: false });
+    return nodes[0]?.description?.value || '';
+  } finally {
+    await cdp.detach();
+  }
+};
+// A figure's hidden description ({ text, lang }) and the accessible description of what it describes.
+const screenReaderDescription = async (page, hidden, described) => {
+  const element = page.locator(hidden).first();
+  const id = await element.getAttribute('id');
+  return { text: (await element.textContent()) || '', lang: await element.getAttribute('lang'), ax: await axDescription(page, `${described}[aria-describedby~="${id}"]`) };
+};
 const noSidewaysScroll = async (page, where) => {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   check(overflow <= 1, `${where}: nothing scrolls sideways`, `${overflow}px`);
@@ -163,6 +186,8 @@ for (const device of DEVICES) {
     check(!/\(\s*(?:negative )?\d|\bcrosses\b|\bthrough\b|\bbetween\b|\bcorners?\b|\bhigh point\b|\blow point\b/.test(said), `${device.name}: no position is read while the exit ticket is open`, said);
     const description = await page.locator('[data-graph-description]').first().textContent();
     check(said.includes(description.replace(/−/g, 'negative ').split('. ')[1] || '\u0000'), `${device.name}: what is read is the figure's own description`, description);
+    const english = await screenReaderDescription(page, '[data-graph-description]', 'svg');
+    check(english.lang === null && english.ax === english.text && english.text.startsWith('x from −4 to 7'), `${device.name}: in English the screen-reader description is English, unmarked`, JSON.stringify(english));
     await context.close();
   }
 
@@ -181,6 +206,10 @@ for (const device of DEVICES) {
     const description = await page.locator('[data-graph-description]').first().textContent();
     const numbers = (text) => (text.replace(/−|negativo /g, '-').match(/-?\d+(?:\.\d+)?/g) || []).join(' ');
     check(numbers(figure) === numbers(description), `${device.name}: the same numbers as the figure's description`, `${numbers(figure)} | ${numbers(description)}`);
+    // A screen reader hears the same Spanish, marked lang="es" (AX05, slice 2).
+    const hidden = await screenReaderDescription(page, '[data-graph-description]', 'svg');
+    check(hidden.lang === 'es' && hidden.text === 'El eje x va de −4 a 7 y el eje y, de −6 a 16. 1 curva. 1 círculo abierto y 1 círculo cerrado. Las posiciones no se leen mientras se pueda responder esta pregunta.', `${device.name}: the graph's screen-reader description is Spanish, marked lang="es"`, JSON.stringify(hidden));
+    check(hidden.ax === hidden.text, `${device.name}: and it is the graph's accessible description`, hidden.ax);
     await context.close();
   }
   {
@@ -207,6 +236,8 @@ for (const device of DEVICES) {
     const said = heard?.text || '';
     check(heard?.lang === 'es' && said.includes('Modelo 3D. Modelo 3D con los ejes x, y, z. Plano 1, azul: 2x menos y más 2z es igual a 15. Plano 2, rojo: negativo x más y más z es igual a 3. Plano 3, verde: 3x menos y más 2z es igual a 18.'), `${device.name}: the 3D model is read in Spanish`, said.slice(0, 400));
     check(!/inglés|3D model with|planos \d y \d/.test(said), `${device.name}: no English, no note, and no pair of planes named`, said.slice(0, 400));
+    const hidden = await screenReaderDescription(page, '[data-threeplane-description]', 'svg[role="application"]');
+    check(hidden.lang === 'es' && hidden.text.startsWith('Modelo 3D con los ejes x, y, z. Plano 1, azul: 2x menos y más 2z es igual a 15.') && (hidden.ax || '').startsWith(hidden.text), `${device.name}: the model's screen-reader description is Spanish, marked lang="es"`, JSON.stringify(hidden).slice(0, 400));
     await context.close();
   }
   {
@@ -230,6 +261,8 @@ for (const device of DEVICES) {
     await read.click();
     const after = (await lastSpoken(page))?.text || '';
     check(after.includes('Colocaste 1 punto: Plot the point where x es igual a 0 en el punto 0, 1.') && !/inglés|You placed/.test(after), `${device.name}: the student's point is read back in Spanish`, after.slice(0, 300));
+    const hidden = await screenReaderDescription(page, '[data-graph-workspace-description]', 'svg[role="application"]');
+    check(hidden.lang === 'es' && hidden.text === 'El eje x va de −4 a 4 y el eje y, de −6 a 8. Colocaste 1 punto: Plot the point where x = 0 en (0, 1).' && (hidden.ax || '').startsWith(hidden.text), `${device.name}: the workspace's screen-reader description is Spanish, marked lang="es"`, JSON.stringify(hidden).slice(0, 400));
     await context.close();
   }
 

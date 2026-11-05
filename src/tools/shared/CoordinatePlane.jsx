@@ -15,7 +15,7 @@ import { baselineBelowAxis, originLabelPlacement, planeDotGrowth, planeFontSize 
 import { axisNumberBox, boxesTouch, placePointLabels, placedLabelBox } from './planePointLabels.js';
 import { equalUnitPlaneHeight } from './planeEqualUnits.js';
 import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
-import { PublishFigureReading } from '../../platform/language/figureReadings.js';
+import { PublishFigureReading, describedIn, useFigureWords } from '../../platform/language/figureReadings.js';
 import { joinFigureSays } from '../../platform/language/figureSay.js';
 import { graphReadOutApplies, useGraphReadOut, useReportGraphReadOut } from '../../platform/supports/graphReadOut.js';
 import { axisTitleSay, axisTitleSentence, cleanAxisLabel } from './planeAxisTitles.js';
@@ -639,6 +639,10 @@ export default function CoordinatePlane({
   // (AX05), the full reading included. An author's description has none: it
   // is read in English, and the reader says so.
   const spokenSay = authoredDescription ? null : joinFigureSays(axisTitleSay(axisTitles), generatedDescription.say);
+  // What a screen reader hears: the same description, in Spanish (lang="es")
+  // where those messages can say it all (AX05, slice 2).
+  const figureWords = useFigureWords();
+  const described = describedIn(figureWords, spokenDescription, spokenSay);
   useReportGraphReadOut(Boolean(readOutReading));
   // IDREFs, not url(#…), so useId's own characters are fine here.
   const descriptionUid = useId();
@@ -1051,7 +1055,7 @@ export default function CoordinatePlane({
           question's first step off a phone screen, PR #454). */}
       {/* Read aloud says the same description, under the same rule (figureReadings.js). */}
       <PublishFigureReading entry={{ kind: 'figure', label: ariaLabel, text: spokenDescription, say: spokenSay }} />
-      <p id={descriptionId} className="mm-sr-only" style={SR_ONLY_STYLE} aria-hidden={insideControl ? undefined : 'true'}>{spokenDescription}</p>
+      <p id={descriptionId} className="mm-sr-only" style={SR_ONLY_STYLE} aria-hidden={insideControl ? undefined : 'true'} lang={described.lang}>{described.text}</p>
 
       {showDataTable ? (
         <div className="mathmaster-plane-data" style={{ margin: '6px 0 0', textAlign: 'left' }}>

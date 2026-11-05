@@ -4,7 +4,7 @@ import QuestionPrompt from './QuestionPrompt';
 import QuestionVisual from './QuestionVisual';
 import useUndoHistory from './useUndoHistory';
 import { pointChoiceLineReading } from './platform/language/numberLineDescription.js';
-import { PublishFigureReading } from './platform/language/figureReadings.js';
+import { PublishFigureReading, describedIn, useFigureWords } from './platform/language/figureReadings.js';
 import { gradeNumberLineResponse } from '../functions/shared/ordinaryResponseGrading.mjs';
 
 export default function NumberLine({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
@@ -33,6 +33,9 @@ export default function NumberLine({ question, onStateChange, onUndoStateChange,
   const descriptionId = useId();
   // `descriptionSay`: the same reading as messages, for Read aloud in Spanish (AX05).
   const { text: description, say: descriptionSay } = pointChoiceLineReading({ choices, selected: selectedPoint });
+  // A screen reader hears it in Spanish (lang="es") under a translation (AX05, slice 2).
+  const figureWords = useFigureWords();
+  const described = describedIn(figureWords, description, descriptionSay);
   return (
     <div>
       <h2 style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>Number Line</h2>
@@ -43,7 +46,7 @@ export default function NumberLine({ question, onStateChange, onUndoStateChange,
         <div style={{ position: 'absolute', top: '10px', left: '10%', right: '10%', height: '4px', background: '#dadce0', zIndex: 0 }} />
         {choices.map((number) => <button type="button" key={number} onClick={() => history.setValue(Number(number))} aria-label={`Select ${number}`} aria-pressed={selectedPoint === Number(number)} style={{ margin: '0 20px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1, border: 'none', background: 'transparent', padding: 0 }}><span style={{ width: '24px', height: '24px', borderRadius: '50%', background: selectedPoint === Number(number) ? '#1a73e8' : 'var(--mm-surface)', marginBottom: '8px', border: selectedPoint === Number(number) ? '3px solid #0b5394' : '3px solid var(--mm-border)', boxSizing: 'border-box' }} /><span style={{ fontWeight: 'bold', color: 'var(--mm-text-muted)' }}><MathDisplay value={String(number)} inline /></span></button>)}
         <PublishFigureReading entry={{ kind: 'figure', label: 'Number line', text: description, say: descriptionSay }} />
-        <span id={descriptionId} aria-hidden="true" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>{description}</span>
+        <span id={descriptionId} aria-hidden="true" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }} lang={described.lang}>{described.text}</span>
       </div>
     </div>
   );

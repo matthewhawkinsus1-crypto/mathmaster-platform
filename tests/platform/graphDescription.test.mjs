@@ -209,9 +209,13 @@ test('the plane svg is described by the generated (or authored) summary paragrap
   const openTag = svg.slice(0, svg.indexOf('>\n'));
   assert.match(openTag, /role=\{interactive \? 'application' : 'img'\}/);
   assert.match(openTag, /aria-describedby=\{descriptionId\}/, 'both the img and the application plane carry the description');
-  const paragraph = planeCode.match(/<p id=\{descriptionId\}[^>]*>\{spokenDescription\}<\/p>/);
+  // The spoken description, in the reading's language under a translation
+  // where its messages say it all (AX05, slice 2: figureReadingSpanish.test.mjs).
+  assert.match(planeCode, /const described = describedIn\(figureWords, spokenDescription, spokenSay\);/);
+  const paragraph = planeCode.match(/<p id=\{descriptionId\}[^>]*>\{described\.text\}<\/p>/);
   assert.match(paragraph?.[0] || '', /style=\{SR_ONLY_STYLE\}/, 'hidden even where no UI kit CSS is loaded');
   assert.ok(paragraph, 'the described-by target holds the spoken description');
+  assert.match(paragraph[0], /lang=\{described\.lang\}/, 'marked with the language it is in');
   assert.match(paragraph[0], /className="mm-sr-only"/, 'visually hidden, not removed');
   // Kept out of browse mode (no second reading), except inside a card control
   // whose name it forms.

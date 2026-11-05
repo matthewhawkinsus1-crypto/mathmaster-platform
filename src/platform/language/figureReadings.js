@@ -31,8 +31,18 @@
  * the tool draws and only while it draws them: a cell the student fills in is
  * what they typed ({ entered }) or blank, never its answer, and a table that
  * would state an answer is not drawn — or published — before it may be shown.
+ *
+ * WHAT A SCREEN READER HEARS (AX05, slice 2). Each figure also keeps its
+ * description in the page, for a screen reader (aria-describedby). Under an
+ * authored Spanish translation the host passes the reading language's figure
+ * words (<FigureWordsProvider>); a figure then writes that description from
+ * the same messages in that language and marks it lang="es", so a screen
+ * reader speaks it in Spanish. One its messages cannot say completely (an
+ * author's description, a tool's own sentence) stays English and unmarked:
+ * the page is English.
  */
 import React, { createContext, useContext, useEffect, useId } from 'react';
+import { sayFigure } from './figureSay.js';
 
 const FigureReadingPortContext = createContext(null);
 
@@ -97,6 +107,26 @@ export function PublishFigureReading({ entry }) {
   usePublishFigureReading(entry);
   return null;
 }
+
+const FigureWordsContext = createContext(null);
+
+/** The host: the reading language's figure words (figureSay.js loadFigureWords), or none for English. */
+export function FigureWordsProvider({ pack = null, children }) {
+  return React.createElement(FigureWordsContext.Provider, { value: pack?.words ? pack : null }, children);
+}
+
+/** The figure words a figure here describes itself in: null outside a host, or in English. */
+export const useFigureWords = () => useContext(FigureWordsContext);
+
+/**
+ * A figure's own description as a screen reader gets it: { text, lang }. In
+ * the host's language, marked with it, when the figure's messages (`say`)
+ * can say it all there; otherwise its English, with no lang. Pure.
+ */
+export const describedIn = (pack, english, say) => {
+  const text = pack?.words && Array.isArray(say) ? clean(sayFigure(say, pack.words)) : '';
+  return text ? { text, lang: pack.language } : { text: english, lang: undefined };
+};
 
 /**
  * The host's state update: returns `published` itself when nothing changed,

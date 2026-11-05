@@ -19,7 +19,9 @@
  *           equations in Spanish words) and the graph workspace.
  *           In English, after "La descripción de esta figura está en inglés.":
  *           an author's description, and a tool's own sentence the pack does
- *           not know.
+ *           not know. Each figure's screen-reader description follows the same
+ *           rule: Spanish, marked lang="es", where its messages say it all;
+ *           English and unmarked otherwise (slice 2).
  *
  * The browser half: tests/browser/readAloudTranslate.mjs (the real DOL graph,
  * the 3D model and the graph workspace, with an authored Spanish prompt).
@@ -45,6 +47,7 @@ import { THREE_PLANE_WORDS, threePlaneModelReading } from '../../src/tools/syste
 import { GRAPH_WORKSPACE_WORDS, graphWorkspaceReading } from '../../src/platform/language/graphWorkspaceDescription.js';
 import { ROW_CHOOSER_WORDS } from '../../src/tools/shared/toolTableReading.js';
 import { englishOnly, loadFigureWords, say, sayFigure } from '../../src/platform/language/figureSay.js';
+import { describedIn } from '../../src/platform/language/figureReadings.js';
 import { questionReadingParts, questionReadingText } from '../../src/platform/language/questionReading.js';
 import { speechTextFor } from '../../src/platform/language/speechText.js';
 import esFigures from '../../src/platform/language/packs/esFigures.js';
@@ -471,6 +474,86 @@ test('the graph workspace is said in Spanish: the student\'s own work, and a giv
     assert.equal(entries[0].text, /data-graph-workspace-description=""[^>]*>([^<]*)</.exec(markup)?.[1], 'the reading is the workspace\'s own description');
     assert.ok(spanishOf(entries[0], { ...GRAPH_WORDS, ...NUMBER_LINE_WORDS, ...GRAPH_WORKSPACE_WORDS }, mode).includes(said), mode);
   });
+});
+
+/* ------------------------------------------------ what a screen reader hears */
+
+/*
+ * SCREEN-READER DESCRIPTIONS MARKED lang="es" (slice 2). Each figure keeps its
+ * description in the page for a screen reader (aria-describedby). Under an
+ * authored Spanish translation QuestionEngine hands the figures the Spanish
+ * words (FigureWordsProvider), and each writes that description from its own
+ * messages in Spanish and marks it lang="es". Where the messages cannot say it
+ * all (an author's description, a tool's own sentence) it stays English and
+ * unmarked: the page is English. Read aloud's entry is unchanged.
+ */
+const HTML_ENTITIES = { '&#x27;': "'", '&quot;': '"', '&amp;': '&', '&lt;': '<', '&gt;': '>' };
+const decode = (html) => html.replace(/&#x27;|&quot;|&amp;|&lt;|&gt;/g, (entity) => HTML_ENTITIES[entity]);
+// The description element a pattern finds ({ id, lang, text }), which must be
+// the one the figure's aria-describedby names.
+const descriptionIn = (markup, pattern, where) => {
+  const match = pattern.exec(markup);
+  assert.ok(match, `${where}: its description element is drawn`);
+  const [, id, attributes, text] = match;
+  const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  assert.match(markup, new RegExp(`aria-describedby="(?:[^"]* )?${escaped}(?: [^"]*)?"`), `${where}: it is what aria-describedby names`);
+  return { id, lang: /\blang="([^"]*)"/.exec(attributes)?.[1] ?? null, text: decode(text) };
+};
+
+test('describedIn: Spanish and its language where the messages say it all; else the English, with no language', () => {
+  const says = [say('window', '−6', '6', '−6', '6'), say('lineCount', 1)];
+  const english = 'x from −6 to 6, y from −6 to 6. 1 line.';
+  assert.deepEqual(describedIn(esFigures, english, says), { text: 'El eje x va de −6 a 6 y el eje y, de −6 a 6. 1 recta.', lang: 'es' });
+  assert.deepEqual(describedIn(null, english, says), { text: english, lang: undefined }, 'no words: English');
+  assert.deepEqual(describedIn(esFigures, english, null), { text: english, lang: undefined }, 'no messages (an author\'s description): English');
+  assert.deepEqual(describedIn(esFigures, `${english} Boundary line 1: solid.`, [...says, englishOnly('Boundary line 1: solid.')]), { text: `${english} Boundary line 1: solid.`, lang: undefined }, 'a sentence with no Spanish: all of it English');
+});
+
+test('each figure\'s screen-reader description is Spanish, marked lang="es", under a translation; English and unmarked otherwise', async () => {
+  const { FigureWordsProvider } = await capture.load('/src/platform/language/figureReadings.js');
+  const { default: GraphDisplay } = await capture.load('/src/GraphDisplay.jsx');
+  const { default: CoordinatePlane } = await capture.load('/src/tools/shared/CoordinatePlane.jsx');
+  const { default: NumberLine } = await capture.load('/src/NumberLine.jsx');
+  const { default: IntervalNumberLine } = await capture.load('/src/tools/intervalNumberLine/IntervalNumberLine.jsx');
+  const { default: ThreePlaneWorkspace } = await capture.load('/src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx');
+  const { default: InteractiveGraphWorkspace } = await capture.load('/src/InteractiveGraphWorkspace.jsx');
+  const lesson = JSON.parse(readFileSync(new URL('docs/assignments/Algebra_II_Honors_3x3_Systems_Day1_V5_FINAL.json', ROOT), 'utf8'));
+  const planes = normalizeContextualQuestion(generateQuestion(prepareQuestionForRuntimeRouting(compileAuthoringIntentV5(lesson).package.sections.flatMap((section) => section.questions).find((entry) => entry.questionId === '3x3-d1-cw-1'), {}), 0, null, null, null));
+  const figures = [
+    ['the question graph', React.createElement(GraphDisplay, { graph: { xMin: -5, xMax: 5, yMin: -5, yMax: 5, functions: [{ type: 'linear', m: 1, b: 0 }] }, title: 'Question graph', enlargeable: false }), /<p id="([^"]+)" data-graph-description=""([^>]*)>([^<]*)<\/p>/],
+    ['a tool plane', React.createElement(CoordinatePlane, { xMin: -1, xMax: 7, yMin: -20, yMax: 100, xAxisTitle: 'Hours studied', points: [{ x: 1, y: 60 }], lines: [{ m: 5, b: 55 }], enlargeable: false, ariaLabel: 'Coordinate plane' }), /<p id="(mm-plane-desc-[^"]+)"([^>]*)>([^<]*)<\/p>/],
+    ['the pick-a-point line', React.createElement(NumberLine, { question: { target: 5, choices: [-10, -5, 0, 5, 10] }, onStateChange: () => {}, feedback: null }), /<span id="([^"]+)" aria-hidden="true"([^>]*)>([^<]*)<\/span>/],
+    ['the interval number line', React.createElement(IntervalNumberLine, { questionData: { type: 'intervalNumberLine', toolId: 'intervalNumberLine', prompt: 'Graph x ≥ −3.', min: -8, max: 8, step: 1, variable: 'x', ask: ['graph'], intervals: [{ min: -3, max: Infinity, minClosed: true, maxClosed: false }] }, onAction: () => {} }), /<p id="([^"]+)" data-number-line-description=""([^>]*)>([^<]*)<\/p>/],
+    ['the 3D model', React.createElement(ThreePlaneWorkspace, { questionData: planes, onAction: () => {} }), /<span id="([^"]+)" class="mathmaster-threeplane-sr-only" data-threeplane-description=""([^>]*)>([^<]*)<\/span>/],
+    ['the graph workspace', React.createElement(InteractiveGraphWorkspace, { question: { type: 'graphAnalysis', prompt: 'Read the graph.', functionSpec: { type: 'linear', m: 2, b: 1 }, graph: { xMin: -4, xMax: 4, yMin: -6, yMax: 8 }, analysisRequests: [{ id: 'at-two', kind: 'value', label: 'f(2)', expected: 5 }] }, mode: 'analysis', onStateChange: () => {} }), /<span id="([^"]+)" data-graph-workspace-description=""([^>]*)>([^<]*)<\/span>/],
+  ];
+  figures.forEach(([where, figure, pattern]) => {
+    const english = capture.render(figure);
+    const spanish = capture.render(React.createElement(FigureWordsProvider, { pack: esFigures }, figure));
+    const plain = descriptionIn(english.markup, pattern, `${where} (English)`);
+    assert.equal(plain.lang, null, `${where}: English is not marked`);
+    assert.equal(plain.text, english.entries[0].text, `${where}: the English description is the one Read aloud reads`);
+    const described = descriptionIn(spanish.markup, pattern, `${where} (Spanish)`);
+    assert.equal(described.lang, 'es', `${where}: marked lang="es"`);
+    assert.equal(described.text, sayFigure(spanish.entries[0].say, esFigures.words), `${where}: the figure's own messages, in Spanish`);
+    sameNumbers(plain.text, described.text, where);
+    // Read aloud's entry is unchanged: its English and its messages.
+    assert.deepEqual(spanish.entries, english.entries, `${where}: Read aloud gets the same entry`);
+  });
+});
+
+test('a description the Spanish words cannot say all of stays English, with no lang', async () => {
+  const { FigureWordsProvider } = await capture.load('/src/platform/language/figureReadings.js');
+  const { default: GraphDisplay } = await capture.load('/src/GraphDisplay.jsx');
+  const { default: CoordinatePlane } = await capture.load('/src/tools/shared/CoordinatePlane.jsx');
+  const inSpanish = (figure) => capture.render(React.createElement(FigureWordsProvider, { pack: esFigures }, figure)).markup;
+  // An author's description: the item's own English words.
+  const authored = descriptionIn(inSpanish(React.createElement(GraphDisplay, { graph: { xMin: -5, xMax: 5, yMin: -5, yMax: 5, functions: [{ type: 'linear', m: 1, b: 0 }], accessibleDescription: 'A line through the origin.' }, title: 'Question graph', enlargeable: false })), /<p id="([^"]+)" data-graph-description=""([^>]*)>([^<]*)<\/p>/, 'authored');
+  assert.deepEqual([authored.lang, authored.text], [null, 'A line through the origin.']);
+  // A tool's own sentence the pack has no words for.
+  const tool = descriptionIn(inSpanish(React.createElement(CoordinatePlane, { xMin: -6, xMax: 6, yMin: -6, yMax: 6, enlargeable: false, ariaLabel: 'Coordinate plane', toolMarks: { kinds: 'Boundary line 1: solid.' } }, () => null)), /<p id="(mm-plane-desc-[^"]+)"([^>]*)>([^<]*)<\/p>/, 'tool');
+  assert.equal(tool.lang, null);
+  assert.match(tool.text, /^x from −6 to 6, y from −6 to 6\. Boundary line 1: solid\./);
 });
 
 /* ---------------------------------------------------- loaded only for Spanish */
